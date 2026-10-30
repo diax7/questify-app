@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { openMenu } from "#e2e/nav.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
 const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
@@ -48,7 +49,8 @@ test("an admin fills the bank, schedules a sponsored challenge and sees the warn
   // Nothing is scheduled, so the console home marks Content.
   await page.goto("/ar/console");
   await expect(page.getByTestId("content-badge")).toHaveText("يحتاج إلى انتباه");
-  await page.getByRole("link", { name: "المحتوى" }).click();
+  await openMenu(page);
+  await page.locator('a[href$="/console/content"]').click();
   await expect(page.getByRole("heading", { name: "المحتوى", level: 1 })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.getByTestId("daily-warning").first()).toContainText(

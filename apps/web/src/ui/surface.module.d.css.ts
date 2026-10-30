@@ -9,6 +9,7 @@ declare const styles: {
   readonly bullets: string;
   readonly card: string;
   readonly description: string;
+  readonly code: string;
   readonly dialog: string;
   readonly empty: string;
   readonly facts: string;
@@ -28,6 +29,7 @@ declare const styles: {
   readonly noticeWarning: string;
   readonly row: string;
   readonly rowMain: string;
+  readonly prose: string;
   readonly rows: string;
   readonly section: string;
   readonly sectionDanger: string;
@@ -38,8 +40,6 @@ declare const styles: {
   readonly stack: string;
   readonly subTitle: string;
   readonly tab: string;
-  readonly table: string;
-  readonly tableBox: string;
   readonly tabs: string;
   readonly title: string;
   readonly toolbar: string;

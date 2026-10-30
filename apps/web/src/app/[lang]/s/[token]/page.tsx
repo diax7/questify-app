@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { LANGUAGE_NAMES, isLanguage, otherLanguage, translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { isLanguage, translatorFor } from "#src/lib/language.ts";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card } from "#src/ui/Section.tsx";
+import { AppShell } from "#src/ui/Shell.tsx";
 
 type Props = Readonly<{ params: Promise<{ lang: string; token: string }> }>;
 
@@ -22,19 +25,13 @@ export default async function ScreenCodePage({ params }: Props) {
     notFound();
   }
   const t = translatorFor(lang);
-  const other = otherLanguage(lang);
   return (
-    <main className={styles.page}>
-      <a className={styles.link} href={`/${other}/s/${token}`} lang={other} hrefLang={other}>
-        {LANGUAGE_NAMES[other]}
-      </a>
-      <section className={styles.panel} aria-labelledby="screen-code-title">
-        <h1 id="screen-code-title" className={styles.title}>
-          {t("screen.landing.title")}
-        </h1>
+    <AppShell language={lang} path={`/s/${token}`} signedIn={false} title="Questify" narrow>
+      <Card as="section" aria-labelledby="screen-code-title">
+        <PageHeader titleId="screen-code-title" title={t("screen.landing.title")} />
         <p>{t("screen.landing")}</p>
-        <p className={styles.muted}>{t("scan.noApp")}</p>
-      </section>
-    </main>
+        <Muted>{t("scan.noApp")}</Muted>
+      </Card>
+    </AppShell>
   );
 }

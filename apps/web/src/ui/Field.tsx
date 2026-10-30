@@ -50,7 +50,7 @@ export function Field({
         {children}
       </FieldContext.Provider>
       <FieldNote id={`${id}-help`} className={styles.help} text={help} />
-      <FieldNote id={`${id}-error`} className={styles.error} text={error} />
+      <FieldNote id={`${id}-error`} className={styles.error} text={error} role="alert" />
     </div>
   );
 }
@@ -63,9 +63,10 @@ function FieldNote({
   id,
   className,
   text,
-}: Readonly<{ id: string; className: string; text: ReactNode }>) {
+  role,
+}: Readonly<{ id: string; className: string; text: ReactNode; role?: "alert" }>) {
   return present(text) ? (
-    <p id={id} className={className}>
+    <p id={id} className={className} role={role}>
       {text}
     </p>
   ) : null;
@@ -195,6 +196,12 @@ export function Form({
   className,
   ...props
 }: FormHTMLAttributes<HTMLFormElement> & Readonly<{ card?: boolean }>) {
-  return <form {...props} className={join(styles.group, card && styles.formCard, className)} />;
+  return (
+    <form
+      {...props}
+      {...(card ? { "data-card": "" } : {})}
+      className={join(styles.group, card && styles.formCard, className)}
+    />
+  );
 }
 export const codeInputClass: string = styles.codeInput;

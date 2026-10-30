@@ -23,7 +23,7 @@ import { Dialog } from "#src/ui/Dialog.tsx";
 import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, Form, Input } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
-import { Card, CardList, Facts, Stack, Toolbar } from "#src/ui/Section.tsx";
+import { Card, CardList, FactList, Stack, Toolbar } from "#src/ui/Section.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
 
 type Status = "pending" | "active" | "left" | "removed" | "banned" | "declined";
@@ -153,7 +153,7 @@ function PlayerRow({
         {player.redeemPaused === true ? <Badge>{t("players.redeemPaused")}</Badge> : null}
       </Toolbar>
       {(player.answers ?? []).length === 0 ? null : (
-        <Facts label={t("players.answers")}>
+        <FactList label={t("players.answers")}>
           {(player.answers ?? []).map((answer) => (
             <Fragment key={answer.fieldId}>
               <dt>{joinFieldLabel(answer, language)}:</dt>
@@ -164,21 +164,23 @@ function PlayerRow({
               </dd>
             </Fragment>
           ))}
-        </Facts>
+        </FactList>
       )}
-      {canBan && player.status !== "removed" ? (
-        <Button variant="quiet" onClick={(clicked) => ask(player, clicked.currentTarget)}>
-          {t(player.status === "banned" ? "players.unban" : "players.ban")}
+      <Toolbar>
+        {canBan && player.status !== "removed" ? (
+          <Button variant="quiet" onClick={(clicked) => ask(player, clicked.currentTarget)}>
+            {t(player.status === "banned" ? "players.unban" : "players.ban")}
+          </Button>
+        ) : null}
+        {canBan ? (
+          <Button variant="quiet" onClick={(clicked) => askPause(player, clicked.currentTarget)}>
+            {t(player.redeemPaused === true ? "flags.resume" : "flags.pause")}
+          </Button>
+        ) : null}
+        <Button variant="quiet" aria-expanded={open} onClick={toggle}>
+          {t(open ? "awards.hideRecord" : "awards.record")}
         </Button>
-      ) : null}
-      {canBan ? (
-        <Button variant="quiet" onClick={(clicked) => askPause(player, clicked.currentTarget)}>
-          {t(player.redeemPaused === true ? "flags.resume" : "flags.pause")}
-        </Button>
-      ) : null}
-      <Button variant="quiet" aria-expanded={open} onClick={toggle}>
-        {t(open ? "awards.hideRecord" : "awards.record")}
-      </Button>
+      </Toolbar>
       {open ? children : null}
     </Card>
   );

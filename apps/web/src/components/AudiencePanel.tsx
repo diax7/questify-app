@@ -21,7 +21,7 @@ import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Radio, Select } from "#src/ui/Field.tsx";
-import { Card, CardList, Section, SubHeading, Toolbar } from "#src/ui/Section.tsx";
+import { Card, CardList, Row, Section, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -158,30 +158,37 @@ function ItemRow({
   const name = nameIn(item.name, language);
   return (
     <Card as="li">
-      <Toolbar>
-        <strong>
-          <bdi>{name}</bdi>
-        </strong>
-        {item.removed ? <Badge>{t("audience.removed")}</Badge> : null}
-      </Toolbar>
-      <Muted>
-        {words === null
-          ? t("audience.everyone")
-          : t(words.field === null ? "audience.byTag" : "audience.byAnswer", {
-              field: words.field ?? "",
-              values: words.values,
-            })}
-        {item.members === null
-          ? null
-          : ` · ${t("audience.members", { count: formatNumber(item.members, language) })}`}
-      </Muted>
-      {editing ? (
-        children
-      ) : (
-        <Button variant="quiet" aria-label={`${t("audience.change")} ${name}`} onClick={edit}>
-          {t("audience.change")}
-        </Button>
-      )}
+      <Row
+        as="div"
+        main={
+          <>
+            <Toolbar>
+              <strong>
+                <bdi>{name}</bdi>
+              </strong>
+              {item.removed ? <Badge>{t("audience.removed")}</Badge> : null}
+            </Toolbar>
+            <Muted>
+              {words === null
+                ? t("audience.everyone")
+                : t(words.field === null ? "audience.byTag" : "audience.byAnswer", {
+                    field: words.field ?? "",
+                    values: words.values,
+                  })}
+              {item.members === null
+                ? null
+                : ` · ${t("audience.members", { count: formatNumber(item.members, language) })}`}
+            </Muted>
+          </>
+        }
+      >
+        {editing ? null : (
+          <Button variant="quiet" aria-label={`${t("audience.change")} ${name}`} onClick={edit}>
+            {t("audience.change")}
+          </Button>
+        )}
+      </Row>
+      {editing ? children : null}
     </Card>
   );
 }

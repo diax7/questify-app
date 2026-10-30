@@ -111,7 +111,7 @@ test("the Flags page words a far-from-venue case and an impossible-speed case", 
   expect(seeded.status()).toBe(204);
 
   await page.goto(page.url().replace(/\/quests$/, "/flags"));
-  await expect(page.getByRole("heading", { name: "نشاط مريب", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "نشاط مريب", level: 1 })).toBeVisible();
 
   const far = page
     .getByRole("listitem")

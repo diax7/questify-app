@@ -23,5 +23,6 @@ declare const styles: {
   readonly small: string;
   readonly switch: string;
   readonly textarea: string;
+  readonly wide: string;
 };
 export default styles;

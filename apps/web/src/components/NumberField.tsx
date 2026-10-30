@@ -8,6 +8,8 @@ export function NumberField({
   label,
   value,
   invalid,
+  help,
+  error,
   change,
   decimal = false,
   disabled = false,
@@ -15,12 +17,15 @@ export function NumberField({
   label: string;
   value: number | string;
   invalid: boolean;
+  /** A line under the field saying what it takes; the error replaces it while the value is wrong. */
+  help?: string;
+  error?: string;
   change: (text: string) => void;
   decimal?: boolean;
   disabled?: boolean;
 }>) {
   return (
-    <Field label={label}>
+    <Field label={label} help={invalid ? undefined : help} error={invalid ? error : undefined}>
       <Input
         type="number"
         inputMode={decimal ? "decimal" : "numeric"}

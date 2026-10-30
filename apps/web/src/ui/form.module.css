@@ -156,7 +156,7 @@ form.group > fieldset.group + fieldset.group {
 
 .choiceGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
   column-gap: var(--space-lg);
 }
 
@@ -201,6 +201,8 @@ form.group > fieldset.group + fieldset.group {
 
 /* Buttons. */
 .button {
+  /* A button keeps its label on one line while the row has room for it, so it never wraps word by word. */
+  min-inline-size: min(100%, max-content);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -253,6 +255,11 @@ form.group > fieldset.group + fieldset.group {
   text-underline-offset: 3px;
 }
 
+/* A quiet action starts under the text above it, not 8px in: its padding is only the hover chip. */
+.quiet {
+  margin-inline-start: calc(-1 * var(--space-sm));
+}
+
 .quiet:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-border) 50%, transparent);
 }
@@ -265,6 +272,13 @@ form.group > fieldset.group + fieldset.group {
 
 .danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-hot) 25%, var(--color-danger-surface));
+}
+
+.wide {
+  inline-size: 100%;
+  justify-content: space-between;
+  gap: var(--space-md);
+  text-align: start;
 }
 
 .small {

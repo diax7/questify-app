@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { openMenu } from "#e2e/nav.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
 const API = "http://127.0.0.1:4100";
@@ -60,6 +61,7 @@ test("an escalated ticket reaches the console, Questify answers, the dashboard s
     204,
   );
   await page.goto("/ar/console");
+  await openMenu(page);
   await page.getByRole("link", { name: /^التذاكر/ }).click();
   await expect(page.getByRole("heading", { name: "التذاكر", level: 1 })).toBeVisible();
   const row = page.getByTestId("console-ticket").filter({ hasText: "أين أستلم جائزتي؟" });

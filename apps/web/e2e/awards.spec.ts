@@ -50,7 +50,7 @@ test("the owner awards, removes and bulk-awards points", async ({ page, request 
   await expect(page.getByRole("button", { name: "إزالة", exact: true })).toHaveCount(0);
 
   await page.goto(page.url().replace(/\/players$/, "/awards"));
-  await expect(page.getByRole("heading", { name: "المنح اليدوي", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "المنح اليدوي", level: 1 })).toBeVisible();
   await page.getByLabel("الحد للمنح الواحد").fill("100");
   await page.getByLabel("الحد اليومي لكل شخص").fill("50");
   await page.getByRole("button", { name: "حفظ الحدود" }).click();

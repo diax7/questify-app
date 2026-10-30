@@ -6,7 +6,11 @@ import { INVITATIONS_API, isOpen, readQueue, waitingCount } from "#src/lib/conso
 import { invitationProblemText, riyadhTime } from "#src/lib/invitations.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
-import styles from "#src/components/layout.module.css";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { NavItem } from "#src/ui/Nav.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Stack, SubHeading } from "#src/ui/Section.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 type Queue =
   | Readonly<{ kind: "loading" }>
@@ -44,28 +48,28 @@ function Row({
   const t = translatorFor(language);
   const started = campaign.startedAt !== null;
   return (
-    <li className={styles.card} data-testid="queue-row" data-state={campaign.state}>
-      <span className={styles.stack}>
-        <a className={styles.textLink} href={`/${language}/console/invitations/${campaign.id}`}>
+    <Card as="li" data-testid="queue-row" data-state={campaign.state}>
+      <>
+        <TextLink href={`/${language}/console/invitations/${campaign.id}`}>
           <bdi dir="auto">{nameIn(campaign.event.name, language)}</bdi>
-        </a>
-        <span className={styles.muted}>
+        </TextLink>
+        <Muted as="span">
           <bdi dir="auto">{campaign.organizer.name}</bdi> ·{" "}
           {t("console.invCampaign.requestedAt", {
             time: riyadhTime(campaign.requestedAt, language),
           })}
-        </span>
+        </Muted>
         {started ? (
-          <span className={styles.muted}>
+          <Muted as="span">
             {t("console.invCampaign.progress", {
               sent: campaign.counts.sent + campaign.counts.unknown,
               planned: campaign.counts.planned,
             })}
-          </span>
+          </Muted>
         ) : null}
-      </span>
-      <span className={styles.badge}>{t(`invCampaign.state.${campaign.state}`)}</span>
-    </li>
+      </>
+      <Badge>{t(`invCampaign.state.${campaign.state}`)}</Badge>
+    </Card>
   );
 }
 
@@ -81,15 +85,15 @@ function Group({
   const t = translatorFor(language);
   return (
     <>
-      <h2 className={styles.subtitle}>{title}</h2>
+      <SubHeading as="h2">{title}</SubHeading>
       {campaigns.length === 0 ? (
-        <p className={styles.muted}>{t("console.invCampaign.empty")}</p>
+        <Muted>{t("console.invCampaign.empty")}</Muted>
       ) : (
-        <ul className={styles.list}>
+        <CardList>
           {campaigns.map((campaign) => (
             <Row key={campaign.id} language={language} campaign={campaign} />
           ))}
-        </ul>
+        </CardList>
       )}
     </>
   );
@@ -100,20 +104,14 @@ export function ConsoleInvitations({ language }: Readonly<{ language: Language }
   const t = translatorFor(language);
   const queue = useQueue(language);
   return (
-    <section className={styles.stack} aria-labelledby="console-invitations-title">
-      <h1 id="console-invitations-title" className={styles.title}>
-        {t("console.invCampaign.title")}
-      </h1>
-      <p className={styles.muted}>{t("console.invCampaign.intro")}</p>
-      {queue.kind === "loading" ? (
-        <p role="status" className={styles.muted}>
-          {t("common.loading")}
-        </p>
-      ) : null}
+    <Stack as="section" aria-labelledby="console-invitations-title">
+      <PageHeader titleId="console-invitations-title" title={t("console.invCampaign.title")} />
+      <Muted>{t("console.invCampaign.intro")}</Muted>
+      {queue.kind === "loading" ? <Muted role="status">{t("common.loading")}</Muted> : null}
       {queue.kind === "failed" ? (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {queue.text}
-        </p>
+        </Notice>
       ) : null}
       {queue.kind === "ready" ? (
         <>
@@ -129,33 +127,37 @@ export function ConsoleInvitations({ language }: Readonly<{ language: Language }
           />
         </>
       ) : null}
-    </section>
+    </Stack>
   );
 }
 
-/** The console home's link to the queue, with the number of requests waiting for a decision once it is read. */
-export function ConsoleInvitationsLink({ language }: Readonly<{ language: Language }>) {
+/** This page's item in the console's navigation, with the number of requests waiting. */
+export function ConsoleInvitationsLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
   const t = translatorFor(language);
   const [waiting, setWaiting] = useState(0);
   useEffect(() => {
-    let current = true;
+    if (current) {
+      return;
+    }
+    let alive = true;
     void requestJson("GET", INVITATIONS_API).then((result) => {
       const campaigns = result.ok ? readQueue(result.body) : undefined;
-      if (current && campaigns !== undefined) {
+      if (alive && campaigns !== undefined) {
         setWaiting(waitingCount(campaigns));
       }
     });
     return () => {
-      current = false;
+      alive = false;
     };
-  }, []);
+  }, [current]);
   return (
-    <p>
-      <a className={styles.textLink} href={`/${language}/console/invitations`}>
-        {waiting === 0
-          ? t("console.invCampaign.title")
-          : t("console.invCampaign.linkCount", { count: waiting })}
-      </a>
-    </p>
+    <NavItem href={`/${language}/console/invitations`} current={current}>
+      {waiting === 0
+        ? t("console.invCampaign.title")
+        : t("console.invCampaign.linkCount", { count: waiting })}
+    </NavItem>
   );
 }

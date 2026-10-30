@@ -6,7 +6,11 @@ import { deletionTokenOf, pendingOf, textIn, type PendingPrize } from "#src/lib/
 import { translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Form, Input, Radio } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { BulletList, Card, Section, Stack, SubHeading } from "#src/ui/Section.tsx";
 
 type Step =
   | Readonly<{ step: "contact" }>
@@ -30,26 +34,22 @@ function ContactStep({ language, busy, submit }: StepProps<"contact">) {
     void submit("/v1/deletion/code", { channel, value: toWesternDigits(value), lang: language });
   };
   return (
-    <form className={styles.form} onSubmit={send}>
-      <p className={styles.muted}>{t("deletion.contactHint")}</p>
-      <fieldset className={styles.row}>
+    <Form onSubmit={send}>
+      <Muted>{t("deletion.contactHint")}</Muted>
+      <FieldGroup layout="choiceGrid">
         {(["phone", "email"] as const).map((option) => (
-          <label key={option} className={styles.check}>
-            <input
-              type="radio"
-              name="channel"
-              checked={channel === option}
-              onChange={() => setChannel(option)}
-              disabled={busy}
-            />
-            <span>{t(option === "phone" ? "signIn.phone" : "signIn.email")}</span>
-          </label>
+          <Radio
+            key={option}
+            name="channel"
+            checked={channel === option}
+            onChange={() => setChannel(option)}
+            disabled={busy}
+            label={t(option === "phone" ? "signIn.phone" : "signIn.email")}
+          />
         ))}
-      </fieldset>
-      <label className={styles.field}>
-        <span>{t(channel === "phone" ? "signIn.phone" : "signIn.email")}</span>
-        <input
-          className={styles.input}
+      </FieldGroup>
+      <Field label={t(channel === "phone" ? "signIn.phone" : "signIn.email")}>
+        <Input
           name="value"
           type={channel === "phone" ? "tel" : "email"}
           dir="ltr"
@@ -57,11 +57,11 @@ function ContactStep({ language, busy, submit }: StepProps<"contact">) {
           required
           disabled={busy}
         />
-      </label>
-      <button type="submit" className={styles.button} disabled={busy} aria-busy={busy}>
+      </Field>
+      <Button variant="primary" type="submit" disabled={busy} aria-busy={busy}>
         {t("deletion.sendCode")}
-      </button>
-    </form>
+      </Button>
+    </Form>
   );
 }
 
@@ -76,15 +76,13 @@ function CodeStep({ language, state, busy, submit }: StepProps<"code">) {
     });
   };
   return (
-    <form className={styles.form} onSubmit={send}>
-      <p role="status" className={styles.notice}>
+    <Form onSubmit={send}>
+      <Notice tone="info" role="status">
         {t("deletion.codeSentMaybe")}
-      </p>
-      <p className={styles.muted}>{t("deletion.codeHint")}</p>
-      <label className={styles.field}>
-        <span>{t("signIn.code")}</span>
-        <input
-          className={styles.input}
+      </Notice>
+      <Muted>{t("deletion.codeHint")}</Muted>
+      <Field label={t("signIn.code")}>
+        <Input
           name="code"
           inputMode="numeric"
           dir="ltr"
@@ -93,11 +91,11 @@ function CodeStep({ language, state, busy, submit }: StepProps<"code">) {
           required
           disabled={busy}
         />
-      </label>
-      <button type="submit" className={styles.button} disabled={busy} aria-busy={busy}>
+      </Field>
+      <Button variant="primary" type="submit" disabled={busy} aria-busy={busy}>
         {t("signIn.verify")}
-      </button>
-    </form>
+      </Button>
+    </Form>
   );
 }
 
@@ -106,36 +104,32 @@ function ConfirmStep({ language, state, busy, submit }: StepProps<"confirm">) {
   const [forfeit, setForfeit] = useState(false);
   const blocked = state.pending.length > 0 && !forfeit;
   return (
-    <div className={styles.form}>
+    <FieldGroup>
       {state.pending.length === 0 ? null : (
-        <section aria-labelledby="pending-title" className={styles.card}>
-          <h2 id="pending-title" className={styles.subtitle}>
+        <Card as="section" aria-labelledby="pending-title">
+          <SubHeading as="h2" id="pending-title">
             {t("deletion.pendingTitle")}
-          </h2>
-          <ul className={styles.list}>
+          </SubHeading>
+          <BulletList>
             {state.pending.map((prize) => (
               <li key={prize.redemptionId} dir="auto">
                 {`${textIn(prize.item, language)} · ${textIn(prize.event, language)}`}
                 {prize.rankPrize ? ` · ${t("deletion.rankPrize")}` : ""}
               </li>
             ))}
-          </ul>
-          <p className={styles.muted}>{t("deletion.pendingBody")}</p>
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={forfeit}
-              onChange={(ticked) => setForfeit(ticked.target.checked)}
-              disabled={busy}
-            />
-            <span>{t("deletion.forfeit")}</span>
-          </label>
-        </section>
+          </BulletList>
+          <Muted>{t("deletion.pendingBody")}</Muted>
+          <Checkbox
+            checked={forfeit}
+            onChange={(ticked) => setForfeit(ticked.target.checked)}
+            disabled={busy}
+            label={t("deletion.forfeit")}
+          />
+        </Card>
       )}
-      <h2 className={styles.subtitle}>{t("deletion.confirmTitle")}</h2>
-      <button
-        type="button"
-        className={styles.button}
+      <SubHeading as="h2">{t("deletion.confirmTitle")}</SubHeading>
+      <Button
+        variant="primary"
         disabled={busy || blocked}
         aria-busy={busy}
         onClick={() =>
@@ -143,8 +137,8 @@ function ConfirmStep({ language, state, busy, submit }: StepProps<"confirm">) {
         }
       >
         {t("deletion.confirm")}
-      </button>
-    </div>
+      </Button>
+    </FieldGroup>
   );
 }
 
@@ -198,29 +192,36 @@ export function DeleteAccountForm({ language }: Readonly<{ language: Language }>
 
   const props = { language, busy, submit };
   return (
-    <section className={styles.panel} aria-labelledby="deletion-title">
-      <h1 id="deletion-title" className={styles.title}>
-        {t("deletion.title")}
-      </h1>
-      <p>{t("deletion.webIntro")}</p>
+    <Stack as="section" aria-labelledby="deletion-title">
+      <PageHeader
+        titleId="deletion-title"
+        title={t("deletion.title")}
+        description={t("deletion.webIntro")}
+      />
       <p>{t("deletion.intro")}</p>
-      <h2 className={styles.subtitle}>{t("deletion.removedTitle")}</h2>
-      <p>{t("deletion.removed")}</p>
-      <h2 className={styles.subtitle}>{t("deletion.keptTitle")}</h2>
-      <p>{t("deletion.kept")}</p>
+      <Section title={t("deletion.removedTitle")}>
+        <p>{t("deletion.removed")}</p>
+      </Section>
+      <Section title={t("deletion.keptTitle")}>
+        <p>{t("deletion.kept")}</p>
+      </Section>
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
-      {state.step === "contact" ? <ContactStep {...props} state={state} /> : null}
-      {state.step === "code" ? <CodeStep {...props} state={state} /> : null}
-      {state.step === "confirm" ? <ConfirmStep {...props} state={state} /> : null}
+      {state.step === "done" ? null : (
+        <Card>
+          {state.step === "contact" ? <ContactStep {...props} state={state} /> : null}
+          {state.step === "code" ? <CodeStep {...props} state={state} /> : null}
+          {state.step === "confirm" ? <ConfirmStep {...props} state={state} /> : null}
+        </Card>
+      )}
       {state.step === "done" ? (
-        <p role="status" className={styles.notice}>
+        <Notice tone="info" role="status">
           {t("deletion.done")}
-        </p>
+        </Notice>
       ) : null}
-    </section>
+    </Stack>
   );
 }

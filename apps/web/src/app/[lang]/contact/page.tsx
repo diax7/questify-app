@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
-import { TopBar } from "#src/components/TopBar.tsx";
 import { isLanguage, translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card } from "#src/ui/Section.tsx";
+import { AppShell } from "#src/ui/Shell.tsx";
 
 type Props = Readonly<{ params: Promise<{ lang: string }> }>;
 
@@ -16,14 +17,11 @@ export default async function ContactPage({ params }: Props) {
   }
   const t = translatorFor(lang);
   return (
-    <>
-      <TopBar language={lang} path="/contact" />
-      <main className={styles.page}>
-        <article className={styles.panel}>
-          <h1 className={styles.title}>{t("contact.title")}</h1>
-          <p>{t("contact.pending")}</p>
-        </article>
-      </main>
-    </>
+    <AppShell language={lang} path="/contact" signedIn={false} narrow>
+      <Card as="article">
+        <PageHeader title={t("contact.title")} />
+        <p>{t("contact.pending")}</p>
+      </Card>
+    </AppShell>
   );
 }

@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { OpenInApp, OtherLanguageLink } from "#src/components/OpenInApp.tsx";
 import { webConfig } from "#src/lib/config.ts";
 import { isLanguage, translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card } from "#src/ui/Section.tsx";
+import { AppShell } from "#src/ui/Shell.tsx";
 
 type Props = Readonly<{ params: Promise<{ lang: string }> }>;
 
@@ -26,15 +28,13 @@ export default async function OperatorInvitePage({ params }: Props) {
   const t = translatorFor(lang);
   const { appStoreUrl, playStoreUrl } = webConfig();
   return (
-    <main className={styles.page}>
+    <AppShell language={lang} path={null} signedIn={false} title="Questify" narrow>
       <OtherLanguageLink language={lang} />
-      <section className={styles.panel} aria-labelledby="op-title">
-        <h1 id="op-title" className={styles.title}>
-          {t("invitePage.title")}
-        </h1>
+      <Card as="section" aria-labelledby="op-title">
+        <PageHeader titleId="op-title" title={t("invitePage.title")} />
         <p>{t("invitePage.body")}</p>
         <OpenInApp language={lang} appStoreUrl={appStoreUrl} playStoreUrl={playStoreUrl} />
-      </section>
-    </main>
+      </Card>
+    </AppShell>
   );
 }

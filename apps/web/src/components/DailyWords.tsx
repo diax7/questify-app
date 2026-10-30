@@ -13,7 +13,10 @@ import { LANGUAGE_NAME_KEY, formatPeriod, hasStarted } from "#src/lib/console-da
 import { wordBodyOf } from "#src/lib/console-daily-forms.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import type { DailyConsoleState } from "#src/lib/use-daily-console.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input } from "#src/ui/Field.tsx";
+import { Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 type Period = DailyConsole["periods"][number];
 type Editing = Readonly<{ startsOn: string; language: DailyLanguage; text: string }>;
@@ -37,11 +40,9 @@ function WordForm({
 }>) {
   const t = translatorFor(language);
   return (
-    <form className={styles.form} onSubmit={submit}>
-      <label className={styles.field}>
-        {t("console.daily.wordField", { language: t(LANGUAGE_NAME_KEY[wordLanguage]) })}
-        <input
-          className={styles.input}
+    <Form onSubmit={submit}>
+      <Field label={t("console.daily.wordField", { language: t(LANGUAGE_NAME_KEY[wordLanguage]) })}>
+        <Input
           dir={wordLanguage === "ar" ? "rtl" : "ltr"}
           lang={wordLanguage}
           maxLength={40}
@@ -49,16 +50,16 @@ function WordForm({
           disabled={busy}
           onChange={(event) => change(event.target.value)}
         />
-      </label>
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
+      </Field>
+      <Toolbar>
+        <Button variant="quiet" disabled={busy} onClick={cancel}>
           {t("common.cancel")}
-        </button>
-        <button type="submit" className={styles.button} disabled={busy}>
+        </Button>
+        <Button variant="primary" type="submit" disabled={busy}>
           {t("console.daily.saveWord")}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Toolbar>
+    </Form>
   );
 }
 
@@ -87,21 +88,16 @@ function WordActions({
 }>) {
   const t = translatorFor(language);
   return (
-    <div className={styles.actions}>
-      <button
-        type="button"
-        className={styles.quiet}
-        disabled={busy}
-        onClick={() => edit(word ?? "")}
-      >
+    <Toolbar>
+      <Button variant="quiet" disabled={busy} onClick={() => edit(word ?? "")}>
         {t(word === null ? "console.daily.setWord" : "console.daily.edit")}
-      </button>
+      </Button>
       {word === null ? null : (
-        <button type="button" className={styles.quiet} disabled={busy} onClick={clear}>
+        <Button variant="quiet" disabled={busy} onClick={clear}>
           {t("console.daily.remove")}
-        </button>
+        </Button>
       )}
-    </div>
+    </Toolbar>
   );
 }
 
@@ -115,20 +111,20 @@ function WordText({
   const t = translatorFor(language);
   return (
     <>
-      <p className={styles.row}>
+      <Toolbar>
         <span>{t(LANGUAGE_NAME_KEY[wordLanguage])}</span>
         {word === null ? (
-          <span className={styles.muted}>{t("console.daily.noWord")}</span>
+          <Muted as="span">{t("console.daily.noWord")}</Muted>
         ) : (
           <strong dir={wordLanguage === "ar" ? "rtl" : "ltr"} lang={wordLanguage}>
             {word.word}
           </strong>
         )}
-      </p>
+      </Toolbar>
       {word === null || word.finishes === 0 ? null : (
-        <p className={styles.muted}>
+        <Muted>
           {t("console.daily.finishes", { count: formatNumber(word.finishes, language) })}
-        </p>
+        </Muted>
       )}
     </>
   );
@@ -184,10 +180,10 @@ export function DailyWords({
     }
   };
   return (
-    <section aria-labelledby="daily-words" className={styles.stack}>
-      <h2 id="daily-words" className={styles.subtitle}>
+    <Stack as="section" aria-labelledby="daily-words">
+      <SubHeading as="h2" id="daily-words">
         {t("console.daily.words")}
-      </h2>
+      </SubHeading>
       {removing === null ? null : (
         <RemoveDialog
           language={language}
@@ -197,17 +193,15 @@ export function DailyWords({
           close={() => setRemoving(null)}
         />
       )}
-      <ul className={styles.list}>
+      <CardList>
         {periods.map((period) => {
           const started = hasStarted(period.startsOn, state.today);
           return (
-            <li key={period.startsOn} className={styles.formCard} data-testid="daily-word-period">
-              <p className={styles.row}>
+            <Card as="li" key={period.startsOn} data-testid="daily-word-period">
+              <Toolbar>
                 <strong>{formatPeriod(period.startsOn, period.endsOn, language)}</strong>
-                {started ? (
-                  <span className={styles.badge}>{t("console.daily.started")}</span>
-                ) : null}
-              </p>
+                {started ? <Badge>{t("console.daily.started")}</Badge> : null}
+              </Toolbar>
               {DAILY_LANGUAGES.map((wordLanguage) =>
                 editing?.startsOn === period.startsOn && editing.language === wordLanguage ? (
                   <WordForm
@@ -235,10 +229,10 @@ export function DailyWords({
                   />
                 ),
               )}
-            </li>
+            </Card>
           );
         })}
-      </ul>
-    </section>
+      </CardList>
+    </Stack>
   );
 }

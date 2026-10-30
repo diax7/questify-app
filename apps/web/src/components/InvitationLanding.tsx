@@ -10,7 +10,10 @@ import {
 } from "#src/lib/invitation-landing.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
-import styles from "#src/components/layout.module.css";
+import { ButtonLink } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Stack } from "#src/ui/Section.tsx";
 
 const NOTES = {
   missing: "invCampaignPage.missing",
@@ -29,15 +32,16 @@ function EventCard({
   const venue = textIn(event.venue, language);
   return (
     <>
-      <p className={styles.notice}>{t("invCampaignPage.lead")}</p>
-      <h1 id="invitation-title" className={styles.title} dir="auto" data-testid="invitation-event">
-        {name}
-      </h1>
-      {venue === "" ? null : (
-        <p className={styles.muted} dir="auto">
-          {venue}
-        </p>
-      )}
+      <Notice tone="info">{t("invCampaignPage.lead")}</Notice>
+      <PageHeader
+        titleId="invitation-title"
+        title={
+          <span dir="auto" data-testid="invitation-event">
+            {name}
+          </span>
+        }
+      />
+      {venue === "" ? null : <Muted dir="auto">{venue}</Muted>}
       {event.startsAt === null ? null : (
         <p>
           {t("eventPage.starts")}:{" "}
@@ -49,10 +53,10 @@ function EventCard({
           {t("eventPage.ends")}: {formatEventTime(new Date(event.endsAt), event.timezone, language)}
         </p>
       )}
-      <a className={styles.button} href={joinPath(language, event.joinCode)}>
+      <ButtonLink variant="primary" href={joinPath(language, event.joinCode)}>
         {t("invCampaignPage.open")}
-      </a>
-      <p className={styles.muted}>{t("invCampaignPage.openHint")}</p>
+      </ButtonLink>
+      <Muted>{t("invCampaignPage.openHint")}</Muted>
     </>
   );
 }
@@ -85,25 +89,21 @@ export function InvitationLanding({ language }: Readonly<{ language: Language }>
   }, []);
 
   return (
-    <section className={styles.panel} aria-labelledby="invitation-title">
+    <Stack as="section" aria-labelledby="invitation-title">
       {state.kind === "found" ? (
         <EventCard language={language} event={state.event} />
       ) : (
         <>
-          <h1 id="invitation-title" className={styles.title}>
-            {t("invCampaignPage.title")}
-          </h1>
+          <PageHeader titleId="invitation-title" title={t("invCampaignPage.title")} />
           {state.kind === "reading" ? (
-            <p role="status" className={styles.muted}>
-              {t("common.loading")}
-            </p>
+            <Muted role="status">{t("common.loading")}</Muted>
           ) : (
-            <p role="alert" className={styles.alert}>
+            <Notice tone="danger" role="alert">
               {t(NOTES[state.kind])}
-            </p>
+            </Notice>
           )}
         </>
       )}
-    </section>
+    </Stack>
   );
 }

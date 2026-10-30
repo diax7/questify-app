@@ -146,28 +146,51 @@ export function OperatorsPanel({ language, organizerId, eventId, myRole }: Props
           {notice}
         </Notice>
       )}
-      <Section title={t("operators.listTitle")}>
-        {operators === null ? (
-          <Muted>{t("common.loading")}</Muted>
-        ) : operators.length === 0 ? (
-          <EmptyState>{t("operators.none")}</EmptyState>
-        ) : (
-          <CardList>
-            {operators.map((operator) => (
-              <OperatorRow
-                key={operator.id}
-                {...shared}
-                operator={operator}
-                stations={stations}
-                canEdit={myRole === "owner"}
-              />
-            ))}
-          </CardList>
-        )}
-      </Section>
+      <OperatorsSection
+        {...shared}
+        operators={operators}
+        stations={stations}
+        canEdit={myRole === "owner"}
+      />
       <InvitesList {...shared} invites={invites} canEdit={myRole === "owner"} />
       {myRole === "owner" ? <PrintSheet language={language} invites={printable(invites)} /> : null}
     </Stack>
+  );
+}
+
+/** The operators who joined, each with what they may do. */
+function OperatorsSection({
+  operators,
+  stations,
+  canEdit,
+  ...shared
+}: Shared &
+  Readonly<{
+    operators: readonly OperatorView[] | null;
+    stations: readonly Station[];
+    canEdit: boolean;
+  }>) {
+  const t = useTranslator(shared.language);
+  return (
+    <Section title={t("operators.listTitle")}>
+      {operators === null ? (
+        <Muted>{t("common.loading")}</Muted>
+      ) : operators.length === 0 ? (
+        <EmptyState>{t("operators.none")}</EmptyState>
+      ) : (
+        <CardList>
+          {operators.map((operator) => (
+            <OperatorRow
+              key={operator.id}
+              {...shared}
+              operator={operator}
+              stations={stations}
+              canEdit={canEdit}
+            />
+          ))}
+        </CardList>
+      )}
+    </Section>
   );
 }
 

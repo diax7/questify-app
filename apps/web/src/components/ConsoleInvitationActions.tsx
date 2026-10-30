@@ -17,7 +17,10 @@ import {
 } from "#src/lib/console-invitations.ts";
 import { riyadhTime } from "#src/lib/invitations.ts";
 import { translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Form, Input, Textarea } from "#src/ui/Field.tsx";
+import { Card, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 type FormProps = Readonly<{
   language: Language;
@@ -47,21 +50,18 @@ type ChannelProps = Readonly<{
 function ChannelChoices({ language, available, draft, busy, change }: ChannelProps) {
   const t = translatorFor(language);
   return (
-    <fieldset className={styles.choices}>
-      <legend>{t("console.invCampaign.field.channels")}</legend>
+    <FieldGroup legend={t("console.invCampaign.field.channels")} layout="choices">
       {(["push", "sms"] as const).map((channel) => (
-        <label key={channel} className={styles.check}>
-          <input
-            type="checkbox"
-            checked={draft[channel]}
-            disabled={busy || !available.includes(channel)}
-            onChange={(changed) => change({ [channel]: changed.target.checked })}
-          />
-          <span>{t(`console.invCampaign.channel.${channel}`)}</span>
-        </label>
+        <Checkbox
+          key={channel}
+          checked={draft[channel]}
+          disabled={busy || !available.includes(channel)}
+          onChange={(changed) => change({ [channel]: changed.target.checked })}
+          label={t(`console.invCampaign.channel.${channel}`)}
+        />
       ))}
-      <p className={styles.muted}>{t("console.invCampaign.channel.hint")}</p>
-    </fieldset>
+      <Muted>{t("console.invCampaign.channel.hint")}</Muted>
+    </FieldGroup>
   );
 }
 
@@ -97,18 +97,14 @@ export function ApproveForm({ language, detail, busy, approve }: FormProps) {
     }
   };
   return (
-    <form
-      className={styles.formCard}
-      aria-labelledby="approve-title"
-      onSubmit={(submitted) => void send(submitted)}
-    >
-      <h2 id="approve-title" className={styles.subtitle}>
+    <Form card aria-labelledby="approve-title" onSubmit={(submitted) => void send(submitted)}>
+      <SubHeading as="h2" id="approve-title">
         {t("console.invCampaign.approve.title")}
-      </h2>
+      </SubHeading>
       {block === null ? null : (
-        <p className={styles.warning} data-testid="block">
+        <Notice tone="warning" data-testid="block">
           {t(`console.invCampaign.block.${block}`)}
-        </p>
+        </Notice>
       )}
       <ChannelChoices
         language={language}
@@ -124,10 +120,8 @@ export function ApproveForm({ language, detail, busy, approve }: FormProps) {
         disabled={busy}
         change={(cap) => change({ cap })}
       />
-      <label className={styles.field}>
-        {t("console.invCampaign.field.sendAt")}
-        <input
-          className={styles.input}
+      <Field label={t("console.invCampaign.field.sendAt")}>
+        <Input
           type="datetime-local"
           dir="ltr"
           required
@@ -136,12 +130,10 @@ export function ApproveForm({ language, detail, busy, approve }: FormProps) {
           aria-invalid={wrong === "sendAt"}
           onChange={(changed) => change({ sendAt: changed.target.value })}
         />
-      </label>
-      <p className={styles.muted}>{t("console.invCampaign.sendAt.hint")}</p>
-      <label className={styles.field}>
-        {t("console.invCampaign.field.note")}
-        <textarea
-          className={styles.input}
+      </Field>
+      <Muted>{t("console.invCampaign.sendAt.hint")}</Muted>
+      <Field label={t("console.invCampaign.field.note")}>
+        <Textarea
           dir="auto"
           rows={2}
           maxLength={NOTE_MAX}
@@ -149,16 +141,16 @@ export function ApproveForm({ language, detail, busy, approve }: FormProps) {
           disabled={busy}
           onChange={(changed) => change({ note: changed.target.value })}
         />
-      </label>
+      </Field>
       {wrong === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {t(WRONG[wrong])}
-        </p>
+        </Notice>
       )}
-      <button type="submit" className={styles.button} disabled={busy || block !== null}>
+      <Button variant="primary" type="submit" disabled={busy || block !== null}>
         {t("console.invCampaign.approve.button")}
-      </button>
-    </form>
+      </Button>
+    </Form>
   );
 }
 
@@ -177,11 +169,9 @@ export function CloseForm({ language, detail, busy, close }: NoteProps) {
   const { state } = detail.campaign;
   const ready = note.trim() !== "" && note.trim().length <= NOTE_MAX;
   return (
-    <div className={styles.formCard}>
-      <label className={styles.field}>
-        {t("console.invCampaign.field.closeNote")}
-        <textarea
-          className={styles.input}
+    <Card>
+      <Field label={t("console.invCampaign.field.closeNote")}>
+        <Textarea
           dir="auto"
           rows={2}
           maxLength={NOTE_MAX}
@@ -189,12 +179,11 @@ export function CloseForm({ language, detail, busy, close }: NoteProps) {
           disabled={busy}
           onChange={(changed) => setNote(changed.target.value)}
         />
-      </label>
-      <div className={styles.actions}>
+      </Field>
+      <Toolbar>
         {state === "requested" ? (
-          <button
-            type="button"
-            className={styles.quiet}
+          <Button
+            variant="quiet"
             disabled={busy || !ready}
             onClick={() => {
               if (window.confirm(t("console.invCampaign.refuseConfirm"))) {
@@ -203,11 +192,10 @@ export function CloseForm({ language, detail, busy, close }: NoteProps) {
             }}
           >
             {t("console.invCampaign.refuse")}
-          </button>
+          </Button>
         ) : null}
-        <button
-          type="button"
-          className={styles.quiet}
+        <Button
+          variant="quiet"
           disabled={busy || !ready}
           onClick={() => {
             if (window.confirm(t("console.invCampaign.cancelConfirm"))) {
@@ -216,8 +204,8 @@ export function CloseForm({ language, detail, busy, close }: NoteProps) {
           }}
         >
           {t("console.invCampaign.cancel")}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Toolbar>
+    </Card>
   );
 }

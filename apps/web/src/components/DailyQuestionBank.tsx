@@ -14,7 +14,10 @@ import {
 } from "#src/lib/console-daily-forms.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import type { DailyConsoleState } from "#src/lib/use-daily-console.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input, Select } from "#src/ui/Field.tsx";
+import { Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 type Editing = Readonly<{ id: string | null; draft: QuestionDraft }>;
 
@@ -41,11 +44,9 @@ function OptionFields({
       {draft.options.map((option, index) => {
         const n = formatNumber(index + 1, language);
         return (
-          <div key={String(index)} className={styles.formCard}>
-            <label className={styles.field}>
-              {t("console.daily.field.optionAr", { n })}
-              <input
-                className={styles.input}
+          <Card key={String(index)}>
+            <Field label={t("console.daily.field.optionAr", { n })}>
+              <Input
                 dir="rtl"
                 lang="ar"
                 maxLength={120}
@@ -53,11 +54,9 @@ function OptionFields({
                 disabled={busy}
                 onChange={(event) => set(index, "ar", event.target.value)}
               />
-            </label>
-            <label className={styles.field}>
-              {t("console.daily.field.optionEn", { n })}
-              <input
-                className={styles.input}
+            </Field>
+            <Field label={t("console.daily.field.optionEn", { n })}>
+              <Input
                 dir="ltr"
                 lang="en"
                 maxLength={120}
@@ -65,11 +64,10 @@ function OptionFields({
                 disabled={busy}
                 onChange={(event) => set(index, "en", event.target.value)}
               />
-            </label>
+            </Field>
             {draft.options.length > MIN_OPTIONS ? (
-              <button
-                type="button"
-                className={styles.quiet}
+              <Button
+                variant="quiet"
                 disabled={busy}
                 onClick={() => {
                   const kept = draft.options.filter((_, place) => place !== index);
@@ -78,20 +76,19 @@ function OptionFields({
                 }}
               >
                 {t("console.daily.removeOption", { n })}
-              </button>
+              </Button>
             ) : null}
-          </div>
+          </Card>
         );
       })}
       {draft.options.length < MAX_OPTIONS ? (
-        <button
-          type="button"
-          className={styles.quiet}
+        <Button
+          variant="quiet"
           disabled={busy}
           onClick={() => change({ options: [...draft.options, { ar: "", en: "" }] })}
         >
           {t("console.daily.addOption")}
-        </button>
+        </Button>
       ) : null}
     </>
   );
@@ -114,11 +111,9 @@ function QuestionForm({
 }>) {
   const t = translatorFor(language);
   return (
-    <form className={styles.formCard} onSubmit={submit} data-testid="daily-question-form">
-      <label className={styles.field}>
-        {t("console.daily.field.promptAr")}
-        <input
-          className={styles.input}
+    <Form card onSubmit={submit} data-testid="daily-question-form">
+      <Field label={t("console.daily.field.promptAr")}>
+        <Input
           dir="rtl"
           lang="ar"
           maxLength={300}
@@ -126,11 +121,9 @@ function QuestionForm({
           disabled={busy}
           onChange={(event) => change({ promptAr: event.target.value })}
         />
-      </label>
-      <label className={styles.field}>
-        {t("console.daily.field.promptEn")}
-        <input
-          className={styles.input}
+      </Field>
+      <Field label={t("console.daily.field.promptEn")}>
+        <Input
           dir="ltr"
           lang="en"
           maxLength={300}
@@ -138,12 +131,10 @@ function QuestionForm({
           disabled={busy}
           onChange={(event) => change({ promptEn: event.target.value })}
         />
-      </label>
+      </Field>
       <OptionFields language={language} draft={draft} busy={busy} change={change} />
-      <label className={styles.field}>
-        {t("console.daily.field.answer")}
-        <select
-          className={styles.input}
+      <Field label={t("console.daily.field.answer")}>
+        <Select
           value={draft.answer}
           disabled={busy}
           onChange={(event) => change({ answer: event.target.value })}
@@ -153,17 +144,17 @@ function QuestionForm({
               {t("console.daily.optionN", { n: formatNumber(index + 1, language) })}
             </option>
           ))}
-        </select>
-      </label>
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
+        </Select>
+      </Field>
+      <Toolbar>
+        <Button variant="quiet" disabled={busy} onClick={cancel}>
           {t("common.cancel")}
-        </button>
-        <button type="submit" className={styles.button} disabled={busy}>
+        </Button>
+        <Button variant="primary" type="submit" disabled={busy}>
           {t("console.daily.saveQuestion")}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Toolbar>
+    </Form>
   );
 }
 
@@ -186,11 +177,11 @@ function QuestionRow({
   const scheduled = question.scheduledOn;
   const frozen = scheduled !== null && hasStarted(scheduled, today);
   return (
-    <li className={styles.formCard} data-testid="daily-question">
-      <p className={styles.row}>
+    <Card as="li" data-testid="daily-question">
+      <Toolbar>
         <strong dir="auto">{textIn(question.prompt, language)}</strong>
-        <span className={styles.badge}>{t(`console.daily.status.${question.status}`)}</span>
-      </p>
+        <Badge>{t(`console.daily.status.${question.status}`)}</Badge>
+      </Toolbar>
       <ol>
         {question.options.map((option, index) => (
           <li key={String(index)} dir="auto">
@@ -200,23 +191,21 @@ function QuestionRow({
         ))}
       </ol>
       {scheduled === null ? null : (
-        <p className={styles.muted}>
-          {t("console.daily.scheduledFor", { date: formatDay(scheduled, language) })}
-        </p>
+        <Muted>{t("console.daily.scheduledFor", { date: formatDay(scheduled, language) })}</Muted>
       )}
       {question.status === "retired" || frozen ? null : (
-        <div className={styles.actions}>
-          <button type="button" className={styles.quiet} disabled={busy} onClick={edit}>
+        <Toolbar>
+          <Button variant="quiet" disabled={busy} onClick={edit}>
             {t("console.daily.edit")}
-          </button>
+          </Button>
           {scheduled === null ? (
-            <button type="button" className={styles.quiet} disabled={busy} onClick={retire}>
+            <Button variant="quiet" disabled={busy} onClick={retire}>
               {t("console.daily.retire")}
-            </button>
+            </Button>
           ) : null}
-        </div>
+        </Toolbar>
       )}
-    </li>
+    </Card>
   );
 }
 
@@ -263,10 +252,10 @@ export function DailyQuestionBank({
     setRetiring(null);
   };
   return (
-    <section aria-labelledby="daily-bank" className={styles.stack}>
-      <h2 id="daily-bank" className={styles.subtitle}>
+    <Stack as="section" aria-labelledby="daily-bank">
+      <SubHeading as="h2" id="daily-bank">
         {t("console.daily.bank")}
-      </h2>
+      </SubHeading>
       {retiring === null ? null : (
         <ConfirmDialog
           language={language}
@@ -280,16 +269,15 @@ export function DailyQuestionBank({
         />
       )}
       {editing === null ? (
-        <div className={styles.actions}>
-          <button
-            type="button"
-            className={styles.button}
+        <Toolbar>
+          <Button
+            variant="primary"
             disabled={state.busy}
             onClick={() => setEditing({ id: null, draft: BLANK_QUESTION })}
           >
             {t("console.daily.newQuestion")}
-          </button>
-        </div>
+          </Button>
+        </Toolbar>
       ) : (
         <QuestionForm
           language={language}
@@ -300,10 +288,8 @@ export function DailyQuestionBank({
           submit={(event) => void save(event)}
         />
       )}
-      {questions.length === 0 ? (
-        <p className={styles.muted}>{t("console.daily.noQuestions")}</p>
-      ) : null}
-      <ul className={styles.list}>
+      {questions.length === 0 ? <Muted>{t("console.daily.noQuestions")}</Muted> : null}
+      <CardList>
         {questions.map((question) => (
           <QuestionRow
             key={question.id}
@@ -315,7 +301,7 @@ export function DailyQuestionBank({
             retire={() => setRetiring(question.id)}
           />
         ))}
-      </ul>
-    </section>
+      </CardList>
+    </Stack>
   );
 }

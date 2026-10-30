@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { OptOutForm } from "#src/components/OptOutForm.tsx";
-import { TopBar } from "#src/components/TopBar.tsx";
 import { isLanguage, translatorFor } from "#src/lib/language.ts";
 import { channelOfToken } from "#src/lib/opt-out.ts";
-import styles from "#src/components/layout.module.css";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { AppShell } from "#src/ui/Shell.tsx";
 
 type Props = Readonly<{
   params: Promise<{ lang: string }>;
@@ -23,15 +23,14 @@ export default async function OptOutPage({ params, searchParams }: Props) {
   const token = typeof raw === "string" ? raw : null;
   const t = translatorFor(lang);
   return (
-    <>
-      <TopBar
-        language={lang}
-        path={token === null ? "/opt-out" : `/opt-out?t=${encodeURIComponent(token)}`}
-      />
-      <main className={styles.page}>
-        <h1 className={styles.title}>{t("optOut.title")}</h1>
-        <OptOutForm language={lang} token={token} channel={channelOfToken(token ?? undefined)} />
-      </main>
-    </>
+    <AppShell
+      language={lang}
+      path={token === null ? "/opt-out" : `/opt-out?t=${encodeURIComponent(token)}`}
+      signedIn={false}
+      narrow
+    >
+      <PageHeader title={t("optOut.title")} />
+      <OptOutForm language={lang} token={token} channel={channelOfToken(token ?? undefined)} />
+    </AppShell>
   );
 }

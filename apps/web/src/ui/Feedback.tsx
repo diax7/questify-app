@@ -15,8 +15,13 @@ const BADGE: Record<Tone, string> = {
 export function Badge({
   tone = "neutral",
   children,
+  ...rest
 }: Readonly<{ tone?: Tone; children: ReactNode }>) {
-  return <span className={BADGE[tone]}>{children}</span>;
+  return (
+    <span className={BADGE[tone]} {...rest}>
+      {children}
+    </span>
+  );
 }
 
 const NOTICE: Record<Exclude<Tone, "neutral">, string> = {
@@ -37,6 +42,7 @@ export function Notice({
   as: Tag = "p",
   labelledBy,
   children,
+  ...rest
 }: Readonly<{
   tone?: Exclude<Tone, "neutral">;
   role?: "alert" | "status" | "note";
@@ -47,7 +53,7 @@ export function Notice({
   children: ReactNode;
 }>) {
   return (
-    <Tag className={NOTICE[tone]} role={role} id={id} aria-labelledby={labelledBy}>
+    <Tag className={NOTICE[tone]} role={role} id={id} aria-labelledby={labelledBy} {...rest}>
       {children}
     </Tag>
   );
@@ -103,6 +109,7 @@ export function Muted({
   role,
   dir,
   children,
+  ...rest
 }: Readonly<{
   as?: "p" | "span";
   id?: string;
@@ -111,7 +118,7 @@ export function Muted({
   children: ReactNode;
 }>) {
   return (
-    <Tag className={styles.muted} id={id} role={role} dir={dir}>
+    <Tag className={styles.muted} id={id} role={role} dir={dir} {...rest}>
       {children}
     </Tag>
   );

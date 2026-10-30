@@ -5,7 +5,10 @@ import type { FormEvent } from "react";
 import { formatPeriod, textIn } from "#src/lib/console-daily.ts";
 import { canPick, type ChallengeDraft } from "#src/lib/console-daily-forms.ts";
 import { translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input, Select } from "#src/ui/Field.tsx";
+import { Card, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 const POSITIONS = [0, 1, 2] as const;
 
@@ -29,10 +32,10 @@ function Preview({
     return null;
   }
   return (
-    <div className={styles.formCard} data-testid="daily-preview">
+    <Card data-testid="daily-preview">
       <strong>{t("console.daily.preview")}</strong>
       {sponsorAr === "" || sponsorEn === "" ? null : (
-        <p className={styles.muted}>
+        <Muted>
           <span lang="ar" dir="rtl">
             {translatorFor("ar")("daily.sponsor", { name: sponsorAr })}
           </span>
@@ -40,7 +43,7 @@ function Preview({
           <span lang="en" dir="ltr">
             {translatorFor("en")("daily.sponsor", { name: sponsorEn })}
           </span>
-        </p>
+        </Muted>
       )}
       <ol>
         {chosen.map((question) => (
@@ -57,7 +60,7 @@ function Preview({
           </li>
         ))}
       </ol>
-    </div>
+    </Card>
   );
 }
 
@@ -91,18 +94,16 @@ export function ChallengeEditor({
     change({ questionIds: ids });
   };
   return (
-    <form className={styles.formCard} onSubmit={submit} data-testid="daily-challenge-editor">
-      <h3 className={styles.subtitle}>
+    <Form card onSubmit={submit} data-testid="daily-challenge-editor">
+      <SubHeading>
         {t("console.daily.editorTitle", { period: formatPeriod(startsOn, endsOn, language) })}
-      </h3>
-      {eligible.length < 3 ? (
-        <p className={styles.muted}>{t("console.daily.needQuestions")}</p>
-      ) : null}
+      </SubHeading>
+      {eligible.length < 3 ? <Muted>{t("console.daily.needQuestions")}</Muted> : null}
       {POSITIONS.map((position) => (
-        <label key={position} className={styles.field}>
-          {t("console.daily.questionN", { position: formatNumber(position + 1, language) })}
-          <select
-            className={styles.input}
+        <Field
+          label={t("console.daily.questionN", { position: formatNumber(position + 1, language) })}
+        >
+          <Select
             value={draft.questionIds[position]}
             disabled={busy}
             onChange={(event) => choose(position, event.target.value)}
@@ -119,13 +120,11 @@ export function ChallengeEditor({
                   {textIn(question.prompt, language)}
                 </option>
               ))}
-          </select>
-        </label>
+          </Select>
+        </Field>
       ))}
-      <label className={styles.field}>
-        {t("console.daily.field.sponsorAr")}
-        <input
-          className={styles.input}
+      <Field label={t("console.daily.field.sponsorAr")}>
+        <Input
           dir="rtl"
           lang="ar"
           maxLength={60}
@@ -133,11 +132,9 @@ export function ChallengeEditor({
           disabled={busy}
           onChange={(event) => change({ sponsorAr: event.target.value })}
         />
-      </label>
-      <label className={styles.field}>
-        {t("console.daily.field.sponsorEn")}
-        <input
-          className={styles.input}
+      </Field>
+      <Field label={t("console.daily.field.sponsorEn")}>
+        <Input
           dir="ltr"
           lang="en"
           maxLength={60}
@@ -145,17 +142,17 @@ export function ChallengeEditor({
           disabled={busy}
           onChange={(event) => change({ sponsorEn: event.target.value })}
         />
-      </label>
-      <p className={styles.muted}>{t("console.daily.sponsorHelp")}</p>
+      </Field>
+      <Muted>{t("console.daily.sponsorHelp")}</Muted>
       <Preview language={language} draft={draft} questions={questions} />
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
+      <Toolbar>
+        <Button variant="quiet" disabled={busy} onClick={cancel}>
           {t("common.cancel")}
-        </button>
-        <button type="submit" className={styles.button} disabled={busy}>
+        </Button>
+        <Button variant="primary" type="submit" disabled={busy}>
           {t("console.daily.saveChallenge")}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Toolbar>
+    </Form>
   );
 }

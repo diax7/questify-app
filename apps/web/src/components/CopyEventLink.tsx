@@ -3,7 +3,9 @@
 import type { Language } from "@questify/shared";
 import { useState } from "react";
 import { translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
+import { FieldGroup, Input } from "#src/ui/Field.tsx";
 
 type Props = Readonly<{
   language: Language;
@@ -35,22 +37,21 @@ export function CopyEventLink({ language, link, appStoreUrl }: Props) {
   };
 
   return (
-    <div className={styles.form}>
-      <button type="button" className={styles.button} onClick={() => void copy()}>
+    <FieldGroup>
+      <Button variant="primary" onClick={() => void copy()}>
         {t(appStoreUrl === undefined ? "eventPage.copyOnly" : "eventPage.iphone")}
-      </button>
+      </Button>
       {state === "copied" ? (
-        <p role="status" className={styles.notice}>
+        <Notice tone="info" role="status">
           {t("eventPage.copied")}
-        </p>
+        </Notice>
       ) : null}
       {state === "failed" ? (
         <>
-          <p role="status" className={styles.alert}>
+          <Notice tone="danger" role="status">
             {t("eventPage.copyFailed")}
-          </p>
-          <input
-            className={styles.input}
+          </Notice>
+          <Input
             dir="ltr"
             readOnly
             value={link}
@@ -59,6 +60,6 @@ export function CopyEventLink({ language, link, appStoreUrl }: Props) {
           />
         </>
       ) : null}
-    </div>
+    </FieldGroup>
   );
 }

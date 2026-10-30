@@ -19,7 +19,10 @@ import {
 } from "#src/lib/console-daily.ts";
 import { translatorFor, type Translate } from "#src/lib/language.ts";
 import type { DailyWrite } from "#src/lib/use-daily-console.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, Form, Select } from "#src/ui/Field.tsx";
+import { Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 /** The confirmation before a scheduled challenge, word or stranded item is deleted for good. */
 export function RemoveDialog({
@@ -66,10 +69,10 @@ export function DailyWarnings({
   return (
     <>
       {found.map((warning) => (
-        <p
+        <Notice
+          tone="warning"
           key={warning.language ?? "challenge"}
           role="status"
-          className={styles.warning}
           data-testid="daily-warning"
         >
           {warning.language === null
@@ -81,7 +84,7 @@ export function DailyWarnings({
                 language: t(LANGUAGE_NAME_KEY[warning.language]),
                 periods: warning.coveredPeriods,
               })}
-        </p>
+        </Notice>
       ))}
     </>
   );
@@ -125,11 +128,9 @@ export function DailyCadenceControl({
     }
   };
   return (
-    <form className={styles.formCard} onSubmit={(event) => void save(event)}>
-      <label className={styles.field}>
-        {t(`console.daily.cadence.label.${kind}`)}
-        <select
-          className={styles.input}
+    <Form card onSubmit={(event) => void save(event)}>
+      <Field label={t(`console.daily.cadence.label.${kind}`)}>
+        <Select
           value={choice}
           disabled={busy}
           onChange={(event) => setChoice(event.target.value as DailyCadence)}
@@ -139,23 +140,23 @@ export function DailyCadenceControl({
               {t(`console.daily.cadence.${cadence}`)}
             </option>
           ))}
-        </select>
-      </label>
-      <p className={styles.muted}>{t("console.daily.cadence.note")}</p>
+        </Select>
+      </Field>
+      <Muted>{t("console.daily.cadence.note")}</Muted>
       {state.next === null ? null : (
-        <p className={styles.muted} data-testid="daily-cadence-pending">
+        <Muted data-testid="daily-cadence-pending">
           {t("console.daily.cadence.pending", {
             date: formatDay(state.next.from, language),
             cadence: t(`console.daily.cadence.${state.next.cadence}`),
           })}
-        </p>
+        </Muted>
       )}
-      <div className={styles.actions}>
-        <button type="submit" className={styles.button} disabled={busy}>
+      <Toolbar>
+        <Button variant="primary" type="submit" disabled={busy}>
           {t("console.daily.cadence.save")}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Toolbar>
+    </Form>
   );
 }
 
@@ -180,11 +181,11 @@ export function DailyUnused({
     return null;
   }
   return (
-    <section aria-labelledby={`daily-unused-${kind}`} className={styles.stack}>
-      <h2 id={`daily-unused-${kind}`} className={styles.subtitle}>
+    <Stack as="section" aria-labelledby={`daily-unused-${kind}`}>
+      <SubHeading as="h2" id={`daily-unused-${kind}`}>
         {t("console.daily.unused")}
-      </h2>
-      <p className={styles.muted}>{t("console.daily.unusedBody")}</p>
+      </SubHeading>
+      <Muted>{t("console.daily.unusedBody")}</Muted>
       {removing === null ? null : (
         <RemoveDialog
           language={language}
@@ -194,13 +195,9 @@ export function DailyUnused({
           close={() => setRemoving(null)}
         />
       )}
-      <ul className={styles.list}>
+      <CardList>
         {rows.map((row) => (
-          <li
-            key={`${row.language ?? ""}${row.startsOn}`}
-            className={styles.card}
-            data-testid="daily-unused"
-          >
+          <Card as="li" key={`${row.language ?? ""}${row.startsOn}`} data-testid="daily-unused">
             <span>
               {row.language === null
                 ? t("console.daily.unusedChallenge", { date: formatDay(row.startsOn, language) })
@@ -209,9 +206,8 @@ export function DailyUnused({
                     date: formatDay(row.startsOn, language),
                   })}
             </span>
-            <button
-              type="button"
-              className={styles.quiet}
+            <Button
+              variant="quiet"
               disabled={busy}
               onClick={() =>
                 setRemoving(
@@ -222,10 +218,10 @@ export function DailyUnused({
               }
             >
               {t("console.daily.remove")}
-            </button>
-          </li>
+            </Button>
+          </Card>
         ))}
-      </ul>
-    </section>
+      </CardList>
+    </Stack>
   );
 }

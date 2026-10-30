@@ -41,7 +41,7 @@ test("the owner answers a player's question, and a second answer is refused", as
   await expect(page.getByLabel("تشغيل المساعدة في الفعالية")).toBeChecked();
   await openMenu(page);
   await page.getByRole("link", { name: "المساعدة (1)" }).click();
-  await expect(page.getByRole("heading", { name: "المساعدة", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "المساعدة", level: 1 })).toBeVisible();
   await expect(page.getByRole("tab", { name: "مفتوحة (1)" })).toHaveAttribute(
     "aria-selected",
     "true",

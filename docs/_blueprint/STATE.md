@@ -27,6 +27,20 @@
   group merged into the organizer's); ADR-366 and Q-334 Accepted (developer).
   **Next:** T-599b (the remaining dashboard and console pages; list in TASKS), then T-307b.
 
+## T-599b remaining dashboard and console pages — 2026-10-30
+
+- **T-599b done (tier B; code review owed).** The 30 pages left in the dashboard and console, and the public pages that used
+  `TopBar`, now sit on the `apps/web/src/ui/` primitives; `components/layout.module.css`, `TopBar` and the unused `Table` are
+  deleted. The console has its own navigation column. Dhia's review of the staging dashboard (page width, boxes in boxes, a
+  cramped column, light text on a light hover) is ADR-367 (Proposed, Q-335): one box level by one CSS rule, the content area's
+  width, and the layout check (`apps/web/e2e/layout.ts`) now also fails on nested boxes, crammed columns, text over text and any
+  text under WCAG AA contrast, in the hovered and focused states of the header, navigation and first controls. The check fills the
+  event first so it reads filled pages; the e2e API control has `/team`. Screenshots: `docs/evidence/2026-10-30-t599b/after/`.
+  Console specs open the menu before they use the console navigation. No migration, no API change, no new dependency.
+  Local checks: full vitest 8896 passed; full browser suite 219 passed (the layout spec needed one retry for a transient API stall, now
+  reopened by the spec); CI minutes none yet; agent tokens roughly 2M.
+  **Next:** T-599c (icons, header icons, smooth navigation, photos, logo), then T-307b.
+
 ## T-504 big screen — 2026-10-30
 
 - **T-504 done (tier B; code review owed), not yet run on a TV.** Migration 0083 (new, undeployed; CranL is at 0082):

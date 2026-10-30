@@ -4,11 +4,15 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { CopyEventLink } from "#src/components/CopyEventLink.tsx";
-import { TopBar } from "#src/components/TopBar.tsx";
 import { webConfig } from "#src/lib/config.ts";
 import { fetchCard, playStoreLink, type CardEvent, type CardResult } from "#src/lib/event-card.ts";
 import { isLanguage, otherLanguage, translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { ButtonLink } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Section, Toolbar } from "#src/ui/Section.tsx";
+import { AppShell } from "#src/ui/Shell.tsx";
+import { CodeText } from "#src/ui/Text.tsx";
 
 type Props = Readonly<{ params: Promise<{ lang: string; code: string }> }>;
 
@@ -78,12 +82,12 @@ function Headline({
 }: Readonly<{ event: CardEvent | undefined; language: Language }>) {
   const t = translatorFor(language);
   if (event?.statusNow === "ended") {
-    return <p className={styles.notice}>{t("eventPage.ended")}</p>;
+    return <Notice tone="info">{t("eventPage.ended")}</Notice>;
   }
   return (
-    <p className={styles.notice}>
+    <Notice tone="success">
       {t(event?.statusNow === "live" ? "eventPage.liveNow" : "eventPage.getReady")}
-    </p>
+    </Notice>
   );
 }
 
@@ -91,23 +95,22 @@ function Details({ event, language }: Readonly<{ event: CardEvent; language: Lan
   const t = translatorFor(language);
   const venue = textIn(event.venue, language);
   return (
-    <>
-      <h1 className={styles.title} dir="auto">
-        {textIn(event.name, language)}
-      </h1>
-      {venue === "" ? null : (
-        <p className={styles.muted} dir="auto">
-          {venue}
-        </p>
-      )}
-      <p>
-        {t("eventPage.starts")}:{" "}
-        {formatEventTime(new Date(event.startsAt), event.timezone, language)}
-      </p>
-      <p>
-        {t("eventPage.ends")}: {formatEventTime(new Date(event.endsAt), event.timezone, language)}
-      </p>
-    </>
+    <PageHeader
+      title={<span dir="auto">{textIn(event.name, language)}</span>}
+      description={venue === "" ? undefined : <span dir="auto">{venue}</span>}
+      meta={
+        <>
+          <span>
+            {t("eventPage.starts")}:{" "}
+            {formatEventTime(new Date(event.startsAt), event.timezone, language)}
+          </span>
+          <span>
+            {t("eventPage.ends")}:{" "}
+            {formatEventTime(new Date(event.endsAt), event.timezone, language)}
+          </span>
+        </>
+      }
+    />
   );
 }
 
@@ -131,62 +134,48 @@ export default async function EventPage({ params }: Props) {
   const { appStoreUrl, playStoreUrl } = webConfig();
   const event = result.kind === "found" ? result.event : undefined;
   return (
-    <>
-      <TopBar language={lang} path={`/e/${upper}`} />
-      <main className={styles.page}>
-        <article className={styles.panel}>
-          {result.kind === "throttled" ? (
-            <p role="alert" className={styles.alert}>
-              {t("eventPage.throttled")}
-            </p>
-          ) : null}
-          {result.kind === "unavailable" ? (
-            <p role="alert" className={styles.alert}>
-              {t("eventPage.unavailable")}
-            </p>
-          ) : null}
-          <Headline event={event} language={lang} />
-          {event === undefined ? null : <Details event={event} language={lang} />}
-          <section aria-labelledby="code-title" className={styles.card}>
-            <h2 id="code-title" className={styles.subtitle}>
-              {t("eventPage.code")}
-            </h2>
-            <p className={styles.code} dir="ltr">
-              {upper}
-            </p>
-            <p className={styles.muted}>{t("eventPage.codeHint")}</p>
-          </section>
-          {result.kind === "found" ? (
-            <section aria-labelledby="receives-title" className={styles.card}>
-              <h2 id="receives-title" className={styles.subtitle}>
-                {result.card.title[lang]}
-              </h2>
-              <ul>
-                {result.card.receives.map((item) => (
-                  <li key={item.en}>{item[lang]}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-          <section className={styles.actions}>
-            {playStoreUrl === undefined ? null : (
-              <a className={styles.button} href={playStoreLink(playStoreUrl, upper)}>
-                {t("eventPage.play")}
-              </a>
-            )}
-            {event?.statusNow === "ended" ? null : (
-              <CopyEventLink
-                language={lang}
-                link={joinLink(upper, lang)}
-                appStoreUrl={appStoreUrl}
-              />
-            )}
-          </section>
-          {appStoreUrl === undefined && playStoreUrl === undefined ? (
-            <p className={styles.muted}>{t("eventPage.soon")}</p>
-          ) : null}
-        </article>
-      </main>
-    </>
+    <AppShell language={lang} path={`/e/${upper}`} signedIn={false} narrow>
+      {result.kind === "throttled" ? (
+        <Notice tone="danger" role="alert">
+          {t("eventPage.throttled")}
+        </Notice>
+      ) : null}
+      {result.kind === "unavailable" ? (
+        <Notice tone="danger" role="alert">
+          {t("eventPage.unavailable")}
+        </Notice>
+      ) : null}
+      <Headline event={event} language={lang} />
+      {event === undefined ? null : <Details event={event} language={lang} />}
+      <Section
+        title={t("eventPage.code")}
+        titleId="code-title"
+        description={t("eventPage.codeHint")}
+      >
+        <CodeText dir="ltr">{upper}</CodeText>
+      </Section>
+      {result.kind === "found" ? (
+        <Section title={result.card.title[lang]} titleId="receives-title">
+          <ul>
+            {result.card.receives.map((item) => (
+              <li key={item.en}>{item[lang]}</li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+      <Toolbar>
+        {playStoreUrl === undefined ? null : (
+          <ButtonLink variant="primary" href={playStoreLink(playStoreUrl, upper)}>
+            {t("eventPage.play")}
+          </ButtonLink>
+        )}
+        {event?.statusNow === "ended" ? null : (
+          <CopyEventLink language={lang} link={joinLink(upper, lang)} appStoreUrl={appStoreUrl} />
+        )}
+      </Toolbar>
+      {appStoreUrl === undefined && playStoreUrl === undefined ? (
+        <Muted>{t("eventPage.soon")}</Muted>
+      ) : null}
+    </AppShell>
   );
 }

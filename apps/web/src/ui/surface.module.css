@@ -1,4 +1,4 @@
-/* Page structure primitives (ADR-364): header, section, card, toolbar, badge, tabs, dialog, notice, empty, table. */
+/* Page structure primitives (ADR-364): header, section, card, toolbar, badge, tabs, dialog, notice, empty. */
 .stack {
   display: flex;
   flex-direction: column;
@@ -145,6 +145,18 @@
   color: var(--color-text-muted);
 }
 
+.code {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-display);
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+
+.prose {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .meter {
   inline-size: 100%;
   block-size: 12px;
@@ -173,6 +185,28 @@
 .facts dd {
   margin: 0;
   min-inline-size: 0;
+}
+
+/*
+ * One box level: a card or a section inside another box is drawn as a plain block, its rows divided by lines, so a page
+ * never shows boxes inside boxes. `[data-card]` is a form drawn as a card (Form `card`).
+ */
+:is(.section, .card, [data-card]) :is(.section, .card, [data-card]) {
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:is(.section, .card, [data-card]) .list > li {
+  padding-block: var(--space-md);
+  border-block-start: var(--line);
+}
+
+:is(.section, .card, [data-card]) .list > li:first-child {
+  padding-block-start: 0;
+  border-block-start: none;
 }
 
 /* Spacing inside a box comes from its gap, not from paragraph margins. */
@@ -372,44 +406,6 @@
 
 .dialog::backdrop {
   background: var(--scrim);
-}
-
-.tableBox {
-  overflow-x: auto;
-  border: var(--line);
-  border-radius: var(--radius-sm);
-  max-inline-size: 100%;
-}
-
-.tableBox:focus-visible {
-  outline: 3px solid var(--color-focus);
-}
-
-.table {
-  inline-size: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-md);
-}
-
-.table th,
-.table td {
-  padding-block: var(--space-sm);
-  padding-inline: var(--space-md);
-  text-align: start;
-  border-block-end: var(--line);
-  vertical-align: top;
-}
-
-.table th {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-strong);
-  color: var(--color-text-muted);
-  background: var(--color-background);
-  white-space: nowrap;
-}
-
-.table tr:last-child td {
-  border-block-end: none;
 }
 
 .link {

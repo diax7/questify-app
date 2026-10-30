@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { LANGUAGE_NAMES, isLanguage, otherLanguage, translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { isLanguage, translatorFor } from "#src/lib/language.ts";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card } from "#src/ui/Section.tsx";
+import { AppShell } from "#src/ui/Shell.tsx";
 
 type Props = Readonly<{ params: Promise<{ lang: string }> }>;
 
@@ -21,18 +23,12 @@ export default async function PairPage({ params }: Props) {
     notFound();
   }
   const t = translatorFor(lang);
-  const other = otherLanguage(lang);
   return (
-    <main className={styles.page}>
-      <a className={styles.link} href={`/${other}/pair`} lang={other} hrefLang={other}>
-        {LANGUAGE_NAMES[other]}
-      </a>
-      <section className={styles.panel} aria-labelledby="pair-title">
-        <h1 id="pair-title" className={styles.title}>
-          {t("pair.landing.title")}
-        </h1>
+    <AppShell language={lang} path={"/pair"} signedIn={false} title="Questify" narrow>
+      <Card as="section" aria-labelledby="pair-title">
+        <PageHeader titleId="pair-title" title={t("pair.landing.title")} />
         <p>{t("pair.landing")}</p>
-      </section>
-    </main>
+      </Card>
+    </AppShell>
   );
 }

@@ -5508,3 +5508,22 @@ surfaces, green primary buttons, gold for the open page; no wood or parchment te
 page keeps the list short to scan, and a phone sheet keeps every page one tap away without squeezing the top bar.
 **Trade-offs:** on a phone every page change is two taps; the event's name is not in the menu (it is in each page's
 header).
+
+## ADR-367 - T-599b page width, one box level and contrast
+
+**Status:** Proposed (developer, from Dhia's review of the staging dashboard, 2026-10-30; Q-335).
+**Context:** Dhia found pages that were not yet moved showing a narrow centred card with boxes inside boxes, a title squeezed into a
+column, a link wrapping one word per line, and light text on a light fill when the pointer rests on "Home" in the dark header
+(the navigation's item class gave the top-bar link the page's light background on hover).
+**Decision:** (1) A dashboard page fills the content area from its start edge up to `--content-max`; only a single small form (sign-in,
+a public landing page) is a narrow column. (2) A page shows one box level: a card, a form drawn as a card or a section inside
+another is drawn plain (no border, fill or padding), and a list inside a box has lines between its rows. This is one CSS rule in
+`ui/surface.module.css`, so a page cannot nest boxes by accident. (3) A button keeps its label on one line while its row has room
+(`min-inline-size: min(100%, max-content)`); rows and section headers already wrap under their text before the text column
+gets narrow. (4) The top-bar links take a dark veil on hover, never the page's light fill. (5) The layout check also fails on a box
+inside a box, on text or a control crammed into a narrow column, and on any text under 4.5:1 (3:1 large) over what is behind it,
+computed from the drawn colours, with each header, navigation and first page controls hovered and focused in turn (desktop). No
+new dependency: the contrast reader is a small function in `apps/web/e2e/layout.ts` (`@axe-core/playwright` is not installed).
+**Why:** the rules are checked on every page by one spec, not by review of each page.
+**Trade-offs:** a section inside a section loses its own frame (its title still marks it); the contrast reader skips text over an
+image (the dashboard has none) and disabled controls, as the guidelines do.

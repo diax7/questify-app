@@ -164,14 +164,16 @@ export function AnnouncementPagination({
 }>) {
   const t = useTranslator(language);
   return (
-    <Toolbar label={t("announcements.page.pagination")}>
-      <Button size="sm" disabled={!previous || busy} onClick={() => page(false)}>
-        {t("announcements.page.previous")}
-      </Button>
-      <Button size="sm" disabled={!next || busy} onClick={() => page(true)}>
-        {t("announcements.page.next")}
-      </Button>
-    </Toolbar>
+    <nav aria-label={t("announcements.page.pagination")}>
+      <Toolbar>
+        <Button size="sm" disabled={!previous || busy} onClick={() => page(false)}>
+          {t("announcements.page.previous")}
+        </Button>
+        <Button size="sm" disabled={!next || busy} onClick={() => page(true)}>
+          {t("announcements.page.next")}
+        </Button>
+      </Toolbar>
+    </nav>
   );
 }
 

@@ -58,10 +58,10 @@ test("the organizer renames the currency, the player and the quest", async ({ pa
   await expect(quest.getByLabel("بالإنجليزية، جمع")).toHaveValue("missions");
   await openMenu(page);
   await page.getByRole("link", { name: "طلاب" }).click();
-  await expect(page.getByRole("heading", { name: "طلاب", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "طلاب", level: 1 })).toBeVisible();
 
   await page.goto(`${eventPage.replace("/ar/", "/en/")}/players`);
-  await expect(page.getByRole("heading", { name: "Students", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Students", level: 1 })).toBeVisible();
 
   // The event's own page says them too, in the switch for community quests.
   await page.goto(eventPage);

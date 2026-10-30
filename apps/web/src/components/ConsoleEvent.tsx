@@ -14,7 +14,12 @@ import {
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Checkbox, Field, FieldGroup, Input, Radio, Textarea } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Stack, Toolbar } from "#src/ui/Section.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 type Props = Readonly<{ language: Language; eventId: string }>;
 type Loaded = Readonly<{ view: ConsoleEventView; available: readonly string[] }>;
@@ -68,26 +73,26 @@ export function ConsoleEvent({ language, eventId }: Props) {
 
   if (loaded === null) {
     return problem === null ? (
-      <p className={styles.muted}>{t("common.loading")}</p>
+      <Muted>{t("common.loading")}</Muted>
     ) : (
-      <p role="alert" className={styles.alert}>
+      <Notice tone="danger" role="alert">
         {problem}
-      </p>
+      </Notice>
     );
   }
   const { view, available } = loaded;
   return (
-    <section className={styles.panel} aria-labelledby="console-event-title">
+    <Stack as="section" aria-labelledby="console-event-title">
       <EventFacts language={language} view={view} />
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
       {notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="info" role="status">
           {notice}
-        </p>
+        </Notice>
       )}
       {view.state === "activated" ? (
         <ActivatedPanel
@@ -133,7 +138,7 @@ export function ConsoleEvent({ language, eventId }: Props) {
           }
         />
       )}
-    </section>
+    </Stack>
   );
 }
 
@@ -143,33 +148,25 @@ function EventFacts({ language, view }: Readonly<{ language: Language; view: Con
   const { event } = view;
   return (
     <>
-      <a className={styles.textLink} href={`/${language}/console`}>
-        {t("console.back")}
-      </a>
-      <h1 id="console-event-title" className={styles.title}>
-        {nameIn(event.name, language)}
-      </h1>
-      <p className={styles.row}>
-        <span className={styles.badge}>
-          {t(`events.status.${event.statusNow}` as "events.status.draft")}
-        </span>
+      <TextLink href={`/${language}/console`}>{t("console.back")}</TextLink>
+      <PageHeader titleId="console-event-title" title={nameIn(event.name, language)} />
+      <Toolbar>
+        <Badge>{t(`events.status.${event.statusNow}` as "events.status.draft")}</Badge>
         <span dir="ltr">{t("events.joinCode", { code: event.joinCode })}</span>
-      </p>
-      <p className={styles.muted}>{t("console.organizer", { name: event.organizer.name })}</p>
+      </Toolbar>
+      <Muted>{t("console.organizer", { name: event.organizer.name })}</Muted>
       {event.ownerEmail === null ? null : (
-        <p className={styles.muted}>{t("console.owner", { email: event.ownerEmail })}</p>
+        <Muted>{t("console.owner", { email: event.ownerEmail })}</Muted>
       )}
       {event.startsAt === null ? null : (
-        <p className={styles.muted}>
-          {formatEventTime(new Date(event.startsAt), event.timezone, language)}
-        </p>
+        <Muted>{formatEventTime(new Date(event.startsAt), event.timezone, language)}</Muted>
       )}
       {view.state === "requested" && view.requestedAt !== null ? (
-        <p className={styles.notice}>
+        <Notice tone="info">
           {t("console.requestedAt", {
             date: formatEventTime(new Date(view.requestedAt), event.timezone, language),
           })}
-        </p>
+        </Notice>
       ) : null}
     </>
   );
@@ -196,7 +193,7 @@ function ActivatedPanel({
   return (
     <>
       <p>{t(limit.key, limit.params)}</p>
-      <p className={styles.muted}>{t("activation.players", { count: view.players })}</p>
+      <Muted>{t("activation.players", { count: view.players })}</Muted>
       <LimitForm language={language} initial={view.limit} busy={busy} submit={saveLimit} />
       <AddonToggles
         language={language}
@@ -216,32 +213,27 @@ function LimitFields({
 }: Readonly<{ language: Language; draft: LimitDraft; change: (draft: LimitDraft) => void }>) {
   const t = translatorFor(language);
   return (
-    <fieldset className={styles.choices}>
-      <legend>{t("console.limit")}</legend>
+    <FieldGroup legend={t("console.limit")} layout="choices">
       {(["hard", "soft", "none"] as const).map((mode) => (
-        <label key={mode} className={styles.check}>
-          <input
-            type="radio"
-            name="limit-mode"
-            checked={draft.mode === mode}
-            onChange={() => change({ ...draft, mode })}
-          />
-          {t(`console.limit.${mode}`)}
-        </label>
+        <Radio
+          key={mode}
+          name="limit-mode"
+          checked={draft.mode === mode}
+          onChange={() => change({ ...draft, mode })}
+          label={t(`console.limit.${mode}`)}
+        />
       ))}
       {draft.mode === "none" ? null : (
-        <label className={styles.field}>
-          {t("console.limitNumber")}
-          <input
-            className={styles.input}
+        <Field label={t("console.limitNumber")}>
+          <Input
             dir="ltr"
             inputMode="numeric"
             value={draft.value}
             onChange={(changed) => change({ ...draft, value: changed.target.value })}
           />
-        </label>
+        </Field>
       )}
-    </fieldset>
+    </FieldGroup>
   );
 }
 
@@ -262,12 +254,12 @@ function LimitForm({
     value: initial.value === null ? "" : String(initial.value),
   });
   return (
-    <div className={styles.form}>
+    <FieldGroup>
       <LimitFields language={language} draft={draft} change={setDraft} />
-      <button type="button" className={styles.button} disabled={busy} onClick={() => submit(draft)}>
+      <Button variant="primary" disabled={busy} onClick={() => submit(draft)}>
         {t("console.saveLimit")}
-      </button>
-    </div>
+      </Button>
+    </FieldGroup>
   );
 }
 
@@ -286,20 +278,17 @@ function AddonToggles({
 }>) {
   const t = translatorFor(language);
   return (
-    <fieldset className={styles.choices}>
-      <legend>{t("console.addons")}</legend>
+    <FieldGroup legend={t("console.addons")} layout="choices">
       {available.map((feature) => (
-        <label key={feature} className={styles.check}>
-          <input
-            type="checkbox"
-            checked={chosen.includes(feature)}
-            disabled={busy}
-            onChange={(changed) => toggle(feature, changed.target.checked)}
-          />
-          {addonName(feature, t)}
-        </label>
+        <Checkbox
+          key={feature}
+          checked={chosen.includes(feature)}
+          disabled={busy}
+          onChange={(changed) => toggle(feature, changed.target.checked)}
+          label={addonName(feature, t)}
+        />
       ))}
-    </fieldset>
+    </FieldGroup>
   );
 }
 
@@ -329,43 +318,34 @@ function ActivateForm({
   const [note, setNote] = useState("");
   const [confirming, setConfirming] = useState(false);
   return (
-    <div className={styles.form}>
+    <FieldGroup>
       <LimitFields language={language} draft={draft} change={setDraft} />
-      <fieldset className={styles.choices}>
-        <legend>{t("console.addons")}</legend>
+      <FieldGroup legend={t("console.addons")} layout="choices">
         {available.map((feature) => (
-          <label key={feature} className={styles.check}>
-            <input
-              type="checkbox"
-              checked={addons.includes(feature)}
-              onChange={(changed) =>
-                setAddons((current) =>
-                  changed.target.checked
-                    ? [...current, feature]
-                    : current.filter((item) => item !== feature),
-                )
-              }
-            />
-            {addonName(feature, t)}
-          </label>
+          <Checkbox
+            key={feature}
+            checked={addons.includes(feature)}
+            onChange={(changed) =>
+              setAddons((current) =>
+                changed.target.checked
+                  ? [...current, feature]
+                  : current.filter((item) => item !== feature),
+              )
+            }
+            label={addonName(feature, t)}
+          />
         ))}
-      </fieldset>
-      <p className={styles.muted}>{t("console.nothingCharged")}</p>
+      </FieldGroup>
+      <Muted>{t("console.nothingCharged")}</Muted>
       {confirming ? (
-        <div role="alertdialog" aria-labelledby="activate-confirm" className={styles.card}>
+        <Notice tone="warning" as="div" role="alert" labelledBy="activate-confirm">
           <p id="activate-confirm">{t("console.confirmActivate", { name })}</p>
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.quiet}
-              disabled={busy}
-              onClick={() => setConfirming(false)}
-            >
+          <Toolbar>
+            <Button variant="quiet" disabled={busy} onClick={() => setConfirming(false)}>
               {t("common.cancel")}
-            </button>
-            <button
-              type="button"
-              className={styles.button}
+            </Button>
+            <Button
+              variant="primary"
               disabled={busy}
               onClick={() => {
                 setConfirming(false);
@@ -373,40 +353,32 @@ function ActivateForm({
               }}
             >
               {t("console.activate")}
-            </button>
-          </div>
-        </div>
+            </Button>
+          </Toolbar>
+        </Notice>
       ) : (
-        <button
-          type="button"
-          className={styles.button}
-          disabled={busy}
-          onClick={() => setConfirming(true)}
-        >
+        <Button variant="primary" disabled={busy} onClick={() => setConfirming(true)}>
           {t("console.activate")}
-        </button>
+        </Button>
       )}
       {canReject ? (
         <>
-          <label className={styles.field}>
-            {t("console.note")}
-            <textarea
-              className={styles.input}
+          <Field label={t("console.note")}>
+            <Textarea
               maxLength={500}
               value={note}
               onChange={(changed) => setNote(changed.target.value)}
             />
-          </label>
-          <button
-            type="button"
-            className={styles.quiet}
+          </Field>
+          <Button
+            variant="quiet"
             disabled={busy || note.trim() === ""}
             onClick={() => reject(note.trim())}
           >
             {t("console.reject")}
-          </button>
+          </Button>
         </>
       ) : null}
-    </div>
+    </FieldGroup>
   );
 }

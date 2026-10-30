@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { LANGUAGE_NAMES, isLanguage, otherLanguage, translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { isLanguage, translatorFor } from "#src/lib/language.ts";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card } from "#src/ui/Section.tsx";
+import { AppShell } from "#src/ui/Shell.tsx";
 
 type Props = Readonly<{ params: Promise<{ lang: string; token: string }> }>;
 
@@ -26,19 +29,13 @@ export default async function ScanPage({ params }: Props) {
     notFound();
   }
   const t = translatorFor(lang);
-  const other = otherLanguage(lang);
   return (
-    <main className={styles.page}>
-      <a className={styles.link} href={`/${other}/q/${token}`} lang={other} hrefLang={other}>
-        {LANGUAGE_NAMES[other]}
-      </a>
-      <section className={styles.panel} aria-labelledby="scan-title">
-        <h1 id="scan-title" className={styles.title}>
-          {t("scan.title")}
-        </h1>
+    <AppShell language={lang} path={`/q/${token}`} signedIn={false} title="Questify" narrow>
+      <Card as="section" aria-labelledby="scan-title">
+        <PageHeader titleId="scan-title" title={t("scan.title")} />
         <p>{t("scan.body")}</p>
-        <p className={styles.muted}>{t("scan.noApp")}</p>
-      </section>
-    </main>
+        <Muted>{t("scan.noApp")}</Muted>
+      </Card>
+    </AppShell>
   );
 }

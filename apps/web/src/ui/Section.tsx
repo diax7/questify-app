@@ -111,7 +111,7 @@ export function BulletList({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 /** Name and value pairs (what a player answered, a ticket's facts): `dt` and `dd` children in two columns. */
-export function Facts({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
+export function FactList({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   return (
     <dl className={styles.facts} aria-label={label}>
       {children}

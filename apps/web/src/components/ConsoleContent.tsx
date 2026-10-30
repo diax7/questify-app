@@ -17,7 +17,11 @@ import {
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { useDailyConsole, type DailyConsoleState } from "#src/lib/use-daily-console.ts";
-import styles from "#src/components/layout.module.css";
+import { Badge, Muted, Notice, ScreenReaderOnly } from "#src/ui/Feedback.tsx";
+import { NavItem } from "#src/ui/Nav.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Stack } from "#src/ui/Section.tsx";
+import { Tabs } from "#src/ui/Tabs.tsx";
 
 type Tab = "daily" | "words";
 
@@ -98,82 +102,81 @@ export function ConsoleContent({ language }: Readonly<{ language: Language }>) {
     { id: "words", kind: "word" },
   ];
   return (
-    <section className={styles.stack} aria-labelledby="console-content-title">
-      <h1 id="console-content-title" className={styles.title}>
-        {t("console.content.title")}
-      </h1>
-      <div className={styles.tabs} role="group" aria-label={t("console.content.sections")}>
-        {tabs.map(({ id, kind }) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={tab === id}
-            className={`${styles.tab} ${tab === id ? styles.tabCurrent : ""}`}
-            onClick={() => setTab(id)}
-          >
-            {t(`console.content.tab.${id}`)}
-            {needs(kind) ? (
-              <span className={styles.badge}>
-                <span aria-hidden="true">!</span>
-                <span className={styles.srOnly}>{t("console.content.needsAttention")}</span>
-              </span>
-            ) : null}
-          </button>
-        ))}
-      </div>
+    <Stack as="section" aria-labelledby="console-content-title">
+      <PageHeader titleId="console-content-title" title={t("console.content.title")} />
+      <Tabs
+        label={t("console.content.sections")}
+        items={tabs.map(({ id, kind }) => ({
+          key: id,
+          label: (
+            <>
+              {t(`console.content.tab.${id}`)}
+              {needs(kind) ? (
+                <Badge>
+                  <span aria-hidden="true">!</span>
+                  <ScreenReaderOnly>{t("console.content.needsAttention")}</ScreenReaderOnly>
+                </Badge>
+              ) : null}
+            </>
+          ),
+          current: tab === id,
+          select: () => setTab(id),
+        }))}
+      />
       {state.problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {state.problem}
-        </p>
+        </Notice>
       )}
       {state.notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="info" role="status">
           {state.notice}
-        </p>
+        </Notice>
       )}
       {state.view === null ? (
         state.problem === null ? (
-          <p className={styles.muted}>{t("common.loading")}</p>
+          <Muted>{t("common.loading")}</Muted>
         ) : null
       ) : tab === "daily" ? (
         <ChallengeTab language={language} state={state} />
       ) : (
         <WordsTab language={language} state={state} />
       )}
-    </section>
+    </Stack>
   );
 }
 
-/** The console home's link to this page, with a mark while any daily content is running low (UX 4: alerts as badges). */
-export function ConsoleContentLink({ language }: Readonly<{ language: Language }>) {
+/** This page's item in the console's navigation, with a badge while today's content needs attention. */
+export function ConsoleContentLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
   const t = translatorFor(language);
   const [warn, setWarn] = useState(false);
   useEffect(() => {
-    let current = true;
+    if (current) {
+      return;
+    }
+    let alive = true;
     const today = questifyDayOf(new Date());
     void requestJson("GET", `${API}?from=${today}&to=${today}`).then((result) => {
       const read = result.ok ? readDailyConsole(result.body) : undefined;
-      if (current && read !== undefined) {
+      if (alive && read !== undefined) {
         setWarn(hasWarning(read.status));
       }
     });
     return () => {
-      current = false;
+      alive = false;
     };
-  }, []);
+  }, [current]);
   return (
-    <p>
-      <a className={styles.textLink} href={`/${language}/console/content`}>
-        {t("console.content.title")}
-      </a>
+    <NavItem href={`/${language}/console/content`} current={current}>
+      {t("console.content.title")}
       {warn ? (
-        <>
-          {" "}
-          <span className={styles.badge} data-testid="content-badge">
-            {t("console.content.needsAttention")}
-          </span>
-        </>
+        <span data-testid="content-badge">
+          <Badge tone="warning">{t("console.content.needsAttention")}</Badge>
+        </span>
       ) : null}
-    </p>
+    </NavItem>
   );
 }

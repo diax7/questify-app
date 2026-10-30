@@ -32,7 +32,7 @@ test("the owner reviews a flagged player, pauses redemption and clears the case"
   await expect(lynx).toContainText("الاستبدال موقوف");
   await lynx.getByRole("link", { name: "حالة مفتوحة" }).click();
 
-  await expect(page.getByRole("heading", { name: "نشاط مريب", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "نشاط مريب", level: 1 })).toBeVisible();
   await expect(page.getByText("مفعّل: لا يستلم صاحب حالة مفتوحة جوائزه حتى تُغلق.")).toBeVisible();
   const flagged = page
     .getByRole("listitem")
@@ -59,5 +59,5 @@ test("the owner reviews a flagged player, pauses redemption and clears the case"
   );
 
   await page.goto(page.url().replace("/ar/", "/en/"));
-  await expect(page.getByRole("heading", { name: "Flagged activity", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Flagged activity", level: 1 })).toBeVisible();
 });

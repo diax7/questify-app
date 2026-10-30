@@ -1496,3 +1496,10 @@ phone a Menu sheet with the same list and the account links. **Open:** Dhia may 
 event's name at the top of the menu, or a bottom tab bar on a phone. ADR-366 Proposed. **Answered (developer, delegated by
 Dhia, 2026-10-30; T-599 review):** accepted as recommended, with the one-link "This event" group merged into the organizer's
 group as "Event overview", tighter desktop rows, a native modal dialog and an inert page behind the phone menu; ADR-366 Accepted.
+
+## Q-335 - T-599b page width, one box level and contrast (2026-10-30)
+
+How wide should a dashboard page be, and how are boxes nested? **Recommended (developer, T-599b build):** the content area's width
+from the start edge up to 70rem, one box level (a card or section inside another is drawn plain), and WCAG AA contrast for every
+state of every control, checked by the layout spec. **Open:** Dhia may want a different maximum width, or sections inside sections
+kept framed. ADR-367 Proposed.

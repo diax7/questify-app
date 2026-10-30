@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { openMenu } from "#e2e/nav.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
 const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
@@ -73,6 +74,7 @@ test("in Arabic an admin opens the current month, then a past month's top 10 and
   const gap = monthsBefore(now.month, 1);
 
   await page.goto("/ar/console");
+  await openMenu(page);
   await page.getByRole("link", { name: "مواسم الترتيب" }).click();
   await expect(page.getByRole("heading", { name: "مواسم الترتيب", level: 1 })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
@@ -157,6 +159,7 @@ test("in English the page is read only, marks the current month and shows a past
 
   // The console home links to the page.
   await page.goto("/en/console");
+  await openMenu(page);
   await page.getByRole("link", { name: "Ranking seasons" }).click();
   await expect(page).toHaveURL(/\/en\/console\/seasons$/);
 });

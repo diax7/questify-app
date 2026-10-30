@@ -141,6 +141,39 @@ function useAnnouncementPress(
   return { send, busy, uncertain };
 }
 
+/** The page's title, what it may send, and the last problem and last success. */
+function AnnouncementsHeader({
+  language,
+  problem,
+  notice,
+}: Readonly<{ language: Language; problem: string | undefined; notice: string | undefined }>) {
+  const t = useTranslator(language);
+  return (
+    <>
+      <PageHeader
+        title={t("announcements.page.title")}
+        description={t("announcements.page.intro")}
+      />
+      <Muted>
+        {t("announcements.page.limits", {
+          perHour: formatNumber(ANNOUNCEMENT_RATE.perHour, language),
+          perDay: formatNumber(ANNOUNCEMENT_RATE.perDay, language),
+        })}
+      </Muted>
+      {problem === undefined ? null : (
+        <Notice tone="danger" role="alert">
+          {problem}
+        </Notice>
+      )}
+      {notice === undefined ? null : (
+        <Notice tone="success" role="status">
+          {notice}
+        </Notice>
+      )}
+    </>
+  );
+}
+
 export function AnnouncementsPanel({
   language,
   organizerId,
@@ -173,26 +206,7 @@ export function AnnouncementsPanel({
     });
   return (
     <Stack>
-      <PageHeader
-        title={t("announcements.page.title")}
-        description={t("announcements.page.intro")}
-      />
-      <Muted>
-        {t("announcements.page.limits", {
-          perHour: formatNumber(ANNOUNCEMENT_RATE.perHour, language),
-          perDay: formatNumber(ANNOUNCEMENT_RATE.perDay, language),
-        })}
-      </Muted>
-      {state.problem === undefined ? null : (
-        <Notice tone="danger" role="alert">
-          {state.problem}
-        </Notice>
-      )}
-      {notice === undefined ? null : (
-        <Notice tone="success" role="status">
-          {notice}
-        </Notice>
-      )}
+      <AnnouncementsHeader language={language} problem={state.problem} notice={notice} />
       {state.loaded === undefined ? (
         <Button variant="primary" onClick={() => void state.load()}>
           {t("common.retry")}

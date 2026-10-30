@@ -1078,16 +1078,32 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
     Review fixes (2026-10-30): `Dialog` is a native modal `<dialog>`; the phone menu makes `main` inert and Escape closes it from
     anywhere; the layout check runs the phone at 360, reads the open menu and one confirmation dialog, and fails when the desktop
     column needs a scrollbar; `e2e/modal.spec.ts` proves both.
-- [ ] **T-599b** Move the remaining dashboard and console pages onto the T-599 primitives; depends on: T-599
+- [x] **T-599b** Move the remaining dashboard and console pages onto the T-599 primitives; depends on: T-599
   - Done when: the T-599 layout check covers every dashboard and console page and passes.
-  - Not yet in `LAYOUT_PAGES` (add each as it moves): `/account`, `/organizers/new`, `/sign-up`, `/forgot-password`,
-    `/reset-password`; the event pages `announcements`, `awards`, `big-screen`, `boosts`, `codes`, `community`,
-    `devices`, `flags`, `help`, `invitations`, `joining`, `operators`, `players`, `prizes`, `souvenirs`, `submissions`;
-    the console `/console`, `content`, `events/{id}`, `invitations`, `invitations/{id}`, `questify`, `seasons`, `tickets`,
-    `tickets/{id}`. Those event pages already sit in the T-599 shell and menu; their panels still use
-    `components/layout.module.css`, as do `TopBar` (public and auth pages) and `ConsoleShell`. Delete
-    `layout.module.css` and `TopBar` once nothing imports them. The check visits each quest type's own fields only for
-    the default type; a vote, quiz and survey quest form are worth a page entry of their own.
+  - Done 2026-10-30 (tier B; code review owed). All 30 pages listed in this task moved: `/account`, `/organizers/new`, `/sign-up`,
+    `/forgot-password`, `/reset-password`; the event pages `announcements`, `awards`, `big-screen`, `boosts`, `codes`, `community`,
+    `devices`, `flags`, `help`, `invitations`, `joining`, `operators`, `players`, `prizes`, `souvenirs`, `submissions`; the console
+    `/console`, `content`, `events/{id}`, `invitations`, `invitations/{id}`, `questify`, `seasons`, `tickets`, `tickets/{id}`.
+    The public and player pages that used `TopBar` (`/e/{code}` and its rules, `/legal`, `/contact`, `/opt-out`, `/delete-account`,
+    `/invite`, `/i`, `/op`, `/pair`, `/q`, `/s`, `/t`) moved to `AppShell` as well, so `components/layout.module.css`, its type file
+    and `TopBar` are deleted; the print sheet (`codes.module.css`) and device pages keep their own styles. The console has a
+    navigation (`ConsoleNav`: activation requests, tickets with the open count, Questify quests, content with its warning badge,
+    seasons, invitations with the waiting count) and `ConsoleShell` sits on `AppShell`; the console home is the queue and lookup only.
+    New primitives: `BulletList`, `FactList`, `Meter`, `Prose`, `CodeText`, a `wide` button, `Form card`, `FieldGroup disabled`, `Tabs
+    tablist` (real tab roles for Help desk, Submissions and the console's Tickets); `Table` is deleted (no page has a table) and
+    `Field.error` is used (invitation size and send time) with `role="alert"`. Panels that hand-built a modal (ban, award confirm,
+    regenerate code, remove operator) use `Dialog`; `SignOutButton` is on the shell's styles and its failure shows as a notice under
+    the bar. Page structure: a page's first panel is the `PageHeader`; the other panels of a page are `Section`s.
+    Dhia's review (2026-10-30), ADR-367: a page fills the content area from its start edge; a card or section inside another is drawn
+    plain (one CSS rule), buttons keep one line while the row has room, the top-bar links no longer take a light fill on hover; the
+    layout check fails on boxes inside boxes, on text or controls crammed into a narrow column, and on any text under 4.5:1 (3:1
+    large) over its background, with the header, navigation and first controls of each page hovered and focused (desktop).
+    The layout check now fills the event first (prize desk, two rewards, a rank prize, three editors and an invite, players,
+    points, a submission, a flagged case, an escalated ticket, an invitation request; the test control has `/team`), reads each
+    draft page before the event starts and the rest after, covers the public pages signed out, and also fails on a line of text over
+    another line or a control. Screenshots: `docs/evidence/2026-10-30-t599b/after/`.
+    **Owed:** a vote, quiz and survey quest form each deserve a page entry of their own; the layout check reads `/{lang}/e/{code}` and
+    the other public pages once each; icons, header icons, smooth navigation, photos and the logo are T-599c.
 - [x] **T-504** Big screen: pairing, scenes, order, live ranking within seconds, community and poll scenes (the photo wall is T-504b) — delivers FR 630, 631, 632, 633, 634, 1612, 1613; depends on: T-309, T-106
   - Plan 2026-10-30 (tier B): `docs/plans/2026-10-30-t-504-big-screen.md`, migration 0083, ADR-365 and Q-333 Proposed. Split (ADR-365): the photo wall (FR-635, FR-636, FR-637) moves to T-504b, since there are no photos until T-301b.
   - Done 2026-10-30 (tier B; code review owed), not yet run on a TV. Migration 0083: `big_screen` (the picked scenes in order, RLS forced, no grant; no row means all three), `event_big_screen` and `set_big_screen` (the team, audited `big_screen.update`, the ranking not offered while it is off, refused while the `bigScreen` add-on is not active), and the screen's own doors `screen_ranking` (the rank push's `rank_top_ten_ids`: the board's rule and order from PostgreSQL), `screen_community` (the cached progress and the milestones, no reward) and `screen_poll` (the newest sent poll in a public category, results by the poll's policy; the number of voters only for `never`, FR-1613), each taking no argument and reading only the calling device's event; `device_view` carries `scenes` and the screen's `feature_off`. API `src/screen`: `GET /v1/device/screen/:scene` (device of kind screen only, 40 a minute, one shared 2-second answer per event and scene), `GET` and `PUT …/events/{eventId}/big-screen`. Web: `/{lang}/screen` shows the scenes (rotating every 15 seconds, an empty scene skipped, the open scene read every 3 seconds, no server-sent stream), the dashboard's Big screen page (tick, order, save), `PairedPlaceholder` removed. Tests: 29 database, 13 route, scene reader and web units, the security suites, browser `big-screen.spec.ts` (desktop and phone). **Owed:** the photo wall (T-504b); a today's-ranking scene (T-216 note) if asked; Dhia: a look on a real TV.

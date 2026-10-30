@@ -24,7 +24,7 @@ test("the owner reviews and removes submissions", async ({ page, request }, info
   expect(seeded.status()).toBe(204);
 
   await page.goto(page.url().replace(/\/quests$/, "/submissions"));
-  await expect(page.getByRole("heading", { name: "المشاركات", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "المشاركات", level: 1 })).toBeVisible();
   await expect(page.getByRole("tab", { name: "بانتظار المراجعة" })).toHaveAttribute(
     "aria-selected",
     "true",

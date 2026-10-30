@@ -3,7 +3,7 @@ import type { Language, SouvenirRule } from "@questify/shared";
 import { SouvenirPreview } from "#src/components/SouvenirPreview.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { Button } from "#src/ui/Button.tsx";
-import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Card, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
 
@@ -51,15 +51,10 @@ export function SouvenirCard({
     <Card as="article">
       <SouvenirPreview item={rule.item} language={language} />
       <SubHeading as="h2">{rule.item.name[language]}</SubHeading>
-      <Toolbar>
-        <Badge tone={rule.status === "active" ? "success" : "neutral"}>
-          {t(`souvenir.${rule.status}`)}
-        </Badge>
-        <Muted as="span">
-          {t(`souvenir.${rule.audience}`)}
-          {rule.audience === "rank" ? ` (${rule.rankFrom}–${rule.rankTo})` : ""}
-        </Muted>
-      </Toolbar>
+      <Muted>
+        {t(`souvenir.${rule.status}`)} · {t(`souvenir.${rule.audience}`)}
+        {rule.audience === "rank" ? ` (${rule.rankFrom}–${rule.rankTo})` : ""}
+      </Muted>
       <Muted>{t("souvenir.targets", { count: rule.targetCount })}</Muted>
       <Muted>{t("souvenir.granted", { count: rule.granted })}</Muted>
       {rule.waitingForResults ? (

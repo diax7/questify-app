@@ -16,6 +16,7 @@ export function AppShell({
   signedIn,
   nav = null,
   narrow = false,
+  title,
   children,
 }: Readonly<{
   language: Language;
@@ -24,6 +25,8 @@ export function AppShell({
   signedIn: boolean;
   nav?: ReactNode;
   narrow?: boolean;
+  /** The product name in the top bar; the dashboard's own when not given (the console names itself). */
+  title?: string;
   children: ReactNode;
 }>) {
   const t = translatorFor(language);
@@ -32,7 +35,7 @@ export function AppShell({
     <ShellFrame
       brand={
         <a className={styles.brand} href={`/${language}`}>
-          {t("staff.dashboard")}
+          {title ?? t("staff.dashboard")}
         </a>
       }
       topEnd={

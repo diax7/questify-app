@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
-import { expectModal } from "#e2e/nav.ts";
+import { expectModal, openMenu } from "#e2e/nav.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
 const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
@@ -33,6 +33,7 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
   );
 
   await page.goto("/ar/console");
+  await openMenu(page);
   await page.getByRole("link", { name: "مهام Questify" }).click();
   await expect(page.getByRole("heading", { name: "مهام Questify", level: 1 })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");

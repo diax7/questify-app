@@ -5,7 +5,9 @@ import { useState } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import { optOutResult, type OptOutResult } from "#src/lib/opt-out.ts";
 import { postJson } from "#src/lib/post-json.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
+import { FieldGroup } from "#src/ui/Field.tsx";
 
 type Props = Readonly<{
   language: Language;
@@ -24,17 +26,17 @@ export function OptOutForm({ language, token, channel }: Props) {
   const [result, setResult] = useState<OptOutResult | null>(null);
   if (token === null || channel === null || result === "invalid") {
     return (
-      <p role="alert" className={styles.alert}>
+      <Notice tone="danger" role="alert">
         {t("optOut.invalid")}
-      </p>
+      </Notice>
     );
   }
   const name = t(`optOut.channel.${channel}`);
   if (result === "done") {
     return (
-      <p role="status" className={styles.notice}>
+      <Notice tone="info" role="status">
         {t("optOut.done", { channel: name })}
-      </p>
+      </Notice>
     );
   }
   const turnOff = async () => {
@@ -43,22 +45,16 @@ export function OptOutForm({ language, token, channel }: Props) {
     setBusy(false);
   };
   return (
-    <div className={styles.form}>
+    <FieldGroup>
       <p>{t("optOut.ask", { channel: name })}</p>
       {result === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {t(result === "too_many" ? "optOut.tooMany" : "error.network")}
-        </p>
+        </Notice>
       )}
-      <button
-        type="button"
-        className={styles.button}
-        disabled={busy}
-        aria-busy={busy}
-        onClick={() => void turnOff()}
-      >
+      <Button variant="primary" disabled={busy} aria-busy={busy} onClick={() => void turnOff()}>
         {t("optOut.confirm")}
-      </button>
-    </div>
+      </Button>
+    </FieldGroup>
   );
 }

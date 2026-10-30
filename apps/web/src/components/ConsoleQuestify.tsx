@@ -35,7 +35,12 @@ import { translatorFor, type Translate } from "#src/lib/language.ts";
 import { isTransientFailure, requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
 import { useRequestKey } from "#src/lib/use-request-key.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input, Select } from "#src/ui/Field.tsx";
+import { NavItem } from "#src/ui/Nav.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 const API = "/v1/admin/questify";
 
@@ -77,10 +82,8 @@ function CampaignForm({
 }>) {
   const t = translatorFor(language);
   const text = (key: "nameAr" | "nameEn", label: string) => (
-    <label className={styles.field}>
-      {label}
-      <input
-        className={styles.input}
+    <Field label={label}>
+      <Input
         dir={key === "nameAr" ? "rtl" : "ltr"}
         lang={key === "nameAr" ? "ar" : "en"}
         maxLength={80}
@@ -88,13 +91,11 @@ function CampaignForm({
         disabled={busy}
         onChange={(event) => change({ [key]: event.target.value })}
       />
-    </label>
+    </Field>
   );
   const time = (key: "startsAt" | "endsAt", label: string) => (
-    <label className={styles.field}>
-      {label}
-      <input
-        className={styles.input}
+    <Field label={label}>
+      <Input
         type="datetime-local"
         dir="ltr"
         required
@@ -102,23 +103,23 @@ function CampaignForm({
         disabled={busy}
         onChange={(event) => change({ [key]: event.target.value })}
       />
-    </label>
+    </Field>
   );
   return (
-    <form className={styles.form} onSubmit={submit}>
+    <Form onSubmit={submit}>
       {text("nameAr", t("console.questify.field.nameAr"))}
       {text("nameEn", t("console.questify.field.nameEn"))}
       {time("startsAt", t("console.questify.field.startsAt"))}
       {time("endsAt", t("console.questify.field.endsAt"))}
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
+      <Toolbar>
+        <Button variant="quiet" disabled={busy} onClick={cancel}>
           {t("common.cancel")}
-        </button>
-        <button type="submit" className={styles.button} disabled={busy}>
+        </Button>
+        <Button variant="primary" type="submit" disabled={busy}>
           {t("console.questify.save")}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Toolbar>
+    </Form>
   );
 }
 
@@ -143,10 +144,8 @@ function MetricField({
 }>) {
   return (
     <>
-      <label className={styles.field}>
-        {t("console.questify.field.metric")}
-        <select
-          className={styles.input}
+      <Field label={t("console.questify.field.metric")}>
+        <Select
           value={draft.metric}
           disabled={busy}
           onChange={(event) =>
@@ -158,16 +157,12 @@ function MetricField({
               {t(metricKey(metric))}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
       {secondInterests ? (
-        <p className={styles.muted} role="status">
-          {t("console.questify.secondInterests")}
-        </p>
+        <Muted role="status">{t("console.questify.secondInterests")}</Muted>
       ) : null}
-      {targetFixed(draft) ? (
-        <p className={styles.muted}>{t("console.questify.targetFixed")}</p>
-      ) : null}
+      {targetFixed(draft) ? <Muted>{t("console.questify.targetFixed")}</Muted> : null}
     </>
   );
 }
@@ -196,10 +191,8 @@ function QuestForm({
 }>) {
   const t = translatorFor(language);
   const text = (key: "titleAr" | "titleEn", label: string) => (
-    <label className={styles.field}>
-      {label}
-      <input
-        className={styles.input}
+    <Field label={label}>
+      <Input
         dir={key === "titleAr" ? "rtl" : "ltr"}
         lang={key === "titleAr" ? "ar" : "en"}
         maxLength={80}
@@ -207,7 +200,7 @@ function QuestForm({
         disabled={busy}
         onChange={(event) => change({ [key]: event.target.value })}
       />
-    </label>
+    </Field>
   );
   const number = (key: "target" | "xp" | "gems" | "position", label: string) => (
     <NumberField
@@ -219,7 +212,7 @@ function QuestForm({
     />
   );
   return (
-    <form className={styles.form} onSubmit={submit}>
+    <Form onSubmit={submit}>
       {text("titleAr", t("console.questify.field.titleAr"))}
       {text("titleEn", t("console.questify.field.titleEn"))}
       <MetricField
@@ -233,12 +226,10 @@ function QuestForm({
       {number("target", t("console.questify.field.target"))}
       {number("xp", t("console.questify.field.xp"))}
       {number("gems", t("console.questify.field.gems"))}
-      {gemsFixed ? <p className={styles.muted}>{t("console.questify.gemsFixed")}</p> : null}
+      {gemsFixed ? <Muted>{t("console.questify.gemsFixed")}</Muted> : null}
       {number("position", t("console.questify.field.position"))}
-      <label className={styles.field}>
-        {t("console.questify.field.status")}
-        <select
-          className={styles.input}
+      <Field label={t("console.questify.field.status")}>
+        <Select
           value={draft.status}
           disabled={busy}
           onChange={(event) => change({ status: event.target.value as QuestDraft["status"] })}
@@ -248,17 +239,17 @@ function QuestForm({
               {t(`console.questify.questStatus.${status}`)}
             </option>
           ))}
-        </select>
-      </label>
-      <div className={styles.actions}>
-        <button type="button" className={styles.quiet} disabled={busy} onClick={cancel}>
+        </Select>
+      </Field>
+      <Toolbar>
+        <Button variant="quiet" disabled={busy} onClick={cancel}>
           {t("common.cancel")}
-        </button>
-        <button type="submit" className={styles.button} disabled={busy}>
+        </Button>
+        <Button variant="primary" type="submit" disabled={busy}>
           {t("console.questify.save")}
-        </button>
-      </div>
-    </form>
+        </Button>
+      </Toolbar>
+    </Form>
   );
 }
 
@@ -278,30 +269,30 @@ function QuestRow({
   const t = translatorFor(language);
   const open = quest.status !== "retired";
   return (
-    <li className={styles.card} data-testid="questify-quest">
-      <p className={styles.row}>
+    <Card as="li" data-testid="questify-quest">
+      <Toolbar>
         <strong dir="auto">{either(quest.title, language)}</strong>
-        <span className={styles.badge}>{t(`console.questify.questStatus.${quest.status}`)}</span>
-      </p>
-      <p className={styles.muted}>
+        <Badge>{t(`console.questify.questStatus.${quest.status}`)}</Badge>
+      </Toolbar>
+      <Muted>
         {t("console.questify.row", {
           metric: t(metricKey(quest.metric)),
           target: formatNumber(quest.target, language),
           xp: formatNumber(quest.xp, language),
           gems: formatNumber(quest.gems, language),
         })}
-      </p>
+      </Muted>
       {open ? (
-        <div className={styles.actions}>
-          <button type="button" className={styles.quiet} disabled={busy} onClick={edit}>
+        <Toolbar>
+          <Button variant="quiet" disabled={busy} onClick={edit}>
             {t("console.questify.editQuest")}
-          </button>
-          <button type="button" className={styles.quiet} disabled={busy} onClick={retire}>
+          </Button>
+          <Button variant="quiet" disabled={busy} onClick={retire}>
             {t("console.questify.retireQuest")}
-          </button>
-        </div>
+          </Button>
+        </Toolbar>
       ) : null}
-    </li>
+    </Card>
   );
 }
 
@@ -326,33 +317,31 @@ function CampaignHead({
   const t = translatorFor(language);
   const open = campaign.status !== "retired";
   const button = (label: string, onClick: () => void) => (
-    <button type="button" className={styles.quiet} disabled={busy} onClick={onClick}>
+    <Button variant="quiet" disabled={busy} onClick={onClick}>
       {label}
-    </button>
+    </Button>
   );
   return (
     <>
-      <p className={styles.row}>
+      <Toolbar>
         <strong dir="auto">{either(campaign.name, language)}</strong>
-        <span className={styles.badge}>
-          {t(`console.questify.campaignStatus.${campaign.status}`)}
-        </span>
-      </p>
-      <p className={styles.muted}>
+        <Badge>{t(`console.questify.campaignStatus.${campaign.status}`)}</Badge>
+      </Toolbar>
+      <Muted>
         {t("console.questify.window", {
           from: saudiStamp(campaign.startsAt, language),
           to: saudiStamp(campaign.endsAt, language),
         })}
-      </p>
+      </Muted>
       {open ? (
-        <div className={styles.actions}>
+        <Toolbar>
           {button(t("console.questify.editCampaign"), actions.edit)}
           {campaign.status === "draft"
             ? button(t("console.questify.publish"), actions.publish)
             : null}
           {button(t("console.questify.newQuest"), actions.addQuest)}
           {button(t("console.questify.retireCampaign"), actions.retire)}
-        </div>
+        </Toolbar>
       ) : null}
     </>
   );
@@ -373,9 +362,9 @@ function QuestList({
 }>) {
   const t = translatorFor(language);
   return quests.length === 0 ? (
-    <p className={styles.muted}>{t("console.questify.noQuests")}</p>
+    <Muted>{t("console.questify.noQuests")}</Muted>
   ) : (
-    <ul className={styles.list}>
+    <CardList>
       {quests.map((quest) => (
         <QuestRow
           key={quest.id}
@@ -386,7 +375,7 @@ function QuestList({
           retire={() => retire(quest)}
         />
       ))}
-    </ul>
+    </CardList>
   );
 }
 
@@ -446,15 +435,16 @@ function usePage(language: Language) {
   return { view, problem, setProblem, notice, busy, write };
 }
 
-/** The console home's link to this page. */
-export function ConsoleQuestifyLink({ language }: Readonly<{ language: Language }>) {
+/** This page's item in the console's navigation. */
+export function ConsoleQuestifyLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
   const t = translatorFor(language);
   return (
-    <p>
-      <a className={styles.textLink} href={`/${language}/console/questify`}>
-        {t("console.questify.title")}
-      </a>
-    </p>
+    <NavItem href={`/${language}/console/questify`} current={current}>
+      {t("console.questify.title")}
+    </NavItem>
   );
 }
 
@@ -469,7 +459,7 @@ function EditorTitle({ language, editing }: Readonly<{ language: Language; editi
       : fresh
         ? "console.questify.newQuest"
         : "console.questify.editQuest";
-  return <h2 className={styles.subtitle}>{t(key)}</h2>;
+  return <SubHeading as="h2">{t(key)}</SubHeading>;
 }
 
 /** The open form, for a campaign or a quest, in a card above the lists. */
@@ -490,7 +480,7 @@ function Editor({
 }>) {
   const common = { language, busy, submit, cancel: () => setEditing(null) };
   return (
-    <div className={styles.card}>
+    <Card>
       <EditorTitle language={language} editing={editing} />
       {editing.kind === "campaign" ? (
         <CampaignForm
@@ -508,7 +498,7 @@ function Editor({
           change={(patch) => setEditing({ ...editing, draft: { ...editing.draft, ...patch } })}
         />
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -531,13 +521,13 @@ function Lists({
 }: Readonly<{ language: Language; view: AdminQuestify; busy: boolean; doors: Doors }>) {
   const t = translatorFor(language);
   const add = (label: string, onClick: () => void) => (
-    <button type="button" className={styles.quiet} disabled={busy} onClick={onClick}>
+    <Button variant="quiet" disabled={busy} onClick={onClick}>
       {label}
-    </button>
+    </Button>
   );
   return (
     <>
-      <h2 className={styles.subtitle}>{t("console.questify.alwaysOn")}</h2>
+      <SubHeading as="h2">{t("console.questify.alwaysOn")}</SubHeading>
       <QuestList
         language={language}
         quests={view.alwaysOn}
@@ -546,13 +536,11 @@ function Lists({
         retire={doors.retireQuest}
       />
       {add(t("console.questify.newQuest"), () => doors.newQuest(null))}
-      <h2 className={styles.subtitle}>{t("console.questify.campaigns")}</h2>
-      {view.campaigns.length === 0 ? (
-        <p className={styles.muted}>{t("console.questify.noCampaigns")}</p>
-      ) : null}
-      <ul className={styles.list}>
+      <SubHeading as="h2">{t("console.questify.campaigns")}</SubHeading>
+      {view.campaigns.length === 0 ? <Muted>{t("console.questify.noCampaigns")}</Muted> : null}
+      <CardList>
         {view.campaigns.map((campaign) => (
-          <li key={campaign.id} className={styles.card} data-testid="questify-campaign">
+          <Card as="li" key={campaign.id} data-testid="questify-campaign">
             <CampaignHead
               language={language}
               campaign={campaign}
@@ -571,9 +559,9 @@ function Lists({
               edit={(quest) => doors.editQuest(campaign, quest)}
               retire={doors.retireQuest}
             />
-          </li>
+          </Card>
         ))}
-      </ul>
+      </CardList>
       {add(t("console.questify.newCampaign"), doors.newCampaign)}
     </>
   );
@@ -714,19 +702,17 @@ export function ConsoleQuestify({ language }: Readonly<{ language: Language }>) 
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="console-questify-title">
-      <h1 id="console-questify-title" className={styles.title}>
-        {t("console.questify.title")}
-      </h1>
+    <Stack as="section" aria-labelledby="console-questify-title">
+      <PageHeader titleId="console-questify-title" title={t("console.questify.title")} />
       {page.problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {page.problem}
-        </p>
+        </Notice>
       )}
       {page.notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="info" role="status">
           {page.notice}
-        </p>
+        </Notice>
       )}
       {retiring === null ? null : (
         <RetireDialog
@@ -758,12 +744,12 @@ export function ConsoleQuestify({ language }: Readonly<{ language: Language }>) 
       )}
       {page.view === null ? (
         page.problem === null ? (
-          <p className={styles.muted}>{t("common.loading")}</p>
+          <Muted>{t("common.loading")}</Muted>
         ) : null
       ) : (
         <Lists language={language} view={page.view} busy={page.busy} doors={doors} />
       )}
-    </section>
+    </Stack>
   );
 }
 

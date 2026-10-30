@@ -5,7 +5,11 @@ import { DailyWordImport } from "#src/components/DailyWordImport.tsx";
 import { LANGUAGE_NAME_KEY } from "#src/lib/console-daily.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { useWordList } from "#src/lib/use-word-list.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input, Select } from "#src/ui/Field.tsx";
+import { Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
+import { Prose } from "#src/ui/Text.tsx";
 
 type List = ReturnType<typeof useWordList>;
 type Pages = Pick<List, "data" | "prefix" | "page" | "pages" | "setPage" | "listLanguage"> &
@@ -20,46 +24,33 @@ function WordPages({ language, listLanguage, data, prefix, page, pages, setPage 
   return (
     <>
       {prefix === "" ? null : (
-        <p className={styles.muted}>
-          {t("console.words.matches", { count: formatNumber(data.total, language) })}
-        </p>
+        <Muted>{t("console.words.matches", { count: formatNumber(data.total, language) })}</Muted>
       )}
       {data.words.length === 0 ? (
-        <p className={styles.muted}>{t("console.words.noMatches")}</p>
+        <Muted>{t("console.words.noMatches")}</Muted>
       ) : (
-        <p
+        <Prose
           data-testid="word-list-words"
           dir={listLanguage === "ar" ? "rtl" : "ltr"}
           lang={listLanguage}
-          className={styles.prose}
         >
           {data.words.join("  ")}
-        </p>
+        </Prose>
       )}
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.quiet}
-          disabled={page <= 1}
-          onClick={() => setPage(page - 1)}
-        >
+      <Toolbar>
+        <Button variant="quiet" disabled={page <= 1} onClick={() => setPage(page - 1)}>
           {t("console.words.previous")}
-        </button>
-        <span className={styles.muted}>
+        </Button>
+        <Muted as="span">
           {t("console.words.page", {
             page: formatNumber(page, language),
             pages: formatNumber(pages, language),
           })}
-        </span>
-        <button
-          type="button"
-          className={styles.quiet}
-          disabled={page >= pages}
-          onClick={() => setPage(page + 1)}
-        >
+        </Muted>
+        <Button variant="quiet" disabled={page >= pages} onClick={() => setPage(page + 1)}>
           {t("console.words.next")}
-        </button>
-      </div>
+        </Button>
+      </Toolbar>
     </>
   );
 }
@@ -72,14 +63,12 @@ export function DailyWordList({ language }: Readonly<{ language: Language }>) {
   const t = translatorFor(language);
   const list = useWordList(language);
   return (
-    <section aria-labelledby="daily-list" className={styles.stack}>
-      <h2 id="daily-list" className={styles.subtitle}>
+    <Stack as="section" aria-labelledby="daily-list">
+      <SubHeading as="h2" id="daily-list">
         {t("console.words.list")}
-      </h2>
-      <label className={styles.field}>
-        {t("console.words.listLanguage")}
-        <select
-          className={styles.input}
+      </SubHeading>
+      <Field label={t("console.words.listLanguage")}>
+        <Select
           value={list.listLanguage}
           onChange={(event) => list.pick(event.target.value as DailyLanguage)}
         >
@@ -88,35 +77,33 @@ export function DailyWordList({ language }: Readonly<{ language: Language }>) {
               {t(LANGUAGE_NAME_KEY[candidate])}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
       {list.listTotal === null ? null : (
         <p data-testid="word-list-count">
           {t("console.words.count", { count: formatNumber(list.listTotal, language) })}
         </p>
       )}
-      <form className={styles.form} onSubmit={list.search}>
-        <label className={styles.field}>
-          {t("console.words.search")}
-          <input
-            className={styles.input}
+      <Form onSubmit={list.search}>
+        <Field label={t("console.words.search")}>
+          <Input
             dir={list.listLanguage === "ar" ? "rtl" : "ltr"}
             lang={list.listLanguage}
             maxLength={40}
             value={list.typed}
             onChange={(event) => list.setTyped(event.target.value)}
           />
-        </label>
-        <div className={styles.actions}>
-          <button type="submit" className={styles.button}>
+        </Field>
+        <Toolbar>
+          <Button variant="primary" type="submit">
             {t("console.words.searchButton")}
-          </button>
-        </div>
-      </form>
+          </Button>
+        </Toolbar>
+      </Form>
       {list.problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {list.problem}
-        </p>
+        </Notice>
       )}
       <WordPages
         language={language}
@@ -132,6 +119,6 @@ export function DailyWordList({ language }: Readonly<{ language: Language }>) {
         listLanguage={list.listLanguage}
         changed={list.changed}
       />
-    </section>
+    </Stack>
   );
 }

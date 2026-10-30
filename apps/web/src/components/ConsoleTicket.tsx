@@ -12,7 +12,12 @@ import {
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { answeredByLine, canReply, kindKey, outcomeKey } from "#src/lib/tickets.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, Textarea } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, Stack, Toolbar } from "#src/ui/Section.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 type Act = (path: "answer" | "return", payload: object) => Promise<void>;
 
@@ -32,53 +37,49 @@ function Actions({
     }
   };
   return (
-    <div className={styles.formCard}>
-      <label className={styles.field}>
-        <span>{t("console.tickets.reply")}</span>
-        <textarea
-          className={styles.input}
+    <Card>
+      <Field label={t("console.tickets.reply")}>
+        <Textarea
           dir="auto"
           rows={3}
           maxLength={TICKET_TEXT_MAX}
           value={reply}
           onChange={(event) => setReply(event.target.value)}
         />
-      </label>
-      <button
-        type="button"
-        className={styles.button}
-        disabled={busy || !canReply(reply)}
-        onClick={() => void act("answer", { reply: reply.trim() })}
-      >
-        {t("tickets.send")}
-      </button>
-      <button type="button" className={styles.quiet} disabled={busy} onClick={solve}>
-        {t("tickets.solve")}
-      </button>
+      </Field>
+      <Toolbar>
+        <Button
+          variant="primary"
+          disabled={busy || !canReply(reply)}
+          onClick={() => void act("answer", { reply: reply.trim() })}
+        >
+          {t("tickets.send")}
+        </Button>
+        <Button variant="quiet" disabled={busy} onClick={solve}>
+          {t("tickets.solve")}
+        </Button>
+      </Toolbar>
       {ticket.event === null ? null : (
         <>
-          <label className={styles.field}>
-            <span>{t("console.tickets.returnNote")}</span>
-            <textarea
-              className={styles.input}
+          <Field label={t("console.tickets.returnNote")}>
+            <Textarea
               dir="auto"
               rows={2}
               maxLength={TICKET_TEXT_MAX}
               value={note}
               onChange={(event) => setNote(event.target.value)}
             />
-          </label>
-          <button
-            type="button"
-            className={styles.quiet}
+          </Field>
+          <Button
+            variant="quiet"
             disabled={busy || !canReply(note)}
             onClick={() => void act("return", { note: note.trim() })}
           >
             {t("console.tickets.return")}
-          </button>
+          </Button>
         </>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -89,33 +90,33 @@ function Facts({
   const t = translatorFor(language);
   return (
     <>
-      <p className={styles.row}>
-        <span className={styles.badge}>{t(kindKey(ticket.kind))}</span>
-        <span className={styles.badge}>{t(outcomeKey(ticket))}</span>
+      <Toolbar>
+        <Badge>{t(kindKey(ticket.kind))}</Badge>
+        <Badge>{t(outcomeKey(ticket))}</Badge>
         {ticket.username === null ? null : (
           <span dir="auto">{t("console.tickets.from", { username: ticket.username })}</span>
         )}
-      </p>
+      </Toolbar>
       {ticket.event === null ? null : (
-        <p className={styles.muted} dir="auto">
+        <Muted dir="auto">
           {ticket.event.organizerName ?? ""} · {nameIn(ticket.event.name, language)}
-        </p>
+        </Muted>
       )}
       {ticket.reportedUsername === null ? null : (
         <p dir="auto">{t("tickets.reported", { username: ticket.reportedUsername })}</p>
       )}
       {ticket.device === null ? null : (
-        <p className={styles.muted} dir="ltr">
+        <Muted dir="ltr">
           {t("console.tickets.device")}: {deviceLine(ticket.device)}
-        </p>
+        </Muted>
       )}
       {ticket.escalation === null ? null : (
-        <p className={styles.muted} dir="auto">
+        <Muted dir="auto">
           {t("console.tickets.teamNote", { note: ticket.escalation.note })}
           {ticket.escalation.by === null
             ? null
             : ` · ${t("tickets.escalatedBy", { name: ticket.escalation.by })}`}
-        </p>
+        </Muted>
       )}
     </>
   );
@@ -162,32 +163,24 @@ export function ConsoleTicket({
     await load();
   };
   return (
-    <section className={styles.panel} aria-labelledby="console-ticket-title">
+    <Stack as="section" aria-labelledby="console-ticket-title">
       <p>
-        <a className={styles.textLink} href={`/${language}/console/tickets`}>
-          {t("console.tickets.back")}
-        </a>
+        <TextLink href={`/${language}/console/tickets`}>{t("console.tickets.back")}</TextLink>
       </p>
-      <h1 id="console-ticket-title" className={styles.title}>
-        {t("console.tickets.title")}
-      </h1>
-      {ticket === null ? <p className={styles.muted}>{t("common.loading")}</p> : null}
+      <PageHeader titleId="console-ticket-title" title={t("console.tickets.title")} />
+      {ticket === null ? <Muted>{t("common.loading")}</Muted> : null}
       {ticket === "missing" ? (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {t("console.tickets.notFound")}
-        </p>
+        </Notice>
       ) : null}
       {ticket === null || ticket === "missing" ? null : (
         <>
           <Facts language={language} ticket={ticket} />
           <p dir="auto">{ticket.text}</p>
-          {ticket.reply === null ? null : (
-            <p dir="auto" className={styles.muted}>
-              {ticket.reply}
-            </p>
-          )}
+          {ticket.reply === null ? null : <Muted dir="auto">{ticket.reply}</Muted>}
           {ticket.status === "closed" ? (
-            <p className={styles.muted}>
+            <Muted>
               {answeredByLine(
                 {
                   answeredBy: { kind: "admin", name: null, deleted: false },
@@ -195,17 +188,17 @@ export function ConsoleTicket({
                 },
                 language,
               )}
-            </p>
+            </Muted>
           ) : (
             <Actions language={language} ticket={ticket} act={act} busy={busy} />
           )}
         </>
       )}
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
-    </section>
+    </Stack>
   );
 }

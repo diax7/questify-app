@@ -41,9 +41,7 @@ test("pages pending schedules beyond 30 and cancels both the nearest and last in
     expect(made).toBe(201);
   }
   await page.goto(base + "/announcements");
-  const pending = page
-    .getByRole("heading", { name: "Pending schedules — earliest first" })
-    .locator("..");
+  const pending = page.getByRole("region", { name: "Pending schedules — earliest first" });
   await expect(pending.getByRole("listitem")).toHaveCount(30);
   await expect(pending.getByRole("listitem").first()).toContainText("Schedule 2");
   await expect(page.getByRole("button", { name: "Previous schedules" })).toBeDisabled();

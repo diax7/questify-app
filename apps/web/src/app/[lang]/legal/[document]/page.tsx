@@ -2,10 +2,13 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { organizerDocuments, playerDocuments } from "@questify/shared";
 import { notFound } from "next/navigation";
-import { TopBar } from "#src/components/TopBar.tsx";
 import { isLanguage, translatorFor } from "#src/lib/language.ts";
 import { legalBlocks } from "#src/lib/legal.ts";
-import styles from "#src/components/layout.module.css";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Stack, SubHeading } from "#src/ui/Section.tsx";
+import { AppShell } from "#src/ui/Shell.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 type Props = Readonly<{ params: Promise<{ lang: string; document: string }> }>;
 
@@ -33,42 +36,37 @@ export default async function LegalPage({ params }: Props) {
   );
   const blocks = legalBlocks(await readFile(file, "utf8"), lang);
   return (
-    <>
-      <TopBar language={lang} path={`/legal/${known.id}`} />
-      <main className={styles.page}>
-        <article className={styles.panel}>
-          <p className={styles.muted}>v{known.version}</p>
-          {blocks.map((block, index) => {
-            const key = `${block.kind}-${index}`;
-            if (block.kind === "heading") {
-              return block.level === 2 ? (
-                <h1 key={key} className={styles.title}>
-                  {block.text}
-                </h1>
-              ) : (
-                <h2 key={key} className={styles.subtitle}>
-                  {block.text}
-                </h2>
-              );
-            }
-            if (block.kind === "list") {
-              return (
-                <ul key={key}>
-                  {block.items.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              );
-            }
-            return <p key={key}>{block.text}</p>;
-          })}
-          {known.id === "privacy_policy" ? (
-            <a className={styles.textLink} href={`/${lang}/delete-account`}>
-              {translatorFor(lang)("deletion.title")}
-            </a>
-          ) : null}
-        </article>
-      </main>
-    </>
+    <AppShell language={lang} path={`/legal/${known.id}`} signedIn={false} narrow>
+      <Stack as="section" aria-label={known.id}>
+        <Muted>v{known.version}</Muted>
+        {blocks.map((block, index) => {
+          const key = `${block.kind}-${index}`;
+          if (block.kind === "heading") {
+            return block.level === 2 ? (
+              <PageHeader key={key} title={block.text} />
+            ) : (
+              <SubHeading key={key} as="h2">
+                {block.text}
+              </SubHeading>
+            );
+          }
+          if (block.kind === "list") {
+            return (
+              <ul key={key}>
+                {block.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            );
+          }
+          return <p key={key}>{block.text}</p>;
+        })}
+        {known.id === "privacy_policy" ? (
+          <TextLink href={`/${lang}/delete-account`}>
+            {translatorFor(lang)("deletion.title")}
+          </TextLink>
+        ) : null}
+      </Stack>
+    </AppShell>
   );
 }

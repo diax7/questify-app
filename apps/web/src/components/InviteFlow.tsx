@@ -8,7 +8,11 @@ import { PasswordStep } from "#src/components/PasswordStep.tsx";
 import { isolate, translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Form } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Stack } from "#src/ui/Section.tsx";
 
 const TOKEN_IN_FRAGMENT = /(?:^#|&)token=([A-Za-z0-9_-]{43})(?:&|$)/;
 
@@ -102,15 +106,15 @@ export function InviteFlow({
   };
 
   if (state.kind === "reading") {
-    return <p className={styles.muted}>{t("common.loading")}</p>;
+    return <Muted>{t("common.loading")}</Muted>;
   }
   if (state.kind === "no_link") {
     return (
-      <section className={styles.panel}>
-        <p role="alert" className={styles.alert}>
+      <Stack as="section">
+        <Notice tone="danger" role="alert">
           {state.message ?? t("staff.inviteMissing")}
-        </p>
-      </section>
+        </Notice>
+      </Stack>
     );
   }
   const { invite, token } = state;
@@ -119,14 +123,14 @@ export function InviteFlow({
   });
   const alert =
     problem === null ? null : (
-      <p role="alert" className={styles.alert}>
+      <Notice tone="danger" role="alert">
         {problem}
-      </p>
+      </Notice>
     );
 
   if (state.kind === "code") {
     return (
-      <section className={styles.panel} aria-labelledby="sign-in-title">
+      <Stack as="section" aria-labelledby="sign-in-title">
         <CodeStep
           language={language}
           email={invite.email}
@@ -135,38 +139,35 @@ export function InviteFlow({
             setState({ kind: "no_link", message: reason === "" ? null : reason })
           }
         />
-      </section>
+      </Stack>
     );
   }
 
   return (
-    <section className={styles.panel} aria-labelledby="invite-title">
-      <h1 id="invite-title" className={styles.title}>
-        {t("staff.inviteTitle")}
-      </h1>
+    <Stack as="section" aria-labelledby="invite-title">
+      <PageHeader titleId="invite-title" title={t("staff.inviteTitle")} />
       <p>{heading}</p>
-      <p className={styles.muted}>{t("staff.inviteFor", { email: isolate(invite.email) })}</p>
+      <Muted>{t("staff.inviteFor", { email: isolate(invite.email) })}</Muted>
       {alert}
       {signedInEmail !== null && signedInEmail === invite.email ? (
-        <button
-          type="button"
-          className={styles.button}
+        <Button
+          variant="primary"
           disabled={busy}
           aria-busy={busy}
           onClick={() => void accept(token)}
         >
           {t("staff.acceptInvite")}
-        </button>
+        </Button>
       ) : null}
       {signedInEmail !== null && signedInEmail !== invite.email ? (
-        <p className={styles.notice}>{t("staff.inviteOtherSignedIn")}</p>
+        <Notice tone="info">{t("staff.inviteOtherSignedIn")}</Notice>
       ) : null}
       {signedInEmail === null && invite.accountExists ? (
         <InlineSignIn language={language} onSignedIn={() => accept(token)} />
       ) : null}
       {signedInEmail === null && !invite.accountExists ? (
-        <form className={styles.form} onSubmit={(event) => void join(event, token, invite)}>
-          <p className={styles.muted}>{t("staff.newAccountPassword")}</p>
+        <Form onSubmit={(event) => void join(event, token, invite)}>
+          <Muted>{t("staff.newAccountPassword")}</Muted>
           <input
             type="text"
             name="username"
@@ -176,12 +177,12 @@ export function InviteFlow({
             hidden
           />
           <NewPasswordFields language={language} disabled={busy} />
-          <button type="submit" className={styles.button} disabled={busy} aria-busy={busy}>
+          <Button variant="primary" type="submit" disabled={busy} aria-busy={busy}>
             {t("staff.acceptInvite")}
-          </button>
-        </form>
+          </Button>
+        </Form>
       ) : null}
-    </section>
+    </Stack>
   );
 }
 
@@ -194,7 +195,7 @@ function InlineSignIn({
   const [challenge, setChallenge] = useState<{ email: string; token: string } | null>(null);
   return (
     <>
-      <p className={styles.muted}>{t("staff.signInToAccept")}</p>
+      <Muted>{t("staff.signInToAccept")}</Muted>
       {challenge === null ? (
         <PasswordStep
           language={language}

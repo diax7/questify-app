@@ -111,16 +111,6 @@ function HistoryField({ language, draft, busy, change }: FieldProps) {
 }
 
 /** A line under a field: its hint, or what is wrong with it. */
-function Hint({ wrong, hint, error }: Readonly<{ wrong: boolean; hint: string; error: string }>) {
-  return wrong ? (
-    <Notice tone="danger" role="alert">
-      {error}
-    </Notice>
-  ) : (
-    <Muted>{hint}</Muted>
-  );
-}
-
 type Props = Readonly<{
   language: Language;
   catalogs: Catalogs;
@@ -181,15 +171,16 @@ export function InvitationForm({
         label={t("invCampaign.field.size")}
         value={draft.size}
         invalid={wrong === "size"}
+        help={t("invCampaign.size.hint")}
+        error={t("invCampaign.invalid.size")}
         disabled={busy}
         change={(size) => change({ size })}
       />
-      <Hint
-        wrong={wrong === "size"}
-        hint={t("invCampaign.size.hint")}
-        error={t("invCampaign.invalid.size")}
-      />
-      <Field label={t("invCampaign.field.sendAfter")}>
+      <Field
+        label={t("invCampaign.field.sendAfter")}
+        help={wrong === "sendAfter" ? undefined : t("invCampaign.sendAfter.hint")}
+        error={wrong === "sendAfter" ? t("invCampaign.invalid.sendAfter") : undefined}
+      >
         <Input
           type="datetime-local"
           dir="ltr"
@@ -199,11 +190,6 @@ export function InvitationForm({
           onChange={(changed) => change({ sendAfter: changed.target.value })}
         />
       </Field>
-      <Hint
-        wrong={wrong === "sendAfter"}
-        hint={t("invCampaign.sendAfter.hint")}
-        error={t("invCampaign.invalid.sendAfter")}
-      />
       <Button variant="primary" type="submit" disabled={busy}>
         {t("invCampaign.submit")}
       </Button>

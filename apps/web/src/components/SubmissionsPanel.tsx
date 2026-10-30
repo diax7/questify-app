@@ -103,21 +103,23 @@ function ItemActions({
     <Card>
       {item.status === "pending" ? (
         <>
-          <Button
-            variant="primary"
-            disabled={busy}
-            onClick={() => void send("review", { decision: "approve" })}
-          >
-            {t("submissions.approve")}
-          </Button>
           {reasonField("submissions.rejectReason")}
-          <Button
-            variant="quiet"
-            disabled={busy || !canGiveReason(reason)}
-            onClick={() => void send("review", { decision: "reject", reason: reason.trim() })}
-          >
-            {t("submissions.reject")}
-          </Button>
+          <Toolbar>
+            <Button
+              variant="primary"
+              disabled={busy}
+              onClick={() => void send("review", { decision: "approve" })}
+            >
+              {t("submissions.approve")}
+            </Button>
+            <Button
+              variant="quiet"
+              disabled={busy || !canGiveReason(reason)}
+              onClick={() => void send("review", { decision: "reject", reason: reason.trim() })}
+            >
+              {t("submissions.reject")}
+            </Button>
+          </Toolbar>
         </>
       ) : null}
       {item.status === "approved" ? (

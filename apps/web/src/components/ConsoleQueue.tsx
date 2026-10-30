@@ -6,7 +6,12 @@ import { nameIn, readQueue, type QueueItem } from "#src/lib/console.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, Form, Input } from "#src/ui/Field.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Stack } from "#src/ui/Section.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 /** The console's activation queue, oldest first, and a way to open any event by its join code (FR-1021). */
 export function ConsoleQueue({ language }: Readonly<{ language: Language }>) {
@@ -44,54 +49,50 @@ export function ConsoleQueue({ language }: Readonly<{ language: Language }>) {
   };
 
   return (
-    <section className={styles.panel} aria-labelledby="queue-title">
-      <h1 id="queue-title" className={styles.title}>
-        {t("console.queue")}
-      </h1>
+    <Stack as="section" aria-labelledby="queue-title">
+      <PageHeader titleId="queue-title" title={t("console.queue")} />
       {problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {problem}
-        </p>
+        </Notice>
       )}
-      <form className={styles.form} onSubmit={(submitted) => void lookup(submitted)}>
-        <label className={styles.field}>
-          {t("console.lookup")}
-          <input
-            className={styles.input}
+      <Form card onSubmit={(submitted) => void lookup(submitted)}>
+        <Field label={t("console.lookup")}>
+          <Input
             dir="ltr"
             value={code}
             maxLength={12}
             autoComplete="off"
             onChange={(changed) => setCode(changed.target.value)}
           />
-        </label>
-        <button type="submit" className={styles.button}>
+        </Field>
+        <Button variant="primary" type="submit">
           {t("console.open")}
-        </button>
-      </form>
+        </Button>
+      </Form>
       {queue === null ? (
         problem === null ? (
-          <p className={styles.muted}>{t("common.loading")}</p>
+          <Muted>{t("common.loading")}</Muted>
         ) : null
       ) : queue.length === 0 ? (
-        <p className={styles.muted}>{t("console.queueEmpty")}</p>
+        <EmptyState>{t("console.queueEmpty")}</EmptyState>
       ) : (
-        <ul className={styles.list}>
+        <CardList>
           {queue.map((item) => (
-            <li key={item.eventId}>
-              <a className={styles.textLink} href={`/${language}/console/events/${item.eventId}`}>
+            <Card as="li" key={item.eventId}>
+              <TextLink strong href={`/${language}/console/events/${item.eventId}`}>
                 {nameIn(item.name, language)}
-              </a>
-              <span className={styles.muted}> · {item.organizer} · </span>
-              <span className={styles.muted}>
+              </TextLink>
+              <Muted>
+                {item.organizer} ·{" "}
                 {t("console.requestedAt", {
                   date: formatEventTime(new Date(item.requestedAt), item.timezone, language),
                 })}
-              </span>
-            </li>
+              </Muted>
+            </Card>
           ))}
-        </ul>
+        </CardList>
       )}
-    </section>
+    </Stack>
   );
 }

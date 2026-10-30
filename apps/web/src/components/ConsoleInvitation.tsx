@@ -11,7 +11,9 @@ import {
 import { isOpen } from "#src/lib/console-invitations.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { useConsoleInvitation } from "#src/lib/use-console-invitation.ts";
-import styles from "#src/components/layout.module.css";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Stack } from "#src/ui/Section.tsx";
 
 type Model = ReturnType<typeof useConsoleInvitation>;
 
@@ -56,43 +58,36 @@ export function ConsoleInvitation({
   const model = useConsoleInvitation(language, campaignId);
   const { detail } = model;
   return (
-    <section className={styles.stack} aria-labelledby="console-invitation-title">
-      <p>
-        <a className={styles.textLink} href={`/${language}/console/invitations`}>
-          {t("console.invCampaign.back")}
-        </a>
-      </p>
-      <h1 id="console-invitation-title" className={styles.title}>
-        {t("console.invCampaign.detailTitle")}
-      </h1>
+    <Stack as="section" aria-labelledby="console-invitation-title">
+      <PageHeader
+        titleId="console-invitation-title"
+        title={t("console.invCampaign.detailTitle")}
+        back={{ href: `/${language}/console/invitations`, label: t("console.invCampaign.back") }}
+      />
       {model.problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {model.problem}
-        </p>
+        </Notice>
       )}
       {model.notice === null ? null : (
-        <p role="status" className={styles.notice}>
+        <Notice tone="info" role="status">
           {model.notice}
-        </p>
+        </Notice>
       )}
-      {detail === "loading" ? (
-        <p role="status" className={styles.muted}>
-          {t("common.loading")}
-        </p>
-      ) : null}
+      {detail === "loading" ? <Muted role="status">{t("common.loading")}</Muted> : null}
       {detail === "failed" ? (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {t("console.invCampaign.loadFailed")}
-        </p>
+        </Notice>
       ) : null}
       {detail === "missing" ? (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {t("console.invCampaign.notFound")}
-        </p>
+        </Notice>
       ) : null}
       {typeof detail === "string" ? null : (
         <Ready language={language} detail={detail} model={model} />
       )}
-    </section>
+    </Stack>
   );
 }

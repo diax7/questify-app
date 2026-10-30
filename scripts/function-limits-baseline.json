@@ -950,7 +950,7 @@
     },
     "BulkCard": {
       "complexity": [16],
-      "lines": [132]
+      "lines": [122]
     }
   },
   "apps/web/src/components/BoostsPanel.tsx": {
@@ -968,12 +968,12 @@
   "apps/web/src/components/CodesPanel.tsx": {
     "CodesPanel": {
       "complexity": [11],
-      "lines": [212]
+      "lines": [203]
     }
   },
   "apps/web/src/components/CommunityGoalForm.tsx": {
     "CommunityGoalForm": {
-      "lines": [126]
+      "lines": [122]
     },
     "ScopeFields": {
       "complexity": [9]
@@ -981,13 +981,10 @@
   },
   "apps/web/src/components/CommunityPanel.tsx": {
     "CommunityPanel": {
-      "lines": [120]
+      "lines": [117]
     }
   },
   "apps/web/src/components/ConsoleEvent.tsx": {
-    "ActivateForm": {
-      "lines": [106]
-    },
     "ConsoleEvent": {
       "lines": [109]
     }
@@ -1015,9 +1012,6 @@
   "apps/web/src/components/DevicesPanel.tsx": {
     "ConfirmFields": {
       "complexity": [9]
-    },
-    "DevicesPanel": {
-      "complexity": [9]
     }
   },
   "apps/web/src/components/EventFields.tsx": {
@@ -1038,7 +1032,7 @@
   },
   "apps/web/src/components/ExclusionsPanel.tsx": {
     "ExclusionsPanel": {
-      "lines": [136]
+      "lines": [131]
     }
   },
   "apps/web/src/components/FirstBonusFields.tsx": {
@@ -1062,7 +1056,7 @@
   "apps/web/src/components/InviteFlow.tsx": {
     "InviteFlow": {
       "complexity": [15],
-      "lines": [140]
+      "lines": [137]
     }
   },
   "apps/web/src/components/KioskScanner.tsx": {
@@ -1078,26 +1072,15 @@
       "complexity": [12]
     }
   },
-  "apps/web/src/components/OperatorsPanel.tsx": {
-    "OperatorRow": {
-      "lines": [113]
-    },
-    "OperatorsPanel": {
-      "lines": [106]
-    }
-  },
   "apps/web/src/components/PlayerAwards.tsx": {
     "PlayerAwards": {
       "complexity": [10],
-      "lines": [119]
+      "lines": [115]
     }
   },
   "apps/web/src/components/PlayersPanel.tsx": {
     "PlayerRow": {
       "complexity": [15]
-    },
-    "PlayersPanel": {
-      "complexity": [9]
     }
   },
   "apps/web/src/components/PollControls.tsx": {
@@ -1154,11 +1137,6 @@
     "RewardsPanel": {
       "complexity": [21],
       "lines": [217]
-    }
-  },
-  "apps/web/src/components/SignUpForm.tsx": {
-    "SignUpForm": {
-      "lines": [102]
     }
   },
   "apps/web/src/components/SouvenirPreview.tsx": {

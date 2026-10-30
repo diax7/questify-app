@@ -4,7 +4,10 @@ import { formatNumber, type DailyLanguage, type Language } from "@questify/share
 import { translatorFor } from "#src/lib/language.ts";
 import { useWordImport } from "#src/lib/use-word-import.ts";
 import type { ImportOutcome } from "#src/lib/word-import-run.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Field, Textarea } from "#src/ui/Field.tsx";
+import { Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 /** What the list of refused lines leaves out: the lines past the 50 the API shows, or that it may have left out. */
 function HiddenRefusals({
@@ -22,7 +25,7 @@ function HiddenRefusals({
 function Outcome({ language, outcome }: Readonly<{ language: Language; outcome: ImportOutcome }>) {
   const t = translatorFor(language);
   return (
-    <div role="status" className={styles.notice} data-testid="word-import-result">
+    <Notice tone="info" as="div" role="status" data-testid="word-import-result">
       <p>
         {t("console.words.importResult", {
           added: formatNumber(outcome.added, language),
@@ -57,7 +60,7 @@ function Outcome({ language, outcome }: Readonly<{ language: Language; outcome: 
           <HiddenRefusals language={language} outcome={outcome} />
         </>
       )}
-    </div>
+    </Notice>
   );
 }
 
@@ -78,58 +81,41 @@ export function DailyWordImport({
   const t = translatorFor(language);
   const form = useWordImport(language, listLanguage, changed);
   return (
-    <section aria-labelledby="daily-import" className={styles.stack}>
-      <h3 id="daily-import" className={styles.subtitle}>
-        {t("console.words.import")}
-      </h3>
-      <p className={styles.muted}>{t("console.words.importHelp")}</p>
-      <label className={styles.field}>
-        {t("console.words.importField")}
-        <textarea
-          className={`${styles.input} ${styles.area}`}
+    <Stack as="section" aria-labelledby="daily-import">
+      <SubHeading id="daily-import">{t("console.words.import")}</SubHeading>
+      <Muted>{t("console.words.importHelp")}</Muted>
+      <Field label={t("console.words.importField")}>
+        <Textarea
           dir={listLanguage === "ar" ? "rtl" : "ltr"}
           lang={listLanguage}
           value={form.text}
           disabled={form.busy}
           onChange={(event) => form.setText(event.target.value)}
         />
-      </label>
-      <label className={styles.field}>
-        {t("console.words.importFile")}
+      </Field>
+      <Field label={t("console.words.importFile")}>
         <input
           type="file"
           accept=".txt,text/plain"
           disabled={form.busy}
           onChange={(event) => void form.load(event)}
         />
-      </label>
-      <p className={styles.muted}>
-        {t("console.words.importReady", { count: formatNumber(form.ready, language) })}
-      </p>
+      </Field>
+      <Muted>{t("console.words.importReady", { count: formatNumber(form.ready, language) })}</Muted>
       {form.problem === null ? null : (
-        <p role="alert" className={styles.alert}>
+        <Notice tone="danger" role="alert">
           {form.problem}
-        </p>
+        </Notice>
       )}
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.button}
-          disabled={form.busy}
-          onClick={() => void form.send("add")}
-        >
+      <Toolbar>
+        <Button variant="primary" disabled={form.busy} onClick={() => void form.send("add")}>
           {t("console.words.importAdd")}
-        </button>
-        <button
-          type="button"
-          className={styles.quiet}
-          disabled={form.busy}
-          onClick={() => void form.send("remove")}
-        >
+        </Button>
+        <Button variant="quiet" disabled={form.busy} onClick={() => void form.send("remove")}>
           {t("console.words.importRemove")}
-        </button>
-      </div>
+        </Button>
+      </Toolbar>
       {form.outcome === null ? null : <Outcome language={language} outcome={form.outcome} />}
-    </section>
+    </Stack>
   );
 }

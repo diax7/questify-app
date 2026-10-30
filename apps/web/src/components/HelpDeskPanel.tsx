@@ -121,16 +121,18 @@ function AnswerActions({
           onChange={(event) => setReply(event.target.value)}
         />
       </Field>
-      <Button
-        variant="primary"
-        disabled={busy || !canReply(reply)}
-        onClick={() => void send({ reply: reply.trim() })}
-      >
-        {t("tickets.send")}
-      </Button>
-      <Button variant="quiet" disabled={busy} onClick={solve}>
-        {t("tickets.solve")}
-      </Button>
+      <Toolbar>
+        <Button
+          variant="primary"
+          disabled={busy || !canReply(reply)}
+          onClick={() => void send({ reply: reply.trim() })}
+        >
+          {t("tickets.send")}
+        </Button>
+        <Button variant="quiet" disabled={busy} onClick={solve}>
+          {t("tickets.solve")}
+        </Button>
+      </Toolbar>
       {problem === null ? null : (
         <Notice tone="danger" role="alert">
           {problem}

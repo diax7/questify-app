@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { InvitationLanding } from "#src/components/InvitationLanding.tsx";
-import { TopBar } from "#src/components/TopBar.tsx";
 import { isLanguage } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { AppShell } from "#src/ui/Shell.tsx";
 
 type Props = Readonly<{ params: Promise<{ lang: string }> }>;
 
@@ -23,12 +22,9 @@ export default async function InvitationPage({ params }: Props) {
     notFound();
   }
   return (
-    <>
-      {/* No language switch: it would leave the page and lose the link's token, which lives only in memory. */}
-      <TopBar language={lang} path={null} />
-      <main className={styles.page}>
-        <InvitationLanding language={lang} />
-      </main>
-    </>
+    // No language switch: it would leave the page and lose the token of the link, which lives only in memory.
+    <AppShell language={lang} path={null} signedIn={false} narrow>
+      <InvitationLanding language={lang} />
+    </AppShell>
   );
 }

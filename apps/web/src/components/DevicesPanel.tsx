@@ -341,6 +341,39 @@ function RevokeAllButtons({
   );
 }
 
+/** The confirmation of one revoke or of Revoke all, naming what it ends. */
+function RevokeDialog({
+  language,
+  confirming,
+  busy,
+  cancel,
+  confirm,
+}: Readonly<{
+  language: Language;
+  confirming: Confirming;
+  busy: boolean;
+  cancel: () => void;
+  confirm: () => void;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <ConfirmDialog
+      language={language}
+      title={t(confirming.kind === "one" ? "devices.revoke" : CONFIRM_TEXT[confirming.kind].title)}
+      body={
+        confirming.kind === "one"
+          ? t("devices.revokeConfirm", { label: confirming.line.label })
+          : t(CONFIRM_TEXT[confirming.kind].body)
+      }
+      confirmLabel={t("devices.revoke")}
+      noteLabel={null}
+      busy={busy}
+      cancel={cancel}
+      confirm={confirm}
+    />
+  );
+}
+
 /**
  * The event's Devices page (T-309, FR-1713): pair a station, kiosk or big screen by the code it shows, the list with
  * each device's state, Revoke, Revoke all big screens (ADR-241: the big screen's "regenerate the link") and Revoke all.
@@ -406,18 +439,9 @@ export function DevicesPanel({ language, organizerId, eventId }: Props) {
         language={language}
       />
       {confirming === null ? null : (
-        <ConfirmDialog
+        <RevokeDialog
           language={language}
-          title={t(
-            confirming.kind === "one" ? "devices.revoke" : CONFIRM_TEXT[confirming.kind].title,
-          )}
-          body={
-            confirming.kind === "one"
-              ? t("devices.revokeConfirm", { label: confirming.line.label })
-              : t(CONFIRM_TEXT[confirming.kind].body)
-          }
-          confirmLabel={t("devices.revoke")}
-          noteLabel={null}
+          confirming={confirming}
           busy={busy}
           cancel={() => setConfirming(null)}
           confirm={() => void revoke(confirming)}

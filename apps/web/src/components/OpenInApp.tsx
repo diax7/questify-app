@@ -3,7 +3,9 @@
 import type { Language } from "@questify/shared";
 import { useEffect, useState } from "react";
 import { LANGUAGE_NAMES, otherLanguage, translatorFor } from "#src/lib/language.ts";
-import styles from "#src/components/layout.module.css";
+import { ButtonLink } from "#src/ui/Button.tsx";
+import { Muted } from "#src/ui/Feedback.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 const TOKEN = /^[A-Za-z0-9_-]{50}$/;
 
@@ -22,14 +24,13 @@ export function OtherLanguageLink({ language }: Readonly<{ language: Language }>
   const token = useFragmentToken();
   const other = otherLanguage(language);
   return (
-    <a
-      className={styles.link}
+    <TextLink
       href={`/${other}/op${typeof token === "string" ? `#${token}` : ""}`}
       lang={other}
       hrefLang={other}
     >
       {LANGUAGE_NAMES[other]}
-    </a>
+    </TextLink>
   );
 }
 
@@ -52,23 +53,17 @@ export function OpenInApp({
     return null;
   }
   if (token === null) {
-    return <p className={styles.muted}>{t("invitePage.missing")}</p>;
+    return <Muted>{t("invitePage.missing")}</Muted>;
   }
   return (
     <>
-      <a className={styles.button} href={`questify://operator-invite/${token}`}>
+      <ButtonLink variant="primary" href={`questify://operator-invite/${token}`}>
         {t("invitePage.open")}
-      </a>
+      </ButtonLink>
       {playStoreUrl === undefined ? null : (
-        <a className={styles.textLink} href={playStoreUrl}>
-          {t("eventPage.play")}
-        </a>
+        <TextLink href={playStoreUrl}>{t("eventPage.play")}</TextLink>
       )}
-      {appStoreUrl === undefined ? null : (
-        <a className={styles.textLink} href={appStoreUrl}>
-          App Store
-        </a>
-      )}
+      {appStoreUrl === undefined ? null : <TextLink href={appStoreUrl}>App Store</TextLink>}
     </>
   );
 }

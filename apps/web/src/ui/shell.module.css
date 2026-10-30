@@ -80,6 +80,17 @@
   border-color: color-mix(in srgb, var(--color-surface) 45%, transparent);
 }
 
+/* The account links share the navigation's item class: on the dark bar they keep the bar's light text and take a
+   dark veil on hover, never the page's light background. */
+.topEnd .item {
+  background: none;
+  border-inline-start-width: 1px;
+}
+
+.topEnd .item:hover {
+  background: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
 .topEnd :focus-visible,
 .menuButton:focus-visible {
   outline-color: var(--color-navigation-active);
@@ -134,7 +145,7 @@
 
 .content {
   max-inline-size: var(--content-max);
-  margin-inline: auto;
+  margin-inline-end: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-xl);
@@ -162,6 +173,8 @@
 
 .item {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
   align-items: center;
   min-block-size: 40px;
   padding-inline: var(--space-md);

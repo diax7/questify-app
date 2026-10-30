@@ -18,7 +18,9 @@ import {
 } from "#src/lib/console-daily-forms.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import type { DailyConsoleState } from "#src/lib/use-daily-console.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted } from "#src/ui/Feedback.tsx";
+import { Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 type Period = DailyConsole["periods"][number];
 type Editing = Readonly<{ startsOn: string; endsOn: string; draft: ChallengeDraft }>;
@@ -46,14 +48,14 @@ function ChallengeSummary({
         })}
       </ol>
       {challenge.sponsor === null ? null : (
-        <p className={styles.muted}>
+        <Muted>
           {t("console.daily.sponsorLine", { name: textIn(challenge.sponsor, language) })}
-        </p>
+        </Muted>
       )}
       {challenge.finishes === 0 ? null : (
-        <p className={styles.muted}>
+        <Muted>
           {t("console.daily.finishes", { count: formatNumber(challenge.finishes, language) })}
-        </p>
+        </Muted>
       )}
     </>
   );
@@ -80,37 +82,37 @@ function PeriodCard({
   const started = hasStarted(period.startsOn, today);
   const challenge = period.challenge ?? null;
   const button = (label: string, onClick: () => void) => (
-    <button type="button" className={styles.quiet} disabled={busy} onClick={onClick}>
+    <Button variant="quiet" disabled={busy} onClick={onClick}>
       {label}
-    </button>
+    </Button>
   );
   return (
-    <li className={styles.formCard} data-testid="daily-period">
-      <p className={styles.row}>
+    <Card as="li" data-testid="daily-period">
+      <Toolbar>
         <strong>{formatPeriod(period.startsOn, period.endsOn, language)}</strong>
-        {started ? <span className={styles.badge}>{t("console.daily.started")}</span> : null}
-      </p>
+        {started ? <Badge>{t("console.daily.started")}</Badge> : null}
+      </Toolbar>
       {challenge === null ? (
-        <p className={styles.muted}>
+        <Muted>
           {t(
             period.startsOn === period.endsOn
               ? "console.daily.emptyDay"
               : "console.daily.emptyWeek",
           )}
-        </p>
+        </Muted>
       ) : (
         <ChallengeSummary language={language} challenge={challenge} questions={questions} />
       )}
       {started ? null : (
-        <div className={styles.actions}>
+        <Toolbar>
           {button(
             t(challenge === null ? "console.daily.setChallenge" : "console.daily.edit"),
             edit,
           )}
           {challenge === null ? null : button(t("console.daily.remove"), clear)}
-        </div>
+        </Toolbar>
       )}
-    </li>
+    </Card>
   );
 }
 
@@ -159,10 +161,10 @@ export function DailySchedule({
     }
   };
   return (
-    <section aria-labelledby="daily-schedule" className={styles.stack}>
-      <h2 id="daily-schedule" className={styles.subtitle}>
+    <Stack as="section" aria-labelledby="daily-schedule">
+      <SubHeading as="h2" id="daily-schedule">
         {t("console.daily.schedule")}
-      </h2>
+      </SubHeading>
       {editing === null ? null : (
         <ChallengeEditor
           language={language}
@@ -185,7 +187,7 @@ export function DailySchedule({
           close={() => setRemoving(null)}
         />
       )}
-      <ul className={styles.list}>
+      <CardList>
         {periods.map((period) => (
           <PeriodCard
             key={period.startsOn}
@@ -204,7 +206,7 @@ export function DailySchedule({
             clear={() => setRemoving(`/challenges/${period.startsOn}`)}
           />
         ))}
-      </ul>
-    </section>
+      </CardList>
+    </Stack>
   );
 }

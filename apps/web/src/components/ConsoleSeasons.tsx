@@ -13,7 +13,11 @@ import {
 } from "#src/lib/console-seasons.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
-import styles from "#src/components/layout.module.css";
+import { Button } from "#src/ui/Button.tsx";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { NavItem } from "#src/ui/Nav.tsx";
+import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 type Read<T> =
   | Readonly<{ kind: "loading" }>
@@ -45,9 +49,9 @@ function useRead<T>(path: string, read: (body: unknown) => T | undefined): Read<
 function Problem({ language, body }: Readonly<{ language: Language; body: unknown }>) {
   const t = translatorFor(language);
   return (
-    <p role="alert" className={styles.alert}>
+    <Notice tone="danger" role="alert">
       {body === "network" ? t("join.network") : problemOf(body, language, t)}
-    </p>
+    </Notice>
   );
 }
 
@@ -55,11 +59,11 @@ function Avatar({ avatar }: Readonly<{ avatar: string }>) {
   const known = AVATARS.find((name) => name === avatar);
   return known === undefined ? null : (
     <img
-      className={styles.rankAvatar}
       src={`/avatars/${known}.png`}
       alt=""
       width={32}
       height={32}
+      style={{ borderRadius: "50%" }}
     />
   );
 }
@@ -68,26 +72,24 @@ function TopTen({ language, season }: Readonly<{ language: Language; season: Que
   const t = translatorFor(language);
   const month = formatLocalMonth(season.month, language);
   if (season.rows.length === 0) {
-    return <p className={styles.muted}>{t("console.seasons.empty", { month })}</p>;
+    return <Muted>{t("console.seasons.empty", { month })}</Muted>;
   }
   return (
     <>
-      <h2 className={styles.subtitle}>{t("console.seasons.top", { month })}</h2>
-      <ol className={styles.list}>
+      <SubHeading as="h2">{t("console.seasons.top", { month })}</SubHeading>
+      <CardList>
         {season.rows.map((row) => (
-          <li key={row.rank} className={styles.card} data-testid="season-row">
-            <span className={styles.who}>
-              <span className={styles.rankNumber}>{row.rank}</span>
+          <Card as="li" key={row.rank} data-testid="season-row">
+            <Toolbar>
+              <strong>{row.rank}</strong>
               <Avatar avatar={row.avatar} />
               <span dir="auto">{row.username}</span>
-            </span>
-            <span className={`${styles.who} ${styles.muted}`}>
-              <span>{t("console.seasons.xp", { xp: row.xp })}</span>
-              <span>{t("console.seasons.level", { level: row.level })}</span>
-            </span>
-          </li>
+              <Muted as="span">{t("console.seasons.xp", { xp: row.xp })}</Muted>
+              <Muted as="span">{t("console.seasons.level", { level: row.level })}</Muted>
+            </Toolbar>
+          </Card>
         ))}
-      </ol>
+      </CardList>
     </>
   );
 }
@@ -97,14 +99,12 @@ function SeasonTop({ language, month }: Readonly<{ language: Language; month: st
   const t = translatorFor(language);
   const state = useRead(seasonPath(month), readSeason);
   return (
-    <div id={`season-${month}`} className={styles.stack} data-testid="season-top">
-      {state.kind === "loading" ? (
-        <p role="status" className={styles.muted}>
-          {t("common.loading")}
-        </p>
-      ) : null}
-      {state.kind === "failed" ? <Problem language={language} body={state.body} /> : null}
-      {state.kind === "ready" ? <TopTen language={language} season={state.value} /> : null}
+    <div id={`season-${month}`} data-testid="season-top">
+      <Stack>
+        {state.kind === "loading" ? <Muted role="status">{t("common.loading")}</Muted> : null}
+        {state.kind === "failed" ? <Problem language={language} body={state.body} /> : null}
+        {state.kind === "ready" ? <TopTen language={language} season={state.value} /> : null}
+      </Stack>
     </div>
   );
 }
@@ -122,24 +122,16 @@ function SeasonItem({
 }>) {
   const t = translatorFor(language);
   return (
-    <li className={styles.stack} data-testid="season" data-month={season.month}>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={`season-${season.month}`}
-        className={`${styles.card} ${styles.disclosure}`}
-        onClick={toggle}
-      >
-        <span className={styles.who}>
-          <span>{formatLocalMonth(season.month, language)}</span>
-          {season.current ? (
-            <span className={styles.badge}>{t("console.seasons.current")}</span>
-          ) : null}
+    <Card as="li" data-testid="season" data-month={season.month}>
+      <Button wide aria-expanded={open} aria-controls={`season-${season.month}`} onClick={toggle}>
+        <span>
+          {formatLocalMonth(season.month, language)}{" "}
+          {season.current ? <Badge>{t("console.seasons.current")}</Badge> : null}
         </span>
         <span>{t("console.seasons.players", { count: season.players })}</span>
-      </button>
+      </Button>
       {open ? <SeasonTop language={language} month={season.month} /> : null}
-    </li>
+    </Card>
   );
 }
 
@@ -155,19 +147,16 @@ export function ConsoleSeasons({ language }: Readonly<{ language: Language }>) {
   const opening = list.kind === "ready" ? openingMonth(list.value) : null;
   const open = chosen === undefined ? opening : chosen;
   return (
-    <section className={styles.stack} aria-labelledby="console-seasons-title">
-      <h1 id="console-seasons-title" className={styles.title}>
-        {t("console.seasons.title")}
-      </h1>
-      <p className={styles.muted}>{t("console.seasons.intro")}</p>
-      {list.kind === "loading" ? (
-        <p role="status" className={styles.muted}>
-          {t("common.loading")}
-        </p>
-      ) : null}
+    <Stack as="section" aria-labelledby="console-seasons-title">
+      <PageHeader
+        titleId="console-seasons-title"
+        title={t("console.seasons.title")}
+        description={t("console.seasons.intro")}
+      />
+      {list.kind === "loading" ? <Muted role="status">{t("common.loading")}</Muted> : null}
       {list.kind === "failed" ? <Problem language={language} body={list.body} /> : null}
       {list.kind === "ready" ? (
-        <ul className={styles.list}>
+        <CardList>
           {list.value.map((season) => (
             <SeasonItem
               key={season.month}
@@ -177,20 +166,21 @@ export function ConsoleSeasons({ language }: Readonly<{ language: Language }>) {
               toggle={() => setChosen(open === season.month ? null : season.month)}
             />
           ))}
-        </ul>
+        </CardList>
       ) : null}
-    </section>
+    </Stack>
   );
 }
 
-/** The console home's link to this page. */
-export function ConsoleSeasonsLink({ language }: Readonly<{ language: Language }>) {
+/** This page's item in the console's navigation. */
+export function ConsoleSeasonsLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
   const t = translatorFor(language);
   return (
-    <p>
-      <a className={styles.textLink} href={`/${language}/console/seasons`}>
-        {t("console.seasons.title")}
-      </a>
-    </p>
+    <NavItem href={`/${language}/console/seasons`} current={current}>
+      {t("console.seasons.title")}
+    </NavItem>
   );
 }

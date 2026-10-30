@@ -137,6 +137,7 @@ test("in English an owner asks, the admin approves the frozen text, the counts s
 
   // The console lists it and opens it: the names, the exact text and the audience now.
   await page.goto("/en/console");
+  await openMenu(page);
   await expect(page.getByRole("link", { name: /^Invitations/ })).toBeVisible();
   await page.goto("/en/console/invitations");
   await expect(page.getByRole("heading", { name: "Invitations", level: 1 })).toBeVisible();

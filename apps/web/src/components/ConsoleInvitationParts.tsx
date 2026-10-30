@@ -5,7 +5,9 @@ import { nameIn } from "#src/lib/console.ts";
 import { NAME_REASON_KEYS, NOT_ELIGIBLE_KEYS, riyadhTime } from "#src/lib/invitations.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { useInvitationCatalogs } from "#src/lib/use-invitation-catalogs.ts";
-import styles from "#src/components/layout.module.css";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Card, CardList, SubHeading, Toolbar } from "#src/ui/Section.tsx";
+import { Prose } from "#src/ui/Text.tsx";
 
 type PartProps = Readonly<{ language: Language; detail: AdminInvitationDetail }>;
 
@@ -15,15 +17,13 @@ export function Facts({ language, detail }: PartProps) {
   const catalogs = useInvitationCatalogs();
   const { campaign } = detail;
   return (
-    <div className={styles.formCard}>
-      <p className={styles.row}>
-        <span className={styles.badge} data-testid="detail-state">
-          {t(`invCampaign.state.${campaign.state}`)}
-        </span>
-        <span className={styles.muted}>
+    <Card>
+      <Toolbar>
+        <Badge data-testid="detail-state">{t(`invCampaign.state.${campaign.state}`)}</Badge>
+        <Muted as="span">
           {t("invCampaign.card.requestedAt", { time: riyadhTime(campaign.requestedAt, language) })}
-        </span>
-      </p>
+        </Muted>
+      </Toolbar>
       <p dir="auto">
         <bdi>{campaign.organizer.name}</bdi> · <bdi>{nameIn(campaign.event.name, language)}</bdi> ·{" "}
         <bdi dir="ltr">{campaign.event.joinCode}</bdi>
@@ -35,7 +35,7 @@ export function Facts({ language, detail }: PartProps) {
           {t("console.invCampaign.estimate", { count: detail.estimate })}
         </p>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -45,24 +45,24 @@ export function Warnings({ language, detail }: PartProps) {
   return (
     <>
       {detail.hold === null ? null : (
-        <p role="alert" className={styles.warning} data-testid="hold">
+        <Notice tone="warning" role="alert" data-testid="hold">
           {t("console.invCampaign.hold", {
             time: riyadhTime(detail.hold.holdUntil, language),
             code: detail.hold.code,
           })}
-        </p>
+        </Notice>
       )}
       {detail.eventIssue === null ? null : (
-        <p role="alert" className={styles.warning}>
+        <Notice tone="warning" role="alert">
           {t(NOT_ELIGIBLE_KEYS[detail.eventIssue])}
-        </p>
+        </Notice>
       )}
       {(["ar", "en"] as const).map((one) => {
         const { issue } = detail.names[one];
         return issue === null || detail.campaign.state !== "requested" ? null : (
-          <p key={one} role="alert" className={styles.warning}>
+          <Notice tone="warning" key={one} role="alert">
             {t(`invCampaign.nameProblem.${one}`, { reason: t(NAME_REASON_KEYS[issue]) })}
-          </p>
+          </Notice>
         );
       })}
     </>
@@ -74,31 +74,31 @@ export function Names({ language, detail }: PartProps) {
   const t = translatorFor(language);
   const approved = detail.campaign.approvedNames;
   return (
-    <div className={styles.formCard}>
-      <h2 className={styles.subtitle}>{t("console.invCampaign.names")}</h2>
+    <Card>
+      <SubHeading as="h2">{t("console.invCampaign.names")}</SubHeading>
       {(["ar", "en"] as const).map((one) => {
         const { name, issue } = detail.names[one];
         return (
           <p key={one} data-testid={`name-${one}`}>
             {t(`invCampaign.language.${one}`)}:{" "}
             {name === null || name.trim() === "" ? (
-              <span className={styles.muted}>{t("console.invCampaign.nameNone")}</span>
+              <Muted as="span">{t("console.invCampaign.nameNone")}</Muted>
             ) : (
               <bdi dir="auto">{name}</bdi>
             )}
             {name === null || issue !== null || detail.campaign.state !== "requested" ? null : (
-              <span className={styles.muted}> · {t("console.invCampaign.nameOk")}</span>
+              <Muted as="span"> · {t("console.invCampaign.nameOk")}</Muted>
             )}
           </p>
         );
       })}
       {approved.ar === null && approved.en === null ? null : (
-        <p className={styles.muted} data-testid="approved-names">
+        <Muted data-testid="approved-names">
           {t("console.invCampaign.namesApproved")} <bdi dir="auto">{approved.ar ?? "-"}</bdi> ·{" "}
           <bdi dir="auto">{approved.en ?? "-"}</bdi>
-        </p>
+        </Muted>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -111,47 +111,47 @@ export function Messages({ language, detail }: PartProps) {
     return null;
   }
   return (
-    <div className={styles.formCard}>
-      <h2 className={styles.subtitle}>
+    <Card>
+      <SubHeading as="h2">
         {t(
           frozen
             ? "console.invCampaign.messages.approved"
             : "console.invCampaign.messages.toApprove",
         )}
-      </h2>
-      <p className={styles.muted}>
+      </SubHeading>
+      <Muted>
         {t(
           frozen
             ? "console.invCampaign.messages.hintFrozen"
             : "console.invCampaign.messages.hintOpen",
         )}
-      </p>
+      </Muted>
       {shown.map((one) => (
         <div key={one} data-testid={`message-${one}`}>
-          <p className={styles.muted}>
+          <Muted>
             {t("console.invCampaign.messages.label", {
               language: t(`invCampaign.language.${one}`),
               parts: detail.messages[one]?.parts ?? 0,
             })}
-          </p>
-          <p className={styles.prose} dir="auto" data-testid={`message-text-${one}`}>
+          </Muted>
+          <Prose dir="auto" data-testid={`message-text-${one}`}>
             {detail.messages[one]?.text}
-          </p>
+          </Prose>
           {detail.pushMessages[one] === null ? null : (
             <>
-              <p className={styles.muted}>
+              <Muted>
                 {t("console.invCampaign.messages.pushLabel", {
                   language: t(`invCampaign.language.${one}`),
                 })}
-              </p>
-              <p className={styles.prose} dir="auto" data-testid={`push-text-${one}`}>
+              </Muted>
+              <Prose dir="auto" data-testid={`push-text-${one}`}>
                 <strong>{detail.pushMessages[one]?.title}</strong> {detail.pushMessages[one]?.body}
-              </p>
+              </Prose>
             </>
           )}
         </div>
       ))}
-    </div>
+    </Card>
   );
 }
 
@@ -170,9 +170,9 @@ export function Counters({ language, detail }: PartProps) {
     ["joined", counts.joined],
   ] as const;
   return (
-    <div className={styles.formCard} data-testid="counters">
-      <h2 className={styles.subtitle}>{t("console.invCampaign.counters")}</h2>
-      <ul className={styles.list}>
+    <Card data-testid="counters">
+      <SubHeading as="h2">{t("console.invCampaign.counters")}</SubHeading>
+      <CardList>
         {rows.map(([name, value]) => (
           <li key={name}>
             {t(`console.invCampaign.counter.${name}`)}:{" "}
@@ -183,7 +183,7 @@ export function Counters({ language, detail }: PartProps) {
           {t("console.invCampaign.counter.queued")}:{" "}
           <strong data-testid="counter-queued">{formatNumber(detail.queued, language)}</strong>
         </li>
-      </ul>
-    </div>
+      </CardList>
+    </Card>
   );
 }

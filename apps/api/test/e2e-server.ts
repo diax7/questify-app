@@ -240,6 +240,29 @@ async function invitationControl(
   return undefined;
 }
 
+/** Adds an editor account for each email to the organizer that owns the event. */
+async function addEditors(
+  db: Awaited<ReturnType<typeof createTestDatabase>>,
+  eventId: string,
+  emails: readonly string[],
+): Promise<void> {
+  const found = await db.owner.query<{ organizer_id: string }>(
+    "SELECT organizer_id FROM event WHERE id = $1",
+    [eventId],
+  );
+  const organizerId = found.rows[0]?.organizer_id;
+  if (organizerId === undefined) {
+    throw new Error("no such event");
+  }
+  for (const email of emails) {
+    const id = await createStaff(db.owner, { email });
+    await db.owner.query(
+      "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'editor')",
+      [organizerId, id],
+    );
+  }
+}
+
 /**
  * Test-only control on its own local port: `POST /event-status {eventId, status, endedDaysAgo?}` moves an event the way
  * Questify's activation will (T-210), so a browser test can work on a live event. Never part of the API.
@@ -258,6 +281,7 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         points?: number[];
         flagged?: string[];
         email?: string;
+        emails?: string[];
         texts?: string[];
         monthsAgo?: number;
         campaignId?: string;
@@ -385,6 +409,18 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
               "content-type": "application/json",
             });
             response.end(answer === undefined ? undefined : JSON.stringify(answer));
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /team: adds editors with these emails to the event's organizer, so the dashboard's team page shows a full list
+      // (the layout check, T-599b).
+      if (request.url === "/team") {
+        addEditors(db, body.eventId ?? "", body.emails ?? [])
+          .then(() => {
+            response.writeHead(204).end();
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));
