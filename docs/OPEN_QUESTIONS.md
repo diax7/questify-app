@@ -1568,4 +1568,4 @@ push again. **Decided (developer):** as recommended, ADR-372 accepted (2026-10-3
 
 ## Q-345 - The desktop menu: scroll, not collapse (2026-10-31)
 
-**Recommended (worker):** the desktop navigation column scrolls on its own and brings the open page's link into view; no group collapses. **Open:** whether a person with a short screen should instead get collapsible groups (the open page's group open, the state remembered); it would change every browser spec that clicks a link of the other group. **Decided:** pending the coordinator's acceptance of ADR-378.
+**Recommended (worker):** the desktop navigation column scrolls on its own and brings the open page's link into view; no group collapses. **Open:** whether a person with a short screen should instead get collapsible groups (the open page's group open, the state remembered); it would change every browser spec that clicks a link of the other group. **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended, ADR-378 accepted.
