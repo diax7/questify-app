@@ -8,25 +8,24 @@ import {
   type MessageKey,
 } from "@questify/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Avatar, CommunityScene } from "#src/components/BigScreenParts.tsx";
 import { DevicePairing } from "#src/components/DevicePairing.tsx";
+import { FinaleScene } from "#src/components/FinaleScene.tsx";
 import { useWakeLock } from "#src/components/StationScreen.tsx";
 import {
   EMPTY_SKIP_MS,
   SCENE_MS,
   SCENE_POLL_MS,
   SLOWED_MS,
-  avatarFile,
   isEmpty,
   nextScene,
-  percentOf,
+  runningOf,
   sceneAnswerOf,
-  scenesOf,
   shareOf,
-  type CommunityGoal,
   type Known,
   type PollView,
   type RankingRow,
-  type Scene,
+  type RunningScene,
   type SceneAnswer,
 } from "#src/lib/big-screen.ts";
 import type { PairedView } from "#src/lib/device.ts";
@@ -37,19 +36,20 @@ import { errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import styles from "#src/components/device.module.css";
 
 type Translate = ReturnType<typeof translatorFor>;
-type Answers = Readonly<Partial<Record<Scene, SceneAnswer>>>;
+type Answers = Readonly<Partial<Record<RunningScene, SceneAnswer>>>;
 
-const SCENE_TITLES: Readonly<Record<Scene, MessageKey>> = {
+const SCENE_TITLES: Readonly<Record<RunningScene, MessageKey>> = {
   ranking: "screen.ranking.title",
   community: "screen.community.title",
   poll: "screen.poll.title",
+  finale: "screen.finale.title",
 };
 
 /**
  * Reads the open scene every 3 seconds (6 after a 429) and keeps the last answer of each scene, so a scene comes back
  * showing what it showed while its fresh read is on the way. A 401 hands back to pairing.
  */
-function useSceneAnswers(open: Scene | undefined, restart: () => void): Answers {
+function useSceneAnswers(open: RunningScene | undefined, restart: () => void): Answers {
   const [answers, setAnswers] = useState<Answers>({});
   useEffect(() => {
     if (open === undefined) {
@@ -90,11 +90,11 @@ function useSceneAnswers(open: Scene | undefined, restart: () => void): Answers 
  * order takes over, passing by one found empty in the last 20 seconds (no community goal running, no poll sent). A scene
  * found empty while it is up is left after a second when another has something to show.
  */
-function useBigScreen(scenes: readonly Scene[], restart: () => void) {
-  const [current, setCurrent] = useState<Scene | undefined>(scenes[0]);
+function useBigScreen(scenes: readonly RunningScene[], restart: () => void) {
+  const [current, setCurrent] = useState<RunningScene | undefined>(scenes[0]);
   const open = current !== undefined && scenes.includes(current) ? current : scenes[0];
   const answers = useSceneAnswers(open, restart);
-  const known = useRef<Partial<Record<Scene, Known>>>({});
+  const known = useRef<Partial<Record<RunningScene, Known>>>({});
   const answer = open === undefined ? undefined : answers[open];
   const emptyHere = answer !== undefined && isEmpty(answer);
   useEffect(() => {
@@ -114,23 +114,6 @@ function useBigScreen(scenes: readonly Scene[], restart: () => void) {
     return () => clearTimeout(timer);
   }, [scenes, open, emptyHere]);
   return { open, answer };
-}
-
-function Avatar({ row }: Readonly<{ row: RankingRow }>) {
-  const file = avatarFile(row.avatar);
-  return file === null ? (
-    <span className={styles.boardAvatar} aria-hidden="true">
-      {row.username.slice(0, 1).toUpperCase()}
-    </span>
-  ) : (
-    <img
-      className={styles.boardAvatar}
-      src={`/avatars/${file}.png`}
-      alt=""
-      width={51}
-      height={51}
-    />
-  );
 }
 
 function RankingScene({
@@ -168,54 +151,6 @@ function RankingScene({
         </li>
       ))}
     </ol>
-  );
-}
-
-function CommunityScene({
-  goal,
-  language,
-  t,
-}: Readonly<{ goal: CommunityGoal; language: Language; t: Translate }>) {
-  const percent = percentOf(goal.progress, goal.target);
-  return (
-    <>
-      <p className={styles.goalTitle} dir="auto">
-        {textFor(goal.title, language)}
-      </p>
-      <div
-        className={styles.goalTrack}
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={goal.target}
-        aria-valuenow={Math.min(goal.progress, goal.target)}
-      >
-        <div className={styles.goalFill} style={{ inlineSize: `${percent}%` }} />
-        {goal.steps
-          .filter((step) => !step.isGoal)
-          .map((step) => (
-            <span
-              key={step.threshold}
-              className={styles.goalMark}
-              style={{ insetInlineStart: `${percentOf(step.threshold, goal.target)}%` }}
-            />
-          ))}
-      </div>
-      <p className={styles.goalNumbers}>
-        <span>
-          {t("community.progress", {
-            progress: formatNumber(Math.min(goal.progress, goal.target), language),
-            target: formatNumber(goal.target, language),
-          })}
-        </span>
-        <span>{formatNumber(percent, language)}%</span>
-      </p>
-      {goal.status === "reached" ? (
-        <p className={styles.goalReached}>{t("community.reached")}</p>
-      ) : null}
-      {goal.status === "missed" ? (
-        <p className={styles.muted}>{t("screen.community.missed")}</p>
-      ) : null}
-    </>
   );
 }
 
@@ -279,6 +214,15 @@ function SceneBody({
       return answer.poll === null ? null : (
         <PollScene poll={answer.poll} language={language} t={t} />
       );
+    case "finale":
+      return answer.finale === null ? null : (
+        <FinaleScene
+          finale={answer.finale}
+          clockOffset={answer.clockOffset}
+          language={language}
+          t={t}
+        />
+      );
   }
 }
 
@@ -291,7 +235,7 @@ function Scenes({
   const t = translatorFor(language, view.terms);
   useWakeLock();
   const list = (view.scenes ?? []).join(",");
-  const scenes = useMemo(() => scenesOf(list === "" ? [] : list.split(",")), [list]);
+  const scenes = useMemo(() => runningOf(list === "" ? [] : list.split(",")), [list]);
   const { open, answer } = useBigScreen(scenes, restart);
   const showing = answer !== undefined && !isEmpty(answer);
   return (

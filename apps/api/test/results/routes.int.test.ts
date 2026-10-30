@@ -383,6 +383,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rank prizes and results over H
       });
       expect(editor.statusCode).toBe(403);
       const claim = new Date(Date.now() + 96 * HOUR);
+      expect((await asPlayer(winner.token, `/v1/events/${event}/home`)).json()).toMatchObject({
+        win: null,
+        finale: null,
+      });
       const revealed = await dashboard(ownerCookie, "POST", `/events/${event}/results/reveal`, {
         claimUntil: claim.toISOString(),
       });
@@ -417,7 +421,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rank prizes and results over H
         win: { rank: 1, prize: { name: { en: "Gold" } }, status: "reserved" },
       });
       const otherHome = await asPlayer(other.token, `/v1/events/${event}/home`);
-      expect(otherHome.json()).toMatchObject({ win: null });
+      expect(otherHome.json()).toMatchObject({ win: null, finale: { place: 2 } });
+      expect(home.json()).toMatchObject({ finale: { place: 1 } });
 
       const shop = await asPlayer(winner.token, `/v1/events/${event}/shop`);
       const redemption = shop.json<{ redemptions: { id: string; rank: number; price: number }[] }>()

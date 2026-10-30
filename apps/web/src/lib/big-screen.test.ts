@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   EMPTY_RECHECK_MS,
+  clockParts,
   isEmpty,
   moveRow,
   nextScene,
   percentOf,
   planOf,
+  remainingMs,
   rowsFor,
+  runningOf,
   sceneAnswerOf,
   scenesOf,
   scenesToSave,
@@ -14,13 +17,13 @@ import {
   toggleRow,
   type BigScreenPlan,
   type Known,
-  type Scene,
+  type RunningScene,
   type SceneAnswer,
 } from "#src/lib/big-screen.ts";
 
 const empty = (at: number): Known => ({ empty: true, at });
 const full = (at: number): Known => ({ empty: false, at });
-const answerOf = (scene: Scene, body: object): SceneAnswer => {
+const answerOf = (scene: RunningScene, body: object): SceneAnswer => {
   const answer = sceneAnswerOf(scene, body);
   if (answer === undefined) {
     throw new Error("not an answer");
@@ -114,6 +117,101 @@ describe("reading a scene", () => {
   it("keeps only the scenes this page can run", () => {
     expect(scenesOf(["poll", "photos", 3, "ranking"])).toEqual(["poll", "ranking"]);
     expect(scenesOf("poll")).toEqual([]);
+    expect(scenesOf(["poll", "finale"])).toEqual(["poll"]);
+  });
+
+  it("runs the finale too, last or alone, and nothing else this page does not know", () => {
+    expect(runningOf(["poll", "finale", "photos"])).toEqual(["poll", "finale"]);
+    expect(runningOf(["finale"])).toEqual(["finale"]);
+    expect(runningOf(null)).toEqual([]);
+  });
+});
+
+describe("reading the finale scene", () => {
+  const startsAt = "2026-10-30T20:00:00.000Z";
+  const at = Date.parse(startsAt);
+
+  it("reads each phase, the winners with a username and an avatar only", () => {
+    expect(
+      sceneAnswerOf("finale", { shut: null, finale: { phase: "countdown", startsAt } }, 0),
+    ).toEqual({
+      scene: "finale",
+      shut: null,
+      finale: { phase: "countdown", startsAt: at },
+      clockOffset: 0,
+    });
+    expect(sceneAnswerOf("finale", { finale: { phase: "waiting", startsAt } }, 0)).toMatchObject({
+      finale: { phase: "waiting" },
+    });
+    expect(
+      sceneAnswerOf(
+        "finale",
+        {
+          finale: {
+            phase: "reveal",
+            startsAt,
+            winners: [
+              { place: 1, username: "sara_k", avatar: "fox", score: 999 },
+              { place: 2, username: null, avatar: "falcon" },
+              "junk",
+            ],
+          },
+        },
+        0,
+      ),
+    ).toMatchObject({
+      finale: {
+        phase: "reveal",
+        winners: [
+          { place: 1, username: "sara_k", avatar: "fox" },
+          { place: 2, username: null, avatar: "falcon" },
+        ],
+      },
+    });
+  });
+
+  it("reads the push with its goal, and waits when the goal cannot be read", () => {
+    const goal = { title: { en: "Light the tower" }, target: 100, progress: 40, status: "running" };
+    expect(sceneAnswerOf("finale", { finale: { phase: "push", startsAt, goal } }, 0)).toMatchObject(
+      {
+        finale: { phase: "push", goal: { target: 100, progress: 40 } },
+      },
+    );
+    expect(
+      sceneAnswerOf("finale", { finale: { phase: "push", startsAt, goal: null } }, 0),
+    ).toMatchObject({ finale: { phase: "waiting" } });
+  });
+
+  it("is empty when no finale is set, an unknown phase, a bad time or the screen is shut", () => {
+    expect(isEmpty(answerOf("finale", { finale: null }))).toBe(true);
+    expect(isEmpty(answerOf("finale", { finale: { phase: "dance", startsAt } }))).toBe(true);
+    expect(isEmpty(answerOf("finale", { finale: { phase: "waiting", startsAt: "soon" } }))).toBe(
+      true,
+    );
+    expect(isEmpty(answerOf("finale", { shut: "feature_off" }))).toBe(true);
+    expect(isEmpty(answerOf("finale", { finale: { phase: "waiting", startsAt } }))).toBe(false);
+  });
+
+  it("keeps the server clock: the offset is its time minus this page's on arrival", () => {
+    const read = sceneAnswerOf("finale", { serverNow: "2026-10-30T19:59:00.000Z" }, at - 30_000);
+    expect(read).toMatchObject({ clockOffset: -30_000 });
+    expect(sceneAnswerOf("finale", { serverNow: "never" }, 5)).toMatchObject({ clockOffset: 0 });
+  });
+});
+
+describe("the countdown", () => {
+  it("counts down on the server clock and stops at zero", () => {
+    expect(remainingMs(10_000, 0, 4000)).toBe(6000);
+    expect(remainingMs(10_000, -2000, 4000)).toBe(8000);
+    expect(remainingMs(10_000, 0, 12_000)).toBe(0);
+  });
+
+  it("shows hours, minutes and seconds as Western digits of two places, rounding the last second up", () => {
+    expect(clockParts(3_725_000)).toEqual({ hours: "01", minutes: "02", seconds: "05" });
+    expect(clockParts(59_001)).toEqual({ hours: "00", minutes: "01", seconds: "00" });
+    expect(clockParts(0)).toEqual({ hours: "00", minutes: "00", seconds: "00" });
+    expect(clockParts(-5)).toEqual({ hours: "00", minutes: "00", seconds: "00" });
+    expect(clockParts(100 * 3_600_000).hours).toBe("100");
   });
 });
 
@@ -129,10 +227,16 @@ describe("what is empty", () => {
 });
 
 describe("the next scene", () => {
-  const scenes: readonly Scene[] = ["ranking", "community", "poll"];
+  const scenes: readonly RunningScene[] = ["ranking", "community", "poll"];
   it("follows the picked order and wraps", () => {
     expect(nextScene(scenes, "ranking", {}, 0)).toBe("community");
     expect(nextScene(scenes, "poll", {}, 0)).toBe("ranking");
+  });
+
+  it("runs the finale last and wraps back to the first scene", () => {
+    const withFinale: readonly RunningScene[] = ["poll", "finale"];
+    expect(nextScene(withFinale, "poll", {}, 0)).toBe("finale");
+    expect(nextScene(withFinale, "finale", {}, 0)).toBe("poll");
   });
 
   it("passes by a scene found empty a moment ago, and looks again after 20 seconds", () => {

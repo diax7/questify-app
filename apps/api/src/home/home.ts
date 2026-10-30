@@ -163,6 +163,11 @@ export type Home = Readonly<{
   shopWindow: ShopWindow | null;
   /** The caller's rank prize while it waits at the desk, once the winners are revealed (FR-1718, T-214). */
   win: MyPrize | null;
+  /**
+   * Set once the owner revealed the winners (T-307b, FR-407): the app plays the full-screen finale celebration once. `place`
+   * is the caller's own place when it is among the frozen ones, else null; nobody else's place or score is carried.
+   */
+  finale: Readonly<{ place: number | null }> | null;
   rankingOn: boolean;
   /** The team answered the player's requests (T-310): Home's strip while any answer is unseen, whatever the switch. */
   help: Readonly<{ unread: number }>;
@@ -554,6 +559,7 @@ export async function readHome(
         goal: null,
         shopWindow: null,
         win: null,
+        finale: null,
         streak: null,
       };
     }
@@ -580,7 +586,7 @@ export async function readHome(
         row.now,
       ),
       ...(shopOn ? await shopAndGoal(client, eventId, row) : NO_SHOP),
-      win: row.status_now === "ended" ? await waitingPrize(client, eventId) : null,
+      ...(row.status_now === "ended" ? await afterReveal(client, eventId) : NOT_REVEALED),
       streak: await readOwnEventStreak(client, eventId),
     };
   });
@@ -620,10 +626,20 @@ async function readShopWindow(client: PoolClient, eventId: string): Promise<Shop
   return rows[0] === undefined ? null : homeWindowOf(rows[0]);
 }
 
-/** The caller's revealed rank prize while it is still to collect. */
-async function waitingPrize(client: PoolClient, eventId: string): Promise<MyPrize | null> {
-  const { me } = await resultsFor(client, eventId);
-  return me?.status === "reserved" ? me : null;
+const NOT_REVEALED = { win: null, finale: null } as const;
+
+/** The caller's revealed rank prize while it is still to collect, and the finale's mark once the winners are revealed. */
+async function afterReveal(
+  client: PoolClient,
+  eventId: string,
+): Promise<Pick<Home, "win" | "finale">> {
+  const results = await resultsFor(client, eventId);
+  return {
+    win: results.me?.status === "reserved" ? results.me : null,
+    finale: results.revealed
+      ? { place: results.places.find((place) => place.mine)?.rank ?? null }
+      : null,
+  };
 }
 
 /** One line of a player's points record (FR-410), as `member_activity` gives it (migration 0023). */

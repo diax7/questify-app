@@ -57,6 +57,14 @@ describe("the device's answers (T-309)", () => {
         scenes: ["poll", "photos", "ranking"],
       }),
     ).toMatchObject({ view: { scenes: ["poll", "ranking"] } });
+    expect(
+      deviceAnswerOf({
+        state: "paired",
+        activated: true,
+        kind: "screen",
+        scenes: ["poll", "finale"],
+      }),
+    ).toMatchObject({ view: { scenes: ["poll", "finale"] } });
     const gems = {
       currency: {
         icon: "gem",

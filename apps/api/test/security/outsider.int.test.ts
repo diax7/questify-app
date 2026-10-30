@@ -466,6 +466,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot read the finale or reach any finale door, reader or helper (T-307b)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.finale",
+        "SELECT public.event_finale(gen_random_uuid())",
+        "SELECT public.set_finale(gen_random_uuid(), now(), NULL, NULL)",
+        "SELECT public.clear_finale(gen_random_uuid(), NULL)",
+        "SELECT public.screen_finale()",
+        "SELECT public.finale_json(NULL::public.event)",
+        "SELECT public.finale_revealed(NULL::public.event)",
+        "SELECT public.big_screen_running(NULL::public.event)",
+        "SELECT public.screen_view_shut(NULL::public.event)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot read tickets or reach any help-desk door, the sweep included (T-310)", async () => {
       for (const sql of [
         "SELECT * FROM public.ticket",

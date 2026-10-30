@@ -356,8 +356,64 @@
   transition: inline-size 800ms ease-out;
 }
 
+/* The finale scene (T-307b): a countdown in three big groups, then the winners rising in one after another. */
+.finaleClock {
+  display: flex;
+  gap: var(--space-xl);
+  justify-content: center;
+  margin: 0;
+}
+
+.finaleUnit {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-sm);
+}
+
+.finaleDigits {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-weight: 800;
+  font-size: clamp(4rem, 16vw, 14rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-highlight);
+}
+
+.finaleLabel {
+  font-size: clamp(1.25rem, 3vw, 2.5rem);
+  font-weight: 700;
+}
+
+.finaleStarting {
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-weight: 800;
+  font-size: clamp(3rem, 9vw, 8rem);
+  line-height: 1.1;
+  color: var(--color-highlight);
+}
+
+.winnerRow {
+  animation: rise 600ms ease-out both;
+  animation-delay: calc(var(--rank, 0) * 250ms);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .scene {
+    animation: none;
+  }
+
+  .winnerRow {
     animation: none;
   }
 

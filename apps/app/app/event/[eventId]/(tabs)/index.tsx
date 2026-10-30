@@ -33,6 +33,7 @@ import { forget } from "#src/event/launch.ts";
 import { EXPLAINED_KEY, explainAfterJoin } from "#src/event/location.ts";
 import { useLive } from "#src/event/LiveContext.tsx";
 import { LocationPrompt, useLocationReader } from "#src/event/LocationEntry.tsx";
+import { FinaleCelebration } from "#src/event/FinaleCelebration.tsx";
 import { WinCard } from "#src/event/WinCard.tsx";
 import { EventStreakCard } from "#src/streaks/EventStreakCard.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -407,6 +408,7 @@ function ActiveCards({
       <EventStreakCard streak={home.streak} />
       <EventHomeStrips eventId={eventId} />
       <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
+      <FinaleCelebration eventId={eventId} finale={home.finale} />
       {community === null ? null : <CommunityBar card={community} />}
       <GoalCard eventId={eventId} goal={home.goal} ended={ended} timeZone={home.event.timezone} />
       {ranking === undefined ? null : <RankingCard eventId={eventId} ranking={ranking} />}

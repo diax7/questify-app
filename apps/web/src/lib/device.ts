@@ -1,5 +1,5 @@
 import { readEventTerms, type EventTerms, type MessageKey } from "@questify/shared";
-import { scenesOf, type Scene } from "#src/lib/big-screen.ts";
+import { runningOf, type RunningScene } from "#src/lib/big-screen.ts";
 
 /** The three kinds of paired browser (T-309, ADR-239); each has its own page with no ids in its address. */
 export type DeviceKind = "station" | "kiosk" | "screen";
@@ -15,7 +15,7 @@ export type PairedView = Readonly<{
   event: Readonly<{ name: Bilingual }>;
   quest: Readonly<{ title: Bilingual; points: number }> | null;
   /** A big screen's scenes to run, in order (T-504); null for a station, a kiosk or a shut screen. */
-  scenes: readonly Scene[] | null;
+  scenes: readonly RunningScene[] | null;
   /** The event's own words, complete (Questify's own where it set none): a big screen shows its currency. */
   terms: EventTerms;
 }>;
@@ -67,7 +67,7 @@ function viewOf(body: Record<string, unknown>, kind: DeviceKind): PairedView {
     shut: typeof body["shut"] === "string" ? body["shut"] : null,
     event: { name: textOf(event["name"]) },
     quest: questOf(body["quest"]),
-    scenes: Array.isArray(body["scenes"]) ? scenesOf(body["scenes"]) : null,
+    scenes: Array.isArray(body["scenes"]) ? runningOf(body["scenes"]) : null,
     terms: readEventTerms(body["terms"]),
   };
 }

@@ -292,6 +292,7 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         nameEn?: string;
         days?: number;
         endedDaysAgo?: number;
+        step?: string;
       };
       try {
         body = JSON.parse(raw || "{}") as typeof body;
@@ -507,6 +508,24 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         seedBigScreen(db.owner, body.eventId ?? "")
           .then(() => {
             response.writeHead(204).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /finale-step: moves an event's finale along for a browser test (T-307b): `start` makes its time come, `finish-goal`
+      // ends the community goal as missed (the results can only be confirmed once every goal is final).
+      if (request.url === "/finale-step") {
+        db.owner
+          .query(
+            body.step === "start"
+              ? "UPDATE finale SET starts_at = now() - interval '1 minute' WHERE event_id = $1"
+              : "UPDATE community_goal SET status = 'missed', final_at = now(), progress_at = now() WHERE event_id = $1",
+            [body.eventId],
+          )
+          .then((result) => {
+            response.writeHead(result.rowCount === 1 ? 204 : 404).end();
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));

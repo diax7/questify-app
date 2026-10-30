@@ -20,6 +20,11 @@ declare const styles: {
   readonly codeBox: string;
   readonly corner: string;
   readonly event: string;
+  readonly finaleClock: string;
+  readonly finaleDigits: string;
+  readonly finaleLabel: string;
+  readonly finaleStarting: string;
+  readonly finaleUnit: string;
   readonly goalFill: string;
   readonly goalMark: string;
   readonly goalNumbers: string;
@@ -42,5 +47,6 @@ declare const styles: {
   readonly stage: string;
   readonly stageHead: string;
   readonly title: string;
+  readonly winnerRow: string;
 };
 export default styles;

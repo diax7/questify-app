@@ -331,11 +331,17 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/operator/events/:eventId/devices/:deviceId/revoke":
     "an operator of that event only, for a device they paired; any other answers 404 (DN404 in revoke_device) (test/devices/routes, test/db/devices)",
   "GET /v1/device/screen/:scene":
-    "a paired, activated big screen's own event only (screen_ranking, screen_community and screen_poll take no event; a station, kiosk, pending or revoked device is device_unpaired); per device at most 40 a minute (test/screen/routes, test/db/big-screen)",
+    "a paired, activated big screen's own event only (screen_ranking, screen_community, screen_poll and screen_finale take no event; a station, kiosk, pending or revoked device is device_unpaired); per device at most 40 a minute (test/screen/routes, test/db/big-screen)",
   "GET /v1/organizers/:organizerId/events/:eventId/big-screen":
     "members inside their event limit; another organizer's event answers 404 (AN404 in event_big_screen) (test/screen/routes, test/db/big-screen)",
   "PUT /v1/organizers/:organizerId/events/:eventId/big-screen":
     "members inside their event limit, with an Idempotency-Key; another organizer's event answers 404 (AN404 in set_big_screen); never while the add-on is off (BS403) (test/screen/routes, test/db/big-screen)",
+  "GET /v1/organizers/:organizerId/events/:eventId/finale":
+    "members inside their event limit; another organizer's event answers 404 (AN404 in event_finale) (test/screen/routes, test/db/finale)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/finale":
+    "the organizer's owner only, with an Idempotency-Key (LF403 in set_finale for anyone else); another organizer's event answers 404 (AN404 in set_finale); never while the add-on is off (BS403) (test/screen/routes, test/db/finale)",
+  "DELETE /v1/organizers/:organizerId/events/:eventId/finale":
+    "the organizer's owner only, with an Idempotency-Key (LF403 in clear_finale for anyone else); another organizer's event answers 404 (AN404 in clear_finale) (test/screen/routes, test/db/finale)",
   "GET /v1/operator/events/:eventId/quests/:questId/screen-code":
     "an operator of that event with show_rotating_qr, within their quest limit (device_operator in screen_code_for_operator); per operator and quest at most 6 a minute (test/devices/routes, test/db/devices)",
   "GET /v1/organizers/:organizerId/events/:eventId/devices":

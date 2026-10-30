@@ -105,6 +105,7 @@ const home = (goal: Record<string, unknown>) =>
       ...goal,
     },
     win: null,
+    finale: null,
     rankingOn: true,
   })?.goal?.communityLock;
 

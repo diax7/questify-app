@@ -1702,6 +1702,22 @@ export const bigScreenOff = make(
   "The big screen isn't active for this event. Ask Questify to activate it.",
 );
 
+// ---------------------------------------------------------------- the live finale (T-307b)
+/** A finale the database refused: `field` is startsAt, goal, goal_done or goal_window. */
+export const invalidFinale = make(
+  422,
+  "invalid_finale",
+  "تحقق من وقت الختام وهدفه الجماعي.",
+  "Check the finale's time and its community goal.",
+);
+/** The finale's time has come: it can no longer change, only be cleared. */
+export const finaleStarted = make(
+  409,
+  "finale_started",
+  "بدأ الختام ولا يمكن تغييره. يمكنك إلغاؤه فقط.",
+  "The finale has started and can't be changed. You can only clear it.",
+);
+
 // ---------------------------------------------------------------- the help desk (T-310)
 /** Only an active member of the event sends requests; the same answer whether or not the event exists. */
 export const ticketNotMember = make(

@@ -2,6 +2,7 @@
 
 import type { Language } from "@questify/shared";
 import { useEffect, useState } from "react";
+import { FinalePanel } from "#src/components/FinalePanel.tsx";
 import { Notes } from "#src/components/PrizesPanel.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import {
@@ -192,6 +193,7 @@ export function BigScreenPanel({ language, organizerId, eventId }: Props) {
           save={() => void save()}
         />
       )}
+      <FinalePanel language={language} organizerId={organizerId} eventId={eventId} />
     </Stack>
   );
 }

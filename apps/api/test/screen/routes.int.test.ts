@@ -23,6 +23,8 @@ const codeOf = (response: Response) => [
   response.statusCode,
   response.json<{ code?: string }>().code,
 ];
+const hoursAhead = (hours: number): string =>
+  new Date(Date.now() + hours * 3_600_000).toISOString();
 const cookieOf = (response: Response): string => {
   const header = response.headers["set-cookie"];
   return String(Array.isArray(header) ? header[0] : header).split(";")[0] ?? "";
@@ -38,6 +40,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("big screen over HTTP", () => {
   let organizer = "";
   let ownerCookie = "";
   let otherCookie = "";
+  let editorCookie = "";
   let counter = 0;
 
   beforeAll(async () => {
@@ -62,6 +65,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("big screen over HTTP", () => {
     await made("other-org", "other@screen.test");
     ownerCookie = await signInFully(test, "owner@screen.test");
     otherCookie = await signInFully(test, "other@screen.test");
+    const editor = await createStaff(db.owner, { email: "editor@screen.test" });
+    await db.owner.query(
+      "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'editor')",
+      [organizer, editor],
+    );
+    editorCookie = await signInFully(test, "editor@screen.test");
   });
   afterAll(async () => {
     await test.close();
@@ -121,7 +130,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("big screen over HTTP", () => {
       ...(payload === undefined ? {} : { payload }),
     }) as Promise<Response>;
   const dashboard = (
-    method: "GET" | "POST" | "PUT",
+    method: "GET" | "POST" | "PUT" | "DELETE",
     path: string,
     payload?: object,
     cookie = ownerCookie,
@@ -376,6 +385,135 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("big screen over HTTP", () => {
         payload: { scenes: ["poll"] },
       });
       expect(noOrigin.statusCode).toBe(403);
+    });
+  });
+
+  const finale = (
+    event: string,
+    method: "GET" | "PUT" | "DELETE",
+    payload?: object,
+    cookie = ownerCookie,
+  ) => dashboard(method, `/events/${event}/finale`, payload, cookie);
+
+  describe("the live finale", () => {
+    it("sets, reads and clears it, and the screen's list and scene follow within one poll", async () => {
+      const event = await newEvent();
+      const screen = await paired(event);
+      const quiet = await paired(await newEvent());
+      const empty = await scene(quiet.cookie, "finale");
+      expect(empty.statusCode, empty.body).toBe(200);
+      expect(empty.headers["cache-control"]).toBe("no-store");
+      expect(empty.json()).toMatchObject({ shut: null, finale: null });
+      expect(typeof empty.json<{ serverNow: string }>().serverNow).toBe("string");
+      expect((await scene(screen.cookie, "ranking")).json()).not.toHaveProperty("serverNow");
+
+      const when = hoursAhead(1);
+      const saved = await finale(event, "PUT", { startsAt: when, goalId: null });
+      expect(saved.statusCode, saved.body).toBe(200);
+      expect(saved.json()).toMatchObject({
+        enabled: true,
+        state: "not_ended",
+        finale: { started: false, goalId: null, goal: null },
+      });
+      expect((await finale(event, "GET")).json()).toMatchObject({ finale: { goalId: null } });
+      expect((await device("GET", "/v1/device", screen.cookie)).json()).toMatchObject({
+        scenes: ["ranking", "community", "poll", "finale"],
+      });
+      const counting = (await scene(screen.cookie, "finale")).json<{
+        shut: string | null;
+        finale: { phase: string; startsAt: string };
+      }>();
+      expect(counting).toMatchObject({ shut: null, finale: { phase: "countdown" } });
+      expect(new Date(counting.finale.startsAt).getTime()).toBe(new Date(when).getTime());
+
+      const cleared = await finale(event, "DELETE");
+      expect(cleared.statusCode, cleared.body).toBe(200);
+      expect(cleared.json()).toMatchObject({ finale: null });
+      expect((await device("GET", "/v1/device", screen.cookie)).json()).toMatchObject({
+        scenes: ["ranking", "community", "poll"],
+      });
+    });
+
+    it("refuses a time outside the event's window and a body with anything else in it", async () => {
+      const event = await newEvent();
+      const early = await finale(event, "PUT", { startsAt: hoursAhead(-1), goalId: null });
+      expect(early.statusCode).toBe(422);
+      expect(early.json()).toMatchObject({
+        code: "invalid_finale",
+        details: { field: "startsAt" },
+      });
+      const goal = await finale(event, "PUT", { startsAt: hoursAhead(1), goalId: randomUUID() });
+      expect(goal.json()).toMatchObject({ code: "invalid_finale", details: { field: "goal" } });
+      for (const body of [
+        { startsAt: "tomorrow", goalId: null },
+        { startsAt: hoursAhead(1) },
+        { startsAt: hoursAhead(1), goalId: null, extra: 1 },
+      ]) {
+        expect((await finale(event, "PUT", body)).statusCode).toBe(400);
+      }
+      expect(await owner("SELECT 1 FROM finale WHERE event_id = $1", [event])).toEqual([]);
+    });
+
+    it("refuses a change once the time has come, but clears it", async () => {
+      const event = await newEvent();
+      await finale(event, "PUT", { startsAt: hoursAhead(1), goalId: null });
+      await owner("UPDATE finale SET starts_at = now() - interval '1 minute' WHERE event_id = $1", [
+        event,
+      ]);
+      const refused = await finale(event, "PUT", { startsAt: hoursAhead(2), goalId: null });
+      expect(codeOf(refused)).toEqual([409, "finale_started"]);
+      expect((await finale(event, "DELETE")).statusCode).toBe(200);
+    });
+
+    it("is the owner's to set and clear, any member's to read, and needs the add-on", async () => {
+      const event = await newEvent();
+      await finale(event, "PUT", { startsAt: hoursAhead(1), goalId: null });
+      const write = await finale(
+        event,
+        "PUT",
+        { startsAt: hoursAhead(2), goalId: null },
+        editorCookie,
+      );
+      expect(codeOf(write)).toEqual([403, "owner_only"]);
+      expect(codeOf(await finale(event, "DELETE", undefined, editorCookie))).toEqual([
+        403,
+        "owner_only",
+      ]);
+      expect((await finale(event, "GET", undefined, editorCookie)).statusCode).toBe(200);
+      const bare = await newEvent(false);
+      expect(codeOf(await finale(bare, "PUT", { startsAt: hoursAhead(1), goalId: null }))).toEqual([
+        403,
+        "big_screen_off",
+      ]);
+    });
+
+    it("answers another organizer's team and no session as not found or unauthenticated", async () => {
+      const event = await newEvent();
+      const body = { startsAt: hoursAhead(1), goalId: null };
+      expect((await finale(event, "GET", undefined, otherCookie)).statusCode).toBe(404);
+      expect((await finale(event, "PUT", body, otherCookie)).statusCode).toBe(404);
+      expect((await finale(event, "DELETE", undefined, otherCookie)).statusCode).toBe(404);
+      const none = await test.app.inject({
+        method: "GET",
+        url: `/v1/organizers/${organizer}/events/${event}/finale`,
+      });
+      expect(none.statusCode).toBe(401);
+      expect((await finale(randomUUID(), "GET")).statusCode).toBe(404);
+      expect(await owner("SELECT 1 FROM finale WHERE event_id = $1", [event])).toEqual([]);
+    });
+
+    it("needs an Idempotency-Key to set or clear it", async () => {
+      const event = await newEvent();
+      for (const method of ["PUT", "DELETE"] as const) {
+        const refused = await dashboard(
+          method,
+          `/events/${event}/finale`,
+          method === "PUT" ? { startsAt: hoursAhead(1), goalId: null } : undefined,
+          ownerCookie,
+          {},
+        );
+        expect(refused.statusCode, method).toBeGreaterThanOrEqual(400);
+      }
     });
   });
 });

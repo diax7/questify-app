@@ -252,6 +252,7 @@ const HOME = {
     communityLock: null,
   },
   win: null,
+  finale: null,
   rankingOn: true,
   helpUnread: 0,
   streak: null,
@@ -323,6 +324,15 @@ describe("homeAnswer", () => {
     expect(readWin({ ...win, prize: { kind: 1, name: win.prize.name } })).toBeNull();
     expect(readWin({ ...win, prize: { kind: "item", name: "Cup" } })).toBeNull();
     expect(readWin({ ...win, claimUntil: null })).toEqual({ ...win, claimUntil: null });
+  });
+
+  it("reads the finale, and shows none for an older API or one it cannot read (T-307b)", () => {
+    expect(readHome({ ...HOME, finale: { place: 3 } })?.finale).toEqual({ place: 3 });
+    expect(readHome({ ...HOME, finale: { place: null } })?.finale).toEqual({ place: null });
+    const { finale: _finale, ...older } = HOME;
+    expect(readHome(older)?.finale).toBeNull();
+    expect(readHome({ ...HOME, finale: { place: "1" } })?.finale).toBeNull();
+    expect(readHome({ ...HOME, finale: "yes" })?.finale).toBeNull();
   });
 
   it("reads the goal, and shows none for an older API or a goal it cannot read (T-213)", () => {

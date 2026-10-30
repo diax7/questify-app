@@ -1,8 +1,11 @@
 import { AVATARS } from "@questify/shared";
 
-/** The scenes a big screen can run (T-504, FR-631): the live ranking, the community goal and the live poll. */
+/** The scenes the team picks and orders (T-504, FR-631): the live ranking, the community goal and the live poll. */
 export const SCENES = ["ranking", "community", "poll"] as const;
 export type Scene = (typeof SCENES)[number];
+/** The scenes a screen runs: the picked ones, and the finale a set finale adds by itself (T-307b). */
+export const RUNNING_SCENES = [...SCENES, "finale"] as const;
+export type RunningScene = (typeof RUNNING_SCENES)[number];
 
 /** How long one scene stays up before the next (fixed, ADR-365), and how often the open scene reads again. */
 export const SCENE_MS = 15_000;
@@ -31,6 +34,13 @@ export type CommunityGoal = Readonly<{
   status: "running" | "reached" | "missed";
   steps: readonly Milestone[];
 }>;
+export type FinaleWinner = Readonly<{ place: number; username: string | null; avatar: string }>;
+/** The finale scene's phase now (T-307b): the countdown, the last push, a wait for the reveal, or the winners. */
+export type FinaleView =
+  | Readonly<{ phase: "countdown"; startsAt: number }>
+  | Readonly<{ phase: "push"; startsAt: number; goal: CommunityGoal }>
+  | Readonly<{ phase: "waiting"; startsAt: number }>
+  | Readonly<{ phase: "reveal"; startsAt: number; winners: readonly FinaleWinner[] }>;
 export type PollOption = Readonly<{ text: Bilingual; votes: number }>;
 export type PollView = Readonly<{
   title: Bilingual;
@@ -44,7 +54,14 @@ export type PollView = Readonly<{
 export type SceneAnswer =
   | Readonly<{ scene: "ranking"; shut: string | null; rows: readonly RankingRow[] }>
   | Readonly<{ scene: "community"; shut: string | null; goal: CommunityGoal | null }>
-  | Readonly<{ scene: "poll"; shut: string | null; poll: PollView | null }>;
+  | Readonly<{ scene: "poll"; shut: string | null; poll: PollView | null }>
+  /** `clockOffset` is the server's clock minus this page's when the answer arrived, in milliseconds. */
+  | Readonly<{
+      scene: "finale";
+      shut: string | null;
+      finale: FinaleView | null;
+      clockOffset: number;
+    }>;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -107,8 +124,46 @@ function pollOf(value: unknown): PollView | null {
   };
 }
 
-/** A scene's answer, read defensively; undefined when the body is not one. */
-export function sceneAnswerOf(scene: Scene, body: unknown): SceneAnswer | undefined {
+const winnersOf = (value: unknown): readonly FinaleWinner[] =>
+  (Array.isArray(value) ? value : []).filter(isRecord).map((row) => ({
+    place: numberOf(row["place"]),
+    username: typeof row["username"] === "string" ? row["username"] : null,
+    avatar: typeof row["avatar"] === "string" ? row["avatar"] : "",
+  }));
+
+/** The finale in a scene answer, or null when none is set or the answer is not one. */
+function finaleOf(value: unknown): FinaleView | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const startsAt =
+    typeof value["startsAt"] === "string" ? Date.parse(value["startsAt"]) : Number.NaN;
+  return Number.isNaN(startsAt) ? null : phaseOf(value, startsAt);
+}
+
+function phaseOf(value: Record<string, unknown>, startsAt: number): FinaleView | null {
+  switch (value["phase"]) {
+    case "countdown":
+      return { phase: "countdown", startsAt };
+    case "push": {
+      const goal = goalOf(value["goal"]);
+      return goal === null ? { phase: "waiting", startsAt } : { phase: "push", startsAt, goal };
+    }
+    case "waiting":
+      return { phase: "waiting", startsAt };
+    case "reveal":
+      return { phase: "reveal", startsAt, winners: winnersOf(value["winners"]) };
+    default:
+      return null;
+  }
+}
+
+/** A scene's answer, read defensively; undefined when the body is not one. `now` is this page's clock on arrival. */
+export function sceneAnswerOf(
+  scene: RunningScene,
+  body: unknown,
+  now: number = Date.now(),
+): SceneAnswer | undefined {
   if (!isRecord(body)) {
     return undefined;
   }
@@ -120,13 +175,38 @@ export function sceneAnswerOf(scene: Scene, body: unknown): SceneAnswer | undefi
       return { scene, shut, goal: goalOf(body["goal"]) };
     case "poll":
       return { scene, shut, poll: pollOf(body["poll"]) };
+    case "finale":
+      return finaleAnswer(shut, body, now);
   }
 }
 
-/** The scene names in a device answer, in order; anything this page cannot run is left out. */
+/** The finale scene's answer, with the offset between the server clock and this page's when it arrived. */
+function finaleAnswer(
+  shut: string | null,
+  body: Record<string, unknown>,
+  now: number,
+): SceneAnswer {
+  const served = typeof body["serverNow"] === "string" ? Date.parse(body["serverNow"]) : Number.NaN;
+  return {
+    scene: "finale",
+    shut,
+    finale: finaleOf(body["finale"]),
+    clockOffset: Number.isNaN(served) ? 0 : served - now,
+  };
+}
+
+/** The picked scene names in an answer, in order; anything this page cannot pick is left out. */
 export function scenesOf(value: unknown): readonly Scene[] {
   const names: readonly unknown[] = Array.isArray(value) ? value : [];
   return names.filter((name): name is Scene => SCENES.includes(name as Scene));
+}
+
+/** The scene names a screen runs in a device answer, in order; anything this page cannot run is left out. */
+export function runningOf(value: unknown): readonly RunningScene[] {
+  const names: readonly unknown[] = Array.isArray(value) ? value : [];
+  return names.filter((name): name is RunningScene =>
+    RUNNING_SCENES.includes(name as RunningScene),
+  );
 }
 
 /**
@@ -144,6 +224,8 @@ export function isEmpty(answer: SceneAnswer): boolean {
       return answer.goal === null;
     case "poll":
       return answer.poll === null;
+    case "finale":
+      return answer.finale === null;
   }
 }
 
@@ -155,20 +237,38 @@ export type Known = Readonly<{ empty: boolean; at: number }>;
  * (an empty scene is looked at again after that). When every other scene is empty it stays where it is.
  */
 export function nextScene(
-  scenes: readonly Scene[],
-  current: Scene,
-  known: Readonly<Partial<Record<Scene, Known>>>,
+  scenes: readonly RunningScene[],
+  current: RunningScene,
+  known: Readonly<Partial<Record<RunningScene, Known>>>,
   now: number,
-): Scene {
+): RunningScene {
   const start = scenes.indexOf(current);
   for (let step = 1; step < scenes.length; step += 1) {
-    const candidate = scenes[(start + step) % scenes.length] as Scene;
+    const candidate = scenes[(start + step) % scenes.length] as RunningScene;
     const seen = known[candidate];
     if (seen === undefined || !seen.empty || now - seen.at >= EMPTY_RECHECK_MS) {
       return candidate;
     }
   }
   return current;
+}
+
+/** Milliseconds left to `startsAt` by the server's clock: this page's `now` moved by the offset read with the answer. */
+export const remainingMs = (startsAt: number, clockOffset: number, now: number): number =>
+  Math.max(0, startsAt - (now + clockOffset));
+
+const two = (value: number): string => String(value).padStart(2, "0");
+
+/** A countdown as hours, minutes and seconds, each of at least two Western digits; the last second rounds up. */
+export function clockParts(
+  ms: number,
+): Readonly<{ hours: string; minutes: string; seconds: string }> {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  return {
+    hours: two(Math.floor(total / 3600)),
+    minutes: two(Math.floor((total % 3600) / 60)),
+    seconds: two(total % 60),
+  };
 }
 
 /** The fill of a bar, 0 to 100 whole percent. */

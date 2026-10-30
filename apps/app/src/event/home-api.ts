@@ -1,6 +1,7 @@
 import type { Equipment, EventStreak, ShopWindow } from "@questify/shared";
 import { equipmentOf } from "#src/questify/profile-api.ts";
 import type { AuthedResult, Session } from "#src/api/session.ts";
+import { readFinale, type Finale } from "#src/event/finale.ts";
 import { readShopWindow, shopClosed } from "#src/event/shop-window.ts";
 import { lockNoteOf, type CommunityLock } from "#src/event/unlock.ts";
 import { eventStreakOf } from "#src/streaks/event-streak.ts";
@@ -62,6 +63,8 @@ export type Home = Readonly<{
   /** Null once the shop has closed: the balance can no longer be redeemed, so no goal is shown (ADR-337). */
   goal: Goal | null;
   win: Win | null;
+  /** Set once the winners are revealed (T-307b): the full-screen finale celebration plays once. */
+  finale: Finale | null;
   rankingOn: boolean;
   /** How many of the player's help-desk answers they have not seen (T-310); 0 from an older API. */
   helpUnread: number;
@@ -208,6 +211,7 @@ export function readHome(body: unknown): Home | undefined {
     shopWindow,
     goal: goalFor(body["goal"], shopWindow),
     win: readWin(body["win"]),
+    finale: readFinale(body["finale"]),
     rankingOn: body["rankingOn"],
     helpUnread: readUnread(body["help"]),
     streak: eventStreakOf(body["streak"]),
