@@ -1,5 +1,24 @@
 # Blueprint State — Questify
 
+## Staging, APK and demo — 2026-10-30 (evening)
+
+- **CranL runs migrations through 0086** (T-505 deployed from f408f6c, CI run 41095188086, verify ok; owner connection removed).
+  Migrations up to 0086 are frozen.
+- **Staging `DASHBOARD_ORIGIN` is now `https://questify.nafes.com`** (was the `…cranl.net` web address): sign-up from the
+  domain was refused as `csrf_rejected`. Printed `/q/` codes now carry that origin, so the preview APK's
+  `EXPO_PUBLIC_QUEST_CODE_ORIGIN` moved with it (`apps/app/eas.json`). The `…cranl.net` web address still loads but its
+  writes are refused; use the domain.
+- **Preview APK** (EAS build be6cc517, from 6adc57e): brand icon, Android adaptive icon and splash (`apps/app/assets/brand/`,
+  from `docs/design/assets/logo`), staging API and the domain's QR origin. Built from a clean worktree because a worker's
+  uncommitted files would otherwise ride in the upload; `.easignore` leaves `docs/` out (181 MB to a few MB).
+- **Demo events:** `77XBUB` (live until 2030; owner `d.hamidaddin7@gmail.com`) and Dhia's `3MZM8X` (approved, live from
+  2026-10-30 18:08 UTC). The staging Questify admin is `xdhia7@gmail.com`.
+- **Push on phones is off (Dhia: "Later", 2026-10-30):** no Firebase project yet, so no `google-services.json` in the app
+  and no `FCM_SERVICE_ACCOUNT` on the API; iPhone needs the APNs key. The in-app notification center works. Owed by Dhia
+  before launch (RUNBOOK "The app's side of push").
+- **The app sends no `X-App-Version`,** so the API's minimum-version gate (staging `MIN_APP_VERSION` 1.0.0, the app is
+  0.1.0) never applies to it; FOLLOWUPS.
+
 ## T-506 maps — 2026-10-30
 
 - **T-506 done (tier B; code review owed; not run on a phone).** Migration 0087 (new, undeployed; staging is at 0085, 0086 is being deployed): two closed tables
