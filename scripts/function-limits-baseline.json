@@ -387,7 +387,7 @@
       "complexity": [12]
     },
     "QuestsScreen": {
-      "complexity": [16]
+      "complexity": [15]
     },
     "noteText": {
       "complexity": [9]

@@ -10,6 +10,7 @@ import { Screen } from "#src/components/Screen.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
 import { FirstBonusRibbon } from "#src/event/FirstBonusRibbon.tsx";
+import { MapsView } from "#src/event/MapsView.tsx";
 import { boostLine, flashLine } from "#src/event/flash-boost.ts";
 import { forget } from "#src/event/launch.ts";
 import { QuestSheet, stateLine } from "#src/event/QuestSheet.tsx";
@@ -277,6 +278,83 @@ function CategorySection({
   );
 }
 
+/** The categories as a list, each opening and closing on its header. */
+function QuestList({
+  categories,
+  openIds,
+  timeZone,
+  onToggle,
+  onOpenQuest,
+}: Readonly<{
+  categories: readonly Category[];
+  openIds: readonly string[];
+  timeZone: string;
+  onToggle: (id: string) => void;
+  onOpenQuest: (questId: string) => void;
+}>) {
+  const { t } = useI18n();
+  return (
+    <ScrollView contentContainerStyle={{ gap: 16 }}>
+      {categories.every((category) => category.quests.length === 0) ? (
+        <AppText muted>{t("questsTab.empty")}</AppText>
+      ) : null}
+      {categories
+        .filter((category) => category.quests.length > 0)
+        .map((category) => (
+          <CategorySection
+            key={category.id}
+            category={category}
+            open={openIds.includes(category.id)}
+            timeZone={timeZone}
+            onToggle={() => onToggle(category.id)}
+            onOpenQuest={onOpenQuest}
+          />
+        ))}
+    </ScrollView>
+  );
+}
+
+/** The Quests tab's two views of the same quests (FR-826): the list by category, and the event's maps. */
+function QuestsViews({
+  view,
+  onView,
+  eventId,
+  ...list
+}: Readonly<{
+  view: "list" | "map";
+  onView: (view: "list" | "map") => void;
+  eventId: string;
+  categories: readonly Category[];
+  openIds: readonly string[];
+  timeZone: string;
+  onToggle: (id: string) => void;
+  onOpenQuest: (questId: string) => void;
+}>) {
+  const { t } = useI18n();
+  return (
+    <>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {(["list", "map"] as const).map((choice) => (
+          <Button
+            key={choice}
+            kind={view === choice ? "primary" : "quiet"}
+            selected={view === choice}
+            label={t(choice === "list" ? "mapsView.toggleList" : "mapsView.toggleMap")}
+            onPress={() => onView(choice)}
+          />
+        ))}
+      </View>
+      {view === "map" ? (
+        <ScrollView>
+          <MapsView eventId={eventId} onOpenQuest={list.onOpenQuest} />
+        </ScrollView>
+      ) : (
+        <QuestList {...list} />
+      )}
+    </>
+  );
+}
+
 /** The event's quests (FR-221, FR-222, FR-230, FR-1742; T-114), by category, with each quest's details sheet. */
 export default function QuestsScreen() {
   const { t } = useI18n();
@@ -285,6 +363,7 @@ export default function QuestsScreen() {
   const { answer, load } = useQuests(eventId);
   const [openIds, setOpenIds] = useState<string[] | undefined>(undefined);
   const [sheetId, setSheetId] = useState<string | undefined>(undefined);
+  const [view, setView] = useState<"list" | "map">("list");
   const categories = answer?.kind === "quests" ? answer.view.categories : undefined;
 
   useEffect(() => {
@@ -341,23 +420,16 @@ export default function QuestsScreen() {
         </>
       ) : null}
       {answer?.kind === "quests" ? (
-        <ScrollView contentContainerStyle={{ gap: 16 }}>
-          {categories?.every((category) => category.quests.length === 0) ? (
-            <AppText muted>{t("questsTab.empty")}</AppText>
-          ) : null}
-          {(categories ?? [])
-            .filter((category) => category.quests.length > 0)
-            .map((category) => (
-              <CategorySection
-                key={category.id}
-                category={category}
-                open={openIds?.includes(category.id) ?? false}
-                timeZone={answer.view.event.timezone}
-                onToggle={() => toggle(category.id)}
-                onOpenQuest={setSheetId}
-              />
-            ))}
-        </ScrollView>
+        <QuestsViews
+          view={view}
+          onView={setView}
+          eventId={eventId}
+          categories={categories ?? []}
+          openIds={openIds ?? []}
+          timeZone={answer.view.event.timezone}
+          onToggle={toggle}
+          onOpenQuest={setSheetId}
+        />
       ) : null}
       {answer?.kind === "quests" && sheetId !== undefined ? (
         <QuestSheet

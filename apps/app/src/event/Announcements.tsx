@@ -88,6 +88,11 @@ export function EventHomeStrips({ eventId }: Readonly<{ eventId: string }>) {
         label={t("agenda.link")}
         onPress={() => router.push(`/event/${eventId}/agenda`)}
       />
+      <Button
+        kind="quiet"
+        label={t("mapsView.link")}
+        onPress={() => router.push(`/event/${eventId}/maps`)}
+      />
       {state.running.length === 0 ? null : (
         <View style={styles.card}>
           <AppText variant="title">{t("happening.title")}</AppText>
