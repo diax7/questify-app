@@ -1593,7 +1593,7 @@ player checked in cannot cancel the registration; (6) staff undo by removing the
 never paid for that session again, and there is no un-check-in; (7) the session bulk target reaches who was checked in
 when it runs, minus removed entries; a second bulk pays again and the confirm screen says how many came before.
 **Open:** should a session with points be capped for an editor, as an editor's award is? Recommended no, as a quest's
-points are not; the audit records every change of the points with the value before and after (ADR-382).
+points are not; the audit records every change of the points with the value before and after (ADR-382). **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended; ADR-382 accepted after the code review.
 
 ## Q-350 - T-602c switches in the points doors: what is decided without Dhia (2026-10-31)
 
@@ -1602,4 +1602,4 @@ their reads, in the database, with 403 `feature_off`; plain vote quests are not 
 request that already succeeded answers as before; (3) reservations made before the switch-off stand: desk handover,
 cancel and expiry work. **Open:** while the shop is off the player cannot see a prize they still hold (it is listed only in
 the shop read). Recommended: task T-602d (tier B), a "Prizes to collect" card on Home from a held-prizes read that is not
-behind the shop switch, and the shop-off confirmation saying how many prizes players still hold (ADR-383).
+behind the shop switch, and the shop-off confirmation saying how many prizes players still hold (ADR-383). **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended; ADR-383 accepted, T-602d queued.

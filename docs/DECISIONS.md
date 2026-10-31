@@ -5724,7 +5724,7 @@ the last 60 commits of `main` one by one: 33 needed no browser run, 20 the whole
 
 ## ADR-382 - T-505b session points: a `session` ledger kind paid once per player and session by the door, and a session bulk target
 
-**Status:** Proposed (worker recommendation, 2026-10-31, T-505b; plan review 86 GO, its fixes folded; Q-349). Builds
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-31; plan review 86 GO, code review 88 with its MAJOR fixed in a5b7a3b; Q-349). Builds
 FR-1791 (the points), FR-1712 (the session target). Migration 0093.
 **Decision:** (1) **A new ledger kind `session`,** written by `session_check_in` as the operator who checked the player in,
 in the same transaction as the attendance, for the session's `points` (0 to 100000; 0 writes nothing). Not `award` (it would
@@ -5755,7 +5755,7 @@ a late arrival after a bulk award gets it from a list; editing points never chan
 
 ## ADR-383 - T-602c the event's switches inside the points doors: the database refuses a new reserve or live-poll vote, replays stand
 
-**Status:** Proposed (worker recommendation, 2026-10-31, T-602c; plan review 86 GO; Q-350). Completes FR-1009 and
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-31; plan review 86 GO, code review 88 GO after fixes; Q-350). Completes FR-1009 and
 closes ADR-381's trade-offs (a) and (b). Migration 0094.
 **Decision:** (1) **The database is the one gate.** `reserve_reward` refuses a new reservation while the shop switch is
 off (RS403 `feature_off`, after the event row is read, rehearsal accounts too); `vote_quest`, `member_poll` (so
