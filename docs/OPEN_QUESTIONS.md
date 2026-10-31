@@ -1651,4 +1651,4 @@ T-604b (ADR-388). **Open:** should the dashboard itself offer "save as a change 
 goes through the live-edit door and needs its `apply` choice; 100 items a set and 20 open sets an event; the sweep asks for
 the actions listed in ADR-389 and leaves what is one tap to undo (cancel an invitation). **Open:** should the dashboard let
 a reviewer edit an item's body, or merge two edits of one target, before applying? Recommended no: the assistant that makes
-a set (F-197) makes a new one.
+a set (F-197) makes a new one. **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended; ADR-389 accepted.

@@ -5910,7 +5910,7 @@ refusal shows at apply as `failed`. Migration 0099 is left free for it.
 
 ## ADR-389 - T-604b change sets: stale rule, limits and the confirmation sweep
 
-**Status:** Proposed (worker, 2026-10-31; Q-356).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-31; T-604b review 92 GO; Q-356).
 **Decision:** (1) **Stale.** A set keeps each edited or deleted target's audit view (`before`) when it is made; at review
 and again at apply, a target whose view differs (or that had none) is `stale` and skipped, never applied. Two edits of one
 target in one set therefore leave the second stale once the first is applied. (2) **One path for points.** An item runs
