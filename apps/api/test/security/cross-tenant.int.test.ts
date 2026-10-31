@@ -1739,6 +1739,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     }
   });
 
+  it("keeps the analytics inside the caller's tenant and membership (T-607)", async () => {
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      for (const sql of [
+        "SELECT analytics_participation($1)",
+        "SELECT analytics_quests($1)",
+        "SELECT analytics_economy($1)",
+      ]) {
+        expect(await refusal(asA(seat, sql, [f.eventB])), `${seat} ${sql}`).toBe("AN404");
+      }
+    }
+  });
+
   it("keeps the live points edits inside the caller's tenant and membership (T-604)", async () => {
     const [questB] = (
       await db.owner.query<{ id: string }>(

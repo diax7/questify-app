@@ -1,0 +1,33 @@
+/** The class names in charts.module.css, so a misspelt class fails the type check. Keep in step with the file. */
+declare const styles: {
+  readonly tiles: string;
+  readonly panels: string;
+  readonly wide: string;
+  readonly tile: string;
+  readonly tileLabel: string;
+  readonly tileTitle: string;
+  readonly figure: string;
+  readonly bars: string;
+  readonly bar: string;
+  readonly barHead: string;
+  readonly barLabel: string;
+  readonly barValue: string;
+  readonly barMeta: string;
+  readonly track: string;
+  readonly fill: string;
+  readonly chart: string;
+  readonly yAxis: string;
+  readonly yTick: string;
+  readonly area: string;
+  readonly plot: string;
+  readonly gridLine: string;
+  readonly wash: string;
+  readonly line: string;
+  readonly dot: string;
+  readonly cross: string;
+  readonly tip: string;
+  readonly tipValue: string;
+  readonly tipTime: string;
+  readonly xAxis: string;
+};
+export default styles;

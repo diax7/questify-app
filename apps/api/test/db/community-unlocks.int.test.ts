@@ -1564,6 +1564,10 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   member_game: "gated: answers QN403 community_locked (the sheets test)",
   member_sessions:
     "exempt: lists agenda sessions and shows the title of a visible linked quest only; it plays and pays nothing, and the quest opens only through its own gated doors (T-505)",
+  analytics_quests:
+    "staff: an owner or editor within their event limit (award_event_of) counts the players who completed each visible quest, its order and skip flags, locked quests included; it plays and pays nothing (T-607)",
+  analytics_economy:
+    "staff: an owner or editor within their event limit (award_event_of) counts the event's rewards, their redemptions and stock; it plays and pays nothing (T-607)",
   control_counts:
     "staff: an owner or editor within their event limit (award_event_of) counts the active rewards at or under the stock-low line; it plays and pays nothing (T-603)",
   apply_past_points:

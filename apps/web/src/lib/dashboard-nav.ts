@@ -43,6 +43,7 @@ export const EVENT_PAGES: readonly EventPageLink[] = [
   { slug: "flags", icon: "alert", group: "run", label: "flags.link" },
   { slug: "awards", icon: "award", group: "run", label: "awards.link" },
   { slug: "change-sets", icon: "file", group: "run", label: "changeSets.page.title" },
+  { slug: "analytics", icon: "chart", group: "run", label: "analytics.link" },
 ];
 
 const EVENT_PATH = /^\/organizers\/[^/]+\/events\/([^/]+)(?:\/([^/]+))?/;

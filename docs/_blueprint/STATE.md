@@ -37,6 +37,32 @@
   app render test for `eventOff` was dropped (the app has no render-test harness, and a harness is not worth adding for
   one line).
 
+## T-607 analytics — 2026-10-31
+
+- **T-607 done (tier B; one code review owed; not run on a phone). Migration 0102 (three read-only definer doors, no table or index; staging
+  runs through 0101).** **Built (FR-1201 to FR-1205, FR-1625, ADR-392):** `analytics_participation`, `analytics_quests`, `analytics_economy`
+  behind `award_event_of` (AN404), PUBLIC without EXECUTE; `GET …/events/{id}/analytics/{participation|quests|economy}` (owner, editor) checks
+  each answer against a strict schema (`packages/shared/src/analytics`), counts only, no time-spent or heatmap figure. Joined is every
+  enrollment that was ever a member, active has at least one completion, activation is active over joined (no value when nobody joined),
+  returning has a completion on two or more event days (`event_streak_day`); earned points are the score cache (plus spends when the event
+  lowers the rank on a spend), spent is the standing reward redemptions. Nothing reads the points record. **Measured** on one event of 50,000
+  players (35,000 active, 525,000 completions; `apps/api/test/perf/analytics-timing.int.test.ts`, run by hand): participation 593 ms first and
+  313 ms warm, quests 141 to 170 ms, economy 21 to 28 ms, so no cache. Dashboard: the Analytics page in the Run group (`LAYOUT_PAGES`,
+  `ci-scope` area `analytics`): four figure tiles, joined over time (SVG line, crosshair readout by pointer and keyboard), joined by source,
+  most and least popular quests with their thumbs scores (T-508), a category funnel with the largest drop marked, where players stop, points
+  earned and spent, unclaimed reservations and redemptions per reward; cards of a row are equally tall, lists show five rows and "View more"
+  opens the rest; the new primitives are `ui/Charts.tsx` and `--chart-*` tokens (one data colour, about 4.7 to 1 on the surface); no
+  dependency added. A rehearsal event says "Rehearsal, wiped at go-live" (T-211). ADR-392 and Q-359 Proposed. **Not built:** the period and
+  sponsor filters (T-608), exports (T-608). Mutation targets: none (tier B).
+  **Local:** full vitest 9880 passed, 15 skipped, 10 failed on the one full run (845 s): nine in `test/db/live-edits.int` (T-604) after its
+  3,000-completion test hit its timeout under load (72 s) and left a connection in an aborted transaction, and `scripts/ci-scope.test.ts`
+  (the helper-importers list now includes `analytics`, fixed); both files re-run once: 60 passed. Browser suite 295 passed, 5 skipped, 0 failed
+  (single worker, 30.5 min, after a fresh web build; the layout check walks the new page in both languages at 1440 and 360 wide; the new
+  spec also reads the filled page for layout and contrast). tsc (api, web), oxlint, format and function limits clean (no new offender);
+  `expo export` not run (no app screen changed). `waitUntilSettled` now names the requests that kept a page from settling. CI minutes none
+  yet; agent tokens roughly 0.6M (estimate).
+  **Next:** the T-607 code review, then the next unchecked task in `docs/TASKS.md` (T-608).
+
 ## T-606 event layout — 2026-10-31
 
 - **T-606 done (tier B; one code review owed; not run on a phone). No migration** (the numbering stays at 0101; 0102 is free).
@@ -58,7 +84,7 @@
   against an API bundle built before the last preset reorder; after rebundling, `e2e/layout-editor.spec.ts` 11 passed, 1 skipped
   (the drag test is desktop only). `ci-scope` maps the layout files to `layout-editor` and `branding`. CI minutes none yet; agent
   tokens roughly 0.65M (estimate).
-  **Next:** the T-606 code review, then the next unchecked task in `docs/TASKS.md` (T-607).
+  **Next:** the T-606 code review (done, 93 GO), then T-607.
 
 ## T-605 guided setup — 2026-10-31
 

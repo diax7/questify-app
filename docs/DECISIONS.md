@@ -5995,3 +5995,39 @@ step opens it. The bar keeps its left-to-right order in both languages (ADR-110)
 item and choosing its icon (the rest of FR-1749), new Home blocks, banner and countdown blocks (T-610), the Questify home block editor
 (T-713). Hiding the Quests tab is allowed (the Up next card and the scanner still reach a quest). The Home blocks keep their own
 conditions (a card with nothing to say draws nothing).
+
+## ADR-392 - T-607 analytics: counts from the players' own rows and the first-completion index, three read-only doors, a single data colour
+
+**Status:** Proposed (developer, delegated by Dhia, 2026-10-31; Q-359).
+**Decision:** (1) **Three read-only doors, no table and no write** (migration 0102): `analytics_participation`, `analytics_quests`,
+`analytics_economy`, each a definer behind `award_event_of` (AN404 for another organizer, a player, a stranger, an editor outside
+their event limit), PUBLIC without EXECUTE, granted to the API's role alone. They answer one `jsonb` of counts that the API checks
+against a strict schema (`packages/shared/src/analytics`) before it leaves, so nothing but counts can reach the dashboard. One route,
+`GET …/events/{id}/analytics/{participation|quests|economy}`; the three panels load on their own.
+(2) **Joined** is every enrollment that was ever a member (not `pending` or `declined`): the join sources add up to it, a player who
+left or was banned still counts as having joined, and every rate has its players inside its whole. **Active** is a joined player with
+at least one `quest_completion` row (FR-1625, any method), **activation** is active over joined as a whole percent (NULL, shown as a
+dash, when nobody joined). **Returning** is a player with a completion on two or more event days, read from `event_streak_day`
+(one row per open event day with a completion), so a one-day event has none. A quest's rate is its first completions over joined.
+(3) **Nothing reads the points record.** Participation reads the event's enrollments and probes `quest_completion` by enrollment
+once per player; the quests read the partial index of first completions (0096); the economy reads the score cache and the rewards'
+redemptions. Measured on a 50,000-player event with 525,000 completions: participation 313 to 593 ms, quests 141 to 170 ms, economy
+21 to 28 ms; so nothing is cached between requests. **Points earned** is the sum of the enrollments' score, plus what was spent when
+the event lowers the rank on a spend (`spend_lowers_rank`, locked from live on); **spent** is the price of every reward redemption
+that still stands (reserved, delivered, handed over); **unclaimed** is every reservation not picked up. One case is approximate: a
+removal clamped at zero after a score-lowering spend leaves earned a little high.
+(4) **Rehearsal accounts count while they exist** and the answer says so (`rehearsal`); the page shows "Rehearsal, wiped at go-live"
+(T-211's note). Manual awards by the team count as completions (the rule is "completed a quest", FR-1625); FR-1203 is met by reading
+only records of what players did in the app (joins, completions, redemptions, ratings) and having no time-spent or heatmap figure.
+(5) **No minimum group size**: no FR or SECURITY.md sets one for analytics and an answer carries no name (the T-508 precedent).
+(6) **The page** is `/analytics` in the Run group: figure tiles, then cards in a grid of equal cards (the cards of a row are as tall
+as the tallest), every list five rows with "View more" opening the rest in a dialog. Plain HTML and SVG, no chart library: one data
+colour (`--chart-mark`, the theme's green mixed with its ink, about 4.7 to 1 on the surface), a hairline grid, a 2px line with a 10% wash,
+10px bars with a 4px rounded end, the value in words and digits on every row, a crosshair readout that follows the pointer and the
+arrow keys, and the same values listed in "View more". The time axis runs left to right in both languages. The funnel of a category
+in order shows each step's players, its drop from the step before (a skipped step passed over, a flash quest or live poll left out)
+and marks the largest drop with a word; "Where players stop" lists each category's largest drop.
+**Why:** configuration and reads over new state; the doors cost less than a second, so a cache or an aggregate table would only add
+a way to be wrong.
+**Trade-offs / not built:** the period and sponsor filters of the mockup (the sponsor-filtered totals are T-608), exports (T-608),
+surveys on this page (their results page exists, T-508), the change log link, a per-day retention curve.

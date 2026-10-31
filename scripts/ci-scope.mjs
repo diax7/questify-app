@@ -67,6 +67,7 @@ export const AREAS = [
     /guided-?setup|setup-?(wizard|card|steps?|parts|step-?list)|use-setup-wizard|explain-?this|lib\/setup\.|\[eventId\]\/setup\/|api\/src\/setup\//i,
     ["setup"],
   ],
+  [/analytics/i, ["analytics"]],
   [/change-?sets?/i, ["change-sets"]],
   [
     /use-?confirmation|confirmations/i,

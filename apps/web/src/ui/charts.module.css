@@ -1,0 +1,231 @@
+/* Analytics figures and charts (T-607, ADR-392): a grid of equal cards, a figure tile, bar rows and a line chart. */
+
+/* Four figure tiles across; every card of a row is as tall as the tallest of its row. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--space-lg);
+}
+
+/* Two panels across where the page has the room, one on a phone. */
+.panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+  gap: var(--space-lg);
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  background: var(--color-surface);
+  border: var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  min-inline-size: 0;
+}
+
+.tileLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.tileTitle {
+  margin: 0;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  color: var(--color-text-muted);
+}
+
+.figure {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: var(--weight-display);
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-inline-size: 0;
+}
+
+.barHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-md);
+  min-inline-size: 0;
+}
+
+.barLabel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+  font-weight: var(--weight-medium);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.barValue {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.barMeta {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.track {
+  block-size: 10px;
+  border-radius: 4px;
+  background: var(--chart-track);
+  overflow: hidden;
+}
+
+/* The data end is rounded by 4px; the start sits square on the baseline. */
+.fill {
+  block-size: 100%;
+  background: var(--chart-mark);
+  border-start-end-radius: 4px;
+  border-end-end-radius: 4px;
+}
+
+/* The players-over-time line: ticks, a plot and the first and last time in a grid, so the plot is the one flexible part. */
+.chart {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: var(--space-xs) var(--space-sm);
+  flex: 1 1 auto;
+  min-block-size: 14rem;
+  min-inline-size: 0;
+}
+
+.yAxis {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: space-between;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  text-align: end;
+}
+
+.yTick {
+  block-size: 1rem;
+  line-height: 1rem;
+}
+
+/* Half a tick label of room above and below, so each label sits level with its gridline. */
+.area {
+  position: relative;
+  margin-block: 0.5rem;
+  min-inline-size: 0;
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+.plot {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  overflow: visible;
+}
+
+.gridLine {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.wash {
+  fill: var(--chart-mark);
+  fill-opacity: 0.1;
+}
+
+.line {
+  fill: none;
+  stroke: var(--chart-mark);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.dot {
+  position: absolute;
+  inline-size: 10px;
+  block-size: 10px;
+  margin-inline-start: -5px;
+  margin-block-start: -5px;
+  border-radius: 50%;
+  background: var(--chart-mark);
+  box-shadow: 0 0 0 2px var(--color-surface);
+  pointer-events: none;
+}
+
+.cross {
+  position: absolute;
+  inset-block: 0;
+  inline-size: 1px;
+  background: var(--chart-grid);
+  pointer-events: none;
+}
+
+/* The readout: the value leads, the time follows. It sits on the side of the crosshair that has room. */
+.tip {
+  position: absolute;
+  inset-block-start: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--color-surface);
+  border: var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.tipValue {
+  font-weight: var(--weight-strong);
+}
+
+.tipTime {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.xAxis {
+  grid-column: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}

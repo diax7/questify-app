@@ -30,4 +30,10 @@
   --shadow-sm: 0 1px 2px color-mix(in srgb, var(--color-text) 10%, transparent);
   --shadow-md: 0 8px 24px color-mix(in srgb, var(--color-text) 16%, transparent);
   --scrim: color-mix(in srgb, var(--color-text) 45%, transparent);
+
+  /* Charts (T-607): one data colour drawn from the theme's green and ink (about 4.7 to 1 on the parchment surface, above
+     the 3 to 1 a mark needs), a quiet track and a hairline grid. Text beside a chart wears the text colours, never this. */
+  --chart-mark: color-mix(in srgb, var(--color-primary-action) 55%, var(--color-text));
+  --chart-track: color-mix(in srgb, var(--color-text) 10%, var(--color-surface));
+  --chart-grid: color-mix(in srgb, var(--color-text) 16%, var(--color-surface));
 }

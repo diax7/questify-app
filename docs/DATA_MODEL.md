@@ -1533,3 +1533,14 @@ stored, since each choice is saved where its page saves it. `updated_by` names t
 Forced row-level security: an owner or editor of the organizer inside the editor's event limit reads and writes it (a
 player's or an operator's context has no staff user and sees nothing); the API's role has column grants only (no DELETE),
 PUBLIC none. Not copied when an event is duplicated.
+
+## Analytics (T-607, migration 0102; Proposed ADR-392)
+
+- No table, no column, no index. Three read-only definer doors, each behind `award_event_of` (AN404), PUBLIC revoked, granted to the API's
+  role: `analytics_participation(event)`, `analytics_quests(event)`, `analytics_economy(event)`, each answering one `jsonb` of counts.
+- Reads: `enrollment` of the event (joined = status not `pending` or `declined`; `joined_via` for the source; `joined_at` for the running
+  count in the event's zone), `quest_completion` by `enrollment_id` (the unique index) for active players, `event_streak_day` for returning
+  players, the first-completion index `quest_completion_event_first_idx` (0096) for each quest, `enrollment.score` for earned points, and
+  `reward` with `redemption` (`redemption_reward`, `redemption_reserved_event`) for the economy. Nothing reads `ledger_entry`.
+- Measured on one event of 50,000 players, 35,000 of them active, 525,000 completions: participation 313 ms warm (593 ms first),
+  quests 141 ms, economy 21 ms.

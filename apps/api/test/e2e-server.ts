@@ -9,6 +9,7 @@ import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import { createFakeProvider } from "#src/push/fake";
 import { PUSH_TARGETS } from "#src/push/provider";
 import { createStaff, testConfig } from "#test/support/auth-app";
+import { seedAnalytics } from "#test/support/analytics-seed";
 import { seedBigScreen } from "#test/support/big-screen";
 import { createTestDatabase, seedTwoTenants } from "#test/support/test-db";
 
@@ -326,6 +327,18 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
             response
               .writeHead(result.rowCount === (body.usernames ?? []).length * 10 ? 204 : 404)
               .end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /analytics-seed: ten players, two categories of quests with their completions and two rewards with three
+      // redemptions, for the analytics page (T-607).
+      if (request.url === "/analytics-seed") {
+        seedAnalytics(db.owner, body.eventId ?? "")
+          .then(() => {
+            response.writeHead(204).end();
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));

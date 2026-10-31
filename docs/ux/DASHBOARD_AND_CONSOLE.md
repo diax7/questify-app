@@ -702,6 +702,7 @@ Primary action: **Export**.
   redemptions, submissions, survey answers, or the one-page PDF report. Output is a spreadsheet
   file.
 - There is no time-spent figure and no heatmap (FR-1203).
+- Built (T-607, ADR-392): the page is Analytics in the event's Run group. Four figure tiles (joined, active, activation rate, returning), then cards in a grid whose cards are equally tall per row: joined over time, joined by source, most and least popular quests, a category funnel, where players stop, points earned and spent with unclaimed reservations, and redemptions per reward. Every list shows five rows and "View more" opens the rest. The period and sponsor filters, Export and the Surveys and Change log links are not on the page yet (T-608 and the existing pages).
 
 **Computer:** four figure tiles across the top, two charts side by side below.
 

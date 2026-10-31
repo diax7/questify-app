@@ -165,7 +165,10 @@ describe("planBrowserSpecs", () => {
 
   it("runs the specs that import a changed e2e helper, through other helpers too", () => {
     const layoutHelper = plan(["apps/web/e2e/layout.ts"], { importersOf });
-    expect(layoutHelper).toEqual({ all: false, specs: [...LAYOUT_SPECS, "navigation"] });
+    expect(layoutHelper).toEqual({
+      all: false,
+      specs: [...LAYOUT_SPECS, "analytics", "navigation"],
+    });
 
     expect(plan(["apps/web/e2e/builder.ts"], { importersOf })).toEqual({
       all: true,

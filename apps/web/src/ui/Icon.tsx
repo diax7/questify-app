@@ -186,6 +186,7 @@ const SHAPES = {
     </>
   ),
   signOut: <path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M16 8l4 4-4 4M20 12H9" />,
+  chart: <path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6" />,
 } as const satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof SHAPES;

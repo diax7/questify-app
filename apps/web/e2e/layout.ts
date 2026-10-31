@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Page, type Request } from "@playwright/test";
 import { DEFAULT_TERMS, MESSAGES, termFor, type MessageKey } from "@questify/shared";
 
 /** The smallest text a dashboard page may show (ADR-364). */
@@ -455,20 +455,21 @@ const settlers = new WeakMap<Page, () => Promise<void>>();
  * layout check's time). Call it once, before the first page is opened.
  */
 export function watchRequests(page: Page): void {
-  const requests = { open: 0, lastActivity: Date.now() };
-  const change = (by: number): void => {
-    requests.open = Math.max(0, requests.open + by);
+  const requests = { open: new Set<Request>(), lastActivity: Date.now() };
+  const change = (request: Request, started: boolean): void => {
+    requests.open[started ? "add" : "delete"](request);
     requests.lastActivity = Date.now();
   };
-  page.on("request", () => change(1));
-  page.on("requestfinished", () => change(-1));
-  page.on("requestfailed", () => change(-1));
+  page.on("request", (request) => change(request, true));
+  page.on("requestfinished", (request) => change(request, false));
+  page.on("requestfailed", (request) => change(request, false));
   settlers.set(page, async () => {
     const giveUp = Date.now() + SETTLE_LIMIT_MS;
-    while (requests.open > 0 || Date.now() - requests.lastActivity < QUIET_MS) {
+    while (requests.open.size > 0 || Date.now() - requests.lastActivity < QUIET_MS) {
       if (Date.now() >= giveUp) {
+        const waiting = [...requests.open].map((one) => `${one.method()} ${one.url()}`).join(", ");
         throw new Error(
-          `${page.url()}: ${requests.open} requests still open after ${SETTLE_LIMIT_MS}ms, so the page never settled`,
+          `${page.url()}: ${requests.open.size} requests still open after ${SETTLE_LIMIT_MS}ms (${waiting}), so the page never settled`,
         );
       }
       await page.waitForTimeout(25);
@@ -656,6 +657,7 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
   { name: "team", path: (ids) => `${organizer(ids)}/team`, ready: titled("staff.inviteEditor") },
   eventPage("announcements", "announcements.page.title"),
   eventPage("awards", "awards.title"),
+  eventPage("analytics", "analytics.title"),
   eventPage("change-sets", "changeSets.page.title"),
   eventPage("setup", "setup.title"),
   eventPage("big-screen", "bigScreen.title"),

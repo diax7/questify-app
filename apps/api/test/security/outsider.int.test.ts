@@ -404,6 +404,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     }
   });
 
+  it("grants only the analytics' three reads to the API's role, and nothing to the public (T-607)", async () => {
+    const doors = ["analytics_economy", "analytics_participation", "analytics_quests"];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      public: boolean;
+      definer: boolean;
+      settings: string[] | null;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        has_function_privilege('public', p.oid, 'EXECUTE') AS public,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname LIKE 'analytics\\_%'`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(doors);
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(true);
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.public, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(true);
+      expect(row.settings, row.proname).toEqual(["search_path=public, pg_temp"]);
+    }
+    for (const sql of doors.map((name) => `SELECT public.${name}(gen_random_uuid())`)) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+  });
+
   it("grants the live points edits' four doors to the API's role only, and keeps the rest closed (T-604)", async () => {
     const doors = [
       "apply_past_points",
