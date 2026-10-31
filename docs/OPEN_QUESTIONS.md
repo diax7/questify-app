@@ -1677,4 +1677,4 @@ orders are the developer's first set; the team may want others (a preset is one 
 is allowed; if an event should always show it, add `quests` to the protected tabs (one line, and the preset and the check follow).
 (d) The editor drags with the mouse and moves with the buttons; a touch drag is not built (the buttons work on a phone-sized
 dashboard). (e) Not run on a phone: the bar's order and the Home blocks in the installed app need a check on a device.
-**Decided (developer, delegated by Dhia, 2026-10-31):** as recommended, pending the review.
+**Decided (developer, delegated by Dhia, 2026-10-31):** as recommended; ADR-391 accepted after the T-606 review (93 GO).

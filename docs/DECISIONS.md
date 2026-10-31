@@ -5962,7 +5962,7 @@ look" arrive with T-606, T-610 and T-613.
 
 ## ADR-391 - T-606 event layout: the bar and Home as an order plus a hidden set, protected items checked by the server, presets as code
 
-**Status:** Proposed (developer, delegated by Dhia, 2026-10-31; Q-358).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-31; T-606 review 93 GO; Q-358).
 **Decision:** (1) **Stored in the event's config, no migration.** `event.config.layout` is `{bar: {order, hidden}, home: {order, hidden}}`:
 each list holds every item once in its order, and the hidden ones apart, so hiding an item and showing it again returns it to its
 place. The bar has five items (`index`, `quests`, `scan`, `rewards`, `profile`); Home has eleven blocks (`countdown`, `standing`,
