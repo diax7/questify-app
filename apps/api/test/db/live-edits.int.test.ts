@@ -302,6 +302,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits (database)",
       expect(await refusal(past(closed, done, 5))).toBe("RF409:results_final");
     });
 
+    it("writes at most the batch's entries a call and says when more are left", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const stage = await quest(event);
+      for (let i = 0; i < 5; i += 1) await scan((await member(event)).player, stage);
+      await setPoints(stage, 110);
+      const call = (key: string) =>
+        f.run<Change & { more: boolean }>(
+          f.team(),
+          "SELECT * FROM apply_past_points($1, $2, 100, $3, $4, 2)",
+          [event, stage, key, randomUUID()],
+        );
+      const key = randomUUID();
+      expect((await call(key))[0]).toMatchObject({ completions: 2, more: true });
+      expect((await call(`${key}#2`))[0]).toMatchObject({ completions: 2, more: true });
+      expect((await call(`${key}#3`))[0]).toMatchObject({ completions: 1, more: false });
+      const [replay] = await f.run<{ completions: number }>(
+        f.team(),
+        "SELECT * FROM past_points_replay($1, $2)",
+        [event, key],
+      );
+      expect(replay?.completions).toBe(5);
+      expect(new Set((await net(stage)).map(String))).toEqual(new Set(["110,110"]));
+    });
+
     it("counts the impact before the edit, as the screen shows it", async () => {
       const event = await f.newEvent({ phase: "live" });
       const stage = await quest(event);

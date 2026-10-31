@@ -121,7 +121,16 @@ export async function pastReplay(
     : { kind: "other" };
 }
 
-/** Runs "also past" for the quest's points as this transaction wrote them. Refusals throw (see `liveEditRefusal`). */
+/** Entries one call of the past door writes at most: about 1.5 s each, well under the statement timeout (ADR-387). */
+export const PAST_BATCH = 2000;
+
+/** The key of the past door's `part`-th call: the request's own key first, then `key#2`, `key#3`. */
+export const partKey = (key: string, part: number): string => (part === 1 ? key : `${key}#${part}`);
+
+/**
+ * Runs "also past" for the quest's points as this transaction wrote them, calling the door again while it reports
+ * `more` (each call its own statement, in this transaction). Refusals throw (see `liveEditRefusal`).
+ */
 export async function applyPast(
   client: PoolClient,
   target: Readonly<{
@@ -132,12 +141,30 @@ export async function applyPast(
     requestId: string;
   }>,
 ): Promise<PastChange> {
-  const { rows } = await client.query<ChangeRow & { replayed: boolean }>(
-    "SELECT * FROM apply_past_points($1, $2, $3, $4, $5)",
-    [target.eventId, target.questId, target.fromPoints, target.key, target.requestId],
-  );
-  const row = rows[0] as ChangeRow & { replayed: boolean };
-  return changeOf(row, row.replayed);
+  const total = { completions: 0, players: 0, raised: 0, lowered: 0, clamped: 0, replayed: false };
+  for (let part = 1; ; part += 1) {
+    const { rows } = await client.query<ChangeRow & { replayed: boolean; more: boolean }>(
+      "SELECT * FROM apply_past_points($1, $2, $3, $4, $5, $6)",
+      [
+        target.eventId,
+        target.questId,
+        target.fromPoints,
+        partKey(target.key, part),
+        target.requestId,
+        PAST_BATCH,
+      ],
+    );
+    const row = rows[0] as ChangeRow & { replayed: boolean; more: boolean };
+    total.completions += row.completions;
+    total.players += row.players;
+    total.raised += row.raised;
+    total.lowered += row.lowered;
+    total.clamped = Math.max(total.clamped, row.clamped);
+    total.replayed = row.replayed;
+    if (!row.more) {
+      return total;
+    }
+  }
 }
 
 /** Deletes a played quest, keeping or removing its points. Refusals throw (see `liveEditRefusal`). */

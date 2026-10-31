@@ -277,15 +277,30 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION edited_quest(event, uuid) FROM PUBLIC;
 
+-- What each kept completion still needs to reach its targets, in the rows' order: a raise of the balance while the
+-- shop is closed now writes 0 balance (as pay_completion).
+CREATE FUNCTION past_points_wanted(target uuid, points integer, shop_shut boolean)
+  RETURNS TABLE (ord bigint, completion_id bigint, enrollment_id uuid, ds bigint, db bigint)
+  LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
+  SELECT r.ord, r.completion_id, r.enrollment_id, r.target_score - r.net_score,
+         CASE WHEN shop_shut THEN least(r.target_balance - r.net_balance, 0)
+              ELSE r.target_balance - r.net_balance END
+  FROM past_points_rows(target, points) WITH ORDINALITY
+       AS r(completion_id, enrollment_id, net_score, net_balance, target_score, target_balance, ord);
+$$;
+REVOKE ALL ON FUNCTION past_points_wanted(uuid, integer, boolean) FROM PUBLIC;
+
 -- Makes every kept completion of the quest worth its points now (as written by this transaction) times its boost: one
 -- `adjust` per completion whose clamped deltas are not both 0. A lowering never takes the score or the balance below
--- zero (each on its own, read again after each entry). An editor's raise per completion stays within award_cap_each
--- (AC409 each; owners pass). Idempotent by key (AK422 for the same key with another quest or points); a run with a new
--- key finds the nets at target and writes nothing. Audited `quest.points_past`.
+-- zero (each on its own; a player whose lowerings exceed either is written entry by entry, reading the score again). An
+-- editor's raise per completion stays within award_cap_each (AC409 each; owners pass). At most `batch_limit` entries a
+-- call (`more` when some are left; the API calls again in the same transaction, each call under the statement timeout:
+-- about 1 ms an entry, ADR-387). Idempotent by key (AK422 for the same key with another quest or points); a run with a
+-- new key finds the nets at target and writes nothing. Audited `quest.points_past`.
 CREATE FUNCTION apply_past_points(target_event uuid, target_quest uuid, from_points integer, request_key text,
-                                  request uuid)
+                                  request uuid, batch_limit integer DEFAULT 2000)
   RETURNS TABLE (change_id uuid, completions integer, players integer, raised integer, lowered integer,
-                 clamped integer, replayed boolean)
+                 clamped integer, replayed boolean, more boolean)
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   ev        event := award_event_of(target_event);
@@ -294,15 +309,19 @@ DECLARE
   quest_row quest%ROWTYPE;
   made      uuid := gen_random_uuid();
   shop_shut boolean;
+  unsafe    uuid[];
   item      record;
   cur       record;
   ds        bigint;
   db        bigint;
   n_done    integer := 0;
+  n_players integer := 0;
   n_up      integer := 0;
   n_down    integer := 0;
-  touched   uuid[] := '{}';
-  shorted   uuid[] := '{}';
+  n_short   integer := 0;
+  left_over boolean := false;
+  shorted   uuid;
+  wrote     boolean;
 BEGIN
   IF request_key IS NULL OR length(request_key) NOT BETWEEN 1 AND 255 THEN
     RAISE EXCEPTION 'an idempotency key is required' USING ERRCODE = 'AK422';
@@ -316,68 +335,87 @@ BEGIN
       RAISE EXCEPTION 'this key was used for another change' USING ERRCODE = 'AK422';
     END IF;
     RETURN QUERY SELECT earlier.id, earlier.completions, earlier.players, earlier.raised, earlier.lowered,
-                        earlier.clamped, true;
+                        earlier.clamped, true, false;
     RETURN;
   END IF;
   quest_row := edited_quest(ev, target_quest);
   IF NOT past_points_type(quest_row.type) THEN
     RAISE EXCEPTION 'this type pays its own amounts' USING ERRCODE = 'PX422', DETAIL = quest_row.type;
   END IF;
-  IF NOT app_is_owner(ev.organizer_id) AND EXISTS (
-       SELECT 1 FROM past_points_rows(quest_row.id, quest_row.points) r
-       WHERE r.target_score - r.net_score > ev.award_cap_each) THEN
+  shop_shut := shop_state(ev.status, ev.starts_at, ev.ends_at, ev.shop_days_after) = 'closed';
+  IF NOT app_is_owner(ev.organizer_id)
+     AND EXISTS (SELECT 1 FROM past_points_wanted(quest_row.id, quest_row.points, shop_shut) w WHERE w.ds > ev.award_cap_each) THEN
     RAISE EXCEPTION 'over the cap per award' USING ERRCODE = 'AC409', DETAIL = 'each',
       HINT = ev.award_cap_each || ',' || ev.award_cap_day;
   END IF;
-  PERFORM 1 FROM enrollment n
-  WHERE n.id IN (SELECT r.enrollment_id FROM past_points_rows(quest_row.id, quest_row.points) r)
+  PERFORM 1 FROM enrollment n WHERE n.id IN (SELECT w.enrollment_id FROM past_points_wanted(quest_row.id, quest_row.points, shop_shut) w)
   ORDER BY n.id FOR NO KEY UPDATE;
-  shop_shut := shop_state(ev.status, ev.starts_at, ev.ends_at, ev.shop_days_after) = 'closed';
 
-  FOR item IN SELECT * FROM past_points_rows(quest_row.id, quest_row.points) LOOP
-    SELECT n.score, n.balance INTO cur FROM enrollment n WHERE n.id = item.enrollment_id;
-    ds := item.target_score - item.net_score;
-    db := item.target_balance - item.net_balance;
-    IF db > 0 AND shop_shut THEN
-      db := 0;
-    END IF;
-    IF -ds > cur.score OR -db > cur.balance THEN
-      shorted := shorted || item.enrollment_id;
-    END IF;
-    ds := greatest(ds, -cur.score);
-    db := greatest(db, -cur.balance);
-    CONTINUE WHEN ds = 0 AND db = 0;
+  -- A player whose lowerings together exceed their score or balance is clamped entry by entry below; everyone else
+  -- is written in one statement, at most `batch_limit` entries a call (the API calls again while `more`).
+  unsafe := ARRAY(
+    SELECT w.enrollment_id FROM past_points_wanted(quest_row.id, quest_row.points, shop_shut) w JOIN enrollment n ON n.id = w.enrollment_id
+    GROUP BY w.enrollment_id, n.score, n.balance
+    HAVING -sum(least(w.ds, 0)) > n.score OR -sum(least(w.db, 0)) > n.balance);
+  WITH chosen AS (
+    SELECT w.* FROM past_points_wanted(quest_row.id, quest_row.points, shop_shut) w
+    WHERE w.enrollment_id <> ALL (unsafe) AND (w.ds <> 0 OR w.db <> 0)
+    ORDER BY w.ord LIMIT greatest(coalesce(batch_limit, 2000), 1)
+  ),
+  written AS (
     INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, completion_id,
                               quest_id, actor, staff_user_id, points_change_id)
-    VALUES (ev.organizer_id, ev.id, item.enrollment_id, 'adjust', ds, db, item.completion_id, quest_row.id, 'staff',
-            me, made);
-    n_done := n_done + 1;
-    n_up := n_up + CASE WHEN ds > 0 OR (ds = 0 AND db > 0) THEN 1 ELSE 0 END;
-    n_down := n_down + CASE WHEN ds < 0 OR (ds = 0 AND db < 0) THEN 1 ELSE 0 END;
-    touched := touched || item.enrollment_id;
+    SELECT ev.organizer_id, ev.id, c.enrollment_id, 'adjust', c.ds, c.db, c.completion_id, quest_row.id, 'staff', me,
+           made
+    FROM chosen c ORDER BY c.ord
+    RETURNING enrollment_id, score_delta, balance_delta
+  )
+  SELECT count(*), count(DISTINCT w.enrollment_id),
+         count(*) FILTER (WHERE w.score_delta > 0 OR (w.score_delta = 0 AND w.balance_delta > 0)),
+         count(*) FILTER (WHERE w.score_delta < 0 OR (w.score_delta = 0 AND w.balance_delta < 0))
+  INTO n_done, n_players, n_up, n_down
+  FROM written w;
+  -- Read after the write (a new snapshot): what is still away from its target.
+  left_over := EXISTS (SELECT 1 FROM past_points_wanted(quest_row.id, quest_row.points, shop_shut) w
+                       WHERE w.enrollment_id <> ALL (unsafe) AND (w.ds <> 0 OR w.db <> 0));
+
+  FOREACH shorted IN ARRAY unsafe LOOP
+    n_short := n_short + 1;
+    wrote := false;
+    FOR item IN SELECT w.* FROM past_points_wanted(quest_row.id, quest_row.points, shop_shut) w WHERE w.enrollment_id = shorted ORDER BY w.ord LOOP
+      SELECT n.score, n.balance INTO cur FROM enrollment n WHERE n.id = shorted;
+      ds := greatest(item.ds, -cur.score);
+      db := greatest(item.db, -cur.balance);
+      CONTINUE WHEN ds = 0 AND db = 0;
+      INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta,
+                                completion_id, quest_id, actor, staff_user_id, points_change_id)
+      VALUES (ev.organizer_id, ev.id, shorted, 'adjust', ds, db, item.completion_id, quest_row.id, 'staff', me, made);
+      n_done := n_done + 1;
+      wrote := true;
+      n_up := n_up + CASE WHEN ds > 0 OR (ds = 0 AND db > 0) THEN 1 ELSE 0 END;
+      n_down := n_down + CASE WHEN ds < 0 OR (ds = 0 AND db < 0) THEN 1 ELSE 0 END;
+    END LOOP;
+    n_players := n_players + CASE WHEN wrote THEN 1 ELSE 0 END;
   END LOOP;
 
   INSERT INTO quest_points_change (id, organizer_id, event_id, quest_id, staff_user_id, from_points, to_points,
                                    completions, players, raised, lowered, clamped, idempotency_key, request_id)
   VALUES (made, ev.organizer_id, ev.id, quest_row.id, me, greatest(coalesce(from_points, 0), 0), quest_row.points,
-          n_done, (SELECT count(DISTINCT x) FROM unnest(touched) x), n_up, n_down,
-          (SELECT count(DISTINCT x) FROM unnest(shorted) x), request_key, request);
+          n_done, n_players, n_up, n_down, n_short, request_key, request);
   INSERT INTO audit_log (actor_type, actor_id, organizer_id, event_id, action, target_type, target_id, before, after,
                          request_id)
-  SELECT 'staff', me, ev.organizer_id, ev.id, 'quest.points_past', 'quest', quest_row.id::text,
-         jsonb_build_object('points', k.from_points),
-         jsonb_build_object('points', k.to_points, 'change', k.id, 'completions', k.completions, 'players', k.players,
-                            'raised', k.raised, 'lowered', k.lowered, 'clamped', k.clamped),
-         request
-  FROM quest_points_change k WHERE k.id = made;
+  VALUES ('staff', me, ev.organizer_id, ev.id, 'quest.points_past', 'quest', quest_row.id::text,
+          jsonb_build_object('points', greatest(coalesce(from_points, 0), 0)),
+          jsonb_build_object('points', quest_row.points, 'change', made, 'completions', n_done, 'players', n_players,
+                             'raised', n_up, 'lowered', n_down, 'clamped', n_short),
+          request);
   IF n_done > 0 THEN
     PERFORM ranking_repair_mark(ev.id);
   END IF;
-  RETURN QUERY SELECT k.id, k.completions, k.players, k.raised, k.lowered, k.clamped, false
-    FROM quest_points_change k WHERE k.id = made;
+  RETURN QUERY SELECT made, n_done, n_players, n_up, n_down, n_short, false, left_over;
 END $$;
-REVOKE ALL ON FUNCTION apply_past_points(uuid, uuid, integer, text, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION apply_past_points(uuid, uuid, integer, text, uuid) TO questify_app;
+REVOKE ALL ON FUNCTION apply_past_points(uuid, uuid, integer, text, uuid, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION apply_past_points(uuid, uuid, integer, text, uuid, integer) TO questify_app;
 
 -- The real numbers for the edit screen (FR-413, FR-1032), read only: whether "also past" applies to the type, the kept
 -- completions and players it would reach at `points`, how many would rise or fall, the players a lowering would clamp,
@@ -478,8 +516,8 @@ END $$;
 REVOKE ALL ON FUNCTION delete_played_quest(uuid, uuid, boolean, text, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION delete_played_quest(uuid, uuid, boolean, text, uuid) TO questify_app;
 
--- The caller's own past-points change under this key, for the PATCH's replay before it writes anything (plan review
--- MINOR): none when the key is new.
+-- The caller's own past-points change under this key (its batches `key#2`, `key#3` summed), for the PATCH's replay before
+-- it writes anything (plan review MINOR): none when the key is new.
 CREATE FUNCTION past_points_replay(target_event uuid, request_key text)
   RETURNS TABLE (change_id uuid, quest_id uuid, to_points integer, completions integer, players integer,
                  raised integer, lowered integer, clamped integer)
@@ -488,9 +526,13 @@ DECLARE
   ev event := award_event_of(target_event);
 BEGIN
   RETURN QUERY
-  SELECT k.id, k.quest_id, k.to_points, k.completions, k.players, k.raised, k.lowered, k.clamped
+  SELECT (array_agg(k.id ORDER BY k.created_at, k.id))[1], (array_agg(k.quest_id))[1], (array_agg(k.to_points))[1],
+         sum(k.completions)::integer, sum(k.players)::integer, sum(k.raised)::integer, sum(k.lowered)::integer,
+         sum(k.clamped)::integer
   FROM quest_points_change k
-  WHERE k.event_id = ev.id AND k.staff_user_id = app_staff_user_id() AND k.idempotency_key = request_key;
+  WHERE k.event_id = ev.id AND k.staff_user_id = app_staff_user_id()
+    AND (k.idempotency_key = request_key OR k.idempotency_key LIKE request_key || '#%')
+  HAVING count(*) > 0;
 END $$;
 REVOKE ALL ON FUNCTION past_points_replay(uuid, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION past_points_replay(uuid, text) TO questify_app;

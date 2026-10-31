@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PAST_POINTS_TYPES, liveEditRefusal } from "#src/quests/live-edits";
+import { PAST_POINTS_TYPES, liveEditRefusal, partKey } from "#src/quests/live-edits";
 
 describe("liveEditRefusal (T-604)", () => {
   it("maps each refusal of the past, delete and impact doors to its answer", () => {
@@ -37,5 +37,13 @@ describe("liveEditRefusal (T-604)", () => {
     for (const type of ["submission", "quiz", "game"]) {
       expect(PAST_POINTS_TYPES).not.toContain(type);
     }
+  });
+});
+
+describe("partKey (T-604)", () => {
+  it("keeps the request's key for the first call and numbers the next ones", () => {
+    expect(partKey("k", 1)).toBe("k");
+    expect(partKey("k", 2)).toBe("k#2");
+    expect(partKey("k", 3)).toBe("k#3");
   });
 });
