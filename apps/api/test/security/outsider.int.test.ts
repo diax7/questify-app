@@ -276,6 +276,49 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     ).toEqual([]);
   });
 
+  it("grants only the duplicate door and keeps its helpers closed (T-601)", async () => {
+    const doors = ["event_copy_setup"];
+    const internals = [
+      "copy_id",
+      "event_copy_extras",
+      "event_copy_prizes",
+      "event_copy_quests",
+      "event_copy_settings",
+      "event_copy_structure",
+      "event_copy_target_ok",
+      "fresh_entry_code",
+    ];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      public: boolean;
+      definer: boolean;
+      settings: string[] | null;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        has_function_privilege('public', p.oid, 'EXECUTE') AS public,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${[...doors, ...internals].map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(
+      [...doors, ...internals].toSorted(),
+    );
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.public, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+      expect(row.settings, row.proname).toEqual(["search_path=public, pg_temp"]);
+    }
+    await expect(
+      db.outsider.query(
+        "SELECT public.event_copy_setup(gen_random_uuid(), gen_random_uuid(), gen_random_uuid())",
+      ),
+    ).rejects.toThrow(/permission denied/);
+  });
+
   it("keeps the sponsor tables and internals closed and grants only its six doors", async () => {
     const doors = [
       "member_sponsors",

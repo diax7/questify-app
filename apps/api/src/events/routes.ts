@@ -16,7 +16,7 @@ import {
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import type {
-  CreateResult,
+  DuplicateResult,
   EndResult,
   Events,
   RemoveResult,
@@ -68,6 +68,12 @@ const eventFields = {
 };
 const patchBody = z.strictObject(eventFields);
 const createBody = z.strictObject({ ...eventFields, startsAt: localTime, endsAt: localTime });
+// A duplicate takes only what must differ: the new name and times. The rest is the source's.
+const duplicateBody = z.strictObject({
+  name: bilingual(120),
+  startsAt: localTime,
+  endsAt: localTime,
+});
 const endBody = z.strictObject({ confirm: z.literal(true) });
 const rankingBody = z.strictObject({ enabled: z.boolean() });
 const eventParams = z.object({ eventId: z.uuid() });
@@ -107,8 +113,10 @@ const view = (event: EventRecord) => ({
   interests: event.interests,
 });
 
-function answerCreate(reply: FastifyReply, result: CreateResult) {
+function answerCreate(reply: FastifyReply, result: DuplicateResult) {
   switch (result.kind) {
+    case "not_found":
+      throw notFound();
     case "created":
       return reply.code(201).send({ event: view(result.event) });
     case "invalid":
@@ -174,6 +182,20 @@ export function registerEventRoutes(
       return answerCreate(
         reply,
         await events.create(organizerContextOf(request), body, callerOf(request)),
+      );
+    },
+  );
+
+  // FR-1016: a new Draft with the source's setup, never its players, points, prizes handed over, codes or secrets.
+  scope.post(
+    "/events/:eventId/duplicate",
+    { ...member, config: { ...member.config, idempotent: true } },
+    async (request, reply) => {
+      const { eventId } = parse(eventParams, request.params);
+      const body = parse(duplicateBody, request.body);
+      return answerCreate(
+        reply,
+        await events.duplicate(organizerContextOf(request), eventId, body, callerOf(request)),
       );
     },
   );

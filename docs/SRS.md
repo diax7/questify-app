@@ -1184,8 +1184,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1012 | F-188, F-44 | Must | pending |
 | FR-1013 | F-188 | Must | pending |
 | FR-1014 | F-188 | Must | pending |
-| FR-1015 | F-189 | Must | pending |
-| FR-1016 | F-190 | Must | pending |
+| FR-1015 | F-189 | Must | pending (T-601b) |
+| FR-1016 | F-190 | Must | built T-601 (an icon on each row of the events list, a dialog for the new name and times; phone check owed): `test/db/event-duplicate.int`, `test/events/events.int`, `e2e/duplicate-event.spec.ts` |
 | FR-1017 | F-194 | Must | pending |
 | FR-1018 | F-194 | Must | server built T-410 (as FR-750; the dashboard's shop read carries `state` and `closesAt`); dashboard built T-410b (the closing line, the desk warning, the days field's rules, the refusal words; `e2e/shop-window.spec.ts`); T-410b code review 89 folded |
 | FR-1019 | F-195 | Must | pending |

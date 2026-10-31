@@ -296,6 +296,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "only this organizer's events within the caller's limit; status and organizer are not writable (test/events/events, test/db/event-lifecycle)",
   "DELETE /v1/organizers/:organizerId/events/:eventId":
     "only this organizer's drafts within the caller's limit (test/events/events, test/db/event-lifecycle)",
+  "POST /v1/organizers/:organizerId/events/:eventId/duplicate":
+    "owner/editor of that organizer; another organizer's event is 404, an editor limited to chosen events is scope_limited; Idempotency-Key; the copy takes setup only, never a player, a play row or a secret (test/events/events, test/db/event-duplicate)",
   "POST /v1/organizers/:organizerId/events/:eventId/end":
     "owner only (walked below); the database checks the owner again (test/events/events, test/db/event-lifecycle)",
   "GET /v1/organizers/:organizerId/events/:eventId/quests":

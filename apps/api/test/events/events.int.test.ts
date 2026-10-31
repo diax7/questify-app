@@ -200,6 +200,158 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event builder (T-102)", ()
     });
   });
 
+  describe("duplicating (T-601)", () => {
+    const COPY = {
+      name: { ar: "ملتقى نجد ٢", en: "Najd Meetup 2" },
+      startsAt: "2031-11-01T09:00",
+      endsAt: "2031-11-01T17:00",
+    };
+    const duplicate = (
+      org: string,
+      cookie: string,
+      source: string,
+      payload: object = COPY,
+      key = `d-${Math.random()}`,
+    ) =>
+      call("POST", `/v1/organizers/${org}/events/${source}/duplicate`, cookie, payload, {
+        "idempotency-key": key,
+      });
+
+    it("makes a new draft with the source's setup, its own code and the new name and times", async () => {
+      const org = await newOrganizer();
+      const source = await created(org.id, org.cookie, { ...DRAFT, access: "unlisted" });
+      await save(org.id, source.id, org.cookie, {
+        ...DEFAULT_TERMS,
+        currency: {
+          icon: "gem",
+          ar: { one: "جوهرة", many: "جواهر" },
+          en: { one: "gem", many: "gems" },
+        },
+      });
+      await owner(
+        `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, type_config)
+         SELECT $1, id, 'enter_code', 'Type the word', 10, 1, '{"code": "SECRET99"}' FROM category WHERE event_id = $1 LIMIT 1`,
+        [source.id],
+      );
+      await setStatus(source.id, "live", "-1 hour", "3 hours");
+      const response = await duplicate(org.id, org.cookie, source.id);
+      expect(response.statusCode).toBe(201);
+      const made = response.json<{ event: EventView & { access: string; timezone: string } }>()
+        .event;
+      expect(made).toMatchObject({
+        status: "draft",
+        name: COPY.name,
+        access: "unlisted",
+        timezone: "Asia/Riyadh",
+        startsAt: "2031-11-01T06:00:00.000Z",
+        endsAt: "2031-11-01T14:00:00.000Z",
+      });
+      expect(made.id).not.toBe(source.id);
+      expect(made.joinCode).not.toBe(source.joinCode);
+      const read = await call("GET", `/v1/organizers/${org.id}/events/${made.id}`, org.cookie);
+      expect(read.json<{ event: { terms: { currency: object } } }>().event.terms.currency).toEqual({
+        icon: "gem",
+        ar: { one: "جوهرة", many: "جواهر" },
+        en: { one: "gem", many: "gems" },
+      });
+      const quests = await owner<{ type_config: { code: string } }>(
+        "SELECT type_config FROM quest WHERE event_id = $1",
+        [made.id],
+      );
+      expect(quests).toHaveLength(1);
+      expect(quests[0]?.type_config.code).not.toBe("SECRET99");
+      const [entry] = await auditOf(made.id, "event.duplicate");
+      expect(entry?.after).toMatchObject({ source: source.id, quests: 1 });
+    });
+
+    it("leaves the original alone when the copy's dates change", async () => {
+      const org = await newOrganizer();
+      const source = await created(org.id, org.cookie);
+      const made = (await duplicate(org.id, org.cookie, source.id)).json<{ event: EventView }>()
+        .event;
+      const moved = await call("PATCH", `/v1/organizers/${org.id}/events/${made.id}`, org.cookie, {
+        startsAt: "2031-12-01T09:00",
+        endsAt: "2031-12-01T17:00",
+      });
+      expect(moved.statusCode).toBe(200);
+      const original = await call(
+        "GET",
+        `/v1/organizers/${org.id}/events/${source.id}`,
+        org.cookie,
+      );
+      expect(original.json<{ event: EventView }>().event).toMatchObject({
+        status: "draft",
+        startsAt: source.startsAt,
+        endsAt: source.endsAt,
+      });
+    });
+
+    it("replays the first answer to a retried request instead of making a second copy", async () => {
+      const org = await newOrganizer();
+      const source = await created(org.id, org.cookie);
+      const first = await duplicate(org.id, org.cookie, source.id, COPY, "double-click");
+      const again = await duplicate(org.id, org.cookie, source.id, COPY, "double-click");
+      expect(again.headers["idempotent-replayed"]).toBe("true");
+      expect(again.json()).toEqual(first.json());
+      expect(await owner("SELECT 1 FROM event WHERE organizer_id = $1", [org.id])).toHaveLength(2);
+    });
+
+    it.each([
+      ["a status", { ...COPY, status: "live" }],
+      ["a join code", { ...COPY, joinCode: "AAAAAA" }],
+      ["no name", { startsAt: COPY.startsAt, endsAt: COPY.endsAt }],
+      ["no start", { name: COPY.name, endsAt: COPY.endsAt }],
+      ["no end", { name: COPY.name, startsAt: COPY.startsAt }],
+    ])("refuses a body with %s", async (_name, payload) => {
+      const org = await newOrganizer();
+      const source = await created(org.id, org.cookie);
+      const response = await duplicate(org.id, org.cookie, source.id, payload);
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ code: "invalid_request" });
+      expect(await owner("SELECT 1 FROM event WHERE organizer_id = $1", [org.id])).toHaveLength(1);
+    });
+
+    it.each([
+      ["name", { ...COPY, name: { ar: " ", en: "" } }],
+      ["endsAt", { ...COPY, endsAt: COPY.startsAt }],
+    ])("answers 422 naming the field %s and makes nothing", async (field, payload) => {
+      const org = await newOrganizer();
+      const source = await created(org.id, org.cookie);
+      const response = await duplicate(org.id, org.cookie, source.id, payload);
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toMatchObject({ code: "invalid_event", details: { field } });
+      expect(await owner("SELECT 1 FROM event WHERE organizer_id = $1", [org.id])).toHaveLength(1);
+    });
+
+    it("copies only within the organizer: another organizer's event is not found", async () => {
+      const mine = await newOrganizer();
+      const theirs = await newOrganizer();
+      const foreign = await created(theirs.id, theirs.cookie);
+      const viaMine = await duplicate(mine.id, mine.cookie, foreign.id);
+      expect(viaMine.statusCode).toBe(404);
+      expect(viaMine.json()).toMatchObject({ code: "not_found" });
+      const viaTheirs = await duplicate(theirs.id, mine.cookie, foreign.id);
+      expect(viaTheirs.statusCode).toBeGreaterThanOrEqual(403);
+      expect(await owner("SELECT 1 FROM event WHERE organizer_id = $1", [mine.id])).toHaveLength(0);
+      expect(await owner("SELECT 1 FROM event WHERE organizer_id = $1", [theirs.id])).toHaveLength(
+        1,
+      );
+      const unknown = await duplicate(mine.id, mine.cookie, "00000000-0000-4000-8000-000000000000");
+      expect(unknown.statusCode).toBe(404);
+    });
+
+    it("refuses an editor limited to chosen events, and lets an unlimited editor duplicate", async () => {
+      const org = await newOrganizer();
+      const mine = await created(org.id, org.cookie);
+      const limited = await memberOf(org.id, "editor", [mine.id]);
+      const refused = await duplicate(org.id, limited, mine.id);
+      expect(refused.statusCode).toBe(403);
+      expect(refused.json()).toMatchObject({ code: "scope_limited" });
+      const allowed = await duplicate(org.id, await memberOf(org.id, "editor"), mine.id);
+      expect(allowed.statusCode).toBe(201);
+    });
+  });
+
   describe("reading", () => {
     it("lists the organizer's events newest first, and only the chosen ones for a limited editor", async () => {
       const org = await newOrganizer();

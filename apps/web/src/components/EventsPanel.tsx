@@ -3,6 +3,7 @@
 import { formatEventTime, type Language } from "@questify/shared";
 import { useEffect, useRef, useState } from "react";
 import { nameFor, type EventView } from "#src/lib/events.ts";
+import { DuplicateEvent } from "#src/components/DuplicateEvent.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -90,6 +91,7 @@ export function EventsPanel({
                 <Badge tone={STATUS_TONE[event.statusNow]}>
                   {t(`events.status.${event.statusNow}`)}
                 </Badge>
+                <DuplicateEvent language={language} organizerId={organizerId} event={event} />
               </Row>
             </Card>
           ))}

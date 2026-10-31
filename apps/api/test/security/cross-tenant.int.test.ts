@@ -1562,6 +1562,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     expect(await count("owner", "sponsor_tag WHERE event_id = $1", [f.eventB])).toBe(0);
   });
 
+  it("keeps the duplicate door inside the caller's tenant (T-601)", async () => {
+    const before = await count("owner", "category WHERE event_id = $1", [f.eventB]);
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      for (const [from, to] of [
+        [f.eventB, f.eventA],
+        [f.eventA, f.eventB],
+        [f.eventB, f.eventB],
+      ] as const) {
+        expect(
+          await refusal(asA(seat, "SELECT event_copy_setup($1, $2, $3)", [from, to, randomUUID()])),
+          `${seat} ${from} to ${to}`,
+        ).toBe("AN404");
+      }
+    }
+    expect(await count("owner", "category WHERE event_id = $1", [f.eventB])).toBe(before);
+    expect(await count("owner", "audit_log WHERE action = 'event.duplicate'", [])).toBe(0);
+  });
+
   it("keeps the rating and survey-link doors inside the caller's tenant and membership (T-508)", async () => {
     const foreign = (
       await db.owner.query<{ id: string }>(

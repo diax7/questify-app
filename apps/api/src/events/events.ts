@@ -56,6 +56,8 @@ export type CreateResult =
   | Readonly<{ kind: "created"; event: EventRecord }>
   | Invalid
   | Readonly<{ kind: "scope_limited" }>;
+/** A duplicate is a create that can also miss its source. */
+export type DuplicateResult = CreateResult | Missing;
 export type UpdateResult =
   | Readonly<{ kind: "updated"; event: EventRecord }>
   | Invalid
@@ -79,6 +81,13 @@ export type Events = Readonly<{
   list: (actor: Actor) => Promise<EventRecord[]>;
   get: (actor: Actor, id: string) => Promise<EventRecord | undefined>;
   create: (actor: Actor, input: EventInput, caller: Caller) => Promise<CreateResult>;
+  /** A new draft with the source's setup (T-601); `input` carries the new name and times. */
+  duplicate: (
+    actor: Actor,
+    sourceId: string,
+    input: EventInput,
+    caller: Caller,
+  ) => Promise<DuplicateResult>;
   update: (actor: Actor, id: string, input: EventInput, caller: Caller) => Promise<UpdateResult>;
   remove: (actor: Actor, id: string, caller: Caller) => Promise<RemoveResult>;
   endEarly: (actor: Actor, id: string, caller: Caller) => Promise<EndResult>;
@@ -300,6 +309,59 @@ async function create(
   }
 }
 
+/**
+ * A new draft that starts as a copy of another event of the same organizer (FR-1016): its settings, switches and words,
+ * and everything `event_copy_setup` copies (migration 0092), never a player, a play row or a secret. The new name and
+ * times come with the request; the rest of the event's fields are the source's, checked as one whole.
+ */
+async function duplicate(
+  deps: EventsDeps,
+  actor: Actor,
+  sourceId: string,
+  input: EventInput,
+  caller: Caller,
+): Promise<DuplicateResult> {
+  // A limited editor's new event would fall outside their own limit, as for a create.
+  if (actor.organizer.eventScope !== null) {
+    return { kind: "scope_limited" };
+  }
+  try {
+    return await inContext(deps, actor, async (client) => {
+      const source = await readEvent(client, actor.organizerId, sourceId);
+      if (source === undefined) {
+        return { kind: "not_found" } as const;
+      }
+      const fields = merge(source, input);
+      if (isInvalid(fields)) {
+        return fields;
+      }
+      const made = await insertEvent(
+        client,
+        actor.organizerId,
+        fields,
+        deps.joinCodes ?? newJoinCode,
+      );
+      await client.query("SELECT event_copy_setup($1, $2, $3)", [
+        source.id,
+        made.id,
+        caller.requestId ?? null,
+      ]);
+      // Read again: the copy changed the event's switches and words.
+      const copied = await readEvent(client, actor.organizerId, made.id);
+      // Stryker disable next-line all: unreachable: the event was inserted in this transaction
+      return { kind: "created", event: copied ?? made } as const;
+    });
+  } catch (error) {
+    if (unknownCity(error)) {
+      return { kind: "invalid", field: "cityId" };
+    }
+    if (unknownInterest(error)) {
+      return { kind: "invalid", field: "interests" };
+    }
+    throw error;
+  }
+}
+
 async function update(
   deps: EventsDeps,
   actor: Actor,
@@ -439,6 +501,7 @@ export function createEvents(deps: EventsDeps): Events {
     get: (actor, id) =>
       inContext(deps, actor, (client) => readEvent(client, actor.organizerId, id)),
     create: (actor, input, caller) => create(deps, actor, input, caller),
+    duplicate: (actor, sourceId, input, caller) => duplicate(deps, actor, sourceId, input, caller),
     update: (actor, id, input, caller) => update(deps, actor, id, input, caller),
     remove: (actor, id, caller) => remove(deps, actor, id, caller),
     endEarly: (actor, id, caller) => endEarly(deps, actor, id, caller),

@@ -333,6 +333,9 @@ export const MESSAGES = {
   "events.join.link": { ar: "رابط", en: "Link" },
   "events.join.publicList": { ar: "قائمة الفعاليات العامة", en: "Public event list" },
   "events.create": { ar: "إنشاء الفعالية", en: "Create event" },
+  "events.duplicate": { ar: "نسخ", en: "Duplicate" },
+  "events.duplicateNamed": { ar: "نسخ الفعالية: {name}", en: "Duplicate event: {name}" },
+  "events.copyOf": { ar: "{name} (نسخة)", en: "{name} (copy)" },
   "events.save": { ar: "حفظ التغييرات", en: "Save changes" },
   "events.saved": { ar: "حُفظت التغييرات.", en: "Changes saved." },
   "events.liveHint": {
