@@ -10,6 +10,7 @@ import {
   type CardActions,
   type Deleting,
 } from "#src/components/QuestBuilderParts.tsx";
+import { useLiveEdits } from "#src/components/LiveEditDialogs.tsx";
 import { QuestForm } from "#src/components/QuestForm.tsx";
 import { useCategoryHint } from "#src/components/useCategoryHint.tsx";
 import { useQuestBuilder } from "#src/components/useQuestBuilder.ts";
@@ -59,6 +60,7 @@ export function QuestBuilder({
   const closed = b.event?.statusNow === "ended" || b.event?.statusNow === "archived";
 
   const hint = useCategoryHint({ language, builder: b, live, focus });
+  const liveEdits = useLiveEdits({ language, builder: b, live, focus });
   const closeEditing = () => {
     setEditing(null);
     focus.restore();
@@ -93,7 +95,13 @@ export function QuestBuilder({
     },
     remove: (target) => {
       focus.remember();
-      setDeleting(target);
+      if (target.kind === "category") {
+        setDeleting(target);
+        return;
+      }
+      void liveEdits
+        .askDelete(target.quest)
+        .then((asked) => (asked ? undefined : setDeleting(target)));
     },
   };
 
@@ -119,7 +127,12 @@ export function QuestBuilder({
       closeEditing();
       return;
     }
-    void b.send("PATCH", `/quests/${editing.quest.id}`, body, { after: closeEditing });
+    const quest = editing.quest;
+    void liveEdits
+      .askPoints({ quest, body, key: editing.key, after: closeEditing })
+      .then((asked) =>
+        asked ? undefined : b.send("PATCH", `/quests/${quest.id}`, body, { after: closeEditing }),
+      );
   };
 
   const addCategory = (event: FormEvent<HTMLFormElement>) => {
@@ -203,6 +216,7 @@ export function QuestBuilder({
       {hint.note}
       {hint.dialog}
       {liveActions.dialogs}
+      {liveEdits.dialogs}
       {editing === null ? null : (
         <QuestForm
           language={language}

@@ -404,6 +404,54 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     }
   });
 
+  it("grants the live points edits' four doors to the API's role only, and keeps the rest closed (T-604)", async () => {
+    const doors = [
+      "apply_past_points",
+      "delete_played_quest",
+      "past_points_replay",
+      "quest_points_impact",
+    ];
+    const internals = [
+      "edited_quest",
+      "past_points_rows",
+      "past_points_type",
+      "pin_quest",
+      "quest_deleted_frozen",
+      "removal_nets",
+      "write_removal",
+    ];
+    const names = [...doors, ...internals];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      public: boolean;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        has_function_privilege('public', p.oid, 'EXECUTE') AS public
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'public' AND proname IN (${names.map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(names.toSorted());
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.public, row.proname).toBe(false);
+    }
+    for (const sql of [
+      "SELECT * FROM public.apply_past_points(gen_random_uuid(), gen_random_uuid(), 0, 'k', gen_random_uuid())",
+      "SELECT * FROM public.quest_points_impact(gen_random_uuid(), gen_random_uuid(), 10)",
+      "SELECT * FROM public.delete_played_quest(gen_random_uuid(), gen_random_uuid(), true, NULL, gen_random_uuid())",
+      "SELECT * FROM public.quest_points_change",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+    await expect(db.app.query("SELECT * FROM public.quest_points_change")).rejects.toThrow(
+      /permission denied/,
+    );
+  });
+
   it("grants pause and skip to the API's role only, and keeps their helpers closed (T-603b)", async () => {
     const names = [
       "set_quest_paused",

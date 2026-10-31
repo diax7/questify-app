@@ -18,6 +18,7 @@ import {
   type Refused,
 } from "#src/quests/builder";
 import {
+  holdsDeleted,
   activeItem,
   bonusesOf,
   countRows,
@@ -185,7 +186,9 @@ export function deleteCategory(
     if (unlocking.length > 0) {
       return { kind: "category_in_use", categories: unlocking };
     }
-    const bonuses = await bonusesOf(client, current.id);
+    const bonuses = (await holdsDeleted(client, current.id))
+      ? "real"
+      : await bonusesOf(client, current.id);
     if (bonuses !== "none") {
       return { kind: bonuses === "real" ? "has_completions" : "rehearsal_data" };
     }

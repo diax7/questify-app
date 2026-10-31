@@ -1515,6 +1515,34 @@ export const boostInUse = make(
   "This category has a boost, so it can't be deleted.",
 );
 /** Launch or End now on a quest that is not a flash quest (T-307). */
+/** New points in a live event with real completions: future completions only, or also past (T-604, FR-411). */
+export const applyRequired = make(
+  409,
+  "apply_required",
+  "أنجز اللاعبون هذه المهمة: اختر هل تُطبَّق النقاط الجديدة على الإنجازات القادمة فقط أم على السابقة أيضًا.",
+  "Players have completed this quest: choose whether the new points apply to future completions only or to past ones too.",
+);
+/** A played quest's delete: keep or remove its points (T-604, FR-412). */
+export const pointsChoiceRequired = make(
+  409,
+  "points_choice_required",
+  "أنجز اللاعبون هذه المهمة: اختر هل تبقى نقاطها أم تُسحب.",
+  "Players have completed this quest: choose whether its points stay or are removed.",
+);
+/** "Also past" goes with an Idempotency-Key (T-604). */
+export const pastKeyRequired = make(
+  400,
+  "idempotency_key_required",
+  "يلزم مفتاح منع التكرار لهذا الطلب.",
+  "This request needs an Idempotency-Key.",
+);
+/** Past points change only while the event is live (T-604). */
+export const pastNotLive = make(
+  409,
+  "event_not_live",
+  "يمكن تعديل نقاط الإنجازات السابقة أثناء سير الفعالية فقط.",
+  "Past completions' points change only while the event is live.",
+);
 /** Only a step of an in-order category can be skipped (T-603b): not a flash quest or a live poll. */
 export const notInOrder = make(
   422,

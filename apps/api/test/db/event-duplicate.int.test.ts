@@ -43,6 +43,7 @@ const COPIED = new Set([
  */
 const NOT_COPIED = new Set([
   // people and play
+  "quest_points_change",
   "announcement",
   "bulk_award",
   "category_bonus",

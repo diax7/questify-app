@@ -27,11 +27,25 @@ import {
   firstBonusPaid,
   belowGiven,
   invalidFirstBonus,
+  applyRequired,
+  idempotencyKeyReused,
+  overCap,
+  pastKeyRequired,
+  pastNotLive,
+  pointsChoiceRequired,
+  resultsFinal,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import { locationQuestsOn } from "#src/completions/complete";
 import { organizerContextOf } from "#src/organizers/context";
-import { readBuilder, type BuilderDeps, type BuilderQuest, type Done } from "#src/quests/builder";
+import {
+  readBuilder,
+  type BuilderDeps,
+  type BuilderQuest,
+  type Done,
+  type Refused,
+} from "#src/quests/builder";
+import { readImpact } from "#src/quests/live-edits";
 import {
   listCodes,
   regenerateCode,
@@ -118,8 +132,18 @@ const questBody = z.strictObject({
   title: text(120),
   points: z.number().int().min(0).max(100_000),
 });
-const questPatch = z.strictObject({ ...questFields, categoryId: z.uuid().optional(), confirm });
-const changeBody = z.strictObject({ confirm }).default({});
+const questPatch = z.strictObject({
+  ...questFields,
+  categoryId: z.uuid().optional(),
+  confirm,
+  // New points for future completions only, or also for the kept past ones (T-604, FR-411).
+  apply: z.enum(["future", "past"]).optional(),
+});
+// A played quest's delete keeps or removes its points (T-604, FR-412).
+const deleteBody = z
+  .strictObject({ confirm, points: z.enum(["keep", "remove"]).optional() })
+  .default({});
+const impactQuery = z.strictObject({ points: z.coerce.number().int().min(0).max(100_000) });
 const focusBody = z.strictObject({ questId: z.uuid().nullable() });
 const orderBody = z.strictObject({ ids: z.array(z.uuid()).max(MAX_ORDER), confirm });
 
@@ -238,6 +262,42 @@ function answer<T>(
       throw belowGiven({ given: result.given });
     case "invalid_first_bonus":
       throw invalidFirstBonus({ field: result.field });
+    default:
+      return liveEditAnswer(result);
+  }
+}
+
+/** The live points edits' refusals (T-604). */
+function liveEditAnswer(
+  result: Extract<
+    Refused,
+    {
+      kind:
+        | "apply_required"
+        | "points_choice_required"
+        | "key_required"
+        | "event_not_live"
+        | "results_final"
+        | "key_reused"
+        | "over_cap";
+    }
+  >,
+): never {
+  switch (result.kind) {
+    case "apply_required":
+      throw applyRequired();
+    case "points_choice_required":
+      throw pointsChoiceRequired();
+    case "key_required":
+      throw pastKeyRequired();
+    case "event_not_live":
+      throw pastNotLive();
+    case "results_final":
+      throw resultsFinal();
+    case "key_reused":
+      throw idempotencyKeyReused();
+    case "over_cap":
+      throw overCap({ cap: "each", limit: result.limit });
   }
 }
 
@@ -339,19 +399,37 @@ function registerQuestRoutes(scope: FastifyInstance, deps: BuilderDeps & SwitchD
   scope.patch("/events/:eventId/quests/:questId", member, async (request) => {
     const { eventId, questId } = parse(questParams, request.params);
     const body = parse(questPatch, request.body);
+    const key = request.headers["idempotency-key"];
     const result = await updateQuest(
       deps,
       organizerContextOf(request),
-      { eventId, id: questId },
+      { eventId, id: questId, key: typeof key === "string" && key.length > 0 ? key : undefined },
       body,
       callerOf(request),
     );
-    return answer(result, (quest) => ({ quest: questView(quest) }));
+    return answer(result, (edited) => ({
+      quest: questView(edited.quest),
+      ...(edited.change === null ? {} : { change: edited.change }),
+    }));
+  });
+
+  scope.get("/events/:eventId/quests/:questId/impact", member, async (request) => {
+    const { eventId, questId } = parse(questParams, request.params);
+    const { points } = parse(impactQuery, request.query);
+    const result = await readImpact(deps, organizerContextOf(request), {
+      eventId,
+      questId,
+      points,
+    });
+    return answer(
+      result.kind === "done" ? { kind: "done", value: result.value } : result,
+      (impact) => impact,
+    );
   });
 
   scope.delete("/events/:eventId/quests/:questId", member, async (request, reply) => {
     const { eventId, questId } = parse(questParams, request.params);
-    const body = parse(changeBody, request.body ?? {});
+    const body = parse(deleteBody, request.body ?? {});
     const result = await deleteQuest(
       deps,
       organizerContextOf(request),

@@ -121,7 +121,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("first-N bonus builder service 
     );
     expect(edited).toMatchObject({
       kind: "done",
-      value: { title: { en: "Renamed" }, firstBonus: made.value.firstBonus },
+      value: { quest: { title: { en: "Renamed" }, firstBonus: made.value.firstBonus }, change: null },
     });
     expect(log).not.toHaveBeenCalled();
   });

@@ -366,6 +366,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "owners and editors inside their event limit; a quest of that event only, through set_step_skipped, which checks the organizer, the event limit and the phase itself (AN404, AQ404); audited (test/control/routes, test/db/pause-skip, test/security/cross-tenant)",
   "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/unskip":
     "owners and editors inside their event limit; a quest of that event only, through set_step_skipped, which checks the organizer, the event limit and the phase itself (AN404, AQ404); audited (test/control/routes, test/db/pause-skip, test/security/cross-tenant)",
+  "GET /v1/organizers/:organizerId/events/:eventId/quests/:questId/impact":
+    "owners and editors inside their event limit; a quest of that event only, through quest_points_impact, which checks the organizer and the event limit itself (AN404, AQ404); counts only, no player named (test/quests/live-edits, test/db/live-edits, test/security/cross-tenant)",
   "GET /v1/organizers/:organizerId/events/:eventId/control":
     "members inside their event limit, through control_feed, control_counts and control_done, which check the organizer and the event limit themselves (AN404); usernames and avatars the team already reads, no contact detail or points; another organizer's event answers 404 (test/control/routes, test/db/control-room, test/security/cross-tenant)",
   "POST /v1/rewards/:rewardId/reserve":

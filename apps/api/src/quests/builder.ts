@@ -1,3 +1,4 @@
+import { liveEditRefusal, type LiveEditRefusal } from "#src/quests/live-edits";
 import {
   PLACED_QUEST_TYPES,
   QUEST_TYPES,
@@ -134,7 +135,14 @@ export type Refused =
   /** Fewer bonuses than players who already got it (T-313). */
   | Readonly<{ kind: "below_given"; given: number }>
   /** The bonus's points (1 to 100,000) or players (1 to 1,000) are out of range (T-313). */
-  | Readonly<{ kind: "invalid_first_bonus"; field: "points" | "slots" }>;
+  | Readonly<{ kind: "invalid_first_bonus"; field: "points" | "slots" }>
+  /** New points in a live event with real completions need "future" or "past" (T-604, FR-411). */
+  | Readonly<{ kind: "apply_required" }>
+  /** A played quest's delete needs "keep" or "remove" (T-604, FR-412). */
+  | Readonly<{ kind: "points_choice_required" }>
+  /** "Also past" goes with an Idempotency-Key (T-604). */
+  | Readonly<{ kind: "key_required" }>
+  | LiveEditRefusal;
 
 export type Done<T> = Readonly<{ kind: "done"; value: T }> | Refused;
 
@@ -513,7 +521,7 @@ export async function withEvent<T>(
     if (pg.code === "23503" && pg.table === "nfc_tag") {
       return { kind: "tags_in_use" };
     }
-    const refused = firstBonusRefusal(pg) ?? souvenirUseRefusal(pg);
+    const refused = firstBonusRefusal(pg) ?? souvenirUseRefusal(pg) ?? liveEditRefusal(pg);
     if (refused !== undefined) {
       return refused;
     }

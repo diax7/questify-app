@@ -23,8 +23,16 @@ import {
   type Change,
   type Done,
   type QuestInput,
+  type Refused,
 } from "#src/quests/builder";
 import { setFirstBonus } from "#src/quests/first-bonus";
+import {
+  PAST_POINTS_TYPES,
+  applyPast,
+  deletePlayed,
+  pastReplay,
+  type PastChange,
+} from "#src/quests/live-edits";
 import { passportSteps } from "#src/quests/passports";
 import {
   activeItem,
@@ -41,6 +49,38 @@ import {
 import type { PoolClient } from "pg";
 
 type Target = Readonly<{ eventId: string; id: string }>;
+
+/** Whether new points reach future completions only or also the kept past ones (T-604, FR-411). */
+export type PointsApply = Readonly<{ apply?: "future" | "past" | undefined }>;
+
+/** A quest after its edit, with what "also past" did (null for a future-only edit). */
+export type EditedQuest = Readonly<{ quest: BuilderQuest; change: PastChange | null }>;
+
+/**
+ * Which points choice an edit runs, or its refusal: "also past" only on a type paid the quest's points per completion
+ * and with a key; new points in a live event whose quest has real completions must say which (409 apply_required).
+ */
+async function pointsChoice(
+  client: PoolClient,
+  live: boolean,
+  current: QuestRecord,
+  input: QuestInput & PointsApply,
+  key: string | undefined,
+): Promise<"future" | "past" | Refused> {
+  if (input.apply === "past") {
+    if (!PAST_POINTS_TYPES.includes(current.type)) {
+      return { kind: "invalid", field: "apply" };
+    }
+    return key === undefined ? { kind: "key_required" } : "past";
+  }
+  const changing = input.points !== undefined && input.points !== current.points;
+  if (input.apply === undefined && changing && live) {
+    if ((await completionsOf(client, { questId: current.id })) === "real") {
+      return { kind: "apply_required" };
+    }
+  }
+  return "future";
+}
 
 /** The input's bonus problem as the builder's refusal, or undefined when there is none or nothing to change. */
 function bonusRefusal(
@@ -158,10 +198,10 @@ export function createQuest(
 export function updateQuest(
   deps: BuilderDeps,
   actor: Actor,
-  target: Target,
-  input: QuestInput & Change,
+  target: Target & Readonly<{ key?: string | undefined }>,
+  input: QuestInput & Change & PointsApply,
   caller: Caller,
-): Promise<Done<BuilderQuest>> {
+): Promise<Done<EditedQuest>> {
   return withEvent(deps, actor, target.eventId, { change: input }, async (client, event) => {
     const current = await readQuest(client, target.eventId, target.id, true);
     if (current === undefined) {
@@ -170,6 +210,33 @@ export function updateQuest(
     const bonus = bonusRefusal(input.firstBonus);
     if (bonus !== undefined) {
       return bonus;
+    }
+    const choice = await pointsChoice(
+      client,
+      event.statusNow === "live",
+      current,
+      input,
+      target.key,
+    );
+    if (typeof choice !== "string") {
+      return choice;
+    }
+    const points = input.points ?? current.points;
+    const key = target.key ?? "";
+    if (choice === "past") {
+      const earlier = await pastReplay(client, {
+        eventId: target.eventId,
+        questId: current.id,
+        points,
+        key,
+      });
+      if (earlier?.kind === "other") {
+        return { kind: "key_reused" };
+      }
+      if (earlier?.kind === "same") {
+        const quest = await savedWithBonus(client, current, undefined, caller);
+        return done({ quest, change: earlier.change });
+      }
     }
     const taken =
       input.categoryId === undefined
@@ -203,19 +270,30 @@ export function updateQuest(
         ...diff,
       });
     }
-    return done(await savedWithBonus(client, updated, input.firstBonus, caller));
+    const change =
+      choice === "past"
+        ? await applyPast(client, {
+            eventId: target.eventId,
+            questId: current.id,
+            fromPoints: current.points,
+            key,
+            requestId: caller.requestId ?? "",
+          })
+        : null;
+    return done({ quest: await savedWithBonus(client, updated, input.firstBonus, caller), change });
   });
 }
 
 /**
- * Deletes a quest; a confirmation while the event is live. Nothing references a quest yet: once completions exist
- * (T-105), a quest with completions is hidden instead until T-604 offers keep or remove.
+ * Deletes a quest; a confirmation while the event is live. An unplayed quest is deleted; a quest real players completed
+ * is deleted by a mark that keeps or removes its points (T-604, FR-412: 409 points_choice_required until one is chosen);
+ * one only rehearsal accounts played waits for the rehearsal's wipe (rehearsal_data).
  */
 export function deleteQuest(
   deps: BuilderDeps,
   actor: Actor,
   target: Target,
-  change: Change,
+  change: Change & Readonly<{ points?: "keep" | "remove" | undefined }>,
   caller: Caller,
 ): Promise<Done<null>> {
   return withEvent(deps, actor, target.eventId, { change }, async (client) => {
@@ -224,8 +302,22 @@ export function deleteQuest(
       return { kind: "not_found" };
     }
     const completed = await completionsOf(client, { questId: current.id });
+    if (completed === "real") {
+      if (change.points === undefined) {
+        return { kind: "points_choice_required" };
+      }
+      const remove = change.points === "remove";
+      const outcome = await deletePlayed(client, {
+        eventId: target.eventId,
+        questId: current.id,
+        remove,
+        requestId: caller.requestId ?? "",
+      });
+      caller.log("quest.deleted_played", { questId: current.id, ...outcome });
+      return done(null);
+    }
     if (completed !== "none") {
-      return { kind: completed === "real" ? "has_completions" : "rehearsal_data" };
+      return { kind: "rehearsal_data" };
     }
     await audit(client, actor, caller, {
       action: "quest.delete",

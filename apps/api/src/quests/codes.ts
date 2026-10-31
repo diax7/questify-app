@@ -111,7 +111,7 @@ export function listCodes(deps: CodeDeps, actor: Actor, eventId: string): Promis
                   c.name_ar, c.name_en, s.id AS step_id, s.name_ar AS step_ar, s.name_en AS step_en
            FROM quest q JOIN category c ON c.id = q.category_id
            LEFT JOIN passport_step s ON s.quest_id = q.id
-           WHERE q.event_id = $1
+           WHERE q.event_id = $1 AND q.deleted_at IS NULL
              AND ((q.type = ANY ($2) AND 'quest_qr' = ANY (q.verification)) OR s.id IS NOT NULL)
            ORDER BY c.position, c.id, q.position, q.id, s.position, s.id`,
           [eventId, QR_QUEST_TYPES],

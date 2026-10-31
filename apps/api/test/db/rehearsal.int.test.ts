@@ -1112,6 +1112,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "session_message", // a message to registrants writes notices and its own rate-limit row, nothing the wipe deletes (T-505)
         "push_due_session", // reads the status for reminders; it writes only notices (T-505)
         "start_cheers_moment", // the owner opens a moment; it deletes only cheers, which the wipe also removes, and writes no play row (T-509)
+        "edited_quest", // internal: apply_past_points and delete_played_quest wipe before calling it (T-604)
         "room_quest", // internal: set_quest_paused and set_step_skipped wipe before calling it (T-603b)
       ]);
       const writers = await owner<{ proname: string; calls: boolean }>(

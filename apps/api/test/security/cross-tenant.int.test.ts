@@ -849,6 +849,8 @@ const OWNED: Readonly<Record<string, Owned>> = {
 
 /** Tables that belong to nobody in particular, with the reason; their write rules are tested where they live. */
 const SHARED: Readonly<Record<string, string>> = {
+  quest_points_change:
+    "no direct API rights; append-only, written only by apply_past_points for the caller's own event (award_event_of), read back only by past_points_replay for the caller's own key (live-edits)",
   souvenir_rule:
     "no direct API rights; event-scoped owner/editor definers and cross-tenant forgery tests (souvenirs)",
   souvenir_target: "no direct API rights; same-event frozen targets only (souvenirs)",
@@ -1635,6 +1637,39 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         expect(await refusal(asA(seat, sql, [f.eventB])), `${seat} ${sql}`).toBe("AN404");
       }
     }
+  });
+
+  it("keeps the live points edits inside the caller's tenant and membership (T-604)", async () => {
+    const [questB] = (
+      await db.owner.query<{ id: string }>(
+        `INSERT INTO quest (event_id, category_id, type, title_en, points) VALUES ($1, $2, 'scan_qr', 'B', 5)
+         RETURNING id`,
+        [f.eventB, f.categoryB],
+      )
+    ).rows;
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      for (const [sql, values] of [
+        [
+          "SELECT * FROM apply_past_points($1, $2, 0, $3, $4)",
+          [f.eventB, questB?.id, randomUUID(), randomUUID()],
+        ],
+        ["SELECT * FROM quest_points_impact($1, $2, 10)", [f.eventB, questB?.id]],
+        [
+          "SELECT * FROM delete_played_quest($1, $2, true, NULL, $3)",
+          [f.eventB, questB?.id, randomUUID()],
+        ],
+        ["SELECT * FROM past_points_replay($1, 'k')", [f.eventB]],
+      ] as const) {
+        expect(await refusal(asA(seat, sql, [...values])), `${seat} ${sql}`).toBe("AN404");
+      }
+    }
+    const [row] = (
+      await db.owner.query<{ deleted_at: Date | null }>(
+        "SELECT deleted_at FROM quest WHERE id = $1",
+        [questB?.id],
+      )
+    ).rows;
+    expect(row?.deleted_at).toBeNull();
   });
 
   it("keeps pause and skip inside the caller's tenant and membership (T-603b)", async () => {

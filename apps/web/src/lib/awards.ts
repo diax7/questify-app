@@ -51,6 +51,7 @@ const KINDS: Readonly<Record<string, MessageKey>> = {
   community: "awards.kind.community",
   first_bonus: "awards.kind.firstBonus",
   session: "awards.kind.session",
+  adjust: "awards.kind.adjust",
 };
 
 /** A first-N bonus line's label, "First-50 bonus, place 3"; undefined for any other line. */

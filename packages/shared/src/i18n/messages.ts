@@ -532,6 +532,48 @@ export const MESSAGES = {
   "quests.closes": { ar: "تُغلق {time}", en: "Closes {time}" },
   "quests.edit": { ar: "تعديل", en: "Edit" },
   "quests.delete": { ar: "حذف {questOne}", en: "Delete {questOne}" },
+  "quests.points.title": { ar: "تغيير نقاط «{title}»؟", en: "Change the points of “{title}”?" },
+  "quests.points.reach": {
+    ar: "أُنجزت {completions} مرة حتى الآن من {players} لاعبًا.",
+    en: "Completed {completions} times so far by {players} players.",
+  },
+  "quests.points.choose": {
+    ar: "على أي إنجازات تُطبَّق النقاط الجديدة؟",
+    en: "Which completions get the new points?",
+  },
+  "quests.points.future": {
+    ar: "الإنجازات القادمة فقط: تبقى الإنجازات السابقة على ما كسبته.",
+    en: "Future completions only: past ones keep what they earned.",
+  },
+  "quests.points.past": {
+    ar: "الإنجازات السابقة أيضًا: يُضاف لكل منها قيد جديد في سجل النقاط ({raise} بالزيادة، {lower} بالنقص).",
+    en: "Past completions too: each gets a new entry in the points record ({raise} up, {lower} down).",
+  },
+  "quests.points.ownAmounts": {
+    ar: "هذا النوع يمنح نقاطه بطريقته، فتُطبَّق النقاط الجديدة على الإنجازات القادمة فقط.",
+    en: "This type pays its own amounts, so the new points apply to future completions only.",
+  },
+  "quests.points.clamped": {
+    ar: "لم يبقَ لدى {count} من اللاعبين نقاط كافية: تنزل نقاطهم إلى 0 لا أقل.",
+    en: "{count} players don't have enough points left: they go down to 0, not below.",
+  },
+  "quests.points.prizes": {
+    ar: "جوائز الترتيب التي سُلّمت لا تُسترد.",
+    en: "Rank prizes already handed over are not taken back.",
+  },
+  "quests.points.save": { ar: "حفظ النقاط", en: "Save points" },
+  "quests.deletePlayed.legend": {
+    ar: "أُنجزت «{name}» {completions} مرة من {players} لاعبًا. ماذا يحدث لنقاطهم؟",
+    en: "“{name}” was completed {completions} times by {players} players. What happens to their points?",
+  },
+  "quests.deletePlayed.keep": {
+    ar: "تبقى نقاطهم: تختفي المهمة وتبقى النقاط.",
+    en: "Keep their points: the quest goes, the points stay.",
+  },
+  "quests.deletePlayed.remove": {
+    ar: "تُسحب نقاطها: قيد جديد في سجل النقاط يستردها من كل لاعب، دون النزول تحت 0.",
+    en: "Remove its points: a new entry in the points record takes them back from each player, never below 0.",
+  },
   "quests.deleteTitle": { ar: "حذف {questOne}؟", en: "Delete this {questOne}?" },
   "quests.deleteBody": {
     ar: "ستُحذف «{name}». لا يمكن التراجع.",
@@ -2320,6 +2362,7 @@ export const MESSAGES = {
   "awards.kind.handover": { ar: "استلام جائزة", en: "Prize collected" },
   "awards.kind.removal": { ar: "إزالة نقاط", en: "Points removed" },
   "awards.kind.session": { ar: "حضور جلسة", en: "Session check-in" },
+  "awards.kind.adjust": { ar: "تعديل النقاط", en: "Points updated" },
   "awards.kind.bonus": { ar: "مكافأة إكمال {categoryOne}", en: "{categoryOneCap} bonus" },
   "awards.by": { ar: "بواسطة {name}", en: "By {name}" },
   "awards.bulkTag": { ar: "منح جماعي", en: "Bulk award" },

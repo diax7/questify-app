@@ -226,6 +226,9 @@ async function withSteps(db: PoolClient, quests: QuestRecord[]): Promise<QuestRe
   }));
 }
 
+/** A deleted quest (T-604) is history: the builder's reads, counts and orders leave it out. */
+const live = (table: "category" | "quest") => (table === "quest" ? " AND deleted_at IS NULL" : "");
+
 const lockClause = (lock: boolean) => (lock ? " FOR NO KEY UPDATE" : "");
 
 /**
@@ -258,7 +261,7 @@ export async function listCategories(db: PoolClient, eventId: string): Promise<C
 
 export async function listQuests(db: PoolClient, eventId: string): Promise<QuestRecord[]> {
   const { rows } = await db.query<QuestRow>(
-    `SELECT ${QUEST_COLUMNS} FROM quest WHERE event_id = $1 ORDER BY position, id`,
+    `SELECT ${QUEST_COLUMNS} FROM quest WHERE event_id = $1 AND deleted_at IS NULL ORDER BY position, id`,
     [eventId],
   );
   return withSteps(db, rows.map(toQuest));
@@ -287,7 +290,7 @@ export async function readQuest(
   lock = false,
 ): Promise<QuestRecord | undefined> {
   const { rows } = await db.query<QuestRow>(
-    `SELECT ${QUEST_COLUMNS} FROM quest WHERE event_id = $1 AND id = $2${lockClause(lock)}`,
+    `SELECT ${QUEST_COLUMNS} FROM quest WHERE event_id = $1 AND id = $2 AND deleted_at IS NULL${lockClause(lock)}`,
     [eventId, id],
   );
   const row = rows[0];
@@ -300,7 +303,7 @@ export async function countRows(
   eventId: string,
 ): Promise<number> {
   const { rows } = await db.query<{ count: number }>(
-    `SELECT count(*)::int AS count FROM ${table} WHERE event_id = $1`,
+    `SELECT count(*)::int AS count FROM ${table} WHERE event_id = $1${live(table)}`,
     [eventId],
   );
   return rows[0]?.count ?? 0;
@@ -411,11 +414,21 @@ export async function moveQuests(db: PoolClient, from: string, to: string): Prom
   );
   const { rowCount } = await db.query(
     `UPDATE quest q SET category_id = $2, position = $3 + ordered.n - 1
-     FROM (SELECT id, row_number() OVER (ORDER BY position, id) AS n FROM quest WHERE category_id = $1) ordered
+     FROM (SELECT id, row_number() OVER (ORDER BY position, id) AS n FROM quest
+           WHERE category_id = $1 AND deleted_at IS NULL) ordered
      WHERE q.id = ordered.id`,
     [from, to, start],
   );
   return rowCount ?? 0;
+}
+
+/** Whether the category holds a quest deleted after real players completed it (T-604): it then stays. */
+export async function holdsDeleted(db: PoolClient, categoryId: string): Promise<boolean> {
+  const { rowCount } = await db.query(
+    "SELECT 1 FROM quest WHERE category_id = $1 AND deleted_at IS NOT NULL LIMIT 1",
+    [categoryId],
+  );
+  return rowCount === 1;
 }
 
 /** Deletes every quest of a category, passport steps first. Returns their ids, for the audit entry. */
@@ -611,7 +624,7 @@ export async function reorder(
 ): Promise<boolean> {
   const { rows } = await db.query<{ same: boolean }>(
     `SELECT coalesce(array_agg(id ORDER BY id), '{}') = (SELECT coalesce(array_agg(x ORDER BY x), '{}') FROM unnest($2::uuid[]) x) AS same
-     FROM ${table} WHERE ${scope.column} = $1`,
+     FROM ${table} WHERE ${scope.column} = $1${live(table)}`,
     [scope.id, ids],
   );
   if (rows[0]?.same !== true) {
