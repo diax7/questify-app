@@ -7256,21 +7256,25 @@ export const MESSAGES = {
   "analytics.group.rewards": { ar: "الجوائز", en: "Rewards" },
   "analytics.joined": { ar: "المنضمّون", en: "Joined" },
   "analytics.active": { ar: "النشطون", en: "Active" },
-  "analytics.activeInfo": {
+  "analytics.activeHint": {
     ar: "{playerMany} الذين أنجزوا {questOne} على الأقل.",
     en: "{playerCap} who completed at least one {questOne}.",
   },
   "analytics.activation": { ar: "نسبة النشطين", en: "Activation rate" },
-  "analytics.activationInfo": {
+  "analytics.activationHint": {
     ar: "النشطون مقسومًا على المنضمّين.",
     en: "Active divided by joined.",
   },
   "analytics.returning": { ar: "العائدون", en: "Returning" },
-  "analytics.returningInfo": {
+  "analytics.returningHint": {
     ar: "أنجزوا {questOne} في يومين أو أكثر من أيام الفعالية.",
     en: "Completed a {questOne} on two or more days of the event.",
   },
   "analytics.overTime": { ar: "الانضمام عبر الوقت", en: "Joined over time" },
+  "analytics.chartSummary": {
+    ar: "عدد الفترات: {count}. الأولى، {firstTime}: {firstValue}. الأخيرة، {lastTime}: {lastValue}.",
+    en: "Periods: {count}. First, {firstTime}: {firstValue}. Last, {lastTime}: {lastValue}.",
+  },
   "analytics.sources": { ar: "طريقة الانضمام", en: "Joined by" },
   "analytics.source.code": { ar: "رمز الانضمام", en: "Join code" },
   "analytics.source.qr": { ar: "رمز QR", en: "QR code" },
@@ -7296,11 +7300,23 @@ export const MESSAGES = {
   "analytics.stops.after": { ar: "بعد «{title}»", en: "After “{title}”" },
   "analytics.stops.empty": { ar: "لم يتوقف أحد بعد.", en: "No one has stopped yet." },
   "analytics.earned": { ar: "المكتسب من {currency}", en: "{currency} earned" },
+  "analytics.earnedHint": {
+    ar: "مجموع ما كسبه {playerMany} من {questMany} والمكافآت ونقاط الجلسات والمنح اليدوية، بعد خصم ما أزاله الفريق. لا يقلّله الإنفاق على الجوائز.",
+    en: "The total {playerMany} earned from {questMany}, bonuses, session points and manual awards, less what the team removed. Spending on rewards does not lower it.",
+  },
   "analytics.spent": { ar: "المنفق من {currency}", en: "{currency} spent" },
+  "analytics.spentHint": {
+    ar: "سعر الجوائز التي لا تزال عند {playerMany}: محجوزة أو مُسلَّمة أو مستلمة. الحجز الملغى أو المنتهي أعاد سعره ولا يُحتسب.",
+    en: "The price of the rewards {playerMany} still hold: reserved, delivered or handed over. A reservation that was cancelled or timed out gave its price back and is not counted.",
+  },
   "analytics.unclaimed": { ar: "حجوزات لم تُستلم", en: "Unclaimed reservations" },
+  "analytics.unclaimedHint": {
+    ar: "حجوزات حجزها {playerMany} ولم يستلموها بعد، من كل الجوائز.",
+    en: "Reservations {playerMany} made and have not picked up yet, across all rewards.",
+  },
   "analytics.rewards": { ar: "الاستبدال لكل جائزة", en: "Redemptions per reward" },
   "analytics.rewards.empty": { ar: "لا جوائز بعد.", en: "No rewards yet." },
-  "analytics.rewards.redeemed": { ar: "{count} استبدال", en: "{count} redeemed" },
+  "analytics.rewards.redeemed": { ar: "الاستبدال: {count}", en: "{count} redeemed" },
   "analytics.rewards.meta": {
     ar: "{unclaimed} لم تُستلم · {left} متبقية",
     en: "{unclaimed} unclaimed · {left} left",

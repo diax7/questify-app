@@ -1541,6 +1541,9 @@ PUBLIC none. Not copied when an event is duplicated.
 - Reads: `enrollment` of the event (joined = status not `pending` or `declined`; `joined_via` for the source; `joined_at` for the running
   count in the event's zone), `quest_completion` by `enrollment_id` (the unique index) for active players, `event_streak_day` for returning
   players, the first-completion index `quest_completion_event_first_idx` (0096) for each quest, `enrollment.score` for earned points, and
-  `reward` with `redemption` (`redemption_reward`, `redemption_reserved_event`) for the economy. Nothing reads `ledger_entry`.
-- Measured on one event of 50,000 players, 35,000 of them active, 525,000 completions: participation 313 ms warm (593 ms first),
-  quests 141 ms, economy 21 ms.
+  `reward` with `redemption` (`redemption_reward`, `redemption_reserved_event`) for the economy. The points record is never scanned; two
+  small reads of `ledger_entry` remain: the event's removals through `ledger_note_event_idx` (a bulk award's notes are skipped; a completion
+  whose award was removed does not count as active or toward a quest), and each standing redemption's own `redeem` entry through
+  `ledger_entry_redeem_key` (its `-score_delta` is added back to earned, so a purchase made after the end, which took no score, adds nothing).
+- Measured on one event of 50,000 players, 35,000 of them active, 525,000 completions, 1,000 removals and 50,000 bulk-award notes:
+  participation 370 to 635 ms, quests 143 to 192 ms, economy 27 to 51 ms.

@@ -6009,17 +6009,27 @@ left or was banned still counts as having joined, and every rate has its players
 at least one `quest_completion` row (FR-1625, any method), **activation** is active over joined as a whole percent (NULL, shown as a
 dash, when nobody joined). **Returning** is a player with a completion on two or more event days, read from `event_streak_day`
 (one row per open event day with a completion), so a one-day event has none. A quest's rate is its first completions over joined.
-(3) **Nothing reads the points record.** Participation reads the event's enrollments and probes `quest_completion` by enrollment
-once per player; the quests read the partial index of first completions (0096); the economy reads the score cache and the rewards'
-redemptions. Measured on a 50,000-player event with 525,000 completions: participation 313 to 593 ms, quests 141 to 170 ms, economy
-21 to 28 ms; so nothing is cached between requests. **Points earned** is the sum of the enrollments' score, plus what was spent when
-the event lowers the rank on a spend (`spend_lowers_rank`, locked from live on); **spent** is the price of every reward redemption
-that still stands (reserved, delivered, handed over); **unclaimed** is every reservation not picked up. One case is approximate: a
-removal clamped at zero after a score-lowering spend leaves earned a little high.
+A completion whose award the team removed (a `removal` entry) does not count toward active or a quest's players, unless the same
+player has another completion that stands.
+(3) **The points record is never scanned.** Participation probes `quest_completion` by enrollment once per player (index only) and
+takes off the few players whose completions were all removed; the quests read the partial index of first completions (0096) and take
+off the removed ones; the economy reads the score cache, the rewards' redemptions and, for each standing redemption, its own `redeem`
+entry (one probe of `ledger_entry_redeem_key`). The removals are found through the event's `ledger_note` rows (a removal is always
+noted; a bulk award's notes carry a bulk id and are skipped), so the cost follows the team's manual entries, not the players.
+Measured on a 50,000-player event with 525,000 completions, 1,000 removals, 50,000 bulk-award notes and 3,000 redemptions:
+participation 370 to 635 ms, quests 143 to 192 ms, economy 27 to 51 ms; so nothing is cached between requests. **Points earned**
+is the sum of the enrollments' score, plus the score each standing redemption took when it was paid (`-score_delta` of its `redeem`
+entry): only a purchase made while the event was live lowers the score (`spend_lowers_rank`, ADR-135), one made after the end moves
+the balance alone and adds nothing back; **spent** is the price of every reward redemption that still stands (reserved, delivered,
+handed over); **unclaimed** is every reservation not picked up. One case is approximate: a removal clamped at zero after a
+score-lowering spend leaves earned a little high.
 (4) **Rehearsal accounts count while they exist** and the answer says so (`rehearsal`); the page shows "Rehearsal, wiped at go-live"
 (T-211's note). Manual awards by the team count as completions (the rule is "completed a quest", FR-1625); FR-1203 is met by reading
 only records of what players did in the app (joins, completions, redemptions, ratings) and having no time-spent or heatmap figure.
-(5) **No minimum group size**: no FR or SECURITY.md sets one for analytics and an answer carries no name (the T-508 precedent).
+(5) **No minimum group size on this page**: its audience, the event's team, already sees named players (the member list, awards,
+the control room), so a small count discloses nothing it cannot see; no FR or SECURITY.md sets a floor (the T-508 precedent). A
+sponsor sees no player, so T-608's sponsor-facing totals and exports need a floor (a count under it left out or shown as "fewer
+than N"); the floor is decided there.
 (6) **The page** is `/analytics` in the Run group: figure tiles, then cards in a grid of equal cards (the cards of a row are as tall
 as the tallest), every list five rows with "View more" opening the rest in a dialog. Plain HTML and SVG, no chart library: one data
 colour (`--chart-mark`, the theme's green mixed with its ink, about 4.7 to 1 on the surface), a hairline grid, a 2px line with a 10% wash,

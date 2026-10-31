@@ -43,11 +43,13 @@ function useShareText(language: Language) {
         });
 }
 
-/** Players over time (FR-1201): the running count of joined players as a line. */
+/** Players over time (FR-1201): the running count of joined players as a line, with its summary in words. */
 export function JoinedOverTime({ language, data }: Props<Participation>) {
   const t = useTranslator(language);
   const points = seriesPoints(data, language);
-  if (points.length === 0) {
+  const first = points[0];
+  const last = points.at(-1);
+  if (first === undefined || last === undefined) {
     return <EmptyState>{t("analytics.empty")}</EmptyState>;
   }
   return (
@@ -55,6 +57,13 @@ export function JoinedOverTime({ language, data }: Props<Participation>) {
       points={points}
       ticks={axisTicks(Math.max(...points.map((point) => point.value)))}
       name={t("analytics.overTime")}
+      summary={t("analytics.chartSummary", {
+        count: formatNumber(points.length, language),
+        firstTime: first.label,
+        firstValue: formatNumber(first.value, language),
+        lastTime: last.label,
+        lastValue: formatNumber(last.value, language),
+      })}
       format={(value) => formatNumber(value, language)}
     />
   );

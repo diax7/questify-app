@@ -240,21 +240,21 @@ function ParticipationGroup({
         <FigureTile
           language={language}
           title={t("analytics.active")}
-          info={infoTip(t, "analytics.activeInfo")}
+          info={infoTip(t, "analytics.activeHint")}
           panel={panel}
           pick={number((d) => d.active)}
         />
         <FigureTile
           language={language}
           title={t("analytics.activation")}
-          info={infoTip(t, "analytics.activationInfo")}
+          info={infoTip(t, "analytics.activationHint")}
           panel={panel}
           pick={(d) => (d.activation === null ? "—" : `${formatNumber(d.activation, language)}%`)}
         />
         <FigureTile
           language={language}
           title={t("analytics.returning")}
-          info={infoTip(t, "analytics.returningInfo")}
+          info={infoTip(t, "analytics.returningHint")}
           panel={panel}
           pick={number((d) => d.returning)}
         />
@@ -355,18 +355,21 @@ function EconomyGroup({ language, panel }: Props & Readonly<{ panel: Panel<Econo
         <FigureTile
           language={language}
           title={t("analytics.earned", { currency })}
+          info={infoTip(t, "analytics.earnedHint")}
           panel={panel}
           pick={number((d) => d.earned)}
         />
         <FigureTile
           language={language}
           title={t("analytics.spent", { currency })}
+          info={infoTip(t, "analytics.spentHint")}
           panel={panel}
           pick={number((d) => d.spent)}
         />
         <FigureTile
           language={language}
           title={t("analytics.unclaimed")}
+          info={infoTip(t, "analytics.unclaimedHint")}
           panel={panel}
           pick={number((d) => d.unclaimed)}
         />

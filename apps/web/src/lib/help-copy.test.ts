@@ -91,6 +91,12 @@ const HELP_LINES: readonly string[] = [
 
 const INFO_TIPS: readonly string[] = [
   "alerts.hint",
+  "analytics.activationHint",
+  "analytics.activeHint",
+  "analytics.earnedHint",
+  "analytics.returningHint",
+  "analytics.spentHint",
+  "analytics.unclaimedHint",
   "announcements.page.intro",
   "audience.intro",
   "awards.bulkHelp",

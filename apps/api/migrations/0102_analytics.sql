@@ -8,6 +8,9 @@
 -- time spent and a heatmap, and nothing here measures either). Nothing here scans the points record: participation
 -- reads the event's enrollments (one index probe per player into `quest_completion`), the quests read the index of
 -- first completions made in 0096, and the economy reads the enrollments' score cache and the rewards' redemptions.
+-- Two small reads of it are bounded by something other than the players: the removals the team made (found through
+-- the event's `ledger_note` rows; a bulk award's notes carry a bulk id and are skipped, a removal's never do) and one
+-- probe per standing redemption (`ledger_entry_redeem_key`).
 -- Rehearsal accounts are counted like any enrollment while they exist, and the answer says so (`rehearsal`), so the
 -- page can mark the figures "Rehearsal, wiped at go-live" (T-211).
 SET LOCAL lock_timeout = '10s';
@@ -17,7 +20,10 @@ SET LOCAL lock_timeout = '10s';
 -- one completion; activation is active divided by joined as a whole percent (NULL when nobody joined). Returning is a
 -- player with a completion on two or more event days, read from `event_streak_day` (one row per open event day with a
 -- completion), so a one-day event has none. The series is the running count of joined players by the time they joined,
--- in the event's zone: by hour for a span of up to two days, by day up to 90 days, else by week.
+-- in the event's zone: by hour for a span of up to two days, by day up to 90 days, else by week. A completion whose
+-- award the team removed (a `removal` entry of the event, which names the completion) does not make a player active;
+-- a player whose other completion stands still does. The count of players with a completion is read without touching
+-- the completions' rows (an index-only probe per player); the few whose completions were all removed are taken off it.
 CREATE FUNCTION analytics_participation(target_event uuid) RETURNS jsonb
   LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -26,7 +32,19 @@ DECLARE
   unit text;
   series jsonb;
   returning_players integer;
+  idle integer;
+  active_players integer;
 BEGIN
+  WITH removed AS MATERIALIZED (
+    SELECT x.completion_id FROM ledger_note t JOIN ledger_entry x ON x.id = t.entry_id
+    WHERE t.event_id = ev.id AND t.bulk_id IS NULL AND x.kind = 'removal' AND x.completion_id IS NOT NULL)
+  SELECT count(*)::integer INTO idle
+  FROM (SELECT DISTINCT c.enrollment_id FROM quest_completion c
+        WHERE c.id IN (SELECT r.completion_id FROM removed r)) g
+  JOIN enrollment m ON m.id = g.enrollment_id AND m.status NOT IN ('pending', 'declined')
+  WHERE NOT EXISTS (SELECT 1 FROM quest_completion o WHERE o.enrollment_id = g.enrollment_id
+                    AND o.id NOT IN (SELECT r.completion_id FROM removed r));
+
   SELECT count(*)::integer AS joined,
          count(*) FILTER (WHERE EXISTS (SELECT 1 FROM quest_completion c WHERE c.enrollment_id = n.id))::integer AS active,
          min(n.joined_at) AS first_at, max(n.joined_at) AS last_at,
@@ -58,10 +76,11 @@ BEGIN
   FROM (SELECT d.enrollment_id FROM event_streak_day d WHERE d.event_id = ev.id
         GROUP BY d.enrollment_id HAVING count(*) >= 2) r;
 
+  active_players := members.active - idle;
   RETURN jsonb_build_object(
     'joined', members.joined,
-    'active', members.active,
-    'activation', CASE WHEN members.joined = 0 THEN NULL ELSE round(100.0 * members.active / members.joined)::integer END,
+    'active', active_players,
+    'activation', CASE WHEN members.joined = 0 THEN NULL ELSE round(100.0 * active_players / members.joined)::integer END,
     'returning', returning_players,
     'rehearsal', coalesce(members.rehearsal, false),
     'unit', unit,
@@ -75,7 +94,9 @@ GRANT EXECUTE ON FUNCTION analytics_participation(uuid) TO questify_app;
 -- category in the builder's order, with the joined count the rates are taken over. `step` says whether the quest takes
 -- part in a category's order (a flash quest or a live poll does not, as in `category_rule_lock`) and `skipped` that a
 -- team member skipped it (T-603b); the funnel of an in-order category is drawn from these. A category's quests that
--- nobody completed carry 0.
+-- nobody completed carry 0. A first completion whose award the team removed does not count, unless the same player
+-- has a later completion of the quest that stands; the first completions are counted from their index alone, and the
+-- few removed ones are taken off.
 CREATE FUNCTION analytics_quests(target_event uuid) RETURNS jsonb
   LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -85,9 +106,19 @@ BEGIN
   SELECT count(*)::integer INTO joined
   FROM enrollment n WHERE n.event_id = ev.id AND n.status NOT IN ('pending', 'declined');
   RETURN (
-    WITH done AS MATERIALIZED (
+    WITH removed AS MATERIALIZED (
+      SELECT x.completion_id FROM ledger_note t JOIN ledger_entry x ON x.id = t.entry_id
+      WHERE t.event_id = ev.id AND t.bulk_id IS NULL AND x.kind = 'removal' AND x.completion_id IS NOT NULL),
+    done AS MATERIALIZED (
       SELECT c.quest_id, count(*)::integer AS players FROM quest_completion c
-      WHERE c.event_id = ev.id AND c.occurrence = 1 GROUP BY c.quest_id)
+      WHERE c.event_id = ev.id AND c.occurrence = 1 GROUP BY c.quest_id),
+    lost AS MATERIALIZED (
+      SELECT c.quest_id, count(*)::integer AS players FROM quest_completion c
+      WHERE c.id IN (SELECT r.completion_id FROM removed r) AND c.occurrence = 1
+        AND NOT EXISTS (SELECT 1 FROM quest_completion o
+                        WHERE o.enrollment_id = c.enrollment_id AND o.quest_id = c.quest_id AND o.occurrence > 1
+                          AND o.id NOT IN (SELECT r.completion_id FROM removed r))
+      GROUP BY c.quest_id)
     SELECT jsonb_build_object(
       'joined', joined,
       'categories', coalesce(jsonb_agg(jsonb_build_object(
@@ -98,10 +129,10 @@ BEGIN
           SELECT jsonb_agg(jsonb_build_object(
             'id', q.id,
             'title', jsonb_build_object('ar', q.title_ar, 'en', q.title_en),
-            'done', coalesce(d.players, 0),
+            'done', coalesce(d.players, 0) - coalesce(l.players, 0),
             'step', NOT q.flash AND NOT is_live_poll(q.type, q.type_config),
             'skipped', q.skipped_at IS NOT NULL) ORDER BY q.position, q.id)
-          FROM quest q LEFT JOIN done d ON d.quest_id = q.id
+          FROM quest q LEFT JOIN done d ON d.quest_id = q.id LEFT JOIN lost l ON l.quest_id = q.id
           WHERE q.category_id = c.id AND q.visible AND q.deleted_at IS NULL), '[]'::jsonb)
       ) ORDER BY c.position, c.id), '[]'::jsonb))
     FROM category c WHERE c.event_id = ev.id);
@@ -110,23 +141,26 @@ REVOKE ALL ON FUNCTION analytics_quests(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION analytics_quests(uuid) TO questify_app;
 
 -- Rewards and points (FR-1205). `earned` is the players' points total (the score cache, which is the exact sum of the
--- points record), plus what was spent when the event lowers the rank on a spend (`spend_lowers_rank`, which is locked
--- from live on), so a spend never reads as points not earned. `spent` is the price of every reward redemption that
--- still stands (reserved, delivered or handed over; a cancelled or timed-out one gave its points back). `unclaimed`
--- counts the event's reservations nobody has picked up, of every kind. Each reward lists its standing redemptions, its
--- reservations still waiting and the stock left; a removed reward only when something was redeemed from it.
+-- points record), plus the score each standing redemption took when it was made: its own `redeem` entry in the points
+-- record, one probe of `ledger_entry_redeem_key`. Only a purchase made while the event was live takes score (with
+-- `spend_lowers_rank`); one made after the end moves the balance alone (ADR-135), so it adds nothing back. A spend
+-- never reads as points not earned. `spent` is the price of every reward redemption that still stands (reserved,
+-- delivered or handed over; a cancelled or timed-out one gave its points back). `unclaimed` counts the event's
+-- reservations nobody has picked up, of every kind. Each reward lists its standing redemptions, its reservations
+-- still waiting and the stock left; a removed reward only when something was redeemed from it.
 CREATE FUNCTION analytics_economy(target_event uuid) RETURNS jsonb
   LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   ev event := award_event_of(target_event);
   score_total bigint;
   spent bigint;
+  lowered bigint;
   unclaimed integer;
   rewards jsonb;
 BEGIN
   SELECT coalesce(sum(n.score), 0) INTO score_total FROM enrollment n WHERE n.event_id = ev.id;
   SELECT count(*)::integer INTO unclaimed FROM redemption r WHERE r.event_id = ev.id AND r.status = 'reserved';
-  SELECT coalesce(sum(x.spent), 0), coalesce(jsonb_agg(jsonb_build_object(
+  SELECT coalesce(sum(x.spent), 0), coalesce(sum(x.lowered), 0), coalesce(jsonb_agg(jsonb_build_object(
            'id', x.id,
            'name', jsonb_build_object('ar', x.name_ar, 'en', x.name_en),
            'price', x.price,
@@ -134,18 +168,20 @@ BEGIN
            'unclaimed', x.waiting,
            'stockLeft', x.stock_left,
            'removed', x.removed) ORDER BY x.redeemed DESC, x.position, x.id), '[]'::jsonb)
-  INTO spent, rewards
+  INTO spent, lowered, rewards
   FROM (SELECT rw.id, rw.name_ar, rw.name_en, rw.price, rw.position, rw.status = 'removed' AS removed,
                rw.stock_total - rw.units_out AS stock_left,
                count(r.id) FILTER (WHERE r.status IN ('reserved', 'delivered', 'handed_over'))::integer AS redeemed,
                count(r.id) FILTER (WHERE r.status = 'reserved')::integer AS waiting,
-               coalesce(sum(r.price) FILTER (WHERE r.status IN ('reserved', 'delivered', 'handed_over')), 0) AS spent
+               coalesce(sum(r.price) FILTER (WHERE r.status IN ('reserved', 'delivered', 'handed_over')), 0) AS spent,
+               coalesce(sum(-p.score_delta) FILTER (WHERE r.status IN ('reserved', 'delivered', 'handed_over')), 0) AS lowered
         FROM reward rw LEFT JOIN redemption r ON r.reward_id = rw.id
+          LEFT JOIN ledger_entry p ON p.redemption_id = r.id AND p.kind = 'redeem'
         WHERE rw.event_id = ev.id
         GROUP BY rw.id
         HAVING rw.status = 'active' OR count(r.id) FILTER (WHERE r.status IN ('reserved', 'delivered', 'handed_over')) > 0) x;
   RETURN jsonb_build_object(
-    'earned', score_total + CASE WHEN ev.spend_lowers_rank THEN spent ELSE 0 END,
+    'earned', score_total + lowered,
     'spent', spent,
     'unclaimed', unclaimed,
     'rewards', rewards);

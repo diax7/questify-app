@@ -124,9 +124,13 @@ export function Muted({
   );
 }
 
-/** Text only a screen reader reads. */
-export function ScreenReaderOnly({ children }: Readonly<{ children: ReactNode }>) {
-  return <span className={styles.srOnly}>{children}</span>;
+/** Text only a screen reader reads; an `id` lets a control point at it with `aria-describedby`. */
+export function ScreenReaderOnly({ id, children }: Readonly<{ id?: string; children: ReactNode }>) {
+  return (
+    <span className={styles.srOnly} id={id}>
+      {children}
+    </span>
+  );
 }
 
 /** A round chip of one colour beside a choice's name (the event's accent picker); decorative, so the name is what is read. */

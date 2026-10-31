@@ -64,11 +64,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("analytics (database)", () => {
   const economy = (event: string) => read<Economy>("analytics_economy", event);
 
   const complete = async (event: string, enrollment: string, quest: string, occurrence = 1) => {
-    await f.owner(
+    const [row] = await f.owner<{ id: string }>(
       `INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method, idempotency_key)
-       SELECT organizer_id, id, $2, $3, $4, 'qr', $5 FROM event WHERE id = $1`,
+       SELECT organizer_id, id, $2, $3, $4, 'qr', $5 FROM event WHERE id = $1 RETURNING id`,
       [event, enrollment, quest, occurrence, randomUUID()],
     );
+    return row?.id ?? "";
+  };
+  /** A completion with its points entry, as the ledger writes it; returns the entry the team can remove. */
+  const credited = async (event: string, enrollment: string, quest: string, occurrence = 1) => {
+    const completion = await complete(event, enrollment, quest, occurrence);
+    const [entry] = await f.owner<{ id: string }>(
+      `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta,
+                                 completion_id, quest_id, actor)
+       SELECT organizer_id, id, $2, 'quest', 10, 10, $3, $4, 'player' FROM event WHERE id = $1 RETURNING id`,
+      [event, enrollment, completion, quest],
+    );
+    return entry?.id ?? "";
   };
   const addQuest = async (
     event: string,
@@ -157,6 +169,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("analytics (database)", () => {
       await complete(event, players[2] ?? "", stage);
       const answer = await participation(event);
       expect(answer).toMatchObject({ joined: 5, active: 3, activation: 60 });
+    });
+
+    it("does not count a player whose only completions were removed by the team", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const stage = await addQuest(event, "Stage");
+      const booth = await addQuest(event, "Booth");
+      const removedOnly = await addPlayer(event);
+      const removedOne = await addPlayer(event);
+      const standing = await addPlayer(event);
+      await f.removeEntry(event, await credited(event, removedOnly, stage));
+      await f.removeEntry(event, await credited(event, removedOne, stage));
+      await credited(event, removedOne, booth);
+      await credited(event, standing, stage);
+      expect(await participation(event)).toMatchObject({ joined: 3, active: 2, activation: 67 });
+    });
+
+    it("keeps a player active when a repeat completion stands after the first was removed", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const stage = await addQuest(event, "Stage");
+      const player = await addPlayer(event);
+      await f.removeEntry(event, await credited(event, player, stage));
+      await credited(event, player, stage, 2);
+      expect(await participation(event)).toMatchObject({ joined: 1, active: 1, activation: 100 });
     });
 
     it("rounds the activation rate to a whole percent", async () => {
@@ -309,6 +344,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("analytics (database)", () => {
       expect(general?.quests.map((quest) => quest.done)).toEqual([2, 1]);
     });
 
+    it("leaves out a completion whose award the team removed, and keeps a player whose repeat stands", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const stage = await addQuest(event, "Stage");
+      const booth = await addQuest(event, "Booth");
+      await f.owner("UPDATE quest SET position = 9 WHERE id = $1", [booth]);
+      const a = await addPlayer(event);
+      const b = await addPlayer(event);
+      const c = await addPlayer(event);
+      await credited(event, a, stage);
+      await f.removeEntry(event, await credited(event, b, stage));
+      await f.removeEntry(event, await credited(event, c, stage));
+      await credited(event, c, stage, 2);
+      await f.removeEntry(event, await credited(event, a, booth));
+      const [group] = (await quests(event)).categories;
+      expect(group?.quests.map((quest) => quest.done)).toEqual([2, 0]);
+    });
+
     it("lists only visible quests that are not deleted, in the builder's order", async () => {
       const event = await f.newEvent({ phase: "live" });
       const [category] = await f.owner<{ id: string }>(
@@ -416,6 +468,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("analytics (database)", () => {
       ]);
       expect(row?.score).toBe("80");
       expect(await economy(event)).toMatchObject({ earned: 100, spent: 20 });
+    });
+
+    it("adds back only what a purchase made while the event was live took from the score", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      await f.owner("UPDATE event SET spend_lowers_rank = true WHERE id = $1", [event]);
+      const mug = await reward(event, "Mug", 20, 5);
+      const hoodie = await reward(event, "Hoodie", 30, 5);
+      const a = await funded(event, 100);
+      await spend(a.player, mug);
+      await f.owner("UPDATE event SET ends_at = now() - interval '1 minute' WHERE id = $1", [
+        event,
+      ]);
+      await spend(a.player, hoodie);
+      const [row] = await f.owner<{ score: string; balance: string }>(
+        "SELECT score, balance FROM enrollment WHERE id = $1",
+        [a.enrollment],
+      );
+      expect(row).toEqual({ score: "80", balance: "50" });
+      expect(await economy(event)).toMatchObject({ earned: 100, spent: 50 });
     });
 
     it("lists a removed reward only while something stands redeemed from it", async () => {

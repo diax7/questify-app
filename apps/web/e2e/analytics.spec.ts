@@ -26,6 +26,30 @@ async function checkLayout(page: Page, project: string, where: string): Promise<
 }
 const tile = (page: Page, name: string) => page.getByRole("region", { name, exact: true });
 
+/**
+ * The cards that sit in one row are as tall as each other (ADR-392 (6)). Returns how many rows held more than one of
+ * the named cards, so a page too narrow to put two side by side is not mistaken for a pass.
+ */
+async function expectRowsEqualHeight(page: Page, names: readonly string[]): Promise<number> {
+  const boxes = await Promise.all(names.map((name) => tile(page, name).boundingBox()));
+  const rows = new Map<number, number[]>();
+  for (const [index, box] of boxes.entries()) {
+    expect(box, `${names[index]} is on the page`).not.toBeNull();
+    const top = Math.round(box?.y ?? 0);
+    const row = [...rows.keys()].find((key) => Math.abs(key - top) <= 1) ?? top;
+    rows.set(row, [...(rows.get(row) ?? []), box?.height ?? 0]);
+  }
+  for (const [top, heights] of rows) {
+    for (const height of heights) {
+      expect(height, `the cards of the row at ${top}px have one height`).toBeCloseTo(
+        heights[0] ?? 0,
+        0,
+      );
+    }
+  }
+  return [...rows.values()].filter((heights) => heights.length > 1).length;
+}
+
 test("shows the event's analytics from nothing to a played event", async ({
   page,
   request,
@@ -66,8 +90,26 @@ test("shows the event's analytics from nothing to a played event", async ({
   );
   await expect(sources.getByRole("listitem").filter({ hasText: "أخرى" })).toContainText("0 (0%)");
 
-  // The line, read with the keyboard: the last point first, then one back.
+  // The line in words for a screen reader, always on the page; a tap opens the readout and a lifted finger leaves it.
   const line = page.getByRole("group", { name: "الانضمام عبر الوقت" });
+  await expect(line).toHaveAccessibleDescription(
+    /^عدد الفترات: \d+\. الأولى، .*: \d+\. الأخيرة، .*: 10\.$/,
+  );
+  await expect(line.getByRole("status")).toHaveCount(0);
+  const plot = await line.boundingBox();
+  const touch = {
+    pointerType: "touch",
+    clientX: (plot?.x ?? 0) + 2,
+    clientY: (plot?.y ?? 0) + (plot?.height ?? 0) / 2,
+  };
+  await line.dispatchEvent("pointerdown", touch);
+  await expect(line.getByRole("status")).not.toHaveText(/: 10$/);
+  await line.dispatchEvent("pointerout", touch);
+  await expect(line.getByRole("status")).toHaveCount(1);
+  await line.dispatchEvent("pointerout", { ...touch, pointerType: "mouse" });
+  await expect(line.getByRole("status")).toHaveCount(0);
+
+  // The line, read with the keyboard: the last point first, then one back.
   await line.focus();
   await expect(line.getByRole("status")).toHaveText(/: 10$/);
   const latest = await line.getByRole("status").textContent();
@@ -114,8 +156,27 @@ test("shows the event's analytics from nothing to a played event", async ({
   const rewards = page.getByRole("region", { name: "الاستبدال لكل جائزة", exact: true });
   await expect(rewards.getByRole("listitem")).toHaveCount(2);
   await expect(rewards.getByRole("listitem").first()).toContainText("هودي الفعالية");
-  await expect(rewards.getByRole("listitem").first()).toContainText("2 استبدال");
+  await expect(rewards.getByRole("listitem").first()).toContainText("الاستبدال: 2");
   await expect(rewards.getByRole("listitem").first()).toContainText("1 لم تُستلم · 3 متبقية");
+
+  const rows = await expectRowsEqualHeight(page, [
+    "المنضمّون",
+    "النشطون",
+    "نسبة النشطين",
+    "العائدون",
+    "الانضمام عبر الوقت",
+    "طريقة الانضمام",
+    "الأكثر إنجازًا",
+    "الأقل إنجازًا",
+    "مسار التقدم في فئة",
+    "أين يتوقف لاعبون",
+    "المكتسب من نقاط",
+    "المنفق من نقاط",
+    "حجوزات لم تُستلم",
+  ]);
+  if (info.project.name === "desktop") {
+    expect(rows).toBeGreaterThanOrEqual(5);
+  }
 
   // No time-spent figure and no heatmap anywhere (FR-1203).
   await expect(page.getByText(/خريطة حرارية|time spent|heatmap/i)).toHaveCount(0);

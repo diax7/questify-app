@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { appendFileSync } from "node:fs";
 import { it } from "vitest";
 import { questifyFixture } from "#test/support/questify";
@@ -5,7 +6,8 @@ import { TEST_DATABASE_URL } from "#test/support/test-db";
 
 /**
  * Times the three analytics doors (T-607, migration 0102) on an event of 50,000 players, 20 quests, about 350,000 first
- * completions, 150,000 repeats, 60,000 event days and 3,000 redemptions. Not an assertion (a timing check is flaky on a
+ * completions, 150,000 repeats, 60,000 event days and 3,000 redemptions with their points entries, 1,000 removed awards
+ * and 50,000 other manual entries (a bulk award to every player). Not an assertion (a timing check is flaky on a
  * 2-core runner): run it by hand when the doors change,
  * `ANALYTICS_TIMING=/path/to/out.txt pnpm vitest run apps/api/test/perf/analytics-timing.int.test.ts`.
  * Target: each door under about 1 s, and none reads the points record.
@@ -94,6 +96,43 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
          JOIN (SELECT id, row_number() OVER (ORDER BY id) AS m FROM reward WHERE event_id = $2) r ON r.m = 1 + e.n % 15
          WHERE e.n <= 3000`,
         [organizer, event],
+      );
+      await q(
+        `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta,
+                                   redemption_id, actor)
+         SELECT organizer_id, event_id, enrollment_id, 'redeem', CASE WHEN id::text < '8' THEN -price ELSE 0 END,
+                -price, id, 'player'
+         FROM redemption WHERE event_id = $1`,
+        [event],
+      );
+      await q(
+        `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta,
+                                   completion_id, quest_id, actor)
+         SELECT organizer_id, event_id, enrollment_id, 'quest', 10, 10, id, quest_id, 'player'
+         FROM quest_completion WHERE event_id = $1 AND occurrence = 1 ORDER BY id LIMIT 5000`,
+        [event],
+      );
+      await q(
+        `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta,
+                                   completion_id, quest_id, actor, staff_user_id, reverses)
+         SELECT organizer_id, event_id, enrollment_id, 'removal', -10, -10, completion_id, quest_id, 'staff',
+                gen_random_uuid(), id
+         FROM ledger_entry WHERE event_id = $1 AND kind = 'quest' ORDER BY id LIMIT 1000`,
+        [event],
+      );
+      await q(
+        `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, actor,
+                                   staff_user_id)
+         SELECT organizer_id, event_id, id, 'award', 5, 5, 'staff', gen_random_uuid()
+         FROM enrollment WHERE event_id = $1`,
+        [event],
+      );
+      await q(
+        `INSERT INTO ledger_note (entry_id, organizer_id, event_id, reason, bulk_id)
+         SELECT id, organizer_id, event_id, CASE WHEN kind = 'removal' THEN 'seeded' END,
+                CASE WHEN kind = 'award' THEN $2::uuid END
+         FROM ledger_entry WHERE event_id = $1 AND kind IN ('removal', 'award')`,
+        [event, randomUUID()],
       );
       await q("COMMIT");
       await q("ANALYZE");

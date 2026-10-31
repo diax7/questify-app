@@ -44,10 +44,11 @@
   behind `award_event_of` (AN404), PUBLIC without EXECUTE; `GET …/events/{id}/analytics/{participation|quests|economy}` (owner, editor) checks
   each answer against a strict schema (`packages/shared/src/analytics`), counts only, no time-spent or heatmap figure. Joined is every
   enrollment that was ever a member, active has at least one completion, activation is active over joined (no value when nobody joined),
-  returning has a completion on two or more event days (`event_streak_day`); earned points are the score cache (plus spends when the event
-  lowers the rank on a spend), spent is the standing reward redemptions. Nothing reads the points record. **Measured** on one event of 50,000
-  players (35,000 active, 525,000 completions; `apps/api/test/perf/analytics-timing.int.test.ts`, run by hand): participation 593 ms first and
-  313 ms warm, quests 141 to 170 ms, economy 21 to 28 ms, so no cache. Dashboard: the Analytics page in the Run group (`LAYOUT_PAGES`,
+  returning has a completion on two or more event days (`event_streak_day`); a completion the team removed does not count; earned points are
+  the score cache plus the score each standing redemption took (its `redeem` entry; a post-end purchase takes none), spent is the standing
+  reward redemptions. The points record is never scanned. **Measured** on one event of 50,000 players (35,000 active, 525,000 completions,
+  1,000 removals, 50,000 bulk-award notes; `apps/api/test/perf/analytics-timing.int.test.ts`, run by hand): participation 370 to 635 ms,
+  quests 143 to 192 ms, economy 27 to 51 ms, so no cache. Dashboard: the Analytics page in the Run group (`LAYOUT_PAGES`,
   `ci-scope` area `analytics`): four figure tiles, joined over time (SVG line, crosshair readout by pointer and keyboard), joined by source,
   most and least popular quests with their thumbs scores (T-508), a category funnel with the largest drop marked, where players stop, points
   earned and spent, unclaimed reservations and redemptions per reward; cards of a row are equally tall, lists show five rows and "View more"
@@ -61,7 +62,12 @@
   spec also reads the filled page for layout and contrast). tsc (api, web), oxlint, format and function limits clean (no new offender);
   `expo export` not run (no app screen changed). `waitUntilSettled` now names the requests that kept a page from settling. CI minutes none
   yet; agent tokens roughly 0.6M (estimate).
-  **Next:** the T-607 code review, then the next unchecked task in `docs/TASKS.md` (T-608).
+  **Review fixes (2026-10-31, migration 0102 edited in place, not deployed):** earned adds back only the score a standing redemption took
+  (a post-end purchase adds nothing); a removed completion no longer counts as active or toward a quest; the Earned, Spent and Unclaimed tiles
+  have info tips (the analytics tips are now named `*Hint` and listed in `help-copy.test.ts`); each chart carries a text summary and a tap opens
+  its readout; the browser spec checks equal card heights; the Arabic redemption count reads without a plural form; T-608 owes a minimum group
+  size for sponsor-facing totals.
+  **Next:** the next unchecked task in `docs/TASKS.md` (T-608).
 
 ## T-606 event layout — 2026-10-31
 

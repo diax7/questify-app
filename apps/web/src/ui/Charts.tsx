@@ -120,27 +120,34 @@ const geometryOf = (points: readonly ChartPoint[], top: number) => {
 };
 
 /**
- * Which point the readout is on: the nearest to the pointer, or the one the arrow keys, Home and End moved to. `null`
- * while neither hovers nor focuses the plot, when the end of the line is shown without a readout.
+ * Which point the readout is on: the nearest to the pointer (moved over, pressed or tapped), or the one the arrow keys,
+ * Home and End moved to. `null` while nothing opened it, when the end of the line is shown without a readout. A mouse
+ * leaving closes it; a finger lifting does not, so a tap leaves the readout open until focus moves away.
  */
 function useReadout(xs: readonly number[]) {
   const [active, setActive] = useState<number | null>(null);
   const last = xs.length - 1;
   const shown = active ?? last;
-  const handlers = {
-    onPointerMove: (event: PointerEvent<HTMLDivElement>) => {
-      const box = event.currentTarget.getBoundingClientRect();
-      const at = ((event.clientX - box.left) / Math.max(1, box.width)) * 100;
-      let best = 0;
-      for (const [index, position] of xs.entries()) {
-        if (Math.abs(position - at) < Math.abs((xs[best] ?? 0) - at)) {
-          best = index;
-        }
+  const nearest = (event: PointerEvent<HTMLDivElement>): number => {
+    const box = event.currentTarget.getBoundingClientRect();
+    const at = ((event.clientX - box.left) / Math.max(1, box.width)) * 100;
+    let best = 0;
+    for (const [index, position] of xs.entries()) {
+      if (Math.abs(position - at) < Math.abs((xs[best] ?? 0) - at)) {
+        best = index;
       }
-      setActive(best);
+    }
+    return best;
+  };
+  const handlers = {
+    onPointerMove: (event: PointerEvent<HTMLDivElement>) => setActive(nearest(event)),
+    onPointerDown: (event: PointerEvent<HTMLDivElement>) => setActive(nearest(event)),
+    onPointerLeave: (event: PointerEvent<HTMLDivElement>) => {
+      if (event.pointerType === "mouse") {
+        setActive(null);
+      }
     },
-    onPointerLeave: () => setActive(null),
-    onFocus: () => setActive(last),
+    onFocus: () => setActive((current) => current ?? last),
     onBlur: () => setActive(null),
     onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
       const moves: Readonly<Record<string, number>> = {
@@ -233,13 +240,15 @@ function TimeAxis({ points }: Readonly<{ points: readonly ChartPoint[] }>) {
 
 /**
  * A line with a 10% wash under it (a running count), 2px thick, with a dot on the point read out (the end of the line
- * until a pointer or the keyboard moves it). Hovering or focusing the plot and pressing the arrow keys, Home or End moves
- * a crosshair to the nearest point and reads it out, value first. The time runs from left to right in both languages.
+ * until a pointer or the keyboard moves it). Hovering, pressing or tapping the plot, or focusing it and pressing the
+ * arrow keys, Home or End, moves a crosshair to the nearest point and reads it out, value first. A text summary is
+ * always on the page for a screen reader. The time runs from left to right in both languages.
  */
 export function LineChart({
   points,
   ticks,
   name,
+  summary,
   format,
 }: Readonly<{
   points: readonly ChartPoint[];
@@ -247,8 +256,11 @@ export function LineChart({
   ticks: readonly number[];
   /** What the chart shows, for a screen reader. */
   name: string;
+  /** The chart in words (how many points, the first and the last), read by a screen reader without focusing the plot. */
+  summary: string;
   format: (value: number) => string;
 }>) {
+  const summaryId = useId();
   const top = ticks.at(-1) ?? 1;
   const { xs, ys, line, wash } = geometryOf(points, top);
   const { active, shown, handlers } = useReadout(xs);
@@ -266,7 +278,15 @@ export function LineChart({
           </span>
         ))}
       </div>
-      <div className={styles.area} role="group" aria-label={name} tabIndex={0} {...handlers}>
+      <div
+        className={styles.area}
+        role="group"
+        aria-label={name}
+        aria-describedby={summaryId}
+        tabIndex={0}
+        {...handlers}
+      >
+        <ScreenReaderOnly id={summaryId}>{summary}</ScreenReaderOnly>
         <Plot ticks={ticks} top={top} line={line} wash={wash} />
         <span
           className={styles.dot}
