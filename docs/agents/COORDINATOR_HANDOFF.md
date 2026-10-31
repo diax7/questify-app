@@ -61,8 +61,9 @@ Updated 2026-10-31 by the Claude Code coordinator (sessions of 2026-10-30 and 20
    twice on 2026-10-30/31; browser suite on one worker, one heavy job at a time).
 4. **Dhia owes:** a Firebase project for push (he chose "Later"), a phone run of the latest APK, a look on a real TV.
    The latest preview APK is EAS build f42d3f24 (Cheers buttons, ratings); T-602d's Home card needs a new build.
-5. **FOLLOWUPS** has a batch due (T-505 to T-604b minors, the invitation-sending test that fails only in the full
-   local run, the `X-App-Version` header the app never sends).
+5. **FOLLOWUPS:** the 2026-10-31 batch cleared the bugs and the `X-App-Version` header (STATE "Follow-ups batch 2");
+   what is left is minors, the invitation-sending test that fails only in the full local run, and items on ledger,
+   sign-in or tenant isolation code.
 6. **T-408d** (Redis copy of the boards) still waits for the RUNBOOK ranked-count check to pass about 30,000.
 
 ## Commands

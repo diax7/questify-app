@@ -482,11 +482,13 @@ function CategoryActions({
   canDelete: boolean;
 }>) {
   const t = useTranslator(language);
+  const name = textFor(category.name, language);
+  const named = (label: string) => (name === "" ? label : `${label}: ${name}`);
   return (
     <Toolbar>
       <OrderButtons
         language={language}
-        name={textFor(category.name, language)}
+        name={name}
         ids={order}
         index={index}
         busy={busy}
@@ -497,12 +499,18 @@ function CategoryActions({
           variant="quiet"
 
           disabled={busy}
+          aria-label={named(t("quests.hint.send"))}
           onClick={() => actions.sendHint(category)}
         >
           {t("quests.hint.send")}
         </Button>
       ) : null}
-      <Button variant="quiet" disabled={busy} onClick={rename}>
+      <Button
+        variant="quiet"
+        disabled={busy}
+        aria-label={named(t("quests.editCategory"))}
+        onClick={rename}
+      >
         {t("quests.editCategory")}
       </Button>
       {canDelete ? (
@@ -510,6 +518,7 @@ function CategoryActions({
           variant="quiet"
 
           disabled={busy}
+          aria-label={named(t("quests.deleteCategory"))}
           onClick={() => actions.remove({ kind: "category", category })}
         >
           {t("quests.deleteCategory")}

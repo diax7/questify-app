@@ -16,8 +16,26 @@
 - **Push on phones is off (Dhia: "Later", 2026-10-30):** no Firebase project yet, so no `google-services.json` in the app
   and no `FCM_SERVICE_ACCOUNT` on the API; iPhone needs the APNs key. The in-app notification center works. Owed by Dhia
   before launch (RUNBOOK "The app's side of push").
-- **The app sends no `X-App-Version`,** so the API's minimum-version gate (staging `MIN_APP_VERSION` 1.0.0, the app is
-  0.1.0) never applies to it; FOLLOWUPS.
+- **The app now sends `X-App-Version`** (its config version, 1.0.0; see "Follow-ups batch 2" below), so the API's
+  minimum-version gate (426) reaches phones; raise `MIN_APP_VERSION` only together with a store release.
+
+## Follow-ups batch 2 — 2026-10-31
+- **Cleared from FOLLOWUPS (tier B/C, one worker, no review owed beyond the coordinator's look). Migration 0101** (new,
+  undeployed): `start_cheers_moment` ends a moment when a pending finale starts and refuses one once the finale has begun
+  (409 `finale_started`); `sponsor_tag_set` answers a vanished item or sponsor as SO404 instead of a foreign-key fault.
+  **Fixed:** ControlRoom first read under StrictMode and the quest list now reread every 30 s; a pending item of a closed
+  change set shows `discarded` (was "Ready") and a points edit on a played live quest without a choice previews as invalid
+  (`apply_required`); a body over 16 KiB as jsonb answers 422 `invalid_change_set {field: body}`; saving a boost is refused
+  while the event's own double-points switch is off; `useConfirmation` logs a thrown action; the push-defaults panel offers
+  Try again; the sponsors page stops saying Loading after a failed read; the team's held-prizes count is 404 for an editor
+  outside their event limit (the public event's own policy had let it through); the app sends `X-App-Version` and its
+  version is 1.0.0; category buttons carry the category name for assistive technology.
+  **Tests added:** agenda register refused with the agenda off and cancel still working; editor outside the limit; the
+  discarded and points-preview states; the header and the config version; the event-switch boost refusal; the cheers cap
+  and the sponsor-tag race (deterministic, with a held row lock).
+  **Left:** the `invitation-sending.int.test.ts` full-run flake (not found; see FOLLOWUPS for what was ruled out); the
+  app render test for `eventOff` was dropped (the app has no render-test harness, and a harness is not worth adding for
+  one line).
 
 ## T-605 guided setup — 2026-10-31
 
