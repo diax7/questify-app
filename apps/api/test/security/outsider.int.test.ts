@@ -404,8 +404,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     }
   });
 
-  it("grants only the analytics' three reads to the API's role, and nothing to the public (T-607)", async () => {
-    const doors = ["analytics_economy", "analytics_participation", "analytics_quests"];
+  it("grants only the analytics' four reads to the API's role, and nothing to the public (T-607, T-608)", async () => {
+    const doors = [
+      "analytics_economy",
+      "analytics_participation",
+      "analytics_quests",
+      "analytics_sponsor",
+    ];
     const functions = await rows<{
       proname: string;
       app: boolean;
@@ -428,7 +433,55 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       expect(row.definer, row.proname).toBe(true);
       expect(row.settings, row.proname).toEqual(["search_path=public, pg_temp"]);
     }
-    for (const sql of doors.map((name) => `SELECT public.${name}(gen_random_uuid())`)) {
+    for (const sql of [
+      "SELECT public.analytics_economy(gen_random_uuid())",
+      "SELECT public.analytics_participation(gen_random_uuid())",
+      "SELECT public.analytics_quests(gen_random_uuid())",
+      "SELECT public.analytics_sponsor(gen_random_uuid(), gen_random_uuid())",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+  });
+
+  it("grants only the export doors to the API's role, and nothing to the public (T-608)", async () => {
+    const doors = [
+      "export_completions",
+      "export_players",
+      "export_redemptions",
+      "export_start",
+      "export_submissions",
+      "export_surveys",
+    ];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      public: boolean;
+      definer: boolean;
+      settings: string[] | null;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        has_function_privilege('public', p.oid, 'EXECUTE') AS public,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname LIKE 'export\\_%'`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(doors);
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(true);
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.public, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(true);
+      expect(row.settings, row.proname).toEqual(["search_path=public, pg_temp"]);
+    }
+    for (const sql of [
+      "SELECT public.export_start(gen_random_uuid(), 'players', NULL, gen_random_uuid())",
+      "SELECT public.export_players(gen_random_uuid())",
+      "SELECT public.export_completions(gen_random_uuid(), '-infinity', 0, 10)",
+      "SELECT public.export_redemptions(gen_random_uuid())",
+      "SELECT public.export_submissions(gen_random_uuid())",
+      "SELECT public.export_surveys(gen_random_uuid())",
+    ]) {
       await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
     }
   });

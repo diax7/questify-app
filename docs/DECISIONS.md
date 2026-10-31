@@ -6041,3 +6041,49 @@ and marks the largest drop with a word; "Where players stop" lists each category
 a way to be wrong.
 **Trade-offs / not built:** the period and sponsor filters of the mockup (the sponsor-filtered totals are T-608), exports (T-608),
 surveys on this page (their results page exists, T-508), the change log link, a per-day retention curve.
+
+## ADR-393 - T-608 exports, sponsor totals and the one-page report: server-built audited files, a floor of five for anything made for a sponsor, the browser prints the PDF
+
+**Status:** Proposed (developer, delegated by Dhia, 2026-10-31; Q-360).
+**Decision:** (1) **Files are built on the server and every one is audited** (migration 0103, read-only definer doors, PUBLIC without
+EXECUTE, granted to the API's role alone, each behind `award_event_of`, AN404 for anyone but the event's own team): `POST
+…/events/{id}/exports/{players|completions|redemptions|submissions|surveys|sponsor}` calls `export_start`, which writes the audit
+entry `event.export` (the kind and the sponsor, never a row) before it reads a row, then writes the file in pieces
+(`text/csv`, a byte-order mark first so Excel reads Arabic). Completions, the one file that can reach hundreds of thousands of rows,
+are read in pages of 5,000 by `(created_at, id)` on the control room's index (0096); the others in one read. Every row is checked
+against a strict schema (`packages/shared/src/exports`) before it is written, and a cell is written by the T-508 helper
+(`csvCell`, formula-safe). The web forwarder allows an export 180 s instead of 15 s. Headers use Questify's own words in the
+file's language, not an event's renamed words (a spreadsheet is a record; Q-360 (e)).
+(2) **Columns are what the join card disclosed (FR-1207, PD-17)**: players = username, the answers to the event's join fields in
+the card's order, status, when they joined and points; completions = username, quest, category, time, number of the time, method, and
+a "removed by the team" mark (the file lists every completion, as the analytics take the removed ones off); redemptions = username,
+reward, price, status, reserved and closed times (shop rewards only; no code); submissions = username, quest, time, status and the
+text (blank once the player's account erased it; the reviewer's reason stays out); survey answers = each survey's counts, averages and
+newest 50 text answers per question, names not shown (the results page's numbers). No file holds a phone number, an email address, a
+join source, a balance, an id of a person or a device. **No FR asks the owner to export contact data, so none is exported.**
+(3) **The sponsor filter is a view of totals and a file of totals (FR-1306, FR-1626)**, never a filter of the player files: choosing
+a sponsor on the Analytics page replaces the event's figures with that sponsor's visits (players with a standing completion of its
+quests), completions and redemptions, and lists its quests, categories and rewards with their player and redemption counts; the
+export is then one "sponsor totals" file with no player, and the five player files are not offered. A quest is the sponsor's when it
+is tagged to it, or sits in a category tagged to it and has no tag of its own. A completion the team removed does not count.
+Souvenirs cannot be tagged yet (T-507c), so they are not in the totals.
+(4) **The floor is 5 (`MIN_GROUP_SIZE`)**: a count of 1 to 4 players is left out ("fewer than 5"), 0 stays 0. It applies to
+everything made for a sponsor (the sponsor view and its file) and to the item-level counts of the report (one quest, one reward, one
+answer choice, a survey's responses and its rating average); a survey with fewer than 5 responses gives no result at all. Where
+parts add up to a total shown beside them (a sponsor's rewards), a single hidden part also hides the smallest part shown, so the
+total cannot give it back. Event-wide headline figures are shown as they are, and so is the organizer's own Analytics page and
+player files (the team already sees named players, ADR-392 (5)). **Not protected:** a hidden count that can be worked out by
+subtracting event-wide figures the report prints.
+(5) **The PDF is the browser's print of a page**: `/analytics/report` shows the sheet on screen and, under `@media print`, only the
+sheet on one A4 page (the `@page` A4 with 12 mm margins, the shell and the buttons hidden, the sheet clipped at 240 mm so it never runs to a second
+page), in the page's language with the fonts it already loads and Western digits; "Print or save as PDF" is the button. No PDF
+dependency. Its data is `POST …/report`, audited like an export, and holds the headline numbers, the five most popular quests and
+rewards, and up to three surveys of up to three questions (choice counts of up to four choices, a rating average, written answers
+only counted, never quoted); no player. **The event's logo is not on it**: an event has no logo (uploads wait for the storage
+bucket, Q-149; T-507b adds the sponsors' with it), so the masthead shows the event's name.
+(6) **No period filter**: no requirement asks for one; "points earned in a period" would scan the points record (ADR-392 (1) keeps
+it unscanned), and every file carries its times for a spreadsheet to filter.
+**Why:** an export leaves the system, so the server writes it, audits it and checks what it holds; a sponsor sees no player, so
+what is made for one carries a floor; the browser already prints well, so a PDF library would be a dependency for nothing.
+**Trade-offs / not built:** period filter, the event's logo, souvenirs in the sponsor totals (T-507c), the event's renamed words in
+the headers, a per-sponsor PDF.

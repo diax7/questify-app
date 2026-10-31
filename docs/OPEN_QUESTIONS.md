@@ -1689,3 +1689,14 @@ page has no period or sponsor filter yet. Questions for Dhia: (a) Should a quest
 the player's activity? (b) Should "returning" also count a player who comes back on the same day after a long gap? (c) Is a minimum
 group size wanted before a count of one or two players is shown (for example a sponsor's own players, T-608)? (d) Is a period filter
 (whole event, today, last 7 days) wanted before T-608? (e) Not run on a phone: the page was read in a browser at 360 px, not on a device. **Decided (developer, delegated by Dhia, 2026-10-31):** as built; (c) a floor goes with T-608's sponsor-facing totals; (d) the period filter waits for T-608. ADR-392 accepted.
+
+## Q-360 - T-608 exports, sponsor totals and the report: what is decided without Dhia (2026-10-31)
+
+**Recommended (developer, ADR-393):** server-built files, each audited; only join-card fields; sponsor view and file are totals with no
+player; counts of 1 to 4 players are left out for anything made for a sponsor and for the report's item-level counts; the PDF is the
+browser's print of a one-page sheet; no period filter; no event logo yet. Questions for Dhia: (a) Is a floor of 5 right (a sponsor
+sees no player, but a small event may never reach 5 on a quest)? (b) Should the organizer ever export the player files filtered to
+one sponsor's quests (a named list of who completed them), or is totals-only enough (FR-1626 reads as totals-only)? (c) Is a period
+filter (today, last 7 days) wanted, given a file carries times? (d) The event logo on the report waits for the storage bucket
+(Q-149): is the event's name enough until then? (e) Should the spreadsheet headers use an event's renamed words ("Mission" for
+"Quest")? (f) Not run on a phone or in a PDF reader: the page was printed to PDF in a headless browser and counted as one page.

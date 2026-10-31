@@ -23,12 +23,18 @@ import {
   funnelChoices,
   useCurrencyWord,
 } from "#src/components/AnalyticsParts.tsx";
+import { ExportsSection } from "#src/components/AnalyticsExports.tsx";
+import {
+  SponsorFilter,
+  SponsorTotalsView,
+  useSponsors,
+} from "#src/components/AnalyticsSponsor.tsx";
 import { QuestScoresScope } from "#src/components/QuestScoreBadge.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { PANEL_ROWS, popularity, stopsOf } from "#src/lib/analytics.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import { Button } from "#src/ui/Button.tsx";
+import { Button, ButtonLink } from "#src/ui/Button.tsx";
 import { Figure, PanelGrid, Tile, WideCard } from "#src/ui/Charts.tsx";
 import { Dialog } from "#src/ui/Dialog.tsx";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
@@ -394,10 +400,51 @@ function EconomyGroup({ language, panel }: Props & Readonly<{ panel: Panel<Econo
   );
 }
 
+type Panels = Readonly<{
+  participation: Panel<Participation>;
+  quests: Panel<QuestsAnalytics>;
+  economy: Panel<Economy>;
+}>;
+
 /**
- * The event's analytics (T-607, FR-1201 to FR-1205, FR-1625): participation, quests and categories, and rewards and
- * points, each from its own read, counts only and never a player. An event that still holds rehearsal accounts says
- * its figures include them.
+ * Everything under the header: the sponsor filter, then the event's three groups of figures, or the chosen sponsor's
+ * totals instead, and the spreadsheets (the sponsor's own once a sponsor is chosen).
+ */
+function Figures({
+  language,
+  eventApi,
+  panels,
+}: Readonly<{ language: Language; eventApi: string; panels: Panels }>) {
+  const sponsors = useSponsors(eventApi);
+  const [sponsorId, setSponsorId] = useState("");
+  const chosen = sponsors?.find((sponsor) => sponsor.id === sponsorId);
+  return (
+    <>
+      <SponsorFilter
+        language={language}
+        sponsors={sponsors ?? []}
+        value={chosen?.id ?? ""}
+        onChange={setSponsorId}
+      />
+      {chosen === undefined ? (
+        <>
+          <ParticipationGroup language={language} panel={panels.participation} />
+          <QuestsGroup language={language} panel={panels.quests} />
+          <EconomyGroup language={language} panel={panels.economy} />
+        </>
+      ) : (
+        <SponsorTotalsView language={language} eventApi={eventApi} sponsor={chosen} />
+      )}
+      <ExportsSection language={language} eventApi={eventApi} sponsorId={chosen?.id ?? ""} />
+    </>
+  );
+}
+
+/**
+ * The event's analytics (T-607, T-608, FR-1201 to FR-1205, FR-1306, FR-1625, FR-1626): participation, quests and
+ * categories, and rewards and points, each from its own read, counts only and never a player. With one sponsor chosen
+ * the page shows that sponsor's totals instead, and the spreadsheets become the sponsor's. An event that still holds
+ * rehearsal accounts says its figures include them.
  */
 export function AnalyticsPage({
   language,
@@ -413,15 +460,28 @@ export function AnalyticsPage({
   return (
     <QuestScoresScope organizerId={organizerId} eventId={eventId}>
       <Stack as="section" aria-labelledby="analytics-title">
-        <PageHeader titleId="analytics-title" title={t("analytics.title")} />
+        <PageHeader
+          titleId="analytics-title"
+          title={t("analytics.title")}
+          actions={
+            <ButtonLink
+              variant="secondary"
+              href={`/${language}/organizers/${organizerId}/events/${eventId}/analytics/report`}
+            >
+              {t("analytics.export.report")}
+            </ButtonLink>
+          }
+        />
         {rehearsal ? (
           <Notice tone="info" role="note">
             {t("analytics.rehearsal")}
           </Notice>
         ) : null}
-        <ParticipationGroup language={language} panel={participation} />
-        <QuestsGroup language={language} panel={quests} />
-        <EconomyGroup language={language} panel={economy} />
+        <Figures
+          language={language}
+          eventApi={eventApi}
+          panels={{ participation, quests, economy }}
+        />
       </Stack>
     </QuestScoresScope>
   );

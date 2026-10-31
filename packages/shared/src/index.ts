@@ -713,6 +713,46 @@ export type {
   QuestsAnalytics,
 } from "./analytics/analytics";
 export {
+  MIN_GROUP_SIZE,
+  groupCount,
+  groupParts,
+  sponsorRawSchema,
+  sponsorTotals,
+  sponsorTotalsSchema,
+} from "./analytics/sponsor";
+export type { SponsorRaw, SponsorTotals } from "./analytics/sponsor";
+export {
+  EXPORT_KINDS,
+  completionPageSchema,
+  completionsTable,
+  exportBodySchema,
+  exportStartSchema,
+  playerRowSchema,
+  playersTable,
+  redemptionRowSchema,
+  redemptionsTable,
+  sponsorRows,
+  submissionRowSchema,
+  submissionsTable,
+  surveyExportSchema,
+  surveysRows,
+} from "./exports/exports";
+export type {
+  CompletionRow,
+  ExportBody,
+  ExportKind,
+  ExportStart,
+  ExportTable,
+  ExportTranslate,
+  PlayerRow,
+  RedemptionRow,
+  SubmissionRow,
+  SurveyExport,
+} from "./exports/exports";
+export { REPORT_LIMITS, buildReport, reportSchema } from "./exports/report";
+export { csvLines } from "./text/csv";
+export type { Report, ReportSurvey } from "./exports/report";
+export {
   CHEERS_PER_MINUTE,
   CHEER_EMOJI,
   CHEER_MINUTES_KEYS,
@@ -731,8 +771,11 @@ export {
   questRatingScoresSchema,
   questScorePercent,
   sharedSurveyResultsSchema,
+  surveyCsvLabelsOf,
   surveyResultsCsv,
+  surveyResultsLines,
   surveyResultsOpenBodySchema,
+  surveyResultsSchema,
   surveyShareStateSchema,
   withoutContactDetails,
 } from "./survey-results/survey-results";

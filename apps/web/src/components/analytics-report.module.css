@@ -1,0 +1,101 @@
+/* The one-page report (T-608, FR-1208, ADR-393): a sheet on screen, one A4 page when printed or saved as a PDF. */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+}
+
+.masthead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.kicker {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.event {
+  margin: 0;
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.dates {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.twoUp {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-xl);
+}
+
+.surveys {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.survey {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding-block-end: var(--space-md);
+  border-block-end: var(--line);
+}
+
+.questions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.more {
+  margin: 0;
+}
+
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+@media print {
+  /* Only the sheet prints: no bar, no page header, no buttons, and never a second page. */
+  :global(header) {
+    display: none;
+  }
+
+  .sheet {
+    gap: 5mm;
+    max-block-size: 240mm;
+    overflow: hidden;
+    font-size: 9pt;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .event {
+    font-size: 18pt;
+  }
+
+  .twoUp {
+    grid-template-columns: 1fr 1fr;
+    gap: 6mm;
+  }
+
+  .survey {
+    break-inside: avoid;
+    padding-block-end: 2mm;
+  }
+}

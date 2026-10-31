@@ -658,6 +658,11 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
   eventPage("announcements", "announcements.page.title"),
   eventPage("awards", "awards.title"),
   eventPage("analytics", "analytics.title"),
+  {
+    name: "analytics-report",
+    path: (ids) => `${event(ids)}/analytics/report`,
+    ready: titled("report.title"),
+  },
   eventPage("change-sets", "changeSets.page.title"),
   eventPage("setup", "setup.title"),
   eventPage("big-screen", "bigScreen.title"),

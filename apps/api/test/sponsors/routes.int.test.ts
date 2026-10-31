@@ -268,6 +268,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sponsors over HTTP", () => {
     expect(urls.toSorted()).toEqual([
       "DELETE /v1/organizers/:organizerId/events/:eventId/sponsors/:sponsorId",
       "GET /v1/events/:eventId/sponsors",
+      "GET /v1/organizers/:organizerId/events/:eventId/analytics/sponsors/:sponsorId",
       "GET /v1/organizers/:organizerId/events/:eventId/sponsors",
       "POST /v1/organizers/:organizerId/events/:eventId/sponsors",
       "PUT /v1/organizers/:organizerId/events/:eventId/sponsor-tags",

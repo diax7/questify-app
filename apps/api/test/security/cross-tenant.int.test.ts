@@ -1745,6 +1745,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         "SELECT analytics_participation($1)",
         "SELECT analytics_quests($1)",
         "SELECT analytics_economy($1)",
+        "SELECT export_players($1)",
+        "SELECT export_redemptions($1)",
+        "SELECT export_submissions($1)",
+        "SELECT export_surveys($1)",
+        "SELECT export_completions($1, '-infinity', 0, 10)",
+        "SELECT export_start($1, 'players', NULL, gen_random_uuid())",
+        "SELECT analytics_sponsor($1, gen_random_uuid())",
       ]) {
         expect(await refusal(asA(seat, sql, [f.eventB])), `${seat} ${sql}`).toBe("AN404");
       }

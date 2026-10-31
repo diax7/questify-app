@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { textIssue } from "#src/invitation-campaigns/name-rule";
+import type { MessageKey } from "#src/i18n/messages";
 import { csvFile } from "#src/text/csv";
 
 /**
@@ -78,6 +79,12 @@ const questionSchema = z.strictObject({
   hiddenTexts: z.number().int().min(0).optional(),
 });
 export type SharedSurveyQuestion = z.infer<typeof questionSchema>;
+
+/** A survey quest's results as the team reads them (names not shown). */
+export const surveyResultsSchema = z.strictObject({
+  total: z.number().int().min(0),
+  questions: z.array(questionSchema),
+});
 
 /** What the speaker's page shows: the survey's names and its results. */
 export const sharedSurveyResultsSchema = z.strictObject({
@@ -171,22 +178,45 @@ function questionLines(
 }
 
 /**
- * A survey's results as a spreadsheet (FR-1624): one line for the number of responses, then each question's choice
- * counts, rating average or text answers, one line each. A survey nobody answered is one line that says so. Numbers are
- * Western digits.
+ * A survey's lines in a spreadsheet (FR-1624): one for the number of responses, then each question's choice counts,
+ * rating average or text answers, one line each. A survey nobody answered is one line that says so.
  */
+export function surveyResultsLines(
+  results: SurveyResultsRows,
+  language: "ar" | "en",
+  labels: SurveyCsvLabels,
+): (string | number)[][] {
+  if (results.total === 0) {
+    return [[labels.noAnswers, "", "", 0]];
+  }
+  return [
+    [labels.responses, "", "", results.total],
+    ...results.questions.flatMap((question) => questionLines(question, language, labels)),
+  ];
+}
+
+/** A survey's results as a spreadsheet (FR-1624). Numbers are Western digits. */
 export function surveyResultsCsv(
   results: SurveyResultsRows,
   language: "ar" | "en",
   labels: SurveyCsvLabels,
 ): string {
   const header = [labels.question, labels.kind, labels.answer, labels.count];
-  if (results.total === 0) {
-    return csvFile([header, [labels.noAnswers, "", "", 0]]);
-  }
-  return csvFile([
-    header,
-    [labels.responses, "", "", results.total],
-    ...results.questions.flatMap((question) => questionLines(question, language, labels)),
-  ]);
+  return csvFile([header, ...surveyResultsLines(results, language, labels)]);
+}
+
+/** The spreadsheet's words, from a translator in the spreadsheet's language. */
+export function surveyCsvLabelsOf(t: (key: MessageKey) => string): SurveyCsvLabels {
+  return {
+    question: t("surveyResults.csv.question"),
+    kind: t("surveyResults.csv.kind"),
+    answer: t("surveyResults.csv.answer"),
+    count: t("surveyResults.csv.count"),
+    choice: t("surveyResults.csv.choice"),
+    rating: t("surveyResults.csv.rating"),
+    text: t("surveyResults.csv.text"),
+    average: t("surveyResults.csv.average"),
+    responses: t("surveyResults.csv.responses"),
+    noAnswers: t("surveyResults.csv.noAnswers"),
+  };
 }

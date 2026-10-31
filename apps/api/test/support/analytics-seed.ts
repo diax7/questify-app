@@ -32,8 +32,9 @@ async function addCategory(
 /**
  * What the analytics page's browser test reads (T-607), written as the owner on the throw-away database: ten players
  * who joined over three hours by every source, an in-order category whose players thin out step by step (the largest
- * drop is after the second step), a free category, and two rewards with three redemptions, two of them still waiting.
- * Test code only.
+ * drop is after the second step), a free category, and two rewards with three redemptions, two of them still waiting,
+ * and (T-608) two sponsors: "Acme Co" with the first step (eight players, above the floor) and "Quiet Co" with the last
+ * step and the mug (one player each, under it). Test code only.
  */
 export async function seedAnalytics(owner: Client, eventId: string): Promise<void> {
   // A username is unique, and the browser suite seeds one event per project on the same database.
@@ -94,4 +95,24 @@ export async function seedAnalytics(owner: Client, eventId: string): Promise<voi
      WHERE e.id = $1`,
     [eventId, hoodie?.id, mug?.id],
   );
+  await owner.query(
+    `INSERT INTO sponsor (organizer_id, event_id, name_ar, name_en, tier, created_by)
+     SELECT e.organizer_id, e.id, v.name_ar, v.name_en, 'gold', gen_random_uuid()
+     FROM event e, (VALUES ('أكمي', 'Acme Co'), ('الهادئة', 'Quiet Co')) AS v(name_ar, name_en)
+     WHERE e.id = $1`,
+    [eventId],
+  );
+  for (const [sponsor, kind, table, title] of [
+    ["Acme Co", "quest", "quest", "Step 1"],
+    ["Quiet Co", "quest", "quest", "Step 4"],
+    ["Quiet Co", "reward", "reward", "Event mug"],
+  ] as const) {
+    await owner.query(
+      `INSERT INTO sponsor_tag (organizer_id, event_id, sponsor_id, kind, ${kind}_id, created_by)
+       SELECT s.organizer_id, s.event_id, s.id, '${kind}', t.id, gen_random_uuid()
+       FROM sponsor s JOIN ${table} t ON t.event_id = s.event_id AND t.${table === "quest" ? "title_en" : "name_en"} = $3
+       WHERE s.event_id = $1 AND s.name_en = $2`,
+      [eventId, sponsor, title],
+    );
+  }
 }

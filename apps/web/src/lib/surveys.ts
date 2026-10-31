@@ -1,4 +1,4 @@
-import type { SurveyCsvLabels } from "@questify/shared";
+import { surveyCsvLabelsOf, type SurveyCsvLabels } from "@questify/shared";
 import type { Translate } from "#src/lib/language.ts";
 
 type Text = Readonly<{ ar: string | null; en: string | null }>;
@@ -59,17 +59,4 @@ export function surveyResultsOf(body: unknown): SurveyResults | undefined {
 }
 
 /** The spreadsheet's words in the dashboard's language (FR-1624). */
-export function surveyCsvLabels(t: Translate): SurveyCsvLabels {
-  return {
-    question: t("surveyResults.csv.question"),
-    kind: t("surveyResults.csv.kind"),
-    answer: t("surveyResults.csv.answer"),
-    count: t("surveyResults.csv.count"),
-    choice: t("surveyResults.csv.choice"),
-    rating: t("surveyResults.csv.rating"),
-    text: t("surveyResults.csv.text"),
-    average: t("surveyResults.csv.average"),
-    responses: t("surveyResults.csv.responses"),
-    noAnswers: t("surveyResults.csv.noAnswers"),
-  };
-}
+export const surveyCsvLabels = (t: Translate): SurveyCsvLabels => surveyCsvLabelsOf(t);

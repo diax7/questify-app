@@ -8,8 +8,13 @@ export function csvCell(value: string | number): string {
   return /[",;\n\r]/u.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
+/** Rows as CSV lines, each ended by a line break; a file is written in pieces of these. */
+export function csvLines(rows: readonly (readonly (string | number)[])[]): string {
+  const lineBreak = String.fromCharCode(13, 10);
+  return rows.map((row) => row.map((value) => csvCell(value)).join(",") + lineBreak).join("");
+}
+
 /** A CSV file as text: a byte-order mark first so Excel reads Arabic, then one line a row. */
 export function csvFile(rows: readonly (readonly (string | number)[])[]): string {
-  const lines = rows.map((row) => row.map((value) => csvCell(value)).join(","));
-  return `﻿${lines.join("\r\n")}\r\n`;
+  return `﻿${csvLines(rows)}`;
 }

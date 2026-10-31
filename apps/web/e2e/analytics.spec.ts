@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
 import {
@@ -23,6 +24,17 @@ async function checkLayout(page: Page, project: string, where: string): Promise<
   if (project === "desktop") {
     await expectStateContrast(page, where, "body");
   }
+}
+const BOM = String.fromCharCode(0xfeff);
+const LINE_BREAK = String.fromCharCode(13, 10);
+
+/** Clicks a button that saves a file and reads what was saved. */
+async function savedFile(page: Page, name: string): Promise<string> {
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name, exact: true }).click(),
+  ]);
+  return readFileSync(await download.path(), "utf8");
 }
 const tile = (page: Page, name: string) => page.getByRole("region", { name, exact: true });
 
@@ -182,7 +194,63 @@ test("shows the event's analytics from nothing to a played event", async ({
   await expect(page.getByText(/خريطة حرارية|time spent|heatmap/i)).toHaveCount(0);
   await checkLayout(page, info.project.name, "ar analytics");
 
-  await page.goto(page.url().replace("/ar/", "/en/"));
+  // The spreadsheets (T-608): the players file holds a username, the status, when they joined and their points, and no
+  // contact detail; a sponsor's file holds totals and no player.
+  const players = await savedFile(page, "تصدير لاعبون");
+  expect(players.startsWith(BOM)).toBe(true);
+  const playerLines = players.slice(1).trimEnd().split(LINE_BREAK);
+  expect(playerLines[0]).toBe("اسم المستخدم,الحالة,وقت الانضمام,النقاط");
+  expect(playerLines).toHaveLength(11);
+  expect(players).not.toMatch(/@|\+966/);
+  const completions = await savedFile(page, "تصدير الإنجازات");
+  expect(completions.trimEnd().split(LINE_BREAK)).toHaveLength(1 + 8 + 6 + 2 + 1 + 5 + 3 + 1);
+
+  // The sponsor filter: totals instead of the event's figures, a count of one to four players in words, and the
+  // sponsor's file in place of the player files.
+  const filter = page.getByLabel("الراعي", { exact: true });
+  await filter.selectOption({ label: "أكمي" });
+  await expect(page.getByRole("heading", { name: "إجماليات أكمي" })).toBeVisible();
+  await expect(tile(page, "الزيارات")).toContainText("8");
+  await expect(tile(page, "الإنجازات")).toContainText("8");
+  await expect(tile(page, "الاستبدالات")).toContainText("0");
+  await expect(page.getByRole("button", { name: "تصدير لاعبون" })).toHaveCount(0);
+  const sponsorFile = await savedFile(page, "تصدير إجماليات الراعي");
+  expect(sponsorFile.slice(1).trimEnd().split(LINE_BREAK)).toEqual([
+    "المجموعة,العنصر,المقياس,العدد",
+    "الإجماليات,أكمي,الزيارات,8",
+    "الإجماليات,,الإنجازات,8",
+    "الإجماليات,,الاستبدالات,0",
+    "المهمة,الخطوة 1,اللاعبون,8",
+  ]);
+  await filter.selectOption({ label: "الهادئة" });
+  await expect(tile(page, "الزيارات")).toContainText("أقل من 5");
+  await expect(tile(page, "الاستبدالات")).toContainText("أقل من 5");
+  await expect(page.getByText("الخطوة 4")).toBeVisible();
+  await expect(page.getByText("لاعبون: 1")).toHaveCount(0);
+  await checkLayout(page, info.project.name, "ar analytics sponsor");
+  await filter.selectOption({ label: "كل الرعاة" });
+
+  // The one-page report: the page prints alone on one A4 page, with Arabic type and Western digits.
+  await page.getByRole("link", { name: "تقرير من صفحة واحدة" }).click();
+  await expect(page.getByRole("heading", { name: "تقرير الفعالية", level: 1 })).toBeVisible();
+  const sheet = page.getByRole("article");
+  await expect(sheet.getByRole("heading", { level: 2 })).toBeVisible();
+  await expect(tile(page, "المنضمّون")).toContainText("10");
+  await expect(sheet).toContainText("الخطوة 1");
+  await expect(sheet).not.toContainText(/@|an\d+_/);
+  await checkLayout(page, info.project.name, "ar report");
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator("header").first()).toBeHidden();
+  const pdf = await page.pdf({ preferCSSPageSize: true });
+  expect(pdf.toString("latin1").match(/\/Type\s*\/Page[^s]/g)).toHaveLength(1);
+  await page.emulateMedia({ media: "screen" });
+
+  await page.goto(
+    page
+      .url()
+      .replace("/ar/", "/en/")
+      .replace(/\/analytics\/report$/, "/analytics"),
+  );
   await expect(page.getByRole("heading", { name: "Analytics", level: 1 })).toBeVisible();
   await expect(tile(page, "Joined")).toContainText("10");
   await expect(tile(page, "Activation rate")).toContainText("80%");

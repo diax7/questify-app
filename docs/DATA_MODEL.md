@@ -1547,3 +1547,17 @@ PUBLIC none. Not copied when an event is duplicated.
   `ledger_entry_redeem_key` (its `-score_delta` is added back to earned, so a purchase made after the end, which took no score, adds nothing).
 - Measured on one event of 50,000 players, 35,000 of them active, 525,000 completions, 1,000 removals and 50,000 bulk-award notes:
   participation 370 to 635 ms, quests 143 to 192 ms, economy 27 to 51 ms.
+
+## Exports, sponsor totals and the report (T-608, migration 0103; Proposed ADR-393)
+
+- No table, no column, no index. Seven read-only definer doors, each behind `award_event_of` (AN404), PUBLIC revoked, granted to the API's
+  role: `export_start(event, kind, sponsor, request)` (checks the seat and the sponsor, writes the `audit_log` entry `event.export` with
+  the kind and the sponsor only, answers the event's names, zone and, for the players file, the join fields), `export_players(event)`,
+  `export_completions(event, after_at, after_id, page_size)` (pages of up to 10,000 by `(created_at, id)` on
+  `quest_completion_event_recent_idx`; marks a completion whose award the team removed, found through the event's `ledger_note` rows),
+  `export_redemptions(event)` (shop rewards; no code), `export_submissions(event)` (the text is blank once `erased_at` is set; no
+  reviewer reason), `export_surveys(event)` (`survey_results_core` per survey quest), and `analytics_sponsor(event, sponsor)` (exact
+  counts of the items tagged to the sponsor through `sponsor_tag`; the API leaves out the counts under the floor of 5).
+- No door selects `player_contact`, a phone number, an email address, a device id or a redemption code; the API checks every row
+  against a strict schema before a file is written. Join answers are read from `join_answer` by field id.
+- SQLSTATEs: `AN404` (event or sponsor not the caller's), `AX400` (unknown kind, a sponsor on a file that takes none, a page size out of 1 to 10,000).

@@ -1566,6 +1566,16 @@ const GATE_MAP: Readonly<Record<string, string>> = {
     "exempt: lists agenda sessions and shows the title of a visible linked quest only; it plays and pays nothing, and the quest opens only through its own gated doors (T-505)",
   analytics_quests:
     "staff: an owner or editor within their event limit (award_event_of) counts the players who completed each visible quest, its order and skip flags, locked quests included; it plays and pays nothing (T-607)",
+  analytics_sponsor:
+    "staff: an owner or editor within their event limit (award_event_of) counts the players who completed a sponsor's tagged quests and the redemptions of its rewards; it plays and pays nothing (T-608)",
+  export_completions:
+    "staff: an owner or editor within their event limit (award_event_of) lists the event's completions with their quest and category names; it plays and pays nothing (T-608)",
+  export_redemptions:
+    "staff: an owner or editor within their event limit (award_event_of) lists the event's reward redemptions; it plays and pays nothing (T-608)",
+  export_submissions:
+    "staff: an owner or editor within their event limit (award_event_of) lists the event's submissions with their quest names; it plays and pays nothing (T-608)",
+  export_surveys:
+    "staff: an owner or editor within their event limit (award_event_of) lists the event's survey quests with their results; it plays and pays nothing (T-608)",
   analytics_economy:
     "staff: an owner or editor within their event limit (award_event_of) counts the event's rewards, their redemptions and stock; it plays and pays nothing (T-607)",
   control_counts:

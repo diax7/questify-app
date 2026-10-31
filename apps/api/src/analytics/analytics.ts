@@ -1,4 +1,10 @@
-import { ANALYTICS_SCHEMAS, type AnalyticsPanel } from "@questify/shared";
+import {
+  ANALYTICS_SCHEMAS,
+  sponsorRawSchema,
+  sponsorTotals,
+  type AnalyticsPanel,
+  type SponsorTotals,
+} from "@questify/shared";
 import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
@@ -14,6 +20,35 @@ const DOORS: Readonly<Record<AnalyticsPanel, string>> = {
 };
 
 /**
+ * One door of the exports and analytics under the member's seat: its answer, or undefined when the database refuses
+ * with AN404 (an event, or a sponsor, outside the member's organizer or event limit). Any other fault is thrown.
+ */
+export async function callDoor(
+  deps: AnalyticsDeps,
+  team: OrganizerContext,
+  sql: string,
+  values: readonly unknown[],
+): Promise<unknown> {
+  try {
+    return await withConnection(deps.pool, (client) =>
+      withRequestContext(
+        client,
+        { organizerId: team.organizerId, staffUserId: team.staffUserId },
+        async () => {
+          const { rows } = await client.query(`SELECT ${sql} AS answer`, [...values]);
+          return rows[0]?.["answer"];
+        },
+      ),
+    );
+  } catch (error) {
+    if ((error as { code?: string }).code === "AN404") {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+/**
  * One panel of the event's analytics as the team member reads it: the door's answer, checked against the panel's
  * schema so nothing but counts can leave. Undefined for an event outside the member's organizer or event limit (the
  * database raises AN404). Nothing is kept between requests: each door reads indexes and the players' own rows, never
@@ -25,22 +60,20 @@ export async function readAnalytics(
   eventId: string,
   panel: AnalyticsPanel,
 ): Promise<unknown> {
-  try {
-    const answer = await withConnection(deps.pool, (client) =>
-      withRequestContext(
-        client,
-        { organizerId: team.organizerId, staffUserId: team.staffUserId },
-        async () => {
-          const { rows } = await client.query(`SELECT ${DOORS[panel]}($1) AS answer`, [eventId]);
-          return rows[0]?.["answer"];
-        },
-      ),
-    );
-    return ANALYTICS_SCHEMAS[panel].parse(answer);
-  } catch (error) {
-    if ((error as { code?: string }).code === "AN404") {
-      return undefined;
-    }
-    throw error;
-  }
+  const answer = await callDoor(deps, team, `${DOORS[panel]}($1)`, [eventId]);
+  return answer === undefined ? undefined : ANALYTICS_SCHEMAS[panel].parse(answer);
+}
+
+/**
+ * A sponsor's totals as the sponsor may see them (FR-1306, FR-1626): the door's exact counts checked against the strict
+ * schema, then every count under the floor left out. Undefined for an event or a sponsor the member cannot reach.
+ */
+export async function readSponsorTotals(
+  deps: AnalyticsDeps,
+  team: OrganizerContext,
+  eventId: string,
+  sponsorId: string,
+): Promise<SponsorTotals | undefined> {
+  const answer = await callDoor(deps, team, "analytics_sponsor($1, $2)", [eventId, sponsorId]);
+  return answer === undefined ? undefined : sponsorTotals(sponsorRawSchema.parse(answer));
 }

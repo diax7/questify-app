@@ -1225,9 +1225,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1203 | F-65 | Must | built T-607: no time-spent or heatmap figure in any answer or on the page (`test/db/analytics.int` key list, `test/analytics/routes.int`, `apps/web/e2e/analytics.spec.ts`); the record read is joins, completions, redemptions and ratings only |
 | FR-1204 | F-205 | Must | built T-607: `test/db/analytics.int`, `apps/web/src/lib/analytics.test.ts` (funnel, largest drop, popularity), `apps/web/e2e/analytics.spec.ts`; a quest's thumbs score shows beside it (T-508) |
 | FR-1205 | F-206 | Must | built T-607: `test/db/analytics.int` (earned, spent, unclaimed, per-reward redemptions and stock), `apps/web/e2e/analytics.spec.ts` |
-| FR-1206 | F-207 | Must | pending |
-| FR-1207 | F-207 | Must | pending |
-| FR-1208 | F-208 | Should | pending |
+| FR-1206 | F-207 | Must | built T-608 (ADR-393): `test/db/exports.int`, `test/analytics/exports.int` (the five files, headers alone for an empty event, Arabic headers, formula-safe cells, paging, an audit entry each), `packages/shared/src/exports/exports.test.ts`, `apps/web/e2e/analytics.spec.ts` |
+| FR-1207 | F-207 | Must | built T-608: strict row schemas and no contact column in any door (`test/db/exports.int`, `test/analytics/exports.int`: no email, phone or id in any file) |
+| FR-1208 | F-208 | Should | built T-608 (event name only; the logo waits for the storage bucket, Q-149): `packages/shared/src/exports/report.test.ts`, `test/analytics/exports.int` (report data, audit, no player), `apps/web/e2e/analytics.spec.ts` (printed to PDF: one page) |
 | FR-1209 | F-209 | Should | `test/db/ratings-survey-results.int`, `test/ratings/routes.int`, `apps/web/e2e/survey-results.spec.ts` (T-508) |
 | FR-1210 | F-209 | Should | `test/db/ratings-survey-results.int`, `test/ratings/routes.int`, `packages/shared/src/survey-results/survey-results.test.ts`, `survey-results.spec.ts` (T-508, ADR-376 (5)) |
 | FR-1211 | F-210 | Could | `test/db/ratings-survey-results.int`, `apps/app/src/event/quest-rating.test.ts` (T-508); the score shows on the quest's row, quest analytics is T-607 |
@@ -1236,7 +1236,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1303 | F-211 | Must | built T-507 with a lettered mark in the logo's place (T-507b); code review pending |
 | FR-1304 | F-211 | Must | built T-507 (`api/test/sponsors`, `db/sponsors`); code review pending |
 | FR-1305 | F-212 | Must | built T-507 as the sponsor's name on the category (banner and logo T-507b); code review pending |
-| FR-1306 | F-214 | Should | pending |
+| FR-1306 | F-214 | Should | built T-608 for quests, categories and rewards (souvenirs wait for T-507c): `test/db/exports.int` (`analytics_sponsor`: only the sponsor's items, zero for an untagged sponsor), `test/analytics/exports.int`, `apps/web/e2e/analytics.spec.ts` |
 | FR-1307 | F-213 | Could | built T-507 (`SponsorStrip`, `SponsorQuests`); code review pending |
 | FR-1401 | F-215 | Must | pending |
 | FR-1402 | F-216 | Must | pending |
@@ -1288,9 +1288,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1621 | F-103 | Should | pending |
 | FR-1622 | F-134 | Should | pending T-402b (ADR-266) |
 | FR-1623 | F-210 | Could | `test/db/ratings-survey-results.int`, `test/ratings/routes.int`, `packages/shared/src/config/compose.test.ts` (T-508, ADR-376 (3)) |
-| FR-1624 | F-209 | Should | spreadsheet: `packages/shared/src/survey-results/survey-results.test.ts`, `survey-results.spec.ts` (T-508); the PDF report is T-608 |
+| FR-1624 | F-209 | Should | spreadsheet: `packages/shared/src/survey-results/survey-results.test.ts`, `survey-results.spec.ts` (T-508); the survey results are in the one-page report and the survey answers file (T-608) |
 | FR-1625 | F-65 | Must | built T-607: `test/db/analytics.int` (an active player is one with a completion, activation as a whole percent, no value when nobody joined), `test/analytics/routes.int` |
-| FR-1626 | F-214 | Should | pending |
+| FR-1626 | F-214 | Should | built T-608 (ADR-393): totals only, a floor of 5 (`packages/shared/src/analytics/sponsor.test.ts`), the sponsor file has no player (`test/analytics/exports.int`) |
 | FR-1628 | F-221 | Must | `test/db/submissions.int` (text submissions, T-301), `test/db/tickets.int` (help-desk tickets, T-310) |
 | FR-1629 | F-06 | Must | partly: text options only, organizer images wait for storage (ADR-190, Q-149); `test/db/vote-quiz.int`, `packages/shared/src/quests/registry.test.ts` (T-302) |
 | FR-1701 | F-228 | Must | pending |
