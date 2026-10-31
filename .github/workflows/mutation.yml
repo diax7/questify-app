@@ -36,8 +36,10 @@ jobs:
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
-        # Each mutant's integration tests create their own database.
+        # Each mutant's integration tests create their own database. Docker's default 64 MB /dev/shm ran out under
+        # parallel queries (run 41176935727: 16,370 "could not resize shared memory segment" errors), so 1 GB.
         options: >-
+          --shm-size 1g
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s
           --health-timeout 3s
