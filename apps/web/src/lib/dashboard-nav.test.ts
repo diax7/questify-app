@@ -21,7 +21,7 @@ describe("eventPlaceIn", () => {
 });
 
 /** Pages a menu link does not open: the quest builder links to the codes page. */
-const REACHED_FROM_ANOTHER_PAGE = new Set(["codes"]);
+const REACHED_FROM_ANOTHER_PAGE = new Set(["codes", "setup"]);
 
 describe("EVENT_PAGES", () => {
   it("names each event page once, and every page folder is listed or reached from another page", () => {

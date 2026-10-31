@@ -1343,13 +1343,13 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1748 | F-266, F-165 | Should | pending |
 | FR-1749 | F-267 | Must | pending |
 | FR-1750 | F-268 | Must | pending |
-| FR-1751 | F-269 | Must | pending |
-| FR-1752 | F-269 | Must | pending |
-| FR-1753 | F-269, F-197 | Must | pending |
-| FR-1754 | F-269 | Must | pending |
-| FR-1755 | F-269, F-257 | Must | pending |
-| FR-1756 | F-270 | Should | pending |
-| FR-1757 | F-271 | Should | pending |
+| FR-1751 | F-269 | Must | built T-605 (ten steps of option rows, switches and doors; each hint is an info button; previews are one-line summaries): `e2e/setup.spec.ts` |
+| FR-1752 | F-269 | Must | built T-605 (every step and the whole setup skippable; a skipped step writes nothing): `lib/setup.test.ts`, `e2e/setup.spec.ts` |
+| FR-1753 | F-269, F-197 | Must | built T-605 (a step shows the pages' own panels and switches; nothing is saved by the wizard): `e2e/setup.spec.ts` |
+| FR-1754 | F-269 | Must | built T-605 (`event_setup`, the last save wins): `test/db/guided-setup.int`, `test/setup/setup.int`, `e2e/setup.spec.ts` |
+| FR-1755 | F-269, F-257 | Must | built T-605 (locked card: disabled switch and Ask Questify; unlocked: Open): `e2e/setup.spec.ts` |
+| FR-1756 | F-270 | Should | built T-605 (Overview card, Explain this on six Build pages): `e2e/setup.spec.ts` |
+| FR-1757 | F-271 | Should | partly built T-605 (the wizard lays the translation store's usable texts over its keys; the edit screen and its save-or-discard are T-702): `lib/setup.test.ts`, `e2e/setup.spec.ts` |
 | FR-1758 | F-272 | Must | pending |
 | FR-1759 | F-273 | Must | pending |
 | FR-1760 | F-274 | Must | pending |
@@ -1438,7 +1438,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1843 | F-345 | Should | pending |
 | FR-1844 | F-346 | Should | pending |
 | FR-1845 | F-347 | Should | pending |
-| FR-1846 | F-348 | Must | pending |
+| FR-1846 | F-348 | Must | built T-605 (ten steps, each can be opened from the list): `lib/setup.test.ts`, `e2e/setup.spec.ts` |
 | FR-1847 | F-121 | Must | pending |
 | FR-1848 | F-179 | Should | pending |
 

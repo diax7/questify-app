@@ -63,6 +63,10 @@ const SUPPORT_FILE = /^apps\/web\/e2e\/([\w-]+)\.ts$/;
  * runs those specs. scripts/ci-scope.test.ts fails when a spec is named by no area, so a new spec is added here.
  */
 export const AREAS = [
+  [
+    /guided-?setup|setup-?(wizard|card|steps?|parts|step-?list)|use-setup-wizard|explain-?this|lib\/setup\.|\[eventId\]\/setup\/|api\/src\/setup\//i,
+    ["setup"],
+  ],
   [/change-?sets?/i, ["change-sets"]],
   [
     /use-?confirmation|confirmations/i,

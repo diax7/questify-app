@@ -1521,3 +1521,12 @@ the API role.
   the stock-low line (`greatest(1, ceil(10% of stock_total))`, migration 0082), open event-queue tickets plus pending submissions, open flags.
   `control_done(event)`: per quest, the players with a first completion (`occurrence = 1`); the one read that walks them all, so the API keeps
   its answer 30 seconds per event.
+
+### event_setup (T-605)
+**Built (migration 0100; ADR-390):** `event_setup (event_id PK, organizer_id, current_step smallint 1 to 10, steps text of ten
+letters n|d|s, finished_at, updated_by, updated_at)`: where an event's guided setup stands, one row made by the first save and
+removed with its event. `steps` has one letter per step in order (not decided, done, skipped); no answer of the wizard is
+stored, since each choice is saved where its page saves it. `updated_by` names the staff member without a foreign key.
+Forced row-level security: an owner or editor of the organizer inside the editor's event limit reads and writes it (a
+player's or an operator's context has no staff user and sees nothing); the API's role has column grants only (no DELETE),
+PUBLIC none. Not copied when an event is duplicated.

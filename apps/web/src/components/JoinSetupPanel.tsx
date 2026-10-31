@@ -1,5 +1,6 @@
 "use client";
 
+import { ExplainThis } from "#src/components/ExplainThis.tsx";
 import {
   formatNumber,
   joinFieldKindKey,
@@ -37,7 +38,13 @@ import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
-type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
+type Props = Readonly<{
+  language: Language;
+  organizerId: string;
+  eventId: string;
+  /** Only the two editors, for a step of the guided setup (T-605): no page header. */
+  bare?: boolean;
+}>;
 
 /** Turns an API refusal into the text to show; a lost session goes back to sign-in. */
 function useProblem(language: Language) {
@@ -440,7 +447,7 @@ function RulesEditor({
  * An event's join setup (T-212): the join fields, who can join and the welcome reward. Owners and editors both edit;
  * the API checks the event's reach and the database guards the welcome amount.
  */
-export function JoinSetupPanel({ language, organizerId, eventId }: Props) {
+export function JoinSetupPanel({ language, organizerId, eventId, bare = false }: Props) {
   const t = translatorFor(language);
   const base = `/v1/organizers/${organizerId}/events/${eventId}/join`;
   const loaded = useRef(false);
@@ -459,8 +466,21 @@ export function JoinSetupPanel({ language, organizerId, eventId }: Props) {
   });
 
   return (
-    <Stack as="section" aria-labelledby="joining-title">
-      <PageHeader titleId="joining-title" title={t("joining.title")} />
+    <Stack {...(bare ? {} : { as: "section" as const, "aria-labelledby": "joining-title" })}>
+      {bare ? null : (
+        <PageHeader
+          titleId="joining-title"
+          title={t("joining.title")}
+          actions={
+            <ExplainThis
+              language={language}
+              organizerId={organizerId}
+              eventId={eventId}
+              slug="joining"
+            />
+          }
+        />
+      )}
       {problem === null ? null : (
         <Notice tone="danger" role="alert">
           {problem}

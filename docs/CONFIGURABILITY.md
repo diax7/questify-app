@@ -300,3 +300,11 @@ The scenes a big screen runs and their order are data: one `big_screen` row per 
 page by owners and editors (default: ranking, community, poll). The ranking is offered only while the event's ranking switch
 is on. The whole feature is the `bigScreen` gated add-on (FR-1729), unlocked per event by a Questify admin. The rotation time
 (15 seconds) and the poll interval (3 seconds) are code constants; a per-event time is not built until asked (Q-333).
+
+### T-605 the guided setup's texts (Proposed ADR-390)
+
+The wizard's step names, questions, add-on cards and hints are the keys `wizard.*` (and its buttons `setup.*`) of the shared
+catalog, shipped in Arabic and English. The organizer dashboard reads the translation store (`GET /v1/translations`) and lays
+a usable value (not blank, same placeholders) over the shipped text, so a Questify admin's edit shows without a release; a
+store that cannot be read leaves the shipped texts. Which steps exist, their order and what each step shows are code: the ten
+steps of FR-1846. The add-on cards are the registry's gated features, locked until `event_entitlement` holds them.

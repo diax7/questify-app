@@ -1,5 +1,6 @@
 "use client";
 
+import { ExplainThis } from "#src/components/ExplainThis.tsx";
 import {
   SPONSOR_LIMITS,
   SPONSOR_TIERS,
@@ -380,7 +381,7 @@ function SponsorsContent({
 }
 
 export function SponsorsPanel(props: SponsorsProps) {
-  const { language } = props;
+  const { language, organizerId, eventId } = props;
   const all = useSponsorWrites(props);
   const { model, notice, failure, t } = all;
   const [draft, setDraft] = useState<SponsorDraft | null>(null);
@@ -397,13 +398,21 @@ export function SponsorsPanel(props: SponsorsProps) {
           title={t("sponsors.page.title")}
           info={infoTip(t, "sponsors.page.intro")}
           actions={
-            <Button
-              variant="primary"
-              disabled={sponsors === null || model.busy}
-              onClick={() => setDraft(blankSponsor())}
-            >
-              {t("sponsors.page.add")}
-            </Button>
+            <>
+              <Button
+                variant="primary"
+                disabled={sponsors === null || model.busy}
+                onClick={() => setDraft(blankSponsor())}
+              >
+                {t("sponsors.page.add")}
+              </Button>
+              <ExplainThis
+                language={language}
+                organizerId={organizerId}
+                eventId={eventId}
+                slug="sponsors"
+              />
+            </>
           }
         />
         <SponsorsNotices

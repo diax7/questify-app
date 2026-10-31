@@ -1,5 +1,6 @@
 "use client";
 
+import { ExplainThis } from "#src/components/ExplainThis.tsx";
 import type { Language } from "@questify/shared";
 import { useEffect, useState } from "react";
 import { CheersPanel } from "#src/components/CheersPanel.tsx";
@@ -175,9 +176,17 @@ export function BigScreenPanel({ language, organizerId, eventId, owner }: Props)
         title={t("bigScreen.title")}
         info={infoTip(t, "bigScreen.intro")}
         actions={
-          <ButtonLink href={`/${language}/organizers/${organizerId}/events/${eventId}/devices`}>
-            {t("devices.link")}
-          </ButtonLink>
+          <>
+            <ButtonLink href={`/${language}/organizers/${organizerId}/events/${eventId}/devices`}>
+              {t("devices.link")}
+            </ButtonLink>
+            <ExplainThis
+              language={language}
+              organizerId={organizerId}
+              eventId={eventId}
+              slug="big-screen"
+            />
+          </>
         }
       />
       <Notes

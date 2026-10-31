@@ -57,6 +57,8 @@ type Props = Readonly<{
   myRole: "owner" | "editor";
   /** Cards shown under the event's name, before its form (activation, rehearsal). */
   intro?: ReactNode;
+  /** Only the details form of an existing event, for a step of the guided setup (T-605): no header, cards or switches. */
+  bare?: boolean;
 }>;
 
 /** The words for a refusal: the field to fix for `invalid_event`, the API's own message otherwise. */
@@ -88,7 +90,7 @@ function useIdempotencyKey(): (body: unknown) => string {
  * Creates or edits an event (FR-1001–1003, FR-1608, FR-1728). Times are typed as the wall clock in the event's own
  * zone. A draft can be deleted and a live event ended by the owner, each after a confirmation naming the event.
  */
-export function EventForm({ language, organizerId, eventId, myRole, intro }: Props) {
+export function EventForm({ language, organizerId, eventId, myRole, intro, bare = false }: Props) {
   const t = useTranslator(language);
   const router = useRouter();
   const api = `/v1/organizers/${organizerId}/events`;
@@ -228,13 +230,15 @@ export function EventForm({ language, organizerId, eventId, myRole, intro }: Pro
 
   return (
     <Stack>
-      <PageHeader
-        back={{ href: pages, label: t("events.all") }}
-        titleId="event-title"
-        title={event === null ? t("events.new") : name}
-        meta={event === null ? undefined : <EventFacts language={language} event={event} />}
-      />
-      {intro}
+      {bare ? null : (
+        <PageHeader
+          back={{ href: pages, label: t("events.all") }}
+          titleId="event-title"
+          title={event === null ? t("events.new") : name}
+          meta={event === null ? undefined : <EventFacts language={language} event={event} />}
+        />
+      )}
+      {bare ? null : intro}
       {problem === null ? null : (
         <Notice tone="danger" role="alert">
           {problem}
@@ -310,7 +314,7 @@ export function EventForm({ language, organizerId, eventId, myRole, intro }: Pro
           confirm={confirmAsked}
         />
       )}
-      {event === null ? null : (
+      {event === null || bare ? null : (
         <>
           <EventFeatures
             language={language}
@@ -425,7 +429,8 @@ function EventFacts({ language, event }: Readonly<{ language: Language; event: E
   );
 }
 
-const FEATURE_SWITCHES = [
+/** The event switches the Features section lists, each with how the event read says it stands. */
+export const FEATURE_SWITCHES = [
   ["shareQuests", (event: EventView) => event.shareQuests],
   ["meetSomeone", (event: EventView) => event.meetSomeone],
   ["miniGames", (event: EventView) => event.miniGames],

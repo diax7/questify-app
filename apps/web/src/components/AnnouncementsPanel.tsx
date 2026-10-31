@@ -1,5 +1,6 @@
 "use client";
 
+import { ExplainThis } from "#src/components/ExplainThis.tsx";
 import {
   ANNOUNCEMENT_RATE,
   announcementPageSchema,
@@ -100,15 +101,31 @@ function useAnnouncements(path: string, language: Language) {
 /** The page's title, what it may send, and the last problem and last success. */
 function AnnouncementsHeader({
   language,
+  organizerId,
+  eventId,
   problem,
   notice,
-}: Readonly<{ language: Language; problem: string | undefined; notice: string | undefined }>) {
+}: Readonly<{
+  language: Language;
+  organizerId: string;
+  eventId: string;
+  problem: string | undefined;
+  notice: string | undefined;
+}>) {
   const t = useTranslator(language);
   return (
     <>
       <PageHeader
         title={t("announcements.page.title")}
         info={infoTip(t, "announcements.page.intro")}
+        actions={
+          <ExplainThis
+            language={language}
+            organizerId={organizerId}
+            eventId={eventId}
+            slug="announcements"
+          />
+        }
       />
       <Muted>
         {t("announcements.page.limits", {
@@ -162,7 +179,13 @@ export function AnnouncementsPanel({
     });
   return (
     <Stack>
-      <AnnouncementsHeader language={language} problem={state.problem} notice={notice} />
+      <AnnouncementsHeader
+        language={language}
+        organizerId={organizerId}
+        eventId={eventId}
+        problem={state.problem}
+        notice={notice}
+      />
       {state.loaded === undefined ? (
         <Button variant="primary" onClick={() => void state.load()}>
           {t("common.retry")}

@@ -159,6 +159,7 @@ const INFO_TIPS: readonly string[] = [
   "sessions.page.intro",
   "sponsors.page.intro",
   "terms.intro",
+  "wizard.quests.nfcHint",
 ];
 
 /** Keys shown as a `help` or `description` line whose names do not say so: a count, who is signed in, a state. */

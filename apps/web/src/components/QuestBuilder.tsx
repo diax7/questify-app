@@ -1,5 +1,6 @@
 "use client";
 
+import { ExplainThis } from "#src/components/ExplainThis.tsx";
 import { DEFAULT_TERMS, QUEST_TYPES, type Language } from "@questify/shared";
 import { useRef, useState, type FormEvent } from "react";
 import {
@@ -165,7 +166,17 @@ export function QuestBuilder({
         titleId="builder-title"
         focusable
         title={t("quests.title")}
-        actions={<ButtonLink href={codesPage}>{t("codes.title")}</ButtonLink>}
+        actions={
+          <>
+            <ButtonLink href={codesPage}>{t("codes.title")}</ButtonLink>
+            <ExplainThis
+              language={language}
+              organizerId={organizerId}
+              eventId={eventId}
+              slug="quests"
+            />
+          </>
+        }
       />
       {live ? (
         <Notice tone="success" role="status">

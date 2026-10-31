@@ -19,6 +19,25 @@
 - **The app sends no `X-App-Version`,** so the API's minimum-version gate (staging `MIN_APP_VERSION` 1.0.0, the app is
   0.1.0) never applies to it; FOLLOWUPS.
 
+## T-605 guided setup — 2026-10-31
+
+- **T-605 done (tier B; one code review owed; not run on a phone). Migration 0100** (new, undeployed; staging runs through
+  0098, 0099 pushed). **Built (FR-1751 to FR-1757, FR-1846, ADR-390):** `event_setup` (the step to open at, one letter per
+  step, when finished; forced row-level security for owners and editors inside their event limit, no function);
+  `GET|PUT …/events/{id}/setup` in `apps/api/src/setup/` (the last save wins); the `/setup` page with the ten steps of
+  FR-1846 (the pages' own panels, switches and doors; `EventForm` and `JoinSetupPanel` take a `bare` prop), the list of all
+  steps, Skip this step, Skip guided setup (asks first), the Overview card and "Explain this" on six Build pages; locked
+  add-on cards (a switch that cannot be ticked, Ask Questify to the Contact page; unlocked, Open); the wizard's texts are
+  `wizard.*` and `setup.*` keys over which the dashboard lays the translation store's usable values (the edit screen is
+  T-702). The e2e control gained `/addon` and `/translation`. ADR-390 and Q-357 Proposed; FOLLOWUPS lists what was left.
+  **Local:** full vitest 9700 passed, 14 skipped, 2 failed on the one run (the two list guards: the new routes in the route
+  isolation list and the new `setup` folder in the event page list); both fixed and rerun once: 17 passed. Browser suite 278
+  passed, 4 skipped, 0 failed (single worker, 27.5 min, after a fresh web build; the layout check walks the new page in both
+  languages at 1440 and 360 wide); `e2e/setup.spec.ts` 6 passed on its own run. tsc, oxlint, format and function limits clean
+  (baseline unchanged; `OperatorsPanel` stays at the limit, so it has no Explain this). CI minutes none yet; agent tokens roughly
+  0.55M (estimate).
+  **Next:** the T-605 code review, then the next unchecked task in `docs/TASKS.md` (T-606).
+
 ## T-604b change sets and the confirmation sweep — 2026-10-31
 
 - **T-604b done (tier B; one code review owed; not run on a phone). Migration 0099** (new, undeployed; 0097 and 0098

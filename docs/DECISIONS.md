@@ -5929,3 +5929,33 @@ and the finale cleared. The change-the-words row is met by its preview of the ne
 (skip) where the target moved.
 **Trade-offs:** a crash window (4); a merge of two edits is the caller's job (1); the Cheers, ranking and streak switches and the
 console rows with no screen wait (FOLLOWUPS).
+
+## ADR-390 - T-605 guided setup: ten steps that only point at the pages' own operations, progress in one table
+
+**Status:** Proposed (developer, 2026-10-31; T-605; Q-357).
+**Decision:** (1) **Ten steps.** FR-1846 (Basics and access, Join rules, Quests, Rewards, Sponsors, Screens and staff, Home
+and look, Messages, Add-ons and activation, Rehearse and review) replaces the twelve of FR-1751 and of the T-605 title.
+(2) **Progress only.** Table `event_setup` (migration 0100): the step the wizard opens at and one letter per step (`n` not
+decided, `d` done, `s` skipped), plus when it was finished; no answer is stored. Forced row-level security for owners and
+editors inside their event limit, column grants, no DELETE, no function. `GET` and `PUT …/events/{id}/setup` (the last save
+wins, FR-1754; the same save twice gives the same state); progress is not audited, since it changes nothing players see.
+(3) **No second way to write a setting.** A step shows the panels, switches and doors of the event's own pages (`EventForm`
+and `JoinSetupPanel` with a `bare` prop, `EventFeatureSwitch`, `RankingSwitch`, `EventBranding`, `PushDefaultsPanel`,
+`ActivationCard`, `RehearsalCard`) and opens the page for the rest (quests, rewards, prizes, sponsors, operators,
+announcements, preview); each saves through the operation its page calls, with its own confirmations. Skipping a step writes
+nothing, so the template's defaults stay (FR-1752). (4) **Locked add-ons.** The add-on cards come from the registry's gated
+features and the event's unlocked add-ons (`GET …/activation`, `event_entitlement`). Locked: the explanation, a switch that
+cannot be ticked and "Ask Questify" (the Contact page); unlocked: the page where the add-on is used. Nothing is bought in the
+app and no price shows (ADR-076, STORE_COMPLIANCE). (5) **Texts are data.** The wizard's words are `wizard.*` and `setup.*` keys
+of the shared catalog (Arabic and English shipped). The dashboard lays the translation store's usable values over them
+(`GET /v1/translations`; a blank value or one that changes the placeholders is ignored, FR-1768), so an admin's change shows
+without a release. The edit screen is the translation matrix (T-702); no second editor is built. A card's "mock of what players see"
+is its one-line summary, and a hint that must be read is an info button (ADR-370). (6) **Entry.** A card on the event
+Overview (Start, Continue at the saved step, Run setup again, which opens step 1 with the current choices) and "Explain this"
+in the header of the Quests, Rewards, Joining, Sponsors, Big screen and Announcements pages (the step alone, Done
+returns to the page). It does not open by itself and has no menu link. "Skip guided setup" asks first, marks the open steps
+skipped and finishes.
+**Why:** configuration over code and one write path per setting (the future AI wizard, ADR-060, uses the same operations).
+**Trade-offs:** the template step ("Start from") waits for templates (T-601b); a wizard step is not a bespoke form, so a long
+page (rewards, quests) is one door away rather than inside the step; the Home layout, banner and info page parts of "Home and
+look" arrive with T-606, T-610 and T-613.

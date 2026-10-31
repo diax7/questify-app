@@ -1652,3 +1652,15 @@ goes through the live-edit door and needs its `apply` choice; 100 items a set an
 the actions listed in ADR-389 and leaves what is one tap to undo (cancel an invitation). **Open:** should the dashboard let
 a reviewer edit an item's body, or merge two edits of one target, before applying? Recommended no: the assistant that makes
 a set (F-197) makes a new one. **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended; ADR-389 accepted.
+
+## Q-357 - T-605 guided setup: what is decided without Dhia (2026-10-31)
+
+**Recommended (developer, ADR-390):** ten steps (FR-1846), progress only in `event_setup`, every choice saved by its page's own
+operation, locked add-on cards with "Ask Questify" to the Contact page, texts as translation keys. **Open:** (a) the wizard
+does not open by itself after an event is created or after sign-up (UX plan section 7 assumed it would); the Overview card
+offers it. Recommended: keep the offer. (b) "Ask Questify" opens the Contact page, which has no details until T-706 and T-703's
+support contact; recommended: keep it and make the page carry the contact when it exists. (c) An unlocked add-on opens its
+page instead of showing a tick (the big screen has no separate on switch; its scenes are the page); FR-1755's "it can be ticked"
+is met by the page. (d) The previews are one-line summaries, not pictures; recommended: pictures only when the brand art for the
+player screens exists. (e) FR-1757's "asked to save or discard" belongs to the translation matrix editor (T-702), which edits
+these keys. **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended; ADR-390 accepted after the review.

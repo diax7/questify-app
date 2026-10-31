@@ -2,6 +2,7 @@ import { ActivationCard } from "#src/components/ActivationCard.tsx";
 import { EventForm } from "#src/components/EventForm.tsx";
 import { QuestItemWarnings } from "#src/components/QuestItemWarnings.tsx";
 import { RehearsalCard } from "#src/components/RehearsalCard.tsx";
+import { SetupCard } from "#src/components/SetupCard.tsx";
 import { organizerPage } from "#src/lib/organizer-page.ts";
 
 type Props = Readonly<{ params: Promise<{ lang: string; organizerId: string; eventId: string }> }>;
@@ -19,6 +20,7 @@ export default async function EventPage({ params }: Props) {
       intro={
         <>
           <QuestItemWarnings language={page.language} organizerId={organizerId} eventId={eventId} />
+          <SetupCard language={page.language} organizerId={organizerId} eventId={eventId} />
           <ActivationCard
             language={page.language}
             organizerId={organizerId}

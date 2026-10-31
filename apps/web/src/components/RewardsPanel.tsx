@@ -1,5 +1,6 @@
 "use client";
 
+import { ExplainThis } from "#src/components/ExplainThis.tsx";
 import {
   DEFAULT_TERMS,
   formatEventTime,
@@ -924,7 +925,18 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
 
   return (
     <Stack as="section" aria-labelledby="rewards-title">
-      <PageHeader titleId="rewards-title" title={t("rewards.title")} />
+      <PageHeader
+        titleId="rewards-title"
+        title={t("rewards.title")}
+        actions={
+          <ExplainThis
+            language={language}
+            organizerId={organizerId}
+            eventId={eventId}
+            slug="rewards"
+          />
+        }
+      />
       {problem === null ? null : (
         <Notice tone="danger" role="alert">
           {problem}
