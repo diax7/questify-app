@@ -59,8 +59,19 @@ describe("fetchMe", () => {
         id: "u1",
         email: "owner@najd.sa",
         isAdmin: false,
-        memberships: [{ organizerId: "o1", organizerName: "Najd Events", role: "owner" }],
+        memberships: [
+          { organizerId: "o1", organizerName: "Najd Events", role: "owner", eventScope: null },
+        ],
       },
+    });
+  });
+
+  it("carries the events an editor is limited to", async () => {
+    const limited = { ...ME.memberships[0], role: "editor", eventScope: ["e1", "e2"] };
+    reply(200, { ...ME, memberships: [limited] });
+    expect(await ask()).toMatchObject({
+      kind: "signed_in",
+      me: { memberships: [{ role: "editor", eventScope: ["e1", "e2"] }] },
     });
   });
 
@@ -82,6 +93,11 @@ describe("fetchMe", () => {
     reply(500, {});
     expect(await ask()).toEqual({ kind: "unavailable" });
     reply(200, { ...ME, memberships: [{ organizerId: "o1", role: "admin" }] });
+    expect(await ask()).toEqual({ kind: "unavailable" });
+    reply(200, {
+      ...ME,
+      memberships: [{ organizerId: "o1", organizerName: "Najd Events", role: "owner" }],
+    });
     expect(await ask()).toEqual({ kind: "unavailable" });
     reply(200, { id: "u1" });
     expect(await ask()).toEqual({ kind: "unavailable" });

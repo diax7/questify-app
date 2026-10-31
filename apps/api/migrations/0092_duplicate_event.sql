@@ -44,16 +44,15 @@ REVOKE ALL ON FUNCTION event_copy_target_ok(uuid) FROM PUBLIC;
 
 -- ================================================================ the event's own settings (internal)
 -- The settings the event builder does not write (the shop, the desk, limits, caps, rules, switches and words). The
--- desk hours are absolute times, so they move with the dates. Not copied: the join code, the status, the activation and
--- the times (the new draft has its own).
+-- desk hours are absolute times, so they move with the dates. Not copied: the join code, the status, the activation,
+-- the times (the new draft has its own) and the player limit (Questify sets it at activation, as a billing term).
 CREATE FUNCTION event_copy_settings(src event, tgt event, shift interval) RETURNS void
   LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 BEGIN
   UPDATE event e SET
     pickup_minutes = src.pickup_minutes, shop_days_after = src.shop_days_after,
     shop_rules_ar = src.shop_rules_ar, shop_rules_en = src.shop_rules_en,
-    spend_lowers_rank = src.spend_lowers_rank, player_limit_mode = src.player_limit_mode,
-    player_limit = src.player_limit, join_fields_version = src.join_fields_version,
+    spend_lowers_rank = src.spend_lowers_rank, join_fields_version = src.join_fields_version,
     guest_list_only = src.guest_list_only, email_domains = src.email_domains, welcome_points = src.welcome_points,
     desk_location_ar = src.desk_location_ar, desk_location_en = src.desk_location_en,
     desk_lat = src.desk_lat, desk_lng = src.desk_lng,
@@ -165,7 +164,7 @@ REVOKE ALL ON FUNCTION event_copy_prizes(event, event, interval) FROM PUBLIC;
 CREATE FUNCTION event_copy_extras(src event, tgt event, shift interval) RETURNS jsonb
   LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 DECLARE
-  day_shift integer := round(extract(epoch FROM shift) / 86400)::integer;
+  day_shift integer := coalesce(event_day(tgt.starts_at, tgt) - event_day(src.starts_at, src), 0);
   who       uuid := app_staff_user_id();
   sessions  integer;
   maps      integer;

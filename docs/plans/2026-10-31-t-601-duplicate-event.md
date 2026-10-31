@@ -17,7 +17,7 @@ content, a table of its own and a picker on the new-event page (below).
   (AN404), refuses one event onto itself (ED422) and a target that is not an empty draft (ED409: any quest, reward, item, join field,
   enrollment, or more than the one General category every event starts with), takes the source `FOR SHARE` and the target
   `FOR NO KEY UPDATE`, removes the target's own General category (the source's categories replace it) and copies, in order:
-  settings (shop, desk with its hours, limits, caps, rules, config with switches and words, default topics), quest items,
+  settings (shop, desk with its hours, caps (not the player limit, which Questify sets at activation), rules, config with switches and words, default topics), quest items,
   join fields, categories, quests, first-bonus rules, passport steps, the focus quest, rewards, rank prizes, streak settings,
   agenda, maps with pins, sponsors with tags, big-screen scenes. One audit entry `event.duplicate` (source and counts).
 - **New ids, stable references.** `copy_id(old, target)` = `md5('copy:' || old || ':' || target)::uuid`, so a reference between

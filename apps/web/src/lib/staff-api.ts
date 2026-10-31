@@ -5,6 +5,8 @@ export type Membership = Readonly<{
   organizerId: string;
   organizerName: string;
   role: "owner" | "editor";
+  /** The events an editor is limited to, or null for all of the organizer's events. */
+  eventScope: readonly string[] | null;
 }>;
 
 export type Me = Readonly<{
@@ -24,17 +26,22 @@ export type MeResult =
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
+const isScope = (value: unknown): value is readonly string[] | null =>
+  value === null || (Array.isArray(value) && value.every((id) => typeof id === "string"));
+
 function readMembership(value: unknown): Membership | undefined {
   if (
     isRecord(value) &&
     typeof value["organizerId"] === "string" &&
     typeof value["organizerName"] === "string" &&
-    (value["role"] === "owner" || value["role"] === "editor")
+    (value["role"] === "owner" || value["role"] === "editor") &&
+    isScope(value["eventScope"])
   ) {
     return {
       organizerId: value["organizerId"],
       organizerName: value["organizerName"],
       role: value["role"],
+      eventScope: value["eventScope"],
     };
   }
   return undefined;

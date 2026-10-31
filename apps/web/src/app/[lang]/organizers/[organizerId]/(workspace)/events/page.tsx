@@ -8,6 +8,10 @@ export default async function EventsPage({ params }: Props) {
   const { lang, organizerId } = await params;
   const page = await organizerPage(lang, organizerId);
   return page.kind === "member" ? (
-    <EventsPanel language={page.language} organizerId={organizerId} />
+    <EventsPanel
+      language={page.language}
+      organizerId={organizerId}
+      canDuplicate={page.membership.eventScope === null}
+    />
   ) : null;
 }

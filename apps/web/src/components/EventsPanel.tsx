@@ -19,12 +19,13 @@ const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 /**
  * An organizer's events (FR-1001): newest first, each with its status at this moment and its times in its own zone
  * (FR-1728). A draft says Questify activates it after payment (FR-1017). An editor limited to chosen events sees only
- * those; the API decides.
+ * those; the API decides. Duplicating makes a new event, which a limited editor may not (`canDuplicate` is false).
  */
 export function EventsPanel({
   language,
   organizerId,
-}: Readonly<{ language: Language; organizerId: string }>) {
+  canDuplicate,
+}: Readonly<{ language: Language; organizerId: string; canDuplicate: boolean }>) {
   const t = translatorFor(language);
   const base = `/${language}/organizers/${organizerId}/events`;
   const [events, setEvents] = useState<readonly EventView[] | null>(null);
@@ -91,7 +92,9 @@ export function EventsPanel({
                 <Badge tone={STATUS_TONE[event.statusNow]}>
                   {t(`events.status.${event.statusNow}`)}
                 </Badge>
-                <DuplicateEvent language={language} organizerId={organizerId} event={event} />
+                {canDuplicate ? (
+                  <DuplicateEvent language={language} organizerId={organizerId} event={event} />
+                ) : null}
               </Row>
             </Card>
           ))}

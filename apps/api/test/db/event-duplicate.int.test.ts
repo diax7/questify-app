@@ -478,8 +478,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("duplicate an event (database)"
       rules_en: "Be kind",
       award_cap_each: 150,
       award_cap_day: 400,
-      player_limit_mode: "soft",
-      player_limit: 300,
+      player_limit_mode: "none",
+      player_limit: null,
       email_domains: ["acme.test"],
       desk_location_en: "Hall B",
       topics: ["rank"],
@@ -505,7 +505,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("duplicate an event (database)"
       code_open: number;
       session_start: number;
       zone_open: number;
-      closed_day: number;
       desk: number;
     }>(
       `SELECT extract(epoch FROM t.starts_at - s.starts_at) AS shift,
@@ -515,7 +514,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("duplicate an event (database)"
           - (SELECT extract(epoch FROM x.starts_at) FROM event_session x WHERE x.event_id = s.id) AS session_start,
         (SELECT extract(epoch FROM c.opens_at) FROM category c WHERE c.event_id = t.id AND c.name_en = 'Zone B')
           - (SELECT extract(epoch FROM c.opens_at) FROM category c WHERE c.event_id = s.id AND c.name_en = 'Zone B') AS zone_open,
-        ((SELECT closed_days[1] FROM event_streak WHERE event_id = t.id) - (SELECT closed_days[1] FROM event_streak WHERE event_id = s.id)) AS closed_day,
         extract(epoch FROM lower(t.desk_hours) - t.starts_at) AS desk
        FROM event t, event s WHERE t.id = $1 AND s.id = $2`,
       [target, source],
@@ -523,7 +521,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("duplicate an event (database)"
     expect(row?.code_open).toBeCloseTo(row?.shift ?? 0, 0);
     expect(row?.session_start).toBeCloseTo(row?.shift ?? 0, 0);
     expect(row?.zone_open).toBeCloseTo(row?.shift ?? 0, 0);
-    expect(row?.closed_day).toBe(Math.round((row?.shift ?? 0) / (DAY / 1000)));
     expect(row?.desk).toBeCloseTo(0, 0);
     const [after] = await f.owner<{ s: string }>(
       "SELECT md5(string_agg(q::text, '|' ORDER BY q.id)) AS s FROM quest q WHERE q.event_id = $1",
@@ -531,6 +528,42 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("duplicate an event (database)"
     );
     expect(after?.s).toBe(before?.s);
   });
+
+  it.each([
+    ["2 days 14 hours", "2030-03-10 09:00+03", "2030-03-12 23:00+03", 2],
+    ["3 days 17 hours across the day's start", "2030-03-10 09:00+03", "2030-03-14 02:00+03", 3],
+  ])(
+    "moves the streak's closed days by event days, not by a rounded shift (%s)",
+    async (_name, from, to, days) => {
+      const dated = async (startsAt: string): Promise<string> => {
+        counter += 1;
+        return one(
+          `INSERT INTO event (organizer_id, join_code, name_en, starts_at, ends_at)
+         VALUES ($1, $2, 'Dated', $3::timestamptz, $3::timestamptz + interval '1 day') RETURNING id`,
+          [f.ids.orgA, `DUP${counter}`, startsAt],
+        );
+      };
+      const closed = async (event: string): Promise<string[]> =>
+        (
+          await f.owner<{ day: string }>(
+            "SELECT d::text AS day FROM event_streak, unnest(closed_days) AS d WHERE event_id = $1 ORDER BY d",
+            [event],
+          )
+        ).map((row) => row.day);
+      const origin = await dated(from);
+      await f.owner(
+        `INSERT INTO event_streak (event_id, organizer_id, enabled, bonus_points, closed_days)
+       SELECT id, organizer_id, true, 5, '{2030-03-11,2030-03-15}' FROM event WHERE id = $1`,
+        [origin],
+      );
+      const target = await dated(to);
+      await copy(origin, target);
+      const expected = ["2030-03-11", "2030-03-15"].map((day) =>
+        new Date(Date.parse(day) + days * DAY).toISOString().slice(0, 10),
+      );
+      expect(await closed(target)).toEqual(expected);
+    },
+  );
 
   it("copies no person, play row, code, device, tag or live operation", async () => {
     const target = await draft();
