@@ -47,21 +47,23 @@ then STATE.md "Next", `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIE
 
 ## What to do next
 
-1. T-502 is reviewed, fixed, pushed and CI green (40828699004 on e28a1e4). The later docs-only checkpoint records
-   that result; it does not change the tested implementation. No T-502 implementation or review gate remains.
-2. **Resumed by Dhia, 2026-10-29.** The recovery request, "Keep going" and "why arent you doing anything?"
-   supersede the prior session's break. Continue the task queue rather than stopping after T-502.
-3. Current: T-503 plan bca5223, independent Tier A plan review 80 NO-GO, MAJOR corrections ed3866a accepted by
-   coordinator (ADR-359/360, Q-328/329). Performance-first local implementation is authorized: representative full
-   source/completion path and measured rank/lock gates BEFORE broad email/UI work; stop for redesign on failure.
-   Early gate FAILED in 9b1e76e (>14 ms E-hold lower bound vs <3 ms), production unchanged. ADR-361 authorizes
-   test-only full-source profiling/terminal-fence investigation; no replacement design accepted and no email/UI.
-   Preserve original red proof. Mail stays OFF; no task tick/code-review approval. T-221 (check the seat limit once per
-   statement so the accept-all cap can go) remains a tier A follow-up when the join area is next touched.
-4. **T-408d** (Redis copy of the boards) waits for the RUNBOOK ranked-count check to pass about 30,000.
-5. Open suggestion for Dhia (he has not chosen it): pause new feature slices and prepare a "first real run": CranL
-   deploy, one EAS development build, the push keys and his phone checks. Everything built so far is only verified on a
-   laptop; the timing gates (1 s a call, 30 s for 50,000 members) must be re-measured on CranL (RUNBOOK).
+Updated 2026-10-31 by the Claude Code coordinator (sessions of 2026-10-30 and 2026-10-31).
+
+1. **Staging (CranL) runs migrations through 0099**, all frozen; the next migration is 0100. Staging's
+   `DASHBOARD_ORIGIN` is `https://questify.nafes.com`. Deploy: connect the owner URL, deploy the API, then run
+   `test -f /srv/migrations/<new file> && node /srv/migrate.cjs` in a loop until it answers `alreadyApplied` (CranL's
+   deploy call can answer 504 while the old image still runs), `--verify`, unset the owner URL, restart, deploy web.
+2. **Queue:** T-605 (setup wizard) is being built. Then T-606 onward in TASKS order. Open tier A tasks: none queued;
+   group the next tier A tasks two at a time (one plan, one plan review, one mutation run).
+3. **Process that worked:** a fresh Sonnet worker per tier B task with a token cap (about 600k to 800k) and "one
+   full suite, one targeted rerun"; a lean Sonnet review (cap 250k); Opus for tier A plans, plan reviews, builds and
+   code reviews. Fix MAJORs with a fresh worker; minors to FOLLOWUPS. Workers must go easy on Dhia's PC (it crashed
+   twice on 2026-10-30/31; browser suite on one worker, one heavy job at a time).
+4. **Dhia owes:** a Firebase project for push (he chose "Later"), a phone run of the latest APK, a look on a real TV.
+   The latest preview APK is EAS build f42d3f24 (Cheers buttons, ratings); T-602d's Home card needs a new build.
+5. **FOLLOWUPS** has a batch due (T-505 to T-604b minors, the invitation-sending test that fails only in the full
+   local run, the `X-App-Version` header the app never sends).
+6. **T-408d** (Redis copy of the boards) still waits for the RUNBOOK ranked-count check to pass about 30,000.
 
 ## Commands
 
