@@ -1621,3 +1621,27 @@ skip a broken step go to T-603b, tier A, because they change `complete_quest`; (
 should "online" mean something live, such as a heartbeat from the app while it is open? Recommended no for now: a heartbeat is
 a write per player per minute and a new personal-data record; completions in 15 minutes is free and honest. Revisit if
 organizers ask for it. **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended; ADR-385 accepted after the T-603 review.
+
+## Q-353 - T-603b pause and skip: what is decided without Dhia (2026-10-31)
+
+**Recommended (developer):** (1) a pause stops every new start, hand awards included; work already started (a submission
+waiting for review, an open quiz attempt) finishes and pays; (2) the pause's commit is the cut-off for scans in flight;
+(3) a paused in-order step still holds later steps (skip it to free them); (4) skip pays nobody, the step stays
+completable, unskip is allowed and its screen counts who is held again; (5) the go-live wipe clears both (ADR-386).
+**Open:** should skipping pay the step's points to those who moved on? Recommended no: the team can award a group.
+
+## Q-354 - T-604 live points edits: what is decided without Dhia (2026-10-31)
+
+**Recommended (developer, as the plan review decided):** (1) "also past" makes every kept completion worth the new points
+times its boost (absolute target, compensating `adjust` entries, never an edit); (2) it reaches scan, code, location,
+vote, survey, share, challenge, passport and meet; submission, quiz and game are future-only with one line and no choice;
+(3) lowering clamps at zero, score and balance each on their own, with no reserved-prize refusal; (4) an editor's past
+raise stays within the per-award cap; (5) delete with "remove" also takes the quest's first-N bonus and folded adjusts;
+category bonuses and streak days stay; (6) a category holding a deleted quest cannot be deleted (ADR-387). **Open:** should
+past edits reach submission and quiz quests? Recommended no for now: they pay amounts set per answer or per review.
+
+## Q-355 - Change sets: what is decided without Dhia (2026-10-31)
+
+**Recommended (developer, as the plan review decided):** API-first creation (the future AI wizard, F-197), a dashboard
+review page, per-item transactions with stale detection, quests, categories and rewards only, no dry run on GET; split to
+T-604b (ADR-388). **Open:** should the dashboard itself offer "save as a change set"? Recommended no.

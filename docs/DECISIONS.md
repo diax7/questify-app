@@ -5830,3 +5830,70 @@ link in view when a link arrives late.** The Control room link made the desktop 
 Invitations link, which appears after its read, then pushed the last link ("Manual awards") out of view; `ShellNav` now
 aligns the open page's link again when the column's links change (ADR-378's alignment ran once, at load). The layout check
 caught it.
+
+## ADR-386 - T-603b pause a quest and skip a broken step: two room doors, one open-check line, and a skip that pays nobody
+
+**Status:** Proposed (worker, 2026-10-31; plan `docs/plans/2026-10-31-t-603b-t-604-live-edits.md`, review 80; Q-353).
+**Decision:** (1) **Data.** `quest.paused_at/by` and `quest.skipped_at/by` (staff named without a foreign key), with no
+grant to the API's role: only `set_quest_paused` and `set_step_skipped` (migration 0097, owner or editor within their event
+limit, open from the rehearsal on, refused once the event has ended, audited `quest.pause/resume/skip/unskip`) write them.
+Setting the state a quest already has answers `changed: false` and writes nothing, so a retry needs no key. (2) **A pause
+stops every new start**, hand awards included, through one line of `quest_open_check` (QN403 `paused`), which every start
+door calls. Work already started finishes and pays: a submission sent before the pause is approved as usual, and a quiz
+attempt already open goes on to its end (`play_enter` passes `allow_paused` for it); a new attempt, vote, game round, stamp,
+meeting or scan is refused. The pause's commit is the cut-off for a scan in flight; a paid key still replays while paused.
+A paused in-order step still holds the steps after it (skip it to free them). (3) **A skip** leaves the step out of
+`category_rule_lock`, `category_done` and `category_cleared`, exactly as flash quests and live polls: the next step opens,
+the category's bonus and a category unlocked after it no longer wait for it. The step stays completable and **pays nobody**
+for the skip; restoring it holds again the players past it who have not done it (the restore's confirmation counts them,
+`control_done.behind`). Only a step of an in-order category can be skipped (SP422 `not_in_order`); moving the quest or
+switching its category to any order clears the skip. (4) The go-live wipe clears both. (5) The player's quest state gains
+`paused` (after `not_live`, before `locked`), never Up next; the app says "Paused by the organizer" and offers no start.
+**Why:** one rule in the one open check covers every door; nothing about points changes.
+**Trade-offs:** a skip does not compensate players who moved on (the team can award a group); the room shows the switches
+as buttons on each quest row rather than a "More" menu.
+
+## ADR-387 - T-604 live points edits: absolute targets through compensating `adjust` entries, and a played quest's delete by a mark
+
+**Status:** Proposed (worker, 2026-10-31; plan review 80, its four MAJOR findings taken in; Q-354).
+**Decision:** (1) **Future or also past.** In a live event, new points on a quest real players completed need a choice
+(409 `apply_required`). "Future" is the plain edit. "Also past" (`apply: "past"`, an Idempotency-Key) makes every kept
+completion by an active member worth `points × the multiplier of its entry's boost`: the door `apply_past_points` writes
+one `adjust` entry per completion toward that target (never an edit of a row), score and balance each on its own (the
+balance target is 0 when the entry was paid while the shop was closed; a balance raise while the shop is closed writes 0).
+A lowering never takes the score or the balance below zero, each clamped on its own; an `adjust` may carry one delta at 0,
+never both. A second edit, an undo, or a run with a new key recomputes from the ledger and writes only what is missing.
+Eligible types are those paid `quest.points` per completion: scan, code, location, vote, survey, share, challenge,
+passport and meet; submission, quiz and game pay their own amounts and get one line and no choice. An editor's raise per
+completion stays within the per-award cap. The screen reads `GET …/quests/{id}/impact?points=N` for its real numbers and
+says rank prizes already handed over are not taken back. (2) **Delete keep or remove.** A played quest is deleted by a
+mark (`deleted_at`, hidden, frozen by QX409): its completions, ledger and history keep naming it. The delete asks keep or
+remove (409 `points_choice_required`); remove takes back every kept quest and first-N bonus entry of it through
+`write_removal` (a quest entry with its folded adjusts, clamped, reserved quest item cancelled); category bonuses and
+streak days stay. A retry finds the quest gone (404), and a second removal of an entry is impossible
+(`ledger_entry_removal_key`). Duplication, the builder and the codes page leave deleted quests out. (3) **Lock order event
+-> quest -> enrollment.** Every door that writes a completion, a ledger row or a bulk row naming a quest pins it
+(`FOR KEY SHARE`) before its enrollment lock; the past and delete doors take the quest `FOR UPDATE` after the event's
+`FOR KEY SHARE` and the results check. A scan in flight at the old points is adjusted by the edit that waited for it; a
+scan behind the edit pays the new points; a delete-remove waits for a scan and removes it; `pay_completion` refuses a
+deleted quest. A 6-second stress run of scans and edits on one quest ends with no deadlock and every net at its target.
+(4) **Scale.** About 0.75 ms an entry (measured: 3,000 in 2.2 s). The door writes at most 2,000 entries a call and says
+`more`; the API calls it again in the same transaction (`key#2`, `key#3`), so each statement stays near 1.5 s, under the
+5-second statement timeout; 10,000 completions take five calls, about 8 seconds, during which scans of that one quest wait.
+(5) **Readers.** Community goals count an `adjust` as its quest's points on a points goal; the team's points record shows
+"Points updated" with from -> to; XP (ADR-180), streaks, operator caps and the operator play guard ignore it.
+**Why:** the ledger stays append-only and every change is explained by its own entry; absolute targets make retries,
+mixes of future and past edits, and undo converge by construction.
+**Trade-offs:** players who left are not adjusted; a lowering can leave a clamped player above the new points (counted on
+the screen); the today ranking counts a past raise as today's points (FOLLOWUPS).
+
+## ADR-388 - T-604 confirmations sweep and change sets: split to T-604b
+
+**Status:** Proposed (worker, 2026-10-31; Q-355).
+**Decision:** The tier B slice of the plan (the FR-1031/FR-1032 confirmation sweep and FR-1034/FR-1035 change sets,
+migration 0099) is not built with T-604 and becomes **T-604b**: the worker's budget went to the tier A points work and
+its race tests. As the plan review decided, change sets are API-first with a dashboard review page and no "save as change
+set" in the dashboard; GET validates the schema, the target's existence and staleness (no dry run), and a database
+refusal shows at apply as `failed`. Migration 0099 is left free for it.
+**Why:** each slice delivers value alone: T-603b and the points edits are usable without change sets.
+**Trade-offs:** FR-1031, FR-1032, FR-1034 and FR-1035 stay pending until T-604b.

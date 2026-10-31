@@ -378,6 +378,18 @@ account erasure. No grant.
 `type_config` is validated per quest type by the shared schema. Editing a live quest asks
 "future only or also past" (ADR-063) and writes the audit log.
 
+### quest pause, skip and delete; quest_points_change (T-603b, T-604)
+**Built (migrations 0097, 0098; ADR-386, ADR-387):** `quest.paused_at/paused_by`, `quest.skipped_at/skipped_by` and
+`quest.deleted_at/deleted_by` (staff named without a foreign key; no grant to the API's role: only their doors write them).
+A paused quest refuses every new start (QN403 `paused`); a skipped step leaves the category rules; a deleted quest is
+hidden and frozen (QX409) and stays named by its completions, ledger and history. `quest_points_change (id, organizer_id,
+event_id, quest_id, staff_user_id, from_points, to_points, completions, players, raised, lowered, clamped,
+idempotency_key, request_id, created_at)`: one row per call of "also past", unique (event_id, staff_user_id,
+idempotency_key), append-only, forced RLS and no grants. `ledger_entry` gains the kind `adjust` and `points_change_id`
+(its header, checked at commit): one compensating entry per kept completion and change, with `completion_id`,
+`quest_id`, actor `staff`, score and balance deltas of independent signs, one of them possibly 0, never both; unique
+(points_change_id, completion_id). A removal of a quest entry folds its completion's adjusts into both deltas.
+
 ### quest_completion
 **Built (T-105, migration 0012):** `id bigint, organizer_id, event_id, enrollment_id, quest_id, occurrence (1 … the
 quest's cap), method (qr|code|my_qr|manual|submission|vote|quiz; later tasks add nfc…), idempotency_key, device_id, created_at`.
