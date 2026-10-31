@@ -44,6 +44,9 @@ const COPIED = new Set([
 const NOT_COPIED = new Set([
   // people and play
   "quest_points_change",
+  // the source event's review state (T-604b): its proposed changes name its own rows
+  "change_set",
+  "change_set_item",
   "announcement",
   "bulk_award",
   "category_bonus",

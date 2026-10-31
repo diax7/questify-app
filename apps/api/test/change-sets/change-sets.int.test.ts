@@ -345,6 +345,49 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("change sets over HTTP", () => 
     expect((await questTitles(f.event)).filter((title) => title === "Once")).toHaveLength(1);
   });
 
+  it("never reaches a target of another organizer, as a review or as an apply", async () => {
+    const mine = await newEvent();
+    const [rival] = await owner<{ id: string }>(
+      "INSERT INTO organizer (name, slug) VALUES ('rival-targets', 'rival-targets') RETURNING id",
+    );
+    const [rivalEvent] = await owner<{ id: string }>(
+      `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
+       VALUES ($1, 'RIVT1', 'Rival Fest', 'draft', now() + interval '1 day', now() + interval '2 days') RETURNING id`,
+      [rival?.id],
+    );
+    const [rivalCategory] = await owner<{ id: string }>(
+      "SELECT id FROM category WHERE event_id = $1 LIMIT 1",
+      [rivalEvent?.id],
+    );
+    const [rivalQuest] = await owner<{ id: string }>(
+      `INSERT INTO quest (event_id, category_id, type, title_en, points, type_config)
+       VALUES ($1, $2, 'enter_code', 'Rival stage', 100, '{"code":"XYZ"}') RETURNING id`,
+      [rivalEvent?.id, rivalCategory?.id],
+    );
+    const set = await make(mine.event, [
+      { op: "edit", target: "quest", targetId: rivalQuest?.id, body: { points: 1 } },
+      { op: "delete", target: "category", targetId: rivalCategory?.id, body: {} },
+    ]);
+    const opened = await open(mine.event, set);
+    expect(opened.items.map((item) => [item.state, item.problem?.code])).toEqual([
+      ["invalid", "not_found"],
+      ["invalid", "not_found"],
+    ]);
+    const applied = await apply(
+      mine.event,
+      set,
+      opened.items.map((item) => item.id),
+    );
+    expect(applied.json().results).toMatchObject([
+      { status: "failed", error: { code: "not_found" } },
+      { status: "failed", error: { code: "not_found" } },
+    ]);
+    const [stored] = await owner<{ points: number }>("SELECT points FROM quest WHERE id = $1", [
+      rivalQuest?.id,
+    ]);
+    expect(stored?.points).toBe(100);
+  });
+
   it("refuses a malformed set before anything is stored", async () => {
     const f = await newEvent();
     const tooMany = Array.from({ length: 101 }, () => ({
