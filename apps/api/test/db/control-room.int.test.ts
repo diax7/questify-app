@@ -104,6 +104,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("control room (database)", () =
       expect(await feed(ev, 30, f.team())).toHaveLength(3);
     });
 
+    it("leaves out an erased player, whose completions stay in the record", async () => {
+      const ev = await f.newEvent({ phase: "live" });
+      const stage = await quest(ev, "Find the stage");
+      const kept = await member(ev);
+      const erased = await member(ev);
+      await complete(ev, kept.enrollment, stage);
+      await complete(ev, erased.enrollment, stage);
+      expect(await feed(ev)).toHaveLength(2);
+      await f.asPlayer(erased.player, "SELECT * FROM erase_player($1, true, $2)", [
+        await f.deletionToken(erased.player),
+        randomUUID(),
+      ]);
+      const [left] = await f.owner<{ n: number }>(
+        "SELECT count(*)::integer AS n FROM quest_completion WHERE enrollment_id = $1",
+        [erased.enrollment],
+      );
+      expect(left?.n).toBe(1);
+      const rows = await feed(ev);
+      expect(rows.map((row) => row.username)).toEqual([await f.usernameOf(kept.player)]);
+    });
+
     it("shows nothing of another event, and is an empty list for a quiet one", async () => {
       const quiet = await f.newEvent({ phase: "live" });
       expect(await feed(quiet)).toEqual([]);
@@ -209,6 +230,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("control room (database)", () =
       );
       expect(rows).toEqual([{ quest_id: done, done: 2 }]);
       expect(rows.some((row) => row.quest_id === never)).toBe(false);
+    });
+  });
+
+  describe("the indexes", () => {
+    it("answers the feed and the per-quest completions from an index, not a walk of the table", async () => {
+      const ev = await f.newEvent({ phase: "live" });
+      const reads = [
+        `SELECT c.id FROM quest_completion c WHERE c.event_id = $1 ORDER BY c.created_at DESC, c.id DESC LIMIT 30`,
+        `SELECT c.quest_id, count(*) FROM quest_completion c WHERE c.event_id = $1 AND c.occurrence = 1
+         GROUP BY c.quest_id`,
+      ];
+      const wanted = ["quest_completion_event_recent_idx", "quest_completion_event_first_idx"];
+      await f.owner("BEGIN");
+      try {
+        await f.owner("SET LOCAL enable_seqscan = off");
+        for (const [at, sql] of reads.entries()) {
+          const plan = await f.owner<Record<string, unknown>>(`EXPLAIN ${sql}`, [ev]);
+          expect(plan.map((line) => String(line["QUERY PLAN"])).join(" "), sql).toContain(
+            wanted[at],
+          );
+        }
+      } finally {
+        await f.owner("ROLLBACK");
+      }
     });
   });
 

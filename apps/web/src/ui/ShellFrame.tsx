@@ -143,8 +143,17 @@ function ShellNav({
     const reveal = () =>
       element.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest" });
     reveal();
-    // A link that arrives after the page opens (the invitations link, a help count) can push the open page's link out of view.
-    const watch = new MutationObserver(reveal);
+    // A link that arrives after the page opens (the invitations link) can push the open page's link out of view. A badge
+    // or a count changing inside a link is not a reason to pull back someone who scrolled away.
+    const holdsLink = (node: Node) =>
+      node instanceof Element && (node.tagName === "A" || node.querySelector("a") !== null);
+    const watch = new MutationObserver((changes) => {
+      if (
+        changes.some((change) => [...change.addedNodes, ...change.removedNodes].some(holdsLink))
+      ) {
+        reveal();
+      }
+    });
     watch.observe(element, { childList: true, subtree: true });
     return () => watch.disconnect();
   }, [open, pathname]);

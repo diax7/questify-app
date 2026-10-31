@@ -12,7 +12,12 @@ SET LOCAL lock_timeout = '10s';
 -- count, however many completions the other events hold.
 CREATE INDEX quest_completion_event_recent_idx ON quest_completion (event_id, created_at DESC, id DESC);
 
--- The newest completions of the event, newest first: the page asks for 30 (at most 100).
+-- One walk of this index answers the per-quest completions (`control_done`): only the first completion of each player
+-- and quest, however many repeats the event holds.
+CREATE INDEX quest_completion_event_first_idx ON quest_completion (event_id, quest_id) WHERE occurrence = 1;
+
+-- The newest completions of the event, newest first: the page asks for 30 (at most 100). An erased player (no username,
+-- the tombstone of migration 0038) is left out: the completion stays in the record, the name is gone.
 CREATE FUNCTION control_feed(target_event uuid, page integer)
   RETURNS TABLE (id bigint, at timestamptz, quest_id uuid, title_ar text, title_en text, method text, username text,
                  avatar text)
@@ -26,7 +31,7 @@ BEGIN
   JOIN quest q ON q.id = c.quest_id
   JOIN enrollment n ON n.id = c.enrollment_id
   JOIN player p ON p.id = n.player_id
-  WHERE c.event_id = ev.id
+  WHERE c.event_id = ev.id AND p.username IS NOT NULL
   ORDER BY c.created_at DESC, c.id DESC
   LIMIT least(greatest(coalesce(page, 30), 1), 100);
 END $$;
