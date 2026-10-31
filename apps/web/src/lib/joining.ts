@@ -179,3 +179,25 @@ export function guestLines(text: string): string[] {
   }
   return lines;
 }
+
+/** Whether the join fields typed differ from the saved ones: saving them would send something other than what is saved. */
+export const fieldsUnsaved = (
+  drafts: readonly FieldDraft[],
+  saved: readonly JoinFieldView[],
+): boolean =>
+  JSON.stringify(fieldsBody(0, drafts)) !== JSON.stringify(fieldsBody(0, draftsOf(saved)));
+
+/** The join rules as the form types them: the domains one per line, the welcome amount as text. */
+export type RulesDraft = Readonly<{ guestListOnly: boolean; domains: string; welcome: string }>;
+
+export const rulesDraftOf = (rules: JoinRules): RulesDraft => ({
+  guestListOnly: rules.guestListOnly,
+  domains: rules.emailDomains.join("\n"),
+  welcome: rules.welcomePoints === null ? "" : String(rules.welcomePoints),
+});
+
+/** Whether the rules typed differ from the saved ones; spacing between domains and around the amount does not count. */
+export const rulesUnsaved = (draft: RulesDraft, saved: RulesDraft): boolean =>
+  draft.guestListOnly !== saved.guestListOnly ||
+  domainsOf(draft.domains).join("\n") !== domainsOf(saved.domains).join("\n") ||
+  draft.welcome.trim() !== saved.welcome.trim();

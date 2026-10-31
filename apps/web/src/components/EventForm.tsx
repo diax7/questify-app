@@ -1,6 +1,6 @@
 "use client";
 
-import { readEventTerms, type Language } from "@questify/shared";
+import { readEventTerms, type EventTerms, type Language } from "@questify/shared";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
@@ -15,6 +15,7 @@ import {
   createBodyOf,
   draftOf,
   editBodyOf,
+  hasUnsavedEdits,
   nameFor,
   STATUS_TONE,
   timesChanged,
@@ -25,6 +26,7 @@ import {
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import type { Translate } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
+import { useReportUnsaved, type ReportUnsaved } from "#src/lib/use-unsaved.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { EventWords } from "#src/components/EventWords.tsx";
 import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
@@ -59,7 +61,13 @@ type Props = Readonly<{
   intro?: ReactNode;
   /** Only the details form of an existing event, for a step of the guided setup (T-605): no header, cards or switches. */
   bare?: boolean;
+  /** Told when the details form holds edits it has not saved, for the guided setup to ask before it moves on. */
+  onUnsaved?: ReportUnsaved;
 }>;
+
+/** Whether the details form holds edits the saved event does not have; a new event has nothing saved to compare. */
+const detailsUnsaved = (draft: EventDraft | null, event: EventView | null): boolean =>
+  draft !== null && event !== null && hasUnsavedEdits(draft, event);
 
 /** The words for a refusal: the field to fix for `invalid_event`, the API's own message otherwise. */
 function problemText(body: unknown, language: Language, t: Translate): string {
@@ -90,7 +98,15 @@ function useIdempotencyKey(): (body: unknown) => string {
  * Creates or edits an event (FR-1001–1003, FR-1608, FR-1728). Times are typed as the wall clock in the event's own
  * zone. A draft can be deleted and a live event ended by the owner, each after a confirmation naming the event.
  */
-export function EventForm({ language, organizerId, eventId, myRole, intro, bare = false }: Props) {
+export function EventForm({
+  language,
+  organizerId,
+  eventId,
+  myRole,
+  intro,
+  bare,
+  onUnsaved,
+}: Props) {
   const t = useTranslator(language);
   const router = useRouter();
   const api = `/v1/organizers/${organizerId}/events`;
@@ -226,19 +242,18 @@ export function EventForm({ language, organizerId, eventId, myRole, intro, bare 
     setDraft((current) => (current === null ? current : { ...current, ...patch }));
   const status = event?.statusNow ?? "draft";
   const name = event === null ? "" : nameFor(event, language);
-  const terms = readEventTerms(event?.terms);
+  useReportUnsaved(onUnsaved, "details", detailsUnsaved(draft, event));
 
   return (
     <Stack>
-      {bare ? null : (
-        <PageHeader
-          back={{ href: pages, label: t("events.all") }}
-          titleId="event-title"
-          title={event === null ? t("events.new") : name}
-          meta={event === null ? undefined : <EventFacts language={language} event={event} />}
-        />
-      )}
-      {bare ? null : intro}
+      <EventTop
+        language={language}
+        event={event}
+        name={name}
+        back={pages}
+        intro={intro}
+        bare={bare}
+      />
       {problem === null ? null : (
         <Notice tone="danger" role="alert">
           {problem}
@@ -314,45 +329,116 @@ export function EventForm({ language, organizerId, eventId, myRole, intro, bare 
           confirm={confirmAsked}
         />
       )}
-      {event === null || bare ? null : (
-        <>
-          <EventFeatures
-            language={language}
-            organizerId={organizerId}
-            event={event}
-            myRole={myRole}
-          />
-          <StreakPanel
-            language={language}
-            organizerId={organizerId}
-            eventId={event.id}
-            myRole={myRole}
-            terms={terms}
-          />
-          <EventWords
-            language={language}
-            organizerId={organizerId}
-            eventId={event.id}
-            initial={terms}
-            saved={(saved) => {
-              setEvent((current) => (current === null ? null : { ...current, terms: saved }));
-              // The event's layout reads the words once; this reads them again for every page of the event.
-              router.refresh();
-            }}
-          />
-          <EventDangerZone
-            language={language}
-            name={name}
-            canDelete={status === "draft"}
-            canEnd={myRole === "owner" && status === "live"}
-            confirming={confirming}
-            busy={busy}
-            ask={setConfirming}
-            confirm={() => void confirm()}
-          />
-        </>
-      )}
+      <EventSettings
+        language={language}
+        organizerId={organizerId}
+        event={event}
+        bare={bare}
+        myRole={myRole}
+        confirming={confirming}
+        busy={busy}
+        ask={setConfirming}
+        confirm={() => void confirm()}
+        termsSaved={(saved) => {
+          setEvent((current) => (current === null ? null : { ...current, terms: saved }));
+          // The event's layout reads the words once; this reads them again for every page of the event.
+          router.refresh();
+        }}
+      />
     </Stack>
+  );
+}
+
+/** The event's header and the cards under it (activation, rehearsal); a step of the guided setup has neither. */
+function EventTop({
+  language,
+  event,
+  name,
+  back,
+  intro,
+  bare,
+}: Readonly<{
+  language: Language;
+  event: EventView | null;
+  name: string;
+  back: string;
+  intro: ReactNode;
+  bare: boolean | undefined;
+}>) {
+  const t = useTranslator(language);
+  if (bare === true) {
+    return null;
+  }
+  return (
+    <>
+      <PageHeader
+        back={{ href: back, label: t("events.all") }}
+        titleId="event-title"
+        title={event === null ? t("events.new") : name}
+        meta={event === null ? undefined : <EventFacts language={language} event={event} />}
+      />
+      {intro}
+    </>
+  );
+}
+
+/** What an existing event has below its details: switches, streak, words and the danger zone. */
+function EventSettings({
+  language,
+  organizerId,
+  event,
+  bare,
+  myRole,
+  confirming,
+  busy,
+  ask,
+  confirm,
+  termsSaved,
+}: Readonly<{
+  language: Language;
+  organizerId: string;
+  event: EventView | null;
+  bare: boolean | undefined;
+  myRole: "owner" | "editor";
+  confirming: "delete" | "end" | null;
+  busy: boolean;
+  ask: (what: "delete" | "end" | null) => void;
+  confirm: () => void;
+  termsSaved: (terms: EventTerms) => void;
+}>) {
+  if (event === null || bare === true) {
+    return null;
+  }
+  const terms = readEventTerms(event.terms);
+  const status = event.statusNow;
+  return (
+    <>
+      <EventFeatures language={language} organizerId={organizerId} event={event} myRole={myRole} />
+      <StreakPanel
+        language={language}
+        organizerId={organizerId}
+        eventId={event.id}
+        myRole={myRole}
+        terms={terms}
+      />
+      <EventWords
+        language={language}
+        organizerId={organizerId}
+        eventId={event.id}
+        initial={terms}
+        saved={termsSaved}
+      />
+      <EventDangerZone
+        language={language}
+        name={nameFor(event, language)}
+        canDelete={status === "draft"}
+        canEnd={myRole === "owner" && status === "live"}
+        confirming={confirming}
+        busy={busy}
+        ask={ask}
+        confirm={confirm}
+      />
+    </>
   );
 }
 

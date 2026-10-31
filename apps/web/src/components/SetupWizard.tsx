@@ -3,24 +3,21 @@
 import {
   SETUP_STEPS,
   SETUP_STEP_COUNT,
-  decideStep,
-  finishSetup,
   goToStep,
   restartSetup,
-  skipAll,
   stepNumber,
   type Language,
   type SetupProgress,
   type SetupStep,
 } from "@questify/shared";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { StepBody } from "#src/components/SetupSteps.tsx";
 import { StepList, type StepFlow } from "#src/components/SetupStepList.tsx";
-import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { nameFor, type EventView } from "#src/lib/events.ts";
 import type { Translate } from "#src/lib/language.ts";
-import { stepNameKey, stepTitleKey } from "#src/lib/setup.ts";
+import { alonePath, stepNameKey, stepTitleKey } from "#src/lib/setup.ts";
+import { useStepMoves } from "#src/lib/use-step-moves.ts";
+import { useUnsavedReports } from "#src/lib/use-unsaved.ts";
 import { useSetupWizard, type SetupWizardState } from "#src/lib/use-setup-wizard.ts";
 import { Button, ButtonLink } from "#src/ui/Button.tsx";
 import { Dialog } from "#src/ui/Dialog.tsx";
@@ -79,43 +76,32 @@ export function SetupWizard(props: Props) {
 type ScreenProps = Props &
   Readonly<{ wizard: SetupWizardState; progress: SetupProgress; event: EventView }>;
 
+/** The number of the step shown: the one the address names in single-step mode, else the saved one. */
+const shownNumber = (progress: SetupProgress, startAt: SetupStep | undefined, only: boolean) =>
+  only ? stepNumber(startAt ?? "basics") : progress.currentStep;
+
 /** One step of a loaded setup: its header, progress, question, body and the buttons that move on. */
 function SetupScreen({ wizard, progress, event, ...props }: ScreenProps) {
   const { language, organizerId, eventId, only } = props;
-  const router = useRouter();
-  const { t, busy, save } = wizard;
-  const confirmation = useConfirmation(language);
-  const [listing, setListing] = useState(false);
+  const { t } = wizard;
+  const { unsaved, report } = useUnsavedReports();
   const heading = useRef<HTMLHeadingElement>(null);
   const overview = `/${language}/organizers/${organizerId}/events/${eventId}`;
-  const number = only === true ? stepNumber(props.startAt ?? "basics") : progress.currentStep;
+  const number = shownNumber(progress, props.startAt, only === true);
   const step = SETUP_STEPS[number - 1] ?? "basics";
+  const moves = useStepMoves({
+    wizard,
+    progress,
+    language,
+    leaveTo: overview,
+    unsaved,
+    alone: only === true ? (target) => alonePath(props, target, props.from) : undefined,
+  });
+  const waiting = wizard.busy || !wizard.fresh;
 
   useEffect(() => {
     heading.current?.focus();
   }, [number]);
-
-  const move = (next: SetupProgress) => void save(next);
-  const leave = async (next: SetupProgress) => {
-    if (await save(next)) {
-      router.push(overview);
-    }
-  };
-  const flow: StepFlow = {
-    progress,
-    busy,
-    open: (target) => {
-      setListing(false);
-      move(goToStep(progress, target));
-    },
-  };
-  const skipEverything = () =>
-    confirmation.ask({
-      title: t("setup.skipAll.title"),
-      body: t("setup.skipAll.body"),
-      confirmLabel: t("setup.skipAll.confirm"),
-      run: () => leave(skipAll(progress)),
-    });
 
   return (
     <Stack>
@@ -125,9 +111,9 @@ function SetupScreen({ wizard, progress, event, ...props }: ScreenProps) {
         step={step}
         number={number}
         back={{ href: overview, label: nameFor(event, language) }}
-        busy={busy}
-        onList={() => setListing(true)}
-        onSkipAll={skipEverything}
+        busy={waiting}
+        onList={() => moves.setListing(true)}
+        onSkipAll={moves.skipEverything}
       />
       <SubHeading as="h2" ref={heading} tabIndex={-1}>
         {t(stepTitleKey(step))}
@@ -137,43 +123,54 @@ function SetupScreen({ wizard, progress, event, ...props }: ScreenProps) {
           {wizard.problem}
         </Notice>
       )}
-      <StepBody
-        step={step}
-        flow={flow}
-        language={language}
-        organizerId={organizerId}
-        eventId={eventId}
-        myRole={props.myRole}
-        event={event}
-        addons={wizard.addons}
-        t={t}
-      />
+      {wizard.fresh ? (
+        <StepBody
+          step={step}
+          flow={moves.flow}
+          language={language}
+          organizerId={organizerId}
+          eventId={eventId}
+          myRole={props.myRole}
+          event={event}
+          addons={wizard.addons}
+          t={t}
+          onUnsaved={report}
+        />
+      ) : (
+        <Muted>{t("common.loading")}</Muted>
+      )}
       <Toolbar align="between">
         {only === true ? (
-          <ButtonLink
-            variant="primary"
-            href={`${overview}${props.from === undefined ? "" : `/${props.from}`}`}
-          >
-            {t("setup.done")}
-          </ButtonLink>
+          <DoneLink t={t} page={overview} from={props.from} />
         ) : (
           <StepButtons
             t={t}
             number={number}
-            busy={busy}
-            onBack={() => move(goToStep(progress, number - 1))}
-            onSkip={() => move(decideStep(progress, "skipped"))}
-            onNext={() =>
-              number === SETUP_STEP_COUNT
-                ? void leave(finishSetup(progress))
-                : move(decideStep(progress, "done"))
-            }
+            busy={waiting}
+            onBack={moves.back}
+            onSkip={moves.skip}
+            onNext={moves.next}
           />
         )}
       </Toolbar>
-      {confirmation.dialog}
-      {listing ? <StepsDialog t={t} flow={flow} close={() => setListing(false)} /> : null}
+      {moves.dialog}
+      {moves.listing ? (
+        <StepsDialog t={t} flow={moves.flow} close={() => moves.setListing(false)} />
+      ) : null}
     </Stack>
+  );
+}
+
+/** Done, in single-step mode: back to the page that opened the step. */
+function DoneLink({
+  t,
+  page,
+  from,
+}: Readonly<{ t: Translate; page: string; from: string | undefined }>) {
+  return (
+    <ButtonLink variant="primary" href={from === undefined ? page : `${page}/${from}`}>
+      {t("setup.done")}
+    </ButtonLink>
   );
 }
 

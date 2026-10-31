@@ -1002,8 +1002,8 @@
   },
   "apps/web/src/components/EventForm.tsx": {
     "EventForm": {
-      "complexity": [18],
-      "lines": [249]
+      "complexity": [13],
+      "lines": [236]
     }
   },
   "apps/web/src/components/EventWords.tsx": {
@@ -1071,8 +1071,8 @@
   },
   "apps/web/src/components/QuestBuilder.tsx": {
     "QuestBuilder": {
-      "complexity": [27],
-      "lines": [224]
+      "complexity": [26],
+      "lines": [220]
     }
   },
   "apps/web/src/components/QuestBuilderParts.tsx": {

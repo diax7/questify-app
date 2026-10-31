@@ -7374,6 +7374,12 @@ export const MESSAGES = {
     en: "Steps you have not decided keep their defaults. You can change anything later from the event's pages.",
   },
   "setup.skipAll.confirm": { ar: "تخطّي الكل", en: "Skip all" },
+  "setup.unsaved.title": { ar: "تجاهل التغييرات غير المحفوظة؟", en: "Discard unsaved changes?" },
+  "setup.unsaved.body": {
+    ar: "لم تحفظ تغييراتك في هذه الخطوة. ألغِ لتحفظها أولًا، أو تجاهلها وتابع.",
+    en: "You have not saved your changes on this step. Cancel to save them first, or discard them and move on.",
+  },
+  "setup.unsaved.confirm": { ar: "تجاهل", en: "Discard" },
   "setup.allSteps": { ar: "كل الخطوات", en: "All steps" },
   "setup.state.open": { ar: "لم تُحسم", en: "Not decided" },
   "setup.state.done": { ar: "تمّت", en: "Done" },

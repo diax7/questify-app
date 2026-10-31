@@ -811,6 +811,29 @@ type Editing =
   | Readonly<{ kind: "edit"; reward: RewardView }>
   | undefined;
 
+/** The rewards page's header, with "Explain this" (FR-1756). */
+function RewardsHeader({
+  language,
+  organizerId,
+  eventId,
+}: Readonly<{ language: Language; organizerId: string; eventId: string }>) {
+  const t = translatorFor(language);
+  return (
+    <PageHeader
+      titleId="rewards-title"
+      title={t("rewards.title")}
+      actions={
+        <ExplainThis
+          language={language}
+          organizerId={organizerId}
+          eventId={eventId}
+          slug="rewards"
+        />
+      }
+    />
+  );
+}
+
 /**
  * An event's rewards shop on the dashboard (T-201: FR-504, FR-505, FR-514, FR-516): the rewards with their stock, a
  * form to add or change one, removal with a confirmation, and the shop settings. Every answer refreshes the list.
@@ -925,18 +948,7 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
 
   return (
     <Stack as="section" aria-labelledby="rewards-title">
-      <PageHeader
-        titleId="rewards-title"
-        title={t("rewards.title")}
-        actions={
-          <ExplainThis
-            language={language}
-            organizerId={organizerId}
-            eventId={eventId}
-            slug="rewards"
-          />
-        }
-      />
+      <RewardsHeader language={language} organizerId={organizerId} eventId={eventId} />
       {problem === null ? null : (
         <Notice tone="danger" role="alert">
           {problem}

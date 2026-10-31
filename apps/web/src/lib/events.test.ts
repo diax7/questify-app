@@ -4,6 +4,7 @@ import {
   createBodyOf,
   draftOf,
   editBodyOf,
+  hasUnsavedEdits,
   nameFor,
   venueIsValid,
   type EventView,
@@ -221,5 +222,27 @@ describe("editBodyOf", () => {
       startsAt: after.startsAt,
       endsAt: after.endsAt,
     });
+  });
+});
+
+describe("hasUnsavedEdits", () => {
+  const saved = draftOf(EVENT);
+
+  it("is false for the form as the saved event fills it", () => {
+    expect(hasUnsavedEdits(saved, EVENT)).toBe(false);
+  });
+
+  it.each([
+    ["a name", { nameEn: "Najd Meetup" }],
+    ["the access", { access: "private" as const }],
+    ["the end time", { endsAt: "2030-11-02T17:00" }],
+    ["the zone", { timezone: "Asia/Dubai" }],
+  ])("is true once %s is typed", (_name, change) => {
+    expect(hasUnsavedEdits({ ...saved, ...change }, EVENT)).toBe(true);
+  });
+
+  it("is false again once the edit is typed back", () => {
+    const typed = { ...saved, nameEn: "Najd Meetup" };
+    expect(hasUnsavedEdits({ ...typed, nameEn: "" }, EVENT)).toBe(false);
   });
 });

@@ -166,3 +166,76 @@ test("shows the text an admin changed and ignores one that is not usable", async
     page.getByRole("heading", { name: "أي أنواع مهام ستستخدم؟", level: 2 }),
   ).toBeVisible();
 });
+
+/**
+ * Every step is shown from a fresh read of the event, so going Back to a step shows its switches as they were left
+ * (not as the wizard first read them), and a step with edits not yet saved asks before Continue, Skip or Back drop them.
+ */
+test("shows a step's switches as left after Back and asks before dropping unsaved edits", async ({
+  page,
+}, info) => {
+  test.setTimeout(150_000);
+  await openBuilder(page, info.project.name);
+  const eventUrl = page.url().replace(/\/quests$/, "");
+
+  await page.goto(`${eventUrl}/setup?step=quests`);
+  await expect(stepBar(page)).toHaveAttribute("aria-valuenow", "3");
+  const games = page.getByRole("checkbox", { name: "إظهار الألعاب المصغّرة للاعبين" });
+  await expect(games).toBeChecked();
+  await games.uncheck();
+  await expect(games).not.toBeChecked();
+  await expect(games).toBeEnabled();
+  await page.getByRole("button", { name: "متابعة" }).click();
+  await expect(stepBar(page)).toHaveAttribute("aria-valuenow", "4");
+  await page.getByRole("button", { name: "رجوع" }).click();
+  await expect(stepBar(page)).toHaveAttribute("aria-valuenow", "3");
+  await expect(games).not.toBeChecked();
+
+  await page.goto(`${eventUrl}/setup?step=basics`);
+  await expect(stepBar(page)).toHaveAttribute("aria-valuenow", "1");
+  await page.getByLabel("الاسم بالإنجليزية", { exact: true }).fill("Najd Meetup");
+  await page.getByRole("button", { name: "متابعة" }).click();
+  const asking = page.getByRole("alertdialog");
+  await expect(asking).toContainText("تجاهل التغييرات غير المحفوظة؟");
+  await asking.getByRole("button", { name: "إلغاء" }).click();
+  await expect(stepBar(page)).toHaveAttribute("aria-valuenow", "1");
+  await expect(page.getByLabel("الاسم بالإنجليزية", { exact: true })).toHaveValue("Najd Meetup");
+
+  await page.getByRole("button", { name: "حفظ التغييرات" }).click();
+  await expect(page.getByText("حُفظت التغييرات.")).toBeVisible();
+  await page.getByRole("button", { name: "متابعة" }).click();
+  await expect(stepBar(page)).toHaveAttribute("aria-valuenow", "2");
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+
+  const guests = page.getByRole("checkbox", { name: "المدعوون في القائمة فقط" });
+  await guests.check();
+  await page.getByRole("button", { name: "تخطّي الخطوة" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "تجاهل", exact: true }).click();
+  await expect(stepBar(page)).toHaveAttribute("aria-valuenow", "3");
+  await page.getByRole("button", { name: "رجوع" }).click();
+  await expect(stepBar(page)).toHaveAttribute("aria-valuenow", "2");
+  await expect(guests).not.toBeChecked();
+});
+
+/** The review list of a single-step view opens another step alone and saves nothing (FR-1756). */
+test("opens a step from the single-step review without saving progress", async ({ page }, info) => {
+  test.setTimeout(120_000);
+  await openBuilder(page, info.project.name);
+  const eventUrl = page.url().replace(/\/quests$/, "");
+
+  await page.goto(`${eventUrl}/setup?step=review&only=1`);
+  await expect(stepBar(page)).toHaveCount(0);
+  await page
+    .getByRole("button", { name: /^فتح / })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/setup\?step=basics&only=1$/);
+  await expect(
+    page.getByRole("heading", { name: "ما فعاليتك، ومن يمكنه إيجادها؟", level: 2 }),
+  ).toBeVisible();
+  expect(await savedSetup(page, eventUrl)).toMatchObject({
+    currentStep: 1,
+    updatedAt: null,
+    finished: false,
+  });
+});

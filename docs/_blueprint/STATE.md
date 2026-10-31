@@ -37,6 +37,11 @@
   (baseline unchanged; `OperatorsPanel` stays at the limit, so it has no Explain this). CI minutes none yet; agent tokens roughly
   0.55M (estimate).
   **Next:** the T-605 code review, then the next unchecked task in `docs/TASKS.md` (T-606).
+  **T-605 review fixes (2026-10-31):** the wizard reads the event again after every move and shows a step only from that
+  read (Back no longer shows a switch as first read); Back, Skip, Continue and opening a step from the list ask "Discard
+  unsaved changes?" when Basics or Join hold edits not saved (`use-unsaved.ts`, `use-step-moves.ts`); in `?step=review&only=1`
+  the list opens the step alone and saves nothing; `EventForm`, `QuestBuilder` and `RewardsPanel` are back within their
+  function baseline (`EventForm` and `QuestBuilder` shrank, baseline lowered). `e2e/setup.spec.ts` 10 passed on both projects.
 
 ## T-604b change sets and the confirmation sweep — 2026-10-31
 

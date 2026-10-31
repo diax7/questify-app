@@ -3,12 +3,15 @@ import {
   domainsOf,
   draftsOf,
   fieldsBody,
+  fieldsUnsaved,
   guestLines,
   kindsFor,
   moveDraft,
   needsLabel,
   needsOptions,
   newDraft,
+  rulesDraftOf,
+  rulesUnsaved,
   welcomeOf,
   type FieldDraft,
   type JoinFieldView,
@@ -154,5 +157,63 @@ describe("removesSavedField", () => {
     expect(removesSavedField(VIEWS, SAVED)).toBe(false);
     expect(removesSavedField(VIEWS, SAVED.slice(1))).toBe(true);
     expect(removesSavedField([], [])).toBe(false);
+  });
+});
+
+describe("fieldsUnsaved", () => {
+  it("is false for the rows as the saved fields fill them", () => {
+    expect(fieldsUnsaved(SAVED, VIEWS)).toBe(false);
+  });
+
+  it("is true for a label typed, a row added, removed, moved or a choice added", () => {
+    const [first, second, third] = SAVED as [FieldDraft, FieldDraft, FieldDraft];
+    expect(fieldsUnsaved([first, { ...second, labelEn: "Section" }, third], VIEWS)).toBe(true);
+    expect(fieldsUnsaved([...SAVED, newDraft(SAVED, "n1")], VIEWS)).toBe(true);
+    expect(fieldsUnsaved(SAVED.slice(1), VIEWS)).toBe(true);
+    expect(fieldsUnsaved(moveDraft(SAVED, 0, 1), VIEWS)).toBe(true);
+    const options = [...(third.options ?? []), { key: "o9", id: undefined, ar: "", en: "Other" }];
+    expect(fieldsUnsaved([first, second, { ...third, options }], VIEWS)).toBe(true);
+  });
+
+  it("is false when only the typed spacing around a label differs", () => {
+    const [first, second, third] = SAVED as [FieldDraft, FieldDraft, FieldDraft];
+    expect(fieldsUnsaved([first, { ...second, labelEn: "   " }, third], VIEWS)).toBe(false);
+  });
+});
+
+describe("rulesUnsaved", () => {
+  const saved = rulesDraftOf({
+    guestListOnly: false,
+    emailDomains: ["acme.sa", "riyadh.test"],
+    welcomePoints: 50,
+  });
+
+  it("reads the rules as the form types them", () => {
+    expect(saved).toEqual({
+      guestListOnly: false,
+      domains: "acme.sa\nriyadh.test",
+      welcome: "50",
+    });
+    expect(rulesDraftOf({ guestListOnly: true, emailDomains: [], welcomePoints: null })).toEqual({
+      guestListOnly: true,
+      domains: "",
+      welcome: "",
+    });
+  });
+
+  it("is false for the rules as saved, whatever the spacing between domains or around the amount", () => {
+    expect(rulesUnsaved(saved, saved)).toBe(false);
+    expect(
+      rulesUnsaved({ ...saved, domains: " acme.sa, riyadh.test \n", welcome: " 50 " }, saved),
+    ).toBe(false);
+  });
+
+  it.each([
+    ["the guest list switch", { guestListOnly: true }],
+    ["a domain added", { domains: "acme.sa\nriyadh.test\nnew.sa" }],
+    ["the amount", { welcome: "60" }],
+    ["the amount cleared", { welcome: "" }],
+  ])("is true for %s", (_name, change) => {
+    expect(rulesUnsaved({ ...saved, ...change }, saved)).toBe(true);
   });
 });

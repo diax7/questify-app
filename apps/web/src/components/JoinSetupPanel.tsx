@@ -14,11 +14,14 @@ import {
   domainsOf,
   draftsOf,
   fieldsBody,
+  fieldsUnsaved,
   kindsFor,
   moveDraft,
   needsLabel,
   needsOptions,
   newDraft,
+  rulesDraftOf,
+  rulesUnsaved,
   welcomeOf,
   type FieldDraft,
   type JoinFieldView,
@@ -27,6 +30,7 @@ import {
 } from "#src/lib/joining.ts";
 import { JoinOptionsEditor } from "#src/components/JoinOptionsEditor.tsx";
 import { translatorFor } from "#src/lib/language.ts";
+import { useReportUnsaved, type ReportUnsaved } from "#src/lib/use-unsaved.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { Button } from "#src/ui/Button.tsx";
@@ -44,6 +48,8 @@ type Props = Readonly<{
   eventId: string;
   /** Only the two editors, for a step of the guided setup (T-605): no page header. */
   bare?: boolean;
+  /** Told when an editor holds edits it has not saved, for the guided setup to ask before it moves on. */
+  onUnsaved?: ReportUnsaved;
 }>;
 
 /** Turns an API refusal into the text to show; a lost session goes back to sign-in. */
@@ -285,11 +291,13 @@ function FieldsEditor({
   base,
   setup,
   saved,
+  onUnsaved,
 }: Readonly<{
   language: Language;
   base: string;
   setup: JoinSetup;
   saved: (version: number, fields: readonly JoinFieldView[]) => void;
+  onUnsaved: ReportUnsaved | undefined;
 }>) {
   const t = translatorFor(language);
   const [drafts, setDrafts] = useState<FieldDraft[]>(() => draftsOf(setup.fields));
@@ -298,6 +306,7 @@ function FieldsEditor({
   const [confirming, setConfirming] = useState(false);
   const { problem, setProblem, fail } = useProblem(language);
   const counter = useRef(0);
+  useReportUnsaved(onUnsaved, "fields", fieldsUnsaved(drafts, setup.fields));
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -368,17 +377,23 @@ function RulesEditor({
   language,
   base,
   setup,
-}: Readonly<{ language: Language; base: string; setup: JoinSetup }>) {
+  onUnsaved,
+}: Readonly<{
+  language: Language;
+  base: string;
+  setup: JoinSetup;
+  onUnsaved: ReportUnsaved | undefined;
+}>) {
   const t = translatorFor(language);
-  const [guestListOnly, setGuestListOnly] = useState(setup.rules.guestListOnly);
-  const [domains, setDomains] = useState(setup.rules.emailDomains.join("\n"));
-  const [welcome, setWelcome] = useState(
-    setup.rules.welcomePoints === null ? "" : String(setup.rules.welcomePoints),
-  );
+  const [saved, setSaved] = useState(() => rulesDraftOf(setup.rules));
+  const [guestListOnly, setGuestListOnly] = useState(saved.guestListOnly);
+  const [domains, setDomains] = useState(saved.domains);
+  const [welcome, setWelcome] = useState(saved.welcome);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const { problem, setProblem, fail } = useProblem(language);
   const amount = welcomeOf(welcome);
+  useReportUnsaved(onUnsaved, "rules", rulesUnsaved({ guestListOnly, domains, welcome }, saved));
 
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -399,7 +414,9 @@ function RulesEditor({
       return;
     }
     const { rules } = result.body as { rules: JoinRules };
-    setDomains(rules.emailDomains.join("\n"));
+    const settled = rulesDraftOf(rules).domains;
+    setDomains(settled);
+    setSaved({ guestListOnly, domains: settled, welcome });
     setNotice(t("joinRules.saved"));
   };
 
@@ -447,7 +464,7 @@ function RulesEditor({
  * An event's join setup (T-212): the join fields, who can join and the welcome reward. Owners and editors both edit;
  * the API checks the event's reach and the database guards the welcome amount.
  */
-export function JoinSetupPanel({ language, organizerId, eventId, bare = false }: Props) {
+export function JoinSetupPanel({ language, organizerId, eventId, bare = false, onUnsaved }: Props) {
   const t = translatorFor(language);
   const base = `/v1/organizers/${organizerId}/events/${eventId}/join`;
   const loaded = useRef(false);
@@ -495,8 +512,9 @@ export function JoinSetupPanel({ language, organizerId, eventId, bare = false }:
             base={base}
             setup={setup}
             saved={(version, fields) => setSetup({ ...setup, version, fields })}
+            onUnsaved={onUnsaved}
           />
-          <RulesEditor language={language} base={base} setup={setup} />
+          <RulesEditor language={language} base={base} setup={setup} onUnsaved={onUnsaved} />
         </>
       )}
     </Stack>

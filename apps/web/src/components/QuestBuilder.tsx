@@ -38,6 +38,41 @@ import { PageHeader } from "#src/ui/PageHeader.tsx";
 /** The quest form while it is open, with its own Idempotency-Key for as long as this draft lives. */
 type Editing = Readonly<{ quest?: QuestView; initial: QuestDraft; key: string }>;
 
+/** The builder's header: the way back to the event, the codes page and "Explain this" (FR-1756). */
+function BuilderHeader({
+  language,
+  organizerId,
+  eventId,
+  eventName,
+}: Readonly<{
+  language: Language;
+  organizerId: string;
+  eventId: string;
+  eventName: string | undefined;
+}>) {
+  const t = useTranslator(language);
+  const eventPage = `/${language}/organizers/${organizerId}/events/${eventId}`;
+  return (
+    <PageHeader
+      back={{ href: eventPage, label: eventName ?? t("events.all") }}
+      titleId="builder-title"
+      focusable
+      title={t("quests.title")}
+      actions={
+        <>
+          <ButtonLink href={`${eventPage}/codes`}>{t("codes.title")}</ButtonLink>
+          <ExplainThis
+            language={language}
+            organizerId={organizerId}
+            eventId={eventId}
+            slug="quests"
+          />
+        </>
+      }
+    />
+  );
+}
+
 /**
  * An event's categories and quests (FR-1004–1008, FR-226–229): add, edit, hide, reorder and delete. While the event is
  * live, the API holds each change for a confirmation, which this page asks for and then sends again; once it has
@@ -158,25 +193,11 @@ export function QuestBuilder({
 
   return (
     <Stack as="section" aria-labelledby="builder-title">
-      <PageHeader
-        back={{
-          href: `/${language}/organizers/${organizerId}/events/${eventId}`,
-          label: b.event?.name ?? t("events.all"),
-        }}
-        titleId="builder-title"
-        focusable
-        title={t("quests.title")}
-        actions={
-          <>
-            <ButtonLink href={codesPage}>{t("codes.title")}</ButtonLink>
-            <ExplainThis
-              language={language}
-              organizerId={organizerId}
-              eventId={eventId}
-              slug="quests"
-            />
-          </>
-        }
+      <BuilderHeader
+        language={language}
+        organizerId={organizerId}
+        eventId={eventId}
+        eventName={b.event?.name}
       />
       {live ? (
         <Notice tone="success" role="status">

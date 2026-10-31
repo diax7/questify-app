@@ -15,6 +15,7 @@ import { StepList } from "#src/components/SetupStepList.tsx";
 import type { EventView } from "#src/lib/events.ts";
 import type { Translate } from "#src/lib/language.ts";
 import type { StepFlow } from "#src/components/SetupStepList.tsx";
+import type { ReportUnsaved } from "#src/lib/use-unsaved.ts";
 import { Row, Rows, Section, SubHeading } from "#src/ui/Section.tsx";
 import { infoTip } from "#src/ui/info.tsx";
 
@@ -174,7 +175,7 @@ function AddonsStep(props: StepProps) {
   );
 }
 
-type BodyProps = StepProps & Readonly<{ flow: StepFlow }>;
+type BodyProps = StepProps & Readonly<{ flow: StepFlow; onUnsaved: ReportUnsaved }>;
 
 const idsOf = (props: StepProps) => ({
   language: props.language,
@@ -226,8 +227,10 @@ function ReviewStep(props: BodyProps) {
 }
 
 const BODIES: Readonly<Record<SetupStep, (props: BodyProps) => ReactNode>> = {
-  basics: (props) => <EventForm {...idsOf(props)} myRole={props.myRole} bare />,
-  join: (props) => <JoinSetupPanel {...idsOf(props)} bare />,
+  basics: (props) => (
+    <EventForm {...idsOf(props)} myRole={props.myRole} bare onUnsaved={props.onUnsaved} />
+  ),
+  join: (props) => <JoinSetupPanel {...idsOf(props)} bare onUnsaved={props.onUnsaved} />,
   quests: QuestsStep,
   rewards: RewardsStep,
   sponsors: SponsorsStep,

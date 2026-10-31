@@ -2,6 +2,7 @@ import { DEFAULT_TERMS, FRESH_SETUP, SETUP_STEPS, stepNumber } from "@questify/s
 import { describe, expect, it } from "vitest";
 import { translatorFor } from "#src/lib/language.ts";
 import {
+  alonePath,
   readOverrides,
   readSetup,
   setupPath,
@@ -104,5 +105,16 @@ describe("the wizard's translator", () => {
       en: { "wizard.quests.title": "Where do {questMany} start?" },
     });
     expect(other("wizard.quests.title")).toBe(arabic("wizard.quests.title"));
+  });
+});
+
+describe("alonePath", () => {
+  it("opens the numbered step alone and keeps the page Done returns to", () => {
+    expect(alonePath(base, 4, "rewards")).toBe(
+      "/en/organizers/o1/events/e1/setup?step=rewards&only=1&from=rewards",
+    );
+    expect(alonePath(base, 1, undefined)).toBe(
+      "/en/organizers/o1/events/e1/setup?step=basics&only=1",
+    );
   });
 });

@@ -208,6 +208,10 @@ export function editBodyOf(draft: EventDraft, before: EventDraft): Record<string
   return draft.endsAt === before.endsAt ? body : { ...body, endsAt: draft.endsAt };
 }
 
+/** Whether the form holds edits the saved event does not have: what saving it would send is not empty. */
+export const hasUnsavedEdits = (draft: EventDraft, event: EventView): boolean =>
+  Object.keys(editBodyOf(draft, draftOf(event))).length > 0;
+
 /** Whether the venue pin and radius are what the API takes: both pin numbers in range or neither, 100 to 20000 m. */
 export const venueIsValid = (draft: EventDraft): boolean =>
   pinIsValid(draft.venueLat, draft.venueLng) &&

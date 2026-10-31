@@ -101,3 +101,13 @@ export function withOverrides(
     return base(key, params);
   };
 }
+
+/** The single-step view of step number `target` (1 to 10) from another single-step view, keeping the page Done returns to. */
+export function alonePath(
+  base: Readonly<{ language: Language; organizerId: string; eventId: string }>,
+  target: number,
+  from: string | undefined,
+): string {
+  const step = SETUP_STEPS[target - 1] ?? "basics";
+  return setupPath(base, from === undefined ? { step, only: true } : { step, only: true, from });
+}

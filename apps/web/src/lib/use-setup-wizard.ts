@@ -15,7 +15,10 @@ const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 export type SetupWizardState = Readonly<{
   /** Null until read; `loadFailed` says the read did not work. */
   progress: SetupProgress | null;
+  /** The event as last read; null until the first read. The header uses it, a step does not unless `fresh`. */
   event: EventView | null;
+  /** Whether `event` was read since the last move: a step shows its switches only from such a read. */
+  fresh: boolean;
   /** The add-ons Questify unlocked for the event; empty when they could not be read, so nothing shows unlocked. */
   addons: readonly string[];
   /** The wizard's words: the shipped texts with what an admin changed laid over them. */
@@ -28,6 +31,9 @@ export type SetupWizardState = Readonly<{
   /** Shows other progress without saving it (a re-run starts only when the first step is decided). */
   show: (next: SetupProgress) => void;
 }>;
+
+/** The event as read when the wizard held `at`; any other progress (every move makes one) means a stale read. */
+type EventRead = Readonly<{ event: EventView; at: SetupProgress }>;
 
 type Load = Readonly<{
   progress: SetupProgress;
@@ -43,10 +49,15 @@ function sessionEnded(...bodies: readonly unknown[]): boolean {
   return bodies.some((body) => SESSION_LOST.has(errorCodeOf(body) ?? ""));
 }
 
+/** The event out of the answer to `GET …/events/:id`, or undefined when the read did not work. */
+function readEvent(found: PostResult): EventView | undefined {
+  return found.ok ? (found.body as { event?: EventView } | undefined)?.event : undefined;
+}
+
 /** The progress and the event, or that the session ended, or that either could not be read. */
 function readBase(setup: PostResult, found: PostResult): Base | "session_lost" | "failed" {
   const progress = setup.ok ? readSetup(setup.body) : undefined;
-  const event = found.ok ? (found.body as { event?: EventView } | undefined)?.event : undefined;
+  const event = readEvent(found);
   if (progress !== undefined && event !== undefined) {
     return { progress, event };
   }
@@ -90,7 +101,7 @@ export function useSetupWizard(
   const terms = useEventTerms();
   const shipped = useTranslator(language);
   const [progress, setProgress] = useState<SetupProgress | null>(null);
-  const [event, setEvent] = useState<EventView | null>(null);
+  const [eventRead, setEventRead] = useState<EventRead | null>(null);
   const [activation, setActivation] = useState<ActivationView | null>(null);
   const [overrides, setOverrides] = useState<Overrides>(NO_OVERRIDES);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -116,12 +127,35 @@ export function useSetupWizard(
         setLoadFailed(true);
       } else {
         setProgress(read.progress);
-        setEvent(read.event);
+        setEventRead({ event: read.event, at: read.progress });
         setActivation(read.activation);
         setOverrides(read.overrides);
       }
     });
   }, [base, language]);
+
+  useEffect(() => {
+    if (progress === null || eventRead?.at === progress) {
+      return;
+    }
+    let current = true;
+    void requestJson("GET", base).then((found) => {
+      const event = readEvent(found);
+      if (!current) {
+        return;
+      }
+      if (event !== undefined) {
+        setEventRead({ event, at: progress });
+      } else if (sessionEnded(found.body)) {
+        window.location.assign(`/${language}/sign-in?ended=1`);
+      } else {
+        setLoadFailed(true);
+      }
+    });
+    return () => {
+      current = false;
+    };
+  }, [base, language, progress, eventRead]);
 
   const t = useMemo(
     () => withOverrides(shipped, language, terms, overrides),
@@ -151,7 +185,8 @@ export function useSetupWizard(
 
   return {
     progress,
-    event,
+    event: eventRead?.event ?? null,
+    fresh: eventRead?.at === progress,
     addons: activation?.addons ?? [],
     t,
     loadFailed,
