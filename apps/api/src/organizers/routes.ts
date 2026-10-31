@@ -33,6 +33,7 @@ import { registerPushDefaultsTeamRoutes } from "#src/push/defaults";
 import { registerBoostTeamRoutes } from "#src/boosts/routes";
 import { registerAnnouncementTeamRoutes } from "#src/announcements/routes";
 import { registerSessionTeamRoutes } from "#src/sessions/routes";
+import { registerSetupRoutes } from "#src/setup/routes";
 import { registerMapTeamRoutes } from "#src/maps/routes";
 import { registerCheersTeamRoutes } from "#src/cheers/routes";
 import { registerRatingTeamRoutes } from "#src/ratings/routes";
@@ -266,6 +267,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
         codeKey: deps.rewardCodeKey,
         settings: deps.settings,
       });
+      registerSetupRoutes(scope, { pool: deps.pool });
       registerHeldPrizesTeamRoute(scope, { pool: deps.pool });
       registerControlTeamRoutes(scope, createControlReader({ pool: deps.pool }), {
         pool: deps.pool,

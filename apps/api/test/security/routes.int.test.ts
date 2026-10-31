@@ -368,6 +368,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "owners and editors inside their event limit; a quest of that event only, through set_step_skipped, which checks the organizer, the event limit and the phase itself (AN404, AQ404); audited (test/control/routes, test/db/pause-skip, test/security/cross-tenant)",
   "GET /v1/organizers/:organizerId/events/:eventId/quests/:questId/impact":
     "owners and editors inside their event limit; a quest of that event only, through quest_points_impact, which checks the organizer and the event limit itself (AN404, AQ404); counts only, no player named (test/quests/live-edits, test/db/live-edits, test/security/cross-tenant)",
+  "GET /v1/organizers/:organizerId/events/:eventId/setup":
+    "owners and editors inside their event limit; one row under row-level security on the organizer and the event limit; another organizer's event answers 404 (test/setup/setup, test/db/guided-setup)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/setup":
+    "only the path's event, which the caller may reach; progress only, a strict body of ten known states, the row's author is the caller; another organizer's event answers 404 (test/setup/setup, test/db/guided-setup)",
   "GET /v1/organizers/:organizerId/events/:eventId/change-sets":
     "owners and editors inside their event limit; the sets of that event under row-level security on the organizer and the event limit; another organizer's event answers 404 (test/change-sets/change-sets, test/db/change-sets)",
   "POST /v1/organizers/:organizerId/events/:eventId/change-sets":

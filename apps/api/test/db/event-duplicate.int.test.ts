@@ -47,6 +47,8 @@ const NOT_COPIED = new Set([
   // the source event's review state (T-604b): its proposed changes name its own rows
   "change_set",
   "change_set_item",
+  // the source event's guided setup progress (T-605): a copy starts its own setup at step 1
+  "event_setup",
   "announcement",
   "bulk_award",
   "category_bonus",

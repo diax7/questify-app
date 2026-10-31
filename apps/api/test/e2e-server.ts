@@ -294,6 +294,10 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         endedDaysAgo?: number;
         step?: string;
         reactions?: string[];
+        feature?: string;
+        key?: string;
+        ar?: string;
+        en?: string;
       };
       try {
         body = JSON.parse(raw || "{}") as typeof body;
@@ -494,6 +498,39 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
             `WITH made AS (INSERT INTO player (username) VALUES ($1) RETURNING id)
              INSERT INTO player_contact (player_id, email) SELECT id, $2 FROM made`,
             [body.usernames?.[0] ?? null, body.email ?? null],
+          )
+          .then(() => {
+            response.writeHead(204).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /addon: unlocks an add-on for the event the way Questify's admin does at activation (T-605).
+      if (request.url === "/addon") {
+        db.owner
+          .query(
+            `INSERT INTO event_entitlement (event_id, organizer_id, feature)
+             SELECT id, organizer_id, $2 FROM event WHERE id = $1 ON CONFLICT DO NOTHING`,
+            [body.eventId, body.feature],
+          )
+          .then(() => {
+            response.writeHead(204).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /translation: the text a Questify admin saved for a key in the translation store, in either language (T-605);
+      // the admin screen for it is the translation matrix (T-702).
+      if (request.url === "/translation") {
+        db.owner
+          .query(
+            `INSERT INTO translation (key, ar, en) VALUES ($1, $2, $3)
+             ON CONFLICT (key) DO UPDATE SET ar = EXCLUDED.ar, en = EXCLUDED.en`,
+            [body.key, body.ar ?? null, body.en ?? null],
           )
           .then(() => {
             response.writeHead(204).end();

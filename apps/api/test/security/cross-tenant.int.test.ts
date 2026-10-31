@@ -480,6 +480,31 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  event_setup: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO event_setup (event_id, organizer_id, updated_by) VALUES ($1, $2, $3)",
+          values: [f.eventB, f.orgB, f.staffA],
+        }),
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden: "players never read setup progress: they hold no staff seat (T-605)",
+        forge: (f) => ({
+          sql: "INSERT INTO event_setup (event_id, organizer_id, updated_by) VALUES ($1, $2, $3)",
+          values: [f.eventA, f.orgA, f.staffA],
+        }),
+      },
+    ],
+  },
   bulk_award: {
     probes: [
       {
@@ -1418,6 +1443,17 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
       "INSERT INTO change_set_item (change_set_id, organizer_id, event_id, position, op, target, body) VALUES ($1, $2, $3, 0, 'add', 'quest', '{}')",
       [set.rows[0]?.id, org, event],
     );
+  }
+  // One guided setup row on each side (migration 0100).
+  for (const [org, event, staff] of [
+    [f.orgA, f.eventA, f.staffA],
+    [f.orgB, f.eventB, f.staffB],
+  ] as const) {
+    await run("INSERT INTO event_setup (event_id, organizer_id, updated_by) VALUES ($1, $2, $3)", [
+      event,
+      org,
+      staff,
+    ]);
   }
   // Rows past their retention, which the sweeps may remove whoever runs them.
   await run(

@@ -546,6 +546,23 @@ export type {
   ChangeSetSummary,
   ChangeSetView,
 } from "./change-sets/change-sets";
+export {
+  FRESH_SETUP,
+  SETUP_STEPS,
+  SETUP_STEP_COUNT,
+  SETUP_STEP_STATES,
+  decideStep,
+  decidedSteps,
+  finishSetup,
+  goToStep,
+  restartSetup,
+  setupReadSchema,
+  setupSchema,
+  skipAll,
+  stepAt,
+  stepNumber,
+} from "./setup/setup";
+export type { SetupProgress, SetupRead, SetupStep, SetupStepState } from "./setup/setup";
 export { NOTIFICATION_TARGETS, isEventId, notificationRoute } from "./push/routes";
 export type { NotificationRoute } from "./push/routes";
 export {
