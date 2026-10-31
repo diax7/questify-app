@@ -11,6 +11,16 @@ import { Row, SubHeading } from "#src/ui/Section.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
+/** How many prizes players still hold in the event, or null when the count could not be read (T-602d). */
+async function countHeldPrizes(organizerId: string, eventId: string): Promise<number | null> {
+  const counted = await requestJson(
+    "GET",
+    `/v1/organizers/${organizerId}/events/${eventId}/held-prizes`,
+  );
+  const held = (counted.body as Record<string, unknown> | undefined)?.["held"];
+  return counted.ok && typeof held === "number" ? held : null;
+}
+
 /** An event switch a player feature has (FR-219, FR-1009): its route and its words. */
 const FEATURES = {
   shareQuests: {
@@ -103,7 +113,8 @@ type Props = Readonly<{
  * every boost paying, at once. The help desk (T-310) off stops new requests while open ones stay answerable. Quest
  * ratings (T-508) are the one switch that starts off: players are asked only after the owner turns it on. Cheers
  * (T-509) sits on the Big screen page: off ends any live cheers moment. The shop, live polls, maps and agenda (T-602,
- * FR-1009) take their screens off the player's side, and nothing the team has built. The owner
+ * FR-1009) take their screens off the player's side, and nothing the team has built; turning the shop off says how
+ * many prizes players still hold, which they collect from Home (T-602d). The owner
  * changes it; an editor sees it switched and cannot change it. Saved as soon as the box changes.
  */
 export function EventFeatureSwitch({
@@ -121,12 +132,15 @@ export function EventFeatureSwitch({
   const [on, setOn] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  /** After the shop is turned off: the prizes players still hold, or null when the count failed. */
+  const [held, setHeld] = useState<Readonly<{ count: number | null }> | undefined>(undefined);
 
   const save = async (enabled: boolean) => {
     const before = on;
     setOn(enabled);
     setBusy(true);
     setProblem(null);
+    setHeld(undefined);
     const result = await requestJson(
       "PUT",
       `/v1/organizers/${organizerId}/events/${eventId}/${words.path}`,
@@ -146,6 +160,11 @@ export function EventFeatureSwitch({
     const saved = (result.body as Record<string, unknown>)[feature] === true;
     setOn(saved);
     onSaved?.(saved);
+    if (feature === "shop" && !saved) {
+      setBusy(true);
+      setHeld({ count: await countHeldPrizes(organizerId, eventId) });
+      setBusy(false);
+    }
   };
 
   return (
@@ -167,6 +186,15 @@ export function EventFeatureSwitch({
           {problem === null ? null : (
             <Notice role="alert" tone="danger">
               {problem}
+            </Notice>
+          )}
+          {held === undefined ? null : held.count === null ? (
+            <Notice role="alert" tone="warning">
+              {t("events.shop.heldFailed")}
+            </Notice>
+          ) : (
+            <Notice role="status" tone="info">
+              {t("events.shop.heldAfterOff", { count: held.count })}
             </Notice>
           )}
         </>

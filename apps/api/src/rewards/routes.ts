@@ -46,6 +46,7 @@ import {
   type RewardRecord,
 } from "#src/rewards/builder";
 import { CODE_MAX_LENGTH } from "#src/rewards/codes";
+import { registerHeldPrizesRoute } from "#src/rewards/held-prizes";
 import { requireEventFeature } from "#src/settings/feature-guard";
 import type { SettingsService } from "#src/settings/service";
 import {
@@ -288,12 +289,14 @@ const goalBody = z.strictObject({ rewardId: z.uuid().nullable() });
 /**
  * The player's shop (T-201, T-202): `GET /v1/events/:eventId/shop`, `POST /v1/rewards/:rewardId/reserve` (an
  * Idempotency-Key, a new one per tap), `POST /v1/redemptions/:redemptionId/cancel` (cancelling twice is harmless) and
- * `PUT /v1/events/:eventId/goal` (T-213).
+ * `PUT /v1/events/:eventId/goal` (T-213), and `GET /v1/events/:eventId/held-prizes` (T-602d), which is not behind the shop's
+ * switch.
  */
 export function registerShopRoutes(
   app: FastifyInstance,
   deps: ShopDeps & Readonly<{ settings: Pick<SettingsService, "forEvent"> }>,
 ): void {
+  registerHeldPrizesRoute(app, deps);
   app.get("/v1/events/:eventId/shop", { config: { access: "player" } }, async (request, reply) => {
     const { eventId } = parse(shopParams, request.params);
     // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard answers first

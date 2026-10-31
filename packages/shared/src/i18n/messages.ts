@@ -2786,6 +2786,8 @@ export const MESSAGES = {
     en: "This prize can't be cancelled in the app.",
   },
   "win.questReward": { ar: "جائزة {questOne}", en: "{questOneCap} reward" },
+  "heldPrizes.title": { ar: "جوائز بانتظار الاستلام", en: "Prizes to collect" },
+  "heldPrizes.openMyQr": { ar: "افتح رمزي", en: "Open My QR" },
   "info.rules": { ar: "القواعد الرسمية", en: "Official rules" },
   "level.up": { ar: "ارتقيت مستوى!", en: "Level up!" },
   "level.number": { ar: "المستوى {level}", en: "Level {level}" },
@@ -7062,6 +7064,14 @@ export const MESSAGES = {
   // ---------------------------------------------------------------- feature switches, look and preview (T-602)
   "events.shop.title": { ar: "المتجر", en: "Shop" },
   "events.shop.label": { ar: "إظهار المتجر في الفعالية", en: "Show the shop in the event" },
+  "events.shop.heldAfterOff": {
+    ar: "المتجر متوقف. جوائز بانتظار الاستلام: {count}",
+    en: "The shop is off. Prizes still to collect: {count}",
+  },
+  "events.shop.heldFailed": {
+    ar: "المتجر متوقف، لكن تعذّر تحميل عدد الجوائز بانتظار الاستلام.",
+    en: "The shop is off, but the number of prizes still to collect could not be loaded.",
+  },
   "events.polls.title": { ar: "الاستطلاعات المباشرة", en: "Live polls" },
   "events.polls.label": {
     ar: "إظهار الاستطلاعات المباشرة في الفعالية",

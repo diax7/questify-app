@@ -5773,4 +5773,26 @@ already drops the cards (T-602), so the sheet is not closed for the player.
 **Why:** a switch that only hides a screen leaves the door open to an old build or a direct call; the points path must
 agree with what the organizer set.
 **Trade-offs:** no lock on the event: a reserve or vote that read the switch on before the owner's change committed is a
-write made while it was on. While the shop is off a player cannot see a prize they still hold (Q-350; task T-602d).
+write made while it was on. While the shop is off a player cannot see a prize they still hold (Q-350); closed by ADR-384 (task T-602d).
+
+## ADR-384 - T-602d prizes to collect: a held-prizes read outside the shop's switch, a Home card, and a count in the shop-off note
+
+**Status:** Proposed (worker, 2026-10-31; Q-351). Closes the open item of ADR-383 and Q-350. No migration.
+**Decision:** (1) **The read.** `GET /v1/events/{id}/held-prizes` (player) calls the existing `event_shop` and
+`my_redemptions` doors and keeps the reserved rows: the bearer's own holdings from every source (shop, rank prize,
+quest), soonest deadline first, with the prize desk to collect from; no price and no code. It has no
+`requireEventFeature`, so a prize reserved before the shop went off is listed and `POST /v1/redemptions/{id}/collect`
+(never behind the switch) still works. A caller who is not an active member gets 404. (2) **The card.** Home's "Prizes to
+collect" shows whenever something is held, not only while the shop is off: one place that says what waits and how to
+collect it (Collect with collect first; Open My QR with desk offers). A failed read keeps the card as last shown. (3) **The
+count.** `GET …/events/{id}/held-prizes` (owner, editor) returns `{held}`: reserved redemptions of members who are still
+active, read under the team member's own row-level security; another organizer's event is 404. The dashboard asks for it
+right after the owner saves the shop switch off and shows "The shop is off. Prizes still to collect: N" (or that the count
+could not be read). It is a note after the change, not a question before it: the switch stays one tap (ADR-381) and
+turning it back on is as quick. (4) **Where the code lives.** A new module `apps/api/src/rewards/held-prizes.ts`, so the
+files of T-602c's mutation run keep their shape.
+**Why:** ADR-383 made the database refuse a new reserve but left a player unable to see what they already hold; the read
+reuses the shop's own doors, so no new grant and no new way to see another player's rows.
+**Trade-offs:** the read takes the newest 100 redemptions, as the shop does (a player with more than 100 in one event could
+miss an old held one); the count includes rehearsal accounts before go-live; the Home win card still opens the Rewards
+tab, which is hidden while the shop is off (FOLLOWUPS).

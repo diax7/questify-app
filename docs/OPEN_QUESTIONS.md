@@ -1603,3 +1603,12 @@ request that already succeeded answers as before; (3) reservations made before t
 cancel and expiry work. **Open:** while the shop is off the player cannot see a prize they still hold (it is listed only in
 the shop read). Recommended: task T-602d (tier B), a "Prizes to collect" card on Home from a held-prizes read that is not
 behind the shop switch, and the shop-off confirmation saying how many prizes players still hold (ADR-383). **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended; ADR-383 accepted, T-602d queued.
+
+## Q-351 - T-602d prizes to collect while the shop is off: what is decided without Dhia (2026-10-31)
+
+**Recommended (developer):** (1) a held-prizes read for the player that is not behind the shop switch, listing only the
+bearer's own reserved prizes (any source) with the desk; (2) a "Prizes to collect" card on Home whenever something is held,
+with Collect (collect first) or Open My QR (desk offers); (3) the shop-off note on the dashboard says how many prizes
+players still hold, shown after the switch is saved (ADR-384). **Open:** should turning the shop off ask first when prizes
+are held? Recommended no: the switch changes nothing for a held prize (it stays reserved, collectable and cancellable)
+and turning it back on is one tap, so a question adds a step without protecting anything.

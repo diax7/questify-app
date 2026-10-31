@@ -354,6 +354,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members of that organizer within their event limit; another organizer's event answers 404; the window rule on the database's clock and its guard (SW409); audited (test/rewards/routes, test/db/shop-window)",
   "GET /v1/events/:eventId/shop":
     "an active member of that event only, through event_shop, shop_rewards and my_redemptions bound to the session; anyone else 404 (test/rewards/routes, test/rewards/rewards)",
+  "GET /v1/events/:eventId/held-prizes":
+    "the bearer's own reserved prizes in an event they are an active member of, through event_shop and my_redemptions bound to the session; not behind the shop switch; anyone else 404 (test/rewards/routes)",
+  "GET /v1/organizers/:organizerId/events/:eventId/held-prizes":
+    "members inside their event limit; a count of reserved prizes of active members under row-level security, no player named; another organizer's event answers 404 (test/rewards/routes)",
   "POST /v1/rewards/:rewardId/reserve":
     "reserves only for the bearer, through reserve_reward bound to the session; another event's reward answers 404 (test/rewards/routes, test/rewards/rewards)",
   "PUT /v1/events/:eventId/goal":

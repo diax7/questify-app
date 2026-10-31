@@ -23,6 +23,23 @@
 
 - **FOLLOWUPS cleared (tier C and B minors).** The desktop menu scrolls on its own and shows the open page (ADR-378, Proposed, Q-345): no new link needs a regroup, and the layout check asserts reachability instead of fit. The flaky `organizer-alerts` "checks the member again when it sends" test: the alerts are numbered in the order of members' random ids, a claim takes five rows, and a claim that finds only rows to skip ends the run (T-503 line in FOLLOWUPS), so about one run in twenty sent nothing; the test now runs twice. App and dashboard minors: the map board's click surface leaves the tab order, the sponsor screen shows loading or "no longer part of the event", a late sponsor read of the previous event is dropped, the survey's left-out line has no plural, "Thanks" shows only for a thumb sent a moment ago, and the cheers button follows the server's clock (`Server-Now` of the live read). Not run on a phone.
 
+## T-602d prizes to collect while the shop is off — 2026-10-31
+
+- **T-602d done (tier B; code review owed; not run on a phone). No migration** (the numbering stays at 0095). **Built:**
+  `GET /v1/events/{id}/held-prizes` for the player (the existing `event_shop` and `my_redemptions` doors; reserved rows of
+  the bearer only, any source, with the desk; not behind the shop switch, so a prize reserved before the shop went off is
+  listed and Collect still works; 404 for a non-active member) and `GET …/events/{id}/held-prizes` for the team
+  (`{held}`: reserved prizes of active members under row-level security), both in the new
+  `apps/api/src/rewards/held-prizes.ts`. App: a "Prizes to collect" card on Home (`PrizesToCollect.tsx`, shown whenever
+  something is held, with Collect for collect first or Open My QR for desk offers). Dashboard: the shop switch, once saved
+  off, shows "The shop is off. Prizes still to collect: N". ADR-384 and Q-351 Proposed; FOLLOWUPS: the Home win card still
+  opens the hidden Rewards tab. Mutation targets: none (tier B). Local: full vitest 9449 passed, 14 skipped, 0 failed; tsc (shared, api,
+  web, app), oxlint, format and function limits clean (baseline unchanged at 307); `expo export --platform android` clean;
+  browser suite 264 passed, 4 skipped, 0 failed (single worker, 29.0 min; `branding.spec.ts` now asserts the shop-off
+  note; `ci-scope` maps `EventFeatureSwitch` to it). CI minutes none yet; agent tokens roughly 0.35M (estimate).
+  **Next:** the grouped mutation run for T-505b and T-602c (coordinator), then the next unchecked task in `docs/TASKS.md`
+  (T-603).
+
 ## T-505b session points and T-602c switches in the points doors — 2026-10-31
 
 - **T-505b and T-602c done (tier A; plan review 86 GO, its fixes folded; one code review owed; not run on a phone).**

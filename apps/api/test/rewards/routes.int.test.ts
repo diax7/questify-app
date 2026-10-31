@@ -20,6 +20,7 @@ type Reward = {
 };
 
 const key = () => ({ "idempotency-key": randomUUID() });
+const heldUrl = (event: string) => `/v1/events/${event}/held-prizes`;
 
 describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-202)", () => {
   let db: TestDatabase;
@@ -167,6 +168,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
     );
     expect(made.statusCode).toBe(201);
     return made.json<{ reward: Reward }>().reward;
+  };
+
+  type Held = { id: string; reservedUntil: string; source: string };
+  const heldOf = (token: string, event = eventId) => asPlayer(token, "GET", heldUrl(event));
+  const reserve = async (token: string, rewardId: string): Promise<string> => {
+    const made = await asPlayer(token, "POST", `/v1/rewards/${rewardId}/reserve`, key());
+    expect(made.statusCode).toBe(201);
+    return made.json<{ redemption: { id: string } }>().redemption.id;
+  };
+  /** The owner's own switch, which also drops the composed configuration the shop's read is cached with. */
+  const shopSwitch = async (enabled: boolean) => {
+    const saved = await call("PUT", `${base}/features/shop`, { enabled });
+    expect(saved.json()).toEqual({ shop: enabled });
   };
 
   describe("the dashboard", () => {
@@ -793,6 +807,146 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
       const removed = await putGoal(token, eventId, { rewardId: reward.id });
       expect(removed.statusCode).toBe(404);
       expect(removed.json()).toMatchObject({ code: "not_found" });
+    });
+  });
+
+  describe("prizes players still hold (T-602d)", () => {
+    it("lists a prize reserved before the shop went off, with the desk, and nothing it should hide", async () => {
+      const reward = await newReward({ price: 10, stock: 5 });
+      const token = await newPlayer(100);
+      const id = await reserve(token, reward.id);
+      await shopSwitch(false);
+      try {
+        const shop = await asPlayer(token, "GET", `/v1/events/${eventId}/shop`);
+        expect([shop.statusCode, shop.json().code]).toEqual([403, "feature_off"]);
+        const held = await heldOf(token);
+        expect(held.statusCode).toBe(200);
+        expect(held.headers["cache-control"]).toBe("no-store");
+        const body = held.json<{ desk: object; prizes: Held[] }>();
+        expect(body.desk).toMatchObject({
+          location: { en: "Hall B" },
+          confirm: "collect_first",
+          state: "open",
+        });
+        expect(body.prizes).toEqual([
+          {
+            id,
+            kind: "item",
+            name: { ar: "هودي", en: "Hoodie" },
+            reservedUntil: expect.any(String),
+            collectUntil: null,
+            rank: null,
+            source: "shop",
+          },
+        ]);
+      } finally {
+        await shopSwitch(true);
+      }
+    });
+
+    it("lists only the bearer's own active holdings, soonest deadline first", async () => {
+      const reward = await newReward({ price: 5, stock: 10 });
+      const mine = await newPlayer(100);
+      const theirs = await newPlayer(100);
+      const cancelled = await reserve(mine, reward.id);
+      const later = await reserve(mine, reward.id);
+      const sooner = await reserve(mine, reward.id);
+      const other = await reserve(theirs, reward.id);
+      await asPlayer(mine, "POST", `/v1/redemptions/${cancelled}/cancel`);
+      await owner(
+        "UPDATE redemption SET reserved_until = now() + interval '5 minutes' WHERE id = $1",
+        [sooner],
+      );
+      const body = (await heldOf(mine)).json<{ prizes: Held[] }>();
+      expect(body.prizes.map((prize) => prize.id)).toEqual([sooner, later]);
+      const others = (await heldOf(theirs)).json<{ prizes: Held[] }>();
+      expect(others.prizes.map((prize) => prize.id)).toEqual([other]);
+    });
+
+    it("stops listing a prize once its time ran out", async () => {
+      const reward = await newReward({ price: 5, stock: 10 });
+      const token = await newPlayer(100);
+      const gone = await reserve(token, reward.id);
+      const kept = await reserve(token, reward.id);
+      await owner(
+        "UPDATE redemption SET reserved_until = now() - interval '1 minute' WHERE id = $1",
+        [gone],
+      );
+      await owner("SELECT expire_one_reservation()");
+      const body = (await heldOf(token)).json<{ prizes: Held[] }>();
+      expect(body.prizes.map((prize) => prize.id)).toEqual([kept]);
+    });
+
+    it("answers a stranger, a pending member and a missing session without a prize", async () => {
+      const reward = await newReward({ price: 5, stock: 10 });
+      const member = await newPlayer(100);
+      await reserve(member, reward.id);
+      const stranger = await newPlayer(10, (await endedEvent("1 day")).id);
+      expect((await heldOf(stranger)).statusCode).toBe(404);
+      expect((await heldOf(member, randomUUID())).statusCode).toBe(404);
+      const pending = await newPlayer(10);
+      await owner(
+        "UPDATE enrollment SET status = 'pending' WHERE player_id = (SELECT id FROM player WHERE username = $1)",
+        [`buyer_${counter}`],
+      );
+      expect((await heldOf(pending)).statusCode).toBe(404);
+      const anonymous = await test.app.inject({ method: "GET", url: heldUrl(eventId) });
+      expect(anonymous.statusCode).toBe(401);
+    });
+
+    it("counts the prizes players hold for the team, only reserved ones of active members", async () => {
+      const [fresh] = await owner<{ id: string }>(
+        `INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, status, starts_at, ends_at)
+         VALUES ($1, 'Hall B', 'HELD1', 'Held', 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id`,
+        [orgId],
+      );
+      const event = fresh?.id ?? "";
+      const [reward] = await owner<{ id: string }>(
+        "INSERT INTO reward (event_id, kind, name_en, price, stock_total) VALUES ($1, 'item', 'Cap', 5, 20) RETURNING id",
+        [event],
+      );
+      const url = `/v1/organizers/${orgId}/events/${event}/held-prizes`;
+      expect((await call("GET", url)).json()).toEqual({ held: 0 });
+      const first = await newPlayer(100, event);
+      const second = await newPlayer(100, event);
+      const left = await newPlayer(100, event);
+      await reserve(first, reward?.id ?? "");
+      await reserve(first, reward?.id ?? "");
+      const cancelled = await reserve(second, reward?.id ?? "");
+      await reserve(left, reward?.id ?? "");
+      await asPlayer(second, "POST", `/v1/redemptions/${cancelled}/cancel`);
+      expect((await call("GET", url)).json()).toEqual({ held: 3 });
+      await owner(
+        "UPDATE enrollment SET status = 'removed' WHERE player_id = (SELECT id FROM player WHERE username = $1)",
+        [`buyer_${counter}`],
+      );
+      expect((await call("GET", url)).json()).toEqual({ held: 2 });
+    });
+
+    it("keeps the team's count to its own organizer's events", async () => {
+      const [rival] = await owner<{ id: string }>(
+        "INSERT INTO organizer (name, slug) VALUES ('Rival Events', 'rival-held') RETURNING id",
+      );
+      const rivalStaff = await createStaff(db.owner, { email: "owner@rival-held.test" });
+      await owner(
+        "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
+        [rival?.id, rivalStaff],
+      );
+      const rivalCookie = await signInFully(test, "owner@rival-held.test");
+      const own = `/v1/organizers/${orgId}/events/${eventId}/held-prizes`;
+      const across = await test.app.inject({
+        method: "GET",
+        url: `/v1/organizers/${rival?.id}/events/${eventId}/held-prizes`,
+        headers: withSession(rivalCookie),
+      });
+      expect([across.statusCode, across.json().code]).toEqual([404, "not_found"]);
+      const into = await test.app.inject({
+        method: "GET",
+        url: own,
+        headers: withSession(rivalCookie),
+      });
+      expect(into.statusCode).toBe(404);
+      expect((await test.app.inject({ method: "GET", url: own })).statusCode).toBe(401);
     });
   });
 });

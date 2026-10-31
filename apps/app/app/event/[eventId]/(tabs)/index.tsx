@@ -35,6 +35,7 @@ import { forget } from "#src/event/launch.ts";
 import { EXPLAINED_KEY, explainAfterJoin } from "#src/event/location.ts";
 import { useLive } from "#src/event/LiveContext.tsx";
 import { LocationPrompt, useLocationReader } from "#src/event/LocationEntry.tsx";
+import { PrizesToCollect } from "#src/event/PrizesToCollect.tsx";
 import { FinaleCelebration } from "#src/event/FinaleCelebration.tsx";
 import { WinCard } from "#src/event/WinCard.tsx";
 import { EventStreakCard } from "#src/streaks/EventStreakCard.tsx";
@@ -393,7 +394,7 @@ function useJoinLocationPrompt(home: Home | undefined) {
   return { shown, proceed };
 }
 
-/** What Home shows a member who is in: the shop's line, the streak, a won prize, the community goal, goal and ranking. */
+/** What Home shows a member who is in: the shop's line, the streak, a won prize, prizes to collect, the community goal, goal and ranking. */
 function ActiveCards({
   home,
   ranking,
@@ -411,6 +412,7 @@ function ActiveCards({
       <EventHomeStrips eventId={eventId} />
       <SponsorStrip eventId={eventId} />
       <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
+      <PrizesToCollect eventId={eventId} />
       <FinaleCelebration eventId={eventId} finale={home.finale} />
       {cheers === null ? null : (
         <CheersBar eventId={eventId} endsAt={cheers.endsAt} clockOffsetMs={clockOffsetMs} />

@@ -4,7 +4,8 @@ import { openBuilder } from "#e2e/builder.ts";
 /**
  * An event's accent colour, its shop, live polls, maps and agenda switches, and the preview of the player screens (T-602,
  * FR-1009, FR-1022, FR-1023): the accent is picked from a list and kept, the preview shows the event as players will see
- * it in either language, a switched-off feature is missing from it, and opening it writes nothing.
+ * it in either language, a switched-off feature is missing from it, and opening it writes nothing. Turning the shop off
+ * says how many prizes players still hold (T-602d).
  */
 
 async function openEvent(page: Page, project: string): Promise<string> {
@@ -72,6 +73,9 @@ test("a switched-off feature is missing from the preview, in English and in Arab
     await page.getByRole("checkbox", { name }).uncheck();
     await expect(page.getByRole("checkbox", { name })).not.toBeChecked();
   }
+  await expect(
+    page.getByRole("status").filter({ hasText: "The shop is off. Prizes still to collect: 0" }),
+  ).toBeVisible();
   await page.reload();
   await expect(
     page.getByRole("checkbox", { name: "Show the shop in the event" }),
