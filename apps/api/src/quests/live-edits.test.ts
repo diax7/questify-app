@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PAST_POINTS_TYPES, liveEditRefusal, partKey } from "#src/quests/live-edits";
+import { LiveEditError, PAST_POINTS_TYPES, liveEditRefusal } from "#src/quests/live-edits";
 
 describe("liveEditRefusal (T-604)", () => {
   it("maps each refusal of the past, delete and impact doors to its answer", () => {
@@ -40,10 +40,12 @@ describe("liveEditRefusal (T-604)", () => {
   });
 });
 
-describe("partKey (T-604)", () => {
-  it("keeps the request's key for the first call and numbers the next ones", () => {
-    expect(partKey("k", 1)).toBe("k");
-    expect(partKey("k", 2)).toBe("k#2");
-    expect(partKey("k", 3)).toBe("k#3");
+describe("LiveEditError (T-604)", () => {
+  it("carries the door's refusal and its cause", () => {
+    const cause = { code: "AQ404" };
+    const error = new LiveEditError({ kind: "not_found" }, cause);
+    expect(error).toBeInstanceOf(Error);
+    expect(error.refusal).toEqual({ kind: "not_found" });
+    expect(error.cause).toBe(cause);
   });
 });

@@ -2188,7 +2188,8 @@ const PAYER_MAP: Readonly<Record<string, string>> = {
   bulk_award: "never: a point award from the team",
   session_check_in: "never: a session's points on check-in (T-505b)",
   write_removal: "never: copies the reversed entry's boost (removal test)",
-  apply_past_points: "never: an adjust names no boost; its target uses the quest entry's boost (T-604)",
+  apply_past_points:
+    "never: an adjust names no boost; its target uses the quest entry's boost (T-604)",
   reserve_reward: "never: a spend",
   end_reservation: "never: a spend returned",
   finish_handover: "never: a hand-over",

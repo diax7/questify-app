@@ -1514,7 +1514,6 @@ export const boostInUse = make(
   "لهذه الفئة مضاعفة نقاط، فلا يمكن حذفها.",
   "This category has a boost, so it can't be deleted.",
 );
-/** Launch or End now on a quest that is not a flash quest (T-307). */
 /** New points in a live event with real completions: future completions only, or also past (T-604, FR-411). */
 export const applyRequired = make(
   409,
@@ -1550,6 +1549,7 @@ export const notInOrder = make(
   "يمكن تخطي خطوة في فئة مرتبة فقط.",
   "Only a step in an in-order category can be skipped.",
 );
+/** Launch or End now on a quest that is not a flash quest (T-307). */
 export const notFlashQuest = make(
   422,
   "not_flash",

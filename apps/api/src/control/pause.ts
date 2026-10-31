@@ -23,6 +23,7 @@ export function switchRefusalOf(pg: Readonly<{ code?: string }>): SwitchRefusal 
   switch (pg.code) {
     case "AN404":
     case "AQ404":
+    case "QX409":
       return { kind: "not_found" };
     case "QE409":
       return { kind: "event_closed" };

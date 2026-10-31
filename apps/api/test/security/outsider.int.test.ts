@@ -415,6 +415,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "edited_quest",
       "past_points_rows",
       "past_points_type",
+      "past_points_wanted",
       "pin_quest",
       "quest_deleted_frozen",
       "removal_nets",

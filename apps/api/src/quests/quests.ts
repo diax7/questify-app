@@ -27,6 +27,7 @@ import {
 } from "#src/quests/builder";
 import { setFirstBonus } from "#src/quests/first-bonus";
 import {
+  PAST_KEY_MAX,
   PAST_POINTS_TYPES,
   applyPast,
   deletePlayed,
@@ -59,6 +60,8 @@ export type EditedQuest = Readonly<{ quest: BuilderQuest; change: PastChange | n
 /**
  * Which points choice an edit runs, or its refusal: "also past" only on a type paid the quest's points per completion
  * and with a key; new points in a live event whose quest has real completions must say which (409 apply_required).
+ * "Also past" on a quest no real player completed has nothing to reach and runs as future-only: it writes no change
+ * row, so the quest can still be deleted outright.
  */
 async function pointsChoice(
   client: PoolClient,
@@ -68,23 +71,30 @@ async function pointsChoice(
   key: string | undefined,
 ): Promise<"future" | "past" | Refused> {
   if (input.apply === "past") {
-    return pastAllowed(current, key);
+    const allowed = pastAllowed(current, key);
+    return allowed === "past" && !(await playedForReal(client, current)) ? "future" : allowed;
   }
-  const changing = input.points !== undefined && input.points !== current.points;
-  if (input.apply !== undefined || !changing || !live) {
+  if (input.apply !== undefined || !live || !changesPoints(current, input)) {
     return "future";
   }
-  return (await completionsOf(client, { questId: current.id })) === "real"
-    ? { kind: "apply_required" }
-    : "future";
+  return (await playedForReal(client, current)) ? { kind: "apply_required" } : "future";
 }
 
-/** "Also past" only on a type paid the quest's points per completion, and with a key. */
+const playedForReal = async (client: PoolClient, quest: QuestRecord): Promise<boolean> =>
+  (await completionsOf(client, { questId: quest.id })) === "real";
+
+const changesPoints = (current: QuestRecord, input: QuestInput): boolean =>
+  input.points !== undefined && input.points !== current.points;
+
+/** "Also past" only on a type paid the quest's points per completion, and with a key of at most PAST_KEY_MAX. */
 function pastAllowed(current: QuestRecord, key: string | undefined): "past" | Refused {
   if (!PAST_POINTS_TYPES.includes(current.type)) {
     return { kind: "invalid", field: "apply" };
   }
-  return key === undefined ? { kind: "key_required" } : "past";
+  if (key === undefined) {
+    return { kind: "key_required" };
+  }
+  return key.length > PAST_KEY_MAX ? { kind: "key_invalid" } : "past";
 }
 
 type EditTarget = Target & Readonly<{ key?: string | undefined }>;
@@ -252,6 +262,12 @@ export function createQuest(
 }
 
 /**
+ * The quest's lock for an edit, after the event's: FOR UPDATE at once for "also past" (the lock the past door takes, so
+ * it is never upgraded while scans hold KEY SHARE), else FOR NO KEY UPDATE.
+ */
+const lockFor = (input: PointsApply): "update" | true => (input.apply === "past" ? "update" : true);
+
+/**
  * Changes a quest (FR-1007), its type excepted; a confirmation while the event is live. A new category must be one of
  * this event's, and the quest goes to its end.
  */
@@ -263,7 +279,7 @@ export function updateQuest(
   caller: Caller,
 ): Promise<Done<EditedQuest>> {
   return withEvent(deps, actor, target.eventId, { change: input }, async (client, event) => {
-    const current = await readQuest(client, target.eventId, target.id, true);
+    const current = await readQuest(client, target.eventId, target.id, lockFor(input));
     if (current === undefined) {
       return { kind: "not_found" };
     }

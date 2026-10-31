@@ -229,7 +229,12 @@ async function withSteps(db: PoolClient, quests: QuestRecord[]): Promise<QuestRe
 /** A deleted quest (T-604) is history: the builder's reads, counts and orders leave it out. */
 const live = (table: "category" | "quest") => (table === "quest" ? " AND deleted_at IS NULL" : "");
 
-const lockClause = (lock: boolean) => (lock ? " FOR NO KEY UPDATE" : "");
+const lockClause = (lock: boolean | "update") => {
+  if (lock === "update") {
+    return " FOR UPDATE";
+  }
+  return lock ? " FOR NO KEY UPDATE" : "";
+};
 
 /**
  * The event of the path, locked with `FOR NO KEY UPDATE`: builder writes on one event go one at a time (the caps and
@@ -287,7 +292,7 @@ export async function readQuest(
   db: PoolClient,
   eventId: string,
   id: string,
-  lock = false,
+  lock: boolean | "update" = false,
 ): Promise<QuestRecord | undefined> {
   const { rows } = await db.query<QuestRow>(
     `SELECT ${QUEST_COLUMNS} FROM quest WHERE event_id = $1 AND id = $2 AND deleted_at IS NULL${lockClause(lock)}`,

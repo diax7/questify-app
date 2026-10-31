@@ -57,6 +57,30 @@ export type LiveEditRefusal =
 
 const whole = (value: unknown): number => Number(value ?? 0);
 
+/**
+ * A refusal raised by the past or delete door inside a builder transaction: thrown so the transaction rolls back, and
+ * answered by the builder only when it came from these doors (another door's AQ404 or AK422 means something else).
+ */
+export class LiveEditError extends Error {
+  readonly refusal: LiveEditRefusal;
+
+  constructor(refusal: LiveEditRefusal, cause: unknown) {
+    super(`live edit refused: ${refusal.kind}`, { cause });
+    this.name = "LiveEditError";
+    this.refusal = refusal;
+  }
+}
+
+/** Runs one call of a live-edit door, turning its refusals into a `LiveEditError`; anything else is thrown as it is. */
+async function liveEditDoor<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    const refusal = liveEditRefusal(error as { code?: string; hint?: string });
+    throw refusal === undefined ? error : new LiveEditError(refusal, error);
+  }
+}
+
 /** The SQLSTATEs of the past, delete and impact doors as refusals; undefined for anything else. */
 export function liveEditRefusal(
   pg: Readonly<{ code?: string; hint?: string }>,
@@ -124,12 +148,14 @@ export async function pastReplay(
 /** Entries one call of the past door writes at most: about 1.5 s each, well under the statement timeout (ADR-387). */
 export const PAST_BATCH = 2000;
 
-/** The key of the past door's `part`-th call: the request's own key first, then `key#2`, `key#3`. */
-export const partKey = (key: string, part: number): string => (part === 1 ? key : `${key}#${part}`);
+/** The longest key "also past" takes: the door stores its later calls as `key#2`, `key#3` within 255 characters. */
+export const PAST_KEY_MAX = 240;
 
 /**
- * Runs "also past" for the quest's points as this transaction wrote them, calling the door again while it reports
- * `more` (each call its own statement, in this transaction). Refusals throw (see `liveEditRefusal`).
+ * Runs "also past" for the quest's points as this transaction wrote them, calling the door again with the next part
+ * while it reports `more` (each call its own statement, in this transaction; the door keys them `key#2`, `key#3`).
+ * Players and clamped come from part 1 alone, so the parts' sum is the answer a replay gives. Refusals throw a
+ * `LiveEditError`.
  */
 export async function applyPast(
   client: PoolClient,
@@ -143,23 +169,26 @@ export async function applyPast(
 ): Promise<PastChange> {
   const total = { completions: 0, players: 0, raised: 0, lowered: 0, clamped: 0, replayed: false };
   for (let part = 1; ; part += 1) {
-    const { rows } = await client.query<ChangeRow & { replayed: boolean; more: boolean }>(
-      "SELECT * FROM apply_past_points($1, $2, $3, $4, $5, $6)",
-      [
-        target.eventId,
-        target.questId,
-        target.fromPoints,
-        partKey(target.key, part),
-        target.requestId,
-        PAST_BATCH,
-      ],
+    const { rows } = await liveEditDoor(() =>
+      client.query<ChangeRow & { replayed: boolean; more: boolean }>(
+        "SELECT * FROM apply_past_points($1, $2, $3, $4, $5, $6, $7)",
+        [
+          target.eventId,
+          target.questId,
+          target.fromPoints,
+          target.key,
+          target.requestId,
+          PAST_BATCH,
+          part,
+        ],
+      ),
     );
     const row = rows[0] as ChangeRow & { replayed: boolean; more: boolean };
     total.completions += row.completions;
     total.players += row.players;
     total.raised += row.raised;
     total.lowered += row.lowered;
-    total.clamped = Math.max(total.clamped, row.clamped);
+    total.clamped += row.clamped;
     total.replayed = row.replayed;
     if (!row.more) {
       return total;
@@ -167,14 +196,16 @@ export async function applyPast(
   }
 }
 
-/** Deletes a played quest, keeping or removing its points. Refusals throw (see `liveEditRefusal`). */
+/** Deletes a played quest, keeping or removing its points. Refusals throw a `LiveEditError`. */
 export async function deletePlayed(
   client: PoolClient,
   target: Readonly<{ eventId: string; questId: string; remove: boolean; requestId: string }>,
 ): Promise<DeleteOutcome> {
-  const { rows } = await client.query<{ removed: number; total: string }>(
-    "SELECT * FROM delete_played_quest($1, $2, $3, NULL, $4)",
-    [target.eventId, target.questId, target.remove, target.requestId],
+  const { rows } = await liveEditDoor(() =>
+    client.query<{ removed: number; total: string }>(
+      "SELECT * FROM delete_played_quest($1, $2, $3, NULL, $4)",
+      [target.eventId, target.questId, target.remove, target.requestId],
+    ),
   );
   const row = rows[0];
   return { removed: row?.removed ?? 0, total: whole(row?.total) };

@@ -20,7 +20,6 @@ export type ConventionOptions = Readonly<{
 
 type Claim = Readonly<{ scope: string; key: string }>;
 
-/** PostgreSQL lock_timeout (55P03), statement_timeout (57014) and too many connections (53300): a busy database, not a bug. */
 /**
  * Database errors a retry can fix: a lock or statement timeout, too many connections, and a deadlock or serialization
  * failure (Postgres aborts one side of a rare crossed lock order, ADR-211). Answered 503 busy with Retry-After.
@@ -58,6 +57,9 @@ export function loggableError(error: Error): Record<string, unknown> {
  */
 const KEY_FORMAT = /^(?!sub:|quiz:|pass:|meet:|game:|practice:)[\x21-\x7e]{1,255}$/;
 const APP_VERSION = /^[0-9]+(\.[0-9]+){1,2}$/;
+
+/** Whether a key has the shape every Idempotency-Key must have, for a route that reads its key itself. */
+export const isIdempotencyKey = (key: string): boolean => KEY_FORMAT.test(key);
 
 const headerValue = (value: string | string[] | undefined): string | undefined =>
   Array.isArray(value) ? value[0] : value;
@@ -116,7 +118,7 @@ export function registerConventions(app: FastifyInstance, options: ConventionOpt
         en: "This action needs an Idempotency-Key header.",
       });
     }
-    if (!KEY_FORMAT.test(key)) {
+    if (!isIdempotencyKey(key)) {
       throw idempotencyKeyInvalid();
     }
     const scope = principal(request);

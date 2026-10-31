@@ -28,6 +28,7 @@ import {
   belowGiven,
   invalidFirstBonus,
   applyRequired,
+  idempotencyKeyInvalid,
   idempotencyKeyReused,
   overCap,
   pastKeyRequired,
@@ -36,6 +37,7 @@ import {
   resultsFinal,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
+import { isIdempotencyKey } from "#src/conventions";
 import { locationQuestsOn } from "#src/completions/complete";
 import { organizerContextOf } from "#src/organizers/context";
 import {
@@ -267,38 +269,25 @@ function answer<T>(
   }
 }
 
+/** The live points edits' refusals that carry nothing (T-604). */
+const LIVE_EDIT_ERRORS = {
+  apply_required: applyRequired,
+  points_choice_required: pointsChoiceRequired,
+  key_required: pastKeyRequired,
+  key_invalid: idempotencyKeyInvalid,
+  event_not_live: pastNotLive,
+  results_final: resultsFinal,
+  key_reused: idempotencyKeyReused,
+} as const;
+
 /** The live points edits' refusals (T-604). */
 function liveEditAnswer(
-  result: Extract<
-    Refused,
-    {
-      kind:
-        | "apply_required"
-        | "points_choice_required"
-        | "key_required"
-        | "event_not_live"
-        | "results_final"
-        | "key_reused"
-        | "over_cap";
-    }
-  >,
+  result: Extract<Refused, { kind: keyof typeof LIVE_EDIT_ERRORS | "over_cap" }>,
 ): never {
-  switch (result.kind) {
-    case "apply_required":
-      throw applyRequired();
-    case "points_choice_required":
-      throw pointsChoiceRequired();
-    case "key_required":
-      throw pastKeyRequired();
-    case "event_not_live":
-      throw pastNotLive();
-    case "results_final":
-      throw resultsFinal();
-    case "key_reused":
-      throw idempotencyKeyReused();
-    case "over_cap":
-      throw overCap({ cap: "each", limit: result.limit });
+  if (result.kind === "over_cap") {
+    throw overCap({ cap: "each", limit: result.limit });
   }
+  throw LIVE_EDIT_ERRORS[result.kind]();
 }
 
 const empty = (reply: FastifyReply) => () => reply.code(204).send();
@@ -400,10 +389,14 @@ function registerQuestRoutes(scope: FastifyInstance, deps: BuilderDeps & SwitchD
     const { eventId, questId } = parse(questParams, request.params);
     const body = parse(questPatch, request.body);
     const key = request.headers["idempotency-key"];
+    const given = typeof key === "string" && key.length > 0 ? key : undefined;
+    if (given !== undefined && !isIdempotencyKey(given)) {
+      throw idempotencyKeyInvalid();
+    }
     const result = await updateQuest(
       deps,
       organizerContextOf(request),
-      { eventId, id: questId, key: typeof key === "string" && key.length > 0 ? key : undefined },
+      { eventId, id: questId, key: given },
       body,
       callerOf(request),
     );

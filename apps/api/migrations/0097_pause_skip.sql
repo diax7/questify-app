@@ -43,7 +43,7 @@ CREATE TRIGGER category_skip_cleared AFTER UPDATE OF order_mode ON category
   FOR EACH ROW WHEN (NEW.order_mode <> 'in_order') EXECUTE FUNCTION category_skip_cleared();
 
 -- The quest of this event for the team's room doors, locked FOR UPDATE; the event not ended or archived (as the builder:
--- QE409 event_closed). AQ404 for a quest outside the event.
+-- QE409 event_closed). AQ404 for a quest outside the event (0098 restates it to leave deleted quests out too).
 CREATE FUNCTION room_quest(ev event, target_quest uuid) RETURNS quest
   LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 DECLARE

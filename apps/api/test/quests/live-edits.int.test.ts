@@ -164,6 +164,44 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits over HTTP", 
     expect(edited.statusCode).toBe(200);
   });
 
+  it("runs also past on a quest nobody played as future only, so it can still be deleted outright", async () => {
+    const fresh = await played(0);
+    const path = `/events/${fresh.event}/quests/${fresh.quest}`;
+    const edited = await call(
+      "PATCH",
+      path,
+      { points: 150, confirm: true, apply: "past" },
+      { "idempotency-key": randomUUID() },
+    );
+    expect(edited.statusCode).toBe(200);
+    expect(edited.json()).not.toHaveProperty("change");
+    const changes = await owner("SELECT 1 FROM quest_points_change WHERE quest_id = $1", [
+      fresh.quest,
+    ]);
+    expect(changes).toHaveLength(0);
+    expect((await call("DELETE", path, { confirm: true })).statusCode).toBe(204);
+    expect(await owner("SELECT 1 FROM quest WHERE id = $1", [fresh.quest])).toHaveLength(0);
+  });
+
+  it("refuses a malformed key, and a key too long for also past's parts, before any write", async () => {
+    const { event, quest } = await played(1);
+    const path = `/events/${event}/quests/${quest}`;
+    const body = { points: 150, confirm: true, apply: "past" };
+    for (const key of ["sub:mine", "has space", "k".repeat(241)]) {
+      const refused = await call("PATCH", path, body, { "idempotency-key": key });
+      expect([refused.statusCode, refused.json().code], key).toEqual([
+        400,
+        "idempotency_key_invalid",
+      ]);
+    }
+    const [stored] = await owner<{ points: number }>("SELECT points FROM quest WHERE id = $1", [
+      quest,
+    ]);
+    expect(stored?.points).toBe(100);
+    const ran = await call("PATCH", path, body, { "idempotency-key": `a%_${"k".repeat(237)}` });
+    expect(ran.json()).toMatchObject({ change: { completions: 1, raised: 1 } });
+  });
+
   it("answers the impact of new points with real numbers", async () => {
     const { event, quest } = await played(2);
     const impact = await call("GET", `/events/${event}/quests/${quest}/impact?points=60`);

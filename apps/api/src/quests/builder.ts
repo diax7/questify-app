@@ -1,4 +1,4 @@
-import { liveEditRefusal, type LiveEditRefusal } from "#src/quests/live-edits";
+import { LiveEditError, type LiveEditRefusal } from "#src/quests/live-edits";
 import {
   PLACED_QUEST_TYPES,
   QUEST_TYPES,
@@ -142,6 +142,8 @@ export type Refused =
   | Readonly<{ kind: "points_choice_required" }>
   /** "Also past" goes with an Idempotency-Key (T-604). */
   | Readonly<{ kind: "key_required" }>
+  /** The Idempotency-Key is malformed, or longer than "also past" takes (T-604). */
+  | Readonly<{ kind: "key_invalid" }>
   | LiveEditRefusal;
 
 export type Done<T> = Readonly<{ kind: "done"; value: T }> | Refused;
@@ -533,7 +535,15 @@ export async function withEvent<T>(
 function laterRefusal(
   pg: Readonly<{ code?: string; table?: string; detail?: string; hint?: string }>,
 ): Refused | undefined {
-  return firstBonusRefusal(pg) ?? souvenirUseRefusal(pg) ?? liveEditRefusal(pg);
+  // A quest deleted by a mark between the read and the write is frozen (QX409, migration 0098): gone to the caller.
+  if (pg.code === "QX409") {
+    return { kind: "not_found" };
+  }
+  return (
+    firstBonusRefusal(pg) ??
+    souvenirUseRefusal(pg) ??
+    (pg instanceof LiveEditError ? pg.refusal : undefined)
+  );
 }
 
 /**
