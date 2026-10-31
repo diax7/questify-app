@@ -36,13 +36,13 @@ import {
 } from "#src/quests/store";
 import type { PoolClient } from "pg";
 
-const nameView = (category: CategoryRecord) => ({
+export const nameView = (category: CategoryRecord) => ({
   nameAr: category.name.ar,
   nameEn: category.name.en,
 });
 
 /** What the audit log records of a category: its name and its rules. */
-const categoryView = (category: CategoryRecord) => ({
+export const categoryView = (category: CategoryRecord) => ({
   ...nameView(category),
   orderMode: category.orderMode,
   opensAt: category.opensAt?.toISOString() ?? null,

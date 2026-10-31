@@ -378,7 +378,9 @@ export const isInvalid = (
  * What an audit entry keeps of a quest. An entry code is a secret, and the audit refuses any `code` key: the entry
  * says only that one is set (`entryCode`), and an edit that changes it says so (`codeChanged`).
  */
-export function auditView(quest: QuestRecord): Record<string, unknown> {
+export function auditView(
+  quest: QuestFields & Pick<QuestRecord, "type" | "steps">,
+): Record<string, unknown> {
   const { code, ...config } = quest.config;
   return {
     categoryId: quest.categoryId,

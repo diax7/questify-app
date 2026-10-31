@@ -54,6 +54,7 @@ import { registerModerationRoutes } from "#src/moderation/routes";
 import type { OperatorsDeps } from "#src/operators/operators";
 import { registerOperatorRoutes } from "#src/operators/routes";
 import type { QuestCodeKey, RevealCodeKey, StepCodeKey } from "#src/quests/qr";
+import { registerChangeSetRoutes } from "#src/change-sets/routes";
 import { registerBuilderRoutes } from "#src/quests/routes";
 import type { RewardCodeKey } from "#src/rewards/codes";
 import { createControlReader } from "#src/control/control";
@@ -260,6 +261,11 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
         settings: deps.settings,
       });
       registerRewardBuilderRoutes(scope, { pool: deps.pool, codeKey: deps.rewardCodeKey });
+      registerChangeSetRoutes(scope, {
+        pool: deps.pool,
+        codeKey: deps.rewardCodeKey,
+        settings: deps.settings,
+      });
       registerHeldPrizesTeamRoute(scope, { pool: deps.pool });
       registerControlTeamRoutes(scope, createControlReader({ pool: deps.pool }), {
         pool: deps.pool,

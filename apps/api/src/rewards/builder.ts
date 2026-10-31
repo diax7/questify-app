@@ -178,7 +178,7 @@ const recordOf = (row: RewardRow): RewardRecord => ({
 });
 
 /** What the audit log keeps of a reward: its settings, never who reserved it. */
-const auditView = (reward: RewardRecord): Record<string, unknown> => ({
+export const auditView = (reward: RewardRecord): Record<string, unknown> => ({
   kind: reward.kind,
   name: reward.name,
   description: reward.description,
@@ -280,13 +280,15 @@ function withRewardEvent<T>(
   );
 }
 
-async function readReward(
+/** An active reward of the event, locked for an edit unless `lock` is false (a read for a review). */
+export async function readReward(
   client: PoolClient,
   eventId: string,
   id: string,
+  lock = true,
 ): Promise<RewardRecord | undefined> {
   const { rows } = await client.query<RewardRow>(
-    `SELECT ${COLUMNS} FROM reward WHERE event_id = $1 AND id = $2 AND status = 'active' FOR UPDATE`,
+    `SELECT ${COLUMNS} FROM reward WHERE event_id = $1 AND id = $2 AND status = 'active'${lock ? " FOR UPDATE" : ""}`,
     [eventId, id],
   );
   return rows[0] === undefined ? undefined : recordOf(rows[0]);

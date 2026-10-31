@@ -75,13 +75,13 @@ const rewardFields = {
   section: z.enum(SECTIONS).nullable().optional(),
   tags: z.strictObject({ new: z.boolean().optional(), limited: z.boolean().optional() }).optional(),
 };
-const rewardBody = z.strictObject({
+export const rewardBody = z.strictObject({
   ...rewardFields,
   kind: z.enum(REWARD_KINDS),
   name: text(120),
   price: z.number().int().min(1).max(1_000_000),
 });
-const rewardPatch = z.strictObject(rewardFields);
+export const rewardPatch = z.strictObject(rewardFields);
 const deskBody = z.strictObject({
   location: text(200).optional(),
   pin: z
@@ -157,7 +157,7 @@ const BUILDER_REFUSALS: {
   shop_window_locked: (result) => shopWindowLocked({ reason: result.reason }),
 };
 
-function answer<T>(result: RewardDone<T>, ok: (value: T) => unknown): unknown {
+export function answer<T>(result: RewardDone<T>, ok: (value: T) => unknown): unknown {
   if (result.kind === "done") {
     return ok(result.value);
   }

@@ -2075,3 +2075,26 @@ export const invalidCheer = make(
   "تحقق من التشجيع أو مدة اللحظة.",
   "Check the cheer or the moment's length.",
 );
+
+// ---------------------------------------------------------------- change sets (T-604b)
+/** The set is applied or closed: it no longer takes an apply or a close. */
+export const changeSetFinished = make(
+  409,
+  "change_set_finished",
+  "انتهت مجموعة التغييرات هذه، فلا يمكن تطبيقها أو إغلاقها مرة أخرى.",
+  "This change set is finished: it cannot be applied or closed again.",
+);
+/** Another apply of the same set is running. */
+export const changeSetBusy = make(
+  409,
+  "change_set_busy",
+  "يجري تطبيق هذه المجموعة الآن. انتظر لحظات ثم حدّث الصفحة.",
+  "This change set is being applied right now. Wait a moment and refresh.",
+);
+/** `field` names what is wrong: items (the list), or itemIds (an id that is not a pending item of the set). */
+export const invalidChangeSet = make(
+  422,
+  "invalid_change_set",
+  "راجع مجموعة التغييرات: الحقل المحدد غير صالح.",
+  "Check the change set: the named field is not valid.",
+);

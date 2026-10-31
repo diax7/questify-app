@@ -73,8 +73,8 @@ const text = (max: number) =>
   z.strictObject({ ar: z.string().max(max).optional(), en: z.string().max(max).optional() });
 const confirm = z.boolean().optional();
 
-const categoryBody = z.strictObject({ name: text(120), confirm });
-const categoryPatch = z.strictObject({
+export const categoryBody = z.strictObject({ name: text(120), confirm });
+export const categoryPatch = z.strictObject({
   name: text(120).optional(),
   orderMode: z.enum(["any", "in_order"]).optional(),
   opensAt: localTime.nullable().optional(),
@@ -85,7 +85,7 @@ const categoryPatch = z.strictObject({
   itemId: z.uuid().nullable().optional(),
   confirm,
 });
-const categoryDelete = z
+export const categoryDelete = z
   .strictObject({ quests: z.enum(["move", "delete"]).optional(), to: z.uuid().optional(), confirm })
   .default({});
 const questFields = {
@@ -127,14 +127,14 @@ const questFields = {
     .nullable()
     .optional(),
 };
-const questBody = z.strictObject({
+export const questBody = z.strictObject({
   ...questFields,
   categoryId: z.uuid(),
   type: z.string().min(1).max(40),
   title: text(120),
   points: z.number().int().min(0).max(100_000),
 });
-const questPatch = z.strictObject({
+export const questPatch = z.strictObject({
   ...questFields,
   categoryId: z.uuid().optional(),
   confirm,
@@ -142,7 +142,7 @@ const questPatch = z.strictObject({
   apply: z.enum(["future", "past"]).optional(),
 });
 // A played quest's delete keeps or removes its points (T-604, FR-412).
-const deleteBody = z
+export const deleteBody = z
   .strictObject({ confirm, points: z.enum(["keep", "remove"]).optional() })
   .default({});
 const impactQuery = z.strictObject({ points: z.coerce.number().int().min(0).max(100_000) });
@@ -208,7 +208,7 @@ const questView = (quest: BuilderQuest) => ({
  * The answer for a result: its value through `ok`, or the error that names the refusal. A field is named as the
  * category's on the category routes and as the quest's elsewhere (both have an `opensAt`).
  */
-function answer<T>(
+export function answer<T>(
   result: Done<T>,
   ok: (value: T) => unknown,
   subject: "quest" | "category" = "quest",

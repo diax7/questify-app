@@ -430,6 +430,56 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  change_set: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO change_set (organizer_id, event_id, created_by) VALUES ($1, $2, $3)",
+          values: [f.orgB, f.eventB, f.staffA],
+        }),
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden: "players never read change sets: they hold no staff seat (T-604b)",
+        forge: (f) => ({
+          sql: "INSERT INTO change_set (organizer_id, event_id, created_by) VALUES ($1, $2, $3)",
+          values: [f.orgA, f.eventA, f.staffA],
+        }),
+      },
+    ],
+  },
+  change_set_item: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO change_set_item (change_set_id, organizer_id, event_id, position, op, target, body) VALUES (gen_random_uuid(), $1, $2, 0, 'add', 'quest', '{}')",
+          values: [f.orgB, f.eventB],
+        }),
+      },
+      {
+        seat: "player",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        ownRowsHidden: "players never read change sets: they hold no staff seat (T-604b)",
+        forge: (f) => ({
+          sql: "INSERT INTO change_set_item (change_set_id, organizer_id, event_id, position, op, target, body) VALUES (gen_random_uuid(), $1, $2, 0, 'add', 'quest', '{}')",
+          values: [f.orgA, f.eventA],
+        }),
+      },
+    ],
+  },
   bulk_award: {
     probes: [
       {
@@ -1353,6 +1403,20 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
     await run(
       "INSERT INTO ledger_note (entry_id, organizer_id, event_id, bulk_id) VALUES ($1, $2, $3, $4)",
       [entry.rows[0]?.id, org, event, bulk.rows[0]?.id],
+    );
+  }
+  // One change set with one item on each side (migration 0099).
+  for (const [org, event, staff] of [
+    [f.orgA, f.eventA, f.staffA],
+    [f.orgB, f.eventB, f.staffB],
+  ] as const) {
+    const set = await run(
+      "INSERT INTO change_set (organizer_id, event_id, created_by) VALUES ($1, $2, $3) RETURNING id",
+      [org, event, staff],
+    );
+    await run(
+      "INSERT INTO change_set_item (change_set_id, organizer_id, event_id, position, op, target, body) VALUES ($1, $2, $3, 0, 'add', 'quest', '{}')",
+      [set.rows[0]?.id, org, event],
     );
   }
   // Rows past their retention, which the sweeps may remove whoever runs them.
