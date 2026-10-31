@@ -70,8 +70,6 @@ const REFUSALS: Readonly<Record<string, (detail: string | undefined) => HttpErro
   PL429: (detail) => sessionError(429, "session_message_limit", { window: detail }),
   // The agenda switch is off (T-505b): the operator's list of sessions says why.
   AG403: () => featureOff(),
-  // A delete that met a paid entry the check missed: the foreign key refuses it, answered as the check would.
-  "23503": () => conflict("has_attendance"),
 };
 
 /** Turns a refusal of the session doors into the API's answer; anything else is rethrown. */
@@ -80,6 +78,15 @@ export function sessionRefusal(error: unknown): never {
   const answer = code === undefined ? undefined : REFUSALS[code];
   if (answer === undefined) throw error;
   throw answer(detail);
+}
+
+/**
+ * The delete door's answer to a foreign-key refusal: a paid entry the check missed, answered as the check would.
+ * Only the delete can meet one, so no other door maps the code.
+ */
+export function deleteRaceRefusal(error: unknown): never {
+  if ((error as Pg).code === "23503") throw conflict("has_attendance");
+  throw error;
 }
 
 /** One statement in a request context: the first row, or the refusal mapped. */

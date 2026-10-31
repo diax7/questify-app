@@ -6729,6 +6729,9 @@ export const MESSAGES = {
   "door.ended": { ar: "انتهت الجلسة", en: "The session has ended" },
   "door.invalid": { ar: "الرمز غير صالح", en: "The code is not valid" },
   "door.refused": { ar: "لا يمكن تسجيل الحضور هنا", en: "Check-in is not possible here" },
+  "door.notLive": { ar: "الفعالية غير مفتوحة الآن", en: "The event is not open now" },
+  "door.agendaOff": { ar: "الجدول متوقف", en: "The agenda is off" },
+  "door.points": { ar: "‎+{points} {currency}", en: "+{points} {currency}" },
   "door.off": {
     ar: "أوقف المنظّم الجدول في هذه الفعالية.",
     en: "The organizer turned the agenda off for this event.",

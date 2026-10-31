@@ -109,7 +109,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     ).toEqual([]);
   });
 
-  it("grants the eight-argument bulk award and its session preview only, never the helpers (T-505b)", async () => {
+  it("grants the eight-argument bulk award and its session preview only, never the helpers (T-505b, T-602c)", async () => {
     const functions = await rows<{
       signature: string;
       app: boolean;
@@ -121,7 +121,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider, prosecdef AS definer
         FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
         WHERE n.nspname = 'public' AND proname IN ('bulk_award', 'bulk_award_eligible', 'member_may_play',
-          'session_bulk_targets', 'session_bulk_count', 'session_points_held') ORDER BY 1`,
+          'polls_off', 'ranking_repair_mark', 'session_bulk_targets', 'session_bulk_count',
+          'session_points_held') ORDER BY 1`,
     );
     expect(functions).toEqual([
       {
@@ -142,6 +143,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         outsider: false,
         definer: false,
       },
+      { signature: "polls_off(uuid)", app: false, outsider: false, definer: false },
+      { signature: "ranking_repair_mark(uuid)", app: false, outsider: false, definer: false },
       { signature: "session_bulk_count(uuid,uuid)", app: true, outsider: false, definer: true },
       {
         signature: "session_bulk_targets(event,uuid)",

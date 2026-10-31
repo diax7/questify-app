@@ -158,6 +158,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("session points (database)", ()
       expect(today?.n).toBe("0");
     });
 
+    it("pays a real member once in the hour before a scheduled event starts", async () => {
+      const scheduled = await f.newEvent({ phase: "scheduled" });
+      await f.owner("UPDATE event SET starts_at = $2 WHERE id = $1", [scheduled, minutes(30)]);
+      const session = await make(
+        40,
+        { startsAt: minutes(35), endsAt: minutes(95), access: "registration", walkIns: true },
+        scheduled,
+      );
+      const { who, enrollment } = await member(scheduled);
+      const op = await operator(scheduled);
+      await f.owner("DELETE FROM ranking_repair WHERE event_id = $1", [scheduled]);
+      expect(await checkIn(op, session, who)).toMatchObject({ outcome: "checked_in", points: 40 });
+      expect(await entries(enrollment)).toEqual([
+        expect.objectContaining({ kind: "session", score_delta: "40", session_id: session }),
+      ]);
+      expect(await checkIn(op, session, who)).toMatchObject({ outcome: "already", points: 40 });
+      expect(await entries(enrollment)).toHaveLength(1);
+      expect(await f.count("ranking_repair WHERE event_id = $1", [scheduled])).toBe(1);
+    });
+
     it("writes no entry for a session without points", async () => {
       const session = await make(0);
       const { who, enrollment } = await member();
@@ -231,20 +251,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("session points (database)", ()
   });
 
   describe("the door refuses", () => {
-    it("refuses outside the play phase and while the agenda is off", async () => {
-      const scheduled = await f.newEvent({ phase: "scheduled" });
-      const early = await make(
-        10,
-        { startsAt: minutes(60 * 30), endsAt: minutes(60 * 31) },
-        scheduled,
-      );
+    it("refuses a draft event and while the agenda is off", async () => {
+      const draft = await f.newEvent({ phase: "scheduled" });
+      const early = await make(10, { startsAt: minutes(60 * 30), endsAt: minutes(60 * 31) }, draft);
       await f.owner("UPDATE event_session SET starts_at = $2, ends_at = $3 WHERE id = $1", [
         early,
         minutes(10),
         minutes(70),
       ]);
-      const real = await member(scheduled);
-      expect(await refusal(checkIn(await operator(scheduled), early, real.who))).toBe(
+      await f.owner("UPDATE event SET status = 'draft' WHERE id = $1", [draft]);
+      const real = await member(draft);
+      expect(await refusal(checkIn(await operator(draft), early, real.who))).toBe(
         "QN403:event_not_live",
       );
       const session = await make(10);

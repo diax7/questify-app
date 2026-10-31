@@ -58,11 +58,17 @@ const OUTCOMES: Readonly<Record<string, Pick<DoorResult, "color" | "message">>> 
   ended: { color: "red", message: "door.ended" },
 };
 
-const INVALID_CODE_REASONS: readonly string[] = ["invalid_code", "old_code"];
+/** The words for the refusals that have their own; any other reason shows the general "not possible here". */
+const REFUSAL_MESSAGES: Readonly<Record<string, MessageKey>> = {
+  invalid_code: "door.invalid",
+  old_code: "door.invalid",
+  event_not_live: "door.notLive",
+  feature_off: "door.agendaOff",
+};
 
 function refusal(reason: string | undefined, username: string | null): DoorResult {
-  const invalid = INVALID_CODE_REASONS.includes(reason ?? "");
-  return { color: "red", message: invalid ? "door.invalid" : "door.refused", username, points: 0 };
+  const message = REFUSAL_MESSAGES[reason ?? ""] ?? "door.refused";
+  return { color: "red", message, username, points: 0 };
 }
 
 /** What the door's answer means: a walk-in is green with its own words; any refusal is red. */

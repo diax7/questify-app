@@ -26,14 +26,16 @@
 ## T-505b session points and T-602c switches in the points doors — 2026-10-31
 
 - **T-505b and T-602c done (tier A; plan review 86 GO, its fixes folded; one code review owed; not run on a phone).**
-  Two migrations, new and undeployed (staging runs through 0092): **0093** (T-505b) a session's `points` (0 to 100000) paid
+  Three migrations, new and undeployed (staging runs through 0092): **0093** (T-505b) a session's `points` (0 to 100000) paid
   by the door once per player and session as ledger kind `session` (the pair is the natural idempotency key; the door reads
   the session `FOR SHARE`, refuses outside the play phase, while the agenda is off and for an inactive account, pays no
   staff member who may not play; `already` answers the points held, 0 after a removal); a paid session cannot be deleted,
   a checked-in player cannot cancel; `bulk_award` (now 8 arguments) gains the session target, filtered by
   `bulk_award_eligible`, shared with the preview `session_bulk_count {count, earlier}`; the readers and the rehearsal card
   know the kind; `ranking_repair_mark` marks the ranking where `mark_ranking_repair` marked nothing for an operator or
-  staff caller (FOLLOWUPS names the other doors). **0094** (T-602c) `reserve_reward` refuses a new reservation while the
+  staff caller. **0095** (review fix) widens `mark_ranking_repair` to the event's organizer seat (inside the member's
+  event limit) and its operators, which repairs `grant_manual_award`, `review_core` and `confirm_results`; the door's
+  phase check accepts a scheduled event for real players (the hour before the start). **0094** (T-602c) `reserve_reward` refuses a new reservation while the
   shop switch is off, `vote_quest`, `member_poll`/`poll_results` and `member_vote` refuse a live poll while polls are off
   (403 `feature_off`); replays and held prizes stand; a parity test proves the database's switch equals the composed
   configuration. Dashboard: points on the Agenda form and import, the Awards session target, the ledger's session line.

@@ -5732,9 +5732,10 @@ count toward the operator's daily cap and read as a hand award) and not the link
 (2) **The idempotency key is natural:** the pair (session, enrollment), a unique index on the ledger. The door takes no
 `Idempotency-Key` (the one exception to the API convention, written in `docs/API.md`): a retry, a double tap or a second
 operator gets `already` with the points the player holds; the attendance row's life never matters to the payment.
-(3) **Paid only while the player may play:** the play phase (live for real players, before go-live for rehearsal
-accounts; QN403 otherwise), the agenda switch on (AG403), an active enrollment and account (QC403), and not a staff
-member who may not play (checked in with 0). No boost, XP, streak day, first-N or community-goal credit; outside every
+(3) **Paid only while the player may play:** the event's phase (scheduled or live for real players, because the
+door opens an hour before a session and a session cannot start before its event; before go-live for rehearsal accounts;
+QN403 otherwise, so a draft, ended or archived event is refused), the agenda switch on (AG403), an active enrollment and
+account (QC403), and not a staff member who may not play (checked in with 0). No boost, XP, streak day, first-N or community-goal credit; outside every
 operator cap. (4) **The session row is read `FOR SHARE`** first, so an edit or a delete waits: the points paid are the
 committed value, and a delete racing a check-in ends as SS404 or PS409, never a foreign-key error. (5) **Undo is a
 removal** (`remove_award`, copying `session_id`): the attendance stays and the pair is never paid again; no un-check-in.
@@ -5744,7 +5745,10 @@ session X": the attendees when the award runs, minus removed payments, through t
 (`bulk_award_eligible`, shared by `bulk_award` and its preview `session_bulk_count`); a second bulk pays everyone again
 and the preview says how many came before. (8) **Readers** name the session on the player's history and the team's
 ledger; the rehearsal card counts the points. (9) **The ranking repair mark** of these doors is written always
-(`ranking_repair_mark`): `mark_ranking_repair` marks nothing when called as an operator or a staff user.
+(`ranking_repair_mark`), because `mark_ranking_repair` marked nothing when called as an operator or a staff user.
+Migration 0095 widens `mark_ranking_repair` to a caller who holds the event's organizer seat (inside their event
+limit) or is one of its operators, which repairs the older doors too (`grant_manual_award`, `review_core`,
+`confirm_results`): a rehearsal board and an ended event's board are rebuilt, not left to the live backstop.
 **Why:** the ledger is the one path for points; a natural key makes double payment impossible whatever the client does.
 **Trade-offs:** an editor can set any session points (no cap, as a quest's points; the audit shows before and after);
 a late arrival after a bulk award gets it from a list; editing points never changes what was paid.

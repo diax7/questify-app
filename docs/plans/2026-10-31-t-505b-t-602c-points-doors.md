@@ -85,8 +85,9 @@ payment. The route stays as it is (no `Idempotency-Key`), and rule 6 holds becau
 3. The event row; **agenda switch**: `NOT feature_enabled(ev, 'agenda')` → `AG403` DETAIL `feature_off` (the door is now
    a points door; ADR-381 left it open). `operator_sessions` refuses the same way so the door app shows why.
 4. My QR version, enrollment, active (as today).
-5. **Event status**: `play_phase(ev, member) IS NULL` → `QN403` DETAIL `event_not_live` (live for real players; a
-   rehearsal account in a draft or scheduled event). Covers ended and archived (FOLLOWUPS item) the station-scan way.
+5. **Event status**: QN403 DETAIL `event_not_live` unless the event is scheduled or live for a real player (the door
+   opens an hour before a session and a session cannot start before its event; review fix), or draft or scheduled for a
+   rehearsal account (`play_phase`). Covers ended and archived (FOLLOWUPS item) the station-scan way.
 6. `too_early` / `ended` / `already` (with `points`) / `not_registered` as today.
 7. Insert attendance. If `target.points > 0` and the player may play (no `staff_assignment` with `NOT can_play`), insert
    the `session` entry (plain INSERT: a unique violation here is a broken invariant and must be loud), then
@@ -225,7 +226,7 @@ stale T-505b note in TASKS ("migration 0087").
 
 **Q-349 - T-505b session points: what is decided without Dhia.** Recommended (developer): (1) a new ledger kind
 `session`, paid by the door once per player and session (the pair is the key; no client key can pay twice); (2) points
-paid only while the player may play: live for real players, before go-live for rehearsal accounts, never to staff who
+paid only while the player may play: scheduled or live for real players, before go-live for rehearsal accounts, never to staff who
 do not play, never while the agenda is off; (3) no boost, XP, streak or community-goal credit; outside operator caps;
 (4) editing a session's points changes future check-ins only; (5) a player checked in cannot cancel the registration;
 (6) staff undo is removing the entry; attendance stays, the player is never paid for that session again, and there is

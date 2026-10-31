@@ -17,6 +17,7 @@ const requester = (answer: AuthedResult) => ({
   request: vi.fn(async (_request: unknown) => answer),
 });
 const player = { username: "sara", avatar: "fox" };
+const refusedFor = (reason: string) => doorResultOf({ result: "refused", reason, player })?.message;
 
 describe("doorResultOf", () => {
   it("shows each outcome in its colour with who was scanned", () => {
@@ -63,6 +64,11 @@ describe("doorResultOf", () => {
       "door.refused",
     );
     expect(doorResultOf({ result: "refused" })?.message).toBe("door.refused");
+  });
+
+  it("gives a closed event and a switched-off agenda their own words (T-505b)", () => {
+    expect(refusedFor("event_not_live")).toBe("door.notLive");
+    expect(refusedFor("feature_off")).toBe("door.agendaOff");
   });
 
   it("does not guess at an answer it does not know", () => {

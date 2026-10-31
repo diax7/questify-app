@@ -13,7 +13,12 @@ import { parse } from "#src/auth/request";
 import { organizerContextOf } from "#src/organizers/context";
 import { requireEventFeature } from "#src/settings/feature-guard";
 import type { SettingsService } from "#src/settings/service";
-import { sessionCall, sessionError, type SessionDeps } from "#src/sessions/store";
+import {
+  deleteRaceRefusal,
+  sessionCall,
+  sessionError,
+  type SessionDeps,
+} from "#src/sessions/store";
 
 const eventParams = z.object({ eventId: z.uuid() });
 const targetParams = eventParams.extend({ sessionId: z.uuid() });
@@ -94,7 +99,7 @@ export function registerSessionTeamRoutes(scope: FastifyInstance, deps: SessionD
       request,
       "SELECT session_delete($1, $2, $3) AS lost",
       [eventId, sessionId, request.id],
-    );
+    ).catch(deleteRaceRefusal);
     return { registrationsLost: result.lost };
   });
   scope.put("/events/:eventId/sessions/:sessionId/registration", writing(deps), async (request) => {

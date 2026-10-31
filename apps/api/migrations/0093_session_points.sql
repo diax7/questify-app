@@ -601,8 +601,9 @@ REVOKE ALL ON FUNCTION member_may_play(event, enrollment) FROM PUBLIC;
 -- As 0086, and the door now pays the session's points (FR-1791). In this order: the session FOR SHARE (a delete or an
 -- edit waits for the check-in to commit, so the points paid are the committed value and a racing delete ends as
 -- SS404 or PS409, never 23503); the operator's checks as before; the agenda switch (AG403 `feature_off`); the scanned
--- player's code, enrollment and account (QC403 for either not active, plan review 86 MINOR 5); the play phase (QN403
--- `event_not_live`: live for real players, before go-live for rehearsal accounts); then the outcomes as before. A new
+-- player's code, enrollment and account (QC403 for either not active, plan review 86 MINOR 5); the event's phase (QN403
+-- `event_not_live`: scheduled or live for real players, because the door opens an hour before a session and a session
+-- cannot start before its event; before go-live for rehearsal accounts); then the outcomes as before. A new
 -- attendance pays `points` when the session has any and the player may play (a staff member who may not play is
 -- checked in with 0). `already` carries the points the player still holds from the session. Each answer that names
 -- the player carries `points` once the time window is passed.
@@ -657,8 +658,10 @@ BEGIN
     RAISE EXCEPTION 'the enrollment is not active' USING ERRCODE = 'QC403', DETAIL = member.status;
   ELSIF NOT EXISTS (SELECT 1 FROM player p WHERE p.id = scanned AND p.status = 'active') THEN
     RAISE EXCEPTION 'the account is not active' USING ERRCODE = 'QC403', DETAIL = 'account';
-  ELSIF play_phase(ev, member) IS NULL THEN
-    RAISE EXCEPTION 'the event is not live' USING ERRCODE = 'QN403', DETAIL = 'event_not_live';
+  ELSIF NOT (CASE WHEN member.joined_via IS NOT DISTINCT FROM 'rehearsal'
+                  THEN play_phase(ev, member) IS NOT NULL
+                  ELSE event_status_now(ev.status, ev.starts_at, ev.ends_at) IN ('scheduled', 'live') END) THEN
+    RAISE EXCEPTION 'the event is not open' USING ERRCODE = 'QN403', DETAIL = 'event_not_live';
   END IF;
   SELECT jsonb_build_object('username', p.username, 'avatar', p.avatar) INTO who FROM player p WHERE p.id = scanned;
   IF now() < target.starts_at - interval '1 hour' THEN

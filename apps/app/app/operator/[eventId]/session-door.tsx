@@ -1,4 +1,4 @@
-import { formatNumber, formatTimeWindow, type Theme } from "@questify/shared";
+import { formatNumber, formatTimeWindow, termFor, type Theme } from "@questify/shared";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -113,6 +113,7 @@ function SessionPicker({
 
 function ResultCover({ result }: Readonly<{ result: DoorResult }>) {
   const { t, language } = useI18n();
+  const { terms } = useOperator();
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={[styles.cover, styles[result.color]]} accessibilityLiveRegion="assertive">
@@ -126,7 +127,10 @@ function ResultCover({ result }: Readonly<{ result: DoorResult }>) {
       )}
       {result.points === 0 ? null : (
         <AppText variant="title" style={styles.coverText}>
-          {t("operator.green", { points: formatNumber(result.points, language) })}
+          {t("door.points", {
+            points: formatNumber(result.points, language),
+            currency: termFor(terms.currency, language, result.points),
+          })}
         </AppText>
       )}
     </View>
