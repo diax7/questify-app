@@ -384,8 +384,8 @@ account erasure. No grant.
 A paused quest refuses every new start (QN403 `paused`); a skipped step leaves the category rules; a deleted quest is
 hidden and frozen (QX409) and stays named by its completions, ledger and history. `quest_points_change (id, organizer_id,
 event_id, quest_id, staff_user_id, from_points, to_points, completions, players, raised, lowered, clamped,
-idempotency_key, request_id, created_at)`: one row per call of "also past", unique (event_id, staff_user_id,
-idempotency_key), append-only, forced RLS and no grants. `ledger_entry` gains the kind `adjust` and `points_change_id`
+idempotency_key, request_id, created_at)`: one row per call of "also past" (part 1 keyed by the request's key, later
+parts `key#2`, `key#3`; players and clamped counted on part 1 only), unique (event_id, staff_user_id, idempotency_key), append-only, forced RLS and no grants. `ledger_entry` gains the kind `adjust` and `points_change_id`
 (its header, checked at commit): one compensating entry per kept completion and change, with `completion_id`,
 `quest_id`, actor `staff`, score and balance deltas of independent signs, one of them possibly 0, never both; unique
 (points_change_id, completion_id). A removal of a quest entry folds its completion's adjusts into both deltas.

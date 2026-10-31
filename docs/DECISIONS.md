@@ -5876,10 +5876,20 @@ streak days stay. A retry finds the quest gone (404), and a second removal of an
 (`FOR KEY SHARE`) before its enrollment lock; the past and delete doors take the quest `FOR UPDATE` after the event's
 `FOR KEY SHARE` and the results check. A scan in flight at the old points is adjusted by the edit that waited for it; a
 scan behind the edit pays the new points; a delete-remove waits for a scan and removes it; `pay_completion` refuses a
-deleted quest. A 6-second stress run of scans and edits on one quest ends with no deadlock and every net at its target.
-(4) **Scale.** About 0.75 ms an entry (measured: 3,000 in 2.2 s). The door writes at most 2,000 entries a call and says
-`more`; the API calls it again in the same transaction (`key#2`, `key#3`), so each statement stays near 1.5 s, under the
-5-second statement timeout; 10,000 completions take five calls, about 8 seconds, during which scans of that one quest wait.
+deleted quest. Race tests run each paying door (scan, bulk award naming the quest, approval, passport stamp, meet, staff
+award, removal) against an "also past" edit of the same quest in both orders: no deadlock, no double or lost pay, every
+balance equal to its ledger; a 6-second stress run of scans, edits and removals on one quest ends with no deadlock and
+every kept net at its target. A bulk award naming a deleted quest is refused (AQ404), and a quest award of one is refused
+by the hidden check (QN403); an amount award names no quest. The room doors (pause, skip) leave a deleted quest out
+(404), and the builder answers a QX409 race as 404. (4) **Scale.** The door locks the quest's players, reads the wanted
+rows once a call, and clamps them in one statement (each player's running sum held at zero, entry by entry in the rows'
+order); at most 2,000 entries are written a call and it says `more`; the API calls it again in the same transaction with
+part 2, 3 (stored as `key#2`, `key#3`; a key is at most 240 characters so these fit). Measured: lowering 3,000
+completions of 500 players who spent (every one clamped) takes two calls, 1.5 s and 0.8 s, each under the 5-second
+statement timeout; 10,000 completions take five calls, about 8 seconds. A clamped remainder is not lost: a later run
+(another edit or a new key) takes it once the player has points again. Part 1 counts the players reached and clamped,
+later parts count 0, so the first answer and a replay give the same sums. The API's `lock_timeout` is 2 seconds: a scan
+of that one quest behind a long edit is refused with 503 (a busy database, retryable) rather than waiting the whole run.
 (5) **Readers.** Community goals count an `adjust` as its quest's points on a points goal; the team's points record shows
 "Points updated" with from -> to; XP (ADR-180), streaks, operator caps and the operator play guard ignore it.
 **Why:** the ledger stays append-only and every change is explained by its own entry; absolute targets make retries,
