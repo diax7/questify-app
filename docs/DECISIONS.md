@@ -5825,4 +5825,8 @@ path; they become **T-603b**, tier A (plan, plan review, build, review, mutation
 **Why:** the smallest build that meets FR-1024, FR-1025 and FR-1028 with no new write path and none of the core.
 **Trade-offs:** a completion shows up to 5 seconds late and a quest's rate up to 30 seconds late; a member removed after
 completing still counts in a quest's rate (capped at 100); the Inbox counter links to one of its two pages; the live poll's
-"open" is Send now on a draft poll in the quest list, not a separate poll builder.
+"open" is Send now on a draft poll in the quest list, not a separate poll builder. (6) **The menu column keeps the open page's
+link in view when a link arrives late.** The Control room link made the desktop column scroll at 1440 by 900, and the
+Invitations link, which appears after its read, then pushed the last link ("Manual awards") out of view; `ShellNav` now
+aligns the open page's link again when the column's links change (ADR-378's alignment ran once, at load). The layout check
+caught it.

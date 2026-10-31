@@ -943,12 +943,6 @@
       "lines": [111]
     }
   },
-  "apps/web/src/components/BoostsPanel.tsx": {
-    "BoostsPanel": {
-      "complexity": [9],
-      "lines": [123]
-    }
-  },
   "apps/web/src/components/CodeStep.tsx": {
     "CodeStep": {
       "complexity": [9],
@@ -1080,8 +1074,8 @@
   },
   "apps/web/src/components/QuestBuilder.tsx": {
     "QuestBuilder": {
-      "complexity": [32],
-      "lines": [284]
+      "complexity": [27],
+      "lines": [225]
     }
   },
   "apps/web/src/components/QuestBuilderParts.tsx": {

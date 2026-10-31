@@ -117,7 +117,7 @@ export function ShellFrame({ brand, topEnd, account, nav, labels, narrow, childr
  * The navigation column: the page's navigation, and on a phone the account links under it. A tap on any link in it
  * calls `close`, since a link to the open page leaves the address as it is and so would leave the sheet open. The
  * column scrolls on its own when its links outgrow the screen; the open page's link is brought into view when the page
- * changes and when the phone's sheet opens, so a long list never hides where the person is.
+ * changes, when the phone's sheet opens and when a link arrives late, so a long list never hides where the person is.
  */
 function ShellNav({
   label,
@@ -136,7 +136,17 @@ function ShellNav({
   const column = useRef<HTMLElement>(null);
   const pathname = usePathname();
   useEffect(() => {
-    column.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest" });
+    const element = column.current;
+    if (element === null) {
+      return undefined;
+    }
+    const reveal = () =>
+      element.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest" });
+    reveal();
+    // A link that arrives after the page opens (the invitations link, a help count) can push the open page's link out of view.
+    const watch = new MutationObserver(reveal);
+    watch.observe(element, { childList: true, subtree: true });
+    return () => watch.disconnect();
   }, [open, pathname]);
   const closeOnLink = (tapped: MouseEvent<HTMLElement>) => {
     if (tapped.target instanceof Element && tapped.target.closest("a") !== null) {

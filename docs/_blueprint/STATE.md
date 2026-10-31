@@ -31,8 +31,14 @@
   pin, the boosts manager and the announcement composer, each with its confirmation; an action whose switch is off is not
   offered. The quest builder, Boosts page and Announcements page now share their parts with it (`useQuestLiveActions`,
   `useReturnFocus`, `BoostsManager`, `useAnnouncementPress`). **Split out:** pausing a quest and skipping a broken step
-  (FR-1026) became **T-603b, tier A** (they change `complete_quest`). ADR-385 and Q-352 Proposed. Mutation targets: none
-  (tier B). Local: TESTS_PLACEHOLDER. CI minutes none yet; agent tokens roughly 0.55M (estimate).
+  (FR-1026) became **T-603b, tier A** (they change `complete_quest`). The desktop menu column now re-aligns the open page's
+  link when a link arrives late (`ShellNav`; the extra link made "Manual awards" fall out of view once Invitations appeared).
+  ADR-385 and Q-352 Proposed. Mutation targets: none
+  (tier B). Local: full vitest 9455 passed, 14 skipped, 29 failed on the first run: 1 failure was the community gate map (the two new 
+  doors added to it; green) and 28 were `invitation-sending.int.test.ts`, which fails inside the full run and passes alone (50 of 50), 
+  flaky under load and not touched by this task (FOLLOWUPS); tsc (shared, api, web), oxlint, format clean; function limits hold 
+  (baseline 307 to 305: the quest builder and boosts page shrank); browser suite 267 passed, 4 skipped, 1 failed (the desktop layout 
+  check, fixed as above), then layout, navigation and `control-room.spec.ts` rerun 14 passed (single worker, 26.5 min for the full run). CI minutes none yet; agent tokens roughly 0.55M (estimate).
   **Next:** T-603b (tier A: plan and plan review first), the T-603 code review, then the next unchecked task in
   `docs/TASKS.md` (T-604).
 
