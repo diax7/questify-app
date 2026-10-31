@@ -268,8 +268,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("duplicate an event (database)"
       [source],
     );
     ref["session"] = await one(
-      `INSERT INTO event_session (organizer_id, event_id, kind, title_en, starts_at, ends_at, access, seats, quest_id, created_by)
-       SELECT organizer_id, id, 'talk', 'Keynote', starts_at + interval '1 hour', starts_at + interval '2 hours', 'registration', 50, $2, $3
+      `INSERT INTO event_session (organizer_id, event_id, kind, title_en, starts_at, ends_at, access, seats, quest_id, created_by, points)
+       SELECT organizer_id, id, 'talk', 'Keynote', starts_at + interval '1 hour', starts_at + interval '2 hours', 'registration', 50, $2, $3, 40
        FROM event WHERE id = $1 RETURNING id`,
       [source, ref["scan"], f.ownerA],
     );
@@ -445,11 +445,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("duplicate an event (database)"
       [target],
     );
     expect(pin?.quest_id).toBe(scan?.id);
-    const [session] = await f.owner<{ quest_id: string }>(
-      "SELECT quest_id FROM event_session WHERE event_id = $1",
+    const [session] = await f.owner<{ quest_id: string; points: number }>(
+      "SELECT quest_id, points FROM event_session WHERE event_id = $1",
       [target],
     );
     expect(session?.quest_id).toBe(scan?.id);
+    expect(session?.points).toBe(40);
     const [tag] = await f.owner<{ quest_id: string }>(
       "SELECT quest_id FROM sponsor_tag WHERE event_id = $1",
       [target],

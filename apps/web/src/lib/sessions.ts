@@ -31,6 +31,8 @@ export type SessionDraft = {
   walkIns: boolean;
   reminderMinutes: string;
   questId: string;
+  /** The points a check-in pays (T-505b); "" is none. */
+  points: string;
 };
 
 export const blankSession = (): SessionDraft => ({
@@ -50,6 +52,7 @@ export const blankSession = (): SessionDraft => ({
   walkIns: false,
   reminderMinutes: "",
   questId: "",
+  points: "",
 });
 
 const localOf = (instant: string | null, zone: string): string =>
@@ -76,6 +79,7 @@ export function draftOf(session: TeamSession, zone: string): SessionDraft {
     walkIns: session.walkIns,
     reminderMinutes: String(session.reminderMinutes),
     questId: orEmpty(session.questId),
+    points: session.points === 0 ? "" : String(session.points),
   };
 }
 
@@ -112,12 +116,21 @@ function momentsOf(draft: SessionDraft, zone: string): Moments | string {
   return { startsAt, endsAt, closesAt };
 }
 
-function bodyOf(
-  draft: SessionDraft,
-  moments: Moments,
-  seats: number | null,
-  reminder: number | null,
-): SessionBody {
+type Numbers = Readonly<{ seats: number | null; reminder: number | null; points: number | null }>;
+
+/** The draft's whole numbers ("" is none), or the first field that is not one. */
+function numbersOf(draft: SessionDraft): Numbers | string {
+  const seats = wholeNumber(draft.seats);
+  const reminder = wholeNumber(draft.reminderMinutes);
+  const points = wholeNumber(draft.points);
+  if (seats === undefined) return "seats";
+  if (reminder === undefined) return "reminderMinutes";
+  if (points === undefined) return "points";
+  return { seats, reminder, points };
+}
+
+function bodyOf(draft: SessionDraft, moments: Moments, numbers: Numbers): SessionBody {
+  const { seats, reminder, points } = numbers;
   const registration = draft.access === "registration";
   return {
     kind: draft.kind,
@@ -139,6 +152,7 @@ function bodyOf(
     walkIns: registration && draft.walkIns,
     ...(reminder === null ? {} : { reminderMinutes: reminder }),
     questId: orNull(draft.questId),
+    points: points ?? 0,
   };
 }
 
@@ -150,11 +164,9 @@ export function sessionPayload(
 ): SessionPayload {
   const moments = momentsOf(draft, zone);
   if (typeof moments === "string") return { ok: false, issue: moments };
-  const seats = wholeNumber(draft.seats);
-  const reminder = wholeNumber(draft.reminderMinutes);
-  if (seats === undefined) return { ok: false, issue: "seats" };
-  if (reminder === undefined) return { ok: false, issue: "reminderMinutes" };
-  const body = bodyOf(draft, moments, seats, reminder);
+  const numbers = numbersOf(draft);
+  if (typeof numbers === "string") return { ok: false, issue: numbers };
+  const body = bodyOf(draft, moments, numbers);
   const checked = sessionBodySchema.safeParse(body);
   if (!checked.success) {
     return { ok: false, issue: String(checked.error.issues[0]?.path[0] ?? "session") };
@@ -184,6 +196,7 @@ const ISSUE_KEYS: Readonly<Record<string, MessageKey>> = {
   closesAt: "sessions.issue.closesAt",
   questId: "sessions.issue.questId",
   reminderMinutes: "sessions.issue.reminderMinutes",
+  points: "sessions.issue.points",
   rows: "sessions.issue.rows",
 };
 
@@ -206,6 +219,7 @@ export function sessionTemplateCsv(): string {
     "",
     "registration",
     "100",
+    "50",
   ];
   return `${SESSION_CSV_COLUMNS.join(",")}\r\n${example.join(",")}\r\n`;
 }

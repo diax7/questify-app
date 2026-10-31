@@ -5,9 +5,32 @@ then one grouped mutation run. Delivers FR-1791 (the points), FR-1712 (the sessi
 Builds on ADR-373 (sessions), ADR-381 (switches), T-207 (`bulk_award`, migration 0030/0032), T-306 (live polls, 0052).
 Proposed at build time: **ADR-382** (T-505b), **ADR-383** (T-602c), **Q-349**, **Q-350** (texts at the end).
 
-**One worker, two commits, two migrations:** **0093** for T-505b, **0094** for T-602c (whichever is built first takes
-0093). Both are new and undeployed; staging runs through 0090. Check STATE.md before editing 0092: if 0092 is deployed by
-then, restate `event_copy_extras` in 0093; if not, add `points` to its session copy in place.
+**One worker, two commits, two migrations:** **0093** for T-505b, **0094** for T-602c. Both are new and undeployed;
+staging runs through 0092 (so 0092 is frozen: the copy of a session's `points` is restated in 0093, never edited in place).
+
+## Plan review 86 (GO): fixes folded in before the build
+
+1. **MAJOR 1.** `ledger_entry_operator_quests_only` (0030:32-34, `actor <> 'operator' OR kind IN ('quest', 'handover',
+   'redeem_return', 'award')`) is restated in 0093 with `session` added; without it every session entry fails with 23514.
+2. **MAJOR 2.** `CREATE INDEX ledger_entry_session_idx ON ledger_entry (session_id) WHERE session_id IS NOT NULL` serves
+   the foreign-key check on a session delete and `session_delete`'s "paid" lookup.
+3. **MINOR 3.** `already` answers `points: 0` when a `removal` reversed the player's `session` entry (the points shown are
+   the points still held); tested.
+4. **MINOR 4.** `rehearsal_card` (0062:901) gains `session` in its kind list. Every latest function body that lists
+   ledger kinds is audited; each is named in the commit message as "added" or "left out, because".
+5. **MINOR 5.** The check-in refuses a scanned player whose account is not active (`QC403`, as the pay paths, 0062:490).
+6. **MINOR 6.** The natural-key idempotency exception (the pair session and enrollment, no client key) is written into
+   `docs/API.md` and ADR-382.
+7. **MINOR 7.** `session_bulk_count` counts through exactly `bulk_award`'s final filter: one shared closed helper
+   `bulk_award_eligible(ev, candidates, rehearsing)` used by both (bulk_award locks the candidates in id order first, then
+   filters through the helper). A session's points change is audited with `before` and `after` (`session.save`).
+8. **NIT 8.** The `session_message` rate-limit item stays in FOLLOWUPS (not this task); `session_message` is not restated.
+9. **NIT 10.** The plpgsql rewrites of `member_poll`/`member_vote` qualify every column (or use `#variable_conflict
+   use_column`) so the output is byte-identical; the existing tests pass unchanged.
+10. **Q-349:** no editor cap on a session's points (the audit is the control). **Q-350:** reservations made before the
+    shop turns off stand; new tier B task **T-602d** (a "Prizes to collect" card on Home from a held-prizes read that is
+    not behind the shop switch, and the shop-off confirmation telling how many prizes players still hold), not built
+    here.
 
 ## The one path for points (what both tasks reuse; nothing new writes points another way)
 

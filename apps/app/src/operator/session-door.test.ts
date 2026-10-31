@@ -32,8 +32,14 @@ describe("doorResultOf", () => {
         color,
         message,
         username: "sara",
+        points: 0,
       });
     }
+  });
+
+  it("carries the session's points on a check-in and a repeat scan (T-505b)", () => {
+    expect(doorResultOf({ result: "checked_in", points: 50, player })?.points).toBe(50);
+    expect(doorResultOf({ result: "already", points: 0, player })?.points).toBe(0);
   });
 
   it("says a walk-in in its own words, and only for a check-in", () => {
@@ -48,6 +54,7 @@ describe("doorResultOf", () => {
       color: "red",
       message: "door.invalid",
       username: null,
+      points: 0,
     });
     expect(doorResultOf({ result: "refused", reason: "old_code", player: null })?.message).toBe(
       "door.invalid",
@@ -74,6 +81,7 @@ describe("fetchDoorSessions", () => {
     endsAt: "2030-11-01T08:00:00.000Z",
     access: "registration",
     walkIns: true,
+    points: 0,
   };
 
   it("reads the sessions the door can check in to", async () => {
@@ -95,6 +103,7 @@ describe("fetchDoorSessions", () => {
     );
     expect((await fetchDoorSessions(requester({ kind: "network" }), ID)).kind).toBe("network");
     expect((await fetchDoorSessions(requester(error("ability_off")), ID)).kind).toBe("network");
+    expect((await fetchDoorSessions(requester(error("feature_off")), ID)).kind).toBe("off");
     expect((await fetchDoorSessions(requester(ok({ sessions: [{ id: 3 }] })), ID)).kind).toBe(
       "network",
     );
@@ -107,7 +116,7 @@ describe("checkInPlayer", () => {
     const answer = await checkInPlayer(api, ID, "code-1");
     expect(answer).toEqual({
       kind: "result",
-      result: { color: "green", message: "door.checkedIn", username: "sara" },
+      result: { color: "green", message: "door.checkedIn", username: "sara", points: 0 },
     });
     expect(api.request).toHaveBeenCalledWith({
       method: "POST",

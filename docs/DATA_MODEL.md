@@ -1415,8 +1415,16 @@ the API role.
 - `event_session(id, organizer_id, event_id, kind talk|workshop|activity, title_ar/en, description_ar/en, place_ar/en (a title in
   one language is enough), speakers text[] (at most 10), starts_at, ends_at (at most 24 h), access open|registration, seats NULL = no
   limit, closes_at NULL = the start, registration_open, walk_ins, reminder_minutes 1 to 1440 (default 15), quest_id (same event; ON DELETE
-  SET NULL), created_by/at, updated_at)`. A CHECK ties an open session to no seats, no closing time and no walk-ins. No price column
-  exists (FR-1789).
+  SET NULL), points 0 to 100000 (T-505b, migration 0093; 0 = none), created_by/at, updated_at)`. A CHECK ties an open session to no
+  seats, no closing time and no walk-ins. No price column exists (FR-1789).
+- **Session points (T-505b, migration 0093, ADR-382).** The ledger kind `session` (CHECK `ledger_entry_session_shape`: `session_id`
+  and `operator_id` set, actor `operator`, `score_delta > 0` and `balance_delta = score_delta`, no completion, quest, category,
+  community step, redemption, boost or `reverses`; `ledger_entry_session_kinds`: only `session` and its `removal` name a session;
+  FK `(session_id, event_id)` → `event_session` ON DELETE RESTRICT). UNIQUE `(session_id, enrollment_id) WHERE kind = 'session'`
+  is the payment's key; `ledger_entry_session_idx (session_id)` serves the foreign key and the delete check. Paid by
+  `session_check_in` with the attendance, at the value read under the session's share lock; never boosted, no XP, no streak day,
+  not in community goals' points, outside every operator cap; removable (`remove_award` copies `session_id`). `bulk_award` gains
+  `session_id` (FK ON DELETE SET NULL, never with `quest_id`): a bulk award to the session's attendees.
 - `session_registration(id, organizer_id, event_id, session_id, enrollment_id ON DELETE CASCADE, player_id, created_at)`, unique per
   session and player. Cancelling deletes the row. It records the player, the session and the time only.
 - `session_attendance(id, organizer_id, event_id, session_id, enrollment_id ON DELETE CASCADE, player_id, operator_id, walk_in,
@@ -1424,9 +1432,10 @@ the API role.
 - `session_message(id, organizer_id, event_id, session_id, frozen title/body in both languages, press (SHA-256 of the
   Idempotency-Key, unique per event), recipients, created_by/at)`: the replay and the rate limit of a message to registrants.
 - Two notice kinds: `session_reminder` (personal, Reminders topic, 2 h) and `session_message` (personal, Announcements topic, 6 h).
-- Forced RLS and no grant on all four tables; every function is closed to PUBLIC, and only twelve doors are granted to the API
+- Forced RLS and no grant on all four tables; every function is closed to PUBLIC, and only thirteen doors are granted to the API
   role (`session_authorize`, `session_save`, `session_import`, `session_delete`, `session_list`, `session_registration_set`,
-  `session_message`, `member_sessions`, `session_register`, `session_cancel`, `session_check_in`, `operator_sessions`). The
+  `session_message`, `member_sessions`, `session_register`, `session_cancel`, `session_check_in`, `operator_sessions`, and
+  `session_bulk_count` from 0093). The
   rehearsal wipe removes registrations and attendance through the enrollment's cascade; the player doors wipe first.
 
 

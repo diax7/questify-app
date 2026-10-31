@@ -40,6 +40,7 @@ const session = (over: Partial<MemberSession> = {}): MemberSession => ({
   access: "registration",
   seats: 10,
   seatsLeft: 4,
+  points: 0,
   registered: false,
   checkedIn: false,
   started: false,

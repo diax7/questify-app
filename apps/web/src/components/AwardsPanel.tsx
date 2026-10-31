@@ -1,6 +1,6 @@
 "use client";
 
-import { formatEventTime, formatNumber, type Language } from "@questify/shared";
+import { formatEventTime, formatNumber, type Language, type TeamSession } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   ConfirmDialog,
@@ -22,6 +22,13 @@ import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
+type SessionOption = Readonly<{ id: string; title: string }>;
+
+const sessionTitle = (session: TeamSession, language: Language): string =>
+  (language === "ar"
+    ? (session.titleAr ?? session.titleEn)
+    : (session.titleEn ?? session.titleAr)) ?? "";
+
 /** The event's report page by page, its caps, its zone and its quests. */
 function useAwards(eventApi: string, language: Language, onFailure: (body: unknown) => void) {
   const loaded = useRef(false);
@@ -30,6 +37,7 @@ function useAwards(eventApi: string, language: Language, onFailure: (body: unkno
   const [caps, setCaps] = useState<Caps | null>(null);
   const [timeZone, setTimeZone] = useState("Asia/Riyadh");
   const [quests, setQuests] = useState<QuestOption[]>([]);
+  const [sessions, setSessions] = useState<SessionOption[]>([]);
   const load = async (cursor: string | null) => {
     const query = cursor === null ? "" : `?cursor=${encodeURIComponent(cursor)}`;
     const result = await requestJson("GET", `${eventApi}/awards${query}`);
@@ -49,6 +57,12 @@ function useAwards(eventApi: string, language: Language, onFailure: (body: unkno
     }
     loaded.current = true;
     void load(null);
+    void requestJson("GET", `${eventApi}/sessions`).then((found) => {
+      const listed = found.ok ? (found.body as { sessions: TeamSession[] }).sessions : [];
+      setSessions(
+        listed.map((session) => ({ id: session.id, title: sessionTitle(session, language) })),
+      );
+    });
     void Promise.all([requestJson("GET", eventApi), requestJson("GET", `${eventApi}/quests`)]).then(
       ([event, found]) => {
         const zone = event.ok
@@ -76,6 +90,7 @@ function useAwards(eventApi: string, language: Language, onFailure: (body: unkno
     setCaps,
     timeZone,
     quests,
+    sessions,
     reload: () => void load(null),
     more: next === null ? null : () => void load(next),
   };
@@ -162,27 +177,112 @@ function CapsCard({
 
 type Preview = Readonly<{
   count: number;
+  /** A session target: the bulk awards already made to it (T-505b). */
+  earlier?: number;
   matched?: readonly Readonly<{ enrollmentId: string; username: string }>[];
   inactive?: readonly string[];
   notFound?: readonly string[];
 }>;
 
+type BulkTargetKind = "list" | "quest" | "session";
+
+const TARGET_LABELS = {
+  list: "awards.bulkList",
+  quest: "awards.bulkQuest",
+  session: "awards.bulkSession",
+} as const;
+
 type BulkDraft = Readonly<{
-  target: "list" | "quest";
+  target: BulkTargetKind;
   lines: string;
   questId: string;
+  sessionId: string;
   points: string;
   reason: string;
 }>;
 
+/** The one target a quest or session draft names, for the preview and the award. */
+function targetBody(draft: BulkDraft): Readonly<Record<string, string>> {
+  return draft.target === "quest" ? { questId: draft.questId } : { sessionId: draft.sessionId };
+}
+
+/** What the preview checks: the typed lines of a list, else the quest or the session. */
+const previewBodyOf = (draft: BulkDraft) =>
+  draft.target === "list" ? { lines: draft.lines } : targetBody(draft);
+
+/** What the award pays: the members a list's check matched, else the quest or the session. */
+const awardTargetOf = (draft: BulkDraft, preview: Preview) =>
+  draft.target === "list"
+    ? { enrollmentIds: (preview.matched ?? []).map((row) => row.enrollmentId) }
+    : targetBody(draft);
+
+/**
+ * The bulk award's draft, with the first quest and the first session picked when none is, and its check: only a new
+ * target needs a new check; the amount and the reason do not.
+ */
+function useBulkDraft(quests: readonly QuestOption[], sessions: readonly SessionOption[]) {
+  const [draft, setDraft] = useState<BulkDraft>({
+    target: "list",
+    lines: "",
+    questId: "",
+    sessionId: "",
+    points: "",
+    reason: "",
+  });
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const shown: BulkDraft = {
+    ...draft,
+    questId: draft.questId === "" ? (quests[0]?.id ?? "") : draft.questId,
+    sessionId: draft.sessionId === "" ? (sessions[0]?.id ?? "") : draft.sessionId,
+  };
+  const change = (next: BulkDraft) => {
+    const moved = (["target", "lines", "questId", "sessionId"] as const).some(
+      (field) => next[field] !== shown[field],
+    );
+    if (moved) setPreview(null);
+    setDraft(next);
+  };
+  return { draft, shown, setDraft, change, preview, setPreview };
+}
+
+function SessionPicker({
+  language,
+  sessions,
+  draft,
+  change,
+}: Readonly<{
+  language: Language;
+  sessions: readonly SessionOption[];
+  draft: BulkDraft;
+  change: (next: BulkDraft) => void;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <Field label={t("awards.bulkSessionPick")}>
+      <Select
+        value={draft.sessionId}
+        onChange={(picked) => change({ ...draft, sessionId: picked.target.value })}
+      >
+        {sessions.map((session) => (
+          <option key={session.id} value={session.id}>
+            {session.title}
+          </option>
+        ))}
+      </Select>
+    </Field>
+  );
+}
+
 function BulkFields({
   language,
   quests,
+  sessions,
   draft,
   change,
 }: Readonly<{
   language: Language;
   quests: readonly QuestOption[];
+  sessions: readonly SessionOption[];
   draft: BulkDraft;
   change: (next: BulkDraft) => void;
 }>) {
@@ -195,17 +295,23 @@ function BulkFields({
   return (
     <>
       <FieldGroup legend={t("awards.what")} layout="choices">
-        {(["list", "quest"] as const).map((target) => (
+        {(["list", "quest", "session"] as const).map((target) => (
           <Radio
             key={target}
             name="bulk-target"
             checked={draft.target === target}
-            disabled={target === "quest" && quests.length === 0}
+            disabled={
+              (target === "quest" && quests.length === 0) ||
+              (target === "session" && sessions.length === 0)
+            }
             onChange={() => change({ ...draft, target })}
-            label={t(target === "list" ? "awards.bulkList" : "awards.bulkQuest")}
+            label={t(TARGET_LABELS[target])}
           />
         ))}
       </FieldGroup>
+      {draft.target === "session" ? (
+        <SessionPicker language={language} sessions={sessions} draft={draft} change={change} />
+      ) : null}
       {draft.target === "list" ? (
         <>
           <Field label={t("awards.bulkLines")}>
@@ -224,7 +330,8 @@ function BulkFields({
             />
           </Field>
         </>
-      ) : (
+      ) : null}
+      {draft.target === "quest" ? (
         <Field label={t("awards.quest")}>
           <Select
             value={draft.questId}
@@ -237,7 +344,7 @@ function BulkFields({
             ))}
           </Select>
         </Field>
-      )}
+      ) : null}
       <Field label={t("awards.amount")}>
         <Input
           inputMode="numeric"
@@ -273,7 +380,18 @@ function PreviewNote({ language, preview }: Readonly<{ language: Language; previ
           {t("awards.inactive", { lines: (preview.inactive ?? []).join("، ") })}
         </Muted>
       )}
+      <EarlierNote language={language} earlier={preview.earlier ?? 0} />
     </div>
+  );
+}
+
+/** A session target that was awarded before: this award pays everyone again (T-505b). */
+function EarlierNote({ language, earlier }: Readonly<{ language: Language; earlier: number }>) {
+  const t = useTranslator(language);
+  return earlier === 0 ? null : (
+    <Notice tone="warning">
+      {t("awards.bulkEarlier", { count: formatNumber(earlier, language) })}
+    </Notice>
   );
 }
 
@@ -282,41 +400,31 @@ function BulkCard({
   language,
   eventApi,
   quests,
+  sessions,
   done,
 }: Readonly<{
   language: Language;
   eventApi: string;
   quests: readonly QuestOption[];
+  sessions: readonly SessionOption[];
   done: () => void;
 }>) {
   const t = useTranslator(language);
-  const [draft, setDraft] = useState<BulkDraft>({
-    target: "list",
-    lines: "",
-    questId: "",
-    points: "",
-    reason: "",
-  });
-  const [preview, setPreview] = useState<Preview | null>(null);
+  const { draft, shown, setDraft, change, preview, setPreview } = useBulkDraft(quests, sessions);
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const key = useRef("");
-  const questId = draft.questId === "" ? (quests[0]?.id ?? "") : draft.questId;
   const points = pointsOf(draft.points);
-  // Only a new target needs a new check; the amount and the reason do not.
-  const change = (next: BulkDraft) => {
-    if (next.target !== draft.target || next.lines !== draft.lines || next.questId !== questId) {
-      setPreview(null);
-    }
-    setDraft(next);
-  };
 
   const check = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage(null);
-    const body = draft.target === "list" ? { lines: draft.lines } : { questId };
-    const result = await requestJson("POST", `${eventApi}/bulk-awards/preview`, body);
+    const result = await requestJson(
+      "POST",
+      `${eventApi}/bulk-awards/preview`,
+      previewBodyOf(shown),
+    );
     if (!result.ok) {
       setMessage({ ok: false, text: problemOf(result.body, language, t) });
       return;
@@ -328,14 +436,10 @@ function BulkCard({
       return;
     }
     setBusy(true);
-    const target =
-      draft.target === "list"
-        ? { enrollmentIds: (preview.matched ?? []).map((row) => row.enrollmentId) }
-        : { questId };
     const result = await requestJson(
       "POST",
       `${eventApi}/bulk-awards`,
-      { ...target, points, reason: draft.reason.trim() },
+      { ...awardTargetOf(shown, preview), points, reason: draft.reason.trim() },
       { "idempotency-key": key.current },
     );
     setBusy(false);
@@ -370,13 +474,15 @@ function BulkCard({
               reason: draft.reason.trim(),
             })}
           </p>
+          {draft.target === "session" ? <Muted>{t("awards.bulkSessionLate")}</Muted> : null}
         </ConfirmDialog>
       ) : null}
       <Form onSubmit={(event) => void check(event)}>
         <BulkFields
           language={language}
           quests={quests}
-          draft={{ ...draft, questId }}
+          sessions={sessions}
+          draft={shown}
           change={change}
         />
         <Button variant="quiet" type="submit">
@@ -479,6 +585,7 @@ export function AwardsPanel({ language, organizerId, eventId, myRole }: Props) {
         language={language}
         eventApi={eventApi}
         quests={awards.quests}
+        sessions={awards.sessions}
         done={awards.reload}
       />
       <Section title={t("awards.report")}>

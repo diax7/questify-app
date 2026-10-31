@@ -4,12 +4,13 @@ import {
   SESSION_ACCESS,
   SESSION_KINDS,
   SESSION_LIMITS,
+  termFor,
   type Language,
   type SessionBody,
   type SessionWindow,
 } from "@questify/shared";
 import { useState } from "react";
-import { useTranslator } from "#src/components/TermsScope.tsx";
+import { useEventTerms, useTranslator } from "#src/components/TermsScope.tsx";
 import { sessionIssueKey, sessionPayload, type SessionDraft } from "#src/lib/sessions.ts";
 import type { QuestChoice } from "#src/lib/use-sessions.ts";
 import { Button } from "#src/ui/Button.tsx";
@@ -21,6 +22,8 @@ type Props = Readonly<{
   language: Language;
   initial: SessionDraft;
   editing: boolean;
+  /** Players already checked in (an edit): the points field then says they keep what they got. */
+  attended: number;
   zone: string;
   window: SessionWindow;
   quests: readonly QuestChoice[];
@@ -200,6 +203,41 @@ function ChoiceFields({
   );
 }
 
+/** The points a check-in pays (FR-1791, T-505b); a change applies to later check-ins only. */
+function PointsField({
+  draft,
+  change,
+  busy,
+  attended,
+  language,
+}: Readonly<{
+  draft: SessionDraft;
+  change: Change;
+  busy: boolean;
+  attended: number;
+  language: Language;
+}>) {
+  const t = useTranslator(language);
+  const terms = useEventTerms();
+  return (
+    <Field
+      label={t("sessions.page.points", { currency: termFor(terms.currency, language) })}
+      help={attended > 0 ? t("sessions.page.pointsNote") : undefined}
+    >
+      <Input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={SESSION_LIMITS.points}
+        placeholder="0"
+        disabled={busy}
+        value={draft.points}
+        onChange={(event) => change("points", event.target.value)}
+      />
+    </Field>
+  );
+}
+
 function ExtraFields({
   draft,
   change,
@@ -292,6 +330,13 @@ export function SessionForm(props: Props) {
             language={language}
           />
         ) : null}
+        <PointsField
+          draft={draft}
+          change={change}
+          busy={busy}
+          attended={props.attended}
+          language={language}
+        />
         <ExtraFields
           draft={draft}
           change={change}

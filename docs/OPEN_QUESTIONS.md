@@ -1582,3 +1582,15 @@ push again. **Decided (developer):** as recommended, ADR-372 accepted (2026-10-3
 ## Q-348 - T-602 switches, accent and preview: what is decided without Dhia (2026-10-31)
 
 **Recommended (developer):** the owner can switch the shop, live polls, maps and agenda off per event; an owner or an editor picks one accent colour from six curated ones (or Questify green), and the dashboard previews Home, Quests and Rewards in Arabic or English. The logo and banner wait for the storage bucket (T-602b, Q-149). **Open:** (1) should the shop switch also refuse a reservation? As built it does not, because the reserve door spends points (tier A) and closing it needs a migration; a player cannot reach it from the app while the shop is off, and a prize already held is still handed over at the desk. (2) Should a vote on a hidden live poll be refused? As built no. (3) FR-1009 says "the owner or an editor"; as built the switches are the owner's, like every switch before them, and the accent is the owner's or an editor's. (4) Which six colours: sky, ember, rose, violet, lagoon, honey were chosen to sit with the brand deck and to pass 4.5:1 with the brand ink; a colour from the organizer's own brand is not possible by design (FR-1023). (5) The public event card and the shared-link image do not carry the accent yet; they need the banner (T-602b) and a change to a database door. **Decided (developer, delegated by Dhia, 2026-10-31):** as built; ADR-381 accepted after the T-602 review (93 GO). The poll vote, poll and vote reads and the shop reserve with their switch off are task T-602c (tier A).
+
+## Q-349 - T-505b session points: what is decided without Dhia (2026-10-31)
+
+**Recommended (developer):** (1) a new ledger kind `session`, paid by the door once per player and session (the pair is
+the key; no client key can pay twice); (2) points are paid only while the player may play: live for real players, before
+go-live for rehearsal accounts, never to staff who do not play, never while the agenda is off; (3) no boost, XP, streak or
+community-goal credit, and outside operator caps; (4) editing a session's points changes future check-ins only; (5) a
+player checked in cannot cancel the registration; (6) staff undo by removing the entry: attendance stays, the player is
+never paid for that session again, and there is no un-check-in; (7) the session bulk target reaches who was checked in
+when it runs, minus removed entries; a second bulk pays again and the confirm screen says how many came before.
+**Open:** should a session with points be capped for an editor, as an editor's award is? Recommended no, as a quest's
+points are not; the audit records every change of the points with the value before and after (ADR-382).

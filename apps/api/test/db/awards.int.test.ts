@@ -241,7 +241,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("manual awards (database)", () 
     (
       await query<{ bulk_id: string; awarded: number; skipped: number; replayed: boolean }>(
         staff(user),
-        "SELECT * FROM bulk_award($1, $2, $3, $4, 'Code failed', $5, $6)",
+        "SELECT * FROM bulk_award($1, $2, $3, NULL, $4, 'Code failed', $5, $6)",
         [event, target.enrollments ?? null, target.quest ?? null, amount, key, randomUUID()],
       )
     )[0];

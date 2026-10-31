@@ -5721,3 +5721,30 @@ the last 60 commits of `main` one by one: 33 needed no browser run, 20 the whole
 **Why:** the switches follow the pattern of the ones before them; refusing at the door means a hidden screen is also a closed one, and hiding in the app means nothing flashes. A curated list makes AA contrast a property of the list. One shared rule is the cheapest way for the preview to match the app and keep matching.
 **Trade-offs:** (a) **Reserving is not refused while the shop is off.** `reserve_reward` is a points door (tier A) and does not know the switch; with the Rewards tab and the shop read gone a player cannot reach it from the app, and a prize already held is still handed over at the desk by the player's My QR. Closing it needs a migration on the points path. (b) **A vote on a hidden live poll is not refused** for the same reason (the card is gone, the door is the quest's). (c) **The public event card does not carry the accent:** it is a database door. (d) The preview is a drawing by the app's rules, not the app: it cannot show a screen's pixels, only what is on it. (e) FR-1009 says "owner or an editor" and the built switches are the owner's; this follows ADR-199 and the later switches.
 **Not built:** the logo and the banner (T-602b, Q-149); layout presets (FR-1764, T-606).
+
+## ADR-382 - T-505b session points: a `session` ledger kind paid once per player and session by the door, and a session bulk target
+
+**Status:** Proposed (worker recommendation, 2026-10-31, T-505b; plan review 86 GO, its fixes folded; Q-349). Builds
+FR-1791 (the points), FR-1712 (the session target). Migration 0093.
+**Decision:** (1) **A new ledger kind `session`,** written by `session_check_in` as the operator who checked the player in,
+in the same transaction as the attendance, for the session's `points` (0 to 100000; 0 writes nothing). Not `award` (it would
+count toward the operator's daily cap and read as a hand award) and not the linked quest (FR-810's quest is separate).
+(2) **The idempotency key is natural:** the pair (session, enrollment), a unique index on the ledger. The door takes no
+`Idempotency-Key` (the one exception to the API convention, written in `docs/API.md`): a retry, a double tap or a second
+operator gets `already` with the points the player holds; the attendance row's life never matters to the payment.
+(3) **Paid only while the player may play:** the play phase (live for real players, before go-live for rehearsal
+accounts; QN403 otherwise), the agenda switch on (AG403), an active enrollment and account (QC403), and not a staff
+member who may not play (checked in with 0). No boost, XP, streak day, first-N or community-goal credit; outside every
+operator cap. (4) **The session row is read `FOR SHARE`** first, so an edit or a delete waits: the points paid are the
+committed value, and a delete racing a check-in ends as SS404 or PS409, never a foreign-key error. (5) **Undo is a
+removal** (`remove_award`, copying `session_id`): the attendance stays and the pair is never paid again; no un-check-in.
+A checked-in player cannot cancel the registration (PS409 `checked_in`). (6) **A paid session cannot be deleted**
+(PS409 `has_attendance`); an archived event's agenda is closed (PE409). (7) **The bulk target** "everyone checked in to
+session X": the attendees when the award runs, minus removed payments, through the same final filter as every bulk award
+(`bulk_award_eligible`, shared by `bulk_award` and its preview `session_bulk_count`); a second bulk pays everyone again
+and the preview says how many came before. (8) **Readers** name the session on the player's history and the team's
+ledger; the rehearsal card counts the points. (9) **The ranking repair mark** of these doors is written always
+(`ranking_repair_mark`): `mark_ranking_repair` marks nothing when called as an operator or a staff user.
+**Why:** the ledger is the one path for points; a natural key makes double payment impossible whatever the client does.
+**Trade-offs:** an editor can set any session points (no cap, as a quest's points; the audit shows before and after);
+a late arrival after a bulk award gets it from a list; editing points never changes what was paid.

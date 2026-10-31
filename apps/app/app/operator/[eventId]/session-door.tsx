@@ -1,4 +1,4 @@
-import { formatTimeWindow, type Theme } from "@questify/shared";
+import { formatNumber, formatTimeWindow, type Theme } from "@questify/shared";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -46,6 +46,7 @@ const buzz = (run: () => Promise<void>) => void run().catch(() => undefined);
 function useDoorSessions(eventId: string, removed: () => void) {
   const [sessions, setSessions] = useState<readonly DoorSession[]>();
   const [failed, setFailed] = useState(false);
+  const [off, setOff] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const onRemoved = useRef(removed);
   onRemoved.current = removed;
@@ -57,12 +58,13 @@ function useDoorSessions(eventId: string, removed: () => void) {
       else if (read.kind === "signed_out") router.replace("/home");
       else if (read.kind === "sessions") setSessions(read.sessions);
       setFailed(read.kind === "network");
+      setOff(read.kind === "off");
     });
     return () => {
       active = false;
     };
   }, [eventId, attempt]);
-  return { sessions, failed, reload: () => setAttempt((value) => value + 1) };
+  return { sessions, failed, off, reload: () => setAttempt((value) => value + 1) };
 }
 
 function SessionPicker({
@@ -78,6 +80,7 @@ function SessionPicker({
 }>) {
   const { t, language } = useI18n();
   const door = useDoorSessions(eventId, removed);
+  if (door.off) return <AppText>{t("door.off")}</AppText>;
   if (door.failed) {
     return (
       <>
@@ -109,7 +112,7 @@ function SessionPicker({
 }
 
 function ResultCover({ result }: Readonly<{ result: DoorResult }>) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={[styles.cover, styles[result.color]]} accessibilityLiveRegion="assertive">
@@ -119,6 +122,11 @@ function ResultCover({ result }: Readonly<{ result: DoorResult }>) {
       {result.username === null ? null : (
         <AppText variant="title" style={styles.coverText}>
           {result.username}
+        </AppText>
+      )}
+      {result.points === 0 ? null : (
+        <AppText variant="title" style={styles.coverText}>
+          {t("operator.green", { points: formatNumber(result.points, language) })}
         </AppText>
       )}
     </View>
@@ -175,7 +183,7 @@ function DoorScanner({
     last.current = { code, at: now };
     setProblem(null);
     if (!isPlayerCode(code)) {
-      show({ color: "red", message: "door.invalid", username: null });
+      show({ color: "red", message: "door.invalid", username: null, points: 0 });
       return;
     }
     const answer = await checkInPlayer(api.session, session.id, code);

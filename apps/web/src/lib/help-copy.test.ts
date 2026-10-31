@@ -70,6 +70,7 @@ const HELP_LINES: readonly string[] = [
   "results.deadlineHint",
   "rewards.lowCodes.hint",
   "scanner.nfc.androidHint",
+  "sessions.page.pointsNote",
   "shop.cancelClosedNote",
   "shop.collectHint",
   "shop.digitalNote",

@@ -13,12 +13,16 @@ export type DoorSession = OperatorSession;
 
 export type DoorSessions =
   | Readonly<{ kind: "sessions"; sessions: readonly DoorSession[] }>
-  | Readonly<{ kind: "removed" | "signed_out" | "network" }>;
+  | Readonly<{ kind: "removed" | "signed_out" | "network" | "off" }>;
 
 function failed(answer: AuthedResult): "removed" | "signed_out" | "network" {
   if (answer.kind === "error" && answer.code === "not_operator") return "removed";
   return answer.kind === "signed_out" ? "signed_out" : "network";
 }
+
+/** The organizer turned the agenda off (T-505b): the door says so instead of a network error. */
+const agendaOff = (answer: AuthedResult): boolean =>
+  answer.kind === "error" && answer.code === "feature_off";
 
 /** The sessions the operator can check in to now; a removed operator gets `removed` (FR-905). */
 export async function fetchDoorSessions(
@@ -29,6 +33,7 @@ export async function fetchDoorSessions(
     method: "GET",
     path: `/v1/operator/events/${encodeURIComponent(eventId)}/sessions`,
   });
+  if (agendaOff(answer)) return { kind: "off" };
   if (answer.kind !== "ok") return { kind: failed(answer) };
   const parsed = operatorSessionListSchema.safeParse(answer.body);
   return parsed.success
@@ -41,6 +46,8 @@ export type DoorResult = Readonly<{
   color: "green" | "orange" | "red";
   message: MessageKey;
   username: string | null;
+  /** The session's points the player holds (T-505b): shown as "+N" on a check-in or a repeat scan; 0 shows nothing. */
+  points: number;
 }>;
 
 const OUTCOMES: Readonly<Record<string, Pick<DoorResult, "color" | "message">>> = {
@@ -55,20 +62,25 @@ const INVALID_CODE_REASONS: readonly string[] = ["invalid_code", "old_code"];
 
 function refusal(reason: string | undefined, username: string | null): DoorResult {
   const invalid = INVALID_CODE_REASONS.includes(reason ?? "");
-  return { color: "red", message: invalid ? "door.invalid" : "door.refused", username };
+  return { color: "red", message: invalid ? "door.invalid" : "door.refused", username, points: 0 };
 }
 
 /** What the door's answer means: a walk-in is green with its own words; any refusal is red. */
 export function doorResultOf(body: unknown): DoorResult | null {
   const parsed = doorAnswerSchema.safeParse(body);
   if (!parsed.success) return null;
-  const { result, reason, walkIn, player } = parsed.data;
+  const { result, reason, walkIn, points, player } = parsed.data;
   const username = player?.username ?? null;
   if (result === "refused") return refusal(reason, username);
   const outcome = OUTCOMES[result];
   if (outcome === undefined) return null;
   const arrivedUnregistered = result === "checked_in" && walkIn === true;
-  return { ...outcome, message: arrivedUnregistered ? "door.walkIn" : outcome.message, username };
+  return {
+    ...outcome,
+    message: arrivedUnregistered ? "door.walkIn" : outcome.message,
+    username,
+    points,
+  };
 }
 
 export type DoorCheckIn =

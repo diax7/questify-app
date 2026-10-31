@@ -30,7 +30,7 @@ import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Stack } from "#src/ui/Section.tsx";
 import { infoTip } from "#src/ui/info.tsx";
 
-type Edit = Readonly<{ id: string | null; draft: SessionDraft }>;
+type Edit = Readonly<{ id: string | null; draft: SessionDraft; attended: number }>;
 type Writes = ReturnType<typeof useSessionWrites>;
 type Ready = Readonly<{ sessions: TeamSession[]; event: EventFrame; quests: QuestChoice[] }>;
 
@@ -143,6 +143,7 @@ function SessionsBody({
           language={language}
           initial={edit.draft}
           editing={edit.id !== null}
+          attended={edit.attended}
           zone={ready.event.zone}
           window={ready.event.window}
           quests={ready.quests}
@@ -160,7 +161,11 @@ function SessionsBody({
         surveyUrl={surveyUrl}
         actions={{
           edit: (session) =>
-            opened.setEdit({ id: session.id, draft: draftOf(session, ready.event.zone) }),
+            opened.setEdit({
+              id: session.id,
+              draft: draftOf(session, ready.event.zone),
+              attended: session.attended,
+            }),
           remove: opened.setRemoving,
           message: opened.setMessaging,
           toggle: (session) =>
@@ -277,7 +282,7 @@ export function SessionsPanel(props: SessionsProps) {
               <Button
                 variant="primary"
                 disabled={ready === null || model.busy}
-                onClick={() => setEdit({ id: null, draft: blankSession() })}
+                onClick={() => setEdit({ id: null, draft: blankSession(), attended: 0 })}
               >
                 {t("sessions.page.add")}
               </Button>

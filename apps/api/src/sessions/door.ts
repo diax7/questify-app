@@ -20,11 +20,22 @@ const RED: Readonly<Record<string, string>> = {
   OM422: "old_code",
   QC404: "not_in_event",
   QC403: "enrollment_inactive",
+  // T-505b: the door pays points, so it answers only while the player may play and the agenda is on.
+  QN403: "event_not_live",
+  AG403: "feature_off",
 };
 
 export type DoorDeps = SessionDeps & Readonly<{ myKey: MyCodeKey }>;
 
 type Opened = Readonly<{ playerId: string; version: number }>;
+
+/** The route's body for the database's answer: the outcome, the walk-in flag, the points the player holds, who. */
+const doorBody = (answer: SessionCheckInAnswer | undefined) => ({
+  result: answer?.outcome,
+  walkIn: answer?.walkIn === true,
+  points: answer?.points ?? 0,
+  player: answer?.player,
+});
 
 /** The database's answer for one scan, or a red result with the station scan's reason; anything else is rethrown. */
 async function recordCheckIn(
@@ -43,7 +54,7 @@ async function recordCheckIn(
         return rows[0]?.answer;
       }),
     );
-    return { result: answer?.outcome, walkIn: answer?.walkIn ?? false, player: answer?.player };
+    return doorBody(answer);
   } catch (error) {
     const reason = RED[(error as { code?: string }).code ?? ""];
     if (reason === undefined) return sessionRefusal(error);
@@ -55,7 +66,9 @@ async function recordCheckIn(
  * The door check-in (FR-1791, T-505): an operator scans a player's My QR at a session. The API opens the code; the
  * database checks the operator, their ability and the player's code version, and records the attendance once. The
  * answer is a result the station shows in a colour: `checked_in`, `already`, `not_registered`, `too_early`, `ended`, or
- * `refused` with a reason. A removed operator gets 403 and leaves operator mode, as on the quest scan.
+ * `refused` with a reason. `checked_in` and `already` carry the session's points the player holds (T-505b, FR-1791): paid
+ * once per player and session (the pair is the key; no client key is needed). A removed operator gets 403 and leaves
+ * operator mode, as on the quest scan.
  */
 export function registerSessionDoorRoutes(app: FastifyInstance, deps: DoorDeps): void {
   app.post(

@@ -68,6 +68,7 @@ describe("importing sessions", () => {
       "talk,,,2026-11-02 14:00,2026-11-02 15:00,,,,,,,",
       "talk,Outside,,2026-12-02 14:00,2026-12-02 15:00,,,,,,,",
       "workshop,Seats,,2026-11-02 12:00,2026-11-02 13:00,,,,,,registration,many",
+      "talk,Points,,2026-11-02 12:00,2026-11-02 13:00,,,,,,open,,lots",
     ].join("\n");
     const result = parseSessionsCsv(csv, ZONE, WINDOW);
     expect(result.rows).toHaveLength(2);
@@ -88,7 +89,20 @@ describe("importing sessions", () => {
       { line: 7, issue: "title" },
       { line: 8, issue: "startsAt:outside_event" },
       { line: 9, issue: "seats" },
+      { line: 10, issue: "points" },
     ]);
+    expect(result.rows[0]?.points).toBe(0);
+  });
+
+  it("reads a session's points from the optional points column (T-505b)", () => {
+    const csv = [
+      HEADER,
+      "talk,Paid,,2026-11-02 10:00,2026-11-02 11:00,,,,,,open,,٥٠",
+      "talk,Too many,,2026-11-02 10:00,2026-11-02 11:00,,,,,,open,,100001",
+    ].join("\n");
+    const result = parseSessionsCsv(csv, ZONE, WINDOW);
+    expect(result.rows[0]).toMatchObject({ titleEn: "Paid", points: 50 });
+    expect(result.failed).toEqual([{ line: 3, issue: "points" }]);
   });
 
   it("reads a semicolon file with a byte-order mark, Arabic-Indic digits and quoted cells", () => {
@@ -132,6 +146,7 @@ describe("the attendance report", () => {
     walkIns: false,
     reminderMinutes: 15,
     questId: null,
+    points: 0,
     registered: 30,
     attended: 25,
     walkInCount: 2,
@@ -182,6 +197,7 @@ describe("the agenda's words", () => {
       "closesAt",
       "questId",
       "reminderMinutes",
+      "points",
       "rows",
     ];
     for (const reason of reasons)

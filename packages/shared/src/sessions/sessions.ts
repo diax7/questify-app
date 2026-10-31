@@ -24,6 +24,8 @@ export const SESSION_LIMITS = {
   speakerName: 80,
   seats: 100_000,
   reminderMinutes: { min: 1, max: 1440, default: 15 },
+  /** The points a check-in pays (T-505b); 0 is none. */
+  points: 100_000,
   maxHours: 24,
   importRows: 500,
 } as const;
@@ -56,6 +58,7 @@ export const sessionBodySchema = z.strictObject({
     .max(SESSION_LIMITS.reminderMinutes.max)
     .optional(),
   questId: z.uuid().nullable().optional(),
+  points: z.number().int().min(0).max(SESSION_LIMITS.points).optional(),
 });
 export type SessionBody = z.input<typeof sessionBodySchema>;
 
@@ -85,6 +88,7 @@ export const teamSessionSchema = z.object({
   walkIns: z.boolean(),
   reminderMinutes: z.number(),
   questId: z.uuid().nullable(),
+  points: z.number(),
   registered: z.number(),
   attended: z.number(),
   walkInCount: z.number(),
@@ -114,6 +118,7 @@ export const memberSessionSchema = z.object({
   access: z.enum(SESSION_ACCESS),
   seats: z.number().nullable(),
   seatsLeft: z.number().nullable(),
+  points: z.number(),
   registered: z.boolean(),
   checkedIn: z.boolean(),
   started: z.boolean(),
@@ -135,6 +140,7 @@ export const operatorSessionSchema = z.object({
   endsAt: z.string(),
   access: z.enum(SESSION_ACCESS),
   walkIns: z.boolean(),
+  points: z.number(),
 });
 export type OperatorSession = z.infer<typeof operatorSessionSchema>;
 export const operatorSessionListSchema = z.object({ sessions: z.array(operatorSessionSchema) });
@@ -144,6 +150,8 @@ export const doorAnswerSchema = z.object({
   result: z.string(),
   reason: z.string().optional(),
   walkIn: z.boolean().optional(),
+  /** The session's points the player holds after this scan (`checked_in`, `already`); 0 when none. */
+  points: z.number().default(0),
   player: z.object({ username: z.string() }).nullable().optional(),
 });
 
@@ -168,6 +176,7 @@ export const SESSION_CHECK_IN_OUTCOMES = [
 export const sessionCheckInSchema = z.object({
   outcome: z.enum(SESSION_CHECK_IN_OUTCOMES),
   walkIn: z.boolean().optional(),
+  points: z.number().optional(),
   player: z.object({ username: z.string(), avatar: z.string() }),
 });
 export type SessionCheckInAnswer = z.infer<typeof sessionCheckInSchema>;
@@ -212,6 +221,7 @@ export const SESSION_CSV_COLUMNS = [
   "description_ar",
   "access",
   "seats",
+  "points",
 ] as const;
 type CsvColumn = (typeof SESSION_CSV_COLUMNS)[number];
 
@@ -297,6 +307,14 @@ function csvSeats(value: string): number | null | undefined {
   return seats === 0 ? undefined : seats;
 }
 
+/** The points typed in a cell: 0 for none, undefined when it is not a whole number from 0 to 100000. */
+function csvPoints(value: string): number | undefined {
+  const text = toWesternDigits(value.trim());
+  if (text === "") return 0;
+  const points = /^[0-9]{1,6}$/u.test(text) ? Number(text) : -1;
+  return points >= 0 && points <= SESSION_LIMITS.points ? points : undefined;
+}
+
 /** The access typed in a cell: an empty cell is open; undefined when it is neither word. */
 function csvAccess(value: string): SessionAccess | undefined {
   const text = value.trim().toLowerCase();
@@ -311,11 +329,13 @@ function csvRow(cells: Readonly<Record<CsvColumn, string>>, zone: string): Sessi
   const endsAt = csvInstant(cells.end, zone);
   const access = csvAccess(cells.access);
   const seats = csvSeats(cells.seats);
+  const points = csvPoints(cells.points);
   if (kind === undefined) return "kind";
   if (startsAt === null) return "startsAt";
   if (endsAt === null) return "endsAt";
   if (access === undefined) return "access";
   if (seats === undefined) return "seats";
+  if (points === undefined) return "points";
   return {
     kind,
     titleEn: blankToNull(cells.title_en),
@@ -332,6 +352,7 @@ function csvRow(cells: Readonly<Record<CsvColumn, string>>, zone: string): Sessi
     endsAt,
     access,
     seats: access === "registration" ? seats : null,
+    points,
   };
 }
 

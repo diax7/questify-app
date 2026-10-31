@@ -66,11 +66,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     ).toEqual([]);
   });
 
-  it("keeps the session tables and internals closed and grants only its twelve doors", async () => {
+  it("keeps the session tables and internals closed and grants only its thirteen doors", async () => {
     const doors = [
       "member_sessions",
       "operator_sessions",
       "session_authorize",
+      "session_bulk_count",
       "session_cancel",
       "session_check_in",
       "session_delete",
@@ -93,7 +94,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
         WHERE n.nspname = 'public' AND (proname LIKE 'session\\_%' OR proname IN ('member_sessions', 'operator_sessions', 'push_due_session'))`,
     );
-    expect(functions).toHaveLength(20);
+    expect(functions).toHaveLength(23);
     for (const row of functions) {
       expect(row.app, row.proname).toBe(doors.includes(row.proname));
       expect(row.outsider, row.proname).toBe(false);
@@ -105,6 +106,54 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       await rows(`SELECT table_name, privilege_type FROM information_schema.role_table_grants
       WHERE table_schema = 'public' AND table_name IN ('event_session', 'session_registration', 'session_attendance', 'session_message')
         AND grantee IN ('PUBLIC', 'questify_app', 'questify_outsider')`),
+    ).toEqual([]);
+  });
+
+  it("grants the eight-argument bulk award and its session preview only, never the helpers (T-505b)", async () => {
+    const functions = await rows<{
+      signature: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+    }>(
+      `SELECT p.oid::regprocedure::text AS signature,
+        has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider, prosecdef AS definer
+        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN ('bulk_award', 'bulk_award_eligible', 'member_may_play',
+          'session_bulk_targets', 'session_bulk_count', 'session_points_held') ORDER BY 1`,
+    );
+    expect(functions).toEqual([
+      {
+        signature: "bulk_award(uuid,uuid[],uuid,uuid,integer,text,text,uuid)",
+        app: true,
+        outsider: false,
+        definer: true,
+      },
+      {
+        signature: "bulk_award_eligible(event,uuid[],boolean)",
+        app: false,
+        outsider: false,
+        definer: false,
+      },
+      {
+        signature: "member_may_play(event,enrollment)",
+        app: false,
+        outsider: false,
+        definer: false,
+      },
+      { signature: "session_bulk_count(uuid,uuid)", app: true, outsider: false, definer: true },
+      {
+        signature: "session_bulk_targets(event,uuid)",
+        app: false,
+        outsider: false,
+        definer: false,
+      },
+      { signature: "session_points_held(uuid,uuid)", app: false, outsider: false, definer: false },
+    ]);
+    expect(
+      await rows(`SELECT privilege_type FROM information_schema.role_table_grants
+      WHERE table_schema = 'public' AND table_name = 'ledger_entry' AND grantee IN ('PUBLIC', 'questify_outsider')`),
     ).toEqual([]);
   });
 

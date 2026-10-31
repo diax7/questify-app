@@ -944,8 +944,8 @@
       "complexity": [9]
     },
     "BulkCard": {
-      "complexity": [16],
-      "lines": [122]
+      "complexity": [14],
+      "lines": [111]
     }
   },
   "apps/web/src/components/BoostsPanel.tsx": {

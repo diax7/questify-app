@@ -409,7 +409,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
       expect(award?.points).toBe("25");
       const [bulk] = await run<{ awarded: number; bulk_id: string }>(
         team(ownerA),
-        "SELECT * FROM bulk_award($1, $2, NULL, 5, 'Test', $3, $4)",
+        "SELECT * FROM bulk_award($1, $2, NULL, NULL, 5, 'Test', $3, $4)",
         [event, [target.enrollment, joined?.enrollment_id], randomUUID(), randomUUID()],
       );
       expect(bulk?.awarded).toBe(2);
@@ -435,7 +435,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
       const real = await realPlayer(event);
       expect(
         await refusal(
-          run(team(ownerA), "SELECT * FROM bulk_award($1, $2, NULL, 5, 'Test', $3, $4)", [
+          run(team(ownerA), "SELECT * FROM bulk_award($1, $2, NULL, NULL, 5, 'Test', $3, $4)", [
             event,
             [real.enrollment],
             randomUUID(),
@@ -529,7 +529,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
       randomUUID(),
       randomUUID(),
     ]);
-    await run(team(ownerA), "SELECT * FROM bulk_award($1, $2, NULL, 3, 'Test', $3, $4)", [
+    await run(team(ownerA), "SELECT * FROM bulk_award($1, $2, NULL, NULL, 3, 'Test', $3, $4)", [
       event,
       [a.enrollment, b.enrollment],
       randomUUID(),
@@ -652,7 +652,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
       const bulk = (request: string) =>
         run<{ bulk_id: string; awarded: number; replayed: boolean }>(
           team(ownerA),
-          "SELECT * FROM bulk_award($1, NULL, $2, 5, 'Test', $3, $4)",
+          "SELECT * FROM bulk_award($1, NULL, $2, NULL, 5, 'Test', $3, $4)",
           [event, quest, key, request],
         );
       const [first] = await bulk(randomUUID());
@@ -681,7 +681,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
       await scan(player, quest);
       const [bulk] = await run<{ bulk_id: string }>(
         team(ownerA),
-        "SELECT * FROM bulk_award($1, NULL, $2, 5, 'Test', $3, $4)",
+        "SELECT * FROM bulk_award($1, NULL, $2, NULL, 5, 'Test', $3, $4)",
         [event, quest, randomUUID(), randomUUID()],
       );
       await run(team(ownerA), "SELECT erase_rehearsal($1, $2)", [event, randomUUID()]);

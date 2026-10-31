@@ -1088,6 +1088,7 @@ export const MESSAGES = {
     en: "Nothing here yet. Complete any {questOne} to start.",
   },
   "history.quest": { ar: "{questOne}: {title}", en: "{questOneCap}: {title}" },
+  "history.session": { ar: "جلسة: {title}", en: "Session: {title}" },
   "history.other": { ar: "تعديل في الرصيد", en: "Balance change" },
   "history.redeem": { ar: "حجز: {title}", en: "Reserved: {title}" },
   "history.redeemReturn": { ar: "استرداد: {title}", en: "Returned: {title}" },
@@ -2313,6 +2314,7 @@ export const MESSAGES = {
   "awards.kind.redeemReturn": { ar: "إرجاع نقاط", en: "Points returned" },
   "awards.kind.handover": { ar: "استلام جائزة", en: "Prize collected" },
   "awards.kind.removal": { ar: "إزالة نقاط", en: "Points removed" },
+  "awards.kind.session": { ar: "حضور جلسة", en: "Session check-in" },
   "awards.kind.bonus": { ar: "مكافأة إكمال {categoryOne}", en: "{categoryOneCap} bonus" },
   "awards.by": { ar: "بواسطة {name}", en: "By {name}" },
   "awards.bulkTag": { ar: "منح جماعي", en: "Bulk award" },
@@ -2382,6 +2384,17 @@ export const MESSAGES = {
   },
   "awards.bulkList": { ar: "قائمة", en: "A list" },
   "awards.bulkQuest": { ar: "من أنجز {questOne}", en: "Everyone who completed any {questOne}" },
+  "awards.bulkSession": { ar: "من حضر جلسة", en: "Everyone checked in to a session" },
+  "awards.bulkSessionPick": { ar: "الجلسة", en: "Session" },
+  "awards.bulkSessionNone": { ar: "لا جلسات في هذه الفعالية.", en: "This event has no sessions." },
+  "awards.bulkEarlier": {
+    ar: "منح جماعية سابقة لهذه الجلسة: {count}. هذا المنح يعطي الجميع مرة أخرى.",
+    en: "Bulk awards already made to this session: {count}. This one pays everyone again.",
+  },
+  "awards.bulkSessionLate": {
+    ar: "من يُسجَّل حضوره بعد هذا المنح لا يشمله؛ امنحه من قائمة.",
+    en: "A player checked in after this award does not get it; award them from a list.",
+  },
   "awards.bulkLines": {
     ar: "أسماء المستخدمين أو أرقام الجوال، واحد في كل سطر",
     en: "Usernames or mobile numbers, one per line",
@@ -6489,6 +6502,11 @@ export const MESSAGES = {
   },
   "sessions.page.quest": { ar: "ربط بـ{questOne}", en: "Linked {questOne}" },
   "sessions.page.questNone": { ar: "بدون ربط", en: "None" },
+  "sessions.page.points": { ar: "{currency} عند تسجيل الحضور", en: "{currency} on check-in" },
+  "sessions.page.pointsNote": {
+    ar: "من سُجّل حضورهم يحتفظون بما حصلوا عليه، والتغيير يسري على من يُسجَّل حضوره بعده.",
+    en: "Players already checked in keep what they got. The change applies to later check-ins.",
+  },
   "sessions.page.registered": { ar: "المسجلون", en: "Registered" },
   "sessions.page.attended": { ar: "الحاضرون", en: "Attended" },
   "sessions.page.walkInCount": { ar: "بلا تسجيل", en: "Walk-ins" },
@@ -6582,6 +6600,10 @@ export const MESSAGES = {
     ar: "التذكير من دقيقة إلى 1440 دقيقة.",
     en: "The reminder is from 1 to 1440 minutes.",
   },
+  "sessions.issue.points": {
+    ar: "النقاط عند تسجيل الحضور من 0 إلى 100000.",
+    en: "The points on check-in are from 0 to 100000.",
+  },
   "sessions.issue.rows": { ar: "أرسل من 1 إلى 500 جلسة.", en: "Send 1 to 500 sessions." },
   "sessions.issue.descriptionAr": {
     ar: "الوصف بالعربية غير صالح.",
@@ -6641,6 +6663,10 @@ export const MESSAGES = {
     ar: "بدأت الجلسة، فلا يمكن إلغاء التسجيل.",
     en: "The session has started, so the registration cannot be cancelled.",
   },
+  "error.sessionCheckedIn": {
+    ar: "سُجّل حضورك في هذه الجلسة، فلا يمكن إلغاء التسجيل.",
+    en: "You are checked in to this session, so the registration cannot be cancelled.",
+  },
   "agenda.title": { ar: "الجدول", en: "Agenda" },
   "agenda.link": { ar: "عرض الجدول", en: "See the agenda" },
   "agenda.all": { ar: "كل الجلسات", en: "All sessions" },
@@ -6670,6 +6696,10 @@ export const MESSAGES = {
   "agenda.closed": { ar: "أُغلق التسجيل", en: "Registration closed" },
   "agenda.started": { ar: "بدأت الجلسة", en: "Started" },
   "agenda.checkedIn": { ar: "تم تسجيل حضورك", en: "You are checked in" },
+  "agenda.points": {
+    ar: "\u200E+{points} {currency} عند تسجيل الحضور",
+    en: "+{points} {currency} on check-in",
+  },
   "agenda.overlapTitle": { ar: "تتعارض مع جلسة أخرى", en: "This overlaps another session" },
   "agenda.overlapBody": {
     ar: "تتزامن هذه الجلسة مع: {titles}. هل تريد التسجيل رغم ذلك؟",
@@ -6695,6 +6725,10 @@ export const MESSAGES = {
   "door.ended": { ar: "انتهت الجلسة", en: "The session has ended" },
   "door.invalid": { ar: "الرمز غير صالح", en: "The code is not valid" },
   "door.refused": { ar: "لا يمكن تسجيل الحضور هنا", en: "Check-in is not possible here" },
+  "door.off": {
+    ar: "أوقف المنظّم الجدول في هذه الفعالية.",
+    en: "The organizer turned the agenda off for this event.",
+  },
   "maps.page.title": { ar: "الخرائط", en: "Maps" },
   "maps.page.intro": {
     ar: "أضف خرائط لفعاليتك، مثل الطابق الأول أو الساحة الخارجية، وضع عليها دبابيس للأقسام والأكشاك والخدمات و{questMany}. يراها اللاعبون للاطلاع فقط، بلا مسارات ولا تحديد لموقعهم. صور الخرائط تُضاف لاحقًا، وتظهر الآن لوحة بسيطة.",

@@ -1,6 +1,6 @@
 import type { Pool, QueryResultRow } from "pg";
 import { MESSAGES } from "@questify/shared";
-import { notEnrolled, notFound, notOperator } from "#src/auth/http-errors";
+import { featureOff, notEnrolled, notFound, notOperator } from "#src/auth/http-errors";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import { HttpError } from "#src/http-error";
@@ -18,6 +18,7 @@ const ERROR_MESSAGES: Readonly<Record<string, { ar: string; en: string }>> = {
   session_full: MESSAGES["error.sessionFull"],
   session_closed: MESSAGES["error.sessionClosed"],
   session_started: MESSAGES["error.sessionStarted"],
+  session_checked_in: MESSAGES["error.sessionCheckedIn"],
 };
 
 export type SessionDeps = Readonly<{ pool: Pool }>;
@@ -51,6 +52,7 @@ function conflict(detail: string | undefined): HttpError {
     "closed",
     "full",
     "started",
+    "checked_in",
   ];
   return sessionError(409, known.includes(name) ? `session_${name}` : "invalid_session");
 }
@@ -66,6 +68,10 @@ const REFUSALS: Readonly<Record<string, (detail: string | undefined) => HttpErro
   PE409: () => sessionError(409, "session_event_closed"),
   PT409: () => sessionError(409, "session_nobody"),
   PL429: (detail) => sessionError(429, "session_message_limit", { window: detail }),
+  // The agenda switch is off (T-505b): the operator's list of sessions says why.
+  AG403: () => featureOff(),
+  // A delete that met a paid entry the check missed: the foreign key refuses it, answered as the check would.
+  "23503": () => conflict("has_attendance"),
 };
 
 /** Turns a refusal of the session doors into the API's answer; anything else is rethrown. */

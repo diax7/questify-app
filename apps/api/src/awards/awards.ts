@@ -56,6 +56,7 @@ const REFUSALS: Readonly<Record<string, (detail: string, hint: string) => AwardR
   AQ404: () => ({ kind: "not_found" }),
   AN404: () => ({ kind: "not_found" }),
   AE404: () => ({ kind: "not_found" }),
+  SS404: () => ({ kind: "not_found" }),
   QC403: (detail) => ({ kind: "enrollment_inactive", reason: detail }),
   QN403: (detail) => ({ kind: "quest_not_open", reason: detail }),
   QD409: () => ({ kind: "already_completed" }),
@@ -498,9 +499,27 @@ export function previewQuest(
   });
 }
 
+/** FR-1712, T-505b: how many members a session target reaches now, and how many bulk awards already went to it. */
+export function previewSession(
+  deps: PoolDeps,
+  context: OrganizerContext,
+  request: Readonly<{ eventId: string; sessionId: string }>,
+): Promise<AwardDone<Readonly<{ count: number; earlier: number }>>> {
+  return run(deps, staffSeat(context), async (client) => {
+    const { rows } = await client.query<{ preview: { count: number; earlier: number } }>(
+      "SELECT session_bulk_count($1, $2) AS preview",
+      [request.eventId, request.sessionId],
+    );
+    const preview = rows[0]?.preview;
+    return { count: Number(preview?.count), earlier: Number(preview?.earlier) };
+  });
+}
+
+/** Exactly one target: a list of members, a quest's completers or a session's attendees (T-505b). */
 export type BulkTarget =
-  | Readonly<{ enrollmentIds: readonly string[]; questId: null }>
-  | Readonly<{ enrollmentIds: null; questId: string }>;
+  | Readonly<{ enrollmentIds: readonly string[]; questId: null; sessionId: null }>
+  | Readonly<{ enrollmentIds: null; questId: string; sessionId: null }>
+  | Readonly<{ enrollmentIds: null; questId: null; sessionId: string }>;
 
 export type BulkDone = Readonly<{
   bulkId: string;
@@ -523,15 +542,19 @@ export function bulkAward(
   }>,
 ): Promise<AwardDone<BulkDone>> {
   return run(deps, staffSeat(context), async (client) => {
-    const { rows } = await client.query("SELECT * FROM bulk_award($1, $2, $3, $4, $5, $6, $7)", [
-      request.eventId,
-      request.target.enrollmentIds,
-      request.target.questId,
-      request.points,
-      request.reason,
-      request.idempotencyKey,
-      request.requestId,
-    ]);
+    const { rows } = await client.query(
+      "SELECT * FROM bulk_award($1, $2, $3, $4, $5, $6, $7, $8)",
+      [
+        request.eventId,
+        request.target.enrollmentIds,
+        request.target.questId,
+        request.target.sessionId,
+        request.points,
+        request.reason,
+        request.idempotencyKey,
+        request.requestId,
+      ],
+    );
     const row = rows[0] ?? {};
     return {
       bulkId: String(row["bulk_id"]),

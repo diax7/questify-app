@@ -1,4 +1,10 @@
-import { formatNumber, formatTimeWindow, type MemberSession, type Theme } from "@questify/shared";
+import {
+  formatNumber,
+  formatTimeWindow,
+  termFor,
+  type MemberSession,
+  type Theme,
+} from "@questify/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { ScrollView, View } from "react-native";
@@ -20,7 +26,7 @@ import {
   statusKeyOf,
   type AgendaAct,
 } from "#src/event/agenda.ts";
-import { useEvent } from "#src/event/EventContext.tsx";
+import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -58,6 +64,7 @@ type Pending =
 
 function SessionDetails({ session, zone }: Readonly<{ session: MemberSession; zone: string }>) {
   const { t, language } = useI18n();
+  const terms = useTerms();
   const place = textIn(session.place, language);
   const description = textIn(session.description, language);
   const starts = new Date(session.startsAt);
@@ -73,6 +80,14 @@ function SessionDetails({ session, zone }: Readonly<{ session: MemberSession; zo
         <AppText>{t("agenda.speakers", { names: session.speakers.join(", ") })}</AppText>
       )}
       {description === "" ? null : <AppText>{description}</AppText>}
+      {session.points === 0 ? null : (
+        <AppText>
+          {t("agenda.points", {
+            points: formatNumber(session.points, language),
+            currency: termFor(terms.currency, language, session.points),
+          })}
+        </AppText>
+      )}
     </>
   );
 }

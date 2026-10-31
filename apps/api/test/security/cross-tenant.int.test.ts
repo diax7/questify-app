@@ -1448,7 +1448,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     expect(await count("owner", "announcement WHERE event_id = $1", [f.eventB])).toBe(0);
   });
 
-  it("keeps the session doors inside the caller's tenant, membership and assignment (T-505)", async () => {
+  it("keeps the session doors inside the caller's tenant, membership and assignment (T-505, T-505b)", async () => {
     const foreign = (
       await db.owner.query<{ id: string }>(
         `INSERT INTO event_session (organizer_id, event_id, kind, title_en, starts_at, ends_at, access, created_by)
@@ -1473,6 +1473,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
           "SELECT * FROM session_message($1, $2, '{}'::jsonb, $3, $4)",
           [f.eventB, foreign, "0".repeat(64), randomUUID()],
         ],
+        ["SELECT session_bulk_count($1, $2)", [f.eventB, foreign]],
+        [
+          "SELECT * FROM bulk_award($1, NULL, NULL, $2, 5, 'Talk', $3, $4)",
+          [f.eventB, foreign, randomUUID(), randomUUID()],
+        ],
       ] as const;
       for (const [sql, values] of team)
         expect(await refusal(asA(seat, sql, [...values])), sql).toBe("AN404");
@@ -1494,6 +1499,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         seat === "player" ? "OP403" : "42501",
       );
     }
+    // Organizer A's own event naming B's session: the session is not found there (T-505b).
+    expect(
+      await refusal(asA("organizer", "SELECT session_bulk_count($1, $2)", [f.eventA, foreign])),
+    ).toBe("SS404");
+    expect(await count("owner", "bulk_award WHERE session_id = $1", [foreign])).toBe(0);
     expect(await count("owner", "event_session WHERE event_id = $1", [f.eventB])).toBe(1);
     expect(await count("owner", "session_registration WHERE event_id = $1", [f.eventB])).toBe(0);
     expect(await count("owner", "session_attendance WHERE event_id = $1", [f.eventB])).toBe(0);

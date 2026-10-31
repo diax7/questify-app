@@ -10,6 +10,7 @@ import {
   operatorAward,
   previewList,
   previewQuest,
+  previewSession,
   removeAward,
   report,
   setCaps,
@@ -81,6 +82,7 @@ describe("refusals (migration 0030's SQLSTATEs)", () => {
     ["AQ404", undefined, undefined, { kind: "not_found" }],
     ["AN404", undefined, undefined, { kind: "not_found" }],
     ["AE404", undefined, undefined, { kind: "not_found" }],
+    ["SS404", undefined, undefined, { kind: "not_found" }],
     ["QC403", "banned", undefined, { kind: "enrollment_inactive", reason: "banned" }],
     ["QC403", undefined, undefined, { kind: "enrollment_inactive", reason: "" }],
     ["QN403", "event_not_live", undefined, { kind: "quest_not_open", reason: "event_not_live" }],
@@ -478,7 +480,7 @@ describe("bulk awards and caps", () => {
     const pool = fakePool(() => [{ bulk_id: "b1", awarded: 3, skipped: 1, replayed: true }]);
     const done = await bulkAward(pool.deps, STAFF, {
       eventId: EVENT,
-      target: { enrollmentIds: ["e1"], questId: null },
+      target: { enrollmentIds: ["e1"], questId: null, sessionId: null },
       points: 25,
       reason: "Team",
       idempotencyKey: "k",
@@ -488,18 +490,39 @@ describe("bulk awards and caps", () => {
       kind: "done",
       value: { bulkId: "b1", awarded: 3, skipped: 1, replayed: true },
     });
-    expect(pool.statements[0]?.values).toEqual([EVENT, ["e1"], null, 25, "Team", "k", "r"]);
+    expect(pool.statements[0]?.values).toEqual([EVENT, ["e1"], null, null, 25, "Team", "k", "r"]);
     const first = fakePool(() => [{ bulk_id: "b2", awarded: 0, skipped: 0, replayed: false }]);
     await expect(
       bulkAward(first.deps, STAFF, {
         eventId: EVENT,
-        target: { enrollmentIds: null, questId: "q1" },
+        target: { enrollmentIds: null, questId: "q1", sessionId: null },
         points: 25,
         reason: "Team",
         idempotencyKey: "k",
         requestId: "r",
       }),
     ).resolves.toMatchObject({ value: { replayed: false } });
+  });
+
+  it("sends a session target as the fourth argument (T-505b)", async () => {
+    const pool = fakePool(() => [{ bulk_id: "b3", awarded: 2, skipped: 0, replayed: false }]);
+    await bulkAward(pool.deps, STAFF, {
+      eventId: EVENT,
+      target: { enrollmentIds: null, questId: null, sessionId: "s1" },
+      points: 10,
+      reason: "Talk",
+      idempotencyKey: "k",
+      requestId: "r",
+    });
+    expect(pool.statements[0]?.values).toEqual([EVENT, null, null, "s1", 10, "Talk", "k", "r"]);
+  });
+
+  it("previews a session target: the count and the earlier bulk awards", async () => {
+    const pool = fakePool(() => [{ preview: { count: 4, earlier: 1 } }]);
+    await expect(
+      previewSession(pool.deps, STAFF, { eventId: EVENT, sessionId: "s1" }),
+    ).resolves.toEqual({ kind: "done", value: { count: 4, earlier: 1 } });
+    expect(pool.statements[0]?.values).toEqual([EVENT, "s1"]);
   });
 
   it("sets the caps and reads the outcome, a missing one as not the owner", async () => {

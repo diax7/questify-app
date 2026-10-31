@@ -308,6 +308,46 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sessions over HTTP", () => {
     expect(anonymous.statusCode).toBe(401);
   });
 
+  it("pays the session's points at the door and answers the switch and a paid delete (T-505b)", async () => {
+    const made = await add({
+      titleEn: "Paid talk",
+      access: "open",
+      seats: null,
+      startsAt: minutes(20),
+      endsAt: minutes(80),
+      points: 30,
+    });
+    expect(made).toMatchObject({ points: 30 });
+    const scanned = await fixture.newPlayer();
+    await fixture.join(event, scanned);
+    const door = () =>
+      asPlayer(
+        "POST",
+        "/v1/operator/sessions/" + made.id + "/check-in",
+        { code: myCode(MY_KEY, scanned, 1) },
+        operatorToken,
+      );
+    expect((await door()).json()).toMatchObject({ result: "checked_in", points: 30 });
+    expect((await door()).json()).toMatchObject({ result: "already", points: 30 });
+    const removed = await team("DELETE", base() + "/" + made.id);
+    expect([removed.statusCode, removed.json().code]).toEqual([409, "session_has_attendance"]);
+    const listUrl = "/v1/operator/events/" + event + "/sessions";
+    await fixture.owner(
+      `UPDATE event SET config = jsonb_set(config, '{features}', coalesce(config -> 'features', '{}')
+         || '{"agenda": false}'::jsonb) WHERE id = $1`,
+      [event],
+    );
+    try {
+      expect((await door()).json()).toMatchObject({ result: "refused", reason: "feature_off" });
+      const listed = await asPlayer("GET", listUrl, undefined, operatorToken);
+      expect([listed.statusCode, listed.json().code]).toEqual([403, "feature_off"]);
+    } finally {
+      await fixture.owner("UPDATE event SET config = config #- '{features,agenda}' WHERE id = $1", [
+        event,
+      ]);
+    }
+  });
+
   it("messages registrants once per key and refuses an empty session", async () => {
     const made = await add({
       titleEn: "Message test",

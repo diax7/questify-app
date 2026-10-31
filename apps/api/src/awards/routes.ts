@@ -34,6 +34,7 @@ import {
   operatorAward,
   previewList,
   previewQuest,
+  previewSession,
   removeAward,
   report,
   setCaps,
@@ -41,6 +42,7 @@ import {
   type AwardDone,
   type AwardRefusal,
   type AwardWhat,
+  type BulkTarget,
   type AwardsDeps,
   type PoolDeps,
 } from "#src/awards/awards";
@@ -86,11 +88,20 @@ const removeBody = z.strictObject({ reason });
 const previewBody = z.union([
   z.strictObject({ lines: z.string().max(BULK_BODY_LIMIT) }),
   z.strictObject({ questId: z.uuid() }),
+  z.strictObject({ sessionId: z.uuid() }),
 ]);
 const bulkBody = z.union([
   z.strictObject({ enrollmentIds: z.array(z.uuid()).min(1).max(2000), points, reason }),
   z.strictObject({ questId: z.uuid(), points, reason }),
+  z.strictObject({ sessionId: z.uuid(), points, reason }),
 ]);
+
+/** The one target a bulk body names. */
+function bulkTargetOf(body: z.infer<typeof bulkBody>): BulkTarget {
+  if ("questId" in body) return { enrollmentIds: null, questId: body.questId, sessionId: null };
+  if ("sessionId" in body) return { enrollmentIds: null, questId: null, sessionId: body.sessionId };
+  return { enrollmentIds: body.enrollmentIds, questId: null, sessionId: null };
+}
 const capsBody = z
   .strictObject({
     each: z.number().int().min(1).max(100000),
@@ -314,6 +325,9 @@ export function registerAwardRoutes(scope: FastifyInstance, deps: PoolDeps): voi
         count: valueOf(await previewQuest(deps, context, { eventId, questId: body.questId })),
       };
     }
+    if ("sessionId" in body) {
+      return valueOf(await previewSession(deps, context, { eventId, sessionId: body.sessionId }));
+    }
     const lines = parseBulkLines(body.lines);
     if (lines === "too_many") {
       throw tooManyLines();
@@ -328,10 +342,7 @@ export function registerAwardRoutes(scope: FastifyInstance, deps: PoolDeps): voi
     const done = valueOf(
       await bulkAward(deps, organizerContextOf(request), {
         eventId,
-        target:
-          "questId" in body
-            ? { enrollmentIds: null, questId: body.questId }
-            : { enrollmentIds: body.enrollmentIds, questId: null },
+        target: bulkTargetOf(body),
         points: body.points,
         reason: body.reason,
         idempotencyKey: keyOf(request),

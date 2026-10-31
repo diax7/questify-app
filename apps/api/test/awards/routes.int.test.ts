@@ -438,6 +438,43 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("manual awards over HTTP", () =
       expect(byQuest.json()).toMatchObject({ awarded: 1, skipped: 0 });
     });
 
+    it("previews and awards a session's attendees, and refuses two targets or a stranger's session (T-505b)", async () => {
+      const event = await newEvent();
+      const sara = await newPlayer(event);
+      const [session] = await owner<{ id: string }>(
+        `INSERT INTO event_session (organizer_id, event_id, kind, title_en, starts_at, ends_at, access, created_by)
+         SELECT organizer_id, id, 'talk', 'Keynote', now(), now() + interval '1 hour', 'open', $2
+         FROM event WHERE id = $1 RETURNING id`,
+        [event, randomUUID()],
+      );
+      await owner(
+        `INSERT INTO session_attendance (organizer_id, event_id, session_id, enrollment_id, player_id, operator_id, walk_in)
+         SELECT n.organizer_id, n.event_id, $2, n.id, n.player_id, n.player_id, false FROM enrollment n WHERE n.id = $1`,
+        [sara.enrollment, session?.id],
+      );
+      const preview = await dashboard("POST", `/events/${event}/bulk-awards/preview`, {
+        sessionId: session?.id,
+      });
+      expect(preview.json()).toEqual({ count: 1, earlier: 0 });
+      const done = await dashboard("POST", `/events/${event}/bulk-awards`, {
+        sessionId: session?.id,
+        points: 5,
+        reason: "Thanks for coming",
+      });
+      expect([done.statusCode, done.json<Row>()["awarded"]]).toEqual([201, 1]);
+      const both = await dashboard("POST", `/events/${event}/bulk-awards`, {
+        sessionId: session?.id,
+        questId: randomUUID(),
+        points: 5,
+        reason: "x",
+      });
+      expect(both.statusCode).toBe(400);
+      const stranger = await dashboard("POST", `/events/${event}/bulk-awards/preview`, {
+        sessionId: randomUUID(),
+      });
+      expect(stranger.statusCode).toBe(404);
+    });
+
     it("refuses a list over 2000 lines and an editor's bulk over the per-award cap", async () => {
       const event = await newEvent();
       const lines = Array.from({ length: 2001 }, (_, index) => `user_${index}`).join("\n");

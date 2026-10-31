@@ -28,6 +28,7 @@ const TITLED: Readonly<Record<string, MessageKey>> = {
   quest: "history.quest",
   redeem: "history.redeem",
   redeem_return: "history.redeemReturn",
+  session: "history.session",
 };
 
 /** Kinds with a fixed label (migration 0030): the staff's reason is never shown to the player. */
