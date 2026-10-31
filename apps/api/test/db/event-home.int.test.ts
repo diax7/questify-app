@@ -118,6 +118,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event home (database)", ()
           "repeat_cap",
           "verification",
           "order_mode",
+          "paused",
           "category_opens_at",
           "unlock_after",
           "unlock_after_name_ar",

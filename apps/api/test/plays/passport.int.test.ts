@@ -229,7 +229,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("passport quests over HTTP", ()
       expect(two).toBeDefined();
       expect(
         codeOf(await dashboard("DELETE", `/events/${event}/quests/${quest.id}`, { confirm: true })),
-      ).toEqual([409, "has_completions"]);
+      ).toEqual([409, "points_choice_required"]);
     });
 
     it("deletes a visible passport with steps and no stamps cleanly", async () => {

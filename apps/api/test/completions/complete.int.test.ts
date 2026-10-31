@@ -398,7 +398,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("completing a quest (T-105)", (
           headers: withSession(cookie),
           payload,
         });
-        expect(response.json(), url).toMatchObject({ code: "has_completions" });
+        // A played quest's delete asks keep or remove (T-604); its category stays.
+        expect(response.json(), url).toMatchObject({
+          code: url.includes("/quests/") ? "points_choice_required" : "has_completions",
+        });
       }
     });
   });

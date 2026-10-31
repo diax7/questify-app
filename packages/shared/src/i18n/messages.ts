@@ -567,8 +567,8 @@ export const MESSAGES = {
     en: "“{name}” was completed {completions} times by {players} players. What happens to their points?",
   },
   "quests.deletePlayed.keep": {
-    ar: "تبقى نقاطهم: تختفي المهمة وتبقى النقاط.",
-    en: "Keep their points: the quest goes, the points stay.",
+    ar: "تبقى نقاطهم: تختفي {questOne} وتبقى النقاط.",
+    en: "Keep their points: the {questOne} goes, the points stay.",
   },
   "quests.deletePlayed.remove": {
     ar: "تُسحب نقاطها: قيد جديد في سجل النقاط يستردها من كل لاعب، دون النزول تحت 0.",
@@ -7173,8 +7173,8 @@ export const MESSAGES = {
   "control.pause.action": { ar: "إيقاف مؤقت", en: "Pause" },
   "control.pause.title": { ar: "إيقاف «{title}» مؤقتًا؟", en: "Pause “{title}”?" },
   "control.pause.body": {
-    ar: "لن يستطيع اللاعبون بدءها أو إنجازها حتى تستأنفها، ولا يمكن منحها يدويًا. ما بدأ قبل الإيقاف يكتمل ويُحتسب: مشاركة تنتظر المراجعة واختبار جارٍ. لا تُسحب أي نقاط مكتسبة، وإذا كانت خطوة في فئة مرتبة فستبقى تحجز ما بعدها؛ تخطَّها لتحريره.",
-    en: "Players can't start or complete it until you resume it, and it can't be awarded by hand. Work started before the pause still finishes and counts: a submission waiting for review, a quiz in progress. No points already earned are taken back, and as a step of an in-order category it still holds the steps after it; skip it to free them.",
+    ar: "لن يستطيع اللاعبون بدءها أو إنجازها حتى تستأنفها، ولا يمكن منحها يدويًا. ما بدأ قبل الإيقاف يكتمل ويُحتسب: مشاركة تنتظر المراجعة واختبار جارٍ. لا تُسحب أي نقاط مكتسبة، وإذا كانت خطوة في {categoryOne} مرتبة فستبقى تحجز ما بعدها؛ تخطَّها لتحريره.",
+    en: "Players can't start or complete it until you resume it, and it can't be awarded by hand. Work started before the pause still finishes and counts: a submission waiting for review, a quiz in progress. No points already earned are taken back, and as a step of an in-order {categoryOne} it still holds the steps after it; skip it to free them.",
   },
   "control.resume.action": { ar: "استئناف", en: "Resume" },
   "control.resume.title": { ar: "استئناف «{title}»؟", en: "Resume “{title}”?" },
@@ -7185,8 +7185,8 @@ export const MESSAGES = {
   "control.skip.action": { ar: "تخطي الخطوة", en: "Skip step" },
   "control.skip.title": { ar: "تخطي «{title}»؟", en: "Skip “{title}”?" },
   "control.skip.body": {
-    ar: "ينتقل اللاعبون إلى الخطوة التالية دونها، ولا تحجز مكافأة الفئة ولا فئةً تُفتح بعدها. لا يحصل أحد على نقاطها بسبب التخطي. تبقى متاحة: من ينجزها يكسب نقاطها؛ أوقفها مؤقتًا أيضًا لإغلاقها.",
-    en: "Players move on to the next step without it, and it no longer holds the category's bonus or a category unlocked after it. Nobody gets its points for the skip. It stays open: a player who completes it still earns its points; pause it as well to close it.",
+    ar: "ينتقل اللاعبون إلى الخطوة التالية دونها، ولا تحجز مكافأة {categoryOne} ولا {categoryOne} تُفتح بعدها. لا يحصل أحد على نقاطها بسبب التخطي. تبقى متاحة: من ينجزها يكسب نقاطها؛ أوقفها مؤقتًا أيضًا لإغلاقها.",
+    en: "Players move on to the next step without it, and it no longer holds the {categoryOne}'s bonus or a {categoryOne} unlocked after it. Nobody gets its points for the skip. It stays open: a player who completes it still earns its points; pause it as well to close it.",
   },
   "control.unskip.action": { ar: "إعادة الخطوة", en: "Restore step" },
   "control.unskip.title": { ar: "إعادة «{title}»؟", en: "Restore “{title}”?" },
