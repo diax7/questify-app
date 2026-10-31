@@ -19,6 +19,31 @@
 - **The app sends no `X-App-Version`,** so the API's minimum-version gate (staging `MIN_APP_VERSION` 1.0.0, the app is
   0.1.0) never applies to it; FOLLOWUPS.
 
+## T-603b pause and skip, T-604 live points edits — 2026-10-31
+
+- **T-603b and T-604 done (tier A; code review and mutation owed; not run on a phone). Migrations 0097 and 0098** (new,
+  undeployed; staging runs through 0095, 0096 pushed). Plan review 80; its four MAJOR findings and the minors were taken
+  into the plan (f271a2f) and built. **T-603b:** quest pause and skip columns, `set_quest_paused` and `set_step_skipped`
+  (owner, editor; audited; idempotent), QN403 `paused` in the open check (an open quiz attempt goes on), skipped steps out
+  of the category rules, `control_done` pause/skip/behind, the go-live wipe clears both; `POST …/pause|resume|skip|unskip`;
+  the room's badges and confirmed switches; the app's `paused` state. **T-604:** the ledger kind `adjust` with its
+  append-only header `quest_points_change`, `apply_past_points` (absolute targets, score and balance clamped on their
+  own, batches of 2,000 entries, about 0.75 ms an entry), `quest_points_impact`, `past_points_replay`,
+  `delete_played_quest` with the shared `write_removal`, the quest pin before the enrollment lock in every paying door,
+  deleted quests out of the builder, codes page and duplication; `PATCH …/quests/{id}` `apply`, `GET …/impact`, `DELETE`
+  `points`; the quest builder's points and keep-or-remove dialogs. ADR-386 to ADR-388 and Q-353 to Q-355 Proposed.
+  **Split (ADR-388):** the confirmation sweep and change sets became **T-604b** (tier B, migration 0099 free).
+  **Mutation targets (one run):** `apps/api/src/quests/live-edits.ts`, `apps/api/src/quests/quests.ts`,
+  `apps/api/src/control/pause.ts`, `apps/api/src/home/home.ts`, `!**/*.test.ts`.
+  Local: full vitest 9557 passed, 14 skipped, 5 failed on the one run (four expectations this change moves: the quest
+  delete asks keep or remove, the member quest columns, the payer map, and three new texts that named quest and category
+  instead of the event's word; one timing test of catch); fixed and the touched suites rerun once: 313 passed. Browser
+  suite 268 passed, 4 skipped (single worker, 24.6 min); `expo export --platform android` ok; tsc, oxlint, format and
+  function limits clean (baseline 307 to 304). Past points timed at 3,000 entries in 2.2 s. CI minutes none yet; agent
+  tokens roughly 0.85M (estimate).
+  **Next:** the T-603b/T-604 code review (tier A) and their mutation run, the T-603 code review, T-604b, then the next
+  unchecked task in `docs/TASKS.md` (T-605).
+
 ## T-603 live control room — 2026-10-31
 
 - **T-603 done (tier B; code review owed; not run on a phone). Migration 0096** (new, undeployed; staging runs through 0095).
