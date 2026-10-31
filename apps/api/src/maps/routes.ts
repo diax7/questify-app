@@ -4,6 +4,7 @@ import { z } from "zod";
 import { unauthenticated } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
 import { memberQuests, type HomeDeps } from "#src/home/home";
+import { requireEventFeature } from "#src/settings/feature-guard";
 import { memberMapsOf, type DoorMaps, type PinQuest } from "#src/maps/member";
 import { mapCall, mapError, type MapDeps } from "#src/maps/store";
 import { organizerContextOf } from "#src/organizers/context";
@@ -139,6 +140,7 @@ export function registerMemberMapRoutes(app: FastifyInstance, deps: HomeDeps): v
     const { eventId } = parse(eventParams, request.params);
     if (request.player === undefined) throw unauthenticated();
     const playerId = request.player.id;
+    await requireEventFeature(deps.settings, eventId, playerId, "maps");
     const door = await mapCall<{ answer: DoorMaps }>(
       deps,
       { playerId },

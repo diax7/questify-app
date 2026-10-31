@@ -34,7 +34,16 @@ describe("composeConfig defaults", () => {
         ],
       },
       terms: DEFAULT_TERMS,
+      branding: { accent: null },
     });
+  });
+
+  it("carries the event's accent, and none outside an event", () => {
+    expect(composeConfig(registries, {}, { branding: { accent: "rose" } }).branding).toEqual({
+      accent: "rose",
+    });
+    expect(composeConfig(registries, {}, {}).branding).toEqual({ accent: null });
+    expect(composeConfig(registries, {}, undefined).branding).toEqual({ accent: null });
   });
 
   it("carries the event's words, and Questify's own outside an event", () => {

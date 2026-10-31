@@ -5,6 +5,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { etagOf } from "#src/etag";
 import { readFirstBonuses, type FirstBonusCache } from "#src/quests/first-bonus";
+import { eventFeatureOn } from "#src/settings/feature-guard";
 import type { SettingsService } from "#src/settings/service";
 
 /** A step of the community goal as the player sees it, with their own payout (`mine`) when the step pays them. */
@@ -231,12 +232,18 @@ export function createLiveReader(deps: LiveDeps, now: () => number = Date.now): 
         state.community === null || !(await communityPlatformOn(deps.settings))
           ? null
           : communityOf(state.community);
+      // The event's live polls switch (T-602): off, no card shows, open or closed; the lookup waits until a poll is live.
+      const pollsOn =
+        state.polls.length + state.closed.length === 0 ||
+        (await eventFeatureOn(deps.settings, eventId, playerId, "polls"));
       return {
-        polls: state.polls.map((poll) => ({
-          questId: poll.questId,
-          closesAt: new Date(poll.closesAt).toISOString(),
-        })),
-        closed: state.closed,
+        polls: pollsOn
+          ? state.polls.map((poll) => ({
+              questId: poll.questId,
+              closesAt: new Date(poll.closesAt).toISOString(),
+            }))
+          : [],
+        closed: pollsOn ? state.closed : [],
         community,
         flash: state.flash.map((quest) => ({
           questId: quest.questId,

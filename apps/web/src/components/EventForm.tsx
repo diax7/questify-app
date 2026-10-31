@@ -27,6 +27,7 @@ import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { EventWords } from "#src/components/EventWords.tsx";
 import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
+import { EventBranding } from "#src/components/EventBranding.tsx";
 import { EventFeatureSwitch } from "#src/components/EventFeatureSwitch.tsx";
 import { StreakPanel } from "#src/components/StreakPanel.tsx";
 import { Button } from "#src/ui/Button.tsx";
@@ -370,9 +371,13 @@ const FEATURE_SWITCHES = [
   ["boosts", (event: EventView) => event.boosts !== false],
   ["helpDesk", (event: EventView) => event.helpDesk !== false],
   ["questRatings", (event: EventView) => event.questRatings === true],
+  ["shop", (event: EventView) => event.shop !== false],
+  ["polls", (event: EventView) => event.polls !== false],
+  ["maps", (event: EventView) => event.maps !== false],
+  ["agenda", (event: EventView) => event.agenda !== false],
 ] as const;
 
-/** The event's on/off switches in one place: the ranking and each player feature, each saved as it changes. */
+/** The event's accent colour and its on/off switches (ranking, each player feature), each saved as it changes. */
 function EventFeatures({
   language,
   organizerId,
@@ -386,28 +391,36 @@ function EventFeatures({
 }>) {
   const t = useTranslator(language);
   return (
-    <Section title={t("events.section.features")}>
-      <Rows as="div">
-        <RankingSwitch
-          language={language}
-          organizerId={organizerId}
-          eventId={event.id}
-          initial={{ ranking: event.ranking, rankingToday: event.rankingToday }}
-          myRole={myRole}
-        />
-        {FEATURE_SWITCHES.map(([feature, initial]) => (
-          <EventFeatureSwitch
-            key={feature}
+    <>
+      <EventBranding
+        language={language}
+        organizerId={organizerId}
+        eventId={event.id}
+        initial={event.branding?.accent ?? null}
+      />
+      <Section title={t("events.section.features")}>
+        <Rows as="div">
+          <RankingSwitch
             language={language}
-            feature={feature}
             organizerId={organizerId}
             eventId={event.id}
-            initial={initial(event)}
+            initial={{ ranking: event.ranking, rankingToday: event.rankingToday }}
             myRole={myRole}
           />
-        ))}
-      </Rows>
-    </Section>
+          {FEATURE_SWITCHES.map(([feature, initial]) => (
+            <EventFeatureSwitch
+              key={feature}
+              language={language}
+              feature={feature}
+              organizerId={organizerId}
+              eventId={event.id}
+              initial={initial(event)}
+              myRole={myRole}
+            />
+          ))}
+        </Rows>
+      </Section>
+    </>
   );
 }
 

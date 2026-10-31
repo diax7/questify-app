@@ -436,3 +436,43 @@ describe("the live read's first-N bonuses (T-313, ADR-263)", () => {
     expect(fake.queries.filter((sql) => sql.includes("first_bonus_left"))).toEqual([]);
   });
 });
+
+describe("the live read's polls switch (T-602, FR-1009)", () => {
+  const POLLING = {
+    polls: [{ questId: "q1", closesAt: "2030-11-01T07:10:00+00:00" }],
+    closed: [{ questId: "q0" }],
+    community: null,
+    flash: [],
+    boosts: [],
+  };
+  const pollsReader = (pollsEnabled: boolean) => {
+    const fake = fakePool((sql) =>
+      sql.includes("event_has_live") ? { rows: [{ open: true }] } : { rows: [{ state: POLLING }] },
+    );
+    const composed = (key: string) => ({
+      kind: "ok" as const,
+      etag: "x",
+      config: { features: { [key]: { enabled: pollsEnabled } } },
+    });
+    return createLiveReader(
+      {
+        pool: fake.pool,
+        settings: { forEvent: () => Promise.resolve(composed("polls") as never) },
+        firstBonus: createFirstBonusCache(),
+      },
+      () => 0,
+    );
+  };
+
+  it("shows the open and the closed poll while the switch is on", async () => {
+    const live = await pollsReader(true).read(PLAYER, "e1", noLog);
+    expect(live.polls).toEqual([{ questId: "q1", closesAt: "2030-11-01T07:10:00.000Z" }]);
+    expect(live.closed).toEqual([{ questId: "q0" }]);
+  });
+
+  it("shows no poll card, open or closed, once the switch is off", async () => {
+    const live = await pollsReader(false).read(PLAYER, "e1", noLog);
+    expect(live.polls).toEqual([]);
+    expect(live.closed).toEqual([]);
+  });
+});

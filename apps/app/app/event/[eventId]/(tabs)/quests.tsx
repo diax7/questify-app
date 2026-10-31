@@ -351,6 +351,11 @@ function QuestsViews({
   onOpenQuest: (questId: string) => void;
 }>) {
   const { t } = useI18n();
+  const { featureOn } = useEvent();
+  // The maps switch (T-602): off, there is no toggle and no map, only the list.
+  if (!featureOn("maps")) {
+    return <QuestList {...list} />;
+  }
   return (
     <>
       <View style={{ flexDirection: "row", gap: 8 }}>

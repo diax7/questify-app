@@ -58,6 +58,26 @@ const FEATURES = {
     title: "events.cheers.title",
     label: "events.cheers.label",
   },
+  shop: {
+    path: "features/shop",
+    title: "events.shop.title",
+    label: "events.shop.label",
+  },
+  polls: {
+    path: "features/polls",
+    title: "events.polls.title",
+    label: "events.polls.label",
+  },
+  maps: {
+    path: "features/maps",
+    title: "events.maps.title",
+    label: "events.maps.label",
+  },
+  agenda: {
+    path: "features/agenda",
+    title: "events.agenda.title",
+    label: "events.agenda.label",
+  },
 } as const satisfies Record<
   string,
   Readonly<{ path: string; title: MessageKey; label: MessageKey }>
@@ -82,7 +102,8 @@ type Props = Readonly<{
  * locked, T-306c). Flash quests and double points (T-307) work the same way: off hides every flash quest, or stops
  * every boost paying, at once. The help desk (T-310) off stops new requests while open ones stay answerable. Quest
  * ratings (T-508) are the one switch that starts off: players are asked only after the owner turns it on. Cheers
- * (T-509) sits on the Big screen page: off ends any live cheers moment. The owner
+ * (T-509) sits on the Big screen page: off ends any live cheers moment. The shop, live polls, maps and agenda (T-602,
+ * FR-1009) take their screens off the player's side, and nothing the team has built. The owner
  * changes it; an editor sees it switched and cannot change it. Saved as soon as the box changes.
  */
 export function EventFeatureSwitch({
@@ -96,6 +117,7 @@ export function EventFeatureSwitch({
 }: Props) {
   const t = useTranslator(language);
   const words = FEATURES[feature];
+  const titleId = `${words.path.replace("/", "-")}-title`;
   const [on, setOn] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -129,10 +151,10 @@ export function EventFeatureSwitch({
   return (
     <Row
       as="section"
-      aria-labelledby={`${words.path}-title`}
+      aria-labelledby={titleId}
       main={
         <>
-          <SubHeading id={`${words.path}-title`}>{t(words.title)}</SubHeading>
+          <SubHeading id={titleId}>{t(words.title)}</SubHeading>
           {myRole === "owner" && on && feature === "community" ? (
             <Muted>{t("events.community.offWarning")}</Muted>
           ) : null}

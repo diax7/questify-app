@@ -155,6 +155,9 @@ const NO_SMS: SmsSender = {
 /** How long shutdown waits for emails still being sent. */
 const DRAIN_TIMEOUT_MS = 5000;
 
+/** The fields a device alarm adds to its log line. */
+type LogFields = Readonly<Record<string, unknown>>;
+
 /** Log level by environment, with secrets and keys removed from every log line. */
 export function loggerOptions(config: AppConfig): {
   level: string;
@@ -445,8 +448,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const deviceClaims = {
     pool: options.pool,
     keys: signInDeps.keys,
-    alarm: (event: string, fields: Readonly<Record<string, unknown>>) =>
-      app.log.error({ event, ...fields }),
+    alarm: (event: string, fields: LogFields) => app.log.error({ event, ...fields }),
   };
   const deviceDeps = {
     ...deviceClaims,
@@ -475,6 +477,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const rewardCodeKey = createRewardCodeKey(config.rewardCodeSecret);
   registerShopRoutes(app, {
     pool: options.pool,
+    settings,
     codeKey: rewardCodeKey,
     log: (fields) => app.log.error(fields),
   });
@@ -522,7 +525,6 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   startTicks(app, options, { settings, keys: signInDeps.keys, invitations });
   registerConfigRoutes(app, settings);
-
   registerTranslationRoutes(
     app,
     options.translations ?? createTranslationService({ pool: options.pool }),

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ACCENT_KEYS, readBranding, type AccentKey } from "#src/design/accents";
 import type { ComposedConfig } from "./compose";
 import type { PlatformSettings, Registries } from "./registry";
 import { readEventTerms } from "./terms";
@@ -108,6 +109,18 @@ export function validateEventConfig(
   return issues.length > 0 ? { ok: false, issues } : { ok: true, value: parsed.data };
 }
 
+const brandingShape = z.strictObject({
+  accent: z.enum(ACCENT_KEYS as [AccentKey, ...AccentKey[]]).nullable(),
+});
+
+/** Checks the look an organizer saves: one accent from the curated list, or null for Questify's own colour. */
+export function validateEventBranding(input: unknown): Validation<{ accent: AccentKey | null }> {
+  const parsed = brandingShape.safeParse(input);
+  return parsed.success
+    ? { ok: true, value: parsed.data }
+    : { ok: false, issues: issuesOf(parsed.error) };
+}
+
 /** True when the app has this feature and it is an add-on that Questify can unlock for an event. */
 export function isGatedFeature(registries: Registries, key: string): boolean {
   return registries.features[key]?.gated === true;
@@ -127,6 +140,8 @@ const composedShape = z.object({
   legal: z.object({ documents: z.array(z.object({ id: z.string(), version: z.string() })) }),
   // Read tolerantly: a copy saved before T-117 has none, and one bad word falls back to its default.
   terms: z.unknown().optional().transform(readEventTerms),
+  // Read tolerantly too: a copy saved before T-602 has none, and an accent this app does not know shows as none.
+  branding: z.unknown().optional().transform(readBranding),
 });
 
 /**

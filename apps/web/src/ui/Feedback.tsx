@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import styles from "#src/ui/surface.module.css";
 
 type Tone = "neutral" | "info" | "success" | "warning" | "danger";
@@ -127,4 +127,15 @@ export function Muted({
 /** Text only a screen reader reads. */
 export function ScreenReaderOnly({ children }: Readonly<{ children: ReactNode }>) {
   return <span className={styles.srOnly}>{children}</span>;
+}
+
+/** A round chip of one colour beside a choice's name (the event's accent picker); decorative, so the name is what is read. */
+export function Swatch({ color }: Readonly<{ color: string }>) {
+  return (
+    <span
+      className={styles.swatch}
+      style={{ "--swatch": color } as CSSProperties}
+      aria-hidden="true"
+    />
+  );
 }

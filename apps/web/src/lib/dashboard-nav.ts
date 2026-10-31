@@ -19,6 +19,7 @@ export type EventPageLink = Readonly<{
  */
 export const EVENT_PAGES: readonly EventPageLink[] = [
   { slug: "", icon: "overview", group: "event", label: "dashNav.overview" },
+  { slug: "preview", icon: "eye", group: "event", label: "preview.title" },
   { slug: "quests", icon: "compass", group: "setup", label: "quests.title" },
   { slug: "sessions", icon: "calendar", group: "setup", label: "sessions.page.title" },
   { slug: "maps", icon: "map", group: "setup", label: "maps.page.title" },

@@ -7018,6 +7018,35 @@ export const MESSAGES = {
   "screen.cheers.title": { ar: "التشجيع", en: "Cheers" },
   "screen.cheers.prompt": { ar: "شجّع من تطبيق كويستفاي!", en: "Cheer from the Questify app!" },
   "screen.cheers.endsIn": { ar: "تنتهي بعد {time}", en: "Ends in {time}" },
+  // ---------------------------------------------------------------- feature switches, look and preview (T-602)
+  "events.shop.title": { ar: "المتجر", en: "Shop" },
+  "events.shop.label": { ar: "إظهار المتجر في الفعالية", en: "Show the shop in the event" },
+  "events.polls.title": { ar: "الاستطلاعات المباشرة", en: "Live polls" },
+  "events.polls.label": {
+    ar: "إظهار الاستطلاعات المباشرة في الفعالية",
+    en: "Show live polls in the event",
+  },
+  "events.maps.title": { ar: "الخرائط", en: "Maps" },
+  "events.maps.label": { ar: "إظهار الخرائط في الفعالية", en: "Show maps in the event" },
+  "events.agenda.title": { ar: "الجدول", en: "Agenda" },
+  "events.agenda.label": { ar: "إظهار الجدول في الفعالية", en: "Show the agenda in the event" },
+  "branding.title": { ar: "المظهر", en: "Look" },
+  "branding.accent": { ar: "اللون المميّز", en: "Accent colour" },
+  "branding.accent.default": { ar: "أخضر كويستفاي", en: "Questify green" },
+  "branding.accent.sky": { ar: "سماوي", en: "Sky" },
+  "branding.accent.ember": { ar: "جمري", en: "Ember" },
+  "branding.accent.rose": { ar: "وردي", en: "Rose" },
+  "branding.accent.violet": { ar: "بنفسجي", en: "Violet" },
+  "branding.accent.lagoon": { ar: "فيروزي", en: "Lagoon" },
+  "branding.accent.honey": { ar: "عسلي", en: "Honey" },
+  "preview.title": { ar: "معاينة", en: "Preview" },
+  "preview.language": { ar: "لغة المعاينة", en: "Preview language" },
+  "preview.noQuests": { ar: "لا {questMany} ظاهرة بعد.", en: "No {questMany} shown yet." },
+  "preview.noRewards": { ar: "لا جوائز ظاهرة بعد.", en: "No rewards shown yet." },
+  "preview.loadFailed": {
+    ar: "تعذّر تحميل المعاينة. أعد المحاولة.",
+    en: "The preview did not load. Try again.",
+  },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isGatedFeature,
   parseComposedConfig,
+  validateEventBranding,
   validateEventConfig,
   validatePlatformSettings,
 } from "./validate";
@@ -171,6 +172,7 @@ describe("parseComposedConfig", () => {
     tuning: { qrSeconds: 45 },
     legal: { documents: [{ id: "terms_of_use", version: "0.1" }] },
     terms: DEFAULT_TERMS,
+    branding: { accent: null },
   };
 
   it("accepts a composed document", () => {
@@ -190,6 +192,19 @@ describe("parseComposedConfig", () => {
     expect(result).toEqual({
       ok: true,
       config: { ...valid, terms: { ...DEFAULT_TERMS, currency: { icon: "gem", ...gems } } },
+    });
+  });
+
+  it("reads a copy from before branding as no accent, and an accent it does not know as none", () => {
+    const { branding: _branding, ...older } = valid;
+    expect(parseComposedConfig(older)).toEqual({ ok: true, config: valid });
+    expect(parseComposedConfig({ ...valid, branding: { accent: "neon" } })).toEqual({
+      ok: true,
+      config: valid,
+    });
+    expect(parseComposedConfig({ ...valid, branding: { accent: "sky" } })).toEqual({
+      ok: true,
+      config: { ...valid, branding: { accent: "sky" } },
     });
   });
 
@@ -231,5 +246,27 @@ describe("parseComposedConfig", () => {
     ["a string", "config"],
   ])("rejects %s, so the app keeps its last working copy", (_label, input) => {
     expect(parseComposedConfig(input)).toEqual({ ok: false });
+  });
+});
+
+describe("validateEventBranding", () => {
+  it("accepts an accent from the curated list, or null for the brand colour", () => {
+    expect(validateEventBranding({ accent: "violet" })).toEqual({
+      ok: true,
+      value: { accent: "violet" },
+    });
+    expect(validateEventBranding({ accent: null })).toEqual({ ok: true, value: { accent: null } });
+  });
+
+  it.each([
+    ["a free colour", { accent: "#FF0000" }],
+    ["an unknown name", { accent: "neon" }],
+    ["no accent", {}],
+    ["a font", { accent: "sky", font: "Comic Sans" }],
+    ["a theme", { accent: "sky", theme: "dark" }],
+    ["a string", "sky"],
+    ["null", null],
+  ])("refuses %s, so no free colour, font or theme exists (FR-1023)", (_label, input) => {
+    expect(validateEventBranding(input).ok).toBe(false);
   });
 });

@@ -1,3 +1,4 @@
+import type { Branding } from "#src/design/accents";
 import type { LocalizedText } from "#src/errors";
 import type { EventTerms } from "./terms";
 
@@ -42,6 +43,8 @@ export type EventConfig = Readonly<{
   unlocked?: readonly string[] | undefined;
   /** The event's own words (FR-404, FR-940); the defaults when it set none. */
   terms?: EventTerms | undefined;
+  /** The event's look (FR-1023): an accent from the curated list, or none. */
+  branding?: Branding | undefined;
 }>;
 
 /**
@@ -49,6 +52,11 @@ export type EventConfig = Readonly<{
  * (and never to "prepare" one): a switch for something that is not in the app would break FR-1504.
  */
 export const FEATURES: FeatureRegistry = {
+  /**
+   * The agenda (T-505, T-602, FR-1009): the owner turns it off for an event, which hides the Agenda in the app and refuses
+   * its player doors; registrations and the team's own page stay. Off for the platform, the same for every event.
+   */
+  agenda: { gated: false },
   bigScreen: { gated: true },
   /**
    * Double-point boosts (T-307, FR-252, ADR-233): the owner turns them off for an event, which stops every boost paying
@@ -110,6 +118,11 @@ export const FEATURES: FeatureRegistry = {
    * event switch: the quest's own kiosk method is the organizer's. ADR-076's paid add-on gates it later.
    */
   kiosks: { gated: false, level: "platform" },
+  /**
+   * Maps (T-506, T-602, FR-1009): the owner turns them off for an event, which hides the map in the app and refuses its
+   * player door; the team's Maps page and every pin stay.
+   */
+  maps: { gated: false },
   /** Meet-someone quests (T-303c, FR-1009, ADR-210): the owner turns them off for an event, which hides every one. */
   meetSomeone: { gated: false },
   /** Mini-games (T-305, FR-1009, ADR-213): the owner turns them off for an event, which hides every game quest. */
@@ -119,6 +132,10 @@ export const FEATURES: FeatureRegistry = {
    * NFC quest completes by its QR. No event switch: the quest's own NFC method is the organizer's.
    */
   nfcTags: { gated: false, level: "platform" },
+  /**
+   * Live polls (T-306, T-602, FR-1009): the owner turns them off for an event, which hides every live poll card, open or
+   * closed; votes already cast stay counted and the team's own results stay.
+   */
   polls: { gated: false },
   /**
    * Push notifications (T-501, ADR-345): off for the platform, nothing is claimed or sent and queued pushes expire unsent;
@@ -142,6 +159,11 @@ export const FEATURES: FeatureRegistry = {
   rankingToday: { gated: false },
   /** Share quests (T-303, FR-219, ADR-199): the owner turns them off for an event, which hides every one. */
   shareQuests: { gated: false },
+  /**
+   * The shop (T-201, T-602, FR-1009): the owner turns it off for an event, which hides the Rewards tab, Home's shop card and
+   * goal, and refuses the shop's read and a goal pin; a prize a player already holds is still handed over at the desk by
+   * their My QR. Reserving stays a points door (Q-348): only the shop's screens are gone.
+   */
   shop: { gated: false },
   /**
    * Station pages and the rotating screen QR (T-309, F-106, ADR-240): off for the platform, station pages show "Not

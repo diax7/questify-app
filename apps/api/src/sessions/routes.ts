@@ -11,6 +11,8 @@ import { z } from "zod";
 import { unauthenticated } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
 import { organizerContextOf } from "#src/organizers/context";
+import { requireEventFeature } from "#src/settings/feature-guard";
+import type { SettingsService } from "#src/settings/service";
 import { sessionCall, sessionError, type SessionDeps } from "#src/sessions/store";
 
 const eventParams = z.object({ eventId: z.uuid() });
@@ -159,10 +161,14 @@ const player = { config: { access: "player" } } as const;
 const playerIdempotent = { config: { access: "player", idempotent: true } } as const;
 
 /** The player's side (T-505): the agenda with their own state, registering (with the overlap warning) and cancelling. */
-export function registerMemberSessionRoutes(app: FastifyInstance, deps: SessionDeps): void {
+export function registerMemberSessionRoutes(
+  app: FastifyInstance,
+  deps: SessionDeps & Readonly<{ settings: SettingsService }>,
+): void {
   app.get("/v1/events/:eventId/sessions", player, async (request, reply) => {
     reply.header("cache-control", "private, no-store");
     const { eventId } = parse(eventParams, request.params);
+    await requireEventFeature(deps.settings, eventId, playerContext(request).playerId, "agenda");
     const result = await sessionCall<{ sessions: MemberSession[] }>(
       deps,
       playerContext(request),
@@ -177,6 +183,7 @@ export function registerMemberSessionRoutes(app: FastifyInstance, deps: SessionD
     async (request) => {
       const { eventId, sessionId } = parse(targetParams, request.params);
       const body = parse(registerBody, request.body);
+      await requireEventFeature(deps.settings, eventId, playerContext(request).playerId, "agenda");
       const result = await sessionCall<{ answer: unknown }>(
         deps,
         playerContext(request),

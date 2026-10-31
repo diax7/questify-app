@@ -1178,7 +1178,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1006 | F-21 | Must | `packages/shared/src/quests/registry.test.ts`, `test/db/submissions.int`, `test/submissions/routes.int` (T-301; photos T-301b) |
 | FR-1007 | F-21, F-196 | Must | pending |
 | FR-1008 | F-68 | Must | pending |
-| FR-1009 | F-25 | Must | pending |
+| FR-1009 | F-25 | Must | built (T-602, ADR-381; the owner's switches; reserving while the shop is off, Q-348) |
 | FR-1010 | F-25, F-41 | Must | pending |
 | FR-1011 | F-188 | Must | pending |
 | FR-1012 | F-188, F-44 | Must | pending |
@@ -1191,8 +1191,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1019 | F-195 | Must | pending |
 | FR-1020 | F-195, F-44 | Must | pending |
 | FR-1021 | F-195, F-194 | Must | pending |
-| FR-1022 | F-193 | Should | pending |
-| FR-1023 | F-26 | Should | pending |
+| FR-1022 | F-193 | Should | built (T-602, ADR-381) |
+| FR-1023 | F-26 | Should | partial (T-602: the accent; the logo and banner are T-602b, blocked on Q-149) |
 | FR-1024 | F-66 | Must | pending |
 | FR-1025 | F-191 | Must | pending |
 | FR-1026 | F-191, F-196 | Must | pending |

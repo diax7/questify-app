@@ -1,12 +1,13 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
-import { VENUE_RADIUS, readEventTerms } from "@questify/shared";
+import { VENUE_RADIUS, readBranding, readEventTerms } from "@questify/shared";
 import {
   eventNotDraft,
   eventNotLive,
   eventArchived,
   eventCityLocked,
   eventTimesLocked,
+  invalidBranding,
   invalidEvent,
   invalidTerms,
   notFound,
@@ -107,6 +108,11 @@ const view = (event: EventRecord) => ({
   boosts: event.boostsOn,
   helpDesk: event.helpDeskOn,
   questRatings: event.questRatingsOn,
+  shop: event.shopOn,
+  polls: event.pollsOn,
+  maps: event.mapsOn,
+  agenda: event.agendaOn,
+  branding: event.branding,
   venuePin: event.venuePin,
   venueRadiusM: event.venueRadiusM,
   cityId: event.cityId,
@@ -260,7 +266,33 @@ export function registerEventRoutes(
         throw notFound();
     }
   });
+  registerEventBranding(scope, settings);
   registerEventSwitches(scope, settings);
+}
+
+/** FR-1023: the event's accent colour, one of the curated list or null for the brand colour. Owners and editors. */
+function registerEventBranding(scope: FastifyInstance, settings: SettingsService): void {
+  scope.put("/events/:eventId/branding", member, async (request) => {
+    const { eventId } = parse(eventParams, request.params);
+    const context = organizerContextOf(request);
+    const saved = await settings.saveEventBranding(
+      { staffUserId: context.staffUserId, organizerId: context.organizerId },
+      eventId,
+      request.body,
+      { requestId: request.id },
+    );
+    if (saved.ok) {
+      return { branding: readBranding(request.body) };
+    }
+    switch (saved.reason) {
+      case "invalid":
+        throw invalidBranding({ field: saved.issues[0]?.path });
+      case "archived":
+        throw eventArchived();
+      default:
+        throw notFound();
+    }
+  });
 }
 
 /**
@@ -269,7 +301,9 @@ export function registerEventRoutes(
  * finishes the event's running goals (migration 0053's trigger, ADR-226). Flash quests off hides every one at once;
  * boosts off stops every boost paying at once (T-307, migration 0055). Help desk off stops new tickets (T-310). Quest
  * ratings are the one switch that starts off: players are asked only after the owner turns them on (T-508, FR-1623).
- * Cheers off ends any live moment at once and refuses a new one (T-509, FR-1841).
+ * Cheers off ends any live moment at once and refuses a new one (T-509, FR-1841). The shop, live polls, maps and agenda
+ * (T-602, FR-1009) go off the player's side at once: the Rewards tab and the shop's doors, the live poll cards, the map
+ * and the agenda; the team's own pages and every record stay.
  */
 function registerEventSwitches(scope: FastifyInstance, settings: SettingsService): void {
   const switches = [
@@ -284,6 +318,10 @@ function registerEventSwitches(scope: FastifyInstance, settings: SettingsService
     ["/events/:eventId/help-desk", "helpDesk"],
     ["/events/:eventId/quest-ratings", "questRatings"],
     ["/events/:eventId/cheers", "cheers"],
+    ["/events/:eventId/features/shop", "shop"],
+    ["/events/:eventId/features/polls", "polls"],
+    ["/events/:eventId/features/maps", "maps"],
+    ["/events/:eventId/features/agenda", "agenda"],
   ] as const;
   for (const [path, feature] of switches) {
     scope.put(path, owner, async (request) => {

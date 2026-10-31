@@ -7,6 +7,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
+import { useEvent } from "#src/event/EventContext.tsx";
 import { memberAnnouncementsOf, happeningNow, type Happening } from "#src/event/announcements.ts";
 import { fetchQuests } from "#src/event/quests-api.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -79,20 +80,25 @@ function AnnouncementRows({ rows }: Readonly<{ rows: readonly MemberAnnouncement
 
 export function EventHomeStrips({ eventId }: Readonly<{ eventId: string }>) {
   const { t, language } = useI18n();
+  const { featureOn } = useEvent();
   const state = useAnnouncementReads(eventId, false);
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.list}>
-      <Button
-        kind="quiet"
-        label={t("agenda.link")}
-        onPress={() => router.push(`/event/${eventId}/agenda`)}
-      />
-      <Button
-        kind="quiet"
-        label={t("mapsView.link")}
-        onPress={() => router.push(`/event/${eventId}/maps`)}
-      />
+      {featureOn("agenda") ? (
+        <Button
+          kind="quiet"
+          label={t("agenda.link")}
+          onPress={() => router.push(`/event/${eventId}/agenda`)}
+        />
+      ) : null}
+      {featureOn("maps") ? (
+        <Button
+          kind="quiet"
+          label={t("mapsView.link")}
+          onPress={() => router.push(`/event/${eventId}/maps`)}
+        />
+      ) : null}
       {state.running.length === 0 ? null : (
         <View style={styles.card}>
           <AppText variant="title">{t("happening.title")}</AppText>

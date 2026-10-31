@@ -3,12 +3,13 @@ import {
   REGISTRIES,
   composeConfig,
   isGatedFeature,
+  readBranding,
   readEventSwitches,
   readEventTerms,
   readPlatformSettings,
+  readStoredBranding,
   readStoredTerms,
   validateEventConfig,
-  validateEventTerms,
   validatePlatformSettings,
   type ComposedConfig,
   type ConfigIssue,
@@ -25,15 +26,14 @@ import {
   deleteEntitlement,
   insertEntitlement,
   lockEventSwitches,
-  lockEventTerms,
   lockPlatformBlocks,
   readEntitlements,
   readStoredEventConfig,
   readStoredPlatform,
   upsertPlatformBlock,
   writeEventSwitches,
-  writeEventTerms,
 } from "#src/settings/store";
+import { saveBranding, saveTerms } from "#src/settings/save-event-config";
 import type { PublicAccount } from "#src/auth/staff-store";
 
 export type ConfigResult =
@@ -80,6 +80,16 @@ export type SettingsService = Readonly<{
    * Any status but archived, since a name can be fixed after the event.
    */
   saveEventTerms: (
+    actor: Readonly<{ staffUserId: string; organizerId: string }>,
+    eventId: string,
+    input: unknown,
+    meta?: AuditMeta,
+  ) => Promise<SaveResult>;
+  /**
+   * A member of the organizer picks the event's accent colour from the curated list, or null for the brand colour
+   * (FR-1023). Any status but archived, as the words.
+   */
+  saveEventBranding: (
     actor: Readonly<{ staffUserId: string; organizerId: string }>,
     eventId: string,
     input: unknown,
@@ -157,6 +167,7 @@ export function createSettingsService(options: SettingsOptions): SettingsService
           features: readEventSwitches(stored),
           unlocked,
           terms: readEventTerms(readStoredTerms(stored)),
+          branding: readBranding(readStoredBranding(stored)),
         });
         return { kind: "ok", config, etag: etagOf(config) } as const;
       }),
@@ -305,39 +316,13 @@ export function createSettingsService(options: SettingsOptions): SettingsService
     },
 
     saveEventTerms: async (actor, eventId, input, meta = {}) => {
-      const checked = validateEventTerms(input);
-      if (!checked.ok) {
-        return { ok: false, reason: "invalid", issues: checked.issues };
-      }
-      const result = await withConnection(options.pool, (client) =>
-        withRequestContext(
-          client,
-          { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-          async (): Promise<SaveResult> => {
-            const current = await lockEventTerms(client, eventId);
-            if (current === undefined) {
-              return { ok: false, reason: "not_found" };
-            }
-            if (current.archived) {
-              return { ok: false, reason: "archived" };
-            }
-            const changes = diff({ terms: current.terms ?? {} }, { terms: checked.value });
-            if ("terms" in changes.after) {
-              await writeEventTerms(client, eventId, checked.value);
-              await recordAudit(client, {
-                actor: { type: "staff", id: actor.staffUserId },
-                action: "event.terms.update",
-                organizerId: current.organizerId,
-                eventId,
-                target: { type: "event", id: eventId },
-                ...changes,
-                requestId: meta.requestId,
-              });
-            }
-            return { ok: true };
-          },
-        ),
-      );
+      const result = await saveTerms(options.pool, actor, eventId, input, meta);
+      forgetAll();
+      return result;
+    },
+
+    saveEventBranding: async (actor, eventId, input, meta = {}) => {
+      const result = await saveBranding(options.pool, actor, eventId, input, meta);
       forgetAll();
       return result;
     },

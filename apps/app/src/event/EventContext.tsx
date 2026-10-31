@@ -8,13 +8,18 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { DEFAULT_TERMS, type EventTerms, type MemberSponsors } from "@questify/shared";
+import {
+  themeWithAccent,
+  type AccentKey,
+  type EventTerms,
+  type MemberSponsors,
+} from "@questify/shared";
 import { api, keyValueStore } from "#src/api/app-session.ts";
-import { helpDeskOn, loadEventConfig, locationQuestsOn, nfcTagsOn } from "#src/config/remote.ts";
 import { markOpened, readMyEvents, type MyEvent } from "#src/event/launch.ts";
-import { livePollSecondsOf } from "#src/event/polls.ts";
+import { useEventConfig } from "#src/event/useEventConfig.ts";
 import { fetchSponsors, lookupOf, type SponsorLookup } from "#src/event/sponsors.ts";
 import { TermsScope } from "#src/i18n/provider.tsx";
+import { ThemeProvider, useTheme } from "#src/theme/theme.tsx";
 
 type EventValue = Readonly<{
   eventId: string;
@@ -36,6 +41,13 @@ type EventValue = Readonly<{
   nfcOn: boolean;
   /** The help desk's switch (T-310): off hides only the send form; Your requests stays. */
   helpOn: boolean;
+  /**
+   * Whether an event feature is on (the shop, maps, agenda; T-602, FR-1009): on until the configuration says off, so
+   * nothing flashes away while it loads. A switched-off feature is not drawn at all.
+   */
+  featureOn: (feature: string) => boolean;
+  /** The event's accent colour (T-602, FR-1023), or null for Questify green; the provider applies it to the theme. */
+  accent: AccentKey | null;
   /** Seconds between reads of what is live (T-306, ADR-221): the configuration's tuning, else the default. */
   livePollSeconds: number;
   /** Counts payments made outside a tab's own flow (the live poll card, T-306): Home and Quests read again on it. */
@@ -55,11 +67,6 @@ export function EventProvider({
 }: Readonly<{ eventId: string; children: ReactNode }>) {
   const [events, setEvents] = useState<readonly MyEvent[] | undefined>(undefined);
   const [knownName, rememberName] = useState<string | undefined>(undefined);
-  const [terms, setTerms] = useState<EventTerms>(DEFAULT_TERMS);
-  const [locationOn, setLocationOn] = useState(false);
-  const [nfcOn, setNfcOn] = useState(true);
-  const [helpOn, setHelpOn] = useState(true);
-  const [livePollSeconds, setLivePollSeconds] = useState(() => livePollSecondsOf(undefined));
   const [paidCount, setPaidCount] = useState(0);
   const notePaid = useCallback(() => setPaidCount((count) => count + 1), []);
   const [sponsorData, setSponsorData] = useState<MemberSponsors | undefined>(undefined);
@@ -85,24 +92,10 @@ export function EventProvider({
     void markOpened(keyValueStore, eventId, Date.now());
     void load();
   }, [eventId, load]);
-  useEffect(() => {
-    // Another event never keeps the last one's words, even for the moment before its own load.
-    setTerms(DEFAULT_TERMS);
-    setLocationOn(false);
-    let current = true;
-    void loadEventConfig({ client: api.session, store: keyValueStore }, eventId, (loaded) => {
-      if (current) {
-        setTerms(loaded.terms);
-        setLocationOn(locationQuestsOn(loaded));
-        setNfcOn(nfcTagsOn(loaded));
-        setHelpOn(helpDeskOn(loaded));
-        setLivePollSeconds(livePollSecondsOf(loaded));
-      }
-    });
-    return () => {
-      current = false;
-    };
-  }, [eventId]);
+  const { terms, locationOn, nfcOn, helpOn, livePollSeconds, featureOn, accent } =
+    useEventConfig(eventId);
+  const { theme: baseTheme } = useTheme();
+  const eventTheme = useMemo(() => themeWithAccent(baseTheme, accent), [baseTheme, accent]);
   const kind = events?.find((event) => event.id === eventId)?.kind;
   const scanPositions = locationOn && (kind === "physical" || kind === "workplace");
   const value = useMemo(
@@ -116,6 +109,8 @@ export function EventProvider({
       scanPositions,
       nfcOn,
       helpOn,
+      featureOn,
+      accent,
       livePollSeconds,
       paidCount,
       notePaid,
@@ -131,6 +126,8 @@ export function EventProvider({
       scanPositions,
       nfcOn,
       helpOn,
+      featureOn,
+      accent,
       livePollSeconds,
       paidCount,
       notePaid,
@@ -140,7 +137,9 @@ export function EventProvider({
   );
   return (
     <EventContext.Provider value={value}>
-      <TermsScope terms={terms}>{children}</TermsScope>
+      <ThemeProvider theme={eventTheme}>
+        <TermsScope terms={terms}>{children}</TermsScope>
+      </ThemeProvider>
     </EventContext.Provider>
   );
 }

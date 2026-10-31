@@ -1,11 +1,5 @@
+import { QUEST_TYPE_SWITCHES } from "@questify/shared";
 import type { SettingsService } from "#src/settings/service";
-
-/** A quest type a feature switch hides, by the feature's key (T-303, FR-219, ADR-199). */
-const SWITCHED_TYPES: Readonly<Record<string, string>> = {
-  share: "shareQuests",
-  meet: "meetSomeone",
-  game: "miniGames",
-};
 
 /**
  * The quest types the event's composed configuration switches off: a share quest while `shareQuests` is off,
@@ -20,7 +14,7 @@ export async function switchedOffTypes(
   const config = await settings.forEvent(eventId, playerId);
   const features = config.kind === "ok" ? config.config.features : {};
   return new Set(
-    Object.entries(SWITCHED_TYPES)
+    Object.entries(QUEST_TYPE_SWITCHES)
       .filter(([, feature]) => features[feature]?.enabled === false)
       .map(([type]) => type),
   );

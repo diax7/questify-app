@@ -39,6 +39,7 @@ declare const styles: {
   readonly srOnly: string;
   readonly stack: string;
   readonly subTitle: string;
+  readonly swatch: string;
   readonly tab: string;
   readonly tabs: string;
   readonly title: string;

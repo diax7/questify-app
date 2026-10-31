@@ -96,6 +96,7 @@ export const AREAS = [
     ["events", "event-page", "duplicate-event"],
   ],
   [/duplicate-?event|event-?duplicat|copy-?setup/i, ["duplicate-event"]],
+  [/branding|accent-?(picker|colou?r)|preview|player-?view/i, ["branding"]],
   [/app\/\[lang\]\/e\//i, ["event-page", "terms"]],
   [/first-?bonus/i, ["first-bonus"]],
   [/flag|moderation/i, ["flags"]],

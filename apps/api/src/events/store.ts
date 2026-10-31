@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import type { PoolClient } from "pg";
-import { readEventTerms, type EventTerms } from "@questify/shared";
+import { readBranding, readEventTerms, type Branding, type EventTerms } from "@questify/shared";
 
 export type EventKind = "physical" | "virtual" | "workplace";
 export type EventAccess = "public" | "unlisted" | "private";
@@ -46,6 +46,13 @@ export type EventRecord = Readonly<{
   helpDeskOn: boolean;
   /** The event's quest ratings switch (T-508, FR-1623): off until the owner turns it on. */
   questRatingsOn: boolean;
+  /** The event's shop, live polls, maps and agenda switches (T-602, FR-1009): each off hides it from players. */
+  shopOn: boolean;
+  pollsOn: boolean;
+  mapsOn: boolean;
+  agendaOn: boolean;
+  /** The event's look (T-602, FR-1023): its accent colour, or none. */
+  branding: Branding;
   /** The event's words (FR-404, FR-940), the defaults for any it did not set. */
   terms: EventTerms;
   /** The venue's pin, or null (T-303b); with its radius in metres. */
@@ -103,6 +110,11 @@ type Row = {
   boosts_on: boolean;
   help_desk_on: boolean;
   quest_ratings_on: boolean;
+  shop_on: boolean;
+  polls_on: boolean;
+  maps_on: boolean;
+  agenda_on: boolean;
+  branding: unknown;
   terms: unknown;
   venue_lat: string | null;
   venue_lng: string | null;
@@ -122,7 +134,12 @@ const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, acce
   coalesce((config -> 'features' ->> 'flashQuests')::boolean, true) AS flash_quests_on,
   coalesce((config -> 'features' ->> 'boosts')::boolean, true) AS boosts_on,
   coalesce((config -> 'features' ->> 'helpDesk')::boolean, true) AS help_desk_on,
-  coalesce((config -> 'features' ->> 'questRatings')::boolean, false) AS quest_ratings_on, config -> 'terms' AS terms,
+  coalesce((config -> 'features' ->> 'questRatings')::boolean, false) AS quest_ratings_on,
+  coalesce((config -> 'features' ->> 'shop')::boolean, true) AS shop_on,
+  coalesce((config -> 'features' ->> 'polls')::boolean, true) AS polls_on,
+  coalesce((config -> 'features' ->> 'maps')::boolean, true) AS maps_on,
+  coalesce((config -> 'features' ->> 'agenda')::boolean, true) AS agenda_on,
+  config -> 'branding' AS branding, config -> 'terms' AS terms,
   venue_lat, venue_lng, venue_radius_m, city_id, interests`;
 
 const toRecord = (row: Row): EventRecord => ({
@@ -150,6 +167,11 @@ const toRecord = (row: Row): EventRecord => ({
   boostsOn: row.boosts_on,
   helpDeskOn: row.help_desk_on,
   questRatingsOn: row.quest_ratings_on,
+  shopOn: row.shop_on,
+  pollsOn: row.polls_on,
+  mapsOn: row.maps_on,
+  agendaOn: row.agenda_on,
+  branding: readBranding(row.branding),
   terms: readEventTerms(row.terms),
   venuePin:
     row.venue_lat === null || row.venue_lng === null

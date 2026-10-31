@@ -1,3 +1,4 @@
+import { DEFAULT_BRANDING, type Branding } from "#src/design/accents";
 import type { LocalizedText } from "#src/errors";
 import { playerDocuments } from "#src/legal/documents";
 import type { EventConfig, PlatformSettings, Registries } from "./registry";
@@ -23,6 +24,8 @@ export type ComposedConfig = Readonly<{
   legal: Readonly<{ documents: readonly Readonly<{ id: string; version: string }>[] }>;
   /** The event's currency and renamed words, always complete; Questify's own words outside an event. */
   terms: EventTerms;
+  /** The event's look (FR-1023); no accent outside an event or when the organizer picked none. */
+  branding: Branding;
 }>;
 
 // The keys of an object are unique, so two of them are never equal.
@@ -80,5 +83,6 @@ export function composeConfig(
     tuning: composeTuning(registries, platform),
     legal: { documents: playerDocuments().map(({ id, version }) => ({ id, version })) },
     terms: event?.terms ?? DEFAULT_TERMS,
+    branding: event?.branding ?? DEFAULT_BRANDING,
   };
 }

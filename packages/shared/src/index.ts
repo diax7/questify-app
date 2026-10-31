@@ -22,7 +22,12 @@ export type {
   TuningRegistry,
 } from "./config/registry";
 export { FEATURES, REGISTRIES, TUNING } from "./config/registry";
-export { readEventSwitches, readPlatformSettings, readStoredTerms } from "./config/read";
+export {
+  readEventSwitches,
+  readPlatformSettings,
+  readStoredBranding,
+  readStoredTerms,
+} from "./config/read";
 export type { CurrencyIcon, EventTerms, EventTermsInput, Word, WordForms } from "./config/terms";
 export {
   CURRENCY_ICONS,
@@ -37,9 +42,12 @@ export type { ConfigIssue, Validation } from "./config/validate";
 export {
   isGatedFeature,
   parseComposedConfig,
+  validateEventBranding,
   validateEventConfig,
   validatePlatformSettings,
 } from "./config/validate";
+export type { PlayerTab } from "./event/player-view";
+export { PLAYER_TABS, QUEST_TYPE_SWITCHES, playerTabs, questTypeShown } from "./event/player-view";
 export type { RateLimitState } from "./rate-limit";
 export { rateLimitHeaders } from "./rate-limit";
 export type {
@@ -53,6 +61,15 @@ export type {
   Theme,
 } from "./design/theme";
 export { adventurePalette, adventureTheme } from "./design/adventure";
+export type { AccentKey, Branding } from "./design/accents";
+export {
+  ACCENTS,
+  ACCENT_KEYS,
+  DEFAULT_BRANDING,
+  isAccentKey,
+  readBranding,
+  themeWithAccent,
+} from "./design/accents";
 export type { ThemeId } from "./design/themes";
 export { DEFAULT_THEME, THEMES } from "./design/themes";
 export type { Language } from "./i18n/digits";

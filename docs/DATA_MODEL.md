@@ -186,7 +186,7 @@ for optional editor event limits (ADR-077). PII: names and emails of staff (via 
 | venue_ar, venue_en | text | ≤ 200 | no | Migration 0009 |
 | join_methods | text[] | ⊆ code, qr, link, public_list; ≥ 1; public_list only when access is public | no | Migration 0009 |
 | starts_at, ends_at, shop_closes_at | timestamptz | | no | Balance closes after the shop window (ADR-048) |
-| config | jsonb + config_version | schema-validated | no | `features` (the event's switches) and `terms` (its words, T-117); every write bumps `config_version`. See `CONFIGURABILITY.md` |
+| config | jsonb + config_version | schema-validated | no | `features` (the event's switches, T-602 adds `shop`, `polls`, `maps`, `agenda`), `terms` (its words, T-117) and `branding` (`{accent}`, one key of the curated list in `packages/shared/src/design/accents.ts`, or absent for Questify green; the logo and banner keys join it in T-602b); every write bumps `config_version`. See `CONFIGURABILITY.md` |
 | focus_quest_id | uuid | null, or a quest of the same event (FK `(focus_quest_id, id)` → `quest (id, event_id)`); `ON DELETE SET NULL (focus_quest_id)` | no | The quest pinned as Up next (FR-1748); migration 0021 |
 | managed_by_questify | bool | | no | ADR-077 |
 

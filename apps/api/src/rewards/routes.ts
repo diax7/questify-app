@@ -45,6 +45,8 @@ import {
   type RewardRecord,
 } from "#src/rewards/builder";
 import { CODE_MAX_LENGTH } from "#src/rewards/codes";
+import { requireEventFeature } from "#src/settings/feature-guard";
+import type { SettingsService } from "#src/settings/service";
 import {
   cancelRedemption,
   readShop,
@@ -285,13 +287,17 @@ const goalBody = z.strictObject({ rewardId: z.uuid().nullable() });
  * Idempotency-Key, a new one per tap), `POST /v1/redemptions/:redemptionId/cancel` (cancelling twice is harmless) and
  * `PUT /v1/events/:eventId/goal` (T-213).
  */
-export function registerShopRoutes(app: FastifyInstance, deps: ShopDeps): void {
+export function registerShopRoutes(
+  app: FastifyInstance,
+  deps: ShopDeps & Readonly<{ settings: Pick<SettingsService, "forEvent"> }>,
+): void {
   app.get("/v1/events/:eventId/shop", { config: { access: "player" } }, async (request, reply) => {
     const { eventId } = parse(shopParams, request.params);
     // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard answers first
     if (request.player === undefined) {
       throw unauthenticated();
     }
+    await requireEventFeature(deps.settings, eventId, request.player.id, "shop");
     const view = await readShop(deps, { playerId: request.player.id, eventId });
     if (view === undefined) {
       throw notFound();
@@ -350,6 +356,7 @@ export function registerShopRoutes(app: FastifyInstance, deps: ShopDeps): void {
       if (request.player === undefined) {
         throw unauthenticated();
       }
+      await requireEventFeature(deps.settings, eventId, request.player.id, "shop");
       const result = await setGoal(deps, { playerId: request.player.id, eventId, rewardId });
       if (result.kind === "not_found") {
         throw notFound();

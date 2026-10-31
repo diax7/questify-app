@@ -195,6 +195,12 @@ export const invalidTerms = make(
   "راجع كلمات الفعالية: الحقل المحدد غير صالح.",
   "Check the event's words: the named field is not valid.",
 );
+export const invalidBranding = make(
+  422,
+  "invalid_branding",
+  "اختر لونًا من القائمة.",
+  "Pick a colour from the list.",
+);
 export const eventArchived = make(
   409,
   "event_archived",

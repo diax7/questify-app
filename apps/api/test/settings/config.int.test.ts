@@ -65,6 +65,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
       expect(response.json()).toEqual({
         schemaVersion: 1,
         features: {
+          agenda: { enabled: true, minAppVersion: null, message: null },
           bigScreen: { enabled: false, minAppVersion: null, message: null },
           boosts: { enabled: true, minAppVersion: null, message: null },
           cheers: { enabled: true, minAppVersion: null, message: null },
@@ -77,6 +78,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
           invitationCampaigns: { enabled: false, minAppVersion: null, message: null },
           kiosks: { enabled: true, minAppVersion: null, message: null },
           locationQuests: { enabled: false, minAppVersion: null, message: null },
+          maps: { enabled: true, minAppVersion: null, message: null },
           meetSomeone: { enabled: true, minAppVersion: null, message: null },
           miniGames: { enabled: true, minAppVersion: null, message: null },
           nfcTags: { enabled: true, minAppVersion: null, message: null },
@@ -104,6 +106,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
           ],
         },
         terms: DEFAULT_TERMS,
+        branding: { accent: null },
       });
     });
 

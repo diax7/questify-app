@@ -60,6 +60,11 @@ export function readStoredTerms(stored: unknown): unknown {
   return isRecord(stored) ? stored["terms"] : undefined;
 }
 
+/** The branding block of an event's stored config, as stored (read it with `readBranding`). */
+export function readStoredBranding(stored: unknown): unknown {
+  return isRecord(stored) ? stored["branding"] : undefined;
+}
+
 /** Reads the feature switches stored in an event's config; anything that is not true or false is dropped. */
 export function readEventSwitches(stored: unknown): Readonly<Record<string, boolean>> {
   const features = isRecord(stored) ? stored["features"] : undefined;

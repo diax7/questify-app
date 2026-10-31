@@ -86,6 +86,16 @@ const ROUTES: Readonly<Record<string, string>> = {
     "owner/editor, event limit rechecked by award_event_of (another organizer's event is 404); the four topics, true when they start on, no player (push-topic-defaults, push/defaults)",
   "PUT /v1/organizers/:organizerId/events/:eventId/push-defaults":
     "owner/editor, event limit rechecked by award_event_of (another organizer's event is 404); changes only the topics named for that event, audited push.defaults; a player's own choice still wins (push-topic-defaults, push/defaults)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/features/shop":
+    "owner of that organizer only (owner route, walked below); changes only the shop switch of that event (test/events/branding)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/features/polls":
+    "owner of that organizer only (owner route, walked below); changes only the polls switch of that event (test/events/branding)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/features/maps":
+    "owner of that organizer only (owner route, walked below); changes only the maps switch of that event (test/events/branding)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/features/agenda":
+    "owner of that organizer only (owner route, walked below); changes only the agenda switch of that event (test/events/branding)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/branding":
+    "a member of that organizer, an editor within their chosen events (the database applies the limit); another organizer's event answers 404; one accent from the curated list, nothing else is stored (test/events/branding)",
   "PUT /v1/organizers/:organizerId/events/:eventId/cheers":
     "owner of that organizer only (owner route, walked below); changes only the cheers switch of that event (test/cheers/routes)",
   "GET /v1/organizers/:organizerId/events/:eventId/quest-ratings":

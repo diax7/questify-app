@@ -140,7 +140,8 @@ test("an owner invites an editor, who joins with a new password and the emailed 
     await editor.getByRole("link", { name: "Events" }).click();
     await editor.getByRole("link", { name: "Team Rally" }).click();
     // An editor sees the ranking, share-quest (T-303), meet-someone (T-303c), mini-game (T-305), community (T-306b),
-    // flash-quest and double-points (T-307) and help-desk (T-310) switches as they are, and cannot change them.
+    // flash-quest and double-points (T-307), help-desk (T-310), and shop, live-poll, map and agenda (T-602) switches as they
+    // are, and cannot change them.
     for (const name of [
       "Show the ranking in the app",
       "Show today's ranking",
@@ -151,9 +152,15 @@ test("an owner invites an editor, who joins with a new password and the emailed 
       "Run flash quests in the event",
       "Run double points in the event",
       "Run the help desk in the event",
+      "Show the shop in the event",
+      "Show live polls in the event",
+      "Show maps in the event",
+      "Show the agenda in the event",
     ]) {
       await expect(editor.getByRole("checkbox", { name })).toBeDisabled();
     }
+    // The accent colour is the owner's or an editor's (FR-1023).
+    await expect(editor.getByRole("radio", { name: "Sky" })).toBeEnabled();
     // This event lasts one day, so the streak panel says why it has no controls.
     await expect(
       editor.getByText("A streak needs an event that lasts more than one day."),

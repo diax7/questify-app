@@ -1,0 +1,125 @@
+/* The dashboard's preview of the player's screens (FR-1022): a phone-shaped frame per screen, drawn from the same colour
+   roles as the app, so the event's accent changes it the way it changes the phone. Nothing in it is a control. The bar
+   keeps the app's left-to-right order in both languages. */
+.phones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.phone {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 26rem;
+  overflow: hidden;
+  border: var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+}
+
+.screenTitle {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-display);
+  line-height: var(--leading-tight);
+}
+
+.group {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+}
+
+.muted {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-md);
+  padding-block: var(--space-sm);
+  border-block-end: 1px solid var(--color-border);
+  font-size: var(--text-md);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--control-height);
+  padding-inline: var(--space-lg);
+  border: 1px solid var(--color-primary-action);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-action);
+  color: var(--color-on-primary-action);
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+}
+
+.buttonQuiet {
+  border-color: var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 2rem;
+  padding-inline: var(--space-md);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-action);
+  color: var(--color-on-primary-action);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+}
+
+.bar {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  direction: ltr;
+  background: var(--color-navigation-bar);
+}
+
+.tab {
+  padding: var(--space-md) 0;
+  white-space: nowrap;
+  border-block-start: 3px solid transparent;
+  color: var(--color-background);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.tabActive {
+  border-block-start-color: var(--color-navigation-active);
+  font-weight: var(--weight-strong);
+}

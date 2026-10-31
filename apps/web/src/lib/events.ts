@@ -1,4 +1,4 @@
-import { VENUE_RADIUS, toLocalInput, type Language } from "@questify/shared";
+import { VENUE_RADIUS, toLocalInput, type AccentKey, type Language } from "@questify/shared";
 import { isRadius, pinIsValid, pinTyped } from "#src/lib/coordinates.ts";
 
 export const KINDS = ["physical", "virtual", "workplace"] as const;
@@ -56,6 +56,13 @@ export type EventView = Readonly<{
   helpDesk?: boolean;
   /** The event's quest ratings switch (T-508, FR-1623); off unless the API says so. */
   questRatings?: boolean;
+  /** The event's shop, live polls, maps and agenda switches (T-602, FR-1009); absent from an older API, read as on. */
+  shop?: boolean;
+  polls?: boolean;
+  maps?: boolean;
+  agenda?: boolean;
+  /** The event's look (T-602, FR-1023): its accent colour from the curated list, or none. */
+  branding?: Readonly<{ accent: AccentKey | null }>;
   /** The event's words (FR-404, FR-940); on the single read only, so read it with `readEventTerms`. */
   terms?: unknown;
 }>;

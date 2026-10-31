@@ -106,6 +106,36 @@ export async function writeEventTerms(db: Db, eventId: string, terms: unknown): 
   );
 }
 
+/** An event's stored look, locked until the transaction ends. Undefined when the caller cannot see the event. */
+export async function lockEventBranding(
+  db: Db,
+  eventId: string,
+): Promise<{ organizerId: string; branding: unknown; archived: boolean } | undefined> {
+  const { rows } = await db.query<{ organizer_id: string; branding: unknown; archived: boolean }>(
+    `SELECT organizer_id, config -> 'branding' AS branding, status = 'archived' AS archived
+     FROM event WHERE id = $1 FOR UPDATE`,
+    [eventId],
+  );
+  const row = rows[0];
+  return row === undefined
+    ? undefined
+    : { organizerId: row.organizer_id, branding: row.branding, archived: row.archived };
+}
+
+/** Replaces the look inside an event's config and keeps whatever else it holds. */
+export async function writeEventBranding(
+  db: Db,
+  eventId: string,
+  branding: unknown,
+): Promise<void> {
+  await db.query(
+    `UPDATE event
+     SET config = jsonb_set(config, '{branding}', $2::jsonb, true), config_version = config_version + 1
+     WHERE id = $1`,
+    [eventId, JSON.stringify(branding)],
+  );
+}
+
 export type EntitlementChange =
   | Readonly<{ kind: "no_event" }>
   | Readonly<{ kind: "added" | "already"; organizerId: string }>;
