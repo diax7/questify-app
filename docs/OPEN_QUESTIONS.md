@@ -1547,16 +1547,13 @@ push again. **Decided (developer):** as recommended, ADR-372 accepted (2026-10-3
 
 **Recommended (developer):** registration is free and records the player, the session and the time only; an overlap is a warning the player can confirm, not a block; a registration-required session without walk-ins refuses a player who did not register, with walk-ins on it records them as walk-ins; a full or closed session simply offers no button; the agenda link on Event Home is always shown; the session's points on check-in wait for T-505b (tier A). **Open:** whether an event with no sessions should hide the Home link (needs a count on Home), whether waitlists matter for full sessions, and how many points a session should give (the organizer sets it in T-505b). **Decided (developer):** as recommended, ADR-373 accepted after the T-505 review (93 GO, 2026-10-30).
 
-
 ## Q-341 - T-506 maps: what is decided without Dhia (2026-10-30)
 
 **Recommended (developer):** maps ship as plain named boards until a storage bucket exists (Q-149), with pins placed by clicking on the board; the uploaded picture is T-506b; a quest has one pin in an event; a quest pin shows done, open or locked (not live, not yet open and closed read as locked); "you are here" is the last station scan if its quest has a pin, with the time, and nothing otherwise; the List and Map toggle and the Maps link on Home are always shown. **Open:** whether a map with no pictures is useful enough to show players before T-506b (an organizer who adds no map shows players nothing but an empty list), whether "you are here" should fade after a few hours, and whether a quest should be allowed one pin per map (floors). **Decided (developer, delegated by Dhia, 2026-10-30):** as recommended, ADR-374 accepted after the T-506 review (93 GO).
 
-
 ## Q-342 - T-507 sponsors: what is decided without Dhia (2026-10-30)
 
 **Recommended (developer):** sponsors ship without logos or banners until a storage bucket exists (Q-149), with a lettered mark in the logo's place; an item has one sponsor and tagging it to another moves it; a category tagged to a sponsor counts all its quests as the sponsor's for the strip; tiers are platinum, gold, silver, bronze and partner and order the strip; the strip and the "presented by" label are always shown when a sponsor exists; sponsors are not an add-on key yet; souvenir tags (T-507c) and analytics by sponsor (FR-1306) wait. **Open:** whether sponsors are a paid add-on (BUSINESS_MODEL line 34 lists them, PRICING does not price them; a gated key would hide the page until Questify unlocks it, FR-1729), whether the five tiers fit how Saudi events name them, whether a sponsor needs a short description or a link (ADR-067 says no link and no tracking, so the build has none), and whether "presented by" should also show on a quest inside a tagged category (the category header shows it once). **Decided (developer, delegated by Dhia, 2026-10-30):** as recommended, ADR-375 accepted after the T-507 review (93 GO).
-
 
 ## Q-343 - T-508 quest ratings and survey results: what is decided without Dhia (2026-10-30)
 
@@ -1573,7 +1570,6 @@ push again. **Decided (developer):** as recommended, ADR-372 accepted (2026-10-3
 ## Q-346 - T-510 default notification topics: what is decided without Dhia (2026-10-31)
 
 **Recommended (developer):** an event can start any of the four topics off for its players (everything starts on); a player who has turned a topic on or muted it keeps that choice, whatever the event says; a player who has not chosen follows the event, and Settings shows the switch off with one line saying an event they joined started it off; the organizer's switches sit on the Announcements page, open to the owner and editors. **Open:** (1) whether a late change by the organizer should also reach players who joined before it (as built: yes, until they choose); (2) whether a player in two events that differ should see the topic per event (as built: one global switch, off while any event starts it off); (3) whether a duplicated event copies its defaults (T-601 will decide). **Decided (developer, delegated by Dhia, 2026-10-31):** as built, ADR-379 accepted after the T-510 review (94 GO).
-
 
 ## Q-347 - T-601 duplicate an event: what is decided without Dhia (2026-10-31)
 
@@ -1629,6 +1625,7 @@ waiting for review, an open quiz attempt) finishes and pays; (2) the pause's com
 (3) a paused in-order step still holds later steps (skip it to free them); (4) skip pays nobody, the step stays
 completable, unskip is allowed and its screen counts who is held again; (5) the go-live wipe clears both (ADR-386).
 **Open:** should skipping pay the step's points to those who moved on? Recommended no: the team can award a group.
+**Decided (developer, delegated by Dhia, 2026-10-31):** as recommended, after the code review (84, both MAJORs fixed).
 
 ## Q-354 - T-604 live points edits: what is decided without Dhia (2026-10-31)
 
@@ -1639,9 +1636,11 @@ vote, survey, share, challenge, passport and meet; submission, quiz and game are
 raise stays within the per-award cap; (5) delete with "remove" also takes the quest's first-N bonus and folded adjusts;
 category bonuses and streak days stay; (6) a category holding a deleted quest cannot be deleted (ADR-387). **Open:** should
 past edits reach submission and quiz quests? Recommended no for now: they pay amounts set per answer or per review.
+**Decided (developer, delegated by Dhia, 2026-10-31):** as recommended, after the code review (84, both MAJORs fixed).
 
 ## Q-355 - Change sets: what is decided without Dhia (2026-10-31)
 
 **Recommended (developer, as the plan review decided):** API-first creation (the future AI wizard, F-197), a dashboard
 review page, per-item transactions with stale detection, quests, categories and rewards only, no dry run on GET; split to
 T-604b (ADR-388). **Open:** should the dashboard itself offer "save as a change set"? Recommended no.
+**Decided (developer, delegated by Dhia, 2026-10-31):** as recommended, after the code review (84, both MAJORs fixed).

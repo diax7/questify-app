@@ -5833,7 +5833,7 @@ caught it.
 
 ## ADR-386 - T-603b pause a quest and skip a broken step: two room doors, one open-check line, and a skip that pays nobody
 
-**Status:** Proposed (worker, 2026-10-31; plan `docs/plans/2026-10-31-t-603b-t-604-live-edits.md`, review 80; Q-353).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-31, code review 84 with both MAJORs fixed in fb97785; was: worker, 2026-10-31; plan `docs/plans/2026-10-31-t-603b-t-604-live-edits.md`, review 80; Q-353).
 **Decision:** (1) **Data.** `quest.paused_at/by` and `quest.skipped_at/by` (staff named without a foreign key), with no
 grant to the API's role: only `set_quest_paused` and `set_step_skipped` (migration 0097, owner or editor within their event
 limit, open from the rehearsal on, refused once the event has ended, audited `quest.pause/resume/skip/unskip`) write them.
@@ -5855,7 +5855,7 @@ as buttons on each quest row rather than a "More" menu.
 
 ## ADR-387 - T-604 live points edits: absolute targets through compensating `adjust` entries, and a played quest's delete by a mark
 
-**Status:** Proposed (worker, 2026-10-31; plan review 80, its four MAJOR findings taken in; Q-354).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-31, code review 84 with both MAJORs fixed in fb97785; was: worker, 2026-10-31; plan review 80, its four MAJOR findings taken in; Q-354).
 **Decision:** (1) **Future or also past.** In a live event, new points on a quest real players completed need a choice
 (409 `apply_required`). "Future" is the plain edit. "Also past" (`apply: "past"`, an Idempotency-Key) makes every kept
 completion by an active member worth `points × the multiplier of its entry's boost`: the door `apply_past_points` writes
@@ -5899,7 +5899,7 @@ the screen); the today ranking counts a past raise as today's points (FOLLOWUPS)
 
 ## ADR-388 - T-604 confirmations sweep and change sets: split to T-604b
 
-**Status:** Proposed (worker, 2026-10-31; Q-355).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-31, code review 84 with both MAJORs fixed in fb97785; was: worker, 2026-10-31; Q-355).
 **Decision:** The tier B slice of the plan (the FR-1031/FR-1032 confirmation sweep and FR-1034/FR-1035 change sets,
 migration 0099) is not built with T-604 and becomes **T-604b**: the worker's budget went to the tier A points work and
 its race tests. As the plan review decided, change sets are API-first with a dashboard review page and no "save as change
