@@ -37,20 +37,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits over HTTP", 
       ...(payload === undefined ? {} : { payload }),
     });
 
-  /** A live event with one quest of `type` at 100 points that `players` players completed. */
-  const played = async (players: number, type = "enter_code") => {
+  const liveEvent = async (): Promise<string> => {
     counter += 1;
     const [event] = await owner<{ id: string }>(
       `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
        VALUES ($1, $2, 'Live Fest', 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id`,
       [organizer, `LIV${counter}`],
     );
+    return event?.id ?? "";
+  };
+
+  /** A quest of `type` at 100 points in its own category of the event, that `players` players completed. */
+  const playedQuest = async (eventId: string, players: number, type = "enter_code") => {
+    counter += 1;
     const [quest] = await owner<{ id: string }>(
-      `WITH c AS (INSERT INTO category (event_id, name_en) VALUES ($1, 'General') RETURNING id)
+      `WITH c AS (INSERT INTO category (event_id, name_en) VALUES ($1, $4) RETURNING id)
        INSERT INTO quest (event_id, category_id, type, title_en, points, type_config, visible)
        SELECT $1, c.id, $2, 'Stage', 100, $3, true FROM c RETURNING id`,
       [
-        event?.id,
+        eventId,
         type,
         JSON.stringify(
           type === "quiz"
@@ -67,8 +72,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits over HTTP", 
                   },
                 ],
               }
-            : { code: "ABC" },
+            : { code: `ABC${counter}` },
         ),
+        `Group ${counter}`,
       ],
     );
     for (let i = 0; i < players; i += 1) {
@@ -79,21 +85,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits over HTTP", 
       );
       const [enrolled] = await owner<{ id: string }>(
         "INSERT INTO enrollment (organizer_id, event_id, player_id) VALUES ($1, $2, $3) RETURNING id",
-        [organizer, event?.id, player?.id],
+        [organizer, eventId, player?.id],
       );
       const [done] = await owner<{ id: string }>(
         `INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method, idempotency_key)
          VALUES ($1, $2, $3, $4, 1, 'code', $5) RETURNING id`,
-        [organizer, event?.id, enrolled?.id, quest?.id, randomUUID()],
+        [organizer, eventId, enrolled?.id, quest?.id, randomUUID()],
       );
       await owner(
         `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, completion_id,
                                    quest_id, actor)
          VALUES ($1, $2, $3, 'quest', 100, 100, $4, $5, 'player')`,
-        [organizer, event?.id, enrolled?.id, done?.id, quest?.id],
+        [organizer, eventId, enrolled?.id, done?.id, quest?.id],
       );
     }
-    return { event: event?.id ?? "", quest: quest?.id ?? "" };
+    return quest?.id ?? "";
+  };
+
+  /** A live event with one quest of `type` at 100 points that `players` players completed. */
+  const played = async (players: number, type = "enter_code") => {
+    const event = await liveEvent();
+    return { event, quest: await playedQuest(event, players, type) };
   };
 
   beforeAll(async () => {
@@ -136,7 +148,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits over HTTP", 
     const reused = await call("PATCH", path, { points: 170, confirm: true, apply: "past" }, key);
     expect([reused.statusCode, reused.json().code]).toEqual([422, "idempotency_key_reused"]);
     const future = await call("PATCH", path, { points: 120, confirm: true, apply: "future" });
+    expect(future.statusCode).toBe(200);
+    expect(future.json().quest).toMatchObject({ points: 120 });
     expect(future.json()).not.toHaveProperty("change");
+    const later = await call("PATCH", path, { points: 150, confirm: true, apply: "past" }, key);
+    expect(later.json()).toMatchObject({ quest: { points: 120 }, change: { replayed: true } });
+    const [kept] = await owner<{ points: number }>("SELECT points FROM quest WHERE id = $1", [
+      quest,
+    ]);
+    expect(kept?.points).toBe(120);
     const [standing] = await owner<{ score: string }>(
       "SELECT max(score) AS score FROM enrollment WHERE event_id = $1",
       [event],
@@ -153,6 +173,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits over HTTP", 
       { "idempotency-key": randomUUID() },
     );
     expect([refused.statusCode, refused.json()]).toMatchObject([
+      422,
+      { code: "invalid_quest", details: { field: "apply" } },
+    ]);
+    const before = await call(
+      "PATCH",
+      `/events/${quiz.event}/quests/${quiz.quest}`,
+      { points: 5, confirm: true, apply: "past", categoryId: randomUUID() },
+      { "idempotency-key": randomUUID() },
+    );
+    expect(before.json()).toMatchObject({ code: "invalid_quest", details: { field: "apply" } });
+    const unplayed = await played(0, "quiz");
+    const unreached = await call(
+      "PATCH",
+      `/events/${unplayed.event}/quests/${unplayed.quest}`,
+      { points: 5, confirm: true, apply: "past" },
+      { "idempotency-key": randomUUID() },
+    );
+    expect([unreached.statusCode, unreached.json()]).toMatchObject([
       422,
       { code: "invalid_quest", details: { field: "apply" } },
     ]);
@@ -202,6 +240,49 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits over HTTP", 
     expect(ran.json()).toMatchObject({ change: { completions: 1, raised: 1 } });
   });
 
+  it("refuses a key that an earlier change used for another quest of the event", async () => {
+    const { event, quest } = await played(2);
+    const other = await playedQuest(event, 1);
+    const key = { "idempotency-key": randomUUID() };
+    const body = { points: 150, confirm: true, apply: "past" };
+    const first = await call("PATCH", `/events/${event}/quests/${quest}`, body, key);
+    expect(first.statusCode).toBe(200);
+    const second = await call("PATCH", `/events/${event}/quests/${other}`, body, key);
+    expect([second.statusCode, second.json().code]).toEqual([422, "idempotency_key_reused"]);
+    const [untouched] = await owner<{ points: number }>("SELECT points FROM quest WHERE id = $1", [
+      other,
+    ]);
+    expect(untouched?.points).toBe(100);
+  });
+
+  it("asks nothing when a played quest's points stay as they are, or the event is not live", async () => {
+    const { event, quest } = await played(2);
+    const path = `/events/${event}/quests/${quest}`;
+    const renamed = await call("PATCH", path, { title: { en: "Renamed" }, confirm: true });
+    expect(renamed.statusCode).toBe(200);
+    const same = await call("PATCH", path, { points: 100, confirm: true });
+    expect(same.statusCode).toBe(200);
+    await owner("UPDATE event SET status = 'draft' WHERE id = $1", [event]);
+    const draft = await call("PATCH", path, { points: 130 });
+    expect([draft.statusCode, draft.json().quest?.points]).toEqual([200, 130]);
+  });
+
+  it("answers a refusal of the past door with its own code, and writes nothing", async () => {
+    const { event, quest } = await played(2);
+    await owner("UPDATE event SET status = 'draft' WHERE id = $1", [event]);
+    const refused = await call(
+      "PATCH",
+      `/events/${event}/quests/${quest}`,
+      { points: 150, apply: "past" },
+      { "idempotency-key": randomUUID() },
+    );
+    expect([refused.statusCode, refused.json().code]).toEqual([409, "event_not_live"]);
+    const [stored] = await owner<{ points: number }>("SELECT points FROM quest WHERE id = $1", [
+      quest,
+    ]);
+    expect(stored?.points).toBe(100);
+  });
+
   it("answers the impact of new points with real numbers", async () => {
     const { event, quest } = await played(2);
     const impact = await call("GET", `/events/${event}/quests/${quest}/impact?points=60`);
@@ -214,6 +295,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits over HTTP", 
       clamped: 0,
       prizesHanded: 0,
     });
+    const quiz = await played(1, "quiz");
+    const ineligible = await call(
+      "GET",
+      `/events/${quiz.event}/quests/${quiz.quest}/impact?points=60`,
+    );
+    expect(ineligible.json()).toMatchObject({ eligible: false });
     expect(
       (await call("GET", `/events/${event}/quests/${randomUUID()}/impact?points=60`)).statusCode,
     ).toBe(404);
@@ -236,5 +323,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits over HTTP", 
     const builder = await call("GET", `/events/${event}/quests`);
     expect(JSON.stringify(builder.json())).not.toContain(quest);
     expect((await call("DELETE", path, { confirm: true, points: "keep" })).statusCode).toBe(404);
+  });
+
+  it("keeps every player's points when the delete says keep", async () => {
+    const { event, quest } = await played(2);
+    const path = `/events/${event}/quests/${quest}`;
+    expect((await call("DELETE", path, { confirm: true, points: "keep" })).statusCode).toBe(204);
+    const [row] = await owner<{ total: string }>(
+      "SELECT sum(score) AS total FROM enrollment WHERE event_id = $1",
+      [event],
+    );
+    expect(row?.total).toBe("200");
+    const builder = await call("GET", `/events/${event}/quests`);
+    expect(JSON.stringify(builder.json())).not.toContain(quest);
   });
 });

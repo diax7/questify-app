@@ -100,6 +100,39 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("first-N bonus builder service 
     },
   );
 
+  it("refuses an invalid bonus before the category it was sent with", async () => {
+    const made = await create({ points: 7, slots: 3 });
+    if (made.kind !== "done") {
+      throw new Error("Expected a valid quest fixture");
+    }
+    const firstBonus = { points: 0, slots: 3 };
+    const refused = { kind: "invalid_first_bonus", field: "points" };
+    expect(
+      await createQuest(
+        { pool },
+        actor,
+        eventId,
+        {
+          categoryId: randomUUID(),
+          type: "scan_qr",
+          title: { en: "Nowhere" },
+          points: 10,
+          firstBonus,
+        },
+        caller(),
+      ),
+    ).toEqual(refused);
+    expect(
+      await updateQuest(
+        { pool },
+        actor,
+        { eventId, id: made.value.id },
+        { categoryId: randomUUID(), firstBonus, confirm: true },
+        caller(),
+      ),
+    ).toEqual(refused);
+  });
+
   it("logs the saved quest and setter outcome, and keeps a bonus on an ordinary quest edit", async () => {
     log.mockClear();
     const made = await create({ points: 17, slots: 4 });

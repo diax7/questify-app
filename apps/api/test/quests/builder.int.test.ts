@@ -464,6 +464,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the quest builder (T-103)", ()
         [two.id],
         [one.id, there.id],
       ]);
+      expect((await auditOf(stage.id, "quest.reorder"))[0]?.after).toEqual({
+        order: [one.id, there.id],
+      });
     });
 
     it("refuses moving a quest into another event's category, and a stale quest order", async () => {
