@@ -1611,4 +1611,4 @@ bearer's own reserved prizes (any source) with the desk; (2) a "Prizes to collec
 with Collect (collect first) or Open My QR (desk offers); (3) the shop-off note on the dashboard says how many prizes
 players still hold, shown after the switch is saved (ADR-384). **Open:** should turning the shop off ask first when prizes
 are held? Recommended no: the switch changes nothing for a held prize (it stays reserved, collectable and cancellable)
-and turning it back on is one tap, so a question adds a step without protecting anything.
+and turning it back on is one tap, so a question adds a step without protecting anything. **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended (no question); ADR-384 accepted.

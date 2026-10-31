@@ -5777,7 +5777,7 @@ write made while it was on. While the shop is off a player cannot see a prize th
 
 ## ADR-384 - T-602d prizes to collect: a held-prizes read outside the shop's switch, a Home card, and a count in the shop-off note
 
-**Status:** Proposed (worker, 2026-10-31; Q-351). Closes the open item of ADR-383 and Q-350. No migration.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-31; T-602d review 92 GO; Q-351). Closes the open item of ADR-383 and Q-350. No migration.
 **Decision:** (1) **The read.** `GET /v1/events/{id}/held-prizes` (player) calls the existing `event_shop` and
 `my_redemptions` doors and keeps the reserved rows: the bearer's own holdings from every source (shop, rank prize,
 quest), soonest deadline first, with the prize desk to collect from; no price and no code. It has no
