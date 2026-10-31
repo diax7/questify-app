@@ -7304,6 +7304,7 @@ export const MESSAGES = {
   "changeSets.state.stale": { ar: "تغيّر الهدف", en: "Target changed" },
   "changeSets.state.applied": { ar: "طُبّق", en: "Applied" },
   "changeSets.state.failed": { ar: "فشل", en: "Failed" },
+  "changeSets.state.discarded": { ar: "لم يُطبَّق", en: "Not applied" },
   "changeSets.unnamed": { ar: "بلا اسم", en: "Unnamed" },
   "changeSets.stale": {
     ar: "تغيّر هذا العنصر بعد إنشاء المجموعة، لذلك لا يُطبَّق.",

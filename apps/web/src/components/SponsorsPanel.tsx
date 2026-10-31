@@ -420,7 +420,7 @@ export function SponsorsPanel(props: SponsorsProps) {
           problem={model.problem}
           notice={notice}
           failure={draft === null ? failure : null}
-          loading={sponsors === null}
+          loading={sponsors === null && model.problem === null}
         />
         {sponsors === null ? null : (
           <SponsorsContent

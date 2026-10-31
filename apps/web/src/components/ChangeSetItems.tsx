@@ -14,6 +14,7 @@ const STATE_TONE = {
   stale: "warning",
   applied: "success",
   failed: "danger",
+  discarded: "neutral",
 } as const;
 
 /** The item's name in the page's language, then the other one, else "Unnamed". */

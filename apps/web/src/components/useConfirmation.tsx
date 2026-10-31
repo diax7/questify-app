@@ -26,6 +26,10 @@ export function useConfirmation(language: Language): {
     setBusy(true);
     try {
       await confirmation.run();
+    } catch (error) {
+      // An action reports its own refusals on the page; a throw is a bug, so close the dialog and leave a trace.
+      // oxlint-disable-next-line no-console -- the browser console is the only log this page has; the error, no input
+      console.error("A confirmed action threw", error);
     } finally {
       setBusy(false);
       setAsked(null);

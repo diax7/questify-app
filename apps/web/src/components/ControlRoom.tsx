@@ -12,6 +12,7 @@ import { useReturnFocus } from "#src/components/useReturnFocus.ts";
 import { useRoomSwitches, type RoomSwitch } from "#src/components/useRoomSwitches.tsx";
 import {
   CONTROL_REFRESH_MS,
+  QUESTS_REFRESH_MS,
   controlViewOf,
   roomEventOf,
   type ControlView,
@@ -35,16 +36,18 @@ function useControlView(language: Language, url: string) {
   const [view, setView] = useState<ControlView | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
-  const reading = useRef(false);
   useEffect(() => {
+    // Both flags belong to this run of the effect: under Strict Mode a shared one made the second run skip its first
+    // read while the first run's answer was already discarded.
     let current = true;
+    let reading = false;
     const read = async () => {
-      if (document.hidden || reading.current) {
+      if (document.hidden || reading) {
         return;
       }
-      reading.current = true;
+      reading = true;
       const result = await requestJson("GET", url);
-      reading.current = false;
+      reading = false;
       if (!current) {
         return;
       }
@@ -74,6 +77,25 @@ function useControlView(language: Language, url: string) {
 }
 
 type Builder = ReturnType<typeof useQuestBuilder>;
+
+/** Rereads the quest list while the tab is shown, and once more when it comes back, never during a change. */
+function useQuestsRefresh(builder: Builder) {
+  const latest = useRef(builder);
+  latest.current = builder;
+  useEffect(() => {
+    const refresh = () => {
+      if (!document.hidden && !latest.current.busy) {
+        void latest.current.reload();
+      }
+    };
+    const timer = setInterval(refresh, QUESTS_REFRESH_MS);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
+}
 
 /** What went wrong or is out of date, above the numbers: a failed first read, an offline poll, a refused change. */
 function ControlNotices({
@@ -224,6 +246,7 @@ export function ControlRoom({
 }: Readonly<{ language: Language; organizerId: string; eventId: string }>) {
   const t = useTranslator(language);
   const b = useQuestBuilder(language, organizerId, eventId);
+  useQuestsRefresh(b);
   const focus = useReturnFocus("control-title");
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
   const { view, updatedAt, failed } = useControlView(language, `${eventApi}/control`);

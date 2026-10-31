@@ -32,6 +32,10 @@ const textOf = (ar: unknown, en: unknown): Bilingual => ({
   en: typeof en === "string" ? en : null,
 });
 
+/** The deadline as a number to sort by; a prize with none (the table does not allow it while reserved) goes last. */
+const deadlineOf = (prize: HeldPrize): number =>
+  prize.reservedUntil === null ? Number.MAX_SAFE_INTEGER : Date.parse(prize.reservedUntil);
+
 /**
  * The prizes a member holds in an event, soonest deadline first, and the desk to collect them from (T-602d). It reads
  * what the shop reads (`event_shop`, `my_redemptions`) and keeps only the reserved ones, so it names the bearer's own
@@ -63,7 +67,7 @@ export function readHeldPrizes(
           rank: typeof row["rank"] === "number" ? row["rank"] : null,
           source: sourceOf(row["source"]),
         }))
-        .toSorted((a, b) => Date.parse(a.reservedUntil ?? "") - Date.parse(b.reservedUntil ?? ""));
+        .toSorted((a, b) => deadlineOf(a) - deadlineOf(b));
       return { desk: deskViewOf(shop), prizes };
     }),
   );
@@ -71,8 +75,9 @@ export function readHeldPrizes(
 
 /**
  * How many prizes players of the event still hold (T-602d): reserved, not yet handed over, cancelled or expired, for
- * members who are still active. Read under the team member's own row-level security, so another organizer's event, or
- * one outside an editor's limit, is not found.
+ * members who are still active. Read under the team member's own row-level security, so another organizer's event is
+ * not found, and an event outside an editor's limit is not found either (the event is public, so its own policy
+ * alone would show it).
  */
 export function countHeldPrizes(
   deps: HeldPrizeDeps,
@@ -85,7 +90,7 @@ export function countHeldPrizes(
       { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
       async () => {
         const { rows: found } = await client.query(
-          "SELECT 1 FROM event WHERE organizer_id = $1 AND id = $2",
+          "SELECT 1 FROM event WHERE organizer_id = $1 AND id = $2 AND in_event_scope(id, app_event_scope())",
           [actor.organizerId, eventId],
         );
         if (found.length === 0) {

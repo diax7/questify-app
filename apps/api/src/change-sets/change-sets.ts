@@ -219,7 +219,7 @@ export function readChangeSet(
     }
     const views: ItemView[] = [];
     for (const item of await readItems(client, set.id)) {
-      views.push(await viewOf({ client, event }, item));
+      views.push(await viewOf({ client, event }, item, set.status));
     }
     return done({ ...set, items: views });
   });

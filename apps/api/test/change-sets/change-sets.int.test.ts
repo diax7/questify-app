@@ -292,7 +292,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("change sets over HTTP", () => 
     const set = await make(f.event, [
       { op: "edit", target: "quest", targetId: f.quest, body: { points: 150 } },
     ]);
-    const first = (await open(f.event, set)).items[0]?.id as string;
+    const previewed = (await open(f.event, set)).items[0];
+    expect(previewed).toMatchObject({ state: "invalid", problem: { code: "apply_required" } });
+    const first = previewed?.id as string;
     const refused = await apply(f.event, set, [first]);
     expect(refused.json().results).toMatchObject([
       { status: "failed", error: { code: "apply_required" } },
@@ -300,7 +302,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("change sets over HTTP", () => 
     const retried = await make(f.event, [
       { op: "edit", target: "quest", targetId: f.quest, body: { points: 150, apply: "past" } },
     ]);
-    const item = (await open(f.event, retried)).items[0]?.id as string;
+    const choice = (await open(f.event, retried)).items[0];
+    expect(choice?.state).toBe("ready");
+    const item = choice?.id as string;
     const ran = await apply(f.event, retried, [item]);
     expect(ran.json().results).toMatchObject([{ status: "applied" }]);
     const adjusts = await owner<{ score_delta: number }>(
@@ -324,6 +328,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("change sets over HTTP", () => 
     const closed = await call("POST", `/events/${f.event}/change-sets/${set}/close`);
     expect(closed.json()).toEqual({ changeSet: { id: set, status: "closed" } });
     expect(await questTitles(f.event)).toEqual(["Stage"]);
+    expect((await open(f.event, set)).items.map((one) => one.state)).toEqual(["discarded"]);
     const again = await call("POST", `/events/${f.event}/change-sets/${set}/close`);
     expect([again.statusCode, again.json().code]).toEqual([409, "change_set_finished"]);
     const late = await apply(f.event, set, [item]);

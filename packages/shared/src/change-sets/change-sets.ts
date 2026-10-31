@@ -1,7 +1,14 @@
 import { z } from "zod";
 
 /** The states an item shows on the review page: the API's check now, or what happened to it. */
-export const CHANGE_SET_ITEM_STATES = ["ready", "invalid", "stale", "applied", "failed"] as const;
+export const CHANGE_SET_ITEM_STATES = [
+  "ready",
+  "invalid",
+  "stale",
+  "applied",
+  "failed",
+  "discarded",
+] as const;
 export type ChangeSetItemState = (typeof CHANGE_SET_ITEM_STATES)[number];
 
 const text = z.object({ ar: z.string().nullable(), en: z.string().nullable() });

@@ -63,7 +63,7 @@ export type EditedQuest = Readonly<{ quest: BuilderQuest; change: PastChange | n
  * "Also past" on a quest no real player completed has nothing to reach and runs as future-only: it writes no change
  * row, so the quest can still be deleted outright.
  */
-async function pointsChoice(
+export async function pointsChoice(
   client: PoolClient,
   live: boolean,
   current: QuestRecord,

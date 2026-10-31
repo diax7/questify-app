@@ -532,11 +532,6 @@
       "complexity": [15]
     }
   },
-  "apps/app/src/api/client.ts": {
-    "request": {
-      "complexity": [10]
-    }
-  },
   "apps/app/src/api/session.ts": {
     "createSession": {
       "lines": [153]
@@ -1150,7 +1145,7 @@
   },
   "apps/web/src/components/useQuestBuilder.ts": {
     "useQuestBuilder": {
-      "lines": [110]
+      "lines": [103]
     }
   },
   "apps/web/src/lib/activation.ts": {

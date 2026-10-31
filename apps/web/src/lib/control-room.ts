@@ -4,6 +4,9 @@ import type { Bilingual } from "#src/lib/quests.ts";
 /** How often the control room asks for its numbers and feed (ADR-365's polling, no stream). */
 export const CONTROL_REFRESH_MS = 5000;
 
+/** How often the control room rereads the quest list, so a quest added from another tab shows without a reload. */
+export const QUESTS_REFRESH_MS = 30_000;
+
 /** One completion on the feed (T-603): who, which quest, how, when. No contact detail, no points. */
 export type FeedItem = Readonly<{
   id: string;

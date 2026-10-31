@@ -13,7 +13,7 @@ import {
 } from "#src/change-sets/kinds";
 import { locationQuestsOn } from "#src/completions/complete";
 import { auditView, isInvalid, mergeQuest, type Done, type Refused } from "#src/quests/builder";
-import { createQuest, deleteQuest, updateQuest } from "#src/quests/quests";
+import { createQuest, deleteQuest, pointsChoice, updateQuest } from "#src/quests/quests";
 import { answer, questBody, questPatch } from "#src/quests/routes";
 import { readCategory, readQuest, type QuestRecord } from "#src/quests/store";
 
@@ -34,6 +34,9 @@ function refusedBy(result: Refused): ApiErrorEnvelope {
   }
   return envelope;
 }
+
+/** Stands for the `cs:{itemId}` key an apply gives, so the preview judges the points choice as the apply will. */
+const PREVIEW_KEY = "cs:preview";
 
 const problem = (field: string): After => ({
   ok: false,
@@ -83,6 +86,16 @@ async function editAfter(
   const fields = mergeQuest(current, current.type, input, event.timezone);
   if (isInvalid(fields)) {
     return { ok: false, problem: refusedBy(fields) };
+  }
+  const choice = await pointsChoice(
+    client,
+    event.statusNow === "live",
+    current,
+    input,
+    PREVIEW_KEY,
+  );
+  if (typeof choice !== "string") {
+    return { ok: false, problem: refusedBy(choice) };
   }
   return {
     ok: true,

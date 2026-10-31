@@ -948,5 +948,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
       expect(into.statusCode).toBe(404);
       expect((await test.app.inject({ method: "GET", url: own })).statusCode).toBe(401);
     });
+
+    it("answers an editor limited to other events as not found, and their own as a count", async () => {
+      const [allowed] = await owner<{ id: string }>(
+        `INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, status, starts_at, ends_at)
+         VALUES ($1, 'Hall C', 'HELD2', 'Allowed', 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id`,
+        [orgId],
+      );
+      const editor = await createStaff(db.owner, { email: "editor@rewards-held.test" });
+      await owner(
+        "INSERT INTO organizer_member (organizer_id, staff_user_id, role, event_scope) VALUES ($1, $2, 'editor', $3)",
+        [orgId, editor, [allowed?.id]],
+      );
+      const limited = await signInFully(test, "editor@rewards-held.test");
+      const read = (event: string | undefined) =>
+        test.app.inject({
+          method: "GET",
+          url: `/v1/organizers/${orgId}/events/${event}/held-prizes`,
+          headers: withSession(limited),
+        });
+      await reserve(await newPlayer(100), (await newReward({ price: 5, stock: 10 })).id);
+      const outside = await read(eventId);
+      expect([outside.statusCode, outside.json().code]).toEqual([404, "not_found"]);
+      const inside = await read(allowed?.id);
+      expect([inside.statusCode, inside.json()]).toEqual([200, { held: 0 }]);
+    });
   });
 });

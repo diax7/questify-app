@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
+import { Button } from "#src/ui/Button.tsx";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Switch } from "#src/ui/Field.tsx";
 import { Rows, Section } from "#src/ui/Section.tsx";
@@ -52,14 +53,17 @@ export function PushDefaultsPanel({
     [language, t],
   );
 
-  useEffect(() => {
-    void (async () => {
-      const result = await requestJson("GET", path);
-      const read = result.ok ? pushTopicsSchema.safeParse(result.body) : undefined;
-      if (read?.success === true) setTopics(read.data);
-      else fail(result.body);
-    })();
+  const load = useCallback(async () => {
+    setProblem(null);
+    const result = await requestJson("GET", path);
+    const read = result.ok ? pushTopicsSchema.safeParse(result.body) : undefined;
+    if (read?.success === true) setTopics(read.data);
+    else fail(result.body);
   }, [path, fail]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const change = async (topic: PushTopic, on: boolean) => {
     if (topics === null) return;
@@ -85,7 +89,13 @@ export function PushDefaultsPanel({
       info={infoTip(t, "pushDefaults.hint")}
     >
       {topics === null ? (
-        <Muted>{t("common.loading")}</Muted>
+        problem === null ? (
+          <Muted>{t("common.loading")}</Muted>
+        ) : (
+          <Button variant="primary" onClick={() => void load()}>
+            {t("common.retry")}
+          </Button>
+        )
       ) : (
         <Rows>
           {PUSH_TOPICS.map((topic) => (

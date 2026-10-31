@@ -32,7 +32,8 @@ export type ItemView = Readonly<{
   target: ItemTarget;
   targetId: string | null;
   name: Bilingual | null;
-  state: "ready" | "invalid" | "stale" | ItemStatus;
+  /** `discarded`: still undecided when the set was closed, so it was never applied. */
+  state: "ready" | "invalid" | "stale" | "discarded" | ItemStatus;
   /** What the item changes, in the audit log's own words: only the fields that differ. */
   diff: Evaluation["diff"];
   /** The choices the body carries about points and quests, so the page can say them. */
@@ -151,8 +152,15 @@ export async function evaluate(
   return { state, problem: null, name, diff: null, input: parsed.input };
 }
 
-/** One item as the page shows it: decided items by what happened, pending ones by the review now. */
-export async function viewOf(reader: Reader, item: ItemRecord): Promise<ItemView> {
+/**
+ * One item as the page shows it: decided items by what happened, pending ones of an open set by the review now, and
+ * pending ones of a finished set as discarded (they can no longer be applied, so "ready" would mislead).
+ */
+export async function viewOf(
+  reader: Reader,
+  item: ItemRecord,
+  setStatus: "open" | "applied" | "closed",
+): Promise<ItemView> {
   const base = {
     id: item.id,
     position: item.position,
@@ -170,6 +178,9 @@ export async function viewOf(reader: Reader, item: ItemRecord): Promise<ItemView
       diff: null,
       problem: item.error as ApiErrorEnvelope | null,
     };
+  }
+  if (setStatus !== "open" && item.status === "pending") {
+    return { ...base, name: savedName(item), state: "discarded", diff: null, problem: null };
   }
   const found = await evaluate(reader, item, true);
   return {

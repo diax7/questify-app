@@ -239,6 +239,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event branding and switches ov
       }
     });
 
+    it("refuses a new registration while the agenda is off, and still cancels one made before", async () => {
+      const ev = await fixture.newEvent({ phase: "live" });
+      const joined = await fixture.newPlayer();
+      await fixture.join(ev, joined);
+      const token = await bearer(joined);
+      const [session] = await fixture.owner<{ id: string }>(
+        `INSERT INTO event_session (organizer_id, event_id, kind, title_en, starts_at, ends_at, access, created_by)
+         SELECT organizer_id, id, 'talk', 'Keynote', now() + interval '1 hour', now() + interval '2 hours', 'registration', $2
+         FROM event WHERE id = $1 RETURNING id`,
+        [ev, randomUUID()],
+      );
+      const act = (action: "register" | "cancel") =>
+        test.app.inject({
+          method: "POST",
+          url: eventUrl(`sessions/${session?.id}/${action}`, ev),
+          headers: { authorization: `Bearer ${token}`, "idempotency-key": randomUUID() },
+          payload: {},
+        });
+      expect((await act("register")).statusCode).toBe(200);
+      await team("PUT", `${base(ev)}/features/agenda`, { enabled: false });
+      expect(codeOf(await act("register"))).toEqual([403, "feature_off"]);
+      expect((await act("cancel")).statusCode).toBe(200);
+      const [left] = await fixture.owner<{ n: string }>(
+        "SELECT count(*) AS n FROM session_registration WHERE session_id = $1",
+        [session?.id],
+      );
+      expect(left?.n).toBe("0");
+    });
+
     it("keeps the team's own pages: maps, sessions and rewards still list for the owner", async () => {
       const ev = await fixture.newEvent({ phase: "live" });
       for (const feature of ["shop", "maps", "agenda"]) {

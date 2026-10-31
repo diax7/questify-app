@@ -203,7 +203,7 @@ export function AnnouncementsPanel({
           />
           <PushDefaultsPanel
             language={language}
-            path={path.replace(/announcements$/, "push-defaults")}
+            path={"/v1/organizers/" + organizerId + "/events/" + eventId + "/push-defaults"}
           />
           <AnnouncementList
             pending

@@ -79,6 +79,18 @@ function builderEventOf(body: unknown, language: Language): BuilderEvent {
   };
 }
 
+/** The platform's location switch (ADR-208); without an answer the type stays hidden and the rest works. */
+function useLocationQuestsOn(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    void requestJson("GET", "/v1/config").then((result) => {
+      const parsed = result.ok ? parseComposedConfig(result.body) : undefined;
+      setOn(parsed?.ok === true && parsed.config.features["locationQuests"]?.enabled === true);
+    });
+  }, []);
+  return on;
+}
+
 /**
  * The builder's data and requests. Creates carry the caller's Idempotency-Key, so a double tap or a retry never makes
  * two; a change the API holds for a live event's confirmation waits in `pending` until the person confirms, then goes
@@ -91,7 +103,6 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
   const [items, setItems] = useState<readonly QuestItem[]>([]);
   const [focusQuestId, setFocusQuestId] = useState<string | null>(null);
   const [event, setEvent] = useState<BuilderEvent | null>(null);
-  const [locationQuestsOn, setLocationQuestsOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingChange | null>(null);
@@ -138,15 +149,7 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
     });
   }, [organizerId, eventId, language, failed, reload]);
 
-  useEffect(() => {
-    // The platform's location switch (ADR-208); without an answer the type stays hidden and the rest works.
-    void requestJson("GET", "/v1/config").then((result) => {
-      const parsed = result.ok ? parseComposedConfig(result.body) : undefined;
-      setLocationQuestsOn(
-        parsed?.ok === true && parsed.config.features["locationQuests"]?.enabled === true,
-      );
-    });
-  }, []);
+  const locationQuestsOn = useLocationQuestsOn();
 
   const send = async (
     method: Method,
@@ -202,6 +205,7 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
     pending,
     send,
     read,
+    reload,
     confirmPending,
     cancelPending: () => setPending(null),
   };
