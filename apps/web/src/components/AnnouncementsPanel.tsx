@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnnouncementList, AnnouncementPagination } from "#src/components/AnnouncementParts.tsx";
 import { AnnouncementComposer } from "#src/components/AnnouncementComposer.tsx";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
+import { PushDefaultsPanel } from "#src/components/PushDefaultsPanel.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { isTransientFailure, requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -222,6 +223,10 @@ export function AnnouncementsPanel({
             zone={state.loaded.zone}
             disabled={busy}
             confirm={setConfirm}
+          />
+          <PushDefaultsPanel
+            language={language}
+            path={path.replace(/announcements$/, "push-defaults")}
           />
           <AnnouncementList
             pending

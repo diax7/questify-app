@@ -845,7 +845,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       const plain = await f.newPlayer();
       await f.join(event, plain);
       const muted = await member(event);
-      await f.one({ playerId: muted.who }, "SELECT set_push_topics('{announcements}') AS r");
+      await f.one({ playerId: muted.who }, "SELECT set_push_topics('{}', '{announcements}') AS r");
       const reached = await member(event);
       const id = await f.notice(kind, { event, params: { event: { en: "Fest" } } });
       await f.fanOut();
@@ -872,7 +872,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       const phone = await f.playerWithPhone();
       const id = await f.notice(kind, { player: phone.who });
       await f.fanOut();
-      await f.one({ playerId: phone.who }, "SELECT set_push_topics('{reminders,rank}') AS r");
+      await f.one({ playerId: phone.who }, "SELECT set_push_topics('{}', '{reminders,rank}') AS r");
       expect(await f.claim()).toEqual([]);
       expect((await f.sends(id)).map((row) => [row.state, row.code])).toEqual([
         ["skipped", "muted"],
@@ -975,20 +975,31 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       });
     });
 
-    it("answers and replaces the muted topics", async () => {
+    it("answers and changes the topics named", async () => {
       const who = await f.newPlayer();
-      const all = { announcements: true, rank: true, community: true, reminders: true };
+      const all = {
+        announcements: true,
+        rank: true,
+        community: true,
+        reminders: true,
+        eventOff: [],
+      };
       expect(await f.one({ playerId: who }, "SELECT own_push_topics() AS r")).toEqual(all);
       expect(
-        await f.one({ playerId: who }, "SELECT set_push_topics('{rank,rank,community}') AS r"),
+        await f.one(
+          { playerId: who },
+          "SELECT set_push_topics('{}', '{rank,rank,community}') AS r",
+        ),
       ).toEqual({
         ...all,
         rank: false,
         community: false,
       });
-      expect(await f.one({ playerId: who }, "SELECT set_push_topics('{}') AS r")).toEqual(all);
       expect(
-        await sqlstate(f.one({ playerId: who }, "SELECT set_push_topics('{offers}') AS r")),
+        await f.one({ playerId: who }, "SELECT set_push_topics('{rank,community}', '{}') AS r"),
+      ).toEqual(all);
+      expect(
+        await sqlstate(f.one({ playerId: who }, "SELECT set_push_topics('{}', '{offers}') AS r")),
       ).toBe("PN422");
     });
   });
@@ -999,7 +1010,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       const eventKind = await f.kind({ class: "event" });
       const personal = await f.kind();
       const someone = await member(event);
-      await f.one({ playerId: someone.who }, "SELECT set_push_topics('{rank}') AS r");
+      await f.one({ playerId: someone.who }, "SELECT set_push_topics('{}', '{rank}') AS r");
       const own = await f.notice(personal, { player: someone.who });
       const broadcast = await f.notice(eventKind, { event });
       await f.fanOut();

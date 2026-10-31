@@ -1428,7 +1428,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1833 | F-335 | Could | pending |
 | FR-1834 | F-336 | Should | pending |
 | FR-1835 | F-337 | Should | pending |
-| FR-1836 | F-338 | Could | pending |
+| FR-1836 | F-338 | Could | built T-510 (four switches on the Announcements page, a player's own choice wins; phone check owed): `test/db/push-topic-defaults.int`, `test/push/defaults.int`, `e2e/push-defaults.spec.ts` |
 | FR-1837 | F-339 | Should | pending |
 | FR-1838 | F-340 | Could | pending |
 | FR-1839 | F-341 | Could | pending |

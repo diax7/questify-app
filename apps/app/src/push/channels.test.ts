@@ -35,8 +35,29 @@ describe("the topic switches", () => {
   });
 
   it("change one topic and keep the others", () => {
-    const topics = { announcements: true, rank: true, community: true, reminders: true };
+    const topics = {
+      announcements: true,
+      rank: true,
+      community: true,
+      reminders: true,
+      eventOff: [],
+    };
     expect(withTopic(topics, "rank", false)).toEqual({ ...topics, rank: false });
     expect(topics.rank).toBe(true);
+  });
+
+  it("stop waiting on an event's default once the player sets the topic", () => {
+    const topics = {
+      announcements: true,
+      rank: false,
+      community: false,
+      reminders: true,
+      eventOff: ["rank", "community"] as const,
+    };
+    expect(withTopic({ ...topics, eventOff: [...topics.eventOff] }, "rank", true)).toEqual({
+      ...topics,
+      rank: true,
+      eventOff: ["community"],
+    });
   });
 });

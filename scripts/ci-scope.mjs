@@ -70,7 +70,7 @@ export const AREAS = [
   [/quest-?ratings?|questscore|\/ratings\//i, ["survey-results"]],
   [/boost|flash/i, ["flash-boosts"]],
   [/modal/i, ["modal"]],
-  [/push/i, ["announcements", "invitations"]],
+  [/push/i, ["announcements", "invitations", "push-defaults"]],
   [/ranking-?switch/i, ["events"]],
   [/activation/i, ["events", "rehearsal", "souvenirs"]],
   [/\[lang\]\/account\//, ["delete-account", "password"]],

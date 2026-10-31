@@ -44,7 +44,13 @@ const ITEM = {
   optOut: false,
   joinCode: null,
 };
-const TOPICS = { announcements: true, rank: false, community: true, reminders: true };
+const TOPICS = {
+  announcements: true,
+  rank: false,
+  community: true,
+  reminders: true,
+  eventOff: ["rank"],
+};
 
 describe("the center", () => {
   it("asks for the newest page, then for the page before a cursor", async () => {
@@ -154,8 +160,11 @@ describe("the topics", () => {
 
   it("is null when unreadable or when the save failed, so nothing is assumed saved", async () => {
     expect(await fetchTopics(sessionOf(ok({ announcements: true })))).toBeNull();
+    const withoutEventOff = { announcements: true, rank: true, community: true, reminders: true };
+    expect(await fetchTopics(sessionOf(ok(withoutEventOff)))).toBeNull();
     expect(await fetchTopics(sessionOf({ kind: "network" }))).toBeNull();
     expect(await saveTopics(sessionOf(refused(429)), { rank: true })).toBeNull();
     expect(await saveTopics(sessionOf(ok({ rank: true })), { rank: true })).toBeNull();
+    expect(await saveTopics(sessionOf(ok(withoutEventOff)), { rank: true })).toBeNull();
   });
 });

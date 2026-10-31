@@ -84,8 +84,9 @@ for an event.
 
 - `pushNotifications` (platform level, on by default) joins the registry and ships in `/v1/config`. The database reads
   the same key (`push_on()`, on unless set to false). Off: the worker claims nothing and queued pushes expire unsent, at
-  once; the fan-out keeps writing the center, and registration, mutes and settle go on. No event switch: T-510 adds an
-  event's defaults for the topics.
+  once; the fan-out keeps writing the center, and registration, mutes and settle go on. No event switch; the event's topic
+  defaults (T-510) are four rows of data on the Announcements page, not a feature key: a topic an event starts off is held back
+  for players who have not chosen it, and a player's own choice always wins.
 - The four mutable topics (`announcements`, `rank`, `community`, `reminders`) are the player's own choice (FR-1115);
   which kind belongs to which topic is a `notice_kind` row, not a setting.
 - Code constants until T-703's tuning: 1,000 enrollments a fan-out call (2,000 until T-501e, ADR-354 (9)), 500 personal notices a call, 200 rows a claim

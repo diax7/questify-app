@@ -3,7 +3,7 @@ import { Writable } from "node:stream";
 import {
   notificationListSchema,
   notificationsUnreadSchema,
-  pushTopicsSchema,
+  ownPushTopicsSchema,
 } from "@questify/shared";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -254,11 +254,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push over HTTP", () => {
       const { token } = await session();
       const topics = await as(token, "GET", "/v1/me/push-topics");
       expect(topics.headers["cache-control"]).toBe("private, no-store");
-      expect(pushTopicsSchema.parse(topics.json())).toEqual({
+      expect(ownPushTopicsSchema.parse(topics.json())).toEqual({
         announcements: true,
         rank: true,
         community: true,
         reminders: true,
+        eventOff: [],
       });
       const off = await as(token, "PUT", "/v1/me/push-topics", { rank: false, community: false });
       expect(off.headers["cache-control"]).toBe("private, no-store");
@@ -267,6 +268,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push over HTTP", () => {
         rank: false,
         community: false,
         reminders: true,
+        eventOff: [],
       });
       const back = await as(token, "PUT", "/v1/me/push-topics", { community: true });
       expect(back.json()).toEqual({
@@ -274,6 +276,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push over HTTP", () => {
         rank: false,
         community: true,
         reminders: true,
+        eventOff: [],
       });
       expect((await as(token, "PUT", "/v1/me/push-topics", {})).statusCode).toBe(400);
       expect((await as(token, "PUT", "/v1/me/push-topics", { offers: false })).statusCode).toBe(

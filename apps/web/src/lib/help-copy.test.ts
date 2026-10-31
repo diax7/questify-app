@@ -129,6 +129,7 @@ const INFO_TIPS: readonly string[] = [
   "operators.intro",
   "prizes.intro",
   "prizes.rulesHint",
+  "pushDefaults.hint",
   "pushTopic.announcements.about",
   "pushTopic.community.about",
   "pushTopic.rank.about",

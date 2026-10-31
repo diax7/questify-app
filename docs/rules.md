@@ -159,7 +159,8 @@ locks. The claim, lease expiry, expiry and the purges: sends `FOR UPDATE SKIP LO
 acknowledgement: sends by id, then devices `FOR NO KEY UPDATE` in id order when marking invalid. Register: the device row by
 family `FOR UPDATE`, then the other row holding the token (deleted); two sign-ins racing for one token retry once. No
 push door locks a player, an enrollment, a consent row or a ledger row; the foreign keys on `push_device` and
-`push_topic_mute` take `FOR KEY SHARE` on the player, which no player write conflicts with. No outside call runs inside
+`push_topic_mute` and `push_topic_on` take `FOR KEY SHARE` on the player, which no player write conflicts with. The event's topic
+defaults (`event_topic_off`, T-510) are read without locks by the fan-out and the claim; their write takes the event row `FOR NO KEY UPDATE`. No outside call runs inside
 a transaction. The notice carries no counters (no hot row). A fan-out planning a send for a device that a register is
 replacing can deadlock with it; PostgreSQL ends one and the other side retries (the worker's next loop, the app's next
 launch). A register that moves a token to this sign-in deletes the other sign-in's device, which cascades to its

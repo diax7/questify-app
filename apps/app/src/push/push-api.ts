@@ -1,10 +1,10 @@
 import {
   notificationListSchema,
   notificationsUnreadSchema,
-  pushTopicsSchema,
+  ownPushTopicsSchema,
   type NotificationList,
   type NotificationsReadBody,
-  type PushTopics,
+  type OwnPushTopics,
   type PushTopicsBody,
 } from "@questify/shared";
 import { setUnreadIfRead } from "#src/push/unread-store.ts";
@@ -54,16 +54,16 @@ export async function markNotificationsRead(
   return parsed?.success === true ? parsed.data.unread : null;
 }
 
-/** The four topics, true when on; null when unreadable. */
-export const fetchTopics = (session: Reader): Promise<PushTopics | null> =>
-  readOk(session, "/v1/me/push-topics", pushTopicsSchema);
+/** The four topics, true when on, and the ones an event started off; null when unreadable. */
+export const fetchTopics = (session: Reader): Promise<OwnPushTopics | null> =>
+  readOk(session, "/v1/me/push-topics", ownPushTopicsSchema);
 
 /** Changes the topics named and answers all four; null when the call failed (nothing is assumed saved). */
 export async function saveTopics(
   session: Reader,
   body: PushTopicsBody,
-): Promise<PushTopics | null> {
+): Promise<OwnPushTopics | null> {
   const answer = await session.request({ method: "PUT", path: "/v1/me/push-topics", body });
-  const parsed = answer.kind === "ok" ? pushTopicsSchema.safeParse(answer.body) : null;
+  const parsed = answer.kind === "ok" ? ownPushTopicsSchema.safeParse(answer.body) : null;
   return parsed?.success === true ? parsed.data : null;
 }

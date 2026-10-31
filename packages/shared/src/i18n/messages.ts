@@ -6221,6 +6221,17 @@ export const MESSAGES = {
     ar: "تعذّر تحميل المواضيع. حاول مرة أخرى.",
     en: "Couldn't load the topics. Try again.",
   },
+  // An event's default topics (T-510, FR-1836): the organizer's switches on the Announcements page, and the line under a
+  // Settings switch that an event turned off before the player chose.
+  "pushDefaults.title": { ar: "الإشعارات الافتراضية", en: "Default notifications" },
+  "pushDefaults.hint": {
+    ar: "اختر المواضيع التي تبدأ مفعّلة للمنضمين إلى الفعالية. ما يختاره المنضم لنفسه هو المعتمد دائمًا.",
+    en: "Choose which topics start on for people who join the event. What a person chooses for themselves always wins.",
+  },
+  "pushTopics.eventOff": {
+    ar: "موقوف افتراضيًا في فعالية انضممت إليها. فعّله لتصلك إشعاراته.",
+    en: "Off by default in an event you joined. Turn it on to get these.",
+  },
   "pushTopic.announcements": { ar: "إعلانات الفعالية", en: "Event announcements" },
   "pushTopic.announcements.about": {
     ar: "إعلانات المنظّم، و{questMany} بوقت محدود، والتصويتات، وفتح {categoryMany} جديدة",

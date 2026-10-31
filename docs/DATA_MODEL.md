@@ -658,6 +658,13 @@ ADR-151):
   sign-in on a phone; pushable only while its family holds a live refresh token, it is not marked invalid and it was
   seen in the last 60 days.
 - `push_topic_mute(player_id → player, topic, muted_at, PK (player_id, topic))`.
+- `push_topic_on(player_id → player, topic, chosen_at, PK (player_id, topic))` (T-510, 0091): a topic the player turned on themselves, the
+  mirror of the mute; it keeps an event's default from overruling the choice. A topic is in at most one of the two tables
+  (`set_push_topics` moves it). Erased with the account.
+- `event_topic_off(event_id, organizer_id → event CASCADE, topic, set_at, PK (event_id, topic))` (T-510, 0091): a topic that starts
+  OFF for the event's players; no row means on. Setup, kept by the rehearsal wipe. A push is held back when the player muted the
+  topic, or never chose it and the notice's event starts it off (`push_muted(player, topic, event)`, read where a push is planned
+  and again at the claim). Written only by `set_event_push_defaults` (owner or editor, audited `push.defaults`).
 - `push_send(id bigint identity, notification_id → notification CASCADE, device_id → push_device CASCADE, notice_id,
   target apns:production|apns:sandbox|fcm, priority, expires_at, state queued|sending|sent|unknown|failed|expired|skipped,
   attempts 0–8 (requests written), lease_token, lease_until, token_version (the device's at lease time; an invalid

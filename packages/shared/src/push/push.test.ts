@@ -7,6 +7,7 @@ import {
   notificationsReadBodySchema,
   notificationsUnreadSchema,
   pushDeviceBodySchema,
+  ownPushTopicsSchema,
   pushTopicsBodySchema,
   pushTopicsSchema,
 } from "#src/push/push";
@@ -121,6 +122,17 @@ describe("the topics", () => {
     expect(accepts(pushTopicsBodySchema, {})).toBe(false);
     expect(accepts(pushTopicsBodySchema, { rank: "off" })).toBe(false);
     expect(accepts(pushTopicsBodySchema, { personal: false })).toBe(false);
+  });
+
+  it("answers the player's own four with the topics an event started off", () => {
+    const own = { announcements: true, rank: false, community: true, reminders: true };
+    expect(ownPushTopicsSchema.parse({ ...own, eventOff: ["rank"] })).toEqual({
+      ...own,
+      eventOff: ["rank"],
+    });
+    expect(accepts(ownPushTopicsSchema, own)).toBe(false);
+    expect(accepts(ownPushTopicsSchema, { ...own, eventOff: ["offers"] })).toBe(false);
+    expect(accepts(ownPushTopicsSchema, { ...own, eventOff: [], extra: 1 })).toBe(false);
   });
 });
 

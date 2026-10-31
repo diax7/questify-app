@@ -928,6 +928,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; one row per sign-in, written only by push_device_register and push_device_remove for the calling player's own live session (the bearer token's hash), read by the system-only claim; no organizer read exists (push-store, push/routes)",
   push_topic_mute:
     "no direct API rights; the calling player's own muted topics through own_push_topics and set_push_topics, read by the system-only fan-out and claim; no organizer read exists (push-store)",
+  push_topic_on:
+    "no direct API rights; the calling player's own turned-on topics, written only by set_push_topics for the calling player, read by the system-only fan-out and claim and by own_push_topics; no organizer read exists (push-topic-defaults)",
+  event_topic_off:
+    "no direct API rights; written only by the owner/editor door set_event_push_defaults inside award_event_of (another organizer's event and a scoped editor's other event are AN404), read by the same team's event_push_defaults and by the system-only fan-out and claim; holds topic names only, no player (push-topic-defaults)",
   push_send:
     "no direct API rights; the push outbox, written and read only by the system-only fan-out, claim, ack and settle, which refuse every seat with an identity (push-sending)",
   rank_top_snapshot:
@@ -1729,7 +1733,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
       expect(await refusal(asA(seat, "SELECT own_notifications(NULL, 50)", []))).toBe("PN401");
       expect(await refusal(asA(seat, "SELECT mark_notifications_read(NULL)", []))).toBe("PN401");
       expect(await refusal(asA(seat, "SELECT own_push_topics()", []))).toBe("PN401");
-      expect(await refusal(asA(seat, "SELECT set_push_topics('{rank}')", []))).toBe("PN401");
+      expect(await refusal(asA(seat, "SELECT set_push_topics('{rank}', '{}')", []))).toBe("PN401");
       expect(await refusal(asA(seat, "SELECT push_device_remove($1)", [Buffer.alloc(32)]))).toBe(
         "PN401",
       );
@@ -1744,6 +1748,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         "push_device",
         "push_send",
         "push_topic_mute",
+        "push_topic_on",
+        "event_topic_off",
         "notice_kind",
       ]) {
         expect(await refusal(asA(seat, `SELECT 1 FROM ${table} LIMIT 1`, [])), table).toBe("42501");

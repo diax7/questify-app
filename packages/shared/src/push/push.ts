@@ -43,7 +43,10 @@ export const pushDeviceBodySchema = z
   });
 export type PushDeviceBody = z.infer<typeof pushDeviceBodySchema>;
 
-/** `GET /v1/me/push-topics`: each topic, true when on (not muted). */
+/**
+ * The four topics, each true when on: an event's defaults (`GET`/`PUT /v1/organizers/:organizerId/events/:eventId/
+ * push-defaults`, T-510, FR-1836: true when the topic starts on for the event's players).
+ */
 export const pushTopicsSchema = z.strictObject({
   announcements: z.boolean(),
   rank: z.boolean(),
@@ -52,7 +55,16 @@ export const pushTopicsSchema = z.strictObject({
 });
 export type PushTopics = z.infer<typeof pushTopicsSchema>;
 
-/** `PUT /v1/me/push-topics`: the topics named change; the others stay as they are. */
+/**
+ * `GET`/`PUT /v1/me/push-topics`: each topic, true when on. A topic the player never chose is off while an event they
+ * joined starts it off (T-510); `eventOff` names those topics, so the app can say why the switch is off.
+ */
+export const ownPushTopicsSchema = pushTopicsSchema.extend({
+  eventOff: z.array(z.enum(PUSH_TOPICS)),
+});
+export type OwnPushTopics = z.infer<typeof ownPushTopicsSchema>;
+
+/** `PUT /v1/me/push-topics` and the event's `PUT …/push-defaults`: the topics named change; the others stay as they are. */
 export const pushTopicsBodySchema = pushTopicsSchema
   .partial()
   .refine((topics) => Object.keys(topics).length > 0, "name at least one topic");

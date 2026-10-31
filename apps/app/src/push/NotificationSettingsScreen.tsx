@@ -1,6 +1,6 @@
-import { PUSH_TOPICS, type PushTopic, type PushTopics } from "@questify/shared";
+import { PUSH_TOPICS, type OwnPushTopics, type PushTopic } from "@questify/shared";
 import { useEffect, useState } from "react";
-import { Linking, ScrollView } from "react-native";
+import { Linking, ScrollView, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
@@ -45,8 +45,8 @@ function PhoneStatus() {
 }
 
 /** The four topics, each saved the moment its switch moves; a failed save puts the switch back where the server had it. */
-function useTopicSave(fresh: PushTopics | null) {
-  const [saved, setSaved] = useState<PushTopics | null>(null);
+function useTopicSave(fresh: OwnPushTopics | null) {
+  const [saved, setSaved] = useState<OwnPushTopics | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   // A fresher read (the screen gained focus again) replaces what an earlier save here left.
@@ -84,14 +84,18 @@ function TopicSwitches() {
       {current === null
         ? null
         : PUSH_TOPICS.map((topic) => (
-            <SwitchRow
-              key={topic}
-              title={TOPIC_TEXT[topic].title}
-              about={TOPIC_TEXT[topic].about}
-              on={current[topic]}
-              disabled={busy}
-              onChange={(on) => void change(topic, on)}
-            />
+            <View key={topic} style={{ gap: 4 }}>
+              <SwitchRow
+                title={TOPIC_TEXT[topic].title}
+                about={TOPIC_TEXT[topic].about}
+                on={current[topic]}
+                disabled={busy}
+                onChange={(on) => void change(topic, on)}
+              />
+              {current.eventOff.includes(topic) ? (
+                <AppText muted>{t("pushTopics.eventOff")}</AppText>
+              ) : null}
+            </View>
           ))}
       <AppText muted>{t("pushTopics.always")}</AppText>
       {failed ? (

@@ -1197,9 +1197,10 @@ _Notifications, announcements, big screen, agenda and sessions, maps, sponsors a
 - [x] **T-509** Cheers: five fixed reactions, cheers moment started by the owner, big-screen Cheers scene, rate limit, on/off per event — delivers FR 1841; depends on: T-504
   - Done when: No cheer button shows unless a moment is live; a player cannot send more than the per-minute limit.
   - Done 2026-10-31 (tier B; review 92 GO, four minors fixed in 02ef106, the rest in FOLLOWUPS; not run on a phone): migration 0090 (`cheers_moment`, `cheer`, seven granted doors, RLS forced, no grant), API `src/cheers` (the owner's `GET …/cheers`, `POST …/cheers/start|stop`, the switch `PUT …/cheers`; the player's `POST /v1/events/{id}/cheers`), the `cheers` scene on `GET /v1/device/screen/{scene}`, `cheers` on the live read; shared `cheers`; the Big screen page's Cheers switch and moment controls (no new menu link) and the Cheers scene on the screen; the app's Home cheer card. Plan: `docs/plans/2026-10-31-t-509-cheers.md`; ADR-377 and Q-344 Proposed. The limit is 30 a minute per player, counted by the database; the reactions are the platform's emoji until Questify's own art exists (Q-344).
-- [ ] **T-510** Default notification topics per event — delivers FR 1836; depends on: T-501
+- [x] **T-510** Default notification topics per event — delivers FR 1836; depends on: T-501
   - Note 2026-10-28 (T-501 plan, ADR-347 (6)): mutes are per player across events (`push_topic_mute`); the event's defaults are a layer under the player's own choice, read at fan-out and at the claim.
   - Done when: A new player's topic defaults follow the event's settings and can still be muted.
+  - Done 2026-10-31 (tier B; review owed; not run on a phone): migration 0091 (`event_topic_off`, `push_topic_on`, two granted team doors, `push_muted` now takes the event, `set_push_topics` is a patch, `own_push_topics` adds `eventOff`), API `GET/PUT …/events/{id}/push-defaults` (owner and editor), four switches on the Announcements page (no new menu link), and a line under a Settings switch an event started off. A player's own on or mute always wins; the center row is written either way. Plan: `docs/plans/2026-10-31-t-510-topic-defaults.md`; ADR-379 and Q-346 Proposed. **Not built here:** copying the defaults on a duplicated event (note on T-601).
 
 ## Phase 6 — Organizer power
 
@@ -1207,6 +1208,7 @@ _Wizard, templates, layout, reports and exports, analytics, rehearsal mode and t
 
 - [ ] **T-601** Templates and duplicate an event — delivers FR 1015, 1016; depends on: T-102
   - Done when: A duplicated event is a new Draft with the same structure and no players.
+  - Note 2026-10-31 (T-510): copy `event_topic_off` (the event's default notification topics) with the structure; it is setup, like the switches.
 - [ ] **T-602** Feature switches per event; preview of player screens; branding with logo, banner, accent — delivers FR 1009, 1022, 1023, 1764; depends on: T-007
   - Note 2026-10-26 (T-403): the event logo also draws the Event Passport stamp (FR-709 stays partial until then; stamps show a fallback emblem).
   - Done when: A switched-off feature disappears completely; the preview matches the app.

@@ -1569,3 +1569,8 @@ push again. **Decided (developer):** as recommended, ADR-372 accepted (2026-10-3
 ## Q-345 - The desktop menu: scroll, not collapse (2026-10-31)
 
 **Recommended (worker):** the desktop navigation column scrolls on its own and brings the open page's link into view; no group collapses. **Open:** whether a person with a short screen should instead get collapsible groups (the open page's group open, the state remembered); it would change every browser spec that clicks a link of the other group. **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended, ADR-378 accepted.
+
+## Q-346 - T-510 default notification topics: what is decided without Dhia (2026-10-31)
+
+**Recommended (developer):** an event can start any of the four topics off for its players (everything starts on); a player who has turned a topic on or muted it keeps that choice, whatever the event says; a player who has not chosen follows the event, and Settings shows the switch off with one line saying an event they joined started it off; the organizer's switches sit on the Announcements page, open to the owner and editors. **Open:** (1) whether a late change by the organizer should also reach players who joined before it (as built: yes, until they choose); (2) whether a player in two events that differ should see the topic per event (as built: one global switch, off while any event starts it off); (3) whether a duplicated event copies its defaults (T-601 will decide). Recorded as ADR-379 (Proposed).
+

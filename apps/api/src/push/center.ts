@@ -6,7 +6,7 @@ import {
   type NotificationItem,
   type NotificationList,
   type PushDeviceBody,
-  type PushTopics,
+  type OwnPushTopics,
   type PushTopicsBody,
 } from "@questify/shared";
 import type { PoolClient } from "pg";
@@ -145,13 +145,20 @@ export async function markRead(client: PoolClient, ids: readonly number[] | null
   ]);
 }
 
-/** The caller's four topics, true when on. */
-export const readTopics = (client: PoolClient): Promise<PushTopics> =>
-  one<PushTopics>(client, "SELECT own_push_topics() AS r");
+/** The caller's four topics, true when on, and the ones an event they joined started off (T-510). */
+export const readTopics = (client: PoolClient): Promise<OwnPushTopics> =>
+  one<OwnPushTopics>(client, "SELECT own_push_topics() AS r");
 
-/** Changes the topics named and keeps the others; answers all four. */
-export async function setTopics(client: PoolClient, body: PushTopicsBody): Promise<PushTopics> {
-  const current = await readTopics(client);
-  const muted = PUSH_TOPICS.filter((topic) => !(body[topic] ?? current[topic]));
-  return one<PushTopics>(client, "SELECT set_push_topics($1::text[]) AS r", [muted]);
-}
+/** The topics of a body that are set to `wanted`. */
+export const topicsSetTo = (body: PushTopicsBody, wanted: boolean): string[] =>
+  PUSH_TOPICS.filter((topic) => body[topic] === wanted);
+
+/**
+ * Changes the topics named and keeps the others; answers all four. A topic set here is the player's own choice from now
+ * on, so an event's default never overrules it (T-510).
+ */
+export const setTopics = (client: PoolClient, body: PushTopicsBody): Promise<OwnPushTopics> =>
+  one<OwnPushTopics>(client, "SELECT set_push_topics($1::text[], $2::text[]) AS r", [
+    topicsSetTo(body, true),
+    topicsSetTo(body, false),
+  ]);

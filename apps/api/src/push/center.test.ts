@@ -8,6 +8,7 @@ import {
   readUnread,
   registerDevice,
   setTopics,
+  topicsSetTo,
 } from "#src/push/center";
 import { HttpError } from "#src/http-error";
 import { pgError } from "#test/support/fake-pool";
@@ -177,11 +178,13 @@ describe("the center", () => {
     expect(all.sent[0]?.values).toEqual([null]);
   });
 
-  it("changes the topics named and keeps the others", async () => {
-    const current = { announcements: true, rank: false, community: true, reminders: true };
-    const topics = clientOf((sql) => (sql.includes("own_push_topics") ? current : { ok: true }));
-    await setTopics(topics.client, { rank: true, reminders: false });
-    expect(topics.sent[1]?.values).toEqual([["reminders"]]);
+  it("sends only the topics named, the ones turned on and the ones muted apart", async () => {
+    const topics = clientOf(() => ({ ok: true }));
+    await setTopics(topics.client, { rank: true, reminders: false, community: true });
+    expect(topics.sent).toHaveLength(1);
+    expect(topics.sent[0]?.values).toEqual([["rank", "community"], ["reminders"]]);
+    expect(topicsSetTo({ rank: true, reminders: false }, true)).toEqual(["rank"]);
+    expect(topicsSetTo({}, false)).toEqual([]);
   });
 
   it("registers with the session's hash, an absent environment as null", async () => {

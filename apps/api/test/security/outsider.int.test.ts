@@ -230,6 +230,52 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     ).toEqual([]);
   });
 
+  it("keeps the topic-default tables and internals closed and grants only its two doors (T-510)", async () => {
+    const doors = ["event_push_defaults", "set_event_push_defaults"];
+    const internals = [
+      "event_topic_defaults_json",
+      "push_topic_state",
+      "push_topics_all",
+      "push_topics_checked",
+    ];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+      settings: string[] | null;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${[...doors, ...internals].map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(
+      [...doors, ...internals].toSorted(),
+    );
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+      expect(row.settings, row.proname).toEqual(["search_path=public, pg_temp"]);
+    }
+    // The old forms are gone, so no call to them can be left open: one push_muted and one set_push_topics remain.
+    expect(
+      await rows(
+        `SELECT proname, pronargs FROM pg_proc WHERE pronamespace = 'public'::regnamespace
+         AND proname IN ('push_muted', 'set_push_topics') ORDER BY 1`,
+      ),
+    ).toEqual([
+      { proname: "push_muted", pronargs: 3 },
+      { proname: "set_push_topics", pronargs: 2 },
+    ]);
+    expect(
+      await rows(`SELECT table_name, privilege_type FROM information_schema.role_table_grants
+      WHERE table_schema = 'public' AND table_name IN ('event_topic_off', 'push_topic_on')
+        AND grantee IN ('PUBLIC', 'questify_app', 'questify_outsider')`),
+    ).toEqual([]);
+  });
+
   it("keeps the sponsor tables and internals closed and grants only its six doors", async () => {
     const doors = [
       "member_sponsors",
@@ -1509,6 +1555,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT * FROM public.notification",
         "SELECT * FROM public.push_device",
         "SELECT * FROM public.push_topic_mute",
+        "SELECT * FROM public.push_topic_on",
+        "SELECT * FROM public.event_topic_off",
         "SELECT * FROM public.push_send",
         "SELECT public.push_fan_out()",
         "SELECT * FROM public.push_claim('{fcm}', 1)",
@@ -1520,7 +1568,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT public.own_unread_notifications()",
         "SELECT public.mark_notifications_read(NULL)",
         "SELECT public.own_push_topics()",
-        "SELECT public.set_push_topics('{}')",
+        "SELECT public.set_push_topics('{}', '{}')",
+        "SELECT public.event_push_defaults(gen_random_uuid())",
+        "SELECT public.set_event_push_defaults(gen_random_uuid(), '{}', '{rank}', gen_random_uuid())",
         "SELECT public.notice_create('x', NULL, NULL, gen_random_uuid(), '{}', '{}', 'x', NULL)",
         "SELECT public.push_on()",
       ]) {

@@ -23,6 +23,20 @@
 
 - **FOLLOWUPS cleared (tier C and B minors).** The desktop menu scrolls on its own and shows the open page (ADR-378, Proposed, Q-345): no new link needs a regroup, and the layout check asserts reachability instead of fit. The flaky `organizer-alerts` "checks the member again when it sends" test: the alerts are numbered in the order of members' random ids, a claim takes five rows, and a claim that finds only rows to skip ends the run (T-503 line in FOLLOWUPS), so about one run in twenty sent nothing; the test now runs twice. App and dashboard minors: the map board's click surface leaves the tab order, the sponsor screen shows loading or "no longer part of the event", a late sponsor read of the previous event is dropped, the survey's left-out line has no plural, "Thanks" shows only for a thumb sent a moment ago, and the cheers button follows the server's clock (`Server-Now` of the live read). Not run on a phone.
 
+## T-510 default notification topics — 2026-10-31
+
+- **T-510 done (tier B; code review owed; not run on a phone).** Migration 0091 (new, undeployed; staging runs through 0090): two closed tables
+  (`event_topic_off`: a topic that starts off for an event's players; `push_topic_on`: a topic the player turned on, the mirror of the mute), three granted doors
+  (`event_push_defaults`, `set_event_push_defaults`, and `set_push_topics` now takes `(turn_on, muted)`), `push_muted` takes the notice's event and `push_plan`,
+  `push_skip_reason`, `own_push_topics` and `erase_rows` are restated. A player's own on or mute always wins; a player who never chose follows the event, at the
+  fan-out and again at the claim; the center row is written either way. A notice with no event and a kind with no topic ignore the layer. API `GET/PUT
+  …/events/{id}/push-defaults` (owner and editor, audited `push.defaults`), `GET /v1/me/push-topics` adds `eventOff`, and the PUT is a patch (the old read-then-replace
+  is gone). Dashboard: four switches on the Announcements page, no new menu link. App: one line under a Settings switch an event started off. ADR-379 and Q-346
+  Proposed; a note on T-601 to copy the defaults with a duplicated event. Local: full vitest 9281 passed, 14 skipped, 2 failed (`scripts/ci-scope.test.ts`, my own
+  area edit, fixed and rerun green: 35 passed); tsc (shared, api, web, app), oxlint and format clean; browser suite 256 passed, 4 skipped, 0 failed (single worker, 23.5 min); `npx expo export` ok (Android). New spec `push-defaults.spec.ts` in
+  `scripts/ci-scope.mjs`. CI minutes none yet; agent tokens roughly 0.5M (estimate).
+  **Next:** the T-505 to T-510 reviews, T-505b (tier A: plan and plan review first), then the next unchecked task in `docs/TASKS.md` (T-601).
+
 ## T-509 cheers — 2026-10-31
 
 - **T-509 done (tier B; code review owed; not run on a phone).** Migration 0090 (new, undeployed; staging runs through 0088, 0089 is deploying): two closed tables

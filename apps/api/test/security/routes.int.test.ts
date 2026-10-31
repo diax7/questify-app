@@ -82,6 +82,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "owner of that organizer only (an editor is CH403), event limit rechecked by award_event_of; Idempotency-Key, audited; replaces the event's moment and clears its cheers (cheers database and HTTP suites)",
   "POST /v1/organizers/:organizerId/events/:eventId/cheers/stop":
     "owner of that organizer only (an editor is CH403), event limit rechecked by award_event_of; Idempotency-Key, audited (cheers database and HTTP suites)",
+  "GET /v1/organizers/:organizerId/events/:eventId/push-defaults":
+    "owner/editor, event limit rechecked by award_event_of (another organizer's event is 404); the four topics, true when they start on, no player (push-topic-defaults, push/defaults)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/push-defaults":
+    "owner/editor, event limit rechecked by award_event_of (another organizer's event is 404); changes only the topics named for that event, audited push.defaults; a player's own choice still wins (push-topic-defaults, push/defaults)",
   "PUT /v1/organizers/:organizerId/events/:eventId/cheers":
     "owner of that organizer only (owner route, walked below); changes only the cheers switch of that event (test/cheers/routes)",
   "GET /v1/organizers/:organizerId/events/:eventId/quest-ratings":
@@ -168,9 +172,9 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/me/notifications/read":
     "marks only the calling player's own rows through mark_notifications_read; another player's ids change nothing; an invitation row named by id counts the player's own invitation open once (push-store, cross-tenant, push/routes, invitation-push)",
   "GET /v1/me/push-topics":
-    "the calling player's own muted topics through own_push_topics (push-store, push/routes)",
+    "the calling player's own four topics through own_push_topics, with the ones an event they are in started off; no player id taken (push-store, push-topic-defaults, push/routes)",
   "PUT /v1/me/push-topics":
-    "replaces only the calling player's own muted topics through set_push_topics; no player id taken (push-store, push/routes)",
+    "changes only the calling player's own topics through set_push_topics (a topic set here is their own choice and beats an event's default); no player id taken (push-store, push-topic-defaults, push/routes)",
   "GET /v1/admin/invitation-campaigns":
     "active platform admins only (walked below); exact counts and organizer and event names, no player; the admin checked again (questify_admin) (test/invitations/routes, test/db/invitation-campaigns)",
   "GET /v1/admin/invitation-campaigns/:campaignId":
