@@ -1620,4 +1620,4 @@ skip a broken step go to T-603b, tier A, because they change `complete_quest`; (
 15 minutes" (the app has no presence); (4) open the room before go-live so the team can rehearse the event day. **Open:**
 should "online" mean something live, such as a heartbeat from the app while it is open? Recommended no for now: a heartbeat is
 a write per player per minute and a new personal-data record; completions in 15 minutes is free and honest. Revisit if
-organizers ask for it. **Decided (developer, delegated by Dhia, 2026-10-31):** pending the T-603 review.
+organizers ask for it. **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended; ADR-385 accepted after the T-603 review.

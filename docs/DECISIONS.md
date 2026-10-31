@@ -5799,7 +5799,7 @@ tab, which is hidden while the shop is off (FOLLOWUPS).
 
 ## ADR-385 - T-603 live control room: one page of existing doors, one polled read, and pause/skip split to T-603b
 
-**Status:** Proposed (developer, 2026-10-31; Q-352). No money, no points path: one read-only migration (0096) and a page.
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-31; T-603 review 88, its MAJOR and two minors fixed in 2bd71f1; Q-352). No money, no points path: one read-only migration (0096) and a page.
 **Decision:** (1) **One page, existing doors.** "Control room" (`…/events/{id}/control`, first in the Run group) composes
 what T-307, T-502, T-113 and the quest list already offer: flash Launch now and End now, live poll Send now and Close now
 (each with its confirmation, now one hook, `useQuestLiveActions`, shared with the quest builder), the Up next pin, the
