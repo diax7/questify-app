@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { TEST_DATABASE_URL } from "#test/support/test-db";
 import { pushFixture, type PushFixture } from "#test/support/push";
@@ -167,6 +168,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sponsors (database)", () => {
     const removed = await makeReward();
     await f.owner("UPDATE reward SET status = 'removed' WHERE id = $1", [removed]);
     expect(await refusal(tag("reward", removed, sponsor))).toBe("SO404");
+  });
+
+  it("answers a tag whose item is deleted between the check and the insert as not found, not a fault", async () => {
+    const sponsor = await make();
+    const quest = await makeQuest();
+    const [database] = await f.owner<{ name: string }>("SELECT current_database() AS name");
+    const url = new URL(TEST_DATABASE_URL ?? "");
+    url.pathname = `/${database?.name ?? ""}`;
+    const deleter = new Client({ connectionString: url.toString() });
+    await deleter.connect();
+    try {
+      await deleter.query("BEGIN");
+      await deleter.query("DELETE FROM quest WHERE id = $1", [quest]);
+      const pending = refusal(tag("quest", quest, sponsor));
+      let waiting = false;
+      for (let attempt = 0; attempt < 300 && !waiting; attempt += 1) {
+        waiting =
+          (
+            await f.owner(
+              "SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%sponsor_tag_set%'",
+            )
+          ).length > 0;
+        if (!waiting) await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(waiting).toBe(true);
+      await deleter.query("COMMIT");
+      expect(await pending).toBe("SO404");
+    } finally {
+      await deleter.end();
+    }
   });
 
   it("holds a tag one-per-item when two writes race, and takes the tags with a deleted sponsor", async () => {

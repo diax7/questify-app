@@ -400,7 +400,10 @@ organizer inside the editor's event limit reads and writes them (a player's or a
 sees nothing); the API's role has column grants only (no DELETE), PUBLIC none. Triggers: an event holds 20 open sets
 (`CS429`); a set's owner, event and author never change and it moves from open to applied or closed once (`CS409`); an item
 is written into an open set only, its content never changes, and it is decided once while its set is open (`CS409`). Both
-tables follow their event's delete (cascade). No function was added.
+tables follow their event's delete (cascade). The four trigger functions (`change_set_limit`, `change_set_frozen`,
+`change_set_item_into_open`, `change_set_item_frozen`) are the only functions; none is callable (no grant). An item body
+is checked at 16 KiB as `pg_column_size`; the API answers a body that passes its text-length check but is larger as
+jsonb with `422 invalid_change_set {field: body}`.
 
 ### quest_completion
 **Built (T-105, migration 0012):** `id bigint, organizer_id, event_id, enrollment_id, quest_id, occurrence (1 … the

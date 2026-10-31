@@ -50,7 +50,13 @@ export type BoostRefusal =
   | Readonly<{ kind: "not_found" }>
   | Readonly<{ kind: "invalid"; issues: readonly string[] }>
   | Readonly<{
-      kind: "boost_overlap" | "boost_started" | "event_ended" | "not_started" | "feature_off";
+      kind:
+        | "boost_overlap"
+        | "boost_started"
+        | "event_ended"
+        | "not_started"
+        | "feature_off"
+        | "event_feature_off";
     }>
   | Readonly<{ kind: "limit_reached"; limit: number }>;
 
@@ -145,9 +151,19 @@ export function listBoosts(
   return asTeam(deps, context, (client) => readBoosts(client, eventId));
 }
 
+/** Whether the event's own double-points switch is on (it is, until the organizer turns it off). */
+async function eventBoostsOn(client: PoolClient, eventId: string): Promise<boolean> {
+  const { rows } = await client.query<{ on: boolean }>(
+    "SELECT coalesce((config -> 'features' ->> 'boosts')::boolean, true) AS on FROM event WHERE id = $1",
+    [eventId],
+  );
+  return rows[0]?.on !== false;
+}
+
 /**
  * Saves a new boost (`boostId` null) or edits a scheduled one until a minute before its start (FR-252). Refused while
- * the platform switch is off. Audited by the database. Answers the saved boost.
+ * the platform switch or the event's own switch is off, since a boost saved then would pay nothing. Audited by the
+ * database. Answers the saved boost.
  */
 export async function saveBoost(
   deps: BoostDeps,
@@ -161,6 +177,12 @@ export async function saveBoost(
 ): Promise<BoostDone<BoostView>> {
   if (!(await boostsPlatformOn(deps.settings))) {
     return { kind: "feature_off" };
+  }
+  const switchedOn = await asTeam(deps, context, (client) =>
+    eventBoostsOn(client, request.eventId),
+  );
+  if (switchedOn.kind !== "done" || !switchedOn.value) {
+    return switchedOn.kind === "done" ? { kind: "event_feature_off" } : switchedOn;
   }
   const result = await asTeam(deps, context, async (client) => {
     const { rows } = await client.query<{ id: string }>(

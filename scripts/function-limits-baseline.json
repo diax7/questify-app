@@ -50,11 +50,6 @@
       "complexity": [9]
     }
   },
-  "apps/api/src/boosts/routes.ts": {
-    "refuse": {
-      "complexity": [9]
-    }
-  },
   "apps/api/src/community/goals.ts": {
     "<anonymous>": {
       "complexity": [12]

@@ -8,6 +8,7 @@ import {
   invalidBoost,
   limitReached,
   notFound,
+  featureOff,
   platformFeatureOff,
 } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
@@ -30,26 +31,26 @@ const eventParams = z.object({ eventId: z.uuid() });
 const boostParams = z.object({ eventId: z.uuid(), boostId: z.uuid() });
 const emptyBody = z.union([z.strictObject({}), z.undefined(), z.null()]);
 
+/** The refusals that carry nothing but their kind, each with its HTTP answer (API.md, boosts). */
+const PLAIN_REFUSALS = {
+  not_found: notFound,
+  boost_overlap: boostOverlap,
+  boost_started: boostStarted,
+  not_started: boostNotStarted,
+  event_ended: boostEventEnded,
+  feature_off: platformFeatureOff,
+  event_feature_off: featureOff,
+} as const;
+
 /** One HTTP answer per refusal (API.md, boosts). */
 function refuse(result: BoostRefusal): never {
-  switch (result.kind) {
-    case "not_found":
-      throw notFound();
-    case "invalid":
-      throw invalidBoost({ issues: result.issues });
-    case "boost_overlap":
-      throw boostOverlap();
-    case "boost_started":
-      throw boostStarted();
-    case "not_started":
-      throw boostNotStarted();
-    case "event_ended":
-      throw boostEventEnded();
-    case "limit_reached":
-      throw limitReached({ limit: result.limit });
-    case "feature_off":
-      throw platformFeatureOff();
+  if (result.kind === "invalid") {
+    throw invalidBoost({ issues: result.issues });
   }
+  if (result.kind === "limit_reached") {
+    throw limitReached({ limit: result.limit });
+  }
+  throw PLAIN_REFUSALS[result.kind]();
 }
 
 const valueOf = <T>(result: BoostDone<T>): T =>

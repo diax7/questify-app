@@ -205,6 +205,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cheers (database)", () => {
       expect(JSON.stringify(audit)).not.toContain(fan.player);
     });
 
+    it("ends a moment when a pending finale starts, and starts none once the finale has begun", async () => {
+      const event = await newEvent();
+      await owner(
+        "INSERT INTO finale (event_id, organizer_id, starts_at) VALUES ($1, $2, now() + interval '10 minutes')",
+        [event, ids.orgA],
+      );
+      const live = (await start(event, 30)).live;
+      const [timing] = await owner<{ gap: string }>(
+        "SELECT (extract(epoch FROM (f.starts_at - m.ends_at)))::text AS gap FROM finale f JOIN cheers_moment m USING (event_id) WHERE f.event_id = $1",
+        [event],
+      );
+      expect(live).not.toBeNull();
+      expect(Number(timing?.gap)).toBe(0);
+      const shorter = (await start(event, 5)).live;
+      expect(new Date(shorter?.endsAt ?? 0).getTime() - Date.now()).toBeLessThan(5 * 60_000);
+      await owner("UPDATE finale SET starts_at = now() - interval '1 minute' WHERE event_id = $1", [
+        event,
+      ]);
+      expect(await refusal(start(event, 5))).toBe("CH409:finale_started");
+    });
+
     it("refuses an editor, another tenant, a missing add-on, bad lengths and an event that is not live", async () => {
       const event = await newEvent();
       expect(await refusal(start(event, 5, team(editorA)))).toBe("CH403");

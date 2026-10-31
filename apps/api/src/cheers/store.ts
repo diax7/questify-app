@@ -2,6 +2,7 @@ import type { Pool, QueryResultRow } from "pg";
 import {
   bigScreenOff,
   cheersEventNotLive,
+  cheersFinaleStarted,
   cheersNotLive,
   cheersOff,
   invalidCheer,
@@ -40,7 +41,9 @@ const REFUSALS: Readonly<Record<string, Refusal>> = {
       ? cheersOff()
       : detail === "not_live"
         ? cheersNotLive()
-        : cheersEventNotLive(),
+        : detail === "finale_started"
+          ? cheersFinaleStarted()
+          : cheersEventNotLive(),
   CH422: (detail) => invalidCheer({ field: detail === "minutes" ? "minutes" : "reaction" }),
 };
 

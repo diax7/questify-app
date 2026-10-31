@@ -110,8 +110,11 @@ describe("the boost doors", () => {
   it("saves with every field, a missing start as null, and answers the saved boost", async () => {
     const seen: unknown[][] = [];
     const fake = fakePool((sql, values) => {
-      seen.push([...values]);
-      return sql.includes("save_boost") ? { rows: [{ id: "b1" }] } : { rows: [{ boosts: [ROW] }] };
+      if (sql.includes("save_boost")) {
+        seen.push([...values]);
+        return { rows: [{ id: "b1" }] };
+      }
+      return { rows: [{ boosts: [ROW] }] };
     });
     const saved = await saveBoost({ pool: fake.pool, settings: ON }, CONTEXT, {
       eventId: "e1",
@@ -145,6 +148,23 @@ describe("the boost doors", () => {
       ),
     ).toEqual({ kind: "feature_off" });
     expect(off.queries).toEqual([]);
+  });
+
+  it("answers event_feature_off without a write while the event's own switch is off", async () => {
+    const fake = fakePool((sql) => {
+      if (sql.includes("save_boost")) {
+        throw new Error("a boost was written while the event's switch was off");
+      }
+      return { rows: [{ on: false }] };
+    });
+    expect(
+      await saveBoost({ pool: fake.pool, settings: ON }, CONTEXT, {
+        eventId: "e1",
+        boostId: null,
+        body: { categoryId: "c1", minutes: 30 },
+        requestId: "r1",
+      }),
+    ).toEqual({ kind: "event_feature_off" });
   });
 
   it("turns a refusal into its kind and throws anything else", async () => {

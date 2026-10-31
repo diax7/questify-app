@@ -42,7 +42,7 @@ export type SetRefusal =
   | Readonly<{ kind: "finished" }>
   | Readonly<{ kind: "busy" }>
   | Readonly<{ kind: "limit_reached"; limit: number }>
-  | Readonly<{ kind: "invalid"; field: "itemIds" }>;
+  | Readonly<{ kind: "invalid"; field: "itemIds" | "body" }>;
 
 export type SetDone<T> = Readonly<{ kind: "done"; value: T }> | SetRefusal;
 
@@ -96,11 +96,17 @@ async function readEvent(
     : { id: row.id, timezone: row.timezone, statusNow: row.status_now };
 }
 
-/** The database's own refusals of migration 0099 as call refusals; undefined for any other error. */
+/**
+ * The database's own refusals of migration 0099 as call refusals; undefined for any other error. An item body the
+ * route let through by its text length but that is larger as jsonb (`pg_column_size`) is an invalid body, not a fault.
+ */
 function refusalOfError(error: unknown): SetRefusal | undefined {
-  const code = (error as { code?: string }).code;
+  const { code, constraint } = error as { code?: string; constraint?: string };
   if (code === "CS429") {
     return { kind: "limit_reached", limit: SET_LIMITS.open };
+  }
+  if (code === "23514" && constraint === "change_set_item_body_check") {
+    return { kind: "invalid", field: "body" };
   }
   return code === "CS409" ? { kind: "finished" } : undefined;
 }

@@ -2061,6 +2061,13 @@ export const cheersEventNotLive = make(
   "تبدأ لحظة التشجيع أثناء سير الفعالية فقط.",
   "A cheers moment can start only while the event is live.",
 );
+/** The finale has started: the screen belongs to it, so no cheers moment starts. */
+export const cheersFinaleStarted = make(
+  409,
+  "finale_started",
+  "بدأ الختام، فلا تبدأ لحظة تشجيع الآن.",
+  "The finale has started, so a cheers moment cannot start now.",
+);
 /** A cheer arrived with no live moment, or just after it ended. */
 export const cheersNotLive = make(
   409,

@@ -416,6 +416,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("change sets over HTTP", () => 
     expect(await owner("SELECT 1 FROM change_set WHERE event_id = $1", [f.event])).toHaveLength(0);
   });
 
+  it("answers a body that is short as text but too large as jsonb with 422, not a server error", async () => {
+    const f = await newEvent();
+    const bulky = {
+      op: "edit",
+      target: "quest",
+      targetId: f.quest,
+      body: { x: Array(5000).fill(1) },
+    };
+    expect(JSON.stringify(bulky.body).length).toBeLessThan(16_384);
+    const refused = await call("POST", `/events/${f.event}/change-sets`, { items: [bulky] });
+    expect([refused.statusCode, refused.json().code, refused.json().details]).toEqual([
+      422,
+      "invalid_change_set",
+      { field: "body" },
+    ]);
+  });
+
   it("refuses an ended event, an unknown item id, and a 21st open set", async () => {
     const ended = await newEvent();
     await owner("UPDATE event SET status = 'ended' WHERE id = $1", [ended.event]);

@@ -322,6 +322,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("boosts over HTTP", () => {
     const off = await dashboard("PUT", `/events/${event}/double-points`, { enabled: false });
     expect(off.json()).toEqual({ boosts: false });
     expect((await complete()).json()).toMatchObject({ points: 10, boost: null });
+    const refused = await dashboard("POST", `/events/${event}/boosts`, {
+      categoryId: category,
+      startsAt: minutesFromNow(120),
+      minutes: 10,
+    });
+    expect(codeOf(refused)).toEqual([403, "feature_off"]);
+    expect(
+      codeOf(
+        await dashboard("PATCH", `/events/${event}/boosts/${boost.id}`, {
+          categoryId: category,
+          minutes: 20,
+        }),
+      ),
+    ).toEqual([403, "feature_off"]);
     const view = (await dashboard("GET", `/events/${event}`)).json() as { event: Row };
     expect(view.event).toMatchObject({ boosts: false, flashQuests: true });
   });
