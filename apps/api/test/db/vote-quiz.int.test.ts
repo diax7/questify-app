@@ -608,7 +608,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("vote and quiz quests (database
           expected,
           randomUUID(),
         ]);
+      await owner("DELETE FROM ranking_repair WHERE event_id = $1", [event]);
       expect(await confirm([])).toEqual([{ outcome: "results_changed" }]);
+      expect(await owner("SELECT 1 FROM ranking_repair WHERE event_id = $1", [event])).toHaveLength(
+        1,
+      );
       expect(await attemptOf(enrollment)).toMatchObject({ status: "finished", swept: true });
       expect(await confirm([enrollment])).toEqual([{ outcome: "confirmed" }]);
     });
