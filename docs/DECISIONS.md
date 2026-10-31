@@ -5932,7 +5932,7 @@ console rows with no screen wait (FOLLOWUPS).
 
 ## ADR-390 - T-605 guided setup: ten steps that only point at the pages' own operations, progress in one table
 
-**Status:** Proposed (developer, 2026-10-31; T-605; Q-357).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-31; T-605 review 80, its BLOCKER and MAJOR fixed in a8d07be; Q-357).
 **Decision:** (1) **Ten steps.** FR-1846 (Basics and access, Join rules, Quests, Rewards, Sponsors, Screens and staff, Home
 and look, Messages, Add-ons and activation, Rehearse and review) replaces the twelve of FR-1751 and of the T-605 title.
 (2) **Progress only.** Table `event_setup` (migration 0100): the step the wizard opens at and one letter per step (`n` not
