@@ -30,11 +30,11 @@ export type DoorDeps = SessionDeps & Readonly<{ myKey: MyCodeKey }>;
 type Opened = Readonly<{ playerId: string; version: number }>;
 
 /** The route's body for the database's answer: the outcome, the walk-in flag, the points the player holds, who. */
-const doorBody = (answer: SessionCheckInAnswer | undefined) => ({
-  result: answer?.outcome,
-  walkIn: answer?.walkIn === true,
-  points: answer?.points ?? 0,
-  player: answer?.player,
+const doorBody = (answer: SessionCheckInAnswer) => ({
+  result: answer.outcome,
+  walkIn: answer.walkIn === true,
+  points: answer.points ?? 0,
+  player: answer.player,
 });
 
 /** The database's answer for one scan, or a red result with the station scan's reason; anything else is rethrown. */
@@ -51,7 +51,7 @@ async function recordCheckIn(
           "SELECT session_check_in($1, $2, $3) AS answer",
           [sessionId, opened.playerId, opened.version],
         );
-        return rows[0]?.answer;
+        return (rows[0] as { answer: SessionCheckInAnswer }).answer;
       }),
     );
     return doorBody(answer);
