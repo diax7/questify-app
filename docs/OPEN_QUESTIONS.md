@@ -1688,4 +1688,4 @@ are labelled; no minimum group size on this page (its audience sees named player
 page has no period or sponsor filter yet. Questions for Dhia: (a) Should a quest the team awarded by hand count as
 the player's activity? (b) Should "returning" also count a player who comes back on the same day after a long gap? (c) Is a minimum
 group size wanted before a count of one or two players is shown (for example a sponsor's own players, T-608)? (d) Is a period filter
-(whole event, today, last 7 days) wanted before T-608? (e) Not run on a phone: the page was read in a browser at 360 px, not on a device.
+(whole event, today, last 7 days) wanted before T-608? (e) Not run on a phone: the page was read in a browser at 360 px, not on a device. **Decided (developer, delegated by Dhia, 2026-10-31):** as built; (c) a floor goes with T-608's sponsor-facing totals; (d) the period filter waits for T-608. ADR-392 accepted.

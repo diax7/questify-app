@@ -5998,7 +5998,7 @@ conditions (a card with nothing to say draws nothing).
 
 ## ADR-392 - T-607 analytics: counts from the players' own rows and the first-completion index, three read-only doors, a single data colour
 
-**Status:** Proposed (developer, delegated by Dhia, 2026-10-31; Q-359).
+**Status:** Accepted (developer, delegated by Dhia, 2026-10-31; T-607 review 88, its MAJOR fixed in 309bc92; Q-359).
 **Decision:** (1) **Three read-only doors, no table and no write** (migration 0102): `analytics_participation`, `analytics_quests`,
 `analytics_economy`, each a definer behind `award_event_of` (AN404 for another organizer, a player, a stranger, an editor outside
 their event limit), PUBLIC without EXECUTE, granted to the API's role alone. They answer one `jsonb` of counts that the API checks
