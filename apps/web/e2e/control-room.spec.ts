@@ -6,7 +6,8 @@ import { CONTROL_PORT } from "#e2e/paths.ts";
 /**
  * The live control room (T-603), in Arabic: the counters and the feed of completions with only a username, each quest's
  * completions and rate, the Up next pin, a flash quest launched, a boost started and an announcement composed and
- * confirmed, all on one page reached from the menu; the English heading and the switch that takes an action away.
+ * confirmed, a quest paused after its confirmation (T-603b), all on one page reached from the menu; the English heading
+ * and the switch that takes an action away.
  */
 test("runs an event from the control room", async ({ page, request }, info) => {
   test.setTimeout(120_000);
@@ -54,6 +55,17 @@ test("runs an event from the control room", async ({ page, request }, info) => {
   await expect(lion).toContainText("المنجزون: 1 (100%)");
   await lion.getByRole("button", { name: "تثبيت في «التالي»" }).click();
   await expect(lion.getByText("مثبّت في «التالي»")).toBeVisible();
+
+  // Pause (T-603b): the confirmation says what happens; Cancel changes nothing, the action pauses.
+  await lion.getByRole("button", { name: "إيقاف مؤقت" }).click();
+  const pausing = page.getByRole("alertdialog");
+  await expect(pausing).toContainText("لن يستطيع اللاعبون بدءها");
+  await pausing.getByRole("button", { name: "إلغاء" }).click();
+  await expect(lion.getByText("موقوفة مؤقتًا")).toHaveCount(0);
+  await lion.getByRole("button", { name: "إيقاف مؤقت" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "إيقاف مؤقت" }).click();
+  await expect(lion.getByText("موقوفة مؤقتًا")).toBeVisible();
+  await expect(lion.getByRole("button", { name: "استئناف" })).toBeVisible();
 
   const flash = quests.getByRole("listitem").filter({ hasText: "الصقر الذهبي" });
   await expect(flash).toContainText("المنجزون: 0 (0%)");

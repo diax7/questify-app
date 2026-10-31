@@ -63,6 +63,8 @@ export function stateLine(quest: Pick<Quest, "type" | "state" | "lock">): Messag
       return "questsTab.done";
     case "not_live":
       return "questsTab.notLive";
+    case "paused":
+      return "questsTab.paused";
     case "locked":
       return quest.lock === null ? "questsTab.locked" : LOCK_TEXT[quest.lock];
     case "closed":
@@ -78,6 +80,7 @@ export function stateLine(quest: Pick<Quest, "type" | "state" | "lock">): Messag
 const NOT_OPEN_TEXT: Readonly<Record<NotOpenReason, MessageKey>> = {
   event_not_live: "questsTab.notOpen.eventNotLive",
   hidden: "questsTab.notOpen.hidden",
+  paused: "questsTab.notOpen.paused",
   not_started: "questsTab.notOpen.notStarted",
   ended: "questsTab.notOpen.ended",
   not_for_you: "questsTab.notOpen.notForYou",

@@ -20,6 +20,7 @@ import {
 export type QuestState =
   | "done"
   | "not_live"
+  | "paused"
   | "locked"
   | "not_yet"
   | "closed"
@@ -465,6 +466,7 @@ export function findQuest(categories: readonly Category[], questId: string): Que
 export type NotOpenReason =
   | "event_not_live"
   | "hidden"
+  | "paused"
   | "not_started"
   | "ended"
   | "not_for_you"
@@ -473,6 +475,7 @@ export type NotOpenReason =
 const NOT_OPEN: readonly string[] = [
   "event_not_live",
   "hidden",
+  "paused",
   "not_started",
   "ended",
   "not_for_you",

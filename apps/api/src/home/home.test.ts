@@ -27,7 +27,19 @@ const quest = (id: string, fields: Partial<MemberQuest> = {}): MemberQuest => ({
   flash: null,
   boost: null,
   firstBonus: null,
+  paused: false,
   ...fields,
+});
+
+describe("a paused quest (T-603b)", () => {
+  it("is paused after done and not live, before its category's lock, and never Up next", () => {
+    const paused = quest("a", { paused: true, lock: "order_locked", points: 50 });
+    expect(questState(paused, "live", NOW)).toBe("paused");
+    expect(questState(paused, "scheduled", NOW)).toBe("not_live");
+    expect(questState({ ...paused, done: 1 }, "live", NOW)).toBe("done");
+    expect(isOpen(paused, "live", NOW)).toBe(false);
+    expect(pickUpNext([paused, quest("b")], "a", "live", NOW)).toMatchObject({ questId: "b" });
+  });
 });
 
 describe("a community lock (T-306c)", () => {

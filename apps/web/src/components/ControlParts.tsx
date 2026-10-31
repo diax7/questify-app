@@ -4,6 +4,7 @@ import { formatNumber, isLivePoll, toLocalInput, type Language } from "@questify
 import { FlashControls, type FlashActions } from "#src/components/FlashControls.tsx";
 import { PollControls, type PollActions } from "#src/components/PollControls.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
+import type { RoomSwitch } from "#src/components/useRoomSwitches.tsx";
 import {
   completionRate,
   methodLabelOf,
@@ -129,7 +130,50 @@ type QuestsProps = Readonly<{
   flashOn: boolean;
   actions: PollActions & FlashActions;
   pin: (quest: QuestView) => void;
+  /** Opens the confirmation of a pause, resume, skip or restore (T-603b). */
+  toggle: (kind: RoomSwitch, quest: QuestView) => void;
+  /** The in-order categories' ids: only their steps (not flash quests or live polls) can be skipped. */
+  inOrder: ReadonlySet<string>;
 }>;
+
+/** The pause and skip buttons of one quest (T-603b): Skip step only on a step of an in-order category. */
+function SwitchButtons({
+  language,
+  quest,
+  busy,
+  skippable,
+  toggle,
+}: Readonly<{
+  language: Language;
+  quest: QuestView;
+  busy: boolean;
+  skippable: boolean;
+  toggle: QuestsProps["toggle"];
+}>) {
+  const t = useTranslator(language);
+  const paused = quest.paused === true;
+  const skipped = quest.skipped === true;
+  return (
+    <>
+      <Button
+        variant="quiet"
+        disabled={busy}
+        onClick={() => toggle(paused ? "resume" : "pause", quest)}
+      >
+        {t(paused ? "control.resume.action" : "control.pause.action")}
+      </Button>
+      {skippable || skipped ? (
+        <Button
+          variant="quiet"
+          disabled={busy}
+          onClick={() => toggle(skipped ? "unskip" : "skip", quest)}
+        >
+          {t(skipped ? "control.unskip.action" : "control.skip.action")}
+        </Button>
+      ) : null}
+    </>
+  );
+}
 
 function QuestStats({
   language,
@@ -189,6 +233,12 @@ export function ControlQuests(props: QuestsProps) {
                   <Badge tone="warning">{t("quests.hidden")}</Badge>
                 )}
                 {pinned ? <Badge tone="info">{t("quests.pinned")}</Badge> : null}{" "}
+                {quest.paused === true ? (
+                  <Badge tone="warning">{t("control.quests.paused")}</Badge>
+                ) : null}{" "}
+                {quest.skipped === true ? (
+                  <Badge tone="info">{t("control.quests.skipped")}</Badge>
+                ) : null}{" "}
                 <QuestStats
                   language={language}
                   quest={quest}
@@ -217,14 +267,23 @@ export function ControlQuests(props: QuestsProps) {
             }
           >
             {props.readOnly ? null : (
-              <Button
-                variant="quiet"
-                disabled={busy}
-                aria-pressed={pinned}
-                onClick={() => props.pin(quest)}
-              >
-                {t("quests.pin")}
-              </Button>
+              <>
+                <Button
+                  variant="quiet"
+                  disabled={busy}
+                  aria-pressed={pinned}
+                  onClick={() => props.pin(quest)}
+                >
+                  {t("quests.pin")}
+                </Button>
+                <SwitchButtons
+                  language={language}
+                  quest={quest}
+                  busy={busy}
+                  skippable={props.inOrder.has(quest.categoryId) && quest.flash !== true && !poll}
+                  toggle={props.toggle}
+                />
+              </>
             )}
           </Row>
         );

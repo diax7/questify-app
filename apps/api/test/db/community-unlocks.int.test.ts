@@ -1566,6 +1566,10 @@ const GATE_MAP: Readonly<Record<string, string>> = {
     "exempt: lists agenda sessions and shows the title of a visible linked quest only; it plays and pays nothing, and the quest opens only through its own gated doors (T-505)",
   control_counts:
     "staff: an owner or editor within their event limit (award_event_of) counts the active rewards at or under the stock-low line; it plays and pays nothing (T-603)",
+  control_done:
+    "staff: an owner or editor within their event limit (award_event_of) counts each quest's completions, its pause and skip, and the players past a skipped step; it plays and pays nothing (T-603, T-603b)",
+  set_step_skipped:
+    "staff: an owner or editor within their event limit (award_event_of) skips or restores a step of an in-order category; it plays and pays nothing (T-603b)",
   control_feed:
     "staff: an owner or editor within their event limit (award_event_of) reads the newest completions with their quests' titles, locked quests included; it plays and pays nothing (T-603)",
   sponsor_tag_set:

@@ -45,6 +45,10 @@ export type QuestView = Readonly<{
   flash?: boolean;
   /** When a flash quest was launched by hand, or null. */
   flashLaunchedAt?: string | null;
+  /** Paused from the control room (T-603b); absent from an older API. */
+  paused?: boolean;
+  /** A skipped step of an in-order category (T-603b); absent from an older API. */
+  skipped?: boolean;
   /** Its first-N bonus (T-313), or null; absent from an older API. */
   firstBonus?: SavedFirstBonus | null;
 }>;

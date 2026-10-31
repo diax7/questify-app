@@ -9,6 +9,7 @@ import { useTranslator } from "#src/components/TermsScope.tsx";
 import { useQuestBuilder } from "#src/components/useQuestBuilder.ts";
 import { useQuestLiveActions } from "#src/components/useQuestLiveActions.tsx";
 import { useReturnFocus } from "#src/components/useReturnFocus.ts";
+import { useRoomSwitches, type RoomSwitch } from "#src/components/useRoomSwitches.tsx";
 import {
   CONTROL_REFRESH_MS,
   controlViewOf,
@@ -17,6 +18,7 @@ import {
   type RoomEvent,
 } from "#src/lib/control-room.ts";
 import { requestJson } from "#src/lib/post-json.ts";
+import type { QuestView } from "#src/lib/quests.ts";
 import { errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
@@ -145,6 +147,7 @@ function ControlBody({
   live,
   view,
   room,
+  toggle,
 }: Readonly<{
   language: Language;
   organizerId: string;
@@ -153,8 +156,15 @@ function ControlBody({
   live: ReturnType<typeof useQuestLiveActions>;
   view: ControlView;
   room: RoomEvent;
+  toggle: (kind: RoomSwitch, quest: QuestView) => void;
 }>) {
   const t = useTranslator(language);
+  const categories = builder.categories ?? [];
+  const inOrder = new Set(
+    categories
+      .filter((category) => category.orderMode === "in_order")
+      .map((category) => category.id),
+  );
   return (
     <>
       <Section title={t("control.counters")}>
@@ -171,7 +181,7 @@ function ControlBody({
         <ControlQuests
           language={language}
           timeZone={room.timeZone}
-          categories={builder.categories ?? []}
+          categories={categories}
           focusQuestId={builder.focusQuestId}
           done={view.done}
           players={view.counts.players}
@@ -179,6 +189,8 @@ function ControlBody({
           readOnly={room.closed}
           flashOn={room.flashOn}
           actions={live.actions}
+          toggle={toggle}
+          inOrder={inOrder}
           pin={(quest) =>
             void builder.send("PUT", "/focus", {
               questId: builder.focusQuestId === quest.id ? null : quest.id,
@@ -203,7 +215,7 @@ function ControlBody({
  * The live control room (T-603, FR-1024, FR-1025, FR-1028): the counters, the latest completions, every quest with its
  * completion rate and Up next pin, and the actions that run the event: flash quests, live polls, double points and an
  * announcement. Each action is the one its own page offers, drawn here; an action whose switch is off is not offered.
- * Pausing a quest and skipping a step are not here (T-603b: they change what `complete_quest` accepts).
+ * Each quest can be paused, and a step of an in-order category skipped, each after a confirmation (T-603b, FR-1026).
  */
 export function ControlRoom({
   language,
@@ -220,6 +232,12 @@ export function ControlRoom({
     builder: b,
     focus,
     votesUrl: (quest) => `${eventApi}/quests/${quest.id}/votes`,
+  });
+  const switches = useRoomSwitches({
+    language,
+    builder: b,
+    focus,
+    behind: view?.behind ?? {},
   });
   const room = roomEventOf(b.event);
   const since =
@@ -245,10 +263,12 @@ export function ControlRoom({
           live={live}
           view={view}
           room={room}
+          toggle={switches.ask}
         />
       )}
       {view === null && !failed ? <Muted>{t("common.loading")}</Muted> : null}
       {live.dialogs}
+      {switches.dialog}
     </Stack>
   );
 }

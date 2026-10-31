@@ -228,7 +228,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("control room (database)", () =
         "SELECT * FROM control_done($1)",
         [ev],
       );
-      expect(rows).toEqual([{ quest_id: done, done: 2 }]);
+      expect(rows).toEqual([
+        { quest_id: done, done: 2, paused: false, skipped: false, behind: 0 },
+      ]);
       expect(rows.some((row) => row.quest_id === never)).toBe(false);
     });
   });

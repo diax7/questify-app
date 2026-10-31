@@ -1637,6 +1637,34 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     }
   });
 
+  it("keeps pause and skip inside the caller's tenant and membership (T-603b)", async () => {
+    const [questB] = (
+      await db.owner.query<{ id: string }>(
+        `INSERT INTO quest (event_id, category_id, type, title_en, points) VALUES ($1, $2, 'scan_qr', 'B', 5)
+         RETURNING id`,
+        [f.eventB, f.categoryB],
+      )
+    ).rows;
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      for (const sql of [
+        "SELECT set_quest_paused($1, $2, true, $3)",
+        "SELECT set_step_skipped($1, $2, true, $3)",
+      ]) {
+        expect(
+          await refusal(asA(seat, sql, [f.eventB, questB?.id, randomUUID()])),
+          `${seat} ${sql}`,
+        ).toBe("AN404");
+      }
+    }
+    const [row] = (
+      await db.owner.query<{ paused_at: Date | null }>(
+        "SELECT paused_at FROM quest WHERE id = $1",
+        [questB?.id],
+      )
+    ).rows;
+    expect(row?.paused_at).toBeNull();
+  });
+
   it("keeps the Cheers doors inside the caller's tenant and membership (T-509)", async () => {
     for (const seat of ["organizer", "staff", "player"] as const) {
       const team = [

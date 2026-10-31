@@ -122,6 +122,7 @@ const bilingual = z.object({ ar: z.string(), en: z.string() });
 export const MAP_QUEST_STATES = [
   "done",
   "not_live",
+  "paused",
   "locked",
   "not_yet",
   "closed",

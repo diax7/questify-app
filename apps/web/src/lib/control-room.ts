@@ -30,6 +30,8 @@ export type ControlView = Readonly<{
   feed: readonly FeedItem[];
   /** Players who completed each quest at least once, by quest id; a quest nobody completed has no key. */
   done: Readonly<Record<string, number>>;
+  /** Players past each skipped step who have not done it (T-603b); empty from an older API. */
+  behind: Readonly<Record<string, number>>;
 }>;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -82,7 +84,15 @@ export function controlViewOf(body: unknown): ControlView | undefined {
   ) {
     return undefined;
   }
-  return { counts, feed, done: done as Readonly<Record<string, number>> };
+  const behind = body["behind"];
+  const counted =
+    isRecord(behind) && Object.values(behind).every((count) => typeof count === "number");
+  return {
+    counts,
+    feed,
+    done: done as Readonly<Record<string, number>>,
+    behind: counted ? (behind as Readonly<Record<string, number>>) : {},
+  };
 }
 
 /**

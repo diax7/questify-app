@@ -404,6 +404,7 @@ describe("completionAnswer", () => {
     for (const reason of [
       "event_not_live",
       "hidden",
+      "paused",
       "not_started",
       "ended",
       "not_for_you",

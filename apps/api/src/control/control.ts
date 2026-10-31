@@ -37,6 +37,11 @@ export type ControlView = Readonly<{
   feed: readonly FeedRow[];
   /** Players who completed each quest at least once, by quest id; a quest nobody completed has no key. */
   done: Readonly<Record<string, number>>;
+  /**
+   * For each skipped step (T-603b), the active players past it who have not done it: restoring it holds them again.
+   * Only skipped steps have a key.
+   */
+  behind: Readonly<Record<string, number>>;
 }>;
 
 /** How many completions one poll lists. */
@@ -71,14 +76,23 @@ export type ControlReader = Readonly<{
   read: (team: OrganizerContext, eventId: string) => Promise<ControlView | undefined>;
 }>;
 
-type Kept = Readonly<{ until: number; done: Promise<Readonly<Record<string, number>>> }>;
+type PerQuest = Readonly<Pick<ControlView, "done" | "behind">>;
+type Kept = Readonly<{ until: number; done: Promise<PerQuest> }>;
 
-async function readDone(
-  client: PoolClient,
-  eventId: string,
-): Promise<Readonly<Record<string, number>>> {
+async function readDone(client: PoolClient, eventId: string): Promise<PerQuest> {
   const { rows } = await client.query("SELECT * FROM control_done($1)", [eventId]);
-  return Object.fromEntries(rows.map((row) => [String(row["quest_id"]), whole(row["done"])]));
+  return {
+    done: Object.fromEntries(
+      rows
+        .filter((row) => whole(row["done"]) > 0)
+        .map((row) => [String(row["quest_id"]), whole(row["done"])]),
+    ),
+    behind: Object.fromEntries(
+      rows
+        .filter((row) => row["skipped"] === true)
+        .map((row) => [String(row["quest_id"]), whole(row["behind"])]),
+    ),
+  };
 }
 
 /**
@@ -135,7 +149,7 @@ export function createControlReader(
                   flags: whole(count["flags"]),
                 },
                 feed: feed.map(feedRowOf),
-                done: await doneOf(client, eventId),
+                ...(await doneOf(client, eventId)),
               };
             },
           ),

@@ -63,6 +63,10 @@ export type QuestRecord = Readonly<{
   flash: boolean;
   /** When a flash quest was launched by hand, or null (scheduled, a draft, or not flash). */
   flashLaunchedAt: Date | null;
+  /** Paused from the control room (T-603b): no new start is accepted. */
+  paused: boolean;
+  /** A skipped step of an in-order category (T-603b): it holds nothing after it. */
+  skipped: boolean;
 }>;
 
 /** One step of a passport (T-304b): its name and the version its printed code carries. */
@@ -135,13 +139,16 @@ type QuestRow = {
   poll_sent_at: Date | null;
   flash: boolean;
   flash_launched_at: Date | null;
+  paused: boolean;
+  skipped: boolean;
 };
 
 const CATEGORY_COLUMNS = `id, event_id, name_ar, name_en, position, order_mode, opens_at, unlock_after, completion_bonus,
   refresh, hidden, item_id`;
 const QUEST_COLUMNS = `id, event_id, category_id, type, title_ar, title_en, description_ar, description_en, points,
   repeat_cap, opens_at, closes_at, visible, position, type_config, qr_version, verification, item_id, place_lat, place_lng,
-  place_radius_m, poll_sent_at, flash, flash_launched_at`;
+  place_radius_m, poll_sent_at, flash, flash_launched_at, paused_at IS NOT NULL AS paused,
+  skipped_at IS NOT NULL AS skipped`;
 
 const toCategory = (row: CategoryRow): CategoryRecord => ({
   id: row.id,
@@ -182,6 +189,8 @@ const toQuest = (row: QuestRow): QuestRecord => ({
   pollSentAt: row.poll_sent_at,
   flash: row.flash,
   flashLaunchedAt: row.flash_launched_at,
+  paused: row.paused,
+  skipped: row.skipped,
 });
 
 type StepRow = {

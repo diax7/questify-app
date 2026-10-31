@@ -164,6 +164,8 @@ const questView = (quest: BuilderQuest) => ({
   pollSentAt: quest.pollSentAt?.toISOString() ?? null,
   flash: quest.flash,
   flashLaunchedAt: quest.flashLaunchedAt?.toISOString() ?? null,
+  paused: quest.paused,
+  skipped: quest.skipped,
   firstBonus: quest.firstBonus,
   ...(quest.type === "passport"
     ? {

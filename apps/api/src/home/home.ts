@@ -66,6 +66,8 @@ export type MemberQuest = Readonly<{
   boost: RunningBoost | null;
   /** Its first-N bonus (T-313, FR-1840), or null: `left` from the 2-second cache, `mine` this player's own place. */
   firstBonus: QuestFirstBonus | null;
+  /** Paused by the organizer (T-603b): it accepts no new start until resumed. */
+  paused: boolean;
 }>;
 
 /** A quest's first-N bonus as a player sees it: `mine` once they got it, else null. */
@@ -186,11 +188,12 @@ export function playStatus(statusNow: EventStatusNow, rehearsal: boolean): Event
 /** Finished means done to its repeat cap: the same rule for progress and for Up next, so they never disagree. */
 export const finished = (quest: MemberQuest): boolean => quest.done >= quest.repeatCap;
 
-export type QuestState = "done" | "not_live" | "locked" | "not_yet" | "closed" | "open";
+export type QuestState = "done" | "not_live" | "paused" | "locked" | "not_yet" | "closed" | "open";
 
 /**
  * Where a quest stands for this player now, the one rule for Home's Up next and the Quests tab: finished first, then
- * the event not live, then its category's lock (T-304), then the quest's window (open from `opensAt`, closed at
+ * the event not live, then a pause by the organizer (T-603b), then its category's lock (T-304), then the quest's
+ * window (open from `opensAt`, closed at
  * `closesAt`). `now` is the database's.
  */
 export function questState(quest: MemberQuest, statusNow: EventStatusNow, now: Date): QuestState {
@@ -199,6 +202,9 @@ export function questState(quest: MemberQuest, statusNow: EventStatusNow, now: D
   }
   if (statusNow !== "live") {
     return "not_live";
+  }
+  if (quest.paused) {
+    return "paused";
   }
   if (quest.lock !== null) {
     return "locked";
@@ -288,6 +294,7 @@ type QuestRow = Readonly<{
   first_bonus_points: number | null;
   first_bonus_slots: number | null;
   first_bonus_place: number | null;
+  paused: boolean;
 }>;
 
 /** The running boost a row names, with its end as a time. */
@@ -387,6 +394,7 @@ async function questRows(
       flash: row.flash_closes_at === null ? null : { closesAt: row.flash_closes_at },
       boost: boostOf(row),
       firstBonus: firstBonusOf(row, counts),
+      paused: row.paused,
     });
     categories.set(row.category_id, category);
   }

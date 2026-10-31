@@ -261,7 +261,9 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       });
       registerRewardBuilderRoutes(scope, { pool: deps.pool, codeKey: deps.rewardCodeKey });
       registerHeldPrizesTeamRoute(scope, { pool: deps.pool });
-      registerControlTeamRoutes(scope, createControlReader({ pool: deps.pool }));
+      registerControlTeamRoutes(scope, createControlReader({ pool: deps.pool }), {
+        pool: deps.pool,
+      });
       registerModerationRoutes(scope, { pool: deps.pool });
       registerAwardRoutes(scope, { pool: deps.pool });
       registerSubmissionTeamRoutes(scope, { pool: deps.pool, ranking: deps.ranking });

@@ -358,6 +358,14 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the bearer's own reserved prizes in an event they are an active member of, through event_shop and my_redemptions bound to the session; not behind the shop switch; anyone else 404 (test/rewards/routes)",
   "GET /v1/organizers/:organizerId/events/:eventId/held-prizes":
     "members inside their event limit; a count of reserved prizes of active members under row-level security, no player named; another organizer's event answers 404 (test/rewards/routes)",
+  "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/pause":
+    "owners and editors inside their event limit; a quest of that event only, through set_quest_paused, which checks the organizer, the event limit and the phase itself (AN404, AQ404); audited (test/control/routes, test/db/pause-skip, test/security/cross-tenant)",
+  "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/resume":
+    "owners and editors inside their event limit; a quest of that event only, through set_quest_paused, which checks the organizer, the event limit and the phase itself (AN404, AQ404); audited (test/control/routes, test/db/pause-skip, test/security/cross-tenant)",
+  "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/skip":
+    "owners and editors inside their event limit; a quest of that event only, through set_step_skipped, which checks the organizer, the event limit and the phase itself (AN404, AQ404); audited (test/control/routes, test/db/pause-skip, test/security/cross-tenant)",
+  "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/unskip":
+    "owners and editors inside their event limit; a quest of that event only, through set_step_skipped, which checks the organizer, the event limit and the phase itself (AN404, AQ404); audited (test/control/routes, test/db/pause-skip, test/security/cross-tenant)",
   "GET /v1/organizers/:organizerId/events/:eventId/control":
     "members inside their event limit, through control_feed, control_counts and control_done, which check the organizer and the event limit themselves (AN404); usernames and avatars the team already reads, no contact detail or points; another organizer's event answers 404 (test/control/routes, test/db/control-room, test/security/cross-tenant)",
   "POST /v1/rewards/:rewardId/reserve":

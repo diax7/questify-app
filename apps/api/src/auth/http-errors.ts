@@ -1515,6 +1515,13 @@ export const boostInUse = make(
   "This category has a boost, so it can't be deleted.",
 );
 /** Launch or End now on a quest that is not a flash quest (T-307). */
+/** Only a step of an in-order category can be skipped (T-603b): not a flash quest or a live poll. */
+export const notInOrder = make(
+  422,
+  "not_in_order",
+  "يمكن تخطي خطوة في فئة مرتبة فقط.",
+  "Only a step in an in-order category can be skipped.",
+);
 export const notFlashQuest = make(
   422,
   "not_flash",

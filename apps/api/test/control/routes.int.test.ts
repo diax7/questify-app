@@ -77,6 +77,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("control room over HTTP", () =>
       ...(cookie === null ? {} : { headers: withSession(cookie) }),
     });
 
+  const press = (
+    ev: string,
+    quest: string,
+    action: string,
+    cookie = ownerCookie,
+    org = organizer,
+  ) =>
+    test.app.inject({
+      method: "POST",
+      url: `/v1/organizers/${org}/events/${ev}/quests/${quest}/${action}`,
+      headers: { ...withSession(cookie), "idempotency-key": randomUUID() },
+      payload: {},
+    });
+
   beforeAll(async () => {
     db = await createTestDatabase();
     pool = new Pool({ connectionString: db.appUrl, max: 4 });
@@ -109,7 +123,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("control room over HTTP", () =>
     expect(answer.statusCode).toBe(200);
     expect(answer.headers["cache-control"]).toBe("no-store");
     const body = answer.json();
-    expect(Object.keys(body).toSorted()).toEqual(["counts", "done", "feed"]);
+    expect(Object.keys(body).toSorted()).toEqual(["behind", "counts", "done", "feed"]);
     expect(body.counts).toEqual({ players: 1, online: 1, lowStock: 0, inbox: 0, flags: 0 });
     expect(body.done).toEqual({ [stage]: 1 });
     expect(body.feed).toHaveLength(1);
@@ -137,6 +151,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("control room over HTTP", () =>
       counts: { players: 0, online: 0, lowStock: 0, inbox: 0, flags: 0 },
       feed: [],
       done: {},
+      behind: {},
     });
   });
 
@@ -204,5 +219,47 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("control room over HTTP", () =>
       await reader.read({ organizerId: organizer, staffUserId: stranger }, ev),
     ).toBeUndefined();
     expect(await reader.read({ ...team, organizerId: randomUUID() }, ev)).toBeUndefined();
+  });
+  describe("pause and skip (T-603b)", () => {
+    it("pauses and resumes, answers changed:false for the same state, and audits each change", async () => {
+      const ev = await newEvent();
+      const stage = await newQuest(ev);
+      const paused = await press(ev, stage, "pause");
+      expect([paused.statusCode, paused.json()]).toEqual([200, { paused: true, changed: true }]);
+      expect((await press(ev, stage, "pause")).json()).toEqual({ paused: true, changed: false });
+      expect((await press(ev, stage, "resume")).json()).toEqual({ paused: false, changed: true });
+      const actions = await owner<{ action: string }>(
+        "SELECT action FROM audit_log WHERE target_id = $1 ORDER BY id",
+        [stage],
+      );
+      expect(actions.map((row) => row.action)).toEqual(["quest.pause", "quest.resume"]);
+    });
+
+    it("skips a step of an in-order category, refuses an any-order one, and counts who is behind", async () => {
+      const ev = await newEvent();
+      const stage = await newQuest(ev);
+      const refused = await press(ev, stage, "skip");
+      expect([refused.statusCode, refused.json().code]).toEqual([422, "not_in_order"]);
+      await owner("UPDATE category SET order_mode = 'in_order' WHERE event_id = $1", [ev]);
+      expect((await press(ev, stage, "skip")).json()).toEqual({ skipped: true, changed: true });
+      expect((await read(ev)).json().behind).toEqual({ [stage]: 0 });
+      expect((await press(ev, stage, "unskip")).json()).toEqual({ skipped: false, changed: true });
+    });
+
+    it("answers 404 outside the team's reach and 409 once the event has ended", async () => {
+      const ev = await newEvent();
+      const stage = await newQuest(ev);
+      const other = await newEvent();
+      for (const [target, quest] of [
+        [other, stage],
+        [ev, randomUUID()],
+      ] as const) {
+        const refused = await press(target, quest, "pause");
+        expect([refused.statusCode, refused.json().code]).toEqual([404, "not_found"]);
+      }
+      await owner("UPDATE event SET ends_at = now() - interval '1 minute' WHERE id = $1", [ev]);
+      const closed = await press(ev, stage, "pause");
+      expect([closed.statusCode, closed.json().code]).toEqual([409, "event_closed"]);
+    });
   });
 });

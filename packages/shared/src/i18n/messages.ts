@@ -901,6 +901,11 @@ export const MESSAGES = {
     ar: "الفعالية ليست جارية الآن.",
     en: "The event isn't live right now.",
   },
+  "questsTab.paused": { ar: "أوقفها المنظّم مؤقتًا", en: "Paused by the organizer" },
+  "questsTab.notOpen.paused": {
+    ar: "أوقف المنظّم هذا مؤقتًا. حاول لاحقًا.",
+    en: "The organizer paused this {questOne}. Try again later.",
+  },
   "questsTab.notOpen.hidden": {
     ar: "لم يعد هذا متاحًا.",
     en: "This {questOne} is no longer available.",
@@ -7120,6 +7125,32 @@ export const MESSAGES = {
   "control.quests.empty": { ar: "لا {questMany} بعد.", en: "No {questMany} yet." },
   "control.quests.done": { ar: "المنجزون: {count} ({rate}%)", en: "Done: {count} ({rate}%)" },
   "control.quests.rate": { ar: "نسبة الإنجاز", en: "Completion rate" },
+  "control.quests.paused": { ar: "موقوفة مؤقتًا", en: "Paused" },
+  "control.quests.skipped": { ar: "متخطّاة", en: "Skipped" },
+  "control.pause.action": { ar: "إيقاف مؤقت", en: "Pause" },
+  "control.pause.title": { ar: "إيقاف «{title}» مؤقتًا؟", en: "Pause “{title}”?" },
+  "control.pause.body": {
+    ar: "لن يستطيع اللاعبون بدءها أو إنجازها حتى تستأنفها، ولا يمكن منحها يدويًا. ما بدأ قبل الإيقاف يكتمل ويُحتسب: مشاركة تنتظر المراجعة واختبار جارٍ. لا تُسحب أي نقاط مكتسبة، وإذا كانت خطوة في فئة مرتبة فستبقى تحجز ما بعدها؛ تخطَّها لتحريره.",
+    en: "Players can't start or complete it until you resume it, and it can't be awarded by hand. Work started before the pause still finishes and counts: a submission waiting for review, a quiz in progress. No points already earned are taken back, and as a step of an in-order category it still holds the steps after it; skip it to free them.",
+  },
+  "control.resume.action": { ar: "استئناف", en: "Resume" },
+  "control.resume.title": { ar: "استئناف «{title}»؟", en: "Resume “{title}”?" },
+  "control.resume.body": {
+    ar: "يستطيع اللاعبون إنجازها فورًا من جديد. لا يتغيّر شيء آخر.",
+    en: "Players can complete it again at once. Nothing else changes.",
+  },
+  "control.skip.action": { ar: "تخطي الخطوة", en: "Skip step" },
+  "control.skip.title": { ar: "تخطي «{title}»؟", en: "Skip “{title}”?" },
+  "control.skip.body": {
+    ar: "ينتقل اللاعبون إلى الخطوة التالية دونها، ولا تحجز مكافأة الفئة ولا فئةً تُفتح بعدها. لا يحصل أحد على نقاطها بسبب التخطي. تبقى متاحة: من ينجزها يكسب نقاطها؛ أوقفها مؤقتًا أيضًا لإغلاقها.",
+    en: "Players move on to the next step without it, and it no longer holds the category's bonus or a category unlocked after it. Nobody gets its points for the skip. It stays open: a player who completes it still earns its points; pause it as well to close it.",
+  },
+  "control.unskip.action": { ar: "إعادة الخطوة", en: "Restore step" },
+  "control.unskip.title": { ar: "إعادة «{title}»؟", en: "Restore “{title}”?" },
+  "control.unskip.body": {
+    ar: "ستعود الخطوة إلى التسلسل: {count} من اللاعبين تجاوزوها دون إنجازها وسيتوقفون عندها حتى ينجزوها. لا تُسحب أي نقاط.",
+    en: "The step goes back into the order: {count} players who moved past it without doing it will be held at it until they complete it. No points are taken back.",
+  },
   "control.offline": {
     ar: "انقطع الاتصال. المعروض من {time}.",
     en: "Offline. Showing data from {time}.",

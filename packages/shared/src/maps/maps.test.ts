@@ -56,6 +56,7 @@ describe("what a quest pin shows", () => {
       open: "open",
       locked: "locked",
       not_live: "locked",
+      paused: "locked",
       not_yet: "locked",
       closed: "locked",
     });

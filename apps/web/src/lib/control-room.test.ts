@@ -19,12 +19,17 @@ const counts = { players: 10, online: 3, lowStock: 1, inbox: 2, flags: 0 };
 
 describe("controlViewOf", () => {
   it("reads the API's answer", () => {
-    const view = controlViewOf({ counts, feed: [item], done: { q1: 4 } });
-    expect(view).toEqual({ counts, feed: [item], done: { q1: 4 } });
+    const view = controlViewOf({ counts, feed: [item], done: { q1: 4 }, behind: { q2: 3 } });
+    expect(view).toEqual({ counts, feed: [item], done: { q1: 4 }, behind: { q2: 3 } });
   });
 
   it("accepts a quiet event", () => {
-    expect(controlViewOf({ counts, feed: [], done: {} })).toEqual({ counts, feed: [], done: {} });
+    expect(controlViewOf({ counts, feed: [], done: {} })).toEqual({
+      counts,
+      feed: [],
+      done: {},
+      behind: {},
+    });
   });
 
   it.each([

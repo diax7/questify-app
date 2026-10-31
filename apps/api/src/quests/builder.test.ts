@@ -24,6 +24,8 @@ const STORED: QuestRecord = {
   pollSentAt: null,
   flash: false,
   flashLaunchedAt: null,
+  paused: false,
+  skipped: false,
 };
 const ZONE = "Asia/Riyadh";
 

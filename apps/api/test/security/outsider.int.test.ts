@@ -404,6 +404,40 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     }
   });
 
+  it("grants pause and skip to the API's role only, and keeps their helpers closed (T-603b)", async () => {
+    const names = [
+      "set_quest_paused",
+      "set_step_skipped",
+      "room_quest",
+      "quest_skip_moved",
+      "category_skip_cleared",
+    ];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      public: boolean;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        has_function_privilege('public', p.oid, 'EXECUTE') AS public
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'public' AND proname IN (${names.map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(names.toSorted());
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(row.proname.startsWith("set_"));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.public, row.proname).toBe(false);
+    }
+    for (const sql of [
+      "SELECT public.set_quest_paused(gen_random_uuid(), gen_random_uuid(), true, gen_random_uuid())",
+      "SELECT public.set_step_skipped(gen_random_uuid(), gen_random_uuid(), true, gen_random_uuid())",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+  });
+
   it("keeps the sponsor tables and internals closed and grants only its six doors", async () => {
     const doors = [
       "member_sponsors",
