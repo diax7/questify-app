@@ -1200,11 +1200,11 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1028 | F-192 | Should | built (T-603: "players online" is active in the last 15 minutes, ADR-385) |
 | FR-1029 | F-198 | Must | pending |
 | FR-1030 | F-198 | Must | pending |
-| FR-1031 | F-196 | Must | pending |
-| FR-1032 | F-196 | Must | pending |
+| FR-1031 | F-196 | Must | built (T-604b: every consequential dashboard action asks first through `useConfirmation` or its own dialog; the rows of DASHBOARD_AND_CONSOLE section 5 are mapped to their screens, those with no screen yet wait for it): `apps/web/e2e/confirmations.spec.ts` |
+| FR-1032 | F-196 | Must | built (T-604b: each confirmation names the thing and says what happens and what stays; the points and delete choices are T-604's): `apps/web/e2e/confirmations.spec.ts` |
 | FR-1033 | F-197 | Must | pending |
-| FR-1034 | F-197 | Must | pending |
-| FR-1035 | F-197 | Must | pending |
+| FR-1034 | F-197 | Must | built (T-604b: sets are made through the API and reviewed on the Change sets page, each item with its before and after and invalid ones with their reason): `apps/api/test/change-sets/change-sets.int.test.ts`, `apps/web/e2e/change-sets.spec.ts` |
+| FR-1035 | F-197 | Must | built (T-604b: all or the selected items are applied, each in its own transaction with the usual audit entry; a changed target is skipped; closing applies nothing): `apps/api/test/change-sets/change-sets.int.test.ts`, `apps/web/e2e/change-sets.spec.ts` |
 | FR-1101 | F-199 | Must | partly built (T-501: the store, center and sending machinery; T-501b: the APNs and FCM clients, sending once Dhia's keys are set; T-501d: the submission decision, the help-desk answer, a reservation ready at the desk and ending; the operator invite waits for T-617): `test/db/push-store.int`, `test/db/push-sending.int`, `test/db/push-producers.int`, `apps/api/src/push/apns.test.ts`, `apps/api/src/push/fcm.test.ts` |
 | FR-1102 | F-199 | Must | partly built (T-501: event audience by status, membership and visibility, the topics; T-501b: the APNs and FCM clients, sending once Dhia's keys are set; T-501e: flash quests, boosts, live polls, community milestones, a category opening and the event starting soon, active members only, once each; T-501f: the daily streak reminder from 18:00 Riyadh, once a day, and the shop closing the day before; announcements are T-502's, rank alerts T-503's): `test/db/push-store.int`, `test/db/push-events.int`, `test/db/push-reminders.int`, `apps/api/src/push/contract.test.ts` |
 | FR-1103 | F-199 | Must | partly built (T-501: no cap, no quiet hours, no per-event brake in the worker; T-501b: the real clients, sending once Dhia's keys are set): `apps/api/src/push/worker.test.ts` |

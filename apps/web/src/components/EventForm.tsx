@@ -17,6 +17,7 @@ import {
   editBodyOf,
   nameFor,
   STATUS_TONE,
+  timesChanged,
   venueIsValid,
   type EventDraft,
   type EventView,
@@ -98,7 +99,7 @@ export function EventForm({ language, organizerId, eventId, myRole, intro }: Pro
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<"delete" | "end" | null>(null);
-  const [askAccess, setAskAccess] = useState(false);
+  const [asking, setAsking] = useState<SaveQuestion | null>(null);
   const keyFor = useIdempotencyKey();
   const loaded = useRef(false);
 
@@ -162,15 +163,27 @@ export function EventForm({ language, organizerId, eventId, myRole, intro }: Pro
       return;
     }
     // FR-1820: a change of access type is said in words and confirmed before it is saved.
-    if (draft.access !== event.access) {
-      setAskAccess(true);
+    const question = saveQuestion(draft, event);
+    if (question !== null) {
+      setAsking(question);
       return;
     }
     await save();
   };
 
+  /** The dialog's action: an access change that also moves the times asks about the times next, else it saves. */
+  const confirmAsked = () => {
+    const next =
+      draft !== null && event !== null && asking === "access" && timesChanged(draft, event);
+    if (next) {
+      setAsking("dates");
+      return;
+    }
+    void save();
+  };
+
   const save = async () => {
-    setAskAccess(false);
+    setAsking(null);
     if (event === null || draft === null) {
       return;
     }
@@ -280,34 +293,23 @@ export function EventForm({ language, organizerId, eventId, myRole, intro }: Pro
               />
             </FieldGroup>
             <Toolbar align="end">
-              <Button type="submit" variant="primary" disabled={busy || askAccess}>
+              <Button type="submit" variant="primary" disabled={busy || asking !== null}>
                 {event === null ? t("events.create") : t("events.save")}
               </Button>
             </Toolbar>
           </Form>
         </Section>
       )}
-      {askAccess && draft !== null ? (
-        <Dialog
-          titleId="access-confirm"
-          title={t("events.accessTitle", { access: t(`events.access.${draft.access}`) })}
+      {asking === null || draft === null ? null : (
+        <SaveDialog
+          language={language}
+          question={asking}
+          access={draft.access}
           busy={busy}
-          cancel={() => setAskAccess(false)}
-          actions={
-            <>
-              <Button variant="secondary" disabled={busy} onClick={() => setAskAccess(false)}>
-                {t("common.cancel")}
-              </Button>
-              <Button variant="primary" disabled={busy} onClick={() => void save()}>
-                {t("events.accessConfirm")}
-              </Button>
-            </>
-          }
-        >
-          <p>{t(`events.accessEffect.${draft.access}`)}</p>
-          <Muted>{t("events.accessKeeps")}</Muted>
-        </Dialog>
-      ) : null}
+          cancel={() => setAsking(null)}
+          confirm={confirmAsked}
+        />
+      )}
       {event === null ? null : (
         <>
           <EventFeatures
@@ -347,6 +349,67 @@ export function EventForm({ language, organizerId, eventId, myRole, intro }: Pro
         </>
       )}
     </Stack>
+  );
+}
+
+type SaveQuestion = "access" | "dates";
+
+/** What a save of an existing event must confirm first: a changed access type, else changed times or zone. */
+function saveQuestion(draft: EventDraft, event: EventView): SaveQuestion | null {
+  if (draft.access !== event.access) {
+    return "access";
+  }
+  return timesChanged(draft, event) ? "dates" : null;
+}
+
+/** The confirmation before a save that changes who can join (FR-1820) or when the event runs (FR-1031). */
+function SaveDialog({
+  language,
+  question,
+  access,
+  busy,
+  cancel,
+  confirm,
+}: Readonly<{
+  language: Language;
+  question: SaveQuestion;
+  access: EventDraft["access"];
+  busy: boolean;
+  cancel: () => void;
+  confirm: () => void;
+}>) {
+  const t = useTranslator(language);
+  const ofAccess = question === "access";
+  return (
+    <Dialog
+      titleId="save-confirm"
+      title={
+        ofAccess
+          ? t("events.accessTitle", { access: t(`events.access.${access}`) })
+          : t("events.dates.title")
+      }
+      busy={busy}
+      cancel={cancel}
+      actions={
+        <>
+          <Button variant="secondary" disabled={busy} onClick={cancel}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" disabled={busy} onClick={confirm}>
+            {ofAccess ? t("events.accessConfirm") : t("events.dates.confirm")}
+          </Button>
+        </>
+      }
+    >
+      {ofAccess ? (
+        <>
+          <p>{t(`events.accessEffect.${access}`)}</p>
+          <Muted>{t("events.accessKeeps")}</Muted>
+        </>
+      ) : (
+        <p>{t("events.dates.body")}</p>
+      )}
+    </Dialog>
   );
 }
 
@@ -416,6 +479,7 @@ function EventFeatures({
               eventId={event.id}
               initial={initial(event)}
               myRole={myRole}
+              live={event.statusNow === "live"}
             />
           ))}
         </Rows>

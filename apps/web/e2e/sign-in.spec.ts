@@ -37,6 +37,13 @@ test.describe("an Arabic browser", () => {
 
     await openMenu(page);
     await page.getByRole("button", { name: "تسجيل الخروج" }).click();
+    const asking = page.getByRole("alertdialog");
+    await expect(asking).toContainText("ستحتاج إلى تسجيل الدخول من جديد.");
+    await asking.getByRole("button", { name: "إلغاء" }).click();
+    await expect(page).toHaveURL(/\/ar$/);
+    await openMenu(page);
+    await page.getByRole("button", { name: "تسجيل الخروج" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "تسجيل الخروج" }).click();
     await expect(page).toHaveURL(/\/ar\/sign-in$/);
     await page.goto("/ar");
     await expect(page).toHaveURL(/\/ar\/sign-in$/);

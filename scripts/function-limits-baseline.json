@@ -1003,7 +1003,7 @@
   "apps/web/src/components/EventForm.tsx": {
     "EventForm": {
       "complexity": [18],
-      "lines": [250]
+      "lines": [249]
     }
   },
   "apps/web/src/components/EventWords.tsx": {
@@ -1013,7 +1013,7 @@
   },
   "apps/web/src/components/ExclusionsPanel.tsx": {
     "ExclusionsPanel": {
-      "lines": [131]
+      "lines": [117]
     }
   },
   "apps/web/src/components/FirstBonusFields.tsx": {
@@ -1145,7 +1145,7 @@
   },
   "apps/web/src/components/TeamPanel.tsx": {
     "TeamPanel": {
-      "lines": [117]
+      "lines": [108]
     }
   },
   "apps/web/src/components/useQuestBuilder.ts": {

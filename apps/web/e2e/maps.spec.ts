@@ -42,6 +42,16 @@ test("adds, renames, orders and deletes maps and places pins on the board, in En
     .filter({ hasText: "Prayer room" })
     .getByRole("button", { name: "Delete" })
     .click();
+  const askPin = page.getByRole("alertdialog");
+  await expect(askPin).toContainText("The pin leaves the map for players now.");
+  await askPin.getByRole("button", { name: "Cancel" }).click();
+  await expect(board.getByRole("button", { name: "Prayer room" })).toBeVisible();
+  await page
+    .getByRole("listitem")
+    .filter({ hasText: "Prayer room" })
+    .getByRole("button", { name: "Delete" })
+    .click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
   await expect(board.getByRole("button", { name: "Prayer room" })).toHaveCount(0);
   await floor.getByRole("button", { name: "Pins", exact: true }).click();
   await expect(floor).toContainText("Pins: 1");

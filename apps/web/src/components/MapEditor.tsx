@@ -10,6 +10,7 @@ import {
 import { useMemo, useState } from "react";
 import { MapBoard } from "#src/components/MapBoard.tsx";
 import { MapPinForm } from "#src/components/MapPinForm.tsx";
+import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import {
   blankPin,
@@ -51,32 +52,47 @@ function MapPinList({
   labelOf: (pin: TeamMapPin) => string;
   busy: boolean;
   edit: (pin: TeamMapPin) => void;
-  remove: (pin: TeamMapPin) => void;
+  remove: (pin: TeamMapPin) => Promise<void>;
 }>) {
   const t = useTranslator(language);
+  const confirmation = useConfirmation(language);
   return (
-    <Rows>
-      {pins.map((pin) => (
-        <Row
-          key={pin.id}
-          main={
-            <>
-              <strong>{labelOf(pin)}</strong>
-              <span>
-                <Badge>{t(`maps.pin.kind.${pin.kind}`)}</Badge>
-              </span>
-            </>
-          }
-        >
-          <Button variant="quiet" disabled={busy} onClick={() => edit(pin)}>
-            {t("maps.pin.edit")}
-          </Button>
-          <Button variant="danger" disabled={busy} onClick={() => remove(pin)}>
-            {t("maps.page.delete")}
-          </Button>
-        </Row>
-      ))}
-    </Rows>
+    <>
+      <Rows>
+        {pins.map((pin) => (
+          <Row
+            key={pin.id}
+            main={
+              <>
+                <strong>{labelOf(pin)}</strong>
+                <span>
+                  <Badge>{t(`maps.pin.kind.${pin.kind}`)}</Badge>
+                </span>
+              </>
+            }
+          >
+            <Button variant="quiet" disabled={busy} onClick={() => edit(pin)}>
+              {t("maps.pin.edit")}
+            </Button>
+            <Button
+              variant="danger"
+              disabled={busy}
+              onClick={() =>
+                confirmation.ask({
+                  title: t("maps.pin.deleteTitle"),
+                  body: t("maps.pin.deleteBody"),
+                  confirmLabel: t("maps.page.delete"),
+                  run: () => remove(pin),
+                })
+              }
+            >
+              {t("maps.page.delete")}
+            </Button>
+          </Row>
+        ))}
+      </Rows>
+      {confirmation.dialog}
+    </>
   );
 }
 
@@ -167,8 +183,8 @@ export function MapEditor({
         labelOf={labelOf}
         busy={writes.busy}
         edit={(pin) => setEdit({ id: pin.id, draft: pinDraftOf(pin) })}
-        remove={(pin) => {
-          void writes.run("DELETE", `${base}/${pin.id}`, undefined, () => t("maps.pin.deleted"));
+        remove={async (pin) => {
+          await writes.run("DELETE", `${base}/${pin.id}`, undefined, () => t("maps.pin.deleted"));
           if (edit?.id === pin.id) close();
         }}
       />

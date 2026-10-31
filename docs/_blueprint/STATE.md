@@ -19,6 +19,24 @@
 - **The app sends no `X-App-Version`,** so the API's minimum-version gate (staging `MIN_APP_VERSION` 1.0.0, the app is
   0.1.0) never applies to it; FOLLOWUPS.
 
+## T-604b change sets and the confirmation sweep — 2026-10-31
+
+- **T-604b done (tier B; one code review owed; not run on a phone). Migration 0099** (new, undeployed; 0097 and 0098
+  pushed, not yet on staging). **Change sets (FR-1034, FR-1035, ADR-388, ADR-389):** `change_set` and `change_set_item`
+  under forced row-level security for owners and editors inside the event limit (column grants, no DELETE, triggers for
+  the 20-open-sets cap and for freezing content and deciding once; no function); `apps/api/src/change-sets/`; sets are made
+  through the API, opened with each item checked now (invalid with the builder's reason, stale, ready, and its before and
+  after), applied item by item through the builder's own services with the applier's seat (a points item reaches the
+  live-edit door of ADR-387 with key `cs:{item}`), or closed; the Change sets page reviews them. **Sweep (FR-1031,
+  FR-1032):** the hook `useConfirmation` and 11 new confirmations; DASHBOARD_AND_CONSOLE section 5 has a "Shipped in" column.
+  ADR-389 and Q-356 Proposed; FOLLOWUPS lists the Cheers, ranking and streak switches, the console rows with no screen,
+  two edits of one target, the crash window between a service commit and its item record.
+  **Local:** full vitest and the full browser suite once each (results in the commit message of the finishing commit and
+  the reply); tsc, oxlint, format and function limits clean (baseline 304). CI minutes none yet; agent tokens roughly 0.6M
+  (estimate).
+  **Next:** the T-603b/T-604 code review (tier A) and their mutation run, the T-603 and T-604b code reviews, then the next
+  unchecked task in `docs/TASKS.md` (T-605).
+
 ## T-603b pause and skip, T-604 live points edits — 2026-10-31
 
 - **T-603b and T-604 done (tier A; code review and mutation owed; not run on a phone). Migrations 0097 and 0098** (new,
@@ -41,8 +59,7 @@
   suite 268 passed, 4 skipped (single worker, 24.6 min); `expo export --platform android` ok; tsc, oxlint, format and
   function limits clean (baseline 307 to 304). Past points timed at 3,000 entries in 2.2 s. CI minutes none yet; agent
   tokens roughly 0.85M (estimate).
-  **Next:** the T-603b/T-604 code review (tier A) and their mutation run, the T-603 code review, T-604b, then the next
-  unchecked task in `docs/TASKS.md` (T-605).
+  **Next:** see the T-604b section above.
 
 ## T-603 live control room — 2026-10-31
 

@@ -2,6 +2,7 @@
 
 import type { Language } from "@questify/shared";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -23,17 +24,9 @@ type TeamView = Readonly<{ members: readonly Member[]; invites: readonly Pending
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
-/**
- * An organizer's team (FR-1011–1013, FR-1723, FR-1724). Everyone sees the list; only the owner sees the controls, and
- * the API refuses an editor every change anyway. Event limits can be set once events exist (T-102).
- */
-export function TeamPanel({
-  language,
-  organizerId,
-  myRole,
-}: Readonly<{ language: Language; organizerId: string; myRole: "owner" | "editor" }>) {
+/** The team as the API lists it, with the one call every change goes through and the words it leaves behind. */
+function useTeam(language: Language, base: string) {
   const t = translatorFor(language);
-  const base = `/v1/organizers/${organizerId}`;
   const [team, setTeam] = useState<TeamView | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -78,14 +71,41 @@ export function TeamPanel({
     await load();
     return true;
   };
+  return { team, busy, problem, notice, act };
+}
+
+/**
+ * An organizer's team (FR-1011–1013, FR-1723, FR-1724). Everyone sees the list; only the owner sees the controls, and
+ * the API refuses an editor every change anyway. Event limits can be set once events exist (T-102).
+ */
+export function TeamPanel({
+  language,
+  organizerId,
+  myRole,
+}: Readonly<{ language: Language; organizerId: string; myRole: "owner" | "editor" }>) {
+  const t = translatorFor(language);
+  const { team, busy, problem, notice, act } = useTeam(language, `/v1/organizers/${organizerId}`);
+  const confirmation = useConfirmation(language);
 
   const sendInvite = async (event: FormEvent<HTMLFormElement>, path: "/invites" | "/ownership") => {
     event.preventDefault();
     const form = event.currentTarget;
     const email = String(new FormData(form).get("email") ?? "").trim();
-    if (await act("POST", path, { email, lang: language }, t("staff.inviteSent"))) {
-      form.reset();
+    const send = async () => {
+      if (await act("POST", path, { email, lang: language }, t("staff.inviteSent"))) {
+        form.reset();
+      }
+    };
+    if (path === "/invites") {
+      await send();
+      return;
     }
+    confirmation.ask({
+      title: t("staff.transfer.title", { email }),
+      body: t("staff.transfer.body", { email }),
+      confirmLabel: t("staff.sendOwnerInvite"),
+      run: send,
+    });
   };
 
   const leave = async () => {
@@ -113,7 +133,14 @@ export function TeamPanel({
         team={team}
         isOwner={isOwner}
         busy={busy}
-        remove={(id) => void act("DELETE", `/members/${id}`)}
+        remove={(member) =>
+          confirmation.ask({
+            title: t("staff.removeEditor.title", { email: member.email }),
+            body: t("staff.removeEditor.body", { email: member.email }),
+            confirmLabel: t("staff.remove"),
+            run: () => act("DELETE", `/members/${member.staffUserId}`),
+          })
+        }
       />
       {isOwner ? (
         <>
@@ -142,11 +169,23 @@ export function TeamPanel({
         </>
       ) : (
         <Toolbar>
-          <Button variant="danger" disabled={busy} onClick={() => void leave()}>
+          <Button
+            variant="danger"
+            disabled={busy}
+            onClick={() =>
+              confirmation.ask({
+                title: t("staff.leave.title"),
+                body: t("staff.leave.body"),
+                confirmLabel: t("staff.leave"),
+                run: leave,
+              })
+            }
+          >
             {t("staff.leave")}
           </Button>
         </Toolbar>
       )}
+      {confirmation.dialog}
     </Stack>
   );
 }
@@ -194,7 +233,7 @@ function MembersSection({
   team: TeamView | null;
   isOwner: boolean;
   busy: boolean;
-  remove: (staffUserId: string) => void;
+  remove: (member: Readonly<{ staffUserId: string; email: string }>) => void;
 }>) {
   const t = translatorFor(language);
   return (
@@ -223,7 +262,7 @@ function MembersSection({
                   variant="secondary"
                   size="sm"
                   disabled={busy}
-                  onClick={() => remove(member.staffUserId)}
+                  onClick={() => remove(member)}
                 >
                   {t("staff.remove")}
                 </Button>

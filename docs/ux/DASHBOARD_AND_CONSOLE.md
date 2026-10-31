@@ -1094,45 +1094,47 @@ the points record, never an overwrite (ADR-063).
 
 ### Actions that must use this pattern
 
-| Action | Where | What the screen must explain | Branch choice |
-|---|---|---|---|
-| Delete an event | Dashboard | Everything removed: categories, quests, rewards, players' records; cannot be undone | none |
-| Delete a category with quests | Quest builder | What happens to its quests (move to another category or delete) and to players' points | Move or delete quests; keep or remove points |
-| Delete a quest players completed | Quest builder | Number of players, points involved | Keep or remove points |
-| Edit points of a quest with completions | Quest editor, live | Number of players who completed it, points before and after | Future completions only, or also past completions |
-| Edit a quest's verification, rules, time window or order in a live event | Quest editor | Who is affected now (for example players midway through) | none |
-| Turn a feature switch off in a live event | Switches | What players lose sight of; what happens to points, stock and reservations already made | none |
-| Delete a reward | Rewards | Reservations that exist, points returned to players | Cancel reservations and return points (required) |
-| Change reward stock below reserved | Rewards | Refused with the number; no screen | none |
-| Regenerate a quest QR | QR print page | Old code stops working now; reprint | none |
-| Pause a quest | Control room | Players cannot complete it; they see it as paused | none |
-| Skip a broken step | Control room | Which step; players moving on; points for the skipped step | Award or not award the skipped step |
-| Award by hand | Control room | Player, points, reason; a new entry in the points record | none |
-| Award to a group | Control room | Group name and size, total points, reason; outside operator caps | none |
-| Remove points or an award | Inbox, player page | Player, points removed, a new entry added | none |
-| Ban a player from an event | Inbox | Player loses access to the event; their earlier record stays | Keep or remove their points from the ranking |
-| Pause redemption for a player | Inbox | What the player sees | none |
-| Launch a flash quest, boost or announcement | Control room | Who receives it; that a push goes to all players who allow pushes | none |
-| Remove an operator | Operators | Access ends now; their record stays | none |
-| Remove an editor | Team | Access ends now; their change log entries stay | none |
-| Limit an editor to events | Team | Which events they will lose sight of | none |
-| Transfer ownership | Team | New owner; what the former owner becomes; invitation expires | Former owner becomes editor or leaves |
-| Delete organizer account | Team | All events, players' records and team access removed | none; type the account name to confirm |
-| Withdraw activation request | Overview | Event stays Draft | none |
-| Confirm winners | Winners | Prize ranking freezes; pushes go to winners | none |
-| Change event dates or time zone | Details | Times that shift for players; quests with their own windows | none |
-| Change the player-facing words | Words and branding | Where the new words will appear, in both languages | none |
-| Apply a change set (reviewed items) | Change set | The list of selected items with before and after values | Apply all, or only the selected items |
-| Open an event as support | Console | The organizer will see this; the action is logged | none |
-| Activate, suspend or reject an event | Console | Owner is emailed; limit and add-ons | none |
-| Suspend an organizer | Console | All their events stop; players see "event unavailable" | Reason required |
-| Unpublish content | Console | Players stop seeing it; the organizer is emailed | Reason required |
-| Ban a player from the platform | Console | The player cannot play anywhere; the appeal email address is shown to them | Reason required |
-| Save platform settings, content that players hold (levels, XP) | Console | Players affected and how | none |
-| Save support contact details | Console | Old and new values | none |
-| Sign out | Dashboard, console | Unsaved changes will be lost, if any | none |
+| Action | Where | What the screen must explain | Branch choice | Shipped in |
+|---|---|---|---|---|
+| Delete an event | Dashboard | Everything removed: categories, quests, rewards, players' records; cannot be undone | none | `EventForm.tsx` (names the event) |
+| Delete a category with quests | Quest builder | What happens to its quests (move to another category or delete) and to players' points | Move or delete quests; keep or remove points | `QuestBuilderParts.tsx` |
+| Delete a quest players completed | Quest builder | Number of players, points involved | Keep or remove points | `LiveEditDialogs.tsx` (T-604) |
+| Edit points of a quest with completions | Quest editor, live | Number of players who completed it, points before and after | Future completions only, or also past completions | `LiveEditDialogs.tsx` (T-604) |
+| Edit a quest's verification, rules, time window or order in a live event | Quest editor | Who is affected now (for example players midway through) | none | `QuestBuilderParts.tsx` ("The event is live") |
+| Turn a feature switch off in a live event | Switches | What players lose sight of; what happens to points, stock and reservations already made | none | `EventFeatureSwitch.tsx` (T-604b: the twelve switches of the event page; the Cheers switch on the Big screen page, the ranking switch and the streak panel are in FOLLOWUPS) |
+| Delete a reward | Rewards | Reservations that exist, points returned to players | Cancel reservations and return points (required) | `RewardsPanel.tsx` (inline: it leaves the shop, reservations stay valid) |
+| Change reward stock below reserved | Rewards | Refused with the number; no screen | none | `RewardsPanel.tsx` (refused with the number, no screen) |
+| Regenerate a quest QR | QR print page | Old code stops working now; reprint | none | `CodesPanel.tsx` |
+| Pause a quest | Control room | Players cannot complete it; they see it as paused | none | `useRoomSwitches.tsx` (T-603b) |
+| Skip a broken step | Control room | Which step; players moving on; points for the skipped step | Award or not award the skipped step | `useRoomSwitches.tsx` (T-603b; skip pays nobody, ADR-386) |
+| Award by hand | Control room | Player, points, reason; a new entry in the points record | none | `AwardsPanel.tsx` |
+| Award to a group | Control room | Group name and size, total points, reason; outside operator caps | none | `AwardsPanel.tsx` |
+| Remove points or an award | Inbox, player page | Player, points removed, a new entry added | none | `PlayerAwards.tsx` |
+| Ban a player from an event | Inbox | Player loses access to the event; their earlier record stays | Keep or remove their points from the ranking | `PlayersPanel.tsx` |
+| Pause redemption for a player | Inbox | What the player sees | none | `PlayersPanel.tsx` |
+| Launch a flash quest, boost or announcement | Control room | Who receives it; that a push goes to all players who allow pushes | none | `FlashControls.tsx`, `BoostsPanel.tsx`, `AnnouncementSender.tsx` |
+| Remove an operator | Operators | Access ends now; their record stays | none | `OperatorsPanel.tsx` |
+| Remove an editor | Team | Access ends now; their change log entries stay | none | `TeamPanel.tsx` (T-604b) |
+| Limit an editor to events | Team | Which events they will lose sight of | none | No screen yet: the team page only shows the limit |
+| Transfer ownership | Team | New owner; what the former owner becomes; invitation expires | Former owner becomes editor or leaves | `TeamPanel.tsx` (T-604b; the former owner becomes an editor, no "leaves" branch yet) |
+| Delete organizer account | Team | All events, players' records and team access removed | none; type the account name to confirm | No screen yet |
+| Withdraw activation request | Overview | Event stays Draft | none | `ActivationCard.tsx` |
+| Confirm winners | Winners | Prize ranking freezes; pushes go to winners | none | `ResultsPanel.tsx` |
+| Change event dates or time zone | Details | Times that shift for players; quests with their own windows | none | `EventForm.tsx` (T-604b, an event that is not a draft) |
+| Change the player-facing words | Words and branding | Where the new words will appear, in both languages | none | `EventWords.tsx` (the preview shows the new words in both languages before saving; no dialog) |
+| Apply a change set (reviewed items) | Change set | The list of selected items with before and after values | Apply all, or only the selected items | `ChangeSetReview.tsx` (T-604b) |
+| Open an event as support | Console | The organizer will see this; the action is logged | none | No screen yet |
+| Activate, suspend or reject an event | Console | Owner is emailed; limit and add-ons | none | `ConsoleEvent.tsx` (activate: inline confirmation; reject: a note); suspend has no screen yet |
+| Suspend an organizer | Console | All their events stop; players see "event unavailable" | Reason required | No screen yet |
+| Unpublish content | Console | Players stop seeing it; the organizer is emailed | Reason required | `ConsoleQuestify.tsx` (retire and publish dialogs); other content has no screen yet |
+| Ban a player from the platform | Console | The player cannot play anywhere; the appeal email address is shown to them | Reason required | No screen yet |
+| Save platform settings, content that players hold (levels, XP) | Console | Players affected and how | none | `ConsoleQuestify.tsx` (publish dialog); platform settings have no screen yet |
+| Save support contact details | Console | Old and new values | none | No screen yet |
+| Sign out | Dashboard, console | Unsaved changes will be lost, if any | none | `SignOutButton.tsx` (T-604b, dashboard and console) |
 
 Reversible, low-impact actions (reorder, save a draft, open a form) do not use this pattern.
+
+**Also asked (T-604b sweep, beyond the table):** leave the organizer (`TeamPanel.tsx`); remove a guest (`GuestsPanel.tsx`); remove an exclusion (`ExclusionsPanel.tsx`); delete a map pin (`MapEditor.tsx`); make a public survey-results link, replace it or stop it (`SurveyShare.tsx`); clear the finale (`FinalePanel.tsx`). Each goes through `useConfirmation`, which names the thing, says what happens and what stays, and runs nothing on Cancel or Escape. Left without a confirmation because they are one tap to undo: cancel an invitation. Left for a follow-up: the Cheers, ranking and streak switches (own panels, FOLLOWUPS).
 
 ---
 

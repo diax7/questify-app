@@ -390,6 +390,18 @@ parts `key#2`, `key#3`; players and clamped counted on part 1 only), unique (eve
 `quest_id`, actor `staff`, score and balance deltas of independent signs, one of them possibly 0, never both; unique
 (points_change_id, completion_id). A removal of a quest entry folds its completion's adjusts into both deltas.
 
+### change_set, change_set_item (T-604b)
+**Built (migration 0099; ADR-388, ADR-389):** `change_set (id, organizer_id, event_id, created_by, status open|applied|closed,
+created_at, finished_at)` and `change_set_item (id, change_set_id, organizer_id, event_id, position 0 to 99, op add|edit|delete,
+target quest|category|reward, target_id, body jsonb, before jsonb, status pending|applied|failed|stale, error jsonb,
+decided_at)`. `created_by` names the staff member without a foreign key. `body` is the route body of the operation (at most
+16 KiB); `before` is the target's audit view when the set was made. Forced row-level security: an owner or editor of the
+organizer inside the editor's event limit reads and writes them (a player's or an operator's context has no staff user and
+sees nothing); the API's role has column grants only (no DELETE), PUBLIC none. Triggers: an event holds 20 open sets
+(`CS429`); a set's owner, event and author never change and it moves from open to applied or closed once (`CS409`); an item
+is written into an open set only, its content never changes, and it is decided once while its set is open (`CS409`). Both
+tables follow their event's delete (cascade). No function was added.
+
 ### quest_completion
 **Built (T-105, migration 0012):** `id bigint, organizer_id, event_id, enrollment_id, quest_id, occurrence (1 … the
 quest's cap), method (qr|code|my_qr|manual|submission|vote|quiz; later tasks add nfc…), idempotency_key, device_id, created_at`.

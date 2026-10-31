@@ -38,6 +38,12 @@ test("exports a survey's results, shares them with a speaker and stops sharing",
 
   await expect(page.getByText("لا رابط مشترك.")).toBeVisible();
   await page.getByRole("button", { name: "إنشاء رابط" }).click();
+  const making = page.getByRole("alertdialog");
+  await expect(making).toContainText("يستطيع أي شخص لديه الرابط رؤية النتائج دون تسجيل الدخول.");
+  await making.getByRole("button", { name: "إلغاء" }).click();
+  await expect(page.getByText("لا رابط مشترك.")).toBeVisible();
+  await page.getByRole("button", { name: "إنشاء رابط" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "إنشاء رابط" }).click();
   const field = page.getByRole("textbox", { name: "رابط النتائج" });
   const link = await field.inputValue();
   expect(link).toMatch(/\/ar\/r#[A-Za-z0-9_-]{43}$/);
@@ -51,6 +57,7 @@ test("exports a survey's results, shares them with a speaker and stops sharing",
   await expect(speaker.getByText(/لا تظهر أسماء اللاعبين/)).toBeVisible();
 
   await page.getByRole("button", { name: "إيقاف المشاركة" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "إيقاف المشاركة" }).click();
   await expect(page.getByText(/تم إيقاف المشاركة/)).toBeVisible();
   await speaker.reload();
   await expect(speaker.getByText("لم يعد هذا الرابط فعّالًا.")).toBeVisible();

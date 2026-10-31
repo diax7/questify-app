@@ -2,6 +2,7 @@
 
 import { surveyShareStateSchema, type Language } from "@questify/shared";
 import { useEffect, useState } from "react";
+import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { translatorFor, type Translate } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
@@ -115,7 +116,22 @@ function ShareLink({ share, t }: Readonly<{ share: Share; t: Translate }>) {
 export function SurveyShare({ language, url }: Readonly<{ language: Language; url: string }>) {
   const t = translatorFor(language);
   const share = useSurveyShare(language, url, t);
+  const confirmation = useConfirmation(language);
   if (share.shared === null) return null;
+  const confirmMake = () =>
+    confirmation.ask({
+      title: t("surveyResults.share.makeTitle"),
+      body: t("surveyResults.share.makeBody"),
+      confirmLabel: t(share.shared ? "surveyResults.share.replace" : "surveyResults.share.create"),
+      run: share.make,
+    });
+  const confirmStop = () =>
+    confirmation.ask({
+      title: t("surveyResults.share.stopTitle"),
+      body: t("surveyResults.share.stopBody"),
+      confirmLabel: t("surveyResults.share.stop"),
+      run: share.stop,
+    });
   return (
     <Section
       level={3}
@@ -123,11 +139,11 @@ export function SurveyShare({ language, url }: Readonly<{ language: Language; ur
       info={infoTip(t, "surveyResults.share.info")}
       actions={
         <>
-          <Button variant="quiet" disabled={share.busy} onClick={share.make}>
+          <Button variant="quiet" disabled={share.busy} onClick={confirmMake}>
             {t(share.shared ? "surveyResults.share.replace" : "surveyResults.share.create")}
           </Button>
           {share.shared ? (
-            <Button variant="quiet" disabled={share.busy} onClick={share.stop}>
+            <Button variant="quiet" disabled={share.busy} onClick={confirmStop}>
               {t("surveyResults.share.stop")}
             </Button>
           ) : null}
@@ -144,6 +160,7 @@ export function SurveyShare({ language, url }: Readonly<{ language: Language; ur
           {share.problem}
         </Notice>
       )}
+      {confirmation.dialog}
     </Section>
   );
 }

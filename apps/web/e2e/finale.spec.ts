@@ -124,6 +124,7 @@ test("sets a finale, counts down, pushes, and shows the winners only after the o
   await page.goto(`${eventUrl}/big-screen`);
   await expect(page.getByText("أُعلن الفائزون، وأسماؤهم على الشاشة الآن.")).toBeVisible();
   await page.getByRole("button", { name: "إلغاء الختام" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "إلغاء الختام" }).click();
   await expect(page.getByText("أُلغي الختام.")).toBeVisible();
   await tv.close();
 });

@@ -165,6 +165,37 @@ test("an owner invites an editor, who joins with a new password and the emailed 
     await expect(
       editor.getByText("A streak needs an event that lasts more than one day."),
     ).toBeVisible();
+
+    // Leaving, removing an editor and handing over ownership each ask first (FR-1031): Cancel changes nothing.
+    await openMenu(editor);
+    await editor.getByRole("link", { name: "Home" }).click();
+    await editor.getByRole("link", { name: "Team" }).click();
+    await editor.getByRole("button", { name: "Leave this organizer" }).click();
+    const leaving = editor.getByRole("alertdialog");
+    await expect(leaving).toContainText("You lose access to its events now.");
+    await leaving.getByRole("button", { name: "Cancel" }).click();
+    await expect(leaving).toHaveCount(0);
+    await expect(editor.getByRole("button", { name: "Leave this organizer" })).toBeVisible();
+
+    await page.reload();
+    await page.getByRole("button", { name: "Remove", exact: true }).click();
+    const removing = page.getByRole("alertdialog");
+    await expect(removing).toContainText(`${editorEmail} loses access to this organizer now.`);
+    await removing.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByText(editorEmail)).toBeVisible();
+
+    const heir = uniqueEmail("heir", info.project.name);
+    const transfer = page.getByRole("form", { name: "Transfer ownership" });
+    await transfer.getByLabel("Email").fill(heir);
+    await transfer.getByRole("button", { name: "Send the owner invite" }).click();
+    const handing = page.getByRole("alertdialog");
+    await expect(handing).toContainText(`An owner invite goes to ${heir}.`);
+    await handing.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByText(heir, { exact: true })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Remove", exact: true }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
+    await expect(page.getByText(editorEmail)).toHaveCount(0);
   } finally {
     await guest.close();
   }

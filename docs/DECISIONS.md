@@ -5907,3 +5907,25 @@ set" in the dashboard; GET validates the schema, the target's existence and stal
 refusal shows at apply as `failed`. Migration 0099 is left free for it.
 **Why:** each slice delivers value alone: T-603b and the points edits are usable without change sets.
 **Trade-offs:** FR-1031, FR-1032, FR-1034 and FR-1035 stay pending until T-604b.
+
+## ADR-389 - T-604b change sets: stale rule, limits and the confirmation sweep
+
+**Status:** Proposed (worker, 2026-10-31; Q-356).
+**Decision:** (1) **Stale.** A set keeps each edited or deleted target's audit view (`before`) when it is made; at review
+and again at apply, a target whose view differs (or that had none) is `stale` and skipped, never applied. Two edits of one
+target in one set therefore leave the second stale once the first is applied. (2) **One path for points.** An item runs
+through the same builder service the route calls, with the applier's own seat and `confirm` given by the apply; a quest
+edit carries the key `cs:{itemId}`, so `apply: "past"` reaches `apply_past_points` (ADR-387) and nothing else writes
+points; without `apply`, a played live quest's points item fails `apply_required`. (3) **Limits.** 100 items a set, 20
+open sets an event (database trigger), 16 KiB a body. (4) **Per item.** The service commits, then the item is recorded in a
+second transaction; an advisory lock on the set makes a second apply or a close answer `change_set_busy`. A crash between the
+two can leave an applied add pending (FOLLOWUPS). (5) **Tables, not doors.** The sets are rows under forced row-level
+security for the organizer's staff inside the event limit, with column grants and triggers, and no function; every write
+that changes the event is the builder's own service. (6) **The sweep** asks through one hook, `useConfirmation`, for sign
+out, leave, remove an editor, transfer ownership, a feature switch of the event page turned off in a live event, an event's times changed
+when it is not a draft, a map pin deleted, a public survey link made, replaced or stopped, a guest or an exclusion removed
+and the finale cleared. The change-the-words row is met by its preview of the new words in both languages.
+**Why:** each choice keeps the tier B slice thin: no new points path, no new function to defend, and the safe answer
+(skip) where the target moved.
+**Trade-offs:** a crash window (4); a merge of two edits is the caller's job (1); the Cheers, ranking and streak switches and the
+console rows with no screen wait (FOLLOWUPS).

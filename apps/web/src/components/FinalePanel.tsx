@@ -3,6 +3,7 @@
 import { formatEventTime, zoneLabel, type Language } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { Notes } from "#src/components/PrizesPanel.tsx";
+import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { goalsOf, type Goal } from "#src/lib/community.ts";
 import {
@@ -267,6 +268,7 @@ export function FinalePanel(props: Props) {
     useFinale(props);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const confirmation = useConfirmation(language);
 
   const send = async (method: "PUT" | "DELETE", body: object | undefined, done: string) => {
     setBusy(true);
@@ -315,10 +317,18 @@ export function FinalePanel(props: Props) {
           owner={owner}
           change={setDraft}
           save={save}
-          clear={() => void send("DELETE", undefined, t("finale.cleared"))}
+          clear={() =>
+            confirmation.ask({
+              title: t("finale.clearTitle"),
+              body: t("finale.clearBody"),
+              confirmLabel: t("finale.clear"),
+              run: () => send("DELETE", undefined, t("finale.cleared")),
+            })
+          }
           resultsHref={`/${language}/organizers/${organizerId}/events/${eventId}/prizes`}
         />
       )}
+      {confirmation.dialog}
     </Section>
   );
 }

@@ -656,6 +656,7 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
   { name: "team", path: (ids) => `${organizer(ids)}/team`, ready: titled("staff.inviteEditor") },
   eventPage("announcements", "announcements.page.title"),
   eventPage("awards", "awards.title"),
+  eventPage("change-sets", "changeSets.page.title"),
   eventPage("big-screen", "bigScreen.title"),
   eventPage("sessions", "sessions.page.title"),
   eventPage("maps", "maps.page.title"),

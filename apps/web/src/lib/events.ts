@@ -176,6 +176,19 @@ export function createBodyOf(draft: EventDraft): Record<string, unknown> {
   };
 }
 
+/** Whether the draft moves the times or the zone of an event players may already see (anything but a draft). */
+export function timesChanged(draft: EventDraft, event: EventView): boolean {
+  if (event.statusNow === "draft") {
+    return false;
+  }
+  const before = draftOf(event);
+  return (
+    draft.timezone !== before.timezone ||
+    draft.startsAt !== before.startsAt ||
+    draft.endsAt !== before.endsAt
+  );
+}
+
 /**
  * The body to edit an event: only what changed. A new zone or start sends the zone and both times, since the form
  * shows wall-clock times and the API reads them in the zone sent; a new end alone sends only the end. An unchanged

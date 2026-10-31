@@ -2,6 +2,7 @@
 
 import { formatNumber, type Language } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -23,6 +24,57 @@ type Props = Readonly<{
   eventId: string;
   myRole: "owner" | "editor";
 }>;
+
+/** The list, each entry with its Remove (the owner's), which asks before it runs. */
+function ExclusionRows({
+  language,
+  entries,
+  owner,
+  busy,
+  remove,
+}: Readonly<{
+  language: Language;
+  entries: readonly Exclusion[];
+  owner: boolean;
+  busy: boolean;
+  remove: (entry: Exclusion) => Promise<void>;
+}>) {
+  const t = translatorFor(language);
+  const confirmation = useConfirmation(language);
+  return (
+    <>
+      <CardList>
+        {entries.map((entry) => (
+          <Card as="li" key={entry.id}>
+            <Toolbar>
+              <Badge>{t(entry.kind === "phone" ? "exclusions.phone" : "exclusions.domain")}</Badge>
+              {/* A masked phone and a domain read left to right inside Arabic text. */}
+              <bdi dir="ltr">{entry.value}</bdi>
+              {owner ? (
+                <Button
+                  variant="quiet"
+                  disabled={busy}
+                  aria-label={`${t("exclusions.remove")} ${entry.value}`}
+                  onClick={() =>
+                    confirmation.ask({
+                      title: t("exclusions.removeTitle", { value: entry.value }),
+                      body: t("exclusions.removeBody"),
+                      confirmLabel: t("exclusions.remove"),
+                      run: () => remove(entry),
+                    })
+                  }
+                >
+                  {t("exclusions.remove")}
+                </Button>
+              ) : null}
+            </Toolbar>
+          </Card>
+        ))}
+      </CardList>
+      {confirmation.dialog}
+    </>
+  );
+}
 
 /**
  * The event's exclusion list (FR-319): phones and email domains that never appear on the boards. The owner adds and
@@ -142,27 +194,13 @@ export function ExclusionsPanel({ language, organizerId, eventId, myRole }: Prop
             : t("exclusions.count", { count: formatNumber(entries.length, language) })}
         </Muted>
       )}
-      <CardList>
-        {(entries ?? []).map((entry) => (
-          <Card as="li" key={entry.id}>
-            <Toolbar>
-              <Badge>{t(entry.kind === "phone" ? "exclusions.phone" : "exclusions.domain")}</Badge>
-              {/* A masked phone and a domain read left to right inside Arabic text. */}
-              <bdi dir="ltr">{entry.value}</bdi>
-              {myRole === "owner" ? (
-                <Button
-                  variant="quiet"
-                  disabled={busy}
-                  aria-label={`${t("exclusions.remove")} ${entry.value}`}
-                  onClick={() => void remove(entry)}
-                >
-                  {t("exclusions.remove")}
-                </Button>
-              ) : null}
-            </Toolbar>
-          </Card>
-        ))}
-      </CardList>
+      <ExclusionRows
+        language={language}
+        entries={entries ?? []}
+        owner={myRole === "owner"}
+        busy={busy}
+        remove={remove}
+      />
     </Section>
   );
 }

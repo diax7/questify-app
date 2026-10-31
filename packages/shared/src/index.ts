@@ -530,6 +530,22 @@ export type {
   AnnouncementView,
   MemberAnnouncement,
 } from "./announcements/announcements";
+export {
+  CHANGE_SET_ITEM_STATES,
+  changeSetAppliedSchema,
+  changeSetItemSchema,
+  changeSetListSchema,
+  changeSetReadSchema,
+  changeSetSchema,
+  changeSetSummarySchema,
+} from "./change-sets/change-sets";
+export type {
+  ChangeSetApplied,
+  ChangeSetItem,
+  ChangeSetItemState,
+  ChangeSetSummary,
+  ChangeSetView,
+} from "./change-sets/change-sets";
 export { NOTIFICATION_TARGETS, isEventId, notificationRoute } from "./push/routes";
 export type { NotificationRoute } from "./push/routes";
 export {

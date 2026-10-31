@@ -2,6 +2,7 @@
 
 import type { Language } from "@questify/shared";
 import { useState } from "react";
+import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { Notice } from "#src/ui/Feedback.tsx";
@@ -16,6 +17,7 @@ export function SignOutButton({ language }: Readonly<{ language: Language }>) {
   const t = translatorFor(language);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const confirmation = useConfirmation(language);
 
   const signOut = async (): Promise<void> => {
     setBusy(true);
@@ -39,9 +41,17 @@ export function SignOutButton({ language }: Readonly<{ language: Language }>) {
         icon="signOut"
         mirror
         label={t("staff.signOut")}
-        onClick={() => void signOut()}
+        onClick={() =>
+          confirmation.ask({
+            title: t("confirm.signOut.title"),
+            body: t("confirm.signOut.body"),
+            confirmLabel: t("staff.signOut"),
+            run: signOut,
+          })
+        }
         disabled={busy}
       />
+      {confirmation.dialog}
       {problem === null ? null : (
         <div className={styles.signOutProblem}>
           <Notice tone="danger" role="alert">

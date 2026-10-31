@@ -2,6 +2,7 @@
 
 import type { Language, MessageKey } from "@questify/shared";
 import { useState } from "react";
+import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -19,6 +20,26 @@ async function countHeldPrizes(organizerId: string, eventId: string): Promise<nu
   );
   const held = (counted.body as Record<string, unknown> | undefined)?.["held"];
   return counted.ok && typeof held === "number" ? held : null;
+}
+
+/** After the shop is turned off: how many prizes players still hold, or that the count failed. */
+function HeldNotice({
+  language,
+  held,
+}: Readonly<{ language: Language; held: Readonly<{ count: number | null }> | undefined }>) {
+  const t = useTranslator(language);
+  if (held === undefined) {
+    return null;
+  }
+  return held.count === null ? (
+    <Notice role="alert" tone="warning">
+      {t("events.shop.heldFailed")}
+    </Notice>
+  ) : (
+    <Notice role="status" tone="info">
+      {t("events.shop.heldAfterOff", { count: held.count })}
+    </Notice>
+  );
 }
 
 /** An event switch a player feature has (FR-219, FR-1009): its route and its words. */
@@ -101,6 +122,8 @@ type Props = Readonly<{
   /** The event's switch as the page last read it. */
   initial: boolean;
   myRole: "owner" | "editor";
+  /** The event is live: turning a switch off then asks first (FR-1031), since players lose the feature at once. */
+  live?: boolean;
   /** Told the switch's saved value, for a page that shows more than the switch (the Big screen page's Cheers, T-509). */
   onSaved?: (enabled: boolean) => void;
 }>;
@@ -124,10 +147,12 @@ export function EventFeatureSwitch({
   eventId,
   initial,
   myRole,
+  live = false,
   onSaved,
 }: Props) {
   const t = useTranslator(language);
   const words = FEATURES[feature];
+  const confirmation = useConfirmation(language);
   const titleId = `${words.path.replace("/", "-")}-title`;
   const [on, setOn] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -181,22 +206,27 @@ export function EventFeatureSwitch({
             label={t(words.label)}
             checked={on}
             disabled={busy || myRole !== "owner"}
-            onChange={(changed) => void save(changed.target.checked)}
+            onChange={(changed) => {
+              const enabled = changed.target.checked;
+              if (enabled || !live) {
+                void save(enabled);
+                return;
+              }
+              confirmation.ask({
+                title: t("events.switchOff.title", { feature: t(words.title) }),
+                body: t("events.switchOff.body"),
+                confirmLabel: t("events.switchOff.confirm"),
+                run: () => save(false),
+              });
+            }}
           />
           {problem === null ? null : (
             <Notice role="alert" tone="danger">
               {problem}
             </Notice>
           )}
-          {held === undefined ? null : held.count === null ? (
-            <Notice role="alert" tone="warning">
-              {t("events.shop.heldFailed")}
-            </Notice>
-          ) : (
-            <Notice role="status" tone="info">
-              {t("events.shop.heldAfterOff", { count: held.count })}
-            </Notice>
-          )}
+          {confirmation.dialog}
+          <HeldNotice language={language} held={held} />
         </>
       }
     />

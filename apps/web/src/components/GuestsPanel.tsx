@@ -3,6 +3,7 @@
 import { formatNumber, type Language } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { GUESTS_PER_UPLOAD, guestLines } from "#src/lib/joining.ts";
+import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -243,6 +244,7 @@ export function GuestsPanel({ language, organizerId, eventId }: Props) {
   const [search, setSearch] = useState("");
   const [searched, setSearched] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const confirmation = useConfirmation(language);
 
   const remove = async (guest: Guest) => {
     setBusy(true);
@@ -310,8 +312,16 @@ export function GuestsPanel({ language, organizerId, eventId }: Props) {
         language={language}
         guests={guests ?? []}
         busy={busy}
-        remove={(guest) => void remove(guest)}
+        remove={(guest) =>
+          confirmation.ask({
+            title: t("guests.removeTitle", { value: guest.value }),
+            body: t("guests.removeBody"),
+            confirmLabel: t("guests.remove"),
+            run: () => remove(guest),
+          })
+        }
       />
+      {confirmation.dialog}
     </Section>
   );
 }

@@ -63,6 +63,11 @@ const SUPPORT_FILE = /^apps\/web\/e2e\/([\w-]+)\.ts$/;
  * runs those specs. scripts/ci-scope.test.ts fails when a spec is named by no area, so a new spec is added here.
  */
 export const AREAS = [
+  [/change-?sets?/i, ["change-sets"]],
+  [
+    /use-?confirmation|confirmations/i,
+    ["confirmations", "organizers", "maps", "finale", "survey-results", "sign-in"],
+  ],
   [/announcement/i, ["announcements"]],
   [/session|agenda/i, ["sessions"]],
   [/(^|[^a-z])maps?([^a-z]|$)|maps?-?(panel|board|editor|pin|view)/i, ["maps"]],
@@ -97,7 +102,7 @@ export const AREAS = [
   [/device|kiosk|pairing|\/pair\//i, ["kiosks", "stations", "big-screen"]],
   [
     /events?-?(form|fields|panel|feature|words|card|rules)|\/events\.ts|api\/src\/events\/|events\/new/i,
-    ["events", "event-page", "duplicate-event"],
+    ["events", "event-page", "duplicate-event", "confirmations"],
   ],
   [/duplicate-?event|event-?duplicat|copy-?setup/i, ["duplicate-event"]],
   [/branding|accent-?(picker|colou?r)|preview|player-?view|event-?feature-?switch/i, ["branding"]],

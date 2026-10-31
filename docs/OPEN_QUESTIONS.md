@@ -1644,3 +1644,11 @@ past edits reach submission and quiz quests? Recommended no for now: they pay am
 review page, per-item transactions with stale detection, quests, categories and rewards only, no dry run on GET; split to
 T-604b (ADR-388). **Open:** should the dashboard itself offer "save as a change set"? Recommended no.
 **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended, after the code review (84, both MAJORs fixed).
+
+## Q-356 - T-604b change sets and the confirmation sweep: what is decided without Dhia (2026-10-31)
+
+**Recommended (developer, ADR-389):** a target changed since the set was made is skipped as stale; an item that edits points
+goes through the live-edit door and needs its `apply` choice; 100 items a set and 20 open sets an event; the sweep asks for
+the actions listed in ADR-389 and leaves what is one tap to undo (cancel an invitation). **Open:** should the dashboard let
+a reviewer edit an item's body, or merge two edits of one target, before applying? Recommended no: the assistant that makes
+a set (F-197) makes a new one.
