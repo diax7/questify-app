@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { apiBaseUrl, createClient } from "#src/api/client.ts";
 
@@ -57,6 +59,31 @@ describe("createClient", () => {
     expect(sent.get("accept-language")).toBe("ar");
     expect(sent.get("content-type")).toBe("application/json");
     expect(sent.get("authorization")).toBe("Bearer token-1");
+  });
+
+  it("names the build's version for the API's update gate, and sends none when it has none", async () => {
+    const api = answering(200, {});
+    const named = createClient({
+      baseUrl: "https://api.test",
+      deviceId: async () => "8d5b3c33-1f8e-4f3a-9a2e-0b1c2d3e4f50",
+      language: () => "ar",
+      appVersion: "1.2.3",
+      fetchImpl: api.fetchImpl,
+    });
+    await named.request({ method: "GET", path: "/v1/config" });
+    await clientWith(api.fetchImpl).request({ method: "GET", path: "/v1/config" });
+    expect(new Headers(api.calls[0]?.init?.headers).get("x-app-version")).toBe("1.2.3");
+    expect(new Headers(api.calls[1]?.init?.headers).has("x-app-version")).toBe(false);
+  });
+
+  it("is configured with a version the API's default minimum (1.0.0) lets through", () => {
+    const config = JSON.parse(
+      readFileSync(join(import.meta.dirname, "../../app.json"), "utf8"),
+    ) as {
+      expo: { version: string };
+    };
+    expect(config.expo.version).toMatch(/^[0-9]+(\.[0-9]+){1,2}$/);
+    expect(Number(config.expo.version.split(".")[0])).toBeGreaterThanOrEqual(1);
   });
 
   it("sends no body, content type or token when there are none", async () => {

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import type { Language } from "@questify/shared";
 import { apiBaseUrl, createClient, type Client } from "#src/api/client.ts";
@@ -62,6 +63,7 @@ export const api: Readonly<{ client: Client; session: Session }> = (() => {
     baseUrl: apiBaseUrl(process.env["EXPO_PUBLIC_API_URL"], __DEV__),
     deviceId,
     language: () => currentLanguage,
+    appVersion: Constants.expoConfig?.version,
   });
   return { client, session: createSession({ client, storage: secureStorage }) };
 })();

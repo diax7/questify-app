@@ -27,6 +27,8 @@ export type ClientDeps = Readonly<{
   /** The app's install id (X-Device-Id): it lets the API hold limits per install. */
   deviceId: () => Promise<string>;
   language: () => Language;
+  /** The build's version from its config (X-App-Version): the API answers 426 to a build below its minimum. */
+  appVersion?: string | undefined;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
 }>;
@@ -91,6 +93,28 @@ async function readJson(response: Response, signal: AbortSignal): Promise<unknow
   }
 }
 
+/** The headers of one call: the install id, the language, the build's version, JSON and the access token. */
+function headersOf(
+  deps: ClientDeps,
+  request: ApiRequest,
+  deviceId: string,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    accept: "application/json",
+    "accept-language": deps.language(),
+    "x-device-id": deviceId,
+    ...(deps.appVersion === undefined ? {} : { "x-app-version": deps.appVersion }),
+    ...request.headers,
+  };
+  if (request.body !== undefined) {
+    headers["content-type"] = "application/json";
+  }
+  if (request.accessToken !== undefined) {
+    headers["authorization"] = `Bearer ${request.accessToken}`;
+  }
+  return headers;
+}
+
 /** Calls the API with a timeout, the install id and the language; never throws for an HTTP or network failure. */
 export function createClient(deps: ClientDeps): Client {
   return {
@@ -102,18 +126,7 @@ export function createClient(deps: ClientDeps): Client {
         // The install id could not be read (local storage failed): no request, the same answer as no network.
         return { kind: "network" };
       }
-      const headers: Record<string, string> = {
-        accept: "application/json",
-        "accept-language": deps.language(),
-        "x-device-id": deviceId,
-        ...request.headers,
-      };
-      if (request.body !== undefined) {
-        headers["content-type"] = "application/json";
-      }
-      if (request.accessToken !== undefined) {
-        headers["authorization"] = `Bearer ${request.accessToken}`;
-      }
+      const headers = headersOf(deps, request, deviceId);
       // A timer of our own (React Native's AbortSignal has no `timeout` helper), over the headers and the body.
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), deps.timeoutMs ?? 15_000);
