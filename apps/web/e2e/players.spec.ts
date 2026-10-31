@@ -57,6 +57,12 @@ test("the owner bans a player and keeps the exclusion list", async ({ page, requ
   await page.getByRole("button", { name: "إضافة" }).click();
   await expect(page.getByText("أدخل رقم جوال سعوديًا أو نطاق بريد مثل company.com.")).toBeVisible();
   await page.getByRole("button", { name: "حذف •••• 4567" }).click();
+  const removing = page.getByRole("alertdialog");
+  await expect(removing).toContainText("يظهر هذا الرقم أو النطاق في الترتيب من جديد.");
+  await removing.getByRole("button", { name: "إلغاء" }).click();
+  await expect(page.getByText("2 من 500")).toBeVisible();
+  await page.getByRole("button", { name: "حذف •••• 4567" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "حذف", exact: true }).click();
   await expect(page.getByText("1 من 500")).toBeVisible();
 
   await page.goto(page.url().replace("/ar/", "/en/"));

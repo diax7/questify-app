@@ -31,9 +31,12 @@
   FR-1032):** the hook `useConfirmation` and 11 new confirmations; DASHBOARD_AND_CONSOLE section 5 has a "Shipped in" column.
   ADR-389 and Q-356 Proposed; FOLLOWUPS lists the Cheers, ranking and streak switches, the console rows with no screen,
   two edits of one target, the crash window between a service commit and its item record.
-  **Local:** full vitest and the full browser suite once each (results in the commit message of the finishing commit and
-  the reply); tsc, oxlint, format and function limits clean (baseline 304). CI minutes none yet; agent tokens roughly 0.6M
-  (estimate).
+  **Local:** full vitest 9626 passed, 14 skipped, 1 failed (the duplication list guard: the new tables are classified as
+  not copied); fixed and the two files rerun once: 22 passed, with a new foreign-target test. Browser suite 270 passed, 4
+  skipped, 2 failed (`players.spec.ts`: removing an exclusion now asks); fixed and rerun once: 2 passed (single worker,
+  25 min). A targeted run of the touched specs before the full runs found the switch spec's `uncheck()` waiting on a box
+  that stays checked until confirmed. tsc, oxlint, format and function limits clean (baseline 304). CI minutes none yet;
+  agent tokens roughly 0.5M (estimate).
   **Next:** the T-603b/T-604 code review (tier A) and their mutation run, the T-603 and T-604b code reviews, then the next
   unchecked task in `docs/TASKS.md` (T-605).
 
