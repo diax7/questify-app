@@ -244,6 +244,21 @@ for an event.
 - **The close is a rule, not a setting:** nothing is written at the close (ADR-337), and no switch reopens a closed
   shop. The event's `shop` feature switch still hides the shop and Home's window entirely.
 
+## As built (T-606): an event's layout
+
+- **Where it lives:** `event.config.layout`, `{bar: {order, hidden}, home: {order, hidden}}`, composed into the event's
+  configuration as the items to show in order (`layout.bar`, `layout.home`; ADR-391). The app reads it with the rest of the
+  configuration, keeps the last working copy, and falls back to Questify's own layout for a list that is damaged or leaves
+  out a protected item.
+- **What can move:** the event bar's Quests and Rewards tabs (order and hide) and Home's blocks (order and hide). Home, the
+  scan button (scanner and My QR) and Profile (Settings, legal, account deletion) are always on the bar; the points and
+  balance, prizes and results, and the history and event info links are always on Home. The server refuses a layout that
+  hides one (422 `layout_item_protected`) or has more than five bar slots; the dashboard's switch for them is locked.
+- **Switches win:** an item whose feature switch is off (Rewards with the shop, Home's ranking and goal, the live moments)
+  stays off whatever the layout says; the layout never turns a feature on.
+- **Presets:** four approved layouts in code (`LAYOUT_PRESETS`): Questify default, Play first, Prizes first, Essentials.
+  Picking one saves its layout; retiring one from the list leaves every event that used it as it was.
+
 ## What can be configured
 
 | Area | Configurable | Limits and protections |
@@ -251,7 +266,7 @@ for an event.
 | Features | Switch any feature off, platform-wide or per event; an off feature is hidden as if absent, with an optional message (F-278) | Switching off a feature never adds one. Store listings always describe everything as on (NFR-022) |
 | Texts | Every string in the app as key, Arabic, English, edited live (F-277) | Placeholders (`{player}`, `{quest}`, points) cannot be removed; both languages checked on save |
 | Renamed words | Player, operator, quest, category, currency name and icon per event (ADR-058) | Plural/singular forms required in both languages (NFR-014) |
-| Layout | Reorder home blocks, rearrange the 5-item bar, hide pages (ADR-090) | A protected set of bar items cannot be hidden (FR-1750) |
+| Layout | Reorder home blocks, rearrange the 5-item bar, hide pages, pick an approved preset (ADR-090, ADR-391) | A protected set of bar items cannot be hidden (FR-1750) |
 | Branding | Logo, banner, accent colour from an approved palette (ADR-085) | Theme itself is code, not data (ADR-093); colours are tokens so a second theme can be added later (NFR-024) |
 | Quests, categories, rewards, sessions, maps, sponsors | Everything an organizer creates | Typed by shared schemas; live edits ask "future only / also past" with confirmation (ADR-063) |
 | Tuning numbers | Flag thresholds, QR refresh and My QR grace time, login-code limits, reservation time, push/SMS limits, "running low" levels (F-279, Q-074) | Each has a safe range; out-of-range saves are refused |

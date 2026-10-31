@@ -11,6 +11,7 @@ import type { ReactNode } from "react";
 import {
   themeWithAccent,
   type AccentKey,
+  type ComposedLayout,
   type EventTerms,
   type MemberSponsors,
 } from "@questify/shared";
@@ -48,6 +49,11 @@ type EventValue = Readonly<{
   featureOn: (feature: string) => boolean;
   /** The event's accent colour (T-602, FR-1023), or null for Questify green; the provider applies it to the theme. */
   accent: AccentKey | null;
+  /**
+   * The bar items and Home blocks to show, in order (T-606, FR-1749). Read with `playerTabs` and `homeBlocks`, which also
+   * apply the event's switches: a layout never shows what a switch took away.
+   */
+  layout: ComposedLayout;
   /** Seconds between reads of what is live (T-306, ADR-221): the configuration's tuning, else the default. */
   livePollSeconds: number;
   /** Counts payments made outside a tab's own flow (the live poll card, T-306): Home and Quests read again on it. */
@@ -92,7 +98,7 @@ export function EventProvider({
     void markOpened(keyValueStore, eventId, Date.now());
     void load();
   }, [eventId, load]);
-  const { terms, locationOn, nfcOn, helpOn, livePollSeconds, featureOn, accent } =
+  const { terms, locationOn, nfcOn, helpOn, livePollSeconds, featureOn, accent, layout } =
     useEventConfig(eventId);
   const { theme: baseTheme } = useTheme();
   const eventTheme = useMemo(() => themeWithAccent(baseTheme, accent), [baseTheme, accent]);
@@ -111,6 +117,7 @@ export function EventProvider({
       helpOn,
       featureOn,
       accent,
+      layout,
       livePollSeconds,
       paidCount,
       notePaid,
@@ -128,6 +135,7 @@ export function EventProvider({
       helpOn,
       featureOn,
       accent,
+      layout,
       livePollSeconds,
       paidCount,
       notePaid,

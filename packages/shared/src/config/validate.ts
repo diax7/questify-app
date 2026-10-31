@@ -2,9 +2,15 @@ import { z } from "zod";
 import { ACCENT_KEYS, readBranding, type AccentKey } from "#src/design/accents";
 import type { ComposedConfig } from "./compose";
 import type { PlatformSettings, Registries } from "./registry";
+import { readComposedLayout } from "#src/layout/layout";
 import { readEventTerms } from "./terms";
 
-export type ConfigIssue = Readonly<{ path: string; message: string }>;
+export type ConfigIssue = Readonly<{
+  path: string;
+  message: string;
+  /** Set when a layout tried to hide an item that is always shown (FR-1750): the item's name. */
+  protectedItem?: string;
+}>;
 
 export type Validation<T> =
   | Readonly<{ ok: true; value: T }>
@@ -142,6 +148,8 @@ const composedShape = z.object({
   terms: z.unknown().optional().transform(readEventTerms),
   // Read tolerantly too: a copy saved before T-602 has none, and an accent this app does not know shows as none.
   branding: z.unknown().optional().transform(readBranding),
+  // Read tolerantly as well: a copy saved before T-606 has none, and a layout that hides a protected item falls back to Questify's.
+  layout: z.unknown().optional().transform(readComposedLayout),
 });
 
 /**

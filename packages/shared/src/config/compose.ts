@@ -1,6 +1,7 @@
 import { DEFAULT_BRANDING, type Branding } from "#src/design/accents";
 import type { LocalizedText } from "#src/errors";
 import { playerDocuments } from "#src/legal/documents";
+import { DEFAULT_COMPOSED_LAYOUT, composedLayoutOf, type ComposedLayout } from "#src/layout/layout";
 import type { EventConfig, PlatformSettings, Registries } from "./registry";
 import { DEFAULT_TERMS, type EventTerms } from "./terms";
 
@@ -26,6 +27,8 @@ export type ComposedConfig = Readonly<{
   terms: EventTerms;
   /** The event's look (FR-1023); no accent outside an event or when the organizer picked none. */
   branding: Branding;
+  /** The event's bar and Home blocks to show, in order (T-606, FR-1749); Questify's own outside an event. */
+  layout: ComposedLayout;
 }>;
 
 // The keys of an object are unique, so two of them are never equal.
@@ -84,5 +87,6 @@ export function composeConfig(
     legal: { documents: playerDocuments().map(({ id, version }) => ({ id, version })) },
     terms: event?.terms ?? DEFAULT_TERMS,
     branding: event?.branding ?? DEFAULT_BRANDING,
+    layout: event?.layout === undefined ? DEFAULT_COMPOSED_LAYOUT : composedLayoutOf(event.layout),
   };
 }

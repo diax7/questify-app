@@ -63,6 +63,8 @@ export type EventView = Readonly<{
   agenda?: boolean;
   /** The event's look (T-602, FR-1023): its accent colour from the curated list, or none. */
   branding?: Readonly<{ accent: AccentKey | null }>;
+  /** The event's bar and Home layout (T-606, FR-1749); read it with `readEventLayout`, as an older API sends none. */
+  layout?: unknown;
   /** The event's words (FR-404, FR-940); on the single read only, so read it with `readEventTerms`. */
   terms?: unknown;
 }>;

@@ -1,8 +1,13 @@
 import {
+  HOME_BLOCKS,
+  composedLayoutOf,
   formatNumber,
+  homeBlocks,
   playerTabs,
   questTypeShown,
+  readEventLayout,
   type AccentKey,
+  type HomeBlock,
   type Language,
   type MessageKey,
   type PlayerTab,
@@ -25,15 +30,17 @@ export type EventPreview = Readonly<{
   name: string;
   venue: string;
   accent: AccentKey | null;
+  /** The bar's items in the layout's order, without what the layout hides or a switch takes away. */
   tabs: readonly Readonly<{ tab: PlayerTab; title: MessageKey }>[];
-  /** Home's ranking card, its Agenda and Maps buttons. */
-  rankingCard: boolean;
+  /** Home's blocks in the layout's order, without what the layout hides or a switch takes away (T-606). */
+  homeBlocks: readonly Readonly<{ block: HomeBlock; title: MessageKey }>[];
+  /** Home's Agenda and Maps buttons, which belong to its announcements block. */
   agendaButton: boolean;
   mapsButton: boolean;
   /** The Quests tab's List and Map toggle. */
   mapToggle: boolean;
   categories: readonly PreviewCategory[];
-  /** The Rewards screen; null while the shop is off, because the app has no such screen then. */
+  /** The Rewards screen; null while the shop is off or the layout leaves the tab out, because no one can open it then. */
   rewards: readonly PreviewReward[] | null;
 }>;
 
@@ -78,18 +85,26 @@ function titleOf(quest: QuestView, language: Language): string {
   return quest.title[language] ?? quest.title.en ?? quest.title.ar ?? "";
 }
 
-/**
- * Builds the preview from what the team's pages read: the same rules as the app's own reads (`playerTabs`,
- * `questTypeShown`), so a switch takes away here exactly what it takes away on the phone.
- */
-export function previewOf(
-  event: EventView,
+/** The bar and the Home blocks the event's layout leaves players, in its order, with the event's switches applied. */
+function layoutParts(event: EventView, on: (feature: string) => boolean) {
+  const layout = composedLayoutOf(readEventLayout(event.layout));
+  const blocks = homeBlocks(on, layout.home);
+  return {
+    tabs: playerTabs(on, layout.bar).map(({ tab, title }) => ({ tab, title })),
+    homeBlocks: blocks.map((block) => ({
+      block,
+      title: HOME_BLOCKS.find((entry) => entry.block === block)?.title ?? "layout.home",
+    })),
+    announced: blocks.includes("announcements"),
+  };
+}
+
+function previewCategories(
   categories: readonly CategoryView[],
-  rewards: readonly RewardView[],
+  on: (feature: string) => boolean,
   language: Language,
-): EventPreview {
-  const on = featureLookup(event);
-  const shown = categories
+): readonly PreviewCategory[] {
+  return categories
     .filter((category) => !category.hidden)
     .map((category) => ({
       id: category.id,
@@ -103,22 +118,51 @@ export function previewOf(
         })),
     }))
     .filter((category) => category.quests.length > 0);
+}
+
+/** The Rewards screen's lines, or null when no one can open it (the shop is off, or the layout leaves its tab out). */
+const previewRewards = (
+  rewards: readonly RewardView[],
+  language: Language,
+  reachable: boolean,
+): readonly PreviewReward[] | null =>
+  reachable
+    ? rewards.map((reward) => ({
+        id: reward.id,
+        name: reward.name[language] ?? reward.name.en ?? reward.name.ar ?? "",
+        price: formatNumber(reward.price, language),
+      }))
+    : null;
+
+const venueOf = (event: EventView, language: Language): string =>
+  event.venue[language] ?? event.venue.en ?? event.venue.ar ?? "";
+
+/**
+ * Builds the preview from what the team's pages read: the same rules as the app's own reads (`playerTabs`, `homeBlocks`,
+ * `questTypeShown`), so a switch and a layout take away here exactly what they take away on the phone.
+ */
+export function previewOf(
+  event: EventView,
+  categories: readonly CategoryView[],
+  rewards: readonly RewardView[],
+  language: Language,
+): EventPreview {
+  const on = featureLookup(event);
+  const { tabs, homeBlocks: blocks, announced } = layoutParts(event, on);
   return {
     name: nameFor(event, language),
-    venue: event.venue[language] ?? event.venue.en ?? event.venue.ar ?? "",
+    venue: venueOf(event, language),
     accent: event.branding?.accent ?? null,
-    tabs: playerTabs(on).map(({ tab, title }) => ({ tab, title })),
-    rankingCard: on("ranking"),
-    agendaButton: on("agenda"),
-    mapsButton: on("maps"),
+    tabs,
+    homeBlocks: blocks,
+    agendaButton: on("agenda") && announced,
+    mapsButton: on("maps") && announced,
     mapToggle: on("maps"),
-    categories: shown,
-    rewards: on("shop")
-      ? rewards.map((reward) => ({
-          id: reward.id,
-          name: reward.name[language] ?? reward.name.en ?? reward.name.ar ?? "",
-          price: formatNumber(reward.price, language),
-        }))
-      : null,
+    categories: previewCategories(categories, on, language),
+    rewards: previewRewards(
+      rewards,
+      language,
+      on("shop") && tabs.some((entry) => entry.tab === "rewards"),
+    ),
   };
 }

@@ -26,6 +26,7 @@ export {
   readEventSwitches,
   readPlatformSettings,
   readStoredBranding,
+  readStoredLayout,
   readStoredTerms,
 } from "./config/read";
 export type { CurrencyIcon, EventTerms, EventTermsInput, Word, WordForms } from "./config/terms";
@@ -46,6 +47,33 @@ export {
   validateEventConfig,
   validatePlatformSettings,
 } from "./config/validate";
+export type {
+  ComposedLayout,
+  EventLayout,
+  HomeBlock,
+  HomeBlockDefinition,
+  LayoutList,
+} from "./layout/layout";
+export {
+  BAR_KEYS,
+  BAR_PROTECTED,
+  DEFAULT_COMPOSED_LAYOUT,
+  DEFAULT_LAYOUT,
+  HOME_BLOCKS,
+  HOME_KEYS,
+  HOME_PROTECTED,
+  MAX_BAR_SLOTS,
+  PROTECTED_TABS,
+  barScreenOrder,
+  composedLayoutOf,
+  homeBlocks,
+  readComposedLayout,
+  readEventLayout,
+  sameLayout,
+} from "./layout/layout";
+export type { LayoutPreset } from "./layout/presets";
+export { LAYOUT_PRESETS, matchingPreset, presetLayout } from "./layout/presets";
+export { validateLayoutRequest } from "./layout/validate";
 export type { PlayerTab } from "./event/player-view";
 export { PLAYER_TABS, QUEST_TYPE_SWITCHES, playerTabs, questTypeShown } from "./event/player-view";
 export type { RateLimitState } from "./rate-limit";

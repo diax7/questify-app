@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ApiRequest, ApiResult, Client } from "#src/api/client.ts";
-import { DEFAULT_TERMS, type EventTerms } from "@questify/shared";
+import { DEFAULT_COMPOSED_LAYOUT, DEFAULT_TERMS, type EventTerms } from "@questify/shared";
 import {
   CONFIG_KEY,
   configKeyOf,
@@ -184,6 +184,42 @@ describe("an event's configuration", () => {
     expect(
       (await loadConfig({ client: fake([]).client, store }, { event: "old" }))?.terms,
     ).toStrictEqual(DEFAULT_TERMS);
+  });
+});
+
+describe("an event's layout", () => {
+  const moved = {
+    bar: ["rewards", "index", "scan", "profile"],
+    home: DEFAULT_COMPOSED_LAYOUT.home,
+  };
+
+  it("shows a saved layout, from the fresh answer and again from the cached copy offline", async () => {
+    const store = memoryStore();
+    const fresh = await loadConfig(
+      { client: fake([ok({ ...CONFIG, layout: moved }, '"l1"')]).client, store },
+      { event: "a" },
+    );
+    expect(fresh?.layout.bar).toEqual(moved.bar);
+    const offline = { client: fake([]).client, store };
+    expect((await loadConfig(offline, { event: "a" }))?.layout.bar).toEqual(moved.bar);
+  });
+
+  it("reads a copy saved before layouts as Questify's layout", async () => {
+    const store = memoryStore();
+    store.data.set(configKeyOf("old"), JSON.stringify({ etag: null, body: CONFIG }));
+    const loaded = await loadConfig({ client: fake([]).client, store }, { event: "old" });
+    expect(loaded?.layout).toEqual(DEFAULT_COMPOSED_LAYOUT);
+  });
+
+  it.each([
+    ["hides the scan button", { bar: ["index", "quests", "rewards", "profile"], home: [] }],
+    ["is not a layout at all", "scanner off"],
+  ])("falls back to Questify's layout when the cached copy %s", async (_name, layout) => {
+    const store = memoryStore();
+    store.data.set(configKeyOf("bad"), JSON.stringify({ etag: null, body: { ...CONFIG, layout } }));
+    const loaded = await loadConfig({ client: fake([]).client, store }, { event: "bad" });
+    expect(loaded?.layout.bar).toEqual(DEFAULT_COMPOSED_LAYOUT.bar);
+    expect(loaded?.layout.home).toEqual(DEFAULT_COMPOSED_LAYOUT.home);
   });
 });
 

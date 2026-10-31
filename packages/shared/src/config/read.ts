@@ -65,6 +65,11 @@ export function readStoredBranding(stored: unknown): unknown {
   return isRecord(stored) ? stored["branding"] : undefined;
 }
 
+/** The layout block of an event's stored config, as stored (read it with `readEventLayout`). */
+export function readStoredLayout(stored: unknown): unknown {
+  return isRecord(stored) ? stored["layout"] : undefined;
+}
+
 /** Reads the feature switches stored in an event's config; anything that is not true or false is dropped. */
 export function readEventSwitches(stored: unknown): Readonly<Record<string, boolean>> {
   const features = isRecord(stored) ? stored["features"] : undefined;

@@ -140,6 +140,7 @@ function LookStep(props: StepProps) {
             myRole={props.myRole}
           />
           <Switches {...props} names={["agenda", "maps"]} />
+          <DoorRow t={t} title={t("layout.title")} href={pageOf(props, "layout")} />
           <DoorRow t={t} title={t("preview.title")} href={pageOf(props, "preview")} />
         </Rows>
       </Section>

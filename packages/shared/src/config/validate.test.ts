@@ -8,6 +8,7 @@ import {
 } from "./validate";
 import type { Registries } from "./registry";
 import { DEFAULT_TERMS } from "./terms";
+import { DEFAULT_COMPOSED_LAYOUT } from "#src/layout/layout";
 
 const registries: Registries = {
   features: {
@@ -173,6 +174,7 @@ describe("parseComposedConfig", () => {
     legal: { documents: [{ id: "terms_of_use", version: "0.1" }] },
     terms: DEFAULT_TERMS,
     branding: { accent: null },
+    layout: DEFAULT_COMPOSED_LAYOUT,
   };
 
   it("accepts a composed document", () => {
@@ -205,6 +207,24 @@ describe("parseComposedConfig", () => {
     expect(parseComposedConfig({ ...valid, branding: { accent: "sky" } })).toEqual({
       ok: true,
       config: { ...valid, branding: { accent: "sky" } },
+    });
+  });
+
+  it("reads a copy from before layouts as Questify's layout, and one that hides a protected item the same way", () => {
+    const { layout: _layout, ...older } = valid;
+    expect(parseComposedConfig(older)).toEqual({ ok: true, config: valid });
+    const hidesScanner = { bar: ["index", "quests", "rewards", "profile"], home: "x" };
+    expect(parseComposedConfig({ ...valid, layout: hidesScanner })).toEqual({
+      ok: true,
+      config: valid,
+    });
+    const moved = {
+      bar: ["rewards", "index", "scan", "profile"],
+      home: DEFAULT_COMPOSED_LAYOUT.home,
+    };
+    expect(parseComposedConfig({ ...valid, layout: moved })).toEqual({
+      ok: true,
+      config: { ...valid, layout: moved },
     });
   });
 

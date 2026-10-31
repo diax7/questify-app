@@ -1,7 +1,9 @@
 import {
+  DEFAULT_COMPOSED_LAYOUT,
   DEFAULT_TERMS,
   type AccentKey,
   type ComposedConfig,
+  type ComposedLayout,
   type EventTerms,
 } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
@@ -19,6 +21,8 @@ export type EventSettings = Readonly<{
   featureOn: (feature: string) => boolean;
   /** The event's accent colour (T-602, FR-1023), or null for Questify green. */
   accent: AccentKey | null;
+  /** The event's bar and Home blocks to show, in order (T-606); Questify's own until the configuration says otherwise. */
+  layout: ComposedLayout;
 }>;
 
 /**
@@ -65,5 +69,6 @@ export function useEventConfig(eventId: string): EventSettings {
     livePollSeconds,
     featureOn,
     accent: config?.branding.accent ?? null,
+    layout: config?.layout ?? DEFAULT_COMPOSED_LAYOUT,
   };
 }

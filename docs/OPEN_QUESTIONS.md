@@ -1664,3 +1664,17 @@ page instead of showing a tick (the big screen has no separate on switch; its sc
 is met by the page. (d) The previews are one-line summaries, not pictures; recommended: pictures only when the brand art for the
 player screens exists. (e) FR-1757's "asked to save or discard" belongs to the translation matrix editor (T-702), which edits
 these keys. **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended; ADR-390 accepted after the review.
+
+## Q-358 - T-606 layout: what is decided without Dhia (2026-10-31)
+
+**Recommended (developer, ADR-391):** an event's layout is its bar order and Home block order with a hidden set, stored in
+`event.config` (no migration); protected items are Home, the scan button, Profile, points and balance, prizes and results, and the
+history and event info links; four approved presets in code; the owner or an editor edits it on a Layout page with a live preview.
+**Open:** (a) FR-1749 also names the Questify home bar, the operator bar, the Profile rows, renaming and the icon choice, edited by the
+Questify team in the console; only the event's bar and Home are built. Recommended: the rest waits for T-713 (the Questify home
+layout editor) and a task of its own, since each is another screen with its own protected items. (b) The four presets' names and
+orders are the developer's first set; the team may want others (a preset is one entry of `LAYOUT_PRESETS`). (c) Hiding the Quests tab
+is allowed; if an event should always show it, add `quests` to the protected tabs (one line, and the preset and the check follow).
+(d) The editor drags with the mouse and moves with the buttons; a touch drag is not built (the buttons work on a phone-sized
+dashboard). (e) Not run on a phone: the bar's order and the Home blocks in the installed app need a check on a device.
+**Decided (developer, delegated by Dhia, 2026-10-31):** as recommended, pending the review.

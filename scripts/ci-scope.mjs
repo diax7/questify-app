@@ -110,6 +110,10 @@ export const AREAS = [
   ],
   [/duplicate-?event|event-?duplicat|copy-?setup/i, ["duplicate-event"]],
   [/branding|accent-?(picker|colou?r)|preview|player-?view|event-?feature-?switch/i, ["branding"]],
+  [
+    /layout-?(editor|item-?list)|event-?layout|\[eventId\]\/layout\//i,
+    ["layout-editor", "branding"],
+  ],
   [/app\/\[lang\]\/e\//i, ["event-page", "terms"]],
   [/first-?bonus/i, ["first-bonus"]],
   [/flag|moderation/i, ["flags"]],

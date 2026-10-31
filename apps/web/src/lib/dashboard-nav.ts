@@ -23,6 +23,7 @@ export const EVENT_PAGES: readonly EventPageLink[] = [
   { slug: "quests", icon: "compass", group: "setup", label: "quests.title" },
   { slug: "sessions", icon: "calendar", group: "setup", label: "sessions.page.title" },
   { slug: "maps", icon: "map", group: "setup", label: "maps.page.title" },
+  { slug: "layout", icon: "layout", group: "setup", label: "layout.title" },
   { slug: "sponsors", icon: "sponsor", group: "setup", label: "sponsors.page.title" },
   { slug: "rewards", icon: "gift", group: "setup", label: "rewards.title" },
   { slug: "prizes", icon: "trophy", group: "setup", label: "prizes.link" },

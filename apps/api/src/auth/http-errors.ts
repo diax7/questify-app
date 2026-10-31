@@ -201,6 +201,18 @@ export const invalidBranding = make(
   "اختر لونًا من القائمة.",
   "Pick a colour from the list.",
 );
+export const invalidLayout = make(
+  422,
+  "invalid_layout",
+  "راجع التخطيط: العنصر المحدد غير صالح.",
+  "Check the layout: the named item is not valid.",
+);
+export const layoutItemProtected = make(
+  422,
+  "layout_item_protected",
+  "هذا العنصر يظهر دائمًا ولا يمكن إخفاؤه.",
+  "This item is always shown and cannot be hidden.",
+);
 export const eventArchived = make(
   409,
   "event_archived",

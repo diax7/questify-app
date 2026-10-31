@@ -92,6 +92,9 @@ describe("featureLookup", () => {
   });
 });
 
+const blocks = (event: EventView) =>
+  previewOf(event, [], [], "en").homeBlocks.map((entry) => entry.block);
+
 describe("previewOf", () => {
   const categories = [category([quest("a"), quest("b", { visible: false })])];
 
@@ -101,7 +104,6 @@ describe("previewOf", () => {
       name: "Najd Meetup",
       venue: "Riyadh",
       accent: null,
-      rankingCard: true,
       agendaButton: true,
       mapsButton: true,
       mapToggle: true,
@@ -144,8 +146,70 @@ describe("previewOf", () => {
     expect(off).toMatchObject({ agendaButton: false, mapsButton: false, mapToggle: false });
   });
 
-  it("drops the ranking card with the ranking switch", () => {
-    expect(previewOf({ ...EVENT, ranking: false }, [], [], "en").rankingCard).toBe(false);
+  it("lists Home's blocks in the default order, and drops the ranking and goal with their switches", () => {
+    expect(blocks(EVENT)).toEqual([
+      "countdown",
+      "standing",
+      "streak",
+      "announcements",
+      "sponsors",
+      "prizes",
+      "live",
+      "goal",
+      "ranking",
+      "upNext",
+      "links",
+    ]);
+    expect(blocks({ ...EVENT, ranking: false })).not.toContain("ranking");
+    expect(blocks({ ...EVENT, shop: false })).not.toContain("goal");
+  });
+
+  it("follows the event's layout: the bar and Home in its order, without what it hides", () => {
+    const layout = {
+      bar: { order: ["rewards", "index", "scan", "quests", "profile"], hidden: ["quests"] },
+      home: {
+        order: ["ranking", "countdown", "standing", "streak", "announcements", "sponsors"],
+        hidden: ["streak", "sponsors", "live"],
+      },
+    };
+    const preview = previewOf({ ...EVENT, layout }, categories, [reward("r1")], "en");
+    expect(preview.tabs.map((entry) => entry.tab)).toEqual(["rewards", "index", "scan", "profile"]);
+    expect(preview.homeBlocks.map((entry) => entry.block).slice(0, 4)).toEqual([
+      "ranking",
+      "countdown",
+      "standing",
+      "announcements",
+    ]);
+    expect(preview.homeBlocks.map((entry) => entry.block)).not.toContain("streak");
+    expect(preview.rewards).toHaveLength(1);
+  });
+
+  it("keeps the Rewards screen out when the layout hides the tab, and a hidden switch out whatever the layout says", () => {
+    const hidesRewards = {
+      bar: { order: ["index", "quests", "scan", "rewards", "profile"], hidden: ["rewards"] },
+    };
+    const hidden = previewOf({ ...EVENT, layout: hidesRewards }, categories, [reward("r1")], "en");
+    expect(hidden.rewards).toBeNull();
+    const showsRewards = {
+      bar: { order: ["rewards", "index", "scan", "quests", "profile"], hidden: [] },
+    };
+    const off = previewOf({ ...EVENT, shop: false, layout: showsRewards }, categories, [], "en");
+    expect(off.tabs.map((entry) => entry.tab)).not.toContain("rewards");
+    expect(off.rewards).toBeNull();
+  });
+
+  it("drops Home's Agenda and Maps buttons with the announcements block", () => {
+    const layout = { home: { order: [], hidden: ["announcements"] } };
+    expect(previewOf({ ...EVENT, layout }, [], [], "en")).toMatchObject({
+      agendaButton: false,
+      mapsButton: false,
+    });
+  });
+
+  it("reads a layout the API sent damaged as Questify's own", () => {
+    expect(
+      previewOf({ ...EVENT, layout: "broken" }, [], [], "en").tabs.map((entry) => entry.tab),
+    ).toEqual(["index", "quests", "scan", "rewards", "profile"]);
   });
 
   it("hides what players never see: hidden quests and categories, live polls, switched-off types", () => {

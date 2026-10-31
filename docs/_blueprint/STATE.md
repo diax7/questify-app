@@ -37,6 +37,29 @@
   app render test for `eventOff` was dropped (the app has no render-test harness, and a harness is not worth adding for
   one line).
 
+## T-606 event layout — 2026-10-31
+
+- **T-606 done (tier B; one code review owed; not run on a phone). No migration** (the numbering stays at 0101; 0102 is free).
+  **Built (FR-1749 for an event's bar and Home, FR-1750, FR-1764, ADR-391):** `event.config.layout` (`{bar, home}`, each an order
+  plus a hidden set) composed into the app's configuration as the items to show (`layout.bar`, `layout.home`);
+  `PUT …/events/{id}/layout` (owner, editor; a preset by name or the two lists) refuses a layout that hides Home, the scan
+  button, Profile, the points and balance, prizes and results, or the history and event info links (422
+  `layout_item_protected {item}`) or has more than five bar slots; the registry, the strict check, the tolerant reads and the four
+  approved presets are `packages/shared/src/layout/`. App: the event bar and Home draw by the layout (`barScreenOrder`,
+  `homeBlocks`; Home's cards became eleven blocks in their old order), a damaged or old cached layout reads as Questify's, and an
+  item whose switch is off stays off. Dashboard: the Layout page (`EventLayoutEditor`, presets in one tap, drag and move buttons,
+  show switches, Save and Discard, the Home phone of the preview redrawn from the draft), `previewOf` follows the saved layout,
+  and the wizard's Home and look step links to the page. ADR-391 and Q-358 Proposed; the Questify home bar, operator bar,
+  Profile rows, rename and icon choice stay open (Q-358). Mutation targets: none (tier B).
+  **Local:** full vitest 9846 passed, 14 skipped, 0 failed (611 files, 17.4 min); tsc (shared, api, web,
+  app), oxlint, format and function limits clean (baseline: `createSettingsService` 234 to 233 lines); `expo export --platform
+  android` clean; browser suite 291 passed, 5 skipped, 2 failed on the one full run (single worker, 38.4 min, after a fresh web
+  build; the layout check walks the new page in both languages at 1440 and 360 wide): both failures were the preset test, run
+  against an API bundle built before the last preset reorder; after rebundling, `e2e/layout-editor.spec.ts` 11 passed, 1 skipped
+  (the drag test is desktop only). `ci-scope` maps the layout files to `layout-editor` and `branding`. CI minutes none yet; agent
+  tokens roughly 0.65M (estimate).
+  **Next:** the T-606 code review, then the next unchecked task in `docs/TASKS.md` (T-607).
+
 ## T-605 guided setup — 2026-10-31
 
 - **T-605 done (tier B; one code review owed; not run on a phone). Migration 0100** (new, undeployed; staging runs through

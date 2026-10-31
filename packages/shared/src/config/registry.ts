@@ -1,5 +1,6 @@
 import type { Branding } from "#src/design/accents";
 import type { LocalizedText } from "#src/errors";
+import type { EventLayout } from "#src/layout/layout";
 import type { EventTerms } from "./terms";
 
 /** A feature that exists inside the reviewed app. Configuration can only switch these on or off (FR-1504). */
@@ -45,6 +46,8 @@ export type EventConfig = Readonly<{
   terms?: EventTerms | undefined;
   /** The event's look (FR-1023): an accent from the curated list, or none. */
   branding?: Branding | undefined;
+  /** The event's bar and Home blocks (T-606, FR-1749): the order and what is hidden; Questify's own layout when none. */
+  layout?: EventLayout | undefined;
 }>;
 
 /**

@@ -5959,3 +5959,39 @@ skipped and finishes.
 **Trade-offs:** the template step ("Start from") waits for templates (T-601b); a wizard step is not a bespoke form, so a long
 page (rewards, quests) is one door away rather than inside the step; the Home layout, banner and info page parts of "Home and
 look" arrive with T-606, T-610 and T-613.
+
+## ADR-391 - T-606 event layout: the bar and Home as an order plus a hidden set, protected items checked by the server, presets as code
+
+**Status:** Proposed (developer, delegated by Dhia, 2026-10-31; Q-358).
+**Decision:** (1) **Stored in the event's config, no migration.** `event.config.layout` is `{bar: {order, hidden}, home: {order, hidden}}`:
+each list holds every item once in its order, and the hidden ones apart, so hiding an item and showing it again returns it to its
+place. The bar has five items (`index`, `quests`, `scan`, `rewards`, `profile`); Home has eleven blocks (`countdown`, `standing`,
+`streak`, `announcements`, `sponsors`, `prizes`, `live`, `goal`, `ranking`, `upNext`, `links`) listed in the order Home has always
+drawn them, so an event with no layout looks exactly as before. The registry is `packages/shared/src/layout/layout.ts`; the app
+and the dashboard's preview both read it. (2) **Protected, and checked on the server.** Home, the scan button (scanner and My QR)
+and Profile (Settings, legal, account deletion; STORE_COMPLIANCE 1.10) on the bar; the points and balance (`standing`, which also
+carries the waiting and declined states), prizes and results (`prizes`: a won prize, prizes to collect, the finale) and the
+history and event info links (`links`) on Home. `PUT …/events/{id}/layout` refuses a layout that hides one with 422
+`layout_item_protected {item}`, any other bad list (an unknown or repeated item, a missing item, more than five bar slots, a
+stranger's field) with 422 `invalid_layout {field}`; the dashboard's switch for a protected row is locked, and `setShown` in the
+editor cannot build such a layout, but the server does not trust either. (3) **The app renders any saved layout and cannot be
+broken by one.** The composed configuration carries `layout: {bar: [...], home: [...]}`, only what is shown, in order.
+`readComposedLayout` drops names the app does not know, counts a repeat once, and falls back to Questify's own list when a protected
+item is missing or the value is not a list; a copy cached before T-606 has no layout and reads as Questify's. The API's own read of a
+stored layout (`readEventLayout`) repairs rather than discards: unknown names go, a missing item joins at the end (a newer app's
+block never voids an older save), a protected item is never hidden. (4) **Switches win.** `playerTabs(featureOn, order)` and
+`homeBlocks(featureOn, shown)` apply the event's switches after the layout, so the Rewards tab (shop), Home's ranking (ranking) and
+goal (shop) and the live block (community and cheers both off) stay off whatever the layout says; a layout never turns a feature on.
+The editor marks such a row "Switched off for the event". (5) **Presets are code.** `LAYOUT_PRESETS` (Questify default, Play first,
+Prizes first, Essentials) is the team's approved list (FR-1764, WIREFRAME_REVIEW: supplied as data, no console editor). Picking one
+sends `{preset: id}` and the server stores that preset's layout; an event never stores a preset's name, so retiring a preset leaves
+every event that used it exactly as it was, and the editor shows "Custom layout" when the stored layout matches no preset.
+(6) **The editor** is the event page `/layout` (owner and editor): presets in one tap (shown at once, undone if the server refuses),
+two lists with a drag handle, "Move earlier" and "Move later" buttons (the keyboard's way, announced to a screen reader) and a
+show switch, a Save and a Discard, and the Home phone of the T-602 preview redrawn from the unsaved draft. The wizard's Home and look
+step opens it. The bar keeps its left-to-right order in both languages (ADR-110).
+**Why:** configuration over code; one write path; the safe side on a damaged value (FR-1750, F-282).
+**Trade-offs / not built:** the Questify console's layout of the Questify home bar, the operator bar and the Profile rows, renaming an
+item and choosing its icon (the rest of FR-1749), new Home blocks, banner and countdown blocks (T-610), the Questify home block editor
+(T-713). Hiding the Quests tab is allowed (the Up next card and the scanner still reach a quest). The Home blocks keep their own
+conditions (a card with nothing to say draws nothing).

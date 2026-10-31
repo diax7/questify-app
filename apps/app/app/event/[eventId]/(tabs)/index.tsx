@@ -1,6 +1,6 @@
-import { formatNumber, termFor, type Theme } from "@questify/shared";
+import { formatNumber, homeBlocks, termFor, type HomeBlock, type Theme } from "@questify/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AppState, Pressable, ScrollView, View } from "react-native";
 import { AddEmailCard } from "#src/account/AddEmailCard.tsx";
 import { api, keyValueStore } from "#src/api/app-session.ts";
@@ -394,55 +394,43 @@ function useJoinLocationPrompt(home: Home | undefined) {
   return { shown, proceed };
 }
 
-/** What Home shows a member who is in: the shop's line, the streak, a won prize, prizes to collect, the community goal, goal and ranking. */
-function ActiveCards({
-  home,
-  ranking,
-  ended,
-}: Readonly<{ home: Home; ranking: RankingAnswer | undefined; ended: boolean }>) {
+type BlockProps = Readonly<{
+  home: Home;
+  ranking: RankingAnswer | undefined;
+  ended: boolean;
+  active: boolean;
+}>;
+
+/** The live moments (T-306b, T-509): the cheers bar and the community goal, each only while one is live. */
+function LiveCards({ eventId }: Readonly<{ eventId: string }>) {
   const { community, cheers, clockOffsetMs } = useLive();
-  const eventId = home.event.id;
   return (
     <>
-      <ShopBanner
-        line={shopLine(home.shopWindow, ended, Date.now())}
-        timeZone={home.event.timezone}
-      />
-      <EventStreakCard streak={home.streak} />
-      <EventHomeStrips eventId={eventId} />
-      <SponsorStrip eventId={eventId} />
-      <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
-      <PrizesToCollect eventId={eventId} />
-      <FinaleCelebration eventId={eventId} finale={home.finale} />
       {cheers === null ? null : (
         <CheersBar eventId={eventId} endsAt={cheers.endsAt} clockOffsetMs={clockOffsetMs} />
       )}
       {community === null ? null : <CommunityBar card={community} />}
-      <GoalCard eventId={eventId} goal={home.goal} ended={ended} timeZone={home.event.timezone} />
-      {ranking === undefined ? null : <RankingCard eventId={eventId} ranking={ranking} />}
     </>
   );
 }
 
-/** Home's cards in order: the strips, the recap once ended, the standing, the member's cards, up next and the links. */
-function HomeCards({
-  home,
-  ranking,
-}: Readonly<{ home: Home; ranking: RankingAnswer | undefined }>) {
-  const { t } = useI18n();
+/** Prizes and results: a won prize, prizes to collect and the finale (never hidden by a layout, FR-1750). */
+function PrizeCards({ home }: Readonly<{ home: Home }>) {
   const eventId = home.event.id;
-  const active = home.standing.status === "active";
-  const ended = home.event.statusNow === "ended" || home.event.statusNow === "archived";
   return (
     <>
-      <RehearsalStrip shown={home.event.rehearsal} />
-      <AddEmailCard />
-      <HelpStrip eventId={eventId} unread={home.helpUnread} />
-      {recapOffered(home) ? <RecapEntry eventId={eventId} /> : null}
-      <CountdownLine event={home.event} />
-      <Standing home={home} />
-      {active ? <ActiveCards home={home} ranking={ranking} ended={ended} /> : null}
-      {ended ? null : <UpNextCard eventId={eventId} upNext={home.upNext} />}
+      <WinCard eventId={eventId} win={home.win} timeZone={home.event.timezone} />
+      <PrizesToCollect eventId={eventId} />
+      <FinaleCelebration eventId={eventId} finale={home.finale} />
+    </>
+  );
+}
+
+/** The history and event info links (never hidden by a layout, FR-1750); History is for a member who is in. */
+function LinkButtons({ eventId, active }: Readonly<{ eventId: string; active: boolean }>) {
+  const { t } = useI18n();
+  return (
+    <>
       {active ? (
         <Button
           kind="quiet"
@@ -455,6 +443,76 @@ function HomeCards({
         label={t("eventHome.info")}
         onPress={() => router.push(`/event/${eventId}/info`)}
       />
+    </>
+  );
+}
+
+/**
+ * Home's blocks (T-606): each draws itself, or nothing when it has nothing to say. The event's layout picks which of them
+ * show and in what order (`homeBlocks`); a member who is not in yet sees only the blocks that apply to them.
+ */
+const BLOCKS: Readonly<Record<HomeBlock, (props: BlockProps) => ReactNode>> = {
+  countdown: ({ home }) => <CountdownLine event={home.event} />,
+  standing: ({ home, active, ended }) => (
+    <>
+      <Standing home={home} />
+      {active ? (
+        <ShopBanner
+          line={shopLine(home.shopWindow, ended, Date.now())}
+          timeZone={home.event.timezone}
+        />
+      ) : null}
+    </>
+  ),
+  streak: ({ home, active }) => (active ? <EventStreakCard streak={home.streak} /> : null),
+  announcements: ({ home, active }) =>
+    active ? <EventHomeStrips eventId={home.event.id} /> : null,
+  sponsors: ({ home, active }) => (active ? <SponsorStrip eventId={home.event.id} /> : null),
+  prizes: ({ home, active }) => (active ? <PrizeCards home={home} /> : null),
+  live: ({ home, active }) => (active ? <LiveCards eventId={home.event.id} /> : null),
+  goal: ({ home, active, ended }) =>
+    active ? (
+      <GoalCard
+        eventId={home.event.id}
+        goal={home.goal}
+        ended={ended}
+        timeZone={home.event.timezone}
+      />
+    ) : null,
+  ranking: ({ home, active, ranking }) =>
+    active && ranking !== undefined ? (
+      <RankingCard eventId={home.event.id} ranking={ranking} />
+    ) : null,
+  upNext: ({ home, ended }) =>
+    ended ? null : <UpNextCard eventId={home.event.id} upNext={home.upNext} />,
+  links: ({ home, active }) => <LinkButtons eventId={home.event.id} active={active} />,
+};
+
+/**
+ * Home's cards: the notices that always come first (rehearsal, add an email, the team's answer, the recap), then the
+ * blocks in the event's layout (T-606, FR-1749). A block whose switch is off stays off whatever the layout says.
+ */
+function HomeCards({
+  home,
+  ranking,
+}: Readonly<{ home: Home; ranking: RankingAnswer | undefined }>) {
+  const { featureOn, layout } = useEvent();
+  const eventId = home.event.id;
+  const props: BlockProps = {
+    home,
+    ranking,
+    active: home.standing.status === "active",
+    ended: home.event.statusNow === "ended" || home.event.statusNow === "archived",
+  };
+  return (
+    <>
+      <RehearsalStrip shown={home.event.rehearsal} />
+      <AddEmailCard />
+      <HelpStrip eventId={eventId} unread={home.helpUnread} />
+      {recapOffered(home) ? <RecapEntry eventId={eventId} /> : null}
+      {homeBlocks(featureOn, layout.home).map((block) => (
+        <Fragment key={block}>{BLOCKS[block](props)}</Fragment>
+      ))}
     </>
   );
 }

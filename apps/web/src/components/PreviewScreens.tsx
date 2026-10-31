@@ -30,9 +30,10 @@ function Phone({
       lang={language}
     >
       <div className={styles.screen}>{children}</div>
-      <div className={styles.bar}>
+      <div className={styles.bar} role="list" aria-label={t("layout.bar")}>
         {preview.tabs.map(({ tab, title: tabTitle }) => (
           <span
+            role="listitem"
             key={tab}
             className={tab === active ? `${styles.tab} ${styles.tabActive}` : styles.tab}
           >
@@ -50,11 +51,13 @@ function Home({ preview, language }: ScreenProps) {
     <Phone title={t("nav.home")} active="index" preview={preview} language={language}>
       <h3 className={styles.screenTitle}>{preview.name}</h3>
       {preview.venue === "" ? null : <p className={styles.muted}>{preview.venue}</p>}
-      {preview.rankingCard ? (
-        <ul className={styles.lines}>
-          <li className={styles.line}>{t("nav.ranking")}</li>
-        </ul>
-      ) : null}
+      <ul className={styles.lines} aria-label={t("layout.home")}>
+        {preview.homeBlocks.map(({ block, title }) => (
+          <li key={block} className={styles.line}>
+            {t(title)}
+          </li>
+        ))}
+      </ul>
       <div className={styles.buttons}>
         <span className={styles.button}>{t("nav.scan")}</span>
         {preview.agendaButton ? (
@@ -131,6 +134,16 @@ function Shop({ preview, language }: ScreenProps) {
         </ul>
       )}
     </Phone>
+  );
+}
+
+/** Only the event's Home with its bar: what the layout editor redraws as the organizer arranges it (T-606). */
+export function HomePreview({ preview, language }: ScreenProps) {
+  const look = themeVariables(themeWithAccent(DEFAULT_THEME, preview.accent));
+  return (
+    <div className={styles.phones} style={look}>
+      <Home preview={preview} language={language} />
+    </div>
   );
 }
 

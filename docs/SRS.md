@@ -1341,8 +1341,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1746 | F-251 | Must | pending |
 | FR-1747 | F-179, F-117 | Must | pending |
 | FR-1748 | F-266, F-165 | Should | pending |
-| FR-1749 | F-267 | Must | pending |
-| FR-1750 | F-268 | Must | pending |
+| FR-1749 | F-267 | Must | partial (T-606: an event's bottom bar and Home blocks, reordered and hidden by its owner or editor; the Questify home bar, the operator bar, the Profile rows, renaming and the icon choice are not built, Q-358) |
+| FR-1750 | F-268 | Must | built for the event layout (T-606): `packages/shared/src/layout/validate.ts`, `test/events/layout.int` |
 | FR-1751 | F-269 | Must | built T-605 (ten steps of option rows, switches and doors; each hint is an info button; previews are one-line summaries): `e2e/setup.spec.ts` |
 | FR-1752 | F-269 | Must | built T-605 (every step and the whole setup skippable; a skipped step writes nothing): `lib/setup.test.ts`, `e2e/setup.spec.ts` |
 | FR-1753 | F-269, F-197 | Must | built T-605 (a step shows the pages' own panels and switches; nothing is saved by the wizard): `e2e/setup.spec.ts` |
@@ -1356,7 +1356,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1761 | F-274 | Must | pending |
 | FR-1762 | F-275 | Must | pending |
 | FR-1763 | F-273 | Must | pending |
-| FR-1764 | F-276 | Should | pending |
+| FR-1764 | F-276 | Should | built (T-606, ADR-391): `packages/shared/src/layout/presets.ts`, `test/events/layout.int` |
 | FR-1765 | F-277 | Must | pending |
 | FR-1766 | F-277 | Must | pending |
 | FR-1767 | F-277, F-186 | Must | pending |

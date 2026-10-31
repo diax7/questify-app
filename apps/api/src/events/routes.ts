@@ -1,6 +1,11 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
-import { VENUE_RADIUS, readBranding, readEventTerms } from "@questify/shared";
+import {
+  VENUE_RADIUS,
+  readBranding,
+  readEventTerms,
+  validateLayoutRequest,
+} from "@questify/shared";
 import {
   eventNotDraft,
   eventNotLive,
@@ -9,7 +14,9 @@ import {
   eventTimesLocked,
   invalidBranding,
   invalidEvent,
+  invalidLayout,
   invalidTerms,
+  layoutItemProtected,
   notFound,
   rehearsalData,
   scopeLimited,
@@ -113,6 +120,7 @@ const view = (event: EventRecord) => ({
   maps: event.mapsOn,
   agenda: event.agendaOn,
   branding: event.branding,
+  layout: event.layout,
   venuePin: event.venuePin,
   venueRadiusM: event.venueRadiusM,
   cityId: event.cityId,
@@ -267,7 +275,44 @@ export function registerEventRoutes(
     }
   });
   registerEventBranding(scope, settings);
+  registerEventLayout(scope, settings);
   registerEventSwitches(scope, settings);
+}
+
+/**
+ * FR-1749, FR-1750, FR-1764: the event's bar and Home layout, as one of the team's approved presets by name or as the order
+ * and hidden set of each list. Owners and editors. Home, the scan button, Profile and the protected Home blocks cannot be
+ * hidden (422 `layout_item_protected` names the item), and the check is the server's whatever the dashboard sends.
+ */
+function registerEventLayout(scope: FastifyInstance, settings: SettingsService): void {
+  scope.put("/events/:eventId/layout", member, async (request) => {
+    const { eventId } = parse(eventParams, request.params);
+    const context = organizerContextOf(request);
+    const saved = await settings.saveEventLayout(
+      { staffUserId: context.staffUserId, organizerId: context.organizerId },
+      eventId,
+      request.body,
+      { requestId: request.id },
+    );
+    if (saved.ok) {
+      // The body passed the strict check, so the same check gives the layout that was stored.
+      const checked = validateLayoutRequest(request.body);
+      return { layout: checked.ok ? checked.value : undefined };
+    }
+    switch (saved.reason) {
+      case "invalid": {
+        const blocked = saved.issues.find((issue) => issue.protectedItem !== undefined);
+        if (blocked?.protectedItem !== undefined) {
+          throw layoutItemProtected({ item: blocked.protectedItem, field: blocked.path });
+        }
+        throw invalidLayout({ field: saved.issues[0]?.path });
+      }
+      case "archived":
+        throw eventArchived();
+      default:
+        throw notFound();
+    }
+  });
 }
 
 /** FR-1023: the event's accent colour, one of the curated list or null for the brand colour. Owners and editors. */

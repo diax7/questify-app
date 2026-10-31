@@ -29,9 +29,18 @@ export const PLAYER_TABS: readonly Readonly<{
 ];
 
 /**
- * The tabs a player's event bar shows: the Rewards tab goes with the shop switch. The app's bar and the dashboard's preview
- * both read this, so they cannot disagree about what a switch takes away (FR-1022).
+ * The tabs a player's event bar shows, in the layout's order (`order`, Questify's own when none is given): the Rewards tab
+ * goes with the shop switch, and a switched-off feature stays off whatever the layout says. The app's bar and the
+ * dashboard's preview both read this, so they cannot disagree about what a switch takes away (FR-1022, T-606).
  */
-export function playerTabs(featureOn: (feature: string) => boolean): typeof PLAYER_TABS {
-  return PLAYER_TABS.filter((entry) => entry.feature === null || featureOn(entry.feature));
+export function playerTabs(
+  featureOn: (feature: string) => boolean,
+  order: readonly PlayerTab[] = PLAYER_TABS.map((entry) => entry.tab),
+): typeof PLAYER_TABS {
+  return order
+    .map((tab) => PLAYER_TABS.find((entry) => entry.tab === tab))
+    .filter(
+      (entry): entry is (typeof PLAYER_TABS)[number] =>
+        entry !== undefined && (entry.feature === null || featureOn(entry.feature)),
+    );
 }

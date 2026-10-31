@@ -4,10 +4,12 @@ import {
   composeConfig,
   isGatedFeature,
   readBranding,
+  readEventLayout,
   readEventSwitches,
   readEventTerms,
   readPlatformSettings,
   readStoredBranding,
+  readStoredLayout,
   readStoredTerms,
   validateEventConfig,
   validatePlatformSettings,
@@ -33,7 +35,7 @@ import {
   upsertPlatformBlock,
   writeEventSwitches,
 } from "#src/settings/store";
-import { saveBranding, saveTerms } from "#src/settings/save-event-config";
+import { saveBranding, saveLayout, saveTerms } from "#src/settings/save-event-config";
 import type { PublicAccount } from "#src/auth/staff-store";
 
 export type ConfigResult =
@@ -95,6 +97,16 @@ export type SettingsService = Readonly<{
     input: unknown,
     meta?: AuditMeta,
   ) => Promise<SaveResult>;
+  /**
+   * A member of the organizer replaces the event's layout (FR-1749, FR-1764): an approved preset by name, or the order and
+   * hidden set of the bar and Home. Protected items cannot be hidden. Any status but archived.
+   */
+  saveEventLayout: (
+    actor: Readonly<{ staffUserId: string; organizerId: string }>,
+    eventId: string,
+    input: unknown,
+    meta?: AuditMeta,
+  ) => Promise<SaveResult>;
   /** A Questify admin unlocks an add-on for an event. */
   unlockFeature: (
     admin: PublicAccount,
@@ -140,6 +152,9 @@ export function createSettingsService(options: SettingsOptions): SettingsService
     composedCache.clear();
   };
 
+  const thenForget = (saving: Promise<SaveResult>): Promise<SaveResult> =>
+    saving.finally(forgetAll);
+
   const loadPlatform = async (client: PoolClient): Promise<PlatformSettings> => {
     const cached = platformCache.get("platform");
     if (cached !== undefined) {
@@ -168,6 +183,7 @@ export function createSettingsService(options: SettingsOptions): SettingsService
           unlocked,
           terms: readEventTerms(readStoredTerms(stored)),
           branding: readBranding(readStoredBranding(stored)),
+          layout: readEventLayout(readStoredLayout(stored)),
         });
         return { kind: "ok", config, etag: etagOf(config) } as const;
       }),
@@ -315,17 +331,14 @@ export function createSettingsService(options: SettingsOptions): SettingsService
       return found ? { ok: true } : { ok: false, reason: "not_found" };
     },
 
-    saveEventTerms: async (actor, eventId, input, meta = {}) => {
-      const result = await saveTerms(options.pool, actor, eventId, input, meta);
-      forgetAll();
-      return result;
-    },
+    saveEventTerms: (actor, eventId, input, meta = {}) =>
+      thenForget(saveTerms(options.pool, actor, eventId, input, meta)),
 
-    saveEventBranding: async (actor, eventId, input, meta = {}) => {
-      const result = await saveBranding(options.pool, actor, eventId, input, meta);
-      forgetAll();
-      return result;
-    },
+    saveEventBranding: (actor, eventId, input, meta = {}) =>
+      thenForget(saveBranding(options.pool, actor, eventId, input, meta)),
+
+    saveEventLayout: (actor, eventId, input, meta = {}) =>
+      thenForget(saveLayout(options.pool, actor, eventId, input, meta)),
 
     forget: forgetAll,
 

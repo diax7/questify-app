@@ -1,0 +1,84 @@
+/* The layout editor (T-606): the lists to arrange on one side, the Home screen redrawn as they are arranged on the other.
+   Logical properties only, so the page mirrors in Arabic. */
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 20rem);
+  gap: var(--space-xl);
+  align-items: start;
+}
+
+@media (max-width: 62rem) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  min-inline-size: 0;
+}
+
+.preview {
+  position: sticky;
+  inset-block-start: var(--space-lg);
+  min-inline-size: 0;
+}
+
+@media (max-width: 62rem) {
+  .preview {
+    position: static;
+  }
+}
+
+/* Rows divided by lines, as the dashboard's other lists: a bordered box inside a section would be a box in a box. */
+.items {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+  padding-block: var(--space-xs);
+  border-block-end: var(--line);
+}
+
+.item[data-dragging="true"] {
+  opacity: 0.5;
+}
+
+.item[data-over="true"] {
+  border-block-end: 2px dashed var(--color-primary-action);
+}
+
+.grip {
+  display: inline-flex;
+  flex: none;
+  color: var(--color-text-muted);
+  cursor: grab;
+}
+
+.name {
+  display: flex;
+  flex: 1 1 8rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.tools {
+  display: flex;
+  flex: none;
+  margin-inline-start: auto;
+  align-items: center;
+  gap: var(--space-xs);
+}

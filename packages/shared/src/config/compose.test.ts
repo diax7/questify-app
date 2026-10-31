@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { composeConfig } from "./compose";
 import { DEFAULT_TERMS } from "./terms";
+import { DEFAULT_COMPOSED_LAYOUT, readEventLayout } from "#src/layout/layout";
 import type { FeatureRegistry, TuningRegistry } from "./registry";
 
 const FEATURES: FeatureRegistry = {
@@ -35,7 +36,28 @@ describe("composeConfig defaults", () => {
       },
       terms: DEFAULT_TERMS,
       branding: { accent: null },
+      layout: DEFAULT_COMPOSED_LAYOUT,
     });
+  });
+
+  it("carries the event's layout as what is shown, and Questify's own outside an event or without one", () => {
+    const layout = readEventLayout({
+      bar: { order: ["rewards", "index", "scan", "quests", "profile"], hidden: ["quests"] },
+    });
+    expect(composeConfig(registries, {}, { layout }).layout.bar).toEqual([
+      "rewards",
+      "index",
+      "scan",
+      "profile",
+    ]);
+    expect(composeConfig(registries, {}, {}).layout).toEqual(DEFAULT_COMPOSED_LAYOUT);
+    expect(composeConfig(registries, {}, undefined).layout).toEqual(DEFAULT_COMPOSED_LAYOUT);
+  });
+
+  it("leaves a feature the layout shows off when its switch is off", () => {
+    const config = composeConfig(registries, {}, { features: { shop: false } });
+    expect(config.features["shop"]?.enabled).toBe(false);
+    expect(config.layout.bar).toContain("rewards");
   });
 
   it("carries the event's accent, and none outside an event", () => {

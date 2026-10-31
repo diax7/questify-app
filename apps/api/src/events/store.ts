@@ -1,6 +1,13 @@
 import { randomInt } from "node:crypto";
 import type { PoolClient } from "pg";
-import { readBranding, readEventTerms, type Branding, type EventTerms } from "@questify/shared";
+import {
+  readBranding,
+  readEventLayout,
+  readEventTerms,
+  type Branding,
+  type EventLayout,
+  type EventTerms,
+} from "@questify/shared";
 
 export type EventKind = "physical" | "virtual" | "workplace";
 export type EventAccess = "public" | "unlisted" | "private";
@@ -53,6 +60,8 @@ export type EventRecord = Readonly<{
   agendaOn: boolean;
   /** The event's look (T-602, FR-1023): its accent colour, or none. */
   branding: Branding;
+  /** The event's bar and Home blocks (T-606, FR-1749): the order and what is hidden. */
+  layout: EventLayout;
   /** The event's words (FR-404, FR-940), the defaults for any it did not set. */
   terms: EventTerms;
   /** The venue's pin, or null (T-303b); with its radius in metres. */
@@ -115,6 +124,7 @@ type Row = {
   maps_on: boolean;
   agenda_on: boolean;
   branding: unknown;
+  layout: unknown;
   terms: unknown;
   venue_lat: string | null;
   venue_lng: string | null;
@@ -139,7 +149,7 @@ const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, acce
   coalesce((config -> 'features' ->> 'polls')::boolean, true) AS polls_on,
   coalesce((config -> 'features' ->> 'maps')::boolean, true) AS maps_on,
   coalesce((config -> 'features' ->> 'agenda')::boolean, true) AS agenda_on,
-  config -> 'branding' AS branding, config -> 'terms' AS terms,
+  config -> 'branding' AS branding, config -> 'layout' AS layout, config -> 'terms' AS terms,
   venue_lat, venue_lng, venue_radius_m, city_id, interests`;
 
 const toRecord = (row: Row): EventRecord => ({
@@ -172,6 +182,7 @@ const toRecord = (row: Row): EventRecord => ({
   mapsOn: row.maps_on,
   agendaOn: row.agenda_on,
   branding: readBranding(row.branding),
+  layout: readEventLayout(row.layout),
   terms: readEventTerms(row.terms),
   venuePin:
     row.venue_lat === null || row.venue_lng === null

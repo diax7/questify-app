@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { DEFAULT_TERMS, parseComposedConfig, type ComposedConfig } from "@questify/shared";
+import {
+  DEFAULT_COMPOSED_LAYOUT,
+  DEFAULT_TERMS,
+  parseComposedConfig,
+  type ComposedConfig,
+} from "@questify/shared";
 import { withRequestContext } from "#src/db/context";
 import type { PublicAccount } from "#src/auth/staff-store";
 import { createSettingsService, type SettingsService } from "#src/settings/service";
@@ -107,6 +112,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
         },
         terms: DEFAULT_TERMS,
         branding: { accent: null },
+        layout: DEFAULT_COMPOSED_LAYOUT,
       });
     });
 
