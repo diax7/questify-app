@@ -37,6 +37,32 @@
   app render test for `eventOff` was dropped (the app has no render-test harness, and a harness is not worth adding for
   one line).
 
+## T-608 exports, sponsor totals and the report — 2026-10-31
+
+- **T-608 done (tier B; one code review owed; not run on a phone or in a PDF reader). Migration 0103 (new, undeployed; staging runs through 0101).**
+  **Built (FR-1206 to FR-1208, FR-1306, FR-1626, ADR-393):** seven read-only definer doors behind `award_event_of` (PUBLIC without EXECUTE, no
+  table, no index): `export_start` (checks the seat and the sponsor, **writes the audit entry `event.export` before any row is read**),
+  `export_players`, `export_completions` (pages of 5,000 by `(created_at, id)` on the 0096 index; marks a completion the team removed),
+  `export_redemptions`, `export_submissions`, `export_surveys`, `analytics_sponsor`. `POST …/events/{id}/exports/{players|completions|
+  redemptions|submissions|surveys|sponsor}` writes a CSV in pieces (byte-order mark, formula-safe cells, Western digits, the event's zone), every
+  row checked against a strict schema, so a file holds only the join card's fields (username, join answers, status, join time, points) and the
+  event's own records, never a phone, an email, a join source, an id or a code; an empty event answers the header line alone. The sponsor filter
+  on the Analytics page replaces the figures with that sponsor's totals (`GET …/analytics/sponsors/{id}`), **a floor of 5** (`MIN_GROUP_SIZE`,
+  a count of 1 to 4 reads "fewer than 5"; a single hidden reward count hides the smallest shown with it) and the export becomes one totals file
+  with no player. `POST …/report` (audited) feeds `/analytics/report`, a one-page A4 sheet the browser prints or saves as a PDF (no PDF
+  dependency; headline numbers, top five quests and rewards, up to three surveys with choice counts, rating averages and counted written answers,
+  small counts left out; no player). The web forwarder gives an export 180 s. ADR-393 and Q-360 Proposed. **Not built:** a period filter (no FR; it
+  would scan the points record), the event's logo on the report (events have none; uploads wait for Q-149), souvenirs in the sponsor totals
+  (T-507c note added), the event's renamed words in the CSV headers. Mutation targets: none (tier B).
+  **Local:** full vitest 9937 passed, 25 skipped, 3 failed on the one full run (960 s): the sponsors route inventory (the new route, fixed), the
+  Hermes check (`toSorted` in `report.ts`, fixed) and an unrelated random UUID that held "9999" in `invitation-campaigns.int`; one suite
+  (`event-duplicate.int`) timed out in its 60 s hook under load; the four files re-run once: 78 passed. Browser suite 294 passed, 5 skipped, 1 failed on the one full run (32.5 min; the failure was `events.spec` phone, a sign-up redirect that passed on its one rerun, unrelated)
+  (single worker, after a fresh web build; `analytics.spec.ts` now downloads the players, completions and sponsor files, filters by sponsor, opens
+  the report and prints it to a PDF of one page, in both projects). tsc (api, web, shared), oxlint, format and function limits clean (the
+  `Sheet`, `fileOf` and `AnalyticsPage` splits kept no new offender); `expo export` not run (no app screen changed). CI minutes none yet; agent
+  tokens roughly 0.65M (estimate).
+  **Next:** the next unchecked task in `docs/TASKS.md` (T-609).
+
 ## T-607 analytics — 2026-10-31
 
 - **T-607 done (tier B; one code review owed; not run on a phone). Migration 0102 (three read-only definer doors, no table or index; staging
