@@ -82,6 +82,8 @@ const REFUSALS: Readonly<
   QT422: (detail) => NOT_THIS_TYPE[detail],
   SA422: (detail) => ({ kind: "bad_answer", question: detail }),
   QF403: () => ({ kind: "feature_off" }),
+  // Live polls are switched off for the event (migration 0094): the vote and the poll's reads.
+  PF403: () => ({ kind: "feature_off" }),
   VO422: () => ({ kind: "unknown_option" }),
   VC422: () => ({ kind: "too_many_choices" }),
   QO422: () => ({ kind: "unknown_option" }),

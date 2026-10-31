@@ -4,6 +4,7 @@ import {
   deskNeeded,
   enrollmentInactive,
   eventArchived,
+  featureOff,
   idempotencyKeyReused,
   invalidReward,
   limitReached,
@@ -249,31 +250,33 @@ export function registerRewardBuilderRoutes(scope: FastifyInstance, deps: Reward
   });
 }
 
+/** The refusals that carry nothing but their kind. */
+const PLAIN_REFUSALS = {
+  not_found: notFound,
+  // Stryker disable next-line StringLiteral: the idempotency convention refuses a reused key first; the database's own check backs it once the stored key has expired
+  key_reused: idempotencyKeyReused,
+  // The event's or the platform's shop switch is off (T-602c): the same answer as the shop's read.
+  feature_off: featureOff,
+  sold_out: soldOut,
+  not_enough_balance: notEnoughBalance,
+  redeem_paused: redeemPaused,
+  rank_prize: rankPrizeKept,
+} as const;
+
 function refusal(result: Exclude<ReserveResult, { kind: "done" }>): never {
   switch (result.kind) {
-    case "not_found":
-      throw notFound();
-    // Stryker disable next-line ConditionalExpression,StringLiteral: the idempotency convention refuses a reused key first; the database's own check backs it once the stored key has expired
-    case "key_reused":
-      throw idempotencyKeyReused();
     case "enrollment_inactive":
       throw enrollmentInactive({ reason: result.reason });
     case "shop_closed":
       throw shopClosed({ reason: result.reason });
     case "reward_not_open":
       throw rewardNotOpen({ reason: result.reason });
-    case "sold_out":
-      throw soldOut();
     case "limit_reached":
       throw rewardLimitReached({ limit: result.limit });
-    case "not_enough_balance":
-      throw notEnoughBalance();
-    case "redeem_paused":
-      throw redeemPaused();
     case "reservation_ended":
       throw reservationEnded({ status: result.status });
-    case "rank_prize":
-      throw rankPrizeKept();
+    default:
+      throw PLAIN_REFUSALS[result.kind]();
   }
 }
 

@@ -648,6 +648,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
       ).toBe(404);
     });
 
+    it("answers 403 feature_off to a reserve while the event's shop is off (T-602c)", async () => {
+      const token = await newPlayer(50);
+      const reward = await newReward({ price: 1 });
+      await owner(
+        `UPDATE event SET config = jsonb_set(config, '{features}', coalesce(config -> 'features', '{}')
+           || '{"shop": false}'::jsonb) WHERE id = $1`,
+        [eventId],
+      );
+      try {
+        const refused = await asPlayer(token, "POST", `/v1/rewards/${reward.id}/reserve`, key());
+        expect([refused.statusCode, refused.json().code]).toEqual([403, "feature_off"]);
+      } finally {
+        await owner("UPDATE event SET config = config #- '{features,shop}' WHERE id = $1", [
+          eventId,
+        ]);
+      }
+    });
+
     it("needs a session, membership and an Idempotency-Key", async () => {
       const reward = await newReward({ price: 1 });
       expect(

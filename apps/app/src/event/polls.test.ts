@@ -82,6 +82,15 @@ describe("the poll read (T-306)", () => {
     const found = sessionAnswering({ kind: "ok", status: 200, body: poll, headers: headers({}) });
     expect(await fetchPoll(found.session, "q")).toMatchObject({ choices: "several" });
     expect(await fetchPoll(sessionAnswering({ kind: "network" }).session, "q")).toBeUndefined();
+    const off = sessionAnswering({
+      kind: "error",
+      status: 403,
+      code: "feature_off",
+      message: null,
+      details: {},
+      headers: headers({}),
+    });
+    expect(await fetchPoll(off.session, "q")).toBe("off");
   });
 
   it("toggles several choices and replaces one", () => {

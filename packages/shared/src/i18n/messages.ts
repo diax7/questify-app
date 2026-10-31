@@ -2897,6 +2897,10 @@ export const MESSAGES = {
     ar: "اسمح بإجابة جديدة بعد الرفض",
     en: "Allow a new answer after a rejection",
   },
+  "play.pollsOff": {
+    ar: "أوقف المنظّم التصويت المباشر في هذه الفعالية.",
+    en: "The organizer turned live polls off for this event.",
+  },
   "play.loadFailed": {
     ar: "تعذّر التحميل. حاول مرة أخرى.",
     en: "Couldn't load this {questOne}. Try again.",

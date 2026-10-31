@@ -303,11 +303,6 @@
       "complexity": [9]
     }
   },
-  "apps/api/src/rewards/routes.ts": {
-    "refusal": {
-      "complexity": [12]
-    }
-  },
   "apps/api/src/rewards/shop.ts": {
     "<anonymous>": {
       "complexity": [13]
@@ -606,7 +601,7 @@
     },
     "PollEntry": {
       "complexity": [17],
-      "lines": [117]
+      "lines": [108]
     }
   },
   "apps/app/src/event/QuestSheet.tsx": {

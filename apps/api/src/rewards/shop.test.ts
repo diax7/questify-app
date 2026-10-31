@@ -132,6 +132,7 @@ describe("reserveReward and cancelRedemption", () => {
     ["RK422", undefined, { kind: "key_reused" }],
     ["RA403", "banned", { kind: "enrollment_inactive", reason: "banned" }],
     ["RS403", "closed", { kind: "shop_closed", reason: "closed" }],
+    ["RS403", "feature_off", { kind: "feature_off" }],
     ["RW403", "ended", { kind: "reward_not_open", reason: "ended" }],
     ["RO409", undefined, { kind: "sold_out" }],
     ["RL409", "2", { kind: "limit_reached", limit: 2 }],

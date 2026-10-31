@@ -134,7 +134,8 @@ export const FEATURES: FeatureRegistry = {
   nfcTags: { gated: false, level: "platform" },
   /**
    * Live polls (T-306, T-602, FR-1009): the owner turns them off for an event, which hides every live poll card, open or
-   * closed; votes already cast stay counted and the team's own results stay.
+   * closed; votes already cast stay counted and the team's own results stay. The database refuses a live poll's vote and
+   * its reads while off (T-602c, 403 `feature_off`); a plain vote quest stays open.
    */
   polls: { gated: false },
   /**
@@ -162,7 +163,7 @@ export const FEATURES: FeatureRegistry = {
   /**
    * The shop (T-201, T-602, FR-1009): the owner turns it off for an event, which hides the Rewards tab, Home's shop card and
    * goal, and refuses the shop's read and a goal pin; a prize a player already holds is still handed over at the desk by
-   * their My QR. Reserving stays a points door (Q-348): only the shop's screens are gone.
+   * their My QR, cancelled or left to expire. The database refuses a new reservation while off (T-602c, 403 `feature_off`).
    */
   shop: { gated: false },
   /**

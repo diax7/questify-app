@@ -20,10 +20,13 @@ import { textIn } from "#src/i18n/text.ts";
  */
 export function VoteEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: () => void }>) {
   const { t } = useI18n();
-  const [kind, setKind] = useState<"live" | "plain" | "failed" | undefined>(undefined);
+  const [kind, setKind] = useState<"live" | "plain" | "failed" | "off" | undefined>(undefined);
   const decide = useCallback(async () => {
     const read = await fetchPoll(api.session, quest.id);
-    setKind(read === undefined ? "failed" : read === "not_live" ? "plain" : "live");
+    if (read === undefined) setKind("failed");
+    else if (read === "not_live") setKind("plain");
+    else if (read === "off") setKind("off");
+    else setKind("live");
   }, [quest.id]);
   useEffect(() => {
     void decide();
@@ -38,6 +41,8 @@ export function VoteEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: ()
           <Button kind="quiet" label={t("common.retry")} onPress={() => void decide()} />
         </>
       );
+    case "off":
+      return <AppText accessibilityRole="alert">{t("play.pollsOff")}</AppText>;
     case "live":
       return <PollEntry questId={quest.id} onPaid={onPaid} />;
     case "plain":

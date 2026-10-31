@@ -5748,3 +5748,25 @@ ledger; the rehearsal card counts the points. (9) **The ranking repair mark** of
 **Why:** the ledger is the one path for points; a natural key makes double payment impossible whatever the client does.
 **Trade-offs:** an editor can set any session points (no cap, as a quest's points; the audit shows before and after);
 a late arrival after a bulk award gets it from a list; editing points never changes what was paid.
+
+## ADR-383 - T-602c the event's switches inside the points doors: the database refuses a new reserve or live-poll vote, replays stand
+
+**Status:** Proposed (worker recommendation, 2026-10-31, T-602c; plan review 86 GO; Q-350). Completes FR-1009 and
+closes ADR-381's trade-offs (a) and (b). Migration 0094.
+**Decision:** (1) **The database is the one gate.** `reserve_reward` refuses a new reservation while the shop switch is
+off (RS403 `feature_off`, after the event row is read, rehearsal accounts too); `vote_quest`, `member_poll` (so
+`poll_results`) and `member_vote` refuse a live poll while the polls switch is off (PF403 `feature_off`). The API answers
+403 `feature_off`, the same as the shop's read. The routes keep no check of their own: they hold a reward or quest id,
+not the event's. The rule is `feature_enabled` (0083): the event's switch and the platform's, which a parity test proves
+equal to the API's composed configuration for both switches in all four states. (2) **Replays stand:** a retried request
+whose key already succeeded answers its first result (the replay paths run before the switch); only a new write is
+refused. (3) **What is held stands:** a reservation made before the switch-off stays reserved until its time; the desk
+hands it over, the player may cancel (points return) and expiry returns points; a delivered code stays delivered.
+(4) **No reveal:** the switch is checked after the existing visibility rules, so a caller who would not see the quest
+still gets no row (not found). A plain vote quest is not a live poll and stays open. (5) **The app** shows "The organizer
+turned live polls off for this event" on the poll sheet, and the server's message on a refused reserve; the live read
+already drops the cards (T-602), so the sheet is not closed for the player.
+**Why:** a switch that only hides a screen leaves the door open to an old build or a direct call; the points path must
+agree with what the organizer set.
+**Trade-offs:** no lock on the event: a reserve or vote that read the switch on before the owner's change committed is a
+write made while it was on. While the shop is off a player cannot see a prize they still hold (Q-350; task T-602d).

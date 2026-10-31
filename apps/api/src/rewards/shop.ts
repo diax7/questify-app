@@ -57,6 +57,7 @@ export type ReserveResult =
   | Readonly<{ kind: "key_reused" }>
   | Readonly<{ kind: "enrollment_inactive"; reason: string }>
   | Readonly<{ kind: "shop_closed"; reason: string }>
+  | Readonly<{ kind: "feature_off" }>
   | Readonly<{ kind: "reward_not_open"; reason: string }>
   | Readonly<{ kind: "sold_out" }>
   | Readonly<{ kind: "limit_reached"; limit: number }>
@@ -72,7 +73,9 @@ const REFUSALS: Readonly<Record<string, (detail: string) => ReserveResult>> = {
   RA403: (detail) => ({ kind: "enrollment_inactive", reason: detail }),
   // An operator the owner has not allowed to play (migration 0026).
   QP403: () => ({ kind: "enrollment_inactive", reason: "operator_not_playing" }),
-  RS403: (detail) => ({ kind: "shop_closed", reason: detail }),
+  // The event's or the platform's shop switch is off (migration 0094): the same answer as the shop's read.
+  RS403: (detail) =>
+    detail === "feature_off" ? { kind: "feature_off" } : { kind: "shop_closed", reason: detail },
   RW403: (detail) => ({ kind: "reward_not_open", reason: detail }),
   RO409: () => ({ kind: "sold_out" }),
   RL409: (detail) => ({ kind: "limit_reached", limit: Number(detail) }),

@@ -222,6 +222,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live polls over HTTP", () => {
     ]);
   });
 
+  it("answers 403 feature_off to a live poll's vote and reads while live polls are off (T-602c)", async () => {
+    const event = await newEvent();
+    const live = await newPoll(event, poll("one", "after_vote"));
+    await send(event, live.id);
+    const token = await newPlayer(event);
+    await owner(
+      `UPDATE event SET config = jsonb_set(config, '{features}', coalesce(config -> 'features', '{}')
+         || '{"polls": false}'::jsonb) WHERE id = $1`,
+      [event],
+    );
+    expect(codeOf(await app("GET", `/v1/quests/${live.id}/poll`, token))).toEqual([
+      403,
+      "feature_off",
+    ]);
+    expect(codeOf(await app("GET", `/v1/quests/${live.id}/vote`, token))).toEqual([
+      403,
+      "feature_off",
+    ]);
+    expect(
+      codeOf(await app("POST", `/v1/quests/${live.id}/vote`, token, { optionIds: ["a"] })),
+    ).toEqual([403, "feature_off"]);
+  });
+
   it("reads what is live with a weak ETag, answers 304 while unchanged, and sends Server-Now on both", async () => {
     const event = await newEvent();
     const token = await newPlayer(event);

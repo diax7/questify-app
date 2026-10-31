@@ -70,6 +70,7 @@ describe("run", () => {
       ["QT422", "share", { kind: "not_share_quest" }],
       ["SA422", "fav", { kind: "bad_answer", question: "fav" }],
       ["QF403", undefined, { kind: "feature_off" }],
+      ["PF403", "feature_off", { kind: "feature_off" }],
       ["VO422", undefined, { kind: "unknown_option" }],
       ["VC422", "too_many_choices", { kind: "too_many_choices" }],
       ["QO422", undefined, { kind: "unknown_option" }],

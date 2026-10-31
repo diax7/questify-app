@@ -89,17 +89,23 @@ export function pollViewOf(body: unknown): PollView | undefined {
   };
 }
 
-/** The poll, `not_live` when the quest is a plain vote (404), or undefined when it could not be read. */
+/**
+ * The poll, `not_live` when the quest is a plain vote (404), `off` while the organizer has live polls switched off
+ * (403 `feature_off`, T-602c), or undefined when it could not be read.
+ */
 export async function fetchPoll(
   session: Pick<Session, "request">,
   questId: string,
-): Promise<PollView | "not_live" | undefined> {
+): Promise<PollView | "not_live" | "off" | undefined> {
   const answer = await session.request({
     method: "GET",
     path: `/v1/quests/${encodeURIComponent(questId)}/poll`,
   });
   if (answer.kind === "error" && answer.status === 404) {
     return "not_live";
+  }
+  if (answer.kind === "error" && answer.code === "feature_off") {
+    return "off";
   }
   return answer.kind === "ok" ? pollViewOf(answer.body) : undefined;
 }

@@ -77,6 +77,26 @@ function AfterVote({ view }: Readonly<{ view: PollView }>) {
   return view.results === "never" ? <AppText muted>{t("poll.resultsNever")}</AppText> : null;
 }
 
+/** What the sheet shows for a read: the poll, a switch the organizer turned off, or a failure (a plain vote too). */
+const pollState = (
+  read: PollView | "not_live" | "off" | undefined,
+): PollView | "off" | "failed" => {
+  if (read === "off") return "off";
+  return read === undefined || read === "not_live" ? "failed" : read;
+};
+
+/** A poll that could not be read (with a retry), or one the organizer switched off (T-602c). */
+function PollUnavailable({ off, retry }: Readonly<{ off: boolean; retry: () => void }>) {
+  const { t } = useI18n();
+  if (off) return <AppText accessibilityRole="alert">{t("play.pollsOff")}</AppText>;
+  return (
+    <>
+      <AppText accessibilityRole="alert">{t("play.loadFailed")}</AppText>
+      <Button kind="quiet" label={t("common.retry")} onPress={retry} />
+    </>
+  );
+}
+
 /**
  * A live poll (FR-239 to FR-242): its options as one choice or several, a countdown on the server's clock, Vote, and
  * after it the results its policy allows. The same component in the quest sheet and in the live pop-up card. A retry
@@ -96,7 +116,7 @@ export function PollEntry({
 }>) {
   const { t, language } = useI18n();
   const terms = useTerms();
-  const [view, setView] = useState<PollView | undefined | "failed">(undefined);
+  const [view, setView] = useState<PollView | undefined | "failed" | "off">(undefined);
   const [clock, setClock] = useState<Clock>({ serverNow: new Date().toISOString(), receivedAt: 0 });
   const [chosen, setChosen] = useState<readonly string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -105,12 +125,8 @@ export function PollEntry({
   const [last, setLast] = useState<{ key: string; options: string } | undefined>(undefined);
 
   const load = useCallback(async () => {
-    const read = await fetchPoll(api.session, questId);
-    if (read === undefined || read === "not_live") {
-      setView("failed");
-      return;
-    }
-    setClock({ serverNow: read.serverNow, receivedAt: Date.now() });
+    const read = pollState(await fetchPoll(api.session, questId));
+    if (typeof read === "object") setClock({ serverNow: read.serverNow, receivedAt: Date.now() });
     setView(read);
   }, [questId]);
   useEffect(() => {
@@ -121,13 +137,8 @@ export function PollEntry({
   if (view === undefined) {
     return null;
   }
-  if (view === "failed") {
-    return (
-      <>
-        <AppText accessibilityRole="alert">{t("play.loadFailed")}</AppText>
-        <Button kind="quiet" label={t("common.retry")} onPress={() => void load()} />
-      </>
-    );
+  if (typeof view === "string") {
+    return <PollUnavailable off={view === "off"} retry={() => void load()} />;
   }
   const vote = async () => {
     const options = [...chosen].sort().join(",");
