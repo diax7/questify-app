@@ -1612,3 +1612,12 @@ with Collect (collect first) or Open My QR (desk offers); (3) the shop-off note 
 players still hold, shown after the switch is saved (ADR-384). **Open:** should turning the shop off ask first when prizes
 are held? Recommended no: the switch changes nothing for a held prize (it stays reserved, collectable and cancellable)
 and turning it back on is one tap, so a question adds a step without protecting anything. **Decided (developer, delegated by Dhia, 2026-10-31):** as recommended (no question); ADR-384 accepted.
+
+## Q-352 - T-603 live control room: what is decided without Dhia (2026-10-31)
+
+**Recommended (developer):** (1) build the room from the existing doors and one polled read (ADR-385); (2) pause a quest and
+skip a broken step go to T-603b, tier A, because they change `complete_quest`; (3) "players online" is "active in the last
+15 minutes" (the app has no presence); (4) open the room before go-live so the team can rehearse the event day. **Open:**
+should "online" mean something live, such as a heartbeat from the app while it is open? Recommended no for now: a heartbeat is
+a write per player per minute and a new personal-data record; completions in 15 minutes is free and honest. Revisit if
+organizers ask for it. **Decided (developer, delegated by Dhia, 2026-10-31):** pending the T-603 review.

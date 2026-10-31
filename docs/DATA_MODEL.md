@@ -1485,3 +1485,15 @@ the API role.
   `survey_share_save`, `survey_share_revoke` and `survey_shared_results` (the anonymous one, by hash). Internals with no grant: `quest_ratings_on`
   (true only for an explicit `true`), `rating_member` and `survey_results_core` (the body of `survey_summary`, which 0089 restates with the same answer).
   Audits `survey.share` and `survey.unshare` carry the quest id only, never the hash.
+
+## The live control room (T-603, migration 0096; Proposed ADR-385)
+
+- No table. One index on `quest_completion`: `quest_completion_event_recent_idx (event_id, created_at DESC, id DESC)`, which serves the
+  feed (the newest rows of one event) and the active-in-15-minutes count without walking other events' completions.
+- Three read-only doors, `SECURITY DEFINER`, `STABLE`, `search_path = public, pg_temp`, each opening with `award_event_of` (AN404 for another
+  organizer's team, a player, no context, an unknown event, or an editor outside their event limit). PUBLIC holds no EXECUTE; the API role does.
+  `control_feed(event, page)` (30 by default, 1 to 100): id, time, quest and its titles, method, username, avatar. No contact detail, install
+  id or points. `control_counts(event)`: active members, active members with a completion in the last 15 minutes, active rewards at or under
+  the stock-low line (`greatest(1, ceil(10% of stock_total))`, migration 0082), open event-queue tickets plus pending submissions, open flags.
+  `control_done(event)`: per quest, the players with a first completion (`occurrence = 1`); the one read that walks them all, so the API keeps
+  its answer 30 seconds per event.

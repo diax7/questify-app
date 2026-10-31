@@ -5796,3 +5796,33 @@ reuses the shop's own doors, so no new grant and no new way to see another playe
 **Trade-offs:** the read takes the newest 100 redemptions, as the shop does (a player with more than 100 in one event could
 miss an old held one); the count includes rehearsal accounts before go-live; the Home win card still opens the Rewards
 tab, which is hidden while the shop is off (FOLLOWUPS).
+
+## ADR-385 - T-603 live control room: one page of existing doors, one polled read, and pause/skip split to T-603b
+
+**Status:** Proposed (developer, 2026-10-31; Q-352). No money, no points path: one read-only migration (0096) and a page.
+**Decision:** (1) **One page, existing doors.** "Control room" (`…/events/{id}/control`, first in the Run group) composes
+what T-307, T-502, T-113 and the quest list already offer: flash Launch now and End now, live poll Send now and Close now
+(each with its confirmation, now one hook, `useQuestLiveActions`, shared with the quest builder), the Up next pin, the
+boosts manager (the Boosts page without its header) and the announcement composer with its confirmation
+(`AnnouncementSender`, sharing `useAnnouncementPress` with the Announcements page). An action whose event switch is off
+(flash quests, double points) is not offered (FR-1025). The room is open before go-live too, because the rehearsal has
+scans, counters and a working flash and boost; DASHBOARD_AND_CONSOLE section 3.8 said "opens when the event is live", which
+left the team no way to rehearse the event day. An ended event shows the numbers and no buttons. (2) **One read.**
+`GET …/events/{id}/control` (owner, editor) answers `{counts, feed, done}` through three read-only definers
+(`control_feed`, `control_counts`, `control_done`) guarded by `award_event_of`. The feed is the 30 newest completions with
+a username, avatar, quest, method and time; never a phone, email, install id or points. (3) **Definitions.** *Active*
+(FR-1028's "players online") is an active member with a completion in the last 15 minutes, because the app keeps no
+presence; the counter says so in its label. *Completion rate* is players who completed the quest at least once over active
+members, whole percent, never over 100. *Low stock* is the stock-low alert's rule (migration 0082). *Inbox* is open help
+requests of the event's queue plus submissions waiting; it links to the Help desk until T-616 builds the merged Inbox.
+*Station* is the quest itself (a station screen shows one quest) and the method label says how it was done (QR, typed code,
+staff scan, NFC, station screen, kiosk, by hand, in the app). (4) **Cheap at scale (ADR-365).** The page polls every 5
+seconds while the tab is shown, one request at a time, no stream. The feed and counters are index reads (new index
+`quest_completion_event_recent_idx`); `done` walks every first completion, so the API shares one answer per event for 30
+seconds (read after the feed, so a refused caller never gets it). (5) **Pause a quest and skip a broken step are not built
+here.** Both change what `complete_quest` and `record_completion` accept, which is the completion engine and the points
+path; they become **T-603b**, tier A (plan, plan review, build, review, mutation), and FR-1026 stays pending until then.
+**Why:** the smallest build that meets FR-1024, FR-1025 and FR-1028 with no new write path and none of the core.
+**Trade-offs:** a completion shows up to 5 seconds late and a quest's rate up to 30 seconds late; a member removed after
+completing still counts in a quest's rate (capped at 100); the Inbox counter links to one of its two pages; the live poll's
+"open" is Send now on a draft poll in the quest list, not a separate poll builder.

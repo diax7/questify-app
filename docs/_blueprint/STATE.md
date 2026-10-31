@@ -19,6 +19,23 @@
 - **The app sends no `X-App-Version`,** so the API's minimum-version gate (staging `MIN_APP_VERSION` 1.0.0, the app is
   0.1.0) never applies to it; FOLLOWUPS.
 
+## T-603 live control room — 2026-10-31
+
+- **T-603 done (tier B; code review owed; not run on a phone). Migration 0096** (new, undeployed; staging runs through 0095).
+  **Built:** three read-only definers `control_feed`, `control_counts`, `control_done` (guarded by `award_event_of`; PUBLIC
+  closed) and the index `quest_completion_event_recent_idx`; `GET …/events/{id}/control` (owner, editor) in the new
+  `apps/api/src/control/` answering the 30 newest completions (username and avatar, quest, method, time: no contact detail or
+  points), the counters (low stock, inbox, flags, active in the last 15 minutes) and each quest's completions, the last kept 30
+  seconds per event in the API process. The "Control room" page (first in the Run group, open from rehearsal on) polls every 5
+  seconds while the tab is shown and composes the existing doors: flash Launch and End, live poll Send and Close, the Up next
+  pin, the boosts manager and the announcement composer, each with its confirmation; an action whose switch is off is not
+  offered. The quest builder, Boosts page and Announcements page now share their parts with it (`useQuestLiveActions`,
+  `useReturnFocus`, `BoostsManager`, `useAnnouncementPress`). **Split out:** pausing a quest and skipping a broken step
+  (FR-1026) became **T-603b, tier A** (they change `complete_quest`). ADR-385 and Q-352 Proposed. Mutation targets: none
+  (tier B). Local: TESTS_PLACEHOLDER. CI minutes none yet; agent tokens roughly 0.55M (estimate).
+  **Next:** T-603b (tier A: plan and plan review first), the T-603 code review, then the next unchecked task in
+  `docs/TASKS.md` (T-604).
+
 ## Follow-ups batch — 2026-10-31
 
 - **FOLLOWUPS cleared (tier C and B minors).** The desktop menu scrolls on its own and shows the open page (ADR-378, Proposed, Q-345): no new link needs a regroup, and the layout check asserts reachability instead of fit. The flaky `organizer-alerts` "checks the member again when it sends" test: the alerts are numbered in the order of members' random ids, a claim takes five rows, and a claim that finds only rows to skip ends the run (T-503 line in FOLLOWUPS), so about one run in twenty sent nothing; the test now runs twice. App and dashboard minors: the map board's click surface leaves the tab order, the sponsor screen shows loading or "no longer part of the event", a late sponsor read of the previous event is dropped, the survey's left-out line has no plural, "Thanks" shows only for a thumb sent a moment ago, and the cheers button follows the server's clock (`Server-Now` of the live read). Not run on a phone.

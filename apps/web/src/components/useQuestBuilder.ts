@@ -36,6 +36,9 @@ export type BuilderEvent = Readonly<{
   name: string;
   statusNow: string;
   terms: EventTerms;
+  /** The event's flash quests and double points switches (T-307); on when the API does not say. */
+  flashQuests: boolean;
+  boosts: boolean;
 }>;
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
@@ -60,6 +63,8 @@ function builderEventOf(body: unknown, language: Language): BuilderEvent {
         statusNow: string;
         name: { ar: string | null; en: string | null };
         terms?: unknown;
+        flashQuests?: boolean;
+        boosts?: boolean;
       };
     }
   ).event;
@@ -69,6 +74,8 @@ function builderEventOf(body: unknown, language: Language): BuilderEvent {
     statusNow: view.statusNow,
     name: view.name[language] ?? other ?? "",
     terms: readEventTerms(view.terms),
+    flashQuests: view.flashQuests !== false,
+    boosts: view.boosts !== false,
   };
 }
 

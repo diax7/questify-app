@@ -10,7 +10,7 @@ import {
 import { useState } from "react";
 import { AnnouncementFields, AnnouncementPreview } from "#src/components/AnnouncementParts.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import type { AnnouncementConfirmation, Audience } from "#src/components/AnnouncementsPanel.tsx";
+import type { AnnouncementConfirmation, Audience } from "#src/components/useAnnouncementPress.ts";
 import {
   announcementIssueKey,
   announcementPayload,

@@ -663,6 +663,7 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
   eventPage("sponsors", "sponsors.page.title"),
   eventPage("boosts", "boosts.page.title"),
   eventPage("codes", "codes.title"),
+  eventPage("control", "control.title"),
   {
     name: "community",
     path: (ids) => `${event(ids)}/community`,

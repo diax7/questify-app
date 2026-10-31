@@ -1193,11 +1193,11 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1021 | F-195, F-194 | Must | pending |
 | FR-1022 | F-193 | Should | built (T-602, ADR-381) |
 | FR-1023 | F-26 | Should | partial (T-602: the accent; the logo and banner are T-602b, blocked on Q-149) |
-| FR-1024 | F-66 | Must | pending |
-| FR-1025 | F-191 | Must | pending |
-| FR-1026 | F-191, F-196 | Must | pending |
+| FR-1024 | F-66 | Must | built (T-603: the feed lists quests, not separate stations; a station is its quest) |
+| FR-1025 | F-191 | Must | built (T-603: a live poll opens with Send now on a draft poll in the room's quest list) |
+| FR-1026 | F-191, F-196 | Must | pending (T-603b, tier A) |
 | FR-1027 | F-191 | Must | pending |
-| FR-1028 | F-192 | Should | pending |
+| FR-1028 | F-192 | Should | built (T-603: "players online" is active in the last 15 minutes, ADR-385) |
 | FR-1029 | F-198 | Must | pending |
 | FR-1030 | F-198 | Must | pending |
 | FR-1031 | F-196 | Must | pending |

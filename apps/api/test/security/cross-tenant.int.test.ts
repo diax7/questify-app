@@ -1625,6 +1625,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     expect(await count("owner", "quest_rating WHERE event_id = $1", [f.eventB])).toBe(0);
   });
 
+  it("keeps the control room's reads inside the caller's tenant and membership (T-603)", async () => {
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      for (const sql of [
+        "SELECT * FROM control_feed($1, 30)",
+        "SELECT * FROM control_counts($1)",
+        "SELECT * FROM control_done($1)",
+      ]) {
+        expect(await refusal(asA(seat, sql, [f.eventB])), `${seat} ${sql}`).toBe("AN404");
+      }
+    }
+  });
+
   it("keeps the Cheers doors inside the caller's tenant and membership (T-509)", async () => {
     for (const seat of ["organizer", "staff", "player"] as const) {
       const team = [

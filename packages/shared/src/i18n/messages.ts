@@ -7098,6 +7098,40 @@ export const MESSAGES = {
     ar: "تعذّر تحميل المعاينة. أعد المحاولة.",
     en: "The preview did not load. Try again.",
   },
+  "control.link": { ar: "غرفة التحكم", en: "Control room" },
+  "control.title": { ar: "غرفة التحكم", en: "Control room" },
+  "control.counters": { ar: "أرقام مباشرة", en: "Live numbers" },
+  "control.online": { ar: "نشطون في آخر 15 دقيقة", en: "Active in the last 15 minutes" },
+  "control.lowStock": { ar: "جوائز توشك على النفاد", en: "Rewards running low" },
+  "control.inbox": { ar: "بانتظارك", en: "Waiting for you" },
+  "control.feed": { ar: "آخر النشاط", en: "Latest activity" },
+  "control.feed.empty": {
+    ar: "لا نشاط بعد. يظهر هنا لحظة حدوثه.",
+    en: "No activity yet. It appears here as it happens.",
+  },
+  "control.method.qr": { ar: "رمز QR", en: "QR code" },
+  "control.method.code": { ar: "رمز مكتوب", en: "Typed code" },
+  "control.method.operator": { ar: "مسح الفريق", en: "Scanned by staff" },
+  "control.method.nfc": { ar: "وسم NFC", en: "NFC tag" },
+  "control.method.screen": { ar: "شاشة المحطة", en: "Station screen" },
+  "control.method.kiosk": { ar: "كشك", en: "Kiosk" },
+  "control.method.manual": { ar: "يدويًا", en: "By hand" },
+  "control.method.app": { ar: "داخل التطبيق", en: "In the app" },
+  "control.quests.empty": { ar: "لا {questMany} بعد.", en: "No {questMany} yet." },
+  "control.quests.done": { ar: "المنجزون: {count} ({rate}%)", en: "Done: {count} ({rate}%)" },
+  "control.quests.rate": { ar: "نسبة الإنجاز", en: "Completion rate" },
+  "control.offline": {
+    ar: "انقطع الاتصال. المعروض من {time}.",
+    en: "Offline. Showing data from {time}.",
+  },
+  "control.loadFailed": {
+    ar: "تعذّر تحميل غرفة التحكم. أعد المحاولة.",
+    en: "The control room did not load. Try again.",
+  },
+  "control.ended": {
+    ar: "انتهت الفعالية. الأرقام للقراءة فقط.",
+    en: "The event has ended. The numbers are read-only.",
+  },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

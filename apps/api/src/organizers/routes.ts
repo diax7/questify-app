@@ -56,6 +56,8 @@ import { registerOperatorRoutes } from "#src/operators/routes";
 import type { QuestCodeKey, RevealCodeKey, StepCodeKey } from "#src/quests/qr";
 import { registerBuilderRoutes } from "#src/quests/routes";
 import type { RewardCodeKey } from "#src/rewards/codes";
+import { createControlReader } from "#src/control/control";
+import { registerControlTeamRoutes } from "#src/control/routes";
 import { registerHeldPrizesTeamRoute } from "#src/rewards/held-prizes";
 import { registerRewardBuilderRoutes } from "#src/rewards/routes";
 import { organizerContextOf } from "#src/organizers/context";
@@ -259,6 +261,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       });
       registerRewardBuilderRoutes(scope, { pool: deps.pool, codeKey: deps.rewardCodeKey });
       registerHeldPrizesTeamRoute(scope, { pool: deps.pool });
+      registerControlTeamRoutes(scope, createControlReader({ pool: deps.pool }));
       registerModerationRoutes(scope, { pool: deps.pool });
       registerAwardRoutes(scope, { pool: deps.pool });
       registerSubmissionTeamRoutes(scope, { pool: deps.pool, ranking: deps.ranking });

@@ -68,7 +68,11 @@ export const AREAS = [
   [/(^|[^a-z])maps?([^a-z]|$)|maps?-?(panel|board|editor|pin|view)/i, ["maps"]],
   [/sponsor/i, ["sponsors"]],
   [/quest-?ratings?|questscore|\/ratings\//i, ["survey-results"]],
-  [/boost|flash/i, ["flash-boosts"]],
+  [/boost|flash/i, ["flash-boosts", "control-room"]],
+  [
+    /control(-?room|-?parts)?(\/|\.|$)|useQuestLiveActions|useReturnFocus|announcement-?sender|useAnnouncementPress/i,
+    ["control-room"],
+  ],
   [/modal/i, ["modal"]],
   [/push/i, ["announcements", "invitations", "push-defaults"]],
   [/ranking-?switch/i, ["events"]],

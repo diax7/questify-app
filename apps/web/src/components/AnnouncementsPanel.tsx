@@ -13,31 +13,24 @@ import { AnnouncementComposer } from "#src/components/AnnouncementComposer.tsx";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { PushDefaultsPanel } from "#src/components/PushDefaultsPanel.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import { isTransientFailure, requestJson } from "#src/lib/post-json.ts";
-import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import { announcementIssueKey } from "#src/lib/announcements.ts";
-import type { Translate } from "#src/lib/language.ts";
+import {
+  useAnnouncementPress,
+  type AnnouncementConfirmation,
+  type Audience,
+} from "#src/components/useAnnouncementPress.ts";
+import { requestJson } from "#src/lib/post-json.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Stack } from "#src/ui/Section.tsx";
 import { infoTip } from "#src/ui/info.tsx";
 
-export type Audience = Readonly<{ members: number; phase: string }>;
 type Loaded = Readonly<{
   rows: AnnouncementView[];
   pending: AnnouncementView[];
   next: string | null;
   audience: Audience;
   zone: string;
-}>;
-export type AnnouncementConfirmation = Readonly<{
-  path: string;
-  body: unknown;
-  title: string;
-  text: string;
-  label: string;
-  success: string;
 }>;
 
 async function readAnnouncements(path: string, cursor: string): Promise<Loaded | undefined> {
@@ -102,45 +95,6 @@ function useAnnouncements(path: string, language: Language) {
     setPages((current) => (next ? [...current, loaded?.next ?? ""] : current.slice(0, -1)));
   };
   return { loaded, problem, setProblem, load, page, paging, hasPrevious: pages.length > 1 };
-}
-
-function announcementFailure(body: unknown, language: Language, t: Translate): string {
-  const details = (body as { details?: { issue?: string } } | undefined)?.details;
-  const issue = details?.issue;
-  if (issue !== undefined && issue.startsWith("sendAt:")) return t(announcementIssueKey(issue));
-  return describeProblem(body, language, t).text;
-}
-
-function useAnnouncementPress(
-  language: Language,
-  reload: () => Promise<void>,
-  failed: (problem: string | undefined) => void,
-) {
-  const [busy, setBusy] = useState(false);
-  const [uncertain, setUncertain] = useState(false);
-  const key = useRef<string | null>(null);
-  const t = useTranslator(language);
-  const send = async (press: AnnouncementConfirmation): Promise<boolean> => {
-    key.current ??= crypto.randomUUID();
-    setBusy(true);
-    failed(undefined);
-    const answer = await requestJson("POST", press.path, press.body, {
-      "Idempotency-Key": key.current,
-    });
-    setBusy(false);
-    const transient = isTransientFailure(answer);
-    setUncertain(transient);
-    if (!transient) key.current = null;
-    if (!answer.ok) {
-      failed(announcementFailure(answer.body, language, t));
-      if (["unauthenticated", "session_expired"].includes(errorCodeOf(answer.body) ?? ""))
-        window.location.assign("/" + language + "/sign-in");
-      return false;
-    }
-    await reload();
-    return true;
-  };
-  return { send, busy, uncertain };
 }
 
 /** The page's title, what it may send, and the last problem and last success. */

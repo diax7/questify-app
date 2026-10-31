@@ -244,15 +244,53 @@ function BoostForm({
 
 type Asking = Readonly<{ kind: "delete" | "stop"; boost: Boost }>;
 
-/**
- * The event's double-point boosts (T-307, FR-252): the list with each one's state and payments, a form to add one or
- * change a scheduled one, Delete until a minute before the start, and Stop while it runs. Owners and editors.
- */
-export function BoostsPanel({ language, organizerId, eventId }: Props) {
+/** The confirmation of Delete or Stop on one boost. */
+function BoostConfirm({
+  language,
+  asking,
+  busy,
+  cancel,
+  confirm,
+}: Readonly<{
+  language: Language;
+  asking: Asking;
+  busy: boolean;
+  cancel: () => void;
+  confirm: () => void;
+}>) {
   const t = useTranslator(language);
-  const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
-  const { timeZone, categories } = useEventChoices(eventApi, language);
-  const { boosts, problem, setProblem, failed, load } = useBoosts(eventApi, language);
+  const label = t(asking.kind === "delete" ? "boosts.page.delete" : "boosts.page.stop");
+  return (
+    <ConfirmDialog
+      language={language}
+      title={label}
+      body={textFor(asking.boost.category, language)}
+      confirmLabel={label}
+      noteLabel={null}
+      busy={busy}
+      cancel={cancel}
+      confirm={confirm}
+    />
+  );
+}
+
+/**
+ * The boost changes the manager makes: the form's draft, the Delete or Stop being asked, and the request each one sends
+ * (a new Idempotency-Key per press). On success the form closes and the list is read again.
+ */
+function useBoostChanges({
+  language,
+  eventApi,
+  timeZone,
+  boosts,
+}: Readonly<{
+  language: Language;
+  eventApi: string;
+  timeZone: string;
+  boosts: ReturnType<typeof useBoosts>;
+}>) {
+  const t = useTranslator(language);
+  const { setProblem, failed, load } = boosts;
   const [draft, setDraft] = useState<BoostDraft | null>(null);
   const [asking, setAsking] = useState<Asking | null>(null);
   const [busy, setBusy] = useState(false);
@@ -305,14 +343,29 @@ export function BoostsPanel({ language, organizerId, eventId }: Props) {
       ? call("DELETE", `/${boost.id}`, undefined, t("boosts.page.deleted"))
       : call("POST", `/${boost.id}/end`, {}, t("boosts.page.stopped")));
   };
+  return { draft, setDraft, asking, setAsking, busy, notice, save, confirm };
+}
+
+/**
+ * The event's double-point boosts without a page around them (T-307, FR-252): the list with each one's state and
+ * payments, a form to add one or change a scheduled one, Delete until a minute before the start, and Stop while it runs.
+ * Owners and editors. The Boosts page and the control room both draw it.
+ */
+export function BoostsManager({ language, organizerId, eventId }: Props) {
+  const t = useTranslator(language);
+  const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
+  const { timeZone, categories } = useEventChoices(eventApi, language);
+  const loaded = useBoosts(eventApi, language);
+  const { boosts, problem } = loaded;
+  const { draft, setDraft, asking, setAsking, busy, notice, save, confirm } = useBoostChanges({
+    language,
+    eventApi,
+    timeZone,
+    boosts: loaded,
+  });
 
   return (
-    <Stack as="section" aria-labelledby="boosts-title">
-      <PageHeader
-        titleId="boosts-title"
-        title={t("boosts.page.title")}
-        info={infoTip(t, "boosts.page.intro")}
-      />
+    <Stack>
       <Muted>{t("boosts.page.lockedNote")}</Muted>
       <Notes
         problem={problem}
@@ -321,12 +374,9 @@ export function BoostsPanel({ language, organizerId, eventId }: Props) {
         language={language}
       />
       {asking === null ? null : (
-        <ConfirmDialog
+        <BoostConfirm
           language={language}
-          title={t(asking.kind === "delete" ? "boosts.page.delete" : "boosts.page.stop")}
-          body={textFor(asking.boost.category, language)}
-          confirmLabel={t(asking.kind === "delete" ? "boosts.page.delete" : "boosts.page.stop")}
-          noteLabel={null}
+          asking={asking}
           busy={busy}
           cancel={() => setAsking(null)}
           confirm={() => void confirm()}
@@ -371,6 +421,21 @@ export function BoostsPanel({ language, organizerId, eventId }: Props) {
           />
         )}
       </>
+    </Stack>
+  );
+}
+
+/** The Boosts page (T-307): its title and the boosts manager. */
+export function BoostsPanel(props: Props) {
+  const t = useTranslator(props.language);
+  return (
+    <Stack as="section" aria-labelledby="boosts-title">
+      <PageHeader
+        titleId="boosts-title"
+        title={t("boosts.page.title")}
+        info={infoTip(t, "boosts.page.intro")}
+      />
+      <BoostsManager {...props} />
     </Stack>
   );
 }
