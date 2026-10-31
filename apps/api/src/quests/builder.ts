@@ -521,12 +521,19 @@ export async function withEvent<T>(
     if (pg.code === "23503" && pg.table === "nfc_tag") {
       return { kind: "tags_in_use" };
     }
-    const refused = firstBonusRefusal(pg) ?? souvenirUseRefusal(pg) ?? liveEditRefusal(pg);
+    const refused = laterRefusal(pg);
     if (refused !== undefined) {
       return refused;
     }
     throw error;
   }
+}
+
+/** The refusals added by later tasks: the first-N bonus (T-313), souvenirs (T-402b) and live points edits (T-604). */
+function laterRefusal(
+  pg: Readonly<{ code?: string; table?: string; detail?: string; hint?: string }>,
+): Refused | undefined {
+  return firstBonusRefusal(pg) ?? souvenirUseRefusal(pg) ?? liveEditRefusal(pg);
 }
 
 /**

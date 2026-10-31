@@ -2,6 +2,7 @@
 
 import { formatNumber, type Language } from "@questify/shared";
 import { useState } from "react";
+import type { Deleting } from "#src/components/QuestBuilderParts.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import type { useQuestBuilder } from "#src/components/useQuestBuilder.ts";
 import { textFor, type QuestView } from "#src/lib/quests.ts";
@@ -204,7 +205,7 @@ export function useLiveEdits({
   language: Language;
   builder: Builder;
   live: boolean;
-  focus: Readonly<{ restore: () => void }>;
+  focus: Readonly<{ remember: () => void; restore: () => void }>;
 }>) {
   const [pointing, setPointing] = useState<Pointing | null>(null);
   const [played, setPlayed] = useState<Played | null>(null);
@@ -276,5 +277,26 @@ export function useLiveEdits({
       )}
     </>
   );
-  return { askPoints, askDelete, dialogs };
+  return {
+    /** Saves a quest edit, asking future or past first when its new points reach played completions. */
+    save: (pending: Omit<Pointing, "impact">) => {
+      void askPoints(pending).then((asked) =>
+        asked
+          ? undefined
+          : builder.send("PATCH", `/quests/${pending.quest.id}`, pending.body, {
+              after: pending.after,
+            }),
+      );
+    },
+    /** Opens the right delete: keep or remove for a played quest, else the builder's own dialog. */
+    remove: (target: Deleting, plain: (target: Deleting) => void) => {
+      focus.remember();
+      if (target.kind === "category") {
+        plain(target);
+        return;
+      }
+      void askDelete(target.quest).then((asked) => (asked ? undefined : plain(target)));
+    },
+    dialogs,
+  };
 }

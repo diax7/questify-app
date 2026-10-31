@@ -67,6 +67,13 @@ function countsOf(value: unknown): ControlCounts | undefined {
   };
 }
 
+/** A count per quest id, or undefined when the value is not that shape. */
+function countsByQuest(value: unknown): Readonly<Record<string, number>> | undefined {
+  return isRecord(value) && Object.values(value).every((count) => typeof count === "number")
+    ? (value as Readonly<Record<string, number>>)
+    : undefined;
+}
+
 /** The room's answer, or undefined when the body is not that shape. */
 export function controlViewOf(body: unknown): ControlView | undefined {
   if (!isRecord(body)) {
@@ -74,25 +81,16 @@ export function controlViewOf(body: unknown): ControlView | undefined {
   }
   const counts = countsOf(body["counts"]);
   const feed = body["feed"];
-  const done = body["done"];
+  const done = countsByQuest(body["done"]);
   if (
     counts === undefined ||
     !Array.isArray(feed) ||
     !feed.every(isFeedItem) ||
-    !isRecord(done) ||
-    !Object.values(done).every((count) => typeof count === "number")
+    done === undefined
   ) {
     return undefined;
   }
-  const behind = body["behind"];
-  const counted =
-    isRecord(behind) && Object.values(behind).every((count) => typeof count === "number");
-  return {
-    counts,
-    feed,
-    done: done as Readonly<Record<string, number>>,
-    behind: counted ? (behind as Readonly<Record<string, number>>) : {},
-  };
+  return { counts, feed, done, behind: countsByQuest(body["behind"]) ?? {} };
 }
 
 /**

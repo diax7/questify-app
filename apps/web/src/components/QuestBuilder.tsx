@@ -93,16 +93,7 @@ export function QuestBuilder({
       focus.remember();
       setEditing({ initial: blankQuest(category.id), key: crypto.randomUUID() });
     },
-    remove: (target) => {
-      focus.remember();
-      if (target.kind === "category") {
-        setDeleting(target);
-        return;
-      }
-      void liveEdits
-        .askDelete(target.quest)
-        .then((asked) => (asked ? undefined : setDeleting(target)));
-    },
+    remove: (target) => liveEdits.remove(target, setDeleting),
   };
 
   const save = (draft: QuestDraft) => {
@@ -127,12 +118,7 @@ export function QuestBuilder({
       closeEditing();
       return;
     }
-    const quest = editing.quest;
-    void liveEdits
-      .askPoints({ quest, body, key: editing.key, after: closeEditing })
-      .then((asked) =>
-        asked ? undefined : b.send("PATCH", `/quests/${quest.id}`, body, { after: closeEditing }),
-      );
+    liveEdits.save({ quest: editing.quest, body, key: editing.key, after: closeEditing });
   };
 
   const addCategory = (event: FormEvent<HTMLFormElement>) => {

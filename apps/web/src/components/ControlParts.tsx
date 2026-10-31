@@ -206,6 +206,62 @@ function QuestStats({
   );
 }
 
+/** A quest's state badges in the room: hidden, pinned for Up next, paused, a skipped step (T-603b). */
+function QuestBadges({
+  language,
+  hidden,
+  pinned,
+  quest,
+}: Readonly<{ language: Language; hidden: boolean; pinned: boolean; quest: QuestView }>) {
+  const t = useTranslator(language);
+  return (
+    <>
+      {hidden ? <Badge tone="warning">{t("quests.hidden")}</Badge> : null}
+      {pinned ? <Badge tone="info">{t("quests.pinned")}</Badge> : null}{" "}
+      {quest.paused === true ? <Badge tone="warning">{t("control.quests.paused")}</Badge> : null}{" "}
+      {quest.skipped === true ? (
+        <Badge tone="info">{t("control.quests.skipped")}</Badge>
+      ) : null}{" "}
+    </>
+  );
+}
+
+/** The pin for Up next and the pause and skip switches of one quest, while the event is open to change. */
+function RowActions({
+  language,
+  quest,
+  pinned,
+  skippable,
+  props,
+}: Readonly<{
+  language: Language;
+  quest: QuestView;
+  pinned: boolean;
+  skippable: boolean;
+  props: QuestsProps;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <>
+      <Button
+        variant="quiet"
+        disabled={props.busy}
+        aria-pressed={pinned}
+        onClick={() => props.pin(quest)}
+      >
+        {t("quests.pin")}
+      </Button>
+      <SwitchButtons
+        language={language}
+        quest={quest}
+        busy={props.busy}
+        skippable={skippable}
+        toggle={props.toggle}
+      />
+    </>
+  );
+}
+
 /**
  * Every quest of the event with its completions and rate (FR-1024), the pin for Up next (FR-1748), and the flash and
  * live poll buttons that a quest of that kind has (FR-1025). Reuses the quest list's own controls and confirmations.
@@ -229,16 +285,12 @@ export function ControlQuests(props: QuestsProps) {
             main={
               <>
                 <strong dir="auto">{textFor(quest.title, language)}</strong>{" "}
-                {quest.visible || poll || flash !== null ? null : (
-                  <Badge tone="warning">{t("quests.hidden")}</Badge>
-                )}
-                {pinned ? <Badge tone="info">{t("quests.pinned")}</Badge> : null}{" "}
-                {quest.paused === true ? (
-                  <Badge tone="warning">{t("control.quests.paused")}</Badge>
-                ) : null}{" "}
-                {quest.skipped === true ? (
-                  <Badge tone="info">{t("control.quests.skipped")}</Badge>
-                ) : null}{" "}
+                <QuestBadges
+                  language={language}
+                  hidden={!quest.visible && !poll && flash === null}
+                  pinned={pinned}
+                  quest={quest}
+                />
                 <QuestStats
                   language={language}
                   quest={quest}
@@ -267,23 +319,13 @@ export function ControlQuests(props: QuestsProps) {
             }
           >
             {props.readOnly ? null : (
-              <>
-                <Button
-                  variant="quiet"
-                  disabled={busy}
-                  aria-pressed={pinned}
-                  onClick={() => props.pin(quest)}
-                >
-                  {t("quests.pin")}
-                </Button>
-                <SwitchButtons
-                  language={language}
-                  quest={quest}
-                  busy={busy}
-                  skippable={props.inOrder.has(quest.categoryId) && quest.flash !== true && !poll}
-                  toggle={props.toggle}
-                />
-              </>
+              <RowActions
+                language={language}
+                quest={quest}
+                pinned={pinned}
+                skippable={props.inOrder.has(quest.categoryId) && quest.flash !== true && !poll}
+                props={props}
+              />
             )}
           </Row>
         );

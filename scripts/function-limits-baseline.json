@@ -233,7 +233,7 @@
       "complexity": [55]
     },
     "withEvent": {
-      "complexity": [24]
+      "complexity": [23]
     }
   },
   "apps/api/src/quests/categories.ts": {
@@ -616,9 +616,6 @@
     },
     "outcomeText": {
       "complexity": [19]
-    },
-    "stateLine": {
-      "complexity": [9]
     }
   },
   "apps/app/src/event/QuizEntry.tsx": {
@@ -1075,7 +1072,7 @@
   "apps/web/src/components/QuestBuilder.tsx": {
     "QuestBuilder": {
       "complexity": [27],
-      "lines": [225]
+      "lines": [224]
     }
   },
   "apps/web/src/components/QuestBuilderParts.tsx": {

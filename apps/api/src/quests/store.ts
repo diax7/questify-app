@@ -422,13 +422,19 @@ export async function moveQuests(db: PoolClient, from: string, to: string): Prom
   return rowCount ?? 0;
 }
 
-/** Whether the category holds a quest deleted after real players completed it (T-604): it then stays. */
-export async function holdsDeleted(db: PoolClient, categoryId: string): Promise<boolean> {
+/**
+ * Who played the category: a quest of it deleted after real players completed it (T-604) counts as `real`, so the
+ * category stays; else its bonus entries decide (`bonusesOf`).
+ */
+export async function playedCategory(
+  db: PoolClient,
+  categoryId: string,
+): Promise<"none" | "rehearsal" | "real"> {
   const { rowCount } = await db.query(
     "SELECT 1 FROM quest WHERE category_id = $1 AND deleted_at IS NOT NULL LIMIT 1",
     [categoryId],
   );
-  return rowCount === 1;
+  return rowCount === 1 ? "real" : bonusesOf(db, categoryId);
 }
 
 /** Deletes every quest of a category, passport steps first. Returns their ids, for the audit entry. */

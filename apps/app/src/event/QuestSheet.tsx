@@ -58,24 +58,22 @@ export function stateLine(quest: Pick<Quest, "type" | "state" | "lock">): Messag
   if (!isQuestType(quest.type)) {
     return "questsTab.unknown";
   }
-  switch (quest.state) {
-    case "done":
-      return "questsTab.done";
-    case "not_live":
-      return "questsTab.notLive";
-    case "paused":
-      return "questsTab.paused";
-    case "locked":
-      return quest.lock === null ? "questsTab.locked" : LOCK_TEXT[quest.lock];
-    case "closed":
-      return "questsTab.closed";
-    case "not_yet":
-    case "open":
-      return null;
-    default:
-      return "questsTab.unknown";
+  if (quest.state === "locked") {
+    return quest.lock === null ? "questsTab.locked" : LOCK_TEXT[quest.lock];
   }
+  if (quest.state === "not_yet" || quest.state === "open") {
+    return null;
+  }
+  return STATE_TEXT[quest.state] ?? "questsTab.unknown";
 }
+
+/** The line of each state that is not locked, open or about to open; a state this build does not know has none. */
+const STATE_TEXT: Readonly<Record<string, MessageKey>> = {
+  done: "questsTab.done",
+  not_live: "questsTab.notLive",
+  paused: "questsTab.paused",
+  closed: "questsTab.closed",
+};
 
 const NOT_OPEN_TEXT: Readonly<Record<NotOpenReason, MessageKey>> = {
   event_not_live: "questsTab.notOpen.eventNotLive",

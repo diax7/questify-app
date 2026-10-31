@@ -193,9 +193,16 @@ export type QuestState = "done" | "not_live" | "paused" | "locked" | "not_yet" |
 /**
  * Where a quest stands for this player now, the one rule for Home's Up next and the Quests tab: finished first, then
  * the event not live, then a pause by the organizer (T-603b), then its category's lock (T-304), then the quest's
- * window (open from `opensAt`, closed at
- * `closesAt`). `now` is the database's.
+ * window (open from `opensAt`, closed at `closesAt`). `now` is the database's.
  */
+/** Paused by the organizer (T-603b) first, then shut by its category (T-304); null when neither holds it. */
+const heldState = (quest: MemberQuest): "paused" | "locked" | null => {
+  if (quest.paused) {
+    return "paused";
+  }
+  return quest.lock === null ? null : "locked";
+};
+
 export function questState(quest: MemberQuest, statusNow: EventStatusNow, now: Date): QuestState {
   if (finished(quest)) {
     return "done";
@@ -203,11 +210,9 @@ export function questState(quest: MemberQuest, statusNow: EventStatusNow, now: D
   if (statusNow !== "live") {
     return "not_live";
   }
-  if (quest.paused) {
-    return "paused";
-  }
-  if (quest.lock !== null) {
-    return "locked";
+  const held = heldState(quest);
+  if (held !== null) {
+    return held;
   }
   if (quest.opensAt !== null && quest.opensAt > now) {
     return "not_yet";

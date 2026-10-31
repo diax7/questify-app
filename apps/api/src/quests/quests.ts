@@ -68,18 +68,78 @@ async function pointsChoice(
   key: string | undefined,
 ): Promise<"future" | "past" | Refused> {
   if (input.apply === "past") {
-    if (!PAST_POINTS_TYPES.includes(current.type)) {
-      return { kind: "invalid", field: "apply" };
-    }
-    return key === undefined ? { kind: "key_required" } : "past";
+    return pastAllowed(current, key);
   }
   const changing = input.points !== undefined && input.points !== current.points;
-  if (input.apply === undefined && changing && live) {
-    if ((await completionsOf(client, { questId: current.id })) === "real") {
-      return { kind: "apply_required" };
-    }
+  if (input.apply !== undefined || !changing || !live) {
+    return "future";
   }
-  return "future";
+  return (await completionsOf(client, { questId: current.id })) === "real"
+    ? { kind: "apply_required" }
+    : "future";
+}
+
+/** "Also past" only on a type paid the quest's points per completion, and with a key. */
+function pastAllowed(current: QuestRecord, key: string | undefined): "past" | Refused {
+  if (!PAST_POINTS_TYPES.includes(current.type)) {
+    return { kind: "invalid", field: "apply" };
+  }
+  return key === undefined ? { kind: "key_required" } : "past";
+}
+
+type EditTarget = Target & Readonly<{ key?: string | undefined }>;
+
+/**
+ * The gate before the write: the first-N bonus's or the points choice's refusal, or a replayed "also past" answer, to
+ * return at once; else which points choice the edit runs. A key already used for this quest at these points answers its first result and writes nothing.
+ */
+async function pointsGate(
+  client: PoolClient,
+  live: boolean,
+  current: QuestRecord,
+  input: QuestInput & PointsApply,
+  edit: Readonly<{ target: EditTarget; caller: Caller }>,
+): Promise<Done<EditedQuest> | "future" | "past"> {
+  const bonus = bonusRefusal(input.firstBonus);
+  if (bonus !== undefined) {
+    return bonus;
+  }
+  const choice = await pointsChoice(client, live, current, input, edit.target.key);
+  if (typeof choice !== "string" || choice === "future") {
+    return choice;
+  }
+  const earlier = await pastReplay(client, {
+    eventId: edit.target.eventId,
+    questId: current.id,
+    points: input.points ?? current.points,
+    key: edit.target.key ?? "",
+  });
+  if (earlier === undefined) {
+    return "past";
+  }
+  if (earlier.kind === "other") {
+    return { kind: "key_reused" };
+  }
+  const quest = await savedWithBonus(client, current, undefined, edit.caller);
+  return done({ quest, change: earlier.change });
+}
+
+/** Runs "also past" after the write, or nothing for a future-only edit. */
+function pastAfterWrite(
+  client: PoolClient,
+  choice: "future" | "past",
+  current: QuestRecord,
+  edit: Readonly<{ target: EditTarget; caller: Caller }>,
+): Promise<PastChange | null> {
+  return choice === "future"
+    ? Promise.resolve(null)
+    : applyPast(client, {
+        eventId: edit.target.eventId,
+        questId: current.id,
+        fromPoints: current.points,
+        key: edit.target.key ?? "",
+        requestId: edit.caller.requestId ?? "",
+      });
 }
 
 /** The input's bonus problem as the builder's refusal, or undefined when there is none or nothing to change. */
@@ -198,7 +258,7 @@ export function createQuest(
 export function updateQuest(
   deps: BuilderDeps,
   actor: Actor,
-  target: Target & Readonly<{ key?: string | undefined }>,
+  target: EditTarget,
   input: QuestInput & Change & PointsApply,
   caller: Caller,
 ): Promise<Done<EditedQuest>> {
@@ -207,36 +267,12 @@ export function updateQuest(
     if (current === undefined) {
       return { kind: "not_found" };
     }
-    const bonus = bonusRefusal(input.firstBonus);
-    if (bonus !== undefined) {
-      return bonus;
-    }
-    const choice = await pointsChoice(
-      client,
-      event.statusNow === "live",
-      current,
-      input,
-      target.key,
-    );
+    const choice = await pointsGate(client, event.statusNow === "live", current, input, {
+      target,
+      caller,
+    });
     if (typeof choice !== "string") {
       return choice;
-    }
-    const points = input.points ?? current.points;
-    const key = target.key ?? "";
-    if (choice === "past") {
-      const earlier = await pastReplay(client, {
-        eventId: target.eventId,
-        questId: current.id,
-        points,
-        key,
-      });
-      if (earlier?.kind === "other") {
-        return { kind: "key_reused" };
-      }
-      if (earlier?.kind === "same") {
-        const quest = await savedWithBonus(client, current, undefined, caller);
-        return done({ quest, change: earlier.change });
-      }
     }
     const taken =
       input.categoryId === undefined
@@ -270,16 +306,7 @@ export function updateQuest(
         ...diff,
       });
     }
-    const change =
-      choice === "past"
-        ? await applyPast(client, {
-            eventId: target.eventId,
-            questId: current.id,
-            fromPoints: current.points,
-            key,
-            requestId: caller.requestId ?? "",
-          })
-        : null;
+    const change = await pastAfterWrite(client, choice, current, { target, caller });
     return done({ quest: await savedWithBonus(client, updated, input.firstBonus, caller), change });
   });
 }
