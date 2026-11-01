@@ -6044,7 +6044,7 @@ surveys on this page (their results page exists, T-508), the change log link, a 
 
 ## ADR-393 - T-608 exports, sponsor totals and the one-page report: server-built audited files, a floor of five for anything made for a sponsor, the browser prints the PDF
 
-**Status:** Proposed (developer, delegated by Dhia, 2026-10-31; Q-360).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-01; T-608 review 83, its three MAJORs fixed in 241843b; Q-360).
 **Decision:** (1) **Files are built on the server and every one is audited, one at a time per event, and a staff member starts at most 30 in 10 minutes (429, no audit entry; in-process state)** (migration 0103, read-only definer doors, PUBLIC without
 EXECUTE, granted to the API's role alone, each behind `award_event_of`, AN404 for anyone but the event's own team): `POST
 …/events/{id}/exports/{players|completions|redemptions|submissions|surveys|sponsor}` calls `export_start`, which writes the audit

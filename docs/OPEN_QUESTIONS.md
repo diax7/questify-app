@@ -1699,4 +1699,4 @@ sees no player, but a small event may never reach 5 on a quest)? (b) Should the 
 one sponsor's quests (a named list of who completed them), or is totals-only enough (FR-1626 reads as totals-only)? (c) Is a period
 filter (today, last 7 days) wanted, given a file carries times? (d) The event logo on the report waits for the storage bucket
 (Q-149): is the event's name enough until then? (e) Should the spreadsheet headers use an event's renamed words ("Mission" for
-"Quest")? (f) Not run on a phone or in a PDF reader: the page was printed to PDF in a headless browser and counted as one page.
+"Quest")? (f) Not run on a phone or in a PDF reader: the page was printed to PDF in a headless browser and counted as one page. **Decided (developer, delegated by Dhia, 2026-11-01):** as built; (e) no, Questify's own words in the files for now. ADR-393 accepted.
