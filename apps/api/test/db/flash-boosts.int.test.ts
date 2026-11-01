@@ -2190,7 +2190,7 @@ const PAYER_MAP: Readonly<Record<string, string>> = {
   write_removal: "never: copies the reversed entry's boost (removal test)",
   apply_past_points:
     "never: an adjust names no boost; its target uses the quest entry's boost (T-604)",
-  reserve_reward: "never: a spend",
+  spend_reward: "never: a spend, from reserve_reward or a desk sale's Pay (T-612)",
   end_reservation: "never: a spend returned",
   finish_handover: "never: a hand-over",
 };

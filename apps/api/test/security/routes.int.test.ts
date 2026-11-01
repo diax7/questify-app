@@ -647,6 +647,18 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/redemptions/:redemptionId/decline":
     "only the bearer's own reservation (test/desk/routes, test/desk/desk)",
   "GET /v1/me/desk-items": "only the bearer's own reservations (test/desk/routes, test/desk/desk)",
+  "POST /v1/operator/desk/sale-rewards":
+    "only an operator of the body's event with the hand-over ability, for the player of the verified My QR; never their balance (test/desk/sale-routes, test/desk/desk-sale)",
+  "POST /v1/operator/desk/sales":
+    "only an operator of the body's event with the hand-over ability, never to themself; an offer writes no points (test/desk/sale-routes, test/desk/desk-sale)",
+  "GET /v1/operator/desk/sales/:saleId":
+    "only an operator of the sale's event; another organizer's sale answers 404 (test/desk/sale-routes, test/desk/desk-sale)",
+  "POST /v1/operator/desk/sales/:saleId/withdraw":
+    "only an operator of the sale's event with the hand-over ability (test/desk/sale-routes, test/desk/desk-sale)",
+  "POST /v1/desk-sales/:saleId/accept":
+    "only the bearer's own sale, through accept_desk_sale bound to the session; every shop gate again under the locks (test/desk/sale-routes, test/desk/desk-sale)",
+  "POST /v1/desk-sales/:saleId/decline":
+    "only the bearer's own sale; another's answers 404 (test/desk/sale-routes, test/desk/desk-sale)",
   "POST /v1/operator/events/:eventId/desk/find":
     "only an operator of that event with the hand-over ability; exact username or phone among that event's members (never removed ones, never the caller); a ban reads like a flag; 30 finds per operator in 10 minutes; the search never reaches the log (test/desk/routes, test/db/flags, test/flags/routes)",
   "GET /v1/organizers/:organizerId/events/:eventId/flags":
