@@ -982,6 +982,10 @@ Primary action: **Open event usage** (read-only screen otherwise).
 
 **Computer:** totals across the top, a table by event below.
 
+**Built (T-609, ADR-394):** `/console/usage` lists the 100 organizers created last, each card with its events, players, invitations
+sent and alert emails sent, and "Show events" opens that organizer's events with the same figures. No period picker, no platform totals and
+no login SMS, promotional email, push or storage rows yet: nothing durable counts them (Q-361).
+
 ### 4.7 Support contact editor
 
 Primary action: **Save contact details**.

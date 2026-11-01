@@ -1319,10 +1319,10 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1724 | F-249 | Should | pending |
 | FR-1725 | F-250 | Must | pending |
 | FR-1726 | F-252 | Must | pending |
-| FR-1727 | F-253 | Should | partly built (T-503: the switches, outbox, sender and five of the seven sources; mail stays OFF per ADR-360; `content_unpublished` waits for T-701): `test/db/organizer-alerts.int`, `test/organizer-alerts/routes.int` |
+| FR-1727 | F-253 | Should | partly built (T-503 and T-609: the switches, outbox, sender and six of the seven types, quest-item stock included; mail stays OFF per ADR-360; `content_unpublished` waits for T-701): `test/db/organizer-alerts.int`, `test/organizer-alerts/routes.int` |
 | FR-1728 | F-254 | Must | pending |
 | FR-1729 | F-257 | Must | pending |
-| FR-1730 | F-258 | Should | pending |
+| FR-1730 | F-258 | Should | partly built (T-609, ADR-394: the console's Usage page shows events, players, invitations sent and alert emails sent per organizer and per event; login SMS, promotional email, push volume and storage are not metered yet, Q-361): `test/db/usage.int`, `src/usage/routes.test`, `e2e/console-usage.spec` |
 | FR-1731 | F-259 | Must | pending |
 | FR-1732 | F-260 | Must | pending |
 | FR-1733 | F-261, F-137 | Should | built: server T-406 (`test/db/daily-content.int`: the warning at 6 vs 7 days, no challenge → `challenge: null`, the streak still kept by an event completion); the console banner and the menu badge built T-406c (`e2e/console-daily.spec.ts`, `console-daily.test`) |

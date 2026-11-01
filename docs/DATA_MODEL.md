@@ -1331,7 +1331,7 @@ rows or push text.
 | event_limit_alert | The 80% and 100% player-limit marks reached, once per limit (T-210). Written only by the limit trigger and `set_event_player_limit` | No |
 | wallet_pass, wallet_registration | Serial, auth token, device registrations for pass updates | Linked to player |
 | word_list, deletion_request, data_request | Username filter lists; legal requests and what was done | Requests yes |
-| usage_counter | Per-event SMS, push and player counts for the usage view (ADR-076) | No |
+| usage_counter | Per-event SMS, push and player counts for the usage view (ADR-076). **Not built:** T-609's usage view counts from existing rows (see "T-609" under the T-503 section); a counter table waits for SMS and push metering (Q-361) | No |
 | event_join_field, join_answer, event_guest (built, T-212, migration 0028) | Up to 5 join fields per event; each member's answers (**PII**, written only by the join definers, read by the event's team, the player and admins; a deleted field takes its answers); guest-list phones and emails (at most 10 000, unique per event). `event` gains `join_fields_version`, `guest_list_only`, `email_domains` (≤ 10) and `welcome_points`; the `welcome` ledger kind (one per enrollment, actor `system`) | Yes (answers, guest list) |
 | poll, poll_vote, survey_question, quest_rating | Live polls and their options, one vote per player, survey questions, optional quest ratings | Votes and answers yes |
 | community_quest, milestone | Shared goals with measure, milestones, rewards | Built (T-306b: `community_goal`, `community_step`) |
@@ -1435,6 +1435,18 @@ composite FK to the event (cascade); written by `alert_enqueue` from four trigge
 low crossing, `console.ticket_read` audit rows) and the flag scan; moved only by the system-only `alert_claim`, `alert_ack`,
 `alert_settle`. Forced RLS and no grant on all three tables; every function closed to PUBLIC, only the eight doors granted to
 the API role.
+
+### T-609: the claim, the quest-item stock source and the usage doors (migration 0104; no table)
+
+`alert_claim` (restated, same arguments and result) first skips the unsendable rows among the 500 oldest queued ones, each with its
+reason (`staff`, `member`, `scope`, `switch`), then leases up to `size` rows that pass `alert_skip_reason` wherever they lie in the queue,
+so an empty answer means no sendable row is waiting (0082 picked the first rows and checked them after, so a batch of rows to skip
+ended the sender's run). `alert_on_item_low` (AFTER UPDATE OF `stock_total`, `units_out`, `status` on `quest_item`, with the reward
+rule in its WHEN clause: a crossing into at most max(1, 10% of the total, rounded up) left with a total above 0; a live or ended event
+only) calls `alert_enqueue` with type `stock_low` and the marker `item:{id}:{transaction}`. `usage_organizers()` and `usage_events(organizer)`
+are read-only definer doors for a platform admin (`app_admin_id()`, US404 for anyone else and for an unknown organizer), granted to the
+API's role alone: counts of events, players (enrollments not pending or declined and not rehearsal accounts), invitations sent
+(`invitation_campaign.sent`) and alert emails sent (`organizer_alert` in state `sent`, kept 30 days). No counter table, no index, no write.
 
 
 ## Agenda and sessions (T-505, migration 0086; Proposed ADR-373)

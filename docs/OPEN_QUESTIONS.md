@@ -1700,3 +1700,12 @@ one sponsor's quests (a named list of who completed them), or is totals-only eno
 filter (today, last 7 days) wanted, given a file carries times? (d) The event logo on the report waits for the storage bucket
 (Q-149): is the event's name enough until then? (e) Should the spreadsheet headers use an event's renamed words ("Mission" for
 "Quest")? (f) Not run on a phone or in a PDF reader: the page was printed to PDF in a headless browser and counted as one page. **Decided (developer, delegated by Dhia, 2026-11-01):** as built; (e) no, Questify's own words in the files for now. ADR-393 accepted.
+
+## Q-361 - T-609 usage view: what is counted now, and who counts login SMS, promotional email, push and storage (2026-11-01)
+
+**Recommended (developer, ADR-394):** the console's Usage page counts what the platform already records (events, players, invitations sent, alert
+emails sent) per organizer and per event; the claim fix, the quest-item stock source and no real mail are as ADR-394 says. **Open:** FR-1730 also asks for
+login SMS, promotional email, push volume and storage. Each needs a durable count with a producer: a per-day counter written by the player sign-in (tier A), by
+the invitation sender and by the push worker, and a storage figure once photo uploads exist (Q-149, parked). Recommended: add one `usage_day` table
+(event, day, metric, count) and let each of those three producers add a count in its own task (T-703 holds the console's other platform tuning), and keep the page
+as it is until then. Not asked of Dhia: no product direction changes.

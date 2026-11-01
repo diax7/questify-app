@@ -6088,3 +6088,25 @@ it unscanned), and every file carries its times for a spreadsheet to filter.
 what is made for one carries a floor; the browser already prints well, so a PDF library would be a dependency for nothing.
 **Trade-offs / not built:** period filter, the event's logo, souvenirs in the sponsor totals (T-507c), the event's renamed words in
 the headers, a per-sponsor PDF.
+
+## ADR-394 - T-609 organizer alerts, second part: a claim that reaches sendable rows, quest-item stock, and a usage view over existing rows
+
+**Status:** Proposed (developer, T-609 build; Q-361).
+**Decision:** (1) **Reuse, add nothing parallel.** The switches, outbox, worker, team-page panel and OFF transport of T-503 (ADR-360,
+ADR-363) are unchanged: no second sender, store or switch UI, and no real mail (the transport stays unset; every queued row is still
+skipped as `transport_off`). The `stock_low` wording names rewards and quest items. (2) **The claim fixes the sender bug.** Migration 0104 restates
+`alert_claim`: a call first skips the unsendable rows among the 500 oldest queued ones with their reasons, then leases up to `size`
+rows that pass `alert_skip_reason` from anywhere in the queue, so an empty answer means no sendable row is waiting and the worker's
+existing loop (bounded by 10 rounds of 5) reaches every sendable row instead of ending on a batch of rows to skip. The test that ran twice
+for a flaky order runs once. (3) **Quest-item stock is a `stock_low` source.** `quest_item` gets the reward rule (a crossing into at
+most max(1, 10% of the total, rounded up) left, total above 0, active item, live or ended event); recovery rearms, a total change alone
+does not reopen an episode. Rank prizes have no quantity and stay out. `content_unpublished` still has no source and stays with T-701, so FR-1727
+stays "partly built". (4) **The usage view is a read of rows that exist.** `GET /v1/admin/usage` and `…/usage/organizers/{id}` (two definer
+doors, platform admin only, counts only, not audited) show events, players, invitations sent and alert emails sent per organizer (the 100
+created last) and per event (the 200 latest); the console's Usage page (`/console/usage`) shows them, an organizer's events when its card opens.
+**Not built:** login SMS, promotional email, push volume and storage (FR-1730): no durable count of them exists, and one needs a producer in the
+sign-in, the invitation sender and the push worker (Q-361); a period filter; platform-wide totals (they would count every enrollment).
+**Why:** the smallest change that closes the sender bug, finishes the source T-503 listed as owed, and gives the console a usage page now,
+without a counter table written from hot paths or a change to sign-in.
+**Trade-offs:** an organizer's players are counted on every read of the list (an index probe per event; 100 organizers at most); alert emails
+cover the outbox's 30 days; FR-1730 stays "partly built".

@@ -38,6 +38,21 @@
   app render test for `eventOff` was dropped (the app has no render-test harness, and a harness is not worth adding for
   one line).
 
+## T-609 organizer alerts, second part, and the usage view — 2026-11-01
+
+- **T-609 done (tier B; one code review owed; not run on a phone). Migration 0104 (new, undeployed; staging runs through 0102, 0103 pushed).**
+  **Built (FR-1727, FR-1730 in part, ADR-394):** `alert_claim` restated so a batch made only of rows to skip no longer ends the sender's run
+  (it skips the unsendable rows among the 500 oldest queued ones with their reasons, then leases up to `size` sendable rows from anywhere in the queue; a
+  backlog of 620 ex-member rows ahead of two sendable ones sent 0 before and sends 2 in one run now; the test that ran twice for the old flake runs once
+  and the FOLLOWUPS line is deleted). Quest-item stock is a `stock_low` source (`quest_item_alert_low`: the reward rule, live or ended events only,
+  recovery rearms); the stock wording names rewards and quest items. The console's **Usage** page (`/console/usage`, navigation item, `LAYOUT_PAGES`)
+  over two read-only admin doors (`usage_organizers`, `usage_events`; `GET /v1/admin/usage`, `…/usage/organizers/{id}`): events, players, invitations
+  sent and alert emails sent per organizer (100 latest) and per event (200 latest); counts only, not audited; no table, index or hot-path write. Nothing new
+  for sending: no second sender, store or switch UI, the transport stays unset (mail OFF). **Not built:** `content_unpublished` (T-701; note added there,
+  FR-1727 stays "partly built"); login SMS, promotional email, push volume and storage (no durable count exists; Q-361), a period filter, platform totals.
+  ADR-394 and Q-361 Proposed. Mutation targets: none (tier B). **Local:** full vitest ONCE: 9993 passed, 15 skipped, 1 failed (`words.test.ts`: the new stock wording hard-coded "quest"; fixed, and that file with two others re-run once: 18 passed). Full browser suite after a fresh web build, single worker: 300 passed, 5 skipped, 1 failed (27.1 min; `submissions.spec` on the phone, the Arabic page heading not found with a Playwright `querySelectorAll` of undefined during navigation, on a page this task did not touch; not re-run). The new `console-usage.spec` passed in desktop and phone. tsc (api, web), oxlint, format and function limits clean. CI minutes none; agent tokens roughly 0.35M (estimate).
+  **Next:** the next unchecked task in `docs/TASKS.md` (T-610).
+
 ## T-608 exports, sponsor totals and the report — 2026-10-31
 
 - **T-608 done (tier B; one code review owed; not run on a phone or in a PDF reader). Migration 0103 (new, undeployed; staging runs through 0101).**
@@ -62,7 +77,7 @@
   the report and prints it to a PDF of one page, in both projects). tsc (api, web, shared), oxlint, format and function limits clean (the
   `Sheet`, `fileOf` and `AnalyticsPage` splits kept no new offender); `expo export` not run (no app screen changed). CI minutes none yet; agent
   tokens roughly 0.65M (estimate).
-  **Next:** the next unchecked task in `docs/TASKS.md` (T-609).
+  **Next:** T-609, done above; then the next unchecked task in `docs/TASKS.md`.
 
 ## T-607 analytics — 2026-10-31
 
