@@ -1765,3 +1765,11 @@ notice, because the organizer's staff already receive the full-name answer; (c) 
 recorded in `enrollment.name_notice`; (d) a duplicated event starts on usernames; (e) the session check-in's result screen does not show the
 full name yet; (f) counsel's answer on Q-080 can still narrow this (for example, no "both" for everyone); the default is usernames, so
 nothing is shown until an owner chooses.
+
+## Q-368 - T-616 owner Inbox: what is decided without Dhia (2026-11-02)
+
+**Recommended (developer, ADR-401):** (a) the Inbox counts and links; the actions (Reply, Solved, Escalate, Ban) stay on the Help desk and Players pages;
+(b) reported players are the Help desk's `report_player` requests and prize problems its `prize` requests (Q-209); (c) reported content is T-705's
+moderation queue (Q-219), so the event team sees no content list yet; (d) the page shows no full name and no contact detail, only what the Help desk
+and Players pages already show; (e) it does not poll. Questions for Dhia: should the event team also see reports of a quest, text or image (FR-1411) in its
+own Inbox once T-705 exists, or only Questify's moderators?

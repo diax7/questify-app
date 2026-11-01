@@ -48,7 +48,7 @@ export function ControlCounters({
       key: "inbox",
       label: "control.inbox",
       count: counts.inbox,
-      page: "help",
+      page: "inbox",
       needsYou: counts.inbox > 0,
     },
     {

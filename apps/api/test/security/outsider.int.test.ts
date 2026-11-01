@@ -407,6 +407,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     }
   });
 
+  it("grants only the inbox count to the API's role, and nothing to the public (T-616)", async () => {
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      public: boolean;
+      definer: boolean;
+      settings: string[] | null;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        has_function_privilege('public', p.oid, 'EXECUTE') AS public,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname = 'event_inbox'`,
+    );
+    expect(functions).toHaveLength(1);
+    const [row] = functions;
+    expect(row?.app).toBe(true);
+    expect(row?.outsider).toBe(false);
+    expect(row?.public).toBe(false);
+    expect(row?.definer).toBe(true);
+    expect(row?.settings).toEqual(["search_path=public, pg_temp"]);
+    await expect(db.outsider.query("SELECT public.event_inbox(gen_random_uuid())")).rejects.toThrow(
+      /permission denied/,
+    );
+  });
+
   it("grants only the analytics' four reads to the API's role, and nothing to the public (T-607, T-608)", async () => {
     const doors = [
       "analytics_economy",

@@ -1417,7 +1417,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1822 | F-324 | Must | built (T-312, 2026-10-25) |
 | FR-1823 | F-325 | Must | built (T-312, 2026-10-25; "take over" = Questify answers a ticket in its queue, Q-218) |
 | FR-1824 | F-326 | Should | built (T-312: My tickets; T-312b merged into T-501c: Profile → Notifications opens the center, every message newest first, read and unread; phone check owed) |
-| FR-1825 | F-327 | Must | pending |
+| FR-1825 | F-327 | Must | built T-616 (ADR-401; reported content waits for T-705, Q-368): `test/db/event-inbox.int`, `test/inbox/routes.int`, `test/security/*` (outsider, cross-tenant, route map), `apps/web/src/lib/inbox.test.ts`, `apps/web/e2e/inbox.spec.ts` (counts by kind equal the Help desk's list, Accept all), `join-requests.spec.ts` |
 | FR-1826 | F-328 | Must | pending |
 | FR-1827 | F-329 | Must | pending |
 | FR-1828 | F-330 | Should | partial (T-610: text cards, quick links, the podium and the featured quest or reward; `test/events/layout.int`, `packages/shared/src/layout/home-content.test.ts`; pictures wait for Q-149) |

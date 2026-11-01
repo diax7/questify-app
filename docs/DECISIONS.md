@@ -6304,3 +6304,25 @@ cannot say what the owner now shows, so both must hold and both are checked wher
 **Trade-offs:** an owner who joined players on usernames cannot later show full names to all without those players leaving and rejoining;
 the check costs one extra read per ranking read for events that show names (none otherwise); the staff view of a name needs no notice, a
 judgment counsel should confirm. The full name is free text the player typed (200 characters at most, and only 60 are shown to other players); unlike a username it is not filtered, so an owner who shows it to everyone relies on removing a player who abuses it.
+
+## ADR-401 - T-616 owner Inbox: one counts read, the lists are the existing pages' own
+
+**Status:** Proposed (developer, delegated by Dhia, 2026-11-02); Q-368. Specifies FR-1825; the control room's Inbox counter (ADR-385) links here.
+**Decision:** (1) **One page, no new store.** The Inbox (`…/events/{id}/inbox`, Run group, owner and editor within their event limit) composes the Help desk,
+Submissions, Flagged activity and the join requests; a ticket, a flag or a request is still stored once, where it was. (2) **One new read.**
+`event_inbox(event)` (migration 0110) answers counts only: the open requests of the event's queue by kind (question, problem, prize,
+report_player; the Help desk's Open tab, so a count and its filtered list always match), the open ones Questify holds, the pending join requests
+(rehearsal accounts left out, as `pending_join_requests`) with whether the event is private, the submissions waiting, the open flags. It opens with
+`award_event_of` (AN404), PUBLIC holds no EXECUTE, the API checks the answer against a strict schema. Two partial indexes
+(`ticket_event_open_idx`, `flag_event_open_idx`) make every count an index scan; measured on a 50,000-player event, the read takes 13 to 17 ms and is
+not cached. (3) **Reported players and prize problems** are the Help desk's kinds `report_player` and `prize` (ADR-256, Q-209): a card lists the five
+oldest open requests through the Help desk's own read and links to it for more and for the actions (Reply, Solved, Escalate), which are not repeated
+here. (4) **Reported content** (a quest, text or image reported by a player) reaches Questify's moderation queue, not the event team (ADR-256, Q-219; T-705),
+so the Inbox has no content list yet; a problem with a quest is the Problems count. (5) **Personal data** is what the owner already reads on those pages:
+@usernames, the request's text cut to one line, the time. The page adds no read of a full name (ADR-400) or of a contact detail. (6) **The join queue**
+is the existing panel as a card (Accept, Decline, Accept all), shown for a private event or while requests wait, and kept for the visit once shown, so
+the result of Accept all stays on screen. (7) **Links:** a count opens the Help desk on a tab and kind from its address (`?status=open&kind=prize`,
+`?status=with_questify`), Submissions (pending is its first filter), Flagged activity (open is its first filter) or the join card.
+**Why:** the smallest build that meets FR-1825 with no second store and no new write path.
+**Trade-offs:** the cards read five requests each beside the counts (two more calls when something waits); the page does not poll (the control room does);
+reported content waits for T-705.

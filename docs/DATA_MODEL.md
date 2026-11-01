@@ -1541,6 +1541,16 @@ API's role alone: counts of events, players (enrollments not pending or declined
   `control_done(event)`: per quest, the players with a first completion (`occurrence = 1`); the one read that walks them all, so the API keeps
   its answer 30 seconds per event.
 
+## The owner's Inbox (T-616, migration 0110; Proposed ADR-401)
+
+- No table. Two partial indexes: `ticket_event_open_idx (event_id, queue, kind) WHERE status = 'open'` (every ticket count of an event is one
+  index-only walk of its open requests, in either queue) and `flag_event_open_idx (event_id) WHERE status = 'open'`.
+- One read-only door, `event_inbox(event)`, `SECURITY DEFINER`, `STABLE`, `search_path = public, pg_temp`, opening with `award_event_of` (AN404 for
+  another organizer's team, a player, no context, an unknown event, or an editor outside their event limit). PUBLIC holds no EXECUTE; the API role
+  does. It returns jsonb of counts only: open event-queue tickets by kind (`question`, `problem`, `prize`, `report_player`), open tickets in the
+  Questify queue (`withQuestify`), pending non-rehearsal enrollments (`joinRequests.pending`) and `joinRequests.private` (`event.access = 'private'`),
+  pending submissions, open flags. Measured on a 50,000-player event: 13 to 17 ms warm, every count an index scan.
+
 ### event_setup (T-605)
 **Built (migration 0100; ADR-390):** `event_setup (event_id PK, organizer_id, current_step smallint 1 to 10, steps text of ten
 letters n|d|s, finished_at, updated_by, updated_at)`: where an event's guided setup stands, one row made by the first save and

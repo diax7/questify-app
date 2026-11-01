@@ -1,4 +1,10 @@
-import { TICKET_TEXT_MAX, type Language, type MessageKey, type TicketKind } from "@questify/shared";
+import {
+  TICKET_KINDS,
+  TICKET_TEXT_MAX,
+  type Language,
+  type MessageKey,
+  type TicketKind,
+} from "@questify/shared";
 import { translatorFor } from "#src/lib/language.ts";
 
 export type TicketTab = "open" | "with_questify" | "closed";
@@ -135,4 +141,16 @@ export function ticketQuery(
     parts.push(`cursor=${encodeURIComponent(cursor)}`);
   }
   return `?${parts.join("&")}`;
+}
+
+/**
+ * The Help desk's first tab and kind from its address (`?status=open&kind=prize`, the links the Inbox's counts open).
+ * Anything that is not a tab or a kind is left out: the page opens on Open, all kinds.
+ */
+export function filtersFromQuery(
+  query: Readonly<{ status?: string | undefined; kind?: string | undefined }>,
+): Readonly<{ tab: TicketTab; kind: TicketKind | null }> {
+  const tab = TABS.find((name) => name === query.status) ?? "open";
+  const kind = TICKET_KINDS.find((name) => name === query.kind) ?? null;
+  return { tab, kind };
 }

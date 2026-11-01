@@ -790,6 +790,8 @@ export type {
   TeamSponsor,
   TeamSponsorTag,
 } from "./sponsors/sponsors";
+export { inboxSchema } from "./inbox/inbox";
+export type { Inbox } from "./inbox/inbox";
 export {
   ANALYTICS_PANELS,
   ANALYTICS_SCHEMAS,

@@ -683,6 +683,7 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
   eventPage("devices", "devices.title"),
   eventPage("flags", "flags.title"),
   eventPage("help", "tickets.page"),
+  eventPage("inbox", "inbox.title"),
   eventPage("invitations", "invCampaign.title"),
   eventPage("joining", "joining.title"),
   eventPage("operators", "operators.title"),

@@ -290,7 +290,13 @@ function TicketRow({
   );
 }
 
-type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
+type Props = Readonly<{
+  language: Language;
+  organizerId: string;
+  eventId: string;
+  /** The tab and kind the page opens on: Open, all kinds, or what the address asks for (the Inbox's counts link here). */
+  initial: Readonly<{ tab: TicketTab; kind: TicketKind | null }>;
+}>;
 
 /**
  * The event's Help desk (T-310, T-312, FR-337 to FR-339, FR-1823): Open (oldest first), With Questify (escalated,
@@ -298,12 +304,12 @@ type Props = Readonly<{ language: Language; organizerId: string; eventId: string
  * filter, each with the player's @username, the quest, the time and the text; Reply, Solved, or Escalate to Questify
  * with a note. A ticket Questify sent back shows its note. A report names the reported member.
  */
-export function HelpDeskPanel({ language, organizerId, eventId }: Props) {
+export function HelpDeskPanel({ language, organizerId, eventId, initial }: Props) {
   const t = translatorFor(language);
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
   const playersPage = `/${language}/organizers/${organizerId}/events/${eventId}/players`;
-  const [tab, setTab] = useState<TicketTab>("open");
-  const [kind, setKind] = useState<TicketKind | null>(null);
+  const [tab, setTab] = useState<TicketTab>(initial.tab);
+  const [kind, setKind] = useState<TicketKind | null>(initial.kind);
   const [problem, setProblem] = useState<string | null>(null);
   const list = useTickets(eventApi, tab, kind, (body) => {
     const code = (body as { code?: unknown } | undefined)?.code;

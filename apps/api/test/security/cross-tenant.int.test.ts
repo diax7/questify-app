@@ -1741,6 +1741,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     }
   });
 
+  it("keeps the inbox counts inside the caller's tenant and membership (T-616)", async () => {
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      expect(await refusal(asA(seat, "SELECT event_inbox($1)", [f.eventB])), seat).toBe("AN404");
+    }
+  });
+
   it("keeps the analytics inside the caller's tenant and membership (T-607)", async () => {
     for (const seat of ["organizer", "staff", "player"] as const) {
       for (const sql of [

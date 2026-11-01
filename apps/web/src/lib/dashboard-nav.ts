@@ -39,6 +39,7 @@ export const EVENT_PAGES: readonly EventPageLink[] = [
   { slug: "devices", icon: "phone", group: "run", label: "devices.link" },
   { slug: "big-screen", icon: "screen", group: "run", label: "bigScreen.link" },
   { slug: "announcements", icon: "megaphone", group: "run", label: "announcements.page.title" },
+  { slug: "inbox", icon: "inbox", group: "run", label: "inbox.title" },
   { slug: "help", icon: "help", group: "run", label: "help" },
   { slug: "submissions", icon: "inbox", group: "run", label: "submissions.link" },
   { slug: "flags", icon: "alert", group: "run", label: "flags.link" },

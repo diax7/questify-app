@@ -402,6 +402,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members inside their event limit, through export_start (the audit entry, event.export, of printing the report; 204, no body); starts are limited per staff member, 429; another organizer's event answers 404 (test/analytics/exports, test/security/cross-tenant)",
   "GET /v1/organizers/:organizerId/events/:eventId/control":
     "members inside their event limit, through control_feed, control_counts and control_done, which check the organizer and the event limit themselves (AN404); usernames and avatars the team already reads, no contact detail or points; another organizer's event answers 404 (test/control/routes, test/db/control-room, test/security/cross-tenant)",
+  "GET /v1/organizers/:organizerId/events/:eventId/inbox":
+    "members inside their event limit, through event_inbox, which checks the organizer and the event limit itself (AN404); counts only, checked against a strict schema, no player, name or text; another organizer's event answers 404 (test/inbox/routes, test/db/event-inbox, test/security/cross-tenant)",
   "POST /v1/rewards/:rewardId/reserve":
     "reserves only for the bearer, through reserve_reward bound to the session; another event's reward answers 404 (test/rewards/routes, test/rewards/rewards)",
   "PUT /v1/events/:eventId/goal":

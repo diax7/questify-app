@@ -8008,6 +8008,23 @@ export const MESSAGES = {
   "texts.currency": { ar: "كلمة العملة", en: "Currency word" },
   "texts.currencyEdit": { ar: "تعديل كلمة العملة", en: "Edit the currency word" },
   "texts.previewLanguage": { ar: "لغة المعاينة", en: "Preview language" },
+  "inbox.title": { ar: "الوارد", en: "Inbox" },
+  "inbox.group.waiting": { ar: "بانتظارك", en: "Waiting for you" },
+  "inbox.kind.question": { ar: "أسئلة", en: "Questions" },
+  "inbox.kind.problem": { ar: "مشكلات", en: "Problems" },
+  "inbox.kind.prize": { ar: "مشكلات الجوائز", en: "Prize problems" },
+  "inbox.kind.report": { ar: "بلاغات عن لاعبين", en: "Player reports" },
+  "inbox.withQuestify": { ar: "لدى كويستفاي", en: "With Questify" },
+  "inbox.openList": { ar: "افتح {title}: {count}", en: "Open {title}: {count}" },
+  "inbox.reported.title": { ar: "اللاعبون المُبلَّغ عنهم", en: "Reported players" },
+  "inbox.prizes.title": { ar: "أقدم مشكلات الجوائز", en: "Oldest prize problems" },
+  "inbox.empty": { ar: "لا شيء بانتظارك.", en: "Nothing is waiting." },
+  "inbox.viewMore": { ar: "عرض المزيد", en: "View more" },
+  "inbox.viewMoreOf": { ar: "عرض المزيد: {title}", en: "View more: {title}" },
+  "inbox.openRequest": { ar: "افتح طلب @{username}", en: "Open the request from @{username}" },
+  "inbox.open": { ar: "افتح", en: "Open" },
+  "inbox.loadFailed": { ar: "تعذّر تحميل الوارد.", en: "We could not load the inbox." },
+  "inbox.listFailed": { ar: "تعذّر تحميل القائمة.", en: "We could not load the list." },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

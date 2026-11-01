@@ -7,8 +7,8 @@ import { acceptAllInCalls } from "#src/lib/accept-all.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import { Button } from "#src/ui/Button.tsx";
-import { Badge, Notice } from "#src/ui/Feedback.tsx";
+import { Button, ButtonLink } from "#src/ui/Button.tsx";
+import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Card, CardList, Section, Toolbar } from "#src/ui/Section.tsx";
 
 type JoinRequest = Readonly<{
@@ -24,10 +24,25 @@ type Translate = ReturnType<typeof translatorFor>;
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
-type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
+/** The queue as a card of the Inbox (T-616): a few requests, "View more" to the Players page, and an empty line. */
+type InboxCard = Readonly<{
+  /** How many requests the card lists. */
+  rows: number;
+  /** Where the whole queue is. */
+  moreHref: string;
+  /** Called after every decision, so the page's counts are read again. */
+  onChange: () => void;
+}>;
+
+type Props = Readonly<{
+  language: Language;
+  organizerId: string;
+  eventId: string;
+  inbox?: InboxCard;
+}>;
 
 /** The queue as loaded so far: the first page again after every decision, later pages appended by "Show more". */
-function useRequestPages(base: string, failed: (body: unknown) => void) {
+function useRequestPages(base: string, limit: number, failed: (body: unknown) => void) {
   const loaded = useRef(false);
   const [requests, setRequests] = useState<JoinRequest[] | null>(null);
   const [pending, setPending] = useState(0);
@@ -35,7 +50,7 @@ function useRequestPages(base: string, failed: (body: unknown) => void) {
 
   const load = async (cursor: string | null) => {
     const query = cursor === null ? "" : `&cursor=${encodeURIComponent(cursor)}`;
-    const result = await requestJson("GET", `${base}?limit=100${query}`);
+    const result = await requestJson("GET", `${base}?limit=${limit}${query}`);
     if (!result.ok) {
       failed(result.body);
       return;
@@ -192,14 +207,14 @@ function acceptAllAction(deps: AcceptAllDeps): () => Promise<void> {
   };
 }
 
+type Queue = ReturnType<typeof useRequestPages>;
+
 /**
- * The event's join requests and waiting list (T-218, FR-1819, FR-1821): the owner and editors accept or decline each,
- * or accept all (oldest first, while places are free, in calls of 1,000 or 250) after a confirmation. Shown while there are any, or
- * while a result or a problem is on screen.
+ * The panel's state and actions: the queue, the last action's problem or result, a decision (Accept or Decline, one
+ * request) and Accept all in calls. Every decision reads the queue again and tells the Inbox, when the panel is its card.
  */
-export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
+function useJoinRequests(language: Language, base: string, inbox: InboxCard | undefined) {
   const t = translatorFor(language);
-  const base = `/v1/organizers/${organizerId}/events/${eventId}/join-requests`;
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -214,8 +229,11 @@ export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
     }
     setProblem(code === undefined ? t("requests.failed") : describeProblem(body, language, t).text);
   };
-  const queue = useRequestPages(base, failed);
-
+  const queue = useRequestPages(base, inbox?.rows ?? 100, failed);
+  const reload = async () => {
+    await queue.reload();
+    inbox?.onChange();
+  };
   const act = async (path: string) => {
     setBusy(true);
     setProblem(null);
@@ -227,14 +245,14 @@ export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
       failed(result.body);
       return;
     }
-    await queue.reload();
+    await reload();
   };
   const runAcceptAll = acceptAllAction({
     base,
     language,
     t,
     failed,
-    reload: queue.reload,
+    reload,
     setBusy,
     setProblem,
     setNotice,
@@ -244,38 +262,64 @@ export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
     setAskAll(false);
     void runAcceptAll();
   };
+  return { queue, busy, problem, notice, askAll, setAskAll, act, acceptAll };
+}
 
-  const requests = queue.requests ?? [];
-  if (requests.length === 0 && problem === null && notice === null) {
-    return null;
+type Joining = ReturnType<typeof useJoinRequests>;
+
+/** Accept all: its button while requests wait, and its confirmation once pressed. */
+function AcceptAllControl({
+  language,
+  joining,
+}: Readonly<{ language: Language; joining: Joining }>) {
+  const t = translatorFor(language);
+  const { queue, busy, askAll, setAskAll, acceptAll } = joining;
+  if (askAll) {
+    return (
+      <ConfirmDialog
+        language={language}
+        title={t("requests.acceptAllTitle")}
+        body={t("requests.acceptAllBody")}
+        confirmLabel={t("requests.acceptAll")}
+        noteLabel={null}
+        busy={busy}
+        cancel={() => setAskAll(false)}
+        confirm={acceptAll}
+      />
+    );
   }
+  return queue.pending > 0 ? (
+    <Toolbar>
+      <Button variant="primary" disabled={busy} onClick={() => setAskAll(true)}>
+        {t("requests.acceptAll")}
+      </Button>
+    </Toolbar>
+  ) : null;
+}
+
+/** What the Inbox's card says in place of a list: loading, or that nothing is waiting. */
+function CardState({ language, queue }: Readonly<{ language: Language; queue: Queue }>) {
+  const t = translatorFor(language);
+  if (queue.requests === null) {
+    return <Muted>{t("common.loading")}</Muted>;
+  }
+  return queue.requests.length === 0 ? <EmptyState>{t("inbox.empty")}</EmptyState> : null;
+}
+
+/** The requests loaded so far and what follows them: "Show more" on the page, "View more" to the page in the Inbox. */
+function RequestList({
+  language,
+  joining,
+  inbox,
+}: Readonly<{ language: Language; joining: Joining; inbox: InboxCard | undefined }>) {
+  const t = translatorFor(language);
+  const { queue, busy, act } = joining;
+  const more = queue.more;
   return (
-    <Section
-      title={t("requests.title")}
-      titleId="requests-title"
-      description={t("requests.count", { count: formatNumber(queue.pending, language) })}
-    >
-      <Messages problem={problem} notice={notice} />
-      {askAll ? (
-        <ConfirmDialog
-          language={language}
-          title={t("requests.acceptAllTitle")}
-          body={t("requests.acceptAllBody")}
-          confirmLabel={t("requests.acceptAll")}
-          noteLabel={null}
-          busy={busy}
-          cancel={() => setAskAll(false)}
-          confirm={acceptAll}
-        />
-      ) : queue.pending > 0 ? (
-        <Toolbar>
-          <Button variant="primary" disabled={busy} onClick={() => setAskAll(true)}>
-            {t("requests.acceptAll")}
-          </Button>
-        </Toolbar>
-      ) : null}
+    <>
+      {inbox === undefined ? null : <CardState language={language} queue={queue} />}
       <CardList>
-        {requests.map((request) => (
+        {(queue.requests ?? []).map((request) => (
           <RequestItem
             key={request.enrollmentId}
             request={request}
@@ -285,11 +329,47 @@ export function JoinRequestsPanel({ language, organizerId, eventId }: Props) {
           />
         ))}
       </CardList>
-      {queue.more === null ? null : (
-        <Button variant="quiet" disabled={busy} onClick={queue.more}>
+      {more === null ? null : inbox === undefined ? (
+        <Button variant="quiet" disabled={busy} onClick={more}>
           {t("players.more")}
         </Button>
+      ) : (
+        <ButtonLink variant="quiet" href={inbox.moreHref}>
+          {t("inbox.viewMore")}
+        </ButtonLink>
       )}
+    </>
+  );
+}
+
+/**
+ * The event's join requests and waiting list (T-218, FR-1819, FR-1821): the owner and editors accept or decline each,
+ * or accept all (oldest first, while places are free, in calls of 1,000 or 250) after a confirmation. Shown while there
+ * are any, or while a result or a problem is on screen. As the Inbox's card (T-616) it is always shown: a few requests,
+ * "View more" to the Players page, and a line that says nothing is waiting.
+ */
+export function JoinRequestsPanel({ language, organizerId, eventId, inbox }: Props) {
+  const t = translatorFor(language);
+  const base = `/v1/organizers/${organizerId}/events/${eventId}/join-requests`;
+  const joining = useJoinRequests(language, base, inbox);
+  const { queue, problem, notice } = joining;
+  const quiet = (queue.requests ?? []).length === 0 && problem === null && notice === null;
+  if (quiet && inbox === undefined) {
+    return null;
+  }
+  return (
+    <Section
+      title={t("requests.title")}
+      titleId="requests-title"
+      description={
+        inbox === undefined
+          ? t("requests.count", { count: formatNumber(queue.pending, language) })
+          : undefined
+      }
+    >
+      <Messages problem={problem} notice={notice} />
+      <AcceptAllControl language={language} joining={joining} />
+      <RequestList language={language} joining={joining} inbox={inbox} />
     </Section>
   );
 }

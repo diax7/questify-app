@@ -103,7 +103,8 @@ export const AREAS = [
     /console-?(shell|event|queue)/i,
     ["console-daily", "console-questify", "console-seasons", "console-tickets", "invitations"],
   ],
-  [/ticket|help-?desk/i, ["console-tickets", "help-desk"]],
+  [/ticket|help-?desk/i, ["console-tickets", "help-desk", "inbox"]],
+  [/inbox/i, ["inbox"]],
   [/delet(e|ion)/i, ["delete-account"]],
   [/device|kiosk|pairing|\/pair\//i, ["kiosks", "stations", "big-screen"]],
   [
@@ -126,7 +127,7 @@ export const AREAS = [
   [/games?(-?fields)?\b|games\//i, ["games"]],
   [/hint/i, ["hidden-hint"]],
   [/invit/i, ["invitations"]],
-  [/join/i, ["join-requests", "terms", "names"]],
+  [/join/i, ["join-requests", "terms", "names", "inbox"]],
   [/name-?display|full-?name|names?-?(editor|preview)/i, ["names"]],
   [/opt-?out/i, ["opt-out"]],
   [/location|coordinates|cities|place-?fields/i, ["location"]],
