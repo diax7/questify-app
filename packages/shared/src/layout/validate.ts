@@ -110,12 +110,14 @@ function checkCustom(input: z.infer<typeof custom>): Validation<EventLayout> {
 }
 
 /**
- * Checks what an organizer saves as an event's layout (FR-1749, FR-1750, FR-1764, FR-1828 to FR-1831): either `{ preset }`,
- * one of the team's approved presets by name, or `{ bar, home, info, content, looks }`, each list an order that names every item
- * once and a hidden set (`info` is the event info page's sections), the content written for Home and the info page (cleaned and bounded) and the looks of the ranking, Quests
- * and Rewards screens (every choice named, each one allowed). A layout that hides Home, the scan button,
- * Profile or a protected Home block, or that has more than five bar slots, is refused; an issue for a protected item carries
- * its name in `protectedItem`.
+ * Checks what an organizer saves as an event's layout (FR-1749, FR-1750, FR-1764, FR-1828 to
+ * FR-1831): either `{ preset }`, one of the team's approved presets by name, or
+ * `{ bar, home, info, content, looks }`. Each list is an order that names every item once and a
+ * hidden set (`info` is the event info page's sections). The content written for Home and the
+ * info page is cleaned and bounded; the looks of the ranking, Quests and Rewards screens name
+ * every choice, each one allowed. A layout that hides Home, the scan button, Profile or a
+ * protected Home block, or that has more than five bar slots, is refused; an issue for a
+ * protected item carries its name in `protectedItem`.
  */
 export function validateLayoutRequest(input: unknown): Validation<LayoutChange> {
   const named = preset.safeParse(input);

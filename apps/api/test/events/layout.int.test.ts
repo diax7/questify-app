@@ -565,6 +565,50 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event layout over HTTP", () =>
       });
     });
 
+    const full = (length: number) => words("x".repeat(length), "ا".repeat(length));
+    const maximal = {
+      ...EMPTY_CONTENT,
+      about: full(1000),
+      faq: Array.from({ length: 12 }, () => ({ question: full(120), answer: full(500) })),
+      contacts: Array.from({ length: 5 }, () => ({
+        label: full(40),
+        kind: "link",
+        value: `https://example.com/${"a".repeat(280)}`,
+      })),
+      page: {
+        title: full(60),
+        blocks: Array.from({ length: 12 }, () => ({
+          kind: "list",
+          items: words(
+            Array.from({ length: 10 }, () => "x".repeat(120)).join("\n"),
+            Array.from({ length: 10 }, () => "ا".repeat(120)).join("\n"),
+          ),
+        })),
+      },
+    };
+
+    it("saves a maximal info page, far past 8 KB, and audits it once", async () => {
+      const { id } = await liveEvent();
+      const payload = infoLayout(maximal);
+      expect(Buffer.byteLength(JSON.stringify(payload))).toBeGreaterThan(60_000);
+      const saved = await put(id, payload);
+      expect(saved.statusCode).toBe(200);
+      expect(saved.json<{ layout: { content: HomeContent } }>().layout.content).toEqual(maximal);
+      expect(await eventView(id)).toMatchObject({ layout: { content: maximal } });
+      const audit = await fixture.owner(
+        "SELECT 1 FROM audit_log WHERE event_id = $1 AND action = 'event.layout.update'",
+        [id],
+      );
+      expect(audit).toHaveLength(1);
+    });
+
+    it("refuses a body past the layout limit with 413 and stores nothing", async () => {
+      const { id } = await liveEvent();
+      const saved = await put(id, infoLayout({ ...maximal, padding: "x".repeat(170 * 1024) }));
+      expect(saved.statusCode).toBe(413);
+      expect(await eventView(id)).toMatchObject({ layout: DEFAULT_LAYOUT });
+    });
+
     it("keeps the words of a hidden section and of a hidden page link on the server", async () => {
       const { id, member } = await liveEvent();
       const home = { order: [...HOME_KEYS], hidden: ["podium", "page"] };

@@ -55,6 +55,14 @@ export function prizeSettingsOf(body: unknown): PrizeSettings | undefined {
     : undefined;
 }
 
+/**
+ * Whether players get official rules for the event (FR-1707): rank prizes switched on with a prize set, or the organizer's own
+ * text. The same test the API makes before it answers `GET /v1/events/{id}/rules`.
+ */
+export const hasOfficialRules = (settings: PrizeSettings): boolean =>
+  (settings.rankPrizes && settings.prizes.length > 0) ||
+  [settings.rules.ar, settings.rules.en].some((text) => (text ?? "") !== "");
+
 /** Reads the results answer; undefined when it is not one. */
 export function resultsOf(body: unknown): Results | undefined {
   return isRecord(body) && typeof body["state"] === "string" && Array.isArray(body["places"])

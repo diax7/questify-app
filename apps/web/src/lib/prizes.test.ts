@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   flaggedNames,
+  hasOfficialRules,
   named,
   nextRank,
   nextStep,
@@ -9,6 +10,7 @@ import {
   rankLabel,
   resultsOf,
   type Place,
+  type PrizeSettings,
   type Results,
 } from "#src/lib/prizes.ts";
 
@@ -44,6 +46,24 @@ describe("prizes", () => {
     expect(resultsOf({ state: "open" })).toBeUndefined();
     expect(resultsOf({ places: [] })).toBeUndefined();
     expect(resultsOf("x")).toBeUndefined();
+  });
+
+  it("has official rules with a prize while rank prizes are on, or with the organizer's text", () => {
+    const none = { ar: null, en: null };
+    const prize = { id: "p1" } as unknown as PrizeSettings["prizes"][number];
+    const settings = (change: Partial<PrizeSettings>): PrizeSettings => ({
+      rankPrizes: false,
+      rules: none,
+      prizes: [],
+      ...change,
+    });
+    expect(hasOfficialRules(settings({}))).toBe(false);
+    expect(hasOfficialRules(settings({ rankPrizes: true }))).toBe(false);
+    expect(hasOfficialRules(settings({ rankPrizes: false, prizes: [prize] }))).toBe(false);
+    expect(hasOfficialRules(settings({ rankPrizes: true, prizes: [prize] }))).toBe(true);
+    expect(hasOfficialRules(settings({ rules: { ar: null, en: "No bags." } }))).toBe(true);
+    expect(hasOfficialRules(settings({ rules: { ar: "لا حقائب", en: null } }))).toBe(true);
+    expect(hasOfficialRules(settings({ rules: { ar: "", en: "" } }))).toBe(false);
   });
 
   it("names in the page's language, else the other", () => {

@@ -47,7 +47,13 @@ export function EventPreviewPanel({
       ) : null}
       {read.state === "ready" ? (
         <PreviewScreens
-          preview={previewOf(read.source.event, read.source.categories, read.source.rewards, shown)}
+          preview={previewOf(
+            read.source.event,
+            read.source.categories,
+            read.source.rewards,
+            shown,
+            read.source.hasRules,
+          )}
           language={shown}
         />
       ) : null}

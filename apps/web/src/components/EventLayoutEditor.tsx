@@ -428,6 +428,7 @@ function Workspace({ source, ...ids }: Ids & Readonly<{ source: PreviewSource }>
     source.categories,
     source.rewards,
     language,
+    source.hasRules,
   );
   const open = editing !== null && homeKeysOf(draft.content).includes(editing) ? editing : null;
 

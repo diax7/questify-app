@@ -30,6 +30,8 @@ import { organizerContextOf } from "#src/organizers/context";
 import type { SettingsService } from "#src/settings/service";
 
 const BODY_LIMIT = 8192;
+// The layout carries the Home and info page words in both languages: about 72 KB when every field is full (ADR-398).
+const LAYOUT_BODY_LIMIT = 160 * 1024;
 
 /** The event's wall clock, read in its zone: no seconds, no `Z`, no offset. */
 const localTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
@@ -83,6 +85,7 @@ const eventParams = z.object({ eventId: z.uuid() });
 
 const member = { config: { access: "member" }, bodyLimit: BODY_LIMIT } as const;
 const owner = { config: { access: "owner" }, bodyLimit: BODY_LIMIT } as const;
+const layoutWriter = { ...member, bodyLimit: LAYOUT_BODY_LIMIT } as const;
 
 /** What the dashboard sees of an event: instants as UTC ISO, the zone to show them in. */
 const view = (event: EventRecord) => ({
@@ -280,7 +283,7 @@ export function registerEventRoutes(
  * hidden (422 `layout_item_protected` names the item), and the check is the server's whatever the dashboard sends.
  */
 function registerEventLayout(scope: FastifyInstance, settings: SettingsService): void {
-  scope.put("/events/:eventId/layout", member, async (request) => {
+  scope.put("/events/:eventId/layout", layoutWriter, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const context = organizerContextOf(request);
     const saved = await settings.saveEventLayout(

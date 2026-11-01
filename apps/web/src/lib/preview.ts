@@ -210,12 +210,17 @@ function contentLines(key: HomeKey, content: HomeContent, context: LineContext):
   return isCardKey(key) ? cardLines(key, content, context) : [];
 }
 
-type InfoContext = Readonly<{ event: EventView; content: HomeContent; language: Language }>;
+type InfoContext = Readonly<{
+  event: EventView;
+  content: HomeContent;
+  language: Language;
+  hasRules: boolean;
+}>;
 
 /** The lines a section of the info page draws, or null when the app would draw nothing for it. */
 function infoLines(
   section: InfoSection,
-  { event, content, language }: InfoContext,
+  { event, content, language, hasRules }: InfoContext,
 ): string[] | null {
   const lines: Readonly<Record<InfoSection, () => string[]>> = {
     about: () => nonEmpty([pickText(content.about, language)]),
@@ -229,6 +234,9 @@ function infoLines(
     contacts: () => nonEmpty(content.contacts.map((entry) => pickText(entry.label, language))),
     rules: () => [],
   };
+  if (section === "rules" && !hasRules) {
+    return null;
+  }
   const found = lines[section]();
   const titleOnly = section === "schedule" || section === "rules";
   return found.length === 0 && !titleOnly ? null : found;
@@ -240,6 +248,7 @@ function layoutParts(
   on: (feature: string) => boolean,
   language: Language,
   names: Names,
+  hasRules: boolean,
 ) {
   const layout = composedLayoutOf(readEventLayout(event.layout));
   const keys = homeBlocks(on, layout.home);
@@ -253,7 +262,7 @@ function layoutParts(
     const title = HOME_BLOCKS.find((entry) => entry.block === block)?.title ?? null;
     return lines === null ? [] : [{ block, title, lines }];
   });
-  const context: InfoContext = { event, content: layout.content, language };
+  const context: InfoContext = { event, content: layout.content, language, hasRules };
   const info = infoSections(on, layout.info).flatMap((section) => {
     const lines = infoLines(section, context);
     const title = INFO_SECTIONS.find((entry) => entry.section === section)?.title;
@@ -309,13 +318,15 @@ const venueOf = (event: EventView, language: Language): string =>
 
 /**
  * Builds the preview from what the team's pages read: the same rules as the app's own reads (`playerTabs`, `homeBlocks`,
- * `questTypeShown`), so a switch and a layout take away here exactly what they take away on the phone.
+ * `questTypeShown`), so a switch and a layout take away here exactly what they take away on the phone. The info page
+ * draws its "Official rules" row only when the event has rules to show, as the app does (`hasRules`).
  */
 export function previewOf(
   event: EventView,
   categories: readonly CategoryView[],
   rewards: readonly RewardView[],
   language: Language,
+  hasRules = false,
 ): EventPreview {
   const on = featureLookup(event);
   const names: Names = {
@@ -339,7 +350,7 @@ export function previewOf(
     page,
     announced,
     looks,
-  } = layoutParts(event, on, language, names);
+  } = layoutParts(event, on, language, names, hasRules);
   return {
     name: nameFor(event, language),
     venue: venueOf(event, language),

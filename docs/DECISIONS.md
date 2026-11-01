@@ -6204,8 +6204,8 @@ word, since My QR is not inside one event; no push for an offer (the player is s
 
 ## ADR-398 - T-613 event info page and one extra page: the sections are a second list in the layout, the words live in the same content store
 
-**Status:** Proposed (developer, 2026-11-01; Q-365). Builds FR-1835 on ADR-391 and ADR-395. Plan: `docs/plans/2026-11-01-t-613-info-page.md`.
-**Decision:** (1) **One store, no migration.** `event.config.layout` gains `info` (`{order, hidden}`) beside `bar` and `home`, and
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-01; T-613 review 86, its MAJOR fixed; was: Proposed, Q-365). Builds FR-1835 on ADR-391 and ADR-395. Plan: `docs/plans/2026-11-01-t-613-info-page.md`.
+**Decision:** (1) **One store.** `event.config.layout` gains `info` (`{order, hidden}`) beside `bar` and `home`, and
 `layout.content` gains `about`, `faq`, `contacts` and `page`. The request checks them with the same rules as Home's words
 (`content-read.ts` holds the shared reading; `info-content.ts` the new parts). (2) **Seven sections:** `about`, `venue`, `when`,
 `schedule`, `faq`, `contacts`, `rules`, in the order the page always drew (venue, when, rules), with About first. Venue, dates and
@@ -6229,6 +6229,10 @@ and a page with no valid part reads as no page; an older app ignores the new fie
 defaults. (7) **Presets and Reset to default** leave the info page's order and every word as they are. (8) **Images are split:**
 the page's pictures are T-613b (Q-149).
 **Why:** configuration over code, one write path and one content store, and the safe side on a damaged or hostile value.
+**Size (review fix):** `PUT …/layout` has its own body limit of 160 KiB (the other routes keep 8 KiB): an info page filled to its
+limits in both languages is about 72 KB, a realistic one about 8.5 KB. Each `event.layout.update` audit entry holds the whole layout
+as before and after, up to about 150 KB together. `audit_log` capped each side at 64 KiB (0006), which turned a save of a full layout
+into a 500, so migration 0108 raises each side to 256 KiB (still a bound; nothing else about the table changes).
 **Trade-offs:** an organizer edits venue and dates on the event pages and rules in the rules settings, not on the Layout page; the
-preview shows the Official rules row whatever the event holds, since the dashboard does not read the rules; the page has no
-formatting beyond heading, list and link.
+preview draws the Official rules row only when the event has rules (rank prizes on with a prize set, or the organizer's rules text,
+read from `…/rank-prizes`), as the app does; the page has no formatting beyond heading, list and link.

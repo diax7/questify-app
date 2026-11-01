@@ -404,8 +404,18 @@ describe("the event info page and the extra page in the preview (T-613)", () => 
       ],
     },
   };
-  const withInfo = (layout: Record<string, unknown> = {}, event: Partial<EventView> = {}) =>
-    previewOf({ ...EVENT, ...event, layout: { content: written, ...layout } }, [], [], "en");
+  const withInfo = (
+    layout: Record<string, unknown> = {},
+    event: Partial<EventView> = {},
+    hasRules = true,
+  ) =>
+    previewOf(
+      { ...EVENT, ...event, layout: { content: written, ...layout } },
+      [],
+      [],
+      "en",
+      hasRules,
+    );
   const sections = (preview: ReturnType<typeof withInfo>) => preview.info.map((row) => row.section);
 
   it("draws the sections the page has, in the default order, the schedule link off", () => {
@@ -429,6 +439,17 @@ describe("the event info page and the extra page in the preview (T-613)", () => 
   it("leaves out a section with nothing to say, as the app does", () => {
     const empty = withInfo({ content: { about: words(""), faq: [], contacts: [] } });
     expect(sections(empty)).toEqual(["venue", "when", "rules"]);
+  });
+
+  it("draws the official rules row only when the event has rules, as the app does", () => {
+    expect(sections(withInfo())).toContain("rules");
+    expect(sections(withInfo({}, {}, false))).toEqual([
+      "about",
+      "venue",
+      "when",
+      "faq",
+      "contacts",
+    ]);
   });
 
   it("draws the schedule link only while the agenda is on", () => {

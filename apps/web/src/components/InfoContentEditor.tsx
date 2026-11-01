@@ -5,6 +5,7 @@ import {
   CONTACT_KINDS,
   FAQ_MAX,
   INFO_LIMITS,
+  LINK_URL_MAX,
   type Contact,
   type ContactKind,
   type FaqEntry,
@@ -30,11 +31,11 @@ const CONTACT_NAMES: EntryNames = {
   remove: "layout.contact.remove",
 };
 
-/** The input of a contact's value: the kind decides its label and what the keyboard offers. */
+/** The input of a contact's value: the kind decides its label, what the keyboard offers and the longest value the server takes. */
 const VALUE_FIELDS = {
-  email: { label: "layout.field.email", type: "email" },
-  phone: { label: "layout.field.phone", type: "tel" },
-  link: { label: "layout.field.url", type: "url" },
+  email: { label: "layout.field.email", type: "email", max: INFO_LIMITS.contactValue },
+  phone: { label: "layout.field.phone", type: "tel", max: INFO_LIMITS.contactValue },
+  link: { label: "layout.field.url", type: "url", max: LINK_URL_MAX },
 } as const;
 
 type EditorProps<T> = Readonly<{ language: Language; value: T; onChange: (next: T) => void }>;
@@ -91,7 +92,7 @@ function ContactEditor({ language, value, onChange }: EditorProps<Contact>) {
         <Input
           type={field.type}
           dir="ltr"
-          maxLength={INFO_LIMITS.contactValue}
+          maxLength={field.max}
           value={value.value}
           onChange={(event) => onChange({ ...value, value: event.target.value })}
         />

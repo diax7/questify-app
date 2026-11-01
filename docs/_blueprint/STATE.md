@@ -40,10 +40,10 @@
 
 ## T-613 event info page and the extra page — 2026-11-01
 
-- **T-613 built (tier B; not run on a phone; no migration, so staging is unchanged: it runs through 0106, 0107 pushed).** The event info page's
+- **T-613 built (tier B; not run on a phone; review 86, its MAJOR fixed with migration 0108, new and undeployed: it widens `audit_log` before and after to 256 KiB).** The event info page's
   sections are `event.config.layout.info` (seven sections, `rules` protected, `schedule` starts hidden) and the organizer's words join
   `layout.content` (`about`, `faq`, `contacts`, `page`): one layout store, the same cleaning, limits and https-only links as Home's words,
-  a damaged entry or part left out (ADR-398 Proposed, Q-365 Proposed). The one extra page (a title and up to 12 parts: heading, paragraph, list,
+  a damaged entry or part left out (ADR-398 and Q-365 accepted). The one extra page (a title and up to 12 parts: heading, paragraph, list,
   link) opens from a new Home block `page`. App: `info.tsx` draws the shown sections in order, contacts open the mail or phone app (a website asks
   first), `page.tsx` is the page. Dashboard: the Layout page gets an "Event info page" list and an "Extra page" row with their editors, and "About the
   event" and "Extra page" screens in the live preview. **Split:** pictures on the page are T-613b (Q-149). **Not built:** the sponsors and free-text
@@ -52,7 +52,8 @@
   Full browser suite after a fresh web build, single worker: 309 passed, 5 skipped, 0 failed (28.0 min). `layout-editor.spec.ts` (desktop and phone, 19 passed, 1 skipped) covers the new
   order, edit, preview, save and remove flow and the Arabic page without sideways scrolling. npx expo export --platform android ok (Hermes bytecode built).
   tsc (shared, api, web, app), oxlint, oxfmt and function limits clean (no new offender). Mutation targets: none (tier B). CI minutes none; agent tokens roughly 0.45M (estimate).
-  **Next:** the T-613 code review (tier B), then the next unchecked task in `docs/TASKS.md` (T-614).
+  **Review fixes:** the layout route's own 160 KiB body limit, 0108 for the audit size, the preview's rules row, unique list keys, 300 characters for a website contact.
+  **Next:** the next unchecked task in `docs/TASKS.md` (T-614).
 
 ## T-612 prize reservation and the desk sale — 2026-11-01
 

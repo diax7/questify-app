@@ -30,8 +30,8 @@ export function FaqSection({ rows }: Readonly<{ rows: readonly FaqRow[] }>) {
       <AppText variant="title" accessibilityRole="header">
         {t("eventInfo.faq")}
       </AppText>
-      {rows.map((row) => (
-        <View key={row.question} style={styles.entry}>
+      {rows.map((row, index) => (
+        <View key={`${index}:${row.question}`} style={styles.entry}>
           <AppText variant="label">{row.question}</AppText>
           <AppText>{row.answer}</AppText>
         </View>
@@ -72,8 +72,8 @@ export function ContactsSection({ rows }: Readonly<{ rows: readonly ContactRow[]
       <AppText variant="title" accessibilityRole="header">
         {t("eventInfo.contacts")}
       </AppText>
-      {rows.map((row) => (
-        <ContactButton key={`${row.label}:${row.value}`} row={row} />
+      {rows.map((row, index) => (
+        <ContactButton key={`${index}:${row.label}:${row.value}`} row={row} />
       ))}
     </>
   );
