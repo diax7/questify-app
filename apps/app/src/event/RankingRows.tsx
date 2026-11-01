@@ -1,11 +1,11 @@
-import { formatNumber, termFor, type Theme } from "@questify/shared";
+import { formatNumber, shownName, termFor, type Theme } from "@questify/shared";
 import { router } from "expo-router";
 import { Pressable, View } from "react-native";
-import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import { CurrencyIcon } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
 import { useTerms } from "#src/event/EventContext.tsx";
+import { PlayerName } from "#src/event/PlayerName.tsx";
 import type { ShownRow } from "#src/event/ranking.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -15,15 +15,22 @@ export function useRowLabel(row: ShownRow): string {
   const { t, language } = useI18n();
   const terms = useTerms();
   const title = row.equipment?.title == null ? "" : `، ${row.equipment.title.name[language]}`;
+  const shown = shownName(row.fullName, row.names);
+  const who =
+    shown.fullName === null
+      ? row.username
+      : shown.showUsername
+        ? `${shown.fullName} (@${row.username})`
+        : shown.fullName;
   if (row.score === null) {
     const key = row.isMe ? "ranking.rowLabelMeRankOnly" : "ranking.rowLabelRankOnly";
-    return `${t(key, { rank: row.rank, username: row.username })}${title}`;
+    return `${t(key, { rank: row.rank, username: who })}${title}`;
   }
   const score = formatNumber(row.score, language);
   const currency = termFor(terms.currency, language, row.score);
   const label = row.isMe
     ? t("ranking.rowLabelMe", { rank: row.rank, score, currency })
-    : t("ranking.rowLabel", { rank: row.rank, username: row.username, score, currency });
+    : t("ranking.rowLabel", { rank: row.rank, username: who, score, currency });
   return `${label}${title}`;
 }
 
@@ -62,15 +69,13 @@ export function RankingRow({ row, height }: Readonly<{ row: ShownRow; height: nu
         size={Math.max(0, height - 8)}
         equipment={row.equipment}
       />
-      <AppText
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        // A username is Latin: it reads left to right inside an Arabic row, so "@" stays in front.
-        style={[styles.grow, { writingDirection: "ltr" }]}
-      >
-        {isolatedLtr(`@${row.username}`)}
-        {row.equipment?.title == null ? "" : ` · ${row.equipment.title.name[language]}`}
-      </AppText>
+      <PlayerName
+        username={row.username}
+        fullName={row.fullName}
+        names={row.names}
+        suffix={row.equipment?.title == null ? "" : ` · ${row.equipment.title.name[language]}`}
+        style={styles.grow}
+      />
       {row.isMe ? <AppText variant="label">{t("ranking.you")}</AppText> : null}
       {row.score === null ? null : (
         <>

@@ -20,6 +20,7 @@ export function playerResultsView(
   }
   return {
     revealed: results.revealed,
+    names: results.names,
     places: results.places.map((place) => ({
       rank: place.rank,
       player: place.player,

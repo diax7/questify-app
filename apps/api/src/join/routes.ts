@@ -1,4 +1,13 @@
-import { MESSAGES, decodeCursor, encodeCursor, joinCard, parseLimit } from "@questify/shared";
+import {
+  MESSAGES,
+  NAME_AUDIENCES,
+  decodeCursor,
+  encodeCursor,
+  joinCard,
+  nameNoticeKey,
+  nameNoticeOf as noticeAudience,
+  parseLimit,
+} from "@questify/shared";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
@@ -34,6 +43,7 @@ import {
   type JoinAnswers,
   type JoinDeps,
   type JoinOutcome,
+  type NameSetting,
 } from "#src/join/join";
 import type { SettingsService } from "#src/settings/service";
 
@@ -60,6 +70,8 @@ const joinBody = z.strictObject({
   via: z.enum(["code", "qr", "link", "public_list", "invite"]),
   // The join card's version the player was shown (FR-121): the consent kept with the enrollment.
   cardVersion: VERSION,
+  // Who the card said would see the player's full name (ADR-400); absent when it said nothing about it.
+  nameNotice: z.enum(NAME_AUDIENCES).nullable().default(null),
   answers: z
     .record(z.uuid(), z.string().max(400))
     .refine((answers) => Object.keys(answers).length <= MAX_ANSWERS)
@@ -68,14 +80,26 @@ const joinBody = z.strictObject({
   waitlist: z.boolean().optional(),
 });
 
-/** The join card in force, in both languages, as the app shows it before Join; with the answers when asked. */
-export function cardInForce(withAnswers = false) {
+/**
+ * The join card in force, in both languages, as the app shows it before Join; with the answers when asked. With the
+ * event's name setting it carries the sentence on who sees a full name and the audience the join must send back
+ * (`nameNotice`, ADR-400); null when the event shows usernames only.
+ */
+export function cardInForce(withAnswers = false, names?: NameSetting) {
   const card = joinCard(withAnswers);
   return {
     version: card.version,
     title: MESSAGES[card.title],
     receives: card.receives.map((key) => MESSAGES[key]),
+    nameNotice: nameNoticeOf(names),
   };
+}
+
+/** The sentence on who sees a full name and the audience to send back; null for an event that shows usernames. */
+function nameNoticeOf(names: NameSetting | undefined) {
+  const audience = names === undefined ? null : noticeAudience(names.display, names.audience);
+  const key = names === undefined ? null : nameNoticeKey(names.display, names.audience);
+  return audience === null || key === null ? null : { audience, text: MESSAGES[key] };
 }
 
 /** Trims each answer and leaves out the blank ones: an optional field left empty is not answered (FR-130). */
@@ -87,32 +111,43 @@ export function cleanAnswers(raw: Readonly<Record<string, string>> | undefined):
   );
 }
 
+/** The refusals that carry nothing from the outcome. */
+const PLAIN_REFUSALS = {
+  not_found: notFound,
+  ended: eventEnded,
+  method_off: joinMethodOff,
+  not_allowed: joinNotAllowed,
+  invite_only: joinInviteOnly,
+  declined: joinDeclined,
+  rehearsing: rehearsing,
+  // The app offers the waiting list (FR-1821): the same join with `waitlist: true`.
+  full: () => eventFull({ waitlist: true }),
+} as const;
+
+/** The refusal an outcome is, when it is one that carries something from it. */
+function dataRefusal(
+  result: Extract<JoinOutcome, { kind: "domain_required" | "invalid_answers" | "notice_changed" }>,
+) {
+  switch (result.kind) {
+    case "domain_required":
+      return joinDomainRequired(result.domains);
+    case "invalid_answers":
+      return invalidJoinAnswers({ field: result.field });
+    case "notice_changed":
+      // The join rolled back: the card as it must read now, so the next Join is on a notice that is true.
+      return joinCardStale({ card: cardInForce(result.withAnswers, result.names) });
+  }
+}
+
 /** Maps a join's outcome to its answer, or to the refusal it is. */
 function joinAnswer(result: JoinOutcome | Throttled, reply: FastifyReply) {
   switch (result.kind) {
     case "throttled":
       return throttled(reply, result.retryAfterSeconds);
-    case "not_found":
-      throw notFound();
-    case "ended":
-      throw eventEnded();
-    case "method_off":
-      throw joinMethodOff();
-    case "not_allowed":
-      throw joinNotAllowed();
-    case "invite_only":
-      throw joinInviteOnly();
     case "domain_required":
-      throw joinDomainRequired(result.domains);
     case "invalid_answers":
-      throw invalidJoinAnswers({ field: result.field });
-    case "full":
-      // The app offers the waiting list (FR-1821): the same join with `waitlist: true`.
-      throw eventFull({ waitlist: true });
-    case "declined":
-      throw joinDeclined();
-    case "rehearsing":
-      throw rehearsing();
+    case "notice_changed":
+      throw dataRefusal(result);
     case "joined":
     case "already":
       return {
@@ -123,6 +158,8 @@ function joinAnswer(result: JoinOutcome | Throttled, reply: FastifyReply) {
         welcome: result.welcome,
         waitlisted: result.waitlisted,
       };
+    default:
+      throw PLAIN_REFUSALS[result.kind]();
   }
 }
 
@@ -186,7 +223,7 @@ function registerBrowseRoutes(app: FastifyInstance, deps: BrowseDeps): void {
       if (event === null) {
         throw notFound();
       }
-      return { event, card: cardInForce(event.join.fields.length > 0) };
+      return { event, card: cardInForce(event.join.fields.length > 0, event.join.names) };
     },
   );
 
@@ -255,6 +292,7 @@ export function registerJoinRoutes(app: FastifyInstance, deps: BrowseDeps): void
           eventId: body.eventId,
           cardVersion: body.cardVersion,
           answers,
+          nameNotice: body.nameNotice,
           waitlist: body.waitlist ?? false,
         });
         return joinAnswer(invited, reply);
@@ -272,6 +310,7 @@ export function registerJoinRoutes(app: FastifyInstance, deps: BrowseDeps): void
         via: body.via,
         cardVersion: body.cardVersion,
         answers,
+        nameNotice: body.nameNotice,
         waitlist: body.waitlist ?? false,
       });
       return joinAnswer(result, reply);
@@ -289,7 +328,7 @@ export function registerJoinRoutes(app: FastifyInstance, deps: BrowseDeps): void
     return {
       invitations: invitations.map((invitation) => ({
         event: invitation,
-        card: cardInForce(invitation.join.fields.length > 0),
+        card: cardInForce(invitation.join.fields.length > 0, invitation.join.names),
       })),
     };
   });

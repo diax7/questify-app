@@ -45,7 +45,18 @@ describe("isPlayerCode", () => {
 });
 
 describe("stationResult", () => {
-  const player = { username: "noura", avatar: "falcon" };
+  const player = { username: "noura", avatar: "falcon", fullName: null };
+
+  it("keeps the full name of the player scanned when the event shows it to the staff (T-615)", () => {
+    const named = { ...player, fullName: "Noura Saleh" };
+    expect(stationResult({ result: "already_completed", player: named })).toEqual({
+      color: "orange",
+      player: named,
+    });
+    expect(
+      stationResult({ result: "already_completed", player: { username: "n", avatar: "f" } }),
+    ).toMatchObject({ player: { username: "n", fullName: null } });
+  });
 
   it("shows green with the points, orange for a repeat, red with words for each reason", () => {
     expect(stationResult({ result: "completed", points: 25, player, occurrence: 1 })).toEqual({

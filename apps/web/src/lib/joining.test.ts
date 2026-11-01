@@ -5,14 +5,19 @@ import {
   fieldsBody,
   fieldsUnsaved,
   guestLines,
+  hasFullNameField,
   kindsFor,
   moveDraft,
+  namesDraftOf,
+  namesSeenBy,
+  namesUnsaved,
   needsLabel,
   needsOptions,
   newDraft,
   rulesDraftOf,
   rulesUnsaved,
   welcomeOf,
+  widensNames,
   type FieldDraft,
   type JoinFieldView,
   removesSavedField,
@@ -215,5 +220,42 @@ describe("rulesUnsaved", () => {
     ["the amount cleared", { welcome: "" }],
   ])("is true for %s", (_name, change) => {
     expect(rulesUnsaved({ ...saved, ...change }, saved)).toBe(true);
+  });
+});
+
+describe("the names setting (T-615)", () => {
+  it("reads the saved setting and tells when the form differs from it", () => {
+    const saved = namesDraftOf({ display: "both", audience: "staff", locked: true });
+    expect(saved).toEqual({ display: "both", audience: "staff" });
+    expect(namesUnsaved(saved, saved)).toBe(false);
+    expect(namesUnsaved({ ...saved, audience: "everyone" }, saved)).toBe(true);
+    expect(namesUnsaved({ ...saved, display: "username" }, saved)).toBe(true);
+  });
+
+  it("asks for the Full name field before a full name can show", () => {
+    expect(hasFullNameField(VIEWS)).toBe(true);
+    expect(hasFullNameField(VIEWS.filter((view) => view.kind !== "full_name"))).toBe(false);
+    expect(hasFullNameField([])).toBe(false);
+  });
+
+  it("calls only a move to a full name for every player a widening", () => {
+    const staff = { display: "both", audience: "staff" } as const;
+    const everyone = { display: "both", audience: "everyone" } as const;
+    const usernames = { display: "username", audience: "everyone" } as const;
+    expect(widensNames(everyone, staff)).toBe(true);
+    expect(widensNames(everyone, usernames)).toBe(true);
+    expect(widensNames(staff, everyone)).toBe(false);
+    expect(widensNames(everyone, everyone)).toBe(false);
+    expect(widensNames({ ...everyone, display: "full_name" }, everyone)).toBe(false);
+    expect(widensNames(usernames, staff)).toBe(false);
+  });
+
+  it("previews players by usernames unless everyone sees the full name, and staff by the setting", () => {
+    expect(namesSeenBy({ display: "both", audience: "staff" }, "players")).toBe("username");
+    expect(namesSeenBy({ display: "both", audience: "staff" }, "staff")).toBe("both");
+    expect(namesSeenBy({ display: "full_name", audience: "everyone" }, "players")).toBe(
+      "full_name",
+    );
+    expect(namesSeenBy({ display: "username", audience: "everyone" }, "staff")).toBe("username");
   });
 });

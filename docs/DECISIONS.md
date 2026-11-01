@@ -6269,3 +6269,34 @@ never be reworded by an organizer.
 **Trade-offs:** an organizer cannot reword anything outside the six bar names; a label renamed in one language only shows the
 platform's text in the other (the page shows both boxes so it is visible); a label longer than 24 characters is refused rather than
 truncated.
+
+## ADR-400 - T-615 name display: two gates on a full name, the staff read by the setting, no widening past a player who was not told
+
+**Status:** Proposed (developer, delegated by Dhia, 2026-11-02; Q-367). Specifies FR-1842; relaxes FR-120 and ADR-032 only where the event
+says so and the player was told; counsel on Q-080 stays open, so the setting defaults to usernames and nothing changes until an owner picks it.
+**Decision:** (1) **The setting.** `event.name_display` (`username`, `full_name`, `both`) and `event.name_audience` (`staff`, `everyone`),
+defaults `username` and `staff`, set by the owner or an editor on the Joining page's "Names" section (`PUT …/join/names`, audited
+`event.names.update` with the setting only, never a name). The full name is the answer to the event's Full name join field and nothing
+else; a full name needs that field (ND422), and the field cannot be removed while names are shown (409 `full_name_field_in_use`). A
+duplicated event starts on usernames. (2) **The notice.** The join card carries a sentence on who sees the name (three: staff only,
+everyone instead of the username, everyone next to it) and the audience it means; the join sends that audience back (`nameNotice`) and the
+database records it with the enrollment (`join_name_notice`, in the join's own transaction; `enrollment.name_notice`). A notice that is not
+the event's now rolls the join back and answers 422 `card_version_stale` with the card as it must read (NN409). The card version stays 0.2
+because the sentence depends on the event; the record is `name_notice`. (3) **What another player may read** is one rule in the database
+(`public_full_name`): the event shows full names to everyone, the enrollment is active, its notice is `everyone`, and the player gave a name.
+It feeds the event ranking (event and today, through `ranking_names` after the rows are read), the revealed results (`event_results`) and
+the big screen's ranking and finale scenes; every answer also says how the event names players (`names`). A player who joined before,
+joined while only the staff were to see it, left the field empty or is no longer active shows by username whatever the setting says.
+(4) **The staff read** (an operator's scan result and the prize desk) shows the full name whenever the event shows full names, to any audience,
+with no per-player notice: the organizer's staff already receive the answer the card names (`joinCard.answers`). The session check-in's
+result does not show it yet. (5) **Widening is refused, narrowing never.** Moving to "full name to everyone" is refused (409
+`name_display_locked`, ND409, a trigger so any writer is held) while an active or pending player, other than a rehearsal account or an
+operator, holds a notice that is not `everyone`. The alternative, asking those players again, needs a prompt on their phones and a state
+for "answered or not" and is left for a later task. Set the names before the event takes joins. (6) **Never** in a push text, a log line,
+an error, analytics or an export file beyond the answer the team already receives (a source test lists the API files that may name it).
+Questify-wide pages (the Questify ranking, public profiles), Meet, Cheers and the recap stay on usernames.
+**Why:** a full name is personal data that reaches strangers; the setting alone cannot prove the player agreed, and the player's notice alone
+cannot say what the owner now shows, so both must hold and both are checked where the data is read.
+**Trade-offs:** an owner who joined players on usernames cannot later show full names to all without those players leaving and rejoining;
+the check costs one extra read per ranking read for events that show names (none otherwise); the staff view of a name needs no notice, a
+judgment counsel should confirm. The full name is free text the player typed (200 characters at most, and only 60 are shown to other players); unlike a username it is not filtered, so an owner who shows it to everyone relies on removing a player who abuses it.

@@ -1434,7 +1434,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1839 | F-341 | Could | pending |
 | FR-1840 | F-342 | Should | built (T-313, 2026-10-25) |
 | FR-1841 | F-343 | Could | `test/db/cheers.int`, `test/cheers/routes.int`, `test/screen/routes.int`, `apps/web/e2e/cheers.spec.ts`, `apps/app/src/event/cheers.test.ts` (T-509, ADR-377) |
-| FR-1842 | F-344 | Should | pending |
+| FR-1842 | F-344 | Should | `packages/shared/src/join/names.test.ts`, `test/db/name-display.int`, `test/join/names.int`, `test/ranking/ranking.int`, `test/results/routes.int`, `test/db/big-screen.int`, `test/db/finale.int`, `apps/app/src/event/event.test.ts`, `apps/web/src/lib/joining.test.ts`, `apps/web/e2e/names.spec.ts` (T-615, ADR-400) |
 | FR-1843 | F-345 | Should | `packages/shared/src/config/texts.test.ts`, `test/events/texts.int`, `apps/app/src/i18n/words.test.ts`, `apps/web/src/lib/texts-editor.test.ts`, `apps/web/e2e/texts.spec.ts` (T-614, ADR-399) |
 | FR-1844 | F-346 | Should | pending |
 | FR-1845 | F-347 | Should | pending |

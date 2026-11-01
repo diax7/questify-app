@@ -21,6 +21,7 @@ import { useReduceMotion, useScreenReader } from "#src/components/motion.tsx";
 import { useEvent } from "#src/event/EventContext.tsx";
 import { useLive } from "#src/event/LiveContext.tsx";
 import type { RankingAnswer } from "#src/event/home-api.ts";
+import { PlayerName } from "#src/event/PlayerName.tsx";
 import {
   SLIDE_MS,
   countdownRefreshMs,
@@ -298,9 +299,11 @@ export function PodiumBlock({
           ) : (
             <View key={`${row.rank}:${row.username}`} style={styles.step}>
               <Avatar name={row.avatar} username={row.username} size={36} />
-              <AppText numberOfLines={1} style={{ writingDirection: "ltr" }}>
-                @{row.username}
-              </AppText>
+              <PlayerName
+                username={row.username}
+                fullName={row.fullName}
+                names={ranking.ranking.names}
+              />
               {row.score === null ? null : (
                 <AppText variant="label">{formatNumber(row.score, language)}</AppText>
               )}

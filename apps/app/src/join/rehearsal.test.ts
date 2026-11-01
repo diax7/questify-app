@@ -5,7 +5,12 @@ import { isRehearsalStatus } from "#src/event/rehearsal.ts";
 import { fetchRehearsal, joinRehearsal, readRehearsalEvent } from "#src/join/rehearsal-api.ts";
 
 const headers = new Headers();
-const CARD = { version: "0.1", title: { ar: "سيرى", en: "Will see" }, receives: [] };
+const CARD = {
+  version: "0.1",
+  title: { ar: "سيرى", en: "Will see" },
+  receives: [],
+  nameNotice: null,
+};
 const EVENT = {
   id: "e1",
   name: { ar: null, en: "Fest" },

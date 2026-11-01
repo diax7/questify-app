@@ -5,12 +5,16 @@ import {
   guestListFull,
   invalidRequest,
   joinFieldInUse,
+  fullNameFieldInUse,
   joinFieldsChanged,
+  nameDisplayLocked,
+  nameDisplayNeedsField,
   notFound,
   settingLocked,
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
-import { JOIN_FIELD_KINDS, JOIN_OPTION_MAX } from "@questify/shared";
+import { JOIN_FIELD_KINDS, JOIN_OPTION_MAX, NAME_AUDIENCES, NAME_DISPLAYS } from "@questify/shared";
+import { updateNames } from "#src/join/names";
 import {
   DOMAIN_LIMIT,
   GUESTS_PER_UPLOAD,
@@ -65,6 +69,10 @@ const rulesBody = z.strictObject({
     .optional(),
   welcomePoints: z.number().int().min(1).max(100_000).nullable().optional(),
 });
+const namesBody = z.strictObject({
+  display: z.enum(NAME_DISPLAYS),
+  audience: z.enum(NAME_AUDIENCES),
+});
 const guestsBody = z.strictObject({
   lines: z.array(z.string().max(300)).min(1).max(GUESTS_PER_UPLOAD),
   // ADR-172: one tag for the whole upload (targeting); a tagged contact is on the guest list, so it is invited.
@@ -75,30 +83,36 @@ const member = { config: { access: "member" }, bodyLimit: 16_384 } as const;
 /** 2 000 lines of up to 300 characters of JSON each, with room for the envelope. */
 const GUESTS_BODY_LIMIT = 700_000;
 
+/** The refusals that carry nothing from the result. */
+const PLAIN_REFUSALS = {
+  not_found: notFound,
+  event_archived: eventArchived,
+  setting_locked: settingLocked,
+  fields_changed: joinFieldsChanged,
+  name_display_locked: nameDisplayLocked,
+  needs_full_name_field: nameDisplayNeedsField,
+  full_name_field_in_use: fullNameFieldInUse,
+} as const;
+
 function answer<T>(result: SetupDone<T>, ok: (value: T) => unknown): unknown {
   switch (result.kind) {
     case "done":
       return ok(result.value);
-    case "not_found":
-      throw notFound();
-    case "event_archived":
-      throw eventArchived();
-    case "setting_locked":
-      throw settingLocked();
-    case "fields_changed":
-      throw joinFieldsChanged();
     case "invalid":
       throw invalidRequest({ field: result.field });
     case "guest_list_full":
       throw guestListFull({ room: result.room });
     case "field_in_use":
       throw joinFieldInUse({ ...result.inUse });
+    default:
+      throw PLAIN_REFUSALS[result.kind]();
   }
 }
 
 /**
  * The dashboard's join setup (T-212), for owners and editors: `GET …/events/:eventId/join` (fields, locks, welcome,
- * the guest count), `PUT …/join/fields` (the whole list with the version read), `PUT …/join/rules`, and the guest list
+ * names, the guest count), `PUT …/join/fields` (the whole list with the version read), `PUT …/join/rules`,
+ * `PUT …/join/names` (how players are named and who sees a full name, T-615), and the guest list
  * at `GET`/`POST …/join/guests` and `DELETE …/join/guests/:guestId`.
  */
 export function registerJoinSetupRoutes(scope: FastifyInstance, deps: SetupDeps): void {
@@ -131,6 +145,19 @@ export function registerJoinSetupRoutes(scope: FastifyInstance, deps: SetupDeps)
       callerOf(request),
     );
     return answer(result, (rules) => ({ rules }));
+  });
+
+  scope.put("/events/:eventId/join/names", member, async (request) => {
+    const { eventId } = parse(eventParams, request.params);
+    const body = parse(namesBody, request.body);
+    const result = await updateNames(
+      deps,
+      organizerContextOf(request),
+      eventId,
+      body,
+      callerOf(request),
+    );
+    return answer(result, (names) => ({ names }));
   });
 
   scope.get("/events/:eventId/join/guests", member, async (request) => {

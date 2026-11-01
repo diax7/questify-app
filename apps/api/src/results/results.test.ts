@@ -447,17 +447,18 @@ describe("the player's results and rules", () => {
     ]);
     await expect(playerResults(deps, PLAYER, EVENT)).resolves.toEqual({
       revealed: true,
+      names: "username",
       places: [
         {
           rank: 1,
-          player: { username: "sara", avatar: "fox" },
+          player: { username: "sara", fullName: null, avatar: "fox" },
           score: 300,
           prize: { kind: "item", name: { ar: "كأس", en: "Cup" } },
           mine: true,
         },
         {
           rank: 2,
-          player: { username: "sara", avatar: "fox" },
+          player: { username: "sara", fullName: null, avatar: "fox" },
           score: 300,
           prize: null,
           mine: false,
@@ -474,6 +475,7 @@ describe("the player's results and rules", () => {
     const none = fakePool(() => []);
     await expect(playerResults(none.deps, PLAYER, EVENT)).resolves.toEqual({
       revealed: false,
+      names: "username",
       places: [],
       me: null,
     });

@@ -15,6 +15,7 @@ import {
 const row = (rank: number, isMe = false): RankRow => ({
   rank,
   username: `player${rank}`,
+  fullName: null,
   avatar: "fox",
   score: 1000 - rank,
   isMe,
@@ -29,12 +30,19 @@ const ranking = (rows: RankRow[], me: Ranking["me"]): Ranking => ({
   total: 50,
   today: false,
   scores: true,
+  names: "username",
 });
 
 describe("rankingRows", () => {
   it("shows the top 10 with the player's own row among them, and no 11th row", () => {
     const shown = rankingRows(
-      ranking(topTen(4), { rank: 4, username: "player4", avatar: "fox", score: 996 }),
+      ranking(topTen(4), {
+        rank: 4,
+        username: "player4",
+        fullName: null,
+        avatar: "fox",
+        score: 996,
+      }),
     );
     expect(shown).toHaveLength(10);
     expect(shown.filter((item) => item.isMe).map((item) => item.rank)).toEqual([4]);
@@ -42,7 +50,7 @@ describe("rankingRows", () => {
 
   it("adds the player's own row as an 11th row with their real rank", () => {
     const shown = rankingRows(
-      ranking(topTen(), { rank: 37, username: "me", avatar: "owl", score: 12 }),
+      ranking(topTen(), { rank: 37, username: "me", fullName: null, avatar: "owl", score: 12 }),
     );
     expect(shown).toHaveLength(11);
     expect(shown[10]).toMatchObject({ rank: 37, username: "me", avatar: "owl", isMe: true });
@@ -50,7 +58,13 @@ describe("rankingRows", () => {
 
   it("adds no 11th row for a player ranked exactly 10th", () => {
     const shown = rankingRows(
-      ranking(topTen(10), { rank: 10, username: "player10", avatar: "fox", score: 990 }),
+      ranking(topTen(10), {
+        rank: 10,
+        username: "player10",
+        fullName: null,
+        avatar: "fox",
+        score: 990,
+      }),
     );
     expect(shown).toHaveLength(10);
     expect(shown[9]?.isMe).toBe(true);
@@ -62,9 +76,24 @@ describe("rankingRows", () => {
     expect(rankingRows(ranking([], null))).toEqual([]);
   });
 
+  it("gives every row how the event names players, and the full name the server sent (T-615)", () => {
+    const named: Ranking = {
+      ...ranking([{ ...row(1), fullName: "Sara Ahmed" }, row(2)], null),
+      names: "both",
+    };
+    const shown = rankingRows(named);
+    expect(shown.map((item) => item.names)).toEqual(["both", "both"]);
+    expect(shown.map((item) => item.fullName)).toEqual(["Sara Ahmed", null]);
+    const own = rankingRows({
+      ...named,
+      me: { rank: 30, username: "me", fullName: "Me Myself", avatar: "owl", score: 1 },
+    });
+    expect(own.at(-1)).toMatchObject({ isMe: true, fullName: "Me Myself", names: "both" });
+  });
+
   it("gives every row a key from its rank and username", () => {
     const keys = rankingRows(
-      ranking(topTen(), { rank: 37, username: "me", avatar: "owl", score: 1 }),
+      ranking(topTen(), { rank: 37, username: "me", fullName: null, avatar: "owl", score: 1 }),
     ).map((item) => item.key);
     expect(new Set(keys).size).toBe(11);
   });
@@ -133,7 +162,11 @@ describe("podiumFit", () => {
 });
 
 describe("podiumPlaces", () => {
-  const top = [row(1), row(2), row(3)].map((item) => ({ ...item, key: `${item.rank}` }));
+  const top = [row(1), row(2), row(3)].map((item) => ({
+    ...item,
+    key: `${item.rank}`,
+    names: "username" as const,
+  }));
 
   it("stands second on one side of first and third on the other", () => {
     expect(podiumPlaces(top).map((place) => place?.rank)).toEqual([2, 1, 3]);

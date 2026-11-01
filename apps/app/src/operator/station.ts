@@ -1,4 +1,5 @@
 import type { MessageKey } from "@questify/shared";
+import { fullNameOf } from "#src/event/full-name.ts";
 import { decodeBase64Url } from "#src/event/scan.ts";
 
 const TOKEN = /^[A-Za-z0-9_-]{50}$/;
@@ -47,7 +48,8 @@ const RED_REASONS = [
 ] as const;
 type RedReason = (typeof RED_REASONS)[number];
 
-export type ScannedPlayer = Readonly<{ username: string; avatar: string }>;
+/** Who the station scanned; `fullName` is set while the event shows full names to its staff (FR-1842). */
+export type ScannedPlayer = Readonly<{ username: string; avatar: string; fullName: string | null }>;
 
 /** What the full-screen result shows (FR-924): its colour, its words and who was scanned. */
 export type StationResult =
@@ -66,7 +68,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const playerOf = (value: unknown): ScannedPlayer | null =>
   isRecord(value) && typeof value["username"] === "string" && typeof value["avatar"] === "string"
-    ? { username: value["username"], avatar: value["avatar"] }
+    ? {
+        username: value["username"],
+        avatar: value["avatar"],
+        fullName: fullNameOf(value["fullName"]),
+      }
     : null;
 
 const camel = (value: string) =>

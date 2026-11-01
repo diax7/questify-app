@@ -1,6 +1,5 @@
 import { formatNumber, type Theme } from "@questify/shared";
 import { Pressable, View } from "react-native";
-import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import { CurrencyIcon } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
@@ -10,6 +9,7 @@ import {
   type PodiumMetrics,
   type ShownRow,
 } from "#src/event/ranking.ts";
+import { PlayerName } from "#src/event/PlayerName.tsx";
 import { openPlayer, useRowLabel } from "#src/event/RankingRows.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -49,14 +49,13 @@ function Place({
       <View style={row.isMe ? [styles.ring, { borderRadius: face }] : styles.noRing}>
         <Avatar name={row.avatar} username={row.username} size={face} equipment={row.equipment} />
       </View>
-      <AppText
+      <PlayerName
         variant="label"
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        style={[styles.name, { writingDirection: "ltr" }]}
-      >
-        {isolatedLtr(`@${row.username}`)}
-      </AppText>
+        username={row.username}
+        fullName={row.fullName}
+        names={row.names}
+        style={styles.name}
+      />
       {scoreLine ? (
         <View style={styles.score}>
           {row.score === null ? null : (

@@ -1,4 +1,11 @@
-import type { Equipment, EventStreak, ShopWindow } from "@questify/shared";
+import {
+  isNameDisplay,
+  type Equipment,
+  type EventStreak,
+  type NameDisplay,
+  type ShopWindow,
+} from "@questify/shared";
+import { fullNameOf } from "#src/event/full-name.ts";
 import { equipmentOf } from "#src/questify/profile-api.ts";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import { readFinale, type Finale } from "#src/event/finale.ts";
@@ -254,6 +261,8 @@ export async function fetchHome(
 export type RankRow = Readonly<{
   rank: number;
   username: string;
+  /** The full name, only where the event shows it to every player and this player was told so (FR-1842); else null. */
+  fullName: string | null;
   avatar: string;
   equipment?: Equipment;
   score: number | null;
@@ -269,6 +278,7 @@ export type Ranking = Readonly<{
   me: Readonly<{
     rank: number;
     username: string;
+    fullName: string | null;
     avatar: string;
     equipment?: Equipment;
     score: number | null;
@@ -276,6 +286,8 @@ export type Ranking = Readonly<{
   total: number;
   today: boolean;
   scores: boolean;
+  /** How the event names players: `username` unless it shows full names to every player (FR-1842). */
+  names: NameDisplay;
 }>;
 
 /** The whole event's ranking, or today's points only (FR-610). */
@@ -295,6 +307,9 @@ export type RankingAnswer =
 
 /** A score is a number, or left out by the server on an event that shows places only. */
 const isScore = (value: unknown): boolean => value === undefined || typeof value === "number";
+
+/** How the event names players in an answer: `username` for anything but a known display (an older server sends none). */
+const namesOf = (value: unknown): NameDisplay => (isNameDisplay(value) ? value : "username");
 
 const isRow = (value: unknown): value is RankRow =>
   isRecord(value) &&
@@ -328,6 +343,7 @@ export function readRanking(body: unknown): Ranking | undefined {
   return {
     rows: body["rows"].map((row) => ({
       ...row,
+      fullName: fullNameOf(row["fullName"]),
       score: scoreOf(row.score, scores),
       ...(row.equipment === undefined ? {} : { equipment: equipmentOf(row.equipment) }),
     })),
@@ -336,6 +352,7 @@ export function readRanking(body: unknown): Ranking | undefined {
         ? null
         : {
             ...(me as NonNullable<Ranking["me"]>),
+            fullName: fullNameOf((me as Record<string, unknown>)["fullName"]),
             score: scoreOf((me as Record<string, unknown>)["score"], scores),
             ...((me as Record<string, unknown>)["equipment"] === undefined
               ? {}
@@ -344,6 +361,7 @@ export function readRanking(body: unknown): Ranking | undefined {
     total: body["total"],
     today: body["today"] === true,
     scores,
+    names: namesOf(body["names"]),
   };
 }
 

@@ -13,6 +13,8 @@ import {
   type JoinFieldKind,
   type JoinOption,
   type JoinOptionInput,
+  type NameAudience,
+  type NameDisplay,
 } from "@questify/shared";
 import { normalizeSaudiMobile } from "#src/players/phone";
 import { lockBuilderEvent, type BuilderEvent } from "#src/quests/store";
@@ -50,11 +52,20 @@ export type RulesInput = Readonly<{
   welcomePoints?: number | null | undefined;
 }>;
 
+/** How the event names its players (FR-1842): the setting and whether widening it is refused now (ADR-400). */
+export type NamesSettings = Readonly<{
+  display: NameDisplay;
+  audience: NameAudience;
+  /** Players joined who were not told their full name would show to everyone: only narrowing is allowed. */
+  locked: boolean;
+}>;
+
 export type JoinSetup = Readonly<{
   /** Sent back with a save of the fields, so a save from a stale page cannot delete newer fields and their answers. */
   version: number;
   fields: readonly FieldRecord[];
   rules: JoinRulesSettings;
+  names: NamesSettings;
   /** The welcome amount is fixed once anyone joined or the event is live (ADR-147). */
   welcomeLocked: boolean;
   guests: number;
@@ -81,7 +92,16 @@ export type GuestsAdded = Readonly<{
 
 export type SetupDone<T> =
   | Readonly<{ kind: "done"; value: T }>
-  | Readonly<{ kind: "not_found" | "event_archived" | "setting_locked" | "fields_changed" }>
+  | Readonly<{
+      kind:
+        | "not_found"
+        | "event_archived"
+        | "setting_locked"
+        | "fields_changed"
+        | "name_display_locked"
+        | "needs_full_name_field"
+        | "full_name_field_in_use";
+    }>
   | Readonly<{ kind: "invalid"; field: "fields" | "emailDomains" | "tag" }>
   | Readonly<{ kind: "guest_list_full"; room: number }>
   | Readonly<{ kind: "field_in_use"; inUse: FieldInUse }>;
@@ -108,7 +128,7 @@ export function cleanTag(raw: string | undefined): string | null | undefined {
   return [...tag].length > TAG_MAX || /\p{Cc}/u.test(tag) ? undefined : tag;
 }
 
-const done = <T>(value: T): SetupDone<T> => ({ kind: "done", value });
+export const done = <T>(value: T): SetupDone<T> => ({ kind: "done", value });
 
 // The exclusion list's exact-domain shape (0019, 0028): an internationalized last label is its xn-- form.
 const DOMAIN = /^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+([a-z]{2,63}|xn--[a-z0-9-]{1,59})$/;
@@ -261,20 +281,27 @@ async function readFields(client: PoolClient, eventId: string): Promise<FieldRec
   }));
 }
 
-type EventRow = {
+export type EventRow = {
   join_fields_version: number;
   guest_list_only: boolean;
   email_domains: string[];
   welcome_points: number | null;
   has_members: boolean;
   guests: number;
+  name_display: NameDisplay;
+  name_audience: NameAudience;
+  names_locked: boolean;
 };
 
-async function readEvent(client: PoolClient, eventId: string): Promise<EventRow> {
+export async function readEvent(client: PoolClient, eventId: string): Promise<EventRow> {
   const { rows } = await client.query<EventRow>(
-    `SELECT join_fields_version, guest_list_only, email_domains, welcome_points,
+    `SELECT join_fields_version, guest_list_only, email_domains, welcome_points, name_display, name_audience,
             EXISTS (SELECT 1 FROM enrollment n WHERE n.event_id = e.id) AS has_members,
-            (SELECT count(*)::int FROM event_guest g WHERE g.event_id = e.id) AS guests
+            (SELECT count(*)::int FROM event_guest g WHERE g.event_id = e.id) AS guests,
+            EXISTS (SELECT 1 FROM enrollment n
+                    WHERE n.event_id = e.id AND n.status IN ('active', 'pending')
+                      AND coalesce(n.joined_via, '') NOT IN ('rehearsal', 'operator')
+                      AND n.name_notice IS DISTINCT FROM 'everyone') AS names_locked
      FROM event e WHERE e.id = $1`,
     [eventId],
   );
@@ -287,13 +314,19 @@ const rulesOf = (row: EventRow): JoinRulesSettings => ({
   welcomePoints: row.welcome_points,
 });
 
+export const namesOf = (row: EventRow): NamesSettings => ({
+  display: row.name_display,
+  audience: row.name_audience,
+  locked: row.names_locked,
+});
+
 const welcomeLocked = (event: BuilderEvent, row: EventRow) =>
   row.has_members || !(event.statusNow === "draft" || event.statusNow === "scheduled");
 
 type Work<T> = (client: PoolClient, event: BuilderEvent) => Promise<SetupDone<T>>;
 
 /** Runs one action on the path's event, locked against other saves: not found outside the caller's reach. */
-function withSetupEvent<T>(
+export function withSetupEvent<T>(
   deps: SetupDeps,
   actor: Actor,
   eventId: string,
@@ -318,7 +351,7 @@ function withSetupEvent<T>(
   );
 }
 
-const audit = (
+export const audit = (
   client: PoolClient,
   actor: Actor,
   caller: Caller,
@@ -365,6 +398,7 @@ export function readSetup(
         version: row.join_fields_version,
         fields: await readFields(client, eventId),
         rules: rulesOf(row),
+        names: namesOf(row),
         welcomeLocked: welcomeLocked(event, row),
         guests: row.guests,
       });
@@ -425,6 +459,9 @@ export function saveFields(
     const fields = cleanFields(input.fields, before);
     if (fields === undefined) {
       return { kind: "invalid", field: "fields" };
+    }
+    if (row.name_display !== "username" && !fields.some((field) => field.kind === "full_name")) {
+      return { kind: "full_name_field_in_use" };
     }
     const kept = new Map(
       fields.filter((field) => field.id !== "").map((field) => [field.id, field.options]),

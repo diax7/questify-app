@@ -331,6 +331,37 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators over HTTP", () => {
   });
 
   describe("the station", () => {
+    it("shows the operator the full name of the player scanned when the event shows full names, to staff only too (T-615)", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      const operator = await newOperator(event);
+      const player = await newPlayer(event);
+      const [field] = await owner<{ id: string }>(
+        `INSERT INTO event_join_field (organizer_id, event_id, kind, position)
+         SELECT organizer_id, id, 'full_name', 0 FROM event WHERE id = $1 RETURNING id`,
+        [event],
+      );
+      await owner(
+        `INSERT INTO join_answer (enrollment_id, field_id, organizer_id, event_id, value)
+         SELECT n.id, $2, n.organizer_id, n.event_id, 'Sara Ahmed' FROM enrollment n
+         WHERE n.event_id = $1 AND n.player_id = $3`,
+        [event, field?.id, player.id],
+      );
+      const scan = async (version: number) =>
+        app("POST", "/v1/operator/scan", operator.token, {
+          questId: quest,
+          code: myCode(MY_KEY, player.id, version),
+        });
+      const usernames = await scan(1);
+      expect(usernames.json()).toMatchObject({ player: { fullName: null } });
+      expect(usernames.body).not.toMatch(/Sara/);
+      await owner("UPDATE event SET name_display = 'both', name_audience = 'staff' WHERE id = $1", [
+        event,
+      ]);
+      const staffOnly = await scan(1);
+      expect(staffOnly.json()).toMatchObject({ player: { fullName: "Sara Ahmed" } });
+    });
+
     it("lists the operator's events and stations, scans green, then orange, never showing a balance", async () => {
       const event = await newEvent();
       const quest = await newQuest(event);
@@ -362,7 +393,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators over HTTP", () => {
       expect(green.statusCode).toBe(200);
       expect(green.json()).toEqual({
         result: "completed",
-        player: { username: expect.stringMatching(/^ops_/), avatar: "falcon" },
+        player: { username: expect.stringMatching(/^ops_/), avatar: "falcon", fullName: null },
         points: 25,
         occurrence: 1,
         replayed: false,

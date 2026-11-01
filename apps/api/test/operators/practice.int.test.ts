@@ -163,7 +163,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operator tools over HTTP", () 
       expect(practised.statusCode).toBe(200);
       expect(practised.json()).toEqual({
         result: "completed",
-        player: { username: expect.stringMatching(/^tools_/), avatar: "falcon" },
+        player: { username: expect.stringMatching(/^tools_/), avatar: "falcon", fullName: null },
         points: 25,
         occurrence: 1,
         bonusPoints: null,

@@ -6,9 +6,10 @@ import {
   type EventTerms,
   type Language,
   type MessageKey,
+  type NameDisplay,
 } from "@questify/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Avatar, CommunityScene } from "#src/components/BigScreenParts.tsx";
+import { Avatar, CommunityScene, ScreenName } from "#src/components/BigScreenParts.tsx";
 import { CheersScene } from "#src/components/CheersScene.tsx";
 import { DevicePairing } from "#src/components/DevicePairing.tsx";
 import { FinaleScene } from "#src/components/FinaleScene.tsx";
@@ -120,11 +121,13 @@ function useBigScreen(scenes: readonly RunningScene[], restart: () => void) {
 
 function RankingScene({
   rows,
+  names,
   terms,
   language,
   t,
 }: Readonly<{
   rows: readonly RankingRow[];
+  names: NameDisplay;
   terms: EventTerms;
   language: Language;
   t: Translate;
@@ -142,7 +145,7 @@ function RankingScene({
           <span className={styles.boardPlace}>{formatNumber(row.place, language)}</span>
           <Avatar row={row} />
           <span className={styles.boardName} dir="auto">
-            {row.username}
+            <ScreenName username={row.username} fullName={row.fullName} names={names} />
           </span>
           {row.score === null ? null : (
             <span className={styles.boardScore}>
@@ -209,7 +212,15 @@ function SceneBody({
 }: Readonly<{ answer: SceneAnswer; terms: EventTerms; language: Language; t: Translate }>) {
   switch (answer.scene) {
     case "ranking":
-      return <RankingScene rows={answer.rows} terms={terms} language={language} t={t} />;
+      return (
+        <RankingScene
+          rows={answer.rows}
+          names={answer.names}
+          terms={terms}
+          language={language}
+          t={t}
+        />
+      );
     case "community":
       return answer.goal === null ? null : (
         <CommunityScene goal={answer.goal} language={language} t={t} />

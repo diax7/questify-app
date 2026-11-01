@@ -545,6 +545,45 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live finale (database)", () =>
       expect(finale).not.toHaveProperty("goal");
     });
 
+    it("names the winners who were told their full name would show to everyone, when the event says so (T-615)", async () => {
+      const event = await newEvent();
+      const screen = await device(event);
+      const [field] = await owner<{ id: string }>(
+        `INSERT INTO event_join_field (organizer_id, event_id, kind, position)
+         VALUES ($1, $2, 'full_name', 0) RETURNING id`,
+        [ids.orgA, event],
+      );
+      const first = await newPlayer(event, 300);
+      const second = await newPlayer(event, 200);
+      for (const [player, notice, name] of [
+        [first, "everyone", "Sara Ahmed"],
+        [second, null, "Layla Hassan"],
+      ] as const) {
+        await owner("UPDATE enrollment SET name_notice = $2 WHERE id = $1", [
+          player.enrollment,
+          notice,
+        ]);
+        await owner(
+          `INSERT INTO join_answer (enrollment_id, field_id, organizer_id, event_id, value)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [player.enrollment, field?.id, ids.orgA, event, name],
+        );
+      }
+      await owner(
+        "UPDATE event SET name_display = 'both', name_audience = 'everyone' WHERE id = $1",
+        [event],
+      );
+      await set(event, inHours(1));
+      await confirmAndReveal(event);
+      const finale = await finaleOf(screen);
+      expect(finale?.["names"]).toBe("both");
+      const winners = finale?.["winners"] as Row[];
+      expect(winners.map((winner) => winner["fullName"])).toEqual(["Sara Ahmed", undefined]);
+      expect(JSON.stringify(finale)).not.toMatch(/Layla/);
+      await owner("UPDATE event SET name_audience = 'staff' WHERE id = $1", [event]);
+      expect(JSON.stringify(await finaleOf(screen))).not.toMatch(/Sara|Layla|fullName|names/);
+    });
+
     it("keeps the frozen places when a winner later leaves, and names a deleted account without a username", async () => {
       const event = await newEvent();
       const screen = await device(event);

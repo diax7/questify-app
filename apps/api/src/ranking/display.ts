@@ -1,10 +1,11 @@
-import type { Equipment } from "@questify/shared";
+import type { Equipment, NameDisplay } from "@questify/shared";
 import type { RankingView } from "#src/ranking/ranking";
 
 /** A ranking row without its score: the place and the public profile details only (FR-120, FR-1832). */
 type PlaceRow = Readonly<{
   rank: number;
   username: string;
+  fullName: string | null;
   avatar: string;
   equipment: Equipment;
   isMe: boolean;
@@ -21,6 +22,7 @@ export type PlayerRanking =
       me: Omit<NonNullable<RankingView["me"]>, "score"> | null;
       total: number;
       today: boolean;
+      names: NameDisplay;
       scores: false;
     }>;
 
@@ -36,6 +38,7 @@ export function playerRanking(view: RankingView, hideScores: boolean): PlayerRan
     rows: view.rows.map((row) => ({
       rank: row.rank,
       username: row.username,
+      fullName: row.fullName,
       avatar: row.avatar,
       equipment: row.equipment,
       isMe: row.isMe,
@@ -46,11 +49,13 @@ export function playerRanking(view: RankingView, hideScores: boolean): PlayerRan
         : {
             rank: view.me.rank,
             username: view.me.username,
+            fullName: view.me.fullName,
             avatar: view.me.avatar,
             equipment: view.me.equipment,
           },
     total: view.total,
     today: view.today,
+    names: view.names,
     scores: false,
   };
 }

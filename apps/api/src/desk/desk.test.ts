@@ -202,12 +202,13 @@ describe("lookUp (FR-925)", () => {
     );
     expect(statements).toEqual([
       { sql: "SELECT * FROM desk_lookup($1, $2, $3)", values: [EVENT, PLAYER, 3] },
+      { sql: "SELECT desk_full_name($1, $2) AS name", values: [EVENT, "sara_88"] },
     ]);
     expect(result).toEqual({
       kind: "done",
       value: {
         kind: "found",
-        player: { username: "sara_88", avatar: "fox" },
+        player: { username: "sara_88", avatar: "fox", fullName: null },
         active: true,
         hold: "held",
         items: [
@@ -250,12 +251,23 @@ describe("lookUp (FR-925)", () => {
       kind: "done",
       value: {
         kind: "found",
-        player: { username: "a", avatar: "b" },
+        player: { username: "a", avatar: "b", fullName: null },
         active: false,
         hold: null,
         items: [],
       },
     });
+  });
+
+  it("gives the desk the full name its database answers, and none when it answers none", async () => {
+    const named = fakePool((sql) =>
+      sql.includes("desk_full_name")
+        ? [{ name: "Sara Ahmed" }]
+        : [{ username: "a", avatar: "b", active: true, hold: null, redemption_id: null }],
+    );
+    expect(
+      await lookUp(named.deps, { operatorId: OPERATOR, eventId: EVENT, code }, caller().value),
+    ).toMatchObject({ value: { player: { username: "a", fullName: "Sara Ahmed" } } });
   });
 });
 

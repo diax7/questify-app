@@ -1,7 +1,11 @@
 import {
+  isNameAudience,
+  isNameDisplay,
   officialRules,
   type JoinFieldKind,
   type JoinOption,
+  type NameAudience,
+  type NameDisplay,
   type OfficialRules,
 } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
@@ -42,12 +46,16 @@ export type JoinFieldView = Readonly<{
   options: readonly JoinOption[] | null;
 }>;
 
-/** What an event asks and checks at the join (T-212): its fields, its locks and its welcome amount. */
+/** How an event names its players and who sees a full name (FR-1842): what the join card must tell. */
+export type NameSetting = Readonly<{ display: NameDisplay; audience: NameAudience }>;
+
+/** What an event asks and checks at the join (T-212): its fields, its locks, its welcome amount and its names. */
 export type JoinRules = Readonly<{
   fields: readonly JoinFieldView[];
   guestListOnly: boolean;
   emailDomains: readonly string[];
   welcomePoints: number | null;
+  names: NameSetting;
 }>;
 
 /** The join card's event: also its access type, how it may be joined and its join rules. */
@@ -103,6 +111,8 @@ export type JoinOutcome =
         | "rehearsing";
     }>
   | Readonly<{ kind: "domain_required"; domains: readonly string[] }>
+  /** The audience the card showed is no longer the event's: the join rolled back; `names` is what the card must say now (ADR-400). */
+  | Readonly<{ kind: "notice_changed"; names: NameSetting; withAnswers: boolean }>
   /** An answer is missing or not valid: the field it is, or null when the answers were not an object. */
   | Readonly<{ kind: "invalid_answers"; field: string | null }>;
 
@@ -253,9 +263,11 @@ type RulesRow = Readonly<{
   email_domains: string[];
   welcome_points: number | null;
   fields: FieldJson[];
+  name_display: NameDisplay;
+  name_audience: NameAudience;
 }>;
 
-/** The rules as migration 0028's definers return them (`event_join_fields_json`). */
+/** The rules as migration 0028's definers return them (`event_join_fields_json`), with 0109's name setting. */
 export const rulesOf = (row: RulesRow): JoinRules => ({
   fields: row.fields.map((field) => ({
     id: field.id,
@@ -267,11 +279,13 @@ export const rulesOf = (row: RulesRow): JoinRules => ({
   guestListOnly: row.guest_list_only,
   emailDomains: row.email_domains,
   welcomePoints: row.welcome_points,
+  names: { display: row.name_display, audience: row.name_audience },
 });
 
 async function readRules(client: PoolClient, code: string): Promise<JoinRules | undefined> {
   const { rows } = await client.query<RulesRow>(
-    "SELECT guest_list_only, email_domains, welcome_points, fields FROM public_event_join_rules($1)",
+    `SELECT guest_list_only, email_domains, welcome_points, fields, name_display, name_audience
+     FROM public_event_join_rules($1)`,
     [code],
   );
   const row = rows[0];
@@ -418,6 +432,14 @@ type JoinRow = Readonly<{
 /** The database refused the answers (JA422): its DETAIL names the field (`field:<id>`) or says `shape`. */
 type AnswersRefused = Readonly<{ outcome: "invalid_answers"; field: string | null }>;
 
+/** The card showed an audience the event no longer has (NN409): `names` is what it must say now. */
+type NoticeChanged = Readonly<{
+  outcome: "notice_changed";
+  names: NameSetting;
+  /** Whether the event asks join fields, which the card lists as answers the organizer receives. */
+  withAnswers: boolean;
+}>;
+
 const FIELD_DETAIL = /^field:(.+)$/;
 
 function answersRefused(error: unknown): AnswersRefused | undefined {
@@ -429,21 +451,41 @@ function answersRefused(error: unknown): AnswersRefused | undefined {
   return { outcome: "invalid_answers", field: match?.[1] ?? null };
 }
 
+function noticeChanged(error: unknown): NoticeChanged | undefined {
+  const pg = error as { code?: unknown; detail?: unknown };
+  if (pg.code !== "NN409") {
+    return undefined;
+  }
+  const [display, audience, answers] = String(pg.detail).split("/");
+  const names: NameSetting =
+    isNameDisplay(display) && isNameAudience(audience)
+      ? { display, audience }
+      : { display: "username", audience: "staff" };
+  return { outcome: "notice_changed", names, withAnswers: answers === "answers" };
+}
+
 /**
- * Runs one join definer for the player. A refusal of the answers rolls the transaction back and comes back as a value,
- * so a code that exists is never counted as a wrong one because of what was typed in a field.
+ * Runs one join definer for the player and, for a join that made or renewed the enrollment, records the audience the
+ * card showed beside it in the same transaction (ADR-400). A refusal of the answers or of the notice rolls the
+ * transaction back and comes back as a value, so a code that exists is never counted as a wrong one because of what was
+ * typed in a field, and nobody joins on a notice that was not true.
  */
 async function runJoin(
   deps: JoinDeps,
   playerId: string,
   sql: string,
   values: readonly unknown[],
-): Promise<JoinRow | AnswersRefused | undefined> {
+  shown: NameAudience | null,
+): Promise<JoinRow | AnswersRefused | NoticeChanged | undefined> {
   try {
     return await withConnection(deps.pool, (client) =>
       withRequestContext(client, { playerId }, async () => {
         const { rows } = await client.query<JoinRow>(sql, [...values]);
-        return rows[0];
+        const row = rows[0];
+        if (row?.outcome === "joined" && row.enrollment_id !== null) {
+          await client.query("SELECT join_name_notice($1, $2)", [row.enrollment_id, shown]);
+        }
+        return row;
       }),
     );
   } catch (error) {
@@ -458,7 +500,7 @@ async function runJoin(
         waitlisted: false,
       };
     }
-    const refused = answersRefused(error);
+    const refused = answersRefused(error) ?? noticeChanged(error);
     if (refused === undefined) {
       throw error;
     }
@@ -466,28 +508,37 @@ async function runJoin(
   }
 }
 
-function outcomeOf(row: JoinRow | AnswersRefused, domains: readonly string[]): JoinOutcome {
+/** A join that made or kept a member: their enrollment, event and status come with it. */
+function memberOutcome(row: JoinRow & Readonly<{ outcome: "joined" | "already" }>): JoinOutcome {
+  const { enrollment_id: enrollmentId, event_id: eventId, status } = row;
+  // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement: unreachable: join_core returns all three with a member
+  if (enrollmentId === null || eventId === null || status === null) {
+    throw new Error(`join answered ${row.outcome} without an enrollment; check migration 0028`);
+  }
+  return {
+    kind: row.outcome,
+    enrollmentId,
+    eventId,
+    status,
+    welcome: row.welcome,
+    waitlisted: row.waitlisted,
+  };
+}
+
+function outcomeOf(
+  row: JoinRow | AnswersRefused | NoticeChanged,
+  domains: readonly string[],
+): JoinOutcome {
   switch (row.outcome) {
     case "invalid_answers":
       return { kind: "invalid_answers", field: row.field };
+    case "notice_changed":
+      return { kind: "notice_changed", names: row.names, withAnswers: row.withAnswers };
     case "domain_required":
       return { kind: "domain_required", domains };
     case "joined":
-    case "already": {
-      const { enrollment_id: enrollmentId, event_id: eventId, status } = row;
-      // Stryker disable next-line ConditionalExpression,LogicalOperator,BlockStatement: unreachable: join_core returns all three with a member
-      if (enrollmentId === null || eventId === null || status === null) {
-        throw new Error(`join answered ${row.outcome} without an enrollment; check migration 0028`);
-      }
-      return {
-        kind: row.outcome,
-        enrollmentId,
-        eventId,
-        status,
-        welcome: row.welcome,
-        waitlisted: row.waitlisted,
-      };
-    }
+    case "already":
+      return memberOutcome({ ...row, outcome: row.outcome });
     default:
       return { kind: row.outcome };
   }
@@ -508,6 +559,8 @@ export async function joinByCode(
     via: JoinVia;
     cardVersion: string;
     answers: JoinAnswers;
+    /** The audience the card told the player would see their full name; null when it told them none (ADR-400). */
+    nameNotice: NameAudience | null;
     /** Join the waiting list when the event is full (FR-1821). */
     waitlist: boolean;
   }>,
@@ -528,6 +581,7 @@ export async function joinByCode(
         JSON.stringify(request.answers),
         request.waitlist,
       ],
+      request.nameNotice,
     );
     return row === undefined || row.outcome === "not_found" ? null : row;
   });
@@ -556,6 +610,7 @@ export async function joinInvited(
     eventId: string;
     cardVersion: string;
     answers: JoinAnswers;
+    nameNotice: NameAudience | null;
     waitlist: boolean;
   }>,
 ): Promise<JoinOutcome> {
@@ -564,6 +619,7 @@ export async function joinInvited(
     request.playerId,
     `SELECT ${JOIN_COLUMNS} FROM join_invited($1, $2, $3::jsonb, $4)`,
     [request.eventId, request.cardVersion, JSON.stringify(request.answers), request.waitlist],
+    request.nameNotice,
   );
   // Stryker disable next-line ConditionalExpression: unreachable: join_invited always returns one row
   if (row === undefined) {
@@ -583,7 +639,8 @@ export async function myInvitations(deps: JoinDeps, playerId: string): Promise<I
     withRequestContext(client, { playerId }, async () => {
       const { rows } = await client.query<InvitationRow>(
         `SELECT id, name_ar, name_en, venue_ar, venue_en, kind, timezone, starts_at, ends_at, status_now, access,
-                false AS guest_list_only, '{}'::text[] AS email_domains, welcome_points, fields
+                false AS guest_list_only, '{}'::text[] AS email_domains, welcome_points, fields, name_display,
+                name_audience
          FROM my_invitations()`,
       );
       return rows.map((row) => {

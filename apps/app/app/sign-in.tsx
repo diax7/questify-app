@@ -54,7 +54,7 @@ const SAVE_FAILED = MESSAGES["signIn.saveFailed"];
 function pendingFrom(
   params: Record<string, string | string[] | undefined>,
 ): PendingJoin | undefined {
-  const { code, via, card } = params;
+  const { code, via, card, notice } = params;
   const ways = ["code", "qr", "link", "public_list"] as const;
   if (
     typeof code !== "string" ||
@@ -69,6 +69,7 @@ function pendingFrom(
     code,
     via: via as PendingJoin["via"],
     cardVersion: card,
+    ...(notice === "staff" || notice === "everyone" ? { nameNotice: notice } : {}),
     ...(answers === undefined ? {} : { answers }),
   };
 }

@@ -817,6 +817,24 @@ export const joinFieldInUse = make(
   'لا يمكن حذف هذا الحقل أو هذا الخيار: إجابات اللاعبين أو قواعد "من يرى ماذا" تستخدمه.',
   'This field or option cannot go: players\' answers or a "Who sees what" rule use it.',
 );
+export const nameDisplayLocked = make(
+  409,
+  "name_display_locked",
+  "لا يمكن توسيع من يرى الأسماء الكاملة: انضم لاعبون لم يُخبَروا بذلك. يمكنك التضييق فقط.",
+  "Who sees full names cannot be widened: players joined without being told. You can only narrow it.",
+);
+export const fullNameFieldInUse = make(
+  409,
+  "full_name_field_in_use",
+  "لا يمكن حذف حقل «الاسم الكامل» وأسماء اللاعبين تُعرض. اختر اسم المستخدم في «الأسماء» أولًا.",
+  "The Full name field cannot go while full names are shown. Set Names to Username first.",
+);
+export const nameDisplayNeedsField = make(
+  422,
+  "name_display_needs_full_name",
+  "أضف حقل «الاسم الكامل» إلى حقول الانضمام قبل إظهار الأسماء الكاملة.",
+  "Add the Full name join field before showing full names.",
+);
 export const invalidAudience = make(
   422,
   "invalid_audience",

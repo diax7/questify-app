@@ -21,11 +21,14 @@ import {
 import { TEST_REDIS_URL, createTestRedis } from "#test/support/test-redis";
 
 type View = {
-  rows: { rank: number; username: string; score: number; isMe: boolean }[];
-  me: { rank: number; username: string; score: number } | null;
+  rows: { rank: number; username: string; fullName: string | null; score: number; isMe: boolean }[];
+  me: { rank: number; username: string; fullName: string | null; score: number } | null;
   total: number;
+  names: string;
 };
 
+const fullNames = (seen: View) =>
+  Object.fromEntries(seen.rows.map((row) => [row.username, row.fullName]));
 const names = (seen: View) => seen.rows.map((row) => row.username);
 
 /**
@@ -182,6 +185,133 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
       });
     });
 
+    /** An event that asks the Full name field, with four players who played and how each was told. */
+    const namedEvent = async (display: string, audience: string) => {
+      const event = await newEvent();
+      const quest = await newQuest(event, 10);
+      const [field] = await owner<{ id: string }>(
+        `INSERT INTO event_join_field (organizer_id, event_id, kind, position)
+         VALUES ($1, $2, 'full_name', 0) RETURNING id`,
+        [organizer, event],
+      );
+      const players = {
+        told: await newPlayer(event),
+        untold: await newPlayer(event),
+        staffOnly: await newPlayer(event),
+        noName: await newPlayer(event),
+        reader: await newPlayer(event),
+      };
+      const give = async (
+        player: { enrollment: string },
+        notice: string | null,
+        name: string | null,
+      ) => {
+        await owner("UPDATE enrollment SET name_notice = $2 WHERE id = $1", [
+          player.enrollment,
+          notice,
+        ]);
+        if (name !== null) {
+          await owner(
+            `INSERT INTO join_answer (enrollment_id, field_id, organizer_id, event_id, value)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [player.enrollment, field?.id, organizer, event, name],
+          );
+        }
+      };
+      await give(players.told, "everyone", "Sara Ahmed");
+      await give(players.untold, null, "Layla Hassan");
+      await give(players.staffOnly, "staff", "Khalid Omar");
+      await give(players.noName, "everyone", null);
+      await give(players.reader, "everyone", "Reader Person");
+      await owner("UPDATE event SET name_display = $2, name_audience = $3 WHERE id = $1", [
+        event,
+        display,
+        audience,
+      ]);
+      for (const player of Object.values(players)) {
+        await complete(player.token, quest);
+      }
+      return { event, players };
+    };
+    describe("full names (T-615, FR-1842, ADR-400)", () => {
+      for (const [label, source] of [
+        ["from Redis", () => test],
+        ["from PostgreSQL when Redis is down", () => down],
+      ] as const) {
+        it(`names only the players who were told, ${label}`, async () => {
+          const { event, players } = await namedEvent("both", "everyone");
+          const seen = await view(players.reader.token, event, source());
+          expect(seen.names).toBe("both");
+          const byUsername = fullNames(seen);
+          expect(byUsername[await usernameOf(players.told.id)]).toBe("Sara Ahmed");
+          expect(byUsername[await usernameOf(players.untold.id)]).toBeNull();
+          expect(byUsername[await usernameOf(players.staffOnly.id)]).toBeNull();
+          expect(byUsername[await usernameOf(players.noName.id)]).toBeNull();
+          expect(byUsername[await usernameOf(players.reader.id)]).toBe("Reader Person");
+          const body = JSON.stringify(seen);
+          expect(body).not.toMatch(/Layla|Khalid/);
+        });
+      }
+
+      it("names nobody while only the staff are to see the name, or the event shows usernames", async () => {
+        for (const [display, audience] of [
+          ["both", "staff"],
+          ["full_name", "staff"],
+          ["username", "everyone"],
+        ] as const) {
+          const { event, players } = await namedEvent(display, audience);
+          const response = await ranking(players.reader.token, event);
+          const body = response.body;
+          expect(response.statusCode).toBe(200);
+          expect(body, `${display}/${audience}`).not.toMatch(/Sara|Layla|Khalid|Reader Person/);
+          const seen = response.json<View>();
+          expect(seen.names).toBe("username");
+          expect(seen.rows.every((row) => row.fullName === null)).toBe(true);
+        }
+      });
+
+      it("shows a player outside the top ten their own full name in their own row, as others see it", async () => {
+        const { event, players } = await namedEvent("full_name", "everyone");
+        const quest = await newQuest(event, 50);
+        for (const player of [players.told, players.untold, players.staffOnly, players.noName]) {
+          await complete(player.token, quest);
+        }
+        const extras = [];
+        for (let n = 0; n < 8; n += 1) {
+          const extra = await newPlayer(event);
+          await complete(extra.token, quest);
+          extras.push(extra);
+        }
+        const seen = await view(players.reader.token, event);
+        expect(seen.rows).toHaveLength(10);
+        expect(seen.me).toMatchObject({ fullName: "Reader Person" });
+      });
+
+      it("keeps the names in an answer without scores, and still no score", async () => {
+        const { event, players } = await namedEvent("both", "everyone");
+        await owner(
+          `UPDATE event SET config = jsonb_set(coalesce(config, '{}'::jsonb), '{layout}',
+             '{"looks":{"ranking":{"layout":"list","scores":"rank_only"}}}'::jsonb) WHERE id = $1`,
+          [event],
+        );
+        const response = await ranking(players.reader.token, event);
+        const seen = response.json<View & { scores: boolean }>();
+        expect(seen.scores).toBe(false);
+        expect(seen.names).toBe("both");
+        expect(fullNames(seen)[await usernameOf(players.told.id)]).toBe("Sara Ahmed");
+        expect(response.body).not.toMatch(/"score"/);
+      });
+
+      it("answers a stranger with the same refusal as before and no name", async () => {
+        const { event } = await namedEvent("both", "everyone");
+        const stranger = await newPlayer(await newEvent());
+        const refused = await ranking(stranger.token, event);
+        expect(refused.statusCode).toBeGreaterThanOrEqual(400);
+        expect(refused.body).not.toMatch(/Sara|Layla|Khalid/);
+        expect((await ranking(undefined, event)).statusCode).toBe(401);
+      });
+    });
+
     describe("the ranking route", () => {
       it("shows the top 10 and the caller's own place, ties going to who reached the points first", async () => {
         const event = await newEvent();
@@ -205,6 +335,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
         expect(seen.me).toEqual({
           rank: 12,
           username: await usernameOf(last?.id ?? ""),
+          fullName: null,
           avatar: "falcon",
           equipment: { character: null, frame: null, title: null },
           score: 10,
@@ -215,11 +346,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
           expect(Object.keys(row).toSorted()).toEqual([
             "avatar",
             "equipment",
+            "fullName",
             "isMe",
             "rank",
             "score",
             "username",
           ]);
+          expect(row.fullName).toBeNull();
         }
         const first = await view(players[0]?.token ?? "", event);
         expect(first.rows[0]).toMatchObject({ rank: 1, isMe: true, score: 20 });

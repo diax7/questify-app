@@ -1,4 +1,11 @@
-import { AVATARS, CHEER_REACTIONS, cheerReactionOf, type CheerReaction } from "@questify/shared";
+import {
+  AVATARS,
+  CHEER_REACTIONS,
+  cheerReactionOf,
+  isNameDisplay,
+  type CheerReaction,
+  type NameDisplay,
+} from "@questify/shared";
 
 /** The scenes the team picks and orders (T-504, FR-631): the live ranking, the community goal and the live poll. */
 export const SCENES = ["ranking", "community", "poll"] as const;
@@ -26,6 +33,8 @@ export type Measure = "points" | "completions" | "players";
 export type RankingRow = Readonly<{
   place: number;
   username: string;
+  /** Set only where the event shows full names on the screen and this player was told so (FR-1842, ADR-400). */
+  fullName: string | null;
   avatar: string;
   score: number | null;
 }>;
@@ -38,13 +47,23 @@ export type CommunityGoal = Readonly<{
   status: "running" | "reached" | "missed";
   steps: readonly Milestone[];
 }>;
-export type FinaleWinner = Readonly<{ place: number; username: string | null; avatar: string }>;
+export type FinaleWinner = Readonly<{
+  place: number;
+  username: string | null;
+  fullName: string | null;
+  avatar: string;
+}>;
 /** The finale scene's phase now (T-307b): the countdown, the last push, a wait for the reveal, or the winners. */
 export type FinaleView =
   | Readonly<{ phase: "countdown"; startsAt: number }>
   | Readonly<{ phase: "push"; startsAt: number; goal: CommunityGoal }>
   | Readonly<{ phase: "waiting"; startsAt: number }>
-  | Readonly<{ phase: "reveal"; startsAt: number; winners: readonly FinaleWinner[] }>;
+  | Readonly<{
+      phase: "reveal";
+      startsAt: number;
+      names: NameDisplay;
+      winners: readonly FinaleWinner[];
+    }>;
 /** One cheer on the wire: a sequence number (newer is larger) and its reaction; never a player. */
 export type Cheer = Readonly<{ seq: number; reaction: CheerReaction }>;
 /** The Cheers scene (T-509): when the moment ends, each reaction's count, and the newest cheers in order. */
@@ -64,7 +83,12 @@ export type PollView = Readonly<{
 
 /** One scene's answer; `shut` is why nothing shows (the event ended, the add-on is off, the ranking is off). */
 export type SceneAnswer =
-  | Readonly<{ scene: "ranking"; shut: string | null; rows: readonly RankingRow[] }>
+  | Readonly<{
+      scene: "ranking";
+      shut: string | null;
+      names: NameDisplay;
+      rows: readonly RankingRow[];
+    }>
   | Readonly<{ scene: "community"; shut: string | null; goal: CommunityGoal | null }>
   | Readonly<{ scene: "poll"; shut: string | null; poll: PollView | null }>
   /** `clockOffset` is the server's clock minus this page's when the answer arrived, in milliseconds. */
@@ -94,10 +118,17 @@ const textOf = (value: unknown): Bilingual => {
   };
 };
 
+/** How the screen names players: the scene's own word, else usernames (an event on usernames sends none). */
+const namesOf = (value: unknown): NameDisplay => (isNameDisplay(value) ? value : "username");
+
+const fullNameOf = (value: unknown): string | null =>
+  typeof value === "string" && value.trim() !== "" ? value : null;
+
 const rowsOf = (value: unknown): readonly RankingRow[] =>
   (Array.isArray(value) ? value : []).filter(isRecord).map((row) => ({
     place: numberOf(row["place"]),
     username: typeof row["username"] === "string" ? row["username"] : "",
+    fullName: fullNameOf(row["fullName"]),
     avatar: typeof row["avatar"] === "string" ? row["avatar"] : "",
     score: typeof row["score"] === "number" ? row["score"] : null,
   }));
@@ -146,6 +177,7 @@ const winnersOf = (value: unknown): readonly FinaleWinner[] =>
   (Array.isArray(value) ? value : []).filter(isRecord).map((row) => ({
     place: numberOf(row["place"]),
     username: typeof row["username"] === "string" ? row["username"] : null,
+    fullName: fullNameOf(row["fullName"]),
     avatar: typeof row["avatar"] === "string" ? row["avatar"] : "",
   }));
 
@@ -170,7 +202,12 @@ function phaseOf(value: Record<string, unknown>, startsAt: number): FinaleView |
     case "waiting":
       return { phase: "waiting", startsAt };
     case "reveal":
-      return { phase: "reveal", startsAt, winners: winnersOf(value["winners"]) };
+      return {
+        phase: "reveal",
+        startsAt,
+        names: namesOf(value["names"]),
+        winners: winnersOf(value["winners"]),
+      };
     default:
       return null;
   }
@@ -192,7 +229,7 @@ export function sceneAnswerOf(
   const shut = shutOf(body);
   switch (scene) {
     case "ranking":
-      return { scene, shut, rows: rowsOf(body["rows"]) };
+      return { scene, shut, names: namesOf(body["names"]), rows: rowsOf(body["rows"]) };
     case "community":
       return { scene, shut, goal: goalOf(body["goal"]) };
     case "poll":

@@ -96,7 +96,17 @@ describe("deskStateKey", () => {
 
 const refusedFor = (code: string) => lookupOf({ result: "refused", reason: code });
 
+const readFullName = (fullName: unknown) =>
+  lookupOf({ result: "found", player: { username: "a", avatar: "b", fullName }, items: [] });
+
 describe("lookupOf", () => {
+  it("reads the full name the desk may see, and none that is blank or not text (T-615)", () => {
+    expect(readFullName("Sara Ahmed")).toMatchObject({ player: { fullName: "Sara Ahmed" } });
+    for (const odd of [null, "", "  ", 7, undefined]) {
+      expect(readFullName(odd), String(odd)).toMatchObject({ player: { fullName: null } });
+    }
+  });
+
   it("reads who was scanned and their waiting items, leaving out broken rows", () => {
     expect(
       lookupOf({
@@ -126,7 +136,7 @@ describe("lookupOf", () => {
       }),
     ).toEqual({
       kind: "found",
-      player: { username: "sara_88", avatar: "fox" },
+      player: { username: "sara_88", avatar: "fox", fullName: null },
       active: true,
       hold: "held",
       items: [
@@ -186,7 +196,7 @@ describe("lookupOf", () => {
       lookupOf({ result: "found", player: { username: "a", avatar: "b" }, items: [] }),
     ).toEqual({
       kind: "found",
-      player: { username: "a", avatar: "b" },
+      player: { username: "a", avatar: "b", fullName: null },
       active: false,
       hold: null,
       items: [],

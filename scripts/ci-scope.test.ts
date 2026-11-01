@@ -94,6 +94,17 @@ describe("planBrowserSpecs", () => {
     }
   });
 
+  it("runs the names spec for the join setup page and its helpers, and for the shared name rules (T-615)", () => {
+    for (const file of [
+      "apps/web/src/components/JoinSetupPanel.tsx",
+      "apps/web/src/lib/joining.ts",
+      "packages/shared/src/join/names.ts",
+      "apps/api/src/join/names.ts",
+    ]) {
+      expect(plan([file]).specs, file).toContain("names");
+    }
+  });
+
   it("runs the specs named by each changed area, once each, sorted", () => {
     const result = plan([
       "apps/web/src/components/StreakPanel.tsx",

@@ -54,6 +54,18 @@ export const MESSAGES = {
     ar: "مكافأة الترحيب عند الانضمام: {points}",
     en: "Welcome reward when you join: {points}",
   },
+  "joinCard.nameStaff": {
+    ar: "يرى فريق الفعالية اسمك الكامل فقط. يرى اللاعبون الآخرون اسم المستخدم.",
+    en: "Only the event's staff see your full name. Other players see your username.",
+  },
+  "joinCard.nameEveryoneFull": {
+    ar: "يرى جميع اللاعبين في هذه الفعالية اسمك الكامل بدل اسم المستخدم.",
+    en: "Everyone in this event sees your full name instead of your username.",
+  },
+  "joinCard.nameEveryoneBoth": {
+    ar: "يرى جميع اللاعبين في هذه الفعالية اسمك الكامل بجانب اسم المستخدم.",
+    en: "Everyone in this event sees your full name next to your username.",
+  },
   "joinField.fullName": { ar: "الاسم الكامل", en: "Full name" },
   "joinField.company": { ar: "جهة العمل", en: "Company" },
   "joinField.jobTitle": { ar: "المسمى الوظيفي", en: "Job title" },
@@ -1716,8 +1728,8 @@ export const MESSAGES = {
   "joining.title": { ar: "الانضمام", en: "Joining" },
   "joinFields.title": { ar: "حقول الانضمام", en: "Join fields" },
   "joinFields.intro": {
-    ar: "اطرح حتى 5 أسئلة عند الانضمام. لا يرى الإجابات إلا فريقك.",
-    en: "Ask up to 5 questions when people join. Only your team sees the answers.",
+    ar: "اطرح حتى 5 أسئلة عند الانضمام. لا يرى الإجابات إلا فريقك، وللاسم الكامل إعداد في «الأسماء».",
+    en: "Ask up to 5 questions when people join. Only your team sees the answers; the full name has its own setting under Names.",
   },
   "joinFields.empty": {
     ar: "لا حقول. ينضم الناس باسم المستخدم فقط.",
@@ -1776,6 +1788,32 @@ export const MESSAGES = {
   },
   "joinRules.save": { ar: "حفظ", en: "Save" },
   "joinRules.saved": { ar: "حُفظ.", en: "Saved." },
+  "names.title": { ar: "الأسماء", en: "Names" },
+  "names.why": {
+    ar: "يُخبَر اللاعب في بطاقة الانضمام بمن يرى اسمه الكامل. تأتي الأسماء من حقل «الاسم الكامل»، ومن تركه فارغًا يظهر باسم المستخدم.",
+    en: "Players are told on the join card who sees their full name. Names come from the Full name join field; a player who left it empty shows by username.",
+  },
+  "names.display": { ar: "كيف يظهر اللاعب", en: "How players are named" },
+  "names.display.username": { ar: "اسم المستخدم", en: "Username" },
+  "names.display.fullName": { ar: "الاسم الكامل", en: "Full name" },
+  "names.display.both": { ar: "الاثنان معًا", en: "Both" },
+  "names.audience": { ar: "من يرى الاسم الكامل", en: "Who sees the full name" },
+  "names.audience.staff": { ar: "فريق الفعالية فقط", en: "Event staff only" },
+  "names.audience.everyone": { ar: "جميع اللاعبين", en: "All players" },
+  "names.preview": { ar: "معاينة الصف", en: "Row preview" },
+  "names.preview.players": { ar: "ما يراه اللاعبون", en: "What players see" },
+  "names.preview.staff": { ar: "ما يراه الفريق", en: "What staff see" },
+  "names.sampleName": { ar: "سارة أحمد", en: "Sara Ahmed" },
+  "names.needsField": {
+    ar: "أضف أولًا حقل «الاسم الكامل» في حقول الانضمام.",
+    en: "Add the Full name join field first.",
+  },
+  "names.locked": {
+    ar: "مثبَّت: انضم لاعبون لم يُخبَروا بظهور أسمائهم. يمكنك التضييق فقط.",
+    en: "Fixed: players joined without being told their name would show. You can only narrow it.",
+  },
+  "names.save": { ar: "حفظ", en: "Save" },
+  "names.saved": { ar: "حُفظت إعدادات الأسماء.", en: "Name settings saved." },
   "guests.title": { ar: "قائمة المدعوين", en: "Guest list" },
   "guests.intro": {
     ar: "يرى المدعوون «أنت مدعو» في التطبيق وينضمون دون رمز، حتى في الفعالية الخاصة.",

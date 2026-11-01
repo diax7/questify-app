@@ -2,8 +2,12 @@ import {
   JOIN_FIELD_KINDS,
   JOIN_OPTION_MAX,
   JOIN_OPTION_MIN,
+  nameNoticeOf,
+  playerNameDisplay,
   type JoinFieldKind,
   type JoinOption,
+  type NameAudience,
+  type NameDisplay,
 } from "@questify/shared";
 
 type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
@@ -28,10 +32,14 @@ export type JoinRules = Readonly<{
   welcomePoints: number | null;
 }>;
 
+/** How the event names players (FR-1842); `locked` means players who were not told are in, so only narrowing is allowed. */
+export type NamesView = Readonly<{ display: NameDisplay; audience: NameAudience; locked: boolean }>;
+
 export type JoinSetup = Readonly<{
   version: number;
   fields: readonly JoinFieldView[];
   rules: JoinRules;
+  names: NamesView;
   welcomeLocked: boolean;
   guests: number;
 }>;
@@ -201,3 +209,31 @@ export const rulesUnsaved = (draft: RulesDraft, saved: RulesDraft): boolean =>
   draft.guestListOnly !== saved.guestListOnly ||
   domainsOf(draft.domains).join("\n") !== domainsOf(saved.domains).join("\n") ||
   draft.welcome.trim() !== saved.welcome.trim();
+
+/** The names setting as the form holds it. */
+export type NamesDraft = Readonly<{ display: NameDisplay; audience: NameAudience }>;
+
+export const namesDraftOf = (names: NamesView): NamesDraft => ({
+  display: names.display,
+  audience: names.audience,
+});
+
+/** Whether the setting typed differs from the saved one. */
+export const namesUnsaved = (draft: NamesDraft, saved: NamesDraft): boolean =>
+  draft.display !== saved.display || draft.audience !== saved.audience;
+
+/** Whether the event has a Full name join field, which a full name needs (FR-1842). */
+export const hasFullNameField = (fields: readonly JoinFieldView[]): boolean =>
+  fields.some((field) => field.kind === "full_name");
+
+/**
+ * Whether saving this draft would show full names to every player where the saved setting did not: refused by the server
+ * while a player who was not told is in the event (ADR-400), so the form says so before the save.
+ */
+export const widensNames = (draft: NamesDraft, saved: NamesDraft): boolean =>
+  nameNoticeOf(draft.display, draft.audience) === "everyone" &&
+  nameNoticeOf(saved.display, saved.audience) !== "everyone";
+
+/** How a row is named for each viewer under a draft: the players of the event, and its staff. */
+export const namesSeenBy = (draft: NamesDraft, viewer: "players" | "staff"): NameDisplay =>
+  viewer === "staff" ? draft.display : playerNameDisplay(draft.display, draft.audience);

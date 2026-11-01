@@ -1,4 +1,5 @@
 import type { MessageKey } from "@questify/shared";
+import { fullNameOf } from "#src/event/full-name.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
 
 /** The desk polls an offer this often while it waits for the player's accept (desk_offer). */
@@ -85,7 +86,8 @@ export type DeskItem = Readonly<{
   questReward: boolean;
 }>;
 
-export type ScannedPlayer = Readonly<{ username: string; avatar: string }>;
+/** The player the desk found; `fullName` is set while the event shows full names to its staff (FR-1842). */
+export type ScannedPlayer = Readonly<{ username: string; avatar: string; fullName: string | null }>;
 
 /**
  * Why nothing can be handed over now (FR-1604, FR-1747, FR-1815): `paused` by the owner, or `held` (a flag or a ban;
@@ -148,7 +150,11 @@ export function lookupOf(body: unknown): Lookup | undefined {
   const hold = body["hold"];
   return {
     kind: "found",
-    player: { username: String(player["username"]), avatar: String(player["avatar"]) },
+    player: {
+      username: String(player["username"]),
+      avatar: String(player["avatar"]),
+      fullName: fullNameOf(player["fullName"]),
+    },
     active: body["active"] === true,
     // Anything but a known hold or none reads as held: nothing is handed over on a guess.
     hold: hold === null || hold === undefined ? null : hold === "paused" ? "paused" : "held",

@@ -1,4 +1,4 @@
-import { EMPTY_EQUIPMENT, type Equipment } from "@questify/shared";
+import { EMPTY_EQUIPMENT, isNameDisplay, type Equipment, type NameDisplay } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
@@ -16,10 +16,14 @@ export type RankingDeps = Readonly<{
   log: RankingLog;
 }>;
 
-/** Only the username and avatar of another player are ever shown (FR-120). */
+/**
+ * Only the username and avatar of another player are ever shown (FR-120), and the full name where the event shows it to
+ * every player and the player was told so when they joined (FR-1842, ADR-400): `fullName` is null everywhere else.
+ */
 export type RankingRow = Readonly<{
   rank: number;
   username: string;
+  fullName: string | null;
   avatar: string;
   equipment: Equipment;
   score: number;
@@ -35,12 +39,15 @@ export type RankingView = Readonly<{
   me: Readonly<{
     rank: number;
     username: string;
+    fullName: string | null;
     avatar: string;
     equipment: Equipment;
     score: number;
   }> | null;
   total: number;
   today: boolean;
+  /** How the event names players in this answer: `username` unless the event shows full names to every player. */
+  names: NameDisplay;
 }>;
 
 /** The whole event's ranking, or today's: points earned since the event day started (FR-610, ADR-166). */
@@ -144,7 +151,9 @@ function fromPostgres(
     return {
       rows: top.rows.map((row, index) => ({
         rank: index + 1,
+        enrollmentId: row.enrollment_id,
         username: row.username,
+        fullName: null,
         avatar: row.avatar,
         equipment: row.equipment,
         score: Number(row.score),
@@ -406,15 +415,64 @@ async function boardView(
   return fromPostgres(deps, asked.board, asked.playerId, asked.me);
 }
 
+/** How the event names players for this reader (migration 0109); `username` for anyone who is not a reader. */
+async function nameDisplayIn(client: PoolClient, eventId: string): Promise<NameDisplay> {
+  const { rows } = await client.query<{ display: string | null }>(
+    "SELECT player_name_display($1) AS display",
+    [eventId],
+  );
+  const display = rows[0]?.display;
+  return isNameDisplay(display) ? display : "username";
+}
+
+/**
+ * Lays the full names the reader may see over a board, then drops the enrollment ids. The names come from
+ * `ranking_names`, which answers a row only where the event shows full names to every player and that player was told so
+ * when they joined; with the event on usernames only nothing is asked.
+ */
+async function withNames(
+  deps: RankingDeps,
+  asked: Readonly<{ eventId: string; playerId: string; me: Own; names: NameDisplay }>,
+  view: BoardView,
+): Promise<Omit<RankingView, "today">> {
+  const { eventId, playerId, me, names } = asked;
+  const found = new Map<string, string>();
+  if (names !== "username") {
+    const ids = [...view.rows.map((row) => row.enrollmentId), me.enrollmentId];
+    await inContext(deps, { playerId }, async (client) => {
+      const { rows } = await client.query<{ enrollment_id: string; full_name: string }>(
+        "SELECT enrollment_id, full_name FROM ranking_names($1, $2::uuid[])",
+        [eventId, ids],
+      );
+      for (const row of rows) {
+        found.set(row.enrollment_id, row.full_name);
+      }
+    });
+  }
+  return {
+    rows: view.rows.map(({ enrollmentId, ...row }) => ({
+      ...row,
+      fullName: found.get(enrollmentId) ?? null,
+    })),
+    me: view.me === null ? null : { ...view.me, fullName: found.get(me.enrollmentId) ?? null },
+    total: view.total,
+    names,
+  };
+}
+
 async function read(
   deps: RankingDeps,
   eventId: string,
   playerId: string,
   scope: RankingScope,
 ): Promise<RankingView | "not_enrolled" | "today_off"> {
-  const { own, today } = await inContext(deps, { playerId }, async (client) => {
+  const { own, today, names } = await inContext(deps, { playerId }, async (client) => {
     const mine = await ownIn(client, eventId, playerId);
-    return { own: mine, today: mine === undefined ? undefined : await todayIn(client, eventId) };
+    return {
+      own: mine,
+      today: mine === undefined ? undefined : await todayIn(client, eventId),
+      names: mine === undefined ? "username" : await nameDisplayIn(client, eventId),
+    } as const;
   });
   if (own === undefined || today === undefined) {
     return "not_enrolled";
@@ -423,12 +481,19 @@ async function read(
   if (daily && !today.available) {
     return "today_off";
   }
+  const me = daily ? { ...own, score: today.myScore } : own;
   const view = await boardView(deps, {
     board: { eventId, day: daily ? today.day : undefined },
     playerId,
-    me: daily ? { ...own, score: today.myScore } : own,
+    me,
   });
-  return view === "not_enrolled" ? view : { ...view, today: today.available };
+  if (view === "not_enrolled") {
+    return view;
+  }
+  return {
+    ...(await withNames(deps, { eventId, playerId, me, names }, view)),
+    today: today.available,
+  };
 }
 
 async function repairDue(deps: RankingDeps, clock: { lastBackstop: number }): Promise<void> {
@@ -494,7 +559,9 @@ type Own = Readonly<{
   equipment: Equipment;
 }>;
 
-type BoardView = Omit<RankingView, "today">;
+/** A board as the builders make it: each row still names its enrollment, which the answer never carries. */
+type BoardView = Omit<RankingView, "today" | "names" | "rows"> &
+  Readonly<{ rows: readonly (RankingRow & Readonly<{ enrollmentId: string }>)[] }>;
 
 const meOf = (me: Own, place: number | null): RankingView["me"] =>
   place === null
@@ -502,6 +569,7 @@ const meOf = (me: Own, place: number | null): RankingView["me"] =>
     : {
         rank: place,
         username: me.username,
+        fullName: null,
         avatar: me.avatar,
         equipment: me.equipment,
         score: me.score,
@@ -511,7 +579,9 @@ function viewOf(copy: Read, named: Named, me: Own): BoardView {
   return {
     rows: copy.top.map((row, index) => ({
       rank: index + 1,
+      enrollmentId: row.enrollmentId,
       username: named.get(row.enrollmentId)?.username ?? "",
+      fullName: null,
       avatar: named.get(row.enrollmentId)?.avatar ?? "",
       equipment: named.get(row.enrollmentId)?.equipment ?? EMPTY_EQUIPMENT,
       score: Number(row.score),

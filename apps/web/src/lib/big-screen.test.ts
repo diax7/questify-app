@@ -48,14 +48,36 @@ describe("reading a scene", () => {
     ).toEqual({
       scene: "ranking",
       shut: null,
-      rows: [{ place: 1, username: "sara_k", avatar: "fox", score: 120 }],
+      names: "username",
+      rows: [{ place: 1, username: "sara_k", fullName: null, avatar: "fox", score: 120 }],
     });
     expect(sceneAnswerOf("ranking", { shut: "ranking_off" })).toEqual({
       scene: "ranking",
       shut: "ranking_off",
+      names: "username",
       rows: [],
     });
     expect(sceneAnswerOf("ranking", "no")).toBeUndefined();
+  });
+
+  it("reads the full names the scene sent and how the screen names players, and no name from a wrong shape (T-615)", () => {
+    expect(
+      sceneAnswerOf("ranking", {
+        shut: null,
+        names: "both",
+        rows: [
+          { place: 1, username: "sara_k", fullName: "Sara Ahmed", avatar: "fox", score: 5 },
+          { place: 2, username: "omar", fullName: 7, avatar: "owl", score: 4 },
+          { place: 3, username: "noor", fullName: "  ", avatar: "owl", score: 3 },
+        ],
+      }),
+    ).toMatchObject({
+      names: "both",
+      rows: [{ fullName: "Sara Ahmed" }, { fullName: null }, { fullName: null }],
+    });
+    expect(sceneAnswerOf("ranking", { names: "everything", rows: [] })).toMatchObject({
+      names: "username",
+    });
   });
 
   it("reads a ranking row without a score as places only, never as a score of zero", () => {
@@ -70,9 +92,10 @@ describe("reading a scene", () => {
     ).toEqual({
       scene: "ranking",
       shut: null,
+      names: "username",
       rows: [
-        { place: 1, username: "sara_k", avatar: "fox", score: null },
-        { place: 2, username: "omar", avatar: "owl", score: null },
+        { place: 1, username: "sara_k", fullName: null, avatar: "fox", score: null },
+        { place: 2, username: "omar", fullName: null, avatar: "owl", score: null },
       ],
     });
   });
@@ -169,8 +192,9 @@ describe("reading the finale scene", () => {
           finale: {
             phase: "reveal",
             startsAt,
+            names: "full_name",
             winners: [
-              { place: 1, username: "sara_k", avatar: "fox", score: 999 },
+              { place: 1, username: "sara_k", fullName: "Sara Ahmed", avatar: "fox", score: 999 },
               { place: 2, username: null, avatar: "falcon" },
               "junk",
             ],
@@ -181,9 +205,10 @@ describe("reading the finale scene", () => {
     ).toMatchObject({
       finale: {
         phase: "reveal",
+        names: "full_name",
         winners: [
-          { place: 1, username: "sara_k", avatar: "fox" },
-          { place: 2, username: null, avatar: "falcon" },
+          { place: 1, username: "sara_k", fullName: "Sara Ahmed", avatar: "fox" },
+          { place: 2, username: null, fullName: null, avatar: "falcon" },
         ],
       },
     });

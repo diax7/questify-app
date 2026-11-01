@@ -15,7 +15,14 @@ type Pending = Readonly<{ secret: Buffer; code: Buffer }>;
 type Plan = Readonly<{ scenes: string[]; offered: string[]; enabled: boolean }>;
 type Ranking = Readonly<{
   shut: string | null;
-  rows?: readonly Readonly<{ place: number; username: string; avatar: string; score: number }>[];
+  names?: string;
+  rows?: readonly Readonly<{
+    place: number;
+    username: string;
+    avatar: string;
+    score: number;
+    fullName?: string;
+  }>[];
 }>;
 type Community = Readonly<{ shut: string | null; goal?: Row | null }>;
 type PollScene = Readonly<{ shut: string | null; poll?: Row | null }>;
@@ -425,6 +432,40 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("big screen (database)", () => 
     });
   });
 
+  /** An event asking the Full name field, with three players: told it would show to everyone, not told, told staff. */
+  const namedEvent = async (display: string, audience: string) => {
+    const event = await newEvent();
+    const [field] = await owner<{ id: string }>(
+      `INSERT INTO event_join_field (organizer_id, event_id, kind, position)
+       VALUES ($1, $2, 'full_name', 0) RETURNING id`,
+      [ids.orgA, event],
+    );
+    const told = await newPlayer(event, 300);
+    const untold = await newPlayer(event, 200);
+    const staffOnly = await newPlayer(event, 100);
+    for (const [player, notice, name] of [
+      [told, "everyone", "Sara Ahmed"],
+      [untold, null, "Layla Hassan"],
+      [staffOnly, "staff", "Khalid Omar"],
+    ] as const) {
+      await owner("UPDATE enrollment SET name_notice = $2 WHERE id = $1", [
+        player.enrollment,
+        notice,
+      ]);
+      await owner(
+        `INSERT INTO join_answer (enrollment_id, field_id, organizer_id, event_id, value)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [player.enrollment, field?.id, ids.orgA, event, name],
+      );
+    }
+    await owner("UPDATE event SET name_display = $2, name_audience = $3 WHERE id = $1", [
+      event,
+      display,
+      audience,
+    ]);
+    return event;
+  };
+
   describe("the ranking scene (FR-632)", () => {
     it("shows the ten best in the board's order, with a username, an avatar and points only", async () => {
       const event = await newEvent();
@@ -456,6 +497,49 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("big screen (database)", () => 
         "username",
       ]);
       expect(ranking.rows?.[0]?.avatar).toBe("fox");
+    });
+
+    describe("full names (T-615, FR-1842, ADR-400)", () => {
+      it("sends the full name of a player told it would show, with how the screen names players", async () => {
+        const event = await namedEvent("both", "everyone");
+        const ranking = await read<Ranking>(await device(event), "screen_ranking");
+        expect(ranking.names).toBe("both");
+        expect(ranking.rows?.map((row) => row.fullName)).toEqual([
+          "Sara Ahmed",
+          undefined,
+          undefined,
+        ]);
+        expect(JSON.stringify(ranking)).not.toMatch(/Layla|Khalid/);
+        expect(ranking.rows?.[0]?.score).toBe(300);
+      });
+
+      it("keeps the full name and no score on an event set to places only", async () => {
+        const event = await namedEvent("full_name", "everyone");
+        await withLooks(event, { ranking: { layout: "list", scores: "rank_only" } });
+        const ranking = await read<Ranking>(await device(event), "screen_ranking");
+        expect(ranking.names).toBe("full_name");
+        expect(ranking.rows?.[0]).toEqual({
+          place: 1,
+          username: expect.any(String),
+          avatar: "fox",
+          fullName: "Sara Ahmed",
+        });
+      });
+
+      it("sends no name and no mode while only the staff are to see it, or the event shows usernames", async () => {
+        for (const [display, audience] of [
+          ["both", "staff"],
+          ["full_name", "staff"],
+          ["username", "everyone"],
+        ] as const) {
+          const event = await namedEvent(display, audience);
+          const ranking = await read<Ranking>(await device(event), "screen_ranking");
+          expect(JSON.stringify(ranking), `${display}/${audience}`).not.toMatch(
+            /Sara|Layla|Khalid|fullName|names/,
+          );
+          expect(ranking.rows).toHaveLength(3);
+        }
+      });
     });
 
     describe("on an event set to places only (FR-1832, ADR-396)", () => {

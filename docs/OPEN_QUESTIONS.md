@@ -1753,3 +1753,12 @@ also move to the desk when Off (b)? Not run on a phone: please try Offer and Pay
 ## Q-366 - T-614 event text overrides: what is decided without Dhia (2026-11-02)
 
 **Recommended (developer, ADR-399):** (a) the approved list is the six bar names (Home, Quests, Scan, Rewards, Ranking, Profile), which are also the screen and shop titles; (b) the currency word is edited in Event words, not here; (c) a label may drop the event's own word placeholder (Quests renamed Adventures) but never a placeholder that carries a value; (d) at most 24 characters per label and language; (e) a label renamed in one language only shows Questify's text in the other. Questions for Dhia: should other short texts join the list (for example the join button, the points heading or the Scan screen's title), and should an organizer be able to rename the Questify-wide tabs? Not run on a phone: please open an event after renaming Rewards to Prizes on a small Arabic and an English Android phone. Decided (developer, delegated by Dhia, 2026-11-01; T-614 review 88, its MAJOR fixed): ADR-399 accepted.
+
+## Q-367 - T-615 name display: what is decided without Dhia (2026-11-02)
+
+**Recommended (developer, ADR-400):** (a) refuse widening to "full name to everyone" once a player who was not told is in, instead of asking
+those players again (a re-acceptance prompt is a later task); (b) the staff read (operator scan, prize desk) needs the setting only, no per-player
+notice, because the organizer's staff already receive the full-name answer; (c) the card version stays 0.2 and the audience shown is
+recorded in `enrollment.name_notice`; (d) a duplicated event starts on usernames; (e) the session check-in's result screen does not show the
+full name yet; (f) counsel's answer on Q-080 can still narrow this (for example, no "both" for everyone); the default is usernames, so
+nothing is shown until an owner chooses.

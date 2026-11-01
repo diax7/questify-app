@@ -1,4 +1,4 @@
-import { formatNumber, type Language } from "@questify/shared";
+import { formatNumber, shownName, type Language, type NameDisplay } from "@questify/shared";
 import type { translatorFor } from "#src/lib/language.ts";
 import { avatarFile, percentOf, type CommunityGoal, type RankingRow } from "#src/lib/big-screen.ts";
 import { textFor } from "#src/lib/quests.ts";
@@ -21,6 +21,28 @@ export function Avatar({ row }: Readonly<{ row: Pick<RankingRow, "avatar" | "use
       width={51}
       height={51}
     />
+  );
+}
+
+/**
+ * A player's name on a big-screen board as the event names players (FR-1842): the username, the full name, or both. The
+ * scene sends a full name only where the event shows it on the screen and the player was told so; without one the
+ * username is drawn, so a row is never empty.
+ */
+export function ScreenName({
+  username,
+  fullName,
+  names,
+}: Readonly<{ username: string; fullName: string | null; names: NameDisplay }>) {
+  const shown = shownName(fullName, names);
+  if (shown.fullName === null) {
+    return <>{username}</>;
+  }
+  return (
+    <>
+      {shown.fullName}
+      {shown.showUsername ? <bdi dir="ltr">{` @${username}`}</bdi> : null}
+    </>
   );
 }
 

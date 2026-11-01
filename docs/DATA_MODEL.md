@@ -178,6 +178,7 @@ for optional editor event limits (ADR-077). PII: names and emails of staff (via 
 | id | uuid | PK | no | |
 | organizer_id | uuid | FK, indexed, RLS key | no | |
 | join_code, slug | text | unique | no | In QR and event page |
+| name_display, name_audience | text, text | `username`/`full_name`/`both` (default `username`); `staff`/`everyone` (default `staff`) | no | How the event names its players and who sees a full name (T-615, migration 0109, ADR-400). Set by the owner or an editor; a full name needs the event's Full name join field (ND422); widening to `everyone` is refused while a player who was not told is in (ND409). Not copied by a duplicate |
 | status | enum | draft, scheduled, live, ended, archived | no | Matches FR-1017 and the code; activation by Questify (ADR-076); rehearsal is a mode of a draft or scheduled event (ADR-080) |
 | player_limit_mode, player_limit | enum, int | hard/soft/none | no | |
 | add_ons | text[] | | no | Big screen, NFC, kiosks, sponsors, branding, invitations |
@@ -283,7 +284,7 @@ database test lists each one as copied or not copied, so a new table must be dec
 `join_answer` (below), `score bigint` and `balance bigint` (**caches of the
 ledger**), `status` pending/active/left/removed/banned/declined (`declined`: the team declined the request, ADR-167),
 `waitlisted boolean` (a pending row from a full event's waiting list, FR-1821; cleared by a trigger on any move out of
-pending; written by the join definers only). **Unique (event_id, player_id).** Score is points
+pending; written by the join definers only). **Unique (event_id, player_id).** `name_notice` (`staff`, `everyone`, NULL; T-615, migration 0109) is who the join card told the player would see their full name, written by `join_name_notice` in the join's own transaction and replaced when a player who left joins again; a full name reaches other players only for `everyone`. Score is points
 earned and ranks; balance is earned minus spent (ADR-043).
 **Ranking (T-106, migration 0015):** `score_version bigint`, the id of the ledger entry that last changed the score
 (set by the ledger trigger; ties go to the lower version, FR-606); index `(event_id, score DESC, score_version)` for

@@ -568,6 +568,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks (databas
               options: null,
             },
           ],
+          name_display: "username",
+          name_audience: "staff",
         },
       ]);
       const draft = await newEvent({ status: "draft" });

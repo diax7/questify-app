@@ -1,8 +1,8 @@
 "use client";
 
-import { formatNumber, type Language } from "@questify/shared";
+import { formatNumber, type Language, type NameDisplay } from "@questify/shared";
 import { useEffect, useState, type CSSProperties } from "react";
-import { Avatar, CommunityScene } from "#src/components/BigScreenParts.tsx";
+import { Avatar, CommunityScene, ScreenName } from "#src/components/BigScreenParts.tsx";
 import {
   clockParts,
   remainingMs,
@@ -62,9 +62,15 @@ function Countdown({
 
 function Winners({
   winners,
+  names,
   language,
   t,
-}: Readonly<{ winners: readonly FinaleWinner[]; language: Language; t: Translate }>) {
+}: Readonly<{
+  winners: readonly FinaleWinner[];
+  names: NameDisplay;
+  language: Language;
+  t: Translate;
+}>) {
   return (
     <>
       <p className={styles.goalTitle}>{t("screen.finale.winners")}</p>
@@ -80,7 +86,7 @@ function Winners({
               <span className={styles.boardPlace}>{formatNumber(winner.place, language)}</span>
               <Avatar row={{ avatar: winner.avatar, username: name }} />
               <span className={styles.boardName} dir="auto">
-                {name}
+                <ScreenName username={name} fullName={winner.fullName} names={names} />
               </span>
             </li>
           );
@@ -117,6 +123,6 @@ export function FinaleScene({
     case "waiting":
       return <p className={styles.message}>{t("screen.finale.soon")}</p>;
     case "reveal":
-      return <Winners winners={finale.winners} language={language} t={t} />;
+      return <Winners winners={finale.winners} names={finale.names} language={language} t={t} />;
   }
 }

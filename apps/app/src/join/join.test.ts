@@ -8,6 +8,7 @@ import {
   joinEvent,
   joinInvitation,
   readCard,
+  readJoinCard,
 } from "#src/join/join-api.ts";
 
 const headers = new Headers();
@@ -15,6 +16,7 @@ const CARD = {
   version: "0.1",
   title: { ar: "سيرى", en: "Will see" },
   receives: [{ ar: "الاسم", en: "Name" }],
+  nameNotice: null,
 };
 const EVENT = {
   id: "e1",
@@ -358,6 +360,51 @@ describe("joining", () => {
         JOIN,
       ),
     ).toEqual({ kind: "refused", code: "card_version_stale", problem: MESSAGE });
+  });
+
+  it("reads who the card says will see the full name, and nothing from an older API (T-615)", () => {
+    const text = { ar: "يرى الجميع اسمك", en: "Everyone sees your name" };
+    expect(readJoinCard({ ...CARD, nameNotice: { audience: "everyone", text } })).toEqual({
+      ...CARD,
+      nameNotice: { audience: "everyone", text },
+    });
+    const { nameNotice: _none, ...older } = CARD;
+    expect(readJoinCard(older)).toEqual({ ...CARD, nameNotice: null });
+    for (const broken of [
+      { audience: "public", text },
+      { audience: "staff", text: { en: "only" } },
+      "everyone",
+    ]) {
+      expect(readJoinCard({ ...CARD, nameNotice: broken }), JSON.stringify(broken)).toBeUndefined();
+    }
+  });
+
+  it("sends back the audience the card showed, and nothing when it showed none (T-615)", async () => {
+    const answer = { kind: "ok", status: 200, body: { eventId: "e1", status: "active" }, headers };
+    const first = sessionAnswering(answer as never);
+    await joinEvent(first.session, { ...JOIN, nameNotice: "everyone" });
+    expect(first.calls[0]).toMatchObject({ body: { cardVersion: "0.1", nameNotice: "everyone" } });
+    const none = sessionAnswering(answer as never);
+    await joinEvent(none.session, JOIN);
+    expect(Object.keys((none.calls[0] as { body: object }).body)).not.toContain("nameNotice");
+    const invited = sessionAnswering(answer as never);
+    await joinInvitation(invited.session, {
+      eventId: "e9",
+      cardVersion: "0.2",
+      nameNotice: "staff",
+    });
+    expect(invited.calls[0]).toMatchObject({ body: { via: "invite", nameNotice: "staff" } });
+  });
+
+  it("shows the card with the notice a join was refused on", async () => {
+    const text = { ar: "يرى الفريق اسمك", en: "Staff see your name" };
+    const NEW = { ...CARD, nameNotice: { audience: "staff", text } };
+    expect(
+      await joinEvent(
+        sessionAnswering(fail(422, "card_version_stale", { card: NEW })).session,
+        JOIN,
+      ),
+    ).toEqual({ kind: "stale", card: NEW });
   });
 
   it("passes refusals, a lost session and the network on", async () => {

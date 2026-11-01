@@ -20,6 +20,7 @@ import {
 import {
   fetchCard,
   joinEvent,
+  shownNotice,
   type CardAnswer,
   type JoinCard,
   type JoinOutcome,
@@ -161,15 +162,34 @@ function useJoinFlow(params: JoinParams, code: string, cardState: ReturnType<typ
       return;
     }
     const answers = answersFor(fields, typed);
+    const nameNotice = shownNotice(card);
     if (player.status !== "signed_in") {
       holdAnswers(code, answers);
-      router.push({ pathname: "/sign-in", params: { code, via, card: card.version } });
+      router.push({
+        pathname: "/sign-in",
+        params: {
+          code,
+          via,
+          card: card.version,
+          notice: nameNotice,
+        },
+      });
       return;
     }
     setBusy(true);
     setProblem(null);
     showOutcome(
-      await joinEvent(api.session, { code, via, cardVersion: card.version, answers }, waitlist),
+      await joinEvent(
+        api.session,
+        {
+          code,
+          via,
+          cardVersion: card.version,
+          nameNotice,
+          answers,
+        },
+        waitlist,
+      ),
     );
     setBusy(false);
   };

@@ -366,3 +366,13 @@ steps of FR-1846. The add-on cards are the registry's gated features, locked unt
 - **Showing:** `withEventTexts` lays the event's texts over the translator (the player app's `TermsScope`, the dashboard's phone preview),
   and the event's words are filled in after, so a label that kept `{questCap}` shows the event's word. Staff mode keeps Questify's text.
 - **Dashboard:** the "App labels" page (`/texts`), owner and editor; see ADR-399.
+
+## As built (T-615): how players are named
+
+- **Where it lives:** `event.name_display` (`username`, `full_name`, `both`) and `event.name_audience` (`staff`, `everyone`), columns on the event (ADR-400), set from the "Names"
+  section of the Joining page by an owner or an editor. The default is usernames for the staff; a duplicated event starts on it.
+- **The full name** is the answer to the event's Full name join field. The setting needs that field, and the field cannot be removed while names are shown.
+- **Who is told:** the join card shows one sentence for the audience (staff only; everyone instead of the username; everyone next to it) and the join records it per player.
+  Players see each other's full names only where the setting says everyone and they were told so; staff see them by the setting alone.
+- **Where it shows:** the event ranking and today's, the revealed results, the big screen's ranking and finale, the station's result and the prize desk. Questify-wide pages stay on usernames.
+- **Locked:** widening to everyone is refused once a player who was not told is in; narrowing is always allowed.

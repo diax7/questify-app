@@ -28,7 +28,8 @@ export type RedReason =
   | "operator_not_playing"
   | "wrong_method";
 
-export type ScannedPlayer = Readonly<{ username: string; avatar: string }>;
+/** Who the station scanned; `fullName` is set while the event shows full names to its staff (FR-1842, ADR-400). */
+export type ScannedPlayer = Readonly<{ username: string; avatar: string; fullName: string | null }>;
 
 /**
  * What the station shows: green with the points, orange (already completed, nothing paid) or red with a reason. The
@@ -113,11 +114,15 @@ export async function subjectOf(
   questId: string,
   playerId: string,
 ): Promise<ScannedPlayer | null> {
-  const { rows } = await client.query<ScannedPlayer>(
-    "SELECT username, avatar FROM operator_scan_subject($1, $2)",
-    [questId, playerId],
-  );
-  return rows[0] ?? null;
+  const { rows } = await client.query<{
+    username: string;
+    avatar: string;
+    full_name: string | null;
+  }>("SELECT username, avatar, full_name FROM operator_scan_subject($1, $2)", [questId, playerId]);
+  const row = rows[0];
+  return row === undefined
+    ? null
+    : { username: row.username, avatar: row.avatar, fullName: row.full_name };
 }
 
 /**

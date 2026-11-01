@@ -551,6 +551,43 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk over HTTP", () => {
       expect((await find(desk.token, event, "")).statusCode).toBe(400);
     });
 
+    it("shows the desk the full name of the player found or scanned while the event shows full names (T-615)", async () => {
+      const event = await newEvent();
+      const desk = await newOperator(event);
+      const fan = await newPlayer(event);
+      const [named] = await owner<{ username: string }>(
+        "SELECT username FROM player WHERE id = $1",
+        [fan.id],
+      );
+      const [field] = await owner<{ id: string }>(
+        `INSERT INTO event_join_field (organizer_id, event_id, kind, position)
+         VALUES ($1, $2, 'full_name', 0) RETURNING id`,
+        [organizer, event],
+      );
+      await owner(
+        `INSERT INTO join_answer (enrollment_id, field_id, organizer_id, event_id, value)
+         SELECT n.id, $2, n.organizer_id, n.event_id, 'Sara Ahmed' FROM enrollment n
+         WHERE n.event_id = $1 AND n.player_id = $3`,
+        [event, field?.id, fan.id],
+      );
+      const found = await find(desk.token, event, named?.username ?? "");
+      expect(found.json()).toMatchObject({ player: { fullName: null } });
+      expect(found.body).not.toMatch(/Sara/);
+      await owner(
+        "UPDATE event SET name_display = 'full_name', name_audience = 'staff' WHERE id = $1",
+        [event],
+      );
+      expect((await find(desk.token, event, named?.username ?? "")).json()).toMatchObject({
+        result: "found",
+        player: { username: named?.username, fullName: "Sara Ahmed" },
+      });
+      const scanned = await app("POST", "/v1/operator/desk/lookup", desk.token, {
+        eventId: event,
+        code: fan.code,
+      });
+      expect(scanned.json()).toMatchObject({ player: { fullName: "Sara Ahmed" } });
+    });
+
     it("needs the hand-over ability and stops at 30 finds in 10 minutes", async () => {
       const event = await newEvent();
       const awarder = await newOperator(event, ["award"]);

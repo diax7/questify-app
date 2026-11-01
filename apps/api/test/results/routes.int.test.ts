@@ -341,6 +341,60 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rank prizes and results over H
       expect([removal.statusCode, removal.json().code]).toEqual([409, "results_final"]);
     });
 
+    it("names the winners as the event says, only the ones who were told, and no name before the reveal (T-615)", async () => {
+      const { id: event } = await newEvent();
+      const told = await newPlayer(event, 300);
+      const untold = await newPlayer(event, 200);
+      const reader = await newPlayer(event, 100);
+      const [field] = await owner<{ id: string }>(
+        `INSERT INTO event_join_field (organizer_id, event_id, kind, position)
+         SELECT organizer_id, id, 'full_name', 0 FROM event WHERE id = $1 RETURNING id`,
+        [event],
+      );
+      for (const [player, notice, name] of [
+        [told, "everyone", "Sara Ahmed"],
+        [untold, null, "Layla Hassan"],
+        [reader, "everyone", "Reader Person"],
+      ] as const) {
+        await owner("UPDATE enrollment SET name_notice = $2 WHERE id = $1", [
+          player.enrollment,
+          notice,
+        ]);
+        await owner(
+          `INSERT INTO join_answer (enrollment_id, field_id, organizer_id, event_id, value)
+           SELECT $1, $2, organizer_id, id, $4 FROM event WHERE id = $3`,
+          [player.enrollment, field?.id, event, name],
+        );
+      }
+      await owner(
+        "UPDATE event SET name_display = 'both', name_audience = 'everyone' WHERE id = $1",
+        [event],
+      );
+      await dashboard(ownerCookie, "POST", `/events/${event}/results/confirm`, {
+        expected: [told.enrollment, untold.enrollment, reader.enrollment],
+      });
+      const before = await asPlayer(reader.token, `/v1/events/${event}/results`);
+      expect(before.body).not.toMatch(/Sara|Layla/);
+      await dashboard(ownerCookie, "POST", `/events/${event}/results/reveal`, {
+        claimUntil: new Date(Date.now() + 96 * HOUR).toISOString(),
+      });
+      const seen = await asPlayer(reader.token, `/v1/events/${event}/results`);
+      expect(seen.json()).toMatchObject({
+        revealed: true,
+        names: "both",
+        places: [
+          { rank: 1, player: { fullName: "Sara Ahmed" } },
+          { rank: 2, player: { fullName: null } },
+          { rank: 3, player: { fullName: "Reader Person" } },
+        ],
+      });
+      expect(seen.body).not.toMatch(/Layla/);
+      await owner("UPDATE event SET name_audience = 'staff' WHERE id = $1", [event]);
+      const staffOnly = await asPlayer(reader.token, `/v1/events/${event}/results`);
+      expect(staffOnly.json()).toMatchObject({ names: "username" });
+      expect(staffOnly.body).not.toMatch(/Sara|Layla|Reader Person/);
+    });
+
     it("refuses confirming before the end", async () => {
       const { id: event } = await newEvent("live");
       const early = await dashboard(ownerCookie, "POST", `/events/${event}/results/confirm`, {
@@ -365,7 +419,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rank prizes and results over H
         expected: [winner.enrollment, other.enrollment],
       });
       const hidden = await asPlayer(winner.token, `/v1/events/${event}/results`);
-      expect(hidden.json()).toEqual({ revealed: false, places: [], me: null, scores: true });
+      expect(hidden.json()).toEqual({
+        revealed: false,
+        names: "username",
+        places: [],
+        me: null,
+        scores: true,
+      });
       const soon = await dashboard(ownerCookie, "POST", `/events/${event}/results/reveal`, {
         claimUntil: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       });

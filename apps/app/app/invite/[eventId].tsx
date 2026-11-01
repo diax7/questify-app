@@ -13,6 +13,7 @@ import { CardReceives } from "#src/join/CardReceives.tsx";
 import {
   fetchInvitations,
   joinInvitation,
+  shownNotice,
   type Invitation,
   type JoinOutcome,
 } from "#src/join/join-api.ts";
@@ -117,6 +118,7 @@ export default function InviteScreen() {
       {
         eventId: event.id,
         cardVersion: card.version,
+        nameNotice: shownNotice(card),
         answers: answersFor(event.join.fields, typed),
       },
       waitlist,

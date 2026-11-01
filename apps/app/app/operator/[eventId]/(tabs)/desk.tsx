@@ -138,6 +138,9 @@ function PlayerCard({
   const player = found.player.username;
   return (
     <View style={{ gap: 12 }}>
+      {found.player.fullName === null ? null : (
+        <AppText variant="title">{found.player.fullName}</AppText>
+      )}
       <AppText variant="title">{player}</AppText>
       {found.active ? null : (
         <AppText accessibilityRole="alert">{t("operator.desk.inactive")}</AppText>

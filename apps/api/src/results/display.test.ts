@@ -4,15 +4,22 @@ import type { PlayerResults } from "#src/results/results";
 
 const results: PlayerResults = {
   revealed: true,
+  names: "both",
   places: [
     {
       rank: 1,
-      player: { username: "sara", avatar: "fox" },
+      player: { username: "sara", fullName: "Sara Ahmed", avatar: "fox" },
       score: 910,
       prize: { kind: "item", name: { ar: "ذهبية", en: "Gold" } },
       mine: true,
     },
-    { rank: 2, player: { username: null, avatar: "owl" }, score: 870, prize: null, mine: false },
+    {
+      rank: 2,
+      player: { username: null, fullName: null, avatar: "owl" },
+      score: 870,
+      prize: null,
+      mine: false,
+    },
   ],
   me: {
     rank: 1,
@@ -34,19 +41,25 @@ describe("playerResultsView", () => {
     expect(answer.places).toEqual([
       {
         rank: 1,
-        player: { username: "sara", avatar: "fox" },
+        player: { username: "sara", fullName: "Sara Ahmed", avatar: "fox" },
         prize: { kind: "item", name: { ar: "ذهبية", en: "Gold" } },
         mine: true,
       },
-      { rank: 2, player: { username: null, avatar: "owl" }, prize: null, mine: false },
+      {
+        rank: 2,
+        player: { username: null, fullName: null, avatar: "owl" },
+        prize: null,
+        mine: false,
+      },
     ]);
+    expect(answer.names).toBe("both");
     expect(answer.me).toEqual(results.me);
     expect(answer.revealed).toBe(true);
     expect(JSON.stringify(answer)).not.toMatch(/910|870|score"/);
   });
 
   it("handles results that are not revealed yet", () => {
-    const hidden: PlayerResults = { revealed: false, places: [], me: null };
+    const hidden: PlayerResults = { revealed: false, names: "username", places: [], me: null };
     expect(playerResultsView(hidden, true)).toEqual({ ...hidden, scores: false });
   });
 });

@@ -483,6 +483,31 @@ describe("rankingAnswer", () => {
     expect(rankingAnswer(ok(wrong))).toEqual({ kind: "network" });
   });
 
+  it("reads the full names the server sent and how the event names players; none from an older server (T-615)", () => {
+    const named = {
+      ...ranking,
+      names: "both",
+      rows: [
+        { ...ranking.rows[0], fullName: "Sara Ahmed" },
+        { ...ranking.rows[0], fullName: 7 },
+      ],
+      me: { ...ranking.me, fullName: "Me Myself" },
+    };
+    expect(rankingAnswer(ok(named))).toMatchObject({
+      ranking: {
+        names: "both",
+        rows: [{ fullName: "Sara Ahmed" }, { fullName: null }],
+        me: { fullName: "Me Myself" },
+      },
+    });
+    expect(rankingAnswer(ok(ranking))).toMatchObject({
+      ranking: { names: "username", rows: [{ fullName: null }], me: { fullName: null } },
+    });
+    expect(rankingAnswer(ok({ ...ranking, names: "everything" }))).toMatchObject({
+      ranking: { names: "username" },
+    });
+  });
+
   it("hides the card when the ranking is off, and says so for any other failure", () => {
     expect(rankingAnswer(error(404, "ranking_off"))).toEqual({ kind: "off" });
     expect(rankingAnswer(error(404, "not_found"))).toEqual({ kind: "gone" });

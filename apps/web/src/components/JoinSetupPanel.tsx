@@ -4,8 +4,15 @@ import { ExplainThis } from "#src/components/ExplainThis.tsx";
 import {
   formatNumber,
   joinFieldKindKey,
+  NAME_AUDIENCES,
+  NAME_DISPLAYS,
+  nameNoticeOf,
+  shownName,
   type JoinFieldKind,
   type Language,
+  type MessageKey,
+  type NameAudience,
+  type NameDisplay,
 } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -15,18 +22,25 @@ import {
   draftsOf,
   fieldsBody,
   fieldsUnsaved,
+  hasFullNameField,
   kindsFor,
   moveDraft,
   needsLabel,
+  namesDraftOf,
+  namesSeenBy,
+  namesUnsaved,
   needsOptions,
   newDraft,
   rulesDraftOf,
   rulesUnsaved,
   welcomeOf,
+  widensNames,
   type FieldDraft,
   type JoinFieldView,
   type JoinRules,
   type JoinSetup,
+  type NamesDraft,
+  type NamesView,
 } from "#src/lib/joining.ts";
 import { JoinOptionsEditor } from "#src/components/JoinOptionsEditor.tsx";
 import { translatorFor } from "#src/lib/language.ts";
@@ -35,9 +49,18 @@ import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
-import { Checkbox, Field, Form, Input, Select, Textarea } from "#src/ui/Field.tsx";
+import {
+  Checkbox,
+  Field,
+  FieldGroup,
+  Form,
+  Input,
+  Radio,
+  Select,
+  Textarea,
+} from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
-import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
+import { Card, CardList, FactList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
@@ -460,8 +483,141 @@ function RulesEditor({
   );
 }
 
+/** The sample player a name preview draws: a Latin username beside the sample full name in the page's language. */
+const SAMPLE_USERNAME = "sara_q";
+
+/** One sample row's name as a viewer sees it: the full name, the username, or both (the username kept left to right). */
+function SampleName({ language, display }: Readonly<{ language: Language; display: NameDisplay }>) {
+  const t = translatorFor(language);
+  const shown = shownName(t("names.sampleName"), display);
+  return (
+    <span>
+      {shown.fullName}
+      {shown.fullName !== null && shown.showUsername ? " · " : null}
+      {shown.showUsername ? <bdi dir="ltr">@{SAMPLE_USERNAME}</bdi> : null}
+    </span>
+  );
+}
+
+/** How a ranking row will look to the event's players and to its staff under the setting typed (FR-1842). */
+function NamesPreview({ language, draft }: Readonly<{ language: Language; draft: NamesDraft }>) {
+  const t = translatorFor(language);
+  return (
+    <FactList label={t("names.preview")}>
+      <dt>{t("names.preview.players")}</dt>
+      <dd>
+        <SampleName language={language} display={namesSeenBy(draft, "players")} />
+      </dd>
+      <dt>{t("names.preview.staff")}</dt>
+      <dd>
+        <SampleName language={language} display={namesSeenBy(draft, "staff")} />
+      </dd>
+    </FactList>
+  );
+}
+
+/** The words that name each display on its radio. */
+const DISPLAY_LABEL = {
+  username: "names.display.username",
+  full_name: "names.display.fullName",
+  both: "names.display.both",
+} as const satisfies Record<NameDisplay, MessageKey>;
+
+/** Whether a setting shows full names to every player: only that needs the players to have been told. */
+const toEveryone = (draft: NamesDraft): boolean =>
+  nameNoticeOf(draft.display, draft.audience) === "everyone";
+
 /**
- * An event's join setup (T-212): the join fields, who can join and the welcome reward. Owners and editors both edit;
+ * How the event names its players and who sees a full name (FR-1842, ADR-400), with a preview of a row. The join card
+ * tells each player who will see their name; widening to everyone is refused once a player who was not told is in.
+ */
+function NamesEditor({
+  language,
+  base,
+  setup,
+  onUnsaved,
+}: Readonly<{
+  language: Language;
+  base: string;
+  setup: JoinSetup;
+  onUnsaved: ReportUnsaved | undefined;
+}>) {
+  const t = translatorFor(language);
+  const [saved, setSaved] = useState<NamesDraft>(() => namesDraftOf(setup.names));
+  const [draft, setDraft] = useState<NamesDraft>(saved);
+  const [locked, setLocked] = useState(setup.names.locked);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const { problem, setProblem, fail } = useProblem(language);
+  const hasField = hasFullNameField(setup.fields);
+  const blocked = locked && widensNames(draft, saved);
+  useReportUnsaved(onUnsaved, "names", namesUnsaved(draft, saved));
+
+  const save = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setBusy(true);
+    setProblem(null);
+    setNotice(null);
+    const result = await requestJson("PUT", `${base}/names`, draft);
+    setBusy(false);
+    if (!result.ok) {
+      fail(result.body);
+      return;
+    }
+    const { names } = result.body as { names: NamesView };
+    setSaved(namesDraftOf(names));
+    setLocked(names.locked);
+    setNotice(t("names.saved"));
+  };
+
+  return (
+    <Section title={t("names.title")} info={infoTip(t, "names.why")}>
+      <Form onSubmit={(event) => void save(event)}>
+        <FieldGroup legend={t("names.display")} layout="choices" disabled={busy}>
+          {NAME_DISPLAYS.map((display) => (
+            <Radio
+              key={display}
+              name="name-display"
+              checked={draft.display === display}
+              disabled={busy || (display !== "username" && !hasField)}
+              onChange={() => setDraft({ ...draft, display })}
+              label={t(DISPLAY_LABEL[display])}
+            />
+          ))}
+        </FieldGroup>
+        {hasField ? null : <Notice tone="warning">{t("names.needsField")}</Notice>}
+        {draft.display === "username" ? null : (
+          <FieldGroup legend={t("names.audience")} layout="choices" disabled={busy}>
+            {NAME_AUDIENCES.map((audience: NameAudience) => (
+              <Radio
+                key={audience}
+                name="name-audience"
+                checked={draft.audience === audience}
+                disabled={busy || (audience === "everyone" && locked && !toEveryone(saved))}
+                onChange={() => setDraft({ ...draft, audience })}
+                label={t(`names.audience.${audience}`)}
+              />
+            ))}
+          </FieldGroup>
+        )}
+        {locked && !toEveryone(saved) ? <Notice tone="warning">{t("names.locked")}</Notice> : null}
+        <NamesPreview language={language} draft={draft} />
+        <Feedback problem={problem} notice={notice} />
+        <Button
+          variant="primary"
+          type="submit"
+          disabled={busy || blocked || !namesUnsaved(draft, saved)}
+          aria-busy={busy}
+        >
+          {t("names.save")}
+        </Button>
+      </Form>
+    </Section>
+  );
+}
+
+/**
+ * An event's join setup (T-212): the join fields, how players are named (T-615), who can join and the welcome reward. Owners and editors both edit;
  * the API checks the event's reach and the database guards the welcome amount.
  */
 export function JoinSetupPanel({ language, organizerId, eventId, bare = false, onUnsaved }: Props) {
@@ -514,6 +670,7 @@ export function JoinSetupPanel({ language, organizerId, eventId, bare = false, o
             saved={(version, fields) => setSetup({ ...setup, version, fields })}
             onUnsaved={onUnsaved}
           />
+          <NamesEditor language={language} base={base} setup={setup} onUnsaved={onUnsaved} />
           <RulesEditor language={language} base={base} setup={setup} onUnsaved={onUnsaved} />
         </>
       )}

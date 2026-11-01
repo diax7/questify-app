@@ -566,6 +566,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members of that organizer within their event limit, written under row-level security with the event locked and the version checked; audited (test/join/join-fields, test/db/join-fields)",
   "PUT /v1/organizers/:organizerId/events/:eventId/join/rules":
     "members of that organizer within their event limit; the welcome amount guarded in the database once anyone joined or the event is live; audited (test/join/join-fields, test/db/join-fields)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/join/names":
+    "members of that organizer within their event limit, written under row-level security with the event locked; the database refuses a full name without the Full name field and widening to everyone while a player who was not told is in the event; audited (test/join/names, test/db/name-display)",
   "GET /v1/organizers/:organizerId/events/:eventId/join/guests":
     "members of that organizer within their event limit, read under row-level security; contacts masked (test/join/join-fields, test/db/join-fields)",
   "POST /v1/organizers/:organizerId/events/:eventId/join/guests":

@@ -3,7 +3,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { AppState, View } from "react-native";
+import { AppState, View, type StyleProp, type TextStyle } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
@@ -24,6 +24,7 @@ import {
   isRepeat,
   memoryIn,
   type ScanMemory,
+  type ScannedPlayer,
   type StationResult,
 } from "#src/operator/station.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -42,6 +43,28 @@ const FEEL = {
 
 /** What the cover shows: the result, and whether the server said it was a practice scan (never the phone's switch). */
 type Shown = Readonly<{ result: StationResult; practice: boolean }>;
+
+/** Who was scanned: the full name when the event shows it to its staff (FR-1842), then the username. */
+function ScannedLines({
+  player,
+  textStyle,
+}: Readonly<{ player: ScannedPlayer | null; textStyle: StyleProp<TextStyle> }>) {
+  if (player === null) {
+    return null;
+  }
+  return (
+    <>
+      {player.fullName === null ? null : (
+        <AppText variant="title" style={textStyle}>
+          {player.fullName}
+        </AppText>
+      )}
+      <AppText variant="title" style={textStyle}>
+        {player.username}
+      </AppText>
+    </>
+  );
+}
 
 /**
  * The full-screen result (FR-924): green with the points, orange for "already completed", red with the reason; a
@@ -62,11 +85,7 @@ function ResultCover({ shown }: Readonly<{ shown: Shown }>) {
       <AppText variant="display" style={styles.coverText} accessibilityRole="alert">
         {words}
       </AppText>
-      {result.player === null ? null : (
-        <AppText variant="title" style={styles.coverText}>
-          {result.player.username}
-        </AppText>
-      )}
+      <ScannedLines player={result.player} textStyle={styles.coverText} />
       {shown.practice && result.color === "green" && result.bonusPoints !== null ? (
         <AppText variant="title" style={styles.coverText}>
           {t("operator.practice.firstBonus", {

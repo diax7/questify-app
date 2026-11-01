@@ -49,10 +49,17 @@ export type CardEvent = Readonly<{
 /** An invited event (FR-133): the same card without a join code. */
 export type InvitedEvent = Omit<CardEvent, "joinCode">;
 
+/**
+ * Who the card says will see the player's full name (FR-1842, ADR-400) and the sentence that says it; the join sends the
+ * audience back, and the server refuses a join whose audience is not the event's now. Null when the event shows usernames.
+ */
+export type NameNotice = Readonly<{ audience: "staff" | "everyone"; text: LocalizedText }>;
+
 export type JoinCard = Readonly<{
   version: string;
   title: LocalizedText;
   receives: readonly LocalizedText[];
+  nameNotice: NameNotice | null;
 }>;
 
 export type CardAnswer =
@@ -70,6 +77,25 @@ const isText = (value: unknown): value is Text =>
   (value["ar"] === null || typeof value["ar"] === "string") &&
   (value["en"] === null || typeof value["en"] === "string");
 
+/** The audience a join sends back for the card it showed: nothing when the card said nothing about names (ADR-400). */
+export const shownNotice = (card: JoinCard | undefined): NameNotice["audience"] | undefined =>
+  card?.nameNotice?.audience;
+
+/** The notice of a card: absent or null is none (an older API); a wrong shape is undefined. */
+function readNameNotice(value: unknown): NameNotice | null | undefined {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (
+    !isRecord(value) ||
+    (value["audience"] !== "staff" && value["audience"] !== "everyone") ||
+    !isLocalized(value["text"])
+  ) {
+    return undefined;
+  }
+  return { audience: value["audience"], text: value["text"] };
+}
+
 /** The join card's own fields: its version, the title and what the organizer will see, each in both languages. */
 export function readJoinCard(card: unknown): JoinCard | undefined {
   if (
@@ -81,11 +107,15 @@ export function readJoinCard(card: unknown): JoinCard | undefined {
   ) {
     return undefined;
   }
-  return {
-    version: card["version"],
-    title: card["title"],
-    receives: card["receives"] as LocalizedText[],
-  };
+  const nameNotice = readNameNotice(card["nameNotice"]);
+  return nameNotice === undefined
+    ? undefined
+    : {
+        version: card["version"],
+        title: card["title"],
+        receives: card["receives"] as LocalizedText[],
+        nameNotice,
+      };
 }
 
 const isLabel = (value: unknown) =>
@@ -274,6 +304,7 @@ export async function joinEvent(
         joinCode: join.code,
         via: join.via,
         cardVersion: join.cardVersion,
+        ...(join.nameNotice === undefined ? {} : { nameNotice: join.nameNotice }),
         ...answersPart(join.answers),
         ...(waitlist ? { waitlist: true } : {}),
       },
@@ -287,6 +318,8 @@ export async function joinInvitation(
   join: Readonly<{
     eventId: string;
     cardVersion: string;
+    /** The audience the card said would see the full name; left out when it said nothing (ADR-400). */
+    nameNotice?: NameNotice["audience"] | undefined;
     answers?: Readonly<Record<string, string>> | undefined;
   }>,
   waitlist = false,
@@ -299,6 +332,7 @@ export async function joinInvitation(
         eventId: join.eventId,
         via: "invite",
         cardVersion: join.cardVersion,
+        ...(join.nameNotice === undefined ? {} : { nameNotice: join.nameNotice }),
         ...answersPart(join.answers),
         ...(waitlist ? { waitlist: true } : {}),
       },

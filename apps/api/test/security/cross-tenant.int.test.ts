@@ -2121,6 +2121,48 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     await db.owner.query("DELETE FROM category WHERE id = ANY ($1)", [[mine, theirs]]);
   });
 
+  it("keeps name display inside the caller's tenant: no change to B's setting, no name or notice of B's players (T-615)", async () => {
+    const setting =
+      "UPDATE event SET name_display = 'full_name', name_audience = 'everyone' WHERE id = $1 RETURNING id";
+    expect((await asA("organizer", setting, [f.eventB])).rows).toEqual([]);
+    expect(
+      await count("owner", "event WHERE id = $1 AND name_display = 'username'", [f.eventB]),
+    ).toBe(1);
+    const [enrollmentB] = (
+      await db.owner.query<{ id: string }>(
+        "SELECT id FROM enrollment WHERE event_id = $1 AND player_id = $2",
+        [f.eventB, f.playerB],
+      )
+    ).rows;
+    expect(enrollmentB?.id).toBeDefined();
+    const doors: readonly [string, unknown[], string | "empty"][] = [
+      ["SELECT player_name_display($1) AS display", [f.eventB], "null"],
+      ["SELECT * FROM ranking_names($1, ARRAY[$2::uuid])", [f.eventB, enrollmentB?.id], "QR403"],
+      ["SELECT join_name_notice($1, 'everyone')", [enrollmentB?.id], "42501"],
+      ["SELECT desk_full_name($1, 'khalid_m')", [f.eventB], "OP403"],
+      ["SELECT * FROM event_results($1)", [f.eventB], "empty"],
+    ];
+    for (const [sql, values, expected] of doors) {
+      for (const seat of ["organizer", "staff", "player"] as const) {
+        const outcome = await refusal(asA(seat, sql, values));
+        if (expected === "null" || expected === "empty") {
+          expect(outcome, `${seat} ${sql}`).toBe("none");
+        } else {
+          expect(outcome, `${seat} ${sql}`).toBe(expected);
+        }
+      }
+    }
+    expect((await asA("player", doors[0]?.[0] ?? "", [f.eventB])).rows).toEqual([
+      { display: null },
+    ]);
+    expect((await asA("player", doors[4]?.[0] ?? "", [f.eventB])).rows).toEqual([]);
+    expect(
+      await count("owner", "enrollment WHERE event_id = $1 AND name_notice IS NOT NULL", [
+        f.eventB,
+      ]),
+    ).toBe(0);
+  });
+
   it("keeps the recap to the calling player and their own events (T-410)", async () => {
     const recap = "SELECT status_now FROM event_recap($1)";
     expect((await asA("player", recap, [f.eventA])).rows).toEqual([{ status_now: "live" }]);

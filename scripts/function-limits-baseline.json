@@ -121,14 +121,6 @@
   "apps/api/src/join/routes.ts": {
     "<anonymous>": {
       "complexity": [11]
-    },
-    "joinAnswer": {
-      "complexity": [14]
-    }
-  },
-  "apps/api/src/join/setup-routes.ts": {
-    "answer": {
-      "complexity": [9]
     }
   },
   "apps/api/src/join/setup.ts": {

@@ -153,7 +153,8 @@ export const sourceOf = (value: unknown): RedemptionSource =>
 
 export type Found = Readonly<{
   kind: "found";
-  player: Readonly<{ username: string; avatar: string }>;
+  /** `fullName` is set while the event shows full names to its staff (FR-1842, ADR-400). */
+  player: Readonly<{ username: string; avatar: string; fullName: string | null }>;
   /** False for a player who left or was removed; true for a banned one, who reads as held. */
   active: boolean;
   /** Why nothing can be handed over now (FR-1604, FR-1747, FR-1815), or null. */
@@ -163,13 +164,26 @@ export type Found = Readonly<{
 
 export type Lookup = Found | Readonly<{ kind: "invalid_code" }>;
 
+/** The found player with the full name the desk may see (`desk_full_name` checks the desk seat and the event's setting). */
+async function withFullName(client: PoolClient, eventId: string, found: Found): Promise<Found> {
+  const { rows } = await client.query<{ name: string | null }>(
+    "SELECT desk_full_name($1, $2) AS name",
+    [eventId, found.player.username],
+  );
+  return { ...found, player: { ...found.player, fullName: rows[0]?.name ?? null } };
+}
+
 /** The player and their waiting items, as desk_lookup and desk_find answer them (one row even when none wait). */
 export function foundOf(rows: readonly Readonly<Record<string, unknown>>[]): Found {
   const first = rows[0] ?? {};
   const hold = first["hold"];
   return {
     kind: "found",
-    player: { username: String(first["username"]), avatar: String(first["avatar"]) },
+    player: {
+      username: String(first["username"]),
+      avatar: String(first["avatar"]),
+      fullName: null,
+    },
     active: first["active"] === true,
     hold: hold === "held" || hold === "paused" ? hold : null,
     items: rows
@@ -210,7 +224,7 @@ export async function lookUp(
       opened.playerId,
       opened.version,
     ]);
-    return foundOf(rows);
+    return withFullName(client, request.eventId, foundOf(rows));
   });
 }
 
@@ -254,7 +268,7 @@ export async function findAtDesk(
       request.username,
       request.phone,
     ]);
-    return rows.length === 0 ? null : foundOf(rows);
+    return rows.length === 0 ? null : withFullName(client, request.eventId, foundOf(rows));
   });
 }
 

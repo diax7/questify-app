@@ -4,6 +4,8 @@ import type { MessageKey } from "#src/i18n/messages";
  * What the join card tells a player before they join (FR-121, PD-17): what the event's organizer receives about them.
  * The version is sent back with the join and kept on the enrollment, so a change here bumps it and the app shows the
  * new card before joining. 0.2 (T-212, ADR-148): an event with join fields also receives the answers given on the card.
+ * The sentence about who sees a shown full name (T-615, ADR-400) depends on the event, so it travels beside the card and
+ * the join sends back the audience it showed (`names.ts`); the version does not change with it.
  */
 export type JoinCard = Readonly<{
   version: string;

@@ -1,4 +1,10 @@
-import { officialRules, type OfficialRules, type RulesData } from "@questify/shared";
+import {
+  isNameDisplay,
+  officialRules,
+  type NameDisplay,
+  type OfficialRules,
+  type RulesData,
+} from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import type { Caller } from "#src/auth/sign-in";
 import { withConnection } from "#src/db/connection";
@@ -545,8 +551,11 @@ export function revealResults(
 
 export type PlayerPlace = Readonly<{
   rank: number;
-  /** `username` is null for a deleted account (FR-1739). */
-  player: Readonly<{ username: string | null; avatar: string }>;
+  /**
+   * `username` is null for a deleted account (FR-1739). `fullName` is set only where the event shows full names to every
+   * player and the winner was told so when they joined (FR-1842, ADR-400).
+   */
+  player: Readonly<{ username: string | null; fullName: string | null; avatar: string }>;
   score: number;
   prize: Readonly<{ kind: PrizeKind; name: Bilingual }> | null;
   mine: boolean;
@@ -562,6 +571,8 @@ export type MyPrize = Readonly<{
 
 export type PlayerResults = Readonly<{
   revealed: boolean;
+  /** How the event names players in this answer: `username` unless it shows full names to every player. */
+  names: NameDisplay;
   places: readonly PlayerPlace[];
   /** The caller's own prize, when they won one. */
   me: MyPrize | null;
@@ -572,7 +583,11 @@ export async function resultsFor(client: PoolClient, eventId: string): Promise<P
   const { rows } = await client.query("SELECT * FROM event_results($1)", [eventId]);
   const places = rows.map((row) => ({
     rank: Number(row["rank"]),
-    player: { username: usernameOf(row), avatar: String(row["avatar"]) },
+    player: {
+      username: usernameOf(row),
+      fullName: typeof row["full_name"] === "string" ? row["full_name"] : null,
+      avatar: String(row["avatar"]),
+    },
     score: Number(row["score"]),
     prize:
       row["prize_kind"] === null
@@ -585,8 +600,10 @@ export async function resultsFor(client: PoolClient, eventId: string): Promise<P
   }));
   const mine = rows.find((row) => row["mine"] === true && row["redemption_id"] !== null);
   const myPlace = places.find((place) => place.mine);
+  const names = rows[0]?.["names"];
   return {
     revealed: rows.length > 0,
+    names: isNameDisplay(names) ? names : "username",
     places,
     me:
       mine === undefined || myPlace?.prize === null || myPlace === undefined

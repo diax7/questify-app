@@ -639,6 +639,73 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     }
   });
 
+  it("grants name display's doors to the API's role only, and keeps the name readers closed (T-615)", async () => {
+    const doors = [
+      "join_name_notice",
+      "player_name_display",
+      "ranking_names",
+      "event_results",
+      "operator_scan_subject",
+      "desk_full_name",
+      "public_event_join_rules",
+      "my_invitations",
+      "screen_ranking",
+      "screen_finale",
+    ];
+    const internals = [
+      "event_name_notice",
+      "event_player_names",
+      "public_full_name",
+      "full_name_part",
+      "names_part",
+      "staff_full_name",
+      "event_name_display_guard",
+    ];
+    const names = [...doors, ...internals];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      public: boolean;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        has_function_privilege('public', p.oid, 'EXECUTE') AS public
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'public' AND proname IN (${names.map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(names.toSorted());
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.public, row.proname).toBe(false);
+    }
+    // The public key holds no right on the new columns either: the event's setting and the enrollment's notice.
+    const [columns] = await rows<{ outsider: boolean }>(
+      `SELECT has_column_privilege('questify_outsider', 'public.event', 'name_display', 'SELECT')
+           OR has_column_privilege('questify_outsider', 'public.event', 'name_audience', 'SELECT')
+           OR has_column_privilege('questify_outsider', 'public.enrollment', 'name_notice', 'SELECT')
+           AS outsider`,
+    );
+    expect(columns).toEqual({ outsider: false });
+    for (const sql of [
+      "SELECT name_display, name_audience FROM public.event",
+      "SELECT name_notice FROM public.enrollment",
+      "SELECT public.join_name_notice(gen_random_uuid(), 'everyone')",
+      "SELECT public.player_name_display(gen_random_uuid())",
+      "SELECT * FROM public.ranking_names(gen_random_uuid(), ARRAY[gen_random_uuid()])",
+      "SELECT * FROM public.event_results(gen_random_uuid())",
+      "SELECT * FROM public.operator_scan_subject(gen_random_uuid(), gen_random_uuid())",
+      "SELECT public.desk_full_name(gen_random_uuid(), 'x')",
+      "SELECT public.public_full_name(gen_random_uuid())",
+      "SELECT public.staff_full_name(gen_random_uuid(), gen_random_uuid())",
+      "SELECT public.screen_ranking()",
+      "SELECT public.screen_finale()",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+  });
+
   it("keeps the sponsor tables and internals closed and grants only its six doors", async () => {
     const doors = [
       "member_sponsors",

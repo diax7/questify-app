@@ -1,18 +1,21 @@
+import type { NameDisplay } from "@questify/shared";
 import type { RankRow, Ranking } from "#src/event/home-api.ts";
 
-export type ShownRow = RankRow & Readonly<{ key: string }>;
+/** A row to draw, with how the event names players (FR-1842) so the row and its spoken label agree. */
+export type ShownRow = RankRow & Readonly<{ key: string; names: NameDisplay }>;
 
 /**
  * What the ranking shows (FR-601, FR-602): the top rows as given (up to 10, none invented), then the player's own row
  * as an 11th row only when they are ranked but not among them. A player without points gets no row.
  */
 export function rankingRows(ranking: Ranking): readonly ShownRow[] {
-  const top = ranking.rows.map((row) => ({ ...row, key: `${row.rank}:${row.username}` }));
+  const names = ranking.names;
+  const top = ranking.rows.map((row) => ({ ...row, key: `${row.rank}:${row.username}`, names }));
   const me = ranking.me;
   if (me === null || ranking.rows.some((row) => row.isMe)) {
     return top;
   }
-  return [...top, { ...me, isMe: true, key: `${me.rank}:${me.username}` }];
+  return [...top, { ...me, isMe: true, key: `${me.rank}:${me.username}`, names }];
 }
 
 /** The tallest a row grows on a big phone; rows never scroll, so they shrink instead (FR-603). */
