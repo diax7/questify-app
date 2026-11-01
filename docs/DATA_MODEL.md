@@ -275,7 +275,7 @@ PUBLIC and to the API role) copies the setup of one event into the empty draft t
 entry code is replaced by a new random one, a digital reward starts at stock 0, a launched flash quest and a sent poll start unsent. The Home content in
 `config.layout.content` (migration 0105) points at the copies: a quest action of a banner slide or quick link and the featured quest or reward take the copy's id; where no
 copy exists (a removed reward, a stale or foreign id) the action becomes `none` and the featured card `null`; damaged content is left as it is.
-Every other table with an `event_id` is left alone (people and play, secrets and devices, live operation, activation, results); the
+`config.layout.looks` (T-611, ADR-396) is copied with the rest of `config`; it holds no id. Every other table with an `event_id` is left alone (people and play, secrets and devices, live operation, activation, results); the
 database test lists each one as copied or not copied, so a new table must be decided. Audited `event.duplicate`.
 
 ### enrollment (a player in an event)

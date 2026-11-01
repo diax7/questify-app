@@ -79,6 +79,17 @@ export {
   readHomeContent,
   sameContent,
 } from "./layout/home-content";
+export type { CardLayout, EventLooks, RankingLayout, RankingScores } from "./layout/looks";
+export {
+  CARD_LAYOUTS,
+  DEFAULT_LOOKS,
+  RANKING_LAYOUTS,
+  RANKING_SCORES,
+  checkLooks,
+  readLooks,
+  sameLooks,
+  scoresHidden,
+} from "./layout/looks";
 export type {
   ComposedLayout,
   EventLayout,

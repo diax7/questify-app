@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { RankRow, Ranking } from "#src/event/home-api.ts";
-import { MAX_ROW_HEIGHT, rankingRows, rowHeight } from "#src/event/ranking.ts";
+import {
+  MAX_ROW_HEIGHT,
+  PODIUM_ALONE_MAX,
+  PODIUM_MAX,
+  PODIUM_MIN,
+  podiumFit,
+  podiumMetrics,
+  podiumPlaces,
+  rankingRows,
+  rowHeight,
+} from "#src/event/ranking.ts";
 
 const row = (rank: number, isMe = false): RankRow => ({
   rank,
@@ -18,6 +28,7 @@ const ranking = (rows: RankRow[], me: Ranking["me"]): Ranking => ({
   me,
   total: 50,
   today: false,
+  scores: true,
 });
 
 describe("rankingRows", () => {
@@ -83,5 +94,88 @@ describe("rowHeight", () => {
     expect(rowHeight(0, 11, 6)).toBe(0);
     expect(rowHeight(20, 11, 6)).toBe(0);
     expect(rowHeight(400, 0, 6)).toBe(0);
+  });
+});
+
+describe("podiumFit", () => {
+  const GAP = 6;
+  const total = (available: number, slots: number) => {
+    const fit = podiumFit(available, slots, GAP);
+    return fit.podium + GAP + slots * fit.row + GAP * (slots - 1);
+  };
+
+  it("fits the podium, the rows below it and their gaps in every phone height, with no scrolling", () => {
+    for (let available = 380; available <= 900; available += 5) {
+      for (const slots of [1, 4, 7, 8]) {
+        expect(total(available, slots), `${available} / ${slots}`).toBeLessThanOrEqual(available);
+      }
+    }
+  });
+
+  it("keeps every row readable on the smallest supported phone (8 rows: ranks 4 to 10 and the player's own)", () => {
+    // About 420 points are left for the list on an iPhone SE or a small Android (T-009 estimate).
+    expect(podiumFit(420, 8, GAP).row).toBeGreaterThanOrEqual(30);
+    expect(podiumFit(420, 7, GAP).row).toBeGreaterThanOrEqual(34);
+  });
+
+  it("keeps the podium between its bounds and grows with the screen", () => {
+    expect(podiumFit(300, 8, GAP).podium).toBe(PODIUM_MIN);
+    expect(podiumFit(2000, 8, GAP).podium).toBe(PODIUM_MAX);
+    expect(podiumFit(520, 8, GAP).podium).toBeGreaterThan(podiumFit(420, 8, GAP).podium);
+  });
+
+  it("lets the podium take the space when nothing is listed below it", () => {
+    expect(podiumFit(300, 0, GAP)).toEqual({ podium: 220, row: 0 });
+    expect(podiumFit(200, 0, GAP)).toEqual({ podium: 200, row: 0 });
+    expect(podiumFit(2000, 0, GAP).podium).toBe(PODIUM_ALONE_MAX);
+    expect(podiumFit(0, 0, GAP).podium).toBe(0);
+  });
+});
+
+describe("podiumPlaces", () => {
+  const top = [row(1), row(2), row(3)].map((item) => ({ ...item, key: `${item.rank}` }));
+
+  it("stands second on one side of first and third on the other", () => {
+    expect(podiumPlaces(top).map((place) => place?.rank)).toEqual([2, 1, 3]);
+  });
+
+  it("leaves a place that nobody holds empty, for a small event", () => {
+    expect(podiumPlaces(top.slice(0, 2)).map((place) => place?.rank)).toEqual([2, 1, undefined]);
+    expect(podiumPlaces(top.slice(0, 1)).map((place) => place?.rank)).toEqual([
+      undefined,
+      1,
+      undefined,
+    ]);
+    expect(podiumPlaces([])).toEqual([undefined, undefined, undefined]);
+  });
+});
+
+describe("podiumMetrics", () => {
+  it("never lets the tallest place go above the podium's height", () => {
+    for (let height = PODIUM_MIN; height <= PODIUM_ALONE_MAX; height += 4) {
+      for (const withScore of [true, false]) {
+        const { face, steps } = podiumMetrics(height, withScore);
+        const above = face + 18 + (withScore ? 18 : 0) + 8;
+        expect(above + steps[1], `${height} ${withScore}`).toBeLessThanOrEqual(height);
+      }
+    }
+  });
+
+  it("stands first highest and third lowest", () => {
+    for (const withScore of [true, false]) {
+      const [second, first, third] = podiumMetrics(126, withScore).steps;
+      expect(first).toBeGreaterThan(second);
+      expect(second).toBeGreaterThan(third);
+      expect(third).toBeGreaterThanOrEqual(10);
+    }
+  });
+
+  it("makes the steps taller when there is no score line to make room for", () => {
+    expect(podiumMetrics(126, false).steps[1]).toBeGreaterThan(podiumMetrics(126, true).steps[1]);
+  });
+
+  it("keeps the face readable and in bounds", () => {
+    expect(podiumMetrics(PODIUM_MIN, true).face).toBeGreaterThanOrEqual(24);
+    expect(podiumMetrics(PODIUM_ALONE_MAX, true).face).toBeLessThanOrEqual(44);
   });
 });

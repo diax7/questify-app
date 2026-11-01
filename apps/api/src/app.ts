@@ -473,7 +473,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerDeviceOperatorRoutes(app, { ...deviceDeps, claims: deviceClaims });
   registerPassportRoutes(app, { pool: options.pool, stepKey: stepCodeKey, ranking });
   registerRevealRoutes(app, { pool: options.pool, revealKey: revealCodeKey });
-  registerResultsPlayerRoutes(app, { pool: options.pool });
+  registerResultsPlayerRoutes(app, { pool: options.pool, settings });
   const rewardCodeKey = createRewardCodeKey(config.rewardCodeSecret);
   registerShopRoutes(app, {
     pool: options.pool,

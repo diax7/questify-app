@@ -1,5 +1,6 @@
 import {
   BAR_PROTECTED,
+  DEFAULT_LOOKS,
   EMPTY_CONTENT,
   HOME_KEYS,
   validateLayoutRequest,
@@ -59,7 +60,9 @@ describe("setShown", () => {
     }
     expect(bar.hidden).toEqual(["rewards"]);
     const home = list([...HOME_KEYS]);
-    expect(validateLayoutRequest({ bar, home, content: EMPTY_CONTENT }).ok).toBe(true);
+    expect(
+      validateLayoutRequest({ bar, home, content: EMPTY_CONTENT, looks: DEFAULT_LOOKS }).ok,
+    ).toBe(true);
   });
 });
 

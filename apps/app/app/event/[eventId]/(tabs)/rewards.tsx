@@ -78,11 +78,83 @@ function Tags({ reward }: Readonly<{ reward: ShopReward }>) {
   );
 }
 
+/** What a reward shows above its action: the name, tags, sponsor, description, price and stock. */
+function RewardSummary({
+  reward,
+  sponsor,
+  pinned,
+  compact,
+}: Readonly<{
+  reward: ShopReward;
+  sponsor: MemberSponsor | undefined;
+  pinned: boolean;
+  compact: boolean;
+}>) {
+  const { t, language } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  const description = textIn(reward.description, language);
+  const lines = compact ? 2 : undefined;
+  return (
+    <View style={styles.tileBody}>
+      {pinned ? <AppText variant="label">{t("goal.title")}</AppText> : null}
+      <AppText variant={compact ? "label" : "title"} numberOfLines={lines}>
+        {textIn(reward.name, language)}
+      </AppText>
+      <Tags reward={reward} />
+      <PresentedBy sponsor={sponsor} />
+      {description === "" ? null : <AppText numberOfLines={lines}>{description}</AppText>}
+      <View style={styles.row}>
+        <Amount
+          amount={formatNumber(reward.price, language)}
+          form={compact ? "compact" : "labelled"}
+          variant="label"
+        />
+        <AppText muted>
+          {reward.stockLeft > 0
+            ? t("shop.left", { count: formatNumber(reward.stockLeft, language) })
+            : t("shop.soldOut")}
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
+/** Redeem, or why the reward cannot be redeemed now. */
+function RewardAction({
+  reward,
+  view,
+  onRedeem,
+}: Readonly<{ reward: ShopReward; view: ShopView; onRedeem: () => void }>) {
+  const { t, language } = useI18n();
+  const terms = useTerms();
+  const action = rewardAction(reward, view, Date.now());
+  if (action === "redeem") {
+    return <Button label={t("shop.redeem")} onPress={onRedeem} />;
+  }
+  // A reward a community goal still locks names the goal's numbers instead of a price button (T-306c).
+  const unlock =
+    action === "community_locked" && reward.communityLock !== null
+      ? unlockLine(reward.communityLock, language, view.shop.desk.timeZone)
+      : null;
+  return (
+    <AppText muted accessibilityRole="text">
+      {unlock === null
+        ? t(ACTION_TEXT[action], { currency: termFor(terms.currency, language) })
+        : t(unlock.key, unlock.values)}
+    </AppText>
+  );
+}
+
+/**
+ * One reward. In the shop's grid (`compact`, FR-1833) it is one of two cards a row: the name and the description keep two
+ * lines at most and the action sits at the bottom, so the cards of a row line up.
+ */
 function RewardCard({
   reward,
   sponsor,
   view,
   busy,
+  compact,
   onRedeem,
   onPin,
 }: Readonly<{
@@ -90,51 +162,26 @@ function RewardCard({
   sponsor: MemberSponsor | undefined;
   view: ShopView;
   busy: boolean;
+  compact: boolean;
   onRedeem: () => void;
   /** Pins this reward as the goal, or unpins it when it is the goal (FR-517). */
   onPin: () => void;
 }>) {
-  const { t, language } = useI18n();
+  const { t } = useI18n();
   const styles = useThemedStyles(makeStyles);
-  const terms = useTerms();
-  const action = rewardAction(reward, view, Date.now());
-  // A reward a community goal still locks names the goal's numbers instead of a price button (T-306c).
-  const unlock =
-    action === "community_locked" && reward.communityLock !== null
-      ? unlockLine(reward.communityLock, language, view.shop.desk.timeZone)
-      : null;
-  const description = textIn(reward.description, language);
   const pinned = view.goalRewardId === reward.id;
   return (
-    <View style={[styles.card, pinned && styles.chosen]}>
-      {pinned ? <AppText variant="label">{t("goal.title")}</AppText> : null}
-      <AppText variant="title">{textIn(reward.name, language)}</AppText>
-      <Tags reward={reward} />
-      <PresentedBy sponsor={sponsor} />
-      {description === "" ? null : <AppText>{description}</AppText>}
-      <View style={styles.row}>
-        <Amount amount={formatNumber(reward.price, language)} form="labelled" variant="label" />
-        <AppText muted>
-          {reward.stockLeft > 0
-            ? t("shop.left", { count: formatNumber(reward.stockLeft, language) })
-            : t("shop.soldOut")}
-        </AppText>
+    <View style={[styles.card, compact && styles.tile, pinned && styles.chosen]}>
+      <RewardSummary reward={reward} sponsor={sponsor} pinned={pinned} compact={compact} />
+      <View style={styles.tileBody}>
+        <RewardAction reward={reward} view={view} onRedeem={onRedeem} />
+        <Button
+          kind="quiet"
+          label={t(pinned ? "goal.unpin" : "goal.pin")}
+          disabled={busy}
+          onPress={onPin}
+        />
       </View>
-      {action === "redeem" ? (
-        <Button label={t("shop.redeem")} onPress={onRedeem} />
-      ) : (
-        <AppText muted accessibilityRole="text">
-          {unlock === null
-            ? t(ACTION_TEXT[action], { currency: termFor(terms.currency, language) })
-            : t(unlock.key, unlock.values)}
-        </AppText>
-      )}
-      <Button
-        kind="quiet"
-        label={t(pinned ? "goal.unpin" : "goal.pin")}
-        disabled={busy}
-        onPress={onPin}
-      />
     </View>
   );
 }
@@ -618,22 +665,27 @@ function Catalog({
   actions: ReturnType<typeof useShopActions>;
 }>) {
   const { t } = useI18n();
+  const styles = useThemedStyles(makeStyles);
   const sponsors = useSponsors();
+  const grid = useEvent().layout.looks.shop === "grid";
   return (
     <>
       <SectionChips sections={sectionsOf(view.rewards)} section={section} onChoose={onSection} />
       {view.rewards.length === 0 ? <AppText muted>{t("shop.empty")}</AppText> : null}
-      {inSection(view.rewards, section).map((reward) => (
-        <RewardCard
-          key={reward.id}
-          reward={reward}
-          sponsor={sponsors.of("reward", reward.id)}
-          view={view}
-          busy={busy}
-          onPin={() => void actions.pin(view.goalRewardId === reward.id ? null : reward.id)}
-          onRedeem={() => actions.redeem(reward, view)}
-        />
-      ))}
+      <View style={grid ? styles.grid : styles.stack}>
+        {inSection(view.rewards, section).map((reward) => (
+          <RewardCard
+            key={reward.id}
+            reward={reward}
+            sponsor={sponsors.of("reward", reward.id)}
+            view={view}
+            busy={busy}
+            compact={grid}
+            onPin={() => void actions.pin(view.goalRewardId === reward.id ? null : reward.id)}
+            onRedeem={() => actions.redeem(reward, view)}
+          />
+        ))}
+      </View>
     </>
   );
 }
@@ -719,6 +771,16 @@ const makeStyles = (theme: Theme) => ({
     borderWidth: 2,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
+  },
+  tileBody: { gap: theme.spacing.sm },
+  stack: { gap: theme.spacing.lg },
+  // The shop's grid (FR-1833): two cards a row; the cards of a row stretch to the tallest, and none is shorter than the minimum.
+  grid: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: theme.spacing.sm },
+  tile: {
+    width: "48%" as const,
+    minHeight: 220,
+    justifyContent: "space-between" as const,
+    borderBottomWidth: 4,
   },
   tag: {
     paddingHorizontal: theme.spacing.sm,

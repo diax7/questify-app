@@ -71,6 +71,13 @@ describe("planBrowserSpecs", () => {
     });
   });
 
+  it("runs the layout editor's spec for the screen styles and the preview pane beside it", () => {
+    for (const file of ["ScreenStyles.tsx", "LayoutPreviewPane.tsx"]) {
+      const result = plan([`apps/web/src/components/${file}`]);
+      expect(result.specs, file).toContain("layout-editor");
+    }
+  });
+
   it("runs the specs named by each changed area, once each, sorted", () => {
     const result = plan([
       "apps/web/src/components/StreakPanel.tsx",

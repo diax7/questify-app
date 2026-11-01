@@ -368,9 +368,6 @@
     }
   },
   "apps/app/app/event/[eventId]/(tabs)/quests.tsx": {
-    "QuestCard": {
-      "complexity": [12]
-    },
     "QuestsScreen": {
       "complexity": [15]
     },
@@ -384,9 +381,6 @@
     },
     "RedeemSheet": {
       "complexity": [19]
-    },
-    "RewardCard": {
-      "complexity": [10]
     }
   },
   "apps/app/app/event/[eventId]/game.tsx": {

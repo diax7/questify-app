@@ -3,7 +3,12 @@ import type { ReactNode } from "react";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import styles from "#src/components/preview.module.css";
 import { directionOf } from "#src/lib/language.ts";
-import type { EventPreview } from "#src/lib/preview.ts";
+import type {
+  EventPreview,
+  PreviewQuest,
+  PreviewRankRow,
+  PreviewReward,
+} from "#src/lib/preview.ts";
 import { themeVariables } from "#src/lib/theme.ts";
 
 type ScreenProps = Readonly<{ preview: EventPreview; language: Language }>;
@@ -76,6 +81,25 @@ function Home({ preview, language }: ScreenProps) {
   );
 }
 
+/** The quests of a category: stacked lines, or two cards a row in the card grid (FR-1833). */
+function QuestLines({
+  quests,
+  grid,
+  language,
+}: Readonly<{ quests: readonly PreviewQuest[]; grid: boolean; language: Language }>) {
+  const t = useTranslator(language);
+  return (
+    <ul className={grid ? styles.tiles : styles.lines}>
+      {quests.map((quest) => (
+        <li key={quest.id} className={grid ? styles.tile : styles.line}>
+          <span className={grid ? styles.tileTitle : undefined}>{quest.title}</span>
+          <span className={styles.muted}>{t("quests.pointsShort", { points: quest.points })}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function Quests({ preview, language }: ScreenProps) {
   const t = useTranslator(language);
   return (
@@ -95,20 +119,40 @@ function Quests({ preview, language }: ScreenProps) {
         preview.categories.map((category) => (
           <div key={category.id}>
             <h4 className={styles.group}>{category.name}</h4>
-            <ul className={styles.lines}>
-              {category.quests.map((quest) => (
-                <li key={quest.id} className={styles.line}>
-                  <span>{quest.title}</span>
-                  <span className={styles.muted}>
-                    {t("quests.pointsShort", { points: quest.points })}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <QuestLines
+              quests={category.quests}
+              grid={preview.looks.quests === "grid"}
+              language={language}
+            />
           </div>
         ))
       )}
     </Phone>
+  );
+}
+
+/** The rewards: stacked lines, or two cards a row in the grid (FR-1833). */
+function RewardLines({
+  rewards,
+  grid,
+  language,
+}: Readonly<{ rewards: readonly PreviewReward[]; grid: boolean; language: Language }>) {
+  const t = useTranslator(language);
+  return (
+    <ul className={grid ? styles.tiles : styles.lines}>
+      {rewards.map((reward) => (
+        <li key={reward.id} className={grid ? styles.tile : styles.line}>
+          <span>
+            <span className={grid ? styles.tileTitle : undefined}>{reward.name}</span>
+            <span className={styles.muted}>
+              {grid ? " " : " · "}
+              {t("quests.pointsShort", { points: reward.price })}
+            </span>
+          </span>
+          <span className={styles.chip}>{t("shop.reserve")}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -123,44 +167,121 @@ function Shop({ preview, language }: ScreenProps) {
       {preview.rewards.length === 0 ? (
         <p className={styles.muted}>{t("preview.noRewards")}</p>
       ) : (
-        <ul className={styles.lines}>
-          {preview.rewards.map((reward) => (
-            <li key={reward.id} className={styles.line}>
-              <span>
-                {reward.name}
-                <span className={styles.muted}>
-                  {" · "}
-                  {t("quests.pointsShort", { points: reward.price })}
-                </span>
-              </span>
-              <span className={styles.chip}>{t("shop.reserve")}</span>
-            </li>
-          ))}
-        </ul>
+        <RewardLines
+          rewards={preview.rewards}
+          grid={preview.looks.shop === "grid"}
+          language={language}
+        />
       )}
     </Phone>
   );
 }
 
-/** Only the event's Home with its bar: what the layout editor redraws as the organizer arranges it (T-606). */
-export function HomePreview({ preview, language }: ScreenProps) {
+const STEPS = ["stepSilver", "stepGold", "stepBronze"] as const;
+const STEP_HEIGHTS = ["2.6rem", "3.6rem", "2rem"] as const;
+
+/** The top three on a podium, second place on one side of first and third on the other (FR-1832). */
+function PodiumRows({
+  rows,
+  scores,
+  language,
+}: Readonly<{ rows: readonly PreviewRankRow[]; scores: boolean; language: Language }>) {
+  const t = useTranslator(language);
+  const places = [rows[1], rows[0], rows[2]];
+  return (
+    <div className={styles.podium} role="group" aria-label={t("looks.podium")}>
+      {places.map((row, index) =>
+        row === undefined ? (
+          <span key={STEPS[index]} className={styles.place} />
+        ) : (
+          <span key={row.rank} className={styles.place}>
+            <span className={styles.face} aria-hidden="true" />
+            <bdi className={styles.placeName}>@{row.username}</bdi>
+            {scores ? <span className={styles.muted}>{row.score}</span> : null}
+            <span
+              className={`${styles.step} ${styles[STEPS[index] ?? "stepGold"]}`}
+              style={{ blockSize: STEP_HEIGHTS[index] ?? "2rem" }}
+            >
+              {row.rank}
+            </span>
+          </span>
+        ),
+      )}
+    </div>
+  );
+}
+
+function Ranking({ preview, language }: ScreenProps) {
+  const t = useTranslator(language);
+  if (preview.ranking === null) {
+    return null;
+  }
+  const { layout, scores } = preview.looks.ranking;
+  const podium = layout === "podium";
+  const below = podium ? preview.ranking.slice(3) : preview.ranking;
+  return (
+    <Phone title={t("nav.ranking")} active="index" preview={preview} language={language}>
+      <div className={styles.titleRow}>
+        <h3 className={styles.screenTitle}>{t("nav.ranking")}</h3>
+        <span className={styles.sample}>{t("looks.sample")}</span>
+      </div>
+      {podium ? (
+        <PodiumRows
+          rows={preview.ranking.slice(0, 3)}
+          scores={scores === "shown"}
+          language={language}
+        />
+      ) : null}
+      <ul className={styles.lines}>
+        {below.map((row) => (
+          <li key={row.rank} className={styles.line}>
+            <span>
+              <span className={styles.rankNumber}>{row.rank}</span>
+              <bdi>@{row.username}</bdi>
+            </span>
+            {scores === "shown" ? <span className={styles.muted}>{row.score}</span> : null}
+          </li>
+        ))}
+      </ul>
+    </Phone>
+  );
+}
+
+/** The screens the layout page can show beside the editor. */
+export type PreviewScreen = "home" | "ranking" | "quests" | "rewards";
+
+/**
+ * One of the player's screens with its bar, redrawn from the unsaved draft as the organizer arranges it (T-606, T-611): Home,
+ * and the ranking, Quests and Rewards screens in their chosen layouts. A screen the event does not have draws nothing.
+ */
+export function ScreenPreview({
+  preview,
+  language,
+  screen,
+}: ScreenProps & Readonly<{ screen: PreviewScreen }>) {
   const look = themeVariables(themeWithAccent(DEFAULT_THEME, preview.accent));
+  const props = { preview, language };
   return (
     <div className={styles.phones} style={look}>
-      <Home preview={preview} language={language} />
+      {screen === "home" ? <Home {...props} /> : null}
+      {screen === "ranking" ? <Ranking {...props} /> : null}
+      {screen === "quests" ? <Quests {...props} /> : null}
+      {screen === "rewards" ? <Shop {...props} /> : null}
     </div>
   );
 }
 
 /**
- * The player's Home, Quests and Rewards screens for one event in one language (FR-1022): the event's words, its accent
- * and only the features that are switched on. The Rewards screen is not drawn while the shop is off, as the app has none.
+ * The player's Home, ranking, Quests and Rewards screens for one event in one language (FR-1022): the event's words, its
+ * accent, its chosen layouts and only the features that are switched on. The ranking and Rewards screens are not drawn
+ * while their feature is off, as the app has none.
  */
 export function PreviewScreens({ preview, language }: ScreenProps) {
   const look = themeVariables(themeWithAccent(DEFAULT_THEME, preview.accent));
   return (
     <div className={styles.phones} style={look}>
       <Home preview={preview} language={language} />
+      <Ranking preview={preview} language={language} />
       <Quests preview={preview} language={language} />
       <Shop preview={preview} language={language} />
     </div>

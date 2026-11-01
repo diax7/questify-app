@@ -247,19 +247,22 @@ export async function fetchHome(
   );
 }
 
-/** A ranking row: public profile details only (FR-604); `avatar` may be one this app does not know (F-282). */
+/**
+ * A ranking row: public profile details only (FR-604); `avatar` may be one this app does not know (F-282). `score` is null
+ * when the event shows places only (FR-1832): the server then sends no score, and nothing here draws one.
+ */
 export type RankRow = Readonly<{
   rank: number;
   username: string;
   avatar: string;
   equipment?: Equipment;
-  score: number;
+  score: number | null;
   isMe: boolean;
 }>;
 
 /**
  * `GET /v1/events/{id}/ranking` (T-106): the top rows and the player's own place. `today` says the event has a today's
- * ranking now (T-216); an older API without it has none.
+ * ranking now (T-216); an older API without it has none. `scores` is false when the event shows places only (T-611).
  */
 export type Ranking = Readonly<{
   rows: readonly RankRow[];
@@ -268,10 +271,11 @@ export type Ranking = Readonly<{
     username: string;
     avatar: string;
     equipment?: Equipment;
-    score: number;
+    score: number | null;
   }> | null;
   total: number;
   today: boolean;
+  scores: boolean;
 }>;
 
 /** The whole event's ranking, or today's points only (FR-610). */
@@ -289,13 +293,20 @@ export type RankingAnswer =
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "signed_out" }>;
 
+/** A score is a number, or left out by the server on an event that shows places only. */
+const isScore = (value: unknown): boolean => value === undefined || typeof value === "number";
+
 const isRow = (value: unknown): value is RankRow =>
   isRecord(value) &&
   typeof value["rank"] === "number" &&
   typeof value["username"] === "string" &&
   typeof value["avatar"] === "string" &&
-  typeof value["score"] === "number" &&
+  isScore(value["score"]) &&
   typeof value["isMe"] === "boolean";
+
+/** The score to draw: only when the answer says scores are shown and this row carries one. */
+const scoreOf = (value: unknown, scoresShown: boolean): number | null =>
+  scoresShown && typeof value === "number" ? value : null;
 
 export function readRanking(body: unknown): Ranking | undefined {
   if (!isRecord(body) || !Array.isArray(body["rows"]) || typeof body["total"] !== "number") {
@@ -308,13 +319,16 @@ export function readRanking(body: unknown): Ranking | undefined {
       typeof me["rank"] === "number" &&
       typeof me["username"] === "string" &&
       typeof me["avatar"] === "string" &&
-      typeof me["score"] === "number");
+      isScore(me["score"]));
   if (!meOk || !body["rows"].every(isRow)) {
     return undefined;
   }
+  // An answer without the flag comes from an API that always sent scores; only an explicit false hides them.
+  const scores = body["scores"] !== false;
   return {
     rows: body["rows"].map((row) => ({
       ...row,
+      score: scoreOf(row.score, scores),
       ...(row.equipment === undefined ? {} : { equipment: equipmentOf(row.equipment) }),
     })),
     me:
@@ -322,12 +336,14 @@ export function readRanking(body: unknown): Ranking | undefined {
         ? null
         : {
             ...(me as NonNullable<Ranking["me"]>),
+            score: scoreOf((me as Record<string, unknown>)["score"], scores),
             ...((me as Record<string, unknown>)["equipment"] === undefined
               ? {}
               : { equipment: equipmentOf((me as Record<string, unknown>)["equipment"]) }),
           },
     total: body["total"],
     today: body["today"] === true,
+    scores,
   };
 }
 

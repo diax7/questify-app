@@ -6140,3 +6140,36 @@ specific session, map pin, sponsor or reward opens the agenda, map or shop scree
 **Trade-offs:** the dashboard checks the words as the organizer types and disables Save until they pass, using the server's own check;
 the live preview omits an item until it is complete; the countdown uses the phone's clock corrected by the server's offset, so a phone
 with a wrong clock and no live read is off by its error.
+
+## ADR-396 - T-611 screen looks: the ranking, Quests and Rewards layouts are choices stored in the layout, and places-only leaves the score out of the answer
+
+**Status:** Proposed (developer, 2026-11-01; Q-363). Builds FR-1832 and FR-1833 on ADR-391 and ADR-395. No migration, no new store.
+**Decision:** (1) **One more key in the same store.** `event.config.layout` gains `looks`:
+`{ranking: {layout: "list"|"podium", scores: "shown"|"rank_only"}, quests: "list"|"grid", shop: "list"|"grid"}`
+(`packages/shared/src/layout/looks.ts`). The default is what every event looked like before (list, scores shown, list, list), so a
+stored layout without `looks` draws exactly as it did, and nothing changes on deploy. `PUT …/layout` takes `looks` with the other lists
+(strict: every choice named, each one allowed, else 422 `invalid_layout {field: looks.…}`); the composed configuration always carries
+`looks` (it is not tied to a block being shown). A preset and Reset to default arrange blocks and never change the looks, as they keep
+the organizer's words. (2) **A display choice, not a points change.** Nothing about how scores are computed or stored changes; the
+ranking read, the cache and the ledger are untouched. The switches still win: the ranking switch off still answers 404 `ranking_off`, the
+shop switch off still removes the Rewards tab, whatever the looks say; a look never turns a feature on. (3) **Places only is enforced on
+the server, in the answer.** With `scores: "rank_only"`, `GET /v1/events/{id}/ranking` (the whole event and `?scope=today`) leaves the
+`score` out of every row and out of `me`, built field by field (`apps/api/src/ranking/display.ts`), and says `scores: false`; the player's
+revealed results (`GET …/results`) leave out every place's final score the same way (`apps/api/src/results/display.ts`). The app draws a
+score only when the answer holds one, so the app's own cache and configuration can never show a score the server did not send. A
+player's own points on Home, their balance, the history and the team's results page are unchanged (they are the player's own record and the
+team's own review). The big-screen ranking scene is not changed here (no FR says so; Q-363). (4) **Unknown values.** An unknown layout
+value falls back to the default layout (a newer server never breaks an older app, F-282); a `scores` value that is present but not
+understood is read as places only, the side that gives nothing away, and the results route gives no score when the event's configuration
+cannot be read. An answer from an API older than this task (no `scores` flag) is read as scores shown. An app older than this task
+reads a places-only ranking as a failed read (it needs a number), never as a score. (5) **Podium and grids fit.** The podium takes about a
+third of the measured height (96 to 168 points), second, first and third stand on silver, gold and bronze steps, and the rows below it
+(ranks 4 to 10 and the player's own) share the rest (`podiumFit`, tested for every phone height from 380 points: at least 30 points a row
+on a small phone), so neither layout scrolls. A place nobody holds yet is left empty. The Quests and Rewards grids are two cards a row
+(48% wide), the cards of a row equally tall, with a minimum height, a two-line title and the state or action at the bottom. (6) **Dashboard:**
+a "Screen styles" section on the Layout page (List or Podium; Scores and places or Places only, with an info button; Quests List or Grid;
+Rewards List or Grid), a mark on a screen whose switch is off, and the phone beside the lists now has tabs (Home, Ranking, Quests, Rewards)
+and redraws the screen being styled from the unsaved draft, with example players for the ranking.
+**Why:** configuration over code, one write path, and privacy that does not depend on a client behaving.
+**Trade-offs:** the 15-second configuration cache means a switch to places only reaches every API copy within that time (as every other
+switch); the dashboard preview uses made-up players; not run on a phone (layout maths and the Hermes bundle only).

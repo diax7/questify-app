@@ -9,6 +9,7 @@ import {
 import type { Registries } from "./registry";
 import { DEFAULT_TERMS } from "./terms";
 import { DEFAULT_COMPOSED_LAYOUT } from "#src/layout/layout";
+import { DEFAULT_LOOKS } from "#src/layout/looks";
 
 const registries: Registries = {
   features: {
@@ -224,7 +225,10 @@ describe("parseComposedConfig", () => {
     };
     expect(parseComposedConfig({ ...valid, layout: moved })).toEqual({
       ok: true,
-      config: { ...valid, layout: { ...moved, content: DEFAULT_COMPOSED_LAYOUT.content } },
+      config: {
+        ...valid,
+        layout: { ...moved, content: DEFAULT_COMPOSED_LAYOUT.content, looks: DEFAULT_LOOKS },
+      },
     });
   });
 

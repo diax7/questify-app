@@ -1,3 +1,4 @@
+import { DEFAULT_LOOKS } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import type { EventView } from "#src/lib/events.ts";
 import { featureLookup, previewOf } from "#src/lib/preview.ts";
@@ -353,5 +354,34 @@ describe("previewOf and the organizer's own Home blocks (T-610)", () => {
     expect(keys).not.toContain("banner");
     expect(keys).not.toContain("card:aaaaaa11");
     expect(keys).toContain("card:bbbbbb22");
+  });
+});
+
+const withLooks = (looks: unknown) => previewOf({ ...EVENT, layout: { looks } }, [], [], "en");
+
+describe("previewOf and how the screens are drawn (T-611)", () => {
+  it("draws an event with no looks as the screens have always been drawn", () => {
+    expect(previewOf(EVENT, [], [], "en").looks).toEqual(DEFAULT_LOOKS);
+  });
+
+  it("carries the draft's looks for the ranking, Quests and Rewards screens", () => {
+    const looks = {
+      ranking: { layout: "podium", scores: "rank_only" },
+      quests: "grid",
+      shop: "grid",
+    };
+    expect(withLooks(looks).looks).toEqual(looks);
+  });
+
+  it("reads looks the API sent damaged as the default layouts and hides the scores", () => {
+    const read = withLooks({ ranking: { layout: "carousel", scores: "top3" }, quests: 4 }).looks;
+    expect(read).toEqual({ ...DEFAULT_LOOKS, ranking: { layout: "list", scores: "rank_only" } });
+  });
+
+  it("gives the ranking screen example players in the page's language, and none while the ranking is off", () => {
+    const rows = previewOf(EVENT, [], [], "ar").ranking;
+    expect(rows).toHaveLength(8);
+    expect(rows?.[0]).toEqual({ rank: 1, username: "sara", score: "1,240" });
+    expect(previewOf({ ...EVENT, ranking: false }, [], [], "en").ranking).toBeNull();
   });
 });

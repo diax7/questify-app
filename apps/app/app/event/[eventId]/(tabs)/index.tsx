@@ -145,7 +145,7 @@ function RankingCard({ eventId, ranking }: Readonly<{ eventId: string; ranking: 
               <AppText numberOfLines={1} style={[styles.grow, { writingDirection: "ltr" }]}>
                 @{row.username}
               </AppText>
-              <AppText>{formatNumber(row.score, language)}</AppText>
+              {row.score === null ? null : <AppText>{formatNumber(row.score, language)}</AppText>}
             </View>
           ))}
         </>

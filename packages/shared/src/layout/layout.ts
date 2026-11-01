@@ -9,6 +9,7 @@ import {
   type CardKey,
   type HomeContent,
 } from "#src/layout/home-content";
+import { DEFAULT_LOOKS, readLooks, sameLooks, type EventLooks } from "#src/layout/looks";
 
 /** The blocks of an event's Home, by the name the layout stores (T-606, FR-1749). */
 export type HomeBlock =
@@ -92,12 +93,13 @@ export type LayoutList<K extends string> = Readonly<{
 
 /**
  * What an event stores of its layout (`event.config.layout`): the event bar and Home, each as an order and a hidden set, and
- * what the organizer wrote for the Home blocks that hold content.
+ * what the organizer wrote for the Home blocks that hold content, and how the ranking, Quests and Rewards screens are drawn.
  */
 export type EventLayout = Readonly<{
   bar: LayoutList<PlayerTab>;
   home: LayoutList<HomeKey>;
   content: HomeContent;
+  looks: EventLooks;
 }>;
 
 /** What the app receives: the items to show, in order. The event's switches are applied on top, by `playerTabs`/`homeBlocks`. */
@@ -106,6 +108,8 @@ export type ComposedLayout = Readonly<{
   home: readonly HomeKey[];
   /** The content of the blocks that are shown; a hidden block's draft never reaches a phone. */
   content: HomeContent;
+  /** How the ranking, Quests and Rewards screens are drawn (T-611); the screens' own switches still decide whether they exist. */
+  looks: EventLooks;
 }>;
 
 export const BAR_KEYS: readonly PlayerTab[] = PLAYER_TABS.map((entry) => entry.tab);
@@ -129,6 +133,7 @@ export const DEFAULT_LAYOUT: EventLayout = {
   bar: { order: BAR_KEYS, hidden: [] },
   home: { order: HOME_KEYS, hidden: HOME_KEYS.filter((key) => HOME_OFF_BY_DEFAULT.has(key)) },
   content: EMPTY_CONTENT,
+  looks: DEFAULT_LOOKS,
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -179,6 +184,7 @@ export function readEventLayout(stored: unknown): EventLayout {
     bar: repairList(source["bar"], BAR_KEYS, BAR_PROTECTED, new Set()),
     home: repairList(source["home"], homeKeysOf(content), HOME_PROTECTED, HOME_OFF_BY_DEFAULT),
     content,
+    looks: readLooks(source["looks"]),
   };
 }
 
@@ -198,7 +204,12 @@ function shownContent(content: HomeContent, home: readonly HomeKey[]): HomeConte
 /** The layout as the app receives it: only what is shown, in order, with the content of what is shown. */
 export function composedLayoutOf(layout: EventLayout): ComposedLayout {
   const home = shownOf(layout.home);
-  return { bar: shownOf(layout.bar), home, content: shownContent(layout.content, home) };
+  return {
+    bar: shownOf(layout.bar),
+    home,
+    content: shownContent(layout.content, home),
+    looks: layout.looks,
+  };
 }
 
 export const DEFAULT_COMPOSED_LAYOUT: ComposedLayout = composedLayoutOf(DEFAULT_LAYOUT);
@@ -234,6 +245,7 @@ export function readComposedLayout(received: unknown): ComposedLayout {
       DEFAULT_COMPOSED_LAYOUT.home,
     ),
     content,
+    looks: readLooks(source["looks"]),
   };
 }
 
@@ -262,7 +274,12 @@ export function barScreenOrder(shown: readonly PlayerTab[]): readonly PlayerTab[
 const sameList = <K extends string>(x: LayoutList<K>, y: LayoutList<K>): boolean =>
   x.order.join() === y.order.join() && [...x.hidden].sort().join() === [...y.hidden].sort().join();
 
-/** Whether two layouts show and order everything the same way and say the same words. */
+/** Whether two layouts show and order everything the same way, say the same words and draw the screens alike. */
 export function sameLayout(a: EventLayout, b: EventLayout): boolean {
-  return sameList(a.bar, b.bar) && sameList(a.home, b.home) && sameContent(a.content, b.content);
+  return (
+    sameList(a.bar, b.bar) &&
+    sameList(a.home, b.home) &&
+    sameContent(a.content, b.content) &&
+    sameLooks(a.looks, b.looks)
+  );
 }

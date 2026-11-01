@@ -459,6 +459,30 @@ describe("rankingAnswer", () => {
     expect(rankingAnswer(error(404, "today_ranking_off"))).toEqual({ kind: "today_off" });
   });
 
+  it("reads a ranking that shows places only: no score is kept, whatever the answer holds", () => {
+    const placesOnly = {
+      rows: [{ rank: 1, username: "sara", avatar: "fox", isMe: false }],
+      me: { rank: 4, username: "me", avatar: "owl" },
+      total: 12,
+      scores: false,
+    };
+    expect(rankingAnswer(ok(placesOnly))).toMatchObject({
+      kind: "ranking",
+      ranking: { scores: false, rows: [{ score: null }], me: { score: null } },
+    });
+    const stubborn = { ...placesOnly, rows: [{ ...placesOnly.rows[0], score: 90 }] };
+    const kept = rankingAnswer(ok({ ...stubborn, me: { ...placesOnly.me, score: 20 } }));
+    expect(kept).toMatchObject({
+      ranking: { rows: [{ score: null }], me: { score: null }, scores: false },
+    });
+    expect(rankingAnswer(ok({ ...ranking, scores: true }))).toMatchObject({
+      ranking: { rows: [{ score: 90 }], me: { score: 20 }, scores: true },
+    });
+    expect(rankingAnswer(ok(ranking))).toMatchObject({ ranking: { scores: true } });
+    const wrong = { ...placesOnly, rows: [{ ...placesOnly.rows[0], score: "90" }] };
+    expect(rankingAnswer(ok(wrong))).toEqual({ kind: "network" });
+  });
+
   it("hides the card when the ranking is off, and says so for any other failure", () => {
     expect(rankingAnswer(error(404, "ranking_off"))).toEqual({ kind: "off" });
     expect(rankingAnswer(error(404, "not_found"))).toEqual({ kind: "gone" });

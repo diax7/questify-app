@@ -9,10 +9,16 @@ import {
   homeKeysOf,
   type EventLayout,
 } from "#src/layout/layout";
+import { checkLooks } from "#src/layout/looks";
 import { applyPreset, presetLayout } from "#src/layout/presets";
 
 const list = z.strictObject({ order: z.array(z.string()), hidden: z.array(z.string()) });
-const custom = z.strictObject({ bar: list, home: list, content: z.unknown() });
+const custom = z.strictObject({
+  bar: list,
+  home: list,
+  content: z.unknown(),
+  looks: z.unknown(),
+});
 const preset = z.strictObject({ preset: z.string() });
 
 type RawList = Readonly<{ order: readonly string[]; hidden: readonly string[] }>;
@@ -81,6 +87,10 @@ function checkCustom(input: z.infer<typeof custom>): Validation<EventLayout> {
   if (!written.ok) {
     return { ok: false, issues: written.issues };
   }
+  const looks = checkLooks(input.looks);
+  if (!looks.ok) {
+    return { ok: false, issues: looks.issues };
+  }
   const content: HomeContent = written.value;
   const issues = [
     ...slotIssues(input.bar.order),
@@ -91,13 +101,14 @@ function checkCustom(input: z.infer<typeof custom>): Validation<EventLayout> {
   ];
   return issues.length > 0
     ? { ok: false, issues }
-    : { ok: true, value: { ...(input as unknown as EventLayout), content } };
+    : { ok: true, value: { ...(input as unknown as EventLayout), content, looks: looks.value } };
 }
 
 /**
  * Checks what an organizer saves as an event's layout (FR-1749, FR-1750, FR-1764, FR-1828 to FR-1831): either `{ preset }`,
- * one of the team's approved presets by name, or `{ bar, home, content }`, each list an order that names every item once and
- * a hidden set, and the content written for the Home blocks (cleaned and bounded). A layout that hides Home, the scan button,
+ * one of the team's approved presets by name, or `{ bar, home, content, looks }`, each list an order that names every item
+ * once and a hidden set, the content written for the Home blocks (cleaned and bounded) and the looks of the ranking, Quests
+ * and Rewards screens (every choice named, each one allowed). A layout that hides Home, the scan button,
  * Profile or a protected Home block, or that has more than five bar slots, is refused; an issue for a protected item carries
  * its name in `protectedItem`.
  */

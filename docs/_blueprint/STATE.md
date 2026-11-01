@@ -38,6 +38,19 @@
   app render test for `eventOff` was dropped (the app has no render-test harness, and a harness is not worth adding for
   one line).
 
+## T-611 ranking, Quests and shop layouts — 2026-11-01
+
+- **T-611 done (tier B; one code review owed; not run on a phone). No migration** (staging runs through 0104, 0105 pushed; 0106 is free).
+  **Built (FR-1832, FR-1833, ADR-396):** `event.config.layout.looks` (`{ranking: {layout: list|podium, scores: shown|rank_only}, quests: list|grid,
+  shop: list|grid}`, `packages/shared/src/layout/looks.ts`), validated by `PUT …/layout` (strict), always in the composed configuration, defaulting to the
+  look every event had; presets and Reset leave it alone. **Places only is enforced on the server:** `GET …/ranking` (whole event and today) and the
+  player's revealed `GET …/results` carry no `score` and say `scores: false` (`ranking/display.ts`, `results/display.ts`); the app draws a score only when
+  the answer holds one. Switches still win (ranking off is still 404). App: the ranking screen's List or Podium (`podiumFit`, silver, gold and bronze steps),
+  Quests and Rewards in two equally tall cards a row; no score on Home's ranking card or podium when the answer has none. Dashboard: "Screen styles" on
+  the Layout page and a preview with tabs (Home, Ranking, Quests, Rewards) redrawn from the draft. ADR-396 and Q-363 Proposed. **Not built:** places only
+  on the big-screen ranking scene, the player's own points on Home (Q-363 (a), (b)). Mutation targets: none (tier B). **Local:** full vitest ONCE: 10191 passed, 15 skipped, 1 failed (642 files; `apps/api/test/results/routes.int.test.ts` expected the old answer without `scores: true`; fixed and that file re-run once: 7 passed). Full browser suite after a fresh web build, single worker: 307 passed, 5 skipped, 0 failed (29.6 min; the new layout-editor spec passed in desktop and phone). npx expo export --platform android ok (Hermes bytecode built). tsc (shared, api, web, app), oxlint, oxfmt and function limits clean. CI minutes none; agent tokens roughly 0.55M (estimate).
+  **Next:** the next unchecked task in `docs/TASKS.md` (T-612).
+
 ## T-610 Home editor, new blocks and the banner — 2026-11-01
 
 - **T-610 review fixes (2026-11-01, migration 0105 new, undeployed).** Control characters (C0, C1, NUL) are stripped from Home texts on save, so a NUL no longer fails the layout write with a 500; the slider's label reads place, title and subtitle and the podium reads its content; the 5 s auto-advance also stops while a screen reader is on; a countdown follows a changed clock offset; duplicating an event points the Home content's quest actions and featured item at the copies (else `none` / `null`). Q-362 (c) decided: allowed (SECURITY.md). Nits in FOLLOWUPS.

@@ -134,39 +134,11 @@ function DropLines({
   );
 }
 
-/**
- * A quest in its category. A quest a community goal locks on its own says which goal opens it (T-306c); one locked
- * with its whole category says only that it opens with the goal, the category's note naming the goal once.
- */
-function QuestCard({
-  quest,
-  sponsor,
-  communityLock,
-  timeZone,
-  onOpen,
-}: Readonly<{
-  quest: Quest;
-  sponsor: MemberSponsor | undefined;
-  communityLock: CommunityLock | null;
-  timeZone: string;
-  onOpen: () => void;
-}>) {
+/** What a quest says besides its title and points: its item, repeats, passport steps and opening time. */
+function QuestNotes({ quest, timeZone }: Readonly<{ quest: Quest; timeZone: string }>) {
   const { t, language } = useI18n();
-  const styles = useThemedStyles(makeStyles);
-  const stateKey = stateLine(quest);
-  const unlock =
-    quest.state === "locked" && communityLock !== null
-      ? unlockLine(communityLock, language, timeZone)
-      : null;
-  const line =
-    unlock === null ? (stateKey === null ? null : t(stateKey)) : t(unlock.key, unlock.values);
   return (
-    <Pressable accessibilityRole="button" onPress={onOpen} style={styles.card}>
-      <AppText variant="label">{textIn(quest.title, language)}</AppText>
-      <Amount amount={formatNumber(quest.points, language)} form="compact" muted />
-      <PresentedBy sponsor={sponsor} />
-      <DropLines quest={quest} boost={quest.boost} timeZone={timeZone} />
-      <FirstBonusRibbon questId={quest.id} bonus={quest.firstBonus} />
+    <>
       {quest.item === null ? null : (
         <AppText muted>{t("questsTab.itemReward", { item: textIn(quest.item, language) })}</AppText>
       )}
@@ -188,6 +160,56 @@ function QuestCard({
           })}
         </AppText>
       ) : null}
+    </>
+  );
+}
+
+/**
+ * A quest in its category. A quest a community goal locks on its own says which goal opens it (T-306c); one locked
+ * with its whole category says only that it opens with the goal, the category's note naming the goal once. In the card
+ * grid (`compact`, FR-1833) it is one of two cards a row: the title keeps two lines at most and the state sits at the
+ * bottom, so the cards of a row line up.
+ */
+function QuestCard({
+  quest,
+  sponsor,
+  communityLock,
+  timeZone,
+  compact,
+  onOpen,
+}: Readonly<{
+  quest: Quest;
+  sponsor: MemberSponsor | undefined;
+  communityLock: CommunityLock | null;
+  timeZone: string;
+  compact: boolean;
+  onOpen: () => void;
+}>) {
+  const { t, language } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  const stateKey = stateLine(quest);
+  const unlock =
+    quest.state === "locked" && communityLock !== null
+      ? unlockLine(communityLock, language, timeZone)
+      : null;
+  const line =
+    unlock === null ? (stateKey === null ? null : t(stateKey)) : t(unlock.key, unlock.values);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onOpen}
+      style={[styles.card, compact ? styles.tile : null]}
+    >
+      <View style={styles.cardBody}>
+        <AppText variant="label" numberOfLines={compact ? 2 : undefined}>
+          {textIn(quest.title, language)}
+        </AppText>
+        <Amount amount={formatNumber(quest.points, language)} form="compact" muted />
+        <PresentedBy sponsor={sponsor} />
+        <DropLines quest={quest} boost={quest.boost} timeZone={timeZone} />
+        <FirstBonusRibbon questId={quest.id} bonus={quest.firstBonus} />
+        <QuestNotes quest={quest} timeZone={timeZone} />
+      </View>
       {line === null ? null : <AppText>{line}</AppText>}
     </Pressable>
   );
@@ -244,6 +266,7 @@ function CategorySection({
 }>) {
   const { t, language, rtl } = useI18n();
   const terms = useTerms();
+  const grid = useEvent().layout.looks.quests === "grid";
   const styles = useThemedStyles(makeStyles);
   const summary = categorySummary(category);
   // A closed category's arrow points along the reading direction.
@@ -278,18 +301,21 @@ function CategorySection({
         <DropLines quest={undefined} boost={category.boost} timeZone={timeZone} />
       </Pressable>
       <PresentedBy sponsor={sponsors.of("category", category.id)} />
-      {open
-        ? category.quests.map((quest) => (
+      {open ? (
+        <View style={grid ? styles.grid : styles.stack}>
+          {category.quests.map((quest) => (
             <QuestCard
               key={quest.id}
               quest={quest}
               sponsor={sponsors.of("quest", quest.id)}
               communityLock={ownCommunityLock(quest, category)}
               timeZone={timeZone}
+              compact={grid}
               onOpen={() => onOpenQuest(quest.id)}
             />
-          ))
-        : null}
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -499,5 +525,15 @@ const makeStyles = (theme: Theme) => ({
     borderWidth: 2,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
+  },
+  cardBody: { gap: theme.spacing.xs },
+  stack: { gap: theme.spacing.sm },
+  // The card grid (FR-1833): two cards a row; the cards of a row stretch to the tallest, and none is shorter than the minimum.
+  grid: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: theme.spacing.sm },
+  tile: {
+    width: "48%" as const,
+    minHeight: 136,
+    justifyContent: "space-between" as const,
+    borderBottomWidth: 4,
   },
 });

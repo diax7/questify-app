@@ -1,3 +1,4 @@
+import { scoresHidden } from "@questify/shared";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
@@ -8,6 +9,7 @@ import {
   unauthenticated,
 } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
+import { playerRanking } from "#src/ranking/display";
 import type { Ranking } from "#src/ranking/ranking";
 import type { SettingsService } from "#src/settings/service";
 
@@ -18,6 +20,8 @@ const rankingQuery = z.strictObject({ scope: z.enum(["event", "today"]).default(
  * `GET /v1/events/:eventId/ranking` (FR-606, FR-607, FR-609; ADR-052): the top 10 and the caller's own place, for a
  * player with an active enrollment in the event, while the event's ranking is on. `?scope=today` gives today's ranking
  * (FR-610, ADR-166) while the event is multi-day and live and the owner left it on (FR-608); `today` says whether it is.
+ * With the event's ranking on "rank only" (FR-1832, ADR-396) the answer carries places and players and no score, for the
+ * whole event and for today alike, and says so in `scores: false`.
  */
 export function registerRankingRoutes(
   app: FastifyInstance,
@@ -50,6 +54,9 @@ export function registerRankingRoutes(
     if (view === "today_off") {
       throw todayRankingOff();
     }
-    return { ...view, today: view.today && todayOn };
+    return playerRanking(
+      { ...view, today: view.today && todayOn },
+      scoresHidden(config.config.layout.looks),
+    );
   });
 }

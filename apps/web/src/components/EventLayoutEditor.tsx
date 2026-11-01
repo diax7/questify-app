@@ -27,7 +27,9 @@ import { useMemo, useState } from "react";
 import { HomeContentEditor } from "#src/components/HomeContentEditor.tsx";
 import type { EditorContext, PickOption } from "#src/components/HomeContentFields.tsx";
 import { ItemList, type LayoutItem } from "#src/components/LayoutItemList.tsx";
-import { HomePreview } from "#src/components/PreviewScreens.tsx";
+import { LayoutPreviewPane } from "#src/components/LayoutPreviewPane.tsx";
+import type { PreviewScreen } from "#src/components/PreviewScreens.tsx";
+import { ScreenStyles } from "#src/components/ScreenStyles.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import styles from "#src/components/layout-editor.module.css";
@@ -62,6 +64,7 @@ const bodyOf = (layout: EventLayout) => ({
   bar: layout.bar,
   home: layout.home,
   content: layout.content,
+  looks: layout.looks,
 });
 
 /** The name of an item the API refused to hide, in either list. */
@@ -382,6 +385,7 @@ function Workspace({ source, ...ids }: Ids & Readonly<{ source: PreviewSource }>
   const state = useLayoutDraft(ids, source);
   const { draft, busy, edit } = state;
   const [editing, setEditing] = useState<HomeKey | null>(null);
+  const [screen, setScreen] = useState<PreviewScreen>("home");
   const cards = useCardActions(language, state, setEditing);
   const on = featureLookup(source.event);
   const preview = previewOf(
@@ -432,10 +436,22 @@ function Workspace({ source, ...ids }: Ids & Readonly<{ source: PreviewSource }>
             onClose={() => setEditing(null)}
           />
         )}
+        <ScreenStyles
+          language={language}
+          looks={draft.looks}
+          on={on}
+          onChange={(looks) => edit({ ...draft, looks })}
+          onTouch={setScreen}
+        />
         <SaveBar language={language} state={state} />
       </div>
       <div className={styles.preview}>
-        <HomePreview preview={preview} language={language} />
+        <LayoutPreviewPane
+          preview={preview}
+          language={language}
+          screen={screen}
+          onScreen={setScreen}
+        />
       </div>
       {cards.dialog}
     </div>
@@ -446,7 +462,8 @@ function Workspace({ source, ...ids }: Ids & Readonly<{ source: PreviewSource }>
  * The event's layout (FR-1749, FR-1764, T-606): the approved presets in one tap, then the bottom bar and the Home blocks as
  * two lists to reorder (by dragging or with the move buttons) and to show or hide, with the Home screen redrawn as the
  * organizer arranges it. Home, the scan button, Profile and the protected blocks are always shown, and the server refuses a
- * layout that hides one. An item whose switch is off stays off whatever the layout says.
+ * layout that hides one. An item whose switch is off stays off whatever the layout says. Below the lists, the ranking, Quests
+ * and Rewards screens are given their layouts (T-611), and the phone shows the screen being styled.
  */
 export function EventLayoutEditor(ids: Ids) {
   const t = useTranslator(ids.language);

@@ -4,6 +4,7 @@ import {
   BAR_KEYS,
   DEFAULT_COMPOSED_LAYOUT,
   DEFAULT_LAYOUT,
+  DEFAULT_LOOKS,
   EMPTY_CONTENT,
   HOME_KEYS,
   LAYOUT_PRESETS,
@@ -27,16 +28,25 @@ const codeOf = (response: { statusCode: number; json: () => { code?: string } })
 
 type Player = { id: string; token: string };
 
+const arranged = (looks: unknown) => ({
+  bar: { order: BAR_KEYS, hidden: [] },
+  home: { order: HOME_KEYS, hidden: ["podium"] },
+  content: EMPTY_CONTENT,
+  looks,
+});
+
 const custom = {
   bar: { order: ["rewards", "index", "scan", "quests", "profile"], hidden: ["quests"] },
   home: { order: HOME_KEYS.toReversed(), hidden: ["sponsors", "streak"] },
   content: EMPTY_CONTENT,
+  looks: DEFAULT_LOOKS,
 };
 
 const layoutWith = (content: unknown, hidden: string[] = ["podium"]) => ({
   bar: { order: BAR_KEYS, hidden: [] },
   home: { order: [...HOME_KEYS, "card:aaaaaa11", "card:bbbbbb22"], hidden },
   content,
+  looks: DEFAULT_LOOKS,
 });
 
 /**
@@ -178,6 +188,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event layout over HTTP", () =>
           bar: { order: BAR_KEYS, hidden: [] },
           home: { order: HOME_KEYS, hidden: [] },
           content: EMPTY_CONTENT,
+          looks: DEFAULT_LOOKS,
           [list]: { order: list === "bar" ? BAR_KEYS : HOME_KEYS, hidden: [item] },
         };
         for (const session of [owner, editor]) {
@@ -491,6 +502,190 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event layout over HTTP", () =>
         expect([403, 404]).toContain(refused.statusCode);
       }
       expect(await eventView(id)).toMatchObject({ layout: { content: written } });
+    });
+  });
+
+  const playedEvent = async (phase: "live" | "ended" = "live") => {
+    const id = await fixture.newEvent({ phase });
+    const players: Player[] = [];
+    for (const points of [910, 870]) {
+      const player = await fixture.newPlayer();
+      const enrollment = await fixture.join(id, player);
+      await fixture.earn(id, enrollment, { points });
+      players.push({ id: player, token: await bearer(player) });
+    }
+    return { id, first: players[0] as Player, second: players[1] as Player };
+  };
+
+  describe("how the ranking, quests and shop are drawn (T-611)", () => {
+    type Looks = typeof DEFAULT_LOOKS;
+    const rankOnly: Looks = {
+      ranking: { layout: "podium", scores: "rank_only" },
+      quests: "grid",
+      shop: "grid",
+    };
+    type RankingBody = {
+      scores: boolean;
+      rows: { rank: number; username: string; score?: number }[];
+      me: { rank: number; score?: number } | null;
+    };
+    const rankingOf = async (id: string, member: Player) => {
+      const response = await test.app.inject({
+        method: "GET",
+        url: `/v1/events/${id}/ranking`,
+        headers: { authorization: `Bearer ${member.token}` },
+      });
+      return {
+        status: response.statusCode,
+        body: response.body,
+        json: response.json<RankingBody>(),
+      };
+    };
+    it("stores the looks, audits the change, and sends them to the app and the dashboard", async () => {
+      const { id, member } = await liveEvent();
+      for (const session of [owner, editor]) {
+        const saved = await put(id, arranged(rankOnly), session);
+        expect(saved.statusCode).toBe(200);
+        expect(saved.json<{ layout: { looks: Looks } }>().layout.looks).toEqual(rankOnly);
+      }
+      expect(await eventView(id)).toMatchObject({ layout: { looks: rankOnly } });
+      expect((await appConfig(id, member)).layout).toMatchObject({ looks: rankOnly });
+      const audit = await fixture.owner(
+        "SELECT 1 FROM audit_log WHERE event_id = $1 AND action = 'event.layout.update'",
+        [id],
+      );
+      expect(audit).toHaveLength(1);
+    });
+
+    it("starts as the screens have always been drawn, and a preset leaves the looks alone", async () => {
+      const { id } = await liveEvent();
+      expect(await eventView(id)).toMatchObject({ layout: { looks: DEFAULT_LOOKS } });
+      await put(id, arranged(rankOnly));
+      const saved = await put(id, { preset: "prizes_first" });
+      expect(saved.json<{ layout: { looks: Looks } }>().layout.looks).toEqual(rankOnly);
+    });
+
+    it.each([
+      ["no looks", undefined],
+      ["a look that does not exist", { ...rankOnly, shop: "carousel" }],
+      [
+        "a scores value that does not exist",
+        { ...rankOnly, ranking: { layout: "list", scores: "top3" } },
+      ],
+      ["a field it does not know", { ...rankOnly, banner: "x" }],
+    ])("refuses %s with 422 invalid_layout and stores nothing", async (_label, looks) => {
+      const { id } = await liveEvent();
+      expect(codeOf(await put(id, arranged(looks)))).toEqual([422, "invalid_layout"]);
+      expect(await eventView(id)).toMatchObject({ layout: DEFAULT_LAYOUT });
+    });
+
+    it("gives every score in the ranking while the scores are shown", async () => {
+      const { id, first, second } = await playedEvent();
+      const read = await rankingOf(id, second);
+      expect(read.status).toBe(200);
+      expect(read.json).toMatchObject({
+        scores: true,
+        rows: [
+          { rank: 1, score: 910 },
+          { rank: 2, score: 870 },
+        ],
+        me: { rank: 2, score: 870 },
+      });
+      expect((await rankingOf(id, first)).json.me).toMatchObject({ rank: 1, score: 910 });
+    });
+
+    it("leaves every score out of the ranking answer on 'rank only', and brings them back when changed", async () => {
+      const { id, first, second } = await playedEvent();
+      expect((await put(id, arranged(rankOnly))).statusCode).toBe(200);
+      for (const member of [first, second]) {
+        const read = await rankingOf(id, member);
+        expect(read.status).toBe(200);
+        expect(read.json.scores).toBe(false);
+        expect(read.json.rows.map((row) => [row.rank, "score" in row])).toEqual([
+          [1, false],
+          [2, false],
+        ]);
+        expect(read.json.me).not.toBeNull();
+        expect(read.json.me).not.toHaveProperty("score");
+        expect(read.body).not.toMatch(/910|870|"score"/);
+      }
+      expect((await rankingOf(id, second)).json.me).toMatchObject({ rank: 2 });
+      await put(id, arranged({ ...rankOnly, ranking: { layout: "podium", scores: "shown" } }));
+      expect((await rankingOf(id, second)).json).toMatchObject({
+        scores: true,
+        me: { rank: 2, score: 870 },
+      });
+    });
+
+    it("still refuses the ranking when its switch is off, whatever the looks say", async () => {
+      const { id, first } = await playedEvent();
+      await put(id, arranged(rankOnly));
+      const off = await test.app.inject({
+        method: "PUT",
+        url: `${base(id)}/ranking`,
+        headers: withSession(owner, { "idempotency-key": randomUUID() }),
+        payload: { enabled: false },
+      });
+      expect(off.statusCode).toBe(200);
+      const refused = await rankingOf(id, first);
+      expect(refused.status).toBe(404);
+      expect(refused.body).not.toMatch(/910|870|"score"/);
+    });
+
+    it("gives a stranger and a signed-out caller nothing, on any looks", async () => {
+      const { id } = await playedEvent();
+      await put(id, arranged(rankOnly));
+      const outsider = await fixture.newPlayer();
+      const intruder = await rankingOf(id, { id: outsider, token: await bearer(outsider) });
+      expect([403, 404]).toContain(intruder.status);
+      expect(intruder.body).not.toMatch(/910|870|"score"/);
+      const anonymous = await test.app.inject({ method: "GET", url: `/v1/events/${id}/ranking` });
+      expect(anonymous.statusCode).toBe(401);
+    });
+
+    it("leaves the final scores out of the revealed results on 'rank only', and gives them otherwise", async () => {
+      const { id, first, second } = await playedEvent("ended");
+      const team = (method: "GET" | "POST", path: string, payload?: object) =>
+        test.app.inject({
+          method,
+          url: `${base(id)}/results${path}`,
+          headers: withSession(owner, { "idempotency-key": randomUUID() }),
+          ...(payload === undefined ? {} : { payload }),
+        });
+      const places = (await team("GET", "")).json<{ places: { enrollmentId: string }[] }>().places;
+      const expected = places.map((place) => place.enrollmentId);
+      expect((await team("POST", "/confirm", { expected })).statusCode).toBe(200);
+      const claimUntil = new Date(Date.now() + 96 * 3_600_000).toISOString();
+      expect((await team("POST", "/reveal", { claimUntil })).statusCode).toBe(200);
+      type ResultsBody = {
+        scores: boolean;
+        revealed: boolean;
+        places: { rank: number; score?: number }[];
+      };
+      const results = async (member: Player) => {
+        const response = await test.app.inject({
+          method: "GET",
+          url: `/v1/events/${id}/results`,
+          headers: { authorization: `Bearer ${member.token}` },
+        });
+        return { body: response.body, json: response.json<ResultsBody>() };
+      };
+      expect((await results(first)).json).toMatchObject({
+        scores: true,
+        revealed: true,
+        places: [
+          { rank: 1, score: 910 },
+          { rank: 2, score: 870 },
+        ],
+      });
+      await put(id, arranged(rankOnly));
+      for (const member of [first, second]) {
+        const read = await results(member);
+        expect(read.json.scores).toBe(false);
+        expect(read.json.revealed).toBe(true);
+        expect(read.json.places.map((place) => place.rank)).toEqual([1, 2]);
+        expect(read.body).not.toMatch(/910|870|"score"/);
+      }
     });
   });
 });

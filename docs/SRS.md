@@ -1424,8 +1424,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1829 | F-331 | Should | partial (T-610: up to five text slides with a tap action, one slide without dots, a slider from two; the image of a slide is T-610b, blocked on Q-149) |
 | FR-1830 | F-332 | Should | built (T-610: label, moment, hide or message at zero; `apps/app/src/event/home-content.test.ts`) |
 | FR-1831 | F-333 | Should | built (T-610: drag or move buttons, show switches, live preview, presets, Reset to default after a confirmation; `apps/web/e2e/layout-editor.spec.ts`) |
-| FR-1832 | F-334 | Should | pending |
-| FR-1833 | F-335 | Could | pending |
+| FR-1832 | F-334 | Should | built (T-611: List or Podium and scores or places only; places only leaves the score out of the ranking and results answers; `apps/api/test/events/layout.int.test.ts`, `apps/app/src/event/ranking.test.ts`; not run on a phone) |
+| FR-1833 | F-335 | Could | built (T-611: Quests list or grid, Rewards list or grid, two cards a row; `apps/web/e2e/layout-editor.spec.ts`; not run on a phone) |
 | FR-1834 | F-336 | Should | pending |
 | FR-1835 | F-337 | Should | pending |
 | FR-1836 | F-338 | Could | built T-510 (four switches on the Announcements page, a player's own choice wins; phone check owed): `test/db/push-topic-defaults.int`, `test/push/defaults.int`, `e2e/push-defaults.spec.ts` |

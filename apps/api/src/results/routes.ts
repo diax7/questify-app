@@ -1,3 +1,4 @@
+import { scoresHidden } from "@questify/shared";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
@@ -20,6 +21,8 @@ import {
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import { organizerContextOf } from "#src/organizers/context";
+import { playerResultsView } from "#src/results/display";
+import type { SettingsService } from "#src/settings/service";
 import {
   PRIZE_KINDS,
   confirmResults,
@@ -201,13 +204,20 @@ export function registerResultsTeamRoutes(scope: FastifyInstance, deps: ResultsD
 }
 
 /**
- * The member's side (FR-520, FR-1707, FR-1718): `GET /v1/events/:eventId/results` (empty until the reveal; nothing for
- * a non-member) and `GET /v1/events/:eventId/rules` (404 for a non-member or an event with no rules).
+ * The member's side (FR-520, FR-1707, FR-1718, FR-1832): `GET /v1/events/:eventId/results` (empty until the reveal; nothing for
+ * a non-member; no score when the event's ranking is on "rank only") and `GET /v1/events/:eventId/rules` (404 for a non-member or an event with no rules).
  */
-export function registerResultsPlayerRoutes(app: FastifyInstance, deps: ResultsDeps): void {
+export function registerResultsPlayerRoutes(
+  app: FastifyInstance,
+  deps: ResultsDeps & Readonly<{ settings: SettingsService }>,
+): void {
   app.get("/v1/events/:eventId/results", player, async (request) => {
     const { eventId } = parse(eventParams, request.params);
-    return playerResults(deps, playerIdOf(request.player), eventId);
+    const playerId = playerIdOf(request.player);
+    const config = await deps.settings.forEvent(eventId, playerId);
+    // An event whose looks cannot be read gives no score either: the safe side.
+    const hideScores = config.kind !== "ok" || scoresHidden(config.config.layout.looks);
+    return playerResultsView(await playerResults(deps, playerId, eventId), hideScores);
   });
 
   app.get("/v1/events/:eventId/rules", player, async (request) => {

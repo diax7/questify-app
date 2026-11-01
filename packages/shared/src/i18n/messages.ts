@@ -1152,6 +1152,11 @@ export const MESSAGES = {
     en: "Rank {rank}, you, {score} {currency}",
   },
   "ranking.you": { ar: "أنت", en: "You" },
+  "ranking.rowLabelRankOnly": {
+    ar: "المركز {rank}، @{username}",
+    en: "Rank {rank}, @{username}",
+  },
+  "ranking.rowLabelMeRankOnly": { ar: "المركز {rank}، أنت", en: "Rank {rank}, you" },
   "ranking.scopeEvent": { ar: "الفعالية كاملة", en: "Whole event" },
   "ranking.scopeToday": { ar: "اليوم", en: "Today" },
   "ranking.todayEmpty": {
@@ -7298,6 +7303,21 @@ export const MESSAGES = {
   },
   "layout.problem.quest": { ar: "اختر {questOne}.", en: "Choose a {questOne}." },
   "layout.problem.featured": { ar: "اختر العنصر المميّز.", en: "Choose the featured item." },
+  "looks.title": { ar: "شكل الشاشات", en: "Screen styles" },
+  "looks.rankingLayout": { ar: "شكل الترتيب", en: "Ranking layout" },
+  "looks.rankingShows": { ar: "الترتيب يعرض", en: "Ranking shows" },
+  "looks.questsLayout": { ar: "شكل {questMany}", en: "{questCap} layout" },
+  "looks.rewardsLayout": { ar: "شكل الجوائز", en: "Rewards layout" },
+  "looks.list": { ar: "قائمة", en: "List" },
+  "looks.grid": { ar: "شبكة", en: "Grid" },
+  "looks.podium": { ar: "منصّة", en: "Podium" },
+  "looks.scoresShown": { ar: "النقاط والمراكز", en: "Scores and places" },
+  "looks.rankOnly": { ar: "المراكز فقط", en: "Places only" },
+  "looks.rankOnlyInfo": {
+    ar: "لا يرى اللاعبون النقاط في الترتيب ولا في النتائج النهائية، ويبقى رصيد كل لاعب ظاهرًا له. الشاشة الكبيرة لا تتغيّر.",
+    en: "Players see places only, in the ranking and in the final results. Each player still sees their own balance. The big screen does not change.",
+  },
+  "looks.sample": { ar: "مثال", en: "Example" },
   "layout.problem.cardText": {
     ar: "البطاقة {n} تحتاج نصًا بالعربية أو الإنجليزية.",
     en: "Card {n} needs text in Arabic or English.",

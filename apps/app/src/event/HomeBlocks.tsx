@@ -299,7 +299,9 @@ export function PodiumBlock({
               <AppText numberOfLines={1} style={{ writingDirection: "ltr" }}>
                 @{row.username}
               </AppText>
-              <AppText variant="label">{formatNumber(row.score, language)}</AppText>
+              {row.score === null ? null : (
+                <AppText variant="label">{formatNumber(row.score, language)}</AppText>
+              )}
               <View style={[styles.block, { height }]}>
                 <AppText variant="title">{row.rank}</AppText>
               </View>

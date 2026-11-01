@@ -28,6 +28,7 @@ const arranged = (
     hidden: [...new Set([...DEFAULT_LAYOUT.home.hidden, ...(home.hidden ?? [])])],
   },
   content: DEFAULT_LAYOUT.content,
+  looks: DEFAULT_LAYOUT.looks,
 });
 
 /**
@@ -64,7 +65,7 @@ export function presetLayout(id: string): EventLayout | undefined {
 /**
  * A preset laid over an event's layout (FR-1831): the bar and Questify's blocks take the preset's order and switches, and the
  * organizer's cards and all that was written stay as they were, after the blocks, in their own order and shown or hidden as
- * they were. A preset never deletes a word the organizer wrote.
+ * they were. A preset never deletes a word the organizer wrote, and never changes how the screens are drawn (T-611).
  */
 export function applyPreset(current: EventLayout, preset: EventLayout): EventLayout {
   return {
@@ -74,6 +75,7 @@ export function applyPreset(current: EventLayout, preset: EventLayout): EventLay
       hidden: [...preset.home.hidden, ...current.home.hidden.filter(isCardKey)],
     },
     content: current.content,
+    looks: current.looks,
   };
 }
 

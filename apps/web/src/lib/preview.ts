@@ -10,6 +10,7 @@ import {
   questTypeShown,
   readEventLayout,
   type AccentKey,
+  type EventLooks,
   type HomeContent,
   type HomeKey,
   type Language,
@@ -29,6 +30,8 @@ export type PreviewCategory = Readonly<{
   quests: readonly PreviewQuest[];
 }>;
 export type PreviewReward = Readonly<{ id: string; name: string; price: string }>;
+/** One line of the ranking's example: made-up players, as the preview reads no real player. */
+export type PreviewRankRow = Readonly<{ rank: number; username: string; score: string }>;
 
 /** The player's Home, Quests and Shop screens for one event in one language (FR-1022). */
 export type EventPreview = Readonly<{
@@ -54,7 +57,30 @@ export type EventPreview = Readonly<{
   categories: readonly PreviewCategory[];
   /** The Rewards screen; null while the shop is off or the layout leaves the tab out, because no one can open it then. */
   rewards: readonly PreviewReward[] | null;
+  /** How the ranking, Quests and Rewards screens are drawn (T-611). */
+  looks: EventLooks;
+  /** Example players for the ranking screen; null while the ranking is switched off, as the app has none then. */
+  ranking: readonly PreviewRankRow[] | null;
 }>;
+
+const EXAMPLE_PLAYERS = [
+  ["sara", 1240],
+  ["omar", 1180],
+  ["noor", 1105],
+  ["khalid", 960],
+  ["lina", 910],
+  ["yazan", 840],
+  ["huda", 790],
+  ["faisal", 720],
+] as const;
+
+/** Eight example players with scores, in the language's digits: what the ranking screen looks like with a few players. */
+const exampleRanking = (language: Language): readonly PreviewRankRow[] =>
+  EXAMPLE_PLAYERS.map(([username, score], index) => ({
+    rank: index + 1,
+    username,
+    score: formatNumber(score, language),
+  }));
 
 /**
  * The event's switches as one lookup, read the way the app reads them: a switch the API did not send counts as on
@@ -172,6 +198,7 @@ function layoutParts(
     tabs: playerTabs(on, layout.bar).map(({ tab, title }) => ({ tab, title })),
     homeBlocks: blocks,
     announced: keys.includes("announcements"),
+    looks: layout.looks,
   };
 }
 
@@ -238,7 +265,7 @@ export function previewOf(
         : (reward.name[language] ?? reward.name.en ?? reward.name.ar ?? "");
     },
   };
-  const { tabs, homeBlocks: blocks, announced } = layoutParts(event, on, language, names);
+  const { tabs, homeBlocks: blocks, announced, looks } = layoutParts(event, on, language, names);
   return {
     name: nameFor(event, language),
     venue: venueOf(event, language),
@@ -254,5 +281,7 @@ export function previewOf(
       language,
       on("shop") && tabs.some((entry) => entry.tab === "rewards"),
     ),
+    looks,
+    ranking: on("ranking") ? exampleRanking(language) : null,
   };
 }

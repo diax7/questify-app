@@ -1722,3 +1722,13 @@ duplicates the ranking card a little: should it replace it by default on new eve
 link question were checked in tests and a browser preview only. **Decided (developer, delegated by Dhia, 2026-11-01):** as recommended after the T-610 review; ADR-395 accepted.
 
 **(c) decided (developer, delegated by Dhia, 2026-11-01, T-610 review):** allowed. An organizer may write contact details in their own Home text; the audit guard checks key names only, so that text also sits in the layout audit entry (SECURITY.md, Home blocks). No filter is added; revisit only if a store reviewer or a complaint asks for one.
+
+## Q-363 - T-611 ranking, Quests and shop layouts: what is decided without Dhia (2026-11-01)
+
+**Recommended (developer, ADR-396):** the looks are choices in the event's layout; the defaults are today's look (list, scores shown, list,
+list), so no live event changes; places only removes the score from the ranking answer and from the revealed results on the server; a
+preset never changes the looks. Questions for Dhia: (a) Should places only also apply to the big-screen ranking scene (a venue screen
+that shows scores beside an event set to places only)? FR-1832 names the player's ranking; the scene has its own picker. (b) Should
+places only also hide the player's own points on Home (now: unchanged, it is their own record and balance)? (c) The shop's default is
+"list" (stacked cards, as today) although the requirement names the grid first: keep? (d) Not run on a phone: podium and grids were checked by
+layout maths, the dashboard preview and the Hermes bundle only; please look at an Arabic small Android phone. **Decided (developer, delegated by Dhia, 2026-11-01):** as recommended; (a) and (b) stay open for Dhia.

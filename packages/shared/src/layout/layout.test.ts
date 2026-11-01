@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FEATURES } from "#src/config/registry";
 import { EMPTY_CONTENT, type HomeContent } from "#src/layout/home-content";
+import { DEFAULT_LOOKS } from "#src/layout/looks";
 import { playerTabs } from "#src/event/player-view";
 import {
   BAR_KEYS,
@@ -115,7 +116,11 @@ describe("readComposedLayout", () => {
       bar: ["rewards", "index", "scan", "profile"],
       home: HOME_KEYS.toReversed().filter((key) => key !== "sponsors"),
     };
-    expect(readComposedLayout(received)).toEqual({ ...received, content: EMPTY_CONTENT });
+    expect(readComposedLayout(received)).toEqual({
+      ...received,
+      content: EMPTY_CONTENT,
+      looks: DEFAULT_LOOKS,
+    });
   });
 
   it.each([
@@ -306,5 +311,42 @@ describe("blocks that start off and the organizer's cards", () => {
     });
     expect(sameLayout(a, a)).toBe(true);
     expect(sameLayout(a, b)).toBe(false);
+  });
+});
+
+describe("looks in the layout", () => {
+  const stored = {
+    ranking: { layout: "podium", scores: "rank_only" },
+    quests: "grid",
+    shop: "grid",
+  } as const;
+
+  it("reads an event stored before looks existed as the default looks", () => {
+    expect(readEventLayout({ bar: DEFAULT_LAYOUT.bar }).looks).toEqual(DEFAULT_LOOKS);
+    expect(readEventLayout(undefined).looks).toEqual(DEFAULT_LOOKS);
+  });
+
+  it("carries the stored looks into the configuration the app receives, hidden blocks or not", () => {
+    const layout = readEventLayout({
+      home: { order: HOME_KEYS, hidden: ["ranking", "podium"] },
+      looks: stored,
+    });
+    expect(layout.looks).toEqual(stored);
+    expect(composedLayoutOf(layout).looks).toEqual(stored);
+    expect(readComposedLayout(composedLayoutOf(layout)).looks).toEqual(stored);
+  });
+
+  it("reads the looks of a received copy tolerantly, and a copy without any as the default", () => {
+    expect(readComposedLayout({ looks: { quests: "masonry", shop: "grid" } }).looks).toEqual({
+      ...DEFAULT_LOOKS,
+      shop: "grid",
+    });
+    expect(readComposedLayout({ bar: DEFAULT_COMPOSED_LAYOUT.bar }).looks).toEqual(DEFAULT_LOOKS);
+  });
+
+  it("counts a changed look as a changed layout", () => {
+    const changed = readEventLayout({ looks: stored });
+    expect(sameLayout(DEFAULT_LAYOUT, changed)).toBe(false);
+    expect(sameLayout(changed, readEventLayout({ looks: stored }))).toBe(true);
   });
 });

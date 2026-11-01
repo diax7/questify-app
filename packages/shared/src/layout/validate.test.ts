@@ -1,15 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_CONTENT } from "#src/layout/home-content";
 import { BAR_KEYS, HOME_KEYS } from "#src/layout/layout";
+import { DEFAULT_LOOKS } from "#src/layout/looks";
 import { LAYOUT_PRESETS } from "#src/layout/presets";
 import { validateLayoutRequest } from "#src/layout/validate";
 
 type Part = Partial<{ order: readonly string[]; hidden: readonly string[] }>;
 
-const body = (changes: { bar?: Part; home?: Part; content?: unknown }) => ({
+const body = (changes: { bar?: Part; home?: Part; content?: unknown; looks?: unknown }) => ({
   bar: { order: BAR_KEYS, hidden: [], ...changes.bar },
   home: { order: HOME_KEYS, hidden: [], ...changes.home },
   content: changes.content ?? EMPTY_CONTENT,
+  looks: changes.looks ?? DEFAULT_LOOKS,
 });
 
 const issuesOf = (input: unknown) => {
@@ -108,5 +110,31 @@ describe("validateLayoutRequest", () => {
       body({ bar: { hidden: ["scan", "profile"] }, home: { hidden: ["standing"] } }),
     );
     expect(issues.map((issue) => issue.protectedItem)).toEqual(["scan", "profile", "standing"]);
+  });
+});
+
+describe("validateLayoutRequest looks", () => {
+  const podium = {
+    ranking: { layout: "podium", scores: "rank_only" },
+    quests: "grid",
+    shop: "grid",
+  };
+
+  it("stores the looks it was sent, checked", () => {
+    const checked = validateLayoutRequest(body({ looks: podium }));
+    expect(checked.ok ? checked.value.layout.looks : null).toEqual(podium);
+  });
+
+  it("refuses a layout that leaves the looks out or names one that does not exist", () => {
+    const { looks: _left, ...without } = body({});
+    expect(issuesOf(without)).toEqual([expect.objectContaining({ path: "looks" })]);
+    expect(issuesOf(body({ looks: { ...podium, shop: "carousel" } }))).toEqual([
+      expect.objectContaining({ path: "looks.shop" }),
+    ]);
+  });
+
+  it("keeps the event's looks when a preset is laid over it", () => {
+    const checked = validateLayoutRequest({ preset: "prizes_first" });
+    expect(checked.ok && checked.value.kind === "preset").toBe(true);
   });
 });

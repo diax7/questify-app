@@ -176,6 +176,11 @@ test("Home, the scan button and Profile cannot be hidden, on the page or at the 
       hidden: [],
     },
     content: { banner: [], quickLinks: [], featured: null, cards: [] },
+    looks: {
+      ranking: { layout: "list", scores: "shown" },
+      quests: "list",
+      shop: "list",
+    },
   };
   const answer = await page.evaluate(
     async ([url, body]) => {
@@ -329,4 +334,59 @@ test("Reset to default restores Questify's order after a confirmation and keeps 
     "Sponsors",
   ]);
   await expect(blocks.getByRole("listitem").last()).toContainText("Text card");
+});
+
+test("the ranking, Quests and Rewards layouts are chosen, previewed, saved and kept", async ({
+  page,
+}, info) => {
+  test.setTimeout(180_000);
+  const eventUrl = await openEvent(page, info.project.name);
+  await page.goto(`${eventUrl}/layout`);
+
+  const rankingLayout = page.getByRole("group", { name: "Ranking layout" });
+  const rankingShows = page.getByRole("group", { name: "Ranking shows" });
+  const questsLayout = page.getByRole("group", { name: "Quests layout" });
+  const rewardsLayout = page.getByRole("group", { name: "Rewards layout" });
+  const ranking = region(page, "Ranking");
+  const save = page.getByRole("button", { name: "Save layout" });
+
+  await expect(rankingLayout.getByRole("radio", { name: "List" })).toBeChecked();
+  await expect(rankingShows.getByRole("radio", { name: "Scores and places" })).toBeChecked();
+  await expect(questsLayout.getByRole("radio", { name: "List" })).toBeChecked();
+  await expect(rewardsLayout.getByRole("radio", { name: "List" })).toBeChecked();
+  await expect(save).toBeDisabled();
+
+  await rankingLayout.getByRole("radio", { name: "Podium" }).check();
+  await expect(ranking.getByRole("group", { name: "Podium" })).toBeVisible();
+  await expect(ranking.getByText("@sara")).toBeVisible();
+  await expect(ranking.getByText("1,240")).toBeVisible();
+  await rankingShows.getByRole("radio", { name: "Places only" }).check();
+  await expect(ranking.getByText("@sara")).toBeVisible();
+  await expect(ranking.getByText("1,240")).toHaveCount(0);
+  await expect(ranking.getByText("720")).toHaveCount(0);
+
+  await questsLayout.getByRole("radio", { name: "Grid" }).check();
+  await expect(region(page, "Quests")).toBeVisible();
+  await rewardsLayout.getByRole("radio", { name: "Grid" }).check();
+  await expect(region(page, "Rewards")).toBeVisible();
+
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(page.getByText("Layout saved.")).toBeVisible();
+
+  await page.reload();
+  await expect(rankingLayout.getByRole("radio", { name: "Podium" })).toBeChecked();
+  await expect(rankingShows.getByRole("radio", { name: "Places only" })).toBeChecked();
+  await expect(questsLayout.getByRole("radio", { name: "Grid" })).toBeChecked();
+  await expect(rewardsLayout.getByRole("radio", { name: "Grid" })).toBeChecked();
+  await expect(save).toBeDisabled();
+  await page.getByRole("button", { name: "Ranking", exact: true }).click();
+  await expect(ranking.getByRole("group", { name: "Podium" })).toBeVisible();
+  await expect(ranking.getByText("1,240")).toHaveCount(0);
+
+  // A preset arranges the blocks and leaves how the screens are drawn alone.
+  await page.getByRole("radio", { name: "Essentials" }).check();
+  await expect(page.getByText("Layout saved.")).toBeVisible();
+  await expect(rankingLayout.getByRole("radio", { name: "Podium" })).toBeChecked();
+  await expect(rewardsLayout.getByRole("radio", { name: "Grid" })).toBeChecked();
 });

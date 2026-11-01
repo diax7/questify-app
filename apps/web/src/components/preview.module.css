@@ -123,3 +123,115 @@
   border-block-start-color: var(--color-navigation-active);
   font-weight: var(--weight-strong);
 }
+
+/* The card grid of the Quests and Rewards screens (FR-1833): two cards a row; the cards of a row are equally tall. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  min-block-size: 5.5rem;
+  padding: var(--space-sm);
+  border: 2px solid var(--color-border);
+  border-block-end-width: 4px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: var(--text-md);
+}
+
+.tileTitle {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.sample {
+  padding: 0 var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.rankNumber {
+  display: inline-block;
+  min-inline-size: 2rem;
+  font-weight: var(--weight-strong);
+}
+
+/* The podium of the ranking screen (FR-1832): second, first, third, each on a step in the achievement rings' colours. */
+.podium {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-sm);
+}
+
+.place {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  min-inline-size: 0;
+  text-align: center;
+}
+
+.face {
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+}
+
+.placeName {
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  border-block-end: 4px solid var(--color-border);
+  border-start-start-radius: var(--radius-md);
+  border-start-end-radius: var(--radius-md);
+  color: var(--color-surface);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-display);
+}
+
+.stepSilver {
+  background: var(--color-tier-silver);
+}
+
+.stepGold {
+  background: var(--color-tier-gold);
+}
+
+.stepBronze {
+  background: var(--color-tier-bronze);
+}

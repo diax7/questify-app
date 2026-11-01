@@ -112,6 +112,16 @@ describe("a preset laid over an event's layout (FR-1831)", () => {
     expect(matchingPreset(cardFirst)).toBeNull();
   });
 
+  it("never changes how the screens are drawn, whichever preset is picked", () => {
+    const styled = readEventLayout({
+      looks: { ranking: { layout: "podium", scores: "rank_only" }, quests: "grid", shop: "grid" },
+    });
+    for (const preset of LAYOUT_PRESETS) {
+      expect(applyPreset(styled, preset.layout).looks, preset.id).toEqual(styled.looks);
+      expect(matchingPreset(applyPreset(styled, preset.layout))?.id, preset.id).toBe(preset.id);
+    }
+  });
+
   it("keeps the podium off in every preset", () => {
     for (const preset of LAYOUT_PRESETS) {
       expect(preset.layout.home.hidden, preset.id).toContain("podium");

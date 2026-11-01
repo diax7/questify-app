@@ -505,3 +505,11 @@ Forced-RLS announcement rows have no direct rights; only five caller-checked def
 current event scope before cached idempotent replay. Member reads bind active caller enrollment and rehearsal.
 Scheduled release rechecks lifecycle/lateness and locks the same row as cancellation; text is frozen. The table-diff
 channel test and full live-catalog outsider/cross-tenant inventory cover the new surface. No deployment performed.
+
+### Places only on the ranking (T-611, Proposed ADR-396)
+
+An event may set its ranking to places only (FR-1832). The score is then taken out of the answer on the server, not hidden by the client:
+`GET /v1/events/{id}/ranking` (whole event and today) and `GET /v1/events/{id}/results` carry no `score` for any row, `me` or place, built field
+by field, and say `scores: false`; the app draws a score only when the answer holds one. A configuration that cannot be read, or a stored `scores`
+value that is present but not understood, counts as places only. Tests: `test/events/layout.int.test.ts` (a member, a stranger and a signed-out
+caller; the ranking switch off still answers 404). Not covered: the big-screen ranking scene (Q-363 (a)) and the player's own points on Home.

@@ -97,7 +97,7 @@ const ROUTES: Readonly<Record<string, string>> = {
   "PUT /v1/organizers/:organizerId/events/:eventId/branding":
     "a member of that organizer, an editor within their chosen events (the database applies the limit); another organizer's event answers 404; one accent from the curated list, nothing else is stored (test/events/branding)",
   "PUT /v1/organizers/:organizerId/events/:eventId/layout":
-    "a member of that organizer, an editor within their chosen events (the database applies the limit); another organizer's event answers 404; the bar and Home order, hidden set and the written content (plain text, bounded, https-only links), or an approved preset by name; Home, the scan button, Profile and the protected blocks cannot be hidden (test/events/layout)",
+    "a member of that organizer, an editor within their chosen events (the database applies the limit); another organizer's event answers 404; the bar and Home order, hidden set and the written content (plain text, bounded, https-only links) and the looks of the ranking, Quests and Rewards (every choice named, each one allowed), or an approved preset by name; Home, the scan button, Profile and the protected blocks cannot be hidden (test/events/layout)",
   "PUT /v1/organizers/:organizerId/events/:eventId/cheers":
     "owner of that organizer only (owner route, walked below); changes only the cheers switch of that event (test/cheers/routes)",
   "GET /v1/organizers/:organizerId/events/:eventId/quest-ratings":
@@ -413,7 +413,7 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/events/:eventId/config":
     "a player who joined the event (row-level security on the player's own context); anyone else 404, the reading cached per player (test/home/home)",
   "GET /v1/events/:eventId/ranking":
-    "a player with an active enrollment in that event only; the definers read the caller from the session, never an argument (test/ranking/ranking, test/db/ranking)",
+    "a player with an active enrollment in that event only; the definers read the caller from the session, never an argument; on an event set to places only the answer holds no score at all (test/ranking/ranking, test/db/ranking, test/events/layout)",
   "PUT /v1/organizers/:organizerId/events/:eventId/terms":
     "a member of that organizer, an editor within their chosen events (the database applies the limit); another organizer's event answers 404 (test/events/events)",
   "PUT /v1/organizers/:organizerId/events/:eventId/ranking":
@@ -686,7 +686,7 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/organizers/:organizerId/events/:eventId/results/reveal":
     "the owner only (the scope's hook, then reveal_results); audited (test/results/routes, test/db/results)",
   "GET /v1/events/:eventId/results":
-    "an active member of that event only, through event_results bound to the session; only the bearer's own prize is named; anyone else reads nothing (test/results/routes, test/db/results)",
+    "an active member of that event only, through event_results bound to the session; only the bearer's own prize is named; anyone else reads nothing; on an event set to places only the places carry no score (test/results/routes, test/db/results, test/events/layout)",
   "GET /v1/events/:eventId/rules":
     "an active member of that event only, through event_rules bound to the session; anyone else 404 (test/results/routes, test/db/results)",
   "GET /v1/public/events/:joinCode/rules":

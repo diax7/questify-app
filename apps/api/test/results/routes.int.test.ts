@@ -365,7 +365,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rank prizes and results over H
         expected: [winner.enrollment, other.enrollment],
       });
       const hidden = await asPlayer(winner.token, `/v1/events/${event}/results`);
-      expect(hidden.json()).toEqual({ revealed: false, places: [], me: null });
+      expect(hidden.json()).toEqual({ revealed: false, places: [], me: null, scores: true });
       const soon = await dashboard(ownerCookie, "POST", `/events/${event}/results/reveal`, {
         claimUntil: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       });
