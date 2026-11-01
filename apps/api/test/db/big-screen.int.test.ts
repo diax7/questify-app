@@ -164,6 +164,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("big screen (database)", () => 
   };
   const read = async <T>(deviceId: string, fn: string): Promise<T> =>
     (await query<{ r: T }>({ deviceId }, `SELECT ${fn}() AS r`))[0]?.r as T;
+  /** Stores the looks a layout holds (`config.layout.looks`), whatever shape they have. */
+  const withLooks = (event: string, looks: unknown) =>
+    owner(
+      `UPDATE event SET config = jsonb_set(coalesce(config, '{}'::jsonb), '{layout}',
+                                           jsonb_build_object('looks', $2::jsonb)) WHERE id = $1`,
+      [event, JSON.stringify(looks)],
+    );
+  /** What the ranking scene sends for the first row (its keys, every place and the whole body) on a fresh screen. */
+  const keysOfFirstRow = async (event: string) => {
+    const ranking = await read<Ranking>(await device(event), "screen_ranking");
+    expect(ranking.shut).toBeNull();
+    return {
+      keys: Object.keys(ranking.rows?.[0] ?? {}).toSorted(),
+      places: ranking.rows?.map((row) => row.place),
+      body: JSON.stringify(ranking),
+    };
+  };
   const plan = async (event: string, team = teamA()) =>
     (await query<{ r: Plan }>(team, "SELECT event_big_screen($1) AS r", [event]))[0]?.r as Plan;
   const save = async (event: string, scenes: string[] | null, team = teamA()) =>
@@ -439,6 +456,74 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("big screen (database)", () => 
         "username",
       ]);
       expect(ranking.rows?.[0]?.avatar).toBe("fox");
+    });
+
+    describe("on an event set to places only (FR-1832, ADR-396)", () => {
+      it("leaves the score out of every row, keeping the places, the players and the order", async () => {
+        const event = await newEvent();
+        const first = await newPlayer(event, 910);
+        await newPlayer(event, 870);
+        await withLooks(event, { ranking: { layout: "podium", scores: "rank_only" } });
+        const hidden = await keysOfFirstRow(event);
+        expect(hidden.keys).toEqual(["avatar", "place", "username"]);
+        expect(hidden.places).toEqual([1, 2]);
+        expect(hidden.body).not.toMatch(/910|870|score/);
+        const ranking = await read<Ranking>(await device(event), "screen_ranking");
+        const [name] = await owner<{ username: string }>(
+          "SELECT username FROM player WHERE id = $1",
+          [first.player],
+        );
+        expect(ranking.rows?.[0]?.username).toBe(name?.username);
+      });
+
+      it("brings the scores back when the event shows them again, and keeps them with no look stored", async () => {
+        const event = await newEvent();
+        await newPlayer(event, 910);
+        for (const looks of [
+          { ranking: { layout: "list", scores: "shown" } },
+          { ranking: { layout: "podium" } },
+          { quests: "grid" },
+          {},
+        ]) {
+          await withLooks(event, looks);
+          expect((await keysOfFirstRow(event)).keys, JSON.stringify(looks)).toEqual([
+            "avatar",
+            "place",
+            "score",
+            "username",
+          ]);
+        }
+        await withLooks(event, { ranking: { layout: "list", scores: "rank_only" } });
+        expect((await keysOfFirstRow(event)).keys).not.toContain("score");
+        await owner("UPDATE event SET config = '{}'::jsonb WHERE id = $1", [event]);
+        expect((await keysOfFirstRow(event)).keys).toContain("score");
+      });
+
+      it.each([
+        ["a scores value it does not know", { ranking: { scores: "top3" } }],
+        ["a scores value that is null", { ranking: { scores: null } }],
+        ["a scores value of the wrong type", { ranking: { scores: true } }],
+        ["a ranking entry that is a string", { ranking: "shown" }],
+        ["a ranking entry that is null", { ranking: null }],
+        ["a ranking entry that is a list", { ranking: [] }],
+      ])("counts %s as places only, the side that gives nothing away", async (_label, looks) => {
+        const event = await newEvent();
+        await newPlayer(event, 910);
+        await withLooks(event, looks);
+        const hidden = await keysOfFirstRow(event);
+        expect(hidden.keys).toEqual(["avatar", "place", "username"]);
+        expect(hidden.body).not.toMatch(/910|score/);
+      });
+
+      it("still answers shut and empty as before, whatever the looks say", async () => {
+        const event = await newEvent();
+        const screen = await device(event);
+        await withLooks(event, { ranking: { scores: "rank_only" } });
+        expect(await read<Ranking>(screen, "screen_ranking")).toEqual({ shut: null, rows: [] });
+        await newPlayer(event, 10);
+        await setFeature(event, "ranking", false);
+        expect(await read<Ranking>(screen, "screen_ranking")).toEqual({ shut: "ranking_off" });
+      });
     });
 
     it("follows a score at once and never shows a banned, removed, excluded or unscored player", async () => {

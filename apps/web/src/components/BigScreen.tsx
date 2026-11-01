@@ -144,12 +144,14 @@ function RankingScene({
           <span className={styles.boardName} dir="auto">
             {row.username}
           </span>
-          <span className={styles.boardScore}>
-            {t("screen.score", {
-              score: formatNumber(row.score, language),
-              currency: termFor(terms.currency, language, row.score),
-            })}
-          </span>
+          {row.score === null ? null : (
+            <span className={styles.boardScore}>
+              {t("screen.score", {
+                score: formatNumber(row.score, language),
+                currency: termFor(terms.currency, language, row.score),
+              })}
+            </span>
+          )}
         </li>
       ))}
     </ol>

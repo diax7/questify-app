@@ -46,7 +46,17 @@ describe("readLooks", () => {
       expect(readLooks({ ranking: { scores } }).ranking.scores).toBe("rank_only");
     }
     expect(readLooks({ ranking: {} }).ranking.scores).toBe("shown");
-    expect(readLooks({ ranking: "shown" }).ranking.scores).toBe("shown");
+  });
+
+  it("hides the scores when the ranking entry itself is there but is not an object", () => {
+    for (const ranking of ["shown", "", null, 0, false, true, []]) {
+      expect(readLooks({ ranking, quests: "grid" })).toEqual({
+        ranking: { layout: "list", scores: "rank_only" },
+        quests: "grid",
+        shop: "list",
+      });
+    }
+    expect(readLooks({ quests: "grid" }).ranking).toEqual(DEFAULT_LOOKS.ranking);
   });
 
   it("ignores a field it does not know", () => {

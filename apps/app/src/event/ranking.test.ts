@@ -178,4 +178,40 @@ describe("podiumMetrics", () => {
     expect(podiumMetrics(PODIUM_MIN, true).face).toBeGreaterThanOrEqual(24);
     expect(podiumMetrics(PODIUM_ALONE_MAX, true).face).toBeLessThanOrEqual(44);
   });
+
+  it("keeps every step tall enough for its rank digit at the smallest podium", () => {
+    for (const withScore of [true, false]) {
+      const { face, steps, rankText } = podiumMetrics(PODIUM_MIN, withScore);
+      const [second, first, third] = steps;
+      // The `label` digit is an 18-point line and the step has a 4-point edge.
+      expect(Math.min(second, first, third), `${withScore}`).toBeGreaterThanOrEqual(22);
+      expect(first).toBeGreaterThan(second);
+      expect(second).toBeGreaterThan(third);
+      expect(rankText).toBe("label");
+      expect(face).toBeGreaterThanOrEqual(24);
+    }
+  });
+
+  it("measures the smallest podium exactly, with and without a score line", () => {
+    expect(podiumMetrics(PODIUM_MIN, true)).toEqual({
+      face: 26,
+      steps: [24, 26, 22],
+      rankText: "label",
+    });
+    expect(podiumMetrics(PODIUM_MIN, false)).toEqual({
+      face: 27,
+      steps: [31, 43, 22],
+      rankText: "label",
+    });
+  });
+
+  it("uses the large rank digit only when the shortest step can hold it", () => {
+    for (let height = PODIUM_MIN; height <= PODIUM_ALONE_MAX; height += 4) {
+      for (const withScore of [true, false]) {
+        const { steps, rankText } = podiumMetrics(height, withScore);
+        expect(rankText, `${height} ${withScore}`).toBe(steps[2] < 36 ? "label" : "title");
+      }
+    }
+    expect(podiumMetrics(PODIUM_MAX, true).rankText).toBe("title");
+  });
 });

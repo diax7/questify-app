@@ -58,6 +58,25 @@ describe("reading a scene", () => {
     expect(sceneAnswerOf("ranking", "no")).toBeUndefined();
   });
 
+  it("reads a ranking row without a score as places only, never as a score of zero", () => {
+    expect(
+      sceneAnswerOf("ranking", {
+        shut: null,
+        rows: [
+          { place: 1, username: "sara_k", avatar: "fox" },
+          { place: 2, username: "omar", avatar: "owl", score: "120" },
+        ],
+      }),
+    ).toEqual({
+      scene: "ranking",
+      shut: null,
+      rows: [
+        { place: 1, username: "sara_k", avatar: "fox", score: null },
+        { place: 2, username: "omar", avatar: "owl", score: null },
+      ],
+    });
+  });
+
   it("reads a community goal, with unknown measures and statuses falling back", () => {
     expect(
       sceneAnswerOf("community", {

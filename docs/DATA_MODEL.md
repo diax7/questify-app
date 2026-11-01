@@ -1143,7 +1143,8 @@ row means all three scenes. Kept by the rehearsal wipe (setup, as the devices). 
 `set_big_screen` (team), `screen_ranking`, `screen_community`, `screen_poll` (a paired big screen; each takes no argument and
 reads `current_device()`'s event only); internal `feature_enabled`, `big_screen_on` (the gated add-on, FR-1729), `big_screen_scenes_ok`,
 `big_screen_plan`, `big_screen_json`, `screen_event`, `screen_shut`. `device_view` restated: `scenes` and the screen's
-`feature_off`.
+`feature_off`. `screen_ranking` is restated in 0106 (T-611, ADR-396): a row holds the `score` only when `config.layout.looks.ranking.scores` is "shown" or not
+stored; otherwise place, username and avatar. Same grants; no new function.
 
 ### finale (migration 0084, T-307b, ADR-369)
 **Built:** `finale (event_id primary key, organizer_id, starts_at, goal_id, updated_at, updated_by → staff_user SET NULL)`, `(event_id,

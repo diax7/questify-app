@@ -7314,8 +7314,8 @@ export const MESSAGES = {
   "looks.scoresShown": { ar: "النقاط والمراكز", en: "Scores and places" },
   "looks.rankOnly": { ar: "المراكز فقط", en: "Places only" },
   "looks.rankOnlyInfo": {
-    ar: "لا يرى اللاعبون النقاط في الترتيب ولا في النتائج النهائية، ويبقى رصيد كل لاعب ظاهرًا له. الشاشة الكبيرة لا تتغيّر.",
-    en: "Players see places only, in the ranking and in the final results. Each player still sees their own balance. The big screen does not change.",
+    ar: "لا يرى اللاعبون النقاط في الترتيب ولا في النتائج النهائية، ويبقى رصيد كل لاعب ظاهرًا له. وترتيب الشاشة الكبيرة يعرض المراكز فقط كذلك.",
+    en: "Players see places only, in the ranking and in the final results. Each player still sees their own balance. The big screen's ranking shows places only too.",
   },
   "looks.sample": { ar: "مثال", en: "Example" },
   "layout.problem.cardText": {

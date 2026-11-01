@@ -4,7 +4,12 @@ import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import { CurrencyIcon } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
-import { podiumMetrics, podiumPlaces, type ShownRow } from "#src/event/ranking.ts";
+import {
+  podiumMetrics,
+  podiumPlaces,
+  type PodiumMetrics,
+  type ShownRow,
+} from "#src/event/ranking.ts";
 import { openPlayer, useRowLabel } from "#src/event/RankingRows.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -20,12 +25,14 @@ function Place({
   slot,
   face,
   stepHeight,
+  rankText,
   scoreLine,
 }: Readonly<{
   row: ShownRow;
   slot: 0 | 1 | 2;
   face: number;
   stepHeight: number;
+  rankText: PodiumMetrics["rankText"];
   scoreLine: boolean;
 }>) {
   const { language } = useI18n();
@@ -62,7 +69,13 @@ function Place({
           )}
         </View>
       ) : null}
-      <StepBlock rank={row.rank} slot={slot} height={stepHeight} isMe={row.isMe} />
+      <StepBlock
+        rank={row.rank}
+        slot={slot}
+        height={stepHeight}
+        rankText={rankText}
+        isMe={row.isMe}
+      />
     </Pressable>
   );
 }
@@ -71,8 +84,15 @@ function StepBlock({
   rank,
   slot,
   height,
+  rankText,
   isMe,
-}: Readonly<{ rank: number; slot: 0 | 1 | 2; height: number; isMe: boolean }>) {
+}: Readonly<{
+  rank: number;
+  slot: 0 | 1 | 2;
+  height: number;
+  rankText: PodiumMetrics["rankText"];
+  isMe: boolean;
+}>) {
   const styles = useThemedStyles(makeStyles);
   return (
     <View
@@ -83,7 +103,7 @@ function StepBlock({
         isMe ? styles.stepMine : null,
       ]}
     >
-      <AppText variant="title" numberOfLines={1} adjustsFontSizeToFit style={styles.rank}>
+      <AppText variant={rankText} numberOfLines={1} adjustsFontSizeToFit style={styles.rank}>
         {rank}
       </AppText>
     </View>
@@ -101,7 +121,7 @@ export function Podium({
   withScores,
 }: Readonly<{ top: readonly ShownRow[]; height: number; withScores: boolean }>) {
   const styles = useThemedStyles(makeStyles);
-  const { face, steps } = podiumMetrics(height, withScores);
+  const { face, steps, rankText } = podiumMetrics(height, withScores);
   const places = podiumPlaces(top);
   return (
     <View accessibilityRole="summary" style={[styles.podium, { height }]} testID="ranking-podium">
@@ -116,6 +136,7 @@ export function Podium({
             slot={slot}
             face={face}
             stepHeight={steps[slot]}
+            rankText={rankText}
             scoreLine={withScores}
           />
         );

@@ -40,6 +40,12 @@
 
 ## T-611 ranking, Quests and shop layouts — 2026-11-01
 
+- **T-611 review follow-up (2026-11-01, review 93 GO, migration 0106 new, undeployed; staging runs through 0105).** ADR-396 accepted; Q-363 decided: (a) places only now
+  reaches the big-screen ranking scene (`screen_ranking` restated in 0106: the score is sent only when `layout.looks.ranking.scores` is "shown" or not stored; the web scene draws
+  the place alone when none comes; the dashboard info text no longer says the big screen does not change), (b) the player's own points on Home stay, (c) the shop default stays
+  the list, (d) the phone check stays with Dhia. Also: podium steps have floors and the rank digit uses the `label` text on a small phone (tested at 96 points); grid reward
+  descriptions take three lines; a `ranking` look that is not an object reads as places only; the layout int test checks `?scope=today` under places only. Mutation targets: none.
+  CI minutes none; agent tokens roughly 0.2M (estimate).
 - **T-611 done (tier B; one code review owed; not run on a phone). No migration** (staging runs through 0104, 0105 pushed; 0106 is free).
   **Built (FR-1832, FR-1833, ADR-396):** `event.config.layout.looks` (`{ranking: {layout: list|podium, scores: shown|rank_only}, quests: list|grid,
   shop: list|grid}`, `packages/shared/src/layout/looks.ts`), validated by `PUT …/layout` (strict), always in the composed configuration, defaulting to the
@@ -47,8 +53,8 @@
   player's revealed `GET …/results` carry no `score` and say `scores: false` (`ranking/display.ts`, `results/display.ts`); the app draws a score only when
   the answer holds one. Switches still win (ranking off is still 404). App: the ranking screen's List or Podium (`podiumFit`, silver, gold and bronze steps),
   Quests and Rewards in two equally tall cards a row; no score on Home's ranking card or podium when the answer has none. Dashboard: "Screen styles" on
-  the Layout page and a preview with tabs (Home, Ranking, Quests, Rewards) redrawn from the draft. ADR-396 and Q-363 Proposed. **Not built:** places only
-  on the big-screen ranking scene, the player's own points on Home (Q-363 (a), (b)). Mutation targets: none (tier B). **Local:** full vitest ONCE: 10191 passed, 15 skipped, 1 failed (642 files; `apps/api/test/results/routes.int.test.ts` expected the old answer without `scores: true`; fixed and that file re-run once: 7 passed). Full browser suite after a fresh web build, single worker: 307 passed, 5 skipped, 0 failed (29.6 min; the new layout-editor spec passed in desktop and phone). npx expo export --platform android ok (Hermes bytecode built). tsc (shared, api, web, app), oxlint, oxfmt and function limits clean. CI minutes none; agent tokens roughly 0.55M (estimate).
+  the Layout page and a preview with tabs (Home, Ranking, Quests, Rewards) redrawn from the draft. ADR-396 and Q-363 were Proposed here and are decided in the
+  follow-up above. **Not built here:** places only on the big-screen scene (added in 0106, above); Home's own points stay (Q-363 (b)). Mutation targets: none (tier B). **Local:** full vitest ONCE: 10191 passed, 15 skipped, 1 failed (642 files; `apps/api/test/results/routes.int.test.ts` expected the old answer without `scores: true`; fixed and that file re-run once: 7 passed). Full browser suite after a fresh web build, single worker: 307 passed, 5 skipped, 0 failed (29.6 min; the new layout-editor spec passed in desktop and phone). npx expo export --platform android ok (Hermes bytecode built). tsc (shared, api, web, app), oxlint, oxfmt and function limits clean. CI minutes none; agent tokens roughly 0.55M (estimate).
   **Next:** the next unchecked task in `docs/TASKS.md` (T-612).
 
 ## T-610 Home editor, new blocks and the banner — 2026-11-01

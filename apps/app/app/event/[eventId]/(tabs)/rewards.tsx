@@ -93,16 +93,19 @@ function RewardSummary({
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   const description = textIn(reward.description, language);
-  const lines = compact ? 2 : undefined;
+  const nameLines = compact ? 2 : undefined;
+  const descriptionLines = compact ? 3 : undefined;
   return (
     <View style={styles.tileBody}>
       {pinned ? <AppText variant="label">{t("goal.title")}</AppText> : null}
-      <AppText variant={compact ? "label" : "title"} numberOfLines={lines}>
+      <AppText variant={compact ? "label" : "title"} numberOfLines={nameLines}>
         {textIn(reward.name, language)}
       </AppText>
       <Tags reward={reward} />
       <PresentedBy sponsor={sponsor} />
-      {description === "" ? null : <AppText numberOfLines={lines}>{description}</AppText>}
+      {description === "" ? null : (
+        <AppText numberOfLines={descriptionLines}>{description}</AppText>
+      )}
       <View style={styles.row}>
         <Amount
           amount={formatNumber(reward.price, language)}
@@ -146,8 +149,8 @@ function RewardAction({
 }
 
 /**
- * One reward. In the shop's grid (`compact`, FR-1833) it is one of two cards a row: the name and the description keep two
- * lines at most and the action sits at the bottom, so the cards of a row line up.
+ * One reward. In the shop's grid (`compact`, FR-1833) it is one of two cards a row: the name keeps two lines at most, the
+ * description three, and the action sits at the bottom, so the cards of a row line up.
  */
 function RewardCard({
   reward,

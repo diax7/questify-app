@@ -43,18 +43,29 @@ function known<T extends string>(stored: unknown, allowed: readonly T[], fallbac
 const scoresOf = (stored: unknown): RankingScores =>
   stored === undefined || stored === "shown" ? "shown" : "rank_only";
 
+/** The ranking look: a missing entry is the default, an entry that is not an object is "rank only" like a bad scores value. */
+function readRanking(stored: unknown): EventLooks["ranking"] {
+  if (stored === undefined) {
+    return DEFAULT_LOOKS.ranking;
+  }
+  if (!isRecord(stored)) {
+    return { layout: DEFAULT_LOOKS.ranking.layout, scores: "rank_only" };
+  }
+  return {
+    layout: known(stored["layout"], RANKING_LAYOUTS, DEFAULT_LOOKS.ranking.layout),
+    scores: scoresOf(stored["scores"]),
+  };
+}
+
 /**
  * Reads the looks an event stored, whatever they hold. A missing look is the default; an unknown layout is the default
- * layout; a scores value that is present but not understood is "rank only", the side that gives nothing away.
+ * layout; a scores value, or a ranking entry, that is present but not understood is "rank only", the side that gives
+ * nothing away.
  */
 export function readLooks(stored: unknown): EventLooks {
   const source = isRecord(stored) ? stored : {};
-  const ranking = isRecord(source["ranking"]) ? source["ranking"] : {};
   return {
-    ranking: {
-      layout: known(ranking["layout"], RANKING_LAYOUTS, DEFAULT_LOOKS.ranking.layout),
-      scores: scoresOf(ranking["scores"]),
-    },
+    ranking: readRanking(source["ranking"]),
     quests: known(source["quests"], CARD_LAYOUTS, DEFAULT_LOOKS.quests),
     shop: known(source["shop"], CARD_LAYOUTS, DEFAULT_LOOKS.shop),
   };

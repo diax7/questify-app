@@ -526,13 +526,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event layout over HTTP", () =>
     };
     type RankingBody = {
       scores: boolean;
+      today: boolean;
       rows: { rank: number; username: string; score?: number }[];
       me: { rank: number; score?: number } | null;
     };
-    const rankingOf = async (id: string, member: Player) => {
+    const rankingOf = async (id: string, member: Player, scope = "event") => {
       const response = await test.app.inject({
         method: "GET",
-        url: `/v1/events/${id}/ranking`,
+        url: `/v1/events/${id}/ranking?scope=${scope}`,
         headers: { authorization: `Bearer ${member.token}` },
       });
       return {
@@ -608,6 +609,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event layout over HTTP", () =>
         expect(read.json.me).not.toBeNull();
         expect(read.json.me).not.toHaveProperty("score");
         expect(read.body).not.toMatch(/910|870|"score"/);
+        const today = await rankingOf(id, member, "today");
+        expect(today.status).toBe(200);
+        expect(today.json.today).toBe(true);
+        expect(today.json.scores).toBe(false);
+        expect(today.json.rows.map((row) => [row.rank, "score" in row])).toEqual([
+          [1, false],
+          [2, false],
+        ]);
+        expect(today.json.me).not.toHaveProperty("score");
+        expect(today.body).not.toMatch(/910|870|"score"/);
       }
       expect((await rankingOf(id, second)).json.me).toMatchObject({ rank: 2 });
       await put(id, arranged({ ...rankOnly, ranking: { layout: "podium", scores: "shown" } }));

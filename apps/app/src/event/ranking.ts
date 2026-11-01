@@ -65,17 +65,36 @@ export function podiumPlaces(top: readonly ShownRow[]): readonly (ShownRow | und
 const NAME_LINE = 18;
 const SCORE_LINE = 18;
 const FACE_PADDING = 8;
+/**
+ * The shortest second, first and third step: the rank digit in the `label` text (an 18-point line) plus the step's 4-point
+ * lower edge, each one apart so first still stands above second and second above third at the smallest podium.
+ */
+const STEP_FLOORS = [24, 26, 22] as const;
+/** A step shorter than this cannot hold the `title` digit (a 32-point line and the 4-point edge): the podium uses `label`. */
+const TITLE_STEP_MIN = 36;
+
+export type PodiumMetrics = Readonly<{
+  face: number;
+  steps: readonly [number, number, number];
+  /** The text of the rank digit on the steps, one for all three so they match: `label` once the shortest step is short. */
+  rankText: "title" | "label";
+}>;
 
 /**
- * The parts of a podium of this height: the face's size, and the height of the second, first and third step. The tallest
- * place (face, name, score if shown, step) never goes above the podium's height; with no score line the steps are taller.
+ * The parts of a podium of this height: the face's size, the height of the second, first and third step, and the text of
+ * the rank digit on them. The tallest place (face, name, score if shown, step) never goes above the podium's height; the
+ * face gives way before the steps drop under their floor, so a small podium keeps a digit that fits; with no score line
+ * the steps are taller.
  */
-export function podiumMetrics(
-  height: number,
-  withScore: boolean,
-): Readonly<{ face: number; steps: readonly [number, number, number] }> {
-  const face = clamp(Math.round(height * 0.28), 24, 44);
-  const above = face + NAME_LINE + (withScore ? SCORE_LINE : 0) + FACE_PADDING;
-  const first = Math.max(20, height - above);
-  return { face, steps: [Math.round(first * 0.72), first, Math.round(first * 0.52)] };
+export function podiumMetrics(height: number, withScore: boolean): PodiumMetrics {
+  const [secondFloor, firstFloor, thirdFloor] = STEP_FLOORS;
+  const lines = NAME_LINE + (withScore ? SCORE_LINE : 0) + FACE_PADDING;
+  const face = clamp(Math.min(Math.round(height * 0.28), height - lines - firstFloor), 24, 44);
+  const first = Math.max(firstFloor, height - face - lines);
+  const steps: PodiumMetrics["steps"] = [
+    Math.max(secondFloor, Math.round(first * 0.72)),
+    first,
+    Math.max(thirdFloor, Math.round(first * 0.52)),
+  ];
+  return { face, steps, rankText: steps[2] < TITLE_STEP_MIN ? "label" : "title" };
 }

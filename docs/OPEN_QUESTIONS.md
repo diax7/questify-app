@@ -1731,4 +1731,7 @@ preset never changes the looks. Questions for Dhia: (a) Should places only also 
 that shows scores beside an event set to places only)? FR-1832 names the player's ranking; the scene has its own picker. (b) Should
 places only also hide the player's own points on Home (now: unchanged, it is their own record and balance)? (c) The shop's default is
 "list" (stacked cards, as today) although the requirement names the grid first: keep? (d) Not run on a phone: podium and grids were checked by
-layout maths, the dashboard preview and the Hermes bundle only; please look at an Arabic small Android phone. **Decided (developer, delegated by Dhia, 2026-11-01):** as recommended; (a) and (b) stay open for Dhia.
+layout maths, the dashboard preview and the Hermes bundle only; please look at an Arabic small Android phone. **Decided (developer, delegated by Dhia, 2026-11-01; T-611 review 93 GO):** (a) yes: the big-screen ranking scene follows places only, done in
+migration 0106 (`screen_ranking` leaves the score out unless the layout says it is shown; the scene draws the place alone when no score comes); (b) keep:
+the player's own points on Home stay as they are (their own record and balance); (c) the shop's default stays the list; (d) the phone check stays with
+Dhia (an Arabic small Android phone: podium and grids). ADR-396 accepted.

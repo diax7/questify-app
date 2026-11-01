@@ -6143,7 +6143,8 @@ with a wrong clock and no live read is off by its error.
 
 ## ADR-396 - T-611 screen looks: the ranking, Quests and Rewards layouts are choices stored in the layout, and places-only leaves the score out of the answer
 
-**Status:** Proposed (developer, 2026-11-01; Q-363). Builds FR-1832 and FR-1833 on ADR-391 and ADR-395. No migration, no new store.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-01; T-611 review 93 GO; big screen follows places only in 0106). Builds FR-1832 and FR-1833 on
+ADR-391 and ADR-395. No new store; migration 0106 restates `screen_ranking`.
 **Decision:** (1) **One more key in the same store.** `event.config.layout` gains `looks`:
 `{ranking: {layout: "list"|"podium", scores: "shown"|"rank_only"}, quests: "list"|"grid", shop: "list"|"grid"}`
 (`packages/shared/src/layout/looks.ts`). The default is what every event looked like before (list, scores shown, list, list), so a
@@ -6158,15 +6159,18 @@ the server, in the answer.** With `scores: "rank_only"`, `GET /v1/events/{id}/ra
 revealed results (`GET …/results`) leave out every place's final score the same way (`apps/api/src/results/display.ts`). The app draws a
 score only when the answer holds one, so the app's own cache and configuration can never show a score the server did not send. A
 player's own points on Home, their balance, the history and the team's results page are unchanged (they are the player's own record and the
-team's own review). The big-screen ranking scene is not changed here (no FR says so; Q-363). (4) **Unknown values.** An unknown layout
-value falls back to the default layout (a newer server never breaks an older app, F-282); a `scores` value that is present but not
-understood is read as places only, the side that gives nothing away, and the results route gives no score when the event's configuration
+team's own review). The big-screen ranking scene follows places only too (Q-363 (a), migration 0106): `screen_ranking` leaves the `score` out of
+every row unless `layout.looks.ranking.scores` is "shown" (no stored value is shown, as before), and the scene draws the place alone when no score
+comes. (4) **Unknown values.** An unknown layout
+value falls back to the default layout (a newer server never breaks an older app, F-282); a `scores` value, or a `ranking` entry that is not an
+object, that is present but not understood is read as places only (in `readLooks` and in `screen_ranking` alike), the side that gives nothing away, and the results route gives no score when the event's configuration
 cannot be read. An answer from an API older than this task (no `scores` flag) is read as scores shown. An app older than this task
 reads a places-only ranking as a failed read (it needs a number), never as a score. (5) **Podium and grids fit.** The podium takes about a
 third of the measured height (96 to 168 points), second, first and third stand on silver, gold and bronze steps, and the rows below it
 (ranks 4 to 10 and the player's own) share the rest (`podiumFit`, tested for every phone height from 380 points: at least 30 points a row
-on a small phone), so neither layout scrolls. A place nobody holds yet is left empty. The Quests and Rewards grids are two cards a row
-(48% wide), the cards of a row equally tall, with a minimum height, a two-line title and the state or action at the bottom. (6) **Dashboard:**
+on a small phone), so neither layout scrolls. Each podium step has a floor (24, 26 and 22 points for second, first and third) and the rank digit uses the
+`label` text on all three once the shortest step is under 36 points, so the digit never overflows at the 96-point minimum. A place nobody holds yet is left empty. The Quests and Rewards grids are two cards a row
+(48% wide), the cards of a row equally tall, with a minimum height, a two-line title, a description of three lines and the state or action at the bottom. (6) **Dashboard:**
 a "Screen styles" section on the Layout page (List or Podium; Scores and places or Places only, with an info button; Quests List or Grid;
 Rewards List or Grid), a mark on a screen whose switch is off, and the phone beside the lists now has tabs (Home, Ranking, Quests, Rewards)
 and redraws the screen being styled from the unsaved draft, with example players for the ranking.

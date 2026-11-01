@@ -22,11 +22,12 @@ export const EMPTY_SKIP_MS = 1000;
 type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
 export type Measure = "points" | "completions" | "players";
 
+/** `score` is null when the event is set to places only (FR-1832): the server leaves it out, and the scene draws the place alone. */
 export type RankingRow = Readonly<{
   place: number;
   username: string;
   avatar: string;
-  score: number;
+  score: number | null;
 }>;
 export type Milestone = Readonly<{ threshold: number; isGoal: boolean; reached: boolean }>;
 export type CommunityGoal = Readonly<{
@@ -98,7 +99,7 @@ const rowsOf = (value: unknown): readonly RankingRow[] =>
     place: numberOf(row["place"]),
     username: typeof row["username"] === "string" ? row["username"] : "",
     avatar: typeof row["avatar"] === "string" ? row["avatar"] : "",
-    score: numberOf(row["score"]),
+    score: typeof row["score"] === "number" ? row["score"] : null,
   }));
 
 const MEASURES: readonly string[] = ["points", "completions", "players"];
