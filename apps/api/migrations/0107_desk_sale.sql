@@ -394,7 +394,9 @@ BEGIN
   END IF;
 
   SELECT s.* INTO live FROM desk_sale s
-  WHERE s.enrollment_id = enrolled.id AND desk_sale_live(s) ORDER BY s.created_at DESC LIMIT 1;
+  -- `status = 'offered'` is repeated so the planner can use desk_sale_open (desk_sale_live hides it).
+  WHERE s.enrollment_id = enrolled.id AND s.status = 'offered' AND desk_sale_live(s)
+  ORDER BY s.created_at DESC LIMIT 1;
   IF FOUND AND live.operator_id <> me THEN
     RAISE EXCEPTION 'another desk is serving this player' USING ERRCODE = 'DS409', DETAIL = 'desk_busy';
   END IF;
