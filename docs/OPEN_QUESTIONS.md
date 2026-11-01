@@ -1708,4 +1708,4 @@ emails sent) per organizer and per event; the claim fix, the quest-item stock so
 login SMS, promotional email, push volume and storage. Each needs a durable count with a producer: a per-day counter written by the player sign-in (tier A), by
 the invitation sender and by the push worker, and a storage figure once photo uploads exist (Q-149, parked). Recommended: add one `usage_day` table
 (event, day, metric, count) and let each of those three producers add a count in its own task (T-703 holds the console's other platform tuning), and keep the page
-as it is until then. Not asked of Dhia: no product direction changes.
+as it is until then. Not asked of Dhia: no product direction changes. **Decided (developer, delegated by Dhia, 2026-11-01):** as recommended; ADR-394 accepted.

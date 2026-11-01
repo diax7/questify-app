@@ -1268,7 +1268,7 @@ _Wizard, templates, layout, reports and exports, analytics, rehearsal mode and t
     unpublish/support producers remain T-701; missing sources keep FR-1727 explicitly incomplete until connected.
   - Done when: Alerts are switchable per team member.
   - Note 2026-10-29 (T-503 built): the switches, the outbox, the sender, the team-page panel and five of the seven sources exist (activated, size limit, stock, codes, support access, and new flags by scan); this task adds only what T-503 lists as owed: `content_unpublished` (with T-701) and quest-item stock pools, plus the usage view. No second sender, store or switch UI.
-  - Done 2026-11-01 (tier B; one code review owed; not run on a phone). Migration 0104 (staging runs through 0102, 0103 pushed). **Sender bug fixed:**
+  - Done 2026-11-01 (tier B; review 93 GO, minors in FOLLOWUPS; not run on a phone). Migration 0104 (staging runs through 0102, 0103 pushed). **Sender bug fixed:**
     `alert_claim` now skips the unsendable rows among the 500 oldest queued ones and leases up to `size` sendable rows from anywhere in the queue, so
     an empty answer means none is waiting and a backlog of ex-member rows no longer ends the run (a test with 620 rows to skip ahead of two sendable
     ones sent 0 before and sends 2 now; the twice-run workaround and its FOLLOWUPS line are gone). **Quest-item stock** is a `stock_low` source

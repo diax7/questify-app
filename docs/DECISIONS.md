@@ -6091,7 +6091,7 @@ the headers, a per-sponsor PDF.
 
 ## ADR-394 - T-609 organizer alerts, second part: a claim that reaches sendable rows, quest-item stock, and a usage view over existing rows
 
-**Status:** Proposed (developer, T-609 build; Q-361).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-01; T-609 review 93 GO; Q-361).
 **Decision:** (1) **Reuse, add nothing parallel.** The switches, outbox, worker, team-page panel and OFF transport of T-503 (ADR-360,
 ADR-363) are unchanged: no second sender, store or switch UI, and no real mail (the transport stays unset; every queued row is still
 skipped as `transport_off`). The `stock_low` wording names rewards and quest items. (2) **The claim fixes the sender bug.** Migration 0104 restates
