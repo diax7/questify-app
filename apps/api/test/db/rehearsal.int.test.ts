@@ -991,6 +991,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "ledger_entry.ledger_note",
         "ledger_entry.manual_award_key",
         "quest_completion.ledger_entry",
+        "redemption.desk_sale",
         "redemption.ledger_entry",
         "redemption.reward_code",
         "bulk_award.ledger_note",
@@ -1031,6 +1032,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "quest_completion.redemption",
         // Position rows go with their completions (ON DELETE CASCADE), before the accounts (T-303b).
         "enrollment.completion_position",
+        "enrollment.desk_sale",
         "quest_completion.completion_position",
         // Meetings go with either completion (ON DELETE CASCADE); the accounts' meet codes go after the completions,
         // before the accounts (T-303c).
@@ -1114,6 +1116,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "start_cheers_moment", // the owner opens a moment; it deletes only cheers, which the wipe also removes, and writes no play row (T-509)
         "edited_quest", // internal: apply_past_points and delete_played_quest wipe before calling it (T-604)
         "room_quest", // internal: set_quest_paused and set_step_skipped wipe before calling it (T-603b)
+        "spend_reward", // internal: reserve_reward and accept_desk_sale wipe before calling it (T-612)
       ]);
       const writers = await owner<{ proname: string; calls: boolean }>(
         `SELECT p.proname, p.prosrc LIKE '%ensure_rehearsal_wiped%' AS calls

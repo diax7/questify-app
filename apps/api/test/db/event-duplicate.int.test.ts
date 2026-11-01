@@ -90,6 +90,7 @@ const NOT_COPIED = new Set([
   "quest_vote",
   "quiz_attempt",
   "redemption",
+  "desk_sale",
   "session_attendance",
   "session_message",
   "session_registration",
