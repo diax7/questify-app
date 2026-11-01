@@ -1,6 +1,8 @@
 "use client";
 
+import { countHeldPrizes } from "#src/components/EventFeatureSwitch.tsx";
 import { ExplainThis } from "#src/components/ExplainThis.tsx";
+import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import {
   DEFAULT_TERMS,
   formatEventTime,
@@ -39,6 +41,7 @@ import {
   rewardProblem,
   shopDraftProblem,
   shopRequest,
+  turnsReservationOff,
   type CodesProblem,
   type DaysRule,
   type DeskDraft,
@@ -442,10 +445,36 @@ function DeskForm({
 }
 
 /**
+ * Turning prize reservation Off (FR-1834) asks first and names the prizes players still hold: those reservations stand.
+ * Any other save goes straight through.
+ */
+function useReservationGate(language: Language, countHeld: () => Promise<number | null>) {
+  const t = translatorFor(language);
+  const confirmation = useConfirmation(language);
+  const pass = async (draft: ShopSettings, loaded: ShopSettings, go: () => void) => {
+    if (!turnsReservationOff(draft, loaded)) {
+      go();
+      return;
+    }
+    const held = await countHeld();
+    confirmation.ask({
+      title: t("rewards.reservation.offTitle"),
+      body:
+        held === null || held === 0
+          ? t("rewards.reservation.offBody")
+          : t("rewards.reservation.offBodyHeld", { count: formatNumber(held, language) }),
+      confirmLabel: t("rewards.reservation.offConfirm"),
+      run: go,
+    });
+  };
+  return { pass, dialog: confirmation.dialog };
+}
+
+/**
  * The pickup time, the days the shop stays open after the end, and the shop's rules (ADR-048, ADR-049, FR-515). The
  * closing line and the days field's rule follow ADR-336 and ADR-338: after the end the days only grow, once closed they
  * are frozen. `zone` is the event's time zone and whether it has ended; the closing line waits for it, so no time is
- * read in the wrong zone.
+ * read in the wrong zone. Prize reservation On or Off (FR-1834) is saved here too.
  */
 function ShopForm({
   language,
@@ -453,6 +482,7 @@ function ShopForm({
   rankLock,
   zone,
   busy,
+  countHeld,
   submit,
 }: Readonly<{
   language: Language;
@@ -461,9 +491,12 @@ function ShopForm({
   rankLock: "locked" | "ownerOnly" | undefined;
   zone: Readonly<{ timezone: string; ended: boolean }> | undefined;
   busy: boolean;
+  /** How many prizes players still hold, or null when the count could not be read (T-602d). */
+  countHeld: () => Promise<number | null>;
   submit: (shop: ShopSettings) => void;
 }>) {
   const t = translatorFor(language);
+  const gate = useReservationGate(language, countHeld);
   const [draft, setDraft] = useState(initial);
   const [invalid, setInvalid] = useState<ShopField | undefined>(undefined);
   const rule = daysRule(initial, zone?.ended ?? false);
@@ -472,7 +505,7 @@ function ShopForm({
     const problem = shopDraftProblem(draft, initial, rule);
     setInvalid(problem);
     if (problem === undefined) {
-      submit(draft);
+      void gate.pass(draft, initial, () => submit(draft));
     }
   };
   return (
@@ -523,6 +556,13 @@ function ShopForm({
           disabled={rankLock !== undefined}
           onChange={(e) => setDraft({ ...draft, spendLowersRank: e.target.checked })}
         />
+        <Checkbox
+          label={t("rewards.reservation")}
+          checked={draft.reservation}
+          info={<InfoTip label={t("common.info")}>{t("rewards.reservation.hint")}</InfoTip>}
+          onChange={(e) => setDraft({ ...draft, reservation: e.target.checked })}
+        />
+        {gate.dialog}
         {invalid === undefined ? null : (
           <Notice tone="danger" role="alert">
             {t(`rewards.invalid.${invalid}`)}
@@ -545,6 +585,7 @@ function ShopSection({
   rankLock,
   event,
   busy,
+  countHeld,
   save,
 }: Readonly<{
   language: Language;
@@ -552,18 +593,20 @@ function ShopSection({
   rankLock: "locked" | "ownerOnly" | undefined;
   event: Readonly<{ timezone: string; statusNow: string }> | undefined;
   busy: boolean;
+  countHeld: () => Promise<number | null>;
   /** Sends the body of `PUT …/shop`. */
   save: (body: Record<string, unknown>) => void;
 }>) {
   const ended = event?.statusNow === "ended" || event?.statusNow === "archived";
   return (
     <ShopForm
-      key={`${rankLock ?? "open"}:${shop.state}:${shop.daysAfter}`}
+      key={`${rankLock ?? "open"}:${shop.state}:${shop.daysAfter}:${shop.reservation}`}
       language={language}
       initial={shop}
       rankLock={rankLock}
       zone={event === undefined ? undefined : { timezone: event.timezone, ended }}
       busy={busy}
+      countHeld={countHeld}
       submit={(draft) => save(shopRequest(draft, shop))}
     />
   );
@@ -838,6 +881,17 @@ function RewardsHeader({
  * An event's rewards shop on the dashboard (T-201: FR-504, FR-505, FR-514, FR-516): the rewards with their stock, a
  * form to add or change one, removal with a confirmation, and the shop settings. Every answer refreshes the list.
  */
+/** Why the ranking choice cannot change here (FR-1847): the owner's alone, and only before the event is live. */
+function rankLockOf(
+  role: Props["role"],
+  statusNow: string | undefined,
+): "locked" | "ownerOnly" | undefined {
+  if (role !== "owner") {
+    return "ownerOnly";
+  }
+  return statusNow === "draft" || statusNow === "scheduled" ? undefined : "locked";
+}
+
 export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
   const t = translatorFor(language);
   const base = `/v1/organizers/${organizerId}/events/${eventId}`;
@@ -917,12 +971,7 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
     return ok;
   };
 
-  const rankLock =
-    role !== "owner"
-      ? ("ownerOnly" as const)
-      : event === undefined || (event.statusNow !== "draft" && event.statusNow !== "scheduled")
-        ? ("locked" as const)
-        : undefined;
+  const rankLock = rankLockOf(role, event?.statusNow);
 
   const save = (draft: RewardDraft) =>
     editing?.kind === "edit"
@@ -1056,6 +1105,7 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
             rankLock={rankLock}
             event={event}
             busy={busy}
+            countHeld={() => countHeldPrizes(organizerId, eventId)}
             save={(body) =>
               void run(() => requestJson("PUT", `${base}/shop`, body), "rewards.shopSaved")
             }

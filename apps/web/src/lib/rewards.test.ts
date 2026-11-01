@@ -18,6 +18,7 @@ import {
   deskEndsBeforeClose,
   shopProblem,
   shopRequest,
+  turnsReservationOff,
   type RewardView,
   type ShopSettings,
 } from "#src/lib/rewards.ts";
@@ -118,6 +119,7 @@ const SETTINGS: ShopSettings = {
   spendLowersRank: false,
   desk: NO_DESK,
   handoverConfirm: "collect_first",
+  reservation: true,
 };
 
 describe("shopProblem", () => {
@@ -175,7 +177,19 @@ describe("shopRequest", () => {
       daysAfter: 2,
       rules: { ar: "", en: "One each" },
       spendLowersRank: true,
+      reservation: true,
     });
+    expect(shopRequest({ ...SETTINGS, reservation: false }, SETTINGS)).toMatchObject({
+      reservation: false,
+    });
+  });
+
+  it("asks first only when the save turns prize reservation Off (FR-1834)", () => {
+    const off = { ...SETTINGS, reservation: false };
+    expect(turnsReservationOff(off, SETTINGS)).toBe(true);
+    expect(turnsReservationOff(SETTINGS, SETTINGS)).toBe(false);
+    expect(turnsReservationOff(off, off)).toBe(false);
+    expect(turnsReservationOff(SETTINGS, off)).toBe(false);
   });
 
   it("sends the days only when they changed from what the page loaded (ADR-336)", () => {
@@ -290,6 +304,7 @@ describe("the prize desk (FR-1716, ADR-150)", () => {
       hours: [{ opensAt: "2030-01-01T13:00:00.000Z", closesAt: "2030-01-01T19:00:00.000Z" }],
     },
     handoverConfirm: "desk_offer" as const,
+    reservation: true,
   };
   const draft = deskDraftOf(SHOP, "Asia/Riyadh");
 

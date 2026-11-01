@@ -86,6 +86,24 @@ test("the organizer builds the rewards shop", async ({ page }, info) => {
   await page.reload();
   await expect(spendRank).toBeChecked();
 
+  // Prize reservation (T-612, FR-1834): Off asks first, then the desk sells items and experiences after a scan.
+  const reservation = panel.getByRole("checkbox", { name: "حجز الجوائز من التطبيق" });
+  await expect(reservation).toBeChecked();
+  await reservation.uncheck();
+  await panel.getByRole("button", { name: "حفظ الإعدادات" }).click();
+  const askOff = page.getByRole("alertdialog");
+  await expect(askOff).toContainText("إيقاف حجز الجوائز؟");
+  await expect(askOff).toContainText("الحجوزات السابقة تبقى صالحة.");
+  await askOff.getByRole("button", { name: "إيقاف الحجز" }).click();
+  await expect(panel.getByRole("status")).toHaveText("حُفظت إعدادات المتجر.");
+  await page.reload();
+  await expect(reservation).not.toBeChecked();
+  await reservation.check();
+  await panel.getByRole("button", { name: "حفظ الإعدادات" }).click();
+  await expect(panel.getByRole("status")).toHaveText("حُفظت إعدادات المتجر.");
+  await page.reload();
+  await expect(reservation).toBeChecked();
+
   await panel.getByRole("button", { name: "إزالة" }).click();
   await panel.getByRole("button", { name: "إزالة" }).click();
   await expect(panel.getByRole("status")).toHaveText("أُزيلت الجائزة من المتجر.");

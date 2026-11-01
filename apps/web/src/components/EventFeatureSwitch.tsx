@@ -13,7 +13,10 @@ import { Row, SubHeading } from "#src/ui/Section.tsx";
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
 /** How many prizes players still hold in the event, or null when the count could not be read (T-602d). */
-async function countHeldPrizes(organizerId: string, eventId: string): Promise<number | null> {
+export async function countHeldPrizes(
+  organizerId: string,
+  eventId: string,
+): Promise<number | null> {
   const counted = await requestJson(
     "GET",
     `/v1/organizers/${organizerId}/events/${eventId}/held-prizes`,

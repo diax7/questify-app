@@ -53,6 +53,8 @@ export type ShopSettings = Readonly<{
   spendLowersRank: boolean;
   desk: DeskView;
   handoverConfirm: HandoverConfirm;
+  /** Prize reservation (FR-1834, ADR-397): Off sells items and experiences at the desk after a My QR scan. */
+  reservation: boolean;
 }>;
 
 /** What the reward form holds: times as the wall clock in the event's zone, empty when not set; "" for no limit. */
@@ -224,8 +226,13 @@ export function shopRequest(settings: ShopSettings, loaded: ShopSettings): Recor
     ...(settings.daysAfter === loaded.daysAfter ? {} : { daysAfter: settings.daysAfter }),
     rules: { ar: settings.rules.ar ?? "", en: settings.rules.en ?? "" },
     spendLowersRank: settings.spendLowersRank,
+    reservation: settings.reservation,
   };
 }
+
+/** True when this save turns prize reservation Off, which asks first and names the prizes still held (FR-1834). */
+export const turnsReservationOff = (draft: ShopSettings, loaded: ShopSettings): boolean =>
+  loaded.reservation && !draft.reservation;
 
 /**
  * True when the prize desk's last window ends before the shop closes (ADR-338): items and experiences stop there, while
