@@ -11,7 +11,9 @@ import {
   declineHandover,
   fetchDeskItems,
   type DeskItemNow,
+  type DeskSaleNow,
 } from "#src/event/shop-api.ts";
+import { DeskSaleCard } from "#src/event/DeskSaleCard.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { OFFER_POLL_MS } from "#src/operator/desk.ts";
@@ -20,61 +22,13 @@ import { OFFER_POLL_MS } from "#src/operator/desk.ts";
 const WATCH_LIMIT_MS = 3 * 60_000;
 
 /**
- * Under My QR (T-206): rewards ready at a desk with their countdown, and the desk's offer to accept (ADR-137). It asks
- * the server every 2 seconds only while the player holds a reward in an event that uses desk offers, only while the
- * app is in front, and for at most 3 minutes without an offer.
+ * Accept and Not now on the desk's handover offer (ADR-137). One key per reservation until the server answers, so a lost
+ * reply is retried, never doubled.
  */
-export function DeskItems() {
+function useHandoverAnswer(load: () => Promise<void>, setNote: (note: string) => void) {
   const { t, language } = useI18n();
-  const [items, setItems] = useState<readonly DeskItemNow[]>([]);
-  const [watch, setWatch] = useState(false);
-  const [watchingSince, setWatchingSince] = useState(() => Date.now());
-  const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
-  const [front, setFront] = useState(AppState.currentState === "active");
   const acceptKey = useRef<{ id: string; key: string } | undefined>(undefined);
-
-  const load = useCallback(async () => {
-    const answer = await fetchDeskItems(api.session);
-    if (answer.kind === "items") {
-      setItems(answer.items);
-      setWatch(answer.watch);
-      if (answer.items.some((item) => item.state === "offered")) {
-        setWatchingSince(Date.now());
-      }
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      setWatchingSince(Date.now());
-      void load();
-    }, [load]),
-  );
-
-  useEffect(() => {
-    const watcher = AppState.addEventListener("change", (state) => setFront(state === "active"));
-    return () => watcher.remove();
-  }, []);
-
-  const asking = watch && front && now - watchingSince < WATCH_LIMIT_MS;
-  useEffect(() => {
-    if (!asking) {
-      return undefined;
-    }
-    const timer = setInterval(() => void load(), OFFER_POLL_MS);
-    return () => clearInterval(timer);
-  }, [asking, load]);
-
-  // The countdowns tick on the phone; nothing is asked for them.
-  useEffect(() => {
-    if (items.length === 0 && !watch) {
-      return undefined;
-    }
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [items.length, watch]);
 
   const accept = async (item: DeskItemNow) => {
     setBusy(true);
@@ -103,10 +57,81 @@ export function DeskItems() {
     await load();
   };
 
+  return { busy, accept, decline };
+}
+
+/**
+ * Under My QR (T-206): rewards ready at a desk with their countdown, the desk's offer to accept (ADR-137), and the
+ * desk's offer to sell with Pay (T-612). It asks the server every 2 seconds only while the player holds a reward in an
+ * event that uses desk offers, or is in an event whose desk sells, only while the app is in front, and for at most 3
+ * minutes without an offer.
+ */
+export function DeskItems() {
+  const { t, language } = useI18n();
+  const [items, setItems] = useState<readonly DeskItemNow[]>([]);
+  const [sales, setSales] = useState<readonly DeskSaleNow[]>([]);
+  const [watch, setWatch] = useState(false);
+  const [watchingSince, setWatchingSince] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now());
+  const [note, setNote] = useState<string | null>(null);
+  const [front, setFront] = useState(AppState.currentState === "active");
+
+  const load = useCallback(async () => {
+    const answer = await fetchDeskItems(api.session);
+    if (answer.kind === "items") {
+      setItems(answer.items);
+      setSales(answer.sales);
+      setWatch(answer.watch);
+      if (answer.sales.length > 0 || answer.items.some((item) => item.state === "offered")) {
+        setWatchingSince(Date.now());
+      }
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      setWatchingSince(Date.now());
+      void load();
+    }, [load]),
+  );
+
+  useEffect(() => {
+    const watcher = AppState.addEventListener("change", (state) => setFront(state === "active"));
+    return () => watcher.remove();
+  }, []);
+
+  const asking = watch && front && now - watchingSince < WATCH_LIMIT_MS;
+  useEffect(() => {
+    if (!asking) {
+      return undefined;
+    }
+    const timer = setInterval(() => void load(), OFFER_POLL_MS);
+    return () => clearInterval(timer);
+  }, [asking, load]);
+
+  // The countdowns tick on the phone; nothing is asked for them.
+  useEffect(() => {
+    if (items.length === 0 && sales.length === 0 && !watch) {
+      return undefined;
+    }
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [items.length, sales.length, watch]);
+
+  const { busy, accept, decline } = useHandoverAnswer(load, setNote);
+  const paid = async (said: string | null) => {
+    setNote(said);
+    await load();
+  };
+
   const live = items.filter((item) => item.until !== null && Date.parse(item.until) > now);
+  const liveSales = sales.filter((sale) => sale.until !== null && Date.parse(sale.until) > now);
   return (
     <View style={{ gap: 12, alignSelf: "stretch" }}>
       {note === null ? null : <AppText accessibilityRole="alert">{note}</AppText>}
+      {liveSales.map((sale) => (
+        <DeskSaleCard key={sale.id} sale={sale} now={now} onDone={paid} />
+      ))}
       {live.map((item) =>
         item.state === "offered" ? (
           <View key={item.id} style={{ gap: 8 }} accessibilityLiveRegion="polite">

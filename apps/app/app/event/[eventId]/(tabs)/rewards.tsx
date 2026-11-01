@@ -57,6 +57,7 @@ const ACTION_TEXT: Readonly<Record<Exclude<RewardAction, "redeem">, MessageKey>>
   shop_closed: "shop.closed",
   desk_finished: "shop.deskFinished",
   community_locked: "shop.communityLocked",
+  at_desk: "shop.atDesk",
 };
 
 const KNOWN_SECTIONS: ReadonlySet<string> = new Set(["featured", "merch", "food", "experiences"]);
@@ -133,6 +134,16 @@ function RewardAction({
   const action = rewardAction(reward, view, Date.now());
   if (action === "redeem") {
     return <Button label={t("shop.redeem")} onPress={onRedeem} />;
+  }
+  // Reservation is off (FR-1834): no Reserve here; the desk offers it after a My QR scan and the player pays there.
+  if (action === "at_desk") {
+    return (
+      <View style={{ gap: 4 }}>
+        <AppText variant="label">{t("shop.atDesk")}</AppText>
+        <AppText muted>{t("shop.atDeskHint")}</AppText>
+        <DeskLine desk={view.shop.desk} />
+      </View>
+    );
   }
   // A reward a community goal still locks names the goal's numbers instead of a price button (T-306c).
   const unlock =
@@ -574,6 +585,24 @@ function SectionChips({
   );
 }
 
+/** Redeem or Reserve; with reservation Off an item or experience is bought at the desk instead (FR-1834). */
+function ReserveButton({
+  reward,
+  view,
+  busy,
+  onReserve,
+}: Readonly<{ reward: ShopReward; view: ShopView; busy: boolean; onReserve: () => void }>) {
+  const { t } = useI18n();
+  if (reward.kind === "digital") {
+    return <Button label={t("shop.redeem")} disabled={busy} onPress={onReserve} />;
+  }
+  return view.shop.reservation ? (
+    <Button label={t("shop.reserve")} disabled={busy} onPress={onReserve} />
+  ) : (
+    <AppText variant="label">{t("shop.atDesk")}</AppText>
+  );
+}
+
 /** Redeem's sheet: the shop's rules before a first redemption, the confirmation, then a digital reward's code. */
 function RedeemSheet({
   step,
@@ -634,10 +663,11 @@ function RedeemSheet({
           {step.reward.kind === "digital" ? null : <DeskLine desk={view.shop.desk} />}
           {view.shop.spendLowersRank ? <AppText>{t("shop.lowersRank")}</AppText> : null}
           <Problem problem={problem} />
-          <Button
-            label={t(step.reward.kind === "digital" ? "shop.redeem" : "shop.reserve")}
-            disabled={busy}
-            onPress={() => onReserve(step.reward)}
+          <ReserveButton
+            reward={step.reward}
+            view={view}
+            busy={busy}
+            onReserve={() => onReserve(step.reward)}
           />
         </>
       ) : null}

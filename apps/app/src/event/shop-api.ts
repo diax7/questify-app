@@ -62,6 +62,8 @@ export type ShopView = Readonly<{
     firstRedemption: boolean;
     /** A purchase now also lowers the ranking (FR-1847). */
     spendLowersRank: boolean;
+    /** Prize reservation (FR-1834): false means items and experiences are redeemed at the desk, not reserved. */
+    reservation: boolean;
     /** The prize desk, shown on every reservation (FR-1716). */
     desk: DeskInfo;
   }>;
@@ -155,12 +157,14 @@ export function readShop(body: unknown): ShopView | undefined {
       rules,
       firstRedemption: shop["firstRedemption"] === true,
       spendLowersRank: shop["spendLowersRank"] === true,
+      reservation: shop["reservation"] !== false,
       desk: deskInfoOf(shop["desk"]) ?? {
         location: null,
         hours: null,
         state: "closed",
         confirm: "collect_first",
         timeZone: "Asia/Riyadh",
+        sells: false,
       },
     },
     balance: numberOf(body["balance"]),
@@ -198,7 +202,21 @@ export type RewardAction =
   | "shop_closed"
   | "desk_finished"
   /** A community goal still locks it (T-306c): the card names the goal; Redeem would answer reward_not_open. */
-  | "community_locked";
+  | "community_locked"
+  /** Reservation is off (FR-1834): an item or experience is bought at the prize desk, not reserved here. */
+  | "at_desk";
+
+/** What stops an item or experience before the reward's own checks: the desk's hours, or reservation Off. */
+function deskAction(reward: ShopReward, view: ShopView): RewardAction | undefined {
+  if (reward.kind === "digital") {
+    return undefined;
+  }
+  // FR-1717, ADR-150: after the desk's last hours, only digital rewards stay redeemable.
+  if (view.shop.desk.state === "finished") {
+    return "desk_finished";
+  }
+  return view.shop.reservation ? undefined : "at_desk";
+}
 
 export function rewardAction(reward: ShopReward, view: ShopView, now: number): RewardAction {
   if (view.shop.state !== "open") {
@@ -207,9 +225,9 @@ export function rewardAction(reward: ShopReward, view: ShopView, now: number): R
   if (reward.communityLock !== null) {
     return "community_locked";
   }
-  // FR-1717, ADR-150: after the desk's last hours, only digital rewards stay redeemable.
-  if (reward.kind !== "digital" && view.shop.desk.state === "finished") {
-    return "desk_finished";
+  const atDesk = deskAction(reward, view);
+  if (atDesk !== undefined) {
+    return atDesk;
   }
   if (reward.stockLeft <= 0) {
     return "sold_out";
@@ -330,10 +348,46 @@ export type DeskItemNow = Readonly<{
   until: string | null;
 }>;
 
-export async function fetchDeskItems(
-  session: Pick<Session, "request">,
-): Promise<
-  | Readonly<{ kind: "items"; items: readonly DeskItemNow[]; watch: boolean }>
+/** The desk's offer to sell (T-612, FR-1834): Pay takes the price and hands it over at once. */
+export type DeskSaleNow = Readonly<{
+  id: string;
+  name: Bilingual;
+  price: number;
+  until: string | null;
+  balanceAfter: number;
+  /** The desk's place (Q-364). */
+  desk: Bilingual | null;
+  /** The shop's rules, before a first redemption only. */
+  rules: Bilingual | null;
+  /** The player paid for this reward at a desk in the last 2 minutes. */
+  justBought: boolean;
+}>;
+
+function saleOf(row: unknown): DeskSaleNow[] {
+  if (!isRecord(row) || typeof row["id"] !== "string") {
+    return [];
+  }
+  return [
+    {
+      id: row["id"],
+      name: textOf(row["name"]),
+      price: numberOf(row["price"]),
+      until: stringOr(row["offerUntil"]),
+      balanceAfter: numberOf(row["balanceAfter"]),
+      desk: row["desk"] === null || row["desk"] === undefined ? null : textOf(row["desk"]),
+      rules: row["rules"] === null || row["rules"] === undefined ? null : textOf(row["rules"]),
+      justBought: row["justBought"] === true,
+    },
+  ];
+}
+
+export async function fetchDeskItems(session: Pick<Session, "request">): Promise<
+  | Readonly<{
+      kind: "items";
+      items: readonly DeskItemNow[];
+      sales: readonly DeskSaleNow[];
+      watch: boolean;
+    }>
   | Readonly<{ kind: "network" }>
 > {
   const answer = await session.request({ method: "GET", path: "/v1/me/desk-items" });
@@ -353,7 +407,8 @@ export async function fetchDeskItems(
         ]
       : [],
   );
-  return { kind: "items", items, watch: answer.body["watch"] === true };
+  const sales = Array.isArray(answer.body["sales"]) ? answer.body["sales"].flatMap(saleOf) : [];
+  return { kind: "items", items, sales, watch: answer.body["watch"] === true };
 }
 
 export type DeskCallAnswer =
@@ -404,6 +459,31 @@ export async function declineHandover(
 ): Promise<DeskCallAnswer> {
   return deskAnswer(
     await session.request({ method: "POST", path: `/v1/redemptions/${redemptionId}/decline` }),
+  );
+}
+
+/** Pay for the desk's offer (FR-1834, ADR-137): the price and the handover in one step. The key is the tap's. */
+export async function acceptDeskSale(
+  session: Pick<Session, "request">,
+  saleId: string,
+  key: string,
+): Promise<DeskCallAnswer> {
+  return deskAnswer(
+    await session.request({
+      method: "POST",
+      path: `/v1/desk-sales/${saleId}/accept`,
+      headers: { "idempotency-key": key },
+    }),
+  );
+}
+
+/** Not now: the desk's offer ends; nothing is paid. */
+export async function declineDeskSale(
+  session: Pick<Session, "request">,
+  saleId: string,
+): Promise<DeskCallAnswer> {
+  return deskAnswer(
+    await session.request({ method: "POST", path: `/v1/desk-sales/${saleId}/decline` }),
   );
 }
 

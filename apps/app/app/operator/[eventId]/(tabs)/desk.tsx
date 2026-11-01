@@ -33,6 +33,7 @@ import {
   lookUpAtDesk,
   pollOffer,
 } from "#src/operator/operator-api.ts";
+import { DeskSellPanel } from "#src/operator/DeskSale.tsx";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 import { isPlayerCode } from "#src/operator/station.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -280,6 +281,8 @@ function useShownPlayer({
   const { t } = useI18n();
   const source = useRef<Source | null>(null);
   const reading = useRef(false);
+  // The scanned My QR, kept in memory for this player's screen only: a desk sale needs it (Q-364 c).
+  const [code, setCode] = useState<string | null>(null);
   const show = async (from: Source) => {
     reading.current = true;
     setProblem(null);
@@ -296,11 +299,13 @@ function useShownPlayer({
       setProblem(t(answer.lookup.reason));
     } else {
       source.current = from;
+      setCode(from.kind === "code" ? from.value : null);
       setFound(answer.lookup);
       void loadDesk();
     }
   };
   return {
+    code,
     scanned: (text: string) => {
       if (reading.current) {
         return;
@@ -316,6 +321,7 @@ function useShownPlayer({
     forget: () => {
       source.current = null;
       reading.current = false;
+      setCode(null);
     },
   };
 }
@@ -425,8 +431,9 @@ function useRowActions({ setFound, setDone, settle, clearProblem }: Rows) {
 
 /**
  * The prize desk (T-206): scan the player's My QR, see what they reserved, hand it over once the player confirmed in
- * their own app (ADR-137: Collect first, or the desk's offer they accept), confirm an experience, or cancel. The desk
- * never awards points (FR-926). A removed operator leaves operator mode at the first refused call (FR-905).
+ * their own app (ADR-137: Collect first, or the desk's offer they accept), confirm an experience, or cancel. With
+ * reservation Off it also sells from the shop (T-612): the player pays on their own phone. The desk never awards
+ * points (FR-926). A removed operator leaves operator mode at the first refused call (FR-905).
  */
 function DeskTab() {
   const { t, language } = useI18n();
@@ -508,6 +515,15 @@ function DeskTab() {
             onNext={next}
           />
         ) : null}
+        <DeskSellPanel
+          shown={found}
+          canHandOver={canHandOver}
+          desk={desk}
+          eventId={eventId}
+          code={shown.code}
+          currency={terms.currency}
+          settle={settle}
+        />
       </ScrollView>
     </Screen>
   );

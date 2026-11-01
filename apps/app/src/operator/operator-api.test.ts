@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  fetchSaleRewards,
   fetchStationToday,
+  offerSaleAtDesk,
+  pollSale,
   practiceScanPlayer,
   scanFor,
   scanPlayer,
+  withdrawSaleAtDesk,
 } from "#src/operator/operator-api.ts";
 
 const ok = (body: unknown) => ({ kind: "ok" as const, status: 200, body, headers: new Headers() });
@@ -112,6 +116,86 @@ describe("fetchStationToday (FR-928)", () => {
       kind: "network",
     });
     expect(await fetchStationToday(recording({ kind: "network" }).session, "e", "q")).toEqual({
+      kind: "network",
+    });
+  });
+});
+
+describe("the desk sale's calls (T-612)", () => {
+  const LIST = { result: "found", rewards: [{ id: "r1", kind: "item", price: 300, can: "ok" }] };
+
+  it("lists what the scanned player can buy from the same My QR the lookup read", async () => {
+    const { sent, session } = recording(ok(LIST));
+    expect(await fetchSaleRewards(session, "e1", "code")).toEqual({
+      kind: "list",
+      list: {
+        kind: "rewards",
+        rewards: [{ id: "r1", kind: "item", name: { ar: null, en: null }, price: 300, can: "ok" }],
+      },
+    });
+    expect(sent).toEqual([
+      {
+        method: "POST",
+        path: "/v1/operator/desk/sale-rewards",
+        body: { eventId: "e1", code: "code" },
+      },
+    ]);
+    expect(await fetchSaleRewards(recording(ok({ result: "?" })).session, "e", "c")).toEqual({
+      kind: "network",
+    });
+    expect(await fetchSaleRewards(recording(error(403, "not_operator")).session, "e", "c")).toEqual(
+      { kind: "removed" },
+    );
+  });
+
+  it("offers with the tap's key, and reads a refused scan as a list result", async () => {
+    const offered = recording(ok({ result: "offered", sale: { id: "s1", justBought: true } }));
+    const request = { eventId: "e1", code: "code", rewardId: "r1" };
+    expect(await offerSaleAtDesk(offered.session, request, "k1")).toEqual({
+      kind: "offered",
+      saleId: "s1",
+      justBought: true,
+    });
+    expect(offered.sent).toEqual([
+      {
+        method: "POST",
+        path: "/v1/operator/desk/sales",
+        body: request,
+        headers: { "idempotency-key": "k1" },
+      },
+    ]);
+    const old = recording(ok({ result: "refused", reason: "old_code" }));
+    expect(await offerSaleAtDesk(old.session, request, "k")).toEqual({
+      kind: "list",
+      list: { kind: "refused", reason: "operator.red.oldCode" },
+    });
+    expect(await offerSaleAtDesk(recording(ok("x")).session, request, "k")).toEqual({
+      kind: "network",
+    });
+    expect(
+      await offerSaleAtDesk(recording(error(409, "desk_busy")).session, request, "k"),
+    ).toMatchObject({ kind: "refused", code: "desk_busy" });
+  });
+
+  it("polls the sale's state and withdraws it by its id", async () => {
+    const polled = recording(ok({ status: "refused", reason: "sold_out" }));
+    expect(await pollSale(polled.session, "s 1")).toEqual({
+      kind: "poll",
+      status: "refused",
+      reason: "sold_out",
+    });
+    expect(polled.sent).toEqual([{ method: "GET", path: "/v1/operator/desk/sales/s%201" }]);
+    expect(await pollSale(recording(ok({ status: "offered" })).session, "s")).toEqual({
+      kind: "poll",
+      status: "offered",
+      reason: null,
+    });
+    const withdrawn = recording(ok({ withdrawn: false }));
+    expect(await withdrawSaleAtDesk(withdrawn.session, "s1")).toEqual({ kind: "withdrawn" });
+    expect(withdrawn.sent).toEqual([
+      { method: "POST", path: "/v1/operator/desk/sales/s1/withdraw" },
+    ]);
+    expect(await withdrawSaleAtDesk(recording({ kind: "network" }).session, "s1")).toEqual({
       kind: "network",
     });
   });

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  CAN_TEXT,
   actionLabel,
   deskInfoOf,
+  saleEndKey,
+  saleOutcome,
+  saleRewardsOf,
   deskStateKey,
   findOf,
   itemAction,
@@ -24,6 +28,7 @@ const DESK: DeskInfo = {
   state: "open",
   confirm: "collect_first",
   timeZone: "Asia/Riyadh",
+  sells: false,
 };
 const ITEM: DeskItem = {
   id: "d1",
@@ -53,7 +58,16 @@ describe("deskInfoOf", () => {
       state: "finished",
       confirm: "desk_offer",
       timeZone: "Asia/Dubai",
+      sells: false,
     });
+  });
+
+  it("sells only when the desk's header says reservation Off and the shop on (T-612)", () => {
+    expect(deskInfoOf({ reservation: false, shopOn: true })?.sells).toBe(true);
+    expect(deskInfoOf({ reservation: false })?.sells).toBe(true);
+    expect(deskInfoOf({ reservation: false, shopOn: false })?.sells).toBe(false);
+    expect(deskInfoOf({ reservation: true, shopOn: true })?.sells).toBe(false);
+    expect(deskInfoOf({ shopOn: true })?.sells).toBe(false);
   });
 
   it("reads an unknown state as closed and an unknown mode as collect first", () => {
@@ -63,6 +77,7 @@ describe("deskInfoOf", () => {
       state: "closed",
       confirm: "collect_first",
       timeZone: "Asia/Riyadh",
+      sells: false,
     });
     expect(deskInfoOf({})).toMatchObject({ state: "closed" });
     expect(deskInfoOf("desk")).toBeUndefined();
@@ -289,5 +304,83 @@ describe("offerOutcome", () => {
     expect(offerOutcome({ status: "cancelled", offered: false, offerUntil: null }, NOW)).toBe(
       "ended",
     );
+  });
+});
+
+describe("saleRewardsOf (T-612)", () => {
+  it("reads the rewards the desk can sell, an unknown answer as not open, and leaves bad rows out", () => {
+    expect(
+      saleRewardsOf({
+        result: "found",
+        rewards: [
+          { id: "r1", kind: "item", name: { en: "Hoodie" }, price: 300, can: "ok" },
+          { id: "r2", kind: "experience", name: null, price: 50, can: "limit" },
+          { id: "r3", kind: "?", name: {}, price: 5, can: "maybe" },
+          { id: "r4", price: "5" },
+          { price: 5 },
+          "row",
+        ],
+      }),
+    ).toEqual({
+      kind: "rewards",
+      rewards: [
+        { id: "r1", kind: "item", name: { ar: null, en: "Hoodie" }, price: 300, can: "ok" },
+        { id: "r2", kind: "experience", name: { ar: null, en: null }, price: 50, can: "limit" },
+        { id: "r3", kind: "item", name: { ar: null, en: null }, price: 5, can: "not_open" },
+      ],
+    });
+  });
+
+  it("reads a refused scan as the lookup does, and anything else as not an answer", () => {
+    expect(saleRewardsOf({ result: "refused", reason: "old_code" })).toEqual({
+      kind: "refused",
+      reason: "operator.red.oldCode",
+    });
+    expect(saleRewardsOf({ result: "refused", reason: "?" })).toEqual({
+      kind: "refused",
+      reason: "operator.red.invalidCode",
+    });
+    expect(saleRewardsOf({ result: "found" })).toBeUndefined();
+    expect(saleRewardsOf({ result: "maybe", rewards: [] })).toBeUndefined();
+    expect(saleRewardsOf("found")).toBeUndefined();
+  });
+
+  it("names every reason a reward cannot be offered", () => {
+    expect(Object.keys(CAN_TEXT).sort()).toEqual([
+      "limit",
+      "not_open",
+      "sold_out",
+      "too_few_points",
+    ]);
+  });
+});
+
+describe("saleOutcome and saleEndKey (T-612)", () => {
+  it.each([
+    ["accepted", "paid"],
+    ["offered", "waiting"],
+    ["refused", "refused"],
+    ["declined", "declined"],
+    ["withdrawn", "withdrawn"],
+    ["expired", "lapsed"],
+    ["?", "lapsed"],
+  ] as const)("reads %s as %s", (status, outcome) => {
+    expect(saleOutcome({ status })).toBe(outcome);
+  });
+
+  it.each([
+    ["paid", null, "operator.desk.salePaid"],
+    ["declined", null, "operator.desk.saleDeclined"],
+    ["withdrawn", null, "operator.desk.saleWithdrawn"],
+    ["lapsed", null, "operator.desk.saleLapsed"],
+    ["refused", "sold_out", "operator.desk.can.soldOut"],
+    ["refused", "not_enough_balance", "operator.desk.can.tooFewPoints"],
+    ["refused", "reward_limit_reached", "operator.desk.can.limit"],
+    ["refused", "held", "operator.desk.held"],
+    ["refused", "paused", "operator.desk.paused"],
+    ["refused", "price_changed", "operator.desk.saleNotPaid"],
+    ["refused", null, "operator.desk.saleNotPaid"],
+  ] as const)("words %s (%s) as %s", (outcome, reason, key) => {
+    expect(saleEndKey(outcome, reason)).toBe(key);
   });
 });

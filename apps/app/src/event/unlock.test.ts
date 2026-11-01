@@ -214,7 +214,7 @@ describe("the shop and Home's goal", () => {
 
   it("shows a locked reward's line instead of Redeem, after a closed shop", () => {
     const view = {
-      shop: { state: "open", desk: { state: "open" } },
+      shop: { state: "open", reservation: true, desk: { state: "open" } },
       balance: 100,
     } as unknown as ShopView;
     expect(rewardAction(REWARD, view, Date.now())).toBe("community_locked");

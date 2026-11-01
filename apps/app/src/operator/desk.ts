@@ -16,6 +16,8 @@ export type DeskInfo = Readonly<{
   confirm: HandoverConfirm;
   /** The event's zone, to show the hours in. */
   timeZone: string;
+  /** The desk sells from the shop (reservation Off and the shop on, FR-1834); false in the shop's own copy. */
+  sells: boolean;
 }>;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -54,6 +56,7 @@ export function deskInfoOf(value: unknown): DeskInfo | undefined {
     state: STATES.includes(state) ? (state as DeskState) : "closed",
     confirm: value["confirm"] === "desk_offer" ? "desk_offer" : "collect_first",
     timeZone: typeof value["timeZone"] === "string" ? value["timeZone"] : "Asia/Riyadh",
+    sells: value["reservation"] === false && value["shopOn"] !== false,
   };
 }
 
@@ -233,3 +236,107 @@ export function offerOutcome(
     ? "waiting"
     : "lapsed";
 }
+
+/** Whether the scanned player can buy a reward now (FR-1834); the desk never sees their balance. */
+export type SaleCan = "ok" | "too_few_points" | "limit" | "sold_out" | "not_open";
+
+export type SaleReward = Readonly<{
+  id: string;
+  kind: "item" | "experience";
+  name: Bilingual;
+  price: number;
+  can: SaleCan;
+}>;
+
+const CANS: readonly string[] = ["ok", "too_few_points", "limit", "sold_out", "not_open"];
+
+/** Why a reward cannot be offered now, in words; `ok` has the Offer button instead. */
+export const CAN_TEXT: Readonly<Record<Exclude<SaleCan, "ok">, MessageKey>> = {
+  too_few_points: "operator.desk.can.tooFewPoints",
+  limit: "operator.desk.can.limit",
+  sold_out: "operator.desk.can.soldOut",
+  not_open: "operator.desk.can.notOpen",
+};
+
+export type SaleList =
+  | Readonly<{ kind: "rewards"; rewards: readonly SaleReward[] }>
+  | Readonly<{ kind: "refused"; reason: MessageKey }>;
+
+/** Reads `POST /v1/operator/desk/sale-rewards`; undefined when the body is not one. An unknown `can` reads as not open. */
+export function saleRewardsOf(body: unknown): SaleList | undefined {
+  if (!isRecord(body)) {
+    return undefined;
+  }
+  if (body["result"] === "refused") {
+    return {
+      kind: "refused",
+      reason: REFUSED[String(body["reason"])] ?? "operator.red.invalidCode",
+    };
+  }
+  if (body["result"] !== "found" || !Array.isArray(body["rewards"])) {
+    return undefined;
+  }
+  const rewards = body["rewards"].flatMap((row: unknown): SaleReward[] => {
+    if (!isRecord(row) || typeof row["id"] !== "string" || typeof row["price"] !== "number") {
+      return [];
+    }
+    const can =
+      typeof row["can"] === "string" && CANS.includes(row["can"]) ? row["can"] : "not_open";
+    return [
+      {
+        id: row["id"],
+        kind: row["kind"] === "experience" ? "experience" : "item",
+        name: textOf(row["name"]) ?? { ar: null, en: null },
+        price: row["price"],
+        can: can as SaleCan,
+      },
+    ];
+  });
+  return { kind: "rewards", rewards };
+}
+
+/** Where a sale stands after the desk's poll. */
+export type SaleOutcome = "paid" | "waiting" | "refused" | "declined" | "withdrawn" | "lapsed";
+
+export function saleOutcome(poll: Readonly<{ status: string }>): SaleOutcome {
+  switch (poll.status) {
+    case "accepted":
+      return "paid";
+    case "offered":
+      return "waiting";
+    case "refused":
+    case "declined":
+    case "withdrawn":
+      return poll.status;
+    default:
+      return "lapsed";
+  }
+}
+
+/** The words for a sale that ended; `refused` names the reason when it is one the desk knows. */
+export function saleEndKey(
+  outcome: Exclude<SaleOutcome, "waiting">,
+  reason: string | null,
+): MessageKey {
+  switch (outcome) {
+    case "paid":
+      return "operator.desk.salePaid";
+    case "declined":
+      return "operator.desk.saleDeclined";
+    case "withdrawn":
+      return "operator.desk.saleWithdrawn";
+    case "lapsed":
+      return "operator.desk.saleLapsed";
+    case "refused":
+      return REFUSAL_TEXT[reason ?? ""] ?? "operator.desk.saleNotPaid";
+  }
+}
+
+/** A Pay's refusal the desk can name (the error code the player saw). */
+const REFUSAL_TEXT: Readonly<Record<string, MessageKey>> = {
+  sold_out: "operator.desk.can.soldOut",
+  not_enough_balance: "operator.desk.can.tooFewPoints",
+  reward_limit_reached: "operator.desk.can.limit",
+  held: "operator.desk.held",
+  paused: "operator.desk.paused",
+};

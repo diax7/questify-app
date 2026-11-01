@@ -7,7 +7,15 @@ import {
   type AwardForm,
   type FoundPlayer,
 } from "#src/operator/award.ts";
-import { deskInfoOf, findOf, lookupOf, type DeskInfo, type Lookup } from "#src/operator/desk.ts";
+import {
+  deskInfoOf,
+  findOf,
+  lookupOf,
+  saleRewardsOf,
+  type DeskInfo,
+  type Lookup,
+  type SaleList,
+} from "#src/operator/desk.ts";
 import { stationResult, type StationResult } from "#src/operator/station.ts";
 
 type Requester = Pick<Session, "request">;
@@ -419,6 +427,85 @@ export async function cancelAtDesk(
     headers: { "idempotency-key": idempotencyKey },
   });
   return answer.kind === "ok" ? { kind: "cancelled" } : removedOr(answer);
+}
+
+/** "Sell from the shop" (FR-1834): the scanned player's offerable rewards, from the same My QR the lookup read. */
+export async function fetchSaleRewards(
+  session: Requester,
+  eventId: string,
+  code: string,
+): Promise<Readonly<{ kind: "list"; list: SaleList }> | Removed | Common> {
+  const answer = await session.request({
+    method: "POST",
+    path: "/v1/operator/desk/sale-rewards",
+    body: { eventId, code },
+  });
+  if (answer.kind !== "ok") {
+    return removedOr(answer);
+  }
+  const list = saleRewardsOf(answer.body);
+  return list === undefined ? { kind: "network" } : { kind: "list", list };
+}
+
+/** The desk offers one reward for 2 minutes; nothing is paid until the player's Pay. The key is the tap's. */
+export async function offerSaleAtDesk(
+  session: Requester,
+  request: Readonly<{ eventId: string; code: string; rewardId: string }>,
+  idempotencyKey: string,
+): Promise<
+  | Readonly<{ kind: "offered"; saleId: string; justBought: boolean }>
+  | Readonly<{ kind: "list"; list: SaleList }>
+  | Removed
+  | Common
+> {
+  const answer = await session.request({
+    method: "POST",
+    path: "/v1/operator/desk/sales",
+    body: request,
+    headers: { "idempotency-key": idempotencyKey },
+  });
+  if (answer.kind !== "ok") {
+    return removedOr(answer);
+  }
+  const body = isRecord(answer.body) ? answer.body : {};
+  const sale = isRecord(body["sale"]) ? body["sale"] : {};
+  if (body["result"] === "offered" && typeof sale["id"] === "string") {
+    return { kind: "offered", saleId: sale["id"], justBought: sale["justBought"] === true };
+  }
+  const list = saleRewardsOf(body);
+  return list === undefined ? { kind: "network" } : { kind: "list", list };
+}
+
+/** The desk's poll while it waits for the player's Pay. */
+export async function pollSale(
+  session: Requester,
+  saleId: string,
+): Promise<Readonly<{ kind: "poll"; status: string; reason: string | null }> | Removed | Common> {
+  const answer = await session.request({
+    method: "GET",
+    path: `/v1/operator/desk/sales/${encodeURIComponent(saleId)}`,
+  });
+  if (answer.kind !== "ok") {
+    return removedOr(answer);
+  }
+  const body = isRecord(answer.body) ? answer.body : {};
+  return {
+    kind: "poll",
+    status: String(body["status"]),
+    reason: typeof body["reason"] === "string" ? body["reason"] : null,
+  };
+}
+
+/** The desk takes its offer back; taking back an ended one changes nothing. */
+export async function withdrawSaleAtDesk(
+  session: Requester,
+  saleId: string,
+): Promise<Readonly<{ kind: "withdrawn" }> | Removed | Common> {
+  const answer = await session.request({
+    method: "POST",
+    path: `/v1/operator/desk/sales/${encodeURIComponent(saleId)}/withdraw`,
+  });
+  return answer.kind === "ok" ? { kind: "withdrawn" } : removedOr(answer);
 }
 
 /** A refused award or find keeps the API's details: an over-cap refusal names the cap and what is left (FR-310). */

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { ApiRequest } from "#src/api/client.ts";
 import type { AuthedResult } from "#src/api/session.ts";
 import {
+  acceptDeskSale,
   acceptHandover,
   cancelRedemption,
   countdown,
+  declineDeskSale,
   declineHandover,
   fetchDeskItems,
   fetchShop,
@@ -49,12 +51,14 @@ const VIEW: ShopView = {
     rules: null,
     firstRedemption: true,
     spendLowersRank: false,
+    reservation: true,
     desk: {
       location: null,
       hours: null,
       state: "open",
       confirm: "collect_first",
       timeZone: "Asia/Riyadh",
+      sells: false,
     },
   },
   balance: 300,
@@ -140,14 +144,17 @@ describe("readShop", () => {
       rules: { ar: "قاعدة", en: null },
       firstRedemption: false,
       spendLowersRank: true,
+      reservation: true,
       desk: {
         location: { ar: "القاعة ب", en: null },
         hours: null,
         state: "open",
         confirm: "collect_first",
         timeZone: "Asia/Riyadh",
+        sells: false,
       },
     });
+    expect(readShop({ shop: { reservation: false }, rewards: [] })?.shop.reservation).toBe(false);
     expect(view?.goalRewardId).toBe("r1");
     expect(readShop({ shop: {}, rewards: [] })?.goalRewardId).toBeNull();
     expect(view?.rewards).toHaveLength(1);
@@ -241,6 +248,7 @@ describe("readShop", () => {
       state: "closed",
       confirm: "collect_first",
       timeZone: "Asia/Riyadh",
+      sells: false,
     });
   });
 });
@@ -264,6 +272,22 @@ describe("rewardAction", () => {
     ],
     ["redeem", { ...REWARD, kind: "digital" }, { ...VIEW, shop: { ...VIEW.shop, desk: FINISHED } }],
     ["redeem", REWARD, { ...VIEW, shop: { ...VIEW.shop, desk: { ...FINISHED, state: "closed" } } }],
+    ["at_desk", REWARD, { ...VIEW, shop: { ...VIEW.shop, reservation: false } }],
+    [
+      "at_desk",
+      { ...REWARD, kind: "experience", stockLeft: 0 },
+      { ...VIEW, shop: { ...VIEW.shop, reservation: false } },
+    ],
+    [
+      "redeem",
+      { ...REWARD, kind: "digital" },
+      { ...VIEW, shop: { ...VIEW.shop, reservation: false } },
+    ],
+    [
+      "desk_finished",
+      REWARD,
+      { ...VIEW, shop: { ...VIEW.shop, reservation: false, desk: FINISHED } },
+    ],
   ] as const)("offers %s", (action, reward, view) => {
     expect(rewardAction(reward, view, NOW)).toBe(action);
   });
@@ -475,6 +499,7 @@ describe("the desk's calls (T-206)", () => {
         },
         { id: "d2", kind: "item", name: { ar: null, en: null }, state: "collecting", until: null },
       ],
+      sales: [],
       watch: true,
     });
     expect(ok.calls[0]).toEqual({ method: "GET", path: "/v1/me/desk-items" });
@@ -483,6 +508,90 @@ describe("the desk's calls (T-206)", () => {
     expect(await fetchDeskItems(sessionAnswering({ kind: "network" }).session)).toEqual({
       kind: "network",
     });
+  });
+
+  it("reads the desk's offers to sell (T-612), leaving rows without an id out", async () => {
+    const ok = sessionAnswering({
+      kind: "ok",
+      status: 200,
+      body: {
+        items: [],
+        sales: [
+          {
+            id: "s1",
+            name: { en: "Hoodie" },
+            price: 300,
+            offerUntil: "2030-01-01T10:02:00Z",
+            balanceAfter: 40,
+            desk: { ar: "القاعة ب", en: null },
+            rules: { en: "One each" },
+            justBought: true,
+          },
+          { id: "s2", name: {}, price: 5, offerUntil: null, balanceAfter: 0 },
+          { name: "no id" },
+          "row",
+        ],
+        watch: false,
+      },
+      headers,
+    });
+    expect(await fetchDeskItems(ok.session)).toEqual({
+      kind: "items",
+      items: [],
+      sales: [
+        {
+          id: "s1",
+          name: { ar: null, en: "Hoodie" },
+          price: 300,
+          until: "2030-01-01T10:02:00Z",
+          balanceAfter: 40,
+          desk: { ar: "القاعة ب", en: null },
+          rules: { ar: null, en: "One each" },
+          justBought: true,
+        },
+        {
+          id: "s2",
+          name: { ar: null, en: null },
+          price: 5,
+          until: null,
+          balanceAfter: 0,
+          desk: null,
+          rules: null,
+          justBought: false,
+        },
+      ],
+      watch: false,
+    });
+    const older = sessionAnswering({ kind: "ok", status: 200, body: { items: [] }, headers });
+    expect(await fetchDeskItems(older.session)).toMatchObject({ kind: "items", sales: [] });
+  });
+
+  it("pays for the desk's offer with the tap's key, and declines it by the sale's id", async () => {
+    const ok = sessionAnswering({ kind: "ok", status: 200, body: {}, headers });
+    expect(await acceptDeskSale(ok.session, "s1", "key-7")).toEqual({ kind: "done" });
+    expect(await declineDeskSale(ok.session, "s1")).toEqual({ kind: "done" });
+    expect(ok.calls).toEqual([
+      {
+        method: "POST",
+        path: "/v1/desk-sales/s1/accept",
+        headers: { "idempotency-key": "key-7" },
+      },
+      { method: "POST", path: "/v1/desk-sales/s1/decline" },
+    ]);
+    const refused = sessionAnswering({
+      kind: "error",
+      status: 409,
+      code: "sold_out",
+      message: MESSAGE,
+      details: {},
+      headers,
+    });
+    expect(await acceptDeskSale(refused.session, "s1", "k")).toEqual({
+      kind: "refused",
+      problem: MESSAGE,
+    });
+    const offline = sessionAnswering({ kind: "network" });
+    expect(await acceptDeskSale(offline.session, "s1", "k")).toEqual({ kind: "network" });
   });
 
   it("counts down in minutes and seconds, never below zero", () => {
