@@ -34,6 +34,14 @@ describe("refusalError", () => {
     expect(seen(refusal, "player")).toEqual(expected);
   });
 
+  it("keeps a colon inside the detail", () => {
+    expect(seen("RW403:ended:soon", "player")).toEqual([
+      403,
+      "reward_not_open",
+      { reason: "ended:soon" },
+    ]);
+  });
+
   it("tells the player nothing about a flag hold, and the desk that it is held", () => {
     expect(seen("RH409:held", "player")).toEqual([410, "sale_gone", {}]);
     expect(seen("RH409:held", "desk")).toEqual([409, "held", {}]);

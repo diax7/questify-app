@@ -1,5 +1,9 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { Pool } from "pg";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import type { Caller } from "#src/auth/sign-in";
+import type { DeskDeps } from "#src/desk/desk";
+import { acceptSale, declineSale, offerSale, saleRewards, saleState } from "#src/desk/sale";
 import { createMyCodeKey, myCode } from "#src/quests/qr";
 import {
   createStaff,
@@ -17,6 +21,14 @@ const answer = (response: { statusCode: number; json: () => { code?: string } })
   response.statusCode,
   response.json().code,
 ];
+
+const refused = (reason: string) => ({ result: "refused", reason });
+
+const callerWith = (log: Caller["log"]): Caller => ({
+  address: "203.0.113.7",
+  userAgent: null,
+  log,
+});
 
 /** The test config's QR secret (test/support/auth-app.ts), so a test can show a real My QR. */
 const MY_KEY = createMyCodeKey("q".repeat(40));
@@ -174,6 +186,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("desk sale over HTTP", () => {
     app("POST", `/v1/desk-sales/${sale}/accept`, s.buyer.token);
   const poll = (s: Sell, sale: string) =>
     app("GET", `/v1/operator/desk/sales/${sale}`, s.desk.token, undefined, null);
+  const list = async (s: Sell, token: string, code: string) =>
+    (await app("POST", "/v1/operator/desk/sale-rewards", token, { eventId: s.event, code })).json();
+  const redemptionsOf = (player: string) =>
+    owner<{ id: string }>(
+      `SELECT d.id FROM redemption d JOIN enrollment n ON n.id = d.enrollment_id
+       WHERE n.player_id = $1`,
+      [player],
+    );
+  const mine = async (s: Sell) =>
+    (await app("GET", "/v1/me/desk-items", s.buyer.token, undefined, null)).json<{
+      sales: Record<string, unknown>[];
+    }>().sales;
+  const deskDeps = () => ({ pool: test.pool, myKey: MY_KEY }) as DeskDeps;
+
   describe("the dashboard's switch (FR-1834)", () => {
     it("turns reservation On, audits it, and refuses Off without the desk's place", async () => {
       const event = await newEvent();
@@ -311,6 +337,247 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("desk sale over HTTP", () => {
       expect((await withdraw(stranger.token)).statusCode).toBe(403);
       expect((await withdraw(s.desk.token)).json()).toEqual({ withdrawn: true });
       expect((await withdraw(s.desk.token)).json()).toEqual({ withdrawn: false });
+    });
+  });
+
+  describe("the desk's list", () => {
+    it("lists each reward's words, price and stock, and no balance", async () => {
+      const s = await sell();
+      await owner("UPDATE reward SET name_ar = 'hoodie-ar' WHERE id = $1", [s.reward]);
+      expect(await list(s, s.desk.token, s.buyer.code)).toEqual({
+        result: "found",
+        rewards: [
+          {
+            id: s.reward,
+            kind: "item",
+            name: { ar: "hoodie-ar", en: "Hoodie" },
+            price: 100,
+            stockLeft: 5,
+            can: "ok",
+          },
+        ],
+      });
+    });
+
+    it("answers a scan that cannot be served as a result, whatever the reason", async () => {
+      const s = await sell();
+      const outsider = await newPlayer();
+      const withoutHandOver = await newOperator(s.event, []);
+      expect(await list(s, s.desk.token, "nope")).toEqual(refused("invalid_code"));
+      expect(await list(s, s.desk.token, myCode(MY_KEY, s.buyer.id, 2))).toEqual(
+        refused("old_code"),
+      );
+      expect(await list(s, s.desk.token, myCode(MY_KEY, randomUUID(), 1))).toEqual(
+        refused("not_in_event"),
+      );
+      expect(await list(s, s.desk.token, outsider.code)).toEqual(refused("not_in_event"));
+      expect(await list(s, s.desk.token, s.desk.code)).toEqual(refused("self_scan"));
+      expect(await list(s, withoutHandOver.token, s.buyer.code)).toEqual(refused("ability_off"));
+    });
+  });
+
+  describe("the offer", () => {
+    it("answers the new sale in full, a live repeat as 200, and a re-offer after Pay as just bought", async () => {
+      const s = await sell();
+      const made = await offer(s);
+      expect(made.statusCode).toBe(201);
+      const { sale } = made.json<{ sale: { id: string; offerUntil: string } }>();
+      expect(made.json()).toEqual({
+        result: "offered",
+        sale: {
+          id: sale.id,
+          status: "offered",
+          price: 100,
+          offerUntil: expect.any(String),
+          replayed: false,
+          justBought: false,
+        },
+      });
+      const secondsLeft = (Date.parse(sale.offerUntil) - Date.now()) / 1000;
+      expect(secondsLeft).toBeGreaterThan(100);
+      expect(secondsLeft).toBeLessThanOrEqual(120);
+      const repeat = await offer(s);
+      expect(repeat.statusCode).toBe(200);
+      expect(repeat.json()).toMatchObject({ sale: { id: sale.id, replayed: true } });
+      expect((await pay(s, sale.id)).statusCode).toBe(200);
+      const again = await offer(s);
+      expect(again.statusCode).toBe(201);
+      expect(again.json()).toMatchObject({ sale: { replayed: false, justBought: true } });
+    });
+
+    it("tells the desk a hold as held or paused, where the player is told nothing", async () => {
+      const s = await sell();
+      await owner("UPDATE enrollment SET status = 'banned' WHERE player_id = $1", [s.buyer.id]);
+      expect(answer(await offer(s))).toEqual([409, "held"]);
+      await owner(
+        "UPDATE enrollment SET status = 'active', redeem_paused_at = now() WHERE player_id = $1",
+        [s.buyer.id],
+      );
+      expect(answer(await offer(s))).toEqual([409, "paused"]);
+    });
+
+    it("stops an operator whose hand_over went off from polling or withdrawing", async () => {
+      const s = await sell();
+      const sale = await saleOf(s);
+      await owner("UPDATE staff_assignment SET abilities = '{}' WHERE player_id = $1", [s.desk.id]);
+      expect(answer(await poll(s, sale))).toEqual([403, "ability_off"]);
+      const withdraw = await app("POST", `/v1/operator/desk/sales/${sale}/withdraw`, s.desk.token);
+      expect(answer(withdraw)).toEqual([403, "ability_off"]);
+    });
+  });
+
+  describe("Pay", () => {
+    it("answers the redemption and balance, and a repeat Pay the same with replayed", async () => {
+      const s = await sell();
+      const sale = await saleOf(s);
+      const paid = await pay(s, sale);
+      const [redemption] = await redemptionsOf(s.buyer.id);
+      expect(paid.json()).toEqual({
+        status: "accepted",
+        redemptionId: redemption?.id,
+        balance: 900,
+        replayed: false,
+      });
+      const again = await pay(s, sale);
+      expect(again.statusCode).toBe(200);
+      expect(again.json()).toEqual({
+        status: "accepted",
+        redemptionId: redemption?.id,
+        balance: 900,
+        replayed: true,
+      });
+      expect(await redemptionsOf(s.buyer.id)).toHaveLength(1);
+    });
+
+    it("is sale_gone when the operator lost hand_over after the offer, and takes nothing", async () => {
+      const s = await sell();
+      const sale = await saleOf(s);
+      const other = await newOperator(s.event);
+      await owner("UPDATE staff_assignment SET abilities = '{}' WHERE player_id = $1", [s.desk.id]);
+      expect(answer(await pay(s, sale))).toEqual([410, "sale_gone"]);
+      const seen = await app(
+        "GET",
+        `/v1/operator/desk/sales/${sale}`,
+        other.token,
+        undefined,
+        null,
+      );
+      expect(seen.json()).toMatchObject({ status: "withdrawn", reason: null });
+      expect(await redemptionsOf(s.buyer.id)).toHaveLength(0);
+    });
+  });
+
+  describe("My QR's offer", () => {
+    it("keeps an Arabic-only desk place and rules, and the event's and reward's words", async () => {
+      const s = await sell();
+      await owner(
+        `UPDATE event SET name_ar = 'event-ar', desk_location_en = NULL, desk_location_ar = 'desk-ar',
+                          shop_rules_ar = 'rules-ar' WHERE id = $1`,
+        [s.event],
+      );
+      await owner("UPDATE reward SET name_ar = 'hoodie-ar' WHERE id = $1", [s.reward]);
+      const sale = await saleOf(s);
+      expect(await mine(s)).toEqual([
+        {
+          id: sale,
+          eventId: s.event,
+          event: { ar: "event-ar", en: "Desk Fest" },
+          kind: "item",
+          name: { ar: "hoodie-ar", en: "Hoodie" },
+          price: 100,
+          offerUntil: expect.any(String),
+          balanceAfter: 900,
+          desk: { ar: "desk-ar", en: null },
+          rules: { ar: "rules-ar", en: null },
+          justBought: false,
+        },
+      ]);
+    });
+
+    it("shows no desk place and no rules when the event has none", async () => {
+      const event = await newEvent();
+      await owner("UPDATE event SET desk_location_en = NULL WHERE id = $1", [event]);
+      const s: Sell = {
+        event,
+        desk: await newOperator(event),
+        buyer: await newPlayer(event),
+        reward: await newReward(event, "experience"),
+      };
+      await saleOf(s);
+      expect(await mine(s)).toMatchObject([{ kind: "experience", desk: null, rules: null }]);
+    });
+  });
+
+  describe("the sale's functions, called directly", () => {
+    it("answers a scan that cannot be served as a refused result, and logs a bad code", async () => {
+      const s = await sell();
+      const base = { operatorId: s.desk.id, eventId: s.event };
+      expect(await saleRewards(deskDeps(), { ...base, code: "nope" })).toEqual({
+        kind: "refused",
+        reason: "invalid_code",
+      });
+      const old = myCode(MY_KEY, s.buyer.id, 2);
+      expect(await saleRewards(deskDeps(), { ...base, code: old })).toEqual({
+        kind: "refused",
+        reason: "old_code",
+      });
+      const log = vi.fn();
+      const request = { ...base, code: "nope", rewardId: s.reward, idempotencyKey: randomUUID() };
+      expect(await offerSale(deskDeps(), request, callerWith(log))).toEqual({
+        kind: "refused",
+        reason: "invalid_code",
+      });
+      expect(log.mock.calls).toEqual([
+        ["desk.sale_refused", { reason: "invalid_code", problem: "not_questify" }],
+      ]);
+    });
+
+    it("logs an offer, its repeat and a Pay with ids and flags only", async () => {
+      const s = await sell();
+      const log = vi.fn();
+      const caller = callerWith(log);
+      const request = {
+        operatorId: s.desk.id,
+        eventId: s.event,
+        code: s.buyer.code,
+        rewardId: s.reward,
+        idempotencyKey: randomUUID(),
+      };
+      const made = await offerSale(deskDeps(), request, caller);
+      const again = await offerSale(deskDeps(), request, caller);
+      const sale = made.kind === "done" ? made.value.id : "";
+      expect(made).toMatchObject({ kind: "done", value: { replayed: false } });
+      expect(again).toMatchObject({ kind: "done", value: { id: sale, replayed: true } });
+      const pays = { playerId: s.buyer.id, saleId: sale };
+      expect(await acceptSale(deskDeps(), pays, caller)).toMatchObject({ replayed: false });
+      expect(await acceptSale(deskDeps(), pays, caller)).toMatchObject({ replayed: true });
+      expect(log.mock.calls).toEqual([
+        ["desk.sale_offered", { saleId: sale, replayed: "false" }],
+        ["desk.sale_offered", { saleId: sale, replayed: "true" }],
+        ["desk.sale_paid", { saleId: sale, status: "accepted", replayed: "false" }],
+        ["desk.sale_paid", { saleId: sale, status: "accepted", replayed: "true" }],
+      ]);
+    });
+
+    it("answers Not now true once and false when the offer had already ended", async () => {
+      const s = await sell();
+      const request = { playerId: s.buyer.id, saleId: await saleOf(s) };
+      expect(await declineSale(deskDeps(), request)).toBe(true);
+      expect(await declineSale(deskDeps(), request)).toBe(false);
+    });
+
+    it("throws a database error it does not map as it came, and maps a refusal without a detail", async () => {
+      const request = { operatorId: randomUUID(), saleId: "not-a-uuid" };
+      await expect(saleState(deskDeps(), request)).rejects.toMatchObject({ code: "22P02" });
+      const pool = {
+        connect: () => Promise.reject(Object.assign(new Error("refused"), { code: "RA403" })),
+      } as unknown as Pool;
+      await expect(
+        saleState({ ...deskDeps(), pool }, { ...request, saleId: randomUUID() }),
+      ).rejects.toMatchObject({
+        status: 403,
+        envelope: { code: "enrollment_inactive", details: { reason: "" } },
+      });
     });
   });
 });
