@@ -1,12 +1,32 @@
 @font-face {
   font-family: "Baloo Bhaijaan 2";
-  src: url("fonts/BalooBhaijaan2-Variable.ttf") format("truetype");
-  font-weight: 400 800;
+  src: url("fonts/BalooBhaijaan2-Bold.ttf") format("truetype");
+  font-weight: 700;
+}
+@font-face {
+  font-family: "Baloo Bhaijaan 2";
+  src: url("fonts/BalooBhaijaan2-ExtraBold.ttf") format("truetype");
+  font-weight: 800;
 }
 @font-face {
   font-family: "Rubik";
-  src: url("fonts/Rubik-Variable.ttf") format("truetype");
-  font-weight: 300 900;
+  src: url("fonts/Rubik-Regular.ttf") format("truetype");
+  font-weight: 400;
+}
+@font-face {
+  font-family: "Rubik";
+  src: url("fonts/Rubik-Medium.ttf") format("truetype");
+  font-weight: 500;
+}
+@font-face {
+  font-family: "Rubik";
+  src: url("fonts/Rubik-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+}
+@font-face {
+  font-family: "Rubik";
+  src: url("fonts/Rubik-Bold.ttf") format("truetype");
+  font-weight: 700;
 }
 
 :root {
@@ -24,6 +44,7 @@
   --cream: #fff5e1;
   --paper: #fffaf0;
   --rim: #c98f4e;
+  --title-gold: #ffd65a;
   --display: "Baloo Bhaijaan 2", "Rubik", sans-serif;
   --body: "Rubik", sans-serif;
 }
@@ -77,20 +98,17 @@ img {
   position: absolute;
 }
 
-/* gold display lettering, after the brand deck: screens.js turns each .gt into SVG text
-   (outline, drop and gradient fill) so the PDF keeps it as vector type */
+/* display titles: one layer of solid type, gold on wood and deep brown on light grounds */
 .gt {
   display: inline-block;
   font-family: var(--display);
   font-weight: 800;
   line-height: 1.1;
   white-space: nowrap;
-  vertical-align: middle;
+  color: var(--title-gold);
 }
-svg.gold {
-  display: inline-block;
-  vertical-align: middle;
-  overflow: visible;
+.gt.dark {
+  color: var(--wood-dk);
 }
 
 /* inner page header: wooden sign */
@@ -108,9 +126,9 @@ svg.gold {
   padding-bottom: 4px;
 }
 .sign .gt {
-  font-size: 34px;
-  --sw: 5px;
-  --sd: 3px;
+  font-size: 36px;
+  line-height: 1;
+  padding-top: 6px;
 }
 .lede {
   position: absolute;
@@ -127,8 +145,7 @@ svg.gold {
 }
 .vine-tl,
 .vine-tr,
-.vine-br,
-.vine-bl {
+.vine-br {
   position: absolute;
   width: 210px;
   pointer-events: none;
@@ -146,11 +163,6 @@ svg.gold {
   right: -14px;
   bottom: -12px;
   transform: rotate(180deg);
-}
-.vine-bl {
-  left: -14px;
-  bottom: -12px;
-  transform: scaleY(-1);
 }
 
 .foot {
@@ -192,7 +204,7 @@ svg.gold {
   box-shadow:
     0 0 0 2px #b88a52,
     0 0 0 4px #3a2614,
-    0 34px 50px -18px rgba(30, 14, 2, 0.65);
+    0 10px 0 -2px rgba(58, 38, 20, 0.35);
   position: relative;
   flex: none;
 }
@@ -366,17 +378,12 @@ svg.gold {
   font-family: var(--display);
   font-weight: 800;
   font-size: 18px;
-  color: #fffaf0;
-  text-shadow:
-    0 2px 0 #9a5b10,
-    0 0 3px #9a5b10;
+  color: var(--wood-xdk);
   flex: none;
 }
 .ribbon.green {
   background-image: url("assets/ui-ribbon-green.png");
-  text-shadow:
-    0 2px 0 #2c6e22,
-    0 0 3px #2c6e22;
+  color: #fff;
   width: 170px;
   height: 38px;
   font-size: 15px;
@@ -385,9 +392,7 @@ svg.gold {
   background: linear-gradient(#fffcf3, #fff3d9);
   border: 2px solid var(--rim);
   border-radius: 14px;
-  box-shadow:
-    0 2px 0 #9c6631,
-    inset 0 0 0 2px #fff0c9;
+  box-shadow: 0 2px 0 #9c6631;
 }
 .btn {
   font-family: var(--display);
@@ -399,18 +404,16 @@ svg.gold {
   line-height: 1;
 }
 .btn.go {
-  background: linear-gradient(#94de7c, #55ad47);
+  background: linear-gradient(#4fa843, #2f7f28);
   box-shadow:
-    0 3px 0 #2f7a27,
-    inset 0 2px 0 rgba(255, 255, 255, 0.45);
-  text-shadow: 0 1px 0 #2f7a27;
+    0 3px 0 #1f5c1a,
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
 }
 .btn.claim {
-  background: linear-gradient(#7cc4f3, #3b93d6);
+  background: linear-gradient(#3d8fd0, #23689f);
   box-shadow:
-    0 3px 0 #1f5f94,
-    inset 0 2px 0 rgba(255, 255, 255, 0.45);
-  text-shadow: 0 1px 0 #1f5f94;
+    0 3px 0 #164a75,
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
 }
 .pts {
   display: inline-flex;
@@ -448,13 +451,12 @@ svg.gold {
   position: absolute;
   left: 14px;
   top: 14px;
-  width: 150px;
+  width: 160px;
+  z-index: 1;
 }
 .hero .t .gt {
-  font-size: 21px;
+  font-size: 19px;
   white-space: normal;
-  --sw: 4px;
-  --sd: 2px;
   line-height: 1.05;
 }
 .hero .chip {
@@ -511,7 +513,7 @@ svg.gold {
   height: 10px;
   border-radius: 6px;
   background: #e9d2a6;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.15);
   margin-top: 4px;
   overflow: hidden;
 }
@@ -643,9 +645,7 @@ svg.gold {
 .qrow.flash {
   border-color: #ff7a3d;
   background: linear-gradient(#fff4e6, #ffe2c4);
-  box-shadow:
-    0 2px 0 #b8501f,
-    inset 0 0 0 2px #fff0dc;
+  box-shadow: 0 2px 0 #b8501f;
 }
 .flashtag {
   display: inline-block;
@@ -686,7 +686,7 @@ svg.gold {
 }
 .scan-title span {
   font-size: 12px;
-  opacity: 0.85;
+  color: #e6d3b0;
 }
 .viewfinder {
   position: relative;
@@ -713,8 +713,7 @@ svg.gold {
   right: 22px;
   top: 82px;
   height: 3px;
-  background: linear-gradient(90deg, transparent, #ffd65a, #fff7c8, #ffd65a, transparent);
-  box-shadow: 0 0 12px 3px rgba(255, 200, 80, 0.75);
+  background: linear-gradient(90deg, #ffd65a00, #ffd65a, #fff7c8, #ffd65a, #ffd65a00);
 }
 .sheet {
   position: absolute;
@@ -739,9 +738,7 @@ svg.gold {
   justify-content: flex-start !important;
 }
 .sheet .gt {
-  font-size: 20px;
-  --sw: 4px;
-  --sd: 3px;
+  font-size: 21px;
 }
 .sheet .plus {
   display: flex;
@@ -821,9 +818,7 @@ svg.gold {
 .pod .blk {
   margin-top: 4px;
   border-radius: 8px 8px 0 0;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.25)),
-    url("assets/tex-wood-planks.jpg") 0 0 / 200px;
+  background: linear-gradient(180deg, #a5672e, #6e4019);
   border: 2px solid #e3a63a;
   border-bottom: 0;
   display: flex;
@@ -839,7 +834,6 @@ svg.gold {
   font-size: 24px;
   line-height: 1;
   color: var(--gold);
-  text-shadow: 0 2px 0 var(--wood-xdk);
 }
 .pod .blk .pts {
   color: #ffe9b0;
@@ -884,9 +878,7 @@ svg.gold {
 .rrow.me {
   border-color: #3f8f36;
   background: linear-gradient(#f1fbe9, #d8f2c9);
-  box-shadow:
-    0 2px 0 #2f7a27,
-    inset 0 0 0 2px #f6fff0;
+  box-shadow: 0 2px 0 #2f7a27;
 }
 .gap {
   text-align: center;
@@ -904,9 +896,7 @@ svg.gold {
   overflow: hidden;
   flex: none;
   border-color: #3f8f36;
-  box-shadow:
-    0 2px 0 #2f7a27,
-    inset 0 0 0 2px #f6fff0;
+  box-shadow: 0 2px 0 #2f7a27;
 }
 .ticket .l {
   flex: 1;
@@ -1003,7 +993,6 @@ svg.gold {
   border-color: #d4b98a;
   box-shadow: 0 3px 0 #b4956a;
   color: #8a6a44;
-  text-shadow: none;
 }
 
 /* ============ browser windows (dashboard) ============ */
@@ -1013,7 +1002,7 @@ svg.gold {
   background: #fff5e1;
   box-shadow:
     0 0 0 1.5px #b88a52,
-    0 24px 40px -18px rgba(40, 18, 2, 0.55);
+    0 6px 0 -1px rgba(90, 58, 26, 0.25);
   position: relative;
 }
 .chrome {
@@ -1270,7 +1259,6 @@ svg text {
   background: linear-gradient(160deg, #2c2c2c, #0b0b0b);
   border-radius: 10px;
   padding: 9px;
-  box-shadow: 0 22px 36px -16px rgba(40, 18, 2, 0.6);
 }
 .tv .stand {
   width: 130px;
@@ -1293,9 +1281,20 @@ svg text {
 }
 
 /* ============ diagram (page 2) ============ */
-.stop {
+.trail {
+  left: 0;
+  top: 216px;
+}
+.stops {
   position: absolute;
-  width: 170px;
+  left: 56px;
+  right: 56px;
+  top: 170px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+.stop {
   text-align: center;
 }
 .medal {
@@ -1307,8 +1306,8 @@ svg text {
   border: 5px solid #e3a63a;
   box-shadow:
     0 0 0 3px #8b5a2b,
-    0 10px 18px -6px rgba(80, 40, 5, 0.5),
-    inset 0 -6px 10px rgba(180, 110, 30, 0.25);
+    0 5px 0 0 rgba(90, 50, 10, 0.3),
+    inset 0 -5px 0 rgba(200, 130, 40, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1341,19 +1340,26 @@ svg text {
 .stop h3 {
   font-family: var(--display);
   font-weight: 800;
-  font-size: 23px;
+  font-size: 21px;
   color: var(--wood-dk);
-  margin-top: 12px;
-  line-height: 1.05;
+  margin-top: 14px;
+  line-height: 1.1;
+  white-space: nowrap;
 }
 .stop p {
   font-size: 13px;
   color: var(--ink-2);
   margin-top: 4px;
   line-height: 1.35;
+  padding: 0 6px;
 }
 .woodband {
   position: absolute;
+  left: 56px;
+  right: 56px;
+  top: 440px;
+  height: 212px;
+  padding: 20px 30px;
   border-radius: 20px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.25)),
@@ -1361,7 +1367,7 @@ svg text {
   border: 4px solid #e3a63a;
   box-shadow:
     0 0 0 3px #5a3414,
-    0 16px 26px -12px rgba(50, 20, 0, 0.6);
+    0 6px 0 0 rgba(70, 40, 10, 0.3);
   color: #fff3d8;
 }
 
@@ -1370,7 +1376,7 @@ svg text {
   position: absolute;
   left: 34px;
   right: 34px;
-  top: 150px;
+  top: 170px;
   display: flex;
   justify-content: space-between;
 }
@@ -1417,12 +1423,6 @@ svg text {
   margin-top: 3px;
   line-height: 1.35;
   padding: 0 4px;
-}
-.arrow {
-  position: absolute;
-  top: 330px;
-  width: 30px;
-  height: 30px;
 }
 
 /* ============ captions ============ */
@@ -1496,7 +1496,7 @@ svg text {
   gap: 22px;
 }
 .cpanel {
-  background: rgba(255, 252, 244, 0.92);
+  background: #fffcf4;
   border: 2px solid #d9b77f;
   border-radius: 16px;
   padding: 16px 20px 12px;
@@ -1519,20 +1519,6 @@ svg text {
   font-size: 12.5px;
   color: var(--ink-2);
 }
-.stamp {
-  flex: none;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #a33a22;
-  border: 1.5px dashed #a33a22;
-  border-radius: 6px;
-  padding: 4px 8px;
-  text-transform: uppercase;
-  background: #fff3ea;
-  text-align: center;
-  line-height: 1.3;
-}
 
 /* ============ closing ============ */
 .gets {
@@ -1547,14 +1533,12 @@ svg text {
 .get {
   text-align: center;
   padding: 18px 16px 20px;
-  background:
-    linear-gradient(rgba(255, 250, 238, 0.9), rgba(255, 240, 210, 0.92)),
-    url("assets/tex-parchment.jpg") 0 0 / 400px;
+  background: linear-gradient(#fffaee, #fff0d2);
   border: 4px solid #e3a63a;
   border-radius: 20px;
   box-shadow:
     0 0 0 3px #4a2c14,
-    0 18px 28px -12px rgba(0, 0, 0, 0.6);
+    0 8px 0 0 rgba(20, 8, 0, 0.35);
 }
 .get .medal {
   width: 104px;
@@ -1578,13 +1562,25 @@ svg text {
   margin-top: 6px;
   line-height: 1.4;
 }
-.ain {
+.closing {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 506px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+}
+.closing p {
   font-family: var(--display);
   font-weight: 800;
-  font-size: 52px;
-  color: var(--wood-dk);
-  line-height: 1;
-  padding-top: 12px;
+  font-size: 32px;
+  line-height: 1.1;
+  color: #fff3d8;
+}
+.closing img {
+  height: 110px;
 }
 
 /* ============ page-specific pieces ============ */
@@ -1596,7 +1592,7 @@ svg text {
   border-radius: 24px;
   background: linear-gradient(#3a210c, #26150a);
   border: 2px solid #e8b04a;
-  box-shadow: 0 6px 12px -4px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
   font-family: var(--display);
   font-weight: 800;
   font-size: 18px;
@@ -1630,11 +1626,29 @@ svg text {
   line-height: 1.1;
   margin-bottom: 2px;
 }
+.wb-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.wb-head img {
+  width: 50px;
+}
+.wb-head .gt {
+  font-size: 32px;
+  padding-top: 4px;
+}
+.orggrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 22px;
+  margin-top: 16px;
+}
 .qtypes {
   position: absolute;
   left: 56px;
   right: 56px;
-  top: 716px;
+  top: 684px;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -1659,18 +1673,6 @@ svg text {
   color: var(--wood-dk);
   padding-left: 0;
 }
-.joincard {
-  left: 20px;
-  top: 420px;
-  width: 172px;
-  padding: 10px 12px 12px;
-  transform: rotate(-4deg);
-  box-shadow:
-    0 3px 0 #9c6631,
-    inset 0 0 0 2px #fff0c9,
-    0 18px 24px -10px rgba(60, 30, 5, 0.55);
-  z-index: 5;
-}
 .codebox {
   display: flex;
   gap: 4px;
@@ -1691,33 +1693,85 @@ svg text {
   color: var(--wood-xdk);
   padding-top: 2px;
 }
-.contact {
-  display: inline-flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 16px;
-  padding: 12px 28px;
-  border-radius: 16px;
-  background:
-    linear-gradient(rgba(255, 250, 238, 0.92), rgba(255, 240, 210, 0.94)),
-    url("assets/tex-parchment.jpg") 0 0 / 400px;
-  border: 3px solid #e3a63a;
-  box-shadow:
-    0 0 0 3px #4a2c14,
-    0 14px 22px -10px rgba(0, 0, 0, 0.6);
-  font-size: 17px;
-  font-weight: 500;
-  color: var(--ink);
+
+/* ============ cover ============ */
+.cover-tag {
+  margin-top: 26px;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 46px;
+  line-height: 1.08;
+  color: var(--title-gold);
 }
-.contact .cl {
+.cover-sub {
+  margin-top: 12px;
+  max-width: 470px;
+  font-size: 18px;
+  line-height: 1.45;
+  color: #fff3d8;
+}
+
+/* ============ join screen ============ */
+.joinbox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 14px 14px 16px;
+  flex: none;
+}
+.joinbox > img {
+  width: 64px;
+}
+.joinbox > b {
+  margin-top: 6px;
   font-family: var(--display);
   font-weight: 800;
   font-size: 19px;
-  color: var(--wood);
+  color: var(--wood-dk);
 }
-.contact i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #e3a63a;
+.joinbox > .muted {
+  font-size: 11.5px;
+}
+.joinbox .codebox {
+  align-self: stretch;
+  margin-top: 12px;
+}
+.joinbox .btn {
+  align-self: stretch;
+  margin-top: 12px;
+  padding: 10px 0;
+  font-size: 17px;
+}
+.ordiv {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  flex: none;
+}
+.ordiv i {
+  flex: 1;
+  height: 1.5px;
+  background: #d9b77f;
+}
+.evprev {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  flex: none;
+}
+.evprev > img {
+  width: 48px;
+  flex: none;
+}
+.evprev .tt b {
+  display: block;
+  font-size: 14px;
+}
+.evprev .tt span {
+  font-size: 11px;
 }

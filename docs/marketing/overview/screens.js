@@ -34,7 +34,7 @@ const statusBar = () => `
 const appBar = (coins = "1,250") => `
   <div class="appbar">${statusBar()}
     <div class="approw"><img class="logo" src="${A("logo-wordmark-en")}" alt="Questify">
-      <span class="coinpill"><img src="${A("icon-coin-star")}" alt="">${coins}</span></div></div>`;
+      ${coins ? `<span class="coinpill"><img src="${A("icon-coin-star")}" alt="">${coins}</span>` : ""}</div></div>`;
 
 const TABS = [
   ["home", "icon-home", "Home"],
@@ -57,10 +57,27 @@ const pts = (v, cls = "") =>
   `<span class="pts ${cls}"><img src="${A("icon-coin-star")}" alt="">${v}</span>`;
 
 const SCREENS = {
+  join: () => `${appBar(null)}
+    <div class="content">
+      <div class="ribbon">Join an event</div>
+      <div class="card joinbox">
+        <img src="${A("icon-key")}" alt="">
+        <b>Enter the event code</b>
+        <span class="muted">It is on the event poster and your ticket.</span>
+        <div class="codebox"><span>N</span><span>J</span><span>D</span><span>7</span><span>2</span><span>6</span></div>
+        <div class="btn go">Join the event</div>
+      </div>
+      <div class="ordiv"><i></i>or<i></i></div>
+      <div class="card qcard"><img src="${A("icon-scan")}" alt="">
+        <div class="tt"><b>Scan the event poster</b><span class="muted">Opens the event straight away</span></div></div>
+      <div class="card evprev"><img src="${A("event-festival")}" alt="">
+        <div class="tt"><b>Najd Innovation Fest</b><span class="muted">Today · Riyadh · 2,450 players</span></div></div>
+    </div>${navBar("home")}`,
+
   home: () => `${appBar()}
     <div class="content">
       <div class="hero"><img src="${A("ill-quest-stage")}" alt="">
-        <div class="t"><span class="gt" data-lines="Najd|Innovation Fest">Najd Innovation Fest</span></div>
+        <div class="t"><span class="gt dark">Najd<br>Innovation<br>Fest</span></div>
         <span class="chip">Day 1 · Riyadh</span></div>
       <div class="card player">${avatar("falcon")}
         <div class="xp"><div class="n"><span>Sara</span><span class="muted" style="font-size:11.5px">Level 7</span></div>
@@ -117,7 +134,7 @@ const SCREENS = {
       <img class="burst" src="${A("pt-coin-front")}" style="right:40px;bottom:320px;width:30px" alt="">
       <img class="burst" src="${A("orn-sparkle")}" style="right:80px;bottom:360px;width:22px" alt="">
       <div class="card sheet"><div class="sheetrow"><img class="cel" src="${A("cel-quest-complete")}" alt="">
-        <div><span class="gt">Quest complete!</span>
+        <div><span class="gt dark">Quest complete!</span>
         <div class="plus"><img src="${A("icon-coin-star")}" alt="">+50 points</div>
         <div class="muted" style="font-size:12px">Find the main stage</div></div></div>
         <div class="btn go">Continue</div></div>
@@ -183,12 +200,12 @@ function renderPhones() {
 const chromeBar = (label) =>
   `<div class="chrome"><i></i><i></i><i></i><span class="url">${label}</span></div>`;
 const dashHead = () => `<div class="dhead"><img src="${A("logo-wordmark-en")}" alt="Questify"><span class="sep"></span>Dashboard
-  <span class="nav"><span>العربية</span><span>Home</span><span>My account</span></span></div>`;
+  <span class="nav"><span>Home</span><span>My account</span></span></div>`;
 const side = (on) => {
   const groups = [
-    ["Najd Events Co", ["Events", "Team", "Event overview"]],
-    ["During the event", ["Control room", "Players", "Big screen", "Announcements", "Help desk"]],
-    ["Review", ["Analytics", "Submissions", "Flagged activity"]],
+    ["Najd Events Co", ["Events", "Event overview"]],
+    ["During the event", ["Control room", "Players", "Big screen", "Help desk"]],
+    ["Review", ["Analytics", "Submissions"]],
   ];
   return `<div class="dside">${groups
     .map(
@@ -309,7 +326,7 @@ function analytics() {
 
 function builder() {
   return `${chromeBar("Questify dashboard · Event builder")}
-    <img src="assets/shot-event-builder.png" alt="Questify dashboard, event builder" style="width:100%">`;
+    <img src="assets/shot-event-builder.jpg" alt="Questify dashboard, event builder" style="width:100%">`;
 }
 
 function bigScreen() {
@@ -325,11 +342,11 @@ function bigScreen() {
   const podium = (a, f, nm, p, rank, size, top) => `
     <div style="position:absolute;left:${top[0]}px;top:${top[1]}px;width:210px;text-align:center">
       ${avatar(a, f, size)}
-      <div style="font-family:var(--display);font-weight:800;font-size:${rank === 1 ? 40 : 32}px;color:#fff3d8;margin-top:6px;line-height:1;text-shadow:0 3px 6px rgba(0,0,0,.85)">${nm}</div>
-      <div style="display:flex;justify-content:center;align-items:center;gap:8px;font-family:var(--display);font-weight:800;font-size:30px;color:var(--gold);text-shadow:0 3px 6px rgba(0,0,0,.85)"><img src="${A("icon-coin-star")}" style="width:30px" alt="">${p}</div></div>`;
+      <div style="font-family:var(--display);font-weight:800;font-size:${rank === 1 ? 40 : 32}px;color:#fff3d8;margin-top:6px;line-height:1">${nm}</div>
+      <div style="display:flex;justify-content:center;align-items:center;gap:8px;font-family:var(--display);font-weight:800;font-size:30px;color:var(--gold)"><img src="${A("icon-coin-star")}" style="width:30px" alt="">${p}</div></div>`;
   return `<div class="big">
     <img src="${A("logo-wordmark-en")}" style="position:absolute;left:44px;top:34px;height:74px" alt="Questify">
-    <div style="position:absolute;left:0;right:0;top:30px;text-align:center"><span class="gt" style="font-size:66px;--sw:8px;--sd:5px">Live ranking</span></div>
+    <div style="position:absolute;left:0;right:0;top:30px;text-align:center"><span class="gt" style="font-size:66px">Live ranking</span></div>
     <div style="position:absolute;right:46px;top:46px;text-align:right;font-size:22px;font-weight:600">Najd Innovation Fest<br><span class="live" style="font-size:18px;margin-top:8px">LIVE</span></div>
     <img src="${A("pt-star-burst")}" style="position:absolute;left:175px;top:150px;width:280px;opacity:.35" alt="">
     <img src="${A("icon-crown")}" style="position:absolute;left:278px;top:132px;width:74px;z-index:2" alt="">
@@ -404,57 +421,6 @@ function boothChart() {
 }
 
 
-/* ---------- gold lettering as SVG text ---------- */
-const SVGNS = "http://www.w3.org/2000/svg";
-function goldify() {
-  document.querySelectorAll(".gt").forEach((el, i) => {
-    const cs = getComputedStyle(el);
-    const size = parseFloat(cs.fontSize);
-    const sw = parseFloat(cs.getPropertyValue("--sw")) || 6;
-    const sd = parseFloat(cs.getPropertyValue("--sd")) || 4;
-    const rtl = el.closest("[dir=rtl]") !== null;
-    const lines = (el.dataset.lines || el.textContent).split("|");
-    const svg = document.createElementNS(SVGNS, "svg");
-    svg.setAttribute("class", "gold");
-    svg.innerHTML = `<defs><linearGradient id="gg${i}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0.08" stop-color="#fff3b0"/><stop offset="0.42" stop-color="#ffd65a"/>
-      <stop offset="0.72" stop-color="#ffb43a"/><stop offset="1" stop-color="#f0901e"/></linearGradient></defs>`;
-    const mk = (fill, stroke, dy) => {
-      const t = document.createElementNS(SVGNS, "text");
-      t.setAttribute("font-family", cs.fontFamily);
-      t.setAttribute("font-weight", "800");
-      t.setAttribute("font-size", size);
-      t.setAttribute("fill", fill);
-      if (rtl) t.setAttribute("direction", "rtl");
-      if (stroke) {
-        t.setAttribute("stroke", stroke);
-        t.setAttribute("stroke-width", sw * 2);
-        t.setAttribute("stroke-linejoin", "round");
-      }
-      lines.forEach((line, k) => {
-        const s = document.createElementNS(SVGNS, "tspan");
-        s.setAttribute("x", 0);
-        s.setAttribute("y", k * size * 1.02 + dy);
-        s.textContent = line;
-        t.appendChild(s);
-      });
-      svg.appendChild(t);
-      return t;
-    };
-    mk("#2a170a", "#2a170a", sd);
-    mk("#2a170a", "#2a170a", 0);
-    const top = mk(`url(#gg${i})`, null, 0);
-    el.replaceWith(svg);
-    const b = top.getBBox();
-    const pad = sw;
-    const vb = [b.x - pad, b.y - pad, b.width + pad * 2, b.height + pad * 2 + sd];
-    svg.setAttribute("viewBox", vb.join(" "));
-    svg.setAttribute("width", vb[2]);
-    svg.setAttribute("height", vb[3]);
-    svg.style.margin = `${-pad}px`;
-  });
-}
-
 function fill(id, html) {
   const el = document.getElementById(id);
   if (!el) throw new Error(`overview: missing slot #${id}`);
@@ -468,13 +434,6 @@ fill("eb", builder());
 fill("bs", bigScreen());
 fill("funnel", funnelChart());
 fill("booths", boothChart());
-document.querySelectorAll("[data-qr]").forEach((el) => {
-  el.innerHTML = qr(Number(el.dataset.qr), 23);
-});
-Promise.all([
-  document.fonts.load('800 40px "Baloo Bhaijaan 2"', "Questify حوّل"),
-  document.fonts.load('400 16px "Rubik"', "Questify"),
-]).then(() => {
-  goldify();
+Promise.all([...document.fonts].map((face) => face.load())).then(() => {
   document.body.dataset.ready = "1";
 });
