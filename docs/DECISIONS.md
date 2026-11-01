@@ -6180,7 +6180,7 @@ switch); the dashboard preview uses made-up players; not run on a phone (layout 
 
 ## ADR-397 - T-612 prize reservation On or Off: Off sells desk rewards at the desk, paid by the player's own Pay
 
-**Status:** Proposed (T-612 builder, 2026-11-01; plan `docs/plans/2026-11-01-t-612-desk-redeem.md`, plan review 88 folded). Builds FR-1834
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-01; plan review 88, code review 93 GO; was: T-612 builder, 2026-11-01; plan `docs/plans/2026-11-01-t-612-desk-redeem.md`, plan review 88 folded). Builds FR-1834
 with ADR-137. Migration 0107.
 **Decision:** (1) **An event column, not a feature key.** `event.reservation_on` (default true) is a mode of the shop, set by the owner or an
 editor through the shop settings door (`PUT …/events/{id}/shop`, `reservation`), audited in `event.shop.update`, any status but archived.

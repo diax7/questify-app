@@ -1744,4 +1744,4 @@ My QR scan (later the wallet pass), not the name or phone search. (d) Turning Of
 and the dashboard's confirmation names how many are still held. (e) The desk sells only while reservation is Off. (f) No push for an
 offer. (g) The desk sees whether the player can buy each reward ("Not enough points", "Reached the limit", "Sold out"), never their balance.
 The offer card names the desk's place. Questions for Dhia: is the player's Pay the confirmation you want (a), and should digital rewards
-also move to the desk when Off (b)? Not run on a phone: please try Offer and Pay with two phones at a rehearsal.
+also move to the desk when Off (b)? Not run on a phone: please try Offer and Pay with two phones at a rehearsal. **Decided (developer, delegated by Dhia, 2026-11-01):** a to g as recommended: (a) rests on ADR-137, which Dhia accepted; (b) digital rewards stay in the app (the desk cannot hand over a code). ADR-397 accepted after the code review (93 GO). The two-phone rehearsal check stays with Dhia.
