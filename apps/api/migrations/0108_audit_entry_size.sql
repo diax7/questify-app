@@ -3,6 +3,8 @@
 -- their limits in both languages a layout is about 100 KB, so 0006's 64 KiB check refused the save (a 500). The cap stays:
 -- an entry is still bounded, only wider than the largest layout. No new table or function, so nothing new to close; the
 -- table's row-level security, grants and append-only rules are those of 0006. 0006 is deployed and untouched.
+-- Re-adding a check scans the whole table under its lock; a busy table fails the migration fast instead of stalling writes.
+SET LOCAL lock_timeout = '10s';
 ALTER TABLE audit_log DROP CONSTRAINT audit_log_before_check;
 ALTER TABLE audit_log DROP CONSTRAINT audit_log_after_check;
 ALTER TABLE audit_log ADD CONSTRAINT audit_log_before_check CHECK (pg_column_size(before) < 262144);
