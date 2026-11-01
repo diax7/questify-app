@@ -79,6 +79,25 @@ export {
   readHomeContent,
   sameContent,
 } from "./layout/home-content";
+export type {
+  Contact,
+  ContactKind,
+  CustomPage,
+  FaqEntry,
+  InfoContent,
+  PageBlock,
+  PageBlockKind,
+} from "./layout/info-content";
+export {
+  CONTACTS_MAX,
+  CONTACT_KINDS,
+  FAQ_MAX,
+  INFO_LIMITS,
+  LIST_ITEMS_MAX,
+  PAGE_BLOCKS_MAX,
+  PAGE_BLOCK_KINDS,
+  listItems,
+} from "./layout/info-content";
 export type { CardLayout, EventLooks, RankingLayout, RankingScores } from "./layout/looks";
 export {
   CARD_LAYOUTS,
@@ -96,6 +115,8 @@ export type {
   HomeBlock,
   HomeBlockDefinition,
   HomeKey,
+  InfoSection,
+  InfoSectionDefinition,
   LayoutList,
 } from "./layout/layout";
 export {
@@ -106,12 +127,16 @@ export {
   HOME_BLOCKS,
   HOME_KEYS,
   HOME_PROTECTED,
+  INFO_KEYS,
+  INFO_PROTECTED,
+  INFO_SECTIONS,
   MAX_BAR_SLOTS,
   PROTECTED_TABS,
   barScreenOrder,
   composedLayoutOf,
   homeBlocks,
   homeKeysOf,
+  infoSections,
   readComposedLayout,
   readEventLayout,
   sameLayout,

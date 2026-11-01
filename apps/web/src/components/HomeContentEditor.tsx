@@ -16,61 +16,21 @@ import {
   type QuickLink,
   type TextCard,
 } from "@questify/shared";
-import type { ReactNode } from "react";
+import { EntryList, type EntryNames } from "#src/components/EntryList.tsx";
 import {
   ActionPicker,
+  EditorSection,
   TextPair,
   type EditorContext,
   type PickOption,
 } from "#src/components/HomeContentFields.tsx";
+import { PageEditor } from "#src/components/PageEditor.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import { emptyLink, emptySlide, moveWithin } from "#src/lib/home-content-editor.ts";
+import { emptyLink, emptySlide } from "#src/lib/home-content-editor.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Field, Input, Select } from "#src/ui/Field.tsx";
-import { IconButton } from "#src/ui/IconControl.tsx";
-import { Card, Section, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 type EditorProps<T> = Readonly<{ value: T; onChange: (next: T) => void; context: EditorContext }>;
-
-/** Move earlier, move later and remove, for one entry of a list (a slide, a link). */
-function EntryTools({
-  context,
-  names,
-  n,
-  last,
-  onMove,
-  onRemove,
-}: Readonly<{
-  context: EditorContext;
-  names: Readonly<{
-    earlier: "layout.slide.earlier" | "layout.link.earlier";
-    later: "layout.slide.later" | "layout.link.later";
-    remove: "layout.slide.remove" | "layout.link.remove";
-  }>;
-  n: number;
-  last: boolean;
-  onMove: (step: -1 | 1) => void;
-  onRemove: () => void;
-}>) {
-  const t = useTranslator(context.language);
-  return (
-    <Toolbar>
-      <IconButton
-        icon="arrowUp"
-        label={t(names.earlier, { n })}
-        disabled={n === 1}
-        onClick={() => onMove(-1)}
-      />
-      <IconButton
-        icon="arrowDown"
-        label={t(names.later, { n })}
-        disabled={last}
-        onClick={() => onMove(1)}
-      />
-      <IconButton icon="trash" label={t(names.remove, { n })} onClick={onRemove} />
-    </Toolbar>
-  );
-}
 
 function SlideEditor({ value, onChange, context }: EditorProps<BannerSlide>) {
   return (
@@ -136,70 +96,16 @@ function LinkEditor({ value, onChange, context }: EditorProps<QuickLink>) {
   );
 }
 
-/** A list of entries with the same editor each, up to a limit, with add, move and remove. */
-function EntryList<T>({
-  context,
-  entries,
-  limit,
-  title,
-  names,
-  addLabel,
-  make,
-  onChange,
-  children,
-}: Readonly<{
-  context: EditorContext;
-  entries: readonly T[];
-  limit: number;
-  title: "layout.slide" | "layout.link";
-  names: Parameters<typeof EntryTools>[0]["names"];
-  addLabel: "layout.slide.add" | "layout.link.add";
-  make: () => T;
-  onChange: (next: T[]) => void;
-  children: (entry: T, replace: (next: T) => void) => ReactNode;
-}>) {
-  const t = useTranslator(context.language);
-  return (
-    <>
-      {entries.map((entry, index) => (
-        // The entries have no id and keep their order, so the position is their identity.
-        // oxlint-disable-next-line react/no-array-index-key
-        <Card key={index} as="section" aria-label={t(title, { n: index + 1 })}>
-          <SubHeading>{t(title, { n: index + 1 })}</SubHeading>
-          {children(entry, (next) =>
-            onChange(entries.map((item, position) => (position === index ? next : item))),
-          )}
-          <EntryTools
-            context={context}
-            names={names}
-            n={index + 1}
-            last={index === entries.length - 1}
-            onMove={(step) => onChange(moveWithin(entries, index, step))}
-            onRemove={() => onChange(entries.filter((_item, position) => position !== index))}
-          />
-        </Card>
-      ))}
-      {entries.length < limit ? (
-        <Toolbar>
-          <Button variant="secondary" onClick={() => onChange([...entries, make()])}>
-            {t(addLabel)}
-          </Button>
-        </Toolbar>
-      ) : null}
-    </>
-  );
-}
-
-const SLIDE_NAMES = {
+const SLIDE_NAMES: EntryNames = {
   earlier: "layout.slide.earlier",
   later: "layout.slide.later",
   remove: "layout.slide.remove",
-} as const;
-const LINK_NAMES = {
+};
+const LINK_NAMES: EntryNames = {
   earlier: "layout.link.earlier",
   later: "layout.link.later",
   remove: "layout.link.remove",
-} as const;
+};
 
 function FeaturedEditor({ value, onChange, context }: EditorProps<HomeContent["featured"]>) {
   const t = useTranslator(context.language);
@@ -342,9 +248,9 @@ function CardEditor({
 }
 
 /**
- * The editor of one Home block that holds the organizer's own words (FR-1828 to FR-1830): the banner's slides, the quick
- * links, the featured item, or one card. It edits the page's draft, so the preview redraws as the organizer types, and nothing
- * is saved until Save layout.
+ * The editor of one Home block that holds the organizer's own words (FR-1828 to FR-1830, FR-1835): the banner's slides, the quick
+ * links, the featured item, one card, or the extra page. It edits the page's draft, so the preview redraws as the organizer
+ * types, and nothing is saved until Save layout.
  */
 export function HomeContentEditor({
   blockKey,
@@ -352,6 +258,7 @@ export function HomeContentEditor({
   content,
   context,
   onChange,
+  onRemovePage,
   onClose,
 }: Readonly<{
   blockKey: HomeKey;
@@ -359,27 +266,28 @@ export function HomeContentEditor({
   content: HomeContent;
   context: EditorContext;
   onChange: (next: HomeContent) => void;
+  onRemovePage: () => void;
   onClose: () => void;
 }>) {
   const t = useTranslator(context.language);
+  const { language } = context;
   return (
-    <Section
-      title={t("layout.editing", { item: title })}
-      actions={
-        <Button variant="quiet" onClick={onClose}>
-          {t("layout.closeEditor")}
-        </Button>
-      }
-    >
+    <EditorSection language={language} title={title} onClose={onClose}>
       {blockKey === "banner" ? (
         <EntryList
-          context={context}
+          language={language}
           entries={content.banner}
           limit={BANNER_SLIDES_MAX}
-          title="layout.slide"
+          heading={(_slide, n) => t("layout.slide", { n })}
           names={SLIDE_NAMES}
-          addLabel="layout.slide.add"
-          make={emptySlide}
+          footer={
+            <Button
+              variant="secondary"
+              onClick={() => onChange({ ...content, banner: [...content.banner, emptySlide()] })}
+            >
+              {t("layout.slide.add")}
+            </Button>
+          }
           onChange={(banner) => onChange({ ...content, banner })}
         >
           {(slide, replace) => <SlideEditor value={slide} onChange={replace} context={context} />}
@@ -387,13 +295,21 @@ export function HomeContentEditor({
       ) : null}
       {blockKey === "quickLinks" ? (
         <EntryList
-          context={context}
+          language={language}
           entries={content.quickLinks}
           limit={QUICK_LINKS_MAX}
-          title="layout.link"
+          heading={(_link, n) => t("layout.link", { n })}
           names={LINK_NAMES}
-          addLabel="layout.link.add"
-          make={emptyLink}
+          footer={
+            <Button
+              variant="secondary"
+              onClick={() =>
+                onChange({ ...content, quickLinks: [...content.quickLinks, emptyLink()] })
+              }
+            >
+              {t("layout.link.add")}
+            </Button>
+          }
           onChange={(quickLinks) => onChange({ ...content, quickLinks })}
         >
           {(link, replace) => <LinkEditor value={link} onChange={replace} context={context} />}
@@ -406,6 +322,14 @@ export function HomeContentEditor({
           context={context}
         />
       ) : null}
+      {blockKey === "page" ? (
+        <PageEditor
+          language={language}
+          page={content.page}
+          onChange={(page) => onChange({ ...content, page })}
+          onRemove={onRemovePage}
+        />
+      ) : null}
       {isCardKey(blockKey) ? (
         <CardEditor
           cardId={blockKey.slice("card:".length)}
@@ -414,6 +338,6 @@ export function HomeContentEditor({
           context={context}
         />
       ) : null}
-    </Section>
+    </EditorSection>
   );
 }

@@ -7,9 +7,11 @@ import {
   type MessageKey,
   type TapAction,
 } from "@questify/shared";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { useTranslator } from "#src/components/TermsScope.tsx";
+import { Button } from "#src/ui/Button.tsx";
 import { Field, FieldGroup, Input, Select, Textarea } from "#src/ui/Field.tsx";
+import { Section } from "#src/ui/Section.tsx";
 
 /** What the quest and reward pickers offer: an id and the name the organizer knows it by. */
 export type PickOption = Readonly<{ id: string; label: string }>;
@@ -29,7 +31,32 @@ type TextField = Extract<
   | "layout.field.body"
   | "layout.field.label"
   | "layout.field.message"
+  | "layout.field.question"
+  | "layout.field.answer"
+  | "layout.field.items"
 >;
+
+/** The section a block's editor sits in, under its list: the block's name and a button to close it. */
+export function EditorSection({
+  language,
+  title,
+  onClose,
+  children,
+}: Readonly<{ language: Language; title: string; onClose: () => void; children: ReactNode }>) {
+  const t = useTranslator(language);
+  return (
+    <Section
+      title={t("layout.editing", { item: title })}
+      actions={
+        <Button variant="quiet" onClick={onClose}>
+          {t("layout.closeEditor")}
+        </Button>
+      }
+    >
+      {children}
+    </Section>
+  );
+}
 
 /** The Arabic and English boxes of one text, side by side when there is room. */
 export function TextPair({

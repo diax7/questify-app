@@ -247,8 +247,48 @@ function Ranking({ preview, language }: ScreenProps) {
   );
 }
 
+/** The event info page, its sections in the layout's order (T-613). */
+function Info({ preview, language }: ScreenProps) {
+  const t = useTranslator(language);
+  return (
+    <Phone title={t("eventHome.info")} active="index" preview={preview} language={language}>
+      <h3 className={styles.screenTitle}>{t("eventHome.info")}</h3>
+      <ul className={styles.lines} aria-label={t("layout.info")}>
+        {preview.info.map(({ section, title, lines }) => (
+          <li key={section} className={styles.line}>
+            <span>{t(title)}</span>
+            {lines.length === 0 ? null : <span className={styles.muted}>{lines.join(" · ")}</span>}
+          </li>
+        ))}
+      </ul>
+    </Phone>
+  );
+}
+
+/** The one extra page the organizer added: its title, then one line for each part. */
+function ExtraPage({ preview, language }: ScreenProps) {
+  const t = useTranslator(language);
+  if (preview.page === null) {
+    return null;
+  }
+  return (
+    <Phone title={t("layout.block.page")} active="index" preview={preview} language={language}>
+      <h3 className={styles.screenTitle}>{preview.page.title}</h3>
+      <ul className={styles.lines} aria-label={preview.page.title}>
+        {preview.page.lines.map((line, index) => (
+          // The lines are plain text with no id and keep their order, so the position is their identity.
+          // oxlint-disable-next-line react/no-array-index-key
+          <li key={`${index}:${line}`} className={styles.line}>
+            <span>{line}</span>
+          </li>
+        ))}
+      </ul>
+    </Phone>
+  );
+}
+
 /** The screens the layout page can show beside the editor. */
-export type PreviewScreen = "home" | "ranking" | "quests" | "rewards";
+export type PreviewScreen = "home" | "info" | "page" | "ranking" | "quests" | "rewards";
 
 /**
  * One of the player's screens with its bar, redrawn from the unsaved draft as the organizer arranges it (T-606, T-611): Home,
@@ -264,6 +304,8 @@ export function ScreenPreview({
   return (
     <div className={styles.phones} style={look}>
       {screen === "home" ? <Home {...props} /> : null}
+      {screen === "info" ? <Info {...props} /> : null}
+      {screen === "page" ? <ExtraPage {...props} /> : null}
       {screen === "ranking" ? <Ranking {...props} /> : null}
       {screen === "quests" ? <Quests {...props} /> : null}
       {screen === "rewards" ? <Shop {...props} /> : null}
@@ -281,6 +323,8 @@ export function PreviewScreens({ preview, language }: ScreenProps) {
   return (
     <div className={styles.phones} style={look}>
       <Home preview={preview} language={language} />
+      <Info preview={preview} language={language} />
+      <ExtraPage preview={preview} language={language} />
       <Ranking preview={preview} language={language} />
       <Quests preview={preview} language={language} />
       <Shop preview={preview} language={language} />

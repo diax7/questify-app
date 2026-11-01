@@ -27,6 +27,7 @@ export type HomeBlock =
   | "podium"
   | "upNext"
   | "quickLinks"
+  | "page"
   | "links";
 
 /** A place in the Home order: one of Questify's blocks, or one of the organizer's cards (`card:<id>`, T-610). */
@@ -73,7 +74,48 @@ export const HOME_BLOCKS: readonly HomeBlockDefinition[] = [
   block("podium", { features: ["ranking"], offByDefault: true }),
   block("upNext"),
   block("quickLinks"),
+  block("page"),
   block("links", { protected: true }),
+];
+
+/** The sections of the event info page, by the name the layout stores (T-613, FR-1835). */
+export type InfoSection = "about" | "venue" | "when" | "schedule" | "faq" | "contacts" | "rules";
+
+export type InfoSectionDefinition = Readonly<{
+  section: InfoSection;
+  title: MessageKey;
+  /** The section is drawn while any of these event switches is on; with none listed it has no switch. */
+  features: readonly string[];
+  /** Never hidden by a layout: the official rules a prize promotion must show (FR-1707, ADR-165). */
+  protected: boolean;
+  /** Hidden until the organizer shows it, so a section added later never appears on a live event by itself. */
+  offByDefault: boolean;
+}>;
+
+const section = (
+  name: InfoSection,
+  options: Partial<Pick<InfoSectionDefinition, "features" | "protected" | "offByDefault">> = {},
+): InfoSectionDefinition => ({
+  section: name,
+  title: `layout.info.${name}.title`,
+  features: options.features ?? [],
+  protected: options.protected ?? false,
+  offByDefault: options.offByDefault ?? false,
+});
+
+/**
+ * The info page's sections in the order it draws them by default. A section with nothing to say (no About text, no questions,
+ * no contacts, no venue) draws nothing, so an event that wrote nothing looks as the page always did. The schedule link starts
+ * hidden: the page never gains a link by itself.
+ */
+export const INFO_SECTIONS: readonly InfoSectionDefinition[] = [
+  section("about"),
+  section("venue"),
+  section("when"),
+  section("schedule", { features: ["agenda"], offByDefault: true }),
+  section("faq"),
+  section("contacts"),
+  section("rules", { protected: true }),
 ];
 
 /** A bar never holds more than this many slots (FR-1750). */
@@ -98,6 +140,8 @@ export type LayoutList<K extends string> = Readonly<{
 export type EventLayout = Readonly<{
   bar: LayoutList<PlayerTab>;
   home: LayoutList<HomeKey>;
+  /** The info page's sections: their order and the ones hidden (T-613). */
+  info: LayoutList<InfoSection>;
   content: HomeContent;
   looks: EventLooks;
 }>;
@@ -106,6 +150,8 @@ export type EventLayout = Readonly<{
 export type ComposedLayout = Readonly<{
   bar: readonly PlayerTab[];
   home: readonly HomeKey[];
+  /** The info page's sections that are shown, in order. */
+  info: readonly InfoSection[];
   /** The content of the blocks that are shown; a hidden block's draft never reaches a phone. */
   content: HomeContent;
   /** How the ranking, Quests and Rewards screens are drawn (T-611); the screens' own switches still decide whether they exist. */
@@ -114,6 +160,13 @@ export type ComposedLayout = Readonly<{
 
 export const BAR_KEYS: readonly PlayerTab[] = PLAYER_TABS.map((entry) => entry.tab);
 export const HOME_KEYS: readonly HomeBlock[] = HOME_BLOCKS.map((entry) => entry.block);
+export const INFO_KEYS: readonly InfoSection[] = INFO_SECTIONS.map((entry) => entry.section);
+export const INFO_PROTECTED: ReadonlySet<InfoSection> = new Set(
+  INFO_SECTIONS.filter((entry) => entry.protected).map((entry) => entry.section),
+);
+const INFO_OFF_BY_DEFAULT: ReadonlySet<InfoSection> = new Set(
+  INFO_SECTIONS.filter((entry) => entry.offByDefault).map((entry) => entry.section),
+);
 export const BAR_PROTECTED: ReadonlySet<PlayerTab> = new Set(PROTECTED_TABS);
 export const HOME_PROTECTED: ReadonlySet<HomeBlock> = new Set(
   HOME_BLOCKS.filter((entry) => entry.protected).map((entry) => entry.block),
@@ -132,6 +185,7 @@ export const homeKeysOf = (content: HomeContent): readonly HomeKey[] => [
 export const DEFAULT_LAYOUT: EventLayout = {
   bar: { order: BAR_KEYS, hidden: [] },
   home: { order: HOME_KEYS, hidden: HOME_KEYS.filter((key) => HOME_OFF_BY_DEFAULT.has(key)) },
+  info: { order: INFO_KEYS, hidden: INFO_KEYS.filter((key) => INFO_OFF_BY_DEFAULT.has(key)) },
   content: EMPTY_CONTENT,
   looks: DEFAULT_LOOKS,
 };
@@ -183,6 +237,7 @@ export function readEventLayout(stored: unknown): EventLayout {
   return {
     bar: repairList(source["bar"], BAR_KEYS, BAR_PROTECTED, new Set()),
     home: repairList(source["home"], homeKeysOf(content), HOME_PROTECTED, HOME_OFF_BY_DEFAULT),
+    info: repairList(source["info"], INFO_KEYS, INFO_PROTECTED, INFO_OFF_BY_DEFAULT),
     content,
     looks: readLooks(source["looks"]),
   };
@@ -191,23 +246,36 @@ export function readEventLayout(stored: unknown): EventLayout {
 const shownOf = <K extends string>(list: LayoutList<K>): K[] =>
   list.order.filter((key) => !list.hidden.includes(key));
 
-/** The content of the blocks that are shown: a hidden block's text is a draft and stays on the server. */
-function shownContent(content: HomeContent, home: readonly HomeKey[]): HomeContent {
+/**
+ * The content of the blocks and info sections that are shown: a hidden block's or section's text is a draft and stays on the
+ * server. A hidden Home link to the custom page takes the page with it.
+ */
+function shownContent(
+  content: HomeContent,
+  home: readonly HomeKey[],
+  info: readonly InfoSection[],
+): HomeContent {
   return {
     banner: home.includes("banner") ? content.banner : [],
     quickLinks: home.includes("quickLinks") ? content.quickLinks : [],
     featured: home.includes("featured") ? content.featured : null,
     cards: content.cards.filter((card) => home.includes(cardKey(card.id))),
+    about: info.includes("about") ? content.about : EMPTY_CONTENT.about,
+    faq: info.includes("faq") ? content.faq : [],
+    contacts: info.includes("contacts") ? content.contacts : [],
+    page: home.includes("page") ? content.page : null,
   };
 }
 
 /** The layout as the app receives it: only what is shown, in order, with the content of what is shown. */
 export function composedLayoutOf(layout: EventLayout): ComposedLayout {
   const home = shownOf(layout.home);
+  const info = shownOf(layout.info);
   return {
     bar: shownOf(layout.bar),
     home,
-    content: shownContent(layout.content, home),
+    info,
+    content: shownContent(layout.content, home, info),
     looks: layout.looks,
   };
 }
@@ -244,6 +312,7 @@ export function readComposedLayout(received: unknown): ComposedLayout {
       HOME_PROTECTED,
       DEFAULT_COMPOSED_LAYOUT.home,
     ),
+    info: readShown(source["info"], INFO_KEYS, INFO_PROTECTED, DEFAULT_COMPOSED_LAYOUT.info),
     content,
     looks: readLooks(source["looks"]),
   };
@@ -264,6 +333,20 @@ export function homeBlocks(
 }
 
 /**
+ * The info page's sections a player sees, in the layout's order: a section whose event switches are all off stays hidden
+ * whatever the layout says. The app's info page and the dashboard's preview both read this.
+ */
+export function infoSections(
+  featureOn: (feature: string) => boolean,
+  shown: readonly InfoSection[] = DEFAULT_COMPOSED_LAYOUT.info,
+): readonly InfoSection[] {
+  return shown.filter((name) => {
+    const features = INFO_SECTIONS.find((entry) => entry.section === name)?.features ?? [];
+    return features.length === 0 || features.some(featureOn);
+  });
+}
+
+/**
  * The order the event's tab screens are registered in: the shown tabs in the layout's order, then the rest, which stay
  * registered but have no bar item (a hidden tab's screen is still a route).
  */
@@ -279,6 +362,7 @@ export function sameLayout(a: EventLayout, b: EventLayout): boolean {
   return (
     sameList(a.bar, b.bar) &&
     sameList(a.home, b.home) &&
+    sameList(a.info, b.info) &&
     sameContent(a.content, b.content) &&
     sameLooks(a.looks, b.looks)
   );

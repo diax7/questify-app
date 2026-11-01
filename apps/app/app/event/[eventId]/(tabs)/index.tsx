@@ -26,6 +26,7 @@ import { EventHomeStrips } from "#src/event/Announcements.tsx";
 import {
   BannerBlock,
   CountdownBlock,
+  CustomPageBlock,
   FeaturedBlock,
   PodiumBlock,
   QuickLinksBlock,
@@ -517,6 +518,8 @@ const BLOCKS: Readonly<Record<HomeBlock, (props: BlockProps) => ReactNode>> = {
     ended ? null : <UpNextCard eventId={home.event.id} upNext={home.upNext} />,
   quickLinks: ({ content, active }) =>
     active && content.quickLinks.length > 0 ? <QuickLinksBlock links={content.quickLinks} /> : null,
+  page: ({ content, admitted }) =>
+    admitted && content.page !== null ? <CustomPageBlock page={content.page} /> : null,
   links: ({ home, active }) => <LinkButtons eventId={home.event.id} active={active} />,
 };
 

@@ -1,4 +1,4 @@
-import { DEFAULT_LOOKS } from "@questify/shared";
+import { DEFAULT_LOOKS, INFO_KEYS } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import type { EventView } from "#src/lib/events.ts";
 import { featureLookup, previewOf } from "#src/lib/preview.ts";
@@ -383,5 +383,79 @@ describe("previewOf and how the screens are drawn (T-611)", () => {
     expect(rows).toHaveLength(8);
     expect(rows?.[0]).toEqual({ rank: 1, username: "sara", score: "1,240" });
     expect(previewOf({ ...EVENT, ranking: false }, [], [], "en").ranking).toBeNull();
+  });
+});
+
+const words = (en: string, ar = "") => ({ ar, en });
+
+describe("the event info page and the extra page in the preview (T-613)", () => {
+  const written = {
+    about: words("A day of games.", "يوم من الألعاب."),
+    faq: [
+      { question: words("Is parking free?"), answer: words("Yes") },
+      { question: words("Where?"), answer: words("Hall 2") },
+    ],
+    contacts: [{ label: words("Front desk"), kind: "phone", value: "0501234567" }],
+    page: {
+      title: words("Venue rules"),
+      blocks: [
+        { kind: "heading", text: words("Before you come") },
+        { kind: "list", items: words("ID card\nTicket") },
+      ],
+    },
+  };
+  const withInfo = (layout: Record<string, unknown> = {}, event: Partial<EventView> = {}) =>
+    previewOf({ ...EVENT, ...event, layout: { content: written, ...layout } }, [], [], "en");
+  const sections = (preview: ReturnType<typeof withInfo>) => preview.info.map((row) => row.section);
+
+  it("draws the sections the page has, in the default order, the schedule link off", () => {
+    expect(sections(withInfo())).toEqual(["about", "venue", "when", "faq", "contacts", "rules"]);
+  });
+
+  it("follows the order the organizer set and leaves out what is hidden", () => {
+    const order = ["rules", "faq", ...INFO_KEYS.filter((key) => key !== "rules" && key !== "faq")];
+    const preview = withInfo({ info: { order, hidden: ["when", "schedule"] } });
+    expect(sections(preview)).toEqual(["rules", "faq", "about", "venue", "contacts"]);
+  });
+
+  it("holds the lines each section draws", () => {
+    const rows = Object.fromEntries(withInfo().info.map((row) => [row.section, row.lines]));
+    expect(rows["about"]).toEqual(["A day of games."]);
+    expect(rows["venue"]).toEqual(["Riyadh"]);
+    expect(rows["faq"]).toEqual(["Is parking free?", "Where?"]);
+    expect(rows["contacts"]).toEqual(["Front desk"]);
+  });
+
+  it("leaves out a section with nothing to say, as the app does", () => {
+    const empty = withInfo({ content: { about: words(""), faq: [], contacts: [] } });
+    expect(sections(empty)).toEqual(["venue", "when", "rules"]);
+  });
+
+  it("draws the schedule link only while the agenda is on", () => {
+    const shown = { info: { order: INFO_KEYS, hidden: [] } };
+    expect(sections(withInfo(shown, { agenda: true }))).toContain("schedule");
+    expect(sections(withInfo(shown, { agenda: false }))).not.toContain("schedule");
+  });
+
+  it("draws the extra page with its title and parts, and its link on Home", () => {
+    const preview = withInfo();
+    expect(preview.page).toEqual({
+      title: "Venue rules",
+      lines: ["Before you come", "ID card", "Ticket"],
+    });
+    expect(preview.homeBlocks.find((entry) => entry.block === "page")?.lines).toEqual([
+      "Venue rules",
+    ]);
+  });
+
+  it("draws no page, and no link to it, while its Home link is hidden or the page is empty", () => {
+    const hidden = withInfo({
+      home: { order: ["page", "standing", "prizes", "links"], hidden: ["page"] },
+    });
+    expect(hidden.page).toBeNull();
+    expect(hidden.homeBlocks.some((entry) => entry.block === "page")).toBe(false);
+    expect(withInfo({ content: { page: null } }).page).toBeNull();
+    const untitled = { page: { title: words(""), blocks: written.page.blocks } };
+    expect(withInfo({ content: untitled }).page).toBeNull();
   });
 });

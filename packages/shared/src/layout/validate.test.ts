@@ -1,15 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_CONTENT } from "#src/layout/home-content";
-import { BAR_KEYS, HOME_KEYS } from "#src/layout/layout";
+import { BAR_KEYS, HOME_KEYS, INFO_KEYS } from "#src/layout/layout";
 import { DEFAULT_LOOKS } from "#src/layout/looks";
 import { LAYOUT_PRESETS } from "#src/layout/presets";
 import { validateLayoutRequest } from "#src/layout/validate";
 
 type Part = Partial<{ order: readonly string[]; hidden: readonly string[] }>;
 
-const body = (changes: { bar?: Part; home?: Part; content?: unknown; looks?: unknown }) => ({
+const body = (changes: {
+  bar?: Part;
+  home?: Part;
+  info?: Part;
+  content?: unknown;
+  looks?: unknown;
+}) => ({
   bar: { order: BAR_KEYS, hidden: [], ...changes.bar },
   home: { order: HOME_KEYS, hidden: [], ...changes.home },
+  info: { order: INFO_KEYS, hidden: [], ...changes.info },
   content: changes.content ?? EMPTY_CONTENT,
   looks: changes.looks ?? DEFAULT_LOOKS,
 });

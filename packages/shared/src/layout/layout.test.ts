@@ -23,7 +23,7 @@ describe("the default layout", () => {
   it("keeps the bar and Home in the order the app has always drawn", () => {
     expect(DEFAULT_LAYOUT.bar.order).toEqual(["index", "quests", "scan", "rewards", "profile"]);
     expect(HOME_KEYS.join()).toBe(
-      "banner,countdown,standing,streak,announcements,sponsors,prizes,live,goal,featured,ranking,podium,upNext,quickLinks,links",
+      "banner,countdown,standing,streak,announcements,sponsors,prizes,live,goal,featured,ranking,podium,upNext,quickLinks,page,links",
     );
     expect(DEFAULT_LAYOUT.bar.hidden).toEqual([]);
     expect(DEFAULT_LAYOUT.home.hidden).toEqual(["podium"]);
@@ -118,6 +118,7 @@ describe("readComposedLayout", () => {
     };
     expect(readComposedLayout(received)).toEqual({
       ...received,
+      info: DEFAULT_COMPOSED_LAYOUT.info,
       content: EMPTY_CONTENT,
       looks: DEFAULT_LOOKS,
     });

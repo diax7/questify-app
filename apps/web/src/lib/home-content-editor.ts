@@ -1,17 +1,23 @@
 import {
   HOME_BLOCKS,
   HOME_CARDS_MAX,
+  PAGE_BLOCKS_MAX,
   cardKey,
   checkHomeContent,
   type BannerSlide,
+  type Contact,
   type CountdownCard,
+  type CustomPage,
   type EventLayout,
+  type FaqEntry,
   type HomeCard,
   type HomeContent,
   type HomeKey,
   type Language,
   type LocalText,
   type MessageKey,
+  type PageBlock,
+  type PageBlockKind,
   type QuickLink,
   type TextCard,
 } from "@questify/shared";
@@ -42,6 +48,30 @@ export const emptyLink = (): QuickLink => ({
   icon: "star",
   action: { type: "agenda" },
 });
+
+export const emptyFaq = (): FaqEntry => ({ question: EMPTY_TEXT, answer: EMPTY_TEXT });
+
+export const emptyContact = (): Contact => ({ label: EMPTY_TEXT, kind: "phone", value: "" });
+
+export const emptyPage = (): CustomPage => ({
+  title: EMPTY_TEXT,
+  blocks: [emptyPart("text")],
+});
+
+/** A new, empty part of the extra page; it is not valid until the organizer writes in it. */
+export function emptyPart(kind: PageBlockKind): PageBlock {
+  switch (kind) {
+    case "heading":
+    case "text":
+      return { kind, text: EMPTY_TEXT };
+    case "list":
+      return { kind, items: EMPTY_TEXT };
+    default:
+      return { kind, label: EMPTY_TEXT, url: "" };
+  }
+}
+
+export const canAddPart = (page: CustomPage): boolean => page.blocks.length < PAGE_BLOCKS_MAX;
 
 export const newTextCard = (id: string): TextCard => ({
   id,
@@ -143,7 +173,22 @@ const PROBLEMS: readonly Problem[] = [
   { part: "cards", field: "label", key: "layout.problem.cardText" },
   { part: "cards", field: "at", key: "layout.problem.cardTime" },
   { part: "cards", field: "message", key: "layout.problem.cardMessage" },
+  { part: "faq", key: "layout.problem.faq" },
+  { part: "contacts", field: "label", key: "layout.problem.contactLabel" },
+  { part: "contacts", key: "layout.problem.contactValue" },
 ];
+
+/** What is wrong with the extra page, by where in it the server's check found it. */
+function pageProblem(path: readonly string[]): Readonly<{ key: MessageKey; n: number }> {
+  const [, , scope, position] = path;
+  if (scope === "title") {
+    return { key: "layout.problem.pageTitle", n: 1 };
+  }
+  if (scope === "blocks" && /^\d+$/.test(position ?? "")) {
+    return { key: "layout.problem.pagePart", n: Number(position) + 1 };
+  }
+  return { key: "layout.problem.pageEmpty", n: 1 };
+}
 
 /** What is wrong with the content, in the organizer's words: the first problem, or null when it can be saved. */
 export function contentProblem(
@@ -155,6 +200,9 @@ export function contentProblem(
     return null;
   }
   const [, part, position, field, detail] = issue.path.split(".");
+  if (part === "page") {
+    return pageProblem(issue.path.split("."));
+  }
   const rule = PROBLEMS.find(
     (entry) =>
       entry.part === part &&

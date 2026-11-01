@@ -1,6 +1,8 @@
 import {
   DEFAULT_LAYOUT,
+  EMPTY_CONTENT,
   HOME_CARDS_MAX,
+  PAGE_BLOCKS_MAX,
   composedLayoutOf,
   readEventLayout,
   type EventLayout,
@@ -11,8 +13,13 @@ import { describe, expect, it } from "vitest";
 import {
   addCard,
   canAddCard,
+  canAddPart,
   contentProblem,
+  emptyContact,
+  emptyFaq,
   emptyLink,
+  emptyPage,
+  emptyPart,
   emptySlide,
   homeLabel,
   moveWithin,
@@ -117,10 +124,7 @@ describe("homeLabel", () => {
 });
 
 const content = (changes: Partial<HomeContent>): HomeContent => ({
-  banner: [],
-  quickLinks: [],
-  featured: null,
-  cards: [],
+  ...EMPTY_CONTENT,
   ...changes,
 });
 const titled = { ...emptySlide(), title: { ar: "", en: "Hi" } };
@@ -189,5 +193,89 @@ describe("contentProblem", () => {
   it("a layout built by the editor reads back the same, and shows its content when its blocks are shown", () => {
     const layout = addCard(DEFAULT_LAYOUT, text("aaaaaa11", "Hello"));
     expect(composedLayoutOf(layout).content.cards).toHaveLength(1);
+  });
+});
+
+const words = (en: string) => ({ ar: "", en });
+const filledFaq = { question: words("Where?"), answer: words("Hall 2") };
+const filledContact = { label: words("Desk"), kind: "phone", value: "0501234567" } as const;
+const filledPage = {
+  title: words("Rules"),
+  blocks: [{ kind: "text", text: words("No bags") }],
+} as const;
+
+describe("the info page and the extra page", () => {
+  it("starts every new entry empty, so it cannot be saved until it is written", () => {
+    expect(contentProblem(content({ faq: [emptyFaq()] }))).toEqual({
+      key: "layout.problem.faq",
+      n: 1,
+    });
+    expect(contentProblem(content({ contacts: [emptyContact()] }))).toEqual({
+      key: "layout.problem.contactLabel",
+      n: 1,
+    });
+    expect(contentProblem(content({ page: emptyPage() }))).toEqual({
+      key: "layout.problem.pageTitle",
+      n: 1,
+    });
+  });
+
+  it("finds nothing wrong once the entries are written, and for no page at all", () => {
+    expect(
+      contentProblem(
+        content({
+          about: words("Hi"),
+          faq: [filledFaq],
+          contacts: [filledContact],
+          page: filledPage,
+        }),
+      ),
+    ).toBeNull();
+    expect(contentProblem(content({ page: null }))).toBeNull();
+  });
+
+  it.each([
+    [content({ faq: [filledFaq, emptyFaq()] }), "layout.problem.faq", 2],
+    [
+      content({ contacts: [{ ...filledContact, label: { ar: "", en: "" } }] }),
+      "layout.problem.contactLabel",
+      1,
+    ],
+    [
+      content({ contacts: [filledContact, { ...filledContact, value: "tel:123" }] }),
+      "layout.problem.contactValue",
+      2,
+    ],
+    [
+      content({ contacts: [{ ...filledContact, kind: "link", value: "http://a.example.com" }] }),
+      "layout.problem.contactValue",
+      1,
+    ],
+    [content({ page: { ...filledPage, title: words("") } }), "layout.problem.pageTitle", 1],
+    [content({ page: { ...filledPage, blocks: [] } }), "layout.problem.pageEmpty", 1],
+    [
+      content({ page: { ...filledPage, blocks: [filledPage.blocks[0], emptyPart("heading")] } }),
+      "layout.problem.pagePart",
+      2,
+    ],
+    [
+      content({ page: { ...filledPage, blocks: [emptyPart("link")] } }),
+      "layout.problem.pagePart",
+      1,
+    ],
+  ] as const)("says what to fix, and where, for %#", (draft, key, n) => {
+    expect(contentProblem(draft)).toEqual({ key, n });
+  });
+
+  it("makes a part of each kind, and stops offering parts at the limit", () => {
+    expect(
+      ["heading", "text", "list", "link"].map((kind) => emptyPart(kind as never).kind),
+    ).toEqual(["heading", "text", "list", "link"]);
+    const full = {
+      ...filledPage,
+      blocks: Array.from({ length: PAGE_BLOCKS_MAX }, () => emptyPart("text")),
+    };
+    expect(canAddPart(filledPage)).toBe(true);
+    expect(canAddPart(full)).toBe(false);
   });
 });

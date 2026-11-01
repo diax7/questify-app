@@ -7,6 +7,7 @@ import {
   DEFAULT_LOOKS,
   EMPTY_CONTENT,
   HOME_KEYS,
+  INFO_KEYS,
   LAYOUT_PRESETS,
   type ComposedLayout,
   type HomeContent,
@@ -21,6 +22,8 @@ import {
 import { pushFixture, type PushFixture } from "#test/support/push";
 import { TEST_DATABASE_URL } from "#test/support/test-db";
 
+const words = (en: string, ar = "") => ({ ar, en });
+
 const codeOf = (response: { statusCode: number; json: () => { code?: string } }) => [
   response.statusCode,
   response.json().code,
@@ -31,6 +34,7 @@ type Player = { id: string; token: string };
 const arranged = (looks: unknown) => ({
   bar: { order: BAR_KEYS, hidden: [] },
   home: { order: HOME_KEYS, hidden: ["podium"] },
+  info: { order: INFO_KEYS, hidden: ["schedule"] },
   content: EMPTY_CONTENT,
   looks,
 });
@@ -38,6 +42,7 @@ const arranged = (looks: unknown) => ({
 const custom = {
   bar: { order: ["rewards", "index", "scan", "quests", "profile"], hidden: ["quests"] },
   home: { order: HOME_KEYS.toReversed(), hidden: ["sponsors", "streak"] },
+  info: { order: INFO_KEYS, hidden: ["schedule"] },
   content: EMPTY_CONTENT,
   looks: DEFAULT_LOOKS,
 };
@@ -45,6 +50,7 @@ const custom = {
 const layoutWith = (content: unknown, hidden: string[] = ["podium"]) => ({
   bar: { order: BAR_KEYS, hidden: [] },
   home: { order: [...HOME_KEYS, "card:aaaaaa11", "card:bbbbbb22"], hidden },
+  info: { order: INFO_KEYS, hidden: ["schedule"] },
   content,
   looks: DEFAULT_LOOKS,
 });
@@ -180,6 +186,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event layout over HTTP", () =>
       ["the points and balance", "home", "standing"],
       ["prizes and results", "home", "prizes"],
       ["history and event info", "home", "links"],
+      ["the official rules", "info", "rules"],
     ] as const)(
       "refuses a layout that hides %s with 422 layout_item_protected, naming it, and stores nothing",
       async (_name, list, item) => {
@@ -187,9 +194,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event layout over HTTP", () =>
         const payload = {
           bar: { order: BAR_KEYS, hidden: [] },
           home: { order: HOME_KEYS, hidden: [] },
+          info: { order: INFO_KEYS, hidden: [] },
           content: EMPTY_CONTENT,
           looks: DEFAULT_LOOKS,
-          [list]: { order: list === "bar" ? BAR_KEYS : HOME_KEYS, hidden: [item] },
+          [list]: {
+            order: { bar: BAR_KEYS, home: HOME_KEYS, info: INFO_KEYS }[list],
+            hidden: [item],
+          },
         };
         for (const session of [owner, editor]) {
           const refused = await put(id, payload, session);
@@ -339,6 +350,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event layout over HTTP", () =>
         },
       ],
       featured: { kind: "reward", id: QUEST },
+      about: empty,
+      faq: [],
+      contacts: [],
+      page: null,
       cards: [
         { id: "aaaaaa11", kind: "text", title: empty, body: { ar: "", en: "Doors open at 9" } },
         {
@@ -499,6 +514,205 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event layout over HTTP", () =>
       expect(outside.json<{ layout: unknown }>().layout).toEqual(DEFAULT_COMPOSED_LAYOUT);
       for (const session of [other, stranger]) {
         const refused = await put(id, layoutWith(EMPTY_CONTENT), session);
+        expect([403, 404]).toContain(refused.statusCode);
+      }
+      expect(await eventView(id)).toMatchObject({ layout: { content: written } });
+    });
+  });
+
+  describe("the event info page and the extra page (T-613)", () => {
+    const written = {
+      ...EMPTY_CONTENT,
+      about: words("A day of games.", "يوم من الألعاب."),
+      faq: [{ question: words("Is parking free?"), answer: words("Yes, in lot B.") }],
+      contacts: [
+        { label: words("Front desk"), kind: "phone", value: "+966501234567" },
+        { label: words("Website"), kind: "link", value: "https://example.com/event" },
+      ],
+      page: {
+        title: words("Venue rules"),
+        blocks: [
+          { kind: "heading", text: words("Before you come") },
+          { kind: "list", items: words("ID card\nTicket") },
+          { kind: "link", label: words("Map"), url: "https://example.com/map" },
+        ],
+      },
+    };
+    const reordered = ["rules", "faq", "about", "venue", "when", "schedule", "contacts"];
+    const infoLayout = (
+      content: unknown = written,
+      info: { order: string[]; hidden: string[] } = { order: reordered, hidden: ["schedule"] },
+      home: { order: string[]; hidden: string[] } = { order: [...HOME_KEYS], hidden: ["podium"] },
+    ) => ({ bar: { order: BAR_KEYS, hidden: [] }, home, info, content, looks: DEFAULT_LOOKS });
+
+    it("stores what an owner or an editor wrote and the app gets the shown sections in order", async () => {
+      const { id, member } = await liveEvent();
+      for (const session of [owner, editor]) {
+        const saved = await put(id, infoLayout(), session);
+        expect(saved.statusCode).toBe(200);
+        expect(saved.json<{ layout: { content: HomeContent } }>().layout.content).toEqual(written);
+      }
+      const config = await appConfig(id, member);
+      expect(config.layout.info).toEqual(["rules", "faq", "about", "venue", "when", "contacts"]);
+      expect(config.layout.content).toMatchObject({
+        about: written.about,
+        faq: written.faq,
+        contacts: written.contacts,
+        page: written.page,
+      });
+      expect(await eventView(id)).toMatchObject({
+        layout: { info: { order: reordered, hidden: ["schedule"] }, content: written },
+      });
+    });
+
+    it("keeps the words of a hidden section and of a hidden page link on the server", async () => {
+      const { id, member } = await liveEvent();
+      const home = { order: [...HOME_KEYS], hidden: ["podium", "page"] };
+      await put(id, infoLayout(written, { order: reordered, hidden: ["about", "faq"] }, home));
+      const config = await appConfig(id, member);
+      expect(config.layout.info).not.toContain("about");
+      expect(config.layout.content).toMatchObject({ faq: [], page: null });
+      expect(JSON.stringify(config)).not.toContain("Is parking free");
+      expect(JSON.stringify(config)).not.toContain("Venue rules");
+      expect(await eventView(id)).toMatchObject({ layout: { content: written } });
+    });
+
+    it.each([
+      ["a section the page does not have", { order: [...INFO_KEYS, "poem"], hidden: [] }],
+      ["a section left out", { order: INFO_KEYS.slice(1), hidden: [] }],
+      ["a section listed twice", { order: [...INFO_KEYS, "faq"], hidden: [] }],
+    ])("refuses %s with 422 invalid_layout", async (_label, info) => {
+      const { id } = await liveEvent();
+      expect(codeOf(await put(id, infoLayout(written, info)))).toEqual([422, "invalid_layout"]);
+      expect(await eventView(id)).toMatchObject({ layout: DEFAULT_LAYOUT });
+    });
+
+    it("refuses a layout that leaves the info page out", async () => {
+      const { id } = await liveEvent();
+      const { info: _info, ...without } = infoLayout();
+      expect(codeOf(await put(id, without))).toEqual([422, "invalid_layout"]);
+    });
+
+    const contact = (kind: string, value: string) => ({ label: words("Desk"), kind, value });
+    const block = (change: Record<string, unknown>) => ({ ...written.page, ...change });
+    it.each([
+      ["a javascript link as a website", { contacts: [contact("link", "javascript:alert(1)")] }],
+      ["an http website", { contacts: [contact("link", "http://example.com")] }],
+      ["an email with a header in it", { contacts: [contact("email", "a%0d%0a@example.com")] }],
+      ["a phone that is a tel link", { contacts: [contact("phone", "tel:+966501234567")] }],
+      [
+        "a sixth contact",
+        { contacts: Array.from({ length: 6 }, () => contact("phone", "0501234567")) },
+      ],
+      ["a question with no answer", { faq: [{ question: words("Q"), answer: words("") }] }],
+      ["a field no entry has", { faq: [{ ...written.faq[0], html: "<b>x</b>" }] }],
+      ["an About text over its limit", { about: words("x".repeat(1001)) }],
+      ["a page with no title", { page: block({ title: words("") }) }],
+      ["a page with no part", { page: block({ blocks: [] }) }],
+      [
+        "a page with a video part",
+        { page: block({ blocks: [{ kind: "video", url: "https://example.com/v" }] }) },
+      ],
+      [
+        "a page with a picture on a part",
+        {
+          page: block({
+            blocks: [{ kind: "text", text: words("x"), image: "https://example.com/a.png" }],
+          }),
+        },
+      ],
+      [
+        "a page link over http",
+        {
+          page: block({
+            blocks: [{ kind: "link", label: words("Go"), url: "http://example.com" }],
+          }),
+        },
+      ],
+      [
+        "a page with thirteen parts",
+        {
+          page: block({
+            blocks: Array.from({ length: 13 }, () => ({ kind: "text", text: words("x") })),
+          }),
+        },
+      ],
+    ])("refuses %s with 422 invalid_layout and stores nothing", async (_label, change) => {
+      const { id } = await liveEvent();
+      const refused = await put(id, infoLayout({ ...written, ...change }));
+      expect(codeOf(refused)).toEqual([422, "invalid_layout"]);
+      expect(await eventView(id)).toMatchObject({ layout: DEFAULT_LAYOUT });
+    });
+
+    it("saves control characters cleaned, never a server error (a NUL fails the JSON write)", async () => {
+      const { id } = await liveEvent();
+      const dirty = {
+        ...written,
+        about: words("Doors\u0000 open\u200B at \u0669"),
+        faq: [{ question: words("Q\u0007?"), answer: words("A\u0000\u0085") }],
+        page: block({
+          title: words("Rules\u0000"),
+          blocks: [{ kind: "text", text: words("No\u001B bags") }],
+        }),
+      };
+      const saved = await put(id, infoLayout(dirty));
+      expect(saved.statusCode).toBe(200);
+      const { content } = saved.json<{ layout: { content: HomeContent } }>().layout;
+      expect(content.about.en).toBe("Doors open at 9");
+      expect(content.faq[0]).toEqual({ question: words("Q?"), answer: words("A") });
+      expect(content.page).toEqual({
+        title: words("Rules"),
+        blocks: [{ kind: "text", text: words("No bags") }],
+      });
+    });
+
+    it("keeps the info page's order and words when a preset is laid over the layout", async () => {
+      const { id } = await liveEvent();
+      await put(id, infoLayout());
+      const saved = await put(id, { preset: "essentials" });
+      expect(saved.statusCode).toBe(200);
+      const { layout } = saved.json<{
+        layout: { info: { order: string[] }; content: HomeContent };
+      }>();
+      expect(layout.info.order).toEqual(reordered);
+      expect(layout.content).toEqual(written);
+    });
+
+    it("reads damaged stored content safely: a bad entry or part is left out and the rest still shows", async () => {
+      const { id, member } = await liveEvent();
+      const damaged = {
+        ...infoLayout(),
+        info: { order: ["poem", "faq"], hidden: ["rules"] },
+        content: {
+          ...written,
+          faq: [{ question: 5 }, written.faq[0]],
+          contacts: [contact("link", "javascript:alert(1)"), written.contacts[0]],
+          page: block({ blocks: [{ kind: "video" }, written.page.blocks[0]] }),
+        },
+      };
+      await fixture.owner(
+        "UPDATE event SET config = jsonb_set(config, '{layout}', $2::jsonb, true) WHERE id = $1",
+        [id, JSON.stringify(damaged)],
+      );
+      const { layout } = await appConfig(id, member);
+      expect(layout.info).toContain("rules");
+      expect(layout.info).not.toContain("poem");
+      expect(layout.content.faq).toEqual(written.faq);
+      expect(layout.content.contacts).toEqual([written.contacts[0]]);
+      expect(layout.content.page?.blocks).toEqual([written.page.blocks[0]]);
+    });
+
+    it("gives nothing outside an event and refuses another organizer's save and a stranger's", async () => {
+      const { id } = await liveEvent();
+      await put(id, infoLayout());
+      const outside = await test.app.inject({ method: "GET", url: "/v1/config" });
+      expect(outside.json<{ layout: unknown }>().layout).toEqual(DEFAULT_COMPOSED_LAYOUT);
+      for (const session of [other, stranger]) {
+        const refused = await put(
+          id,
+          infoLayout(EMPTY_CONTENT, { order: [...INFO_KEYS], hidden: [] }),
+          session,
+        );
         expect([403, 404]).toContain(refused.statusCode);
       }
       expect(await eventView(id)).toMatchObject({ layout: { content: written } });

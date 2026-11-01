@@ -8,6 +8,8 @@ import { Tabs } from "#src/ui/Tabs.tsx";
 
 const TITLES: Readonly<Record<PreviewScreen, MessageKey>> = {
   home: "nav.home",
+  info: "eventHome.info",
+  page: "layout.block.page",
   ranking: "nav.ranking",
   quests: "nav.quests",
   rewards: "nav.rewards",
@@ -17,6 +19,8 @@ const TITLES: Readonly<Record<PreviewScreen, MessageKey>> = {
 export function screensOf(preview: EventPreview): readonly PreviewScreen[] {
   return [
     "home",
+    "info",
+    ...(preview.page === null ? [] : (["page"] as const)),
     ...(preview.ranking === null ? [] : (["ranking"] as const)),
     "quests",
     ...(preview.rewards === null ? [] : (["rewards"] as const)),

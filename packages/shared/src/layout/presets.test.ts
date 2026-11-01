@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { MESSAGES } from "#src/i18n/messages";
-import { BAR_PROTECTED, HOME_PROTECTED, readEventLayout, sameLayout } from "#src/layout/layout";
+import {
+  BAR_PROTECTED,
+  HOME_KEYS,
+  HOME_PROTECTED,
+  readEventLayout,
+  sameLayout,
+} from "#src/layout/layout";
 import { LAYOUT_PRESETS, applyPreset, matchingPreset, presetLayout } from "#src/layout/presets";
 import { validateLayoutRequest } from "#src/layout/validate";
 
@@ -68,6 +74,10 @@ describe("a preset laid over an event's layout (FR-1831)", () => {
     quickLinks: [],
     featured: null,
     cards: [card],
+    about: { ar: "", en: "Welcome" },
+    faq: [],
+    contacts: [],
+    page: null,
   } as const;
   const own = readEventLayout({
     home: {
@@ -98,7 +108,9 @@ describe("a preset laid over an event's layout (FR-1831)", () => {
       content,
     });
     const reset = applyPreset(moved, presetLayout("classic")!);
-    expect(reset.home.order.slice(0, 15)).toEqual(presetLayout("classic")!.home.order);
+    expect(reset.home.order.slice(0, HOME_KEYS.length)).toEqual(
+      presetLayout("classic")!.home.order,
+    );
     expect(reset.home.hidden).toEqual(["podium"]);
     expect(reset.content).toEqual(content);
   });

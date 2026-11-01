@@ -5,6 +5,8 @@ import {
   BAR_KEYS,
   BAR_PROTECTED,
   HOME_PROTECTED,
+  INFO_KEYS,
+  INFO_PROTECTED,
   MAX_BAR_SLOTS,
   homeKeysOf,
   type EventLayout,
@@ -16,6 +18,7 @@ const list = z.strictObject({ order: z.array(z.string()), hidden: z.array(z.stri
 const custom = z.strictObject({
   bar: list,
   home: list,
+  info: list,
   content: z.unknown(),
   looks: z.unknown(),
 });
@@ -96,8 +99,10 @@ function checkCustom(input: z.infer<typeof custom>): Validation<EventLayout> {
     ...slotIssues(input.bar.order),
     ...orderIssues("bar", input.bar.order, BAR_KEYS),
     ...orderIssues("home", input.home.order, homeKeysOf(content)),
+    ...orderIssues("info", input.info.order, INFO_KEYS),
     ...hiddenIssues("bar", input.bar, BAR_PROTECTED),
     ...hiddenIssues("home", input.home, HOME_PROTECTED),
+    ...hiddenIssues("info", input.info, INFO_PROTECTED),
   ];
   return issues.length > 0
     ? { ok: false, issues }
@@ -106,8 +111,8 @@ function checkCustom(input: z.infer<typeof custom>): Validation<EventLayout> {
 
 /**
  * Checks what an organizer saves as an event's layout (FR-1749, FR-1750, FR-1764, FR-1828 to FR-1831): either `{ preset }`,
- * one of the team's approved presets by name, or `{ bar, home, content, looks }`, each list an order that names every item
- * once and a hidden set, the content written for the Home blocks (cleaned and bounded) and the looks of the ranking, Quests
+ * one of the team's approved presets by name, or `{ bar, home, info, content, looks }`, each list an order that names every item
+ * once and a hidden set (`info` is the event info page's sections), the content written for Home and the info page (cleaned and bounded) and the looks of the ranking, Quests
  * and Rewards screens (every choice named, each one allowed). A layout that hides Home, the scan button,
  * Profile or a protected Home block, or that has more than five bar slots, is refused; an issue for a protected item carries
  * its name in `protectedItem`.

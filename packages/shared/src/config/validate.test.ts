@@ -227,7 +227,12 @@ describe("parseComposedConfig", () => {
       ok: true,
       config: {
         ...valid,
-        layout: { ...moved, content: DEFAULT_COMPOSED_LAYOUT.content, looks: DEFAULT_LOOKS },
+        layout: {
+          ...moved,
+          info: DEFAULT_COMPOSED_LAYOUT.info,
+          content: DEFAULT_COMPOSED_LAYOUT.content,
+          looks: DEFAULT_LOOKS,
+        },
       },
     });
   });

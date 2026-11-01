@@ -27,6 +27,7 @@ const arranged = (
     // Blocks that start off stay off in every preset, unless the preset lists them itself.
     hidden: [...new Set([...DEFAULT_LAYOUT.home.hidden, ...(home.hidden ?? [])])],
   },
+  info: DEFAULT_LAYOUT.info,
   content: DEFAULT_LAYOUT.content,
   looks: DEFAULT_LAYOUT.looks,
 });
@@ -74,6 +75,7 @@ export function applyPreset(current: EventLayout, preset: EventLayout): EventLay
       order: [...preset.home.order, ...current.home.order.filter(isCardKey)],
       hidden: [...preset.home.hidden, ...current.home.hidden.filter(isCardKey)],
     },
+    info: current.info,
     content: current.content,
     looks: current.looks,
   };

@@ -3,6 +3,7 @@ import {
   formatNumber,
   type BannerSlide,
   type CountdownCard,
+  type CustomPage,
   type FeaturedTarget,
   type QuickLink,
   type QuickLinkIcon,
@@ -34,6 +35,7 @@ import {
   type FeaturedView,
   type TapOutcome,
 } from "#src/event/home-content.ts";
+import { partViews } from "#src/event/info-page.ts";
 import { fetchQuests, type QuestsView } from "#src/event/quests-api.ts";
 import { fetchShop, type ShopView } from "#src/event/shop-api.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -41,7 +43,7 @@ import { textIn } from "#src/i18n/text.ts";
 import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
 
 /** Opens where a tap leads: a screen, one quest, or a web link after the player agrees to leave the app. */
-function useOpen(): (outcome: TapOutcome) => void {
+export function useOpen(): (outcome: TapOutcome) => void {
   const { t } = useI18n();
   const { eventId } = useEvent();
   return useCallback(
@@ -326,6 +328,37 @@ export function TextCardBlock({ card }: Readonly<{ card: TextCard }>) {
   );
 }
 
+/**
+ * The link to the organizer's one extra page (T-613, FR-1835): its title on a card that opens it. Nothing while the page has
+ * no title or nothing to show in the player's language, so a link never leads to an empty screen.
+ */
+export function CustomPageBlock({ page }: Readonly<{ page: CustomPage }>) {
+  const { language, rtl } = useI18n();
+  const { eventId } = useEvent();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const title = localIn(page.title, language);
+  if (title === "" || partViews(page, language).length === 0) {
+    return null;
+  }
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push(`/event/${eventId}/page`)}
+      style={[styles.card, styles.pageLink]}
+    >
+      <AppText variant="title" style={styles.pageTitle}>
+        {title}
+      </AppText>
+      <Ionicons
+        name={rtl ? "chevron-back" : "chevron-forward"}
+        size={24}
+        color={theme.colors.text}
+      />
+    </Pressable>
+  );
+}
+
 /** A countdown card (FR-1830): the time left, then at zero its message or nothing. */
 export function CountdownBlock({ card }: Readonly<{ card: CountdownCard }>) {
   const { t, language } = useI18n();
@@ -366,6 +399,8 @@ const makeStyles = (theme: Theme) => ({
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
   },
+  pageLink: { flexDirection: "row" as const, alignItems: "center" as const, gap: theme.spacing.md },
+  pageTitle: { flex: 1 },
   banner: { gap: theme.spacing.sm },
   slide: {
     gap: theme.spacing.xs,

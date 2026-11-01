@@ -5,12 +5,15 @@ import {
   HOME_BLOCKS,
   HOME_CARDS_MAX,
   HOME_PROTECTED,
+  INFO_PROTECTED,
+  INFO_SECTIONS,
   LAYOUT_PRESETS,
   PLAYER_TABS,
   applyPreset,
   cardKey,
   homeBlocks,
   homeKeysOf,
+  infoSections,
   matchingPreset,
   playerTabs,
   presetLayout,
@@ -19,6 +22,7 @@ import {
   type EventLayout,
   type HomeContent,
   type HomeKey,
+  type InfoSection,
   type Language,
   type MessageKey,
   type PlayerTab,
@@ -26,6 +30,7 @@ import {
 import { useMemo, useState } from "react";
 import { HomeContentEditor } from "#src/components/HomeContentEditor.tsx";
 import type { EditorContext, PickOption } from "#src/components/HomeContentFields.tsx";
+import { InfoContentEditor } from "#src/components/InfoContentEditor.tsx";
 import { ItemList, type LayoutItem } from "#src/components/LayoutItemList.tsx";
 import { LayoutPreviewPane } from "#src/components/LayoutPreviewPane.tsx";
 import type { PreviewScreen } from "#src/components/PreviewScreens.tsx";
@@ -63,6 +68,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const bodyOf = (layout: EventLayout) => ({
   bar: layout.bar,
   home: layout.home,
+  info: layout.info,
   content: layout.content,
   looks: layout.looks,
 });
@@ -71,7 +77,8 @@ const bodyOf = (layout: EventLayout) => ({
 function protectedName(item: unknown, t: (key: MessageKey) => string): string | undefined {
   const key =
     PLAYER_TABS.find((entry) => entry.tab === item)?.title ??
-    HOME_BLOCKS.find((entry) => entry.block === item)?.title;
+    HOME_BLOCKS.find((entry) => entry.block === item)?.title ??
+    INFO_SECTIONS.find((entry) => entry.section === item)?.title;
   return key === undefined ? undefined : t(key);
 }
 
@@ -132,7 +139,23 @@ function barItems(
 }
 
 /** The blocks that hold words or links the organizer writes: each gets an Edit button. */
-const EDITABLE_BLOCKS: ReadonlySet<HomeKey> = new Set(["banner", "quickLinks", "featured"]);
+const EDITABLE_BLOCKS: ReadonlySet<HomeKey> = new Set(["banner", "quickLinks", "featured", "page"]);
+
+/** The info page's sections that hold words the organizer writes: each gets an Edit button. */
+const EDITABLE_SECTIONS: ReadonlySet<InfoSection> = new Set(["about", "faq", "contacts"]);
+
+function infoItems(
+  t: (key: MessageKey) => string,
+  on: (feature: string) => boolean,
+): readonly LayoutItem<InfoSection>[] {
+  return INFO_SECTIONS.map((entry) => ({
+    key: entry.section,
+    label: t(entry.title),
+    isProtected: INFO_PROTECTED.has(entry.section),
+    switchedOff: infoSections(on, [entry.section]).length === 0,
+    editable: EDITABLE_SECTIONS.has(entry.section),
+  }));
+}
 
 function homeItems(
   t: (key: MessageKey) => string,
@@ -308,6 +331,17 @@ function useCardActions(
       },
     });
   };
+  const removePage = () => {
+    confirmation.ask({
+      title: t("layout.page.removeTitle"),
+      body: t("layout.page.removeBody"),
+      confirmLabel: t("layout.removeConfirm"),
+      run: () => {
+        edit({ ...draft, content: { ...draft.content, page: null } });
+        setEditing((open) => (open === "page" ? null : open));
+      },
+    });
+  };
   const reset = () => {
     confirmation.ask({
       title: t("layout.resetTitle"),
@@ -316,7 +350,7 @@ function useCardActions(
       run: () => state.pick("classic"),
     });
   };
-  return { add, remove, reset, dialog: confirmation.dialog };
+  return { add, remove, removePage, reset, dialog: confirmation.dialog };
 }
 
 /** What the page has to say about the draft: unfinished words, a refusal, or that it was saved. */
@@ -385,6 +419,7 @@ function Workspace({ source, ...ids }: Ids & Readonly<{ source: PreviewSource }>
   const state = useLayoutDraft(ids, source);
   const { draft, busy, edit } = state;
   const [editing, setEditing] = useState<HomeKey | null>(null);
+  const [editingInfo, setEditingInfo] = useState<InfoSection | null>(null);
   const [screen, setScreen] = useState<PreviewScreen>("home");
   const cards = useCardActions(language, state, setEditing);
   const on = featureLookup(source.event);
@@ -433,7 +468,28 @@ function Workspace({ source, ...ids }: Ids & Readonly<{ source: PreviewSource }>
             content={draft.content}
             context={editorContext(source, language)}
             onChange={(content) => edit({ ...draft, content })}
+            onRemovePage={cards.removePage}
             onClose={() => setEditing(null)}
+          />
+        )}
+        <ItemList
+          language={language}
+          title={t("layout.info")}
+          items={infoItems(t, on)}
+          list={draft.info}
+          protectedKeys={INFO_PROTECTED}
+          onChange={(info, spoken) => edit({ ...draft, info }, spoken)}
+          editing={editingInfo}
+          onEdit={(key) => setEditingInfo(key === editingInfo ? null : key)}
+        />
+        {editingInfo === null ? null : (
+          <InfoContentEditor
+            language={language}
+            section={editingInfo}
+            title={t(`layout.info.${editingInfo}.title`)}
+            content={draft.content}
+            onChange={(content) => edit({ ...draft, content })}
+            onClose={() => setEditingInfo(null)}
           />
         )}
         <ScreenStyles

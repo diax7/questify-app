@@ -1,11 +1,14 @@
 import {
   HOME_BLOCKS,
+  INFO_SECTIONS,
   cardKey,
   composedLayoutOf,
   formatEventTime,
   formatNumber,
   homeBlocks,
+  infoSections,
   isCardKey,
+  listItems,
   playerTabs,
   questTypeShown,
   readEventLayout,
@@ -13,6 +16,7 @@ import {
   type EventLooks,
   type HomeContent,
   type HomeKey,
+  type InfoSection,
   type Language,
   type MessageKey,
   type PlayerTab,
@@ -33,6 +37,15 @@ export type PreviewReward = Readonly<{ id: string; name: string; price: string }
 /** One line of the ranking's example: made-up players, as the preview reads no real player. */
 export type PreviewRankRow = Readonly<{ rank: number; username: string; score: string }>;
 
+/** One section of the event info page as the preview draws it: its title and the lines it holds. */
+export type PreviewInfoRow = Readonly<{
+  section: InfoSection;
+  title: MessageKey;
+  lines: readonly string[];
+}>;
+/** The extra page as the preview draws it (T-613): its title and one line per part. */
+export type PreviewPage = Readonly<{ title: string; lines: readonly string[] }>;
+
 /** The player's Home, Quests and Shop screens for one event in one language (FR-1022). */
 export type EventPreview = Readonly<{
   name: string;
@@ -49,6 +62,10 @@ export type EventPreview = Readonly<{
     title: MessageKey | null;
     lines: readonly string[];
   }>[];
+  /** The info page's sections in the layout's order, without what the layout hides, a switch takes away or has nothing to draw. */
+  info: readonly PreviewInfoRow[];
+  /** The extra page, or null while there is none or its Home link is hidden. */
+  page: PreviewPage | null;
   /** Home's Agenda and Maps buttons, which belong to its announcements block. */
   agendaButton: boolean;
   mapsButton: boolean;
@@ -154,6 +171,23 @@ function featuredLines(content: HomeContent, { names }: LineContext): string[] |
   return name === null ? null : [name];
 }
 
+const nonEmpty = (lines: readonly string[]): string[] => lines.filter((line) => line !== "");
+
+/** The extra page's title and one line per part, or null when the app would draw no link and no page (no title, no part). */
+function pageOf(content: HomeContent, language: Language): PreviewPage | null {
+  const page = content.page;
+  const title = page === null ? "" : pickText(page.title, language);
+  const lines =
+    page === null
+      ? []
+      : page.blocks.flatMap((block) => {
+          if (block.kind === "link") return [pickText(block.label, language)];
+          if (block.kind === "list") return listItems(pickText(block.items, language));
+          return [pickText(block.text, language)];
+        });
+  return title === "" || nonEmpty(lines).length === 0 ? null : { title, lines: nonEmpty(lines) };
+}
+
 function cardLines(key: HomeKey, content: HomeContent, context: LineContext): string[] | null {
   const card = content.cards.find((entry) => cardKey(entry.id) === key);
   if (card === undefined) {
@@ -172,7 +206,32 @@ function contentLines(key: HomeKey, content: HomeContent, context: LineContext):
   }
   if (key === "quickLinks") return quickLinkLines(content, context);
   if (key === "featured") return featuredLines(content, context);
+  if (key === "page") return orNothing(nonEmpty([pageOf(content, context.language)?.title ?? ""]));
   return isCardKey(key) ? cardLines(key, content, context) : [];
+}
+
+type InfoContext = Readonly<{ event: EventView; content: HomeContent; language: Language }>;
+
+/** The lines a section of the info page draws, or null when the app would draw nothing for it. */
+function infoLines(
+  section: InfoSection,
+  { event, content, language }: InfoContext,
+): string[] | null {
+  const lines: Readonly<Record<InfoSection, () => string[]>> = {
+    about: () => nonEmpty([pickText(content.about, language)]),
+    venue: () => nonEmpty([venueOf(event, language)]),
+    when: () =>
+      [event.startsAt, event.endsAt].map((iso) =>
+        formatEventTime(new Date(iso), event.timezone, language),
+      ),
+    schedule: () => [],
+    faq: () => nonEmpty(content.faq.map((entry) => pickText(entry.question, language))),
+    contacts: () => nonEmpty(content.contacts.map((entry) => pickText(entry.label, language))),
+    rules: () => [],
+  };
+  const found = lines[section]();
+  const titleOnly = section === "schedule" || section === "rules";
+  return found.length === 0 && !titleOnly ? null : found;
 }
 
 /** The bar and the Home blocks the event's layout leaves players, in its order, with the event's switches applied. */
@@ -194,9 +253,17 @@ function layoutParts(
     const title = HOME_BLOCKS.find((entry) => entry.block === block)?.title ?? null;
     return lines === null ? [] : [{ block, title, lines }];
   });
+  const context: InfoContext = { event, content: layout.content, language };
+  const info = infoSections(on, layout.info).flatMap((section) => {
+    const lines = infoLines(section, context);
+    const title = INFO_SECTIONS.find((entry) => entry.section === section)?.title;
+    return lines === null || title === undefined ? [] : [{ section, title, lines }];
+  });
   return {
     tabs: playerTabs(on, layout.bar).map(({ tab, title }) => ({ tab, title })),
     homeBlocks: blocks,
+    info,
+    page: pageOf(layout.content, language),
     announced: keys.includes("announcements"),
     looks: layout.looks,
   };
@@ -265,13 +332,22 @@ export function previewOf(
         : (reward.name[language] ?? reward.name.en ?? reward.name.ar ?? "");
     },
   };
-  const { tabs, homeBlocks: blocks, announced, looks } = layoutParts(event, on, language, names);
+  const {
+    tabs,
+    homeBlocks: blocks,
+    info,
+    page,
+    announced,
+    looks,
+  } = layoutParts(event, on, language, names);
   return {
     name: nameFor(event, language),
     venue: venueOf(event, language),
     accent: event.branding?.accent ?? null,
     tabs,
     homeBlocks: blocks,
+    info,
+    page,
     agendaButton: on("agenda") && announced,
     mapsButton: on("maps") && announced,
     mapToggle: on("maps"),

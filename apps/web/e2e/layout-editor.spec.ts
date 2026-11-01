@@ -171,11 +171,25 @@ test("Home, the scan button and Profile cannot be hidden, on the page or at the 
         "podium",
         "upNext",
         "quickLinks",
+        "page",
         "links",
       ],
       hidden: [],
     },
-    content: { banner: [], quickLinks: [], featured: null, cards: [] },
+    info: {
+      order: ["about", "venue", "when", "schedule", "faq", "contacts", "rules"],
+      hidden: [],
+    },
+    content: {
+      banner: [],
+      quickLinks: [],
+      featured: null,
+      cards: [],
+      about: { ar: "", en: "" },
+      faq: [],
+      contacts: [],
+      page: null,
+    },
     looks: {
       ranking: { layout: "list", scores: "shown" },
       quests: "list",
@@ -236,6 +250,18 @@ test("the page reads right to left in Arabic without sideways scrolling", async 
   await expect(
     rowOf(bar, "الرئيسية").getByRole("checkbox", { name: "إظهار الرئيسية" }),
   ).toBeDisabled();
+  const infoList = region(page, "صفحة معلومات الفعالية");
+  await expect(infoList.getByRole("listitem")).toHaveCount(7);
+  await rowOf(infoList, "الأسئلة الشائعة")
+    .getByRole("button", { name: "تعديل الأسئلة الشائعة" })
+    .click();
+  await page.getByRole("button", { name: "إضافة سؤال" }).click();
+  await expect(page.getByLabel("السؤال (العربية)")).toBeVisible();
+  await rowOf(region(page, "الشاشة الرئيسية"), "الصفحة الإضافية")
+    .getByRole("button", { name: "تعديل الصفحة الإضافية" })
+    .click();
+  await page.getByRole("button", { name: "إضافة الصفحة" }).click();
+  await expect(page.getByRole("button", { name: "إضافة قائمة" })).toBeVisible();
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
@@ -389,4 +415,136 @@ test("the ranking, Quests and Rewards layouts are chosen, previewed, saved and k
   await expect(page.getByText("Layout saved.")).toBeVisible();
   await expect(rankingLayout.getByRole("radio", { name: "Podium" })).toBeChecked();
   await expect(rewardsLayout.getByRole("radio", { name: "Grid" })).toBeChecked();
+});
+
+test("the organizer orders the info page, writes About, a question, a contact and the extra page, sees them on the preview, saves, and removes the page", async ({
+  page,
+}, info) => {
+  test.setTimeout(240_000);
+  const eventUrl = await openEvent(page, info.project.name);
+  await page.goto(`${eventUrl}/layout`);
+
+  const sections = region(page, "Event info page");
+  const blocks = region(page, "Home screen");
+  const infoScreen = region(page, "About the event");
+  const infoLines = infoScreen.getByRole("list", { name: "Event info page" }).getByRole("listitem");
+  const editor = page.getByRole("region", { name: /^Editing:/ });
+  const save = page.getByRole("button", { name: "Save layout" });
+  const saved = page.getByText("Layout saved.");
+  const done = editor.getByRole("button", { name: "Done editing" });
+
+  await expect(sections.getByRole("listitem")).toContainText([
+    "About",
+    "Venue",
+    "When",
+    "Schedule link",
+    "FAQ",
+    "Contact",
+    "Official rules",
+  ]);
+  await expect(
+    rowOf(sections, "Official rules").getByRole("checkbox", { name: "Show Official rules" }),
+  ).toBeDisabled();
+
+  await rowOf(sections, "About").getByRole("button", { name: "Edit About" }).click();
+  await editor.getByLabel("Text (English)").fill("A day of games for everyone");
+  await done.click();
+
+  await rowOf(sections, "FAQ").getByRole("button", { name: "Edit FAQ" }).click();
+  await page.getByRole("button", { name: "Add question" }).click();
+  await expect(save).toBeDisabled();
+  await expect(
+    page.getByText("Question 1 needs a question and an answer in Arabic or English."),
+  ).toBeVisible();
+  await editor.getByLabel("Question (English)").fill("Is parking free?");
+  await editor.getByLabel("Answer (English)").fill("Yes, in lot B.");
+  await expect(save).toBeEnabled();
+  await done.click();
+
+  await rowOf(sections, "Contact").getByRole("button", { name: "Edit Contact" }).click();
+  await page.getByRole("button", { name: "Add contact" }).click();
+  await expect(page.getByText("Contact 1 needs a name in Arabic or English.")).toBeVisible();
+  await editor.getByLabel("Label (English)").fill("Front desk");
+  await editor.getByLabel("Phone number").fill("tel:123");
+  await expect(
+    page.getByText(
+      "Contact 1 needs an email address, a phone number or a full link that starts with https.",
+    ),
+  ).toBeVisible();
+  await expect(save).toBeDisabled();
+  await editor.getByLabel("Phone number").fill("050 123 4567");
+  await expect(save).toBeEnabled();
+  await done.click();
+
+  await rowOf(sections, "Contact").getByRole("button", { name: "Move Contact earlier" }).click();
+  await expect(sections.getByRole("listitem")).toContainText([
+    "About",
+    "Venue",
+    "When",
+    "Schedule link",
+    "Contact",
+    "FAQ",
+    "Official rules",
+  ]);
+  await page.getByRole("button", { name: "About the event", exact: true }).click();
+  await expect(infoLines).toContainText(["About", "When", "Contact", "FAQ", "Official rules"]);
+  await expect(infoScreen.getByText("A day of games for everyone")).toBeVisible();
+  await expect(infoScreen.getByText("Is parking free?")).toBeVisible();
+  await expect(infoScreen.getByText("Front desk")).toBeVisible();
+
+  await rowOf(blocks, "Extra page").getByRole("button", { name: "Edit Extra page" }).click();
+  await page.getByRole("button", { name: "Add the page" }).click();
+  await expect(page.getByText("The page needs a title in Arabic or English.")).toBeVisible();
+  await editor.getByLabel("Title (English)", { exact: true }).fill("Venue rules");
+  await expect(
+    page.getByText("Part 1 of the page needs text, or a full link that starts with https."),
+  ).toBeVisible();
+  await editor.getByLabel("Text (English)").fill("No bags inside the hall.");
+  await page.getByRole("button", { name: "Add list" }).click();
+  await editor.getByLabel("Items (English), one per line").fill("ID card\nTicket");
+  await page.getByRole("button", { name: "Add link" }).click();
+  await editor.getByLabel("Label (English)").fill("Hall map");
+  await editor.getByLabel("Link", { exact: true }).fill("http://example.com/map");
+  await expect(
+    page.getByText("Part 3 of the page needs text, or a full link that starts with https."),
+  ).toBeVisible();
+  await editor.getByLabel("Link", { exact: true }).fill("https://example.com/map");
+  await expect(save).toBeEnabled();
+  await done.click();
+
+  await page.getByRole("button", { name: "Extra page", exact: true }).click();
+  const extra = region(page, "Extra page").filter({ hasText: "Venue rules" });
+  await expect(extra.getByText("No bags inside the hall.")).toBeVisible();
+  await expect(extra.getByText("ID card")).toBeVisible();
+  await expect(extra.getByText("Hall map")).toBeVisible();
+  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await expect(
+    region(page, "Home").getByRole("list", { name: "Home screen" }).getByText("Venue rules"),
+  ).toBeVisible();
+
+  await save.click();
+  await expect(saved).toBeVisible();
+  await page.reload();
+  await expect(sections.getByRole("listitem")).toContainText([
+    "About",
+    "Venue",
+    "When",
+    "Schedule link",
+    "Contact",
+    "FAQ",
+    "Official rules",
+  ]);
+  await page.getByRole("button", { name: "Extra page", exact: true }).click();
+  await expect(region(page, "Extra page").getByText("Venue rules")).toBeVisible();
+
+  await rowOf(blocks, "Extra page").getByRole("button", { name: "Edit Extra page" }).click();
+  await page.getByRole("button", { name: "Remove the page" }).click();
+  await expect(page.getByText("Remove the extra page?")).toBeVisible();
+  await page.getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Extra page", exact: true })).toHaveCount(0);
+  await save.click();
+  await expect(saved).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Extra page", exact: true })).toHaveCount(0);
+  await expect(sections.getByRole("listitem")).toContainText(["Contact", "FAQ"]);
 });
