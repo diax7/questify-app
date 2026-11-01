@@ -218,7 +218,7 @@ Legend, one per five levels. Keep, or rename?
 ## Q-149 — Where Questify's photos are stored (2026-10-24, T-301)
 CranL Pro allows one bucket per account and `b7r-media` uses it. Photos are T-301b, blocked until a Questify bucket in
 `riyadh-1` exists (ADR-183). Ask CranL for a second bucket (or a plan with more), or use Oracle Object Storage in
-Riyadh? Sharing `b7r-media` is not recommended.
+Riyadh? Sharing `b7r-media` is not recommended. **Dhia (2026-11-01): "Later"** (asked with the options a second CranL bucket, Oracle Object Storage, or later). The upload tasks stay parked: T-301b, T-305b, T-504b, T-506b, T-507b, T-602b.
 
 ## Q-150 — Submission sizes (2026-10-24, T-301)
 Text up to 1,000 characters (T-301); for T-301b, photos up to 8 MB uploaded, stored as JPEG of at most

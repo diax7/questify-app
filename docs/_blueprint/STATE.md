@@ -13,6 +13,7 @@
   uncommitted files would otherwise ride in the upload; `.easignore` leaves `docs/` out (181 MB to a few MB).
 - **Demo events:** `77XBUB` (live until 2030; owner `d.hamidaddin7@gmail.com`) and Dhia's `3MZM8X` (approved, live from
   2026-10-30 18:08 UTC). The staging Questify admin is `xdhia7@gmail.com`.
+- **Photo storage is parked (Dhia: "Later", 2026-11-01, Q-149):** six upload tasks wait (T-301b, T-305b, T-504b, T-506b, T-507b, T-602b).
 - **Push on phones is off (Dhia: "Later", 2026-10-30):** no Firebase project yet, so no `google-services.json` in the app
   and no `FCM_SERVICE_ACCOUNT` on the API; iPhone needs the APNs key. The in-app notification center works. Owed by Dhia
   before launch (RUNBOOK "The app's side of push").
