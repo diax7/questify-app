@@ -487,7 +487,9 @@ test("the organizer orders the info page, writes About, a question, a contact an
     "Official rules",
   ]);
   await page.getByRole("button", { name: "About the event", exact: true }).click();
-  await expect(infoLines).toContainText(["About", "When", "Contact", "FAQ", "Official rules"]);
+  // The event has no rules, so the preview draws no "Official rules" row (as the app does).
+  await expect(infoLines).toContainText(["About", "When", "Contact", "FAQ"]);
+  await expect(infoLines.filter({ hasText: "Official rules" })).toHaveCount(0);
   await expect(infoScreen.getByText("A day of games for everyone")).toBeVisible();
   await expect(infoScreen.getByText("Is parking free?")).toBeVisible();
   await expect(infoScreen.getByText("Front desk")).toBeVisible();
