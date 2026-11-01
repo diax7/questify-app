@@ -6113,7 +6113,7 @@ cover the outbox's 30 days; FR-1730 stays "partly built".
 
 ## ADR-395 - T-610 Home editor: the organizer's own blocks live in the layout, as plain text, with a short list of allowed taps
 
-**Status:** Proposed (developer, 2026-11-01; Q-362). Builds FR-1828 to FR-1831 on ADR-391. Plan: `docs/plans/2026-11-01-t-610-home-editor.md`.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-01; T-610 review 84, both MAJORs fixed in 1e0c396; Q-362). Builds FR-1828 to FR-1831 on ADR-391. Plan: `docs/plans/2026-11-01-t-610-home-editor.md`.
 **Decision:** (1) **One layout store, no migration.** `event.config.layout` gains `content` beside `bar` and `home`:
 `{banner: slide[≤5], quickLinks: link[≤6], featured: {kind: quest|reward, id} | null, cards: card[≤6]}`. Four Questify blocks are new
 (`banner`, `featured`, `podium`, `quickLinks`); a card is a text card or a countdown card with an id of its own and a place in
