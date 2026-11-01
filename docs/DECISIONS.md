@@ -6272,7 +6272,7 @@ truncated.
 
 ## ADR-400 - T-615 name display: two gates on a full name, the staff read by the setting, no widening past a player who was not told
 
-**Status:** Proposed (developer, delegated by Dhia, 2026-11-02; Q-367). Specifies FR-1842; relaxes FR-120 and ADR-032 only where the event
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-615 privacy review 91 GO); Q-367. Specifies FR-1842; relaxes FR-120 and ADR-032 only where the event
 says so and the player was told; counsel on Q-080 stays open, so the setting defaults to usernames and nothing changes until an owner picks it.
 **Decision:** (1) **The setting.** `event.name_display` (`username`, `full_name`, `both`) and `event.name_audience` (`staff`, `everyone`),
 defaults `username` and `staff`, set by the owner or an editor on the Joining page's "Names" section (`PUT …/join/names`, audited
@@ -6283,14 +6283,18 @@ everyone instead of the username, everyone next to it) and the audience it means
 database records it with the enrollment (`join_name_notice`, in the join's own transaction; `enrollment.name_notice`). A notice that is not
 the event's now rolls the join back and answers 422 `card_version_stale` with the card as it must read (NN409). The card version stays 0.2
 because the sentence depends on the event; the record is `name_notice`. (3) **What another player may read** is one rule in the database
-(`public_full_name`): the event shows full names to everyone, the enrollment is active, its notice is `everyone`, and the player gave a name.
+(`public_full_name`): the event shows full names to everyone, the enrollment is active, its notice is `everyone`, and the player gave a name,
+cleaned where it is read (`display_name_text`: control, zero-width and direction characters removed, spaces collapsed, 60 characters kept
+without splitting a letter from its marks; the clients draw it in a direction isolate: `bdi` on the web, FSI and PDI in the app). The join
+card says a name shown to everyone can also appear on the big screen.
 It feeds the event ranking (event and today, through `ranking_names` after the rows are read), the revealed results (`event_results`) and
 the big screen's ranking and finale scenes; every answer also says how the event names players (`names`). A player who joined before,
 joined while only the staff were to see it, left the field empty or is no longer active shows by username whatever the setting says.
-(4) **The staff read** (an operator's scan result and the prize desk) shows the full name whenever the event shows full names, to any audience,
-with no per-player notice: the organizer's staff already receive the answer the card names (`joinCard.answers`). The session check-in's
+(4) **The staff read** (an operator's scan result and the prize desk) shows the full name of an active or pending player whenever the event
+shows full names, to any audience, with no per-player notice (a player who left, was removed or is banned shows by username): the organizer's staff already receive the answer the card names (`joinCard.answers`). The session check-in's
 result does not show it yet. (5) **Widening is refused, narrowing never.** Moving to "full name to everyone" is refused (409
-`name_display_locked`, ND409, a trigger so any writer is held) while an active or pending player, other than a rehearsal account or an
+`name_display_locked`, ND409, a trigger so any writer is held, the owner's own connection excepted; one SQL rule, `event_names_locked`, feeds the trigger and the
+Joining page's warning) while an active or pending player, other than a rehearsal account or an
 operator, holds a notice that is not `everyone`. The alternative, asking those players again, needs a prompt on their phones and a state
 for "answered or not" and is left for a later task. Set the names before the event takes joins. (6) **Never** in a push text, a log line,
 an error, analytics or an export file beyond the answer the team already receives (a source test lists the API files that may name it).

@@ -298,10 +298,7 @@ export async function readEvent(client: PoolClient, eventId: string): Promise<Ev
     `SELECT join_fields_version, guest_list_only, email_domains, welcome_points, name_display, name_audience,
             EXISTS (SELECT 1 FROM enrollment n WHERE n.event_id = e.id) AS has_members,
             (SELECT count(*)::int FROM event_guest g WHERE g.event_id = e.id) AS guests,
-            EXISTS (SELECT 1 FROM enrollment n
-                    WHERE n.event_id = e.id AND n.status IN ('active', 'pending')
-                      AND coalesce(n.joined_via, '') NOT IN ('rehearsal', 'operator')
-                      AND n.name_notice IS DISTINCT FROM 'everyone') AS names_locked
+            event_names_locked(e.id) AS names_locked
      FROM event e WHERE e.id = $1`,
     [eventId],
   );

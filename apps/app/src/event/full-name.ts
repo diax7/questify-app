@@ -4,3 +4,9 @@
  */
 export const fullNameOf = (value: unknown): string | null =>
   typeof value === "string" && value.trim() !== "" ? value : null;
+
+/**
+ * A full name inside a first-strong isolate (FSI ... PDI): the name takes its own direction from its first letter and
+ * cannot reorder the text around it. The server has already removed any isolate or override the player typed.
+ */
+export const isolatedName = (name: string): string => `\u2068${name}\u2069`;

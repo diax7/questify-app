@@ -27,7 +27,8 @@ export function Avatar({ row }: Readonly<{ row: Pick<RankingRow, "avatar" | "use
 /**
  * A player's name on a big-screen board as the event names players (FR-1842): the username, the full name, or both. The
  * scene sends a full name only where the event shows it on the screen and the player was told so; without one the
- * username is drawn, so a row is never empty.
+ * username is drawn, so a row is never empty. The name is typed by the player: `bdi` keeps its direction from reordering
+ * the row around it.
  */
 export function ScreenName({
   username,
@@ -40,7 +41,7 @@ export function ScreenName({
   }
   return (
     <>
-      {shown.fullName}
+      <bdi>{shown.fullName}</bdi>
       {shown.showUsername ? <bdi dir="ltr">{` @${username}`}</bdi> : null}
     </>
   );

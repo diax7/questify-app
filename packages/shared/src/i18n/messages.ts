@@ -59,12 +59,12 @@ export const MESSAGES = {
     en: "Only the event's staff see your full name. Other players see your username.",
   },
   "joinCard.nameEveryoneFull": {
-    ar: "يرى جميع اللاعبين في هذه الفعالية اسمك الكامل بدل اسم المستخدم.",
-    en: "Everyone in this event sees your full name instead of your username.",
+    ar: "يرى جميع اللاعبين في هذه الفعالية اسمك الكامل بدل اسم المستخدم، وقد يظهر أيضًا على الشاشة الكبيرة.",
+    en: "Everyone in this event sees your full name instead of your username. It can also appear on the big screen.",
   },
   "joinCard.nameEveryoneBoth": {
-    ar: "يرى جميع اللاعبين في هذه الفعالية اسمك الكامل بجانب اسم المستخدم.",
-    en: "Everyone in this event sees your full name next to your username.",
+    ar: "يرى جميع اللاعبين في هذه الفعالية اسمك الكامل بجانب اسم المستخدم، وقد يظهر أيضًا على الشاشة الكبيرة.",
+    en: "Everyone in this event sees your full name next to your username. It can also appear on the big screen.",
   },
   "joinField.fullName": { ar: "الاسم الكامل", en: "Full name" },
   "joinField.company": { ar: "جهة العمل", en: "Company" },

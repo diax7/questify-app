@@ -1756,6 +1756,9 @@ also move to the desk when Off (b)? Not run on a phone: please try Offer and Pay
 
 ## Q-367 - T-615 name display: what is decided without Dhia (2026-11-02)
 
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-615 privacy review 91 GO). The staff view (no per-player notice) is acceptable; counsel is to confirm that volunteer operators count
+as the organizer (batched in T-807).
+
 **Recommended (developer, ADR-400):** (a) refuse widening to "full name to everyone" once a player who was not told is in, instead of asking
 those players again (a re-acceptance prompt is a later task); (b) the staff read (operator scan, prize desk) needs the setting only, no per-player
 notice, because the organizer's staff already receive the full-name answer; (c) the card version stays 0.2 and the audience shown is

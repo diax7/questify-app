@@ -11,6 +11,7 @@ import { BackButton } from "#src/components/BackButton.tsx";
 import { PermissionCard, useCameraActive } from "#src/components/Camera.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { RehearsalStrip } from "#src/components/RehearsalStrip.tsx";
+import { isolatedName } from "#src/event/full-name.ts";
 import { isRehearsalStatus } from "#src/event/rehearsal.ts";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -56,7 +57,7 @@ function ScannedLines({
     <>
       {player.fullName === null ? null : (
         <AppText variant="title" style={textStyle}>
-          {player.fullName}
+          {isolatedName(player.fullName)}
         </AppText>
       )}
       <AppText variant="title" style={textStyle}>

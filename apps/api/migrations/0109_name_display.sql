@@ -11,8 +11,14 @@
 -- narrowing is always allowed. The staff reads (an operator's scan, the prize desk) need no per-player notice: the staff
 -- already receive the answer the card disclosed, and the setting alone decides.
 --
+-- A name is cleaned where it is read (`display_name_text`): invisible and direction-changing characters removed (a name
+-- must not flip the row around it), whitespace made one space, the first 60 characters kept without cutting a base
+-- letter from its marks. The answer itself is stored as typed (0028 forbids control characters only).
+--
 -- Closed by default: the new columns have no grant beyond the event's settings columns; `public_full_name`,
--- `staff_full_name` and `event_name_notice` are internal (no grant); the doors below are granted to questify_app only.
+-- `staff_full_name`, `display_name_text`, `event_name_notice` are internal (no grant); the doors below are granted to
+-- questify_app only (`event_names_locked` reads under the caller's row-level rules, so it tells a team about its own
+-- event only).
 -- 0108 and earlier are untouched. Functions restated as they were, plus the name: screen_ranking, screen_finale,
 -- operator_scan_subject, event_results, public_event_join_rules, my_invitations.
 SET LOCAL lock_timeout = '10s';
@@ -40,12 +46,32 @@ CREATE FUNCTION event_player_names(ev event) RETURNS text
 $$;
 REVOKE ALL ON FUNCTION event_player_names(event) FROM PUBLIC;
 
+-- A typed full name as another person may see it: control, format and default-ignorable characters removed (zero-width
+-- spaces and joiners, direction marks and embeddings and isolates, the byte-order mark, variation selectors, tags: what the
+-- announcements clean-up strips with \p{Cf} and \p{Default_Ignorable_Code_Point}, listed here because POSIX classes have
+-- no such property), runs of whitespace made one space, the first 60 characters kept (a row is one line) and, when the cut
+-- falls in front of a combining mark, the letter it belongs to dropped with it. NULL when nothing is left. Internal.
+CREATE FUNCTION display_name_text(raw text) RETURNS text
+  LANGUAGE sql IMMUTABLE SET search_path = public, pg_temp AS $$
+  SELECT nullif(btrim(CASE WHEN substr(c.text, 61, 1) ~ ('[' || m.body || ']')
+                           THEN regexp_replace(left(c.text, 60), '[^' || m.body || '][' || m.body || ']*$', '')
+                           ELSE left(c.text, 60) END), '')
+  FROM (SELECT regexp_replace(regexp_replace(raw,
+          '[\x01-\x1F\x7F-\x9F\u00AD\u0600-\u0605\u061C\u06DD\u070F\u08E2\u034F\u115F\u1160\u17B4\u17B5\u180B-\u180F'
+          '\u200B-\u200F\u2028-\u202E\u2060-\u206F\u3164\uFE00-\uFE0F\uFEFF\uFFA0\uFFF0-\uFFF8\U000E0000-\U000E0FFF]',
+          '', 'g'), '\s+', ' ', 'g') AS text) c,
+       (SELECT '\u0300-\u036F\u0483-\u0489\u0591-\u05BD\u05BF\u05C1\u05C2\u05C4\u05C5\u05C7\u0610-\u061A\u064B-\u065F'
+               '\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED\u1AB0-\u1AFF\u1DC0-\u1DFF\u20D0-\u20FF'
+               '\uFE20-\uFE2F' AS body) m
+$$;
+REVOKE ALL ON FUNCTION display_name_text(text) FROM PUBLIC;
+
 -- The full name another player may see for an enrollment: the event shows it to everyone, the enrollment is active, the
--- player was told so when they joined, and they gave the name (its first 60 characters: a row is one line). NULL
--- otherwise. Internal: the definers below use it.
+-- player was told so when they joined, and they gave a name (cleaned by `display_name_text`). NULL otherwise. Internal:
+-- the definers below use it.
 CREATE FUNCTION public_full_name(target_enrollment uuid) RETURNS text
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
-  SELECT left(a.value, 60)
+  SELECT display_name_text(a.value)
   FROM enrollment n
   JOIN event e ON e.id = n.event_id
   JOIN event_join_field f ON f.event_id = e.id AND f.kind = 'full_name'
@@ -74,13 +100,14 @@ CREATE FUNCTION names_part(ev event) RETURNS jsonb
 $$;
 REVOKE ALL ON FUNCTION names_part(event) FROM PUBLIC;
 
--- The full name the event's staff may see for a player who joined, whatever the audience: NULL while the event shows
--- usernames only or the player gave none. The caller has checked the staff seat. Internal.
+-- The full name the event's staff may see for a player in the event, whatever the audience: NULL while the event shows
+-- usernames only, the player gave none, or the enrollment is not active or pending (a player who left, was removed or is
+-- banned shows by username to the staff too). The caller has checked the staff seat. Internal.
 CREATE FUNCTION staff_full_name(target_event uuid, subject uuid) RETURNS text
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
-  SELECT a.value
+  SELECT display_name_text(a.value)
   FROM event e
-  JOIN enrollment n ON n.event_id = e.id AND n.player_id = subject
+  JOIN enrollment n ON n.event_id = e.id AND n.player_id = subject AND n.status IN ('active', 'pending')
   JOIN event_join_field f ON f.event_id = e.id AND f.kind = 'full_name'
   JOIN join_answer a ON a.enrollment_id = n.id AND a.field_id = f.id
   WHERE e.id = target_event AND e.name_display <> 'username'
@@ -88,15 +115,28 @@ $$;
 REVOKE ALL ON FUNCTION staff_full_name(uuid, uuid) FROM PUBLIC;
 
 -- ================================================================ the guard on the setting
--- ND422: a full name needs the event's Full name join field. ND409: widening to everyone is refused while a player who
--- was not told is in the event (pending requests count; rehearsal accounts and operators do not). Joins read the event
--- FOR SHARE, so a change and a join run one after the other and this sees a join that committed first. The guard is a
--- definer so it sees every enrollment whatever the writer's row-level rules; the owner connection is trusted, told apart
--- by `session_user` because `current_user` is the function's owner here.
+-- Whether the event holds a player who was not told their full name would show to everyone: an active or pending
+-- enrollment (rehearsal accounts and operators do not count) whose notice is not `everyone`. One rule for the trigger
+-- below and for the Joining page's warning. It runs as its caller, so the page learns about its own event only.
+CREATE FUNCTION event_names_locked(target uuid) RETURNS boolean
+  LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
+  SELECT EXISTS (SELECT 1 FROM enrollment n
+                 WHERE n.event_id = target AND n.status IN ('active', 'pending')
+                   AND coalesce(n.joined_via, '') NOT IN ('rehearsal', 'operator')
+                   AND n.name_notice IS DISTINCT FROM 'everyone')
+$$;
+REVOKE ALL ON FUNCTION event_names_locked(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION event_names_locked(uuid) TO questify_app;
+
+-- ND422: a full name needs the event's Full name join field. ND409: widening to everyone is refused while
+-- `event_names_locked`. Joins read the event FOR SHARE, so a change and a join run one after the other and this sees a
+-- join that committed first. The guard is a definer so it sees every enrollment whatever the writer's row-level rules.
+-- Only the connection that owns the function (the one that ran the migrations) is trusted: inside a definer
+-- `current_user` is that owner, so any other login, `questify_app` or whatever it is renamed to, is held to the rules.
 CREATE FUNCTION event_name_display_guard() RETURNS trigger
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
-  IF session_user <> 'questify_app' THEN
+  IF session_user = current_user THEN
     RETURN NEW;
   END IF;
   IF NEW.name_display <> 'username'
@@ -104,10 +144,7 @@ BEGIN
     RAISE EXCEPTION 'a full name needs the Full name join field' USING ERRCODE = 'ND422', DETAIL = 'full_name_field';
   END IF;
   IF event_name_notice(NEW) IS NOT DISTINCT FROM 'everyone' AND event_name_notice(OLD) IS DISTINCT FROM 'everyone'
-     AND EXISTS (SELECT 1 FROM enrollment n
-                 WHERE n.event_id = NEW.id AND n.status IN ('active', 'pending')
-                   AND coalesce(n.joined_via, '') NOT IN ('rehearsal', 'operator')
-                   AND n.name_notice IS DISTINCT FROM 'everyone') THEN
+     AND event_names_locked(NEW.id) THEN
     RAISE EXCEPTION 'players joined without being told their name would show' USING ERRCODE = 'ND409',
       DETAIL = 'name_display_locked';
   END IF;

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import {
@@ -452,6 +453,49 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("name display (database)", () =
       expect(seen?.full_name).toBe("N".repeat(60));
     });
 
+    it.each([
+      ["a direction override", "Sara \u202EdemhA\u202C", "Sara demhA"],
+      ["zero-width characters and joiners", "Sa\u200Bra\u200F Ah\u200Dmed\u2066", "Sara Ahmed"],
+      ["the byte-order mark and an isolate", "\uFEFF\u2067Sara\u2069", "Sara"],
+      ["runs of spaces", "Sara     Ahmed", "Sara Ahmed"],
+    ])("cleans %s out of the name", async (_label, typed, shown) => {
+      const event = await newEvent();
+      const field = await addField(event.id);
+      await setNames(event.id, "both", "everyone");
+      const told = await member(event.id, field, { notice: "everyone", name: typed });
+      const reader = await member(event.id, field);
+      expect(await namesSeenBy(reader.player, event.id, [told.enrollment])).toEqual([
+        { enrollment_id: told.enrollment, full_name: shown },
+      ]);
+    });
+
+    it("shows the username for a name made only of invisible characters", async () => {
+      const event = await newEvent();
+      const field = await addField(event.id);
+      await setNames(event.id, "both", "everyone");
+      const told = await member(event.id, field, {
+        notice: "everyone",
+        name: "\u200B\u202E\u200F\uFEFF",
+      });
+      const reader = await member(event.id, field);
+      expect(await namesSeenBy(reader.player, event.id, [told.enrollment])).toEqual([]);
+    });
+
+    it.each([
+      ["a letter in front of its mark", "N".repeat(59) + "e\u0301x", "N".repeat(59)],
+      ["a letter and its mark that fit", "N".repeat(58) + "e\u0301x", "N".repeat(58) + "e\u0301"],
+      ["an emoji on the last place", "N".repeat(59) + "\u{1F600}x", "N".repeat(59) + "\u{1F600}"],
+    ])("cuts at 60 characters without splitting %s", async (_label, typed, shown) => {
+      const event = await newEvent();
+      const field = await addField(event.id);
+      await setNames(event.id, "both", "everyone");
+      const told = await member(event.id, field, { notice: "everyone", name: typed });
+      const reader = await member(event.id, field);
+      expect(await namesSeenBy(reader.player, event.id, [told.enrollment])).toEqual([
+        { enrollment_id: told.enrollment, full_name: shown },
+      ]);
+    });
+
     it("is gone with the answer: an erased answer leaves the username", async () => {
       const event = await newEvent();
       const field = await addField(event.id);
@@ -509,6 +553,46 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("name display (database)", () =
       expect(rows).toEqual([]);
     });
 
+    it("cleans the name the staff read the same way", async () => {
+      const event = await newEvent();
+      const field = await addField(event.id);
+      const { operator, quest } = await station(event.id);
+      await setNames(event.id, "both", "staff");
+      const scanned = await member(event.id, field, { name: "Sara \u202EdemhA\u200B" });
+      const [seen] = await as<{ full_name: string | null }>(
+        { playerId: operator },
+        "SELECT full_name FROM operator_scan_subject($1, $2)",
+        [quest, scanned.player],
+      );
+      expect(seen?.full_name).toBe("Sara demhA");
+    });
+
+    it("shows the name of an active or pending player only: others show by username to the staff too", async () => {
+      const event = await newEvent();
+      const field = await addField(event.id);
+      const { operator, quest } = await station(event.id);
+      await setNames(event.id, "both", "staff");
+      const nameFor = async (status: string) => {
+        const one = await member(event.id, field, { name: "Sara Ahmed", status });
+        const [seen] = await as<{ username: string; full_name: string | null }>(
+          { playerId: operator },
+          "SELECT username, full_name FROM operator_scan_subject($1, $2)",
+          [quest, one.player],
+        );
+        const [named] = await as<{ name: string | null }>(
+          { playerId: operator },
+          "SELECT desk_full_name($1, $2) AS name",
+          [event.id, seen?.username ?? ""],
+        );
+        return [seen?.full_name ?? null, named?.name ?? null];
+      };
+      expect(await nameFor("active")).toEqual(["Sara Ahmed", "Sara Ahmed"]);
+      expect(await nameFor("pending")).toEqual(["Sara Ahmed", "Sara Ahmed"]);
+      for (const status of ["left", "removed", "banned"]) {
+        expect(await nameFor(status), status).toEqual([null, null]);
+      }
+    });
+
     it("gives the prize desk the full name of a player found by username, to a desk operator only", async () => {
       const event = await newEvent();
       const field = await addField(event.id);
@@ -535,6 +619,66 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("name display (database)", () =
         [operator],
       );
       expect(await failure(desk(operator, named?.username ?? ""))).toBe("OA403");
+    });
+  });
+
+  describe("the guard on the setting and the readers of a name", () => {
+    it("holds any login but the one that owns the guard, whatever the app's role is called", async () => {
+      const event = await newEvent();
+      const role = `questify_renamed_${randomBytes(6).toString("hex")}`;
+      await owner(`CREATE ROLE ${role} NOLOGIN IN ROLE questify_app`);
+      try {
+        const attempt = failure(
+          withRequestContext(db.owner, teamA(), async () => {
+            await db.owner.query(`SET LOCAL SESSION AUTHORIZATION ${role}`);
+            await db.owner.query("UPDATE event SET name_display = 'full_name' WHERE id = $1", [
+              event.id,
+            ]);
+          }),
+        );
+        expect(await attempt).toBe("ND422:full_name_field");
+      } finally {
+        await owner(`DROP ROLE ${role}`);
+      }
+      expect(await owner("SELECT name_display FROM event WHERE id = $1", [event.id])).toEqual([
+        { name_display: "username" },
+      ]);
+    });
+
+    it("tells a team whether a player who was not told is in its own event, and no other team", async () => {
+      const event = await newEvent();
+      const field = await addField(event.id);
+      const locked = (team: RequestContext) =>
+        as<{ locked: boolean }>(team, "SELECT event_names_locked($1) AS locked", [event.id]);
+      expect(await locked(teamA())).toEqual([{ locked: false }]);
+      await member(event.id, field, { notice: null, via: "rehearsal" });
+      expect(await locked(teamA())).toEqual([{ locked: false }]);
+      const untold = await member(event.id, field, { notice: "staff" });
+      expect(await locked(teamA())).toEqual([{ locked: true }]);
+      expect(await locked(teamB())).toEqual([{ locked: false }]);
+      await owner("UPDATE enrollment SET name_notice = 'everyone' WHERE id = $1", [
+        untold.enrollment,
+      ]);
+      expect(await locked(teamA())).toEqual([{ locked: false }]);
+    });
+
+    it("is read by no function beyond the doors that need it", async () => {
+      const callers = await owner<{ proname: string }>(
+        `SELECT p.proname FROM pg_proc p JOIN pg_namespace s ON s.oid = p.pronamespace
+         WHERE s.nspname = 'public' AND p.prosrc ~ '(public|staff)_full_name|full_name_part|display_name_text'
+         ORDER BY p.proname`,
+      );
+      expect(callers.map((row) => row.proname)).toEqual([
+        "desk_full_name",
+        "event_results",
+        "full_name_part",
+        "operator_scan_subject",
+        "public_full_name",
+        "ranking_names",
+        "screen_finale",
+        "screen_ranking",
+        "staff_full_name",
+      ]);
     });
   });
 });

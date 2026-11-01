@@ -12,6 +12,7 @@ import { RehearsalStrip } from "#src/components/RehearsalStrip.tsx";
 import { isRehearsalStatus } from "#src/event/rehearsal.ts";
 import { Screen } from "#src/components/Screen.tsx";
 import { DeskLine } from "#src/event/DeskLine.tsx";
+import { isolatedName } from "#src/event/full-name.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import {
@@ -139,7 +140,7 @@ function PlayerCard({
   return (
     <View style={{ gap: 12 }}>
       {found.player.fullName === null ? null : (
-        <AppText variant="title">{found.player.fullName}</AppText>
+        <AppText variant="title">{isolatedName(found.player.fullName)}</AppText>
       )}
       <AppText variant="title">{player}</AppText>
       {found.active ? null : (

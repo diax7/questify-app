@@ -543,19 +543,22 @@ the composed value again tolerantly (a damaged or unsafe stored text shows the p
 organizer's owner, an editor outside the event, a stranger, a signed-out caller and a player, plus the legal-key refusals and a damaged
 stored value), the routes list in `test/security/routes.int.test.ts`.
 
-### Name display (T-615, Proposed ADR-400)
+### Name display (T-615, ADR-400)
 
 A player's full name (the answer to the event's Full name join field) is personal data that can now reach other players. Two gates hold in
 the database, so no client, route or later query can skip them: the event's setting (`event.name_display`, `event.name_audience`,
 default usernames for the staff) and the player's own notice (`enrollment.name_notice`, written by `join_name_notice` in the join's own
 transaction from the audience the card showed; a notice that is not the event's now rolls the join back, NN409). `public_full_name` is the
-one rule other players' reads go through: setting `everyone`, enrollment active, notice `everyone`, name given. It feeds `ranking_names`
+one rule other players' reads go through: setting `everyone`, enrollment active, notice `everyone`, name given, cleaned by
+`display_name_text` (control, zero-width and direction characters removed, 60 characters kept; the clients draw it in a direction isolate). It feeds `ranking_names`
 (the ranking, asked only when the event shows names), `event_results`, `screen_ranking` and `screen_finale`; a player who joined before
 the setting, while only the staff were to see it, or left the field empty shows by username. The staff reads (`operator_scan_subject`,
-`desk_full_name`) check the seat (an operator of the event, the hand-over ability for the desk) and the setting. Widening to `everyone` is refused by a trigger (ND409)
-while an active or pending player who was not told is in; a full name needs the Full name field (ND422). New columns and the helpers
-(`event_name_notice`, `event_player_names`, `public_full_name`, `full_name_part`, `names_part`, `staff_full_name`,
-`event_name_display_guard`) are closed to PUBLIC and to the API role; the API role holds EXECUTE only on `join_name_notice`,
+`desk_full_name`) check the seat (an operator of the event, the hand-over ability for the desk) and the setting, and show an active or pending
+player only. Widening to `everyone` is refused by a trigger (ND409)
+while an active or pending player who was not told is in (`event_names_locked`, which the Joining page also reads under the caller's
+row-level rules); the trigger trusts only the connection that owns it and holds every other login; a full name needs the Full name field (ND422). New columns and the helpers
+(`event_name_notice`, `event_player_names`, `display_name_text`, `public_full_name`, `full_name_part`, `names_part`, `staff_full_name`,
+`event_name_display_guard`) are closed to PUBLIC and to the API role; the API role holds EXECUTE only on `join_name_notice`, `event_names_locked`,
 `player_name_display`, `ranking_names`, `desk_full_name` and the restated readers. The full name goes to no push, log line, error,
 analytics row or export beyond the join answer the team already receives; `apps/api/src/full-name-guard.test.ts` lists the API files
 that may name it. Tests: `test/db/name-display.int` (every rule and refusal as rows), `test/join/names.int` (the card, the join, the

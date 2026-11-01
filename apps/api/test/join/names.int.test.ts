@@ -251,8 +251,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("name display over HTTP", () =>
       expect(shown.card.nameNotice).toEqual({
         audience: "everyone",
         text: {
-          ar: "يرى جميع اللاعبين في هذه الفعالية اسمك الكامل بجانب اسم المستخدم.",
-          en: "Everyone in this event sees your full name next to your username.",
+          ar: "يرى جميع اللاعبين في هذه الفعالية اسمك الكامل بجانب اسم المستخدم، وقد يظهر أيضًا على الشاشة الكبيرة.",
+          en: "Everyone in this event sees your full name next to your username. It can also appear on the big screen.",
         },
       });
       expect(JSON.stringify(shown)).not.toMatch(/Sara/);
@@ -297,7 +297,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("name display over HTTP", () =>
               nameNotice: {
                 audience: "everyone",
                 text: {
-                  en: "Everyone in this event sees your full name instead of your username.",
+                  en: "Everyone in this event sees your full name instead of your username. It can also appear on the big screen.",
                 },
               },
             },
