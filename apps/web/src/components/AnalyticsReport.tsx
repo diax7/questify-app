@@ -30,14 +30,14 @@ type State =
   | Readonly<{ status: "failed" }>
   | Readonly<{ status: "ready"; report: Report }>;
 
-/** The report's data, asked for once when the page opens (the API audits each ask) and again on Try again. */
+/** The report's data, asked for when the page opens and again on Try again; showing it is not audited. */
 function useReport(language: Language, eventApi: string) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let current = true;
     setState({ status: "loading" });
-    void requestJson("POST", `${eventApi}/report`).then((result) => {
+    void requestJson("GET", `${eventApi}/report`).then((result) => {
       if (!current) {
         return;
       }
@@ -244,9 +244,30 @@ function Sheet({ language, report }: Readonly<{ language: Language; report: Repo
 }
 
 /**
+ * Writes the audit entry of printing the report, then opens the print dialog. A refused or failed entry prints nothing:
+ * a report that leaves the system leaves a record (FR-1206).
+ */
+function usePrint(language: Language, eventApi: string) {
+  const [failed, setFailed] = useState(false);
+  const print = async () => {
+    const result = await requestJson("POST", `${eventApi}/report`);
+    const code = errorCodeOf(result.body);
+    if (code !== undefined && SESSION_LOST.has(code)) {
+      window.location.assign(`/${language}/sign-in?ended=1`);
+      return;
+    }
+    setFailed(!result.ok);
+    if (result.ok) {
+      window.print();
+    }
+  };
+  return { failed, print: () => void print() };
+}
+
+/**
  * The event's one-page report (T-608, FR-1208): the headline numbers, the most popular quests and rewards and each
- * survey's results, with no player in it. The button prints the page; the print style keeps the sheet alone on one A4
- * page, so "Save as PDF" in the browser's print dialog is the PDF (ADR-393).
+ * survey's results, with no player in it. The button records the print in the audit log, then prints the page; the print
+ * style keeps the sheet alone on A4 pages, so "Save as PDF" in the browser's print dialog is the PDF (ADR-393).
  */
 export function AnalyticsReport({
   language,
@@ -256,34 +277,38 @@ export function AnalyticsReport({
   const t = useTranslator(language);
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
   const { state, retry } = useReport(language, eventApi);
+  const { failed: printFailed, print } = usePrint(language, eventApi);
   return (
     <Stack as="section" aria-labelledby="report-title">
-      <PageHeader
-        titleId="report-title"
-        title={t("report.title")}
-        back={{
-          href: `/${language}/organizers/${organizerId}/events/${eventId}/analytics`,
-          label: t("analytics.title"),
-        }}
-        actions={
-          <Button
-            variant="primary"
-            disabled={state.status !== "ready"}
-            onClick={() => window.print()}
-          >
-            {t("report.print")}
-          </Button>
-        }
-      />
-      {state.status === "loading" ? <Muted>{t("common.loading")}</Muted> : null}
-      {state.status === "failed" ? (
-        <Notice tone="danger" role="alert">
-          {t("analytics.loadFailed")}{" "}
-          <Button size="sm" onClick={retry}>
-            {t("common.retry")}
-          </Button>
-        </Notice>
-      ) : null}
+      <div className={styles.screenOnly}>
+        <PageHeader
+          titleId="report-title"
+          title={t("report.title")}
+          back={{
+            href: `/${language}/organizers/${organizerId}/events/${eventId}/analytics`,
+            label: t("analytics.title"),
+          }}
+          actions={
+            <Button variant="primary" disabled={state.status !== "ready"} onClick={print}>
+              {t("report.print")}
+            </Button>
+          }
+        />
+        {printFailed ? (
+          <Notice tone="danger" role="alert">
+            {t("report.printFailed")}
+          </Notice>
+        ) : null}
+        {state.status === "loading" ? <Muted>{t("common.loading")}</Muted> : null}
+        {state.status === "failed" ? (
+          <Notice tone="danger" role="alert">
+            {t("analytics.loadFailed")}{" "}
+            <Button size="sm" onClick={retry}>
+              {t("common.retry")}
+            </Button>
+          </Notice>
+        ) : null}
+      </div>
       {state.status === "ready" ? <Sheet language={language} report={state.report} /> : null}
     </Stack>
   );

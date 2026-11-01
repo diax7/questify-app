@@ -6,6 +6,11 @@
   gap: var(--space-xl);
 }
 
+/* The page's own header and its notices: on screen they lay out as the report's children, in print they are gone. */
+.screenOnly {
+  display: contents;
+}
+
 .masthead {
   display: flex;
   flex-direction: column;
@@ -71,15 +76,14 @@
 }
 
 @media print {
-  /* Only the sheet prints: no bar, no page header, no buttons, and never a second page. */
-  :global(header) {
+  /* Only the sheet prints: the shell hides its bar and menu (shell.module.css), the report hides its own header. Nothing
+     is clipped: a sheet longer than one page runs onto a second. */
+  .screenOnly {
     display: none;
   }
 
   .sheet {
     gap: 5mm;
-    max-block-size: 240mm;
-    overflow: hidden;
     font-size: 9pt;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;

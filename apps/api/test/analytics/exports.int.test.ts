@@ -8,6 +8,7 @@ import {
   withSession,
   type TestApp,
 } from "#test/support/auth-app";
+import { EXPORT_LIMITS } from "#src/analytics/export-gate";
 import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
 
 type Row = Record<string, unknown>;
@@ -110,12 +111,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports over HTTP", () => {
       url: `/v1/organizers/${organizer}/events/${ev}/analytics/sponsors/${sponsor}`,
       ...(cookie === null ? {} : { headers: withSession(cookie) }),
     });
-  const report = (ev: string, cookie: string | null = ownerCookie) =>
+  const reportAs = (method: "GET" | "POST", ev: string, cookie: string | null = ownerCookie) =>
     test.app.inject({
-      method: "POST",
+      method,
       url: `/v1/organizers/${organizer}/events/${ev}/report`,
       headers: cookie === null ? browserHeaders() : withSession(cookie),
     });
+  const report = (ev: string, cookie: string | null = ownerCookie) => reportAs("GET", ev, cookie);
+  const printReport = (ev: string, cookie: string | null = ownerCookie) =>
+    reportAs("POST", ev, cookie);
+  const signedInEditor = async (email: string) => {
+    const staff = await createStaff(db.owner, { email });
+    await owner(
+      "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'editor')",
+      [organizer, staff],
+    );
+    return signInFully(test, email);
+  };
+  const auditKinds = async (ev: string) =>
+    (
+      await owner<{ after: Row }>(
+        "SELECT after FROM audit_log WHERE event_id = $1 AND action = 'event.export' ORDER BY id",
+        [ev],
+      )
+    ).map((entry) => entry.after);
 
   beforeAll(async () => {
     db = await createTestDatabase();
@@ -350,7 +369,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports over HTTP", () => {
   });
 
   describe("the one-page report", () => {
-    it("answers the headline numbers, the top quests and the surveys with no player, and audits it", async () => {
+    it("answers the headline numbers, the top quests and the surveys with no player, and writes no audit entry", async () => {
       const ev = await newEvent();
       const stage = await newQuest(ev, "Main stage");
       for (let i = 0; i < 6; i += 1) await join(ev, stage);
@@ -361,12 +380,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports over HTTP", () => {
       expect(body.headline).toMatchObject({ joined: 6, active: 6, activation: 100 });
       expect(body.quests).toEqual([{ title: { ar: null, en: "Main stage" }, done: 6 }]);
       expect(body.surveys).toEqual([]);
+      expect(answer.headers["cache-control"]).toBe("private, no-store");
       expect(answer.body).not.toMatch(/exporter_|private\.test/);
-      const audit = await owner<{ after: Row }>(
-        "SELECT after FROM audit_log WHERE event_id = $1 AND action = 'event.export'",
-        [ev],
-      );
-      expect(audit.map((entry) => entry.after)).toEqual([{ kind: "report" }]);
+      await report(ev);
+      expect(await auditKinds(ev)).toEqual([]);
+    });
+
+    it("audits printing it, once for each print", async () => {
+      const ev = await newEvent();
+      const answer = await printReport(ev);
+      expect([answer.statusCode, answer.body]).toEqual([204, ""]);
+      expect(answer.headers["cache-control"]).toBe("private, no-store");
+      await printReport(ev);
+      expect(await auditKinds(ev)).toEqual([{ kind: "report" }, { kind: "report" }]);
     });
 
     it("leaves a quest done by one to four players out", async () => {
@@ -379,8 +405,45 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports over HTTP", () => {
 
     it("refuses a stranger and an unknown event", async () => {
       const ev = await newEvent();
-      expect((await report(ev, null)).statusCode).toBe(401);
-      expect((await report(randomUUID())).statusCode).toBe(404);
+      for (const ask of [report, printReport]) {
+        expect((await ask(ev, null)).statusCode).toBe(401);
+        expect((await ask(randomUUID())).statusCode).toBe(404);
+      }
+      expect(await auditKinds(ev)).toEqual([]);
+    });
+  });
+
+  describe("limits on starting an export", () => {
+    it("lets one export of an event run at a time, and writes no audit entry for the refused", async () => {
+      const ev = await newEvent();
+      await join(ev);
+      const cookie = await signedInEditor("single-flight@exports.test");
+      const answers = await Promise.all(
+        Array.from({ length: 6 }, () => exportFile(ev, "completions", undefined, cookie)),
+      );
+      const done = answers.filter((answer) => answer.statusCode === 200);
+      const refused = answers.filter((answer) => answer.statusCode === 429);
+      expect(done.length + refused.length).toBe(answers.length);
+      expect(done.length).toBeGreaterThanOrEqual(1);
+      expect(refused.length).toBeGreaterThanOrEqual(1);
+      expect(refused.every((answer) => answer.json().code === "export_running")).toBe(true);
+      expect(await auditKinds(ev)).toHaveLength(done.length);
+      expect((await exportFile(ev, "completions", undefined, cookie)).statusCode).toBe(200);
+    });
+
+    it("limits the starts of one staff member, with the wait, and not the others", async () => {
+      const ev = await newEvent();
+      const cookie = await signedInEditor("rate-limit@exports.test");
+      for (let i = 0; i < EXPORT_LIMITS.perStaff; i += 1) {
+        expect((await printReport(ev, cookie)).statusCode, `start ${i + 1}`).toBe(204);
+      }
+      const refused = await printReport(ev, cookie);
+      expect([refused.statusCode, refused.json().code]).toEqual([429, "too_many_exports"]);
+      expect(Number(refused.headers["retry-after"])).toBeGreaterThan(0);
+      expect((await exportFile(ev, "players", undefined, cookie)).statusCode).toBe(429);
+      expect(await auditKinds(ev)).toHaveLength(EXPORT_LIMITS.perStaff);
+      const other = await signedInEditor("rate-limit-other@exports.test");
+      expect((await printReport(ev, other)).statusCode).toBe(204);
     });
   });
 });

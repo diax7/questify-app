@@ -70,20 +70,25 @@ export type ReportSurvey = z.infer<typeof surveySchema>;
 
 type SurveyQuestion = SurveyExport["results"]["questions"][number];
 
+function reportChoices(
+  choices: SurveyQuestion["choices"],
+): ReportSurvey["questions"][number]["choices"] {
+  if (choices === null) return null;
+  const counts = groupParts(choices.map((choice) => choice.count));
+  return choices
+    .map((choice, index) => ({ text: choice.text, count: counts[index] ?? null }))
+    .slice(0, REPORT_LIMITS.choices);
+}
+
 function reportQuestion(question: SurveyQuestion): ReportSurvey["questions"][number] {
+  const answered = groupCount(question.answered);
   return {
     text: question.text,
     kind: question.kind,
-    answered: groupCount(question.answered),
-    average:
-      question.average !== null && groupCount(question.answered) !== null ? question.average : null,
-    choices:
-      question.choices === null
-        ? null
-        : question.choices
-            .slice(0, REPORT_LIMITS.choices)
-            .map((choice) => ({ text: choice.text, count: groupCount(choice.count) })),
-    written: question.kind === "text" ? groupCount(question.texts?.length ?? 0) : null,
+    answered,
+    average: answered === null ? null : question.average,
+    choices: reportChoices(question.choices),
+    written: question.kind === "text" ? answered : null,
   };
 }
 

@@ -145,9 +145,40 @@ describe("the one-page report", () => {
     const report = build([survey(12, ["a", "b", "c", "d", "e", "f"])]);
     const [first] = report.surveys;
     expect(first).toMatchObject({ responses: 12 });
-    expect(first?.questions[0]?.choices?.map((choice) => choice.count)).toEqual([null, 9]);
     expect(first?.questions[1]).toMatchObject({ average: 4.25, answered: 12 });
     expect(first?.questions[2]).toMatchObject({ written: 6 });
+  });
+
+  it("leaves out the smallest shown choice beside a lone small one, so the answered total gives nothing back", () => {
+    const [first] = build([survey(12)]).surveys;
+    const choices = first?.questions[0]?.choices;
+    expect(first?.questions[0]?.answered).toBe(12);
+    expect(choices?.map((choice) => choice.count)).toEqual([null, null]);
+  });
+
+  it("keeps the larger choices when a lone small one is hidden among several", () => {
+    const wide = survey(40);
+    const [question] = wide.results.questions;
+    if (question === undefined) throw new Error("the survey has a question");
+    question.choices = [
+      { id: "x", text: text("Talks"), count: 3 },
+      { id: "y", text: text("Food"), count: 20 },
+      { id: "z", text: text("Music"), count: 17 },
+    ];
+    const [first] = build([wide]).surveys;
+    expect(first?.questions[0]?.choices?.map((choice) => choice.count)).toEqual([null, 20, null]);
+  });
+
+  it("counts written answers from the number answered, not from the quotes the door sends", () => {
+    const capped = survey(
+      80,
+      Array.from({ length: 50 }, (_, index) => `answer ${index}`),
+    );
+    const question = capped.results.questions[2];
+    if (question === undefined) throw new Error("the survey has a text question");
+    question.answered = 80;
+    const [first] = build([capped]).surveys;
+    expect(first?.questions[2]).toMatchObject({ written: 80, answered: 80 });
   });
 
   it("gives no average for a rating answered by fewer players than the floor", () => {

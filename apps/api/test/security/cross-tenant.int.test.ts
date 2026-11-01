@@ -1751,6 +1751,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         "SELECT export_surveys($1)",
         "SELECT export_completions($1, '-infinity', 0, 10)",
         "SELECT export_start($1, 'players', NULL, gen_random_uuid())",
+        "SELECT export_start($1, 'report_view', NULL, gen_random_uuid())",
         "SELECT analytics_sponsor($1, gen_random_uuid())",
       ]) {
         expect(await refusal(asA(seat, sql, [f.eventB])), `${seat} ${sql}`).toBe("AN404");

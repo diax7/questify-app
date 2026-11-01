@@ -6045,7 +6045,7 @@ surveys on this page (their results page exists, T-508), the change log link, a 
 ## ADR-393 - T-608 exports, sponsor totals and the one-page report: server-built audited files, a floor of five for anything made for a sponsor, the browser prints the PDF
 
 **Status:** Proposed (developer, delegated by Dhia, 2026-10-31; Q-360).
-**Decision:** (1) **Files are built on the server and every one is audited** (migration 0103, read-only definer doors, PUBLIC without
+**Decision:** (1) **Files are built on the server and every one is audited, one at a time per event, and a staff member starts at most 30 in 10 minutes (429, no audit entry; in-process state)** (migration 0103, read-only definer doors, PUBLIC without
 EXECUTE, granted to the API's role alone, each behind `award_event_of`, AN404 for anyone but the event's own team): `POST
 …/events/{id}/exports/{players|completions|redemptions|submissions|surveys|sponsor}` calls `export_start`, which writes the audit
 entry `event.export` (the kind and the sponsor, never a row) before it reads a row, then writes the file in pieces
@@ -6070,14 +6070,15 @@ Souvenirs cannot be tagged yet (T-507c), so they are not in the totals.
 (4) **The floor is 5 (`MIN_GROUP_SIZE`)**: a count of 1 to 4 players is left out ("fewer than 5"), 0 stays 0. It applies to
 everything made for a sponsor (the sponsor view and its file) and to the item-level counts of the report (one quest, one reward, one
 answer choice, a survey's responses and its rating average); a survey with fewer than 5 responses gives no result at all. Where
-parts add up to a total shown beside them (a sponsor's rewards), a single hidden part also hides the smallest part shown, so the
+parts add up to a total shown beside them (a sponsor's rewards, a question's answer choices), a single hidden part also hides the smallest part shown, so the
 total cannot give it back. Event-wide headline figures are shown as they are, and so is the organizer's own Analytics page and
 player files (the team already sees named players, ADR-392 (5)). **Not protected:** a hidden count that can be worked out by
 subtracting event-wide figures the report prints.
 (5) **The PDF is the browser's print of a page**: `/analytics/report` shows the sheet on screen and, under `@media print`, only the
-sheet on one A4 page (the `@page` A4 with 12 mm margins, the shell and the buttons hidden, the sheet clipped at 240 mm so it never runs to a second
-page), in the page's language with the fonts it already loads and Western digits; "Print or save as PDF" is the button. No PDF
-dependency. Its data is `POST …/report`, audited like an export, and holds the headline numbers, the five most popular quests and
+sheet on one A4 page (the `@page` A4 with 12 mm margins, the shell and the page's header hidden; nothing is clipped, so a sheet longer than a page runs onto a second), in the page's language with the fonts it already loads and Western digits; "Print or save as PDF" is the button. No PDF
+dependency. Its data is `GET …/report`, not audited (it shows the team what the Analytics page shows; the database's `report_view` kind writes no entry), and the
+"Print or save as PDF" button first calls `POST …/report`, which writes the audit entry (kind `report`), and prints only when that succeeded: the report
+leaves the system when it is printed, not each time the page opens. It holds the headline numbers, the five most popular quests and
 rewards, and up to three surveys of up to three questions (choice counts of up to four choices, a rating average, written answers
 only counted, never quoted); no player. **The event's logo is not on it**: an event has no logo (uploads wait for the storage
 bucket, Q-149; T-507b adds the sponsors' with it), so the masthead shows the event's name.

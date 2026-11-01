@@ -11,15 +11,17 @@
 SET LOCAL lock_timeout = '10s';
 
 -- Opens an export: checks the caller's seat, writes the audit entry and answers the event's names and zone and, for the
--- players file, the join fields that are its columns. `export_kind` is a file of the exports page or `report` (the
--- one-page PDF's data). A sponsor's totals name their sponsor (AN404 when it is not of this event); no other export
--- does (AX400).
+-- players file, the join fields that are its columns. `export_kind` is a file of the exports page, `report` (the
+-- one-page report printed or saved as a PDF) or `report_view` (its preview on the page, which shows the team only what
+-- the analytics page already shows, so it writes no audit entry). A sponsor's totals name their sponsor (AN404 when it
+-- is not of this event); no other export does (AX400).
 CREATE FUNCTION export_start(target_event uuid, export_kind text, target_sponsor uuid, request uuid) RETURNS jsonb
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   ev event := award_event_of(target_event);
 BEGIN
-  IF export_kind NOT IN ('players', 'completions', 'redemptions', 'submissions', 'surveys', 'sponsor', 'report') THEN
+  IF export_kind NOT IN ('players', 'completions', 'redemptions', 'submissions', 'surveys', 'sponsor', 'report',
+                         'report_view') THEN
     RAISE EXCEPTION 'unknown export' USING ERRCODE = 'AX400';
   END IF;
   IF (export_kind = 'sponsor') <> (target_sponsor IS NOT NULL) THEN
@@ -29,9 +31,11 @@ BEGIN
      AND NOT EXISTS (SELECT 1 FROM sponsor s WHERE s.id = target_sponsor AND s.event_id = ev.id) THEN
     RAISE EXCEPTION 'no such sponsor in this event' USING ERRCODE = 'AN404';
   END IF;
-  INSERT INTO audit_log (actor_type, actor_id, organizer_id, event_id, action, target_type, target_id, after, request_id)
-  VALUES ('staff', app_staff_user_id(), ev.organizer_id, ev.id, 'event.export', 'event', ev.id::text,
-          jsonb_strip_nulls(jsonb_build_object('kind', export_kind, 'sponsor', target_sponsor)), request);
+  IF export_kind <> 'report_view' THEN
+    INSERT INTO audit_log (actor_type, actor_id, organizer_id, event_id, action, target_type, target_id, after, request_id)
+    VALUES ('staff', app_staff_user_id(), ev.organizer_id, ev.id, 'event.export', 'event', ev.id::text,
+            jsonb_strip_nulls(jsonb_build_object('kind', export_kind, 'sponsor', target_sponsor)), request);
+  END IF;
   RETURN jsonb_build_object(
     'name', jsonb_build_object('ar', ev.name_ar, 'en', ev.name_en),
     'startsAt', ev.starts_at,

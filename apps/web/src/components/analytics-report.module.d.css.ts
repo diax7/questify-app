@@ -6,6 +6,7 @@ declare const styles: {
   readonly masthead: string;
   readonly more: string;
   readonly questions: string;
+  readonly screenOnly: string;
   readonly sheet: string;
   readonly survey: string;
   readonly surveys: string;

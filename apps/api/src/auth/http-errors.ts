@@ -68,6 +68,18 @@ export const resendLimit = make(
   "وصلت إلى الحد الأقصى لإعادة الإرسال. ابدأ من جديد.",
   "You have used all resends. Start signing in again.",
 );
+export const exportRunning = make(
+  429,
+  "export_running",
+  "يجري تصدير لهذه الفعالية الآن. انتظر حتى ينتهي.",
+  "An export of this event is already running. Wait for it to finish.",
+);
+export const tooManyExports = make(
+  429,
+  "too_many_exports",
+  "طلبات تصدير كثيرة. حاول مرة أخرى بعد قليل.",
+  "Too many exports. Try again shortly.",
+);
 export const busy = make(
   503,
   "busy",

@@ -239,8 +239,25 @@ test("shows the event's analytics from nothing to a played event", async ({
   await expect(sheet).toContainText("الخطوة 1");
   await expect(sheet).not.toContainText(/@|an\d+_/);
   await checkLayout(page, info.project.name, "ar report");
+  // The button records the print (204) and only then opens the print dialog.
+  await page.evaluate(() => {
+    const counted = window as unknown as { printed: number };
+    counted.printed = 0;
+    window.print = () => {
+      counted.printed += 1;
+    };
+  });
+  const recorded = page.waitForResponse(
+    (response) => response.url().endsWith("/report") && response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "طباعة أو حفظ PDF" }).click();
+  expect((await recorded).status()).toBe(204);
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { printed: number }).printed))
+    .toBe(1);
   await page.emulateMedia({ media: "print" });
-  await expect(page.locator("header").first()).toBeHidden();
+  await expect(page.getByRole("heading", { name: "تقرير الفعالية", level: 1 })).toBeHidden();
+  await expect(sheet).toBeVisible();
   const pdf = await page.pdf({ preferCSSPageSize: true });
   expect(pdf.toString("latin1").match(/\/Type\s*\/Page[^s]/g)).toHaveLength(1);
   await page.emulateMedia({ media: "screen" });

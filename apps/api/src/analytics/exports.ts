@@ -47,15 +47,15 @@ const BYTE_ORDER_MARK = "﻿";
 
 /**
  * Opens an export or the report: the database checks the caller's seat, writes the audit entry (FR-1206: every export
- * is audited) and answers the event's names and zone. Undefined when the event, or the sponsor of a sponsor's totals,
- * is not the caller's to reach.
+ * is audited; the report's preview, `report_view`, is not an export and writes none) and answers the event's names and
+ * zone. Undefined when the event, or the sponsor of a sponsor's totals, is not the caller's to reach.
  */
 export async function startExport(
   deps: AnalyticsDeps,
   team: OrganizerContext,
   input: Readonly<{
     eventId: string;
-    kind: ExportKind | "report";
+    kind: ExportKind | "report" | "report_view";
     sponsorId: string | undefined;
     requestId: string;
   }>,
@@ -206,8 +206,22 @@ export function exportStream(
 }
 
 /**
- * The one-page report's data (FR-1208): the audit entry, then the three analytics answers and the surveys, with every
- * count a client or sponsor may not see left out (ADR-393). Undefined for an event the caller cannot reach.
+ * The audit entry for printing or saving the one-page report as a PDF (FR-1206, FR-1208, ADR-393): the report leaves
+ * the system when it is printed, not when it is shown. False for an event the caller cannot reach.
+ */
+export async function recordReportPrint(
+  deps: AnalyticsDeps,
+  team: OrganizerContext,
+  input: Readonly<{ eventId: string; requestId: string }>,
+): Promise<boolean> {
+  const start = await startExport(deps, team, { ...input, kind: "report", sponsorId: undefined });
+  return start !== undefined;
+}
+
+/**
+ * The one-page report's data for the page (FR-1208): the three analytics answers and the surveys, with every count a
+ * client or sponsor may not see left out (ADR-393). Not audited: it shows the team what the analytics page shows.
+ * Undefined for an event the caller cannot reach.
  */
 export async function readReport(
   deps: AnalyticsDeps,
@@ -215,7 +229,11 @@ export async function readReport(
   input: Readonly<{ eventId: string; requestId: string }>,
 ): Promise<Report | undefined> {
   const { eventId } = input;
-  const start = await startExport(deps, team, { ...input, kind: "report", sponsorId: undefined });
+  const start = await startExport(deps, team, {
+    ...input,
+    kind: "report_view",
+    sponsorId: undefined,
+  });
   if (start === undefined) {
     return undefined;
   }

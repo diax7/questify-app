@@ -101,7 +101,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports (database)", () => {
     )[0]?.id ?? "";
   const redeem = async (event: string, rewardId: string) => {
     const who = await member(event);
-    await f.earn(event, who.enrollment, { points: 100 });
+    await f.owner(
+      `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, actor)
+       SELECT organizer_id, event_id, id, 'welcome', 100, 100, 'system' FROM enrollment WHERE id = $1`,
+      [who.enrollment],
+    );
     await f.asPlayer(who.player, "SELECT * FROM reserve_reward($1, $2)", [rewardId, randomUUID()]);
     return who;
   };
@@ -136,6 +140,37 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports (database)", () => {
       expect(audit).toEqual([
         { action: "event.export", actor_type: "staff", after: { kind: "players" } },
       ]);
+    });
+
+    it("audits the report when it is printed and not when it is only viewed, and answers the same names", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const viewed = await read<{ name: Text; zone: string }>(
+        "export_start($1, 'report_view', NULL, $2)",
+        [event, randomUUID()],
+      );
+      const printRequest = randomUUID();
+      const printed = await read<{ name: Text; zone: string }>(
+        "export_start($1, 'report', NULL, $2)",
+        [event, printRequest],
+      );
+      expect(viewed).toEqual(printed);
+      const audit = await f.owner<{ after: Record<string, unknown> }>(
+        "SELECT after FROM audit_log WHERE event_id = $1 AND action = 'event.export'",
+        [event],
+      );
+      expect(audit).toEqual([{ after: { kind: "report" } }]);
+    });
+
+    it("refuses the report's preview to anyone but the event's team", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      expect(
+        await refusal(
+          f.run(f.team(f.ownerA, f.ids.orgB), "SELECT export_start($1, 'report_view', NULL, $2)", [
+            event,
+            randomUUID(),
+          ]),
+        ),
+      ).toBe("AN404");
     });
 
     it("refuses an unknown kind, a sponsor on any other export and no sponsor on the sponsor export", async () => {

@@ -7385,6 +7385,10 @@ export const MESSAGES = {
   "exports.csv.redeemed": { ar: "المستبدَل", en: "Redeemed" },
   "report.title": { ar: "تقرير الفعالية", en: "Event report" },
   "report.print": { ar: "طباعة أو حفظ PDF", en: "Print or save as PDF" },
+  "report.printFailed": {
+    ar: "تعذر تسجيل الطباعة. حاول مرة أخرى بعد قليل.",
+    en: "We could not record the print. Try again shortly.",
+  },
   "report.numbers": { ar: "الأرقام الرئيسية", en: "Headline numbers" },
   "report.surveys": { ar: "نتائج الاستبيانات", en: "Survey results" },
   "report.generated": { ar: "أُنشئ في {date}", en: "Created {date}" },

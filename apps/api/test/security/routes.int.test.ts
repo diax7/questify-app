@@ -390,8 +390,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members inside their event limit, through analytics_sponsor, which checks the organizer, the event limit and that the sponsor is of the path's event (AN404); counts only, every count of one to four players left out, no player; another organizer's event or a sponsor of another event answers 404 (test/analytics/exports, test/db/exports, test/security/cross-tenant)",
   "POST /v1/organizers/:organizerId/events/:eventId/exports/:kind":
     "members inside their event limit, through export_start (the audit entry, event.export) and the export doors, which check the organizer and the event limit themselves (AN404); only the fields the join card disclosed, rows checked against a strict schema, a sponsor's file holds totals and no player; another organizer's event answers 404 (test/analytics/exports, test/db/exports, test/security/cross-tenant)",
+  "GET /v1/organizers/:organizerId/events/:eventId/report":
+    "members inside their event limit, through export_start (the preview, no audit entry) and the analytics and survey doors; counts only, no player and no quoted text answer, a small count left out; another organizer's event answers 404 (test/analytics/exports, test/db/exports, test/security/cross-tenant)",
   "POST /v1/organizers/:organizerId/events/:eventId/report":
-    "members inside their event limit, through export_start (the audit entry, event.export) and the analytics and survey doors; counts only, no player and no quoted text answer, a small count left out; another organizer's event answers 404 (test/analytics/exports, test/security/cross-tenant)",
+    "members inside their event limit, through export_start (the audit entry, event.export, of printing the report; 204, no body); starts are limited per staff member, 429; another organizer's event answers 404 (test/analytics/exports, test/security/cross-tenant)",
   "GET /v1/organizers/:organizerId/events/:eventId/control":
     "members inside their event limit, through control_feed, control_counts and control_done, which check the organizer and the event limit themselves (AN404); usernames and avatars the team already reads, no contact detail or points; another organizer's event answers 404 (test/control/routes, test/db/control-room, test/security/cross-tenant)",
   "POST /v1/rewards/:rewardId/reserve":
