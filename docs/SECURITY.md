@@ -516,3 +516,16 @@ caller; the ranking switch off still answers 404). The big-screen ranking scene 
 avatar unless `layout.looks.ranking.scores` is "shown" (no stored value is shown; a value or a `ranking` entry that is there and not understood is places only);
 tests in `test/db/big-screen.int.test.ts`, and `screen_ranking` keeps its closed-to-PUBLIC grant (outsider suite). Not covered: the player's own points on Home
 (their own record and balance, Q-363 (b)).
+
+### Prize reservation and the desk sale (T-612, ADR-397)
+
+With an event's reservation Off the desk sells items and experiences after a My QR scan. The operator's tap only makes an offer (no points,
+no stock); the price leaves the balance only on the player's own Pay in their signed-in app (ADR-137), which runs every shop gate again
+under the enrollment and reward locks and checks the price is the one the player was shown (DS409 `price_changed`). The desk sees whether the
+player can buy each reward, never their balance (Q-364 g). A sale needs the API-verified My QR pair (the name search does not sell). The
+`desk_sale` table has RLS forced and no grant; its doors are definers revoked from PUBLIC and granted to the API's role only, with the
+operator checked through the hand-over assignment and the player through their own enrollment. A Pay's caught refusals are a fixed list of
+business codes; anything else rolls the whole call back. The sale's redemption key prefix `desk:` is reserved (RK422 for a client key).
+Tests: `test/desk/desk-sale.int.test.ts` (every refusal writes nothing, races, another organizer, rehearsal and erasure),
+`test/desk/sale-routes.int.test.ts`, the outsider suite (anon and PUBLIC hold nothing on `desk_sale` or the new and restated functions; the
+API's role holds no table privilege on it) and the cross-tenant suite.

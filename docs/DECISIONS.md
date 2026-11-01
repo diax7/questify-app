@@ -6177,3 +6177,27 @@ and redraws the screen being styled from the unsaved draft, with example players
 **Why:** configuration over code, one write path, and privacy that does not depend on a client behaving.
 **Trade-offs:** the 15-second configuration cache means a switch to places only reaches every API copy within that time (as every other
 switch); the dashboard preview uses made-up players; not run on a phone (layout maths and the Hermes bundle only).
+
+## ADR-397 - T-612 prize reservation On or Off: Off sells desk rewards at the desk, paid by the player's own Pay
+
+**Status:** Proposed (T-612 builder, 2026-11-01; plan `docs/plans/2026-11-01-t-612-desk-redeem.md`, plan review 88 folded). Builds FR-1834
+with ADR-137. Migration 0107.
+**Decision:** (1) **An event column, not a feature key.** `event.reservation_on` (default true) is a mode of the shop, set by the owner or an
+editor through the shop settings door (`PUT …/events/{id}/shop`, `reservation`), audited in `event.shop.update`, any status but archived.
+Off needs the desk's place (409 `desk_needed`). The shop's own On/Off stays T-602's `feature_enabled(ev, 'shop')`; with the shop off there
+is neither a reservation nor a sale. (2) **Off:** the app shows "Redeem at the prize desk" with the desk's place and hours and no Reserve
+button for an item or an experience; `reserve_reward` refuses them RS403 `reservation_off`. Digital rewards stay in the app (the desk cannot
+hand over a code). Reservations made before Off stand (Collect, desk offer, hand over, cancel and expiry run as before). (3) **The sale:**
+the operator scans My QR, picks a reward from "Sell from the shop" and taps Offer (a `desk_sale` row, 2 minutes, no points, no stock); the
+player sees the offer under My QR (price, balance after, the desk's place, the rules before a first redemption) and taps Pay. Pay runs
+the shared spend body (`spend_checks`, `spend_reward`, also used by `reserve_reward`) under the enrollment and reward locks and writes one
+`handed_over` redemption, one `redeem` (actor `player`) and one `handover` (actor `operator`): exactly the rows a reserve plus a handover
+write, so analytics, exports and the history count a sale as a handed-over reservation. A refused Pay ends the sale `refused` with its
+reason and writes nothing else. Consent is always the player's tap in their own app, never the operator's alone. (4) **On:** the sale doors
+refuse DS409 `reservation_on`; one mode at a time. (5) **Idempotency:** the offer key is unique per operator; a live offer
+(`offered` and not past `offer_until`) by another operator is `desk_busy`; Pay replays its redemption; the sale's redemption key is
+`desk:<sale id>`, a prefix no client key may take (RK422).
+**Why:** FR-1834 asks for redeem-at-desk in one step; ADR-137 (Accepted by Dhia) says a prize is never taken by showing the QR alone, so the
+one step is the player's Pay, not the operator's tap.
+**Trade-offs:** the player needs their phone at the desk (as for every handover); the price on My QR is named with the default currency
+word, since My QR is not inside one event; no push for an offer (the player is standing at the desk with My QR open).

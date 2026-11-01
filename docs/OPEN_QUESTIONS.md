@@ -1735,3 +1735,13 @@ layout maths, the dashboard preview and the Hermes bundle only; please look at a
 migration 0106 (`screen_ranking` leaves the score out unless the layout says it is shown; the scene draws the place alone when no score comes); (b) keep:
 the player's own points on Home stay as they are (their own record and balance); (c) the shop's default stays the list; (d) the phone check stays with
 Dhia (an Arabic small Android phone: podium and grids). ADR-396 accepted.
+
+## Q-364 - T-612 prize reservation and the desk sale: what is decided without Dhia (2026-11-01)
+
+**Recommended (developer, ADR-397):** (a) the player confirms each sale on their own phone (Pay), not the operator's tap alone (ADR-137);
+FR-1834's "when they confirm" is read as the player's Pay. (b) Digital rewards stay in the app when reservation is Off. (c) A sale needs a
+My QR scan (later the wallet pass), not the name or phone search. (d) Turning Off needs the desk's place; reservations already made stand,
+and the dashboard's confirmation names how many are still held. (e) The desk sells only while reservation is Off. (f) No push for an
+offer. (g) The desk sees whether the player can buy each reward ("Not enough points", "Reached the limit", "Sold out"), never their balance.
+The offer card names the desk's place. Questions for Dhia: is the player's Pay the confirmation you want (a), and should digital rewards
+also move to the desk when Off (b)? Not run on a phone: please try Offer and Pay with two phones at a rehearsal.

@@ -1576,3 +1576,28 @@ PUBLIC none. Not copied when an event is duplicated.
 - No door selects `player_contact`, a phone number, an email address, a device id or a redemption code; the API checks every row
   against a strict schema before a file is written. Join answers are read from `join_answer` by field id.
 - SQLSTATEs: `AN404` (event or sponsor not the caller's), `AX400` (unknown kind, a sponsor on a file that takes none, a page size out of 1 to 10,000).
+
+## Prize reservation and the desk sale (T-612, migration 0107; Proposed ADR-397)
+
+- `event.reservation_on boolean NOT NULL DEFAULT true` (column grant `UPDATE (reservation_on)` to the API's role, set through the shop
+  settings; copied by `event_copy_settings`). Off: `reserve_reward` refuses an item or experience RS403 `reservation_off`; digital rewards
+  are unchanged.
+- `desk_sale` (an offer, never points): `id`, `organizer_id`, `event_id`, `enrollment_id`, `reward_id`, `operator_id` (player), `price`
+  (>= 1, the price shown), `idempotency_key` (1 to 255, `UNIQUE (operator_id, idempotency_key)`), `status` `offered|accepted|declined|
+  withdrawn|refused`, `refusal` (SQLSTATE and detail of a refused Pay, 5 to 40), `offer_until` (offer time plus 2 minutes),
+  `redemption_id` (UNIQUE, RESTRICT), `created_at`, `ended_at`. Checks: `accepted` iff a redemption, `refused` iff a refusal, `offered` iff
+  no `ended_at`. Composite FKs to event, enrollment and reward as `redemption` has. Indexes `desk_sale_open (enrollment_id) WHERE status =
+  'offered'` and `desk_sale_reward (reward_id)`. RLS enabled and forced, no policy and no grant: the definers are the only doors. A live
+  offer is `status = 'offered' AND offer_until > now()` (`desk_sale_live`); an expired one keeps `offered` and reads as `expired`.
+- The spend body is shared: `spend_checks` (every gate of `reserve_reward`, in its order, plus `reservation_off` / DS409 `reservation_on`
+  and the desk being open for a sale) and `spend_reward` (the redemption, `units_out`, the `redeem` row, `ranking_repair`, and for a sale
+  `status = handed_over`, `ended_by = handover`, the operator and the `handover` row). A sale's redemption key is `desk:<sale id>`;
+  `reserve_reward` refuses any client key starting with `desk:` (RK422).
+- Doors (definer, PUBLIC revoked, the API's role only): `desk_sale_rewards`, `desk_offer_sale`, `desk_sale_state`, `withdraw_desk_sale`
+  (operator, via the hand-over assignment and the verified My QR pair), `accept_desk_sale`, `decline_desk_sale`, `my_desk_sales`
+  (player). Restated: `reserve_reward`, `my_desk_watch`, `operator_desk` (gains `reservation_on`, `shop_on`), `event_shop` (gains
+  `reservation_on`), `wipe_rehearsal` (deletes the accounts' sales before their redemptions), `erase_rows` (an erased operator's live
+  offers end `withdrawn`; an erased player's sales are deleted), `event_copy_settings`.
+- Lock order: assignment (FOR SHARE) -> enrollment -> reward -> desk_sale -> redemption. No event or quest lock.
+- SQLSTATEs: `DS409` (`reservation_on`, `desk_busy`, `price_changed`), `DS410` (the offer ended: `declined`, `withdrawn`, `refused`,
+  `expired`), `DS422` (`not_desk_reward`), RS403 `reservation_off` / `desk_closed`.

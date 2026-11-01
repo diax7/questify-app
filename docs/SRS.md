@@ -1426,7 +1426,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1831 | F-333 | Should | built (T-610: drag or move buttons, show switches, live preview, presets, Reset to default after a confirmation; `apps/web/e2e/layout-editor.spec.ts`) |
 | FR-1832 | F-334 | Should | built (T-611: List or Podium and scores or places only; places only leaves the score out of the ranking and results answers and out of the big-screen ranking scene (0106); `apps/api/test/events/layout.int.test.ts`, `apps/api/test/db/big-screen.int.test.ts`, `apps/app/src/event/ranking.test.ts`; not run on a phone) |
 | FR-1833 | F-335 | Could | built (T-611: Quests list or grid, Rewards list or grid, two cards a row; `apps/web/e2e/layout-editor.spec.ts`; not run on a phone) |
-| FR-1834 | F-336 | Should | pending |
+| FR-1834 | F-336 | Should | built (T-612: reservation On or Off in the shop settings; Off sells desk rewards after a My QR scan, paid by the player's own Pay in one transaction, ADR-397; `apps/api/test/desk/desk-sale.int.test.ts`, `apps/web/e2e/rewards.spec.ts`) |
 | FR-1835 | F-337 | Should | pending |
 | FR-1836 | F-338 | Could | built T-510 (four switches on the Announcements page, a player's own choice wins; phone check owed): `test/db/push-topic-defaults.int`, `test/push/defaults.int`, `e2e/push-defaults.spec.ts` |
 | FR-1837 | F-339 | Should | pending |

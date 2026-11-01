@@ -38,6 +38,18 @@
   app render test for `eventOff` was dropped (the app has no render-test harness, and a harness is not worth adding for
   one line).
 
+## T-612 prize reservation and the desk sale — 2026-11-01
+
+- **T-612 built (tier A; one code review and mutation owed; not run on a phone). Migration 0107** (new, undeployed; staging runs through 0105, 0106 pushed).
+  **Built (FR-1834, ADR-397 Proposed, Q-364 Proposed):** `event.reservation_on` in the shop settings (dashboard switch with a confirmation naming the held
+  prizes); Off refuses in-app reserves of items and experiences (`reservation_off`) and the app shows "Redeem at the prize desk" instead of Reserve; the desk
+  sells after a My QR scan (`desk_sale` offer, 2 minutes) and the player's own Pay on My QR takes the price and hands over in one transaction through the
+  spend body `reserve_reward` now shares (`spend_checks`, `spend_reward`; refusal order pinned by `test/rewards/reserve-order.int.test.ts`). Analytics, exports,
+  rehearsal wipe and erasure count or remove a sale as a handed-over reservation. **Local:** full vitest ONCE: 10323 passed, 15 skipped, 3 failed (646 files): two list guards had not learned the new routes and `spend_reward` (`security/routes`, `db/flash-boosts` payer map; fixed) and `db/first-bonus` "Stop during continuous claims on 8 connections" timed out at 30 s under load; those three files re-run once: 149 passed. Full browser suite after a fresh web build, single worker: 307 passed, 5 skipped, 0 failed (27.5 min; `rewards.spec.ts` covers the switch and its confirmation). npx expo export --platform android ok (Hermes bytecode). tsc (shared, api, web, app), oxlint, oxfmt and function limits clean (baseline locked in). Mutation globs: `apps/api/src/desk/sale.ts`,
+  `apps/api/src/desk/routes.ts`, `apps/api/src/desk/desk.ts`, `apps/api/src/rewards/shop.ts`, `apps/api/src/rewards/builder.ts`. CI minutes none; agent tokens
+  roughly 0.35M for this finishing worker (estimate; the first builder's share unknown).
+  **Next:** the T-612 code review (tier A, strongest model), then mutation on the globs above; then T-613.
+
 ## T-611 ranking, Quests and shop layouts — 2026-11-01
 
 - **T-611 review follow-up (2026-11-01, review 93 GO, migration 0106 new, undeployed; staging runs through 0105).** ADR-396 accepted; Q-363 decided: (a) places only now
@@ -55,7 +67,6 @@
   Quests and Rewards in two equally tall cards a row; no score on Home's ranking card or podium when the answer has none. Dashboard: "Screen styles" on
   the Layout page and a preview with tabs (Home, Ranking, Quests, Rewards) redrawn from the draft. ADR-396 and Q-363 were Proposed here and are decided in the
   follow-up above. **Not built here:** places only on the big-screen scene (added in 0106, above); Home's own points stay (Q-363 (b)). Mutation targets: none (tier B). **Local:** full vitest ONCE: 10191 passed, 15 skipped, 1 failed (642 files; `apps/api/test/results/routes.int.test.ts` expected the old answer without `scores: true`; fixed and that file re-run once: 7 passed). Full browser suite after a fresh web build, single worker: 307 passed, 5 skipped, 0 failed (29.6 min; the new layout-editor spec passed in desktop and phone). npx expo export --platform android ok (Hermes bytecode built). tsc (shared, api, web, app), oxlint, oxfmt and function limits clean. CI minutes none; agent tokens roughly 0.55M (estimate).
-  **Next:** the next unchecked task in `docs/TASKS.md` (T-612).
 
 ## T-610 Home editor, new blocks and the banner — 2026-11-01
 
