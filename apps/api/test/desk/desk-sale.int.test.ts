@@ -853,6 +853,42 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("desk sale (database)", () => {
     });
   });
 
+  describe("another organizer", () => {
+    it("cannot list, offer, poll or withdraw in another organizer's event, nor pay or decline its sale", async () => {
+      const s = await setup();
+      const sale = await offer(s.desk, s.event, s.player, s.reward);
+      counter += 1;
+      const [eventB] = await owner<{ id: string }>(
+        `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at, desk_location_en)
+         VALUES ($1, $2, 'B Fest', 'live', now() - interval '1 hour', now() + interval '1 day', 'Hall') RETURNING id`,
+        [ids.orgB, `SALEB${counter}`],
+      );
+      const [opB] = await owner<{ id: string }>(
+        "INSERT INTO player (username) VALUES ($1) RETURNING id",
+        [`sale_op_b_${counter}`],
+      );
+      await owner(
+        "INSERT INTO staff_assignment (organizer_id, event_id, player_id, abilities) VALUES ($1, $2, $3, '{hand_over}')",
+        [ids.orgB, eventB?.id, opB?.id],
+      );
+      const playerB = opB?.id ?? "";
+      const v = await versionOf(s.player);
+      for (const [sql, values] of [
+        ["SELECT * FROM desk_sale_rewards($1, $2, $3)", [s.event, s.player, v]],
+        ["SELECT * FROM desk_offer_sale($1, $2, $3, $4, 'k')", [s.event, s.player, v, s.reward]],
+        ["SELECT * FROM desk_sale_state($1)", [sale.sale_id]],
+        ["SELECT withdraw_desk_sale($1)", [sale.sale_id]],
+      ] as const) {
+        expect(await refusal(call(playerB, sql, [...values])), sql).toBe("OP403");
+      }
+      expect(await refusal(pay(playerB, sale.sale_id))).toBe("RN404");
+      expect(await refusal(call(playerB, "SELECT decline_desk_sale($1)", [sale.sale_id]))).toBe(
+        "RN404",
+      );
+      expect((await saleRow(sale.sale_id))?.status).toBe("offered");
+    });
+  });
+
   describe("rehearsal and erasure", () => {
     it("a rehearsal account buys with the desk closed, and the wipe removes the sale and its redemption", async () => {
       const event = await newEvent({

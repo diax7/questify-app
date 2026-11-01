@@ -572,6 +572,73 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     }
   });
 
+  it("grants the desk sale's doors to the API's role only, and keeps desk_sale and the spend body closed (T-612)", async () => {
+    const doors = [
+      "desk_sale_rewards",
+      "desk_offer_sale",
+      "desk_sale_state",
+      "withdraw_desk_sale",
+      "accept_desk_sale",
+      "decline_desk_sale",
+      "my_desk_sales",
+      "my_desk_watch",
+      "operator_desk",
+      "event_shop",
+      "reserve_reward",
+    ];
+    const internals = [
+      "desk_sale_live",
+      "spend_checks",
+      "spend_reward",
+      "desk_scanned",
+      "desk_just_bought",
+      "my_desk_sale",
+      "desk_sale_answer",
+      "wipe_rehearsal",
+      "erase_rows",
+      "event_copy_settings",
+    ];
+    const names = [...doors, ...internals];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      public: boolean;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        has_function_privilege('public', p.oid, 'EXECUTE') AS public
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'public' AND proname IN (${names.map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(names.toSorted());
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.public, row.proname).toBe(false);
+    }
+    const [table] = await rows<{ app: boolean; outsider: boolean; rls: boolean; forced: boolean }>(
+      `SELECT has_table_privilege('questify_app', 'public.desk_sale', 'SELECT, INSERT, UPDATE, DELETE') AS app,
+              has_table_privilege('questify_outsider', 'public.desk_sale', 'SELECT, INSERT, UPDATE, DELETE') AS outsider,
+              c.relrowsecurity AS rls, c.relforcerowsecurity AS forced
+       FROM pg_class c WHERE c.oid = 'public.desk_sale'::regclass`,
+    );
+    expect(table).toEqual({ app: false, outsider: false, rls: true, forced: true });
+    for (const sql of [
+      "SELECT * FROM public.desk_sale",
+      "SELECT * FROM public.desk_sale_rewards(gen_random_uuid(), gen_random_uuid(), 1)",
+      "SELECT * FROM public.desk_offer_sale(gen_random_uuid(), gen_random_uuid(), 1, gen_random_uuid(), 'k')",
+      "SELECT * FROM public.desk_sale_state(gen_random_uuid())",
+      "SELECT public.withdraw_desk_sale(gen_random_uuid())",
+      "SELECT * FROM public.accept_desk_sale(gen_random_uuid())",
+      "SELECT public.decline_desk_sale(gen_random_uuid())",
+      "SELECT * FROM public.my_desk_sales()",
+      "SELECT public.my_desk_watch()",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+  });
+
   it("keeps the sponsor tables and internals closed and grants only its six doors", async () => {
     const doors = [
       "member_sponsors",

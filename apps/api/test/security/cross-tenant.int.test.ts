@@ -1113,6 +1113,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by register_nfc_tag for an operator of the tag's event (nfc_writer), and by move_nfc_tag, revoke_nfc_tag and revoke_quest_nfc_tags inside the caller's event (award_event_of); read by tap_quest only for a member of the tag's event, by operator_nfc_tags for the calling operator's own writes and by quest_nfc_tags for the event's team (test/db/nfc-tags)",
   nfc_tap:
     "no right for the API role at all; written by tap_quest beside the calling player's own completion and removed with it; read as counts by the event's team through quest_nfc_tags and by raise_nfc_flag for the tapping member (test/db/nfc-tags)",
+  desk_sale:
+    "no right for the API role at all; written by desk_offer_sale (an operator with hand_over in the sale's event, desk_operator), accept_desk_sale and decline_desk_sale (the sale's own player only), withdraw_desk_sale (an operator of its event), the rehearsal wipe and erasure; read by desk_sale_state (an operator of its event) and my_desk_sales (the caller's own live offers) (test/desk/desk-sale crosses organizers and players)",
   device_request:
     "no right for the API role at all; belongs to no tenant until claimed: written by open_device_request and renew_device_request (a hash of the browser's own secret and code) and turned into a paired device by operator_claim_device and team_claim_device only for the caller's own event; read by device_session for its own secret and by preview_device for the caller's event (test/db/devices)",
   quest_first_bonus:
