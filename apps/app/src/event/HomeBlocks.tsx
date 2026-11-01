@@ -16,7 +16,7 @@ import { api } from "#src/api/app-session.ts";
 import { Amount } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
-import { useReduceMotion } from "#src/components/motion.tsx";
+import { useReduceMotion, useScreenReader } from "#src/components/motion.tsx";
 import { useEvent } from "#src/event/EventContext.tsx";
 import { useLive } from "#src/event/LiveContext.tsx";
 import type { RankingAnswer } from "#src/event/home-api.ts";
@@ -28,6 +28,7 @@ import {
   localIn,
   nextSlide,
   showDots,
+  slideLabel,
   swipeStep,
   tapOutcome,
   type FeaturedView,
@@ -97,9 +98,10 @@ function SlideFace({ slide, label }: Readonly<{ slide: BannerSlide; label: strin
  * action is a button; one with none is just a picture of words.
  */
 export function BannerBlock({ slides }: Readonly<{ slides: readonly BannerSlide[] }>) {
-  const { t, rtl } = useI18n();
+  const { t, language, rtl } = useI18n();
   const { featureOn } = useEvent();
   const reduceMotion = useReduceMotion();
+  const screenReader = useScreenReader();
   const open = useOpen();
   const styles = useThemedStyles(makeStyles);
   const [index, setIndex] = useState(0);
@@ -114,12 +116,12 @@ export function BannerBlock({ slides }: Readonly<{ slides: readonly BannerSlide[
     [count],
   );
   useEffect(() => {
-    if (!showDots(count) || reduceMotion !== false || touched) {
+    if (!showDots(count) || reduceMotion !== false || screenReader !== false || touched) {
       return;
     }
     const timer = setInterval(() => setIndex((value) => nextSlide(value, count, 1)), SLIDE_MS);
     return () => clearInterval(timer);
-  }, [count, reduceMotion, touched]);
+  }, [count, reduceMotion, screenReader, touched]);
   const responder = useMemo(
     () =>
       PanResponder.create({
@@ -140,7 +142,7 @@ export function BannerBlock({ slides }: Readonly<{ slides: readonly BannerSlide[
   }
   const outcome = tapOutcome(slide.action, featureOn);
   const label = showDots(count)
-    ? t("home.banner.slideOf", { n: current + 1, total: count })
+    ? slideLabel(t("home.banner.slideOf", { n: current + 1, total: count }), slide, language)
     : undefined;
   return (
     <View style={styles.banner} {...responder.panHandlers}>
@@ -283,7 +285,6 @@ export function PodiumBlock({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={t("nav.ranking")}
       onPress={() => router.push(`/event/${eventId}/ranking`)}
       style={styles.card}
     >
@@ -328,15 +329,16 @@ export function CountdownBlock({ card }: Readonly<{ card: CountdownCard }>) {
   const { t, language } = useI18n();
   const { clockOffsetMs } = useLive();
   const styles = useThemedStyles(makeStyles);
-  const [now, setNow] = useState(() => Date.now() + clockOffsetMs);
+  const [phoneNow, setPhoneNow] = useState(() => Date.now());
+  const now = phoneNow + clockOffsetMs;
   const wait = countdownRefreshMs(card, now);
   useEffect(() => {
     if (wait === null) {
       return;
     }
-    const timer = setTimeout(() => setNow(Date.now() + clockOffsetMs), wait);
+    const timer = setTimeout(() => setPhoneNow(Date.now()), wait);
     return () => clearTimeout(timer);
-  }, [wait, clockOffsetMs, now]);
+  }, [wait, phoneNow]);
   const view = countdownView(card, now, language);
   if (view.kind === "hidden") {
     return null;

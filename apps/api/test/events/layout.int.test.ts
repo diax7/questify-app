@@ -386,6 +386,31 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event layout over HTTP", () =>
       expect(card).toMatchObject({ body: { ar: "القاعة 3 مفتوحة", en: "Hall 4\n\nopen" } });
     });
 
+    it("saves a text with control characters cleaned, never a server error (a NUL fails the JSON write)", async () => {
+      const { id } = await liveEvent();
+      const dirty = {
+        ...written,
+        cards: [
+          {
+            ...textCard,
+            title: { ar: "", en: "Hall\u0000 4\u001B" },
+            body: { ar: "", en: "Doors\u0000 open\u007F\u0085 at 9" },
+          },
+          countdownCard,
+        ],
+      };
+      const saved = await put(id, layoutWith(dirty));
+      expect(saved.statusCode).toBe(200);
+      const card = saved.json<{ layout: { content: HomeContent } }>().layout.content.cards[0];
+      expect(card).toMatchObject({
+        title: { en: "Hall 4" },
+        body: { en: "Doors open at 9" },
+      });
+      expect(await eventView(id)).toMatchObject({
+        layout: { content: { cards: [{ body: { en: "Doors open at 9" } }, {}] } },
+      });
+    });
+
     const link = (url: string) => ({ ...siteLink, action: { type: "link", url } });
     it.each([
       ["a javascript link", { quickLinks: [link("javascript:alert(1)")] }],

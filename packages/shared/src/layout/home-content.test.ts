@@ -110,6 +110,18 @@ describe("checkHomeContent", () => {
     expect(cleanBlockText("one\ntwo", false)).toBe("one two");
   });
 
+  it("removes control characters, which Postgres refuses in stored JSON, and the gap they leave", () => {
+    expect(cleanBlockText("a\u0000b\u001Bc\u007Fd\u0085e", false)).toBe("abcde");
+    expect(cleanBlockText("a \u0000 b", false)).toBe("a b");
+    expect(cleanBlockText("\u0000 one\u0000\n\u0001\n\n\u0002\ntwo \u009F", true)).toBe(
+      "one\n\ntwo",
+    );
+    const checked = checkHomeContent(content({ cards: [text("aaaaaa11", "Doors\u0000 open")] }));
+    expect(checked.ok ? checked.value.cards[0] : null).toMatchObject({
+      body: { en: "Doors open" },
+    });
+  });
+
   it("needs a title in one language, and a text only of spaces counts as none", () => {
     expect(issuePaths(content({ banner: [slide("   ")] }))).toEqual(["content.banner.0.title"]);
     expect(

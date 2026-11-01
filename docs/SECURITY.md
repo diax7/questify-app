@@ -187,7 +187,7 @@ must not widen it without a decision.
 
 | ASVS area | Control | Proof |
 |---|---|---|
-| V16 logging (security events, log protection) | every state-changing call writes one entry in the same transaction as the change: actor, action, target, organizer and event, before and after, request id, time set by the database. Append-only for every role, owner included; the API cannot backdate or renumber. Entries never hold a secret, an email, a phone number, an address or a user agent (refused in code at any depth). Sign-in success and session end are entries; failed sign-ins stay in the server log | `test/audit/audit.int.test.ts`, `src/audit/entry.test.ts` |
+| V16 logging (security events, log protection) | every state-changing call writes one entry in the same transaction as the change: actor, action, target, organizer and event, before and after, request id, time set by the database. Append-only for every role, owner included; the API cannot backdate or renumber. Entries never hold a secret, an email, a phone number, an address or a user agent (refused in code at any depth, by key name only: the guard cannot read a value, so text an organizer wrote, such as a Home text card in the `event.layout.update` entry, may hold contact details they chose to publish, Q-362). Sign-in success and session end are entries; failed sign-ins stay in the server log | `test/audit/audit.int.test.ts`, `src/audit/entry.test.ts` |
 | V8 authorization | an entry can only be written in the caller's own name and organizer; `system` entries only from the owner connection (CLI, jobs); an organizer reads only its own | same suite, plus `test/db/isolation.int.test.ts` |
 
 Changing the table itself (a migration) is guarded by review only. The only sanctioned future change to past
@@ -491,7 +491,7 @@ browser opens; `javascript:`, `http:`, `intent:`, `tel:` and every other scheme 
 is looked up only in the reading player's own lists, so an id of another event draws nothing. The composed configuration, which a public
 event serves to anyone, carries the content of shown blocks only. A damaged stored value reads as less content, never as an error, and the
 reader holds no pattern release Hermes cannot compile. This is a filtered staff copy boundary, not a classifier: a phone number or address
-written in plain words is allowed (Q-362). Audited as `event.layout.update` with the author and the layout.
+written in plain words is allowed (Q-362, decided): organizer-written text (text cards, slides, links) may contain contact details the organizer chose to show their own players. The audit guard checks key names only, never values, so that text also sits in the `event.layout.update` entry (the author and the layout), readable by the organizer's own team and Questify admins; it is not sent in a push or written to a log. The layout is control-character clean on save (`cleanBlockText`), so a NUL cannot reach the JSON write.
 
 ### Organizer announcements (T-502, Proposed ADR-358)
 

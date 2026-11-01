@@ -1720,3 +1720,5 @@ to a stranger's site from inside a store app can be reported as unsafe)? (c) Sho
 number or an address (the announcement rule does), or is an organizer free to write "call 920..." on their own Home? (d) The podium
 duplicates the ranking card a little: should it replace it by default on new events? (e) Not run on a phone: the slider, swipe in Arabic and the
 link question were checked in tests and a browser preview only. **Decided (developer, delegated by Dhia):** pending review.
+
+**(c) decided (developer, delegated by Dhia, 2026-11-01, T-610 review):** allowed. An organizer may write contact details in their own Home text; the audit guard checks key names only, so that text also sits in the layout audit entry (SECURITY.md, Home blocks). No filter is added; revisit only if a store reviewer or a complaint asks for one.

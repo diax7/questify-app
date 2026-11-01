@@ -40,6 +40,7 @@
 
 ## T-610 Home editor, new blocks and the banner — 2026-11-01
 
+- **T-610 review fixes (2026-11-01, migration 0105 new, undeployed).** Control characters (C0, C1, NUL) are stripped from Home texts on save, so a NUL no longer fails the layout write with a 500; the slider's label reads place, title and subtitle and the podium reads its content; the 5 s auto-advance also stops while a screen reader is on; a countdown follows a changed clock offset; duplicating an event points the Home content's quest actions and featured item at the copies (else `none` / `null`). Q-362 (c) decided: allowed (SECURITY.md). Nits in FOLLOWUPS.
 - **T-610 done (tier B; one code review owed; not run on a phone). No migration** (staging runs through 0103, 0104 pushed; 0105 is free).
   **Built (FR-1828 to FR-1831, ADR-395):** `event.config.layout.content` (banner slides, quick links, featured item, text and countdown cards) beside the
   order; four new Home blocks (`banner`, `featured`, `podium` (starts hidden), `quickLinks`) and the organizer's cards as `card:<id>` in `home.order`;

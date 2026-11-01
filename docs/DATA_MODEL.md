@@ -272,7 +272,9 @@ PUBLIC and to the API role) copies the setup of one event into the empty draft t
 `event_join_field`, `category`, `quest`, `quest_first_bonus`, `passport_step`, the focus quest, `reward` (active), `rank_prize`
 (active), `event_streak`, `event_session`, `event_map`, `map_pin`, `sponsor`, `sponsor_tag`, `big_screen`. Every copied row has a new id
 (`copy_id(old, target)`, an md5 of both) and references the copies; absolute times move by the distance between the two starts. A typed
-entry code is replaced by a new random one, a digital reward starts at stock 0, a launched flash quest and a sent poll start unsent.
+entry code is replaced by a new random one, a digital reward starts at stock 0, a launched flash quest and a sent poll start unsent. The Home content in
+`config.layout.content` (migration 0105) points at the copies: a quest action of a banner slide or quick link and the featured quest or reward take the copy's id; where no
+copy exists (a removed reward, a stale or foreign id) the action becomes `none` and the featured card `null`; damaged content is left as it is.
 Every other table with an `event_id` is left alone (people and play, secrets and devices, live operation, activation, results); the
 database test lists each one as copied or not copied, so a new table must be decided. Audited `event.duplicate`.
 

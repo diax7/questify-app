@@ -126,11 +126,20 @@ export function linkHost(url: string): string {
  */
 export function cleanBlockText(raw: string, multiline: boolean): string {
   if (!multiline) {
-    return cleanAnnouncementText(raw);
+    return cleanLine(raw);
   }
-  const lines = raw.split(/\r\n|\r|\n/u).map(cleanAnnouncementText);
+  const lines = raw.split(/\r\n|\r|\n/u).map(cleanLine);
   const kept = lines.filter((line, index) => line !== "" || (lines[index - 1] ?? "") !== "");
   return kept.join("\n").trim();
+}
+
+/** C0 and C1 control characters, which `\s` does not cover; a `\u0000` makes Postgres refuse the stored JSON. */
+// oxlint-disable-next-line no-control-regex -- the pattern exists to match control characters
+const CONTROL_CHARACTERS = /[\u0000-\u001F\u007F-\u009F]/g;
+
+/** One line as stored: the announcement clean-up, then control characters removed and the gap they leave closed. */
+function cleanLine(raw: string): string {
+  return cleanAnnouncementText(cleanAnnouncementText(raw).replace(CONTROL_CHARACTERS, ""));
 }
 
 function readText(

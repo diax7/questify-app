@@ -9,6 +9,7 @@ import {
   localIn,
   nextSlide,
   showDots,
+  slideLabel,
   swipeStep,
   tapOutcome,
 } from "#src/event/home-content.ts";
@@ -59,6 +60,19 @@ describe("the banner slider", () => {
     expect(nextSlide(0, 3, -1)).toBe(2);
     expect(nextSlide(0, 1, 1)).toBe(0);
     expect(nextSlide(0, 0, -1)).toBe(0);
+  });
+
+  it("tells a screen reader the slide's place, then its title and subtitle, in the screen's language", () => {
+    const slide = {
+      title: { ar: "أهلًا", en: "Welcome" },
+      subtitle: { ar: "", en: "Doors open at 9" },
+      action: { type: "none" },
+    } as const;
+    expect(slideLabel("Slide 2 of 3", slide, "en")).toBe("Slide 2 of 3. Welcome. Doors open at 9");
+    expect(slideLabel("لافتة 2 من 3", slide, "ar")).toBe("لافتة 2 من 3. أهلًا. Doors open at 9");
+    expect(slideLabel("Slide 1 of 2", { ...slide, subtitle: { ar: "", en: "" } }, "en")).toBe(
+      "Slide 1 of 2. Welcome",
+    );
   });
 
   it("goes forward on a drag towards the start of the line, which is left in English and right in Arabic", () => {

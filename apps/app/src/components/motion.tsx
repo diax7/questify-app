@@ -28,6 +28,28 @@ export function useReduceMotion(): boolean | undefined {
   return reduce;
 }
 
+/** Whether a screen reader is running, followed as it changes; undefined until the phone has said. */
+export function useScreenReader(): boolean | undefined {
+  const [on, setOn] = useState<boolean | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    void AccessibilityInfo.isScreenReaderEnabled()
+      .then((value) => {
+        if (live) {
+          setOn(value);
+        }
+      })
+      // A phone that cannot say is treated as having one, so nothing moves on its own.
+      .catch(() => live && setOn(true));
+    const watcher = AccessibilityInfo.addEventListener("screenReaderChanged", setOn);
+    return () => {
+      live = false;
+      watcher.remove();
+    };
+  }, []);
+  return on;
+}
+
 /**
  * A number that counts up or down to each new value it is given (FR-403), in 600 ms, from the value it shows; it first
  * appears at its value, with no count. Without motion it shows each value at once. The caller formats the text, so

@@ -1,5 +1,6 @@
 import {
   linkHost,
+  type BannerSlide,
   type CountdownCard,
   type FeaturedTarget,
   type Language,
@@ -61,6 +62,13 @@ export function swipeStep(dx: number, rtl: boolean): 0 | 1 | -1 {
     return 0;
   }
   return (rtl ? dx > 0 : dx < 0) ? 1 : -1;
+}
+
+/** What a screen reader says for one slide of a slider: its place, then its title and subtitle. */
+export function slideLabel(place: string, slide: BannerSlide, language: Language): string {
+  return [place, localIn(slide.title, language), localIn(slide.subtitle, language)]
+    .filter((part) => part !== "")
+    .join(". ");
 }
 
 /** Dots mark the slides only when there is more than one. */

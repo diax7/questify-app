@@ -16,6 +16,13 @@ const refusal = (work: Promise<unknown>): Promise<string> =>
         : `${error.code}:${error.detail}`,
   );
 
+const slide = (action: unknown) => ({
+  title: { ar: "", en: "Welcome" },
+  subtitle: { ar: "", en: "" },
+  action,
+});
+const link = (action: unknown) => ({ label: { ar: "", en: "Go" }, icon: "star", action });
+
 /** The tables that hold an event's setup: the door copies these and no others (T-601, migration 0092). */
 const COPIED = new Set([
   "big_screen",
@@ -157,6 +164,37 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("duplicate an event (database)"
       to,
       randomUUID(),
     ]);
+
+  const withLayout = async (content: unknown, work: () => Promise<void>): Promise<void> => {
+    const layout = {
+      bar: { order: ["index"], hidden: [] },
+      home: { order: ["banner"], hidden: [] },
+      content,
+    };
+    await f.owner(
+      "UPDATE event SET config = jsonb_set(config, '{layout}', $2::jsonb) WHERE id = $1",
+      [source, JSON.stringify(layout)],
+    );
+    try {
+      await work();
+    } finally {
+      await f.owner("UPDATE event SET config = config - 'layout' WHERE id = $1", [source]);
+    }
+  };
+  const copied = async (target: string, title: string): Promise<string | undefined> =>
+    (
+      await f.owner<{ id: string }>("SELECT id FROM quest WHERE event_id = $1 AND title_en = $2", [
+        target,
+        title,
+      ])
+    )[0]?.id;
+  const contentOf = async (target: string) =>
+    (
+      await f.owner<{ layout: { home: unknown; content: Record<string, unknown> } }>(
+        "SELECT config -> 'layout' AS layout FROM event WHERE id = $1",
+        [target],
+      )
+    )[0]?.layout;
 
   const setupEvent = async (): Promise<void> => {
     await f.owner(
@@ -498,6 +536,113 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("duplicate an event (database)"
       terms: { currency: { en: "Gems" } },
     });
     expect(row?.["join_code"]).toBe(`DUP${counter}`);
+  });
+
+  describe("the Home content (migration 0105)", () => {
+    const none = { type: "none" };
+    const stale = randomUUID();
+    it("points a quest action and the featured item at the copies", async () => {
+      await withLayout(
+        {
+          banner: [
+            slide({ type: "quest", questId: ref["scan"] }),
+            slide({ type: "agenda" }),
+            slide({ type: "link", url: "https://example.com/x" }),
+          ],
+          quickLinks: [link({ type: "quest", questId: ref["code"] }), link({ type: "shop" })],
+          featured: { kind: "reward", id: ref["item_reward"] },
+          cards: [],
+        },
+        async () => {
+          const target = await draft();
+          await copy(source, target);
+          const layout = await contentOf(target);
+          const scan = await copied(target, "Scan the gate");
+          const code = await copied(target, "Type the word");
+          const reward = (
+            await f.owner<{ id: string }>(
+              "SELECT id FROM reward WHERE event_id = $1 AND name_en = 'Cap'",
+              [target],
+            )
+          )[0]?.id;
+          expect(scan).not.toBe(ref["scan"]);
+          expect(layout?.content).toEqual({
+            banner: [
+              slide({ type: "quest", questId: scan }),
+              slide({ type: "agenda" }),
+              slide({ type: "link", url: "https://example.com/x" }),
+            ],
+            quickLinks: [link({ type: "quest", questId: code }), link({ type: "shop" })],
+            featured: { kind: "reward", id: reward },
+            cards: [],
+          });
+          expect(layout?.home).toEqual({ order: ["banner"], hidden: [] });
+          const sourceLayout = await contentOf(source);
+          expect(JSON.stringify(sourceLayout?.content)).toContain(ref["scan"] ?? "");
+        },
+      );
+    });
+
+    it("drops what has no copy: a stale id, another event's id, a reward that was removed", async () => {
+      await withLayout(
+        {
+          banner: [
+            slide({ type: "quest", questId: stale }),
+            slide({ type: "quest", questId: "x" }),
+          ],
+          quickLinks: [link({ type: "quest", questId: ref["removed"] })],
+          featured: { kind: "reward", id: ref["removed"] },
+          cards: [],
+        },
+        async () => {
+          const target = await draft();
+          await copy(source, target);
+          const content = (await contentOf(target))?.content;
+          expect(content).toEqual({
+            banner: [slide(none), slide(none)],
+            quickLinks: [link(none)],
+            featured: null,
+            cards: [],
+          });
+          expect(JSON.stringify(content)).not.toContain(stale);
+        },
+      );
+    });
+
+    it("keeps a quest featured as a quest, and copies damaged content without failing", async () => {
+      await withLayout(
+        {
+          banner: [slide({ type: "quest", questId: ref["scan"] })],
+          featured: { kind: "quest", id: ref["scan"] },
+        },
+        async () => {
+          const target = await draft();
+          await copy(source, target);
+          const scan = await copied(target, "Scan the gate");
+          expect((await contentOf(target))?.content["featured"]).toEqual({
+            kind: "quest",
+            id: scan,
+          });
+        },
+      );
+      await withLayout(
+        { banner: "x", quickLinks: [5, null, { action: 3 }], featured: { kind: 7, id: 8 } },
+        async () => {
+          const target = await draft();
+          await copy(source, target);
+          expect((await contentOf(target))?.content).toEqual({
+            banner: "x",
+            quickLinks: [5, null, { action: 3 }],
+            featured: null,
+          });
+        },
+      );
+      await withLayout("not an object", async () => {
+        const target = await draft();
+        await copy(source, target);
+        expect((await contentOf(target))?.content).toBe("not an object");
+      });
+    });
   });
 
   it("moves every time by the distance between the two starts and leaves the source alone", async () => {

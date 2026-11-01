@@ -333,12 +333,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     const internals = [
       "copy_id",
       "event_copy_extras",
+      "event_copy_home_content",
       "event_copy_prizes",
       "event_copy_quests",
       "event_copy_settings",
       "event_copy_structure",
       "event_copy_target_ok",
       "fresh_entry_code",
+      "home_items_copy",
+      "home_ref_copy",
     ];
     const functions = await rows<{
       proname: string;
