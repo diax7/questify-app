@@ -53,9 +53,9 @@ export function loggableError(error: Error): Record<string, unknown> {
 /**
  * Visible ASCII; `sub:`, `quiz:`, `pass:`, `meet:` and `game:` are reserved for the database's own completion keys
  * (T-301, T-302, T-304b, T-303c, T-305), and `practice:` for a practice scan's undone door, which skips the first-N
- * bonus (T-313).
+ * bonus (T-313), and `desk:` for a desk sale's redemption (T-612).
  */
-const KEY_FORMAT = /^(?!sub:|quiz:|pass:|meet:|game:|practice:)[\x21-\x7e]{1,255}$/;
+const KEY_FORMAT = /^(?!sub:|quiz:|pass:|meet:|game:|practice:|desk:)[\x21-\x7e]{1,255}$/;
 const APP_VERSION = /^[0-9]+(\.[0-9]+){1,2}$/;
 
 /** Whether a key has the shape every Idempotency-Key must have, for a route that reads its key itself. */

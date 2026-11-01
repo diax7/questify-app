@@ -34,6 +34,7 @@ import {
   type DeskRefusal,
   type Found,
 } from "#src/desk/desk";
+import { registerDeskSaleRoutes } from "#src/desk/sale";
 import { normalizeSaudiMobile } from "#src/players/phone";
 
 const player = { config: { access: "player" }, bodyLimit: 1024 } as const;
@@ -104,6 +105,7 @@ const valueOf = <T>(result: DeskDone<T>): T =>
  * ranking (FR-926).
  */
 export function registerDeskRoutes(app: FastifyInstance, deps: DeskDeps): void {
+  registerDeskSaleRoutes(app, deps);
   app.get("/v1/operator/events/:eventId/desk", player, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     return { desk: valueOf(await operatorDesk(deps, playerIdOf(request), eventId)) };

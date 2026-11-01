@@ -22,6 +22,8 @@ export type ShopView = Readonly<{
     rules: Bilingual | null;
     firstRedemption: boolean;
     spendLowersRank: boolean;
+    /** Prize reservation (FR-1834): false means desk rewards are redeemed at the desk, not reserved. */
+    reservation: boolean;
     /** The prize desk, shown on every reservation (FR-1716). */
     desk: DeskView;
   }>;
@@ -58,6 +60,7 @@ export type ReserveResult =
   | Readonly<{ kind: "enrollment_inactive"; reason: string }>
   | Readonly<{ kind: "shop_closed"; reason: string }>
   | Readonly<{ kind: "feature_off" }>
+  | Readonly<{ kind: "reservation_off" }>
   | Readonly<{ kind: "reward_not_open"; reason: string }>
   | Readonly<{ kind: "sold_out" }>
   | Readonly<{ kind: "limit_reached"; limit: number }>
@@ -74,8 +77,13 @@ const REFUSALS: Readonly<Record<string, (detail: string) => ReserveResult>> = {
   // An operator the owner has not allowed to play (migration 0026).
   QP403: () => ({ kind: "enrollment_inactive", reason: "operator_not_playing" }),
   // The event's or the platform's shop switch is off (migration 0094): the same answer as the shop's read.
-  RS403: (detail) =>
-    detail === "feature_off" ? { kind: "feature_off" } : { kind: "shop_closed", reason: detail },
+  // Reservation is off (migration 0107): a desk reward is redeemed at the desk.
+  RS403: (detail) => {
+    if (detail === "feature_off" || detail === "reservation_off") {
+      return { kind: detail };
+    }
+    return { kind: "shop_closed", reason: detail };
+  },
   RW403: (detail) => ({ kind: "reward_not_open", reason: detail }),
   RO409: () => ({ kind: "sold_out" }),
   RL409: (detail) => ({ kind: "limit_reached", limit: Number(detail) }),
@@ -231,6 +239,7 @@ export function readShop(
           rules: rules.ar === null && rules.en === null ? null : rules,
           firstRedemption: shop["first_redemption"] === true,
           spendLowersRank: shop["spend_lowers_rank"] === true,
+          reservation: shop["reservation_on"] !== false,
           desk: deskViewOf(shop),
         },
         balance: Number(shop["balance"]),

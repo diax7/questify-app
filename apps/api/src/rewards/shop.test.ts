@@ -306,6 +306,7 @@ describe("readShop", () => {
         rules: { ar: null, en: "One each" },
         firstRedemption: true,
         spendLowersRank: true,
+        reservation: true,
         desk: {
           location: { ar: "القاعة ب", en: null },
           pin: { lat: 24.7136, lng: 46.6753 },

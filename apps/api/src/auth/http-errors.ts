@@ -865,6 +865,44 @@ export const offerGone = make(
   "انتهى عرض التسليم. اطلب من المكتب إعادة المحاولة.",
   "The handover offer has ended. Ask the desk to try again.",
 );
+/** Reservation is off: a desk reward is redeemed at the prize desk (T-612). */
+export const reservationOff = make(
+  403,
+  "reservation_off",
+  "تُستبدل هذه الجائزة عند مكتب الجوائز.",
+  "Redeem this prize at the prize desk.",
+);
+/** The event reserves prizes in the app, so the desk does not sell (T-612). */
+export const reservationOn = make(
+  409,
+  "reservation_on",
+  "تُحجز الجوائز من التطبيق في هذه الفعالية.",
+  "Prizes are reserved in the app at this event.",
+);
+export const deskBusy = make(
+  409,
+  "desk_busy",
+  "يخدم مكتب آخر هذا اللاعب الآن.",
+  "Another desk is serving this player now.",
+);
+export const priceChanged = make(
+  409,
+  "price_changed",
+  "تغيّر سعر الجائزة. اطلب من المكتب عرضها من جديد.",
+  "The prize's price changed. Ask the desk to offer it again.",
+);
+export const saleGone = make(
+  410,
+  "sale_gone",
+  "انتهى العرض. اطلب من المكتب إعادة المحاولة.",
+  "The offer has ended. Ask the desk to try again.",
+);
+export const notDeskReward = make(
+  422,
+  "not_desk_reward",
+  "الجوائز الرقمية تُستبدل من التطبيق.",
+  "Digital rewards are redeemed in the app.",
+);
 export const overCap = make(
   409,
   "over_cap",

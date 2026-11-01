@@ -333,7 +333,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk over HTTP", () => {
       const id = await reserve(fan.token, await newReward(event, "experience"));
 
       const watching = await app("GET", "/v1/me/desk-items", fan.token, undefined, null);
-      expect(watching.json()).toEqual({ items: [], watch: true });
+      expect(watching.json()).toEqual({ items: [], sales: [], watch: true });
       const collect = await app(
         "POST",
         `/v1/redemptions/${id}/collect`,

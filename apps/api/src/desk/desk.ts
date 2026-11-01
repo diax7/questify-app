@@ -7,6 +7,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Bilingual } from "#src/quests/store";
 import { verifyMyCode, type MyCodeKey } from "#src/quests/qr";
+import { mySales, type MySale } from "#src/desk/sale";
 import { pinOf, windowsOf, type DeskPin, type DeskWindow } from "#src/rewards/builder";
 
 export type DeskDeps = Readonly<{ pool: Pool; myKey: MyCodeKey; keys: AuthKeys }>;
@@ -107,15 +108,23 @@ export function deskViewOf(row: Readonly<Record<string, unknown>>): DeskView {
   };
 }
 
+/** The desk's header: the desk, and whether it sells (reservation Off and the shop on, FR-1834). */
+export type OperatorDeskView = DeskView & Readonly<{ reservation: boolean; shopOn: boolean }>;
+
 /** The desk's header before any scan. */
 export function operatorDesk(
   deps: DeskDeps,
   operatorId: string,
   eventId: string,
-): Promise<DeskDone<DeskView>> {
+): Promise<DeskDone<OperatorDeskView>> {
   return as(deps, operatorId, async (client) => {
     const { rows } = await client.query("SELECT * FROM operator_desk($1)", [eventId]);
-    return deskViewOf(rows[0] as Record<string, unknown>);
+    const row = rows[0] as Record<string, unknown>;
+    return {
+      ...deskViewOf(row),
+      reservation: row["reservation_on"] !== false,
+      shopOn: row["shop_on"] !== false,
+    };
   });
 }
 
@@ -381,13 +390,14 @@ export type MyDeskItem = Readonly<{
 }>;
 
 /**
- * What My QR shows: the caller's rewards ready at a desk or offered by one now, and `watch`: whether to keep asking
- * (only while they hold a reserved desk reward in an event that uses desk offers).
+ * What My QR shows: the caller's rewards ready at a desk or offered by one now, the desk's live sale offers (T-612),
+ * and `watch`: whether to keep asking (a reserved desk reward in an event that uses desk offers, or an event with
+ * reservation Off whose desk is open).
  */
 export async function myDeskItems(
   deps: DeskDeps,
   playerId: string,
-): Promise<Readonly<{ items: readonly MyDeskItem[]; watch: boolean }>> {
+): Promise<Readonly<{ items: readonly MyDeskItem[]; sales: readonly MySale[]; watch: boolean }>> {
   const result = await as(deps, playerId, async (client) => {
     const { rows } = await client.query("SELECT * FROM my_desk_items()");
     const { rows: watched } = await client.query<{ watch: boolean }>(
@@ -404,6 +414,7 @@ export async function myDeskItems(
         until: iso(row["until"]),
         source: sourceOf(row["source"]),
       })),
+      sales: await mySales(client),
       watch: watched[0]?.watch === true,
     };
   });

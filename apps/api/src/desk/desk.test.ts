@@ -426,8 +426,29 @@ describe("the poll and the player's calls", () => {
   });
 
   it("reads My QR's items and whether to keep asking", async () => {
-    const { deps, statements } = fakePool((sql) =>
-      sql.includes("my_desk_watch")
+    const sale = {
+      sale_id: "s1",
+      event_id: EVENT,
+      event_name_ar: "مهرجان",
+      event_name_en: null,
+      kind: "experience",
+      name_ar: "جولة",
+      name_en: null,
+      price: 300,
+      offer_until: LATER,
+      balance_after: "700",
+      desk_location_ar: null,
+      desk_location_en: "Hall B",
+      first_redemption: true,
+      rules_ar: null,
+      rules_en: "One each",
+      just_bought: true,
+    };
+    const { deps, statements } = fakePool((sql) => {
+      if (sql.includes("my_desk_sales")) {
+        return [sale, { ...sale, sale_id: "s2", first_redemption: false, desk_location_en: null }];
+      }
+      return sql.includes("my_desk_watch")
         ? [{ watch: true }]
         : [
             {
@@ -441,8 +462,21 @@ describe("the poll and the player's calls", () => {
               state: "offered",
               until: LATER,
             },
-          ],
-    );
+          ];
+    });
+    const offered = {
+      id: "s1",
+      eventId: EVENT,
+      event: { ar: "مهرجان", en: null },
+      kind: "experience",
+      name: { ar: "جولة", en: null },
+      price: 300,
+      offerUntil: LATER.toISOString(),
+      balanceAfter: 700,
+      desk: { ar: null, en: "Hall B" },
+      rules: { ar: null, en: "One each" },
+      justBought: true,
+    };
     expect(await myDeskItems(deps, PLAYER)).toEqual({
       items: [
         {
@@ -456,14 +490,16 @@ describe("the poll and the player's calls", () => {
           source: "shop",
         },
       ],
+      sales: [offered, { ...offered, id: "s2", desk: null, rules: null }],
       watch: true,
     });
     expect(statements.map((s) => s.sql)).toEqual([
       "SELECT * FROM my_desk_items()",
       "SELECT my_desk_watch() AS watch",
+      "SELECT * FROM my_desk_sales()",
     ]);
     const none = fakePool((sql) => (sql.includes("my_desk_watch") ? [{ watch: "yes" }] : []));
-    expect(await myDeskItems(none.deps, PLAYER)).toEqual({ items: [], watch: false });
+    expect(await myDeskItems(none.deps, PLAYER)).toEqual({ items: [], sales: [], watch: false });
   });
 
   it("throws when My QR's reads are refused, which they never should be", async () => {

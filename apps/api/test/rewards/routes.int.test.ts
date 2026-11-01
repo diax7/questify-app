@@ -200,6 +200,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
         spendLowersRank: false,
         desk: { location: { ar: null, en: "Hall B" }, pin: null, hours: null },
         handoverConfirm: "collect_first",
+        reservation: true,
         state: "open",
         closesAt: await closesAtOf(eventId),
       });
@@ -298,6 +299,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
           spendLowersRank: false,
           desk: { location: { ar: null, en: "Hall B" }, pin: null, hours: null },
           handoverConfirm: "collect_first",
+          reservation: true,
           state: "open",
           closesAt: await closesAtOf(eventId),
         },

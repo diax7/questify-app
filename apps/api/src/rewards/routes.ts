@@ -15,6 +15,7 @@ import {
   ownerOnly,
   rankPrizeKept,
   reservationEnded,
+  reservationOff,
   rewardLimitReached,
   rewardNotOpen,
   shopClosed,
@@ -101,6 +102,7 @@ const shopBody = z.strictObject({
   spendLowersRank: z.boolean().optional(),
   desk: deskBody.optional(),
   handoverConfirm: z.enum(HANDOVER_CONFIRM).optional(),
+  reservation: z.boolean().optional(),
 });
 /** Each code is checked again after normalizing (`normalizeCode`); this only bounds the request. */
 const codesBody = z.strictObject({
@@ -258,6 +260,8 @@ const PLAIN_REFUSALS = {
   key_reused: idempotencyKeyReused,
   // The event's or the platform's shop switch is off (T-602c): the same answer as the shop's read.
   feature_off: featureOff,
+  // Reservation is off: a desk reward is sold at the desk instead (T-612).
+  reservation_off: reservationOff,
   sold_out: soldOut,
   not_enough_balance: notEnoughBalance,
   redeem_paused: redeemPaused,

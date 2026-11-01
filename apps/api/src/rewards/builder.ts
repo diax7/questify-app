@@ -80,6 +80,8 @@ export type ShopSettings = Readonly<{
   spendLowersRank: boolean;
   desk: DeskSettings;
   handoverConfirm: HandoverConfirm;
+  /** Prize reservation (FR-1834, ADR-397): Off sells desk rewards at the desk after a My QR scan. */
+  reservation: boolean;
 }>;
 
 /**
@@ -98,6 +100,7 @@ export type ShopInput = Readonly<{
   spendLowersRank?: boolean | undefined;
   desk?: DeskInput | undefined;
   handoverConfirm?: HandoverConfirm | undefined;
+  reservation?: boolean | undefined;
 }>;
 
 export type RewardField =
@@ -436,6 +439,7 @@ type ShopRow = {
   desk_opens: Date[] | null;
   desk_closes: Date[] | null;
   handover_confirm: HandoverConfirm;
+  reservation_on: boolean;
   state: ShopState;
   closes_at: Date | null;
 };
@@ -469,6 +473,7 @@ const shopOf = (row: ShopRow): ShopSettings => ({
     hours: windowsOf(row.desk_opens, row.desk_closes),
   },
   handoverConfirm: row.handover_confirm,
+  reservation: row.reservation_on,
 });
 
 type ShopRead = Readonly<{ settings: ShopSettings; window: ShopWindowView }>;
@@ -477,7 +482,7 @@ type ShopRead = Readonly<{ settings: ShopSettings; window: ShopWindowView }>;
 async function readShop(client: PoolClient, eventId: string): Promise<ShopRead> {
   const { rows } = await client.query<ShopRow>(
     `SELECT pickup_minutes, shop_days_after, shop_rules_ar, shop_rules_en, spend_lowers_rank, desk_location_ar,
-            desk_location_en, desk_lat, desk_lng, handover_confirm,
+            desk_location_en, desk_lat, desk_lng, handover_confirm, reservation_on,
             (SELECT array_agg(lower(w) ORDER BY lower(w)) FROM unnest(desk_hours) w) AS desk_opens,
             (SELECT array_agg(upper(w) ORDER BY lower(w)) FROM unnest(desk_hours) w) AS desk_closes,
             shop_state(status, starts_at, ends_at, shop_days_after) AS state,
@@ -616,7 +621,7 @@ async function writeShop(
     await client.query(
       `UPDATE event SET pickup_minutes = $2, shop_days_after = $3, shop_rules_ar = $4, shop_rules_en = $5,
               spend_lowers_rank = $6, desk_location_ar = $7, desk_location_en = $8, handover_confirm = $9,
-              desk_lat = $10, desk_lng = $11,
+              desk_lat = $10, desk_lng = $11, reservation_on = $14,
               desk_hours = (SELECT range_agg(tstzrange(w.o, w.c))
                             FROM unnest($12::timestamptz[], $13::timestamptz[]) AS w(o, c))
        WHERE id = $1`,
@@ -631,6 +636,7 @@ async function writeShop(
         desk.location.en,
         after.handoverConfirm,
         ...deskColumns(desk),
+        after.reservation,
       ],
     );
   } catch (error) {
@@ -647,7 +653,8 @@ async function writeShop(
 
 /**
  * Sets the pickup time, the days the shop stays open after the end, the shop's rules (ADR-048, ADR-049, FR-515) and
- * whether spending lowers the ranking (FR-1847): that one is the owner's, and only before the event is live. Sending
+ * whether spending lowers the ranking (FR-1847): that one is the owner's, and only before the event is live. Prize
+ * reservation (FR-1834) is the owner's or an editor's; Off needs the desk's place (`desk_needed`). Sending
  * a current value is no change, so an editor saves the rest freely. After the end the days only grow, and once the
  * shop has closed they are frozen (ADR-336: `windowRefusal` on the database's clock, then the guard on its own).
  */
@@ -671,9 +678,14 @@ export function updateShop(
       spendLowersRank: input.spendLowersRank ?? before.spendLowersRank,
       desk,
       handoverConfirm: input.handoverConfirm ?? before.handoverConfirm,
+      reservation: input.reservation ?? before.reservation,
     };
     // FR-1716: only the move from a place to none is refused, so an older event without a desk still saves.
     if (hasPlace(before.desk) && !hasPlace(desk) && (await hasActiveItems(client, eventId))) {
+      return { kind: "desk_needed" };
+    }
+    // ADR-397: with reservation Off every desk reward is sold and handed over at the desk, so it needs the place.
+    if (!after.reservation && !hasPlace(desk)) {
       return { kind: "desk_needed" };
     }
     if (after.spendLowersRank !== before.spendLowersRank) {
