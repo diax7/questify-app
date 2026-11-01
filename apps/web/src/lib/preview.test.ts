@@ -1,7 +1,14 @@
-import { DEFAULT_LOOKS, INFO_KEYS } from "@questify/shared";
+import {
+  DEFAULT_LOOKS,
+  DEFAULT_TERMS,
+  INFO_KEYS,
+  NO_EVENT_TEXTS,
+  readEventTerms,
+  readEventTexts,
+} from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import type { EventView } from "#src/lib/events.ts";
-import { featureLookup, previewOf } from "#src/lib/preview.ts";
+import { featureLookup, phoneTranslator, previewOf } from "#src/lib/preview.ts";
 import type { CategoryView, QuestView } from "#src/lib/quests.ts";
 import type { RewardView } from "#src/lib/rewards.ts";
 
@@ -502,5 +509,35 @@ describe("the event's renamed labels in the preview (T-614)", () => {
       ar: {},
       en: {},
     });
+  });
+});
+
+describe("the phone preview's translator (T-614)", () => {
+  const terms = readEventTerms({
+    quest: { ar: { one: "مغامرة", many: "مغامرات" }, en: { one: "mission", many: "missions" } },
+  });
+  const texts = readEventTexts({
+    ar: { "nav.quests": "{questMany} اليوم" },
+    en: { "nav.quests": "Daily {questCap}", "nav.rewards": "Prizes" },
+  });
+
+  it("fills the event's word into a renamed label that kept its placeholder", () => {
+    expect(phoneTranslator("en", terms, texts)("nav.quests")).toBe("Daily Missions");
+    expect(phoneTranslator("ar", terms, texts)("nav.quests")).toBe("مغامرات اليوم");
+  });
+
+  it("shows a renamed label that dropped the placeholder as written", () => {
+    expect(phoneTranslator("en", terms, texts)("nav.rewards")).toBe("Prizes");
+  });
+
+  it("fills the event's word into Questify's text for a label the event did not rename", () => {
+    expect(phoneTranslator("en", terms, NO_EVENT_TEXTS)("nav.quests")).toBe("Missions");
+    expect(phoneTranslator("en", DEFAULT_TERMS, texts)("nav.quests")).toBe("Daily Quests");
+  });
+
+  it("lets a value the call passes win over the event's word", () => {
+    expect(phoneTranslator("en", terms, texts)("nav.quests", { questCap: "Tasks" })).toBe(
+      "Daily Tasks",
+    );
   });
 });

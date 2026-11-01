@@ -1,27 +1,22 @@
-import {
-  DEFAULT_THEME,
-  themeWithAccent,
-  withEventTexts,
-  type Language,
-  type PlayerTab,
-} from "@questify/shared";
+import { DEFAULT_THEME, themeWithAccent, type Language, type PlayerTab } from "@questify/shared";
 import type { ReactNode } from "react";
-import { useTranslator } from "#src/components/TermsScope.tsx";
+import { useEventTerms, useTranslator } from "#src/components/TermsScope.tsx";
 import styles from "#src/components/preview.module.css";
 import { directionOf } from "#src/lib/language.ts";
-import type {
-  EventPreview,
-  PreviewQuest,
-  PreviewRankRow,
-  PreviewReward,
+import {
+  phoneTranslator,
+  type EventPreview,
+  type PreviewQuest,
+  type PreviewRankRow,
+  type PreviewReward,
 } from "#src/lib/preview.ts";
 import { themeVariables } from "#src/lib/theme.ts";
 
 type ScreenProps = Readonly<{ preview: EventPreview; language: Language }>;
 
-/** The dashboard's translator with the event's renamed labels over it: what the phone shows, not the dashboard's own words. */
+/** What the phone shows, not the dashboard's own words: the event's renamed labels and its words, filled in (`phoneTranslator`). */
 function usePhoneTranslator(preview: EventPreview, language: Language) {
-  return withEventTexts(useTranslator(language), preview.texts, language);
+  return phoneTranslator(language, useEventTerms(), preview.texts);
 }
 
 /** One screen in its frame, with the event bar under it and the tab the screen belongs to marked. */

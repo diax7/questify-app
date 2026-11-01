@@ -6239,7 +6239,7 @@ read from `…/rank-prizes`), as the app does; the page has no formatting beyond
 
 ## ADR-399 - T-614 event text overrides: a short approved list of bar labels in `event.config.texts`, on the translation store's shape
 
-**Status:** Proposed (developer, delegated by Dhia, 2026-11-02; Q-366). Builds FR-1843 on ADR-058 (the event's words) and the
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-01; T-614 review 88, its MAJOR fixed); was: Proposed, Q-366. Builds FR-1843 on ADR-058 (the event's words) and the
 translation store (F-277, FR-1766 to FR-1768). No migration.
 **Decision:** (1) **Where.** An event's renamed labels are `event.config.texts`, `{ar: {key: text}, en: {key: text}}`: the same
 shape as the translation store's `Overrides`, per event instead of platform-wide. They are composed into the configuration as
@@ -6258,8 +6258,8 @@ text shows, per language. **Placeholders:** a placeholder that carries a value m
 words (`{questCap}`, `{playerMany}`, …) may be left out, because renaming "Quests" to "Adventures" means the word is gone. The
 admin store keeps its stricter rule (every placeholder stays). (4) **Showing.** `withEventTexts` puts the texts over the parent
 translator (a label the event renamed, in that language; everything else the parent's), and the event's words are filled in after,
-so a label that kept `{questCap}` still shows the event's word. The player app, the dashboard's preview and the Preview page all
-use it. A damaged or unusable stored text shows the platform's text (`readEventTexts`). (5) **Dashboard.** An "App labels" page
+so a label that kept `{questCap}` still shows the event's word. The player app (`withEventWords`) and the dashboard's phone
+preview, the "App labels" page's included (`phoneTranslator`), both do this. A damaged or unusable stored text shows the platform's text (`readEventTexts`). (5) **Dashboard.** An "App labels" page
 (`/texts`, Setup): per label an Arabic and an English box side by side, Questify's text as the placeholder and, once typed, as a
 "Default" line, a reset icon per label, Save and Discard, and a phone preview in either language redrawn from the draft. Owner and
 editor (an editor within their events), any status but archived; audited as `event.texts.update`. (6) **Not built:** renaming

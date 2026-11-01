@@ -13,8 +13,11 @@ import {
   questTypeShown,
   readEventLayout,
   readEventTexts,
+  withEventTexts,
+  wordParams,
   type AccentKey,
   type EventLooks,
+  type EventTerms,
   type HomeContent,
   type HomeKey,
   type InfoSection,
@@ -25,6 +28,7 @@ import {
 } from "@questify/shared";
 import { nameFor, type EventView } from "#src/lib/events.ts";
 import { pickText } from "#src/lib/home-content-editor.ts";
+import { translatorFor, type Translate } from "#src/lib/language.ts";
 import type { CategoryView, QuestView } from "#src/lib/quests.ts";
 import type { RewardView } from "#src/lib/rewards.ts";
 
@@ -319,6 +323,21 @@ const previewRewards = (
 
 const venueOf = (event: EventView, language: Language): string =>
   event.venue[language] ?? event.venue.en ?? event.venue.ar ?? "";
+
+/**
+ * The translator the phone preview speaks with, as the app's inside an event does (`withEventWords`): the event's renamed
+ * labels over the dashboard's texts, and the event's quest, category and player words filled into every text, a renamed
+ * label that kept one (`{questCap}`) included. A value the call passes wins over a word of the same name.
+ */
+export function phoneTranslator(
+  language: Language,
+  terms: EventTerms,
+  texts: EventTexts,
+): Translate {
+  const words = wordParams(terms, language);
+  const shown = withEventTexts(translatorFor(language, terms), texts, language);
+  return (key, params) => shown(key, { ...words, ...params });
+}
 
 /**
  * Builds the preview from what the team's pages read: the same rules as the app's own reads (`playerTabs`, `homeBlocks`,
