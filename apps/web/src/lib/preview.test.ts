@@ -480,3 +480,27 @@ describe("the event info page and the extra page in the preview (T-613)", () => 
     expect(withInfo({ content: untitled }).page).toBeNull();
   });
 });
+
+describe("the event's renamed labels in the preview (T-614)", () => {
+  const texts = { ar: { "nav.rewards": "الهدايا" }, en: { "nav.rewards": "Prizes" } };
+
+  it("carries the renamed labels, and none for an event that renamed none", () => {
+    expect(previewOf({ ...EVENT, texts }, [], [], "en").texts).toEqual(texts);
+    expect(previewOf(EVENT, [], [], "en").texts).toEqual({ ar: {}, en: {} });
+  });
+
+  it("reads labels the API sent damaged as none, keeping the usable ones", () => {
+    const damaged = {
+      ...EVENT,
+      texts: { en: { "nav.rewards": "Prizes", "legal.x": "y", "nav.scan": 5 } },
+    };
+    expect(previewOf(damaged, [], [], "en").texts).toEqual({
+      ar: {},
+      en: { "nav.rewards": "Prizes" },
+    });
+    expect(previewOf({ ...EVENT, texts: "damaged" }, [], [], "en").texts).toEqual({
+      ar: {},
+      en: {},
+    });
+  });
+});

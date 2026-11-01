@@ -210,3 +210,23 @@ describe("createTranslator", () => {
     expect(t("quests.pointsShort", "ar", { points: 1250, currency: "جواهر" })).toBe("جواهر: 1,250");
   });
 });
+
+describe("a placeholder rule that lets some placeholders go", () => {
+  const rule = { optional: new Set(["player"]) };
+  const accepted = (text: string) =>
+    validateTranslation(messages, "greet.player", "en", text, rule).ok;
+
+  it("accepts a text without an optional placeholder and still refuses the others missing or added", () => {
+    expect(accepted("Hi, you have {points} points")).toBe(true);
+    expect(accepted("Hi {player}, you have {points} points")).toBe(true);
+    expect(accepted("Hi {player}")).toBe(false);
+    expect(accepted("Hi {player}, {points} points, {extra}")).toBe(false);
+  });
+
+  it("applies to what is usable too, and the default rule is unchanged", () => {
+    const text = "Hi, you have {points} points";
+    expect(isUsableOverride(messages, "greet.player", "en", text, rule)).toBe(true);
+    expect(isUsableOverride(messages, "greet.player", "en", text)).toBe(false);
+    expect(isUsableOverride(messages, "greet.player", "en", " ", rule)).toBe(false);
+  });
+});

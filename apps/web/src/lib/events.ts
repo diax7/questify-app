@@ -67,6 +67,8 @@ export type EventView = Readonly<{
   layout?: unknown;
   /** The event's words (FR-404, FR-940); on the single read only, so read it with `readEventTerms`. */
   terms?: unknown;
+  /** The labels the event renamed (FR-1843, T-614); on the single read only, so read it with `readEventTexts`. */
+  texts?: unknown;
 }>;
 
 /** The name in the page's language, else the other one (an event needs only one). */

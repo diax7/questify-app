@@ -11,6 +11,7 @@ import {
   invalidEvent,
   invalidLayout,
   invalidTerms,
+  invalidTexts,
   layoutItemProtected,
   notFound,
   rehearsalData,
@@ -212,14 +213,14 @@ export function registerEventRoutes(
     },
   );
 
-  // The single read alone carries the event's words: the event page's form edits them.
+  // The single read alone carries the event's words and renamed labels: the event page's form and the labels page edit them.
   scope.get("/events/:eventId", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const event = await events.get(organizerContextOf(request), eventId);
     if (event === undefined) {
       throw notFound();
     }
-    return { event: { ...view(event), terms: event.terms } };
+    return { event: { ...view(event), terms: event.terms, texts: event.texts } };
   });
 
   scope.patch("/events/:eventId", member, async (request) => {
@@ -274,6 +275,7 @@ export function registerEventRoutes(
   });
   registerEventBranding(scope, settings);
   registerEventLayout(scope, settings);
+  registerEventTexts(scope, settings);
   registerEventSwitches(scope, settings);
 }
 
@@ -303,6 +305,35 @@ function registerEventLayout(scope: FastifyInstance, settings: SettingsService):
         }
         throw invalidLayout({ field: saved.issues[0]?.path });
       }
+      case "archived":
+        throw eventArchived();
+      default:
+        throw notFound();
+    }
+  });
+}
+
+/**
+ * FR-1843: the labels the event renamed (the bar's names, which the screens and the shop also use), in Arabic and English.
+ * Owners and editors in scope. Only the approved labels are accepted, cleaned and bounded, with their placeholders kept
+ * (422 `invalid_texts` names the label); a blank label returns to the platform's text. The body is the whole set.
+ */
+function registerEventTexts(scope: FastifyInstance, settings: SettingsService): void {
+  scope.put("/events/:eventId/texts", member, async (request) => {
+    const { eventId } = parse(eventParams, request.params);
+    const context = organizerContextOf(request);
+    const saved = await settings.saveEventTexts(
+      { staffUserId: context.staffUserId, organizerId: context.organizerId },
+      eventId,
+      request.body,
+      { requestId: request.id },
+    );
+    if (saved.ok) {
+      return { texts: saved.texts };
+    }
+    switch (saved.reason) {
+      case "invalid":
+        throw invalidTexts({ field: saved.issues[0]?.path });
       case "archived":
         throw eventArchived();
       default:

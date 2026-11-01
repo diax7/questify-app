@@ -4,6 +4,7 @@ import { playerDocuments } from "#src/legal/documents";
 import { DEFAULT_COMPOSED_LAYOUT, composedLayoutOf, type ComposedLayout } from "#src/layout/layout";
 import type { EventConfig, PlatformSettings, Registries } from "./registry";
 import { DEFAULT_TERMS, type EventTerms } from "./terms";
+import { NO_EVENT_TEXTS, type EventTexts } from "./texts";
 
 export type ComposedFeature = Readonly<{
   enabled: boolean;
@@ -25,6 +26,8 @@ export type ComposedConfig = Readonly<{
   legal: Readonly<{ documents: readonly Readonly<{ id: string; version: string }>[] }>;
   /** The event's currency and renamed words, always complete; Questify's own words outside an event. */
   terms: EventTerms;
+  /** The labels the event renamed, per language and key; empty outside an event and when it renamed none (T-614). */
+  texts: EventTexts;
   /** The event's look (FR-1023); no accent outside an event or when the organizer picked none. */
   branding: Branding;
   /** The event's bar and Home blocks to show, in order (T-606, FR-1749); Questify's own outside an event. */
@@ -70,6 +73,19 @@ function composeTuning(registries: Registries, platform: PlatformSettings): Reco
   );
 }
 
+/** The event's own words, labels, accent and layout, each Questify's own where the event set none (or there is no event). */
+function composeEventLook(
+  event: EventConfig | undefined,
+): Pick<ComposedConfig, "terms" | "texts" | "branding" | "layout"> {
+  const set = event ?? {};
+  return {
+    terms: set.terms ?? DEFAULT_TERMS,
+    texts: set.texts ?? NO_EVENT_TEXTS,
+    branding: set.branding ?? DEFAULT_BRANDING,
+    layout: set.layout === undefined ? DEFAULT_COMPOSED_LAYOUT : composedLayoutOf(set.layout),
+  };
+}
+
 /**
  * Builds the configuration a player's app receives. A lower level can only narrow a higher one: an event
  * cannot switch on what the platform switched off, and an unknown feature or number is ignored because the
@@ -85,8 +101,6 @@ export function composeConfig(
     features: composeFeatures(registries, platform, event),
     tuning: composeTuning(registries, platform),
     legal: { documents: playerDocuments().map(({ id, version }) => ({ id, version })) },
-    terms: event?.terms ?? DEFAULT_TERMS,
-    branding: event?.branding ?? DEFAULT_BRANDING,
-    layout: event?.layout === undefined ? DEFAULT_COMPOSED_LAYOUT : composedLayoutOf(event.layout),
+    ...composeEventLook(event),
   };
 }

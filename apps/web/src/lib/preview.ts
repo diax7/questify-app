@@ -12,11 +12,13 @@ import {
   playerTabs,
   questTypeShown,
   readEventLayout,
+  readEventTexts,
   type AccentKey,
   type EventLooks,
   type HomeContent,
   type HomeKey,
   type InfoSection,
+  type EventTexts,
   type Language,
   type MessageKey,
   type PlayerTab,
@@ -51,6 +53,8 @@ export type EventPreview = Readonly<{
   name: string;
   venue: string;
   accent: AccentKey | null;
+  /** The labels the event renamed (FR-1843): the phone draws them in place of Questify's text. */
+  texts: EventTexts;
   /** The bar's items in the layout's order, without what the layout hides or a switch takes away. */
   tabs: readonly Readonly<{ tab: PlayerTab; title: MessageKey }>[];
   /**
@@ -355,6 +359,7 @@ export function previewOf(
     name: nameFor(event, language),
     venue: venueOf(event, language),
     accent: event.branding?.accent ?? null,
+    texts: readEventTexts(event.texts),
     tabs,
     homeBlocks: blocks,
     info,

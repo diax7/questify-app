@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_LAYOUT, DEFAULT_TERMS } from "@questify/shared";
+import { DEFAULT_LAYOUT, DEFAULT_TERMS, NO_EVENT_TEXTS } from "@questify/shared";
 import { createEvents, merge, type Actor } from "#src/events/events";
 import type { EventRecord } from "#src/events/store";
 
@@ -38,6 +38,7 @@ const STORED: EventRecord = {
   branding: { accent: null },
   layout: DEFAULT_LAYOUT,
   terms: DEFAULT_TERMS,
+  texts: NO_EVENT_TEXTS,
   venuePin: { lat: 24.7136, lng: 46.6753 },
   venueRadiusM: 800,
   cityId: null,

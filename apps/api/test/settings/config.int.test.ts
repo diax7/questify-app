@@ -111,6 +111,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
           ],
         },
         terms: DEFAULT_TERMS,
+        texts: { ar: {}, en: {} },
         branding: { accent: null },
         layout: DEFAULT_COMPOSED_LAYOUT,
       });

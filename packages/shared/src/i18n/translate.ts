@@ -10,22 +10,58 @@ export const NO_OVERRIDES: Overrides = { ar: {}, en: {} };
 
 const MAX_TEXT_LENGTH = 1000;
 
-const sameSet = (a: readonly string[], b: readonly string[]): boolean =>
-  a.length === b.length && a.every((name, index) => name === b[index]);
+/**
+ * Which placeholders of a shipped text a change may leave out. Every other placeholder must stay, and no other may be
+ * added. The admin store keeps all of them; an event may drop the names the app fills with the event's own words (T-614).
+ */
+export type PlaceholderRule = Readonly<{ optional: ReadonlySet<string> }>;
 
-/** True when a stored value may replace the shipped text: not blank, and the same placeholders as the default. */
+const KEEP_ALL_PLACEHOLDERS: PlaceholderRule = { optional: new Set() };
+
+/** The placeholders `text` lacks (`missing`) or adds (`extra`) against the shipped text, under the rule. */
+function placeholderGaps(
+  shipped: string,
+  text: string,
+  rule: PlaceholderRule,
+): Readonly<{ missing: string[]; extra: string[] }> {
+  const expected = placeholdersOf(shipped);
+  const found = placeholdersOf(text);
+  return {
+    missing: expected.filter((name) => !found.includes(name) && !rule.optional.has(name)),
+    extra: found.filter((name) => !expected.includes(name)),
+  };
+}
+
+function placeholderIssues(
+  shipped: string,
+  text: string,
+  language: Language,
+  rule: PlaceholderRule,
+): ConfigIssue[] {
+  const { missing, extra } = placeholderGaps(shipped, text, rule);
+  return [
+    ...missing.map((name) => ({ path: language, message: `is missing {${name}}` })),
+    ...extra.map((name) => ({
+      path: language,
+      message: `uses {${name}}, which this text does not have`,
+    })),
+  ];
+}
+
+/** True when a stored value may replace the shipped text: not blank, and the placeholders of the default (under the rule). */
 export function isUsableOverride(
   messages: Messages,
   key: string,
   language: Language,
   text: string,
+  rule: PlaceholderRule = KEEP_ALL_PLACEHOLDERS,
 ): boolean {
   const shipped = messages[key]?.[language];
-  return (
-    shipped !== undefined &&
-    text.trim() !== "" &&
-    sameSet(placeholdersOf(text), placeholdersOf(shipped))
-  );
+  if (shipped === undefined || text.trim() === "") {
+    return false;
+  }
+  const { missing, extra } = placeholderGaps(shipped, text, rule);
+  return missing.length === 0 && extra.length === 0;
 }
 
 /**
@@ -39,6 +75,7 @@ export function validateTranslation(
   key: string,
   language: Language,
   text: string,
+  rule: PlaceholderRule = KEEP_ALL_PLACEHOLDERS,
 ): Validation<string> {
   const shipped = messages[key]?.[language];
   if (shipped === undefined) {
@@ -52,14 +89,7 @@ export function validateTranslation(
   if (value.length > MAX_TEXT_LENGTH) {
     issues.push({ path: language, message: `must have at most ${MAX_TEXT_LENGTH} characters` });
   }
-  const expected = placeholdersOf(shipped);
-  const found = placeholdersOf(value);
-  for (const missing of expected.filter((placeholder) => !found.includes(placeholder))) {
-    issues.push({ path: language, message: `is missing {${missing}}` });
-  }
-  for (const extra of found.filter((placeholder) => !expected.includes(placeholder))) {
-    issues.push({ path: language, message: `uses {${extra}}, which this text does not have` });
-  }
+  issues.push(...placeholderIssues(shipped, value, language, rule));
   return issues.length > 0 ? { ok: false, issues } : { ok: true, value };
 }
 

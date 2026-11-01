@@ -7956,6 +7956,20 @@ export const MESSAGES = {
   "wizard.addon.locked": { ar: "متاحة مع إضافة.", en: "Available with an add-on." },
   "wizard.addon.ask": { ar: "اسأل Questify", en: "Ask Questify" },
   "wizard.addon.unlocked": { ar: "مفعّلة لفعاليتك", en: "Unlocked for your event" },
+  "texts.title": { ar: "تسميات التطبيق", en: "App labels" },
+  "texts.language.ar": { ar: "العربية", en: "Arabic" },
+  "texts.language.en": { ar: "الإنجليزية", en: "English" },
+  "texts.defaultLabel": { ar: "الافتراضي", en: "Default" },
+  "texts.reset": { ar: "إعادة {name} إلى الافتراضي", en: "Reset {name} to default" },
+  "texts.save": { ar: "حفظ التسميات", en: "Save labels" },
+  "texts.saved": { ar: "تم حفظ التسميات.", en: "Labels saved." },
+  "texts.invalid": {
+    ar: "أزل الأقواس المعقوفة من {name} ({language}).",
+    en: "Remove the curly brackets from {name} ({language}).",
+  },
+  "texts.currency": { ar: "كلمة العملة", en: "Currency word" },
+  "texts.currencyEdit": { ar: "تعديل كلمة العملة", en: "Edit the currency word" },
+  "texts.previewLanguage": { ar: "لغة المعاينة", en: "Preview language" },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

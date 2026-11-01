@@ -96,6 +96,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "owner of that organizer only (owner route, walked below); changes only the agenda switch of that event (test/events/branding)",
   "PUT /v1/organizers/:organizerId/events/:eventId/branding":
     "a member of that organizer, an editor within their chosen events (the database applies the limit); another organizer's event answers 404; one accent from the curated list, nothing else is stored (test/events/branding)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/texts":
+    "a member of that organizer, an editor within their chosen events (the database applies the limit); another organizer's event answers 404; only the approved bar labels are accepted, cleaned and bounded, with their value-carrying placeholders kept; legal and consent texts are refused whatever is sent (test/events/texts)",
   "PUT /v1/organizers/:organizerId/events/:eventId/layout":
     "a member of that organizer, an editor within their chosen events (the database applies the limit); another organizer's event answers 404; the bar and Home order, hidden set and the written content (plain text, bounded, https-only links) and the looks of the ranking, Quests and Rewards (every choice named, each one allowed), or an approved preset by name; Home, the scan button, Profile and the protected blocks cannot be hidden (test/events/layout)",
   "PUT /v1/organizers/:organizerId/events/:eventId/cheers":

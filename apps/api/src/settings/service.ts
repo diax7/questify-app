@@ -7,15 +7,19 @@ import {
   readEventLayout,
   readEventSwitches,
   readEventTerms,
+  readEventTexts,
   readPlatformSettings,
   readStoredBranding,
   readStoredLayout,
   readStoredTerms,
+  readStoredTexts,
   validateEventConfig,
   validatePlatformSettings,
   type ComposedConfig,
   type ConfigIssue,
+  type EventConfig,
   type EventLayout,
+  type EventTexts,
   type PlatformSettings,
   type Registries,
 } from "@questify/shared";
@@ -36,7 +40,7 @@ import {
   upsertPlatformBlock,
   writeEventSwitches,
 } from "#src/settings/store";
-import { saveBranding, saveLayout, saveTerms } from "#src/settings/save-event-config";
+import { saveBranding, saveLayout, saveTerms, saveTexts } from "#src/settings/save-event-config";
 import type { PublicAccount } from "#src/auth/staff-store";
 
 export type ConfigResult =
@@ -52,6 +56,23 @@ export type SaveResult =
 export type LayoutSaveResult =
   | Readonly<{ ok: true; layout: EventLayout }>
   | Exclude<SaveResult, Readonly<{ ok: true }>>;
+
+/** A labels save answers with the labels it stored, cleaned (the caller cannot know what cleaning made of its text). */
+export type TextsSaveResult =
+  | Readonly<{ ok: true; texts: EventTexts }>
+  | Exclude<SaveResult, Readonly<{ ok: true }>>;
+
+/** The event's stored config as the composer reads it: each block tolerantly, so a damaged one is the default. */
+function eventConfigOf(stored: unknown, unlocked: readonly string[]): EventConfig {
+  return {
+    features: readEventSwitches(stored),
+    unlocked,
+    terms: readEventTerms(readStoredTerms(stored)),
+    texts: readEventTexts(readStoredTexts(stored)),
+    branding: readBranding(readStoredBranding(stored)),
+    layout: readEventLayout(readStoredLayout(stored)),
+  };
+}
 
 export type SettingsService = Readonly<{
   /**
@@ -93,6 +114,16 @@ export type SettingsService = Readonly<{
     input: unknown,
     meta?: AuditMeta,
   ) => Promise<SaveResult>;
+  /**
+   * A member of the organizer replaces the labels the event renamed (FR-1843): approved labels only, a blank one back to the
+   * platform's text. Any status but archived, as the words.
+   */
+  saveEventTexts: (
+    actor: Readonly<{ staffUserId: string; organizerId: string }>,
+    eventId: string,
+    input: unknown,
+    meta?: AuditMeta,
+  ) => Promise<TextsSaveResult>;
   /**
    * A member of the organizer picks the event's accent colour from the curated list, or null for the brand colour
    * (FR-1023). Any status but archived, as the words.
@@ -183,13 +214,7 @@ export function createSettingsService(options: SettingsOptions): SettingsService
           return { kind: "event_not_found" } as const;
         }
         const unlocked = await readEntitlements(client, eventId);
-        const config = composeConfig(registries, platform, {
-          features: readEventSwitches(stored),
-          unlocked,
-          terms: readEventTerms(readStoredTerms(stored)),
-          branding: readBranding(readStoredBranding(stored)),
-          layout: readEventLayout(readStoredLayout(stored)),
-        });
+        const config = composeConfig(registries, platform, eventConfigOf(stored, unlocked));
         return { kind: "ok", config, etag: etagOf(config) } as const;
       }),
     );
@@ -338,6 +363,9 @@ export function createSettingsService(options: SettingsOptions): SettingsService
 
     saveEventTerms: (actor, eventId, input, meta = {}) =>
       thenForget(saveTerms(options.pool, actor, eventId, input, meta)),
+
+    saveEventTexts: (actor, eventId, input, meta = {}) =>
+      thenForget(saveTexts(options.pool, actor, eventId, input, meta)),
 
     saveEventBranding: (actor, eventId, input, meta = {}) =>
       thenForget(saveBranding(options.pool, actor, eventId, input, meta)),

@@ -28,7 +28,17 @@ export {
   readStoredBranding,
   readStoredLayout,
   readStoredTerms,
+  readStoredTexts,
 } from "./config/read";
+export type { EventTextKey, EventTexts } from "./config/texts";
+export {
+  EVENT_TEXT_KEYS,
+  EVENT_TEXT_MAX,
+  NO_EVENT_TEXTS,
+  readEventTexts,
+  validateEventTexts,
+  withEventTexts,
+} from "./config/texts";
 export type { CurrencyIcon, EventTerms, EventTermsInput, Word, WordForms } from "./config/terms";
 export {
   CURRENCY_ICONS,

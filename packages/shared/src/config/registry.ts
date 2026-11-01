@@ -2,6 +2,7 @@ import type { Branding } from "#src/design/accents";
 import type { LocalizedText } from "#src/errors";
 import type { EventLayout } from "#src/layout/layout";
 import type { EventTerms } from "./terms";
+import type { EventTexts } from "./texts";
 
 /** A feature that exists inside the reviewed app. Configuration can only switch these on or off (FR-1504). */
 export type FeatureDefinition = Readonly<{
@@ -44,6 +45,8 @@ export type EventConfig = Readonly<{
   unlocked?: readonly string[] | undefined;
   /** The event's own words (FR-404, FR-940); the defaults when it set none. */
   terms?: EventTerms | undefined;
+  /** The labels the event renamed (FR-1843, T-614), per language; the platform's texts where it set none. */
+  texts?: EventTexts | undefined;
   /** The event's look (FR-1023): an accent from the curated list, or none. */
   branding?: Branding | undefined;
   /** The event's bar and Home blocks (T-606, FR-1749): the order and what is hidden; Questify's own layout when none. */

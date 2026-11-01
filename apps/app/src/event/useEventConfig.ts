@@ -1,10 +1,12 @@
 import {
   DEFAULT_COMPOSED_LAYOUT,
   DEFAULT_TERMS,
+  NO_EVENT_TEXTS,
   type AccentKey,
   type ComposedConfig,
   type ComposedLayout,
   type EventTerms,
+  type EventTexts,
 } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { api, keyValueStore } from "#src/api/app-session.ts";
@@ -13,6 +15,8 @@ import { livePollSecondsOf } from "#src/event/polls.ts";
 
 export type EventSettings = Readonly<{
   terms: EventTerms;
+  /** The labels the event renamed (FR-1843, T-614), per language; none until the configuration says so. */
+  texts: EventTexts;
   locationOn: boolean;
   nfcOn: boolean;
   helpOn: boolean;
@@ -63,6 +67,7 @@ export function useEventConfig(eventId: string): EventSettings {
   );
   return {
     terms,
+    texts: config?.texts ?? NO_EVENT_TEXTS,
     locationOn,
     nfcOn,
     helpOn,

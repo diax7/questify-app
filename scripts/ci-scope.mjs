@@ -111,7 +111,11 @@ export const AREAS = [
     ["events", "event-page", "duplicate-event", "confirmations"],
   ],
   [/duplicate-?event|event-?duplicat|copy-?setup/i, ["duplicate-event"]],
-  [/branding|accent-?(picker|colou?r)|preview|player-?view|event-?feature-?switch/i, ["branding"]],
+  [
+    /branding|accent-?(picker|colou?r)|preview|player-?view|event-?feature-?switch/i,
+    ["branding", "texts"],
+  ],
+  [/event-?texts|texts-?editor|\[eventId\]\/texts\//i, ["texts"]],
   [
     /layout-?(editor|item-?list|preview)|event-?layout|home-?content|info-?content|page-?editor|entry-?list|screen-?styles|\[eventId\]\/layout\//i,
     ["layout-editor", "branding"],

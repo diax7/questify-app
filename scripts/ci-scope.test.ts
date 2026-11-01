@@ -84,6 +84,16 @@ describe("planBrowserSpecs", () => {
     }
   });
 
+  it("runs the labels page's spec for its editor and its page, and for the phone preview it draws", () => {
+    for (const file of [
+      "apps/web/src/components/EventTextsEditor.tsx",
+      "apps/web/src/lib/texts-editor.ts",
+      "apps/web/src/components/PreviewScreens.tsx",
+    ]) {
+      expect(plan([file]).specs, file).toContain("texts");
+    }
+  });
+
   it("runs the specs named by each changed area, once each, sorted", () => {
     const result = plan([
       "apps/web/src/components/StreakPanel.tsx",

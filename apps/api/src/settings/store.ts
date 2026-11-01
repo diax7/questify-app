@@ -106,6 +106,32 @@ export async function writeEventTerms(db: Db, eventId: string, terms: unknown): 
   );
 }
 
+/** An event's stored renamed labels, locked until the transaction ends. Undefined when the caller cannot see the event. */
+export async function lockEventTexts(
+  db: Db,
+  eventId: string,
+): Promise<{ organizerId: string; texts: unknown; archived: boolean } | undefined> {
+  const { rows } = await db.query<{ organizer_id: string; texts: unknown; archived: boolean }>(
+    `SELECT organizer_id, config -> 'texts' AS texts, status = 'archived' AS archived
+     FROM event WHERE id = $1 FOR UPDATE`,
+    [eventId],
+  );
+  const row = rows[0];
+  return row === undefined
+    ? undefined
+    : { organizerId: row.organizer_id, texts: row.texts, archived: row.archived };
+}
+
+/** Replaces the renamed labels inside an event's config and keeps whatever else it holds. */
+export async function writeEventTexts(db: Db, eventId: string, texts: unknown): Promise<void> {
+  await db.query(
+    `UPDATE event
+     SET config = jsonb_set(config, '{texts}', $2::jsonb, true), config_version = config_version + 1
+     WHERE id = $1`,
+    [eventId, JSON.stringify(texts)],
+  );
+}
+
 /** An event's stored look, locked until the transaction ends. Undefined when the caller cannot see the event. */
 export async function lockEventBranding(
   db: Db,

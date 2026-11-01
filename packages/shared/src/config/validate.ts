@@ -4,6 +4,7 @@ import type { ComposedConfig } from "./compose";
 import type { PlatformSettings, Registries } from "./registry";
 import { readComposedLayout } from "#src/layout/layout";
 import { readEventTerms } from "./terms";
+import { readEventTexts } from "./texts";
 
 export type ConfigIssue = Readonly<{
   path: string;
@@ -146,6 +147,11 @@ const composedShape = z.object({
   legal: z.object({ documents: z.array(z.object({ id: z.string(), version: z.string() })) }),
   // Read tolerantly: a copy saved before T-117 has none, and one bad word falls back to its default.
   terms: z.unknown().optional().transform(readEventTerms),
+  // Read tolerantly as well: a copy saved before T-614 has none, and a label that is not usable shows the platform's text.
+  texts: z
+    .unknown()
+    .optional()
+    .transform((value) => readEventTexts(value)),
   // Read tolerantly too: a copy saved before T-602 has none, and an accent this app does not know shows as none.
   branding: z.unknown().optional().transform(readBranding),
   // Read tolerantly as well: a copy saved before T-606 has none, and a layout that hides a protected item falls back to Questify's.

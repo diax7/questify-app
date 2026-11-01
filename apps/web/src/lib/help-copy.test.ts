@@ -187,6 +187,7 @@ const HELP_PROP_KEYS: readonly string[] = [
   "staff.codeSent",
   "staff.passwordRules",
   "staff.signedInAs",
+  "texts.defaultLabel",
 ];
 
 const SRC = join(__dirname, "..");

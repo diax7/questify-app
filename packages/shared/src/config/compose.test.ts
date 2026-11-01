@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { composeConfig } from "./compose";
 import { DEFAULT_TERMS } from "./terms";
+import { NO_EVENT_TEXTS } from "./texts";
 import { DEFAULT_COMPOSED_LAYOUT, readEventLayout } from "#src/layout/layout";
 import type { FeatureRegistry, TuningRegistry } from "./registry";
 
@@ -35,6 +36,7 @@ describe("composeConfig defaults", () => {
         ],
       },
       terms: DEFAULT_TERMS,
+      texts: NO_EVENT_TEXTS,
       branding: { accent: null },
       layout: DEFAULT_COMPOSED_LAYOUT,
     });
@@ -75,6 +77,13 @@ describe("composeConfig defaults", () => {
     };
     expect(composeConfig(registries, {}, { terms }).terms).toBe(terms);
     expect(composeConfig(registries, {}, {}).terms).toBe(DEFAULT_TERMS);
+  });
+
+  it("carries the event's renamed labels, and none outside an event", () => {
+    const texts = { ar: {}, en: { "nav.rewards": "Prizes" } };
+    expect(composeConfig(registries, {}, { texts }).texts).toBe(texts);
+    expect(composeConfig(registries, {}, {}).texts).toBe(NO_EVENT_TEXTS);
+    expect(composeConfig(registries, {}, undefined).texts).toBe(NO_EVENT_TEXTS);
   });
 
   it("ignores an event switch for a platform-level feature; only the platform turns it off", () => {

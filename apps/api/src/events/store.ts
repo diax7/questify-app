@@ -4,9 +4,11 @@ import {
   readBranding,
   readEventLayout,
   readEventTerms,
+  readEventTexts,
   type Branding,
   type EventLayout,
   type EventTerms,
+  type EventTexts,
 } from "@questify/shared";
 
 export type EventKind = "physical" | "virtual" | "workplace";
@@ -64,6 +66,8 @@ export type EventRecord = Readonly<{
   layout: EventLayout;
   /** The event's words (FR-404, FR-940), the defaults for any it did not set. */
   terms: EventTerms;
+  /** The labels the event renamed (FR-1843, T-614), per language; none when it renamed none. */
+  texts: EventTexts;
   /** The venue's pin, or null (T-303b); with its radius in metres. */
   venuePin: VenuePin | null;
   venueRadiusM: number;
@@ -126,6 +130,7 @@ type Row = {
   branding: unknown;
   layout: unknown;
   terms: unknown;
+  texts: unknown;
   venue_lat: string | null;
   venue_lng: string | null;
   venue_radius_m: number;
@@ -150,7 +155,7 @@ const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, acce
   coalesce((config -> 'features' ->> 'maps')::boolean, true) AS maps_on,
   coalesce((config -> 'features' ->> 'agenda')::boolean, true) AS agenda_on,
   config -> 'branding' AS branding, config -> 'layout' AS layout, config -> 'terms' AS terms,
-  venue_lat, venue_lng, venue_radius_m, city_id, interests`;
+  config -> 'texts' AS texts, venue_lat, venue_lng, venue_radius_m, city_id, interests`;
 
 const toRecord = (row: Row): EventRecord => ({
   id: row.id,
@@ -184,6 +189,7 @@ const toRecord = (row: Row): EventRecord => ({
   branding: readBranding(row.branding),
   layout: readEventLayout(row.layout),
   terms: readEventTerms(row.terms),
+  texts: readEventTexts(row.texts),
   venuePin:
     row.venue_lat === null || row.venue_lng === null
       ? null

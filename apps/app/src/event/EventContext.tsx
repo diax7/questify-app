@@ -13,6 +13,7 @@ import {
   type AccentKey,
   type ComposedLayout,
   type EventTerms,
+  type EventTexts,
   type MemberSponsors,
 } from "@questify/shared";
 import { api, keyValueStore } from "#src/api/app-session.ts";
@@ -31,6 +32,8 @@ type EventValue = Readonly<{
   rememberName: (name: string) => void;
   /** The event's words (FR-404, FR-940): its cached copy, then the fresh one; Questify's own until either exists. */
   terms: EventTerms;
+  /** The labels the event renamed (FR-1843): its cached copy, then the fresh one; none until either exists. */
+  texts: EventTexts;
   /** The platform's location switch (ADR-208): off until the configuration says on; off, the app never reads location. */
   locationOn: boolean;
   /**
@@ -98,7 +101,7 @@ export function EventProvider({
     void markOpened(keyValueStore, eventId, Date.now());
     void load();
   }, [eventId, load]);
-  const { terms, locationOn, nfcOn, helpOn, livePollSeconds, featureOn, accent, layout } =
+  const { terms, texts, locationOn, nfcOn, helpOn, livePollSeconds, featureOn, accent, layout } =
     useEventConfig(eventId);
   const { theme: baseTheme } = useTheme();
   const eventTheme = useMemo(() => themeWithAccent(baseTheme, accent), [baseTheme, accent]);
@@ -111,6 +114,7 @@ export function EventProvider({
       knownName,
       rememberName,
       terms,
+      texts,
       locationOn,
       scanPositions,
       nfcOn,
@@ -129,6 +133,7 @@ export function EventProvider({
       events,
       knownName,
       terms,
+      texts,
       locationOn,
       scanPositions,
       nfcOn,
@@ -146,7 +151,9 @@ export function EventProvider({
   return (
     <EventContext.Provider value={value}>
       <ThemeProvider theme={eventTheme}>
-        <TermsScope terms={terms}>{children}</TermsScope>
+        <TermsScope terms={terms} texts={texts}>
+          {children}
+        </TermsScope>
       </ThemeProvider>
     </EventContext.Provider>
   );

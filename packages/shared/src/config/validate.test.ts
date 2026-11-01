@@ -8,6 +8,7 @@ import {
 } from "./validate";
 import type { Registries } from "./registry";
 import { DEFAULT_TERMS } from "./terms";
+import { NO_EVENT_TEXTS } from "./texts";
 import { DEFAULT_COMPOSED_LAYOUT } from "#src/layout/layout";
 import { DEFAULT_LOOKS } from "#src/layout/looks";
 
@@ -174,6 +175,7 @@ describe("parseComposedConfig", () => {
     tuning: { qrSeconds: 45 },
     legal: { documents: [{ id: "terms_of_use", version: "0.1" }] },
     terms: DEFAULT_TERMS,
+    texts: NO_EVENT_TEXTS,
     branding: { accent: null },
     layout: DEFAULT_COMPOSED_LAYOUT,
   };
@@ -195,6 +197,26 @@ describe("parseComposedConfig", () => {
     expect(result).toEqual({
       ok: true,
       config: { ...valid, terms: { ...DEFAULT_TERMS, currency: { icon: "gem", ...gems } } },
+    });
+  });
+
+  it("reads a copy from before the labels as none, and drops a label it cannot use", () => {
+    const { texts: _texts, ...older } = valid;
+    expect(parseComposedConfig(older)).toEqual({ ok: true, config: valid });
+    const result = parseComposedConfig({
+      ...valid,
+      texts: { ar: { "nav.rewards": "الهدايا" }, en: { "nav.rewards": "Prizes", "legal.x": "y" } },
+    });
+    expect(result).toEqual({
+      ok: true,
+      config: {
+        ...valid,
+        texts: { ar: { "nav.rewards": "الهدايا" }, en: { "nav.rewards": "Prizes" } },
+      },
+    });
+    expect(parseComposedConfig({ ...valid, texts: "damaged" })).toEqual({
+      ok: true,
+      config: valid,
     });
   });
 

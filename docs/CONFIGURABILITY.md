@@ -352,3 +352,17 @@ steps of FR-1846. The add-on cards are the registry's gated features, locked unt
   wait for the photo storage (T-613b, Q-149).
 - **The player app** reads `layout.info` and the content from the composed configuration; a damaged entry or part is left out,
   a page with no valid part is no page, and an app that predates the page ignores the new fields.
+
+## As built (T-614): the event's renamed labels
+
+- **Where it lives:** `event.config.texts`, `{ar: {key: text}, en: {key: text}}` (ADR-399), the translation store's own shape, per event. The
+  composed configuration always carries `texts`; the app keeps it in the last working copy with the rest and reads it tolerantly
+  (`readEventTexts`: only approved keys, a text within the length, no control or bidi override characters, the right placeholders).
+- **The approved list is code** (`EVENT_TEXT_KEYS`): Home, Quests, Scan, Rewards, Ranking, Profile (`nav.*`), which the bar, the screen
+  titles and the shop title share. Any other key is refused (422 `invalid_texts`), so a legal, consent or store-required text can never be
+  reworded. The currency word stays in Event words.
+- **Rules:** cleaned like Home's words (`cleanBlockText`), 24 characters at most, a value-carrying placeholder must stay and none may be
+  added; the event's own word placeholders (`{questCap}`…) may be left out. A blank text falls back to the platform's text, per language.
+- **Showing:** `withEventTexts` lays the event's texts over the translator (the player app's `TermsScope`, the dashboard's phone preview),
+  and the event's words are filled in after, so a label that kept `{questCap}` shows the event's word. Staff mode keeps Questify's text.
+- **Dashboard:** the "App labels" page (`/texts`), owner and editor; see ADR-399.

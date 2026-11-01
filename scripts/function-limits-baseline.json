@@ -310,7 +310,7 @@
   },
   "apps/api/src/settings/service.ts": {
     "createSettingsService": {
-      "lines": [232]
+      "lines": [228]
     }
   },
   "apps/api/src/souvenirs/tick.ts": {

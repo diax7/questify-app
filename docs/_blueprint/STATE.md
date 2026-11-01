@@ -38,6 +38,11 @@
   app render test for `eventOff` was dropped (the app has no render-test harness, and a harness is not worth adding for
   one line).
 
+## T-614 event text overrides — 2026-11-02
+
+- **T-614 built (tier B; not run on a phone; no migration; ADR-399 and Q-366 Proposed).** An event renames the bar's six names (Home, Quests, Scan, Rewards, Ranking, Profile, which the screens and the shop title also use) in Arabic and English from a new "App labels" page (`/texts`, Setup; owner and editor). They are `event.config.texts`, in the translation store's own shape, composed into the configuration as `texts` and kept in the phone's last working copy; a blank text falls back to the platform's, per language. The list is code (`EVENT_TEXT_KEYS`): any other key, legal and consent texts included, is refused (422 `invalid_texts`). Texts are cleaned with the T-610 function, 24 characters at most; a value-carrying placeholder must stay, the event's own word placeholders may go. The currency word stays in Event words (the page links to it). `withEventTexts` lays the texts over the translator in the app's `TermsScope` and the dashboard's phone preview. **Local:** full vitest ONCE: 10494 passed, 15 skipped, 2 failed (652 files; `settings/config.int` and the ADR-370 guard `help-copy.test`; both fixed, re-run with the config tests once: 205 passed). Full browser suite after a fresh web build, single worker: 312 passed, 5 skipped, 1 failed (31.7 min; `location.spec` desktop, a field not cleared in time under load; alone 6 passed). The new `texts.spec` passed in desktop and phone. npx expo export --platform android ok. tsc (shared, api, web, app), oxlint, oxfmt and function limits clean. Mutation targets: none (tier B). CI minutes none; agent tokens roughly 0.55M (estimate).
+  **Next:** the next unchecked task in `docs/TASKS.md` (T-615).
+
 ## T-613 event info page and the extra page — 2026-11-01
 
 - **T-613 built (tier B; not run on a phone; review 86, its MAJOR fixed with migration 0108, new and undeployed: it widens `audit_log` before and after to 256 KiB).** The event info page's

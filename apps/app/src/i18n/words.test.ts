@@ -6,11 +6,13 @@ import {
   MESSAGES,
   NO_OVERRIDES,
   createTranslator,
+  NO_EVENT_TEXTS,
   readEventTerms,
+  readEventTexts,
   type EventTerms,
   type Language,
 } from "@questify/shared";
-import { withWords } from "#src/i18n/words.ts";
+import { withEventWords, withWords } from "#src/i18n/words.ts";
 
 const translate = createTranslator(MESSAGES, NO_OVERRIDES);
 
@@ -21,6 +23,39 @@ const MISSIONS = readEventTerms({
   quest: { ar: { one: "مغامرة", many: "مغامرات" }, en: { one: "mission", many: "missions" } },
   category: { ar: { one: "مرحلة", many: "مراحل" }, en: { one: "stage", many: "stages" } },
   player: { ar: { one: "طالب", many: "طلاب" }, en: { one: "student", many: "students" } },
+});
+
+const PRIZES = readEventTexts({
+  ar: { "nav.rewards": "الهدايا", "nav.quests": "مغامراتنا" },
+  en: { "nav.rewards": "Prizes", "nav.quests": "Daily {questCap}" },
+});
+
+const inEvent = (language: Language, terms = DEFAULT_TERMS, texts = PRIZES) =>
+  withEventWords((key, params) => translate(key, language, params), terms, texts, language);
+
+describe("withEventWords", () => {
+  it("shows an event's renamed label in each language, and Questify's text for any other", () => {
+    expect(inEvent("en")("nav.rewards")).toBe("Prizes");
+    expect(inEvent("ar")("nav.rewards")).toBe("الهدايا");
+    expect(inEvent("en")("nav.scan")).toBe("Scan");
+    expect(inEvent("ar")("nav.scan")).toBe(MESSAGES["nav.scan"].ar);
+  });
+
+  it("shows Questify's text for every label when the event renamed none, or only the other language", () => {
+    expect(inEvent("en", DEFAULT_TERMS, NO_EVENT_TEXTS)("nav.rewards")).toBe("Rewards");
+    const arabicOnly = readEventTexts({ ar: { "nav.rewards": "الهدايا" } });
+    expect(inEvent("en", DEFAULT_TERMS, arabicOnly)("nav.rewards")).toBe("Rewards");
+    expect(inEvent("ar", DEFAULT_TERMS, arabicOnly)("nav.rewards")).toBe("الهدايا");
+  });
+
+  it("fills the event's own words into a renamed label that kept one", () => {
+    expect(inEvent("en", MISSIONS)("nav.quests")).toBe("Daily Missions");
+    expect(inEvent("ar", MISSIONS)("nav.quests")).toBe("مغامراتنا");
+  });
+
+  it("does not let the renamed label leak into a text that merely uses the same word", () => {
+    expect(inEvent("en")("rewards.title")).toBe("Rewards");
+  });
 });
 
 describe("withWords", () => {

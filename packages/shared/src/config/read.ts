@@ -60,6 +60,11 @@ export function readStoredTerms(stored: unknown): unknown {
   return isRecord(stored) ? stored["terms"] : undefined;
 }
 
+/** The texts block of an event's stored config, as stored (read it with `readEventTexts`). */
+export function readStoredTexts(stored: unknown): unknown {
+  return isRecord(stored) ? stored["texts"] : undefined;
+}
+
 /** The branding block of an event's stored config, as stored (read it with `readBranding`). */
 export function readStoredBranding(stored: unknown): unknown {
   return isRecord(stored) ? stored["branding"] : undefined;

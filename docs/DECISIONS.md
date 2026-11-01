@@ -6236,3 +6236,36 @@ into a 500, so migration 0108 raises each side to 256 KiB (still a bound; nothin
 **Trade-offs:** an organizer edits venue and dates on the event pages and rules in the rules settings, not on the Layout page; the
 preview draws the Official rules row only when the event has rules (rank prizes on with a prize set, or the organizer's rules text,
 read from `…/rank-prizes`), as the app does; the page has no formatting beyond heading, list and link.
+
+## ADR-399 - T-614 event text overrides: a short approved list of bar labels in `event.config.texts`, on the translation store's shape
+
+**Status:** Proposed (developer, delegated by Dhia, 2026-11-02; Q-366). Builds FR-1843 on ADR-058 (the event's words) and the
+translation store (F-277, FR-1766 to FR-1768). No migration.
+**Decision:** (1) **Where.** An event's renamed labels are `event.config.texts`, `{ar: {key: text}, en: {key: text}}`: the same
+shape as the translation store's `Overrides`, per event instead of platform-wide. They are composed into the configuration as
+`texts` (empty outside an event and when none is set), so the phone keeps them in the last working copy with the rest, and
+`parseComposedConfig` reads them tolerantly. The platform store (T-702) and the event's texts stay two layers: the event's wins in
+that event; nothing is copied between them. (2) **The approved list is code**, `EVENT_TEXT_KEYS`: `nav.home`, `nav.quests`,
+`nav.scan`, `nav.rewards`, `nav.ranking`, `nav.profile`, which the screens and the shop also use as their titles (so Rewards
+renamed Prizes changes the bar and the shop title together). A key joins the list only by being named there, in the same change.
+Legal, consent, store-required and error texts are not on it; the server refuses any other key (422 `invalid_texts {field}`) and a
+test refuses every shipped legal and consent key. **The currency word** stays in the Event words form (`terms.currency`, ADR-058):
+the labels page lists it with a link there, and no second copy is stored. (3) **Rules.** Each text is cleaned with the same
+function as Home's words (`cleanBlockText`: invisible, control and bidi override characters removed, spaces made one, Arabic-Indic
+digits made Western), is at most 24 characters (it must fit under a bar icon), and a blank text is left out, so the platform's
+text shows, per language. **Placeholders:** a placeholder that carries a value must stay and no other may be added
+(`validateTranslation` with a `PlaceholderRule`); the placeholders the app fills with the event's own quest, category and player
+words (`{questCap}`, `{playerMany}`, …) may be left out, because renaming "Quests" to "Adventures" means the word is gone. The
+admin store keeps its stricter rule (every placeholder stays). (4) **Showing.** `withEventTexts` puts the texts over the parent
+translator (a label the event renamed, in that language; everything else the parent's), and the event's words are filled in after,
+so a label that kept `{questCap}` still shows the event's word. The player app, the dashboard's preview and the Preview page all
+use it. A damaged or unusable stored text shows the platform's text (`readEventTexts`). (5) **Dashboard.** An "App labels" page
+(`/texts`, Setup): per label an Arabic and an English box side by side, Questify's text as the placeholder and, once typed, as a
+"Default" line, a reset icon per label, Save and Discard, and a phone preview in either language redrawn from the draft. Owner and
+editor (an editor within their events), any status but archived; audited as `event.texts.update`. (6) **Not built:** renaming
+other screens' texts, per-language plural forms, and a labels import.
+**Why:** configuration over code, one override shape and one cleaning function, and a closed list so a legal or consent text can
+never be reworded by an organizer.
+**Trade-offs:** an organizer cannot reword anything outside the six bar names; a label renamed in one language only shows the
+platform's text in the other (the page shows both boxes so it is visible); a label longer than 24 characters is refused rather than
+truncated.

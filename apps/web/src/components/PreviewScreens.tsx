@@ -1,4 +1,10 @@
-import { DEFAULT_THEME, themeWithAccent, type Language, type PlayerTab } from "@questify/shared";
+import {
+  DEFAULT_THEME,
+  themeWithAccent,
+  withEventTexts,
+  type Language,
+  type PlayerTab,
+} from "@questify/shared";
 import type { ReactNode } from "react";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import styles from "#src/components/preview.module.css";
@@ -13,6 +19,11 @@ import { themeVariables } from "#src/lib/theme.ts";
 
 type ScreenProps = Readonly<{ preview: EventPreview; language: Language }>;
 
+/** The dashboard's translator with the event's renamed labels over it: what the phone shows, not the dashboard's own words. */
+function usePhoneTranslator(preview: EventPreview, language: Language) {
+  return withEventTexts(useTranslator(language), preview.texts, language);
+}
+
 /** One screen in its frame, with the event bar under it and the tab the screen belongs to marked. */
 function Phone({
   title,
@@ -26,7 +37,7 @@ function Phone({
     active: PlayerTab;
     children: ReactNode;
   }>) {
-  const t = useTranslator(language);
+  const t = usePhoneTranslator(preview, language);
   return (
     <section
       className={styles.phone}
@@ -51,7 +62,7 @@ function Phone({
 }
 
 function Home({ preview, language }: ScreenProps) {
-  const t = useTranslator(language);
+  const t = usePhoneTranslator(preview, language);
   return (
     <Phone title={t("nav.home")} active="index" preview={preview} language={language}>
       <h3 className={styles.screenTitle}>{preview.name}</h3>
@@ -101,7 +112,7 @@ function QuestLines({
 }
 
 function Quests({ preview, language }: ScreenProps) {
-  const t = useTranslator(language);
+  const t = usePhoneTranslator(preview, language);
   return (
     <Phone title={t("nav.quests")} active="quests" preview={preview} language={language}>
       <h3 className={styles.screenTitle}>{t("nav.quests")}</h3>
@@ -157,7 +168,7 @@ function RewardLines({
 }
 
 function Shop({ preview, language }: ScreenProps) {
-  const t = useTranslator(language);
+  const t = usePhoneTranslator(preview, language);
   if (preview.rewards === null) {
     return null;
   }
@@ -212,7 +223,7 @@ function PodiumRows({
 }
 
 function Ranking({ preview, language }: ScreenProps) {
-  const t = useTranslator(language);
+  const t = usePhoneTranslator(preview, language);
   if (preview.ranking === null) {
     return null;
   }

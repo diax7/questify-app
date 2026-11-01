@@ -529,3 +529,16 @@ business codes; anything else rolls the whole call back. The sale's redemption k
 Tests: `test/desk/desk-sale.int.test.ts` (every refusal writes nothing, races, another organizer, rehearsal and erasure),
 `test/desk/sale-routes.int.test.ts`, the outsider suite (anon and PUBLIC hold nothing on `desk_sale` or the new and restated functions; the
 API's role holds no table privilege on it) and the cross-tenant suite.
+
+### Event labels (T-614, Proposed ADR-399)
+
+An event's renamed labels (`event.config.texts`) are organizer-written text that reaches every player's phone, so the closed list is the
+control: only the six bar names are accepted (`EVENT_TEXT_KEYS`), and any other key, including every legal, consent and error text, is
+refused by the server whatever the dashboard sends (422 `invalid_texts`, a test walks every shipped legal and consent key). A text is
+cleaned with the same function as Home's words (invisible, control and bidi override characters removed, so a NUL cannot reach the JSON
+write and a label cannot be reordered), held to 24 characters, and checked for its placeholders. The app draws it as plain text and reads
+the composed value again tolerantly (a damaged or unsafe stored text shows the platform's text). The route is the existing member door
+(an owner or an editor within their events; the database applies the limit; another organizer's event answers 404), audited as
+`event.texts.update`, with no table, function or grant added. Tests: `test/events/texts.int.test.ts` (an owner, an editor, another
+organizer's owner, an editor outside the event, a stranger, a signed-out caller and a player, plus the legal-key refusals and a damaged
+stored value), the routes list in `test/security/routes.int.test.ts`.
