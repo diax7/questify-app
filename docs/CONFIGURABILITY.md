@@ -337,3 +337,18 @@ catalog, shipped in Arabic and English. The organizer dashboard reads the transl
 a usable value (not blank, same placeholders) over the shipped text, so a Questify admin's edit shows without a release; a
 store that cannot be read leaves the shipped texts. Which steps exist, their order and what each step shows are code: the ten
 steps of FR-1846. The add-on cards are the registry's gated features, locked until `event_entitlement` holds them.
+
+## As built (T-613): the event info page and one extra page
+
+- **Where it lives:** `event.config.layout.info` is the info page's sections as an order and a hidden set (`about`, `venue`, `when`,
+  `schedule`, `faq`, `contacts`, `rules`), and `layout.content` gains the organizer's `about` text, `faq` (up to 12 questions with
+  answers), `contacts` (up to 5: an email address, a phone number or an https link) and `page` (ADR-398). No new table, no migration.
+- **Reorder and hide:** the Layout page lists the sections like the bar and Home; the owner or an editor drags or moves a row and
+  switches it; the preview has an "About the event" screen that follows the draft. The official rules cannot be hidden (the
+  server refuses it, 422 `layout_item_protected`); the schedule link starts hidden and shows only while the agenda is on. A section
+  with nothing to say draws nothing.
+- **The extra page:** a title and up to 12 parts (heading, paragraph, list, link), edited under the Home list ("Extra page"); it
+  opens from a Home card with its title. Hiding the card takes the page off the phone and keeps the draft on the server. Pictures
+  wait for the photo storage (T-613b, Q-149).
+- **The player app** reads `layout.info` and the content from the composed configuration; a damaged entry or part is left out,
+  a page with no valid part is no page, and an app that predates the page ignores the new fields.

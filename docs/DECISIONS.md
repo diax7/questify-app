@@ -1857,7 +1857,7 @@ Apple account exists (T-010). Google Play does not require unique names.
 **Decision:**
 - Q-096: exclusion lists check current contacts only; no contact history. Revisit if an organizer reports it.
 - Q-097: a root `not-found.tsx` in Arabic and English, stacked, comes with the next web task that touches the shell.
-- Q-099: the event's about text, address and map position are added to the event form in T-613.
+- Q-099: the event's about text, address and map position are added to the event form in T-613. (T-613 built it differently: ADR-398.)
 - Q-101 and Q-102: optional location, estimated minutes, difficulty and tips join the quest form when the builder
   grows (T-3xx); steps come with multi-step quests; "Up next" switches to points per minute then.
 
@@ -6201,3 +6201,34 @@ refuse DS409 `reservation_on`; one mode at a time. (5) **Idempotency:** the offe
 one step is the player's Pay, not the operator's tap.
 **Trade-offs:** the player needs their phone at the desk (as for every handover); the price on My QR is named with the default currency
 word, since My QR is not inside one event; no push for an offer (the player is standing at the desk with My QR open).
+
+## ADR-398 - T-613 event info page and one extra page: the sections are a second list in the layout, the words live in the same content store
+
+**Status:** Proposed (developer, 2026-11-01; Q-365). Builds FR-1835 on ADR-391 and ADR-395. Plan: `docs/plans/2026-11-01-t-613-info-page.md`.
+**Decision:** (1) **One store, no migration.** `event.config.layout` gains `info` (`{order, hidden}`) beside `bar` and `home`, and
+`layout.content` gains `about`, `faq`, `contacts` and `page`. The request checks them with the same rules as Home's words
+(`content-read.ts` holds the shared reading; `info-content.ts` the new parts). (2) **Seven sections:** `about`, `venue`, `when`,
+`schedule`, `faq`, `contacts`, `rules`, in the order the page always drew (venue, when, rules), with About first. Venue, dates and
+the official rules stay the event's own data; the layout only places them. A section with nothing to say draws nothing, so an event
+that wrote nothing looks as it did. **`rules` cannot be hidden** (the official rules of a prize promotion are shown on the info
+page, FR-1707, ADR-165); the server refuses a layout that hides it (422 `layout_item_protected {item: "rules"}`). **`schedule`**
+(a link to the agenda) starts hidden and follows the agenda switch, so no live event gains a link on deploy. The sponsors and the
+free text section of F-337 are not built: Home's sponsors block and the extra page cover them. (3) **The extra page** is a title and
+1 to 12 parts: a heading (60), a paragraph (600), a list (one item per line, at most 10 lines of 120) or a link (label 40, https
+only). Every text is cleaned like Home's (invisible and control characters removed, Western digits, a limit per field, some language
+required). It opens from a new Home block `page` (shown by default, since it draws nothing until a page has a title and a part);
+hiding the block takes the page off the phone and keeps the draft on the server. Its link is not tied to a feature switch.
+(4) **Contacts** are the organizer's own published contact details: an email address, a phone number or an https link, each checked
+strictly (an address has no `%`, `?`, `&` or space, a number is 7 to 15 digits with an optional `+`) so the `mailto:` or `tel:` link
+made of it carries nothing else. A tap opens the phone's mail or phone app; a website asks first and names the host, as Home's
+links do. The values are in the layout and its audit entry, which are not logs. (5) **Address and map position (Q-099):** the venue
+text is the address and already opens the phone's maps app by its words; the venue pin stored since T-303b is not sent to players
+and the app opens maps by words, not by position (Q-365). The About text is a section of the info page, edited on the Layout page,
+not a field of the event form. (6) **A damaged value shows less:** `readHomeContent` leaves out an entry or a part that is not valid,
+and a page with no valid part reads as no page; an older app ignores the new fields and an older layout reads with Questify's
+defaults. (7) **Presets and Reset to default** leave the info page's order and every word as they are. (8) **Images are split:**
+the page's pictures are T-613b (Q-149).
+**Why:** configuration over code, one write path and one content store, and the safe side on a damaged or hostile value.
+**Trade-offs:** an organizer edits venue and dates on the event pages and rules in the rules settings, not on the Layout page; the
+preview shows the Official rules row whatever the event holds, since the dashboard does not read the rules; the page has no
+formatting beyond heading, list and link.

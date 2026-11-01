@@ -38,6 +38,22 @@
   app render test for `eventOff` was dropped (the app has no render-test harness, and a harness is not worth adding for
   one line).
 
+## T-613 event info page and the extra page — 2026-11-01
+
+- **T-613 built (tier B; not run on a phone; no migration, so staging is unchanged: it runs through 0106, 0107 pushed).** The event info page's
+  sections are `event.config.layout.info` (seven sections, `rules` protected, `schedule` starts hidden) and the organizer's words join
+  `layout.content` (`about`, `faq`, `contacts`, `page`): one layout store, the same cleaning, limits and https-only links as Home's words,
+  a damaged entry or part left out (ADR-398 Proposed, Q-365 Proposed). The one extra page (a title and up to 12 parts: heading, paragraph, list,
+  link) opens from a new Home block `page`. App: `info.tsx` draws the shown sections in order, contacts open the mail or phone app (a website asks
+  first), `page.tsx` is the page. Dashboard: the Layout page gets an "Event info page" list and an "Extra page" row with their editors, and "About the
+  event" and "Extra page" screens in the live preview. **Split:** pictures on the page are T-613b (Q-149). **Not built:** the sponsors and free-text
+  sections, opening maps at the venue pin. **Local:** full vitest ONCE: 10426 passed, 15 skipped, 8 failed (649 files; all in
+  `db/live-edits.int.test.ts`, a "Hook timed out" and a "Test timed out in 120000ms" under load, nothing near this change; that file re-run once alone: 25 passed).
+  Full browser suite after a fresh web build, single worker: 309 passed, 5 skipped, 0 failed (28.0 min). `layout-editor.spec.ts` (desktop and phone, 19 passed, 1 skipped) covers the new
+  order, edit, preview, save and remove flow and the Arabic page without sideways scrolling. npx expo export --platform android ok (Hermes bytecode built).
+  tsc (shared, api, web, app), oxlint, oxfmt and function limits clean (no new offender). Mutation targets: none (tier B). CI minutes none; agent tokens roughly 0.45M (estimate).
+  **Next:** the T-613 code review (tier B), then the next unchecked task in `docs/TASKS.md` (T-614).
+
 ## T-612 prize reservation and the desk sale — 2026-11-01
 
 - **T-612 built (tier A; one code review and mutation owed; not run on a phone). Migration 0107** (new, undeployed; staging runs through 0105, 0106 pushed).
