@@ -791,3 +791,10 @@ export type {
   SurveyResultsRows,
   SurveyShareState,
 } from "./survey-results/survey-results";
+export {
+  usageEventSchema,
+  usageEventsSchema,
+  usageOrganizerSchema,
+  usageOrganizersSchema,
+} from "./usage/usage";
+export type { UsageEvent, UsageEvents, UsageOrganizer } from "./usage/usage";

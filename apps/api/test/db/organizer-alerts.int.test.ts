@@ -114,6 +114,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer alerts (database)", 
   const stock = (id: string, total: number, out: number) =>
     f.owner("UPDATE reward SET stock_total = $2, units_out = $3 WHERE id = $1", [id, total, out]);
 
+  const item = async (event: string, total: number, out: number) => {
+    const [made] = await f.owner<{ id: string }>(
+      `INSERT INTO quest_item (event_id, name_en, stock_total, units_out)
+       VALUES ($1, 'Pin', $2, $3) RETURNING id`,
+      [event, total, out],
+    );
+    return made?.id ?? "";
+  };
+  const itemStock = (id: string, total: number, out: number) =>
+    f.owner("UPDATE quest_item SET stock_total = $2, units_out = $3 WHERE id = $1", [
+      id,
+      total,
+      out,
+    ]);
+
   const flagFor = async (event: string, via: string | null = null) => {
     const player = await f.newPlayer();
     const enrollment = await f.join(event, player, via);
@@ -340,6 +355,46 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer alerts (database)", 
       expect(await alerts(early.org)).toEqual([]);
     });
 
+    it("open a stock alert when a quest item crosses into low, and again only after it recovered", async () => {
+      const team = await newTeam();
+      const id = await item(team.event, 100, 80);
+      await itemStock(id, 100, 89);
+      expect(await alerts(team.org)).toEqual([]);
+      await itemStock(id, 100, 90);
+      expect(await alerts(team.org, "stock_low")).toHaveLength(2);
+      expect(await staffOf(team.org, "stock_low")).toEqual([team.owner, team.editor].toSorted());
+      // Deeper into the same episode, and a total change that keeps it low, add nothing.
+      await itemStock(id, 100, 95);
+      await itemStock(id, 101, 90);
+      await itemStock(id, 101, 101);
+      expect(await alerts(team.org, "stock_low")).toHaveLength(2);
+      // Recovery closes the episode without a mail; the next fall opens a new one.
+      await itemStock(id, 102, 90);
+      expect(await alerts(team.org)).toHaveLength(2);
+      await itemStock(id, 102, 91);
+      expect(await alerts(team.org, "stock_low")).toHaveLength(4);
+    });
+
+    it("skip a quest item that cannot run low, is removed or is not in play, and honour the switch", async () => {
+      const team = await newTeam();
+      const none = await item(team.event, 0, 0);
+      await f.owner("UPDATE quest_item SET name_en = 'Pin 2' WHERE id = $1", [none]);
+      const removed = await item(team.event, 10, 0);
+      await f.owner("UPDATE quest_item SET status = 'removed' WHERE id = $1", [removed]);
+      await itemStock(removed, 10, 10);
+      expect(await alerts(team.org)).toEqual([]);
+      // Before the start only rehearsal accounts take items: no alert.
+      const early = await newTeam("scheduled");
+      const rehearsed = await item(early.event, 10, 0);
+      await itemStock(rehearsed, 10, 10);
+      expect(await alerts(early.org)).toEqual([]);
+      // A member who switched stock alerts off gets none.
+      await switchOff(team, team.editor, "stock_low");
+      const live = await item(team.event, 10, 0);
+      await itemStock(live, 10, 9);
+      expect(await staffOf(team.org, "stock_low")).toEqual([team.owner]);
+    });
+
     it("write one row per admin, event and day when support reads the event's tickets", async () => {
       const team = await newTeam();
       const admin = randomUUID();
@@ -439,12 +494,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer alerts (database)", 
       ]);
       await switchOff(team, muted, "size_limit");
       const { sender, sent } = mailer();
-      // The rows are numbered in the order of the members' random ids, five rows are claimed at a time, and a claim that
-      // finds only rows to skip ends a run (FOLLOWUPS, T-503): about one run in twenty ends before the two sendable rows
-      // are reached. The second run reaches them in every order.
-      const first = await run(sender);
-      const second = await run(sender);
-      expect(first.sent + second.sent).toBe(2);
+      expect(await run(sender)).toEqual({ sent: 2, uncertain: 0, flags: 0 });
       expect(sent.map((mail) => mail.to).toSorted()).toEqual(
         [await addressOf(team.owner), await addressOf(team.editor)].toSorted(),
       );
@@ -458,6 +508,38 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer alerts (database)", 
       for (const [staff, code] of Object.entries(reasons)) {
         expect(await stateOf(team, staff), staff).toMatchObject({ state: "skipped", code });
       }
+    });
+
+    it("reaches the rows it can send behind a backlog of rows to skip, in one run", async () => {
+      const team = await newTeam();
+      await f.owner("DELETE FROM organizer_alert");
+      // 620 rows of accounts that do not exist have the lowest ids: more than a claim picks (5), more than a claim
+      // skips (500). The two sendable rows come last. The old claim picked five skippable rows, leased none and ended
+      // the run with nothing sent.
+      await f.owner(
+        `INSERT INTO organizer_alert (organizer_id, event_id, staff_user_id, alert_type, dedupe)
+         SELECT $1, $2, gen_random_uuid(), 'size_limit', 'backlog:' || g FROM generate_series(1, 620) AS g`,
+        [team.org, team.event],
+      );
+      await f.owner(
+        `INSERT INTO event_limit_alert (event_id, organizer_id, level, players)
+         VALUES ($1, $2, 100, 10) ON CONFLICT DO NOTHING`,
+        [team.event, team.org],
+      );
+      const { sender, sent } = mailer();
+      expect(await run(sender)).toEqual({ sent: 2, uncertain: 0, flags: 0 });
+      expect(sent.map((mail) => mail.to).toSorted()).toEqual(
+        [await addressOf(team.owner), await addressOf(team.editor)].toSorted(),
+      );
+      const states = await f.owner<{ state: string; code: string | null; n: string }>(
+        "SELECT state, code, count(*) AS n FROM organizer_alert WHERE organizer_id = $1 GROUP BY 1, 2 ORDER BY 1",
+        [team.org],
+      );
+      expect(states).toEqual([
+        { state: "sent", code: null, n: "2" },
+        { state: "skipped", code: "staff", n: "620" },
+      ]);
+      expect(await run(sender)).toEqual({ sent: 0, uncertain: 0, flags: 0 });
     });
 
     it("records a failed send as not known and never sends it again", async () => {

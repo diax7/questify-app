@@ -86,7 +86,10 @@ const scanFlags = (pool: Pool): Promise<number> =>
     return rows[0]?.n ?? 0;
   });
 
-/** Hands out queued rows that pass the send-time checks of `alert_claim`, each with its lease and current address. */
+/**
+ * Hands out queued rows that pass the send-time checks of `alert_claim`, each with its lease and current address. The
+ * door skips the rows that fail the checks wherever they lie, so an empty answer means no sendable row is waiting.
+ */
 const claimRows = (pool: Pool): Promise<Claimed[]> =>
   system(pool, async (client) => {
     const { rows } = await client.query<Claimed>("SELECT * FROM alert_claim($1)", [CLAIM_SIZE]);

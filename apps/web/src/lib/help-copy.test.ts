@@ -113,6 +113,7 @@ const INFO_TIPS: readonly string[] = [
   "console.invCampaign.channel.hint",
   "console.invCampaign.sendAt.hint",
   "console.seasons.intro",
+  "console.usage.intro",
   "devices.intro",
   "events.city.hint",
   "events.field.dayStartHint",

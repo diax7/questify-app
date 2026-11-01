@@ -136,3 +136,16 @@ export function ConsoleInvitationsLink({
     </NavItem>
   );
 }
+
+/** This page's item in the console's navigation. */
+export function ConsoleUsageLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/usage`} icon="chart" current={current}>
+      {t("console.usage.title")}
+    </NavItem>
+  );
+}

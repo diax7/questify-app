@@ -18,8 +18,8 @@ const WORDING: Readonly<Record<OrganizerAlertType, Wording>> = {
   },
   stock_low: {
     subject: "المخزون على وشك النفاد | Stock is running low",
-    ar: "اقترب مخزون إحدى جوائزك من النفاد.",
-    en: "The stock of one of your rewards is running low.",
+    ar: "اقترب مخزون إحدى جوائزك أو هدايا المهام من النفاد.",
+    en: "The stock of one of your rewards or quest items is running low.",
   },
   codes_low: {
     subject: "الأكواد على وشك النفاد | Codes are running low",

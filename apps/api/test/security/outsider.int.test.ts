@@ -2024,6 +2024,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       ];
       const triggers = [
         "alert_on_event_activated",
+        "alert_on_item_low",
         "alert_on_limit_alert",
         "alert_on_reward_low",
         "alert_on_support_read",
@@ -2070,6 +2071,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
           ].includes(row.proname),
         );
       }
+    });
+
+    it("cannot read the console's usage doors, and the API's role holds exactly those two (T-609)", async () => {
+      for (const sql of [
+        "SELECT public.usage_organizers()",
+        "SELECT public.usage_events(gen_random_uuid())",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const held = await rows<{ proname: string; grantee: string }>(
+        `SELECT DISTINCT p.proname, CASE WHEN a.grantee = 0 THEN 'public' ELSE a.grantee::regrole::text END AS grantee
+         FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+         WHERE n.nspname = 'public' AND a.privilege_type = 'EXECUTE' AND a.grantee <> p.proowner AND p.proname LIKE 'usage%'
+         ORDER BY 1, 2`,
+      );
+      expect(held).toEqual([
+        { proname: "usage_events", grantee: "questify_app" },
+        { proname: "usage_organizers", grantee: "questify_app" },
+      ]);
     });
 
     it("cannot run the event pushes' scans or reach their producers (T-501e)", async () => {

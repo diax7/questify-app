@@ -68,6 +68,7 @@ export const AREAS = [
     ["setup"],
   ],
   [/analytics/i, ["analytics"]],
+  [/usage/i, ["console-usage"]],
   [/change-?sets?/i, ["change-sets"]],
   [
     /use-?confirmation|confirmations/i,

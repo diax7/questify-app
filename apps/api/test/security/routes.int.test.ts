@@ -136,6 +136,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); read only; month counts, no personal data; the admin checked again in questify_seasons (questify-ranking)",
   "GET /v1/admin/questify/seasons/:month":
     "active platform admins only (walked below); read only; a season's top 10 with usernames, the same rows players saw; the admin checked again in questify_season_top (questify-ranking)",
+  "GET /v1/admin/usage":
+    "active platform admins only (walked below); read only; counts per organizer (events, players, invitations sent, alert emails), no personal data; the admin checked again in usage_organizers (test/db/usage, src/usage/routes.test)",
+  "GET /v1/admin/usage/organizers/:organizerId":
+    "active platform admins only (walked below); read only; counts per event of one organizer, no personal data; the admin checked again in usage_events, any unknown organizer the same 404 (test/db/usage, src/usage/routes.test)",
   "GET /v1/questify/ranking":
     "Questify-wide, no tenant; caller-bound through questify_ranking (no player id taken); others shown by username, avatar, XP and level only; low places only to their own player (questify-ranking)",
   "POST /v1/admin/questify/campaigns":

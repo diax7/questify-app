@@ -178,8 +178,8 @@ export const MESSAGES = {
   "alerts.saved": { ar: "حُفظت اختياراتك.", en: "Your choices are saved." },
   "alerts.type.activated": { ar: "تفعيل فعالية", en: "An event is activated" },
   "alerts.type.stockLow": {
-    ar: "اقتراب نفاد مخزون الجوائز",
-    en: "Reward stock is running low",
+    ar: "اقتراب نفاد مخزون الجوائز أو الهدايا",
+    en: "Reward or item stock is running low",
   },
   "alerts.type.codesLow": {
     ar: "اقتراب نفاد أكواد الجوائز الرقمية",
@@ -5753,6 +5753,27 @@ export const MESSAGES = {
   },
   "console.seasons.xp": { ar: "{xp} XP في الشهر", en: "{xp} XP in the month" },
   "console.seasons.level": { ar: "المستوى الإجمالي: {level}", en: "Lifetime level: {level}" },
+  // The console's usage view (T-609, FR-1730, ADR-394): counts only, from what the platform already records.
+  "console.usage.title": { ar: "الاستخدام", en: "Usage" },
+  "console.usage.intro": {
+    ar: "أعداد من سجلات المنصة: اللاعبون والدعوات المرسلة وتنبيهات البريد المرسلة إلى الفرق. لا تُحصى بعد رسائل الدخول النصية والبريد الترويجي وحجم الإشعارات والتخزين.",
+    en: "Counts from what the platform already records: players, invitations sent and alert emails sent to teams. Login SMS, promotional email, push volume and storage are not counted yet.",
+  },
+  "console.usage.empty": { ar: "لا توجد منظمات بعد.", en: "No organizers yet." },
+  "console.usage.events": { ar: "الفعاليات", en: "Events" },
+  "console.usage.players": { ar: "اللاعبون", en: "Players" },
+  "console.usage.invitations": { ar: "الدعوات المرسلة", en: "Invitations sent" },
+  "console.usage.alerts": { ar: "تنبيهات البريد المرسلة", en: "Alert emails sent" },
+  "console.usage.show": { ar: "عرض الفعاليات", en: "Show events" },
+  "console.usage.hide": { ar: "إخفاء الفعاليات", en: "Hide events" },
+  "console.usage.noEvents": {
+    ar: "لا توجد فعاليات لهذه المنظمة.",
+    en: "This organizer has no events.",
+  },
+  "console.usage.eventFigures": {
+    ar: "اللاعبون: {players} · الدعوات المرسلة: {invitations} · تنبيهات البريد: {alerts}",
+    en: "Players: {players} · Invitations sent: {invitations} · Alert emails: {alerts}",
+  },
   "invCampaign.link": { ar: "الدعوات", en: "Invitations" },
   "invCampaign.title": { ar: "الدعوات", en: "Invitations" },
   "invCampaign.intro": {
