@@ -1612,7 +1612,8 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   vote_quest: "gated: vote and live poll vote (door table)",
   reserve_reward: "gated: reserve (door table)",
   desk_sale_rewards: "gated: lists no community-locked reward (T-612)",
-  desk_offer_sale: "gated: the offer moves nothing; Pay runs spend_checks' lock (test/desk/desk-sale)",
+  desk_offer_sale:
+    "gated: the offer moves nothing; Pay runs spend_checks' lock (test/desk/desk-sale)",
   accept_desk_sale: "gated: spend_checks' community lock (test/desk/desk-sale)",
   my_desk_sales: "exempt: the caller's own live offers; Pay is gated",
   member_event_quests: "gated: the locked line and notes",

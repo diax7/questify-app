@@ -284,7 +284,7 @@
   },
   "apps/api/src/rewards/builder.ts": {
     "<anonymous>": {
-      "complexity": [16, 11]
+      "complexity": [15, 11]
     },
     "mergeReward": {
       "complexity": [36]
@@ -380,7 +380,7 @@
       "complexity": [12]
     },
     "RedeemSheet": {
-      "complexity": [19]
+      "complexity": [18]
     }
   },
   "apps/app/app/event/[eventId]/game.tsx": {
@@ -559,11 +559,6 @@
       "complexity": [9]
     }
   },
-  "apps/app/src/event/DeskItems.tsx": {
-    "DeskItems": {
-      "lines": [110]
-    }
-  },
   "apps/app/src/event/GameEntry.tsx": {
     "GameEntry": {
       "complexity": [9]
@@ -738,7 +733,7 @@
   },
   "apps/app/src/event/shop-api.ts": {
     "rewardAction": {
-      "complexity": [13]
+      "complexity": [12]
     }
   },
   "apps/app/src/event/submissions.ts": {
@@ -1100,8 +1095,8 @@
       "complexity": [9]
     },
     "RewardsPanel": {
-      "complexity": [21],
-      "lines": [217]
+      "complexity": [18],
+      "lines": [213]
     }
   },
   "apps/web/src/components/SouvenirPreview.tsx": {

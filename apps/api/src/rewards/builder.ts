@@ -651,6 +651,21 @@ async function writeShop(
   return undefined;
 }
 
+/** Whether this save would leave the shop without the desk's place where it needs one. */
+async function needsDesk(
+  client: PoolClient,
+  eventId: string,
+  before: ShopSettings,
+  after: ShopSettings,
+): Promise<boolean> {
+  // FR-1716: only the move from a place to none is refused, so an older event without a desk still saves.
+  if (hasPlace(before.desk) && !hasPlace(after.desk) && (await hasActiveItems(client, eventId))) {
+    return true;
+  }
+  // ADR-397: with reservation Off every desk reward is sold and handed over at the desk, so it needs the place.
+  return !after.reservation && !hasPlace(after.desk);
+}
+
 /**
  * Sets the pickup time, the days the shop stays open after the end, the shop's rules (ADR-048, ADR-049, FR-515) and
  * whether spending lowers the ranking (FR-1847): that one is the owner's, and only before the event is live. Prize
@@ -680,12 +695,7 @@ export function updateShop(
       handoverConfirm: input.handoverConfirm ?? before.handoverConfirm,
       reservation: input.reservation ?? before.reservation,
     };
-    // FR-1716: only the move from a place to none is refused, so an older event without a desk still saves.
-    if (hasPlace(before.desk) && !hasPlace(desk) && (await hasActiveItems(client, eventId))) {
-      return { kind: "desk_needed" };
-    }
-    // ADR-397: with reservation Off every desk reward is sold and handed over at the desk, so it needs the place.
-    if (!after.reservation && !hasPlace(desk)) {
+    if (await needsDesk(client, eventId, before, after)) {
       return { kind: "desk_needed" };
     }
     if (after.spendLowersRank !== before.spendLowersRank) {
