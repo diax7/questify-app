@@ -224,7 +224,7 @@ describe("parseComposedConfig", () => {
     };
     expect(parseComposedConfig({ ...valid, layout: moved })).toEqual({
       ok: true,
-      config: { ...valid, layout: moved },
+      config: { ...valid, layout: { ...moved, content: DEFAULT_COMPOSED_LAYOUT.content } },
     });
   });
 

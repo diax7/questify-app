@@ -5,7 +5,8 @@ import { openBuilder } from "#e2e/builder.ts";
  * An event's bar and Home layout (T-606, FR-1749, FR-1750, FR-1764): a preset applies in one tap, the rows move with the
  * buttons, the keyboard or a drag, an item hides, the preview follows before anything is saved, Home, the scan button and
  * Profile cannot be hidden (the page and the server both say no), and a switched-off feature stays off whatever the layout
- * says.
+ * says. Home's own words (T-610): a text card and a banner slide are written, checked, previewed, saved and removed, and
+ * Reset to default keeps them.
  */
 
 async function openEvent(page: Page, project: string): Promise<string> {
@@ -115,7 +116,8 @@ test("a row can be dragged to another place", async ({ page }, info) => {
   const blocks = region(page, "Home screen");
   await rowOf(blocks, "Sponsors").dragTo(rowOf(blocks, "Day streak"));
   await expect(blocks.getByRole("listitem")).toContainText([
-    "Countdown",
+    "Banner",
+    "Event countdown",
     "Points and balance",
     "Sponsors",
     "Day streak",
@@ -155,6 +157,7 @@ test("Home, the scan button and Profile cannot be hidden, on the page or at the 
     bar: { order: ["index", "quests", "scan", "rewards", "profile"], hidden: ["scan"] },
     home: {
       order: [
+        "banner",
         "countdown",
         "standing",
         "streak",
@@ -163,12 +166,16 @@ test("Home, the scan button and Profile cannot be hidden, on the page or at the 
         "prizes",
         "live",
         "goal",
+        "featured",
         "ranking",
+        "podium",
         "upNext",
+        "quickLinks",
         "links",
       ],
       hidden: [],
     },
+    content: { banner: [], quickLinks: [], featured: null, cards: [] },
   };
   const answer = await page.evaluate(
     async ([url, body]) => {
@@ -228,4 +235,98 @@ test("the page reads right to left in Arabic without sideways scrolling", async 
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test("the organizer writes a text card and a banner slide, sees them on the preview, saves, and removes the card", async ({
+  page,
+}, info) => {
+  test.setTimeout(180_000);
+  const eventUrl = await openEvent(page, info.project.name);
+  await page.goto(`${eventUrl}/layout`);
+
+  const blocks = region(page, "Home screen");
+  const previewBlocks = region(page, "Home").getByRole("list", { name: "Home screen" });
+  const editor = page.getByRole("region", { name: /^Editing:/ });
+  const save = page.getByRole("button", { name: "Save layout" });
+  const saved = page.getByText("Layout saved.");
+
+  await page.getByRole("button", { name: "Add text card" }).click();
+  await expect(save).toBeDisabled();
+  await expect(page.getByText("Card 1 needs text in Arabic or English.")).toBeVisible();
+  await editor.getByLabel("Title (English)", { exact: true }).fill("Welcome");
+  await editor.getByLabel("Text (English)").fill("Registration is in the main hall");
+  await editor.getByLabel("Text (Arabic)").fill("التسجيل في القاعة الرئيسية");
+  await expect(save).toBeEnabled();
+  await expect(previewBlocks.getByText("Welcome", { exact: true })).toBeVisible();
+  await expect(previewBlocks.getByText("Registration is in the main hall")).toBeVisible();
+  await expect(rowOf(blocks, "Welcome")).toBeVisible();
+  await editor.getByRole("button", { name: "Done editing" }).click();
+  await expect(editor).toHaveCount(0);
+
+  await rowOf(blocks, "Banner").getByRole("button", { name: "Edit Banner" }).click();
+  await expect(previewBlocks.getByText("Big day")).toHaveCount(0);
+  await page.getByRole("button", { name: "Add slide" }).click();
+  await expect(page.getByText("Slide 1 needs a title in Arabic or English.")).toBeVisible();
+  await editor.getByLabel("Title (English)", { exact: true }).fill("Big day");
+  await editor.getByLabel("Tap opens").selectOption("link");
+  await editor.getByLabel("Link", { exact: true }).fill("javascript:alert(1)");
+  await expect(page.getByText("Enter a full link that starts with https.")).toBeVisible();
+  await expect(save).toBeDisabled();
+  await editor.getByLabel("Link", { exact: true }).fill("https://example.com/day");
+  await expect(save).toBeEnabled();
+  await expect(previewBlocks.getByText("Big day")).toBeVisible();
+
+  await save.click();
+  await expect(saved).toBeVisible();
+  await page.reload();
+  await expect(rowOf(blocks, "Welcome")).toBeVisible();
+  await expect(previewBlocks.getByText("Big day")).toBeVisible();
+  await expect(previewBlocks.getByText("Registration is in the main hall")).toBeVisible();
+
+  await rowOf(blocks, "Welcome").getByRole("button", { name: "Remove Welcome" }).click();
+  await page.getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(rowOf(blocks, "Welcome")).toHaveCount(0);
+  await expect(previewBlocks.getByText("Welcome", { exact: true })).toHaveCount(0);
+  await save.click();
+  await expect(saved).toBeVisible();
+  await page.reload();
+  await expect(rowOf(blocks, "Welcome")).toHaveCount(0);
+  await expect(previewBlocks.getByText("Big day")).toBeVisible();
+});
+
+test("Reset to default restores Questify's order after a confirmation and keeps the organizer's words", async ({
+  page,
+}, info) => {
+  test.setTimeout(180_000);
+  const eventUrl = await openEvent(page, info.project.name);
+  await page.goto(`${eventUrl}/layout`);
+
+  const blocks = region(page, "Home screen");
+  const save = page.getByRole("button", { name: "Save layout" });
+  await page.getByRole("button", { name: "Add text card" }).click();
+  await page.getByLabel("Text (English)").fill("Doors open at nine");
+  await page.getByRole("button", { name: "Done editing" }).click();
+  await rowOf(blocks, "Sponsors").getByRole("button", { name: "Move Sponsors earlier" }).click();
+  await save.click();
+  await expect(page.getByText("Layout saved.")).toBeVisible();
+  await expect(page.getByRole("radio", { name: "Questify default" })).not.toBeChecked();
+
+  await page.getByRole("button", { name: "Reset to default" }).click();
+  await expect(page.getByText("Reset Home to Questify's default?")).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("radio", { name: "Questify default" })).not.toBeChecked();
+
+  await page.getByRole("button", { name: "Reset to default" }).click();
+  await page.getByRole("button", { name: "Reset", exact: true }).click();
+  await expect(page.getByText("Layout saved.")).toBeVisible();
+  await expect(page.getByRole("radio", { name: "Questify default" })).toBeChecked();
+  await expect(blocks.getByRole("listitem")).toContainText([
+    "Banner",
+    "Event countdown",
+    "Points and balance",
+    "Day streak",
+    "Announcements and shortcuts",
+    "Sponsors",
+  ]);
+  await expect(blocks.getByRole("listitem").last()).toContainText("Text card");
 });

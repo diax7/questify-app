@@ -1,11 +1,6 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { z } from "zod";
-import {
-  VENUE_RADIUS,
-  readBranding,
-  readEventTerms,
-  validateLayoutRequest,
-} from "@questify/shared";
+import { VENUE_RADIUS, readBranding, readEventTerms } from "@questify/shared";
 import {
   eventNotDraft,
   eventNotLive,
@@ -295,9 +290,7 @@ function registerEventLayout(scope: FastifyInstance, settings: SettingsService):
       { requestId: request.id },
     );
     if (saved.ok) {
-      // The body passed the strict check, so the same check gives the layout that was stored.
-      const checked = validateLayoutRequest(request.body);
-      return { layout: checked.ok ? checked.value : undefined };
+      return { layout: saved.layout };
     }
     switch (saved.reason) {
       case "invalid": {

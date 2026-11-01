@@ -1,8 +1,18 @@
 import { PLAYER_TABS, type PlayerTab } from "#src/event/player-view";
 import type { MessageKey } from "#src/i18n/messages";
+import {
+  EMPTY_CONTENT,
+  cardKey,
+  cardKeysOf,
+  readHomeContent,
+  sameContent,
+  type CardKey,
+  type HomeContent,
+} from "#src/layout/home-content";
 
 /** The blocks of an event's Home, by the name the layout stores (T-606, FR-1749). */
 export type HomeBlock =
+  | "banner"
   | "countdown"
   | "standing"
   | "streak"
@@ -11,9 +21,15 @@ export type HomeBlock =
   | "prizes"
   | "live"
   | "goal"
+  | "featured"
   | "ranking"
+  | "podium"
   | "upNext"
+  | "quickLinks"
   | "links";
+
+/** A place in the Home order: one of Questify's blocks, or one of the organizer's cards (`card:<id>`, T-610). */
+export type HomeKey = HomeBlock | CardKey;
 
 export type HomeBlockDefinition = Readonly<{
   block: HomeBlock;
@@ -22,29 +38,41 @@ export type HomeBlockDefinition = Readonly<{
   features: readonly string[];
   /** Never hidden by a layout: a player's status and points, a prize to collect, and the help and information links. */
   protected: boolean;
+  /** Hidden until the organizer shows it, so a block added later never appears on a live event by itself. */
+  offByDefault: boolean;
 }>;
 
+const block = (
+  name: HomeBlock,
+  options: Partial<Pick<HomeBlockDefinition, "features" | "protected" | "offByDefault">> = {},
+): HomeBlockDefinition => ({
+  block: name,
+  title: `layout.block.${name}`,
+  features: options.features ?? [],
+  protected: options.protected ?? false,
+  offByDefault: options.offByDefault ?? false,
+});
+
 /**
- * Home's blocks in the order Home has always drawn them. The player app and the dashboard's preview both read this list, so
+ * Home's blocks in the order Home draws them by default. The player app and the dashboard's preview both read this list, so
  * neither can name a block the other lacks. A block's own conditions (a card with nothing to say) stay inside the block.
  */
 export const HOME_BLOCKS: readonly HomeBlockDefinition[] = [
-  { block: "countdown", title: "layout.block.countdown", features: [], protected: false },
-  { block: "standing", title: "layout.block.standing", features: [], protected: true },
-  { block: "streak", title: "layout.block.streak", features: [], protected: false },
-  { block: "announcements", title: "layout.block.announcements", features: [], protected: false },
-  { block: "sponsors", title: "layout.block.sponsors", features: [], protected: false },
-  { block: "prizes", title: "layout.block.prizes", features: [], protected: true },
-  {
-    block: "live",
-    title: "layout.block.live",
-    features: ["community", "cheers"],
-    protected: false,
-  },
-  { block: "goal", title: "layout.block.goal", features: ["shop"], protected: false },
-  { block: "ranking", title: "layout.block.ranking", features: ["ranking"], protected: false },
-  { block: "upNext", title: "layout.block.upNext", features: [], protected: false },
-  { block: "links", title: "layout.block.links", features: [], protected: true },
+  block("banner"),
+  block("countdown"),
+  block("standing", { protected: true }),
+  block("streak"),
+  block("announcements"),
+  block("sponsors"),
+  block("prizes", { protected: true }),
+  block("live", { features: ["community", "cheers"] }),
+  block("goal", { features: ["shop"] }),
+  block("featured"),
+  block("ranking", { features: ["ranking"] }),
+  block("podium", { features: ["ranking"], offByDefault: true }),
+  block("upNext"),
+  block("quickLinks"),
+  block("links", { protected: true }),
 ];
 
 /** A bar never holds more than this many slots (FR-1750). */
@@ -62,16 +90,22 @@ export type LayoutList<K extends string> = Readonly<{
   hidden: readonly K[];
 }>;
 
-/** What an event stores of its layout (`event.config.layout`): the event bar and Home, each as an order and a hidden set. */
+/**
+ * What an event stores of its layout (`event.config.layout`): the event bar and Home, each as an order and a hidden set, and
+ * what the organizer wrote for the Home blocks that hold content.
+ */
 export type EventLayout = Readonly<{
   bar: LayoutList<PlayerTab>;
-  home: LayoutList<HomeBlock>;
+  home: LayoutList<HomeKey>;
+  content: HomeContent;
 }>;
 
 /** What the app receives: the items to show, in order. The event's switches are applied on top, by `playerTabs`/`homeBlocks`. */
 export type ComposedLayout = Readonly<{
   bar: readonly PlayerTab[];
-  home: readonly HomeBlock[];
+  home: readonly HomeKey[];
+  /** The content of the blocks that are shown; a hidden block's draft never reaches a phone. */
+  content: HomeContent;
 }>;
 
 export const BAR_KEYS: readonly PlayerTab[] = PLAYER_TABS.map((entry) => entry.tab);
@@ -80,11 +114,21 @@ export const BAR_PROTECTED: ReadonlySet<PlayerTab> = new Set(PROTECTED_TABS);
 export const HOME_PROTECTED: ReadonlySet<HomeBlock> = new Set(
   HOME_BLOCKS.filter((entry) => entry.protected).map((entry) => entry.block),
 );
+const HOME_OFF_BY_DEFAULT: ReadonlySet<HomeBlock> = new Set(
+  HOME_BLOCKS.filter((entry) => entry.offByDefault).map((entry) => entry.block),
+);
 
-/** Questify's own layout: every item shown, in the order the app has always used. */
+/** Every name the Home order of an event with this content may hold: Questify's blocks, then its cards. */
+export const homeKeysOf = (content: HomeContent): readonly HomeKey[] => [
+  ...HOME_KEYS,
+  ...cardKeysOf(content),
+];
+
+/** Questify's own layout: every block shown in the order the app has always used, except those that start off. */
 export const DEFAULT_LAYOUT: EventLayout = {
   bar: { order: BAR_KEYS, hidden: [] },
-  home: { order: HOME_KEYS, hidden: [] },
+  home: { order: HOME_KEYS, hidden: HOME_KEYS.filter((key) => HOME_OFF_BY_DEFAULT.has(key)) },
+  content: EMPTY_CONTENT,
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -108,14 +152,19 @@ function knownOnce<K extends string>(stored: unknown, keys: readonly K[]): K[] {
 function repairList<K extends string>(
   stored: unknown,
   keys: readonly K[],
-  protectedKeys: ReadonlySet<K>,
+  protectedKeys: ReadonlySet<string>,
+  offByDefault: ReadonlySet<string>,
 ): LayoutList<K> {
   const source = isRecord(stored) ? stored : {};
   const listed = knownOnce(source["order"], keys);
-  // An item a newer app added is missing from an older save: it joins at the end rather than voiding the layout.
-  const order = [...listed, ...keys.filter((key) => !listed.includes(key))];
-  const hidden = knownOnce(source["hidden"], keys).filter((key) => !protectedKeys.has(key));
-  return { order, hidden };
+  // An item a newer app added is missing from an older save: it joins at the end rather than voiding the layout, and stays
+  // hidden when it starts off (a block added later never appears on a live event by itself).
+  const added = keys.filter((key) => !listed.includes(key));
+  const hidden = [
+    ...knownOnce(source["hidden"], keys).filter((key) => !protectedKeys.has(key)),
+    ...added.filter((key) => offByDefault.has(key)),
+  ];
+  return { order: [...listed, ...added], hidden };
 }
 
 /**
@@ -125,18 +174,31 @@ function repairList<K extends string>(
  */
 export function readEventLayout(stored: unknown): EventLayout {
   const source = isRecord(stored) ? stored : {};
+  const content = readHomeContent(source["content"]);
   return {
-    bar: repairList(source["bar"], BAR_KEYS, BAR_PROTECTED),
-    home: repairList(source["home"], HOME_KEYS, HOME_PROTECTED),
+    bar: repairList(source["bar"], BAR_KEYS, BAR_PROTECTED, new Set()),
+    home: repairList(source["home"], homeKeysOf(content), HOME_PROTECTED, HOME_OFF_BY_DEFAULT),
+    content,
   };
 }
 
 const shownOf = <K extends string>(list: LayoutList<K>): K[] =>
   list.order.filter((key) => !list.hidden.includes(key));
 
-/** The layout as the app receives it: only what is shown, in order. */
+/** The content of the blocks that are shown: a hidden block's text is a draft and stays on the server. */
+function shownContent(content: HomeContent, home: readonly HomeKey[]): HomeContent {
+  return {
+    banner: home.includes("banner") ? content.banner : [],
+    quickLinks: home.includes("quickLinks") ? content.quickLinks : [],
+    featured: home.includes("featured") ? content.featured : null,
+    cards: content.cards.filter((card) => home.includes(cardKey(card.id))),
+  };
+}
+
+/** The layout as the app receives it: only what is shown, in order, with the content of what is shown. */
 export function composedLayoutOf(layout: EventLayout): ComposedLayout {
-  return { bar: shownOf(layout.bar), home: shownOf(layout.home) };
+  const home = shownOf(layout.home);
+  return { bar: shownOf(layout.bar), home, content: shownContent(layout.content, home) };
 }
 
 export const DEFAULT_COMPOSED_LAYOUT: ComposedLayout = composedLayoutOf(DEFAULT_LAYOUT);
@@ -145,11 +207,11 @@ export const DEFAULT_COMPOSED_LAYOUT: ComposedLayout = composedLayoutOf(DEFAULT_
 function readShown<K extends string>(
   received: unknown,
   keys: readonly K[],
-  protectedKeys: ReadonlySet<K>,
+  protectedKeys: ReadonlySet<string>,
   fallback: readonly K[],
 ): readonly K[] {
   const shown = knownOnce(received, keys);
-  return [...protectedKeys].every((key) => shown.includes(key)) ? shown : fallback;
+  return [...protectedKeys].every((key) => shown.some((item) => item === key)) ? shown : fallback;
 }
 
 /**
@@ -159,12 +221,19 @@ function readShown<K extends string>(
  */
 export function readComposedLayout(received: unknown): ComposedLayout {
   const source = isRecord(received) ? received : {};
+  const content = readHomeContent(source["content"]);
   return {
     bar: readShown(source["bar"], BAR_KEYS, BAR_PROTECTED, DEFAULT_COMPOSED_LAYOUT.bar).slice(
       0,
       MAX_BAR_SLOTS,
     ),
-    home: readShown(source["home"], HOME_KEYS, HOME_PROTECTED, DEFAULT_COMPOSED_LAYOUT.home),
+    home: readShown(
+      source["home"],
+      homeKeysOf(content),
+      HOME_PROTECTED,
+      DEFAULT_COMPOSED_LAYOUT.home,
+    ),
+    content,
   };
 }
 
@@ -174,10 +243,10 @@ export function readComposedLayout(received: unknown): ComposedLayout {
  */
 export function homeBlocks(
   featureOn: (feature: string) => boolean,
-  shown: readonly HomeBlock[] = DEFAULT_COMPOSED_LAYOUT.home,
-): readonly HomeBlock[] {
-  return shown.filter((block) => {
-    const features = HOME_BLOCKS.find((entry) => entry.block === block)?.features ?? [];
+  shown: readonly HomeKey[] = DEFAULT_COMPOSED_LAYOUT.home,
+): readonly HomeKey[] {
+  return shown.filter((key) => {
+    const features = HOME_BLOCKS.find((entry) => entry.block === key)?.features ?? [];
     return features.length === 0 || features.some(featureOn);
   });
 }
@@ -193,7 +262,7 @@ export function barScreenOrder(shown: readonly PlayerTab[]): readonly PlayerTab[
 const sameList = <K extends string>(x: LayoutList<K>, y: LayoutList<K>): boolean =>
   x.order.join() === y.order.join() && [...x.hidden].sort().join() === [...y.hidden].sort().join();
 
-/** Whether two layouts show and order everything the same way. */
+/** Whether two layouts show and order everything the same way and say the same words. */
 export function sameLayout(a: EventLayout, b: EventLayout): boolean {
-  return sameList(a.bar, b.bar) && sameList(a.home, b.home);
+  return sameList(a.bar, b.bar) && sameList(a.home, b.home) && sameContent(a.content, b.content);
 }

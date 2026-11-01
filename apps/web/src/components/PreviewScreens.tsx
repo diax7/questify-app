@@ -52,11 +52,16 @@ function Home({ preview, language }: ScreenProps) {
       <h3 className={styles.screenTitle}>{preview.name}</h3>
       {preview.venue === "" ? null : <p className={styles.muted}>{preview.venue}</p>}
       <ul className={styles.lines} aria-label={t("layout.home")}>
-        {preview.homeBlocks.map(({ block, title }) => (
-          <li key={block} className={styles.line}>
-            {t(title)}
-          </li>
-        ))}
+        {preview.homeBlocks.map(({ block, title, lines }) => {
+          const [first, ...rest] = lines;
+          const more = title === null ? rest : lines;
+          return (
+            <li key={block} className={styles.line}>
+              <span>{title === null ? first : t(title)}</span>
+              {more.length === 0 ? null : <span className={styles.muted}>{more.join(" · ")}</span>}
+            </li>
+          );
+        })}
       </ul>
       <div className={styles.buttons}>
         <span className={styles.button}>{t("nav.scan")}</span>

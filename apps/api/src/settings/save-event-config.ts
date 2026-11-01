@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 import {
   readBranding,
+  layoutAfter,
   readEventLayout,
   validateEventBranding,
   validateEventTerms,
@@ -10,7 +11,7 @@ import { diff } from "#src/audit/entry";
 import { recordAudit, type AuditMeta } from "#src/audit/record";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
-import type { SaveResult } from "#src/settings/service";
+import type { LayoutSaveResult, SaveResult } from "#src/settings/service";
 import {
   lockEventBranding,
   lockEventLayout,
@@ -118,9 +119,10 @@ export async function saveBranding(
 }
 
 /**
- * Replaces the event's layout (FR-1749, FR-1750, FR-1764, T-606): an approved preset by name, or the order and hidden set of the
- * bar and Home. A layout that hides a protected item or has more than five bar slots is refused here, whatever the dashboard
- * sent. Any status but archived. Audited when it changes.
+ * Replaces the event's layout (FR-1749, FR-1750, FR-1764, FR-1828 to FR-1831, T-606, T-610): an approved preset laid over the
+ * event's cards and words, or the order, hidden set and content of the bar and Home. A layout that hides a protected item or
+ * has more than five bar slots is refused here, whatever the dashboard sent, and the texts are cleaned and bounded here. Any
+ * status but archived. Audited when it changes, with the author and the layout (no personal data is in it).
  */
 export async function saveLayout(
   pool: Pool,
@@ -128,7 +130,7 @@ export async function saveLayout(
   eventId: string,
   input: unknown,
   meta: AuditMeta,
-): Promise<SaveResult> {
+): Promise<LayoutSaveResult> {
   const checked = validateLayoutRequest(input);
   if (!checked.ok) {
     return { ok: false, reason: "invalid", issues: checked.issues };
@@ -137,31 +139,30 @@ export async function saveLayout(
     withRequestContext(
       client,
       { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      async (): Promise<SaveResult> => {
-        const current = await lockEventLayout(client, eventId);
-        if (current === undefined) {
+      async (): Promise<LayoutSaveResult> => {
+        const stored = await lockEventLayout(client, eventId);
+        if (stored === undefined) {
           return { ok: false, reason: "not_found" };
         }
-        if (current.archived) {
+        if (stored.archived) {
           return { ok: false, reason: "archived" };
         }
-        const changes = diff(
-          { layout: readEventLayout(current.layout) },
-          { layout: checked.value },
-        );
+        const current = readEventLayout(stored.layout);
+        const layout = layoutAfter(checked.value, current);
+        const changes = diff({ layout: current }, { layout });
         if ("layout" in changes.after) {
-          await writeEventLayout(client, eventId, checked.value);
+          await writeEventLayout(client, eventId, layout);
           await recordAudit(client, {
             actor: { type: "staff", id: actor.staffUserId },
             action: "event.layout.update",
-            organizerId: current.organizerId,
+            organizerId: stored.organizerId,
             eventId,
             target: { type: "event", id: eventId },
             ...changes,
             requestId: meta.requestId,
           });
         }
-        return { ok: true };
+        return { ok: true, layout };
       },
     ),
   );

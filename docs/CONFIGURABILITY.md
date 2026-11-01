@@ -259,6 +259,20 @@ for an event.
 - **Presets:** four approved layouts in code (`LAYOUT_PRESETS`): Questify default, Play first, Prizes first, Essentials.
   Picking one saves its layout; retiring one from the list leaves every event that used it as it was.
 
+## As built (T-610): Home's own blocks
+
+- **Where it lives:** `event.config.layout.content` next to the order: `banner` (up to five slides), `quickLinks` (up to six), `featured`
+  (a quest or a reward) and `cards` (up to six text and countdown cards, each in Home's order as `card:<id>`); ADR-395. The composed
+  configuration carries the content of the blocks that are shown only.
+- **What a player sees:** the banner as one plain banner or, from two slides, a slider that moves on every five seconds (not with reduced
+  motion, not after a touch), with dots; quick links as icon buttons (one to a switched-off screen is left out); the featured quest or
+  reward from the player's own lists (nothing when it is not there); the podium of the top three (starts hidden; needs the ranking switch);
+  a text card; a countdown card that, at zero, hides or shows its message.
+- **Allowed taps:** nothing, the agenda, the map, the shop, one quest, or an https web link (asks before it opens). No other scheme.
+- **Text:** plain, cleaned and bounded on the server; drawn as text, never as HTML or Markdown; nothing in it is tappable.
+- **Presets and Reset to default** arrange Questify's blocks and keep every card and word; the organizer's cards follow the blocks.
+- **Not built yet:** pictures in a banner slide or a card (T-610b, Q-149).
+
 ## What can be configured
 
 | Area | Configurable | Limits and protections |

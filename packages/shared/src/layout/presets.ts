@@ -1,5 +1,6 @@
 import type { PlayerTab } from "#src/event/player-view";
 import type { MessageKey } from "#src/i18n/messages";
+import { isCardKey } from "#src/layout/home-content";
 import {
   BAR_KEYS,
   DEFAULT_LAYOUT,
@@ -21,7 +22,12 @@ const arranged = (
   home: Readonly<{ front?: readonly HomeBlock[]; hidden?: readonly HomeBlock[] }>,
 ): EventLayout => ({
   bar: { order: first(BAR_KEYS, ...(bar.front ?? [])), hidden: bar.hidden ?? [] },
-  home: { order: first(HOME_KEYS, ...(home.front ?? [])), hidden: home.hidden ?? [] },
+  home: {
+    order: first(HOME_KEYS, ...(home.front ?? [])),
+    // Blocks that start off stay off in every preset, unless the preset lists them itself.
+    hidden: [...new Set([...DEFAULT_LAYOUT.home.hidden, ...(home.hidden ?? [])])],
+  },
+  content: DEFAULT_LAYOUT.content,
 });
 
 /**
@@ -55,7 +61,25 @@ export function presetLayout(id: string): EventLayout | undefined {
   return LAYOUT_PRESETS.find((preset) => preset.id === id)?.layout;
 }
 
-/** The preset a layout matches exactly, or null for a layout that is the organizer's own. */
+/**
+ * A preset laid over an event's layout (FR-1831): the bar and Questify's blocks take the preset's order and switches, and the
+ * organizer's cards and all that was written stay as they were, after the blocks, in their own order and shown or hidden as
+ * they were. A preset never deletes a word the organizer wrote.
+ */
+export function applyPreset(current: EventLayout, preset: EventLayout): EventLayout {
+  return {
+    bar: preset.bar,
+    home: {
+      order: [...preset.home.order, ...current.home.order.filter(isCardKey)],
+      hidden: [...preset.home.hidden, ...current.home.hidden.filter(isCardKey)],
+    },
+    content: current.content,
+  };
+}
+
+/** The preset a layout matches exactly (its cards and words aside), or null for a layout that is the organizer's own. */
 export function matchingPreset(layout: EventLayout): LayoutPreset | null {
-  return LAYOUT_PRESETS.find((preset) => sameLayout(preset.layout, layout)) ?? null;
+  return (
+    LAYOUT_PRESETS.find((preset) => sameLayout(applyPreset(layout, preset.layout), layout)) ?? null
+  );
 }

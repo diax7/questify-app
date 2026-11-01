@@ -481,6 +481,18 @@ prove a successful cached replay, revoke only event scope, then require404/no re
 body for all six mutation doors, including processing. This finding and repair are scoped to souvenirs; other
 routes are not asserted vulnerable without evidence.
 
+### Home blocks written by the organizer (T-610, Proposed ADR-395)
+
+Authenticated owners and editors write short bilingual texts, quick links and banner slides that every player of their event reads on Home.
+Text is plain: the server removes invisible and control characters, bounds every field and refuses a field no block has; the app and the
+dashboard draw it as text, with no HTML or Markdown and nothing tappable inside it. A tap goes to a screen of the app, one quest of the
+event, or an https link with a full host name, no user info and no control characters; the player is shown the host and agrees before the
+browser opens; `javascript:`, `http:`, `intent:`, `tel:` and every other scheme are refused on save and left out on read. A quest or reward id
+is looked up only in the reading player's own lists, so an id of another event draws nothing. The composed configuration, which a public
+event serves to anyone, carries the content of shown blocks only. A damaged stored value reads as less content, never as an error, and the
+reader holds no pattern release Hermes cannot compile. This is a filtered staff copy boundary, not a classifier: a phone number or address
+written in plain words is allowed (Q-362). Audited as `event.layout.update` with the author and the layout.
+
 ### Organizer announcements (T-502, Proposed ADR-358)
 
 Authenticated, event-scoped owners/editors may publish bounded bilingual copy to their own active members. Shared

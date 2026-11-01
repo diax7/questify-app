@@ -1,4 +1,10 @@
-import { BAR_PROTECTED, validateLayoutRequest, type LayoutList } from "@questify/shared";
+import {
+  BAR_PROTECTED,
+  EMPTY_CONTENT,
+  HOME_KEYS,
+  validateLayoutRequest,
+  type LayoutList,
+} from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import { moveBy, moveTo, positionOf, setShown } from "#src/lib/layout-editor.ts";
 
@@ -52,20 +58,8 @@ describe("setShown", () => {
       bar = setShown(bar, key, false, BAR_PROTECTED as ReadonlySet<string>);
     }
     expect(bar.hidden).toEqual(["rewards"]);
-    const home = list([
-      "countdown",
-      "standing",
-      "streak",
-      "announcements",
-      "sponsors",
-      "prizes",
-      "live",
-      "goal",
-      "ranking",
-      "upNext",
-      "links",
-    ]);
-    expect(validateLayoutRequest({ bar, home }).ok).toBe(true);
+    const home = list([...HOME_KEYS]);
+    expect(validateLayoutRequest({ bar, home, content: EMPTY_CONTENT }).ok).toBe(true);
   });
 });
 

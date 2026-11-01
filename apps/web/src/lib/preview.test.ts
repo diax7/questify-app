@@ -236,3 +236,122 @@ describe("previewOf", () => {
     expect(previewOf({ ...EVENT, shareQuests: false }, sharing, [], "en").categories).toEqual([]);
   });
 });
+
+describe("previewOf and the organizer's own Home blocks (T-610)", () => {
+  const QUEST = "0f8fad5b-d9cb-469f-a165-70867728950e";
+  const empty = { ar: "", en: "" };
+  const content = {
+    banner: [
+      { title: { ar: "أهلًا", en: "Welcome" }, subtitle: empty, action: { type: "none" } },
+      { title: { ar: "", en: "Day two" }, subtitle: empty, action: { type: "agenda" } },
+    ],
+    quickLinks: [
+      { label: { ar: "", en: "Agenda" }, icon: "calendar", action: { type: "agenda" } },
+      { label: { ar: "", en: "Shop" }, icon: "gift", action: { type: "shop" } },
+    ],
+    featured: { kind: "quest", id: QUEST },
+    cards: [
+      { id: "aaaaaa11", kind: "text", title: empty, body: { ar: "", en: "Doors open" } },
+      {
+        id: "bbbbbb22",
+        kind: "countdown",
+        label: { ar: "", en: "Doors" },
+        at: "2030-11-01T06:00:00.000Z",
+        atZero: "hide",
+        message: empty,
+      },
+    ],
+  };
+  const home = (hidden: string[] = ["podium"]) => ({
+    bar: { order: ["index", "quests", "scan", "rewards", "profile"], hidden: [] },
+    home: {
+      order: [
+        "banner",
+        "countdown",
+        "standing",
+        "streak",
+        "announcements",
+        "sponsors",
+        "prizes",
+        "live",
+        "goal",
+        "featured",
+        "ranking",
+        "podium",
+        "upNext",
+        "quickLinks",
+        "links",
+        "card:aaaaaa11",
+        "card:bbbbbb22",
+      ],
+      hidden,
+    },
+    content,
+  });
+  const preview = (event: Partial<EventView> = {}, hidden?: string[]) =>
+    previewOf({ ...EVENT, layout: home(hidden), ...event }, [category([quest(QUEST)])], [], "en");
+  const lines = (key: string, event: Partial<EventView> = {}, hidden?: string[]) =>
+    preview(event, hidden).homeBlocks.find((entry) => entry.block === key)?.lines;
+
+  it("draws a block that holds words by what it holds, and a card by its own lines", () => {
+    expect(lines("banner")).toEqual(["Welcome", "Day two"]);
+    expect(lines("quickLinks")).toEqual(["Agenda", "Shop"]);
+    expect(lines("featured")).toEqual([`Quest ${QUEST}`]);
+    expect(lines("card:aaaaaa11")).toEqual(["Doors open"]);
+    expect(lines("card:bbbbbb22")?.[0]).toBe("Doors");
+    expect(lines("card:bbbbbb22")?.[1]).toMatch(/2030/);
+    expect(preview().homeBlocks.find((entry) => entry.block === "card:aaaaaa11")?.title).toBeNull();
+  });
+
+  it("uses the page's language and falls back to the other one", () => {
+    const arabic = previewOf({ ...EVENT, layout: home() }, [], [], "ar");
+    expect(arabic.homeBlocks.find((entry) => entry.block === "banner")?.lines).toEqual([
+      "أهلًا",
+      "Day two",
+    ]);
+  });
+
+  it("leaves out a block with nothing to draw, as the app does", () => {
+    const bare = previewOf(
+      {
+        ...EVENT,
+        layout: {
+          ...home(),
+          content: { ...content, banner: [], quickLinks: [], featured: null, cards: [] },
+        },
+      },
+      [],
+      [],
+      "en",
+    );
+    const keys = bare.homeBlocks.map((entry) => entry.block);
+    expect(keys).not.toContain("banner");
+    expect(keys).not.toContain("quickLinks");
+    expect(keys).not.toContain("featured");
+    expect(keys.some((key) => key.startsWith("card:"))).toBe(false);
+    const missing = previewOf({ ...EVENT, layout: home() }, [], [], "en");
+    expect(missing.homeBlocks.map((entry) => entry.block)).not.toContain("featured");
+  });
+
+  it("leaves out a quick link to a screen whose switch is off", () => {
+    expect(lines("quickLinks", { shop: false })).toEqual(["Agenda"]);
+    expect(lines("quickLinks", { shop: false, agenda: false })).toBeUndefined();
+  });
+
+  it("draws the podium only when it is shown and the ranking is on", () => {
+    expect(preview().homeBlocks.map((entry) => entry.block)).not.toContain("podium");
+    expect(preview({}, []).homeBlocks.map((entry) => entry.block)).toContain("podium");
+    expect(preview({ ranking: false }, []).homeBlocks.map((entry) => entry.block)).not.toContain(
+      "podium",
+    );
+  });
+
+  it("keeps a hidden block's words off the preview", () => {
+    const keys = preview({}, ["podium", "banner", "card:aaaaaa11"]).homeBlocks.map(
+      (entry) => entry.block,
+    );
+    expect(keys).not.toContain("banner");
+    expect(keys).not.toContain("card:aaaaaa11");
+    expect(keys).toContain("card:bbbbbb22");
+  });
+});

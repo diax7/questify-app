@@ -48,10 +48,43 @@ export {
   validatePlatformSettings,
 } from "./config/validate";
 export type {
+  BannerSlide,
+  CardKey,
+  ContentIssue,
+  CountdownCard,
+  FeaturedTarget,
+  HomeCard,
+  HomeContent,
+  LocalText,
+  QuickLink,
+  QuickLinkIcon,
+  TapAction,
+  TextCard,
+} from "./layout/home-content";
+export {
+  BANNER_SLIDES_MAX,
+  CONTENT_LIMITS,
+  EMPTY_CONTENT,
+  HOME_CARDS_MAX,
+  LINK_URL_MAX,
+  QUICK_LINKS_MAX,
+  QUICK_LINK_ICONS,
+  cardKey,
+  checkHomeContent,
+  cleanBlockText,
+  countdownReached,
+  isAllowedLink,
+  isCardKey,
+  linkHost,
+  readHomeContent,
+  sameContent,
+} from "./layout/home-content";
+export type {
   ComposedLayout,
   EventLayout,
   HomeBlock,
   HomeBlockDefinition,
+  HomeKey,
   LayoutList,
 } from "./layout/layout";
 export {
@@ -67,13 +100,15 @@ export {
   barScreenOrder,
   composedLayoutOf,
   homeBlocks,
+  homeKeysOf,
   readComposedLayout,
   readEventLayout,
   sameLayout,
 } from "./layout/layout";
 export type { LayoutPreset } from "./layout/presets";
-export { LAYOUT_PRESETS, matchingPreset, presetLayout } from "./layout/presets";
-export { validateLayoutRequest } from "./layout/validate";
+export { LAYOUT_PRESETS, applyPreset, matchingPreset, presetLayout } from "./layout/presets";
+export type { LayoutChange } from "./layout/validate";
+export { layoutAfter, validateLayoutRequest } from "./layout/validate";
 export type { PlayerTab } from "./event/player-view";
 export { PLAYER_TABS, QUEST_TYPE_SWITCHES, playerTabs, questTypeShown } from "./event/player-view";
 export type { RateLimitState } from "./rate-limit";

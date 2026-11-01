@@ -6110,3 +6110,33 @@ sign-in, the invitation sender and the push worker (Q-361); a period filter; pla
 without a counter table written from hot paths or a change to sign-in.
 **Trade-offs:** an organizer's players are counted on every read of the list (an index probe per event; 100 organizers at most); alert emails
 cover the outbox's 30 days; FR-1730 stays "partly built".
+
+## ADR-395 - T-610 Home editor: the organizer's own blocks live in the layout, as plain text, with a short list of allowed taps
+
+**Status:** Proposed (developer, 2026-11-01; Q-362). Builds FR-1828 to FR-1831 on ADR-391. Plan: `docs/plans/2026-11-01-t-610-home-editor.md`.
+**Decision:** (1) **One layout store, no migration.** `event.config.layout` gains `content` beside `bar` and `home`:
+`{banner: slide[≤5], quickLinks: link[≤6], featured: {kind: quest|reward, id} | null, cards: card[≤6]}`. Four Questify blocks are new
+(`banner`, `featured`, `podium`, `quickLinks`); a card is a text card or a countdown card with an id of its own and a place in
+`home.order` as `card:<id>`, so reordering, hiding and the live preview are the same code as for every other block. (2) **A block
+added later never shows by itself.** `podium` starts hidden (`offByDefault`): a stored layout without it reads it as hidden, so no
+live event gains a block on deploy. The other three draw nothing until they hold content. (3) **Plain text, bounded, cleaned on the
+server.** Every text is `{ar, en}`; invisible and control characters are removed, whitespace collapsed (a text card's body keeps its
+line breaks), Arabic-Indic digits made Western (ADR-018), each field has a code-point limit (60/100/24/60/400/60/120), and a text that
+needs words needs them in one language. The app and the dashboard draw it as text, never as HTML or Markdown, and nothing in it is
+tappable. It is not run through the announcement name rule (that guards text sent by push and SMS under Questify's name); a card is
+shown inside the event the organizer owns. (4) **Allowed taps:** nothing, the agenda, the map, the shop, one quest by id, or an
+https link (a full host name, no user info, ≤300, no control characters); the player is asked before a link opens, naming the host.
+`javascript:`, `http:`, `intent:`, `tel:`, addresses and anything else are refused by the server and left out by the readers. A screen
+whose event switch is off is not opened (the link is left out); a quest or reward that is not in the player's own list draws nothing.
+(5) **A damaged value shows less, never breaks Home.** `readHomeContent` leaves out an item that is not valid, cuts a list to its limit
+and never throws; it has no unicode-property pattern, so release Hermes can run it. A field a newer server adds is dropped, not the
+item. (6) **A hidden block's draft stays on the server:** the composed configuration carries the content of the blocks that are shown
+only. (7) **Presets and Reset to default** arrange Questify's blocks and bar and keep every card and word; the organizer's cards follow
+the blocks. A preset picked while there are unsaved changes only arranges the draft; with nothing unsaved it saves in one tap, as
+before. Reset to default is the Questify default preset after a confirmation that says what stays. (8) **Images are split:** a banner
+slide is text on the accent colour with a tap action until T-610b adds a picture (Q-149). (9) **Targets:** a quick link or slide to a
+specific session, map pin, sponsor or reward opens the agenda, map or shop screen; the app has no screens that take those ids yet.
+**Why:** configuration over code, one write path, and the safe side on a damaged or hostile value (FR-1750, F-282).
+**Trade-offs:** the dashboard checks the words as the organizer types and disables Save until they pass, using the server's own check;
+the live preview omits an item until it is complete; the countdown uses the phone's clock corrected by the server's offset, so a phone
+with a wrong clock and no live read is off by its error.

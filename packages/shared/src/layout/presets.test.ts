@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MESSAGES } from "#src/i18n/messages";
 import { BAR_PROTECTED, HOME_PROTECTED, readEventLayout, sameLayout } from "#src/layout/layout";
-import { LAYOUT_PRESETS, matchingPreset, presetLayout } from "#src/layout/presets";
+import { LAYOUT_PRESETS, applyPreset, matchingPreset, presetLayout } from "#src/layout/presets";
 import { validateLayoutRequest } from "#src/layout/validate";
 
 describe("the approved layout presets", () => {
@@ -51,5 +51,70 @@ describe("the approved layout presets", () => {
     }
     const own = readEventLayout({ bar: { order: ["profile", "scan", "index"], hidden: [] } });
     expect(matchingPreset(own)).toBeNull();
+  });
+});
+
+describe("a preset laid over an event's layout (FR-1831)", () => {
+  const card = {
+    id: "aaaaaa11",
+    kind: "text",
+    title: { ar: "", en: "" },
+    body: { ar: "", en: "Doors open at nine" },
+  } as const;
+  const content = {
+    banner: [
+      { title: { ar: "", en: "Hello" }, subtitle: { ar: "", en: "" }, action: { type: "none" } },
+    ],
+    quickLinks: [],
+    featured: null,
+    cards: [card],
+  } as const;
+  const own = readEventLayout({
+    home: {
+      order: [...presetLayout("classic")!.home.order, "card:aaaaaa11"],
+      hidden: ["card:aaaaaa11"],
+    },
+    content,
+  });
+
+  it("arranges Questify's blocks and keeps every card, every word and each card's switch", () => {
+    const essentials = presetLayout("essentials")!;
+    const applied = applyPreset(own, essentials);
+    expect(applied.home.order.slice(0, essentials.home.order.length)).toEqual(
+      essentials.home.order,
+    );
+    expect(applied.home.order.at(-1)).toBe("card:aaaaaa11");
+    expect(applied.home.hidden).toContain("card:aaaaaa11");
+    expect(applied.content).toEqual(content);
+    expect(applied.bar).toEqual(essentials.bar);
+  });
+
+  it("is what Reset to default does: the default order returns and the words stay", () => {
+    const moved = readEventLayout({
+      home: {
+        order: [...presetLayout("classic")!.home.order.toReversed(), "card:aaaaaa11"],
+        hidden: ["streak"],
+      },
+      content,
+    });
+    const reset = applyPreset(moved, presetLayout("classic")!);
+    expect(reset.home.order.slice(0, 15)).toEqual(presetLayout("classic")!.home.order);
+    expect(reset.home.hidden).toEqual(["podium"]);
+    expect(reset.content).toEqual(content);
+  });
+
+  it("still tells which preset the blocks follow when cards trail them, and none once a card leads", () => {
+    expect(matchingPreset(applyPreset(own, presetLayout("play_first")!))?.id).toBe("play_first");
+    const cardFirst = readEventLayout({
+      home: { order: ["card:aaaaaa11", ...presetLayout("classic")!.home.order], hidden: [] },
+      content,
+    });
+    expect(matchingPreset(cardFirst)).toBeNull();
+  });
+
+  it("keeps the podium off in every preset", () => {
+    for (const preset of LAYOUT_PRESETS) {
+      expect(preset.layout.home.hidden, preset.id).toContain("podium");
+    }
   });
 });

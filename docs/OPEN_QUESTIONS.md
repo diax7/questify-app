@@ -1709,3 +1709,14 @@ login SMS, promotional email, push volume and storage. Each needs a durable coun
 the invitation sender and by the push worker, and a storage figure once photo uploads exist (Q-149, parked). Recommended: add one `usage_day` table
 (event, day, metric, count) and let each of those three producers add a count in its own task (T-703 holds the console's other platform tuning), and keep the page
 as it is until then. Not asked of Dhia: no product direction changes. **Decided (developer, delegated by Dhia, 2026-11-01):** as recommended; ADR-394 accepted.
+
+## Q-362 - T-610 Home editor: what is decided without Dhia (2026-11-01)
+
+**Recommended (developer, ADR-395):** the organizer's banner, quick links, featured item and cards are stored in the event's layout as plain,
+bounded text; the taps are the agenda, map, shop, one quest or an https link (asked before it opens); the podium starts hidden; presets and
+Reset to default keep the organizer's words. Questions for Dhia: (a) Is a plain text banner slide acceptable until pictures arrive (Q-149), or
+should the banner wait for T-610b? (b) Should a web link ever open without asking, or only from a list of sites the Questify team allows (a link
+to a stranger's site from inside a store app can be reported as unsafe)? (c) Should a text card or slide be refused if it holds a phone
+number or an address (the announcement rule does), or is an organizer free to write "call 920..." on their own Home? (d) The podium
+duplicates the ranking card a little: should it replace it by default on new events? (e) Not run on a phone: the slider, swipe in Arabic and the
+link question were checked in tests and a browser preview only. **Decided (developer, delegated by Dhia):** pending review.

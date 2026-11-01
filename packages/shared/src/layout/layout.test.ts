@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FEATURES } from "#src/config/registry";
+import { EMPTY_CONTENT, type HomeContent } from "#src/layout/home-content";
 import { playerTabs } from "#src/event/player-view";
 import {
   BAR_KEYS,
@@ -21,10 +22,10 @@ describe("the default layout", () => {
   it("keeps the bar and Home in the order the app has always drawn", () => {
     expect(DEFAULT_LAYOUT.bar.order).toEqual(["index", "quests", "scan", "rewards", "profile"]);
     expect(HOME_KEYS.join()).toBe(
-      "countdown,standing,streak,announcements,sponsors,prizes,live,goal,ranking,upNext,links",
+      "banner,countdown,standing,streak,announcements,sponsors,prizes,live,goal,featured,ranking,podium,upNext,quickLinks,links",
     );
     expect(DEFAULT_LAYOUT.bar.hidden).toEqual([]);
-    expect(DEFAULT_LAYOUT.home.hidden).toEqual([]);
+    expect(DEFAULT_LAYOUT.home.hidden).toEqual(["podium"]);
   });
 
   it("protects Home, the scan button and Profile, and the blocks that hold a status, a prize or help", () => {
@@ -114,7 +115,7 @@ describe("readComposedLayout", () => {
       bar: ["rewards", "index", "scan", "profile"],
       home: HOME_KEYS.toReversed().filter((key) => key !== "sponsors"),
     };
-    expect(readComposedLayout(received)).toEqual(received);
+    expect(readComposedLayout(received)).toEqual({ ...received, content: EMPTY_CONTENT });
   });
 
   it.each([
@@ -143,6 +144,23 @@ describe("readComposedLayout", () => {
     });
     expect(read.bar).toEqual(["index", "quests", "scan", "rewards", "profile"]);
     expect(read.home).toEqual(HOME_KEYS);
+  });
+
+  it("reads the content a copy carries and drops a card whose key the order does not list", () => {
+    const card = {
+      id: "abcdef12",
+      kind: "text",
+      title: { ar: "", en: "" },
+      body: { ar: "", en: "Hi" },
+    };
+    const read = readComposedLayout({
+      bar: BAR_KEYS,
+      home: [...HOME_KEYS, "card:abcdef12", "card:zzzzzz99"],
+      content: { banner: [], quickLinks: [], featured: null, cards: [card] },
+    });
+    expect(read.home).toContain("card:abcdef12");
+    expect(read.home).not.toContain("card:zzzzzz99");
+    expect(read.content.cards).toHaveLength(1);
   });
 });
 
@@ -193,7 +211,7 @@ describe("the layout and the event's switches", () => {
   });
 
   it("shows every default block while every switch is on", () => {
-    expect(homeBlocks(allOn)).toEqual(HOME_KEYS);
+    expect(homeBlocks(allOn)).toEqual(HOME_KEYS.filter((key) => key !== "podium"));
   });
 });
 
@@ -218,5 +236,75 @@ describe("sameLayout", () => {
     expect(
       sameLayout(a, readEventLayout({ bar: { order: BAR_KEYS.toReversed(), hidden: [] } })),
     ).toBe(false);
+  });
+});
+
+const text = (id: string, en: string) =>
+  ({ id, kind: "text", title: { ar: "", en: "" }, body: { ar: "", en } }) as const;
+const withCards: HomeContent = {
+  ...EMPTY_CONTENT,
+  banner: [
+    { title: { ar: "", en: "Welcome" }, subtitle: { ar: "", en: "" }, action: { type: "none" } },
+  ],
+  cards: [text("aaaaaa11", "First"), text("bbbbbb22", "Second")],
+};
+
+describe("blocks that start off and the organizer's cards", () => {
+  it("reads a layout saved before the new blocks with the podium hidden and the others shown at the end", () => {
+    const old = {
+      bar: { order: BAR_KEYS, hidden: [] },
+      home: {
+        order: HOME_KEYS.filter(
+          (key) => !["banner", "featured", "podium", "quickLinks"].includes(key),
+        ),
+        hidden: ["sponsors"],
+      },
+    };
+    const read = readEventLayout(old);
+    expect(read.home.order.slice(-4)).toEqual(["banner", "featured", "podium", "quickLinks"]);
+    expect(read.home.hidden.toSorted()).toEqual(["podium", "sponsors"]);
+  });
+
+  it("keeps a card in the order it was saved in and puts a card that was never listed at the end", () => {
+    const read = readEventLayout({
+      home: { order: [...HOME_KEYS, "card:bbbbbb22"], hidden: ["card:bbbbbb22"] },
+      content: withCards,
+    });
+    expect(read.home.order.slice(-2)).toEqual(["card:bbbbbb22", "card:aaaaaa11"]);
+    expect(read.home.hidden).toContain("card:bbbbbb22");
+    expect(read.home.hidden).not.toContain("card:aaaaaa11");
+  });
+
+  it("drops a card key whose card is gone", () => {
+    const read = readEventLayout({ home: { order: [...HOME_KEYS, "card:cccccc33"], hidden: [] } });
+    expect(read.home.order).toEqual(HOME_KEYS);
+  });
+
+  it("sends a phone only the content of the blocks that are shown", () => {
+    const layout = readEventLayout({
+      home: {
+        order: [...HOME_KEYS, "card:aaaaaa11", "card:bbbbbb22"],
+        hidden: ["banner", "card:bbbbbb22"],
+      },
+      content: withCards,
+    });
+    const composed = composedLayoutOf(layout);
+    expect(composed.content.banner).toEqual([]);
+    expect(composed.content.cards.map((card) => card.id)).toEqual(["aaaaaa11"]);
+    expect(composed.home).toContain("card:aaaaaa11");
+    expect(composed.home).not.toContain("card:bbbbbb22");
+  });
+
+  it("keeps a card through homeBlocks while it is shown", () => {
+    expect(homeBlocks(allOn, ["standing", "card:aaaaaa11"])).toEqual(["standing", "card:aaaaaa11"]);
+  });
+
+  it("sees an edited word as a change", () => {
+    const a = readEventLayout({ content: withCards });
+    const b = readEventLayout({
+      content: { ...withCards, cards: [text("aaaaaa11", "Changed"), withCards.cards[1]] },
+    });
+    expect(sameLayout(a, a)).toBe(true);
+    expect(sameLayout(a, b)).toBe(false);
   });
 });

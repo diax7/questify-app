@@ -38,6 +38,21 @@
   app render test for `eventOff` was dropped (the app has no render-test harness, and a harness is not worth adding for
   one line).
 
+## T-610 Home editor, new blocks and the banner — 2026-11-01
+
+- **T-610 done (tier B; one code review owed; not run on a phone). No migration** (staging runs through 0103, 0104 pushed; 0105 is free).
+  **Built (FR-1828 to FR-1831, ADR-395):** `event.config.layout.content` (banner slides, quick links, featured item, text and countdown cards) beside the
+  order; four new Home blocks (`banner`, `featured`, `podium` (starts hidden), `quickLinks`) and the organizer's cards as `card:<id>` in `home.order`;
+  `PUT …/layout` takes and checks `content` (plain bounded text cleaned on the server, taps limited to the agenda, map, shop, one quest or an https link);
+  presets and Reset to default keep the cards and words; the composed configuration carries the content of shown blocks only. Shared:
+  `packages/shared/src/layout/home-content.ts` (tolerant `readHomeContent`, strict `checkHomeContent`). App: `HomeBlocks.tsx` (banner slider with swipe,
+  dots from two slides, auto-advance unless reduced motion, quick links, featured, podium, text and countdown cards, link confirmation) and pure
+  `home-content.ts`. Dashboard: Edit, Add text card, Add countdown, Remove and Reset to default on the Layout page (`HomeContentEditor`,
+  `HomeContentFields`, `lib/home-content-editor.ts`), Save held until the words pass, preview shows the unsaved content; the existing "Countdown" row is
+  now "Event countdown". **Split:** pictures to T-610b (Q-149). **Not built:** taps to a specific session, map pin, sponsor or reward. ADR-395 and Q-362
+  Proposed. Mutation targets: none (tier B). **Local:** full vitest ONCE: 10128 passed, 15 skipped, 0 failed (626 files; the first try was cut off by my own 590 s timeout and run again without one). Full browser suite after a fresh web build, single worker: 305 passed, 5 skipped, 0 failed (28.8 min; the new Home content spec passed in desktop and phone). npx expo export --platform android ok (Hermes bytecode built). tsc (shared, api, web, app), oxlint, oxfmt and function limits clean. CI minutes none; agent tokens roughly 0.6M (estimate).
+  **Next:** the next unchecked task in `docs/TASKS.md` (T-611).
+
 ## T-609 organizer alerts, second part, and the usage view — 2026-11-01
 
 - **T-609 done (tier B; one code review owed; not run on a phone). Migration 0104 (new, undeployed; staging runs through 0102, 0103 pushed).**

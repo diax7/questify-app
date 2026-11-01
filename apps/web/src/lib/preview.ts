@@ -1,18 +1,23 @@
 import {
   HOME_BLOCKS,
+  cardKey,
   composedLayoutOf,
+  formatEventTime,
   formatNumber,
   homeBlocks,
+  isCardKey,
   playerTabs,
   questTypeShown,
   readEventLayout,
   type AccentKey,
-  type HomeBlock,
+  type HomeContent,
+  type HomeKey,
   type Language,
   type MessageKey,
   type PlayerTab,
 } from "@questify/shared";
 import { nameFor, type EventView } from "#src/lib/events.ts";
+import { pickText } from "#src/lib/home-content-editor.ts";
 import type { CategoryView, QuestView } from "#src/lib/quests.ts";
 import type { RewardView } from "#src/lib/rewards.ts";
 
@@ -32,8 +37,15 @@ export type EventPreview = Readonly<{
   accent: AccentKey | null;
   /** The bar's items in the layout's order, without what the layout hides or a switch takes away. */
   tabs: readonly Readonly<{ tab: PlayerTab; title: MessageKey }>[];
-  /** Home's blocks in the layout's order, without what the layout hides or a switch takes away (T-606). */
-  homeBlocks: readonly Readonly<{ block: HomeBlock; title: MessageKey }>[];
+  /**
+   * Home's blocks in the layout's order, without what the layout hides, a switch takes away or has nothing to draw (T-606,
+   * T-610). A block of Questify's has its title; one of the organizer's cards has none and is drawn by its lines.
+   */
+  homeBlocks: readonly Readonly<{
+    block: HomeKey;
+    title: MessageKey | null;
+    lines: readonly string[];
+  }>[];
   /** Home's Agenda and Maps buttons, which belong to its announcements block. */
   agendaButton: boolean;
   mapsButton: boolean;
@@ -85,17 +97,81 @@ function titleOf(quest: QuestView, language: Language): string {
   return quest.title[language] ?? quest.title.en ?? quest.title.ar ?? "";
 }
 
+/** What the quest and reward pickers can name, for the featured card's line. */
+type Names = Readonly<{
+  quest: (id: string) => string | null;
+  reward: (id: string) => string | null;
+}>;
+
+const SWITCHED_SCREENS = ["agenda", "maps", "shop"];
+
+type LineContext = Readonly<{
+  language: Language;
+  zone: string;
+  names: Names;
+  on: (feature: string) => boolean;
+}>;
+
+const orNothing = (lines: readonly string[]): string[] | null =>
+  lines.length === 0 ? null : [...lines];
+
+function quickLinkLines(content: HomeContent, { language, on }: LineContext): string[] | null {
+  const shown = content.quickLinks.filter(
+    (link) => !SWITCHED_SCREENS.includes(link.action.type) || on(link.action.type),
+  );
+  return orNothing(shown.map((link) => pickText(link.label, language)));
+}
+
+function featuredLines(content: HomeContent, { names }: LineContext): string[] | null {
+  const target = content.featured;
+  const name = target === null ? null : names[target.kind](target.id);
+  return name === null ? null : [name];
+}
+
+function cardLines(key: HomeKey, content: HomeContent, context: LineContext): string[] | null {
+  const card = content.cards.find((entry) => cardKey(entry.id) === key);
+  if (card === undefined) {
+    return null;
+  }
+  const { language, zone } = context;
+  return card.kind === "text"
+    ? [pickText(card.title, language), pickText(card.body, language)].filter((line) => line !== "")
+    : [pickText(card.label, language), formatEventTime(new Date(card.at), zone, language)];
+}
+
+/** The lines a block draws, or null when the app would draw nothing for it (no slides, no links, a missing item). */
+function contentLines(key: HomeKey, content: HomeContent, context: LineContext): string[] | null {
+  if (key === "banner") {
+    return orNothing(content.banner.map((slide) => pickText(slide.title, context.language)));
+  }
+  if (key === "quickLinks") return quickLinkLines(content, context);
+  if (key === "featured") return featuredLines(content, context);
+  return isCardKey(key) ? cardLines(key, content, context) : [];
+}
+
 /** The bar and the Home blocks the event's layout leaves players, in its order, with the event's switches applied. */
-function layoutParts(event: EventView, on: (feature: string) => boolean) {
+function layoutParts(
+  event: EventView,
+  on: (feature: string) => boolean,
+  language: Language,
+  names: Names,
+) {
   const layout = composedLayoutOf(readEventLayout(event.layout));
-  const blocks = homeBlocks(on, layout.home);
+  const keys = homeBlocks(on, layout.home);
+  const blocks = keys.flatMap((block) => {
+    const lines = contentLines(block, layout.content, {
+      language,
+      zone: event.timezone,
+      names,
+      on,
+    });
+    const title = HOME_BLOCKS.find((entry) => entry.block === block)?.title ?? null;
+    return lines === null ? [] : [{ block, title, lines }];
+  });
   return {
     tabs: playerTabs(on, layout.bar).map(({ tab, title }) => ({ tab, title })),
-    homeBlocks: blocks.map((block) => ({
-      block,
-      title: HOME_BLOCKS.find((entry) => entry.block === block)?.title ?? "layout.home",
-    })),
-    announced: blocks.includes("announcements"),
+    homeBlocks: blocks,
+    announced: keys.includes("announcements"),
   };
 }
 
@@ -148,7 +224,21 @@ export function previewOf(
   language: Language,
 ): EventPreview {
   const on = featureLookup(event);
-  const { tabs, homeBlocks: blocks, announced } = layoutParts(event, on);
+  const names: Names = {
+    quest: (id) => {
+      const quest = categories
+        .flatMap((category) => category.quests)
+        .find((entry) => entry.id === id);
+      return quest === undefined ? null : titleOf(quest, language);
+    },
+    reward: (id) => {
+      const reward = rewards.find((entry) => entry.id === id);
+      return reward === undefined
+        ? null
+        : (reward.name[language] ?? reward.name.en ?? reward.name.ar ?? "");
+    },
+  };
+  const { tabs, homeBlocks: blocks, announced } = layoutParts(event, on, language, names);
   return {
     name: nameFor(event, language),
     venue: venueOf(event, language),

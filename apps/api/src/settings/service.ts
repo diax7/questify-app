@@ -15,6 +15,7 @@ import {
   validatePlatformSettings,
   type ComposedConfig,
   type ConfigIssue,
+  type EventLayout,
   type PlatformSettings,
   type Registries,
 } from "@questify/shared";
@@ -46,6 +47,11 @@ export type SaveResult =
   | Readonly<{ ok: true }>
   | Readonly<{ ok: false; reason: "invalid"; issues: readonly ConfigIssue[] }>
   | Readonly<{ ok: false; reason: "forbidden" | "not_found" | "archived" }>;
+
+/** A layout save answers with the layout it stored (a preset is laid over the event's cards, so the caller cannot know it). */
+export type LayoutSaveResult =
+  | Readonly<{ ok: true; layout: EventLayout }>
+  | Exclude<SaveResult, Readonly<{ ok: true }>>;
 
 export type SettingsService = Readonly<{
   /**
@@ -106,7 +112,7 @@ export type SettingsService = Readonly<{
     eventId: string,
     input: unknown,
     meta?: AuditMeta,
-  ) => Promise<SaveResult>;
+  ) => Promise<LayoutSaveResult>;
   /** A Questify admin unlocks an add-on for an event. */
   unlockFeature: (
     admin: PublicAccount,
@@ -152,8 +158,7 @@ export function createSettingsService(options: SettingsOptions): SettingsService
     composedCache.clear();
   };
 
-  const thenForget = (saving: Promise<SaveResult>): Promise<SaveResult> =>
-    saving.finally(forgetAll);
+  const thenForget = <R>(saving: Promise<R>): Promise<R> => saving.finally(forgetAll);
 
   const loadPlatform = async (client: PoolClient): Promise<PlatformSettings> => {
     const cached = platformCache.get("platform");

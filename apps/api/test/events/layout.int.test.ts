@@ -4,9 +4,11 @@ import {
   BAR_KEYS,
   DEFAULT_COMPOSED_LAYOUT,
   DEFAULT_LAYOUT,
+  EMPTY_CONTENT,
   HOME_KEYS,
   LAYOUT_PRESETS,
   type ComposedLayout,
+  type HomeContent,
 } from "@questify/shared";
 import {
   createStaff,
@@ -28,7 +30,14 @@ type Player = { id: string; token: string };
 const custom = {
   bar: { order: ["rewards", "index", "scan", "quests", "profile"], hidden: ["quests"] },
   home: { order: HOME_KEYS.toReversed(), hidden: ["sponsors", "streak"] },
+  content: EMPTY_CONTENT,
 };
+
+const layoutWith = (content: unknown, hidden: string[] = ["podium"]) => ({
+  bar: { order: BAR_KEYS, hidden: [] },
+  home: { order: [...HOME_KEYS, "card:aaaaaa11", "card:bbbbbb22"], hidden },
+  content,
+});
 
 /**
  * An event's bar and Home layout over HTTP (T-606, FR-1749, FR-1750, FR-1764): who may save it, that Home, the scan button,
@@ -168,6 +177,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event layout over HTTP", () =>
         const payload = {
           bar: { order: BAR_KEYS, hidden: [] },
           home: { order: HOME_KEYS, hidden: [] },
+          content: EMPTY_CONTENT,
           [list]: { order: list === "bar" ? BAR_KEYS : HOME_KEYS, hidden: [item] },
         };
         for (const session of [owner, editor]) {
@@ -295,6 +305,167 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event layout over HTTP", () =>
     expect(config.layout.home).toEqual(DEFAULT_COMPOSED_LAYOUT.home);
     expect(await eventView(id)).toMatchObject({
       layout: { bar: { hidden: ["quests"] }, home: DEFAULT_LAYOUT.home },
+    });
+  });
+
+  describe("the content of the Home blocks (T-610)", () => {
+    const QUEST = "0f8fad5b-d9cb-469f-a165-70867728950e";
+    const empty = { ar: "", en: "" };
+    const written = {
+      banner: [
+        {
+          title: { ar: "أهلًا", en: "Welcome" },
+          subtitle: empty,
+          action: { type: "quest", questId: QUEST },
+        },
+      ],
+      quickLinks: [
+        { label: { ar: "", en: "Agenda" }, icon: "calendar", action: { type: "agenda" } },
+        {
+          label: { ar: "", en: "Site" },
+          icon: "info",
+          action: { type: "link", url: "https://example.com/x" },
+        },
+      ],
+      featured: { kind: "reward", id: QUEST },
+      cards: [
+        { id: "aaaaaa11", kind: "text", title: empty, body: { ar: "", en: "Doors open at 9" } },
+        {
+          id: "bbbbbb22",
+          kind: "countdown",
+          label: { ar: "", en: "Doors" },
+          at: "2030-01-01T09:00:00.000Z",
+          atZero: "message",
+          message: { ar: "", en: "Open now" },
+        },
+      ],
+    };
+    const slide = written.banner[0];
+    const siteLink = written.quickLinks[1];
+    const [textCard, countdownCard] = written.cards;
+
+    it("stores what an owner or an editor wrote and sends the app the content of what is shown", async () => {
+      const { id, member } = await liveEvent();
+      for (const session of [owner, editor]) {
+        const saved = await put(id, layoutWith(written), session);
+        expect(saved.statusCode).toBe(200);
+        expect(saved.json<{ layout: { content: HomeContent } }>().layout.content).toEqual(written);
+      }
+      const config = await appConfig(id, member);
+      expect(config.layout.home).toContain("card:bbbbbb22");
+      expect(config.layout).toMatchObject({ content: written });
+      expect(await eventView(id)).toMatchObject({ layout: { content: written } });
+    });
+
+    it("keeps a hidden block's draft on the server", async () => {
+      const { id, member } = await liveEvent();
+      await put(id, layoutWith(written, ["podium", "banner", "card:bbbbbb22", "featured"]));
+      const config = await appConfig(id, member);
+      expect(config.layout.content.banner).toEqual([]);
+      expect(config.layout.content.featured).toBeNull();
+      expect(config.layout.content.cards.map((card) => card.id)).toEqual(["aaaaaa11"]);
+      expect(config.layout.home).not.toContain("banner");
+      expect(JSON.stringify(config)).not.toContain("Open now");
+      expect(await eventView(id)).toMatchObject({ layout: { content: written } });
+    });
+
+    it("cleans the texts: invisible characters go, spaces become one, Arabic-Indic digits become Western", async () => {
+      const { id } = await liveEvent();
+      const dirty = {
+        ...written,
+        cards: [
+          {
+            ...textCard,
+            body: { ar: "  القاعة ​٣   مفتوحة ", en: "Hall  4\n\n\n\nopen" },
+          },
+          countdownCard,
+        ],
+      };
+      const saved = await put(id, layoutWith(dirty));
+      const card = saved.json<{ layout: { content: HomeContent } }>().layout.content.cards[0];
+      expect(card).toMatchObject({ body: { ar: "القاعة 3 مفتوحة", en: "Hall 4\n\nopen" } });
+    });
+
+    const link = (url: string) => ({ ...siteLink, action: { type: "link", url } });
+    it.each([
+      ["a javascript link", { quickLinks: [link("javascript:alert(1)")] }],
+      ["an http link", { quickLinks: [link("http://example.com")] }],
+      ["a link with a login in it", { quickLinks: [link("https://example.com@evil.example/")] }],
+      ["a slide with no title", { banner: [{ ...slide, title: empty }] }],
+      ["six slides", { banner: Array.from({ length: 6 }, () => slide) }],
+      ["a field no block has", { banner: [{ ...slide, image: "https://example.com/a.png" }] }],
+      [
+        "a card text over its limit",
+        { cards: [{ ...textCard, body: { ar: "", en: "x".repeat(401) } }, countdownCard] },
+      ],
+      ["a countdown with no moment", { cards: [textCard, { ...countdownCard, at: "soon" }] }],
+      [
+        "a message at zero with no message",
+        { cards: [textCard, { ...countdownCard, message: empty }] },
+      ],
+      ["a card listed twice", { cards: [textCard, textCard] }],
+      ["a card the order does not list", { cards: [textCard] }],
+      ["a featured item that is not an id", { featured: { kind: "quest", id: "1 OR 1=1" } }],
+    ])("refuses %s with 422 invalid_layout and stores nothing", async (_label, change) => {
+      const { id } = await liveEvent();
+      const refused = await put(id, layoutWith({ ...written, ...change }));
+      expect(codeOf(refused)).toEqual([422, "invalid_layout"]);
+      expect(await eventView(id)).toMatchObject({ layout: DEFAULT_LAYOUT });
+    });
+
+    it("refuses a layout that leaves out its content", async () => {
+      const { id } = await liveEvent();
+      const { content: _content, ...without } = layoutWith(written);
+      expect(codeOf(await put(id, without))).toEqual([422, "invalid_layout"]);
+    });
+
+    it("lays a preset over the event's cards and keeps every word", async () => {
+      const { id } = await liveEvent();
+      await put(id, layoutWith(written, ["podium", "card:aaaaaa11"]));
+      const saved = await put(id, { preset: "essentials" });
+      expect(saved.statusCode).toBe(200);
+      const { layout } = saved.json<{
+        layout: { home: { order: string[]; hidden: string[] }; content: HomeContent };
+      }>();
+      expect(layout.content).toEqual(written);
+      expect(layout.home.order.slice(-2)).toEqual(["card:aaaaaa11", "card:bbbbbb22"]);
+      expect(layout.home.hidden).toEqual(
+        expect.arrayContaining(["streak", "podium", "card:aaaaaa11"]),
+      );
+      expect(layout.home.hidden).not.toContain("card:bbbbbb22");
+    });
+
+    it("reads damaged stored content safely: a bad item is left out and the rest still shows", async () => {
+      const { id, member } = await liveEvent();
+      const damaged = {
+        ...layoutWith(written),
+        content: {
+          ...written,
+          banner: [{ title: 5 }, slide],
+          quickLinks: [link("javascript:alert(1)")],
+          cards: [{ id: "x" }, textCard],
+        },
+      };
+      await fixture.owner(
+        `UPDATE event SET config = jsonb_set(config, '{layout}', $2::jsonb, true) WHERE id = $1`,
+        [id, JSON.stringify(damaged)],
+      );
+      const { content } = (await appConfig(id, member)).layout;
+      expect(content.banner).toHaveLength(1);
+      expect(content.quickLinks).toEqual([]);
+      expect(content.cards.map((card) => card.id)).toEqual(["aaaaaa11"]);
+    });
+
+    it("gives nothing outside an event and refuses another organizer's save and a stranger's", async () => {
+      const { id } = await liveEvent();
+      await put(id, layoutWith(written));
+      const outside = await test.app.inject({ method: "GET", url: "/v1/config" });
+      expect(outside.json<{ layout: unknown }>().layout).toEqual(DEFAULT_COMPOSED_LAYOUT);
+      for (const session of [other, stranger]) {
+        const refused = await put(id, layoutWith(EMPTY_CONTENT), session);
+        expect([403, 404]).toContain(refused.statusCode);
+      }
+      expect(await eventView(id)).toMatchObject({ layout: { content: written } });
     });
   });
 });

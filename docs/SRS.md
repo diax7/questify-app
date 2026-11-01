@@ -1420,10 +1420,10 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1825 | F-327 | Must | pending |
 | FR-1826 | F-328 | Must | pending |
 | FR-1827 | F-329 | Must | pending |
-| FR-1828 | F-330 | Should | pending |
-| FR-1829 | F-331 | Should | pending |
-| FR-1830 | F-332 | Should | pending |
-| FR-1831 | F-333 | Should | pending |
+| FR-1828 | F-330 | Should | partial (T-610: text cards, quick links, the podium and the featured quest or reward; `test/events/layout.int`, `packages/shared/src/layout/home-content.test.ts`; pictures wait for Q-149) |
+| FR-1829 | F-331 | Should | partial (T-610: up to five text slides with a tap action, one slide without dots, a slider from two; the image of a slide is T-610b, blocked on Q-149) |
+| FR-1830 | F-332 | Should | built (T-610: label, moment, hide or message at zero; `apps/app/src/event/home-content.test.ts`) |
+| FR-1831 | F-333 | Should | built (T-610: drag or move buttons, show switches, live preview, presets, Reset to default after a confirmation; `apps/web/e2e/layout-editor.spec.ts`) |
 | FR-1832 | F-334 | Should | pending |
 | FR-1833 | F-335 | Could | pending |
 | FR-1834 | F-336 | Should | pending |

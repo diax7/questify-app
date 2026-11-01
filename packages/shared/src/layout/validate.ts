@@ -1,20 +1,26 @@
 import { z } from "zod";
 import type { ConfigIssue, Validation } from "#src/config/validate";
+import { checkHomeContent, type HomeContent } from "#src/layout/home-content";
 import {
   BAR_KEYS,
   BAR_PROTECTED,
-  HOME_KEYS,
   HOME_PROTECTED,
   MAX_BAR_SLOTS,
+  homeKeysOf,
   type EventLayout,
 } from "#src/layout/layout";
-import { presetLayout } from "#src/layout/presets";
+import { applyPreset, presetLayout } from "#src/layout/presets";
 
 const list = z.strictObject({ order: z.array(z.string()), hidden: z.array(z.string()) });
-const custom = z.strictObject({ bar: list, home: list });
+const custom = z.strictObject({ bar: list, home: list, content: z.unknown() });
 const preset = z.strictObject({ preset: z.string() });
 
 type RawList = Readonly<{ order: readonly string[]; hidden: readonly string[] }>;
+
+/** What a save asks for: a preset to lay over the event's layout, or the whole layout. */
+export type LayoutChange =
+  | Readonly<{ kind: "preset"; layout: EventLayout }>
+  | Readonly<{ kind: "custom"; layout: EventLayout }>;
 
 function orderIssues(
   path: string,
@@ -71,31 +77,37 @@ function slotIssues(order: readonly string[]): ConfigIssue[] {
 }
 
 function checkCustom(input: z.infer<typeof custom>): Validation<EventLayout> {
+  const written = checkHomeContent(input.content);
+  if (!written.ok) {
+    return { ok: false, issues: written.issues };
+  }
+  const content: HomeContent = written.value;
   const issues = [
     ...slotIssues(input.bar.order),
     ...orderIssues("bar", input.bar.order, BAR_KEYS),
-    ...orderIssues("home", input.home.order, HOME_KEYS),
+    ...orderIssues("home", input.home.order, homeKeysOf(content)),
     ...hiddenIssues("bar", input.bar, BAR_PROTECTED),
     ...hiddenIssues("home", input.home, HOME_PROTECTED),
   ];
   return issues.length > 0
     ? { ok: false, issues }
-    : { ok: true, value: input as unknown as EventLayout };
+    : { ok: true, value: { ...(input as unknown as EventLayout), content } };
 }
 
 /**
- * Checks what an organizer saves as an event's layout (FR-1749, FR-1750, FR-1764): either `{ preset }`, one of the team's
- * approved presets by name, or `{ bar, home }`, each an order that lists every item of the app once and a hidden set. A layout
- * that hides Home, the scan button, Profile or a protected Home block, or that has more than five bar slots, is refused; an
- * issue for a protected item carries its name in `protectedItem`.
+ * Checks what an organizer saves as an event's layout (FR-1749, FR-1750, FR-1764, FR-1828 to FR-1831): either `{ preset }`,
+ * one of the team's approved presets by name, or `{ bar, home, content }`, each list an order that names every item once and
+ * a hidden set, and the content written for the Home blocks (cleaned and bounded). A layout that hides Home, the scan button,
+ * Profile or a protected Home block, or that has more than five bar slots, is refused; an issue for a protected item carries
+ * its name in `protectedItem`.
  */
-export function validateLayoutRequest(input: unknown): Validation<EventLayout> {
+export function validateLayoutRequest(input: unknown): Validation<LayoutChange> {
   const named = preset.safeParse(input);
   if (named.success) {
     const found = presetLayout(named.data.preset);
     return found === undefined
       ? { ok: false, issues: [{ path: "preset", message: "is not an approved preset" }] }
-      : { ok: true, value: found };
+      : { ok: true, value: { kind: "preset", layout: found } };
   }
   const parsed = custom.safeParse(input);
   if (!parsed.success) {
@@ -107,5 +119,11 @@ export function validateLayoutRequest(input: unknown): Validation<EventLayout> {
       })),
     };
   }
-  return checkCustom(parsed.data);
+  const checked = checkCustom(parsed.data);
+  return checked.ok ? { ok: true, value: { kind: "custom", layout: checked.value } } : checked;
+}
+
+/** The layout a checked change leaves an event with: a preset keeps the event's cards and words, a custom layout replaces all. */
+export function layoutAfter(change: LayoutChange, current: EventLayout): EventLayout {
+  return change.kind === "preset" ? applyPreset(current, change.layout) : change.layout;
 }

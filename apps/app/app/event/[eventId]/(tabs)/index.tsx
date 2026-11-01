@@ -1,4 +1,13 @@
-import { formatNumber, homeBlocks, termFor, type HomeBlock, type Theme } from "@questify/shared";
+import {
+  formatNumber,
+  homeBlocks,
+  isCardKey,
+  termFor,
+  type HomeBlock,
+  type HomeContent,
+  type HomeKey,
+  type Theme,
+} from "@questify/shared";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AppState, Pressable, ScrollView, View } from "react-native";
@@ -14,6 +23,14 @@ import { CountingNumber } from "#src/components/motion.tsx";
 import { CheersBar } from "#src/event/CheersBar.tsx";
 import { CommunityBar } from "#src/event/CommunityBar.tsx";
 import { EventHomeStrips } from "#src/event/Announcements.tsx";
+import {
+  BannerBlock,
+  CountdownBlock,
+  FeaturedBlock,
+  PodiumBlock,
+  QuickLinksBlock,
+  TextCardBlock,
+} from "#src/event/HomeBlocks.tsx";
 import { SponsorStrip } from "#src/event/SponsorStrip.tsx";
 import { countdown, nextBoundary } from "#src/event/countdown.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
@@ -397,8 +414,11 @@ function useJoinLocationPrompt(home: Home | undefined) {
 type BlockProps = Readonly<{
   home: Home;
   ranking: RankingAnswer | undefined;
+  content: HomeContent;
   ended: boolean;
   active: boolean;
+  /** Not turned away: a member who is waiting still sees the organizer's banner and cards. */
+  admitted: boolean;
 }>;
 
 /** The live moments (T-306b, T-509): the cheers bar and the community goal, each only while one is live. */
@@ -452,6 +472,8 @@ function LinkButtons({ eventId, active }: Readonly<{ eventId: string; active: bo
  * show and in what order (`homeBlocks`); a member who is not in yet sees only the blocks that apply to them.
  */
 const BLOCKS: Readonly<Record<HomeBlock, (props: BlockProps) => ReactNode>> = {
+  banner: ({ content, admitted }) =>
+    admitted && content.banner.length > 0 ? <BannerBlock slides={content.banner} /> : null,
   countdown: ({ home }) => <CountdownLine event={home.event} />,
   standing: ({ home, active, ended }) => (
     <>
@@ -479,14 +501,43 @@ const BLOCKS: Readonly<Record<HomeBlock, (props: BlockProps) => ReactNode>> = {
         timeZone={home.event.timezone}
       />
     ) : null,
+  featured: ({ content, active, ended }) =>
+    active && !ended && content.featured !== null ? (
+      <FeaturedBlock target={content.featured} />
+    ) : null,
   ranking: ({ home, active, ranking }) =>
     active && ranking !== undefined ? (
       <RankingCard eventId={home.event.id} ranking={ranking} />
     ) : null,
+  podium: ({ home, active, ranking }) =>
+    active && ranking !== undefined ? (
+      <PodiumBlock eventId={home.event.id} ranking={ranking} />
+    ) : null,
   upNext: ({ home, ended }) =>
     ended ? null : <UpNextCard eventId={home.event.id} upNext={home.upNext} />,
+  quickLinks: ({ content, active }) =>
+    active && content.quickLinks.length > 0 ? <QuickLinksBlock links={content.quickLinks} /> : null,
   links: ({ home, active }) => <LinkButtons eventId={home.event.id} active={active} />,
 };
+
+/** One of the organizer's cards, by its place in the order (`card:<id>`); nothing when the card is gone. */
+function CardBlock({ cardId, content }: Readonly<{ cardId: string; content: HomeContent }>) {
+  const card = content.cards.find((entry) => entry.id === cardId);
+  if (card === undefined) {
+    return null;
+  }
+  return card.kind === "text" ? <TextCardBlock card={card} /> : <CountdownBlock card={card} />;
+}
+
+/** A block of Questify's, or one of the organizer's cards when the key is `card:<id>` (shown to a member who is not turned away). */
+function blockFor(key: HomeKey, props: BlockProps): ReactNode {
+  if (!isCardKey(key)) {
+    return BLOCKS[key](props);
+  }
+  return props.admitted ? (
+    <CardBlock cardId={key.slice("card:".length)} content={props.content} />
+  ) : null;
+}
 
 /**
  * Home's cards: the notices that always come first (rehearsal, add an email, the team's answer, the recap), then the
@@ -501,7 +552,9 @@ function HomeCards({
   const props: BlockProps = {
     home,
     ranking,
+    content: layout.content,
     active: home.standing.status === "active",
+    admitted: home.standing.status !== "declined",
     ended: home.event.statusNow === "ended" || home.event.statusNow === "archived",
   };
   return (
@@ -510,8 +563,8 @@ function HomeCards({
       <AddEmailCard />
       <HelpStrip eventId={eventId} unread={home.helpUnread} />
       {recapOffered(home) ? <RecapEntry eventId={eventId} /> : null}
-      {homeBlocks(featureOn, layout.home).map((block) => (
-        <Fragment key={block}>{BLOCKS[block](props)}</Fragment>
+      {homeBlocks(featureOn, layout.home).map((key) => (
+        <Fragment key={key}>{blockFor(key, props)}</Fragment>
       ))}
     </>
   );

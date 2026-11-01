@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { EMPTY_CONTENT } from "#src/layout/home-content";
 import { BAR_KEYS, HOME_KEYS } from "#src/layout/layout";
 import { LAYOUT_PRESETS } from "#src/layout/presets";
 import { validateLayoutRequest } from "#src/layout/validate";
 
 type Part = Partial<{ order: readonly string[]; hidden: readonly string[] }>;
 
-const body = (changes: { bar?: Part; home?: Part }) => ({
+const body = (changes: { bar?: Part; home?: Part; content?: unknown }) => ({
   bar: { order: BAR_KEYS, hidden: [], ...changes.bar },
   home: { order: HOME_KEYS, hidden: [], ...changes.home },
+  content: changes.content ?? EMPTY_CONTENT,
 });
 
 const issuesOf = (input: unknown) => {
@@ -24,16 +26,17 @@ describe("validateLayoutRequest", () => {
       }),
     );
     expect(checked.ok).toBe(true);
-    expect(checked.ok ? checked.value.bar.hidden : null).toEqual(["quests"]);
+    expect(checked.ok ? checked.value.layout.bar.hidden : null).toEqual(["quests"]);
   });
 
   it.each(LAYOUT_PRESETS.map((preset) => preset.id))(
     "applies the approved preset %s by name",
     (id) => {
       const checked = validateLayoutRequest({ preset: id });
-      expect(checked.ok ? checked.value : null).toEqual(
-        LAYOUT_PRESETS.find((preset) => preset.id === id)?.layout,
-      );
+      expect(checked.ok ? checked.value : null).toEqual({
+        kind: "preset",
+        layout: LAYOUT_PRESETS.find((preset) => preset.id === id)?.layout,
+      });
     },
   );
 
@@ -67,7 +70,10 @@ describe("validateLayoutRequest", () => {
 
   it("refuses an item the app does not have, an item listed twice and one that is left out", () => {
     const unknown = issuesOf(body({ home: { order: [...HOME_KEYS.slice(1), "confetti"] } }));
-    expect(unknown.map((issue) => issue.path)).toEqual(["home.order.10", "home.order"]);
+    expect(unknown.map((issue) => issue.path)).toEqual([
+      `home.order.${HOME_KEYS.length - 1}`,
+      "home.order",
+    ]);
     const twice = issuesOf(
       body({ bar: { order: ["index", "index", "scan", "rewards", "profile"] } }),
     );
