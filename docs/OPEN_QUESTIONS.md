@@ -1768,6 +1768,7 @@ nothing is shown until an owner chooses.
 
 ## Q-368 - T-616 owner Inbox: what is decided without Dhia (2026-11-02)
 
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-616 review 92 GO).
 **Recommended (developer, ADR-401):** (a) the Inbox counts and links; the actions (Reply, Solved, Escalate, Ban) stay on the Help desk and Players pages;
 (b) reported players are the Help desk's `report_player` requests and prize problems its `prize` requests (Q-209); (c) reported content is T-705's
 moderation queue (Q-219), so the event team sees no content list yet; (d) the page shows no full name and no contact detail, only what the Help desk

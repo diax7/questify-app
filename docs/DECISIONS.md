@@ -6307,7 +6307,7 @@ judgment counsel should confirm. The full name is free text the player typed (20
 
 ## ADR-401 - T-616 owner Inbox: one counts read, the lists are the existing pages' own
 
-**Status:** Proposed (developer, delegated by Dhia, 2026-11-02); Q-368. Specifies FR-1825; the control room's Inbox counter (ADR-385) links here.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-616 review 92 GO); was: Proposed, Q-368. Specifies FR-1825; the control room's Inbox counter (ADR-385) links here.
 **Decision:** (1) **One page, no new store.** The Inbox (`…/events/{id}/inbox`, Run group, owner and editor within their event limit) composes the Help desk,
 Submissions, Flagged activity and the join requests; a ticket, a flag or a request is still stored once, where it was. (2) **One new read.**
 `event_inbox(event)` (migration 0110) answers counts only: the open requests of the event's queue by kind (question, problem, prize,

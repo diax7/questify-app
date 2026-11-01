@@ -18,6 +18,10 @@ const KIND_TITLES: Readonly<Record<EventTicketKind, MessageKey>> = {
   report_player: "inbox.kind.report",
 };
 
+/** The requests the Inbox's join card lists: the read also returns declined ones, which only the Players page shows. */
+export const pendingOnly = <T extends Readonly<{ status: string }>>(requests: readonly T[]): T[] =>
+  requests.filter((request) => request.status === "pending");
+
 /** The tile's name for a help-request kind. */
 export const kindTitleKey = (kind: EventTicketKind): MessageKey => KIND_TITLES[kind];
 

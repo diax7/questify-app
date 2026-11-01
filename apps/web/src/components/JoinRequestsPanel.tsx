@@ -4,6 +4,7 @@ import { formatNumber, type Language } from "@questify/shared";
 import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { acceptAllInCalls } from "#src/lib/accept-all.ts";
+import { pendingOnly } from "#src/lib/inbox.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -298,15 +299,30 @@ function AcceptAllControl({
 }
 
 /** What the Inbox's card says in place of a list: loading, or that nothing is waiting. */
-function CardState({ language, queue }: Readonly<{ language: Language; queue: Queue }>) {
+function CardState({
+  language,
+  requests,
+}: Readonly<{ language: Language; requests: JoinRequest[] | null }>) {
   const t = translatorFor(language);
-  if (queue.requests === null) {
+  if (requests === null) {
     return <Muted>{t("common.loading")}</Muted>;
   }
-  return queue.requests.length === 0 ? <EmptyState>{t("inbox.empty")}</EmptyState> : null;
+  return requests.length === 0 ? <EmptyState>{t("inbox.empty")}</EmptyState> : null;
 }
 
-/** The requests loaded so far and what follows them: "Show more" on the page, "View more" to the page in the Inbox. */
+/** What the list shows: every loaded request on the page; in the Inbox the pending ones, with "more" only while more wait. */
+function listedIn(queue: Queue, inbox: InboxCard | undefined) {
+  if (inbox === undefined) {
+    return { shown: queue.requests, more: queue.more };
+  }
+  const shown = queue.requests === null ? null : pendingOnly(queue.requests);
+  return { shown, more: queue.pending > (shown ?? []).length ? queue.more : null };
+}
+
+/**
+ * The requests loaded so far and what follows them: "Show more" on the page, "View more" to the page in the Inbox,
+ * where only pending requests are listed and "View more" shows while more of them wait than the card lists.
+ */
 function RequestList({
   language,
   joining,
@@ -314,12 +330,12 @@ function RequestList({
 }: Readonly<{ language: Language; joining: Joining; inbox: InboxCard | undefined }>) {
   const t = translatorFor(language);
   const { queue, busy, act } = joining;
-  const more = queue.more;
+  const { shown, more } = listedIn(queue, inbox);
   return (
     <>
-      {inbox === undefined ? null : <CardState language={language} queue={queue} />}
+      {inbox === undefined ? null : <CardState language={language} requests={shown} />}
       <CardList>
-        {(queue.requests ?? []).map((request) => (
+        {(shown ?? []).map((request) => (
           <RequestItem
             key={request.enrollmentId}
             request={request}

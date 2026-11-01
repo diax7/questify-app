@@ -4,6 +4,7 @@ import {
   INBOX_KINDS,
   helpDeskLink,
   kindTitleKey,
+  pendingOnly,
   previewOf,
   waitingTotal,
   whenOf,
@@ -48,8 +49,22 @@ describe("the Inbox page (T-616)", () => {
     });
     expect(filtersFromQuery({ status: "closed", kind: "suggestion" })).toEqual({
       tab: "closed",
-      kind: "suggestion",
+      kind: null,
     });
+    expect(filtersFromQuery({ status: "closed", kind: "report_player" })).toEqual({
+      tab: "closed",
+      kind: "report_player",
+    });
+  });
+
+  it("lists only the pending join requests, so declined ones never make a card that says nothing waits", () => {
+    const declined = [
+      { enrollmentId: "a", status: "declined" },
+      { enrollmentId: "b", status: "declined" },
+    ];
+    expect(pendingOnly(declined)).toEqual([]);
+    const mixed = [{ enrollmentId: "c", status: "pending" }, ...declined];
+    expect(pendingOnly(mixed)).toEqual([{ enrollmentId: "c", status: "pending" }]);
   });
 
   it("adds up everything that waits", () => {
