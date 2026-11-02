@@ -1635,6 +1635,17 @@ PUBLIC none. Not copied when an event is duplicated.
 - SQLSTATEs: `DS409` (`reservation_on`, `desk_busy`, `price_changed`), `DS410` (the offer ended: `declined`, `withdrawn`, `refused`,
   `expired`), `DS422` (`not_desk_reward`), RS403 `reservation_off` / `desk_closed`.
 
+## Platform pages (T-709, migration 0117; ADR-415 to ADR-418)
+
+- **No new table.** One partial index, `push_send_failed (finished_at) WHERE state IN ('failed', 'unknown')`, serves the
+  health view's failed-in-24-hours count.
+- **Five definer doors, all granted to the API role alone, all checking `app_admin_id()` through `console_admin()` (QE403):**
+  `console_health()` and `console_numbers()` (STABLE; counts and flags; every unbounded count reads through `LIMIT 10001`),
+  `console_admin_accounts(idle, max_age)` and `console_admin_sessions(account, idle, max_age)` (STABLE; QA404 for a non-admin
+  account), and `admin_end_session(session, reason, request)` (VOLATILE; row lock on the session; SU400 for a reason outside
+  10 to 300 characters; QA404 for a missing, ended or non-admin session; audit `staff.session.force_end`).
+- `revoke-admin` (`setPlatformAdmin`) locks every admin row by id and refuses the last active admin.
+
 ## Console foundation (T-701, migration 0114; ADR-405 to ADR-409)
 
 - **`organizer`**: `suspended_at`, `suspended_by` (staff), `suspension_reason` (10 to 300); CHECK `status = 'paused'` if

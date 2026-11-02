@@ -140,7 +140,7 @@ configured but wrong shows as `staff.email_failover` first.
 (`UPDATE staff_session SET revoked_at = now() WHERE staff_user_id = '...' AND revoked_at IS NULL`), then record it
 in the same transaction:
 `INSERT INTO audit_log (actor_type, action, target_type, target_id) VALUES ('system', 'staff.session.end_all', 'staff_user', '...')`.
-The admin screen for this arrives with T-701.
+A platform admin's sessions can be ended from the console's Admins page (T-709), with a reason in the audit log; this SQL is for a person who is not an admin or when the console is down.
 
 **Audit log**: read it from the owner connection (`SELECT * FROM audit_log ORDER BY id DESC LIMIT 50`). No one can
 change or remove an entry, the owner included; do not try to work around the triggers.
@@ -654,6 +654,10 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
   300 characters); `--by <name>` names the operator, else the operating-system user is recorded. Each is one
   transaction with an audit entry (`staff.platform_role`, holding the reason and the operator); a revoke ends the
   account's sessions and closes its live support grants.
+- **Console health, numbers and admin sessions (T-709):** Health reads queues and leases from the database and the
+  server's set-up; a tile that is not OK names why. A stopped ticker shows as an event past its start or end, a push or
+  alert waiting too long, or a lease that ran out. `revoke-admin` refuses the last active admin: grant the role to another
+  account first. Ending an admin's session: Admins, Show sessions, End session (reason, confirm).
 - **Close a support grant by hand** (owner connection), when the console is not at hand:
   `UPDATE support_grant SET closed_at = now(), close_kind = 'admin' WHERE id = '...' AND closed_at IS NULL;`
   then record it in the audit log as a system entry (`support.closed`).

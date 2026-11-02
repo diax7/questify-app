@@ -188,3 +188,42 @@ export function ConsoleOrganizersLink({
     </NavItem>
   );
 }
+
+/** This page's item in the console's navigation (T-709). */
+export function ConsoleHealthLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/health`} icon="bolt" current={current}>
+      {t("console.health.title")}
+    </NavItem>
+  );
+}
+
+/** This page's item in the console's navigation (T-709). */
+export function ConsoleNumbersLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/numbers`} icon="overview" current={current}>
+      {t("console.numbers.title")}
+    </NavItem>
+  );
+}
+
+/** This page's item in the console's navigation (T-709). */
+export function ConsoleAdminsLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/admins`} icon="shield" current={current}>
+      {t("console.admins.title")}
+    </NavItem>
+  );
+}

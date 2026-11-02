@@ -80,7 +80,8 @@ import { createPushDoors } from "#src/push/doors";
 import type { PushProvider } from "#src/push/provider";
 import { startPushWorker } from "#src/push/worker";
 import { createInvites } from "#src/organizers/accept";
-import { registerConsoleRoutes } from "#src/activation/routes";
+import { registerConsoleRoutes, type ConsoleRoutesDeps } from "#src/activation/routes";
+import type { ConsoleOrganizerDeps } from "#src/console/routes";
 import { createActivation } from "#src/activation/service";
 import { registerOrganizerRoutes } from "#src/organizers/routes";
 import { createTeam } from "#src/organizers/team";
@@ -304,6 +305,47 @@ export function invitationDepsOf(
   };
 }
 
+/** What the console's routes share with the rest of the server. */
+type ConsoleShared = Pick<
+  ConsoleRoutesDeps,
+  "activation" | "settings" | "sessions" | "invitations" | "translations"
+> &
+  Readonly<{
+    keys: ReturnType<typeof createAuthKeys>;
+    suspended: ConsoleOrganizerDeps["suspended"];
+  }>;
+
+/**
+ * The console's routes (T-210, T-312, T-409, T-609, T-701, T-702, T-709). `platform` carries what this server has set up for the
+ * health view, as yes or no per transport: nothing secret.
+ */
+function registerConsole(app: FastifyInstance, options: AppOptions, shared: ConsoleShared): void {
+  const { config, pool } = options;
+  registerConsoleRoutes(app, {
+    activation: shared.activation,
+    settings: shared.settings,
+    sessions: shared.sessions,
+    dashboardOrigin: config.auth.dashboardOrigin,
+    tickets: { pool, keys: shared.keys },
+    questify: { pool },
+    invitations: shared.invitations,
+    translations: shared.translations,
+    organizers: { pool, keys: shared.keys, suspended: shared.suspended },
+    platform: {
+      pool,
+      keys: shared.keys,
+      transports: {
+        sms: options.smsSender !== undefined,
+        promoSms: options.promoSmsSender !== undefined,
+        emailBackup: config.auth.resend !== undefined,
+        alertEmail: options.organizerAlerts?.transport !== undefined,
+        pushIos: config.push.apns !== undefined,
+        pushAndroid: config.push.fcm !== undefined,
+      },
+    },
+  });
+}
+
 /** Builds the API server. Nothing listens until the caller starts it. */
 export function buildApp(options: AppOptions): FastifyInstance {
   const { config } = options;
@@ -494,15 +536,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const invitations = invitationDepsOf(options);
   const staffSessions = createSessions(options.pool);
   const translations = options.translations ?? createTranslationService({ pool: options.pool });
-  registerConsoleRoutes(app, {
+  registerConsole(app, options, {
     activation,
     settings,
     sessions: staffSessions,
-    dashboardOrigin: config.auth.dashboardOrigin,
-    tickets: { pool: options.pool, keys: signInDeps.keys },
-    questify: { pool: options.pool },
     invitations,
-    organizers: { pool: options.pool, keys: signInDeps.keys, suspended },
+    keys: signInDeps.keys,
+    suspended,
     translations,
   });
   registerOrganizerRoutes(app, {

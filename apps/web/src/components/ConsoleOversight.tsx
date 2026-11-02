@@ -15,16 +15,16 @@ import { Row, Rows, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 
 const REASON_MIN = 10;
 const REASON_MAX = 300;
-const keyed = () => ({ "idempotency-key": crypto.randomUUID() });
+export const keyed = () => ({ "idempotency-key": crypto.randomUUID() });
 
 /** A reason long enough to send (the API checks again: 10 to 300 characters once trimmed). */
-const reasonReady = (reason: string): boolean => {
+export const reasonReady = (reason: string): boolean => {
   const length = reason.trim().length;
   return length >= REASON_MIN && length <= REASON_MAX;
 };
 
 /** Runs one console write: busy while it runs, the API's own words when it is refused, `onDone` when it is not. */
-function useWrite(language: Language, onDone: (done: string) => void) {
+export function useWrite(language: Language, onDone: (done: string) => void) {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const run = async (work: () => Promise<PostResult>, done: string): Promise<boolean> => {
@@ -42,7 +42,7 @@ function useWrite(language: Language, onDone: (done: string) => void) {
   return { busy, problem, run };
 }
 
-function Problem({ problem }: Readonly<{ problem: string | null }>) {
+export function Problem({ problem }: Readonly<{ problem: string | null }>) {
   return problem === null ? null : (
     <Notice tone="danger" role="alert">
       {problem}
@@ -53,7 +53,7 @@ function Problem({ problem }: Readonly<{ problem: string | null }>) {
 /**
  * A button that asks once before it acts (ADR-063): the question in an alert with Cancel and the same action again.
  */
-function ConfirmedButton({
+export function ConfirmedButton({
   language,
   label,
   question,
@@ -101,7 +101,7 @@ function ConfirmedButton({
   );
 }
 
-function ReasonField({
+export function ReasonField({
   language,
   label,
   reason,

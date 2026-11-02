@@ -114,6 +114,7 @@ const INFO_TIPS: readonly string[] = [
   "codes.secretHint",
   "community.page.intro",
   "community.page.unlock.note",
+  "console.admins.intro",
   "console.invCampaign.channel.hint",
   "console.invCampaign.sendAt.hint",
   "console.seasons.intro",

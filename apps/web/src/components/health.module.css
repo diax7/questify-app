@@ -1,0 +1,64 @@
+/* The console's health and admin pages (T-709): a state mark with its word, a list of lines, a grid cell for a tile. */
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-weight: var(--weight-medium);
+}
+
+/* The mark beside a state word takes the state's colour; the word itself is a badge with its own contrast. */
+.mark {
+  display: inline-flex;
+}
+
+.ok {
+  color: var(--color-primary-action);
+}
+
+.warning {
+  color: var(--color-highlight);
+}
+
+.down {
+  color: var(--color-hot);
+}
+
+.reasons {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: var(--text-sm);
+}
+
+/* A grid cell the tile fills, so the tiles of one row are as tall as the tallest. */
+.cell {
+  display: grid;
+  min-inline-size: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A browser's description is left to right in both languages. */
+.agent {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+}
