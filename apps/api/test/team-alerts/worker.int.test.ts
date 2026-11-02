@@ -38,7 +38,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("team alert worker", () => {
     mail.sent.length = 0;
     mail.failing = false;
     await f.owner("DELETE FROM auth_throttle WHERE bucket IN ('team_alert_mail', 'outbound_mail')");
-    await f.owner("UPDATE team_alert SET state = 'sent', finished_at = now() WHERE finished_at IS NULL");
+    await f.owner(
+      "UPDATE team_alert SET state = 'sent', finished_at = now() WHERE finished_at IS NULL",
+    );
   });
 
   const urgentReport = async (note = "the organizer's DM handle is @secret") => {
@@ -70,9 +72,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("team alert worker", () => {
     expect(digest?.to).toBe(MAIL_FROM);
     expect(digest?.text).toContain(`/en/console/reports/event/${first.event}`);
     expect(digest?.text).not.toContain("@secret");
-    const [name] = await f.owner<{ username: string }>("SELECT username FROM player WHERE id = $1", [
-      first.player,
-    ]);
+    const [name] = await f.owner<{ username: string }>(
+      "SELECT username FROM player WHERE id = $1",
+      [first.player],
+    );
     expect(digest?.text).not.toContain(name?.username ?? "no username");
   });
 
@@ -85,7 +88,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("team alert worker", () => {
       `INSERT INTO platform_setting (key, value) VALUES ('moderation', '{"alertEmail": "alerts@questify.test"}')
        ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
     );
-    await f.owner("UPDATE auth_throttle SET at = at - interval '11 minutes' WHERE bucket = 'team_alert_mail'");
+    await f.owner(
+      "UPDATE auth_throttle SET at = at - interval '11 minutes' WHERE bucket = 'team_alert_mail'",
+    );
     expect((await run()).digest).toBe("sent");
     expect(mail.sent.at(-1)?.to).toBe("alerts@questify.test");
     await f.owner("DELETE FROM platform_setting WHERE key = 'moderation'");
@@ -114,7 +119,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("team alert worker", () => {
     mail.failing = true;
     expect((await run()).digest).toBe("failed");
     mail.failing = false;
-    await f.owner("UPDATE auth_throttle SET at = at - interval '11 minutes' WHERE bucket = 'team_alert_mail'");
+    await f.owner(
+      "UPDATE auth_throttle SET at = at - interval '11 minutes' WHERE bucket = 'team_alert_mail'",
+    );
     expect((await run()).digest).toBe("sent");
     const [row] = await f.owner<{ state: string; attempts: number }>(
       "SELECT state, attempts FROM team_alert WHERE target_id = $1",

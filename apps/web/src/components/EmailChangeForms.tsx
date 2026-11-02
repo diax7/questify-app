@@ -35,13 +35,59 @@ function useFragmentToken(): string | null | undefined {
 type View = Readonly<{ organizerName: string; newEmailMasked: string }>;
 type Done = Readonly<{ kind: "confirmed"; email: string } | { kind: "held"; appliesAt: string }>;
 
+/** A confirm's answer: the change applied, or held until a time; undefined for anything else. */
+function doneOf(body: unknown): Done | undefined {
+  const value = body as Record<string, unknown> | undefined;
+  if (value?.["outcome"] === "confirmed")
+    return { kind: "confirmed", email: String(value["email"]) };
+  if (value?.["outcome"] === "held") return { kind: "held", appliesAt: String(value["appliesAt"]) };
+  return undefined;
+}
+
+/** What the page says once the confirm went through. */
+function DoneNotice({ language, done }: Readonly<{ language: Language; done: Done }>) {
+  const t = translatorFor(language);
+  if (done.kind === "held") {
+    return (
+      <Notice tone="info" role="status">
+        {t("emailChange.held", { time: clockOf(done.appliesAt, language) })}
+      </Notice>
+    );
+  }
+  return (
+    <>
+      <Notice tone="success" role="status">
+        {t("emailChange.done", { email: done.email })}
+      </Notice>
+      <ButtonLink variant="primary" href={`/${language}/sign-in`}>
+        {t("staff.signIn")}
+      </ButtonLink>
+    </>
+  );
+}
+
+/** The view a link opens, or null when the link is missing or no longer valid. */
+async function viewOf(token: string | null): Promise<View | null> {
+  if (token === null) return null;
+  const result = await postJson(`${API}/view`, { token });
+  const body = result.body as Record<string, unknown> | undefined;
+  return result.ok && typeof body?.["organizerName"] === "string"
+    ? { organizerName: body["organizerName"], newEmailMasked: String(body["newEmailMasked"]) }
+    : null;
+}
+
 /** The confirm form: the code, the current password or "I don't know my password". */
 function ConfirmForm({
   language,
   token,
   done,
   lost,
-}: Readonly<{ language: Language; token: string; done: (result: Done) => void; lost: () => void }>) {
+}: Readonly<{
+  language: Language;
+  token: string;
+  done: (result: Done) => void;
+  lost: () => void;
+}>) {
   const t = translatorFor(language);
   const [noPassword, setNoPassword] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -57,13 +103,9 @@ function ConfirmForm({
       password: noPassword ? null : password,
     });
     setBusy(false);
-    const body = result.body as Record<string, unknown> | undefined;
-    if (result.ok && body?.["outcome"] === "confirmed") {
-      done({ kind: "confirmed", email: String(body["email"]) });
-      return;
-    }
-    if (result.ok && body?.["outcome"] === "held") {
-      done({ kind: "held", appliesAt: String(body["appliesAt"]) });
+    const finished = result.ok ? doneOf(result.body) : undefined;
+    if (finished !== undefined) {
+      done(finished);
       return;
     }
     if (errorCodeOf(result.body) === "email_change_link_invalid") {
@@ -75,11 +117,24 @@ function ConfirmForm({
   return (
     <Form onSubmit={(event) => void submit(event)}>
       <Field label={t("emailChange.code")}>
-        <Input name="code" inputMode="numeric" autoComplete="one-time-code" dir="ltr" required pattern="[0-9]{6}" />
+        <Input
+          name="code"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          dir="ltr"
+          required
+          pattern="[0-9]{6}"
+        />
       </Field>
       {noPassword ? null : (
         <Field label={t("emailChange.password")}>
-          <Input name="password" type="password" autoComplete="current-password" dir="ltr" required />
+          <Input
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            dir="ltr"
+            required
+          />
         </Field>
       )}
       <Checkbox
@@ -111,19 +166,9 @@ export function EmailChangeConfirm({ language }: Readonly<{ language: Language }
   const [done, setDone] = useState<Done | null>(null);
   useEffect(() => {
     if (token === undefined) return;
-    if (token === null) {
-      setView(null);
-      return;
-    }
-    void postJson(`${API}/view`, { token }).then((result) => {
-      const body = result.body as Record<string, unknown> | undefined;
-      setView(
-        result.ok && typeof body?.["organizerName"] === "string"
-          ? { organizerName: body["organizerName"], newEmailMasked: String(body["newEmailMasked"]) }
-          : null,
-      );
-    });
+    void viewOf(token).then(setView);
   }, [token]);
+  const ready = view !== undefined && view !== null && done === null && typeof token === "string";
   return (
     <Card as="section" aria-labelledby="email-change-title">
       <PageHeader titleId="email-change-title" title={t("emailChange.title")} />
@@ -133,27 +178,18 @@ export function EmailChangeConfirm({ language }: Readonly<{ language: Language }
           {t("emailChange.noLink")}
         </Notice>
       ) : null}
-      {done?.kind === "confirmed" ? (
-        <>
-          <Notice tone="success" role="status">
-            {t("emailChange.done", { email: done.email })}
-          </Notice>
-          <ButtonLink variant="primary" href={`/${language}/sign-in`}>
-            {t("staff.signIn")}
-          </ButtonLink>
-        </>
-      ) : null}
-      {done?.kind === "held" ? (
-        <Notice tone="info" role="status">
-          {t("emailChange.held", { time: clockOf(done.appliesAt, language) })}
-        </Notice>
-      ) : null}
-      {view !== undefined && view !== null && done === null && typeof token === "string" ? (
+      {done === null ? null : <DoneNotice language={language} done={done} />}
+      {ready ? (
         <>
           <p dir="auto">
             {t("emailChange.intro", { organizer: view.organizerName, email: view.newEmailMasked })}
           </p>
-          <ConfirmForm language={language} token={token} done={setDone} lost={() => setView(null)} />
+          <ConfirmForm
+            language={language}
+            token={token}
+            done={setDone}
+            lost={() => setView(null)}
+          />
         </>
       ) : null}
     </Card>

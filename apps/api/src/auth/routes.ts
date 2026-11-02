@@ -162,7 +162,7 @@ function registerEmailChangeRoutes(scope: FastifyInstance, deps: StaffRoutesDeps
     const { token } = parse(emailChangeTokenBody, request.body);
     const caller = callerOf(request);
     await deps.emailChange.admit(caller, reply);
-    const found = await deps.emailChange.view(token, caller);
+    const found = await deps.emailChange.view(token);
     if (found === undefined) {
       throw emailChangeLinkInvalid();
     }

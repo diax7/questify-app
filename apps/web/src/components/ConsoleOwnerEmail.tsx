@@ -30,7 +30,10 @@ type Props = Readonly<{
 }>;
 
 /** What the owner card says about the open change, or about the last one. */
-function ChangeStatus({ language, change }: Readonly<{ language: Language; change: OwnerEmailChange }>) {
+function ChangeStatus({
+  language,
+  change,
+}: Readonly<{ language: Language; change: OwnerEmailChange }>) {
   const t = translatorFor(language);
   const email = change.newEmail ?? "";
   const line =
@@ -55,7 +58,11 @@ function ChangeStatus({ language, change }: Readonly<{ language: Language; chang
 }
 
 /** Resend the code (a pending change) and cancel (pending or held), each audited. */
-function OpenChangeActions({ language, change, onChanged }: Omit<Props, "organizerId" | "others"> & {
+function OpenChangeActions({
+  language,
+  change,
+  onChanged,
+}: Omit<Props, "organizerId" | "others"> & {
   change: OwnerEmailChange;
 }) {
   const t = translatorFor(language);
@@ -141,7 +148,12 @@ function StartForm({ language, organizerId, others, onChanged }: Props) {
               requestJson(
                 "POST",
                 `/v1/admin/organizers/${organizerId}/owner-email`,
-                { newEmail: email.trim(), identityCheck: identity, reason: reason.trim(), lang: language },
+                {
+                  newEmail: email.trim(),
+                  identityCheck: identity,
+                  reason: reason.trim(),
+                  lang: language,
+                },
                 keyed(),
               ),
             t("console.ownerEmail.started"),
@@ -171,7 +183,11 @@ export function OwnerEmailPanel(props: Props) {
       <Stack>
         {change === null ? null : <ChangeStatus language={props.language} change={change} />}
         {open ? (
-          <OpenChangeActions language={props.language} change={change} onChanged={props.onChanged} />
+          <OpenChangeActions
+            language={props.language}
+            change={change}
+            onChanged={props.onChanged}
+          />
         ) : (
           <StartForm {...props} />
         )}

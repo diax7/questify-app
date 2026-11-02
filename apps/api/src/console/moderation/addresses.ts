@@ -4,7 +4,10 @@ import { z } from "zod";
 import { invalidModerationAddress } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
 import { door, type Admin } from "#src/console/doors";
-import { CONSOLE_MODERATION_LIMIT, CONSOLE_REPORTS_READ_LIMIT } from "#src/console/moderation/routes";
+import {
+  CONSOLE_MODERATION_LIMIT,
+  CONSOLE_REPORTS_READ_LIMIT,
+} from "#src/console/moderation/routes";
 import { throttled, type ConsolePlayerDeps } from "#src/console/players/routes";
 
 /** The moderation addresses (ADR-495): where urgent-report alerts go and the address a banned player appeals to. */

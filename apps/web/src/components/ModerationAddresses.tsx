@@ -18,10 +18,11 @@ type Addresses = Readonly<{
   sendingAddress: string;
 }>;
 
+const optional = (one: unknown): string | null => (typeof one === "string" ? one : null);
+
 function readAddresses(body: unknown): Addresses | undefined {
   if (typeof body !== "object" || body === null) return undefined;
   const value = body as Record<string, unknown>;
-  const optional = (one: unknown) => (typeof one === "string" ? one : null);
   return typeof value["sendingAddress"] === "string"
     ? {
         alertEmail: optional(value["alertEmail"]),
@@ -83,7 +84,12 @@ export function ModerationAddresses({ language }: Readonly<{ language: Language 
           <Input type="email" dir="ltr" value={alert} onChange={(e) => setAlert(e.target.value)} />
         </Field>
         <Field label={t("console.modAddresses.appeal")} help={help}>
-          <Input type="email" dir="ltr" value={appeal} onChange={(e) => setAppeal(e.target.value)} />
+          <Input
+            type="email"
+            dir="ltr"
+            value={appeal}
+            onChange={(e) => setAppeal(e.target.value)}
+          />
         </Field>
         <Problem problem={problem} />
         {done ? (

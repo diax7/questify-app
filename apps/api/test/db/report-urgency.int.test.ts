@@ -5,7 +5,12 @@ import { pushFixture, sqlstate, type PushFixture } from "#test/support/push";
 import { TEST_DATABASE_URL } from "#test/support/test-db";
 
 type Queue = Readonly<{
-  targets: readonly Readonly<{ targetId: string; urgent: boolean; dueAt: string; overdue: boolean }>[];
+  targets: readonly Readonly<{
+    targetId: string;
+    urgent: boolean;
+    dueAt: string;
+    overdue: boolean;
+  }>[];
   urgentTotal: number;
 }>;
 
@@ -94,9 +99,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("urgent reports (database)", ()
     for (const player of players) await f.join(live, player);
     await Promise.all(
       players.map((player) =>
-        f.run({ playerId: player }, "SELECT report_content('event', $1, NULL, NULL, 'spam', NULL)", [
-          live,
-        ]),
+        f.run(
+          { playerId: player },
+          "SELECT report_content('event', $1, NULL, NULL, 'spam', NULL)",
+          [live],
+        ),
       ),
     );
     expect(await alertsOf(live)).toBe(1);
@@ -132,7 +139,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("urgent reports (database)", ()
   });
 
   it("claims, answers and retries the outbox: a refused send twice more, never a sent or uncertain one", async () => {
-    await f.owner("UPDATE team_alert SET state = 'sent', finished_at = now() WHERE state = 'queued'");
+    await f.owner(
+      "UPDATE team_alert SET state = 'sent', finished_at = now() WHERE state = 'queued'",
+    );
     const live = await f.newEvent({ phase: "live" });
     await reportEvent(live, "hateful");
     const claim = async () =>
@@ -150,49 +159,70 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("urgent reports (database)", ()
         "SELECT * FROM team_alert_claim($1, 50)",
         [lease],
       );
-      expect(rows.map((row) => row.doc.targetId), `round ${round}`).toEqual([live]);
+      expect(
+        rows.map((row) => row.doc.targetId),
+        `round ${round}`,
+      ).toEqual([live]);
       expect(rows[0]?.doc.reasons).toEqual(["hateful"]);
-      expect(await ack(lease, rows.map((row) => row.id), "failed")).toBe(1);
+      expect(
+        await ack(
+          lease,
+          rows.map((row) => row.id),
+          "failed",
+        ),
+      ).toBe(1);
     }
     expect(await claim()).toEqual([]);
     expect(
-      (await f.owner<{ state: string }>("SELECT state FROM team_alert WHERE target_id = $1", [live]))[0]
-        ?.state,
+      (
+        await f.owner<{ state: string }>("SELECT state FROM team_alert WHERE target_id = $1", [
+          live,
+        ])
+      )[0]?.state,
     ).toBe("failed");
     const other = await f.newEvent({ phase: "live" });
     await reportEvent(other);
     await resolve(other);
     expect(await claim()).toEqual([]);
     expect(
-      (await f.owner<{ state: string }>("SELECT state FROM team_alert WHERE target_id = $1", [other]))[0]
-        ?.state,
+      (
+        await f.owner<{ state: string }>("SELECT state FROM team_alert WHERE target_id = $1", [
+          other,
+        ])
+      )[0]?.state,
     ).toBe("skipped");
   });
 
   it("turns a lease that ran out into uncertain, never sent again", async () => {
-    await f.owner("UPDATE team_alert SET state = 'sent', finished_at = now() WHERE state = 'queued'");
+    await f.owner(
+      "UPDATE team_alert SET state = 'sent', finished_at = now() WHERE state = 'queued'",
+    );
     const live = await f.newEvent({ phase: "live" });
     await reportEvent(live);
     const lease = randomUUID();
     await f.run({}, "SELECT * FROM team_alert_claim($1, 50)", [lease]);
-    await f.owner("UPDATE team_alert SET lease_until = now() - interval '1 second' WHERE lease = $1", [
-      lease,
-    ]);
+    await f.owner(
+      "UPDATE team_alert SET lease_until = now() - interval '1 second' WHERE lease = $1",
+      [lease],
+    );
     expect(await f.run({}, "SELECT * FROM team_alert_claim($1, 50)", [randomUUID()])).toEqual([]);
     expect(
-      (await f.owner<{ state: string }>("SELECT state FROM team_alert WHERE target_id = $1", [live]))[0]
-        ?.state,
+      (
+        await f.owner<{ state: string }>("SELECT state FROM team_alert WHERE target_id = $1", [
+          live,
+        ])
+      )[0]?.state,
     ).toBe("uncertain");
   });
 
-  describe("moderation addresses", () => {
-    const set = (alert: string | null, appeal: string | null, seat = admin) =>
-      f.one<Record<string, string>>(
-        seat,
-        "SELECT admin_set_moderation_addresses($1, $2, $3) AS r",
-        [alert, appeal, randomUUID()],
-      );
+  const set = (alert: string | null, appeal: string | null, seat = admin) =>
+    f.one<Record<string, string>>(seat, "SELECT admin_set_moderation_addresses($1, $2, $3) AS r", [
+      alert,
+      appeal,
+      randomUUID(),
+    ]);
 
+  describe("moderation addresses", () => {
     it("is refused to anyone but an admin and to a value that is not an address", async () => {
       for (const seat of [{}, f.team(), { isAdmin: true }] satisfies RequestContext[]) {
         expect(await sqlstate(set("a@b.co", null, seat))).toBe("QE403");

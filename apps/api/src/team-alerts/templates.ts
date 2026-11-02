@@ -66,7 +66,9 @@ export function teamAlertDigest(
       "بلاغات عاجلة وأمور تحتاج الفريق | Urgent reports and items for the team",
       "",
       ...shown.map((line) => lineOf(line, input.origin, input.now)),
-      ...(more > 0 ? ["", `و${more} أخرى | and ${more} more: ${input.origin}/en/console/reports`] : []),
+      ...(more > 0
+        ? ["", `و${more} أخرى | and ${more} more: ${input.origin}/en/console/reports`]
+        : []),
     ].join("\n"),
   };
 }

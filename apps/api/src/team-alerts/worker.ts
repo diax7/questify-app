@@ -40,7 +40,9 @@ export type TeamAlertTotals = Readonly<{
 }>;
 
 type Claimed = Readonly<{ id: string; doc: AlertLine }>;
-type Claim = Readonly<{ kind: "wait" | "none" | "capped" } | { kind: "send"; lease: string; rows: Claimed[] }>;
+type Claim = Readonly<
+  { kind: "wait" | "none" | "capped" } | { kind: "send"; lease: string; rows: Claimed[] }
+>;
 
 const system = <T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> =>
   withConnection(pool, (client) => withRequestContext(client, {}, () => work(client)));
@@ -142,6 +144,14 @@ async function runOnce(deps: TeamAlertWorkerDeps): Promise<TeamAlertTotals> {
   return { applied, digest: outcome, lines: claimed.rows.length };
 }
 
+/** Logs a run that did something; a digest not sent as planned is an error. */
+function logTotals(deps: TeamAlertWorkerDeps, totals: TeamAlertTotals): void {
+  const quiet = totals.applied === 0 && totals.lines === 0 && totals.digest !== "capped";
+  if (quiet) return;
+  const fine = totals.digest === "sent" || totals.digest === "none" || totals.digest === "wait";
+  deps.log(fine ? "info" : "error", { event: "team_alert.run", ...totals });
+}
+
 export type TeamAlertWorker = Readonly<{
   stop: () => Promise<void>;
   runOnce: () => Promise<TeamAlertTotals>;
@@ -160,14 +170,7 @@ export function startTeamAlertWorker(deps: TeamAlertWorkerDeps): TeamAlertWorker
 
   const guarded = async (): Promise<void> => {
     try {
-      const totals = await runOnce(deps);
-      if (totals.applied > 0 || totals.lines > 0 || totals.digest === "capped") {
-        const bad = totals.digest === "failed" || totals.digest === "uncertain";
-        deps.log(bad || totals.digest === "capped" ? "error" : "info", {
-          event: "team_alert.run",
-          ...totals,
-        });
-      }
+      logTotals(deps, await runOnce(deps));
     } catch (error) {
       deps.log("error", {
         event: "team_alert.run_failed",

@@ -12,7 +12,7 @@ import type { EmailSender } from "#src/auth/email/sender";
 import { createAuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
 import { createEmailChange, type EmailChangeDeps } from "#src/auth/email-change";
-import { createPasswords } from "#src/auth/password-reset";
+import { createPasswords, type PasswordDeps } from "#src/auth/password-reset";
 import { createSignUp } from "#src/auth/sign-up";
 import { registerStaffRoutes } from "#src/auth/routes";
 import { createSessions } from "#src/auth/session";
@@ -372,6 +372,20 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
   });
 }
 
+/** Staff sign-in, password reset, sign-up, invites, sessions and the owner email change link (T-701b). */
+function registerStaff(app: FastifyInstance, deps: PasswordDeps): void {
+  const signIn = createSignIn(deps);
+  registerStaffRoutes(app, {
+    signIn,
+    invites: createInvites(deps, signIn),
+    sessions: createSessions(deps.pool),
+    passwords: createPasswords(deps),
+    signUp: createSignUp(deps),
+    emailChange: createEmailChange(deps),
+    dashboardOrigin: deps.dashboardOrigin,
+  });
+}
+
 /** Builds the API server. Nothing listens until the caller starts it. */
 export function buildApp(options: AppOptions): FastifyInstance {
   const { config } = options;
@@ -419,23 +433,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     deferred,
     dashboardOrigin: config.auth.dashboardOrigin,
   };
-  const signIn = createSignIn(signInDeps);
-  const emailChange: EmailChangeDeps = {
-    pool: options.pool,
-    keys: signInDeps.keys,
-    email: options.emailSender,
-    gate: signInDeps.gate,
-    dashboardOrigin: config.auth.dashboardOrigin,
-  };
-  registerStaffRoutes(app, {
-    signIn,
-    invites: createInvites(passwordDeps, signIn),
-    sessions: createSessions(options.pool),
-    passwords: createPasswords(passwordDeps),
-    signUp: createSignUp(passwordDeps),
-    emailChange: createEmailChange(emailChange),
-    dashboardOrigin: config.auth.dashboardOrigin,
-  });
+  registerStaff(app, passwordDeps);
 
   const questCodeKey = createQuestCodeKey(config.qrSecret);
   const stepCodeKey = createStepCodeKey(config.qrSecret);
@@ -571,7 +569,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     keys: signInDeps.keys,
     suspended,
     translations,
-    emailChange,
+    emailChange: passwordDeps,
   });
   registerOrganizerRoutes(app, {
     pool: options.pool,
@@ -597,7 +595,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
   registerPublicLinkRoutes(app, { pool: options.pool, keys: signInDeps.keys });
 
-  startTicks(app, options, { settings, keys: signInDeps.keys, invitations, emailChange });
+  startTicks(app, options, {
+    settings,
+    keys: signInDeps.keys,
+    invitations,
+    emailChange: passwordDeps,
+  });
   registerPlatformReads(app, options.pool, { settings, translations });
   registerHealthRoutes(app, options);
   return app;

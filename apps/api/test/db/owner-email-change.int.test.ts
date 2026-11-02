@@ -16,6 +16,7 @@ type Started = Readonly<{
   oldEmail: string;
   newEmail: string;
 }>;
+const fresh = () => `new.${randomBytes(4).toString("hex")}@owner.test`;
 type Outcome = Readonly<{ outcome: string; attemptsLeft?: number }>;
 
 /**
@@ -52,7 +53,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change (database)"
     ]);
     return { org: org?.id ?? "", owner, email: row?.email ?? "" };
   };
-  const fresh = () => `new.${randomBytes(4).toString("hex")}@owner.test`;
   const start = (
     org: string,
     newEmail: string,
@@ -257,10 +257,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change (database)"
       const { org, owner } = await newOrganizer();
       const other = await addMember(f.db.owner, org, "editor");
       for (const staff of [owner, other]) {
-        await f.owner(
-          "INSERT INTO staff_session (staff_user_id, token_hash) VALUES ($1, $2)",
-          [staff, randomBytes(32)],
-        );
+        await f.owner("INSERT INTO staff_session (staff_user_id, token_hash) VALUES ($1, $2)", [
+          staff,
+          randomBytes(32),
+        ]);
         await f.owner(
           "INSERT INTO staff_password_reset (staff_user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval '1 hour')",
           [staff, randomBytes(32)],

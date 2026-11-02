@@ -67,7 +67,10 @@ const system = <T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promis
 
 /** The Stop link for a change, in the language of the page it opens. */
 export const stopLinkOf = (
-  deps: Pick<EmailChangeDeps, "keys" | "dashboardOrigin">, changeId: string, lang = "ar"): string =>
+  deps: Pick<EmailChangeDeps, "keys" | "dashboardOrigin">,
+  changeId: string,
+  lang = "ar",
+): string =>
   `${deps.dashboardOrigin}/${lang}/email-change/stop#token=${deps.keys.emailChangeToken(changeId, "stop")}`;
 
 /**
@@ -154,11 +157,7 @@ async function passwordMatches(
 }
 
 /** The public view of a confirm link. Undefined: unknown, expired or closed, all alike. */
-async function view(
-  deps: EmailChangeDeps,
-  token: string,
-  caller: Caller,
-): Promise<EmailChangeView | undefined> {
+async function view(deps: EmailChangeDeps, token: string): Promise<EmailChangeView | undefined> {
   const found = await viewOf(deps, token);
   if (found === undefined) return undefined;
   return {
@@ -204,8 +203,6 @@ async function settle(
   answer: Applied & { attemptsLeft?: number },
   caller: Caller,
 ): Promise<ConfirmOutcome> {
-  const log = (event: string, fields: Readonly<Record<string, string>>) =>
-    say(deps, caller, event, fields);
   switch (answer.outcome) {
     case "wrong":
       say(deps, caller, "staff.email_change_wrong", { change: found.changeId });
@@ -213,19 +210,30 @@ async function settle(
     case "locked":
     case "email_taken":
       return { kind: answer.outcome };
-    case "held": {
-      const appliesAt = answer.appliesAt ?? "";
-      await mailHeld(deps, answer, log);
-      say(deps, caller, "staff.email_change_held", { change: found.changeId });
-      return { kind: "held", appliesAt };
-    }
+    case "held":
     case "confirmed":
-      await mailApplied(deps, answer, log);
-      say(deps, caller, "staff.email_change_confirmed", { change: found.changeId });
-      return { kind: "confirmed", email: answer.newEmail ?? found.newEmail };
+      return notify(deps, found, answer, caller);
     default:
       return { kind: "invalid" };
   }
+}
+
+/** Mails the notices of a held or applied change and answers it. */
+async function notify(
+  deps: EmailChangeDeps,
+  found: Viewed,
+  answer: Applied,
+  caller: Caller,
+): Promise<ConfirmOutcome> {
+  const log = (event: string, fields: Readonly<Record<string, string>>) =>
+    say(deps, caller, event, fields);
+  say(deps, caller, `staff.email_change_${answer.outcome}`, { change: found.changeId });
+  if (answer.outcome === "held") {
+    await mailHeld(deps, answer, log);
+    return { kind: "held", appliesAt: answer.appliesAt ?? "" };
+  }
+  await mailApplied(deps, answer, log);
+  return { kind: "confirmed", email: answer.newEmail ?? found.newEmail };
 }
 
 async function mailHeld(
@@ -275,7 +283,7 @@ export type EmailChange = Readonly<{
     caller: Caller,
     reply: Readonly<{ header: (name: string, value: string) => unknown }>,
   ) => Promise<void>;
-  view: (token: string, caller: Caller) => Promise<EmailChangeView | undefined>;
+  view: (token: string) => Promise<EmailChangeView | undefined>;
   confirm: (
     input: Readonly<{ token: string; code: string; password: string | null }>,
     caller: Caller,
@@ -291,7 +299,7 @@ export type EmailChange = Readonly<{
 export function createEmailChange(deps: EmailChangeDeps): EmailChange {
   return {
     admit: (caller, reply) => admitEmailChangeCall(deps, caller, reply),
-    view: (token, caller) => view(deps, token, caller),
+    view: (token) => view(deps, token),
     confirm: (input, caller) => confirm(deps, input, caller),
     stop: (token, caller) => stop(deps, token, caller),
   };

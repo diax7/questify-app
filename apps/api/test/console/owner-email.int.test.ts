@@ -75,7 +75,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
       cookie,
     );
   const open = (path: string, payload: object, headers = browserHeaders()) =>
-    test.app.inject({ method: "POST", url: `/v1/staff/auth/email-change/${path}`, headers, payload });
+    test.app.inject({
+      method: "POST",
+      url: `/v1/staff/auth/email-change/${path}`,
+      headers,
+      payload,
+    });
   const begin = async () => {
     const who = await newOwner();
     const newEmail = `fresh${count}@mail.test`;
@@ -127,7 +132,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
   it("confirms with the code and the password: signs out everywhere, the new address signs in", async () => {
     const c = await begin();
     const ownerCookie = await signInFully(test, c.email);
-    const wrong = await open("confirm", { token: c.token, code: c.code, password: "not it at all" });
+    const wrong = await open("confirm", {
+      token: c.token,
+      code: c.code,
+      password: "not it at all",
+    });
     expect(wrong.statusCode).toBe(422);
     expect(wrong.json()).toMatchObject({
       code: "wrong_code_or_password",
@@ -200,7 +209,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
     expect(page.json()).toMatchObject({
       ownerEmailChange: { id: c.changeId, state: "pending", resends: 1, newEmail: c.newEmail },
     });
-    expect((await admin(`/v1/admin/owner-email-changes/${c.changeId}/cancel`)).statusCode).toBe(204);
+    expect((await admin(`/v1/admin/owner-email-changes/${c.changeId}/cancel`)).statusCode).toBe(
+      204,
+    );
     const again = await admin(`/v1/admin/owner-email-changes/${c.changeId}/cancel`);
     expect(again.json<{ code: string }>().code).toBe("email_change_closed");
   });

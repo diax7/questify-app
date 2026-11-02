@@ -31,7 +31,9 @@ test("an admin starts an owner email change and the owner confirms it with the c
   await openBuilder(page, info.project.name);
   const mine = idsOf(page);
   expect(
-    (await page.request.post(`${CONTROL}/make-admin`, { data: { eventId: mine.eventId } })).status(),
+    (
+      await page.request.post(`${CONTROL}/make-admin`, { data: { eventId: mine.eventId } })
+    ).status(),
   ).toBe(204);
 
   await page.goto(`/en/console/organizers/${other.organizerId}`);
@@ -49,7 +51,9 @@ test("an admin starts an owner email change and the owner confirms it with the c
   const link = await linkFor(moved);
   const code = await codeFor(moved);
   await ownerPage.goto(link.replace(/^https?:\/\/[^/]+/, ""));
-  await expect(ownerPage.getByRole("heading", { name: "Confirm your new sign-in email" })).toBeVisible();
+  await expect(
+    ownerPage.getByRole("heading", { name: "Confirm your new sign-in email" }),
+  ).toBeVisible();
   await ownerPage.getByLabel("Code from the email").fill(code);
   await ownerPage.getByLabel("Current password").fill(PASSWORD);
   await ownerPage.getByRole("button", { name: "Confirm" }).click();

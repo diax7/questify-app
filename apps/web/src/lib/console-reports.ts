@@ -67,7 +67,9 @@ export function dueDistance(
 }
 
 /** The console menu's counts (`GET /v1/admin/reports/counts`), or undefined for another shape. */
-export function readReportCounts(body: unknown): Readonly<{ open: number; urgent: number }> | undefined {
+export function readReportCounts(
+  body: unknown,
+): Readonly<{ open: number; urgent: number }> | undefined {
   if (typeof body !== "object" || body === null) return undefined;
   const { open, urgent } = body as Record<string, unknown>;
   return typeof open === "number" && typeof urgent === "number" ? { open, urgent } : undefined;

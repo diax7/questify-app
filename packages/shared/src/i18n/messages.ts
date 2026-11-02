@@ -9257,7 +9257,10 @@ export const MESSAGES = {
   "console.reports.urgentTotal": { ar: "عاجلة: {count}", en: "Urgent: {count}" },
   "console.reports.link": { ar: "البلاغات (عاجلة: {count})", en: "Reports ({count} urgent)" },
   "console.modAddresses.title": { ar: "عناوين الإشراف", en: "Moderation addresses" },
-  "console.modAddresses.alert": { ar: "بريد تنبيه البلاغات العاجلة", en: "Urgent-report alert email" },
+  "console.modAddresses.alert": {
+    ar: "بريد تنبيه البلاغات العاجلة",
+    en: "Urgent-report alert email",
+  },
   "console.modAddresses.appeal": { ar: "بريد طلبات مراجعة الحظر", en: "Ban appeal email" },
   "console.modAddresses.fallback": {
     ar: "اتركه فارغًا لاستخدام عنوان الإرسال ({email}).",
@@ -9287,7 +9290,10 @@ export const MESSAGES = {
     ar: "سيُرسل رمز إلى {email}. يتغير بريد الحساب في كل جهاته: {organizers}. وعندما يؤكد المالك يخرج من كل الأجهزة.",
     en: "A code goes to {email}. The change applies to the account in every organizer: {organizers}. Once the owner confirms, they are signed out everywhere.",
   },
-  "console.ownerEmail.started": { ar: "أُرسل الرمز إلى البريد الجديد.", en: "The code was sent to the new email." },
+  "console.ownerEmail.started": {
+    ar: "أُرسل الرمز إلى البريد الجديد.",
+    en: "The code was sent to the new email.",
+  },
   "console.ownerEmail.pending": {
     ar: "بانتظار تأكيد المالك للبريد {email} حتى {time}.",
     en: "Waiting for the owner to confirm {email} until {time}.",
@@ -9296,7 +9302,10 @@ export const MESSAGES = {
     ar: "يتغير إلى {email} في {time} ما لم يوقفه البريد القديم.",
     en: "Changes to {email} at {time} unless the old address stops it.",
   },
-  "console.ownerEmail.last.confirmed": { ar: "تغيّر إلى {email} في {time}.", en: "Changed to {email} at {time}." },
+  "console.ownerEmail.last.confirmed": {
+    ar: "تغيّر إلى {email} في {time}.",
+    en: "Changed to {email} at {time}.",
+  },
   "console.ownerEmail.last.cancelled": { ar: "أُلغي في {time}.", en: "Cancelled at {time}." },
   "console.ownerEmail.last.stopped": {
     ar: "أوقفه البريد القديم في {time}. اتصل بالجهة.",
@@ -9324,7 +9333,7 @@ export const MESSAGES = {
   "emailChange.title": { ar: "تأكيد بريد الدخول الجديد", en: "Confirm your new sign-in email" },
   "emailChange.intro": {
     ar: "طلب دعم كويستفاي تغيير بريد الدخول لحساب «{organizer}» إلى {email}.",
-    en: "Questify support asked to change the sign-in email of the \"{organizer}\" account to {email}.",
+    en: 'Questify support asked to change the sign-in email of the "{organizer}" account to {email}.',
   },
   "emailChange.code": { ar: "الرمز المرسل إلى بريدك", en: "Code from the email" },
   "emailChange.password": { ar: "كلمة المرور الحالية", en: "Current password" },
