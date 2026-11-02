@@ -58,6 +58,34 @@ function LockMark({ language, level }: Readonly<{ language: Language; level: num
   );
 }
 
+/** What a save does, from the preview: about how many go up (and the gems), and how many go down. */
+function PreviewLines({
+  language,
+  preview,
+}: Readonly<{ language: Language; preview: XpTablePreview | null }>) {
+  const t = translatorFor(language);
+  if (preview === null) {
+    return <p>{t("console.catalog.lower.undo")}</p>;
+  }
+  return (
+    <>
+      {preview.up > 0 ? (
+        <p data-testid="xp-up">
+          {t("console.catalog.xp.up", {
+            up: formatNumber(preview.up, language),
+            gems: formatNumber(preview.gems, language),
+          })}
+        </p>
+      ) : null}
+      {preview.down > 0 ? (
+        <p data-testid="xp-down">
+          {t("console.catalog.xp.down", { down: formatNumber(preview.down, language) })}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 /**
  * The one confirmation of a save (ADR-440): about how many players go up and the gems they get at their next sync, about
  * how many go down and keep what they earned, then the save with the confirmation. The numbers are the preview's, so the
@@ -82,20 +110,7 @@ function SaveConfirm({
     <Notice tone="warning" as="div" role="alert">
       <Stack>
         <strong>{t("console.catalog.xp.confirm")}</strong>
-        {preview !== null && preview.up > 0 ? (
-          <p data-testid="xp-up">
-            {t("console.catalog.xp.up", {
-              up: formatNumber(preview.up, language),
-              gems: formatNumber(preview.gems, language),
-            })}
-          </p>
-        ) : null}
-        {preview !== null && preview.down > 0 ? (
-          <p data-testid="xp-down">
-            {t("console.catalog.xp.down", { down: formatNumber(preview.down, language) })}
-          </p>
-        ) : null}
-        {preview === null ? <p>{t("console.catalog.lower.undo")}</p> : null}
+        <PreviewLines language={language} preview={preview} />
         <Toolbar>
           <Button variant="quiet" disabled={busy} onClick={onCancel}>
             {t("common.cancel")}

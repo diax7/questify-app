@@ -181,9 +181,7 @@ function ItemCard({
       <p className={styles.facts} data-testid="item-facts">
         <Icon name={KIND_ICON[item.kind]} /> {t(`console.catalog.shop.kind.${item.kind}`)} ·{" "}
         <span dir="ltr">{item.visualKey ?? t("console.catalog.items.noArt")}</span>
-        {item.locked.art === null ? null : (
-          <> · {t(ART_LOCK[item.locked.art])}</>
-        )}
+        {item.locked.art === null ? null : <> · {t(ART_LOCK[item.locked.art])}</>}
       </p>
     </li>
   );

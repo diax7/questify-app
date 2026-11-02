@@ -513,6 +513,15 @@ quest's type (QR version, typed code), and the cap, and writes the completion an
   (1–99999, CHECKed on write; server-only, never in the public config; read with a fallback of 100).
 - No grant on any of them; `own_level(completion)` is the detailed owner XP read (the caller's xp, level, range, title
   and the level a completion reached first). The gem ledger (T-404) will have the same shape.
+- Migration 0124 (T-709d, ADR-440): the console edits `xp_level` and `level_item` as one document through
+  `admin_xp_table_save` only (row locks: level 1 first, then each level, the changed rewards and the new items, one row per
+  statement within one 1 s lock budget, CA503 when it runs out; no table lock, no player row). Index
+  `level_reached_level_idx (level)` serves its "anyone reached it" probes. `levels_reach(who, made, total)` is the only
+  inserter into `level_reached`: it takes FOR KEY SHARE on each level it writes, in level order, so a reach and a save
+  never interleave. `player_xp.level` is a cache: `xp_apply` sets it at the player's next XP, `questify_sync`'s
+  `xp_catch_up` (right after its `player_xp` lock) writes the levels a lowering made due (item and level-up gems once) and
+  corrects it; `own_level`, `own_equipment` and `console_player_record` derive the level from XP, while
+  `public_player_profile` and `xp_board_row` show the stored level until the player's next sync (Q-399).
 
 ### Questify cosmetics (T-402, migration 0063 undeployed; core GO95, final integration gate pending)
 - `item(id text PK, kind character|frame|title, name_ar, name_en, visual_key, created_at)`: global catalog; stable
@@ -864,7 +873,9 @@ ADR-151):
   id)`; `owned_item_guard` freezes the new column too. `item`'s frame key allowlist widens to `frame-01`…`frame-20`.
 - Exclusive sources: `souvenir_catalog_guard` (replaced) refuses an item named by two of `level_item`, `souvenir_rule`,
   `gem_shop_item`, each write taking the item FOR UPDATE first; an item the shop names is frozen (`GS409
-  shop_item_locked`), as an active souvenir's.
+  shop_item_locked`), as an active souvenir's. Migration 0124 (T-709d, ADR-441): a shop item may change its names, its
+  art stays frozen (GS409 on `visual_key` only); the console's items doors (`admin_items`, `admin_item_save`,
+  `admin_item_create`) never list or edit a souvenir (named by a rule or `souvenir-` id, CA404).
 - Amounts: `gem_amounts()` reads `platform_setting` key `gems` `{levelUp, bronze, silver, gold}`, each field only when an
   integer 1–1000, else 20/10/25/50 (no row is written by 0067; T-709 adds it with its CHECK). Migration 0122 (T-709c):
   `platform_setting_gems_check` (all four present, each a JSON whole number 1–1000) and `platform_setting_xp_daily_check`

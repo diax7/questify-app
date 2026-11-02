@@ -35,27 +35,43 @@ export type XpLevel = z.infer<typeof levelRow>;
 
 type Issue = Readonly<{ path: (string | number)[]; message: string }>;
 
-/** What is wrong with one level of a table: its place, its start against the level before, its item. */
-function levelIssues(row: XpLevel, index: number, before: XpLevel | undefined): Issue[] {
-  const issues: Issue[] = [];
-  if (row.level !== index + 1) {
-    issues.push({ path: ["levels", index, "level"], message: "levels must run 1, 2, 3 in order" });
+/** Level 1 starts at 0; every other level starts at 1 or more, above the level before it. */
+function startIssue(row: XpLevel, index: number, before: XpLevel | undefined): Issue[] {
+  if (index === 0) {
+    return row.xpFrom === 0
+      ? []
+      : [{ path: ["levels", 0, "xpFrom"], message: "level 1 starts at 0" }];
   }
-  const startOk =
-    index === 0 ? row.xpFrom === 0 : row.xpFrom >= 1 && row.xpFrom > (before?.xpFrom ?? -1);
-  if (!startOk) {
-    issues.push({
-      path: ["levels", index, "xpFrom"],
-      message: index === 0 ? "level 1 starts at 0" : "each level starts above the level before it",
-    });
+  return row.xpFrom >= 1 && row.xpFrom > (before?.xpFrom ?? -1)
+    ? []
+    : [
+        {
+          path: ["levels", index, "xpFrom"],
+          message: "each level starts above the level before it",
+        },
+      ];
+}
+
+/** Level 1 gives no item; every other level gives one. */
+function itemIssue(row: XpLevel, index: number): Issue[] {
+  if ((index === 0) === (row.itemId === null)) {
+    return [];
   }
-  if ((index === 0) !== (row.itemId === null)) {
-    issues.push({
+  return [
+    {
       path: ["levels", index, "itemId"],
       message: index === 0 ? "level 1 gives no item" : "every level above 1 gives an item",
-    });
-  }
-  return issues;
+    },
+  ];
+}
+
+/** What is wrong with one level of a table: its place, its start against the level before, its item. */
+function levelIssues(row: XpLevel, index: number, before: XpLevel | undefined): Issue[] {
+  const place: Issue[] =
+    row.level === index + 1
+      ? []
+      : [{ path: ["levels", index, "level"], message: "levels must run 1, 2, 3 in order" }];
+  return [...place, ...startIssue(row, index, before), ...itemIssue(row, index)];
 }
 
 /** The whole XP table as a save sends it, an audit entry holds it and a revert puts it back. */
