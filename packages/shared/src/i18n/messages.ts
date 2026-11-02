@@ -8198,8 +8198,8 @@ export const MESSAGES = {
     en: "Screens paired: {count}",
   },
   "readiness.line.devices.none": {
-    ar: "لا يوجد كشك أو شاشة مقترنة",
-    en: "No kiosk or screen paired",
+    ar: "{questMany} بانتظار جهاز مقترن: {count}",
+    en: "{questCap} waiting for a paired device: {count}",
   },
   "readiness.line.devices.paired": {
     ar: "الأجهزة المقترنة: {count}",

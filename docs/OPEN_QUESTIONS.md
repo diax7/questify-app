@@ -1786,7 +1786,7 @@ and should operators be able to acknowledge it? **Decided (developer, delegated 
 
 ## Q-370 - T-618 go-live readiness checklist: what is decided without Dhia (2026-11-02)
 
-**Status:** Proposed (developer, ADR-403).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-618 review 82, its three MAJORs fixed).
 **Recommended (developer):** (a) "blocks nothing" means the checklist never stops an activation request or an activation; an item can still read Needed (blocking) when players could not use the event;
 (b) the console lists events starting within 14 days (and ones whose start passed without going live), at most 100; (c) the owner sees the card only while the event is a draft or scheduled, and at the end
 of the guided setup; (d) "quest QR codes printed" is not an item because nothing records printing. Questions for Dhia: should the console be able to email the owner a reminder from this list, should the

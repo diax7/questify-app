@@ -11,8 +11,9 @@ import type { IconName } from "#src/ui/Icon.tsx";
 
 /**
  * Where each item of the go-live checklist is fixed, after the event's own address: "" is the Overview (the hash lands on
- * the card there that holds it), the rest are the event's pages. Quests, rewards and the prize desk place are set in the
- * builders, the official rules and the join method on the Joining page.
+ * the card there that holds it), the rest are the event's pages. Quests are set in the builder, rewards and the prize
+ * desk place on the Rewards page, the official rules on the Prizes and rules page (`PrizesPanel`) and the join method on
+ * the Joining page.
  */
 export const READINESS_PAGES: Readonly<Record<ReadinessKey, string>> = {
   dates: "",
@@ -22,7 +23,7 @@ export const READINESS_PAGES: Readonly<Record<ReadinessKey, string>> = {
   desk: "/rewards",
   operators: "/operators",
   join: "/joining",
-  rules: "/joining",
+  rules: "/prizes",
   bigScreen: "/big-screen",
   devices: "/devices",
   rehearsal: "#rehearsal-title",

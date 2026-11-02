@@ -87,24 +87,28 @@ export const readinessFactsSchema = z.strictObject({
   quests: z.strictObject({
     /** Every quest not removed. */
     total: count,
-    /** Published, not paused, not skipped, not closed. */
+    /** Published, not paused, not skipped, already open, not closed. */
     playable: count,
     /** Playable quests whose one proof is the player's My QR, scanned by an operator. */
-    stationOnly: count,
-    /** Playable quests only a paired kiosk or big screen can finish. */
+    operatorOnly: count,
+    /** Playable quests only a paired kiosk or station (the rotating screen QR) can finish. */
     deviceOnly: count,
+    /** Of those, the ones with no active device of the kind that serves them paired to the quest. */
+    deviceUnserved: count,
   }),
   rewards: z.strictObject({
     active: count,
-    /** Active rewards with stock left and inside their window. */
+    /** Active rewards with stock left and inside their window (open and not closed). */
     inStock: count,
     items: count,
     experiences: count,
   }),
+  /** The shop is on: neither the event nor the platform has switched it off. Off, no reward or desk is needed. */
+  shop: z.boolean(),
   desk: z.strictObject({ place: z.boolean() }),
   operators: count,
-  /** Paired devices that are not revoked. */
-  devices: z.strictObject({ stations: count, kiosks: count, screens: count }),
+  /** Paired devices that are not revoked, by kind: a station shows a quest's rotating QR, a big screen serves no quest. */
+  devices: z.strictObject({ stations: count, kiosks: count, bigScreens: count }),
   join: z.strictObject({
     access: z.enum(["public", "unlisted", "private"]),
     guestListOnly: z.boolean(),
@@ -212,7 +216,10 @@ const checkQuests: Check = ({ quests: found }) => {
   return item("quests.ready", "done", found.playable);
 };
 
-const checkRewards: Check = ({ rewards: found }) => {
+const checkRewards: Check = ({ rewards: found, shop }) => {
+  if (!shop) {
+    return undefined;
+  }
   if (found.active === 0) {
     return item("rewards.none", "warning");
   }
@@ -223,8 +230,8 @@ const checkRewards: Check = ({ rewards: found }) => {
 };
 
 /** The prize desk: only an event with an item or experience reward needs one, and an item reward cannot do without. */
-const checkDesk: Check = ({ rewards: found, desk: chosen }) => {
-  if (found.items + found.experiences === 0) {
+const checkDesk: Check = ({ rewards: found, desk: chosen, shop }) => {
+  if (!shop || found.items + found.experiences === 0) {
     return undefined;
   }
   if (chosen.place) {
@@ -239,8 +246,10 @@ const checkOperators: Check = ({
   quests: found,
   devices,
   rewards: prizes,
+  shop,
 }) => {
-  const needed = found.stationOnly + devices.stations + prizes.items + prizes.experiences > 0;
+  const handOvers = shop ? prizes.items + prizes.experiences : 0;
+  const needed = found.operatorOnly + devices.stations + handOvers > 0;
   if (!needed) {
     return undefined;
   }
@@ -250,7 +259,7 @@ const checkOperators: Check = ({
   if (assigned === 1) {
     return item("operators.one", "warning", 1);
   }
-  return item("operators.none", found.stationOnly > 0 ? "blocking" : "warning");
+  return item("operators.none", found.operatorOnly > 0 ? "blocking" : "warning");
 };
 
 const checkJoin: Check = ({ join: how }) => {
@@ -269,19 +278,19 @@ const checkBigScreen: Check = ({ bigScreen: on, devices }) => {
   if (!on) {
     return undefined;
   }
-  return devices.screens > 0
-    ? item("bigScreen.paired", "done", devices.screens)
+  return devices.bigScreens > 0
+    ? item("bigScreen.paired", "done", devices.bigScreens)
     : item("bigScreen.unpaired", "warning");
 };
 
+/** Devices: needed only for quests a kiosk or a station finishes; each needs a device of its kind paired to it. */
 const checkDevices: Check = ({ quests: found, devices: paired }) => {
   if (found.deviceOnly === 0) {
     return undefined;
   }
-  const reachable = paired.kiosks + paired.screens;
-  return reachable > 0
-    ? item("devices.paired", "done", reachable)
-    : item("devices.none", "warning");
+  return found.deviceUnserved === 0
+    ? item("devices.paired", "done", paired.kiosks + paired.stations)
+    : item("devices.none", "warning", found.deviceUnserved);
 };
 
 /** A rehearsal can only be run before go-live, so after it a missing one is not listed. */

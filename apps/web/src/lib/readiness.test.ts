@@ -23,6 +23,7 @@ describe("the checklist's links", () => {
     expect(readinessHref(base, "quests")).toBe(`${base}/quests`);
     expect(readinessHref(base, "rehearsal")).toBe(`${base}#rehearsal-title`);
     expect(readinessHref(base, "dates")).toBe(base);
+    expect(readinessHref(base, "rules")).toBe(`${base}/prizes`);
   });
 });
 

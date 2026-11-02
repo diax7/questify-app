@@ -50,12 +50,17 @@ export function ReadinessCounts({
   );
 }
 
-/** One item: its mark, its title and what it reads now. */
+/**
+ * One item: its mark, its title and what it reads now. The status word is read aloud only, unless `showStatus` puts it
+ * beside the title (the console's cards have no other place that says it).
+ */
 export function ReadinessText({
   language,
   item,
-}: Readonly<{ language: Language; item: ReadinessItem }>) {
+  showStatus = false,
+}: Readonly<{ language: Language; item: ReadinessItem; showStatus?: boolean }>) {
   const t = useTranslator(language);
+  const status = t(`readiness.status.${item.status}`);
   return (
     <div
       className={styles.item}
@@ -65,8 +70,17 @@ export function ReadinessText({
     >
       <StatusMark status={item.status} />
       <div className={styles.text}>
-        <ScreenReaderOnly>{t(`readiness.status.${item.status}`)}</ScreenReaderOnly>
-        <strong>{itemTitle(t, item)}</strong>
+        {showStatus ? (
+          <span className={styles.head}>
+            <strong>{itemTitle(t, item)}</strong>
+            <Badge tone={TONE[item.status]}>{status}</Badge>
+          </span>
+        ) : (
+          <>
+            <ScreenReaderOnly>{status}</ScreenReaderOnly>
+            <strong>{itemTitle(t, item)}</strong>
+          </>
+        )}
         <span>{itemLine(t, item, language)}</span>
       </div>
     </div>

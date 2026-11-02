@@ -7,7 +7,7 @@ import { useTranslator } from "#src/components/TermsScope.tsx";
 import { byUrgency } from "#src/lib/readiness.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { Button } from "#src/ui/Button.tsx";
-import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
 import { Section } from "#src/ui/Section.tsx";
 
 type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
@@ -42,11 +42,14 @@ function useReadiness(organizerId: string, eventId: string) {
  * The go-live checklist on the event's Overview and at the end of the guided setup (T-618, FR-1845): how many items are
  * ready, to check and needed, and every item with what it reads and a link to the page that fixes it, the ones that
  * need attention first. It only reads: nothing here changes the event, blocks a request for activation or activates.
- * Hidden once the event is live, ended or archived.
+ * Hidden until the read answers, and once the event is live, ended or archived.
  */
 export function ReadinessCard({ language, organizerId, eventId }: Props) {
   const t = useTranslator(language);
   const { readiness, failed, read } = useReadiness(organizerId, eventId);
+  if (readiness === undefined && !failed) {
+    return null;
+  }
   if (readiness !== undefined && !BEFORE_GO_LIVE.has(readiness.status)) {
     return null;
   }
@@ -60,7 +63,6 @@ export function ReadinessCard({ language, organizerId, eventId }: Props) {
           </Button>
         </Notice>
       ) : null}
-      {readiness === undefined && !failed ? <Muted>{t("common.loading")}</Muted> : null}
       {readiness === undefined ? null : (
         <>
           <ReadinessCounts language={language} counts={readiness.counts} />

@@ -14,6 +14,14 @@
   overflow-wrap: anywhere;
 }
 
+/* An item's title with its status word beside it (the console's cards). */
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .mark {
   display: inline-flex;
   margin-block-start: 2px;

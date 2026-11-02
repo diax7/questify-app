@@ -7,11 +7,18 @@ type Facts = {
   status: string;
   dates: string;
   activation: string;
-  quests: { total: number; playable: number; stationOnly: number; deviceOnly: number };
+  quests: {
+    total: number;
+    playable: number;
+    operatorOnly: number;
+    deviceOnly: number;
+    deviceUnserved: number;
+  };
   rewards: { active: number; inStock: number; items: number; experiences: number };
+  shop: boolean;
   desk: { place: boolean };
   operators: number;
-  devices: { stations: number; kiosks: number; screens: number };
+  devices: { stations: number; kiosks: number; bigScreens: number };
   join: { access: string; guestListOnly: boolean; guests: number };
   rules: boolean;
   bigScreen: boolean;
@@ -63,21 +70,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event readiness (database)", (
     )[0]?.organizer_id ?? "";
   type QuestOptions = Readonly<{
     visible?: boolean;
+    type?: string;
     verification?: string[];
     pausedAt?: boolean;
     skippedAt?: boolean;
     closed?: boolean;
+    opensLater?: boolean;
     deleted?: boolean;
   }>;
   const quest = async (ev: string, options: QuestOptions = {}): Promise<string> => {
     const [row] = await f.owner<{ id: string }>(
       `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, visible, verification,
-                          paused_at, paused_by, skipped_at, skipped_by, closes_at, deleted_at, deleted_by)
-       SELECT $1, id, 'scan_qr', 'Quest', 10, 1, $2, $3::text[],
+                          paused_at, paused_by, skipped_at, skipped_by, closes_at, deleted_at, deleted_by,
+                          opens_at)
+       SELECT $1, id, $10, 'Quest', 10, 1, $2, $3::text[],
               CASE WHEN $4 THEN now() END, CASE WHEN $4 THEN $8::uuid END,
               CASE WHEN $5 THEN now() END, CASE WHEN $5 THEN $8::uuid END,
               CASE WHEN $6 THEN now() - interval '1 hour' END,
-              CASE WHEN $7 THEN now() END, CASE WHEN $7 THEN $8::uuid END
+              CASE WHEN $7 THEN now() END, CASE WHEN $7 THEN $8::uuid END,
+              CASE WHEN $9 THEN now() + interval '1 hour' END
        FROM category WHERE event_id = $1 LIMIT 1 RETURNING id`,
       [
         ev,
@@ -88,6 +99,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event readiness (database)", (
         options.closed ?? false,
         options.deleted ?? false,
         f.ownerA,
+        options.opensLater ?? false,
+        options.type ?? "scan_qr",
       ],
     );
     return row?.id ?? "";
@@ -95,12 +108,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event readiness (database)", (
   const reward = async (
     ev: string,
     kind: string,
-    options: Readonly<{ stock?: number; out?: number; status?: string; closed?: boolean }> = {},
+    options: Readonly<{
+      stock?: number;
+      out?: number;
+      status?: string;
+      closed?: boolean;
+      opensLater?: boolean;
+    }> = {},
   ) =>
     f.owner(
-      `INSERT INTO reward (organizer_id, event_id, kind, name_en, price, stock_total, units_out, status, closes_at)
+      `INSERT INTO reward (organizer_id, event_id, kind, name_en, price, stock_total, units_out, status, closes_at,
+                           opens_at)
        VALUES ($1, $2, $3, 'Prize', 10, $4, $5, $6,
-               CASE WHEN $7 THEN now() - interval '1 hour' END)`,
+               CASE WHEN $7 THEN now() - interval '1 hour' END,
+               CASE WHEN $8 THEN now() + interval '1 hour' END)`,
       [
         await organizerOf(ev),
         ev,
@@ -109,10 +130,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event readiness (database)", (
         options.out ?? 0,
         options.status ?? "active",
         options.closed ?? false,
+        options.opensLater ?? false,
       ],
     );
-  const device = async (ev: string, kind: string, status = "active") => {
-    const questId = kind === "screen" ? null : await quest(ev);
+  /** A paired device; a station or kiosk is bound to `boundTo`, or to a new quest no device serves. */
+  const device = async (ev: string, kind: string, status = "active", boundTo?: string) => {
+    const questId = kind === "screen" ? null : (boundTo ?? (await quest(ev)));
     return f.owner(
       `INSERT INTO paired_device (organizer_id, event_id, kind, quest_id, label, secret_hash, status,
                                  paired_by_staff, revoked_at)
@@ -128,11 +151,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event readiness (database)", (
       status: "scheduled",
       dates: "set",
       activation: "none",
-      quests: { total: 0, playable: 0, stationOnly: 0, deviceOnly: 0 },
+      quests: { total: 0, playable: 0, operatorOnly: 0, deviceOnly: 0, deviceUnserved: 0 },
       rewards: { active: 0, inStock: 0, items: 0, experiences: 0 },
+      shop: true,
       desk: { place: false },
       operators: 0,
-      devices: { stations: 0, kiosks: 0, screens: 0 },
+      devices: { stations: 0, kiosks: 0, bigScreens: 0 },
       join: { access: "public", guestListOnly: false, guests: 0 },
       rules: false,
       bigScreen: false,
@@ -189,12 +213,60 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event readiness (database)", (
     await quest(ev, { skippedAt: true });
     await quest(ev, { closed: true });
     await quest(ev, { deleted: true });
+    await quest(ev, { opensLater: true });
     expect((await facts(ev)).quests).toEqual({
-      total: 9,
+      total: 10,
       playable: 5,
-      stationOnly: 1,
+      operatorOnly: 1,
       deviceOnly: 2,
+      deviceUnserved: 2,
     });
+  });
+
+  it("does not count a quest with no scan method, such as a submission, as one only a device can finish", async () => {
+    const ev = await bareEvent();
+    await quest(ev, { type: "submission", verification: [] });
+    await quest(ev, { verification: ["quest_qr"] });
+    expect((await facts(ev)).quests).toEqual({
+      total: 2,
+      playable: 2,
+      operatorOnly: 0,
+      deviceOnly: 0,
+      deviceUnserved: 0,
+    });
+  });
+
+  it("serves a device-only quest by a device of the kind that finishes it, bound to that quest", async () => {
+    const ev = await bareEvent();
+    const kioskQuest = await quest(ev, { verification: ["kiosk"] });
+    const screenQuest = await quest(ev, { verification: ["screen_qr"] });
+    const either = await quest(ev, { verification: ["screen_qr", "kiosk"] });
+    const unserved = async () => (await facts(ev)).quests.deviceUnserved;
+    expect(await unserved()).toBe(3);
+
+    await device(ev, "screen");
+    expect(await unserved()).toBe(3);
+
+    await device(ev, "kiosk", "active", screenQuest);
+    expect(await unserved()).toBe(3);
+
+    await device(ev, "kiosk", "active", kioskQuest);
+    expect(await unserved()).toBe(2);
+
+    await device(ev, "station", "active", screenQuest);
+    expect(await unserved()).toBe(1);
+
+    await device(ev, "station", "revoked", either);
+    expect(await unserved()).toBe(1);
+    await device(ev, "station", "active", either);
+    expect(await unserved()).toBe(0);
+    expect((await facts(ev)).quests.deviceOnly).toBe(3);
+  });
+
+  it("does not count a quest that opens later as playable", async () => {
+    const ev = await bareEvent();
+    await quest(ev, { verification: ["kiosk"], opensLater: true });
+    expect((await facts(ev)).quests).toMatchObject({ total: 1, playable: 0, deviceOnly: 0 });
   });
 
   it("counts active rewards, those in stock inside their window, and item and experience rewards", async () => {
@@ -203,7 +275,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event readiness (database)", (
     await reward(ev, "experience", { stock: 3, out: 3 });
     await reward(ev, "digital", { closed: true });
     await reward(ev, "item", { status: "removed" });
-    expect((await facts(ev)).rewards).toEqual({ active: 3, inStock: 1, items: 1, experiences: 1 });
+    await reward(ev, "item", { opensLater: true });
+    expect((await facts(ev)).rewards).toEqual({ active: 4, inStock: 1, items: 2, experiences: 1 });
+  });
+
+  it("reads the shop as on until the event or the platform switches it off", async () => {
+    const ev = await bareEvent();
+    expect((await facts(ev)).shop).toBe(true);
+    await f.owner(
+      `UPDATE event SET config = jsonb_set(config, '{features}', '{"shop": false}') WHERE id = $1`,
+      [ev],
+    );
+    expect((await facts(ev)).shop).toBe(false);
+    await f.owner(
+      `UPDATE event SET config = jsonb_set(config, '{features}', '{"shop": true}') WHERE id = $1`,
+      [ev],
+    );
+    expect((await facts(ev)).shop).toBe(true);
   });
 
   it("reads a prize desk place in either language", async () => {
@@ -231,7 +319,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event readiness (database)", (
     await device(ev, "screen");
     const found = await facts(ev);
     expect(found.operators).toBe(2);
-    expect(found.devices).toEqual({ stations: 1, kiosks: 1, screens: 1 });
+    expect(found.devices).toEqual({ stations: 1, kiosks: 1, bigScreens: 1 });
   });
 
   it("reads how players join: access, a guest list and its size", async () => {

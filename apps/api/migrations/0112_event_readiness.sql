@@ -15,9 +15,13 @@ SET LOCAL lock_timeout = '10s';
 -- The facts of one event. `activation` is none, pending, rejected or active; `dates` is missing, past or set; the
 -- rehearsal fact is the rehearsal card's own (the first play kept after an erase, or a rehearsal quest entry before
 -- one); a live, ended or archived event cannot rehearse, so the ledger is read only while it can. Playable quests are
--- published, not removed, not paused, not skipped and not closed. The prize desk fact counts the active item and
--- experience rewards (FR-1716); stations are the quests only an operator can finish (their one proof is the player's
--- My QR) and the paired station devices. Device quests are the quests only a kiosk or a big screen can finish.
+-- published, not removed, not paused, not skipped, already open and not closed. Operator-only quests are the playable
+-- ones whose one proof is the player's My QR (an operator scans it). Device-only quests are the playable ones whose
+-- methods are all the kiosk or the screen QR (a quest with no method is not one); `deviceUnserved` counts those that
+-- no active device of the kind that serves them is paired to: a kiosk quest needs a kiosk, a screen QR quest a station
+-- (a big screen serves no quest). The prize desk fact counts the active item and experience rewards (FR-1716), in
+-- stock only once open and not closed; `shop` is whether the shop is on (the event's switch and the platform's), as
+-- `bigScreen` is for the add-on. `devices` counts the paired devices that are not revoked, by kind.
 CREATE FUNCTION readiness_facts(target_event uuid) RETURNS jsonb
   LANGUAGE plpgsql STABLE SET search_path = public, pg_temp AS $$
 DECLARE
@@ -47,28 +51,36 @@ BEGIN
                        ELSE 'none' END,
     'quests', (SELECT jsonb_build_object(
                  'total', count(*),
-                 'playable', count(*) FILTER (WHERE q.visible AND q.paused_at IS NULL AND q.skipped_at IS NULL
-                                                     AND (q.closes_at IS NULL OR q.closes_at > now())),
-                 'stationOnly', count(*) FILTER (WHERE q.visible AND q.paused_at IS NULL AND q.skipped_at IS NULL
-                                                       AND (q.closes_at IS NULL OR q.closes_at > now())
-                                                       AND q.verification = ARRAY['my_qr']),
-                 'deviceOnly', count(*) FILTER (WHERE q.visible AND q.paused_at IS NULL AND q.skipped_at IS NULL
-                                                      AND (q.closes_at IS NULL OR q.closes_at > now())
-                                                      AND q.verification <@ ARRAY['kiosk', 'screen_qr']))
-               FROM quest q WHERE q.event_id = ev.id AND q.deleted_at IS NULL),
+                 'playable', count(*) FILTER (WHERE q.playable),
+                 'operatorOnly', count(*) FILTER (WHERE q.playable AND q.verification = ARRAY['my_qr']),
+                 'deviceOnly', count(*) FILTER (WHERE q.playable AND q.device_only),
+                 'deviceUnserved', count(*) FILTER (WHERE q.playable AND q.device_only AND NOT EXISTS (
+                                     SELECT 1 FROM paired_device d
+                                     WHERE d.quest_id = q.id AND d.status = 'active'
+                                       AND ((d.kind = 'kiosk' AND 'kiosk' = ANY (q.verification))
+                                         OR (d.kind = 'station' AND 'screen_qr' = ANY (q.verification))))))
+               FROM (SELECT x.id, x.verification,
+                            x.visible AND x.paused_at IS NULL AND x.skipped_at IS NULL
+                              AND (x.opens_at IS NULL OR x.opens_at <= now())
+                              AND (x.closes_at IS NULL OR x.closes_at > now()) AS playable,
+                            cardinality(x.verification) > 0
+                              AND x.verification <@ ARRAY['kiosk', 'screen_qr'] AS device_only
+                     FROM quest x WHERE x.event_id = ev.id AND x.deleted_at IS NULL) q),
     'rewards', (SELECT jsonb_build_object(
                   'active', count(*),
                   'inStock', count(*) FILTER (WHERE w.stock_total > w.units_out
+                                                    AND (w.opens_at IS NULL OR w.opens_at <= now())
                                                     AND (w.closes_at IS NULL OR w.closes_at > now())),
                   'items', count(*) FILTER (WHERE w.kind = 'item'),
                   'experiences', count(*) FILTER (WHERE w.kind = 'experience'))
                 FROM reward w WHERE w.event_id = ev.id AND w.status = 'active'),
+    'shop', feature_enabled(ev, 'shop'),
     'desk', jsonb_build_object('place', ev.desk_location_ar IS NOT NULL OR ev.desk_location_en IS NOT NULL),
     'operators', (SELECT count(*) FROM staff_assignment o WHERE o.event_id = ev.id),
     'devices', (SELECT jsonb_build_object(
                   'stations', count(*) FILTER (WHERE d.kind = 'station'),
                   'kiosks', count(*) FILTER (WHERE d.kind = 'kiosk'),
-                  'screens', count(*) FILTER (WHERE d.kind = 'screen'))
+                  'bigScreens', count(*) FILTER (WHERE d.kind = 'screen'))
                 FROM paired_device d WHERE d.event_id = ev.id AND d.status = 'active'),
     'join', jsonb_build_object(
               'access', ev.access,

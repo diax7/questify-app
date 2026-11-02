@@ -15,11 +15,12 @@ const READY: ReadinessFacts = {
   status: "draft",
   dates: "set",
   activation: "active",
-  quests: { total: 4, playable: 3, stationOnly: 0, deviceOnly: 0 },
+  quests: { total: 4, playable: 3, operatorOnly: 0, deviceOnly: 0, deviceUnserved: 0 },
   rewards: { active: 2, inStock: 2, items: 0, experiences: 0 },
+  shop: true,
   desk: { place: false },
   operators: 0,
-  devices: { stations: 0, kiosks: 0, screens: 0 },
+  devices: { stations: 0, kiosks: 0, bigScreens: 0 },
   join: { access: "public", guestListOnly: false, guests: 0 },
   rules: true,
   bigScreen: false,
@@ -51,11 +52,11 @@ describe("the readiness checklist", () => {
   it("lists the items in the order of READINESS_KEYS and every line under its own item", () => {
     const everything: ReadinessFacts = {
       ...READY,
-      quests: { total: 4, playable: 3, stationOnly: 1, deviceOnly: 1 },
+      quests: { total: 4, playable: 3, operatorOnly: 1, deviceOnly: 1, deviceUnserved: 0 },
       rewards: { active: 2, inStock: 2, items: 1, experiences: 0 },
       desk: { place: true },
       operators: 2,
-      devices: { stations: 1, kiosks: 1, screens: 1 },
+      devices: { stations: 1, kiosks: 1, bigScreens: 1 },
       bigScreen: true,
     };
     const { items } = evaluateReadiness(everything);
@@ -144,7 +145,7 @@ describe("the readiness checklist", () => {
 
   it("asks for operators only where one would work: a station quest or device, or a prize to hand over", () => {
     expect(lineOf(READY, "operators")).toBeUndefined();
-    const station = { ...READY, quests: { ...READY.quests, stationOnly: 1 } };
+    const station = { ...READY, quests: { ...READY.quests, operatorOnly: 1 } };
     expect(lineOf(station, "operators")).toMatchObject({
       line: "operators.none",
       status: "blocking",
@@ -159,7 +160,7 @@ describe("the readiness checklist", () => {
       status: "done",
       count: 2,
     });
-    const device = { ...READY, devices: { stations: 1, kiosks: 0, screens: 0 } };
+    const device = { ...READY, devices: { stations: 1, kiosks: 0, bigScreens: 0 } };
     expect(lineOf(device, "operators")).toMatchObject({
       line: "operators.none",
       status: "warning",
@@ -207,25 +208,59 @@ describe("the readiness checklist", () => {
     expect(lineOf({ ...READY, bigScreen: true }, "bigScreen")?.line).toBe("bigScreen.unpaired");
     expect(
       lineOf(
-        { ...READY, bigScreen: true, devices: { stations: 0, kiosks: 0, screens: 2 } },
+        { ...READY, bigScreen: true, devices: { stations: 0, kiosks: 0, bigScreens: 2 } },
         "bigScreen",
       ),
     ).toMatchObject({ line: "bigScreen.paired", status: "done", count: 2 });
   });
 
-  it("asks for a kiosk or screen only when a quest cannot be finished without one", () => {
+  it("asks for a device only when a quest cannot be finished without one, and clears it when each has its own", () => {
     expect(lineOf(READY, "devices")).toBeUndefined();
-    const needs = { ...READY, quests: { ...READY.quests, deviceOnly: 2 } };
-    expect(lineOf(needs, "devices")).toMatchObject({ line: "devices.none", status: "warning" });
-    expect(
-      lineOf({ ...needs, devices: { stations: 0, kiosks: 1, screens: 1 } }, "devices"),
-    ).toMatchObject({
-      line: "devices.paired",
+    const needs = {
+      ...READY,
+      quests: { ...READY.quests, deviceOnly: 2, deviceUnserved: 2 },
+      devices: { stations: 0, kiosks: 0, bigScreens: 1 },
+    };
+    expect(lineOf(needs, "devices")).toMatchObject({
+      line: "devices.none",
+      status: "warning",
       count: 2,
     });
     expect(
-      lineOf({ ...needs, devices: { stations: 3, kiosks: 0, screens: 0 } }, "devices")?.line,
-    ).toBe("devices.none");
+      lineOf(
+        {
+          ...needs,
+          quests: { ...needs.quests, deviceUnserved: 1 },
+          devices: { stations: 1, kiosks: 0, bigScreens: 1 },
+        },
+        "devices",
+      ),
+    ).toMatchObject({ line: "devices.none", count: 1 });
+    expect(
+      lineOf(
+        {
+          ...needs,
+          quests: { ...needs.quests, deviceUnserved: 0 },
+          devices: { stations: 1, kiosks: 1, bigScreens: 1 },
+        },
+        "devices",
+      ),
+    ).toMatchObject({ line: "devices.paired", status: "done", count: 2 });
+  });
+
+  it("leaves the shop's items out while the shop is off, and its prizes ask for no operator", () => {
+    const prizes = {
+      ...READY,
+      rewards: { active: 2, inStock: 0, items: 1, experiences: 1 },
+    };
+    expect(lineOf(prizes, "rewards")?.line).toBe("rewards.soldOut");
+    expect(lineOf(prizes, "desk")?.line).toBe("desk.missing");
+    expect(lineOf(prizes, "operators")?.line).toBe("operators.none");
+    const closed = { ...prizes, shop: false };
+    expect(lineOf(closed, "rewards")).toBeUndefined();
+    expect(lineOf(closed, "desk")).toBeUndefined();
+    expect(lineOf(closed, "operators")).toBeUndefined();
+    expect(evaluateReadiness(closed).items.map((entry) => entry.key)).not.toContain("desk");
   });
 
   it("reads the guided setup as finished, partly decided or not started, never worse than a warning", () => {

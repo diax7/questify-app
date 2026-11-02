@@ -51,7 +51,7 @@ function EventCard({
         <ul className={styles.open}>
           {open.map((item) => (
             <li key={item.key}>
-              <ReadinessText language={language} item={item} />
+              <ReadinessText language={language} item={item} showStatus />
             </li>
           ))}
         </ul>

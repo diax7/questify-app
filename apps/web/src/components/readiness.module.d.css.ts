@@ -4,6 +4,7 @@ declare const styles: {
   readonly count: string;
   readonly counts: string;
   readonly done: string;
+  readonly head: string;
   readonly item: string;
   readonly mark: string;
   readonly open: string;
