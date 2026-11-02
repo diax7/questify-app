@@ -854,33 +854,33 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/organizers/:organizerId/legal/accept":
     "owner of that organizer only (owner route, walked below); records the organizer documents at the versions in force for that organizer, audited; open while the team's writes are held (test/console/legal, test/db/legal-help)",
   "GET /v1/admin/catalog/templates":
-    "active platform admins only (walked below); read only; every event template, switched-off ones too, with its stored body; the admin checked again in admin_templates (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog)",
+    "active platform admins only (walked below); read only; every event template, switched-off ones too, with its stored body; the admin checked again in admin_templates (QE403); 240 a minute per admin (test/console/catalog, test/db/console-catalog)",
   "PUT /v1/admin/catalog/templates/:id":
     "active platform admins only (walked below); one template row only (events started earlier keep what they got); the body is checked by the shared template schema here and the text again in admin_template_save (QE403, CA400); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog)",
   "POST /v1/admin/catalog/templates/:id/revert":
     "active platform admins only (walked below); puts back the before of the template's latest catalog audit entry through admin_template_save and the same checks, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog)",
   "GET /v1/admin/catalog/achievements":
-    "active platform admins only (walked below); read only; the five achievements with thresholds and names; the admin checked again in admin_achievements (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog)",
+    "active platform admins only (walked below); read only; the five achievements with thresholds and names; the admin checked again in admin_achievements (QE403); 240 a minute per admin (test/console/catalog, test/db/console-catalog)",
   "PUT /v1/admin/catalog/achievements/:id":
     "active platform admins only (walked below); one achievement's name and rising thresholds; a lowering pays gems at the next sync and is refused (409 confirmation_required, the gems named) unless confirmed; admin_achievement_save checks the admin again (QE403, CA400, CA404, CA428); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
   "POST /v1/admin/catalog/achievements/:id/revert":
     "active platform admins only (walked below); puts back the before of the achievement's latest catalog audit entry through admin_achievement_save (the door re-reads it under the row lock, CA409 when stale; a revert that lowers needs confirmed), never removes an earned tier or a gem; audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
   "GET /v1/admin/catalog/amounts":
-    "active platform admins only (walked below); read only; the XP and gem amounts in force and whether each row is stored; the admin checked again in admin_amounts (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog-xp)",
+    "active platform admins only (walked below); read only; the XP and gem amounts in force and whether each row is stored; the admin checked again in admin_amounts (QE403); 240 a minute per admin (test/console/catalog, test/db/console-catalog-xp)",
   "PUT /v1/admin/catalog/amounts":
     "active platform admins only (walked below); the xp and gems settings as one document, each amount in its range (the shared schema, then admin_amounts_save and the table's CHECKs: QE403, CA400); the generic settings writer cannot write these keys; audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
   "POST /v1/admin/catalog/amounts/revert":
     "active platform admins only (walked below); puts back the amounts before the latest change through admin_amounts_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
   "GET /v1/admin/catalog/xp-table":
-    "active platform admins only (walked below); read only; every level's start and reward item and whether anyone reached it, no player; the admin checked again in admin_xp_table (QE403); 60 a minute per admin (test/console/catalog-xp-table, test/db/console-xp-table)",
+    "active platform admins only (walked below); read only; every level's start and reward item and whether anyone reached it, no player; the admin checked again in admin_xp_table (QE403); 240 a minute per admin (test/console/catalog-xp-table, test/db/console-xp-table)",
   "PUT /v1/admin/catalog/xp-table":
     "active platform admins only (walked below); the whole curve and reward map as one document (the shared schema, then admin_xp_table_save: QE403, CA400, CA409 with the level); row locks within one 1 s budget (503 busy), never a player row; a lowering pays at each player's next sync and is refused (409 confirmation_required, the levels and gems named) unless confirmed; a reached level is never removed or remapped; audited with who, before and after; 120 changes an hour per admin (test/console/catalog-xp-table, test/db/console-xp-table, test/db/console-xp-table-races)",
   "POST /v1/admin/catalog/xp-table/preview":
-    "active platform admins only (walked below); read only and advisory; counts of active players going up or down and the level rewards and gems due, never a name or id; the admin checked again in admin_xp_table_preview (QE403, CA400); 60 a minute per admin, as a read (test/console/catalog-xp-table, test/db/console-xp-table)",
+    "active platform admins only (walked below); read only and advisory; counts of active players going up or down and the level rewards and gems due, never a name or id; the admin checked again in admin_xp_table_preview (QE403, CA400); 240 a minute per admin, as a read (test/console/catalog-xp-table, test/db/console-xp-table)",
   "POST /v1/admin/catalog/xp-table/revert":
     "active platform admins only (walked below); puts back the table before its latest change through admin_xp_table_save and the same checks (CA409 when stale or when it would remove a reached level; confirmed when it lowers), never removes a reached level or an item; audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog-xp-table, test/db/console-xp-table)",
   "GET /v1/admin/catalog/items":
-    "active platform admins only (walked below); read only; Questify's items (level rewards, shop items, unassigned) with source and art lock, never an organizer's souvenir; the admin checked again in admin_items (QE403); 60 a minute per admin (test/console/catalog-xp-table, test/db/console-items)",
+    "active platform admins only (walked below); read only; Questify's items (level rewards, shop items, unassigned) with source and art lock, never an organizer's souvenir; the admin checked again in admin_items (QE403); 240 a minute per admin (test/console/catalog-xp-table, test/db/console-items)",
   "POST /v1/admin/catalog/items":
     "active platform admins only (walked below); a new item with id, kind, names and shipped art, optionally on sale in the same transaction (the shared schema, then admin_item_create: QE403, CA400, CA409 item_exists, the source guard); audited; 120 changes an hour per admin (test/console/catalog-xp-table, test/db/console-items)",
   "PUT /v1/admin/catalog/items/:id":
@@ -888,13 +888,13 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/admin/catalog/items/:id/revert":
     "active platform admins only (walked below); puts back the item's names and art before its latest change through admin_item_save and the same checks; a new item has nothing to revert; idempotency key; 120 an hour per admin (test/console/catalog-xp-table, test/db/console-items)",
   "GET /v1/admin/catalog/level-titles":
-    "active platform admins only (walked below); read only; the level titles; the admin checked again in admin_level_titles (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog)",
+    "active platform admins only (walked below); read only; the level titles; the admin checked again in admin_level_titles (QE403); 240 a minute per admin (test/console/catalog, test/db/console-catalog)",
   "PUT /v1/admin/catalog/level-titles":
     "active platform admins only (walked below); replaces the whole set of level titles (level 1 required, no level twice); admin_level_titles_save checks the admin again (QE403, CA400) and queues writers on the table; audited with the set before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog)",
   "POST /v1/admin/catalog/level-titles/revert":
     "active platform admins only (walked below); puts back the set before the latest catalog change through admin_level_titles_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog)",
   "GET /v1/admin/catalog/gem-shop":
-    "active platform admins only (walked below); read only; the gem shop items with name, price, status and place; the admin checked again in admin_shop_items (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog)",
+    "active platform admins only (walked below); read only; the gem shop items with name, price, status and place; the admin checked again in admin_shop_items (QE403); 240 a minute per admin (test/console/catalog, test/db/console-catalog)",
   "PUT /v1/admin/catalog/gem-shop/:id":
     "active platform admins only (walked below); price, sale status and place of one shop item (what players paid stays in gem_purchase); admin_shop_item_save checks the admin again (QE403, CA404); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog)",
   "POST /v1/admin/catalog/gem-shop/:id/revert":

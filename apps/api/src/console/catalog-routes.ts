@@ -30,10 +30,10 @@ const create = { config: { access: "admin" }, bodyLimit: 4 * 1024 } as const;
 const write = { config: { access: "admin" }, bodyLimit: 128 * 1024 } as const;
 const revert = { config: { access: "admin", idempotent: true }, bodyLimit: 1024 } as const;
 
-/** 60 catalog reads a minute per admin: each tab reads its list once when it opens. */
+/** 240 catalog reads a minute per admin: each tab reads its list when it opens and the XP table previews every edit. */
 export const CONSOLE_CATALOG_LIMIT = {
   bucket: BUCKETS.consoleCatalog,
-  max: 60,
+  max: 240,
   windowSeconds: 60,
 } as const satisfies DeviceLimit;
 /** 120 catalog changes and reverts an hour per admin. */
