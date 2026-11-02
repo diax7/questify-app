@@ -196,9 +196,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operator activity (database)",
        VALUES ($1, $2, $3, $4, 'question', 'Where is the desk', 'closed', 'solved', $5, $6, $7, $8)`,
       [player, await organizerOf(event), event, enrollment, at, randomUUID(), op, randomUUID()],
     );
-  /** A live event with a player to serve. */
+  /**
+   * A live event with a player to serve. Its day starts 12 hours before now (the day-start hour is moved, the time zone
+   * kept), so an entry placed minutes or hours ago is inside today whatever the wall clock reads.
+   */
   const liveEvent = async () => {
     const event = await f.newEvent({ phase: "live" });
+    await f.owner(
+      `UPDATE event SET day_start_hour = (extract(hour FROM now() AT TIME ZONE timezone)::integer + 12) % 24
+       WHERE id = $1`,
+      [event],
+    );
     const player = await f.newPlayer();
     return { event, player, enrollment: await f.join(event, player) };
   };
