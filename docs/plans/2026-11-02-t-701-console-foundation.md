@@ -2,8 +2,8 @@
 
 Delivers FR-1402 (suspend half), FR-1607, FR-1408, FR-1409, FR-1732 (urgency and ordering), the pause/restore part of
 FR-1784, Q-110 and Q-116. Splits out **T-701b** (FR-1784 owner email change and organizer merge; FR-1732's team alert):
-both need a decision from Dhia first (Q-374, Q-375) and each delivers value alone. Depends on T-006, T-210 (done).
-Migration **0114** (staging runs through 0112; 0113 is pushed, undeployed). ADR-404 to ADR-409 and Q-371 to Q-376 Proposed.
+both need a decision from Dhia first (Q-375, Q-376) and each delivers value alone. Depends on T-006, T-210 (done).
+Migration **0114** (staging runs through 0112; 0113 is pushed, undeployed). ADR-405 to ADR-410 and Q-372 to Q-377 Proposed.
 Core (admin powers, tenant isolation, the ledger guard): plan review, build, one code review, mutation on GitHub.
 
 ## 1. What exists and is reused
@@ -29,7 +29,7 @@ Core (admin powers, tenant isolation, the ledger guard): plan review, build, one
 - `organizer.status` already allows `paused` (unused). The ledger already has BEFORE INSERT guards (0026, 0032): a
   suspension guard follows the same pattern.
 
-## 2. Admin role model (ADR-404)
+## 2. Admin role model (ADR-405)
 
 - **Who grants:** only the owner connection. `staff-cli grant-admin <email>` and `revoke-admin <email>` (new commands next to
   `create`), each one transaction: set `platform_role`, audit `staff.platform_role` (system actor, before/after), and on
@@ -65,7 +65,7 @@ Core (admin powers, tenant isolation, the ledger guard): plan review, build, one
 and computer layouts, Arabic and English, RTL, Western digits; confirmation screens per ADR-063 (section 5 rows "Suspend
 an organizer", "Activate, suspend or reject an event", "Open an event as support").
 
-## 4. Suspension (ADR-405)
+## 4. Suspension (ADR-406)
 
 **State:** organizer suspension = `organizer.status = 'paused'` (existing column); event suspension = new
 `event.suspended_at timestamptz` + `suspended_by uuid` (no API write grant on either; definers only). One helper
@@ -95,15 +95,15 @@ Idempotency-Key on the routes; 30 an hour per admin.
   `423 event_suspended` (a route with that `:eventId`) to every non-GET, except ending a support grant. `membershipOf`
   returns the organizer's status in the same query; no extra round trip. Database wall for staff: the ledger guard,
   join and hand-over doors (the ~170 `award_event_of` call sites mix reads and writes, so the general staff write wall is
-  the API hook; recorded in ADR-405 as accepted).
+  the API hook; recorded in ADR-406 as accepted).
 - **Never touched:** time-driven work keeps running in system context (live/ended transitions, reservation expiry and its
   refund entries, erasure): the ledger guard allows a context with no player, staff or device id.
-- **Support during suspension (Q-376):** support writes stay allowed (fix the content, then reactivate), except the ledger.
+- **Support during suspension (Q-377):** support writes stay allowed (fix the content, then reactivate), except the ledger.
 
 **Organizer and player copy:** dashboard banner "This event is paused by Questify. Contact support." with the support
-details, editing disabled; app "This event is unavailable right now." The reason stays internal (Q-371).
+details, editing disabled; app "This event is unavailable right now." The reason stays internal (Q-372).
 
-## 5. Support access: time-boxed, audited, organizer-visible (ADR-406, ADR-407)
+## 5. Support access: time-boxed, audited, organizer-visible (ADR-407, ADR-408)
 
 There is no support-access mechanism today (only audited ticket reads). Instead of an admin bypass, the admin gets a
 **support grant** and then uses the organizer's own dashboard and doors as an editor limited to that one event.
@@ -141,11 +141,11 @@ organizer's view can tell "Questify support" from its own team without trusting 
 `event_questify_log(event, before_id, limit)` (owner/editor within limit) returns every entry of the event with
 `actor_type = 'admin'` or a `support_grant_id`: grants opened, closed and ended (with reason and window), changes made
 under support (action, target, changed field names, never values), ticket reads, activation, limits and suspension. The
-actor is always shown as "Questify support" (Q-373). Dashboard: a "Questify support" card on the Overview and a banner on
+actor is always shown as "Questify support" (Q-374). Dashboard: a "Questify support" card on the Overview and a banner on
 every page of the event while a grant is live ("Questify support has access to this event until 15:40." + **End access**);
 the admin sees the reverse banner ("You are editing as Questify support. The organizer will see this.").
 
-**`content_unpublished` producer (T-609 note, ADR-408):** an AFTER INSERT trigger on stamped support entries whose
+**`content_unpublished` producer (T-609 note, ADR-409):** an AFTER INSERT trigger on stamped support entries whose
 `action` is in an explicit allowlist of "hide from players" actions that exist today (worker lists them from the code:
 quest unpublish/pause, reward retire, announcement withdraw, home block or info section removal) calls
 `alert_enqueue(org, event, 'content_unpublished', 'unpublish:' || id)`. A guard test fails if an allowlisted action name
@@ -160,7 +160,7 @@ page are audited (section 3) and appear in the organizer's Questify log. T-712 (
 `console_tickets` gains `urgent` (the ticket's event is live now, `event_status_now`) and `dueAt` (escalated or created +
 1 h when urgent, + 24 h otherwise); open tickets order urgent first, then by `dueAt`. `console_ticket_counts` gains
 `urgent`; the console menu shows it as a badge. T-705's moderation queue reuses the same rule. The team alert (email to a
-team mailbox) is T-701b (Q-375).
+team mailbox) is T-701b (Q-376).
 
 ## 7. Migration 0114 (deny by default)
 
@@ -214,7 +214,7 @@ partial), TASKS (T-701b line; T-712 note: add a `view` grant kind), STATE.
 
 1. **The `app_organizer_id()` change touches every tenant policy.** Mitigation: branch only after no membership, LIMIT 1,
    scope never NULL, active-admin re-read in the branch, cross-tenant suite plus the new grant tests; perf measured.
-2. **Staff non-ledger writes on a suspended event are stopped by the API hook only.** Accepted (ADR-405): the hook is the
+2. **Staff non-ledger writes on a suspended event are stopped by the API hook only.** Accepted (ADR-406): the hook is the
    single registration point for every organizer route; the money paths have database walls.
 3. **Hidden membership checks** in definers that read `organizer_member` directly fail closed for support (a door support
    cannot use); found by the support e2e run, fixed only where it is an editor door.
@@ -224,25 +224,25 @@ partial), TASKS (T-701b line; T-712 note: add a `view` grant kind), STATE.
 
 ## 11. Decisions and questions (recorded at build: DECISIONS.md, OPEN_QUESTIONS.md)
 
-- **ADR-404** (Proposed): platform admins granted and revoked only from the owner connection (CLI), audited, revoke ends
+- **ADR-405** (Proposed): platform admins granted and revoked only from the owner connection (CLI), audited, revoke ends
   sessions; the admin UPDATE branch on `staff_user` dropped. Console admin management stays T-709.
-- **ADR-405** (Proposed): suspension is an overlay (`organizer.status='paused'`, `event.suspended_at`), never touching
+- **ADR-406** (Proposed): suspension is an overlay (`organizer.status='paused'`, `event.suspended_at`), never touching
   ledger, enrollments or reservations; DB walls on join, ledger, prizes, lists; API walls elsewhere.
-- **ADR-406** (Proposed): support access is a time-boxed grant (15–240 min, default 60, reason required) that makes the
+- **ADR-407** (Proposed): support access is a time-boxed grant (15–240 min, default 60, reason required) that makes the
   admin an editor of one event through the organizer's own doors; no admin bypass of organizer doors.
-- **ADR-407** (Proposed): support entries stamped by the database; the organizer reads every Questify entry of its event.
-- **ADR-408** (Proposed): `content_unpublished` produced from stamped support actions on an explicit allowlist.
-- **ADR-409** (Proposed): T-701b split (owner email change, organizer merge, urgent-report team alert).
-- **Q-371 (product, Dhia):** does the organizer see the suspension reason? Recommended: no; a fixed text and the support
+- **ADR-408** (Proposed): support entries stamped by the database; the organizer reads every Questify entry of its event.
+- **ADR-409** (Proposed): `content_unpublished` produced from stamped support actions on an explicit allowlist.
+- **ADR-410** (Proposed): T-701b split (owner email change, organizer merge, urgent-report team alert).
+- **Q-372 (product, Dhia):** does the organizer see the suspension reason? Recommended: no; a fixed text and the support
   contact; the reason stays in the console.
-- **Q-372 (product, Dhia):** support opens without the organizer's approval (ADR-068's event-day speed), default 60
+- **Q-373 (product, Dhia):** support opens without the organizer's approval (ADR-068's event-day speed), default 60
   minutes, and the owner or an editor can end it. Recommended as stated.
-- **Q-373 (product, Dhia):** the organizer sees "Questify support", not the admin's name. Recommended.
-- **Q-374 (product + technical, Dhia, T-701b):** "merge two organizer accounts" cannot move events: `ledger_entry` and
+- **Q-374 (product, Dhia):** the organizer sees "Questify support", not the admin's name. Recommended.
+- **Q-375 (product + technical, Dhia, T-701b):** "merge two organizer accounts" cannot move events: `ledger_entry` and
   `audit_log` carry `organizer_id` and are append-only. Recommended: merge moves the team and leaves each event under
   its organizer, with the merged organizer closed to new events; or drop merge from v1.
-- **Q-375 (product, Dhia, T-701b):** which mailbox receives urgent-report alerts (and whether WhatsApp is wanted instead).
-- **Q-376 (developer):** support writes stay allowed while an event or organizer is suspended (not the ledger).
+- **Q-376 (product, Dhia, T-701b):** which mailbox receives urgent-report alerts (and whether WhatsApp is wanted instead).
+- **Q-377 (developer):** support writes stay allowed while an event or organizer is suspended (not the ledger).
 - Closed by this task when built: Q-110 (suspension) and Q-116 (console reads audited). Q-117 (times after activation)
   stays open, not in this task. T-615's counsel note (Q-080) needs nothing here: if counsel narrows name display, a
   migration narrows the setting's CHECK; no console override is built.
