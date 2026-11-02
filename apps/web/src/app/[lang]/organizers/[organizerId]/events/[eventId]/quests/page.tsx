@@ -1,3 +1,4 @@
+import { HoldsScope } from "#src/components/HeldNotice.tsx";
 import { QuestBuilder } from "#src/components/QuestBuilder.tsx";
 import { QuestScoresScope } from "#src/components/QuestScoreBadge.tsx";
 import { SponsorBadgesScope } from "#src/components/SponsorBadge.tsx";
@@ -12,7 +13,9 @@ export default async function QuestsPage({ params }: Props) {
   return page.kind === "member" ? (
     <SponsorBadgesScope organizerId={organizerId} eventId={eventId}>
       <QuestScoresScope organizerId={organizerId} eventId={eventId}>
-        <QuestBuilder language={page.language} organizerId={organizerId} eventId={eventId} />
+        <HoldsScope organizerId={organizerId} eventId={eventId}>
+          <QuestBuilder language={page.language} organizerId={organizerId} eventId={eventId} />
+        </HoldsScope>
       </QuestScoresScope>
     </SponsorBadgesScope>
   ) : null;

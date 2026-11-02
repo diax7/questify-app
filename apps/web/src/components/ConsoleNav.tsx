@@ -6,6 +6,7 @@ import {
   ConsoleAdminsLink,
   ConsoleCatalogLink,
   ConsoleContentLink,
+  ConsoleFlagsLink,
   ConsoleHealthLink,
   ConsoleInvitationsLink,
   ConsoleNumbersLink,
@@ -13,6 +14,7 @@ import {
   ConsolePlayersLink,
   ConsoleQuestifyLink,
   ConsoleReadinessLink,
+  ConsoleReportsLink,
   ConsoleSeasonsLink,
   ConsoleTicketsLink,
   ConsoleTranslationsLink,
@@ -35,6 +37,8 @@ export function ConsoleNav({ language }: Readonly<{ language: Language }>) {
       <ConsoleOrganizersLink language={language} current={on("/console/organizers")} />
       <ConsolePlayersLink language={language} current={on("/console/players")} />
       <ConsoleWordListsLink language={language} current={on("/console/word-lists")} />
+      <ConsoleReportsLink language={language} current={on("/console/reports")} />
+      <ConsoleFlagsLink language={language} current={on("/console/flags")} />
       <ConsoleTicketsLink language={language} current={on("/console/tickets")} />
       <ConsoleQuestifyLink language={language} current={on("/console/questify")} />
       <ConsoleContentLink language={language} current={on("/console/content")} />

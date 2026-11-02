@@ -1,4 +1,5 @@
 import { AnnouncementsPanel } from "#src/components/AnnouncementsPanel.tsx";
+import { HoldsScope } from "#src/components/HeldNotice.tsx";
 import { organizerPage } from "#src/lib/organizer-page.ts";
 
 export default async function AnnouncementsPage({
@@ -9,6 +10,8 @@ export default async function AnnouncementsPage({
   const { lang, organizerId, eventId } = await params;
   const page = await organizerPage(lang, organizerId);
   return page.kind === "member" ? (
-    <AnnouncementsPanel language={page.language} organizerId={organizerId} eventId={eventId} />
+    <HoldsScope organizerId={organizerId} eventId={eventId}>
+      <AnnouncementsPanel language={page.language} organizerId={organizerId} eventId={eventId} />
+    </HoldsScope>
   ) : null;
 }

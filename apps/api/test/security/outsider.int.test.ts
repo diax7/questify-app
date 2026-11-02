@@ -293,6 +293,97 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
+  it("keeps reports and moderation closed: nine doors for the API's role alone, two tables shut (T-705b)", async () => {
+    const doors = [
+      "admin_report_resolve",
+      "admin_republish",
+      "admin_unpublish",
+      "console_flags",
+      "console_report",
+      "console_reports",
+      "content_held",
+      "purge_handled_reports",
+      "report_content",
+    ];
+    const internals = [
+      "hold_note",
+      "hold_target",
+      "notice_withdrawn",
+      "quest_hold_guard",
+      "report_caps",
+      "report_event",
+      "report_open_ticket",
+      "report_pair",
+      "report_snapshot",
+      "report_target_seen",
+      "report_ticket_text",
+    ];
+    const listed = [...doors, ...internals].map((name) => `'${name}'`).join(", ");
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+      settings: string[];
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${listed})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(
+      [...doors, ...internals].toSorted(),
+    );
+    for (const row of functions) {
+      const door = doors.includes(row.proname);
+      expect(row.app, row.proname).toBe(door);
+      expect(row.outsider, row.proname).toBe(false);
+      if (door) {
+        expect(row.definer, row.proname).toBe(true);
+        expect(row.settings).toEqual(["search_path=public, pg_temp"]);
+      }
+    }
+    for (const sql of [
+      "SELECT public.report_content('event', gen_random_uuid(), NULL, NULL, 'spam', NULL)",
+      "SELECT public.console_reports(NULL, gen_random_uuid())",
+      "SELECT public.console_report('event', gen_random_uuid(), gen_random_uuid())",
+      "SELECT public.admin_report_resolve('event', gen_random_uuid(), 'dismissed', gen_random_uuid())",
+      "SELECT public.console_flags(gen_random_uuid())",
+      "SELECT * FROM public.admin_unpublish('quest', gen_random_uuid(), 'spam', 'A note long enough', gen_random_uuid())",
+      "SELECT public.admin_republish('quest', gen_random_uuid(), 'A note long enough', gen_random_uuid())",
+      "SELECT public.content_held('quest', gen_random_uuid())",
+      "SELECT public.purge_handled_reports(10)",
+      "SELECT * FROM public.content_report",
+      "SELECT * FROM public.content_hold",
+      "SELECT held_at FROM public.reward",
+      "INSERT INTO public.content_report (target_kind, target_id, snapshot, reason) VALUES ('event', gen_random_uuid(), '{}', 'spam')",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+    expect(
+      await rows(
+        `SELECT table_name, grantee, privilege_type FROM information_schema.role_table_grants
+         WHERE table_name IN ('content_report', 'content_hold') AND grantee <> 'postgres' ORDER BY 1`,
+      ),
+    ).toEqual([{ table_name: "content_hold", grantee: "questify_app", privilege_type: "SELECT" }]);
+    expect(
+      await rows(
+        `SELECT column_name FROM information_schema.column_privileges
+         WHERE table_name = 'reward' AND column_name = 'held_at' AND grantee = 'questify_app'
+           AND privilege_type <> 'SELECT'`,
+      ),
+    ).toEqual([]);
+    const held = await rows<{ proname: string; grantee: string }>(
+      `SELECT DISTINCT p.proname, CASE WHEN a.grantee = 0 THEN 'public' ELSE a.grantee::regrole::text END AS grantee
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+       WHERE n.nspname = 'public' AND a.privilege_type = 'EXECUTE' AND a.grantee <> p.proowner
+         AND p.proname IN (${listed})
+       ORDER BY 1, 2`,
+    );
+    expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
+  });
+
   it("keeps the catalog editors closed: eight doors for the API's role alone, internals for nobody (T-709b)", async () => {
     const doors = [
       "admin_achievement_save",

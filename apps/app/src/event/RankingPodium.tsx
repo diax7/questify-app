@@ -9,6 +9,7 @@ import {
   type PodiumMetrics,
   type ShownRow,
 } from "#src/event/ranking.ts";
+import { useEvent } from "#src/event/EventContext.tsx";
 import { RowName, pressOf, useRowLabel } from "#src/event/RankingRows.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -37,12 +38,13 @@ function Place({
   const { language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   const label = useRowLabel(row);
+  const { eventId } = useEvent();
   return (
     <Pressable
       accessible
       accessibilityRole={row.hidden ? "text" : "button"}
       accessibilityLabel={label}
-      onPress={pressOf(row)}
+      onPress={pressOf(row, eventId)}
       style={styles.place}
     >
       <View style={row.isMe ? [styles.ring, { borderRadius: face }] : styles.noRing}>

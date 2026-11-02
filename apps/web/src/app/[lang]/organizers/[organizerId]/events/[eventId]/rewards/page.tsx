@@ -1,3 +1,4 @@
+import { HoldsScope } from "#src/components/HeldNotice.tsx";
 import { RewardsPanel } from "#src/components/RewardsPanel.tsx";
 import { SponsorBadgesScope } from "#src/components/SponsorBadge.tsx";
 import { organizerPage } from "#src/lib/organizer-page.ts";
@@ -10,12 +11,14 @@ export default async function RewardsPage({ params }: Props) {
   const page = await organizerPage(lang, organizerId);
   return page.kind === "member" ? (
     <SponsorBadgesScope organizerId={organizerId} eventId={eventId}>
-      <RewardsPanel
-        language={page.language}
-        organizerId={organizerId}
-        eventId={eventId}
-        role={page.membership.role}
-      />
+      <HoldsScope organizerId={organizerId} eventId={eventId}>
+        <RewardsPanel
+          language={page.language}
+          organizerId={organizerId}
+          eventId={eventId}
+          role={page.membership.role}
+        />
+      </HoldsScope>
     </SponsorBadgesScope>
   ) : null;
 }

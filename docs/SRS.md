@@ -1241,17 +1241,17 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1401 | F-215 | Must | pending |
 | FR-1402 | F-216 | Must | built (T-210 activation, T-701 suspension) |
 | FR-1403 | F-216 | Must | partly built (T-709b: templates, achievement names, level titles, gem shop; T-709c: achievement thresholds, XP table, items) |
-| FR-1404 | F-216 | Must | pending |
+| FR-1404 | F-216 | Must | partly built (T-705b: the moderation queue and the platform flags list; `test/db/content-reports.int`, `test/console/moderation.int`; campaigns are T-706) |
 | FR-1405 | F-216, F-41 | Must | pending |
 | FR-1406 | F-227 | Must | pending |
 | FR-1407 | F-227 | Must | pending |
 | FR-1408 | F-218 | Must | built (T-701: 15-minute support grant, ADR-407) |
 | FR-1409 | F-218, F-198 | Must | built as amended by Q-373 (T-701: logged in Questify's audit log; the organizer sees "Questify support" where its history shows an actor, not the access itself, ADR-408, ADR-409) |
 | FR-1410 | F-219 | Must | pending |
-| FR-1411 | F-220 | Must | pending |
+| FR-1411 | F-220 | Must | built (T-705b: reports of content and usernames with what was reported kept; a username reported in an event also reaches its team; `test/db/content-reports.int`, `test/console/moderation.int`) |
 | FR-1412 | F-221 | Must | pending |
-| FR-1413 | F-226 | Must | pending |
-| FR-1414 | F-226 | Must | pending |
+| FR-1413 | F-226 | Must | built (T-705b: no automatic filter; reported organizer text goes to Questify's queue; images wait for their upload tasks) |
+| FR-1414 | F-226 | Must | built (T-705b: unpublish and republish a quest, a reward or an announcement, logged on the event as Questify; other text by suspending the event; `test/db/content-reports.int`, `e2e/console-reports.spec`) |
 | FR-1415 | F-222 | Must | built (T-705: block and unblock, masked rankings, results and Questify boards, profile not found, meet refused; `test/db/player-blocks.int`, `test/players/blocks.int`) |
 | FR-1416 | F-223 | Should | built (T-705: console ban and lift with a reason, only two doors write a standing; `test/db/player-safety.int`, `test/console/safety.int`) |
 | FR-1417 | F-223 | Should | built (T-705: the reason and the appeal address after the right code; lift logged) |
@@ -1319,7 +1319,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1724 | F-249 | Should | pending |
 | FR-1725 | F-250 | Must | pending |
 | FR-1726 | F-252 | Must | pending |
-| FR-1727 | F-253 | Should | partly built (T-503 and T-609: the switches, outbox, sender and six of the seven types, quest-item stock included; mail stays OFF per ADR-360; `content_unpublished` waits for T-701): `test/db/organizer-alerts.int`, `test/organizer-alerts/routes.int` |
+| FR-1727 | F-253 | Should | built (T-503, T-609 and T-705b: the switches, outbox, sender and all seven types, quest-item stock included, `content_unpublished` from an unpublish; mail stays OFF per ADR-360): `test/db/organizer-alerts.int`, `test/organizer-alerts/routes.int` |
 | FR-1728 | F-254 | Must | pending |
 | FR-1729 | F-257 | Must | pending |
 | FR-1730 | F-258 | Should | partly built (T-609, ADR-394: the console's Usage page shows events, players, invitations sent and alert emails sent per organizer and per event; login SMS, promotional email, push volume and storage are not metered yet, Q-361): `test/db/usage.int`, `src/usage/routes.test`, `e2e/console-usage.spec` |

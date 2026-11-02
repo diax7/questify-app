@@ -23,6 +23,7 @@ import { fetchRules, type RulesAnswer } from "#src/event/rules-api.ts";
 import { forget } from "#src/event/launch.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
+import { ReportButton } from "#src/questify/ReportButton.tsx";
 
 /** The phone's maps app, searching the venue's words (the venue text is the address; a map position is not stored, Q-365). */
 const mapsLink = (venue: string): string =>
@@ -190,6 +191,7 @@ export default function EventInfoScreen() {
           label={t("help.open")}
           onPress={() => router.push(`/event/${eventId}/help`)}
         />
+        <ReportButton subject={{ kind: "event", targetId: eventId }} />
       </ScrollView>
     </Screen>
   );

@@ -12,14 +12,21 @@ import { useI18n } from "#src/i18n/provider.tsx";
 import { PublicAchievements } from "#src/questify/AchievementsSection.tsx";
 import { BlockButton, BlockedLine } from "#src/questify/BlockButton.tsx";
 import { PublicPassport } from "#src/questify/PassportSection.tsx";
+import { ReportButton } from "#src/questify/ReportButton.tsx";
 import { publicProfileSchema, type PublicProfile } from "#src/questify/profile-api.ts";
 
-/** The public profile itself, and Block for anyone but the reader (FR-1415). */
+/** The public profile itself, and Block and Report for anyone but the reader (FR-1415, FR-1411). */
 function ProfileDetails({
   profile,
   own,
+  eventId,
   onBlock,
-}: Readonly<{ profile: PublicProfile; own: boolean; onBlock: (blocked: boolean) => void }>) {
+}: Readonly<{
+  profile: PublicProfile;
+  own: boolean;
+  eventId: string | undefined;
+  onBlock: (blocked: boolean) => void;
+}>) {
   const { t, language } = useI18n();
   return (
     <>
@@ -46,12 +53,15 @@ function ProfileDetails({
       <PublicAchievements tiers={profile.achievements} />
       <PublicPassport stamps={profile.passport} />
       {own ? null : <BlockButton username={profile.username} onChange={onBlock} />}
+      {own ? null : (
+        <ReportButton subject={{ kind: "username", username: profile.username, eventId }} />
+      )}
     </>
   );
 }
 
 export function PublicProfileScreen() {
-  const { username } = useLocalSearchParams<{ username: string }>();
+  const { username, event } = useLocalSearchParams<{ username: string; event?: string }>();
   const { state } = usePlayer();
   const { t } = useI18n();
   const [result, setResult] = useState<PublicProfile | "loading" | "unavailable" | "failed">(
@@ -119,6 +129,7 @@ export function PublicProfileScreen() {
           <ProfileDetails
             profile={shown}
             own={shown.username.toLowerCase() === state.me?.username.toLowerCase()}
+            eventId={event}
             onBlock={changeBlock}
           />
         )}

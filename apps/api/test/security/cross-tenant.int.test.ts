@@ -659,6 +659,22 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  content_hold: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        forge: (f) => ({
+          sql: "INSERT INTO content_hold (kind, target_id, organizer_id, event_id, reason_code, note, held_by) VALUES ('reward', gen_random_uuid(), $1, $2, 'spam', 'A forged hold note', $3)",
+          values: [f.orgB, f.publicEventB, f.staffA],
+        }),
+        // Read-only for the team (T-705b): only admin_unpublish and admin_republish write a hold.
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
   event_rehearsal: {
     probes: [
       {
@@ -1052,6 +1068,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; holds no player id; written by admin_rename_player, read by the username check inside the definers (test/db/console-players)",
   player_admin_action:
     "no right for the API role at all; Questify-wide, not an organizer's; written and read only by the console's admin doors, deleted by erase_rows (test/db/console-players)",
+  content_report:
+    "no right for the API role at all; Questify's queue, not an organizer's; written by report_content for the calling player and read and closed only by the console's admin doors, purged and erased by definers (test/db/content-reports)",
   player_block:
     "no right for the API role at all; a player's own list, not an organizer's; written and read only by the player-bound doors (block_player, unblock_player, own_blocks) and the masked reads, deleted by erase_rows both ways (test/db/player-blocks)",
   ranking_repair:
@@ -1326,6 +1344,10 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
       await run(
         "INSERT INTO event_limit_alert (event_id, organizer_id, level, players) VALUES ($1, $2, 80, 8)",
         [event, org],
+      );
+      await run(
+        "INSERT INTO content_hold (kind, target_id, organizer_id, event_id, reason_code, note, held_by) VALUES ('reward', gen_random_uuid(), $2, $1, 'spam', 'A seeded hold note', $3)",
+        [event, org, staff],
       );
       rehearsalSeeds += 1;
       await run("INSERT INTO event_rehearsal (event_id, organizer_id, code) VALUES ($1, $2, $3)", [
@@ -1853,6 +1875,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     } finally {
       await db.owner.query("DELETE FROM player_block WHERE blocker_id = $1", [f.playerB]);
     }
+  });
+
+  it("keeps the moderation doors from every tenant seat and reports bound to a player (T-705b)", async () => {
+    const note = "'A note long enough to pass'";
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      for (const sql of [
+        "SELECT console_reports(NULL, gen_random_uuid())",
+        "SELECT console_report('event', $1, gen_random_uuid())",
+        "SELECT admin_report_resolve('event', $1, 'dismissed', gen_random_uuid())",
+        "SELECT console_flags(gen_random_uuid())",
+        `SELECT * FROM admin_unpublish('quest', $1, 'spam', ${note}, gen_random_uuid())`,
+        `SELECT admin_republish('quest', $1, ${note}, gen_random_uuid())`,
+      ]) {
+        const values = sql.includes("$1") ? [f.eventB] : [];
+        expect(await refusal(asA(seat, sql, values)), `${seat} ${sql}`).toBe("QE403");
+      }
+    }
+    for (const seat of ["organizer", "staff"] as const) {
+      expect(
+        await refusal(
+          asA(seat, "SELECT report_content('event', $1, NULL, NULL, 'spam', NULL)", [f.eventA]),
+        ),
+        seat,
+      ).toBe("42501");
+    }
+    expect(
+      await refusal(
+        asA("player", "SELECT report_content('event', $1, NULL, NULL, 'spam', NULL)", [f.eventB]),
+      ),
+    ).toBe("RP404");
   });
 
   it("keeps the catalog editors from every tenant seat (T-709b)", async () => {

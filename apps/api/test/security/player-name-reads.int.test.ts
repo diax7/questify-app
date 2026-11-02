@@ -51,6 +51,13 @@ const PLAYER_NAME_READS: Readonly<Record<string, string>> = {
   console_words: LIST,
   console_retired_usernames: LIST,
   console_player_record: ADMIN,
+  console_report: ADMIN,
+  admin_report_resolve: "report: closes reports with an outcome code, answers no name (T-705b)",
+  report_content:
+    "report: resolves the reported name to an id for the reporter's own report; answers no name (T-705b)",
+  report_snapshot:
+    "report: keeps what was reported for Questify's queue (console_report); no player reads it (T-705b)",
+  report_ticket_text: "report: the team ticket's fixed text, names no one (T-705b)",
   console_player_search: ADMIN,
   console_ticket: ADMIN,
   console_tickets: ADMIN,

@@ -29,6 +29,7 @@ import {
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
+import { ReportButton } from "#src/questify/ReportButton.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 const deviceZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -153,6 +154,7 @@ function SessionCard({
     <View style={styles.card}>
       <SessionDetails session={session} zone={zone} />
       <SessionOffers session={session} {...offers} />
+      <ReportButton subject={{ kind: "session", targetId: session.id }} />
     </View>
   );
 }

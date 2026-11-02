@@ -102,6 +102,9 @@ const NOT_COPIED = new Set([
   "submission",
   "survey_response",
   "ticket",
+  // Questify's moderation of the source event (T-705b): reports about it and its held items stay with it
+  "content_hold",
+  "content_report",
   // secrets, devices and people who act for the event
   "kiosk_scan",
   "nfc_tag",

@@ -130,7 +130,8 @@ export const ANNOUNCEMENT_STATES = ["scheduled", "sent", "cancelled", "skipped"]
 export type AnnouncementState = (typeof ANNOUNCEMENT_STATES)[number];
 
 /** Why a scheduled announcement was not sent (`announcement.skip_reason`). */
-export const ANNOUNCEMENT_SKIP_REASONS = ["event_closed", "not_live", "late"] as const;
+/** `held`: Questify unpublished it before its time (T-705b, migration 0121). */
+export const ANNOUNCEMENT_SKIP_REASONS = ["event_closed", "not_live", "late", "held"] as const;
 export type AnnouncementSkipReason = (typeof ANNOUNCEMENT_SKIP_REASONS)[number];
 
 /** One announcement as the dashboard lists it (`GET …/announcements`). */

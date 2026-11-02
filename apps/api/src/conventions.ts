@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { isBelowMinimum } from "@questify/shared";
-import { eventSuspended, idempotencyKeyInvalid, playerInactive } from "#src/auth/http-errors";
+import {
+  contentHeld,
+  eventSuspended,
+  idempotencyKeyInvalid,
+  playerInactive,
+} from "#src/auth/http-errors";
 import { HttpError } from "#src/http-error";
 import type { IdempotencyStore } from "#src/idempotency-store";
 
@@ -80,11 +85,13 @@ const principal = (request: FastifyRequest): string => request.principalId ?? "a
 /**
  * The database walls no route answered first, one answer on any path: a suspension (migration 0114, ADR-406), and a
  * banned or erased player who can be paid nothing (migration 0120, ADR-430: a scan, an award, an approval, a handover
- * or a desk sale of such a player).
+ * or a desk sale of such a player), and a quest Questify unpublished that its team tries to show again (migration
+ * 0121, ADR-434).
  */
 const WALLS: ReadonlyMap<string | undefined, () => HttpError> = new Map([
   ["ES423", eventSuspended],
   ["PB423", playerInactive],
+  ["HD423", contentHeld],
 ]);
 
 /**

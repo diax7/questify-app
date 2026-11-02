@@ -151,6 +151,7 @@ describe("startLifecycleTick", () => {
       { level: "error", fields: { event: "quiz.sweep_failed", reason: "unknown", code: null } },
       { level: "error", fields: { event: "game.sweep_failed", reason: "unknown", code: null } },
       { level: "error", fields: { event: "ticket.purge_failed", reason: "unknown", code: null } },
+      { level: "error", fields: { event: "report.purge_failed", reason: "unknown", code: null } },
       { level: "error", fields: { event: "event.archive_failed", reason: "unknown", code: null } },
     ]);
     await tick.stop();
@@ -192,9 +193,9 @@ describe("startLifecycleTick", () => {
     await stopping;
     // The lifecycle call, one look each for due rehearsal wipes, reservations, quizzes and game rounds, the ticket
     // sweep and the archive step; nothing after the stop.
-    expect(connects).toBe(7);
+    expect(connects).toBe(8);
     await vi.advanceTimersByTimeAsync(5000);
-    expect(connects).toBe(7);
+    expect(connects).toBe(8);
   });
 
   it("finishes due quizzes one call at a time, up to a batch, and logs only the count", async () => {
@@ -243,6 +244,26 @@ describe("startLifecycleTick", () => {
     await vi.advanceTimersByTimeAsync(2000);
     expect(statements.filter((sql) => sql.includes("purge_ended_tickets(1000)"))).toHaveLength(2);
     expect(logged).toEqual([{ level: "info", fields: { event: "ticket.purged", count: 4 } }]);
+    await tick.stop();
+  });
+
+  it("purges content reports 180 days after handling once a run, and logs only the count (T-705b)", async () => {
+    const { pool, statements, client } = fakePool(() => 0);
+    const answer = client.query.getMockImplementation();
+    const purged = [3, 0];
+    const sweep = async (sql: string) => {
+      if (sql.includes("purge_handled_reports")) {
+        statements.push(sql);
+        return { rows: [{ count: purged.shift() ?? 0 }] };
+      }
+      return answer === undefined ? { rows: [] } : answer(sql);
+    };
+    client.query.mockImplementation(sweep as unknown as NonNullable<typeof answer>);
+    const logged: Logged[] = [];
+    const tick = start(pool, logged);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(statements.filter((sql) => sql.includes("purge_handled_reports(1000)"))).toHaveLength(2);
+    expect(logged).toEqual([{ level: "info", fields: { event: "report.purged", count: 3 } }]);
     await tick.stop();
   });
 
