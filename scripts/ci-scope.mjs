@@ -86,6 +86,10 @@ export const AREAS = [
     /console-?legal|legal-?(documents|pending|api|help)|help-?articles|use-organizer-documents|acceptance-?fields|console\/legal|legal\/(routes|organizer-routes|in-force)/i,
     ["console-legal"],
   ],
+  [
+    /console-?messag|message-?templates?|support-?contact|console\/messages|sms-?parts|\[lang\]\/contact/i,
+    ["console-messaging"],
+  ],
   [/console-?players?|console\/players/i, ["console-players"]],
   [/console-?word-?lists?|console\/word-lists/i, ["console-word-lists"]],
   [

@@ -86,3 +86,26 @@ function blocksOf(lines: readonly string[]): LegalBlock[] {
   closeList();
   return blocks;
 }
+
+/** The placeholders of a legal draft that the support contact fills (T-706); the others wait for counsel (T-807). */
+const CONTACT_PLACEHOLDERS = /\{\{(?:CONTACT_EMAIL|PRIVACY_CONTACT)\}\}/g;
+
+/**
+ * Puts the support email in place of the draft's contact placeholders. Without an email the placeholders stay, so a
+ * reader sees that the detail is not there yet rather than a blank.
+ */
+export function fillContactPlaceholders(
+  blocks: readonly LegalBlock[],
+  email: string | null,
+): LegalBlock[] {
+  if (email === null) {
+    return [...blocks];
+  }
+  const fill = (text: string): string => text.replace(CONTACT_PLACEHOLDERS, email);
+  return blocks.map((block) => {
+    if (block.kind === "list") {
+      return { kind: "list", items: block.items.map(fill) };
+    }
+    return { ...block, text: fill(block.text) };
+  });
+}

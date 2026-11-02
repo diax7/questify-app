@@ -1,9 +1,11 @@
 import {
   helpPublicSchema,
   legalTextSchema,
+  supportContactSchema,
   type HelpPublic,
   type LegalDocumentId,
   type LegalText,
+  type SupportContact,
 } from "@questify/shared";
 
 type Request = Readonly<{ apiOrigin: string; timeoutMs?: number; fetchImpl?: typeof fetch }>;
@@ -27,6 +29,12 @@ export async function fetchLegalText(
   document: LegalDocumentId,
 ): Promise<LegalText | undefined> {
   const parsed = legalTextSchema.safeParse(await read(request, `/v1/legal/${document}`));
+  return parsed.success ? parsed.data : undefined;
+}
+
+/** The support contact details; undefined when the API did not answer, so the page says they are being prepared. */
+export async function fetchSupportContact(request: Request): Promise<SupportContact | undefined> {
+  const parsed = supportContactSchema.safeParse(await read(request, "/v1/support-contact"));
   return parsed.success ? parsed.data : undefined;
 }
 

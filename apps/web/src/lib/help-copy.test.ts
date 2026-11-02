@@ -136,6 +136,7 @@ const INFO_TIPS: readonly string[] = [
   "console.flags.intro",
   "console.invCampaign.channel.hint",
   "console.invCampaign.sendAt.hint",
+  "console.messages.intro",
   "console.players.intro",
   "console.reports.intro",
   "console.seasons.intro",

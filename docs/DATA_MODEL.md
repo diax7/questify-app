@@ -1725,6 +1725,13 @@ PUBLIC none. Not copied when an event is duplicated.
 - **`help_article`** (id, position, question and answer in both languages, published, updated_at): a language is complete or empty
   and one is there. Closed to every role. `help_articles()` (public, published ones), `admin_help_articles()` and
   `admin_help_article_save(id, doc, revert_of, request)` (catalog audit `catalog.help.update` / `.revert`, CA400, CA404, CA409).
+- **`message_template`** (T-706, migration 0127; key, title and body in both languages, updated_at): four rows seeded with today's copy,
+  `login_code_sms`, `promo_sms`, `promo_email`, `promo_push`. CHECKs keep `{optOutUrl}` in both bodies of `promo_sms` and `promo_email`,
+  `{code}` in `login_code_sms`, and a title on email and push only. Closed to every role. `admin_message_templates()` and
+  `admin_message_template_save(key, doc, revert_of, request)` (catalog audit `catalog.message_template.update` / `.revert`, CA400, CA404, CA409).
+- **`support_contact`** (T-706, migration 0127; one row: whatsapp, phone, email, updated_at): international numbers and a plain email
+  pattern in CHECKs. Closed to every role. `support_contact_public()` (public), `admin_support_contact()`,
+  `admin_support_contact_save(doc, request)` (audit `catalog.support_contact.update`, CA400).
 
 ## Console foundation (T-701, migration 0114; ADR-405 to ADR-409)
 

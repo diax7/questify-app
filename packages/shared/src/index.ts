@@ -1212,3 +1212,34 @@ export type {
   ReportTarget,
   TeamHold,
 } from "./reports/reports";
+export { smsParts } from "./messaging/sms";
+export {
+  SUPPORT_EMAIL,
+  SUPPORT_EMAIL_MAX,
+  SUPPORT_PHONE,
+  supportContactAdminSchema,
+  supportContactSchema,
+  whatsappLink,
+} from "./messaging/support";
+export type { SupportContact, SupportContactAdmin } from "./messaging/support";
+export {
+  MESSAGE_TEMPLATE_KEYS,
+  SMS_BRAND,
+  SMS_MAX_PARTS,
+  TEMPLATE_ISSUES,
+  TEMPLATE_RULES,
+  fillSamples,
+  isMessageTemplateKey,
+  messageTemplateAdminListSchema,
+  messageTemplateAdminSchema,
+  messageTemplateDocSchema,
+  placeholdersIn,
+  templateIssues,
+} from "./messaging/templates";
+export type {
+  MessageTemplateAdmin,
+  MessageTemplateDoc,
+  MessageTemplateKey,
+  TemplateIssue,
+  TemplateIssueCode,
+} from "./messaging/templates";

@@ -845,6 +845,18 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); one article row only, checked by the shared schema here and again in admin_help_article_save (QE403, CA400); audited with who, before and after; 120 changes an hour per admin (test/console/legal, test/db/legal-help)",
   "POST /v1/admin/help/:id/revert":
     "active platform admins only (walked below); puts back the before of the article's latest catalog audit entry through admin_help_article_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/legal, test/db/legal-help)",
+  "GET /v1/admin/message-templates":
+    "active platform admins only (walked below); read only; the four message templates, no personal data; the admin checked again in admin_message_templates (QE403); 60 a minute per admin (test/console/messaging, test/db/messaging)",
+  "PUT /v1/admin/message-templates/:key":
+    "active platform admins only (walked below); one template row only, checked against the CST rules by the shared package here and again in admin_message_template_save (QE403, CA400, CA404) and by the table's own checks; audited with who, before and after; 120 changes an hour per admin (test/console/messaging, test/db/messaging)",
+  "POST /v1/admin/message-templates/:key/revert":
+    "active platform admins only (walked below); puts back the before of the template's latest catalog audit entry through admin_message_template_save after the same rules, audited as a revert; idempotency key; 120 an hour per admin (test/console/messaging, test/db/messaging)",
+  "GET /v1/admin/support-contact":
+    "active platform admins only (walked below); read only; the support contact details, no personal data; the admin checked again in admin_support_contact (QE403); 60 a minute per admin (test/console/messaging, test/db/messaging)",
+  "PUT /v1/admin/support-contact":
+    "active platform admins only (walked below); the one contact row, patterns checked by the shared schema here and again in admin_support_contact_save (QE403, CA400); audited with who, before and after; 120 changes an hour per admin (test/console/messaging, test/db/messaging)",
+  "GET /v1/support-contact":
+    "no tenant data: the support contact details, the same for everyone (test/console/messaging)",
   "GET /v1/legal":
     "no tenant data: the version in force of each legal document, the same for everyone (test/console/legal)",
   "GET /v1/legal/:document":
@@ -1050,6 +1062,7 @@ const PUBLIC_ROUTES = [
   "GET /v1/public/events/:joinCode",
   "GET /v1/public/events/:joinCode/quests",
   "GET /v1/public/events/:joinCode/rules",
+  "GET /v1/support-contact",
   "GET /v1/translations",
   "POST /v1/auth/code",
   "POST /v1/auth/logout",

@@ -1,4 +1,4 @@
-import { INVITATION_NAME_UNITS } from "@questify/shared";
+import { INVITATION_NAME_UNITS, smsParts } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
 import {
@@ -7,7 +7,6 @@ import {
   previewInvitation,
   readInvitationToken,
   renderInvitation,
-  smsParts,
 } from "#src/invitation-campaigns/message";
 import { optOutUrl } from "#src/marketing/opt-out";
 
@@ -95,25 +94,6 @@ describe("renderInvitation", () => {
     }
     // The longest Arabic case is about 190 UTF-16 units, inside 3 UCS-2 parts (201).
     expect(real("ar", { ar: fortyArabic, en: null }).length).toBeLessThanOrEqual(201);
-  });
-});
-
-describe("smsParts", () => {
-  it("counts GSM-7 septets: 160 alone, 153 a part, extended characters twice", () => {
-    expect(smsParts("a".repeat(160))).toBe(1);
-    expect(smsParts("a".repeat(161))).toBe(2);
-    expect(smsParts("a".repeat(306))).toBe(2);
-    expect(smsParts("a".repeat(307))).toBe(3);
-    expect(smsParts("[".repeat(80))).toBe(1);
-    expect(smsParts("[".repeat(81))).toBe(2);
-  });
-
-  it("counts UCS-2 units for anything else: 70 alone, 67 a part", () => {
-    expect(smsParts("ع".repeat(70))).toBe(1);
-    expect(smsParts("ع".repeat(71))).toBe(2);
-    expect(smsParts("ع".repeat(201))).toBe(3);
-    expect(smsParts("ع".repeat(202))).toBe(4);
-    expect(smsParts(`${"a".repeat(60)}ع`)).toBe(1);
   });
 });
 
