@@ -6460,3 +6460,49 @@ amended accordingly (SRS trace).
 **Decision:** T-701b ships the owner email change (FR-1784) and urgent reports (FR-1732: urgency, ordering and the email
 to the `MAIL_FROM` address stored as configuration data). Merging two organizers is dropped from v1 (Q-375). Each half
 delivers value alone.
+
+## ADR-411 - T-702 the text matrix is a server-paged read of the shipped catalog laid over the store; an edit is the store's own save
+
+**Status:** Proposed (developer, T-702; Q-378 to Q-381). Builds FR-1765 and FR-1766 on ADR-093 and the T-008 store. Migration 0116.
+**Decision:** (1) **Read.** `GET /v1/admin/translations?q&area&show&offset&limit` (console scope, admin only) builds the matrix in the
+API from `MESSAGES` and the `translation` rows (`buildMatrix`, shared): every shipped key in key order with its area (the word before
+the first dot), whether it is locked, the shipped text, the stored value per language (as stored, usable or not) and a `stale` flag per
+language for a stored value the app ignores because the shipped text gained or lost a placeholder. Search folds case and Arabic
+marks and looks at the key and both languages' shipped and stored text; `show` is `all`, `changed`, `missingAr` or `missingEn`; a page
+is at most 100 rows, so the 4,000-key catalog never travels whole. (2) **Write.** `PUT /v1/admin/translations/{key}` with `{ar?, en?}`
+is the existing `TranslationService.save` (`validateTranslation` with the strict placeholder rule, audit entry `translation.update`
+with the actor, the key and before and after in one transaction), now returning the key's row. A blank value, or the editor sending
+the shipped text unchanged, removes that language's change: that is the **revert to the shipped text**, so there is no second route
+and no history table; the audit log is the history. Nothing needs an Idempotency-Key: the save sets a value. (3) **Admin check in the
+database.** Migration 0116 grants `app_admin_id()` to the API role and makes the insert, update and delete policies of `translation`
+ask `app_admin_id() IS NOT NULL` (an active platform admin, re-read from `staff_user`) instead of the request flag alone, so an admin
+retired after signing in cannot write with a session that has not ended. Reads stay open for every app. (4) **Locked texts.** Keys of the
+legal and consent screens (`isLockedText`, shared) are listed read-only; the save answers 422 `text_locked` and the public bundle
+leaves a stored copy of such a key out (Q-378).
+**Why:** one write path and one validation for the editor, the app and the audit; the matrix needs the catalog, which only code
+holds; paging keeps the console fast on a phone.
+
+## ADR-412 - T-702 the phone reads the store through `GET /v1/translations`, with the ETag and a last working copy, every 30 seconds in the foreground
+
+**Status:** Proposed (developer, T-702; Q-380).
+**Decision:** The phone did not read the store at all (the provider built its translator with no overrides). `useOverrides` now shows
+the cached copy at once, fetches `/v1/translations` with the cached ETag on start, when the app returns to the foreground and every
+30 seconds while it is in the foreground, and keeps the last working copy on a 304, a failed fetch or an unreadable answer (F-282,
+`loadTranslations`, key `questify.translations`). The translator is `createTranslator(MESSAGES, overrides)`, so a value is used only
+when it is usable and everything else is the shipped text (FR-1768); an event's labels (ADR-399) lay over it as before. Worst case from
+a save to a foreground phone: the server's 15-second cache on another instance plus one 30-second round, about 45 seconds. The text is
+not composed into `GET /v1/config`: that document is per event and mostly cached for the event, and the store is platform-wide and
+already has its own route, ETag and cache. `readOverrides` moved to `@questify/shared` (the wizard used its own copy).
+**Why:** reuses the built route and the same last-working-copy rule as the configuration, with no change to the configuration schema.
+
+## ADR-413 - T-702 placeholders are protected by chips beside a free text box and a save that waits, not by chips inside the text
+
+**Status:** Proposed (developer, T-702; Q-381).
+**Decision:** Each language is a plain text box (right to left for Arabic) with the shipped text's placeholders as chips under it:
+a chip is filled when its name is in the text, red when it was lost (a click puts it back at the caret) and a name the shipped
+text does not have is flagged "Not allowed"; Save stays off until every name is in place, none is added and the text is within 1,000
+characters (`validateTranslation`, the same function the API runs). Chips are not made of the text itself because a text in a
+mixed right-to-left and left-to-right line cannot keep its caret, selection and input method honest around non-editable parts.
+Leaving a row, the filter, the page or the console with an edit that is not saved asks "Save your edit?" (Keep editing, Discard,
+Save), and closing the tab asks through the browser (FR-1757).
+**Why:** a lost placeholder can never be saved, and a translator can still reorder words freely.
