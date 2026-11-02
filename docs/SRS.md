@@ -1240,7 +1240,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1307 | F-213 | Could | built T-507 (`SponsorStrip`, `SponsorQuests`); code review pending |
 | FR-1401 | F-215 | Must | pending |
 | FR-1402 | F-216 | Must | built (T-210 activation, T-701 suspension) |
-| FR-1403 | F-216 | Must | pending |
+| FR-1403 | F-216 | Must | partly built (T-709b: templates, achievements, level titles, gem shop; T-709c: XP table, items) |
 | FR-1404 | F-216 | Must | pending |
 | FR-1405 | F-216, F-41 | Must | pending |
 | FR-1406 | F-227 | Must | pending |

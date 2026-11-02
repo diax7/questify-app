@@ -51,6 +51,9 @@ function placeholderIssues(
 /** Control and direction characters: a NUL breaks the store and a U+202E would flip a text on every phone. */
 const UNSAFE_CHARACTER = /[\p{Cc}\u2028\u2029\u202A-\u202E\u2066-\u2069]/u;
 
+/** Whether a text holds a control or direction character; every plain text an admin saves is refused when it does. */
+export const hasUnsafeCharacter = (text: string): boolean => UNSAFE_CHARACTER.test(text);
+
 /** True when a stored value may replace the shipped text: not blank, and the placeholders of the default (under the rule). */
 export function isUsableOverride(
   messages: Messages,

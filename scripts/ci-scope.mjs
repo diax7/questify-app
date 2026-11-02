@@ -71,6 +71,10 @@ export const AREAS = [
   [/usage/i, ["console-usage"]],
   [/translation|text-matrix|leave-guard/i, ["console-translations"]],
   [
+    /console-?catalog|catalog-?(routes|templates|achievements|level|gem)|console\/catalog/i,
+    ["console-catalog"],
+  ],
+  [
     /console-?(health|numbers|admins|platform)|platform-health|use-console-read|console\/(health|numbers|admins)/i,
     ["console-platform"],
   ],

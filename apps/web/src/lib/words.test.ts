@@ -104,6 +104,10 @@ const QUESTIFY_LEVEL: Readonly<Record<string, string>> = {
   "kiosk.notOpen": "the kiosk page does not load the event's words (Q-227)",
   "kiosk.methodOff": "the kiosk page does not load the event's words (Q-227)",
   "quests.location.note": "«المهمة» here is the adjective 'important', about prizes",
+  "console.catalog.templates.counts":
+    "the console counts a template's own categories and quests, not an event's words",
+  "console.catalog.achievements.metric.quests":
+    "a platform achievement counts quests done in any event, not an event's word",
   "console.questify.field.titleAr": "Questify's own quests on the console, not an event's word",
   "console.questify.field.titleEn": "Questify's own quests on the console, not an event's word",
   "console.questify.field.metric": "Questify's own quests on the console, not an event's word",

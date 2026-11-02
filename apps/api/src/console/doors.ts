@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from "pg";
 import {
   alreadyInThatState,
+  invalidCatalog,
   invalidReason,
   notFound,
   supportBusy,
@@ -31,6 +32,8 @@ const REFUSALS: Readonly<Record<string, () => HttpError>> = {
   QA404: notFound,
   SG404: notFound,
   SU400: invalidReason,
+  CA400: invalidCatalog,
+  CA404: notFound,
   SU409: alreadyInThatState,
   SG409: supportMember,
   SG429: tooManySupportGrants,

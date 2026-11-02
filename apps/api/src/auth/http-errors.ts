@@ -2265,3 +2265,15 @@ export const tooManySupportGrants = make(
   "فتحت وصول دعم كثيرا هذه الساعة. حاول لاحقا.",
   "You opened support access too often this hour. Try again later.",
 );
+export const invalidCatalog = make(
+  422,
+  "invalid_catalog",
+  "لا يمكن حفظ هذا التغيير: راجع الحقول المحددة.",
+  "This change can't be saved: check the named fields.",
+);
+export const nothingToRevert = make(
+  409,
+  "nothing_to_revert",
+  "لا يوجد تغيير سابق يمكن التراجع عنه.",
+  "There is no earlier change to go back to.",
+);

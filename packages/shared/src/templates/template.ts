@@ -5,6 +5,7 @@ import { ACCENT_KEYS, type AccentKey } from "#src/design/accents";
 import { questTypeShown } from "#src/event/player-view";
 import { LAYOUT_PRESETS } from "#src/layout/presets";
 import { QUEST_TYPES, type QuestType } from "#src/quests/registry";
+import { arabicText as arabic, englishText as english } from "#src/text/bilingual";
 
 /**
  * The quest types a template may hold (T-601b, ADR-404): the ones whose content needs no fact the template cannot know. A
@@ -37,24 +38,7 @@ export const TEMPLATE_LIMITS = {
   rewards: 12,
 } as const;
 
-const TEMPLATE_KEY = /^[a-z][a-z0-9_]{1,29}$/;
-/** Digits of any other script clash with the Western digits every screen uses (ADR-018). */
-const OTHER_DIGITS = /[\u0660-\u0669\u06F0-\u06F9]/;
-const CONTROL = /[\p{Cc}\u2028\u2029\u202A-\u202E\u2066-\u2069]/u;
-const ARABIC_LETTER = /\p{Script=Arabic}/u;
-
-const clean = (max: number) =>
-  z
-    .string()
-    .trim()
-    .min(1)
-    .max(max)
-    .refine((value) => !OTHER_DIGITS.test(value) && !CONTROL.test(value), "Western digits only");
-/** Arabic text holds an Arabic letter; a swapped language is caught here. */
-const arabic = (max: number) =>
-  clean(max).refine((value) => ARABIC_LETTER.test(value), "must be written in Arabic");
-const english = (max: number) =>
-  clean(max).refine((value) => !ARABIC_LETTER.test(value), "must be written in English");
+export const TEMPLATE_KEY = /^[a-z][a-z0-9_]{1,29}$/;
 
 const questSchema = z
   .strictObject({

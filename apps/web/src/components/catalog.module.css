@@ -1,0 +1,138 @@
+/* The console's catalog editors (T-709b): a grid of equal cards, each with the English and Arabic text side by side, opening
+   into an editor in place. Logical properties only, so the page mirrors in Arabic; the texts keep their own direction. */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
+  gap: var(--space-lg);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-inline-size: 0;
+  padding: var(--space-lg);
+  border: var(--line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.card[data-editing="true"] {
+  grid-column: 1 / -1;
+  background: color-mix(in srgb, var(--color-secondary-action) 8%, var(--color-surface));
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.name {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
+  align-items: center;
+  min-inline-size: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-md) var(--space-lg);
+}
+
+@media (max-width: 40rem) {
+  .pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-inline-size: 0;
+}
+
+.tag {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.facts {
+  margin-block-start: auto;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.tools {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--space-md);
+}
+
+.setup {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: var(--text-sm);
+}
+
+.issues {
+  margin: 0;
+  padding-inline-start: var(--space-lg);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.title {
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: var(--space-sm) var(--space-lg);
+  align-items: end;
+  padding-block-end: var(--space-md);
+  border-block-end: var(--line);
+}
+
+@media (max-width: 48rem) {
+  .title {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .title > :nth-child(2),
+  .title > :nth-child(3) {
+    grid-column: 1 / -1;
+  }
+}

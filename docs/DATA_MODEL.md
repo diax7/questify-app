@@ -1643,6 +1643,7 @@ PUBLIC none. Not copied when an event is duplicated.
   `console_health()` and `console_numbers()` (STABLE; counts and flags; every unbounded count reads through `LIMIT 10001`),
   `console_admin_accounts(idle, max_age)` and `console_admin_sessions(account, idle, max_age)` (STABLE; QA404 for a non-admin
   account), and `admin_end_session(session, reason, request)` (VOLATILE; row lock on the session; SU400 for a reason outside
+- **Console catalog editors (T-709b, migration 0119):** eight definer doors for the API's role alone, each starting with `console_admin()` (QE403): `admin_templates()` and `admin_template_save(key, doc, reverting, request)`, `admin_achievements()` and `admin_achievement_save(id, doc, reverting, request)`, `admin_level_titles()` and `admin_level_titles_save(doc, reverting, request)`, `admin_shop_items()` and `admin_shop_item_save(item, doc, reverting, request)`. A save locks the row, changes only that row, checks text through `catalog_text` (CA400) and writes one `audit_log` entry (`catalog.<kind>.update` or `.revert`, target `event_template`, `achievement`, `level_title` (id `all`) or `gem_shop_item`) holding the edited fields before and after; CA404 for an unknown row. The partial index `audit_log_catalog_idx` finds a row's latest entry, which is what a revert reads. No table, column or grant changed.
   10 to 300 characters; QA404 for a missing, ended or non-admin session; audit `staff.session.force_end`).
 - `revoke-admin` (`setPlatformAdmin`) locks every admin row by id and refuses the last active admin.
 

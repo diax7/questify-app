@@ -813,6 +813,30 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); one platform admin's open sessions with browser and address, never a token; a member's account is the same 404; audited with the account id; 60 a minute per admin (test/console/platform, test/db/platform-health)",
   "POST /v1/admin/sessions/:sessionId/end":
     "active platform admins only (walked below); admin_end_session re-reads the admin, ends one open session of a platform admin only, reason required, audited; the caller's own session is refused (409); 30 an hour per admin (test/console/platform, test/db/platform-health)",
+  "GET /v1/admin/catalog/templates":
+    "active platform admins only (walked below); read only; every event template, switched-off ones too, with its stored body; the admin checked again in admin_templates (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog)",
+  "PUT /v1/admin/catalog/templates/:id":
+    "active platform admins only (walked below); one template row only (events started earlier keep what they got); the body is checked by the shared template schema here and the text again in admin_template_save (QE403, CA400); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog)",
+  "POST /v1/admin/catalog/templates/:id/revert":
+    "active platform admins only (walked below); puts back the before of the template's latest catalog audit entry through admin_template_save and the same checks, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog)",
+  "GET /v1/admin/catalog/achievements":
+    "active platform admins only (walked below); read only; the five achievements with thresholds and names; the admin checked again in admin_achievements (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog)",
+  "PUT /v1/admin/catalog/achievements/:id":
+    "active platform admins only (walked below); one achievement's three thresholds and name; earned rows are append-only and stay; admin_achievement_save checks the admin again (QE403, CA400, CA404); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog)",
+  "POST /v1/admin/catalog/achievements/:id/revert":
+    "active platform admins only (walked below); puts back the before of the achievement's latest catalog audit entry through admin_achievement_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog)",
+  "GET /v1/admin/catalog/level-titles":
+    "active platform admins only (walked below); read only; the level titles; the admin checked again in admin_level_titles (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog)",
+  "PUT /v1/admin/catalog/level-titles":
+    "active platform admins only (walked below); replaces the whole set of level titles (level 1 required, no level twice); admin_level_titles_save checks the admin again (QE403, CA400) and queues writers on the table; audited with the set before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog)",
+  "POST /v1/admin/catalog/level-titles/revert":
+    "active platform admins only (walked below); puts back the set before the latest catalog change through admin_level_titles_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog)",
+  "GET /v1/admin/catalog/gem-shop":
+    "active platform admins only (walked below); read only; the gem shop items with name, price, status and place; the admin checked again in admin_shop_items (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog)",
+  "PUT /v1/admin/catalog/gem-shop/:id":
+    "active platform admins only (walked below); price, sale status and place of one shop item (what players paid stays in gem_purchase); admin_shop_item_save checks the admin again (QE403, CA404); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog)",
+  "POST /v1/admin/catalog/gem-shop/:id/revert":
+    "active platform admins only (walked below); puts back the before of the shop item's latest catalog audit entry through admin_shop_item_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog)",
   "GET /v1/admin/tickets":
     "active platform admins only (walked below); exactly the tickets with queue = 'questify', the admin checked again (app_admin_id), every read audited per event shown ; 120 a minute per admin (test/tickets/center, test/db/tickets-center)",
   "GET /v1/admin/tickets/counts":

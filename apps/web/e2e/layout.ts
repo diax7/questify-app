@@ -710,6 +710,7 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
   },
   { name: "console", path: () => "/console", ready: titled("console.queue") },
   consolePage("admins", "console.admins.title"),
+  consolePage("catalog", "console.catalog.title"),
   consolePage("content", "console.content.title"),
   {
     name: "console-event",

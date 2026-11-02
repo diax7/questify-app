@@ -6555,3 +6555,59 @@ entries of the last hour in live events (per event through `ledger_entry (event_
 No name, contact or text is in the answer. Measured at 300,000 players, 150,000 seated and 300,000 entries: 152 to 165 ms warm.
 **Trade-offs:** the player counts scan the player table, so the door grows with it (about 0.5 ms per 1,000 players); the 60
 a minute limit bounds the cost, and a cached count is the next step if the table passes a million.
+
+## ADR-425 - T-709b ships four catalog editors on one console page; the XP table and the item catalog become T-709c
+
+**Status:** Proposed (developer, delegated by Dhia, 2026-11-02; T-709b plan note `docs/plans/2026-11-02-t-709b-catalog-editors.md`). Migration 0119.
+**Decision:** The console gets one page, Catalog (`/console/catalog`, one nav item, four tabs), with the editors of **event
+templates**, **achievements** (the three tier thresholds and the name), **level titles** (the whole set) and the **gem shop**
+(price, on sale or retired, place). The daily-challenge questions (T-406c) and the Questify quests (T-403b) already have their
+console pages, so FR-1403 is covered for those. **T-709c** (tier A, plan and plan review first) takes the rest: the XP table
+(`xp_level`, `platform_setting` keys `xp` and `gems`, the level reward map `level_item`) because a curve change recomputes
+`player_xp.level` and pays or withholds gems and items on the XP ledger; item names and art and new shop items (an item that is
+in the shop is frozen by `souvenir_catalog_guard`, and kinds and ids are fixed); and an audited revoke of a banned player's
+achievement tiers (earned rows are append-only). Each part ships alone.
+**Why:** the four editors only change configuration rows that the platform already reads, and none of them touches points, XP,
+gems already earned, sign-in or a tenant. The XP curve and the payout numbers do, so they get the tier A treatment.
+**Trade-offs:** FR-1403 is delivered in two parts; until T-709c a change to the XP curve, an item or a payout number still needs a migration.
+
+## ADR-426 - T-709b every change is a definer door that audits itself, and a revert is the same door given the earlier fields
+
+**Status:** Proposed (developer, delegated by Dhia, 2026-11-02). Migration 0119.
+**Decision:** The tables stay closed to every role. Each editor is a list door and a save door (`admin_templates` and
+`admin_template_save`, `admin_achievements` and `admin_achievement_save`, `admin_level_titles` and `admin_level_titles_save`,
+`admin_shop_items` and `admin_shop_item_save`), granted to the API's role alone, each starting with `console_admin()` (QE403 for
+anyone but an active platform admin). A save locks the row, changes only that row, and writes one audit entry in the database
+(`catalog.<kind>.update`, actor the admin, target the row, `before` and `after` the edited fields); a save that changes nothing
+writes nothing. A **revert** reads the `before` of the row's latest `catalog.%` audit entry, checks it against the same schema and
+calls the same save door with `reverting = true` (audited `catalog.<kind>.revert`), so it passes every check a save passes and a
+second revert undoes the first. No history table: the audit log is the history, found through the partial index
+`audit_log_catalog_idx`. A new template has no `before`, so it cannot be reverted; switch it off instead. Text is checked twice,
+by the shared schema (`arabicText` and `englishText`: trimmed, length, Western digits, the language's script, and
+`hasUnsafeCharacter` for control and direction characters) and by `catalog_text` in the database (CA400). The API answers 422
+`invalid_catalog` with the issues, 409 `nothing_to_revert`, 404 to anyone who is not an admin, 60 reads a minute and 120 changes
+an hour per admin; a revert needs an Idempotency-Key.
+**Why:** the audit entry cannot be skipped by a caller, the revert cannot write what a save would refuse, and nothing new is stored.
+
+## ADR-427 - T-709b a template's setup is edited as JSON that the template schema checks before it saves
+
+**Status:** Proposed (developer, delegated by Dhia, 2026-11-02). Q-390.
+**Decision:** The template card edits its names and descriptions in both languages in boxes, and the setup (switches, accent,
+layout preset, categories with quests, rewards) as JSON in a text area, checked live by `templateBodySchema` with the failing
+paths listed; Save stays off until it passes (T-601b: the console runs the same schema as the API's reads). A body over 40,000
+characters is refused, so the audit entry (two copies, each under 64 KB) always fits. An edit changes the row only: an event made
+earlier keeps what it got (`event_apply_template` copies). A stored body that fails the schema still shows in the console, with a
+note, so it can be fixed; the API keeps refusing to serve it.
+**Why:** the setup is a nested document that Questify's own team edits rarely; a visual builder is a large piece of UI for that use.
+**Trade-offs:** JSON is not friendly; Q-390 asks whether a visual editor is wanted.
+
+## ADR-428 - T-709b the level titles are one document and an achievement or price change reaches players on their next sync or buy
+
+**Status:** Proposed (developer, delegated by Dhia, 2026-11-02). Migration 0119.
+**Decision:** The level titles are saved as the whole set (1 to 100 titles, level 1 required, no level twice, each name 1 to 40
+characters) under a table lock that lets readers through, so a title for level 1 always exists and two saves cannot interleave.
+An achievement's thresholds must rise (bronze under silver under gold, 1 to 100,000) and an earned tier stays earned; lowering a
+number gives the tier to players who already reach it at their next sync, raising it stops giving it to players who have not
+earned it, and the page says so in an info tip. A gem shop item's price, sale status and place change; a buy that saw the old
+price is refused with the new one (`gem_buy`) and what players paid stays in `gem_purchase`.
+**Why:** reuses the rules the platform already enforces; nothing recomputed in the same transaction.

@@ -4,6 +4,7 @@ import type { Language } from "@questify/shared";
 import { usePathname } from "next/navigation";
 import {
   ConsoleAdminsLink,
+  ConsoleCatalogLink,
   ConsoleContentLink,
   ConsoleHealthLink,
   ConsoleInvitationsLink,
@@ -34,6 +35,7 @@ export function ConsoleNav({ language }: Readonly<{ language: Language }>) {
       <ConsoleQuestifyLink language={language} current={on("/console/questify")} />
       <ConsoleContentLink language={language} current={on("/console/content")} />
       <ConsoleSeasonsLink language={language} current={on("/console/seasons")} />
+      <ConsoleCatalogLink language={language} current={on("/console/catalog")} />
       <ConsoleTranslationsLink language={language} current={on("/console/translations")} />
       <ConsoleInvitationsLink language={language} current={on("/console/invitations")} />
       <ConsoleReadinessLink language={language} current={on("/console/readiness")} />

@@ -132,6 +132,68 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
+  it("keeps the catalog editors closed: eight doors for the API's role alone, internals for nobody (T-709b)", async () => {
+    const doors = [
+      "admin_achievement_save",
+      "admin_achievements",
+      "admin_level_titles",
+      "admin_level_titles_save",
+      "admin_shop_item_save",
+      "admin_shop_items",
+      "admin_template_save",
+      "admin_templates",
+    ];
+    const internals = [
+      "admin_achievement_doc",
+      "admin_shop_item_doc",
+      "admin_level_titles_doc",
+      "admin_template_doc",
+      "catalog_audit",
+      "catalog_text",
+    ];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+      settings: string[];
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${doors.map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(doors);
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(true);
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(true);
+      expect(row.settings).toEqual(["search_path=public, pg_temp"]);
+    }
+    const request = "gen_random_uuid()";
+    for (const sql of [
+      "SELECT public.admin_templates()",
+      `SELECT public.admin_template_save('conference', '{}', false, ${request})`,
+      "SELECT public.admin_achievements()",
+      `SELECT public.admin_achievement_save('quests-done', '{}', false, ${request})`,
+      "SELECT public.admin_level_titles()",
+      `SELECT public.admin_level_titles_save('{}', false, ${request})`,
+      "SELECT public.admin_shop_items()",
+      `SELECT public.admin_shop_item_save('shop-map-reader', '{}', false, ${request})`,
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+    const held = await rows<{ proname: string; grantee: string }>(
+      `SELECT DISTINCT p.proname, CASE WHEN a.grantee = 0 THEN 'public' ELSE a.grantee::regrole::text END AS grantee
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+       WHERE n.nspname = 'public' AND a.privilege_type = 'EXECUTE' AND a.grantee <> p.proowner
+         AND p.proname IN (${[...doors, ...internals].map((name) => `'${name}'`).join(", ")})
+       ORDER BY 1, 2`,
+    );
+    expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
+  });
+
   it("keeps announcement tables and internals closed and grants only its five doors", async () => {
     const doors = [
       "announcement_cancel",

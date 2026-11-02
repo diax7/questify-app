@@ -51,7 +51,7 @@ export type ConsolePlatformDeps = Readonly<{
 }>;
 
 /** The admin and the session of a request that passed the console hook (activation/routes.ts). */
-function callerOf(request: FastifyRequest): { id: string; sessionId: string } {
+export function callerOf(request: FastifyRequest): { id: string; sessionId: string } {
   const staff = request.staff;
   // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the console hook sets it or answers
   if (staff === undefined) {
@@ -60,8 +60,8 @@ function callerOf(request: FastifyRequest): { id: string; sessionId: string } {
   return { id: staff.account.id, sessionId: staff.sessionId };
 }
 
-async function throttled(
-  deps: ConsolePlatformDeps,
+export async function throttled(
+  deps: Pick<ConsolePlatformDeps, "pool" | "keys">,
   request: FastifyRequest,
   reply: FastifyReply,
   limit: DeviceLimit,
