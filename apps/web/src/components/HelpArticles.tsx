@@ -53,9 +53,7 @@ function ArticleEditor({
       onSubmit={(event) => {
         event.preventDefault();
         if (checked.ok && idOk) {
-          void catalog
-            .save(draft.id, checked.doc)
-            .then((saved) => (saved ? onDone() : undefined));
+          void catalog.save(draft.id, checked.doc).then((saved) => (saved ? onDone() : undefined));
         }
       }}
     >
@@ -136,7 +134,8 @@ function ArticleCard({
 }: Readonly<{ language: Language; catalog: Catalog<HelpAdmin[]>; row: HelpAdmin }>) {
   const t = translatorFor(language);
   const [draft, setDraft] = useState<HelpDraft | null>(null);
-  const name = row.question[language] === "" ? row.question.en || row.question.ar : row.question[language];
+  const name =
+    row.question[language] === "" ? row.question.en || row.question.ar : row.question[language];
   return (
     <li
       className={styles.card}

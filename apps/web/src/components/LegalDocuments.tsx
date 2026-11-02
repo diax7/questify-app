@@ -86,7 +86,7 @@ function PublishEditor({
             </Field>
           ))}
         </div>
-        <Field label={t("console.legal.note")} error={invalid("note")}>
+        <Field label={t("console.legal.why")} error={invalid("note")}>
           <Input
             value={draft.note}
             disabled={busy}
@@ -156,7 +156,9 @@ function DocumentCard({
           inForce={current}
           busy={busy}
           onPublish={(draft) =>
-            void publish(entry.document, draft).then((done) => (done ? setEditing(false) : undefined))
+            void publish(entry.document, draft).then((done) =>
+              done ? setEditing(false) : undefined,
+            )
           }
           onDone={() => setEditing(false)}
         />
@@ -235,10 +237,7 @@ export function LegalDocuments({ language }: Readonly<{ language: Language }>) {
   };
   return (
     <Stack>
-      <CatalogState
-        language={language}
-        catalog={{ state, reload, problem: write.problem, notice }}
-      >
+      <CatalogState language={language} catalog={{ state, reload, problem: write.problem, notice }}>
         {(documents) => (
           <>
             <Group

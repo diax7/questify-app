@@ -973,6 +973,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; append-only, written only by questify_sync for the calling player from their own facts, read as `done` by own_questify_quests; no organizer read exists (questify-quests)",
   gem_entry:
     "no direct API rights; append-only, written only by questify_sync and gem_buy for the calling player, each row bound to the same player's source row; never shown to anyone else, no organizer read exists (gems)",
+  legal_version:
+    "platform-wide legal document versions with no tenant and no direct API rights; append-only for every role; read through legal_in_force and legal_text (public texts), written only by the admin-checked admin_legal_publish; the organizer's own acceptance of one is organizer_acceptance (legal-help)",
+  help_article:
+    "platform-wide help and FAQ articles with no tenant and no direct API rights; read through help_articles (published ones) and written only by the admin-checked admin_help_article_save (legal-help)",
   event_template:
     "platform-wide catalog of starting setups with no tenant and no direct API rights; read through event_templates for a signed-in team member, applied only by event_apply_template to an empty draft of the caller's own organizer (event-templates)",
   interest:

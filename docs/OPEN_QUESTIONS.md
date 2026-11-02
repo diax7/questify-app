@@ -1982,3 +1982,24 @@ The app thanks the reporter ("Thanks. Questify will review this.") and sends not
 Unpublishing a reward takes it out of the shop, the goal, the desk and the reserve door, and out of pushes. A quest item that
 hands it out as a prize and a community goal that unlocks it still name it (their own reads were not restated).
 **Recommended (developer):** leave until a report shows the need; the admin can suspend the event meanwhile.
+
+## Q-402 - Should every player route refuse until the new legal version is accepted? (T-707, Q-095 part 1)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-441).
+A new terms or privacy version is asked on launch and refused at sign-in and sign-up, but a player's other routes keep working
+until they accept. A modified app could skip the screen; the only cost is that player's own consent record.
+**Recommended (developer):** keep the launch gate; ask counsel whether proof of consent needs a server refusal on every route.
+
+## Q-403 - Does a new legal version need a notice period before it binds? (T-707)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-440).
+A published version is in force at once. Some laws and store rules want advance notice of a material change.
+**Recommended (developer):** keep for v1; if counsel wants a notice period, add an effective date to `legal_version` and let
+`legal_in_force()` ignore versions not yet effective (the publish form already takes a note for the reason).
+
+## Q-404 - When counsel's wording is final, how does it replace the drafts? (T-707, Q-288)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-440).
+The seeded 0.1 versions show the draft files in `docs/legal/`. Counsel's final text is published as 1.0 of each document in the
+console (Arabic and English), after which the pages show the published text and the drafts can be deleted from `docs/legal/`.
+**Recommended (developer):** publish 1.0 through the console in the T-807 batch; keep the draft files until then.

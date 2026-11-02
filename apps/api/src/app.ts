@@ -565,12 +565,20 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerPublicLinkRoutes(app, { pool: options.pool, keys: signInDeps.keys });
 
   startTicks(app, options, { settings, keys: signInDeps.keys, invitations });
-  registerConfigRoutes(app, settings);
-  registerLegalRoutes(app, { pool: options.pool });
-  registerTranslationRoutes(app, translations);
-
+  registerPlatformReads(app, options.pool, { settings, translations });
   registerHealthRoutes(app, options);
   return app;
+}
+
+/** The public reads of platform data: the configuration, the legal texts and help articles, and the shipped texts. */
+function registerPlatformReads(
+  app: FastifyInstance,
+  pool: Pool,
+  services: Readonly<{ settings: SettingsService; translations: TranslationService }>,
+): void {
+  registerConfigRoutes(app, services.settings);
+  registerLegalRoutes(app, { pool });
+  registerTranslationRoutes(app, services.translations);
 }
 
 /** Liveness (the release it runs) and readiness (the database answers), both public and never cached. */

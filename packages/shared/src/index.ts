@@ -9,7 +9,7 @@ export {
   encodeCursor,
   parseLimit,
 } from "./pagination";
-export type { ComposedConfig, ComposedFeature } from "./config/compose";
+export type { ComposedBody, ComposedConfig, ComposedFeature } from "./config/compose";
 export { composeConfig, withLegal } from "./config/compose";
 export type {
   EventConfig,

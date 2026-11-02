@@ -18,6 +18,14 @@ const refusal = (work: Promise<unknown>): Promise<string> =>
         : `${error.code}:${error.detail}`,
   );
 
+const doc = (extra: Doc = {}): Doc => ({
+  question: { ar: "كيف أنضم؟", en: "How do I join?" },
+  answer: { ar: "امسح الرمز.", en: "Scan the code." },
+  position: 1,
+  published: true,
+  ...extra,
+});
+
 const TEXT_AR = "نص الوثيقة";
 const TEXT_EN = "The text of the document";
 
@@ -56,9 +64,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
     );
   const inForce = async () =>
     Object.fromEntries(
-      (await one<{ document: string; version: string }[]>("SELECT legal_in_force() AS r", [], {})).map(
-        (item) => [item.document, item.version],
-      ),
+      (
+        await one<{ document: string; version: string }[]>("SELECT legal_in_force() AS r", [], {})
+      ).map((item) => [item.document, item.version]),
     );
   const audits = (action: string, target?: string) =>
     f.owner<{ actor_id: string; target_id: string; before: Doc | null; after: Doc }>(
@@ -66,6 +74,34 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
        WHERE action = $1 AND ($2::text IS NULL OR target_id = $2) ORDER BY id`,
       [action, target ?? null],
     );
+
+  const pending = (organizer: string, staff: string) =>
+    one<{ document: string; version: string }[]>(
+      "SELECT organizer_legal_missing($1) AS r",
+      [organizer],
+      f.team(staff, organizer),
+    );
+  const accept = (organizer: string, staff: string, documents: unknown) =>
+    f.run(f.team(staff, organizer), "SELECT accept_organizer_documents($1, $2)", [
+      organizer,
+      JSON.stringify(documents),
+    ]);
+  const save = (id: string, body: unknown, revertOf: string | null = null, seat = admin) =>
+    one<Doc>(
+      "SELECT admin_help_article_save($1, $2, $3, $4) AS r",
+      [id, body, revertOf, randomUUID()],
+      seat,
+    );
+  const list = () => one<Doc[]>("SELECT admin_help_articles() AS r");
+  const shown = () => one<{ id: string }[]>("SELECT help_articles() AS r", [], {});
+  const latestEntry = async (id: string) =>
+    (
+      await f.owner<{ id: string }>(
+        `SELECT id FROM audit_log WHERE target_type = 'help_article' AND target_id = $1
+         ORDER BY id DESC LIMIT 1`,
+        [id],
+      )
+    )[0]?.id ?? "";
 
   describe("who may ask", () => {
     it("closes both tables to the API's role, and every admin door to all but an active admin", async () => {
@@ -102,14 +138,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
     });
 
     it("lets PUBLIC execute nothing it should not (only the public reads and the doors go to the API role)", async () => {
-      const rows = await f.owner<{ name: string; public_can: boolean }>(
-        `SELECT p.proname AS name, has_function_privilege('public', p.oid, 'EXECUTE') AS public_can
+      const rows = await f.owner<{ name: string; public_can: boolean; api_can: boolean }>(
+        `SELECT p.proname AS name, has_function_privilege('public', p.oid, 'EXECUTE') AS public_can,
+                has_function_privilege('questify_app', p.oid, 'EXECUTE') AS api_can
          FROM pg_proc p WHERE p.proname IN ('legal_in_force', 'legal_text', 'admin_legal_list',
            'admin_legal_publish', 'organizer_legal_missing', 'accept_organizer_documents', 'help_articles',
-           'admin_help_articles', 'admin_help_article_save', 'legal_version_key', 'help_text', 'admin_help_doc')`,
+           'admin_help_articles', 'admin_help_article_save', 'legal_version_key', 'legal_in_force_rows',
+           'help_text', 'admin_help_doc', 'legal_version_append_only')`,
       );
-      expect(rows.length).toBe(12);
+      expect(rows.length).toBe(14);
       expect(rows.filter((row) => row.public_can)).toEqual([]);
+      // The helpers are internal: only the definers that call them can.
+      const internal = [
+        "legal_version_key",
+        "legal_in_force_rows",
+        "help_text",
+        "admin_help_doc",
+        "legal_version_append_only",
+      ];
+      expect(
+        rows
+          .filter((row) => row.api_can)
+          .map((row) => row.name)
+          .toSorted(),
+      ).toEqual(
+        rows
+          .map((row) => row.name)
+          .filter((name) => !internal.includes(name))
+          .toSorted(),
+      );
     });
   });
 
@@ -124,7 +181,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
         organizer_content_rules: "0.1",
       });
       const text = await one<Doc>("SELECT legal_text('privacy_policy') AS r", [], {});
-      expect(text).toMatchObject({ document: "privacy_policy", version: "0.1", ar: null, en: null });
+      expect(text).toMatchObject({
+        document: "privacy_policy",
+        version: "0.1",
+        ar: null,
+        en: null,
+      });
       expect(await one("SELECT legal_text('passwords') AS r", [], {})).toBeNull();
     });
 
@@ -141,9 +203,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
       expect(entry?.actor_id).toBe(adminId);
       expect(entry?.before).toEqual({ version: "0.1" });
       expect(entry?.after).toEqual({ version: "1", note: "a note" });
-      const list = await one<{ document: string; versions: Doc[] }[]>("SELECT admin_legal_list() AS r");
-      const privacy = list.find((item) => item.document === "privacy_policy");
-      expect(privacy?.versions.map((item) => [item["version"], item["inForce"], item["hasText"]])).toEqual([
+      const documents = await one<{ document: string; versions: Doc[] }[]>(
+        "SELECT admin_legal_list() AS r",
+      );
+      const privacy = documents.find((item) => item.document === "privacy_policy");
+      expect(
+        privacy?.versions.map((item) => [item["version"], item["inForce"], item["hasText"]]),
+      ).toEqual([
         ["1", true, true],
         ["0.1", false, false],
       ]);
@@ -170,7 +236,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
       expect(await refusal(publish("community_guidelines", "2", "   ", TEXT_EN))).toBe(
         "LG400:text.ar",
       );
-      expect(await refusal(publish("community_guidelines", "2", TEXT_AR, ""))).toBe("LG400:text.en");
+      expect(await refusal(publish("community_guidelines", "2", TEXT_AR, ""))).toBe(
+        "LG400:text.en",
+      );
       expect(await refusal(publish("community_guidelines", "2", "ا".repeat(100_001)))).toBe(
         "LG400:text.ar",
       );
@@ -202,18 +270,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
   });
 
   describe("organizers accept the documents", () => {
-    const pending = (organizer: string, staff: string) =>
-      one<{ document: string; version: string }[]>(
-        "SELECT organizer_legal_missing($1) AS r",
-        [organizer],
-        f.team(staff, organizer),
-      );
-    const accept = (organizer: string, staff: string, documents: unknown) =>
-      f.run(f.team(staff, organizer), "SELECT accept_organizer_documents($1, $2)", [
-        organizer,
-        JSON.stringify(documents),
-      ]);
-
     it("lists what an organizer has not accepted, only to its own members", async () => {
       await f.owner(
         `INSERT INTO organizer_acceptance (organizer_id, document, version, accepted_by)
@@ -230,7 +286,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
       expect(await pending(f.ids.orgB, ownerB)).toEqual([]);
       // A member of another organizer, a player and a stranger learn nothing about this one.
       expect(
-        await one("SELECT organizer_legal_missing($1) AS r", [f.ids.orgA], f.team(ownerB, f.ids.orgB)),
+        await one(
+          "SELECT organizer_legal_missing($1) AS r",
+          [f.ids.orgA],
+          f.team(ownerB, f.ids.orgB),
+        ),
       ).toEqual([]);
       expect(
         await one("SELECT organizer_legal_missing($1) AS r", [f.ids.orgA], {
@@ -265,8 +325,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
       const editor = await addMember(f.db.owner, f.ids.orgA, "editor");
       const fresh = [{ document: "organizer_content_rules", version: "3" }];
       expect(await refusal(accept(f.ids.orgA, editor, fresh))).toBe("QE403");
-      expect(await refusal(f.run(f.team(ownerB, f.ids.orgB), "SELECT accept_organizer_documents($1, $2)", [f.ids.orgA, JSON.stringify(fresh)]))).toBe("QE403");
-      expect(await refusal(f.run({}, "SELECT accept_organizer_documents($1, $2)", [f.ids.orgA, JSON.stringify(fresh)]))).toBe("QE403");
+      expect(
+        await refusal(
+          f.run(f.team(ownerB, f.ids.orgB), "SELECT accept_organizer_documents($1, $2)", [
+            f.ids.orgA,
+            JSON.stringify(fresh),
+          ]),
+        ),
+      ).toBe("QE403");
+      expect(
+        await refusal(
+          f.run({}, "SELECT accept_organizer_documents($1, $2)", [
+            f.ids.orgA,
+            JSON.stringify(fresh),
+          ]),
+        ),
+      ).toBe("QE403");
       for (const documents of [
         [{ document: "organizer_content_rules", version: "2" }],
         [{ document: "terms_of_use", version: "0.10.1" }],
@@ -274,9 +348,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
         [],
         {},
       ]) {
-        expect(await refusal(accept(f.ids.orgA, f.ownerA, documents)), JSON.stringify(documents)).toBe(
-          "LG412",
-        );
+        expect(
+          await refusal(accept(f.ids.orgA, f.ownerA, documents)),
+          JSON.stringify(documents),
+        ).toBe("LG412");
       }
       expect(await pending(f.ids.orgA, f.ownerA)).toEqual([
         { document: "organizer_content_rules", version: "3" },
@@ -287,37 +362,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
   });
 
   describe("help articles", () => {
-    const doc = (extra: Doc = {}): Doc => ({
-      question: { ar: "كيف أنضم؟", en: "How do I join?" },
-      answer: { ar: "امسح الرمز.", en: "Scan the code." },
-      position: 1,
-      published: true,
-      ...extra,
-    });
-    const save = (id: string, body: unknown, revertOf: string | null = null, seat = admin) =>
-      one<Doc>(
-        "SELECT admin_help_article_save($1, $2, $3, $4) AS r",
-        [id, body, revertOf, randomUUID()],
-        seat,
-      );
-    const list = () => one<Doc[]>("SELECT admin_help_articles() AS r");
-    const shown = () => one<{ id: string }[]>("SELECT help_articles() AS r", [], {});
-    const latestEntry = async (id: string) =>
-      (
-        await f.owner<{ id: string }>(
-          `SELECT id FROM audit_log WHERE target_type = 'help_article' AND target_id = $1
-           ORDER BY id DESC LIMIT 1`,
-          [id],
-        )
-      )[0]?.id ?? "";
-
     it("makes an article, shows it to the public only while published, in order", async () => {
       await save("join", doc());
-      await save("prizes", doc({ position: 3, question: { ar: "", en: "Prizes?" }, answer: { ar: "", en: "At the desk." } }));
+      await save(
+        "prizes",
+        doc({
+          position: 3,
+          question: { ar: "", en: "Prizes?" },
+          answer: { ar: "", en: "At the desk." },
+        }),
+      );
       await save("draft", doc({ position: 2, published: false }));
       await save("early", doc({ position: 1 }));
       expect((await shown()).map((item) => item.id)).toEqual(["early", "join", "prizes"]);
-      expect((await list()).map((item) => item["id"])).toEqual(["early", "join", "draft", "prizes"]);
+      expect((await list()).map((item) => item["id"])).toEqual([
+        "early",
+        "join",
+        "draft",
+        "prizes",
+      ]);
       const [entry] = await audits("catalog.help.update", "join");
       expect(entry?.before).toBeNull();
       expect(helpDocSchema.safeParse(entry?.after).success).toBe(true);
@@ -330,11 +393,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
     });
 
     it("refuses a half-filled language, no language, control characters and bad ids (CA400)", async () => {
-      expect(await refusal(save("bad", doc({ answer: { ar: "", en: "x" } })))).toBe("CA400:languages");
-      expect(await refusal(save("bad", doc({ question: { ar: "", en: "" }, answer: { ar: "", en: "" } })))).toBe("CA400:languages");
-      expect(await refusal(save("bad", doc({ question: { ar: "س", en: "Q" + String.fromCharCode(1) } })))).toBe("CA400:question.en");
-      expect(await refusal(save("bad", doc({ answer: { ar: "ج", en: "A" + String.fromCharCode(0x202e) } })))).toBe("CA400:answer.en");
-      expect(await refusal(save("bad", doc({ question: { ar: "س".repeat(201), en: "Q" } })))).toBe("CA400:question.ar");
+      expect(await refusal(save("bad", doc({ answer: { ar: "", en: "x" } })))).toBe(
+        "CA400:languages",
+      );
+      expect(
+        await refusal(
+          save("bad", doc({ question: { ar: "", en: "" }, answer: { ar: "", en: "" } })),
+        ),
+      ).toBe("CA400:languages");
+      expect(
+        await refusal(
+          save("bad", doc({ question: { ar: "س", en: "Q" + String.fromCharCode(1) } })),
+        ),
+      ).toBe("CA400:question.en");
+      expect(
+        await refusal(
+          save("bad", doc({ answer: { ar: "ج", en: "A" + String.fromCharCode(0x202e) } })),
+        ),
+      ).toBe("CA400:answer.en");
+      expect(await refusal(save("bad", doc({ question: { ar: "س".repeat(201), en: "Q" } })))).toBe(
+        "CA400:question.ar",
+      );
       expect(await refusal(save("bad", doc({ position: 0 })))).toBe("CA400:position");
       for (const id of ["Bad", "1abc", "has space", "a".repeat(65)]) {
         expect(await refusal(save(id, doc())), id).toBe("CA400:id");
@@ -349,7 +428,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
       await save("join", doc({ answer: { ar: "امسح الرمز الآن.", en: "Scan the code now." } }));
       const [, edit] = await audits("catalog.help.update", "join");
       expect(edit?.actor_id).toBe(adminId);
-      expect((edit?.before?.["answer"] as Doc)["en"]).toBe("Scan the code.");
+      expect((edit?.before?.["answer"] as Doc | undefined)?.["en"]).toBe("Scan the code.");
       const reverted = await save("join", null, await latestEntry("join"));
       expect(reverted["answer"]).toEqual({ ar: "امسح الرمز.", en: "Scan the code." });
       expect((await audits("catalog.help.revert", "join")).length).toBe(1);

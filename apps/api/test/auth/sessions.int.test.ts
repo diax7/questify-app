@@ -351,6 +351,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
           role: "owner",
           eventScope: null,
           suspension: null,
+          legalPending: [],
         },
       ]);
     });

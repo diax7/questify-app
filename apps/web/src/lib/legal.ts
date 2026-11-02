@@ -40,15 +40,21 @@ export function legalTextBlocks(text: string): LegalBlock[] {
   return blocksOf(text.replace(/\r\n/g, "\n").split("\n"));
 }
 
+const HEADING = /^(#{2,3})\s+(.*)$/;
+const LIST_ITEM = /^[-*]\s+/;
+const isBreak = (line: string): boolean => line === "" || line === "---" || line.startsWith("<");
+
 function blocksOf(lines: readonly string[]): LegalBlock[] {
   const blocks: LegalBlock[] = [];
   let paragraph: string[] = [];
   let list: string[] = [];
-  const flush = (): void => {
+  const closeParagraph = (): void => {
     if (paragraph.length > 0) {
       blocks.push({ kind: "paragraph", text: plain(paragraph.join(" ")) });
       paragraph = [];
     }
+  };
+  const closeList = (): void => {
     if (list.length > 0) {
       blocks.push({ kind: "list", items: list.map(plain) });
       list = [];
@@ -56,28 +62,27 @@ function blocksOf(lines: readonly string[]): LegalBlock[] {
   };
   for (const raw of lines) {
     const line = raw.trim();
-    const heading = /^(#{2,3})\s+(.*)$/.exec(line);
+    const heading = HEADING.exec(line);
     if (heading !== null) {
-      flush();
+      closeParagraph();
+      closeList();
       blocks.push({
         kind: "heading",
         level: heading[1] === "##" ? 2 : 3,
         text: plain(heading[2] ?? ""),
       });
-    } else if (/^[-*]\s+/.test(line)) {
-      if (paragraph.length > 0) {
-        flush();
-      }
-      list.push(line.replace(/^[-*]\s+/, ""));
-    } else if (line === "" || line === "---" || line.startsWith("<")) {
-      flush();
+    } else if (LIST_ITEM.test(line)) {
+      closeParagraph();
+      list.push(line.replace(LIST_ITEM, ""));
+    } else if (isBreak(line)) {
+      closeParagraph();
+      closeList();
     } else {
-      if (list.length > 0) {
-        flush();
-      }
+      closeList();
       paragraph.push(line);
     }
   }
-  flush();
+  closeParagraph();
+  closeList();
   return blocks;
 }

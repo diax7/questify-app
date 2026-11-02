@@ -3,10 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { invalidCatalog } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
-import {
-  CONSOLE_CATALOG_LIMIT,
-  CONSOLE_CATALOG_WRITE_LIMIT,
-} from "#src/console/catalog-routes";
+import { CONSOLE_CATALOG_LIMIT, CONSOLE_CATALOG_WRITE_LIMIT } from "#src/console/catalog-routes";
 import { listHelp, listLegal, publishLegal, revertHelp, saveHelp } from "#src/console/legal";
 import { throttled, type ConsolePlatformDeps } from "#src/console/platform-routes";
 
@@ -20,9 +17,14 @@ const documentParams = z.object({ document: z.enum(LEGAL_DOCUMENT_IDS) });
 const articleParams = z.object({ id: z.string().regex(HELP_ID) });
 
 /** What a body that fails its schema answers: the named fields, as the catalog editors do. */
-function refuseBody(issues: readonly Readonly<{ path: readonly PropertyKey[]; message: string }>[]) {
+function refuseBody(
+  issues: readonly Readonly<{ path: readonly PropertyKey[]; message: string }>[],
+) {
   return invalidCatalog({
-    issues: issues.map((issue) => ({ path: issue.path.map(String).join("."), message: issue.message })),
+    issues: issues.map((issue) => ({
+      path: issue.path.map(String).join("."),
+      message: issue.message,
+    })),
   });
 }
 
@@ -67,7 +69,9 @@ export function registerConsoleLegalRoutes(
       throw refuseBody(checked.error.issues);
     }
     const caller = await throttled(deps, request, reply, CONSOLE_CATALOG_WRITE_LIMIT);
-    return { article: await saveHelp(deps.pool, caller, { id, doc: checked.data, requestId: request.id }) };
+    return {
+      article: await saveHelp(deps.pool, caller, { id, doc: checked.data, requestId: request.id }),
+    };
   });
 
   scope.post("/help/:id/revert", revert, async (request, reply) => {

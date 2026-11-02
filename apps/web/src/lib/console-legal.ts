@@ -18,7 +18,7 @@ import { checked, type Checked } from "#src/lib/console-catalog.ts";
 export const LEGAL_API = "/v1/admin/legal";
 export const HELP_API = "/v1/admin/help";
 
-export const LEGAL_TABS = ["documents", "help"] as const;
+export const LEGAL_TABS = ["documents", "faq"] as const;
 export type LegalTab = (typeof LEGAL_TABS)[number];
 
 /** The documents a player accepts, then the documents an organizer accepts, in the order the page lists them. */
@@ -39,7 +39,7 @@ export const DOCUMENT_NAMES = {
   organizer_content_rules: "console.legal.doc.organizerContentRules",
 } as const satisfies Record<LegalDocumentId, MessageKey>;
 
-export const versionsPath =(document: LegalDocumentId): string =>
+export const versionsPath = (document: LegalDocumentId): string =>
   `${LEGAL_API}/${document}/versions`;
 export const publicTextPath = (document: LegalDocumentId): string => `/v1/legal/${document}`;
 

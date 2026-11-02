@@ -1,3 +1,4 @@
+/* oxlint-disable unicorn/consistent-function-scoping -- each helper sits in the describe that uses it, beside its tests */
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -8,13 +9,9 @@ import {
   withSession,
   type TestApp,
 } from "#test/support/auth-app";
-import {
-  TEST_DATABASE_URL,
-  createTestDatabase,
-  type TestDatabase,
-} from "#test/support/test-db";
+import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
 
-type Method = "GET" | "PUT" | "POST";
+type Method = "GET" | "PUT" | "POST" | "DELETE";
 type Json = Record<string, unknown>;
 
 const TEXT = { ar: "نص الوثيقة", en: "The text of the document" };
@@ -90,11 +87,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help over H
     admin("POST", `/v1/admin/legal/${document}/versions`, { version, text: TEXT, ...extra });
   const inForce = async (): Promise<Record<string, string>> =>
     Object.fromEntries(
-      (
-        (await test.app.inject({ method: "GET", url: "/v1/legal" })).json<{
+      (await test.app.inject({ method: "GET", url: "/v1/legal" }))
+        .json<{
           documents: { document: string; version: string }[];
-        }>().documents
-      ).map((item) => [item.document, item.version]),
+        }>()
+        .documents.map((item) => [item.document, item.version]),
     );
 
   describe("who may use the console doors", () => {
@@ -108,7 +105,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help over H
       ];
       for (const [method, url, payload] of urls) {
         for (const cookie of [ownerCookie, editorCookie, otherOwnerCookie]) {
-          expect((await call(method, url, cookie, payload)).statusCode, `${method} ${url}`).toBe(404);
+          expect((await call(method, url, cookie, payload)).statusCode, `${method} ${url}`).toBe(
+            404,
+          );
         }
         const signedOut = await test.app.inject({
           method,
@@ -164,7 +163,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help over H
       expect(again.statusCode).toBe(409);
       expect(again.json()).toMatchObject({ code: "version_not_newer" });
       expect((await publish("privacy_policy", "0.9")).statusCode).toBe(409);
-      expect((await test.app.inject({ method: "GET", url: "/v1/legal/nothing" })).statusCode).toBe(400);
+      expect((await test.app.inject({ method: "GET", url: "/v1/legal/nothing" })).statusCode).toBe(
+        400,
+      );
     });
   });
 
@@ -224,7 +225,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help over H
         method: "POST",
         url: "/v1/auth/code",
         headers: { "x-forwarded-for": freshIp() },
-        payload: { channel: "phone", value: "+966512345678", accept: { terms: "0.1", privacy: "1" } },
+        payload: {
+          channel: "phone",
+          value: "+966512345678",
+          accept: { terms: "0.1", privacy: "1" },
+        },
       });
       expect(refused.statusCode).toBe(422);
       expect(refused.json()).toMatchObject({
@@ -255,7 +260,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help over H
 
   describe("an organizer's team is held until its owner accepts", () => {
     const invite = (cookie: string, id = organizer) =>
-      call("POST", `/v1/organizers/${id}/invites`, cookie, { email: `new-${randomUUID()}@najd.test` });
+      call("POST", `/v1/organizers/${id}/invites`, cookie, {
+        email: `new-${randomUUID()}@najd.test`,
+      });
     const pending = async (cookie: string): Promise<Json[]> => {
       const me = await test.app.inject({
         method: "GET",
@@ -304,7 +311,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help over H
       });
       expect(stale.statusCode).toBe(422);
       expect(stale.json()).toMatchObject({ code: "acceptance_required" });
-      for (const body of [{}, { documents: [] }, { documents: [{ document: "terms_of_use", version: "2" }] }]) {
+      for (const body of [
+        {},
+        { documents: [] },
+        { documents: [{ document: "terms_of_use", version: "2" }] },
+      ]) {
         expect((await call("POST", url, ownerCookie, body)).statusCode).toBe(400);
       }
       expect((await invite(ownerCookie)).statusCode).toBe(403);
@@ -330,7 +341,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help over H
       ...extra,
     });
     const publicHelp = async (): Promise<Json[]> =>
-      (await test.app.inject({ method: "GET", url: "/v1/help" })).json<{ articles: Json[] }>().articles;
+      (await test.app.inject({ method: "GET", url: "/v1/help" })).json<{ articles: Json[] }>()
+        .articles;
 
     it("saves, lists, shows only the published ones, and shows one language when only that exists", async () => {
       expect((await admin("PUT", "/v1/admin/help/join", article())).statusCode).toBe(200);

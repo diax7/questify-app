@@ -6824,3 +6824,49 @@ of every event, one row per event (count, oldest, kinds), linked to the console'
 Every read and action is audited with ids, codes and counts only (`console.reports_read`, `console.report_read`,
 `report.resolve`, `console.flags_read`); 120 reads a minute, 120 actions an hour and 60 flag reads a minute per admin.
 **Trade-offs:** changing a username or banning from a report is two steps (the record, then Close) rather than one button.
+
+## ADR-440 - T-707 the version in force of each legal document is data an admin publishes, append-only, in force at once
+
+**Status:** Proposed (developer, 2026-11-02; T-707 build; migration 0123; Q-403, Q-404).
+**Decision:** `legal_version` (document, version, Arabic and English text, note, who, when) holds every published version of the
+six documents (terms of use, privacy policy, community guidelines, organizer terms, data processing agreement, content rules).
+The version in force of a document is its latest version compared as three numbers (so 0.10 follows 0.9 and 1 equals 1.0.0).
+An admin publishes a later version with both texts in the console (`/console/legal`); a version not later than the one in
+force is refused (409); two publishes at once are serialised. A published row can never be changed or removed, by any role
+(a correction is a newer version). It is in force the moment it commits. `playerDocuments()` and `organizerDocuments()` no
+longer hold constants: the API reads `legal_in_force()` on every sign-in request, profile read, acceptance and submission, and
+`GET /v1/config` carries the player versions (cached with the rest of the configuration, so an app may be told an old version
+for up to the settings cache's few seconds and then learns the new one from the 422 that lists the versions in force). The six
+seeded 0.1 rows carry no text: the legal pages show the draft files in `docs/legal/` for them (the drafts await counsel,
+T-807) and show the published text, in the reader's language, from the first version an admin publishes. The wording is data;
+none of it is final legal copy (Q-288).
+**Trade-offs:** a published text is plain paragraphs, headings and lists (the same small markdown as the drafts); a version
+cannot be scheduled for later (Q-403).
+
+## ADR-441 - T-707 players are asked again at launch and sign-in, and an organizer's team is held until its owner accepts
+
+**Status:** Proposed (developer, 2026-11-02; T-707 build; answers Q-095 part 1; Q-402).
+**Decision:** **Players:** unchanged and now data-driven. The app asks on launch for the sign-up documents (terms, privacy)
+whose version in force the player has not accepted (`profile.legal.toAccept`), and before a first submission for the
+community guidelines; the sign-up and sign-in requests, and `POST /v1/me/acceptances`, refuse a stale version with a 422 that
+lists the versions in force. A player who declines can read the documents and sign out and cannot continue in the app (the
+launch gate); player routes do not refuse on every request, because that would add a read to every player call and would let a
+documents change break a running ledger call (Q-402). **Organizers:** a document in force that an organizer accepted an earlier
+version of is "pending" for it. Every member sees the pending documents (a banner with a link to each); the team's writes
+(every method but GET and HEAD) answer 403 `organizer_acceptance_required` with the documents until the organizer's owner
+accepts them (`POST /v1/organizers/{id}/legal/accept`, owner only, only the versions in force, audited); leaving, an owner
+removing a member and the acceptance itself stay open, and a Questify admin on a support grant is not held. An organizer with no
+acceptance on record at all is not held, because an organizer is only ever made with all three accepted (`insert_organizer`).
+**Trade-offs:** an editor cannot act on a new version and must ask the owner; reads stay open so the page can say why.
+
+## ADR-442 - T-707 help and FAQ articles are bilingual rows an admin edits, one language allowed, hidden until published
+
+**Status:** Proposed (developer, 2026-11-02; T-707 build; migration 0123).
+**Decision:** `help_article` (id, order, question and answer in Arabic and English, published) is edited in the console
+(`/console/legal`, Help and FAQ tab) through admin-checked doors with the catalog's audit entry (`catalog.help.update` and
+`.revert`, fields before and after) and revert. A language is complete (question and answer) or empty and at least one is
+there; Western digits only, no control or direction character, the Arabic box must hold Arabic and the English box none. A new
+article is hidden. `GET /v1/help` (public, cached a minute) lists the published ones; a reader of a language an article lacks
+is shown the other language (`shownHelp`), marked "Only in English" or "Only in Arabic" on the web page `/{lang}/help`, and the
+app shows the questions above its ticket cards on the profile's Get help screen. There is no delete: hide an article.
+**Trade-offs:** answers are plain text; links and images wait for a need.

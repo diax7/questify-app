@@ -1,5 +1,5 @@
 -- T-707: legal document versions with forced re-acceptance, and the help and FAQ content (FR-1781, FR-1782; plan note
--- docs/plans/2026-11-02-t-707-legal-help.md; ADR-440 to ADR-443).
+-- docs/plans/2026-11-02-t-707-legal-help.md; ADR-440 to ADR-442).
 -- The version in force of each of the six legal documents (three for players, three for organizers) moves from code
 -- (`playerDocuments()`, `organizerDocuments()`) to `legal_version`, an append-only table an admin adds to. Publishing a
 -- version makes it the one in force at once: players are asked at their next launch (profile.legal, unchanged), and an
@@ -59,11 +59,14 @@ CREATE FUNCTION legal_version_key(version text) RETURNS integer[]
 $$;
 REVOKE ALL ON FUNCTION legal_version_key(text) FROM PUBLIC;
 
--- The version in force of every document: the latest version of each.
-CREATE VIEW legal_in_force_v WITH (security_barrier = true) AS
-  SELECT DISTINCT ON (document) document, version, published_at, id
-  FROM legal_version ORDER BY document, legal_version_key(version) DESC;
-REVOKE ALL ON legal_in_force_v FROM PUBLIC, questify_app;
+-- The version in force of every document: the latest version of each. Internal to the definers below (a view would read with
+-- its owner's rights, which the outsider suite forbids): no role can call it.
+CREATE FUNCTION legal_in_force_rows() RETURNS TABLE (id bigint, document text, version text, published_at timestamptz)
+  LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
+  SELECT DISTINCT ON (v.document) v.id, v.document, v.version, v.published_at
+  FROM legal_version v ORDER BY v.document, legal_version_key(v.version) DESC
+$$;
+REVOKE ALL ON FUNCTION legal_in_force_rows() FROM PUBLIC;
 
 -- ================================================================ public reads (the pages and the apps need them signed out)
 -- The documents in force: [{document, version, publishedAt}]. Public information, the same as the legal pages.
@@ -71,7 +74,7 @@ CREATE FUNCTION legal_in_force() RETURNS jsonb
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT coalesce(jsonb_agg(jsonb_build_object('document', document, 'version', version,
                                                'publishedAt', published_at) ORDER BY document), '[]'::jsonb)
-  FROM legal_in_force_v
+  FROM legal_in_force_rows()
 $$;
 REVOKE ALL ON FUNCTION legal_in_force() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION legal_in_force() TO questify_app;
@@ -82,7 +85,7 @@ CREATE FUNCTION legal_text(doc text) RETURNS jsonb
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT jsonb_build_object('document', f.document, 'version', f.version, 'publishedAt', f.published_at,
                             'ar', v.body_ar, 'en', v.body_en)
-  FROM legal_in_force_v f JOIN legal_version v ON v.id = f.id
+  FROM legal_in_force_rows() f JOIN legal_version v ON v.id = f.id
   WHERE f.document = doc
 $$;
 REVOKE ALL ON FUNCTION legal_text(text) FROM PUBLIC;
@@ -103,7 +106,7 @@ BEGIN
                                     ORDER BY legal_version_key(v.version) DESC)
                    FROM legal_version v WHERE v.document = d.document)) ORDER BY d.document)
     FROM (SELECT DISTINCT document FROM legal_version) d
-    JOIN legal_in_force_v f ON f.document = d.document), '[]'::jsonb);
+    JOIN legal_in_force_rows() f ON f.document = d.document), '[]'::jsonb);
 END $$;
 REVOKE ALL ON FUNCTION admin_legal_list() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION admin_legal_list() TO questify_app;
@@ -138,7 +141,7 @@ BEGIN
     RAISE EXCEPTION 'the note is at most 300 characters' USING ERRCODE = 'LG400', DETAIL = 'note';
   END IF;
   PERFORM pg_advisory_xact_lock(hashtext('legal_version:' || doc));
-  SELECT version INTO current FROM legal_in_force_v WHERE document = doc;
+  SELECT version INTO current FROM legal_in_force_rows() WHERE document = doc;
   IF current IS NOT NULL AND legal_version_key(new_version) <= legal_version_key(current) THEN
     RAISE EXCEPTION 'version % is not later than the version in force (%)', new_version, current
       USING ERRCODE = 'LG409', DETAIL = current;
@@ -164,7 +167,7 @@ CREATE FUNCTION organizer_legal_missing(org uuid) RETURNS jsonb
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT coalesce(jsonb_agg(jsonb_build_object('document', f.document, 'version', f.version) ORDER BY f.document),
                   '[]'::jsonb)
-  FROM legal_in_force_v f
+  FROM legal_in_force_rows() f
   WHERE f.document IN ('organizer_terms', 'organizer_dpa', 'organizer_content_rules')
     AND EXISTS (SELECT 1 FROM organizer_member m WHERE m.organizer_id = org AND m.staff_user_id = app_staff_user_id())
     AND EXISTS (SELECT 1 FROM organizer_acceptance a WHERE a.organizer_id = org AND a.document = f.document)
@@ -191,7 +194,7 @@ BEGIN
     RAISE EXCEPTION 'name one to three documents' USING ERRCODE = 'LG412';
   END IF;
   FOR item IN SELECT * FROM jsonb_array_elements(documents) LOOP
-    IF NOT EXISTS (SELECT 1 FROM legal_in_force_v f
+    IF NOT EXISTS (SELECT 1 FROM legal_in_force_rows() f
                    WHERE f.document = item ->> 'document' AND f.version = item ->> 'version'
                      AND f.document IN ('organizer_terms', 'organizer_dpa', 'organizer_content_rules')) THEN
       RAISE EXCEPTION 'not the version in force' USING ERRCODE = 'LG412';

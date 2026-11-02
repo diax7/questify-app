@@ -16,11 +16,13 @@ import {
   validateEventConfig,
   validatePlatformSettings,
   withLegal,
+  type ComposedBody,
   type ComposedConfig,
   type ConfigIssue,
   type EventConfig,
   type EventLayout,
   type EventTexts,
+  type LegalInForce,
   type PlatformSettings,
   type Registries,
 } from "@questify/shared";
@@ -63,6 +65,12 @@ export type LayoutSaveResult =
 export type TextsSaveResult =
   | Readonly<{ ok: true; texts: EventTexts }>
   | Exclude<SaveResult, Readonly<{ ok: true }>>;
+
+/** The composed configuration with the legal block, and its ETag. */
+function answerOf(body: ComposedBody, inForce: LegalInForce): ConfigResult {
+  const config = withLegal(body, inForce);
+  return { kind: "ok", config, etag: etagOf(config) };
+}
 
 /** The event's stored config as the composer reads it: each block tolerantly, so a damaged one is the default. */
 function eventConfigOf(stored: unknown, unlocked: readonly string[]): EventConfig {
@@ -209,19 +217,15 @@ export function createSettingsService(options: SettingsOptions): SettingsService
         const platform = await loadPlatform(client);
         const inForce = await readInForce(client);
         if (eventId === undefined) {
-          const config = withLegal(composeConfig(registries, platform, undefined), inForce);
-          return { kind: "ok", config, etag: etagOf(config) } as const;
+          return answerOf(composeConfig(registries, platform, undefined), inForce);
         }
         const stored = await readStoredEventConfig(client, eventId);
         if (stored === undefined) {
           return { kind: "event_not_found" } as const;
         }
         const unlocked = await readEntitlements(client, eventId);
-        const config = withLegal(
-          composeConfig(registries, platform, eventConfigOf(stored, unlocked)),
-          inForce,
-        );
-        return { kind: "ok", config, etag: etagOf(config) } as const;
+        const body = composeConfig(registries, platform, eventConfigOf(stored, unlocked));
+        return answerOf(body, inForce);
       }),
     );
 

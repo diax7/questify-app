@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { faqFrom } from "#src/help/faq.ts";
 
-const article = (id: string, question: { ar: string; en: string }, answer: { ar: string; en: string }) => ({
+const article = (
+  id: string,
+  question: { ar: string; en: string },
+  answer: { ar: string; en: string },
+) => ({
   id,
   question,
   answer,
@@ -10,7 +14,11 @@ const article = (id: string, question: { ar: string; en: string }, answer: { ar:
 describe("faqFrom", () => {
   const body = {
     articles: [
-      article("join", { ar: "كيف أنضم؟", en: "How do I join?" }, { ar: "امسح الرمز.", en: "Scan the code." }),
+      article(
+        "join",
+        { ar: "كيف أنضم؟", en: "How do I join?" },
+        { ar: "امسح الرمز.", en: "Scan the code." },
+      ),
       article("prizes", { ar: "", en: "Prizes?" }, { ar: "", en: "At the desk." }),
       article("rtl", { ar: "سؤال", en: "" }, { ar: "جواب", en: "" }),
     ],

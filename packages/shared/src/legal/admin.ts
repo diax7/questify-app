@@ -7,10 +7,10 @@ import { LEGAL_DOCUMENT_IDS, LEGAL_VERSION } from "#src/legal/documents";
  */
 
 /** Digits of any other script clash with the Western digits every screen uses (ADR-018). */
-const OTHER_DIGITS = /[٠-٩۰-۹]/;
+const OTHER_DIGITS = new RegExp(String.raw`[٠-٩۰-۹]`, "u");
 const ARABIC_LETTER = /\p{Script=Arabic}/u;
 /** Control and direction characters; tab, new line and carriage return stay, as the texts have paragraphs. */
-const UNSAFE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F‎‏‪-‮⁦-⁩]/u;
+const UNSAFE = new RegExp(String.raw`(?![\t\n\r])\p{Cc}|[‎‏‪-‮⁦-⁩]`, "u");
 
 export const LEGAL_TEXT_MAX = 100_000;
 export const LEGAL_NOTE_MAX = 300;
@@ -49,7 +49,10 @@ const instant = z.string();
 export const legalPublishSchema = z.strictObject({
   version,
   text: z.strictObject({
-    ar: text(LEGAL_TEXT_MAX).refine((value) => ARABIC_LETTER.test(value), "must be written in Arabic"),
+    ar: text(LEGAL_TEXT_MAX).refine(
+      (value) => ARABIC_LETTER.test(value),
+      "must be written in Arabic",
+    ),
     en: text(LEGAL_TEXT_MAX).refine((value) => value !== "", "required"),
   }),
   note: text(LEGAL_NOTE_MAX).optional(),
@@ -134,7 +137,9 @@ export const helpAdminListSchema = z.strictObject({ articles: z.array(helpAdminS
 
 /** `GET /v1/help`: the published articles in order. */
 export const helpPublicSchema = z.strictObject({
-  articles: z.array(z.strictObject({ id: z.string().regex(HELP_ID), question: stored, answer: stored })),
+  articles: z.array(
+    z.strictObject({ id: z.string().regex(HELP_ID), question: stored, answer: stored }),
+  ),
 });
 export type HelpPublic = z.infer<typeof helpPublicSchema>;
 

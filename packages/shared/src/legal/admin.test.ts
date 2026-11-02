@@ -32,7 +32,10 @@ describe("legalPublishSchema", () => {
   });
 
   it("keeps new lines in a text", () => {
-    const parsed = legalPublishSchema.safeParse({ ...valid, text: { ar: "نص\n\nفقرة", en: "A\n\nB" } });
+    const parsed = legalPublishSchema.safeParse({
+      ...valid,
+      text: { ar: "نص\n\nفقرة", en: "A\n\nB" },
+    });
     expect(parsed.success).toBe(true);
   });
 });
@@ -54,7 +57,10 @@ describe("helpDocSchema", () => {
   it.each([
     ["a question without its answer", { ...article, answer: { ar: "", en: "A" } }],
     ["an answer without its question", { ...article, question: { ar: "", en: "Q" } }],
-    ["no language at all", { ...article, question: { ar: "", en: "" }, answer: { ar: "", en: "" } }],
+    [
+      "no language at all",
+      { ...article, question: { ar: "", en: "" }, answer: { ar: "", en: "" } },
+    ],
     ["English in the Arabic box", { ...article, question: { ar: "Join", en: "Q" } }],
     ["Arabic in the English box", { ...article, question: { ar: "س", en: "سؤال" } }],
     ["an answer over 4,000 characters", { ...article, answer: { ar: "ج", en: "a".repeat(4001) } }],

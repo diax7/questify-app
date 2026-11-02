@@ -835,6 +835,24 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); one platform admin's open sessions with browser and address, never a token; a member's account is the same 404; audited with the account id; 60 a minute per admin (test/console/platform, test/db/platform-health)",
   "POST /v1/admin/sessions/:sessionId/end":
     "active platform admins only (walked below); admin_end_session re-reads the admin, ends one open session of a platform admin only, reason required, audited; the caller's own session is refused (409); 30 an hour per admin (test/console/platform, test/db/platform-health)",
+  "GET /v1/admin/legal":
+    "active platform admins only (walked below); read only; the six legal documents with their version history, no texts; the admin checked again in admin_legal_list (QE403); 60 a minute per admin (test/console/legal, test/db/legal-help)",
+  "POST /v1/admin/legal/:document/versions":
+    "active platform admins only (walked below); adds a version later than the one in force (409), both texts, audited with who and the version; published versions can never change; idempotency key; 120 an hour per admin (test/console/legal, test/db/legal-help)",
+  "GET /v1/admin/help":
+    "active platform admins only (walked below); read only; every help article, hidden ones too; the admin checked again in admin_help_articles (QE403); 60 a minute per admin (test/console/legal, test/db/legal-help)",
+  "PUT /v1/admin/help/:id":
+    "active platform admins only (walked below); one article row only, checked by the shared schema here and again in admin_help_article_save (QE403, CA400); audited with who, before and after; 120 changes an hour per admin (test/console/legal, test/db/legal-help)",
+  "POST /v1/admin/help/:id/revert":
+    "active platform admins only (walked below); puts back the before of the article's latest catalog audit entry through admin_help_article_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/legal, test/db/legal-help)",
+  "GET /v1/legal":
+    "no tenant data: the version in force of each legal document, the same for everyone (test/console/legal)",
+  "GET /v1/legal/:document":
+    "no tenant data: one legal document in force with its published texts, the same for everyone; only the six known ids (test/console/legal)",
+  "GET /v1/help":
+    "no tenant data: the published help articles, the same for everyone (test/console/legal)",
+  "POST /v1/organizers/:organizerId/legal/accept":
+    "owner of that organizer only (owner route, walked below); records the organizer documents at the versions in force for that organizer, audited; open while the team's writes are held (test/console/legal, test/db/legal-help)",
   "GET /v1/admin/catalog/templates":
     "active platform admins only (walked below); read only; every event template, switched-off ones too, with its stored body; the admin checked again in admin_templates (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog)",
   "PUT /v1/admin/catalog/templates/:id":
@@ -998,7 +1016,10 @@ const PUBLIC_ROUTES = [
   "GET /readyz",
   "GET /v1/cities",
   "GET /v1/config",
+  "GET /v1/help",
   "GET /v1/interests",
+  "GET /v1/legal",
+  "GET /v1/legal/:document",
   "GET /v1/public/events",
   "GET /v1/public/events/:joinCode",
   "GET /v1/public/events/:joinCode/quests",

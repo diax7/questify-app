@@ -23,7 +23,9 @@ async function answerOf(client: PoolClient, sql: string, values: unknown[] = [])
 /** Every legal document with its versions, newest first, and which one is in force. */
 export function listLegal(pool: Pool, admin: Admin): Promise<LegalAdminList> {
   return door(pool, admin, async (client) =>
-    legalAdminListSchema.parse({ documents: await answerOf(client, "SELECT admin_legal_list() AS r") }),
+    legalAdminListSchema.parse({
+      documents: await answerOf(client, "SELECT admin_legal_list() AS r"),
+    }),
   );
 }
 
@@ -38,14 +40,18 @@ export function publishLegal(
 ): Promise<Readonly<{ document: string; version: string; publishedAt: string }>> {
   const { input } = target;
   return door(pool, admin, async (client) => {
-    const answer = await answerOf(client, "SELECT admin_legal_publish($1, $2, $3, $4, $5, $6) AS r", [
-      target.document,
-      input.version,
-      input.text.ar,
-      input.text.en,
-      input.note ?? null,
-      target.requestId,
-    ]);
+    const answer = await answerOf(
+      client,
+      "SELECT admin_legal_publish($1, $2, $3, $4, $5, $6) AS r",
+      [
+        target.document,
+        input.version,
+        input.text.ar,
+        input.text.en,
+        input.note ?? null,
+        target.requestId,
+      ],
+    );
     return answer as { document: string; version: string; publishedAt: string };
   });
 }
