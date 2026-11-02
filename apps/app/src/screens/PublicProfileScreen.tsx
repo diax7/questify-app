@@ -10,6 +10,7 @@ import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { PublicAchievements } from "#src/questify/AchievementsSection.tsx";
+import { BlockButton, BlockedLine } from "#src/questify/BlockButton.tsx";
 import { PublicPassport } from "#src/questify/PassportSection.tsx";
 import { publicProfileSchema, type PublicProfile } from "#src/questify/profile-api.ts";
 
@@ -21,6 +22,14 @@ export function PublicProfileScreen() {
     "loading",
   );
   const [attempt, setAttempt] = useState(0);
+  // Blocked on this screen: the profile gives way to a line and Unblock; unblocking reads the profile again.
+  const [blocked, setBlocked] = useState(false);
+  const changeBlock = (now: boolean) => {
+    setBlocked(now);
+    if (!now) {
+      setAttempt((n) => n + 1);
+    }
+  };
   const owner = state.status === "signed_in" ? state.me?.id : undefined;
   const requestKey = `${owner ?? ""}:${username}`;
   const [loadedKey, setLoadedKey] = useState("");
@@ -53,6 +62,8 @@ export function PublicProfileScreen() {
       <ScrollView contentContainerStyle={{ gap: 12 }}>
         {state.status !== "signed_in" ? (
           <Button label={t("signIn.start")} onPress={() => router.push("/sign-in")} />
+        ) : blocked ? (
+          <BlockedLine username={username} onChange={changeBlock} />
         ) : typeof shown === "string" ? (
           <>
             <AppText accessibilityLiveRegion="polite">
@@ -92,6 +103,9 @@ export function PublicProfileScreen() {
             <AppText>{shown.level.title[language]}</AppText>
             <PublicAchievements tiers={shown.achievements} />
             <PublicPassport stamps={shown.passport} />
+            {shown.username.toLowerCase() === state.me?.username.toLowerCase() ? null : (
+              <BlockButton username={shown.username} onChange={changeBlock} />
+            )}
           </>
         )}
       </ScrollView>

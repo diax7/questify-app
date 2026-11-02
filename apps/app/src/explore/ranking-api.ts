@@ -1,5 +1,7 @@
 import {
+  EMPTY_EQUIPMENT,
   questifyRankingSchema,
+  type Equipment,
   type QuestifyRanking,
   type QuestifyRankingRow,
   type QuestifyRankingScope,
@@ -38,17 +40,43 @@ export async function fetchQuestifyRanking(
   return parsed.success ? { kind: "ranking", ranking: parsed.data } : { kind: "failed" };
 }
 
-export type ShownQuestifyRow = QuestifyRankingRow & Readonly<{ key: string }>;
+/**
+ * A row as drawn. A player the reader blocked (`hidden`, FR-1415) keeps the place, XP and level; the server sends no
+ * name, face or equipment, so here they are empty and the row reads "Hidden player" and opens nothing.
+ */
+export type ShownQuestifyRow = Readonly<{
+  rank: number;
+  username: string;
+  avatar: string;
+  equipment: Equipment;
+  xp: number;
+  level: number;
+  isMe: boolean;
+  hidden: boolean;
+  key: string;
+}>;
+
+const shownOf = (row: QuestifyRankingRow): ShownQuestifyRow =>
+  row.username === null
+    ? {
+        ...row,
+        username: "",
+        avatar: "",
+        equipment: EMPTY_EQUIPMENT,
+        hidden: true,
+        key: `${row.rank}:`,
+      }
+    : { ...row, hidden: false, key: `${row.rank}:${row.username}` };
 
 /**
  * What Explore shows (the event ranking's 11-row layout, FR-601): the top rows as given, then the player's own row as
  * an 11th only when they are ranked but not among them. A player without XP on the board gets no row of their own.
  */
 export function questifyRankingRows(ranking: QuestifyRanking): readonly ShownQuestifyRow[] {
-  const top = ranking.rows.map((row) => ({ ...row, key: `${row.rank}:${row.username}` }));
+  const top = ranking.rows.map(shownOf);
   const me = ranking.me;
   if (me === null || ranking.rows.some((row) => row.isMe)) {
     return top;
   }
-  return [...top, { ...me, isMe: true, key: `${me.rank}:${me.username}` }];
+  return [...top, { ...me, isMe: true, hidden: false, key: `${me.rank}:${me.username}` }];
 }

@@ -196,11 +196,15 @@ describe("verifyCode", () => {
       problem: MESSAGE,
     });
     expect(
+      await verifyCode(
+        setup(fail(403, "account_banned", { reason: "abuse", appealEmail: "a@questify.test" }))
+          .deps,
+        { challengeToken: "t", code: "1" },
+      ),
+    ).toEqual({ type: "banned", notice: { reason: "abuse", appealEmail: "a@questify.test" } });
+    expect(
       await verifyCode(setup(fail(403, "account_banned")).deps, { challengeToken: "t", code: "1" }),
-    ).toEqual({
-      type: "refused",
-      problem: MESSAGE,
-    });
+    ).toEqual({ type: "banned", notice: { reason: null, appealEmail: "" } });
   });
 });
 

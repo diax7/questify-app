@@ -9,8 +9,7 @@ import {
   type PodiumMetrics,
   type ShownRow,
 } from "#src/event/ranking.ts";
-import { PlayerName } from "#src/event/PlayerName.tsx";
-import { openPlayer, useRowLabel } from "#src/event/RankingRows.tsx";
+import { RowName, pressOf, useRowLabel } from "#src/event/RankingRows.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -41,21 +40,15 @@ function Place({
   return (
     <Pressable
       accessible
-      accessibilityRole="button"
+      accessibilityRole={row.hidden ? "text" : "button"}
       accessibilityLabel={label}
-      onPress={() => openPlayer(row.username)}
+      onPress={pressOf(row)}
       style={styles.place}
     >
       <View style={row.isMe ? [styles.ring, { borderRadius: face }] : styles.noRing}>
         <Avatar name={row.avatar} username={row.username} size={face} equipment={row.equipment} />
       </View>
-      <PlayerName
-        variant="label"
-        username={row.username}
-        fullName={row.fullName}
-        names={row.names}
-        style={styles.name}
-      />
+      <RowName row={row} variant="label" style={styles.name} />
       {scoreLine ? (
         <View style={styles.score}>
           {row.score === null ? null : (

@@ -2304,13 +2304,13 @@ export const usernameUnchanged = make(
 export const alreadyBanned = make(
   409,
   "already_banned",
-  "هذا الحساب موقوف مسبقا.",
+  "هذا الحساب محظور مسبقا.",
   "This account is already banned.",
 );
 export const notBanned = make(
   409,
   "not_banned",
-  "هذا الحساب غير موقوف.",
+  "هذا الحساب غير محظور.",
   "This account is not banned.",
 );
 export const playerInactive = make(

@@ -141,6 +141,16 @@ export async function verifyCode(
   if (answer.kind === "error" && answer.status === 410) {
     return { type: "expired", problem: answer.message };
   }
+  if (answer.kind === "error" && answer.code === "account_banned") {
+    const { reason, appealEmail } = answer.details;
+    return {
+      type: "banned",
+      notice: {
+        reason: typeof reason === "string" ? reason : null,
+        appealEmail: typeof appealEmail === "string" ? appealEmail : "",
+      },
+    };
+  }
   return { type: "refused", problem: problemOf(answer) };
 }
 

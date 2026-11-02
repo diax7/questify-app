@@ -8958,6 +8958,7 @@ export const MESSAGES = {
   "block.undo": { ar: "إلغاء الحظر", en: "Unblock" },
   "block.undone": { ar: "ألغيت حظر {name}.", en: "You unblocked {name}." },
   "block.failed": { ar: "تعذر الحفظ. حاول مرة أخرى.", en: "Couldn't save. Try again." },
+  "block.loadFailed": { ar: "تعذر تحميل القائمة.", en: "Couldn't load the list." },
   "block.list": { ar: "اللاعبون المحظورون", en: "Blocked players" },
   "block.empty": { ar: "لم تحظر أحدًا.", en: "You haven't blocked anyone." },
 } as const satisfies Messages;

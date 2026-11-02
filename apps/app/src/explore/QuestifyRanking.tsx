@@ -76,14 +76,19 @@ function Row({ row }: Readonly<{ row: ShownQuestifyRow }>) {
   const styles = useThemedStyles(makeStyles);
   const xp = formatNumber(row.xp, language);
   const title = row.equipment.title?.name[language];
-  const label = rowLabel(row, language, t);
+  const label = row.hidden
+    ? t("ranking.rowLabelHidden", { rank: row.rank })
+    : rowLabel(row, language, t);
   return (
     <Pressable
       accessible
-      accessibilityRole="button"
+      accessibilityRole={row.hidden ? "text" : "button"}
       accessibilityLabel={label}
-      onPress={() =>
-        router.push({ pathname: "/player/[username]", params: { username: row.username } })
+      onPress={
+        row.hidden
+          ? undefined
+          : () =>
+              router.push({ pathname: "/player/[username]", params: { username: row.username } })
       }
       style={[styles.row, row.isMe ? styles.mine : null]}
     >
@@ -104,7 +109,7 @@ function Row({ row }: Readonly<{ row: ShownQuestifyRow }>) {
         // A username is Latin: it reads left to right inside an Arabic row, so "@" stays in front.
         style={[styles.grow, { writingDirection: "ltr" }]}
       >
-        {isolatedLtr(`@${row.username}`)}
+        {row.hidden ? t("ranking.hiddenPlayer") : isolatedLtr(`@${row.username}`)}
         {title === undefined ? "" : ` · ${title}`}
       </AppText>
       {row.isMe ? <AppText variant="label">{t("ranking.you")}</AppText> : null}

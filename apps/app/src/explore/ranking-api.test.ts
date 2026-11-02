@@ -103,6 +103,39 @@ describe("questifyRankingRows", () => {
     expect(questifyRankingRows(ranking([], null))).toEqual([]);
   });
 
+  it("draws a blocked player's row as hidden, with its place, XP and level (T-705)", () => {
+    const rows = questifyRankingRows(
+      ranking(
+        [
+          {
+            rank: 1,
+            username: null,
+            avatar: null,
+            equipment: null,
+            xp: 900,
+            level: 4,
+            isMe: false,
+            hidden: true,
+          },
+          { ...shown(2), isMe: true },
+        ],
+        shown(2),
+      ),
+    );
+    expect(rows[0]).toEqual({
+      rank: 1,
+      username: "",
+      avatar: "",
+      equipment,
+      xp: 900,
+      level: 4,
+      isMe: false,
+      hidden: true,
+      key: "1:",
+    });
+    expect(rows[1]).toMatchObject({ username: "player2", hidden: false });
+  });
+
   it("gives every row its own key", () => {
     const keys = questifyRankingRows(ranking(top(), shown(37))).map((row) => row.key);
     expect(new Set(keys).size).toBe(11);

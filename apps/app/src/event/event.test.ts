@@ -448,6 +448,34 @@ describe("rankingAnswer", () => {
     expect(rankingAnswer(ok({ ...ranking, me: null }))).toMatchObject({ kind: "ranking" });
   });
 
+  it("reads a blocked player's row as hidden: its place and score, nothing of the player (T-705)", () => {
+    const hidden = {
+      ...ranking,
+      rows: [
+        {
+          rank: 1,
+          username: null,
+          avatar: null,
+          equipment: null,
+          score: 90,
+          isMe: false,
+          hidden: true,
+        },
+      ],
+    };
+    expect(rankingAnswer(ok(hidden))).toMatchObject({
+      kind: "ranking",
+      ranking: {
+        rows: [{ rank: 1, username: "", avatar: "", score: 90, isMe: false, hidden: true }],
+      },
+    });
+    const unnamed = {
+      ...ranking,
+      rows: [{ rank: 1, username: null, avatar: null, score: 90, isMe: false }],
+    };
+    expect(rankingAnswer(ok(unnamed))).toEqual({ kind: "network" });
+  });
+
   it("reads whether today's ranking is offered (an older server's answer has none)", () => {
     expect(rankingAnswer(ok({ ...ranking, today: true }))).toMatchObject({
       ranking: { today: true },
