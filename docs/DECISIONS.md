@@ -6578,7 +6578,8 @@ characters.
 is not bound by the player's change window nor uses it up: the history row is `admin`, and the window counts `rename` rows
 only, so the player may choose another name at once. The old name, folded, goes to `username_retired` (no player id,
 `ON CONFLICT DO NOTHING`); `username_blocked` refuses a retired name to everyone, the renamed player included, so an
-offensive name cannot come back. The player gets the personal notice `username_changed` with fixed text and no name or
+offensive name cannot come back. A rename for `personal_data` retires nothing: the old name is the personal data, and a retired name
+outlives the account's erasure. A rename that only changes letter case is `unchanged`. The player gets the personal notice `username_changed` with fixed text and no name or
 reason; it opens the notification center. An erased account cannot be renamed (404). Names are read live by the ranking
 reads, so boards show the new name at their next read.
 **Trade-offs:** a retired name stays out of use until T-705's word-list page un-retires it (Q-385).

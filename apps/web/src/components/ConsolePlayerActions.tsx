@@ -195,7 +195,7 @@ export function RenamePanel({
         old: `@${username}`,
         new: `@${checked.ok ? checked.username : name}`,
       })}
-      extraReady={checked.ok && checked.username !== username}
+      extraReady={checked.ok && checked.username.toLowerCase() !== username.toLowerCase()}
       send={(reason) =>
         requestJson("POST", renamePath(playerId), { ...reason, username: name.trim() }, keyed())
       }

@@ -370,6 +370,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console player tools (database
       expect(own?.outcome).toBe("renamed");
     });
 
+    it("retires nothing when the old name held personal data, and calls a case-only change unchanged", async () => {
+      const target = await player("ali_0555_private");
+      const same = await rename(target.id, "ALI_0555_PRIVATE");
+      expect(same).toEqual({ outcome: "unchanged", action_id: null });
+      const done = await rename(target.id, "masked_name_1", {
+        reasonCode: "personal_data",
+        note: "Phone number in the name",
+      });
+      expect(done?.outcome).toBe("renamed");
+      expect(await f.count("username_retired WHERE fold = 'ali_0555_private'")).toBe(0);
+    });
+
     it("keeps the retired name from everyone, the renamed player included", async () => {
       const target = await player("retire_me_now");
       await rename(target.id, "retired_after_1");

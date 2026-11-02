@@ -425,7 +425,7 @@ GRANT EXECUTE ON FUNCTION console_player_contact(uuid, text, text, uuid) TO ques
 
 -- ================================================================ the admin rename (FR-1775, ADR-420)
 -- Same characters, folding, uniqueness and word lists as a player's own change, not bound by the player's change window
--- and not using it up. The old name is retired. The player gets a personal notice with fixed text. Locks the player
+-- and not using it up. The old name is retired unless it held personal data (it would outlive an erasure). The player gets a personal notice with fixed text. Locks the player
 -- row as rename_player does, so the two run one after the other. Outcomes: invalid (characters), unchanged,
 -- username_blocked (a listed word or a retired name), username_taken, renamed. PA404 for a tombstone or unknown id.
 CREATE FUNCTION admin_rename_player(target uuid, new_name text, reason_code text, note text, request uuid)
@@ -441,7 +441,7 @@ BEGIN
     RETURN QUERY SELECT 'invalid'::text, NULL::uuid;
     RETURN;
   END IF;
-  IF p.username = new_name THEN
+  IF username_fold(p.username) = username_fold(new_name) THEN
     RETURN QUERY SELECT 'unchanged'::text, NULL::uuid;
     RETURN;
   END IF;
@@ -458,7 +458,9 @@ BEGIN
     RETURN;
   END;
   PERFORM set_config('app.username_reason', '', true);
-  INSERT INTO username_retired (fold) VALUES (username_fold(p.username)) ON CONFLICT DO NOTHING;
+  IF reason_code <> 'personal_data' THEN
+    INSERT INTO username_retired (fold) VALUES (username_fold(p.username)) ON CONFLICT DO NOTHING;
+  END IF;
   INSERT INTO player_admin_action (player_id, admin_id, kind, reason_code, note, from_username, to_username)
   VALUES (p.id, me, 'rename', reason_code, clean, p.username, new_name) RETURNING id INTO action;
   PERFORM notice_create('username_changed', NULL, NULL, p.id, '{}'::jsonb, '{}'::jsonb,
