@@ -1,6 +1,12 @@
 "use client";
 
-import { NO_OVERRIDES, type Language, type Overrides, type SetupProgress } from "@questify/shared";
+import {
+  NO_OVERRIDES,
+  readOverrides,
+  type Language,
+  type Overrides,
+  type SetupProgress,
+} from "@questify/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEventTerms, useTranslator } from "#src/components/TermsScope.tsx";
 import { readActivation, type ActivationView } from "#src/lib/activation.ts";
@@ -8,7 +14,7 @@ import type { EventView } from "#src/lib/events.ts";
 import type { Translate } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { errorCodeOf } from "#src/lib/sign-in-errors.ts";
-import { readOverrides, readSetup, withOverrides } from "#src/lib/setup.ts";
+import { readSetup, withOverrides } from "#src/lib/setup.ts";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 

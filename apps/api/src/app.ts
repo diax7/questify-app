@@ -308,7 +308,7 @@ export function invitationDepsOf(
 /** What the console's routes share with the rest of the server. */
 type ConsoleShared = Pick<
   ConsoleRoutesDeps,
-  "activation" | "settings" | "sessions" | "invitations"
+  "activation" | "settings" | "sessions" | "invitations" | "translations"
 > &
   Readonly<{
     keys: ReturnType<typeof createAuthKeys>;
@@ -316,7 +316,7 @@ type ConsoleShared = Pick<
   }>;
 
 /**
- * The console's routes (T-210, T-312, T-409, T-609, T-701, T-709). `platform` carries what this server has set up for the
+ * The console's routes (T-210, T-312, T-409, T-609, T-701, T-702, T-709). `platform` carries what this server has set up for the
  * health view, as yes or no per transport: nothing secret.
  */
 function registerConsole(app: FastifyInstance, options: AppOptions, shared: ConsoleShared): void {
@@ -329,6 +329,7 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
     tickets: { pool, keys: shared.keys },
     questify: { pool },
     invitations: shared.invitations,
+    translations: shared.translations,
     organizers: { pool, keys: shared.keys, suspended: shared.suspended },
     platform: {
       pool,
@@ -534,6 +535,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const activation = createActivation({ pool: options.pool, onAddonsChanged: settings.forget });
   const invitations = invitationDepsOf(options);
   const staffSessions = createSessions(options.pool);
+  const translations = options.translations ?? createTranslationService({ pool: options.pool });
   registerConsole(app, options, {
     activation,
     settings,
@@ -541,6 +543,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     invitations,
     keys: signInDeps.keys,
     suspended,
+    translations,
   });
   registerOrganizerRoutes(app, {
     pool: options.pool,
@@ -568,10 +571,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   startTicks(app, options, { settings, keys: signInDeps.keys, invitations });
   registerConfigRoutes(app, settings);
-  registerTranslationRoutes(
-    app,
-    options.translations ?? createTranslationService({ pool: options.pool }),
-  );
+  registerTranslationRoutes(app, translations);
 
   registerHealthRoutes(app, options);
   return app;

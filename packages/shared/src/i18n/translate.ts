@@ -48,6 +48,9 @@ function placeholderIssues(
   ];
 }
 
+/** Control and direction characters: a NUL breaks the store and a U+202E would flip a text on every phone. */
+const UNSAFE_CHARACTER = /[\p{Cc}\u2028\u2029\u202A-\u202E\u2066-\u2069]/u;
+
 /** True when a stored value may replace the shipped text: not blank, and the placeholders of the default (under the rule). */
 export function isUsableOverride(
   messages: Messages,
@@ -57,7 +60,7 @@ export function isUsableOverride(
   rule: PlaceholderRule = KEEP_ALL_PLACEHOLDERS,
 ): boolean {
   const shipped = messages[key]?.[language];
-  if (shipped === undefined || text.trim() === "") {
+  if (shipped === undefined || text.trim() === "" || UNSAFE_CHARACTER.test(text)) {
     return false;
   }
   const { missing, extra } = placeholderGaps(shipped, text, rule);
@@ -86,6 +89,9 @@ export function validateTranslation(
     return { ok: true, value: "" };
   }
   const issues: ConfigIssue[] = [];
+  if (UNSAFE_CHARACTER.test(value)) {
+    issues.push({ path: language, message: "must not contain control or direction characters" });
+  }
   if (value.length > MAX_TEXT_LENGTH) {
     issues.push({ path: language, message: `must have at most ${MAX_TEXT_LENGTH} characters` });
   }
@@ -112,4 +118,28 @@ export function createTranslator<M extends Messages>(
       stored !== undefined && isUsableOverride(messages, key, language, stored) ? stored : shipped;
     return interpolate(text, params, language);
   };
+}
+
+/**
+ * Reads the translation store's answer (`GET /v1/translations`) tolerantly: only plain-text values under an object per
+ * language are kept; anything else is dropped. Whether a kept value is usable is decided when it is shown
+ * (`createTranslator`), so a damaged answer never leaves a hole.
+ */
+export function readOverrides(body: unknown): Overrides {
+  if (typeof body !== "object" || body === null) {
+    return NO_OVERRIDES;
+  }
+  const result: Record<Language, Record<string, string>> = { ar: {}, en: {} };
+  for (const language of ["ar", "en"] as const) {
+    const texts = (body as Record<string, unknown>)[language];
+    if (typeof texts !== "object" || texts === null) {
+      continue;
+    }
+    for (const [key, text] of Object.entries(texts)) {
+      if (typeof text === "string") {
+        result[language][key] = text;
+      }
+    }
+  }
+  return result;
 }

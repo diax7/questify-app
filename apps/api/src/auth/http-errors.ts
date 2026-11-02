@@ -213,6 +213,18 @@ export const invalidTexts = make(
   "راجع التسميات: التسمية المحددة غير صالحة.",
   "Check the labels: the named label is not valid.",
 );
+export const invalidTranslation = make(
+  422,
+  "invalid_translation",
+  "لا يمكن حفظ هذا النص: راجع المتغيرات بين الأقواس.",
+  "This text can't be saved: check the placeholders in braces.",
+);
+export const textLocked = make(
+  422,
+  "text_locked",
+  "هذا نص قانوني أو نص موافقة، ويتغيّر مع إصدار جديد من التطبيق.",
+  "This is legal or consent wording; it changes with a release.",
+);
 export const invalidBranding = make(
   422,
   "invalid_branding",

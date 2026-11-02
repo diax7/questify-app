@@ -34,6 +34,8 @@ import { registerConsoleInvitationRoutes } from "#src/invitation-campaigns/route
 import { ADMIN_PREFIX } from "#src/route-access";
 import type { SettingsService } from "#src/settings/service";
 import { registerConsoleTicketRoutes, type ConsoleTicketDeps } from "#src/tickets/console-routes";
+import { registerConsoleTranslationRoutes } from "#src/translations/admin-routes";
+import type { TranslationService } from "#src/translations/service";
 
 const BODY_LIMIT = 8192;
 const eventParams = z.object({ eventId: z.uuid() });
@@ -125,6 +127,8 @@ export type ConsoleRoutesDeps = Readonly<{
   organizers: ConsoleOrganizerDeps;
   /** Platform health, numbers and the admin accounts with their sessions (T-709), behind the same hook. */
   platform: ConsolePlatformDeps;
+  /** The translation matrix (T-702), behind the same hook; the service the public texts route reads from. */
+  translations: TranslationService;
 }>;
 
 /** The admin of a request that passed the console hook. */
@@ -277,6 +281,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleReadinessRoutes(scope, deps.questify);
       registerConsoleOrganizerRoutes(scope, deps.organizers);
       registerConsolePlatformRoutes(scope, deps.platform);
+      registerConsoleTranslationRoutes(scope, deps.translations);
     },
     { prefix: ADMIN_PREFIX.slice(0, -1) },
   );

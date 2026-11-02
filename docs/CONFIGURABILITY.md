@@ -178,11 +178,27 @@ for an event.
 - **Showing a text** (`createTranslator`): the admin's value when it is usable, otherwise the shipped text. Usable means not
   blank and the same placeholders as the shipped text, so a damaged stored value never reaches a screen. Numbers passed in
   as values are formatted with Western digits in both languages (`formatNumber`).
-- **Still to come:** the matrix editor and its search and filters (T-702), and date and time formatting in Western
-  digits (with the first screen that shows a date).
+- **Still to come:** date and time formatting in Western digits (with the first screen that shows a date).
 - **A changed key:** when a shipped text gains or loses a placeholder (T-117 put `{currency}` and `{player}` into several),
   an admin's override written for the old text no longer has the same placeholders, so the shipped text shows until the
-  admin saves it again.
+  admin saves it again. The matrix lists such a text as "Out of date" (it shows the shipped text and the ignored saved one) so it
+  can be fixed or reverted.
+
+## As built (T-702): the text matrix
+
+- **Where:** the console's App texts page, `/[lang]/console/translations`, platform admins only. It reads
+  `GET /v1/admin/translations` (the shipped catalog laid over the store, searched, narrowed and paged on the server) and saves
+  with `PUT /v1/admin/translations/{key}` (the store's own save, ADR-411).
+- **Editing:** one row at a time; English and Arabic boxes (Arabic right to left), the shipped text under each, the shipped
+  text's placeholders as chips (a lost one is flagged and put back with a click, an added one is flagged "Not allowed", and the
+  save waits). A blank box, or text equal to the shipped text, returns the language to the shipped text; that is also the row's
+  revert button. Every save is audited with the admin, the key and before and after.
+- **Locked:** legal and consent screens (`isLockedText`) are shown read-only and the API refuses them (Q-378).
+- **Reaching the phone:** the phone shows its last working copy, then asks `GET /v1/translations` with the ETag on start, on
+  return to the foreground and every 30 seconds while in the foreground (`apps/app/src/config/translations.ts`,
+  `useOverrides`); a failed or unreadable answer keeps the copy (ADR-412). An event's own labels (T-614) still win in that event.
+- **Not covered:** the organizer dashboard and the web console read the store only for the guided setup's `wizard.*` and
+  `setup.*` keys (T-605); a dashboard-only text edited here changes nothing on the dashboard (Q-380).
 
 ## As built (T-117): the event's words
 

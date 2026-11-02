@@ -13,6 +13,7 @@ import {
   ConsoleReadinessLink,
   ConsoleSeasonsLink,
   ConsoleTicketsLink,
+  ConsoleTranslationsLink,
   ConsoleUsageLink,
 } from "#src/components/ConsoleNavLinks.tsx";
 import { pathAfterLanguage, translatorFor } from "#src/lib/language.ts";
@@ -33,6 +34,7 @@ export function ConsoleNav({ language }: Readonly<{ language: Language }>) {
       <ConsoleQuestifyLink language={language} current={on("/console/questify")} />
       <ConsoleContentLink language={language} current={on("/console/content")} />
       <ConsoleSeasonsLink language={language} current={on("/console/seasons")} />
+      <ConsoleTranslationsLink language={language} current={on("/console/translations")} />
       <ConsoleInvitationsLink language={language} current={on("/console/invitations")} />
       <ConsoleReadinessLink language={language} current={on("/console/readiness")} />
       <ConsoleUsageLink language={language} current={on("/console/usage")} />

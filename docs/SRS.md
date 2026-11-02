@@ -1349,7 +1349,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1754 | F-269 | Must | built T-605 (`event_setup`, the last save wins): `test/db/guided-setup.int`, `test/setup/setup.int`, `e2e/setup.spec.ts` |
 | FR-1755 | F-269, F-257 | Must | built T-605 (locked card: disabled switch and Ask Questify; unlocked: Open): `e2e/setup.spec.ts` |
 | FR-1756 | F-270 | Should | built T-605 (Overview card, Explain this on six Build pages): `e2e/setup.spec.ts` |
-| FR-1757 | F-271 | Should | partly built T-605 (the wizard lays the translation store's usable texts over its keys; the edit screen and its save-or-discard are T-702): `lib/setup.test.ts`, `e2e/setup.spec.ts` |
+| FR-1757 | F-271 | Should | built T-605 and T-702 (the wizard lays the translation store's usable texts over its keys; the edit screen, `/console/translations`, asks "Save your edit?" before a step away from an unsaved edit): `lib/setup.test.ts`, `e2e/setup.spec.ts`, `e2e/console-translations.spec.ts` |
 | FR-1758 | F-272 | Must | pending |
 | FR-1759 | F-273 | Must | pending |
 | FR-1760 | F-274 | Must | pending |
@@ -1357,8 +1357,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1762 | F-275 | Must | pending |
 | FR-1763 | F-273 | Must | pending |
 | FR-1764 | F-276 | Should | built (T-606, ADR-391): `packages/shared/src/layout/presets.ts`, `test/events/layout.int` |
-| FR-1765 | F-277 | Must | pending |
-| FR-1766 | F-277 | Must | pending |
+| FR-1765 | F-277 | Must | built T-702: `packages/shared/src/i18n/matrix.test.ts`, `apps/api/test/translations/translations.int.test.ts`, `e2e/console-translations.spec.ts`. "Missing Arabic / English" means the shown text has no letter of that language while the other has (Q-379) |
+| FR-1766 | F-277 | Must | built T-702: `translations.int.test.ts`, `apps/app/src/config/translations.test.ts`, `e2e/console-translations.spec.ts`. Legal and consent texts are read-only (Q-378); the phone refreshes every 30 s in the foreground (ADR-412) |
 | FR-1767 | F-277, F-186 | Must | pending |
 | FR-1768 | F-277 | Must | pending |
 | FR-1769 | F-278 | Must | pending |

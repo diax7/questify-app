@@ -118,6 +118,7 @@ const INFO_TIPS: readonly string[] = [
   "console.invCampaign.channel.hint",
   "console.invCampaign.sendAt.hint",
   "console.seasons.intro",
+  "console.translations.intro",
   "console.usage.intro",
   "devices.intro",
   "events.city.hint",
@@ -183,6 +184,7 @@ const INFO_TIPS: readonly string[] = [
 const HELP_PROP_KEYS: readonly string[] = [
   "announcements.page.counter",
   "awards.capsOwnerOnly",
+  "console.translations.shipped",
   "events.city.locked",
   "events.interests.full",
   "joinRules.welcomeLocked",

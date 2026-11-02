@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { translatorFor } from "#src/lib/language.ts";
 import {
   alonePath,
-  readOverrides,
   readSetup,
   setupPath,
   stepNameKey,
@@ -63,12 +62,6 @@ describe("guided setup helpers", () => {
     ).toBeUndefined();
     expect(readSetup(undefined)).toBeUndefined();
     expect(readSetup("text")).toBeUndefined();
-  });
-
-  it("keeps only text overrides", () => {
-    expect(readOverrides({ ar: { a: "x", b: 4 }, en: "no" })).toEqual({ ar: { a: "x" }, en: {} });
-    expect(readOverrides(undefined)).toEqual({ ar: {}, en: {} });
-    expect(readOverrides(null)).toEqual({ ar: {}, en: {} });
   });
 });
 
