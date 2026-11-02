@@ -6326,3 +6326,29 @@ the result of Accept all stays on screen. (7) **Links:** a count opens the Help 
 **Why:** the smallest build that meets FR-1825 with no second store and no new write path.
 **Trade-offs:** the cards read five requests each beside the counts (two more calls when something waits); the page does not poll (the control room does);
 reported content waits for T-705.
+
+## ADR-402 - T-617 operator activity and the staff briefing: one read over existing records, a briefing as one personal notice per current operator
+
+**Status:** Proposed (developer, 2026-11-02; Q-369). Specifies FR-1844 (F-346); builds on T-204 (operators), T-501 (the push store, ADR-343 to ADR-350) and T-502 (the announcements' text rules, ADR-358).
+**Decision:** (1) **One read, no new activity store.** `operator_activity(event, recent)` (migration 0111, owner and editor within their event limit, `award_event_of`, AN404)
+answers, for each current operator of the event: scans in the last hour and in the event's day (the ledger's `quest` and `session` entries that carry the operator's id; a
+session check-in is a scan of the player's code, and a manual award that names a quest is a quest completion, so it counts here), awards, hand-overs, submissions reviewed plus help
+requests answered, the last action of any of those (a cancel of a reservation is the fifth ledger kind) and the five stations scanned most today; and the latest 1 to 50 actions of all of
+them. "Today" is the event's day, the one the station counts use. Usernames and counts only: no player an operator served, no full name (ADR-400). Not recorded anywhere, so not shown:
+writing an NFC tag, showing the rotating QR, desk offers nobody paid. (2) **Indexes.** `ledger_entry (event_id, operator_id, created_at DESC) INCLUDE (kind, quest_id) WHERE operator_id IS NOT NULL`
+(partial: only operator entries; the INCLUDE makes the counts index-only), and one small partial index each for operator-reviewed submissions and operator-answered tickets. Measured on
+a 50,000-player event with 60 operators and about 270,000 operator entries today: 134 to 175 ms warm once vacuumed, 930 to 1,090 ms without the indexes. Nothing is cached; the page reads every
+30 seconds while open. (3) **The briefing is a personal notice per current operator.** `staff_briefing_send(event, draft, key, request)` writes one `staff_briefing` notice (kind: personal,
+priority 0, six hours, no topic so it cannot be muted) for each staff assignment of the event whose player is active, once per Idempotency-Key, at most 3 an hour and 10 a day (the announcements'
+limits), audited `staff.briefing` with the count only. A briefing may go before the event starts and until it ends (PE409 `event_closed` for an ended or archived event); PT409 `nobody` when no
+operator can receive it. The new `notice_kind.membership` value `staff` means the recipient holds a staff assignment of the notice's event; `notice_membership_ok` asks it at the fan-out (the
+center row) and again at the claim (the push), so a removed operator is told nothing, and a player never is. (4) **The text** is the announcement's four fields cleaned and run through the same
+name rule (no address, no phone number, no invisible characters), with the text at 140 characters so the push and the center carry it whole; the renderer is the announcements' free-text one,
+which asks the rule again. (5) **Where it is read.** Push transport is not configured on staging, so the in-app center shows it (a tap opens the center row); the bell is now on the operator
+Home as well as the player's. (6) **Not built, with the reason.** The operator-invite push (FR-1101's other half): the person invited has no account when a personal QR or an email invite is made,
+so there is no player to push to, and the invite is claimed in the app that moment; the unused `operator_invite` route entry is removed. Subsets (by station or ability), scheduling a briefing and a
+reply from the operator are not asked for.
+**Why:** FR-1844 asks for per-operator numbers, last activity and a push to operators only; every number is a count over rows the engine already writes, and the push machinery already gives
+the center, the claim re-checks and the rate-limit pattern (`session_message`).
+**Trade-offs:** a manual quest award counts as a scan; reviews and replies are one number; the page shows ten operators before "View more" (the most recently active first, so the quiet ones are
+last on a big event, but the active-operators tile counts them all); the read costs about 0.15 s on the largest event we measured, which the 30-second refresh repeats while the page is open.

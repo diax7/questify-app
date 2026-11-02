@@ -1111,6 +1111,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
         "push_due_shop", // reads the status for an ended event's shop closing; it writes only notices (T-501f)
         "announcement_send",
         "push_due_announcement",
+        "staff_briefing_send", // a briefing to the event's operators writes notices and its own rate-limit row, nothing the wipe deletes (T-617)
         "session_message", // a message to registrants writes notices and its own rate-limit row, nothing the wipe deletes (T-505)
         "push_due_session", // reads the status for reminders; it writes only notices (T-505)
         "start_cheers_moment", // the owner opens a moment; it deletes only cheers, which the wipe also removes, and writes no play row (T-509)

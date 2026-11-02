@@ -511,6 +511,33 @@ describe("the session reminder (T-505, ADR-373)", () => {
   });
 });
 
+describe("the staff briefing (T-617, ADR-402)", () => {
+  const frozen = {
+    event: EVENT,
+    title: { ar: "تغيير البوابة", en: "Gate change" },
+    body: { ar: "البوابة 3 مغلقة.", en: "Gate 3 is closed." },
+  };
+
+  it("pushes the organizer's frozen title and whole text in the language asked for", () => {
+    expect(
+      renderNotice(content({ kind: "staff_briefing", params: frozen, language: "en" })),
+    ).toEqual({ title: "Gate change", body: "Gate 3 is closed.", pushable: true });
+    expect(
+      renderNotice(content({ kind: "staff_briefing", params: frozen, language: "ar" })),
+    ).toMatchObject({ title: "تغيير البوابة", body: "البوابة 3 مغلقة." });
+  });
+
+  it("shows the generic text, and is not pushed, when the frozen text no longer passes the rules", () => {
+    const bad = { ...frozen, body: { ar: "اتصل 0551234567", en: "Call 0551234567" } };
+    expect(renderNotice(content({ kind: "staff_briefing", params: bad }))).toMatchObject({
+      pushable: false,
+    });
+    expect(renderNotice(content({ kind: "staff_briefing", params: {} }))).toMatchObject({
+      pushable: false,
+    });
+  });
+});
+
 describe("the organizer's announcement (T-502, ADR-358)", () => {
   const frozen = {
     event: EVENT,
@@ -521,7 +548,7 @@ describe("the organizer's announcement (T-502, ADR-358)", () => {
     content({ kind: "announcement", params: frozen, ...over });
 
   it("is a free-text kind with a route, not a template", () => {
-    expect(FREE_TEXT_KINDS).toEqual(["announcement", "session_message"]);
+    expect(FREE_TEXT_KINDS).toEqual(["announcement", "session_message", "staff_briefing"]);
     expect(PUSH_TEMPLATES["announcement"]).toBeUndefined();
   });
 

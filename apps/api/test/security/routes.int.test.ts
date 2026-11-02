@@ -404,6 +404,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members inside their event limit, through control_feed, control_counts and control_done, which check the organizer and the event limit themselves (AN404); usernames and avatars the team already reads, no contact detail or points; another organizer's event answers 404 (test/control/routes, test/db/control-room, test/security/cross-tenant)",
   "GET /v1/organizers/:organizerId/events/:eventId/inbox":
     "members inside their event limit, through event_inbox, which checks the organizer and the event limit itself (AN404); counts only, checked against a strict schema, no player, name or text; another organizer's event answers 404 (test/inbox/routes, test/db/event-inbox, test/security/cross-tenant)",
+  "GET /v1/organizers/:organizerId/events/:eventId/operators/activity":
+    "members inside their event limit, through operator_activity, which checks the organizer and the event limit itself (AN404); usernames, counts and station names, checked against a strict schema, no player an operator served; another organizer's event answers 404 (test/operators/activity, test/db/operator-activity, test/security/cross-tenant)",
+  "POST /v1/organizers/:organizerId/events/:eventId/operators/briefing":
+    "members inside their event limit, through staff_briefing_send, which checks the organizer and the event limit itself (AN404); one personal notice per current operator of that event and no player, once per Idempotency-Key, 3 an hour and 10 a day, audited with the count only; another organizer's event answers 404 (test/operators/activity, test/db/operator-activity, test/security/cross-tenant)",
   "POST /v1/rewards/:rewardId/reserve":
     "reserves only for the bearer, through reserve_reward bound to the session; another event's reward answers 404 (test/rewards/routes, test/rewards/rewards)",
   "PUT /v1/events/:eventId/goal":

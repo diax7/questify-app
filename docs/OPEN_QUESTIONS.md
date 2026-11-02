@@ -1774,3 +1774,12 @@ nothing is shown until an owner chooses.
 moderation queue (Q-219), so the event team sees no content list yet; (d) the page shows no full name and no contact detail, only what the Help desk
 and Players pages already show; (e) it does not poll. Questions for Dhia: should the event team also see reports of a quest, text or image (FR-1411) in its
 own Inbox once T-705 exists, or only Questify's moderators?
+
+## Q-369 - T-617 operator activity and the staff briefing: what is decided without Dhia (2026-11-02)
+
+**Status:** Proposed (developer, ADR-402).
+**Recommended (developer):** (a) quiet means 30 minutes without an action (FR-1844's own example), shown as a badge and counted in the first tile; (b) the activity counts the event's day and the
+last hour, and names the last action whatever it was (a scan, a check-in, an award, a hand-over, a cancel, a review, a reply); (c) a briefing reaches every operator of the event whatever their
+abilities, cannot be muted, and has a title and a text of 140 characters in Arabic and English so nothing is cut; (d) it may be sent before the event starts and until it ends, 3 an hour and 10 a day;
+(e) the operator-invite push is dropped (no account exists when the invite is made). Questions for Dhia: should a briefing be able to name a subset (the operators of one station, or one ability),
+and should operators be able to acknowledge it?

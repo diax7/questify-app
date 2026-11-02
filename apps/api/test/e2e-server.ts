@@ -11,6 +11,7 @@ import { PUSH_TARGETS } from "#src/push/provider";
 import { createStaff, testConfig } from "#test/support/auth-app";
 import { seedAnalytics } from "#test/support/analytics-seed";
 import { seedBigScreen } from "#test/support/big-screen";
+import { seedOperators, type SeededOperator } from "#test/support/operator-seed";
 import { createTestDatabase, seedTwoTenants } from "#test/support/test-db";
 
 /**
@@ -299,6 +300,7 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         key?: string;
         ar?: string;
         en?: string;
+        operators?: SeededOperator[];
       };
       try {
         body = JSON.parse(raw || "{}") as typeof body;
@@ -337,6 +339,18 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
       // redemptions, for the analytics page (T-607).
       if (request.url === "/analytics-seed") {
         seedAnalytics(db.owner, body.eventId ?? "")
+          .then(() => {
+            response.writeHead(204).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /operator-seed: operators of the event, each with station scans at these minutes ago, for the Operators page's
+      // activity (T-617).
+      if (request.url === "/operator-seed") {
+        seedOperators(db, body.eventId ?? "", body.operators ?? [])
           .then(() => {
             response.writeHead(204).end();
           })

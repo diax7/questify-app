@@ -88,7 +88,7 @@ describe("notificationRoute", () => {
   });
 
   it("opens the center row for a promotion, a decision with nothing to open and a kind it does not know", () => {
-    for (const kind of ["invitation", "join_declined", "operator_invite"]) {
+    for (const kind of ["invitation", "join_declined", "staff_briefing"]) {
       expect(notificationRoute(kind, EVENT, {}), kind).toEqual({ kind: "center" });
     }
     for (const kind of ["from_a_newer_app", "", "constructor", "__proto__", "toString"]) {

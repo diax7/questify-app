@@ -133,7 +133,7 @@ export const AREAS = [
   [/location|coordinates|cities|place-?fields/i, ["location"]],
   [/meet/i, ["meet"]],
   [/nfc/i, ["nfc-tags"]],
-  [/operator/i, ["operators"]],
+  [/operator|briefing/i, ["operators", "operator-activity"]],
   [
     /organizer(?!s\/\[organizerid\]|id\])|team-?panel|\/team\/|contact|\(workspace\)/i,
     ["organizers", "navigation"],

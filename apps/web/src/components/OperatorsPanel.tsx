@@ -3,6 +3,7 @@
 import type { Language } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { QrImage } from "#src/components/CodesPanel.tsx";
+import { OperatorActivity } from "#src/components/OperatorActivity.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { nameOf } from "#src/lib/players.ts";
 import {
@@ -51,7 +52,8 @@ type Shared = Readonly<{
 /**
  * An event's operators (T-204, FR-901 to FR-909, FR-1720): the owner invites people by a personal QR, a batch of QRs
  * with a preset, or email; sets each operator's abilities, quest limit and may-play; removes them at once; and prints
- * the open personal codes. Editors see the list without the codes (the API gives them no claim address).
+ * the open personal codes. Editors see the list without the codes (the API gives them no claim address). Above them,
+ * what the operators did today and the staff briefing (T-617), for the owner and editors alike.
  */
 export function OperatorsPanel({ language, organizerId, eventId, myRole }: Props) {
   const t = useTranslator(language);
@@ -132,6 +134,7 @@ export function OperatorsPanel({ language, organizerId, eventId, myRole }: Props
         title={t("operators.title")}
         info={infoTip(t, "operators.intro")}
       />
+      <OperatorActivity language={language} organizerId={organizerId} eventId={eventId} />
       {myRole === "owner" ? (
         <NewInviteForm {...shared} sent={() => setNotice(t("operators.sent"))} />
       ) : (

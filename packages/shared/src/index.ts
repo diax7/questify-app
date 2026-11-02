@@ -793,6 +793,34 @@ export type {
 export { inboxSchema } from "./inbox/inbox";
 export type { Inbox } from "./inbox/inbox";
 export {
+  OPERATOR_ACTIONS,
+  OPERATOR_QUIET_MINUTES,
+  OPERATOR_RECENT_FIRST,
+  OPERATOR_RECENT_MAX,
+  STAFF_BRIEFING_BODY_MAX,
+  STAFF_BRIEFING_FIELDS,
+  STAFF_BRIEFING_RATE,
+  STAFF_BRIEFING_TITLE_MAX,
+  blankStaffBriefing,
+  checkStaffBriefing,
+  operatorActivitySchema,
+  staffBriefingBodySchema,
+  staffBriefingSentSchema,
+  staffBriefingTextIssue,
+} from "./operator-activity/operator-activity";
+export type {
+  OperatorAction,
+  OperatorActivity,
+  OperatorActivityRow,
+  OperatorRecent,
+  StaffBriefingBody,
+  StaffBriefingCheck,
+  StaffBriefingField,
+  StaffBriefingIssue,
+  StaffBriefingSent,
+  StaffBriefingView,
+} from "./operator-activity/operator-activity";
+export {
   ANALYTICS_PANELS,
   ANALYTICS_SCHEMAS,
   JOIN_SOURCES,

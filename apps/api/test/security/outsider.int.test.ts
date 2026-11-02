@@ -407,6 +407,44 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     }
   });
 
+  it("grants only the two operator-activity doors to the API's role, and nothing to the public (T-617)", async () => {
+    const doors = ["operator_activity", "staff_briefing_send"];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      public: boolean;
+      definer: boolean;
+      settings: string[] | null;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        has_function_privilege('public', p.oid, 'EXECUTE') AS public,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN ('operator_activity', 'staff_briefing_send',
+          'operator_activity_rows', 'operator_activity_recent', 'operator_action_of')`,
+    );
+    expect(functions).toHaveLength(5);
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.public, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+      expect(row.settings, row.proname).toEqual(["search_path=public, pg_temp"]);
+    }
+    for (const sql of [
+      "SELECT public.operator_activity(gen_random_uuid(), 5)",
+      "SELECT * FROM public.staff_briefing_send(gen_random_uuid(), '{}'::jsonb, 'k', gen_random_uuid())",
+      "SELECT * FROM public.staff_briefing",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+    expect(
+      await rows(`SELECT privilege_type FROM information_schema.role_table_grants
+        WHERE table_schema = 'public' AND table_name = 'staff_briefing' AND grantee IN ('PUBLIC', 'questify_app')`),
+    ).toEqual([]);
+  });
+
   it("grants only the inbox count to the API's role, and nothing to the public (T-616)", async () => {
     const functions = await rows<{
       proname: string;

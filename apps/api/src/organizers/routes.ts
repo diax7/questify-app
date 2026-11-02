@@ -53,6 +53,7 @@ import { registerResultsTeamRoutes } from "#src/results/routes";
 import { registerQuestItemRoutes } from "#src/rewards/quest-item-routes";
 import { registerModerationRoutes } from "#src/moderation/routes";
 import type { OperatorsDeps } from "#src/operators/operators";
+import { registerOperatorActivityRoutes } from "#src/operators/activity-routes";
 import { registerOperatorRoutes } from "#src/operators/routes";
 import type { QuestCodeKey, RevealCodeKey, StepCodeKey } from "#src/quests/qr";
 import { registerAnalyticsTeamRoutes } from "#src/analytics/routes";
@@ -299,6 +300,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerResultsTeamRoutes(scope, { pool: deps.pool });
       registerQuestItemRoutes(scope, { pool: deps.pool });
       registerOperatorRoutes(scope, deps.operators);
+      registerOperatorActivityRoutes(scope, { pool: deps.pool });
       registerJoinSetupRoutes(scope, { pool: deps.pool });
       registerAudienceRoutes(scope, { pool: deps.pool });
       registerInvitationTeamRoutes(scope, deps.invitations);

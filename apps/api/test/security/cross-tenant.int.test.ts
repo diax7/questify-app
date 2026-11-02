@@ -981,6 +981,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; written only by the caller-bound session_register and session_cancel for the calling player's own active enrollment, seen by the team only as counts and names through session_list (sessions database suite)",
   session_attendance:
     "no direct API rights; written only by session_check_in for an operator assigned to the event, read by the team through session_list's counts (sessions database suite)",
+  staff_briefing:
+    "no direct API rights; written only by the owner/editor door staff_briefing_send inside award_event_of, with the Idempotency-Key hash and the per-event rate limit; read by the team through operator_activity (operator activity database and HTTP suites)",
   session_message:
     "no direct API rights; written only by the owner/editor door session_message inside award_event_of, with the Idempotency-Key hash and the per-event rate limit (sessions database suite)",
   event_map:
@@ -1738,6 +1740,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
       ]) {
         expect(await refusal(asA(seat, sql, [f.eventB])), `${seat} ${sql}`).toBe("AN404");
       }
+    }
+  });
+
+  it("keeps the operator activity and the staff briefing inside the caller's tenant and membership (T-617)", async () => {
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      expect(await refusal(asA(seat, "SELECT operator_activity($1, 5)", [f.eventB])), seat).toBe(
+        "AN404",
+      );
+      expect(
+        await refusal(
+          asA(seat, "SELECT * FROM staff_briefing_send($1, '{}'::jsonb, $2, $3)", [
+            f.eventB,
+            "key",
+            randomUUID(),
+          ]),
+        ),
+        seat,
+      ).toBe("AN404");
     }
   });
 

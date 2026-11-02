@@ -13,12 +13,14 @@ import { textIn } from "#src/i18n/text.ts";
 import { fetchStations, type Station } from "#src/operator/operator-api.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 import { StationTodayBlock } from "#src/operator/StationTodayBlock.tsx";
+import { BellRow } from "#src/push/NotificationBell.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /**
  * Operator Home (FR-921): pick the station, a quest staff verify by My QR within this operator's limit, and see how
  * many players this operator completed there today and in all. A single station is picked for them. Under the picker,
- * My station today (FR-928) counts the picked station for everyone.
+ * My station today (FR-928) counts the picked station for everyone. The bell opens the notification center, where the
+ * owner's staff briefing (T-617) waits when push is not delivered.
  */
 export default function OperatorHomeScreen() {
   const { t, language } = useI18n();
@@ -53,7 +55,10 @@ export default function OperatorHomeScreen() {
   );
 
   return (
-    <Screen title={event === undefined ? t("operator.mode") : textIn(event.name, language)}>
+    <Screen
+      title={event === undefined ? t("operator.mode") : textIn(event.name, language)}
+      header={<BellRow />}
+    >
       <ScrollView contentContainerStyle={{ gap: 12 }}>
         <RehearsalStrip shown={isRehearsalStatus(event?.statusNow)} />
         <AppText variant="title">{t("operator.pickStation")}</AppText>

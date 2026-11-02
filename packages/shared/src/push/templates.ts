@@ -86,7 +86,11 @@ export const PUSH_TEMPLATES: Readonly<Record<string, PushTemplate>> = {
  * (`{ar, en}` each, already cleaned, bounded and run through the name rule, T-502). They have no message key and no
  * placeholder; the renderer asks the rule again and shows the generic text if the stored text no longer passes.
  */
-export const FREE_TEXT_KINDS: readonly string[] = ["announcement", "session_message"];
+export const FREE_TEXT_KINDS: readonly string[] = [
+  "announcement",
+  "session_message",
+  "staff_briefing",
+];
 
 /** What the renderer reads from a claimed send or a center row. */
 export type NoticeContent = Readonly<{

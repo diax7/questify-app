@@ -201,7 +201,7 @@ describe("planBrowserSpecs", () => {
     const layoutHelper = plan(["apps/web/e2e/layout.ts"], { importersOf });
     expect(layoutHelper).toEqual({
       all: false,
-      specs: [...LAYOUT_SPECS, "analytics", "navigation"],
+      specs: [...LAYOUT_SPECS, "analytics", "navigation", "operator-activity"],
     });
 
     expect(plan(["apps/web/e2e/builder.ts"], { importersOf })).toEqual({

@@ -57,6 +57,7 @@ const NOT_COPIED = new Set([
   // the source event's guided setup progress (T-605): a copy starts its own setup at step 1
   "event_setup",
   "announcement",
+  "staff_briefing",
   "bulk_award",
   "category_bonus",
   "category_reveal",
