@@ -709,13 +709,16 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
     ready: titled("rules.title"),
   },
   { name: "console", path: () => "/console", ready: titled("console.queue") },
+  consolePage("admins", "console.admins.title"),
   consolePage("content", "console.content.title"),
   {
     name: "console-event",
     path: (ids) => `/console/events/${ids.eventId}`,
     ready: { en: "Layout Fest", ar: "مهرجان التخطيط" },
   },
+  consolePage("health", "console.health.title"),
   consolePage("invitations", "console.invCampaign.title"),
+  consolePage("numbers", "console.numbers.title"),
   {
     name: "console-invitation",
     path: (ids) => `/console/invitations/${ids.campaignId}`,
