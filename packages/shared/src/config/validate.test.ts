@@ -59,7 +59,7 @@ describe("validatePlatformSettings", () => {
     (value) => {
       expect(platform({ tuning: { qrSeconds: value } })).toEqual({
         ok: false,
-        issues: [{ path: "tuning.qrSeconds", message: "must be a number from 30 to 60" }],
+        issues: [{ path: "tuning.qrSeconds", message: "must be a whole number from 30 to 60" }],
       });
     },
   );

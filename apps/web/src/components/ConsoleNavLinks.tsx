@@ -305,3 +305,16 @@ export function ConsoleAdminsLink({
     </NavItem>
   );
 }
+
+/** This page's item in the console's navigation (T-703). */
+export function ConsoleSwitchesLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/switches`} icon="sliders" current={current}>
+      {t("console.switches.title")}
+    </NavItem>
+  );
+}

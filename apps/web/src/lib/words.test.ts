@@ -130,6 +130,18 @@ const QUESTIFY_LEVEL: Readonly<Record<string, string>> = {
   "console.questify.targetFixed": "Questify's own quests on the console, not an event's word",
   "console.questify.invalid.metric": "Questify's own quests on the console, not an event's word",
   "console.catalog.amounts.xp.questXp": "Questify's XP amount on the console, not an event's word",
+  "console.switches.feature.community":
+    "the platform's feature name on the console, not an event's word",
+  "console.switches.feature.flashQuests":
+    "the platform's feature name on the console, not an event's word",
+  "console.switches.feature.locationQuests":
+    "the platform's feature name on the console, not an event's word",
+  "console.switches.feature.meetSomeone":
+    "the platform's feature name on the console, not an event's word",
+  "console.switches.feature.questRatings":
+    "the platform's feature name on the console, not an event's word",
+  "console.switches.feature.shareQuests":
+    "the platform's feature name on the console, not an event's word",
 };
 
 describe("the dashboard's source", () => {

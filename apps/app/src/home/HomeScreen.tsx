@@ -11,6 +11,7 @@ import { Invitations } from "#src/home/Invitations.tsx";
 import { MyEvents } from "#src/home/MyEvents.tsx";
 import { StreakLine } from "#src/home/StreakLine.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { PlatformNotices } from "#src/home/PlatformNotices.tsx";
 import { OperatorEvents } from "#src/operator/OperatorEvents.tsx";
 import { BellRow } from "#src/push/NotificationBell.tsx";
 
@@ -36,6 +37,7 @@ export function HomeScreen() {
         {notice === "eventUnavailable" ? (
           <AppText accessibilityRole="alert">{t("event.unavailable")}</AppText>
         ) : null}
+        <PlatformNotices />
         <CodeEntry />
         {state.status === "signed_in" ? (
           <>

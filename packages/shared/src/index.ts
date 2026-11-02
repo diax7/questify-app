@@ -22,6 +22,19 @@ export type {
   TuningRegistry,
 } from "./config/registry";
 export { FEATURES, REGISTRIES, TUNING } from "./config/registry";
+export type {
+  FeatureRow,
+  FeatureSwitchBody,
+  SwitchesView,
+  TuningBody,
+  TuningRow,
+} from "./switches/switches";
+export {
+  buildSwitchesView,
+  featureSwitchBodySchema,
+  switchesViewSchema,
+  tuningBodySchema,
+} from "./switches/switches";
 export {
   readEventSwitches,
   readPlatformSettings,

@@ -3067,6 +3067,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       expect(tableRights).toEqual([]);
     });
 
+    it("cannot read or change the tuning numbers behind the console's Switches page (T-703)", async () => {
+      for (const sql of [
+        "SELECT public.platform_tuning_int('rehearsalCap', 25, 1, 100)",
+        "SELECT public.rehearsal_cap()",
+        "SELECT * FROM public.flag_tuning()",
+        "SELECT public.readiness_soon()",
+        "INSERT INTO public.platform_setting (key, value) VALUES ('tuning', '{\"rehearsalCap\": 100}')",
+        "UPDATE public.platform_setting SET value = '{\"rehearsalCap\": 100}' WHERE key = 'tuning'",
+        "DELETE FROM public.platform_setting WHERE key = 'tuning'",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const held = await rows<{ proname: string }>(
+        `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         WHERE n.nspname = 'public' AND p.proname IN ('platform_tuning_int', 'rehearsal_cap', 'flag_tuning')
+           AND (has_function_privilege('public', p.oid, 'EXECUTE')
+             OR has_function_privilege('questify_app', p.oid, 'EXECUTE'))`,
+      );
+      expect(held).toEqual([]);
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

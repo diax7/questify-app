@@ -139,6 +139,7 @@ const INFO_TIPS: readonly string[] = [
   "console.players.intro",
   "console.reports.intro",
   "console.seasons.intro",
+  "console.switches.intro",
   "console.translations.intro",
   "console.usage.intro",
   "console.wordLists.intro",

@@ -100,7 +100,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
         },
         tuning: {
           livePollSeconds: 10,
-          myQrGraceSeconds: 5,
           usernameChangeDays: 30,
         },
         legal: {
@@ -199,7 +198,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
         reason: "invalid",
         issues: [
           { path: "features.teleporter", message: "is not a feature of the app" },
-          { path: "tuning.usernameChangeDays", message: "must be a number from 1 to 365" },
+          { path: "tuning.usernameChangeDays", message: "must be a whole number from 1 to 365" },
         ],
       });
       expect(await owner("SELECT * FROM platform_setting ORDER BY key")).toEqual(before);
@@ -215,12 +214,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
     });
 
     it("record who changed them", async () => {
-      await settings.savePlatformSettings(admin, { tuning: { myQrGraceSeconds: 8 } });
+      await settings.savePlatformSettings(admin, { tuning: { livePollSeconds: 8 } });
       const rows = await owner<{ updated_by: string }>(
         "SELECT updated_by FROM platform_setting WHERE key = 'tuning'",
       );
       expect(rows[0]?.updated_by).toBe(admin.id);
-      await settings.savePlatformSettings(admin, { tuning: { myQrGraceSeconds: 5 } });
+      await settings.savePlatformSettings(admin, { tuning: { livePollSeconds: 10 } });
     });
   });
 
@@ -431,12 +430,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
       expireCaches();
       await getConfig(`?event=${ids.eventA}`);
       await owner(
-        `INSERT INTO platform_setting (key, value) VALUES ('tuning', '{"myQrGraceSeconds": 9}')
+        `INSERT INTO platform_setting (key, value) VALUES ('tuning', '{"livePollSeconds": 9}')
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
       );
-      expect((await configOf(`?event=${second}`)).tuning["myQrGraceSeconds"]).toBe(5);
+      expect((await configOf(`?event=${second}`)).tuning["livePollSeconds"]).toBe(10);
       expireCaches();
-      expect((await configOf(`?event=${second}`)).tuning["myQrGraceSeconds"]).toBe(9);
+      expect((await configOf(`?event=${second}`)).tuning["livePollSeconds"]).toBe(9);
       await owner("DELETE FROM platform_setting");
       await owner("DELETE FROM event WHERE id = $1", [second]);
       expireCaches();
@@ -465,7 +464,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
       expect(config.features).not.toHaveProperty("teleporter");
       expect(config.tuning).toEqual({
         livePollSeconds: 10,
-        myQrGraceSeconds: 5,
         usernameChangeDays: 30,
       });
       await owner("DELETE FROM platform_setting");

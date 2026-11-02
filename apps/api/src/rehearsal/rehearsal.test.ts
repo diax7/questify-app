@@ -13,6 +13,7 @@ import {
 } from "#src/rehearsal/rehearsal";
 
 const ROW: CardRow = {
+  cap: 25,
   code: "ABCD-2345",
   status_now: "draft",
   accounts: 2,

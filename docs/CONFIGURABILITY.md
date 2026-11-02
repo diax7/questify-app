@@ -300,7 +300,7 @@ for an event.
 | Layout | Reorder home blocks, rearrange the 5-item bar, hide pages, pick an approved preset (ADR-090, ADR-391) | A protected set of bar items cannot be hidden (FR-1750) |
 | Branding | Logo, banner, accent colour from an approved palette (ADR-085) | Theme itself is code, not data (ADR-093); colours are tokens so a second theme can be added later (NFR-024) |
 | Quests, categories, rewards, sessions, maps, sponsors | Everything an organizer creates | Typed by shared schemas; live edits ask "future only / also past" with confirmation (ADR-063) |
-| Tuning numbers | Flag thresholds, QR refresh and My QR grace time, login-code limits, reservation time, push/SMS limits, "running low" levels (F-279, Q-074) | Each has a safe range; out-of-range saves are refused |
+| Tuning numbers | Built (T-703, ADR-451): flag burst count and window, rehearsal cap, readiness look-ahead (server-only, never sent to a phone), live-poll seconds, username change days, edited on the console's Switches page. Still code (Q-410): QR refresh, login-code limits, reservation time, push/SMS limits, "running low" levels (F-279, Q-074) | Each has a safe range and is a whole number; out-of-range saves are refused; a stored number the readers cannot use gives the shipped one |
 | Platform messages | Banner on Questify home (scheduled); maintenance mode, global or per event (F-280, F-281) | Maintenance shows its message; staff and health checks still work |
 | Catalog | Items, achievements, gem prices (F-216) | |
 | Questify quests | Always-on quests and seasonal campaigns: titles, metric (closed list), target, XP, order, window (FR-710, FR-711; T-403b) | Condition fixed once a quest can pay; a campaign published only before it starts; caps 20 per campaign, 50 always-on |

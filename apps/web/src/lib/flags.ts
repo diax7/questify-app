@@ -102,7 +102,7 @@ const SCAN_KINDS = {
 } as const;
 
 /**
- * What the list row says the case is: "Same phone, 2 accounts", "10 scans within 5 minutes", "Far from the venue (3)"
+ * What the list row says the case is: "Same phone, 2 accounts", "10 scans in a short time", "Far from the venue (3)"
  * or "Moved impossibly fast (2)".
  */
 export function flagSummary(line: FlagLine): Readonly<{ key: MessageKey; count: number }> {

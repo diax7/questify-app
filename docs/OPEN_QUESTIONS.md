@@ -2045,3 +2045,25 @@ A published version is in force at once. Some laws and store rules want advance 
 The seeded 0.1 versions show the draft files in `docs/legal/`. Counsel's final text is published as 1.0 of each document in the
 console (Arabic and English), after which the pages show the published text and the drafts can be deleted from `docs/legal/`.
 **Recommended (developer):** publish 1.0 through the console in the T-807 batch; keep the draft files until then.
+
+## Q-410 - Which of FR-1770's other numbers should be tunable? (T-703)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-451).
+FR-1770 also names the QR refresh time, the login-code limits, the default reservation time and the push and SMS limits. They live in
+code (the throttle buckets in `src/auth/throttle.ts`, per-event reservation settings, push and SMS senders), each with its own tests;
+only the numbers the database reads (rehearsal cap, readiness days, flag burst) became tuning numbers.
+**Recommended (developer):** make a number tunable when someone needs to change it during an event; add it to the registry with its
+range and its reader in that change.
+
+## Q-411 - Should a switched-off feature's message also show where the feature used to be? (T-703, ADR-453)
+
+**Status:** Proposed (developer, 2026-11-02).
+FR-1769 asks for a hidden feature "as if it were absent" and for a message players see; the message is on Questify Home now.
+**Recommended (developer):** keep for v1; revisit after the first real switch-off.
+
+## Q-412 - XP on repeats and "XP by difficulty" in FR-1734 (T-703)
+
+**Status:** Proposed (developer, 2026-11-02).
+The username switch and the daily streak are platform switches (this task); XP amounts are T-709c's Amounts editor. A setting
+"XP on repeats" does not exist: a quest cannot be repeated for points today (ADR-180), so the setting has nothing to switch.
+**Recommended (developer):** leave FR-1734's repeat part open until a repeatable quest type is designed.

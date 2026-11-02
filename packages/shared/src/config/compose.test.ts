@@ -289,3 +289,19 @@ describe("event configuration", () => {
     });
   });
 });
+
+describe("composeConfig server-only numbers", () => {
+  const withSecret: TuningRegistry = {
+    ...TUNING,
+    flagBurst: { default: 10, min: 3, max: 100, serverOnly: true },
+  };
+
+  it("leaves a server-only number out of what the app receives", () => {
+    const composed = composeConfig(
+      { features: FEATURES, tuning: withSecret },
+      { tuning: { flagBurst: 20, qrSeconds: 50 } },
+      undefined,
+    );
+    expect(composed.tuning).toEqual({ graceSeconds: 5, qrSeconds: 50 });
+  });
+});

@@ -3,9 +3,6 @@ import { createHash, randomInt } from "node:crypto";
 /** The letters and digits a rehearsal code uses: no I, O, 0 or 1, which read alike (ADR-158). */
 export const REHEARSAL_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-/** The most rehearsal accounts one event may have (`rehearsal_cap()`, migration 0032). */
-export const REHEARSAL_CAP = 25;
-
 /** A new code; `pick` returns a whole number from 0 below its bound (crypto's by default). */
 export function newRehearsalCode(pick: (bound: number) => number = randomInt): string {
   const chars = Array.from(
@@ -63,6 +60,8 @@ export type RehearsalCard = Readonly<{
 }>;
 
 export type CardRow = Readonly<{
+  /** The cap now in force: the console's tuning number `rehearsalCap`. */
+  cap: number;
   code: string | null;
   status_now: string;
   accounts: number;
@@ -101,7 +100,7 @@ export function cardOf(row: CardRow): RehearsalCard {
   return {
     code: open ? row.code : null,
     open,
-    cap: REHEARSAL_CAP,
+    cap: row.cap,
     now: {
       accounts: row.accounts,
       completions: row.completions,

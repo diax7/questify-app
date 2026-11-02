@@ -845,6 +845,16 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); one article row only, checked by the shared schema here and again in admin_help_article_save (QE403, CA400); audited with who, before and after; 120 changes an hour per admin (test/console/legal, test/db/legal-help)",
   "POST /v1/admin/help/:id/revert":
     "active platform admins only (walked below); puts back the before of the article's latest catalog audit entry through admin_help_article_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/legal, test/db/legal-help)",
+  "GET /v1/admin/switches":
+    "active platform admins only (walked below); read only; every feature switch and tuning number of the app with its state, no personal data; the admin checked again by the settings service; 60 a minute per admin (test/console/switches)",
+  "PUT /v1/admin/switches/features/:key":
+    "active platform admins only (walked below); one feature of the platform's `features` block, features of the app only, a message only while off; the policy checks the admin again (app_admin_id); audited with who, before and after; 120 changes an hour per admin (test/console/switches)",
+  "DELETE /v1/admin/switches/features/:key":
+    "active platform admins only (walked below); puts one feature back to the app's own switch; the policy checks the admin again (app_admin_id); audited; 120 changes an hour per admin (test/console/switches)",
+  "PUT /v1/admin/switches/tuning/:key":
+    "active platform admins only (walked below); one number of the platform's `tuning` block, whole and inside its range; the policy checks the admin again (app_admin_id); audited with who, before and after; 120 changes an hour per admin (test/console/switches)",
+  "DELETE /v1/admin/switches/tuning/:key":
+    "active platform admins only (walked below); puts one number back to the default; the policy checks the admin again (app_admin_id); audited; 120 changes an hour per admin (test/console/switches)",
   "GET /v1/legal":
     "no tenant data: the version in force of each legal document, the same for everyone (test/console/legal)",
   "GET /v1/legal/:document":
