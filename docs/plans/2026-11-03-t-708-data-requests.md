@@ -6,6 +6,11 @@ moves every piece of personal data the product holds, adds an admin power that d
 data out of the database. Depends on T-704 (the console player record, `apps/api/src/console/players/*`, migration 0118).
 Migration **0129**. Decisions ADR-480 to ADR-485 (Proposed); questions Q-440 to Q-445 (counsel questions stay open).
 
+**Plan review (2026-11-03, score 84): the five MAJOR findings and the minors are folded in below** (D4's challenge
+parameter, the deletion-challenge lock order in D6 and `reapply_erasure`, the closed-list catalog with a recursive FK
+closure, the player-only `history` and export count, the case reference rule; the export's player lock, D7 as a
+whole-row check with a DELETE guard, `reportsMade` without snapshots, `expo-file-system` through `npx expo install`).
+
 Inherits the notes under T-708 in `docs/TASKS.md`: T-403 (`achievement_earned`, passport, `own_events`, `final_rank`),
 T-403b (`questify_award`), T-404 (`gem_entry`, `gem_purchase`, locker shop items), T-406 (`daily_play`, `daily_answer`,
 `daily_guess`, `daily_finish`, `xp_entry` of source `daily`), T-402b (`player_item` sources, `souvenir_receipt`,
@@ -57,26 +62,36 @@ type CatalogEntry = {
 };
 ```
 
-**The discovery query** (`test/db/personal-data-catalog.int.test.ts`) reads `pg_constraint` and
-`information_schema.columns` on the migrated test database and collects:
+**The discovery is a closed list** (`test/db/personal-data-catalog.int.test.ts`, on the migrated test database):
 
-1. every table with a foreign key to `player` or `enrollment` (each such column is a link);
-2. every table with a foreign key to a table found in step 1 (one more hop: `quiz_answer` → `quiz_attempt`,
-   `push_send` → `push_device`, `ledger_note` → `ledger_entry`, `daily_answer` → `daily_play`);
-3. every `uuid` column with no foreign key whose name is `player_id`, `enrollment_id`, ends in `_player_id` or
-   `_enrollment`, or is one of `reporter_id`, `blocker_id`, `blocked_id`, `target_id` on a table that has a
-   `target_kind` (the FK-less links: `content_report`, `community_contributor`);
-4. `audit_log` and `staff_user` by name (no FK by design; `staff_user` is the operator side, see section 9).
+1. **Tables:** the recursive foreign-key closure from `player` (every table with an FK to `player`, then every table with
+   an FK to one of those, and so on: `enrollment`, `player_xp`, `quest_completion`, `ledger_entry`, `staff_assignment`,
+   `redemption`, `daily_play`, `push_device` and their children), plus every table named by an FK-less player link
+   below, plus `audit_log`, `player_login_challenge` (holds a contact in clear), `erased_mark` and `staff_user` by name.
+2. **Columns:** every `uuid`, `uuid[]` and `jsonb` column in the whole schema that has no foreign key (single-column
+   primary keys aside) must appear either as a link in a catalog entry or in `NOT_PLAYER` with a reason. A new column of
+   one of those types fails CI until it is classified. Known FK-less player links: `notice.player_id`,
+   `notification.player_id`, `invitation_recipient.player_id`, `questify_streak_day.player_id`, `xp_board.player_id`,
+   `manual_award_key.enrollment_id`, `content_report.target_id` (username reports), `rank_top_snapshot.enrollment_ids`
+   (`uuid[]`), and the operator columns (an operator is a player): `ledger_entry.operator_id`,
+   `manual_award_key.operator_id`, `submission.reviewed_by_operator`. Not a player: the daily tables' `set_by` and
+   `created_by` (an admin's `staff_user` id, no FK by design), the organizer-side `created_by` columns, leases, cursors
+   and request ids, each listed with its reason.
+3. **Stores outside the tables** (`NON_TABLE_STORES`, listed in DATA_MODEL): the Redis ranking copy (enrollment ids and
+   scores, rebuilt from the ledger; `ranking_repair` drops an erased player), the idempotency store
+   (`idempotencyStore.forget("player:<id>")` after an erasure), the API's structured log (ids only, rules.md 3), the
+   rate-limit buckets (keyed hashes that expire on their own) and the push providers (tokens deleted with `push_device`).
 
 **Assertions:**
 
 - the discovered set equals the catalog's keys, both ways (a new table fails CI with its name and the instruction "add
   it to personal-data-catalog.ts: export section, erasure"; a dropped table fails as stale);
-- each discovered link column appears in the entry's `links`;
+- each discovered link column appears in the entry's `links`, and every FK-less `uuid`/`uuid[]`/`jsonb` column is either
+  a link or in `NOT_PLAYER`;
 - **export completeness:** a fixture player (`seedFullPlayer`, below) is exported; every entry whose `export` is a
   section name has at least one item in that section;
 - **erasure completeness:** the same player is erased by the admin door; for every `delete` entry, `SELECT count(*)`
-  over each link column (resolved through `enrollment` for enrollment links, through the parent for hop-2 links) is 0;
+  over each link column (resolved through `enrollment` for enrollment links, through the parent for deeper links) is 0;
   for every `clear` entry the listed columns are NULL; for every `keep` entry every `text`/`jsonb` column is scanned
   for the fixture's username, phone, email, birth year and submission text (none may appear);
 - **audit stays clean:** after erasure no `audit_log` row whose `target_id` or `actor_id` is the player holds the
@@ -110,7 +125,8 @@ source has both:
       completions, ledger (kind, score, balance, quest or reward name, at), redemptions (item, status, at),
       submissions (quest, body, status, at), votes, surveyResponses, quizAnswers, gameRounds, ratings, cheers,
       passportStamps, categoryBonuses, streakDays, sessionsRegistered, sessionsAttended, meetings (when, never the
-      other player), finalRank, resultPlace, staffRoles (abilities, from, to), tickets, reportsMade
+      other player), finalRank, resultPlace, staffRoles (abilities, from, to), tickets, reportsMade (kind, reason, note, status, at; a username
+      report never carries its `snapshot`, which names the other player)
   } ],
   "questify": { levelReached, xpEntries, gemEntries, gemPurchases, achievements, awards, items (with the earned
                 source: level, event souvenir or shop, and the source event's name), equipment, souvenirReceipts,
@@ -118,7 +134,9 @@ source has both:
   "blocks":        [ { username, at } ],         // whom the player blocked (already shown to them in the app)
   "notifications": [ { kind, title, body, at, readAt } ],
   "questifyActions": [ { kind, reasonCode, at } ],               // what Questify did to the account
-  "history":       [ { action, at } ] }          // the player's own audit entries: sign-up, contact changes, exports
+  "history":       [ { action, at } ] }          // only the player's own actions, an allowlist: player.signup,
+                                                 // player.contact_change, player.qr_reset, and player.data_export
+                                                 // with source 'player'; never an actor id or an admin's export
 ```
 
 **Left out, with the reason recorded in the catalog** (ADR-481, Q-442 for counsel):
@@ -150,8 +168,8 @@ source has both:
   URL, not idempotent so the body is never kept). The app's Settings gains **Download my data**: a sheet says what the
   file holds and that it may be large, then the app fetches it, writes it with **`expo-file-system`** to the cache
   directory, opens the share sheet (`expo-sharing`), and deletes the cache file when the sheet closes (also on any
-  error). New dependency: `expo-file-system`, Expo's own module, the version Expo SDK 57 pins (looked up at build
-  time); the alternative (opening a URL in the browser) needs the signed link rejected above.
+  error). New direct dependency: `expo-file-system`, Expo's own module, already in the lockfile through `expo`, added with
+  `npx expo install expo-file-system` so the version is the one SDK 57 pins; the alternative (opening a URL in the browser) needs the signed link rejected above.
 - **Admin (FR-1778):** `POST /v1/console/players/:id/data-export` (admin, `personalRead`), body `{ reasonCode,
   reference }`. The console's player record gains a **Legal request** card; Export downloads the file in the admin's
   browser. How the admin hands it to the requester is outside the system and goes through the channel counsel names
@@ -172,7 +190,9 @@ Refuses a tombstone or an unknown id with **DR404** (FR-1418: a deleted account 
 ### D2. `own_data_export(request uuid) RETURNS jsonb` (granted)
 
 The caller is `app_player_id()` and must be `active` (a platform-banned player cannot sign in; their path is the admin
-door). Counts the caller's `player.data_export` audit entries of the last 24 hours: 3 or more raises **DR429** with the
+door). Locks the caller's player row `FOR NO KEY UPDATE` (two exports at once count one after the other), then counts the
+caller's `player.data_export` audit entries of the last 24 hours **whose `after->>'source'` is `player`** (an admin's
+export never uses the player's quota nor appears in their file): 3 or more raises **DR429** with the
 seconds until the oldest one leaves the window (ADR-485). Writes `audit_log` (`system`, `player.data_export`, target the
 player, `after {source: 'player'}`), creates the personal notice `data_exported` (fixed text, no name, opens the
 center; push text carries nothing personal), then returns `player_data_export(me)`. One transaction: the notice and the
@@ -182,17 +202,21 @@ audit row exist only if the file was built.
 
 `console_admin()`; `player_for_admin(target, false)` (PA404 for a tombstone); `data_request_reason(reason_code,
 reference)` checks the reason (`legal_request`: an authority or court; `player_request`: the person, verified outside the
-system) and the **reference**: an opaque case number, `^[A-Za-z0-9._/-]{3,64}$`, so no name, email or phone can be typed
-into the durable record (DR400 otherwise). Writes `audit_log` (`admin`, actor the admin, `player.data_export`, after
+system) and the **reference**: an opaque case number, `^[A-Za-z0-9._/-]{3,64}$` **with at least one letter and no run of 8
+or more digits**, so no name, email, phone (`966551234567`) or national id (`1234567890`) can be typed into the durable
+record (DR400 otherwise). The same rule lives in `packages/shared` for the console form and the route. Writes `audit_log` (`admin`, actor the admin, `player.data_export`, after
 `{source: 'admin', reasonCode, reference}`) and returns `player_data_export`. **No notice to the player** (an authority's
 request may require silence; Q-444). No `player_admin_action` row: those rows hold free notes and are erased with the
 account, while the record FR-1778 needs must outlive it; the audit log is that record (ADR-483).
 
-### D4. `erase_account(me player, key bytea, forfeit boolean) RETURNS TABLE (outcome text, events uuid[], forfeited integer, marks integer)` (internal, no grant)
+### D4. `erase_account(me player, key bytea, forfeit boolean, challenge uuid) RETURNS TABLE (outcome text, enrolled integer, events uuid[], forfeited integer, marks integer)` (internal, no grant)
 
-The body of `erase_player` from "enrollments `FOR NO KEY UPDATE`" to `ranking_repair`, moved verbatim: the caller has
-already locked the player `FOR UPDATE`. Outcomes `handover_pending` (nothing changed) or `erased`. Does not write the
-audit entry (each caller does, with its own actor).
+The body of `erase_player` from "enrollments `FOR NO KEY UPDATE`" to `ranking_repair`; the caller has already locked the
+player `FOR UPDATE`. It is **not** a verbatim move: 0038 marks the used deletion challenge (`erased_at`, `player_id` and
+`contact_key` cleared, by `held.id`) between `erase_marks` and `erase_rows`. `challenge` is that id: when not NULL the
+update runs inside `erase_account` at the same place, after the `handover_pending` return, so a pending handover leaves
+the challenge untouched and usable. The admin and re-apply paths pass NULL. Outcomes `handover_pending` (nothing
+changed) or `erased`. Does not write the audit entry (each caller does, with its own actor).
 
 ### D5. `erase_player` restated
 
@@ -203,8 +227,11 @@ same `player.delete` audit entry. Every existing test in `test/db/account-deleti
 ### D6. `admin_erase_player(target uuid, reason_code text, reference text, typed_username text, forfeit boolean, request uuid) RETURNS TABLE (outcome text, events uuid[])` (granted)
 
 1. `console_admin()`; `data_request_reason(reason_code, reference)` (DR400).
-2. `SELECT … FROM player WHERE id = target FOR UPDATE` (the same first lock as `erase_player`, so a self-deletion and an
-   admin deletion of one account run one after the other). Unknown id → PA404. Already `deleted` → outcome
+2. **Lock order against a self-deletion:** first every deletion challenge of the player, ordered by id, `FOR UPDATE`;
+   then `SELECT … FROM player WHERE id = target FOR UPDATE`. `erase_player` holds its challenge before the player, so
+   taking the player first would deadlock against it (`erase_rows` deletes that challenge). With this order one waits
+   for the other: an admin erase after a self-erase finds a tombstone (`already_deleted`); a self-erase after an admin
+   erase finds its challenge gone (`expired`). Unknown id → PA404. Already `deleted` → outcome
    **`already_deleted`**, no write, no error (a repeat of a finished request is not a failure; ADR-485).
 3. `typed_username` must equal the username exactly (DR409 `confirmation`): the console makes the admin type it, and
    the database checks it, so a mistyped id in a script cannot delete the wrong account.
@@ -220,11 +247,11 @@ the id only, rebuild the boards in `ranking_repair` (already queued by the door)
 
 ### D7. The tombstone is final (FR-1776, ADR-484)
 
-`player_tombstone_final` BEFORE UPDATE trigger on `player`, `ENABLE ALWAYS` (fires for the owner and in replica mode):
-`OLD.status = 'deleted'` and any column other than the lifetime counters `erase_rows` may still touch changing → raise
-`insufficient_privilege` "a deleted account can never be restored". Which columns may change on a tombstone is read
-from the current writers at build time (expected: none after `erase_rows` finishes; `my_qr_version` is bumped inside
-the same UPDATE that makes the tombstone). A DELETE of a tombstone stays blocked by the FKs of the kept rows.
+`player_tombstone_final` BEFORE UPDATE OR DELETE trigger on `player`, `ENABLE ALWAYS` (fires for the owner and in
+replica mode): an UPDATE with `OLD.status = 'deleted' AND NEW IS DISTINCT FROM OLD` raises `insufficient_privilege` "a
+deleted account can never be restored" (a whole-row check: no column of a tombstone ever changes; `erase_rows` makes the
+tombstone in its last UPDATE, whose `OLD.status` is still `active` or `banned`); a DELETE of a tombstone raises the same.
+`docs/rules.md` gains the line: a backfill or data fix skips deleted accounts (`WHERE status <> 'deleted'`).
 
 ### D8. Index
 
@@ -267,7 +294,7 @@ answers the same list. No restore action exists anywhere (FR-1776's acceptance).
   runbook step "Re-apply erasures" runs `staff-cli reapply-erasures --since <backup time>`, which reads the ids of
   `player.deleted` log lines (the API's structured log, ids only) and the `player.delete` audit entries of the
   pre-restore database when it is still readable, and calls an owner-only `reapply_erasure(target, request)` for each id
-  that is not a tombstone (system actor, `forfeit` true, audit `player.delete` with `source: 'reapply'`). That door is
+  that is not a tombstone (system actor, `forfeit` true, audit `player.delete` with `source: 'reapply'`; the same lock order as D6). That door is
   owner-only (no grant to `questify_app`), tested, and idempotent (a tombstone is skipped).
 - **Retention:** erased data lives on in backups only until they age out. Proposed backup retention: 35 days (T-019
   sets it). The privacy policy must say so (Q-443, counsel). The log store must keep `player.deleted` lines at least as
@@ -304,17 +331,18 @@ restated `erase_rows` in 0129.
 2. Own export refused: a tombstone (DR404 through the door; no session can exist), a banned player (refused), the fourth
    export in 24 hours (DR429 with retry seconds), and after 24 hours it works again (time moved by the fixture).
 3. Own export writes exactly one audit entry and one `data_exported` notice; a failure inside the build writes neither.
-4. Admin export: a member is QE403; a bad reason or a reference with `@`, a space or 65 characters is DR400; a tombstone
+4. Admin export: a member is QE403; a bad reason or a reference with `@`, a space, 65 characters, no letter,
+   `966551234567` or a national-id-like `1234567890` is DR400; a tombstone
    is PA404; the audit entry holds the reason and reference, never a value from the file.
 5. Admin erase: the typed username wrong (DR409, nothing changed); pending handovers without forfeit (`handover_pending`,
    nothing changed); with forfeit (reservations ended `erasure`, units back); `already_deleted` on a repeat; the audit
    entry names the admin.
-6. Race: admin erase and self-erase of one account at once (two connections): one erases, the other answers
-   `already_deleted` / `expired`; one `player.delete` entry.
+6. Race: admin erase and self-erase of one account at once (two connections, both orders): one erases, the other
+   answers `already_deleted` / `expired`, never a deadlock (40P01); one `player.delete` entry.
 7. Race: an admin erase while a join and a reservation are in flight wait and then refuse (the T-217 race tests,
    parameterized over both erase paths).
-8. Tombstone final: an owner-connection UPDATE of a tombstone's status, username or birth year raises; in
-   `session_replication_role = replica` too.
+8. Tombstone final: an owner-connection UPDATE of a tombstone's status, username, birth year or any other column, and
+   a DELETE, raise; in `session_replication_role = replica` too.
 9. `reapply_erasure`: an active id becomes a tombstone; a tombstone is skipped; the API role cannot call it.
 10. `erase_player` refactor: the whole existing `account-deletion.int.test.ts` passes untouched.
 11. Measurement fixture (section 6), timing recorded, not asserted.
@@ -346,6 +374,9 @@ Download my data (writes, shares, deletes the cache file on success and on error
 4. Docs: `API.md` (four routes), `DATA_MODEL.md` (catalog section, tombstone trigger, index), `SECURITY.md` (export
    delivery, backup rule), `RUNBOOK.md` ("Re-apply erasures"), SRS status of FR-1418, FR-1776, FR-1778, the T-708 notes
    in `TASKS.md` marked as covered.
+
+Rate limits reuse the console's `throttled` helper (`console/players/routes.ts`) for the admin routes and `holdBack`
+with the player's key for the player route; no new copy of either.
 
 ## 12. Mutation targets (TS only, ADR-355)
 
