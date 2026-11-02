@@ -316,7 +316,7 @@ type ConsoleShared = Pick<
   }>;
 
 /**
- * The console's routes (T-210, T-312, T-409, T-609, T-701, T-702, T-709). `platform` carries what this server has set up for the
+ * The console's routes (T-210, T-312, T-409, T-609, T-701, T-702, T-704, T-709). `platform` carries what this server has set up for the
  * health view, as yes or no per transport: nothing secret.
  */
 function registerConsole(app: FastifyInstance, options: AppOptions, shared: ConsoleShared): void {
@@ -331,6 +331,7 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
     invitations: shared.invitations,
     translations: shared.translations,
     organizers: { pool, keys: shared.keys, suspended: shared.suspended },
+    players: { pool, keys: shared.keys },
     platform: {
       pool,
       keys: shared.keys,

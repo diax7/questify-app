@@ -79,6 +79,8 @@ export const PUSH_TEMPLATES: Readonly<Record<string, PushTemplate>> = {
   rank_top_ten_exit: fixedTemplate("rankTopTenExit"),
   // T-505 (migration 0086): the reminder before a registered session; a message to registrants is free text.
   session_reminder: namedTemplate("sessionReminder"),
+  // T-704 (migration 0118): Questify changed the player's username. Fixed text: no name and no reason.
+  username_changed: fixedTemplate("usernameChanged"),
 };
 
 /**

@@ -245,6 +245,7 @@ export async function questifyFixture() {
         "app.player_id": first.context.playerId,
         "app.organizer_id": first.context.organizerId,
         "app.staff_user_id": first.context.staffUserId,
+        "app.is_admin": first.context.isAdmin === true ? "on" : undefined,
       })) {
         if (value !== undefined) await a.query("SELECT set_config($1, $2, true)", [key, value]);
       }

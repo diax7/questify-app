@@ -82,6 +82,7 @@ export const AREAS = [
     /console-?organizers?|console-?oversight|support-?(seat|grant|label)|suspen(d|sion)|staff-admin|organizer-?shell|event-terms/i,
     ["console-organizers"],
   ],
+  [/console-?players?|console\/players/i, ["console-players"]],
   [/change-?sets?/i, ["change-sets"]],
   [
     /use-?confirmation|confirmations/i,

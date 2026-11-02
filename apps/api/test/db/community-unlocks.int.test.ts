@@ -1657,6 +1657,8 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   console_tickets:
     "staff: Questify's ticket queue, a quest's title only for a ticket about it (T-312)",
   console_ticket: "staff: one ticket of Questify's queue, a quest's title only (T-312)",
+  console_player_ledger:
+    "staff: a platform admin's read of one player's points record, quest titles and reward names only; it plays and pays nothing (T-704)",
   close_one_due_round: "exempt: the system sweep closing a round already open; it pays no quest",
   add_reward_codes: "staff: the team's reward codes",
   audience_counts: "staff: the team's audience preview",

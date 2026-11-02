@@ -202,6 +202,19 @@ export function ConsoleOrganizersLink({
   );
 }
 
+/** This page's item in the console's navigation (T-704). */
+export function ConsolePlayersLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/players`} icon="eye" current={current}>
+      {t("console.players.title")}
+    </NavItem>
+  );
+}
+
 /** This page's item in the console's navigation (T-709). */
 export function ConsoleHealthLink({
   language,

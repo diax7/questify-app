@@ -837,6 +837,18 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); price, sale status and place of one shop item (what players paid stays in gem_purchase); admin_shop_item_save checks the admin again (QE403, CA404); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog)",
   "POST /v1/admin/catalog/gem-shop/:id/revert":
     "active platform admins only (walked below); puts back the before of the shop item's latest catalog audit entry through admin_shop_item_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog)",
+  "POST /v1/admin/players/search":
+    "active platform admins only (walked below); console_player_search re-reads the admin (QE403); a folded username prefix or an exact phone or email (the text in the body, never the URL), masked contacts, tombstones never found; not idempotent on purpose (no contact kept or replayed); audited with how, how many and the ids, never the text; 30 a minute per admin (test/console/players, test/db/console-players)",
+  "GET /v1/admin/players/:playerId":
+    "active platform admins only (walked below); console_player_record re-reads the admin; read only, masked contacts, an erased account shows its id and dates only; every look audited (ids only); 120 a minute per admin (test/console/players, test/db/console-players)",
+  "GET /v1/admin/players/:playerId/ledger":
+    "active platform admins only (walked below); console_player_ledger re-reads the admin; 50 entries a page, actor as a kind only, no ledger note; every page audited; 120 a minute per admin (test/console/players, test/db/console-players)",
+  "POST /v1/admin/players/:playerId/contact":
+    "active platform admins only (walked below); console_player_contact re-reads the admin, reason code and note required (PA400), an action row and an audit entry on every call; not idempotent on purpose (no contact kept or replayed); 20 an hour per admin (test/console/players, test/db/console-players)",
+  "POST /v1/admin/players/:playerId/username":
+    "active platform admins only (walked below); admin_rename_player re-reads the admin, reason required, the player's row locked, the shared username rules and lists, the old name retired, the player told; Idempotency-Key, audited (ids only); 30 an hour per admin with resets (test/console/players, test/db/console-players)",
+  "POST /v1/admin/players/:playerId/reset-sign-in":
+    "active platform admins only (walked below); admin_reset_player_sign_in re-reads the admin, reason required; only removes access (tokens, codes, push devices, the cutoff; the contacts' code throttles cleared); returns no code, contact or token; Idempotency-Key, audited (ids only); 30 an hour per admin with renames (test/console/players, test/db/console-players)",
   "GET /v1/admin/tickets":
     "active platform admins only (walked below); exactly the tickets with queue = 'questify', the admin checked again (app_admin_id), every read audited per event shown ; 120 a minute per admin (test/tickets/center, test/db/tickets-center)",
   "GET /v1/admin/tickets/counts":

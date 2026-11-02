@@ -2283,3 +2283,21 @@ export const catalogStale = make(
   "تغيّر هذا العنصر أثناء عملك. أعد تحميل الصفحة وحاول مرة أخرى.",
   "This item changed while you worked. Reload the page and try again.",
 );
+export const invalidPlayerAction = make(
+  400,
+  "invalid_player_action",
+  "اختر سببا واكتب ملاحظة من 10 إلى 300 حرف.",
+  "Choose a reason and write a note of 10 to 300 characters.",
+);
+export const invalidPlayerSearch = make(
+  400,
+  "invalid_player_search",
+  "اكتب 3 أحرف على الأقل من اسم المستخدم، أو رقم جوال سعوديا، أو بريدا كاملا.",
+  "Type at least 3 characters of a username, a Saudi mobile number or a full email.",
+);
+export const usernameUnchanged = make(
+  409,
+  "username_unchanged",
+  "هذا هو اسم المستخدم الحالي للاعب.",
+  "That is already the player's username.",
+);

@@ -1044,3 +1044,36 @@ export type {
 } from "./catalog/catalog";
 export { TEMPLATE_KEY } from "./templates/template";
 export { hasUnsafeCharacter } from "./i18n/translate";
+export {
+  PLAYER_ACTION_KINDS,
+  PLAYER_ACTION_REASONS,
+  PLAYER_LEDGER_PAGE,
+  PLAYER_NOTE_MAX,
+  PLAYER_NOTE_MIN,
+  PLAYER_SEARCH_BY,
+  erasedPlayerSchema,
+  isActionReason,
+  isUsableActionNote,
+  ledgerAnswerSchema,
+  playerSearchAnswerSchema,
+  resetAnswerSchema,
+  ledgerLineSchema,
+  ledgerPageSchema,
+  maskedContactsSchema,
+  playerRecordAnswerSchema,
+  playerRecordSchema,
+  playerSearchRowSchema,
+  playerSearchSchema,
+  revealedContactsSchema,
+} from "./console-players/console-players";
+export type {
+  ErasedPlayer,
+  LedgerLine,
+  MaskedContacts,
+  PlayerActionKind,
+  PlayerRecord,
+  PlayerRecordAnswer,
+  PlayerSearchBy,
+  PlayerSearchRow,
+  RevealedContacts,
+} from "./console-players/console-players";

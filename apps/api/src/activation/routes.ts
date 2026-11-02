@@ -21,6 +21,7 @@ import {
   registerConsolePlatformRoutes,
   type ConsolePlatformDeps,
 } from "#src/console/platform-routes";
+import { registerConsolePlayerRoutes, type ConsolePlayerDeps } from "#src/console/players/routes";
 import { registerConsoleOrganizerRoutes, type ConsoleOrganizerDeps } from "#src/console/routes";
 import { registerConsoleDailyRoutes } from "#src/daily/admin-routes";
 import type { HttpError } from "#src/http-error";
@@ -128,6 +129,8 @@ export type ConsoleRoutesDeps = Readonly<{
   organizers: ConsoleOrganizerDeps;
   /** Platform health, numbers and the admin accounts with their sessions (T-709), behind the same hook. */
   platform: ConsolePlatformDeps;
+  /** Find a player, the record, the contact reveal, rename and sign-in reset (T-704), behind the same hook. */
+  players: ConsolePlayerDeps;
   /** The translation matrix (T-702), behind the same hook; the service the public texts route reads from. */
   translations: TranslationService;
 }>;
@@ -284,6 +287,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsolePlatformRoutes(scope, deps.platform);
       registerConsoleCatalogRoutes(scope, deps.platform);
       registerConsoleTranslationRoutes(scope, deps.translations);
+      registerConsolePlayerRoutes(scope, deps.players);
     },
     { prefix: ADMIN_PREFIX.slice(0, -1) },
   );

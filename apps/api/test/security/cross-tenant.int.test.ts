@@ -1048,6 +1048,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by a trigger on player and read by the console later (test/db/usernames)",
   username_word:
     "no right for the API role at all; read by the username check inside the definers (test/db/usernames)",
+  username_retired:
+    "no right for the API role at all; holds no player id; written by admin_rename_player, read by the username check inside the definers (test/db/console-players)",
+  player_admin_action:
+    "no right for the API role at all; Questify-wide, not an organizer's; written and read only by the console's admin doors, deleted by erase_rows (test/db/console-players)",
   ranking_repair:
     "no right for the API role at all; marks are set by definers and triggers and claimed by the repair tick (test/db/ranking)",
   manual_award_key:
@@ -1794,6 +1798,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         "SELECT admin_end_session(gen_random_uuid(), 'A reason long enough', gen_random_uuid())",
       ]) {
         expect(await refusal(asA(seat, sql, [])), `${seat} ${sql}`).toBe("QE403");
+      }
+    }
+  });
+
+  it("keeps the console player tools from every tenant seat (T-704)", async () => {
+    const note = "'A note long enough to pass'";
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      for (const sql of [
+        "SELECT console_player_search('username', 'abc', gen_random_uuid())",
+        "SELECT console_player_record($1, gen_random_uuid())",
+        "SELECT console_player_ledger($1, NULL, NULL, gen_random_uuid())",
+        `SELECT console_player_contact($1, 'support_request', ${note}, gen_random_uuid())`,
+        `SELECT * FROM admin_rename_player($1, 'other_name', 'spam', ${note}, gen_random_uuid())`,
+        `SELECT * FROM admin_reset_player_sign_in($1, 'other', ${note}, gen_random_uuid())`,
+      ]) {
+        const values = sql.includes("$1") ? [f.playerA] : [];
+        expect(await refusal(asA(seat, sql, values)), `${seat} ${sql}`).toBe("QE403");
       }
     }
   });
