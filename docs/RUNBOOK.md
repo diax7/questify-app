@@ -633,3 +633,15 @@ Western digits, Home flash/boost expiry after more than 15 minutes, newest-three
 Back, failed-read retry and a muted-announcements member (center/Home present, no push). Push tap opens event Home.
 Native Expo export passes for iOS+Android; default web export is unsupported by this native app's existing missing
 react-native-web dependency, which T-502 does not add. No EAS build or real vendor send is part of this task.
+
+## Platform admins and support access (T-701, ADR-405, ADR-407)
+
+- **Make or unmake a Questify admin** (owner connection, inside the API container):
+  `node staff.cjs grant-admin someone@questify.sa` and `node staff.cjs revoke-admin someone@questify.sa`.
+  Each is one transaction with an audit entry (`staff.platform_role`); a revoke ends the account's sessions and closes
+  its live support grants.
+- **Close a support grant by hand** (owner connection), when the console is not at hand:
+  `UPDATE support_grant SET closed_at = now(), close_kind = 'admin' WHERE id = '...' AND closed_at IS NULL;`
+  then record it in the audit log as a system entry (`support.closed`).
+- **Suspensions** are made and lifted from the console (Organizers, or an event's page); the API walls of other
+  instances follow within 10 seconds, the database walls at once.

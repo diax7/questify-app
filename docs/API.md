@@ -560,6 +560,13 @@ limited editor cannot create events (403 `scope_limited`, T-102). The database c
 | `GET /v1/admin/usage` | admin | → `{organizers: [{id, name, events, players, invitationsSent, alertEmails}]}` (T-609, FR-1730, ADR-394): the 100 organizers created last, newest first. `players` are members who are not rehearsal accounts (pending and declined left out), `invitationsSent` the campaigns' sent counters, `alertEmails` the organizer's outbox rows in state `sent` (kept 30 days). Counts only, not audited. Login SMS, promotional email, push volume and storage are not metered yet (Q-361) | 401, 404 |
 | `GET /v1/admin/usage/organizers/{organizerId}` | admin | → `{organizer: {id, name}, events: [{id, name: {ar, en}, status, players, invitationsSent, alertEmails}]}`: the organizer's 200 latest-created events with the same figures; `status` is the event's status now. Not audited | 400, 401, 404 (unknown organizer too) |
 | `GET /v1/admin/readiness` | admin | → `{events: [{id, name {ar, en}, organizer {id, name}, timezone, startsAt, endsAt, readiness}]}` (T-618, FR-1845, ADR-403): up to 100 draft or scheduled events that start within 14 days and have not ended, soonest first, each with the checklist its owner reads (`readiness` as above). Read only, no personal data, not audited, `Cache-Control: no-store` |
+| `GET /v1/admin/organizers?q&status=active\|paused&cursor&limit` | admin | → `{organizers: [{id, name, slug, status, ownerEmail, events: {draft, scheduled, live}}], nextCursor}` (T-701): `q` matches the name or slug by prefix (case-folded) or an owner email exactly; pages by name. Audited `console.organizers_read` with the organizer ids shown; 120 a minute per admin | 400, 401, 404, 429 |
+| `GET /v1/admin/organizers/{organizerId}` | admin | → `{organizer: {id, name, slug, status, createdAt, suspension}, team: [{email, role, eventScope}], events: [{id, joinCode, name, status, statusNow, startsAt, endsAt, suspension}], history: [{id, at, actorType, action, targetType, eventId, bySupport}]}`; `suspension` = `{reason, since}` or null. Audited `console.organizer_read` | 400, 401, 404, 429 |
+| `GET /v1/admin/events/{eventId}` (T-210) | admin | now also `event.event.suspension`, `event.event.organizerSuspension`, `event.supportGrants: [{id, adminEmail, mine, openedAt, expiresAt}]` and `event.history` (last 50 entries); audited `console.event_read` (Q-116) | as before |
+| `POST /v1/admin/organizers/{organizerId}/suspend`, `POST /v1/admin/events/{eventId}/suspend` | admin, Idempotency-Key | `{reason}` (10 to 300 characters; the organizer reads it, Q-372) → `{suspendedAt}` (ADR-406). Audited `organizer.suspend` / `event.suspend`; 30 an hour per admin | 400 `invalid_reason`, 404, 409 `suspension_unchanged`, 429 |
+| `POST /v1/admin/organizers/{organizerId}/reactivate`, `POST /v1/admin/events/{eventId}/reactivate` | admin, Idempotency-Key | `{}` → 204; everything comes back as it was | 404, 409 `suspension_unchanged`, 429 |
+| `POST /v1/admin/events/{eventId}/support` | admin, Idempotency-Key | `{reason}` → 201 `{grant: {grantId, organizerId, eventId, expiresAt}}` (ADR-407): 15 minutes as an editor of that event through the organizer's own routes; silent to the organizer (Q-373). Audited `support.opened` | 400 `invalid_reason`, 404, 409 `support_member` / `support_busy`, 429 `too_many_support_grants` |
+| `POST /v1/admin/support/{grantId}/close` | admin, Idempotency-Key | `{}` → 204; any admin may close a live grant. Audited `support.closed` | 404 |
 | `POST /v1/admin/questify/campaigns` | admin, Idempotency-Key | `{name:{ar,en} (trimmed 1–80, no control/bidi), startsAt, endsAt}` (ISO 8601 with offset; the console enters Saudi time) → `201 {campaign}`, a draft. Audited `questify.campaign_created` `{fields}` | 400, 404, 422 `invalid_questify` `{field: endsAt}` (ends before it starts) |
 | `PUT /v1/admin/questify/campaigns/{campaignId}` | admin, Idempotency-Key | the same body, the whole name and window → `{campaign}`. A draft changes freely; published: the start moves only before it starts and never into the past, then is fixed; the end only moves later while running; an ended window is fixed (names still change). Audited `questify.campaign_updated` with the changed field names | 400, 404, 409 `questify_conflict` `{reason: retired\|start_passed\|started\|ends_earlier\|ended}`, 422 |
 | `POST /v1/admin/questify/campaigns/{campaignId}/publish` | admin, Idempotency-Key | → `{campaign}`; only before `startsAt` (MINOR-6: plays before the start never count). A published one answers as it is. Audited `questify.campaign_published` | 404, 409 `{reason: start_passed\|retired}` |
@@ -775,3 +782,20 @@ Player, active member of the event (403 `not_enrolled` otherwise), `private, no-
 | Method | Path | Result |
 |---|---|---|
 | GET | /v1/events/{eventId}/sponsors | `{sponsors: [{id, name: {ar,en}, tier, booth}], tags: [{kind, targetId, sponsorId}]}`. Every sponsor of the event, in the strip's order; a tag only on an item the player may see (a quest by the Quests tab's own rule, a category they have found and are in the audience of, an active reward in their audience). It reads nothing about the caller or any other player and sends nothing to a sponsor (FR-1304). There is no sponsor login, report or share route |
+
+## Console foundation (T-701, migration 0114; ADR-405 to ADR-410)
+
+- **Suspension answers.** Player routes with `:eventId` of a suspended event (or of a suspended organizer's event)
+  answer `404 event_unavailable` (read from a set refreshed every 10 s). A member's non-GET organizer route answers
+  `423 organizer_suspended` (the organizer) or `423 event_suspended` (the route's `:eventId`). Any database wall a
+  route did not answer first (`ES423`) answers `423 event_suspended`. Public event reads by code answer not found.
+- **`GET /v1/staff/me`.** Each membership gains `suspension` (`{reason, since}` or null). A Questify admin's live
+  support grants appear as memberships with `role: "editor"`, `eventScope` = the granted events and
+  `support: [{grantId, eventId, expiresAt}]`.
+- **`GET /v1/organizers/{id}/events/{eventId}`** gains `event.suspension` (the dashboard's banner shows the reason).
+- **The support seat.** On a support grant the organizer routes accept only routes of a granted event (not
+  `POST …/devices`, `POST …/devices/preview`, `POST …/exports/{kind}`) and `GET …/events`; others answer 404, owner
+  routes 403. The events list is filtered by the caller's event limit for everyone (a limited editor no longer sees
+  other public events of the organizer there).
+- **Actor names.** `member_ledger.by_staff`, `flag_detail.resolved_by`, `event_tickets.answerer` and `escalated_by`,
+  and a device's `pairedBy.name` carry `questify-support` instead of an email for work done under a support grant.

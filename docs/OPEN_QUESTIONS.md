@@ -61,10 +61,10 @@ overlap the ones above were merged into them.
 | Q-084 | Audit log retention and anonymisation (T-004): how long are audit entries kept, and how does a player's deletion anonymise entries that name them, when the table refuses every change? Today no entry names a player (actors are staff, admins and the system), so nothing waits on it yet | The privacy policy needs a period (Q-075); the first player-facing entry (T-1xx) needs the anonymisation path designed first | 8 (counsel, with Q-075) |
 | Q-083 | (2026-10-21: the user keeps Gmail alone while its mail does not land in spam; the Resend backup and its domain are skipped for now, and would use the same domain as Gmail.) (2026-10-20: the user chose the Gmail API from `questify@nafes.com` (nafes.com Google Workspace), ADR-112; still open for counsel: Google is a foreign provider.) Final email provider for staff sign-in codes and invites: keep Gmail (dedicated account) with Resend as backup, or a provider in Saudi Arabia? Gmail has a daily send cap and puts the codes through a foreign provider | Staff codes and the data map (NFR-020); the stop-gap is in `INTEGRATIONS.md`. Needs a domain for the Resend backup and counsel's view (T-807) | 8 |
 | Q-107 | Booths (FR-909): the owner limits an operator to chosen quests today (T-204). Should a booth exist as its own thing (a named place grouping quests, with its own station screen), and when? Claude's recommendation: wait until an organizer asks; quests cover a station today | A booth model changes the operator limit and the station picker; nothing waits on it now | 9 |
-| Q-110 | Organizer suspension (FR-1607, and the suspend half of FR-1402) moved from T-210 to T-701 (console foundation, which also lists FR-1402). It narrows every player read path (event page, list, quests, home) and `join_event`, which T-212 rewrites at the same time. Claude's recommendation: accept the move; T-701 uses `organizer.status = 'paused'` and the enrollment trigger pattern of ADR-141 | Until T-701, a misbehaving organizer is stopped by hand (support) | 8 |
+| Q-110 | **Closed 2026-11-02 by T-701 (ADR-406).** Organizer suspension (FR-1607, and the suspend half of FR-1402) moved from T-210 to T-701 (console foundation, which also lists FR-1402). It narrows every player read path (event page, list, quests, home) and `join_event`, which T-212 rewrites at the same time. Claude's recommendation: accept the move; T-701 uses `organizer.status = 'paused'` and the enrollment trigger pattern of ADR-141 | Until T-701, a misbehaving organizer is stopped by hand (support) | 8 |
 | Q-111 | Usage figures (FR-1730) and editable support contact (FR-1731) moved from T-210 to T-703 (platform settings): no SMS, push or storage metering exists yet, and the contact page waits on T-706. The emails to the owner on activation, rejection and the 80%/100% marks wait for the alert switches (FR-1727); the dashboard card and banner are the alert now. Claude's recommendation: accept both moves | The owner learns of an activation on the dashboard, not by email, until the alerts task | 8 |
 | Q-115 | Retention of join answers and guest lists (T-212, Q-075): a guest list holds contacts of people who may never sign up. Should it be purged a set time after the event ends, and are a player's answers erased when they delete their account (T-217) or only with the event's data? Built: both stay with the event; answers go when the enrollment goes. Claude's recommendation: purge guest lists 30 days after the end, erase answers with the account | PDPL minimization; the deletion flow (T-217) and the retention job need the rule | 8 (counsel) |
-| Q-116 | Console reads are not audited yet (T-210 CTO review): `GET /v1/admin/activation-requests`, `/v1/admin/events?code=` and `/v1/admin/events/{id}` show an owner's email and write no audit row, while SECURITY threat 5 promises every admin read is logged. Claude's recommendation: T-701 (console foundation) adds one audit row per console read, with the rest of the console | Until then a misused admin account's reads leave no trail | 7 |
+| Q-116 | **Closed 2026-11-02 by T-701:** the console's event page, organizer list and organizer page each write one audit row with ids only; the activation queue and the lookup by code show no email and stay unaudited. Console reads are not audited yet (T-210 CTO review): `GET /v1/admin/activation-requests`, `/v1/admin/events?code=` and `/v1/admin/events/{id}` show an owner's email and write no audit row, while SECURITY threat 5 promises every admin read is logged. Claude's recommendation: T-701 (console foundation) adds one audit row per console read, with the rest of the console | Until then a misused admin account's reads leave no trail | 7 |
 | Q-117 | Times and kind after activation (T-210 CTO review): an organizer can still change an activated event's start, end and kind (0009's column grants), so ADR-142's checks (times ahead, a venue for a physical event) and any paid window (ADR-076) can be undone after activation. Claude's recommendation: lock the end to at most the activated window and keep a physical event's venue required, in T-701 or when pricing by duration is decided | An event could run longer than what was activated | 7 |
 | Q-106 | Spending after the event (ADR-135): with "spending lowers rank" on, should purchases in the days the shop stays open after the end also lower the score? Built: no, the final score is frozen at the end so rank prizes never move. Claude's recommendation: keep it so | If yes, results would change after the event and T-214 would need a frozen results snapshot | 8 |
 | Q-105 | Renamed words beyond T-117 (FR-404, FR-405, FR-940): (1) the star is one of the five currency icons, and it is also the usual XP symbol (ASSET_INDEX); an event that picks the star could confuse points with XP once XP shows (T-4xx). (2) ADR-058 also names renaming "quest" and "category" (answered: FR-942, built in T-311b). Claude's recommendation: keep the star until XP has its own symbol on screen, then decide; write a requirement for quest and category renames only if an organizer asks | The star choice may need a change when XP ships; quest and category stay fixed words | 8 (brand) |
@@ -1797,3 +1797,34 @@ of the guided setup; (d) "quest QR codes printed" is not an item because nothing
 
 **Status:** Proposed (developer, 2026-11-02; ADR-404).
 **Recommended (developer):** (a) the four templates (conference, festival, campus, corporate) are rows of a closed table seeded by migration 0115, edited later by the console (T-709), not shipped code; (b) a template holds no item reward, no quiz, no passport, no location and no typed code, and every reward starts with no stock, so the organizer finishes the setup before anything can be redeemed; (c) the quest texts are neutral starting points (booths, halls and stalls are named by number or kind, never by a real place) that the organizer edits; (d) the wizard's "Start from" applies only to a draft with no quest and asks first; (e) the Arabic follows the ux-araby voice (simplified Modern Standard, masculine imperative), Western digits. Questions for Dhia: should organizers be able to save their own event as a private template (it would reuse the duplicate door), should the Saudi-specific templates that ADR-083 left out (Ramadan, national day) be added now as rows, and should a template be able to carry item rewards by also asking for the prize desk place in the picker? **Decided (developer):** as built until Dhia says otherwise.
+
+## Q-372 - Does the organizer see the suspension reason? (T-701)
+
+**Status:** Answered (Dhia, 2026-11-02). The organizer sees the reason Questify wrote; players see only that the event is
+unavailable. Built in T-701 (ADR-406).
+
+## Q-373 - Support access: approval, length, notice (T-701)
+
+**Status:** Answered (Dhia, 2026-11-02). 15 minutes, fixed; no notification to the organizer, no banner, no organizer
+approval or "end access"; it happens and is recorded in Questify's audit log only ("It will be logged only, but the
+organizer or the owner might not know about it. That's fine."). Built in T-701 (ADR-407, ADR-409).
+
+## Q-374 - How support appears in the organizer's history (T-701)
+
+**Status:** Answered (Dhia, 2026-11-02). Changes made by support are labelled "Questify support" wherever the
+dashboard's own history shows an actor; the admin id stays in Questify's audit log. Built in T-701 (ADR-408).
+
+## Q-375 - Merging two organizer accounts (T-701b)
+
+**Status:** Answered (Dhia, 2026-11-02). Dropped from v1 (ADR-410).
+
+## Q-376 - Mailbox for urgent-report alerts (T-701b)
+
+**Status:** Answered (Dhia, 2026-11-02). The same address Questify sends email from (`MAIL_FROM`), stored as
+configuration data, not hard-coded. To build in T-701b (ADR-410).
+
+## Q-377 - Support writes while an event or organizer is suspended (T-701)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-406).
+**Recommended (developer):** support keeps writing while suspended (to fix what led to the suspension, then
+reactivate); the ledger stays closed to support as to everyone.

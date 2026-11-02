@@ -1239,14 +1239,14 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1306 | F-214 | Should | built T-608 for quests, categories and rewards (souvenirs wait for T-507c): `test/db/exports.int` (`analytics_sponsor`: only the sponsor's items, zero for an untagged sponsor), `test/analytics/exports.int`, `apps/web/e2e/analytics.spec.ts` |
 | FR-1307 | F-213 | Could | built T-507 (`SponsorStrip`, `SponsorQuests`); code review pending |
 | FR-1401 | F-215 | Must | pending |
-| FR-1402 | F-216 | Must | pending |
+| FR-1402 | F-216 | Must | built (T-210 activation, T-701 suspension) |
 | FR-1403 | F-216 | Must | pending |
 | FR-1404 | F-216 | Must | pending |
 | FR-1405 | F-216, F-41 | Must | pending |
 | FR-1406 | F-227 | Must | pending |
 | FR-1407 | F-227 | Must | pending |
-| FR-1408 | F-218 | Must | pending |
-| FR-1409 | F-218, F-198 | Must | pending |
+| FR-1408 | F-218 | Must | built (T-701: 15-minute support grant, ADR-407) |
+| FR-1409 | F-218, F-198 | Must | built as amended by Q-373 (T-701: logged in Questify's audit log; the organizer sees "Questify support" where its history shows an actor, not the access itself, ADR-408, ADR-409) |
 | FR-1410 | F-219 | Must | pending |
 | FR-1411 | F-220 | Must | pending |
 | FR-1412 | F-221 | Must | pending |
@@ -1271,7 +1271,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1604 | F-152 | Should | pending |
 | FR-1605 | F-117 | Must | pending |
 | FR-1606 | F-223 | Should | pending |
-| FR-1607 | F-216 | Must | pending |
+| FR-1607 | F-216 | Must | built (T-701, ADR-406) |
 | FR-1608 | F-194 | Must | built (T-102: Scheduled → Live → Ended, `test/db/event-lifecycle.int`; T-411: Ended → Archived by the tick's last step under ADR-337 (5) and ADR-341, `test/db/event-archive.int`, `test/events/archived.int`; never within 30 days of the end); reviewed |
 | FR-1609 | F-142, F-145 | Must | built (T-202, T-206: holds keep their own deadline); tested across the close T-410 (handover, timeout and cancel after it, a rank prize, `test/db/shop-window.int`) |
 | FR-1610 | F-164 | Must | pending |
@@ -1376,7 +1376,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1781 | F-289 | Must | pending |
 | FR-1782 | F-290 | Should | pending |
 | FR-1783 | F-291 | Should | pending |
-| FR-1784 | F-292 | Should | pending |
+| FR-1784 | F-292 | Should | partly built (T-701 pause and restore; owner email change T-701b; merge dropped, Q-375) |
 | FR-1785 | F-293 | Must | pending |
 | FR-1786 | F-294 | Should | built T-408 (month boards of `xp_board`, `GET /v1/admin/questify/seasons[/:month]`) and T-408c (console page `/console/seasons`; code review pending) |
 | FR-1787 | F-295 | Must | pending |

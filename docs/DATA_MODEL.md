@@ -1634,3 +1634,16 @@ PUBLIC none. Not copied when an event is duplicated.
 - Lock order: assignment (FOR SHARE) -> enrollment -> reward -> desk_sale -> redemption. No event or quest lock.
 - SQLSTATEs: `DS409` (`reservation_on`, `desk_busy`, `price_changed`), `DS410` (the offer ended: `declined`, `withdrawn`, `refused`,
   `expired`), `DS422` (`not_desk_reward`), RS403 `reservation_off` / `desk_closed`.
+
+## Console foundation (T-701, migration 0114; ADR-405 to ADR-409)
+
+- **`organizer`**: `suspended_at`, `suspended_by` (staff), `suspension_reason` (10 to 300); CHECK `status = 'paused'` if
+  and only if `suspended_at` is set. The API role holds only SELECT on the table now (definers write it).
+- **`event`**: `suspended_at`, `suspended_by`, `suspension_reason` (no API write grant); `event_suspended(id)` is true
+  when the event or its organizer is suspended; `suspended_ids()` lists them.
+- **`support_grant`** (new; forced row-level security, no grant): `id, admin_id, organizer_id, event_id, reason,
+  opened_at, expires_at (= opened_at + 15 minutes, CHECK), closed_at, closed_by, close_kind (admin|revoked|expired)`;
+  one live grant per admin and event (partial unique index); foreign key to `event (id, organizer_id)`.
+- **`audit_log.support_grant_id`**: set only by the `audit_a_stamp_support` trigger (never by a writer).
+- **Triggers:** `ledger_suspension_guard` (BEFORE INSERT on `ledger_entry`, by kind), `enrollment_suspension_guard`
+  (BEFORE INSERT or UPDATE OF status on `enrollment`).

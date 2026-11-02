@@ -179,9 +179,10 @@ a narrow setting (`app.auth_email`, `app.session_token_hash`, `app.challenge_tok
 the caller's identity, opens that row, so row-level security protects less here than on identified requests.
 Tests assert that one lookup exposes one row and nothing else, and the request can never supply these values.
 
-**Admin power to record.** Any context with `isAdmin` can overwrite any `password_hash` through the column
-grant (the baseline `staff_user_own` policy allows admins). That is an admin power under ADR-094; T-701
-must not widen it without a decision.
+**Admin power narrowed (T-701, ADR-405).** `staff_user_own` is SELECT only (own row or admin) and
+`staff_user_update` allows the own row only, so no context, an admin's included, can overwrite another person's
+`password_hash`. `platform_role` and `status` are written only by the owner connection (`staff-cli grant-admin` and
+`revoke-admin`, audited; a revoke ends sessions and support grants); a test asserts the API role's exact privileges.
 
 ### Audit log (T-004)
 
@@ -564,3 +565,18 @@ analytics row or export beyond the join answer the team already receives; `apps/
 that may name it. Tests: `test/db/name-display.int` (every rule and refusal as rows), `test/join/names.int` (the card, the join, the
 dashboard), the ranking, results, big screen, finale, station and desk suites, the outsider suite (anon and PUBLIC hold nothing on the
 columns or the functions) and the cross-tenant suite (B's setting, notices and names out of A's reach). Counsel on Q-080 can still narrow it.
+
+### Console foundation (T-701, ADR-405 to ADR-409)
+
+- **Organizer rows are definer-only:** the API role lost INSERT and UPDATE on `organizer`, so no member can lift a
+  suspension (catalog test in `test/db/console-suspension`).
+- **Suspension walls:** ledger by kind (only refunds and removals), joining, public reads, big screen in the database;
+  player routes (404 `event_unavailable`) and the team's writes (423) in the API. Statements that start after the
+  suspension commits are refused (tested with a transaction opened before it).
+- **Support grants:** 15 minutes, one event, reason required, never for a member, 20 an hour, closed by any admin and by
+  `revoke-admin`; the grant is re-checked on every statement (`app_organizer_id`, `app_event_scope`, active admin) and
+  `app.is_admin` is never set, so support holds an editor's rights in that event only. The API seats support on a
+  deny-by-default route list (no device pairing, no exports, no event-less routes). Silent to the organizer by Dhia's
+  decision (Q-373); every support write is stamped in the audit log by the database.
+- **Console reads audited (Q-116 closed):** organizer list, organizer page and event page each write one audit row with
+  ids only.

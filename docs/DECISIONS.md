@@ -6386,3 +6386,69 @@ and the item statuses are constants in code, so a change is a release.
 **Why:** configuration over code, and one write path whose safety does not depend on the content: the door cannot write a player, a point or a secret whatever the body says, because the columns it writes are only setup columns. Keeping the table closed and the doors few follows the deny-by-default rule; the shared schema keeps a badly saved body from reaching an organizer.
 **Trade-offs:** (a) the templates are mock starting points: the quest texts name no real place (a booth, a hall), so the organizer edits them before going live, and an event started from one is a draft that Questify activates as any draft. (b) The console's editor is T-709: until then a change is a SQL update of the row. (c) The body is checked in shared code, not by a database constraint, so a bad row is caught at the API's read (500 with the key named) rather than at the write; the console must validate on save. (d) A second template cannot be applied over a first (the event is no longer empty); "Start blank" and delete are the way back.
 **Not built:** the console's template editor (T-709), per-organizer private templates ("save this event as a template", which would reuse the duplicate door), item rewards and quizzes in a template, a template that sets the join form, the agenda or sponsors, and templates for other markets.
+
+## ADR-405 - T-701 platform admins are granted and revoked only from the owner connection; organizer rows are definer-only
+
+**Status:** Proposed (developer, 2026-11-02; T-701). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
+**Decision:** `staff-cli grant-admin <email>` and `revoke-admin <email>` are the only paths that write `platform_role`: one
+transaction with an audit entry (`staff.platform_role`, system actor, before and after); a revoke also ends the account's
+live sessions and closes its live support grants. The API role keeps exactly `SELECT` and `UPDATE (password_hash)` on
+`staff_user`, and its UPDATE policy is now the own row only (the admin branch is dropped: both password paths run as the
+user). The API role loses `INSERT` and `UPDATE` on `organizer` (plan review BLOCKER: a member could have written
+`status` and lifted a suspension); organizers are created by `create_organizer` only.
+**Why:** a role change is rare and must never be reachable from a web request. **Trade-offs:** no console screen for
+admin accounts yet (T-709); an admin cannot reset another person's password hash from the API (no path used it).
+
+## ADR-406 - T-701 suspension is an overlay with database walls on money, joining and public reads
+
+**Status:** Proposed (developer, 2026-11-02; T-701). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
+**Decision:** an organizer is suspended by `status = 'paused'` plus `suspended_at`, `suspended_by`, `suspension_reason`;
+an event by `event.suspended_at`, `suspended_by`, `suspension_reason`; four admin doors, reason 10 to 300 characters,
+audited with the reason. Nothing else changes, so reactivating restores exactly what was there. Walls: the ledger guard
+keys on the entry's kind (only `redeem_return` and `removal` while suspended; hand-overs and desk sales are refused
+through it); joining is refused by a trigger; the five public event reads and the big screen leave the event out; the
+community payer and settle, the invitation claim and the push claim skip the event instead of failing their batch.
+API walls: player routes with `:eventId` answer `404 event_unavailable` from a 10-second set of suspended ids; the
+team's writes answer `423 organizer_suspended` or `423 event_suspended`. Every statement that starts after the
+suspension commits is refused.
+**Why:** the money paths need walls that no code path can skip; the general staff write wall is the one organizer hook,
+since about 170 definers mix reads and writes. **Trade-offs:** up to 10 seconds of lag on the API walls of other
+instances; due community payouts wait until the suspension is lifted.
+
+## ADR-407 - T-701 support access is a 15-minute grant that seats the admin as an editor of one event
+
+**Status:** Proposed (developer, 2026-11-02; T-701; Dhia's Q-373). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
+**Decision:** `support_open(event, reason)` opens a `support_grant` row for exactly 15 minutes (a CHECK), one live grant
+per admin and event, never for a member of the organizer, 20 an hour; any admin can close one; opening again extends.
+`app_organizer_id()` and `app_event_scope()` gain a branch used only with a staff id and no membership: the live grant of
+an active platform admin, with the granted events as the scope (never NULL). `app.is_admin` is never set on these
+requests, so support has an editor's rights in that event and nothing else. The API seats the admin on a deny-by-default
+list: routes of the granted event (not device pairing, not exports) and `GET …/events`; every other route answers 404,
+owner routes 403. Both helpers became PL/pgSQL with an early return for contexts without a staff id (measured on the
+local database: a member read 2.4 to 2.0 ms, a player read 2.3 to 1.9 ms per statement).
+**Trade-offs:** doors that read `organizer_member` directly (`souvenir_event`, `invitation_team_event`, owner-only
+features) fail closed for support.
+
+## ADR-408 - T-701 support entries are stamped by the database and shown as "Questify support"
+
+**Status:** Proposed (developer, 2026-11-02; T-701; Dhia's Q-374). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
+**Decision:** `audit_log.support_grant_id` is assigned by a BEFORE INSERT trigger from the live grant of the entry's
+staff actor (never a member), ignoring any value a writer passes; the API's column grant omits it. Where the dashboard
+shows an actor (a points entry's "by", a flag's "resolved by", a ticket's answerer and escalator, a device's "paired
+by"), `staff_shown()` returns the marker `questify-support` for a non-member who held a grant in that organizer, and the
+dashboard translates it. The admin id stays in the audit log.
+
+## ADR-409 - T-701 support access is silent to the organizer
+
+**Status:** Proposed (developer, 2026-11-02; Dhia's Q-373). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
+**Decision:** no banner, no organizer read of grants, no End access, no `support_access` alert for support grants; the
+record is Questify's audit log. Only the admin sees a banner ("You are in this event as Questify support until ...").
+`content_unpublished` keeps no producer until T-705's moderation. FR-1409's "show these entries to the organizer" is
+amended accordingly (SRS trace).
+
+## ADR-410 - T-701b split; organizer merge dropped from v1
+
+**Status:** Proposed (developer, 2026-11-02; Dhia's Q-375, Q-376). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
+**Decision:** T-701b ships the owner email change (FR-1784) and urgent reports (FR-1732: urgency, ordering and the email
+to the `MAIL_FROM` address stored as configuration data). Merging two organizers is dropped from v1 (Q-375). Each half
+delivers value alone.
