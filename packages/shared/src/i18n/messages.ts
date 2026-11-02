@@ -5876,7 +5876,7 @@ export const MESSAGES = {
   "console.translations.show.missingEn": { ar: "ينقصها نص إنجليزي", en: "Missing English" },
   "console.translations.changed": { ar: "معدَّل", en: "Changed" },
   "console.translations.stale": { ar: "قديم", en: "Out of date" },
-  "console.translations.staleNote": { ar: "نص محفوظ غير مستخدم", en: "Saved text, not in use" },
+  "console.translations.ignored": { ar: "نص محفوظ غير مستخدم", en: "Saved text, not in use" },
   "console.translations.locked": { ar: "للقراءة فقط", en: "Read-only" },
   "console.translations.shipped": { ar: "النص الأصلي", en: "Shipped text" },
   "console.translations.edit": { ar: "تعديل {key}", en: "Edit {key}" },

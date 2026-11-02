@@ -216,9 +216,9 @@ test("narrowing by screen lists only that screen's texts", async ({ page }, info
   await page.goto("/en/console/translations");
   await page.getByLabel("Screen", { exact: true }).selectOption("nav");
   await expect(rowOf(page, "nav.home")).toBeVisible();
-  const keys = await page.getByTestId("translation-row").evaluateAll((rows) =>
-    rows.map((element) => element.getAttribute("data-key") ?? ""),
-  );
+  const keys = await page
+    .getByTestId("translation-row")
+    .evaluateAll((rows) => rows.map((element) => element.getAttribute("data-key") ?? ""));
   expect(keys.length).toBeGreaterThan(3);
   expect(keys.every((entry) => entry.startsWith("nav."))).toBe(true);
   await expectNoSidewaysScroll(page);

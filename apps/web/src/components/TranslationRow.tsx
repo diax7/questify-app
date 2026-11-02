@@ -38,7 +38,7 @@ function Cell({
       ) : null}
       {row.stale[code] && stored !== null ? (
         <span className={styles.note}>
-          {t("console.translations.staleNote")}:{" "}
+          {t("console.translations.ignored")}:{" "}
           <bdi lang={code} dir={directionOf(code)}>
             {stored}
           </bdi>
