@@ -17,7 +17,13 @@ export type FeatureDefinition = Readonly<{
 }>;
 
 /** A number an admin may tune, with the range that is safe (F-279). Out-of-range values are never used. */
-export type TuningDefinition = Readonly<{ default: number; min: number; max: number }>;
+export type TuningDefinition = Readonly<{
+  default: number;
+  min: number;
+  max: number;
+  /** Read by the server only: left out of the configuration the app receives (the flag thresholds, T-703). */
+  serverOnly?: true;
+}>;
 
 export type FeatureRegistry = Readonly<Record<string, FeatureDefinition>>;
 export type TuningRegistry = Readonly<Record<string, TuningDefinition>>;
@@ -184,11 +190,18 @@ export const FEATURES: FeatureRegistry = {
 
 /** Starting values from Q-074 (still to be tested in the field); admins adjust them inside the range. */
 export const TUNING: TuningRegistry = {
+  /** Scans in the window that raise a burst flag for review (T-209, `flag_tuning()`); the window is `flagBurstMinutes`. */
+  flagBurstCount: { default: 10, min: 3, max: 100, serverOnly: true },
+  /** The window, in minutes, in which `flagBurstCount` scans raise a burst flag (T-209). */
+  flagBurstMinutes: { default: 5, min: 1, max: 60, serverOnly: true },
   /** Seconds between the app's reads of what is live in an event (T-306, ADR-221), while an event screen is open. */
   livePollSeconds: { default: 10, min: 5, max: 60 },
-  myQrGraceSeconds: { default: 5, min: 0, max: 30 },
   /** Days between two username changes (FR-705); sign-up does not count. */
   usernameChangeDays: { default: 30, min: 1, max: 365 },
+  /** Days ahead the console's Readiness list looks for events that are not live yet (T-618, `readiness_soon()`). */
+  readinessDays: { default: 14, min: 1, max: 60, serverOnly: true },
+  /** The most rehearsal accounts one event may have (T-211, ADR-158, `rehearsal_cap()`). */
+  rehearsalCap: { default: 25, min: 1, max: 100, serverOnly: true },
 };
 
 export const REGISTRIES: Registries = { features: FEATURES, tuning: TUNING };

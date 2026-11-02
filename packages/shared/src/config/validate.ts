@@ -50,7 +50,7 @@ function issuesOf(error: z.ZodError): ConfigIssue[] {
 
 function unknownFeatureIssues(registries: Registries, keys: readonly string[]): ConfigIssue[] {
   return keys
-    .filter((key) => !(key in registries.features))
+    .filter((key) => !Object.hasOwn(registries.features, key))
     .map((key) => ({ path: `features.${key}`, message: "is not a feature of the app" }));
 }
 
@@ -67,13 +67,13 @@ function tuningIssues(
 ): ConfigIssue[] {
   const issues: ConfigIssue[] = [];
   for (const [key, number] of Object.entries(tuning)) {
-    const definition = registries.tuning[key];
+    const definition = Object.hasOwn(registries.tuning, key) ? registries.tuning[key] : undefined;
     if (definition === undefined) {
       issues.push({ path: `tuning.${key}`, message: "is not a tuning number of the app" });
-    } else if (!Number.isFinite(number) || number < definition.min || number > definition.max) {
+    } else if (!Number.isInteger(number) || number < definition.min || number > definition.max) {
       issues.push({
         path: `tuning.${key}`,
-        message: `must be a number from ${definition.min} to ${definition.max}`,
+        message: `must be a whole number from ${definition.min} to ${definition.max}`,
       });
     }
   }

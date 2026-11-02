@@ -4,6 +4,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import { JOIN_CODE_MISSES, addressBudget, withMissBudget, type JoinDeps } from "#src/join/join";
 import type { OrganizerContext } from "#src/organizers/store";
+import { readTuning } from "#src/settings/tuning";
 import {
   cardOf,
   countsOf,
@@ -87,7 +88,7 @@ async function withFreshCode<T>(
 }
 
 async function readCard(client: PoolClient, eventId: string): Promise<CardRow> {
-  const { rows } = await client.query<CardRow>(
+  const { rows } = await client.query<Omit<CardRow, "cap">>(
     `SELECT code, status_now, accounts, completions, points, reservations, flags, first_play_at, erased_at,
             erase_counts, live_wiped_at
      FROM rehearsal_card($1)`,
@@ -99,7 +100,7 @@ async function readCard(client: PoolClient, eventId: string): Promise<CardRow> {
     throw new Error(`rehearsal_card answered no row for event ${eventId}; check migration 0032`);
   }
   // Stryker restore all
-  return row;
+  return { ...row, cap: await readTuning(client, "rehearsalCap") };
 }
 
 type EventRow = Readonly<{

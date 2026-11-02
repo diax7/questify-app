@@ -1043,7 +1043,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-417 | F-59 | Should | server built T-405 (`test/db/event-streak.int`: day rows on every multi-day event, on or off; `own_event_streak` null while off); Home card (`apps/app/src/streaks/event-streak.test.ts`, `event.test`: nothing while off) and the dashboard Streak panel (`apps/web/src/lib/streak.test.ts`, `e2e/streak.spec.ts`) built T-405b |
 | FR-418 | F-59 | Should | server built T-405 (`test/db/event-streak.int`: ledger kind `streak` with the day's first completion from day 2 through every door, score and balance, none without an amount; `test/streaks/routes.int`); shown on the success card, in the answer lines and in the history (T-405b: `celebration.test`, `amount.test`, `quests.test`, `plays.test`, `games.test`) |
 | FR-419 | F-125 | Should | partial: server built T-405 (`test/db/daily-streak.int`: any event quest completion counts the Questify day, 04:00 Riyadh); the daily challenge's and the daily word's finished plays count it too (T-406, `test/db/daily-challenge.int`); the profile line and the sync toast are built T-405b (`daily-streak.test`, `sync-notices.test`, `player-state.test`) |
-| FR-420 | F-125 | Should | partial: the platform key `dailyStreak` and its effect built T-405 (`test/db/daily-streak.int`, `test/streaks/routes.int`: off, nothing counted, shown or paid; no organizer switch); the profile hides it when `/v1/me` sends null (T-405b); the console page is T-703 |
+| FR-420 | F-125 | Should | built (T-703 console switch, T-405 effect): the platform key `dailyStreak` and its effect built T-405 (`test/db/daily-streak.int`, `test/streaks/routes.int`: off, nothing counted, shown or paid; no organizer switch); the profile hides it when `/v1/me` sends null (T-405b); the console switch is T-703 (built: `test/console/switches`) |
 | FR-421 | F-125 | Should | server built T-405 (`test/db/daily-streak.int`: XP milestones once ever, no ledger or gem entry from them, no gem source exists; a level crossed pays its level gems, Q-263); items not yet (ADR-298) |
 | FR-422 | F-126, F-151 | Should | `apps/api/src/home/goal.test.ts`, `test/home/home.int`, `test/db/goal.int` (T-213) |
 | FR-501 | F-10 | Must | pending |
@@ -1242,7 +1242,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1402 | F-216 | Must | built (T-210 activation, T-701 suspension) |
 | FR-1403 | F-216 | Must | partly built (T-709b: templates, achievement names, level titles, gem shop; T-709c: achievement thresholds, XP table, items) |
 | FR-1404 | F-216 | Must | partly built (T-705b: the moderation queue and the platform flags list; `test/db/content-reports.int`, `test/console/moderation.int`; campaigns are T-706) |
-| FR-1405 | F-216, F-41 | Must | pending |
+| FR-1405 | F-216, F-41 | Must | built (T-703: console Switches page, `test/console/switches`, `e2e/console-switches.spec`) |
 | FR-1406 | F-227 | Must | pending |
 | FR-1407 | F-227 | Must | pending |
 | FR-1408 | F-218 | Must | built (T-701: 15-minute support grant, ADR-407) |
@@ -1326,7 +1326,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1731 | F-259 | Must | pending |
 | FR-1732 | F-260 | Must | pending |
 | FR-1733 | F-261, F-137 | Should | built: server T-406 (`test/db/daily-content.int`: the warning at 6 vs 7 days, no challenge → `challenge: null`, the streak still kept by an event completion); the console banner and the menu badge built T-406c (`e2e/console-daily.spec.ts`, `console-daily.test`) |
-| FR-1734 | F-262 | Must | pending |
+| FR-1734 | F-262 | Must | partly built (T-703: the username and daily-streak switches; XP by difficulty is T-709c; XP on repeats is Q-412) |
 | FR-1735 | F-263 | Must | pending |
 | FR-1736 | F-264 | Must | pending |
 | FR-1737 | F-265 | Must | pending |
@@ -1361,11 +1361,11 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1766 | F-277 | Must | built T-702: `translations.int.test.ts`, `apps/app/src/config/translations.test.ts`, `e2e/console-translations.spec.ts`. Legal and consent texts are read-only (Q-378); the phone refreshes every 30 s in the foreground (ADR-412) |
 | FR-1767 | F-277, F-186 | Must | pending |
 | FR-1768 | F-277 | Must | pending |
-| FR-1769 | F-278 | Must | pending |
-| FR-1770 | F-279 | Should | pending |
-| FR-1771 | F-280 | Should | pending |
-| FR-1772 | F-281 | Should | pending |
-| FR-1773 | F-282 | Must | pending |
+| FR-1769 | F-278 | Must | built (T-703, ADR-453: switch, message in both languages, notice on Home; `test/console/switches`, `src/config/notices.test`) |
+| FR-1770 | F-279 | Should | partly built (T-703, ADR-451: ranges enforced, rehearsal cap, readiness days, flag numbers, username days, live poll; the other numbers are Q-410) |
+| FR-1771 | F-280 | Should | pending (T-703b) |
+| FR-1772 | F-281 | Should | pending (T-703b) |
+| FR-1773 | F-282 | Must | built (T-007 and ADR-412; `apps/app/src/config/remote.test`) |
 | FR-1774 | F-283 | Must | built (T-704: search, read-only record and points record, every look audited) |
 | FR-1775 | F-284 | Should | partly built (T-704: rename and sign-in reset; merging accounts dropped from v1 by Dhia, ADR-423) |
 | FR-1776 | F-284 | Must | pending |

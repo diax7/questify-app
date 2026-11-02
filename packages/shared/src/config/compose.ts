@@ -65,7 +65,9 @@ function composeFeatures(
 }
 
 function composeTuning(registries: Registries, platform: PlatformSettings): Record<string, number> {
-  const entries = Object.entries(registries.tuning).sort(byKey);
+  const entries = Object.entries(registries.tuning)
+    .filter(([, definition]) => definition.serverOnly !== true)
+    .sort(byKey);
   return Object.fromEntries(
     entries.map(([key, definition]) => {
       // A missing number counts as NaN, and NaN and infinities fall outside every range.

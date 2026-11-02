@@ -179,6 +179,13 @@ const SHAPES = {
       <path d="M8 11V8a4 4 0 0 1 8 0v3" />
     </>
   ),
+  sliders: (
+    <>
+      <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+      <circle cx="15" cy="7" r="2" />
+      <circle cx="9" cy="17" r="2" />
+    </>
+  ),
   layout: (
     <>
       <rect x="3" y="3" width="18" height="18" rx="2.5" />

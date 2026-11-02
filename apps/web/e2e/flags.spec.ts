@@ -38,7 +38,7 @@ test("the owner reviews a flagged player, pauses redemption and clears the case"
     .getByRole("listitem")
     .filter({ hasText: `@lynx_${tag}` })
     .first();
-  await expect(flagged).toContainText("10 مسحًا خلال 5 دقائق");
+  await expect(flagged).toContainText("10 مسحًا في وقت قصير");
   // Opened from the Players page's link: the evidence shows at once.
   await expect(flagged.getByText("الأسد 1", { exact: false }).first()).toBeVisible();
   await expect(flagged.getByText("الاستبدال موقوف لهذا اللاعب.")).toBeVisible();

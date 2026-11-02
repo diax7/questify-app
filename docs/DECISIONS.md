@@ -6937,3 +6937,27 @@ article is hidden. `GET /v1/help` (public, cached a minute) lists the published 
 is shown the other language (`shownHelp`), marked "Only in English" or "Only in Arabic" on the web page `/{lang}/help`, and the
 app shows the questions above its ticket cards on the profile's Get help screen. There is no delete: hide an article.
 **Trade-offs:** answers are plain text; links and images wait for a need.
+
+## ADR-450 - T-703 is split: switches and numbers now, maintenance and the banner as T-703b
+
+**Status:** Proposed (developer, 2026-11-02; T-703; plan `docs/plans/2026-11-02-t-703-platform-switches.md`).
+**Decision:** T-703 delivers the console **Switches and numbers** page (FR-1405, FR-1769, FR-1770, the tuning notes of T-211, T-209, T-618, and the platform keys `dailyStreak`, `dailyChallenge`, `dailyWord`, `usernameChanges` of FR-420 and FR-1734), the messages players see for a switched-off feature, and the check that the app keeps its last working configuration (FR-1773, built in T-007 and ADR-412). Maintenance mode, global or for one event (FR-1771), and the scheduled banner on Questify home (FR-1772) are **T-703b**: they need a stored schedule, a gate on the play doors and app screens, and nothing in them depends on this page. FR-1731 (support contact) stays in T-706, which already lists it; FR-1730 stays partly built (Q-361). The daily XP amounts stay in T-709c's Amounts editor.
+**Trade-offs:** two tasks instead of one; each delivers value alone.
+
+## ADR-451 - Tuning numbers the server reads are `serverOnly`, whole, and read by the database from `platform_setting`
+
+**Status:** Proposed (developer, 2026-11-02; T-703; migration 0125).
+**Decision:** The registry gains four numbers, `rehearsalCap` 25 (1 to 100), `readinessDays` 14 (1 to 60), `flagBurstCount` 10 (3 to 100) and `flagBurstMinutes` 5 (1 to 60), marked `serverOnly`: the composed configuration leaves them out, so the flag thresholds never reach a phone. Every tuning number must be a whole number (the database reads integers). `rehearsal_cap()`, `flag_tuning()` and `readiness_soon()` (migrations 0032, 0031, 0112) read them through the internal `platform_tuning_int` and fall back to the shipped number when the stored one is missing, not whole, or outside the range, so a bad edit never changes how a scan or a join behaves; the ranges in SQL equal the registry's and `test/db/platform-tuning.int.test.ts` compares them. The rehearsal card shows the cap in force. `myQrGraceSeconds`, a registry number nothing read, is removed (a console number that does nothing would mislead). The burst flag's text no longer says "5 minutes", since the window is a number now.
+**Trade-offs:** the ranges live in two places, guarded by a test.
+
+## ADR-452 - The console writes one key at a time; "put back" deletes the key
+
+**Status:** Proposed (developer, 2026-11-02; T-703).
+**Decision:** `PUT` and `DELETE /v1/admin/switches/features/{key}` and `/tuning/{key}` change one key of the stored `features` or `tuning` block under its row lock, validate the whole block, and audit `platform_settings.update` with that key's value before and after (one entry per real change; an unchanged save writes none). Two admins on two keys never overwrite each other. "Put back" removes the key, so the app's own default applies and no stale number lingers. The settings cache is cleared at once. The settings store keeps writing only `features` and `tuning` (migration 0122). A feature's `minAppVersion` is not edited: the app does not read it yet.
+**Trade-offs:** no history list; the audit log is the history.
+
+## ADR-453 - A switched-off feature stays hidden; its message is a notice on Questify Home
+
+**Status:** Proposed (developer, 2026-11-02; T-703; FR-1769).
+**Decision:** A feature the platform switched off is hidden everywhere it already was (the switches are read by the server's doors and the app). The admin may add a message in both languages (both or none, 300 characters each, only while off). The app lists the messages of switched-off platform features on Questify Home, in the player's language, from the cached platform configuration, so they appear offline as the last working copy.
+**Trade-offs:** the message shows on Home only, not at the spot where the feature used to be.

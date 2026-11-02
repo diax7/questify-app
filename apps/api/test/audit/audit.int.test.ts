@@ -312,12 +312,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("audit log", () => {
 
     it("platform settings: what changed, by which admin, and nothing for a save that changes nothing", async () => {
       const requestId = "11111111-2222-4333-8444-555555555555";
-      await settings.savePlatformSettings(
-        admin,
-        { tuning: { myQrGraceSeconds: 9 } },
-        { requestId },
-      );
-      await settings.savePlatformSettings(admin, { tuning: { myQrGraceSeconds: 9 } });
+      await settings.savePlatformSettings(admin, { tuning: { livePollSeconds: 9 } }, { requestId });
+      await settings.savePlatformSettings(admin, { tuning: { livePollSeconds: 9 } });
       await settings.savePlatformSettings(admin, { features: { teleporter: { enabled: true } } });
       expect(await newEntries()).toEqual([
         {
@@ -329,7 +325,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("audit log", () => {
           target_type: "platform_setting",
           target_id: "tuning",
           before: { tuning: null },
-          after: { tuning: { myQrGraceSeconds: 9 } },
+          after: { tuning: { livePollSeconds: 9 } },
           request_id: requestId,
         },
       ]);
@@ -337,7 +333,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("audit log", () => {
 
     it("platform settings: only the block that changed", async () => {
       await settings.savePlatformSettings(admin, {
-        tuning: { myQrGraceSeconds: 9 },
+        tuning: { livePollSeconds: 9 },
         features: { shop: { enabled: false } },
       });
       const [entry] = await newEntries();

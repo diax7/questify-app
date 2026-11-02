@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import { Pool, type PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withRequestContext, type RequestContext } from "#src/db/context";
-import { REHEARSAL_CAP, newRehearsalCode } from "#src/rehearsal/rehearsal";
+import { TUNING } from "@questify/shared";
+import { newRehearsalCode } from "#src/rehearsal/rehearsal";
 import {
   TEST_DATABASE_URL,
   addMember,
@@ -10,6 +11,8 @@ import {
   seedTwoTenants,
   type TestDatabase,
 } from "#test/support/test-db";
+
+const REHEARSAL_CAP = TUNING["rehearsalCap"]?.default ?? 25;
 
 type Row = Record<string, unknown>;
 
