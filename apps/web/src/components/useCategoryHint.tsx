@@ -7,9 +7,11 @@ import { useTranslator } from "#src/components/TermsScope.tsx";
 import type { useQuestBuilder } from "#src/components/useQuestBuilder.ts";
 import { hintPreviewOf } from "#src/lib/hint.ts";
 import type { CategoryView } from "#src/lib/quests.ts";
-import { Notice } from "#src/ui/Feedback.tsx";
 
 type Builder = Pick<ReturnType<typeof useQuestBuilder>, "busy" | "read" | "send">;
+
+/** What the last hint said and which category it was sent from, so its card shows the note beside the button. */
+export type HintNote = Readonly<{ categoryId: string; text: string }>;
 
 /** A hidden category's hint while the page asks for it: who would be told, and the Idempotency-Key it goes with. */
 type Asking = Readonly<{ category: CategoryView; members: number; key: string }>;
@@ -18,8 +20,8 @@ type Asking = Readonly<{ category: CategoryView; members: number; key: string }>
  * The hint on a hidden category (T-501g, FR-238): Send a hint counts the members who would be told, asks for a
  * confirmation that says how many, and sends with an Idempotency-Key made when the dialog opens, so a double click or a
  * resend sends nothing twice. Nothing to confirm when no one is left to tell or the last hint is still on its way; a note
- * says so. The dialog is the page's own child (the page's other content turns inert behind it), so the page renders
- * `dialog` and `note` itself.
+ * says so, on that category's card. The dialog is the page's own child (the page's other content turns inert behind it),
+ * so the page renders `dialog` itself.
  */
 export function useCategoryHint({
   language,
@@ -32,10 +34,10 @@ export function useCategoryHint({
   /** False before go-live: the hint then reaches the rehearsal accounts only, and the dialog says so. */
   live: boolean;
   focus: Readonly<{ remember: () => void; restore: () => void }>;
-}>): Readonly<{ ask: (category: CategoryView) => void; note: ReactNode; dialog: ReactNode }> {
+}>): Readonly<{ ask: (category: CategoryView) => void; note: HintNote | null; dialog: ReactNode }> {
   const t = useTranslator(language);
   const [asking, setAsking] = useState<Asking | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+  const [note, setNote] = useState<HintNote | null>(null);
 
   const ask = async (category: CategoryView) => {
     focus.remember();
@@ -43,7 +45,10 @@ export function useCategoryHint({
     const preview = hintPreviewOf(await builder.read(`/categories/${category.id}/hint`));
     if (preview === undefined || preview.pending || preview.members === 0) {
       if (preview !== undefined) {
-        setNote(t(preview.pending ? "quests.hint.pending" : "quests.hint.nobody"));
+        setNote({
+          categoryId: category.id,
+          text: t(preview.pending ? "quests.hint.pending" : "quests.hint.nobody"),
+        });
       }
       focus.restore();
       return;
@@ -61,7 +66,7 @@ export function useCategoryHint({
     const { category, key } = asking;
     setAsking(null);
     void builder.send("POST", `/categories/${category.id}/hint`, {}, { key }).then((sent) => {
-      setNote(sent ? t("quests.hint.sent") : null);
+      setNote(sent ? { categoryId: category.id, text: t("quests.hint.sent") } : null);
       focus.restore();
     });
   };
@@ -74,12 +79,7 @@ export function useCategoryHint({
         }`;
   return {
     ask: (category) => void ask(category),
-    note:
-      note === null ? null : (
-        <Notice tone="success" role="status">
-          {note}
-        </Notice>
-      ),
+    note,
     dialog:
       asking === null ? null : (
         <ConfirmDialog

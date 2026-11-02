@@ -252,7 +252,7 @@ export function RecentCard({
         <Rows>
           {recent.map((action) => (
             <RecentLine
-              key={`${action.operatorId}-${action.at}-${action.action}`}
+              key={`${action.operatorId}-${action.at}-${action.action}-${action.questId ?? ""}`}
               action={action}
               language={language}
             />

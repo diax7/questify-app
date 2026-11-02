@@ -11,6 +11,7 @@ import {
 } from "#src/lib/organizer-alerts.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
+import { Button } from "#src/ui/Button.tsx";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Switch } from "#src/ui/Field.tsx";
 import { Rows, Section } from "#src/ui/Section.tsx";
@@ -46,20 +47,23 @@ export function OrganizerAlertSwitchesPanel({
     [language, t],
   );
 
-  useEffect(() => {
-    void (async () => {
-      const result = await requestJson("GET", path);
-      const read = result.ok ? readAlertSwitches(result.body) : undefined;
-      if (read === undefined) {
-        fail(result.body);
-        return;
-      }
-      setSwitches(read);
-    })();
+  const load = useCallback(async () => {
+    setProblem(null);
+    const result = await requestJson("GET", path);
+    const read = result.ok ? readAlertSwitches(result.body) : undefined;
+    if (read === undefined) {
+      fail(result.body);
+      return;
+    }
+    setSwitches(read);
   }, [path, fail]);
 
+  useEffect(() => {
+    void load();
+  }, [load]);
+
   const change = async (type: OrganizerAlertType, on: boolean) => {
-    if (switches === null) return;
+    if (switches === null || busy) return;
     const before = switches;
     const wanted = withAlertSwitch(before, type, on);
     setSwitches(wanted);
@@ -82,7 +86,13 @@ export function OrganizerAlertSwitchesPanel({
     <Section titleId="alerts-title" title={t("alerts.title")} info={infoTip(t, "alerts.hint")}>
       <Muted>{t("alerts.notLive")}</Muted>
       {switches === null ? (
-        <Muted>{t("common.loading")}</Muted>
+        problem === null ? (
+          <Muted>{t("common.loading")}</Muted>
+        ) : (
+          <Button variant="primary" onClick={() => void load()}>
+            {t("common.retry")}
+          </Button>
+        )
       ) : (
         <Rows>
           {ALERT_ORDER.map((type) => (
@@ -90,7 +100,7 @@ export function OrganizerAlertSwitchesPanel({
               <Switch
                 label={t(ALERT_LABELS[type])}
                 checked={switches[type]}
-                disabled={busy}
+                aria-busy={busy}
                 onChange={(changed) => void change(type, changed.target.checked)}
               />
             </li>

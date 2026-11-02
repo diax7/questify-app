@@ -1048,7 +1048,7 @@
   },
   "apps/web/src/components/QuestBuilderParts.tsx": {
     "CategoryCard": {
-      "lines": [114]
+      "lines": [111]
     },
     "DeleteDialog": {
       "complexity": [10]
@@ -1121,7 +1121,7 @@
   },
   "apps/web/src/components/useQuestBuilder.ts": {
     "useQuestBuilder": {
-      "lines": [103]
+      "lines": [101]
     }
   },
   "apps/web/src/lib/activation.ts": {

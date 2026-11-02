@@ -104,10 +104,15 @@ type Waiting =
 
 /**
  * The oldest open requests of one kind (the Help desk's own read, five of them), read when the page has counted some and
- * again when the count changes. Nothing is read for a kind nobody is waiting on.
+ * again when the count changes. Nothing is read for a kind nobody is waiting on. A list read for another event or kind
+ * is never shown: the new one reads as loading until its own answer comes.
  */
 function useWaiting(eventApi: string, kind: EventTicketKind, count: number): Waiting {
-  const [state, setState] = useState<Waiting>({ status: "loading" });
+  const key = `${eventApi}|${kind}`;
+  const [state, setState] = useState<Readonly<{ key: string; waiting: Waiting }>>({
+    key,
+    waiting: { status: "loading" },
+  });
   useEffect(() => {
     if (count === 0) {
       return;
@@ -121,13 +126,19 @@ function useWaiting(eventApi: string, kind: EventTicketKind, count: number): Wai
         return;
       }
       const tickets = result.ok ? (result.body as { tickets?: TeamTicket[] }).tickets : undefined;
-      setState(tickets === undefined ? { status: "failed" } : { status: "ready", tickets });
+      setState({
+        key,
+        waiting: tickets === undefined ? { status: "failed" } : { status: "ready", tickets },
+      });
     });
     return () => {
       current = false;
     };
-  }, [eventApi, kind, count]);
-  return count === 0 ? { status: "ready", tickets: [] } : state;
+  }, [eventApi, kind, count, key]);
+  if (count === 0) {
+    return { status: "ready", tickets: [] };
+  }
+  return state.key === key ? state.waiting : { status: "loading" };
 }
 
 function WaitingRow({

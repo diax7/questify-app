@@ -95,7 +95,7 @@ function useAnnouncements(path: string, language: Language) {
     setPaging(true);
     setPages((current) => (next ? [...current, loaded?.next ?? ""] : current.slice(0, -1)));
   };
-  return { loaded, problem, setProblem, load, page, paging, hasPrevious: pages.length > 1 };
+  return { loaded, problem, load, page, paging, hasPrevious: pages.length > 1 };
 }
 
 /** The page's title, what it may send, and the last problem and last success. */
@@ -147,6 +147,21 @@ function AnnouncementsHeader({
   );
 }
 
+/** Cancelling a queued announcement: what the confirmation says, and where it is sent. */
+function cancelRequest(
+  announcementPath: string,
+  t: ReturnType<typeof useTranslator>,
+): AnnouncementConfirmation {
+  return {
+    path: announcementPath + "/cancel",
+    body: {},
+    title: t("announcements.page.cancelTitle"),
+    text: t("announcements.page.cancelBody"),
+    label: t("announcements.page.cancel"),
+    success: t("announcements.page.cancelled"),
+  };
+}
+
 export function AnnouncementsPanel({
   language,
   organizerId,
@@ -155,7 +170,8 @@ export function AnnouncementsPanel({
   const path = "/v1/organizers/" + organizerId + "/events/" + eventId + "/announcements";
   const t = useTranslator(language);
   const state = useAnnouncements(path, language);
-  const press = useAnnouncementPress(language, state.load, state.setProblem);
+  const [sendProblem, setSendProblem] = useState<string>();
+  const press = useAnnouncementPress(language, state.load, setSendProblem);
   const [confirm, setConfirm] = useState<AnnouncementConfirmation>();
   const [notice, setNotice] = useState<string>();
   const [version, setVersion] = useState(0);
@@ -168,15 +184,11 @@ export function AnnouncementsPanel({
       setVersion((value) => value + 1);
     }
   };
-  const cancel = (row: AnnouncementView) =>
-    setConfirm({
-      path: path + "/" + row.id + "/cancel",
-      body: {},
-      title: t("announcements.page.cancelTitle"),
-      text: t("announcements.page.cancelBody"),
-      label: t("announcements.page.cancel"),
-      success: t("announcements.page.cancelled"),
-    });
+  const ask = (request: AnnouncementConfirmation) => {
+    setSendProblem(undefined);
+    setConfirm(request);
+  };
+  const cancel = (row: AnnouncementView) => ask(cancelRequest(path + "/" + row.id, t));
   return (
     <Stack>
       <AnnouncementsHeader
@@ -199,7 +211,7 @@ export function AnnouncementsPanel({
             audience={state.loaded.audience}
             zone={state.loaded.zone}
             disabled={busy}
-            confirm={setConfirm}
+            confirm={ask}
           />
           <PushDefaultsPanel
             language={language}
@@ -237,6 +249,7 @@ export function AnnouncementsPanel({
           confirmLabel={confirm.label}
           noteLabel={null}
           busy={press.busy}
+          problem={sendProblem}
           cancel={() => {
             if (!press.uncertain) setConfirm(undefined);
           }}

@@ -259,6 +259,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event layout over HTTP", () =>
     expect(await eventView(id)).toMatchObject({ layout: DEFAULT_LAYOUT });
   });
 
+  it("refuses an editor limited to another event, who sees no layout of this one", async () => {
+    const { id } = await liveEvent();
+    const elsewhere = await fixture.newEvent({ phase: "live" });
+    const email = "scoped@layout.test";
+    const staffId = await createStaff(fixture.db.owner, { email });
+    await fixture.owner(
+      "INSERT INTO organizer_member (organizer_id, staff_user_id, role, event_scope) VALUES ($1, $2, 'editor', $3)",
+      [fixture.ids.orgA, staffId, [elsewhere]],
+    );
+    const scoped = await signInFully(test, email);
+    expect((await put(id, custom, scoped)).statusCode).toBe(404);
+    expect(await eventView(id)).toMatchObject({ layout: DEFAULT_LAYOUT });
+    expect((await put(elsewhere, custom, scoped)).statusCode).toBe(200);
+  });
+
   it("refuses a player, who holds no staff session", async () => {
     const { id, member } = await liveEvent();
     const refused = await test.app.inject({

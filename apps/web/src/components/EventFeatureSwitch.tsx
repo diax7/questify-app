@@ -164,6 +164,7 @@ export function EventFeatureSwitch({
   const [held, setHeld] = useState<Readonly<{ count: number | null }> | undefined>(undefined);
 
   const save = async (enabled: boolean) => {
+    if (busy) return;
     const before = on;
     setOn(enabled);
     setBusy(true);
@@ -208,7 +209,8 @@ export function EventFeatureSwitch({
           <Switch
             label={t(words.label)}
             checked={on}
-            disabled={busy || myRole !== "owner"}
+            disabled={myRole !== "owner"}
+            aria-busy={busy}
             onChange={(changed) => {
               const enabled = changed.target.checked;
               if (enabled || !live) {

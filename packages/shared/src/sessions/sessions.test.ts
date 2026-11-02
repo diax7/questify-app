@@ -123,6 +123,15 @@ describe("importing sessions", () => {
     const line = "talk,T,,2026-11-02 10:00,2026-11-02 11:00,,,,,,,";
     const result = parseSessionsCsv([HEADER, ...Array(520).fill(line)].join("\n"), ZONE, WINDOW);
     expect(result.rows).toHaveLength(500);
+    expect(result.skipped).toBe(20);
+  });
+
+  it("does not count blank lines after the last row as skipped", () => {
+    const line = "talk,T,,2026-11-02 10:00,2026-11-02 11:00,,,,,,,";
+    const rows = [HEADER, ...Array(500).fill(line), "", ""];
+    const result = parseSessionsCsv(rows.join("\n"), ZONE, WINDOW);
+    expect(result.rows).toHaveLength(500);
+    expect(result.skipped).toBe(0);
   });
 });
 

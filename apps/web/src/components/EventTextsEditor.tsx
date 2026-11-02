@@ -83,7 +83,8 @@ function DefaultText({ name, language }: Readonly<{ name: EventTextKey; language
   );
 }
 
-/** One label: its Arabic and English boxes side by side, the platform's text as the placeholder, and a reset. */
+/** One label: its Arabic and English boxes side by side, the platform's text as the placeholder, and a reset that
+ * stays in its column, disabled until the label is renamed, so the boxes do not move as the owner types. */
 function LabelRow({
   name,
   language,
@@ -134,14 +135,12 @@ function LabelRow({
         </FieldGroup>
       }
     >
-      {isRenamed(draft, name) ? (
-        <IconButton
-          icon="undo"
-          label={t("texts.reset", { name: t(name) })}
-          disabled={busy}
-          onClick={onReset}
-        />
-      ) : null}
+      <IconButton
+        icon="undo"
+        label={t("texts.reset", { name: t(name) })}
+        disabled={busy || !isRenamed(draft, name)}
+        onClick={onReset}
+      />
     </Row>
   );
 }

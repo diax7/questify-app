@@ -17,6 +17,7 @@ import { PollControls, type PollActions } from "#src/components/PollControls.tsx
 import { QuestScoreBadge } from "#src/components/QuestScoreBadge.tsx";
 import { SponsorBadge } from "#src/components/SponsorBadge.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
+import type { HintNote } from "#src/components/useCategoryHint.tsx";
 import type { Translate } from "#src/lib/language.ts";
 import type { QuestItem } from "#src/lib/quest-items.ts";
 import {
@@ -29,7 +30,7 @@ import {
   type QuestView,
 } from "#src/lib/quests.ts";
 import { Button } from "#src/ui/Button.tsx";
-import { Badge, Muted } from "#src/ui/Feedback.tsx";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Checkbox, Field, FieldGroup, Form, Input, Radio, Select } from "#src/ui/Field.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
 import { Dialog } from "#src/ui/Dialog.tsx";
@@ -96,6 +97,8 @@ export type CardActions = PollActions &
     reorderCategories: (ids: string[]) => void;
     /** Asks to send a hidden category's hint (T-501g): the page counts who would be told, then confirms. */
     sendHint: (category: CategoryView) => void;
+    /** The last hint's answer, shown on the card of the category it came from. */
+    hintNote: HintNote | null;
     /** Saves a category's names and rules (T-304). */
     saveCategory: (category: CategoryView, body: Record<string, unknown>) => void;
     reorderQuests: (category: CategoryView, ids: string[]) => void;
@@ -497,7 +500,6 @@ function CategoryActions({
       {category.hidden ? (
         <Button
           variant="quiet"
-
           disabled={busy}
           aria-label={named(t("quests.hint.send"))}
           onClick={() => actions.sendHint(category)}
@@ -516,7 +518,6 @@ function CategoryActions({
       {canDelete ? (
         <Button
           variant="quiet"
-
           disabled={busy}
           aria-label={named(t("quests.deleteCategory"))}
           onClick={() => actions.remove({ kind: "category", category })}
@@ -526,6 +527,18 @@ function CategoryActions({
       ) : null}
     </Toolbar>
   );
+}
+
+/** The answer to the last hint, on the card of the category it was sent from. */
+function CategoryHintNote({
+  note,
+  categoryId,
+}: Readonly<{ note: HintNote | null; categoryId: string }>) {
+  return note?.categoryId === categoryId ? (
+    <Notice tone="success" role="status">
+      {note.text}
+    </Notice>
+  ) : null;
 }
 
 /** One category: its name, rules and order, and its quests in order (FR-1004, FR-229, T-304). */
@@ -613,6 +626,7 @@ export function CategoryCard({
         </Toolbar>
       )}
       {renaming || notes.length === 0 ? null : <Muted>{notes.join(" · ")}</Muted>}
+      <CategoryHintNote note={actions.hintNote} categoryId={category.id} />
       {category.quests.length === 0 ? (
         <Muted>{t("quests.noQuests")}</Muted>
       ) : (
@@ -636,12 +650,7 @@ export function CategoryCard({
         </CardList>
       )}
       {readOnly ? null : (
-        <Button
-          variant="secondary"
-
-          disabled={busy}
-          onClick={() => actions.add(category)}
-        >
+        <Button variant="secondary" disabled={busy} onClick={() => actions.add(category)}>
           {t("quests.addQuest")}
         </Button>
       )}

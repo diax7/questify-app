@@ -8,9 +8,11 @@ import {
   homeBlocks,
   infoSections,
   isCardKey,
+  isLivePoll,
   listItems,
   playerTabs,
   questTypeShown,
+  readBranding,
   readEventLayout,
   readEventTexts,
   withEventTexts,
@@ -131,14 +133,11 @@ export function featureLookup(event: EventView): (feature: string) => boolean {
   return (feature) => switches[feature] ?? true;
 }
 
-/** A live poll shows as a card over the tabs, never as a row of the Quests tab (ADR-220). */
-const isLivePoll = (quest: QuestView): boolean => quest.type === "vote" && "live" in quest.config;
-
-/** Whether players see this quest on the Quests tab: visible, not a live poll, its type and flash switches on. */
+/** Whether players see this quest on the Quests tab (a live poll is a card over the tabs, ADR-220): visible, not a live poll, its type and flash switches on. */
 function shownToPlayers(quest: QuestView, on: (feature: string) => boolean): boolean {
   return (
     quest.visible &&
-    !isLivePoll(quest) &&
+    !isLivePoll(quest.type, quest.config) &&
     questTypeShown(quest.type, on) &&
     (quest.flash !== true || on("flashQuests"))
   );
@@ -267,7 +266,11 @@ function layoutParts(
       names,
       on,
     });
-    const title = HOME_BLOCKS.find((entry) => entry.block === block)?.title ?? null;
+    // The app titles the ranking card with the ranking tab's own name, so a renamed Ranking reads the same on both.
+    const title =
+      block === "ranking"
+        ? "nav.ranking"
+        : (HOME_BLOCKS.find((entry) => entry.block === block)?.title ?? null);
     return lines === null ? [] : [{ block, title, lines }];
   });
   const context: InfoContext = { event, content: layout.content, language, hasRules };
@@ -377,7 +380,7 @@ export function previewOf(
   return {
     name: nameFor(event, language),
     venue: venueOf(event, language),
-    accent: event.branding?.accent ?? null,
+    accent: readBranding(event.branding).accent,
     texts: readEventTexts(event.texts),
     tabs,
     homeBlocks: blocks,

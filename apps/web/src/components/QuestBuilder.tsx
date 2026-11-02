@@ -110,6 +110,7 @@ export function QuestBuilder({
   });
   const actions: CardActions = {
     sendHint: hint.ask,
+    hintNote: hint.note,
     ...liveActions.actions,
     codeLink: (quest) =>
       QUEST_TYPES[quest.type].usesQuestQr ? `${codesPage}#code-${quest.id}` : undefined,
@@ -231,7 +232,6 @@ export function QuestBuilder({
           confirm={confirmDelete}
         />
       )}
-      {hint.note}
       {hint.dialog}
       {liveActions.dialogs}
       {liveEdits.dialogs}

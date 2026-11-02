@@ -6341,12 +6341,12 @@ export const MESSAGES = {
     en: "You can keep your daily streak going by playing today.",
   },
   "push.shopClosing.body": {
-    ar: "متجر جوائز {event} مفتوح حتى {date}.",
-    en: "The {event} rewards shop is open until {date}.",
+    ar: "متجر جوائز {event} مفتوح حتى {date} الساعة {time}.",
+    en: "The {event} rewards shop is open until {date} at {time}.",
   },
   "push.shopClosing.nameless": {
-    ar: "متجر الجوائز مفتوح حتى {date}.",
-    en: "The rewards shop is open until {date}.",
+    ar: "متجر الجوائز مفتوح حتى {date} الساعة {time}.",
+    en: "The rewards shop is open until {date} at {time}.",
   },
   "push.invitation.body": {
     ar: "لديك دعوة إلى {event}.",
@@ -6714,6 +6714,18 @@ export const MESSAGES = {
   "sessions.page.importFile": { ar: "ملف الجلسات", en: "Sessions file" },
   "sessions.page.importDone": { ar: "تم استيراد {count} جلسة.", en: "{count} sessions imported." },
   "sessions.page.importFailedRow": { ar: "السطر {line}: {reason}", en: "Row {line}: {reason}" },
+  "sessions.page.importSkipped": {
+    ar: "قُرئت أول {limit} صفًّا فقط، وتُرك {count} صفًّا. استورد الباقي في ملف آخر.",
+    en: "Only the first {limit} rows were read; {count} more were left out. Import the rest in another file.",
+  },
+  "sessions.page.importTooBig": {
+    ar: "الملف كبير جدًّا. احفظ الجلسات في ملف أصغر من {size} ميغابايت.",
+    en: "That file is too large. Save the sessions in a file under {size} MB.",
+  },
+  "sessions.page.importMoreFailed": {
+    ar: "وتعذّرت قراءة {count} صفًّا آخر.",
+    en: "{count} more rows could not be read.",
+  },
   "sessions.page.importNothing": {
     ar: "لا توجد جلسات صالحة في الملف.",
     en: "The file holds no valid sessions.",
@@ -7287,7 +7299,7 @@ export const MESSAGES = {
   "layout.later": { ar: "أخّر {item}", en: "Move {item} later" },
   "layout.drag": { ar: "اسحب {item}", en: "Drag {item}" },
   "layout.moved": {
-    ar: "نُقل {item} إلى الموضع {position} من {total}",
+    ar: "الموضع الجديد لـ {item}: {position} من {total}",
     en: "{item} moved to position {position} of {total}",
   },
   "layout.alwaysShown": { ar: "يظهر دائمًا", en: "Always shown" },
@@ -7527,6 +7539,7 @@ export const MESSAGES = {
   "home.link.title": { ar: "فتح هذا الرابط؟", en: "Open this link?" },
   "home.link.body": { ar: "سيُفتح {host} في المتصفّح.", en: "This opens {host} in your browser." },
   "home.link.open": { ar: "فتح", en: "Open" },
+  "home.link.failed": { ar: "تعذّر فتح الرابط.", en: "The link could not be opened." },
   "home.countdown.soon": { ar: "أقل من دقيقة", en: "Under a minute" },
   "control.link": { ar: "غرفة التحكم", en: "Control room" },
   "control.title": { ar: "غرفة التحكم", en: "Control room" },

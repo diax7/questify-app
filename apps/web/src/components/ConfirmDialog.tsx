@@ -4,6 +4,7 @@ import type { Language } from "@questify/shared";
 import { useState } from "react";
 import { translatorFor } from "#src/lib/language.ts";
 import { Button } from "#src/ui/Button.tsx";
+import { Notice } from "#src/ui/Feedback.tsx";
 import { Field, Textarea } from "#src/ui/Field.tsx";
 import { Dialog } from "#src/ui/Dialog.tsx";
 
@@ -15,6 +16,8 @@ type Props = Readonly<{
   /** The label of an optional note field (at most 300 characters), or null for none. */
   noteLabel: string | null;
   busy: boolean;
+  /** A refusal of the action, shown inside the dialog so assistive technology announces it where focus is. */
+  problem?: string | undefined;
   cancel: () => void;
   confirm: (note: string) => void;
 }>;
@@ -30,6 +33,7 @@ export function ConfirmDialog({
   confirmLabel,
   noteLabel,
   busy,
+  problem,
   cancel,
   confirm,
 }: Props) {
@@ -54,6 +58,11 @@ export function ConfirmDialog({
       }
     >
       <p id="confirm-body">{body}</p>
+      {problem === undefined ? null : (
+        <Notice tone="danger" role="alert">
+          {problem}
+        </Notice>
+      )}
       {noteLabel === null ? null : (
         <Field label={noteLabel}>
           <Textarea

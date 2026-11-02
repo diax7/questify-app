@@ -39,6 +39,7 @@ export function EventBranding({
   const [problem, setProblem] = useState<string | null>(null);
 
   const save = async (next: AccentKey | null) => {
+    if (busy) return;
     const before = accent;
     setAccent(next);
     setBusy(true);
@@ -71,12 +72,13 @@ export function EventBranding({
 
   return (
     <Section title={t("branding.title")}>
-      <FieldGroup legend={t("branding.accent")} layout="choiceGrid" disabled={busy}>
+      <FieldGroup legend={t("branding.accent")} layout="choiceGrid">
         {choices.map((choice) => (
           <Radio
             key={choice.key ?? "default"}
             name="accent"
             checked={accent === choice.key}
+            aria-busy={busy}
             onChange={() => void save(choice.key)}
             label={
               <>

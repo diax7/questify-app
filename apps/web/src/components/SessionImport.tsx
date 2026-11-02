@@ -2,6 +2,7 @@
 
 import {
   formatNumber,
+  SESSION_LIMITS,
   parseSessionsCsv,
   type Language,
   type SessionImport,
@@ -15,6 +16,56 @@ import { Notice } from "#src/ui/Feedback.tsx";
 import { Field, Input } from "#src/ui/Field.tsx";
 import { infoTip } from "#src/ui/info.tsx";
 import { Section, Toolbar } from "#src/ui/Section.tsx";
+
+/** A file past this size is not read: 500 rows of sessions come to a fraction of it. */
+const MAX_FILE_BYTES = 1_000_000;
+/** Failed rows listed one by one; the rest are counted, so a wrong file cannot fill the page with notices. */
+const SHOWN_FAILURES = 10;
+
+/** What the file read did not give: a file too large, the rows that could not be read and the rows left out. */
+function ImportNotices({
+  language,
+  parsed,
+  tooBig,
+}: Readonly<{ language: Language; parsed: SessionImport | null; tooBig: boolean }>) {
+  const t = useTranslator(language);
+  return (
+    <>
+      {tooBig ? (
+        <Notice tone="warning">
+          {t("sessions.page.importTooBig", {
+            size: formatNumber(MAX_FILE_BYTES / 1_000_000, language),
+          })}
+        </Notice>
+      ) : null}
+      {parsed === null
+        ? null
+        : parsed.failed.slice(0, SHOWN_FAILURES).map((failure) => (
+            <Notice key={failure.line} tone="warning">
+              {t("sessions.page.importFailedRow", {
+                line: formatNumber(failure.line, language),
+                reason: t(sessionIssueKey(failure.issue)),
+              })}
+            </Notice>
+          ))}
+      {parsed !== null && parsed.failed.length > SHOWN_FAILURES ? (
+        <Notice tone="warning">
+          {t("sessions.page.importMoreFailed", {
+            count: formatNumber(parsed.failed.length - SHOWN_FAILURES, language),
+          })}
+        </Notice>
+      ) : null}
+      {parsed !== null && parsed.skipped > 0 ? (
+        <Notice tone="warning">
+          {t("sessions.page.importSkipped", {
+            limit: formatNumber(SESSION_LIMITS.importRows, language),
+            count: formatNumber(parsed.skipped, language),
+          })}
+        </Notice>
+      ) : null}
+    </>
+  );
+}
 
 /**
  * The import: a spreadsheet saved as CSV is read in the browser, every row is checked, the rows that cannot be read are
@@ -38,8 +89,11 @@ export function SessionImportSection({
   const t = useTranslator(language);
   const [parsed, setParsed] = useState<SessionImport | null>(null);
   const [version, setVersion] = useState(0);
+  const [tooBig, setTooBig] = useState(false);
   const read = async (file: File | undefined) => {
-    setParsed(file === undefined ? null : parseSessionsCsv(await file.text(), zone, window));
+    setTooBig(file !== undefined && file.size > MAX_FILE_BYTES);
+    const readable = file !== undefined && file.size <= MAX_FILE_BYTES;
+    setParsed(readable ? parseSessionsCsv(await file.text(), zone, window) : null);
   };
   const rows = parsed?.rows.length ?? 0;
   return (
@@ -53,16 +107,7 @@ export function SessionImportSection({
           onChange={(event) => void read(event.target.files?.[0])}
         />
       </Field>
-      {parsed === null
-        ? null
-        : parsed.failed.map((failure) => (
-            <Notice key={failure.line} tone="warning">
-              {t("sessions.page.importFailedRow", {
-                line: formatNumber(failure.line, language),
-                reason: t(sessionIssueKey(failure.issue)),
-              })}
-            </Notice>
-          ))}
+      <ImportNotices language={language} parsed={parsed} tooBig={tooBig} />
       {parsed !== null && rows === 0 ? (
         <Notice tone="info">{t("sessions.page.importNothing")}</Notice>
       ) : null}

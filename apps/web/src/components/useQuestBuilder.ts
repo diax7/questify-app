@@ -25,7 +25,7 @@ export type PendingChange = Readonly<{
 }>;
 
 export type SendOptions = Readonly<{
-  /** Runs after a success, before the reload. */
+  /** Runs after a success, once the list has been read again. */
   after?: () => void;
   /** The Idempotency-Key of a create: one per submission, kept by the caller, reused on a resend. */
   key?: string;
@@ -162,17 +162,16 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
     const headers: Record<string, string> =
       options.key === undefined ? {} : { "idempotency-key": options.key };
     const result = await requestJson(method, `${base}${path}`, body, headers);
+    const confirming = errorCodeOf(result.body) === "confirm_required";
+    if (confirming) setPending({ method, path, body, options });
+    const saved = !confirming && !failed(result);
+    if (saved) {
+      // The list is read again before the form closes, so what the person opens next shows what was just saved.
+      await reload();
+      options.after?.();
+    }
     setBusy(false);
-    if (errorCodeOf(result.body) === "confirm_required") {
-      setPending({ method, path, body, options });
-      return false;
-    }
-    if (failed(result)) {
-      return false;
-    }
-    options.after?.();
-    await reload();
-    return true;
+    return saved;
   };
 
   /** Reads a path of the builder's API (the hint's count); undefined, with the problem shown, when it fails. */

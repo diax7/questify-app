@@ -66,7 +66,7 @@ export function PushDefaultsPanel({
   }, [load]);
 
   const change = async (topic: PushTopic, on: boolean) => {
-    if (topics === null) return;
+    if (topics === null || busy) return;
     const before = topics;
     setTopics({ ...before, [topic]: on });
     setBusy(true);
@@ -103,7 +103,7 @@ export function PushDefaultsPanel({
               <Switch
                 label={t(TOPIC_TITLE[topic])}
                 checked={topics[topic]}
-                disabled={busy}
+                aria-busy={busy}
                 onChange={(changed) => void change(topic, changed.target.checked)}
               />
             </li>

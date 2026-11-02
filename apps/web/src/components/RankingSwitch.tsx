@@ -44,6 +44,7 @@ export function RankingSwitch({ language, organizerId, eventId, initial, myRole 
   const [problem, setProblem] = useState<string | null>(null);
 
   const save = async (feature: Feature, enabled: boolean) => {
+    if (busy) return;
     const before = shown[feature];
     // The box changes at once; a refused save puts it back and says why.
     setShown((now) => ({ ...now, [feature]: enabled }));
@@ -82,7 +83,8 @@ export function RankingSwitch({ language, organizerId, eventId, initial, myRole 
               label={t(SWITCHES[feature].label)}
               info={infoTip(t, SWITCHES[feature].info)}
               checked={shown[feature]}
-              disabled={busy || myRole !== "owner"}
+              disabled={myRole !== "owner"}
+              aria-busy={busy}
               onChange={(changed) => void save(feature, changed.target.checked)}
             />
           ))}

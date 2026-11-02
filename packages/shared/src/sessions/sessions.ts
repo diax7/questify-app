@@ -226,7 +226,12 @@ export const SESSION_CSV_COLUMNS = [
 type CsvColumn = (typeof SESSION_CSV_COLUMNS)[number];
 
 export type SessionImportFailure = Readonly<{ line: number; issue: string }>;
-export type SessionImport = Readonly<{ rows: SessionBody[]; failed: SessionImportFailure[] }>;
+/** `skipped` counts the data rows past the import limit, which are not read. */
+export type SessionImport = Readonly<{
+  rows: SessionBody[];
+  failed: SessionImportFailure[];
+  skipped: number;
+}>;
 
 /** The delimiter a spreadsheet saved as CSV uses: a comma, or a semicolon (Excel in Arabic and many other locales). */
 function delimiterOf(header: string): string {
@@ -378,7 +383,7 @@ function csvLine(
  * The sessions in a spreadsheet saved as CSV (FR-808, FR-1794): the first row names the columns (`SESSION_CSV_COLUMNS`),
  * times are local to the event's zone (`2026-11-02 14:30`), speakers are separated by `;`. A row that cannot be read is
  * listed with its line number and the reason (the database's issue names, so the same words apply); the others are
- * returned to import. More than 500 data rows are not read.
+ * returned to import. More than 500 data rows are not read, and the result says how many were left out.
  */
 export function parseSessionsCsv(text: string, zone: string, window: SessionWindow): SessionImport {
   const clean = text.replace(/^\uFEFF/u, "");
@@ -392,7 +397,10 @@ export function parseSessionsCsv(text: string, zone: string, window: SessionWind
     if (typeof line === "string") failed.push({ line: position + 2, issue: line });
     else rows.push(line);
   });
-  return { rows, failed };
+  const skipped = table
+    .slice(SESSION_LIMITS.importRows)
+    .filter((cells) => cells.some((cell) => cell.trim() !== "")).length;
+  return { rows, failed, skipped };
 }
 
 /** The attendance report as CSV text (FR-1795): one line a session, with a byte-order mark first so Excel reads Arabic. */

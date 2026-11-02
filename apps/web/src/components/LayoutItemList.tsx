@@ -96,6 +96,27 @@ function EditTools<K extends string>({
   );
 }
 
+/** A row's drag events: pick it up, pass over another row, and drop on one. */
+function dragHandlers<K extends string>(key: K, drag: K | null, dragging: RowProps<K>["dragging"]) {
+  return {
+    onDragStart: (event: DragEvent) => {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", key);
+      dragging.start(key);
+    },
+    onDragOver: (event: DragEvent) => {
+      if (drag !== null) {
+        event.preventDefault();
+        dragging.over(key);
+      }
+    },
+    onDrop: (event: DragEvent) => {
+      event.preventDefault();
+      dragging.drop(key);
+    },
+  };
+}
+
 function Row<K extends string>({
   language,
   item,
@@ -112,6 +133,8 @@ function Row<K extends string>({
   const t = useTranslator(language);
   const index = list.order.indexOf(item.key);
   const move = (step: -1 | 1) => {
+    const target = index + step;
+    if (target < 0 || target >= list.order.length) return;
     const next = moveBy(list, item.key, step);
     onChange(
       next,
@@ -122,30 +145,13 @@ function Row<K extends string>({
       }),
     );
   };
-  const onDragStart = (event: DragEvent) => {
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", item.key);
-    dragging.start(item.key);
-  };
-  const onDragOver = (event: DragEvent) => {
-    if (drag !== null) {
-      event.preventDefault();
-      dragging.over(item.key);
-    }
-  };
-  const onDrop = (event: DragEvent) => {
-    event.preventDefault();
-    dragging.drop(item.key);
-  };
   return (
     <li
       className={styles.item}
       data-dragging={drag === item.key}
       data-over={over === item.key && drag !== item.key}
       draggable
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
+      {...dragHandlers(item.key, drag, dragging)}
       onDragEnd={dragging.end}
     >
       <span
@@ -183,13 +189,13 @@ function Row<K extends string>({
         <IconButton
           icon="arrowUp"
           label={t("layout.earlier", { item: item.label })}
-          disabled={index === 0}
+          aria-disabled={index === 0}
           onClick={() => move(-1)}
         />
         <IconButton
           icon="arrowDown"
           label={t("layout.later", { item: item.label })}
-          disabled={index === list.order.length - 1}
+          aria-disabled={index === list.order.length - 1}
           onClick={() => move(1)}
         />
       </span>

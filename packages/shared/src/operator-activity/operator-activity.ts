@@ -13,8 +13,6 @@ import { textIssue, type InvitationNameIssue } from "#src/invitation-campaigns/n
 /** A briefing's title and text, counted in code points; the text is the whole push, never cut. */
 export const STAFF_BRIEFING_TITLE_MAX = 60;
 export const STAFF_BRIEFING_BODY_MAX = 140;
-/** The most briefings an event may send in a rolling hour and in a rolling day (the database's door enforces it). */
-export const STAFF_BRIEFING_RATE = { perHour: 3, perDay: 10 } as const;
 /** An operator with no action for this long is shown as quiet. */
 export const OPERATOR_QUIET_MINUTES = 30;
 /** The latest actions shown at first, and the most the page can ask for. */
