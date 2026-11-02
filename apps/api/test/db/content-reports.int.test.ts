@@ -292,7 +292,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reports and moderation (databa
       await report(a.player, { kind: "quest", target, reason: "spam" });
       await report(b.player, { kind: "quest", target, reason: "misleading", note: "Wrong prize" });
       await f.owner(
-        "UPDATE content_report SET created_at = now() - interval '25 hours' WHERE target_id = $1 AND reporter_id = $2",
+        `UPDATE content_report SET created_at = now() - interval '25 hours', due_at = now() - interval '24 hours'
+         WHERE target_id = $1 AND reporter_id = $2`,
         [target, a.player],
       );
       const queue = await f.one<{ targets: Record<string, unknown>[]; total: number }>(
@@ -304,6 +305,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reports and moderation (databa
       expect(row).toMatchObject({
         kind: "quest",
         reports: 2,
+        urgent: true,
         overdue: true,
         snapshot: { title: { en: "Grouped" } },
         event: { id: event },

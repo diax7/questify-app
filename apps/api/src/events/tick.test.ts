@@ -152,6 +152,10 @@ describe("startLifecycleTick", () => {
       { level: "error", fields: { event: "game.sweep_failed", reason: "unknown", code: null } },
       { level: "error", fields: { event: "ticket.purge_failed", reason: "unknown", code: null } },
       { level: "error", fields: { event: "report.purge_failed", reason: "unknown", code: null } },
+      {
+        level: "error",
+        fields: { event: "owner_email.purge_failed", reason: "unknown", code: null },
+      },
       { level: "error", fields: { event: "event.archive_failed", reason: "unknown", code: null } },
     ]);
     await tick.stop();
@@ -192,10 +196,10 @@ describe("startLifecycleTick", () => {
     finish?.();
     await stopping;
     // The lifecycle call, one look each for due rehearsal wipes, reservations, quizzes and game rounds, the ticket
-    // sweep and the archive step; nothing after the stop.
-    expect(connects).toBe(8);
+    // sweep, the report and owner-email purges and the archive step; nothing after the stop.
+    expect(connects).toBe(9);
     await vi.advanceTimersByTimeAsync(5000);
-    expect(connects).toBe(8);
+    expect(connects).toBe(9);
   });
 
   it("finishes due quizzes one call at a time, up to a batch, and logs only the count", async () => {
