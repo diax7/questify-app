@@ -6460,3 +6460,52 @@ amended accordingly (SRS trace).
 **Decision:** T-701b ships the owner email change (FR-1784) and urgent reports (FR-1732: urgency, ordering and the email
 to the `MAIL_FROM` address stored as configuration data). Merging two organizers is dropped from v1 (Q-375). Each half
 delivers value alone.
+
+## ADR-415 - T-709 is health, numbers and admin sessions; the content editors become T-709b
+
+**Status:** Proposed (developer, 2026-11-02; T-709 plan note `docs/plans/2026-11-02-t-709-platform-pages.md`). Migration 0117.
+**Decision:** T-709 ships FR-1783 (health), FR-1419 (numbers) and FR-1785 (admin accounts, sessions, forced sign-out).
+FR-1403 (achievements, items and the gem shop, daily-challenge questions, event templates, level titles, the XP table) is
+**T-709b**: eight independent editors, each with its own invariants (a level curve recomputes `player_xp.level`, a catalog
+needs a shipped reward mapping per level, a template body is checked by `templateBodySchema`), each delivering value alone.
+Every note that named T-709 as the editor of those catalogs (CONFIGURABILITY, DATA_MODEL, the T-401, T-402, T-403, T-404
+and T-601b notes) now means T-709b.
+**Trade-offs:** FR-1403 stays pending, so a catalog change still needs a migration until T-709b.
+
+## ADR-416 - T-709 the health view reads symptoms from the database; limits are constants until T-703
+
+**Status:** Proposed (developer, 2026-11-02). Migration 0117.
+**Decision:** `console_health()` answers counts and flags through bounded reads (`LIMIT 10001`, shown as "10,000+"), and one
+shared function turns them into six tiles: Database (the door's own answer time), Live events (scheduled events past their
+start and live events past their end by two minutes), Push, SMS, Email and Background work (the oldest waiting item, leases
+that ran out five minutes ago, failing fan-outs and souvenir work, a channel the provider paused). A tile is `down` when work
+is stuck, a channel is paused or the oldest item waited over an hour; `warning` when something is late, failing or not set up
+on this server. No ticker keeps a run record, so there is no "last run" column: a stopped ticker shows as these symptoms,
+which also work across several API instances. The numbers (10 and 60 minutes, 15 minutes for mail, 90 and 50 percent from
+20 messages) are constants in `HEALTH_LIMITS`; T-703 turns them into tuning numbers. The server's set-up is yes or no per
+transport; no key, sender, address or token is in the answer.
+**Why:** no new table or ticker change, one query that costs 25 to 27 ms at 600,000 push sends and 300,000 points entries.
+**Trade-offs:** a ticker that stops while it has no work to do is not seen; Q-382 asks whether a heartbeat is wanted.
+
+## ADR-417 - T-709 admins see every platform admin's open sessions and end any but their own; the last admin cannot be revoked
+
+**Status:** Proposed (developer, 2026-11-02). Migration 0117.
+**Decision:** the console lists platform admins only (a member's account and sessions are the same 404) with the sessions open
+now (not revoked, within 15 minutes idle and 8 hours old), each with its browser, address, start and last use, as the own-sessions
+page does. `admin_end_session(session, reason, request)` ends one open session of a platform admin with a reason of 10 to 300
+characters (audit `staff.session.force_end`, actor admin, the reason and whose session it was, never the token); the next request
+with that session is refused. The API refuses the session that asks (409 `own_session`, use sign out). Both reads are audited with
+ids only. Admin rights stay with `staff-cli` (ADR-405); `revoke-admin` locks every admin row by id and refuses the last active
+admin, so two revokes at once cannot leave none (FR-1785). Reads 60 a minute and ends 30 an hour per admin.
+**Trade-offs:** every admin sees the others' address and browser (Q-384); an admin can end the session of another admin
+mid-task, which the audit log records.
+
+## ADR-418 - T-709 platform numbers are counts, with the activity of the last hour in live events
+
+**Status:** Proposed (developer, 2026-11-02). Migration 0117.
+**Decision:** `console_numbers()` counts organizers by status, events by their state now, players by status (active, banned,
+joined in 7 days; deleted are left out), staff accounts and active admins, the players seated in live events, and the points
+entries of the last hour in live events (per event through `ledger_entry (event_id, created_at)`, capped at 100,001 per event).
+No name, contact or text is in the answer. Measured at 300,000 players, 150,000 seated and 300,000 entries: 152 to 165 ms warm.
+**Trade-offs:** the player counts scan the player table, so the door grows with it (about 0.5 ms per 1,000 players); the 60
+a minute limit bounds the cost, and a cached count is the next step if the table passes a million.

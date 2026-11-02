@@ -1828,3 +1828,27 @@ configuration data, not hard-coded. To build in T-701b (ADR-410).
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-701 plan review 80, code review 88, its MAJOR fixed); ADR-406).
 **Recommended (developer):** support keeps writing while suspended (to fix what led to the suspension, then
 reactivate); the ledger stays closed to support as to everyone.
+
+## Q-382 - What the health view cannot show yet (T-709)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-416).
+FR-1783 asks for each live event's players online and its errors, and for error counts. The database records neither: there is
+no presence record, no request error counter, and the tickers keep no run record (they log). The view shows each live event's
+points entries in the last hour, the failed and uncertain sends of the last day, and the symptoms of a stopped ticker.
+**Recommended (developer):** leave as built. If a stopped ticker with nothing to do must also be seen, add a `job_status` row per
+ticker written at most once every 30 seconds; for request errors use the host's log search.
+
+## Q-383 - SMS delivery rate covers invitation messages only (T-709)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-416).
+The SMS tile's rate is the share of invitation messages delivered in the last 7 days (the campaigns' counters: sent over sent,
+failed and unknown). Sign-in and service SMS keep no outcome, so they are not in it. The rate is judged from 20 messages:
+a warning under 90 percent, down under 50 (constants until T-703).
+**Recommended (developer):** keep; record the outcome of sign-in SMS only if support needs it.
+
+## Q-384 - Admins see each other's browser and address (T-709)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-417).
+To tell a lost laptop from a phone, an admin sees the browser and address of every other admin's open sessions, as each admin
+already sees their own. Every such read is audited with the account id.
+**Recommended (developer):** keep; show the browser only if the address is judged too much.

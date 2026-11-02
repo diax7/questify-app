@@ -567,6 +567,16 @@ that may name it. Tests: `test/db/name-display.int` (every rule and refusal as r
 dashboard), the ranking, results, big screen, finale, station and desk suites, the outsider suite (anon and PUBLIC hold nothing on the
 columns or the functions) and the cross-tenant suite (B's setting, notices and names out of A's reach). Counsel on Q-080 can still narrow it.
 
+### Platform pages (T-709, ADR-415 to ADR-418)
+
+- **Five definer doors, granted to the API role alone** (`console_health`, `console_numbers`, `console_admin_accounts`,
+  `console_admin_sessions`, `admin_end_session`); each re-reads the admin (`app_admin_id`, QE403 otherwise) and pins
+  `search_path`. Outsider, cross-tenant and route suites assert the exact grants and that every tenant seat is refused.
+- **No secret in the health answer:** the server's set-up is yes or no per transport; counts and flags only.
+- **Forced sign-out:** only an open session of a platform admin can be ended (a member's session is a 404), with a reason of
+  10 to 300 characters in the audit entry (`staff.session.force_end`); the caller's own session is refused. The reads of
+  staff emails and sessions are audited with ids only. `revoke-admin` refuses the last active admin (FR-1785).
+
 ### Console foundation (T-701, ADR-405 to ADR-409)
 
 - **Organizer rows are definer-only:** the API role lost INSERT and UPDATE on `organizer`, so no member can lift a

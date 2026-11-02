@@ -1256,7 +1256,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1416 | F-223 | Should | pending |
 | FR-1417 | F-223 | Should | pending |
 | FR-1418 | F-224 | Must | pending |
-| FR-1419 | F-217 | Should | pending |
+| FR-1419 | F-217 | Should | built (T-709; counts only, no invoiced revenue) |
 | FR-1501 | F-40 | Must | pending |
 | FR-1502 | F-40 | Must | pending |
 | FR-1503 | F-41 | Must | pending |
@@ -1375,9 +1375,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1780 | F-288 | Should | pending |
 | FR-1781 | F-289 | Must | pending |
 | FR-1782 | F-290 | Should | pending |
-| FR-1783 | F-291 | Should | pending |
+| FR-1783 | F-291 | Should | partly built (T-709: queues, leases, set-up, SMS rate; players online and error counters Q-382) |
 | FR-1784 | F-292 | Should | partly built (T-701 pause and restore; owner email change T-701b; merge dropped, Q-375) |
-| FR-1785 | F-293 | Must | pending |
+| FR-1785 | F-293 | Must | built (T-709: sessions and forced sign-out in the console; add and remove admins by `staff-cli` only, ADR-405; the last admin is refused) |
 | FR-1786 | F-294 | Should | built T-408 (month boards of `xp_board`, `GET /v1/admin/questify/seasons[/:month]`) and T-408c (console page `/console/seasons`; code review pending) |
 | FR-1787 | F-295 | Must | pending |
 | FR-1788 | F-296 | Must | pending |
