@@ -144,9 +144,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event souvenirs", () => {
     await f.db.owner.query("UPDATE enrollment SET status='active',waitlisted=false WHERE id=$1", [
       f.member,
     ]);
-    await f.run({ isAdmin: true }, "UPDATE player SET status='banned' WHERE id=$1", [
-      f.ids.playerA,
-    ]);
+    await f.db.owner.query("UPDATE player SET status='banned' WHERE id=$1", [f.ids.playerA]);
     expect((await f.grant()).rows[0].n).toBe(0);
   });
   it("denies non-attendees, foreign tenant rules, category forgery and limited editors", async () => {

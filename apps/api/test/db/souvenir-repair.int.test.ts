@@ -142,7 +142,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir finite repair passes"
       ).rows[0].id as string;
     const mine = await staffed(f.ids.playerA);
     const theirs = await staffed(other);
-    await f.run({ isAdmin: true }, "UPDATE player SET status='banned' WHERE id=$1", [banned]);
+    await f.db.owner.query("UPDATE player SET status='banned' WHERE id=$1", [banned]);
     const finishers = await f.create({ audience: "all" });
     const joined = await f.create();
     await f.action(finishers);
@@ -169,7 +169,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir finite repair passes"
         ])
       ).rows[0].outcome,
     ).toBe("removed");
-    await f.run({ isAdmin: true }, "UPDATE player SET status='active' WHERE id=$1", [banned]);
+    await f.db.owner.query("UPDATE player SET status='active' WHERE id=$1", [banned]);
     expect(await work()).toBe(3);
     expect(await drain()).toEqual({ granted: 3, skipped: 0, failed: 0 });
     expect([await receipts(finishers), await receipts(joined), await work()]).toEqual([2, 3, 0]);

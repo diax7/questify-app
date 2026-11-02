@@ -6718,12 +6718,13 @@ profile already leave non-active players out (checked).
 
 **Status:** Proposed (developer, 2026-11-02; T-705 build; plan D10 and the plan review's BLOCKER). Migration 0120.
 **Decision:** BEFORE INSERT triggers on `ledger_entry` (`ledger_player_guard`), `xp_entry` and `gem_entry`
-(`wallet_player_guard`) raise PB423 when the paid player is banned or erased, reading the player `FOR SHARE` so a ban (which
-takes the row `FOR NO KEY UPDATE`) and a payment run one after the other. What passes: a reservation refund
+(`wallet_player_guard`) raise PB423 when the paid player is banned or erased. A ban and a payment run one after the other through the
+membership row, never the player row (a completion must never wait on the player, which erasure holds): the ledger
+guard locks the paid membership (every payment updates it anyway) and then reads the standing; the ban locks every
+membership of the player after the player. What passes: a reservation refund
 (`redeem_return`, so a live reservation expires and pays back), a removal, a points change that only lowers (an `adjust`
 with no positive delta), an XP removal and a gem purchase. A prize handover is refused, so a banned player's reservation
-expires. A catalog search found twenty writers; the three that pay a set of players in one statement now lock the paid
-players `FOR SHARE` in id order after the memberships they already lock and skip a non-active player: the group and bulk
+expires. A catalog search found twenty writers; the three that pay a set of players in one statement already lock the paid memberships and now skip a non-active player: the group and bulk
 awards (`bulk_award_eligible`, counted in `skipped`), the past points change (`apply_past_points`: a raise is skipped, a
 lowering still applies) and the community payout (`pay_community_batch`, already `inactive`). Every other writer pays one
 player and meets PB423, which the API answers once, globally, as 423 `player_inactive` ("This player can't receive points

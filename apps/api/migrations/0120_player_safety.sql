@@ -7,10 +7,11 @@
 -- for `INSERT INTO ledger_entry|xp_entry|gem_entry` over every function finds twenty writers; three pay a set of players:
 --   apply_past_points   the points change of a quest applied to its past completions (the adjust batch, 0098)
 --   bulk_award          the group and bulk awards (0093), through bulk_award_eligible
---   pay_community_batch the community goal payout (0114)
--- Each now locks the paid players FOR SHARE, in id order, after the enrollments it already locks, and skips a player
--- who is not active, so one banned member never rolls a batch back. Every other writer pays one player and meets the
--- wall's PB423, which the API answers in one place.
+--   pay_community_batch the community goal payout (0114): it already skips a player who is not active, unchanged
+-- Each locks the paid memberships first and skips a player who is not active, so one banned member never rolls a batch
+-- back. Every other writer pays one player and meets the wall's PB423, which the API answers in one place. The wall
+-- serializes with a ban through the membership row, never the player row: a ban locks the player's memberships, every
+-- payment updates its membership, and a completion must never wait on the player row (erasure holds it, migration 0039).
 --
 -- Deny by default: the new table keeps row-level security forced with no grant; every new function is revoked from
 -- PUBLIC in the group that creates it and only the doors are granted to questify_app. questify_app loses its UPDATE on
@@ -60,8 +61,9 @@ CREATE FUNCTION mark_player_rankings(target uuid) RETURNS void
 $$;
 REVOKE ALL ON FUNCTION mark_player_rankings(uuid) FROM PUBLIC;
 
--- Bans an account (FR-1416): never automatic, only this door sets `banned`. Locks the player row FOR NO KEY UPDATE, so
--- a payment that read the player FOR SHARE first commits before the ban and one that comes after is refused (PB423).
+-- Bans an account (FR-1416): never automatic, only this door sets `banned`. Locks the player row FOR NO KEY UPDATE, then
+-- every membership of the player, so a payment that holds a membership first commits before the ban and one that comes
+-- after is refused (PB423).
 -- Ends every way in as the sign-in reset does (open codes, tokens, push devices, then the cutoff taken last), keeps
 -- memberships, event bans, the ledger and history untouched, and repairs the rankings. Outcomes: banned,
 -- already_banned. PA404 for an unknown id or a tombstone; PA400 for a bad reason.
@@ -78,6 +80,8 @@ BEGIN
     RETURN QUERY SELECT 'already_banned'::text, NULL::uuid;
     RETURN;
   END IF;
+  -- The wall's serialization point: a payment holding a membership commits first; one that comes after sees the ban.
+  PERFORM 1 FROM enrollment n WHERE n.player_id = p.id ORDER BY n.id FOR NO KEY UPDATE;
   DELETE FROM player_login_challenge l
   WHERE l.contact IN (SELECT unnest(ARRAY[pc.phone_e164, pc.email]) FROM player_contact pc WHERE pc.player_id = p.id);
   DELETE FROM player_contact_challenge WHERE player_id = p.id;
@@ -201,14 +205,13 @@ GRANT EXECUTE ON FUNCTION sign_in_player(bytea, bytea, bytea, bytea, uuid, bytea
 -- ================================================================ the wall (ADR-430)
 -- A player who is not active (banned, or erased) is paid nothing: no points, balance, XP or gems. What passes: a refund
 -- of a reservation (`redeem_return`, so a live reservation expires and pays back), a removal, and a points change that
--- only lowers (an adjust with no positive delta). A prize handover is refused too, so the reservation expires. Reads
--- the player FOR SHARE: a ban (FOR NO KEY UPDATE) and a payment run one after the other.
+-- only lowers (an adjust with no positive delta). A prize handover is refused too, so the reservation expires.
 CREATE FUNCTION player_may_be_paid(target uuid) RETURNS void
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   standing text;
 BEGIN
-  SELECT p.status INTO standing FROM player p WHERE p.id = target FOR SHARE;
+  SELECT p.status INTO standing FROM player p WHERE p.id = target;
   IF standing IS DISTINCT FROM 'active' THEN
     RAISE EXCEPTION 'this player cannot receive points' USING ERRCODE = 'PB423';
   END IF;
@@ -217,19 +220,24 @@ REVOKE ALL ON FUNCTION player_may_be_paid(uuid) FROM PUBLIC;
 
 CREATE FUNCTION ledger_player_guard() RETURNS trigger
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  who uuid;
 BEGIN
   IF NEW.kind IN ('redeem_return', 'removal')
      OR (NEW.kind = 'adjust' AND NEW.score_delta <= 0 AND NEW.balance_delta <= 0) THEN
     RETURN NEW;
   END IF;
-  PERFORM player_may_be_paid((SELECT n.player_id FROM enrollment n WHERE n.id = NEW.enrollment_id));
+  -- The membership row is the payment's lock (apply_ledger_entry updates it anyway): after it, the status read is fresh.
+  SELECT n.player_id INTO who FROM enrollment n WHERE n.id = NEW.enrollment_id FOR NO KEY UPDATE;
+  PERFORM player_may_be_paid(who);
   RETURN NEW;
 END $$;
 REVOKE ALL ON FUNCTION ledger_player_guard() FROM PUBLIC;
 CREATE TRIGGER ledger_player_guard BEFORE INSERT ON ledger_entry
   FOR EACH ROW EXECUTE FUNCTION ledger_player_guard();
 
--- XP: only a removal (negative) passes. Gems: only a purchase (negative) passes.
+-- XP: only a removal (negative) passes. Gems: only a purchase (negative) passes. No lock: XP and gems from the ledger
+-- passed the ledger guard; the others come from the player's own signed-in actions, which a ban ends.
 CREATE FUNCTION wallet_player_guard() RETURNS trigger
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
@@ -244,106 +252,22 @@ CREATE TRIGGER xp_player_guard BEFORE INSERT ON xp_entry
 CREATE TRIGGER gem_player_guard BEFORE INSERT ON gem_entry
   FOR EACH ROW EXECUTE FUNCTION wallet_player_guard();
 
--- As 0093 (group and bulk awards), plus: the candidates' players locked FOR SHARE in id order, and only active players
--- eligible, so a banned member is skipped (counted in `skipped`) instead of failing the batch. VOLATILE for the lock.
+-- As 0093 (group and bulk awards), plus: only active players are eligible, so a banned member is skipped (counted in
+-- `skipped`) instead of failing the batch. bulk_award locks the memberships before it asks, so a ban waits or is seen.
 CREATE OR REPLACE FUNCTION bulk_award_eligible(ev event, candidates uuid[], rehearsing boolean) RETURNS SETOF uuid
-  LANGUAGE plpgsql VOLATILE SET search_path = public, pg_temp AS $$
-BEGIN
-  PERFORM 1 FROM player p
-  WHERE p.id IN (SELECT n.player_id FROM enrollment n WHERE n.id = ANY (candidates) AND n.event_id = ev.id)
-  ORDER BY p.id FOR SHARE;
-  RETURN QUERY
+  LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
   SELECT n.id FROM enrollment n JOIN player p ON p.id = n.player_id
   WHERE n.id = ANY (candidates) AND n.event_id = ev.id AND n.status = 'active' AND p.status = 'active'
     AND (n.joined_via IS NOT DISTINCT FROM 'rehearsal') = rehearsing
     AND member_may_play(ev, n)
-  ORDER BY n.id;
-END $$;
+  ORDER BY n.id
+$$;
 REVOKE ALL ON FUNCTION bulk_award_eligible(event, uuid[], boolean) FROM PUBLIC;
 
--- As 0114, plus the paid players locked FOR SHARE in id order after their memberships (it already skipped a player who
--- is not active as `inactive`; the lock makes that read hold until the payment commits).
-CREATE OR REPLACE FUNCTION pay_community_batch(size integer, only_event uuid)
-  RETURNS TABLE (step_id uuid, paid integer, skipped integer)
-  LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
-DECLARE
-  picked     community_payout%ROWTYPE;
-  ev         event%ROWTYPE;
-  amount     integer;
-  ids        uuid[];
-  balance_on boolean;
-  final      boolean;
-  n_paid     integer;
-  n_skipped  integer;
-BEGIN
-  PERFORM community_system_only();
-  IF only_event IS NOT NULL THEN
-    PERFORM ensure_rehearsal_wiped(only_event);
-  END IF;
-  SELECT p.* INTO picked FROM community_payout p
-  WHERE p.status = 'due' AND (only_event IS NULL OR p.event_id = only_event) AND NOT event_suspended(p.event_id)
-  ORDER BY p.created_at, p.step_id LIMIT 1;
-  IF NOT FOUND THEN
-    RETURN;
-  END IF;
-  IF only_event IS NULL THEN
-    PERFORM ensure_rehearsal_wiped(picked.event_id);
-  END IF;
-  SELECT e.* INTO ev FROM event e WHERE e.id = picked.event_id FOR KEY SHARE;
-  ids := ARRAY(
-    WITH taken AS (
-      SELECT p.enrollment_id FROM community_payout p
-      WHERE p.step_id = picked.step_id AND p.status = 'due'
-      ORDER BY p.enrollment_id LIMIT least(greatest(coalesce(size, 500), 1), 1000)
-      FOR UPDATE SKIP LOCKED
-    )
-    SELECT taken.enrollment_id FROM taken ORDER BY taken.enrollment_id);
-  IF cardinality(ids) = 0 THEN
-    RETURN;
-  END IF;
-  PERFORM 1 FROM enrollment n WHERE n.id = ANY (ids) ORDER BY n.id FOR NO KEY UPDATE;
-  PERFORM 1 FROM player pl WHERE pl.id IN (SELECT n.player_id FROM enrollment n WHERE n.id = ANY (ids))
-  ORDER BY pl.id FOR SHARE;
-  SELECT s.points INTO amount FROM community_step s WHERE s.id = picked.step_id;
-  final := EXISTS (SELECT 1 FROM event_result x WHERE x.event_id = ev.id);
-  balance_on := shop_state(ev.status, ev.starts_at, ev.ends_at, ev.shop_days_after) <> 'closed';
 
-  WITH verdict AS (
-    SELECT n.id,
-           CASE WHEN final THEN 'results_final'
-                WHEN n.status <> 'active' OR pl.status <> 'active' THEN 'inactive'
-                WHEN EXISTS (SELECT 1 FROM staff_assignment sa
-                             WHERE sa.event_id = n.event_id AND sa.player_id = n.player_id AND NOT sa.can_play)
-                  THEN 'no_play' END AS why
-    FROM enrollment n JOIN player pl ON pl.id = n.player_id
-    WHERE n.id = ANY (ids)
-  ), made AS (
-    INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, actor,
-                              community_step_id)
-    SELECT ev.organizer_id, ev.id, v.id, 'community', amount, CASE WHEN balance_on THEN amount ELSE 0 END, 'system',
-           picked.step_id
-    FROM verdict v WHERE v.why IS NULL ORDER BY v.id
-    RETURNING id, enrollment_id
-  ), paid_rows AS (
-    UPDATE community_payout p SET status = 'paid', entry_id = m.id, done_at = now()
-    FROM made m WHERE p.step_id = picked.step_id AND p.enrollment_id = m.enrollment_id
-    RETURNING 1
-  ), skipped_rows AS (
-    UPDATE community_payout p SET status = 'skipped', skip_reason = v.why, done_at = now()
-    FROM verdict v WHERE v.why IS NOT NULL AND p.step_id = picked.step_id AND p.enrollment_id = v.id
-    RETURNING 1
-  )
-  SELECT (SELECT count(*) FROM paid_rows), (SELECT count(*) FROM skipped_rows) INTO n_paid, n_skipped;
-  IF n_paid > 0 THEN
-    PERFORM mark_ranking_repair(ev.id);
-  END IF;
-  RETURN QUERY SELECT picked.step_id, n_paid, n_skipped;
-END $$;
-REVOKE ALL ON FUNCTION pay_community_batch(integer, uuid) FROM PUBLIC;
-
--- As 0098 (the points change applied to past completions), plus: the completions' players locked FOR SHARE in id
--- order after their memberships, and a raise skipped for a player who is not active (a lowering still applies, the
--- wall lets it through), so one banned member never fails the change.
+-- As 0098 (the points change applied to past completions), plus: a raise skipped for a player who is not active (a
+-- lowering still applies, the wall lets it through), so one banned member never fails the change. The memberships are
+-- locked first, as before, so a ban waits or is seen.
 CREATE OR REPLACE FUNCTION apply_past_points(target_event uuid, target_quest uuid, from_points integer, request_key text,
                                   request uuid, batch_limit integer DEFAULT 2000, part integer DEFAULT 1)
   RETURNS TABLE (change_id uuid, completions integer, players integer, raised integer, lowered integer,
@@ -394,10 +318,6 @@ BEGIN
   PERFORM 1 FROM enrollment n
   WHERE n.id IN (SELECT c.enrollment_id FROM quest_completion c WHERE c.quest_id = quest_row.id)
   ORDER BY n.id FOR NO KEY UPDATE;
-  PERFORM 1 FROM player p
-  WHERE p.id IN (SELECT n.player_id FROM enrollment n
-                 WHERE n.id IN (SELECT c.enrollment_id FROM quest_completion c WHERE c.quest_id = quest_row.id))
-  ORDER BY p.id FOR SHARE;
   SELECT array_agg(w.completion_id ORDER BY w.ord), array_agg(w.enrollment_id ORDER BY w.ord),
          array_agg(w.ds ORDER BY w.ord), array_agg(w.db ORDER BY w.ord)
   INTO w_done, w_who, w_ds, w_db
