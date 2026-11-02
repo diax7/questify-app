@@ -72,6 +72,14 @@ export type AuthKeys = Readonly<{
   eventKey: (eventId: string) => Buffer;
   /** The 32-byte tag that signs a promotional opt-out link for one player and channel (T-407, FR-1114). */
   optOutTag: (playerId: string, channel: string) => Buffer;
+  /** Hash of an owner email change's code, bound to the change (T-701b); never matches a sign-in code. */
+  emailChangeCodeHash: (changeId: string, code: string) => Buffer;
+  /**
+   * The confirm link's token (to the new address) or the Stop link's token (to the old one) of an owner email change
+   * (T-701b): derived from the change id under the secret, so a resend or a later notice can repeat the link while only
+   * its hash is stored. 256 bits, URL-safe; the two purposes never share a value.
+   */
+  emailChangeToken: (changeId: string, purpose: "confirm" | "stop") => string;
 }>;
 
 /**
@@ -104,6 +112,8 @@ export function createAuthKeys(secret: string): AuthKeys {
   const pairedDevice = keyed("throttle-paired-device");
   const event = keyed("throttle-event");
   const optOut = keyed("marketing-opt-out");
+  const emailChangeCode = derive("email-change-code");
+  const emailChangeLink = keyed("email-change-link");
   return {
     emailKey: email,
     addressKey: address,
@@ -125,5 +135,9 @@ export function createAuthKeys(secret: string): AuthKeys {
     pairedDeviceKey: pairedDevice,
     eventKey: event,
     optOutTag: (playerId, channel) => optOut(`${playerId}\n${channel}`),
+    emailChangeCodeHash: (changeId, value) =>
+      createHmac("sha256", emailChangeCode).update(`${changeId}\n${value}`).digest(),
+    emailChangeToken: (changeId, purpose) =>
+      emailChangeLink(`${purpose}\n${changeId}`).toString("base64url"),
   };
 }

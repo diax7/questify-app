@@ -24,6 +24,8 @@ const INVITATION_INTERVAL_MS = 5000;
 const RANK_PUSH_INTERVAL_MS = 10_000;
 /** The organizer alert worker (ADR-362): settles the outbox every minute; no transport, so nothing is sent. */
 const ORGANIZER_ALERT_INTERVAL_MS = 60_000;
+/** The team alert worker (T-701b): due owner email changes every minute; the digest itself at most every 10 minutes. */
+const TEAM_ALERT_INTERVAL_MS = 60_000;
 /** A ranking write or read that Redis cannot answer this fast falls back to PostgreSQL (ADR-118). */
 const REDIS_COMMAND_TIMEOUT_MS = 250;
 const REDIS_CONNECT_TIMEOUT_MS = 2000;
@@ -136,6 +138,7 @@ async function main(): Promise<void> {
     invitationIntervalMs: INVITATION_INTERVAL_MS,
     rankPushIntervalMs: RANK_PUSH_INTERVAL_MS,
     organizerAlerts: { intervalMs: ORGANIZER_ALERT_INTERVAL_MS },
+    teamAlertIntervalMs: TEAM_ALERT_INTERVAL_MS,
     // Built here so a key that cannot sign stops the start; their log lines run later, once `app` exists.
     push: {
       pool: pushPool,

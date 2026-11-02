@@ -80,6 +80,12 @@ async function start(results: {
     passwords,
     signUp,
     invites,
+    emailChange: {
+      admit: async () => {},
+      view: async () => undefined,
+      confirm: async () => ({ kind: "invalid" }),
+      stop: async () => "none",
+    },
     sessions: results.signedIn === true ? liveSession : noSessions,
     dashboardOrigin: ORIGIN,
   });

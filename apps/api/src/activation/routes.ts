@@ -24,7 +24,13 @@ import {
 import { registerConsolePlayerRoutes, type ConsolePlayerDeps } from "#src/console/players/routes";
 import { registerConsoleSafetyRoutes } from "#src/console/players/safety-routes";
 import { registerConsoleTierRoutes } from "#src/console/players/tiers";
+import {
+  registerModerationAddressRoutes,
+  type ModerationAddressDeps,
+} from "#src/console/moderation/addresses";
 import { registerConsoleModerationRoutes } from "#src/console/moderation/routes";
+import type { OwnerEmailDeps } from "#src/console/owner-email";
+import { registerConsoleOwnerEmailRoutes } from "#src/console/owner-email-routes";
 import { registerConsoleOrganizerRoutes, type ConsoleOrganizerDeps } from "#src/console/routes";
 import { registerConsoleDailyRoutes } from "#src/daily/admin-routes";
 import type { HttpError } from "#src/http-error";
@@ -139,6 +145,10 @@ export type ConsoleRoutesDeps = Readonly<{
   players: ConsolePlayerDeps;
   /** The translation matrix (T-702), behind the same hook; the service the public texts route reads from. */
   translations: TranslationService;
+  /** The owner email change (T-701b), behind the same hook. */
+  ownerEmail: OwnerEmailDeps;
+  /** The moderation addresses card (T-701b), behind the same hook. */
+  moderationAddresses: ModerationAddressDeps;
 }>;
 
 /** The admin of a request that passed the console hook. */
@@ -300,6 +310,8 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleSafetyRoutes(scope, deps.players);
       registerConsoleTierRoutes(scope, deps.players);
       registerConsoleModerationRoutes(scope, deps.players);
+      registerModerationAddressRoutes(scope, deps.moderationAddresses);
+      registerConsoleOwnerEmailRoutes(scope, deps.ownerEmail);
     },
     { prefix: ADMIN_PREFIX.slice(0, -1) },
   );

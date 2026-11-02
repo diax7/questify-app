@@ -5,6 +5,10 @@ import {
   breachCheckUnavailable,
   busy,
   challengeExpired,
+  emailChangeLinkInvalid,
+  emailChangeLocked,
+  emailTaken,
+  wrongCodeOrPassword,
   currentPasswordWrong,
   emailUnavailable,
   invalidCode,
@@ -25,6 +29,7 @@ import {
   weakPassword,
 } from "#src/auth/http-errors";
 import { sessionLimitsFor } from "#src/auth/limits";
+import type { EmailChange } from "#src/auth/email-change";
 import type { Passwords, WeakReason } from "#src/auth/password-reset";
 import { clearedSessionCookie, sessionCookie, type Sessions } from "#src/auth/session";
 import type { ResendResult, SignIn } from "#src/auth/sign-in";
@@ -39,6 +44,7 @@ export type StaffRoutesDeps = Readonly<{
   passwords: Passwords;
   signUp: SignUp;
   invites: Invites;
+  emailChange: EmailChange;
   /** The one origin allowed to make state-changing requests with the session cookie. */
   dashboardOrigin: string;
 }>;
@@ -136,6 +142,62 @@ function registerResetRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): voi
       throw resetLinkInvalid();
     }
     return refuseNewPassword(reply, result);
+  });
+}
+
+const emailChangeTokenBody = z.strictObject({ token: z.string().regex(/^[A-Za-z0-9_-]{43}$/) });
+const emailChangeConfirmBody = emailChangeTokenBody.extend({
+  code: z.string().regex(/^[0-9]{6}$/),
+  password: z.string().min(1).max(1024).nullable(),
+});
+
+/**
+ * The owner's confirm page and the old address's Stop page (T-701b): public, the token in the body, never in a URL.
+ * Each call counts against the client address (20 in 15 minutes).
+ */
+function registerEmailChangeRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): void {
+  const open = { config: { access: "public" }, bodyLimit: SIGN_IN_BODY_LIMIT } as const;
+
+  scope.post("/auth/email-change/view", open, async (request, reply) => {
+    const { token } = parse(emailChangeTokenBody, request.body);
+    const caller = callerOf(request);
+    await deps.emailChange.admit(caller, reply);
+    const found = await deps.emailChange.view(token, caller);
+    if (found === undefined) {
+      throw emailChangeLinkInvalid();
+    }
+    return found;
+  });
+
+  scope.post("/auth/email-change/confirm", open, async (request, reply) => {
+    const body = parse(emailChangeConfirmBody, request.body);
+    const caller = callerOf(request);
+    await deps.emailChange.admit(caller, reply);
+    const result = await deps.emailChange.confirm(body, caller);
+    switch (result.kind) {
+      case "confirmed":
+        return { outcome: "confirmed", email: result.email };
+      case "held":
+        return { outcome: "held", appliesAt: result.appliesAt };
+      case "wrong":
+        throw wrongCodeOrPassword({ attemptsLeft: result.attemptsLeft });
+      case "locked":
+        throw emailChangeLocked();
+      case "email_taken":
+        throw emailTaken();
+      case "invalid":
+        throw emailChangeLinkInvalid();
+      case "busy":
+        waitThen(reply, 2);
+        throw busy();
+    }
+  });
+
+  scope.post("/auth/email-change/stop", open, async (request, reply) => {
+    const { token } = parse(emailChangeTokenBody, request.body);
+    const caller = callerOf(request);
+    await deps.emailChange.admit(caller, reply);
+    return { outcome: await deps.emailChange.stop(token, caller) };
   });
 }
 
@@ -431,6 +493,7 @@ export function registerStaffRoutes(app: FastifyInstance, deps: StaffRoutesDeps)
       registerSignUpRoutes(scope, deps);
       registerInviteRoutes(scope, deps);
       registerSessionRoutes(scope, deps);
+      registerEmailChangeRoutes(scope, deps);
     },
     { prefix: "/v1/staff" },
   );

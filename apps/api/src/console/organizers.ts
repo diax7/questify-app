@@ -47,6 +47,24 @@ export type OrganizerDetail = Readonly<{
     suspension: SuspensionView | null;
   }>[];
   history: readonly HistoryEntry[];
+  /** The owner's open email change, else the organizer's latest one (T-701b); null when there was none. */
+  ownerEmailChange: OwnerEmailChange | null;
+}>;
+
+/** An owner email change as the console's owner card shows it (`console_owner_email_change`). */
+export type OwnerEmailChange = Readonly<{
+  id: string;
+  state: string;
+  oldEmail: string | null;
+  newEmail: string | null;
+  createdAt: string;
+  expiresAt: string;
+  appliesAt: string | null;
+  closedAt: string | null;
+  resends: number;
+  lastSentAt: string;
+  completedHow: string | null;
+  disputedAt: string | null;
 }>;
 
 export type HistoryEntry = Readonly<{
@@ -167,6 +185,7 @@ export function readOrganizer(
       team: await readTeamOf(client, organizerId),
       events: await readEventsOf(client, organizerId),
       history: await readHistory(client, { organizerId }),
+      ownerEmailChange: await readOwnerEmailChange(client, organizerId),
     };
     await recordAudit(client, {
       actor: { type: "admin", id: admin.id },
@@ -177,6 +196,17 @@ export function readOrganizer(
     });
     return detail;
   });
+}
+
+async function readOwnerEmailChange(
+  client: PoolClient,
+  organizerId: string,
+): Promise<OwnerEmailChange | null> {
+  const { rows } = await client.query<{ r: OwnerEmailChange | null }>(
+    "SELECT console_owner_email_change($1) AS r",
+    [organizerId],
+  );
+  return rows[0]?.r ?? null;
 }
 
 async function readTeamOf(
