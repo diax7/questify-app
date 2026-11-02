@@ -196,7 +196,12 @@ async function startAndFill(page: Page, ids: Event): Promise<LayoutIds> {
   const campaignId = ((await campaigns.json()) as { campaigns: { id: string }[] }).campaigns[0]?.id;
   const event = await page.request.get(base);
   const joinCode = ((await event.json()) as { event: { joinCode: string } }).event.joinCode;
-  return { organizerId, eventId, joinCode, ticketId, campaignId: campaignId ?? "" };
+  const found = await send(page, "POST", "/v1/admin/players/search", {
+    by: "username",
+    q: "help_" + tag,
+  });
+  const playerId = ((await found.json()) as { players: { id: string }[] }).players[0]?.id ?? "";
+  return { organizerId, eventId, joinCode, ticketId, campaignId: campaignId ?? "", playerId };
 }
 
 /** One page, read as it opens; on a phone again with the Menu sheet open; on a desktop its column must stay on the screen and show the open page. */
@@ -275,7 +280,13 @@ test("every listed page fits the screen, keeps controls apart and text at 14px o
 
   const created = await createEvent(page, project);
   await fillShop(page, created);
-  const draftIds: LayoutIds = { ...created, joinCode: "", ticketId: "", campaignId: "" };
+  const draftIds: LayoutIds = {
+    ...created,
+    joinCode: "",
+    ticketId: "",
+    campaignId: "",
+    playerId: "",
+  };
   for (const listed of LAYOUT_PAGES.filter((one) => one.phase === "draft")) {
     for (const language of LANGUAGES) {
       await checkPage(page, project, language, listed, listed.path(draftIds));

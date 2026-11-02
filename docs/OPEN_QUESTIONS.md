@@ -1885,3 +1885,42 @@ a warning under 90 percent, down under 50 (constants until T-703).
 To tell a lost laptop from a phone, an admin sees the browser and address of every other admin's open sessions, as each admin
 already sees their own. Every such read is audited with the account id.
 **Recommended (developer):** keep; show the browser only if the address is judged too much.
+
+## Q-385 - A retired username stays out of use until it is un-retired (T-704)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-420).
+When an admin renames a player, the old name is retired for everyone, the renamed player included, until T-705's word-list
+page un-retires it. A name retired by mistake (a typo in the console) stays blocked until then.
+**Recommended (developer):** keep; un-retire comes with T-705.
+
+## Q-386 - A sign-in reset also clears the failure counter of the account's contacts (T-704)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-421; plan review MINOR).
+The usual reason for a reset is a player locked out by wrong codes (their own, or a stranger guessing at their number);
+keeping `player_fail_contact` would leave them locked out for up to a day after support acted. The guesses this allows
+again are bounded: 3 tries per code, the per-address failure window stays, and each reset costs an admin a reason, an
+audit entry and one of 30 an hour.
+**Recommended (developer):** clear both the code and the failure counters of the account's own contacts; never the address
+or install counters.
+
+## Q-387 - A player who lost every contact on the account cannot be helped back in (T-704)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-421).
+No route sets or changes a player's contact and nothing returns a code, so there is no account-takeover path. The price: a
+person who lost both the phone number and the email on the account starts a new account. Support may still reveal the
+masked contacts' full values to check a claim (ADR-422), but cannot move access.
+**Recommended (developer):** keep; revisit only with a verified identity check, which v1 does not have.
+
+## Q-388 - Who may see a player's full contacts, and how often (T-704)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-422).
+Any active platform admin may reveal a player's full phone and email for a support or legal request, with a note, at most 20
+times an hour; each reveal is an action row the record shows and an audit entry. There is no second-admin approval.
+**Recommended (developer):** keep for launch (a handful of admins); add a second approval if the team grows.
+
+## Q-389 - What an erased account shows in the console (T-704)
+
+**Status:** Proposed (developer, 2026-11-02).
+Search never finds an erased account. Opened by id (an old link), its record says "Deleted account" with the deletion date
+and nothing else; no action is offered and none is accepted (404), as FR-1776 has no restore.
+**Recommended (developer):** keep.

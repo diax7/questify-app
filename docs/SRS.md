@@ -1294,7 +1294,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1628 | F-221 | Must | `test/db/submissions.int` (text submissions, T-301), `test/db/tickets.int` (help-desk tickets, T-310) |
 | FR-1629 | F-06 | Must | partly: text options only, organizer images wait for storage (ADR-190, Q-149); `test/db/vote-quiz.int`, `packages/shared/src/quests/registry.test.ts` (T-302) |
 | FR-1701 | F-228 | Must | pending |
-| FR-1702 | F-228, F-262 | Must | pending |
+| FR-1702 | F-228, F-262 | Must | built (T-109 history; T-704 admin view, `admin` rows marked) |
 | FR-1703 | F-229 | Must | pending |
 | FR-1704 | F-231 | Must | pending |
 | FR-1705 | F-232 | Must | pending |
@@ -1366,8 +1366,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1771 | F-280 | Should | pending |
 | FR-1772 | F-281 | Should | pending |
 | FR-1773 | F-282 | Must | pending |
-| FR-1774 | F-283 | Must | pending |
-| FR-1775 | F-284 | Should | pending |
+| FR-1774 | F-283 | Must | built (T-704: search, read-only record and points record, every look audited) |
+| FR-1775 | F-284 | Should | partly built (T-704: rename and sign-in reset; merging accounts dropped from v1 by Dhia, ADR-423) |
 | FR-1776 | F-284 | Must | pending |
 | FR-1777 | F-285 | Should | pending |
 | FR-1778 | F-286 | Must | pending |

@@ -233,8 +233,10 @@ CREATE FUNCTION console_player_search(search_by text, q text, request uuid) RETU
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   me    uuid := console_admin();
-  key   text := btrim(coalesce(q, ''));
-  hits  jsonb;
+  key     text := btrim(coalesce(q, ''));
+  -- The folded prefix with LIKE's own characters escaped (a username may hold `_`).
+  pattern text := replace(replace(replace(username_fold(key), '\', '\\'), '%', '\%'), '_', '\_') || '%';
+  hits    jsonb;
 BEGIN
   IF search_by NOT IN ('username', 'phone', 'email') OR char_length(key) NOT BETWEEN 3 AND 254
      OR (search_by = 'phone' AND key !~ '^\+966[0-9]{9}$') THEN
@@ -246,15 +248,16 @@ BEGIN
     INTO hits
     FROM (SELECT p.id, p.username, p.avatar, p.status, p.created_at, pc.phone_e164, pc.email,
                  username_fold(p.username) AS ord
-          FROM player p LEFT JOIN player_contact pc ON pc.player_id = p.id
+          FROM (SELECT x.id FROM player x
+                WHERE search_by = 'username' AND x.username IS NOT NULL
+                  AND username_fold(x.username) LIKE pattern
+                UNION ALL
+                SELECT c.player_id FROM player_contact c WHERE search_by = 'phone' AND c.phone_e164 = key
+                UNION ALL
+                SELECT c.player_id FROM player_contact c WHERE search_by = 'email' AND c.email = lower(key)) f
+          JOIN player p ON p.id = f.id
+          LEFT JOIN player_contact pc ON pc.player_id = p.id
           WHERE p.status <> 'deleted'
-            AND CASE search_by
-                  WHEN 'username' THEN username_fold(p.username)
-                                         LIKE replace(replace(replace(username_fold(key), '\', '\\'), '%', '\%'),
-                                                      '_', '\_') || '%'
-                  WHEN 'phone' THEN pc.phone_e164 = key
-                  ELSE pc.email = lower(key)
-                END
           ORDER BY username_fold(p.username), p.id
           LIMIT 20) m;
   INSERT INTO audit_log (actor_type, actor_id, action, target_type, after, request_id)

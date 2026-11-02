@@ -580,6 +580,8 @@ export type LayoutIds = Readonly<{
   ticketId: string;
   /** An invitation request for the event, for the console's request page. */
   campaignId: string;
+  /** A player of the event, for the console's player record (T-704). */
+  playerId: string;
 }>;
 
 export type LayoutPage = Readonly<{
@@ -719,6 +721,12 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
   consolePage("health", "console.health.title"),
   consolePage("invitations", "console.invCampaign.title"),
   consolePage("numbers", "console.numbers.title"),
+  consolePage("players", "console.players.title"),
+  {
+    name: "console-player",
+    path: (ids) => `/console/players/${ids.playerId}`,
+    ready: titled("console.player.ledger"),
+  },
   {
     name: "console-invitation",
     path: (ids) => `/console/invitations/${ids.campaignId}`,

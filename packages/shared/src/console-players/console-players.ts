@@ -158,3 +158,16 @@ export const revealedContactsSchema = z.strictObject({
   email: z.string().nullable(),
 });
 export type RevealedContacts = z.infer<typeof revealedContactsSchema>;
+
+/** What `POST /v1/admin/players/search` answers. */
+export const playerSearchAnswerSchema = z.strictObject({ players: playerSearchSchema });
+/** What `GET /v1/admin/players/:playerId/ledger` answers: a page and the cursor of the next, if any. */
+export const ledgerAnswerSchema = z.strictObject({
+  entries: ledgerPageSchema,
+  nextCursor: z.number().int().nullable(),
+});
+/** What `POST /v1/admin/players/:playerId/reset-sign-in` answers. */
+export const resetAnswerSchema = z.strictObject({
+  actionId: z.uuid(),
+  endedSignIns: z.number().int().min(0),
+});

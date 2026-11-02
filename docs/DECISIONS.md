@@ -6555,3 +6555,78 @@ entries of the last hour in live events (per event through `ledger_entry (event_
 No name, contact or text is in the answer. Measured at 300,000 players, 150,000 seated and 300,000 entries: 152 to 165 ms warm.
 **Trade-offs:** the player counts scan the player table, so the door grows with it (about 0.5 ms per 1,000 players); the 60
 a minute limit bounds the cost, and a cached count is the next step if the table passes a million.
+
+## ADR-419 - T-704 every admin action on a player is a `player_admin_action` row; the audit log keeps ids and codes only
+
+**Status:** Proposed (developer, T-704 build, 2026-11-02; plan D2). Migration 0118.
+**Decision:** a rename, a sign-in reset and a contact reveal each write one append-only `player_admin_action` row (player,
+admin, kind, reason code, the internal note of 10 to 300 characters, and for a rename both names) and one audit entry with
+ids and codes only (`player.admin_rename`, `player.reset_sign_in`, `console.player_contact_read`). Reads write an audit
+entry too (`console.players_search` with how, how many and the ids, never the text; `console.player_read`;
+`console.player_ledger_read`). The record shows the rows as "Questify actions" with the acting admin's email. Erasure
+deletes the player's rows under `app.erasure` (they hold notes and usernames); the audit log, which outlives erasure, never
+holds a contact, a username or free text about a player. Every action takes a reason code from a fixed list per action
+(`PLAYER_ACTION_REASONS`, checked by the API and again by `player_action_note`) and a note without control or direction
+characters.
+**Trade-offs:** two places record one action; the split is what lets erasure remove the personal part and keep the trail.
+
+## ADR-420 - T-704 an admin rename follows the players' own rules, retires the old name and tells the player
+
+**Status:** Proposed (developer, T-704 build, 2026-11-02; plan D3, D4). Migration 0118.
+**Decision:** `admin_rename_player` applies the players' characters, folding, uniqueness and word lists
+(`username_blocked`, `username_taken`), locks the player row as `rename_player` does (the two run one after the other), and
+is not bound by the player's change window nor uses it up: the history row is `admin`, and the window counts `rename` rows
+only, so the player may choose another name at once. The old name, folded, goes to `username_retired` (no player id,
+`ON CONFLICT DO NOTHING`); `username_blocked` refuses a retired name to everyone, the renamed player included, so an
+offensive name cannot come back. The player gets the personal notice `username_changed` with fixed text and no name or
+reason; it opens the notification center. An erased account cannot be renamed (404). Names are read live by the ranking
+reads, so boards show the new name at their next read.
+**Trade-offs:** a retired name stays out of use until T-705's word-list page un-retires it (Q-385).
+
+## ADR-421 - T-704 a sign-in reset only removes access, through a token cutoff on the player
+
+**Status:** Proposed (developer, T-704 build, 2026-11-02; plan D5 and D6 as restated after the plan review). Migration
+0118.
+**Decision:** `admin_reset_player_sign_in` locks the player `FOR NO KEY UPDATE` (never waits for a token insert's foreign-key
+check), deletes the player's open codes (sign-in by contact, contact change, deletion), revokes every refresh and access
+token in one UPDATE each, deletes the push devices with their queued sends, and last sets `player.tokens_valid_after =
+clock_timestamp()`. `player_session_owner` and `rotate_player_refresh` refuse a token created at or before the cutoff, so a
+sign-in or refresh that started before the reset is refused whichever commits first, and no token issuer takes a new lock
+(the plan review's deadlock). In the same transaction the API clears the `player_code_contact` and `player_fail_contact`
+throttles of the account's own contacts (keyed hashes only the server can compute); address and install throttles stay
+(Q-386). The admin never sees, sets or sends a code, a contact or a token; the way back in is a fresh code to a contact
+already on the account. T-705's ban reuses the cutoff.
+**Trade-offs:** a person who lost every contact on the account cannot be helped into it (Q-387); a reset also stops push
+until the player signs in again.
+
+## ADR-422 - T-704 player search and the contact reveal are POST reads outside the idempotency store
+
+**Status:** Proposed (developer, T-704 build, 2026-11-02; plan review MINOR). Migration 0118.
+**Decision:** `POST /v1/admin/players/search {by, q}` keeps the searched phone or email out of every URL and access log;
+contacts match exactly (no pattern, so no enumeration), usernames by a folded prefix of 3 or more characters, tombstones are
+never found, contacts come back masked. `POST /v1/admin/players/{id}/contact {reasonCode, note}` answers the full phone and
+email for a verified support or legal request only. Neither route is idempotent: the in-memory idempotency store would keep
+full contacts, and a replay would hand a contact out again without its own audit entry; each call is a fresh read with its
+own audit entry (and, for a reveal, its own action row). Limits per admin: 30 searches a minute, 120 record and ledger
+reads a minute, 20 reveals an hour, 30 renames and resets an hour.
+**Trade-offs:** a retried reveal is a second logged reveal; that is the point.
+
+## ADR-423 - Dhia's answers on T-704/T-705: no account merge, appeals to the sending address, no ban email
+
+**Status:** Accepted (Dhia, 2026-11-02).
+**Decision:** merging a phone account and an email account is dropped from v1 (the append-only ledger, history and frozen
+results cannot be moved, only compensated; the support answer is "delete the unwanted account, then add its contact to the
+kept one", as organizer merge, ADR-410). FR-1775's merge part is not built. A ban's appeal address is the sending address
+`MAIL_FROM`, kept as configuration data (`platform_setting` key `moderation`, T-705). A banned player gets no email; the app's
+ban screen shows the reason and the appeal address (T-705).
+**Trade-offs:** a person with two accounts keeps the points of one only.
+
+## ADR-424 - T-704, T-705 and T-705b are three builds of the player and safety tools
+
+**Status:** Proposed (developer, plan D1, 2026-11-02).
+**Decision:** T-704 (find a player, the read-only record, contact reveal, admin rename, sign-in reset; migration 0118), then
+T-705 (platform ban with the appeal address, block a player, word-list editor), then T-705b (content reports, the moderation
+queue, unpublish with `content_unpublished`, the platform flags list). Each delivers value alone; T-705 adds the ban panel to
+T-704's record and T-705b reuses T-704's rename and T-705's ban as queue actions. One mutation run after T-705 covers T-704
+and T-705 (ADR-355).
+**Trade-offs:** none beyond the order.

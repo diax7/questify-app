@@ -5,6 +5,12 @@ Raw ideas, dated, close to the user's words. Each entry is sorted into the right
 
 ---
 
+## 2026-11-02 — Answers on the T-704/T-705 player and safety plan → processed
+
+- Dhia, on the plan's three questions: merge accounts dropped; appeals go to the sending address (`MAIL_FROM`, kept as
+  configuration data); no ban email (the app shows the ban).
+- Processed: ADR-423 (Accepted by Dhia); the plan `docs/plans/2026-11-02-t-704-t-705-player-safety.md` (D7, D11, D12).
+
 ## 2026-10-30 — Less explanatory text, more icons (strict rule) → processed
 
 - Dhia, quoting the password help line ("At least 12 characters. A phrase you can remember works well; leave out Questify and your

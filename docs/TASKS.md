@@ -1347,10 +1347,11 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Note 2026-10-27 (T-406): the switches page offers `dailyChallenge` and `dailyWord` (ADR-312); the daily XP fields of
     `platform_setting` key `xp` (`dailyFinishXp` 0–400, `dailyRightXp` 0–200, `dailyWordXp` 0–1000) get their editor
     here or in T-709 with the same ranges, so no payout passes `daily_finish.xp`'s 1000.
-- [ ] **T-704** Player tools: find a player, read-only record, change username, reset sign-in, merge accounts — delivers FR 1774, 1775; depends on: T-004, T-109
+- [x] **T-704** Player tools: find a player, read-only record, change username, reset sign-in (merge accounts dropped, ADR-423) — delivers FR 1774, 1775 (rename and reset), 1702 (admin view); depends on: T-004, T-109
   - Note 2026-10-27 (T-407): the record shows the player's marketing consent from `GET /v1/admin/players/{playerId}/marketing-consent` (built, audited, channels and dates only, no contact).
   - Done when: Every look at a player's record is logged.
-- [ ] **T-705** Safety tools: reports, block player, unpublish content, platform ban with appeal email, word lists, report queue — delivers FR 1404, 1411, 1413, 1414, 1415, 1416, 1417, 1606, 1779; depends on: T-109
+- [ ] **T-705** Safety tools: platform ban with the appeal address, block a player, word lists (reports, the queue and unpublish split to T-705b, ADR-424) — delivers FR 1415, 1416, 1417, 1606, 1779; depends on: T-109, T-704
+  - Note 2026-11-02 (T-704): build from `docs/plans/2026-11-02-t-704-t-705-player-safety.md` section 4 as amended by the plan review: the multi-player ledger writers skip non-active players and lock the player `FOR SHARE` before the PB423 guard ships (review BLOCKER); the block mask covers the full name and the gate is a catalog test over function source plus a TypeScript allowlist (review MAJOR); the ban reuses T-704's `tokens_valid_after` cutoff (ADR-421) and adds `ban`/`lift_ban` to `player_admin_action.kind`; erasure clears `ban_action_id`; `DELETE /v1/me/blocks/:username` keeps the name out of the access log; un-retire for `username_retired` (Q-385). One mutation run after this task covers T-704 and T-705.
   - Note 2026-10-25 (T-402 plan): apply FR-1415's viewer block filter to the new public-profile definer and ranking entry points, not only photo-wall/content reads. T-402 excludes platform-banned/deleted targets already; per-player blocks remain this task's responsibility.
   - Note 2026-10-27 (T-408 plan): the Questify-wide ranking door `questify_ranking` (migration 0072) needs the same viewer block filter.
   - Note 2026-10-25 (T-312): Report a player tickets reach the event team only (Q-219); a report never blocks. FR-1411's moderation queue is this task's, apart from tickets.
@@ -1358,6 +1359,9 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Note 2026-10-25 (T-312 plan): T-312's Report a player ticket reaches the event team only (FR-1822); FR-1411's
     Questify half (the moderation queue) is built here, pending Q-219.
   - Note 2026-10-21 (T-109): the word lists live in `username_word` (letters only, folded; the table refuses anything else); the console edits them through definers and shows `username_history` to admins (FR-1702, FR-1779).
+- [ ] **T-705b** Reports and moderation: content reports, Questify's moderation queue, unpublish with `content_unpublished`, platform flags list (split from T-705, ADR-424) — delivers FR 1404, 1411, 1413, 1414; depends on: T-704, T-705
+  - Note 2026-11-02 (T-704 plan): build from section 5 of `docs/plans/2026-11-02-t-704-t-705-player-safety.md`; the queue's Change username action is T-704's `POST /v1/admin/players/{id}/username`.
+  - Done when: A reported username goes to the event team and a platform admin can unpublish content.
 - [ ] **T-706** Messaging tools: templates with CST rules, push to a group, campaigns, support contact details — delivers FR 1777, 1780, 1731; depends on: T-407
   - Note 2026-10-27 (T-407): a promotional send picks recipients through `marketing_audience` only, schedules SMS with `promoSendTime` (moved to the window's end, or refused with the reason), and cannot save a template without `optOutUrl`. Dhia answered Q-287: the quiet hours are for SMS only (`CHANNELS_WITH_WINDOW`); the "-AD" sender is Q-034.
   - Note 2026-10-27 (T-409 plan, ADR-331): `marketing_audience` is system-only over `promo_pool` (one consent rule);

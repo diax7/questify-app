@@ -9,6 +9,7 @@ import {
   ConsoleInvitationsLink,
   ConsoleNumbersLink,
   ConsoleOrganizersLink,
+  ConsolePlayersLink,
   ConsoleQuestifyLink,
   ConsoleReadinessLink,
   ConsoleSeasonsLink,
@@ -30,6 +31,7 @@ export function ConsoleNav({ language }: Readonly<{ language: Language }>) {
         {t("console.queue")}
       </NavItem>
       <ConsoleOrganizersLink language={language} current={on("/console/organizers")} />
+      <ConsolePlayersLink language={language} current={on("/console/players")} />
       <ConsoleTicketsLink language={language} current={on("/console/tickets")} />
       <ConsoleQuestifyLink language={language} current={on("/console/questify")} />
       <ConsoleContentLink language={language} current={on("/console/content")} />
