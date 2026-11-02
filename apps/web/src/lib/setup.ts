@@ -1,6 +1,5 @@
 import {
   MESSAGES,
-  NO_OVERRIDES,
   SETUP_STEPS,
   interpolate,
   isUsableOverride,
@@ -60,26 +59,6 @@ export function readSetup(body: unknown): SetupProgress | undefined {
   }
   const { currentStep, steps, finished } = read.data.setup;
   return { currentStep, steps, finished };
-}
-
-/** Keeps the texts of the translation store's answer that are plain text per key; anything else is dropped. */
-export function readOverrides(body: unknown): Overrides {
-  if (typeof body !== "object" || body === null) {
-    return NO_OVERRIDES;
-  }
-  const result: Record<Language, Record<string, string>> = { ar: {}, en: {} };
-  for (const language of ["ar", "en"] as const) {
-    const texts = (body as Record<string, unknown>)[language];
-    if (typeof texts !== "object" || texts === null) {
-      continue;
-    }
-    for (const [key, text] of Object.entries(texts)) {
-      if (typeof text === "string") {
-        result[language][key] = text;
-      }
-    }
-  }
-  return result;
 }
 
 /**

@@ -493,6 +493,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const activation = createActivation({ pool: options.pool, onAddonsChanged: settings.forget });
   const invitations = invitationDepsOf(options);
   const staffSessions = createSessions(options.pool);
+  const translations = options.translations ?? createTranslationService({ pool: options.pool });
   registerConsoleRoutes(app, {
     activation,
     settings,
@@ -502,6 +503,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     questify: { pool: options.pool },
     invitations,
     organizers: { pool: options.pool, keys: signInDeps.keys, suspended },
+    translations,
   });
   registerOrganizerRoutes(app, {
     pool: options.pool,
@@ -529,10 +531,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   startTicks(app, options, { settings, keys: signInDeps.keys, invitations });
   registerConfigRoutes(app, settings);
-  registerTranslationRoutes(
-    app,
-    options.translations ?? createTranslationService({ pool: options.pool }),
-  );
+  registerTranslationRoutes(app, translations);
 
   registerHealthRoutes(app, options);
   return app;

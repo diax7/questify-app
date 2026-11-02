@@ -191,8 +191,21 @@ export {
   NO_OVERRIDES,
   createTranslator,
   isUsableOverride,
+  readOverrides,
   validateTranslation,
 } from "./i18n/translate";
+export { isLockedText } from "./i18n/locked";
+export type { Matrix, MatrixQuery, MatrixRow, MatrixShow } from "./i18n/matrix";
+export {
+  MATRIX_MAX_LIMIT,
+  MATRIX_SHOWS,
+  buildMatrix,
+  matrixRow,
+  matrixRowSchema,
+  matrixSchema,
+  savedRowSchema,
+  shownText,
+} from "./i18n/matrix";
 export type {
   Acceptance,
   OrganizerDocument,

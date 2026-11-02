@@ -4,7 +4,13 @@ import { MESSAGES, NO_OVERRIDES, createTranslator, type Overrides } from "@quest
 import { withRequestContext } from "#src/db/context";
 import type { PublicAccount } from "#src/auth/staff-store";
 import { createTranslationService, type TranslationService } from "#src/translations/service";
-import { createStaff, startApp, type TestApp } from "#test/support/auth-app";
+import {
+  createStaff,
+  signInFully,
+  startApp,
+  withSession,
+  type TestApp,
+} from "#test/support/auth-app";
 import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
 
 describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
@@ -34,6 +40,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
 
   const owner = <T extends Record<string, unknown>>(sql: string, values: unknown[] = []) =>
     db.owner.query<T>(sql, values).then((result) => result.rows);
+
+  const entries = () =>
+    owner<{
+      actor_id: string;
+      action: string;
+      target_id: string;
+      before: unknown;
+      after: unknown;
+    }>(
+      `SELECT actor_id, action, target_id, before, after FROM audit_log
+       WHERE action = 'translation.update' ORDER BY id`,
+    );
 
   const getBundle = (headers: Record<string, string> = {}) =>
     test.app.inject({ method: "GET", url: "/v1/translations", headers });
@@ -75,7 +93,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
   describe("saving a text", () => {
     it("changes one language and leaves the other shipped", async () => {
       await reset();
-      expect(await service.save(admin, "nav.home", { en: "Start" })).toEqual({ ok: true });
+      expect(await service.save(admin, "nav.home", { en: "Start" })).toMatchObject({ ok: true });
       expect(await bundleOf()).toEqual({ ar: {}, en: { "nav.home": "Start" } });
     });
 
@@ -101,16 +119,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
     it("goes back to the shipped text for a language when it is saved blank (FR-1766)", async () => {
       await reset();
       await service.save(admin, "nav.home", { ar: "البداية", en: "Start" });
-      expect(await service.save(admin, "nav.home", { en: "   " })).toEqual({ ok: true });
+      expect(await service.save(admin, "nav.home", { en: "   " })).toMatchObject({ ok: true });
       expect(await bundleOf()).toEqual({ ar: { "nav.home": "البداية" }, en: {} });
-      expect(await service.save(admin, "nav.home", { ar: "" })).toEqual({ ok: true });
+      expect(await service.save(admin, "nav.home", { ar: "" })).toMatchObject({ ok: true });
       expect(await owner("SELECT 1 FROM translation")).toEqual([]);
       expect(await bundleOf()).toEqual({ ar: {}, en: {} });
     });
 
     it("blanking a language that was never changed does nothing", async () => {
       await reset();
-      expect(await service.save(admin, "nav.home", { en: "" })).toEqual({ ok: true });
+      expect(await service.save(admin, "nav.home", { en: "" })).toMatchObject({ ok: true });
       expect(await owner("SELECT 1 FROM translation")).toEqual([]);
     });
 
@@ -168,9 +186,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
       await reset();
       expect(
         await service.save(admin, "quests.pointsShort", { en: "{points} {currency}" }),
-      ).toEqual({
-        ok: true,
-      });
+      ).toMatchObject({ ok: true });
     });
 
     it("a key the app does not have", async () => {
@@ -321,6 +337,178 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
         ),
       ).rejects.toThrow(/permission denied/);
       await owner("DELETE FROM translation");
+    });
+
+    it("asks the database whether the account is still an active admin (T-702)", async () => {
+      await owner("DELETE FROM translation");
+      const retired = await createStaff(db.owner, { email: "retired@questify.test", admin: true });
+      await owner("UPDATE staff_user SET platform_role = 'none' WHERE id = $1", [retired]);
+      const asRetired = (sql: string) =>
+        withRequestContext(db.app, { isAdmin: true, staffUserId: retired }, () =>
+          db.app.query(sql),
+        );
+      await expect(
+        asRetired("INSERT INTO translation (key, en) VALUES ('nav.home', 'x')"),
+      ).rejects.toThrow(/row-level security/);
+      await owner("INSERT INTO translation (key, en) VALUES ('nav.home', 'x')");
+      expect((await asRetired("UPDATE translation SET en = 'hacked'")).rowCount).toBe(0);
+      expect((await asRetired("DELETE FROM translation")).rowCount).toBe(0);
+      expect(await owner<{ en: string }>("SELECT en FROM translation")).toEqual([{ en: "x" }]);
+      await owner("DELETE FROM translation");
+    });
+  });
+
+  describe("the console matrix (T-702)", () => {
+    let cookie: string;
+    const asAdmin = (method: "GET" | "PUT", url: string, payload?: unknown) =>
+      test.app.inject({
+        method,
+        url: `/v1/admin/translations${url}`,
+        headers: withSession(cookie),
+        ...(payload === undefined ? {} : { payload: payload as Record<string, unknown> }),
+      });
+
+    beforeAll(async () => {
+      cookie = await signInFully(test, "root@questify.test");
+    });
+
+    it("lists a searched key with its Arabic and English text (FR-1765)", async () => {
+      await reset();
+      const response = await asAdmin("GET", "?q=Skip%20to%20content");
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["cache-control"]).toBe("no-store");
+      const body = response.json<{ total: number; rows: { key: string; shipped: unknown }[] }>();
+      expect(body.rows.map((row) => row.key)).toEqual(["dashNav.skip"]);
+      expect(body.rows[0]?.shipped).toEqual(MESSAGES["dashNav.skip"]);
+    });
+
+    it("shows what was changed beside the shipped text, and filters to it", async () => {
+      await reset();
+      await owner("INSERT INTO translation (key, en) VALUES ('nav.home', 'Start')");
+      const response = await asAdmin("GET", "?show=changed");
+      const body = response.json<{ rows: { key: string; stored: unknown; shipped: unknown }[] }>();
+      expect(body.rows).toEqual([
+        expect.objectContaining({
+          key: "nav.home",
+          stored: { ar: null, en: "Start" },
+          shipped: MESSAGES["nav.home"],
+        }),
+      ]);
+    });
+
+    it("pages and narrows by area, and refuses a query it does not know", async () => {
+      const page = await asAdmin("GET", "?area=nav&limit=3&offset=2");
+      const body = page.json<{ total: number; rows: unknown[]; areas: { area: string }[] }>();
+      expect(body.rows).toHaveLength(3);
+      expect(body.total).toBeGreaterThan(3);
+      expect(body.areas.some((entry) => entry.area === "nav")).toBe(true);
+      for (const query of [
+        "?limit=0",
+        "?limit=101",
+        "?show=everything",
+        "?area=Bad.Area",
+        "?x=1",
+      ]) {
+        expect((await asAdmin("GET", query)).statusCode, query).toBe(400);
+      }
+    });
+
+    it("saves an edit, returns the row, shows it in the bundle and audits who, key, before and after", async () => {
+      await reset();
+      const before = (await entries()).length;
+      const saved = await asAdmin("PUT", "/nav.home", { en: "Start", ar: "البداية" });
+      expect(saved.statusCode).toBe(200);
+      expect(saved.json<{ row: { stored: unknown } }>().row.stored).toEqual({
+        ar: "البداية",
+        en: "Start",
+      });
+      expect(await bundleOf()).toEqual({
+        ar: { "nav.home": "البداية" },
+        en: { "nav.home": "Start" },
+      });
+      const made = (await entries()).slice(before);
+      expect(made).toEqual([
+        {
+          actor_id: admin.id,
+          action: "translation.update",
+          target_id: "nav.home",
+          before: { ar: null, en: null },
+          after: { ar: "البداية", en: "Start" },
+        },
+      ]);
+    });
+
+    it("reverts to the shipped text with a blank value, and audits the way back", async () => {
+      const before = (await entries()).length;
+      const reverted = await asAdmin("PUT", "/nav.home", { ar: "", en: "" });
+      expect(reverted.statusCode).toBe(200);
+      expect(reverted.json<{ row: { stored: unknown } }>().row.stored).toEqual({
+        ar: null,
+        en: null,
+      });
+      expect(await bundleOf()).toEqual({ ar: {}, en: {} });
+      expect((await entries()).slice(before).map((entry) => entry.after)).toEqual([
+        { ar: null, en: null },
+      ]);
+    });
+
+    it("refuses a text without its placeholder, naming it, and a key the app does not have", async () => {
+      await reset();
+      const lost = await asAdmin("PUT", "/quests.pointsShort", { en: "You have {points}" });
+      expect(lost.statusCode).toBe(422);
+      expect(lost.json<{ code: string; details: { issues: unknown } }>()).toMatchObject({
+        code: "invalid_translation",
+        details: { issues: [{ path: "en", message: "is missing {currency}" }] },
+      });
+      expect((await asAdmin("PUT", "/nope.key", { en: "x" })).statusCode).toBe(422);
+      expect(await owner("SELECT 1 FROM translation")).toEqual([]);
+    });
+
+    it("keeps legal and consent wording read-only and ignores a stored copy of it", async () => {
+      await reset();
+      const locked = await asAdmin("PUT", "/signIn.consentBody", { en: "Anything" });
+      expect(locked.statusCode).toBe(422);
+      expect(locked.json<{ code: string }>().code).toBe("text_locked");
+      expect(await owner("SELECT 1 FROM translation")).toEqual([]);
+      await owner("INSERT INTO translation (key, en) VALUES ('signIn.consentBody', 'Sneaked in')");
+      expect(await bundleOf()).toEqual({ ar: {}, en: {} });
+      const row = (await asAdmin("GET", "?q=signIn.consentBody")).json<{
+        rows: { locked: boolean }[];
+      }>().rows[0];
+      expect(row?.locked).toBe(true);
+    });
+
+    it("lists a stored text the app ignores as stale, so it can be reverted", async () => {
+      await reset();
+      await owner(
+        "INSERT INTO translation (key, en) VALUES ('quests.pointsShort', 'You have gems')",
+      );
+      const row = (await asAdmin("GET", "?q=quests.pointsShort")).json<{
+        rows: { stale: unknown }[];
+      }>().rows[0];
+      expect(row?.stale).toEqual({ ar: false, en: true });
+      expect(await bundleOf()).toEqual({ ar: {}, en: {} });
+      expect((await asAdmin("PUT", "/quests.pointsShort", { en: "" })).statusCode).toBe(200);
+      expect(await owner("SELECT 1 FROM translation")).toEqual([]);
+    });
+
+    it("answers a signed-in person who is not a platform admin 404, and a signed-out one 401", async () => {
+      const other = await signInFully(test, "editor@najd.test");
+      for (const [method, url] of [
+        ["GET", "/v1/admin/translations"],
+        ["PUT", "/v1/admin/translations/nav.home"],
+      ] as const) {
+        const response = await test.app.inject({
+          method,
+          url,
+          headers: withSession(other),
+          ...(method === "PUT" ? { payload: { en: "x" } } : {}),
+        });
+        expect(response.statusCode, url).toBe(404);
+      }
+      const outsider = await test.app.inject({ method: "GET", url: "/v1/admin/translations" });
+      expect(outsider.statusCode).toBe(401);
+      expect(await owner("SELECT 1 FROM translation")).toEqual([]);
     });
   });
 });

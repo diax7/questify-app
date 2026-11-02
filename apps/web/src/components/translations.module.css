@@ -1,0 +1,176 @@
+/* The console's text matrix (T-702): a row per key with the English and Arabic text side by side, opening into an editor.
+   Logical properties only, so the page mirrors in Arabic; the texts themselves keep the direction of their language. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md) var(--space-lg);
+  align-items: end;
+}
+
+.search {
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+}
+
+.area {
+  flex: 0 1 16rem;
+  min-inline-size: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: var(--space-sm) var(--space-lg);
+  align-items: start;
+  padding-block: var(--space-md);
+  border-block-end: var(--line);
+}
+
+.row[data-editing="true"] {
+  background: color-mix(in srgb, var(--color-secondary-action) 8%, var(--color-surface));
+  padding-inline: var(--space-md);
+}
+
+@media (max-width: 62rem) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .key {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .tools {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .cell,
+  .editor {
+    grid-column: 1 / -1;
+  }
+}
+
+.key {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  align-items: flex-start;
+  min-inline-size: 0;
+}
+
+.keyName {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-inline-size: 0;
+}
+
+.tag {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  align-items: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.note {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.tools {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+}
+
+.editor {
+  display: grid;
+  grid-column: span 2;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-md) var(--space-lg);
+}
+
+@media (max-width: 62rem) {
+  .editor {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.editorTools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+  grid-column: 1 / -1;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.chip {
+  display: inline-flex;
+  gap: var(--space-xs);
+  align-items: center;
+  min-block-size: 32px;
+  padding-inline: var(--space-sm);
+  font: inherit;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: var(--line);
+  border-radius: var(--radius-pill);
+  direction: ltr;
+}
+
+button.chip {
+  cursor: pointer;
+}
+
+.chip[data-state="present"] {
+  border-color: color-mix(in srgb, var(--color-primary-action) 60%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary-action) 14%, var(--color-surface));
+}
+
+.chip[data-state="missing"],
+.chip[data-state="extra"] {
+  border-color: var(--color-hot);
+  background: var(--color-danger-surface);
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  align-items: center;
+  justify-content: space-between;
+}

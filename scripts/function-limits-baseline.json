@@ -7,7 +7,7 @@
   "apps/api/src/app.ts": {
     "buildApp": {
       "complexity": [9],
-      "lines": [223]
+      "lines": [222]
     }
   },
   "apps/api/src/audience/rules.ts": {
@@ -341,7 +341,7 @@
   },
   "apps/api/src/translations/service.ts": {
     "save": {
-      "complexity": [11]
+      "complexity": [9]
     }
   },
   "apps/app/app/account.tsx": {

@@ -12,7 +12,6 @@ import {
   DEFAULT_TERMS,
   MESSAGES,
   NO_EVENT_TEXTS,
-  NO_OVERRIDES,
   createTranslator,
   type EventTerms,
   type EventTexts,
@@ -31,6 +30,7 @@ import {
   saveLanguage,
   saveRestartNote,
 } from "#src/i18n/preference.ts";
+import { useOverrides } from "#src/i18n/useOverrides.ts";
 import { withEventWords, withWords, type Translate } from "#src/i18n/words.ts";
 
 type I18n = Readonly<{
@@ -99,11 +99,12 @@ export function I18nProvider({
     await restartApp();
   }, []);
 
+  const overrides = useOverrides();
   const value = useMemo<I18n | null>(() => {
     if (language === null) {
       return null;
     }
-    const translate = createTranslator(MESSAGES, NO_OVERRIDES);
+    const translate = createTranslator(MESSAGES, overrides);
     // Outside an event the quest and category words are Questify's own (FR-942); `TermsScope` swaps in an event's.
     return {
       language,
@@ -111,7 +112,7 @@ export function I18nProvider({
       t: withWords((key, params) => translate(key, language, params), DEFAULT_TERMS, language),
       switchLanguage,
     };
-  }, [language, switchLanguage]);
+  }, [language, overrides, switchLanguage]);
 
   if (value === null) {
     return null;

@@ -6,6 +6,7 @@ import {
   NO_OVERRIDES,
   createTranslator,
   isUsableOverride,
+  readOverrides,
   validateTranslation,
   type Overrides,
 } from "./translate";
@@ -228,5 +229,18 @@ describe("a placeholder rule that lets some placeholders go", () => {
     expect(isUsableOverride(messages, "greet.player", "en", text, rule)).toBe(true);
     expect(isUsableOverride(messages, "greet.player", "en", text)).toBe(false);
     expect(isUsableOverride(messages, "greet.player", "en", " ", rule)).toBe(false);
+  });
+});
+
+describe("reading the store's answer", () => {
+  it("keeps only plain-text values per language", () => {
+    expect(readOverrides({ ar: { a: "x", b: 4 }, en: "no" })).toEqual({ ar: { a: "x" }, en: {} });
+  });
+
+  it("reads nothing from an answer of another shape", () => {
+    expect(readOverrides(undefined)).toEqual(NO_OVERRIDES);
+    expect(readOverrides(null)).toEqual(NO_OVERRIDES);
+    expect(readOverrides("text")).toEqual(NO_OVERRIDES);
+    expect(readOverrides({ ar: null, en: [] })).toEqual(NO_OVERRIDES);
   });
 });

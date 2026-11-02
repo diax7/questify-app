@@ -142,6 +142,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); read only; counts per organizer (events, players, invitations sent, alert emails), no personal data; the admin checked again in usage_organizers (test/db/usage, src/usage/routes.test)",
   "GET /v1/admin/usage/organizers/:organizerId":
     "active platform admins only (walked below); read only; counts per event of one organizer, no personal data; the admin checked again in usage_events, any unknown organizer the same 404 (test/db/usage, src/usage/routes.test)",
+  "GET /v1/admin/translations":
+    "active platform admins only (walked below); read only; the shipped texts and what was changed, no personal data (test/translations)",
+  "PUT /v1/admin/translations/:key":
+    "active platform admins only (walked below); one key of the platform-wide store, legal and consent wording refused; the policy checks the admin again (app_admin_id) and the change is audited with who, key, before and after (test/translations)",
   "GET /v1/admin/readiness":
     "active platform admins only (walked below); read only; up to 100 events starting within 14 days with their organizer and checklist counts, no personal data; the admin checked again in readiness_soon (RD404) (test/db/event-readiness, test/readiness/routes)",
   "GET /v1/questify/ranking":

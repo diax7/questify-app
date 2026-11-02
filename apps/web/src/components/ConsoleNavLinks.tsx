@@ -106,6 +106,19 @@ export function ConsoleSeasonsLink({
   );
 }
 
+/** This page's item in the console's navigation. */
+export function ConsoleTranslationsLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/translations`} icon="globe" current={current}>
+      {t("console.translations.title")}
+    </NavItem>
+  );
+}
+
 /** This page's item in the console's navigation, with the number of requests waiting. */
 export function ConsoleInvitationsLink({
   language,
