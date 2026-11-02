@@ -5645,7 +5645,12 @@ Migrations, public images and `apps/api/src/home` run the layout check only, whi
 while the repository is public) and by hand. (5) `scripts/ci-scope.test.ts` fails when a browser spec is named by no area, so a
 new spec cannot be left out of a scoped run, and it covers each rule above. (6) The security floor is unchanged on every push:
 secret scan, lint, limits ratchet, format, types, all unit, database, access and outsider tests (`ci:changed`), the API build,
-the dependency audit; only the browser step is scoped.
+the dependency audit; only the browser step is scoped. (7) Amended 2026-11-02 (developer, delegated by Dhia; the repository is public,
+so minutes are free): the browser run is its own job, `browser`, after a `scope` job that runs `ci-scope.mjs`, in two Playwright
+shards (`--shard=1/2` is the desktop project, `2/2` the phone project, 177 tests each) on separate runners with their own
+PostgreSQL and Redis, next to `checks`; a shard with nothing to run passes, and each failed shard keeps its own trace artifact.
+The whole suite then takes about 14 minutes instead of 32 (one job: checks 10.5, browser 20.7). Nothing is dropped; the `web`
+output of the script is no longer read by the workflow (every web change also needs the browser run, so `e2e` covers it).
 **Why:** the whole suite is 16 of the job's 30 minutes and grows by about a minute with each feature; a change to one panel
 cannot reach most specs, and the daily run still sees every spec on the same code.
 **Trade-offs:** a break outside the chosen areas shows on the next daily run (up to a day later) instead of the push, so the

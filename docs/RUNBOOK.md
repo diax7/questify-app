@@ -14,7 +14,7 @@
   offenders without failing; `node scripts/function-limits.mjs --update` then rewrites the baseline, only downward
   (it refuses while anything grew). Commit the baseline with the change. A renamed offender counts as new.
 - `pnpm ci:full`: `ci:changed` plus the dependency audit, and, for the browser side, the whole suite after a web build
-  (`pnpm --filter @questify/web e2e`, about 16 minutes, below). `full.yml` runs the same on GitHub, daily and by hand. The
+  (`pnpm --filter @questify/web e2e`, about 21 minutes on a CI runner, below). `full.yml` runs the same on GitHub, daily and by hand. The
   mutation check is not run here (ADR-174): it runs only on GitHub, see below.
 - Integration tests need a throw-away PostgreSQL: `docker compose up -d`, then set
   `TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`. Without it they are skipped, and
@@ -22,21 +22,33 @@
 - "too many clients" or "remaining connection slots" in a local full run: every integration file opens its own pool.
   `compose.yaml` starts PostgreSQL with 300 connections; a container made before that keeps 100 until
   `docker exec questifyapp-postgres-1 psql -U postgres -c "ALTER SYSTEM SET max_connections = 300"` and a restart.
-- CI (`.github/workflows/ci.yml`, on a push to `main` and on a ready pull request): one job, a PostgreSQL 17 service,
-  secret scan, `ci:changed`, the API build, `pnpm audit` (the security floor, always); then, only when
-  `scripts/ci-scope.mjs` says the change needs them, the web build and the browser tests (web app, shared package,
-  lockfile, workflow, API source or migrations; a unit-test file alone starts nothing). The browser step runs the layout
-  check plus the specs of the changed area (the `AREAS` table in the script, 4 to 9 minutes), and the whole suite when
-  shared code changed: the interface kit, layouts, global CSS, Next, Playwright or package files, e2e helpers that many
-  specs import, the API's root files and its auth, database, audit, settings, completion and translation code, an edited
-  line in `app.ts`, `http-errors.ts` or the shared `index.ts`, a file or text no area names, more than 20 specs' worth
-  of areas, or an unknown base. The step log says which and why. A new browser spec must be named in `AREAS`
-  (`scripts/ci-scope.test.ts` fails otherwise). `full.yml` runs everything, including every browser spec, daily at
-  01:17 UTC on `main` (about 900 minutes a month, free while the repository is public) and by hand.
+- CI (`.github/workflows/ci.yml`, on a push to `main` and on a ready pull request; drafts are skipped). Three jobs, the
+  last two chained and both next to the first:
+  - `checks` (12 to 15 minutes, cap 25): PostgreSQL 17 and Redis services, secret scan, install, `ci:changed`, the API
+    build, `pnpm audit` (the security floor, always).
+  - `scope` (about 0.5 minutes): `scripts/ci-scope.mjs` reads the changed files and says whether the change needs the
+    browser tests and which specs (web app, shared package, lockfile, workflow, API source or migrations; a unit-test file
+    alone starts nothing, and then `browser` is skipped).
+  - `browser` (a matrix of 2 shards, cap 30, each on its own runner with its own PostgreSQL and Redis): install, web build,
+    then `playwright test --shard=N/2` over the specs `scope` chose. The shards run in parallel and next to `checks`, so
+    a run that needs the whole suite takes about 14 minutes (scope 0.5, setup 1, one shard 11 to 12, step cap 22; one job
+    took 32), and `checks` is then the longer job; a scoped run takes as long as `checks`. Playwright cuts the (project, file) groups into halves by test
+    count, so shard 1 is the desktop project and shard 2 the phone project (177 tests each). A shard with nothing to run
+    passes. A failed shard keeps its traces as the artifact `e2e-results-1` or `e2e-results-2`; `fail-fast` is off, so
+    both shards report. These times are estimates from the old single-job runs: read the first sharded runs
+    (`gh run view`) and tighten the caps.
+  The browser run is the layout check plus the specs of the changed area (the `AREAS` table in the script, 2 to 5 minutes a
+  shard), and the whole suite when shared code changed: the interface kit, layouts, global CSS, Next, Playwright or package
+  files, e2e helpers that many specs import, the API's root files and its auth, database, audit, settings, completion and
+  translation code, an edited line in `app.ts`, `http-errors.ts` or the shared `index.ts`, a file or text no area names,
+  more than 20 specs' worth of areas, or an unknown base. The `scope` log says which and why. A new browser spec must be
+  named in `AREAS` (`scripts/ci-scope.test.ts` fails otherwise). `full.yml` runs everything, including every browser spec
+  (one job, no shards), daily at 01:17 UTC on `main` (about 900 minutes a month, free while the repository is public) and by
+  hand.
 - Browser tests locally (web app): `pnpm --filter @questify/web build`, then
   `pnpm --filter @questify/web e2e` with `TEST_DATABASE_URL` set (first time: `pnpm --filter @questify/web exec
   playwright install chromium`). Run the specs of your area before merging a web, shared or API change, and the whole suite when `ci-scope` says
-  `all`; the whole suite is part of `ci:full` and takes about 16 minutes (230 specs, one worker; the CI step is capped at 22). `E2E_API_LOG=1` prints the API's
+  `all`; the whole suite is part of `ci:full` and takes about 21 minutes on a CI runner, more on the PC (354 tests, one worker; CI splits it into two shards of 11 to 12). `E2E_API_LOG=1` prints the API's
   unexpected errors during a browser run; `--reporter=list` shows each spec's time.
 - Heavy checks run on GitHub, started by hand (ADR-149; free while the repository is public): push the branch, then
   `gh workflow run full.yml --ref <branch>` (every test, both builds, the audit and all browser tests, about 30

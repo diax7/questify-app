@@ -1,9 +1,16 @@
 name: CI
 
-# One job, the cheapest checks first. Drafts are skipped. Roughly 3 minutes per run; when the web app or the API
-# changes, the web build and the browser tests (scoped by scripts/ci-scope.mjs, ADR-372) add about 7 to 12 minutes: the
-# layout check plus the specs of the changed area, or the whole suite when shared code changed. The whole suite also
-# runs every day and by hand in full.yml.
+# Three jobs, drafts skipped. `checks` runs the cheapest gates first (secret scan, lint, format, types, every unit,
+# database, access and outsider test, the API build, the dependency audit) and takes 12 to 15 minutes. `scope` reads the
+# changed files in half a minute and says which browser specs the change needs (scripts/ci-scope.mjs, ADR-372). `browser`
+# starts when `scope` is done and runs next to `checks`: the web build, then those specs in two parallel shards, each on its
+# own runner with its own PostgreSQL and Redis. A run that needs the whole suite finishes in about 14 minutes (scope 0.5,
+# setup 1, one shard 11 to 12; `checks` is the longer of the two), where one job took 32 (full.yml run 41407806475: checks
+# 10.5, browser suite 20.7). A run with no browser work finishes with `checks`.
+# Playwright cuts the (project, file) groups into contiguous halves by test count. The desktop and phone projects run the
+# same 177 tests, so shard 1 is the desktop project and shard 2 the phone project (checked with `playwright test --list`).
+# A scoped run also splits that way, and a shard that has nothing to run passes (--pass-with-no-tests). The whole suite
+# also runs every day and by hand in full.yml (one job, no shards).
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -21,8 +28,9 @@ jobs:
   checks:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-24.04
-    # Tests and checks take about 11 minutes and the whole browser suite about 28 (see its step), plus the audit and builds.
-    timeout-minutes: 52
+    # Install, secret scan and the API build take about 1 minute, the tests and checks 10 to 13 (runs 41407806475,
+    # 41403118247), the audit 1: 12 to 15 in all; 25 leaves room for a slow runner.
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
@@ -82,66 +90,126 @@ jobs:
       - name: Dependency audit
         run: pnpm audit
 
-      - name: Which heavier checks this change needs
+  scope:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-24.04
+    # Checkout with history, Node and one script: about half a minute.
+    timeout-minutes: 5
+    outputs:
+      e2e: ${{ steps.scope.outputs.e2e }}
+      specs: ${{ steps.scope.outputs.specs }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Which browser specs this change needs
         id: scope
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: node scripts/ci-scope.mjs "$BASE" >> "$GITHUB_OUTPUT"
 
+  browser:
+    needs: scope
+    if: needs.scope.outputs.e2e == 'true'
+    runs-on: ubuntu-24.04
+    # Per shard: install, web build and the test browser take about 1 minute with warm caches (run 41407806475: 3, 12
+    # and 3 seconds), then the specs. The whole suite is 354 tests (177 a project) and took 20.7 to 22.1 minutes on one
+    # 4-core runner (runs 41407806475, 41403118247), so a shard is expected at 11 to 12 minutes, the desktop shard a little
+    # over the phone shard (the layout check took 1.7 minutes on desktop and 1.4 on the phone). The step limit is 22, about
+    # twice that, and the job limit adds a cold-cache setup. These are estimates for the sharded runs: read the first ones
+    # and tighten both. A scoped run is the layout check plus about 17 seconds a spec, split in two: 2 to 5 minutes.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --shm-size 1g
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+      TEST_REDIS_URL: redis://127.0.0.1:6379
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The caches carry the shard in their key so the two jobs never try to save the same key at once.
       - name: Cache the web build
-        if: steps.scope.outputs.web == 'true' || steps.scope.outputs.e2e == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: apps/web/.next/cache
-          key: next-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/web/src/**', 'packages/shared/src/**') }}
-          restore-keys: next-${{ hashFiles('pnpm-lock.yaml') }}-
+          key: next-s${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/web/src/**', 'packages/shared/src/**') }}
+          restore-keys: next-s${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
       - name: Web build
-        if: steps.scope.outputs.web == 'true' || steps.scope.outputs.e2e == 'true'
+        timeout-minutes: 10
         run: pnpm --filter @questify/web build
-        env:
-          NEXT_TELEMETRY_DISABLED: "1"
 
       - name: Cache the test browser
-        if: steps.scope.outputs.e2e == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ hashFiles('pnpm-lock.yaml') }}
+          key: playwright-chromium-s${{ matrix.shard }}-${{ hashFiles('pnpm-lock.yaml') }}
 
-      - name: Browser tests (the layout check and the specs of the changed area; all of them when shared code changed)
-        if: steps.scope.outputs.e2e == 'true'
+      - name: Browser tests (shard ${{ matrix.shard }} of 2)
         # The runner image already has Chromium's libraries; --with-deps only added fonts and xvfb through apt,
         # which a throttled mirror stretched to 11 minutes (runs 40012088097, 40014730879).
-        # 171 specs ran 8.0 minutes on 2026-10-27 (run 40502683226) and hit the old 8-minute limit; the step took 10.4 minutes
-        # on 2026-10-30 (run 40979237093). T-599b's layout check then grew to 5.7 minutes of its own (fixed waits for state
-        # colours and the network) and run 40993429874 was cancelled at 12. It now waits by event and takes 3.1 minutes
-        # (desktop 1.7, phone 1.4). All 230 specs, 1 worker, CI=1, took 16.4 minutes on the developer PC (T-599c); the runner
-        # took 0.7 to 0.9 times the PC's time, so the step is expected at 12 to 15 minutes. It took 15.3 (run 41033545542);
-        # T-307b's 4 finale runs add about 1.2, so 22 leaves room for the whole suite, which now runs here only when
-        # scripts/ci-scope.mjs finds shared code or more than 20 specs' worth of areas changed; a scoped run is the layout
-        # check (3.4 minutes) plus about 17 seconds a spec, so 4 to 9 minutes. By 2026-11-01 the whole suite was 306 specs:
-        # run 41298649253 timed out at 22 minutes after 240 (no failure), so about 28; 36 leaves room until it is sharded
-        # (docs/FOLLOWUPS.md).
-        timeout-minutes: 36
+        timeout-minutes: 22
         run: |
           set -euo pipefail
           pnpm --filter @questify/web exec playwright install chromium
           if [ "$SPECS" = "all" ]; then
-            pnpm --filter @questify/web e2e
-          else
-            # shellcheck disable=SC2086 # the list is spec paths from scripts/ci-scope.mjs, split on purpose
-            pnpm --filter @questify/web e2e $SPECS
+            SPECS=""
           fi
+          # shellcheck disable=SC2086 # the list is spec paths from scripts/ci-scope.mjs, split on purpose
+          pnpm --filter @questify/web e2e --shard="$SHARD" --pass-with-no-tests $SPECS
         env:
-          NEXT_TELEMETRY_DISABLED: "1"
-          SPECS: ${{ steps.scope.outputs.specs }}
+          SHARD: ${{ matrix.shard }}/2
+          SPECS: ${{ needs.scope.outputs.specs }}
 
       - name: Keep the browser test traces on failure
-        if: failure() && steps.scope.outputs.e2e == 'true'
+        if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: e2e-results
+          name: e2e-results-${{ matrix.shard }}
           path: apps/web/.e2e/results
           retention-days: 5
           include-hidden-files: true
