@@ -24,6 +24,12 @@ export const renamePath = (playerId: string): string => `${playerPath(playerId)}
 export const resetPath = (playerId: string): string => `${playerPath(playerId)}/reset-sign-in`;
 export const banPath = (playerId: string): string => `${playerPath(playerId)}/ban`;
 export const liftBanPath = (playerId: string): string => `${playerPath(playerId)}/lift-ban`;
+/** Revoke or restore achievement tiers (T-709c). */
+export const tierPath = (playerId: string, action: "revoke" | "restore"): string =>
+  `${playerPath(playerId)}/achievement-tiers/${action}`;
+/** One earned tier as a key: the achievement and the tier. */
+export const tierKey = (tier: Readonly<{ id: string; tier: string }>): string =>
+  `${tier.id}:${tier.tier}`;
 
 /** One page of the points record: all events or one, after the last id of the page before. */
 export function ledgerPath(

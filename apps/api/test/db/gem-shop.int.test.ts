@@ -49,7 +49,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("gems: the shop (database)", ()
     f.owner(
       `INSERT INTO platform_setting (key, value) VALUES ('gems', $1)
        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-      [JSON.stringify(value)],
+      [JSON.stringify({ levelUp: 20, bronze: 10, silver: 25, gold: 50, ...value })],
     );
   const sync = (player: string) => f.asPlayer(player, "SELECT questify_sync()");
   /** A player at level 2 with `levelUp` + 10 gems (the level and the first event's bronze tier). */

@@ -6,8 +6,8 @@ const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
 const NOTE = "Ticket 5512 from the help desk";
 
 /**
- * The console's player tools (T-704), desktop and phone, English and Arabic: find a player by username, open the
- * read-only record, and the three actions that each need a reason and one confirmation.
+ * The console's player tools (T-704, T-705, T-709c), desktop and phone, English and Arabic: find a player by username,
+ * open the read-only record, and the actions that each need a reason and one confirmation.
  */
 
 /** Signs in as a new organizer made a platform admin, and enrolls one new player in its event; the player's name. */
@@ -54,11 +54,16 @@ test("in English an admin finds a player, reads the record, changes the name and
 }, info) => {
   test.setTimeout(150_000);
   const username = await adminWithPlayer(page, info.project.name);
+  const earned = await page.request.post(`${CONTROL}/earned-tier`, {
+    data: { username, achievementId: "events-attended", tier: "bronze" },
+  });
+  expect(earned.status()).toBe(204);
   await openRecord(page, "en", username);
   for (const heading of [
     "Profile",
     "Contacts",
     "Events",
+    "Achievements",
     "Flags",
     "Points record",
     "Questify actions",
@@ -85,11 +90,25 @@ test("in English an admin finds a player, reads the record, changes the name and
   await expect(page.getByText(/^Signed out on \d+ devices\.$/)).toBeVisible();
   await expect(page.getByText("Sign-in reset")).toBeVisible();
 
+  await expect(page.getByRole("region", { name: "Revoke tiers" })).toHaveCount(0);
   await act(page, "Ban account", "Ban account", "Cheating");
   await expect(page.getByText("Account banned.")).toBeVisible();
   await expect(page.getByRole("region", { name: "Lift ban" })).toBeVisible();
+  const revoke = page.getByRole("region", { name: "Revoke tiers" });
+  await expect(revoke.getByText("Paid gems stay with the player.")).toBeVisible();
+  await revoke.getByRole("checkbox", { name: "Wanderer · Bronze" }).check();
+  await act(page, "Revoke tiers", "Revoke tiers", "Cheating");
+  await expect(page.getByText("Tiers revoked.")).toBeVisible();
+  await expect(page.getByTestId("player-tier")).toHaveAttribute("data-revoked", "true");
   await act(page, "Lift ban", "Lift ban", "Banned by mistake");
   await expect(page.getByText("Ban lifted.")).toBeVisible();
+  await page
+    .getByRole("region", { name: "Restore tiers" })
+    .getByRole("checkbox", { name: "Wanderer · Bronze" })
+    .check();
+  await act(page, "Restore tiers", "Restore tiers", "Banned by mistake");
+  await expect(page.getByText("Tiers restored.")).toBeVisible();
+  await expect(page.getByTestId("player-tier")).toHaveAttribute("data-revoked", "false");
   await expect(page.getByRole("region", { name: "Ban account" })).toBeVisible();
   await expectNoSidewaysScroll(page);
 });

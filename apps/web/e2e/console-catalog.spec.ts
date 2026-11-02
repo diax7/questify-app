@@ -5,8 +5,8 @@ import { CONTROL_PORT } from "#e2e/paths.ts";
 const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
 
 /**
- * The console's catalog editors (T-709b, FR-1403), desktop and phone, English and Arabic: event templates, achievements,
- * level titles and the gem shop. The database is shared by the runs, so each project edits its own rows and every test
+ * The console's catalog editors (T-709b, T-709c, FR-1403), desktop and phone, English and Arabic: event templates,
+ * achievements, level titles, the gem shop and the amounts. The database is shared by the runs, so each project edits its own rows and every test
  * leaves them as shipped (it reverts what it saved, which also proves the revert).
  */
 const OWN = {
@@ -82,7 +82,7 @@ test("in English a template is edited in place, saved, and reverted, and the car
   await expectNoSidewaysScroll(page);
 });
 
-test("in Arabic the catalog reads right to left and an achievement's name is edited while its thresholds are only shown", async ({
+test("in Arabic the catalog reads right to left; an achievement's name and thresholds are edited, and a lowering asks first", async ({
   page,
 }, info) => {
   test.setTimeout(120_000);
@@ -99,19 +99,61 @@ test("in Arabic the catalog reads right to left and an achievement's name is edi
   const shown = await tiers.innerText();
   expect(shown).toContain("برونزية");
   await card.getByRole("button", { name: `تعديل ${own.ar}` }).click();
-  await expect(card.getByLabel("برونزية")).toHaveCount(0);
-  await expect(tiers).toHaveText(shown);
+  const gold = card.getByLabel("ذهبية");
+  const storedGold = Number(await gold.inputValue());
+  const bronze = card.getByLabel("برونزية");
+  const storedBronze = await bronze.inputValue();
+  await bronze.fill(String(storedGold));
+  await expect(card.getByRole("button", { name: "حفظ" })).toBeDisabled();
+  await bronze.fill(storedBronze);
   const name = card.getByLabel("الاسم · العربية");
   await name.fill("");
   await expect(card.getByRole("button", { name: "حفظ" })).toBeDisabled();
   await name.fill(`${own.ar} جدًا`);
+  await gold.fill(String(storedGold + 1));
   await card.getByRole("button", { name: "حفظ" }).click();
   await expect(page.getByText("حُفظ التغيير.")).toBeVisible();
   await expect(card.getByTestId("cell-ar").getByText(`${own.ar} جدًا`)).toBeVisible();
+  await expect(tiers).toContainText(String(storedGold + 1));
+  // Going back lowers gold again, so it asks once and names the gems before it pays.
   await card.getByRole("button", { name: `التراجع عن آخر تغيير في ${own.ar} جدًا` }).click();
+  const ask = card.getByRole("alert");
+  await expect(ask.getByText(`منح جواهر مقابل ${own.ar} جدًا؟`)).toBeVisible();
+  await expect(ask.getByText("التراجع عن هذا التغيير لا يسترد الجواهر.")).toBeVisible();
+  await ask.getByRole("button", { name: "خفض ومنح الجواهر" }).click();
   await expect(page.getByText("عدنا إلى ما قبل التغيير.")).toBeVisible();
   await expect(card.getByTestId("cell-ar").getByText(own.ar, { exact: true })).toBeVisible();
   await expect(tiers).toHaveText(shown);
+  await expectNoSidewaysScroll(page);
+});
+
+test("the amounts are two equal cards; a save names each changed amount once and is reverted", async ({
+  page,
+}, info) => {
+  // One document for the whole platform: only the desktop run edits it, so two runs never cross.
+  test.skip(info.project.name === "phone", "the amounts are one shared document");
+  test.setTimeout(120_000);
+  await asAdmin(page, info.project.name);
+  await page.goto("/en/console/catalog");
+  await page.getByRole("button", { name: "Amounts" }).click();
+  const cards = page.getByTestId("amounts-card");
+  await expect(cards).toHaveCount(2);
+  const levelUp = page.getByLabel("Level up");
+  const stored = Number(await levelUp.inputValue());
+  await levelUp.fill("1001");
+  await expect(page.getByRole("button", { name: "Save" })).toBeDisabled();
+  await levelUp.fill(String(stored + 1));
+  await page.getByRole("button", { name: "Save" }).click();
+  const ask = page.getByRole("alert");
+  await expect(
+    ask.getByText(`From now on: Level up ${stored} → ${stored + 1} gems.`),
+  ).toBeVisible();
+  await ask.getByRole("button", { name: "Save amounts" }).click();
+  await expect(page.getByText("Change saved.")).toBeVisible();
+  await expect(page.getByLabel("Level up")).toHaveValue(String(stored + 1));
+  await page.getByRole("button", { name: "Go back on the last change to Amounts" }).click();
+  await expect(page.getByText("Went back to the earlier version.")).toBeVisible();
+  await expect(page.getByLabel("Level up")).toHaveValue(String(stored));
   await expectNoSidewaysScroll(page);
 });
 

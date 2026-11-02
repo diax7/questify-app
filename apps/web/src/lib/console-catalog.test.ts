@@ -1,7 +1,21 @@
-import type { AchievementAdmin, GemShopItemAdmin, TemplateAdmin } from "@questify/shared";
+import {
+  GEM_AMOUNTS,
+  MESSAGES,
+  XP_AMOUNTS,
+  type AchievementAdmin,
+  type AmountsAdmin,
+  type GemShopItemAdmin,
+  type TemplateAdmin,
+} from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import {
   achievementDraftOf,
+  amountChanges,
+  amountLabel,
+  amountsDraftOf,
+  checkAmounts,
+  loweredGemsOf,
+  readAmounts,
   byLevel,
   checkAchievement,
   checkLevelTitles,
@@ -155,17 +169,42 @@ describe("a template draft", () => {
 });
 
 describe("an achievement draft", () => {
-  it("holds the name only, so a save can never carry a threshold", () => {
+  it("holds the name and the three thresholds, and is dirty when either changes", () => {
     const draft = achievementDraftOf(achievement);
-    expect(Object.keys(draft)).toEqual(["name"]);
+    expect(draft).toEqual({ name: achievement.name, bronze: "10", silver: "50", gold: "200" });
     expect(isAchievementDirty(achievement, draft)).toBe(false);
-    expect(checkAchievement(draft)).toEqual({ ok: true, doc: { name: achievement.name } });
-    expect(isAchievementDirty(achievement, { name: { ar: "صائد", en: "Quest Hunter" } })).toBe(
-      true,
-    );
+    expect(checkAchievement(draft)).toEqual({
+      ok: true,
+      doc: { name: achievement.name, bronze: 10, silver: 50, gold: 200 },
+    });
     expect(
-      isAchievementDirty(achievement, { name: { ar: "صائد المهام ", en: " Quest Hunter" } }),
+      isAchievementDirty(achievement, { ...draft, name: { ar: "صائد", en: "Quest Hunter" } }),
+    ).toBe(true);
+    expect(
+      isAchievementDirty(achievement, {
+        ...draft,
+        name: { ar: "صائد المهام ", en: " Quest Hunter" },
+      }),
     ).toBe(false);
+    expect(isAchievementDirty(achievement, { ...draft, silver: "40" })).toBe(true);
+    expect(isAchievementDirty(achievement, { ...draft, gold: " 200 " })).toBe(false);
+  });
+
+  it("refuses thresholds that are not whole, in range and rising", () => {
+    const draft = achievementDraftOf(achievement);
+    for (const tiers of [
+      { bronze: "50" },
+      { silver: "300" },
+      { bronze: "0" },
+      { gold: "100001" },
+      { bronze: "1.5" },
+      { bronze: "" },
+      { gold: "1e3" },
+    ]) {
+      expect(checkAchievement({ ...draft, ...tiers }).ok, JSON.stringify(tiers)).toBe(false);
+    }
+    const falling = checkAchievement({ ...draft, bronze: "60" });
+    expect(!falling.ok && falling.fields.has("thresholds")).toBe(true);
   });
 
   it("refuses a blank, unsafe or swapped-language name", () => {
@@ -181,6 +220,58 @@ describe("an achievement draft", () => {
       const checked = checkAchievement({ ...draft, name });
       expect(!checked.ok && checked.fields.has(field), JSON.stringify(name)).toBe(true);
     }
+  });
+
+  it("reads the gems of a lowering only from a confirmation_required answer", () => {
+    expect(
+      loweredGemsOf({ code: "confirmation_required", details: { gems: { bronze: 10 } } }),
+    ).toEqual({ bronze: 10 });
+    expect(loweredGemsOf({ code: "stale", details: { gems: { bronze: 10 } } })).toBeUndefined();
+    expect(loweredGemsOf({ code: "confirmation_required", details: {} })).toBeUndefined();
+    expect(loweredGemsOf(undefined)).toBeUndefined();
+  });
+});
+
+describe("an amounts draft", () => {
+  const row: AmountsAdmin = {
+    xp: { questXp: 100, dailyFinishXp: 20, dailyRightXp: 10, dailyWordXp: 50 },
+    gems: { levelUp: 20, bronze: 10, silver: 25, gold: 50 },
+    stored: { xp: true, gems: false },
+    revertible: false,
+  };
+
+  it("checks every amount in its range and lists what a save changes, XP first", () => {
+    const draft = amountsDraftOf(row);
+    const same = checkAmounts(draft);
+    expect(same).toEqual({ ok: true, doc: { xp: row.xp, gems: row.gems } });
+    expect(same.ok && amountChanges(row, same.doc)).toEqual([]);
+    const edited = checkAmounts({
+      xp: { ...draft.xp, dailyWordXp: "0" },
+      gems: { ...draft.gems, levelUp: "30" },
+    });
+    expect(edited.ok && amountChanges(row, edited.doc)).toEqual([
+      { group: "xp", field: "dailyWordXp", from: 50, to: 0 },
+      { group: "gems", field: "levelUp", from: 20, to: 30 },
+    ]);
+    for (const [group, field, value] of [
+      ["gems", "gold", "0"],
+      ["gems", "gold", "1001"],
+      ["xp", "dailyRightXp", "201"],
+      ["xp", "questXp", "1.5"],
+    ] as const) {
+      const bad = checkAmounts({ ...draft, [group]: { ...draft[group], [field]: value } });
+      expect(!bad.ok && bad.fields.has(`${group}.${field}`), `${field} ${value}`).toBe(true);
+    }
+  });
+
+  it("has words for every amount", () => {
+    for (const field of XP_AMOUNTS)
+      expect(Object.hasOwn(MESSAGES, amountLabel("xp", field))).toBe(true);
+    for (const field of GEM_AMOUNTS) {
+      expect(Object.hasOwn(MESSAGES, amountLabel("gems", field))).toBe(true);
+    }
+    expect(readAmounts(row)).toEqual(row);
+    expect(readAmounts({ ...row, extra: 1 })).toBeUndefined();
   });
 });
 

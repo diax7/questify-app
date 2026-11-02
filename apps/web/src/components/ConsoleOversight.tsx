@@ -27,12 +27,19 @@ export const reasonReady = (reason: string): boolean => {
 export function useWrite(language: Language, onDone: (done: string) => void) {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const run = async (work: () => Promise<PostResult>, done: string): Promise<boolean> => {
+  /** `handled` takes a refusal the caller answers itself (a confirmation to ask), so no problem is shown for it. */
+  const run = async (
+    work: () => Promise<PostResult>,
+    done: string,
+    handled: (result: PostResult) => boolean = () => false,
+  ): Promise<boolean> => {
     setBusy(true);
     const result = await work();
     setBusy(false);
     setProblem(
-      result.ok ? null : describeProblem(result.body, language, translatorFor(language)).text,
+      result.ok || handled(result)
+        ? null
+        : describeProblem(result.body, language, translatorFor(language)).text,
     );
     if (result.ok) {
       onDone(done);

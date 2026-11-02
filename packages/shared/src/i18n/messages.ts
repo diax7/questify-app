@@ -8772,6 +8772,44 @@ export const MESSAGES = {
   "console.catalog.tab.achievements": { ar: "الإنجازات", en: "Achievements" },
   "console.catalog.tab.levels": { ar: "ألقاب المستويات", en: "Level titles" },
   "console.catalog.tab.shop": { ar: "متجر الجواهر", en: "Gem shop" },
+  "console.catalog.tab.amounts": { ar: "المقادير", en: "Amounts" },
+  "console.catalog.amounts.intro": {
+    ar: "ما تمنحه Questify من نقاط الخبرة والجواهر. يسري التغيير من لحظة الحفظ، حتى على المستويات والدرجات التي لم تُدفع جواهرها بعد. ما مُنح سابقًا لا يتغير.",
+    en: "The XP and gems Questify pays. A change applies from the save on, including levels and tiers whose gems are not paid yet. Nothing already paid changes.",
+  },
+  "console.catalog.amounts.xp": { ar: "نقاط الخبرة", en: "XP" },
+  "console.catalog.amounts.gems": { ar: "الجواهر", en: "Gems" },
+  "console.catalog.amounts.xp.questXp": { ar: "كل مهمة", en: "Each quest" },
+  "console.catalog.amounts.xp.dailyFinishXp": {
+    ar: "إنهاء التحدي اليومي",
+    en: "Daily challenge finished",
+  },
+  "console.catalog.amounts.xp.dailyRightXp": { ar: "كل إجابة صحيحة", en: "Each right answer" },
+  "console.catalog.amounts.xp.dailyWordXp": { ar: "حل كلمة اليوم", en: "Word of the day solved" },
+  "console.catalog.amounts.gems.levelUp": { ar: "بلوغ مستوى", en: "Level up" },
+  "console.catalog.amounts.gems.bronze": { ar: "الدرجة البرونزية", en: "Bronze tier" },
+  "console.catalog.amounts.gems.silver": { ar: "الدرجة الفضية", en: "Silver tier" },
+  "console.catalog.amounts.gems.gold": { ar: "الدرجة الذهبية", en: "Gold tier" },
+  "console.catalog.amounts.confirm": { ar: "حفظ المقادير الجديدة؟", en: "Save the new amounts?" },
+  "console.catalog.amounts.line.xp": {
+    ar: "من الآن: {name} من {old} إلى {new} نقطة خبرة.",
+    en: "From now on: {name} {old} → {new} XP.",
+  },
+  "console.catalog.amounts.line.gems": {
+    ar: "من الآن: {name} من {old} إلى {new} جوهرة.",
+    en: "From now on: {name} {old} → {new} gems.",
+  },
+  "console.catalog.amounts.apply": { ar: "حفظ المقادير", en: "Save amounts" },
+  "console.catalog.lower.title": { ar: "منح جواهر مقابل {name}؟", en: "Pay gems for {name}?" },
+  "console.catalog.lower.line": {
+    ar: "اللاعبون الذين يبلغون الدرجة {tier} الآن يحصلون على {gems} جوهرة عند مزامنتهم القادمة.",
+    en: "Players who now reach {tier} get {gems} gems at their next sync.",
+  },
+  "console.catalog.lower.undo": {
+    ar: "التراجع عن هذا التغيير لا يسترد الجواهر.",
+    en: "Undoing this does not take them back.",
+  },
+  "console.catalog.lower.pay": { ar: "خفض ومنح الجواهر", en: "Lower and pay" },
   "console.catalog.loadFailed": {
     ar: "تعذّر تحميل هذا القسم.",
     en: "We could not load this section.",
@@ -8822,8 +8860,8 @@ export const MESSAGES = {
     en: "This setup can't be saved:",
   },
   "console.catalog.achievements.info": {
-    ar: "يمكن هنا تعديل الأسماء فقط. أرقام الدرجات للعرض: خفض أي رقم يمنح جواهر لكل لاعب يبلغ الدرجة عند فتحه التطبيق في المرة القادمة، والتراجع عن التغيير لا يسترد تلك الجواهر. تعديل الأرقام يأتي لاحقًا مع تأكيد.",
-    en: "Only the names are edited here. The tier numbers are shown, not edited: lowering one pays gems to every player who then reaches the tier, the next time they open the app, and going back does not take those gems away. Editing them comes later, with a confirmation.",
+    ar: "خفض رقم أي درجة يمنح جواهر لكل لاعب يبلغها عند مزامنته القادمة، والتراجع لا يسترد تلك الجواهر.",
+    en: "Lowering a tier's number pays gems to every player who then reaches it, at their next sync. Going back does not take those gems away.",
   },
   "console.catalog.achievements.metric.events": {
     ar: "فعاليات حضرها اللاعب",
@@ -8893,6 +8931,32 @@ export const MESSAGES = {
   "console.player.reason.mistake": { ar: "حظر بالخطأ", en: "Banned by mistake" },
   "console.player.action.ban": { ar: "حظر الحساب", en: "Account banned" },
   "console.player.action.liftBan": { ar: "رفع الحظر", en: "Ban lifted" },
+  "console.player.action.revokeTiers": { ar: "سحب درجات إنجاز", en: "Tiers revoked" },
+  "console.player.action.restoreTiers": { ar: "إعادة درجات إنجاز", en: "Tiers restored" },
+  "console.player.achievements": { ar: "الإنجازات", en: "Achievements" },
+  "console.player.achievements.none": { ar: "لا إنجازات بعد", en: "No achievements yet" },
+  "console.player.achievements.revoked": { ar: "مسحوبة", en: "Revoked" },
+  "console.player.tiers.pick": { ar: "الدرجات", en: "Tiers" },
+  "console.player.tiers.revoke": { ar: "سحب الدرجات", en: "Revoke tiers" },
+  "console.player.tiers.revoke.intro": {
+    ar: "تُخفى الدرجات المختارة ولا تُدفع جواهرها المعلّقة. الجواهر المدفوعة تبقى مع اللاعب.",
+    en: "The chosen tiers are hidden and their unpaid gems are not paid. Paid gems stay with the player.",
+  },
+  "console.player.tiers.revoke.confirm": {
+    ar: "سحب {count} من درجات {name}؟ الجواهر المدفوعة تبقى مع اللاعب.",
+    en: "Revoke {count} tiers of {name}? Paid gems stay with the player.",
+  },
+  "console.player.tiers.revoke.done": { ar: "سُحبت الدرجات.", en: "Tiers revoked." },
+  "console.player.tiers.restore": { ar: "إعادة الدرجات", en: "Restore tiers" },
+  "console.player.tiers.restore.intro": {
+    ar: "تظهر الدرجات من جديد، وتُدفع جواهرها المعلّقة عند مزامنة اللاعب القادمة.",
+    en: "The tiers show again, and their unpaid gems are paid at the player's next sync.",
+  },
+  "console.player.tiers.restore.confirm": {
+    ar: "إعادة {count} من درجات {name}؟",
+    en: "Restore {count} tiers of {name}?",
+  },
+  "console.player.tiers.restore.done": { ar: "أُعيدت الدرجات.", en: "Tiers restored." },
   "console.wordLists.title": { ar: "قوائم الكلمات", en: "Word lists" },
   "console.wordLists.intro": {
     ar: "كلمات لا تُقبل في أسماء المستخدم، وتُعلَّم في نصوص اللاعبين. أي تغيير يسري فورًا ولا يغيّر الأسماء الحالية.",

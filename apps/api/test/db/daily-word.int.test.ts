@@ -278,14 +278,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily word (database)", ()
     for (const folded of ["أ", "إ", "آ", "ٱ", "ـ"]) expect(DAILY_LETTERS.ar).not.toContain(folded);
   });
 
-  it("pays at most 1000 XP for a solved word at the field's maximum, and falls back above it (MAJOR-3)", async () => {
+  it("pays at most 1000 XP for a solved word at the field's maximum, and refuses more on write (MAJOR-3)", async () => {
     const word = fresh("en");
     const { ids } = await wordToday({ en: word });
     await f.xpSetting({ dailyWordXp: 1000 });
     try {
       const top = await f.newPlayer();
       expect((await guess(top, ids.en ?? 0, 1, word)).finished?.xp).toBe(1000);
-      await f.xpSetting({ dailyWordXp: 1001 });
+      await expect(f.xpSetting({ dailyWordXp: 1001 })).rejects.toMatchObject({ code: "23514" });
+      await f.owner("UPDATE platform_setting SET value = value - 'dailyWordXp' WHERE key = 'xp'");
       const fallback = await f.newPlayer();
       expect((await guess(fallback, ids.en ?? 0, 1, word)).finished?.xp).toBe(50);
     } finally {

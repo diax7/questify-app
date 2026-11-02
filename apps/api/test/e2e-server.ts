@@ -280,6 +280,9 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         eventId?: string;
         status?: string;
         usernames?: string[];
+        username?: string;
+        achievementId?: string;
+        tier?: string;
         points?: number[];
         flagged?: string[];
         email?: string;
@@ -681,6 +684,24 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
           .then(() => {
             response.writeHead(200, { "content-type": "application/json" });
             response.end(JSON.stringify({ token }));
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /earned-tier: the player with this username has earned this achievement tier, its gems not paid yet (the
+      // console's tier revoke, T-709c).
+      if (request.url === "/earned-tier") {
+        db.owner
+          .query(
+            `WITH who AS (SELECT id FROM player WHERE username = $1),
+             xp AS (INSERT INTO player_xp (player_id) SELECT id FROM who ON CONFLICT DO NOTHING)
+             INSERT INTO achievement_earned (player_id, achievement_id, tier) SELECT id, $2, $3 FROM who`,
+            [body.username, body.achievementId, body.tier],
+          )
+          .then((result) => {
+            response.writeHead(result.rowCount === 1 ? 204 : 404).end();
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));

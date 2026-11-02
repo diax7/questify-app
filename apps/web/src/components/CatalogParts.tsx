@@ -6,7 +6,7 @@ import { Problem, keyed, useWrite } from "#src/components/ConsoleOversight.tsx";
 import styles from "#src/components/catalog.module.css";
 import { revertPath, rowPath, type Pair } from "#src/lib/console-catalog.ts";
 import { directionOf, translatorFor } from "#src/lib/language.ts";
-import { requestJson } from "#src/lib/post-json.ts";
+import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { useConsoleRead, type ConsoleRead } from "#src/lib/use-console-read.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
@@ -22,10 +22,15 @@ export type Catalog<Rows> = Readonly<{
   busy: boolean;
   problem: string | null;
   notice: string | null;
-  /** Saves `doc` at `id` (empty for a single document) and reloads the list when the API accepted it. */
-  save: (id: string, doc: unknown) => Promise<boolean>;
-  revert: (id: string) => Promise<boolean>;
+  /**
+   * Saves `doc` at `id` (empty for a single document) and reloads the list when the API accepted it. `handled` takes a
+   * refusal the tab answers itself (an achievement lowering's confirmation).
+   */
+  save: (id: string, doc: unknown, handled?: Handled) => Promise<boolean>;
+  revert: (id: string, body?: object, handled?: Handled) => Promise<boolean>;
 }>;
+
+type Handled = (result: PostResult) => boolean;
 
 /**
  * One catalog tab's data: the list read from `base`, and its writes. A save or a revert answers with the row, but the
@@ -50,12 +55,17 @@ export function useCatalog<Rows>(
     busy: write.busy,
     problem: write.problem,
     notice,
-    save: (id, doc) =>
-      write.run(() => requestJson("PUT", target(id), doc, keyed()), t("console.catalog.saved")),
-    revert: (id) =>
+    save: (id, doc, handled) =>
       write.run(
-        () => requestJson("POST", revertPath(target(id)), {}, keyed()),
+        () => requestJson("PUT", target(id), doc, keyed()),
+        t("console.catalog.saved"),
+        handled,
+      ),
+    revert: (id, body = {}, handled = undefined) =>
+      write.run(
+        () => requestJson("POST", revertPath(target(id)), body, keyed()),
         t("console.catalog.reverted"),
+        handled,
       ),
   };
 }

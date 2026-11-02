@@ -8,6 +8,7 @@ import {
   isUsableActionNote,
   type Language,
   type PlayerActionKind,
+  type PlayerTier,
   type RevealedContacts,
 } from "@questify/shared";
 import { useState, type ReactNode } from "react";
@@ -21,11 +22,13 @@ import {
   readRevealed,
   renamePath,
   resetPath,
+  tierKey,
+  tierPath,
 } from "#src/lib/console-players.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { Notice } from "#src/ui/Feedback.tsx";
-import { Field, Input, Select, Textarea } from "#src/ui/Field.tsx";
+import { Checkbox, Field, FieldGroup, Input, Select, Textarea } from "#src/ui/Field.tsx";
 import { FactList, Section, Stack } from "#src/ui/Section.tsx";
 
 type Reason = Readonly<{ reasonCode: string; note: string }>;
@@ -71,6 +74,12 @@ function ReasonFields({
 }
 
 const EMPTY: Reason = { reasonCode: "", note: "" };
+/** The actions that take nothing away: their button is not drawn as a danger. */
+const GENTLE: ReadonlySet<PlayerActionKind> = new Set([
+  "contact_reveal",
+  "lift_ban",
+  "restore_tiers",
+]);
 const ready = (reason: Reason): boolean =>
   reason.reasonCode !== "" && isUsableActionNote(reason.note);
 const sent = (reason: Reason) => ({ reasonCode: reason.reasonCode, note: reason.note.trim() });
@@ -112,7 +121,7 @@ function ActionPanel({
           language={language}
           label={label}
           question={question}
-          variant={kind === "contact_reveal" || kind === "lift_ban" ? "secondary" : "danger"}
+          variant={GENTLE.has(kind) ? "secondary" : "danger"}
           disabled={busy || !ready(reason) || !extraReady}
           act={() =>
             void run(async () => {
@@ -260,6 +269,77 @@ export function BanPanel({
       send={(reason) => requestJson("POST", banPath(playerId), reason, keyed())}
       onDone={() => onChanged(t("console.player.ban.done"))}
     />
+  );
+}
+
+/**
+ * Revokes earned tiers of a banned player, or restores revoked ones (T-709c, ADR-439): the tiers ticked, a reason and a
+ * note, one confirmation. Paid gems stay with the player; a restored tier's unpaid gems are paid at their next sync.
+ * Revoke shows only while the player is banned; Restore whenever a tier is revoked.
+ */
+export function TiersPanel({
+  language,
+  playerId,
+  username,
+  tiers,
+  action,
+  onChanged,
+}: Readonly<{
+  language: Language;
+  playerId: string;
+  username: string;
+  tiers: readonly PlayerTier[];
+  action: "revoke" | "restore";
+  onChanged: (done: string) => void;
+}>) {
+  const t = translatorFor(language);
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const shown = tiers.filter((tier) => tier.revoked === (action === "restore"));
+  const chosen = shown.filter((tier) => picked.has(tierKey(tier)));
+  return (
+    <ActionPanel
+      language={language}
+      kind={action === "revoke" ? "revoke_tiers" : "restore_tiers"}
+      title={t(`console.player.tiers.${action}`)}
+      intro={t(`console.player.tiers.${action}.intro`)}
+      label={t(`console.player.tiers.${action}`)}
+      question={t(`console.player.tiers.${action}.confirm`, {
+        count: formatNumber(chosen.length, language),
+        name: `@${username}`,
+      })}
+      extraReady={chosen.length > 0}
+      send={(reason) =>
+        requestJson(
+          "POST",
+          tierPath(playerId, action),
+          { ...reason, tiers: chosen.map((tier) => ({ achievementId: tier.id, tier: tier.tier })) },
+          keyed(),
+        )
+      }
+      onDone={() => {
+        setPicked(new Set());
+        onChanged(t(`console.player.tiers.${action}.done`));
+      }}
+    >
+      <FieldGroup legend={t("console.player.tiers.pick")}>
+        {shown.map((tier) => (
+          <Checkbox
+            key={tierKey(tier)}
+            label={`${tier.name[language]} · ${t(`console.catalog.achievements.${tier.tier}`)}`}
+            checked={picked.has(tierKey(tier))}
+            onChange={(changed) => {
+              const next = new Set(picked);
+              if (changed.target.checked) {
+                next.add(tierKey(tier));
+              } else {
+                next.delete(tierKey(tier));
+              }
+              setPicked(next);
+            }}
+          />
+        ))}
+      </FieldGroup>
+    </ActionPanel>
   );
 }
 

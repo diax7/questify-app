@@ -44,6 +44,28 @@
   app render test for `eventOff` was dropped (the app has no render-test harness, and a harness is not worth adding for
   one line).
 
+## T-709c thresholds, amounts and tier revoke — 2026-11-02
+
+- **T-709c part 1 built (tier A; migration 0122, new and undeployed; ADR-436 to ADR-439 and Q-398 Proposed; plan review
+  score 86, its six fixes applied; T-709d split out with a re-plan note).** **Achievement thresholds** (FR-1403): the
+  Achievements tab edits the name and bronze, silver and gold (whole, 1 to 100,000, rising); a save or revert that lowers a
+  tier answers 409 `confirmation_required` with the gems each lowered tier pays now, and the card asks once ("Pay gems
+  for {name}?", undoing does not take them back) before it sends `confirmed`; the door locks the row FOR NO KEY UPDATE
+  (never waits on a sync, tested both orders); paid once at the next sync, a revert keeps earned tiers and gems.
+  **Amounts** tab: XP (quest, daily finish, each right answer, solved word) and gems (level up, bronze, silver, gold) in
+  two equal cards, one confirmation naming each changed amount; CHECKs on `platform_setting` `xp` and `gems`; the generic
+  settings writer is narrowed to `features` and `tuning` (USING and WITH CHECK); the door inserts a missing row then locks
+  both rows in key order (no table lock). **Tier revoke** on the player record: an Achievements section with a Revoked mark,
+  Revoke tiers (banned only) and Restore tiers panels with a reason and note; `achievement_revocation` is append-only;
+  a revoked tier is hidden, shows no next tier, is never earned again or paid while revoked; paid gems stay (Q-398).
+  **Tests:** `test/db/console-catalog-xp` (44), the HTTP catalog and safety suites, security suites (outsider,
+  cross-tenant, routes), shared and web unit tests; the four suites that stored out-of-range amounts now assert the CHECK.
+  Full vitest once: 11229 passed, 12 failed (gem-shop's fixture wrote a partial `gems` row; two web lists missed the new
+  keys), all three fixed and re-run green. Browser, one worker after a fresh build: layout, console-catalog,
+  console-players: 13 passed, 1 skipped (amounts on phone, one shared document). Lint, format, types, function limits
+  clean. CI minutes: 0. Agent tokens: about 1M (estimate).
+  **Next:** the T-709c code review (tier A, strongest model), then T-709d's re-plan and plan review.
+
 ## T-705b reports and moderation — 2026-11-02
 
 - **T-705b built (tier A; not run on a phone; migration 0121, new and undeployed; ADR-433 to ADR-435 and Q-395 to Q-397 Proposed).** **Reports** (FR-1411, FR-1413): `POST /v1/reports` through `report_content` (an active player, only what they can see in an event they are an active member of, or an active player's username; one open report per reporter and target; 10 an hour and 30 a day counted in the database; the snapshot keeps what was reported; a username reported from an event's ranking also opens the team's `report_player` ticket when the help desk is on). Report in the app on the quest sheet, each reward, the full announcements list, agenda sessions, the sponsor page, the event's info page and profiles (ranking rows now open a profile with their event). **Console Reports** (FR-1404): grouped by target, oldest first, "Over 24 hours" marked; a target's page shows each snapshot beside the content now; Unpublish / Publish again for quests, rewards and announcements; links to the player's record (rename, ban) and the event (suspend); Close with the outcome or Dismiss. **Unpublish** (FR-1414): `content_hold` (team reads its own through a policy); a held quest stays hidden (HD423 → 423 `content_held`), a held reward leaves the shop, goal, desk, reserve door and pushes, a held announcement leaves the list, the center and pending pushes and a scheduled one is skipped `held`; `content_unpublished` alerts (FR-1727 now complete); audit with the event. **Console Flags**: open flags per event, read-only. Erasure and the 180-day purge of handled reports (lifecycle tick). The dashboard shows Questify's notice on held quests, rewards and announcements.

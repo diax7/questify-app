@@ -6848,14 +6848,17 @@ never removes an earned tier or a gem entry. The console's confirmation names th
 **Decision:** `admin_amounts_save` writes `platform_setting` `xp` (quest 1 to 99,999; daily finish 0 to 400, each right
 answer 0 to 200, solved word 0 to 1000) and `gems` (level up, bronze, silver, gold, 1 to 1000), with CHECKs on both keys.
 A change applies from the save on, including levels and tiers reached but not yet paid. The table's write policies are
-narrowed to `features` and `tuning` and ask `app_admin_id()`, so `xp`, `gems` and `moderation` change only through doors.
+narrowed (USING and WITH CHECK) to `features` and `tuning` and ask `app_admin_id()`, so `xp`, `gems` and `moderation`
+change only through doors. The door creates a missing row with `INSERT … ON CONFLICT DO NOTHING` and locks the two rows in
+key order; no table lock.
 **Trade-offs:** `moderation.appealEmail` now needs a door (T-703) rather than the generic settings writer.
 
 ## ADR-439 - T-709c revoking a banned player's tiers is an append-only mark; paid gems stay
 
 **Status:** Proposed (developer, 2026-11-02; T-709c plan D3).
 **Decision:** `achievement_revocation` rows (`revoke` or `restore`, with a `player_admin_action`) mark a tier; the earned row
-and gem entries are never touched. A revoked tier is hidden from the player's achievements and profile, is never earned again
+and gem entries are never touched. Reason codes: revoke `cheating`, `prize_fraud`, `abuse`, `other`; restore
+`appeal_upheld`, `mistake`, `other`. An achievement with a revoked tier shows no next tier. A revoked tier is hidden from the player's achievements and profile, is never earned again
 and is not paid while revoked; restoring pays any unpaid gems at the next sync. Only a banned player's tiers can be revoked;
 restore needs no ban. Reasoned, confirmed, audited with ids only.
 **Trade-offs:** gems already paid for a revoked tier stay in the balance (Q-398); a banned player cannot spend them.
@@ -6870,6 +6873,10 @@ sync (or next XP), which gives the level item and the level-up gems once; a lowe
 players, levels and gems. `xp_apply` sets the level in its own statement so a queued award never uses the old curve.
 **Trade-offs:** XP, gem and item writers and sign-ups wait for the length of a save (measured, Q-401); rewards of a lowering
 arrive at the next sync, not at the save (Q-399).
+**Re-plan (plan review 2026-11-02):** the EXCLUSIVE table lock is withdrawn: the API's `lock_timeout` 2 s and
+`statement_timeout` 5 s make every queued scan fail. The door writes only `xp_level` and `level_item`; each player's level
+is corrected under their own `player_xp` row lock (`xp_apply` already recomputes it) and by the sync's catch-up; no
+DEFERRABLE UNIQUE, no stale-curve guard. T-709d re-plans and gets a plan review before build.
 
 ## ADR-441 - T-709d the console edits Questify's items: names always, art while unowned and not on sale
 

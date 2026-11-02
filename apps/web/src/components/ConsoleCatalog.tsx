@@ -3,6 +3,7 @@
 import type { Language, MessageKey } from "@questify/shared";
 import { useState } from "react";
 import { CatalogAchievements } from "#src/components/CatalogAchievements.tsx";
+import { CatalogAmounts } from "#src/components/CatalogAmounts.tsx";
 import { CatalogGemShop } from "#src/components/CatalogGemShop.tsx";
 import { CatalogLevelTitles } from "#src/components/CatalogLevelTitles.tsx";
 import { CatalogTemplates } from "#src/components/CatalogTemplates.tsx";
@@ -18,6 +19,7 @@ const TIPS = {
   achievements: "console.catalog.achievements.info",
   levels: "console.catalog.levels.intro",
   shop: "console.catalog.shop.intro",
+  amounts: "console.catalog.amounts.intro",
 } as const satisfies Record<CatalogTab, MessageKey>;
 
 function Panel({ tab, language }: Readonly<{ tab: CatalogTab; language: Language }>) {
@@ -28,13 +30,16 @@ function Panel({ tab, language }: Readonly<{ tab: CatalogTab; language: Language
       return <CatalogAchievements language={language} />;
     case "levels":
       return <CatalogLevelTitles language={language} />;
+    case "amounts":
+      return <CatalogAmounts language={language} />;
     default:
       return <CatalogGemShop language={language} />;
   }
 }
 
 /**
- * The console's catalog (T-709b, FR-1403): event templates, achievements, level titles and the gem shop, one tab each.
+ * The console's catalog (T-709b, T-709c, FR-1403): event templates, achievements, level titles, the gem shop and the XP
+ * and gem amounts, one tab each.
  * Platform admins only. Every change is audited with who, before and after, and can be reverted.
  */
 export function ConsoleCatalog({ language }: Readonly<{ language: Language }>) {

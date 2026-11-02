@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  AMOUNT_RANGES,
+  GEM_AMOUNTS,
   TEMPLATE_BODY_MAX_BYTES,
+  XP_AMOUNTS,
+  achievementBeforeSchema,
   achievementDocSchema,
+  amountsDocSchema,
+  loweredGemsSchema,
   templateDocSchema,
 } from "#src/catalog/catalog";
 import { arabicText, englishText } from "#src/text/bilingual";
@@ -70,15 +76,82 @@ describe("template body size", () => {
 });
 
 describe("achievement edit document", () => {
-  it("holds the name and nothing else, so a threshold cannot ride along", () => {
-    const name = { ar: "صائد المهام", en: "Quest Hunter" };
-    expect(achievementDocSchema.safeParse({ name }).success).toBe(true);
-    for (const extra of [{ bronze: 5 }, { bronze: 1, silver: 2, gold: 3 }, { threshold: 1 }]) {
+  const name = { ar: "صائد المهام", en: "Quest Hunter" };
+
+  it("holds the name and three whole thresholds 1 to 100,000, strictly rising", () => {
+    expect(
+      achievementDocSchema.safeParse({ name, bronze: 1, silver: 2, gold: 100_000 }).success,
+    ).toBe(true);
+    for (const tiers of [
+      { bronze: 5, silver: 5, gold: 10 },
+      { bronze: 6, silver: 5, gold: 10 },
+      { bronze: 1, silver: 10, gold: 10 },
+      { bronze: 0, silver: 5, gold: 10 },
+      { bronze: 1, silver: 5, gold: 100_001 },
+      { bronze: 1.5, silver: 5, gold: 10 },
+      { bronze: 1, silver: 5 },
+    ]) {
       expect(
-        achievementDocSchema.safeParse({ name, ...extra }).success,
+        achievementDocSchema.safeParse({ name, ...tiers }).success,
+        JSON.stringify(tiers),
+      ).toBe(false);
+    }
+  });
+
+  it("refuses anything else, the confirmation included (the route takes it apart)", () => {
+    for (const extra of [{ threshold: 1 }, { confirmed: true }]) {
+      expect(
+        achievementDocSchema.safeParse({ name, bronze: 1, silver: 2, gold: 3, ...extra }).success,
         JSON.stringify(extra),
       ).toBe(false);
     }
+  });
+
+  it("reverts an entry with the name alone (T-709b's entries)", () => {
+    expect(achievementBeforeSchema.safeParse({ name }).success).toBe(true);
+    expect(achievementBeforeSchema.safeParse({ name, bronze: 1, silver: 2, gold: 3 }).success).toBe(
+      true,
+    );
+  });
+
+  it("reads the gems a lowering pays, per lowered tier", () => {
+    expect(loweredGemsSchema.safeParse({ bronze: 10, gold: 50 }).success).toBe(true);
+    expect(loweredGemsSchema.safeParse({ platinum: 1 }).success).toBe(false);
+  });
+});
+
+describe("amounts document", () => {
+  const amounts = {
+    xp: { questXp: 100, dailyFinishXp: 20, dailyRightXp: 10, dailyWordXp: 50 },
+    gems: { levelUp: 20, bronze: 10, silver: 25, gold: 50 },
+  };
+
+  it("takes every range's ends and refuses one past them", () => {
+    for (const group of ["xp", "gems"] as const) {
+      for (const [field, [low, high]] of Object.entries(AMOUNT_RANGES[group])) {
+        const at = (value: number) => ({
+          ...amounts,
+          [group]: { ...amounts[group], [field]: value },
+        });
+        expect(amountsDocSchema.safeParse(at(low)).success, `${field} ${low}`).toBe(true);
+        expect(amountsDocSchema.safeParse(at(high)).success, `${field} ${high}`).toBe(true);
+        expect(amountsDocSchema.safeParse(at(low - 1)).success, `${field} ${low - 1}`).toBe(false);
+        expect(amountsDocSchema.safeParse(at(high + 1)).success, `${field} ${high + 1}`).toBe(
+          false,
+        );
+      }
+    }
+  });
+
+  it("names every amount once and refuses a missing or extra one", () => {
+    expect(Object.keys(AMOUNT_RANGES.xp)).toEqual([...XP_AMOUNTS]);
+    expect(Object.keys(AMOUNT_RANGES.gems)).toEqual([...GEM_AMOUNTS]);
+    const { gold: _gold, ...three } = amounts.gems;
+    expect(amountsDocSchema.safeParse({ ...amounts, gems: three }).success).toBe(false);
+    expect(
+      amountsDocSchema.safeParse({ ...amounts, gems: { ...amounts.gems, ruby: 1 } }).success,
+    ).toBe(false);
+    expect(amountsDocSchema.safeParse({ ...amounts, moderation: {} }).success).toBe(false);
   });
 });
 

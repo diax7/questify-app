@@ -72,17 +72,22 @@ measurement on the 300,000-player fixture; bundling it with part 1 makes one rev
   `bronze`, `silver`, `gold` each a whole number 1 to 1000, all four present).
 - Doors: `admin_amounts()` (the effective values, fallbacks filled in, and whether each row is stored) and
   `admin_amounts_save(doc, revert_of, request)`. One document `{xp: {questXp, dailyFinishXp, dailyRightXp, dailyWordXp},
-  gems: {levelUp, bronze, silver, gold}}`. Locks both `platform_setting` rows FOR UPDATE (key order `gems`, `xp`; an
-  absent row is inserted after `LOCK TABLE platform_setting IN SHARE ROW EXCLUSIVE MODE`), writes `updated_by`, audits
+  gems: {levelUp, bronze, silver, gold}}`. Makes sure both rows exist (`INSERT … ON CONFLICT DO NOTHING` with the
+  current effective values; no table lock), then locks the two rows FOR UPDATE in key order (`gems`, `xp`), writes `updated_by`, audits
   `catalog.amounts.update` / `.revert` (target `platform_setting`, id `amounts`). No player lock: scans and syncs read
   the rows without locking (0067's note), so no wait either way.
 - Effect, said in the confirmation: from the save on. Every gem paid later uses the new amount, including levels and
   tiers already reached but not yet paid (the sync reads amounts at payment); quest XP already credited never changes.
   No confirmation flag in the door (no amount pays anything by itself); the console still asks once.
 - **Deny by default:** the generic writer path is narrowed. `platform_setting_insert` / `_update` are replaced with
-  `WITH CHECK (app_admin_id() IS NOT NULL AND key IN ('features', 'tuning'))` (as 0116 did for translations). The keys
+  `app_admin_id() IS NOT NULL AND key IN ('features', 'tuning')` in both `USING` (update) and `WITH CHECK` (as 0116
+  did for translations), so an admin request can neither select-for-update nor write another key. The keys
   `xp`, `gems` and `moderation` can then only be written by a definer door or a migration. A catalog test asserts no
   other function writes `platform_setting` keys `xp` or `gems`.
+
+- With the CHECKs a stored out-of-range value cannot exist: `gem_amount()` keeps its fallback only for a missing row or
+  field and loses its range branch; the DB tests that stored out-of-range values to prove a fallback (`gems`,
+  `daily-challenge`, `daily-word`, `xp`) now assert that the CHECK refuses the value.
 
 ### D3. Revoke and restore a banned player's tiers (ADR-439)
 
@@ -91,13 +96,17 @@ measurement on the 300,000-player fixture; bundling it with part 1 makes one rev
   `player_admin_action`, created_at; FK `(player_id, achievement_id, tier)` → `achievement_earned`), append-only for every
   role (erasure keeps it: no personal data, as the earned rows), closed. A tier is revoked when its latest row is
   `revoke`. Index `(player_id, achievement_id, tier, id DESC)`.
-- `player_admin_action.kind` gains `revoke_tiers` and `restore_tiers` (CHECK replaced).
+- `player_admin_action.kind` gains `revoke_tiers` and `restore_tiers` (CHECK replaced); `player_action_note` is
+  restated with their reason codes (`revoke_tiers`: `cheating`, `prize_fraud`, `abuse`, `other`; `restore_tiers`:
+  `appeal_upheld`, `mistake`, `other`).
 - `admin_revoke_tiers(target, tiers jsonb, reason_code, note, request)`: `console_admin()`, `player_for_admin(target,
   true)` (player FOR NO KEY UPDATE; compatible with the sync's KEY SHARE), then `player_xp` FOR UPDATE (the sync's order),
   then checks: the player is `banned` (PA409 `not_banned`), 1 to 15 tiers, each earned and not revoked (PA409
   `not_earned` / `already_revoked`). Writes the action, one row per tier, audit `player.revoke_tiers` with ids and tiers
   only. `admin_restore_tiers` is the same with `restore` and needs no ban (the ban may be lifted).
-- Readers: `earned_tier()` skips revoked tiers (the player's achievements list, the public profile badges); the sync's gem
+- Readers: `earned_tier()` skips revoked tiers (the player's achievements list, the public profile badges); an
+  achievement with a revoked tier shows **no next tier** (a revoked tier is never earned again, so no progress target
+  is shown); the sync's gem
   due list and `gems_due()` skip revoked tiers, so a tier revoked before its gems were paid is never paid while revoked,
   and restoring it pays at the next sync. `achievements_due()` is unchanged: the earned row still exists, so a revoked
   tier is never earned again. **Gems already paid stay** (no claw-back, ADR-285; Q-398); a banned player cannot spend
@@ -128,6 +137,13 @@ measurement on the 300,000-player fixture; bundling it with part 1 makes one rev
   player."
 
 ## Part 2 (T-709d, next free migration)
+
+> **Re-plan before build (plan review 2026-11-02, score 86).** As written, D5 makes scans fail: the API pool runs with
+> `lock_timeout` 2 s and `statement_timeout` 5 s (`apps/api/src/db/pool-options.ts`), so every XP writer queued behind
+> `LOCK TABLE player_xp IN EXCLUSIVE MODE` errors out. The re-plan: the door writes only `xp_level` and `level_item`,
+> with no table lock; each player's level is corrected under that player's own `player_xp` row lock (`xp_apply` already
+> recomputes `xp_level_of` at 0072:70) plus the sync's catch-up; the DEFERRABLE `xp_from` UNIQUE and the stale-curve
+> guard are dropped. T-709d gets its own re-plan and plan review before build.
 
 ### D4. Item catalog (ADR-441)
 
@@ -225,10 +241,24 @@ HTTP (`test/console/catalog` extended, `test/console/players` extended): 404/401
 ## Risks
 
 - A lowering is irreversible money: the confirmation names the gems, the door needs `confirmed`, the audit holds the counts.
-- Part 2 pauses XP writers for the length of a curve save; measured, `lock_timeout` 3 s for the wait, Q-401 for the size.
+- Part 2's table lock is withdrawn (the re-plan note under Part 2).
 - `questify_sync` and `xp_apply` are restated: copy the latest bodies (0068, 0072) and change only the stated lines.
 
 ## Left out on purpose
 
 Streak milestone XP (`questify_streak_milestone` is append-only; T-703, Q-400), a gem correction source (ADR-285),
 deleting items, revoking for players who are not banned, new renderers for item art.
+
+## Build notes, part 1 (2026-11-02)
+
+- The tier doors answer an outcome row (`changed`, `not_banned`, `not_earned`, `already_revoked`, `not_revoked`) and
+  write nothing unless `changed`, as `admin_ban_player` / `admin_lift_ban` do, instead of raising PA409; the API maps each
+  to a 409 code. PA400 (reason, note or tier list) and PA404 are raised as planned.
+- `achievement_revocation.action_id` is `ON DELETE SET NULL`: erasure deletes the player's `player_admin_action` rows, so
+  the mark is kept with its action emptied (the guard lets that one change through, under the erasure flag only).
+- The CHECKs on `platform_setting` spell each field out instead of calling `amount_field_ok`: a CHECK runs with the
+  writer's rights, and the API's role holds EXECUTE on no internal function.
+- The tier routes live in `apps/api/src/console/players/tiers.ts` (beside the other player doors), not
+  `apps/api/src/console/players-tiers.ts`.
+- `daily_xp_field()` keeps its range branch, unreachable now behind the new CHECK (only `gem_amount()` was named by the
+  review); a follow-up.

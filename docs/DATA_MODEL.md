@@ -73,7 +73,7 @@ both names (ADR-419). Append-only for every role; `erase_rows` deletes the playe
 written and read only by the console's admin doors. The audit log holds the same actions with ids and codes only.
 `player.tokens_valid_after` (timestamptz, NULL until the first reset): a token created at or before it is refused by
 `player_session_owner` and `rotate_player_refresh` (ADR-421); set only by `admin_reset_player_sign_in` and `admin_ban_player`.
-Migration 0120 (T-705): `kind` gains `ban` and `lift_ban`; `player.ban_action_id` points at the ban in force (its reason
+Migration 0122 (T-709c): `kind` gains `revoke_tiers` and `restore_tiers`. Migration 0120 (T-705): `kind` gains `ban` and `lift_ban`; `player.ban_action_id` points at the ban in force (its reason
 code is what the player is shown; a CHECK keeps it on banned rows only; erasure clears it first). `player.status` is written
 only by `admin_ban_player` and `admin_lift_ban` (the API's role has no UPDATE on it, ADR-429). BEFORE INSERT guards on
 `ledger_entry`, `xp_entry` and `gem_entry` pay a player who is not active nothing (PB423; refunds, removals and lowerings
@@ -780,6 +780,13 @@ ADR-151):
 - `achievement_earned(player_id → player_xp, achievement_id → achievement RESTRICT, tier bronze|silver|gold, earned_at)`:
   PK (player, achievement, tier); append-only for every role; kept on the tombstone (no personal data). Written only by
   `questify_sync()`; a jump writes every tier passed. T-404 pays gems once per row.
+- `achievement_revocation(id, player_id, achievement_id, tier, change revoke|restore, action_id → player_admin_action ON
+  DELETE SET NULL, created_at)` (migration 0122, T-709c, ADR-439): FK (player, achievement, tier) → `achievement_earned`; a
+  tier is revoked while its latest row is `revoke` (`tier_revoked()`). Append-only for every role (the guard lets only
+  erasure's SET NULL of `action_id` through); kept on the tombstone. No grant: written by `admin_revoke_tiers` /
+  `admin_restore_tiers`; `earned_tier`, `own_achievements` (no next tier for an achievement with a revoked tier), `gems_due`
+  and `questify_sync`'s gem list skip a revoked tier. Thresholds are edited by `admin_achievement_save` (0122: name and
+  thresholds, row FOR NO KEY UPDATE, a lowering refused with CA428 unless confirmed).
 - Played (ADR-274): a standing quest XP credit (`xp_entry` source `quest`, never reversed) through `ledger_entry →
   enrollment` on a membership passing `played_enrollment(status, joined_via)` (not banned, not removed, not rehearsal),
   the one rule all five metrics use (`standing_credits(player)`, `player_metrics(player)`; lifetime; T-403b added the
@@ -859,7 +866,12 @@ ADR-151):
   `gem_shop_item`, each write taking the item FOR UPDATE first; an item the shop names is frozen (`GS409
   shop_item_locked`), as an active souvenir's.
 - Amounts: `gem_amounts()` reads `platform_setting` key `gems` `{levelUp, bronze, silver, gold}`, each field only when an
-  integer 1–1000, else 20/10/25/50 (no row is written by 0067; T-709 adds it with its CHECK). `questify_quest.gems
+  integer 1–1000, else 20/10/25/50 (no row is written by 0067; T-709 adds it with its CHECK). Migration 0122 (T-709c):
+  `platform_setting_gems_check` (all four present, each a JSON whole number 1–1000) and `platform_setting_xp_daily_check`
+  (`questXp` a number 1–99,999; each daily field absent or 0–400 / 0–200 / 0–1000), so `gem_amount()` falls back only for
+  a missing row; the row is written by `admin_amounts_save` (the console's Amounts tab), which first stores a missing row
+  with the amounts in force (`INSERT … ON CONFLICT DO NOTHING`) and locks both rows in key order. The table's write
+  policies now ask `app_admin_id()` and allow only the keys `features` and `tuning` (USING and WITH CHECK). `questify_quest.gems
   integer 0–1000` (the two seeded quests 25), frozen with metric and target once the quest can pay.
 - Earning: `questify_sync()` (replaced) pays, after the tiers and the Questify quests under the same locks, every
   `level_reached`, `achievement_earned` and paying `questify_award` row of the caller with no entry yet (retroactive for
