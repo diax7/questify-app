@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Client, Pool, type PoolClient } from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import {
   TEST_DATABASE_URL,
@@ -300,8 +300,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
     await settle(goal);
     return (await state(goal)).progress;
   };
+  const SETTLE_WAIT = { timeout: 10_000, interval: 100 } as const;
   const settlePoint = async () =>
     (await owner<{ p: string }>("SELECT community_settle_point()::text AS p"))[0]?.p;
+  const expectNoOpenTransaction = () =>
+    vi.waitFor(async () => expect(await settlePoint()).toBe("infinity"), SETTLE_WAIT);
 
   const reachedFor = async (paidToWhom = "contributors") => {
     const event = await newEvent();
@@ -510,21 +513,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
     });
 
     it("holds the settle point at an open transaction's start until it commits", async () => {
-      expect(await settlePoint()).toBe("infinity");
+      // The settle point reads every client backend of the database, so a transaction another test's connection has open
+      // for a moment moves it; each read is retried until the database is quiet apart from the one under test.
+      await expectNoOpenTransaction();
       const open: PoolClient = await pool.connect();
       try {
         await open.query("BEGIN");
         await open.query("SELECT 1");
-        const [start] = await owner<{ xact_start: Date; p: Date }>(
-          "SELECT xact_start, community_settle_point() AS p FROM pg_stat_activity WHERE pid = $1",
-          [(open as unknown as { processID: number }).processID],
-        );
-        expect(start?.p.getTime()).toBe(start?.xact_start.getTime());
+        await vi.waitFor(async () => {
+          const [start] = await owner<{ xact_start: Date; p: Date }>(
+            "SELECT xact_start, community_settle_point() AS p FROM pg_stat_activity WHERE pid = $1",
+            [(open as unknown as { processID: number }).processID],
+          );
+          expect(start?.p.getTime()).toBe(start?.xact_start.getTime());
+        }, SETTLE_WAIT);
         await open.query("COMMIT");
       } finally {
         open.release();
       }
-      expect(await settlePoint()).toBe("infinity");
+      await expectNoOpenTransaction();
     });
 
     it("refuses an unreadable writer's session (CV500 settle_blind) and takes the oldest start", async () => {

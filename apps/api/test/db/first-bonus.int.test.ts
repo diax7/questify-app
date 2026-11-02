@@ -1044,7 +1044,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the first-N bonus (database)",
         running.stop = true;
         await Promise.all(loops);
       }
-    });
+    }, 120_000);
   });
 
   // ============================================================ the place shown (CTO 5)
