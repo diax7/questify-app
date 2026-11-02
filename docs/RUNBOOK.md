@@ -663,3 +663,11 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
   then record it in the audit log as a system entry (`support.closed`).
 - **Suspensions** are made and lifted from the console (Organizers, or an event's page); the API walls of other
   instances follow within 10 seconds, the database walls at once.
+- **Changing an owner's sign-in email (T-701b):** verify identity first: call back the number on file, or check an
+  identity document, or the signatory on the organizer's agreement; record which and why in the dialog. The owner must
+  confirm from the new mailbox with the code and the current password; without the password the change waits 24 hours.
+  To reverse a change, run it again to the old address. "Stopped from the old address" or a dispute alert means call
+  the organizer before anything else.
+- **Moderation addresses:** console, Reports, Moderation addresses: the urgent-report alert address and the ban appeal
+  address; empty means `MAIL_FROM`. The digest goes at most every 10 minutes and 100 times a day; past that only the
+  console's urgent count shows new urgent reports.

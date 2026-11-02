@@ -6,6 +6,20 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-701b owner email change and urgent reports — 2026-11-03
+
+- **T-701b built (tier A; plan review 82 folded in; migration 0130, new and undeployed; ADR-490 to ADR-496 and Q-450 to
+  Q-453 Proposed).** An admin starts an owner's sign-in email change from the console organizer page; the owner confirms
+  on `/{lang}/email-change` with the emailed code and the current password, or waits 24 hours without it; the old
+  address is told and can stop it (after completion, Stop alerts the team). Reports from a live event are urgent and due
+  in 1 hour; the queue puts them first with due times, the console menu shows the urgent count, and a team digest (one
+  per 10 minutes, 100 a day on its own budget) goes to `moderation.alertEmail` or `MAIL_FROM`; the Reports page edits
+  the moderation addresses. Tests: `test/db/owner-email-change` (18), `test/db/report-urgency` (9),
+  `test/console/owner-email` (8), `test/team-alerts/worker` (5), the security suites, `e2e/console-owner-email.spec.ts`,
+  the reports spec, layout pages for the two public pages. CI minutes: 0; agent tokens: about 450k.
+  **Next:** the T-701b code review (tier A, strongest model), then mutation on GitHub for
+  `apps/api/src/console/owner-email*.ts` and `apps/api/src/auth/email-change*.ts`.
+
 ## T-706 message templates and support contact — 2026-11-03
 
 - **T-706 built (tier B; split, see ADR-460; not run on a phone; migration 0127, new and undeployed; ADR-460 to ADR-462 and Q-420 to Q-422 Proposed).** The four templates (login-code SMS, promotional SMS, email and push) are edited in the console at `/console/messages` with the CST rules enforced on save and on a revert, checked again by the door and by the table's own CHECKs: a promotional SMS or email cannot be saved without `{optOutUrl}`, a login-code SMS without `{code}` and a sign-in-code wording, an SMS stays within 3 parts (`smsParts` moved to the shared package). The support contact (WhatsApp, phone, email) is edited on the same page, read at `GET /v1/support-contact`, shown on `/{lang}/contact` and put into the legal drafts' `{{CONTACT_EMAIL}}` and `{{PRIVACY_CONTACT}}`. **T-706b** (push to a group, promotional campaigns, the promotional email sender, the senders reading their slot) is next in `docs/TASKS.md`. Tests: `packages/shared` messaging (14), `test/db/messaging` (13), `test/console/messaging` (12), the security suites, `legal.test`, `e2e/console-messaging.spec.ts` (2), `layout.spec.ts` with the new page. CI minutes: 0.
