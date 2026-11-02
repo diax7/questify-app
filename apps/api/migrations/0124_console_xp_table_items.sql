@@ -354,24 +354,22 @@ GRANT EXECUTE ON FUNCTION admin_xp_table() TO questify_app;
 CREATE FUNCTION xp_table_checked(doc jsonb) RETURNS jsonb
   LANGUAGE plpgsql IMMUTABLE SET search_path = public, pg_temp AS $$
 DECLARE
-  n      integer;
   e      jsonb;
+  i      integer := 0;
   start  bigint;
   prior  bigint := -1;
   chosen text;
   seen   text[] := '{}';
-  levels jsonb := '[]'::jsonb;
 BEGIN
   IF jsonb_typeof(doc) IS DISTINCT FROM 'object' OR doc - 'levels' <> '{}'::jsonb
      OR jsonb_typeof(doc -> 'levels') IS DISTINCT FROM 'array'
      OR jsonb_array_length(doc -> 'levels') NOT BETWEEN 2 AND 100 THEN
     RAISE EXCEPTION 'give 2 to 100 levels' USING ERRCODE = 'CA400', DETAIL = 'levels';
   END IF;
-  n := jsonb_array_length(doc -> 'levels');
-  FOR i IN 1..n LOOP
-    e := doc -> 'levels' -> (i - 1);
+  FOR e IN SELECT x FROM jsonb_array_elements(doc -> 'levels') AS x LOOP
+    i := i + 1;
     IF jsonb_typeof(e) IS DISTINCT FROM 'object' OR e - ARRAY['level', 'xpFrom', 'itemId'] <> '{}'::jsonb
-       OR NOT amount_field_ok(e, 'level', i, i) THEN
+       OR e -> 'level' IS DISTINCT FROM to_jsonb(i) THEN
       RAISE EXCEPTION 'level % is out of order or has unknown fields', i USING ERRCODE = 'CA400', DETAIL = 'level:' || i;
     END IF;
     IF jsonb_typeof(e -> 'xpFrom') IS DISTINCT FROM 'number' OR (e ->> 'xpFrom') !~ '^(0|[1-9][0-9]{0,8})$' THEN
@@ -389,9 +387,11 @@ BEGIN
     END IF;
     seen := seen || chosen;
     prior := start;
-    levels := levels || jsonb_build_array(jsonb_build_object('level', i, 'xpFrom', start, 'itemId', chosen));
   END LOOP;
-  RETURN jsonb_build_object('levels', levels);
+  RETURN jsonb_build_object('levels', (
+    SELECT jsonb_agg(jsonb_build_object('level', o.n, 'xpFrom', (x ->> 'xpFrom')::bigint,
+                                        'itemId', CASE WHEN o.n = 1 THEN NULL ELSE x ->> 'itemId' END) ORDER BY o.n)
+    FROM jsonb_array_elements(doc -> 'levels') WITH ORDINALITY AS o (x, n)));
 END $$;
 REVOKE ALL ON FUNCTION xp_table_checked(jsonb) FROM PUBLIC;
 
@@ -417,50 +417,60 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION xp_table_refuse(text, integer, text) FROM PUBLIC;
 
+-- Each level of a saved document beside the same level before it (NULLs for an added level).
+CREATE FUNCTION xp_table_changes(old_doc jsonb, new_doc jsonb)
+  RETURNS TABLE (level smallint, was bigint, now bigint, item_was text, item_now text)
+  LANGUAGE sql IMMUTABLE SET search_path = public, pg_temp AS $$
+  SELECT n.level, o."xpFrom", n."xpFrom", o."itemId", n."itemId"
+  FROM jsonb_to_recordset(new_doc -> 'levels') AS n (level smallint, "xpFrom" bigint, "itemId" text)
+  LEFT JOIN jsonb_to_recordset(old_doc -> 'levels') AS o (level smallint, "xpFrom" bigint, "itemId" text)
+    ON o.level = n.level
+$$;
+REVOKE ALL ON FUNCTION xp_table_changes(jsonb, jsonb) FROM PUBLIC;
+
+-- The highest XP anyone holds, inactive players included (one probe of the board's rank index; 0 when nobody has XP).
+CREATE FUNCTION xp_board_top() RETURNS bigint
+  LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
+  SELECT coalesce((SELECT b.xp FROM xp_board b WHERE b.board = 'all' AND b.xp > 0 ORDER BY b.xp DESC LIMIT 1), 0)
+$$;
+REVOKE ALL ON FUNCTION xp_board_top() FROM PUBLIC;
+
 -- The checks of a save that need the locks (ADR-440): a new item exists and has no other source; a removed level nobody
 -- reached or stands at; a changed reward on a level nobody reached. Both documents are in their stored shape.
 CREATE FUNCTION xp_table_refusals(old_doc jsonb, new_doc jsonb) RETURNS void
   LANGUAGE plpgsql STABLE SET search_path = public, pg_temp AS $$
 DECLARE
-  r record;
+  top     bigint := xp_board_top();
+  at      integer;
+  unknown boolean;
 BEGIN
-  FOR r IN
-    SELECT n.level, n."itemId" AS item_id
-    FROM jsonb_to_recordset(new_doc -> 'levels') AS n (level integer, "itemId" text)
-    LEFT JOIN jsonb_to_recordset(old_doc -> 'levels') AS o (level integer, "itemId" text) ON o.level = n.level
-    WHERE n.level > 1 AND o."itemId" IS DISTINCT FROM n."itemId"
-    ORDER BY n.level
-  LOOP
-    IF NOT EXISTS (SELECT 1 FROM item i WHERE i.id = r.item_id) THEN
-      PERFORM xp_table_refuse('item_unknown', r.level, 'there is no such item');
-    END IF;
-    IF r.item_id LIKE 'souvenir-%' OR EXISTS (SELECT 1 FROM souvenir_rule s WHERE s.item_id = r.item_id)
-       OR EXISTS (SELECT 1 FROM gem_shop_item g WHERE g.item_id = r.item_id) THEN
-      PERFORM xp_table_refuse('item_has_source', r.level, 'that item is sold in the shop or is a souvenir');
-    END IF;
-  END LOOP;
-  FOR r IN
-    SELECT o.level, o."xpFrom" AS xp_from
-    FROM jsonb_to_recordset(old_doc -> 'levels') AS o (level integer, "xpFrom" bigint)
-    WHERE o.level > jsonb_array_length(new_doc -> 'levels')
-    ORDER BY o.level
-  LOOP
-    IF EXISTS (SELECT 1 FROM level_reached x WHERE x.level = r.level)
-       OR EXISTS (SELECT 1 FROM xp_board b WHERE b.board = 'all' AND b.xp > 0 AND b.xp >= r.xp_from) THEN
-      PERFORM xp_table_refuse('level_held', r.level, 'players reached that level, or stand at it');
-    END IF;
-  END LOOP;
-  FOR r IN
-    SELECT n.level
-    FROM jsonb_to_recordset(new_doc -> 'levels') AS n (level integer, "itemId" text)
-    JOIN jsonb_to_recordset(old_doc -> 'levels') AS o (level integer, "itemId" text) ON o.level = n.level
-    WHERE n.level > 1 AND o."itemId" IS DISTINCT FROM n."itemId"
-    ORDER BY n.level
-  LOOP
-    IF EXISTS (SELECT 1 FROM level_reached x WHERE x.level = r.level) THEN
-      PERFORM xp_table_refuse('reward_given', r.level, 'players already got that level''s reward');
-    END IF;
-  END LOOP;
+  SELECT c.level, i.id IS NULL INTO at, unknown
+  FROM xp_table_changes(old_doc, new_doc) c LEFT JOIN item i ON i.id = c.item_now
+  WHERE c.level > 1 AND c.item_was IS DISTINCT FROM c.item_now
+    AND (i.id IS NULL OR c.item_now LIKE 'souvenir-%'
+         OR EXISTS (SELECT 1 FROM souvenir_rule s WHERE s.item_id = c.item_now)
+         OR EXISTS (SELECT 1 FROM gem_shop_item g WHERE g.item_id = c.item_now))
+  ORDER BY c.level LIMIT 1;
+  IF at IS NOT NULL THEN
+    PERFORM xp_table_refuse(CASE WHEN unknown THEN 'item_unknown' ELSE 'item_has_source' END, at,
+                            'there is no such item, or it is sold in the shop or is a souvenir');
+  END IF;
+  SELECT o.level INTO at
+  FROM jsonb_to_recordset(old_doc -> 'levels') AS o (level integer, "xpFrom" bigint)
+  WHERE o.level > jsonb_array_length(new_doc -> 'levels')
+    AND (top >= o."xpFrom" OR EXISTS (SELECT 1 FROM level_reached x WHERE x.level = o.level))
+  ORDER BY o.level LIMIT 1;
+  IF at IS NOT NULL THEN
+    PERFORM xp_table_refuse('level_held', at, 'players reached that level, or stand at it');
+  END IF;
+  SELECT c.level INTO at
+  FROM xp_table_changes(old_doc, new_doc) c
+  WHERE c.level > 1 AND c.was IS NOT NULL AND c.item_was IS DISTINCT FROM c.item_now
+    AND EXISTS (SELECT 1 FROM level_reached x WHERE x.level = c.level)
+  ORDER BY c.level LIMIT 1;
+  IF at IS NOT NULL THEN
+    PERFORM xp_table_refuse('reward_given', at, 'players already got that level''s reward');
+  END IF;
 END $$;
 REVOKE ALL ON FUNCTION xp_table_refusals(jsonb, jsonb) FROM PUBLIC;
 
@@ -472,22 +482,9 @@ CREATE FUNCTION xp_table_paying(old_doc jsonb, new_doc jsonb) RETURNS integer[]
   FROM jsonb_to_recordset(new_doc -> 'levels') AS n (level integer, "xpFrom" bigint)
   LEFT JOIN jsonb_to_recordset(old_doc -> 'levels') AS o (level integer, "xpFrom" bigint) ON o.level = n.level
   WHERE n.level > 1
-    AND (n."xpFrom" < o."xpFrom"
-         OR (o.level IS NULL AND n."xpFrom" <= coalesce((SELECT b.xp FROM xp_board b WHERE b.board = 'all' AND b.xp > 0
-                                                         ORDER BY b.xp DESC LIMIT 1), 0)))
+    AND (n."xpFrom" < o."xpFrom" OR (o.level IS NULL AND n."xpFrom" <= xp_board_top()))
 $$;
 REVOKE ALL ON FUNCTION xp_table_paying(jsonb, jsonb) FROM PUBLIC;
-
--- Each level of a saved document beside the same level before it (NULLs for an added level).
-CREATE FUNCTION xp_table_changes(old_doc jsonb, new_doc jsonb)
-  RETURNS TABLE (level smallint, was bigint, now bigint, item_was text, item_now text)
-  LANGUAGE sql IMMUTABLE SET search_path = public, pg_temp AS $$
-  SELECT n.level, o."xpFrom", n."xpFrom", o."itemId", n."itemId"
-  FROM jsonb_to_recordset(new_doc -> 'levels') AS n (level smallint, "xpFrom" bigint, "itemId" text)
-  LEFT JOIN jsonb_to_recordset(old_doc -> 'levels') AS o (level smallint, "xpFrom" bigint, "itemId" text)
-    ON o.level = n.level
-$$;
-REVOKE ALL ON FUNCTION xp_table_changes(jsonb, jsonb) FROM PUBLIC;
 
 -- Writes a checked document over the locked table in an order the non-deferrable xp_from UNIQUE never trips on: removed
 -- levels (their rewards first), raised starts from the top down, lowered starts from the bottom up, added levels; then the
@@ -581,49 +578,52 @@ END $$;
 REVOKE ALL ON FUNCTION admin_xp_table_save(jsonb, bigint, boolean, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION admin_xp_table_save(jsonb, bigint, boolean, uuid) TO questify_app;
 
+-- Active players with XP from `low` up to (not including) `high`: one range of the board's rank index, less the few
+-- inactive players' rows in it (player_inactive_idx), as the rankings count (ADR-322).
+CREATE FUNCTION xp_board_active_between(low bigint, high bigint) RETURNS bigint
+  LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
+  SELECT (SELECT count(*) FROM xp_board b WHERE b.board = 'all' AND b.xp > 0 AND b.xp >= low AND b.xp < high)
+       - (SELECT count(*) FROM player p JOIN xp_board b ON b.board = 'all' AND b.player_id = p.id
+          WHERE p.status <> 'active' AND b.xp > 0 AND b.xp >= low AND b.xp < high)
+$$;
+REVOKE ALL ON FUNCTION xp_board_active_between(bigint, bigint) FROM PUBLIC;
+
 -- What a document would do to active players now (read only, no locks, advisory): how many go up and down a level, how
--- many level rewards fall due, and the gems they pay at the level-up amount in force. One pass over the lifetime board,
--- bucketed by the union of the old and new starts, less the inactive players' rows.
+-- many level rewards fall due, and the gems they pay at the level-up amount in force. The XP ranges between the old and
+-- new starts are classed from the two curves alone; players are counted only in the ranges where something changes, so
+-- a small edit reads a small part of the board.
 CREATE FUNCTION admin_xp_table_preview(doc jsonb) RETURNS jsonb
   LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   edited   jsonb;
-  bounds   bigint[];
   level_up integer := (SELECT g.level_up FROM gem_amounts() g);
   answer   jsonb;
 BEGIN
   PERFORM console_admin();
   edited := xp_table_checked(doc);
-  SELECT array_agg(DISTINCT s ORDER BY s) INTO bounds
-  FROM (SELECT l.xp_from FROM xp_level l
-        UNION SELECT (e ->> 'xpFrom')::bigint FROM jsonb_array_elements(edited -> 'levels') e) u (s)
-  WHERE s > 0;
-  WITH new_curve AS (
+  WITH new_curve AS MATERIALIZED (
     SELECT n.level, n."xpFrom" AS xp_from FROM jsonb_to_recordset(edited -> 'levels') AS n (level integer, "xpFrom" bigint)
-  ), slots AS (
-    SELECT width_bucket(b.xp, bounds) AS slot, count(*) AS players
-    FROM xp_board b WHERE b.board = 'all' AND b.xp > 0 GROUP BY 1
-  ), gone AS (
-    SELECT width_bucket(b.xp, bounds) AS slot, count(*) AS players
-    FROM player p JOIN xp_board b ON b.board = 'all' AND b.player_id = p.id AND b.xp > 0
-    WHERE p.status <> 'active' GROUP BY 1
-  ), counted AS (
-    SELECT s.players - coalesce(g.players, 0) AS players, CASE WHEN s.slot = 0 THEN 0 ELSE bounds[s.slot] END AS at
-    FROM slots s LEFT JOIN gone g ON g.slot = s.slot
-  ), moved AS (
-    SELECT c.players,
-           (SELECT max(l.level) FROM xp_level l WHERE l.xp_from <= c.at) AS was,
-           (SELECT max(n.level) FROM new_curve n WHERE n.xp_from <= c.at) AS now,
+  ), starts AS (
+    SELECT DISTINCT s FROM (SELECT l.xp_from FROM xp_level l UNION SELECT n.xp_from FROM new_curve n) u (s) WHERE s > 0
+  ), ranges AS (
+    SELECT s AS low, coalesce(lead(s) OVER (ORDER BY s), 9223372036854775807) AS high FROM starts
+  ), classed AS (
+    SELECT r.low, r.high,
+           (SELECT max(l.level) FROM xp_level l WHERE l.xp_from <= r.low) AS was,
+           (SELECT max(n.level) FROM new_curve n WHERE n.xp_from <= r.low) AS now,
            (SELECT count(*) FROM new_curve n LEFT JOIN xp_level l ON l.level = n.level
-            WHERE n.level > 1 AND n.xp_from <= c.at AND (l.level IS NULL OR l.xp_from > c.at)) AS due
-    FROM counted c
+            WHERE n.level > 1 AND n.xp_from <= r.low AND (l.level IS NULL OR l.xp_from > r.low)) AS due
+    FROM ranges r
+  ), counted AS (
+    SELECT c.was, c.now, c.due, xp_board_active_between(c.low, c.high) AS players
+    FROM classed c WHERE c.was <> c.now OR c.due > 0
   )
-  SELECT jsonb_build_object('up', coalesce(sum(m.players) FILTER (WHERE m.now > m.was), 0),
-                            'down', coalesce(sum(m.players) FILTER (WHERE m.now < m.was), 0),
-                            'levels', coalesce(sum(m.players * m.due), 0),
-                            'gems', coalesce(sum(m.players * m.due), 0) * level_up,
+  SELECT jsonb_build_object('up', coalesce(sum(c.players) FILTER (WHERE c.now > c.was), 0),
+                            'down', coalesce(sum(c.players) FILTER (WHERE c.now < c.was), 0),
+                            'levels', coalesce(sum(c.players * c.due), 0),
+                            'gems', coalesce(sum(c.players * c.due), 0) * level_up,
                             'levelUp', level_up)
-  INTO answer FROM moved m;
+  INTO answer FROM counted c;
   RETURN answer;
 END $$;
 REVOKE ALL ON FUNCTION admin_xp_table_preview(jsonb) FROM PUBLIC;

@@ -457,6 +457,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "item_shop_checked",
       "levels_due",
       "levels_reach",
+      "xp_board_active_between",
+      "xp_board_top",
       "xp_catch_up",
       "xp_lock_left",
       "xp_table_changes",

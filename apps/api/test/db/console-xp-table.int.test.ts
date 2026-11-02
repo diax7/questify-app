@@ -169,7 +169,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
          WHERE n.nspname = 'public' AND a.privilege_type = 'EXECUTE' AND a.grantee <> p.proowner
            AND p.proname IN ('levels_reach', 'xp_catch_up', 'levels_due', 'xp_table_checked', 'xp_lock_left',
                              'xp_table_refuse', 'xp_table_refusals', 'xp_table_paying', 'xp_table_changes',
-                             'xp_table_write', 'admin_xp_table_doc', 'questify_level_up')`,
+                             'xp_table_write', 'admin_xp_table_doc', 'questify_level_up', 'xp_board_top',
+                             'xp_board_active_between')`,
       );
       expect(internals).toEqual([]);
       const inserters = await f.owner<{ proname: string }>(
