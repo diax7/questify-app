@@ -43,9 +43,16 @@ type Props = Readonly<{
 function useBriefingPress(language: Language, eventApi: string) {
   const t = useTranslator(language);
   const key = useRef<string | null>(null);
+  const keyFor = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | undefined>(undefined);
   const send = async (draft: StaffBriefingBody): Promise<number | undefined> => {
+    // A kept key belongs to the exact message it was made for: an edited message is a new send, not a replay.
+    const wanted = JSON.stringify(draft);
+    if (keyFor.current !== wanted) {
+      key.current = null;
+      keyFor.current = wanted;
+    }
     key.current ??= crypto.randomUUID();
     setBusy(true);
     setProblem(undefined);
