@@ -109,6 +109,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console safety tools over HTTP
     ).toMatchObject({ code: "already_banned" });
     const lifted = await call("POST", `/v1/admin/players/${target}/lift-ban`, admin(), LIFT);
     expect(lifted.statusCode).toBe(200);
+    expect(banAnswerSchema.parse(lifted.json()).actionId).toMatch(/^[0-9a-f-]{36}$/);
     expect(
       (await call("POST", `/v1/admin/players/${target}/lift-ban`, admin(), LIFT)).json(),
     ).toMatchObject({ code: "not_banned" });
@@ -183,6 +184,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console safety tools over HTTP
       language: "en",
     });
     expect(added.statusCode).toBe(201);
+    expect(added.json()).toEqual({ word: "Snarkle" });
+    expect(
+      (
+        await call("POST", "/v1/admin/words", admin(), {
+          word: "snarkly",
+          match: "word",
+          language: "en",
+        })
+      ).statusCode,
+    ).toBe(201);
     expect(
       (
         await call("POST", "/v1/admin/words", admin(), {
@@ -201,24 +212,41 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console safety tools over HTTP
         })
       ).json(),
     ).toMatchObject({ code: "invalid_word" });
-    const page = wordsPageSchema.parse(
-      (await call("GET", "/v1/admin/words?q=snark&language=en", admin())).json(),
-    );
-    expect(page).toEqual({ words: [expect.objectContaining({ word: "snarkle" })], total: 1 });
+    const words = async (query: string) => {
+      const page = wordsPageSchema.parse(
+        (await call("GET", `/v1/admin/words?${query}`, admin())).json(),
+      );
+      return { words: page.words.map((row) => row.word), total: page.total };
+    };
+    expect(await words("q=snark&language=en")).toEqual({
+      words: ["snarkle", "snarkly"],
+      total: 2,
+    });
+    expect(await words("q=snark&language=ar")).toEqual({ words: [], total: 0 });
+    expect(await words("q=snark&match=word")).toEqual({ words: ["snarkly"], total: 1 });
+    expect(await words("q=snark&after=snarkle")).toEqual({ words: ["snarkly"], total: 2 });
+    expect((await call("DELETE", "/v1/admin/words/snarkly", admin())).statusCode).toBe(204);
     expect((await call("DELETE", "/v1/admin/words/snarkle", admin())).statusCode).toBe(204);
     expect((await call("DELETE", "/v1/admin/words/snarkle", admin())).statusCode).toBe(404);
   });
 
   it("lists and releases a retired name, which stays out of every URL and log line", async () => {
-    await owner("INSERT INTO username_retired (fold) VALUES ('rude_old_handle')");
-    const listed = retiredPageSchema.parse(
-      (
-        (await call("GET", "/v1/admin/retired-usernames?q=rude", admin())).json() as {
-          names: unknown;
-        }
-      ).names,
+    await owner(
+      "INSERT INTO username_retired (fold) VALUES ('rude_old_handle'), ('calm_old_handle')",
     );
-    expect(listed).toEqual([expect.objectContaining({ fold: "rude_old_handle" })]);
+    const retired = async (query: string) =>
+      retiredPageSchema
+        .parse(
+          (
+            (await call("GET", `/v1/admin/retired-usernames?${query}`, admin())).json() as {
+              names: unknown;
+            }
+          ).names,
+        )
+        .map((row) => row.fold);
+    expect(await retired("q=rude")).toEqual(["rude_old_handle"]);
+    expect(await retired("q=old_handle")).toEqual(["calm_old_handle", "rude_old_handle"]);
+    expect(await retired("q=old_handle&after=calm_old_handle")).toEqual(["rude_old_handle"]);
     const released = await call("POST", "/v1/admin/retired-usernames/release", admin(), {
       username: "Rude_Old_Handle",
     });
