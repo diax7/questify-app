@@ -960,7 +960,7 @@ BEGIN
   DELETE FROM player_fingerprint WHERE player_id = me;
   DELETE FROM player_block WHERE blocker_id = me OR blocked_id = me;
   DELETE FROM content_report WHERE target_kind = 'username' AND target_id = me;
-  UPDATE content_report SET reporter_id = NULL WHERE reporter_id = me;
+  UPDATE content_report SET reporter_id = NULL, note = NULL, marked = false WHERE reporter_id = me;
   -- Open sign-in codes for the account's contacts (they hold the contact in clear).
   DELETE FROM player_login_challenge l
   WHERE l.contact_key = key
@@ -1006,3 +1006,71 @@ BEGIN
   WHERE id = me;
 END $$;
 REVOKE ALL ON FUNCTION erase_rows(uuid,uuid[],bytea) FROM PUBLIC;
+
+-- Restated from 0098 and 0092: a duplicated event never copies a held quest or reward (T-705b review MAJOR).
+CREATE OR REPLACE FUNCTION public.event_copy_quests(src event, tgt event, shift interval)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SET search_path TO 'public', 'pg_temp'
+AS $$
+DECLARE
+  n integer;
+BEGIN
+  INSERT INTO quest (id, organizer_id, event_id, category_id, type, title_ar, title_en, description_ar, description_en,
+                     points, repeat_cap, opens_at, closes_at, visible, position, type_config, verification, item_id,
+                     place_lat, place_lng, place_radius_m, flash)
+  SELECT copy_id(q.id, tgt.id), tgt.organizer_id, tgt.id, copy_id(q.category_id, tgt.id), q.type, q.title_ar, q.title_en,
+         q.description_ar, q.description_en, q.points, q.repeat_cap, q.opens_at + shift, q.closes_at + shift, q.visible,
+         q.position,
+         CASE WHEN q.type = 'enter_code' THEN jsonb_set(q.type_config, '{code}', to_jsonb(fresh_entry_code()))
+              ELSE q.type_config END,
+         q.verification, copy_id(q.item_id, tgt.id), q.place_lat, q.place_lng, q.place_radius_m, q.flash
+  FROM quest q WHERE q.event_id = src.id AND q.deleted_at IS NULL AND NOT content_held('quest', q.id);
+  GET DIAGNOSTICS n = ROW_COUNT;
+  INSERT INTO quest_first_bonus (quest_id, organizer_id, event_id, points, slots)
+  SELECT copy_id(b.quest_id, tgt.id), tgt.organizer_id, tgt.id, b.points, b.slots
+  FROM quest_first_bonus b WHERE b.event_id = src.id AND NOT EXISTS (SELECT 1 FROM quest d WHERE d.id = b.quest_id AND (d.deleted_at IS NOT NULL OR content_held('quest', d.id)));
+  INSERT INTO passport_step (id, organizer_id, event_id, quest_id, name_ar, name_en, position)
+  SELECT copy_id(p.id, tgt.id), tgt.organizer_id, tgt.id, copy_id(p.quest_id, tgt.id), p.name_ar, p.name_en, p.position
+  FROM passport_step p WHERE p.event_id = src.id AND NOT EXISTS (SELECT 1 FROM quest d WHERE d.id = p.quest_id AND (d.deleted_at IS NOT NULL OR content_held('quest', d.id)));
+  UPDATE event e SET focus_quest_id = copy_id(src.focus_quest_id, tgt.id)
+  WHERE e.id = tgt.id AND src.focus_quest_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM quest d WHERE d.id = src.focus_quest_id AND (d.deleted_at IS NOT NULL OR content_held('quest', d.id)));
+  RETURN n;
+END $$;
+
+CREATE OR REPLACE FUNCTION event_copy_prizes(src event, tgt event, shift interval) RETURNS jsonb
+  LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+DECLARE
+  rewards integer;
+  prizes  integer;
+BEGIN
+  INSERT INTO reward (id, organizer_id, event_id, kind, name_ar, name_en, description_ar, description_en, price,
+                      stock_total, per_player_limit, opens_at, closes_at, section, tag_new, tag_limited, position,
+                      audience_kind, audience_field_id, audience_values)
+  SELECT copy_id(r.id, tgt.id), tgt.organizer_id, tgt.id, r.kind, r.name_ar, r.name_en, r.description_ar,
+         r.description_en, r.price, CASE WHEN r.kind = 'digital' THEN 0 ELSE r.stock_total END, r.per_player_limit,
+         r.opens_at + shift, r.closes_at + shift, r.section, r.tag_new, r.tag_limited, r.position, r.audience_kind,
+         copy_id(r.audience_field_id, tgt.id), r.audience_values
+  FROM reward r WHERE r.event_id = src.id AND r.status = 'active' AND NOT content_held('reward', r.id);
+  GET DIAGNOSTICS rewards = ROW_COUNT;
+  INSERT INTO rank_prize (id, organizer_id, event_id, rank_from, rank_to, kind, name_ar, name_en, description_ar,
+                          description_en)
+  SELECT copy_id(p.id, tgt.id), tgt.organizer_id, tgt.id, p.rank_from, p.rank_to, p.kind, p.name_ar, p.name_en,
+         p.description_ar, p.description_en
+  FROM rank_prize p WHERE p.event_id = src.id AND p.status = 'active';
+  GET DIAGNOSTICS prizes = ROW_COUNT;
+  RETURN jsonb_build_object('rewards', rewards, 'rankPrizes', prizes);
+END $$;
+
+-- Restated from 0088: a held reward's sponsor tag is not shown (T-705b review NIT).
+CREATE OR REPLACE FUNCTION sponsor_tag_shown(t sponsor_tag, member uuid) RETURNS boolean
+  LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
+  SELECT CASE t.kind
+    WHEN 'quest' THEN member_sees_quest(member, t.quest_id)
+    WHEN 'category' THEN EXISTS (SELECT 1 FROM category c
+                                 WHERE c.id = t.category_id AND c.event_id = t.event_id AND sees_category(member, c))
+    ELSE EXISTS (SELECT 1 FROM reward r
+                 WHERE r.id = t.reward_id AND r.event_id = t.event_id AND r.status = 'active' AND r.held_at IS NULL
+                   AND in_audience(member, r.audience_kind, r.audience_field_id, r.audience_values))
+  END
+$$;

@@ -549,6 +549,68 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reports and moderation (databa
     });
   });
 
+  describe("a held item and the other doors", () => {
+    it("copies neither a held reward nor a held quest into a duplicated event", async () => {
+      const event = await live();
+      const heldQuest = await quest(event, "Held quest");
+      await quest(event, "Kept quest");
+      const heldReward = await reward(event);
+      await reward(event);
+      await unpublish("quest", heldQuest);
+      await unpublish("reward", heldReward);
+      const [target] = await f.owner<{ id: string }>(
+        `INSERT INTO event (organizer_id, join_code, name_en, starts_at, ends_at)
+         SELECT organizer_id, 'HOLDCOPY', 'Copy', now() + interval '30 days', now() + interval '31 days'
+         FROM event WHERE id = $1 RETURNING id`,
+        [event],
+      );
+      await f.run(f.team(), "SELECT event_copy_setup($1, $2, $3)", [
+        event,
+        target?.id,
+        randomUUID(),
+      ]);
+      const titles = await f.owner<{ title_en: string }>(
+        "SELECT title_en FROM quest WHERE event_id = $1",
+        [target?.id],
+      );
+      expect(titles.map((row) => row.title_en)).toEqual(["Kept quest"]);
+      expect(await f.count("reward WHERE event_id = $1", [target?.id])).toBe(1);
+    });
+
+    it("skips a queued push of a held announcement at the claim", async () => {
+      const event = await live();
+      const phone = await f.playerWithPhone();
+      await f.join(event, phone.who);
+      await f.drain();
+      const [sent] = await f.run<{ id: string }>(
+        f.team(),
+        "SELECT * FROM announcement_send($1, $2::jsonb, NULL, $3, $4)",
+        [
+          event,
+          JSON.stringify({
+            titleAr: "تنبيه",
+            titleEn: "Notice",
+            bodyAr: "نص التنبيه هنا.",
+            bodyEn: "The notice text here.",
+            pushBodyAr: "نص التنبيه هنا.",
+            pushBodyEn: "The notice text here.",
+          }),
+          randomUUID(),
+          randomUUID(),
+        ],
+      );
+      await f.fanOut();
+      await unpublish("announcement", sent?.id ?? "");
+      expect(await f.claim()).toEqual([]);
+      const states = await f.owner<{ state: string; code: string | null }>(
+        "SELECT state, code FROM push_send WHERE device_id = $1",
+        [phone.deviceId],
+      );
+      expect(states.length).toBeGreaterThan(0);
+      expect(states.every((row) => row.state === "skipped")).toBe(true);
+    });
+  });
+
   describe("erasure and retention", () => {
     it("deletes reports about an erased username and keeps an erased reporter's reports without them", async () => {
       const event = await live();
@@ -565,6 +627,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reports and moderation (databa
       await f.erase(reporter.player);
       const [kept] = await reportsOf(event);
       expect(kept?.reporter_id).toBeNull();
+    });
+
+    it("drops the erased reporter's own words and mark from the reports it keeps", async () => {
+      const event = await live();
+      const reporter = await member(event);
+      await report(reporter.player, { kind: "event", target: event, note: NOTE });
+      await f.owner("UPDATE content_report SET marked = true WHERE target_id = $1", [event]);
+      await f.erase(reporter.player);
+      const kept = await f.owner<{ note: string | null; marked: boolean }>(
+        "SELECT note, marked FROM content_report WHERE target_id = $1",
+        [event],
+      );
+      expect(kept).toEqual([{ note: null, marked: false }]);
     });
 
     it("purges handled reports 180 days after handling and keeps open ones", async () => {
