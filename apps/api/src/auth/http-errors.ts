@@ -2301,3 +2301,39 @@ export const usernameUnchanged = make(
   "هذا هو اسم المستخدم الحالي للاعب.",
   "That is already the player's username.",
 );
+export const alreadyBanned = make(
+  409,
+  "already_banned",
+  "هذا الحساب موقوف مسبقا.",
+  "This account is already banned.",
+);
+export const notBanned = make(
+  409,
+  "not_banned",
+  "هذا الحساب غير موقوف.",
+  "This account is not banned.",
+);
+export const playerInactive = make(
+  423,
+  "player_inactive",
+  "لا يمكن لهذا اللاعب أن يحصل على نقاط الآن.",
+  "This player can't receive points right now.",
+);
+export const invalidWord = make(
+  400,
+  "invalid_word",
+  "اكتب كلمة من حرفين أو أكثر بلا أرقام أو رموز، واختر اللغة وطريقة المطابقة.",
+  "Type a word of 2 or more letters with no digits or symbols, and choose its language and match.",
+);
+export const wordExists = make(
+  409,
+  "word_exists",
+  "الكلمة موجودة في القائمة.",
+  "That word is already on the list.",
+);
+export const blockLimit = make(
+  409,
+  "block_limit",
+  "وصلت إلى حد 500 لاعب محظور. ألغِ حظر أحدهم أولا.",
+  "You've blocked 500 players, the most allowed. Unblock someone first.",
+);

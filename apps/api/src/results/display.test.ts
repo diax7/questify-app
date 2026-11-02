@@ -8,14 +8,14 @@ const results: PlayerResults = {
   places: [
     {
       rank: 1,
-      player: { username: "sara", fullName: "Sara Ahmed", avatar: "fox" },
+      player: { username: "sara", fullName: "Sara Ahmed", avatar: "fox", hidden: false },
       score: 910,
       prize: { kind: "item", name: { ar: "ذهبية", en: "Gold" } },
       mine: true,
     },
     {
       rank: 2,
-      player: { username: null, fullName: null, avatar: "owl" },
+      player: { username: null, fullName: null, avatar: "owl", hidden: false },
       score: 870,
       prize: null,
       mine: false,
@@ -41,13 +41,13 @@ describe("playerResultsView", () => {
     expect(answer.places).toEqual([
       {
         rank: 1,
-        player: { username: "sara", fullName: "Sara Ahmed", avatar: "fox" },
+        player: { username: "sara", fullName: "Sara Ahmed", avatar: "fox", hidden: false },
         prize: { kind: "item", name: { ar: "ذهبية", en: "Gold" } },
         mine: true,
       },
       {
         rank: 2,
-        player: { username: null, fullName: null, avatar: "owl" },
+        player: { username: null, fullName: null, avatar: "owl", hidden: false },
         prize: null,
         mine: false,
       },

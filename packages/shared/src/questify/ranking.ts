@@ -24,7 +24,23 @@ const shownSchema = z.strictObject({
   xp: z.number().int().min(1),
   level: z.number().int().min(1),
 });
-export const questifyRankingRowSchema = shownSchema.extend({ isMe: z.boolean() });
+/**
+ * A row of a player the reader blocked (FR-1415, T-705): the place, XP and level stay, so ranks stay true; no
+ * username, avatar or equipment. The app shows "Hidden player".
+ */
+const hiddenRowSchema = z.strictObject({
+  rank: z.number().int().min(1),
+  username: z.null(),
+  avatar: z.null(),
+  equipment: z.null(),
+  xp: z.number().int().min(1),
+  level: z.number().int().min(1),
+  isMe: z.literal(false),
+  hidden: z.literal(true),
+});
+export const questifyRankingRowSchema = shownSchema
+  .extend({ isMe: z.boolean() })
+  .or(hiddenRowSchema);
 export type QuestifyRankingRow = z.infer<typeof questifyRankingRowSchema>;
 export type QuestifyRankingMe = z.infer<typeof shownSchema>;
 

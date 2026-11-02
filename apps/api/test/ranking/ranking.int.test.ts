@@ -347,6 +347,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
             "avatar",
             "equipment",
             "fullName",
+            "hidden",
             "isMe",
             "rank",
             "score",

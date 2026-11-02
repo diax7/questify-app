@@ -148,6 +148,15 @@ describe("loggerOptions", () => {
     expect(req(request)).toEqual({ method: "GET", url: "/v1/players/:username" });
   });
 
+  it("keeps a blocked username out of request logs (T-705)", () => {
+    const { req } = loggerOptions(base).serializers;
+    const request = {
+      method: "DELETE",
+      url: "/v1/me/blocks/someone_blocked",
+    } as unknown as Parameters<typeof req>[0];
+    expect(req(request)).toEqual({ method: "DELETE", url: "/v1/me/blocks/:username" });
+  });
+
   it("removes credentials, session cookies and idempotency keys from every log line", () => {
     expect(loggerOptions({ ...base, nodeEnv: "production" }).redact).toEqual([
       "req.headers.authorization",

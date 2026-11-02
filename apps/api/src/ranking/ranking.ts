@@ -19,13 +19,16 @@ export type RankingDeps = Readonly<{
 /**
  * Only the username and avatar of another player are ever shown (FR-120), and the full name where the event shows it to
  * every player and the player was told so when they joined (FR-1842, ADR-400): `fullName` is null everywhere else.
+ * A player the reader blocked keeps the place and score with `hidden` set and no username, avatar, equipment or full
+ * name (FR-1415, T-705): the database masks them.
  */
 export type RankingRow = Readonly<{
   rank: number;
-  username: string;
+  username: string | null;
   fullName: string | null;
-  avatar: string;
-  equipment: Equipment;
+  avatar: string | null;
+  equipment: Equipment | null;
+  hidden: boolean;
   score: number;
   isMe: boolean;
 }>;
@@ -131,9 +134,9 @@ function fromPostgres(
   return inContext(deps, { playerId }, async (client) => {
     const top = await client.query<{
       enrollment_id: string;
-      username: string;
-      avatar: string;
-      equipment: Equipment;
+      username: string | null;
+      avatar: string | null;
+      equipment: Equipment | null;
       score: string;
     }>(
       daily
@@ -156,6 +159,7 @@ function fromPostgres(
         fullName: null,
         avatar: row.avatar,
         equipment: row.equipment,
+        hidden: row.username === null,
         score: Number(row.score),
         isMe: row.enrollment_id === me.enrollmentId,
       })),
@@ -575,15 +579,33 @@ const meOf = (me: Own, place: number | null): RankingView["me"] =>
         score: me.score,
       };
 
+/**
+ * The public details of a ranked row. Every row here is ranked (the stale ones went first), so a missing username is
+ * the blocker's mask (FR-1415): nothing of the player is shown.
+ */
+function shownOf(
+  named: Named,
+  enrollmentId: string,
+): Pick<RankingRow, "username" | "avatar" | "equipment" | "hidden"> {
+  const shown = named.get(enrollmentId);
+  if (shown?.username === null || shown?.username === undefined) {
+    return { username: null, avatar: null, equipment: null, hidden: true };
+  }
+  return {
+    username: shown.username,
+    avatar: shown.avatar,
+    equipment: shown.equipment ?? EMPTY_EQUIPMENT,
+    hidden: false,
+  };
+}
+
 function viewOf(copy: Read, named: Named, me: Own): BoardView {
   return {
     rows: copy.top.map((row, index) => ({
       rank: index + 1,
       enrollmentId: row.enrollmentId,
-      username: named.get(row.enrollmentId)?.username ?? "",
+      ...shownOf(named, row.enrollmentId),
       fullName: null,
-      avatar: named.get(row.enrollmentId)?.avatar ?? "",
-      equipment: named.get(row.enrollmentId)?.equipment ?? EMPTY_EQUIPMENT,
       score: Number(row.score),
       isMe: row.enrollmentId === me.enrollmentId,
     })),

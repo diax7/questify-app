@@ -203,6 +203,96 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
+  it("keeps the safety tools closed: eleven doors for the API's role alone, one table with no grant (T-705)", async () => {
+    const doors = [
+      "admin_ban_player",
+      "admin_lift_ban",
+      "admin_unretire_username",
+      "admin_word_add",
+      "admin_word_remove",
+      "ban_notice",
+      "block_player",
+      "console_retired_usernames",
+      "console_words",
+      "own_blocks",
+      "unblock_player",
+    ];
+    const internals = [
+      "block_caller",
+      "block_target",
+      "blocked_by_me",
+      "bulk_award_eligible",
+      "ledger_player_guard",
+      "mark_player_rankings",
+      "player_may_be_paid",
+      "wallet_player_guard",
+    ];
+    const listed = [...doors, ...internals].map((name) => `'${name}'`).join(", ");
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+      settings: string[];
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${listed})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(
+      [...doors, ...internals].toSorted(),
+    );
+    for (const row of functions) {
+      const door = doors.includes(row.proname);
+      expect(row.app, row.proname).toBe(door);
+      expect(row.outsider, row.proname).toBe(false);
+      if (door) {
+        expect(row.definer, row.proname).toBe(true);
+        expect(row.settings).toEqual(["search_path=public, pg_temp"]);
+      }
+    }
+    for (const sql of [
+      "SELECT * FROM public.admin_ban_player(gen_random_uuid(), 'spam', 'A note long enough', gen_random_uuid())",
+      "SELECT * FROM public.admin_lift_ban(gen_random_uuid(), 'other', 'A note long enough', gen_random_uuid())",
+      "SELECT * FROM public.ban_notice(gen_random_uuid())",
+      "SELECT public.block_player('anyone')",
+      "SELECT public.unblock_player('anyone')",
+      "SELECT public.own_blocks()",
+      "SELECT public.console_words(NULL, NULL, NULL, NULL)",
+      "SELECT public.admin_word_add('gnarl', 'word', 'en', gen_random_uuid())",
+      "SELECT public.admin_word_remove('gnarl', gen_random_uuid())",
+      "SELECT public.console_retired_usernames(NULL, NULL)",
+      "SELECT public.admin_unretire_username('gnarl', gen_random_uuid())",
+      "SELECT * FROM public.player_block",
+      "INSERT INTO public.player_block (blocker_id, blocked_id) VALUES (gen_random_uuid(), gen_random_uuid())",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+    expect(
+      await rows(
+        `SELECT table_name, grantee FROM information_schema.role_table_grants
+         WHERE table_name = 'player_block' AND grantee <> 'postgres'`,
+      ),
+    ).toEqual([]);
+    expect(
+      await rows(
+        `SELECT column_name FROM information_schema.column_privileges
+         WHERE table_name = 'player' AND grantee = 'questify_app' AND privilege_type = 'UPDATE'
+           AND column_name IN ('status', 'ban_action_id')`,
+      ),
+    ).toEqual([]);
+    const held = await rows<{ proname: string; grantee: string }>(
+      `SELECT DISTINCT p.proname, CASE WHEN a.grantee = 0 THEN 'public' ELSE a.grantee::regrole::text END AS grantee
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+       WHERE n.nspname = 'public' AND a.privilege_type = 'EXECUTE' AND a.grantee <> p.proowner
+         AND p.proname IN (${listed})
+       ORDER BY 1, 2`,
+    );
+    expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
+  });
+
   it("keeps the catalog editors closed: eight doors for the API's role alone, internals for nobody (T-709b)", async () => {
     const doors = [
       "admin_achievement_save",

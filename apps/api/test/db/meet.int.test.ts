@@ -426,6 +426,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet quests (database)", () =>
       expect(await score(a.enrollment)).toBe("0");
     });
 
+    it("answers not_for_them to a blocked pair in either direction (T-705, FR-1415)", async () => {
+      const { event, quest, a, b } = await setup();
+      const c = await member(event);
+      await owner("INSERT INTO player_block (blocker_id, blocked_id) VALUES ($1, $2)", [
+        a.player,
+        b.player,
+      ]);
+      expect(await refusal(meet(a, await issue(b, quest)))).toBe("QM403:not_for_them");
+      expect(await refusal(meet(b, await issue(a, quest)))).toBe("QM403:not_for_them");
+      expect(await scoresOf([a.enrollment, b.enrollment])).toEqual(["0", "0"]);
+      await meet(c, await issue(b, quest));
+      expect(await score(c.enrollment)).toBe("50");
+    });
+
     it("answers not_for_them for a shown player outside the audience or behind a category lock", async () => {
       const event = await newEvent();
       const [field] = await owner<{ id: string }>(

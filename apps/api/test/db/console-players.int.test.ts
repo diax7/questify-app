@@ -632,7 +632,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console player tools (database
       expect(await sqlstate(f.owner(`DELETE FROM player_admin_action ${where}`, [target.id]))).toBe(
         "42501",
       );
-      expect(await sqlstate(f.owner("TRUNCATE player_admin_action"))).toBe("42501");
+      // Since T-705 the ban pointer on player also refuses it (0A000), before the trigger is reached.
+      expect(await sqlstate(f.owner("TRUNCATE player_admin_action"))).toMatch(/^(42501|0A000)$/);
     });
   });
 });

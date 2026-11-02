@@ -451,14 +451,14 @@ describe("the player's results and rules", () => {
       places: [
         {
           rank: 1,
-          player: { username: "sara", fullName: null, avatar: "fox" },
+          player: { username: "sara", fullName: null, avatar: "fox", hidden: false },
           score: 300,
           prize: { kind: "item", name: { ar: "كأس", en: "Cup" } },
           mine: true,
         },
         {
           rank: 2,
-          player: { username: "sara", fullName: null, avatar: "fox" },
+          player: { username: "sara", fullName: null, avatar: "fox", hidden: false },
           score: 300,
           prize: null,
           mine: false,

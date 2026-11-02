@@ -11,6 +11,7 @@ const view: RankingView = {
       fullName: "Sara Ahmed",
       avatar: "fox",
       equipment: EMPTY_EQUIPMENT,
+      hidden: false,
       score: 910,
       isMe: false,
     },
@@ -20,6 +21,7 @@ const view: RankingView = {
       fullName: null,
       avatar: "owl",
       equipment: EMPTY_EQUIPMENT,
+      hidden: false,
       score: 870,
       isMe: true,
     },
@@ -46,8 +48,8 @@ describe("playerRanking", () => {
     const answer = playerRanking(view, true);
     expect(answer.scores).toBe(false);
     expect(answer.rows.map((row) => Object.keys(row).toSorted())).toEqual([
-      ["avatar", "equipment", "fullName", "isMe", "rank", "username"],
-      ["avatar", "equipment", "fullName", "isMe", "rank", "username"],
+      ["avatar", "equipment", "fullName", "hidden", "isMe", "rank", "username"],
+      ["avatar", "equipment", "fullName", "hidden", "isMe", "rank", "username"],
     ]);
     expect(Object.keys(answer.me ?? {}).toSorted()).toEqual([
       "avatar",
@@ -68,6 +70,7 @@ describe("playerRanking", () => {
           fullName: "Sara Ahmed",
           avatar: "fox",
           equipment: EMPTY_EQUIPMENT,
+          hidden: false,
           isMe: false,
         },
         {
@@ -76,6 +79,7 @@ describe("playerRanking", () => {
           fullName: null,
           avatar: "owl",
           equipment: EMPTY_EQUIPMENT,
+          hidden: false,
           isMe: true,
         },
       ],

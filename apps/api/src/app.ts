@@ -48,6 +48,7 @@ import { registerResultsPlayerRoutes } from "#src/results/routes";
 import { registerRehearsalPlayerRoutes } from "#src/rehearsal/routes";
 import { createRehearsal } from "#src/rehearsal/service";
 import { registerContactRoutes } from "#src/players/contact";
+import { registerBlockRoutes } from "#src/players/block-routes";
 import { registerItemRoutes } from "#src/players/item-routes";
 import { registerProfileRoutes } from "#src/players/profile";
 import { registerQuestifyRoutes } from "#src/questify/routes";
@@ -172,10 +173,9 @@ export function loggerOptions(config: AppConfig): {
     serializers: {
       req: (request) => ({
         method: request.method,
-        url: (request.url.split("?")[0] ?? "/").replace(
-          /^\/v1\/players\/[^/]+/,
-          "/v1/players/:username",
-        ),
+        url: (request.url.split("?")[0] ?? "/")
+          .replace(/^\/v1\/players\/[^/]+/, "/v1/players/:username")
+          .replace(/^\/v1\/me\/blocks\/[^/]+/, "/v1/me/blocks/:username"),
       }),
     },
     redact: [
@@ -423,14 +423,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
   const suspended = createSuspendedSet(options.pool);
   registerPlayerGuard(app, options.pool, suspended);
+  const playerMail = {
+    pool: options.pool,
+    keys: signInDeps.keys,
+    sms: options.smsSender ?? NO_SMS,
+    email: options.emailSender,
+  };
   registerPlayerAuthRoutes(
     app,
-    createPlayerSignIn({
-      pool: options.pool,
-      keys: signInDeps.keys,
-      sms: options.smsSender ?? NO_SMS,
-      email: options.emailSender,
-    }),
+    createPlayerSignIn({ ...playerMail, appealEmail: config.auth.gmail.from }),
   );
   const screenKey = createScreenCodeKey(config.qrSecret);
   registerCompletionRoutes(app, {
@@ -444,19 +445,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerRankingRoutes(app, { ranking, settings });
   registerProfileRoutes(app, { pool: options.pool, settings });
   registerItemRoutes(app, { pool: options.pool, keys: signInDeps.keys });
+  registerBlockRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   registerQuestifyRoutes(app, { pool: options.pool, keys: signInDeps.keys });
-  registerContactRoutes(app, {
-    pool: options.pool,
-    settings,
-    keys: signInDeps.keys,
-    sms: options.smsSender ?? NO_SMS,
-    email: options.emailSender,
-  });
+  registerContactRoutes(app, { ...playerMail, settings });
   registerDeletionRoutes(app, {
-    pool: options.pool,
-    keys: signInDeps.keys,
-    sms: options.smsSender ?? NO_SMS,
-    email: options.emailSender,
+    ...playerMail,
     deferred,
     idempotencyStore: options.idempotencyStore,
   });

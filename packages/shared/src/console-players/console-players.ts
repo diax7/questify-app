@@ -11,12 +11,19 @@ import { z } from "zod";
 export const PLAYER_SEARCH_BY = ["username", "phone", "email"] as const;
 export type PlayerSearchBy = (typeof PLAYER_SEARCH_BY)[number];
 
-/** The reason codes each action accepts (`player_action_note` in migration 0118 holds the same lists). */
+/**
+ * The reason codes each action accepts (`player_action_note` in migration 0120 holds the same lists). A ban's code is
+ * what the banned player is shown (FR-1417, T-705); every other code is internal.
+ */
 export const PLAYER_ACTION_REASONS = {
   contact_reveal: ["support_request", "legal_request"],
   rename: ["offensive", "impersonation", "personal_data", "spam", "other"],
   reset_sign_in: ["lost_access", "compromised", "locked_out", "other"],
+  ban: ["cheating", "abuse", "spam", "prize_fraud", "terms"],
+  lift_ban: ["appeal_upheld", "mistake", "other"],
 } as const;
+export const BAN_REASONS = PLAYER_ACTION_REASONS.ban;
+export type BanReason = (typeof BAN_REASONS)[number];
 export type PlayerActionKind = keyof typeof PLAYER_ACTION_REASONS;
 export const PLAYER_ACTION_KINDS = Object.keys(PLAYER_ACTION_REASONS) as PlayerActionKind[];
 

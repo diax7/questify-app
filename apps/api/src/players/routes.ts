@@ -149,7 +149,7 @@ export function registerPlayerAuthRoutes(app: FastifyInstance, signIn: PlayerSig
           case "challenge_expired":
             throw challengeExpired();
           case "account_banned":
-            throw accountBanned();
+            throw accountBanned({ ...result.notice });
           case "throttled":
             throw throttled(reply, result.retryAfterSeconds);
         }

@@ -1052,6 +1052,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; holds no player id; written by admin_rename_player, read by the username check inside the definers (test/db/console-players)",
   player_admin_action:
     "no right for the API role at all; Questify-wide, not an organizer's; written and read only by the console's admin doors, deleted by erase_rows (test/db/console-players)",
+  player_block:
+    "no right for the API role at all; a player's own list, not an organizer's; written and read only by the player-bound doors (block_player, unblock_player, own_blocks) and the masked reads, deleted by erase_rows both ways (test/db/player-blocks)",
   ranking_repair:
     "no right for the API role at all; marks are set by definers and triggers and claimed by the repair tick (test/db/ranking)",
   manual_award_key:
@@ -1816,6 +1818,40 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         const values = sql.includes("$1") ? [f.playerA] : [];
         expect(await refusal(asA(seat, sql, values)), `${seat} ${sql}`).toBe("QE403");
       }
+    }
+  });
+
+  it("keeps the ban and word-list doors from every tenant seat, and a player's blocks to that player (T-705)", async () => {
+    const note = "'A note long enough to pass'";
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      for (const sql of [
+        `SELECT * FROM admin_ban_player($1, 'spam', ${note}, gen_random_uuid())`,
+        `SELECT * FROM admin_lift_ban($1, 'other', ${note}, gen_random_uuid())`,
+        "SELECT console_words(NULL, NULL, NULL, NULL)",
+        "SELECT admin_word_add('gnarl', 'word', 'en', gen_random_uuid())",
+        "SELECT admin_word_remove('gnarl', gen_random_uuid())",
+        "SELECT console_retired_usernames(NULL, NULL)",
+        "SELECT admin_unretire_username('gnarl', gen_random_uuid())",
+      ]) {
+        const values = sql.includes("$1") ? [f.playerB] : [];
+        expect(await refusal(asA(seat, sql, values)), `${seat} ${sql}`).toBe("QE403");
+      }
+    }
+    await db.owner.query("INSERT INTO player_block (blocker_id, blocked_id) VALUES ($1, $2)", [
+      f.playerB,
+      f.playerA,
+    ]);
+    try {
+      for (const seat of ["organizer", "staff", "player"] as const) {
+        const blocks = await asA<{ r: unknown[] }>(seat, "SELECT own_blocks() AS r", []).then(
+          (result) => result.rows[0]?.r,
+          () => [],
+        );
+        expect(blocks, seat).toEqual([]);
+      }
+      expect(await refusal(asA("organizer", "SELECT block_player('khalid_m')", []))).toBe("42501");
+    } finally {
+      await db.owner.query("DELETE FROM player_block WHERE blocker_id = $1", [f.playerB]);
     }
   });
 

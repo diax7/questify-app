@@ -397,7 +397,46 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in", () => {
       const { token, code } = await challenge(known.contact);
       const refused = await post("verify", { challengeToken: token, code });
       expect(refused.statusCode).toBe(403);
-      expect(refused.json()).toMatchObject({ code: "account_banned" });
+      expect(refused.json()).toMatchObject({
+        code: "account_banned",
+        details: { reason: null, appealEmail: "questify@nafes.test" },
+      });
+    });
+
+    it("tells a player Questify banned the ban's reason and the stored appeal address (T-705)", async () => {
+      const known = await signUp();
+      const [admin] = await owner<{ id: string }>(
+        `INSERT INTO staff_user (email, password_hash, platform_role, status)
+         VALUES ('ban-route@questify.test', 'h', 'admin', 'active') RETURNING id`,
+      );
+      await owner(
+        `INSERT INTO platform_setting (key, value) VALUES ('moderation', '{"appealEmail": "appeals@nafes.test"}')
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      );
+      await owner(
+        `SELECT set_config('app.is_admin', 'on', false), set_config('app.staff_user_id', $1, false)`,
+        [admin?.id],
+      );
+      await owner(
+        "SELECT * FROM admin_ban_player($1, 'abuse', 'Threatened another player.', NULL)",
+        [known.player.id],
+      );
+      await owner(
+        "SELECT set_config('app.is_admin', '', false), set_config('app.staff_user_id', '', false)",
+      );
+      const { token, code } = await challenge(known.contact);
+      const wrong = await post("verify", {
+        challengeToken: token,
+        code: code === "000000" ? "111111" : "000000",
+      });
+      expect(wrong.json()).toMatchObject({ code: "invalid_code" });
+      const refused = await post("verify", { challengeToken: token, code });
+      expect(refused.json()).toEqual({
+        code: "account_banned",
+        message: expect.any(Object),
+        details: { reason: "abuse", appealEmail: "appeals@nafes.test" },
+      });
+      await owner("DELETE FROM platform_setting WHERE key = 'moderation'");
     });
 
     it("answers 410 for an unknown challenge", async () => {
