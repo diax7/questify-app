@@ -354,10 +354,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
       ).rejects.toThrow(/permission denied/);
     });
 
-    it("refuses a bare organizer row from anyone but an admin", async () => {
+    it("refuses a bare organizer row: only create_organizer makes one (0114, ADR-405)", async () => {
       await expect(
         as({ staffUserId: stranger }, "INSERT INTO organizer (name, slug) VALUES ('Bare', 'bare')"),
-      ).rejects.toThrow(/row-level security/);
+      ).rejects.toThrow(/permission denied/);
     });
 
     it("never loses its owner: an owner cannot demote or remove themselves", async () => {

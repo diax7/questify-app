@@ -49,6 +49,8 @@ const COPIED = new Set([
  * decides, and the walk below fails until then.
  */
 const NOT_COPIED = new Set([
+  // Questify's support grants on the source event (T-701): never carried to a copy
+  "support_grant",
   // people and play
   "quest_points_change",
   // the source event's review state (T-604b): its proposed changes name its own rows
