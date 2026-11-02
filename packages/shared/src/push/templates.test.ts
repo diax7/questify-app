@@ -408,15 +408,15 @@ describe("reminders and promotion (T-501f, ADR-356)", () => {
     ).toEqual({ title: "Questify", body: texts[1], pushable: true });
   });
 
-  it("names the event and the shop's closing date in the event's zone, never an amount", () => {
+  it("names the event and the shop's closing date and time in the event's zone, never an amount", () => {
     const closes = "2026-10-30T19:00:00Z";
     expect(both("shop_closing", { event: EVENT, date: closes })).toEqual([
-      "The Winter Fest rewards shop is open until 30 Oct.",
-      "متجر جوائز مهرجان الشتاء مفتوح حتى 30 أكتوبر.",
+      "The Winter Fest rewards shop is open until 30 Oct at 22:00.",
+      "متجر جوائز مهرجان الشتاء مفتوح حتى 30 أكتوبر الساعة 22:00.",
     ]);
     expect(both("shop_closing", { event: { en: "www.x.io" }, date: closes })).toEqual([
-      "The rewards shop is open until 30 Oct.",
-      "متجر الجوائز مفتوح حتى 30 أكتوبر.",
+      "The rewards shop is open until 30 Oct at 22:00.",
+      "متجر الجوائز مفتوح حتى 30 أكتوبر الساعة 22:00.",
     ]);
     expect(both("shop_closing", { event: EVENT })).toEqual([
       "You have a new message",

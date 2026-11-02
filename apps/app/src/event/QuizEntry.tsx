@@ -163,6 +163,10 @@ function revealText(answered: QuizAnswered, t: Translate, language: "ar" | "en")
   return answered.closed ? t("play.quiz.closed", { answer }) : t("play.quiz.wrong", { answer });
 }
 
+/** A paused quiz takes no new attempt, but an attempt already open goes on to its end (the server allows it). */
+const attemptAllowed = (questState: string, status: QuizView["status"]): boolean =>
+  questState === "open" || status === "open";
+
 function Intro({
   quiz,
   open,
@@ -317,7 +321,7 @@ export function QuizEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: ()
       {stage.kind === "intro" ? (
         <Intro
           quiz={view}
-          open={quest.state === "open"}
+          open={attemptAllowed(quest.state, view.status)}
           busy={quiz.busy}
           start={() => void quiz.move(view.status === "none" ? "start" : "next")}
         />

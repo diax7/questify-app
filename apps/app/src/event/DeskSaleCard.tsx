@@ -52,9 +52,9 @@ export function DeskSaleCard({
 
   const decline = async () => {
     setBusy(true);
-    await declineDeskSale(api.session, sale.id);
+    const answer = await declineDeskSale(api.session, sale.id);
     setBusy(false);
-    await onDone(null);
+    await onDone(answer.kind === "network" ? t("join.network") : null);
   };
 
   return (

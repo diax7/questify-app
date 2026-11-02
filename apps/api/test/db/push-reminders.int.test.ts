@@ -235,9 +235,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reminder pushes (database)", (
       expect(mine.map((row) => row.token)).toEqual([real.token]);
       const message = mine[0] === undefined ? null : pushMessageOf({ ...mine[0], language: "en" });
       expect(message?.body).toMatch(
-        /^The Event [0-9]+ rewards shop is open until [0-9]{1,2} [A-Z][a-z]{2}\.$/,
+        /^The Event [0-9]+ rewards shop is open until [0-9]{1,2} [A-Z][a-z]{2} at [0-9]{2}:[0-9]{2}\.$/,
       );
-      expect(message?.body).not.toContain("10");
+      expect(message?.body).not.toMatch(/points/i);
       expect(message?.channel).toBe("reminders");
     });
 

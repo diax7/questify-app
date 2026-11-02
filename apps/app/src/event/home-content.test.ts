@@ -176,6 +176,9 @@ const shop = (stockLeft: number): ShopView =>
     rewards: [{ id: QUEST, name: { ar: null, en: "Mug" }, price: 120, stockLeft }],
   }) as unknown as ShopView;
 
+const note = (state: string) =>
+  (featuredView({ kind: "quest", id: QUEST }, quests(state), undefined) as { note: unknown }).note;
+
 describe("featuredView", () => {
   it("finds the quest in the player's own list", () => {
     expect(featuredView({ kind: "quest", id: QUEST }, quests("open"), undefined)).toEqual({
@@ -183,7 +186,16 @@ describe("featuredView", () => {
       id: QUEST,
       title: { ar: null, en: "Find it" },
       points: 50,
+      note: null,
     });
+  });
+
+  it("says why a featured quest cannot be played now, and stays quiet for one that is open", () => {
+    expect(note("paused")).toBe("questsTab.paused");
+    expect(note("locked")).toBe("questsTab.locked");
+    expect(note("closed")).toBe("questsTab.notLive");
+    expect(note("open")).toBeNull();
+    expect(note("a_state_from_a_newer_server")).toBeNull();
   });
 
   it("draws nothing for a finished quest, a quest that is not in the list, or no list yet", () => {

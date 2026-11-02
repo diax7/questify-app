@@ -172,7 +172,9 @@ function placeholderValue(
     return pushName(params[name], content.language);
   }
   if (name === "date" || name === "time") {
-    return pushMoment(params[name], name, content.timezone, content.language);
+    // A notice that froze one moment under `date` (the shop's closing) shows its time from that same moment.
+    const moment = params[name] ?? (name === "time" ? params["date"] : undefined);
+    return pushMoment(moment, name, content.timezone, content.language);
   }
   return PUSH_TERM_PLACEHOLDERS.includes(name) ? undefined : null;
 }

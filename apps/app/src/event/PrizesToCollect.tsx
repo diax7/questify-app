@@ -19,7 +19,7 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /**
  * Reads the player's uncollected prizes on focus and when the app comes back to the front. A read that fails keeps what
- * the card showed. The clock moves on at the moment a live Collect runs out, so "Ready to collect" does not outlive it.
+ * the card showed. The clock moves on at the moment a live Collect runs out or a reservation ends, so "Ready to collect" and "Collect by" do not outlive them.
  */
 function useHeldPrizes(eventId: string) {
   const [held, setHeld] = useState<HeldPrizes | undefined>(undefined);
@@ -47,8 +47,11 @@ function useHeldPrizes(eventId: string) {
   }, [load]);
 
   const nextEnd = (held?.prizes ?? [])
-    .filter((prize) => isCollecting(prize, now))
-    .map((prize) => Date.parse(prize.collectUntil ?? ""))
+    .flatMap((prize) => [
+      isCollecting(prize, now) ? Date.parse(prize.collectUntil ?? "") : Number.NaN,
+      Date.parse(prize.reservedUntil ?? ""),
+    ])
+    .filter((end) => end > now)
     .reduce((soonest, end) => Math.min(soonest, end), Number.POSITIVE_INFINITY);
   useEffect(() => {
     if (!Number.isFinite(nextEnd)) {
@@ -78,7 +81,7 @@ function PrizeRow({
   const name = textIn(prize.name, language);
   const ready = isCollecting(prize, now);
   const deadline =
-    prize.reservedUntil === null
+    prize.reservedUntil === null || Date.parse(prize.reservedUntil) <= now
       ? null
       : formatEventTime(new Date(prize.reservedUntil), desk.timeZone, language);
   return (

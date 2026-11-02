@@ -5,6 +5,7 @@ import {
   type FeaturedTarget,
   type Language,
   type LocalText,
+  type MessageKey,
   type TapAction,
 } from "@questify/shared";
 import { spanText } from "#src/event/countdown.ts";
@@ -101,10 +102,32 @@ export function countdownRefreshMs(card: CountdownCard, now: number): number | n
 
 type Words = Readonly<{ ar: string | null; en: string | null }>;
 
-/** The featured quest or reward as the card draws it. */
+/** The featured quest or reward as the card draws it; a quest that cannot be played now carries the words that say why. */
 export type FeaturedView =
-  | Readonly<{ kind: "quest"; id: string; title: Words; points: number }>
+  | Readonly<{ kind: "quest"; id: string; title: Words; points: number; note: MessageKey | null }>
   | Readonly<{ kind: "reward"; id: string; title: Words; points: number }>;
+
+/** What a featured quest says while it is not open; an open quest, and a state this build does not know, say nothing. */
+const QUEST_NOTES: Readonly<Record<string, MessageKey | undefined>> = {
+  paused: "questsTab.paused",
+  locked: "questsTab.locked",
+  not_live: "questsTab.notLive",
+  not_yet: "questsTab.notLive",
+  closed: "questsTab.notLive",
+};
+
+type QuestEntry = QuestsView["categories"][number]["quests"][number];
+
+const featuredQuest = (quest: QuestEntry | undefined): FeaturedView | null =>
+  quest === undefined || quest.state === "done"
+    ? null
+    : {
+        kind: "quest",
+        id: quest.id,
+        title: quest.title,
+        points: quest.points,
+        note: QUEST_NOTES[quest.state] ?? null,
+      };
 
 /**
  * The featured item from the player's own reads: a quest they have not finished, or a reward still in stock. An item that is
@@ -116,12 +139,11 @@ export function featuredView(
   shop: ShopView | undefined,
 ): FeaturedView | null {
   if (target.kind === "quest") {
-    const quest = quests?.categories
-      .flatMap((category) => category.quests)
-      .find((entry) => entry.id === target.id);
-    return quest === undefined || quest.state === "done"
-      ? null
-      : { kind: "quest", id: quest.id, title: quest.title, points: quest.points };
+    return featuredQuest(
+      quests?.categories
+        .flatMap((category) => category.quests)
+        .find((entry) => entry.id === target.id),
+    );
   }
   const reward = shop?.rewards.find((entry) => entry.id === target.id);
   return reward === undefined || reward.stockLeft <= 0

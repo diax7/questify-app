@@ -14,6 +14,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Linking, PanResponder, Pressable, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
+import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import { Amount } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
@@ -64,13 +65,18 @@ export function useOpen(): (outcome: TapOutcome) => void {
           });
           break;
         case "link":
-          Alert.alert(t("home.link.title"), t("home.link.body", { host: outcome.host }), [
-            { text: t("common.cancel"), style: "cancel" },
-            {
-              text: t("home.link.open"),
-              onPress: () => void Linking.openURL(outcome.url).catch(() => undefined),
-            },
-          ]);
+          Alert.alert(
+            t("home.link.title"),
+            t("home.link.body", { host: isolatedLtr(outcome.host) }),
+            [
+              { text: t("common.cancel"), style: "cancel" },
+              {
+                text: t("home.link.open"),
+                onPress: () =>
+                  void Linking.openURL(outcome.url).catch(() => Alert.alert(t("home.link.failed"))),
+              },
+            ],
+          );
           break;
       }
     },
@@ -207,9 +213,11 @@ export function QuickLinksBlock({ links }: Readonly<{ links: readonly QuickLink[
   }
   return (
     <View style={styles.links}>
-      {shown.map(({ link, outcome }) => (
+      {shown.map(({ link, outcome }, position) => (
         <Pressable
-          key={`${link.icon}:${localIn(link.label, language)}`}
+          // Two links may look alike (same icon, same label), so the position is their identity.
+          // oxlint-disable-next-line react/no-array-index-key
+          key={position}
           accessibilityRole="button"
           onPress={() => open(outcome)}
           style={styles.link}
@@ -262,6 +270,7 @@ export function FeaturedBlock({ target }: Readonly<{ target: FeaturedTarget }>) 
     >
       <AppText variant="title">{t("home.featured.title")}</AppText>
       <AppText variant="label">{textIn(view.title, language)}</AppText>
+      {view.kind === "quest" && view.note !== null ? <AppText muted>{t(view.note)}</AppText> : null}
       <Amount amount={formatNumber(view.points, language)} form="labelled" muted />
     </Pressable>
   );
