@@ -38,7 +38,10 @@ then reply and stop.
 - Lint, format, types: `npx oxfmt <paths>`, `npx oxlint --deny-warnings <dirs>`, `npx tsc --noEmit -p apps/<x>`.
 - Tests: `npx vitest run <paths>` from the repo root. Run only the suites your change touches, plus
   `apps/api/test/security` when the schema changes. Browser tests (RUNBOOK, `pnpm --filter @questify/web e2e`):
-  the full browser suite after a fresh web build for UI copy changes; otherwise only the specs you touched.
+  **never run the full browser suite locally** (Dhia, 2026-11-02: it takes 30+ minutes, heats the PC, and CI runs it
+  on every push for free). After a fresh web build and `pnpm --filter @questify/web e2e:api`, run once with one worker
+  only `layout.spec.ts` plus the specs of the area you changed (`node scripts/ci-scope.mjs` names them, or the specs
+  you touched); at most one targeted rerun.
   `npx expo export` when app screens change.
 - Before reporting a task done, run the full `npx vitest run` ONCE with both URLs set, into a log file, and read
   only the summary line: list-style guards (`test/db/rehearsal.int.test.ts`, the security suites, the community gate
