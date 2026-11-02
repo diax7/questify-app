@@ -6,6 +6,7 @@ import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { readMyEvents, type MyEvent } from "#src/event/launch.ts";
+import { Faq } from "#src/help/Faq.tsx";
 import { TicketCenter } from "#src/help/TicketCenter.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 
@@ -30,6 +31,7 @@ export default function AccountHelpScreen() {
   return (
     <Screen title={t("help.title")} header={<BackButton />}>
       <ScrollView contentContainerStyle={{ gap: 12 }}>
+        <Faq />
         <TicketCenter
           event={null}
           events={events}

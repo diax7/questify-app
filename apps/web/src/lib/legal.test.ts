@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { organizerDocuments } from "@questify/shared";
-import { legalBlocks } from "#src/lib/legal.ts";
+import { LEGAL_DOCUMENT_IDS } from "@questify/shared";
+import { legalBlocks, legalTextBlocks } from "#src/lib/legal.ts";
 
 const SAMPLE = [
   "---",
@@ -59,7 +59,18 @@ describe("legalBlocks", () => {
     expect(legalBlocks("# just a title", "en")).toEqual([]);
   });
 
-  it.each(organizerDocuments().map((document) => document.id))(
+  it("reads a published text, which holds one language, into the same blocks", () => {
+    expect(legalTextBlocks("## The terms\n\nA paragraph.\n\n- one\n- two")).toEqual([
+      { kind: "heading", level: 2, text: "The terms" },
+      { kind: "paragraph", text: "A paragraph." },
+      { kind: "list", items: ["one", "two"] },
+    ]);
+    expect(legalTextBlocks("<script>alert(1)</script>\n[x](javascript:y)")).toEqual([
+      { kind: "paragraph", text: "x" },
+    ]);
+  });
+
+  it.each([...LEGAL_DOCUMENT_IDS])(
     "reads the %s draft in both languages, starting with a heading",
     (id) => {
       const file = readFileSync(

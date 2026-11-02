@@ -7,7 +7,7 @@ import {
 } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { Linking } from "react-native";
-import { api } from "#src/api/app-session.ts";
+import { api, keyValueStore } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button, Field, Problem } from "#src/components/Controls.tsx";
@@ -38,7 +38,7 @@ function GuidelinesStep({ onAccepted }: Readonly<{ onAccepted: () => void }>) {
     void Linking.openURL(`https://${JOIN_LINK_HOSTS[0]}/${language}/legal/${id}`);
   const accept = async () => {
     setBusy(true);
-    const accepted = await acceptGuidelines(api.session);
+    const accepted = await acceptGuidelines({ session: api.session, store: keyValueStore });
     setBusy(false);
     setFailed(!accepted);
     if (accepted) {

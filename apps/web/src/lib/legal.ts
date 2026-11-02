@@ -32,6 +32,15 @@ const plain = (text: string): string =>
  * rendered.
  */
 export function legalBlocks(markdown: string, language: Language): LegalBlock[] {
+  return blocksOf(halfFor(markdown, language));
+}
+
+/** The same small markdown for a text an admin published, which holds one language (FR-1781). */
+export function legalTextBlocks(text: string): LegalBlock[] {
+  return blocksOf(text.replace(/\r\n/g, "\n").split("\n"));
+}
+
+function blocksOf(lines: readonly string[]): LegalBlock[] {
   const blocks: LegalBlock[] = [];
   let paragraph: string[] = [];
   let list: string[] = [];
@@ -45,7 +54,7 @@ export function legalBlocks(markdown: string, language: Language): LegalBlock[] 
       list = [];
     }
   };
-  for (const raw of halfFor(markdown, language)) {
+  for (const raw of lines) {
     const line = raw.trim();
     const heading = /^(#{2,3})\s+(.*)$/.exec(line);
     if (heading !== null) {

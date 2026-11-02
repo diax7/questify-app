@@ -156,8 +156,10 @@ REVOKE ALL ON FUNCTION admin_legal_publish(text, text, text, text, text, uuid) F
 GRANT EXECUTE ON FUNCTION admin_legal_publish(text, text, text, text, text, uuid) TO questify_app;
 
 -- ================================================================ organizers re-accept
--- The organizer documents in force that organizer `org` has not accepted, as [{document, version}] (empty when none). Only
--- a member of that organizer gets an answer; anyone else gets an empty list, the same as an organizer with nothing to accept.
+-- The organizer documents in force that organizer `org` accepted an earlier version of and not this one, as
+-- [{document, version}] (empty when none). An organizer is only ever made with all three documents accepted (insert_organizer),
+-- so a document with no acceptance at all is not a new version to accept. Only a member of that organizer gets an answer;
+-- anyone else gets an empty list, the same as an organizer with nothing to accept.
 CREATE FUNCTION organizer_legal_missing(org uuid) RETURNS jsonb
   LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   SELECT coalesce(jsonb_agg(jsonb_build_object('document', f.document, 'version', f.version) ORDER BY f.document),
@@ -165,6 +167,7 @@ CREATE FUNCTION organizer_legal_missing(org uuid) RETURNS jsonb
   FROM legal_in_force_v f
   WHERE f.document IN ('organizer_terms', 'organizer_dpa', 'organizer_content_rules')
     AND EXISTS (SELECT 1 FROM organizer_member m WHERE m.organizer_id = org AND m.staff_user_id = app_staff_user_id())
+    AND EXISTS (SELECT 1 FROM organizer_acceptance a WHERE a.organizer_id = org AND a.document = f.document)
     AND NOT EXISTS (SELECT 1 FROM organizer_acceptance a
                     WHERE a.organizer_id = org AND a.document = f.document AND a.version = f.version)
 $$;

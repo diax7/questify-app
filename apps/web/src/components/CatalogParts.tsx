@@ -67,7 +67,7 @@ export function CatalogState<Rows>({
   children,
 }: Readonly<{
   language: Language;
-  catalog: Catalog<Rows>;
+  catalog: Pick<Catalog<Rows>, "state" | "reload" | "notice" | "problem">;
   children: (rows: Rows) => ReactNode;
 }>) {
   const t = translatorFor(language);

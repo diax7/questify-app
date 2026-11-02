@@ -61,7 +61,7 @@ type Schema<Doc> = Readonly<{
 }>;
 type Issue = Readonly<{ path: readonly PropertyKey[]; message: string }>;
 
-function checked<Doc>(schema: Schema<Doc>, input: unknown): Checked<Doc> {
+export function checked<Doc>(schema: Schema<Doc>, input: unknown): Checked<Doc> {
   const parsed = schema.safeParse(input);
   if (parsed.success) {
     return { ok: true, doc: parsed.data };

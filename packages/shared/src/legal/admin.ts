@@ -49,7 +49,7 @@ const instant = z.string();
 export const legalPublishSchema = z.strictObject({
   version,
   text: z.strictObject({
-    ar: text(LEGAL_TEXT_MAX).refine((value) => value !== "", "required"),
+    ar: text(LEGAL_TEXT_MAX).refine((value) => ARABIC_LETTER.test(value), "must be written in Arabic"),
     en: text(LEGAL_TEXT_MAX).refine((value) => value !== "", "required"),
   }),
   note: text(LEGAL_NOTE_MAX).optional(),

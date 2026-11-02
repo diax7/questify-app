@@ -226,6 +226,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
         { document: "organizer_dpa", version: "5" },
         { document: "organizer_terms", version: "2" },
       ]);
+      // An organizer with no acceptance on record has no earlier version to re-accept (it is always made with all three).
+      expect(await pending(f.ids.orgB, ownerB)).toEqual([]);
       // A member of another organizer, a player and a stranger learn nothing about this one.
       expect(
         await one("SELECT organizer_legal_missing($1) AS r", [f.ids.orgA], f.team(ownerB, f.ids.orgB)),
