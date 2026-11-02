@@ -3,8 +3,8 @@ import { TEMPLATE_KEY, templateBodySchema } from "#src/templates/template";
 import { arabicText, englishText } from "#src/text/bilingual";
 
 /**
- * The console's catalog editors (T-709b, T-709c, FR-1403): event templates, achievements, level titles, the gem shop and
- * the XP and gem amounts. Each editor changes configuration the platform already reads. A saved change is an audit entry holding the edited fields
+ * The console's catalog editors (T-709b, T-709c, T-709d, FR-1403): event templates, achievements, level titles, the gem
+ * shop, the XP and gem amounts, the XP table with its level rewards, and Questify's items (`xp-table.ts`). Each editor changes configuration the platform already reads. A saved change is an audit entry holding the edited fields
  * before and after (`CatalogDoc`), and the same shape is what a revert puts back, so one schema guards a save and a revert.
  */
 export const CATALOG_KINDS = [
@@ -13,6 +13,8 @@ export const CATALOG_KINDS = [
   "level_titles",
   "gem_shop",
   "amounts",
+  "xp_table",
+  "item",
 ] as const;
 export type CatalogKind = (typeof CATALOG_KINDS)[number];
 

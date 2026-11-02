@@ -27,9 +27,10 @@ type Claim = Readonly<{ scope: string; key: string }>;
 
 /**
  * Database errors a retry can fix: a lock or statement timeout, too many connections, and a deadlock or serialization
- * failure (Postgres aborts one side of a rare crossed lock order, ADR-211). Answered 503 busy with Retry-After.
+ * failure (Postgres aborts one side of a rare crossed lock order, ADR-211), and CA503, a door whose own lock budget ran
+ * out (the XP table save, T-709d). Answered 503 busy with Retry-After.
  */
-const DATABASE_BUSY = new Set(["55P03", "57014", "53300", "40P01", "40001"]);
+const DATABASE_BUSY = new Set(["55P03", "57014", "53300", "40P01", "40001", "CA503"]);
 
 /**
  * An unexpected error as it is logged: its name, message, stack and the database's code and object names, never

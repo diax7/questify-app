@@ -2290,6 +2290,49 @@ export const confirmationRequired = make(
   "هذا التغيير يمنح جواهر لا يمكن استردادها. أكّده للمتابعة.",
   "This change pays gems that cannot be taken back. Confirm it to go on.",
 );
+/**
+ * The refusals of the XP table and item editors (T-709d, migration 0124). `details.level` names the level where one has
+ * a level. Rewards already given never move, and an item players own or can buy keeps its art.
+ */
+export const CATALOG_CONFLICTS = {
+  level_held: make(
+    409,
+    "level_held",
+    "لا يمكن حذف هذا المستوى: لاعبون وصلوا إليه أو تجاوزوا بدايته.",
+    "This level can't be removed: players reached it or stand past its start.",
+  ),
+  reward_given: make(
+    409,
+    "reward_given",
+    "لا يمكن تغيير جائزة هذا المستوى: حصل عليها لاعبون.",
+    "This level's reward can't change: players already got it.",
+  ),
+  item_unknown: make(409, "item_unknown", "هذا العنصر غير موجود.", "That item doesn't exist."),
+  item_has_source: make(
+    409,
+    "item_has_source",
+    "هذا العنصر يُباع في المتجر أو هو تذكار فعالية.",
+    "That item is sold in the shop or is an event souvenir.",
+  ),
+  item_on_sale: make(
+    409,
+    "item_on_sale",
+    "عنصر المتجر يحتفظ بشكله: يحتفظ المشترون بما رأوه.",
+    "A shop item keeps its art: buyers keep what they saw.",
+  ),
+  item_owned: make(
+    409,
+    "item_owned",
+    "يملك لاعبون هذا العنصر، فيحتفظ بشكله.",
+    "Players own this item, so it keeps its art.",
+  ),
+  exists: make(
+    409,
+    "item_exists",
+    "يوجد عنصر بهذا المعرّف.",
+    "An item with that id already exists.",
+  ),
+} as const;
 export const tierNotEarned = make(
   409,
   "tier_not_earned",
