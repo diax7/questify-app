@@ -182,7 +182,8 @@ Tests assert that one lookup exposes one row and nothing else, and the request c
 **Admin power narrowed (T-701, ADR-405).** `staff_user_own` is SELECT only (own row or admin) and
 `staff_user_update` allows the own row only, so no context, an admin's included, can overwrite another person's
 `password_hash`. `platform_role` and `status` are written only by the owner connection (`staff-cli grant-admin` and
-`revoke-admin`, audited; a revoke ends sessions and support grants); a test asserts the API role's exact privileges.
+`revoke-admin`, each with a required reason and the operator in the audit entry; a revoke ends sessions and support
+grants); a test asserts the API role's exact privileges.
 
 ### Audit log (T-004)
 

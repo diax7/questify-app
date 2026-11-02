@@ -6394,10 +6394,11 @@ and the item statuses are constants in code, so a change is a release.
 
 ## ADR-405 - T-701 platform admins are granted and revoked only from the owner connection; organizer rows are definer-only
 
-**Status:** Proposed (developer, 2026-11-02; T-701). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
-**Decision:** `staff-cli grant-admin <email>` and `revoke-admin <email>` are the only paths that write `platform_role`: one
-transaction with an audit entry (`staff.platform_role`, system actor, before and after); a revoke also ends the account's
-live sessions and closes its live support grants. The API role keeps exactly `SELECT` and `UPDATE (password_hash)` on
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-701 plan review 80, code review 88, its MAJOR fixed). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
+**Decision:** `staff-cli grant-admin <email> --reason "why" [--by <name>]` and `revoke-admin <email> --reason "why"
+[--by <name>]` are the only paths that write `platform_role`: one transaction with an audit entry
+(`staff.platform_role`, system actor, before and after, plus the reason of 10 to 300 characters and the operator: `--by`,
+else the operating-system user); a revoke also ends the account's live sessions and closes its live support grants. The API role keeps exactly `SELECT` and `UPDATE (password_hash)` on
 `staff_user`, and its UPDATE policy is now the own row only (the admin branch is dropped: both password paths run as the
 user). The API role loses `INSERT` and `UPDATE` on `organizer` (plan review BLOCKER: a member could have written
 `status` and lifted a suspension); organizers are created by `create_organizer` only.
@@ -6406,7 +6407,7 @@ admin accounts yet (T-709); an admin cannot reset another person's password hash
 
 ## ADR-406 - T-701 suspension is an overlay with database walls on money, joining and public reads
 
-**Status:** Proposed (developer, 2026-11-02; T-701). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-701 plan review 80, code review 88, its MAJOR fixed). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
 **Decision:** an organizer is suspended by `status = 'paused'` plus `suspended_at`, `suspended_by`, `suspension_reason`;
 an event by `event.suspended_at`, `suspended_by`, `suspension_reason`; four admin doors, reason 10 to 300 characters,
 audited with the reason. Nothing else changes, so reactivating restores exactly what was there. Walls: the ledger guard
@@ -6415,14 +6416,16 @@ through it); joining is refused by a trigger; the five public event reads and th
 community payer and settle, the invitation claim and the push claim skip the event instead of failing their batch.
 API walls: player routes with `:eventId` answer `404 event_unavailable` from a 10-second set of suspended ids; the
 team's writes answer `423 organizer_suspended` or `423 event_suspended`. Every statement that starts after the
-suspension commits is refused.
+suspension commits is refused. The team keeps two writes while suspended so a compromised account can be cut off:
+leaving (`DELETE .../members/me`) and an owner removing a member (`DELETE .../members/{id}`); the speaker's survey link
+answers like an unknown link. Reactivating takes an optional reason (10 to 300 characters), audited in `after`.
 **Why:** the money paths need walls that no code path can skip; the general staff write wall is the one organizer hook,
 since about 170 definers mix reads and writes. **Trade-offs:** up to 10 seconds of lag on the API walls of other
 instances; due community payouts wait until the suspension is lifted.
 
 ## ADR-407 - T-701 support access is a 15-minute grant that seats the admin as an editor of one event
 
-**Status:** Proposed (developer, 2026-11-02; T-701; Dhia's Q-373). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-701 plan review 80, code review 88, its MAJOR fixed). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
 **Decision:** `support_open(event, reason)` opens a `support_grant` row for exactly 15 minutes (a CHECK), one live grant
 per admin and event, never for a member of the organizer, 20 an hour; any admin can close one; opening again extends.
 `app_organizer_id()` and `app_event_scope()` gain a branch used only with a staff id and no membership: the live grant of
@@ -6436,7 +6439,7 @@ features) fail closed for support.
 
 ## ADR-408 - T-701 support entries are stamped by the database and shown as "Questify support"
 
-**Status:** Proposed (developer, 2026-11-02; T-701; Dhia's Q-374). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-701 plan review 80, code review 88, its MAJOR fixed). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
 **Decision:** `audit_log.support_grant_id` is assigned by a BEFORE INSERT trigger from the live grant of the entry's
 staff actor (never a member), ignoring any value a writer passes; the API's column grant omits it. Where the dashboard
 shows an actor (a points entry's "by", a flag's "resolved by", a ticket's answerer and escalator, a device's "paired
@@ -6445,7 +6448,7 @@ dashboard translates it. The admin id stays in the audit log.
 
 ## ADR-409 - T-701 support access is silent to the organizer
 
-**Status:** Proposed (developer, 2026-11-02; Dhia's Q-373). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-701 plan review 80, code review 88, its MAJOR fixed). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
 **Decision:** no banner, no organizer read of grants, no End access, no `support_access` alert for support grants; the
 record is Questify's audit log. Only the admin sees a banner ("You are in this event as Questify support until ...").
 `content_unpublished` keeps no producer until T-705's moderation. FR-1409's "show these entries to the organizer" is
@@ -6453,7 +6456,7 @@ amended accordingly (SRS trace).
 
 ## ADR-410 - T-701b split; organizer merge dropped from v1
 
-**Status:** Proposed (developer, 2026-11-02; Dhia's Q-375, Q-376). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-701 plan review 80, code review 88, its MAJOR fixed). Plan: `docs/plans/2026-11-02-t-701-console-foundation.md` (plan review 80, amended). Migration 0114.
 **Decision:** T-701b ships the owner email change (FR-1784) and urgent reports (FR-1732: urgency, ordering and the email
 to the `MAIL_FROM` address stored as configuration data). Merging two organizers is dropped from v1 (Q-375). Each half
 delivers value alone.

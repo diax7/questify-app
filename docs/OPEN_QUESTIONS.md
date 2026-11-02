@@ -1825,6 +1825,6 @@ configuration data, not hard-coded. To build in T-701b (ADR-410).
 
 ## Q-377 - Support writes while an event or organizer is suspended (T-701)
 
-**Status:** Proposed (developer, 2026-11-02; ADR-406).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-701 plan review 80, code review 88, its MAJOR fixed); ADR-406).
 **Recommended (developer):** support keeps writing while suspended (to fix what led to the suspension, then
 reactivate); the ledger stays closed to support as to everyone.

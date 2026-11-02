@@ -649,9 +649,11 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
 ## Platform admins and support access (T-701, ADR-405, ADR-407)
 
 - **Make or unmake a Questify admin** (owner connection, inside the API container):
-  `node staff.cjs grant-admin someone@questify.sa` and `node staff.cjs revoke-admin someone@questify.sa`.
-  Each is one transaction with an audit entry (`staff.platform_role`); a revoke ends the account's sessions and closes
-  its live support grants.
+  `node staff.cjs grant-admin someone@questify.sa --reason "Joins the support rota"` and
+  `node staff.cjs revoke-admin someone@questify.sa --reason "Left the support rota"`. `--reason` is required (10 to
+  300 characters); `--by <name>` names the operator, else the operating-system user is recorded. Each is one
+  transaction with an audit entry (`staff.platform_role`, holding the reason and the operator); a revoke ends the
+  account's sessions and closes its live support grants.
 - **Close a support grant by hand** (owner connection), when the console is not at hand:
   `UPDATE support_grant SET closed_at = now(), close_kind = 'admin' WHERE id = '...' AND closed_at IS NULL;`
   then record it in the audit log as a system entry (`support.closed`).
