@@ -71,7 +71,7 @@
 .keyName {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: var(--text-sm);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .cell {
@@ -91,14 +91,14 @@
 }
 
 .text {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   white-space: pre-wrap;
 }
 
 .note {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   white-space: pre-wrap;
 }
 

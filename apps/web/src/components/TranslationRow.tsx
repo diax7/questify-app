@@ -1,6 +1,7 @@
 "use client";
 
 import { shownText, type Language, type MatrixRow } from "@questify/shared";
+import { Fragment } from "react";
 import { TranslationEditor } from "#src/components/TranslationEditor.tsx";
 import styles from "#src/components/translations.module.css";
 import { LANGUAGES, isChanged } from "#src/lib/console-translations.ts";
@@ -83,7 +84,17 @@ export function TranslationRow({
     <li className={styles.row} data-testid="translation-row" data-key={row.key} data-editing={open}>
       <div className={styles.key}>
         <code className={styles.keyName} dir="ltr">
-          {row.key}
+          {/* A key breaks only after a dot, never inside a word. */}
+          {row.key.split(".").map((part, index, parts) => (
+            <Fragment key={index}>
+              {part}
+              {index < parts.length - 1 ? (
+                <>
+                  .<wbr />
+                </>
+              ) : null}
+            </Fragment>
+          ))}
         </code>
         {row.locked ? <Badge>{t("console.translations.locked")}</Badge> : null}
       </div>
