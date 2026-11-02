@@ -27,6 +27,13 @@ const because = (reason: string) => `CA409:{"reason": "${reason}"}`;
 const NAME = { ar: "إطار الفجر", en: "Dawn frame" };
 const SOUVENIR = "souvenir-0123456789abcdef0123456789abcdef";
 
+const frame = (id: string, visualKey = "frame-06", shop?: unknown) => ({
+  id,
+  kind: "frame",
+  name: NAME,
+  visualKey,
+  ...(shop === undefined ? {} : { shop }),
+});
 /**
  * T-709d's item catalog in the database (migration 0124, ADR-441): Questify's items are listed with their source and art
  * lock, souvenirs never; names always change, art only while the item is not in the shop and no one reached the level it
@@ -45,17 +52,61 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console items (database)", () 
     one<Row>("SELECT admin_item_create($1, $2) AS r", [doc, randomUUID()]);
   const save = (id: string, doc: unknown, revertOf: string | null = null) =>
     one<Row>("SELECT admin_item_save($1, $2, $3, $4) AS r", [id, doc, revertOf, randomUUID()]);
-  const frame = (id: string, visualKey = "frame-06", shop?: unknown) => ({
-    id,
-    kind: "frame",
-    name: NAME,
-    visualKey,
-    ...(shop === undefined ? {} : { shop }),
-  });
   const reachLevel2 = async () => {
     const player = await f.newPlayer();
     await f.play(await f.newEvent(), player, 2);
     return player;
+  };
+
+  /** A player one quest credit (100 XP) below `level`'s start, with the transaction of that credit held open. */
+  const nearly = async (level: number) => {
+    const player = await f.newPlayer();
+    const event = await f.newEvent({ phase: "live" });
+    const enrollment = await f.join(event, player);
+    const start = 50 * (level - 1) * (level + 2);
+    for (let xp = 0; xp < start - 100; xp += 100) await f.earn(event, enrollment);
+    return { player, event, enrollment };
+  };
+  const reachOn = async (client: Client, runner: Awaited<ReturnType<typeof nearly>>) => {
+    const quest = await client.query<{ id: string }>(
+      `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, visible, type_config)
+       SELECT $1, id, 'scan_qr', 'Quest', 10, 100, true, '{}' FROM category WHERE event_id = $1 LIMIT 1 RETURNING id`,
+      [runner.event],
+    );
+    const done = await client.query<{ id: string }>(
+      `INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method, idempotency_key)
+       VALUES ($1, $2, $3, $4, 1, 'qr', $5) RETURNING id`,
+      [f.ids.orgA, runner.event, runner.enrollment, quest.rows[0]?.id, randomUUID()],
+    );
+    return client.query(
+      `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, completion_id,
+                                 quest_id, actor)
+       VALUES ($1, $2, $3, 'quest', 10, 10, $4, $5, 'player')`,
+      [f.ids.orgA, runner.event, runner.enrollment, done.rows[0]?.id, quest.rows[0]?.id],
+    );
+  };
+  const waiting = async (pid: number) => {
+    for (let attempt = 0; attempt < 300; attempt += 1) {
+      const rows = await f.owner(
+        "SELECT 1 FROM pg_stat_activity WHERE pid = $1 AND wait_event_type = 'Lock'",
+        [pid],
+      );
+      if (rows.length === 1) return;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error(`backend ${pid} never waited`);
+  };
+  /** Waits until a backend running `text` waits for a lock. */
+  const queued = async (text: string) => {
+    for (let attempt = 0; attempt < 300; attempt += 1) {
+      const rows = await f.owner(
+        "SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE $1",
+        [`%${text}%`],
+      );
+      if (rows.length > 0) return;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error(`no backend running ${text} waited`);
   };
 
   beforeAll(async () => {
@@ -281,44 +332,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console items (database)", () 
   });
 
   describe("an art change and a reach of the level that gives the item, both orders", () => {
-    /** A player one quest credit (100 XP) below `level`'s start, with the transaction of that credit held open. */
-    const nearly = async (level: number) => {
-      const player = await f.newPlayer();
-      const event = await f.newEvent({ phase: "live" });
-      const enrollment = await f.join(event, player);
-      const start = 50 * (level - 1) * (level + 2);
-      for (let xp = 0; xp < start - 100; xp += 100) await f.earn(event, enrollment);
-      return { player, event, enrollment };
-    };
-    const reachOn = async (client: Client, runner: Awaited<ReturnType<typeof nearly>>) => {
-      const quest = await client.query<{ id: string }>(
-        `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, visible, type_config)
-         SELECT $1, id, 'scan_qr', 'Quest', 10, 100, true, '{}' FROM category WHERE event_id = $1 LIMIT 1 RETURNING id`,
-        [runner.event],
-      );
-      const done = await client.query<{ id: string }>(
-        `INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method, idempotency_key)
-         VALUES ($1, $2, $3, $4, 1, 'qr', $5) RETURNING id`,
-        [f.ids.orgA, runner.event, runner.enrollment, quest.rows[0]?.id, randomUUID()],
-      );
-      return client.query(
-        `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, completion_id,
-                                   quest_id, actor)
-         VALUES ($1, $2, $3, 'quest', 10, 10, $4, $5, 'player')`,
-        [f.ids.orgA, runner.event, runner.enrollment, done.rows[0]?.id, quest.rows[0]?.id],
-      );
-    };
-    const waiting = async (pid: number) => {
-      for (let attempt = 0; attempt < 300; attempt += 1) {
-        const rows = await f.owner(
-          "SELECT 1 FROM pg_stat_activity WHERE pid = $1 AND wait_event_type = 'Lock'",
-          [pid],
-        );
-        if (rows.length === 1) return;
-        await new Promise((resolve) => setTimeout(resolve, 10));
-      }
-      throw new Error(`backend ${pid} never waited`);
-    };
     let opened: Client[] = [];
     afterEach(async () => {
       for (const client of opened) {
@@ -332,19 +345,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console items (database)", () 
       opened.push(client);
       await client.query("SET lock_timeout = '2s'");
       return client;
-    };
-
-    /** Waits until a backend running `text` waits for a lock. */
-    const queued = async (text: string) => {
-      for (let attempt = 0; attempt < 300; attempt += 1) {
-        const rows = await f.owner(
-          "SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE $1",
-          [`%${text}%`],
-        );
-        if (rows.length > 0) return;
-        await new Promise((resolve) => setTimeout(resolve, 10));
-      }
-      throw new Error(`no backend running ${text} waited`);
     };
 
     it("reach first: the art change waits, then sees the owner (item_owned)", async () => {

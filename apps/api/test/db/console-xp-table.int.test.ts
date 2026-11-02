@@ -24,6 +24,10 @@ const refusal = (work: Promise<unknown>): Promise<string> =>
 /** A CA409 of the XP table as jsonb prints its detail. */
 const held = (reason: string, level: number) => `CA409:{"level": ${level}, "reason": "${reason}"}`;
 
+const docOf = (t: Table): Doc => ({
+  levels: t.levels.map(({ level, xpFrom, itemId }) => ({ level, xpFrom, itemId })),
+});
+
 /** The default curve (0039): level n starts at 50·(n−1)·(n+2); levels 2 to 30 give level-n (0063). */
 const START = (n: number) => 50 * (n - 1) * (n + 2);
 
@@ -41,9 +45,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
   const one = async <T>(sql: string, values: unknown[] = [], seat = admin): Promise<T> =>
     (await f.run<{ r: T }>(seat, sql, values))[0]?.r as T;
   const table = () => one<Table>("SELECT admin_xp_table() AS r");
-  const docOf = (t: Table): Doc => ({
-    levels: t.levels.map(({ level, xpFrom, itemId }) => ({ level, xpFrom, itemId })),
-  });
   const save = (doc: unknown, confirmed = false, revertOf: string | null = null) =>
     one<Table>("SELECT admin_xp_table_save($1, $2, $3, $4) AS r", [
       doc,
@@ -104,6 +105,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
       randomUUID(),
     ]);
 
+  const raised = (by: number) =>
+    edit(
+      Object.fromEntries(
+        original.levels.slice(1).map((row) => [row.level, { xpFrom: row.xpFrom + by }]),
+      ),
+    );
+  const at = (level: number, row: Partial<Level>) => () => edit({ [level]: row });
   beforeAll(async () => {
     f = await questifyFixture();
     const [row] = await f.owner<{ id: string }>(
@@ -193,7 +201,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
   });
 
   describe("the document", () => {
-    const at = (level: number, row: Partial<Level>) => () => edit({ [level]: row });
     it.each<[string, () => unknown, string]>([
       ["no levels key", () => ({ titles: [] }), "levels"],
       ["an unknown key", () => ({ ...upTo(5), more: 1 }), "levels"],
@@ -295,12 +302,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
   });
 
   describe("moving the starts", () => {
-    const raised = (by: number) =>
-      edit(
-        Object.fromEntries(
-          original.levels.slice(1).map((row) => [row.level, { xpFrom: row.xpFrom + by }]),
-        ),
-      );
     it.each([
       ["raise every level", () => raised(1000), false],
       [

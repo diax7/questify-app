@@ -21,6 +21,10 @@ type Session = Readonly<{
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const swap = (doc: Doc, level: number, change: Partial<Level>): Doc => ({
+  levels: doc.levels.map((row) => (row.level === level ? { ...row, ...change } : row)),
+});
+
 /**
  * T-709d's lock races (migration 0124, plan "Races"): a scan, a sync and a second save against the XP table door, both
  * orders, each session with the API's 2 s lock timeout; the door's one 1 s budget for all its lock waits (plan review
@@ -180,28 +184,59 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table races (databa
     who: Session,
     runner: Readonly<{ enrollment: string; event: string }>,
   ): Promise<Outcome> => {
-    const { enrollment, event } = runner;
+    const { enrollment, event: own } = runner;
     const quest = await who.client.query<{ id: string }>(
       `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, visible, type_config)
        SELECT $1, id, 'scan_qr', 'Quest', 10, 100, true, '{}' FROM category WHERE event_id = $1 LIMIT 1 RETURNING id`,
-      [event],
+      [own],
     );
     const done = await who.client.query<{ id: string }>(
       `INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method, idempotency_key)
        VALUES ($1, $2, $3, $4, 1, 'qr', $5) RETURNING id`,
-      [f.ids.orgA, event, enrollment, quest.rows[0]?.id, randomUUID()],
+      [f.ids.orgA, own, enrollment, quest.rows[0]?.id, randomUUID()],
     );
     return who.start(
       `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, completion_id,
                                  quest_id, actor)
        VALUES ($1, $2, $3, 'quest', 10, 10, $4, $5, 'player')`,
-      [f.ids.orgA, event, enrollment, done.rows[0]?.id, quest.rows[0]?.id],
+      [f.ids.orgA, own, enrollment, done.rows[0]?.id, quest.rows[0]?.id],
     );
   };
-  const swap = (doc: Doc, level: number, change: Partial<Level>): Doc => ({
-    levels: doc.levels.map((row) => (row.level === level ? { ...row, ...change } : row)),
-  });
 
+  const retire = (quest: string) =>
+    f.owner("UPDATE questify_quest SET status = 'retired' WHERE id = $1", [quest]);
+  /** A runner one below a new top level, which a confirmed save then lowers to the runner's XP. */
+  const due = async () => {
+    const [top] = await appendLevels([500]);
+    const runner = await playerAt((top?.xpFrom ?? 0) - 1);
+    await save(swap(await current(), top?.level ?? 0, { xpFrom: (top?.xpFrom ?? 0) - 1 }), true);
+    return { top: { ...(top as Level), xpFrom: (top?.xpFrom ?? 0) - 1 }, runner };
+  };
+
+  /**
+   * A runner with a lowered level due (`caught`) and a Questify quest paying 300 XP that reaches `crossed`, which another
+   * player's scan holds. The quest is retired after each race.
+   */
+  const setup = async () => {
+    const [caught, crossed] = await appendLevels([0, 200]);
+    const runner = await playerAt((caught?.xpFrom ?? 0) - 100);
+    await save(
+      swap(await current(), caught?.level ?? 0, { xpFrom: (caught?.xpFrom ?? 0) - 100 }),
+      true,
+    );
+    const holder = await playerAt((crossed?.xpFrom ?? 0) - 1);
+    const [quest] = await f.owner<{ id: string }>(
+      `INSERT INTO questify_quest (metric, target, title_ar, title_en, xp, position, status)
+       VALUES ('quests', 1, 'مهمة', 'Quest', 300, 900, 'active') RETURNING id`,
+    );
+    return {
+      caught: caught as Level,
+      crossed: crossed as Level,
+      runner,
+      holder,
+      quest: quest?.id ?? "",
+    };
+  };
   beforeAll(async () => {
     f = await questifyFixture();
     const [row] = await f.owner<{ id: string }>(
@@ -314,14 +349,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table races (databa
   });
 
   describe("a sync's catch-up against the door", () => {
-    /** A runner one below a new top level, which a confirmed save then lowers to the runner's XP. */
-    const due = async () => {
-      const [top] = await appendLevels([500]);
-      const runner = await playerAt((top?.xpFrom ?? 0) - 1);
-      await save(swap(await current(), top?.level ?? 0, { xpFrom: (top?.xpFrom ?? 0) - 1 }), true);
-      return { top: { ...(top as Level), xpFrom: (top?.xpFrom ?? 0) - 1 }, runner };
-    };
-
     it("sync first: the door waits, then refuses to change the reward the sync gave", async () => {
       const { top, runner } = await due();
       const other = await freeItem();
@@ -395,33 +422,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table races (databa
   });
 
   describe("a sync that catches up and earns XP, crossed with a save (plan review MINOR)", () => {
-    /**
-     * A runner with a lowered level due (`caught`) and a Questify quest paying 300 XP that reaches `crossed`, which another
-     * player's scan holds. The quest is retired after each race.
-     */
-    const setup = async () => {
-      const [caught, crossed] = await appendLevels([0, 200]);
-      const runner = await playerAt((caught?.xpFrom ?? 0) - 100);
-      await save(
-        swap(await current(), caught?.level ?? 0, { xpFrom: (caught?.xpFrom ?? 0) - 100 }),
-        true,
-      );
-      const holder = await playerAt((crossed?.xpFrom ?? 0) - 1);
-      const [quest] = await f.owner<{ id: string }>(
-        `INSERT INTO questify_quest (metric, target, title_ar, title_en, xp, position, status)
-         VALUES ('quests', 1, 'مهمة', 'Quest', 300, 900, 'active') RETURNING id`,
-      );
-      return {
-        caught: caught as Level,
-        crossed: crossed as Level,
-        runner,
-        holder,
-        quest: quest?.id ?? "",
-      };
-    };
-    const retire = (quest: string) =>
-      f.owner("UPDATE questify_quest SET status = 'retired' WHERE id = $1", [quest]);
-
     it("door first, held behind another reach: the sync waits at its catch-up and nobody deadlocks", async () => {
       const { caught, crossed, runner, holder, quest } = await setup();
       const hold = await session("owner");
