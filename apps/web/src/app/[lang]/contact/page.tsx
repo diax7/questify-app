@@ -7,6 +7,7 @@ import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card } from "#src/ui/Section.tsx";
 import { AppShell } from "#src/ui/Shell.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
+import styles from "#src/components/contact.module.css";
 
 type Props = Readonly<{ params: Promise<{ lang: string }> }>;
 
@@ -62,8 +63,8 @@ export default async function ContactPage({ params }: Props) {
         ) : (
           <ul data-testid="contact-ways">
             {ways.map((way) => (
-              <li key={way.key}>
-                {t(way.label)}:{" "}
+              <li key={way.key} className={styles["way"]}>
+                <span>{t(way.label)}</span>
                 <TextLink href={way.href} dir="ltr">
                   {way.text}
                 </TextLink>

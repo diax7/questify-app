@@ -1,0 +1,10 @@
+/* A way to reach support: its label above its value, so a long email or number keeps its own line on a phone. */
+.way {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.way + .way {
+  margin-block-start: var(--space-md);
+}
