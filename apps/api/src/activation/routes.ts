@@ -23,6 +23,7 @@ import {
 } from "#src/console/platform-routes";
 import { registerConsolePlayerRoutes, type ConsolePlayerDeps } from "#src/console/players/routes";
 import { registerConsoleSafetyRoutes } from "#src/console/players/safety-routes";
+import { registerConsoleModerationRoutes } from "#src/console/moderation/routes";
 import { registerConsoleOrganizerRoutes, type ConsoleOrganizerDeps } from "#src/console/routes";
 import { registerConsoleDailyRoutes } from "#src/daily/admin-routes";
 import type { HttpError } from "#src/http-error";
@@ -290,6 +291,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleTranslationRoutes(scope, deps.translations);
       registerConsolePlayerRoutes(scope, deps.players);
       registerConsoleSafetyRoutes(scope, deps.players);
+      registerConsoleModerationRoutes(scope, deps.players);
     },
     { prefix: ADMIN_PREFIX.slice(0, -1) },
   );

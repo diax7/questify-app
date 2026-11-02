@@ -2337,3 +2337,38 @@ export const blockLimit = make(
   "وصلت إلى حد 500 لاعب محظور. ألغِ حظر أحدهم أولا.",
   "You've blocked 500 players, the most allowed. Unblock someone first.",
 );
+/** A report that names no kind, reason or target the lists know, or a note that is too long (T-705b). */
+export const invalidReport = make(
+  422,
+  "invalid_report",
+  "تحقق من البلاغ وحاول مرة أخرى.",
+  "Check the report and try again.",
+);
+/** Ten reports in an hour or thirty in a day (T-705b). */
+export const tooManyReports = make(
+  429,
+  "too_many_reports",
+  "أرسلت بلاغات كثيرة. حاول مرة أخرى لاحقًا.",
+  "You've sent many reports. Try again later.",
+);
+/** An unpublish or a republish without a listed reason or a note of 10 to 300 characters (T-705b). */
+export const invalidHold = make(
+  400,
+  "invalid_hold",
+  "اختر السبب واكتب ملاحظة من 10 إلى 300 حرف.",
+  "Choose a reason and write a note of 10 to 300 characters.",
+);
+/** Republishing something Questify had not unpublished (T-705b). */
+export const notUnpublished = make(
+  409,
+  "not_unpublished",
+  "هذا المحتوى منشور.",
+  "This is already published.",
+);
+/** The database wall on a quest Questify unpublished: the team cannot show it again (T-705b, HD423). */
+export const contentHeld = make(
+  423,
+  "content_held",
+  "ألغت Questify نشر هذا المحتوى. عدّله ثم تواصل مع Questify لإعادة نشره.",
+  "Questify unpublished this. Edit it, then contact Questify to publish it again.",
+);

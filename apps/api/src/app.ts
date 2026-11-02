@@ -48,7 +48,7 @@ import { registerResultsPlayerRoutes } from "#src/results/routes";
 import { registerRehearsalPlayerRoutes } from "#src/rehearsal/routes";
 import { createRehearsal } from "#src/rehearsal/service";
 import { registerContactRoutes } from "#src/players/contact";
-import { registerBlockRoutes } from "#src/players/block-routes";
+import { registerPlayerSafetyRoutes } from "#src/reports/routes";
 import { registerItemRoutes } from "#src/players/item-routes";
 import { registerProfileRoutes } from "#src/players/profile";
 import { registerQuestifyRoutes } from "#src/questify/routes";
@@ -445,7 +445,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerRankingRoutes(app, { ranking, settings });
   registerProfileRoutes(app, { pool: options.pool, settings });
   registerItemRoutes(app, { pool: options.pool, keys: signInDeps.keys });
-  registerBlockRoutes(app, { pool: options.pool, keys: signInDeps.keys });
+  registerPlayerSafetyRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   registerQuestifyRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   registerContactRoutes(app, { ...playerMail, settings });
   registerDeletionRoutes(app, {

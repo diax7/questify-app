@@ -128,6 +128,22 @@ const ROUTES: Readonly<Record<string, string>> = {
   "DELETE /v1/me/blocks/:username":
     "the caller unblocks through unblock_player, bound to app_player_id; the name is replaced in the access log (loggerOptions); Idempotency-Key; 60 changes an hour per player (test/players/blocks, src/app.test)",
   "POST /v1/me/locker/seen": "caller-owned acknowledgment only (profile-items)",
+  "POST /v1/reports":
+    "the caller reports through report_content, bound to app_player_id and an active account; only what the caller can see in an event they are an active member of, or an active player's username (RP404 otherwise, no oracle); the name in the body, never the URL; 10 an hour and 30 a day counted in the database; Idempotency-Key (test/console/moderation, test/db/content-reports)",
+  "GET /v1/organizers/:organizerId/events/:eventId/content-holds":
+    "a member reads its own organizer's held items through content_hold's policy (organizer and event scope); another organizer's event answers an empty list (test/console/moderation, test/security/cross-tenant)",
+  "GET /v1/admin/reports":
+    "active platform admins only (walked below); console_reports re-reads the admin; open targets grouped, audited with counts only; 120 a minute per admin (test/console/moderation, test/db/content-reports)",
+  "GET /v1/admin/reports/:kind/:targetId":
+    "active platform admins only (walked below); console_report re-reads the admin; reporters' usernames for the admin only, audited with ids only; 120 a minute per admin (test/console/moderation, test/db/content-reports)",
+  "POST /v1/admin/reports/:kind/:targetId/resolve":
+    "active platform admins only (walked below); admin_report_resolve re-reads the admin, an outcome from the list; closes every open report of the target; Idempotency-Key, audited (ids, outcome, count); 120 actions an hour per admin (test/console/moderation, test/db/content-reports)",
+  "POST /v1/admin/holds":
+    "active platform admins only (walked below); admin_unpublish re-reads the admin, a reason code and a note (HD400), the target locked so two admins make one hold; alerts the organizer with ids only; Idempotency-Key, audited with the event; 120 actions an hour per admin (test/console/moderation, test/db/content-reports)",
+  "POST /v1/admin/holds/release":
+    "active platform admins only (walked below); admin_republish re-reads the admin and a note; restores what was there; Idempotency-Key, audited with the event; 120 actions an hour per admin (test/console/moderation, test/db/content-reports)",
+  "GET /v1/admin/flags":
+    "active platform admins only (walked below); console_flags re-reads the admin; open flags grouped by event, read-only, audited with a count; 60 a minute per admin (test/console/moderation, test/db/content-reports)",
   "GET /v1/players/:username":
     "active-player public DTO allowlist, no account details; stamps of ended public events only (profile-items HTTP, event-passport)",
   "POST /v1/me/questify/sync":

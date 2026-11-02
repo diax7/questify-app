@@ -41,7 +41,8 @@ const counted =
  * A run's steps, in order. The lifecycle moves events by time (FR-1608); the go-live wipe of rehearsal data follows the
  * events that went live (ADR-160); reservations whose pickup time passed are returned (FR-508); quizzes left open past
  * their close pay what they earned (ADR-193); mini-game rounds past their window count as played (ADR-213); help-desk
- * tickets go 90 days after the later of their event's end and their sending (Q-210); last, ended events whose holds,
+ * tickets go 90 days after the later of their event's end and their sending (Q-210); handled content reports go 180
+ * days after handling (T-705b); last, ended events whose holds,
  * tickets and results are settled are archived (T-411, ADR-337 (5)), after the steps that settle them.
  */
 const STEPS: readonly Step[] = [
@@ -70,6 +71,11 @@ const STEPS: readonly Step[] = [
     failed: "ticket.purge_failed",
     done: "ticket.purged",
     work: (pool) => purgeEndedTickets({ pool }),
+  },
+  {
+    failed: "report.purge_failed",
+    done: "report.purged",
+    work: counted("SELECT purge_handled_reports(1000) AS count"),
   },
   {
     failed: "event.archive_failed",
