@@ -59,9 +59,7 @@ Updated 2026-11-02 by the Claude Code coordinator at Dhia's break. Progress: 149
    MAJORs with a fresh worker, merge into `main` (expect doc-file conflicts with T-709b), push, deploy 0118+0119.
 3. **Then T-705** (ban, block, word lists) and **T-705b** (reports queue, unpublish, flags list) from the same plan;
    one grouped mutation run after T-705 for `apps/api/src/console/players/**` plus the T-705 globs (ADR-355).
-4. **Mutation chases owed or running:** T-701 console access code (run 41418905251: support-seat 82%, organizers
-   68%, doors 80%, routes 88%) — a chase round was running at the break; check `docs/TASKS.md` T-701 note and
-   `git log` for its commit before starting another.
+4. **Mutation:** the T-701 chase round is done (5b43356, about 10 tests; scores re-measure in the next grouped run).
 5. **Other open tasks:** T-709c (tier A: XP curve, level rewards, item editor, achievement thresholds that pay gems),
    T-701b (owner email change, urgent reports), T-703, T-706, T-707, then Phase 8. Photo uploads stay parked (Q-149,
    Dhia "later"); push stays off until Dhia makes a Firebase project.
