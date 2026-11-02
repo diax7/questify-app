@@ -66,6 +66,18 @@ describe("the shipped messages", () => {
 const check = (key: string, language: "ar" | "en", text: string) =>
   validateTranslation(messages, key, language, text);
 
+describe("control and direction characters", () => {
+  it.each([
+    ["a NUL", "Plain\u0000text"],
+    ["a right-to-left override", "Plain \u202Etext"],
+    ["a newline", "Plain\ntext"],
+    ["an isolate", "Plain \u2066text\u2069"],
+  ])("refuses %s on save and never uses a stored one", (_name, text) => {
+    expect(check("plain.text", "en", text).ok).toBe(false);
+    expect(isUsableOverride(messages, "plain.text", "en", text)).toBe(false);
+  });
+});
+
 describe("validateTranslation", () => {
   it("accepts a text that keeps every placeholder", () => {
     expect(check("greet.player", "en", "Hello {player}! {points} points")).toEqual({
