@@ -5,6 +5,13 @@ Raw ideas, dated, close to the user's words. Each entry is sorted into the right
 
 ---
 
+## 2026-11-02 — Break and handoff to a new session → processed
+
+- Dhia: "When you finish what you have in your hand please stop, take a break, another session will keep the working, so
+  prepare short prompt for him."
+- Processed: finish the running work (T-709b deploy, the T-701 mutation chase, the T-704 build), leave T-704 unpushed for
+  its tier A code review, refresh `docs/agents/COORDINATOR_HANDOFF.md` and STATE, and give Dhia a short takeover prompt.
+
 ## 2026-10-30 — Less explanatory text, more icons (strict rule) → processed
 
 - Dhia, quoting the password help line ("At least 12 characters. A phrase you can remember works well; leave out Questify and your
