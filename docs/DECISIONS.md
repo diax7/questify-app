@@ -6463,7 +6463,7 @@ delivers value alone.
 
 ## ADR-415 - T-709 is health, numbers and admin sessions; the content editors become T-709b
 
-**Status:** Proposed (developer, 2026-11-02; T-709 plan note `docs/plans/2026-11-02-t-709-platform-pages.md`). Migration 0117.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-709 review 92 GO; was proposed; T-709 plan note `docs/plans/2026-11-02-t-709-platform-pages.md`). Migration 0117.
 **Decision:** T-709 ships FR-1783 (health), FR-1419 (numbers) and FR-1785 (admin accounts, sessions, forced sign-out).
 FR-1403 (achievements, items and the gem shop, daily-challenge questions, event templates, level titles, the XP table) is
 **T-709b**: eight independent editors, each with its own invariants (a level curve recomputes `player_xp.level`, a catalog
@@ -6474,7 +6474,7 @@ and T-601b notes) now means T-709b.
 
 ## ADR-416 - T-709 the health view reads symptoms from the database; limits are constants until T-703
 
-**Status:** Proposed (developer, 2026-11-02). Migration 0117.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-709 review 92 GO; was proposed). Migration 0117.
 **Decision:** `console_health()` answers counts and flags through bounded reads (`LIMIT 10001`, shown as "10,000+"), and one
 shared function turns them into six tiles: Database (the door's own answer time), Live events (scheduled events past their
 start and live events past their end by two minutes), Push, SMS, Email and Background work (the oldest waiting item, leases
@@ -6489,7 +6489,7 @@ transport; no key, sender, address or token is in the answer.
 
 ## ADR-417 - T-709 admins see every platform admin's open sessions and end any but their own; the last admin cannot be revoked
 
-**Status:** Proposed (developer, 2026-11-02). Migration 0117.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-709 review 92 GO; was proposed). Migration 0117.
 **Decision:** the console lists platform admins only (a member's account and sessions are the same 404) with the sessions open
 now (not revoked, within 15 minutes idle and 8 hours old), each with its browser, address, start and last use, as the own-sessions
 page does. `admin_end_session(session, reason, request)` ends one open session of a platform admin with a reason of 10 to 300
@@ -6502,7 +6502,7 @@ mid-task, which the audit log records.
 
 ## ADR-418 - T-709 platform numbers are counts, with the activity of the last hour in live events
 
-**Status:** Proposed (developer, 2026-11-02). Migration 0117.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-709 review 92 GO; was proposed). Migration 0117.
 **Decision:** `console_numbers()` counts organizers by status, events by their state now, players by status (active, banned,
 joined in 7 days; deleted are left out), staff accounts and active admins, the players seated in live events, and the points
 entries of the last hour in live events (per event through `ledger_entry (event_id, created_at)`, capped at 100,001 per event).
