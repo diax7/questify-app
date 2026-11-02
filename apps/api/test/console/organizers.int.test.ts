@@ -1,6 +1,10 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { DEFAULT_TERMS } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { PublicAccount } from "#src/auth/staff-store";
+import { door } from "#src/console/doors";
+import { HttpError } from "#src/http-error";
+import { supportSeatOf } from "#src/organizers/support-seat";
 import {
   createStaff,
   signInFully,
@@ -12,6 +16,11 @@ import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/
 
 type Row = Record<string, unknown>;
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+const granted = (grantId: string, eventId: string) => [
+  { grantId, eventId, expiresAt: expect.any(Date) as Date },
+];
+const coded = (code: string) => Object.assign(new Error(code), { code });
 
 /**
  * The console's organizers, suspension and support access over HTTP (T-701): admin-only reads audited with ids only,
@@ -26,6 +35,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
   let eventA: string;
   let eventA2: string;
   let eventB: string;
+  let eventBDraft: string;
   let ownerCookie: string;
   let adminCookie: string;
   let strangerCookie: string;
@@ -53,6 +63,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
     eventA = await newEvent(orgA, "CONA1");
     eventA2 = await newEvent(orgA, "CONA2");
     eventB = await newEvent(orgB, "CONB1");
+    eventBDraft =
+      (
+        await owner<{ id: string }>(
+          `INSERT INTO event (organizer_id, join_code, name_en, status)
+           VALUES ($1, 'CONB2', 'Draft Fest', 'draft') RETURNING id`,
+          [orgB],
+        )
+      )[0]?.id ?? "";
     const ownerId = await createStaff(db.owner, { email: "owner@najd.test" });
     const ownerB = await createStaff(db.owner, { email: "owner@tabuk.test" });
     await createStaff(db.owner, { email: "admin@questify.test", admin: true });
@@ -348,6 +366,288 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
         (await call("POST", `/v1/admin/events/${randomUUID()}/support`, adminCookie, { reason }))
           .statusCode,
       ).toBe(404);
+    });
+  });
+
+  const adminId = async (email = "admin@questify.test") =>
+    (await owner<{ id: string }>("SELECT id FROM staff_user WHERE email = $1", [email]))[0]?.id ??
+    "";
+  const openSupportOn = async (eventId: string) =>
+    (await call("POST", `/v1/admin/events/${eventId}/support`, adminCookie, { reason })).json<{
+      grant: { grantId: string };
+    }>().grant.grantId;
+  const closeSupportOf = (grantId: string) =>
+    call("POST", `/v1/admin/support/${grantId}/close`, adminCookie);
+  const organizers = async (query: string) =>
+    (await call("GET", `/v1/admin/organizers${query}`, adminCookie)).json<{
+      organizers: { id: string }[];
+      nextCursor: string | null;
+    }>();
+  const fillTo = (bucket: string, total: number) =>
+    owner(
+      `INSERT INTO auth_throttle (bucket, key, at)
+       SELECT t.bucket, t.key, clock_timestamp()
+       FROM (SELECT DISTINCT bucket, key FROM auth_throttle WHERE bucket = $1) t, generate_series(2, $2)`,
+      [bucket, total],
+    );
+  const suspendedAtOf = async (table: "organizer" | "event", id: string) =>
+    (
+      await owner<{ at: Date }>(`SELECT suspended_at AS at FROM ${table} WHERE id = $1`, [id])
+    )[0]?.at.toISOString();
+
+  describe("supportSeatOf", () => {
+    it("is an editor seat on the granted events of that organizer and of no other", async () => {
+      const grantA = await openSupportOn(eventA);
+      const grantB = await openSupportOn(eventB);
+      const account: PublicAccount = {
+        id: await adminId(),
+        email: "admin@questify.test",
+        status: "active",
+        platformRole: "admin",
+      };
+      expect(await supportSeatOf(test.pool, account, orgA)).toEqual({
+        id: orgA,
+        role: "editor",
+        eventScope: [eventA],
+        suspension: null,
+        support: granted(grantA, eventA),
+      });
+      expect(await supportSeatOf(test.pool, account, orgB)).toEqual({
+        id: orgB,
+        role: "editor",
+        eventScope: [eventB],
+        suspension: null,
+        support: granted(grantB, eventB),
+      });
+      expect(await supportSeatOf(test.pool, account, randomUUID())).toBeUndefined();
+      await closeSupportOf(grantA);
+      expect(await supportSeatOf(test.pool, account, orgA)).toBeUndefined();
+      expect(await supportSeatOf(test.pool, account, orgB)).toMatchObject({ id: orgB });
+      await closeSupportOf(grantB);
+    });
+
+    it("gives nothing to an account that is not an active platform admin", async () => {
+      const grant = await openSupportOn(eventA);
+      const account: PublicAccount = {
+        id: await adminId(),
+        email: "admin@questify.test",
+        status: "active",
+        platformRole: "admin",
+      };
+      expect(await supportSeatOf(test.pool, account, orgA)).toMatchObject({ id: orgA });
+      const notAdmin = { ...account, platformRole: "none" as const };
+      const disabled = { ...account, status: "disabled" as const };
+      const neither = { ...notAdmin, status: "disabled" as const };
+      for (const refused of [notAdmin, disabled, neither]) {
+        expect(await supportSeatOf(test.pool, refused, orgA)).toBeUndefined();
+      }
+      await closeSupportOf(grant);
+    });
+  });
+
+  describe("the console door", () => {
+    it("rethrows what is not one of its refusals, unchanged", async () => {
+      const admin = { id: await adminId() };
+      const strangers = [
+        new Error("plain"),
+        Object.assign(new Error("unknown code"), { code: "XX000" }),
+        Object.assign(new Error("inherited key"), { code: "toString" }),
+        Object.assign(new Error("inherited key"), { code: "constructor" }),
+        Object.assign(new Error("number, not text"), { code: 23505 }),
+      ];
+      for (const error of strangers) {
+        await expect(door(test.pool, admin, () => Promise.reject(error))).rejects.toBe(error);
+      }
+    });
+
+    it("answers one of its own codes as the matching HttpError", async () => {
+      const admin = { id: await adminId() };
+      const notFound = await door(test.pool, admin, () => Promise.reject(coded("QE403"))).catch(
+        (error: unknown) => error,
+      );
+      expect(notFound).toBeInstanceOf(HttpError);
+      expect(notFound).toMatchObject({ status: 404 });
+      const busy = await door(test.pool, admin, () => Promise.reject(coded("23505"))).catch(
+        (error: unknown) => error,
+      );
+      expect(busy).toBeInstanceOf(HttpError);
+    });
+  });
+
+  describe("a suspended organizer in the console", () => {
+    it("answers when it was suspended, and shows the suspension, events and history", async () => {
+      const orgPath = `/v1/admin/organizers/${orgB}`;
+      const eventPath = `/v1/admin/events/${eventB}`;
+      const orgAnswer = await call("POST", `${orgPath}/suspend`, adminCookie, { reason });
+      const orgSince = await suspendedAtOf("organizer", orgB);
+      expect(orgAnswer.json()).toEqual({ suspendedAt: orgSince });
+      const eventAnswer = await call("POST", `${eventPath}/suspend`, adminCookie, { reason });
+      const eventSince = await suspendedAtOf("event", eventB);
+      expect(eventAnswer.json()).toEqual({ suspendedAt: eventSince });
+      const [fest] = await owner<{ starts_at: Date; ends_at: Date }>(
+        "SELECT starts_at, ends_at FROM event WHERE id = $1",
+        [eventB],
+      );
+      const history = (
+        await owner<{
+          id: string;
+          at: Date;
+          actor_type: string;
+          action: string;
+          target_type: string;
+          event_id: string | null;
+        }>(
+          `SELECT id::text, at, actor_type, action, target_type, event_id FROM audit_log
+           WHERE organizer_id = $1 ORDER BY id DESC LIMIT 50`,
+          [orgB],
+        )
+      ).map((row) => ({
+        id: row.id,
+        at: row.at.toISOString(),
+        actorType: row.actor_type,
+        action: row.action,
+        targetType: row.target_type,
+        eventId: row.event_id,
+        bySupport: false,
+      }));
+
+      const detail = (await call("GET", orgPath, adminCookie)).json<{
+        organizer: object;
+        events: object[];
+        history: object[];
+      }>();
+
+      expect(detail.organizer).toMatchObject({
+        id: orgB,
+        status: "paused",
+        suspension: { reason, since: orgSince },
+      });
+      expect(detail.events).toEqual([
+        {
+          id: eventBDraft,
+          joinCode: "CONB2",
+          name: { ar: null, en: "Draft Fest" },
+          status: "draft",
+          statusNow: "draft",
+          startsAt: null,
+          endsAt: null,
+          suspension: null,
+        },
+        {
+          id: eventB,
+          joinCode: "CONB1",
+          name: { ar: null, en: "Fest" },
+          status: "live",
+          statusNow: "live",
+          startsAt: fest?.starts_at.toISOString(),
+          endsAt: fest?.ends_at.toISOString(),
+          suspension: { reason, since: eventSince },
+        },
+      ]);
+      expect(history.length).toBeGreaterThanOrEqual(2);
+      expect(history[0]).toMatchObject({ action: "event.suspend", eventId: eventB });
+      expect(detail.history).toEqual(history);
+
+      expect((await organizers("?status=paused")).organizers.map((row) => row.id)).toEqual([orgB]);
+      expect((await organizers("?status=active")).organizers.map((row) => row.id)).toEqual([orgA]);
+      expect((await call("POST", `${eventPath}/reactivate`, adminCookie)).statusCode).toBe(204);
+      expect((await call("POST", `${orgPath}/reactivate`, adminCookie)).statusCode).toBe(204);
+    });
+
+    it("gives a cursor only for a full page", async () => {
+      expect((await organizers("")).nextCursor).toBeNull();
+      expect((await organizers("?limit=3")).nextCursor).toBeNull();
+      expect((await organizers("?limit=2")).nextCursor).toBe(orgB);
+    });
+  });
+
+  describe("a suspension and the API's own cache", () => {
+    it("refuses the next write at once, even right after an allowed one", async () => {
+      const terms = `/events/${eventA2}/terms`;
+      const path = `/v1/admin/events/${eventA2}`;
+      expect((await team("PUT", terms, ownerCookie, {})).statusCode).toBe(200);
+      expect((await call("POST", `${path}/suspend`, adminCookie, { reason })).statusCode).toBe(200);
+      const refused = await team("PUT", terms, ownerCookie, {});
+      expect(refused.statusCode).toBe(423);
+      expect(refused.json()).toMatchObject({ code: "event_suspended" });
+      expect((await call("POST", `${path}/reactivate`, adminCookie)).statusCode).toBe(204);
+      expect((await team("PUT", terms, ownerCookie, {})).statusCode).toBe(200);
+    });
+  });
+
+  describe("closing support", () => {
+    it("refuses a body it does not expect and leaves the grant open", async () => {
+      const grant = await openSupportOn(eventA);
+      const refused = await call("POST", `/v1/admin/support/${grant}/close`, adminCookie, {
+        unexpected: true,
+      });
+      expect(refused.statusCode).toBe(400);
+      const [row] = await owner<{ closed_at: Date | null }>(
+        "SELECT closed_at FROM support_grant WHERE id = $1",
+        [grant],
+      );
+      expect(row?.closed_at).toBeNull();
+      expect((await closeSupportOf(grant)).statusCode).toBe(204);
+    });
+  });
+
+  describe("the console's rate limits", () => {
+    const BUCKETS = "('console_organizer', 'console_suspend')";
+    let secondCookie = "";
+    beforeAll(async () => {
+      await createStaff(db.owner, { email: "admin2@questify.test", admin: true });
+      secondCookie = await signInFully(test, "admin2@questify.test");
+    });
+    const clear = () => owner(`DELETE FROM auth_throttle WHERE bucket IN ${BUCKETS}`);
+
+    it("count each admin's reads and suspensions in a bucket of their own", async () => {
+      await clear();
+      await call("GET", "/v1/admin/organizers", adminCookie);
+      await call("GET", `/v1/admin/organizers/${orgA}`, adminCookie);
+      await call("GET", "/v1/admin/organizers", secondCookie);
+      const path = `/v1/admin/events/${eventA2}`;
+      await call("POST", `${path}/suspend`, adminCookie, { reason });
+      await call("POST", `${path}/reactivate`, adminCookie);
+
+      const perBucket = await owner(
+        `SELECT bucket, count(*)::int AS n, count(DISTINCT key)::int AS keys FROM auth_throttle
+         WHERE bucket IN ${BUCKETS} GROUP BY bucket ORDER BY bucket`,
+      );
+      expect(perBucket).toEqual([
+        { bucket: "console_organizer", n: 3, keys: 2 },
+        { bucket: "console_suspend", n: 2, keys: 1 },
+      ]);
+      const [all] = await owner<{ keys: number }>(
+        `SELECT count(DISTINCT key)::int AS keys FROM auth_throttle WHERE bucket IN ${BUCKETS}`,
+      );
+      expect(all?.keys).toBe(3);
+      await clear();
+    });
+
+    it("hold an admin back after 120 reads a minute, and not another admin", async () => {
+      await clear();
+      expect((await call("GET", "/v1/admin/organizers", adminCookie)).statusCode).toBe(200);
+      await fillTo("console_organizer", 120);
+      const held = await call("GET", "/v1/admin/organizers", adminCookie);
+      expect(held.statusCode).toBe(429);
+      expect(Number(held.headers["retry-after"])).toBeGreaterThanOrEqual(1);
+      expect((await call("GET", `/v1/admin/organizers/${orgA}`, adminCookie)).statusCode).toBe(429);
+      expect((await call("GET", "/v1/admin/organizers", secondCookie)).statusCode).toBe(200);
+      await clear();
+    });
+
+    it("hold an admin back after 30 suspensions and reactivations an hour", async () => {
+      await clear();
+      const path = `/v1/admin/events/${eventA2}`;
+      expect((await call("POST", `${path}/suspend`, adminCookie, { reason })).statusCode).toBe(200);
+      await fillTo("console_suspend", 30);
+      const held = await call("POST", `${path}/reactivate`, adminCookie);
+      expect(held.statusCode).toBe(429);
+      expect(Number(held.headers["retry-after"])).toBeGreaterThanOrEqual(1);
+      expect((await call("GET", "/v1/admin/organizers", adminCookie)).statusCode).toBe(200);
+      await clear();
+      expect((await call("POST", `${path}/reactivate`, adminCookie)).statusCode).toBe(204);
+      await clear();
     });
   });
 });
