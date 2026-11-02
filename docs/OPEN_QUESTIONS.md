@@ -1962,3 +1962,23 @@ A block hides the other player from the blocker's own boards, results and profil
 two. The event team's reads (players, flags, help desk, desk, station), the console, the big screen and the pass of a
 meeting that already happened still name both: a block is one player's choice and does not bind a team or a room.
 **Recommended (developer):** keep; a player who needs the team to act reports the other player (T-312, T-705b).
+
+## Q-395 - A username reported while the event's help desk is off reaches Questify only (T-705b)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-433).
+A username reported from an event's ranking opens the team's `report_player` ticket only when the event's help desk is on
+(the team has no inbox otherwise); the report always reaches Questify's queue.
+**Recommended (developer):** keep; an organizer who wants reports turns the help desk on.
+
+## Q-396 - Reporters are not told what happened to their report (T-705b)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-433, plan D16).
+The app thanks the reporter ("Thanks. Questify will review this.") and sends nothing when the report is handled.
+**Recommended (developer):** keep for v1; an outcome notice would need its own wording and must never name the other side.
+
+## Q-397 - A held reward can still be named by a quest item or a community goal (T-705b)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-434).
+Unpublishing a reward takes it out of the shop, the goal, the desk and the reserve door, and out of pushes. A quest item that
+hands it out as a prize and a community goal that unlocks it still name it (their own reads were not restated).
+**Recommended (developer):** leave until a report shows the need; the admin can suspend the event meanwhile.

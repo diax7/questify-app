@@ -84,6 +84,10 @@ export const AREAS = [
   ],
   [/console-?players?|console\/players/i, ["console-players"]],
   [/console-?word-?lists?|console\/word-lists/i, ["console-word-lists"]],
+  [
+    /console-?reports?|console\/(reports|flags)|held-?notice|content-?(reports?|holds?)|reports\/routes|console\/moderation/i,
+    ["console-reports"],
+  ],
   [/change-?sets?/i, ["change-sets"]],
   [
     /use-?confirmation|confirmations/i,

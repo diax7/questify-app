@@ -335,6 +335,31 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
           });
         return;
       }
+      // /reported: a new visible quest titled `nameEn` in the event, reported by a new member (T-705b): the console's
+      // queue then lists it.
+      if (request.url === "/reported") {
+        db.owner
+          .query(
+            `WITH made AS (INSERT INTO player (username) VALUES ($3) RETURNING id),
+                  joined AS (INSERT INTO enrollment (organizer_id, event_id, player_id)
+                             SELECT e.organizer_id, e.id, made.id FROM event e, made WHERE e.id = $1),
+                  quest AS (INSERT INTO quest (event_id, category_id, type, title_en, title_ar, points, visible)
+                            SELECT $1, c.id, 'scan_qr', $2, $2, 10, true
+                            FROM (SELECT id FROM category WHERE event_id = $1 LIMIT 1) c RETURNING id)
+             INSERT INTO content_report (reporter_id, event_id, target_kind, target_id, snapshot, reason, note)
+             SELECT made.id, $1, 'quest', quest.id,
+                    jsonb_build_object('title', jsonb_build_object('en', $2, 'ar', $2)), 'offensive', 'Rude words.'
+             FROM made, quest`,
+            [body.eventId, body.nameEn ?? "Reported quest", body.usernames?.[0] ?? null],
+          )
+          .then((result) => {
+            response.writeHead(result.rowCount === 1 ? 204 : 404).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
       // /analytics-seed: ten players, two categories of quests with their completions and two rewards with three
       // redemptions, for the analytics page (T-607).
       if (request.url === "/analytics-seed") {

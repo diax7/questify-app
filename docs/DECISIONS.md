@@ -6761,3 +6761,66 @@ there is no "N current usernames now match" read (the plan review). The audit ho
 release travels in the body (`POST /v1/admin/retired-usernames/release {username}`), never the URL, and its audit holds no
 name, since a retired name was a player's. 120 reads a minute and 60 changes an hour per admin.
 **Trade-offs:** an admin cannot see who released which retired name from the audit alone (only that one was released).
+
+## ADR-433 - T-705b a player reports what they can see, once while open, and a username reported in an event reaches its team too
+
+**Status:** Proposed (developer, 2026-11-02; T-705b build; plan section 5, D14). Migration 0121.
+**Decision:** `content_report` (no grant) holds one row per report: the reporter (NULL after erasure), the event (NULL only
+for a username reported outside one), the kind (`quest | reward | announcement | category | session | sponsor | event |
+username`), the target's id, a `snapshot` of what it said then (title and text in both languages cut to 120 and 300
+characters, or the username; 4 KB at most), the reason (`offensive | hateful | sexual | spam | misleading | other`), an
+optional note of 500 characters (cleaned like a submission, marked by the word lists, never refused for a word), and the
+handling (`open | actioned | dismissed`, the outcome, who and when). One door, `report_content`, bound to an active player
+(a station or kiosk seat is refused): the reporter must be an active member of the target's event and see it (a visible quest
+they may play, a reward of their shop that is not held, an announcement sent to them, a category they see; sessions, sponsors
+and the event page to any member), or for a username any active player; anything else is the same `RP404` (no oracle). One
+open report per reporter and target (a repeat answers the same 201 `received`, so a retry is harmless); 10 an hour and 30 a
+day per player, counted in the database under the reporter's advisory lock. A username reported from an event's ranking
+(`eventId`, both active members) also opens T-312's `report_player` ticket to the event team in the same transaction, with a
+fixed text naming only the reason, when the event's help desk is on; it stays out of Questify's ticket queue (FR-1822). The
+app has Report on the quest sheet, each reward, the full announcements list, each agenda session, the sponsor page, the
+event's info page and a player's profile (a ranking row opens the profile with its event). The reporter is thanked and told
+nothing more in v1. Handled reports are deleted 180 days after handling by the lifecycle tick; erasure deletes the reports
+about the account's username and keeps the account's own reports without naming it.
+**Trade-offs:** a username reported while the event's help desk is off reaches Questify only (Q-395); no outcome notice to the
+reporter (Q-396).
+
+## ADR-434 - T-705b Questify unpublishes a quest, a reward or an announcement with a hold the team can read and not undo
+
+**Status:** Proposed (developer, 2026-11-02; T-705b build; plan D16). Migration 0121.
+**Decision:** `content_hold` (one live hold per target; the team reads its own event's holds through a policy, nobody but the
+two doors writes one) holds the kind, the target, the event and organizer, a reason code (the report reasons) and a note of
+10 to 300 characters that the organizer reads, who and when, and the release with its internal note. `admin_unpublish` locks
+the target row (two admins at once make one hold; the second gets the same hold back), closes every open report of the
+target as `unpublished`, queues `content_unpublished` for the organizer's members with ids only (their switches decide;
+FR-1727's last type is now built) and audits `content.unpublish` with the event, so the event's log shows Questify did it
+(ADR-409). `admin_republish` restores exactly what was there and audits `content.republish`. Effects, with completions, the
+ledger and redemptions untouched and a suspended event no obstacle: a **quest** is set hidden and a trigger refuses any other
+writer's `visible = true` while held (`HD423`, answered once by the API as 423 `content_held`), every player read and
+`quest_open_check` already honouring `visible`; republish restores the `visible` it had. A **reward** gets `held_at` (no
+grant): the shop, the goal, the desk's sale list, the spend gate shared by the reserve door and both desk-sale doors, and the
+pushes naming it leave it out (`RN404`, as a removed one); reservations made earlier stay collectable. An **announcement**
+leaves the players' list, the center (rows filtered at read, the unread count too) and its pushes not yet sent; a scheduled
+one whose time comes while held is skipped with the new reason `held`. The dashboard shows a held item's notice ("Questify
+unpublished this: {reason}. Edit it, then contact Questify to publish it again.") and Questify's note on the quest list,
+the rewards list and the announcements list. Other reported kinds (category, session, sponsor, event text) are handled by
+suspending the event (T-701) until each registers a hold; each upload kind adds itself to `content_hold` (T-301b, T-504b,
+T-506b, T-507b).
+**Trade-offs:** a held reward can still be named where a quest item or a community goal names it (Q-397); a push already
+delivered cannot be recalled.
+
+## ADR-435 - T-705b the console's Reports queue groups by target and its Flags list is read-only
+
+**Status:** Proposed (developer, 2026-11-02; T-705b build; plan D15). Migration 0121.
+**Decision:** Console **Reports** (`/console/reports`): one row per reported target with its open report count, the oldest
+first (at most 100, a kind filter), marked "Over 24 hours" past the response time the guidelines state. A target's page
+(`/console/reports/{kind}/{id}`) shows what each reporter saw beside what it says now (or "Removed"), its event and
+organizer (with whether the event is suspended), any live hold, and every report with its reason, note, time and reporter's
+current username (for the admin only). Actions: Unpublish or Publish again for the three held kinds; a link to the player's
+record for a username (T-704's Change username and T-705's Ban live there); a link to the console's event page for the rest
+(T-701's Suspend); then Close the reports with the action taken (`username_changed`, `player_banned`, `event_suspended`) or
+Dismiss, one statement for every open report of the target. Console **Flags** (`/console/flags`): the open anti-cheat flags
+of every event, one row per event (count, oldest, kinds), linked to the console's event page; read-only, the team resolves.
+Every read and action is audited with ids, codes and counts only (`console.reports_read`, `console.report_read`,
+`report.resolve`, `console.flags_read`); 120 reads a minute, 120 actions an hour and 60 flag reads a minute per admin.
+**Trade-offs:** changing a username or banning from a report is two steps (the record, then Close) rather than one button.

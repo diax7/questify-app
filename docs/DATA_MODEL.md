@@ -85,6 +85,20 @@ player's own block list (FR-1415, ADR-431), 500 at most. No grant: written by `b
 `own_blocks` and, through `blocked_by_me`, by the masked reads (rankings, results, Questify boards, public profile) and
 `meet_refusal`. `erase_rows` deletes the rows of an erased account in both directions.
 
+### content_report and content_hold (migration 0121, T-705b)
+`content_report (id, reporter_id, event_id, target_kind, target_id, snapshot, reason, note, marked, status
+open|actioned|dismissed, outcome, handled_by, handled_at, created_at)`: a player's report (FR-1411, ADR-433). `target_kind`
+is `quest|reward|announcement|category|session|sponsor|event|username`; `target_id` is the row (a player's id for a
+username); `snapshot` keeps what it said then (4 KB at most); `event_id` is NULL only for a username reported outside an
+event. One open report per reporter and target (partial unique index). No grant: written by `report_content` (the calling
+player), read and closed by the console's doors, deleted 180 days after handling (`purge_handled_reports`, the lifecycle
+tick). `erase_rows` deletes the reports about an erased username and sets `reporter_id` NULL on the account's own.
+`content_hold (id, kind quest|reward|announcement, target_id, organizer_id, event_id, reason_code, note, was_visible,
+held_by, held_at, released_at, released_by, release_note)`: an unpublish by Questify (FR-1414, ADR-434), one live hold per
+target. The team reads its own event's holds (policy on organizer and event scope); only `admin_unpublish` and
+`admin_republish` write. `reward.held_at` (no update grant) marks a held reward; a trigger keeps a held quest's `visible`
+false; `announcement.skip_reason` gains `held`.
+
 ### player_acceptance (migration 0017)
 `player_acceptance (player_id, document terms_of_use|privacy_policy|community_guidelines, version, method
 signup|sign_in|reaccept|submission, accepted_at)`, primary key (player, document, version): which version of each
@@ -1342,6 +1356,7 @@ rows or push text.
 | username_history, deletion_fingerprint | Old names; one-way hash of phone/email so bans survive deletion (ADR-084) | Hash only |
 | player_admin_action, username_retired (T-704) | What Questify did to an account: reason code, internal note, old and new name (deleted at erasure); retired names, folded, with no player id (kept) | Stays in Saudi Arabia; never in the audit log, a push or an error |
 | player_block (T-705) | Who a player blocked (two player ids and when); deleted at erasure in both directions | Stays in Saudi Arabia; never told to the blocked player; the blocked name is kept out of access logs |
+| content_report (T-705b) | Who reported what, the reason, an optional note, what the item said then (a username for a player report); deleted 180 days after handling; at erasure, reports about the account are deleted and its own reports no longer name it | Stays in Saudi Arabia; the console audits ids and counts only; the reported name travels in a body, never a URL; the team's ticket carries a fixed text |
 | marketing_consent, marketing_state (built, T-407, migration 0070) | Per-channel promotional opt-ins: an append-only dated log (channel, yes or no, method, wording version, time) and the state it writes; see below | Yes (erased with the account) |
 | legal_document | Versioned terms/privacy/guidelines/DPA | Yes |
 | staff_assignment | An operator of one event (T-204): the player, abilities (FR-908, all seven by default), `can_play` (FR-906), the invite it came from; `staff_assignment_quest` holds the quest limit (none: every quest). Written only by owner definers; removal deletes the row (audited) | Links a player |

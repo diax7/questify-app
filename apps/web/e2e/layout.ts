@@ -724,6 +724,8 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
   consolePage("numbers", "console.numbers.title"),
   consolePage("players", "console.players.title"),
   consolePage("word-lists", "console.wordLists.title"),
+  consolePage("reports", "console.reports.title"),
+  consolePage("flags", "console.flags.title"),
   {
     name: "console-player",
     path: (ids) => `/console/players/${ids.playerId}`,
