@@ -144,9 +144,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
          FROM pg_proc p WHERE p.proname IN ('legal_in_force', 'legal_text', 'admin_legal_list',
            'admin_legal_publish', 'organizer_legal_missing', 'accept_organizer_documents', 'help_articles',
            'admin_help_articles', 'admin_help_article_save', 'legal_version_key', 'legal_in_force_rows',
-           'help_text', 'admin_help_doc', 'legal_version_append_only')`,
+           'help_text', 'admin_help_doc', 'legal_version_append_only', 'player_legal_held')`,
       );
-      expect(rows.length).toBe(14);
+      expect(rows.length).toBe(15);
       expect(rows.filter((row) => row.public_can)).toEqual([]);
       // The helpers are internal: only the definers that call them can.
       const internal = [
@@ -228,7 +228,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("legal versions and help (datab
 
     it("refuses an unknown document, a malformed version, blank or oversize texts and a long note (LG400)", async () => {
       expect(await refusal(publish("passwords", "1"))).toBe("LG400:document");
-      for (const version of ["", "v1", "1.2.3.4", "1,5", "-1", "1."]) {
+      for (const version of [
+        "",
+        "v1",
+        "1.2.3.4",
+        "1,5",
+        "-1",
+        "1.",
+        "99999",
+        "1.99999999999",
+        "99999999999999999999",
+      ]) {
         expect(await refusal(publish("community_guidelines", version)), version).toBe(
           "LG400:version",
         );

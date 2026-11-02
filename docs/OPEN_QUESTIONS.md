@@ -1985,10 +1985,11 @@ hands it out as a prize and a community goal that unlocks it still name it (thei
 
 ## Q-405 - Should every player route refuse until the new legal version is accepted? (T-707, Q-095 part 1)
 
-**Status:** Proposed (developer, 2026-11-02; ADR-446).
-A new terms or privacy version is asked on launch and refused at sign-in and sign-up, but a player's other routes keep working
-until they accept. A modified app could skip the screen; the only cost is that player's own consent record.
-**Recommended (developer):** keep the launch gate; ask counsel whether proof of consent needs a server refusal on every route.
+**Status:** Decided by developer (2026-11-02; ADR-446; the T-707 review found the launch gate alone skippable by a modified app).
+Yes, for writes: a player who has not accepted the terms and privacy policy in force gets 403 `legal_acceptance_required` on every
+player write, except accepting, the deletion code and removing this phone's push device. Reads stay open, so a running screen
+and the acceptance page keep working; the app reloads the profile on the 403 and shows its acceptance screen.
+Counsel may still want to confirm the wording of the screen (T-807).
 
 ## Q-406 - Does a new legal version need a notice period before it binds? (T-707)
 

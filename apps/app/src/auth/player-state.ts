@@ -56,7 +56,7 @@ async function releaseWithin(release: () => Promise<unknown>, ms: number): Promi
 
 /** The provider's loader, separated from React so delayed account responses are exercised behaviorally. */
 export function createPlayerLoader(
-  session: Pick<Session, "signedIn" | "request" | "signOut" | "onEnded">,
+  session: Pick<Session, "signedIn" | "request" | "signOut" | "onEnded" | "onLegalHold">,
   publish: (state: PlayerState) => void,
   clear: () => Promise<void>,
   release: () => Promise<unknown> = () => Promise.resolve(),
@@ -119,10 +119,12 @@ export function createPlayerLoader(
       void clear();
       publish({ status: "signed_out", ended: true });
     });
+    const stopHold = session.onLegalHold(() => void reload());
     return () => {
       disposed = true;
       generation += 1;
       stop();
+      stopHold();
     };
   };
   return { reload, signOut, watch };

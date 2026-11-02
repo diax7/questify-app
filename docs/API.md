@@ -52,6 +52,9 @@
   accepted an earlier version of, every write on `/v1/organizers/{id}/…` (any method but GET and HEAD, except
   `POST …/legal/accept`, leaving and an owner removing a member) answers 403 `organizer_acceptance_required` with
   `details.documents: [{id, version}]` until its owner accepts. `GET /v1/staff/me` memberships carry `legalPending: [{document, version}]`.
+- **Player documents held (T-707, ADR-446):** when a player accepted an earlier version of the terms or privacy policy and not
+  the one in force, every player write (any method but GET and HEAD, except `POST /v1/me/acceptances`,
+  `POST /v1/me/deletion/code` and `DELETE /v1/me/push-device`) answers 403 `legal_acceptance_required` until it accepts.
 - **Config:** `GET /v1/config[?event=<id>]` returns the composed configuration with an `ETag` (see
   `CONFIGURABILITY.md`); anyone may read it. The document is `{schemaVersion: 1, features: {<name>: {enabled,
   minAppVersion, message}}, tuning: {<name>: number}, legal: {documents: [{id, version}]}, terms}`, keys sorted.

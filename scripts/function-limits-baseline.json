@@ -509,7 +509,7 @@
   },
   "apps/app/src/api/session.ts": {
     "createSession": {
-      "lines": [153]
+      "lines": [150]
     }
   },
   "apps/app/src/auth/player-state.ts": {

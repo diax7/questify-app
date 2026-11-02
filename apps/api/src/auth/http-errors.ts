@@ -545,6 +545,12 @@ export const playerAcceptanceRequired = make(
   "وافق على شروط الاستخدام وسياسة الخصوصية للمتابعة.",
   "Accept the terms of use and the privacy policy to continue.",
 );
+export const legalAcceptanceRequired = make(
+  403,
+  "legal_acceptance_required",
+  "صدر إصدار جديد من شروط الاستخدام أو سياسة الخصوصية. وافق عليه للمتابعة.",
+  "A new version of the terms of use or the privacy policy is out. Accept it to continue.",
+);
 export const eventEnded = make(
   409,
   "event_ended",

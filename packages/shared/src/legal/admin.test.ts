@@ -19,6 +19,7 @@ describe("legalPublishSchema", () => {
   it.each([
     ["a version with a letter", { ...valid, version: "v1" }],
     ["four numbers", { ...valid, version: "1.2.3.4" }],
+    ["a part of five digits", { ...valid, version: "10000" }],
     ["an Arabic text without Arabic", { ...valid, text: { ar: "English", en: "Text" } }],
     ["an empty English text", { ...valid, text: { ar: "نص", en: "  " } }],
     ["Eastern Arabic digits", { ...valid, text: { ar: "المادة ١", en: "Text" } }],

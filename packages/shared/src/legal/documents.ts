@@ -17,7 +17,7 @@ export type OrganizerDocumentId = "organizer_terms" | "organizer_dpa" | "organiz
 export type PlayerDocumentId = "terms_of_use" | "privacy_policy" | "community_guidelines";
 
 /** A version number such as `2`, `1.1` or `1.0.3`. */
-export const LEGAL_VERSION = /^[0-9]+(\.[0-9]+){0,2}$/;
+export const LEGAL_VERSION = /^[0-9]{1,4}(\.[0-9]{1,4}){0,2}$/;
 
 /** The version in force of each document, as `legal_in_force()` and `GET /v1/legal` answer. */
 export type LegalInForce = readonly Readonly<{ document: LegalDocumentId; version: string }>[];

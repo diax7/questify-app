@@ -6845,13 +6845,11 @@ cannot be scheduled for later (Q-406).
 
 ## ADR-446 - T-707 players are asked again at launch and sign-in, and an organizer's team is held until its owner accepts
 
-**Status:** Proposed (developer, 2026-11-02; T-707 build; answers Q-095 part 1; Q-405).
-**Decision:** **Players:** unchanged and now data-driven. The app asks on launch for the sign-up documents (terms, privacy)
+**Status:** Proposed (developer, 2026-11-02; T-707 build; answers Q-095 part 1; Q-405 decided by the developer after the review).
+**Decision:** **Players:** data-driven. The app asks on launch for the sign-up documents (terms, privacy)
 whose version in force the player has not accepted (`profile.legal.toAccept`), and before a first submission for the
 community guidelines; the sign-up and sign-in requests, and `POST /v1/me/acceptances`, refuse a stale version with a 422 that
-lists the versions in force. A player who declines can read the documents and sign out and cannot continue in the app (the
-launch gate); player routes do not refuse on every request, because that would add a read to every player call and would let a
-documents change break a running ledger call (Q-405). **Organizers:** a document in force that an organizer accepted an earlier
+lists the versions in force. A player who declines can read the documents and sign out and cannot continue in the app (the launch gate). The server holds the line too (review of T-707, coordinator decision): a signed-in player who accepted an earlier version of the terms or the privacy policy and not the one in force gets 403 `legal_acceptance_required` on every player write (any method but GET and HEAD) except `POST /v1/me/acceptances`, `POST /v1/me/deletion/code` and `DELETE /v1/me/push-device` (sign-out); reads stay open. It is one definer call (`player_legal_held`) in the player guard, on writes only, so a modified app cannot skip the screen and a GET costs nothing more. A player with no acceptance on record at all is not held (sign-up records both, as for organizers). The app reloads the profile when it sees the 403, which shows its acceptance screen. **Organizers:** a document in force that an organizer accepted an earlier
 version of is "pending" for it. Every member sees the pending documents (a banner with a link to each); the team's writes
 (every method but GET and HEAD) answer 403 `organizer_acceptance_required` with the documents until the organizer's owner
 accepts them (`POST /v1/organizers/{id}/legal/accept`, owner only, only the versions in force, audited); leaving, an owner

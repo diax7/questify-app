@@ -19,7 +19,7 @@ CREATE TABLE legal_version (
   id           bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   document     text NOT NULL CHECK (document IN ('terms_of_use', 'privacy_policy', 'community_guidelines',
                                                   'organizer_terms', 'organizer_dpa', 'organizer_content_rules')),
-  version      text NOT NULL CHECK (version ~ '^[0-9]+(\.[0-9]+){0,2}$'),
+  version      text NOT NULL CHECK (version ~ '^[0-9]{1,4}(\.[0-9]{1,4}){0,2}$'),
   body_ar      text CHECK (char_length(body_ar) BETWEEN 1 AND 100000),
   body_en      text CHECK (char_length(body_en) BETWEEN 1 AND 100000),
   note         text CHECK (note IS NULL OR char_length(note) BETWEEN 1 AND 300),
@@ -67,6 +67,22 @@ CREATE FUNCTION legal_in_force_rows() RETURNS TABLE (id bigint, document text, v
   FROM legal_version v ORDER BY v.document, legal_version_key(v.version) DESC
 $$;
 REVOKE ALL ON FUNCTION legal_in_force_rows() FROM PUBLIC;
+
+-- True while player `p` accepted an earlier version of the terms of use or the privacy policy and not the one in force
+-- (ADR-446): the API holds that player's writes. Like organizer_legal_missing, a document with no acceptance at all is not
+-- a new version to accept (sign-up records both, so no real player is in that state). One query per player write; only the
+-- API role can call it, after the session check.
+CREATE FUNCTION player_legal_held(p uuid) RETURNS boolean
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM legal_in_force_rows() f
+    WHERE f.document IN ('terms_of_use', 'privacy_policy')
+      AND EXISTS (SELECT 1 FROM player_acceptance a WHERE a.player_id = p AND a.document = f.document)
+      AND NOT EXISTS (SELECT 1 FROM player_acceptance a
+                      WHERE a.player_id = p AND a.document = f.document AND a.version = f.version))
+$$;
+REVOKE ALL ON FUNCTION player_legal_held(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION player_legal_held(uuid) TO questify_app;
 
 -- ================================================================ public reads (the pages and the apps need them signed out)
 -- The documents in force: [{document, version, publishedAt}]. Public information, the same as the legal pages.
@@ -128,7 +144,7 @@ BEGIN
                                 'organizer_dpa', 'organizer_content_rules') THEN
     RAISE EXCEPTION 'unknown document' USING ERRCODE = 'LG400', DETAIL = 'document';
   END IF;
-  IF new_version IS NULL OR new_version !~ '^[0-9]+(\.[0-9]+){0,2}$' THEN
+  IF new_version IS NULL OR new_version !~ '^[0-9]{1,4}(\.[0-9]{1,4}){0,2}$' THEN
     RAISE EXCEPTION 'the version must look like 1.2 or 2' USING ERRCODE = 'LG400', DETAIL = 'version';
   END IF;
   IF clean_ar IS NULL OR char_length(clean_ar) NOT BETWEEN 1 AND 100000 OR clean_ar ~ '\x00' THEN
