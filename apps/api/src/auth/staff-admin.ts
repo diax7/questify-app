@@ -166,6 +166,7 @@ export async function setPlatformAdmin(
   }
   const email = normalizeEmail(rawEmail);
   return inTransaction(owner, async () => {
+    const admins = admin ? [] : await lockAdmins(owner);
     const { rows } = await owner.query<{ id: string; platform_role: "none" | "admin" }>(
       "SELECT id, platform_role FROM staff_user WHERE email = $1 FOR UPDATE",
       [email],
@@ -177,6 +178,11 @@ export async function setPlatformAdmin(
     const wanted = admin ? "admin" : "none";
     if (account.platform_role === wanted) {
       return { changed: false, sessionsEnded: 0, grantsClosed: 0 };
+    }
+    if (!admin && isLastActiveAdmin(admins, account.id)) {
+      throw new Error(
+        `${email} is the last active platform admin; grant the role to another account first (grant-admin).`,
+      );
     }
     await owner.query("UPDATE staff_user SET platform_role = $2 WHERE id = $1", [
       account.id,
@@ -198,6 +204,27 @@ export async function setPlatformAdmin(
     });
     return { changed: true, sessionsEnded: ended.sessions, grantsClosed: ended.grants };
   });
+}
+
+type AdminRow = Readonly<{ id: string; status: "active" | "disabled" }>;
+
+/**
+ * Locks every platform admin, by id so that two revokes at once take turns instead of both seeing the other admin
+ * (FR-1785: the last admin cannot be removed), and returns them.
+ */
+async function lockAdmins(owner: Client): Promise<AdminRow[]> {
+  const { rows } = await owner.query<AdminRow>(
+    "SELECT id, status FROM staff_user WHERE platform_role = 'admin' ORDER BY id FOR UPDATE",
+  );
+  return rows;
+}
+
+/** True when `id` is an active admin and no other active admin exists. */
+function isLastActiveAdmin(admins: readonly AdminRow[], id: string): boolean {
+  const target = admins.find((row) => row.id === id);
+  return (
+    target?.status === "active" && !admins.some((row) => row.id !== id && row.status === "active")
+  );
 }
 
 /** Ends every live session and closes every live support grant of an account that lost the admin role. */

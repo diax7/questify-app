@@ -2229,6 +2229,12 @@ export const alreadyInThatState = make(
   "الحالة مطبقة مسبقا.",
   "It is already in that state.",
 );
+export const endOwnSession = make(
+  409,
+  "own_session",
+  "هذه جلستك الحالية. استخدم تسجيل الخروج.",
+  "This is your current session. Use sign out.",
+);
 export const supportMember = make(
   409,
   "support_member",

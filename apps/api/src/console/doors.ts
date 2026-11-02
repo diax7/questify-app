@@ -11,7 +11,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { HttpError } from "#src/http-error";
 
-type Admin = Readonly<{ id: string }>;
+export type Admin = Readonly<{ id: string }>;
 
 export type SuspendTarget = Readonly<{ kind: "organizer" | "event"; id: string }>;
 
@@ -39,7 +39,7 @@ const REFUSALS: Readonly<Record<string, () => HttpError>> = {
 };
 
 /** Runs a console door in the admin's seat; one of its refusals comes back as an HttpError, anything else rethrows. */
-async function door<T>(pool: Pool, admin: Admin, work: (client: PoolClient) => Promise<T>) {
+export async function door<T>(pool: Pool, admin: Admin, work: (client: PoolClient) => Promise<T>) {
   try {
     return await withConnection(pool, (client) =>
       withRequestContext(client, { isAdmin: true, staffUserId: admin.id }, () => work(client)),

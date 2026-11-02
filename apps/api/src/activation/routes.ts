@@ -17,6 +17,10 @@ import { callerOf, parse } from "#src/auth/request";
 import type { Sessions } from "#src/auth/session";
 import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 import type { PublicAccount } from "#src/auth/staff-store";
+import {
+  registerConsolePlatformRoutes,
+  type ConsolePlatformDeps,
+} from "#src/console/platform-routes";
 import { registerConsoleOrganizerRoutes, type ConsoleOrganizerDeps } from "#src/console/routes";
 import { registerConsoleDailyRoutes } from "#src/daily/admin-routes";
 import type { HttpError } from "#src/http-error";
@@ -119,6 +123,8 @@ export type ConsoleRoutesDeps = Readonly<{
   invitations: InvitationDeps;
   /** Organizers and events, suspension and support access (T-701), behind the same hook. */
   organizers: ConsoleOrganizerDeps;
+  /** Platform health, numbers and the admin accounts with their sessions (T-709), behind the same hook. */
+  platform: ConsolePlatformDeps;
 }>;
 
 /** The admin of a request that passed the console hook. */
@@ -270,6 +276,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleUsageRoutes(scope, deps.questify);
       registerConsoleReadinessRoutes(scope, deps.questify);
       registerConsoleOrganizerRoutes(scope, deps.organizers);
+      registerConsolePlatformRoutes(scope, deps.platform);
     },
     { prefix: ADMIN_PREFIX.slice(0, -1) },
   );

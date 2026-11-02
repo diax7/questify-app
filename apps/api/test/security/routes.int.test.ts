@@ -799,6 +799,16 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); support_open: 15 minutes on that one event, never for a member, 20 an hour; audited (test/console/organizers, test/db/support-grant)",
   "POST /v1/admin/support/:grantId/close":
     "active platform admins only (walked below); support_close of a live grant only; audited (test/console/organizers, test/db/support-grant)",
+  "GET /v1/admin/health":
+    "active platform admins only (walked below); read only; counts and flags of queues, leases and this server's set-up (yes or no), no secret, token or player; the admin checked again in console_health (QE403); 60 a minute per admin (test/console/platform, test/db/platform-health)",
+  "GET /v1/admin/numbers":
+    "active platform admins only (walked below); read only; counts of organizers, events, players and staff, no name or contact; the admin checked again in console_numbers (QE403); 60 a minute per admin (test/console/platform, test/db/platform-health)",
+  "GET /v1/admin/admins":
+    "active platform admins only (walked below); platform admins' emails and open-session counts, never a password hash; audited with the account ids only; 60 a minute per admin (test/console/platform, test/db/platform-health)",
+  "GET /v1/admin/admins/:staffUserId/sessions":
+    "active platform admins only (walked below); one platform admin's open sessions with browser and address, never a token; a member's account is the same 404; audited with the account id; 60 a minute per admin (test/console/platform, test/db/platform-health)",
+  "POST /v1/admin/sessions/:sessionId/end":
+    "active platform admins only (walked below); admin_end_session re-reads the admin, ends one open session of a platform admin only, reason required, audited; the caller's own session is refused (409); 30 an hour per admin (test/console/platform, test/db/platform-health)",
   "GET /v1/admin/tickets":
     "active platform admins only (walked below); exactly the tickets with queue = 'questify', the admin checked again (app_admin_id), every read audited per event shown ; 120 a minute per admin (test/tickets/center, test/db/tickets-center)",
   "GET /v1/admin/tickets/counts":

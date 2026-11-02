@@ -85,6 +85,53 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     ).toEqual([]);
   });
 
+  it("keeps the platform pages closed: five doors for the API's role alone (T-709)", async () => {
+    const doors = [
+      "admin_end_session",
+      "console_admin_accounts",
+      "console_admin_sessions",
+      "console_health",
+      "console_numbers",
+    ];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+      settings: string[];
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${doors.map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(doors);
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(true);
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(true);
+      expect(row.settings).toEqual(["search_path=public, pg_temp"]);
+    }
+    for (const sql of [
+      "SELECT public.console_health()",
+      "SELECT public.console_numbers()",
+      "SELECT public.console_admin_accounts(900, 28800)",
+      "SELECT public.console_admin_sessions(gen_random_uuid(), 900, 28800)",
+      "SELECT public.admin_end_session(gen_random_uuid(), 'A reason long enough', gen_random_uuid())",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+    const held = await rows<{ proname: string; grantee: string }>(
+      `SELECT DISTINCT p.proname, CASE WHEN a.grantee = 0 THEN 'public' ELSE a.grantee::regrole::text END AS grantee
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+       WHERE n.nspname = 'public' AND a.privilege_type = 'EXECUTE' AND a.grantee <> p.proowner
+         AND p.proname IN (${doors.map((name) => `'${name}'`).join(", ")})
+       ORDER BY 1, 2`,
+    );
+    expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
+  });
+
   it("keeps announcement tables and internals closed and grants only its five doors", async () => {
     const doors = [
       "announcement_cancel",

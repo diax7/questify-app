@@ -1,5 +1,6 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setPlatformAdmin } from "#src/auth/staff-admin";
 import { withRequestContext, type RequestContext } from "#src/db/context";
@@ -209,5 +210,80 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("platform admin role (database)
        FROM staff_user s WHERE s.email = 'no.note@questify.test'`,
     );
     expect(state).toEqual({ role: "none", audits: 0 });
+  });
+});
+
+/** FR-1785 (T-709): the last active platform admin cannot be removed, even by two revokes at the same moment. */
+describe.skipIf(TEST_DATABASE_URL === undefined)("the last platform admin (database)", () => {
+  let db: TestDatabase;
+  beforeAll(async () => {
+    db = await createTestDatabase();
+  });
+  afterAll(async () => {
+    await db.close();
+  });
+
+  const admin = async (email: string, status = "active") => {
+    const made = await db.owner.query<{ id: string }>(
+      "INSERT INTO staff_user (email, password_hash, platform_role, status) VALUES ($1, 'h', 'admin', $2) RETURNING id",
+      [email, status],
+    );
+    return made.rows[0]?.id ?? "";
+  };
+  const roleOf = async (email: string) =>
+    (
+      await db.owner.query<{ platform_role: string }>(
+        "SELECT platform_role FROM staff_user WHERE email = $1",
+        [email],
+      )
+    ).rows[0]?.platform_role;
+
+  it("refuses to revoke the only active admin, and changes and audits nothing", async () => {
+    await admin("only@questify.test");
+    await admin("off@questify.test", "disabled");
+    await expect(
+      setPlatformAdmin(db.owner, "only@questify.test", false, REVOKE_NOTE),
+    ).rejects.toThrow("only@questify.test is the last active platform admin");
+    expect(await roleOf("only@questify.test")).toBe("admin");
+    const audits = await db.owner.query(
+      "SELECT 1 FROM audit_log WHERE action = 'staff.platform_role' AND target_id = (SELECT id::text FROM staff_user WHERE email = 'only@questify.test')",
+    );
+    expect(audits.rowCount).toBe(0);
+  });
+
+  it("revokes a disabled admin, and revokes an admin while another active one remains", async () => {
+    expect(await setPlatformAdmin(db.owner, "off@questify.test", false, REVOKE_NOTE)).toMatchObject(
+      { changed: true },
+    );
+    await admin("second@questify.test");
+    expect(
+      await setPlatformAdmin(db.owner, "second@questify.test", false, REVOKE_NOTE),
+    ).toMatchObject({ changed: true });
+    expect(await roleOf("only@questify.test")).toBe("admin");
+  });
+
+  it("lets only one of two simultaneous revokes through, so an admin is always left", async () => {
+    await admin("left@questify.test");
+    await admin("right@questify.test");
+    await db.owner.query(
+      "UPDATE staff_user SET platform_role = 'none' WHERE email = 'only@questify.test'",
+    );
+    const url = new URL(TEST_DATABASE_URL ?? "");
+    url.pathname = new URL(db.appUrl).pathname;
+    const second = new Client({ connectionString: url.toString() });
+    await second.connect();
+    try {
+      const results = await Promise.allSettled([
+        setPlatformAdmin(db.owner, "left@questify.test", false, REVOKE_NOTE),
+        setPlatformAdmin(second, "right@questify.test", false, REVOKE_NOTE),
+      ]);
+      expect(results.map((result) => result.status).toSorted()).toEqual(["fulfilled", "rejected"]);
+    } finally {
+      await second.end();
+    }
+    const left = await db.owner.query(
+      "SELECT 1 FROM staff_user WHERE platform_role = 'admin' AND status = 'active'",
+    );
+    expect(left.rowCount).toBe(1);
   });
 });

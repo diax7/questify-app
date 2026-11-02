@@ -1784,6 +1784,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     }
   });
 
+  it("keeps the platform health, numbers and admin sessions from every tenant seat (T-709)", async () => {
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      for (const sql of [
+        "SELECT console_health()",
+        "SELECT console_numbers()",
+        "SELECT console_admin_accounts(900, 28800)",
+        "SELECT console_admin_sessions(gen_random_uuid(), 900, 28800)",
+        "SELECT admin_end_session(gen_random_uuid(), 'A reason long enough', gen_random_uuid())",
+      ]) {
+        expect(await refusal(asA(seat, sql, [])), `${seat} ${sql}`).toBe("QE403");
+      }
+    }
+  });
+
   it("keeps the go-live checklist inside the caller's tenant and membership (T-618)", async () => {
     for (const seat of ["organizer", "staff", "player"] as const) {
       expect(await refusal(asA(seat, "SELECT event_readiness($1)", [f.eventB])), seat).toBe(
