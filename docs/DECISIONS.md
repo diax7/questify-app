@@ -6338,7 +6338,9 @@ them. "Today" is the event's day, the one the station counts use. Usernames and 
 writing an NFC tag, showing the rotating QR, desk offers nobody paid. (2) **Indexes.** `ledger_entry (event_id, operator_id, created_at DESC) INCLUDE (kind, quest_id) WHERE operator_id IS NOT NULL`
 (partial: only operator entries; the INCLUDE makes the counts index-only), and one small partial index each for operator-reviewed submissions and operator-answered tickets. Measured on
 a 50,000-player event with 60 operators and about 270,000 operator entries today: 134 to 175 ms warm once vacuumed, 930 to 1,090 ms without the indexes. Nothing is cached; the page reads every
-30 seconds while open. (3) **The briefing is a personal notice per current operator.** `staff_briefing_send(event, draft, key, request)` writes one `staff_briefing` notice (kind: personal,
+30 seconds while open. An operator-approved submission writes a `quest` ledger entry that carries the operator's id, so it counts as a scan and also as a review (the same
+act seen twice, both true: the operator checked the proof and the player got the points); the scan figure is not netted of it, because telling them apart would join every entry to its completion
+and lose the index-only count. Migration 0113 reads the reviews and answers as a range on today and one seek for the last time, instead of the operator's whole history. (3) **The briefing is a personal notice per current operator.** `staff_briefing_send(event, draft, key, request)` writes one `staff_briefing` notice (kind: personal,
 priority 0, six hours, no topic so it cannot be muted) for each staff assignment of the event whose player is active, once per Idempotency-Key, at most 3 an hour and 10 a day (the announcements'
 limits), audited `staff.briefing` with the count only. A briefing may go before the event starts and until it ends (PE409 `event_closed` for an ended or archived event); PT409 `nobody` when no
 operator can receive it. The new `notice_kind.membership` value `staff` means the recipient holds a staff assignment of the notice's event; `notice_membership_ok` asks it at the fan-out (the
