@@ -6,6 +6,11 @@
   font-weight: var(--weight-medium);
 }
 
+/* The mark beside a state word takes the state's colour; the word itself is a badge with its own contrast. */
+.mark {
+  display: inline-flex;
+}
+
 .ok {
   color: var(--color-primary-action);
 }

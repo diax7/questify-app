@@ -13,7 +13,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Figure, PanelGrid, Tile } from "#src/ui/Charts.tsx";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
-import { Section, Stack } from "#src/ui/Section.tsx";
+import { Stack, SubHeading } from "#src/ui/Section.tsx";
 
 type Figures = readonly (readonly [MessageKey, number])[];
 
@@ -90,7 +90,8 @@ export function ConsoleNumbers({ language }: Readonly<{ language: Language }>) {
       ) : null}
       {state.kind === "ready"
         ? groupsOf(state.value).map(([group, figures]) => (
-            <Section key={group} level={2} title={t(group)}>
+            <Stack key={group}>
+              <SubHeading as="h2">{t(group)}</SubHeading>
               <PanelGrid kind="tiles">
                 {figures.map(([name, value]) => (
                   <Tile key={name} title={t(name)}>
@@ -98,7 +99,7 @@ export function ConsoleNumbers({ language }: Readonly<{ language: Language }>) {
                   </Tile>
                 ))}
               </PanelGrid>
-            </Section>
+            </Stack>
           ))
         : null}
     </Stack>

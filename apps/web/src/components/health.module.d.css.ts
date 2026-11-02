@@ -5,6 +5,7 @@ declare const styles: {
   readonly down: string;
   readonly line: string;
   readonly list: string;
+  readonly mark: string;
   readonly ok: string;
   readonly reasons: string;
   readonly state: string;

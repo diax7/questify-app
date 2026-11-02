@@ -16,11 +16,13 @@ import { translatorFor } from "#src/lib/language.ts";
 import { useConsoleRead } from "#src/lib/use-console-read.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Figure, PanelGrid, Tile } from "#src/ui/Charts.tsx";
-import { Muted, Notice } from "#src/ui/Feedback.tsx";
+import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Icon } from "#src/ui/Icon.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { FactList, Stack, SubHeading } from "#src/ui/Section.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
+
+const STATE_TONE = { ok: "success", warning: "warning", down: "danger" } as const;
 
 /** The pages reread the health every half minute while they are open; the API allows 60 reads a minute. */
 const REFRESH_MS = 30_000;
@@ -93,9 +95,13 @@ function HealthTileCard({
         <Stack>
           <Figure>{factValue(t, tile.figure, language)}</Figure>
           <Muted as="span">{t(`console.health.fact.${tile.figure.key}`)}</Muted>
-          <span className={`${styles.state} ${styles[tile.state]}`} data-testid="health-state">
-            <Icon name={STATE_ICON[tile.state]} />
-            {t(`console.health.state.${tile.state}`)}
+          <span className={styles.state}>
+            <span className={`${styles.mark} ${styles[tile.state]}`}>
+              <Icon name={STATE_ICON[tile.state]} />
+            </span>
+            <Badge tone={STATE_TONE[tile.state]}>
+              <span data-testid="health-state">{t(`console.health.state.${tile.state}`)}</span>
+            </Badge>
           </span>
           {tile.reasons.length === 0 ? null : (
             <ul className={styles.reasons}>
