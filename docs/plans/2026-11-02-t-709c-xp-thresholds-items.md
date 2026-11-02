@@ -144,6 +144,7 @@ measurement on the 300,000-player fixture; bundling it with part 1 makes one rev
 > with no table lock; each player's level is corrected under that player's own `player_xp` row lock (`xp_apply` already
 > recomputes `xp_level_of` at 0072:70) plus the sync's catch-up; the DEFERRABLE `xp_from` UNIQUE and the stale-curve
 > guard are dropped. T-709d gets its own re-plan and plan review before build.
+> **Superseded:** D4 and D5 are replaced by `docs/plans/2026-11-02-t-709d-xp-curve-items.md`.
 
 ### D4. Item catalog (ADR-441)
 

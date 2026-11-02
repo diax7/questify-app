@@ -6863,25 +6863,33 @@ and is not paid while revoked; restoring pays any unpaid gems at the next sync. 
 restore needs no ban. Reasoned, confirmed, audited with ids only.
 **Trade-offs:** gems already paid for a revoked tier stay in the balance (Q-398); a banned player cannot spend them.
 
-## ADR-440 - T-709d the XP curve and its reward map are one document; the recompute is in the same transaction
+## ADR-440 - T-709d the XP curve and its reward map are one document; each player's level follows under their own lock
 
-**Status:** Proposed (developer, 2026-11-02; T-709c plan D5).
-**Decision:** `admin_xp_table_save` takes `player_xp` in EXCLUSIVE mode first, then the items, then `xp_level` and
-`level_item`, and recomputes every `player_xp.level` before it commits. It refuses to remove a level anyone reached or
-holds and to remap a level whose reward anyone owns. Levels newly reached by a lowering are written at the player's next
-sync (or next XP), which gives the level item and the level-up gems once; a lowering needs `confirmed`, with a preview of
-players, levels and gems. `xp_apply` sets the level in its own statement so a queued award never uses the old curve.
-**Trade-offs:** XP, gem and item writers and sign-ups wait for the length of a save (measured, Q-401); rewards of a lowering
-arrive at the next sync, not at the save (Q-399).
-**Re-plan (plan review 2026-11-02):** the EXCLUSIVE table lock is withdrawn: the API's `lock_timeout` 2 s and
-`statement_timeout` 5 s make every queued scan fail. The door writes only `xp_level` and `level_item`; each player's level
-is corrected under their own `player_xp` row lock (`xp_apply` already recomputes it) and by the sync's catch-up; no
-DEFERRABLE UNIQUE, no stale-curve guard. T-709d re-plans and gets a plan review before build.
+**Status:** Proposed (developer, 2026-11-02; re-planned after the plan review of 2026-11-02; plan
+`docs/plans/2026-11-02-t-709d-xp-curve-items.md` D1 to D3). Migration 0124.
+**Decision:** `admin_xp_table_save` writes only `xp_level` and `level_item`, with no table lock: it takes level 1 FOR
+UPDATE (the door serializer), then every `xp_level` row FOR UPDATE in level order, then the changed `level_item` rows and
+items, with `lock_timeout` 1 s (HTTP 503 `busy`). Every insert into `level_reached` takes FOR KEY SHARE on each level it
+writes (`levels_reach`, used by `xp_apply` and the sync), so a reach and a save never interleave and no reach fails. The
+door refuses to remove a level anyone reached or stands at (CA409 `level_held`) and to change the item of a level anyone
+reached (CA409 `reward_given`), checked after its locks. The `xp_from` UNIQUE stays non-deferrable: the door orders its
+row updates (removals, raises top down, lowerings bottom up, additions) so they never collide. A save that can pay needs
+`confirmed`; `admin_xp_table_preview` gives the counts. No player row is written: `xp_apply` corrects a player's stored
+level at their next XP and `questify_sync` catches up (`xp_catch_up`: the missing `level_reached` rows, which give the
+item and the level-up gems once, and the stored level) under that player's `player_xp` lock. `own_level`,
+`own_equipment` and the console's player record derive the level from XP; the public profile and passport show the stored
+level until the player's next sync.
+**Trade-offs:** rewards of a lowering arrive at the next sync (Q-399); a stored level can be stale until then; a reach of a
+new level waits for a save's few milliseconds (measured, Q-401).
 
 ## ADR-441 - T-709d the console edits Questify's items: names always, art while unowned and not on sale
 
-**Status:** Proposed (developer, 2026-11-02; T-709c plan D4).
-**Decision:** The Items editor lists level rewards, shop items and unassigned items (never souvenir items). Names can always
-change; the art (a shipped visual key) only while no player owns the item and it is not on sale. A new item is made with its
-kind, names and art, and optionally put on sale in the same transaction through the exclusive-source guard.
-**Trade-offs:** a shop item's art cannot be changed after sale starts; the admin retires it and adds a new one (Q-402).
+**Status:** Proposed (developer, 2026-11-02; re-planned 2026-11-02, plan `docs/plans/2026-11-02-t-709d-xp-curve-items.md`
+D4).
+**Decision:** The Items editor lists level rewards, shop items and unassigned items, never souvenir items (named by a
+souvenir rule or with the `souvenir-` id prefix, CA404). Names can always change (FOR NO KEY UPDATE, waits on nobody); the
+art (a shipped visual key) only when the item has no shop row and is not the reward of a level anyone reached, checked
+under FOR UPDATE on the item so a reach or a buy in flight is seen. A new item is made with its id, kind, names and art, and
+optionally put on sale in the same transaction; the exclusive-source guard is restated so a shop item may change its names
+only, and still locks the item and refuses a second source for every source writer.
+**Trade-offs:** a shop item's art cannot change once it has a shop row; the admin retires it and adds a new one (Q-402).

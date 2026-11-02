@@ -1992,9 +1992,11 @@ but leaves gems already paid. A banned player cannot spend them.
 
 ## Q-399 - Rewards of a lower XP curve arrive at the player's next sync (T-709d)
 
-**Status:** Proposed (developer, 2026-11-02; ADR-440).
-A lowered curve raises levels at once, but the new level items and level-up gems are written at the player's next sync, so
-the save does not hold every writer while it writes millions of rows.
+**Status:** Proposed (developer, 2026-11-02; ADR-440; re-planned 2026-11-02).
+A curve save writes no player row. A player's stored level, new level items and level-up gems are written at their next
+sync (or next XP); the player's own screens and the console derive the level from XP at once, while the public profile
+shows the stored level until then. A caught-up level carries the player's latest XP entry, so a replayed completion screen
+may name it.
 **Recommended (developer):** keep; the app syncs on opening Profile or Questify.
 
 ## Q-400 - The streak milestone XP gets its editor in T-703 (T-709c)
@@ -2003,15 +2005,16 @@ the save does not hold every writer while it writes millions of rows.
 `questify_streak_milestone` is append-only (0068), so editing it needs a design of its own; T-709c leaves it out.
 **Recommended (developer):** T-703's tuning page, with a new versioned row per change.
 
-## Q-401 - How long a curve save may hold the XP writers (T-709d)
+## Q-401 - How long a curve save may hold new level-ups (T-709d)
 
-**Status:** Proposed (developer, 2026-11-02; ADR-440).
-The save waits at most 3 seconds for its lock and then holds every XP, gem and item writer until it commits.
-**Recommended (developer):** measure on the 300,000-player fixture; if over 5 seconds, refuse a save during a live event's
-busy hour or batch the recompute.
+**Status:** Proposed (developer, 2026-11-02; ADR-440; re-planned 2026-11-02).
+The save holds every `xp_level` row FOR UPDATE, so a scan that reaches a new level waits for it (scans that reach no new
+level, syncs, sign-ups and buys never wait). The save waits at most 1 second for its locks, then answers 503 `busy`.
+**Recommended (developer):** measure on the 300,000-player fixture; budget 200 ms held, under the API's 2 s lock timeout.
 
-## Q-402 - A shop item's art is frozen once it is on sale (T-709d)
+## Q-402 - A shop item's art is frozen once it has a shop row (T-709d)
 
-**Status:** Proposed (developer, 2026-11-02; ADR-441).
-Buyers keep the art they saw; the admin can rename a shop item but changes its art by retiring it and adding a new one.
+**Status:** Proposed (developer, 2026-11-02; ADR-441; re-planned 2026-11-02).
+Buyers keep the art they saw; the admin can rename a shop item (on sale or retired) but changes its art by retiring it and
+adding a new one. A level reward's art is frozen once anyone reached its level.
 **Recommended (developer):** keep.
