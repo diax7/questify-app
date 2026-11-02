@@ -39,9 +39,9 @@ test("in English a new version of the guidelines is published, in force at once,
 
   const now = new Date();
   const version = [
-    now.getUTCFullYear(),
-    (now.getUTCMonth() + 1) * 100 + now.getUTCDate(),
-    now.getUTCHours() * 100 + now.getUTCMinutes(),
+    (now.getUTCFullYear() - 2000) * 100 + now.getUTCMonth() + 1,
+    now.getUTCDate() * 100 + now.getUTCHours(),
+    now.getUTCMinutes() * 100 + now.getUTCSeconds(),
   ].join(".");
   const card = page.locator('[data-testid="legal-card"][data-id="community_guidelines"]');
   await card.getByRole("button", { name: "New version of Community guidelines" }).click();
