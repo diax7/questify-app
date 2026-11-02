@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { isBelowMinimum } from "@questify/shared";
-import { idempotencyKeyInvalid } from "#src/auth/http-errors";
+import { eventSuspended, idempotencyKeyInvalid } from "#src/auth/http-errors";
 import { HttpError } from "#src/http-error";
 import type { IdempotencyStore } from "#src/idempotency-store";
 
@@ -76,6 +76,57 @@ const bodyHash = (request: FastifyRequest): string =>
     .digest("hex");
 
 const principal = (request: FastifyRequest): string => request.principalId ?? "anonymous";
+
+/**
+ * The one error answer of every route: our refusals as they are, a client error as `invalid_request`, a suspension's
+ * database wall as 423, a busy database as 503, anything else as 500 (logged).
+ */
+function errorHandlerFor(app: FastifyInstance) {
+  return async (
+    error: Error & { statusCode?: number; code?: string },
+    _request: FastifyRequest,
+    reply: FastifyReply,
+  ) => {
+    if (error instanceof HttpError) {
+      return reply.code(error.status).send(error.envelope);
+    }
+    if (error.statusCode !== undefined && error.statusCode >= 400 && error.statusCode < 500) {
+      return reply.code(error.statusCode).send({
+        code: "invalid_request",
+        message: { ar: "الطلب غير صالح.", en: "The request is not valid." },
+        details: {},
+      });
+    }
+    // A database wall of a suspension (migration 0114, ADR-406) that no route answered first: any path, one answer.
+    if (error.code === "ES423") {
+      const refusal = eventSuspended();
+      return reply.code(refusal.status).send(refusal.envelope);
+    }
+    if (error.code !== undefined && DATABASE_BUSY.has(error.code)) {
+      app.log.warn({ event: "database.busy", code: error.code });
+      return reply
+        .code(503)
+        .header("retry-after", "2")
+        .send({
+          code: "busy",
+          message: {
+            ar: "الخدمة مشغولة. حاول بعد لحظات.",
+            en: "The service is busy. Try again in a moment.",
+          },
+          details: {},
+        });
+    }
+    app.log.error({ err: loggableError(error) }, "unexpected error");
+    return reply.code(500).send({
+      code: "internal_error",
+      message: {
+        ar: "حدث خطأ غير متوقع. حاول مرة أخرى.",
+        en: "Something went wrong. Try again.",
+      },
+      details: {},
+    });
+  };
+}
 
 /**
  * Applies the rules in docs/API.md (Conventions) to every route: one error envelope,
@@ -169,47 +220,7 @@ export function registerConventions(app: FastifyInstance, options: ConventionOpt
     return payload;
   });
 
-  app.setErrorHandler(
-    async (
-      error: Error & { statusCode?: number; code?: string },
-      _request,
-      reply: FastifyReply,
-    ) => {
-      if (error instanceof HttpError) {
-        return reply.code(error.status).send(error.envelope);
-      }
-      if (error.statusCode !== undefined && error.statusCode >= 400 && error.statusCode < 500) {
-        return reply.code(error.statusCode).send({
-          code: "invalid_request",
-          message: { ar: "الطلب غير صالح.", en: "The request is not valid." },
-          details: {},
-        });
-      }
-      if (error.code !== undefined && DATABASE_BUSY.has(error.code)) {
-        app.log.warn({ event: "database.busy", code: error.code });
-        return reply
-          .code(503)
-          .header("retry-after", "2")
-          .send({
-            code: "busy",
-            message: {
-              ar: "الخدمة مشغولة. حاول بعد لحظات.",
-              en: "The service is busy. Try again in a moment.",
-            },
-            details: {},
-          });
-      }
-      app.log.error({ err: loggableError(error) }, "unexpected error");
-      return reply.code(500).send({
-        code: "internal_error",
-        message: {
-          ar: "حدث خطأ غير متوقع. حاول مرة أخرى.",
-          en: "Something went wrong. Try again.",
-        },
-        details: {},
-      });
-    },
-  );
+  app.setErrorHandler(errorHandlerFor(app));
 
   app.setNotFoundHandler(async (_request, reply) =>
     reply.code(404).send({

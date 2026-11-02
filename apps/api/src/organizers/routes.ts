@@ -4,12 +4,14 @@ import { z } from "zod";
 import {
   alreadyMember,
   emailUnavailable,
+  eventSuspended,
   invalidRequest,
   invalidScope,
   inviteSelf,
   invitesPendingFull,
   mailCap,
   notFound,
+  organizerSuspended,
   ownerOnly,
   ownerRequired,
   tooManyAttempts,
@@ -23,6 +25,7 @@ import type { Sessions } from "#src/auth/session";
 import { callerOf, parse } from "#src/auth/request";
 import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 import type { Events } from "#src/events/events";
+import type { SuspendedSet } from "#src/events/suspended-set";
 import { registerEventRoutes } from "#src/events/routes";
 import { registerJoinSetupRoutes } from "#src/join/setup-routes";
 import { registerAwardRoutes } from "#src/awards/routes";
@@ -67,7 +70,8 @@ import { registerReadinessTeamRoutes } from "#src/readiness/routes";
 import { registerHeldPrizesTeamRoute } from "#src/rewards/held-prizes";
 import { registerRewardBuilderRoutes } from "#src/rewards/routes";
 import { organizerContextOf } from "#src/organizers/context";
-import { membershipOf, readTeam } from "#src/organizers/store";
+import { membershipOf, readTeam, type OrganizerPrincipal } from "#src/organizers/store";
+import { supportMayUse, supportSeatOf } from "#src/organizers/support-seat";
 import type { Actor, ChangeResult, InviteResult, Team } from "#src/organizers/team";
 import type { Ranking } from "#src/ranking/ranking";
 import { ORGANIZER_PREFIX } from "#src/route-access";
@@ -99,6 +103,8 @@ export type OrganizerRoutesDeps = Readonly<{
   devices: ClaimDeps;
   /** Questify invitations requested by the owner (T-409). */
   invitations: InvitationDeps;
+  /** The suspended events (T-701): a member's writes to one answer 423. */
+  suspended: SuspendedSet;
   dashboardOrigin: string;
 }>;
 
@@ -227,11 +233,50 @@ function registerTeamRoutes(scope: FastifyInstance, deps: OrganizerRoutesDeps): 
   });
 }
 
+/** The caller's membership of the organizer in the URL, else a live support grant in it (T-701), else 404. */
+async function principalOf(pool: Pool, request: FastifyRequest): Promise<OrganizerPrincipal> {
+  const { organizerId } = request.params as { organizerId?: string };
+  const staff = request.staff;
+  // Stryker disable next-line ConditionalExpression,LogicalOperator: the route pattern always has the id and the session check sets the staff member
+  if (organizerId === undefined || !UUID.test(organizerId) || staff === undefined) {
+    throw notFound();
+  }
+  const membership =
+    (await membershipOf(pool, staff.account.id, organizerId)) ??
+    (await supportSeatOf(pool, staff.account, organizerId));
+  if (membership === undefined) {
+    throw notFound();
+  }
+  return membership;
+}
+
+/**
+ * A suspended organizer or event is read-only to its team (ADR-406): any write answers 423. Support keeps writing so it
+ * can fix what led to the suspension (Q-377); the ledger stays closed to it in the database.
+ */
+async function refuseSuspendedWrite(
+  method: string,
+  params: Readonly<{ eventId?: string }>,
+  membership: OrganizerPrincipal,
+  suspended: SuspendedSet,
+): Promise<void> {
+  if (method === "GET" || method === "HEAD" || membership.support !== undefined) {
+    return;
+  }
+  if (membership.suspension !== undefined && membership.suspension !== null) {
+    throw organizerSuspended();
+  }
+  if (params.eventId !== undefined && (await suspended.has(params.eventId))) {
+    throw eventSuspended();
+  }
+}
+
 /**
  * Registers every /v1/organizers/:organizerId route in one scope. Its hook runs the staff checks (no-store, Origin,
  * session), then reads the caller's membership of that organizer from the database: a non-member gets 404, the same
- * as an organizer that does not exist, and an editor on an `owner` route gets 403. The database checks the
- * membership again on every query (migration 0008).
+ * as an organizer that does not exist, and an editor on an `owner` route gets 403. A Questify admin with a live support
+ * grant is seated as an editor of the granted events, on a deny-by-default list of routes (T-701). The database checks
+ * the membership or the grant again on every query (migrations 0008, 0114).
  */
 export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRoutesDeps): void {
   app.register(
@@ -240,19 +285,18 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
         reply.header("cache-control", "no-store");
         checkOrigin(request, deps.dashboardOrigin, true);
         await requireSession(request, reply, deps.sessions);
-        const { organizerId } = request.params as { organizerId?: string };
-        const staff = request.staff;
-        // Stryker disable next-line ConditionalExpression,LogicalOperator: the route pattern always has the id and the session check sets the staff member
-        if (organizerId === undefined || !UUID.test(organizerId) || staff === undefined) {
-          throw notFound();
-        }
-        const membership = await membershipOf(deps.pool, staff.account.id, organizerId);
-        if (membership === undefined) {
+        const membership = await principalOf(deps.pool, request);
+        const params = request.params as { eventId?: string };
+        if (
+          membership.support !== undefined &&
+          !supportMayUse(request.method, request.routeOptions.url ?? "", params, membership)
+        ) {
           throw notFound();
         }
         if (request.routeOptions.config.access === "owner" && membership.role !== "owner") {
           throw ownerOnly();
         }
+        await refuseSuspendedWrite(request.method, params, membership, deps.suspended);
         request.organizer = membership;
       });
       registerTeamRoutes(scope, deps);

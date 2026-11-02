@@ -90,6 +90,8 @@ const OWNED: Readonly<Record<string, Owned>> = {
           sql: "INSERT INTO organizer (name, slug) VALUES ('Forged', 'forged-org')",
           values: [],
         }),
+        // Organizer rows are definer-only since 0114 (T-701): no INSERT or UPDATE right at all.
+        forgeRefusedBy: /permission denied/,
       },
     ],
   },
@@ -924,6 +926,8 @@ const OWNED: Readonly<Record<string, Owned>> = {
 
 /** Tables that belong to nobody in particular, with the reason; their write rules are tested where they live. */
 const SHARED: Readonly<Record<string, string>> = {
+  support_grant:
+    "no direct API rights; Questify's 15-minute grants on one event, opened and closed by admin definers only; the grant reaches only its event (support-grant, console/organizers)",
   quest_points_change:
     "no direct API rights; append-only, written only by apply_past_points for the caller's own event (award_event_of), read back only by past_points_replay for the caller's own key (live-edits)",
   souvenir_rule:

@@ -199,10 +199,14 @@ const toRecord = (row: Row): EventRecord => ({
   interests: row.interests,
 });
 
-/** The events the caller may see in their organizer (the database applies an editor's limit). */
+/**
+ * The events the caller may see in their organizer: within an editor's limit or a support grant. Said here as well as
+ * in the row rules, since a public event is readable by anyone and would otherwise slip into a limited list.
+ */
 export async function listEvents(db: PoolClient, organizerId: string): Promise<EventRecord[]> {
   const { rows } = await db.query<Row>(
-    `SELECT ${COLUMNS} FROM event WHERE organizer_id = $1 ORDER BY created_at DESC`,
+    `SELECT ${COLUMNS} FROM event WHERE organizer_id = $1 AND in_event_scope(id, app_event_scope())
+     ORDER BY created_at DESC`,
     [organizerId],
   );
   return rows.map(toRecord);

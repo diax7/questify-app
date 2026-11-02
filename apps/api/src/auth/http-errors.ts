@@ -2197,3 +2197,53 @@ export const invalidChangeSet = make(
   "راجع مجموعة التغييرات: الحقل المحدد غير صالح.",
   "Check the change set: the named field is not valid.",
 );
+
+// ---------------------------------------------------------------- console foundation (T-701)
+export const eventSuspended = make(
+  423,
+  "event_suspended",
+  "أوقفت Questify هذه الفعالية مؤقتا. لا يمكن تعديلها الآن.",
+  "Questify has paused this event. It cannot be changed right now.",
+);
+export const organizerSuspended = make(
+  423,
+  "organizer_suspended",
+  "أوقفت Questify هذه الجهة المنظِّمة مؤقتا. لا يمكن تعديلها الآن.",
+  "Questify has paused this organizer. Nothing can be changed right now.",
+);
+export const eventUnavailable = make(
+  404,
+  "event_unavailable",
+  "هذه الفعالية غير متاحة الآن.",
+  "This event is unavailable right now.",
+);
+export const invalidReason = make(
+  400,
+  "invalid_reason",
+  "اكتب سببا من 10 إلى 300 حرف.",
+  "Write a reason of 10 to 300 characters.",
+);
+export const alreadyInThatState = make(
+  409,
+  "suspension_unchanged",
+  "الحالة مطبقة مسبقا.",
+  "It is already in that state.",
+);
+export const supportMember = make(
+  409,
+  "support_member",
+  "أنت عضو في هذه الجهة. ادخل بعضويتك.",
+  "You are a member of this organizer. Use your membership.",
+);
+export const supportBusy = make(
+  409,
+  "support_busy",
+  "فُتح وصول دعم لهذه الفعالية للتو. حدّث الصفحة.",
+  "Support access to this event was just opened. Refresh the page.",
+);
+export const tooManySupportGrants = make(
+  429,
+  "too_many_support_grants",
+  "فتحت وصول دعم كثيرا هذه الساعة. حاول لاحقا.",
+  "You opened support access too often this hour. Try again later.",
+);

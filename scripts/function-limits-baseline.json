@@ -1,13 +1,13 @@
 {
   "apps/api/src/activation/service.ts": {
     "createActivation": {
-      "lines": [122]
+      "lines": [120]
     }
   },
   "apps/api/src/app.ts": {
     "buildApp": {
       "complexity": [9],
-      "lines": [231]
+      "lines": [223]
     }
   },
   "apps/api/src/audience/rules.ts": {
@@ -76,11 +76,6 @@
   "apps/api/src/completions/routes.ts": {
     "answer": {
       "complexity": [12]
-    }
-  },
-  "apps/api/src/conventions.ts": {
-    "registerConventions": {
-      "lines": [132]
     }
   },
   "apps/api/src/db/migrate.ts": {

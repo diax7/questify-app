@@ -43,12 +43,21 @@ export type SessionSummary = Readonly<{
   ip: string | null;
 }>;
 
+/** Questify paused the organizer (T-701): the reason it wrote, which the organizer reads (Q-372). */
+export type Suspension = Readonly<{ reason: string; since: Date }>;
+
+/** A live support grant on one event (T-701, ADR-407): 15 minutes, as an editor of that event only. */
+export type SupportGrant = Readonly<{ grantId: string; eventId: string; expiresAt: Date }>;
+
 export type Membership = Readonly<{
   organizerId: string;
   /** Organizer names are public (event pages), so a member may always see the name. */
   organizerName: string;
   role: "owner" | "editor";
   eventScope: string[] | null;
+  suspension: Suspension | null;
+  /** Set when this entry is a Questify admin's support grants, not a membership: the events and when each ends. */
+  support?: readonly SupportGrant[];
 }>;
 
 type AccountRow = {
@@ -356,18 +365,60 @@ export async function listMemberships(db: Db, staffUserId: string): Promise<Memb
     organizer_name: string;
     role: "owner" | "editor";
     event_scope: string[] | null;
+    suspension_reason: string | null;
+    suspended_at: Date | null;
   }>(
-    `SELECT m.organizer_id, o.name AS organizer_name, m.role, m.event_scope
+    `SELECT m.organizer_id, o.name AS organizer_name, m.role, m.event_scope, o.suspension_reason, o.suspended_at
      FROM organizer_member m JOIN organizer o ON o.id = m.organizer_id
      WHERE m.staff_user_id = $1 ORDER BY m.created_at`,
     [staffUserId],
   );
-  return rows.map((row) => ({
+  const members: Membership[] = rows.map((row) => ({
     organizerId: row.organizer_id,
     organizerName: row.organizer_name,
     role: row.role,
     eventScope: row.event_scope,
+    suspension: suspensionOf(row.suspension_reason, row.suspended_at),
   }));
+  const memberOf = new Set(members.map((member) => member.organizerId));
+  const seats = await listSupportSeats(db);
+  return [...members, ...seats.filter((seat) => !memberOf.has(seat.organizerId))];
+}
+
+function suspensionOf(reason: string | null, since: Date | null): Suspension | null {
+  return reason === null || since === null ? null : { reason, since };
+}
+
+/** The caller's live support grants (none unless an active platform admin), one entry per organizer. */
+async function listSupportSeats(db: Db): Promise<Membership[]> {
+  const { rows } = await db.query<{
+    grant_id: string;
+    organizer_id: string;
+    organizer_name: string;
+    event_id: string;
+    expires_at: Date;
+    suspension_reason: string | null;
+    suspended_at: Date | null;
+  }>(
+    `SELECT g.grant_id, g.organizer_id, g.organizer_name, g.event_id, g.expires_at, o.suspension_reason,
+            o.suspended_at
+     FROM own_support_grants() g JOIN organizer o ON o.id = g.organizer_id`,
+  );
+  const seats = new Map<string, Membership & { support: SupportGrant[]; eventScope: string[] }>();
+  for (const row of rows) {
+    const seat = seats.get(row.organizer_id) ?? {
+      organizerId: row.organizer_id,
+      organizerName: row.organizer_name,
+      role: "editor" as const,
+      eventScope: [],
+      suspension: suspensionOf(row.suspension_reason, row.suspended_at),
+      support: [],
+    };
+    seat.eventScope.push(row.event_id);
+    seat.support.push({ grantId: row.grant_id, eventId: row.event_id, expiresAt: row.expires_at });
+    seats.set(row.organizer_id, seat);
+  }
+  return [...seats.values()];
 }
 
 /** Retention: bare deletes, so the policies decide which rows are old enough to go. */

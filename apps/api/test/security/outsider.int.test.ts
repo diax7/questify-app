@@ -33,6 +33,58 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       )
     ).map((row) => row.name);
 
+  it("keeps the console foundation closed: support grants definer-only, only the doors granted (T-701)", async () => {
+    const granted = [
+      "admin_reactivate_event",
+      "admin_reactivate_organizer",
+      "admin_suspend_event",
+      "admin_suspend_organizer",
+      "event_support_grants",
+      "own_support_grants",
+      "support_close",
+      "support_open",
+      "suspended_ids",
+    ];
+    const definers = [
+      ...granted,
+      "audit_stamp_support",
+      "enrollment_suspension_guard",
+      "event_suspended",
+    ];
+    const internals = ["console_admin", "staff_shown", "suspension_reason_clean"];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+      settings: string[];
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${[
+          ...definers,
+          ...internals,
+          "ledger_suspension_guard",
+        ]
+          .map((name) => `'${name}'`)
+          .join(", ")})`,
+    );
+    expect(functions).toHaveLength(definers.length + internals.length + 1);
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(granted.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(
+        definers.includes(row.proname) || row.proname === "ledger_suspension_guard",
+      );
+      expect(row.settings).toEqual(["search_path=public, pg_temp"]);
+    }
+    expect(
+      await rows(`SELECT privilege_type FROM information_schema.role_table_grants
+      WHERE table_schema = 'public' AND table_name = 'support_grant' AND grantee IN ('PUBLIC', 'questify_app')`),
+    ).toEqual([]);
+  });
+
   it("keeps announcement tables and internals closed and grants only its five doors", async () => {
     const doors = [
       "announcement_cancel",

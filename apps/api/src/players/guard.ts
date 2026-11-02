@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
-import { unauthenticated } from "#src/auth/http-errors";
+import { eventUnavailable, unauthenticated } from "#src/auth/http-errors";
+import type { SuspendedSet } from "#src/events/suspended-set";
 import { PLAYER_GUARD } from "#src/route-access";
 
 /** A bearer token is 32 random bytes in base64url (T-107 issues them, as staff sessions are made). */
@@ -32,9 +33,14 @@ export async function playerOfToken(pool: Pool, token: string): Promise<string |
 /**
  * The check behind every route marked `player`: an `Authorization: Bearer` token of a live session of an active player,
  * else 401. It sets the player and the idempotency principal before the conventions read them. Registering it is what
- * allows player routes at all (route-access.ts).
+ * allows player routes at all (route-access.ts). A route of a suspended event (`:eventId`) then answers 404
+ * `event_unavailable` (T-701, FR-1607): players learn only that the event is unavailable, never why.
  */
-export function registerPlayerGuard(app: FastifyInstance, pool: Pool): void {
+export function registerPlayerGuard(
+  app: FastifyInstance,
+  pool: Pool,
+  suspended: SuspendedSet,
+): void {
   app.decorate(PLAYER_GUARD, true);
   app.addHook("onRequest", async (request, reply) => {
     if (request.routeOptions.config.access !== "player") {
@@ -48,5 +54,9 @@ export function registerPlayerGuard(app: FastifyInstance, pool: Pool): void {
     }
     request.player = { id: player };
     request.principalId = `player:${player}`;
+    const { eventId } = request.params as { eventId?: unknown };
+    if (typeof eventId === "string" && (await suspended.has(eventId))) {
+      throw eventUnavailable();
+    }
   });
 }

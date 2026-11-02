@@ -24,6 +24,7 @@ import { createRewardCodeKey } from "#src/rewards/codes";
 import { registerShopRoutes } from "#src/rewards/routes";
 import { createEvents } from "#src/events/events";
 import { registerPlayerGuard } from "#src/players/guard";
+import { createSuspendedSet } from "#src/events/suspended-set";
 import { registerHomeRoutes } from "#src/home/routes";
 import { createFirstBonusCache } from "#src/quests/first-bonus";
 import { registerOperatorAwardRoutes } from "#src/awards/routes";
@@ -377,7 +378,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
     store: options.rankingStore,
     log: (level, fields) => app.log[level](fields),
   });
-  registerPlayerGuard(app, options.pool);
+  const suspended = createSuspendedSet(options.pool);
+  registerPlayerGuard(app, options.pool, suspended);
   registerPlayerAuthRoutes(
     app,
     createPlayerSignIn({
@@ -499,6 +501,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     tickets: { pool: options.pool, keys: signInDeps.keys },
     questify: { pool: options.pool },
     invitations,
+    organizers: { pool: options.pool, keys: signInDeps.keys, suspended },
   });
   registerOrganizerRoutes(app, {
     pool: options.pool,
@@ -519,6 +522,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     ranking,
     devices: deviceClaims,
     invitations,
+    suspended,
     dashboardOrigin: config.auth.dashboardOrigin,
   });
   registerPublicLinkRoutes(app, { pool: options.pool, keys: signInDeps.keys });
@@ -530,9 +534,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
     options.translations ?? createTranslationService({ pool: options.pool }),
   );
 
+  registerHealthRoutes(app, options);
+  return app;
+}
+
+/** Liveness (the release it runs) and readiness (the database answers), both public and never cached. */
+function registerHealthRoutes(app: FastifyInstance, options: AppOptions): void {
   app.get("/healthz", { config: { access: "public" } }, async (_request, reply) => {
     reply.header("cache-control", "no-store");
-    return { status: "ok", release: config.releaseSha };
+    return { status: "ok", release: options.config.releaseSha };
   });
 
   app.get("/readyz", { config: { access: "public" } }, async (_request, reply) => {
@@ -543,6 +553,4 @@ export function buildApp(options: AppOptions): FastifyInstance {
       checks: { database: database ? "ok" : "down" },
     });
   });
-
-  return app;
 }

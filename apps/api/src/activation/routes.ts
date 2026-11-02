@@ -17,6 +17,7 @@ import { callerOf, parse } from "#src/auth/request";
 import type { Sessions } from "#src/auth/session";
 import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 import type { PublicAccount } from "#src/auth/staff-store";
+import { registerConsoleOrganizerRoutes, type ConsoleOrganizerDeps } from "#src/console/routes";
 import { registerConsoleDailyRoutes } from "#src/daily/admin-routes";
 import type { HttpError } from "#src/http-error";
 import { organizerContextOf } from "#src/organizers/context";
@@ -116,6 +117,8 @@ export type ConsoleRoutesDeps = Readonly<{
   questify: Readonly<{ pool: Pool }>;
   /** The Questify invitations queue and approval (T-409), behind the same hook. */
   invitations: InvitationDeps;
+  /** Organizers and events, suspension and support access (T-701), behind the same hook. */
+  organizers: ConsoleOrganizerDeps;
 }>;
 
 /** The admin of a request that passed the console hook. */
@@ -153,7 +156,7 @@ function registerConsoleWrites(scope: FastifyInstance, deps: ConsoleRoutesDeps):
       if (result.kind !== "done") {
         refuse(result, alreadyActivated);
       }
-      const view = await deps.activation.consoleEvent(adminOf(request), eventId);
+      const view = await deps.activation.consoleEvent(adminOf(request), eventId, request.id);
       return { event: view };
     },
   );
@@ -246,7 +249,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
 
       scope.get("/events/:eventId", admin, async (request) => {
         const { eventId } = parse(eventParams, request.params);
-        const view = await deps.activation.consoleEvent(adminOf(request), eventId);
+        const view = await deps.activation.consoleEvent(adminOf(request), eventId, request.id);
         if (view === undefined) {
           throw notFound();
         }
@@ -266,6 +269,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleInvitationRoutes(scope, deps.invitations);
       registerConsoleUsageRoutes(scope, deps.questify);
       registerConsoleReadinessRoutes(scope, deps.questify);
+      registerConsoleOrganizerRoutes(scope, deps.organizers);
     },
     { prefix: ADMIN_PREFIX.slice(0, -1) },
   );

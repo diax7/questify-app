@@ -1,13 +1,19 @@
 import { Client } from "pg";
 import { createBreachCheck } from "#src/auth/breached";
 import { createAuthKeys } from "#src/auth/keys";
-import { clearThrottleFor, createStaffAccount } from "#src/auth/staff-admin";
+import { clearThrottleFor, createStaffAccount, setPlatformAdmin } from "#src/auth/staff-admin";
 
 /**
  * One-off staff account administration, run inside the app container with the owner's database connection.
  *   create <email> [--admin]   make an account; the password is read from standard input, never from arguments
  *   clear-throttle <email>     let a person who is throttled try again (needs AUTH_SECRET)
+ *   grant-admin <email>        make an existing account a Questify platform admin (ADR-405)
+ *   revoke-admin <email>       take the role away; ends the account's sessions and support grants
  */
+const COMMANDS = ["create", "clear-throttle", "grant-admin", "revoke-admin"] as const;
+const USAGE =
+  "Usage: staff create <email> [--admin]  |  staff clear-throttle <email>  |  staff grant-admin <email>  |  staff revoke-admin <email>";
+
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) {
@@ -26,10 +32,20 @@ function need(name: string): string {
   return value;
 }
 
+/** grant-admin and revoke-admin (ADR-405): one transaction each, audited; says what changed. */
+async function changeRole(owner: Client, email: string, granting: boolean): Promise<void> {
+  const change = await setPlatformAdmin(owner, email, granting);
+  process.stdout.write(
+    change.changed
+      ? `${email}: platform admin ${granting ? "granted" : "revoked"} (sessions ended: ${change.sessionsEnded}, support grants closed: ${change.grantsClosed}).\n`
+      : `${email} already had that role; nothing changed.\n`,
+  );
+}
+
 async function main(): Promise<void> {
   const [command, email, ...flags] = process.argv.slice(2);
-  if (email === undefined || (command !== "create" && command !== "clear-throttle")) {
-    throw new Error("Usage: staff create <email> [--admin]  |  staff clear-throttle <email>");
+  if (email === undefined || !(COMMANDS as readonly (string | undefined)[]).includes(command)) {
+    throw new Error(USAGE);
   }
   const owner = new Client({ connectionString: need("DATABASE_ADMIN_URL") });
   await owner.connect();
@@ -41,6 +57,10 @@ async function main(): Promise<void> {
         createBreachCheck(),
       );
       process.stdout.write(`Created ${email} (${id}).\n`);
+      return;
+    }
+    if (command === "grant-admin" || command === "revoke-admin") {
+      await changeRole(owner, email, command === "grant-admin");
       return;
     }
     const found = await clearThrottleFor(owner, createAuthKeys(need("AUTH_SECRET")), email);

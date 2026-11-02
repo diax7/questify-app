@@ -61,6 +61,8 @@ export const BUCKETS = {
   inboxRead: "inbox_read",
   ticketLookup: "ticket_lookup",
   consoleTicket: "console_ticket",
+  consoleOrganizer: "console_organizer",
+  consoleSuspend: "console_suspend",
   stationToday: "station_today",
   deviceClaim: "device_claim",
   deviceMissEvent: "device_miss_event",

@@ -11,6 +11,8 @@ import type { Caller } from "#src/auth/sign-in";
 import type { PublicAccount } from "#src/auth/staff-store";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
+import { recordAudit } from "#src/audit/record";
+import { readHistory, type HistoryEntry, type SuspensionView } from "#src/console/organizers";
 import type { OrganizerContext } from "#src/organizers/store";
 
 /** What the team and the console both see of an event's activation (FR-1019, FR-1021, FR-1729). */
@@ -40,7 +42,21 @@ export type ConsoleEvent = ActivationView &
       endsAt: string | null;
       organizer: Readonly<{ id: string; name: string }>;
       ownerEmail: string | null;
+      /** Questify paused the event itself (T-701). */
+      suspension: SuspensionView | null;
+      /** Questify paused its organizer, which pauses every event of it. */
+      organizerSuspension: SuspensionView | null;
     }>;
+    /** Live support grants on this event: who holds one, and until when (ADR-407). */
+    supportGrants: readonly Readonly<{
+      id: string;
+      adminEmail: string;
+      mine: boolean;
+      openedAt: string;
+      expiresAt: string;
+    }>[];
+    /** The event's last 50 audit entries, support work marked. */
+    history: readonly HistoryEntry[];
   }>;
 
 export type QueueItem = Readonly<{
@@ -212,10 +228,8 @@ export function createActivation(deps: ActivationDeps) {
         }),
       ),
 
-    consoleEvent: (admin: PublicAccount, eventId: string): Promise<ConsoleEvent | undefined> =>
-      withConnection(deps.pool, (client) =>
-        withRequestContext(client, adminSeat(admin), () => readConsoleEvent(client, eventId)),
-      ),
+    consoleEvent: (admin: PublicAccount, eventId: string, requestId: string) =>
+      consoleEventAs(deps.pool, admin, { eventId, requestId }),
 
     activate: async (
       admin: PublicAccount,
@@ -267,10 +281,49 @@ export function createActivation(deps: ActivationDeps) {
 
 export type Activation = ReturnType<typeof createActivation>;
 
+/** The console's event page in the admin's seat. */
+function consoleEventAs(
+  pool: Pool,
+  admin: PublicAccount,
+  input: Readonly<{ eventId: string; requestId: string }>,
+): Promise<ConsoleEvent | undefined> {
+  return withConnection(pool, (client) =>
+    withRequestContext(client, adminSeat(admin), () =>
+      readConsoleEvent(client, { adminId: admin.id, ...input }),
+    ),
+  );
+}
+
+const suspensionOf = (reason: string | null, since: Date | null): SuspensionView | null =>
+  reason === null || since === null ? null : { reason, since: since.toISOString() };
+
+async function readSupportGrants(
+  client: PoolClient,
+  adminId: string,
+  eventId: string,
+): Promise<ConsoleEvent["supportGrants"]> {
+  const { rows } = await client.query<{
+    id: string;
+    admin_id: string;
+    admin_email: string;
+    opened_at: Date;
+    expires_at: Date;
+  }>("SELECT * FROM event_support_grants($1)", [eventId]);
+  return rows.map((row) => ({
+    id: row.id,
+    adminEmail: row.admin_email,
+    mine: row.admin_id === adminId,
+    openedAt: row.opened_at.toISOString(),
+    expiresAt: row.expires_at.toISOString(),
+  }));
+}
+
+/** The console's event page (T-210, T-701): it shows the owner's email, so each read writes one audit entry (Q-116). */
 async function readConsoleEvent(
   client: PoolClient,
-  eventId: string,
+  input: Readonly<{ adminId: string; eventId: string; requestId: string }>,
 ): Promise<ConsoleEvent | undefined> {
+  const { eventId } = input;
   const { rows } = await client.query<{
     id: string;
     join_code: string;
@@ -287,10 +340,15 @@ async function readConsoleEvent(
     organizer_id: string;
     organizer_name: string;
     owner_email: string | null;
+    suspension_reason: string | null;
+    suspended_at: Date | null;
+    organizer_reason: string | null;
+    organizer_suspended_at: Date | null;
   }>(
     `SELECT e.id, e.join_code, e.name_ar, e.name_en, e.kind, e.venue_ar, e.venue_en, e.status,
             event_status_now(e.status, e.starts_at, e.ends_at) AS status_now, e.timezone, e.starts_at, e.ends_at,
-            o.id AS organizer_id, o.name AS organizer_name,
+            o.id AS organizer_id, o.name AS organizer_name, e.suspension_reason, e.suspended_at,
+            o.suspension_reason AS organizer_reason, o.suspended_at AS organizer_suspended_at,
             (SELECT s.email FROM organizer_member m JOIN staff_user s ON s.id = m.staff_user_id
              WHERE m.organizer_id = o.id AND m.role = 'owner') AS owner_email
      FROM event e JOIN organizer o ON o.id = e.organizer_id
@@ -304,8 +362,18 @@ async function readConsoleEvent(
   if (row === undefined || view === undefined) {
     return undefined;
   }
+  await recordAudit(client, {
+    actor: { type: "admin", id: input.adminId },
+    action: "console.event_read",
+    target: { type: "event", id: eventId },
+    organizerId: row.organizer_id,
+    eventId,
+    requestId: input.requestId,
+  });
   return {
     ...view,
+    supportGrants: await readSupportGrants(client, input.adminId, eventId),
+    history: await readHistory(client, { eventId }),
     event: {
       id: row.id,
       joinCode: row.join_code,
@@ -319,6 +387,8 @@ async function readConsoleEvent(
       endsAt: row.ends_at?.toISOString() ?? null,
       organizer: { id: row.organizer_id, name: row.organizer_name },
       ownerEmail: row.owner_email,
+      suspension: suspensionOf(row.suspension_reason, row.suspended_at),
+      organizerSuspension: suspensionOf(row.organizer_reason, row.organizer_suspended_at),
     },
   };
 }

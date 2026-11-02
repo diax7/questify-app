@@ -125,3 +125,74 @@ export async function clearThrottleFor(
     return id !== undefined;
   });
 }
+
+export type RoleChange = Readonly<{
+  /** False when the account already had that role (nothing changed, nothing audited). */
+  changed: boolean;
+  sessionsEnded: number;
+  grantsClosed: number;
+}>;
+
+/**
+ * Makes an account a Questify platform admin, or takes the role away (ADR-405), with the owner's connection: the only
+ * path that writes `platform_role`. One transaction: the role, an audit entry (system actor, before and after), and on
+ * revoke the end of every live session and every live support grant of that account, so the console and support stop
+ * at the next request.
+ *
+ * @throws Error naming the email when no account has it.
+ */
+export async function setPlatformAdmin(
+  owner: Client,
+  rawEmail: string,
+  admin: boolean,
+): Promise<RoleChange> {
+  const email = normalizeEmail(rawEmail);
+  return inTransaction(owner, async () => {
+    const { rows } = await owner.query<{ id: string; platform_role: "none" | "admin" }>(
+      "SELECT id, platform_role FROM staff_user WHERE email = $1 FOR UPDATE",
+      [email],
+    );
+    const account = rows[0];
+    if (account === undefined) {
+      throw new Error(`No staff account has the email ${email}.`);
+    }
+    const wanted = admin ? "admin" : "none";
+    if (account.platform_role === wanted) {
+      return { changed: false, sessionsEnded: 0, grantsClosed: 0 };
+    }
+    await owner.query("UPDATE staff_user SET platform_role = $2 WHERE id = $1", [
+      account.id,
+      wanted,
+    ]);
+    const ended = admin ? { sessions: 0, grants: 0 } : await endAdminAccess(owner, account.id);
+    await recordAudit(owner, {
+      actor: { type: "system" },
+      action: "staff.platform_role",
+      target: { type: "staff_user", id: account.id },
+      before: { platformRole: account.platform_role },
+      after: {
+        platformRole: wanted,
+        sessionsEnded: ended.sessions,
+        supportGrantsClosed: ended.grants,
+      },
+    });
+    return { changed: true, sessionsEnded: ended.sessions, grantsClosed: ended.grants };
+  });
+}
+
+/** Ends every live session and closes every live support grant of an account that lost the admin role. */
+async function endAdminAccess(
+  owner: Client,
+  staffUserId: string,
+): Promise<{ sessions: number; grants: number }> {
+  const sessions = await owner.query(
+    "UPDATE staff_session SET revoked_at = now() WHERE staff_user_id = $1 AND revoked_at IS NULL",
+    [staffUserId],
+  );
+  const grants = await owner.query(
+    `UPDATE support_grant SET closed_at = now(), close_kind = 'revoked'
+     WHERE admin_id = $1 AND closed_at IS NULL`,
+    [staffUserId],
+  );
+  return { sessions: sessions.rowCount ?? 0, grants: grants.rowCount ?? 0 };
+}

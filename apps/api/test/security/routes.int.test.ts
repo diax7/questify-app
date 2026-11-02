@@ -783,6 +783,22 @@ const ROUTES: Readonly<Record<string, string>> = {
     "owners and editors inside their event limit (award_event_of); only an open ticket of that event's queue, once; audited without the note (test/tickets/center, test/db/tickets-center)",
   "POST /v1/me/tickets":
     "the calling player's own account only, active; no event, the caps and the device facts checked by open_platform_ticket (test/tickets/center, test/db/tickets-center)",
+  "GET /v1/admin/organizers":
+    "active platform admins only (walked below); owner emails shown, each read audited with the organizer ids only; 120 a minute per admin (test/console/organizers)",
+  "GET /v1/admin/organizers/:organizerId":
+    "active platform admins only (walked below); one organizer, its team and events; audited with its id; 120 a minute per admin (test/console/organizers)",
+  "POST /v1/admin/organizers/:organizerId/suspend":
+    "active platform admins only (walked below); admin_suspend_organizer re-reads the admin; reason required; audited; 30 an hour (test/console/organizers, test/db/console-suspension)",
+  "POST /v1/admin/organizers/:organizerId/reactivate":
+    "active platform admins only (walked below); admin_reactivate_organizer re-reads the admin; audited; 30 an hour (test/console/organizers, test/db/console-suspension)",
+  "POST /v1/admin/events/:eventId/suspend":
+    "active platform admins only (walked below); admin_suspend_event re-reads the admin; reason required; audited; 30 an hour (test/console/organizers, test/db/console-suspension)",
+  "POST /v1/admin/events/:eventId/reactivate":
+    "active platform admins only (walked below); admin_reactivate_event re-reads the admin; audited; 30 an hour (test/console/organizers, test/db/console-suspension)",
+  "POST /v1/admin/events/:eventId/support":
+    "active platform admins only (walked below); support_open: 15 minutes on that one event, never for a member, 20 an hour; audited (test/console/organizers, test/db/support-grant)",
+  "POST /v1/admin/support/:grantId/close":
+    "active platform admins only (walked below); support_close of a live grant only; audited (test/console/organizers, test/db/support-grant)",
   "GET /v1/admin/tickets":
     "active platform admins only (walked below); exactly the tickets with queue = 'questify', the admin checked again (app_admin_id), every read audited per event shown ; 120 a minute per admin (test/tickets/center, test/db/tickets-center)",
   "GET /v1/admin/tickets/counts":
