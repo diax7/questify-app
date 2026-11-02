@@ -6963,3 +6963,39 @@ app shows the questions above its ticket cards on the profile's Get help screen.
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-703 code review 93; T-703; FR-1769).
 **Decision:** A feature the platform switched off is hidden everywhere it already was (the switches are read by the server's doors and the app). The admin may add a message in both languages (both or none, 300 characters each, only while off). The app lists the messages of switched-off platform features on Questify Home, in the player's language, from the cached platform configuration, so they appear offline as the last working copy.
 **Trade-offs:** the message shows on Home only, not at the spot where the feature used to be.
+
+## ADR-480 - A data export is one JSON file built on request and sent straight back, never stored or emailed
+
+**Status:** Proposed (developer, 2026-11-03; T-708; FR-1418, FR-1778; plan `docs/plans/2026-11-03-t-708-data-requests.md`).
+**Decision:** The export is one versioned JSON document (`questify-data-export`, version 1) built by the database at the moment it is asked for and returned on the same HTTPS response (`no-store`, `attachment`). No copy is kept in storage, the idempotency store, Redis, logs or email. The player asks from the app's Settings (`POST /v1/me/data-export`); the app writes the file with `expo-file-system` (new dependency, Expo's own module) to its cache, opens the share sheet and deletes the file after. An admin asks from the console's player record (`POST /v1/console/players/:id/data-export`) and the file downloads in the admin's browser; handing it to the requester follows counsel's channel (Q-441).
+**Trade-offs:** no signed link, so someone without an account or a console seat cannot receive the file directly; a link would need a stored file or a bearer secret in a URL. JSON only, no CSV.
+
+## ADR-481 - What the export holds and what it leaves out
+
+**Status:** Proposed (developer, 2026-11-03; T-708; FR-1418).
+**Decision:** The export holds the account, contacts in full, username history, acceptances, marketing and notification choices, devices and sessions (no tokens), every event with its join answers, completions, points record, redemptions, submissions and the rest of the player's own activity, the Questify side (levels, XP, gems, achievements, awards, items with their earned source, souvenirs received and on the way, daily plays), blocks, notifications, Questify's actions on the account (kind, reason code, time) and the player's own audit history (action and time). It leaves out keyed fingerprints, token and code hashes, push tokens, transient challenges, fraud flags and reports made by others about the player (Q-442), internal admin notes and admin identities, other players' data, private organizer configuration and souvenir work leases and errors.
+**Trade-offs:** counsel may require flags or notes to be disclosed (Q-442).
+
+## ADR-482 - A personal-data catalog test keeps the export and the erasure complete
+
+**Status:** Proposed (developer, 2026-11-03; T-708).
+**Decision:** `apps/api/test/db/personal-data-catalog.ts` classifies every table that can hold a row about a player (found from foreign keys to `player` or `enrollment`, one more hop, FK-less columns by name, and `audit_log`) with its link columns, its export section or the reason it is left out, and what erasure does (delete, clear, keep). A DB test fails on any unclassified or stale table, on an empty export section for a fully seeded player, on a `delete` table that still holds the erased player's rows, and on any `keep` table or audit entry that still holds the player's username, phone, email, birth year or submission text.
+**Trade-offs:** every new player-linked table must be classified and seeded; a table linked under an unrecognized column name escapes the discovery.
+
+## ADR-483 - Admin export and deletion are console doors recorded in the audit log
+
+**Status:** Proposed (developer, 2026-11-03; T-708; FR-1778).
+**Decision:** `console_player_export` and `admin_erase_player` check the admin, take a reason code (`legal_request`, `player_request`) and an opaque case reference (`^[A-Za-z0-9._/-]{3,64}$`, so no name or contact can enter the durable record), and write `player.data_export` / `player.delete` audit entries with the admin as actor. The audit log is the record FR-1778 asks for, because it outlives the account; no `player_admin_action` row is written (those are erased with the account) and no new table is added. The admin erase locks the player first as `erase_player` does, shares its body (`erase_account`), requires the username typed exactly, asks for a forfeit when handovers are pending, and answers `already_deleted` on a repeat. An admin export sends no notice to the player (Q-444); a player's own export does.
+**Trade-offs:** one admin can delete an account alone (Q-445); the request's verification evidence lives in the legal case file outside the system.
+
+## ADR-484 - A deleted account can never be restored, including after a backup restore
+
+**Status:** Proposed (developer, 2026-11-03; T-708; FR-1776).
+**Decision:** A trigger enabled ALWAYS refuses any change to a tombstone, for every role; no door, route or console control restores. After any database restore, before traffic, the runbook re-applies every erasure made since the backup from the `player.deleted` log lines and, when readable, the old database's `player.delete` audit entries, through an owner-only, idempotent `reapply_erasure`. Erased data stays in backups only until they age out (proposed 35 days, set in T-019); the restore rehearsal proves the re-apply.
+**Trade-offs:** the re-apply depends on log retention the product does not control (Q-443).
+
+## ADR-485 - Limits and idempotency for data requests
+
+**Status:** Proposed (developer, 2026-11-03; T-708).
+**Decision:** A player may export 3 times in 24 hours (counted in the database from the audit log) and 5 times an hour at the HTTP layer; an admin 10 exports and 10 erasures an hour. Exports are reads: never stored for replay, each one audited and counted. The admin erase takes an Idempotency-Key (its answer holds no personal data) and a repeat on a deleted account answers `already_deleted`.
+**Trade-offs:** a player who loses the file three times in a day waits.
