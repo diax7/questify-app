@@ -116,7 +116,8 @@ test("sets a finale, counts down, pushes, and shows the winners only after the o
   const rows = screen.getByRole("listitem");
   await expect(rows.nth(0)).toContainText(`sara_${suffix}`);
   await expect(rows.nth(1)).toContainText(`khalid_${suffix}`);
-  await expect(screen.getByText("150")).toHaveCount(0);
+  // exact: the random username suffix can contain "150".
+  await expect(screen.getByText("150", { exact: true })).toHaveCount(0);
   await expect(screen.getByText("الفائزون")).toBeVisible();
   await expectNoSidewaysScroll(screen);
 

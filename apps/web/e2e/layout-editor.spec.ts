@@ -389,7 +389,7 @@ test("the ranking, Quests and Rewards layouts are chosen, previewed, saved and k
   await rankingShows.getByRole("radio", { name: "Places only" }).check();
   await expect(ranking.getByText("@sara")).toBeVisible();
   await expect(ranking.getByText("1,240")).toHaveCount(0);
-  await expect(ranking.getByText("720")).toHaveCount(0);
+  await expect(ranking.getByText("720", { exact: true })).toHaveCount(0);
 
   await questsLayout.getByRole("radio", { name: "Grid" }).check();
   await expect(region(page, "Quests")).toBeVisible();
