@@ -81,23 +81,29 @@ export type ReportSnapshot = z.infer<typeof reportSnapshotSchema>;
 
 const queueEventSchema = z.strictObject({ id: z.uuid(), name: pair, organizer: z.string() });
 
-/** One open target of the queue: how many reports, the oldest and newest, and the latest snapshot. */
+/**
+ * One open target of the queue: how many reports, the oldest and newest, the latest snapshot, and (T-701b, ADR-493)
+ * whether any open report is urgent, the earliest due time, and whether it passed.
+ */
 export const reportTargetSchema = z.strictObject({
   kind: z.enum(REPORT_KINDS),
   targetId: z.uuid(),
   reports: z.number().int().min(1),
   firstAt: instant,
   lastAt: instant,
+  urgent: z.boolean(),
+  dueAt: instant,
   overdue: z.boolean(),
   snapshot: reportSnapshotSchema,
   event: queueEventSchema.nullable(),
 });
 export type ReportTarget = z.infer<typeof reportTargetSchema>;
 
-/** What `GET /v1/admin/reports` answers: the oldest 100 open targets and how many are open in all. */
+/** What `GET /v1/admin/reports` answers: 100 open targets (urgent first, then the earliest due) and the counts. */
 export const reportQueueSchema = z.strictObject({
   targets: z.array(reportTargetSchema).max(100),
   total: z.number().int().min(0),
+  urgentTotal: z.number().int().min(0),
 });
 export type ReportQueue = z.infer<typeof reportQueueSchema>;
 
@@ -111,6 +117,8 @@ export const reportEntrySchema = z.strictObject({
   createdAt: instant,
   handledAt: instant.nullable(),
   snapshot: reportSnapshotSchema,
+  urgent: z.boolean(),
+  dueAt: instant,
   reporter: z.string().nullable(),
 });
 export type ReportEntry = z.infer<typeof reportEntrySchema>;
