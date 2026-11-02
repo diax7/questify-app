@@ -49,6 +49,12 @@ export type Suspension = Readonly<{ reason: string; since: Date }>;
 /** A live support grant on one event (T-701, ADR-407): 15 minutes, as an editor of that event only. */
 export type SupportGrant = Readonly<{ grantId: string; eventId: string; expiresAt: Date }>;
 
+/** An organizer document in force that the organizer has not accepted yet (FR-1781). */
+export type LegalPending = Readonly<{
+  document: "organizer_terms" | "organizer_dpa" | "organizer_content_rules";
+  version: string;
+}>;
+
 export type Membership = Readonly<{
   organizerId: string;
   /** Organizer names are public (event pages), so a member may always see the name. */
@@ -56,6 +62,8 @@ export type Membership = Readonly<{
   role: "owner" | "editor";
   eventScope: string[] | null;
   suspension: Suspension | null;
+  /** The organizer documents to accept: until the owner accepts them the team's writes are refused (T-707). */
+  legalPending: readonly LegalPending[];
   /** Set when this entry is a Questify admin's support grants, not a membership: the events and when each ends. */
   support?: readonly SupportGrant[];
 }>;
@@ -367,8 +375,10 @@ export async function listMemberships(db: Db, staffUserId: string): Promise<Memb
     event_scope: string[] | null;
     suspension_reason: string | null;
     suspended_at: Date | null;
+    legal_pending: LegalPending[];
   }>(
-    `SELECT m.organizer_id, o.name AS organizer_name, m.role, m.event_scope, o.suspension_reason, o.suspended_at
+    `SELECT m.organizer_id, o.name AS organizer_name, m.role, m.event_scope, o.suspension_reason, o.suspended_at,
+            organizer_legal_missing(m.organizer_id) AS legal_pending
      FROM organizer_member m JOIN organizer o ON o.id = m.organizer_id
      WHERE m.staff_user_id = $1 ORDER BY m.created_at`,
     [staffUserId],
@@ -379,6 +389,7 @@ export async function listMemberships(db: Db, staffUserId: string): Promise<Memb
     role: row.role,
     eventScope: row.event_scope,
     suspension: suspensionOf(row.suspension_reason, row.suspended_at),
+    legalPending: row.legal_pending,
   }));
   const memberOf = new Set(members.map((member) => member.organizerId));
   const seats = await listSupportSeats(db);
@@ -412,6 +423,7 @@ async function listSupportSeats(db: Db): Promise<Membership[]> {
       role: "editor" as const,
       eventScope: [],
       suspension: suspensionOf(row.suspension_reason, row.suspended_at),
+      legalPending: [],
       support: [],
     };
     seat.eventScope.push(row.event_id);

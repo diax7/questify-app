@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
-import type { Suspension, SupportGrant } from "#src/auth/staff-store";
+import type { LegalPending, Suspension, SupportGrant } from "#src/auth/staff-store";
 import { withRequestContext } from "#src/db/context";
 
 /** The caller's membership of the organizer in the URL, read from the database by the organizer scope. */
@@ -11,6 +11,8 @@ export type OrganizerPrincipal = Readonly<{
   eventScope: readonly string[] | null;
   /** Questify paused this organizer (T-701): its writes answer 423 while this is set. */
   suspension?: Suspension | null;
+  /** Organizer documents in force that the owner has not accepted: the team's writes are refused until then (T-707). */
+  legalPending?: readonly LegalPending[];
   /** A Questify admin on support grants instead of a member (ADR-407): editor of these events only. */
   support?: readonly SupportGrant[];
 }>;
@@ -47,8 +49,10 @@ export async function membershipOf(
         event_scope: string[] | null;
         suspension_reason: string | null;
         suspended_at: Date | null;
+        legal_pending: LegalPending[];
       }>(
-        `SELECT m.role, m.event_scope, o.suspension_reason, o.suspended_at
+        `SELECT m.role, m.event_scope, o.suspension_reason, o.suspended_at,
+                organizer_legal_missing(m.organizer_id) AS legal_pending
          FROM organizer_member m JOIN organizer o ON o.id = m.organizer_id
          WHERE m.organizer_id = $1 AND m.staff_user_id = $2`,
         [organizerId, staffUserId],
@@ -64,6 +68,7 @@ export async function membershipOf(
               row.suspension_reason === null || row.suspended_at === null
                 ? null
                 : { reason: row.suspension_reason, since: row.suspended_at },
+            legalPending: row.legal_pending,
           };
     }),
   );

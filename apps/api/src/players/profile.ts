@@ -10,6 +10,7 @@ import {
   signupDocuments,
   type Avatar,
   type DailyStreak,
+  type LegalInForce,
   type MarketingSummary,
   type PlayerDocument,
   type PlayerDocumentId,
@@ -27,6 +28,7 @@ import {
 import { parse } from "#src/auth/request";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { readInForce } from "#src/legal/in-force";
 import type { SettingsService } from "#src/settings/service";
 import { itemRefusal, readEquipment } from "#src/players/items";
 import { readMarketing } from "#src/marketing/marketing";
@@ -176,7 +178,7 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
         allowed: rules.on && row.next === null,
         nextChangeAt: row.next?.toISOString() ?? null,
       },
-      legal: legalOf(row.accepted ?? {}),
+      legal: legalOf(await readInForce(client), row.accepted ?? {}),
       identifiers: {
         phone: row.phone === null ? null : maskPhone(row.phone),
         email: row.email === null ? null : maskEmail(row.email),
@@ -193,15 +195,18 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
 }
 
 /** What is left to accept, from the versions the player accepted of each document. */
-function legalOf(accepted: Readonly<Record<string, readonly string[]>>): MyProfile["legal"] {
+function legalOf(
+  inForce: LegalInForce,
+  accepted: Readonly<Record<string, readonly string[]>>,
+): MyProfile["legal"] {
   const has = (id: PlayerDocumentId, version: string) => accepted[id]?.includes(version) === true;
   const missing = (documents: readonly PlayerDocument[]) =>
     documents
       .filter((document) => !has(document.id, document.version))
       .map((document) => document.id);
   return {
-    toAccept: missing(signupDocuments()),
-    guidelinesAccepted: !missing(playerDocuments()).includes("community_guidelines"),
+    toAccept: missing(signupDocuments(inForce)),
+    guidelinesAccepted: !missing(playerDocuments(inForce)).includes("community_guidelines"),
   };
 }
 
@@ -223,10 +228,11 @@ async function acceptDocuments(
   playerId: string,
   body: z.infer<typeof acceptBody>,
 ): Promise<void> {
-  const sent = playerDocuments().filter((document) => body[document.field] !== undefined);
+  const inForce = playerDocuments(await readInForce(deps.pool));
+  const sent = inForce.filter((document) => body[document.field] !== undefined);
   if (sent.some((document) => body[document.field] !== document.version)) {
     throw playerAcceptanceRequired({
-      documents: playerDocuments().map(({ id, version }) => ({ id, version })),
+      documents: inForce.map(({ id, version }) => ({ id, version })),
     });
   }
   const documents = JSON.stringify(sent.map(({ id, version }) => ({ document: id, version })));

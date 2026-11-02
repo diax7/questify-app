@@ -84,6 +84,7 @@ import { createInvites } from "#src/organizers/accept";
 import { registerConsoleRoutes, type ConsoleRoutesDeps } from "#src/activation/routes";
 import type { ConsoleOrganizerDeps } from "#src/console/routes";
 import { createActivation } from "#src/activation/service";
+import { registerLegalRoutes } from "#src/legal/routes";
 import { registerOrganizerRoutes } from "#src/organizers/routes";
 import { createTeam } from "#src/organizers/team";
 import { registerRouteInventory, type RouteInfo } from "#src/route-access";
@@ -565,6 +566,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   startTicks(app, options, { settings, keys: signInDeps.keys, invitations });
   registerConfigRoutes(app, settings);
+  registerLegalRoutes(app, { pool: options.pool });
   registerTranslationRoutes(app, translations);
 
   registerHealthRoutes(app, options);

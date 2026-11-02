@@ -2283,6 +2283,18 @@ export const catalogStale = make(
   "تغيّر هذا العنصر أثناء عملك. أعد تحميل الصفحة وحاول مرة أخرى.",
   "This item changed while you worked. Reload the page and try again.",
 );
+export const legalVersionNotNewer = make(
+  409,
+  "version_not_newer",
+  "رقم الإصدار يجب أن يكون أحدث من الإصدار الساري.",
+  "The version must be later than the one in force.",
+);
+export const organizerAcceptanceRequired = make(
+  403,
+  "organizer_acceptance_required",
+  "نُشر إصدار جديد من وثائق المنظِّمين. يجب أن يوافق عليه مالك الجهة قبل أي تعديل.",
+  "A new version of the organizer documents is out. The owner must accept it before anything can be changed.",
+);
 export const invalidPlayerAction = make(
   400,
   "invalid_player_action",

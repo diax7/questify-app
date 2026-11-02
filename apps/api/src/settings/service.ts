@@ -15,6 +15,7 @@ import {
   readStoredTexts,
   validateEventConfig,
   validatePlatformSettings,
+  withLegal,
   type ComposedConfig,
   type ConfigIssue,
   type EventConfig,
@@ -26,6 +27,7 @@ import {
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { etagOf } from "#src/etag";
+import { readInForce } from "#src/legal/in-force";
 import { createTtlCache } from "#src/settings/cache";
 import { diff } from "#src/audit/entry";
 import { recordAudit, type AuditMeta } from "#src/audit/record";
@@ -205,8 +207,9 @@ export function createSettingsService(options: SettingsOptions): SettingsService
     withConnection(options.pool, (client) =>
       withRequestContext(client, playerId === undefined ? {} : { playerId }, async () => {
         const platform = await loadPlatform(client);
+        const inForce = await readInForce(client);
         if (eventId === undefined) {
-          const config = composeConfig(registries, platform, undefined);
+          const config = withLegal(composeConfig(registries, platform, undefined), inForce);
           return { kind: "ok", config, etag: etagOf(config) } as const;
         }
         const stored = await readStoredEventConfig(client, eventId);
@@ -214,7 +217,10 @@ export function createSettingsService(options: SettingsOptions): SettingsService
           return { kind: "event_not_found" } as const;
         }
         const unlocked = await readEntitlements(client, eventId);
-        const config = composeConfig(registries, platform, eventConfigOf(stored, unlocked));
+        const config = withLegal(
+          composeConfig(registries, platform, eventConfigOf(stored, unlocked)),
+          inForce,
+        );
         return { kind: "ok", config, etag: etagOf(config) } as const;
       }),
     );

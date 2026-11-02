@@ -8,6 +8,7 @@ import {
   toWesternDigits,
   type Avatar,
   type BanReason,
+  type LegalInForce,
   type PlayerDocumentId,
   type SignupAcceptance,
   type UsernameCheck,
@@ -22,6 +23,7 @@ import { PLAYER_SIGN_IN_LIMITS } from "#src/auth/limits";
 import { isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
 import { reasonOf, say, type Caller } from "#src/auth/sign-in";
 import { tryLock } from "#src/auth/throttle";
+import { readInForce } from "#src/legal/in-force";
 import { normalizeSaudiMobile } from "#src/players/phone";
 import {
   failureCounts,
@@ -142,8 +144,8 @@ type Contact = Readonly<{ channel: Channel; value: string }>;
 export type DocumentVersion = Readonly<{ id: PlayerDocumentId; version: string }>;
 
 /** The terms and privacy in force, as a refusal names them so a stale app can show them and retry. */
-function signupDocumentsInForce(): DocumentVersion[] {
-  return signupDocuments().map(({ id, version }) => ({ id, version }));
+function signupDocumentsInForce(inForce: LegalInForce): DocumentVersion[] {
+  return signupDocuments(inForce).map(({ id, version }) => ({ id, version }));
 }
 
 /** The phone or email as the database stores it, or why it cannot take a code. */
@@ -308,8 +310,9 @@ async function requestCode(
 ): Promise<CodeRequestResult> {
   // First of all: nothing is counted, stored or logged for a person who has not accepted the versions in force
   // (FR-1705).
-  if (missingSignupAcceptances(input.accept).length > 0) {
-    return { kind: "acceptance_required", documents: signupDocumentsInForce() };
+  const inForce = await readInForce(deps.pool);
+  if (missingSignupAcceptances(inForce, input.accept).length > 0) {
+    return { kind: "acceptance_required", documents: signupDocumentsInForce(inForce) };
   }
   const contact = contactOf(input.channel, input.value);
   if ("kind" in contact) {

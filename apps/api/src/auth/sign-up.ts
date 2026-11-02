@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { missingAcceptances, type Acceptance, type OrganizerDocumentId } from "@questify/shared";
 import { alreadyHaveAccountEmail, signUpCodeEmail } from "#src/auth/email/templates";
+import { readInForce } from "#src/legal/in-force";
 import { generateCode, generateToken, hashToken, safeEqual } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
 import { isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
@@ -99,12 +100,16 @@ const UNIQUE_VIOLATION = "23505";
 const EMAIL_INDEX = "staff_user_email_key";
 
 /** The checks that need no database: the name and the three acceptances. */
-function checkForm(name: string, accept: Acceptance): NameRefused | AcceptanceMissing | string {
+async function checkForm(
+  deps: PasswordDeps,
+  name: string,
+  accept: Acceptance,
+): Promise<NameRefused | AcceptanceMissing | string> {
   const checked = checkOrganizerName(name);
   if (!checked.ok) {
     return { kind: "invalid_name", reason: checked.reason };
   }
-  const missing = missingAcceptances(accept);
+  const missing = missingAcceptances(await readInForce(deps.pool), accept);
   return missing.length > 0 ? { kind: "acceptance_required", documents: missing } : checked.name;
 }
 
@@ -193,7 +198,7 @@ async function start(deps: PasswordDeps, input: SignUpInput, caller: Caller): Pr
   if (!isPlausibleEmail(email)) {
     return { kind: "invalid_email" };
   }
-  const form = checkForm(input.organizerName, input.accept);
+  const form = await checkForm(deps, input.organizerName, input.accept);
   if (typeof form !== "string") {
     return form;
   }
@@ -392,7 +397,7 @@ async function createAnother(
   account: PublicAccount,
   caller: Caller,
 ): Promise<CreateResult> {
-  const form = checkForm(input.name, input.accept);
+  const form = await checkForm(deps, input.name, input.accept);
   if (typeof form !== "string") {
     return form;
   }

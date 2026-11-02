@@ -9,14 +9,11 @@ import {
 } from "#src/submissions/submissions";
 
 // Each document its own version, so the send is seen to name the guidelines' version and no other.
-vi.mock("@questify/shared", async (original) => ({
-  ...(await original<object>()),
-  playerDocuments: () => [
-    { id: "terms_of_use", field: "terms", version: "terms-1" },
-    { id: "community_guidelines", field: "guidelines", version: "guidelines-7" },
-    { id: "privacy_policy", field: "privacy", version: "privacy-2" },
-  ],
-}));
+const IN_FORCE = [
+  { document: "terms_of_use", version: "1", publishedAt: "2030-01-01T00:00:00Z" },
+  { document: "community_guidelines", version: "7", publishedAt: "2030-01-01T00:00:00Z" },
+  { document: "privacy_policy", version: "2", publishedAt: "2030-01-01T00:00:00Z" },
+];
 
 const PLAYER = "22222222-2222-4222-8222-222222222222";
 const EVENT = "33333333-3333-4333-8333-333333333333";
@@ -35,6 +32,9 @@ function fakePool(answer: Answer) {
     query: vi.fn(async (sql: string, values: unknown[] = []) => {
       if (["BEGIN", "COMMIT", "ROLLBACK"].includes(sql) || sql.includes("set_config")) {
         return { rows: [] };
+      }
+      if (sql.includes("legal_in_force")) {
+        return { rows: [{ r: IN_FORCE }] };
       }
       statements.push({ sql, values });
       const rows = answer(sql, values);
@@ -128,7 +128,7 @@ describe("sending", () => {
       },
     });
     expect(pool.statements.map((statement) => statement.values)).toEqual([
-      ["q1", "Hello", "guidelines-7", "k1"],
+      ["q1", "Hello", "7", "k1"],
     ]);
   });
 
