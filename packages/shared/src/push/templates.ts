@@ -81,6 +81,8 @@ export const PUSH_TEMPLATES: Readonly<Record<string, PushTemplate>> = {
   session_reminder: namedTemplate("sessionReminder"),
   // T-704 (migration 0118): Questify changed the player's username. Fixed text: no name and no reason.
   username_changed: fixedTemplate("usernameChanged"),
+  // T-708 (migration 0129): the player downloaded their data. Fixed text: nothing from the file.
+  data_exported: fixedTemplate("dataExported"),
 };
 
 /**

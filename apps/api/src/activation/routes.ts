@@ -21,7 +21,11 @@ import {
   registerConsolePlatformRoutes,
   type ConsolePlatformDeps,
 } from "#src/console/platform-routes";
-import { registerConsolePlayerRoutes, type ConsolePlayerDeps } from "#src/console/players/routes";
+import {
+  registerConsoleDataRequestRoutes,
+  type ConsoleDataRequestDeps,
+} from "#src/console/players/data-request-routes";
+import { registerConsolePlayerRoutes } from "#src/console/players/routes";
 import { registerConsoleSafetyRoutes } from "#src/console/players/safety-routes";
 import { registerConsoleTierRoutes } from "#src/console/players/tiers";
 import { registerConsoleModerationRoutes } from "#src/console/moderation/routes";
@@ -136,7 +140,7 @@ export type ConsoleRoutesDeps = Readonly<{
   /** Platform health, numbers and the admin accounts with their sessions (T-709), behind the same hook. */
   platform: ConsolePlatformDeps;
   /** Find a player, the record, the contact reveal, rename, sign-in reset (T-704), ban and word lists (T-705). */
-  players: ConsolePlayerDeps;
+  players: ConsoleDataRequestDeps;
   /** The translation matrix (T-702), behind the same hook; the service the public texts route reads from. */
   translations: TranslationService;
 }>;
@@ -300,6 +304,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleSafetyRoutes(scope, deps.players);
       registerConsoleTierRoutes(scope, deps.players);
       registerConsoleModerationRoutes(scope, deps.players);
+      registerConsoleDataRequestRoutes(scope, deps.players);
     },
     { prefix: ADMIN_PREFIX.slice(0, -1) },
   );

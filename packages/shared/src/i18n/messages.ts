@@ -6299,6 +6299,10 @@ export const MESSAGES = {
     ar: "غيّر Questify اسم المستخدم الخاص بك لأنه يخالف القواعد. يمكنك اختيار اسم جديد من ملفك.",
     en: "Questify changed your username because it broke the rules. You can choose a new one in your profile.",
   },
+  "push.dataExported.body": {
+    ar: "نُزّلت نسخة من بياناتك في Questify. إن لم تطلبها، فتواصل معنا من صفحة المساعدة.",
+    en: "A copy of your Questify data was downloaded. If this wasn't you, contact us from Help.",
+  },
   "push.rankPrize.body": {
     ar: "فزت بجائزة: {reward}. يمكنك استلامها من مكتب الجوائز حتى {date}، الساعة {time}.",
     en: "You won a prize: {reward}. Collect it at the prize desk by {date}, {time}.",

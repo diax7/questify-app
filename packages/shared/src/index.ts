@@ -1256,3 +1256,18 @@ export type {
   TemplateIssue,
   TemplateIssueCode,
 } from "./messaging/templates";
+export {
+  DATA_REQUEST_REASONS,
+  dataEraseAnswerSchema,
+  dataExportFileName,
+  isCaseReference,
+  isDataRequestReason,
+  legalRequestSchema,
+  pendingHandoverSchema,
+} from "./privacy/data-requests";
+export type {
+  DataEraseAnswer,
+  DataRequestReason,
+  LegalRequest,
+  PendingHandoverItem,
+} from "./privacy/data-requests";

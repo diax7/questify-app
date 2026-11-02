@@ -8,6 +8,7 @@ import type { Pool } from "pg";
 import type { BreachCheck } from "#src/auth/breached";
 import { createDeferred, type Deferred } from "#src/auth/deferred";
 import { registerDeletionRoutes } from "#src/deletion/routes";
+import { registerDataExportRoutes } from "#src/privacy/data-export";
 import type { EmailSender } from "#src/auth/email/sender";
 import { createAuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
@@ -332,7 +333,7 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
     invitations: shared.invitations,
     translations: shared.translations,
     organizers: { pool, keys: shared.keys, suspended: shared.suspended },
-    players: { pool, keys: shared.keys },
+    players: { pool, keys: shared.keys, idempotencyStore: options.idempotencyStore },
     platform: {
       pool,
       keys: shared.keys,
@@ -454,6 +455,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     deferred,
     idempotencyStore: options.idempotencyStore,
   });
+  registerDataExportRoutes(app, { pool: options.pool, keys: signInDeps.keys });
   registerJoinRoutes(app, { pool: options.pool, keys: signInDeps.keys, settings });
   const rehearsal = createRehearsal({ pool: options.pool, keys: signInDeps.keys });
   registerRehearsalPlayerRoutes(app, rehearsal);
