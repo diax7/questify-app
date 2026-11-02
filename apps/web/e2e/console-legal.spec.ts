@@ -37,7 +37,12 @@ test("in English a new version of the guidelines is published, in force at once,
   await expect(page.getByRole("heading", { name: "Legal and help", level: 1 })).toBeVisible();
   await expect(page.getByTestId("legal-card")).toHaveCount(6);
 
-  const version = String(Math.floor(Date.now() / 1000));
+  const now = new Date();
+  const version = [
+    now.getUTCFullYear(),
+    (now.getUTCMonth() + 1) * 100 + now.getUTCDate(),
+    now.getUTCHours() * 100 + now.getUTCMinutes(),
+  ].join(".");
   const card = page.locator('[data-testid="legal-card"][data-id="community_guidelines"]');
   await card.getByRole("button", { name: "New version of Community guidelines" }).click();
   await card.getByLabel("Version number").fill("v1");
