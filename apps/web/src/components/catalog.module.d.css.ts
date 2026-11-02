@@ -8,6 +8,8 @@ declare const styles: {
   readonly fields: string;
   readonly head: string;
   readonly issues: string;
+  readonly level: string;
+  readonly levels: string;
   readonly name: string;
   readonly pair: string;
   readonly setup: string;

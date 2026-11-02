@@ -5,8 +5,10 @@ import { useState } from "react";
 import { CatalogAchievements } from "#src/components/CatalogAchievements.tsx";
 import { CatalogAmounts } from "#src/components/CatalogAmounts.tsx";
 import { CatalogGemShop } from "#src/components/CatalogGemShop.tsx";
+import { CatalogItems } from "#src/components/CatalogItems.tsx";
 import { CatalogLevelTitles } from "#src/components/CatalogLevelTitles.tsx";
 import { CatalogTemplates } from "#src/components/CatalogTemplates.tsx";
+import { CatalogXpTable } from "#src/components/CatalogXpTable.tsx";
 import { CATALOG_TABS, type CatalogTab } from "#src/lib/console-catalog.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
@@ -20,6 +22,8 @@ const TIPS = {
   levels: "console.catalog.levels.intro",
   shop: "console.catalog.shop.intro",
   amounts: "console.catalog.amounts.intro",
+  xp: "console.catalog.xp.intro",
+  items: "console.catalog.items.intro",
 } as const satisfies Record<CatalogTab, MessageKey>;
 
 function Panel({ tab, language }: Readonly<{ tab: CatalogTab; language: Language }>) {
@@ -32,14 +36,18 @@ function Panel({ tab, language }: Readonly<{ tab: CatalogTab; language: Language
       return <CatalogLevelTitles language={language} />;
     case "amounts":
       return <CatalogAmounts language={language} />;
+    case "xp":
+      return <CatalogXpTable language={language} />;
+    case "items":
+      return <CatalogItems language={language} />;
     default:
       return <CatalogGemShop language={language} />;
   }
 }
 
 /**
- * The console's catalog (T-709b, T-709c, FR-1403): event templates, achievements, level titles, the gem shop and the XP
- * and gem amounts, one tab each.
+ * The console's catalog (T-709b to T-709d, FR-1403): event templates, achievements, level titles, the gem shop, the XP
+ * and gem amounts, the XP table and the items, one tab each.
  * Platform admins only. Every change is audited with who, before and after, and can be reverted.
  */
 export function ConsoleCatalog({ language }: Readonly<{ language: Language }>) {
