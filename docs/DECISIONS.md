@@ -6698,7 +6698,7 @@ and T-705 (ADR-355).
 
 ## ADR-429 - T-705 a platform ban is set and lifted only by two admin doors, with a reason code the player sees
 
-**Status:** Proposed (developer, 2026-11-02; T-705 build; plan D8, D9, D11, D12). Migration 0120.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-705 code review 93; T-705 build; plan D8, D9, D11, D12). Migration 0120.
 **Decision:** `admin_ban_player` and `admin_lift_ban` are the only writers of a player's standing: the API's role loses its
 `UPDATE (status)` on `player` (the old admin path was unused), so nothing automatic and no hand-written statement can ban or
 unban. A ban takes a reason code from `cheating | abuse | spam | prize_fraud | terms` (shown to the player in fixed words)
@@ -6716,7 +6716,7 @@ profile already leave non-active players out (checked).
 
 ## ADR-430 - T-705 a wall pays a player who is not active nothing, and the batch writers skip such a player
 
-**Status:** Proposed (developer, 2026-11-02; T-705 build; plan D10 and the plan review's BLOCKER). Migration 0120.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-705 code review 93; T-705 build; plan D10 and the plan review's BLOCKER). Migration 0120.
 **Decision:** BEFORE INSERT triggers on `ledger_entry` (`ledger_player_guard`), `xp_entry` and `gem_entry`
 (`wallet_player_guard`) raise PB423 when the paid player is banned or erased. A ban and a payment run one after the other through the
 membership row, never the player row (a completion must never wait on the player, which erasure holds): the ledger
@@ -6734,7 +6734,7 @@ replay the raise (Q-393).
 
 ## ADR-431 - T-705 a block hides a player from the blocker's own reads, row kept, and binds no team
 
-**Status:** Proposed (developer, 2026-11-02; T-705 build; plan D13 and the plan review's MAJOR). Migration 0120.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-705 code review 93; T-705 build; plan D13 and the plan review's MAJOR). Migration 0120.
 **Decision:** `player_block (blocker_id, blocked_id, created_at)`, no grant, written only by the player-bound doors
 `block_player(username)`, `unblock_player(username)` and read by `own_blocks()`; 500 per player under the blocker's row
 lock; an unknown name, an erased account and the caller all answer `not_found` (404). Routes `GET|POST /v1/me/blocks` and
@@ -6751,7 +6751,7 @@ names a player (masked or allowed with a reason) and every API file that reads a
 
 ## ADR-432 - T-705 the console edits the word lists and releases retired names, and no retired name reaches a URL or the audit
 
-**Status:** Proposed (developer, 2026-11-02; T-705 build; plan section 4 "Word lists"). Migration 0120.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-705 code review 93; T-705 build; plan section 4 "Word lists"). Migration 0120.
 **Decision:** a console page **Word lists** (`/console/word-lists`): the lists 50 a page by word with search, language and
 match filters, Add (word, language, match; the door folds it, the table's CHECK refuses anything but letters as WL400, 400
 `invalid_word`; a repeat is 409 `word_exists`) and Remove (asked once); and **Retired usernames** with Release. Doors
