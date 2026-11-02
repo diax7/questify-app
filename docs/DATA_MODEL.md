@@ -1350,7 +1350,7 @@ rows or push text.
 | invitation_campaign (built, T-409, migration 0073) | Questify invitations to opted-in players by city, interests and history: the request, the admin's approval with the frozen names, exact counters and their rounded daily copies (see above) | No (counts only) |
 | invitation_recipient (built, T-409, migration 0073) | One row per invited player: the state of the message, its link token and when it was sent, opened and joined | Yes (deleted 90 days after the campaign finished, and at erasure) |
 | organizer_acceptance | Versioned acceptance of organizer terms, DPA and policy with time | Staff user |
-| event_template | Template structures used to start an event | No |
+| event_template (built, T-601b, migration 0115) | The starting setups the Questify team supplies (conference, festival, campus, corporate): a name and a description in both languages and a `body` (switches, accent, layout preset, categories with quests, rewards without stock); closed to every role, read by `event_templates()` and applied to an empty draft by `event_apply_template()`; the console edits the rows (FR-1403) | No |
 | photo_consent | Per-photo permission for the photo wall | Linked to submission |
 
 ## Relationships

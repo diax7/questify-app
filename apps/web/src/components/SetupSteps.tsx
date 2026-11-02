@@ -13,6 +13,7 @@ import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
 import { RehearsalCard } from "#src/components/RehearsalCard.tsx";
 import { ADDONS, AddonCard, DoorRow } from "#src/components/SetupParts.tsx";
 import { StepList } from "#src/components/SetupStepList.tsx";
+import { TemplateStart } from "#src/components/TemplateStart.tsx";
 import type { EventView } from "#src/lib/events.ts";
 import type { Translate } from "#src/lib/language.ts";
 import type { StepFlow } from "#src/components/SetupStepList.tsx";
@@ -231,7 +232,10 @@ function ReviewStep(props: BodyProps) {
 
 const BODIES: Readonly<Record<SetupStep, (props: BodyProps) => ReactNode>> = {
   basics: (props) => (
-    <EventForm {...idsOf(props)} myRole={props.myRole} bare onUnsaved={props.onUnsaved} />
+    <>
+      <TemplateStart {...idsOf(props)} />
+      <EventForm {...idsOf(props)} myRole={props.myRole} bare onUnsaved={props.onUnsaved} />
+    </>
   ),
   join: (props) => <JoinSetupPanel {...idsOf(props)} bare onUnsaved={props.onUnsaved} />,
   quests: QuestsStep,

@@ -1,4 +1,4 @@
-import { EventForm } from "#src/components/EventForm.tsx";
+import { NewEvent } from "#src/components/NewEvent.tsx";
 import { organizerPage } from "#src/lib/organizer-page.ts";
 
 type Props = Readonly<{ params: Promise<{ lang: string; organizerId: string }> }>;
@@ -8,6 +8,6 @@ export default async function NewEventPage({ params }: Props) {
   const { lang, organizerId } = await params;
   const page = await organizerPage(lang, organizerId);
   return page.kind === "member" ? (
-    <EventForm language={page.language} organizerId={organizerId} myRole={page.membership.role} />
+    <NewEvent language={page.language} organizerId={organizerId} myRole={page.membership.role} />
   ) : null;
 }

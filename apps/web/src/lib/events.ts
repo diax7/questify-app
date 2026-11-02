@@ -170,13 +170,14 @@ const fieldsOf = (draft: EventDraft): Record<string, unknown> => ({
   dayStartHour: draft.dayStartHour,
 });
 
-/** The body to create an event: everything, times read in the chosen zone. */
-export function createBodyOf(draft: EventDraft): Record<string, unknown> {
+/** The body to create an event: everything, times read in the chosen zone, and the template it starts from (FR-1015). */
+export function createBodyOf(draft: EventDraft, template?: string): Record<string, unknown> {
   return {
     ...fieldsOf(draft),
     timezone: draft.timezone,
     startsAt: draft.startsAt,
     endsAt: draft.endsAt,
+    ...(template === undefined ? {} : { template }),
   };
 }
 

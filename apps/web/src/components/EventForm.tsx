@@ -49,6 +49,7 @@ const FIELDS = new Set([
   "joinMethods",
   "cityId",
   "interests",
+  "template",
 ]);
 
 type Props = Readonly<{
@@ -63,6 +64,8 @@ type Props = Readonly<{
   bare?: boolean;
   /** Told when the details form holds edits it has not saved, for the guided setup to ask before it moves on. */
   onUnsaved?: ReportUnsaved;
+  /** The template a new event starts from (FR-1015); absent starts it blank. */
+  template?: string | undefined;
 }>;
 
 /** Whether the details form holds edits the saved event does not have; a new event has nothing saved to compare. */
@@ -77,6 +80,22 @@ function problemText(body: unknown, language: Language, t: Translate): string {
     return t(`events.invalid.${field}` as "events.invalid.name");
   }
   return describeProblem(body, language, t).text;
+}
+
+/** Reads the event once per page, also under Strict Mode's double effect. */
+function useLoadOnce(
+  api: string,
+  eventId: string | undefined,
+  onRead: (result: PostResult) => void,
+) {
+  const loaded = useRef(false);
+  useEffect(() => {
+    if (eventId === undefined || loaded.current) {
+      return;
+    }
+    loaded.current = true;
+    void requestJson("GET", `${api}/${eventId}`).then(onRead);
+  }, [api, eventId]);
 }
 
 /**
@@ -106,6 +125,7 @@ export function EventForm({
   intro,
   bare,
   onUnsaved,
+  template,
 }: Props) {
   const t = useTranslator(language);
   const router = useRouter();
@@ -119,7 +139,6 @@ export function EventForm({
   const [confirming, setConfirming] = useState<"delete" | "end" | null>(null);
   const [asking, setAsking] = useState<SaveQuestion | null>(null);
   const keyFor = useIdempotencyKey();
-  const loaded = useRef(false);
 
   const handle = (result: PostResult): boolean => {
     const code = errorCodeOf(result.body);
@@ -138,18 +157,11 @@ export function EventForm({
     setDraft(draftOf(view));
   };
 
-  useEffect(() => {
-    if (eventId === undefined || loaded.current) {
-      return;
+  useLoadOnce(api, eventId, (result) => {
+    if (handle(result)) {
+      show((result.body as { event: EventView }).event);
     }
-    loaded.current = true;
-    void requestJson("GET", `${api}/${eventId}`).then((result) => {
-      if (handle(result)) {
-        show((result.body as { event: EventView }).event);
-      }
-    });
-    // Once per page, also under Strict Mode's double effect.
-  }, [api, eventId]);
+  });
 
   const run = async (work: () => Promise<PostResult>): Promise<PostResult> => {
     setBusy(true);
@@ -171,7 +183,7 @@ export function EventForm({
       return;
     }
     if (event === null) {
-      const body = createBodyOf(draft);
+      const body = createBodyOf(draft, template);
       const result = await run(() =>
         requestJson("POST", api, body, { "idempotency-key": keyFor(body) }),
       );

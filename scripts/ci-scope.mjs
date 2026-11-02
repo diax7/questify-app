@@ -110,9 +110,13 @@ export const AREAS = [
   [/device|kiosk|pairing|\/pair\//i, ["kiosks", "stations", "big-screen"]],
   [
     /events?-?(form|fields|panel|feature|words|card|rules)|\/events\.ts|api\/src\/events\/|events\/new/i,
-    ["events", "event-page", "duplicate-event", "confirmations"],
+    ["events", "event-page", "duplicate-event", "event-templates", "confirmations"],
   ],
   [/duplicate-?event|event-?duplicat|copy-?setup/i, ["duplicate-event"]],
+  [
+    /new-?event|template-?(picker|start)|use-templates|lib\/templates|event-?templates?|shared\/src\/templates/i,
+    ["event-templates", "setup"],
+  ],
   [
     /branding|accent-?(picker|colou?r)|preview|player-?view|event-?feature-?switch/i,
     ["branding", "texts"],

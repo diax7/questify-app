@@ -170,6 +170,7 @@ const INFO_TIPS: readonly string[] = [
   "rewards.spendLowersRank.hint",
   "sessions.page.intro",
   "sponsors.page.intro",
+  "templates.rewardsNote",
   "terms.intro",
   "wizard.quests.nfcHint",
 ];
