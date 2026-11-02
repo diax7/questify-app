@@ -109,3 +109,4 @@ Updated 2026-11-02 by the Claude Code coordinator at Dhia's break. Progress: 149
 - Postgres 17 re-plans a SQL function (and any nested ones) at every call: shared visibility checks that run per member
   must be PL/pgSQL (`docs/rules.md`). The 5 s statement limit and the pool's 6 s client timeout both apply to long fills.
 - `.gitignore` had `reports/`, which silently dropped every source folder named `reports` (T-705b's API routes, console pages and shared types) while local tests passed from the disk copy; it is now `/reports/`. After a merge, `git status --ignored` on the worker's new folders catches this.
+- The console had three copies of its rate-limit helper (`console/platform-routes.ts`, `console/routes.ts`, `console/players/routes.ts`); a fix to one missed the others (CI found the third). All three now queue on the key (`holdBack(..., queue = true)`). A new console helper should reuse one of them, not copy `holdBack`.

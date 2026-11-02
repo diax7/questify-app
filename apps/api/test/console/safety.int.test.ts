@@ -177,6 +177,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console safety tools over HTTP
     expect(lines.join("\n")).not.toContain(BAN.note);
   });
 
+  it("answers an admin's word-list reads sent at the same moment, not 429 for the one that lost the race", async () => {
+    const urls = [
+      "/v1/admin/words",
+      "/v1/admin/words?q=a",
+      "/v1/admin/retired-usernames",
+      "/v1/admin/words?q=b",
+    ];
+    const answers = await Promise.all(urls.map((url) => call("GET", url, admin())));
+    expect(answers.map((answer) => answer.statusCode)).toEqual(urls.map(() => 200));
+  });
+
   it("edits the word lists: add, a repeat, a bad word, the page, remove", async () => {
     const added = await call("POST", "/v1/admin/words", admin(), {
       word: "Snarkle",

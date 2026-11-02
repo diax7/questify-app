@@ -102,6 +102,7 @@ export async function throttled(
     [{ limit, key: deps.keys.userKey(`${limit.bucket}:${who.id}`) }],
     true,
     reply,
+    true,
   );
   return who;
 }
