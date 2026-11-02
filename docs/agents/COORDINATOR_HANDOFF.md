@@ -47,24 +47,32 @@ then STATE.md "Next", `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIE
 
 ## What to do next
 
-Updated 2026-10-31 by the Claude Code coordinator (sessions of 2026-10-30 and 2026-10-31).
+Updated 2026-11-02 by the Claude Code coordinator at Dhia's break. Progress: 149 of 197 tasks (75.6%).
 
-1. **Staging (CranL) runs migrations through 0099**, all frozen; the next migration is 0100. Staging's
-   `DASHBOARD_ORIGIN` is `https://questify.nafes.com`. Deploy: connect the owner URL, deploy the API, then run
-   `test -f /srv/migrations/<new file> && node /srv/migrate.cjs` in a loop until it answers `alreadyApplied` (CranL's
-   deploy call can answer 504 while the old image still runs), `--verify`, unset the owner URL, restart, deploy web.
-2. **Queue:** T-605 (setup wizard) is being built. Then T-606 onward in TASKS order. Open tier A tasks: none queued;
-   group the next tier A tasks two at a time (one plan, one plan review, one mutation run).
-3. **Process that worked:** a fresh Sonnet worker per tier B task with a token cap (about 600k to 800k) and "one
-   full suite, one targeted rerun"; a lean Sonnet review (cap 250k); Opus for tier A plans, plan reviews, builds and
-   code reviews. Fix MAJORs with a fresh worker; minors to FOLLOWUPS. Workers must go easy on Dhia's PC (it crashed
-   twice on 2026-10-30/31; browser suite on one worker, one heavy job at a time).
-4. **Dhia owes:** a Firebase project for push (he chose "Later"), a phone run of the latest APK, a look on a real TV.
-   The latest preview APK is EAS build f42d3f24 (Cheers buttons, ratings); T-602d's Home card needs a new build.
-5. **FOLLOWUPS:** the 2026-10-31 batch cleared the bugs and the `X-App-Version` header (STATE "Follow-ups batch 2");
-   what is left is minors, the invitation-sending test that fails only in the full local run, and items on ledger,
-   sign-in or tenant isolation code.
-6. **T-408d** (Redis copy of the boards) still waits for the RUNBOOK ranked-count check to pass about 30,000.
+1. **Staging (CranL) runs migrations through 0117**, all frozen. `main` also has **0119** (T-709b catalog editors,
+   pushed, CI green, NOT deployed) and branch `worktree-agent-a5a2d1538fa9b8395` has **0118** (T-704 player tools,
+   unpushed). Deploy 0118 and 0119 together, in order, after T-704 merges (the migrator applies any missing file, so
+   deploying 0119 first would run 0118 after it).
+2. **First job: T-704 tier A code review** (Opus `cto`) of branch `worktree-agent-a5a2d1538fa9b8395` (worktree
+   `.claude/worktrees/agent-a5a2d1538fa9b8395`), plan `docs/plans/2026-11-02-t-704-t-705-player-safety.md` (amended
+   with the plan review 80 and Dhia's answers: merge dropped, appeals to the `MAIL_FROM` address, no ban email). Fix
+   MAJORs with a fresh worker, merge into `main` (expect doc-file conflicts with T-709b), push, deploy 0118+0119.
+3. **Then T-705** (ban, block, word lists) and **T-705b** (reports queue, unpublish, flags list) from the same plan;
+   one grouped mutation run after T-705 for `apps/api/src/console/players/**` plus the T-705 globs (ADR-355).
+4. **Mutation chases owed or running:** T-701 console access code (run 41418905251: support-seat 82%, organizers
+   68%, doors 80%, routes 88%) — a chase round was running at the break; check `docs/TASKS.md` T-701 note and
+   `git log` for its commit before starting another.
+5. **Other open tasks:** T-709c (tier A: XP curve, level rewards, item editor, achievement thresholds that pay gems),
+   T-701b (owner email change, urgent reports), T-703, T-706, T-707, then Phase 8. Photo uploads stay parked (Q-149,
+   Dhia "later"); push stays off until Dhia makes a Firebase project.
+6. **Process (Dhia approved 2026-11-02):** workers never run the full browser suite locally (layout.spec + their
+   area's specs); CI runs it, sharded in two (~16 min). The coordinator makes fixes under ~20 lines itself; deploy
+   every 2-3 tasks; parallel tier B pairs in worktrees only when they touch different files and don't run browser
+   specs at the same time; worker caps ~400-500k (tier B), ~800-900k (tier A builds). Reviews always run.
+7. **Deploy recipe:** connect the owner URL, deploy the API, loop `test -f /srv/migrations/<newest> && node
+   /srv/migrate.cjs` until `alreadyApplied`, `--verify`, unset the owner URL, restart, deploy web, probe `/readyz` and
+   both sign-in pages. On this PC the web build may need
+   `NODE_OPTIONS=--require <scratchpad>/symlink-fallback.cjs` (Windows symlink EPERM).
 
 ## Commands
 

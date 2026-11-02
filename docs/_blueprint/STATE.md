@@ -1,5 +1,11 @@
 # Blueprint State — Questify
 
+## Break and handoff — 2026-11-02
+
+- Progress 149/197 (75.6%). Staging at migration 0117. `main` has T-709b (0119, CI green, undeployed); T-704 (0118)
+  is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
+  `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
+
 ## Staging, APK and demo — 2026-10-30 (evening)
 
 - **CranL runs migrations through 0086** (T-505 deployed from f408f6c, CI run 41095188086, verify ok; owner connection removed).
