@@ -2,7 +2,12 @@
 
 import { formatNumber, type Language, type PlayerRecord } from "@questify/shared";
 import { useState, type ReactNode } from "react";
-import { RenamePanel, ResetPanel, RevealPanel } from "#src/components/ConsolePlayerActions.tsx";
+import {
+  BanPanel,
+  RenamePanel,
+  ResetPanel,
+  RevealPanel,
+} from "#src/components/ConsolePlayerActions.tsx";
 import { PlayerConsent, PlayerLedger } from "#src/components/ConsolePlayerLedger.tsx";
 import { MaskedContacts } from "#src/components/ConsolePlayers.tsx";
 import { nameIn } from "#src/lib/console.ts";
@@ -216,6 +221,13 @@ function PlayerView({
         language={language}
         playerId={id}
         username={record.player.username}
+        onChanged={reload}
+      />
+      <BanPanel
+        language={language}
+        playerId={id}
+        username={record.player.username}
+        banned={record.player.status === "banned"}
         onChanged={reload}
       />
     </>

@@ -215,6 +215,19 @@ export function ConsolePlayersLink({
   );
 }
 
+/** This page's item in the console's navigation (T-705). */
+export function ConsoleWordListsLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/word-lists`} icon="shield" current={current}>
+      {t("console.wordLists.title")}
+    </NavItem>
+  );
+}
+
 /** This page's item in the console's navigation (T-709). */
 export function ConsoleHealthLink({
   language,
