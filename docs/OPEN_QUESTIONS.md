@@ -1982,3 +1982,36 @@ The app thanks the reporter ("Thanks. Questify will review this.") and sends not
 Unpublishing a reward takes it out of the shop, the goal, the desk and the reserve door, and out of pushes. A quest item that
 hands it out as a prize and a community goal that unlocks it still name it (their own reads were not restated).
 **Recommended (developer):** leave until a report shows the need; the admin can suspend the event meanwhile.
+
+## Q-398 - Gems already paid for a revoked tier stay with the player (T-709c)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-439).
+The gem ledger has no correction source (ADR-285), so revoking a fraudster's tiers hides the badges and stops unpaid gems
+but leaves gems already paid. A banned player cannot spend them.
+**Recommended (developer):** keep; add a correction source only if a lifted ban with fraud gems becomes a real case.
+
+## Q-399 - Rewards of a lower XP curve arrive at the player's next sync (T-709d)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-440).
+A lowered curve raises levels at once, but the new level items and level-up gems are written at the player's next sync, so
+the save does not hold every writer while it writes millions of rows.
+**Recommended (developer):** keep; the app syncs on opening Profile or Questify.
+
+## Q-400 - The streak milestone XP gets its editor in T-703 (T-709c)
+
+**Status:** Proposed (developer, 2026-11-02).
+`questify_streak_milestone` is append-only (0068), so editing it needs a design of its own; T-709c leaves it out.
+**Recommended (developer):** T-703's tuning page, with a new versioned row per change.
+
+## Q-401 - How long a curve save may hold the XP writers (T-709d)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-440).
+The save waits at most 3 seconds for its lock and then holds every XP, gem and item writer until it commits.
+**Recommended (developer):** measure on the 300,000-player fixture; if over 5 seconds, refuse a save during a live event's
+busy hour or batch the recompute.
+
+## Q-402 - A shop item's art is frozen once it is on sale (T-709d)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-441).
+Buyers keep the art they saw; the admin can rename a shop item but changes its art by retiring it and adding a new one.
+**Recommended (developer):** keep.

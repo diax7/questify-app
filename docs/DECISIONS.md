@@ -6824,3 +6824,57 @@ of every event, one row per event (count, oldest, kinds), linked to the console'
 Every read and action is audited with ids, codes and counts only (`console.reports_read`, `console.report_read`,
 `report.resolve`, `console.flags_read`); 120 reads a minute, 120 actions an hour and 60 flag reads a minute per admin.
 **Trade-offs:** changing a username or banning from a report is two steps (the record, then Close) rather than one button.
+
+## ADR-436 - T-709c splits: thresholds, amounts and the tier revoke first; items and the XP table as T-709d
+
+**Status:** Proposed (developer, 2026-11-02; T-709c plan `docs/plans/2026-11-02-t-709c-xp-thresholds-items.md`).
+**Decision:** T-709c builds the achievement thresholds, the XP and gem amounts (`platform_setting` `xp`, `gems`) and the
+revoke and restore of a banned player's tiers (migration 0122). T-709d builds the item catalog and the XP table with the
+level reward map (the curve, the recompute, the level catch-up at the next sync). Each is tier A with its own review.
+**Trade-offs:** two reviews instead of one; the part 2 changes to `xp_apply` and `questify_sync` get a review of their own.
+
+## ADR-437 - T-709c a lower achievement threshold needs a confirmation and pays once at the next sync; a revert keeps it
+
+**Status:** Proposed (developer, 2026-11-02; T-709c plan D1).
+**Decision:** `admin_achievement_save` takes the three thresholds (whole, 1 to 100,000, rising) with the name, locks the row
+FOR NO KEY UPDATE (no wait for syncs) and refuses a lowering unless `confirmed` (HTTP 409 `confirmation_required` naming
+the gems per tier). Payment once is carried by the earned row's key and `gem_entry`'s unique key; a revert or a later raise
+never removes an earned tier or a gem entry. The console's confirmation names the gems and says undoing does not take them back.
+**Trade-offs:** no count of players who will qualify (it would compute every player's metrics); the amount per tier is named.
+
+## ADR-438 - T-709c the XP and gem amounts are one audited editor, and only definer doors write those keys
+
+**Status:** Proposed (developer, 2026-11-02; T-709c plan D2).
+**Decision:** `admin_amounts_save` writes `platform_setting` `xp` (quest 1 to 99,999; daily finish 0 to 400, each right
+answer 0 to 200, solved word 0 to 1000) and `gems` (level up, bronze, silver, gold, 1 to 1000), with CHECKs on both keys.
+A change applies from the save on, including levels and tiers reached but not yet paid. The table's write policies are
+narrowed to `features` and `tuning` and ask `app_admin_id()`, so `xp`, `gems` and `moderation` change only through doors.
+**Trade-offs:** `moderation.appealEmail` now needs a door (T-703) rather than the generic settings writer.
+
+## ADR-439 - T-709c revoking a banned player's tiers is an append-only mark; paid gems stay
+
+**Status:** Proposed (developer, 2026-11-02; T-709c plan D3).
+**Decision:** `achievement_revocation` rows (`revoke` or `restore`, with a `player_admin_action`) mark a tier; the earned row
+and gem entries are never touched. A revoked tier is hidden from the player's achievements and profile, is never earned again
+and is not paid while revoked; restoring pays any unpaid gems at the next sync. Only a banned player's tiers can be revoked;
+restore needs no ban. Reasoned, confirmed, audited with ids only.
+**Trade-offs:** gems already paid for a revoked tier stay in the balance (Q-398); a banned player cannot spend them.
+
+## ADR-440 - T-709d the XP curve and its reward map are one document; the recompute is in the same transaction
+
+**Status:** Proposed (developer, 2026-11-02; T-709c plan D5).
+**Decision:** `admin_xp_table_save` takes `player_xp` in EXCLUSIVE mode first, then the items, then `xp_level` and
+`level_item`, and recomputes every `player_xp.level` before it commits. It refuses to remove a level anyone reached or
+holds and to remap a level whose reward anyone owns. Levels newly reached by a lowering are written at the player's next
+sync (or next XP), which gives the level item and the level-up gems once; a lowering needs `confirmed`, with a preview of
+players, levels and gems. `xp_apply` sets the level in its own statement so a queued award never uses the old curve.
+**Trade-offs:** XP, gem and item writers and sign-ups wait for the length of a save (measured, Q-401); rewards of a lowering
+arrive at the next sync, not at the save (Q-399).
+
+## ADR-441 - T-709d the console edits Questify's items: names always, art while unowned and not on sale
+
+**Status:** Proposed (developer, 2026-11-02; T-709c plan D4).
+**Decision:** The Items editor lists level rewards, shop items and unassigned items (never souvenir items). Names can always
+change; the art (a shipped visual key) only while no player owns the item and it is not on sale. A new item is made with its
+kind, names and art, and optionally put on sale in the same transaction through the exclusive-source guard.
+**Trade-offs:** a shop item's art cannot be changed after sale starts; the admin retires it and adds a new one (Q-402).
