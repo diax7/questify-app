@@ -58,6 +58,34 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console player tools over HTTP
     ]);
     return made?.id ?? "";
   };
+  /** Enrolls the player and writes `times` quest entries to its points record, as a scan does. */
+  const earnTimes = async (organizer: string, event: string, player: string, times: number) => {
+    const [enrollment] = await owner<{ id: string }>(
+      "INSERT INTO enrollment (organizer_id, event_id, player_id) VALUES ($1, $2, $3) RETURNING id",
+      [organizer, event, player],
+    );
+    await owner("INSERT INTO category (event_id, name_en) VALUES ($1, 'General')", [event]);
+    const [quest] = await owner<{ id: string }>(
+      `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, visible, type_config)
+       SELECT $1, id, 'scan_qr', 'Quest', 1, 100, true, '{}' FROM category WHERE event_id = $1
+       RETURNING id`,
+      [event],
+    );
+    for (let occurrence = 1; occurrence <= times; occurrence += 1) {
+      const [done] = await owner<{ id: string }>(
+        `INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method,
+                                       idempotency_key)
+         VALUES ($1, $2, $3, $4, $5, 'qr', $6) RETURNING id`,
+        [organizer, event, enrollment?.id, quest?.id, occurrence, randomUUID()],
+      );
+      await owner(
+        `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta,
+                                   completion_id, quest_id, actor)
+         VALUES ($1, $2, $3, 'quest', 1, 1, $4, $5, 'player')`,
+        [organizer, event, enrollment?.id, done?.id, quest?.id],
+      );
+    }
+  };
 
   beforeAll(async () => {
     db = await createTestDatabase();
@@ -90,6 +118,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console player tools over HTTP
       ...(payload === undefined ? {} : { payload }),
     });
   const reveal = { reasonCode: "support_request", note: NOTE };
+  /** The rate-limit attempts the admin has used in one bucket. */
+  const attempts = async (bucket: string) =>
+    (
+      await owner("SELECT 1 FROM auth_throttle WHERE bucket = $1 AND key = $2", [
+        bucket,
+        keys.userKey(`${bucket}:${adminId}`),
+      ])
+    ).length;
 
   it("answers 404 to a member and 401 or 403 to nobody signed in, on every route", async () => {
     const paths: [Method, string, object?][] = [
@@ -144,6 +180,68 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console player tools over HTTP
     expect(bad.json().code).toBe("invalid_player_search");
   });
 
+  const search = async (by: string, q: string) =>
+    call("POST", "/v1/admin/players/search", adminCookie, { by, q });
+  const found = async (by: string, q: string) => {
+    const answer = await search(by, q);
+    expect(answer.statusCode, q).toBe(200);
+    return playerSearchSchema.parse(answer.json().players).map((row) => row.id);
+  };
+
+  it("searches by a username prefix of 3 to 30 characters and by an email typed any way", async () => {
+    expect(await found("username", "lay")).toContain(playerId);
+    expect(await found("username", "ｌａｙｌａ_rec")).toContain(playerId);
+    expect(await found("username", "l".repeat(30))).toEqual([]);
+    expect(await found("email", "  Layla.Records@Example.TEST ")).toEqual([playerId]);
+    for (const [by, q] of [
+      ["username", "la"],
+      ["username", "  la  "],
+      ["username", "l".repeat(31)],
+      ["phone", "12345"],
+    ]) {
+      const refused = await search(by ?? "", q ?? "");
+      expect(refused.statusCode, q).toBe(400);
+      expect(refused.json().code, q).toBe("invalid_player_search");
+    }
+  });
+
+  it("pages the points record by its cursor, filtered by event", async () => {
+    const target = await newPlayer("ledger_pages", null, "ledger.pages@example.test");
+    const [org] = await owner<{ id: string }>(
+      "INSERT INTO organizer (name, slug) VALUES ('Ledger Org', 'ledger-org') RETURNING id",
+    );
+    const events: string[] = [];
+    for (const [code, entries] of [
+      ["LEDG1", 51],
+      ["LEDG2", 1],
+    ] as const) {
+      const [event] = await owner<{ id: string }>(
+        `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
+         VALUES ($1, $2, 'Ledger', 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id`,
+        [org?.id, code],
+      );
+      events.push(event?.id ?? "");
+      await earnTimes(org?.id ?? "", event?.id ?? "", target, entries);
+    }
+    const page = async (query: string) => {
+      const answer = await call("GET", `/v1/admin/players/${target}/ledger${query}`, adminCookie);
+      expect(answer.statusCode, query).toBe(200);
+      const body = answer.json();
+      return { entries: ledgerPageSchema.parse(body.entries), nextCursor: body.nextCursor };
+    };
+    const top = await page("");
+    expect(top.entries).toHaveLength(50);
+    expect(top.entries[0]?.eventId).toBe(events[1]);
+    expect(top.nextCursor).toBe(top.entries.at(-1)?.id);
+    const rest = await page(`?before=${top.nextCursor}`);
+    expect(rest.entries).toHaveLength(2);
+    expect(rest.entries.every((line) => line.id < Number(top.nextCursor))).toBe(true);
+    expect(rest.nextCursor).toBeNull();
+    const second = await page(`?eventId=${events[1]}`);
+    expect(second.entries.map((line) => line.eventId)).toEqual([events[1]]);
+    expect(second.nextCursor).toBeNull();
+  });
+
   it("shows the record and the points record, read-only, and answers 404 for an unknown player", async () => {
     const answer = await call("GET", `/v1/admin/players/${playerId}`, adminCookie);
     expect(answer.statusCode).toBe(200);
@@ -171,6 +269,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console player tools over HTTP
       note: NOTE,
     });
     expect(wrongCode.statusCode).toBe(400);
+    expect(await attempts(BUCKETS.consolePlayerContact)).toBe(0);
+    const spaced = await call("POST", `/v1/admin/players/${playerId}/contact`, adminCookie, {
+      reasonCode: "support_request",
+      note: ` ${NOTE}　`,
+    });
+    expect(spaced.statusCode).toBe(200);
+    expect(await attempts(BUCKETS.consolePlayerContact)).toBe(1);
+    expect(
+      await owner(
+        "SELECT note FROM player_admin_action WHERE kind = 'contact_reveal' ORDER BY created_at DESC LIMIT 1",
+      ),
+    ).toEqual([{ note: NOTE }]);
     const before = (await audits("console.player_contact_read")).length;
     for (let i = 0; i < 2; i += 1) {
       const shown = await call(
@@ -190,9 +300,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console player tools over HTTP
     await newPlayer("taken_by_other", null, "other@example.test");
     const url = `/v1/admin/players/${playerId}/username`;
     const body = { reasonCode: "offensive", note: NOTE };
-    expect((await call("POST", url, adminCookie, { ...body, username: "a" })).json().code).toBe(
-      "invalid_username",
+    expect((await call("POST", url, adminCookie, { ...body, username: "a" })).json()).toMatchObject(
+      { code: "invalid_username", details: { reason: "length" } },
     );
+    expect(await attempts(BUCKETS.consolePlayerChange)).toBe(0);
     expect(
       (await call("POST", url, adminCookie, { ...body, username: "TAKEN_by_other" })).statusCode,
     ).toBe(409);
@@ -264,6 +375,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console player tools over HTTP
         ])
       ).length,
     ).toBe(0);
+  });
+
+  it("resets sign-in for a player with a phone and no email, clearing the phone's throttles", async () => {
+    const phone = "+966512345672";
+    const phoneOnly = await newPlayer("phone_only_reset", phone, null);
+    const key = keys.contactThrottleKey(phone);
+    await owner("INSERT INTO auth_throttle (bucket, key, at) VALUES ($1, $2, now())", [
+      BUCKETS.playerCodeContact,
+      key,
+    ]);
+    const done = await call("POST", `/v1/admin/players/${phoneOnly}/reset-sign-in`, adminCookie, {
+      reasonCode: "locked_out",
+      note: NOTE,
+    });
+    expect(done.statusCode).toBe(200);
+    expect(done.json()).toMatchObject({ endedSignIns: 0 });
+    expect(await owner("SELECT 1 FROM auth_throttle WHERE key = $1", [key])).toEqual([]);
   });
 
   it("holds an admin to 20 contact reveals an hour", async () => {
