@@ -2283,6 +2283,31 @@ export const catalogStale = make(
   "تغيّر هذا العنصر أثناء عملك. أعد تحميل الصفحة وحاول مرة أخرى.",
   "This item changed while you worked. Reload the page and try again.",
 );
+/** `details.gems` names what a lowering pays now, per lowered tier (T-709c). */
+export const confirmationRequired = make(
+  409,
+  "confirmation_required",
+  "هذا التغيير يمنح جواهر لا يمكن استردادها. أكّده للمتابعة.",
+  "This change pays gems that cannot be taken back. Confirm it to go on.",
+);
+export const tierNotEarned = make(
+  409,
+  "tier_not_earned",
+  "لم يحصل اللاعب على إحدى هذه الدرجات.",
+  "The player has not earned one of these tiers.",
+);
+export const tierAlreadyRevoked = make(
+  409,
+  "tier_already_revoked",
+  "إحدى هذه الدرجات مسحوبة مسبقًا. حدّث الصفحة.",
+  "One of these tiers is already revoked. Refresh the page.",
+);
+export const tierNotRevoked = make(
+  409,
+  "tier_not_revoked",
+  "إحدى هذه الدرجات غير مسحوبة. حدّث الصفحة.",
+  "One of these tiers is not revoked. Refresh the page.",
+);
 export const invalidPlayerAction = make(
   400,
   "invalid_player_action",

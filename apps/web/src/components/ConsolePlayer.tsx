@@ -3,6 +3,7 @@
 import { formatNumber, type Language, type PlayerRecord } from "@questify/shared";
 import { useState, type ReactNode } from "react";
 import {
+  TiersPanel,
   BanPanel,
   RenamePanel,
   ResetPanel,
@@ -12,7 +13,7 @@ import { PlayerConsent, PlayerLedger } from "#src/components/ConsolePlayerLedger
 import { MaskedContacts } from "#src/components/ConsolePlayers.tsx";
 import { nameIn } from "#src/lib/console.ts";
 import { clockOf } from "#src/lib/console-organizers.ts";
-import { codeLabel, playerPath, readRecord } from "#src/lib/console-players.ts";
+import { codeLabel, playerPath, readRecord, tierKey } from "#src/lib/console-players.ts";
 import { translatorFor, type Translate } from "#src/lib/language.ts";
 import { useConsoleRead } from "#src/lib/use-console-read.ts";
 import { Button } from "#src/ui/Button.tsx";
@@ -153,6 +154,37 @@ function EventsSection({ language, record }: Props) {
   );
 }
 
+/** The player's earned achievement tiers, each with a Revoked mark when an admin revoked it (T-709c). */
+function AchievementsSection({ language, record }: Props) {
+  const t = translatorFor(language);
+  return (
+    <SubList
+      title={t("console.player.achievements")}
+      empty={t("console.player.achievements.none")}
+      level={2}
+    >
+      {record.achievements.map((tier) => (
+        <Row
+          key={tierKey(tier)}
+          main={
+            <span data-testid="player-tier" data-revoked={tier.revoked}>
+              <bdi>{tier.name[language]}</bdi>
+              {" · "}
+              {t(`console.catalog.achievements.${tier.tier}`)}
+              {tier.revoked ? (
+                <>
+                  {" "}
+                  <Badge tone="danger">{t("console.player.achievements.revoked")}</Badge>
+                </>
+              ) : null}
+            </span>
+          }
+        />
+      ))}
+    </SubList>
+  );
+}
+
 function ActionsSection({ language, record }: Props) {
   const t = translatorFor(language);
   return (
@@ -209,6 +241,7 @@ function PlayerView({
       </Section>
       <PlayerConsent language={language} playerId={id} />
       <EventsSection language={language} record={record} />
+      <AchievementsSection language={language} record={record} />
       <PlayerLedger language={language} playerId={id} events={record.events} />
       <ActionsSection language={language} record={record} />
       <RenamePanel
@@ -230,6 +263,26 @@ function PlayerView({
         banned={record.player.status === "banned"}
         onChanged={reload}
       />
+      {record.player.status === "banned" && record.achievements.some((tier) => !tier.revoked) ? (
+        <TiersPanel
+          language={language}
+          playerId={id}
+          username={record.player.username}
+          tiers={record.achievements}
+          action="revoke"
+          onChanged={reload}
+        />
+      ) : null}
+      {record.achievements.some((tier) => tier.revoked) ? (
+        <TiersPanel
+          language={language}
+          playerId={id}
+          username={record.player.username}
+          tiers={record.achievements}
+          action="restore"
+          onChanged={reload}
+        />
+      ) : null}
     </>
   );
 }

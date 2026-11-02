@@ -4,8 +4,11 @@ import {
   PLAYER_ACTION_REASONS,
   isActionReason,
   isUsableActionNote,
+  tierChangeListSchema,
 } from "#src/console-players/console-players";
 import { MESSAGES } from "#src/i18n/messages";
+
+const tier = (achievementId: string, which = "bronze") => ({ achievementId, tier: which });
 
 const camel = (code: string): string =>
   code.replace(/_([a-z])/g, (_match, letter: string) => letter.toUpperCase());
@@ -17,6 +20,26 @@ describe("console player action reasons and notes", () => {
     expect(isActionReason("rename", "offensive")).toBe(true);
     expect(isActionReason("reset_sign_in", "lost_access")).toBe(true);
     expect(isActionReason("reset_sign_in", "")).toBe(false);
+    expect(isActionReason("revoke_tiers", "cheating")).toBe(true);
+    expect(isActionReason("revoke_tiers", "terms")).toBe(false);
+    expect(isActionReason("restore_tiers", "mistake")).toBe(true);
+  });
+
+  it("takes 1 to 15 distinct tiers to revoke or restore", () => {
+    expect(tierChangeListSchema.safeParse([tier("quests-done")]).success).toBe(true);
+    expect(
+      tierChangeListSchema.safeParse(Array.from({ length: 15 }, (_, i) => tier(`a${i}`))).success,
+    ).toBe(true);
+    for (const bad of [
+      [],
+      Array.from({ length: 16 }, (_, i) => tier(`a${i}`)),
+      [tier("quests-done"), tier("quests-done")],
+      [tier("quests-done", "platinum")],
+      [tier("Quests")],
+      [{ ...tier("quests-done"), extra: 1 }],
+    ]) {
+      expect(tierChangeListSchema.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
+    }
   });
 
   it("accepts a note of 10 to 300 characters once trimmed, without control or direction characters", () => {

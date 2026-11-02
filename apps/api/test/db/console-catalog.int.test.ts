@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   TEMPLATE_BODY_MAX_BYTES,
-  achievementDocSchema,
   gemShopDocSchema,
   levelTitlesDocSchema,
   templateDocSchema,
@@ -33,10 +32,11 @@ const checkViolation = async (work: Promise<unknown>): Promise<boolean> =>
   (await refusal(work)).startsWith("23514");
 
 /**
- * The console's catalog editors in the database (T-709b, migration 0119): event templates, achievement names, level titles
- * and the gem shop. Every door is for an active platform admin only (QE403), changes only the row it names, checks the text
- * it is given, writes one audit entry holding the fields before and after, and writes nothing when nothing changed. A
- * revert names the audit entry it undoes and is refused (CA409) when another change landed after that entry.
+ * The console's catalog editors in the database (T-709b, migration 0119): event templates, level titles and the gem
+ * shop (achievements and the amounts: console-catalog-xp, T-709c). Every door is for an active platform admin only
+ * (QE403), changes only the row it names, checks the text it is given, writes one audit entry holding the fields before
+ * and after, and writes nothing when nothing changed. A revert names the audit entry it undoes and is refused (CA409)
+ * when another change landed after that entry.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (database)", () => {
   let f: PushFixture;
@@ -126,7 +126,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
         "SELECT admin_templates()",
         `SELECT admin_template_save('conference', '${doc}', NULL, '${request}')`,
         "SELECT admin_achievements()",
-        `SELECT admin_achievement_save('quests-done', '${doc}', NULL, '${request}')`,
+        `SELECT admin_achievement_save('quests-done', '${doc}', NULL, false, '${request}')`,
         "SELECT admin_level_titles()",
         `SELECT admin_level_titles_save('${doc}', NULL, '${request}')`,
         "SELECT admin_shop_items()",
@@ -296,121 +296,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
         await holder.end();
         await f.owner("DELETE FROM event_template WHERE key = 'twin'");
       }
-    });
-  });
-
-  describe("achievements", () => {
-    type Achievement = { id: string; bronze: number; silver: number; gold: number } & Doc;
-    const list = () => one<Achievement[]>("SELECT admin_achievements() AS r");
-    const save = (id: string, doc: unknown, revertOf: string | null = null) =>
-      one<Achievement>("SELECT admin_achievement_save($1, $2, $3, $4) AS r", [
-        id,
-        doc,
-        revertOf,
-        randomUUID(),
-      ]);
-    const docOf = (row: Achievement): Doc => ({ name: row["name"] });
-    const thresholds = (rows: Achievement[]) =>
-      rows.map((row) => [row.id, row.bronze, row.silver, row.gold]);
-
-    it("lists the five achievements in order with their thresholds, each name a valid edit document", async () => {
-      const rows = await list();
-      expect(rows.map((row) => row.id)).toEqual([
-        "events-attended",
-        "quests-done",
-        "cities-played",
-        "top-ten",
-        "community-goals",
-      ]);
-      for (const row of rows) {
-        expect(row.bronze, row.id).toBeLessThan(row.silver);
-        expect(achievementDocSchema.safeParse(docOf(row)).success, row.id).toBe(true);
-      }
-    });
-
-    it("changes the name of one achievement and audits it; thresholds and earned rows stay", async () => {
-      const before = await list();
-      const row = before.find((candidate) => candidate.id === "quests-done") as Achievement;
-      const player = await f.newPlayer();
-      await f.owner("INSERT INTO player_xp (player_id) VALUES ($1) ON CONFLICT DO NOTHING", [
-        player,
-      ]);
-      await f.owner(
-        "INSERT INTO achievement_earned (player_id, achievement_id, tier) VALUES ($1, 'quests-done', 'bronze')",
-        [player],
-      );
-      const saved = await save("quests-done", { name: { ar: "صائد المهام", en: "Quest Master" } });
-      expect(saved).toMatchObject({
-        bronze: row.bronze,
-        silver: row.silver,
-        gold: row.gold,
-        name: { en: "Quest Master" },
-      });
-      const [entry] = await audits("catalog.achievement.update", "quests-done");
-      expect(entry?.actor_id).toBe(adminId);
-      expect(entry?.before).toEqual(docOf(row));
-      expect(entry?.after).toEqual({ name: { ar: "صائد المهام", en: "Quest Master" } });
-      const earned = await f.owner<{ n: number }>(
-        "SELECT count(*)::int AS n FROM achievement_earned WHERE achievement_id = 'quests-done'",
-      );
-      expect(earned[0]?.n).toBe(1);
-      expect(thresholds(await list())).toEqual(thresholds(before));
-    });
-
-    it("refuses any threshold, changed or not, and keeps the row and the audit log as they were", async () => {
-      const before = await list();
-      const row = before.find((candidate) => candidate.id === "top-ten") as Achievement;
-      const entries = await count("catalog.achievement.update");
-      for (const extra of [
-        { bronze: row.bronze - 1 === 0 ? 1 : row.bronze - 1 },
-        { silver: row.silver + 1 },
-        { gold: 1 },
-        { bronze: row.bronze, silver: row.silver, gold: row.gold },
-        { bronze: 1, silver: 2, gold: 3 },
-        { threshold: 5 },
-      ]) {
-        expect(
-          await refusal(save("top-ten", { ...docOf(row), ...extra })),
-          JSON.stringify(extra),
-        ).toBe("CA400:thresholds");
-      }
-      expect(await refusal(save("top-ten", { bronze: 1, silver: 2, gold: 3 }))).toBe(
-        "CA400:thresholds",
-      );
-      expect(await list()).toEqual(before);
-      expect(await count("catalog.achievement.update")).toBe(entries);
-    });
-
-    it("refuses an unknown id, a missing or unsafe name, and a revert of an entry that is not the latest", async () => {
-      const row = (await list()).find((candidate) => candidate.id === "top-ten") as Achievement;
-      expect(await refusal(save("nothing", docOf(row)))).toBe("CA404");
-      expect(await refusal(save("top-ten", { name: { ar: "ا‮ب", en: "Top" } }))).toBe(
-        "CA400:name.ar",
-      );
-      expect(await refusal(save("top-ten", {}))).toBe("CA400:name.ar");
-      expect(await refusal(save("top-ten", { name: { ar: "ا", en: "  " } }))).toBe("CA400:name.en");
-      expect(await refusal(save("top-ten", docOf(row), "999999999"))).toBe("CA409");
-    });
-
-    it("reverts the name through the audit entry, and a revert never carries a threshold", async () => {
-      const row = (await list()).find(
-        (candidate) => candidate.id === "cities-played",
-      ) as Achievement;
-      await save("cities-played", { name: { ar: "جوّاب كبير", en: "Big Traveller" } });
-      const entry = await latestEntry("achievement", "cities-played");
-      const reverted = await save("cities-played", null, entry);
-      expect(reverted["name"]).toEqual(row["name"]);
-      expect(reverted).toMatchObject({ bronze: row.bronze, silver: row.silver, gold: row.gold });
-      expect(await count("catalog.achievement.revert")).toBe(1);
-    });
-
-    it("writes nothing when nothing changed", async () => {
-      const row = (await list()).find(
-        (candidate) => candidate.id === "events-attended",
-      ) as Achievement;
-      const before = await count("catalog.achievement.update");
-      await save("events-attended", docOf(row));
-      expect(await count("catalog.achievement.update")).toBe(before);
     });
   });
 

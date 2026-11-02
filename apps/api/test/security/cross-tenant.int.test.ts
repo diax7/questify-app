@@ -963,6 +963,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "platform-wide catalog, no direct API rights; read through the caller-bound own_achievements and the public profile's tiers (achievements)",
   achievement_earned:
     "no direct API rights; append-only, written only by questify_sync for the calling player, read as tiers by own_achievements and the public profile; no organizer read exists (achievements)",
+  achievement_revocation:
+    "no direct API rights; Questify-wide, not an organizer's; append-only, written only by the admin-checked tier doors, read by the caller-bound tier readers and the console record (console-catalog-xp)",
   final_rank:
     "no direct API rights; append-only, written only by confirm_results inside the owner's event, read only through own_events for the calling player and the public passport after the reveal; no organizer read exists (final-rank, event-passport)",
   questify_campaign:
@@ -1849,6 +1851,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
       for (const sql of [
         `SELECT * FROM admin_ban_player($1, 'spam', ${note}, gen_random_uuid())`,
         `SELECT * FROM admin_lift_ban($1, 'other', ${note}, gen_random_uuid())`,
+        `SELECT * FROM admin_revoke_tiers($1, '[{"achievementId": "quests-done", "tier": "bronze"}]', 'cheating', ${note}, gen_random_uuid())`,
+        `SELECT * FROM admin_restore_tiers($1, '[{"achievementId": "quests-done", "tier": "bronze"}]', 'mistake', ${note}, gen_random_uuid())`,
         "SELECT console_words(NULL, NULL, NULL, NULL)",
         "SELECT admin_word_add('gnarl', 'word', 'en', gen_random_uuid())",
         "SELECT admin_word_remove('gnarl', gen_random_uuid())",
@@ -1913,7 +1917,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         "SELECT admin_templates()",
         "SELECT admin_template_save('conference', '{}', NULL, gen_random_uuid())",
         "SELECT admin_achievements()",
-        "SELECT admin_achievement_save('quests-done', '{}', NULL, gen_random_uuid())",
+        "SELECT admin_achievement_save('quests-done', '{}', NULL, true, gen_random_uuid())",
+        "SELECT admin_amounts()",
+        "SELECT admin_amounts_save('{}', NULL, gen_random_uuid())",
         "SELECT admin_level_titles()",
         "SELECT admin_level_titles_save('{}', NULL, gen_random_uuid())",
         "SELECT admin_shop_items()",

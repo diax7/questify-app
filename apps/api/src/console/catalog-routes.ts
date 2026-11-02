@@ -4,7 +4,13 @@ import { z } from "zod";
 import { invalidCatalog } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
 import { BUCKETS } from "#src/auth/throttle";
-import { docSchemaOf, listCatalog, revertCatalog, saveCatalog } from "#src/console/catalog";
+import {
+  docSchemaOf,
+  isConfirmable,
+  listCatalog,
+  revertCatalog,
+  saveCatalog,
+} from "#src/console/catalog";
 import { throttled, type ConsolePlatformDeps } from "#src/console/platform-routes";
 import type { DeviceLimit } from "#src/devices/limits";
 
@@ -30,8 +36,8 @@ type Catalog = Readonly<{
   kind: CatalogKind;
   path: string;
   /**
-   * The names the answers use: `{ [list]: rows }` and `{ [one]: row }`. Undefined for the level titles, which are one
-   * document with no id in the address: their answer is the document itself.
+   * The names the answers use: `{ [list]: rows }` and `{ [one]: row }`. Undefined for the level titles and the amounts,
+   * each one document with no id in the address: their answer is the document itself.
    */
   names: Readonly<{ list: string; one: string }> | undefined;
   id: z.ZodType<string> | undefined;
@@ -57,7 +63,33 @@ const CATALOGS: readonly Catalog[] = [
     names: { list: "items", one: "item" },
     id: z.string().regex(ITEM_ID),
   },
+  { kind: "amounts", path: "/catalog/amounts", names: undefined, id: undefined },
 ];
+
+const confirmation = z.strictObject({ confirmed: z.boolean().optional() });
+/** A revert body of an editor that takes no confirmation: empty. */
+const noConfirmation = z.strictObject({ confirmed: z.never().optional() });
+
+/**
+ * A save's body split into the document and the confirmation. Only an editor that can pay gems (the achievements) takes
+ * `confirmed`; anywhere else it is an unknown field the document's schema refuses.
+ */
+function splitConfirmed(
+  kind: CatalogKind,
+  body: unknown,
+): Readonly<{ doc: unknown; confirmed: boolean }> {
+  if (!isConfirmable(kind) || typeof body !== "object" || body === null || Array.isArray(body)) {
+    return { doc: body, confirmed: false };
+  }
+  const { confirmed, ...doc } = body as Record<string, unknown>;
+  return { doc, confirmed: parse(confirmation, { confirmed }).confirmed === true };
+}
+
+function invalidBody(issues: readonly z.core.$ZodIssue[]) {
+  return invalidCatalog({
+    issues: issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),
+  });
+}
 
 function registerCatalog(
   scope: FastifyInstance,
@@ -77,36 +109,40 @@ function registerCatalog(
 
   scope.put(`${catalog.path}${idPath}`, write, async (request, reply) => {
     const id = idOf(request.params);
-    const checked = docSchemaOf(kind).safeParse(request.body);
+    const { doc, confirmed } = splitConfirmed(kind, request.body);
+    const checked = docSchemaOf(kind).safeParse(doc);
     if (!checked.success) {
-      throw invalidCatalog({
-        issues: checked.error.issues.map((issue) => ({
-          path: issue.path.join("."),
-          message: issue.message,
-        })),
-      });
+      throw invalidBody(checked.error.issues);
     }
     const caller = await throttled(deps, request, reply, CONSOLE_CATALOG_WRITE_LIMIT);
     const row = await saveCatalog(deps.pool, caller, kind, {
       id,
       input: checked.data,
       requestId: request.id,
+      confirmed,
     });
     return catalog.names === undefined ? row : { [catalog.names.one]: row };
   });
 
   scope.post(`${catalog.path}${idPath}/revert`, revert, async (request, reply) => {
     const id = idOf(request.params);
-    parse(z.strictObject({}), request.body ?? {});
+    const { confirmed } = parse(
+      isConfirmable(kind) ? confirmation : noConfirmation,
+      request.body ?? {},
+    );
     const caller = await throttled(deps, request, reply, CONSOLE_CATALOG_WRITE_LIMIT);
-    const row = await revertCatalog(deps.pool, caller, kind, { id, requestId: request.id });
+    const row = await revertCatalog(deps.pool, caller, kind, {
+      id,
+      requestId: request.id,
+      confirmed: confirmed === true,
+    });
     return catalog.names === undefined ? row : { [catalog.names.one]: row };
   });
 }
 
 /**
- * The console's catalog editors (T-709b, FR-1403): event templates, achievements, level titles and the gem shop. Each is a
- * list, a save and a revert, registered inside the console scope whose hook answers 404 to anyone but an active platform
+ * The console's catalog editors (T-709b, T-709c, FR-1403): event templates, achievements (names and thresholds), level
+ * titles, the gem shop and the XP and gem amounts. Each is a list, a save and a revert, registered inside the console scope whose hook answers 404 to anyone but an active platform
  * admin; every door re-reads the admin in the database. A save is checked against the editor's schema here and again by
  * the door, and is audited with the fields before and after; a revert is the same save with the earlier fields.
  */

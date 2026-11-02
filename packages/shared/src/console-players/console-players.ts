@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { ACHIEVEMENT_ID } from "#src/catalog/catalog";
+import { ACHIEVEMENT_TIERS } from "#src/questify/achievements";
 
 /**
  * The console's player tools (T-704, FR-1774, FR-1775, FR-1702): find a player, the read-only record and points
@@ -12,7 +14,7 @@ export const PLAYER_SEARCH_BY = ["username", "phone", "email"] as const;
 export type PlayerSearchBy = (typeof PLAYER_SEARCH_BY)[number];
 
 /**
- * The reason codes each action accepts (`player_action_note` in migration 0120 holds the same lists). A ban's code is
+ * The reason codes each action accepts (`player_action_note` in migration 0122 holds the same lists). A ban's code is
  * what the banned player is shown (FR-1417, T-705); every other code is internal.
  */
 export const PLAYER_ACTION_REASONS = {
@@ -21,6 +23,8 @@ export const PLAYER_ACTION_REASONS = {
   reset_sign_in: ["lost_access", "compromised", "locked_out", "other"],
   ban: ["cheating", "abuse", "spam", "prize_fraud", "terms"],
   lift_ban: ["appeal_upheld", "mistake", "other"],
+  revoke_tiers: ["cheating", "prize_fraud", "abuse", "other"],
+  restore_tiers: ["appeal_upheld", "mistake", "other"],
 } as const;
 export const BAN_REASONS = PLAYER_ACTION_REASONS.ban;
 export type BanReason = (typeof BAN_REASONS)[number];
@@ -103,6 +107,15 @@ const actionEntry = z.strictObject({
   at: instant,
 });
 
+/** One earned achievement tier of the player, and whether an admin revoked it (T-709c). */
+const tierEntry = z.strictObject({
+  id: z.string(),
+  name: z.strictObject({ ar: z.string(), en: z.string() }),
+  tier: z.enum(ACHIEVEMENT_TIERS),
+  revoked: z.boolean(),
+});
+export type PlayerTier = z.infer<typeof tierEntry>;
+
 /** An account that is not erased: everything the record shows, read-only. */
 export const playerRecordSchema = z.strictObject({
   player: z.strictObject({
@@ -121,6 +134,7 @@ export const playerRecordSchema = z.strictObject({
     .nullable(),
   usernames: z.array(usernameEntry),
   events: z.array(eventEntry),
+  achievements: z.array(tierEntry),
   flags: z.array(flagEntry),
   reports: z.array(reportEntry),
   sessions: z.number().int().min(0),
@@ -173,6 +187,24 @@ export const ledgerAnswerSchema = z.strictObject({
   entries: ledgerPageSchema,
   nextCursor: z.number().int().nullable(),
 });
+/** The most tiers one revoke or restore names (`tier_list` in migration 0122). */
+export const TIER_CHANGE_MAX = 15;
+/** The tiers a revoke or a restore names: 1 to 15, none twice. */
+export const tierChangeListSchema = z
+  .array(
+    z.strictObject({
+      achievementId: z.string().regex(ACHIEVEMENT_ID),
+      tier: z.enum(ACHIEVEMENT_TIERS),
+    }),
+  )
+  .min(1)
+  .max(TIER_CHANGE_MAX)
+  .refine(
+    (tiers) => new Set(tiers.map((t) => `${t.achievementId}:${t.tier}`)).size === tiers.length,
+    { message: "a tier is named twice" },
+  );
+export type TierChange = z.infer<typeof tierChangeListSchema>[number];
+
 /** What `POST /v1/admin/players/:playerId/reset-sign-in` answers. */
 export const resetAnswerSchema = z.strictObject({
   actionId: z.uuid(),

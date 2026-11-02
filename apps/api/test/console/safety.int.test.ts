@@ -15,6 +15,7 @@ type Method = "GET" | "POST" | "DELETE";
 
 const BAN = { reasonCode: "spam", note: "Sent the same invite link to every player." };
 const LIFT = { reasonCode: "mistake", note: "Wrong account, the spammer was another one." };
+const TIERS = { tiers: [{ achievementId: "events-attended", tier: "bronze" }] };
 
 /**
  * The console's safety tools over HTTP (T-705): ban and lift, the word lists and the retired names. 404 to everyone but
@@ -75,6 +76,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console safety tools over HTTP
       ["DELETE", "/v1/admin/words/gnarl"],
       ["GET", "/v1/admin/retired-usernames"],
       ["POST", "/v1/admin/retired-usernames/release", { username: "anyone" }],
+      ["POST", `/v1/admin/players/${playerId}/achievement-tiers/revoke`, { ...TIERS, ...BAN }],
+      ["POST", `/v1/admin/players/${playerId}/achievement-tiers/restore`, { ...TIERS, ...LIFT }],
     ];
     for (const [method, url, payload] of paths) {
       expect((await call(method, url, memberCookie, payload)).statusCode, url).toBe(404);
@@ -111,6 +114,64 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console safety tools over HTTP
     ).toMatchObject({ code: "not_banned" });
     expect(
       (await call("POST", `/v1/admin/players/${randomUUID()}/ban`, admin(), BAN)).statusCode,
+    ).toBe(404);
+    expect(lines.join("\n")).not.toContain(BAN.note);
+  });
+
+  it("revokes and restores a banned player's tiers with a reason, once each, and shows them on the record", async () => {
+    const target = await newPlayer();
+    await owner("INSERT INTO player_xp (player_id) VALUES ($1) ON CONFLICT DO NOTHING", [target]);
+    await owner(
+      "INSERT INTO achievement_earned (player_id, achievement_id, tier) VALUES ($1, 'events-attended', 'bronze')",
+      [target],
+    );
+    const revoke = `/v1/admin/players/${target}/achievement-tiers/revoke`;
+    const restore = `/v1/admin/players/${target}/achievement-tiers/restore`;
+    const revokeBody = { ...TIERS, reasonCode: "cheating", note: BAN.note };
+    expect((await call("POST", revoke, admin(), revokeBody)).json()).toMatchObject({
+      code: "not_banned",
+    });
+    await call("POST", `/v1/admin/players/${target}/ban`, admin(), BAN);
+    for (const bad of [
+      { ...revokeBody, reasonCode: "terms" },
+      { ...revokeBody, tiers: [] },
+      { ...revokeBody, tiers: [...TIERS.tiers, ...TIERS.tiers] },
+      { ...revokeBody, tiers: [{ achievementId: "events-attended", tier: "platinum" }] },
+    ]) {
+      expect((await call("POST", revoke, admin(), bad)).statusCode, JSON.stringify(bad)).toBe(400);
+    }
+    expect(
+      (
+        await call("POST", revoke, admin(), {
+          ...revokeBody,
+          tiers: [{ achievementId: "quests-done", tier: "gold" }],
+        })
+      ).json(),
+    ).toMatchObject({ code: "tier_not_earned" });
+    const done = await call("POST", revoke, admin(), revokeBody);
+    expect(done.statusCode).toBe(200);
+    expect(banAnswerSchema.parse(done.json()).actionId).toMatch(/^[0-9a-f-]{36}$/);
+    expect((await call("POST", revoke, admin(), revokeBody)).json()).toMatchObject({
+      code: "tier_already_revoked",
+    });
+    const record = (await call("GET", `/v1/admin/players/${target}`, admin())).json();
+    expect(record.achievements).toEqual([
+      { id: "events-attended", name: expect.any(Object), tier: "bronze", revoked: true },
+    ]);
+    const restoreBody = { ...TIERS, ...LIFT };
+    expect((await call("POST", restore, admin(), restoreBody)).statusCode).toBe(200);
+    expect((await call("POST", restore, admin(), restoreBody)).json()).toMatchObject({
+      code: "tier_not_revoked",
+    });
+    expect(
+      (
+        await call(
+          "POST",
+          `/v1/admin/players/${randomUUID()}/achievement-tiers/restore`,
+          admin(),
+          restoreBody,
+        )
+      ).statusCode,
     ).toBe(404);
     expect(lines.join("\n")).not.toContain(BAN.note);
   });

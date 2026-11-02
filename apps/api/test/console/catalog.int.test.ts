@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   achievementsAdminListSchema,
+  amountsAdminSchema,
   gemShopAdminListSchema,
   levelTitlesAdminSchema,
   templatesAdminListSchema,
@@ -33,7 +34,7 @@ const docOf = (template: TemplateAdmin): Json => ({
 const title = (levelFrom: number, ar: string, en: string) => ({ levelFrom, name: { ar, en } });
 
 /**
- * The console's catalog editors over HTTP (T-709b, FR-1403): admin-only (404 to everyone else), every body checked by the
+ * The console's catalog editors over HTTP (T-709b, T-709c, FR-1403): admin-only (404 to everyone else), every body checked by the
  * shared schema before the door, a save audited with the fields before and after, and a revert that puts the earlier fields
  * back through the same checks and can itself be reverted.
  */
@@ -119,6 +120,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
         ["GET", "/v1/admin/catalog/gem-shop"],
         ["PUT", "/v1/admin/catalog/gem-shop/shop-map-reader", {}],
         ["POST", "/v1/admin/catalog/gem-shop/shop-map-reader/revert", {}],
+        ["GET", "/v1/admin/catalog/amounts"],
+        ["PUT", "/v1/admin/catalog/amounts", {}],
+        ["POST", "/v1/admin/catalog/amounts/revert", {}],
       ];
       for (const cookie of [memberCookie, strangerCookie]) {
         for (const [method, url, payload] of paths) {
@@ -264,47 +268,96 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
   });
 
   describe("achievements", () => {
-    it("saves a name, never a threshold, and reverts", async () => {
+    const URL = "/v1/admin/catalog/achievements/quests-done";
+
+    it("saves a name and a raise, answers 409 with the gems for a lowering until confirmed, and reverts", async () => {
       const list = achievementsAdminListSchema.parse(
         (await admin("GET", "/v1/admin/catalog/achievements")).json(),
       ).achievements;
       expect(list).toHaveLength(5);
       const original = list.find((row) => row.id === "quests-done");
-      const edit = { name: { ar: "صائد المهام", en: "Quest Hunter Pro" } };
-      const saved = await admin("PUT", "/v1/admin/catalog/achievements/quests-done", edit);
+      const doc = {
+        name: { ar: "صائد المهام", en: "Quest Hunter Pro" },
+        bronze: original?.bronze,
+        silver: (original?.silver ?? 0) + 10,
+        gold: original?.gold,
+      };
+      const saved = await admin("PUT", URL, doc);
       expect(saved.statusCode).toBe(200);
-      expect(saved.json()).toMatchObject({
-        achievement: {
-          id: "quests-done",
-          name: edit.name,
-          bronze: original?.bronze,
-          silver: original?.silver,
-          gold: original?.gold,
-          revertible: true,
-        },
+      expect(saved.json()).toMatchObject({ achievement: { ...doc, revertible: true } });
+      const lower = { ...doc, bronze: 1, gold: (original?.gold ?? 0) - 1 };
+      const asked = await admin("PUT", URL, lower);
+      expect(asked.statusCode).toBe(409);
+      expect(asked.json()).toMatchObject({
+        code: "confirmation_required",
+        details: { gems: { bronze: 10, gold: 50 } },
       });
-      for (const extra of [
-        { bronze: 15 },
-        { bronze: original?.bronze, silver: original?.silver, gold: original?.gold },
-      ]) {
-        const refused = await admin("PUT", "/v1/admin/catalog/achievements/quests-done", {
-          ...edit,
-          ...extra,
-        });
-        expect(refused.statusCode, JSON.stringify(extra)).toBe(422);
-      }
-      const reverted = await admin("POST", "/v1/admin/catalog/achievements/quests-done/revert", {});
-      expect(reverted.json()).toMatchObject({
-        achievement: {
-          name: original?.name,
-          bronze: original?.bronze,
-          silver: original?.silver,
-          gold: original?.gold,
-        },
-      });
+      expect((await admin("PUT", URL, { ...lower, confirmed: false })).statusCode).toBe(409);
+      const paid = await admin("PUT", URL, { ...lower, confirmed: true });
+      expect(paid.json()).toMatchObject({ achievement: { bronze: 1 } });
+      const revertAsk = await admin("POST", `${URL}/revert`, {});
+      expect(revertAsk.statusCode).toBe(200);
+      expect(revertAsk.json()).toMatchObject({ achievement: { bronze: original?.bronze } });
+      const undoRaise = await admin("POST", `${URL}/revert`, {});
+      expect(undoRaise.statusCode).toBe(409);
+      expect(undoRaise.json()).toMatchObject({ details: { gems: { bronze: 10, gold: 50 } } });
+      expect((await admin("POST", `${URL}/revert`, { confirmed: true })).statusCode).toBe(200);
       expect(
-        (await admin("PUT", "/v1/admin/catalog/achievements/nothing-here", edit)).statusCode,
+        (await admin("PUT", "/v1/admin/catalog/achievements/nothing-here", doc)).statusCode,
       ).toBe(404);
+    });
+
+    it.each([
+      { bronze: 5, silver: 5, gold: 10 },
+      { bronze: 0, silver: 5, gold: 10 },
+      { bronze: 1.5, silver: 5, gold: 10 },
+      { bronze: 1, silver: 5 },
+      { bronze: 1, silver: 5, gold: 10, confirmed: "yes" },
+      { bronze: 1, silver: 5, gold: 10, threshold: 2 },
+    ])("refuses %j before the door", async (extra) => {
+      const refused = await admin("PUT", URL, { name: { ar: "مهام", en: "Quests" }, ...extra });
+      expect(refused.statusCode, JSON.stringify(extra)).toBeGreaterThanOrEqual(400);
+      expect(refused.statusCode, JSON.stringify(extra)).toBeLessThan(500);
+    });
+
+    it("takes no confirmation on another editor's revert", async () => {
+      const refused = await admin("POST", "/v1/admin/catalog/level-titles/revert", {
+        confirmed: true,
+      });
+      expect(refused.statusCode).toBe(400);
+    });
+  });
+
+  describe("amounts", () => {
+    const URL = "/v1/admin/catalog/amounts";
+
+    it("reads the amounts in force, saves a change with its audit, refuses one out of range, and reverts", async () => {
+      const shown = amountsAdminSchema.parse((await admin("GET", URL)).json());
+      expect(shown).toMatchObject({
+        xp: { questXp: 100, dailyFinishXp: 20, dailyRightXp: 10, dailyWordXp: 50 },
+        gems: { levelUp: 20, bronze: 10, silver: 25, gold: 50 },
+        stored: { xp: true, gems: false },
+        revertible: false,
+      });
+      const doc = { xp: shown.xp, gems: { ...shown.gems, levelUp: 30 } };
+      const saved = await admin("PUT", URL, doc);
+      expect(saved.statusCode).toBe(200);
+      expect(saved.json()).toMatchObject({ ...doc, stored: { gems: true }, revertible: true });
+      const [entry] = await audits("catalog.amounts.update", "amounts");
+      expect(entry).toMatchObject({ actor_id: adminId, after: doc });
+      for (const bad of [
+        { ...doc, gems: { ...doc.gems, levelUp: 1001 } },
+        { ...doc, xp: { ...doc.xp, dailyWordXp: 1001 } },
+        { ...doc, gems: { ...doc.gems, extra: 1 } },
+        { xp: doc.xp },
+      ]) {
+        expect((await admin("PUT", URL, bad)).statusCode, JSON.stringify(bad)).toBe(422);
+      }
+      const key = randomUUID();
+      const reverted = await admin("POST", `${URL}/revert`, {}, key);
+      expect(reverted.json()).toMatchObject({ gems: { levelUp: 20 } });
+      expect((await admin("POST", `${URL}/revert`, {}, key)).json()).toEqual(reverted.json());
+      expect((await audits("catalog.amounts.revert", "amounts")).length).toBe(1);
     });
   });
 

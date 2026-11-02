@@ -203,6 +203,52 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
+  it("keeps the tier revoke closed: two doors for the API's role alone, the marks with no grant (T-709c)", async () => {
+    const doors = ["admin_restore_tiers", "admin_revoke_tiers"];
+    const internals = [
+      "achievement_revocation_guard",
+      "admin_tier_change",
+      "console_player_tiers",
+      "tier_list",
+      "tier_revoked",
+    ];
+    const listed = [...doors, ...internals].map((name) => `'${name}'`).join(", ");
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider, prosecdef AS definer
+        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${listed})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(
+      [...doors, ...internals].toSorted(),
+    );
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+    }
+    const tiers = `'[{"achievementId": "quests-done", "tier": "bronze"}]'`;
+    for (const sql of [
+      `SELECT * FROM public.admin_revoke_tiers(gen_random_uuid(), ${tiers}, 'cheating', 'A note long enough', gen_random_uuid())`,
+      `SELECT * FROM public.admin_restore_tiers(gen_random_uuid(), ${tiers}, 'mistake', 'A note long enough', gen_random_uuid())`,
+      "SELECT * FROM public.achievement_revocation",
+      "INSERT INTO public.achievement_revocation (player_id, achievement_id, tier, change) VALUES (gen_random_uuid(), 'quests-done', 'bronze', 'revoke')",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+    expect(
+      await rows(
+        `SELECT grantee, privilege_type FROM information_schema.role_table_grants
+         WHERE table_name = 'achievement_revocation' AND grantee <> 'postgres'`,
+      ),
+    ).toEqual([]);
+  });
+
   it("keeps the safety tools closed: eleven doors for the API's role alone, one table with no grant (T-705)", async () => {
     const doors = [
       "admin_ban_player",
@@ -384,10 +430,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
-  it("keeps the catalog editors closed: eight doors for the API's role alone, internals for nobody (T-709b)", async () => {
+  it("keeps the catalog editors closed: ten doors for the API's role alone, internals for nobody (T-709b, T-709c)", async () => {
     const doors = [
       "admin_achievement_save",
       "admin_achievements",
+      "admin_amounts",
+      "admin_amounts_save",
       "admin_level_titles",
       "admin_level_titles_save",
       "admin_shop_item_save",
@@ -396,7 +444,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "admin_templates",
     ];
     const internals = [
+      "achievement_threshold",
       "admin_achievement_doc",
+      "admin_amounts_doc",
+      "amount_field_ok",
+      "amounts_group",
       "admin_shop_item_doc",
       "admin_level_titles_doc",
       "admin_template_doc",
@@ -428,7 +480,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "SELECT public.admin_templates()",
       `SELECT public.admin_template_save('conference', '{}', NULL, ${request})`,
       "SELECT public.admin_achievements()",
-      `SELECT public.admin_achievement_save('quests-done', '{}', NULL, ${request})`,
+      `SELECT public.admin_achievement_save('quests-done', '{}', NULL, true, ${request})`,
+      "SELECT public.admin_amounts()",
+      `SELECT public.admin_amounts_save('{}', NULL, ${request})`,
       "SELECT public.admin_level_titles()",
       `SELECT public.admin_level_titles_save('{}', NULL, ${request})`,
       "SELECT public.admin_shop_items()",

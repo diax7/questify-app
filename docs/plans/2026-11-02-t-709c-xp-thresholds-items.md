@@ -248,3 +248,17 @@ HTTP (`test/console/catalog` extended, `test/console/players` extended): 404/401
 
 Streak milestone XP (`questify_streak_milestone` is append-only; T-703, Q-400), a gem correction source (ADR-285),
 deleting items, revoking for players who are not banned, new renderers for item art.
+
+## Build notes, part 1 (2026-11-02)
+
+- The tier doors answer an outcome row (`changed`, `not_banned`, `not_earned`, `already_revoked`, `not_revoked`) and
+  write nothing unless `changed`, as `admin_ban_player` / `admin_lift_ban` do, instead of raising PA409; the API maps each
+  to a 409 code. PA400 (reason, note or tier list) and PA404 are raised as planned.
+- `achievement_revocation.action_id` is `ON DELETE SET NULL`: erasure deletes the player's `player_admin_action` rows, so
+  the mark is kept with its action emptied (the guard lets that one change through, under the erasure flag only).
+- The CHECKs on `platform_setting` spell each field out instead of calling `amount_field_ok`: a CHECK runs with the
+  writer's rights, and the API's role holds EXECUTE on no internal function.
+- The tier routes live in `apps/api/src/console/players/tiers.ts` (beside the other player doors), not
+  `apps/api/src/console/players-tiers.ts`.
+- `daily_xp_field()` keeps its range branch, unreachable now behind the new CHECK (only `gem_amount()` was named by the
+  review); a follow-up.

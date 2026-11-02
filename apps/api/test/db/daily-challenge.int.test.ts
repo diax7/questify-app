@@ -250,18 +250,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily challenge (database)
     }
   });
 
-  it("pays at most 1000 XP with every field at its maximum, and a field out of range falls back (MAJOR-3)", async () => {
+  it("pays at most 1000 XP with every field at its maximum, and a field out of range is refused on write (MAJOR-3)", async () => {
     const { picked, challenge } = await f.challengeToday();
     await f.xpSetting({ dailyFinishXp: 400, dailyRightXp: 200 });
     try {
       const top = await f.newPlayer();
       expect((await playAll(top, challenge.id, picked)).finished).toEqual({ correct: 3, xp: 1000 });
-      await f.xpSetting({ dailyFinishXp: 401, dailyRightXp: "7" });
-      const fallback = await f.newPlayer();
-      expect((await playAll(fallback, challenge.id, picked)).finished).toEqual({
-        correct: 3,
-        xp: 50,
-      });
+      for (const bad of [{ dailyFinishXp: 401 }, { dailyRightXp: "7" }, { dailyRightXp: 201 }]) {
+        await expect(f.xpSetting(bad), JSON.stringify(bad)).rejects.toMatchObject({
+          code: "23514",
+        });
+      }
       await f.xpSetting({ dailyFinishXp: 0, dailyRightXp: 0 });
       const nothing = await f.newPlayer();
       expect((await playAll(nothing, challenge.id, picked)).finished).toEqual({

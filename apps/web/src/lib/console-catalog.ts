@@ -1,7 +1,12 @@
 import {
+  GEM_AMOUNTS,
   TEMPLATE_KEY,
+  XP_AMOUNTS,
   achievementDocSchema,
   achievementsAdminListSchema,
+  amountsAdminSchema,
+  amountsDocSchema,
+  loweredGemsSchema,
   gemShopAdminListSchema,
   gemShopDocSchema,
   levelTitlesAdminSchema,
@@ -10,20 +15,26 @@ import {
   templateDocSchema,
   templatesAdminListSchema,
   type AchievementAdmin,
+  type AmountGroup,
+  type AmountsAdmin,
+  type AmountsDoc,
   type GemShopItemAdmin,
+  type LoweredGems,
+  type MessageKey,
   type LevelTitlesAdmin,
   type TemplateDoc,
   type TemplateAdmin,
 } from "@questify/shared";
 
-/** The console's catalog editors (T-709b, FR-1403): templates, achievements, level titles and the gem shop. */
+/** The console's catalog editors (T-709b, T-709c, FR-1403): templates, achievements, level titles, the shop, amounts. */
 export const CATALOG_API = "/v1/admin/catalog";
 export const TEMPLATES_API = `${CATALOG_API}/templates`;
 export const ACHIEVEMENTS_API = `${CATALOG_API}/achievements`;
 export const LEVEL_TITLES_API = `${CATALOG_API}/level-titles`;
 export const GEM_SHOP_API = `${CATALOG_API}/gem-shop`;
+export const AMOUNTS_API = `${CATALOG_API}/amounts`;
 
-export const CATALOG_TABS = ["templates", "achievements", "levels", "shop"] as const;
+export const CATALOG_TABS = ["templates", "achievements", "levels", "shop", "amounts"] as const;
 export type CatalogTab = (typeof CATALOG_TABS)[number];
 
 /** The API path of one row of a catalog; every id is checked by the API's own pattern, and escaped all the same. */
@@ -47,6 +58,23 @@ export function readLevelTitles(body: unknown): LevelTitlesAdmin | undefined {
 export function readGemShop(body: unknown): GemShopItemAdmin[] | undefined {
   const parsed = gemShopAdminListSchema.safeParse(body);
   return parsed.success ? parsed.data.items : undefined;
+}
+export function readAmounts(body: unknown): AmountsAdmin | undefined {
+  const parsed = amountsAdminSchema.safeParse(body);
+  return parsed.success ? parsed.data : undefined;
+}
+
+/**
+ * The gems a lowering would pay, when the API refused it for want of a confirmation (409 `confirmation_required`), or
+ * undefined for any other answer.
+ */
+export function loweredGemsOf(body: unknown): LoweredGems | undefined {
+  const answer = body as { code?: unknown; details?: { gems?: unknown } } | null | undefined;
+  if (answer?.code !== "confirmation_required") {
+    return undefined;
+  }
+  const parsed = loweredGemsSchema.safeParse(answer.details?.gems);
+  return parsed.success ? parsed.data : undefined;
 }
 
 /** The result of checking what an admin typed: the document to send, or the fields that are wrong. */
@@ -169,18 +197,83 @@ export function templateCounts(
 
 // ---------------------------------------------------------------- achievements
 
-/** An achievement's name is all that is edited; its tier thresholds are shown, never typed (T-709c). */
-export type AchievementDraft = Readonly<{ name: Pair }>;
+export const TIERS = ["bronze", "silver", "gold"] as const;
+type Tier = (typeof TIERS)[number];
+
+/** An achievement's name and its three tier thresholds, as typed (T-709c). */
+export type AchievementDraft = Readonly<{ name: Pair } & Record<Tier, string>>;
 
 export const achievementDraftOf = (row: AchievementAdmin): AchievementDraft => ({
   name: row.name,
+  bronze: String(row.bronze),
+  silver: String(row.silver),
+  gold: String(row.gold),
 });
 
 export const checkAchievement = (draft: AchievementDraft) =>
-  checked(achievementDocSchema, { name: draft.name });
+  checked(achievementDocSchema, {
+    name: draft.name,
+    bronze: wholeNumber(draft.bronze),
+    silver: wholeNumber(draft.silver),
+    gold: wholeNumber(draft.gold),
+  });
 
 export const isAchievementDirty = (row: AchievementAdmin, draft: AchievementDraft): boolean =>
-  draft.name.ar.trim() !== row.name.ar || draft.name.en.trim() !== row.name.en;
+  draft.name.ar.trim() !== row.name.ar ||
+  draft.name.en.trim() !== row.name.en ||
+  TIERS.some((tier) => draft[tier].trim() !== String(row[tier]));
+
+// ---------------------------------------------------------------- the amounts
+
+type Fields<Names extends readonly string[]> = Readonly<Record<Names[number], string>>;
+
+/** The XP and gem amounts as typed (T-709c). */
+export type AmountsDraft = Readonly<{
+  xp: Fields<typeof XP_AMOUNTS>;
+  gems: Fields<typeof GEM_AMOUNTS>;
+}>;
+
+const textOf = <Names extends readonly string[]>(
+  names: Names,
+  values: Readonly<Record<string, number>>,
+): Fields<Names> =>
+  Object.fromEntries(names.map((name) => [name, String(values[name])])) as Fields<Names>;
+const numbersOf = (values: Readonly<Record<string, string>>): Record<string, number> =>
+  Object.fromEntries(Object.entries(values).map(([name, text]) => [name, wholeNumber(text)]));
+
+export const amountsDraftOf = (row: AmountsAdmin): AmountsDraft => ({
+  xp: textOf(XP_AMOUNTS, row.xp),
+  gems: textOf(GEM_AMOUNTS, row.gems),
+});
+
+export const checkAmounts = (draft: AmountsDraft) =>
+  checked(amountsDocSchema, { xp: numbersOf(draft.xp), gems: numbersOf(draft.gems) });
+
+/** The words of one amount; every amount has them (console-catalog.test). */
+export const amountLabel = (group: AmountGroup, field: string): MessageKey =>
+  `console.catalog.amounts.${group}.${field}` as MessageKey;
+
+/** One amount the save changes, for the confirmation's lines. */
+export type AmountChange = Readonly<{
+  group: AmountGroup;
+  field: string;
+  from: number;
+  to: number;
+}>;
+
+/** Every amount the document changes from the stored ones, XP first, each group in its own order. */
+export function amountChanges(row: AmountsAdmin, doc: AmountsDoc): AmountChange[] {
+  const of = (group: AmountGroup, names: readonly string[]): AmountChange[] =>
+    names
+      .map((field) => ({
+        group,
+        field,
+        from: (row[group] as Readonly<Record<string, number>>)[field] ?? 0,
+        to: (doc[group] as Readonly<Record<string, number>>)[field] ?? 0,
+      }))
+      .filter((change) => change.from !== change.to);
+  return [...of("xp", XP_AMOUNTS), ...of("gems", GEM_AMOUNTS)];
+}
 
 // ---------------------------------------------------------------- level titles
 

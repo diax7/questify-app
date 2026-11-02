@@ -844,9 +844,15 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/admin/catalog/achievements":
     "active platform admins only (walked below); read only; the five achievements with thresholds and names; the admin checked again in admin_achievements (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog)",
   "PUT /v1/admin/catalog/achievements/:id":
-    "active platform admins only (walked below); one achievement's name only, never its thresholds (a lower one would pay gems at the next sync: T-709c); admin_achievement_save checks the admin again (QE403, CA400, CA404); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog)",
+    "active platform admins only (walked below); one achievement's name and rising thresholds; a lowering pays gems at the next sync and is refused (409 confirmation_required, the gems named) unless confirmed; admin_achievement_save checks the admin again (QE403, CA400, CA404, CA428); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
   "POST /v1/admin/catalog/achievements/:id/revert":
-    "active platform admins only (walked below); puts back the before of the achievement's latest catalog audit entry through admin_achievement_save (the door re-reads it under the row lock, CA409 when stale), audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog)",
+    "active platform admins only (walked below); puts back the before of the achievement's latest catalog audit entry through admin_achievement_save (the door re-reads it under the row lock, CA409 when stale; a revert that lowers needs confirmed), never removes an earned tier or a gem; audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
+  "GET /v1/admin/catalog/amounts":
+    "active platform admins only (walked below); read only; the XP and gem amounts in force and whether each row is stored; the admin checked again in admin_amounts (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog-xp)",
+  "PUT /v1/admin/catalog/amounts":
+    "active platform admins only (walked below); the xp and gems settings as one document, each amount in its range (the shared schema, then admin_amounts_save and the table's CHECKs: QE403, CA400); the generic settings writer cannot write these keys; audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
+  "POST /v1/admin/catalog/amounts/revert":
+    "active platform admins only (walked below); puts back the amounts before the latest change through admin_amounts_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
   "GET /v1/admin/catalog/level-titles":
     "active platform admins only (walked below); read only; the level titles; the admin checked again in admin_level_titles (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog)",
   "PUT /v1/admin/catalog/level-titles":
@@ -873,6 +879,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); admin_reset_player_sign_in re-reads the admin, reason required; only removes access (tokens, codes, push devices, the cutoff; the contacts' code throttles cleared); returns no code, contact or token; Idempotency-Key, audited (ids only); 30 an hour per admin with renames (test/console/players, test/db/console-players)",
   "POST /v1/admin/players/:playerId/ban":
     "active platform admins only (walked below); admin_ban_player re-reads the admin, a ban reason code and a note (PA400), the player locked, every way in ended, rankings repaired; never automatic, the only writer of banned with the lift; Idempotency-Key, audited (ids only); 20 an hour per admin with lifts (test/console/safety, test/db/player-safety)",
+  "POST /v1/admin/players/:playerId/achievement-tiers/revoke":
+    "active platform admins only (walked below); admin_revoke_tiers re-reads the admin, a reason code and a note (PA400), 1 to 15 earned tiers of a banned player; the player and its XP row locked; an append-only mark, the earned rows and paid gems untouched; Idempotency-Key, audited (ids and tiers only); 30 an hour per admin with player changes (test/console/safety, test/db/console-catalog-xp)",
+  "POST /v1/admin/players/:playerId/achievement-tiers/restore":
+    "active platform admins only (walked below); admin_restore_tiers re-reads the admin, a reason code and a note (PA400), 1 to 15 revoked tiers; unpaid gems are paid at the next sync; Idempotency-Key, audited (ids and tiers only); 30 an hour per admin with player changes (test/console/safety, test/db/console-catalog-xp)",
   "POST /v1/admin/players/:playerId/lift-ban":
     "active platform admins only (walked below); admin_lift_ban re-reads the admin, a reason code and a note; restores the account, the token cutoff stays; Idempotency-Key, audited (ids only); 20 an hour per admin with bans (test/console/safety, test/db/player-safety)",
   "GET /v1/admin/words":

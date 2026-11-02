@@ -129,6 +129,7 @@ const QUESTIFY_LEVEL: Readonly<Record<string, string>> = {
   "console.questify.secondInterests": "Questify's own quests on the console, not an event's word",
   "console.questify.targetFixed": "Questify's own quests on the console, not an event's word",
   "console.questify.invalid.metric": "Questify's own quests on the console, not an event's word",
+  "console.catalog.amounts.xp.questXp": "Questify's XP amount on the console, not an event's word",
 };
 
 describe("the dashboard's source", () => {

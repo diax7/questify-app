@@ -256,18 +256,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("gems: the ledger and the sync 
     ]);
   });
 
-  it("reads each amount from the setting only when it is an integer 1 to 1000, else falls back", async () => {
+  it("falls back only when the row is missing, and reads a stored row's amounts", async () => {
     expect(await amounts()).toEqual({ level_up: 20, bronze: 10, silver: 25, gold: 50 });
-    await withAmounts({ levelUp: 7, bronze: 0, silver: 1001, gold: 2.5 }, async () => {
-      expect(await amounts()).toEqual({ level_up: 7, bronze: 10, silver: 25, gold: 50 });
+    await withAmounts({ levelUp: 7, bronze: 1, silver: 1000, gold: 50 }, async () => {
+      expect(await amounts()).toEqual({ level_up: 7, bronze: 1, silver: 1000, gold: 50 });
       const player = await f.newPlayer();
       await f.play(await f.newEvent(), player, 2);
       await sync(player);
       expect((await bySource(player, "level")).map((row) => row.delta)).toEqual([7]);
     });
-    await withAmounts({ levelUp: "30", bronze: -5, silver: 1000, gold: null }, async () => {
-      expect(await amounts()).toEqual({ level_up: 20, bronze: 10, silver: 1000, gold: 50 });
-    });
+  });
+
+  it.each([
+    { levelUp: 7, bronze: 0, silver: 25, gold: 50 },
+    { levelUp: 7, bronze: 10, silver: 1001, gold: 50 },
+    { levelUp: 7, bronze: 10, silver: 25, gold: 2.5 },
+    { levelUp: "30", bronze: 10, silver: 25, gold: 50 },
+    { levelUp: 20, bronze: -5, silver: 25, gold: 50 },
+    { levelUp: 20, bronze: 10, silver: 25, gold: null },
+    { levelUp: 20, bronze: 10, silver: 25 },
+  ])("refuses an amount out of range on write (0122's CHECK): %j", async (value) => {
+    await expect(
+      f.owner("INSERT INTO platform_setting (key, value) VALUES ('gems', $1)", [
+        JSON.stringify(value),
+      ]),
+    ).rejects.toMatchObject({ code: "23514" });
+    expect(await amounts()).toEqual({ level_up: 20, bronze: 10, silver: 25, gold: 50 });
   });
 
   it("answers a sync with nothing due without a row lock", async () => {
