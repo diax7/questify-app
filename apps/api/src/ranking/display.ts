@@ -4,10 +4,11 @@ import type { RankingView } from "#src/ranking/ranking";
 /** A ranking row without its score: the place and the public profile details only (FR-120, FR-1832). */
 type PlaceRow = Readonly<{
   rank: number;
-  username: string;
+  username: string | null;
   fullName: string | null;
-  avatar: string;
-  equipment: Equipment;
+  avatar: string | null;
+  equipment: Equipment | null;
+  hidden: boolean;
   isMe: boolean;
 }>;
 
@@ -41,6 +42,7 @@ export function playerRanking(view: RankingView, hideScores: boolean): PlayerRan
       fullName: row.fullName,
       avatar: row.avatar,
       equipment: row.equipment,
+      hidden: row.hidden,
       isMe: row.isMe,
     })),
     me:

@@ -6,8 +6,14 @@ import { withRequestContext } from "#src/db/context";
 
 describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir serialization", () => {
   let f: Awaited<ReturnType<typeof souvenirFixture>>;
+  // Since T-705 a ban is only admin_ban_player (FOR NO KEY UPDATE on the player, as the old admin UPDATE took).
+  let seat: { isAdmin: true; staffUserId: string };
   beforeEach(async () => {
     f = await souvenirFixture();
+    const made = await f.db.owner.query<{ id: string }>(
+      "INSERT INTO staff_user (email, password_hash, platform_role, status) VALUES ('souvenir-admin@questify.test', 'h', 'admin', 'active') RETURNING id",
+    );
+    seat = { isAdmin: true, staffUserId: made.rows[0]?.id ?? "" };
     const rule = await f.create();
     await f.action(rule);
   });
@@ -21,7 +27,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir serialization", () =>
     try {
       await admin.query("BEGIN");
       await admin.query("SELECT set_config('app.is_admin','on',true)");
-      await admin.query("UPDATE player SET status='banned' WHERE id=$1", [f.ids.playerA]);
+      await admin.query("SELECT set_config('app.staff_user_id',$1,true)", [seat.staffUserId]);
+      await admin.query(
+        "SELECT * FROM admin_ban_player($1, 'cheating', 'Souvenir race test note', NULL)",
+        [f.ids.playerA],
+      );
       const pid = (await evaluator.query("SELECT pg_backend_pid() AS id")).rows[0].id;
       const granting = withRequestContext(evaluator, {}, () =>
         evaluator.query("SELECT souvenir_evaluate($1) AS n", [f.member]),
@@ -43,8 +53,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir serialization", () =>
       await evaluator.query("BEGIN");
       await evaluator.query("SELECT souvenir_evaluate($1)", [f.member]);
       const pid = (await admin.query("SELECT pg_backend_pid() AS id")).rows[0].id;
-      const banning = withRequestContext(admin, { isAdmin: true }, () =>
-        admin.query("UPDATE player SET status='banned' WHERE id=$1", [f.ids.playerA]),
+      const banning = withRequestContext(admin, seat, () =>
+        admin.query(
+          "SELECT * FROM admin_ban_player($1, 'cheating', 'Souvenir race test note', NULL)",
+          [f.ids.playerA],
+        ),
       );
       await blocked(f.db.owner, pid);
       await evaluator.query("COMMIT");
@@ -82,8 +95,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir serialization", () =>
         );
         await blocked(blocker, evalPid);
         const banPid = (await admin.query("SELECT pg_backend_pid() AS id")).rows[0].id;
-        const banning = withRequestContext(admin, { isAdmin: true }, () =>
-          admin.query("UPDATE player SET status='banned' WHERE id=$1", [f.ids.playerA]),
+        const banning = withRequestContext(admin, seat, () =>
+          admin.query(
+            "SELECT * FROM admin_ban_player($1, 'cheating', 'Souvenir race test note', NULL)",
+            [f.ids.playerA],
+          ),
         );
         await blocked(blocker, banPid);
         await f.db.owner.query("COMMIT");

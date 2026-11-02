@@ -29,6 +29,7 @@ import {
   type PendingJoin,
   type SignInState,
 } from "#src/auth/sign-in-flow.ts";
+import { BannedNotice } from "#src/auth/BannedNotice.tsx";
 import { usePlayer } from "#src/auth/player.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { pendingInviteOf } from "#src/operator/station.ts";
@@ -373,6 +374,7 @@ export default function SignInScreen() {
         {state.step === "profile" ? (
           <ProfileStep state={state} dispatch={dispatch} close={close} />
         ) : null}
+        {state.step === "banned" ? <BannedNotice notice={state.notice} /> : null}
         {state.step === "consent" ? null : (
           <Button kind="quiet" label={t("signIn.close")} onPress={close} />
         )}

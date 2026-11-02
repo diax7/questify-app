@@ -13,8 +13,10 @@ import {
 import { useState, type ReactNode } from "react";
 import { ConfirmedButton, Problem, keyed, useWrite } from "#src/components/ConsoleOversight.tsx";
 import {
+  banPath,
   codeLabel,
   contactPath,
+  liftBanPath,
   readResetAnswer,
   readRevealed,
   renamePath,
@@ -110,7 +112,7 @@ function ActionPanel({
           language={language}
           label={label}
           question={question}
-          variant={kind === "contact_reveal" ? "secondary" : "danger"}
+          variant={kind === "contact_reveal" || kind === "lift_ban" ? "secondary" : "danger"}
           disabled={busy || !ready(reason) || !extraReady}
           act={() =>
             void run(async () => {
@@ -214,6 +216,50 @@ export function RenamePanel({
         />
       </Field>
     </ActionPanel>
+  );
+}
+
+/**
+ * Bans the account or lifts its ban (FR-1416, ADR-429). The reason code of a ban is what the player is shown; the note
+ * stays internal. Never automatic: this panel and the API's two doors are the only way a standing changes.
+ */
+export function BanPanel({
+  language,
+  playerId,
+  username,
+  banned,
+  onChanged,
+}: Readonly<{
+  language: Language;
+  playerId: string;
+  username: string;
+  banned: boolean;
+  onChanged: (done: string) => void;
+}>) {
+  const t = translatorFor(language);
+  const name = `@${username}`;
+  return banned ? (
+    <ActionPanel
+      language={language}
+      kind="lift_ban"
+      title={t("console.player.lift")}
+      intro={t("console.player.lift.intro")}
+      label={t("console.player.lift")}
+      question={t("console.player.lift.confirm", { name })}
+      send={(reason) => requestJson("POST", liftBanPath(playerId), reason, keyed())}
+      onDone={() => onChanged(t("console.player.lift.done"))}
+    />
+  ) : (
+    <ActionPanel
+      language={language}
+      kind="ban"
+      title={t("console.player.ban")}
+      intro={t("console.player.ban.intro")}
+      label={t("console.player.ban")}
+      question={t("console.player.ban.confirm", { name })}
+      send={(reason) => requestJson("POST", banPath(playerId), reason, keyed())}
+      onDone={() => onChanged(t("console.player.ban.done"))}
+    />
   );
 }
 

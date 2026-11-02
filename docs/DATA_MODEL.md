@@ -72,7 +72,18 @@ to_username, created_at)`: what Questify did to an account, with the internal no
 both names (ADR-419). Append-only for every role; `erase_rows` deletes the player's rows under the erasure flag. No grant:
 written and read only by the console's admin doors. The audit log holds the same actions with ids and codes only.
 `player.tokens_valid_after` (timestamptz, NULL until the first reset): a token created at or before it is refused by
-`player_session_owner` and `rotate_player_refresh` (ADR-421); set only by `admin_reset_player_sign_in`.
+`player_session_owner` and `rotate_player_refresh` (ADR-421); set only by `admin_reset_player_sign_in` and `admin_ban_player`.
+Migration 0120 (T-705): `kind` gains `ban` and `lift_ban`; `player.ban_action_id` points at the ban in force (its reason
+code is what the player is shown; a CHECK keeps it on banned rows only; erasure clears it first). `player.status` is written
+only by `admin_ban_player` and `admin_lift_ban` (the API's role has no UPDATE on it, ADR-429). BEFORE INSERT guards on
+`ledger_entry`, `xp_entry` and `gem_entry` pay a player who is not active nothing (PB423; refunds, removals and lowerings
+pass, ADR-430).
+
+### player_block (migration 0120, T-705)
+`player_block (blocker_id, blocked_id, created_at, PRIMARY KEY (blocker_id, blocked_id), CHECK blocker <> blocked)`: a
+player's own block list (FR-1415, ADR-431), 500 at most. No grant: written by `block_player` and `unblock_player`, read by
+`own_blocks` and, through `blocked_by_me`, by the masked reads (rankings, results, Questify boards, public profile) and
+`meet_refusal`. `erase_rows` deletes the rows of an erased account in both directions.
 
 ### player_acceptance (migration 0017)
 `player_acceptance (player_id, document terms_of_use|privacy_policy|community_guidelines, version, method
@@ -1330,6 +1341,7 @@ rows or push text.
 | player_session, player_refresh, player_login_challenge (built: T-105, T-107, migration 0013), device | Access tokens (1 hour, `refresh_family`), rotating refresh tokens (180 days; a family per device, at most 10 live; reuse ends the family), one-time code challenges (the phone or email, its keyed hash for lookup, the code's HMAC, 3 tries, 3 resends, 5 minutes; the signup token's hash for 15 minutes after a right code for a new contact). No grant on the challenge and refresh tables: definer functions only. Swept: challenges an hour after expiry, ended or used tokens 7 days after; device + push token + integrity result later | The challenge holds a phone or email for minutes; tokens are stored hashed |
 | username_history, deletion_fingerprint | Old names; one-way hash of phone/email so bans survive deletion (ADR-084) | Hash only |
 | player_admin_action, username_retired (T-704) | What Questify did to an account: reason code, internal note, old and new name (deleted at erasure); retired names, folded, with no player id (kept) | Stays in Saudi Arabia; never in the audit log, a push or an error |
+| player_block (T-705) | Who a player blocked (two player ids and when); deleted at erasure in both directions | Stays in Saudi Arabia; never told to the blocked player; the blocked name is kept out of access logs |
 | marketing_consent, marketing_state (built, T-407, migration 0070) | Per-channel promotional opt-ins: an append-only dated log (channel, yes or no, method, wording version, time) and the state it writes; see below | Yes (erased with the account) |
 | legal_document | Versioned terms/privacy/guidelines/DPA | Yes |
 | staff_assignment | An operator of one event (T-204): the player, abilities (FR-908, all seven by default), `can_play` (FR-906), the invite it came from; `staff_assignment_quest` holds the quest limit (none: every quest). Written only by owner definers; removal deletes the row (audited) | Links a player |

@@ -1,6 +1,6 @@
 import { formatNumber, shownName, termFor, type Theme } from "@questify/shared";
 import { router } from "expo-router";
-import { Pressable, View } from "react-native";
+import { Pressable, View, type StyleProp, type TextStyle } from "react-native";
 import { CurrencyIcon } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
@@ -10,18 +10,24 @@ import type { ShownRow } from "#src/event/ranking.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
+/** Who a row names aloud: the username, or the full name the event shows (with the username when it shows both). */
+function spokenName(row: ShownRow): string {
+  const shown = shownName(row.fullName, row.names);
+  if (shown.fullName === null) {
+    return row.username;
+  }
+  return shown.showUsername ? `${shown.fullName} (@${row.username})` : shown.fullName;
+}
+
 /** The words a screen reader says for a row: the place, who, the score when the row has one, and the title worn. */
 export function useRowLabel(row: ShownRow): string {
   const { t, language } = useI18n();
   const terms = useTerms();
+  if (row.hidden) {
+    return t("ranking.rowLabelHidden", { rank: row.rank });
+  }
   const title = row.equipment?.title == null ? "" : `، ${row.equipment.title.name[language]}`;
-  const shown = shownName(row.fullName, row.names);
-  const who =
-    shown.fullName === null
-      ? row.username
-      : shown.showUsername
-        ? `${shown.fullName} (@${row.username})`
-        : shown.fullName;
+  const who = spokenName(row);
   if (row.score === null) {
     const key = row.isMe ? "ranking.rowLabelMeRankOnly" : "ranking.rowLabelRankOnly";
     return `${t(key, { rank: row.rank, username: who })}${title}`;
@@ -36,6 +42,42 @@ export function useRowLabel(row: ShownRow): string {
 
 export function openPlayer(username: string): void {
   router.push({ pathname: "/player/[username]", params: { username } });
+}
+
+/** What a row opens: the player's profile, or nothing for a player the reader blocked. */
+export const pressOf = (row: ShownRow): (() => void) | undefined =>
+  row.hidden ? undefined : () => openPlayer(row.username);
+
+/** The name in a row: the player's, or "Hidden name" for one the reader blocked (FR-1415). */
+export function RowName({
+  row,
+  variant,
+  suffix,
+  style,
+}: Readonly<{
+  row: ShownRow;
+  variant?: "label";
+  suffix?: string;
+  style?: StyleProp<TextStyle>;
+}>) {
+  const { t } = useI18n();
+  if (row.hidden) {
+    return (
+      <AppText {...(variant === undefined ? {} : { variant })} numberOfLines={1} style={style}>
+        {t("ranking.hiddenPlayer")}
+      </AppText>
+    );
+  }
+  return (
+    <PlayerName
+      {...(variant === undefined ? {} : { variant })}
+      username={row.username}
+      fullName={row.fullName}
+      names={row.names}
+      {...(suffix === undefined ? {} : { suffix })}
+      style={style}
+    />
+  );
 }
 
 export function RankBadge({ rank }: Readonly<{ rank: number }>) {
@@ -57,8 +99,8 @@ export function RankingRow({ row, height }: Readonly<{ row: ShownRow; height: nu
   return (
     <Pressable
       accessible
-      accessibilityRole="button"
-      onPress={() => openPlayer(row.username)}
+      accessibilityRole={row.hidden ? "text" : "button"}
+      onPress={pressOf(row)}
       accessibilityLabel={label}
       style={[styles.row, { height }, row.isMe ? styles.mine : null]}
     >
@@ -69,10 +111,8 @@ export function RankingRow({ row, height }: Readonly<{ row: ShownRow; height: nu
         size={Math.max(0, height - 8)}
         equipment={row.equipment}
       />
-      <PlayerName
-        username={row.username}
-        fullName={row.fullName}
-        names={row.names}
+      <RowName
+        row={row}
         suffix={row.equipment?.title == null ? "" : ` · ${row.equipment.title.name[language]}`}
         style={styles.grow}
       />

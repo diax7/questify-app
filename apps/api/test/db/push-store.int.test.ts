@@ -824,7 +824,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       const before = await counts();
       await f.playerWithPhone();
       expect(await counts()).toEqual(before);
-      // No database function outside the push store reads a device or a mute (erasure and the admin sign-in reset, T-704,
+      // No database function outside the push store reads a device or a mute (erasure, the admin sign-in reset, T-704, and the ban, T-705,
       // only delete them; the invitation fill reads whether a device can be pushed to pick the channel, consent still
       // from promo_pool, ADR-356 (4)).
       const readers = await f.owner<{ proname: string }>(
@@ -835,7 +835,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
         readers
           .map((row) => row.proname)
           .filter((name) => !name.startsWith("push_") && !name.endsWith("_push_topics")),
-      ).toEqual(["admin_reset_player_sign_in", "erase_rows", "invitation_candidates"]);
+      ).toEqual([
+        "admin_ban_player",
+        "admin_reset_player_sign_in",
+        "erase_rows",
+        "invitation_candidates",
+      ]);
     });
   });
 

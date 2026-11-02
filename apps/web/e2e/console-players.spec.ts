@@ -84,6 +84,13 @@ test("in English an admin finds a player, reads the record, changes the name and
   await act(page, "Reset sign-in", "Reset sign-in", "Lost their phone or email");
   await expect(page.getByText(/^Signed out on \d+ devices\.$/)).toBeVisible();
   await expect(page.getByText("Sign-in reset")).toBeVisible();
+
+  await act(page, "Ban account", "Ban account", "Cheating");
+  await expect(page.getByText("Account banned.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Lift ban" })).toBeVisible();
+  await act(page, "Lift ban", "Lift ban", "Banned by mistake");
+  await expect(page.getByText("Ban lifted.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Ban account" })).toBeVisible();
   await expectNoSidewaysScroll(page);
 });
 

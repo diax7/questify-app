@@ -247,7 +247,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
       await owner("UPDATE player SET status = 'banned' WHERE id = $1", [id]);
       const c = await challenge(phone);
       const t = tokens();
-      expect(await signIn(c, c.code, t)).toMatchObject({ outcome: "banned", player_id: null });
+      // The id lets the API read the ban notice (T-705); no token is issued.
+      expect(await signIn(c, c.code, t)).toMatchObject({ outcome: "banned", player_id: id });
       expect(
         await owner("SELECT 1 FROM player_session WHERE token_hash = $1", [sha(t.access)]),
       ).toEqual([]);

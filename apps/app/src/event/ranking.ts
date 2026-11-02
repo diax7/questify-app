@@ -15,7 +15,7 @@ export function rankingRows(ranking: Ranking): readonly ShownRow[] {
   if (me === null || ranking.rows.some((row) => row.isMe)) {
     return top;
   }
-  return [...top, { ...me, isMe: true, key: `${me.rank}:${me.username}`, names }];
+  return [...top, { ...me, isMe: true, hidden: false, key: `${me.rank}:${me.username}`, names }];
 }
 
 /** The tallest a row grows on a big phone; rows never scroll, so they shrink instead (FR-603). */

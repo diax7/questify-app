@@ -5,6 +5,7 @@ import {
   invalidCatalog,
   invalidPlayerAction,
   invalidReason,
+  invalidWord,
   notFound,
   supportBusy,
   supportMember,
@@ -26,7 +27,7 @@ export type OpenedGrant = Readonly<{
 }>;
 
 /**
- * Each refusal of the console doors (migrations 0114 and 0118) as its HTTP answer. A caller who is not an admin, and a
+ * Each refusal of the console doors (migrations 0114, 0118 and 0120) as its HTTP answer. A caller who is not an admin, and a
  * missing organizer, event, live grant or player (an erased one included), all look like nothing there (404).
  */
 const REFUSALS: Readonly<Record<string, () => HttpError>> = {
@@ -39,6 +40,7 @@ const REFUSALS: Readonly<Record<string, () => HttpError>> = {
   CA409: catalogStale,
   PA400: invalidPlayerAction,
   PA404: notFound,
+  WL400: invalidWord,
   SU409: alreadyInThatState,
   SG409: supportMember,
   SG429: tooManySupportGrants,

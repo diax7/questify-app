@@ -553,9 +553,15 @@ export type PlayerPlace = Readonly<{
   rank: number;
   /**
    * `username` is null for a deleted account (FR-1739). `fullName` is set only where the event shows full names to every
-   * player and the winner was told so when they joined (FR-1842, ADR-400).
+   * player and the winner was told so when they joined (FR-1842, ADR-400). `hidden`: a player the reader blocked keeps
+   * the place, score and prize with no username, avatar or full name (FR-1415, T-705).
    */
-  player: Readonly<{ username: string | null; fullName: string | null; avatar: string }>;
+  player: Readonly<{
+    username: string | null;
+    fullName: string | null;
+    avatar: string | null;
+    hidden: boolean;
+  }>;
   score: number;
   prize: Readonly<{ kind: PrizeKind; name: Bilingual }> | null;
   mine: boolean;
@@ -586,7 +592,8 @@ export async function resultsFor(client: PoolClient, eventId: string): Promise<P
     player: {
       username: usernameOf(row),
       fullName: typeof row["full_name"] === "string" ? row["full_name"] : null,
-      avatar: String(row["avatar"]),
+      avatar: typeof row["avatar"] === "string" ? row["avatar"] : null,
+      hidden: row["hidden"] === true,
     },
     score: Number(row["score"]),
     prize:

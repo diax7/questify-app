@@ -16,6 +16,12 @@ export type PendingJoin = Readonly<{
 
 export type Channel = "phone" | "email";
 
+/**
+ * What a banned account is told after the right code (FR-1417, FR-1606, T-705): the ban's reason code (null when none is
+ * on record) and the address appeals go to.
+ */
+export type BanNotice = Readonly<{ reason: string | null; appealEmail: string }>;
+
 type Problem = LocalizedText | null;
 
 /** What every step after the consent keeps, so an ended code or signup token can go back without losing anything. */
@@ -55,6 +61,7 @@ export type SignInState =
       }>)
   | (Carried & Readonly<{ step: "profile"; signupToken: string; problem: Problem }>)
   | Readonly<{ step: "done"; join: PendingJoin | undefined }>
+  | Readonly<{ step: "banned"; notice: BanNotice }>
   | Readonly<{ step: "closed" }>;
 
 export type SignInEvent =
@@ -77,6 +84,7 @@ export type SignInEvent =
   | Readonly<{ type: "expired"; problem: Problem }>
   | Readonly<{ type: "new_player"; signupToken: string }>
   | Readonly<{ type: "signed_in" }>
+  | Readonly<{ type: "banned"; notice: BanNotice }>
   | Readonly<{ type: "closed" }>;
 
 /** The first step: the consent, carrying the join the person tapped, if any. */
@@ -85,7 +93,9 @@ export function startSignIn(pending: PendingJoin | undefined): SignInState {
 }
 
 const pendingOf = (state: SignInState): PendingJoin | undefined =>
-  state.step === "done" || state.step === "closed" ? undefined : state.pending;
+  state.step === "done" || state.step === "closed" || state.step === "banned"
+    ? undefined
+    : state.pending;
 
 const contactStep = (
   carried: Carried,
@@ -123,6 +133,9 @@ function fromCode(state: Extract<SignInState, { step: "code" }>, event: SignInEv
     // An ended code goes back to the contact step: a new code is a new request.
     case "expired":
       return contactStep(carriedOf(state), event.problem);
+    // A banned account: the notice replaces the sign-in, and the pending join is dropped.
+    case "banned":
+      return { step: "banned", notice: event.notice };
     case "new_player":
       return {
         step: "profile",
@@ -170,12 +183,18 @@ function fromContact(
   }
 }
 
+/** Steps nothing moves on from: signed in, closed, or a banned account's notice (the screen's Close leaves it). */
+const ENDED: ReadonlySet<SignInState["step"]> = new Set(["done", "closed", "banned"]);
+const hasEnded = (
+  state: SignInState,
+): state is Extract<SignInState, { step: "done" | "closed" | "banned" }> => ENDED.has(state.step);
+
 /**
  * Moves the sign-in on. Closing drops everything, the pending join included (closing sign-in joins nothing, ADR-089);
  * signing in hands the pending join on exactly once; new versions of the terms send the person back to the consent.
  */
 export function signInStep(state: SignInState, event: SignInEvent): SignInState {
-  if (state.step === "done" || state.step === "closed") {
+  if (hasEnded(state)) {
     return state;
   }
   if (event.type === "closed") {

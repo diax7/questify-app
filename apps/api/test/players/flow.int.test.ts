@@ -7,7 +7,7 @@ import {
   createPlayerSignIn,
   type Asker,
   type PlayerSignIn,
-  type PlayerSignInDeps,
+  type PlayerSignInFlowDeps,
 } from "#src/players/sign-in";
 import {
   RecordingEmailSender,
@@ -28,7 +28,7 @@ const KEYS = createAuthKeys(testConfig().auth.secret);
 describe.skipIf(TEST_DATABASE_URL === undefined)("the player sign-in flow", () => {
   let db: TestDatabase;
   let pool: Pool;
-  let deps: PlayerSignInDeps;
+  let deps: PlayerSignInFlowDeps;
   let sms: RecordingSmsSender;
   let mail: RecordingEmailSender;
   let flow: PlayerSignIn;
@@ -46,7 +46,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the player sign-in flow", () =
   beforeEach(() => {
     sms = new RecordingSmsSender();
     mail = new RecordingEmailSender();
-    deps = { pool, keys: KEYS, sms, email: mail };
+    deps = { pool, keys: KEYS, sms, email: mail, appealEmail: "questify@nafes.test" };
     flow = createPlayerSignIn(deps);
     logged = [];
   });

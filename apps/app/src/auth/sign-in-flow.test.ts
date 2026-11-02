@@ -171,6 +171,27 @@ describe("the sign-in flow", () => {
     });
   });
 
+  it("shows a banned account its notice and drops the pending join (T-705)", () => {
+    const notice = { reason: "cheating", appealEmail: "appeals@questify.test" };
+    const banned = run(toCode(), { type: "banned", notice });
+    expect(banned).toEqual({ step: "banned", notice });
+    expect(
+      run(
+        banned,
+        { type: "signed_in" },
+        {
+          type: "code_sent",
+          contact: "x",
+          challengeToken: "t",
+          now: 0,
+          resendAfterSeconds: 1,
+          emailFallbackAfterSeconds: null,
+        },
+      ),
+    ).toEqual(banned);
+    expect(run(banned, { type: "closed" })).toEqual(banned);
+  });
+
   it("ignores events that do not belong to the step", () => {
     const consent = startSignIn(undefined);
     for (const event of [

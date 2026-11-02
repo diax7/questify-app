@@ -22,6 +22,8 @@ export const playerPath = (playerId: string): string => `/v1/admin/players/${pla
 export const contactPath = (playerId: string): string => `${playerPath(playerId)}/contact`;
 export const renamePath = (playerId: string): string => `${playerPath(playerId)}/username`;
 export const resetPath = (playerId: string): string => `${playerPath(playerId)}/reset-sign-in`;
+export const banPath = (playerId: string): string => `${playerPath(playerId)}/ban`;
+export const liftBanPath = (playerId: string): string => `${playerPath(playerId)}/lift-ban`;
 
 /** One page of the points record: all events or one, after the last id of the page before. */
 export function ledgerPath(

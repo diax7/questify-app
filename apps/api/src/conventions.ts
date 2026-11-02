@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { isBelowMinimum } from "@questify/shared";
-import { eventSuspended, idempotencyKeyInvalid } from "#src/auth/http-errors";
+import { eventSuspended, idempotencyKeyInvalid, playerInactive } from "#src/auth/http-errors";
 import { HttpError } from "#src/http-error";
 import type { IdempotencyStore } from "#src/idempotency-store";
 
@@ -78,6 +78,16 @@ const bodyHash = (request: FastifyRequest): string =>
 const principal = (request: FastifyRequest): string => request.principalId ?? "anonymous";
 
 /**
+ * The database walls no route answered first, one answer on any path: a suspension (migration 0114, ADR-406), and a
+ * banned or erased player who can be paid nothing (migration 0120, ADR-430: a scan, an award, an approval, a handover
+ * or a desk sale of such a player).
+ */
+const WALLS: ReadonlyMap<string | undefined, () => HttpError> = new Map([
+  ["ES423", eventSuspended],
+  ["PB423", playerInactive],
+]);
+
+/**
  * The one error answer of every route: our refusals as they are, a client error as `invalid_request`, a suspension's
  * database wall as 423, a busy database as 503, anything else as 500 (logged).
  */
@@ -97,9 +107,9 @@ function errorHandlerFor(app: FastifyInstance) {
         details: {},
       });
     }
-    // A database wall of a suspension (migration 0114, ADR-406) that no route answered first: any path, one answer.
-    if (error.code === "ES423") {
-      const refusal = eventSuspended();
+    const wall = WALLS.get(error.code);
+    if (wall !== undefined) {
+      const refusal = wall();
       return reply.code(refusal.status).send(refusal.envelope);
     }
     if (error.code !== undefined && DATABASE_BUSY.has(error.code)) {

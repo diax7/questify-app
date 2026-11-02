@@ -59,6 +59,9 @@ function rowLabel(
   language: Language,
   t: ReturnType<typeof useI18n>["t"],
 ): string {
+  if (row.hidden) {
+    return t("ranking.rowLabelHidden", { rank: row.rank });
+  }
   const params = {
     rank: row.rank,
     username: row.username,
@@ -71,6 +74,12 @@ function rowLabel(
   return t(key, title === undefined ? params : { ...params, title });
 }
 
+/** What a row opens: the player's profile, or nothing for a player the reader blocked. */
+const pressOf = (row: ShownQuestifyRow): (() => void) | undefined =>
+  row.hidden
+    ? undefined
+    : () => router.push({ pathname: "/player/[username]", params: { username: row.username } });
+
 function Row({ row }: Readonly<{ row: ShownQuestifyRow }>) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
@@ -80,11 +89,9 @@ function Row({ row }: Readonly<{ row: ShownQuestifyRow }>) {
   return (
     <Pressable
       accessible
-      accessibilityRole="button"
+      accessibilityRole={row.hidden ? "text" : "button"}
       accessibilityLabel={label}
-      onPress={() =>
-        router.push({ pathname: "/player/[username]", params: { username: row.username } })
-      }
+      onPress={pressOf(row)}
       style={[styles.row, row.isMe ? styles.mine : null]}
     >
       <View style={[styles.badge, row.rank <= 3 ? styles.badgeTop : null]}>
@@ -104,7 +111,7 @@ function Row({ row }: Readonly<{ row: ShownQuestifyRow }>) {
         // A username is Latin: it reads left to right inside an Arabic row, so "@" stays in front.
         style={[styles.grow, { writingDirection: "ltr" }]}
       >
-        {isolatedLtr(`@${row.username}`)}
+        {row.hidden ? t("ranking.hiddenPlayer") : isolatedLtr(`@${row.username}`)}
         {title === undefined ? "" : ` · ${title}`}
       </AppText>
       {row.isMe ? <AppText variant="label">{t("ranking.you")}</AppText> : null}

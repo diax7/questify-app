@@ -147,16 +147,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
   });
 
   describe("player standing", () => {
-    it("cannot be changed by the player: no lifting a platform ban", async () => {
+    it("cannot be changed by hand, not even by an admin: only the ban doors change it (T-705)", async () => {
       await db.owner.query("UPDATE player SET status = 'banned' WHERE id = $1", [ids.playerA]);
-      await expect(
-        as({ playerId: ids.playerA }, "UPDATE player SET status = 'active' WHERE id = $1", [
-          ids.playerA,
-        ]),
-      ).rejects.toThrow(/Questify admin/);
-      await as({ isAdmin: true }, "UPDATE player SET status = 'active' WHERE id = $1", [
-        ids.playerA,
-      ]);
+      for (const context of [{ playerId: ids.playerA }, { isAdmin: true }]) {
+        await expect(
+          as(context, "UPDATE player SET status = 'active' WHERE id = $1", [ids.playerA]),
+        ).rejects.toThrow(/permission denied/);
+      }
+      await db.owner.query("UPDATE player SET status = 'active' WHERE id = $1", [ids.playerA]);
     });
 
     it("changes an avatar only through its ownership setter, never direct profile writes", async () => {
@@ -171,14 +169,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
       await as({ playerId: ids.playerA }, "SELECT equip_player($1)", [
         JSON.stringify({ avatar: "owl" }),
       ]);
-      await expect(
-        as({ playerId: ids.playerA }, "UPDATE player SET status = 'deleted' WHERE id = $1", [
-          ids.playerA,
-        ]),
-      ).rejects.toThrow(/Questify admin/);
-      await expect(
-        as({ isAdmin: true }, "UPDATE player SET status = 'deleted' WHERE id = $1", [ids.playerA]),
-      ).rejects.toThrow(/player_tombstone/);
+      for (const context of [{ playerId: ids.playerA }, { isAdmin: true }]) {
+        await expect(
+          as(context, "UPDATE player SET status = 'deleted' WHERE id = $1", [ids.playerA]),
+        ).rejects.toThrow(/permission denied/);
+      }
       const rows = (
         await db.owner.query("SELECT username, avatar, status FROM player WHERE id = $1", [
           ids.playerA,

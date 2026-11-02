@@ -19,6 +19,7 @@ const row = (rank: number, isMe = false): RankRow => ({
   avatar: "fox",
   score: 1000 - rank,
   isMe,
+  hidden: false,
 });
 
 const topTen = (meAt?: number) =>

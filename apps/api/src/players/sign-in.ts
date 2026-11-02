@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import {
+  BAN_REASONS,
   checkUsername,
   missingSignupAcceptances,
   signupDocuments,
   toWesternDigits,
   type Avatar,
+  type BanReason,
   type PlayerDocumentId,
   type SignupAcceptance,
   type UsernameCheck,
@@ -41,6 +43,9 @@ export type PlayerSignInDeps = Readonly<{
   /** The staff path (Gmail, Resend backup), with its own daily budget for player codes (ADR-117). */
   email: EmailSender;
 }>;
+
+/** The sign-in's own deps: where a banned player appeals when no address is stored as configuration (MAIL_FROM, ADR-423). */
+export type PlayerSignInFlowDeps = PlayerSignInDeps & Readonly<{ appealEmail: string }>;
 
 /** Who is asking: the caller, plus the app's install id when it sent a well-formed one. */
 export type Asker = Caller & Readonly<{ deviceId: string | undefined }>;
@@ -78,8 +83,15 @@ export type VerifyResult =
   | Readonly<{ kind: "signed_in"; issued: Issued }>
   | Readonly<{ kind: "new"; signupToken: string }>
   | Readonly<{ kind: "invalid_code"; attemptsLeft: number }>
-  | Readonly<{ kind: "challenge_expired" | "account_banned" }>
+  | Readonly<{ kind: "challenge_expired" }>
+  | Readonly<{ kind: "account_banned"; notice: BanNotice }>
   | Throttled;
+
+/**
+ * What a banned player is shown after the right code (FR-1417, FR-1606): the ban's reason code (null for a ban with
+ * none on record, such as a contact kept off after an erasure) and where to appeal.
+ */
+export type BanNotice = Readonly<{ reason: BanReason | null; appealEmail: string }>;
 
 export type SignupResult =
   | Readonly<{ kind: "created"; issued: Issued }>
@@ -449,15 +461,16 @@ async function issuedTo(
 }
 
 type Judged =
-  | Exclude<VerifyResult, { kind: "signed_in" }>
-  | Readonly<{ kind: "signed_in"; playerId: string }>;
+  | Exclude<VerifyResult, { kind: "signed_in" | "account_banned" }>
+  | Readonly<{ kind: "signed_in"; playerId: string }>
+  | Readonly<{ kind: "account_banned"; playerId: string }>;
 
 const VERDICTS: Readonly<
   Record<string, (left: number, id: string, signupToken: string) => Judged>
 > = {
   expired: () => ({ kind: "challenge_expired" }),
   wrong: (left) => ({ kind: "invalid_code", attemptsLeft: left }),
-  banned: () => ({ kind: "account_banned" }),
+  banned: (_left, id) => ({ kind: "account_banned", playerId: id }),
   signed_in: (_left, id) => ({ kind: "signed_in", playerId: id }),
   new: (_left, _id, signupToken) => ({ kind: "new", signupToken }),
 };
@@ -508,8 +521,29 @@ async function judge(
   });
 }
 
+const isBanReason = (code: string | null): code is BanReason =>
+  code !== null && (BAN_REASONS as readonly string[]).includes(code);
+
+/** The banned account's notice (ban_notice, migration 0120); an empty id is a contact kept off after an erasure. */
+async function banNotice(deps: PlayerSignInFlowDeps, playerId: string): Promise<BanNotice> {
+  if (playerId === "") {
+    return { reason: null, appealEmail: deps.appealEmail };
+  }
+  const { rows } = await inTransaction(deps, (client) =>
+    client.query<{ reason: string | null; appeal_email: string | null }>(
+      "SELECT reason, appeal_email FROM ban_notice($1)",
+      [playerId],
+    ),
+  );
+  const row = rows[0];
+  return {
+    reason: isBanReason(row?.reason ?? null) ? (row?.reason as BanReason) : null,
+    appealEmail: row?.appeal_email ?? deps.appealEmail,
+  };
+}
+
 async function verify(
-  deps: PlayerSignInDeps,
+  deps: PlayerSignInFlowDeps,
   clock: SweepClock,
   input: Parameters<PlayerSignIn["verify"]>[0],
   asker: Asker,
@@ -517,6 +551,9 @@ async function verify(
   const tokens = newTokens();
   const judged = await judge(deps, input, tokens, asker);
   await sweepIfDue(deps, asker, clock);
+  if (judged.kind === "account_banned") {
+    return { kind: "account_banned", notice: await banNotice(deps, judged.playerId) };
+  }
   if (judged.kind !== "signed_in") {
     if (judged.kind === "invalid_code" || judged.kind === "throttled") {
       say(deps, asker, judged.kind === "throttled" ? "player.throttled" : "player.code_failed", {
@@ -602,7 +639,7 @@ async function refresh(
  * and a rotating 180-day refresh token). Every rule that guards a session lives in the database functions (migration
  * 0013); this module counts, sends and answers.
  */
-export function createPlayerSignIn(deps: PlayerSignInDeps): PlayerSignIn {
+export function createPlayerSignIn(deps: PlayerSignInFlowDeps): PlayerSignIn {
   // Stryker disable next-line ObjectLiteral: equivalent: an undefined start makes the first comparison NaN, which also means 'sweep now'
   const clock: SweepClock = { last: 0 };
   return {

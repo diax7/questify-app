@@ -121,6 +121,12 @@ const ROUTES: Readonly<Record<string, string>> = {
   "DELETE /v1/organizers/:organizerId/events/:eventId/sponsors/:sponsorId":
     "owner/editor, same-event row, per-event write lock; Idempotency-Key, audited (sponsors)",
   "GET /v1/me/locker": "caller-owned inventory through own_locker (profile-items)",
+  "GET /v1/me/blocks":
+    "the caller's own block list through own_blocks, bound to app_player_id; current usernames and avatars only (test/players/blocks, test/db/player-blocks)",
+  "POST /v1/me/blocks":
+    "the caller blocks a player by username through block_player, bound to app_player_id; unknown, erased and self answer 404; 500 at most under the caller's row lock; Idempotency-Key; 60 changes an hour per player (test/players/blocks, test/db/player-blocks)",
+  "DELETE /v1/me/blocks/:username":
+    "the caller unblocks through unblock_player, bound to app_player_id; the name is replaced in the access log (loggerOptions); Idempotency-Key; 60 changes an hour per player (test/players/blocks, src/app.test)",
   "POST /v1/me/locker/seen": "caller-owned acknowledgment only (profile-items)",
   "GET /v1/players/:username":
     "active-player public DTO allowlist, no account details; stamps of ended public events only (profile-items HTTP, event-passport)",
@@ -849,6 +855,20 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); admin_rename_player re-reads the admin, reason required, the player's row locked, the shared username rules and lists, the old name retired, the player told; Idempotency-Key, audited (ids only); 30 an hour per admin with resets (test/console/players, test/db/console-players)",
   "POST /v1/admin/players/:playerId/reset-sign-in":
     "active platform admins only (walked below); admin_reset_player_sign_in re-reads the admin, reason required; only removes access (tokens, codes, push devices, the cutoff; the contacts' code throttles cleared); returns no code, contact or token; Idempotency-Key, audited (ids only); 30 an hour per admin with renames (test/console/players, test/db/console-players)",
+  "POST /v1/admin/players/:playerId/ban":
+    "active platform admins only (walked below); admin_ban_player re-reads the admin, a ban reason code and a note (PA400), the player locked, every way in ended, rankings repaired; never automatic, the only writer of banned with the lift; Idempotency-Key, audited (ids only); 20 an hour per admin with lifts (test/console/safety, test/db/player-safety)",
+  "POST /v1/admin/players/:playerId/lift-ban":
+    "active platform admins only (walked below); admin_lift_ban re-reads the admin, a reason code and a note; restores the account, the token cutoff stays; Idempotency-Key, audited (ids only); 20 an hour per admin with bans (test/console/safety, test/db/player-safety)",
+  "GET /v1/admin/words":
+    "active platform admins only (walked below); console_words re-reads the admin; 50 list words a page with filters, no player data; 120 a minute per admin (test/console/safety, test/db/player-safety)",
+  "POST /v1/admin/words":
+    "active platform admins only (walked below); admin_word_add re-reads the admin, folds the word, the table's CHECK refuses non-letters (WL400); audited with the word; Idempotency-Key; 60 changes an hour per admin (test/console/safety, test/db/player-safety)",
+  "DELETE /v1/admin/words/:word":
+    "active platform admins only (walked below); admin_word_remove re-reads the admin; a list word, not personal data, may sit in the URL; audited; Idempotency-Key; 60 changes an hour per admin (test/console/safety, test/db/player-safety)",
+  "GET /v1/admin/retired-usernames":
+    "active platform admins only (walked below); console_retired_usernames re-reads the admin; folded names with no player id; 120 a minute per admin (test/console/safety, test/db/player-safety)",
+  "POST /v1/admin/retired-usernames/release":
+    "active platform admins only (walked below); admin_unretire_username re-reads the admin; the name in the body, never the URL, and never in the audit; Idempotency-Key; 60 changes an hour per admin (test/console/safety, test/db/player-safety)",
   "GET /v1/admin/tickets":
     "active platform admins only (walked below); exactly the tickets with queue = 'questify', the admin checked again (app_admin_id), every read audited per event shown ; 120 a minute per admin (test/tickets/center, test/db/tickets-center)",
   "GET /v1/admin/tickets/counts":

@@ -279,6 +279,11 @@ export type RankRow = Readonly<{
   equipment?: Equipment;
   score: number | null;
   isMe: boolean;
+  /**
+   * A player the reader blocked (FR-1415, T-705): the place and score stay, the server sends no name, face or
+   * equipment; `username` and `avatar` are empty and the row reads "Hidden name" and opens nothing.
+   */
+  hidden: boolean;
 }>;
 
 /**
@@ -326,10 +331,33 @@ const namesOf = (value: unknown): NameDisplay => (isNameDisplay(value) ? value :
 const isRow = (value: unknown): value is RankRow =>
   isRecord(value) &&
   typeof value["rank"] === "number" &&
-  typeof value["username"] === "string" &&
-  typeof value["avatar"] === "string" &&
+  (value["hidden"] === true ||
+    (typeof value["username"] === "string" && typeof value["avatar"] === "string")) &&
   isScore(value["score"]) &&
   typeof value["isMe"] === "boolean";
+
+/** A row as drawn: a hidden row keeps its place and score and nothing of the player. */
+function rowOf(row: RankRow, scores: boolean): RankRow {
+  const score = scoreOf(row.score, scores);
+  if (row.hidden === true) {
+    return {
+      rank: row.rank,
+      username: "",
+      fullName: null,
+      avatar: "",
+      score,
+      isMe: false,
+      hidden: true,
+    };
+  }
+  return {
+    ...row,
+    fullName: fullNameOf(row.fullName),
+    score,
+    hidden: false,
+    ...(row.equipment === undefined ? {} : { equipment: equipmentOf(row.equipment) }),
+  };
+}
 
 /** The score to draw: only when the answer says scores are shown and this row carries one. */
 const scoreOf = (value: unknown, scoresShown: boolean): number | null =>
@@ -353,12 +381,7 @@ export function readRanking(body: unknown): Ranking | undefined {
   // An answer without the flag comes from an API that always sent scores; only an explicit false hides them.
   const scores = body["scores"] !== false;
   return {
-    rows: body["rows"].map((row) => ({
-      ...row,
-      fullName: fullNameOf(row["fullName"]),
-      score: scoreOf(row.score, scores),
-      ...(row.equipment === undefined ? {} : { equipment: equipmentOf(row.equipment) }),
-    })),
+    rows: body["rows"].map((row) => rowOf(row, scores)),
     me:
       me === null
         ? null

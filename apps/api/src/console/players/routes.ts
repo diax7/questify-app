@@ -90,7 +90,7 @@ function adminOf(request: FastifyRequest): { id: string } {
   return { id: account.id };
 }
 
-async function throttled(
+export async function throttled(
   deps: ConsolePlayerDeps,
   request: FastifyRequest,
   reply: FastifyReply,
@@ -111,7 +111,7 @@ async function throttled(
  *
  * @throws HttpError invalid_player_action for an unknown code or an unusable note.
  */
-function reasonOf(kind: PlayerActionKind, body: unknown): ActionReason {
+export function reasonOf(kind: PlayerActionKind, body: unknown): ActionReason {
   const { reasonCode, note } = parse(reasonBody, body);
   if (!isActionReason(kind, reasonCode)) {
     throw invalidPlayerAction();

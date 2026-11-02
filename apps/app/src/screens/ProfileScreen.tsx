@@ -148,6 +148,11 @@ function MyIdentity({ me }: { me: Me }) {
         kind="quiet"
         onPress={() => router.push("/settings/notifications")}
       />
+      <Button
+        label={t("block.list")}
+        kind="quiet"
+        onPress={() => router.push("/settings/blocked")}
+      />
       <RewardNotices />
       {me.questify === undefined ? null : <LevelCard level={me.questify} />}
       <GemsCard gems={me.gems} />
