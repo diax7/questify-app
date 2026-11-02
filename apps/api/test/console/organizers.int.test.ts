@@ -194,6 +194,59 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
     });
   });
 
+  describe("the team while suspended", () => {
+    it("can still leave and remove a member, so a compromised account is cut off, and nothing else", async () => {
+      const [editorId, otherId] = [
+        await createStaff(db.owner, { email: "editor@najd.test" }),
+        await createStaff(db.owner, { email: "other.editor@najd.test" }),
+      ];
+      await owner(
+        "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'editor'), ($1, $3, 'editor')",
+        [orgA, editorId, otherId],
+      );
+      const editorCookie = await signInFully(test, "editor@najd.test");
+      const path = `/v1/admin/organizers/${orgA}`;
+      expect((await call("POST", `${path}/suspend`, adminCookie, { reason })).statusCode).toBe(200);
+      const refused: ReadonlyArray<readonly [Method, string]> = [
+        ["POST", "/invites"],
+        ["POST", "/ownership"],
+        ["DELETE", `/invites/${randomUUID()}`],
+        ["PATCH", `/members/${otherId}`],
+        ["POST", "/events"],
+      ];
+      for (const [method, route] of refused) {
+        const answer = await team(method, route, ownerCookie, {});
+        expect(answer.statusCode, `${method} ${route}`).toBe(423);
+        expect(answer.json()).toMatchObject({ code: "organizer_suspended" });
+      }
+      expect((await team("DELETE", "/members/me", editorCookie)).statusCode).toBe(204);
+      expect((await team("DELETE", `/members/${otherId}`)).statusCode).toBe(204);
+      const left = await owner<{ staff_user_id: string }>(
+        "SELECT staff_user_id FROM organizer_member WHERE organizer_id = $1 AND role = 'editor'",
+        [orgA],
+      );
+      expect(left).toEqual([]);
+      expect(
+        (await call("POST", `${path}/reactivate`, adminCookie, { reason: "short" })).statusCode,
+      ).toBe(400);
+      const lifted = await call("POST", `${path}/reactivate`, adminCookie, {
+        reason: "Fraud case closed by finance",
+      });
+      expect(lifted.statusCode).toBe(204);
+      expect(await lastAudit("organizer.reactivate")).toMatchObject({
+        actor_type: "admin",
+        after: { reason: "Fraud case closed by finance" },
+      });
+    });
+
+    it("records no reason on a reactivation that gives none", async () => {
+      const path = `/v1/admin/events/${eventA2}`;
+      await call("POST", `${path}/suspend`, adminCookie, { reason });
+      expect((await call("POST", `${path}/reactivate`, adminCookie)).statusCode).toBe(204);
+      expect(await lastAudit("event.reactivate")).toMatchObject({ after: null });
+    });
+  });
+
   describe("the support seat", () => {
     it("opens one event as an editor, refuses everything else, and closes", async () => {
       expect((await team("GET", `/events/${eventA}`, adminCookie)).statusCode).toBe(404);

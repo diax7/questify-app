@@ -33,6 +33,9 @@ async function sourceFiles(directory: string): Promise<string[]> {
  * The admin role (T-701, ADR-405): only the owner connection grants or revokes it, audited; a revoke ends the account's
  * sessions and support grants; no API context can write it; an admin no longer writes another person's password.
  */
+const GRANT_NOTE = { reason: "Joins the support rota on 2026-11-02", by: "dhia" };
+const REVOKE_NOTE = { reason: "Left the support rota", by: "ops-night" };
+
 describe.skipIf(TEST_DATABASE_URL === undefined)("platform admin role (database)", () => {
   let db: TestDatabase;
   let ids: Awaited<ReturnType<typeof seedTwoTenants>>;
@@ -122,12 +125,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("platform admin role (database)
       "INSERT INTO staff_user (email, password_hash) VALUES ('new.ops@questify.test', 'h') RETURNING id",
     );
     const id = made?.id ?? "";
-    expect(await setPlatformAdmin(db.owner, "New.Ops@questify.test", true)).toEqual({
+    expect(await setPlatformAdmin(db.owner, "New.Ops@questify.test", true, GRANT_NOTE)).toEqual({
       changed: true,
       sessionsEnded: 0,
       grantsClosed: 0,
     });
-    expect(await setPlatformAdmin(db.owner, "new.ops@questify.test", true)).toMatchObject({
+    expect(
+      await setPlatformAdmin(db.owner, "new.ops@questify.test", true, GRANT_NOTE),
+    ).toMatchObject({
       changed: false,
     });
     await owner(
@@ -139,7 +144,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("platform admin role (database)
       "SELECT * FROM support_open($1, 'Checking a reported quest', NULL)",
       [ids.eventB],
     );
-    expect(await setPlatformAdmin(db.owner, "new.ops@questify.test", false)).toEqual({
+    expect(await setPlatformAdmin(db.owner, "new.ops@questify.test", false, REVOKE_NOTE)).toEqual({
       changed: true,
       sessionsEnded: 1,
       grantsClosed: 1,
@@ -159,15 +164,50 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("platform admin role (database)
     expect(audit).toEqual([
       {
         before: { platformRole: "none" },
-        after: { platformRole: "admin", sessionsEnded: 0, supportGrantsClosed: 0 },
+        after: {
+          platformRole: "admin",
+          sessionsEnded: 0,
+          supportGrantsClosed: 0,
+          reason: GRANT_NOTE.reason,
+          by: "dhia",
+        },
       },
       {
         before: { platformRole: "admin" },
-        after: { platformRole: "none", sessionsEnded: 1, supportGrantsClosed: 1 },
+        after: {
+          platformRole: "none",
+          sessionsEnded: 1,
+          supportGrantsClosed: 1,
+          reason: REVOKE_NOTE.reason,
+          by: "ops-night",
+        },
       },
     ]);
-    await expect(setPlatformAdmin(db.owner, "nobody@questify.test", true)).rejects.toThrow(
-      "No staff account has the email nobody@questify.test.",
+    await expect(
+      setPlatformAdmin(db.owner, "nobody@questify.test", true, GRANT_NOTE),
+    ).rejects.toThrow("No staff account has the email nobody@questify.test.");
+  });
+
+  it("refuses a change with no reason, a short or long reason, or no operator, and changes nothing", async () => {
+    await owner(
+      "INSERT INTO staff_user (email, password_hash) VALUES ('no.note@questify.test', 'h')",
     );
+    const attempts = [
+      { reason: "", by: "dhia" },
+      { reason: "   short  ", by: "dhia" },
+      { reason: "x".repeat(301), by: "dhia" },
+      { reason: "A reason that is long enough", by: "  " },
+    ];
+    for (const note of attempts) {
+      await expect(setPlatformAdmin(db.owner, "no.note@questify.test", true, note)).rejects.toThrow(
+        /reason|operator/,
+      );
+    }
+    const [state] = await owner<{ role: string; audits: number }>(
+      `SELECT s.platform_role AS role,
+              (SELECT count(*)::int FROM audit_log a WHERE a.target_id = s.id::text) AS audits
+       FROM staff_user s WHERE s.email = 'no.note@questify.test'`,
+    );
+    expect(state).toEqual({ role: "none", audits: 0 });
   });
 });

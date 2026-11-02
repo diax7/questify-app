@@ -297,6 +297,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         ).toEqual({ shared: false, removed: false });
       });
 
+      it("answers 404 while the event is suspended, like an unknown link, and opens again once it is lifted", async () => {
+        const ev = await fixture.newEvent({ phase: "live" });
+        const questId = await survey(ev);
+        const made = await team("POST", base(ev) + "/quests/" + questId + "/survey-share", {});
+        const link = made.json<{ token: string }>().token;
+        expect((await open(link)).statusCode).toBe(200);
+        await fixture.owner(
+          "UPDATE event SET suspended_at = now(), suspension_reason = 'Reported fraud at the desk' WHERE id = $1",
+          [ev],
+        );
+        expect(codeOf(await open(link))).toEqual([404, "not_found"]);
+        await fixture.owner(
+          "UPDATE event SET suspended_at = NULL, suspension_reason = NULL WHERE id = $1",
+          [ev],
+        );
+        expect((await open(link)).statusCode).toBe(200);
+      });
+
       it("refuses a stranger, a quest that is not a survey, and a token that is not the shape of ours", async () => {
         const questId = await survey();
         const plain = await quest();

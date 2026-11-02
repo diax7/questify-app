@@ -106,11 +106,13 @@ END $$;
 REVOKE ALL ON FUNCTION admin_suspend_event(uuid, text, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION admin_suspend_event(uuid, text, uuid) TO questify_app;
 
-CREATE FUNCTION admin_reactivate_event(target uuid, request uuid) RETURNS void
+-- Lifting takes an optional reason (10 to 300 characters when given), recorded in the audit entry's `after`.
+CREATE FUNCTION admin_reactivate_event(target uuid, request uuid, lift_reason text DEFAULT NULL) RETURNS void
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
-  me uuid := console_admin();
-  ev event%ROWTYPE;
+  me    uuid := console_admin();
+  clean text := CASE WHEN lift_reason IS NULL THEN NULL ELSE suspension_reason_clean(lift_reason) END;
+  ev    event%ROWTYPE;
 BEGIN
   SELECT e.* INTO ev FROM event e WHERE e.id = target FOR NO KEY UPDATE;
   IF NOT FOUND THEN
@@ -120,13 +122,14 @@ BEGIN
     RAISE EXCEPTION 'the event is not suspended' USING ERRCODE = 'SU409';
   END IF;
   UPDATE event SET suspended_at = NULL, suspended_by = NULL, suspension_reason = NULL WHERE id = ev.id;
-  INSERT INTO audit_log (actor_type, actor_id, organizer_id, event_id, action, target_type, target_id, before,
+  INSERT INTO audit_log (actor_type, actor_id, organizer_id, event_id, action, target_type, target_id, before, after,
                          request_id)
   VALUES ('admin', me, ev.organizer_id, ev.id, 'event.reactivate', 'event', ev.id::text,
-          jsonb_build_object('reason', ev.suspension_reason, 'suspendedAt', ev.suspended_at), request);
+          jsonb_build_object('reason', ev.suspension_reason, 'suspendedAt', ev.suspended_at),
+          CASE WHEN clean IS NOT NULL THEN jsonb_build_object('reason', clean) END, request);
 END $$;
-REVOKE ALL ON FUNCTION admin_reactivate_event(uuid, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION admin_reactivate_event(uuid, uuid) TO questify_app;
+REVOKE ALL ON FUNCTION admin_reactivate_event(uuid, uuid, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION admin_reactivate_event(uuid, uuid, text) TO questify_app;
 
 CREATE FUNCTION admin_suspend_organizer(target uuid, reason text, request uuid) RETURNS timestamptz
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -154,11 +157,12 @@ GRANT EXECUTE ON FUNCTION admin_suspend_organizer(uuid, text, uuid) TO questify_
 
 -- Lifting restores 'active': 'paused' is set only by the door above, from 'active' or 'pending'; a pending organizer
 -- has no event that could run, so 'active' loses nothing a player could see.
-CREATE FUNCTION admin_reactivate_organizer(target uuid, request uuid) RETURNS void
+CREATE FUNCTION admin_reactivate_organizer(target uuid, request uuid, lift_reason text DEFAULT NULL) RETURNS void
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
-  me  uuid := console_admin();
-  org organizer%ROWTYPE;
+  me    uuid := console_admin();
+  clean text := CASE WHEN lift_reason IS NULL THEN NULL ELSE suspension_reason_clean(lift_reason) END;
+  org   organizer%ROWTYPE;
 BEGIN
   SELECT o.* INTO org FROM organizer o WHERE o.id = target FOR NO KEY UPDATE;
   IF NOT FOUND THEN
@@ -169,12 +173,14 @@ BEGIN
   END IF;
   UPDATE organizer SET status = 'active', suspended_at = NULL, suspended_by = NULL, suspension_reason = NULL
   WHERE id = org.id;
-  INSERT INTO audit_log (actor_type, actor_id, organizer_id, action, target_type, target_id, before, request_id)
+  INSERT INTO audit_log (actor_type, actor_id, organizer_id, action, target_type, target_id, before, after,
+                         request_id)
   VALUES ('admin', me, org.id, 'organizer.reactivate', 'organizer', org.id::text,
-          jsonb_build_object('reason', org.suspension_reason, 'suspendedAt', org.suspended_at), request);
+          jsonb_build_object('reason', org.suspension_reason, 'suspendedAt', org.suspended_at),
+          CASE WHEN clean IS NOT NULL THEN jsonb_build_object('reason', clean) END, request);
 END $$;
-REVOKE ALL ON FUNCTION admin_reactivate_organizer(uuid, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION admin_reactivate_organizer(uuid, uuid) TO questify_app;
+REVOKE ALL ON FUNCTION admin_reactivate_organizer(uuid, uuid, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION admin_reactivate_organizer(uuid, uuid, text) TO questify_app;
 
 -- ================================================================ the database walls
 -- The ledger, by the entry's kind (review MAJOR 2): while the event or its organizer is suspended only refunds of
@@ -469,6 +475,28 @@ CREATE OR REPLACE FUNCTION public_event_rules(code text) RETURNS jsonb
   SELECT rules_of(e) FROM event e
   WHERE lower(e.join_code) = lower(code) AND e.status NOT IN ('draft', 'archived') AND NOT event_suspended(e.id)
 $$;
+
+-- The speaker's survey link (0089) answers like an unknown link while the event is suspended, as the other public reads.
+CREATE OR REPLACE FUNCTION survey_shared_results(link_hash text) RETURNS jsonb
+  LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  share survey_share;
+  results jsonb;
+BEGIN
+  SELECT s.* INTO share FROM survey_share s WHERE s.token_hash = link_hash;
+  IF NOT FOUND OR event_suspended(share.event_id) THEN
+    RETURN NULL;
+  END IF;
+  results := survey_results_core(share.event_id, share.quest_id);
+  IF results IS NULL THEN
+    RETURN NULL;
+  END IF;
+  RETURN results || jsonb_build_object(
+    'quest', (SELECT jsonb_build_object('ar', coalesce(q.title_ar, q.title_en), 'en', coalesce(q.title_en, q.title_ar))
+              FROM quest q WHERE q.id = share.quest_id),
+    'event', (SELECT jsonb_build_object('ar', coalesce(e.name_ar, e.name_en), 'en', coalesce(e.name_en, e.name_ar))
+              FROM event e WHERE e.id = share.event_id));
+END $$;
 
 -- ================================================================ the big screen: nothing while suspended
 CREATE OR REPLACE FUNCTION screen_event() RETURNS event

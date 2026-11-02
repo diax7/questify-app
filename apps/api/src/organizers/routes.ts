@@ -251,16 +251,34 @@ async function principalOf(pool: Pool, request: FastifyRequest): Promise<Organiz
 }
 
 /**
- * A suspended organizer or event is read-only to its team (ADR-406): any write answers 423. Support keeps writing so it
- * can fix what led to the suspension (Q-377); the ledger stays closed to it in the database.
+ * Team writes that stay open while an organizer or event is suspended: leaving, and an owner removing a member, so a
+ * compromised account can be cut off. Keys are the method and the route pattern below the organizer prefix.
+ */
+const OPEN_WHILE_SUSPENDED = new Set(["DELETE /members/me", "DELETE /members/:staffUserId"]);
+
+/** True for a read, for support (Q-377), and for the team doors that stay open while suspended. */
+function staysOpenWhileSuspended(request: FastifyRequest, membership: OrganizerPrincipal): boolean {
+  const { method } = request;
+  if (method === "GET" || method === "HEAD" || membership.support !== undefined) {
+    return true;
+  }
+  return OPEN_WHILE_SUSPENDED.has(
+    `${method} ${(request.routeOptions.url ?? "").slice(ORGANIZER_PREFIX.length)}`,
+  );
+}
+
+/**
+ * A suspended organizer or event is read-only to its team (ADR-406): any write answers 423, but the team doors above.
+ * Support keeps writing so it can fix what led to the suspension (Q-377); the ledger stays closed to it in the
+ * database.
  */
 async function refuseSuspendedWrite(
-  method: string,
+  request: FastifyRequest,
   params: Readonly<{ eventId?: string }>,
   membership: OrganizerPrincipal,
   suspended: SuspendedSet,
 ): Promise<void> {
-  if (method === "GET" || method === "HEAD" || membership.support !== undefined) {
+  if (staysOpenWhileSuspended(request, membership)) {
     return;
   }
   if (membership.suspension !== undefined && membership.suspension !== null) {
@@ -296,7 +314,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
         if (request.routeOptions.config.access === "owner" && membership.role !== "owner") {
           throw ownerOnly();
         }
-        await refuseSuspendedWrite(request.method, params, membership, deps.suspended);
+        await refuseSuspendedWrite(request, params, membership, deps.suspended);
         request.organizer = membership;
       });
       registerTeamRoutes(scope, deps);

@@ -72,15 +72,19 @@ export function suspend(
   });
 }
 
-/** Lifts a suspension; what was there before is exactly what comes back. */
+/** Lifts a suspension; what was there before is exactly what comes back. The reason, when given, is audited. */
 export function reactivate(
   pool: Pool,
   admin: Admin,
   target: SuspendTarget,
-  requestId: string,
+  input: Readonly<{ reason?: string | undefined; requestId: string }>,
 ): Promise<void> {
   return door(pool, admin, async (client) => {
-    await client.query(`SELECT admin_reactivate_${target.kind}($1, $2)`, [target.id, requestId]);
+    await client.query(`SELECT admin_reactivate_${target.kind}($1, $2, $3)`, [
+      target.id,
+      input.requestId,
+      input.reason ?? null,
+    ]);
   });
 }
 

@@ -126,6 +126,12 @@ export async function clearThrottleFor(
   });
 }
 
+/** Who ran a role change and why; both are written to its audit entry. */
+export type RoleChangeNote = Readonly<{ reason: string; by: string }>;
+
+const NOTE_REASON_MIN = 10;
+const NOTE_REASON_MAX = 300;
+
 export type RoleChange = Readonly<{
   /** False when the account already had that role (nothing changed, nothing audited). */
   changed: boolean;
@@ -135,17 +141,29 @@ export type RoleChange = Readonly<{
 
 /**
  * Makes an account a Questify platform admin, or takes the role away (ADR-405), with the owner's connection: the only
- * path that writes `platform_role`. One transaction: the role, an audit entry (system actor, before and after), and on
- * revoke the end of every live session and every live support grant of that account, so the console and support stop
- * at the next request.
+ * path that writes `platform_role`. One transaction: the role, an audit entry (system actor, before and after, with
+ * the operator and the reason), and on revoke the end of every live session and every live support grant of that
+ * account, so the console and support stop at the next request.
  *
- * @throws Error naming the email when no account has it.
+ * @throws Error when the reason is not 10 to 300 characters or the operator is empty, or naming the email when no
+ *   account has it.
  */
 export async function setPlatformAdmin(
   owner: Client,
   rawEmail: string,
   admin: boolean,
+  note: RoleChangeNote,
 ): Promise<RoleChange> {
+  const reason = note.reason.trim();
+  const by = note.by.trim();
+  if (reason.length < NOTE_REASON_MIN || reason.length > NOTE_REASON_MAX) {
+    throw new Error(
+      `A reason of ${NOTE_REASON_MIN} to ${NOTE_REASON_MAX} characters is required: --reason "why".`,
+    );
+  }
+  if (by === "") {
+    throw new Error("The operator is empty: pass --by <name>.");
+  }
   const email = normalizeEmail(rawEmail);
   return inTransaction(owner, async () => {
     const { rows } = await owner.query<{ id: string; platform_role: "none" | "admin" }>(
@@ -174,6 +192,8 @@ export async function setPlatformAdmin(
         platformRole: wanted,
         sessionsEnded: ended.sessions,
         supportGrantsClosed: ended.grants,
+        reason,
+        by,
       },
     });
     return { changed: true, sessionsEnded: ended.sessions, grantsClosed: ended.grants };

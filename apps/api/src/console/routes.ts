@@ -44,6 +44,7 @@ const eventParams = z.object({ eventId: z.uuid() });
 const grantParams = z.object({ grantId: z.uuid() });
 const reasonBody = z.strictObject({ reason: z.string().max(1200) });
 const emptyBody = z.strictObject({}).optional();
+const liftBody = z.strictObject({ reason: z.string().max(1200).optional() }).optional();
 
 export type ConsoleOrganizerDeps = Readonly<{
   pool: Pool;
@@ -97,9 +98,9 @@ function registerSuspensionRoutes(scope: FastifyInstance, deps: ConsoleOrganizer
     });
     scope.post(`${path}/reactivate`, adminIdempotent, async (request, reply) => {
       const which = target(request.params);
-      parse(emptyBody, request.body);
+      const reason = parse(liftBody, request.body)?.reason;
       const who = await throttled(deps, request, reply, CONSOLE_SUSPEND_LIMIT);
-      await reactivate(deps.pool, who, which, request.id);
+      await reactivate(deps.pool, who, which, { reason, requestId: request.id });
       deps.suspended.invalidate();
       return reply.code(204).send();
     });
