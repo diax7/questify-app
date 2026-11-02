@@ -1,4 +1,5 @@
 import { randomInt, randomUUID } from "node:crypto";
+import { REGISTRIES, composeConfig } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { pushFixture, sqlstate, type PushFixture } from "#test/support/push";
 import { TEST_DATABASE_URL } from "#test/support/test-db";
@@ -177,6 +178,61 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the top-10 rank push (database
     expect(await diff(randomUUID())).toEqual({ state: "idle" });
   });
 
+  it("reads the ranking switch as the composed configuration does, for every setting of the event and the platform", async () => {
+    const event = await liveEvent();
+    const settings = [undefined, true, false] as const;
+    try {
+      for (const onEvent of settings) {
+        for (const onPlatform of settings) {
+          await f.owner("UPDATE event SET config = $2::jsonb WHERE id = $1", [
+            event,
+            JSON.stringify(onEvent === undefined ? {} : { features: { ranking: onEvent } }),
+          ]);
+          if (onPlatform === undefined) {
+            await f.owner(
+              "UPDATE platform_setting SET value = value - 'ranking' WHERE key = 'features'",
+            );
+          } else {
+            await switchPlatformRanking(onPlatform);
+          }
+          const [database] = await f.owner<{ on: boolean }>(
+            "SELECT ranking_on(e) AS on FROM event e WHERE e.id = $1",
+            [event],
+          );
+          const composed = composeConfig(
+            REGISTRIES,
+            onPlatform === undefined ? {} : { features: { ranking: { enabled: onPlatform } } },
+            onEvent === undefined ? {} : { features: { ranking: onEvent } },
+          );
+          expect(database?.on, `event ${onEvent}, platform ${onPlatform}`).toBe(
+            composed.features["ranking"]?.enabled,
+          );
+        }
+      }
+    } finally {
+      await switchPlatformRanking(true);
+    }
+  });
+
+  it("counts the 10-minute cooldown per event: a player who enters two events is told in both", async () => {
+    const first = await liveEvent();
+    const second = await liveEvent();
+    const crowd = await field(first, 11);
+    const other = await field(second, 11);
+    await diff(first);
+    await diff(second);
+    const player = at(crowd, 10).player;
+    const inSecond = await f.join(second, player);
+    await f.earn(first, at(crowd, 10).enrollment, { points: 5000 });
+    await f.earn(second, inSecond, { points: 5000 });
+    expect(await diff(first)).toEqual({ state: "diffed", notices: 2 });
+    expect(await diff(second)).toEqual({ state: "diffed", notices: 2 });
+    expect((await noticesOf(second)).map((one) => [one.kind, one.player_id])).toEqual([
+      ["rank_top_ten", player],
+      ["rank_top_ten_exit", at(other, 9).player],
+    ]);
+  });
+
   it("treats an event whose end has passed as not live before the lifecycle tick marks it", async () => {
     const event = await f.newEvent({ phase: "ended" });
     expect(await diff(event)).toEqual({ state: "idle" });
@@ -237,6 +293,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the top-10 rank push (database
     expect(await diff(event)).toEqual({ state: "diffed", notices: 0 });
     expect(await snapshotOf(event)).toEqual(crowd.map((one) => one.enrollment));
     expect(none.enrollment).not.toBe("");
+  });
+
+  it("gives no exit notice to a player the board stopped counting after the snapshot", async () => {
+    const event = await liveEvent();
+    const crowd = await field(event, 11);
+    await diff(event);
+    await f.owner("UPDATE enrollment SET status = 'banned' WHERE id = $1", [
+      at(crowd, 9).enrollment,
+    ]);
+    expect(await diff(event)).toEqual({ state: "diffed", notices: 1 });
+    expect((await noticesOf(event)).map((one) => [one.kind, one.player_id])).toEqual([
+      ["rank_top_ten", at(crowd, 10).player],
+    ]);
   });
 
   it("lists the same ten as the board's own set form, in the same order", async () => {
