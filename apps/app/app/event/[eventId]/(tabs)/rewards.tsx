@@ -45,6 +45,7 @@ import {
 } from "#src/event/shop-api.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
+import { ReportButton } from "#src/questify/ReportButton.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** Why a reward cannot be redeemed now, in words; Redeem itself has its own button. */
@@ -195,6 +196,7 @@ function RewardCard({
           disabled={busy}
           onPress={onPin}
         />
+        <ReportButton subject={{ kind: "reward", targetId: reward.id }} />
       </View>
     </View>
   );

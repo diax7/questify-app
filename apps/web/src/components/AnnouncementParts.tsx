@@ -11,6 +11,7 @@ import {
   type AnnouncementView,
   type Language,
 } from "@questify/shared";
+import { HeldNotice } from "#src/components/HeldNotice.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { Button } from "#src/ui/Button.tsx";
 import { Badge, EmptyState, Muted } from "#src/ui/Feedback.tsx";
@@ -117,6 +118,7 @@ function AnnouncementCard({
     event_closed: "announcements.page.skip.eventClosed",
     not_live: "announcements.page.skip.notLive",
     late: "announcements.page.skip.late",
+    held: "announcements.page.skip.held",
   } as const;
   const at = formatEventTime(new Date(row.sentAt ?? row.sendAt), zone, language);
   return (
@@ -124,6 +126,7 @@ function AnnouncementCard({
       <SubHeading>
         <span dir="auto">{language === "ar" ? row.titleAr : row.titleEn}</span>
       </SubHeading>
+      <HeldNotice language={language} kind="announcement" targetId={row.id} />
       <p dir="auto">{language === "ar" ? row.bodyAr : row.bodyEn}</p>
       <Toolbar>
         <Badge>{t(`announcements.page.status.${row.status}`)}</Badge>

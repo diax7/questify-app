@@ -4,7 +4,7 @@ import { Pressable, View, type StyleProp, type TextStyle } from "react-native";
 import { CurrencyIcon } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
-import { useTerms } from "#src/event/EventContext.tsx";
+import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { PlayerName } from "#src/event/PlayerName.tsx";
 import type { ShownRow } from "#src/event/ranking.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -40,13 +40,17 @@ export function useRowLabel(row: ShownRow): string {
   return `${label}${title}`;
 }
 
-export function openPlayer(username: string): void {
-  router.push({ pathname: "/player/[username]", params: { username } });
+/** The player's profile; from an event's ranking it carries the event, so a report of the name reaches its team. */
+export function openPlayer(username: string, eventId?: string): void {
+  router.push({
+    pathname: "/player/[username]",
+    params: eventId === undefined ? { username } : { username, event: eventId },
+  });
 }
 
 /** What a row opens: the player's profile, or nothing for a player the reader blocked. */
-export const pressOf = (row: ShownRow): (() => void) | undefined =>
-  row.hidden ? undefined : () => openPlayer(row.username);
+export const pressOf = (row: ShownRow, eventId?: string): (() => void) | undefined =>
+  row.hidden ? undefined : () => openPlayer(row.username, eventId);
 
 /** The name in a row: the player's, or "Hidden name" for one the reader blocked (FR-1415). */
 export function RowName({
@@ -96,11 +100,12 @@ export function RankingRow({ row, height }: Readonly<{ row: ShownRow; height: nu
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   const label = useRowLabel(row);
+  const { eventId } = useEvent();
   return (
     <Pressable
       accessible
       accessibilityRole={row.hidden ? "text" : "button"}
-      onPress={pressOf(row)}
+      onPress={pressOf(row, eventId)}
       accessibilityLabel={label}
       style={[styles.row, { height }, row.isMe ? styles.mine : null]}
     >

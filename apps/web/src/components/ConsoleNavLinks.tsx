@@ -228,6 +228,32 @@ export function ConsoleWordListsLink({
   );
 }
 
+/** This page's item in the console's navigation (T-705b). */
+export function ConsoleReportsLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/reports`} icon="alert" current={current}>
+      {t("console.reports.title")}
+    </NavItem>
+  );
+}
+
+/** This page's item in the console's navigation (T-705b). */
+export function ConsoleFlagsLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/flags`} icon="eyeOff" current={current}>
+      {t("console.flags.title")}
+    </NavItem>
+  );
+}
+
 /** This page's item in the console's navigation (T-709). */
 export function ConsoleHealthLink({
   language,

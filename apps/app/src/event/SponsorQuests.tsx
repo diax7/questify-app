@@ -14,6 +14,7 @@ import { narrowTo } from "#src/event/sponsors.ts";
 import { useSponsors } from "#src/event/useSponsors.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
+import { ReportButton } from "#src/questify/ReportButton.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 function QuestRow({ quest, eventId }: Readonly<{ quest: Quest; eventId: string }>) {
@@ -113,6 +114,7 @@ export function SponsorScreen() {
     <Screen title={textIn(sponsor.name, language)}>
       <BackButton />
       <AppText muted>{factsOf(sponsor, t)}</AppText>
+      <ReportButton subject={{ kind: "sponsor", targetId: sponsorId }} />
       <ScrollView contentContainerStyle={styles.list}>
         <Quests answer={answer} quests={quests} eventId={eventId} reload={() => void load()} />
       </ScrollView>

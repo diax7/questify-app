@@ -13,6 +13,7 @@ import { fetchQuests } from "#src/event/quests-api.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { stampOf } from "#src/push/center.ts";
+import { ReportButton } from "#src/questify/ReportButton.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 async function readRunning(eventId: string): Promise<Happening[]> {
@@ -62,7 +63,11 @@ function useAnnouncementReads(eventId: string, full: boolean) {
   return { rows, running, failed, retry: () => retry((value) => value + 1) };
 }
 
-function AnnouncementRows({ rows }: Readonly<{ rows: readonly MemberAnnouncement[] }>) {
+/** The announcements; on the full list each has Report (FR-1411), Home's strip stays short. */
+function AnnouncementRows({
+  rows,
+  reportable = false,
+}: Readonly<{ rows: readonly MemberAnnouncement[]; reportable?: boolean }>) {
   const { language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   return (
@@ -72,6 +77,9 @@ function AnnouncementRows({ rows }: Readonly<{ rows: readonly MemberAnnouncement
           <AppText variant="label">{textIn(row.title, language)}</AppText>
           <AppText>{textIn(row.body, language)}</AppText>
           <AppText muted>{stampOf(row.sentAt, language)}</AppText>
+          {reportable ? (
+            <ReportButton subject={{ kind: "announcement", targetId: row.id }} />
+          ) : null}
         </View>
       ))}
     </>
@@ -152,7 +160,7 @@ export function AnnouncementsScreen() {
         ) : state.rows.length === 0 ? (
           <AppText>{t("announcements.empty")}</AppText>
         ) : (
-          <AnnouncementRows rows={state.rows} />
+          <AnnouncementRows rows={state.rows} reportable />
         )}
       </ScrollView>
     </Screen>

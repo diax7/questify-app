@@ -14,6 +14,7 @@ import {
   type MessageKey,
 } from "@questify/shared";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { HeldNotice } from "#src/components/HeldNotice.tsx";
 import { NumberField } from "#src/components/NumberField.tsx";
 import { SponsorBadge } from "#src/components/SponsorBadge.tsx";
 import { directionOf, translatorFor } from "#src/lib/language.ts";
@@ -673,6 +674,7 @@ function RewardRow({
         <Badge>{t(`rewards.kind.${reward.kind}`)}</Badge>
         <SponsorBadge language={language} kind="reward" targetId={reward.id} />
       </Toolbar>
+      <HeldNotice language={language} kind="reward" targetId={reward.id} />
       <Toolbar>
         <span>
           {t("rewards.priceShort", {

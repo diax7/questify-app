@@ -45,6 +45,7 @@ import { unlockLine } from "#src/event/unlock.ts";
 import { useNfcSupported } from "#src/nfc/NfcTap.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
+import { ReportButton } from "#src/questify/ReportButton.tsx";
 
 const LOCK_TEXT: Readonly<Record<QuestLock, MessageKey>> = {
   community_locked: "questsTab.notOpen.communityLocked",
@@ -397,6 +398,7 @@ export function QuestSheet({
       {outcome === null ? null : <AppText accessibilityRole="alert">{outcome}</AppText>}
       <QuestEntry quest={quest} timeZone={timeZone} onSent={onSent} onDone={done} />
       <QuestRating key={quest.id} quest={quest} />
+      <ReportButton subject={{ kind: "quest", targetId: quest.id }} />
       {helpOn ? (
         <Button
           kind="quiet"

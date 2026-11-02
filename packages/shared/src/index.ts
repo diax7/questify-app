@@ -1103,6 +1103,7 @@ export type {
   WordsPage,
 } from "./console-players/safety";
 export {
+  CHEAT_FLAG_KINDS,
   HOLD_KINDS,
   HOLD_REASONS,
   REPORT_KINDS,

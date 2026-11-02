@@ -13,6 +13,7 @@ import {
 } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { FlashControls, type FlashActions } from "#src/components/FlashControls.tsx";
+import { HeldCard } from "#src/components/HeldNotice.tsx";
 import { PollControls, type PollActions } from "#src/components/PollControls.tsx";
 import { QuestScoreBadge } from "#src/components/QuestScoreBadge.tsx";
 import { SponsorBadge } from "#src/components/SponsorBadge.tsx";
@@ -257,7 +258,7 @@ function QuestRow({
       </Muted>
     );
   return (
-    <Card as="li">
+    <HeldCard language={language} kind="quest" targetId={quest.id}>
       <Toolbar>
         <QuestTitle language={language} quest={quest} />
         {quest.visible || live ? null : <Badge tone="warning">{t("quests.hidden")}</Badge>}
@@ -344,7 +345,7 @@ function QuestRow({
           </Button>
         </Toolbar>
       )}
-    </Card>
+    </HeldCard>
   );
 }
 
