@@ -29,6 +29,10 @@ test("an admin unpublishes a reported quest and the organizer sees why", async (
 
   await page.goto("/en/console/reports");
   await expect(page.getByRole("heading", { name: "Reports", level: 1 })).toBeVisible();
+  const addresses = page.getByRole("region", { name: "Moderation addresses" });
+  await addresses.getByLabel("Urgent-report alert email").fill("alerts@questify.test");
+  await addresses.getByRole("button", { name: "Save addresses" }).click();
+  await expect(addresses.getByRole("status")).toHaveText("Addresses saved.");
   await page.getByRole("link", { name: title }).click();
   await expect(page.getByRole("heading", { name: title, level: 1 })).toBeVisible();
   const targetUrl = page.url();

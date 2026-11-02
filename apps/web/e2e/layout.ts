@@ -766,6 +766,8 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
   { name: "sign-up", path: "/sign-up", ready: titled("staff.signUpTitle") },
   { name: "forgot-password", path: "/forgot-password", ready: titled("staff.forgotTitle") },
   { name: "reset-password", path: "/reset-password", ready: titled("staff.newPasswordTitle") },
+  { name: "email-change", path: "/email-change", ready: titled("emailChange.title") },
+  { name: "email-change-stop", path: "/email-change/stop", ready: titled("emailStop.title") },
   { name: "contact", path: "/contact", ready: titled("contact.title") },
   { name: "help", path: "/help", ready: titled("faq.title") },
   { name: "delete-account", path: "/delete-account", ready: titled("deletion.title") },

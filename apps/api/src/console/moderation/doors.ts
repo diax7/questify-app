@@ -59,6 +59,14 @@ export async function readQueue(
   return reportQueueSchema.parse(raw);
 }
 
+/** The console menu's counts: open targets and open urgent targets (T-701b; counts only, not audited). */
+export async function readCounts(
+  pool: Pool,
+  admin: Admin,
+): Promise<Readonly<{ open: number; urgent: number }>> {
+  return moderation(pool, admin, "SELECT console_report_counts() AS r", []);
+}
+
 /** One target's reports beside its content now (`console_report`, audited). @throws HttpError 404 when never reported. */
 export async function readTarget(
   pool: Pool,

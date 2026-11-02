@@ -3,6 +3,7 @@
 import type { Language, MessageKey } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { SuspensionPanel } from "#src/components/ConsoleOversight.tsx";
+import { OwnerEmailPanel } from "#src/components/ConsoleOwnerEmail.tsx";
 import { nameIn } from "#src/lib/console.ts";
 import {
   ORGANIZERS_API,
@@ -195,6 +196,13 @@ function OrganizerBody({
         id={detail.organizer.id}
         name={detail.organizer.name}
         suspension={detail.organizer.suspension}
+        onChanged={reload}
+      />
+      <OwnerEmailPanel
+        language={language}
+        organizerId={detail.organizer.id}
+        change={detail.ownerEmailChange}
+        others={detail.ownerOtherOrganizers}
         onChanged={reload}
       />
       <Section title={t("console.organizer.team")} level={3}>

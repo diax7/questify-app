@@ -730,3 +730,16 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION admin_unpublish(text, uuid, text, text, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION admin_unpublish(text, uuid, text, text, uuid) TO questify_app;
+
+-- The console menu's count: open targets and open urgent targets, counts only (not audited, as the ticket counts).
+CREATE FUNCTION console_report_counts() RETURNS jsonb
+  LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  me uuid := console_admin();
+BEGIN
+  RETURN (SELECT jsonb_build_object('open', count(*), 'urgent', count(*) FILTER (WHERE x.urgent))
+          FROM (SELECT bool_or(r.urgent) AS urgent FROM content_report r WHERE r.status = 'open'
+                GROUP BY r.target_kind, r.target_id) x);
+END $$;
+REVOKE ALL ON FUNCTION console_report_counts() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION console_report_counts() TO questify_app;

@@ -39,7 +39,35 @@ export type OrganizerDetail = Readonly<{
     suspension: Suspension | null;
   }>[];
   history: readonly HistoryEntry[];
+  ownerEmailChange: OwnerEmailChange | null;
+  ownerOtherOrganizers: readonly string[];
 }>;
+
+/** The owner's open email change, else the latest one (T-701b). */
+export type OwnerEmailChange = Readonly<{
+  id: string;
+  state: string;
+  newEmail: string | null;
+  expiresAt: string;
+  appliesAt: string | null;
+  closedAt: string | null;
+  disputedAt: string | null;
+}>;
+
+function readOwnerEmailChange(value: unknown): OwnerEmailChange | null {
+  if (!isRecord(value) || typeof value["id"] !== "string" || typeof value["state"] !== "string") {
+    return null;
+  }
+  return {
+    id: value["id"],
+    state: value["state"],
+    newEmail: text(value["newEmail"]),
+    expiresAt: text(value["expiresAt"]) ?? "",
+    appliesAt: text(value["appliesAt"]),
+    closedAt: text(value["closedAt"]),
+    disputedAt: text(value["disputedAt"]),
+  };
+}
 
 export type SupportGrant = Readonly<{
   id: string;
@@ -163,6 +191,10 @@ export function readOrganizerDetail(value: unknown): OrganizerDetail | undefined
         : [],
     ),
     history: readHistory(value["history"]),
+    ownerEmailChange: readOwnerEmailChange(value["ownerEmailChange"]),
+    ownerOtherOrganizers: Array.isArray(value["ownerOtherOrganizers"])
+      ? value["ownerOtherOrganizers"].filter((name): name is string => typeof name === "string")
+      : [],
   };
 }
 

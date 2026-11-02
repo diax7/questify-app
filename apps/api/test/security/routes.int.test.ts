@@ -134,6 +134,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "a member reads its own organizer's held items through content_hold's policy (organizer and event scope); another organizer's event answers an empty list (test/console/moderation, test/security/cross-tenant)",
   "GET /v1/admin/reports":
     "active platform admins only (walked below); console_reports re-reads the admin; open targets grouped, audited with counts only; 120 a minute per admin (test/console/moderation, test/db/content-reports)",
+  "GET /v1/admin/reports/counts":
+    "active platform admins only (walked below); console_report_counts re-reads the admin; counts only; 120 a minute per admin (test/console/moderation)",
   "GET /v1/admin/reports/:kind/:targetId":
     "active platform admins only (walked below); console_report re-reads the admin; reporters' usernames for the admin only, audited with ids only; 120 a minute per admin (test/console/moderation, test/db/content-reports)",
   "POST /v1/admin/reports/:kind/:targetId/resolve":

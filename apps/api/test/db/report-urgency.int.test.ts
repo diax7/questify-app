@@ -121,6 +121,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("urgent reports (database)", ()
       overdue: true,
     });
     expect(queue.urgentTotal).toBeGreaterThanOrEqual(1);
+    const counts = await f.one<{ open: number; urgent: number }>(
+      admin,
+      "SELECT console_report_counts() AS r",
+    );
+    expect(counts.urgent).toBe(queue.urgentTotal);
+    expect(await sqlstate(f.run(f.team(), "SELECT console_report_counts()"))).toBe("QE403");
     const urgentFlags = queue.targets.map((target) => target.urgent);
     expect(urgentFlags).toEqual(urgentFlags.toSorted((a, b) => Number(b) - Number(a)));
   });

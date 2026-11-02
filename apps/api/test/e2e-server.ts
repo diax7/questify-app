@@ -46,13 +46,18 @@ class FileEmailSender implements EmailSender {
   }
 
   send(message: EmailMessage): Promise<void> {
-    const link = /https?:\/\/\S+\/(?:reset-password|invite)#token=[A-Za-z0-9_-]+/.exec(
-      message.text,
-    )?.[0];
-    const code = /(?<![0-9])[0-9]{6}(?![0-9])/.exec(message.text)?.[0];
+    const link =
+      /https?:\/\/\S+\/(?:reset-password|invite|email-change(?:\/stop)?)#token=[A-Za-z0-9_-]+/.exec(
+        message.text,
+      )?.[0];
+    // The owner email change's code email carries both its link and its code (T-701b).
+    const code =
+      /Confirmation code: ([0-9]{6})/.exec(message.text)?.[1] ??
+      (link === undefined ? /(?<![0-9])[0-9]{6}(?![0-9])/.exec(message.text)?.[0] : undefined);
     if (link !== undefined) {
       this.mail.links[message.to] = link;
-    } else if (code !== undefined) {
+    }
+    if (code !== undefined) {
       this.mail.codes[message.to] = code;
     }
     writeFileSync(this.file, JSON.stringify(this.mail));
