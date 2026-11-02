@@ -49,14 +49,9 @@ then STATE.md "Next", `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIE
 
 Updated 2026-11-02 by the Claude Code coordinator at Dhia's break. Progress: 149 of 197 tasks (75.6%).
 
-1. **Staging (CranL) runs migrations through 0117**, all frozen. `main` also has **0119** (T-709b catalog editors,
-   pushed, CI green, NOT deployed) and branch `worktree-agent-a5a2d1538fa9b8395` has **0118** (T-704 player tools,
-   unpushed). Deploy 0118 and 0119 together, in order, after T-704 merges (the migrator applies any missing file, so
-   deploying 0119 first would run 0118 after it).
-2. **First job: T-704 tier A code review** (Opus `cto`) of branch `worktree-agent-a5a2d1538fa9b8395` (worktree
-   `.claude/worktrees/agent-a5a2d1538fa9b8395`), plan `docs/plans/2026-11-02-t-704-t-705-player-safety.md` (amended
-   with the plan review 80 and Dhia's answers: merge dropped, appeals to the `MAIL_FROM` address, no ban email). Fix
-   MAJORs with a fresh worker, merge into `main` (expect doc-file conflicts with T-709b), push, deploy 0118+0119.
+1. **Staging (CranL) runs migrations through 0119** (T-704 player tools and T-709b catalog editors, deployed
+   2026-11-02 after CI run 41446860843 passed).
+2. **T-704 is reviewed (89, MAJOR fixed) and merged** (ca21e74).
 3. **Then T-705** (ban, block, word lists) and **T-705b** (reports queue, unpublish, flags list) from the same plan;
    one grouped mutation run after T-705 for `apps/api/src/console/players/**` plus the T-705 globs (ADR-355).
 4. **Mutation:** the T-701 chase round is done (5b43356, about 10 tests; scores re-measure in the next grouped run).
