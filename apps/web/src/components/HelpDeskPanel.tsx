@@ -33,6 +33,7 @@ import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Stack, Toolbar } from "#src/ui/Section.tsx";
 import { Tabs } from "#src/ui/Tabs.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
+import { staffShown } from "#src/lib/support-label.ts";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -216,7 +217,7 @@ function QuestifyLines({ language, ticket }: Readonly<{ language: Language; tick
           {t("tickets.escalatedNote", { note: ticket.escalation.note })}
           {ticket.escalation.by === null
             ? null
-            : ` · ${t("tickets.escalatedBy", { name: ticket.escalation.by })}`}
+            : ` · ${t("tickets.escalatedBy", { name: staffShown(ticket.escalation.by, language) })}`}
         </Muted>
       ) : null}
       {ticket.queue === "event" && ticket.status === "open" && ticket.returned !== null ? (

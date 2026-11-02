@@ -271,7 +271,14 @@ export function registerEventRoutes(
     if (event === undefined) {
       throw notFound();
     }
-    return { event: { ...view(event), terms: event.terms, texts: event.texts } };
+    return {
+      event: {
+        ...view(event),
+        terms: event.terms,
+        texts: event.texts,
+        suspension: event.suspension,
+      },
+    };
   });
 
   scope.patch("/events/:eventId", member, async (request) => {

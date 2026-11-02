@@ -26,6 +26,7 @@ import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { BulletList, Card, CardList, Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 import { Tabs } from "#src/ui/Tabs.tsx";
 import { infoTip } from "#src/ui/info.tsx";
+import { staffShown } from "#src/lib/support-label.ts";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -333,7 +334,7 @@ function CaseDetail({ id, shared }: Readonly<{ id: string; shared: Shared }>) {
             {flag.resolvedBy === null
               ? null
               : t("flags.resolvedBy", {
-                  name: flag.resolvedBy,
+                  name: staffShown(flag.resolvedBy, shared.language),
                   date: when(flag.resolvedAt, shared.timeZone, shared.language),
                 })}
             {flag.note === null ? null : ` ${t("flags.note", { note: flag.note })}`}

@@ -24,6 +24,7 @@ import { Dialog } from "#src/ui/Dialog.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, FieldGroup, Form, Input, Radio, Select, Textarea } from "#src/ui/Field.tsx";
 import { infoTip } from "#src/ui/info.tsx";
+import { staffShown } from "#src/lib/support-label.ts";
 
 export type QuestOption = Readonly<{ id: string; title: string; points: number }>;
 export type Caps = Readonly<{ each: number; day: number }>;
@@ -118,7 +119,7 @@ function RecordLine({
   remove: (line: LedgerLine) => void;
 }>) {
   const t = useTranslator(language);
-  const who = whoOf(line.by);
+  const who = staffShown(whoOf(line.by), language);
   const title = textFor(line.title, language);
   return (
     <Card as="li">

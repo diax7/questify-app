@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   ConsoleContentLink,
   ConsoleInvitationsLink,
+  ConsoleOrganizersLink,
   ConsoleQuestifyLink,
   ConsoleReadinessLink,
   ConsoleSeasonsLink,
@@ -24,6 +25,7 @@ export function ConsoleNav({ language }: Readonly<{ language: Language }>) {
       <NavItem href={`/${language}/console`} icon="list" current={path === "/console"}>
         {t("console.queue")}
       </NavItem>
+      <ConsoleOrganizersLink language={language} current={on("/console/organizers")} />
       <ConsoleTicketsLink language={language} current={on("/console/tickets")} />
       <ConsoleQuestifyLink language={language} current={on("/console/questify")} />
       <ConsoleContentLink language={language} current={on("/console/content")} />

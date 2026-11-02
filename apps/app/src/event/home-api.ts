@@ -86,6 +86,8 @@ export type Home = Readonly<{
 export type HomeAnswer =
   | Readonly<{ kind: "home"; home: Home }>
   | Readonly<{ kind: "gone" }>
+  /** Questify suspended the event (T-701): the player stays a member and learns only that it is unavailable. */
+  | Readonly<{ kind: "unavailable" }>
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "signed_out" }>;
 
@@ -236,10 +238,20 @@ export function homeAnswer(answer: AuthedResult): HomeAnswer {
     return { kind: answer.kind };
   }
   if (answer.kind === "error") {
-    return { kind: answer.status === 403 || answer.status === 404 ? "gone" : "network" };
+    return { kind: errorKindOf(answer) };
   }
   const home = readHome(answer.body);
   return home === undefined ? { kind: "network" } : { kind: "home", home };
+}
+
+/** A refused Home: suspended (T-701), gone (403, 404), or anything else read as a network failure. */
+function errorKindOf(
+  answer: Readonly<{ status: number; code?: string | undefined }>,
+): "unavailable" | "gone" | "network" {
+  if (answer.code === "event_unavailable") {
+    return "unavailable";
+  }
+  return answer.status === 403 || answer.status === 404 ? "gone" : "network";
 }
 
 export async function fetchHome(

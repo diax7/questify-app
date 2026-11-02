@@ -290,20 +290,33 @@ function Standing({ home }: Readonly<{ home: Home }>) {
  * so the status changes on the server's word. A definite 403 or 404 forgets the event and goes to Questify home; a
  * network failure forgets nothing.
  */
+/**
+ * Back to Questify home from an event the player cannot open. A suspended event (T-701) stays on their list and comes
+ * back when Questify lifts it; a gone one is forgotten, and a rehearsal account that ended says so (T-211).
+ */
+async function leaveEvent(
+  eventId: string,
+  why: "unavailable" | "gone",
+  wasRehearsal: boolean,
+): Promise<void> {
+  if (why === "unavailable") {
+    router.replace({ pathname: "/home", params: { notice: "eventUnavailable" } });
+    return;
+  }
+  await forget(keyValueStore, eventId);
+  router.replace(
+    wasRehearsal ? { pathname: "/home", params: { notice: "rehearsalEnded" } } : "/home",
+  );
+}
+
 function useHome(eventId: string) {
   const wasRehearsal = useRef(false);
   const [answer, setAnswer] = useState<HomeAnswer | undefined>(undefined);
   const [ranking, setRanking] = useState<RankingAnswer | undefined>(undefined);
   const load = useCallback(async () => {
     const loaded = await fetchHome(api.session, eventId);
-    if (loaded.kind === "gone") {
-      await forget(keyValueStore, eventId);
-      // A rehearsal account is gone once the event went live (T-211): say so, next to the join box.
-      router.replace(
-        wasRehearsal.current
-          ? { pathname: "/home", params: { notice: "rehearsalEnded" } }
-          : "/home",
-      );
+    if (loaded.kind === "unavailable" || loaded.kind === "gone") {
+      await leaveEvent(eventId, loaded.kind, wasRehearsal.current);
       return;
     }
     if (loaded.kind === "home") {

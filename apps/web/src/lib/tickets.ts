@@ -6,6 +6,7 @@ import {
   type TicketKind,
 } from "@questify/shared";
 import { translatorFor } from "#src/lib/language.ts";
+import { staffShown } from "#src/lib/support-label.ts";
 
 export type TicketTab = "open" | "with_questify" | "closed";
 
@@ -103,7 +104,7 @@ export function answeredByLine(
       ? t("tickets.deletedAccount")
       : by.kind === "operator"
         ? `@${by.name}`
-        : by.name;
+        : staffShown(by.name, language);
   return t(ticket.outcome === "solved" ? "tickets.closedBy" : "tickets.answeredBy", { name });
 }
 

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { OrganizerShell } from "#src/components/OrganizerShell.tsx";
 import { TermsScope } from "#src/components/TermsScope.tsx";
 import { webConfig } from "#src/lib/config.ts";
-import { fetchEventTerms } from "#src/lib/event-terms.ts";
+import { fetchEventFrame } from "#src/lib/event-terms.ts";
 import { organizerPage } from "#src/lib/organizer-page.ts";
 import { SESSION_COOKIE } from "#src/lib/staff-api.ts";
 
@@ -21,9 +21,9 @@ type Props = Readonly<{
 export default async function EventLayout({ children, params }: Props) {
   const { lang, organizerId, eventId } = await params;
   const [jar, incoming] = await Promise.all([cookies(), headers()]);
-  const [page, terms] = await Promise.all([
+  const [page, frame] = await Promise.all([
     organizerPage(lang, organizerId),
-    fetchEventTerms({
+    fetchEventFrame({
       apiOrigin: webConfig().apiOrigin,
       organizerId,
       eventId,
@@ -32,8 +32,10 @@ export default async function EventLayout({ children, params }: Props) {
     }),
   ]);
   return (
-    <TermsScope terms={terms}>
-      <OrganizerShell page={page}>{children}</OrganizerShell>
+    <TermsScope terms={frame.terms}>
+      <OrganizerShell page={page} event={{ id: eventId, suspension: frame.suspension }}>
+        {children}
+      </OrganizerShell>
     </TermsScope>
   );
 }

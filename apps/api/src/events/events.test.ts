@@ -43,6 +43,7 @@ const STORED: EventRecord = {
   venueRadiusM: 800,
   cityId: null,
   interests: [],
+  suspension: null,
 };
 
 describe("merge", () => {

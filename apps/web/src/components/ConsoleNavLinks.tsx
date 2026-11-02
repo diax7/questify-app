@@ -162,3 +162,16 @@ export function ConsoleReadinessLink({
     </NavItem>
   );
 }
+
+/** This page's item in the console's navigation (T-701). */
+export function ConsoleOrganizersLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/organizers`} icon="users" current={current}>
+      {t("console.organizers.title")}
+    </NavItem>
+  );
+}

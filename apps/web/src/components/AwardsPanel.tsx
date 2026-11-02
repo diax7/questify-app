@@ -19,6 +19,7 @@ import { Field, FieldGroup, Form, Input, Radio, Select, Textarea } from "#src/ui
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 import { infoTip } from "#src/ui/info.tsx";
+import { staffShown } from "#src/lib/support-label.ts";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -516,7 +517,7 @@ function ReportRow({
   line,
 }: Readonly<{ language: Language; timeZone: string; line: ReportLine }>) {
   const t = useTranslator(language);
-  const who = whoOf(line.by);
+  const who = staffShown(whoOf(line.by), language);
   const sign = line.kind === "removal" ? "−" : "+";
   return (
     <Card as="li">

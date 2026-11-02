@@ -24,6 +24,7 @@ import { Field, Form, Input, Select } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 import { infoTip } from "#src/ui/info.tsx";
+import { staffShown } from "#src/lib/support-label.ts";
 
 type Props = Readonly<{ language: Language; organizerId: string; eventId: string }>;
 
@@ -94,7 +95,9 @@ function DeviceCard({
       {line.quest === null ? null : <span dir="auto">{textFor(line.quest, language)}</span>}
       {line.client === "" ? null : <Muted as="span">{line.client}</Muted>}
       {line.pairedBy?.name === null || line.pairedBy === null ? null : (
-        <Muted as="span">{t("devices.pairedBy", { name: line.pairedBy.name })}</Muted>
+        <Muted as="span">
+          {t("devices.pairedBy", { name: staffShown(line.pairedBy.name, language) })}
+        </Muted>
       )}
       <Muted as="span">{t("devices.pairedAt", { time: time(line.pairedAt) })}</Muted>
       <Muted as="span">{t("devices.lastSeen", { time: time(line.lastSeenAt) })}</Muted>

@@ -11,6 +11,9 @@ import {
   type ConsoleEvent as ConsoleEventView,
   type LimitDraft,
 } from "#src/lib/console.ts";
+import { HistoryList } from "#src/components/ConsoleOrganizers.tsx";
+import { SuspensionPanel, SupportPanel } from "#src/components/ConsoleOversight.tsx";
+import { readEventOversight, type EventOversight } from "#src/lib/console-organizers.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
@@ -22,7 +25,11 @@ import { Stack, Toolbar } from "#src/ui/Section.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
 
 type Props = Readonly<{ language: Language; eventId: string }>;
-type Loaded = Readonly<{ view: ConsoleEventView; available: readonly string[] }>;
+type Loaded = Readonly<{
+  view: ConsoleEventView;
+  available: readonly string[];
+  oversight: EventOversight | undefined;
+}>;
 
 /**
  * One event in the console (FR-1021, FR-1402, FR-1729): activate a draft with a limit and add-ons, reject a request
@@ -45,7 +52,11 @@ export function ConsoleEvent({ language, eventId }: Props) {
       setProblem(describeProblem(result.body, language, translatorFor(language)).text);
       return;
     }
-    setLoaded({ view, available: available.filter((item) => typeof item === "string") });
+    setLoaded({
+      view,
+      available: available.filter((item) => typeof item === "string"),
+      oversight: readEventOversight(body?.event),
+    });
   }, [path, language]);
 
   useEffect(() => {
@@ -80,7 +91,7 @@ export function ConsoleEvent({ language, eventId }: Props) {
       </Notice>
     );
   }
-  const { view, available } = loaded;
+  const { view, available, oversight } = loaded;
   return (
     <Stack as="section" aria-labelledby="console-event-title">
       <EventFacts language={language} view={view} />
@@ -94,51 +105,136 @@ export function ConsoleEvent({ language, eventId }: Props) {
           {notice}
         </Notice>
       )}
-      {view.state === "activated" ? (
-        <ActivatedPanel
+      {oversight === undefined ? null : (
+        <Oversight
           language={language}
-          view={view}
-          available={available}
-          busy={busy}
-          saveLimit={(draft) =>
-            void send(
-              () => requestJson("PUT", `${path}/limit`, limitBodyOf(draft)),
-              t("console.limitSaved"),
-            )
-          }
-          toggle={(feature, on) =>
-            void send(
-              () => requestJson(on ? "PUT" : "DELETE", `${path}/addons/${feature}`),
-              t("console.addonsSaved"),
-            )
-          }
-        />
-      ) : (
-        <ActivateForm
-          language={language}
+          eventId={eventId}
           name={nameIn(view.event.name, language)}
-          available={available}
-          granted={view.addons}
-          busy={busy}
-          canReject={view.state === "requested"}
-          activate={(draft, addons) =>
-            void send(
-              () =>
-                requestJson(
-                  "POST",
-                  `${path}/activate`,
-                  { limit: limitBodyOf(draft), addons },
-                  { "idempotency-key": crypto.randomUUID() },
-                ),
-              t("console.activated"),
-            )
-          }
-          reject={(note) =>
-            void send(() => requestJson("POST", `${path}/reject`, { note }), t("console.rejected"))
-          }
+          oversight={oversight}
+          changed={(done) => {
+            setNotice(done);
+            void load();
+          }}
         />
       )}
+      <ActivationPart
+        language={language}
+        path={path}
+        view={view}
+        available={available}
+        busy={busy}
+        send={send}
+      />
     </Stack>
+  );
+}
+
+/** Activation: the form for a draft (activate or reject) or, once activated, the limit and add-ons. */
+function ActivationPart({
+  language,
+  path,
+  view,
+  available,
+  busy,
+  send,
+}: Readonly<{
+  language: Language;
+  path: string;
+  view: ConsoleEventView;
+  available: readonly string[];
+  busy: boolean;
+  send: (work: () => Promise<PostResult>, done: string) => Promise<void>;
+}>) {
+  const t = translatorFor(language);
+  return view.state === "activated" ? (
+    <ActivatedPanel
+      language={language}
+      view={view}
+      available={available}
+      busy={busy}
+      saveLimit={(draft) =>
+        void send(
+          () => requestJson("PUT", `${path}/limit`, limitBodyOf(draft)),
+          t("console.limitSaved"),
+        )
+      }
+      toggle={(feature, on) =>
+        void send(
+          () => requestJson(on ? "PUT" : "DELETE", `${path}/addons/${feature}`),
+          t("console.addonsSaved"),
+        )
+      }
+    />
+  ) : (
+    <ActivateForm
+      language={language}
+      name={nameIn(view.event.name, language)}
+      available={available}
+      granted={view.addons}
+      busy={busy}
+      canReject={view.state === "requested"}
+      activate={(draft, addons) =>
+        void send(
+          () =>
+            requestJson(
+              "POST",
+              `${path}/activate`,
+              { limit: limitBodyOf(draft), addons },
+              { "idempotency-key": crypto.randomUUID() },
+            ),
+          t("console.activated"),
+        )
+      }
+      reject={(note) =>
+        void send(() => requestJson("POST", `${path}/reject`, { note }), t("console.rejected"))
+      }
+    />
+  );
+}
+
+/** Suspension and support access for this event, and its organizer's page and history (T-701). */
+function Oversight({
+  language,
+  eventId,
+  name,
+  oversight,
+  changed,
+}: Readonly<{
+  language: Language;
+  eventId: string;
+  name: string;
+  oversight: EventOversight;
+  changed: (done: string) => void;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <>
+      <TextLink href={`/${language}/console/organizers/${oversight.organizerId}`}>
+        {t("console.organizer.open")}
+      </TextLink>
+      {oversight.organizerSuspension === null ? null : (
+        <Notice tone="warning" role="note">
+          {t("suspend.byOrganizer", { reason: oversight.organizerSuspension.reason })}
+        </Notice>
+      )}
+      <SuspensionPanel
+        language={language}
+        kind="event"
+        id={eventId}
+        name={name}
+        suspension={oversight.suspension}
+        onChanged={changed}
+      />
+      <SupportPanel
+        language={language}
+        eventId={eventId}
+        organizerId={oversight.organizerId}
+        name={name}
+        grants={oversight.grants}
+        onChanged={changed}
+      />
+      <HistoryList language={language} history={oversight.history} />
+    </>
   );
 }
 

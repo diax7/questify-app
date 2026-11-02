@@ -7,7 +7,13 @@ export type Membership = Readonly<{
   role: "owner" | "editor";
   /** The events an editor is limited to, or null for all of the organizer's events. */
   eventScope: readonly string[] | null;
+  /** Questify paused this organizer, with the reason it wrote (T-701, Q-372); null otherwise. */
+  suspension: Suspension | null;
+  /** Set only for a Questify admin's support grants (ADR-407): the events and when each ends. */
+  support?: readonly Readonly<{ grantId: string; eventId: string; expiresAt: string }>[];
 }>;
+
+export type Suspension = Readonly<{ reason: string; since: string }>;
 
 export type Me = Readonly<{
   id: string;
@@ -37,14 +43,41 @@ function readMembership(value: unknown): Membership | undefined {
     (value["role"] === "owner" || value["role"] === "editor") &&
     isScope(value["eventScope"])
   ) {
+    const support = readGrants(value["support"]);
     return {
       organizerId: value["organizerId"],
       organizerName: value["organizerName"],
       role: value["role"],
       eventScope: value["eventScope"],
+      suspension: readSuspension(value["suspension"]),
+      ...(support === undefined ? {} : { support }),
     };
   }
   return undefined;
+}
+
+/** A suspension as the API sends it, or null for none (or a shape this page does not know). */
+export function readSuspension(value: unknown): Suspension | null {
+  return isRecord(value) &&
+    typeof value["reason"] === "string" &&
+    typeof value["since"] === "string"
+    ? { reason: value["reason"], since: value["since"] }
+    : null;
+}
+
+function readGrants(value: unknown): Membership["support"] {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  return value
+    .filter(isRecord)
+    .flatMap((grant) =>
+      typeof grant["grantId"] === "string" &&
+      typeof grant["eventId"] === "string" &&
+      typeof grant["expiresAt"] === "string"
+        ? [{ grantId: grant["grantId"], eventId: grant["eventId"], expiresAt: grant["expiresAt"] }]
+        : [],
+    );
 }
 
 /** Checks the `/me` answer's shape, so a changed API shows the error state instead of a broken page. */

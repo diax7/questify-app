@@ -33,6 +33,9 @@ export function HomeScreen() {
         {notice === "rehearsalEnded" ? (
           <AppText accessibilityRole="alert">{t("rehearsal.ended")}</AppText>
         ) : null}
+        {notice === "eventUnavailable" ? (
+          <AppText accessibilityRole="alert">{t("event.unavailable")}</AppText>
+        ) : null}
         <CodeEntry />
         {state.status === "signed_in" ? (
           <>

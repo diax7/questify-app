@@ -931,11 +931,6 @@
       "lines": [117]
     }
   },
-  "apps/web/src/components/ConsoleEvent.tsx": {
-    "ConsoleEvent": {
-      "lines": [109]
-    }
-  },
   "apps/web/src/components/ConsoleQuestify.tsx": {
     "callFor": {
       "complexity": [9]
@@ -1169,11 +1164,6 @@
     },
     "readRules": {
       "complexity": [13]
-    }
-  },
-  "apps/web/src/lib/event-terms.ts": {
-    "fetchEventTerms": {
-      "complexity": [10]
     }
   },
   "apps/web/src/lib/flags.ts": {

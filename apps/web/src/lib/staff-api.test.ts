@@ -60,7 +60,13 @@ describe("fetchMe", () => {
         email: "owner@najd.sa",
         isAdmin: false,
         memberships: [
-          { organizerId: "o1", organizerName: "Najd Events", role: "owner", eventScope: null },
+          {
+            organizerId: "o1",
+            organizerName: "Najd Events",
+            role: "owner",
+            eventScope: null,
+            suspension: null,
+          },
         ],
       },
     });

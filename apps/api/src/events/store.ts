@@ -68,6 +68,8 @@ export type EventRecord = Readonly<{
   terms: EventTerms;
   /** The labels the event renamed (FR-1843, T-614), per language; none when it renamed none. */
   texts: EventTexts;
+  /** Questify paused this event, with the reason it wrote, which the team reads (T-701, Q-372); else null. */
+  suspension: Readonly<{ reason: string; since: string }> | null;
   /** The venue's pin, or null (T-303b); with its radius in metres. */
   venuePin: VenuePin | null;
   venueRadiusM: number;
@@ -131,6 +133,8 @@ type Row = {
   layout: unknown;
   terms: unknown;
   texts: unknown;
+  suspension_reason: string | null;
+  suspended_at: Date | null;
   venue_lat: string | null;
   venue_lng: string | null;
   venue_radius_m: number;
@@ -155,7 +159,8 @@ const COLUMNS = `id, join_code, name_ar, name_en, kind, venue_ar, venue_en, acce
   coalesce((config -> 'features' ->> 'maps')::boolean, true) AS maps_on,
   coalesce((config -> 'features' ->> 'agenda')::boolean, true) AS agenda_on,
   config -> 'branding' AS branding, config -> 'layout' AS layout, config -> 'terms' AS terms,
-  config -> 'texts' AS texts, venue_lat, venue_lng, venue_radius_m, city_id, interests`;
+  config -> 'texts' AS texts, venue_lat, venue_lng, venue_radius_m, city_id, interests, suspension_reason,
+  suspended_at`;
 
 const toRecord = (row: Row): EventRecord => ({
   id: row.id,
@@ -190,6 +195,10 @@ const toRecord = (row: Row): EventRecord => ({
   layout: readEventLayout(row.layout),
   terms: readEventTerms(row.terms),
   texts: readEventTexts(row.texts),
+  suspension:
+    row.suspension_reason === null || row.suspended_at === null
+      ? null
+      : { reason: row.suspension_reason, since: row.suspended_at.toISOString() },
   venuePin:
     row.venue_lat === null || row.venue_lng === null
       ? null
