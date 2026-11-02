@@ -51,11 +51,12 @@ test("opens each player document in both languages, and the contact page", async
   for (const [id, ar, en] of [
     ["terms_of_use", "شروط استخدام Questify", "Questify Terms of Use"],
     ["privacy_policy", "سياسة الخصوصية في Questify", "Questify Privacy Policy"],
-    ["community_guidelines", "إرشادات مجتمع Questify", "Questify Community Guidelines"],
+    // console-legal.spec publishes new guidelines in the same run: their title and version change.
+    ["community_guidelines", /إرشادات/, /Community Guidelines/i],
   ] as const) {
     await page.goto(`/en/legal/${id}`);
     await expect(page.getByRole("heading", { level: 1, name: en })).toBeVisible();
-    await expect(page.getByText("v0.1")).toBeVisible();
+    await expect(page.getByText(/^v[0-9.]+$/)).toBeVisible();
     await page.goto(`/ar/legal/${id}`);
     await expect(page.getByRole("heading", { level: 1, name: ar })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
