@@ -144,6 +144,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
     });
   });
 
+  describe("reads at once", () => {
+    it("answers every tab an admin opens at the same moment, not 429 for the one that lost the race", async () => {
+      const tabs = ["templates", "achievements", "amounts", "level-titles", "gem-shop", "xp-table"];
+      for (let round = 0; round < 3; round += 1) {
+        const answers = await Promise.all(
+          tabs.map((tab) => admin("GET", `/v1/admin/catalog/${tab}`)),
+        );
+        expect(answers.map((answer) => answer.statusCode)).toEqual(tabs.map(() => 200));
+      }
+    });
+  });
+
   describe("event templates", () => {
     it("lists the shipped templates, never cached, none revertible yet", async () => {
       const answer = await admin("GET", "/v1/admin/catalog/templates");

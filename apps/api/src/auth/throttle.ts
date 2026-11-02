@@ -102,6 +102,14 @@ export async function tryLock(db: Db, key: Buffer): Promise<boolean> {
   return rows[0]?.locked === true;
 }
 
+/**
+ * Takes a lock on a key for the rest of the transaction, waiting for it under the pool's lock timeout. Only for callers
+ * that are already signed in and whose second call is not an attack (a console page reading several tabs at once).
+ */
+export async function waitLock(db: Db, key: Buffer): Promise<void> {
+  await db.query("SELECT pg_advisory_xact_lock($1::bigint)", [key.readBigInt64BE(0).toString()]);
+}
+
 /** How many attempts a key has in the window, and how long until the oldest one leaves it. */
 export async function countRecent(
   db: Db,

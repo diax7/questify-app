@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 import { tooManyAttempts } from "#src/auth/http-errors";
-import { BUCKETS, countRecent, record, tryLock, type Bucket } from "#src/auth/throttle";
+import { BUCKETS, countRecent, record, tryLock, waitLock, type Bucket } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 
@@ -37,7 +37,8 @@ export const DEVICE_LIMITS = {
 
 /**
  * Holds one attempt against each limit in its own short transaction, under a non-waiting lock on the first key, and
- * records it in each when `keep`. The wait goes on `reply` as Retry-After.
+ * records it in each when `keep`. The wait goes on `reply` as Retry-After. `queue` waits for the lock instead, for a
+ * signed-in caller whose calls at the same moment are not an attack (the console's reads).
  *
  * @throws HttpError `too_many_attempts` (with the seconds to wait) when a limit is reached or the key is busy.
  */
@@ -46,11 +47,14 @@ export async function holdBack(
   limits: ReadonlyArray<Readonly<{ limit: DeviceLimit; key: Buffer }>>,
   keep: boolean,
   reply?: Readonly<{ header: (name: string, value: string) => unknown }>,
+  queue = false,
 ): Promise<void> {
   const wait = await withConnection(pool, (client) =>
     withRequestContext(client, {}, async () => {
       const first = limits[0];
-      if (first !== undefined && !(await tryLock(client, first.key))) {
+      if (first !== undefined && queue) {
+        await waitLock(client, first.key);
+      } else if (first !== undefined && !(await tryLock(client, first.key))) {
         return 1;
       }
       for (const { limit, key } of limits) {

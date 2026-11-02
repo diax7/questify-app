@@ -67,10 +67,10 @@ export async function throttled(
   limit: DeviceLimit,
 ): Promise<{ id: string; sessionId: string }> {
   const caller = callerOf(request);
-  // The key is per bucket: the lock refuses a second call on the same key, and the console's navigation reads the ticket
-  // count at the same moment as every page, so a key shared with the tickets (the admin's id alone) would refuse a page.
+  // The key is per bucket, and an admin's calls on one bucket queue for its lock: a page opening several tabs at once
+  // reads them all instead of refusing the ones that lost the race.
   const key = deps.keys.userKey(`${limit.bucket}:${caller.id}`);
-  await holdBack(deps.pool, [{ limit, key }], true, reply);
+  await holdBack(deps.pool, [{ limit, key }], true, reply, true);
   return caller;
 }
 
