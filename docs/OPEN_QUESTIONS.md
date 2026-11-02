@@ -1831,7 +1831,7 @@ reactivate); the ledger stays closed to support as to everyone.
 
 ## Q-378 - Are legal and consent texts editable in the text matrix? (T-702)
 
-**Status:** Proposed (developer, ADR-411). **Recommended:** no. They are listed read-only. Their keys (`signIn.consent*`, `signIn.terms`,
+**Status:** Decided (developer, delegated by Dhia, 2026-11-02; ADR-411 accepted after the T-702 review). **Recommended:** no. They are listed read-only. Their keys (`signIn.consent*`, `signIn.terms`,
 `signIn.privacy`, `signIn.accept`, `signIn.versions*`, `submission.guidelines*`, `staff.accept.*` and the whole `deletion.`, `optOut.`
 and `marketing.` areas, plus any future `legal.`, `consent.`, `acceptance.`, `privacy.`, `guidelines.`, `reaccept.` key) change with a
 release. **Why:** FR-1781 makes a legal document a versioned thing players accept again; the matrix keeps no version record, and
@@ -1841,7 +1841,7 @@ number and re-acceptance (T-707), and the lock list in `packages/shared/src/i18n
 
 ## Q-379 - What does "missing Arabic" or "missing English" mean? (T-702)
 
-**Status:** Proposed (developer, ADR-411). **Recommended:** the text a player sees in that language has no letter of that language
+**Status:** Decided (developer, delegated by Dhia, 2026-11-02; ADR-411 accepted after the T-702 review). **Recommended:** the text a player sees in that language has no letter of that language
 (placeholders left out) while the other language does, such as an English sentence copied into the Arabic box. Every shipped key has
 both languages (a test keeps it so), so today the filter shows the few texts that are English or Arabic only on purpose (brand names,
 `QR`); it exists to catch a copied or forgotten text. **Open:** if FR-1765 meant something else (a text an admin emptied), note that
@@ -1849,7 +1849,7 @@ an empty box returns the language to the shipped text, so a language can never b
 
 ## Q-380 - How fast does the phone pick up a text, and where else is the store read? (T-702)
 
-**Status:** Proposed (developer, ADR-412). **Recommended:** 30 seconds in the foreground and at each return to it, with the last
+**Status:** Decided (developer, delegated by Dhia, 2026-11-02; ADR-412 accepted after the T-702 review). **Recommended:** 30 seconds in the foreground and at each return to it, with the last
 working copy kept; no push to phones. **Open:** (a) the organizer dashboard and the web console still show the shipped text outside
 the guided setup (`wizard.*`, `setup.*`); an edit to any other dashboard text changes the phone, not the dashboard. Recommended: leave
 it until a dashboard page is meant to be editable (the matrix lists every key, so an admin may edit a dashboard-only text and see no
@@ -1858,6 +1858,6 @@ the server, the splash) is not covered.
 
 ## Q-381 - Placeholder chips beside the box, not inside the text (T-702)
 
-**Status:** Proposed (developer, ADR-413). **Recommended:** as built (a free box, chips under it, the save waits). **Open:** if you want
+**Status:** Decided (developer, delegated by Dhia, 2026-11-02; ADR-413 accepted after the T-702 review). **Recommended:** as built (a free box, chips under it, the save waits). **Open:** if you want
 a chip to be unremovable inside the text, that needs a custom editor (it breaks caret and selection in mixed Arabic and English
 lines) and a way to move a chip, since Arabic often puts a number before or after a noun differently from English.

@@ -6463,7 +6463,7 @@ delivers value alone.
 
 ## ADR-411 - T-702 the text matrix is a server-paged read of the shipped catalog laid over the store; an edit is the store's own save
 
-**Status:** Proposed (developer, T-702; Q-378 to Q-381). Builds FR-1765 and FR-1766 on ADR-093 and the T-008 store. Migration 0116.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-702 review 86, its MAJOR fixed; Q-378 to Q-381). Builds FR-1765 and FR-1766 on ADR-093 and the T-008 store. Migration 0116.
 **Decision:** (1) **Read.** `GET /v1/admin/translations?q&area&show&offset&limit` (console scope, admin only) builds the matrix in the
 API from `MESSAGES` and the `translation` rows (`buildMatrix`, shared): every shipped key in key order with its area (the word before
 the first dot), whether it is locked, the shipped text, the stored value per language (as stored, usable or not) and a `stale` flag per
@@ -6484,7 +6484,7 @@ holds; paging keeps the console fast on a phone.
 
 ## ADR-412 - T-702 the phone reads the store through `GET /v1/translations`, with the ETag and a last working copy, every 30 seconds in the foreground
 
-**Status:** Proposed (developer, T-702; Q-380).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-702 review 86, its MAJOR fixed; Q-380).
 **Decision:** The phone did not read the store at all (the provider built its translator with no overrides). `useOverrides` now shows
 the cached copy at once, fetches `/v1/translations` with the cached ETag on start, when the app returns to the foreground and every
 30 seconds while it is in the foreground, and keeps the last working copy on a 304, a failed fetch or an unreadable answer (F-282,
@@ -6497,7 +6497,7 @@ already has its own route, ETag and cache. `readOverrides` moved to `@questify/s
 
 ## ADR-413 - T-702 placeholders are protected by chips beside a free text box and a save that waits, not by chips inside the text
 
-**Status:** Proposed (developer, T-702; Q-381).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-702 review 86, its MAJOR fixed; Q-381).
 **Decision:** Each language is a plain text box (right to left for Arabic) with the shipped text's placeholders as chips under it:
 a chip is filled when its name is in the text, red when it was lost (a click puts it back at the caret) and a name the shipped
 text does not have is flagged "Not allowed"; Save stays off until every name is in place, none is added and the text is within 1,000
