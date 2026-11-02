@@ -1915,9 +1915,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     ).toBe("RP404");
   });
 
-  it("keeps the catalog editors from every tenant seat (T-709b)", async () => {
+  it("keeps the catalog editors from every tenant seat (T-709b to T-709d)", async () => {
     for (const seat of ["organizer", "staff", "player"] as const) {
       for (const sql of [
+        "SELECT admin_xp_table()",
+        "SELECT admin_xp_table_save('{}', NULL, true, gen_random_uuid())",
+        "SELECT admin_xp_table_preview('{}')",
+        "SELECT admin_items()",
+        "SELECT admin_item_save('level-2', '{}', NULL, gen_random_uuid())",
+        "SELECT admin_item_create('{}', gen_random_uuid())",
         "SELECT admin_templates()",
         "SELECT admin_template_save('conference', '{}', NULL, gen_random_uuid())",
         "SELECT admin_achievements()",

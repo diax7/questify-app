@@ -1,4 +1,11 @@
-import { ACHIEVEMENT_ID, ITEM_ID, TEMPLATE_KEY, type CatalogKind } from "@questify/shared";
+import {
+  ACHIEVEMENT_ID,
+  ITEM_ID,
+  TEMPLATE_KEY,
+  itemCreateSchema,
+  xpTableDocSchema,
+  type CatalogKind,
+} from "@questify/shared";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { invalidCatalog } from "#src/auth/http-errors";
@@ -12,9 +19,13 @@ import {
   saveCatalog,
 } from "#src/console/catalog";
 import { throttled, type ConsolePlatformDeps } from "#src/console/platform-routes";
+import { createItem, previewXpTable } from "#src/console/xp-table";
 import type { DeviceLimit } from "#src/devices/limits";
 
 const read = { config: { access: "admin" }, bodyLimit: 1024 } as const;
+// A 100-level XP table is about 6,000 bytes.
+const preview = { config: { access: "admin" }, bodyLimit: 32 * 1024 } as const;
+const create = { config: { access: "admin" }, bodyLimit: 4 * 1024 } as const;
 // A template body is at most 30,000 bytes; the rest is its names and descriptions.
 const write = { config: { access: "admin" }, bodyLimit: 128 * 1024 } as const;
 const revert = { config: { access: "admin", idempotent: true }, bodyLimit: 1024 } as const;
@@ -64,6 +75,13 @@ const CATALOGS: readonly Catalog[] = [
     id: z.string().regex(ITEM_ID),
   },
   { kind: "amounts", path: "/catalog/amounts", names: undefined, id: undefined },
+  { kind: "xp_table", path: "/catalog/xp-table", names: undefined, id: undefined },
+  {
+    kind: "item",
+    path: "/catalog/items",
+    names: { list: "items", one: "item" },
+    id: z.string().regex(ITEM_ID),
+  },
 ];
 
 const confirmation = z.strictObject({ confirmed: z.boolean().optional() });
@@ -141,10 +159,42 @@ function registerCatalog(
 }
 
 /**
- * The console's catalog editors (T-709b, T-709c, FR-1403): event templates, achievements (names and thresholds), level
- * titles, the gem shop and the XP and gem amounts. Each is a list, a save and a revert, registered inside the console scope whose hook answers 404 to anyone but an active platform
+ * The XP table's preview (a read: what a table would do to active players now) and a new item (a change, audited), both
+ * checked against the shared schema here and again by their doors (T-709d).
+ */
+function registerXpTableExtras(
+  scope: FastifyInstance,
+  deps: Pick<ConsolePlatformDeps, "pool" | "keys">,
+): void {
+  scope.post("/catalog/xp-table/preview", preview, async (request, reply) => {
+    const checked = xpTableDocSchema.safeParse(request.body);
+    if (!checked.success) {
+      throw invalidBody(checked.error.issues);
+    }
+    const caller = await throttled(deps, request, reply, CONSOLE_CATALOG_LIMIT);
+    return previewXpTable(deps.pool, caller, checked.data);
+  });
+
+  scope.post("/catalog/items", create, async (request, reply) => {
+    const checked = itemCreateSchema.safeParse(request.body);
+    if (!checked.success) {
+      throw invalidBody(checked.error.issues);
+    }
+    const caller = await throttled(deps, request, reply, CONSOLE_CATALOG_WRITE_LIMIT);
+    reply.code(201);
+    return {
+      item: await createItem(deps.pool, caller, { doc: checked.data, requestId: request.id }),
+    };
+  });
+}
+
+/**
+ * The console's catalog editors (T-709b, T-709c, T-709d, FR-1403): event templates, achievements (names and thresholds),
+ * level titles, the gem shop, the XP and gem amounts, the XP table with its level rewards, and Questify's items. Each is a
+ * list, a save and a revert, registered inside the console scope whose hook answers 404 to anyone but an active platform
  * admin; every door re-reads the admin in the database. A save is checked against the editor's schema here and again by
- * the door, and is audited with the fields before and after; a revert is the same save with the earlier fields.
+ * the door, and is audited with the fields before and after; a revert is the same save with the earlier fields. The XP
+ * table also has a preview, and the items a create.
  */
 export function registerConsoleCatalogRoutes(
   scope: FastifyInstance,
@@ -153,4 +203,5 @@ export function registerConsoleCatalogRoutes(
   for (const catalog of CATALOGS) {
     registerCatalog(scope, deps, catalog);
   }
+  registerXpTableExtras(scope, deps);
 }

@@ -136,3 +136,32 @@
     grid-column: 1 / -1;
   }
 }
+
+/* The XP table (T-709d): one row per level, its start and its reward, a lock on a level someone reached. */
+.levels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.level {
+  display: grid;
+  grid-template-columns: minmax(0, 7rem) minmax(0, 10rem) minmax(0, 1fr) auto;
+  gap: var(--space-sm) var(--space-lg);
+  align-items: end;
+  padding-block-end: var(--space-sm);
+  border-block-end: var(--line);
+}
+
+@media (max-width: 48rem) {
+  .level {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .level > :nth-child(3) {
+    grid-column: 1 / -1;
+  }
+}

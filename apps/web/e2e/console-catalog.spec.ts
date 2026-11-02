@@ -185,3 +185,53 @@ test("level titles are edited as a set and the gem shop price is changed and rev
   await expect(card.getByText(`Gems: ${shop.price}, place:`)).toBeVisible();
   await expectNoSidewaysScroll(page);
 });
+
+test("the XP table shows each level and its reward; a raise is saved after its summary and the lowering revert asks to pay", async ({
+  page,
+}, info) => {
+  // One document for the whole platform: only the desktop run edits it, so two runs never cross.
+  test.skip(info.project.name === "phone", "the XP table is one shared document");
+  test.setTimeout(120_000);
+  await asAdmin(page, info.project.name);
+  await page.goto("/en/console/catalog");
+  await page.getByRole("button", { name: "XP table" }).click();
+  const table = page.getByTestId("xp-table");
+  await expect(table.getByTestId("xp-level")).toHaveCount(30);
+  await table.getByRole("button", { name: "Edit XP table" }).click();
+  const top = table.locator('[data-testid="xp-level-edit"][data-level="30"]');
+  const start = top.getByLabel("Starts at (XP)");
+  const stored = Number(await start.inputValue());
+  await start.fill(String(stored + 1));
+  await table.getByRole("button", { name: "Save", exact: true }).click();
+  const ask = table.getByRole("alert");
+  await expect(ask.getByText("Save the XP table?")).toBeVisible();
+  await ask.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Change saved.")).toBeVisible();
+  await table.getByRole("button", { name: "Go back on the last change to XP table" }).click();
+  await table.getByRole("alert").getByRole("button", { name: "Save and pay" }).click();
+  await expect(page.getByText("Went back to the earlier version.")).toBeVisible();
+  await expectNoSidewaysScroll(page);
+});
+
+test("in Arabic an item's names are edited and reverted; a shop item's art is locked", async ({
+  page,
+}, info) => {
+  test.setTimeout(120_000);
+  const id = info.project.name === "phone" ? "level-28" : "level-29";
+  await asAdmin(page, info.project.name);
+  await page.goto("/ar/console/catalog");
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await page.getByRole("button", { name: "العناصر" }).click();
+  const card = page.locator(`[data-testid="item-card"][data-id="${id}"]`);
+  await card.getByRole("button", { name: /^تعديل / }).click();
+  const english = card.getByLabel("الاسم · الإنجليزية");
+  const stored = await english.inputValue();
+  await english.fill(`${stored} II`);
+  await card.getByRole("button", { name: "حفظ" }).click();
+  await expect(card.getByText(`${stored} II`)).toBeVisible();
+  await card.getByRole("button", { name: /^التراجع عن آخر تغيير/ }).click();
+  await expect(card.getByText(stored, { exact: true })).toBeVisible();
+  const shop = page.locator('[data-testid="item-card"][data-id="shop-dune-ring"]');
+  await expect(shop.getByTestId("item-facts")).toContainText("معروض في المتجر");
+  await expectNoSidewaysScroll(page);
+});

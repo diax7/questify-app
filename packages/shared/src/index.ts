@@ -1082,6 +1082,34 @@ export type {
   TemplateAdmin,
   TemplateDoc,
 } from "./catalog/catalog";
+export {
+  FRAME_VISUALS,
+  ITEM_ART_LOCKS,
+  XP_FROM_MAX,
+  XP_LEVELS_MAX,
+  XP_LEVELS_MIN,
+  itemAdminAnswerSchema,
+  itemAdminSchema,
+  itemCreateSchema,
+  itemDocSchema,
+  itemsAdminListSchema,
+  visualsOf,
+  xpTableAdminSchema,
+  xpTableDocSchema,
+  xpTableLoweringSchema,
+  xpTablePreviewSchema,
+} from "./catalog/xp-table";
+export type {
+  ItemAdmin,
+  ItemCreate,
+  ItemDoc,
+  ItemKind,
+  XpLevel,
+  XpTableAdmin,
+  XpTableDoc,
+  XpTableLowering,
+  XpTablePreview,
+} from "./catalog/xp-table";
 export { TEMPLATE_KEY } from "./templates/template";
 export { hasUnsafeCharacter } from "./i18n/translate";
 export {

@@ -44,6 +44,28 @@
   app render test for `eventOff` was dropped (the app has no render-test harness, and a harness is not worth adding for
   one line).
 
+## T-709d XP table and items — 2026-11-02
+
+- **T-709d built (tier A; migration 0124, new and undeployed; 0123 is T-707's; ADR-440, ADR-441, Q-399, Q-401, Q-402
+  Proposed; plan review 85, its five fixes folded into the plan and ADR-440 first).** **XP table** tab: one row per level
+  (start in XP, reward picked from free items, a lock on a level anyone reached), Add level, Remove top level; Save shows
+  the preview first ("About {up} players go up… about {gems} gems… Undoing this does not take them back." / "About
+  {down} players go down a level. They keep what they earned.") and sends `confirmed`; a lowering revert asks too; 503
+  shows "Players are levelling up right now." The door (`admin_xp_table_save`) writes `xp_level` and `level_item` only,
+  under row locks taken one per statement within one 1 s budget (CA503 / 55P03 → 503 `busy`, Retry-After 2), orders its
+  updates so the `xp_from` UNIQUE never trips, refuses removing a level anyone reached or stands at (`level_held`) and
+  remapping a reached level (`reward_given`), and needs `confirmed` for a save that pays. `levels_reach` (the only
+  inserter into `level_reached`, FOR KEY SHARE per level) serves `xp_apply` and the sync's new `xp_catch_up`, which runs
+  right after the sync's `player_xp` lock and pays each due level's item and gems once. `own_level`, `own_equipment` and
+  the console's player record derive the level from XP. **Items** tab: equal cards (kind icon, both names, art, source
+  badge), names always editable, art locked "On sale" / "Players own it", New item (optionally on sale); the source guard
+  lets a shop item change its names only. **Tests:** DB `console-xp-table` (42), `console-xp-table-races` (13, incl. the
+  budget test, shown to fail with a per-lock timeout), `console-items` (19), HTTP `catalog-xp-table` (7), security suites
+  (outsider, cross-tenant, routes), shared and web unit tests (`console-catalog-xp`). Timing at 300,000 players
+  (`test/perf/xp-table-timing`, by hand): save 159 to 316 ms, preview 191 to 307 ms, a queued scan 167 to 616 ms (Q-401).
+  Full vitest once: 11329 passed, 2 failed (gems expected a shop item's name to be frozen, now its art; a zod `.union()` read as a Set method by the Hermes check) and one hook timeout under load (routes); all fixed and the touched suites re-run green. Browser, one worker after a fresh build: layout and console-catalog 12 passed, 2 skipped (shared documents on phone). Lint, format, types, function limits clean. CI minutes: 0. Agent tokens: about 1.5M (estimate).
+  **Next:** the T-709d code review (tier A, strongest model), then the mutation run on the TS globs.
+
 ## T-709c thresholds, amounts and tier revoke — 2026-11-02
 
 - **T-709c part 1 built (tier A; migration 0122, new and undeployed; ADR-436 to ADR-439 and Q-398 Proposed; plan review

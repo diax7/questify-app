@@ -6,16 +6,26 @@ import {
   amountsDocSchema,
   gemShopDocSchema,
   gemShopItemAdminSchema,
+  itemAdminSchema,
+  itemDocSchema,
   levelTitlesAdminSchema,
   levelTitlesDocSchema,
   loweredGemsSchema,
   templateAdminSchema,
   templateDocSchema,
+  xpTableAdminSchema,
+  xpTableDocSchema,
+  xpTableLoweringSchema,
   type CatalogKind,
 } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
 import type { z } from "zod";
-import { confirmationRequired, invalidCatalog, nothingToRevert } from "#src/auth/http-errors";
+import {
+  CATALOG_CONFLICTS,
+  confirmationRequired,
+  invalidCatalog,
+  nothingToRevert,
+} from "#src/auth/http-errors";
 import { door, type Admin } from "#src/console/doors";
 
 type Answer = Readonly<Record<string, unknown>>;
@@ -30,9 +40,10 @@ type SaveCall = Readonly<{
 }>;
 
 /**
- * One catalog editor (T-709b, T-709c): the shape of what an admin edits (`doc`), of an audit entry's `before` a revert puts
- * back (`before`), of a row as the console lists it (`row`), the audit target, and its two database doors (migrations
- * 0119 and 0122). A level-title set and the amounts are one document each, so they have no id: `auditId` names them.
+ * One catalog editor (T-709b, T-709c, T-709d): the shape of what an admin edits (`doc`), of an audit entry's `before` a
+ * revert puts back (`before`), of a row as the console lists it (`row`), the audit target, and its two database doors
+ * (migrations 0119, 0122 and 0124). A level-title set, the amounts and the XP table are one document each, so they have no
+ * id: `auditId` names them.
  */
 type Editor = Readonly<{
   targetType: string;
@@ -139,38 +150,106 @@ const EDITORS: Readonly<Record<CatalogKind, Editor>> = {
         call.requestId,
       ]),
   },
+  xp_table: {
+    targetType: "xp_level",
+    doc: xpTableDocSchema,
+    before: xpTableDocSchema,
+    row: xpTableAdminSchema,
+    idField: undefined,
+    auditId: "all",
+    confirmable: true,
+    list: (client) => answerOf(client, "SELECT admin_xp_table() AS r"),
+    save: (client, call) =>
+      answerOf(client, "SELECT admin_xp_table_save($1, $2, $3, $4) AS r", [
+        call.doc,
+        call.revertOf,
+        call.confirmed,
+        call.requestId,
+      ]),
+  },
+  item: {
+    targetType: "item",
+    doc: itemDocSchema,
+    before: itemDocSchema,
+    row: itemAdminSchema,
+    idField: "id",
+    auditId: "",
+    confirmable: false,
+    list: (client) => answerOf(client, "SELECT admin_items() AS r"),
+    save: (client, call) =>
+      answerOf(client, "SELECT admin_item_save($1, $2, $3, $4) AS r", [
+        call.id,
+        call.doc,
+        call.revertOf,
+        call.requestId,
+      ]),
+  },
 };
 
-/** The gems a refused lowering pays, from the door's detail (a JSON object; CA428, migration 0122). */
-function loweredGems(detail: unknown): unknown {
-  // Stryker disable next-line ConditionalExpression: the door always sets the detail; a missing one is a broken door
+/** The door's JSON detail of a refusal (CA428 and CA409 of migrations 0122 and 0124). */
+function detailOf(detail: unknown): Readonly<Record<string, unknown>> {
+  // Stryker disable next-line ConditionalExpression: those doors always set the detail; a missing one is a broken door
   if (typeof detail !== "string") {
-    throw new Error("a lowering refusal came without its gems; check migration 0122");
+    throw new Error("a catalog refusal came without its detail; check migrations 0122 and 0124");
   }
-  return loweredGemsSchema.parse(JSON.parse(detail));
+  return JSON.parse(detail) as Readonly<Record<string, unknown>>;
 }
 
 /**
- * A value outside a table's own bounds (a CHECK) is the admin's input, not a fault; a lowering that was not confirmed
- * answers what it would pay.
+ * What an unconfirmed lowering pays: the gems per lowered tier of an achievement (migration 0122), or the levels an XP
+ * table makes due and the gems each pays (migration 0124).
  */
-async function catalogDoor<T>(
+function lowering(detail: unknown) {
+  const parsed = detailOf(detail);
+  return Object.hasOwn(parsed, "levels")
+    ? confirmationRequired(xpTableLoweringSchema.parse(parsed))
+    : confirmationRequired({ gems: loweredGemsSchema.parse(parsed) });
+}
+
+/** A CA409 that names its reason (migration 0124) as its own answer; a bare CA409 stays the console door's `stale`. */
+function conflict(error: unknown, detail: unknown): unknown {
+  if (typeof detail !== "string" || !detail.startsWith("{")) {
+    return error;
+  }
+  const { reason, level } = detailOf(detail);
+  const answer = Object.hasOwn(CATALOG_CONFLICTS, String(reason))
+    ? CATALOG_CONFLICTS[reason as keyof typeof CATALOG_CONFLICTS]
+    : undefined;
+  // Stryker disable next-line ConditionalExpression: every reason 0124 raises is listed; an unknown one is a broken door
+  if (answer === undefined) {
+    throw new Error(`unknown catalog refusal ${String(reason)}; check migration 0124`);
+  }
+  return answer(level === undefined ? {} : { level });
+}
+
+/** A catalog door's own refusal as the admin's answer; anything else as it came. */
+function catalogRefusal(error: unknown): unknown {
+  const { code, detail } = error as { code?: unknown; detail?: unknown };
+  if (code === "23514") {
+    return invalidCatalog();
+  }
+  if (code === "CA428") {
+    return lowering(detail);
+  }
+  return code === "CA409" ? conflict(error, detail) : error;
+}
+
+/**
+ * Runs catalog work as a console door. A value outside a table's own bounds (a CHECK) is the admin's input, not a fault;
+ * a lowering that was not confirmed answers what it would pay; a refusal with a reason answers that reason.
+ */
+export function catalogDoor<T>(
   pool: Pool,
   admin: Admin,
   work: (client: PoolClient) => Promise<T>,
 ): Promise<T> {
-  try {
-    return await door(pool, admin, work);
-  } catch (error) {
-    const { code, detail } = error as { code?: unknown; detail?: unknown };
-    if (code === "23514") {
-      throw invalidCatalog();
+  return door(pool, admin, async (client) => {
+    try {
+      return await work(client);
+    } catch (error) {
+      throw catalogRefusal(error);
     }
-    if (code === "CA428") {
-      throw confirmationRequired({ gems: loweredGems(detail) });
-    }
-    throw error;
-  }
+  });
 }
 
 /** Which targets of a kind hold an earlier state to go back to: the latest catalog entry has a `before`. */

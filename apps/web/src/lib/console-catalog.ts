@@ -26,7 +26,7 @@ import {
   type TemplateAdmin,
 } from "@questify/shared";
 
-/** The console's catalog editors (T-709b, T-709c, FR-1403): templates, achievements, level titles, the shop, amounts. */
+/** The console's catalog editors (T-709b to T-709d, FR-1403); the XP table and items are in console-catalog-xp. */
 export const CATALOG_API = "/v1/admin/catalog";
 export const TEMPLATES_API = `${CATALOG_API}/templates`;
 export const ACHIEVEMENTS_API = `${CATALOG_API}/achievements`;
@@ -34,7 +34,15 @@ export const LEVEL_TITLES_API = `${CATALOG_API}/level-titles`;
 export const GEM_SHOP_API = `${CATALOG_API}/gem-shop`;
 export const AMOUNTS_API = `${CATALOG_API}/amounts`;
 
-export const CATALOG_TABS = ["templates", "achievements", "levels", "shop", "amounts"] as const;
+export const CATALOG_TABS = [
+  "templates",
+  "achievements",
+  "levels",
+  "shop",
+  "amounts",
+  "xp",
+  "items",
+] as const;
 export type CatalogTab = (typeof CATALOG_TABS)[number];
 
 /** The API path of one row of a catalog; every id is checked by the API's own pattern, and escaped all the same. */
@@ -104,7 +112,8 @@ export function checked<Doc>(schema: Schema<Doc>, input: unknown): Checked<Doc> 
 }
 
 /** Whole numbers only: "12" is 12, "1.5", "" and "1e3" are not numbers the API takes. */
-const wholeNumber = (text: string): number => (/^\d{1,9}$/.test(text.trim()) ? Number(text) : NaN);
+export const wholeNumber = (text: string): number =>
+  /^\d{1,9}$/.test(text.trim()) ? Number(text) : NaN;
 
 // ---------------------------------------------------------------- event templates
 
