@@ -1782,4 +1782,4 @@ own Inbox once T-705 exists, or only Questify's moderators?
 last hour, and names the last action whatever it was (a scan, a check-in, an award, a hand-over, a cancel, a review, a reply); (c) a briefing reaches every operator of the event whatever their
 abilities, cannot be muted, and has a title and a text of 140 characters in Arabic and English so nothing is cut; (d) it may be sent before the event starts and until it ends, 3 an hour and 10 a day;
 (e) the operator-invite push is dropped (no account exists when the invite is made). Questions for Dhia: should a briefing be able to name a subset (the operators of one station, or one ability),
-and should operators be able to acknowledge it?
+and should operators be able to acknowledge it? **Decided (developer, delegated by Dhia, 2026-11-02):** as built (all current operators, no acknowledgement); either is a small addition if Dhia asks. ADR-402 accepted.

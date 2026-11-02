@@ -6329,7 +6329,7 @@ reported content waits for T-705.
 
 ## ADR-402 - T-617 operator activity and the staff briefing: one read over existing records, a briefing as one personal notice per current operator
 
-**Status:** Proposed (developer, 2026-11-02; Q-369). Specifies FR-1844 (F-346); builds on T-204 (operators), T-501 (the push store, ADR-343 to ADR-350) and T-502 (the announcements' text rules, ADR-358).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-617 review 92 GO; Q-369). Specifies FR-1844 (F-346); builds on T-204 (operators), T-501 (the push store, ADR-343 to ADR-350) and T-502 (the announcements' text rules, ADR-358).
 **Decision:** (1) **One read, no new activity store.** `operator_activity(event, recent)` (migration 0111, owner and editor within their event limit, `award_event_of`, AN404)
 answers, for each current operator of the event: scans in the last hour and in the event's day (the ledger's `quest` and `session` entries that carry the operator's id; a
 session check-in is a scan of the player's code, and a manual award that names a quest is a quest completion, so it counts here), awards, hand-overs, submissions reviewed plus help
