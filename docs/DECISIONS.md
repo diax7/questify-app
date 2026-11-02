@@ -6694,3 +6694,69 @@ queue, unpublish with `content_unpublished`, the platform flags list). Each deli
 T-704's record and T-705b reuses T-704's rename and T-705's ban as queue actions. One mutation run after T-705 covers T-704
 and T-705 (ADR-355).
 **Trade-offs:** none beyond the order.
+
+
+## ADR-429 - T-705 a platform ban is set and lifted only by two admin doors, with a reason code the player sees
+
+**Status:** Proposed (developer, 2026-11-02; T-705 build; plan D8, D9, D11, D12). Migration 0120.
+**Decision:** `admin_ban_player` and `admin_lift_ban` are the only writers of a player's standing: the API's role loses its
+`UPDATE (status)` on `player` (the old admin path was unused), so nothing automatic and no hand-written statement can ban or
+unban. A ban takes a reason code from `cheating | abuse | spam | prize_fraud | terms` (shown to the player in fixed words)
+and an internal note; a lift takes `appeal_upheld | mistake | other` and a note. The ban locks the player `FOR NO KEY
+UPDATE`, ends every way in as the sign-in reset does (open codes, tokens, push devices) and sets the `tokens_valid_after`
+cutoff (ADR-421), marks the ranking repair of every event where the player is active, and points `player.ban_action_id` at
+its action row (a CHECK keeps the pointer on banned rows only). Memberships, event bans, the ledger and history are untouched;
+a lift restores the account and repairs the rankings again, and the cutoff stays, so the player signs in afresh. The
+sign-in's `account_banned` (still only after the right code) carries `{reason, appealEmail}`: the appeal address is the
+`platform_setting` key `moderation` (`appealEmail`), and while none is stored the API answers its sending address
+(`MAIL_FROM`), as ADR-423 asked; no row is seeded because a migration cannot know the address. Erasure clears the pointer
+before it deletes the action rows, so a banned player can still erase the account. Questify-wide boards and the public
+profile already leave non-active players out (checked).
+**Trade-offs:** the lift codes are a fixed list too (Q-392); a console editor for the appeal address waits for T-703.
+
+## ADR-430 - T-705 a wall pays a player who is not active nothing, and the batch writers skip such a player
+
+**Status:** Proposed (developer, 2026-11-02; T-705 build; plan D10 and the plan review's BLOCKER). Migration 0120.
+**Decision:** BEFORE INSERT triggers on `ledger_entry` (`ledger_player_guard`), `xp_entry` and `gem_entry`
+(`wallet_player_guard`) raise PB423 when the paid player is banned or erased, reading the player `FOR SHARE` so a ban (which
+takes the row `FOR NO KEY UPDATE`) and a payment run one after the other. What passes: a reservation refund
+(`redeem_return`, so a live reservation expires and pays back), a removal, a points change that only lowers (an `adjust`
+with no positive delta), an XP removal and a gem purchase. A prize handover is refused, so a banned player's reservation
+expires. A catalog search found twenty writers; the three that pay a set of players in one statement now lock the paid
+players `FOR SHARE` in id order after the memberships they already lock and skip a non-active player: the group and bulk
+awards (`bulk_award_eligible`, counted in `skipped`), the past points change (`apply_past_points`: a raise is skipped, a
+lowering still applies) and the community payout (`pay_community_batch`, already `inactive`). Every other writer pays one
+player and meets PB423, which the API answers once, globally, as 423 `player_inactive` ("This player can't receive points
+right now"), never a 500.
+**Trade-offs:** a banned player's points stay as they were when a quest's points are raised for everyone; a lift does not
+replay the raise (Q-393).
+
+## ADR-431 - T-705 a block hides a player from the blocker's own reads, row kept, and binds no team
+
+**Status:** Proposed (developer, 2026-11-02; T-705 build; plan D13 and the plan review's MAJOR). Migration 0120.
+**Decision:** `player_block (blocker_id, blocked_id, created_at)`, no grant, written only by the player-bound doors
+`block_player(username)`, `unblock_player(username)` and read by `own_blocks()`; 500 per player under the blocker's row
+lock; an unknown name, an erased account and the caller all answer `not_found` (404). Routes `GET|POST /v1/me/blocks` and
+`DELETE /v1/me/blocks/{username}` (Idempotency-Key, 60 changes an hour); the access log replaces the name in that path, as
+it does for `/v1/players/{username}`. The reads a block masks keep the blocked player's row, place, score and prize and leave
+out the username, avatar, equipment and full name (the app shows "Hidden player" and the row opens nothing):
+`ranking_top`, `ranking_day_top`, `ranking_rows`, `ranking_names`, `event_results` (gains `hidden`) and the Questify-wide
+boards (`xp_board_json`, rows gain `hidden`); `public_player_profile` answers nothing. A blocked pair cannot meet in either
+direction (`meet_refusal`, the same `not_for_them` as any other reason, checked before `already_met` names anyone). Nothing
+tells the blocked player. Staff and console reads, the big screen and a player's own report are not masked: a block is a
+player's choice and does not bind an organizer's team or a room's screen. A gate test lists every database function that
+names a player (masked or allowed with a reason) and every API file that reads a player row with a name.
+**Trade-offs:** a block made after a meeting leaves that meeting's pass showing who scanned it; staff still see both players (Q-394).
+
+## ADR-432 - T-705 the console edits the word lists and releases retired names, and no retired name reaches a URL or the audit
+
+**Status:** Proposed (developer, 2026-11-02; T-705 build; plan section 4 "Word lists"). Migration 0120.
+**Decision:** a console page **Word lists** (`/console/word-lists`): the lists 50 a page by word with search, language and
+match filters, Add (word, language, match; the door folds it, the table's CHECK refuses anything but letters as WL400, 400
+`invalid_word`; a repeat is 409 `word_exists`) and Remove (asked once); and **Retired usernames** with Release. Doors
+`console_words`, `admin_word_add`, `admin_word_remove`, `console_retired_usernames`, `admin_unretire_username`, each for an
+active admin (QE403). A change applies at once to sign-up, rename and the marking of player text, and never renames anyone;
+there is no "N current usernames now match" read (the plan review). The audit holds a list word (not personal data); a
+release travels in the body (`POST /v1/admin/retired-usernames/release {username}`), never the URL, and its audit holds no
+name, since a retired name was a player's. 120 reads a minute and 60 changes an hour per admin.
+**Trade-offs:** an admin cannot see who released which retired name from the audit alone (only that one was released).

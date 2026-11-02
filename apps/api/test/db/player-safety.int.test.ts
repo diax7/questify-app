@@ -253,6 +253,52 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("platform ban and word lists (d
       ).toEqual([{ kind: "ban" }, { kind: "lift_ban" }]);
     });
 
+    it("refuses what a sign-in that held its code before the ban issued", async () => {
+      const target = await player();
+      const token = randomBytes(32);
+      const code = randomBytes(32);
+      await f.owner(
+        `INSERT INTO player_login_challenge (id, token_hash, channel, contact, contact_key, code_hash, expires_at,
+                                             terms_version, privacy_version, contact_fp)
+         VALUES ($1, $2, 'email', $3, $4, $5, now() + interval '5 minutes', '1.0', '1.0', $6)`,
+        [randomUUID(), token, target.email, randomBytes(32), code, randomBytes(32)],
+      );
+      const access = randomBytes(32);
+      const result = await f.crossed(
+        {
+          context: {},
+          sql: "SELECT outcome FROM sign_in_player($1, $2, $3, $4, $5, $6)",
+          values: [token, code, access, randomBytes(32), randomUUID(), randomBytes(32)],
+        },
+        {
+          context: admin,
+          sql: banSql,
+          values: [target.id, BAN.reasonCode, BAN.note, randomUUID()],
+        },
+      );
+      expect(result.waited).toBe(true);
+      expect(result.first).toEqual({ outcome: "signed_in" });
+      expect(result.second).toMatchObject({ outcome: "banned" });
+      expect(await ownerOf(access)).toBeNull();
+    });
+
+    it("is the only writer of a banned standing: no other function or trigger sets it", async () => {
+      const writers = await f.owner<{ proname: string }>(
+        `SELECT p.proname FROM pg_proc p
+         WHERE p.pronamespace = 'public'::regnamespace
+           AND p.prosrc ~* 'UPDATE\\s+player\\s+SET[^;]*status\\s*=\\s*''banned'''
+         ORDER BY 1`,
+      );
+      expect(writers).toEqual([{ proname: "admin_ban_player" }]);
+      const lifts = await f.owner<{ proname: string }>(
+        `SELECT p.proname FROM pg_proc p
+         WHERE p.pronamespace = 'public'::regnamespace
+           AND p.prosrc ~* 'UPDATE\\s+player\\s+SET[^;]*status\\s*=\\s*''active'''
+         ORDER BY 1`,
+      );
+      expect(lifts).toEqual([{ proname: "admin_lift_ban" }]);
+    });
+
     it("lets a banned account be erased: the pointer is cleared before its action rows go", async () => {
       const target = await player();
       await ban(target.id);

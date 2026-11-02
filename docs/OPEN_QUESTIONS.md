@@ -1937,3 +1937,28 @@ times an hour; each reveal is an action row the record shows and an audit entry.
 Search never finds an erased account. Opened by id (an old link), its record says "Deleted account" with the deletion date
 and nothing else; no action is offered and none is accepted (404), as FR-1776 has no restore.
 **Recommended (developer):** keep.
+
+
+## Q-392 - The reasons a ban can be lifted for (T-705)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-429).
+A lift needs a reason code like every other admin action: `appeal_upheld`, `mistake` or `other`, plus the internal note.
+The ban's own codes (`cheating`, `abuse`, `spam`, `prize_fraud`, `terms`) are what the player is shown, in fixed Arabic
+and English words.
+**Recommended (developer):** keep both lists; add a code when support meets a case none of them fits.
+
+## Q-393 - A banned player misses a raise of a quest's points (T-705)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-430).
+When an organizer raises a quest's points for past completions, a banned player is skipped (the wall pays them nothing);
+a lowering still applies. If the ban is lifted later, that raise is not replayed for them.
+**Recommended (developer):** keep: the organizer can award the difference by hand after a lift; replaying would need a new
+ledger path on the core.
+
+## Q-394 - A block does not hide a player from staff, the big screen or an earlier meeting (T-705)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-431).
+A block hides the other player from the blocker's own boards, results and profile reads, and stops meet quests between the
+two. The event team's reads (players, flags, help desk, desk, station), the console, the big screen and the pass of a
+meeting that already happened still name both: a block is one player's choice and does not bind a team or a room.
+**Recommended (developer):** keep; a player who needs the team to act reports the other player (T-312, T-705b).

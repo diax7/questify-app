@@ -1252,9 +1252,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1412 | F-221 | Must | pending |
 | FR-1413 | F-226 | Must | pending |
 | FR-1414 | F-226 | Must | pending |
-| FR-1415 | F-222 | Must | pending |
-| FR-1416 | F-223 | Should | pending |
-| FR-1417 | F-223 | Should | pending |
+| FR-1415 | F-222 | Must | built (T-705: block and unblock, masked rankings, results and Questify boards, profile not found, meet refused; `test/db/player-blocks.int`, `test/players/blocks.int`) |
+| FR-1416 | F-223 | Should | built (T-705: console ban and lift with a reason, only two doors write a standing; `test/db/player-safety.int`, `test/console/safety.int`) |
+| FR-1417 | F-223 | Should | built (T-705: the reason and the appeal address after the right code; lift logged) |
 | FR-1418 | F-224 | Must | pending |
 | FR-1419 | F-217 | Should | built (T-709; counts only, no invoiced revenue) |
 | FR-1501 | F-40 | Must | pending |
@@ -1270,7 +1270,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1603 | F-145, F-147 | Must | pending |
 | FR-1604 | F-152 | Should | pending |
 | FR-1605 | F-117 | Must | pending |
-| FR-1606 | F-223 | Should | pending |
+| FR-1606 | F-223 | Should | built (T-705: sign-in refused, the app's ban screen shows the reason and the appeal address) |
 | FR-1607 | F-216 | Must | built (T-701, ADR-406) |
 | FR-1608 | F-194 | Must | built (T-102: Scheduled → Live → Ended, `test/db/event-lifecycle.int`; T-411: Ended → Archived by the tick's last step under ADR-337 (5) and ADR-341, `test/db/event-archive.int`, `test/events/archived.int`; never within 30 days of the end); reviewed |
 | FR-1609 | F-142, F-145 | Must | built (T-202, T-206: holds keep their own deadline); tested across the close T-410 (handover, timeout and cancel after it, a rank prize, `test/db/shop-window.int`) |
@@ -1371,7 +1371,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1776 | F-284 | Must | pending |
 | FR-1777 | F-285 | Should | pending |
 | FR-1778 | F-286 | Must | pending |
-| FR-1779 | F-287 | Must | pending |
+| FR-1779 | F-287 | Must | built (T-705: console word lists and retired usernames) |
 | FR-1780 | F-288 | Should | pending |
 | FR-1781 | F-289 | Must | pending |
 | FR-1782 | F-290 | Should | pending |
