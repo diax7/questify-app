@@ -427,6 +427,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("platform ban and word lists (d
       expect(bannedFirst.waited).toBe(true);
       expect(bannedFirst.second).toEqual({ awarded: 0, skipped: 1 });
       expect(await scoreOf(second.enrollment)).toBe(0);
+
+      const third = await member(event);
+      const guarded = await f.crossed(
+        {
+          context: admin,
+          sql: banSql,
+          values: [third.player, BAN.reasonCode, BAN.note, randomUUID()],
+        },
+        {
+          context: f.team(),
+          sql: "SELECT * FROM staff_award($1, $2, NULL, 20, 'Helped at the gate', $3, $4)",
+          values: [event, third.enrollment, randomUUID(), randomUUID()],
+        },
+      );
+      expect(guarded.waited).toBe(true);
+      expect(guarded.second).toMatchObject({ code: "PB423" });
+      expect(await scoreOf(third.enrollment)).toBe(0);
     });
   });
 
