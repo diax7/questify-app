@@ -6827,7 +6827,7 @@ Every read and action is audited with ids, codes and counts only (`console.repor
 
 ## ADR-436 - T-709c splits: thresholds, amounts and the tier revoke first; items and the XP table as T-709d
 
-**Status:** Proposed (developer, 2026-11-02; T-709c plan `docs/plans/2026-11-02-t-709c-xp-thresholds-items.md`).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-709c code review 92; T-709c plan `docs/plans/2026-11-02-t-709c-xp-thresholds-items.md`).
 **Decision:** T-709c builds the achievement thresholds, the XP and gem amounts (`platform_setting` `xp`, `gems`) and the
 revoke and restore of a banned player's tiers (migration 0122). T-709d builds the item catalog and the XP table with the
 level reward map (the curve, the recompute, the level catch-up at the next sync). Each is tier A with its own review.
@@ -6835,7 +6835,7 @@ level reward map (the curve, the recompute, the level catch-up at the next sync)
 
 ## ADR-437 - T-709c a lower achievement threshold needs a confirmation and pays once at the next sync; a revert keeps it
 
-**Status:** Proposed (developer, 2026-11-02; T-709c plan D1).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-709c code review 92; T-709c plan D1).
 **Decision:** `admin_achievement_save` takes the three thresholds (whole, 1 to 100,000, rising) with the name, locks the row
 FOR NO KEY UPDATE (no wait for syncs) and refuses a lowering unless `confirmed` (HTTP 409 `confirmation_required` naming
 the gems per tier). Payment once is carried by the earned row's key and `gem_entry`'s unique key; a revert or a later raise
@@ -6844,7 +6844,7 @@ never removes an earned tier or a gem entry. The console's confirmation names th
 
 ## ADR-438 - T-709c the XP and gem amounts are one audited editor, and only definer doors write those keys
 
-**Status:** Proposed (developer, 2026-11-02; T-709c plan D2).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-709c code review 92; T-709c plan D2).
 **Decision:** `admin_amounts_save` writes `platform_setting` `xp` (quest 1 to 99,999; daily finish 0 to 400, each right
 answer 0 to 200, solved word 0 to 1000) and `gems` (level up, bronze, silver, gold, 1 to 1000), with CHECKs on both keys.
 A change applies from the save on, including levels and tiers reached but not yet paid. The table's write policies are
@@ -6855,7 +6855,7 @@ key order; no table lock.
 
 ## ADR-439 - T-709c revoking a banned player's tiers is an append-only mark; paid gems stay
 
-**Status:** Proposed (developer, 2026-11-02; T-709c plan D3).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-709c code review 92; T-709c plan D3).
 **Decision:** `achievement_revocation` rows (`revoke` or `restore`, with a `player_admin_action`) mark a tier; the earned row
 and gem entries are never touched. Reason codes: revoke `cheating`, `prize_fraud`, `abuse`, `other`; restore
 `appeal_upheld`, `mistake`, `other`. An achievement with a revoked tier shows no next tier. A revoked tier is hidden from the player's achievements and profile, is never earned again
