@@ -6352,3 +6352,26 @@ reply from the operator are not asked for.
 the center, the claim re-checks and the rate-limit pattern (`session_message`).
 **Trade-offs:** a manual quest award counts as a scan; reviews and replies are one number; the page shows ten operators before "View more" (the most recently active first, so the quiet ones are
 last on a big event, but the active-operators tile counts them all); the read costs about 0.15 s on the largest event we measured, which the 30-second refresh repeats while the page is open.
+
+## ADR-403 - T-618 go-live readiness checklist: facts from the database, items from one shared function, advice that blocks nothing
+
+**Status:** Proposed (developer, T-618; Q-370). Specifies FR-1845 (F-347); builds on T-210 (activation), T-211 (rehearsal), T-605 (guided setup), T-616 (the Inbox's read pattern).
+**Decision:** (1) **Facts in the database, items in one function.** `readiness_facts(event)` (migration 0112, internal: nobody holds EXECUTE) answers flags and counts over rows other pages write;
+`evaluateReadiness` (`packages/shared/src/readiness`) turns them into items, so the owner's card and the console's list can never disagree. Two read-only definer doors: `event_readiness(event)` for an
+owner or an editor within their event limit (`award_event_of`, AN404) and `readiness_soon()` for a platform admin (`app_admin_id()`, RD404). PUBLIC holds no EXECUTE; counts and flags only, never a
+player, a name or a text; the API checks the answer against a strict schema. No table, no column, no index (every lookup is by `event_id`; the ledger is read only while the event can rehearse, through
+the existing partial `ledger_entry_rehearsal_idx`). (2) **Three statuses.** Done; warning (the event works, look at it); blocking (players cannot use the event as it is). "It shall block nothing"
+(FR-1845) is read as: the checklist never stops a request for activation or an activation and writes nothing; `blocking` is the strongest advice, not a lock. Blocking: dates missing or passed,
+activation not asked for or declined, no quest or none playable (published, not paused, skipped or closed), an item reward without a prize desk place (FR-1716), an operator-only quest with no operator,
+a guest-list event with an empty list. Warnings: activation waiting for Questify, no rewards or all sold out or closed, an experience reward without a desk place, no operator or only one where one is
+needed (a station quest or paired station, a prize to hand over), no official rules, the big screen add-on without a paired screen, a quest only a kiosk or screen can finish without one, no rehearsal
+run, Questify's default colour, the guided setup not finished. (3) **Only what applies is listed:** no desk line without an item or experience reward, no operators line without a station or a prize to hand
+over, no big screen line without the add-on on, no devices line without a device-only quest, no rehearsal line once the event is live without one. (4) **Rehearsed** is the rehearsal card's own fact: the
+kept `first_play_at`, or a rehearsal quest entry while the event is a draft or scheduled. (5) **Owner:** a card on the Overview for draft and scheduled events (hidden once live), and in the guided setup's
+last step: a line of three counts (needed, to check, ready), then the items blocking first, each with its status word and a Fix link (Open when done). It reads when it opens and on Try again. (6) **Console:** a Readiness page for
+platform admins: events that start within 14 days or whose start passed without going live, not ended, soonest first, 100 at most; equal cards with the organizer, the start, the counts and the open items.
+Not audited (no personal data), like the usage view. (7) **Not built, with the reason:** "quest QR codes printed" (F-347) is not recorded anywhere, so it is not an item; "at least two operators" is a
+warning only where an operator is needed; a "devices not seen lately" check (a tablet is paired days before the event); a setting for the 14 days; a refresh of the card after an action on the same page.
+**Why:** one function over a handful of cheap lookups answers both views; deciding the statuses in shared code keeps them testable without a database and identical for both readers.
+**Trade-offs:** the card is as old as the page (reload after a change on the same page); a draft or scheduled event with its start in the past is listed in the console as the most urgent; the 14-day window
+and the item statuses are constants in code, so a change is a release.

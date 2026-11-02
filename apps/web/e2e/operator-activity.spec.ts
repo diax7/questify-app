@@ -45,7 +45,7 @@ test("the owner sees what each operator did and sends the operators a briefing",
 
   await page.goto(eventUrl);
   await openMenu(page);
-  await page.getByRole("link", { name: "المشغّلون" }).click();
+  await page.getByRole("link", { name: "المشغّلون", exact: true }).click();
   await expect(page.getByRole("heading", { name: "نشاط المشغّلين", level: 2 })).toBeVisible();
 
   // The tiles: one operator active in the last 30 minutes, eight scans in the last hour.

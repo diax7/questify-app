@@ -22,6 +22,7 @@ import type { HttpError } from "#src/http-error";
 import { organizerContextOf } from "#src/organizers/context";
 import { registerConsoleMarketingRoutes } from "#src/marketing/admin-routes";
 import { registerConsoleQuestifyRoutes } from "#src/questify/admin-routes";
+import { registerConsoleReadinessRoutes } from "#src/readiness/routes";
 import { registerConsoleUsageRoutes } from "#src/usage/routes";
 import type { InvitationDeps } from "#src/invitation-campaigns/campaigns";
 import { registerConsoleInvitationRoutes } from "#src/invitation-campaigns/routes";
@@ -264,6 +265,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleMarketingRoutes(scope, deps.questify);
       registerConsoleInvitationRoutes(scope, deps.invitations);
       registerConsoleUsageRoutes(scope, deps.questify);
+      registerConsoleReadinessRoutes(scope, deps.questify);
     },
     { prefix: ADMIN_PREFIX.slice(0, -1) },
   );

@@ -149,3 +149,16 @@ export function ConsoleUsageLink({
     </NavItem>
   );
 }
+
+/** This page's item in the console's navigation. */
+export function ConsoleReadinessLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/readiness`} icon="check" current={current}>
+      {t("console.readiness.title")}
+    </NavItem>
+  );
+}

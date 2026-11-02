@@ -1783,3 +1783,11 @@ last hour, and names the last action whatever it was (a scan, a check-in, an awa
 abilities, cannot be muted, and has a title and a text of 140 characters in Arabic and English so nothing is cut; (d) it may be sent before the event starts and until it ends, 3 an hour and 10 a day;
 (e) the operator-invite push is dropped (no account exists when the invite is made). Questions for Dhia: should a briefing be able to name a subset (the operators of one station, or one ability),
 and should operators be able to acknowledge it? **Decided (developer, delegated by Dhia, 2026-11-02):** as built (all current operators, no acknowledgement); either is a small addition if Dhia asks. ADR-402 accepted.
+
+## Q-370 - T-618 go-live readiness checklist: what is decided without Dhia (2026-11-02)
+
+**Status:** Proposed (developer, ADR-403).
+**Recommended (developer):** (a) "blocks nothing" means the checklist never stops an activation request or an activation; an item can still read Needed (blocking) when players could not use the event;
+(b) the console lists events starting within 14 days (and ones whose start passed without going live), at most 100; (c) the owner sees the card only while the event is a draft or scheduled, and at the end
+of the guided setup; (d) "quest QR codes printed" is not an item because nothing records printing. Questions for Dhia: should the console be able to email the owner a reminder from this list, should the
+14 days be a console tuning number (T-703), and should Questify record when a QR sheet was printed or downloaded so the F-347 item can exist? **Decided (developer):** as built until Dhia says otherwise.

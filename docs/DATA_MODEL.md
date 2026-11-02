@@ -1563,6 +1563,11 @@ API's role alone: counts of events, players (enrollments not pending or declined
 - **`notice_kind.membership`** gains `staff`: the recipient holds a staff assignment of the notice's event (asked at the fan-out and at the claim by `notice_membership_ok`). The kind
   `staff_briefing` is personal, priority 0, no topic, six hours.
 
+## Go-live readiness (T-618, migration 0112; Proposed ADR-403)
+
+- No table, no column, no index. `readiness_facts(event)` is internal (`STABLE`, `search_path = public, pg_temp`; PUBLIC and the API role hold no EXECUTE): one jsonb of flags and counts over rows other pages write, each lookup by `event_id` (event times and activation request; quests: total, playable, operator-only (`verification = {my_qr}`), device-only (`verification` within `{kiosk, screen_qr}`); active rewards: in stock, item, experience; the desk place; staff assignments; non-revoked paired devices by kind; access, guest list and its size; rules text; the `bigScreen` entitlement and the event's switch; the rehearsal (`event_rehearsal.first_play_at`, or a rehearsal `quest` entry while the event is a draft or scheduled, through `ledger_entry_rehearsal_idx`); the accent; the guided setup's decided steps and finish).
+- Two read-only definer doors: `event_readiness(event)` (opens with `award_event_of`: AN404 for another organizer's team, a player, no context, an unknown event or an editor outside their event limit) and `readiness_soon()` (opens with `app_admin_id()`: RD404 for everyone but an active platform admin; up to 100 draft or scheduled events with a start within 14 days and an end ahead, soonest first, with the organizer's name). PUBLIC holds no EXECUTE; the API role holds exactly these two. Counts and flags only: no player, name or text.
+
 ### event_setup (T-605)
 **Built (migration 0100; ADR-390):** `event_setup (event_id PK, organizer_id, current_step smallint 1 to 10, steps text of ten
 letters n|d|s, finished_at, updated_by, updated_at)`: where an event's guided setup stands, one row made by the first save and

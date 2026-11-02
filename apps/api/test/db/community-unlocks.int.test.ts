@@ -1538,7 +1538,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks (database)",
       const found = await owner<{ name: string }>(
         `SELECT DISTINCT p.proname AS name FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
          WHERE n.nspname = 'public' AND has_function_privilege('questify_app', p.oid, 'EXECUTE')
-           AND p.prosrc ~* '((from|join)\\s+(quest|category|reward)\\M|(play_quest|play_enter|team_poll|team_flash|inbox_rows)\\()'
+           AND p.prosrc ~* '((from|join)\\s+(quest|category|reward)\\M|(play_quest|play_enter|team_poll|team_flash|inbox_rows|readiness_facts)\\()'
          ORDER BY 1`,
       );
       const names = found.map((row) => row.name);
@@ -1552,7 +1552,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks (database)",
 /**
  * Every function `questify_app` may run whose source reads `quest`, `category` or `reward` (CTO 3): `gated` passes the
  * community lock (a door or reader above, each with its test), `staff` authorizes an owner, editor or operator first
- * (operator doors that offer quests are gated), `exempt` with the reason. Helpers that read them for a door (`inbox_rows`)
+ * (operator doors that offer quests are gated), `exempt` with the reason. Helpers that read them for a door (`inbox_rows`, `readiness_facts`)
 are matched by name, since the door's own source does not name the table. A new reader or door fails the test above
  * until it is placed here.
  */
@@ -1578,6 +1578,10 @@ const GATE_MAP: Readonly<Record<string, string>> = {
     "staff: an owner or editor within their event limit (award_event_of) lists the event's survey quests with their results; it plays and pays nothing (T-608)",
   analytics_economy:
     "staff: an owner or editor within their event limit (award_event_of) counts the event's rewards, their redemptions and stock; it plays and pays nothing (T-607)",
+  event_readiness:
+    "staff: an owner or editor within their event limit (award_event_of) counts the event's quests (playable, station-only, device-only) and active rewards for the go-live checklist; it plays and pays nothing (T-618)",
+  readiness_soon:
+    "staff: a platform admin (app_admin_id) counts the same for the events starting within 14 days; it plays and pays nothing (T-618)",
   control_counts:
     "staff: an owner or editor within their event limit (award_event_of) counts the active rewards at or under the stock-low line; it plays and pays nothing (T-603)",
   apply_past_points:

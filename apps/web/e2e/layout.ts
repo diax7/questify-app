@@ -722,6 +722,7 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
     ready: titled("console.invCampaign.detailTitle"),
   },
   consolePage("questify", "console.questify.title"),
+  consolePage("readiness", "console.readiness.title"),
   consolePage("seasons", "console.seasons.title"),
   consolePage("tickets", "console.tickets.title"),
   consolePage("usage", "console.usage.title"),

@@ -26,7 +26,7 @@ test("the owner invites operators and prints their codes", async ({ page }, info
   const eventPage = page.url().replace(/\/quests$/, "");
   await page.goto(eventPage);
   await openMenu(page);
-  await page.getByRole("link", { name: "المشغّلون" }).click();
+  await page.getByRole("link", { name: "المشغّلون", exact: true }).click();
   const panel = page.getByRole("region", { name: "المشغّلون" });
   await expect(panel.getByText("لا مشغّلين بعد.")).toBeVisible();
 

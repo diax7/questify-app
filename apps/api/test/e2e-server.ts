@@ -460,6 +460,23 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
           });
         return;
       }
+      // /event-soon: moves a draft event's start `days` (default 1) days ahead for one day, so the console's Readiness
+      // list (events starting within 14 days, T-618) shows it.
+      if (request.url === "/event-soon") {
+        db.owner
+          .query(
+            `UPDATE event SET starts_at = now() + make_interval(days => $2),
+                              ends_at = now() + make_interval(days => $2 + 1) WHERE id = $1`,
+            [body.eventId, body.days ?? 1],
+          )
+          .then((result) => {
+            response.writeHead(result.rowCount === 1 ? 204 : 404).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
       // /make-admin: makes the owner of the event's organizer an active platform admin too (the console's Tickets,
       // T-312), so one browser session holds both the dashboard and the console.
       if (request.url === "/make-admin") {

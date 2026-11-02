@@ -142,6 +142,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); read only; counts per organizer (events, players, invitations sent, alert emails), no personal data; the admin checked again in usage_organizers (test/db/usage, src/usage/routes.test)",
   "GET /v1/admin/usage/organizers/:organizerId":
     "active platform admins only (walked below); read only; counts per event of one organizer, no personal data; the admin checked again in usage_events, any unknown organizer the same 404 (test/db/usage, src/usage/routes.test)",
+  "GET /v1/admin/readiness":
+    "active platform admins only (walked below); read only; up to 100 events starting within 14 days with their organizer and checklist counts, no personal data; the admin checked again in readiness_soon (RD404) (test/db/event-readiness, test/readiness/routes)",
   "GET /v1/questify/ranking":
     "Questify-wide, no tenant; caller-bound through questify_ranking (no player id taken); others shown by username, avatar, XP and level only; low places only to their own player (questify-ranking)",
   "POST /v1/admin/questify/campaigns":
@@ -402,6 +404,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "members inside their event limit, through export_start (the audit entry, event.export, of printing the report; 204, no body); starts are limited per staff member, 429; another organizer's event answers 404 (test/analytics/exports, test/security/cross-tenant)",
   "GET /v1/organizers/:organizerId/events/:eventId/control":
     "members inside their event limit, through control_feed, control_counts and control_done, which check the organizer and the event limit themselves (AN404); usernames and avatars the team already reads, no contact detail or points; another organizer's event answers 404 (test/control/routes, test/db/control-room, test/security/cross-tenant)",
+  "GET /v1/organizers/:organizerId/events/:eventId/readiness":
+    "members inside their event limit, through event_readiness, which checks the organizer and the event limit itself (AN404); flags and counts only, checked against a strict schema, no player, name or text; blocks nothing; another organizer's event answers 404 (test/db/event-readiness, test/readiness/routes)",
   "GET /v1/organizers/:organizerId/events/:eventId/inbox":
     "members inside their event limit, through event_inbox, which checks the organizer and the event limit itself (AN404); counts only, checked against a strict schema, no player, name or text; another organizer's event answers 404 (test/inbox/routes, test/db/event-inbox, test/security/cross-tenant)",
   "GET /v1/organizers/:organizerId/events/:eventId/operators/activity":

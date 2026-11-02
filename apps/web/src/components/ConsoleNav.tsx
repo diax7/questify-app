@@ -6,6 +6,7 @@ import {
   ConsoleContentLink,
   ConsoleInvitationsLink,
   ConsoleQuestifyLink,
+  ConsoleReadinessLink,
   ConsoleSeasonsLink,
   ConsoleTicketsLink,
   ConsoleUsageLink,
@@ -28,6 +29,7 @@ export function ConsoleNav({ language }: Readonly<{ language: Language }>) {
       <ConsoleContentLink language={language} current={on("/console/content")} />
       <ConsoleSeasonsLink language={language} current={on("/console/seasons")} />
       <ConsoleInvitationsLink language={language} current={on("/console/invitations")} />
+      <ConsoleReadinessLink language={language} current={on("/console/readiness")} />
       <ConsoleUsageLink language={language} current={on("/console/usage")} />
     </NavGroup>
   );

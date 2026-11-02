@@ -8,6 +8,7 @@ import { EventFeatureSwitch } from "#src/components/EventFeatureSwitch.tsx";
 import { FEATURE_SWITCHES, EventForm } from "#src/components/EventForm.tsx";
 import { JoinSetupPanel } from "#src/components/JoinSetupPanel.tsx";
 import { PushDefaultsPanel } from "#src/components/PushDefaultsPanel.tsx";
+import { ReadinessCard } from "#src/components/ReadinessCard.tsx";
 import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
 import { RehearsalCard } from "#src/components/RehearsalCard.tsx";
 import { ADDONS, AddonCard, DoorRow } from "#src/components/SetupParts.tsx";
@@ -222,6 +223,7 @@ function ReviewStep(props: BodyProps) {
       <Section title={props.t("setup.stepsList")}>
         <StepList t={props.t} flow={props.flow} lastStep={9} />
       </Section>
+      <ReadinessCard {...idsOf(props)} />
       <RehearsalCard {...idsOf(props)} />
     </>
   );

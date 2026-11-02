@@ -63,6 +63,7 @@ import type { RewardCodeKey } from "#src/rewards/codes";
 import { createControlReader } from "#src/control/control";
 import { registerControlTeamRoutes } from "#src/control/routes";
 import { registerInboxTeamRoutes } from "#src/inbox/routes";
+import { registerReadinessTeamRoutes } from "#src/readiness/routes";
 import { registerHeldPrizesTeamRoute } from "#src/rewards/held-prizes";
 import { registerRewardBuilderRoutes } from "#src/rewards/routes";
 import { organizerContextOf } from "#src/organizers/context";
@@ -277,6 +278,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
         pool: deps.pool,
       });
       registerInboxTeamRoutes(scope, { pool: deps.pool });
+      registerReadinessTeamRoutes(scope, { pool: deps.pool });
       registerModerationRoutes(scope, { pool: deps.pool });
       registerAwardRoutes(scope, { pool: deps.pool });
       registerSubmissionTeamRoutes(scope, { pool: deps.pool, ranking: deps.ranking });

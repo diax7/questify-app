@@ -1,0 +1,59 @@
+/* The go-live checklist (T-618): a status mark beside each item, its title over what it reads now. */
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+  min-inline-size: 0;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.mark {
+  display: inline-flex;
+  margin-block-start: 2px;
+}
+
+.done {
+  color: var(--color-primary-action);
+}
+
+.warning {
+  color: var(--color-highlight);
+}
+
+.blocking {
+  color: var(--color-hot);
+}
+
+/* The counts of one event in the console: a mark and a number each, side by side. */
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-weight: var(--weight-medium);
+}
+
+/* The items still open on an event's console card, one under another. */
+.open {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

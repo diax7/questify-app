@@ -2275,6 +2275,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot read the go-live checklist's doors, and the API's role holds exactly the two doors (T-618)", async () => {
+      for (const sql of [
+        "SELECT public.event_readiness(gen_random_uuid())",
+        "SELECT public.readiness_soon()",
+        "SELECT public.readiness_facts(gen_random_uuid())",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const held = await rows<{ proname: string; grantee: string; definer: boolean }>(
+        `SELECT DISTINCT p.proname, p.prosecdef AS definer,
+                CASE WHEN a.grantee = 0 THEN 'public' ELSE a.grantee::regrole::text END AS grantee
+         FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+         WHERE n.nspname = 'public' AND a.privilege_type = 'EXECUTE' AND a.grantee <> p.proowner
+           AND p.proname IN ('event_readiness', 'readiness_soon', 'readiness_facts')
+         ORDER BY 1, 3`,
+      );
+      expect(held).toEqual([
+        { proname: "event_readiness", definer: true, grantee: "questify_app" },
+        { proname: "readiness_soon", definer: true, grantee: "questify_app" },
+      ]);
+    });
+
     it("cannot read the console's usage doors, and the API's role holds exactly those two (T-609)", async () => {
       for (const sql of [
         "SELECT public.usage_organizers()",

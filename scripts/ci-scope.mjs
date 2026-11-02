@@ -105,6 +105,7 @@ export const AREAS = [
   ],
   [/ticket|help-?desk/i, ["console-tickets", "help-desk", "inbox"]],
   [/inbox/i, ["inbox"]],
+  [/readiness/i, ["readiness"]],
   [/delet(e|ion)/i, ["delete-account"]],
   [/device|kiosk|pairing|\/pair\//i, ["kiosks", "stations", "big-screen"]],
   [

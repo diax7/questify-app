@@ -1,13 +1,14 @@
 import { ActivationCard } from "#src/components/ActivationCard.tsx";
 import { EventForm } from "#src/components/EventForm.tsx";
 import { QuestItemWarnings } from "#src/components/QuestItemWarnings.tsx";
+import { ReadinessCard } from "#src/components/ReadinessCard.tsx";
 import { RehearsalCard } from "#src/components/RehearsalCard.tsx";
 import { SetupCard } from "#src/components/SetupCard.tsx";
 import { organizerPage } from "#src/lib/organizer-page.ts";
 
 type Props = Readonly<{ params: Promise<{ lang: string; organizerId: string; eventId: string }> }>;
 
-/** One event: its name and status, where it stands with Questify (T-210), its rehearsal (T-211), then edit it; delete a draft; the owner ends a live one. An event out of reach shows the API's answer. */
+/** One event: its name and status, its go-live checklist (T-618), where it stands with Questify (T-210), its rehearsal (T-211), then edit it; delete a draft; the owner ends a live one. An event out of reach shows the API's answer. */
 export default async function EventPage({ params }: Props) {
   const { lang, organizerId, eventId } = await params;
   const page = await organizerPage(lang, organizerId);
@@ -20,6 +21,7 @@ export default async function EventPage({ params }: Props) {
       intro={
         <>
           <QuestItemWarnings language={page.language} organizerId={organizerId} eventId={eventId} />
+          <ReadinessCard language={page.language} organizerId={organizerId} eventId={eventId} />
           <SetupCard language={page.language} organizerId={organizerId} eventId={eventId} />
           <ActivationCard
             language={page.language}
