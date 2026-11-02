@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { LEGAL_DOCUMENT_IDS } from "@questify/shared";
-import { legalBlocks, legalTextBlocks } from "#src/lib/legal.ts";
+import { fillContactPlaceholders, legalBlocks, legalTextBlocks } from "#src/lib/legal.ts";
 
 const SAMPLE = [
   "---",
@@ -93,4 +93,29 @@ describe("legalBlocks", () => {
       }
     },
   );
+});
+
+describe("fillContactPlaceholders", () => {
+  const blocks = legalTextBlocks(
+    [
+      "## Contact",
+      "",
+      "Privacy: {{PRIVACY_CONTACT}}. Support: {{CONTACT_EMAIL}}.",
+      "",
+      "- Write to {{CONTACT_EMAIL}}",
+      "- Entity: {{LEGAL_ENTITY_NAME}}",
+    ].join("\n"),
+  );
+
+  it("puts the support email in the contact placeholders, headings, paragraphs and lists alike", () => {
+    expect(fillContactPlaceholders(blocks, "help@questify.sa")).toEqual([
+      { kind: "heading", level: 2, text: "Contact" },
+      { kind: "paragraph", text: "Privacy: help@questify.sa. Support: help@questify.sa." },
+      { kind: "list", items: ["Write to help@questify.sa", "Entity: {{LEGAL_ENTITY_NAME}}"] },
+    ]);
+  });
+
+  it("leaves every placeholder when no email is set", () => {
+    expect(fillContactPlaceholders(blocks, null)).toEqual(blocks);
+  });
 });

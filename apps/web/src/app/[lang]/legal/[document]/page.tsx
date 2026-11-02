@@ -4,8 +4,13 @@ import { isLegalDocumentId, type Language, type LegalText } from "@questify/shar
 import { notFound } from "next/navigation";
 import { webConfig } from "#src/lib/config.ts";
 import { isLanguage, translatorFor } from "#src/lib/language.ts";
-import { legalBlocks, legalTextBlocks, type LegalBlock } from "#src/lib/legal.ts";
-import { fetchLegalText } from "#src/lib/legal-api.ts";
+import {
+  fillContactPlaceholders,
+  legalBlocks,
+  legalTextBlocks,
+  type LegalBlock,
+} from "#src/lib/legal.ts";
+import { fetchLegalText, fetchSupportContact } from "#src/lib/legal-api.ts";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Stack, SubHeading } from "#src/ui/Section.tsx";
@@ -48,7 +53,11 @@ export default async function LegalPage({ params }: Props) {
   if (!isLanguage(lang) || !isLegalDocumentId(document)) {
     notFound();
   }
-  const text = await fetchLegalText({ apiOrigin: webConfig().apiOrigin }, document);
+  const request = { apiOrigin: webConfig().apiOrigin };
+  const [text, contact] = await Promise.all([
+    fetchLegalText(request, document),
+    fetchSupportContact(request),
+  ]);
   if (text === undefined) {
     return (
       <AppShell area="public" language={lang} path={`/legal/${document}`} signedIn={false} narrow>
@@ -58,7 +67,10 @@ export default async function LegalPage({ params }: Props) {
       </AppShell>
     );
   }
-  const blocks = await blocksFor(text, document, lang);
+  const blocks = fillContactPlaceholders(
+    await blocksFor(text, document, lang),
+    contact?.email ?? null,
+  );
   return (
     <AppShell area="public" language={lang} path={`/legal/${document}`} signedIn={false} narrow>
       <Stack>

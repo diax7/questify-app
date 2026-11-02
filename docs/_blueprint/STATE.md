@@ -6,6 +6,11 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-706 message templates and support contact — 2026-11-03
+
+- **T-706 built (tier B; split, see ADR-460; not run on a phone; migration 0127, new and undeployed; ADR-460 to ADR-462 and Q-420 to Q-422 Proposed).** The four templates (login-code SMS, promotional SMS, email and push) are edited in the console at `/console/messages` with the CST rules enforced on save and on a revert, checked again by the door and by the table's own CHECKs: a promotional SMS or email cannot be saved without `{optOutUrl}`, a login-code SMS without `{code}` and a sign-in-code wording, an SMS stays within 3 parts (`smsParts` moved to the shared package). The support contact (WhatsApp, phone, email) is edited on the same page, read at `GET /v1/support-contact`, shown on `/{lang}/contact` and put into the legal drafts' `{{CONTACT_EMAIL}}` and `{{PRIVACY_CONTACT}}`. **T-706b** (push to a group, promotional campaigns, the promotional email sender, the senders reading their slot) is next in `docs/TASKS.md`. Tests: `packages/shared` messaging (14), `test/db/messaging` (13), `test/console/messaging` (12), the security suites, `legal.test`, `e2e/console-messaging.spec.ts` (2), `layout.spec.ts` with the new page. CI minutes: 0.
+  **Next:** T-706b, or the next unchecked task in `docs/TASKS.md`; mutation is not needed (tier B).
+
 ## Staging, APK and demo — 2026-10-30 (evening)
 
 - **CranL runs migrations through 0086** (T-505 deployed from f408f6c, CI run 41095188086, verify ok; owner connection removed).

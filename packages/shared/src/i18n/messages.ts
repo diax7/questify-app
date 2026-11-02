@@ -9306,6 +9306,142 @@ export const MESSAGES = {
   "console.report.outcome.eventSuspended": { ar: "أُوقفت الفعالية", en: "Event suspended" },
   "console.report.outcome.usernameChanged": { ar: "غُيّر الاسم", en: "Username changed" },
   "console.report.outcome.playerBanned": { ar: "حُظر اللاعب", en: "Player banned" },
+  "console.messages.title": {
+    ar: "الرسائل والتواصل",
+    en: "Messages and contact",
+  },
+  "console.messages.intro": {
+    ar: "قوالب الرسائل القصيرة والبريد والإشعارات، وبيانات التواصل مع الدعم. يرفض النظام أي قالب يخالف قواعد هيئة الاتصالات.",
+    en: "The SMS, email and push templates, and the support contact details. A template that breaks the CST rules is refused.",
+  },
+  "console.messages.tabs": {
+    ar: "أقسام الرسائل والتواصل",
+    en: "Messages and contact sections",
+  },
+  "console.messages.tab.templates": {
+    ar: "القوالب",
+    en: "Templates",
+  },
+  "console.messages.tab.contact": {
+    ar: "بيانات الدعم",
+    en: "Support contact",
+  },
+  "console.messages.key.loginCodeSms": {
+    ar: "رسالة رمز الدخول",
+    en: "Login-code SMS",
+  },
+  "console.messages.key.promoSms": {
+    ar: "رسالة ترويجية قصيرة",
+    en: "Promotional SMS",
+  },
+  "console.messages.key.promoEmail": {
+    ar: "بريد ترويجي",
+    en: "Promotional email",
+  },
+  "console.messages.key.promoPush": {
+    ar: "إشعار ترويجي",
+    en: "Promotional push",
+  },
+  "console.messages.channel.sms": {
+    ar: "رسالة قصيرة",
+    en: "SMS",
+  },
+  "console.messages.channel.email": {
+    ar: "بريد",
+    en: "Email",
+  },
+  "console.messages.channel.push": {
+    ar: "إشعار",
+    en: "Push",
+  },
+  "console.messages.subject": {
+    ar: "العنوان",
+    en: "Subject",
+  },
+  "console.messages.text": {
+    ar: "النص",
+    en: "Text",
+  },
+  "console.messages.placeholders": {
+    ar: "المتغيرات المسموحة: {names}",
+    en: "Placeholders allowed: {names}",
+  },
+  "console.messages.noPlaceholders": {
+    ar: "لا يقبل هذا القالب متغيرات.",
+    en: "This template takes no placeholders.",
+  },
+  "console.messages.parts": {
+    ar: "عدد الأجزاء: {ar} بالعربية، {en} بالإنجليزية (الحد 3)",
+    en: "SMS parts: {ar} in Arabic, {en} in English (limit 3)",
+  },
+  "console.messages.issue.required": {
+    ar: "اكتب النص.",
+    en: "Write the text.",
+  },
+  "console.messages.issue.tooLong": {
+    ar: "النص أطول من المسموح.",
+    en: "The text is too long.",
+  },
+  "console.messages.issue.language": {
+    ar: "اكتب النص بلغة الحقل.",
+    en: "Write the text in the language of the box.",
+  },
+  "console.messages.issue.titleNotAllowed": {
+    ar: "هذا القالب بلا عنوان.",
+    en: "This template has no subject.",
+  },
+  "console.messages.issue.placeholderUnknown": {
+    ar: "فيه متغير لا يقبله هذا القالب.",
+    en: "It holds a placeholder this template does not take.",
+  },
+  "console.messages.issue.placeholderMissing": {
+    ar: "ينقصه متغير لازم، مثل رابط إيقاف العروض أو رمز الدخول.",
+    en: "A required placeholder is missing, such as the stop-offers link or the code.",
+  },
+  "console.messages.issue.braces": {
+    ar: "فيه قوس { أو } في غير موضعه.",
+    en: "A brace { or } is out of place.",
+  },
+  "console.messages.issue.brandMissing": {
+    ar: "اذكر اسم كويستفاي في الرسالة.",
+    en: "Name Questify in the message.",
+  },
+  "console.messages.issue.purposeMissing": {
+    ar: "اذكر أن الرسالة هي رمز الدخول.",
+    en: "Say that the message is a sign-in code.",
+  },
+  "console.messages.issue.smsPartsLimit": {
+    ar: "تتجاوز الرسالة ثلاثة أجزاء.",
+    en: "The message takes more than 3 SMS parts.",
+  },
+  "console.messages.contact.whatsapp": {
+    ar: "رقم واتساب (+966...)",
+    en: "WhatsApp number (+966...)",
+  },
+  "console.messages.contact.phone": {
+    ar: "رقم الهاتف (+966...)",
+    en: "Phone number (+966...)",
+  },
+  "console.messages.contact.email": {
+    ar: "البريد الإلكتروني",
+    en: "Email",
+  },
+  "console.messages.contact.invalid": {
+    ar: "اكتب الرقم بالصيغة الدولية، أو البريد بصيغة صحيحة.",
+    en: "Use the international form for a number, or a valid email.",
+  },
+  "contact.whatsapp": {
+    ar: "واتساب",
+    en: "WhatsApp",
+  },
+  "contact.phone": {
+    ar: "الهاتف",
+    en: "Phone",
+  },
+  "contact.email": {
+    ar: "البريد الإلكتروني",
+    en: "Email",
+  },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

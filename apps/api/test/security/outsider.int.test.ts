@@ -990,6 +990,68 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     }
   });
 
+  it("closes the template and contact tables and grants only their five doors to the API's role (T-706)", async () => {
+    const doors = [
+      "admin_message_template_save",
+      "admin_message_templates",
+      "admin_support_contact",
+      "admin_support_contact_save",
+      "support_contact_public",
+    ];
+    const internals = [
+      "admin_message_template_doc",
+      "admin_support_contact_doc",
+      "message_template_text",
+      "support_contact_field",
+    ];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      public: boolean;
+      definer: boolean;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        has_function_privilege('public', p.oid, 'EXECUTE') AS public,
+        prosecdef AS definer FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${[...doors, ...internals].map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(
+      [...doors, ...internals].toSorted(),
+    );
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.public, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+    }
+    for (const table of ["message_template", "support_contact"]) {
+      expect(
+        await rows(`SELECT grantee, privilege_type FROM information_schema.role_table_grants
+          WHERE table_schema = 'public' AND table_name = '${table}'
+            AND grantee IN ('PUBLIC', 'questify_app', 'questify_outsider')`),
+      ).toEqual([]);
+      expect(
+        await rows(
+          `SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = '${table}'`,
+        ),
+      ).toEqual([{ relrowsecurity: true, relforcerowsecurity: true }]);
+    }
+    for (const sql of [
+      "SELECT * FROM public.message_template",
+      "UPDATE public.message_template SET body_en = 'x'",
+      "SELECT * FROM public.support_contact",
+      "UPDATE public.support_contact SET email = 'a@b.co'",
+      "SELECT public.support_contact_public()",
+      "SELECT public.admin_message_templates()",
+      "SELECT public.admin_support_contact()",
+      "SELECT public.admin_support_contact_save('{}', gen_random_uuid())",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+  });
+
   it("grants only the control room's three reads to the API's role, and nothing to the public (T-603)", async () => {
     const doors = ["control_counts", "control_done", "control_feed"];
     const functions = await rows<{

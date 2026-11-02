@@ -293,6 +293,19 @@ export function ConsoleLegalLink({
   );
 }
 
+/** This page's item in the console's navigation (T-706). */
+export function ConsoleMessagesLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/messages`} icon="mail" current={current}>
+      {t("console.messages.title")}
+    </NavItem>
+  );
+}
+
 /** This page's item in the console's navigation (T-709). */
 export function ConsoleAdminsLink({
   language,
