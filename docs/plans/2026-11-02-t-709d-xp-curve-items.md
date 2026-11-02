@@ -280,3 +280,26 @@ the XP table document, the item document. Web (`console-catalog.test`), browser 
 
 A batch recompute of every player's stored level; deleting items; putting an existing unassigned item on sale (create a
 new shop item instead); level titles (T-709b); new renderers for item art; a gem correction source (ADR-285).
+
+## Build notes (2026-11-02)
+
+- Plan review (85, approve with revisions) folded in before the build: one 1 s lock budget for the whole save (CA503,
+  `xp_lock_left`; tested with two reaches holding the door in turn, and shown to catch a per-lock timeout: that variant
+  held the queued scan 1.9 s); the sync's catch-up right after its `player_xp` lock; the index built under its own 2 s
+  `lock_timeout`; the readers listed in D3; `levels_reach` the only inserter, checked over `pg_proc.prosrc`.
+- The catch-up order: the both-orders test also passes with the catch-up after the quests. A reach locks every unreached
+  level at or below the player's total in one statement in level order, and a later statement of the same sync only adds
+  higher levels (the curve cannot change while the sync holds a level lock), so neither order can cross a save's level
+  order. Kept as the review asked; the test documents the case.
+- The removal probe reads the highest XP once (`xp_board_top()`, one index probe) instead of an `EXISTS` with a parameter,
+  whose generic plan scanned the whole board (3 s at 300,000 players). The refusal checks run as three set-based queries.
+- The preview counts players only in the XP ranges where a level changes (`xp_board_active_between`: one index range less
+  the inactive players in it), instead of one pass over the board: 3.8 s became about 0.2 to 0.3 s for a 100-level table.
+- An item create with an id that exists (a level reward's included) answers 409 `item_exists`; the `item_has_source`
+  pre-check of D4 cannot fire for a new item. The guard's 23514 for a level item put on sale is tested directly.
+- No gem-buy race against the door: an item a level gives can never be on sale (the source guard), so a buy never touches
+  the door's rows.
+- Timing (`apps/api/test/perf/xp-table-timing`, 300,000 players, 50,000 with reached rows, this PC with another worker's
+  tests on the same database server): preview 191 to 307 ms; a 100-level save with every kind of change 159 to 316 ms; a
+  save removing 70 levels 117 to 203 ms; a scan queued behind a save finished in 167 to 616 ms, always under its 2 s.
+  The 200 ms held-lock budget holds unloaded; under load the 1 s budget still bounds what a scan waits (Q-401).

@@ -2012,6 +2012,10 @@ The save holds every `xp_level` row FOR UPDATE, so a scan that reaches a new lev
 level, syncs, sign-ups and buys never wait). The save waits at most 1 second in all for its locks (one budget for
 the whole save, not per lock), then answers 503 `busy`.
 **Recommended (developer):** measure on the 300,000-player fixture; budget 200 ms held, under the API's 2 s lock timeout.
+**Measured (T-709d build, 2026-11-02; `apps/api/test/perf/xp-table-timing`, this PC, another worker's tests on the same
+database server):** a 100-level save with every kind of change 159 to 316 ms; a save removing 70 levels 117 to 203 ms;
+the preview 191 to 307 ms; a scan queued behind a save finished in 167 to 616 ms. Within budget unloaded; under load the
+1 s lock budget is what bounds a queued scan. Re-measure on a staging-sized server before launch.
 
 ## Q-402 - A shop item's art is frozen once it has a shop row (T-709d)
 

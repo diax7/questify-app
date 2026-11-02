@@ -483,7 +483,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("gems: the ledger and the sync 
       ),
     ).rejects.toMatchObject({ code: "23514" });
     await expect(
-      f.owner("UPDATE item SET name_en = 'Other' WHERE id = 'shop-map-reader'"),
+      f.owner("UPDATE item SET visual_key = 'frame-01' WHERE id = 'shop-dune-ring'"),
     ).rejects.toMatchObject({
       code: "GS409",
       detail: "shop_item_locked",

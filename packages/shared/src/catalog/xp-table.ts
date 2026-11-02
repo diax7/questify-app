@@ -161,10 +161,8 @@ export const itemAdminSchema = z.strictObject({
   name: z.strictObject({ ar: z.string(), en: z.string() }),
   visualKey: z.string().nullable(),
   source: z
-    .union([
-      z.strictObject({ level: z.number().int().min(2) }),
-      z.strictObject({ shop: z.strictObject({ status: z.enum(["active", "retired"]) }) }),
-    ])
+    .strictObject({ level: z.number().int().min(2) })
+    .or(z.strictObject({ shop: z.strictObject({ status: z.enum(["active", "retired"]) }) }))
     .nullable(),
   locked: z.strictObject({ art: z.enum(ITEM_ART_LOCKS).nullable() }),
   revertible: z.boolean(),
