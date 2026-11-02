@@ -108,3 +108,4 @@ Updated 2026-11-02 by the Claude Code coordinator at Dhia's break. Progress: 149
   this file is cheaper. This is the biggest avoidable cost of the 2026-10-27/28 session.
 - Postgres 17 re-plans a SQL function (and any nested ones) at every call: shared visibility checks that run per member
   must be PL/pgSQL (`docs/rules.md`). The 5 s statement limit and the pool's 6 s client timeout both apply to long fills.
+- `.gitignore` had `reports/`, which silently dropped every source folder named `reports` (T-705b's API routes, console pages and shared types) while local tests passed from the disk copy; it is now `/reports/`. After a merge, `git status --ignored` on the worker's new folders catches this.
