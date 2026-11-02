@@ -18,6 +18,21 @@ import { Field, Input, Select } from "#src/ui/Field.tsx";
 import { Section, Stack } from "#src/ui/Section.tsx";
 
 const IDENTITY_CHECKS = ["known_phone", "id_document", "contract_contact", "other"] as const;
+/** The words of each identity check and each closed state (message keys are camel case, the API's codes snake case). */
+const IDENTITY_KEYS = {
+  known_phone: "console.ownerEmail.identity.knownPhone",
+  id_document: "console.ownerEmail.identity.idDocument",
+  contract_contact: "console.ownerEmail.identity.contractContact",
+  other: "console.ownerEmail.identity.other",
+} as const satisfies Record<(typeof IDENTITY_CHECKS)[number], MessageKey>;
+const CLOSED_KEYS: Readonly<Record<string, MessageKey>> = {
+  confirmed: "console.ownerEmail.last.confirmed",
+  cancelled: "console.ownerEmail.last.cancelled",
+  stopped: "console.ownerEmail.last.stopped",
+  expired: "console.ownerEmail.last.expired",
+  send_failed: "console.ownerEmail.last.sendFailed",
+  email_taken: "console.ownerEmail.last.emailTaken",
+};
 const OPEN = new Set(["pending", "held"]);
 const CHANGES_API = "/v1/admin/owner-email-changes";
 
@@ -41,7 +56,7 @@ function ChangeStatus({
       ? t("console.ownerEmail.pending", { email, time: clockOf(change.expiresAt, language) })
       : change.state === "held"
         ? t("console.ownerEmail.held", { email, time: clockOf(change.appliesAt ?? "", language) })
-        : t(`console.ownerEmail.last.${change.state}` as MessageKey, {
+        : t(CLOSED_KEYS[change.state] ?? "console.ownerEmail.last.cancelled", {
             email,
             time: clockOf(change.closedAt ?? change.expiresAt, language),
           });
@@ -124,7 +139,7 @@ function StartForm({ language, organizerId, others, onChanged }: Props) {
         >
           {IDENTITY_CHECKS.map((one) => (
             <option key={one} value={one}>
-              {t(`console.ownerEmail.identity.${one}`)}
+              {t(IDENTITY_KEYS[one])}
             </option>
           ))}
         </Select>

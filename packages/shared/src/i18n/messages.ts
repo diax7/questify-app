@@ -9271,12 +9271,12 @@ export const MESSAGES = {
   "console.ownerEmail.title": { ar: "بريد دخول المالك", en: "Owner sign-in email" },
   "console.ownerEmail.newEmail": { ar: "البريد الجديد", en: "New email" },
   "console.ownerEmail.identity": { ar: "كيف تحققت من الهوية", en: "How you checked identity" },
-  "console.ownerEmail.identity.known_phone": {
+  "console.ownerEmail.identity.knownPhone": {
     ar: "اتصلت بالرقم المسجل لدينا",
     en: "Called back on the number on file",
   },
-  "console.ownerEmail.identity.id_document": { ar: "وثيقة هوية", en: "Identity document" },
-  "console.ownerEmail.identity.contract_contact": {
+  "console.ownerEmail.identity.idDocument": { ar: "وثيقة هوية", en: "Identity document" },
+  "console.ownerEmail.identity.contractContact": {
     ar: "المفوَّض بالتوقيع في الاتفاقية",
     en: "The signatory on the agreement",
   },
@@ -9312,11 +9312,11 @@ export const MESSAGES = {
     en: "Stopped from the old address at {time}. Call the organizer.",
   },
   "console.ownerEmail.last.expired": { ar: "انتهت مهلته في {time}.", en: "Expired at {time}." },
-  "console.ownerEmail.last.send_failed": {
+  "console.ownerEmail.last.sendFailed": {
     ar: "تعذّر إرسال الرمز في {time}.",
     en: "The code could not be sent at {time}.",
   },
-  "console.ownerEmail.last.email_taken": {
+  "console.ownerEmail.last.emailTaken": {
     ar: "أُغلق في {time} لأن حسابًا آخر أخذ البريد.",
     en: "Closed at {time}: another account took the email.",
   },
@@ -9331,7 +9331,7 @@ export const MESSAGES = {
   "console.ownerEmail.cancelConfirm": { ar: "إلغاء تغيير البريد؟", en: "Cancel the email change?" },
   "console.ownerEmail.cancelled": { ar: "أُلغي التغيير.", en: "The change was cancelled." },
   "emailChange.title": { ar: "تأكيد بريد الدخول الجديد", en: "Confirm your new sign-in email" },
-  "emailChange.intro": {
+  "emailChange.request": {
     ar: "طلب دعم كويستفاي تغيير بريد الدخول لحساب «{organizer}» إلى {email}.",
     en: 'Questify support asked to change the sign-in email of the "{organizer}" account to {email}.',
   },

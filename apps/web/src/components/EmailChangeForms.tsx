@@ -182,7 +182,10 @@ export function EmailChangeConfirm({ language }: Readonly<{ language: Language }
       {ready ? (
         <>
           <p dir="auto">
-            {t("emailChange.intro", { organizer: view.organizerName, email: view.newEmailMasked })}
+            {t("emailChange.request", {
+              organizer: view.organizerName,
+              email: view.newEmailMasked,
+            })}
           </p>
           <ConfirmForm
             language={language}

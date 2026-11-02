@@ -51,6 +51,7 @@ const HELP_LINES: readonly string[] = [
   "device.pair.scanHint",
   "devices.labelHint",
   "devices.removeNote",
+  "emailChange.noPasswordHelp",
   "events.endedHint",
   "events.liveHint",
   "events.streak.datesHint",

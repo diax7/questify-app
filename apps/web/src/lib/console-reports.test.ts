@@ -36,7 +36,11 @@ describe("console reports helpers (T-705b)", () => {
   });
 
   it("reads only the expected shapes", () => {
-    expect(readQueue({ targets: [], total: 0 })).toEqual({ targets: [], total: 0 });
+    expect(readQueue({ targets: [], total: 0, urgentTotal: 0 })).toEqual({
+      targets: [],
+      total: 0,
+      urgentTotal: 0,
+    });
     expect(readQueue({ targets: "x" })).toBeUndefined();
     expect(readFlags({ events: [], total: 2 })).toEqual({ events: [], total: 2 });
     expect(readFlags(null)).toBeUndefined();
