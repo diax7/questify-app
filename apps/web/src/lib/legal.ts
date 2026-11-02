@@ -101,7 +101,7 @@ export function fillContactPlaceholders(
   if (email === null) {
     return [...blocks];
   }
-  const fill = (text: string): string => text.replace(CONTACT_PLACEHOLDERS, email);
+  const fill = (text: string): string => text.replace(CONTACT_PLACEHOLDERS, () => email);
   return blocks.map((block) => {
     if (block.kind === "list") {
       return { kind: "list", items: block.items.map(fill) };
