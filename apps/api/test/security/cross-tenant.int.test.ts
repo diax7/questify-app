@@ -953,6 +953,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; append-only, written only by questify_sync for the calling player from their own facts, read as `done` by own_questify_quests; no organizer read exists (questify-quests)",
   gem_entry:
     "no direct API rights; append-only, written only by questify_sync and gem_buy for the calling player, each row bound to the same player's source row; never shown to anyone else, no organizer read exists (gems)",
+  event_template:
+    "platform-wide catalog of starting setups with no tenant and no direct API rights; read through event_templates for a signed-in team member, applied only by event_apply_template to an empty draft of the caller's own organizer (event-templates)",
   interest:
     "platform-wide seeded catalog with no tenant and no direct API rights; read through interest_list (marketing)",
   player_preference:
@@ -1694,6 +1696,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     }
     expect(await count("owner", "category WHERE event_id = $1", [f.eventB])).toBe(before);
     expect(await count("owner", "audit_log WHERE action = 'event.duplicate'", [])).toBe(0);
+  });
+
+  it("keeps the template door inside the caller's tenant and the list to the team (T-601b)", async () => {
+    const before = await count("owner", "category WHERE event_id = $1", [f.eventB]);
+    const questsBefore = await count("owner", "quest WHERE event_id = $1", [f.eventB]);
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      expect(
+        await refusal(
+          asA(seat, "SELECT event_apply_template($1, 'festival', $2)", [f.eventB, randomUUID()]),
+        ),
+        `${seat} onto B's event`,
+      ).toBe("AN404");
+    }
+    expect(await refusal(asA("player", "SELECT event_templates()", []))).toBe("AN404");
+    expect(await count("owner", "category WHERE event_id = $1", [f.eventB])).toBe(before);
+    expect(await count("owner", "quest WHERE event_id = $1", [f.eventB])).toBe(questsBefore);
+    expect(await count("owner", "audit_log WHERE action = 'event.template'", [])).toBe(0);
   });
 
   it("keeps the rating and survey-link doors inside the caller's tenant and membership (T-508)", async () => {

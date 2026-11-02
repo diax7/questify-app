@@ -316,6 +316,12 @@ export const eventNotDraft = make(
   "يمكن حذف المسودات فقط. الفعالية المفعّلة تبقى في السجل.",
   "Only drafts can be deleted. An activated event stays on record.",
 );
+export const eventNotEmpty = make(
+  409,
+  "event_not_empty",
+  "القالب يبدأ فعالية فارغة فقط. في هذه الفعالية مهام أو جوائز أو أسئلة انضمام.",
+  "A template can only start an empty event. This one already has quests, rewards or join questions.",
+);
 export const eventNotLive = make(
   409,
   "event_not_live",

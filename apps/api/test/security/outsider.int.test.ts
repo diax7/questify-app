@@ -374,6 +374,53 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     ).rejects.toThrow(/permission denied/);
   });
 
+  it("closes the template table and grants only the two template doors (T-601b)", async () => {
+    const doors = ["event_apply_template", "event_templates"];
+    const internals = ["template_add_category", "template_add_rewards"];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      public: boolean;
+      definer: boolean;
+      settings: string[] | null;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        has_function_privilege('public', p.oid, 'EXECUTE') AS public,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${[...doors, ...internals].map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(
+      [...doors, ...internals].toSorted(),
+    );
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.public, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+      expect(row.settings, row.proname).toEqual(["search_path=public, pg_temp"]);
+    }
+    expect(
+      await rows(`SELECT grantee, privilege_type FROM information_schema.role_table_grants
+        WHERE table_schema = 'public' AND table_name = 'event_template'
+          AND grantee IN ('PUBLIC', 'questify_app', 'questify_outsider')`),
+    ).toEqual([]);
+    expect(
+      await rows(
+        `SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'event_template'`,
+      ),
+    ).toEqual([{ relrowsecurity: true, relforcerowsecurity: true }]);
+    for (const sql of [
+      "SELECT * FROM public.event_template",
+      "UPDATE public.event_template SET enabled = false",
+      "SELECT public.event_templates()",
+      "SELECT public.event_apply_template(gen_random_uuid(), 'festival', gen_random_uuid())",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+  });
+
   it("grants only the control room's three reads to the API's role, and nothing to the public (T-603)", async () => {
     const doors = ["control_counts", "control_done", "control_feed"];
     const functions = await rows<{

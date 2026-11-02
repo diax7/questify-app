@@ -974,7 +974,7 @@
   "apps/web/src/components/EventForm.tsx": {
     "EventForm": {
       "complexity": [13],
-      "lines": [236]
+      "lines": [230]
     }
   },
   "apps/web/src/components/EventWords.tsx": {

@@ -943,3 +943,22 @@ export {
   usageOrganizersSchema,
 } from "./usage/usage";
 export type { UsageEvent, UsageEvents, UsageOrganizer } from "./usage/usage";
+export {
+  TEMPLATE_LIMITS,
+  TEMPLATE_QUEST_TYPES,
+  TEMPLATE_REWARD_KINDS,
+  TEMPLATE_REWARD_SECTIONS,
+  templateBodySchema,
+  templateListSchema,
+  templateRowSchema,
+  templateTotals,
+  templateViewOf,
+  templateViewSchema,
+} from "./templates/template";
+export type {
+  TemplateBody,
+  TemplateList,
+  TemplateQuestType,
+  TemplateRow,
+  TemplateView,
+} from "./templates/template";

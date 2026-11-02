@@ -1598,6 +1598,8 @@ const GATE_MAP: Readonly<Record<string, string>> = {
     "exempt: checks that the quest, category or reward exists in the event before tagging it to a sponsor; it plays and pays nothing (T-507)",
   event_copy_setup:
     "staff: an owner or editor copies a source event's setup into an empty draft of the same organizer (award_event_of for both); it reads quests, categories and rewards only to copy them, and plays and pays nothing (T-601)",
+  event_apply_template:
+    "staff: an owner or editor fills an empty draft of the same organizer from a template (award_event_of); it reads quests and rewards only to check the draft is empty, adds setup rows, and plays and pays nothing (T-601b)",
   send_poll: "gated: Send refused while locked (the live poll test)",
   share_quest: "gated: share (door table)",
   start_game_round: "gated: game start (door table)",

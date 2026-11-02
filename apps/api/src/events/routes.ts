@@ -3,6 +3,7 @@ import { z } from "zod";
 import { VENUE_RADIUS, readBranding, readEventTerms } from "@questify/shared";
 import {
   eventNotDraft,
+  eventNotEmpty,
   eventNotLive,
   eventArchived,
   eventCityLocked,
@@ -24,6 +25,7 @@ import type {
   EndResult,
   Events,
   RemoveResult,
+  StartResult,
   UpdateResult,
 } from "#src/events/events";
 import type { EventRecord } from "#src/events/store";
@@ -72,8 +74,16 @@ const eventFields = {
     .max(10)
     .optional(),
 };
+// A template's key (T-601b); the database holds the same shape.
+const templateKey = z.string().regex(/^[a-z][a-z0-9_]{1,29}$/);
 const patchBody = z.strictObject(eventFields);
-const createBody = z.strictObject({ ...eventFields, startsAt: localTime, endsAt: localTime });
+const createBody = z.strictObject({
+  ...eventFields,
+  startsAt: localTime,
+  endsAt: localTime,
+  template: templateKey.optional(),
+});
+const templateBody = z.strictObject({ template: templateKey });
 // A duplicate takes only what must differ: the new name and times. The rest is the source's.
 const duplicateBody = z.strictObject({
   name: bilingual(120),
@@ -139,6 +149,19 @@ function answerCreate(reply: FastifyReply, result: DuplicateResult) {
   }
 }
 
+function answerStart(result: StartResult) {
+  switch (result.kind) {
+    case "started":
+      return { event: view(result.event) };
+    case "invalid":
+      throw invalidEvent({ field: result.field });
+    case "not_found":
+      throw notFound();
+    case "not_empty":
+      throw eventNotEmpty();
+  }
+}
+
 function answerUpdate(result: UpdateResult) {
   switch (result.kind) {
     case "updated":
@@ -172,6 +195,32 @@ function answerGone(reply: FastifyReply, result: RemoveResult | EndResult) {
   }
 }
 
+/** FR-1015: the templates the new-event page and the guided setup's "Start from" offer, and filling an empty draft from one. */
+function registerTemplateRoutes(scope: FastifyInstance, events: Events): void {
+  // The picker's view of each template, from the event_template rows.
+  scope.get("/event-templates", member, async (request) => ({
+    templates: await events.templates(organizerContextOf(request)),
+  }));
+
+  // An empty draft takes a template; anything else is 409 event_not_empty.
+  scope.post(
+    "/events/:eventId/template",
+    { ...member, config: { ...member.config, idempotent: true } },
+    async (request) => {
+      const { eventId } = parse(eventParams, request.params);
+      const body = parse(templateBody, request.body);
+      return answerStart(
+        await events.startFromTemplate(
+          organizerContextOf(request),
+          eventId,
+          body.template,
+          callerOf(request),
+        ),
+      );
+    },
+  );
+}
+
 /**
  * The event builder's routes, registered inside the organizer scope (its hook has already checked the session and
  * the membership). An editor limited to chosen events sees only those: the database applies the limit.
@@ -181,6 +230,8 @@ export function registerEventRoutes(
   events: Events,
   settings: SettingsService,
 ): void {
+  registerTemplateRoutes(scope, events);
+
   scope.get("/events", member, async (request) => {
     const list = await events.list(organizerContextOf(request));
     return { events: list.map(view) };

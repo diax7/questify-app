@@ -8239,6 +8239,36 @@ export const MESSAGES = {
     ar: "تعذّر تحميل الجاهزية.",
     en: "We could not load readiness.",
   },
+  "templates.title": { ar: "ابدأ من قالب", en: "Start from a template" },
+  "templates.legend": { ar: "القالب", en: "Template" },
+  "templates.blank": { ar: "ابدأ فارغًا", en: "Start blank" },
+  "templates.loadFailed": {
+    ar: "تعذّر تحميل القوالب. يمكنك البدء فارغًا.",
+    en: "We could not load the templates. You can still start blank.",
+  },
+  "templates.preview": { ar: "ما يجهّزه قالب {name}", en: "What the {name} template sets up" },
+  "templates.counts": {
+    ar: "{categoryMany}: {categories} · {questMany}: {quests} · الجوائز: {rewards}",
+    en: "{categories} {categoryMany} · {quests} {questMany} · {rewards} rewards",
+  },
+  "templates.rewardsNote": {
+    ar: "تبدأ الجوائز بلا مخزون؛ حدّده قبل الإطلاق. الأغراض التي تُسلَّم من مكتب الجوائز تُضاف بعد تحديد المكتب.",
+    en: "Rewards start with no stock; set it before going live. Items handed over at the prize desk are added after you set the desk.",
+  },
+  "templates.switchOn": { ar: "{name} (مفعّل)", en: "{name} (on)" },
+  "templates.switchOff": { ar: "{name} (متوقف)", en: "{name} (off)" },
+  "templates.use": { ar: "استخدام القالب", en: "Use this template" },
+  "templates.confirm.title": { ar: "تطبيق قالب {name}؟", en: "Apply the {name} template?" },
+  "templates.confirm.body": {
+    ar: "ستُضاف {categoryMany} و{questMany} والجوائز إلى هذه الفعالية. يمكنك تعديل كل شيء بعد ذلك.",
+    en: "{categoryMany}, {questMany} and rewards will be added to this event. You can edit all of it afterwards.",
+  },
+  "templates.confirm.action": { ar: "تطبيق القالب", en: "Apply template" },
+  "templates.done": { ar: "جُهِّز قالب {name}.", en: "The {name} template is set up." },
+  "events.invalid.template": {
+    ar: "اختر قالبًا من القائمة أو ابدأ فارغًا.",
+    en: "Pick a template from the list or start blank.",
+  },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

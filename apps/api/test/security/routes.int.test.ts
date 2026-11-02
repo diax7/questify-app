@@ -309,7 +309,7 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/organizers/:organizerId/events":
     "members of that organizer only; a limited editor sees only their events (test/events/events)",
   "POST /v1/organizers/:organizerId/events":
-    "members of that organizer only; the database sets nothing outside it; a limited editor cannot create (test/events/events)",
+    "members of that organizer only; the database sets nothing outside it; a limited editor cannot create; an optional template key fills the new event in the same transaction (test/events/events, test/events/templates)",
   "GET /v1/organizers/:organizerId/events/:eventId":
     "another organizer's event, or one outside an editor's limit, answers 404 (test/events/events)",
   "PATCH /v1/organizers/:organizerId/events/:eventId":
@@ -318,6 +318,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "only this organizer's drafts within the caller's limit (test/events/events, test/db/event-lifecycle)",
   "POST /v1/organizers/:organizerId/events/:eventId/duplicate":
     "owner/editor of that organizer; another organizer's event is 404, an editor limited to chosen events is scope_limited; Idempotency-Key; the copy takes setup only, never a player, a play row or a secret (test/events/events, test/db/event-duplicate)",
+  "GET /v1/organizers/:organizerId/event-templates":
+    "any member of that organizer; the picker's view of each template (names, quests' title, type and points, rewards' price), never a typed config or a description (test/events/templates, test/db/event-templates)",
+  "POST /v1/organizers/:organizerId/events/:eventId/template":
+    "owner/editor of that organizer within the editor's limit; only an empty draft takes a template (409 event_not_empty), another organizer's event is 404; Idempotency-Key; no player, point, code or secret (test/events/templates, test/db/event-templates)",
   "POST /v1/organizers/:organizerId/events/:eventId/end":
     "owner only (walked below); the database checks the owner again (test/events/events, test/db/event-lifecycle)",
   "GET /v1/organizers/:organizerId/events/:eventId/quests":

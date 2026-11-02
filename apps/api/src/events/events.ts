@@ -1,5 +1,12 @@
 import type { Pool, PoolClient } from "pg";
-import { MAX_EVENT_INTERESTS, VENUE_RADIUS, isTimeZone, toInstant } from "@questify/shared";
+import {
+  MAX_EVENT_INTERESTS,
+  VENUE_RADIUS,
+  isTimeZone,
+  templateViewOf,
+  toInstant,
+  type TemplateView,
+} from "@questify/shared";
 import { recordAudit } from "#src/audit/record";
 import type { Caller } from "#src/auth/sign-in";
 import { withConnection } from "#src/db/connection";
@@ -18,6 +25,13 @@ import {
   type JoinMethod,
   type VenuePin,
 } from "#src/events/store";
+import {
+  NOT_EMPTY,
+  UNKNOWN_TEMPLATE,
+  fillFromTemplate,
+  readTemplates,
+  templateExists,
+} from "#src/events/templates";
 import type { OrganizerContext, OrganizerPrincipal } from "#src/organizers/store";
 
 /** What the dashboard sends: times as the event's wall clock (`YYYY-MM-DDTHH:mm`), read in its zone. */
@@ -38,6 +52,8 @@ export type EventInput = Readonly<{
   cityId?: string | null | undefined;
   /** Up to 3 interests from the catalog (T-407); they decide who "For you" shows the event to. */
   interests?: readonly string[] | undefined;
+  /** A template to start the new event from (T-601b); absent starts it blank. */
+  template?: string | undefined;
 }>;
 
 export type InvalidField =
@@ -47,7 +63,8 @@ export type InvalidField =
   | "endsAt"
   | "joinMethods"
   | "cityId"
-  | "interests";
+  | "interests"
+  | "template";
 
 type Invalid = Readonly<{ kind: "invalid"; field: InvalidField }>;
 type Missing = Readonly<{ kind: "not_found" }>;
@@ -74,6 +91,12 @@ export type RemoveResult =
   /** A souvenir rule names it (T-402b): its drafts are deleted first, a frozen promise keeps the event. */
   | Readonly<{ kind: "souvenir_data" }>;
 export type EndResult = Readonly<{ kind: "ended" }> | Missing | Readonly<{ kind: "not_live" }>;
+/** Starting an existing draft from a template: the event as it is now, or why not. */
+export type StartResult =
+  | Readonly<{ kind: "started"; event: EventRecord }>
+  | Invalid
+  | Missing
+  | Readonly<{ kind: "not_empty" }>;
 
 export type Actor = OrganizerContext & Readonly<{ organizer: OrganizerPrincipal }>;
 
@@ -91,6 +114,15 @@ export type Events = Readonly<{
   update: (actor: Actor, id: string, input: EventInput, caller: Caller) => Promise<UpdateResult>;
   remove: (actor: Actor, id: string, caller: Caller) => Promise<RemoveResult>;
   endEarly: (actor: Actor, id: string, caller: Caller) => Promise<EndResult>;
+  /** The templates the picker offers (T-601b), as the picker shows them. */
+  templates: (actor: Actor) => Promise<TemplateView[]>;
+  /** Fills an empty draft from a template (T-601b); the wizard's "Start from". */
+  startFromTemplate: (
+    actor: Actor,
+    id: string,
+    template: string,
+    caller: Caller,
+  ) => Promise<StartResult>;
 }>;
 
 export type EventsDeps = Readonly<{ pool: Pool; joinCodes?: () => string }>;
@@ -282,7 +314,11 @@ async function create(
     return fields;
   }
   try {
-    const event = await inContext(deps, actor, async (client) => {
+    return await inContext(deps, actor, async (client): Promise<CreateResult> => {
+      // A template that is not there is refused before anything is written.
+      if (input.template !== undefined && !(await templateExists(client, input.template))) {
+        return { kind: "invalid", field: "template" };
+      }
       const made = await insertEvent(
         client,
         actor.organizerId,
@@ -295,15 +331,62 @@ async function create(
         { action: "event.create", eventId: made.id, after: auditView(made) },
         caller,
       );
-      return made;
+      if (input.template === undefined) {
+        return { kind: "created", event: made };
+      }
+      await fillFromTemplate(client, actor.organizerId, made.id, input.template, caller.requestId);
+      const filled = await readEvent(client, actor.organizerId, made.id);
+      // Stryker disable next-line all: unreachable: the event was inserted in this transaction
+      return { kind: "created", event: filled ?? made };
     });
-    return { kind: "created", event };
   } catch (error) {
     if (unknownCity(error)) {
       return { kind: "invalid", field: "cityId" };
     }
     if (unknownInterest(error)) {
       return { kind: "invalid", field: "interests" };
+    }
+    if ((error as { code?: string }).code === UNKNOWN_TEMPLATE) {
+      return { kind: "invalid", field: "template" };
+    }
+    throw error;
+  }
+}
+
+/**
+ * Fills an existing draft from a template (FR-1015): the wizard's "Start from". Only an empty draft takes one (T-601's rule),
+ * so a template can never overwrite an organizer's work.
+ */
+async function startFromTemplate(
+  deps: EventsDeps,
+  actor: Actor,
+  id: string,
+  key: string,
+  caller: Caller,
+): Promise<StartResult> {
+  try {
+    return await inContext(deps, actor, async (client): Promise<StartResult> => {
+      if ((await readEvent(client, actor.organizerId, id)) === undefined) {
+        return { kind: "not_found" };
+      }
+      if (!(await templateExists(client, key))) {
+        return { kind: "invalid", field: "template" };
+      }
+      await fillFromTemplate(client, actor.organizerId, id, key, caller.requestId);
+      const filled = await readEvent(client, actor.organizerId, id);
+      // Stryker disable next-line all: unreachable: the event was read in this transaction
+      return filled === undefined ? { kind: "not_found" } : { kind: "started", event: filled };
+    });
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === NOT_EMPTY) {
+      return { kind: "not_empty" };
+    }
+    if (code === UNKNOWN_TEMPLATE) {
+      return { kind: "invalid", field: "template" };
+    }
+    if (code === "AN404") {
+      return { kind: "not_found" };
     }
     throw error;
   }
@@ -505,5 +588,8 @@ export function createEvents(deps: EventsDeps): Events {
     update: (actor, id, input, caller) => update(deps, actor, id, input, caller),
     remove: (actor, id, caller) => remove(deps, actor, id, caller),
     endEarly: (actor, id, caller) => endEarly(deps, actor, id, caller),
+    templates: async (actor) => (await inContext(deps, actor, readTemplates)).map(templateViewOf),
+    startFromTemplate: (actor, id, template, caller) =>
+      startFromTemplate(deps, actor, id, template, caller),
   };
 }
