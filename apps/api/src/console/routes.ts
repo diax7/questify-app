@@ -70,7 +70,13 @@ async function throttled(
   limit: DeviceLimit,
 ): Promise<{ id: string }> {
   const who = adminOf(request);
-  await holdBack(deps.pool, [{ limit, key: deps.keys.userKey(who.id) }], true, reply);
+  // Keyed per bucket, so the navigation's ticket count on the same page load never takes this lock.
+  await holdBack(
+    deps.pool,
+    [{ limit, key: deps.keys.userKey(`${limit.bucket}:${who.id}`) }],
+    true,
+    reply,
+  );
   return who;
 }
 
