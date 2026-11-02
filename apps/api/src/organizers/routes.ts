@@ -271,7 +271,7 @@ function staysOpenWhileSuspended(request: FastifyRequest, membership: OrganizerP
 }
 
 /**
- * What a team can still do while organizer documents wait for the owner (ADR-441): read everything, leave, an owner
+ * What a team can still do while organizer documents wait for the owner (ADR-446): read everything, leave, an owner
  * removing a member, and the owner's acceptance itself. Keys are the method and the route pattern below the prefix.
  */
 const OPEN_WHILE_UNACCEPTED = new Set([

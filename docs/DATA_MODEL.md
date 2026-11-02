@@ -1686,7 +1686,7 @@ PUBLIC none. Not copied when an event is duplicated.
   10 to 300 characters; QA404 for a missing, ended or non-admin session; audit `staff.session.force_end`).
 - `revoke-admin` (`setPlatformAdmin`) locks every admin row by id and refuses the last active admin.
 
-## Legal versions and help articles (T-707, migration 0123; ADR-440 to ADR-442)
+## Legal versions and help articles (T-707, migration 0123; ADR-445 to ADR-447)
 
 - **`legal_version`** (id, document, version, body_ar, body_en, note, published_by, published_at; unique (document, version);
   both texts or neither): every published version of the six legal documents. Closed to every role (RLS forced, no grant),

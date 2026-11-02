@@ -1,5 +1,5 @@
 -- T-707: legal document versions with forced re-acceptance, and the help and FAQ content (FR-1781, FR-1782; plan note
--- docs/plans/2026-11-02-t-707-legal-help.md; ADR-440 to ADR-442).
+-- docs/plans/2026-11-02-t-707-legal-help.md; ADR-445 to ADR-447).
 -- The version in force of each of the six legal documents (three for players, three for organizers) moves from code
 -- (`playerDocuments()`, `organizerDocuments()`) to `legal_version`, an append-only table an admin adds to. Publishing a
 -- version makes it the one in force at once: players are asked at their next launch (profile.legal, unchanged), and an

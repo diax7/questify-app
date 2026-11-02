@@ -1373,8 +1373,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1778 | F-286 | Must | pending |
 | FR-1779 | F-287 | Must | built (T-705: console word lists and retired usernames) |
 | FR-1780 | F-288 | Should | pending |
-| FR-1781 | F-289 | Must | built (T-707: published versions in force at once; players asked at launch and refused at sign-in, an organizer's team held until its owner accepts, ADR-440, ADR-441; a decline cannot continue in the app, Q-402) |
-| FR-1782 | F-290 | Should | built (T-707: help and FAQ articles in the console, a language alone shown to both readers, ADR-442) |
+| FR-1781 | F-289 | Must | built (T-707: published versions in force at once; players asked at launch and refused at sign-in, an organizer's team held until its owner accepts, ADR-445, ADR-446; a decline cannot continue in the app, Q-405) |
+| FR-1782 | F-290 | Should | built (T-707: help and FAQ articles in the console, a language alone shown to both readers, ADR-447) |
 | FR-1783 | F-291 | Should | partly built (T-709: queues, leases, set-up, SMS rate; players online and error counters Q-382) |
 | FR-1784 | F-292 | Should | partly built (T-701 pause and restore; owner email change T-701b; merge dropped, Q-375) |
 | FR-1785 | F-293 | Must | built (T-709: sessions and forced sign-out in the console; add and remove admins by `staff-cli` only, ADR-405; the last admin is refused) |
