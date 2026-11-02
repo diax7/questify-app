@@ -6865,7 +6865,7 @@ restore needs no ban. Reasoned, confirmed, audited with ids only.
 
 ## ADR-440 - T-709d the XP curve and its reward map are one document; each player's level follows under their own lock
 
-**Status:** Proposed (developer, 2026-11-02; re-planned after the plan review of 2026-11-02; plan
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-709d code review 92; re-planned after the plan review of 2026-11-02; plan
 `docs/plans/2026-11-02-t-709d-xp-curve-items.md` D1 to D3). Migration 0124.
 **Decision:** `admin_xp_table_save` writes only `xp_level` and `level_item`, with no table lock: it takes level 1 FOR
 UPDATE (the door serializer), then every `xp_level` row FOR UPDATE in level order, then the changed `level_item` rows and
@@ -6886,7 +6886,7 @@ new level waits for a save's few milliseconds (measured, Q-401).
 
 ## ADR-441 - T-709d the console edits Questify's items: names always, art while unowned and not on sale
 
-**Status:** Proposed (developer, 2026-11-02; re-planned 2026-11-02, plan `docs/plans/2026-11-02-t-709d-xp-curve-items.md`
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-709d code review 92; re-planned 2026-11-02, plan `docs/plans/2026-11-02-t-709d-xp-curve-items.md`
 D4).
 **Decision:** The Items editor lists level rewards, shop items and unassigned items, never souvenir items (named by a
 souvenir rule or with the `souvenir-` id prefix, CA404). Names can always change (FOR NO KEY UPDATE, waits on nobody); the
