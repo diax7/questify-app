@@ -34,7 +34,7 @@ async function expectNoSidewaysScroll(page: Page): Promise<void> {
 
 async function openRecord(page: Page, language: "en" | "ar", username: string): Promise<void> {
   await page.goto(`/${language}/console/players`);
-  await page.getByRole("textbox").fill(username);
+  await page.getByRole("searchbox").fill(username);
   await page.getByRole("button", { name: language === "en" ? "Find" : "بحث" }).click();
   await page.getByRole("link", { name: `@${username}` }).click();
   await expect(page.getByRole("heading", { name: `@${username}`, level: 1 })).toBeVisible();

@@ -131,7 +131,7 @@ export const erasedPlayerSchema = z.strictObject({
   }),
 });
 export type ErasedPlayer = z.infer<typeof erasedPlayerSchema>;
-export const playerRecordAnswerSchema = z.union([playerRecordSchema, erasedPlayerSchema]);
+export const playerRecordAnswerSchema = playerRecordSchema.or(erasedPlayerSchema);
 export type PlayerRecordAnswer = z.infer<typeof playerRecordAnswerSchema>;
 
 export const ledgerLineSchema = z.strictObject({
