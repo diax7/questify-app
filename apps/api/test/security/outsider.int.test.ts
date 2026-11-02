@@ -132,6 +132,77 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
+  it("keeps the player tools closed: six doors for the API's role alone, two tables with no grant (T-704)", async () => {
+    const doors = [
+      "admin_rename_player",
+      "admin_reset_player_sign_in",
+      "console_player_contact",
+      "console_player_ledger",
+      "console_player_record",
+      "console_player_search",
+    ];
+    const internals = [
+      "console_player_events",
+      "console_player_flags_reports",
+      "contact_masked",
+      "player_action_note",
+      "player_admin_action_append_only",
+      "player_for_admin",
+    ];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+      settings: string[];
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${[...doors, ...internals].map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(
+      [...doors, ...internals].toSorted(),
+    );
+    for (const row of functions) {
+      const door = doors.includes(row.proname);
+      expect(row.app, row.proname).toBe(door);
+      expect(row.outsider, row.proname).toBe(false);
+      if (door) {
+        expect(row.definer, row.proname).toBe(true);
+        expect(row.settings).toEqual(["search_path=public, pg_temp"]);
+      }
+    }
+    for (const sql of [
+      "SELECT public.console_player_search('username', 'abc', gen_random_uuid())",
+      "SELECT public.console_player_record(gen_random_uuid(), gen_random_uuid())",
+      "SELECT public.console_player_ledger(gen_random_uuid(), NULL, NULL, gen_random_uuid())",
+      "SELECT public.console_player_contact(gen_random_uuid(), 'support_request', 'A note long enough', gen_random_uuid())",
+      "SELECT * FROM public.admin_rename_player(gen_random_uuid(), 'new_name', 'spam', 'A note long enough', gen_random_uuid())",
+      "SELECT * FROM public.admin_reset_player_sign_in(gen_random_uuid(), 'other', 'A note long enough', gen_random_uuid())",
+      "SELECT * FROM public.player_admin_action",
+      "SELECT * FROM public.username_retired",
+      "INSERT INTO public.username_retired (fold) VALUES ('anyname')",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+    expect(
+      await rows(
+        `SELECT table_name, grantee FROM information_schema.role_table_grants
+         WHERE table_name IN ('player_admin_action', 'username_retired') AND grantee <> 'postgres'`,
+      ),
+    ).toEqual([]);
+    const held = await rows<{ proname: string; grantee: string }>(
+      `SELECT DISTINCT p.proname, CASE WHEN a.grantee = 0 THEN 'public' ELSE a.grantee::regrole::text END AS grantee
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+       WHERE n.nspname = 'public' AND a.privilege_type = 'EXECUTE' AND a.grantee <> p.proowner
+         AND p.proname IN (${[...doors, ...internals].map((name) => `'${name}'`).join(", ")})
+       ORDER BY 1, 2`,
+    );
+    expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
+  });
+
   it("keeps announcement tables and internals closed and grants only its five doors", async () => {
     const doors = [
       "announcement_cancel",

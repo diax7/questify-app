@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from "pg";
 import {
   alreadyInThatState,
+  invalidPlayerAction,
   invalidReason,
   notFound,
   supportBusy,
@@ -23,14 +24,16 @@ export type OpenedGrant = Readonly<{
 }>;
 
 /**
- * Each refusal of the console doors (migration 0114) as its HTTP answer. A caller who is not an admin, and a missing
- * organizer, event or live grant, all look like nothing there (404).
+ * Each refusal of the console doors (migrations 0114 and 0118) as its HTTP answer. A caller who is not an admin, and a
+ * missing organizer, event, live grant or player (an erased one included), all look like nothing there (404).
  */
 const REFUSALS: Readonly<Record<string, () => HttpError>> = {
   QE403: notFound,
   QA404: notFound,
   SG404: notFound,
   SU400: invalidReason,
+  PA400: invalidPlayerAction,
+  PA404: notFound,
   SU409: alreadyInThatState,
   SG409: supportMember,
   SG429: tooManySupportGrants,

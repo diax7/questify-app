@@ -1008,3 +1008,33 @@ export type {
   TemplateRow,
   TemplateView,
 } from "./templates/template";
+export {
+  PLAYER_ACTION_KINDS,
+  PLAYER_ACTION_REASONS,
+  PLAYER_LEDGER_PAGE,
+  PLAYER_NOTE_MAX,
+  PLAYER_NOTE_MIN,
+  PLAYER_SEARCH_BY,
+  erasedPlayerSchema,
+  isActionReason,
+  isUsableActionNote,
+  ledgerLineSchema,
+  ledgerPageSchema,
+  maskedContactsSchema,
+  playerRecordAnswerSchema,
+  playerRecordSchema,
+  playerSearchRowSchema,
+  playerSearchSchema,
+  revealedContactsSchema,
+} from "./console-players/console-players";
+export type {
+  ErasedPlayer,
+  LedgerLine,
+  MaskedContacts,
+  PlayerActionKind,
+  PlayerRecord,
+  PlayerRecordAnswer,
+  PlayerSearchBy,
+  PlayerSearchRow,
+  RevealedContacts,
+} from "./console-players/console-players";
