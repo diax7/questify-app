@@ -2067,3 +2067,28 @@ FR-1769 asks for a hidden feature "as if it were absent" and for a message playe
 The username switch and the daily streak are platform switches (this task); XP amounts are T-709c's Amounts editor. A setting
 "XP on repeats" does not exist: a quest cannot be repeated for points today (ADR-180), so the setting has nothing to switch.
 **Recommended (developer):** leave FR-1734's repeat part open until a repeatable quest type is designed.
+
+## Q-450 - Should an owner email change wait 24 hours before it applies? (T-701b)
+
+**Status:** Proposed (developer, 2026-11-03; ADR-491).
+A hold would give the real owner a day to press Stop from the old address if an impostor fooled support; it would also leave
+an owner who lost their mailbox locked out for a day, often during a live event.
+**Recommended (developer):** no hold; the old address is told at once with a Stop link, and support can reverse a change.
+
+## Q-451 - Should tickets escalated from a live event also be urgent? (T-701b, ADR-496)
+
+**Status:** Proposed (developer, 2026-11-03).
+FR-1732 speaks of reports; escalated help-desk tickets have their own Tickets page and order.
+**Recommended (developer):** not in v1; revisit after the first live events.
+
+## Q-452 - What counts as a live event for urgency? (T-701b, ADR-493)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** `event.status = 'live'` when the report arrives; rehearsal (draft or scheduled) reports are normal.
+
+## Q-453 - May the urgent-report alert use the sign-in mail transport? (T-701b, ADR-494)
+
+**Status:** Proposed (developer, 2026-11-03).
+The organizer alert transport is off (ADR-360) because it mails organizers' addresses. The team alert goes to Questify's own
+address and carries ids, names of events and organizers, reason codes and a console link, no personal data.
+**Recommended (developer):** yes.
