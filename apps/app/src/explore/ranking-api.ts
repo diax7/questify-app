@@ -42,7 +42,7 @@ export async function fetchQuestifyRanking(
 
 /**
  * A row as drawn. A player the reader blocked (`hidden`, FR-1415) keeps the place, XP and level; the server sends no
- * name, face or equipment, so here they are empty and the row reads "Hidden player" and opens nothing.
+ * name, face or equipment, so here they are empty and the row reads "Hidden name" and opens nothing.
  */
 export type ShownQuestifyRow = Readonly<{
   rank: number;

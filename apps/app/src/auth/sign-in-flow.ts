@@ -183,19 +183,22 @@ function fromContact(
   }
 }
 
+/** Steps nothing moves on from: signed in, closed, or a banned account's notice (the screen's Close leaves it). */
+const ENDED: ReadonlySet<SignInState["step"]> = new Set(["done", "closed", "banned"]);
+const hasEnded = (
+  state: SignInState,
+): state is Extract<SignInState, { step: "done" | "closed" | "banned" }> => ENDED.has(state.step);
+
 /**
  * Moves the sign-in on. Closing drops everything, the pending join included (closing sign-in joins nothing, ADR-089);
  * signing in hands the pending join on exactly once; new versions of the terms send the person back to the consent.
  */
 export function signInStep(state: SignInState, event: SignInEvent): SignInState {
-  if (state.step === "done" || state.step === "closed") {
+  if (hasEnded(state)) {
     return state;
   }
   if (event.type === "closed") {
     return { step: "closed" };
-  }
-  if (state.step === "banned") {
-    return state;
   }
   if (event.type === "signed_in") {
     return { step: "done", join: pendingOf(state) };

@@ -189,7 +189,7 @@ describe("the sign-in flow", () => {
         },
       ),
     ).toEqual(banned);
-    expect(run(banned, { type: "closed" })).toEqual({ step: "closed" });
+    expect(run(banned, { type: "closed" })).toEqual(banned);
   });
 
   it("ignores events that do not belong to the step", () => {

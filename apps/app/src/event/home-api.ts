@@ -281,7 +281,7 @@ export type RankRow = Readonly<{
   isMe: boolean;
   /**
    * A player the reader blocked (FR-1415, T-705): the place and score stay, the server sends no name, face or
-   * equipment; `username` and `avatar` are empty and the row reads "Hidden player" and opens nothing.
+   * equipment; `username` and `avatar` are empty and the row reads "Hidden name" and opens nothing.
    */
   hidden: boolean;
 }>;

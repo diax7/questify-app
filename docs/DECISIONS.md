@@ -6739,7 +6739,7 @@ replay the raise (Q-393).
 lock; an unknown name, an erased account and the caller all answer `not_found` (404). Routes `GET|POST /v1/me/blocks` and
 `DELETE /v1/me/blocks/{username}` (Idempotency-Key, 60 changes an hour); the access log replaces the name in that path, as
 it does for `/v1/players/{username}`. The reads a block masks keep the blocked player's row, place, score and prize and leave
-out the username, avatar, equipment and full name (the app shows "Hidden player" and the row opens nothing):
+out the username, avatar, equipment and full name (the app shows "Hidden name" and the row opens nothing):
 `ranking_top`, `ranking_day_top`, `ranking_rows`, `ranking_names`, `event_results` (gains `hidden`) and the Questify-wide
 boards (`xp_board_json`, rows gain `hidden`); `public_player_profile` answers nothing. A blocked pair cannot meet in either
 direction (`meet_refusal`, the same `not_for_them` as any other reason, checked before `already_met` names anyone). Nothing

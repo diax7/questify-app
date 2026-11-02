@@ -14,10 +14,46 @@ import { BlockButton, BlockedLine } from "#src/questify/BlockButton.tsx";
 import { PublicPassport } from "#src/questify/PassportSection.tsx";
 import { publicProfileSchema, type PublicProfile } from "#src/questify/profile-api.ts";
 
+/** The public profile itself, and Block for anyone but the reader (FR-1415). */
+function ProfileDetails({
+  profile,
+  own,
+  onBlock,
+}: Readonly<{ profile: PublicProfile; own: boolean; onBlock: (blocked: boolean) => void }>) {
+  const { t, language } = useI18n();
+  return (
+    <>
+      <Avatar
+        name={"starter" in profile.character ? profile.character.starter : ""}
+        username={profile.username}
+        size={120}
+        equipment={{
+          character: "starter" in profile.character ? null : profile.character,
+          frame: profile.frame,
+          title: profile.title,
+        }}
+      />
+      <AppText variant="title">@{profile.username}</AppText>
+      {profile.title === null ? null : (
+        <>
+          <AppText variant="label">{t("profile.equippedTitle")}</AppText>
+          <AppText>{profile.title.name[language]}</AppText>
+        </>
+      )}
+      <AppText>{t("level.number", { level: profile.level.number })}</AppText>
+      <AppText variant="label">{t("locker.levelTitle")}</AppText>
+      <AppText>{profile.level.title[language]}</AppText>
+      <PublicAchievements tiers={profile.achievements} />
+      <PublicPassport stamps={profile.passport} />
+      {own ? null : <BlockButton username={profile.username} onChange={onBlock} />}
+    </>
+  );
+}
+
 export function PublicProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>();
   const { state } = usePlayer();
-  const { t, language } = useI18n();
+  const { t } = useI18n();
   const [result, setResult] = useState<PublicProfile | "loading" | "unavailable" | "failed">(
     "loading",
   );
@@ -80,33 +116,11 @@ export function PublicProfileScreen() {
             ) : null}
           </>
         ) : (
-          <>
-            <Avatar
-              name={"starter" in shown.character ? shown.character.starter : ""}
-              username={shown.username}
-              size={120}
-              equipment={{
-                character: "starter" in shown.character ? null : shown.character,
-                frame: shown.frame,
-                title: shown.title,
-              }}
-            />
-            <AppText variant="title">@{shown.username}</AppText>
-            {shown.title === null ? null : (
-              <>
-                <AppText variant="label">{t("profile.equippedTitle")}</AppText>
-                <AppText>{shown.title.name[language]}</AppText>
-              </>
-            )}
-            <AppText>{t("level.number", { level: shown.level.number })}</AppText>
-            <AppText variant="label">{t("locker.levelTitle")}</AppText>
-            <AppText>{shown.level.title[language]}</AppText>
-            <PublicAchievements tiers={shown.achievements} />
-            <PublicPassport stamps={shown.passport} />
-            {shown.username.toLowerCase() === state.me?.username.toLowerCase() ? null : (
-              <BlockButton username={shown.username} onChange={changeBlock} />
-            )}
-          </>
+          <ProfileDetails
+            profile={shown}
+            own={shown.username.toLowerCase() === state.me?.username.toLowerCase()}
+            onBlock={changeBlock}
+          />
         )}
       </ScrollView>
     </Screen>

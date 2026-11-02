@@ -10,6 +10,15 @@ import type { ShownRow } from "#src/event/ranking.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
+/** Who a row names aloud: the username, or the full name the event shows (with the username when it shows both). */
+function spokenName(row: ShownRow): string {
+  const shown = shownName(row.fullName, row.names);
+  if (shown.fullName === null) {
+    return row.username;
+  }
+  return shown.showUsername ? `${shown.fullName} (@${row.username})` : shown.fullName;
+}
+
 /** The words a screen reader says for a row: the place, who, the score when the row has one, and the title worn. */
 export function useRowLabel(row: ShownRow): string {
   const { t, language } = useI18n();
@@ -18,13 +27,7 @@ export function useRowLabel(row: ShownRow): string {
     return t("ranking.rowLabelHidden", { rank: row.rank });
   }
   const title = row.equipment?.title == null ? "" : `، ${row.equipment.title.name[language]}`;
-  const shown = shownName(row.fullName, row.names);
-  const who =
-    shown.fullName === null
-      ? row.username
-      : shown.showUsername
-        ? `${shown.fullName} (@${row.username})`
-        : shown.fullName;
+  const who = spokenName(row);
   if (row.score === null) {
     const key = row.isMe ? "ranking.rowLabelMeRankOnly" : "ranking.rowLabelRankOnly";
     return `${t(key, { rank: row.rank, username: who })}${title}`;
@@ -45,7 +48,7 @@ export function openPlayer(username: string): void {
 export const pressOf = (row: ShownRow): (() => void) | undefined =>
   row.hidden ? undefined : () => openPlayer(row.username);
 
-/** The name in a row: the player's, or "Hidden player" for one the reader blocked (FR-1415). */
+/** The name in a row: the player's, or "Hidden name" for one the reader blocked (FR-1415). */
 export function RowName({
   row,
   variant,

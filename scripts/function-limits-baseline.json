@@ -520,14 +520,11 @@
   "apps/app/src/auth/sign-in-api.ts": {
     "requestCode": {
       "complexity": [9]
-    },
-    "verifyCode": {
-      "complexity": [10]
     }
   },
   "apps/app/src/auth/sign-in-flow.ts": {
     "signInStep": {
-      "complexity": [15]
+      "complexity": [14]
     }
   },
   "apps/app/src/components/Avatar.tsx": {
@@ -873,7 +870,7 @@
   },
   "apps/app/src/screens/PublicProfileScreen.tsx": {
     "PublicProfileScreen": {
-      "complexity": [13]
+      "complexity": [12]
     }
   },
   "apps/app/src/streaks/days.ts": {

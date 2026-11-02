@@ -8944,10 +8944,10 @@ export const MESSAGES = {
     en: "If you think this is a mistake, email us at:",
   },
   "ban.appealLabel": { ar: "مراسلة Questify على {email}", en: "Email Questify at {email}" },
-  "ranking.hiddenPlayer": { ar: "لاعب مخفي", en: "Hidden player" },
+  "ranking.hiddenPlayer": { ar: "اسم مخفي", en: "Hidden name" },
   "ranking.rowLabelHidden": {
-    ar: "المركز {rank}، لاعب مخفي",
-    en: "Rank {rank}, hidden player",
+    ar: "المركز {rank}، اسم مخفي",
+    en: "Rank {rank}, hidden name",
   },
   "block.action": { ar: "حظر", en: "Block" },
   "block.confirm": {
@@ -8959,7 +8959,7 @@ export const MESSAGES = {
   "block.undone": { ar: "ألغيت حظر {name}.", en: "You unblocked {name}." },
   "block.failed": { ar: "تعذر الحفظ. حاول مرة أخرى.", en: "Couldn't save. Try again." },
   "block.loadFailed": { ar: "تعذر تحميل القائمة.", en: "Couldn't load the list." },
-  "block.list": { ar: "اللاعبون المحظورون", en: "Blocked players" },
+  "block.list": { ar: "الحسابات المحظورة", en: "Blocked accounts" },
   "block.empty": { ar: "لم تحظر أحدًا.", en: "You haven't blocked anyone." },
 } as const satisfies Messages;
 

@@ -26,7 +26,7 @@ const shownSchema = z.strictObject({
 });
 /**
  * A row of a player the reader blocked (FR-1415, T-705): the place, XP and level stay, so ranks stay true; no
- * username, avatar or equipment. The app shows "Hidden player".
+ * username, avatar or equipment. The app shows "Hidden name".
  */
 const hiddenRowSchema = z.strictObject({
   rank: z.number().int().min(1),

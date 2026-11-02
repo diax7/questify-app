@@ -1,7 +1,7 @@
 import { MESSAGES, toWesternDigits, type Language, type SignupAcceptance } from "@questify/shared";
 import type { ApiResult, Client } from "#src/api/client.ts";
 import type { Issued, Session } from "#src/api/session.ts";
-import type { Channel, SignInEvent } from "#src/auth/sign-in-flow.ts";
+import type { BanNotice, Channel, SignInEvent } from "#src/auth/sign-in-flow.ts";
 import { versionsFrom } from "#src/config/remote.ts";
 
 export type SignInDeps = Readonly<{
@@ -131,27 +131,36 @@ export async function verifyCode(
   ) {
     return { type: "new_player", signupToken: answer.body["signupToken"] };
   }
-  if (answer.kind === "error" && answer.code === "invalid_code") {
+  return answer.kind === "error"
+    ? verifyRefusal(answer)
+    : { type: "refused", problem: problemOf(answer) };
+}
+
+/** A banned account's notice (T-705): the reason code and the appeal address, as far as the answer carries them. */
+function banNoticeOf(details: Readonly<Record<string, unknown>>): BanNotice {
+  const { reason, appealEmail } = details;
+  return {
+    reason: typeof reason === "string" ? reason : null,
+    appealEmail: typeof appealEmail === "string" ? appealEmail : "",
+  };
+}
+
+/** What a refused code means: a wrong code, an ended one, a banned account, or another refusal in the API's words. */
+function verifyRefusal(answer: Extract<ApiResult, { kind: "error" }>): SignInEvent {
+  if (answer.code === "invalid_code") {
     return {
       type: "wrong_code",
       attemptsLeft: numberOf(answer.details["attemptsLeft"], 0),
       problem: answer.message,
     };
   }
-  if (answer.kind === "error" && answer.status === 410) {
+  if (answer.status === 410) {
     return { type: "expired", problem: answer.message };
   }
-  if (answer.kind === "error" && answer.code === "account_banned") {
-    const { reason, appealEmail } = answer.details;
-    return {
-      type: "banned",
-      notice: {
-        reason: typeof reason === "string" ? reason : null,
-        appealEmail: typeof appealEmail === "string" ? appealEmail : "",
-      },
-    };
+  if (answer.code === "account_banned") {
+    return { type: "banned", notice: banNoticeOf(answer.details) };
   }
-  return { type: "refused", problem: problemOf(answer) };
+  return { type: "refused", problem: answer.message };
 }
 
 /** The profile step for a new player (T-109): username, birth year and avatar; success signs them in. */
