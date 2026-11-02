@@ -2,8 +2,10 @@ import {
   helpPublicSchema,
   isLegalDocumentId,
   legalTextSchema,
+  supportContactSchema,
   type HelpPublic,
   type LegalText,
+  type SupportContact,
 } from "@questify/shared";
 import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
@@ -20,7 +22,8 @@ const SHARED_CACHE = "public, max-age=60";
 
 /**
  * The public reads of T-707: the version in force of every legal document (the sign-up screens need them before anyone
- * has an account), one document in force with its text, and the published help articles (FR-1782). Each is read from a
+ * has an account), one document in force with its text, the published help articles (FR-1782) and the support contact
+ * details (FR-1731). Each is read from a
  * closed table through a definer function that returns only what the pages show.
  */
 export function registerLegalRoutes(app: FastifyInstance, deps: Readonly<{ pool: Pool }>): void {
@@ -46,5 +49,11 @@ export function registerLegalRoutes(app: FastifyInstance, deps: Readonly<{ pool:
     const { rows } = await deps.pool.query<{ r: unknown }>("SELECT help_articles() AS r");
     reply.header("cache-control", SHARED_CACHE);
     return helpPublicSchema.parse({ articles: rows[0]?.r });
+  });
+
+  app.get("/v1/support-contact", open, async (_request, reply): Promise<SupportContact> => {
+    const { rows } = await deps.pool.query<{ r: unknown }>("SELECT support_contact_public() AS r");
+    reply.header("cache-control", SHARED_CACHE);
+    return supportContactSchema.parse(rows[0]?.r);
   });
 }

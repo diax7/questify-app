@@ -2068,6 +2068,28 @@ The username switch and the daily streak are platform switches (this task); XP a
 "XP on repeats" does not exist: a quest cannot be repeated for points today (ADR-180), so the setting has nothing to switch.
 **Recommended (developer):** leave FR-1734's repeat part open until a repeatable quest type is designed.
 
+## Q-420 - Should the login-code SMS read its template as soon as T-706b lands? (T-706, ADR-460, ADR-461)
+
+**Status:** Proposed (developer, 2026-11-03).
+The sign-in text is code (`smsText`) and is on the sign-in path, which is core. T-706 only stores and checks the slot.
+**Recommended (developer):** T-706b reads `login_code_sms` with the code text as the fallback when the row cannot be read, so a
+database failure never stops a sign-in, and keeps the current text as the seed. Tier A review for that change.
+
+## Q-421 - Which sender sends promotional email, and do campaigns share the one-invitation-a-week cap? (T-706, T-409 note, ADR-331)
+
+**Status:** Proposed (developer, 2026-11-03); decided in T-706b, which builds the sender.
+**Recommended (developer):** a promotional mailbox separate from the sign-in one, with `List-Unsubscribe` carrying the signed opt-out
+link, sent from a Saudi-resident provider (Q-034 family); campaigns share the cap of one promotional message a week per player on
+the channel (a player who got an invitation gets no campaign the same week), so the two features cannot together be the spam
+Dhia wants to avoid; transactional mail is not counted.
+
+## Q-422 - Does privacy need its own contact address? (T-706, ADR-462)
+
+**Status:** Proposed (developer, 2026-11-03).
+The legal drafts have two placeholders, the support contact and the privacy contact; both now show the support email.
+**Recommended (developer):** keep one address for v1 (the privacy policy only asks for a way to reach us); add a fourth field
+to `support_contact` when counsel or the PDPL regulator asks for a named data-protection contact.
+
 ## Q-440 - Is the in-app JSON download enough for PDPL's right of access, and does it need a fresh code? (T-708, counsel)
 
 **Status:** Open (developer, 2026-11-03; ADR-480, ADR-485).

@@ -8,7 +8,7 @@ import { LEGAL_DOCUMENT_IDS, LEGAL_VERSION } from "#src/legal/documents";
 
 /** Digits of any other script clash with the Western digits every screen uses (ADR-018). */
 const OTHER_DIGITS = new RegExp(String.raw`[٠-٩۰-۹]`, "u");
-const ARABIC_LETTER = /\p{Script=Arabic}/u;
+export const ARABIC_LETTER = /\p{Script=Arabic}/u;
 /** Control and direction characters; tab, new line and carriage return stay, as the texts have paragraphs. */
 const UNSAFE = new RegExp(String.raw`(?![\t\n\r])\p{Cc}|[‎‏‪-‮⁦-⁩]`, "u");
 
@@ -19,7 +19,7 @@ export const HELP_ANSWER_MAX = 4000;
 export const HELP_ID = /^[a-z][a-z0-9-]{0,63}$/;
 
 /** A text that may be empty: trimmed, at most `max` characters, Western digits, no control or direction character. */
-const text = (max: number) =>
+export const adminText = (max: number) =>
   z
     .string()
     .trim()
@@ -29,7 +29,7 @@ const text = (max: number) =>
 
 const pair = (max: number) =>
   z
-    .strictObject({ ar: text(max), en: text(max) })
+    .strictObject({ ar: adminText(max), en: adminText(max) })
     .refine((value) => !ARABIC_LETTER.test(value.en), {
       path: ["en"],
       message: "must be written in English",
@@ -49,13 +49,13 @@ const instant = z.string();
 export const legalPublishSchema = z.strictObject({
   version,
   text: z.strictObject({
-    ar: text(LEGAL_TEXT_MAX).refine(
+    ar: adminText(LEGAL_TEXT_MAX).refine(
       (value) => ARABIC_LETTER.test(value),
       "must be written in Arabic",
     ),
-    en: text(LEGAL_TEXT_MAX).refine((value) => value !== "", "required"),
+    en: adminText(LEGAL_TEXT_MAX).refine((value) => value !== "", "required"),
   }),
-  note: text(LEGAL_NOTE_MAX).optional(),
+  note: adminText(LEGAL_NOTE_MAX).optional(),
 });
 export type LegalPublish = z.infer<typeof legalPublishSchema>;
 

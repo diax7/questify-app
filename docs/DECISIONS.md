@@ -6964,6 +6964,54 @@ app shows the questions above its ticket cards on the profile's Get help screen.
 **Decision:** A feature the platform switched off is hidden everywhere it already was (the switches are read by the server's doors and the app). The admin may add a message in both languages (both or none, 300 characters each, only while off). The app lists the messages of switched-off platform features on Questify Home, in the player's language, from the cached platform configuration, so they appear offline as the last working copy.
 **Trade-offs:** the message shows on Home only, not at the spot where the feature used to be.
 
+## ADR-460 - T-706 is split: templates and the support contact now; push to a group, campaigns and the senders in T-706b
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-706 code review 93; T-706 build; Q-420).
+**Decision:** T-706 delivers FR-1780 (templates with the CST rules) and FR-1731 (the support contact) and the T-110 and T-407
+notes on it. **T-706b** holds FR-1777 (push to everyone in an event, or to opted-in players by city or interest), promotional
+campaigns, the promotional email sender, the campaign-cap decision and the senders reading their template slot. Each half
+delivers value alone: the compliance gate on templates and the contact page need nothing from the sends, and a send needs a
+template slot only to read.
+**Why:** the old T-706 was four features, two of them with new outside calls (an email sender) and a per-player fan-out with a
+cursor; one worker would have built them without a review small enough to read.
+**Trade-offs:** until T-706b the four templates are saved and checked but the senders still use their text in code, so editing
+one changes nothing a player receives yet. The seeds are the code's own text, so nothing differs.
+
+## ADR-461 - T-706 four template slots, CST rules written once in the shared package, the opt-out floor kept in the table
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-706 code review 93; T-706 build; migration 0127; ADR-065, ADR-318; T-407 note).
+**Decision:** `message_template` has four rows, `login_code_sms`, `promo_sms`, `promo_email` and `promo_push`, each in Arabic
+and English (email and push also a title). The rules are `templateIssues` in `packages/shared/src/messaging/templates.ts`, run
+by the console form, the API (on save and on a revert, so a rule that changed since is not bypassed) and the tests: both
+languages written in their own script and in Western digits; an SMS names Questify (كويستفاي); a login-code SMS says it is a
+sign-in code and holds `{code}`; a promotional SMS or email holds `{optOutUrl}`; a template holds only the placeholders it is
+given (`{code}`, `{optOutUrl}`; a push none, so no personal data can reach a push text); an SMS stays within 3 parts, counted
+with placeholders at their real length; body at most 300 (SMS), 4,000 (email) or 140 (push) characters, title 150 or 60. The
+database door checks the structure again (placeholders, lengths, control and direction characters, title on email and push
+only) and the table's CHECKs keep the floor for any writer: the opt-out and code placeholders and the titles. The wording rules
+(brand, purpose, script, parts) live in the package only, as the invitation name rule does. A save is audited (`catalog.message_template.update`
+and `.revert`, fields before and after) and can be reverted. A promotional push needs no opt-out line: its way out is the
+Settings switch (ADR-065). The "-AD" promotional sender name is not in scope (Q-034). Quiet hours apply to promotional SMS only
+(ADR-318) and are a send-time rule for T-706b, not a template rule.
+**Why:** one implementation of the rules means the form, the API and the tests cannot disagree; the table checks mean a path
+that skips the API (a script, a future door) still cannot save a promotional template without its opt-out.
+**Trade-offs:** the purpose rule is a phrase check (رمز الدخول, "sign-in code" or "login code"), so a template can pass it and
+still be badly worded; a person reads the preview. A slot cannot be added from the console, only edited (a new kind of message
+is a task).
+
+## ADR-462 - T-706 the support contact is one public row of three optional fields, shown on the contact page and in the legal drafts
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-706 code review 93; T-706 build; migration 0127; T-110 note, STORE_COMPLIANCE §4; Q-422).
+**Decision:** `support_contact` is one row: a WhatsApp number, a phone number (international form, `+` and 8 to 15 digits) and an
+email, each optional and cleared by an empty box. `GET /v1/support-contact` (public, cached a minute) returns the three;
+admins read and save them in the console (Support contact tab) through admin-checked, audited doors. `/{lang}/contact` lists
+what is set (a `wa.me` link, `tel:`, `mailto:`) and says the details are being prepared when nothing is set or the API does not
+answer; with no WhatsApp number it shows the others only. The legal pages put the support email in the drafts'
+`{{CONTACT_EMAIL}}` and `{{PRIVACY_CONTACT}}` placeholders; the other placeholders (entity, registration number, address,
+retention periods) wait for counsel (T-807, Q-288) and stay visible.
+**Why:** the store review and the legal texts need a working contact (STORE_COMPLIANCE §4); an admin changes it without a release.
+**Trade-offs:** one email serves support and privacy until a separate privacy address exists (Q-422).
+
 ## ADR-480 - A data export is one JSON file built on request and sent straight back, never stored or emailed
 
 **Status:** Proposed (developer, 2026-11-03; T-708; FR-1418, FR-1778; plan `docs/plans/2026-11-03-t-708-data-requests.md`).

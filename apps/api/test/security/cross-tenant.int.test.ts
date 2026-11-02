@@ -979,6 +979,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "platform-wide legal document versions with no tenant and no direct API rights; append-only for every role; read through legal_in_force and legal_text (public texts), written only by the admin-checked admin_legal_publish; the organizer's own acceptance of one is organizer_acceptance (legal-help)",
   help_article:
     "platform-wide help and FAQ articles with no tenant and no direct API rights; read through help_articles (published ones) and written only by the admin-checked admin_help_article_save (legal-help)",
+  message_template:
+    "platform-wide message templates (login-code SMS, promotional SMS, email and push) with no tenant and no direct API rights; read and written only by the admin-checked admin_message_templates and admin_message_template_save, audited; the table's own checks keep the opt-out and code placeholders (messaging)",
+  support_contact:
+    "platform-wide single row of support contact details with no tenant and no direct API rights; read publicly through support_contact_public (the contact page) and written only by the admin-checked, audited admin_support_contact_save (messaging)",
   event_template:
     "platform-wide catalog of starting setups with no tenant and no direct API rights; read through event_templates for a signed-in team member, applied only by event_apply_template to an empty draft of the caller's own organizer (event-templates)",
   interest:
