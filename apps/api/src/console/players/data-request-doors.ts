@@ -91,14 +91,7 @@ export function erasePlayer(
   return dataDoor(pool, admin, async (client): Promise<EraseResult> => {
     const { rows } = await client.query<{ outcome: string; events: string[] }>(
       "SELECT outcome, events FROM admin_erase_player($1, $2, $3, $4, $5, $6)",
-      [
-        input.playerId,
-        input.reasonCode,
-        input.reference,
-        input.username,
-        input.forfeit,
-        requestId,
-      ],
+      [input.playerId, input.reasonCode, input.reference, input.username, input.forfeit, requestId],
     );
     const row = rows[0];
     if (row?.outcome === "handover_pending") {

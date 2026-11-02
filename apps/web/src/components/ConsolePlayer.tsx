@@ -9,6 +9,7 @@ import {
   ResetPanel,
   RevealPanel,
 } from "#src/components/ConsolePlayerActions.tsx";
+import { LegalHistory, LegalRequestPanel } from "#src/components/ConsoleLegalRequests.tsx";
 import { PlayerConsent, PlayerLedger } from "#src/components/ConsolePlayerLedger.tsx";
 import { MaskedContacts } from "#src/components/ConsolePlayers.tsx";
 import { nameIn } from "#src/lib/console.ts";
@@ -283,6 +284,13 @@ function PlayerView({
           onChanged={reload}
         />
       ) : null}
+      <LegalHistory language={language} entries={record.legalRequests} />
+      <LegalRequestPanel
+        language={language}
+        playerId={id}
+        username={record.player.username}
+        onChanged={reload}
+      />
     </>
   );
 }
@@ -329,8 +337,10 @@ export function ConsolePlayer({
         <Notice tone="info" role="status">
           {t("console.player.erased", {
             date: clockOf(record.player.deletedAt ?? record.player.createdAt, language),
-          })}
+          })}{" "}
+          {t("console.player.legal.noRestore")}
         </Notice>
+        <LegalHistory language={language} entries={record.legalRequests} />
       </Stack>
     );
   }

@@ -1,12 +1,16 @@
 import {
   MESSAGES,
   consentHistorySchema,
+  dataEraseAnswerSchema,
+  pendingAnswerSchema,
   ledgerAnswerSchema,
   playerRecordAnswerSchema,
   playerSearchAnswerSchema,
   resetAnswerSchema,
   revealedContactsSchema,
   type ConsentHistory,
+  type DataEraseAnswer,
+  type PendingHandoverItem,
   type LedgerLine,
   type MessageKey,
   type PlayerRecordAnswer,
@@ -96,4 +100,19 @@ export const camel = (code: string): string =>
 export function codeLabel(t: Translate, prefix: string, code: string): string {
   const key = `${prefix}.${camel(code)}`;
   return Object.hasOwn(MESSAGES, key) ? t(key as MessageKey) : code;
+}
+
+/** The legal data requests of one player (T-708): the download, the pending handovers and the erase. */
+export const dataExportPath = (playerId: string): string => `${playerPath(playerId)}/data-export`;
+export const pendingPath = (playerId: string): string => `${playerPath(playerId)}/pending`;
+export const erasePath = (playerId: string): string => `${playerPath(playerId)}/erase`;
+
+export function readPending(body: unknown): PendingHandoverItem[] | undefined {
+  const parsed = pendingAnswerSchema.safeParse(body);
+  return parsed.success ? parsed.data.pending : undefined;
+}
+
+export function readEraseAnswer(body: unknown): DataEraseAnswer | undefined {
+  const parsed = dataEraseAnswerSchema.safeParse(body);
+  return parsed.success ? parsed.data : undefined;
 }

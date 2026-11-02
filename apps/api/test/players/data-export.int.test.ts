@@ -37,7 +37,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("downloading my data over HTTP"
         [username, status],
       )
     ).rows;
-    await db.owner.query("INSERT INTO player_contact (player_id, email) VALUES ($1, $2)", [row?.id, email]);
+    await db.owner.query("INSERT INTO player_contact (player_id, email) VALUES ($1, $2)", [
+      row?.id,
+      email,
+    ]);
     const token = randomBytes(32).toString("base64url");
     await db.owner.query(
       "INSERT INTO player_session (player_id, token_hash, expires_at) VALUES ($1, $2, now() + interval '1 hour')",
@@ -59,9 +62,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("downloading my data over HTTP"
     expect(first.statusCode).toBe(200);
     expect(first.headers["cache-control"]).toBe("no-store");
     expect(first.headers["x-content-type-options"]).toBe("nosniff");
-    expect(first.headers["content-disposition"]).toMatch(/^attachment; filename="questify-data-\d{4}-\d{2}-\d{2}\.json"$/);
+    expect(first.headers["content-disposition"]).toMatch(
+      /^attachment; filename="questify-data-\d{4}-\d{2}-\d{2}\.json"$/,
+    );
     expect(first.headers["content-type"]).toContain("application/json");
-    const file = first.json<{ format: string; contacts: { email: string }; account: { username: string } }>();
+    const file = first.json<{
+      format: string;
+      contacts: { email: string };
+      account: { username: string };
+    }>();
     expect(file.format).toBe("questify-data-export");
     expect(file.contacts.email).toBe(me.email);
     expect(file.account.username).toBe(me.username);

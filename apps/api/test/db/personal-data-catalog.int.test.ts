@@ -38,6 +38,16 @@ const FK_LESS = `
                       AND (k.contype = 'f' OR (k.contype = 'p' AND cardinality(k.conkey) = 1)))
   ORDER BY 1, 2`;
 
+/** Whether an FK-less column is a link, the player's own data, or listed as not a player. */
+function known(row: Readonly<{ t: string; c: string }>): boolean {
+  const entry: CatalogEntry | undefined = CATALOG[row.t];
+  return (
+    entry?.links.includes(row.c) === true ||
+    entry?.personal?.includes(row.c) === true ||
+    `${row.t}.${row.c}` in NOT_PLAYER
+  );
+}
+
 const section = (path: string): readonly string[] => path.split(".");
 
 /** Whether the export holds at least one item at the path (`events[].completions`: in any event). */
@@ -106,14 +116,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal-data catalog (databas
 
   it("classifies every FK-less uuid, uuid[] and jsonb column as a link, the player's own data or not a player", async () => {
     const columns = await owner<{ t: string; c: string }>(FK_LESS);
-    const known = (row: { t: string; c: string }): boolean => {
-      const entry: CatalogEntry | undefined = CATALOG[row.t];
-      return (
-        entry?.links.includes(row.c) === true ||
-        entry?.personal?.includes(row.c) === true ||
-        `${row.t}.${row.c}` in NOT_PLAYER
-      );
-    };
     const unclassified = columns.filter((row) => !known(row)).map((row) => `${row.t}.${row.c}`);
     const names = new Set(columns.map((row) => `${row.t}.${row.c}`));
     const stale = Object.keys(NOT_PLAYER).filter((name) => !names.has(name));

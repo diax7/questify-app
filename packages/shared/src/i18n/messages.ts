@@ -1185,6 +1185,30 @@ export const MESSAGES = {
     en: "The ranking is hidden for this event.",
   },
   "deletion.title": { ar: "حذف الحساب", en: "Delete account" },
+  // T-708: the player's own data download (FR-1418). Gender-neutral, Western digits.
+  "dataExport.title": { ar: "تنزيل بياناتي", en: "Download my data" },
+  "dataExport.intro": {
+    ar: "ملف واحد بصيغة JSON فيه حسابك ووسائل تواصلك وفعالياتك ونقاطك وجوائزك ونشاطك في Questify. قد يكون كبيرًا.",
+    en: "One JSON file with your account, contacts, events, points, prizes and Questify activity. It may be large.",
+  },
+  "dataExport.private": {
+    ar: "فيه رقم جوالك وبريدك كاملين، فاحفظه في مكان آمن. لا نحتفظ بنسخة منه، ويمكنك تنزيله 3 مرات في اليوم.",
+    en: "It holds your full phone number and email, so keep it somewhere safe. We keep no copy, and you can download it 3 times a day.",
+  },
+  "dataExport.start": { ar: "تنزيل الملف", en: "Download the file" },
+  "dataExport.working": { ar: "نجهّز ملفك…", en: "Preparing your file…" },
+  "dataExport.done": {
+    ar: "جاهز. احفظ الملف أو أرسله من نافذة المشاركة.",
+    en: "Done. Save or send the file from the share sheet.",
+  },
+  "dataExport.failed": {
+    ar: "تعذّر تجهيز الملف. حاول مرة أخرى بعد قليل.",
+    en: "We couldn't prepare the file. Try again in a moment.",
+  },
+  "dataExport.unavailable": {
+    ar: "حدّث التطبيق لتنزيل بياناتك.",
+    en: "Update the app to download your data.",
+  },
   "deletion.intro": {
     ar: "يُحذف حسابك نهائيًا، ولا يمكن استرجاعه.",
     en: "Your account is deleted for good. It cannot be restored.",
@@ -8644,6 +8668,66 @@ export const MESSAGES = {
   "console.player.neverChanged": {
     ar: "لم تتغير وسائل التواصل منذ التسجيل.",
     en: "The contacts haven't changed since sign-up.",
+  },
+  // T-708: legal data requests (export, erasure) on the player record. Gender-neutral, no «تم» + masdar.
+  "console.player.legal": { ar: "طلب نظامي", en: "Legal request" },
+  "console.player.legal.intro": {
+    ar: "لطلب من جهة رسمية أو من اللاعب نفسه بعد التحقق منه خارج النظام. يُسجَّل السبب ورقم القضية والمشرف والوقت.",
+    en: "For a request from an authority, or from the player after you verify them outside the system. The reason, case number, admin and time are logged.",
+  },
+  "console.player.legal.reason": { ar: "السبب", en: "Reason" },
+  "console.player.legal.reason.legalRequest": {
+    ar: "طلب من جهة رسمية أو محكمة",
+    en: "An authority or court asked",
+  },
+  "console.player.legal.reason.playerRequest": {
+    ar: "طلب اللاعب نفسه (تحققنا منه)",
+    en: "The player asked (verified)",
+  },
+  "console.player.legal.reference": { ar: "رقم القضية", en: "Case number" },
+  "console.player.legal.reference.hint": {
+    ar: "رمز القضية فقط، مثل LEGAL-2026/14: حروف لاتينية وأرقام و . _ / -، بلا اسم أو جوال أو رقم هوية.",
+    en: "The case code only, like LEGAL-2026/14: Latin letters, digits and . _ / -, never a name, phone or ID number.",
+  },
+  "console.player.legal.export": { ar: "تنزيل بيانات اللاعب", en: "Download the player's data" },
+  "console.player.legal.export.done": {
+    ar: "نُزّل الملف على جهازك. سلّمه لمقدّم الطلب عبر القناة التي يحددها المستشار القانوني فقط، ثم احذفه من جهازك.",
+    en: "The file is on your device. Hand it to the requester only through the channel counsel names, then delete it from your device.",
+  },
+  "console.player.legal.erase": { ar: "حذف الحساب نهائيًا", en: "Delete the account for good" },
+  "console.player.legal.erase.intro": {
+    ar: "يُحذف كل ما يخص اللاعب ولا يمكن استرجاع الحساب أبدًا. تبقى السجلات المجهّلة فقط.",
+    en: "Everything about the player is removed and the account can never be restored. Only anonymous records stay.",
+  },
+  "console.player.legal.erase.typed": {
+    ar: "اكتب اسم المستخدم {name} للتأكيد",
+    en: "Type the username {name} to confirm",
+  },
+  "console.player.legal.erase.pending": {
+    ar: "جوائز لم تُسلَّم بعد: {count}. يتنازل اللاعب عنها عند الحذف وتعود إلى المخزون.",
+    en: "Prizes not handed over yet: {count}. The player gives them up and they go back to stock.",
+  },
+  "console.player.legal.erase.forfeit": {
+    ar: "أوافق على إلغاء الجوائز التي لم تُسلَّم",
+    en: "Cancel the prizes not handed over",
+  },
+  "console.player.legal.erase.confirm": {
+    ar: "حذف حساب {name} نهائيًا؟ لا يمكن التراجع عن ذلك.",
+    en: "Delete {name} for good? This can't be undone.",
+  },
+  "console.player.legal.history": { ar: "الطلبات النظامية", en: "Legal requests" },
+  "console.player.legal.history.export": { ar: "تنزيل البيانات", en: "Data download" },
+  "console.player.legal.history.delete": { ar: "حذف الحساب", en: "Account deletion" },
+  "console.player.legal.history.player": { ar: "من اللاعب", en: "By the player" },
+  "console.player.legal.history.reapply": {
+    ar: "أُعيد تطبيقه بعد استعادة نسخة احتياطية",
+    en: "Applied again after a backup restore",
+  },
+  "console.player.legal.history.by": { ar: "بواسطة", en: "By" },
+  "console.player.legal.history.case": { ar: "القضية", en: "Case" },
+  "console.player.legal.noRestore": {
+    ar: "لا يمكن استرجاع حساب محذوف.",
+    en: "A deleted account can't be restored.",
   },
   "console.player.reveal": { ar: "إظهار وسائل التواصل كاملة", en: "Show full contacts" },
   "console.player.reveal.intro": {

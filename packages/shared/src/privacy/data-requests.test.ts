@@ -14,7 +14,14 @@ describe("data requests (shared rules)", () => {
   });
 
   it("accepts an opaque case reference", () => {
-    for (const good of ["LEGAL-2026/14", "CR-2026.7", "abc", "A1234567", "x".repeat(64), "case_1"]) {
+    for (const good of [
+      "LEGAL-2026/14",
+      "CR-2026.7",
+      "abc",
+      "A1234567",
+      "x".repeat(64),
+      "case_1",
+    ]) {
       expect(isCaseReference(good), good).toBe(true);
     }
   });
@@ -40,6 +47,8 @@ describe("data requests (shared rules)", () => {
   });
 
   it("names the file by the UTC date in Western digits", () => {
-    expect(dataExportFileName(new Date("2026-11-03T23:30:00Z"))).toBe("questify-data-2026-11-03.json");
+    expect(dataExportFileName(new Date("2026-11-03T23:30:00Z"))).toBe(
+      "questify-data-2026-11-03.json",
+    );
   });
 });

@@ -21,6 +21,7 @@ import {
   type DeletionDeps,
 } from "#src/deletion/deletion";
 import { askerOf } from "#src/players/routes";
+import { registerDataExportRoutes } from "#src/privacy/data-export";
 
 const BODY_LIMIT = 1024;
 const LANG = z.enum(["ar", "en"]).default("ar");
@@ -66,9 +67,11 @@ function codeAnswer(reply: FastifyReply, result: CodeResult, emailOffered: boole
  * Account deletion (T-217; FR-126, FR-127, FR-128; ADR-177): a code to the account's own contact from the app, or to a
  * contact typed on the web page (the same answer whether or not an account uses it); the code gives a 10-minute
  * deletion token and the pending handovers; the confirmation deletes. Every answer is `no-store`. The public routes
- * take no Idempotency-Key: the single-use deletion token is the key, and a repeat answers 204.
+ * take no Idempotency-Key: the single-use deletion token is the key, and a repeat answers 204. The player's own data
+ * download (T-708) is registered with them: the two rights a player exercises over their data.
  */
 export function registerDeletionRoutes(app: FastifyInstance, deps: DeletionDeps): void {
+  registerDataExportRoutes(app, deps);
   app.post(
     "/v1/me/deletion/code",
     { config: { access: "player" }, bodyLimit: BODY_LIMIT },

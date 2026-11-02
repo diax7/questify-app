@@ -10,11 +10,11 @@ SET LOCAL lock_timeout = '10s';
 
 -- ================================================================ shared pieces
 -- A time in the export: ISO-8601 in UTC, Western digits.
-CREATE FUNCTION export_time(t timestamptz) RETURNS text
+CREATE FUNCTION data_export_time(t timestamptz) RETURNS text
   LANGUAGE sql IMMUTABLE SET search_path = public, pg_temp AS $$
   SELECT to_char(t AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
 $$;
-REVOKE ALL ON FUNCTION export_time(timestamptz) FROM PUBLIC;
+REVOKE ALL ON FUNCTION data_export_time(timestamptz) FROM PUBLIC;
 
 -- Why an admin acts on a data request, and the case it belongs to (ADR-483). The reference is an opaque case number:
 -- 3 to 64 of A-Z a-z 0-9 . _ / -, at least one letter, and no run of 8 or more digits, so no name, email, phone or
@@ -237,12 +237,12 @@ GRANT EXECUTE ON FUNCTION console_player_pending(uuid) TO questify_app;
 -- ================================================================ the export (D1, ADR-481)
 -- The account side: profile, contacts in full (the owner's own data), names, acceptances, choices, devices and
 -- sessions without any token, invitations received.
-CREATE FUNCTION export_account(p player) RETURNS jsonb
+CREATE FUNCTION data_export_account(p player) RETURNS jsonb
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
   SELECT jsonb_build_object(
     'account', jsonb_build_object(
       'username', p.username, 'birthYear', p.birth_year, 'avatar', p.avatar, 'status', p.status,
-      'createdAt', export_time(p.created_at),
+      'createdAt', data_export_time(p.created_at),
       'level', coalesce((SELECT xp_level_of(x.xp) FROM player_xp x WHERE x.player_id = p.id), 1),
       'xp', coalesce((SELECT x.xp FROM player_xp x WHERE x.player_id = p.id), 0),
       'gems', coalesce((SELECT x.gems FROM player_xp x WHERE x.player_id = p.id), 0)),
@@ -250,83 +250,83 @@ CREATE FUNCTION export_account(p player) RETURNS jsonb
                           FROM player_contact c WHERE c.player_id = p.id),
                          jsonb_build_object('phone', NULL, 'email', NULL)),
     'usernames', coalesce((SELECT jsonb_agg(jsonb_build_object('username', h.username, 'reason', h.reason,
-                                                               'changedAt', export_time(h.changed_at))
+                                                               'changedAt', data_export_time(h.changed_at))
                                             ORDER BY h.changed_at, h.id)
                            FROM username_history h WHERE h.player_id = p.id), '[]'),
     'acceptances', coalesce((SELECT jsonb_agg(jsonb_build_object('document', a.document, 'version', a.version,
                                                                  'method', a.method,
-                                                                 'acceptedAt', export_time(a.accepted_at))
+                                                                 'acceptedAt', data_export_time(a.accepted_at))
                                               ORDER BY a.accepted_at, a.document)
                              FROM player_acceptance a WHERE a.player_id = p.id), '[]'),
     'marketing', jsonb_build_object(
       'consents', coalesce((SELECT jsonb_agg(jsonb_build_object('channel', m.channel, 'granted', m.granted,
                                                                 'method', m.method, 'textVersion', m.text_version,
                                                                 'language', m.language,
-                                                                'at', export_time(m.created_at))
+                                                                'at', data_export_time(m.created_at))
                                              ORDER BY m.created_at, m.id)
                             FROM marketing_consent m WHERE m.player_id = p.id), '[]'),
       'state', coalesce((SELECT jsonb_agg(jsonb_build_object('channel', m.channel, 'optedIn', m.opted_in,
                                                              'language', m.language,
-                                                             'changedAt', export_time(m.changed_at))
+                                                             'changedAt', data_export_time(m.changed_at))
                                           ORDER BY m.channel)
                          FROM marketing_state m WHERE m.player_id = p.id), '[]')),
     'preferences', (SELECT jsonb_build_object('cityId', f.city_id, 'interests', to_jsonb(f.interests),
-                                              'updatedAt', export_time(f.updated_at))
+                                              'updatedAt', data_export_time(f.updated_at))
                     FROM player_preference f WHERE f.player_id = p.id),
     'pushTopics', jsonb_build_object(
-      'muted', coalesce((SELECT jsonb_agg(jsonb_build_object('topic', t.topic, 'at', export_time(t.muted_at))
+      'muted', coalesce((SELECT jsonb_agg(jsonb_build_object('topic', t.topic, 'at', data_export_time(t.muted_at))
                                           ORDER BY t.topic)
                          FROM push_topic_mute t WHERE t.player_id = p.id), '[]'),
-      'on', coalesce((SELECT jsonb_agg(jsonb_build_object('topic', t.topic, 'at', export_time(t.chosen_at))
+      'on', coalesce((SELECT jsonb_agg(jsonb_build_object('topic', t.topic, 'at', data_export_time(t.chosen_at))
                                        ORDER BY t.topic)
                       FROM push_topic_on t WHERE t.player_id = p.id), '[]')),
     'devices', coalesce((SELECT jsonb_agg(jsonb_build_object('platform', d.platform, 'language', d.language,
                                                              'appVersion', d.app_version,
-                                                             'createdAt', export_time(d.token_set_at),
-                                                             'lastSeenAt', export_time(d.seen_at))
+                                                             'createdAt', data_export_time(d.token_set_at),
+                                                             'lastSeenAt', data_export_time(d.seen_at))
                                           ORDER BY d.token_set_at, d.id)
                          FROM push_device d WHERE d.player_id = p.id), '[]'),
-    'sessions', coalesce((SELECT jsonb_agg(jsonb_build_object('createdAt', export_time(s.created_at),
-                                                              'expiresAt', export_time(s.expires_at),
-                                                              'endedAt', export_time(s.revoked_at))
+    'sessions', coalesce((SELECT jsonb_agg(jsonb_build_object('createdAt', data_export_time(s.created_at),
+                                                              'expiresAt', data_export_time(s.expires_at),
+                                                              'endedAt', data_export_time(s.revoked_at))
                                            ORDER BY s.created_at, s.id)
                           FROM player_session s WHERE s.player_id = p.id), '[]'),
     'invitations', coalesce((SELECT jsonb_agg(jsonb_build_object('channel', i.channel, 'state', i.state,
-                                                                 'createdAt', export_time(i.created_at),
-                                                                 'sentAt', export_time(i.sent_at),
-                                                                 'openedAt', export_time(i.opened_at),
-                                                                 'joinedAt', export_time(i.joined_at))
+                                                                 'createdAt', data_export_time(i.created_at),
+                                                                 'sentAt', data_export_time(i.sent_at),
+                                                                 'openedAt', data_export_time(i.opened_at),
+                                                                 'joinedAt', data_export_time(i.joined_at))
                                               ORDER BY i.created_at, i.id)
                              FROM invitation_recipient i WHERE i.player_id = p.id), '[]'))
 $$;
-REVOKE ALL ON FUNCTION export_account(player) FROM PUBLIC;
+REVOKE ALL ON FUNCTION data_export_account(player) FROM PUBLIC;
 
 -- One event's play: what the player did and earned. Names come in both languages; never another player.
-CREATE FUNCTION export_event_play(n enrollment) RETURNS jsonb
+CREATE FUNCTION data_export_event_play(n enrollment) RETURNS jsonb
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
   SELECT jsonb_build_object(
     'completions', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                       'questId', c.quest_id, 'quest', jsonb_build_object('ar', q.title_ar, 'en', q.title_en),
-                                      'method', c.method, 'at', export_time(c.created_at)) ORDER BY c.created_at, c.id)
+                                      'method', c.method, 'at', data_export_time(c.created_at)) ORDER BY c.created_at, c.id)
                              FROM quest_completion c JOIN quest q ON q.id = c.quest_id
                              WHERE c.enrollment_id = n.id), '[]'),
     'completionPlaces', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                            'accuracyM', l.accuracy_m, 'venueDistanceM', l.venue_distance_m,
-                                           'mocked', l.mocked, 'at', export_time(l.created_at))
+                                           'mocked', l.mocked, 'at', data_export_time(l.created_at))
                                          ORDER BY l.created_at, l.completion_id)
                                   FROM completion_position l WHERE l.enrollment_id = n.id), '[]'),
     'ledger', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                  'kind', l.kind, 'score', l.score_delta, 'balance', l.balance_delta,
                                  'questId', l.quest_id, 'quest', CASE WHEN q.id IS NOT NULL
                                    THEN jsonb_build_object('ar', q.title_ar, 'en', q.title_en) END,
-                                 'at', export_time(l.created_at)) ORDER BY l.created_at, l.id)
+                                 'at', data_export_time(l.created_at)) ORDER BY l.created_at, l.id)
                         FROM ledger_entry l LEFT JOIN quest q ON q.id = l.quest_id
                         WHERE l.enrollment_id = n.id), '[]'),
     'redemptions', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                       'item', jsonb_build_object('ar', coalesce(r.name_ar, k.name_ar, i.name_ar),
                                                                  'en', coalesce(r.name_en, k.name_en, i.name_en)),
                                       'price', d.price, 'status', d.status, 'endedBy', d.ended_by,
-                                      'at', export_time(d.created_at), 'endedAt', export_time(d.ended_at))
+                                      'at', data_export_time(d.created_at), 'endedAt', data_export_time(d.ended_at))
                                     ORDER BY d.created_at, d.id)
                              FROM redemption d LEFT JOIN reward r ON r.id = d.reward_id
                              LEFT JOIN rank_prize k ON k.id = d.rank_prize_id
@@ -334,23 +334,23 @@ CREATE FUNCTION export_event_play(n enrollment) RETURNS jsonb
                              WHERE d.enrollment_id = n.id), '[]'),
     'deskSales', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                     'item', jsonb_build_object('ar', r.name_ar, 'en', r.name_en), 'price', s.price,
-                                    'status', s.status, 'at', export_time(s.created_at)) ORDER BY s.created_at, s.id)
+                                    'status', s.status, 'at', data_export_time(s.created_at)) ORDER BY s.created_at, s.id)
                            FROM desk_sale s JOIN reward r ON r.id = s.reward_id WHERE s.enrollment_id = n.id), '[]'),
     'submissions', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                       'questId', s.quest_id, 'kind', s.kind, 'body', s.body, 'status', s.status,
-                                      'points', s.points, 'reason', s.reason, 'at', export_time(s.created_at))
+                                      'points', s.points, 'reason', s.reason, 'at', data_export_time(s.created_at))
                                     ORDER BY s.created_at, s.id)
                              FROM submission s WHERE s.enrollment_id = n.id), '[]'),
     'votes', coalesce((SELECT jsonb_agg(jsonb_build_object('questId', v.quest_id, 'option', v.option_id,
-                                                           'at', export_time(v.created_at)) ORDER BY v.created_at)
+                                                           'at', data_export_time(v.created_at)) ORDER BY v.created_at)
                        FROM quest_vote v WHERE v.enrollment_id = n.id), '[]'),
     'surveyResponses', coalesce((SELECT jsonb_agg(jsonb_build_object('questId', v.quest_id, 'answers', v.answers,
-                                                                     'at', export_time(v.created_at))
+                                                                     'at', data_export_time(v.created_at))
                                                   ORDER BY v.created_at)
                                  FROM survey_response v WHERE v.enrollment_id = n.id), '[]'),
     'quizAnswers', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                       'questId', t.quest_id, 'status', t.status, 'right', t.right_count,
-                                      'startedAt', export_time(t.started_at),
+                                      'startedAt', data_export_time(t.started_at),
                                       'answers', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                                                     'question', a.question_id, 'choice', a.choice_id,
                                                                     'correct', a.correct) ORDER BY a.position)
@@ -359,66 +359,66 @@ CREATE FUNCTION export_event_play(n enrollment) RETURNS jsonb
                              FROM quiz_attempt t WHERE t.enrollment_id = n.id), '[]'),
     'gameRounds', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                      'questId', g.quest_id, 'game', g.game, 'level', g.level, 'points', g.points,
-                                     'status', g.status, 'result', g.result, 'at', export_time(g.issued_at))
+                                     'status', g.status, 'result', g.result, 'at', data_export_time(g.issued_at))
                                    ORDER BY g.issued_at, g.id)
                             FROM game_round g WHERE g.enrollment_id = n.id), '[]'),
     'ratings', coalesce((SELECT jsonb_agg(jsonb_build_object('questId', r.quest_id, 'thumb', r.thumb,
-                                                             'at', export_time(r.updated_at)) ORDER BY r.created_at)
+                                                             'at', data_export_time(r.updated_at)) ORDER BY r.created_at)
                          FROM quest_rating r WHERE r.enrollment_id = n.id), '[]'),
-    'cheers', coalesce((SELECT jsonb_agg(jsonb_build_object('reaction', c.reaction, 'at', export_time(c.created_at))
+    'cheers', coalesce((SELECT jsonb_agg(jsonb_build_object('reaction', c.reaction, 'at', data_export_time(c.created_at))
                                          ORDER BY c.created_at, c.id)
                         FROM cheer c WHERE c.enrollment_id = n.id), '[]'))
 $$;
-REVOKE ALL ON FUNCTION export_event_play(enrollment) FROM PUBLIC;
+REVOKE ALL ON FUNCTION data_export_event_play(enrollment) FROM PUBLIC;
 
 -- One event's progress, places and roles. A meeting shows when it happened, never the other player.
-CREATE FUNCTION export_event_more(n enrollment) RETURNS jsonb
+CREATE FUNCTION data_export_event_more(n enrollment) RETURNS jsonb
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
   SELECT jsonb_build_object(
     'passportStamps', coalesce((SELECT jsonb_agg(jsonb_build_object('questId', s.quest_id, 'stepId', s.step_id,
-                                                                    'at', export_time(s.created_at))
+                                                                    'at', data_export_time(s.created_at))
                                                  ORDER BY s.created_at)
                                 FROM passport_stamp s WHERE s.enrollment_id = n.id), '[]'),
     'categoryBonuses', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                           'category', jsonb_build_object('ar', c.name_ar, 'en', c.name_en),
-                                          'at', export_time(b.created_at)) ORDER BY b.created_at)
+                                          'at', data_export_time(b.created_at)) ORDER BY b.created_at)
                                  FROM category_bonus b JOIN category c ON c.id = b.category_id
                                  WHERE b.enrollment_id = n.id), '[]'),
     'categoriesRevealed', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                              'category', jsonb_build_object('ar', c.name_ar, 'en', c.name_en),
-                                             'at', export_time(b.created_at)) ORDER BY b.created_at)
+                                             'at', data_export_time(b.created_at)) ORDER BY b.created_at)
                                     FROM category_reveal b JOIN category c ON c.id = b.category_id
                                     WHERE b.enrollment_id = n.id), '[]'),
     'bonusPlaces', coalesce((SELECT jsonb_agg(jsonb_build_object('questId', b.quest_id, 'place', b.place,
-                                                                 'at', export_time(b.claimed_at))
+                                                                 'at', data_export_time(b.claimed_at))
                                               ORDER BY b.claimed_at)
                              FROM quest_bonus_slot b WHERE b.enrollment_id = n.id), '[]'),
-    'itemsMissed', coalesce((SELECT jsonb_agg(jsonb_build_object('reason', m.reason, 'at', export_time(m.created_at))
+    'itemsMissed', coalesce((SELECT jsonb_agg(jsonb_build_object('reason', m.reason, 'at', data_export_time(m.created_at))
                                               ORDER BY m.created_at, m.id)
                              FROM quest_item_miss m WHERE m.enrollment_id = n.id), '[]'),
     'streakDays', coalesce((SELECT jsonb_agg(jsonb_build_object('day', d.day, 'days', d.days) ORDER BY d.day)
                             FROM event_streak_day d WHERE d.enrollment_id = n.id), '[]'),
     'communityGoals', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                          'goal', jsonb_build_object('ar', g.title_ar, 'en', g.title_en),
-                                         'firstAt', export_time(c.first_at)) ORDER BY c.first_at)
+                                         'firstAt', data_export_time(c.first_at)) ORDER BY c.first_at)
                                 FROM community_contributor c JOIN community_goal g ON g.id = c.goal_id
                                 WHERE c.enrollment_id = n.id), '[]'),
     'communityRewards', coalesce((SELECT jsonb_agg(jsonb_build_object('status', c.status,
-                                                                      'at', export_time(c.created_at))
+                                                                      'at', data_export_time(c.created_at))
                                                    ORDER BY c.created_at)
                                   FROM community_payout c WHERE c.enrollment_id = n.id), '[]'),
     'sessionsRegistered', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                              'session', jsonb_build_object('ar', s.title_ar, 'en', s.title_en),
-                                             'at', export_time(r.created_at)) ORDER BY r.created_at)
+                                             'at', data_export_time(r.created_at)) ORDER BY r.created_at)
                                     FROM session_registration r JOIN event_session s ON s.id = r.session_id
                                     WHERE r.enrollment_id = n.id), '[]'),
     'sessionsAttended', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                            'session', jsonb_build_object('ar', s.title_ar, 'en', s.title_en),
-                                           'walkIn', a.walk_in, 'at', export_time(a.checked_in_at))
+                                           'walkIn', a.walk_in, 'at', data_export_time(a.checked_in_at))
                                          ORDER BY a.checked_in_at)
                                   FROM session_attendance a JOIN event_session s ON s.id = a.session_id
                                   WHERE a.enrollment_id = n.id), '[]'),
-    'meetings', coalesce((SELECT jsonb_agg(jsonb_build_object('questId', m.quest_id, 'at', export_time(m.created_at))
+    'meetings', coalesce((SELECT jsonb_agg(jsonb_build_object('questId', m.quest_id, 'at', data_export_time(m.created_at))
                                            ORDER BY m.created_at, m.id)
                           FROM meeting m WHERE m.scanner_enrollment = n.id OR m.shown_enrollment = n.id), '[]'),
     'finalRank', (SELECT f.rank FROM final_rank f WHERE f.enrollment_id = n.id),
@@ -429,76 +429,76 @@ CREATE FUNCTION export_event_more(n enrollment) RETURNS jsonb
                                      'quests', coalesce((SELECT jsonb_agg(q.quest_id ORDER BY q.quest_id)
                                                          FROM staff_assignment_quest q
                                                          WHERE q.assignment_id = a.id), '[]'),
-                                     'from', export_time(a.created_at)) ORDER BY a.created_at)
+                                     'from', data_export_time(a.created_at)) ORDER BY a.created_at)
                             FROM staff_assignment a WHERE a.player_id = n.player_id AND a.event_id = n.event_id), '[]'),
     'souvenirOnTheWay', EXISTS (SELECT 1 FROM souvenir_work w WHERE w.enrollment_id = n.id))
 $$;
-REVOKE ALL ON FUNCTION export_event_more(enrollment) FROM PUBLIC;
+REVOKE ALL ON FUNCTION data_export_event_more(enrollment) FROM PUBLIC;
 
 -- Every event the player joined, with the join answers and both halves above.
-CREATE FUNCTION export_events(target uuid) RETURNS jsonb
+CREATE FUNCTION data_export_events(target uuid) RETURNS jsonb
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
   SELECT coalesce(jsonb_agg(
            jsonb_build_object(
              'eventId', e.id, 'name', jsonb_build_object('ar', e.name_ar, 'en', e.name_en),
-             'joinedAt', export_time(n.joined_at), 'via', n.joined_via, 'status', n.status, 'score', n.score,
+             'joinedAt', data_export_time(n.joined_at), 'via', n.joined_via, 'status', n.status, 'score', n.score,
              'balance', n.balance, 'waitlisted', n.waitlisted,
              'joinAnswers', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                                'field', jsonb_build_object('ar', f.label_ar, 'en', f.label_en),
                                                'answer', j.value) ORDER BY f.position, f.id)
                                       FROM join_answer j JOIN event_join_field f ON f.id = j.field_id
                                       WHERE j.enrollment_id = n.id), '[]'))
-           || export_event_play(n) || export_event_more(n)
+           || data_export_event_play(n) || data_export_event_more(n)
            ORDER BY n.joined_at, n.id), '[]')
   FROM enrollment n JOIN event e ON e.id = n.event_id
   WHERE n.player_id = target
 $$;
-REVOKE ALL ON FUNCTION export_events(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION data_export_events(uuid) FROM PUBLIC;
 
 -- The Questify side: levels, XP, gems, achievements, awards, streaks, items with their earned source, souvenirs and
 -- the daily games.
-CREATE FUNCTION export_questify(target uuid) RETURNS jsonb
+CREATE FUNCTION data_export_questify(target uuid) RETURNS jsonb
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
   SELECT jsonb_build_object(
-    'levelReached', coalesce((SELECT jsonb_agg(jsonb_build_object('level', l.level, 'at', export_time(l.reached_at))
+    'levelReached', coalesce((SELECT jsonb_agg(jsonb_build_object('level', l.level, 'at', data_export_time(l.reached_at))
                                                ORDER BY l.level) FROM level_reached l WHERE l.player_id = target), '[]'),
     'xpEntries', coalesce((SELECT jsonb_agg(jsonb_build_object('delta', x.delta, 'source', x.source,
-                                                               'at', export_time(x.created_at)) ORDER BY x.created_at, x.id)
+                                                               'at', data_export_time(x.created_at)) ORDER BY x.created_at, x.id)
                            FROM xp_entry x WHERE x.player_id = target), '[]'),
     'gemEntries', coalesce((SELECT jsonb_agg(jsonb_build_object('delta', g.delta, 'source', g.source,
-                                                                'at', export_time(g.created_at)) ORDER BY g.created_at, g.id)
+                                                                'at', data_export_time(g.created_at)) ORDER BY g.created_at, g.id)
                             FROM gem_entry g WHERE g.player_id = target), '[]'),
     'gemPurchases', coalesce((SELECT jsonb_agg(jsonb_build_object('itemId', g.item_id, 'price', g.price,
-                                                                  'at', export_time(g.created_at)) ORDER BY g.created_at, g.id)
+                                                                  'at', data_export_time(g.created_at)) ORDER BY g.created_at, g.id)
                               FROM gem_purchase g WHERE g.player_id = target), '[]'),
     'achievements', coalesce((SELECT jsonb_agg(jsonb_build_object('achievementId', a.achievement_id, 'tier', a.tier,
-                                                                  'earnedAt', export_time(a.earned_at))
+                                                                  'earnedAt', data_export_time(a.earned_at))
                                                ORDER BY a.earned_at, a.achievement_id, a.tier)
                               FROM achievement_earned a WHERE a.player_id = target), '[]'),
     'achievementChanges', coalesce((SELECT jsonb_agg(jsonb_build_object('achievementId', a.achievement_id,
                                                                         'tier', a.tier, 'change', a.change,
-                                                                        'at', export_time(a.created_at))
+                                                                        'at', data_export_time(a.created_at))
                                                      ORDER BY a.created_at, a.id)
                                     FROM achievement_revocation a WHERE a.player_id = target), '[]'),
-    'awards', coalesce((SELECT jsonb_agg(jsonb_build_object('questId', a.quest_id, 'at', export_time(a.earned_at))
+    'awards', coalesce((SELECT jsonb_agg(jsonb_build_object('questId', a.quest_id, 'at', data_export_time(a.earned_at))
                                          ORDER BY a.earned_at, a.id) FROM questify_award a WHERE a.player_id = target), '[]'),
     'streakDays', coalesce((SELECT jsonb_agg(d.day ORDER BY d.day)
                             FROM questify_streak_day d WHERE d.player_id = target), '[]'),
     'streakRewards', coalesce((SELECT jsonb_agg(jsonb_build_object('days', r.days, 'xp', r.xp,
-                                                                   'at', export_time(r.created_at)) ORDER BY r.created_at, r.id)
+                                                                   'at', data_export_time(r.created_at)) ORDER BY r.created_at, r.id)
                                FROM questify_streak_reward r WHERE r.player_id = target), '[]'),
     'items', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                 'itemId', i.item_id, 'source', i.source, 'level', i.source_level,
                                 'event', CASE WHEN e.id IS NOT NULL
                                   THEN jsonb_build_object('ar', e.name_ar, 'en', e.name_en) END,
-                                'earnedAt', export_time(i.earned_at)) ORDER BY i.earned_at, i.item_id)
+                                'earnedAt', data_export_time(i.earned_at)) ORDER BY i.earned_at, i.item_id)
                        FROM player_item i LEFT JOIN event e ON e.id = i.source_event_id
                        WHERE i.player_id = target), '[]'),
     'equipment', (SELECT jsonb_build_object('character', q.character_id, 'frame', q.frame_id, 'title', q.title_id)
                   FROM player_equipment q WHERE q.player_id = target),
     'souvenirReceipts', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                            'itemId', s.item_id, 'event', jsonb_build_object('ar', e.name_ar, 'en', e.name_en),
-                                           'at', export_time(s.earned_at)) ORDER BY s.earned_at, s.item_id)
+                                           'at', data_export_time(s.earned_at)) ORDER BY s.earned_at, s.item_id)
                                   FROM souvenir_receipt s JOIN event e ON e.id = s.event_id
                                   WHERE s.player_id = target), '[]'),
     'daily', jsonb_build_object(
@@ -514,52 +514,52 @@ CREATE FUNCTION export_questify(target uuid) RETURNS jsonb
                                                                         ORDER BY g.attempt)
                                                        FROM daily_guess g WHERE g.play_id = d.id), '[]'),
                                   'finish', (SELECT jsonb_build_object('solved', f.solved, 'correct', f.correct,
-                                                                       'xp', f.xp, 'at', export_time(f.created_at))
+                                                                       'xp', f.xp, 'at', data_export_time(f.created_at))
                                              FROM daily_finish f WHERE f.play_id = d.id))
                                 ORDER BY d.starts_on, d.id)
                          FROM daily_play d WHERE d.player_id = target), '[]')))
 $$;
-REVOKE ALL ON FUNCTION export_questify(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION data_export_questify(uuid) FROM PUBLIC;
 
 -- Blocks, notifications, help requests, reports made, what Questify did to the account, and the player's own history:
 -- an allowlist of actions the player made (never an actor id, never an admin's export, ADR-481).
-CREATE FUNCTION export_support(target uuid) RETURNS jsonb
+CREATE FUNCTION data_export_support(target uuid) RETURNS jsonb
   LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
   SELECT jsonb_build_object(
-    'blocks', coalesce((SELECT jsonb_agg(jsonb_build_object('username', p.username, 'at', export_time(b.created_at))
+    'blocks', coalesce((SELECT jsonb_agg(jsonb_build_object('username', p.username, 'at', data_export_time(b.created_at))
                                          ORDER BY b.created_at)
                         FROM player_block b JOIN player p ON p.id = b.blocked_id
                         WHERE b.blocker_id = target AND p.status <> 'deleted'), '[]'),
     'notifications', coalesce((SELECT jsonb_agg(jsonb_build_object('kind', o.kind, 'eventId', o.event_id,
-                                                                   'params', o.params, 'at', export_time(n.created_at),
-                                                                   'readAt', export_time(n.read_at))
+                                                                   'params', o.params, 'at', data_export_time(n.created_at),
+                                                                   'readAt', data_export_time(n.read_at))
                                                 ORDER BY n.created_at, n.id)
                                FROM notification n JOIN notice o ON o.id = n.notice_id
                                WHERE n.player_id = target), '[]'),
     'tickets', coalesce((SELECT jsonb_agg(jsonb_build_object('kind', t.kind, 'eventId', t.event_id, 'body', t.body,
                                                              'status', t.status, 'outcome', t.outcome, 'reply', t.reply,
-                                                             'at', export_time(t.created_at),
-                                                             'closedAt', export_time(t.closed_at))
+                                                             'at', data_export_time(t.created_at),
+                                                             'closedAt', data_export_time(t.closed_at))
                                           ORDER BY t.created_at, t.id)
                          FROM ticket t WHERE t.player_id = target), '[]'),
     'reportsMade', coalesce((SELECT jsonb_agg(jsonb_build_object(
                                       'kind', r.target_kind, 'reason', r.reason, 'note', r.note, 'status', r.status,
                                       'outcome', r.outcome,
                                       'snapshot', CASE WHEN r.target_kind <> 'username' THEN r.snapshot END,
-                                      'at', export_time(r.created_at)) ORDER BY r.created_at, r.id)
+                                      'at', data_export_time(r.created_at)) ORDER BY r.created_at, r.id)
                              FROM content_report r WHERE r.reporter_id = target), '[]'),
     'questifyActions', coalesce((SELECT jsonb_agg(jsonb_build_object('kind', a.kind, 'reasonCode', a.reason_code,
-                                                                     'at', export_time(a.created_at))
+                                                                     'at', data_export_time(a.created_at))
                                                   ORDER BY a.created_at, a.id)
                                  FROM player_admin_action a WHERE a.player_id = target), '[]'),
-    'history', coalesce((SELECT jsonb_agg(jsonb_build_object('action', a.action, 'at', export_time(a.at))
+    'history', coalesce((SELECT jsonb_agg(jsonb_build_object('action', a.action, 'at', data_export_time(a.at))
                                           ORDER BY a.at, a.id)
                          FROM audit_log a
                          WHERE a.target_type = 'player' AND a.target_id = target::text
                            AND (a.action IN ('player.signup', 'player.contact_change', 'player.qr_reset')
                                 OR (a.action = 'player.data_export' AND a.after ->> 'source' = 'player'))), '[]'))
 $$;
-REVOKE ALL ON FUNCTION export_support(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION data_export_support(uuid) FROM PUBLIC;
 
 -- The whole file (FR-1418, ADR-480): one versioned JSON document. DR404 for a tombstone or an unknown id.
 CREATE FUNCTION player_data_export(target uuid) RETURNS jsonb
@@ -571,11 +571,11 @@ BEGIN
   IF NOT FOUND OR p.status = 'deleted' THEN
     RAISE EXCEPTION 'no such player' USING ERRCODE = 'DR404';
   END IF;
-  RETURN jsonb_build_object('format', 'questify-data-export', 'version', 1, 'generatedAt', export_time(now()),
+  RETURN jsonb_build_object('format', 'questify-data-export', 'version', 1, 'generatedAt', data_export_time(now()),
                             'playerId', p.id)
-         || export_account(p)
-         || jsonb_build_object('events', export_events(p.id), 'questify', export_questify(p.id))
-         || export_support(p.id);
+         || data_export_account(p)
+         || jsonb_build_object('events', data_export_events(p.id), 'questify', data_export_questify(p.id))
+         || data_export_support(p.id);
 END $$;
 REVOKE ALL ON FUNCTION player_data_export(uuid) FROM PUBLIC;
 

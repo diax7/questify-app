@@ -1263,6 +1263,7 @@ export {
   isCaseReference,
   isDataRequestReason,
   legalRequestSchema,
+  pendingAnswerSchema,
   pendingHandoverSchema,
 } from "./privacy/data-requests";
 export type {

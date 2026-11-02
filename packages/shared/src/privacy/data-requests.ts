@@ -55,6 +55,9 @@ export const pendingHandoverSchema = z.strictObject({
 });
 export type PendingHandoverItem = z.infer<typeof pendingHandoverSchema>;
 
+/** `GET /v1/admin/players/:id/pending`. */
+export const pendingAnswerSchema = z.strictObject({ pending: z.array(pendingHandoverSchema) });
+
 /** The file's name on the device or in the browser: `questify-data-2026-11-03.json` (UTC date, Western digits). */
 export function dataExportFileName(at: Date): string {
   return `questify-data-${at.toISOString().slice(0, 10)}.json`;
