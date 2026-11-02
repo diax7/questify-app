@@ -13,6 +13,12 @@ export async function seedOperators(
   eventId: string,
   operators: readonly SeededOperator[],
 ): Promise<void> {
+  // The event's day starts 12 hours before now, so a scan minutes ago is "today" whatever the wall clock reads.
+  await db.owner.query(
+    `UPDATE event SET day_start_hour = (extract(hour FROM now() AT TIME ZONE timezone)::integer + 12) % 24
+     WHERE id = $1`,
+    [eventId],
+  );
   const [station] = (
     await db.owner.query<{ id: string }>(
       `INSERT INTO quest (event_id, category_id, type, title_en, title_ar, points, repeat_cap, visible, verification,
