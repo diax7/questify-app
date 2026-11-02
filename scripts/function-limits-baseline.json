@@ -6,7 +6,7 @@
   },
   "apps/api/src/app.ts": {
     "buildApp": {
-      "lines": [213]
+      "lines": [212]
     }
   },
   "apps/api/src/audience/rules.ts": {
@@ -509,7 +509,7 @@
   },
   "apps/app/src/api/session.ts": {
     "createSession": {
-      "lines": [153]
+      "lines": [150]
     }
   },
   "apps/app/src/auth/player-state.ts": {
@@ -1170,11 +1170,6 @@
   "apps/web/src/lib/forward.ts": {
     "forward": {
       "complexity": [15]
-    }
-  },
-  "apps/web/src/lib/legal.ts": {
-    "legalBlocks": {
-      "complexity": [11]
     }
   },
   "apps/web/src/lib/nfc-tags.ts": {

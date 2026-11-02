@@ -33,6 +33,7 @@ const HELP_LINES: readonly string[] = [
   "console.invCampaign.field.closeNote",
   "console.invCampaign.field.note",
   "console.invCampaign.invalid.note",
+  "console.legal.intro",
   "console.note",
   "console.organizers.intro",
   "console.player.ban.intro",

@@ -39,6 +39,7 @@ import { ADMIN_PREFIX } from "#src/route-access";
 import type { SettingsService } from "#src/settings/service";
 import { registerConsoleTicketRoutes, type ConsoleTicketDeps } from "#src/tickets/console-routes";
 import { registerConsoleCatalogRoutes } from "#src/console/catalog-routes";
+import { registerConsoleLegalRoutes } from "#src/console/legal-routes";
 import { registerConsoleTranslationRoutes } from "#src/translations/admin-routes";
 import type { TranslationService } from "#src/translations/service";
 
@@ -289,6 +290,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleOrganizerRoutes(scope, deps.organizers);
       registerConsolePlatformRoutes(scope, deps.platform);
       registerConsoleCatalogRoutes(scope, deps.platform);
+      registerConsoleLegalRoutes(scope, deps.platform);
       registerConsoleTranslationRoutes(scope, deps.translations);
       registerConsolePlayerRoutes(scope, deps.players);
       registerConsoleSafetyRoutes(scope, deps.players);

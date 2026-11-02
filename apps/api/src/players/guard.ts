@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
-import { eventUnavailable, unauthenticated } from "#src/auth/http-errors";
+import { eventUnavailable, legalAcceptanceRequired, unauthenticated } from "#src/auth/http-errors";
 import type { SuspendedSet } from "#src/events/suspended-set";
 import { PLAYER_GUARD } from "#src/route-access";
 
@@ -31,10 +31,43 @@ export async function playerOfToken(pool: Pool, token: string): Promise<string |
 }
 
 /**
+ * What a player can still do while a new version of the terms or privacy policy waits (ADR-446): accept it, leave the
+ * account (deletion code, this phone's push device). Every other write answers 403 until the player accepts.
+ */
+const OPEN_WHILE_UNACCEPTED = new Set([
+  "POST /v1/me/acceptances",
+  "POST /v1/me/deletion/code",
+  "DELETE /v1/me/push-device",
+]);
+
+async function refuseUnacceptedWrite(
+  request: FastifyRequest,
+  pool: Pool,
+  playerId: string,
+): Promise<void> {
+  const { method } = request;
+  if (
+    method === "GET" ||
+    method === "HEAD" ||
+    method === "OPTIONS" ||
+    OPEN_WHILE_UNACCEPTED.has(`${method} ${request.routeOptions.url ?? ""}`)
+  ) {
+    return;
+  }
+  const { rows } = await pool.query<{ held: boolean }>("SELECT player_legal_held($1) AS held", [
+    playerId,
+  ]);
+  if (rows[0]?.held === true) {
+    throw legalAcceptanceRequired();
+  }
+}
+
+/**
  * The check behind every route marked `player`: an `Authorization: Bearer` token of a live session of an active player,
  * else 401. It sets the player and the idempotency principal before the conventions read them. Registering it is what
  * allows player routes at all (route-access.ts). A route of a suspended event (`:eventId`) then answers 404
- * `event_unavailable` (T-701, FR-1607): players learn only that the event is unavailable, never why.
+ * `event_unavailable` (T-701, FR-1607): players learn only that the event is unavailable, never why. A write by a
+ * player who has not accepted the terms and privacy policy in force answers 403 `legal_acceptance_required` (T-707).
  */
 export function registerPlayerGuard(
   app: FastifyInstance,
@@ -58,5 +91,6 @@ export function registerPlayerGuard(
     if (typeof eventId === "string" && (await suspended.has(eventId))) {
       throw eventUnavailable();
     }
+    await refuseUnacceptedWrite(request, pool, player);
   });
 }

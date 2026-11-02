@@ -9,8 +9,8 @@ export {
   encodeCursor,
   parseLimit,
 } from "./pagination";
-export type { ComposedConfig, ComposedFeature } from "./config/compose";
-export { composeConfig } from "./config/compose";
+export type { ComposedBody, ComposedConfig, ComposedFeature } from "./config/compose";
+export { composeConfig, withLegal } from "./config/compose";
 export type {
   EventConfig,
   FeatureDefinition,
@@ -215,12 +215,40 @@ export type {
   SignupAcceptance,
 } from "./legal/documents";
 export {
+  LEGAL_DOCUMENT_IDS,
+  LEGAL_VERSION,
+  isLegalDocumentId,
   missingAcceptances,
   missingSignupAcceptances,
   organizerDocuments,
   playerDocuments,
   signupDocuments,
 } from "./legal/documents";
+export type { LegalDocumentId, LegalInForce } from "./legal/documents";
+export {
+  HELP_ANSWER_MAX,
+  HELP_ID,
+  HELP_QUESTION_MAX,
+  LEGAL_NOTE_MAX,
+  LEGAL_TEXT_MAX,
+  helpAdminListSchema,
+  helpAdminSchema,
+  helpDocSchema,
+  helpPublicSchema,
+  legalAdminListSchema,
+  legalInForceSchema,
+  legalPublishSchema,
+  legalTextSchema,
+  shownHelp,
+} from "./legal/admin";
+export type {
+  HelpAdmin,
+  HelpDoc,
+  HelpPublic,
+  LegalAdminList,
+  LegalPublish,
+  LegalText,
+} from "./legal/admin";
 export {
   eventDayOf,
   formatEventTime,

@@ -2018,3 +2018,25 @@ level, syncs, sign-ups and buys never wait). The save waits at most 1 second for
 Buyers keep the art they saw; the admin can rename a shop item (on sale or retired) but changes its art by retiring it and
 adding a new one. A level reward's art is frozen once anyone reached its level.
 **Recommended (developer):** keep.
+
+## Q-405 - Should every player route refuse until the new legal version is accepted? (T-707, Q-095 part 1)
+
+**Status:** Decided by developer (2026-11-02; ADR-446; the T-707 review found the launch gate alone skippable by a modified app).
+Yes, for writes: a player who has not accepted the terms and privacy policy in force gets 403 `legal_acceptance_required` on every
+player write, except accepting, the deletion code and removing this phone's push device. Reads stay open, so a running screen
+and the acceptance page keep working; the app reloads the profile on the 403 and shows its acceptance screen.
+Counsel may still want to confirm the wording of the screen (T-807).
+
+## Q-406 - Does a new legal version need a notice period before it binds? (T-707)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-445).
+A published version is in force at once. Some laws and store rules want advance notice of a material change.
+**Recommended (developer):** keep for v1; if counsel wants a notice period, add an effective date to `legal_version` and let
+`legal_in_force()` ignore versions not yet effective (the publish form already takes a note for the reason).
+
+## Q-407 - When counsel's wording is final, how does it replace the drafts? (T-707, Q-288)
+
+**Status:** Proposed (developer, 2026-11-02; ADR-445).
+The seeded 0.1 versions show the draft files in `docs/legal/`. Counsel's final text is published as 1.0 of each document in the
+console (Arabic and English), after which the pages show the published text and the drafts can be deleted from `docs/legal/`.
+**Recommended (developer):** publish 1.0 through the console in the T-807 batch; keep the draft files until then.

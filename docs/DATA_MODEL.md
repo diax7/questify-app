@@ -1698,6 +1698,23 @@ PUBLIC none. Not copied when an event is duplicated.
   10 to 300 characters; QA404 for a missing, ended or non-admin session; audit `staff.session.force_end`).
 - `revoke-admin` (`setPlatformAdmin`) locks every admin row by id and refuses the last active admin.
 
+## Legal versions and help articles (T-707, migration 0123; ADR-445 to ADR-447)
+
+- **`legal_version`** (id, document, version, body_ar, body_en, note, published_by, published_at; unique (document, version);
+  both texts or neither): every published version of the six legal documents. Closed to every role (RLS forced, no grant),
+  append-only for every role (triggers refuse UPDATE, DELETE and TRUNCATE). Seeded with 0.1 of each (no text: the pages show the
+  drafts in `docs/legal/`). The version in force is the latest by `legal_version_key` (three numbers). Reads: `legal_in_force()`
+  and `legal_text(doc)` (public, the API's role); the internal `legal_in_force_rows()`. Doors: `admin_legal_list()` and
+  `admin_legal_publish(doc, version, text_ar, text_en, note, request)` (QE403 for all but an active admin; LG400 for a bad value,
+  LG409 for a version not later than the one in force; an advisory lock per document; audit `legal.publish`).
+- **Organizer re-acceptance:** `organizer_legal_missing(org)` lists the organizer documents in force that the organizer accepted an
+  earlier version of and not this one (only to a member of that organizer); `accept_organizer_documents(org, documents)` records
+  `organizer_acceptance` rows for the versions in force (QE403 unless the organizer's owner; LG412 for any other version; audit
+  `organizer.legal.accept`). Players' acceptances are `player_acceptance` as before (migration 0017).
+- **`help_article`** (id, position, question and answer in both languages, published, updated_at): a language is complete or empty
+  and one is there. Closed to every role. `help_articles()` (public, published ones), `admin_help_articles()` and
+  `admin_help_article_save(id, doc, revert_of, request)` (catalog audit `catalog.help.update` / `.revert`, CA400, CA404, CA409).
+
 ## Console foundation (T-701, migration 0114; ADR-405 to ADR-409)
 
 - **`organizer`**: `suspended_at`, `suspended_by` (staff), `suspension_reason` (10 to 300); CHECK `status = 'paused'` if

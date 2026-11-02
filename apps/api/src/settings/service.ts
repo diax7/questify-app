@@ -15,17 +15,21 @@ import {
   readStoredTexts,
   validateEventConfig,
   validatePlatformSettings,
+  withLegal,
+  type ComposedBody,
   type ComposedConfig,
   type ConfigIssue,
   type EventConfig,
   type EventLayout,
   type EventTexts,
+  type LegalInForce,
   type PlatformSettings,
   type Registries,
 } from "@questify/shared";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { etagOf } from "#src/etag";
+import { readInForce } from "#src/legal/in-force";
 import { createTtlCache } from "#src/settings/cache";
 import { diff } from "#src/audit/entry";
 import { recordAudit, type AuditMeta } from "#src/audit/record";
@@ -61,6 +65,12 @@ export type LayoutSaveResult =
 export type TextsSaveResult =
   | Readonly<{ ok: true; texts: EventTexts }>
   | Exclude<SaveResult, Readonly<{ ok: true }>>;
+
+/** The composed configuration with the legal block, and its ETag. */
+function answerOf(body: ComposedBody, inForce: LegalInForce): ConfigResult {
+  const config = withLegal(body, inForce);
+  return { kind: "ok", config, etag: etagOf(config) };
+}
 
 /** The event's stored config as the composer reads it: each block tolerantly, so a damaged one is the default. */
 function eventConfigOf(stored: unknown, unlocked: readonly string[]): EventConfig {
@@ -205,17 +215,17 @@ export function createSettingsService(options: SettingsOptions): SettingsService
     withConnection(options.pool, (client) =>
       withRequestContext(client, playerId === undefined ? {} : { playerId }, async () => {
         const platform = await loadPlatform(client);
+        const inForce = await readInForce(client);
         if (eventId === undefined) {
-          const config = composeConfig(registries, platform, undefined);
-          return { kind: "ok", config, etag: etagOf(config) } as const;
+          return answerOf(composeConfig(registries, platform, undefined), inForce);
         }
         const stored = await readStoredEventConfig(client, eventId);
         if (stored === undefined) {
           return { kind: "event_not_found" } as const;
         }
         const unlocked = await readEntitlements(client, eventId);
-        const config = composeConfig(registries, platform, eventConfigOf(stored, unlocked));
-        return { kind: "ok", config, etag: etagOf(config) } as const;
+        const body = composeConfig(registries, platform, eventConfigOf(stored, unlocked));
+        return answerOf(body, inForce);
       }),
     );
 

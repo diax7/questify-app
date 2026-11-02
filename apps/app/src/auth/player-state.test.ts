@@ -71,6 +71,9 @@ function fixture() {
         return next.response.promise;
       }
       if (request.path === "/v1/auth/logout") return holdLogout ? logout.promise : ok();
+      if (request.path === "/v1/quests/q/complete") {
+        return { ...failed(403), code: "legal_acceptance_required" };
+      }
       return failed(401);
     },
   };
@@ -195,6 +198,21 @@ describe("the provider's account-bound profile loader", () => {
     expect(f.clear).toHaveBeenCalledOnce();
   });
 
+  it("reloads the profile when a write is held for a new legal version, so the acceptance gate shows", async () => {
+    const f = fixture();
+    await f.session.start(issued("A"));
+    const reloaded = f.next();
+    await f.session.request({ method: "POST", path: "/v1/quests/q/complete" });
+    await reloaded.started.promise;
+    reloaded.response.resolve(
+      ok({ ...profile("A"), legal: { toAccept: ["terms_of_use"], guidelinesAccepted: true } }),
+    );
+    await vi.waitFor(() => {
+      const state = f.states.at(-1);
+      expect(state?.status === "signed_in" && state.me?.legal.toAccept).toEqual(["terms_of_use"]);
+    });
+  });
+
   it("invalidates an outstanding load when the provider unmounts", async () => {
     const f = fixture();
     await f.session.start(issued("A"));
@@ -234,6 +252,7 @@ function ordered(release: () => Promise<unknown>) {
       calls.push("logout");
     },
     onEnded: () => () => undefined,
+    onLegalHold: () => () => undefined,
   };
   const loader = createPlayerLoader(
     session,

@@ -9,11 +9,39 @@ export type Membership = Readonly<{
   eventScope: readonly string[] | null;
   /** Questify paused this organizer, with the reason it wrote (T-701, Q-372); null otherwise. */
   suspension: Suspension | null;
+  /** The organizer documents in force that the owner has not accepted: writes are refused until then (T-707). */
+  legalPending: readonly LegalPending[];
   /** Set only for a Questify admin's support grants (ADR-407): the events and when each ends. */
   support?: readonly Readonly<{ grantId: string; eventId: string; expiresAt: string }>[];
 }>;
 
 export type Suspension = Readonly<{ reason: string; since: string }>;
+
+export type LegalPending = Readonly<{
+  document: "organizer_terms" | "organizer_dpa" | "organizer_content_rules";
+  version: string;
+}>;
+
+const ORGANIZER_DOCUMENT_IDS: readonly string[] = [
+  "organizer_terms",
+  "organizer_dpa",
+  "organizer_content_rules",
+];
+
+/** The documents still to accept as the API sends them; anything that is not a list of them is none. */
+export function readLegalPending(value: unknown): readonly LegalPending[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) =>
+    isRecord(item) &&
+    typeof item["document"] === "string" &&
+    ORGANIZER_DOCUMENT_IDS.includes(item["document"]) &&
+    typeof item["version"] === "string"
+      ? [{ document: item["document"] as LegalPending["document"], version: item["version"] }]
+      : [],
+  );
+}
 
 export type Me = Readonly<{
   id: string;
@@ -50,6 +78,7 @@ function readMembership(value: unknown): Membership | undefined {
       role: value["role"],
       eventScope: value["eventScope"],
       suspension: readSuspension(value["suspension"]),
+      legalPending: readLegalPending(value["legalPending"]),
       ...(support === undefined ? {} : { support }),
     };
   }

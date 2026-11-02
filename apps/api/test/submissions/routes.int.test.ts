@@ -1,5 +1,4 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { playerDocuments } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { RankingStore } from "#src/ranking/store";
 import {
@@ -25,8 +24,8 @@ const recordingStore = (upserts: Upsert[]): RankingStore => ({
   builtAt: async () => undefined,
 });
 
-const GUIDELINES =
-  playerDocuments().find((document) => document.id === "community_guidelines")?.version ?? "";
+// The seeded version in force (migration 0123).
+const GUIDELINES = "0.1";
 
 /**
  * Submission quests over HTTP (T-301): sending with the guidelines gate and the pending points on Home, the player's

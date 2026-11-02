@@ -280,6 +280,19 @@ export function ConsoleNumbersLink({
   );
 }
 
+/** This page's item in the console's navigation (T-707). */
+export function ConsoleLegalLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/legal`} icon="file" current={current}>
+      {t("console.legal.title")}
+    </NavItem>
+  );
+}
+
 /** This page's item in the console's navigation (T-709). */
 export function ConsoleAdminsLink({
   language,

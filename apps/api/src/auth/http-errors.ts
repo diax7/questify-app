@@ -545,6 +545,12 @@ export const playerAcceptanceRequired = make(
   "وافق على شروط الاستخدام وسياسة الخصوصية للمتابعة.",
   "Accept the terms of use and the privacy policy to continue.",
 );
+export const legalAcceptanceRequired = make(
+  403,
+  "legal_acceptance_required",
+  "صدر إصدار جديد من شروط الاستخدام أو سياسة الخصوصية. وافق عليه للمتابعة.",
+  "A new version of the terms of use or the privacy policy is out. Accept it to continue.",
+);
 export const eventEnded = make(
   409,
   "event_ended",
@@ -2307,6 +2313,18 @@ export const tierNotRevoked = make(
   "tier_not_revoked",
   "إحدى هذه الدرجات غير مسحوبة. حدّث الصفحة.",
   "One of these tiers is not revoked. Refresh the page.",
+);
+export const legalVersionNotNewer = make(
+  409,
+  "version_not_newer",
+  "رقم الإصدار يجب أن يكون أحدث من الإصدار الساري.",
+  "The version must be later than the one in force.",
+);
+export const organizerAcceptanceRequired = make(
+  403,
+  "organizer_acceptance_required",
+  "نُشر إصدار جديد من وثائق المنظِّمين. يجب أن يوافق عليه مالك الجهة قبل أي تعديل.",
+  "A new version of the organizer documents is out. The owner must accept it before anything can be changed.",
 );
 export const invalidPlayerAction = make(
   400,

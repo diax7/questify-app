@@ -82,6 +82,10 @@ export const AREAS = [
     /console-?organizers?|console-?oversight|support-?(seat|grant|label)|suspen(d|sion)|staff-admin|organizer-?shell|event-terms/i,
     ["console-organizers"],
   ],
+  [
+    /console-?legal|legal-?(documents|pending|api|help)|help-?articles|use-organizer-documents|acceptance-?fields|console\/legal|legal\/(routes|organizer-routes|in-force)/i,
+    ["console-legal"],
+  ],
   [/console-?players?|console\/players/i, ["console-players"]],
   [/console-?word-?lists?|console\/word-lists/i, ["console-word-lists"]],
   [

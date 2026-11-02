@@ -478,4 +478,25 @@ describe("the session", () => {
     await again.request({ method: "GET", path: "/v1/me" });
     expect(ended).toBe(1);
   });
+
+  it("tells the app when a write is held for unaccepted legal documents, and for no other refusal", async () => {
+    const { client } = fakeClient({
+      "/v1/quests/q/complete": [
+        fail(403, "legal_acceptance_required"),
+        fail(403, "join_method_off"),
+      ],
+    });
+    const session = createSession({ client, storage: memoryStorage(), now: () => 0 });
+    await session.start(issued(1));
+    let held = 0;
+    const stop = session.onLegalHold(() => {
+      held += 1;
+    });
+    const call = () => session.request({ method: "POST", path: "/v1/quests/q/complete" });
+    await call();
+    expect(held).toBe(1);
+    await call();
+    expect(held).toBe(1);
+    stop();
+  });
 });

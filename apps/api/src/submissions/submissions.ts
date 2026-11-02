@@ -11,6 +11,7 @@ import {
   type ItemGiven,
   type LevelUp,
 } from "#src/completions/complete";
+import { readInForce } from "#src/legal/in-force";
 import { firstBonusPaid, type OwnFirstBonus } from "#src/quests/first-bonus";
 import { streakBonusPaid } from "#src/streaks/streaks";
 import { withConnection } from "#src/db/connection";
@@ -105,11 +106,13 @@ const staffSeat = (context: OrganizerContext): RequestContext => ({
 });
 
 /** The community guidelines version in force: a first submission needs it accepted (FR-1706). */
-function guidelinesVersion(): string {
-  const found = playerDocuments().find((document) => document.id === "community_guidelines");
-  // Stryker disable next-line ConditionalExpression,BlockStatement: the shared list always holds the guidelines
+async function guidelinesVersion(client: PoolClient): Promise<string> {
+  const found = playerDocuments(await readInForce(client)).find(
+    (document) => document.id === "community_guidelines",
+  );
+  // Stryker disable next-line ConditionalExpression,BlockStatement: the migration seeds the guidelines and versions only add
   if (found === undefined) {
-    throw new Error("The community guidelines are missing from playerDocuments().");
+    throw new Error("The community guidelines have no version in force.");
   }
   return found.version;
 }
@@ -158,7 +161,7 @@ export function sendSubmission(
     const { rows } = await client.query<SentRow>("SELECT * FROM submit_quest($1, $2, $3, $4)", [
       request.questId,
       request.text,
-      guidelinesVersion(),
+      await guidelinesVersion(client),
       request.idempotencyKey,
     ]);
     const row = rows[0] as SentRow;

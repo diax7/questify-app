@@ -1,5 +1,6 @@
-import { playerDocuments, type LocalizedText, type MessageKey } from "@questify/shared";
+import type { ComposedConfig, LocalizedText, MessageKey } from "@questify/shared";
 import type { AuthedResult, Session } from "#src/api/session.ts";
+import { loadConfig, type KeyValueStore } from "#src/config/remote.ts";
 import { levelUpOf, type LevelUp } from "#src/questify/level.ts";
 
 /** One of the player's own submissions, as `GET /v1/events/{id}/submissions/mine` gives it (T-301). */
@@ -175,16 +176,41 @@ export async function sendSubmission(
   );
 }
 
-/** The guidelines version this app shows; the server checks it is the one in force. */
-export const guidelinesVersion = (): string =>
-  playerDocuments().find((document) => document.id === "community_guidelines")?.version ?? "";
+/** The guidelines version in force, from the configuration's legal block; empty when it is not there. */
+export const guidelinesVersion = (config: ComposedConfig | undefined): string =>
+  config?.legal.documents.find((document) => document.id === "community_guidelines")?.version ?? "";
 
-/** Records the player's acceptance of the guidelines before a first submission (FR-1706). */
-export async function acceptGuidelines(session: Pick<Session, "request">): Promise<boolean> {
-  const answer = await session.request({
-    method: "POST",
-    path: "/v1/me/acceptances",
-    body: { guidelines: guidelinesVersion() },
-  });
+/**
+ * Records the player's acceptance of the guidelines before a first submission (FR-1706), at the version the configuration
+ * names. The server checks it is the one in force and, when an admin published a newer one since, answers with the
+ * versions in force, which are accepted in a second try.
+ */
+export async function acceptGuidelines(
+  deps: Readonly<{ session: Pick<Session, "request">; store: KeyValueStore }>,
+): Promise<boolean> {
+  const { session } = deps;
+  const version = guidelinesVersion(await loadConfig({ client: session, store: deps.store }));
+  const send = (guidelines: string) =>
+    session.request({ method: "POST", path: "/v1/me/acceptances", body: { guidelines } });
+  const answer = await send(version);
+  if (answer.kind === "error" && answer.code === "acceptance_required") {
+    const current = guidelinesFrom(answer.details["documents"]);
+    return current !== undefined && (await send(current)).kind === "ok";
+  }
   return answer.kind === "ok";
+}
+
+/** The guidelines' version among the `{id, version}` documents a refusal lists. */
+function guidelinesFrom(value: unknown): string | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const found = value.find(
+    (item): item is { id: string; version: string } =>
+      typeof item === "object" &&
+      item !== null &&
+      (item as { id?: unknown }).id === "community_guidelines" &&
+      typeof (item as { version?: unknown }).version === "string",
+  );
+  return found?.version;
 }

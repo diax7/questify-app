@@ -41,6 +41,7 @@ const composed = (
 function build(config: ConfigResult, answers: Answers = {}) {
   const seen: { sql: string; values: readonly unknown[] }[] = [];
   const { pool } = fakePool((sql, values) => {
+    if (sql.includes("legal_in_force")) return { rows: [{ r: [] }] };
     seen.push({ sql, values });
     if (sql.includes("own_level")) return answers.level ?? { rows: [levelRow("300")] };
     if (sql.includes("own_gems")) return answers.gems ?? { rows: [{ gems: "5" }] };

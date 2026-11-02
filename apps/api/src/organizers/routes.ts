@@ -11,11 +11,13 @@ import {
   invitesPendingFull,
   mailCap,
   notFound,
+  organizerAcceptanceRequired,
   organizerSuspended,
   ownerOnly,
   ownerRequired,
   tooManyAttempts,
 } from "#src/auth/http-errors";
+import { registerOrganizerLegalRoutes } from "#src/legal/organizer-routes";
 import { registerActivationRoutes } from "#src/activation/routes";
 import type { Activation } from "#src/activation/service";
 import { registerAudienceRoutes } from "#src/audience/routes";
@@ -269,6 +271,35 @@ function staysOpenWhileSuspended(request: FastifyRequest, membership: OrganizerP
 }
 
 /**
+ * What a team can still do while organizer documents wait for the owner (ADR-446): read everything, leave, an owner
+ * removing a member, and the owner's acceptance itself. Keys are the method and the route pattern below the prefix.
+ */
+const OPEN_WHILE_UNACCEPTED = new Set([
+  "POST /legal/accept",
+  "DELETE /members/me",
+  "DELETE /members/:staffUserId",
+]);
+
+/**
+ * A new version of an organizer document is out (FR-1781): the team's writes answer 403 until the owner accepts it. A
+ * read stays open so the page can say what to accept; support never carries the organizer's acceptance.
+ */
+function refuseUnacceptedWrite(request: FastifyRequest, membership: OrganizerPrincipal): void {
+  const pending = membership.legalPending ?? [];
+  if (pending.length === 0 || membership.support !== undefined) {
+    return;
+  }
+  const { method } = request;
+  const key = `${method} ${(request.routeOptions.url ?? "").slice(ORGANIZER_PREFIX.length)}`;
+  if (method === "GET" || method === "HEAD" || OPEN_WHILE_UNACCEPTED.has(key)) {
+    return;
+  }
+  throw organizerAcceptanceRequired({
+    documents: pending.map(({ document, version }) => ({ id: document, version })),
+  });
+}
+
+/**
  * A suspended organizer or event is read-only to its team (ADR-406): any write answers 423, but the team doors above.
  * Support keeps writing so it can fix what led to the suspension (Q-377); the ledger stays closed to it in the
  * database.
@@ -316,9 +347,11 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
           throw ownerOnly();
         }
         await refuseSuspendedWrite(request, params, membership, deps.suspended);
+        refuseUnacceptedWrite(request, membership);
         request.organizer = membership;
       });
       registerTeamRoutes(scope, deps);
+      registerOrganizerLegalRoutes(scope, { pool: deps.pool });
       registerOrganizerAlertRoutes(scope, { pool: deps.pool });
       registerEventRoutes(scope, deps.events, deps.settings);
       registerActivationRoutes(scope, deps.activation);

@@ -66,9 +66,23 @@ describe("fetchMe", () => {
             role: "owner",
             eventScope: null,
             suspension: null,
+            legalPending: [],
           },
         ],
       },
+    });
+  });
+
+  it("carries the organizer documents still to accept, and drops anything else", async () => {
+    const pending = [
+      { document: "organizer_dpa", version: "2" },
+      { document: "terms_of_use", version: "9" },
+      { document: "organizer_terms" },
+    ];
+    reply(200, { ...ME, memberships: [{ ...ME.memberships[0], legalPending: pending }] });
+    expect(await ask()).toMatchObject({
+      kind: "signed_in",
+      me: { memberships: [{ legalPending: [{ document: "organizer_dpa", version: "2" }] }] },
     });
   });
 

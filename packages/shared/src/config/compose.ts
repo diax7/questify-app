@@ -1,6 +1,6 @@
 import { DEFAULT_BRANDING, type Branding } from "#src/design/accents";
 import type { LocalizedText } from "#src/errors";
-import { playerDocuments } from "#src/legal/documents";
+import { playerDocuments, type LegalInForce } from "#src/legal/documents";
 import { DEFAULT_COMPOSED_LAYOUT, composedLayoutOf, type ComposedLayout } from "#src/layout/layout";
 import type { EventConfig, PlatformSettings, Registries } from "./registry";
 import { DEFAULT_TERMS, type EventTerms } from "./terms";
@@ -33,6 +33,9 @@ export type ComposedConfig = Readonly<{
   /** The event's bar and Home blocks to show, in order (T-606, FR-1749); Questify's own outside an event. */
   layout: ComposedLayout;
 }>;
+
+/** The configuration before the legal block: what the shipped defaults, the platform and the event decide. */
+export type ComposedBody = Omit<ComposedConfig, "legal">;
 
 // The keys of an object are unique, so two of them are never equal.
 const byKey = ([a]: [string, unknown], [b]: [string, unknown]): number => (a < b ? -1 : 1);
@@ -95,12 +98,19 @@ export function composeConfig(
   registries: Registries,
   platform: PlatformSettings,
   event: EventConfig | undefined,
-): ComposedConfig {
+): ComposedBody {
   return {
     schemaVersion: 1,
     features: composeFeatures(registries, platform, event),
     tuning: composeTuning(registries, platform),
-    legal: { documents: playerDocuments().map(({ id, version }) => ({ id, version })) },
     ...composeEventLook(event),
+  };
+}
+
+/** The composed configuration with the player documents in force (FR-1705), which an admin publishes (FR-1781). */
+export function withLegal(body: ComposedBody, inForce: LegalInForce): ComposedConfig {
+  return {
+    ...body,
+    legal: { documents: playerDocuments(inForce).map(({ id, version }) => ({ id, version })) },
   };
 }

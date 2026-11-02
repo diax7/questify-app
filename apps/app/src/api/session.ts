@@ -28,6 +28,8 @@ export type Session = Readonly<{
   signOut: () => Promise<void>;
   /** Called when the session ended on its own (a refused refresh), so the app can show sign-in. */
   onEnded: (listener: () => void) => () => void;
+  /** Called when a write was refused for a new terms or privacy version (403 `legal_acceptance_required`), so the app can show its acceptance screen. */
+  onLegalHold: (listener: () => void) => () => void;
 }>;
 
 /** One secure-store item: access, refresh and expiry are written together, so they can never tear apart. */
@@ -57,6 +59,33 @@ const isIssued = (value: unknown): value is Issued =>
   typeof (value as Issued).refreshToken === "string" &&
   typeof (value as Issued).expiresInSeconds === "number";
 
+/** A set of listeners that can be called together. */
+function createNotifier() {
+  const listeners = new Set<() => void>();
+  return {
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    notify: () => {
+      for (const listener of listeners) {
+        listener();
+      }
+    },
+  };
+}
+
+/** A write refused for unaccepted legal documents tells the app to reload the profile, whose gate then asks. */
+function announceHold<T extends AuthedResult>(
+  held: ReturnType<typeof createNotifier>,
+  answer: T,
+): T {
+  if (answer.kind === "error" && answer.code === "legal_acceptance_required") {
+    held.notify();
+  }
+  return answer;
+}
+
 type Refreshed = "refreshed" | "ended" | "unreachable";
 
 /**
@@ -67,7 +96,8 @@ type Refreshed = "refreshed" | "ended" | "unreachable";
  */
 export function createSession(deps: SessionDeps): Session {
   const now = deps.now ?? Date.now;
-  const listeners = new Set<() => void>();
+  const ended = createNotifier();
+  const held = createNotifier();
   let inFlight: Promise<Refreshed> | undefined;
   // A chosen sign-out is not "your session ended": a refresh that a late 401 starts meanwhile tells nobody.
   let signingOut = false;
@@ -129,9 +159,7 @@ export function createSession(deps: SessionDeps): Session {
     if (signingOut) {
       return;
     }
-    for (const listener of listeners) {
-      listener();
-    }
+    ended.notify();
   };
 
   const runRefresh = async (): Promise<Refreshed> => {
@@ -212,12 +240,12 @@ export function createSession(deps: SessionDeps): Session {
       }
       const first = await deps.client.request({ ...request, accessToken: token });
       if (first.kind !== "error" || first.status !== 401) {
-        return first;
+        return announceHold(held, first);
       }
       // Once only: a second 401 is the answer, never a loop.
       const next = await renewed(token);
       return typeof next === "string"
-        ? deps.client.request({ ...request, accessToken: next })
+        ? announceHold(held, await deps.client.request({ ...request, accessToken: next }))
         : next;
     },
     signOut: async () => {
@@ -238,9 +266,7 @@ export function createSession(deps: SessionDeps): Session {
         signingOut = false;
       }
     },
-    onEnded: (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
+    onEnded: ended.subscribe,
+    onLegalHold: held.subscribe,
   };
 }

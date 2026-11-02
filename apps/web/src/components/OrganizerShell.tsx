@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { LegalPendingBanner } from "#src/components/LegalPendingBanner.tsx";
 import { OrganizerNav } from "#src/components/OrganizerNav.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import type { Language } from "@questify/shared";
@@ -66,6 +67,7 @@ function OrganizerBanners({
   const grant = membership.support?.find((item) => item.eventId === event?.id);
   return (
     <>
+      <LegalPendingBanner language={language} membership={membership} />
       {membership.suspension === null ? null : (
         <Notice tone="warning" role="note">
           <bdi>{t("suspension.organizerBanner", { reason: membership.suspension.reason })}</bdi>
