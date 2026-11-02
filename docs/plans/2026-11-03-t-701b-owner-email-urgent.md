@@ -49,12 +49,23 @@ console's organizer and reports pages and one migration).
    j•••@e•••.com" with a **Stop this change** link (`/{lang}/email-change/stop#token=…`, its own token) and the support
    contacts. Its failure never blocks the change (logged with ids only).
 4. **The owner confirms, not the admin.** The owner opens the link from the new mailbox; the page shows the organizer
-   name and the masked new address and asks for the code (5 attempts; the admin may **Resend** up to 3 times, 60 s
-   apart, which issues a new code and keeps the link). The admin never sees or types the code, so owners are never taught
-   to read a code to someone on the phone (the usual phishing script).
-5. **Completion, one transaction** (`owner_email_confirm`): lock the account row, re-check every guard of section 3,
-   set `staff_user.email`, end every live session, delete the account's sign-in challenges and reset links, close the
-   change (`confirmed`), audit. After commit the API emails the new address ("Your sign-in email is now …") and the old
+   name and the masked new address and asks for the code **and the account's current password** (plan review MAJOR 1).
+   The API checks the password (through the verify gate) and the door counts every try, wrong code or wrong password
+   alike, in the same 5 attempts; the answer never says which of the two was wrong. The admin may **Resend** up to 3
+   times, 60 s apart, which issues a new code and keeps the link; a resend does **not** reset the attempts (5 per change
+   in all). The admin never sees or types the code, so owners are never taught to read a code to someone on the phone.
+   **"I don't know my password"** (a lost password is a common reason for the call): the owner ticks it and types only
+   the code; the change is then **held 24 hours** (`held`, `applies_at`), the old address is told again with the date
+   and the Stop link, and that link cancels the change during the hold. After 24 hours the team-alert worker applies it
+   (the guards of section 3 checked again) and sends the two notices of step 5.
+5. **Completion, one transaction** (`owner_email_confirm` on the password path, `owner_email_apply_due` after a
+   hold): lock the account row, re-check every guard of section 3,
+   set `staff_user.email`, end every live session, delete the account's sign-in challenges and reset links, delete the
+   pending organizer invites addressed to the old address and revoke its open operator invites (0008:363-375: a pending
+   invite to the old address would otherwise let whoever holds that mailbox create a new account with it), close the
+   change (`confirmed`, with how: `password` or `waited`), audit. The `email_taken` race is caught in an inner
+   `BEGIN ... EXCEPTION WHEN unique_violation` block that closes the change and **returns** that status (never a raise,
+   so the close commits). After commit the API emails the new address ("Your sign-in email is now …") and the old
    one ("Your sign-in email was changed to j•••@e•••.com. You were signed out everywhere. If this was not you, contact
    Questify support"). The password is unchanged; the owner signs in with the new address (or uses Forgot password).
 6. **Admin side afterwards:** the owner card shows the pending change (new address, expiry, Resend, **Cancel**) or the
@@ -82,8 +93,12 @@ real protection (FR-1784's "after verification"). The design narrows what a fool
   per account 3 starts a day (counted in the door, EC429); per change 5 code attempts and 3 resends; per IP 20
   confirm, view or stop calls in 15 minutes on the public routes (`throttle.ts`); every mail counts against
   `outboundMailPerDay`.
-- **Stop link:** while pending, the old address can stop the change (no sign-in needed; the token is the authority);
-  the console shows "Stopped from the old address" and the audit log records it, so support knows to call back.
+- **Stop link:** while pending or held, the old address can stop the change (no sign-in needed; the token is the
+  authority); the console shows "Stopped from the old address" and the audit log records it, so support knows to call
+  back. Once a change completed on the **password path** (or after its hold), the same link (valid 7 days after
+  completion) no longer undoes anything: it marks the change disputed and queues a team alert (`email_change_dispute`,
+  ids only) so support calls the organizer; the page says support was told. The stop token is an HMAC of the change id
+  under the auth key (only its hash is stored), so the hold notice can repeat the link.
 - **Audit with ids and reason only:** `owner_email.start` (organizer, account, change id, identity check, reason),
   `owner_email.resend`, `owner_email.cancel`, `owner_email.stop`, `owner_email.confirm`, `owner_email.expire`; actor
   `admin` for console actions, `system` for the owner's confirm and the old address's stop (the change id links them).
@@ -91,8 +106,10 @@ real protection (FR-1784's "after verification"). The design narrows what a fool
   `organizer_id`, so a future organizer history screen shows the change.
 - **Where the addresses live:** only in the change row (old and new), so a disputed change can be traced; the row's
   addresses are erased 180 days after it closes (the lifecycle tick), the ids and states kept.
-- **Waiting period:** none; the change applies at confirmation (lost-mailbox cases are often urgent during a live event).
-  Q-450 asks Dhia whether a 24-hour hold is wanted.
+- **Waiting period (Q-450, plan review MAJOR 1):** none when the owner proves the current password (lost-mailbox cases
+  are often urgent during a live event); 24 hours, cancellable from the old address, when the owner does not know it.
+- **A deleted staff account:** its change rows go with it (`ON DELETE CASCADE`); the audit rows keep the ids. The
+  requesting admin's id is `ON DELETE SET NULL`.
 
 ## 4. Urgent reports (ADR-493)
 
@@ -101,6 +118,9 @@ real protection (FR-1784's "after verification"). The design narrows what a fool
   `status = 'live'` at that moment (Q-452); `due_at = created_at + 1 hour` when urgent, else `+ 24 hours`. An ended,
   draft, scheduled or archived event, and a username reported outside an event, are normal. Existing rows: `urgent =
   false`, `due_at = created_at + 24 h`. Neither changes later (an event ending does not relax a due time).
+- **One lock per target:** the alert trigger, `admin_unpublish` and `admin_report_resolve` take the same transaction
+  advisory lock on the target before they read or close its open reports, so an "open episode" is exact. A partial
+  index on open urgent reports `(target_kind, target_id)` serves the trigger's check.
 - **Queue order** (`console_reports`, restated): per open target `urgent = bool_or(urgent)`, `dueAt = min(due_at)` over
   its open reports, `overdue = dueAt < now()`; order **urgent first, then earliest due, then target id**; still at most
   100 rows, plus `urgentTotal` (open urgent targets) for the console menu badge. `console_report` adds each report's
@@ -123,9 +143,13 @@ real protection (FR-1784's "after verification"). The design narrows what a fool
 - **Worker** (`apps/api/src/team-alerts/worker.ts`, in-process tick every 60 s with jitter, lease 60 s): claims every
   queued row (at most 50) and sends **one digest email** per run listing up to 20 targets ("and 7 more"): event and
   organizer name, what kind of item, the report count, the reason codes, the due time (Riyadh time and relative), a
-  link to `/{lang}/console/reports/{kind}/{id}`. **No personal data:** no reporter, note, snapshot text or username, so
+  link to `/{lang}/console/reports/{kind}/{id}`. Plan review MAJOR 2: **at most one digest per 10 minutes** and **at
+  most 100 a day**, counted in their own throttle bucket (`team_alert_mail`), so the alert never takes from the sign-in
+  transport's `outboundMailPerDay`. Past the daily cap the claimed rows are closed `skipped` and only the console badge
+  shows them. The check, the claim and the record run in one transaction under one advisory lock, so two instances
+  never send two digests. A disputed email change (section 3) is one more line kind in the same digest. **No personal data:** no reporter, note, snapshot text or username, so
   it may use the sign-in transport (ADR-494, Q-453). 8-second deadline; timeout = `uncertain` (never resent), a refused
-  send = `failed`, retried on the next two runs, then left `failed` and logged. The console badge does not depend on
+  send = `failed`, retried on the next two digests (`attempts`, at most 3), then left `failed` and logged. The console badge does not depend on
   the mail.
 - **Recipient (Q-376):** `platform_setting.moderation.alertEmail`, read each run; when absent the API's `MAIL_FROM`
   (as `appealEmail` today). No seed: a migration cannot know the address.
@@ -160,10 +184,11 @@ old_email, new_email (lower, `@`, ≤254, NULLable after the purge), token_hash,
 (32 bytes), attempts 0-5, resends 0-3, last_sent_at, expires_at (= created_at + 60 min, CHECK), state
 `pending|confirmed|cancelled|stopped|expired|send_failed|email_taken`, closed_at, created_at; CHECKs tying state to
 closed_at; partial unique `(staff_user_id) WHERE state = 'pending'`); `content_report.urgent`, `content_report.due_at`
-(added, backfilled, then NOT NULL) and an index on open reports by `(urgent DESC, due_at)`; `team_alert`.
+(added, backfilled, then NOT NULL) and an index on open reports by `(urgent DESC, due_at)`; `team_alert` (with `attempts` 0-3 for retrying refused sends, and the dispute kind). `staff_email_change` also has
+`applies_at` (held), `completed_how` (`password` | `waited`) and `disputed_at`; `held` is an open state.
 Functions: `admin_owner_email_start`, `admin_owner_email_resend`, `admin_owner_email_cancel`,
 `admin_owner_email_send_failed`, `owner_email_view`, `owner_email_confirm`, `owner_email_stop`,
-`console_owner_email_change(org)` (called by `console/organizers.ts` `readOrganizer`, which reads in the admin seat), `report_urgency` (trigger), `report_team_alert`
+`owner_email_apply_due(batch)`, `console_owner_email_change(org)` (called by `console/organizers.ts` `readOrganizer`, which reads in the admin seat), `report_urgency` (trigger), `report_team_alert`
 (trigger), `team_alert_claim`, `team_alert_ack`, `admin_set_moderation_addresses`, `moderation_alert_email()`; restated:
 `console_reports`, `console_report` (0121), the
 lifecycle purge (expire pending changes past their time as `expired`, erase addresses after 180 days, delete finished
@@ -182,7 +207,10 @@ under the change's row lock (`FOR UPDATE`), counts the attempt first and refuses
   admin, member, player, anon; not the owner, an editor of the organizer, a disabled account, a platform admin, the
   admin's own account, the same address, an address of another staff account in any case, a bad reason, a bad identity
   check, a second pending change, the fourth start in a day); view, confirm and stop by token (wrong, expired, closed
-  answer alike); 5 wrong codes then the right one refused; resend spacing and cap; completion ends every session, the
+  answer alike); 5 wrong codes then the right one refused; a wrong password counts in the same 5 and answers like a
+  wrong code; a resend does not reset the attempts; "I don't know my password" holds 24 hours, Stop cancels it during
+  the hold, the due apply completes it; on the password path Stop marks it disputed and queues one dispute alert;
+  completion deletes the old address's pending invites; resend spacing and cap; completion ends every session, the
   challenges and the reset links and leaves other accounts' rows alone; sign-in by the new address finds the account and
   by the old one finds none; the unique-index race (another account takes the address between start and confirm →
   `email_taken`, state closed, nothing changed); two concurrent confirms (one wins); two concurrent starts (one 409);
@@ -199,7 +227,8 @@ under the change's row lock (`FOR UPDATE`), counts the attempt first and refuses
   adds none, a new one after resolution adds one, two concurrent urgent reports on one target make one row.
 - **Worker** `test/team-alerts/worker.int.test.ts`: digest of several rows in one email, "and N more" past 20, the
   configured address and the `MAIL_FROM` fallback, timeout → `uncertain` not resent, refusal → `failed` retried twice,
-  two workers never send one row twice (leases), the mail body holds no username, note or snapshot text.
+  two workers never send one row twice (leases), the mail body holds no username, note or snapshot text; a second run
+  within 10 minutes sends nothing; past 100 digests a day the rows close `skipped` and `outboundMailPerDay` is untouched.
 - **Moderation addresses:** door refusals, validation, merge keeps the other field, audit before/after;
   `ban_notice` keeps reading `appealEmail`.
 - **Security suites:** outsider (new tables and functions refused to `anon` and `PUBLIC`, the exact grant list),
@@ -234,6 +263,12 @@ the alert address), SRS trace (FR-1784 built except merge; FR-1732 built), TASKS
 
 ## 11. Decisions and questions (recorded with this plan)
 
+Plan review (82) folded in on 2026-11-03: MAJOR 1 (current password on the confirm page, 24-hour hold otherwise, Stop
+after completion alerts support) and MAJOR 2 (digest spacing 10 minutes and a daily cap of 100 on its own bucket), plus
+the minors (per-target lock in unpublish and resolve, inner exception block for `email_taken`, the old address's pending
+invites, `team_alert.attempts`, resend keeps the attempts, change rows cascade with their account, the open-urgent
+index).
+
 - **ADR-490** (Proposed): the owner email change flow: admin starts with identity check and reason; code and link to the
   new address; the owner confirms on a public page; 60 minutes; the admin never handles the code.
 - **ADR-491** (Proposed): takeover guards: owner only, active, never an admin or the admin's own account; the address of
@@ -249,7 +284,8 @@ the alert address), SRS trace (FR-1784 built except merge; FR-1732 built), TASKS
 - **ADR-495** (Proposed): the console edits the moderation addresses (alert and appeal) through one door; the generic
   settings policy is not widened.
 - **ADR-496** (Proposed): escalated help-desk tickets are not part of FR-1732's urgency in v1.
-- **Q-450:** a 24-hour hold before an owner email change applies? Recommended: no.
+- **Q-450:** a 24-hour hold before an owner email change applies? Recommended after the plan review: only when the
+  owner cannot give the current password.
 - **Q-451:** should tickets escalated from a live event also be urgent? Recommended: not in v1.
 - **Q-452:** "live" means `event.status = 'live'` (not rehearsal, not within dates before the tick). Recommended: yes.
 - **Q-453:** the alert email uses the sign-in transport (Gmail with failover) since it holds no personal data.

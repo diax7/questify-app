@@ -2095,7 +2095,9 @@ to `support_contact` when counsel or the PDPL regulator asks for a named data-pr
 **Status:** Proposed (developer, 2026-11-03; ADR-491).
 A hold would give the real owner a day to press Stop from the old address if an impostor fooled support; it would also leave
 an owner who lost their mailbox locked out for a day, often during a live event.
-**Recommended (developer):** no hold; the old address is told at once with a Stop link, and support can reverse a change.
+**Recommended (developer, revised after the plan review 82):** no hold when the owner types the current password on the
+confirm page; a 24-hour hold, cancellable from the old address, when the owner does not know it. On the password path the
+Stop link alerts support instead of cancelling.
 
 ## Q-451 - Should tickets escalated from a live event also be urgent? (T-701b, ADR-496)
 
@@ -2113,4 +2115,5 @@ FR-1732 speaks of reports; escalated help-desk tickets have their own Tickets pa
 **Status:** Proposed (developer, 2026-11-03).
 The organizer alert transport is off (ADR-360) because it mails organizers' addresses. The team alert goes to Questify's own
 address and carries ids, names of events and organizers, reason codes and a console link, no personal data.
-**Recommended (developer):** yes.
+**Recommended (developer):** yes, bounded so it can never starve sign-in mail: one digest per 10 minutes, 100 a day on its
+own budget bucket (never `outboundMailPerDay`); past that only the console badge.

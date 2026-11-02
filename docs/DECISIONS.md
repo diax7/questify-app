@@ -7015,14 +7015,19 @@ retention periods) wait for counsel (T-807, Q-288) and stay visible.
 ## ADR-490 - T-701b an owner email change is started by an admin and confirmed by the owner with a code
 
 **Status:** Proposed (developer, 2026-11-03; T-701b plan `docs/plans/2026-11-03-t-701b-owner-email-urgent.md` section 2; FR-1784).
-**Decision:** From the console organizer page an admin starts a change of the owner's sign-in email with the new address, how identity was checked (`known_phone`, `id_document`, `contract_contact`, `other`) and a reason (10-300 characters), after a confirmation screen that lists every organizer the account belongs to. The new address gets a 6-digit code and a link (token in the URL fragment); the owner opens the link and types the code (5 attempts, 3 resends by the admin, 60 minutes). The admin never sees or types the code. A failed code email closes the change.
+**Decision:** From the console organizer page an admin starts a change of the owner's sign-in email with the new address, how identity was checked (`known_phone`, `id_document`, `contract_contact`, `other`) and a reason (10-300 characters), after a confirmation screen that lists every organizer the account belongs to. The new address gets a 6-digit code and a link (token in the URL fragment); the owner opens the link and types the code and the account's current password (5 attempts in all, wrong code or
+wrong password alike, never said which; 3 resends by the admin, which keep the attempts; 60 minutes). An owner who does
+not know the password ticks "I don't know my password": the change is held 24 hours (plan review MAJOR 1, ADR-491). The admin never sees or types the code. A failed code email closes the change.
 **Trade-offs:** the owner must reach the new mailbox within an hour; the code proves control of the mailbox, not identity (the admin's identity check does that).
 
 ## ADR-491 - T-701b guards against taking over an organizer through an email change
 
 **Status:** Proposed (developer, 2026-11-03; T-701b plan section 3).
-**Decision:** Only the organizer's current owner, only an active account, never a platform admin (ADR-405) and never the admin's own account. The new address is normalized, differs from the current one and is the email of no staff account (checked at start and at completion; the unique index settles a race). One pending change per account; per admin 10 starts an hour, per account 3 a day, per public route 20 calls per IP in 15 minutes. The old address is told at once, with a Stop link that cancels the pending change. Audit entries hold ids, the identity check and the reason, never an address; the addresses live only in the change row and are erased 180 days after it closes.
-**Trade-offs:** a convincing impostor who fools the admin and whose victim does not read the old mailbox in time still succeeds (Q-450 offers a hold period).
+**Decision:** Only the organizer's current owner, only an active account, never a platform admin (ADR-405) and never the admin's own account. The new address is normalized, differs from the current one and is the email of no staff account (checked at start and at completion; the unique index settles a race). One pending change per account; per admin 10 starts an hour, per account 3 a day, per public route 20 calls per IP in 15 minutes. The old address is told at once, with a Stop link that cancels the change while it is pending or held. On the
+password path the change applies at once; the Stop link then (for 7 days) only marks it disputed and alerts the team.
+Without the password the change waits 24 hours (Q-450). Completion deletes pending organizer invites to the old address
+and revokes its open operator invites. A deleted account's change rows go with it. Audit entries hold ids, the identity check and the reason, never an address; the addresses live only in the change row and are erased 180 days after it closes.
+**Trade-offs:** an impostor now needs the owner's password as well, or must survive a 24-hour hold the old mailbox can stop; an owner who lost both mailbox and password waits a day.
 
 ## ADR-492 - T-701b completing an email change signs the account out everywhere
 
@@ -7039,7 +7044,11 @@ retention periods) wait for counsel (T-807, Q-288) and stay visible.
 ## ADR-494 - T-701b urgent reports alert the team by one ids-only digest email
 
 **Status:** Proposed (developer, 2026-11-03; T-701b plan section 5; Q-376).
-**Decision:** An urgent report whose target has no other open urgent report queues one `team_alert` row (ids only; one per target per open episode, under a transaction lock on the target). A worker sends at most one digest email a minute listing up to 20 targets (event, organizer, item kind, count, reason codes, due time, console link) with no reporter, note, reported text or username. It uses the sign-in mail transport because it carries no personal data (the organizer alert transport stays off, ADR-360). The address is `platform_setting` key `moderation` field `alertEmail`, else `MAIL_FROM`. A timed-out send is `uncertain` and never resent; a refused one is retried twice.
+**Decision:** An urgent report whose target has no other open urgent report queues one `team_alert` row (ids only; one per target per open episode, under a transaction lock on the target). A worker sends at most one digest email per 10 minutes and at most 100 a day, counted in its own throttle bucket
+(`team_alert_mail`, never the sign-in `outboundMailPerDay`; past the cap only the console badge shows them, plan review
+MAJOR 2), listing up to 20 targets (event, organizer, item kind, count, reason codes, due time, console link) with no reporter, note, reported text or username. It uses the sign-in mail transport because it carries no personal data (the organizer alert transport stays off, ADR-360). The address is `platform_setting` key `moderation` field `alertEmail`, else `MAIL_FROM`. A timed-out send is `uncertain` and never resent; a refused one is retried twice (`attempts`). The alert trigger,
+`admin_unpublish` and `admin_report_resolve` share one advisory lock per target, so one alert per open episode is exact.
+A disputed owner email change (ADR-491) is a line of the same digest.
 **Trade-offs:** an alert can be lost; the console badge and due times remain the primary signal.
 
 ## ADR-495 - T-701b the console edits the moderation addresses through one door
