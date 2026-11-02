@@ -22,7 +22,6 @@ import {
 } from "#src/lib/console-catalog.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { Badge } from "#src/ui/Feedback.tsx";
-import { Field, Input } from "#src/ui/Field.tsx";
 import { Stack } from "#src/ui/Section.tsx";
 
 const TIERS = ["bronze", "silver", "gold"] as const;
@@ -61,23 +60,6 @@ function AchievementEditor({
           disabled={catalog.busy}
           onChange={(name) => setDraft({ ...draft, name })}
         />
-        <div className={styles.fields}>
-          {TIERS.map((tier) => (
-            <Field
-              key={tier}
-              label={t(`console.catalog.achievements.${tier}`)}
-              error={wrong.has(tier) ? t("console.catalog.achievements.rise") : undefined}
-            >
-              <Input
-                inputMode="numeric"
-                dir="ltr"
-                value={draft[tier]}
-                disabled={catalog.busy}
-                onChange={(event) => setDraft({ ...draft, [tier]: event.target.value })}
-              />
-            </Field>
-          ))}
-        </div>
         <EditorButtons
           language={language}
           busy={catalog.busy}
@@ -126,22 +108,21 @@ function AchievementCard({
           onDone={() => setEditing(false)}
         />
       ) : (
-        <>
-          <PairCells language={language} value={row.name} />
-          <p className={styles.facts} dir="ltr">
-            {TIERS.map((tier) => `${t(`console.catalog.achievements.${tier}`)} ${row[tier]}`).join(
-              " · ",
-            )}
-          </p>
-        </>
+        <PairCells language={language} value={row.name} />
       )}
+      <p className={styles.facts} dir="ltr" data-testid="achievement-tiers">
+        {TIERS.map((tier) => `${t(`console.catalog.achievements.${tier}`)} ${row[tier]}`).join(
+          " · ",
+        )}
+      </p>
     </li>
   );
 }
 
 /**
- * The achievements (T-709b, FR-1403): five equal cards with the name in both languages and the three tier thresholds. A
- * tier a player already earned stays earned whatever the numbers become.
+ * The achievements (T-709b, FR-1403): five equal cards with the name in both languages, edited here, and the three tier
+ * thresholds, shown and never edited: a lower threshold pays gems at every player's next sync and a revert cannot take them
+ * back (T-709c).
  */
 export function CatalogAchievements({ language }: Readonly<{ language: Language }>) {
   const catalog = useCatalog(language, ACHIEVEMENTS_API, readAchievements);

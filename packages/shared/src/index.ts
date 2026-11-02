@@ -1014,7 +1014,7 @@ export {
   GEM_SHOP_STATUSES,
   ITEM_ID,
   LEVEL_TITLE_LIMIT,
-  TEMPLATE_BODY_MAX_CHARACTERS,
+  TEMPLATE_BODY_MAX_BYTES,
   achievementAdminAnswerSchema,
   achievementAdminSchema,
   achievementDocSchema,

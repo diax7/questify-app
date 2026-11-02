@@ -9,7 +9,7 @@ import { throttled, type ConsolePlatformDeps } from "#src/console/platform-route
 import type { DeviceLimit } from "#src/devices/limits";
 
 const read = { config: { access: "admin" }, bodyLimit: 1024 } as const;
-// A template body is at most 40,000 characters; the rest is its names and descriptions.
+// A template body is at most 30,000 bytes; the rest is its names and descriptions.
 const write = { config: { access: "admin" }, bodyLimit: 128 * 1024 } as const;
 const revert = { config: { access: "admin", idempotent: true }, bodyLimit: 1024 } as const;
 

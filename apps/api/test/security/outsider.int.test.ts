@@ -149,6 +149,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "admin_level_titles_doc",
       "admin_template_doc",
       "catalog_audit",
+      "catalog_revert_doc",
       "catalog_text",
     ];
     const functions = await rows<{
@@ -173,13 +174,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     const request = "gen_random_uuid()";
     for (const sql of [
       "SELECT public.admin_templates()",
-      `SELECT public.admin_template_save('conference', '{}', false, ${request})`,
+      `SELECT public.admin_template_save('conference', '{}', NULL, ${request})`,
       "SELECT public.admin_achievements()",
-      `SELECT public.admin_achievement_save('quests-done', '{}', false, ${request})`,
+      `SELECT public.admin_achievement_save('quests-done', '{}', NULL, ${request})`,
       "SELECT public.admin_level_titles()",
-      `SELECT public.admin_level_titles_save('{}', false, ${request})`,
+      `SELECT public.admin_level_titles_save('{}', NULL, ${request})`,
       "SELECT public.admin_shop_items()",
-      `SELECT public.admin_shop_item_save('shop-map-reader', '{}', false, ${request})`,
+      `SELECT public.admin_shop_item_save('shop-map-reader', '{}', NULL, ${request})`,
     ]) {
       await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
     }

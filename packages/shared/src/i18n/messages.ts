@@ -8628,8 +8628,8 @@ export const MESSAGES = {
     en: "This setup can't be saved:",
   },
   "console.catalog.achievements.info": {
-    ar: "خفض رقم يمنح الدرجة للاعبين الذين بلغوه عند فتحهم التطبيق في المرة القادمة. رفعه يوقف منحها لمن لم ينلها بعد.",
-    en: "Lowering a number gives the tier to players who already reach it the next time they open the app. Raising it stops giving the tier to players who have not earned it yet.",
+    ar: "يمكن هنا تعديل الأسماء فقط. أرقام الدرجات للعرض: خفض أي رقم يمنح جواهر لكل لاعب يبلغ الدرجة عند فتحه التطبيق في المرة القادمة، والتراجع عن التغيير لا يسترد تلك الجواهر. تعديل الأرقام يأتي لاحقًا مع تأكيد.",
+    en: "Only the names are edited here. The tier numbers are shown, not edited: lowering one pays gems to every player who then reaches the tier, the next time they open the app, and going back does not take those gems away. Editing them comes later, with a confirmation.",
   },
   "console.catalog.achievements.metric.events": {
     ar: "فعاليات حضرها اللاعب",
@@ -8645,10 +8645,6 @@ export const MESSAGES = {
   "console.catalog.achievements.bronze": { ar: "برونزية", en: "Bronze" },
   "console.catalog.achievements.silver": { ar: "فضية", en: "Silver" },
   "console.catalog.achievements.gold": { ar: "ذهبية", en: "Gold" },
-  "console.catalog.achievements.rise": {
-    ar: "كل درجة تحتاج رقمًا أكبر من التي قبلها.",
-    en: "Each tier needs a bigger number than the one before.",
-  },
   "console.catalog.achievements.name": { ar: "الاسم", en: "Name" },
   "console.catalog.levels.intro": {
     ar: "اللقب يشمل المستويات من مستواه حتى المستوى الذي يسبق اللقب التالي.",

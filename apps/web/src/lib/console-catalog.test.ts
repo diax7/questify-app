@@ -155,30 +155,32 @@ describe("a template draft", () => {
 });
 
 describe("an achievement draft", () => {
-  it("accepts rising whole numbers and names in both languages", () => {
+  it("holds the name only, so a save can never carry a threshold", () => {
     const draft = achievementDraftOf(achievement);
+    expect(Object.keys(draft)).toEqual(["name"]);
     expect(isAchievementDirty(achievement, draft)).toBe(false);
-    expect(checkAchievement(draft)).toMatchObject({ ok: true, doc: { bronze: 10, gold: 200 } });
-    expect(isAchievementDirty(achievement, { ...draft, gold: "300" })).toBe(true);
+    expect(checkAchievement(draft)).toEqual({ ok: true, doc: { name: achievement.name } });
+    expect(isAchievementDirty(achievement, { name: { ar: "صائد", en: "Quest Hunter" } })).toBe(
+      true,
+    );
+    expect(
+      isAchievementDirty(achievement, { name: { ar: "صائد المهام ", en: " Quest Hunter" } }),
+    ).toBe(false);
   });
 
-  it("refuses thresholds that do not rise, are not whole numbers or are out of range", () => {
+  it("refuses a blank, unsafe or swapped-language name", () => {
     const draft = achievementDraftOf(achievement);
-    for (const [change, field] of [
-      [{ silver: "10" }, "bronze"],
-      [{ gold: "50" }, "bronze"],
-      [{ bronze: "0" }, "bronze"],
-      [{ gold: "100001" }, "gold"],
-      [{ silver: "5.5" }, "silver"],
-      [{ bronze: "" }, "bronze"],
-      [{ gold: "1e3" }, "gold"],
-      [{ silver: "-4" }, "silver"],
+    for (const [name, field] of [
+      [{ ar: "ا\u0007", en: "A" }, "name.ar"],
+      [{ ar: "ا", en: "A\u202e" }, "name.en"],
+      [{ ar: "   ", en: "A" }, "name.ar"],
+      [{ ar: "Name", en: "Name" }, "name.ar"],
+      [{ ar: "ا", en: "اسم" }, "name.en"],
+      [{ ar: "ا٣", en: "A" }, "name.ar"],
     ] as const) {
-      const checked = checkAchievement({ ...draft, ...change });
-      expect(!checked.ok && checked.fields.has(field), JSON.stringify(change)).toBe(true);
+      const checked = checkAchievement({ ...draft, name });
+      expect(!checked.ok && checked.fields.has(field), JSON.stringify(name)).toBe(true);
     }
-    const unsafe = checkAchievement({ ...draft, name: { ar: "ا\u0007", en: "A" } });
-    expect(!unsafe.ok && unsafe.fields.has("name.ar")).toBe(true);
   });
 });
 

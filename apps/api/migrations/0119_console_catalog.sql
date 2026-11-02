@@ -1,9 +1,12 @@
 -- T-709b: the console's catalog editors (FR-1403; plan docs/plans/2026-11-02-t-709b-catalog-editors.md; ADR-425 to ADR-428).
--- An admin edits four sets of configuration the platform already reads: event templates, achievements (thresholds and
--- names), level titles, and the gem shop (price, sale status, place). Every table stays closed; each editor is two doors
--- (a list and a save) that start with console_admin() (QE403 for anyone else), lock the row, change only that row, and write
--- one audit entry holding the edited fields before and after. A revert is the same save door given the `before` of the last
--- entry, so it passes the same checks. Nothing here touches points, XP, gems already earned, sign-in or any tenant's data.
+-- An admin edits four sets of configuration the platform already reads: event templates, achievement names, level titles,
+-- and the gem shop (price, sale status, place). Achievement thresholds are not edited here: questify_sync pays gems for a
+-- tier the moment a threshold falls under a player's count, and a revert cannot take those gems back (T-709c, tier A).
+-- Every table stays closed; each editor is two doors (a list and a save) that start with console_admin() (QE403 for anyone
+-- else), lock the row, change only that row, and write one audit entry holding the edited fields before and after. A revert
+-- is the same save door given the id of the latest audit entry; the door reads that entry's `before` under the row's lock and
+-- refuses (CA409) when another change landed since, so it passes the same checks as a save. Nothing here touches points, XP,
+-- gems already earned, sign-in or any tenant's data.
 -- Deny by default: PUBLIC holds EXECUTE on nothing, the helpers are internal, the doors go to questify_app only. Earlier
 -- migrations untouched.
 SET LOCAL lock_timeout = '10s';
@@ -37,6 +40,24 @@ CREATE FUNCTION catalog_audit(action text, target_type text, target text, before
 $$;
 REVOKE ALL ON FUNCTION catalog_audit(text, text, text, jsonb, jsonb, uuid) FROM PUBLIC;
 
+-- The fields a revert puts back: the `before` of audit entry `entry_id`, which must still be the latest catalog entry of the
+-- target (CA409 otherwise: someone changed the row after the revert was asked for). Every door calls it after it locked the
+-- row, so no change can land between this read and the door's write.
+CREATE FUNCTION catalog_revert_doc(kind text, target text, entry_id bigint) RETURNS jsonb
+  LANGUAGE plpgsql VOLATILE SET search_path = public, pg_temp AS $$
+DECLARE
+  latest audit_log;
+BEGIN
+  SELECT * INTO latest FROM audit_log a
+  WHERE a.target_type = kind AND a.target_id = target AND a.action LIKE 'catalog.%'
+  ORDER BY a.id DESC LIMIT 1;
+  IF NOT FOUND OR latest.id <> entry_id OR latest.before IS NULL THEN
+    RAISE EXCEPTION 'the % changed after the revert was asked for', kind USING ERRCODE = 'CA409';
+  END IF;
+  RETURN latest.before;
+END $$;
+REVOKE ALL ON FUNCTION catalog_revert_doc(text, text, bigint) FROM PUBLIC;
+
 -- ================================================================ event templates
 -- The fields an admin edits, as the audit entry and a revert hold them.
 CREATE FUNCTION admin_template_doc(t event_template) RETURNS jsonb
@@ -61,9 +82,12 @@ END $$;
 REVOKE ALL ON FUNCTION admin_templates() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION admin_templates() TO questify_app;
 
--- Saves one template, making it (last in order) when the key is new. Only this row changes: an event that already started
--- from the template keeps what it got. A save that changes nothing writes nothing. Answers the saved template.
-CREATE FUNCTION admin_template_save(template_key text, doc jsonb, reverting boolean, request uuid) RETURNS jsonb
+-- Saves one template, making it (last in order) when the key is new (CA409 when someone made that key a moment ago). Only
+-- this row changes: an event that already started from the template keeps what it got. A save that changes nothing writes
+-- nothing. `revert_of` is the audit entry a revert undoes (NULL for a save); the door reads its `before` under the row's lock.
+-- The body is at most 60,000 bytes stored: the audit entry holds it twice, and an audit column must stay under 64 KB; the
+-- API's own limit (TEMPLATE_BODY_MAX_BYTES) sits well inside. Answers the saved template.
+CREATE FUNCTION admin_template_save(template_key text, doc jsonb, revert_of bigint, request uuid) RETURNS jsonb
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   old    event_template;
@@ -74,8 +98,17 @@ DECLARE
   d_en   text;
   shown  boolean;
   edited jsonb;
+  existed boolean;
 BEGIN
   PERFORM console_admin();
+  SELECT * INTO old FROM event_template t WHERE t.key = template_key FOR UPDATE;
+  existed := FOUND;
+  IF revert_of IS NOT NULL THEN
+    IF NOT existed THEN
+      RAISE EXCEPTION 'no such template' USING ERRCODE = 'CA404';
+    END IF;
+    doc := catalog_revert_doc('event_template', template_key, revert_of);
+  END IF;
   n_ar := catalog_text(doc #>> '{name,ar}', 'name.ar', 120);
   n_en := catalog_text(doc #>> '{name,en}', 'name.en', 120);
   d_ar := catalog_text(doc #>> '{description,ar}', 'description.ar', 300);
@@ -87,8 +120,7 @@ BEGIN
   edited := jsonb_build_object('name', jsonb_build_object('ar', n_ar, 'en', n_en),
                                'description', jsonb_build_object('ar', d_ar, 'en', d_en),
                                'body', doc -> 'body', 'enabled', shown);
-  SELECT * INTO old FROM event_template t WHERE t.key = template_key FOR UPDATE;
-  IF FOUND THEN
+  IF existed THEN
     IF admin_template_doc(old) = edited THEN
       RETURN edited || jsonb_build_object('key', old.key, 'position', old.position, 'updatedAt', old.updated_at);
     END IF;
@@ -96,28 +128,29 @@ BEGIN
            body = doc -> 'body', enabled = shown, updated_at = now()
     WHERE t.key = template_key
     RETURNING * INTO made;
-  ELSIF reverting THEN
-    RAISE EXCEPTION 'no such template' USING ERRCODE = 'CA404';
   ELSE
     LOCK TABLE event_template IN SHARE ROW EXCLUSIVE MODE;
+    IF EXISTS (SELECT 1 FROM event_template t WHERE t.key = template_key) THEN
+      RAISE EXCEPTION 'a template with that key was just made' USING ERRCODE = 'CA409';
+    END IF;
     INSERT INTO event_template (key, position, name_ar, name_en, description_ar, description_en, body, enabled)
     VALUES (template_key, (SELECT coalesce(max(position), 0) + 1 FROM event_template), n_ar, n_en, d_ar, d_en,
             doc -> 'body', shown)
     RETURNING * INTO made;
   END IF;
-  PERFORM catalog_audit(CASE WHEN reverting THEN 'catalog.template.revert' ELSE 'catalog.template.update' END,
+  PERFORM catalog_audit(CASE WHEN revert_of IS NOT NULL THEN 'catalog.template.revert' ELSE 'catalog.template.update' END,
                         'event_template', template_key, CASE WHEN old.key IS NOT NULL THEN admin_template_doc(old) END,
                         edited, request);
   RETURN edited || jsonb_build_object('key', made.key, 'position', made.position, 'updatedAt', made.updated_at);
 END $$;
-REVOKE ALL ON FUNCTION admin_template_save(text, jsonb, boolean, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION admin_template_save(text, jsonb, boolean, uuid) TO questify_app;
+REVOKE ALL ON FUNCTION admin_template_save(text, jsonb, bigint, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION admin_template_save(text, jsonb, bigint, uuid) TO questify_app;
 
 -- ================================================================ achievements
+-- The name is all an admin edits of an achievement. The thresholds are shown, not edited (see the header).
 CREATE FUNCTION admin_achievement_doc(a achievement) RETURNS jsonb
   LANGUAGE sql IMMUTABLE SET search_path = public, pg_temp AS $$
-  SELECT jsonb_build_object('bronze', a.bronze, 'silver', a.silver, 'gold', a.gold,
-                            'name', jsonb_build_object('ar', a.name_ar, 'en', a.name_en))
+  SELECT jsonb_build_object('name', jsonb_build_object('ar', a.name_ar, 'en', a.name_en))
 $$;
 REVOKE ALL ON FUNCTION admin_achievement_doc(achievement) FROM PUBLIC;
 
@@ -126,18 +159,19 @@ CREATE FUNCTION admin_achievements() RETURNS jsonb
 BEGIN
   PERFORM console_admin();
   RETURN coalesce((
-    SELECT jsonb_agg(admin_achievement_doc(a) || jsonb_build_object('id', a.id, 'metric', a.metric,
-                                                                   'visualKey', a.visual_key, 'position', a.position)
-                     ORDER BY a.position)
+    SELECT jsonb_agg(admin_achievement_doc(a) || jsonb_build_object(
+             'id', a.id, 'metric', a.metric, 'bronze', a.bronze, 'silver', a.silver, 'gold', a.gold,
+             'visualKey', a.visual_key, 'position', a.position)
+           ORDER BY a.position)
     FROM achievement a), '[]'::jsonb);
 END $$;
 REVOKE ALL ON FUNCTION admin_achievements() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION admin_achievements() TO questify_app;
 
--- Changes the three thresholds and the name of one achievement (CA404 for an unknown id). Players who already earned a tier
--- keep it (the earned rows are append-only); a lower threshold gives the tier to players who now reach it at their next
--- sync, a higher one stops giving it to new players. A save that changes nothing writes nothing.
-CREATE FUNCTION admin_achievement_save(achievement_id text, doc jsonb, reverting boolean, request uuid) RETURNS jsonb
+-- Changes the name of one achievement (CA404 for an unknown id). A document with anything else in it, thresholds above all,
+-- is refused (CA400, detail `thresholds`): questify_sync pays gems for a tier at the next sync of every player who now
+-- reaches it, and those gems are append-only. A save that changes nothing writes nothing.
+CREATE FUNCTION admin_achievement_save(achievement_id text, doc jsonb, revert_of bigint, request uuid) RETURNS jsonb
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   old    achievement;
@@ -145,29 +179,33 @@ DECLARE
   edited jsonb;
 BEGIN
   PERFORM console_admin();
-  edited := jsonb_build_object('bronze', (doc ->> 'bronze')::integer, 'silver', (doc ->> 'silver')::integer,
-                               'gold', (doc ->> 'gold')::integer,
-                               'name', jsonb_build_object('ar', catalog_text(doc #>> '{name,ar}', 'name.ar', 60),
-                                                          'en', catalog_text(doc #>> '{name,en}', 'name.en', 60)));
   SELECT * INTO old FROM achievement a WHERE a.id = achievement_id FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'no such achievement' USING ERRCODE = 'CA404';
   END IF;
-  IF admin_achievement_doc(old) = edited THEN
-    RETURN edited || jsonb_build_object('id', old.id, 'metric', old.metric, 'visualKey', old.visual_key,
-                                        'position', old.position);
+  IF revert_of IS NOT NULL THEN
+    doc := catalog_revert_doc('achievement', achievement_id, revert_of);
   END IF;
-  UPDATE achievement a SET bronze = (edited ->> 'bronze')::integer, silver = (edited ->> 'silver')::integer,
-         gold = (edited ->> 'gold')::integer, name_ar = edited #>> '{name,ar}', name_en = edited #>> '{name,en}'
+  IF jsonb_typeof(doc) = 'object' AND doc - 'name' <> '{}'::jsonb THEN
+    RAISE EXCEPTION 'only the name of an achievement is edited here, not its thresholds'
+      USING ERRCODE = 'CA400', DETAIL = 'thresholds';
+  END IF;
+  edited := jsonb_build_object('name', jsonb_build_object('ar', catalog_text(doc #>> '{name,ar}', 'name.ar', 60),
+                                                          'en', catalog_text(doc #>> '{name,en}', 'name.en', 60)));
+  IF admin_achievement_doc(old) = edited THEN
+    RETURN edited || jsonb_build_object('id', old.id, 'metric', old.metric, 'bronze', old.bronze, 'silver', old.silver,
+                                        'gold', old.gold, 'visualKey', old.visual_key, 'position', old.position);
+  END IF;
+  UPDATE achievement a SET name_ar = edited #>> '{name,ar}', name_en = edited #>> '{name,en}'
   WHERE a.id = achievement_id
   RETURNING * INTO made;
-  PERFORM catalog_audit(CASE WHEN reverting THEN 'catalog.achievement.revert' ELSE 'catalog.achievement.update' END,
+  PERFORM catalog_audit(CASE WHEN revert_of IS NOT NULL THEN 'catalog.achievement.revert' ELSE 'catalog.achievement.update' END,
                         'achievement', achievement_id, admin_achievement_doc(old), edited, request);
-  RETURN edited || jsonb_build_object('id', made.id, 'metric', made.metric, 'visualKey', made.visual_key,
-                                      'position', made.position);
+  RETURN edited || jsonb_build_object('id', made.id, 'metric', made.metric, 'bronze', made.bronze, 'silver', made.silver,
+                                      'gold', made.gold, 'visualKey', made.visual_key, 'position', made.position);
 END $$;
-REVOKE ALL ON FUNCTION admin_achievement_save(text, jsonb, boolean, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION admin_achievement_save(text, jsonb, boolean, uuid) TO questify_app;
+REVOKE ALL ON FUNCTION admin_achievement_save(text, jsonb, bigint, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION admin_achievement_save(text, jsonb, bigint, uuid) TO questify_app;
 
 -- ================================================================ level titles
 -- The whole set is one document: a title covers the levels from its own up to the next title's.
@@ -190,8 +228,8 @@ REVOKE ALL ON FUNCTION admin_level_titles() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION admin_level_titles() TO questify_app;
 
 -- Replaces the set: 1 to 100 titles, level 1 among them, no level twice (CA400). The writers queue on the table so two saves
--- cannot interleave; readers are never blocked.
-CREATE FUNCTION admin_level_titles_save(doc jsonb, reverting boolean, request uuid) RETURNS jsonb
+-- cannot interleave; readers are never blocked. `revert_of` is the audit entry a revert undoes (NULL for a save).
+CREATE FUNCTION admin_level_titles_save(doc jsonb, revert_of bigint, request uuid) RETURNS jsonb
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   old    jsonb;
@@ -199,11 +237,14 @@ DECLARE
   levels integer[];
 BEGIN
   PERFORM console_admin();
+  LOCK TABLE level_title IN EXCLUSIVE MODE;
+  IF revert_of IS NOT NULL THEN
+    doc := catalog_revert_doc('level_title', 'all', revert_of);
+  END IF;
   IF jsonb_typeof(doc -> 'titles') IS DISTINCT FROM 'array'
      OR jsonb_array_length(doc -> 'titles') NOT BETWEEN 1 AND 100 THEN
     RAISE EXCEPTION 'give 1 to 100 titles' USING ERRCODE = 'CA400', DETAIL = 'titles';
   END IF;
-  LOCK TABLE level_title IN EXCLUSIVE MODE;
   old := admin_level_titles_doc();
   SELECT array_agg((t ->> 'levelFrom')::integer) INTO levels FROM jsonb_array_elements(doc -> 'titles') AS t;
   IF NOT 1 = ANY (levels) OR (SELECT count(DISTINCT x) FROM unnest(levels) AS x) <> cardinality(levels) THEN
@@ -216,13 +257,13 @@ BEGIN
   FROM jsonb_array_elements(doc -> 'titles') AS t;
   made := admin_level_titles_doc();
   IF made <> old THEN
-    PERFORM catalog_audit(CASE WHEN reverting THEN 'catalog.level_titles.revert' ELSE 'catalog.level_titles.update' END,
+    PERFORM catalog_audit(CASE WHEN revert_of IS NOT NULL THEN 'catalog.level_titles.revert' ELSE 'catalog.level_titles.update' END,
                           'level_title', 'all', old, made, request);
   END IF;
   RETURN made;
 END $$;
-REVOKE ALL ON FUNCTION admin_level_titles_save(jsonb, boolean, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION admin_level_titles_save(jsonb, boolean, uuid) TO questify_app;
+REVOKE ALL ON FUNCTION admin_level_titles_save(jsonb, bigint, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION admin_level_titles_save(jsonb, bigint, uuid) TO questify_app;
 
 -- ================================================================ the gem shop
 CREATE FUNCTION admin_shop_item_doc(s gem_shop_item) RETURNS jsonb
@@ -248,27 +289,30 @@ GRANT EXECUTE ON FUNCTION admin_shop_items() TO questify_app;
 -- Changes the price, the sale status and the place of one shop item (CA404 for an item not in the shop). A player who bought
 -- it keeps it and its price (`gem_purchase.price`); a buy that saw the old price is refused with the new one (gem_buy).
 -- New items and their names are not edited here (kind and id are fixed; T-709c).
-CREATE FUNCTION admin_shop_item_save(shop_item text, doc jsonb, reverting boolean, request uuid) RETURNS jsonb
+CREATE FUNCTION admin_shop_item_save(shop_item text, doc jsonb, revert_of bigint, request uuid) RETURNS jsonb
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   old    gem_shop_item;
   edited jsonb;
 BEGIN
   PERFORM console_admin();
-  edited := jsonb_build_object('price', (doc ->> 'price')::integer, 'status', doc ->> 'status',
-                               'position', (doc ->> 'position')::integer);
   SELECT * INTO old FROM gem_shop_item s WHERE s.item_id = shop_item FOR NO KEY UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'no such shop item' USING ERRCODE = 'CA404';
   END IF;
+  IF revert_of IS NOT NULL THEN
+    doc := catalog_revert_doc('gem_shop_item', shop_item, revert_of);
+  END IF;
+  edited := jsonb_build_object('price', (doc ->> 'price')::integer, 'status', doc ->> 'status',
+                               'position', (doc ->> 'position')::integer);
   IF admin_shop_item_doc(old) <> edited THEN
     UPDATE gem_shop_item s SET price = (edited ->> 'price')::integer, status = edited ->> 'status',
            position = (edited ->> 'position')::smallint
     WHERE s.item_id = shop_item;
-    PERFORM catalog_audit(CASE WHEN reverting THEN 'catalog.gem_shop.revert' ELSE 'catalog.gem_shop.update' END,
+    PERFORM catalog_audit(CASE WHEN revert_of IS NOT NULL THEN 'catalog.gem_shop.revert' ELSE 'catalog.gem_shop.update' END,
                           'gem_shop_item', shop_item, admin_shop_item_doc(old), edited, request);
   END IF;
   RETURN (SELECT e FROM jsonb_array_elements(admin_shop_items()) AS e WHERE e ->> 'itemId' = shop_item);
 END $$;
-REVOKE ALL ON FUNCTION admin_shop_item_save(text, jsonb, boolean, uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION admin_shop_item_save(text, jsonb, boolean, uuid) TO questify_app;
+REVOKE ALL ON FUNCTION admin_shop_item_save(text, jsonb, bigint, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION admin_shop_item_save(text, jsonb, bigint, uuid) TO questify_app;

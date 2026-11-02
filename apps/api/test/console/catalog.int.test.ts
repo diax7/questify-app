@@ -14,7 +14,12 @@ import {
   withSession,
   type TestApp,
 } from "#test/support/auth-app";
-import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
+import {
+  TEST_DATABASE_URL,
+  connectAsOwner,
+  createTestDatabase,
+  type TestDatabase,
+} from "#test/support/test-db";
 
 type Method = "GET" | "PUT" | "POST";
 type Json = Record<string, unknown>;
@@ -80,6 +85,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
         [action, target],
       )
     ).rows;
+  /** Waits until a backend running `fragment` is waiting on a lock. */
+  const waitsOnLock = async (fragment: string): Promise<void> => {
+    for (let tries = 0; tries < 100; tries += 1) {
+      const { rows } = await db.owner.query(
+        `SELECT 1 FROM pg_stat_activity
+         WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE $1`,
+        [`%${fragment}%`],
+      );
+      if (rows.length > 0) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error(`nothing waited on a lock in ${fragment}`);
+  };
   const templates = async (): Promise<TemplateAdmin[]> =>
     templatesAdminListSchema.parse((await admin("GET", "/v1/admin/catalog/templates")).json())
       .templates;
@@ -201,6 +221,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
       expect((off.json() as { template: TemplateAdmin }).template.enabled).toBe(false);
     });
 
+    it("answers 409 stale when another admin changes the template after the revert read its latest entry", async () => {
+      const original = (await templates()).find((row) => row.key === "campus") as TemplateAdmin;
+      await admin("PUT", "/v1/admin/catalog/templates/campus", {
+        ...docOf(original),
+        name: { ar: "حرم", en: "Campus One" },
+      });
+      const holder = await connectAsOwner(db);
+      try {
+        await holder.query("BEGIN");
+        await holder.query("SELECT 1 FROM event_template WHERE key = 'campus' FOR UPDATE");
+        const revert = admin("POST", "/v1/admin/catalog/templates/campus/revert", {});
+        await waitsOnLock("admin_template_save");
+        await holder.query(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_type, target_id, before, after)
+           VALUES ('admin', $1, 'catalog.template.update', 'event_template', 'campus', '{}', '{}')`,
+          [adminId],
+        );
+        await holder.query("COMMIT");
+        const answer = await revert;
+        expect(answer.statusCode).toBe(409);
+        expect((answer.json() as { code: string }).code).toBe("stale");
+      } finally {
+        await holder.end();
+      }
+      expect((await templates()).find((row) => row.key === "campus")?.name.en).toBe("Campus One");
+    });
+
     it("refuses a key that is not one, and a repeated revert with the same key changes once", async () => {
       expect((await admin("PUT", "/v1/admin/catalog/templates/Bad-Key", {})).statusCode).toBe(400);
       const key = randomUUID();
@@ -217,31 +264,43 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
   });
 
   describe("achievements", () => {
-    it("saves thresholds and names, refuses thresholds that do not rise, and reverts", async () => {
+    it("saves a name, never a threshold, and reverts", async () => {
       const list = achievementsAdminListSchema.parse(
         (await admin("GET", "/v1/admin/catalog/achievements")).json(),
       ).achievements;
       expect(list).toHaveLength(5);
       const original = list.find((row) => row.id === "quests-done");
-      const edit = {
-        bronze: 15,
-        silver: 60,
-        gold: 250,
-        name: { ar: "صائد المهام", en: "Quest Hunter Pro" },
-      };
+      const edit = { name: { ar: "صائد المهام", en: "Quest Hunter Pro" } };
       const saved = await admin("PUT", "/v1/admin/catalog/achievements/quests-done", edit);
       expect(saved.statusCode).toBe(200);
       expect(saved.json()).toMatchObject({
-        achievement: { id: "quests-done", bronze: 15, revertible: true },
+        achievement: {
+          id: "quests-done",
+          name: edit.name,
+          bronze: original?.bronze,
+          silver: original?.silver,
+          gold: original?.gold,
+          revertible: true,
+        },
       });
-      const refused = await admin("PUT", "/v1/admin/catalog/achievements/quests-done", {
-        ...edit,
-        silver: 10,
-      });
-      expect(refused.statusCode).toBe(422);
+      for (const extra of [
+        { bronze: 15 },
+        { bronze: original?.bronze, silver: original?.silver, gold: original?.gold },
+      ]) {
+        const refused = await admin("PUT", "/v1/admin/catalog/achievements/quests-done", {
+          ...edit,
+          ...extra,
+        });
+        expect(refused.statusCode, JSON.stringify(extra)).toBe(422);
+      }
       const reverted = await admin("POST", "/v1/admin/catalog/achievements/quests-done/revert", {});
       expect(reverted.json()).toMatchObject({
-        achievement: { bronze: original?.bronze, silver: original?.silver, gold: original?.gold },
+        achievement: {
+          name: original?.name,
+          bronze: original?.bronze,
+          silver: original?.silver,
+          gold: original?.gold,
+        },
       });
       expect(
         (await admin("PUT", "/v1/admin/catalog/achievements/nothing-here", edit)).statusCode,

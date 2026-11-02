@@ -1888,14 +1888,14 @@ already sees their own. Every such read is audited with the account id.
 
 ## Q-390 - Is a visual editor wanted for a template's setup? (T-709b)
 
-**Status:** Proposed (developer, delegated by Dhia, 2026-11-02): as recommended; ADR-427.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-709b review 82, achievements made name-only): as recommended; ADR-427.
 The Catalog page edits a template's categories, quests and rewards as JSON checked by the template schema. A form with a card per
 category and quest would be friendlier, and is a large piece of UI for a few edits a year by Questify's own team.
 **Recommended (developer):** keep the JSON editor; build the visual editor only if the team edits templates often.
 
 ## Q-391 - Template order and new gem shop items (T-709b)
 
-**Status:** Proposed (developer, delegated by Dhia, 2026-11-02): as recommended; ADR-425.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-709b review 82, achievements made name-only): as recommended; ADR-425.
 A new template goes last and cannot be moved; there is no move up or down. New shop items and item names wait for T-709c
 (an item in the shop is frozen, kinds and ids are fixed, art is shipped).
 **Recommended (developer):** add move up and down to templates only if the list grows past five or six; do items in T-709c.

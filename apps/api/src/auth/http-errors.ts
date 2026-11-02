@@ -2277,3 +2277,9 @@ export const nothingToRevert = make(
   "لا يوجد تغيير سابق يمكن التراجع عنه.",
   "There is no earlier change to go back to.",
 );
+export const catalogStale = make(
+  409,
+  "stale",
+  "تغيّر هذا العنصر أثناء عملك. أعد تحميل الصفحة وحاول مرة أخرى.",
+  "This item changed while you worked. Reload the page and try again.",
+);

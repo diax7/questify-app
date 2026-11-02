@@ -6558,11 +6558,12 @@ a minute limit bounds the cost, and a cached count is the next step if the table
 
 ## ADR-425 - T-709b ships four catalog editors on one console page; the XP table and the item catalog become T-709c
 
-**Status:** Proposed (developer, delegated by Dhia, 2026-11-02; T-709b plan note `docs/plans/2026-11-02-t-709b-catalog-editors.md`). Migration 0119.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-709b review 82, achievements made name-only). T-709b plan note `docs/plans/2026-11-02-t-709b-catalog-editors.md`. Migration 0119.
 **Decision:** The console gets one page, Catalog (`/console/catalog`, one nav item, four tabs), with the editors of **event
-templates**, **achievements** (the three tier thresholds and the name), **level titles** (the whole set) and the **gem shop**
+templates**, **achievements** (the name only; the three tier thresholds are shown, see ADR-428), **level titles** (the whole set) and the **gem shop**
 (price, on sale or retired, place). The daily-challenge questions (T-406c) and the Questify quests (T-403b) already have their
-console pages, so FR-1403 is covered for those. **T-709c** (tier A, plan and plan review first) takes the rest: the XP table
+console pages, so FR-1403 is covered for those. **T-709c** (tier A, plan and plan review first) takes the rest: **achievement
+thresholds** (a lower one makes `questify_sync` pay gems to every player who now reaches the tier, which a revert cannot undo), the XP table
 (`xp_level`, `platform_setting` keys `xp` and `gems`, the level reward map `level_item`) because a curve change recomputes
 `player_xp.level` and pays or withholds gems and items on the XP ledger; item names and art and new shop items (an item that is
 in the shop is frozen by `souvenir_catalog_guard`, and kinds and ids are fixed); and an audited revoke of a banned player's
@@ -6573,41 +6574,48 @@ gems already earned, sign-in or a tenant. The XP curve and the payout numbers do
 
 ## ADR-426 - T-709b every change is a definer door that audits itself, and a revert is the same door given the earlier fields
 
-**Status:** Proposed (developer, delegated by Dhia, 2026-11-02). Migration 0119.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-709b review 82, achievements made name-only). Migration 0119.
 **Decision:** The tables stay closed to every role. Each editor is a list door and a save door (`admin_templates` and
 `admin_template_save`, `admin_achievements` and `admin_achievement_save`, `admin_level_titles` and `admin_level_titles_save`,
 `admin_shop_items` and `admin_shop_item_save`), granted to the API's role alone, each starting with `console_admin()` (QE403 for
 anyone but an active platform admin). A save locks the row, changes only that row, and writes one audit entry in the database
 (`catalog.<kind>.update`, actor the admin, target the row, `before` and `after` the edited fields); a save that changes nothing
-writes nothing. A **revert** reads the `before` of the row's latest `catalog.%` audit entry, checks it against the same schema and
-calls the same save door with `reverting = true` (audited `catalog.<kind>.revert`), so it passes every check a save passes and a
-second revert undoes the first. No history table: the audit log is the history, found through the partial index
-`audit_log_catalog_idx`. A new template has no `before`, so it cannot be reverted; switch it off instead. Text is checked twice,
+writes nothing. A **revert** reads the row's latest `catalog.%` audit entry, checks its `before` against the same schema and calls the same save
+door with `revert_of` set to that entry's id (audited `catalog.<kind>.revert`); the door locks the row, re-reads the entry's
+`before` under the lock (`catalog_revert_doc`) and raises CA409 (HTTP 409 `stale`) unless it is still the row's latest catalog
+entry, so a revert never puts an older state over another admin's change. It passes every check a save passes and a second
+revert undoes the first. No history table: the audit log is the history, found through the partial index
+`audit_log_catalog_idx`. A new template has no `before`, so it cannot be reverted; switch it off instead. Two admins making the same new template key at
+once: the second gets CA409 (409 `stale`) after the table lock. Text is checked twice,
 by the shared schema (`arabicText` and `englishText`: trimmed, length, Western digits, the language's script, and
 `hasUnsafeCharacter` for control and direction characters) and by `catalog_text` in the database (CA400). The API answers 422
-`invalid_catalog` with the issues, 409 `nothing_to_revert`, 404 to anyone who is not an admin, 60 reads a minute and 120 changes
+`invalid_catalog` with the issues, 409 `nothing_to_revert` or `stale`, 404 to anyone who is not an admin, 60 reads a minute and 120 changes
 an hour per admin; a revert needs an Idempotency-Key.
 **Why:** the audit entry cannot be skipped by a caller, the revert cannot write what a save would refuse, and nothing new is stored.
 
 ## ADR-427 - T-709b a template's setup is edited as JSON that the template schema checks before it saves
 
-**Status:** Proposed (developer, delegated by Dhia, 2026-11-02). Q-390.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-709b review 82, achievements made name-only). Q-390.
 **Decision:** The template card edits its names and descriptions in both languages in boxes, and the setup (switches, accent,
 layout preset, categories with quests, rewards) as JSON in a text area, checked live by `templateBodySchema` with the failing
-paths listed; Save stays off until it passes (T-601b: the console runs the same schema as the API's reads). A body over 40,000
-characters is refused, so the audit entry (two copies, each under 64 KB) always fits. An edit changes the row only: an event made
+paths listed; Save stays off until it passes (T-601b: the console runs the same schema as the API's reads). A body over 30,000
+bytes of JSON text (UTF-8, so an Arabic letter counts two) is refused with a line saying its size, the limit and why: the audit entry
+keeps the setup twice and an audit column stays under 64 KB, so the database backstop is 60,000 stored bytes and the API's limit
+sits well inside it. Shipped templates are about 7 KB. An edit changes the row only: an event made
 earlier keeps what it got (`event_apply_template` copies). A stored body that fails the schema still shows in the console, with a
 note, so it can be fixed; the API keeps refusing to serve it.
 **Why:** the setup is a nested document that Questify's own team edits rarely; a visual builder is a large piece of UI for that use.
 **Trade-offs:** JSON is not friendly; Q-390 asks whether a visual editor is wanted.
 
-## ADR-428 - T-709b the level titles are one document and an achievement or price change reaches players on their next sync or buy
+## ADR-428 - T-709b the level titles are one document, an achievement is edited by name only, and a price change reaches players on their next buy
 
-**Status:** Proposed (developer, delegated by Dhia, 2026-11-02). Migration 0119.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02; T-709b review 82, achievements made name-only). Migration 0119.
 **Decision:** The level titles are saved as the whole set (1 to 100 titles, level 1 required, no level twice, each name 1 to 40
 characters) under a table lock that lets readers through, so a title for level 1 always exists and two saves cannot interleave.
-An achievement's thresholds must rise (bronze under silver under gold, 1 to 100,000) and an earned tier stays earned; lowering a
-number gives the tier to players who already reach it at their next sync, raising it stops giving it to players who have not
-earned it, and the page says so in an info tip. A gem shop item's price, sale status and place change; a buy that saw the old
+An achievement is edited by **name only**: `admin_achievement_save` refuses a document with any other field (CA400, detail
+`thresholds`), the shared schema is strict, and the page shows the three thresholds read-only with an info tip. The reason
+(review 82, BLOCKER): `questify_sync` pays gems for every tier a player now reaches, so a lowered threshold pays gems to every such
+player at their next sync, those gems are append-only, and a revert cannot take them back. Threshold editing moves to T-709c (tier A),
+which must state this in a confirmation naming gems and test that a sync pays exactly once. A gem shop item's price, sale status and place change; a buy that saw the old
 price is refused with the new one (`gem_buy`) and what players paid stays in `gem_purchase`.
 **Why:** reuses the rules the platform already enforces; nothing recomputed in the same transaction.

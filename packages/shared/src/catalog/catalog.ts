@@ -10,8 +10,13 @@ import { arabicText, englishText } from "#src/text/bilingual";
 export const CATALOG_KINDS = ["template", "achievement", "level_titles", "gem_shop"] as const;
 export type CatalogKind = (typeof CATALOG_KINDS)[number];
 
-/** The most characters a template body may hold: the audit entry of a change holds it twice, each under 64 KB. */
-export const TEMPLATE_BODY_MAX_CHARACTERS = 40_000;
+/**
+ * The most bytes a template body may hold as JSON text (UTF-8): the audit entry of a change holds it twice, and an audit
+ * column stays under 64 KB. The database refuses a body over 60,000 stored bytes (migration 0119), which this leaves room for.
+ */
+export const TEMPLATE_BODY_MAX_BYTES = 30_000;
+
+const utf8Bytes = (text: string): number => new TextEncoder().encode(text).length;
 
 const pair = (max: number) => z.strictObject({ ar: arabicText(max), en: englishText(max) });
 
@@ -24,23 +29,26 @@ export const LEVEL_TITLE_LIMIT = 100;
 export const templateDocSchema = z.strictObject({
   name: pair(120),
   description: pair(300),
-  body: templateBodySchema.refine(
-    (body) => JSON.stringify(body).length <= TEMPLATE_BODY_MAX_CHARACTERS,
-    "too long",
-  ),
+  body: templateBodySchema.superRefine((body, context) => {
+    const bytes = utf8Bytes(JSON.stringify(body));
+    if (bytes > TEMPLATE_BODY_MAX_BYTES) {
+      context.addIssue({
+        code: "custom",
+        message: `the setup is ${bytes} bytes and at most ${TEMPLATE_BODY_MAX_BYTES} can be saved (every change is kept twice in the audit log)`,
+      });
+    }
+  }),
   enabled: z.boolean(),
 });
 export type TemplateDoc = z.infer<typeof templateDocSchema>;
 
 const threshold = z.number().int().min(1).max(100_000);
 
-/** What an admin edits of an achievement: the three tier thresholds, rising, and the name. */
-export const achievementDocSchema = z
-  .strictObject({ bronze: threshold, silver: threshold, gold: threshold, name: pair(60) })
-  .refine((doc) => doc.bronze < doc.silver && doc.silver < doc.gold, {
-    path: ["bronze"],
-    message: "bronze, silver and gold must rise",
-  });
+/**
+ * What an admin edits of an achievement: the name. The tier thresholds are listed, never edited here: a lower threshold makes
+ * questify_sync pay gems to every player who now reaches the tier, and a revert cannot take them back (T-709c).
+ */
+export const achievementDocSchema = z.strictObject({ name: pair(60) });
 export type AchievementDoc = z.infer<typeof achievementDocSchema>;
 
 const levelTitle = z.strictObject({

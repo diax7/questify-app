@@ -22,8 +22,11 @@ item names and new shop items, and the revoke of earned tiers are **T-709c** (ti
    `catalog_text` (CA400) for names, CHECK violations for numbers, `catalog_audit` for the entry (`catalog.<kind>.update` or
    `.revert`, `before` and `after` the edited fields). A save that changes nothing writes nothing. Level titles replace the
    whole set under `LOCK TABLE ... IN EXCLUSIVE MODE`. Partial index `audit_log_catalog_idx` for a row's latest entry.
-2. **Revert:** the API reads the `before` of the row's latest `catalog.%` entry, checks it with the same schema and calls the
-   save door with `reverting = true`. Revert of a revert re-applies the change; a new template has no `before` (409).
+2. **Revert:** the API reads the id and `before` of the row's latest `catalog.%` entry, checks the `before` with the same
+   schema and calls the save door with `revert_of` = that id; the door re-reads the entry under the row lock and raises CA409
+   (409 `stale`) unless it is still the latest. Revert of a revert re-applies the change; a new template has no `before` (409).
+   Review 82: achievements are edited by name only (a lower threshold pays gems at the next sync and a revert cannot take them
+   back; thresholds are T-709c).
 3. **Shared:** `catalog/catalog.ts` (the edit documents and the admin rows), `text/bilingual.ts` (clean, Arabic and English
    text, moved out of the template schema), `hasUnsafeCharacter` exported.
 4. **API:** `console/catalog.ts` (one descriptor per editor) and `console/catalog-routes.ts` (list, save, revert for each; 60

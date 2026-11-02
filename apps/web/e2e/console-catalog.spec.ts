@@ -82,7 +82,7 @@ test("in English a template is edited in place, saved, and reverted, and the car
   await expectNoSidewaysScroll(page);
 });
 
-test("in Arabic the catalog reads right to left and an achievement refuses thresholds that do not rise", async ({
+test("in Arabic the catalog reads right to left and an achievement's name is edited while its thresholds are only shown", async ({
   page,
 }, info) => {
   test.setTimeout(120_000);
@@ -95,18 +95,23 @@ test("in Arabic the catalog reads right to left and an achievement refuses thres
 
   const card = page.locator(`[data-testid="achievement-card"][data-id="${own.id}"]`);
   await expect(card.getByTestId("cell-ar").getByText(own.ar)).toBeVisible();
+  const tiers = card.getByTestId("achievement-tiers");
+  const shown = await tiers.innerText();
+  expect(shown).toContain("برونزية");
   await card.getByRole("button", { name: `تعديل ${own.ar}` }).click();
-  const bronze = card.getByLabel("برونزية");
-  const original = await bronze.inputValue();
-  await bronze.fill("999999");
+  await expect(card.getByLabel("برونزية")).toHaveCount(0);
+  await expect(tiers).toHaveText(shown);
+  const name = card.getByLabel("الاسم · العربية");
+  await name.fill("");
   await expect(card.getByRole("button", { name: "حفظ" })).toBeDisabled();
-  await expect(card.getByText("كل درجة تحتاج رقمًا أكبر من التي قبلها.")).toBeVisible();
-  await bronze.fill(String(Number(original) + 1));
+  await name.fill(`${own.ar} جدًا`);
   await card.getByRole("button", { name: "حفظ" }).click();
   await expect(page.getByText("حُفظ التغيير.")).toBeVisible();
-  await card.getByRole("button", { name: `التراجع عن آخر تغيير في ${own.ar}` }).click();
+  await expect(card.getByTestId("cell-ar").getByText(`${own.ar} جدًا`)).toBeVisible();
+  await card.getByRole("button", { name: `التراجع عن آخر تغيير في ${own.ar} جدًا` }).click();
   await expect(page.getByText("عدنا إلى ما قبل التغيير.")).toBeVisible();
-  await expect(card.getByText(`برونزية ${original}`)).toBeVisible();
+  await expect(card.getByTestId("cell-ar").getByText(own.ar, { exact: true })).toBeVisible();
+  await expect(tiers).toHaveText(shown);
   await expectNoSidewaysScroll(page);
 });
 

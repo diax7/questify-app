@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  TEMPLATE_BODY_MAX_BYTES,
   achievementDocSchema,
   gemShopDocSchema,
   levelTitlesDocSchema,
@@ -8,7 +9,7 @@ import {
 } from "@questify/shared";
 import type { RequestContext } from "#src/db/context";
 import { pushFixture, type PushFixture } from "#test/support/push";
-import { addMember, TEST_DATABASE_URL } from "#test/support/test-db";
+import { addMember, connectAsOwner, TEST_DATABASE_URL } from "#test/support/test-db";
 
 type Doc = Record<string, unknown>;
 
@@ -32,14 +33,16 @@ const checkViolation = async (work: Promise<unknown>): Promise<boolean> =>
   (await refusal(work)).startsWith("23514");
 
 /**
- * The console's catalog editors in the database (T-709b, migration 0119): event templates, achievements, level titles and
- * the gem shop. Every door is for an active platform admin only (QE403), changes only the row it names, checks the text it
- * is given, writes one audit entry holding the fields before and after, and writes nothing when nothing changed.
+ * The console's catalog editors in the database (T-709b, migration 0119): event templates, achievement names, level titles
+ * and the gem shop. Every door is for an active platform admin only (QE403), changes only the row it names, checks the text
+ * it is given, writes one audit entry holding the fields before and after, and writes nothing when nothing changed. A
+ * revert names the audit entry it undoes and is refused (CA409) when another change landed after that entry.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (database)", () => {
   let f: PushFixture;
   let adminId = "";
   let admin: RequestContext = {};
+  let otherAdmin: RequestContext = {};
 
   beforeAll(async () => {
     f = await pushFixture();
@@ -48,6 +51,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
     );
     adminId = row?.id ?? "";
     admin = { isAdmin: true, staffUserId: adminId };
+    const [second] = await f.owner<{ id: string }>(
+      "INSERT INTO staff_user (email, password_hash, platform_role, status) VALUES ('catalog2@questify.test', 'h', 'admin', 'active') RETURNING id",
+    );
+    otherAdmin = { isAdmin: true, staffUserId: second?.id ?? "" };
   });
   afterAll(async () => {
     await f.close();
@@ -57,20 +64,45 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
     (await f.run<{ r: T }>(seat, sql, values))[0]?.r as T;
   const titlesNow = () =>
     one<{ titles: { levelFrom: number; name: Doc }[] }>("SELECT admin_level_titles() AS r");
-  const saveTitles = (doc: unknown, reverting = false) =>
+  /** `revertOf` is the id of the audit entry a revert undoes; a save passes none. */
+  const saveTitles = (doc: unknown, revertOf: string | null = null) =>
     one<{ titles: { levelFrom: number }[] }>("SELECT admin_level_titles_save($1, $2, $3) AS r", [
       doc,
-      reverting,
+      revertOf,
       randomUUID(),
     ]);
 
   const audits = async (action: string, target?: string) =>
-    f.owner<{ actor_id: string; target_id: string; before: Doc | null; after: Doc }>(
-      `SELECT actor_id, target_id, before, after FROM audit_log
+    f.owner<{ id: string; actor_id: string; target_id: string; before: Doc | null; after: Doc }>(
+      `SELECT id, actor_id, target_id, before, after FROM audit_log
        WHERE action = $1 AND ($2::text IS NULL OR target_id = $2) ORDER BY id`,
       [action, target ?? null],
     );
   const count = async (action: string): Promise<number> => (await audits(action)).length;
+  /** The latest catalog entry of a row, the one a revert would undo. */
+  const latestEntry = async (targetType: string, target: string): Promise<string> =>
+    (
+      await f.owner<{ id: string }>(
+        `SELECT id FROM audit_log WHERE target_type = $1 AND target_id = $2 AND action LIKE 'catalog.%'
+         ORDER BY id DESC LIMIT 1`,
+        [targetType, target],
+      )
+    )[0]?.id ?? "";
+  /** Waits until a backend running `fragment` is waiting on a lock. */
+  const waitsOnLock = async (fragment: string): Promise<boolean> => {
+    for (let tries = 0; tries < 100; tries += 1) {
+      const waiting = await f.owner(
+        `SELECT 1 FROM pg_stat_activity
+         WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE $1`,
+        [`%${fragment}%`],
+      );
+      if (waiting.length > 0) {
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    return false;
+  };
 
   describe("who may ask", () => {
     it("refuses every seat that is not an active platform admin with QE403, on every door", async () => {
@@ -92,13 +124,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
       const request = randomUUID();
       const calls = [
         "SELECT admin_templates()",
-        `SELECT admin_template_save('conference', '${doc}', false, '${request}')`,
+        `SELECT admin_template_save('conference', '${doc}', NULL, '${request}')`,
         "SELECT admin_achievements()",
-        `SELECT admin_achievement_save('quests-done', '${doc}', false, '${request}')`,
+        `SELECT admin_achievement_save('quests-done', '${doc}', NULL, '${request}')`,
         "SELECT admin_level_titles()",
-        `SELECT admin_level_titles_save('${doc}', false, '${request}')`,
+        `SELECT admin_level_titles_save('${doc}', NULL, '${request}')`,
         "SELECT admin_shop_items()",
-        `SELECT admin_shop_item_save('shop-map-reader', '${doc}', false, '${request}')`,
+        `SELECT admin_shop_item_save('shop-map-reader', '${doc}', NULL, '${request}')`,
       ];
       for (const seat of seats) {
         for (const call of calls) {
@@ -111,13 +143,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
   describe("event templates", () => {
     type Template = { key: string; position: number; enabled: boolean } & Doc;
     const list = () => one<Template[]>("SELECT admin_templates() AS r");
-    const save = (key: string, doc: unknown, reverting = false) =>
-      one<Template>("SELECT admin_template_save($1, $2, $3, $4) AS r", [
-        key,
-        doc,
-        reverting,
-        randomUUID(),
-      ]);
+    const save = (key: string, doc: unknown, revertOf: string | null = null, seat = admin) =>
+      one<Template>(
+        "SELECT admin_template_save($1, $2, $3, $4) AS r",
+        [key, doc, revertOf, randomUUID()],
+        seat,
+      );
     const docOf = (template: Template): Doc => ({
       name: template["name"],
       description: template["description"],
@@ -207,7 +238,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
       expect(made.position).toBe(last + 1);
       const [entry] = await audits("catalog.template.update", "summit");
       expect(entry?.before).toBeNull();
-      expect(await refusal(save("nothing", docOf(corporate), true))).toBe("CA404");
+      expect(await refusal(save("nothing", docOf(corporate), "1"))).toBe("CA404");
     });
 
     it("refuses control and direction characters, a blank or long name, a bad body and a huge body", async () => {
@@ -229,26 +260,60 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
       const huge = { ...(base["body"] as Doc), padding: "x".repeat(70_000) };
       expect(await refusal(save("corporate", { ...base, body: huge }))).toBe("CA400:body");
     });
+
+    it("saves and audits a body of the largest size the API accepts, twice over in the audit entry", async () => {
+      const campus = (await list()).find((row) => row.key === "campus") as Template;
+      const base = docOf(campus);
+      const room = TEMPLATE_BODY_MAX_BYTES - JSON.stringify(base["body"]).length - 20;
+      const large = { ...(base["body"] as Doc), padding: "x".repeat(room) };
+      expect(JSON.stringify(large).length).toBeLessThanOrEqual(TEMPLATE_BODY_MAX_BYTES);
+      await save("campus", { ...base, body: large });
+      await save("campus", base);
+      const [entry] = await audits("catalog.template.update", "campus");
+      expect(entry?.after["body"]).toEqual(large);
+      const [back] = (await audits("catalog.template.update", "campus")).slice(-1);
+      expect(back?.before?.["body"]).toEqual(large);
+    });
+
+    it("refuses the second of two saves that make the same new key at once, with CA409", async () => {
+      const corporate = (await list()).find((row) => row.key === "corporate") as Template;
+      const twin = { ...docOf(corporate), name: { ar: "توأم", en: "Twin" } };
+      const holder = await connectAsOwner(f.db);
+      try {
+        await holder.query("BEGIN");
+        await holder.query("LOCK TABLE event_template IN SHARE ROW EXCLUSIVE MODE");
+        const second = refusal(save("twin", twin));
+        expect(await waitsOnLock("admin_template_save")).toBe(true);
+        await holder.query(
+          `INSERT INTO event_template (key, position, name_ar, name_en, description_ar, description_en, body)
+           SELECT 'twin', 99, name_ar, name_en, description_ar, description_en, body
+           FROM event_template WHERE key = 'corporate'`,
+        );
+        await holder.query("COMMIT");
+        expect(await second).toBe("CA409");
+        expect(await audits("catalog.template.update", "twin")).toHaveLength(0);
+      } finally {
+        await holder.end();
+        await f.owner("DELETE FROM event_template WHERE key = 'twin'");
+      }
+    });
   });
 
   describe("achievements", () => {
     type Achievement = { id: string; bronze: number; silver: number; gold: number } & Doc;
     const list = () => one<Achievement[]>("SELECT admin_achievements() AS r");
-    const save = (id: string, doc: unknown, reverting = false) =>
+    const save = (id: string, doc: unknown, revertOf: string | null = null) =>
       one<Achievement>("SELECT admin_achievement_save($1, $2, $3, $4) AS r", [
         id,
         doc,
-        reverting,
+        revertOf,
         randomUUID(),
       ]);
-    const docOf = (row: Achievement): Doc => ({
-      bronze: row.bronze,
-      silver: row.silver,
-      gold: row.gold,
-      name: row["name"],
-    });
+    const docOf = (row: Achievement): Doc => ({ name: row["name"] });
+    const thresholds = (rows: Achievement[]) =>
+      rows.map((row) => [row.id, row.bronze, row.silver, row.gold]);
 
-    it("lists the five achievements in order, each a valid edit document", async () => {
+    it("lists the five achievements in order with their thresholds, each name a valid edit document", async () => {
       const rows = await list();
       expect(rows.map((row) => row.id)).toEqual([
         "events-attended",
@@ -258,12 +323,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
         "community-goals",
       ]);
       for (const row of rows) {
+        expect(row.bronze, row.id).toBeLessThan(row.silver);
         expect(achievementDocSchema.safeParse(docOf(row)).success, row.id).toBe(true);
       }
     });
 
-    it("changes thresholds and names of one achievement and audits it; earned rows stay", async () => {
-      const row = (await list()).find((candidate) => candidate.id === "quests-done") as Achievement;
+    it("changes the name of one achievement and audits it; thresholds and earned rows stay", async () => {
+      const before = await list();
+      const row = before.find((candidate) => candidate.id === "quests-done") as Achievement;
       const player = await f.newPlayer();
       await f.owner("INSERT INTO player_xp (player_id) VALUES ($1) ON CONFLICT DO NOTHING", [
         player,
@@ -272,42 +339,77 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
         "INSERT INTO achievement_earned (player_id, achievement_id, tier) VALUES ($1, 'quests-done', 'bronze')",
         [player],
       );
-      const saved = await save("quests-done", {
-        bronze: 20,
-        silver: 60,
-        gold: 300,
-        name: { ar: "صائد المهام", en: "Quest Master" },
+      const saved = await save("quests-done", { name: { ar: "صائد المهام", en: "Quest Master" } });
+      expect(saved).toMatchObject({
+        bronze: row.bronze,
+        silver: row.silver,
+        gold: row.gold,
+        name: { en: "Quest Master" },
       });
-      expect(saved).toMatchObject({ bronze: 20, silver: 60, gold: 300 });
       const [entry] = await audits("catalog.achievement.update", "quests-done");
+      expect(entry?.actor_id).toBe(adminId);
       expect(entry?.before).toEqual(docOf(row));
-      expect(entry?.after).toMatchObject({ bronze: 20, name: { en: "Quest Master" } });
+      expect(entry?.after).toEqual({ name: { ar: "صائد المهام", en: "Quest Master" } });
       const earned = await f.owner<{ n: number }>(
         "SELECT count(*)::int AS n FROM achievement_earned WHERE achievement_id = 'quests-done'",
       );
       expect(earned[0]?.n).toBe(1);
-      const others = (await list()).filter((candidate) => candidate.id !== "quests-done");
-      expect(others.map((other) => other.bronze)).toEqual([1, 2, 1, 1]);
+      expect(thresholds(await list())).toEqual(thresholds(before));
     });
 
-    it("refuses thresholds that do not rise, out of range, an unknown id and unsafe names", async () => {
-      const row = (await list()).find((candidate) => candidate.id === "top-ten") as Achievement;
-      expect(await checkViolation(save("top-ten", { ...docOf(row), silver: row.bronze }))).toBe(
-        true,
+    it("refuses any threshold, changed or not, and keeps the row and the audit log as they were", async () => {
+      const before = await list();
+      const row = before.find((candidate) => candidate.id === "top-ten") as Achievement;
+      const entries = await count("catalog.achievement.update");
+      for (const extra of [
+        { bronze: row.bronze - 1 === 0 ? 1 : row.bronze - 1 },
+        { silver: row.silver + 1 },
+        { gold: 1 },
+        { bronze: row.bronze, silver: row.silver, gold: row.gold },
+        { bronze: 1, silver: 2, gold: 3 },
+        { threshold: 5 },
+      ]) {
+        expect(
+          await refusal(save("top-ten", { ...docOf(row), ...extra })),
+          JSON.stringify(extra),
+        ).toBe("CA400:thresholds");
+      }
+      expect(await refusal(save("top-ten", { bronze: 1, silver: 2, gold: 3 }))).toBe(
+        "CA400:thresholds",
       );
-      expect(await checkViolation(save("top-ten", { ...docOf(row), gold: 100_001 }))).toBe(true);
+      expect(await list()).toEqual(before);
+      expect(await count("catalog.achievement.update")).toBe(entries);
+    });
+
+    it("refuses an unknown id, a missing or unsafe name, and a revert of an entry that is not the latest", async () => {
+      const row = (await list()).find((candidate) => candidate.id === "top-ten") as Achievement;
       expect(await refusal(save("nothing", docOf(row)))).toBe("CA404");
-      expect(await refusal(save("top-ten", { ...docOf(row), name: { ar: "ا‮ب", en: "Top" } }))).toBe(
+      expect(await refusal(save("top-ten", { name: { ar: "ا‮ب", en: "Top" } }))).toBe(
         "CA400:name.ar",
       );
+      expect(await refusal(save("top-ten", {}))).toBe("CA400:name.ar");
+      expect(await refusal(save("top-ten", { name: { ar: "ا", en: "  " } }))).toBe("CA400:name.en");
+      expect(await refusal(save("top-ten", docOf(row), "999999999"))).toBe("CA409");
+    });
+
+    it("reverts the name through the audit entry, and a revert never carries a threshold", async () => {
+      const row = (await list()).find(
+        (candidate) => candidate.id === "cities-played",
+      ) as Achievement;
+      await save("cities-played", { name: { ar: "جوّاب كبير", en: "Big Traveller" } });
+      const entry = await latestEntry("achievement", "cities-played");
+      const reverted = await save("cities-played", null, entry);
+      expect(reverted["name"]).toEqual(row["name"]);
+      expect(reverted).toMatchObject({ bronze: row.bronze, silver: row.silver, gold: row.gold });
+      expect(await count("catalog.achievement.revert")).toBe(1);
     });
 
     it("writes nothing when nothing changed", async () => {
       const row = (await list()).find(
-        (candidate) => candidate.id === "cities-played",
+        (candidate) => candidate.id === "events-attended",
       ) as Achievement;
       const before = await count("catalog.achievement.update");
-      await save("cities-played", docOf(row));
+      await save("events-attended", docOf(row));
       expect(await count("catalog.achievement.update")).toBe(before);
     });
   });
@@ -328,7 +430,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
       const [entry] = await audits("catalog.level_titles.update", "all");
       expect(entry?.before).toEqual(before);
       expect(entry?.after).toEqual(await titlesNow());
-      await saveTitles(before, true);
+      await saveTitles(null, entry?.id ?? null);
       expect(await titlesNow()).toEqual(before);
       expect(await count("catalog.level_titles.revert")).toBe(1);
     });
@@ -364,13 +466,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
   describe("gem shop", () => {
     type Item = { itemId: string; price: number; status: string; position: number } & Doc;
     const list = () => one<Item[]>("SELECT admin_shop_items() AS r");
-    const save = (id: string, doc: unknown, reverting = false) =>
-      one<Item>("SELECT admin_shop_item_save($1, $2, $3, $4) AS r", [
-        id,
-        doc,
-        reverting,
-        randomUUID(),
-      ]);
+    const save = (id: string, doc: unknown, revertOf: string | null = null, seat = admin) =>
+      one<Item>(
+        "SELECT admin_shop_item_save($1, $2, $3, $4) AS r",
+        [id, doc, revertOf, randomUUID()],
+        seat,
+      );
 
     it("lists the twelve shop items in shop order with their names, each a valid edit document", async () => {
       const rows = await list();
@@ -435,6 +536,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
         position: row.position,
       });
       expect(await count("catalog.gem_shop.update")).toBe(before);
+    });
+    it("refuses a revert of an entry another admin has since followed with a change, and reverts the latest", async () => {
+      const id = "shop-star-navigator";
+      const stored = (await list()).find((row) => row.itemId === id) as Item;
+      const doc = (price: number) => ({ price, status: stored.status, position: stored.position });
+      await save(id, doc(stored.price + 1));
+      const first = await latestEntry("gem_shop_item", id);
+      await save(id, doc(stored.price + 2), null, otherAdmin);
+      const second = await latestEntry("gem_shop_item", id);
+
+      expect(await refusal(save(id, null, first))).toBe("CA409");
+      expect((await list()).find((row) => row.itemId === id)?.price).toBe(stored.price + 2);
+
+      const reverted = await save(id, null, second);
+      expect(reverted.price).toBe(stored.price + 1);
+      const third = await latestEntry("gem_shop_item", id);
+      expect(await refusal(save(id, null, second))).toBe("CA409");
+      expect((await save(id, null, third)).price).toBe(stored.price + 2);
+      const reverts = await audits("catalog.gem_shop.revert", id);
+      expect(reverts.map((entry) => entry.actor_id)).toEqual([adminId, adminId]);
+    });
+
+    it("refuses a revert that names another row's entry or an entry that does not exist", async () => {
+      const entry = await latestEntry("gem_shop_item", "shop-star-navigator");
+      expect(await refusal(save("shop-pearl-ring", null, entry))).toBe("CA409");
+      expect(await refusal(save("shop-pearl-ring", null, "999999999"))).toBe("CA409");
+      expect(await refusal(save("level-4", null, entry))).toBe("CA404");
     });
   });
 });

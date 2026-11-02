@@ -34,7 +34,7 @@ type Editor = Readonly<{
     client: PoolClient,
     id: string,
     doc: unknown,
-    reverting: boolean,
+    revertOf: string | null,
     requestId: string,
   ) => Promise<unknown>;
 }>;
@@ -51,11 +51,11 @@ const EDITORS: Readonly<Record<CatalogKind, Editor>> = {
     row: templateAdminSchema,
     idField: "key",
     list: (client) => answerOf(client, "SELECT admin_templates() AS r"),
-    save: (client, id, doc, reverting, requestId) =>
+    save: (client, id, doc, revertOf, requestId) =>
       answerOf(client, "SELECT admin_template_save($1, $2, $3, $4) AS r", [
         id,
         doc,
-        reverting,
+        revertOf,
         requestId,
       ]),
   },
@@ -65,11 +65,11 @@ const EDITORS: Readonly<Record<CatalogKind, Editor>> = {
     row: achievementAdminSchema,
     idField: "id",
     list: (client) => answerOf(client, "SELECT admin_achievements() AS r"),
-    save: (client, id, doc, reverting, requestId) =>
+    save: (client, id, doc, revertOf, requestId) =>
       answerOf(client, "SELECT admin_achievement_save($1, $2, $3, $4) AS r", [
         id,
         doc,
-        reverting,
+        revertOf,
         requestId,
       ]),
   },
@@ -79,10 +79,10 @@ const EDITORS: Readonly<Record<CatalogKind, Editor>> = {
     row: levelTitlesAdminSchema,
     idField: undefined,
     list: (client) => answerOf(client, "SELECT admin_level_titles() AS r"),
-    save: (client, _id, doc, reverting, requestId) =>
+    save: (client, _id, doc, revertOf, requestId) =>
       answerOf(client, "SELECT admin_level_titles_save($1, $2, $3) AS r", [
         doc,
-        reverting,
+        revertOf,
         requestId,
       ]),
   },
@@ -92,11 +92,11 @@ const EDITORS: Readonly<Record<CatalogKind, Editor>> = {
     row: gemShopItemAdminSchema,
     idField: "itemId",
     list: (client) => answerOf(client, "SELECT admin_shop_items() AS r"),
-    save: (client, id, doc, reverting, requestId) =>
+    save: (client, id, doc, revertOf, requestId) =>
       answerOf(client, "SELECT admin_shop_item_save($1, $2, $3, $4) AS r", [
         id,
         doc,
-        reverting,
+        revertOf,
         requestId,
       ]),
   },
@@ -182,15 +182,17 @@ export function saveCatalog(
 ): Promise<unknown> {
   const editor = EDITORS[kind];
   return catalogDoor(pool, admin, async (client) => {
-    const saved = await editor.save(client, target.id, target.input, false, target.requestId);
+    const saved = await editor.save(client, target.id, target.input, null, target.requestId);
     return savedRow(client, editor, target.id, saved);
   });
 }
 
 /**
  * Puts back what the row held before its latest catalog change (the `before` of that audit entry), through the same save
- * door and checks, and audits it as a revert. A second revert undoes the first. 409 when the row was never changed or its
- * latest entry made it (a template that was new has nothing earlier; switch it off instead).
+ * door and checks, and audits it as a revert. A second revert undoes the first. 409 `nothing_to_revert` when the row was
+ * never changed or its latest entry made it (a template that was new has nothing earlier; switch it off instead), and 409
+ * `stale` when another admin changed the row after this read: the door gets the entry's id and re-reads it under the row's
+ * lock, so it never puts back an older state over a newer change.
  */
 export function revertCatalog(
   pool: Pool,
@@ -200,21 +202,21 @@ export function revertCatalog(
 ): Promise<unknown> {
   const editor = EDITORS[kind];
   return catalogDoor(pool, admin, async (client) => {
-    const { rows } = await client.query<{ before: unknown }>(
-      `SELECT before FROM audit_log
+    const { rows } = await client.query<{ id: string; before: unknown }>(
+      `SELECT id, before FROM audit_log
        WHERE target_type = $1 AND target_id = $2 AND action LIKE 'catalog.%'
        ORDER BY id DESC LIMIT 1`,
       [editor.targetType, auditIdOf(editor, target.id)],
     );
-    const before = rows[0]?.before;
-    if (before === undefined || before === null) {
+    const latest = rows[0];
+    if (latest === undefined || latest.before === null) {
       throw nothingToRevert();
     }
-    const doc = editor.doc.safeParse(before);
+    const doc = editor.doc.safeParse(latest.before);
     if (!doc.success) {
       throw invalidCatalog({ issues: doc.error.issues.map((issue) => issue.message) });
     }
-    const saved = await editor.save(client, target.id, doc.data, true, target.requestId);
+    const saved = await editor.save(client, target.id, null, latest.id, target.requestId);
     return savedRow(client, editor, target.id, saved);
   });
 }

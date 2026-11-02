@@ -12,10 +12,8 @@ export const cleanText = (max: number) =>
     .trim()
     .min(1)
     .max(max)
-    .refine(
-      (value) => !OTHER_DIGITS.test(value) && !hasUnsafeCharacter(value),
-      "Western digits only",
-    );
+    .refine((value) => !OTHER_DIGITS.test(value), "Western digits only")
+    .refine((value) => !hasUnsafeCharacter(value), "no control or direction characters");
 
 /** Arabic text holds an Arabic letter; a swapped language is caught here. */
 export const arabicText = (max: number) =>

@@ -822,9 +822,9 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/admin/catalog/achievements":
     "active platform admins only (walked below); read only; the five achievements with thresholds and names; the admin checked again in admin_achievements (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog)",
   "PUT /v1/admin/catalog/achievements/:id":
-    "active platform admins only (walked below); one achievement's three thresholds and name; earned rows are append-only and stay; admin_achievement_save checks the admin again (QE403, CA400, CA404); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog)",
+    "active platform admins only (walked below); one achievement's name only, never its thresholds (a lower one would pay gems at the next sync: T-709c); admin_achievement_save checks the admin again (QE403, CA400, CA404); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog)",
   "POST /v1/admin/catalog/achievements/:id/revert":
-    "active platform admins only (walked below); puts back the before of the achievement's latest catalog audit entry through admin_achievement_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog)",
+    "active platform admins only (walked below); puts back the before of the achievement's latest catalog audit entry through admin_achievement_save (the door re-reads it under the row lock, CA409 when stale), audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog)",
   "GET /v1/admin/catalog/level-titles":
     "active platform admins only (walked below); read only; the level titles; the admin checked again in admin_level_titles (QE403); 60 a minute per admin (test/console/catalog, test/db/console-catalog)",
   "PUT /v1/admin/catalog/level-titles":

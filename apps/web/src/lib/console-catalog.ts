@@ -169,38 +169,18 @@ export function templateCounts(
 
 // ---------------------------------------------------------------- achievements
 
-export type AchievementDraft = Readonly<{
-  bronze: string;
-  silver: string;
-  gold: string;
-  name: Pair;
-}>;
+/** An achievement's name is all that is edited; its tier thresholds are shown, never typed (T-709c). */
+export type AchievementDraft = Readonly<{ name: Pair }>;
 
 export const achievementDraftOf = (row: AchievementAdmin): AchievementDraft => ({
-  bronze: String(row.bronze),
-  silver: String(row.silver),
-  gold: String(row.gold),
   name: row.name,
 });
 
 export const checkAchievement = (draft: AchievementDraft) =>
-  checked(achievementDocSchema, {
-    bronze: wholeNumber(draft.bronze),
-    silver: wholeNumber(draft.silver),
-    gold: wholeNumber(draft.gold),
-    name: draft.name,
-  });
+  checked(achievementDocSchema, { name: draft.name });
 
-export const isAchievementDirty = (row: AchievementAdmin, draft: AchievementDraft): boolean => {
-  const stored = achievementDraftOf(row);
-  return (
-    draft.bronze.trim() !== stored.bronze ||
-    draft.silver.trim() !== stored.silver ||
-    draft.gold.trim() !== stored.gold ||
-    draft.name.ar.trim() !== stored.name.ar ||
-    draft.name.en.trim() !== stored.name.en
-  );
-};
+export const isAchievementDirty = (row: AchievementAdmin, draft: AchievementDraft): boolean =>
+  draft.name.ar.trim() !== row.name.ar || draft.name.en.trim() !== row.name.en;
 
 // ---------------------------------------------------------------- level titles
 

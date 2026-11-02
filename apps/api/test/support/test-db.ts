@@ -77,6 +77,18 @@ async function connect(url: string): Promise<Client> {
   return client;
 }
 
+/**
+ * A second connection of the migration owner on the same test database, for a test that holds a lock or a transaction open
+ * on one connection while the code under test works on another. The caller ends it.
+ */
+export async function connectAsOwner(db: TestDatabase): Promise<Client> {
+  const url = new URL(db.appUrl);
+  const base = new URL(TEST_DATABASE_URL ?? "");
+  url.username = base.username;
+  url.password = base.password;
+  return connect(url.toString());
+}
+
 /** Creates a fresh database, runs the roles script and every migration, and connects the three roles. */
 export async function createTestDatabase(
   migrationDirectory = join(API_ROOT, "migrations"),
