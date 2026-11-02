@@ -430,20 +430,41 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
-  it("keeps the catalog editors closed: ten doors for the API's role alone, internals for nobody (T-709b, T-709c)", async () => {
+  it("keeps the catalog editors closed: sixteen doors for the API's role alone, internals for nobody (T-709b to T-709d)", async () => {
     const doors = [
       "admin_achievement_save",
       "admin_achievements",
       "admin_amounts",
       "admin_amounts_save",
+      "admin_item_create",
+      "admin_item_save",
+      "admin_items",
       "admin_level_titles",
       "admin_level_titles_save",
       "admin_shop_item_save",
       "admin_shop_items",
       "admin_template_save",
       "admin_templates",
+      "admin_xp_table",
+      "admin_xp_table_preview",
+      "admin_xp_table_save",
     ];
     const internals = [
+      "admin_item_doc",
+      "admin_item_row",
+      "admin_xp_table_doc",
+      "item_is_souvenir",
+      "item_shop_checked",
+      "levels_due",
+      "levels_reach",
+      "xp_catch_up",
+      "xp_lock_left",
+      "xp_table_changes",
+      "xp_table_checked",
+      "xp_table_paying",
+      "xp_table_refusals",
+      "xp_table_refuse",
+      "xp_table_write",
       "achievement_threshold",
       "admin_achievement_doc",
       "admin_amounts_doc",
@@ -487,6 +508,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       `SELECT public.admin_level_titles_save('{}', NULL, ${request})`,
       "SELECT public.admin_shop_items()",
       `SELECT public.admin_shop_item_save('shop-map-reader', '{}', NULL, ${request})`,
+      "SELECT public.admin_xp_table()",
+      `SELECT public.admin_xp_table_save('{}', NULL, true, ${request})`,
+      "SELECT public.admin_xp_table_preview('{}')",
+      "SELECT public.admin_items()",
+      `SELECT public.admin_item_save('level-2', '{}', NULL, ${request})`,
+      `SELECT public.admin_item_create('{}', ${request})`,
+      "SELECT public.levels_reach(gen_random_uuid(), 1, 1)",
+      "SELECT public.xp_catch_up(gen_random_uuid())",
+      "SELECT * FROM public.level_reached",
+      "SELECT * FROM public.xp_level",
+      "SELECT * FROM public.item",
     ]) {
       await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
     }
