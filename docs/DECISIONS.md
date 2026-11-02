@@ -6764,7 +6764,7 @@ name, since a retired name was a player's. 120 reads a minute and 60 changes an 
 
 ## ADR-433 - T-705b a player reports what they can see, once while open, and a username reported in an event reaches its team too
 
-**Status:** Proposed (developer, 2026-11-02; T-705b build; plan section 5, D14). Migration 0121.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-705b code review 86, MAJORs fixed; T-705b build; plan section 5, D14). Migration 0121.
 **Decision:** `content_report` (no grant) holds one row per report: the reporter (NULL after erasure), the event (NULL only
 for a username reported outside one), the kind (`quest | reward | announcement | category | session | sponsor | event |
 username`), the target's id, a `snapshot` of what it said then (title and text in both languages cut to 120 and 300
@@ -6787,7 +6787,7 @@ reporter (Q-396).
 
 ## ADR-434 - T-705b Questify unpublishes a quest, a reward or an announcement with a hold the team can read and not undo
 
-**Status:** Proposed (developer, 2026-11-02; T-705b build; plan D16). Migration 0121.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-705b code review 86, MAJORs fixed; T-705b build; plan D16). Migration 0121.
 **Decision:** `content_hold` (one live hold per target; the team reads its own event's holds through a policy, nobody but the
 two doors writes one) holds the kind, the target, the event and organizer, a reason code (the report reasons) and a note of
 10 to 300 characters that the organizer reads, who and when, and the release with its internal note. `admin_unpublish` locks
@@ -6811,7 +6811,7 @@ delivered cannot be recalled.
 
 ## ADR-435 - T-705b the console's Reports queue groups by target and its Flags list is read-only
 
-**Status:** Proposed (developer, 2026-11-02; T-705b build; plan D15). Migration 0121.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-705b code review 86, MAJORs fixed; T-705b build; plan D15). Migration 0121.
 **Decision:** Console **Reports** (`/console/reports`): one row per reported target with its open report count, the oldest
 first (at most 100, a kind filter), marked "Over 24 hours" past the response time the guidelines state. A target's page
 (`/console/reports/{kind}/{id}`) shows what each reporter saw beside what it says now (or "Removed"), its event and
