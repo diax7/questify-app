@@ -51,9 +51,13 @@ Lock order, everywhere: `player` → `player_xp` → `xp_level` (ascending level
   of many players run side by side as today.
 - **Curve door**: never touches `player`, `player_xp` or any player row. Takes `xp_level` level 1 FOR UPDATE (the door
   serializer: no reach ever locks level 1), then in a **new statement** (fresh snapshot, so levels another door just added
-  are included) every `xp_level` row FOR UPDATE ordered by level, then the `level_item` rows it changes FOR UPDATE, then the
-  guard's item locks (items pre-locked by the door in id order). Waits at most `SET LOCAL lock_timeout = '1s'` (55P03 →
-  CA503 → HTTP 503 `busy`, Retry-After 2), so a scan queued behind it waits well under its own 2 s.
+  are included) every `xp_level` row FOR UPDATE in level order, then the `level_item` rows it changes FOR UPDATE, then the
+  guard's item locks (items pre-locked by the door in id order). **One total budget of 1 s for all its lock waits**
+  (plan review 2026-11-02, MAJOR: `lock_timeout` bounds each lock wait, not the save, so a door waiting on two reaches in
+  turn could hold a queued scan past its own 2 s): the door records `clock_timestamp()` at entry, takes its locks one row
+  per statement, and before each locking statement sets `set_config('lock_timeout', <1 s minus elapsed>, true)`; when the
+  budget is used up it raises CA503. CA503 and a lock wait that runs out (55P03) both answer HTTP 503 `busy`,
+  Retry-After 2. A scan queued behind the door waits at most about 1 s plus the door's few milliseconds of writes.
 - **Item door**: locks only the one `item` row (FOR NO KEY UPDATE for a name change, which waits on nobody; FOR UPDATE for
   an art change, which waits for reaches and buys of that item in flight).
 - No cycle: the reach path holds `player_xp` and asks for `xp_level`/`level_item`/`item`; the curve door holds
@@ -77,7 +81,7 @@ What a reach can see during a save, in READ COMMITTED:
 `admin_xp_table()` → `{levels: [{level, xpFrom, itemId|null, reached: boolean}]}` (`reached`: any `level_reached` row,
 for the console's lock icons). `admin_xp_table_save(doc jsonb, revert_of bigint, confirmed boolean, request uuid)`:
 
-1. `console_admin()` (QE403); `SET LOCAL lock_timeout = '1s'`.
+1. `console_admin()` (QE403); `clock_timestamp()` recorded: the 1 s lock budget starts.
 2. Locks as in the lock rule. A revert then reads `catalog_revert_doc('xp_level', 'all', revert_of)` under those locks.
 3. Validates the whole document (CA400, `DETAIL` names the field and level): only key `levels`; levels `1..N` contiguous,
    N 2 to 100; level 1 `xpFrom` 0 and `itemId` null; every other `xpFrom` whole, 1 to 100,000,000, strictly rising; every
@@ -111,7 +115,7 @@ for the console's lock icons). `admin_xp_table_save(doc jsonb, revert_of bigint,
 
 `admin_xp_table_preview(doc jsonb)` (read-only, no locks, validates like the door, CA400): over `xp_board` `all` minus the
 inactive players (`player_inactive_idx`, as the ranking reads), one count per XP range between the union of the old and
-new boundaries (at most 200 index range scans): `up` (players whose level by the new curve is higher), `down`, `levels`
+new boundaries (one `width_bucket` pass over the board's index, the inactive players' rows taken off): `up` (players whose level by the new curve is higher), `down`, `levels`
 (levels newly due: for each level, players at or above its new start and below its old start, or any for an added level),
 `gems = levels × levelUp`. Advisory: the numbers can move by the time the save commits, and the console says "about".
 
@@ -123,7 +127,8 @@ Migration 0124 changes four functions, each restated from its latest body with o
   (SELECT l.level FROM xp_level l WHERE l.level > 1 AND l.xp_from <= total AND NOT EXISTS (SELECT 1 FROM level_reached r
   WHERE r.player_id = who AND r.level = l.level) ORDER BY l.level FOR KEY SHARE OF l) INSERT INTO level_reached … SELECT
   who, level, made FROM due ON CONFLICT DO NOTHING RETURNING level`. Only levels the player has not reached are locked, so
-  a reach that adds nothing locks nothing. The caller must hold the player's `player_xp` row lock.
+  a reach that adds nothing locks nothing. The caller must hold the player's `player_xp` row lock. **The only code that
+  inserts into `level_reached`** (plan review NIT): a DB test over `pg_proc.prosrc` checks no other live function does.
 - **`xp_apply`** (0072 body): its `INSERT INTO level_reached` becomes `PERFORM levels_reach(who, made, total)`. Nothing else.
 - **`xp_catch_up(who uuid) RETURNS smallint[]`** (new, internal; the caller holds `player_xp` FOR UPDATE): reads the
   player's XP; `made` = the player's latest `xp_entry` with `delta > 0` (index `xp_entry_player_idx`, backward); calls
@@ -131,8 +136,11 @@ Migration 0124 changes four functions, each restated from its latest body with o
   xp_level_of(xp), updated_at = now() WHERE player_id = who AND level <> xp_level_of(xp)`. Returns the levels written.
 - **`levels_due(who uuid) RETURNS boolean`** (new, internal): the stored level differs from `xp_level_of(xp)`, or a level at
   or below the XP has no `level_reached` row (at most 100 PK probes).
-- **`questify_sync`** (0122 body): the unlocked pre-check gains `AND NOT levels_due(who)`; after the streak loop (so its own
-  XP is in) and before the gem step, `caught := xp_catch_up(who)`; the gem step is unchanged and pays `levelUp` once per
+- **`questify_sync`** (0122 body): the unlocked pre-check gains `AND NOT levels_due(who)`; **right after the `player_xp`
+  FOR UPDATE, before any `xp_apply`**, `caught := xp_catch_up(who)` (plan review MINOR: run after the quests, the catch-up
+  could ask for a lower level than one a quest's `xp_apply` already holds, crossing a door that locks in level order;
+  first, every level the sync locks rises, so it can never deadlock with a save; the sync's own quest and streak XP
+  reaches its levels through `xp_apply` as before); the gem step is unchanged and pays `levelUp` once per
   new `level_reached` row (`gem_entry UNIQUE (player_id, source_level)` keeps it once); the answer's `levelUp` comes from
   a new overload `questify_level_up(who, entries, caught smallint[])` that also counts the caught levels as reached by
   this sync (the 0066 two-argument helper stays: the daily doors of 0069 call it). A banned or deleted player is refused by the sync
@@ -150,12 +158,15 @@ that completion's level-up. Accepted; noted in Q-399.
   from `xp_level_of(x.xp)`, so a removed or stale level never drops the row), `own_equipment` (next reward at
   `xp_level_of(x.xp) + 1`), `console_player_record` (the admin sees the truth). `xp_level_of` is one index lookup on a
   100-row table.
-- **Accept the stored level until the player's next sync or XP**: `public_player_profile` and the passport (a title lookup
-  with `<=`, valid for any number). A stored level may be stale for players who have not synced since a save, or, after a
+- **Accept the stored level until the player's next sync or XP**: `public_player_profile` (latest body 0120:595; its
+  0063 and 0065:428 versions, the passport profile, read `x.level` the same way) and the Questify board row `xp_board_row`
+  (0072:156); a title lookup with `<=`, valid for any number. The console's record read `x.level` at 0118:332 and 0122:582;
+  0124 derives it there (above). A stored level may be stale for players who have not synced since a save, or, after a
   save/reach race, name a level that was removed (rare; corrected at that player's next sync).
 - Index: `CREATE INDEX level_reached_level_idx ON level_reached (level)` (the door's `level_held` and `reward_given`
   probes). Level-ups are rare writes; migration takes a SHARE lock on `level_reached` for the build (seconds at launch
-  sizes; rehearsed on staging).
+  sizes; rehearsed on staging) under its own `SET LOCAL lock_timeout = '2s'` (plan review MINOR), so a deploy that cannot
+  get the lock fails and is retried instead of queueing level-ups behind it; the rest of the migration keeps 10 s.
 
 ## D4. Item catalog (ADR-441)
 
@@ -213,7 +224,8 @@ that completion's level-up. Accepted; noted in Q-399.
 DB (`apps/api/test/db/console-xp-table.int.test.ts`, `console-items.int.test.ts`):
 
 1. QE403 for every seat on every new door; outsider (anon, PUBLIC) holds EXECUTE on none; `levels_reach`, `xp_catch_up`,
-   `levels_due` granted to nobody; catalog lint: no function but the two doors writes `xp_level` or `level_item`.
+   `levels_due` granted to nobody; catalog lint: no function but the two doors writes `xp_level` or `level_item`, and no
+   live function but `levels_reach` inserts into `level_reached` (over `pg_proc.prosrc`).
 2. Validation: N 1 and 101, gaps, level 1 not at 0, non-rising, 0 and 100,000,001, decimals, strings, missing or duplicate
    items, level 1 with an item, unknown keys → CA400; unknown, shop, souvenir and `souvenir-` items → CA409.
 3. Remove a level someone reached → `level_held`; someone at or above its start with no row yet → `level_held`; nobody →
@@ -233,6 +245,10 @@ DB (`apps/api/test/db/console-xp-table.int.test.ts`, `console-items.int.test.ts`
    the door remaps L (reach first → `reward_given`; door first → the player gets the new item); a sync's catch-up against
    the door both ways; two doors (the second sees the first's added levels); the door against an item art edit, a souvenir
    rule write and a gem buy of a mapped item; erasure and sign-up against the door never wait. No deadlock in any pair.
+   **The total budget** (plan review MAJOR): two sessions hold reaches on two different levels; the door queues behind the
+   first; a scan queued behind the door (on a level the door already holds) finishes in under 2 s, and the door answers
+   CA503 or 55P03 within about 1 s. **Sync against two saves, both orders** (plan review MINOR): a sync whose catch-up and
+   quest XP both reach new levels, crossed with a save, never deadlocks.
 9. Door duration on the 300,000-player fixture (`apps/api/test/perf`, as T-408's timing): a 100-level save with every
    kind of change, held-lock time under 200 ms; a scan waiting behind it finishes under its 2 s lock timeout. Preview under
    1 s. Sync with the new pre-check: no measurable change on the ranking timing suite.

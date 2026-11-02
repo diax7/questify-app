@@ -2009,7 +2009,8 @@ may name it.
 
 **Status:** Proposed (developer, 2026-11-02; ADR-440; re-planned 2026-11-02).
 The save holds every `xp_level` row FOR UPDATE, so a scan that reaches a new level waits for it (scans that reach no new
-level, syncs, sign-ups and buys never wait). The save waits at most 1 second for its locks, then answers 503 `busy`.
+level, syncs, sign-ups and buys never wait). The save waits at most 1 second in all for its locks (one budget for
+the whole save, not per lock), then answers 503 `busy`.
 **Recommended (developer):** measure on the 300,000-player fixture; budget 200 ms held, under the API's 2 s lock timeout.
 
 ## Q-402 - A shop item's art is frozen once it has a shop row (T-709d)

@@ -6869,8 +6869,10 @@ restore needs no ban. Reasoned, confirmed, audited with ids only.
 `docs/plans/2026-11-02-t-709d-xp-curve-items.md` D1 to D3). Migration 0124.
 **Decision:** `admin_xp_table_save` writes only `xp_level` and `level_item`, with no table lock: it takes level 1 FOR
 UPDATE (the door serializer), then every `xp_level` row FOR UPDATE in level order, then the changed `level_item` rows and
-items, with `lock_timeout` 1 s (HTTP 503 `busy`). Every insert into `level_reached` takes FOR KEY SHARE on each level it
-writes (`levels_reach`, used by `xp_apply` and the sync), so a reach and a save never interleave and no reach fails. The
+items, one row per statement, within one total lock budget of 1 s for the whole save (`lock_timeout` set to what is
+left before each locking statement; CA503 or 55P03 when it runs out, HTTP 503 `busy`; plan review 2026-11-02). Every insert into `level_reached` takes FOR KEY SHARE on each level it
+writes (`levels_reach`, the only inserter, used by `xp_apply` and the sync, whose catch-up runs before any of its own XP),
+so a reach and a save never interleave and no reach fails. The
 door refuses to remove a level anyone reached or stands at (CA409 `level_held`) and to change the item of a level anyone
 reached (CA409 `reward_given`), checked after its locks. The `xp_from` UNIQUE stays non-deferrable: the door orders its
 row updates (removals, raises top down, lowerings bottom up, additions) so they never collide. A save that can pay needs
