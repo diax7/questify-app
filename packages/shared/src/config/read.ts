@@ -1,5 +1,6 @@
 import type { LocalizedText } from "#src/errors";
 import { readQuestifyHome } from "#src/layout/questify-home";
+import { readBanner, readMaintenance } from "#src/maintenance/notices";
 import type { PlatformFeatureSetting, PlatformSettings } from "./registry";
 
 const VERSION = /^[0-9]+(\.[0-9]+){1,2}$/;
@@ -38,6 +39,8 @@ export function readPlatformSettings(stored: {
   features?: unknown;
   tuning?: unknown;
   questifyHome?: unknown;
+  maintenance?: unknown;
+  banner?: unknown;
 }): PlatformSettings {
   const features = isRecord(stored.features)
     ? Object.fromEntries(
@@ -51,12 +54,17 @@ export function readPlatformSettings(stored: {
         ),
       )
     : undefined;
+  const banner = readBanner(stored.banner);
   return {
     ...(features === undefined ? {} : { features }),
     ...(tuning === undefined ? {} : { tuning }),
     ...(stored.questifyHome === undefined
       ? {}
       : { questifyHome: readQuestifyHome(stored.questifyHome) }),
+    ...(stored.maintenance === undefined
+      ? {}
+      : { maintenance: readMaintenance(stored.maintenance) }),
+    ...(banner === undefined ? {} : { banner }),
   };
 }
 

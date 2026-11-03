@@ -24,6 +24,7 @@ import {
   writeEventTerms,
   writeEventTexts,
 } from "#src/settings/store";
+import { teamSeat } from "#src/organizers/store";
 
 type Actor = Readonly<{ staffUserId: string; organizerId: string }>;
 
@@ -43,33 +44,29 @@ export async function saveTerms(
     return { ok: false, reason: "invalid", issues: checked.issues };
   }
   return withConnection(pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      async (): Promise<SaveResult> => {
-        const current = await lockEventTerms(client, eventId);
-        if (current === undefined) {
-          return { ok: false, reason: "not_found" };
-        }
-        if (current.archived) {
-          return { ok: false, reason: "archived" };
-        }
-        const changes = diff({ terms: current.terms ?? {} }, { terms: checked.value });
-        if ("terms" in changes.after) {
-          await writeEventTerms(client, eventId, checked.value);
-          await recordAudit(client, {
-            actor: { type: "staff", id: actor.staffUserId },
-            action: "event.terms.update",
-            organizerId: current.organizerId,
-            eventId,
-            target: { type: "event", id: eventId },
-            ...changes,
-            requestId: meta.requestId,
-          });
-        }
-        return { ok: true };
-      },
-    ),
+    withRequestContext(client, teamSeat(actor), async (): Promise<SaveResult> => {
+      const current = await lockEventTerms(client, eventId);
+      if (current === undefined) {
+        return { ok: false, reason: "not_found" };
+      }
+      if (current.archived) {
+        return { ok: false, reason: "archived" };
+      }
+      const changes = diff({ terms: current.terms ?? {} }, { terms: checked.value });
+      if ("terms" in changes.after) {
+        await writeEventTerms(client, eventId, checked.value);
+        await recordAudit(client, {
+          actor: { type: "staff", id: actor.staffUserId },
+          action: "event.terms.update",
+          organizerId: current.organizerId,
+          eventId,
+          target: { type: "event", id: eventId },
+          ...changes,
+          requestId: meta.requestId,
+        });
+      }
+      return { ok: true };
+    }),
   );
 }
 
@@ -90,33 +87,29 @@ export async function saveTexts(
     return { ok: false, reason: "invalid", issues: checked.issues };
   }
   return withConnection(pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      async (): Promise<TextsSaveResult> => {
-        const stored = await lockEventTexts(client, eventId);
-        if (stored === undefined) {
-          return { ok: false, reason: "not_found" };
-        }
-        if (stored.archived) {
-          return { ok: false, reason: "archived" };
-        }
-        const changes = diff({ texts: readEventTexts(stored.texts) }, { texts: checked.value });
-        if ("texts" in changes.after) {
-          await writeEventTexts(client, eventId, checked.value);
-          await recordAudit(client, {
-            actor: { type: "staff", id: actor.staffUserId },
-            action: "event.texts.update",
-            organizerId: stored.organizerId,
-            eventId,
-            target: { type: "event", id: eventId },
-            ...changes,
-            requestId: meta.requestId,
-          });
-        }
-        return { ok: true, texts: checked.value };
-      },
-    ),
+    withRequestContext(client, teamSeat(actor), async (): Promise<TextsSaveResult> => {
+      const stored = await lockEventTexts(client, eventId);
+      if (stored === undefined) {
+        return { ok: false, reason: "not_found" };
+      }
+      if (stored.archived) {
+        return { ok: false, reason: "archived" };
+      }
+      const changes = diff({ texts: readEventTexts(stored.texts) }, { texts: checked.value });
+      if ("texts" in changes.after) {
+        await writeEventTexts(client, eventId, checked.value);
+        await recordAudit(client, {
+          actor: { type: "staff", id: actor.staffUserId },
+          action: "event.texts.update",
+          organizerId: stored.organizerId,
+          eventId,
+          target: { type: "event", id: eventId },
+          ...changes,
+          requestId: meta.requestId,
+        });
+      }
+      return { ok: true, texts: checked.value };
+    }),
   );
 }
 
@@ -136,36 +129,32 @@ export async function saveBranding(
     return { ok: false, reason: "invalid", issues: checked.issues };
   }
   return withConnection(pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      async (): Promise<SaveResult> => {
-        const current = await lockEventBranding(client, eventId);
-        if (current === undefined) {
-          return { ok: false, reason: "not_found" };
-        }
-        if (current.archived) {
-          return { ok: false, reason: "archived" };
-        }
-        const changes = diff(
-          { branding: readBranding(current.branding) },
-          { branding: checked.value },
-        );
-        if ("branding" in changes.after) {
-          await writeEventBranding(client, eventId, checked.value);
-          await recordAudit(client, {
-            actor: { type: "staff", id: actor.staffUserId },
-            action: "event.branding.update",
-            organizerId: current.organizerId,
-            eventId,
-            target: { type: "event", id: eventId },
-            ...changes,
-            requestId: meta.requestId,
-          });
-        }
-        return { ok: true };
-      },
-    ),
+    withRequestContext(client, teamSeat(actor), async (): Promise<SaveResult> => {
+      const current = await lockEventBranding(client, eventId);
+      if (current === undefined) {
+        return { ok: false, reason: "not_found" };
+      }
+      if (current.archived) {
+        return { ok: false, reason: "archived" };
+      }
+      const changes = diff(
+        { branding: readBranding(current.branding) },
+        { branding: checked.value },
+      );
+      if ("branding" in changes.after) {
+        await writeEventBranding(client, eventId, checked.value);
+        await recordAudit(client, {
+          actor: { type: "staff", id: actor.staffUserId },
+          action: "event.branding.update",
+          organizerId: current.organizerId,
+          eventId,
+          target: { type: "event", id: eventId },
+          ...changes,
+          requestId: meta.requestId,
+        });
+      }
+      return { ok: true };
+    }),
   );
 }
 
@@ -187,34 +176,30 @@ export async function saveLayout(
     return { ok: false, reason: "invalid", issues: checked.issues };
   }
   return withConnection(pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      async (): Promise<LayoutSaveResult> => {
-        const stored = await lockEventLayout(client, eventId);
-        if (stored === undefined) {
-          return { ok: false, reason: "not_found" };
-        }
-        if (stored.archived) {
-          return { ok: false, reason: "archived" };
-        }
-        const current = readEventLayout(stored.layout);
-        const layout = layoutAfter(checked.value, current);
-        const changes = diff({ layout: current }, { layout });
-        if ("layout" in changes.after) {
-          await writeEventLayout(client, eventId, layout);
-          await recordAudit(client, {
-            actor: { type: "staff", id: actor.staffUserId },
-            action: "event.layout.update",
-            organizerId: stored.organizerId,
-            eventId,
-            target: { type: "event", id: eventId },
-            ...changes,
-            requestId: meta.requestId,
-          });
-        }
-        return { ok: true, layout };
-      },
-    ),
+    withRequestContext(client, teamSeat(actor), async (): Promise<LayoutSaveResult> => {
+      const stored = await lockEventLayout(client, eventId);
+      if (stored === undefined) {
+        return { ok: false, reason: "not_found" };
+      }
+      if (stored.archived) {
+        return { ok: false, reason: "archived" };
+      }
+      const current = readEventLayout(stored.layout);
+      const layout = layoutAfter(checked.value, current);
+      const changes = diff({ layout: current }, { layout });
+      if ("layout" in changes.after) {
+        await writeEventLayout(client, eventId, layout);
+        await recordAudit(client, {
+          actor: { type: "staff", id: actor.staffUserId },
+          action: "event.layout.update",
+          organizerId: stored.organizerId,
+          eventId,
+          target: { type: "event", id: eventId },
+          ...changes,
+          requestId: meta.requestId,
+        });
+      }
+      return { ok: true, layout };
+    }),
   );
 }

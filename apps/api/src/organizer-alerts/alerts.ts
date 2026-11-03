@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type AlertDeps = Readonly<{ pool: Pool }>;
 
@@ -18,7 +19,7 @@ async function callDoor(
   sql: string,
   values: readonly unknown[],
 ): Promise<AlertSwitchesResult> {
-  const seat = { organizerId: context.organizerId, staffUserId: context.staffUserId };
+  const seat = teamSeat(context);
   try {
     const switches = await withConnection(deps.pool, (client) =>
       withRequestContext(client, seat, async () => {

@@ -2177,5 +2177,47 @@ older apps already drop a field they do not know.
 
 **Status:** Proposed (developer, 2026-11-03).
 A banner message scheduled for a time and an end time is a different thing from this always-on slider.
-**Recommended (worker):** keep both: T-703b's scheduled message draws above the layout's blocks (it is a notice with an
-end time, like the maintenance message), and the slider stays the admin's standing content.
+**Recommended (worker):** keep both: T-703b's scheduled message draws in the `notices` block with the maintenance message
+(a notice with an end time; that block can move but never hides), and the slider stays the admin's standing content.
+
+## Q-480 - Should the view as organizer cover the whole organizer, not one event? (T-712, ADR-520)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** one event per grant, like the edit grant: the smallest read surface, and an admin can open
+a grant per event. Revisit if support often needs the organizer's team or alert pages.
+
+## Q-481 - Is one log row a minute per page "every view"? (T-712, ADR-523)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** yes: every page and every player record opened is logged; a page left open and polling
+adds one row a minute instead of one every few seconds.
+
+## Q-482 - Should the organizer see that Questify viewed their event? (T-712, ADR-525)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** no, as Dhia decided for support edits (Q-373); the record is Questify's audit log.
+
+## Q-483 - Should player names and contact fields be masked in the view? (T-712, ADR-524)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** no: the view must show what the organizer sees, and the edit grant already shows it; the
+view is one event, 15 minutes, no exports, every record logged by id.
+
+## Q-430 - Should a platform admin who also plays be exempt from maintenance mode? (T-703b, ADR-471)
+
+**Status:** Proposed (developer, 2026-11-03).
+The wall holds every player session, including the account of a Questify admin or operator who plays (T-204). The console, the dashboard and the operator doors are never held.
+**Recommended (developer):** no exemption: a pause that some accounts ignore cannot be tested honestly, and the admin's real work is not held.
+
+## Q-431 - Show the maintenance message where a refused door answers? (T-703b, ADR-471, ADR-473)
+
+**Status:** Proposed (developer, 2026-11-03).
+The server answers 503 `maintenance` with the message, and the app shows the message on Home and under the event pill; a refused scan, join or reservation still shows the generic "try again" text because the screens do not read the code. Every door that earns or spends is held, votes included (surveys, shares, quizzes, submissions, game rounds, taps, meets, the kiosk, and the station's scan, award and check-in, ADR-471); only quest ratings stay open, since they earn nothing.
+**Recommended (developer):** after the first real pause, read `maintenance` in the refusal mapping of the scan and join screens and show its message; a new door that earns or spends goes into `PLAY_DOORS`, which `test/security/maintenance-doors.int.test.ts` enforces.
+
+## Q-432 - More than one banner, or a banner for one event? (T-703b, ADR-470)
+
+**Status:** Proposed (developer, 2026-11-03).
+FR-1772 asks for one scheduled banner on Questify Home. The block holds one banner; a second replaces the first, and an event's own announcements (T-505) already reach that event's players.
+**Recommended (developer):** keep one banner for v1.
+

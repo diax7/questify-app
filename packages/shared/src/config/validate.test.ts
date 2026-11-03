@@ -180,6 +180,8 @@ describe("parseComposedConfig", () => {
     branding: { accent: null },
     layout: DEFAULT_COMPOSED_LAYOUT,
     questifyHome: DEFAULT_COMPOSED_QUESTIFY_HOME,
+    maintenance: null,
+    banner: null,
   };
 
   it("accepts a composed document", () => {

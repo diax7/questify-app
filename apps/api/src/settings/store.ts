@@ -2,12 +2,22 @@ import type { Client, PoolClient } from "pg";
 
 type Db = Client | PoolClient;
 
+/**
+ * The blocks of `platform_setting` the console writes through this module: the switches, the numbers, maintenance mode and the
+ * banner. Questify home's layout (`questifyHome`) is read here but written only by its own database door (`admin_home_layout_save`).
+ */
+export type PlatformBlock = "features" | "tuning" | "maintenance" | "banner";
+
 /** The stored blocks of the platform settings, exactly as the database holds them. */
-export async function readStoredPlatform(
-  db: Db,
-): Promise<{ features?: unknown; tuning?: unknown; questifyHome?: unknown }> {
+export async function readStoredPlatform(db: Db): Promise<{
+  features?: unknown;
+  tuning?: unknown;
+  questifyHome?: unknown;
+  maintenance?: unknown;
+  banner?: unknown;
+}> {
   const { rows } = await db.query<{ key: string; value: unknown }>(
-    "SELECT key, value FROM platform_setting WHERE key IN ('features', 'tuning', 'questifyHome')",
+    "SELECT key, value FROM platform_setting WHERE key IN ('features', 'tuning', 'questifyHome', 'maintenance', 'banner')",
   );
   return Object.fromEntries(rows.map((row) => [row.key, row.value]));
 }
@@ -31,9 +41,9 @@ export async function readEntitlements(db: Db, eventId: string): Promise<string[
 /** The stored blocks, locked until the transaction ends, so the audit's "before" is what this save replaces. */
 export async function lockPlatformBlocks(
   db: Db,
-  keys: readonly ("features" | "tuning")[],
-): Promise<Partial<Record<"features" | "tuning", unknown>>> {
-  const { rows } = await db.query<{ key: "features" | "tuning"; value: unknown }>(
+  keys: readonly PlatformBlock[],
+): Promise<Partial<Record<PlatformBlock, unknown>>> {
+  const { rows } = await db.query<{ key: PlatformBlock; value: unknown }>(
     "SELECT key, value FROM platform_setting WHERE key = ANY($1) FOR UPDATE",
     [keys],
   );
@@ -42,7 +52,7 @@ export async function lockPlatformBlocks(
 
 export async function upsertPlatformBlock(
   db: Db,
-  key: "features" | "tuning",
+  key: PlatformBlock,
   value: unknown,
   adminId: string,
 ): Promise<void> {

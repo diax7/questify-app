@@ -25,6 +25,7 @@ export type OpenedGrant = Readonly<{
   organizerId: string;
   eventId: string;
   expiresAt: string;
+  kind: "view" | "edit";
 }>;
 
 /**
@@ -101,11 +102,11 @@ export function reactivate(
   });
 }
 
-/** Opens 15 minutes of support on one event for the calling admin (ADR-407). */
+/** Opens 15 minutes of support of `kind` on one event for the calling admin (ADR-407, ADR-520). */
 export function openSupport(
   pool: Pool,
   admin: Admin,
-  input: Readonly<{ eventId: string; reason: string; requestId: string }>,
+  input: Readonly<{ eventId: string; kind: "view" | "edit"; reason: string; requestId: string }>,
 ): Promise<OpenedGrant> {
   return door(pool, admin, async (client) => {
     const { rows } = await client.query<{
@@ -113,17 +114,24 @@ export function openSupport(
       organizer_id: string;
       event_id: string;
       expires_at: Date;
-    }>("SELECT * FROM support_open($1, $2, $3)", [input.eventId, input.reason, input.requestId]);
+      kind: "view" | "edit";
+    }>("SELECT * FROM support_open($1, $2, $3, $4)", [
+      input.eventId,
+      input.kind,
+      input.reason,
+      input.requestId,
+    ]);
     const row = rows[0];
     // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the door answers one row or raises
     if (row === undefined) {
-      throw new Error("support_open answered no row; check migration 0114");
+      throw new Error("support_open answered no row; check migration 0135");
     }
     return {
       grantId: row.grant_id,
       organizerId: row.organizer_id,
       eventId: row.event_id,
       expiresAt: row.expires_at.toISOString(),
+      kind: row.kind,
     };
   });
 }

@@ -2,6 +2,7 @@ import type { Pool, QueryResultRow } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type HintDeps = Readonly<{ pool: Pool }>;
 
@@ -42,7 +43,7 @@ async function callHint<Row extends QueryResultRow, T>(
   context: OrganizerContext,
   call: Readonly<{ sql: string; values: readonly unknown[]; valueOf: (row: Row) => HintDone<T> }>,
 ): Promise<HintDone<T>> {
-  const seat = { organizerId: context.organizerId, staffUserId: context.staffUserId };
+  const seat = teamSeat(context);
   try {
     const row = await withConnection(deps.pool, (client) =>
       withRequestContext(client, seat, async () => {

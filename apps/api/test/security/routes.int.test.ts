@@ -840,7 +840,7 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/admin/events/:eventId/reactivate":
     "active platform admins only (walked below); admin_reactivate_event re-reads the admin; audited; 30 an hour (test/console/organizers, test/db/console-suspension)",
   "POST /v1/admin/events/:eventId/support":
-    "active platform admins only (walked below); support_open: 15 minutes on that one event, never for a member, 20 an hour; audited (test/console/organizers, test/db/support-grant)",
+    "active platform admins only (walked below); support_open: a view (read-only, T-712) or edit grant, 15 minutes on that one event, never for a member, 20 an hour for both kinds; audited (test/console/organizers, test/db/support-grant, test/db/support-view, test/organizers/view-mode)",
   "POST /v1/admin/support/:grantId/close":
     "active platform admins only (walked below); support_close of a live grant only; audited (test/console/organizers, test/db/support-grant)",
   "GET /v1/admin/health":
@@ -885,6 +885,20 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); the one contact row, patterns checked by the shared schema here and again in admin_support_contact_save (QE403, CA400); audited with who, before and after; 120 changes an hour per admin (test/console/messaging, test/db/messaging)",
   "GET /v1/support-contact":
     "no tenant data: the support contact details, the same for everyone (test/console/messaging)",
+  "GET /v1/admin/switches/notices":
+    "active platform admins only (walked below); read only; the platform-wide pause, the paused events' names and join codes, and the banner; no personal data; the admin checked again by the settings service; 60 a minute per admin (test/console/maintenance)",
+  "PUT /v1/admin/switches/maintenance/global":
+    "active platform admins only (walked below); the platform's `maintenance` block, a message in both languages; the policy checks the admin again (app_admin_id); audited with who, before and after; 120 changes an hour per admin (test/console/maintenance, test/db/maintenance)",
+  "DELETE /v1/admin/switches/maintenance/global":
+    "active platform admins only (walked below); lets play run again everywhere; the policy checks the admin again; audited; 120 changes an hour per admin (test/console/maintenance)",
+  "PUT /v1/admin/switches/maintenance/events":
+    "active platform admins only (walked below); pauses the one event with that join code (404 when none), a message in both languages; the policy checks the admin again; audited; 120 changes an hour per admin (test/console/maintenance)",
+  "DELETE /v1/admin/switches/maintenance/events/:eventId":
+    "active platform admins only (walked below); lets one event play again; the policy checks the admin again; audited; 120 changes an hour per admin (test/console/maintenance)",
+  "PUT /v1/admin/switches/banner":
+    "active platform admins only (walked below); the platform's `banner` block, a message in both languages and a window that ends after it starts; the policy checks the admin again; audited; 120 changes an hour per admin (test/console/maintenance)",
+  "DELETE /v1/admin/switches/banner":
+    "active platform admins only (walked below); removes the banner (stores an empty block); the policy checks the admin again; audited; 120 changes an hour per admin (test/console/maintenance)",
   "GET /v1/legal":
     "no tenant data: the version in force of each legal document, the same for everyone (test/console/legal)",
   "GET /v1/legal/:document":

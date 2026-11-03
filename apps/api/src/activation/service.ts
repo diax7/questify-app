@@ -14,6 +14,7 @@ import { withRequestContext, type RequestContext } from "#src/db/context";
 import { recordAudit } from "#src/audit/record";
 import { readHistory, type HistoryEntry, type SuspensionView } from "#src/console/organizers";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 /** What the team and the console both see of an event's activation (FR-1019, FR-1021, FR-1729). */
 export type ActivationView = Readonly<{
@@ -54,6 +55,8 @@ export type ConsoleEvent = ActivationView &
       mine: boolean;
       openedAt: string;
       expiresAt: string;
+      /** `view` (read-only, T-712) or `edit` (T-701). */
+      kind: "view" | "edit";
     }>[];
     /** The event's last 50 audit entries, support work marked. */
     history: readonly HistoryEntry[];
@@ -136,10 +139,7 @@ export type ActivationDeps = Readonly<{
   onAddonsChanged: () => void;
 }>;
 
-const organizerSeat = (actor: OrganizerContext): RequestContext => ({
-  organizerId: actor.organizerId,
-  staffUserId: actor.staffUserId,
-});
+const organizerSeat = (actor: OrganizerContext): RequestContext => teamSeat(actor);
 const adminSeat = (admin: PublicAccount): RequestContext => ({
   isAdmin: true,
   staffUserId: admin.id,
@@ -308,6 +308,7 @@ async function readSupportGrants(
     admin_email: string;
     opened_at: Date;
     expires_at: Date;
+    kind: "view" | "edit";
   }>("SELECT * FROM event_support_grants($1)", [eventId]);
   return rows.map((row) => ({
     id: row.id,
@@ -315,6 +316,7 @@ async function readSupportGrants(
     mine: row.admin_id === adminId,
     openedAt: row.opened_at.toISOString(),
     expiresAt: row.expires_at.toISOString(),
+    kind: row.kind,
   }));
 }
 

@@ -12,6 +12,7 @@ import { withRequestContext } from "#src/db/context";
 import type { Actor } from "#src/events/events";
 import { audit, changes } from "#src/quests/builder";
 import { lockBuilderEvent, type Bilingual } from "#src/quests/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type ResultsDeps = Readonly<{ pool: Pool }>;
 
@@ -114,11 +115,7 @@ async function asTeam<T>(
 ): Promise<ResultsDone<T>> {
   try {
     return await withConnection(deps.pool, (client) =>
-      withRequestContext(
-        client,
-        { organizerId: context.organizerId, staffUserId: context.staffUserId },
-        () => work(client),
-      ),
+      withRequestContext(client, teamSeat(context), () => work(client)),
     );
   } catch (error) {
     const pg = error as { code?: string; detail?: string; hint?: string };

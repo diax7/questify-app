@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 /**
  * Live points edits (T-604, FR-411, FR-412, FR-413, ADR-387): the database doors of migration 0098 as the builder calls
@@ -219,7 +220,7 @@ export async function readImpact(
   context: OrganizerContext,
   target: Readonly<{ eventId: string; questId: string; points: number }>,
 ): Promise<ImpactDone> {
-  const seat = { organizerId: context.organizerId, staffUserId: context.staffUserId };
+  const seat = teamSeat(context);
   try {
     const row = await withConnection(deps.pool, (client) =>
       withRequestContext(client, seat, async () => {

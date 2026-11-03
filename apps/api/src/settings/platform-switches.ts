@@ -46,8 +46,29 @@ export type PlatformSwitchesOptions = Readonly<{
 
 type Block = "features" | "tuning";
 
-const isActiveAdmin = (admin: PublicAccount): boolean =>
+export const isActiveAdmin = (admin: PublicAccount): boolean =>
   admin.platformRole === "admin" && admin.status === "active";
+
+/**
+ * Runs a platform-settings write as the admin: the database policies ask `app_admin_id()` again, a caller who is not an
+ * active admin is refused before the database is touched, and the settings cache is dropped whatever the outcome.
+ */
+export async function runAsAdmin(
+  options: Readonly<{ pool: Pool; forget: () => void }>,
+  admin: PublicAccount,
+  work: (client: PoolClient) => Promise<SaveResult>,
+): Promise<SaveResult> {
+  if (!isActiveAdmin(admin)) {
+    return { ok: false, reason: "forbidden" };
+  }
+  try {
+    return await withConnection(options.pool, (client) =>
+      withRequestContext(client, { isAdmin: true, staffUserId: admin.id }, () => work(client)),
+    );
+  } finally {
+    options.forget();
+  }
+}
 
 /** Changes one key of one stored block under its row lock, validates the block, writes it and audits that key. */
 async function changeKey(
@@ -89,21 +110,8 @@ async function changeKey(
  */
 export function createPlatformSwitches(options: PlatformSwitchesOptions): PlatformSwitches {
   const { pool, registries, forget } = options;
-  const asAdmin = async (
-    admin: PublicAccount,
-    work: (client: PoolClient) => Promise<SaveResult>,
-  ): Promise<SaveResult> => {
-    if (!isActiveAdmin(admin)) {
-      return { ok: false, reason: "forbidden" };
-    }
-    try {
-      return await withConnection(pool, (client) =>
-        withRequestContext(client, { isAdmin: true, staffUserId: admin.id }, () => work(client)),
-      );
-    } finally {
-      forget();
-    }
-  };
+  const asAdmin = (admin: PublicAccount, work: (client: PoolClient) => Promise<SaveResult>) =>
+    runAsAdmin({ pool, forget }, admin, work);
   return {
     view: async (admin) => {
       if (!isActiveAdmin(admin)) {

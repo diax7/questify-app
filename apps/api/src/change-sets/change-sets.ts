@@ -25,6 +25,7 @@ import type { Actor } from "#src/events/events";
 import type { BuilderEvent } from "#src/quests/store";
 import type { RewardCodeKey } from "#src/rewards/codes";
 import type { SettingsService } from "#src/settings/service";
+import { teamSeat } from "#src/organizers/store";
 
 /** The most items in a set, and the most open sets in an event (migration 0099). */
 export const SET_LIMITS = { items: 100, open: 20, listed: 50 } as const;
@@ -67,10 +68,7 @@ export type ItemResult = Readonly<{
 
 export type ApplyOutcome = Readonly<{ status: SetStatus; results: readonly ItemResult[] }>;
 
-const seatOf = (actor: Actor) => ({
-  organizerId: actor.organizerId,
-  staffUserId: actor.staffUserId,
-});
+const seatOf = (actor: Actor) => teamSeat(actor);
 
 const isClosed = (event: BuilderEvent): boolean =>
   event.statusNow === "ended" || event.statusNow === "archived";

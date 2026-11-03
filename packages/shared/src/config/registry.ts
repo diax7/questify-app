@@ -4,6 +4,7 @@ import type { EventLayout } from "#src/layout/layout";
 import type { QuestifyHome } from "#src/layout/questify-home";
 import type { EventTerms } from "./terms";
 import type { EventTexts } from "./texts";
+import type { BannerSetting, MaintenanceSettings } from "#src/maintenance/notices";
 
 /** A feature that exists inside the reviewed app. Configuration can only switch these on or off (FR-1504). */
 export type FeatureDefinition = Readonly<{
@@ -44,10 +45,16 @@ export type PlatformSettings = Readonly<{
   tuning?: Readonly<Record<string, number>> | undefined;
   /** Questify home's blocks and banner (T-713); the default layout while none is stored. */
   questifyHome?: QuestifyHome | undefined;
+  /** Maintenance mode (T-703b, FR-1771): the messages that pause play, for every event or single ones. */
+  maintenance?: MaintenanceSettings | undefined;
+  /** The banner scheduled for Questify Home (T-703b, FR-1772). */
+  banner?: BannerSetting | undefined;
 }>;
 
 /** What an event stores in `event.config`. An event can only narrow what the platform allows. */
 export type EventConfig = Readonly<{
+  /** The event's id, so the event's own maintenance message can apply (T-703b). */
+  id?: string | undefined;
   /** false switches a feature off for this event only. */
   features?: Readonly<Record<string, boolean>> | undefined;
   /** Gated features Questify unlocked for this event. */

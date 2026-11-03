@@ -107,6 +107,15 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
     rows: "reporter_id = $1 OR (target_kind = 'username' AND target_id = $1)",
     why: "reports made keep the report with reporter and note cleared; reports of the player's username are deleted",
   },
+  team_alert: {
+    links: ["target_id"],
+    export: {
+      excluded: "an internal moderation alert about a report, never the player's own data",
+    },
+    erasure: "delete",
+    rows: "target_kind = 'username' AND target_id = $1",
+    why: "an alert about a reported username is deleted with the report when the account is erased",
+  },
   daily_answer: {
     links: ["play_id"],
     export: "questify.daily.plays[].answers",
@@ -718,6 +727,11 @@ export const NOT_PLAYER: Readonly<Record<string, string>> = {
   "staff_briefing.created_by": ADMIN,
   "submission.reviewed_by_staff": ADMIN,
   "survey_share.created_by": ADMIN,
+  "team_alert.change_id": "a staff account's email change, never a player",
+  "team_alert.event_id": ORG,
+  "team_alert.lease": OPAQUE,
+  "team_alert.organizer_id": ORG,
+  "team_alert.report_id": "the report the alert is about; its player link is the report's",
   "xp_entry.quest_id": "a Questify quest's id",
   "push_send.lease_token": OPAQUE,
 };

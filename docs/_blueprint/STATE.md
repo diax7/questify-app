@@ -6,6 +6,21 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-712 view as organizer — 2026-11-03
+
+- **T-712 built (tier A; plan review 86 with its two MAJOR and the MINOR fixes folded in; migration 0135, new and
+  undeployed; ADR-520 to ADR-525 and Q-480 to Q-483 Proposed).** The console's event page opens "View as organizer"
+  (primary) or support access that can change (secondary). A view grant is read-only twice: the organizer hook refuses
+  every write (403 `support_view_only`) and the codes and rehearsal card, and sets `readOnly` in the request's
+  `RequestContext` (every seat now built by `teamSeat`), so the database, which honours a view only in read-only
+  transactions, runs a lost mark as nobody. Every read is throttled (240 a minute, queued) and logged by
+  `support_view_log` with the route pattern and path ids, once a minute. The admin's banner says read-only; an ended view
+  says so with a link back to the console. The generated sweep found and fixed two reads that broke read-only (the
+  join setup locked the event row; the big screen and finale seats dropped the mark). Tests:
+  `test/organizers/view-mode` (every organizer route), `test/db/support-view` (11), the security suites,
+  `e2e/console-organizers.spec.ts`. CI minutes: 0 (not pushed); agent tokens: about 700k.
+  **Next:** the T-712 code review (tier A, strongest model), then mutation on GitHub for the access globs.
+
 ## T-708 legal data requests — 2026-11-03
 
 - **T-708 built (tier A; plan review 84 with its five MAJOR fixes folded in; not run on a phone; migration 0129, new and
@@ -131,6 +146,11 @@
 
 - **T-703 built (tier B; not run on a phone; migration 0125, new and undeployed; ADR-450 to ADR-453 and Q-410 to Q-412 Proposed; split: maintenance mode and the banner are T-703b).** The console page **Switches and numbers** (`/[lang]/console/switches`) edits the 27 platform feature switches (on or off at once, a message in both languages while off, put back to the app's own) and the 6 tuning numbers (whole, inside the shown range, put back). Four new server-only numbers are read by the database (`rehearsal_cap()`, `flag_tuning()`, `readiness_soon()` follow `platform_setting` `tuning`, shipped number on any bad value) and never reach a phone; the rehearsal card shows the cap in force. One key per call, audited with before and after; the app lists switched-off features' messages on Questify Home. The unused `myQrGraceSeconds` is gone and the burst flag text no longer says "5 minutes". The last-working configuration was already built and tested (T-007, ADR-412). Left: FR-1731 (T-706), the other FR-1770 numbers (Q-410), XP on repeats (Q-412). Tests: `test/db/platform-tuning` (12), `test/console/switches` (9), the security suites, shared, web and app unit tests, `e2e/console-switches.spec.ts`, `layout.spec.ts` with the new page. CI minutes: 0.
   **Next:** T-703b, or the next unchecked task in `docs/TASKS.md`; mutation is not needed (tier B).
+
+## T-703b maintenance mode and the scheduled banner — 2026-11-03
+
+- **T-703b built (tier B; not run on a phone; migration 0134, new and undeployed; ADR-470 to ADR-473 and Q-430 to Q-432 Proposed).** The Switches page gains a **Maintenance and banner** tab: pause play everywhere or for one event (by join code) with a message in both languages, and schedule the Questify Home banner. Both are `platform_setting` blocks composed into the configuration (`maintenance`, `banner`), so the app keeps its last working copy and shows them without a release; the phone decides the banner window by its clock. While paused, every door that earns or spends (scan, vote, quiz, submit, game, tap, meet, kiosk, stamp, reveal, reserve, goal, join, the station's scan, award and check-in, Questify sync, daily, gems) answers 503 `maintenance` with the message (`src/maintenance/gate.ts`, `play_event_id`; a test walks every player and device write route); reads, leaving, ratings, prize handover, the dashboard, the rest of operator mode, the console and the config door are never held. Home shows the pause, the banner and switched-off messages; the event pill shows the event's pause. CI minutes used: none (no push). Tokens: roughly 450k.
+  **Next:** the next unchecked task in `docs/TASKS.md`; mutation is not needed (tier B).
 
 ## T-707 legal versions and help — 2026-11-02
 

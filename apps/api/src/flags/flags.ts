@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type FlagsDeps = Readonly<{ pool: Pool }>;
 
@@ -34,11 +35,7 @@ async function asTeam<T>(
 ): Promise<FlagDone<T>> {
   try {
     const value = await withConnection(deps.pool, (client) =>
-      withRequestContext(
-        client,
-        { organizerId: context.organizerId, staffUserId: context.staffUserId },
-        () => work(client),
-      ),
+      withRequestContext(client, teamSeat(context), () => work(client)),
     );
     return { kind: "done", value };
   } catch (error) {

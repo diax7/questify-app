@@ -1,18 +1,24 @@
 import type { ComposedConfig } from "@questify/shared";
 import { AppText } from "#src/components/AppText.tsx";
-import { switchedOffMessages } from "#src/config/notices.ts";
+import { bannerMessage, maintenanceMessage, switchedOffMessages } from "#src/config/notices.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 
 /**
- * What Questify says about the features it switched off (T-703, FR-1769): the messages from the platform configuration,
- * in the player's language, from the configuration Home holds. The feature itself is already hidden; nothing at all
- * when there is no message or the configuration cannot be read.
+ * What Questify says on Home, from the platform configuration Home holds, in the player's language: why play is paused
+ * (T-703b, FR-1771), the scheduled banner while its window is open (FR-1772), and the messages of the features it switched
+ * off (T-703, FR-1769). The features themselves are already hidden; nothing at all when there is nothing to say or no
+ * configuration yet (Home reads the last working copy first and again each time it gains focus).
  */
 export function PlatformNotices({ config }: Readonly<{ config: ComposedConfig | undefined }>) {
   const { language } = useI18n();
+  const texts = [
+    maintenanceMessage(config, language),
+    bannerMessage(config, language, Date.now()),
+    ...switchedOffMessages(config, language),
+  ].filter((text): text is string => text !== null);
   return (
     <>
-      {switchedOffMessages(config, language).map((text) => (
+      {[...new Set(texts)].map((text) => (
         <AppText key={text} accessibilityRole="alert">
           {text}
         </AppText>

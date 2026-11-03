@@ -9,6 +9,7 @@ import { withRequestContext } from "#src/db/context";
 import type { HttpError } from "#src/http-error";
 import { organizerContextOf } from "#src/organizers/context";
 import { registerBlockRoutes, type BlockDeps } from "#src/players/block-routes";
+import { teamSeat } from "#src/organizers/store";
 
 export type ReportDeps = Readonly<{ pool: Pool }>;
 
@@ -108,7 +109,7 @@ export function registerContentHoldTeamRoutes(scope: FastifyInstance, deps: Repo
       const rows = await withConnection(deps.pool, (client) =>
         withRequestContext(
           client,
-          { organizerId: context.organizerId, staffUserId: context.staffUserId },
+          teamSeat(context),
           async () =>
             (
               await client.query<{ r: unknown }>(

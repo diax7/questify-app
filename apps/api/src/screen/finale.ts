@@ -1,3 +1,4 @@
+import type { OrganizerContext } from "#src/organizers/store";
 import type { Pool, PoolClient } from "pg";
 import { bigScreenOff, finaleStarted, invalidFinale, ownerOnly } from "#src/auth/http-errors";
 import { inDevice } from "#src/devices/errors";
@@ -25,7 +26,8 @@ export type FinaleReading = Readonly<{
   }> | null;
 }>;
 
-type Owner = Readonly<{ organizerId: string; staffUserId: string }>;
+/** The caller's organizer context, a support view's read-only mark included (T-712). */
+type Owner = OrganizerContext;
 
 type PgError = Readonly<{ code?: string; detail?: string }>;
 

@@ -3,7 +3,9 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { Pool } from "pg";
 import { eventUnavailable, legalAcceptanceRequired, unauthenticated } from "#src/auth/http-errors";
 import type { SuspendedSet } from "#src/events/suspended-set";
+import { registerMaintenanceGate } from "#src/maintenance/gate";
 import { PLAYER_GUARD } from "#src/route-access";
+import type { SettingsService } from "#src/settings/service";
 
 /** A bearer token is 32 random bytes in base64url (T-107 issues them, as staff sessions are made). */
 const BEARER = /^Bearer ([A-Za-z0-9_-]{43})$/;
@@ -68,13 +70,16 @@ async function refuseUnacceptedWrite(
  * allows player routes at all (route-access.ts). A route of a suspended event (`:eventId`) then answers 404
  * `event_unavailable` (T-701, FR-1607): players learn only that the event is unavailable, never why. A write by a
  * player who has not accepted the terms and privacy policy in force answers 403 `legal_acceptance_required` (T-707).
+ * While Questify paused play, the play doors then answer 503 `maintenance` (T-703b, `registerMaintenanceGate`).
  */
 export function registerPlayerGuard(
   app: FastifyInstance,
   pool: Pool,
   suspended: SuspendedSet,
+  settings: Pick<SettingsService, "platform">,
 ): void {
   app.decorate(PLAYER_GUARD, true);
+  registerMaintenanceGate(app, { pool, settings });
   app.addHook("onRequest", async (request, reply) => {
     if (request.routeOptions.config.access !== "player") {
       return;

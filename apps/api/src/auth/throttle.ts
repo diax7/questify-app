@@ -84,6 +84,7 @@ export const BUCKETS = {
   consoleFlags: "console_flags",
   consoleOwnerEmail: "console_owner_email",
   consoleOwnerEmailChange: "console_owner_email_change",
+  supportView: "support_view",
   emailChangeAddress: "email_change_address",
   teamAlertMail: "team_alert_mail",
   stationToday: "station_today",

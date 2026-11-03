@@ -11,6 +11,7 @@ import { BUCKETS, countRecent, record, tryLock } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 /** Who acts: the signed-in owner (or member) and the organizer from the URL, checked by the scope's hook. */
 export type Actor = OrganizerContext & Readonly<{ email: string }>;
@@ -59,11 +60,7 @@ const CHECK_VIOLATION = "23514";
 
 const inContext = <T>(deps: PasswordDeps, actor: Actor, work: (client: PoolClient) => Promise<T>) =>
   withConnection(deps.pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      () => work(client),
-    ),
+    withRequestContext(client, teamSeat(actor), () => work(client)),
   );
 
 async function scopeIsValid(

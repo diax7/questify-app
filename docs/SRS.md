@@ -1363,8 +1363,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1768 | F-277 | Must | pending |
 | FR-1769 | F-278 | Must | built (T-703, ADR-453: switch, message in both languages, notice on Home; `test/console/switches`, `src/config/notices.test`) |
 | FR-1770 | F-279 | Should | partly built (T-703, ADR-451: ranges enforced, rehearsal cap, readiness days, flag numbers, username days, live poll; the other numbers are Q-410) |
-| FR-1771 | F-280 | Should | pending (T-703b) |
-| FR-1772 | F-281 | Should | pending (T-703b) |
+| FR-1771 | F-280 | Should | built (T-703b) |
+| FR-1772 | F-281 | Should | built (T-703b) |
 | FR-1773 | F-282 | Must | built (T-007 and ADR-412; `apps/app/src/config/remote.test`) |
 | FR-1774 | F-283 | Must | built (T-704: search, read-only record and points record, every look audited) |
 | FR-1775 | F-284 | Should | partly built (T-704: rename and sign-in reset; merging accounts dropped from v1 by Dhia, ADR-423) |
@@ -1429,7 +1429,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1834 | F-336 | Should | built (T-612: reservation On or Off in the shop settings; Off sells desk rewards after a My QR scan, paid by the player's own Pay in one transaction, ADR-397; `apps/api/test/desk/desk-sale.int.test.ts`, `apps/web/e2e/rewards.spec.ts`) |
 | FR-1835 | F-337 | Should | built (T-613: the info page's sections ordered and shown on the Layout page, About, questions and contacts, one extra page of headings, text, lists and links opened from Home; pictures and the sponsors and free sections are not built (T-613b, ADR-398); `apps/web/e2e/layout-editor.spec.ts`, `apps/api/test/events/layout.int.test.ts`, `apps/app/src/event/info-page.test.ts`; not run on a phone) |
 | FR-1836 | F-338 | Could | built T-510 (four switches on the Announcements page, a player's own choice wins; phone check owed): `test/db/push-topic-defaults.int`, `test/push/defaults.int`, `e2e/push-defaults.spec.ts` |
-| FR-1837 | F-339 | Should | pending |
+| FR-1837 | F-339 | Should | built (T-712: a `view` kind of the support grant, read-only in the API and in read-only transactions, banner, every read in Questify's audit log as `support.viewed`, which is how "the event's log" is read, ADR-523, ADR-525; `test/organizers/view-mode.int`, `test/db/support-view.int`, `e2e/console-organizers.spec.ts`) |
 | FR-1838 | F-340 | Could | built (T-713: eleven blocks reordered, hidden (six are always shown) and a banner of up to five text slides at `/console/home`, audited and reverted through the catalog door, shown by the app from the cached configuration first; pictures and taps into the app's own screens are not built, Q-471, Q-472; `apps/api/test/db/console-home-layout.int.test.ts`, `apps/api/test/console/home-layout.int.test.ts`, `packages/shared/src/layout/questify-home.test.ts`, `apps/app/src/home/home-layout.test.ts`, `apps/web/e2e/console-home.spec.ts`; not run on a phone) |
 | FR-1839 | F-341 | Could | pending |
 | FR-1840 | F-342 | Should | built (T-313, 2026-10-25) |
