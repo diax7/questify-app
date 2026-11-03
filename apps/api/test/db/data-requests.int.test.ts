@@ -4,7 +4,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import { sqlstate } from "#test/support/push";
 import { seedFullPlayer } from "#test/support/full-player";
-import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
+import {
+  TEST_DATABASE_URL,
+  connectAsOwner,
+  createTestDatabase,
+  type TestDatabase,
+} from "#test/support/test-db";
 
 type Row = Record<string, unknown>;
 type Erased = { outcome: string; events: string[] };
@@ -18,13 +23,14 @@ function gate(): { hold: Promise<void>; release: () => void } {
   return { hold, release: () => opened.release?.() };
 }
 
-/** The self-deletion's door in its own transaction, held open until `hold` resolves. */
-const selfErase = (client: Client, hash: Buffer, hold?: Promise<void>) =>
+/** The self-deletion's door in its own transaction: `reached` is called once it has erased, then held open until `hold`. */
+const selfErase = (client: Client, hash: Buffer, hold?: Promise<void>, reached?: () => void) =>
   withRequestContext(client, {}, async () => {
     const { rows } = await client.query<{ outcome: string }>(
       "SELECT outcome FROM erase_player($1, false, $2)",
       [hash, randomUUID()],
     );
+    reached?.();
     await hold;
     return rows[0]?.outcome;
   });
@@ -155,20 +161,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("data requests (database)", () 
     };
   };
   /** A verified deletion challenge, as verify_deletion_code leaves it. */
-  const verified = async (player: string): Promise<Buffer> => {
+  const verified = async (player: string, id = randomUUID()): Promise<Buffer> => {
     const token = randomUUID();
     await owner(
       `INSERT INTO player_deletion_challenge (id, token_hash, player_id, contact_key, code_hash, expires_at, deletion_hash,
                                               deletion_expires_at)
        VALUES ($1, $2, $3, $4, $5, now() + interval '5 minutes', $6, now() + interval '10 minutes')`,
-      [
-        randomUUID(),
-        sha(`t${token}`),
-        player,
-        sha(`k${token}`),
-        sha(`c${token}`),
-        sha(`d${token}`),
-      ],
+      [id, sha(`t${token}`), player, sha(`k${token}`), sha(`c${token}`), sha(`d${token}`)],
     );
     return sha(`d${token}`);
   };
@@ -283,6 +282,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("data requests (database)", () 
         "966551234567",
         "1234567890",
         "ID1234567890",
+        "ID-1234-567-890",
+        "p055-123-4567",
+        "CASE/9665/5123/4567",
         "ab",
       ]) {
         expect(await sqlstate(adminExport(p.id, "legal_request", bad)), bad).toBe("DR400");
@@ -296,6 +298,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("data requests (database)", () 
         actor_id: adminId,
         after: { source: "admin", reasonCode: "legal_request", reference: "CR-2026.7" },
       });
+      for (const good of ["LEGAL-2026/14-A/7", "AB12-CD34-EF56-GH78"]) {
+        expect(await adminExport(p.id, "legal_request", good), good).toMatchObject({
+          playerId: p.id,
+        });
+      }
       expect(await owner("SELECT 1 FROM notice WHERE player_id = $1", [p.id])).toHaveLength(0);
     });
 
@@ -359,24 +366,62 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("data requests (database)", () 
   });
 
   describe("an admin erase and a self-erase of one account at once", () => {
-    it("self-erase first: the admin then finds a tombstone", async () => {
+    it("self-erase first: the admin is told to retry and then finds a tombstone", async () => {
       const p = await newPlayer();
       const hash = await verified(p.id);
       const [first, second] = [await connect(), await connect()];
       try {
         const { hold, release } = gate();
-        const self = selfErase(first, hash, hold);
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        const blocked = await waitUntilBlocked(second);
-        const other = adminInTx(second, p);
-        await blocked();
+        const erased = gate();
+        const self = selfErase(first, hash, hold, erased.release);
+        await Promise.race([erased.hold, self]);
+        expect(await sqlstate(adminInTx(second, p))).toBe("55P03");
         release();
         expect(await self).toBe("erased");
-        expect(await other).toBe("already_deleted");
       } finally {
         await Promise.all([first.end(), second.end()]);
       }
+      expect(await adminErase(p.id, p.name)).toEqual({ outcome: "already_deleted", events: [] });
       expect(await audits(p.id, "player.delete")).toHaveLength(1);
+    });
+
+    it("two challenges, the self-erase on the higher id: the admin is told to retry, never a deadlock", async () => {
+      const p = await newPlayer();
+      const [low, high] = [randomUUID(), randomUUID()].toSorted();
+      await verified(p.id, low);
+      const hash = await verified(p.id, high);
+      const holder = await connectAsOwner(db);
+      const [selfClient, adminClient] = [await connect(), await connect()];
+      const running: Promise<unknown>[] = [];
+      try {
+        await holder.query("BEGIN");
+        await holder.query("SELECT 1 FROM player WHERE id = $1 FOR UPDATE", [p.id]);
+        const blocked = await waitUntilBlocked(selfClient);
+        const self = selfErase(selfClient, hash);
+        running.push(self);
+        await blocked();
+        const other = sqlstate(adminInTx(adminClient, p));
+        running.push(other);
+        const answered = await Promise.race([
+          other,
+          new Promise<string>((resolve) => setTimeout(() => resolve("waited"), 3000)),
+        ]);
+        expect(answered).toBe("55P03");
+        await holder.query("ROLLBACK");
+        expect(await self).toBe("erased");
+      } finally {
+        await holder.end();
+        await Promise.allSettled(running);
+        await Promise.all([selfClient.end(), adminClient.end()]);
+      }
+      expect(await adminErase(p.id, p.name)).toEqual({ outcome: "already_deleted", events: [] });
+      expect(await audits(p.id, "player.delete")).toHaveLength(1);
+      expect(
+        await owner<{ id: string; marked: boolean }>(
+          "SELECT id, erased_at IS NOT NULL AS marked FROM player_deletion_challenge WHERE id IN ($1, $2)",
+          [low, high],
+        ),
+      ).toEqual([{ id: high, marked: true }]);
     });
 
     it("admin first: the self-erase then finds its challenge gone", async () => {

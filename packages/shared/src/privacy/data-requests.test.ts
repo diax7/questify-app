@@ -21,6 +21,9 @@ describe("data requests (shared rules)", () => {
       "A1234567",
       "x".repeat(64),
       "case_1",
+      "LEGAL-2026/14-A/7",
+      "AB12-CD34-EF56-GH78",
+      "A1-2-3-4-5-6-7",
     ]) {
       expect(isCaseReference(good), good).toBe(true);
     }
@@ -31,6 +34,11 @@ describe("data requests (shared rules)", () => {
       "966551234567",
       "1234567890",
       "ID1234567890",
+      "ID-1234-567-890",
+      "p055-123-4567",
+      "p055.123_4567",
+      "CASE/9665/5123/4567",
+      "1-2-3-4-5-6-7-8-A",
       "+966551234567",
       "a@b.sa",
       "CASE 1",

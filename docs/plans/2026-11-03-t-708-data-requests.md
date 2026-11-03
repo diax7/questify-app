@@ -202,8 +202,8 @@ audit row exist only if the file was built.
 
 `console_admin()`; `player_for_admin(target, false)` (PA404 for a tombstone); `data_request_reason(reason_code,
 reference)` checks the reason (`legal_request`: an authority or court; `player_request`: the person, verified outside the
-system) and the **reference**: an opaque case number, `^[A-Za-z0-9._/-]{3,64}$` **with at least one letter and no run of 8
-or more digits**, so no name, email, phone (`966551234567`) or national id (`1234567890`) can be typed into the durable
+system) and the **reference**: an opaque case number, `^[A-Za-z0-9._/-]{3,64}$` **with at least one letter and never 8
+digits in a row once `. _ / -` between them are ignored**, so no name, email, phone (`966551234567`) or national id (`1234567890`) can be typed into the durable
 record (DR400 otherwise). The same rule lives in `packages/shared` for the console form and the route. Writes `audit_log` (`admin`, actor the admin, `player.data_export`, after
 `{source: 'admin', reasonCode, reference}`) and returns `player_data_export`. **No notice to the player** (an authority's
 request may require silence; Q-444). No `player_admin_action` row: those rows hold free notes and are erased with the
@@ -231,7 +231,9 @@ same `player.delete` audit entry. Every existing test in `test/db/account-deleti
    then `SELECT … FROM player WHERE id = target FOR UPDATE`. `erase_player` holds its challenge before the player, so
    taking the player first would deadlock against it (`erase_rows` deletes that challenge). With this order one waits
    for the other: an admin erase after a self-erase finds a tombstone (`already_deleted`); a self-erase after an admin
-   erase finds its challenge gone (`expired`). Unknown id → PA404. Already `deleted` → outcome
+   erase finds its challenge gone (`expired`). **As built (code review, ADR-483):** the challenges are locked `FOR UPDATE
+   NOWAIT`, because a plain wait on a higher id while holding a lower one deadlocks against a self-erase of a player
+   with two challenges; a collision answers 55P03 (503 `busy`) and the retry finds the tombstone. Unknown id → PA404. Already `deleted` → outcome
    **`already_deleted`**, no write, no error (a repeat of a finished request is not a failure; ADR-485).
 3. `typed_username` must equal the username exactly (DR409 `confirmation`): the console makes the admin type it, and
    the database checks it, so a mistyped id in a script cannot delete the wrong account.

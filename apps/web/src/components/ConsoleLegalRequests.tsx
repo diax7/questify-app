@@ -46,7 +46,7 @@ function saveFile(body: unknown): void {
   link.href = url;
   link.download = dataExportFileName(new Date());
   link.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function CaseFields({

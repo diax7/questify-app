@@ -17,8 +17,10 @@ $$;
 REVOKE ALL ON FUNCTION data_export_time(timestamptz) FROM PUBLIC;
 
 -- Why an admin acts on a data request, and the case it belongs to (ADR-483). The reference is an opaque case number:
--- 3 to 64 of A-Z a-z 0-9 . _ / -, at least one letter, and no run of 8 or more digits, so no name, email, phone or
--- national id can be typed into the durable record. DR400 names the field in its message.
+-- 3 to 64 of A-Z a-z 0-9 . _ / -, at least one letter, and never 8 digits in a row once the separators . _ / - between
+-- them are ignored (966551234567, ID-1234-567-890), so no email (no @), phone or national id can be typed into the
+-- durable record. A name in Latin letters cannot be told from a case code and is left to the form's hint. DR400 names
+-- the field in its message.
 CREATE FUNCTION data_request_reason(reason_code text, reference text) RETURNS void
   LANGUAGE plpgsql IMMUTABLE SET search_path = public, pg_temp AS $$
 BEGIN
@@ -26,7 +28,7 @@ BEGIN
     RAISE EXCEPTION 'reasonCode' USING ERRCODE = 'DR400';
   END IF;
   IF reference IS NULL OR reference !~ '^[A-Za-z0-9._/-]{3,64}$' OR reference !~ '[A-Za-z]'
-     OR reference ~ '[0-9]{8,}' THEN
+     OR reference ~ '([0-9][._/-]*){8}' THEN
     RAISE EXCEPTION 'reference' USING ERRCODE = 'DR400';
   END IF;
 END $$;
@@ -98,7 +100,8 @@ END $$;
 REVOKE ALL ON FUNCTION erase_account(player, bytea, boolean, uuid) FROM PUBLIC;
 
 -- As 0038 (same signature, grants and outcomes), with the body in erase_account. Lock order: the deletion challenge FOR
--- UPDATE, then the player FOR UPDATE; the admin and re-apply paths take the same order.
+-- UPDATE, then the player FOR UPDATE; the admin and re-apply paths (erase_target) take the same order but never wait
+-- for a challenge.
 CREATE OR REPLACE FUNCTION erase_player(deletion bytea, forfeit boolean, request uuid)
   RETURNS TABLE (outcome text, player_id uuid, events uuid[])
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -134,15 +137,17 @@ END $$;
 REVOKE ALL ON FUNCTION erase_player(bytea, boolean, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION erase_player(bytea, boolean, uuid) TO questify_app;
 
--- The account an admin or the re-apply erases, locked in erase_player's order: every deletion challenge of the player
--- (by id) FOR UPDATE, then the player FOR UPDATE. A self-erase holding its challenge finishes first (this then finds a
--- tombstone); one waiting for its challenge finds it deleted afterwards (expired). NULL for an unknown id.
+-- The account an admin or the re-apply erases: every deletion challenge of the player FOR UPDATE NOWAIT (by id), then
+-- the player FOR UPDATE. A self-erase holds one challenge and then needs all of them (erase_rows deletes them), so an
+-- admin that waited on a higher id while holding a lower one could deadlock against it (40P01). NOWAIT never waits: a
+-- challenge held by a self-erase fails this at once with 55P03 (503 busy), and the retry finds the tombstone. A
+-- self-erase waiting for the challenges this holds finds them deleted afterwards (expired). NULL for an unknown id.
 CREATE FUNCTION erase_target(target uuid) RETURNS player
   LANGUAGE plpgsql VOLATILE SET search_path = public, pg_temp AS $$
 DECLARE
   hit player;
 BEGIN
-  PERFORM 1 FROM player_deletion_challenge c WHERE c.player_id = target ORDER BY c.id FOR UPDATE;
+  PERFORM 1 FROM player_deletion_challenge c WHERE c.player_id = target ORDER BY c.id FOR UPDATE NOWAIT;
   SELECT p.* INTO hit FROM player p WHERE p.id = target FOR UPDATE;
   RETURN hit;
 END $$;

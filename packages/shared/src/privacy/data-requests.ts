@@ -12,11 +12,13 @@ export const isDataRequestReason = (value: unknown): value is DataRequestReason 
 
 const REFERENCE_SHAPE = /^[A-Za-z0-9._/-]{3,64}$/;
 const HAS_LETTER = /[A-Za-z]/;
-const LONG_DIGITS = /[0-9]{8,}/;
+const LONG_DIGITS = /(?:[0-9][._/-]*){8}/;
 
 /**
- * Whether the text is an opaque case reference: 3 to 64 of `A-Z a-z 0-9 . _ / -`, at least one letter and no run of 8
- * or more digits, so no name, email, phone or national id can be typed into the durable audit record.
+ * Whether the text is an opaque case reference: 3 to 64 of `A-Z a-z 0-9 . _ / -`, at least one letter and never 8
+ * digits in a row once the separators `. _ / -` between them are ignored (`966551234567`, `ID-1234-567-890`), so no
+ * email, phone or national id can be typed into the durable audit record. A name in Latin letters cannot be told from a
+ * case code; the form's hint asks the admin not to type one.
  */
 export function isCaseReference(value: unknown): value is string {
   return (

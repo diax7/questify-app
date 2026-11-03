@@ -12,8 +12,9 @@
   undeployed; ADR-480 to ADR-485 Proposed; Q-440 to Q-445 open).** A player downloads their data from Settings (one JSON
   file, never stored, 3 a day, a notice); an admin exports or erases one player on a legal request from the console's
   Legal request card with a reason and an opaque case number, audited; `erase_player`'s body is now `erase_account`
-  (the T-217 suite passes unchanged), the admin erase takes the deletion challenges before the player (race tested both
-  ways, no deadlock), a tombstone can never change (trigger ALWAYS), and `staff-cli reapply-erasures` re-applies after a
+  (the T-217 suite passes unchanged), the admin erase takes the deletion challenges `NOWAIT` before the player (race
+  tested both ways with one and two challenges: it finishes first or answers 503 busy, and the retry finds the
+  tombstone), a tombstone can never change (trigger ALWAYS), and `staff-cli reapply-erasures` re-applies after a
   restore. `test/db/personal-data-catalog` is the closed list of where a player's data lives. New direct app dependency
   `expo-file-system` (Expo's own module, already in the lockfile). Export timing: 50 events, 10,000 ledger entries,
   2,000 notifications, 500 submissions, 1.5 MB, 0.84 s warm and 1.0 s cold on the local database. CI minutes: 0 (not

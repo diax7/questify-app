@@ -2105,7 +2105,8 @@ The console downloads the file in the admin's browser. Personal data never goes 
 ## Q-442 - May Questify leave fraud flags, reports by others and internal notes out of an export? (T-708, counsel)
 
 **Status:** Open (developer, 2026-11-03; ADR-481).
-**Recommended (developer):** leave them out (fraud prevention, other people's data) and keep the reason in the catalog.
+Also for counsel: a banned player cannot use Download my data (`own_data_export` answers DR404 unless the account is active); their access request goes to an admin, whose export covers a banned account. Is that enough for the right of access?
+**Recommended (developer):** leave them out (fraud prevention, other people's data) and keep the reason in the catalog; keep the self-service download for active accounts and serve a banned player through the admin export.
 
 ## Q-443 - Backup retention, log retention and the privacy policy wording for erased data (T-708, T-019, counsel)
 
