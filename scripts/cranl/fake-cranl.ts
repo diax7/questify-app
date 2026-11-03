@@ -25,6 +25,7 @@ export interface FakeCranl {
   projects: Json[];
   buckets: Json[];
   failNext: (status: number, times?: number) => void;
+  maskEnv: () => void;
 }
 
 const json = (status: number, body: unknown) =>
@@ -41,6 +42,7 @@ export function fakeCranl(): FakeCranl {
     writes: [] as { method: string; path: string; body: Json }[],
   };
   let failures: { status: number; left: number } | undefined;
+  let masked = false;
 
   const app = (appId: string) => {
     const found = state.apps.find((a) => a.id === appId);
@@ -78,7 +80,11 @@ export function fakeCranl(): FakeCranl {
     if (sub === "env" && method === "GET") {
       return json(200, {
         version: "v",
-        variables: [...target.env].map(([key, value]) => ({ key, value, masked: false })),
+        variables: [...target.env].map(([key, value]) => ({
+          key,
+          value: masked ? "****" : value,
+          masked,
+        })),
       });
     }
     if (sub === "env" && method === "PATCH")
@@ -191,6 +197,9 @@ export function fakeCranl(): FakeCranl {
     },
     failNext: (status, times = 1) => {
       failures = { status, left: times };
+    },
+    maskEnv: () => {
+      masked = true;
     },
   };
 }

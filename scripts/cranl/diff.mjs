@@ -107,7 +107,7 @@ function diffCron(key, app, have) {
     const live = have?.cron.find((j) => j.name === job.name);
     if (live === undefined) changes.push(api({ op: "cron.add", app: key, job }));
     else if (!sameJob(live, job))
-      changes.push(api({ op: "cron.replace", app: key, job, id: live.id }));
+      changes.push(manual({ op: "cron.manual", app: key, job: job.name }));
   }
   for (const job of have?.cron ?? []) {
     if (!app.cron.some((j) => j.name === job.name))

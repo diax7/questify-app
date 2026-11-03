@@ -47,7 +47,7 @@ async function readBody(response) {
   try {
     return JSON.parse(text);
   } catch {
-    return {};
+    return null;
   }
 }
 
@@ -87,7 +87,13 @@ export function createClient({
       }
       if (attempt < ATTEMPTS) await wait(retryDelayMs * attempt);
     }
-    if (last.status >= 200 && last.status < 300) return last.body;
+    if (last.status >= 200 && last.status < 300) {
+      if (last.body !== null) return last.body;
+      throw new CranlError(
+        `CranL ${method} ${path} answered ${last.status} without JSON`,
+        last.status,
+      );
+    }
     const code = last.body?.error?.code;
     const reason = last.status === 0 ? `no answer (${last.cause?.name ?? "error"})` : last.status;
     throw new CranlError(

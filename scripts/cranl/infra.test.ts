@@ -146,7 +146,7 @@ describe("plan on an existing environment", () => {
     cranl.apps.find((a) => a.name === "questify-api-staging")!.env.set("TRUST_PROXY_HOPS", "2");
     const changes = await planOf(cranl);
     expect(changes.map(describeChange)).toEqual([
-      'api       env.set api TRUST_PROXY_HOPS "2" -> "1"',
+      'api       env.set api TRUST_PROXY_HOPS differs -> "1"',
     ]);
     await apply({ client: clientFor(cranl), spec: staging(), env: OPERATOR, runId: "run2" });
     expect(await planOf(cranl)).toEqual([]);
@@ -200,7 +200,7 @@ describe("plan on an existing environment", () => {
     expect(cranl.writes.length).toBe(writes);
   });
 
-  it("changes a port, replaces a changed cron job and fixes backups", async () => {
+  it("changes a port, fixes backups and leaves a changed cron job to the operator", async () => {
     const spec = staging();
     spec.apps.api.cron = [
       { name: "nightly", schedule: "0 3 * * *", command: "node x.js", timezone: "Asia/Riyadh" },
@@ -211,13 +211,12 @@ describe("plan on an existing environment", () => {
     api.cron[0]!.cron = "0 4 * * *";
     cranl.databases[0]!.backups.keep = 3;
     const ops = (await planOf(cranl, spec)).map((c: any) => c.op);
-    expect(ops).toEqual(["database.backups", "app.port", "cron.replace"]);
-    await apply({ client: clientFor(cranl), spec, env: OPERATOR, runId: "run2" });
+    expect(ops).toEqual(["database.backups", "app.port", "cron.manual"]);
+    const result = await apply({ client: clientFor(cranl), spec, env: OPERATOR, runId: "run2" });
     expect(api.port).toBe(3000);
-    expect(api.cron).toEqual([
-      expect.objectContaining({ name: "nightly", cron: "0 3 * * *", timezone: "Asia/Riyadh" }),
-    ]);
-    expect(await planOf(cranl, spec)).toEqual([]);
+    expect(cranl.writes.some((w: any) => w.method === "DELETE")).toBe(false);
+    expect(api.cron).toEqual([expect.objectContaining({ name: "nightly", cron: "0 4 * * *" })]);
+    expect(result.rest.map((c: any) => c.op)).toEqual(["cron.manual"]);
   });
 });
 
@@ -247,6 +246,21 @@ describe("the CranL client", () => {
       "400",
     );
     expect(cranl.buckets).toEqual([]);
+  });
+
+  it("fails on a success answer that is not JSON", async () => {
+    const client = createClient({
+      apiKey: "k",
+      fetch: (async () => new Response("<html>", { status: 200 })) as typeof fetch,
+      retryDelayMs: 0,
+    });
+    await expect(client.get("/apps")).rejects.toThrow("CranL GET /apps answered 200 without JSON");
+  });
+
+  it("refuses masked values instead of planning endless drift", async () => {
+    const { cranl } = await applied(staging());
+    cranl.maskEnv();
+    await expect(planOf(cranl, staging())).rejects.toThrow("needs the env:reveal scope");
   });
 
   it("sends the idempotency key with every write", async () => {

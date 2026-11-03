@@ -32,7 +32,9 @@ function detailOf(change) {
   }
   if (change.to === undefined && change.kind === undefined) return "";
   const to = change.to === undefined ? "(once the app it names exists)" : JSON.stringify(change.to);
-  return change.from === undefined ? ` = ${to}` : ` ${JSON.stringify(change.from)} -> ${to}`;
+  if (change.from === undefined) return ` = ${to}`;
+  // A live variable's value may hold a secret on CranL, so plan never prints it.
+  return change.op === "env.set" ? ` differs -> ${to}` : ` ${JSON.stringify(change.from)} -> ${to}`;
 }
 
 /** The operator variables a change list needs that the environment does not carry. */
@@ -143,14 +145,6 @@ async function applyOne(ctx, change) {
 }
 
 async function cronChange(ctx, change, appId) {
-  if (change.op === "cron.replace") {
-    await ctx.client.send(
-      "DELETE",
-      `/apps/${appId}/cron/${change.id}`,
-      {},
-      ctx.key({ ...change, step: "delete" }),
-    );
-  }
   const { name, schedule, command, timezone } = change.job;
   const body = {
     name,

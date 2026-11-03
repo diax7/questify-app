@@ -19,6 +19,8 @@ async function observeEnv(client, id, declared) {
   const env = new Map();
   for (const variable of variables) {
     const kind = envKind(declared[variable.key]);
+    if (variable.masked && (kind === "plain" || kind === "template"))
+      throw new Error(`CranL masked ${variable.key}: the API key needs the env:reveal scope.`);
     env.set(variable.key, kind === "plain" || kind === "template" ? variable.value : true);
   }
   return env;
