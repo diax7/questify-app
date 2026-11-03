@@ -20,6 +20,7 @@ import { homeWindowOf, type EventShopRow } from "#src/rewards/shop-window";
 import { readOwnEventStreak } from "#src/streaks/streaks";
 import { readPendingPoints } from "#src/submissions/submissions";
 import { readUnreadTickets } from "#src/tickets/tickets";
+import { reviewDemoFlag } from "#src/review-demo/codes";
 
 export type HomeDeps = Readonly<{
   pool: Pool;
@@ -175,6 +176,8 @@ export type Home = Readonly<{
   help: Readonly<{ unread: number }>;
   /** The player's own event day streak (T-405, FR-417); null while it is off or for a member who is not active. */
   streak: EventStreak | null;
+  /** The App Review reviewer in the demo event while the window is open (T-710b): the scanner offers its picker. */
+  reviewDemo?: true;
 }>;
 
 /**
@@ -601,6 +604,8 @@ export async function readHome(
       ...(shopOn ? await shopAndGoal(client, eventId, row) : NO_SHOP),
       ...(row.status_now === "ended" ? await afterReveal(client, eventId) : NOT_REVEALED),
       streak: await readOwnEventStreak(client, eventId),
+      // The App Review demo's QR picker (T-710b, ADR-565): only for the reviewer while the window is open.
+      ...(await reviewDemoFlag(client, eventId)),
     };
   });
   return home === null ? null : { ...home, rankingOn };

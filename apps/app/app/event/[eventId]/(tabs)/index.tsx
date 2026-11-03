@@ -34,6 +34,7 @@ import {
 } from "#src/event/HomeBlocks.tsx";
 import { SponsorStrip } from "#src/event/SponsorStrip.tsx";
 import { countdown, nextBoundary } from "#src/event/countdown.ts";
+import { useNoteReviewDemo } from "#src/event/review-demo-flag.ts";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { EventPill } from "#src/event/EventPill.tsx";
 import { goalMessage } from "#src/event/goal.ts";
@@ -591,7 +592,9 @@ export default function EventHomeScreen() {
   const { t, language } = useI18n();
   const { eventId, rememberName } = useEvent();
   const { answer, ranking, load } = useHome(eventId);
-  const prompt = useJoinLocationPrompt(answer?.kind === "home" ? answer.home : undefined);
+  const loaded = answer?.kind === "home" ? answer.home : undefined;
+  const prompt = useJoinLocationPrompt(loaded);
+  useNoteReviewDemo(eventId, loaded);
   const loadedName = answer?.kind === "home" ? textIn(answer.home.event.name, language) : "";
   useEffect(() => {
     if (loadedName !== "") {

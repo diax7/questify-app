@@ -7736,6 +7736,13 @@ provider (Q-034). Campaigns share the weekly cap per channel with invitations (A
 **Why:** an unbounded call over a large queue is refused by the 5 s limit and accepts nothing; one measured bound for both modes is simpler than two.
 **Trade-offs:** a queue above 1,000 still takes more than one call (the dashboard repeats); production timing on CranL is known only after the deploy (a required RUNBOOK probe), and a number above 3.5 s there is answered by lowering the cap in a one-line restatement.
 
+## ADR-640 - T-710b the review picker's meet code is its own POST, and the scanner learns the flag from Home
+
+**Status:** Proposed (developer, 2026-11-03; T-710b; FR-303, FR-1407; extends ADR-565).
+**Decision:** (1) `GET /v1/events/{id}/review-codes` lists meet quests without a code; picking one calls `POST /v1/events/{id}/review-codes/meet` (`{questId}` → 201 `{code, expiresAt}`), which issues a one-minute pass shown by the first active fictional player who has not met the reviewer on that quest and is under its caps (409 `none_left` otherwise), held to the meet-pass limit. (2) An NFC tag's entry carries its `/t/` address and goes to the scanner's tap handler with no sticker id (the tap is paid as an unreadable-id tap); its quest's QR is listed too, since a tag quest always takes the quest QR. (3) The app keeps Home's `reviewDemo` flag in memory per event (`review-demo-flag.ts`); the picker draws nothing without it, and the server refuses everyone else regardless. (4) Hidden or deleted quests and revoked tags are not listed; a hidden category's secret code is.
+**Why:** a GET must not write a pass; a pass lives one minute, so it is issued when picked. Keeping the flag out of the event context keeps the shared provider within the function limits and needs no extra request.
+**Trade-offs:** a deep link straight into the scanner shows no picker until Home has been read once; the reviewer's tag taps carry no sticker id.
+
 ## ADR-632 - T-221 the per-row work of an acceptance is trimmed: souvenir_enqueue in PL/pgSQL, one ranking mark per transaction
 
 **Status:** Proposed (T-221 plan, 2026-11-03). Both parts built: the profile (`pg_stat_user_functions`, 1,000 acceptances) showed `souvenir_enqueue` at 1.73 ms a row before and 0.42 ms after; the ranking mark is inside `grant_welcome`'s 1.3 ms self time, which the trim did not lower measurably (most of it is the welcome ledger insert and its key checks).

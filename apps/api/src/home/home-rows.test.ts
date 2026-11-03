@@ -95,6 +95,7 @@ type Rows = Readonly<{
   streak?: readonly Record<string, unknown>[];
   shop?: readonly Record<string, unknown>[];
   rewards?: readonly Record<string, unknown>[];
+  reviewDemo?: boolean;
 }>;
 
 /** The home's dependencies over a database that answers each read with these rows. */
@@ -129,6 +130,9 @@ function homeDeps(rows: Rows, config: SettingsService = settings) {
     }
     if (sql.includes("own_event_streak")) {
       return { rows: rows.streak ?? [] };
+    }
+    if (sql.includes("review_demo_here")) {
+      return { rows: [{ here: rows.reviewDemo === true }] };
     }
     throw new Error(`unexpected query: ${sql}`);
   });
@@ -283,6 +287,13 @@ describe("the event home's switches and prize", () => {
       EVENT,
     );
     expect(collected?.win).toBeNull();
+  });
+
+  it("flags the App Review reviewer only, and carries no key for anyone else (T-710b)", async () => {
+    const flagged = await readHome(homeDeps({ reviewDemo: true }), PLAYER, EVENT);
+    expect(flagged).toMatchObject({ reviewDemo: true });
+    const plain = await readHome(homeDeps({}), PLAYER, EVENT);
+    expect(plain).not.toHaveProperty("reviewDemo");
   });
 
   it("carries the count of unseen help-desk answers for every standing (T-310)", async () => {

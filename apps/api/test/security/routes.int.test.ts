@@ -651,7 +651,11 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/events/:eventId/recap":
     "the bearer's own recap through event_recap bound to the session (profile_player); anyone but a member who played, an unknown event or a rehearsal account answers 404; private, no-store (test/db/event-recap, src/recap)",
   "GET /v1/events/:eventId/home":
-    "the bearer's own enrollment in that event only, read under row-level security; strangers and former members answer not_enrolled whether or not the event exists (test/home/home)",
+    "the bearer's own enrollment in that event only, read under row-level security; strangers and former members answer not_enrolled whether or not the event exists; `reviewDemo` only for the App Review reviewer in the demo event while the window is open, through review_demo_here (test/home/home, test/review-demo/codes)",
+  "GET /v1/events/:eventId/review-codes":
+    "the App Review reviewer only, in the demo event, while the window is open, as an active member (RD404 in review_demo_codes); everyone else, another event and an unknown one answer 404; signed printable codes only, no-store (test/review-demo/codes, test/db/review-demo-codes)",
+  "POST /v1/events/:eventId/review-codes/meet":
+    "the App Review reviewer only, under review_demo_codes' rule (RD404 in review_demo_meet_code); a meet quest of the demo event only; a fictional player's one-minute code, kept as a hash; the meet-pass limit per player (test/review-demo/codes, test/db/review-demo-codes)",
   "GET /v1/events/:eventId/activity":
     "the bearer's own ledger entries in that event only, through member_activity bound to the session; strangers and former members answer not_enrolled (test/home/home, test/db/activity)",
   "GET /v1/events/:eventId/quests":

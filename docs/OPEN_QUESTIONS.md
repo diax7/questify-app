@@ -2464,3 +2464,8 @@ With the collector gone, the closed list (ADR-603) is enforced once, by `safeAtt
 
 **Status:** Answered (developer, delegated by Dhia, 2026-11-03, after the T-221 code review 92): 1,000 a call in both modes, ADR-631.
 **Recommended:** up to 5,000 a call in both modes, the dashboard repeating above that. **Measured at build (2026-11-03): 5,000 took 14 to 29 s, so the cap is 1,000 in both modes (2.78 s median on the fixture), ADR-631.** Getting near 5,000 needs the welcome grant's per-row cost lowered first (FOLLOWUPS). **Other options:** truly unbounded (a large queue is refused by the 5 s limit and accepts nothing); keeping 1,000 without a limit and the free seats with one (two numbers for no gain).
+
+## Q-600 - How does the review picker give the reviewer a meet code and a tag tap? (T-710b, ADR-640)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended:** a separate `POST .../review-codes/meet` that issues a fictional player's pass when picked, and tags sent to the tap handler with no sticker id (ADR-640). **Other options:** issue a pass for every meet quest inside the GET (a read that writes, passes that expire before they are picked); leave meet quests and tags out of the picker (the reviewer could not reach two quest types, against Apple 2.1).

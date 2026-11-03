@@ -72,8 +72,10 @@ const OPEN_WRITES: Readonly<Record<string, readonly string[]>> = {
     "POST /v1/operator/events/:eventId/quests/:questId/nfc-tags/prepare",
     "POST /v1/operator/scan/practice",
   ],
-  // A one-minute code to show; the meeting that pays is POST /v1/meet. Rehearsals are the team's wiped sandbox.
+  // A one-minute code to show (the review demo's from a fictional player, T-710b); the meeting that pays is
+  // POST /v1/meet. Rehearsals are the team's wiped sandbox.
   "codes to show and the rehearsal sandbox": [
+    "POST /v1/events/:eventId/review-codes/meet",
     "POST /v1/quests/:questId/meet-pass",
     "POST /v1/rehearsals/join",
   ],

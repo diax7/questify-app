@@ -133,7 +133,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
-  it("keeps the App Review demo closed: no table right, six doors for the API's role alone, nothing for PUBLIC (T-710)", async () => {
+  it("keeps the App Review demo closed: no table right, the doors for the API's role alone, nothing for PUBLIC (T-710, T-710b)", async () => {
     for (const sql of [
       "SELECT * FROM public.review_demo",
       "SELECT * FROM public.review_demo_player",
@@ -146,6 +146,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "SELECT public.review_demo_open('\\x00')",
       "SELECT * FROM public.sign_in_player('\\x00', '\\x00', '\\x00', '\\x00', gen_random_uuid(), '\\x00', '\\x00')",
       "SELECT * FROM public.verify_deletion_code('\\x00', '\\x00', '\\x00', '\\x00')",
+      "SELECT public.review_demo_here(gen_random_uuid())",
+      "SELECT * FROM public.review_demo_codes(gen_random_uuid(), '{}')",
+      "SELECT * FROM public.review_demo_meet_code(gen_random_uuid(), gen_random_uuid(), '\\x00')",
     ]) {
       await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
     }
@@ -160,6 +163,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "player_challenge_to_resend",
       "review_demo_cancel_challenges",
       "review_demo_check_contact",
+      "review_demo_codes",
+      "review_demo_here",
+      "review_demo_meet_code",
       "review_demo_member_guard",
       "review_demo_open",
       "review_demo_provision",
@@ -191,6 +197,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "console_review_demo_prepare",
         "console_review_demo_set_contact",
         "player_challenge_to_resend",
+        "review_demo_codes",
+        "review_demo_here",
+        "review_demo_meet_code",
         "review_demo_tick",
         "sign_in_player",
         "start_deletion_challenge",
