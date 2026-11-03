@@ -95,6 +95,10 @@ export const AREAS = [
     ["console-switches"],
   ],
   [
+    /feature-?layers?|event-?layers|organizer-?(features|overrides?)|save-event-switches|settings\/layers/i,
+    ["feature-layers"],
+  ],
+  [
     /console-?messag|message-?templates?|support-?contact|console\/messages|sms-?parts|\[lang\]\/contact/i,
     ["console-messaging"],
   ],

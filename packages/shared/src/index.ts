@@ -36,6 +36,26 @@ export {
   tuningBodySchema,
 } from "./switches/switches";
 export type {
+  EventLayerRow,
+  EventLayers,
+  FeatureLayer,
+  OrganizerFeatureRow,
+  OrganizerFeaturesView,
+  OrganizerOverrideBody,
+  OrganizerOverrides,
+} from "./switches/layers";
+export {
+  eventLayersOf,
+  eventLayersSchema,
+  featureLayer,
+  isOrganizerOverridable,
+  organizerFeaturesView,
+  organizerFeaturesViewSchema,
+  organizerOverrideBodySchema,
+  ownerMaySwitchOn,
+  platformForOrganizer,
+} from "./switches/layers";
+export type {
   BannerBody,
   BannerSetting,
   EventMaintenanceBody,

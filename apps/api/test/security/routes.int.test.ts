@@ -94,6 +94,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "owner of that organizer only (owner route, walked below); changes only the maps switch of that event (test/events/branding)",
   "PUT /v1/organizers/:organizerId/events/:eventId/features/agenda":
     "owner of that organizer only (owner route, walked below); changes only the agenda switch of that event (test/events/branding)",
+  "GET /v1/organizers/:organizerId/events/:eventId/features":
+    "owner/editor of that organizer (another organizer's event, even a public one, answers 404); the features the platform leaves on for this organizer with on, off or locked, no player (test/events/feature-layers)",
+  "PUT /v1/organizers/:organizerId/events/:eventId/features/:feature":
+    "owner of that organizer only (owner route, walked below); one switch of that event for a feature an owner can switch; a switch-on the platform, Questify's override for the organizer or the add-on rule keeps off answers 403 feature_not_allowed and writes nothing (test/events/feature-layers)",
   "PUT /v1/organizers/:organizerId/events/:eventId/branding":
     "a member of that organizer, an editor within their chosen events (the database applies the limit); another organizer's event answers 404; one accent from the curated list, nothing else is stored (test/events/branding)",
   "PUT /v1/organizers/:organizerId/events/:eventId/texts":
@@ -873,6 +877,12 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); one number of the platform's `tuning` block, whole and inside its range; the policy checks the admin again (app_admin_id); audited with who, before and after; 120 changes an hour per admin (test/console/switches)",
   "DELETE /v1/admin/switches/tuning/:key":
     "active platform admins only (walked below); puts one number back to the default; the policy checks the admin again (app_admin_id); audited; 120 changes an hour per admin (test/console/switches)",
+  "GET /v1/admin/organizers/:organizerId/features":
+    "active platform admins only (walked below); read only; the overridable features of one organizer with the platform's switch, the override and the result, no personal data; an unknown organizer the same 404; 60 a minute per admin (test/console/organizer-features)",
+  "PUT /v1/admin/organizers/:organizerId/features/:key":
+    "active platform admins only (walked below); one override On or Off for one organizer, the 12 features whose platform rule reaches an event (the table's CHECK too); the policy checks the admin again (app_admin_id); audited with who, before and after; 120 changes an hour per admin (test/console/organizer-features, test/db/feature-layers)",
+  "DELETE /v1/admin/organizers/:organizerId/features/:key":
+    "active platform admins only (walked below); puts one feature back to the platform's switch for the organizer; the policy checks the admin again (app_admin_id); audited; 120 changes an hour per admin (test/console/organizer-features)",
   "GET /v1/admin/message-templates":
     "active platform admins only (walked below); read only; the four message templates, no personal data; the admin checked again in admin_message_templates (QE403); 60 a minute per admin (test/console/messaging, test/db/messaging)",
   "PUT /v1/admin/message-templates/:key":

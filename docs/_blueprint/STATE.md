@@ -6,6 +6,11 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-711 feature layers — 2026-11-03
+
+- **T-711 built (tier B; split, see ADR-500; not run on a phone; migration 0136, new and undeployed; ADR-500 to ADR-504 and Q-460 to Q-463 Proposed).** The console organizer page has a Features panel: for the 12 features whose platform rule reaches one event, an admin sets Off, On or "like the platform" for that organizer (`organizer_feature_override`, audited, applied at once to the composed configuration and to the SQL rules `feature_enabled`, `flash_on`, `shop_on` and the Cheers reading). The owner's Features section (event page and guided setup) lists only what the platform leaves on for the organizer, draws a locked add-on card with Ask Questify (the Contact page) for an add-on Questify has not unlocked, and the server refuses an owner's switch-on that a layer keeps off (403 `feature_not_allowed`). **T-711b** (tier A for its first half): the override for boosts, community, meet-someone and mini-games, whose SQL rules are in the points path, and the recorded Ask Questify request with an Allow and Decline queue. Tests: `packages/shared` layers (16), `test/db/feature-layers` (8), `test/console/organizer-features` (7), `test/events/feature-layers` (6), the security suites, web lib tests, `e2e/feature-layers.spec.ts`, `layout.spec.ts`. CI minutes: 0.
+  **Next:** the T-711 review (tier B, mid-tier) with a look at migration 0136's change to `feature_enabled`, `flash_on` and `shop_on`; then T-711b or the next unchecked task in `docs/TASKS.md`; mutation is not needed (tier B).
+
 ## T-712 view as organizer — 2026-11-03
 
 - **T-712 built (tier A; plan review 86 with its two MAJOR and the MINOR fixes folded in; migration 0135, new and

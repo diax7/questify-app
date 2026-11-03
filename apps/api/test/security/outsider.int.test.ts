@@ -3167,6 +3167,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       expect(held).toEqual([]);
     });
 
+    it("cannot read, write or reach the organizer feature overrides or the rule behind them (T-711)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.organizer_feature_override",
+        "INSERT INTO public.organizer_feature_override (organizer_id, feature, enabled) VALUES (gen_random_uuid(), 'shop', false)",
+        "UPDATE public.organizer_feature_override SET enabled = true",
+        "DELETE FROM public.organizer_feature_override",
+        "SELECT public.platform_feature_on(gen_random_uuid(), 'shop')",
+        "SELECT public.feature_enabled(e, 'shop') FROM public.event e",
+        "SELECT public.shop_on(e) FROM public.event e",
+        "SELECT public.flash_on(e) FROM public.event e",
+        "SELECT public.cheers_json(e) FROM public.event e",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const held = await rows<{ proname: string }>(
+        `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         WHERE n.nspname = 'public'
+           AND p.proname IN ('platform_feature_on', 'feature_enabled', 'shop_on', 'flash_on', 'cheers_json')
+           AND (has_function_privilege('public', p.oid, 'EXECUTE')
+             OR has_function_privilege('questify_app', p.oid, 'EXECUTE'))`,
+      );
+      expect(held).toEqual([]);
+      const tableRights = await rows<{ priv: string }>(
+        `SELECT p.priv FROM (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE')) AS p(priv)
+         WHERE has_table_privilege('public', 'public.organizer_feature_override', p.priv)`,
+      );
+      expect(tableRights).toEqual([]);
+    });
+
     it("cannot read or change maintenance mode and the banner, or find an event behind a play door (T-703b)", async () => {
       for (const sql of [
         "SELECT public.play_event_id('quest', gen_random_uuid()::text)",

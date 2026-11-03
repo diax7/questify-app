@@ -762,6 +762,22 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  organizer_feature_override: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        // Whoever can see one of an organizer's events can read its overrides, as an event's add-ons: B has a public event.
+        publicRows: () => ({ sql: "true", values: [] }),
+        forge: (f) => ({
+          sql: "INSERT INTO organizer_feature_override (organizer_id, feature, enabled) VALUES ($1, 'shop', false)",
+          values: [f.orgB],
+        }),
+      },
+    ],
+  },
   audit_log: {
     probes: [
       {
@@ -1341,6 +1357,10 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
     await run(
       "INSERT INTO audit_log (actor_type, actor_id, organizer_id, action, target_type) VALUES ('staff', $1, $2, 'event.seed', 'event')",
       [staff, org],
+    );
+    await run(
+      "INSERT INTO organizer_feature_override (organizer_id, feature, enabled) VALUES ($1, 'ranking', true)",
+      [org],
     );
     for (const event of events) {
       await run(

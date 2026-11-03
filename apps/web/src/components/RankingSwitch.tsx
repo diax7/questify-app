@@ -30,14 +30,17 @@ type Props = Readonly<{
   eventId: string;
   /** The event's switches as the page last read them. */
   initial: Readonly<Record<Feature, boolean>>;
+  /** Which of the two the owner is offered: the platform may keep either off for this organizer (FR-1826). */
+  offered: Readonly<Record<Feature, boolean>>;
   myRole: "owner" | "editor";
 }>;
 
 /**
  * The event's ranking switches (FR-607, FR-608): the owner hides the ranking, or only today's ranking, from players and
- * shows it again; an editor sees which it is. A change is saved as soon as a box is ticked or cleared.
+ * shows it again; an editor sees which it is. A change is saved as soon as a box is ticked or cleared. A switch the platform
+ * keeps off for the organizer is not offered, and with neither offered the section is not shown (FR-1826).
  */
-export function RankingSwitch({ language, organizerId, eventId, initial, myRole }: Props) {
+export function RankingSwitch({ language, organizerId, eventId, initial, offered, myRole }: Props) {
   const t = translatorFor(language);
   const [shown, setShown] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -70,6 +73,9 @@ export function RankingSwitch({ language, organizerId, eventId, initial, myRole 
     setShown((now) => ({ ...now, [feature]: saved }));
   };
 
+  if (!offered.ranking && !offered.rankingToday) {
+    return null;
+  }
   return (
     <Row
       as="section"
@@ -77,17 +83,19 @@ export function RankingSwitch({ language, organizerId, eventId, initial, myRole 
       main={
         <>
           <SubHeading id="ranking-title">{t("events.ranking.title")}</SubHeading>
-          {(Object.keys(SWITCHES) as Feature[]).map((feature) => (
-            <Switch
-              key={feature}
-              label={t(SWITCHES[feature].label)}
-              info={infoTip(t, SWITCHES[feature].info)}
-              checked={shown[feature]}
-              disabled={myRole !== "owner"}
-              aria-busy={busy}
-              onChange={(changed) => void save(feature, changed.target.checked)}
-            />
-          ))}
+          {(Object.keys(SWITCHES) as Feature[])
+            .filter((feature) => offered[feature])
+            .map((feature) => (
+              <Switch
+                key={feature}
+                label={t(SWITCHES[feature].label)}
+                info={infoTip(t, SWITCHES[feature].info)}
+                checked={shown[feature]}
+                disabled={myRole !== "owner"}
+                aria-busy={busy}
+                onChange={(changed) => void save(feature, changed.target.checked)}
+              />
+            ))}
           {problem === null ? null : (
             <Notice role="alert" tone="danger">
               {problem}

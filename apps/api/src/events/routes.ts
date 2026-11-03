@@ -1,6 +1,6 @@
-import type { FastifyInstance, FastifyReply } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { VENUE_RADIUS, readBranding, readEventTerms } from "@questify/shared";
+import { FEATURES, VENUE_RADIUS, readBranding, readEventTerms } from "@questify/shared";
 import {
   eventNotDraft,
   eventNotEmpty,
@@ -8,6 +8,7 @@ import {
   eventArchived,
   eventCityLocked,
   eventTimesLocked,
+  featureNotAllowed,
   invalidBranding,
   invalidEvent,
   invalidLayout,
@@ -93,6 +94,10 @@ const duplicateBody = z.strictObject({
 const endBody = z.strictObject({ confirm: z.literal(true) });
 const rankingBody = z.strictObject({ enabled: z.boolean() });
 const eventParams = z.object({ eventId: z.uuid() });
+const featureParams = z.object({
+  eventId: z.uuid(),
+  feature: z.string().regex(/^[a-z][a-zA-Z0-9]*$/),
+});
 
 const member = { config: { access: "member" }, bodyLimit: BODY_LIMIT } as const;
 const owner = { config: { access: "owner" }, bodyLimit: BODY_LIMIT } as const;
@@ -441,18 +446,46 @@ function registerEventSwitches(scope: FastifyInstance, settings: SettingsService
     ["/events/:eventId/features/maps", "maps"],
     ["/events/:eventId/features/agenda", "agenda"],
   ] as const;
+  const save = async (
+    request: FastifyRequest,
+    eventId: string,
+    feature: string,
+  ): Promise<Record<string, boolean>> => {
+    const { enabled } = parse(rankingBody, request.body);
+    const context = organizerContextOf(request);
+    const saved = await settings.saveEventSwitch(context, eventId, feature, enabled, {
+      requestId: request.id,
+    });
+    if (saved.ok) {
+      return { [feature]: enabled };
+    }
+    // The platform, Questify's override for this organizer or the add-on rule keeps the feature off (FR-1826, FR-1827).
+    throw saved.reason === "not_allowed" ? featureNotAllowed() : notFound();
+  };
   for (const [path, feature] of switches) {
     scope.put(path, owner, async (request) => {
       const { eventId } = parse(eventParams, request.params);
-      const { enabled } = parse(rankingBody, request.body);
-      const context = organizerContextOf(request);
-      const saved = await settings.saveEventSwitch(context, eventId, feature, enabled, {
-        requestId: request.id,
-      });
-      if (!saved.ok) {
-        throw notFound();
-      }
-      return { [feature]: enabled };
+      return save(request, eventId, feature);
     });
   }
+
+  // The features the platform leaves on for this organizer, each on, off or locked (FR-1826, FR-1827).
+  scope.get("/events/:eventId/features", member, async (request) => {
+    const { eventId } = parse(eventParams, request.params);
+    const layers = await settings.eventLayers(organizerContextOf(request), eventId);
+    if (layers === undefined) {
+      throw notFound();
+    }
+    return layers;
+  });
+
+  // The same save for any feature an owner can switch; the paths above are the ones the dashboard's pages already use.
+  scope.put("/events/:eventId/features/:feature", owner, async (request) => {
+    const { eventId, feature } = parse(featureParams, request.params);
+    const definition = Object.hasOwn(FEATURES, feature) ? FEATURES[feature] : undefined;
+    if (definition === undefined || definition.gated || definition.level === "platform") {
+      throw notFound();
+    }
+    return save(request, eventId, feature);
+  });
 }
