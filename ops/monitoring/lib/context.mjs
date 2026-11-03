@@ -66,6 +66,12 @@ export const prometheusEnv = (ctx, smtpHost) => ({
   MONITORING_ENVIRONMENT: "validation",
 });
 
+/** What the Prometheus app needs with alert email off (Q-581): no ALERT_* setting and no environment name. */
+export const prometheusEnvWithoutEmail = (ctx) => ({
+  METRICS_PASSWORD: ctx.secrets.metricsPassword,
+  METRICS_PASSWORD_HASH: ctx.secrets.metricsHash,
+});
+
 export const grafanaEnv = (ctx, prometheusUrl) => ({
   GF_SECURITY_ADMIN_PASSWORD: ctx.secrets.grafanaAdmin,
   GF_SECURITY_SECRET_KEY: ctx.secrets.grafanaKey,

@@ -7,8 +7,9 @@
 //      refuses a missing, wrong or empty token; attributes off the API's closed list never reach Prometheus or the
 //      traces output; metric names and labels are the ones the alert rules use; Prometheus loads all 20 rules, finds
 //      its Alertmanager and refuses anyone without the password; Grafana needs a login, reaches Prometheus and
-//      answers every dashboard query; the Alertmanager mails a test alert; and the container stops if the
-//      Alertmanager dies (so CranL restarts it).
+//      answers every dashboard query; the Alertmanager mails a test alert; with alert email off (no ALERT_SMTP_HOST,
+//      Q-581) the app starts from the two metrics settings, evaluates the rules and sends nothing, while a partial
+//      set of email settings is refused; and the container stops if the Alertmanager dies (so CranL restarts it).
 // Needs Docker (the pinned images are pulled on first use) and about two minutes. Run: pnpm monitoring:validate
 import { join } from "node:path";
 import { buildImage, cleanUp, createNetwork } from "./lib/docker.mjs";
@@ -19,6 +20,7 @@ import {
   checkEmptyTokenSlot,
   checkIngestAuth,
   checkListeners,
+  checkNoEmailMode,
   checkPrometheus,
   checkStoredSeries,
   checkSupervisor,
@@ -28,6 +30,8 @@ import {
 import {
   checkCollectorConfig,
   checkGrafanaRefusals,
+  checkNoEmailRender,
+  checkPartialEmailRefusals,
   checkPrometheusApp,
   checkRenderRefusals,
   checkShellScripts,
@@ -63,6 +67,9 @@ async function runLiveStages(ctx, stages) {
     checkGrafana(ctx, stack),
   );
   await stages.run("alertmanager: a test alert is mailed", () => checkMail(ctx));
+  await stages.run("prometheus app: alert email off starts, evaluates, sends nothing", () =>
+    checkNoEmailMode(ctx),
+  );
   await stages.run("prometheus app: it stops when the Alertmanager dies", () =>
     checkSupervisor(stack),
   );
@@ -101,6 +108,12 @@ async function main() {
       checkRenderRefusals(ctx);
       checkGrafanaRefusals(ctx);
     });
+    await stages.run("prometheus app: alert email off needs no ALERT_* setting", () =>
+      checkNoEmailRender(ctx),
+    );
+    await stages.run("prometheus app: a partial set of email settings is refused", () =>
+      checkPartialEmailRefusals(ctx),
+    );
     if (stages.failures.length === 0) {
       await runLiveStages(ctx, stages);
     } else {

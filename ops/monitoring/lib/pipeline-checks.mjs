@@ -3,7 +3,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { collectorEnv, MONITORING, prometheusEnv } from "./context.mjs";
+import { collectorEnv, MONITORING, prometheusEnv, prometheusEnvWithoutEmail } from "./context.mjs";
 import { hostPort, isRunning, logsOf, start, waitFor, docker } from "./docker.mjs";
 import { FORBIDDEN, metricsPayload, tracesPayload } from "./fixtures.mjs";
 import { basic, ensure, postJson, rawStatus, request } from "./http.mjs";
@@ -33,23 +33,26 @@ const authorization = (ctx) => ({
   authorization: basic("questify-metrics", ctx.secrets.metricsPassword),
 });
 
-/** Starts the Prometheus app, then the collector in front of it, and returns their host ports. */
-export async function startStack(ctx) {
-  const prometheusName = ctx.name("prometheus");
-  start({
-    name: prometheusName,
-    image: ctx.image("prometheus"),
-    network: ctx.network,
-    env: prometheusEnv(ctx, "smtp.example.test:587"),
-    publish: [9090],
-  });
-  const prometheusPort = hostPort(prometheusName, 9090);
+/** Starts a Prometheus app with `env`, waits until it answers, and returns its name and host port. */
+async function startPrometheus(ctx, name, env) {
+  start({ name, image: ctx.image("prometheus"), network: ctx.network, env, publish: [9090] });
+  const prometheusPort = hostPort(name, 9090);
   await waitFor("Prometheus to be ready", async () => {
     const ready = await request(`http://127.0.0.1:${prometheusPort}/-/ready`, {
       headers: authorization(ctx),
     });
     return ready.status === 200;
   });
+  return { prometheusName: name, prometheusPort };
+}
+
+/** Starts the Prometheus app, then the collector in front of it, and returns their host ports. */
+export async function startStack(ctx) {
+  const { prometheusName, prometheusPort } = await startPrometheus(
+    ctx,
+    ctx.name("prometheus"),
+    prometheusEnv(ctx, "smtp.example.test:587"),
+  );
   const directory = mkdtempSync(join(tmpdir(), "questify-collector-"));
   writeFileSync(join(directory, "override.yaml"), COLLECTOR_OVERRIDE);
   const collectorName = ctx.name("collector");
@@ -286,5 +289,36 @@ export async function checkSupervisor(stack) {
   ensure(
     logsOf(stack.prometheusName).includes("the Alertmanager stopped"),
     "The entrypoint did not say why it stopped.",
+  );
+}
+
+/**
+ * With alert email off (Q-581) the Prometheus app starts from the two metrics settings alone, says so once, evaluates
+ * every rule, finds its Alertmanager, takes an alert, and has no email integration that could send it.
+ */
+export async function checkNoEmailMode(ctx) {
+  const stack = await startPrometheus(
+    ctx,
+    ctx.name("prometheus-no-email"),
+    prometheusEnvWithoutEmail(ctx),
+  );
+  const said = logsOf(stack.prometheusName)
+    .split("\n")
+    .filter((line) => line.includes("alert email off: no ALERT_SMTP_HOST"));
+  ensure(said.length === 1, `The app said "alert email off" ${said.length} times, not once.`);
+  await checkPrometheus(ctx, stack);
+  const inside = (command) =>
+    docker(["exec", stack.prometheusName, "/bin/sh", "-c", command]).stdout;
+  inside(
+    "amtool --alertmanager.url=http://127.0.0.1:9093 alert add alertname=QuestifyNoEmailTest severity=page",
+  );
+  const received = await waitFor("the Alertmanager to hold the alert", async () =>
+    inside("wget -q -O - http://127.0.0.1:9093/api/v2/alerts").includes("QuestifyNoEmailTest"),
+  );
+  ensure(received, "The Alertmanager did not take the alert.");
+  const metrics = inside("wget -q -O - http://127.0.0.1:9093/metrics");
+  ensure(
+    /^alertmanager_integrations 0$/m.test(metrics),
+    "The Alertmanager has a notification integration while alert email is off.",
   );
 }

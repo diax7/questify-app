@@ -804,3 +804,7 @@ Dhia (AskUserQuestion): monitoring data goes to CranL Riyadh (collector, metrics
 ## 2026-11-03 — Alert email sender → processed
 
 Dhia (AskUserQuestion): alert emails reuse the sign-in Gmail account ("Reuse sign-in Gmail"). Processed into Q-581 (decided).
+
+## 2026-11-03 - No alert email for now -> processed
+
+Dhia: "No email for now" (alerts only on the Grafana dashboard until a sender exists). Processed into Q-581 (decided, reopens when a Gmail app password or a Resend key exists), the no-email mode of `ops/monitoring/prometheus/render-config.sh` (`ALERT_SMTP_HOST` unset or empty), the RUNBOOK section "Monitoring stack on CranL" and `pnpm monitoring:validate`.

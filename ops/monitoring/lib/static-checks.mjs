@@ -1,7 +1,13 @@
 // The first stage of the monitoring validation: every file is checked by the program that will read it, in the pinned
 // image, before anything is started.
 import { runOnce } from "./docker.mjs";
-import { ALERTS, collectorEnv, MONITORING, prometheusEnv } from "./context.mjs";
+import {
+  ALERTS,
+  collectorEnv,
+  MONITORING,
+  prometheusEnv,
+  prometheusEnvWithoutEmail,
+} from "./context.mjs";
 import { ensure } from "./http.mjs";
 import { join } from "node:path";
 
@@ -88,17 +94,81 @@ export function checkRenderRefusals(ctx) {
     );
     ensure(!output(result).includes(value), `The refusal for ${name} printed its value.`);
   }
-  const missing = { ...prometheusEnv(ctx, "smtp.example.test:587") };
-  delete missing.ALERT_SMTP_PASSWORD;
+}
+
+const EMAIL_SETTINGS = [
+  "ALERT_SMTP_USER",
+  "ALERT_SMTP_PASSWORD",
+  "ALERT_MAIL_FROM",
+  "ALERT_MAIL_TO",
+];
+
+/** Runs the render script with `env` and checks that it stops, names `names`, and prints no value of `env`. */
+function ensureRenderRefused(ctx, env, names, what) {
   const result = runOnce({
     image: ctx.image("prometheus"),
-    env: missing,
+    env,
     entrypoint: "/usr/local/bin/render-config.sh",
   });
-  ensure(
-    result.status !== 0 && output(result).includes("ALERT_SMTP_PASSWORD"),
-    "A missing setting did not stop the app.",
-  );
+  ensure(result.status !== 0, `${what}: the app started.`);
+  for (const name of names) {
+    ensure(output(result).includes(name), `${what}: the refusal does not name ${name}.`);
+  }
+  for (const value of Object.values(env)) {
+    ensure(
+      value === "" || !output(result).includes(value),
+      `${what}: the refusal printed a setting's value.`,
+    );
+  }
+}
+
+/** With the email host set, all five settings are required; a lone email setting without the host is refused too. */
+export function checkPartialEmailRefusals(ctx) {
+  const full = prometheusEnv(ctx, "smtp.example.test:587");
+  for (const name of EMAIL_SETTINGS) {
+    const rest = Object.fromEntries(Object.entries(full).filter(([key]) => key !== name));
+    ensureRenderRefused(ctx, rest, [name], `${name} missing`);
+    ensureRenderRefused(ctx, { ...rest, [name]: "" }, [name], `${name} empty`);
+  }
+  for (const name of EMAIL_SETTINGS) {
+    const lone = { ...prometheusEnvWithoutEmail(ctx), [name]: full[name] };
+    ensureRenderRefused(ctx, lone, ["ALERT_SMTP_HOST", name], `${name} without the host`);
+  }
+}
+
+const NO_EMAIL_CHECKS = [
+  "/usr/local/bin/render-config.sh",
+  "amtool check-config /tmp/alertmanager.yml",
+  "amtool config routes test --config.file=/tmp/alertmanager.yml --verify.receivers=discard severity=page",
+  "amtool config routes test --config.file=/tmp/alertmanager.yml --verify.receivers=discard severity=warning",
+  "test -s /tmp/web.yml",
+  "test -s /tmp/metrics-password",
+  "test ! -e /tmp/smtp-password",
+].join(" && ");
+
+/** With the host unset or empty, only the two metrics settings are needed, and the Alertmanager's file loads and sends nothing. */
+export function checkNoEmailRender(ctx) {
+  const cases = [
+    ["no ALERT_* setting", {}],
+    ["an empty host", { ALERT_SMTP_HOST: "" }],
+    [
+      "all five empty",
+      Object.fromEntries(["ALERT_SMTP_HOST", ...EMAIL_SETTINGS].map((name) => [name, ""])),
+    ],
+  ];
+  for (const [what, extra] of cases) {
+    const result = runOnce({
+      image: ctx.image("prometheus"),
+      env: { ...prometheusEnvWithoutEmail(ctx), ...extra },
+      entrypoint: "/bin/sh",
+      args: ["-c", `set -e; ${NO_EMAIL_CHECKS}`],
+    });
+    ensure(result.status === 0, `Alert email off (${what}) failed a check:\n${output(result)}`);
+    const said = output(result)
+      .split("\n")
+      .filter((line) => line.includes("alert email off: no ALERT_SMTP_HOST"));
+    ensure(said.length === 1, `Alert email off (${what}) said so ${said.length} times, not once.`);
+  }
 }
 
 /** The Grafana app stops on a missing setting, and does not print one it was given. */
