@@ -13,7 +13,7 @@ const refusal = (work: Promise<unknown>): Promise<string> =>
 const MESSAGE = { ar: "الصيانة جارية.", en: "Under maintenance." };
 
 /**
- * Maintenance mode and the banner in the database (T-703b, migration 0128): only an active platform admin writes the two
+ * Maintenance mode and the banner in the database (T-703b, migration 0134): only an active platform admin writes the two
  * new `platform_setting` blocks, each holds only its own fields, and `play_event_id` finds the event of a play door for
  * the API's role alone.
  */

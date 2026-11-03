@@ -9,7 +9,7 @@ type EventRef =
   | Readonly<{ kind: "event"; id: string }>
   | Readonly<{ kind: ParamKind | "join_code"; ref: string }>;
 
-/** The kinds `play_event_id` (migration 0128) finds an event by, from an id the door carries. */
+/** The kinds `play_event_id` (migration 0134) finds an event by, from an id the door carries. */
 type ParamKind = "quest" | "step" | "category" | "reward" | "session" | "desk_sale" | "game_round";
 
 /** How a door finds its event: a reference, null for a door that holds on a platform-wide pause only, or nothing. */

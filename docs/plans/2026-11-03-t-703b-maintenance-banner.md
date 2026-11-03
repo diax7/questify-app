@@ -5,7 +5,7 @@ Questify Home). Builds on T-703 (`platform_setting`, the Switches page, `throttl
 
 ## Storage (configuration is data, ADR-450)
 
-Two new `platform_setting` keys, both objects, written only by an active platform admin (migration 0128 widens the 0122
+Two new `platform_setting` keys, both objects, written only by an active platform admin (migration 0134 widens the 0122
 policies from `features, tuning` to `features, tuning, maintenance, banner`):
 
 - `maintenance`: `{ "global": {ar,en}?, "events": { "<event uuid>": {ar,en} } }`. A message present means play is paused.
