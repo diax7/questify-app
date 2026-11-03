@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
 import type { ApiRequest, ApiResult, Client } from "#src/api/client.ts";
-import { DEFAULT_COMPOSED_LAYOUT, DEFAULT_TERMS, type EventTerms } from "@questify/shared";
+import {
+  DEFAULT_COMPOSED_LAYOUT,
+  DEFAULT_COMPOSED_QUESTIFY_HOME,
+  DEFAULT_TERMS,
+  QUESTIFY_HOME_KEYS,
+  type ComposedQuestifyHome,
+  type EventTerms,
+} from "@questify/shared";
 import {
   CONFIG_KEY,
   configKeyOf,
   consentVersions,
   loadConfig,
   loadEventConfig,
+  loadHomeConfig,
   signupVersions,
 } from "#src/config/remote.ts";
 
@@ -252,5 +260,61 @@ describe("loadEventConfig", () => {
       shown.push(config.terms),
     );
     expect(shown).toStrictEqual([GEMS]);
+  });
+});
+
+describe("loadHomeConfig (T-713)", () => {
+  const moved: ComposedQuestifyHome = {
+    blocks: [...QUESTIFY_HOME_KEYS].toReversed(),
+    banner: [
+      {
+        title: { ar: "", en: "Hello" },
+        subtitle: { ar: "", en: "" },
+        action: { type: "none" },
+      },
+    ],
+  };
+
+  it("shows the last working layout first, then the fresh one", async () => {
+    const store = memoryStore({ etag: '"h1"', body: { ...CONFIG, questifyHome: moved } });
+    const shown: ComposedQuestifyHome[] = [];
+    const fresh = { ...moved, blocks: QUESTIFY_HOME_KEYS };
+    const { client, calls } = fake([ok({ ...CONFIG, questifyHome: fresh }, '"h2"')]);
+    await loadHomeConfig({ client, store }, (config) => shown.push(config.questifyHome));
+    expect(shown).toStrictEqual([moved, fresh]);
+    expect(calls[0]?.path).toBe("/v1/config");
+    expect(calls[0]?.headers).toEqual({ "if-none-match": '"h1"' });
+  });
+
+  it("keeps the last working layout when the fresh answer cannot be read", async () => {
+    const store = memoryStore({ etag: '"h1"', body: { ...CONFIG, questifyHome: moved } });
+    const shown: ComposedQuestifyHome[] = [];
+    const client = fake([ok({ nonsense: true })]).client;
+    await loadHomeConfig({ client, store }, (config) => shown.push(config.questifyHome));
+    expect(shown).toStrictEqual([moved, moved]);
+  });
+
+  it("shows nothing with no copy and no answer, so Home keeps the order it always had", async () => {
+    const shown: ComposedQuestifyHome[] = [];
+    await loadHomeConfig({ client: fake([]).client, store: memoryStore() }, (config) =>
+      shown.push(config.questifyHome),
+    );
+    expect(shown).toStrictEqual([]);
+  });
+
+  it("reads a copy from before the layout existed, or a damaged one, as the default order", async () => {
+    const bodies = [
+      CONFIG,
+      { ...CONFIG, questifyHome: "x" },
+      { ...CONFIG, questifyHome: { blocks: ["quests"] } },
+    ];
+    for (const body of bodies) {
+      const shown: ComposedQuestifyHome[] = [];
+      const store = memoryStore({ etag: null, body });
+      await loadHomeConfig({ client: fake([]).client, store }, (config) =>
+        shown.push(config.questifyHome),
+      );
+      expect(shown.at(-1)).toStrictEqual(DEFAULT_COMPOSED_QUESTIFY_HOME);
+    }
   });
 });

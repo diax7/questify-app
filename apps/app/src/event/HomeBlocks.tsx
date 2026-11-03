@@ -44,10 +44,27 @@ import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
 
+/** Opens a web link after the player agrees to leave the app, which says the host first (T-610). */
+export function useOpenLink(): (link: Readonly<{ url: string; host: string }>) => void {
+  const { t } = useI18n();
+  return useCallback(
+    (link) =>
+      Alert.alert(t("home.link.title"), t("home.link.body", { host: isolatedLtr(link.host) }), [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("home.link.open"),
+          onPress: () =>
+            void Linking.openURL(link.url).catch(() => Alert.alert(t("home.link.failed"))),
+        },
+      ]),
+    [t],
+  );
+}
+
 /** Opens where a tap leads: a screen, one quest, or a web link after the player agrees to leave the app. */
 export function useOpen(): (outcome: TapOutcome) => void {
-  const { t } = useI18n();
   const { eventId } = useEvent();
+  const openLink = useOpenLink();
   return useCallback(
     (outcome) => {
       switch (outcome.kind) {
@@ -65,22 +82,11 @@ export function useOpen(): (outcome: TapOutcome) => void {
           });
           break;
         case "link":
-          Alert.alert(
-            t("home.link.title"),
-            t("home.link.body", { host: isolatedLtr(outcome.host) }),
-            [
-              { text: t("common.cancel"), style: "cancel" },
-              {
-                text: t("home.link.open"),
-                onPress: () =>
-                  void Linking.openURL(outcome.url).catch(() => Alert.alert(t("home.link.failed"))),
-              },
-            ],
-          );
+          openLink(outcome);
           break;
       }
     },
-    [eventId, t],
+    [eventId, openLink],
   );
 }
 
@@ -104,14 +110,21 @@ function SlideFace({ slide, label }: Readonly<{ slide: BannerSlide; label: strin
 /**
  * The banner (FR-1829): one slide as a plain banner, several as a slider that moves on every few seconds, by a swipe or
  * by the dots. It stands still when the phone asks for reduced motion and after the player has touched it. A slide with a tap
- * action is a button; one with none is just a picture of words.
+ * action is a button; one with none is just a picture of words. It knows nothing of an event: the caller says what a tap
+ * leads to (`outcomeOf`) and how to open it, so Questify home (T-713) draws the same slider.
  */
-export function BannerBlock({ slides }: Readonly<{ slides: readonly BannerSlide[] }>) {
+export function BannerSlider({
+  slides,
+  outcomeOf,
+  open,
+}: Readonly<{
+  slides: readonly BannerSlide[];
+  outcomeOf: (action: BannerSlide["action"]) => TapOutcome | null;
+  open: (outcome: TapOutcome) => void;
+}>) {
   const { t, language, rtl } = useI18n();
-  const { featureOn } = useEvent();
   const reduceMotion = useReduceMotion();
   const screenReader = useScreenReader();
-  const open = useOpen();
   const styles = useThemedStyles(makeStyles);
   const [index, setIndex] = useState(0);
   const [touched, setTouched] = useState(false);
@@ -149,7 +162,7 @@ export function BannerBlock({ slides }: Readonly<{ slides: readonly BannerSlide[
   if (slide === undefined) {
     return null;
   }
-  const outcome = tapOutcome(slide.action, featureOn);
+  const outcome = outcomeOf(slide.action);
   const label = showDots(count)
     ? slideLabel(t("home.banner.slideOf", { n: current + 1, total: count }), slide, language)
     : undefined;
@@ -184,6 +197,17 @@ export function BannerBlock({ slides }: Readonly<{ slides: readonly BannerSlide[
       ) : null}
     </View>
   );
+}
+
+/** An event's banner: a tap opens the event's own screens whose switches are on, or a web link. */
+export function BannerBlock({ slides }: Readonly<{ slides: readonly BannerSlide[] }>) {
+  const { featureOn } = useEvent();
+  const open = useOpen();
+  const outcomeOf = useCallback(
+    (action: BannerSlide["action"]) => tapOutcome(action, featureOn),
+    [featureOn],
+  );
+  return <BannerSlider slides={slides} outcomeOf={outcomeOf} open={open} />;
 }
 
 const ICONS: Readonly<Record<QuickLinkIcon, keyof typeof Ionicons.glyphMap>> = {

@@ -120,6 +120,19 @@ export function ConsoleCatalogLink({
   );
 }
 
+/** This page's item in the console's navigation (T-713). */
+export function ConsoleHomeLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/home`} icon="layout" current={current}>
+      {t("console.home.title")}
+    </NavItem>
+  );
+}
+
 /** This page's item in the console's navigation. */
 export function ConsoleTranslationsLink({
   language,

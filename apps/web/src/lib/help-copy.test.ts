@@ -139,6 +139,7 @@ const INFO_TIPS: readonly string[] = [
   "console.catalog.templates.intro",
   "console.catalog.xp.intro",
   "console.flags.intro",
+  "console.home.intro",
   "console.invCampaign.channel.hint",
   "console.invCampaign.sendAt.hint",
   "console.messages.intro",

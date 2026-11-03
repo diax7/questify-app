@@ -1,4 +1,4 @@
-import type { DailyChallenge, DailyWordGame, Theme } from "@questify/shared";
+import type { DailyChallenge, DailyWordGame, OwnDaily, Theme } from "@questify/shared";
 import { router } from "expo-router";
 import { View } from "react-native";
 import { api } from "#src/api/app-session.ts";
@@ -69,23 +69,26 @@ function WordCard({ word }: Readonly<{ word: DailyWordGame }>) {
 }
 
 /**
- * The two daily games as cards on Questify Home (T-408b). A game with no content, or switched off, shows no card; a
- * read that fails shows none either, and the games' own screens say so.
+ * The player's two daily games for Questify Home, read again when a sync wrote something and each time Home gains focus. One
+ * read serves both cards. It is made only when `needed` (a layout can hide both cards); null while unread or when the
+ * read fails, and the games' own screens say so.
  */
-export function DailyCards() {
-  const { t } = useI18n();
+export function useHomeDaily(needed: boolean): OwnDaily | null {
   const { version } = useQuestifySync();
-  const daily = useRead(() => fetchOwnDaily(api.session), [version]).data;
-  if (daily === null || (daily.challenge === null && daily.word === null)) return null;
-  return (
-    <View style={{ gap: 12 }}>
-      <AppText variant="title" accessibilityRole="header">
-        {t("daily.title")}
-      </AppText>
-      {daily.challenge === null ? null : <ChallengeCard challenge={daily.challenge} />}
-      {daily.word === null ? null : <WordCard word={daily.word} />}
-    </View>
-  );
+  return useRead(
+    () => (needed ? fetchOwnDaily(api.session) : Promise.resolve(null)),
+    [version, needed],
+  ).data;
+}
+
+/** The daily challenge as a card on Questify Home (T-408b, T-713); no card for a game with no content or switched off. */
+export function DailyChallengeCard({ daily }: Readonly<{ daily: OwnDaily | null }>) {
+  return daily?.challenge == null ? null : <ChallengeCard challenge={daily.challenge} />;
+}
+
+/** The daily word as a card on Questify Home (T-408b, T-713); no card for a game with no content or switched off. */
+export function DailyWordCard({ daily }: Readonly<{ daily: OwnDaily | null }>) {
+  return daily?.word == null ? null : <WordCard word={daily.word} />;
 }
 
 const makeStyles = (theme: Theme) => ({

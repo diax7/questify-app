@@ -2153,3 +2153,29 @@ The organizer alert transport is off (ADR-360) because it mails organizers' addr
 address and carries ids, names of events and organizers, reason codes and a console link, no personal data.
 **Recommended (developer):** yes, bounded so it can never starve sign-in mail: one digest per 10 minutes, 100 a day on its
 own budget bucket (never `outboundMailPerDay`); past that only the console badge.
+
+## Q-470 - Which blocks of Questify home can never be hidden? (T-713, ADR-511)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (worker):** notices, the typed event code, the account email, operator mode, invitations and My events: each is a
+duty (a message the platform owes players, the way in without a camera, account recovery, staff and invitees reaching their
+event). They can be moved. The banner, the streak, the two daily games and the Questify quests can be hidden.
+
+## Q-471 - May a Questify home slide open the app's own screens? (T-713, ADR-512)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (worker):** not in v1: a slide opens nothing or an https link. The gem shop, Explore and the Questify quests are
+the first candidates; each needs a tap kind the older apps ignore safely (an unknown kind drops the slide, not the banner).
+
+## Q-472 - Pictures on Questify home slides (T-713, ADR-512; Q-149)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (worker):** with T-610b, once photo storage exists (Dhia: later). The slide shape gains an optional `image`;
+older apps already drop a field they do not know.
+
+## Q-473 - How does this banner relate to the scheduled message to all players (FR-1772, T-703b)? (T-713)
+
+**Status:** Proposed (developer, 2026-11-03).
+A banner message scheduled for a time and an end time is a different thing from this always-on slider.
+**Recommended (worker):** keep both: T-703b's scheduled message draws above the layout's blocks (it is a notice with an
+end time, like the maintenance message), and the slider stays the admin's standing content.

@@ -1430,7 +1430,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1835 | F-337 | Should | built (T-613: the info page's sections ordered and shown on the Layout page, About, questions and contacts, one extra page of headings, text, lists and links opened from Home; pictures and the sponsors and free sections are not built (T-613b, ADR-398); `apps/web/e2e/layout-editor.spec.ts`, `apps/api/test/events/layout.int.test.ts`, `apps/app/src/event/info-page.test.ts`; not run on a phone) |
 | FR-1836 | F-338 | Could | built T-510 (four switches on the Announcements page, a player's own choice wins; phone check owed): `test/db/push-topic-defaults.int`, `test/push/defaults.int`, `e2e/push-defaults.spec.ts` |
 | FR-1837 | F-339 | Should | pending |
-| FR-1838 | F-340 | Could | pending |
+| FR-1838 | F-340 | Could | built (T-713: eleven blocks reordered, hidden (six are always shown) and a banner of up to five text slides at `/console/home`, audited and reverted through the catalog door, shown by the app from the cached configuration first; pictures and taps into the app's own screens are not built, Q-471, Q-472; `apps/api/test/db/console-home-layout.int.test.ts`, `apps/api/test/console/home-layout.int.test.ts`, `packages/shared/src/layout/questify-home.test.ts`, `apps/app/src/home/home-layout.test.ts`, `apps/web/e2e/console-home.spec.ts`; not run on a phone) |
 | FR-1839 | F-341 | Could | pending |
 | FR-1840 | F-342 | Should | built (T-313, 2026-10-25) |
 | FR-1841 | F-343 | Could | `test/db/cheers.int`, `test/cheers/routes.int`, `test/screen/routes.int`, `apps/web/e2e/cheers.spec.ts`, `apps/app/src/event/cheers.test.ts` (T-509, ADR-377) |

@@ -2,6 +2,11 @@ import { DEFAULT_BRANDING, type Branding } from "#src/design/accents";
 import type { LocalizedText } from "#src/errors";
 import { playerDocuments, type LegalInForce } from "#src/legal/documents";
 import { DEFAULT_COMPOSED_LAYOUT, composedLayoutOf, type ComposedLayout } from "#src/layout/layout";
+import {
+  DEFAULT_QUESTIFY_HOME,
+  composedQuestifyHomeOf,
+  type ComposedQuestifyHome,
+} from "#src/layout/questify-home";
 import type { EventConfig, PlatformSettings, Registries } from "./registry";
 import { DEFAULT_TERMS, type EventTerms } from "./terms";
 import { NO_EVENT_TEXTS, type EventTexts } from "./texts";
@@ -32,6 +37,8 @@ export type ComposedConfig = Readonly<{
   branding: Branding;
   /** The event's bar and Home blocks to show, in order (T-606, FR-1749); Questify's own outside an event. */
   layout: ComposedLayout;
+  /** Questify home's blocks to show, in order, and its banner (T-713, FR-1838); the same inside an event. */
+  questifyHome: ComposedQuestifyHome;
 }>;
 
 /** The configuration before the legal block: what the shipped defaults, the platform and the event decide. */
@@ -106,6 +113,7 @@ export function composeConfig(
     features: composeFeatures(registries, platform, event),
     tuning: composeTuning(registries, platform),
     ...composeEventLook(event),
+    questifyHome: composedQuestifyHomeOf(platform.questifyHome ?? DEFAULT_QUESTIFY_HOME),
   };
 }
 

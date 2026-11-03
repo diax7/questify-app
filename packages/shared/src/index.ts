@@ -164,6 +164,24 @@ export {
   readEventLayout,
   sameLayout,
 } from "./layout/layout";
+export type {
+  ComposedQuestifyHome,
+  QuestifyHome,
+  QuestifyHomeBlock,
+  QuestifyHomeBlockDefinition,
+} from "./layout/questify-home";
+export {
+  DEFAULT_COMPOSED_QUESTIFY_HOME,
+  DEFAULT_QUESTIFY_HOME,
+  QUESTIFY_HOME_BLOCKS,
+  QUESTIFY_HOME_KEYS,
+  QUESTIFY_HOME_PROTECTED,
+  checkQuestifyHome,
+  composedQuestifyHomeOf,
+  readComposedQuestifyHome,
+  readQuestifyHome,
+  sameQuestifyHome,
+} from "./layout/questify-home";
 export type { LayoutPreset } from "./layout/presets";
 export { LAYOUT_PRESETS, applyPreset, matchingPreset, presetLayout } from "./layout/presets";
 export type { LayoutChange } from "./layout/validate";
@@ -1072,6 +1090,8 @@ export {
   gemShopDocSchema,
   gemShopItemAdminAnswerSchema,
   gemShopItemAdminSchema,
+  homeLayoutAdminSchema,
+  homeLayoutDocSchema,
   levelTitlesAdminSchema,
   levelTitlesDocSchema,
   templateAdminAnswerSchema,
@@ -1090,6 +1110,7 @@ export type {
   LoweredGems,
   GemShopDoc,
   GemShopItemAdmin,
+  HomeLayoutAdmin,
   LevelTitlesAdmin,
   LevelTitlesDoc,
   TemplateAdmin,

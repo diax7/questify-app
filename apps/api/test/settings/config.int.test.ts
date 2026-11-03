@@ -3,6 +3,7 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_COMPOSED_LAYOUT,
+  DEFAULT_COMPOSED_QUESTIFY_HOME,
   DEFAULT_TERMS,
   parseComposedConfig,
   type ComposedConfig,
@@ -113,6 +114,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
         texts: { ar: {}, en: {} },
         branding: { accent: null },
         layout: DEFAULT_COMPOSED_LAYOUT,
+        questifyHome: DEFAULT_COMPOSED_QUESTIFY_HOME,
       });
     });
 

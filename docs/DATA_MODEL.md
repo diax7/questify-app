@@ -1406,7 +1406,7 @@ rows or push text.
 | event_session, session_registration | Agenda sessions and bookings, door check-in (ADR-095) | Registrations yes |
 | venue_map, map_pin, sponsor, survey, survey_answer | Maps, sponsor profiles, surveys | Answers yes |
 | translation | One row per key an admin changed: `key`, `ar`, `en` (each null when that language uses the shipped text), who and when. A row with neither language is deleted. Anyone using the app may read; only a Questify admin writes (since migration 0116 the insert, update and delete policies ask `app_admin_id()`, which re-reads that the account is still an active platform admin; T-702) | No |
-| platform_setting | One row per block: `features` (per feature: enabled, message, minAppVersion) and `tuning` (numbers, whole). Anyone using the app may read; only a Questify admin writes; never deleted. Records who changed it. Migration 0125 (T-703): `rehearsal_cap()`, `flag_tuning()` and `readiness_soon()` read `tuning` keys `rehearsalCap`, `flagBurstCount`, `flagBurstMinutes` and `readinessDays` through the internal `platform_tuning_int(key, fallback, low, high)` (no grant), and use the shipped number when the stored one is missing, not whole or out of range | No |
+| platform_setting | One row per block: `features` (per feature: enabled, message, minAppVersion) and `tuning` (numbers, whole). Anyone using the app may read; only a Questify admin writes; never deleted. Records who changed it. Migration 0132 (T-713): key `questifyHome` = `{order, hidden, banner}`, written only by `admin_home_layout_save` (the generic writer's policies name `features` and `tuning` alone). Migration 0125 (T-703): `rehearsal_cap()`, `flag_tuning()` and `readiness_soon()` read `tuning` keys `rehearsalCap`, `flagBurstCount`, `flagBurstMinutes` and `readinessDays` through the internal `platform_tuning_int(key, fallback, low, high)` (no grant), and use the shipped number when the stored one is missing, not whole or out of range | No |
 | event_entitlement | Add-ons Questify unlocked for an event (`event_id`, `feature`, `granted_by`). Kept apart from `event.config` because the organizer can edit that column and must not unlock anything for themselves (FR-1729). Visible to whoever can see the event; written only by an admin | No |
 | event_activation_request | The owner's activation request: pending, or rejected with the admin's note (T-210). Written only by definers | No |
 | event_rehearsal | The event's rehearsal: its code, when it was first played, the last erase and its counts (T-211). Written only by definers | No |
@@ -1793,3 +1793,16 @@ classified as a link, the player's own data, or not a player (`NOT_PLAYER`, with
 the Redis ranking copy (rebuilt from the ledger, `ranking_repair` drops an erased player), the idempotency store
 (forgotten after every erasure), the API log (ids only), the rate-limit buckets (keyed hashes that expire) and the push
 providers (tokens deleted with `push_device`). The catalog test fails on a new unclassified table or column.
+
+## Questify home layout (T-713, migration 0132; ADR-510 to ADR-514)
+
+No new table: the layout is `platform_setting` key `questifyHome` = `{order: [block], hidden: [block], banner: [slide]}`, read by
+the settings service with `features` and `tuning` and composed into `GET /v1/config` as `questifyHome: {blocks, banner}`. A
+slide is `{title: {ar, en}, subtitle: {ar, en}, action: {type: "none"} | {type: "link", url}}`. Doors (definer, `questify_app`
+only): `admin_home_layout()` and `admin_home_layout_save(doc, revert_of, request)`, both starting with `console_admin()` (QE403).
+The save ensures the row, locks it, checks the document (CA400, the detail names the field), writes it and one
+`catalog.home_layout.update` or `.revert` audit entry (target `platform_setting`, id `questify_home`) with the layout before and
+after; nothing is written when nothing changed; a revert reads the latest entry's `before` under the lock (CA409 when
+stale). Internal helpers (no grant): `questify_home_blocks()` (the block list and the protected ones, compared with the shared
+package by a test), `questify_home_default()`, `questify_home_repaired()`, `questify_home_in_force()`, `questify_home_checked()`,
+`home_slide_checked()`, `home_text_checked()`, `home_only_keys()`.

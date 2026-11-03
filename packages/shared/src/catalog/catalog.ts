@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { checkQuestifyHome } from "#src/layout/questify-home";
 import { TEMPLATE_KEY, templateBodySchema } from "#src/templates/template";
 import { arabicText, englishText } from "#src/text/bilingual";
 
@@ -15,6 +16,7 @@ export const CATALOG_KINDS = [
   "amounts",
   "xp_table",
   "item",
+  "home_layout",
 ] as const;
 export type CatalogKind = (typeof CATALOG_KINDS)[number];
 
@@ -223,6 +225,38 @@ export const achievementsAdminListSchema = z.strictObject({
 export const achievementAdminAnswerSchema = z.strictObject({ achievement: achievementAdminSchema });
 export const gemShopAdminListSchema = z.strictObject({ items: z.array(gemShopItemAdminSchema) });
 export const gemShopItemAdminAnswerSchema = z.strictObject({ item: gemShopItemAdminSchema });
+
+/**
+ * What an admin edits of Questify home (T-713, FR-1838): the order, the hidden blocks and the banner's slides. The check is the
+ * shared one (`checkQuestifyHome`): every block once, none of the protected ones hidden, at most five clean text slides. A save
+ * and a revert both go through it, and the database's door checks the same rules again (migration 0132).
+ */
+export const homeLayoutDocSchema = z.unknown().transform((value, context) => {
+  const checked = checkQuestifyHome(value);
+  if (checked.ok) {
+    return checked.value;
+  }
+  for (const issue of checked.issues) {
+    context.addIssue({
+      code: "custom",
+      path: issue.path === "" ? [] : issue.path.split("."),
+      message: issue.message,
+    });
+  }
+  return z.NEVER;
+});
+
+/**
+ * The layout in force as the console lists it. The lists are read again with `readQuestifyHome`, which also repairs them, so
+ * a stored slide that no longer passes the check still shows and can be fixed.
+ */
+export const homeLayoutAdminSchema = z.strictObject({
+  order: z.array(z.string()),
+  hidden: z.array(z.string()),
+  banner: z.array(z.unknown()),
+  revertible,
+});
+export type HomeLayoutAdmin = z.infer<typeof homeLayoutAdminSchema>;
 
 /** The issues of a template body that fails the schema, as short lines for the editor ("categories.0.quests.2.points: ..."). */
 export function templateBodyIssues(body: unknown): string[] {

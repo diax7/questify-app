@@ -5,9 +5,9 @@ type Db = Client | PoolClient;
 /** The stored blocks of the platform settings, exactly as the database holds them. */
 export async function readStoredPlatform(
   db: Db,
-): Promise<{ features?: unknown; tuning?: unknown }> {
+): Promise<{ features?: unknown; tuning?: unknown; questifyHome?: unknown }> {
   const { rows } = await db.query<{ key: string; value: unknown }>(
-    "SELECT key, value FROM platform_setting WHERE key IN ('features', 'tuning')",
+    "SELECT key, value FROM platform_setting WHERE key IN ('features', 'tuning', 'questifyHome')",
   );
   return Object.fromEntries(rows.map((row) => [row.key, row.value]));
 }

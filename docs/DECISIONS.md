@@ -7098,3 +7098,65 @@ A disputed owner email change (ADR-491) is a line of the same digest.
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-701b code review 92; T-701b plan section 4; Q-451).
 **Decision:** FR-1732's urgent marker, due time and alert apply to content and username reports in Questify's queue. Tickets escalated by an event team keep the Tickets page's order.
 **Trade-offs:** an escalated ticket from a live event is not put first.
+
+## ADR-510 - T-713 Questify home's layout is one platform setting, written by one audited door, composed into the config
+
+**Status:** Proposed (worker, 2026-11-03; T-713 plan `docs/plans/2026-11-03-t-713-questify-home-layout.md`; Q-470).
+**Decision:** (1) The layout of Questify home (FR-1838) is `platform_setting` key `questifyHome` = `{order, hidden, banner}`, not
+`event.config.layout` (ADR-395: Questify home has its own list of blocks and its own store). (2) Only the definer door
+`admin_home_layout_save(doc, revert_of, request)` writes it (migration 0132): `console_admin()` first, the row ensured and
+locked, the document checked again in SQL, one `catalog.home_layout.update` or `.revert` audit entry with the layout before and
+after, and nothing written when nothing changed. The generic settings writer still names `features` and `tuning` alone (0122).
+(3) The editor is one more catalog kind (`home_layout`), so the list, save and revert routes, the throttle helper, the revert
+through the latest audit entry (CA409 `stale`, 409 `nothing_to_revert`) and the idempotency rule are the catalog's. (4) The
+composed configuration (`GET /v1/config` and an event's) carries `questifyHome: {blocks, banner}`: the blocks that are shown, in
+order, and the banner's slides while the banner block is shown. A hidden banner's slides are a draft and stay on the server.
+**Trade-offs:** the event config carries a field that only Questify home reads; it is a few hundred bytes and keeps one
+document, one ETag and one last-working copy on the phone.
+
+## ADR-511 - T-713 Questify home has eleven blocks; six cannot be hidden; the two daily games are two blocks
+
+**Status:** Proposed (worker, 2026-11-03; Q-470).
+**Decision:** The blocks, in the order the screen drew them: `banner` (new), `notices`, `code`, `account`, `operator`,
+`invitations`, `streak`, `dailyChallenge`, `dailyWord`, `events`, `quests`. Protected, so they can move but not be hidden (the
+console and the door both refuse): `notices` (what Questify says about a switched-off feature), `code` (the way into an event
+for anyone who cannot scan, FR-831), `account` (the recovery email), `operator` (staff reach their event), `invitations` and
+`events` (a player's own events). The daily games were one block with a shared heading; each is its own block now, with its own
+card, so the daily word can sit above the challenge (the FR's example). One read of `/v1/me/daily` serves both, and is not made
+while neither is on the screen. A block keeps its own conditions (a streak the platform switched off, a game with no content
+today, no invitations) and draws nothing then. The sign-in prompt of a visitor who has not signed in is not a block.
+**Trade-offs:** the old "Daily games" heading is gone (`daily.title` removed); each card names its own game.
+
+## ADR-512 - T-713 the banner of Questify home is text slides that open nothing or a web link
+
+**Status:** Proposed (worker, 2026-11-03; Q-471, Q-472).
+**Decision:** The banner reuses T-610's slide (`title`, `subtitle`, `action`), its reader and its limits: up to five slides, a title of
+60 characters and a subtitle of 100 in both languages, texts cleaned (invisible characters, Western digits). A tap opens nothing
+or an https link to a named host, after the player agrees (the same question as an event's links). The other taps (agenda, map,
+rewards, a quest) belong to an event and are refused. Pictures wait for photo storage (Q-149, T-610b). The app draws the same
+slider as an event's banner (`BannerSlider`, now free of the event context). Quick links, cards and countdowns are not on Questify
+home: FR-1838 asks for the order, the visibility and the banner.
+**Trade-offs:** a banner cannot send a player to the gem shop or Explore yet.
+
+## ADR-513 - T-713 the door checks the layout again in SQL and makes an older layout whole
+
+**Status:** Proposed (worker, 2026-11-03).
+**Decision:** `questify_home_blocks()` is the one SQL list of blocks and protected flags; the shared package names the same
+(`QUESTIFY_HOME_BLOCKS`) and `test/db/console-home-layout` compares them, so a block added to one fails until it is added to the
+other (a migration for the database). The door requires every block exactly once in `order`, a `hidden` list of known,
+unrepeated, unprotected blocks, and at most five slides, each with bounded clean text and an https link of at most 300
+characters. What is stored or reverted is made whole before it is read (`questify_home_repaired`): a name that is not a block
+goes, a missing block joins the end, a protected block is shown, so a layout saved before a block was added still lists, saves and
+reverts.
+**Trade-offs:** the slide rules exist in the shared reader and in SQL; the DB test runs the same cases through both.
+
+## ADR-514 - T-713 Questify home draws the last working layout first and a save reaches the apps within the cache time
+
+**Status:** Proposed (worker, 2026-11-03).
+**Decision:** Questify Home reads the platform configuration the way an event does (`loadHomeConfig`): the last working copy at
+once, so the blocks never jump from the default order to the chosen one, then the fresh one, each time Home gains focus. A
+configuration that cannot be read, a copy from before the layout, a damaged field or a list that leaves out a protected block is
+the order the screen always had. The catalog routes of a kind that changes the composed configuration clear the settings
+cache after a save or a revert, so a change reaches the apps within the 15 second cache of other server processes and the time
+until the app next asks.
+**Trade-offs:** another server process keeps its cached reading for up to 15 seconds.

@@ -1,14 +1,12 @@
 "use client";
 
 import {
-  BANNER_SLIDES_MAX,
   CONTENT_LIMITS,
   QUICK_LINKS_MAX,
   QUICK_LINK_ICONS,
   isCardKey,
   toInstant,
   toLocalInput,
-  type BannerSlide,
   type CountdownCard,
   type HomeCard,
   type HomeContent,
@@ -16,6 +14,7 @@ import {
   type QuickLink,
   type TextCard,
 } from "@questify/shared";
+import { BannerSlidesEditor } from "#src/components/BannerSlidesEditor.tsx";
 import { EntryList, type EntryNames } from "#src/components/EntryList.tsx";
 import {
   ActionPicker,
@@ -26,39 +25,11 @@ import {
 } from "#src/components/HomeContentFields.tsx";
 import { PageEditor } from "#src/components/PageEditor.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import { emptyLink, emptySlide } from "#src/lib/home-content-editor.ts";
+import { emptyLink } from "#src/lib/home-content-editor.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Field, Input, Select } from "#src/ui/Field.tsx";
 
 type EditorProps<T> = Readonly<{ value: T; onChange: (next: T) => void; context: EditorContext }>;
-
-function SlideEditor({ value, onChange, context }: EditorProps<BannerSlide>) {
-  return (
-    <>
-      <TextPair
-        language={context.language}
-        field="layout.field.title"
-        value={value.title}
-        max={CONTENT_LIMITS.slideTitle}
-        onChange={(title) => onChange({ ...value, title })}
-      />
-      <TextPair
-        language={context.language}
-        field="layout.field.subtitle"
-        value={value.subtitle}
-        max={CONTENT_LIMITS.slideSubtitle}
-        onChange={(subtitle) => onChange({ ...value, subtitle })}
-      />
-      <ActionPicker
-        language={context.language}
-        action={value.action}
-        allowNone
-        quests={context.quests}
-        onChange={(action) => onChange({ ...value, action })}
-      />
-    </>
-  );
-}
 
 function LinkEditor({ value, onChange, context }: EditorProps<QuickLink>) {
   const t = useTranslator(context.language);
@@ -96,11 +67,6 @@ function LinkEditor({ value, onChange, context }: EditorProps<QuickLink>) {
   );
 }
 
-const SLIDE_NAMES: EntryNames = {
-  earlier: "layout.slide.earlier",
-  later: "layout.slide.later",
-  remove: "layout.slide.remove",
-};
 const LINK_NAMES: EntryNames = {
   earlier: "layout.link.earlier",
   later: "layout.link.later",
@@ -274,24 +240,12 @@ export function HomeContentEditor({
   return (
     <EditorSection language={language} title={title} onClose={onClose}>
       {blockKey === "banner" ? (
-        <EntryList
+        <BannerSlidesEditor
           language={language}
-          entries={content.banner}
-          limit={BANNER_SLIDES_MAX}
-          heading={(_slide, n) => t("layout.slide", { n })}
-          names={SLIDE_NAMES}
-          footer={
-            <Button
-              variant="secondary"
-              onClick={() => onChange({ ...content, banner: [...content.banner, emptySlide()] })}
-            >
-              {t("layout.slide.add")}
-            </Button>
-          }
+          slides={content.banner}
+          quests={context.quests}
           onChange={(banner) => onChange({ ...content, banner })}
-        >
-          {(slide, replace) => <SlideEditor value={slide} onChange={replace} context={context} />}
-        </EntryList>
+        />
       ) : null}
       {blockKey === "quickLinks" ? (
         <EntryList

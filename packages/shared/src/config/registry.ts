@@ -1,6 +1,7 @@
 import type { Branding } from "#src/design/accents";
 import type { LocalizedText } from "#src/errors";
 import type { EventLayout } from "#src/layout/layout";
+import type { QuestifyHome } from "#src/layout/questify-home";
 import type { EventTerms } from "./terms";
 import type { EventTexts } from "./texts";
 
@@ -41,6 +42,8 @@ export type PlatformFeatureSetting = Readonly<{
 export type PlatformSettings = Readonly<{
   features?: Readonly<Record<string, PlatformFeatureSetting>> | undefined;
   tuning?: Readonly<Record<string, number>> | undefined;
+  /** Questify home's blocks and banner (T-713); the default layout while none is stored. */
+  questifyHome?: QuestifyHome | undefined;
 }>;
 
 /** What an event stores in `event.config`. An event can only narrow what the platform allows. */

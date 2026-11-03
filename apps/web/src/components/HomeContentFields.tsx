@@ -98,25 +98,31 @@ export function TextPair({
 }
 
 const ACTIONS = ["none", "agenda", "maps", "shop", "quest", "link"] as const;
+export type ActionKind = (typeof ACTIONS)[number];
 
-function startOf(type: (typeof ACTIONS)[number]): TapAction {
+function startOf(type: ActionKind): TapAction {
   if (type === "quest") return { type, questId: "" };
   if (type === "link") return { type, url: "" };
   return { type };
 }
 
-/** What a tap opens: a screen, one quest, or a web link. A quick link must open something, so it has no "Nothing". */
+/**
+ * What a tap opens: a screen, one quest, or a web link. A quick link must open something, so it has no "Nothing". `kinds`
+ * narrows the choice (Questify home's banner opens nothing or a web link); every kind while it is undefined.
+ */
 export function ActionPicker({
   language,
   action,
   allowNone,
   quests,
+  kinds,
   onChange,
 }: Readonly<{
   language: Language;
   action: TapAction;
   allowNone: boolean;
   quests: readonly PickOption[];
+  kinds?: readonly ActionKind[] | undefined;
   onChange: (next: TapAction) => void;
 }>) {
   const t = useTranslator(language);
@@ -126,13 +132,15 @@ export function ActionPicker({
       <Field label={t("layout.field.action")}>
         <Select
           value={action.type}
-          onChange={(event) => onChange(startOf(event.target.value as (typeof ACTIONS)[number]))}
+          onChange={(event) => onChange(startOf(event.target.value as ActionKind))}
         >
-          {ACTIONS.filter((kind) => allowNone || kind !== "none").map((kind) => (
-            <option key={kind} value={kind}>
-              {t(`layout.action.${kind}`)}
-            </option>
-          ))}
+          {(kinds ?? ACTIONS)
+            .filter((kind) => allowNone || kind !== "none")
+            .map((kind) => (
+              <option key={kind} value={kind}>
+                {t(`layout.action.${kind}`)}
+              </option>
+            ))}
         </Select>
       </Field>
       {action.type === "quest" ? (

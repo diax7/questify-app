@@ -75,24 +75,44 @@ export async function loadConfig(
   return usable(cached);
 }
 
-/**
- * The event's configuration for the screens (its words, FR-404, FR-940; its switches): the event's cached copy first,
- * so nothing flashes, then the fresh one. With neither, `show` is never called and the screens keep Questify's
- * defaults (every switch read as off where off is the safe side, such as location).
- */
-export async function loadEventConfig(
+async function showCachedThenFresh(
   deps: Readonly<{ client: ConfigClient; store: KeyValueStore }>,
-  event: string,
+  event: string | undefined,
   show: (config: ComposedConfig) => void,
 ): Promise<void> {
   const cached = usable(await readCached(deps.store, configKeyOf(event)));
   if (cached !== undefined) {
     show(cached);
   }
-  const fresh = await loadConfig(deps, { event });
+  const fresh = await loadConfig(deps, event === undefined ? {} : { event });
   if (fresh !== undefined) {
     show(fresh);
   }
+}
+
+/**
+ * The event's configuration for the screens (its words, FR-404, FR-940; its switches): the event's cached copy first,
+ * so nothing flashes, then the fresh one. With neither, `show` is never called and the screens keep Questify's
+ * defaults (every switch read as off where off is the safe side, such as location).
+ */
+export function loadEventConfig(
+  deps: Readonly<{ client: ConfigClient; store: KeyValueStore }>,
+  event: string,
+  show: (config: ComposedConfig) => void,
+): Promise<void> {
+  return showCachedThenFresh(deps, event, show);
+}
+
+/**
+ * The platform's configuration for Questify home (T-713): the last working copy first, so the blocks never jump from the
+ * default order to the chosen one, then the fresh one. With neither, `show` is never called and Home keeps the order
+ * it always had.
+ */
+export function loadHomeConfig(
+  deps: Readonly<{ client: ConfigClient; store: KeyValueStore }>,
+  show: (config: ComposedConfig) => void,
+): Promise<void> {
+  return showCachedThenFresh(deps, undefined, show);
 }
 
 /** Whether the platform's location switch is on in a composed configuration (ADR-208); off when unknown. */

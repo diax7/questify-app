@@ -393,3 +393,18 @@ steps of FR-1846. The add-on cards are the registry's gated features, locked unt
   Players see each other's full names only where the setting says everyone and they were told so; staff see them by the setting alone.
 - **Where it shows:** the event ranking and today's, the revealed results, the big screen's ranking and finale, the station's result and the prize desk. Questify-wide pages stay on usernames.
 - **Locked:** widening to everyone is refused once a player who was not told is in; narrowing is always allowed.
+
+## As built (T-713): Questify home's layout
+
+- **Where it lives:** `platform_setting` key `questifyHome`, `{order, hidden, banner}`, composed into `GET /v1/config` as
+  `questifyHome: {blocks, banner}` (the blocks to show in order; the banner's slides while the banner block is shown; ADR-510).
+  It is the platform's, not an event's: an event keeps `event.config.layout` (T-606).
+- **What can move:** eleven blocks (`banner`, `notices`, `code`, `account`, `operator`, `invitations`, `streak`,
+  `dailyChallenge`, `dailyWord`, `events`, `quests`). Six are always shown and only move: `notices`, `code`, `account`,
+  `operator`, `invitations`, `events` (ADR-511). The console (`/console/home`) and the database door both refuse a layout that hides
+  one. A block keeps its own conditions: a streak the platform switched off, or a game with nothing today, draws nothing
+  whatever the layout says.
+- **The banner:** up to five text slides in both languages; a tap opens nothing or an https link after the player agrees
+  (ADR-512). Pictures wait for photo storage (Q-149).
+- **Saving:** one audited door, reverted through the audit log; a save clears the settings cache. The app draws the last
+  working copy first and the fresh one after; a missing or damaged layout is the order the screen always had (ADR-514).

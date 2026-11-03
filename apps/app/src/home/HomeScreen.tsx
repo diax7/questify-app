@@ -1,28 +1,29 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { ScrollView } from "react-native";
-import { AddEmailCard } from "#src/account/AddEmailCard.tsx";
 import { usePlayer } from "#src/auth/player.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
-import { DailyCards } from "#src/daily/DailyCards.tsx";
-import { CodeEntry } from "#src/home/CodeEntry.tsx";
-import { Invitations } from "#src/home/Invitations.tsx";
-import { MyEvents } from "#src/home/MyEvents.tsx";
-import { StreakLine } from "#src/home/StreakLine.tsx";
+import { useHomeDaily } from "#src/daily/DailyCards.tsx";
+import { HomeBlock } from "#src/home/HomeBlock.tsx";
+import { homeLayoutOf, showsDaily } from "#src/home/home-layout.ts";
+import { useHomeConfig } from "#src/home/use-home-config.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { PlatformNotices } from "#src/home/PlatformNotices.tsx";
-import { OperatorEvents } from "#src/operator/OperatorEvents.tsx";
 import { BellRow } from "#src/push/NotificationBell.tsx";
 
 /**
- * Questify Home (FR-623, FR-832): the player's events live, upcoming and past, the two daily games, the streak line and
- * a door to the Questify quests, with a typed code for anyone who cannot scan one. Public events, "For you" and the
- * Questify ranking are on Explore. Inside an event its own Home takes over (T-113).
+ * Questify Home (FR-623, FR-832, FR-1838): the blocks the platform chose, in its order, then the sign-in prompt for a
+ * visitor who has not signed in. By default they are the player's events live, upcoming and past, the two daily games, the
+ * streak line and a door to the Questify quests, with a typed code for anyone who cannot scan one. Public events, "For you"
+ * and the Questify ranking are on Explore. Inside an event its own Home takes over (T-113). The layout comes from the
+ * configuration the phone holds; without one Home draws the order it always had.
  */
 export function HomeScreen() {
   const { t } = useI18n();
   const { state } = usePlayer();
+  const config = useHomeConfig();
+  const layout = homeLayoutOf(config);
+  const daily = useHomeDaily(state.status === "signed_in" && showsDaily(layout.blocks));
   // Operator mode sends people here when the owner removed them (FR-905); an event Home when rehearsal ended (T-211).
   const { notice } = useLocalSearchParams<{ notice?: string }>();
   return (
@@ -37,23 +38,15 @@ export function HomeScreen() {
         {notice === "eventUnavailable" ? (
           <AppText accessibilityRole="alert">{t("event.unavailable")}</AppText>
         ) : null}
-        <PlatformNotices />
-        <CodeEntry />
-        {state.status === "signed_in" ? (
-          <>
-            <AddEmailCard />
-            <OperatorEvents />
-            <Invitations />
-            <StreakLine />
-            <DailyCards />
-            <MyEvents />
-            <Button
-              kind="quiet"
-              label={t("questifyQuests.title")}
-              onPress={() => router.push("/questify-quests")}
-            />
-          </>
-        ) : null}
+        {layout.blocks.map((block) => (
+          <HomeBlock
+            key={block}
+            block={block}
+            config={config}
+            banner={layout.banner}
+            daily={daily}
+          />
+        ))}
         {state.status === "signed_out" ? (
           <>
             {state.ended ? (

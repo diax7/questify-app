@@ -3,6 +3,7 @@ import { ACCENT_KEYS, readBranding, type AccentKey } from "#src/design/accents";
 import type { ComposedConfig } from "./compose";
 import type { PlatformSettings, Registries } from "./registry";
 import { readComposedLayout } from "#src/layout/layout";
+import { readComposedQuestifyHome } from "#src/layout/questify-home";
 import { readEventTerms } from "./terms";
 import { readEventTexts } from "./texts";
 
@@ -156,6 +157,8 @@ const composedShape = z.object({
   branding: z.unknown().optional().transform(readBranding),
   // Read tolerantly as well: a copy saved before T-606 has none, and a layout that hides a protected item falls back to Questify's.
   layout: z.unknown().optional().transform(readComposedLayout),
+  // Read tolerantly as well: a copy saved before T-713 has none, and a layout that leaves out a protected block is the default.
+  questifyHome: z.unknown().optional().transform(readComposedQuestifyHome),
 });
 
 /**

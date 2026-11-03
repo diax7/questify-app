@@ -305,7 +305,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleReadinessRoutes(scope, deps.questify);
       registerConsoleOrganizerRoutes(scope, deps.organizers);
       registerConsolePlatformRoutes(scope, deps.platform);
-      registerConsoleCatalogRoutes(scope, deps.platform);
+      registerConsoleCatalogRoutes(scope, { ...deps.platform, forgetConfig: deps.settings.forget });
       registerConsoleLegalRoutes(scope, deps.platform);
       registerConsoleSwitchesRoutes(scope, { ...deps.platform, settings: deps.settings });
       registerConsoleMessagingRoutes(scope, deps.platform);

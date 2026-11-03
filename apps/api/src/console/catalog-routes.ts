@@ -52,6 +52,8 @@ type Catalog = Readonly<{
    */
   names: Readonly<{ list: string; one: string }> | undefined;
   id: z.ZodType<string> | undefined;
+  /** The editor changes what `GET /v1/config` composes, so a change clears the settings cache (T-713). */
+  composed?: true;
 }>;
 
 const CATALOGS: readonly Catalog[] = [
@@ -82,6 +84,13 @@ const CATALOGS: readonly Catalog[] = [
     names: { list: "items", one: "item" },
     id: z.string().regex(ITEM_ID),
   },
+  {
+    kind: "home_layout",
+    path: "/catalog/home-layout",
+    names: undefined,
+    id: undefined,
+    composed: true,
+  },
 ];
 
 const confirmation = z.strictObject({ confirmed: z.boolean().optional() });
@@ -109,13 +118,18 @@ function invalidBody(issues: readonly z.core.$ZodIssue[]) {
   });
 }
 
-function registerCatalog(
-  scope: FastifyInstance,
-  deps: Pick<ConsolePlatformDeps, "pool" | "keys">,
-  catalog: Catalog,
-): void {
+/** What the catalog routes need beyond the console's: how to drop the settings cache after a change to the composed config. */
+export type ConsoleCatalogDeps = Pick<ConsolePlatformDeps, "pool" | "keys"> &
+  Readonly<{ forgetConfig: () => void }>;
+
+function registerCatalog(scope: FastifyInstance, deps: ConsoleCatalogDeps, catalog: Catalog): void {
   const { kind } = catalog;
   const idPath = catalog.id === undefined ? "" : "/:id";
+  const changed = (): void => {
+    if (catalog.composed === true) {
+      deps.forgetConfig();
+    }
+  };
   const idOf = (params: unknown): string =>
     catalog.id === undefined ? "all" : parse(z.object({ id: catalog.id }), params).id;
 
@@ -139,6 +153,7 @@ function registerCatalog(
       requestId: request.id,
       confirmed,
     });
+    changed();
     return catalog.names === undefined ? row : { [catalog.names.one]: row };
   });
 
@@ -154,6 +169,7 @@ function registerCatalog(
       requestId: request.id,
       confirmed: confirmed === true,
     });
+    changed();
     return catalog.names === undefined ? row : { [catalog.names.one]: row };
   });
 }
@@ -190,7 +206,8 @@ function registerXpTableExtras(
 
 /**
  * The console's catalog editors (T-709b, T-709c, T-709d, FR-1403): event templates, achievements (names and thresholds),
- * level titles, the gem shop, the XP and gem amounts, the XP table with its level rewards, and Questify's items. Each is a
+ * level titles, the gem shop, the XP and gem amounts, the XP table with its level rewards, Questify's items, and Questify
+ * home's layout (T-713, FR-1838). Each is a
  * list, a save and a revert, registered inside the console scope whose hook answers 404 to anyone but an active platform
  * admin; every door re-reads the admin in the database. A save is checked against the editor's schema here and again by
  * the door, and is audited with the fields before and after; a revert is the same save with the earlier fields. The XP
@@ -198,7 +215,7 @@ function registerXpTableExtras(
  */
 export function registerConsoleCatalogRoutes(
   scope: FastifyInstance,
-  deps: Pick<ConsolePlatformDeps, "pool" | "keys">,
+  deps: ConsoleCatalogDeps,
 ): void {
   for (const catalog of CATALOGS) {
     registerCatalog(scope, deps, catalog);

@@ -208,7 +208,7 @@ function knownOnce<K extends string>(stored: unknown, keys: readonly K[]): K[] {
   return [...seen];
 }
 
-function repairList<K extends string>(
+export function repairList<K extends string>(
   stored: unknown,
   keys: readonly K[],
   protectedKeys: ReadonlySet<string>,
@@ -283,7 +283,7 @@ export function composedLayoutOf(layout: EventLayout): ComposedLayout {
 export const DEFAULT_COMPOSED_LAYOUT: ComposedLayout = composedLayoutOf(DEFAULT_LAYOUT);
 
 /** The list a received copy holds, or the default when it names no list or leaves out a protected item. */
-function readShown<K extends string>(
+export function readShown<K extends string>(
   received: unknown,
   keys: readonly K[],
   protectedKeys: ReadonlySet<string>,

@@ -1,4 +1,5 @@
 import type { LocalizedText } from "#src/errors";
+import { readQuestifyHome } from "#src/layout/questify-home";
 import type { PlatformFeatureSetting, PlatformSettings } from "./registry";
 
 const VERSION = /^[0-9]+(\.[0-9]+){1,2}$/;
@@ -36,6 +37,7 @@ function readFeature(value: unknown): PlatformFeatureSetting {
 export function readPlatformSettings(stored: {
   features?: unknown;
   tuning?: unknown;
+  questifyHome?: unknown;
 }): PlatformSettings {
   const features = isRecord(stored.features)
     ? Object.fromEntries(
@@ -52,6 +54,9 @@ export function readPlatformSettings(stored: {
   return {
     ...(features === undefined ? {} : { features }),
     ...(tuning === undefined ? {} : { tuning }),
+    ...(stored.questifyHome === undefined
+      ? {}
+      : { questifyHome: readQuestifyHome(stored.questifyHome) }),
   };
 }
 
