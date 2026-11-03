@@ -52,8 +52,8 @@ Evidence for each ASVS/MASVS control is a test, a CI check or a short written no
 - **Staging mirrors production** (same region, same services, fake data).
 - **Backups:** automatic backups on the host plus our own nightly copy to a second place in Saudi Arabia that we control (ADR-107, T-019). A backup that has not been restored is not a backup: restore rehearsal before launch (T-805).
 - **Secrets:** in the host's secret store; rotated on a schedule and when someone leaves; secret scan on every change.
-- **Observability:** structured logs without personal data, metrics and traces through OpenTelemetry (T-018).
-- **Service levels:** written targets (99.9% availability, completion confirmed within 1 s for 95%, ranking within 5 s, 5-minute data loss, 1-hour recovery; ADR-074, ADR-082) with alerts and a runbook for each alert (T-018).
+- **Observability:** structured logs without personal data, metrics and traces through OpenTelemetry (T-018, built 2026-11-03: `docs/SLO.md`; off until `TELEMETRY_EXPORTER` is set; the place it goes to is T-018b).
+- **Service levels:** written targets (99.9% availability, completion confirmed within 1 s for 95%, ranking within 5 s, 5-minute data loss, 1-hour recovery; ADR-074, ADR-082) with alerts and a runbook for each alert (T-018: `docs/SLO.md`, `ops/alerts/questify.rules.yml`, RUNBOOK "Telemetry and alerts"; a test fails an alert with no entry).
 - **Incidents:** a short written post-mortem for every outage, with fixes added to `TASKS.md`.
 - **Supply chain:** pinned CI actions, least-privilege CI permissions, a software bill of materials (SBOM) produced at release, build provenance where the platform offers it.
 

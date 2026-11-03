@@ -2385,3 +2385,21 @@ FR-1803 (Should) asks for it; T-802 delivers the texts through the translation m
 **Status:** Proposed (developer, 2026-11-03).
 The cards use the app's existing 3D icons. ADR-096 asked for the mascot with animation.
 **Recommended (developer):** swap the four images in `IntroArt.tsx` for the mascot's poses when Q-069 is decided; nothing else in the intro changes.
+
+## Q-560 - Where does the API's telemetry go, and who runs the store? (T-018, ADR-600)
+
+**Status:** Proposed (developer, 2026-11-03). Needs Dhia only for the account or the machine.
+The API sends metrics and traces over OTLP/HTTP when `TELEMETRY_EXPORTER=otlp`, and nothing until then. Telemetry carries no personal data (ADR-603), so it could go anywhere, but the platform keeps data in Saudi Arabia by default.
+**Recommended (developer):** one small CranL service in `riyadh-1` running the OpenTelemetry Collector with a Prometheus-compatible store (VictoriaMetrics) and its rule evaluator, plus Grafana for dashboards; the API's `OTEL_EXPORTER_OTLP_ENDPOINT` points at it over the private network. It costs one small instance, keeps everything in the region, and takes the rules file as it is. A hosted store (Grafana Cloud) is the alternative if running one more service is not wanted; nothing in the API changes. Built in T-018b.
+
+## Q-561 - Who is paged, by what, and what watches from outside? (T-018, ADR-600, ADR-604)
+
+**Status:** Proposed (developer, 2026-11-03). Needs Dhia: the people, the phone numbers and an account.
+ADR-079 says alerts go to the on-call phone and email and the team is three or more people. The alert rules mark each alert `page` or `warning`. A monitor on the same machine as the API cannot report that machine's death, and the server's own count cannot see a broken certificate or DNS record.
+**Recommended (developer):** Alertmanager (or the store's own routing) sends `page` alerts to email and a phone push or SMS to the on-call person of the week and `warning` alerts to email; an outside uptime check of `/readyz` from two places (a free tier of an uptime service is enough) pages independently of our own stack. Who is on call, and the numbers, are Dhia's to give. Built in T-018b.
+
+## Q-562 - Are the first alert thresholds right? (T-018, ADR-604)
+
+**Status:** Proposed (developer, 2026-11-03).
+The numbers in `ops/alerts/questify.rules.yml` come from ADR-074 (99.9%, 1 s at the 95th percentile) and from common practice (burn-rate windows, 20% failure for a provider, 5 minutes for a loop). The ADRs give no target for SMS, push or email delivery.
+**Recommended (developer):** keep them until the load test (NFR-003) and the first real event, then read the month's alert history and the metrics together and change only what paged for no reason or stayed quiet through a problem. Edit the rule, run `promtool test rules`, and note the change in SLO.md.

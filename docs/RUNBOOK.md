@@ -19,6 +19,13 @@
 - Integration tests need a throw-away PostgreSQL: `docker compose up -d`, then set
   `TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`. Without it they are skipped, and
   a skipped database test proves nothing: check the count of passed tests.
+- A full local run at the default parallelism (16 threads) can crash the test PostgreSQL (2026-11-03, T-018): its shared memory is
+  Docker's default 64 MB, so a heavy query fails with "could not resize shared memory segment", the container goes into crash
+  recovery ("the database system is in recovery mode", several minutes) and every file after it fails with "Hook timed out" or
+  "Connection terminated". The crash also leaves hundreds of `questify_test_*` databases (8 GB once). Run the API tests with
+  `npx vitest run apps/api --maxWorkers=4` (about 30 minutes, clean) and the rest with `npx vitest run apps/web apps/app
+  packages scripts` (under a minute, no database). After a crash, drop the idle leftovers with a `\gexec` of `DROP DATABASE … WITH
+  (FORCE)` over `pg_database` where `datname LIKE 'questify_test_%'` and no row in `pg_stat_activity`.
 - "too many clients" or "remaining connection slots" in a local full run: every integration file opens its own pool.
   `compose.yaml` starts PostgreSQL with 300 connections; a container made before that keeps 100 until
   `docker exec questifyapp-postgres-1 psql -U postgres -c "ALTER SYSTEM SET max_connections = 300"` and a restart.
@@ -513,6 +520,182 @@ Later, by the domain owner: after two to four weeks of clean DMARC reports, chan
 Cloudflare it must be **DNS only (grey cloud)**: Cloudflare's proxy would add a hop in front of CranL's edge and break
 the client-address count (ADR-113).
 
+## Telemetry and alerts (T-018, ADR-600 to ADR-605)
+
+Targets, the metric catalog and the alert table: `docs/SLO.md`. Rules: `ops/alerts/questify.rules.yml`. The API records metrics and
+traces through OpenTelemetry and sends them nowhere until `TELEMETRY_EXPORTER` is set (SLO.md, section 5); a collector, a store and
+a pager are T-018b (Q-560, Q-561). Until then the rules are written and tested but nothing evaluates them: watch the log lines the
+entries below name.
+
+- **Check the rules:** `promtool check rules ops/alerts/questify.rules.yml` and `promtool test rules ops/alerts/questify.rules.test.yml`
+  (no install needed: `docker run --rm --entrypoint promtool -v "$PWD/ops/alerts:/rules:ro" prom/prometheus:latest check rules
+  /rules/questify.rules.yml`, and `test rules /rules/questify.rules.test.yml`). Run both after any change to the rules.
+  `pnpm vitest run apps/api/src/telemetry/alerts.test.ts` checks that every alert has an entry here and names only metrics, labels
+  and events the code has.
+- **From a log line to its trace:** a line written inside a request or a background run carries `trace_id` and `span_id`; search the
+  trace store for that id (only a share of requests keep a trace, `TELEMETRY_TRACE_RATIO`; the metrics count all).
+- **Every alert starts the same way:** (1) is there a deploy or a migration in the last hour (the previous image is the rollback);
+  (2) `GET /readyz` from outside (503 means the database does not answer); (3) which instance (`instance` label) and which route,
+  loop or provider (the alert's labels); (4) the log lines named below.
+- **Breakdown queries** (any Prometheus-style store): 5xx by route
+  `sum by (http_route, http_response_status_code) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))`;
+  slowest routes `histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket[10m])))`;
+  outside calls `sum by (questify_operation, questify_provider, questify_outcome) (rate(questify_outbound_requests_total[15m]))`;
+  an event's rate `sum by (questify_event) (rate(questify_log_events_total[5m]))`.
+
+### QuestifyAvailabilityFastBurn
+
+More than 1.44% of requests answer 5xx over 5 minutes and an hour (SLO-1). **Check:** the 5xx by route breakdown (one route or all),
+`/readyz`, the `database.busy` rate (a 503 `busy` is a failure the player sees), `unexpected error` log lines (their `trace_id`
+opens the request). **Do:** a deploy in the last hour: roll back to the previous image. All routes and `/readyz` 503: the database
+(CranL console; the failover; `QuestifyDatabaseBusy`). One route: find its error in the log, fix or switch its feature off in the
+console. Write a short post-mortem (QUALITY_BASELINE section 4).
+
+### QuestifyAvailabilitySlowBurn
+
+The same failures at a lower rate for six hours (6 times the monthly budget). **Check:** the 5xx by route breakdown over 6 hours; one
+route or one status usually stands out. **Do:** a ticket for the next working day; fix the route. Once the month's budget is spent,
+deploy fixes only (SLO.md, error budget).
+
+### QuestifyCompletionSlow
+
+More than 5% of scans take over a second to confirm (SLO-2). **Check:** `QuestifyDatabasePoolWaiting` and `QuestifyDatabaseBusy` (a
+scan is one transaction, so a slow database is a slow scan), the slowest routes query, `QuestifyRankingStoreFailing` (rankings then read
+PostgreSQL), and whether one event is very hot (the dashboard's live numbers). Long transactions: as the owner,
+`SELECT pid, application_name, state, now() - xact_start AS age, wait_event FROM pg_stat_activity WHERE xact_start IS NOT NULL ORDER
+BY age DESC LIMIT 10;`. **Do:** end a blocking session (CranL's own console sessions count); raise `DATABASE_POOL_SIZE` within the
+database's connection limit; add an API instance; compare with the load test (NFR-003: 20,000 scans a minute in one event).
+
+### QuestifyCompletionFastBurn
+
+Scans fail with 5xx faster than the budget (SLO-3). **Check:** the breakdown restricted to `questify_route_class="completion"`: 503 is
+`busy` (the database), 500 is a bug (`unexpected error` with its `code`, `constraint` and `routine`). **Do:** as for
+`QuestifyAvailabilityFastBurn`; a scan that fails for players mid-event is the worst case, so roll back first and look after.
+
+### QuestifyTelemetryMissing
+
+No request has been reported for ten minutes: the API is down, or its exporter is broken. **Check:** `GET /healthz` and `/readyz` from
+outside, the CranL app status and log. If the API answers, read its standard error for `telemetry.export_failed` (the collector's
+address, its certificate, the `OTEL_EXPORTER_OTLP_HEADERS` token) and the collector's own health. **Do:** restart or roll back the API;
+fix the exporter setting.
+
+### QuestifyDatabaseBusy
+
+The API answers "busy, retry" more than once every two seconds. **Check:** the `database.busy {code}` lines: `55P03` a lock timeout, `57014`
+the statement limit (5 s), `53300` too many connections, `40P01` a deadlock (rare; a repeating one is a bug in a lock order,
+ARCHITECTURE "Consistency"), `CA503` a door's own lock budget. Long transactions as in `QuestifyCompletionSlow`. **Do:** end a blocking
+session; for `53300` lower the pool or raise the database's limit; record a repeating deadlock in `docs/FOLLOWUPS.md` with its code.
+
+### QuestifyDatabasePoolWaiting
+
+A client has waited for a database connection for five minutes (`questify_pool` says which pool). **Check:** the `api` pool's size
+(`DATABASE_POOL_SIZE`, 10 by default) against the connections in use (`questify_db_pool_connections` by state) and slow queries; the
+`push` pool has 3 connections for the fan-out, so a waiting push pool means a slow database or an oversized fan-out. **Do:** find the
+slow statement before raising the pool (a bigger pool on a slow database makes it slower); then raise `DATABASE_POOL_SIZE` within the
+database's connection limit.
+
+### QuestifyLoopStalled
+
+A background loop (`questify_tick` names it) has not finished a run for five minutes on that instance. **Check:** the loop's failure
+events in the API log: `lifecycle` `event.lifecycle_failed` and the other step names in `events/tick.ts`; `community` `community.*`;
+`souvenir` `souvenir.tick_failed`; `invitation` `invitation.settle_failed`, `invitation.send_failed`; `rank_push`
+`ranking.push_tick_failed`; `organizer_alerts` `organizer_alert.run_failed`; `team_alerts` `team_alert.run_failed`; `ranking_repair`
+`ranking.repair_failed`; `push_worker` `push.*_failed`. A run that never ends is a database call with no answer. **Do:** restart that
+instance: every loop is safe to restart (rows are leased or taken with SKIP LOCKED, and other instances keep running). Record the cause
+in `docs/FOLLOWUPS.md`.
+
+### QuestifyRankingRepairStalled
+
+The loop that rebuilds marked rankings has not run for 30 seconds, so a ranking may be older than the 5-second target (SLO-4).
+**Check:** `QuestifyLoopStalled` entry, then `Rankings and Redis` above. **Do:** restart the instance; rebuild one event by hand with
+`SELECT mark_ranking_repair('<event id>');`.
+
+### QuestifyRankingStoreFailing
+
+Redis or the ranking repair has been failing for ten minutes. Scans still succeed (the rank shows blank) and rankings read from
+PostgreSQL, slower. **Check:** `redis.error`, `redis.connect_failed`, `redis.eviction_policy` (the policy must be `noeviction`),
+`ranking.write_failed`, `ranking.read_failed`, `ranking.rebuild_failed`, `ranking.repair_failed`, `ranking.mark_failed`; CranL's Redis
+status; `REDIS_URL` (TLS or not). **Do:** restore Redis; the repair loop rebuilds every marked event when it is back, and losing the whole
+Redis is harmless (`Rankings and Redis`). During a live event with a big ranking, the PostgreSQL fallback costs about 50 ms a read
+at 20,000 players: watch `QuestifyCompletionSlow`.
+
+### QuestifyCommunitySettleFailing
+
+`community.settle_failed`, `community.tick_failed`, `community.pay_failed` or `community.health_failed` has been logged continuously for
+ten minutes. A deploy that carries a migration which replaces a settle function (`Migration 0141` under "Database and deploy") logs
+`community.settle_failed {code: 42883}` for the seconds before the new API takes over; that is expected and never alerts, because
+only ten unbroken minutes do. **Check:** the `code`: `42883` a function that does not exist (the API and the migration are different
+versions: deploy the API that matches the migration, or run the missing migration); `40P01`, `55P03`, `57014` a lock clash or
+the statement limit (it retries on the next tick); `CV500` see below. **Do:** fix the version; the owner's "Settle and pay now" settles at
+once after a repair.
+
+### QuestifyCommunityPayoutsBehind
+
+`community.settle_behind`, `community.payout_stuck` or `community.settle_blind` is logged: a goal's settle point is over 2 minutes behind,
+due rewards are older than 2 minutes, or an API or owner session could not be read in `pg_stat_activity`. **Check and do:** "Community
+tick alerts" under "Database and deploy" has each line's cause and fix (the named backend holding the oldest transaction; CranL's own
+console sessions count; `community.pay_failed {code}`; the owner losing its privileges). Results wait meanwhile; nothing is lost.
+
+### QuestifyErrorEventRepeating
+
+An error-level event not covered by another alert has been logged more than ten times in fifteen minutes (`questify_event` names it).
+**Check:** search this RUNBOOK for the event name (push, souvenir, lifecycle, ranking, invitation and alert events are all described
+under their feature), then the log lines around it. **Do:** fix the cause. If the event is a normal part of some flow and only noisy,
+change its level in the code or raise this rule's threshold (and run `promtool test rules`), and say why in the commit.
+
+### QuestifyPushFailing
+
+More than 20% of push sends fail, are lost, requeue or are held over 15 minutes. **Check:** the outside-calls query by `questify_provider` and
+`questify_outcome`: `requeue` Apple or Google answered 5xx or the request never left (their status pages); `unknown` timeouts;
+`failed` a request we built wrong (`push.apns_refused`, `push.fcm_refused`); `hold` an account or quota refusal
+(`push.provider_hold`). A dead token (`invalid_token`) is normal and not counted. **Do:** see "Push notifications", Alerts (error level).
+
+### QuestifyPushProviderRefusing
+
+APNs or FCM refuses our requests, a round came back mostly as token errors, or a notice is parked (`push.provider_hold`,
+`push.mass_invalid`, `push.fcm_auth_failed`, `push.apns_refused`, `push.fcm_refused`, `push.notice_parked`). **Check and do:** "Push
+notifications", Alerts (error level) and "Backed-off notice": the key or environment (`BadEnvironmentKeyIdInToken`), the bundle id or
+Firebase project, the service account; a parked notice shows its SQLSTATE and retries by itself every hour, or at once with the
+`UPDATE notice SET retry_after = NULL, fan_failures = 0 WHERE id = <notice>;` override.
+
+### QuestifySmsFailing
+
+More than 20% of SMS are refused or lost over 15 minutes. Players can still sign in by email. **Check:** `player.sms_refused {gateway,
+reason}` lines: `1060` the Msegat balance is spent (top up), `M0037` the static-IP check, `1110` the sender name, `1120` the number or
+international sending, `unreachable` Msegat did not answer twice. **Do:** "Player sign-in and SMS" has each fix. The budget lines
+(`player.budget_half`, `player.budget_spent`) say whether the platform's own hourly limit is the cause.
+
+### QuestifySignInThrottleSpike
+
+Sign-in, reset or code attempts are being throttled (`staff.throttled`, `player.throttled`) more than once every two seconds for ten
+minutes: someone is guessing passwords or codes, or a venue sits behind one address. **Check:** the lines carry `step` and `addr`, a
+12-character keyed tag of the client address and never the address. Count them by `addr` in the log store (for example, lines with
+`event` `staff.throttled` grouped by `addr`): one tag carrying most of them is one source; many tags is a spread-out attack, which
+per-address limits cannot stop (SECURITY.md "Residual risk"). Look at `staff.email_unavailable` and `player.code_failed` beside them.
+**Do:** one source: find its address in CranL's edge log for that time (our logs hold only the tag) and ask CranL to block it. A venue: nothing to do, the limits are per contact. A targeted account: free
+it with `clear-throttle` once the attack stops ("Staff sign-in", "Player sign-in and SMS"). Which address key carries most of the
+traffic is a manual query until T-018b adds the aggregate.
+
+### QuestifySendBudgetSpent
+
+`player.budget_spent` (the hourly SMS budget `smsPerHour` or the daily player email budget) or `staff.outbound_cap` (the day's 400
+sign-up and invitation emails) was reached, so the next request is answered 503 until the window moves. **Check:** whether it is an
+event (many real sign-ups) or abuse (many sign-ups from one `addr`). **Do:** real demand: raise the number in
+`apps/api/src/auth/limits.ts` and deploy (SMS costs money: check the Msegat balance first, `QuestifySmsFailing`); abuse: as for
+`QuestifySignInThrottleSpike`.
+
+### QuestifyEmailFailing
+
+Email sends are failing on Gmail and on the backup (or there is no backup): staff sign-in codes and player email codes do not go out.
+`staff.email_unavailable {reason}` is logged for each sign-in that could not send. **Check:** the log line names the step and Google's reason (`unauthorized_client`, `invalid_grant`, "Email sending" above), Google's daily
+sending limit, the Resend key and verified domain. **Do:** fix the delegation or the key; players can use SMS and staff wait or use
+`clear-throttle` once mail works ("Staff sign-in").
+
+### QuestifyEmailBackupInUse
+
+Gmail failed and Resend sent instead (`staff.email_failover`). Nothing is broken for users yet. **Check and do:** as for
+`QuestifyEmailFailing`, on the Gmail side, and open a ticket before the backup fails too.
+
 ## Web app (dashboard)
 
 - Image: `Dockerfile.web` at the repository root (CranL builds from the folder holding the Dockerfile), with CranL Dockerfile path `Dockerfile.web`; port 3000; health check on `/en/sign-in`.
@@ -594,7 +777,7 @@ the client-address count (ADR-113).
   (nullable, no default: no rewrite of the ledger). `pay_completion` is dropped and created with no defaults: deploy the
   new API with it. On the day a build goes to store review, give the demo event a scheduled flash quest and a boost
   (STORE_COMPLIANCE, review notes).
-- **Community tick alerts (T-306b, ADR-222 to ADR-224; log lines until T-018 makes them alerts):**
+- **Community tick alerts (T-306b, ADR-222 to ADR-224; the alerts `QuestifyCommunityPayoutsBehind` and `QuestifyCommunitySettleFailing`, T-018):**
   - `community.settle_behind {goals, blockerPid, blockerApp}`: a goal's settle point is more than 2 minutes behind.
     The named backend holds the oldest open transaction of `questify_app` or the owner. CranL's own sessions as
     `admin` (its web console, its managed `pg_dump`) count as the owner's and hold the settle point back for as long as
@@ -616,8 +799,8 @@ the client-address count (ADR-113).
 - **Migration 0141 (T-711b, feature layers part 2):** drops `settle_goal(uuid, boolean)` and `settle_community(uuid, boolean,
   uuid)` for one-argument and two-argument versions. Between the migration and the new API, the old API's community tick logs
   `community.settle_failed {code: 42883}` and the owner's Settle and pay now answers 500, for the seconds of the deploy; the
-  next tick of the new API settles and the settle point catches up. These lines are expected (not an alert; T-018 alerts only
-  on repeats). Deploy the API right after the migration.
+  next tick of the new API settles and the settle point catches up. These lines are expected (`QuestifyCommunitySettleFailing` alerts only
+  when they go on for ten minutes, never on one line). Deploy the API right after the migration.
 - Migrations: `node migrate.cjs` (owner connection `DATABASE_ADMIN_URL`; `--roles` the first time; `--verify` as the
   app role proves its limits). Remove the owner connection string from the app environment afterwards.
 - **Migration retry (T-022, ADR-291, ADR-580).** Each file runs as one transaction. If it fails with `40P01` (deadlock) or

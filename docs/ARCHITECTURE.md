@@ -170,6 +170,12 @@ with replay) end in the same `complete` transaction, differing only in the proof
 
 ## Observability
 
+Built in T-018 (ADR-600 to ADR-605); the targets, the metric catalog and the alert table are `SLO.md`, the rules `ops/alerts/`. The
+API records metrics and traces through OpenTelemetry (off until `TELEMETRY_EXPORTER` is set), keeps logs as JSON on standard output with
+the trace id, and counts every named log event, so the existing log events are the alert signals. No attribute can hold personal data
+(a closed list, tested). Where telemetry goes and who is paged is T-018b (Q-560, Q-561). The list below is the full target; `SLO.md`
+says which items T-018 covers and which wait.
+
 - Health endpoints for the API, workers and each dependency.
 - Alerts (to the on-call phone and email, ADR-079) on: error rate, 95th-percentile completion time
   above 1 second, queue depth, SMS delivery rate falling, database replica lag, ranking staleness
