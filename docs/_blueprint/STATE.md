@@ -6,6 +6,28 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-221 seat limit once a statement — 2026-11-03
+
+- **T-221 built (tier A; migration 0146, new and undeployed; ADR-630 to ADR-632 and Q-590, Q-591 Proposed; answers Q-323).**
+  Plan review (88) folded in first: `lock_timeout` 1 s (below the pool's 2 s), READ COMMITTED check, `TG_OP` branches, the
+  bulk ledger measured, the post-deploy probe a required RUNBOOK step. The row guard `enrollment_player_limit` is replaced
+  by two AFTER statement triggers with transition tables over `enrollment_seat_limit()` (one `EXISTS` early exit, then
+  one count per event in id order; `record_limit_crossings` records the 80/100 marks at the crossing); `souvenir_enqueue`
+  is PL/pgSQL and `grant_welcome` writes the ranking mark once per transaction. **Done-when partly missed:** races hold
+  at exactly the limit, but 5,000 in one call took 14 to 29 s (about 3 ms a row, mostly the welcome grant), so accept-all
+  takes **1,000 a call in both modes** (was 1,000 / 250): median 2.78 s on the 20,000-seated fixture (before: 250 took
+  7.7 to 11.7 s). Hot path: a quest scan +0.7%, a single score update within noise (32 µs a firing in the profile), a
+  2,000-row bulk ledger insert +8% (1,479 vs 1,366 ms). Finding left in FOLLOWUPS (set-based welcome grant). Tests:
+  `test/db/seat-limit.int` (20: races in both orders, direct writes, multi-event lock order, lowered limit, rehearsal,
+  REPEATABLE READ refusal, marks, the cap, deny by default), `push-producers.int` cap cases replaced. Hand mutants of
+  the SQL: `>`→`>=`, count before the lock, no old-status exclusion, rehearsal forgotten, `LIMIT` without `free`, no
+  isolation check, crossing at the final count: all killed; iterating events without `ORDER BY` survives as equivalent
+  in practice (the `GROUP BY` returns the same order to both statements). Full vitest once (4 workers): 12,425 passed, 18 skipped, 788 files. Lint, `lint:limits`, `format:check`,
+  typecheck clean. CI minutes: 0 (not pushed); agent tokens: roughly 1.5M (estimate). **Mutation:** none (no TypeScript
+  logic changed; the SQL hand mutants stand in).
+  **Next:** the T-221 code review (tier A, strongest model); deploy 0146 outside an event's peak and run the RUNBOOK
+  timing probe; then the next unchecked task in `docs/TASKS.md`.
+
 ## T-018b monitoring stack, prepared — 2026-11-03
 
 - **T-018b prepared (tier B; files and checks only, no CranL call, no migration, no device work; ADR-620 to ADR-626 and Q-580 to Q-584 Proposed, Q-585 decided and built; T-018b stays open).**
