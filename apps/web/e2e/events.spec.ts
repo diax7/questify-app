@@ -96,6 +96,8 @@ test("the owner hides the ranking and shows it again, in Arabic; it stays as sav
   await expect(page.getByRole("checkbox", { name: "إظهار الترتيب في التطبيق" })).not.toBeChecked();
   await page.getByRole("checkbox", { name: "إظهار الترتيب في التطبيق" }).check();
   await expect(page.getByRole("checkbox", { name: "إظهار الترتيب في التطبيق" })).toBeChecked();
+  // The ranking's save re-reads the switches; a click before it settles is undone by that read.
+  await page.waitForLoadState("networkidle");
 
   const today = page.getByRole("checkbox", { name: "إظهار ترتيب اليوم" });
   await expect(today).toBeChecked();
