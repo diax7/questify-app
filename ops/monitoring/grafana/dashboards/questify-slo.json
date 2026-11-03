@@ -1341,7 +1341,7 @@
       "id": 29,
       "type": "stat",
       "title": "Alert mails not sent",
-      "description": "Notifications the Alertmanager failed to send in the selected range. Anything above zero means the SMTP settings are wrong or the mail server refuses them (RUNBOOK, Monitoring stack).",
+      "description": "Notifications the Alertmanager failed to send in the selected range. Anything above zero means the SMTP settings are wrong or the mail server refuses them (RUNBOOK, Monitoring stack). It stays at zero while alert email is off (no ALERT_SMTP_HOST); the firing alerts are then only on this dashboard.",
       "datasource": {
         "type": "prometheus",
         "uid": "questify-prometheus"

@@ -229,6 +229,31 @@ describe("the Prometheus app", () => {
     expect(config).toContain("smtp_auth_password_file: /tmp/smtp-password");
     expect(config).toContain("smtp_require_tls: true");
   });
+
+  it("has a no-email configuration with one receiver that sends nothing (Q-581)", () => {
+    const config = parse(read("ops/monitoring/prometheus/alertmanager.nomail.yml")) as {
+      route: { receiver: string; routes?: unknown };
+      receivers: Array<Record<string, unknown>>;
+    };
+    expect(config.route.receiver).toBe("discard");
+    expect(config.route.routes).toBeUndefined();
+    expect(config.receivers).toEqual([{ name: "discard" }]);
+    expect(dockerfile).toContain("alertmanager.nomail.yml");
+  });
+
+  it("picks the no-email configuration only when ALERT_SMTP_HOST is unset or empty", () => {
+    const script = read("ops/monitoring/prometheus/render-config.sh");
+    expect(script).toContain('if [ -n "${ALERT_SMTP_HOST:-}" ]; then');
+    expect(script).toContain("alert email off: no ALERT_SMTP_HOST");
+    for (const name of [
+      "ALERT_SMTP_USER",
+      "ALERT_SMTP_PASSWORD",
+      "ALERT_MAIL_FROM",
+      "ALERT_MAIL_TO",
+    ]) {
+      expect(script).toMatch(new RegExp(`^  check ${name} `, "m"));
+    }
+  });
 });
 
 describe("Grafana", () => {
@@ -293,6 +318,16 @@ describe("Grafana", () => {
       expect(text, objective).toContain(objective);
     }
   });
+
+  it("shows the firing alerts as a count and as a list, the only place they show while email is off", () => {
+    const firing = dashboard.panels.filter((panel) =>
+      panel.targets?.some((target) => target.expr.includes('ALERTS{alertstate="firing"}')),
+    );
+    expect(firing.map((panel) => panel.title).toSorted()).toEqual([
+      "Alerts firing",
+      "Firing alerts",
+    ]);
+  });
 });
 
 describe("the runbook", () => {
@@ -308,7 +343,7 @@ describe("the runbook", () => {
       for (const match of text.matchAll(pattern)) names.add(match[1] ?? "");
     };
     add(collectorText, /\$\{env:([A-Z_]+)\}/g);
-    add(read("ops/monitoring/prometheus/render-config.sh"), /^check ([A-Z_]+) /gm);
+    add(read("ops/monitoring/prometheus/render-config.sh"), /^\s*check ([A-Z_]+) /gm);
     add(read("ops/monitoring/grafana/entrypoint.sh"), /^check ([A-Z_]+) /gm);
     add(read("ops/monitoring/grafana/provisioning/datasources/prometheus.yml"), /\$\{([A-Z_]+)\}/g);
     return [...names].toSorted();

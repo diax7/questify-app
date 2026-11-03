@@ -1,0 +1,11 @@
+# Alertmanager of the Questify monitoring stack while alert email is off (Q-581: no sender exists yet). `render-config.sh`
+# uses this file instead of alertmanager.yml.in when ALERT_SMTP_HOST is not set. Prometheus still evaluates every rule and
+# the firing alerts show on the Grafana dashboard ("Alerts firing", "Firing alerts"); the Alertmanager receives them and
+# sends nothing, because its only receiver has no integration. To turn email on, set the five ALERT_* settings
+# (docs/RUNBOOK.md, "Monitoring stack on CranL"); no file changes.
+
+route:
+  receiver: discard
+
+receivers:
+  - name: discard

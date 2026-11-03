@@ -707,7 +707,7 @@ staging first, production's own when production exists (Q-582). Telemetry carrie
 Arabia with the rest.
 
 ```
-API (TELEMETRY_EXPORTER=otlp) --https, bearer token--> collector --https, password--> Prometheus + Alertmanager --mail--> owner
+API (TELEMETRY_EXPORTER=otlp) --https, bearer token--> collector --https, password--> Prometheus + Alertmanager --mail (optional, Q-581)--> owner
                                                                                          ^
                                                                     Grafana --https, password-+   (login for people)
 ```
@@ -718,7 +718,8 @@ images and checks them with the programs' own checkers (`otelcol validate`, `pro
 refuses a missing, wrong or empty token; an attribute off the API's closed list reaches neither Prometheus nor the traces output; the
 metric names and labels are the ones the rules use; Prometheus loads all 20 rules, finds its Alertmanager and refuses a request without
 the password; Grafana needs a login, reaches Prometheus and answers every query of the dashboard; a test alert comes out as an email
-with the runbook link; the Alertmanager listens on the loopback only; the Prometheus container stops if the Alertmanager dies. `pnpm vitest run
+with the runbook link; with `ALERT_SMTP_HOST` unset (or empty) the Prometheus app starts from the two metrics settings, says "alert email off", evaluates the
+rules and has no email integration, while one email setting without the others is refused; the Alertmanager listens on the loopback only; the Prometheus container stops if the Alertmanager dies. `pnpm vitest run
 apps/api/src/telemetry/monitoring.test.ts` (no Docker) keeps the files in step with the API's attribute list, the alert rules and this
 section. Run both after any change under `ops/monitoring/` or `ops/alerts/`; no CI job runs the first yet (`docs/FOLLOWUPS.md`).
 
@@ -744,11 +745,20 @@ apps at start with the setting's name, never its value; the collector cannot che
 - `METRICS_PASSWORD_HASH`: its bcrypt hash. Make it with `docker run --rm
   httpd:2.4.69-alpine@sha256:070da7661f0be8a05430b2c125c0cde9e53176b4048c813024021969a0e3893c htpasswd -nbBC 10 questify-metrics
   "<password>"` and keep what follows `questify-metrics:` (it starts with `$2y$10$`).
-- `MONITORING_ENVIRONMENT`: `staging` or `production`; it is in the subject of every alert mail.
-- `ALERT_MAIL_TO`: where alerts go. For now the address of `MAIL_FROM` (Q-561), `questify@nafes.com`, whose mailbox the owner reads.
+- **Alert email is optional (Q-581, decided 2026-11-03: none for now).** With `ALERT_SMTP_HOST` unset or empty the app starts in the
+  *no-email mode*: it logs one line, `alert email off: no ALERT_SMTP_HOST`, and the Alertmanager gets a configuration whose only
+  receiver sends nothing. The rules are still evaluated and the firing alerts show on the Grafana dashboard ("Alerts firing" and the
+  table "Firing alerts"); nobody is told, so look at the dashboard. The five settings below then stay unset. With `ALERT_SMTP_HOST`
+  set, all five are required and checked, and a missing or wrong one stops the app with its name; the other four set without the
+  host stop it too (a half-finished setup is never read as "email off").
+- `ALERT_SMTP_HOST`: `host:port` of the SMTP server, with STARTTLS (port 587) or TLS (465), like `smtp.gmail.com:587` or `smtp.resend.com:587`.
+- `ALERT_SMTP_USER` and `ALERT_SMTP_PASSWORD`: its login (a Gmail app password, or a Resend key with the user `resend`).
 - `ALERT_MAIL_FROM`: the address the mail says it is from; it must be one the SMTP account may send as.
-- `ALERT_SMTP_HOST`: `host:port` of the SMTP server, with STARTTLS (port 587) or TLS (465), like `smtp.resend.com:587`.
-- `ALERT_SMTP_USER` and `ALERT_SMTP_PASSWORD`: its login. Which account is Q-581 (recommended: a Resend key used only for this, user `resend`).
+- `ALERT_MAIL_TO`: where alerts go. For now the address of `MAIL_FROM` (Q-561), `questify@nafes.com`, whose mailbox the owner reads.
+- `MONITORING_ENVIRONMENT`: `staging` or `production`; it is in the subject of every alert mail, so it is needed only with the five above.
+
+**To turn alert email on later** (Q-581 reopens when a sender exists, a Gmail app password or a Resend key): set the five `ALERT_*`
+settings and `MONITORING_ENVIRONMENT` on the Prometheus app and redeploy it; nothing else changes. Then fire the test alert below.
 
 **Collector app**
 
@@ -772,7 +782,7 @@ repository, a log or a chat; Dhia or the T-017 script keeps them in the CranL se
 1. `GET https://<Prometheus app>/-/healthy` answers 401 without the password and 200 with it; `POST https://<collector>/v1/metrics` with no token answers 401.
 2. Grafana opens a login page (no anonymous view); signed in as `admin`, the folder "Questify" holds "Questify SLOs" and the tile "Last report from the API" fills once the API is pointed at the collector.
 3. The Prometheus app's log shows both `Starting Alertmanager` and `Server is ready to receive web requests`; the data directory is writable (a volume owned by root is the usual cause of "permission denied" on `/data`: set the owner in the Dockerfile, CranL's volume page says how).
-4. **A fired test alert** (do it after every deploy and every change of `ALERT_*`): in the Prometheus app run `amtool --alertmanager.url=http://127.0.0.1:9093 alert add alertname=QuestifyTest severity=page --annotation='summary="Test alert"' --annotation='runbook="docs/RUNBOOK.md#monitoring-stack-on-cranl"'` (`cranl run -- ...`). The mail "[Questify staging PAGE] QuestifyTest" arrives within a minute. No mail: the dashboard tile "Alert mails not sent" and the app's log line `Notify attempt failed` say why (a wrong SMTP login, a sender the account may not use, a closed port).
+4. **A fired test alert** (do it after every deploy and every change of `ALERT_*`; with alert email off, skip it: the app log has the line `alert email off: no ALERT_SMTP_HOST` and nothing is sent): in the Prometheus app run `amtool --alertmanager.url=http://127.0.0.1:9093 alert add alertname=QuestifyTest severity=page --annotation='summary="Test alert"' --annotation='runbook="docs/RUNBOOK.md#monitoring-stack-on-cranl"'` (`cranl run -- ...`). The mail "[Questify staging PAGE] QuestifyTest" arrives within a minute. No mail: the dashboard tile "Alert mails not sent" and the app's log line `Notify attempt failed` say why (a wrong SMTP login, a sender the account may not use, a closed port).
 
 ### Pointing the API at it
 

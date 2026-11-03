@@ -11,7 +11,7 @@ USER root
 RUN mkdir -p /data && chown nobody:nobody /data
 COPY --chmod=0755 entrypoint.sh render-config.sh /usr/local/bin/
 COPY prometheus.yml questify.rules.yml /etc/prometheus/
-COPY alertmanager.yml.in questify.email.tmpl.in /etc/questify/
+COPY alertmanager.yml.in alertmanager.nomail.yml questify.email.tmpl.in /etc/questify/
 USER nobody
 
 EXPOSE 9090

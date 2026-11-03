@@ -23,7 +23,7 @@
   draft** (the filter deleted nothing because all statements shared one OTTL group; a test hash that did not match; a mail server that cannot take a password without TLS).
   Local: `src/telemetry` and `scripts` tests 180 passed (12 files, 20 of them new); lint, `lint:limits`, `format:check` and `tsc` clean; `monitoring:validate` all stages ok. CI minutes: 0 (not
   pushed); agent tokens: about 700k (estimate). **Mutation:** none (tier B; no ledger or access code).
-  **Waiting on Dhia:** Q-581 (which SMTP account sends the alert mail; recommended a Resend key made for alerts), Q-584 (an outside uptime service for `/readyz` and a
+  **Waiting on Dhia:** Q-581 is decided (2026-11-03): no alert email for now, the stack runs with alerts on the dashboard only until a sender exists; Q-584 (an outside uptime service for `/readyz` and a
   heartbeat). **Waiting on a person with the CranL account (or T-017):** create the three apps and set the API's `TELEMETRY_*` on staging (Q-580 lists five CranL facts the
   first deploy confirms), then fire the test alert. **Footprint per environment:** 3 of the plan's 10 application slots; about 0.5 to 1 GB of memory in all and well under
   one core; one 5 GB volume (0.5 to 1 GB used after 30 days).

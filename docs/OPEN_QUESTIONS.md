@@ -2424,9 +2424,10 @@ The files were built from CranL's public documentation without calling CranL. Fi
 
 ## Q-581 - Which SMTP account sends the alert mail? (T-018b, ADR-624)
 
-**Status:** Decided by Dhia (2026-11-03, AskUserQuestion): reuse the sign-in Gmail account for the alert email (ALERT_SMTP_* = the API's Gmail sender); alerts are few, so the shared daily limit is acceptable.
+**Status:** Decided by Dhia (2026-11-03): no alert email for now; dashboard only; reopen when a sender (Gmail app password or Resend key) exists.
+Earlier the same day Dhia chose to reuse the sign-in Gmail account; that stays the preference for when a sender exists, but Alertmanager needs an SMTP login, which the API's Gmail service account is not. Built: with `ALERT_SMTP_HOST` unset or empty the Prometheus app runs in a no-email mode (RUNBOOK, "Monitoring stack on CranL"); setting the five `ALERT_*` settings turns email on with no code change.
 Alertmanager speaks SMTP; the API's own sender is the Gmail API (a service account), which Alertmanager cannot use. Options: (A) Resend SMTP, `smtp.resend.com:587`, user `resend`, a send-only API key made for alerts, From an address on a domain verified in Resend; (B) Gmail SMTP, `smtp.gmail.com:587`, an app password of the sending mailbox (needs 2-Step Verification, and Google does not recommend app passwords); (C) Google Workspace SMTP relay, `smtp-relay.gmail.com`, which wants an admin setting and a fixed address CranL may not give.
-**Recommended (developer):** (A), because the account and the verified domain already exist for the API's backup sender (`RESEND_API_KEY`), a separate key can be revoked alone, and it needs no admin setting. Until it exists the stack runs and the dashboard shows "Alert mails not sent".
+**Recommended (developer):** (A), because the account and the verified domain already exist for the API's backup sender (`RESEND_API_KEY`), a separate key can be revoked alone, and it needs no admin setting. Until a sender exists the stack runs in the no-email mode: rules are evaluated, firing alerts show on the Grafana dashboard, nothing is sent.
 
 ## Q-582 - One monitoring stack per environment, or one for both? (T-018b, ADR-620)
 
