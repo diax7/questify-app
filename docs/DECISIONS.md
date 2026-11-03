@@ -7101,35 +7101,35 @@ A disputed owner email change (ADR-491) is a line of the same digest.
 
 ## ADR-500 - T-711 is split: the per-organizer override and the owner's layers now, the points-path features and the in-app request as T-711b
 
-**Status:** Proposed (developer, 2026-11-03; T-711 plan `docs/plans/2026-11-03-t-711-feature-layers.md`; FR-1826, FR-1827).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-711 code review 93; T-711 plan `docs/plans/2026-11-03-t-711-feature-layers.md`; FR-1826, FR-1827).
 **Decision:** An override can act on a feature only if it has an event layer (not `level: "platform"`) and its platform rule is read for one event: 12 features (agenda, bigScreen, cheers, flashQuests, helpDesk, maps, polls, questRatings, ranking, rankingToday, shareQuests, shop). `boosts`, `community`, `meetSomeone` and `miniGames` carry `noOrganizerOverride`: their platform switch is read platform-wide in code (`boostsPlatformOn`, `communityPlatformOn`, `gamesPlatformOn`, `meetPlatformOn`) and their SQL rules (`boosts_on`, `community_on`, `games_on`, `meet_on`) sit in the points path, so making them event-aware is a tier A change with a plan review (T-711b). The Questify-wide features (daily challenge, streak, word, Questify ranking, push, username changes) have no organizer; `locationQuests` and `invitationCampaigns` wait on store privacy answers and consent, so an override must not open them; kiosks, stations and NFC are read per player or device, not per event.
 **Why:** Each half delivers value alone: admins can give or take 12 features for one organizer, owners see only what their layers allow, and nothing in the points path changed shape beyond one gate predicate.
 **Trade-offs:** The console lists 12 of the 27 features; the other four event-level ones are missing until T-711b.
 
 ## ADR-501 - The override is a row per organizer and feature, laid over the platform switch in one TypeScript function and one SQL helper
 
-**Status:** Proposed (developer, 2026-11-03; migration 0136).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-711 code review 93; T-711; migration 0136).
 **Decision:** `organizer_feature_override (organizer_id, feature, enabled, set_by, set_at)`, key `(organizer_id, feature)`, `feature` limited by a CHECK to the 12 above (a test compares the list with the registry). On or Off both work: "like the platform" is the absence of a row. Written by an admin only (`app_admin_id()` in the policies); readable by whoever can see one of the organizer's events, as `event_entitlement`. `platformForOrganizer` lays the overrides over the platform settings for the composed configuration; `platform_feature_on(organizer, feature)` does the same in SQL, and `feature_enabled`, `flash_on`, `shop_on` and the Cheers reading use it. Without a row every answer is the one given before 0136 (parity tests). An override carries no "switched off" message. One feature per call under an advisory lock, audited `organizer.feature_override.set` and `.clear` with before and after.
 **Why:** One place per language decides "is the platform's switch on for this organizer"; the apps and every door that reads the composed configuration follow without a change.
 **Trade-offs:** `shop_on`, `flash_on` and `feature_enabled` (read by the shop's reservation and the scan path) changed body; the tier A reviewer should read migration 0136.
 
 ## ADR-502 - "Questify allows an event" stays the add-on unlock; Ask Questify opens the Contact page
 
-**Status:** Proposed (developer, 2026-11-03; FR-1827; ADR-105, ADR-076).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-711 code review 93; T-711; FR-1827; ADR-105, ADR-076).
 **Decision:** A feature the owner may not use is an add-on (`gated`) that Questify has not unlocked for the event (`event_entitlement`, console `PUT /v1/admin/events/{id}/addons/{feature}`). Its card on the event page and in the guided setup is locked, cannot be ticked, and offers Ask Questify, which opens the Contact page with the support contact (T-706). Approval is the existing unlock. No per-event "deny" exists for an ordinary feature: the override Off for the organizer does that job.
 **Why:** The unlock, its audit and the console control exist; a second allow list would be a second source of truth. The in-app request (one tap that records it for the console) is T-711b.
 **Trade-offs:** The owner asks outside the app; Questify does not see a queue.
 
 ## ADR-503 - The server refuses an owner's switch-on that a layer keeps off (403 `feature_not_allowed`)
 
-**Status:** Proposed (developer, 2026-11-03; FR-1826, FR-1827).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-711 code review 93; T-711; FR-1826, FR-1827).
 **Decision:** Every route that saves an owner's switch (the 15 per-feature paths and `PUT …/events/{id}/features/{feature}`) reads the platform as the event's organizer sees it, the unlocks and the event's own switches under the event's row lock, and refuses `enabled: true` for a feature that is hidden (platform or override Off) or locked (add-on not unlocked) with 403 `feature_not_allowed`, writing nothing. Switching off is always allowed. The bulk replace `saveEventSwitches` (no route calls it) checks only the switches newly turned on. `PUT …/features/{feature}` answers 404 for an add-on, a Questify-wide feature and an unknown key.
 **Why:** A hidden switch in the dashboard is not a wall; the doors for players already follow the composed configuration.
 **Trade-offs:** A feature already on in the event's config keeps its stored value when a layer later turns it off; the player doors follow the composed configuration, so it is off at once.
 
 ## ADR-504 - The owner's pages list features from one read and show no switch the list does not hold
 
-**Status:** Proposed (developer, 2026-11-03; FR-1826).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-711 code review 93; T-711; FR-1826).
 **Decision:** `GET /v1/organizers/{o}/events/{e}/features` (owner or editor; another organizer's event, even a public one, is 404) answers one row per event-level feature the platform leaves on: `on`, `off`, or `locked` (an add-on), and `addOn`. The event page's Features section and the guided setup read it once, drop every switch that is not listed, and draw an add-on card (locked or unlocked) per add-on row. A read that fails shows an alert and no switch. The wizard's own read of the activation (only for the add-ons) is gone; its add-on cards come from this list. The Cheers switch on the Big screen page hides while the platform keeps Cheers off for the organizer.
 **Why:** One source for what the owner may see, the same one the server's refusal uses.
 **Trade-offs:** One more request when the event page opens.
