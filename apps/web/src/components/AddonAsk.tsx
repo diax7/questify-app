@@ -53,7 +53,7 @@ export function AddonAsk({ t, language, feature, request, target }: Props) {
     <>
       <AskStatus t={t} language={language} state={state} />
       {label === null ? null : (
-        <Button variant="secondary" aria-busy={busy} onClick={() => void ask()}>
+        <Button variant="secondary" disabled={busy} aria-busy={busy} onClick={() => void ask()}>
           {t(label === "ask" ? "wizard.addon.ask" : "wizard.addon.askAgain")}
         </Button>
       )}
@@ -79,6 +79,7 @@ function AskStatus({
   if (state.kind !== "declined") {
     return null;
   }
+  // The time is shown in the viewer's own time zone, not the event's: it says when this person may ask again.
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return (
     <>

@@ -8790,8 +8790,8 @@ export const MESSAGES = {
   "console.admins.ended": { ar: "أُنهيت الجلسة.", en: "Session ended." },
   "console.players.title": { ar: "اللاعبون", en: "Players" },
   "console.players.intro": {
-    ar: "ابحث عن لاعب باسم المستخدم أو رقم الجوال أو البريد. كل بحث وكل اطلاع يُسجَّل.",
-    en: "Find a player by username, mobile number or email. Every search and every look is logged.",
+    ar: "كل بحث وكل اطلاع يُسجَّل.",
+    en: "Every search and every look is logged.",
   },
   "console.players.by": { ar: "البحث حسب", en: "Search by" },
   "console.players.by.username": { ar: "اسم المستخدم", en: "Username" },
@@ -8925,8 +8925,8 @@ export const MESSAGES = {
   "console.player.reason.choose": { ar: "اختر سببًا", en: "Choose a reason" },
   "console.player.noteField": { ar: "ملاحظة لفريق Questify", en: "Note for the Questify team" },
   "console.player.noteHint": {
-    ar: "من 10 إلى 300 حرف. لا يراها اللاعب.",
-    en: "10 to 300 characters. The player never sees it.",
+    ar: "لا يراها اللاعب.",
+    en: "The player never sees it.",
   },
   "console.player.reason.supportRequest": { ar: "طلب دعم", en: "Support request" },
   "console.player.reason.legalRequest": { ar: "طلب نظامي", en: "Legal request" },
@@ -8957,8 +8957,8 @@ export const MESSAGES = {
   "console.player.rename.done": { ar: "تغيّر اسم المستخدم.", en: "Username changed." },
   "console.player.reset": { ar: "إعادة ضبط الدخول", en: "Reset sign-in" },
   "console.player.reset.intro": {
-    ar: "يُخرج اللاعب من كل أجهزته ويلغي الرموز المفتوحة. يعود برمز يصل إلى جوال أو بريد مسجل في حسابه، ولا يمكن منح الدخول لأحد بهذه الطريقة.",
-    en: "Signs the player out everywhere and cancels open codes. They come back with a code sent to a mobile or email already on the account; nobody can be given access this way.",
+    ar: "يُخرج اللاعب من كل أجهزته ويلغي الرموز المفتوحة.",
+    en: "Signs the player out everywhere and cancels open codes.",
   },
   "console.player.reset.confirm": {
     ar: "إخراج {name} من كل الأجهزة؟",
@@ -9147,8 +9147,8 @@ export const MESSAGES = {
   "suspend.reactivated": { ar: "أُعيد التفعيل.", en: "Reactivated." },
   "support.title": { ar: "وصول الدعم", en: "Support access" },
   "support.intro": {
-    ar: "«عرض كمنظِّم» يفتح الفعالية للقراءة فقط لمدة 15 دقيقة، ووصول الدعم يتيح التعديل. تُسجَّل كل صفحة وكل تغيير في سجل Questify، ولا تُبلَّغ الجهة المنظِّمة.",
-    en: "View as organizer opens the event read-only for 15 minutes; support access lets you change it. Every page and change is recorded in Questify's log; the organizer is not told.",
+    ar: "«عرض كمنظِّم» يفتح الفعالية للقراءة فقط لمدة 15 دقيقة، ووصول الدعم يتيح التعديل، وتُسجَّل كل صفحة وكل تغيير في سجل Questify دون إبلاغ الجهة المنظِّمة.",
+    en: "View as organizer opens the event read-only for 15 minutes, support access lets you change it, and every page and change is recorded in Questify's log without telling the organizer.",
   },
   "support.view": { ar: "عرض كمنظِّم", en: "View as organizer" },
   "support.viewConfirm": {
@@ -9870,6 +9870,10 @@ export const MESSAGES = {
   "console.push.audience.event": {
     ar: "كل لاعبي فعالية",
     en: "Everyone in an event",
+  },
+  "console.push.audience.event.info": {
+    ar: "لأخبار الفعالية فقط. الإشعارات الترويجية تصل إلى من وافق عليها.",
+    en: "For event news only. Promotional push goes to players who opted in.",
   },
   "console.push.audience.promo": {
     ar: "لاعبون اشتركوا في العروض",

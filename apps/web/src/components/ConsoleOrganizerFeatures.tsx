@@ -120,7 +120,7 @@ export function OrganizerFeaturesPanel({
           <ul className={styles.cards}>
             {view.features.map((row) => (
               <FeatureCard
-                key={JSON.stringify(row)}
+                key={row.key}
                 language={language}
                 row={row}
                 busy={write.busy}

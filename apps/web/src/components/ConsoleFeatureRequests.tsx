@@ -103,6 +103,7 @@ export function ConsoleFeatureRequests({ language }: Readonly<{ language: Langua
               </Muted>
               <Button
                 variant="primary"
+                disabled={busy !== null}
                 aria-busy={busy === row.id}
                 onClick={() => void decide(row, true)}
               >
@@ -110,6 +111,7 @@ export function ConsoleFeatureRequests({ language }: Readonly<{ language: Langua
               </Button>
               <Button
                 variant="secondary"
+                disabled={busy !== null}
                 aria-busy={busy === row.id}
                 onClick={() => void decide(row, false)}
               >
