@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { STACK } from "./context.mjs";
-import { logsOf, waitFor } from "./docker.mjs";
+import { inside, logsOf, waitFor } from "./docker.mjs";
 import { basic, ensure, postJson, request } from "./http.mjs";
 
 const DASHBOARD_UID = "questify-slo";
@@ -107,20 +107,49 @@ async function runQuery(base, admin, query) {
   );
 }
 
+/** Waits until Grafana answers its health page on its own port inside the container (Caddy does not pass that page on). */
+export const waitForGrafana = (app) =>
+  waitFor(
+    "Grafana to start",
+    async () => {
+      inside(app.name, `wget -q -O /dev/null http://127.0.0.1:3000${PREFIX}/api/health`);
+      return true;
+    },
+    { timeoutMs: 120_000 },
+  );
+
+/** Grafana's health page answers without a login and names its version, so Caddy answers 404 to it, however it is written. */
+async function checkHealthPageBlocked(base, admin) {
+  const paths = [
+    "/api/health",
+    "/api/health/",
+    "//api/health",
+    "/api/%68ealth",
+    "/API/Health",
+    "/api/health?x=1",
+  ];
+  for (const path of paths) {
+    for (const headers of [{}, admin]) {
+      const response = await get(base, path, headers);
+      ensure(
+        response.status === 404,
+        `${PREFIX}${path} was answered ${response.status} through the app's port, not 404.`,
+      );
+    }
+  }
+}
+
 /** Grafana is part of the running app: it must be up behind Caddy, log-in only, provisioned, and answer every query. */
 export async function checkGrafana(ctx, stack) {
   const base = `http://127.0.0.1:${stack.port}`;
-  await waitFor(
-    "Grafana to start",
-    async () => (await get(base, "/api/health", {})).status === 200,
-    { timeoutMs: 120_000 },
-  );
+  await waitForGrafana(stack);
   const admin = { authorization: basic("admin", ctx.secrets.grafanaAdmin) };
   ensure(
     !logsOf(stack.name).includes("plugin.backgroundinstaller"),
     "Grafana is downloading plugins at start: GF_PLUGINS_PREINSTALL_DISABLED is not in force.",
   );
   await checkSubPath(base);
+  await checkHealthPageBlocked(base, admin);
   await checkLogin(base, admin);
   await checkProvisioning(base, admin);
   const probe = { title: "a probe", expr: "vector(1)", instant: true, range: false };

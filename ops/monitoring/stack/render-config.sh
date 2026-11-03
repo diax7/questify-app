@@ -62,7 +62,10 @@ render_with_email() {
     "$TEMPLATES/questify.email.tmpl.in" >"$OUT/questify.email.tmpl"
 }
 
-check METRICS_PASSWORD '^[^[:space:]]{24,}$' "at least 24 characters, no spaces"
+[ -d /data ] && [ -w /data ] ||
+  fail "/data is not a directory this container's user ($(id -un), uid $(id -u)) can write; mount the volume on /data and make that user its owner (docs/RUNBOOK.md, \"Monitoring stack on CranL\")"
+# The password is written unquoted into Grafana's data source file, so it may hold only characters that mean nothing in YAML.
+check METRICS_PASSWORD '^[A-Za-z0-9._~-]{24,}$' "at least 24 characters from A-Z, a-z, 0-9 and . _ ~ -"
 # shellcheck disable=SC2016 # the pattern is a regular expression; its dollar signs are literal.
 check METRICS_PASSWORD_HASH '^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$' "the bcrypt hash of METRICS_PASSWORD"
 check GF_SECURITY_ADMIN_PASSWORD '^[^[:space:]]{24,}$' "at least 24 characters, no spaces"

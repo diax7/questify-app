@@ -121,6 +121,27 @@ describe("the second wall of the closed list", () => {
     expect(attributesOf("test.gauge")).toEqual([{ "questify.pool": "api" }]);
   });
 
+  it("drops a key off the list from an up-down counter, a synchronous gauge and an observable counter", async () => {
+    install();
+    const meter = metrics.getMeter("direct");
+    const offList = { "user.phone": "+966555000111", "client.address": "203.0.113.77" };
+    meter.createUpDownCounter("test.updown").add(-1, { ...offList, "questify.pool": "api" });
+    meter.createGauge("test.sync_gauge").record(5, { ...offList, "questify.tick": "lifecycle" });
+    meter
+      .createObservableCounter("test.observable_counter")
+      .addCallback((result) =>
+        result.observe(7, { ...offList, "questify.event": "auth.code_sent" }),
+      );
+
+    const { byName } = await exported();
+    const attributesOf = (name: string) => byName.get(name)?.dataPoints.map((p) => p.attributes);
+    expect(attributesOf("test.updown")).toEqual([{ "questify.pool": "api" }]);
+    expect(attributesOf("test.sync_gauge")).toEqual([{ "questify.tick": "lifecycle" }]);
+    expect(attributesOf("test.observable_counter")).toEqual([
+      { "questify.event": "auth.code_sent" },
+    ]);
+  });
+
   it("drops a value that is not in the shape of its key, so a route cannot carry a number", async () => {
     install();
     metrics.getMeter("direct").createCounter("test.shapes").add(1, {

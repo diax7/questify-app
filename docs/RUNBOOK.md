@@ -721,7 +721,9 @@ finds its Alertmanager; only Caddy's port is open outside the machine; Grafana, 
 answers every query of the dashboard; a test alert comes out as an email with the runbook link; with `ALERT_SMTP_HOST` unset (or empty)
 the app starts from the metrics and Grafana settings, says "alert email off", evaluates the rules and has no email integration, while one email
 setting without the others is refused; Prometheus stores the off-list attributes it is sent (the premise of ADR-626, see "Auditing the stored
-labels"); a stop signal ends the container cleanly and the death of any of the four programs ends it with an error. `pnpm vitest run
+labels"); Grafana's login-free health page is closed at Caddy (404, written several ways); a stop signal ends the container cleanly, a
+`/data` the container's user cannot write stops it at once with a message that names `/data`, and the death of any of the four programs,
+by a stop signal or by `kill -KILL`, ends it with an error within seconds. `pnpm vitest run
 apps/api/src/telemetry/monitoring.test.ts` (no Docker) keeps the files in step with the API's attribute list, the alert rules and this
 section. Run both after any change under `ops/monitoring/` or `ops/alerts/`; no CI job runs the first yet (`docs/FOLLOWUPS.md`).
 
@@ -742,7 +744,7 @@ The name is a suggestion (`questify-monitoring`); add `-staging` or `-production
 Settings of the app (CranL environment, secrets in the secret store). A wrong or missing value stops the app at start with the setting's name,
 never its value.
 
-- `METRICS_PASSWORD`: 24 or more characters, no spaces; the one password of the user `questify-metrics`. The API sends it, Grafana's data source uses it, and it opens Prometheus's own pages.
+- `METRICS_PASSWORD`: 24 or more characters from `A-Z`, `a-z`, `0-9`, `.`, `_`, `~` and `-` only (Grafana's data source file reads it as YAML; the `base64url` command below makes exactly these); the one password of the user `questify-metrics`. The API sends it, Grafana's data source uses it, and it opens Prometheus's own pages.
 - `METRICS_PASSWORD_HASH`: its bcrypt hash. Make it with `docker run --rm
   httpd:2.4.69-alpine@sha256:070da7661f0be8a05430b2c125c0cde9e53176b4048c813024021969a0e3893c htpasswd -nbBC 10 questify-metrics
   "<password>"` and keep what follows `questify-metrics:` (it starts with `$2y$10$`).
@@ -764,14 +766,15 @@ never its value.
 **To turn alert email on later** (Q-581 reopens when a sender exists, a Gmail app password or a Resend key): set the five `ALERT_*`
 settings and `MONITORING_ENVIRONMENT` and redeploy the app; nothing else changes. Then fire the test alert below.
 
-Make each random value with `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Nothing here is kept in the
+Make each random value with `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"` (`base64url`, never `base64`: its `+`, `/` and
+`=` are refused in `METRICS_PASSWORD`). Nothing here is kept in the
 repository, a log or a chat; Dhia or the T-017 script keeps them in the CranL secret store only.
 
 **After the first deploy** (Q-580 lists the CranL facts this confirms):
 
 1. `GET https://<app>/-/healthy` answers 401 without the password and 200 with it (`curl -u questify-metrics:<password>`); `POST https://<app>/api/v1/otlp/v1/metrics` with no password answers 401.
 2. `https://<app>/grafana/` opens a login page (no anonymous view); signed in as `admin`, the folder "Questify" holds "Questify SLOs" and the tile "Last report from the API" fills once the API is pointed at the app.
-3. The app's log shows `Starting Alertmanager`, `Server is ready to receive web requests.` and Grafana's `HTTP Server Listen`; the data directory is writable (a volume owned by root is the usual cause of "permission denied" on `/data`: set the owner in the Dockerfile, CranL's volume page says how).
+3. The app's log shows `Starting Alertmanager`, `Server is ready to receive web requests.` and Grafana's `HTTP Server Listen`; the data directory is writable (a volume owned by root is the usual cause: the app then stops at once with `render-config: /data is not a directory this container's user ... can write`; set the volume's owner to uid 472, CranL's volume page says how).
 4. **A fired test alert** (do it after every deploy and every change of `ALERT_*`; with alert email off, skip it: the app log has the line `alert email off: no ALERT_SMTP_HOST` and nothing is sent): in the app run `amtool --alertmanager.url=http://127.0.0.1:9093 alert add alertname=QuestifyTest severity=page --annotation='summary="Test alert"' --annotation='runbook="docs/RUNBOOK.md#monitoring-stack-on-cranl"'` (`cranl run -- ...`). The mail "[Questify staging PAGE] QuestifyTest" arrives within a minute. No mail: the dashboard tile "Alert mails not sent" and the app's log line `Notify attempt failed` say why (a wrong SMTP login, a sender the account may not use, a closed port).
 
 ### Pointing the API at it
@@ -783,7 +786,7 @@ On each API app (`questify-api-staging`, later production), set, then redeploy:
 | `TELEMETRY_EXPORTER` | `otlp` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `https://<app address>/api/v1/otlp` (a path, but no user, password or query; the API adds `/v1/metrics`, which Prometheus's receiver serves) |
 | `OTEL_EXPORTER_OTLP_HEADERS` | `authorization=Basic%20<credential>` (the space is written `%20`); secret store. `<credential>` is `questify-metrics:<METRICS_PASSWORD>` in base64: `METRICS_PASSWORD='<password>' node -e "process.stdout.write(Buffer.from('questify-metrics:' + process.env.METRICS_PASSWORD).toString('base64'))"`. Paste it as it prints, with its `+`, `/` and `=` (only `%` escapes are decoded) |
-| `TELEMETRY_TRACE_RATIO` | `0`: **required.** Prometheus has no trace endpoint (it answers 404), and the API's default is 0.1, so with the default one request in ten starts a span whose export fails with a `telemetry.export_failed` line every minute (Q-583) |
+| `TELEMETRY_TRACE_RATIO` | leave unset: with `TELEMETRY_EXPORTER=otlp` it defaults to `0`. Prometheus has no trace endpoint (it answers 404), so any ratio above 0 starts spans whose export fails with a `telemetry.export_failed` line every minute (Q-583) |
 | `TELEMETRY_METRIC_INTERVAL_MS` | leave at the default 60000; it must stay under 120000 or the loop alerts never fire (SLO.md section 5) |
 
 Within two minutes the dashboard tile "Last report from the API" drops under 2 minutes and the metrics `http_server_request_duration_seconds_*`

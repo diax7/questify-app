@@ -28,9 +28,19 @@ const envArgs = (env) => Object.entries(env).flatMap(([name, value]) => ["-e", `
 
 /**
  * Starts a container in the background. `publish` lists container ports to open on 127.0.0.1 (the host port is
- * chosen by Docker, read it with `hostPort`); `mounts` are `{ source, target }` read-only bind mounts.
+ * chosen by Docker, read it with `hostPort`); `mounts` are `{ source, target }` read-only bind mounts; `tmpfs` lists
+ * `target[:options]` memory file systems.
  */
-export function start({ name, image, env = {}, publish = [], mounts = [], entrypoint, args = [] }) {
+export function start({
+  name,
+  image,
+  env = {},
+  publish = [],
+  mounts = [],
+  tmpfs = [],
+  entrypoint,
+  args = [],
+}) {
   const command = ["run", "--detach", "--name", name];
   command.push("--add-host", "host.docker.internal:host-gateway");
   command.push(...envArgs(env));
@@ -38,6 +48,7 @@ export function start({ name, image, env = {}, publish = [], mounts = [], entryp
   for (const { source, target } of mounts) {
     command.push("--mount", `type=bind,source=${source},target=${target},readonly`);
   }
+  for (const target of tmpfs) command.push("--tmpfs", target);
   if (entrypoint !== undefined) command.push("--entrypoint", entrypoint);
   docker([...command, image, ...args]);
   containers.push(name);

@@ -2438,7 +2438,7 @@ The rules add up every instance and have no environment label, so a shared store
 ## Q-583 - Where do traces go? (T-018b, ADR-623)
 
 **Status:** Proposed (developer, 2026-11-03).
-The API can send spans (a share, `TELEMETRY_TRACE_RATIO`), and its logs carry `trace_id`. Prometheus stores no traces and has no trace endpoint (it answers 404, tested), so the API must run with `TELEMETRY_TRACE_RATIO=0` (the default is 0.1).
+The API can send spans (a share, `TELEMETRY_TRACE_RATIO`), and its logs carry `trace_id`. Prometheus stores no traces and has no trace endpoint (it answers 404, tested), so the API must run with `TELEMETRY_TRACE_RATIO=0` (with `TELEMETRY_EXPORTER=otlp` that is the default; the default for the other exporters is 0.1).
 **Recommended (developer):** nowhere yet; set the ratio to 0. Add Grafana Tempo (one binary, local disk, 7 days, a second volume; inside the monitoring container, because of the three-app cap) the first time an incident needs to follow one request, and point the API's trace export at it. The web app's traces joined to the API's (T-018b item 8) wait for the same.
 
 ## Q-584 - What watches the monitoring stack from outside? (T-018b, ADR-624)

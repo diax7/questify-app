@@ -81,6 +81,8 @@ export function checkRenderRefusals(ctx) {
     ["MONITORING_ENVIRONMENT", "Bad Environment!"],
     ["METRICS_PASSWORD", "too-short-secret"],
     ["METRICS_PASSWORD", `${ctx.secrets.metricsPassword}\nsecond-line`],
+    ["METRICS_PASSWORD", `${ctx.secrets.metricsPassword}#":'`],
+    ["METRICS_PASSWORD", `${ctx.secrets.metricsPassword}+/=`],
     ["ALERT_MAIL_TO", "not-an-address"],
     ["METRICS_PASSWORD_HASH", "plain-text-instead-of-a-hash"],
     ["ALERT_SMTP_HOST", "smtp.example.test"],

@@ -62,12 +62,27 @@ launch grafana /run.sh
 
 launch caddy /usr/local/bin/caddy run --config /etc/questify/Caddyfile --adapter caddyfile
 
-# shellcheck disable=SC3045 # BusyBox ash (this image) supports wait -n.
-wait -n || true
-for entry in $processes; do
-  if ! kill -0 "${entry#*:}" 2>/dev/null; then
-    echo "entrypoint: ${entry%%:*} stopped; stopping the other programs so the container restarts" >&2
-  fi
+# is_dead PID: true when the program is gone or is a zombie (it has exited and nobody has collected its status yet; kill -0
+# still succeeds on a zombie). A /proc file that cannot be read means the program is gone.
+is_dead() {
+  kill -0 "$1" 2>/dev/null || return 0
+  found=0
+  grep -q '^State:[[:space:]]*Z' "/proc/$1/status" 2>/dev/null || found=$?
+  [ "$found" -ne 1 ]
+}
+
+# The programs are polled once a second. `wait -n` is not used: in this image's BusyBox 1.37 it does not return when a
+# program exits with an error or is killed by a signal, which would leave the container running half-broken.
+stopped=""
+while [ -z "$stopped" ]; do
+  sleep 1
+  for entry in $processes; do
+    if is_dead "${entry#*:}"; then
+      stopped=${entry%%:*}
+      break
+    fi
+  done
 done
+echo "entrypoint: $stopped stopped; stopping the other programs so the container restarts" >&2
 stop_all
 exit 1

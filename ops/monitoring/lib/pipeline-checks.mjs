@@ -12,6 +12,7 @@ import {
   waitFor,
 } from "./docker.mjs";
 import { FORBIDDEN, metricsPayload, SERIES_LABELS, TARGET_INFO_LABELS } from "./fixtures.mjs";
+import { waitForGrafana } from "./grafana-checks.mjs";
 import { basic, ensure, postJson, request } from "./http.mjs";
 
 const OTLP_PATH = "/api/v1/otlp/v1/metrics";
@@ -215,7 +216,8 @@ export async function checkPrometheus(ctx, stack) {
 }
 
 /** The ports the app listens on: only Caddy's is open outside the machine; the container's health check passes. */
-export function checkListeners(stack) {
+export async function checkListeners(stack) {
+  await waitForGrafana(stack);
   const rows = inside(stack.name, "netstat -ltn")
     .split("\n")
     .filter((line) => line.startsWith("tcp"));
@@ -243,11 +245,7 @@ export const PROGRAMS = ["alertmanager", "prometheus", "grafana", "caddy"];
 /** Starts the app with email off (so it needs only the metrics and Grafana settings) and waits until all four programs run and Grafana has finished starting. */
 export async function startVictim(ctx, program) {
   const app = await startApp(ctx, ctx.name(`victim-${program}`), stackEnvWithoutEmail(ctx));
-  await waitFor(
-    "Grafana to answer",
-    async () => (await request(url(app, "/grafana/api/health"))).status === 200,
-    { timeoutMs: 120_000 },
-  );
+  await waitForGrafana(app);
   await waitFor("all four programs to run", async () => {
     const found = docker(["exec", app.name, "/bin/sh", "-c", `pidof ${PROGRAMS.join(" ")}`], {
       allowFailure: true,
@@ -257,18 +255,53 @@ export async function startVictim(ctx, program) {
   return app;
 }
 
-/** Kills one program of the app: the entrypoint must stop the others and exit with an error so the platform restarts it. */
-export async function checkProgramDeath(app, program) {
-  inside(app.name, `kill $(pidof ${program})`);
-  await waitFor(`the container to stop after ${program} died`, async () => !isRunning(app.name), {
-    timeoutMs: 60_000,
-  });
+/**
+ * Ends one program of the app with `signal` (TERM lets it exit by itself; KILL gives no chance to, which BusyBox's
+ * `wait -n` did not notice): the entrypoint must stop the others and exit with an error so the platform restarts it,
+ * within `timeoutMs`.
+ */
+export async function checkProgramDeath(
+  app,
+  program,
+  { signal = "TERM", timeoutMs = 60_000 } = {},
+) {
+  inside(app.name, `kill -${signal} $(pidof ${program})`);
+  await waitFor(
+    `the container to stop within ${timeoutMs / 1000} s of ${program} getting ${signal}`,
+    async () => !isRunning(app.name),
+    { timeoutMs },
+  );
   ensure(
     logsOf(app.name).includes(`${program} stopped; stopping the other programs`),
     `The entrypoint did not say that ${program} stopped.`,
   );
   const code = exitCodeOf(app.name);
   ensure(code === 1, `The container exited with ${code} after ${program} died, not 1.`);
+}
+
+/**
+ * A start with a /data the container's user cannot write (a root-owned volume, the usual first-deploy mistake) must
+ * end with status 1 and a message that names /data, not leave a half-working app. The memory file system is
+ * root-owned and closed to other users (Docker's own default would be open to everyone).
+ */
+export async function checkUnwritableData(ctx) {
+  const name = ctx.name("no-data");
+  start({
+    name,
+    image: ctx.image,
+    env: stackEnvWithoutEmail(ctx),
+    tmpfs: ["/data:rw,mode=0755,uid=0"],
+  });
+  await waitFor("the container to stop without a writable /data", async () => !isRunning(name), {
+    timeoutMs: 10_000,
+  });
+  const code = exitCodeOf(name);
+  ensure(code === 1, `The container exited with ${code} without a writable /data, not 1.`);
+  ensure(
+    logsOf(name).includes("render-config: /data is not a directory"),
+    "The refusal does not name /data.",
+  );
+  docker(["rm", "--force", name], { allowFailure: true });
 }
 
 /** A stop signal (a redeploy) stops every program and ends the container with status 0. */

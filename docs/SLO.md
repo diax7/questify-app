@@ -81,7 +81,7 @@ Route class `completion` is the four scan routes: `POST /v1/quests/:questId/comp
 `POST /v1/device/kiosk-scans`. A new route that confirms a scan joins `COMPLETION_ROUTES` in `apps/api/src/telemetry/http.ts`.
 
 Traces: one server span per request, one span per outside call and one per background run, linked as parent and child. A fraction is kept
-(`TELEMETRY_TRACE_RATIO`, 0.1 by default); metrics count every request. Logs stay JSON on standard output and carry `trace_id` and
+(`TELEMETRY_TRACE_RATIO`, 0.1 by default, 0 with `otlp`); metrics count every request. Logs stay JSON on standard output and carry `trace_id` and
 `span_id` inside a request or a run, so a log line finds its trace. A request's incoming `traceparent` header is ignored.
 
 Cardinality: about 600 route patterns times a few statuses; the label values are fixed lists or code constants, so the series count
@@ -112,7 +112,7 @@ Off by default: with no setting the server installs nothing and sends nothing. S
 | `TELEMETRY_EXPORTER` | `off` (default), `otlp` (OTLP/HTTP to Prometheus's receiver), or `console` (development only; refused in production) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | with `otlp`: the receiver's base address (`https://<monitoring app>/api/v1/otlp`), https (http only to localhost), no user, password or query. The API adds `/v1/traces` and `/v1/metrics` |
 | `OTEL_EXPORTER_OTLP_HEADERS` | with `otlp`, optional: `authorization=Basic%20<base64 of user:password>,other=value` (values percent-encoded; the RUNBOOK says how to make the credential) |
-| `TELEMETRY_TRACE_RATIO` | 0 to 1, default 0.1; set it to 0 while the receiver is Prometheus's, which has no trace endpoint |
+| `TELEMETRY_TRACE_RATIO` | 0 to 1; default 0.1, but 0 with `TELEMETRY_EXPORTER=otlp` (Prometheus's receiver has no trace endpoint); an explicit value is always used |
 | `TELEMETRY_METRIC_INTERVAL_MS` | 5000 to 600000, default 60000; keep it under 120000, or the two loop alerts never fire (they ignore an instance that has not reported for 120 s) |
 
 An export has a 5-second timeout and is dropped on failure; the request path never waits for it. A failing receiver writes one line a

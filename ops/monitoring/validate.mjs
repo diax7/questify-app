@@ -10,8 +10,9 @@
 //      dashboard query; the Alertmanager mails a test alert; with alert email off (no ALERT_SMTP_HOST, Q-581) the app
 //      starts from the metrics and Grafana settings, evaluates the rules and sends nothing, while a partial set of
 //      email settings is refused; Prometheus stores the off-list attributes it is sent (the premise of ADR-626); a
-//      stop signal ends the container cleanly, and the death of any of the four programs ends it with an error (so
-//      CranL restarts it).
+//      stop signal ends the container cleanly, a /data the container cannot write stops it with a message that names
+//      /data, and the death of any of the four programs, by a stop signal or by kill -KILL, ends it with an error
+//      within seconds (so CranL restarts it); Grafana's login-free health page is closed at Caddy.
 // Everything started is removed at the end. Needs Docker (the pinned images are pulled on first use) and about five
 // minutes. Run: pnpm monitoring:validate
 import { buildImage, cleanUp, docker } from "./lib/docker.mjs";
@@ -27,6 +28,7 @@ import {
   checkOffListIsStored,
   checkProgramDeath,
   checkPrometheus,
+  checkUnwritableData,
   PROGRAMS,
   checkStoredSeries,
   startApp,
@@ -57,20 +59,35 @@ async function runNoEmailStages(ctx, stages) {
   docker(["rm", "--force", app.name], { allowFailure: true });
 }
 
-async function runSupervisorStages(ctx, stages, stack) {
-  await stages.run("a stop signal stops every program and ends the container cleanly", () =>
-    checkGracefulStop(stack),
-  );
-  const victims = await stages.run("four copies start, one per program to kill", () =>
+// How each program is ended, and how long the container has to follow: a program that is killed gives the entrypoint no
+// exit status to hear, so only the once-a-second look at the programs finds it.
+const DEATHS = [
+  { signal: "TERM", timeoutMs: 60_000, label: "dies" },
+  { signal: "KILL", timeoutMs: 10_000, label: "is killed (kill -KILL)" },
+];
+
+async function runDeathStages(ctx, stages, { signal, timeoutMs, label }) {
+  const victims = await stages.run(`four copies start, one per program (${signal})`, () =>
     Promise.all(PROGRAMS.map((program) => startVictim(ctx, program))),
   );
   if (victims === undefined) return;
   for (const [index, program] of PROGRAMS.entries()) {
     const app = victims[index];
-    await stages.run(`the container stops when ${program} dies`, () =>
-      checkProgramDeath(app, program),
+    await stages.run(`the container stops when ${program} ${label}`, () =>
+      checkProgramDeath(app, program, { signal, timeoutMs }),
     );
+    docker(["rm", "--force", app.name], { allowFailure: true });
   }
+}
+
+async function runSupervisorStages(ctx, stages, stack) {
+  await stages.run("a stop signal stops every program and ends the container cleanly", () =>
+    checkGracefulStop(stack),
+  );
+  await stages.run("a /data that cannot be written stops the app at once, naming /data", () =>
+    checkUnwritableData(ctx),
+  );
+  for (const death of DEATHS) await runDeathStages(ctx, stages, death);
 }
 
 async function runLiveStages(ctx, stages) {

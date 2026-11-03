@@ -145,6 +145,14 @@ describe("the app's one public door", () => {
     expect(dockerfile).toContain("EXPOSE 8080");
   });
 
+  it("answers 404 to Grafana's login-free health page, which names its version", () => {
+    expect(caddyfile).toContain("@grafanaHealth path /grafana/api/health /grafana/api/health/*");
+    expect(caddyfile).toMatch(/handle @grafanaHealth \{\s+respond 404\s+\}/);
+    expect(caddyfile.indexOf("handle @grafanaHealth")).toBeLessThan(
+      caddyfile.indexOf("handle @grafana {"),
+    );
+  });
+
   it("keeps its admin endpoint, certificates and a credential out of the file", () => {
     expect(caddyfile).toContain("admin off");
     expect(caddyfile).toContain("auto_https off");
@@ -171,8 +179,14 @@ describe("the supervisor", () => {
     for (const program of ["alertmanager", "prometheus", "grafana", "caddy"]) {
       expect(entrypoint, program).toMatch(new RegExp(`^launch ${program} `, "m"));
     }
-    expect(entrypoint).toContain("wait -n");
     expect(entrypoint).toMatch(/stop_all\nexit 1\n$/);
+  });
+
+  it("polls the programs and counts a zombie as dead, because BusyBox's `wait -n` misses a killed program", () => {
+    expect(entrypoint).not.toMatch(/^\s*wait -n/m);
+    expect(entrypoint).toContain("kill -0");
+    expect(entrypoint).toContain("/proc/$1/status");
+    expect(entrypoint).toMatch(/while \[ -z "\$stopped" \]; do\n\s+sleep 1\n/);
   });
 
   it("stops everything and exits cleanly on a stop signal", () => {
@@ -323,7 +337,7 @@ describe("Grafana", () => {
   it("reads the data source's password from the environment and talks to the Prometheus beside it", () => {
     const text = read(`${STACK}/grafana/provisioning/datasources/prometheus.yml`);
     expect(text).toContain("url: http://127.0.0.1:9090");
-    expect(text).toContain("basicAuthPassword: ${METRICS_PASSWORD}");
+    expect(text).toContain('basicAuthPassword: "${METRICS_PASSWORD}"');
   });
 
   it("has a dashboard that is read-only and asks only for series that exist", () => {

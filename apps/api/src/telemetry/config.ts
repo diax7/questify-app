@@ -19,6 +19,8 @@ export type TelemetryConfig = Readonly<{
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const HEADER_NAME = /^[A-Za-z0-9-]{1,64}$/;
 const DEFAULT_TRACE_RATIO = "0.1";
+// Prometheus's OTLP receiver (the one receiver the API sends to) has no trace endpoint: a span would only fail to export.
+const OTLP_TRACE_RATIO = "0";
 const DEFAULT_METRIC_INTERVAL_MS = "60000";
 
 function exporterOf(env: Env, nodeEnv: string): TelemetryExporter {
@@ -102,8 +104,9 @@ function headersOf(env: Env): Record<string, string> {
   return headers;
 }
 
-function ratioOf(env: Env): number {
-  const text = env["TELEMETRY_TRACE_RATIO"] ?? DEFAULT_TRACE_RATIO;
+function ratioOf(env: Env, exporter: TelemetryExporter): number {
+  const fallback = exporter === "otlp" ? OTLP_TRACE_RATIO : DEFAULT_TRACE_RATIO;
+  const text = env["TELEMETRY_TRACE_RATIO"] ?? fallback;
   const value = Number(text);
   if (text.trim() === "" || !Number.isFinite(value) || value < 0 || value > 1) {
     throw new Error(`TELEMETRY_TRACE_RATIO must be a number from 0 to 1; got "${text}".`);
@@ -113,7 +116,8 @@ function ratioOf(env: Env): number {
 
 /**
  * Reads the telemetry settings from environment variables (12-factor). Off unless asked: a server with no
- * `TELEMETRY_EXPORTER` behaves exactly as before and sends nothing anywhere.
+ * `TELEMETRY_EXPORTER` behaves exactly as before and sends nothing anywhere. With `otlp`, traces are off (ratio 0)
+ * unless `TELEMETRY_TRACE_RATIO` says otherwise.
  *
  * @throws Error naming the variable (never its value) when a setting is missing or not valid.
  */
@@ -127,7 +131,7 @@ export function loadTelemetryConfig(
     environment: server.nodeEnv,
     release: server.release,
     otlp: exporter === "otlp" ? { endpoint: endpointOf(env), headers: headersOf(env) } : undefined,
-    traceRatio: ratioOf(env),
+    traceRatio: ratioOf(env, exporter),
     metricIntervalMs: whole(
       env,
       "TELEMETRY_METRIC_INTERVAL_MS",

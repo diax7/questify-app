@@ -125,6 +125,16 @@ describe("loadTelemetryConfig", () => {
     expect(() => load({ TELEMETRY_TRACE_RATIO: ratio })).toThrow("TELEMETRY_TRACE_RATIO");
   });
 
+  it("keeps no traces by default when the receiver is OTLP, and an explicit ratio still wins", () => {
+    const otlp = {
+      TELEMETRY_EXPORTER: "otlp",
+      OTEL_EXPORTER_OTLP_ENDPOINT: "https://monitoring.example.sa/api/v1/otlp",
+    };
+    expect(load(otlp).traceRatio).toBe(0);
+    expect(load({ ...otlp, TELEMETRY_TRACE_RATIO: "0.5" }).traceRatio).toBe(0.5);
+    expect(load({ TELEMETRY_EXPORTER: "console" }, "development").traceRatio).toBe(0.1);
+  });
+
   it.each(["0", "1", "0.0001"])("accepts a trace ratio of %s", (ratio) => {
     expect(load({ TELEMETRY_TRACE_RATIO: ratio }).traceRatio).toBe(Number(ratio));
   });
