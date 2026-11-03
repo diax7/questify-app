@@ -7101,7 +7101,7 @@ A disputed owner email change (ADR-491) is a line of the same digest.
 
 ## ADR-510 - T-713 Questify home's layout is one platform setting, written by one audited door, composed into the config
 
-**Status:** Proposed (worker, 2026-11-03; T-713 plan `docs/plans/2026-11-03-t-713-questify-home-layout.md`; Q-470).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-713 code review 94; T-713 plan `docs/plans/2026-11-03-t-713-questify-home-layout.md`; Q-470).
 **Decision:** (1) The layout of Questify home (FR-1838) is `platform_setting` key `questifyHome` = `{order, hidden, banner}`, not
 `event.config.layout` (ADR-395: Questify home has its own list of blocks and its own store). (2) Only the definer door
 `admin_home_layout_save(doc, revert_of, request)` writes it (migration 0137): `console_admin()` first, the row ensured and
@@ -7116,7 +7116,7 @@ document, one ETag and one last-working copy on the phone.
 
 ## ADR-511 - T-713 Questify home has eleven blocks; six cannot be hidden; the two daily games are two blocks
 
-**Status:** Proposed (worker, 2026-11-03; Q-470).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-713 code review 94; Q-470).
 **Decision:** The blocks, in the order the screen drew them: `banner` (new), `notices`, `code`, `account`, `operator`,
 `invitations`, `streak`, `dailyChallenge`, `dailyWord`, `events`, `quests`. Protected, so they can move but not be hidden (the
 console and the door both refuse): `notices` (what Questify says about a switched-off feature), `code` (the way into an event
@@ -7129,7 +7129,7 @@ today, no invitations) and draws nothing then. The sign-in prompt of a visitor w
 
 ## ADR-512 - T-713 the banner of Questify home is text slides that open nothing or a web link
 
-**Status:** Proposed (worker, 2026-11-03; Q-471, Q-472).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-713 code review 94; Q-471, Q-472).
 **Decision:** The banner reuses T-610's slide (`title`, `subtitle`, `action`), its reader and its limits: up to five slides, a title of
 60 characters and a subtitle of 100 in both languages, texts cleaned (invisible characters, Western digits). A tap opens nothing
 or an https link to a named host, after the player agrees (the same question as an event's links). The other taps (agenda, map,
@@ -7140,7 +7140,7 @@ home: FR-1838 asks for the order, the visibility and the banner.
 
 ## ADR-513 - T-713 the door checks the layout again in SQL and makes an older layout whole
 
-**Status:** Proposed (worker, 2026-11-03).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-713 code review 94).
 **Decision:** `questify_home_blocks()` is the one SQL list of blocks and protected flags; the shared package names the same
 (`QUESTIFY_HOME_BLOCKS`) and `test/db/console-home-layout` compares them, so a block added to one fails until it is added to the
 other (a migration for the database). The door requires every block exactly once in `order`, a `hidden` list of known,
@@ -7152,7 +7152,7 @@ reverts.
 
 ## ADR-514 - T-713 Questify home draws the last working layout first and a save reaches the apps within the cache time
 
-**Status:** Proposed (worker, 2026-11-03).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-713 code review 94).
 **Decision:** Questify Home reads the platform configuration the way an event does (`loadHomeConfig`): the last working copy at
 once, so the blocks never jump from the default order to the chosen one, then the fresh one, each time Home gains focus. A
 configuration that cannot be read, a copy from before the layout, a damaged field or a list that leaves out a protected block is
