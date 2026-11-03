@@ -2242,4 +2242,24 @@ The server answers 503 `maintenance` with the message, and the app shows the mes
 FR-1772 asks for one scheduled banner on Questify Home. The block holds one banner; a second replaces the first, and an event's own announcements (T-505) already reach that event's players.
 **Recommended (developer):** keep one banner for v1.
 
+## Q-500 - Should Questify switching a feature Off for an organizer also stop running boosts and goals? (T-711b, ADR-540)
+
+**Status:** Proposed (developer, 2026-11-03).
+Today the platform switch stops new boosts and goals only; the owner's event switch stops running ones too (ADR-233, ADR-226). **Recommended (developer):** no; the override behaves as the platform switch. A boost ends within a day, and the owner can still switch the event's boosts or community off.
+
+## Q-501 - Should admins be told of a new Ask Questify request? (T-711b, ADR-545)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** not in T-711b; the console home's Requests list shows open requests first. An email or a count badge can follow once there is volume.
+
+## Q-502 - May an editor, not only the owner, send Ask Questify? (T-711b, ADR-545)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** owner only, as only the owner switches features.
+
+## Q-503 - May the owner withdraw a pending Ask Questify request? (T-711b, ADR-545)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** no withdraw in v1; an admin declines a request that is no longer wanted.
+
 
