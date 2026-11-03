@@ -8,7 +8,7 @@
 
 ## T-712 view as organizer — 2026-11-03
 
-- **T-712 built (tier A; plan review 86 with its two MAJOR and the MINOR fixes folded in; migration 0133, new and
+- **T-712 built (tier A; plan review 86 with its two MAJOR and the MINOR fixes folded in; migration 0135, new and
   undeployed; ADR-520 to ADR-525 and Q-480 to Q-483 Proposed).** The console's event page opens "View as organizer"
   (primary) or support access that can change (secondary). A view grant is read-only twice: the organizer hook refuses
   every write (403 `support_view_only`) and the codes and rehearsal card, and sets `readOnly` in the request's

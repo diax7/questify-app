@@ -1758,7 +1758,7 @@ PUBLIC none. Not copied when an event is duplicated.
 - **`support_grant`** (new; forced row-level security, no grant): `id, admin_id, organizer_id, event_id, reason,
   opened_at, expires_at (= opened_at + 15 minutes, CHECK), closed_at, closed_by, close_kind (admin|revoked|expired)`;
   one live grant per admin and event (partial unique index); foreign key to `event (id, organizer_id)`. T-712
-  (migration 0133) adds `kind text NOT NULL CHECK (kind IN ('view','edit'))`, no default: a `view` grant opens the
+  (migration 0135) adds `kind text NOT NULL CHECK (kind IN ('view','edit'))`, no default: a `view` grant opens the
   organizer only in a read-only transaction. `audit_log_support_view_idx (target_id, at) WHERE action =
   'support.viewed'` serves the read log's one-a-minute check.
 - **`audit_log.support_grant_id`**: set only by the `audit_a_stamp_support` trigger (never by a writer).

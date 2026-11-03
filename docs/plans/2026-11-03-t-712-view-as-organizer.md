@@ -1,7 +1,7 @@
 # T-712 - View as organizer (plan, tier A)
 
 Delivers FR-1837 (F-339): a platform admin opens an organizer's event dashboard as the team sees it, read-only by
-default, with a banner and a log entry for every view. Depends on T-701 (support grants, done). Migration **0133**.
+default, with a banner and a log entry for every view. Depends on T-701 (support grants, done). Migration **0135**.
 ADR-520 to ADR-525 Proposed; Q-480 to Q-483 Proposed. Tier A (admin powers): plan review, build, one code review,
 mutation on GitHub for the access code only.
 
@@ -59,7 +59,7 @@ principal when the request's event is under a `view` grant (or, for an event-les
 helper `teamSeat(context)`. `withRequestContext` and `withRolledBackContext` open `BEGIN READ ONLY` when it is set. PostgreSQL then refuses every INSERT, UPDATE, DELETE and `nextval` in that transaction, SECURITY DEFINER
 doors included (SQLSTATE 25006).
 
-And the grant itself only works inside such a transaction: migration 0133 changes the support branch of
+And the grant itself only works inside such a transaction: migration 0135 changes the support branch of
 `app_organizer_id()` and `app_event_scope()` to honour a `view` grant only when
 `current_setting('transaction_read_only') = 'on'`. A code path that loses the read-only mark (a store that opens its own
 transaction, a pool query outside the request's async chain) therefore runs as nobody: RLS returns no rows and the doors
@@ -130,7 +130,7 @@ ids. Masking every player field only in view mode would touch most read stores f
   organizer" (primary) beside the existing support button, the reason field shared, and lists each live grant's kind.
 - `SupportGrant` (`apps/api/src/auth/staff-store.ts`) and the shared type gain `kind`.
 
-## 9. Migration 0133 (deny by default)
+## 9. Migration 0135 (deny by default)
 
 1. `ALTER TABLE support_grant ADD COLUMN kind text NOT NULL DEFAULT 'edit' CHECK (kind IN ('view','edit'))`, then
    `ALTER COLUMN kind DROP DEFAULT`.

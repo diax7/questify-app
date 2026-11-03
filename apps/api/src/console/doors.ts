@@ -124,7 +124,7 @@ export function openSupport(
     const row = rows[0];
     // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the door answers one row or raises
     if (row === undefined) {
-      throw new Error("support_open answered no row; check migration 0133");
+      throw new Error("support_open answered no row; check migration 0135");
     }
     return {
       grantId: row.grant_id,

@@ -1435,7 +1435,7 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
   - Done when: The demo login and QR picker work only inside the demo tenant (outsider test).
 - [ ] **T-711** Feature layers: platform Off/On with per-organizer override, Questify allows per event, owner switches, locked cards with Ask Questify — delivers FR 1826, 1827; depends on: T-703, T-210
   - Done when: A feature that is Off is invisible to owners and players; a non-allowed feature shows a locked card.
-- [x] **T-712** View as organizer (read-only support view, banner, every access logged) — delivers FR 1837; depends on: T-701. Done 2026-11-03 (migration 0133; ADR-520 to ADR-525, Q-480 to Q-483).
+- [x] **T-712** View as organizer (read-only support view, banner, every access logged) — delivers FR 1837; depends on: T-701. Done 2026-11-03 (migration 0135; ADR-520 to ADR-525, Q-480 to Q-483).
   - Note 2026-11-02 (T-701): add a `view` kind to `support_grant` (migration 0114) and reuse the support seat (`apps/api/src/organizers/support-seat.ts`) with writes refused.
   - Done when: The banner is visible and each view is in the event log.
 - [ ] **T-713** Questify home layout editor with banner slider — delivers FR 1838; depends on: T-610

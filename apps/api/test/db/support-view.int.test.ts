@@ -12,7 +12,7 @@ import {
 type Row = Record<string, unknown>;
 
 /**
- * The view kind of a support grant in the database (T-712, migration 0133, ADR-520, ADR-521, ADR-523): honoured only in
+ * The view kind of a support grant in the database (T-712, migration 0135, ADR-520, ADR-521, ADR-523): honoured only in
  * read-only transactions, so a lost read-only mark runs as nobody; every allowed read logged once a minute per route.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("support view grants (database)", () => {
