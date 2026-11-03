@@ -24,6 +24,18 @@ export function useCameraActive(): boolean {
   return focused && foreground;
 }
 
+/** Coming back from Settings re-reads the permission, so allowing it there works without a restart. */
+export function useRecheckOnReturn(recheck: () => unknown): void {
+  useEffect(() => {
+    const watcher = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void recheck();
+      }
+    });
+    return () => watcher.remove();
+  }, [recheck]);
+}
+
 /** Asked when the scanner opens, never at launch; denied once on Android may be asked again (STORE_COMPLIANCE §2.7). */
 export function PermissionCard({
   canAskAgain,

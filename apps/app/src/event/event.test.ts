@@ -256,6 +256,7 @@ const HOME = {
   rankingOn: true,
   helpUnread: 0,
   streak: null,
+  reviewDemo: false,
 };
 
 const ok = (body: unknown) => ({ kind: "ok" as const, status: 200, body, headers: new Headers() });

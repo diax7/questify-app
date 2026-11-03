@@ -1141,6 +1141,28 @@ export const MESSAGES = {
     ar: "تعذّر تشغيل الكاميرا. أغلق المسح وحاول مرة أخرى.",
     en: "Couldn't start the camera. Close the scanner and try again.",
   },
+  "scanner.review.pick": { ar: "اختيار رمز (للمراجعة فقط)", en: "Pick a code (review only)" },
+  "scanner.review.title": { ar: "رموز الفعالية التجريبية", en: "Demo event codes" },
+  "scanner.review.body": {
+    ar: "اختر رمزًا ليعمل كأنك مسحته. يظهر هذا لحساب المراجعة فقط.",
+    en: "Pick a code and it works as if you scanned it. Only the review account sees this.",
+  },
+  "scanner.review.empty": {
+    ar: "لا توجد رموز في هذه الفعالية بعد.",
+    en: "This event has no codes yet.",
+  },
+  "scanner.review.failed": {
+    ar: "تعذّر تحميل الرموز. حاول مرة أخرى.",
+    en: "Couldn't load the codes. Try again.",
+  },
+  "scanner.review.noneLeft": {
+    ar: "التقيت بكل {playerMany} في الفعالية التجريبية.",
+    en: "You have met every {playerOne} in the demo event.",
+  },
+  "scanner.review.kind.quest": { ar: "رمز QR", en: "QR code" },
+  "scanner.review.kind.step": { ar: "ختم جواز", en: "Passport stamp" },
+  "scanner.review.kind.reveal": { ar: "رمز سري", en: "Secret code" },
+  "scanner.review.kind.meet": { ar: "التعارف مع {playerOne}", en: "Meet a {playerOne}" },
   "history.title": { ar: "السجل", en: "History" },
   "history.empty": {
     ar: "لا شيء هنا بعد. أنجز {questOne} لتبدأ.",

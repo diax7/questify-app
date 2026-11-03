@@ -6,7 +6,7 @@
   },
   "apps/api/src/app.ts": {
     "buildApp": {
-      "lines": [204]
+      "lines": [197]
     }
   },
   "apps/api/src/audience/rules.ts": {
@@ -383,7 +383,7 @@
     },
     "ScanQuestScreen": {
       "complexity": [22],
-      "lines": [209]
+      "lines": [203]
     }
   },
   "apps/app/app/invite/[eventId].tsx": {

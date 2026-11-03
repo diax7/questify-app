@@ -77,6 +77,8 @@ export type Home = Readonly<{
   helpUnread: number;
   /** The player's event day streak (T-405b); null while it is off, and from an older API. */
   streak: EventStreak | null;
+  /** The App Review reviewer in the demo event (T-710b): the scanner offers its code picker. False from anyone else. */
+  reviewDemo: boolean;
 }>;
 
 /**
@@ -224,6 +226,7 @@ export function readHome(body: unknown): Home | undefined {
     rankingOn: body["rankingOn"],
     helpUnread: readUnread(body["help"]),
     streak: eventStreakOf(body["streak"]),
+    reviewDemo: body["reviewDemo"] === true,
   };
 }
 

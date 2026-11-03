@@ -2,13 +2,13 @@ import { DEFAULT_TERMS, formatNumber, type Theme } from "@questify/shared";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useReducer, useRef, useState } from "react";
-import { AppState, Platform, View } from "react-native";
+import { useReducer, useRef, useState } from "react";
+import { Platform, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
-import { PermissionCard, useCameraActive } from "#src/components/Camera.tsx";
+import { PermissionCard, useCameraActive, useRecheckOnReturn } from "#src/components/Camera.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { PopIn, SpinningCoin } from "#src/components/motion.tsx";
 import { Screen } from "#src/components/Screen.tsx";
@@ -31,6 +31,7 @@ import {
 } from "#src/event/quests-api.ts";
 import { stampStep } from "#src/event/passport.ts";
 import { revealCategory } from "#src/event/reveal.ts";
+import { ReviewCodePicker } from "#src/event/ReviewCodePicker.tsx";
 import {
   OPEN_GATE,
   categoryIdOf,
@@ -204,15 +205,7 @@ export default function ScanQuestScreen() {
   const attempt = useRef<Attempt | undefined>(undefined);
   const tagUid = useRef<string | null>(null);
 
-  // Coming back from Settings re-reads the permission, so allowing it there works without a restart.
-  useEffect(() => {
-    const watcher = AppState.addEventListener("change", (state) => {
-      if (state === "active") {
-        void getPermission();
-      }
-    });
-    return () => watcher.remove();
-  }, [getPermission]);
+  useRecheckOnReturn(getPermission);
 
   const submit = async (id: string, token: string) => {
     const key = keyFor(attempt.current, token, randomUuid);
@@ -330,6 +323,7 @@ export default function ScanQuestScreen() {
     <Screen title={t("scanner.title")} header={<BackButton />}>
       {/* FR-306, FR-622: My QR sits behind the same round button. */}
       <Button kind="quiet" label={t("myQr.title")} onPress={() => router.push("/my-qr")} />
+      <ReviewCodePicker eventId={eventId} disabled={!scanning} onScan={scanned} />
       {nfcOn ? <NfcTap active={scanning} autoStart={nfc === "1"} onRead={tapped} /> : null}
       {permission === null ? <AppText muted>{t("common.loading")}</AppText> : null}
       {permission !== null && !granted ? (

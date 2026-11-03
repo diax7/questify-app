@@ -6,6 +6,34 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-710b App Review QR picker — 2026-11-03
+
+- **T-710b built (tier A; migration 0147, new and undeployed; ADR-640 and Q-600 Proposed).** Three doors, granted to the
+  API role alone and revoked from PUBLIC: `review_demo_here` (the caller is the reviewer, in the demo event, the window
+  open, an active member with an active account), `review_demo_codes` (the event's printable codes: visible quest QRs,
+  passport steps, hidden categories' secret codes, meet quests; no NFC tags) and `review_demo_meet_code` (a fictional
+  player's one-minute pass, first not yet met and under caps; RD409 `none_left`); RD404 to everyone else.
+  `GET /v1/events/{id}/review-codes` signs the codes with the sticker keys; `POST .../review-codes/meet` issues the pass
+  (meet-pass limit); Home carries `reviewDemo: true` for the reviewer only. The app keeps the flag in memory per event
+  (`review-demo-flag.ts`); the scanner's "Pick a code (review only)" sheet feeds a pick to its own QR and meet
+  handlers, so every completion rule is unchanged. `buildApp` split (`registerPlayDoors`) and the scanner's
+  return re-check moved to `useRecheckOnReturn` to stay within the function limits (baseline shrank). Tests:
+  `test/db/review-demo-codes` (7: the list, refusals for another event, a real player, a fictional one, an unknown event,
+  a member who left, a closed window; the meet pass paid by `meet_player`; grants), `test/review-demo/codes` (4, HTTP:
+  a picked QR paid by the ordinary complete route, a meet code paid by `/v1/meet`, the outsider's seat, Close), the
+  security suites (routes, maintenance doors, outsider), the community gate map, `src/review-demo/codes.test`,
+  `home-rows`, app `review-codes.test`. SQL hand mutants: the member status, the window and the caller check killed; the
+  fictional player's cap filter survives (`meet_player` still refuses with `their_daily_cap`; noted, not chased).
+  `npx expo export` (android) passes. Full vitest once (4 workers): 12,490 passed, 1 failed (the community gate map,
+  fixed and re-run), 18 skipped, 810 files. Lint, `lint:limits`, `format:check`, types clean. CI minutes: 0; agent
+  tokens roughly 1M (estimate).
+  **Code review 87, MAJOR fixed:** a picked tag (no chip id) raised a false `nfc_copy` on Android, so tags are no longer
+  listed (a tag quest's QR is; ADR-640 and Q-600 corrected); minors fixed with DB tests: a hidden meet quest refused, an
+  inactive reviewer account refused, the fictional player's day-old passes deleted, a fictional player at its daily cap
+  passed over (kills the surviving `meet_caps` mutant; hand mutants for all four killed).
+  **Next:** mutation on GitHub
+  (`apps/api/src/review-demo/codes.ts`); a store build carries the picker (T-806).
+
 ## T-221 seat limit once a statement — 2026-11-03
 
 - **T-221 built (tier A; migration 0146, new and undeployed; ADR-630 to ADR-632 and Q-590, Q-591 Proposed; answers Q-323).**
@@ -131,7 +159,7 @@
 ## T-710 App Review demo — 2026-11-03
 
 - **T-710 built (tier A; migration 0144, new and undeployed; ADR-560 to ADR-569 amended with plan review 84, Q-520 to Q-526 Proposed).** Plan review 84 folded in first (plan section 0: lock order with the `review_demo` row before the challenge, the reviewer number never a real account's, `xp_apply` instead of the ranking readers, `promo_pool` only). A platform admin creates the demo once from the console (organizer, live event, 12 fictional players, reviewer account), prepares it per build (reviewer reset, new six-digit code shown once, 1 to 30 day window) and closes it; the database decides the fixed code in `start_player_challenge`, `sign_in_player` and `verify_deletion_code`, sends nothing for a reviewer challenge, and confines demo accounts by triggers. Deviations: the readiness counts ride in `console_review_demo()` (no separate door); the campaign refusal is `invitation_event_ok` answering `not_public` (no RD409, no TS change); Prepare is not idempotent (the store would keep the code); the browser spec and `console_feature_usage` leaving the demo out are in FOLLOWUPS. Tests: `test/db/review-demo` (25, incl. both Close races; two hand mutants caught), `test/console/review-demo` (8, HTTP, SMS spy, outsider's-seat case), the security suites, web lib (5), keys. CI minutes: 0. **Local:** full vitest ONCE: 11993 tests in 773 files, 11410 passed, 71 failed in 99 files: 4 real list-guard failures of mine (tick step count, event-duplicate NOT_COPIED, flash-boosts PAYER_MAP, the words and key-name tests; all fixed), the rest 60 s hook timeouts on the shared database; re-run serially: 81 of 96 files passed, 15 timed out again in `createTestDatabase` while the shared Docker database stopped answering (event-duplicate's fix not re-run).
-  **Next:** the T-710 code review (tier A, strongest model), then mutation on GitHub; T-710b after it.
+  **Next:** the T-710 code review (tier A, strongest model), then mutation on GitHub; T-710b built after it (above).
 
 ## T-714 per-organizer feature usage — 2026-11-03
 

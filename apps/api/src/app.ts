@@ -9,7 +9,7 @@ import type { BreachCheck } from "#src/auth/breached";
 import { createDeferred, type Deferred } from "#src/auth/deferred";
 import { registerDeletionRoutes } from "#src/deletion/routes";
 import type { EmailSender } from "#src/auth/email/sender";
-import { createAuthKeys } from "#src/auth/keys";
+import { createAuthKeys, type AuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
 import { createEmailChange, type EmailChangeDeps } from "#src/auth/email-change";
 import { createPasswords, type PasswordDeps } from "#src/auth/password-reset";
@@ -27,7 +27,7 @@ import { createEvents } from "#src/events/events";
 import { registerPlayerGuard } from "#src/players/guard";
 import { createSuspendedSet } from "#src/events/suspended-set";
 import { registerHomeRoutes } from "#src/home/routes";
-import { createFirstBonusCache } from "#src/quests/first-bonus";
+import { createFirstBonusCache, type FirstBonusCache } from "#src/quests/first-bonus";
 import { registerOperatorAwardRoutes } from "#src/awards/routes";
 import { registerSubmissionPlayerRoutes } from "#src/submissions/routes";
 import { registerTicketRoutes } from "#src/tickets/routes";
@@ -36,6 +36,7 @@ import { registerPassportRoutes } from "#src/passport/routes";
 import { registerRevealRoutes } from "#src/reveal/routes";
 import { registerDeskRoutes } from "#src/desk/routes";
 import { registerNfcRoutes } from "#src/nfc/routes";
+import { registerReviewDemoPlayerRoutes } from "#src/review-demo/routes";
 import { registerDeviceGuard } from "#src/devices/guard";
 import {
   registerDeviceOperatorRoutes,
@@ -65,8 +66,11 @@ import {
   createScreenCodeKey,
   createStepCodeKey,
   createTagCodeKey,
+  type QuestCodeKey,
+  type RevealCodeKey,
+  type StepCodeKey,
 } from "#src/quests/qr";
-import { createRanking } from "#src/ranking/ranking";
+import { createRanking, type Ranking } from "#src/ranking/ranking";
 import { registerRankingRoutes } from "#src/ranking/routes";
 import type { RankingStore } from "#src/ranking/store";
 import { startRankingTick } from "#src/ranking/tick";
@@ -515,20 +519,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
     myKey: createMyCodeKey(config.qrSecret),
     keys: signInDeps.keys,
   });
-  registerOperatorAwardRoutes(app, { pool: options.pool, keys: signInDeps.keys });
-  registerSubmissionPlayerRoutes(app, { pool: options.pool, ranking });
-  registerTicketRoutes(app, { pool: options.pool, settings, keys: signInDeps.keys });
-  registerPlayRoutes(app, { pool: options.pool, ranking, settings, firstBonus });
-  registerMeetRoutes(app, { pool: options.pool, ranking, settings, keys: signInDeps.keys });
-  registerGameRoutes(app, { pool: options.pool, ranking, keys: signInDeps.keys });
-  registerNfcRoutes(app, {
+  registerPlayDoors(app, config, {
     pool: options.pool,
-    tagKey: createTagCodeKey(config.qrSecret),
-    ticketKey: createTicketKey(config.qrSecret),
     keys: signInDeps.keys,
     settings,
-    dashboardOrigin: config.auth.dashboardOrigin,
     ranking,
+    firstBonus,
+    codeKeys: { codeKey: questCodeKey, stepKey: stepCodeKey, revealKey: revealCodeKey },
   });
   const deviceClaims = {
     pool: options.pool,
@@ -620,6 +617,41 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerPlatformReads(app, options.pool, { settings, translations });
   registerHealthRoutes(app, options);
   return app;
+}
+
+type PlayDoorDeps = Readonly<{
+  pool: Pool;
+  keys: AuthKeys;
+  settings: SettingsService;
+  ranking: Ranking;
+  firstBonus: FirstBonusCache;
+  codeKeys: Readonly<{ codeKey: QuestCodeKey; stepKey: StepCodeKey; revealKey: RevealCodeKey }>;
+}>;
+
+/**
+ * The player's play doors beside the scan: operator awards, submissions, help tickets, votes and quizzes, meet, games,
+ * the App Review demo's code picker (T-710b) and NFC taps.
+ */
+function registerPlayDoors(app: FastifyInstance, config: AppConfig, deps: PlayDoorDeps): void {
+  const { pool, keys, settings, ranking, firstBonus } = deps;
+  registerOperatorAwardRoutes(app, { pool, keys });
+  registerSubmissionPlayerRoutes(app, { pool, ranking });
+  registerTicketRoutes(app, { pool, settings, keys });
+  registerPlayRoutes(app, { pool, ranking, settings, firstBonus });
+  registerMeetRoutes(app, { pool, ranking, settings, keys });
+  registerGameRoutes(app, { pool, ranking, keys });
+  const tagKey = createTagCodeKey(config.qrSecret);
+  const origin = config.auth.dashboardOrigin;
+  registerReviewDemoPlayerRoutes(app, { ...deps.codeKeys, pool, keys, origin });
+  registerNfcRoutes(app, {
+    pool,
+    tagKey,
+    ticketKey: createTicketKey(config.qrSecret),
+    keys,
+    settings,
+    dashboardOrigin: origin,
+    ranking,
+  });
 }
 
 /** The public reads of platform data: the configuration, the legal texts and help articles, and the shipped texts. */

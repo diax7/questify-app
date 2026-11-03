@@ -1623,6 +1623,10 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   complete_quest: "gated: scan, typed code and location (door table)",
   finish_game_round: "gated: game finish (door table)",
   issue_meet_pass: "gated: meet pass (door table)",
+  review_demo_codes:
+    "exempt: the App Review reviewer's list of printable code addresses (T-710b); it pays nothing, and every pick goes through the gated scan, stamp, reveal and tap doors",
+  review_demo_meet_code:
+    "exempt: a fictional demo player's meet pass for the App Review reviewer (T-710b); it pays nothing, and the scan that pays is meet_player (gated)",
   meet_player: "gated: meet code (door table)",
   operator_complete_quest: "gated: operator scan (door table)",
   quiz_start: "gated: quiz start (door table)",

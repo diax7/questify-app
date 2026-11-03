@@ -2622,6 +2622,13 @@ export const wrongCodeOrPassword = make(
   "الرمز أو كلمة المرور غير صحيحة.",
   "The code or the password is not correct.",
 );
+/** The review demo's meet code (T-710b): every fictional player has met the reviewer on this quest, or is at its cap. */
+export const reviewNoneLeft = make(
+  409,
+  "none_left",
+  "التقيت بكل اللاعبين في العرض التجريبي.",
+  "You have met every player in the demo.",
+);
 export const emailChangeLocked = make(
   429,
   "email_change_locked",

@@ -990,7 +990,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-255 | F-103 | Should | pending |
 | FR-301 | F-54 | Must | pending |
 | FR-302 | F-54 | Must | pending |
-| FR-303 | F-55 | Must | pending |
+| FR-303 | F-55 | Must | built (T-115 the live-camera scanner; the App Review picker T-710b, only for the reviewer) |
 | FR-304 | F-55 | Must | pending |
 | FR-305 | F-67 | Must | pending |
 | FR-306 | F-104 | Must | pending |
@@ -1247,7 +1247,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1404 | F-216 | Must | partly built (T-705b: the moderation queue and the platform flags list; `test/db/content-reports.int`, `test/console/moderation.int`; campaigns are T-706) |
 | FR-1405 | F-216, F-41 | Must | built (T-703: console Switches page, `test/console/switches`, `e2e/console-switches.spec`) |
 | FR-1406 | F-227 | Must | built (T-710) |
-| FR-1407 | F-227 | Must | built (T-710; the QR picker half T-710b) |
+| FR-1407 | F-227 | Must | built (T-710; the QR picker half T-710b, 2026-11-03) |
 | FR-1408 | F-218 | Must | built (T-701: 15-minute support grant, ADR-407) |
 | FR-1409 | F-218, F-198 | Must | built as amended by Q-373 (T-701: logged in Questify's audit log; the organizer sees "Questify support" where its history shows an actor, not the access itself, ADR-408, ADR-409) |
 | FR-1410 | F-219 | Must | pending |

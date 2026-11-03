@@ -145,7 +145,7 @@ What App Review needs from Questify:
    (or provide an email login for that account). Treat this as a security hole to contain: one
    number, scoped to the demo tenant only, rate-limited, logged, and covered by an outsider test
    that proves the code works for no other number.
-2. **Built (T-710; the content is built in the dashboard, ADR-568; QR picker T-710b).** **A permanent demo event** ("App Review Demo", always live, no end date) in its own demo tenant,
+2. **Built (T-710; the content is built in the dashboard, ADR-568; the in-app QR picker for the reviewer built in T-710b, ADR-640).** **A permanent demo event** ("App Review Demo", always live, no end date) in its own demo tenant,
    containing every quest type the binary supports: QR scan, challenge, photo submission, text
    submission, vote, quiz, survey, share, a location quest with its non-location alternative, a meet quest, and a
    mini-game quest of each built game (memory match, slide puzzle; T-305) with unlimited attempts and a 1-minute

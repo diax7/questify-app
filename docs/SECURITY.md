@@ -582,6 +582,7 @@ The reviewer's fixed code is a contained hole: one Questify number, one account,
 | Nothing is sent for a reviewer challenge | the API reads the flag and skips the SMS; a resend sends nothing | `test/console/review-demo` (SMS spy) |
 | The code is never stored or logged in clear | only `keys.reviewerCodeHash` (purpose `reviewer-code`) is stored; Prepare is not idempotent (the store would keep the answer) and answers `no-store`; audits carry the version and window | `test/console/review-demo`, `src/auth/keys.test.ts` |
 | Closed to the public | both tables have no grant; the doors are granted to the API role alone and re-read the admin (QE403) | `test/security/outsider` |
+| The QR picker serves the reviewer alone (T-710b) | `review_demo_here` reads `app_player_id()` against the row: the reviewer, the demo event, the window open, an active member; `review_demo_codes` and `review_demo_meet_code` raise RD404 otherwise and the route answers the unknown event's 404; a pick goes through the ordinary completion doors, so no rule is skipped | `test/db/review-demo-codes`, `test/review-demo/codes` (outsider's seat), `test/security/outsider` |
 
 Limits: the sign-in windows apply unchanged (10 wrong a contact per 15 minutes, 30 a day, 3 a challenge), so a 14-day
 window allows at most 420 guesses of 1,000,000; `review_demo.code_guessing` logs past 10 wrong in a day (RUNBOOK).
