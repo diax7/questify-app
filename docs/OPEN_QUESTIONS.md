@@ -2307,3 +2307,9 @@ The page lists organizers by name. "Everyone with Cheers off" or "everyone who h
 Today "used" is a row in the feature's table (a map, a reward, a ticket). A shop with rewards and no redemption, or a poll nobody voted in, still counts.
 **Recommended (developer):** keep set-up rows for v1; if the team needs "who actually plays with it", add per-event activity counts as a separate, indexed read after the first real events.
 
+## Q-540 - Should the migration runner give every file a default lock timeout? (T-022, ADR-580)
+
+**Status:** Proposed (worker, 2026-11-03).
+The runner retries a lock timeout (55P03), but a file only raises one when it sets `lock_timeout` itself (0063 to 0065 do). A file that sets none waits on a lock for as long as the other session holds it, and every request that queues behind that wait is held too.
+**Recommended (worker):** have the runner run `SET LOCAL lock_timeout = '10s'` after `BEGIN` in every attempt (a file's own `SET LOCAL` overrides it), in a small follow-up before the first real players. It changes nothing on an empty database, so no test database is affected, and it makes the retry cover the common case, not only the files that opted in.
+

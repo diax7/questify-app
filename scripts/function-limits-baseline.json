@@ -72,11 +72,6 @@
       "complexity": [12]
     }
   },
-  "apps/api/src/db/migrate.ts": {
-    "migrate": {
-      "complexity": [11]
-    }
-  },
   "apps/api/src/db/pre-identity.ts": {
     "lookupSetting": {
       "complexity": [11]
