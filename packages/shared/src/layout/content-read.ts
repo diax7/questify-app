@@ -32,9 +32,15 @@ export const points = (text: string): number => Array.from(text).length;
 const LINK =
   /^https:\/\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}(?::\d{1,5})?(?:[/?#][^\s\\]*)?$/i;
 
+/** Whether the link's port, when it names one, is a real one (1 to 65535); the pattern alone allows five digits. */
+function hasRealPort(url: string): boolean {
+  const port = /^https:\/\/[^/?#:]+:(\d{1,5})/i.exec(url)?.[1];
+  return port === undefined || (Number(port) >= 1 && Number(port) <= 65535);
+}
+
 /** Whether a link may be tapped from the app: https only, to a named host (T-610). */
 export const isAllowedLink = (url: string): boolean =>
-  url.length <= LINK_URL_MAX && LINK.test(url) && !hasControlCharacter(url);
+  url.length <= LINK_URL_MAX && LINK.test(url) && hasRealPort(url) && !hasControlCharacter(url);
 
 function hasControlCharacter(text: string): boolean {
   return Array.from(text).some((char) => {
