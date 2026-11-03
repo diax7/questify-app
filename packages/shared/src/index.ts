@@ -1380,3 +1380,21 @@ export type {
   LegalRequest,
   PendingHandoverItem,
 } from "./privacy/data-requests";
+export {
+  REVIEW_DAY_ITEMS,
+  REVIEW_VERSION_MAX,
+  REVIEW_WINDOW_DAYS,
+  reviewDemoAnswerSchema,
+  reviewDemoChecklist,
+  reviewDemoPreparedSchema,
+  reviewDemoRawSchema,
+  reviewDemoView,
+  reviewDemoViewSchema,
+} from "./console-review-demo/review-demo";
+export type {
+  ReviewReadinessItem,
+  ReviewDayItem,
+  ReviewDemoPrepared,
+  ReviewDemoRaw,
+  ReviewDemoView,
+} from "./console-review-demo/review-demo";

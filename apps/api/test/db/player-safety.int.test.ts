@@ -221,7 +221,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("platform ban and word lists (d
       const signIn = (token: Buffer, typed: Buffer) =>
         f.run<{ outcome: string; player_id: string | null }>(
           {},
-          "SELECT outcome, player_id FROM sign_in_player($1, $2, $3, $4, $5, $6)",
+          "SELECT outcome, player_id FROM sign_in_player($1, $2, $3, $4, $5, $6, sha256('not the fixed code'::bytea))",
           [token, typed, randomBytes(32), randomBytes(32), randomUUID(), randomBytes(32)],
         );
       const first = await code();
@@ -267,7 +267,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("platform ban and word lists (d
       const result = await f.crossed(
         {
           context: {},
-          sql: "SELECT outcome FROM sign_in_player($1, $2, $3, $4, $5, $6)",
+          sql: "SELECT outcome FROM sign_in_player($1, $2, $3, $4, $5, $6, sha256('not the fixed code'::bytea))",
           values: [token, code, access, randomBytes(32), randomUUID(), randomBytes(32)],
         },
         {

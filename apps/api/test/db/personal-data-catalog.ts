@@ -346,6 +346,22 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
     erasure: "delete",
     rows: P("player_id"),
   },
+  review_demo: {
+    links: ["player_id"],
+    export: {
+      excluded: "Questify's App Review demo row; the reviewer account is Questify's own (Q-520)",
+    },
+    erasure: "keep",
+    rows: P("player_id"),
+    why: "names the reviewer tombstone by id; its phone is Questify's own reviewer SIM, never a player's",
+  },
+  review_demo_player: {
+    links: ["player_id"],
+    export: { excluded: "a mark that the App Review demo made the account (T-710)" },
+    erasure: "keep",
+    rows: P("player_id"),
+    why: PIDS,
+  },
   player_deletion_challenge: {
     links: ["player_id"],
     export: { excluded: "a deletion code, minutes long (a security secret)" },
@@ -682,6 +698,8 @@ export const NOT_PLAYER: Readonly<Record<string, string>> = {
   "event_rehearsal.erase_counts": "counts of a rehearsal's wiped rows",
   "event_session.created_by": ADMIN,
   "event_setup.updated_by": ADMIN,
+  "review_demo.created_by": ADMIN,
+  "review_demo.prepared_by": ADMIN,
   "feature_request.decided_by": ADMIN,
   "feature_request.requested_by": ADMIN,
   "event_template.body": "the organizer's template",

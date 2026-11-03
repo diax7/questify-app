@@ -356,6 +356,7 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
       log: (event, fields) => app.log.error({ event, ...fields }),
     },
     moderationAddresses: { pool, keys: shared.keys, mailFrom: config.auth.gmail.from },
+    reviewDemo: { pool, keys: shared.keys },
     platform: {
       pool,
       keys: shared.keys,

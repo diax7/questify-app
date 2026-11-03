@@ -157,7 +157,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (database)", 
     const code = bytes();
     const [row] = await as<{ known: boolean }>(
       {},
-      "SELECT start_deletion_challenge($1, $2, $3, $4, $5, $6) AS known",
+      "SELECT known FROM start_deletion_challenge($1, $2, $3, $4, $5, $6)",
       [randomUUID(), sha(token), channel, contact, sha(contact), code],
     );
     return { token, code, known: row?.known === true };
@@ -166,7 +166,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (database)", 
     const deletion = bytes();
     const [row] = await as<{ outcome: string; attempts_left: number }>(
       {},
-      "SELECT * FROM verify_deletion_code($1, $2, $3)",
+      "SELECT * FROM verify_deletion_code($1, $2, $3, sha256('not the fixed code'::bytea))",
       [sha(started.token), code, sha(deletion)],
     );
     return { ...row, deletion };
@@ -354,7 +354,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (database)", 
       const first = await startCode(gone.email);
       const [signIn] = await as<{ outcome: string }>(
         {},
-        "SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6)",
+        "SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6, sha256('not the fixed code'::bytea))",
         [sha(first.token), first.code, bytes(), bytes(), randomUUID(), bytes()],
       );
       expect(signIn?.outcome).toBe("expired");
@@ -456,7 +456,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (database)", 
       ]);
       const [signIn] = await as<{ outcome: string }>(
         {},
-        "SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6)",
+        "SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6, sha256('not the fixed code'::bytea))",
         [sha(token), code, bytes(), bytes(), randomUUID(), bytes()],
       );
       expect(signIn?.outcome).toBe("banned");
@@ -492,14 +492,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (database)", 
         code,
         fp(phone),
       ]);
-      await as({}, "SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6)", [
-        sha(token),
-        code,
-        bytes(),
-        bytes(),
-        randomUUID(),
-        sha(signup),
-      ]);
+      await as(
+        {},
+        "SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6, sha256('not the fixed code'::bytea))",
+        [sha(token), code, bytes(), bytes(), randomUUID(), sha(signup)],
+      );
       const [made] = await as<{ player_id: string }>(
         {},
         "SELECT * FROM create_player($1, 'fresh_fp', 1990, 'falcon', $2, $3, $4)",

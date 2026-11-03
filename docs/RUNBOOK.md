@@ -185,6 +185,29 @@ that is shared or written to disk (today's is in memory, per process).
   lower-case email under `AUTH_SECRET`. Compute the key in a one-off script and call `clearKey(db, bucket, key)` (owner
   connection), as for staff.
 
+## The App Review demo (T-710, ADR-560 to ADR-568)
+
+- **Once per environment:** console, **App Review demo**, type Questify's reviewer SIM number (Q-520; never a real
+  person's) and **Create the demo**. It makes the "Questify Review Demo" organizer (you are its owner, every overridable
+  feature On), the live "App Review Demo" event (its end rolls 60 to 90 days ahead by itself), 12 fictional players with
+  points and the reviewer account (an operator allowed to play). A number a player's account holds is refused.
+- **Build the content once** as the demo organizer's owner in the ordinary dashboard (ADR-568): every quest type, shop
+  rewards with `DEMO-` codes for digital ones, and the review-day items: a live poll with 1,440 minutes, a running
+  community goal with an unlock step, a scheduled flash quest and a boost, an NFC quest, a station paired for the
+  screen-QR quest. The page's **Readiness** list shows what is still missing.
+- **Before each store submission:** **Prepare for review** with the build's version and a window (14 days by default,
+  30 at most). The reviewer account is erased and made again (held prizes forfeited) and a new six-digit code is shown
+  **once**: paste it into App Store Connect and Play Console at once with the reviewer number and the event's join
+  code. Then sign in as the reviewer with that code and play to level 3 (at least 40 gems, T-806). No SMS is ever sent
+  while the window is open.
+- **After review:** **Close window**. The fixed code stops and the reviewer is signed out; the window also closes by
+  itself at its end (the lifecycle tick, within 30 seconds). With the window closed the reviewer number is an ordinary
+  one: a real SMS goes to the SIM.
+- **A rotated `AUTH_SECRET`** invalidates the code and the number's stored key: Prepare again.
+- **Anyone who knows the reviewer number can use up its sign-in limits** (10 wrong codes in 15 minutes, 30 a day). A
+  log line `review_demo.code_guessing` fires when its wrong codes pass 10 in a day. Prepare gives a new code; **Change
+  reviewer number** (a second Questify SIM) is the fallback, and closes the window and signs the reviewer out.
+
 ## Questify invitations (T-409, T-409b, ADR-329 to ADR-335; server and web pages built)
 
 Confirmed by the T-409 build (migration 0073, `apps/api/src/invitation-campaigns/`) and the T-409b build (the pages).

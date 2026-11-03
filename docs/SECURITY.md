@@ -567,6 +567,23 @@ that may name it. Tests: `test/db/name-display.int` (every rule and refusal as r
 dashboard), the ranking, results, big screen, finale, station and desk suites, the outsider suite (anon and PUBLIC hold nothing on the
 columns or the functions) and the cross-tenant suite (B's setting, notices and names out of A's reach). Counsel on Q-080 can still narrow it.
 
+### Review demo boundary (T-710, ADR-560 to ADR-567; STORE_COMPLIANCE §1.3)
+
+The reviewer's fixed code is a contained hole: one Questify number, one account, one tenant, a window the admin opens.
+
+| Claim | Where it is held | Evidence |
+|---|---|---|
+| The fixed code signs in nothing but the reviewer account | `sign_in_player` reads it only for a challenge flagged `reviewer` (set by `start_player_challenge` when the contact key is the reviewer's and the window is open); every other challenge compares only its own random code | `test/db/review-demo` (other numbers `wrong`), `test/console/review-demo` (HTTP, other number 401) |
+| A real account never holds the reviewer number, and the fixed code never opens one that does | Create, set-contact and Prepare refuse a held number (`contact_held`); `create_player` answers `expired` and `confirm_contact_change` `taken` for it; an owner that is not `review_demo.player_id` answers `expired`, is audited (`review_demo.owner_mismatch`) and is never provisioned | `test/db/review-demo`, the outsider's-seat case in `test/console/review-demo` |
+| Close and the window's end stop the code at once | the reviewer verify locks the `review_demo` row before the challenge; Close, Prepare, set-contact and the tick take it FOR UPDATE and revoke the reviewer's sessions | the two races in `test/db/review-demo` |
+| A guessed code gives only the demo | triggers keep demo accounts in the demo event and everyone else out (`RD404`); no `xp_board` row; never in `promo_pool`; the demo event takes no invitation; the contact cannot change | `test/db/review-demo`, `test/security/cross-tenant` |
+| Nothing is sent for a reviewer challenge | the API reads the flag and skips the SMS; a resend sends nothing | `test/console/review-demo` (SMS spy) |
+| The code is never stored or logged in clear | only `keys.reviewerCodeHash` (purpose `reviewer-code`) is stored; Prepare is not idempotent (the store would keep the answer) and answers `no-store`; audits carry the version and window | `test/console/review-demo`, `src/auth/keys.test.ts` |
+| Closed to the public | both tables have no grant; the doors are granted to the API role alone and re-read the admin (QE403) | `test/security/outsider` |
+
+Limits: the sign-in windows apply unchanged (10 wrong a contact per 15 minutes, 30 a day, 3 a challenge), so a 14-day
+window allows at most 420 guesses of 1,000,000; `review_demo.code_guessing` logs past 10 wrong in a day (RUNBOOK).
+
 ### Platform pages (T-709, ADR-415 to ADR-418)
 
 - **Five definer doors, granted to the API role alone** (`console_health`, `console_numbers`, `console_admin_accounts`,

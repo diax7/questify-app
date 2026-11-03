@@ -975,6 +975,10 @@ const OWNED: Readonly<Record<string, Owned>> = {
 
 /** Tables that belong to nobody in particular, with the reason; their write rules are tested where they live. */
 const SHARED: Readonly<Record<string, string>> = {
+  review_demo:
+    "no right for the API role at all; Questify's one App Review demo row, written by the console's admin doors and read by the sign-in definers (test/db/review-demo)",
+  review_demo_player:
+    "no right for the API role at all; the marks of the accounts the demo made, read by the confinement triggers and the Questify-wide writers (test/db/review-demo)",
   support_grant:
     "no direct API rights; Questify's 15-minute grants on one event, opened and closed by admin definers only; the grant reaches only its event (support-grant, console/organizers)",
   quest_points_change:
@@ -1881,6 +1885,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         expect(await refusal(asA(seat, sql, [])), `${seat} ${sql}`).toBe("QE403");
       }
     }
+  });
+
+  it("keeps the App Review demo's doors from every tenant seat, and its accounts out of every tenant (T-710)", async () => {
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      for (const sql of [
+        "SELECT console_review_demo()",
+        "SELECT console_review_demo_close(gen_random_uuid())",
+        "SELECT console_review_demo_create('+966500000730', '\\x00', '\\x00', ARRAY['shop'], gen_random_uuid())",
+      ]) {
+        expect(await refusal(asA(seat, sql, [])), `${seat} ${sql}`).toBe("QE403");
+      }
+    }
+    const [demo] = (
+      await db.owner.query<{ player: string }>(
+        `WITH p AS (INSERT INTO player (username) VALUES ('rd_cross_reviewer') RETURNING id),
+              r AS (INSERT INTO review_demo_player (player_id, role) SELECT id, 'reviewer' FROM p RETURNING player_id)
+         SELECT (SELECT player_id FROM r) AS player`,
+      )
+    ).rows;
+    const assignA =
+      "INSERT INTO staff_assignment (organizer_id, event_id, player_id) VALUES ($1, $2, $3)";
+    expect(await refusal(db.owner.query(assignA, [f.orgA, f.eventA, demo?.player]))).toBe("RD404");
+    expect(
+      await refusal(
+        db.owner.query(
+          "INSERT INTO enrollment (organizer_id, event_id, player_id) VALUES ($1, $2, $3)",
+          [f.orgB, f.eventB, demo?.player],
+        ),
+      ),
+    ).toBe("RD404");
   });
 
   it("keeps the feature usage of every organizer from every tenant seat (T-714)", async () => {

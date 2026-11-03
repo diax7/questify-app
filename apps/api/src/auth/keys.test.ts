@@ -123,6 +123,22 @@ describe("createAuthKeys", () => {
     );
   });
 
+  it("hashes the App Review fixed code under a purpose of its own (T-710)", () => {
+    const all = createAuthKeys(SECRET);
+    expect(all.reviewerCodeHash("123456").equals(hmac(subkey("reviewer-code"), "123456"))).toBe(
+      true,
+    );
+    for (const other of [
+      all.playerCodeHash("123456", ""),
+      all.deletionCodeHash("123456", ""),
+      all.codeHash("123456", ""),
+      all.contactLookupKey("123456"),
+      all.pairingCodeHash("123456"),
+    ]) {
+      expect(all.reviewerCodeHash("123456").equals(other)).toBe(false);
+    }
+  });
+
   it("hashes pairing codes and keys devices and events under purposes of their own (T-309)", () => {
     const all = createAuthKeys(SECRET);
     expect(

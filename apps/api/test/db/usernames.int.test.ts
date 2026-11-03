@@ -302,14 +302,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("usernames (database)", () => {
         [randomUUID(), token, contact, randomBytes(32), code, randomBytes(32)],
       );
       const signup = randomBytes(32);
-      await db.app.query("SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6)", [
-        token,
-        code,
-        sha(randomBytes(32)),
-        sha(randomBytes(32)),
-        randomUUID(),
-        sha(signup),
-      ]);
+      await db.app.query(
+        "SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6, sha256('not the fixed code'::bytea))",
+        [token, code, sha(randomBytes(32)), sha(randomBytes(32)), randomUUID(), sha(signup)],
+      );
       const create = (name: string) =>
         db.app
           .query<{ outcome: string }>(

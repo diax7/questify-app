@@ -1243,8 +1243,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1403 | F-216 | Must | partly built (T-709b: templates, achievement names, level titles, gem shop; T-709c: achievement thresholds, XP table, items) |
 | FR-1404 | F-216 | Must | partly built (T-705b: the moderation queue and the platform flags list; `test/db/content-reports.int`, `test/console/moderation.int`; campaigns are T-706) |
 | FR-1405 | F-216, F-41 | Must | built (T-703: console Switches page, `test/console/switches`, `e2e/console-switches.spec`) |
-| FR-1406 | F-227 | Must | pending |
-| FR-1407 | F-227 | Must | pending |
+| FR-1406 | F-227 | Must | built (T-710) |
+| FR-1407 | F-227 | Must | built (T-710; the QR picker half T-710b) |
 | FR-1408 | F-218 | Must | built (T-701: 15-minute support grant, ADR-407) |
 | FR-1409 | F-218, F-198 | Must | built as amended by Q-373 (T-701: logged in Questify's audit log; the organizer sees "Questify support" where its history shows an actor, not the access itself, ADR-408, ADR-409) |
 | FR-1410 | F-219 | Must | pending |
@@ -1328,7 +1328,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1733 | F-261, F-137 | Should | built: server T-406 (`test/db/daily-content.int`: the warning at 6 vs 7 days, no challenge → `challenge: null`, the streak still kept by an event completion); the console banner and the menu badge built T-406c (`e2e/console-daily.spec.ts`, `console-daily.test`) |
 | FR-1734 | F-262 | Must | partly built (T-703: the username and daily-streak switches; XP by difficulty is T-709c; XP on repeats is Q-412) |
 | FR-1735 | F-263 | Must | pending |
-| FR-1736 | F-264 | Must | pending |
+| FR-1736 | F-264 | Must | built (T-710) |
 | FR-1737 | F-265 | Must | pending |
 | FR-1738 | F-204 | Must | built T-407 (`promoSendTime`: no SMS 22:00 to 09:00, 01:00 to 12:00 in Ramadan; an opt-out is effective at once); applied by the invitation sender T-409 (both bands in TypeScript, the fixed band again in SQL; 22:00 to 12:00 in Ramadan) and by T-706, code review pending |
 | FR-1739 | F-77, F-110 | Must | pending |

@@ -38,7 +38,8 @@ const counted =
     );
 
 /**
- * A run's steps, in order. The lifecycle moves events by time (FR-1608); the go-live wipe of rehearsal data follows the
+ * A run's steps, in order. The lifecycle moves events by time (FR-1608); the App Review demo event's end rolls ahead
+ * and a review window past its end closes (T-710, ADR-567); the go-live wipe of rehearsal data follows the
  * events that went live (ADR-160); reservations whose pickup time passed are returned (FR-508); quizzes left open past
  * their close pay what they earned (ADR-193); mini-game rounds past their window count as played (ADR-213); help-desk
  * tickets go 90 days after the later of their event's end and their sending (Q-210); handled content reports go 180
@@ -51,6 +52,11 @@ const STEPS: readonly Step[] = [
     failed: "event.lifecycle_failed",
     done: "event.lifecycle_moved",
     work: counted("SELECT advance_event_lifecycle() AS count"),
+  },
+  {
+    failed: "review_demo.tick_failed",
+    done: "review_demo.ticked",
+    work: counted("SELECT review_demo_tick() AS count"),
   },
   {
     failed: "event.rehearsal_wipe_failed",

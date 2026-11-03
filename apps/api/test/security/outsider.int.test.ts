@@ -133,6 +133,80 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
+  it("keeps the App Review demo closed: no table right, six doors for the API's role alone, nothing for PUBLIC (T-710)", async () => {
+    for (const sql of [
+      "SELECT * FROM public.review_demo",
+      "SELECT * FROM public.review_demo_player",
+      "INSERT INTO public.review_demo_player (player_id, role) VALUES (gen_random_uuid(), 'reviewer')",
+      "UPDATE public.review_demo SET window_until = now() + interval '1 day'",
+      "SELECT public.console_review_demo()",
+      "SELECT public.console_review_demo_prepare('+966500000740', '\\x00', '\\x00', '\\x00', 14, '1.0', gen_random_uuid())",
+      "SELECT public.review_demo_tick()",
+      "SELECT public.review_demo_provision()",
+      "SELECT public.review_demo_open('\\x00')",
+      "SELECT * FROM public.sign_in_player('\\x00', '\\x00', '\\x00', '\\x00', gen_random_uuid(), '\\x00', '\\x00')",
+      "SELECT * FROM public.verify_deletion_code('\\x00', '\\x00', '\\x00', '\\x00')",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+    const names = [
+      "console_review_demo",
+      "console_review_demo_close",
+      "console_review_demo_create",
+      "console_review_demo_prepare",
+      "console_review_demo_set_contact",
+      "event_review_demo_guard",
+      "is_review_demo_player",
+      "player_challenge_to_resend",
+      "review_demo_cancel_challenges",
+      "review_demo_check_contact",
+      "review_demo_member_guard",
+      "review_demo_open",
+      "review_demo_provision",
+      "review_demo_readiness",
+      "review_demo_revoke",
+      "review_demo_seed_players",
+      "review_demo_sign_in",
+      "review_demo_tick",
+      "review_demo_username",
+      "sign_in_player",
+      "start_deletion_challenge",
+      "start_player_challenge",
+      "verify_deletion_code",
+    ];
+    const held = await rows<{ proname: string; grantee: string }>(
+      `SELECT DISTINCT p.proname,
+              CASE WHEN a.grantee = 0 THEN 'public' ELSE a.grantee::regrole::text END AS grantee
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+       CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+       WHERE n.nspname = 'public' AND p.proname IN (${names.map((name) => `'${name}'`).join(", ")})
+         AND a.privilege_type = 'EXECUTE' AND a.grantee <> p.proowner
+       ORDER BY 1, 2`,
+    );
+    expect(held).toEqual(
+      [
+        "console_review_demo",
+        "console_review_demo_close",
+        "console_review_demo_create",
+        "console_review_demo_prepare",
+        "console_review_demo_set_contact",
+        "player_challenge_to_resend",
+        "review_demo_tick",
+        "sign_in_player",
+        "start_deletion_challenge",
+        "start_player_challenge",
+        "verify_deletion_code",
+      ].map((proname) => ({ proname, grantee: "questify_app" })),
+    );
+    const tableRights = await rows<{ priv: string }>(
+      `SELECT t.name || ' ' || p.priv AS priv
+       FROM (VALUES ('public.review_demo'), ('public.review_demo_player')) AS t(name)
+       CROSS JOIN (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE')) AS p(priv)
+       WHERE has_table_privilege('public', t.name, p.priv) OR has_table_privilege('questify_app', t.name, p.priv)`,
+    );
+    expect(tableRights).toEqual([]);
+  });
+
   it("keeps the feature usage page closed: one door for the API's role alone (T-714)", async () => {
     const functions = await rows<{
       app: boolean;

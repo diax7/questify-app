@@ -19,6 +19,7 @@ import {
   ConsoleQuestifyLink,
   ConsoleReadinessLink,
   ConsoleReportsLink,
+  ConsoleReviewDemoLink,
   ConsoleSeasonsLink,
   ConsoleSwitchesLink,
   ConsoleTicketsLink,
@@ -58,6 +59,7 @@ export function ConsoleNav({ language }: Readonly<{ language: Language }>) {
       <ConsoleReadinessLink language={language} current={on("/console/readiness")} />
       <ConsoleUsageLink language={language} current={on("/console/usage")} />
       <ConsoleFeatureUsageLink language={language} current={on("/console/feature-usage")} />
+      <ConsoleReviewDemoLink language={language} current={on("/console/review-demo")} />
       <ConsoleHealthLink language={language} current={on("/console/health")} />
       <ConsoleNumbersLink language={language} current={on("/console/numbers")} />
       <ConsoleAdminsLink language={language} current={on("/console/admins")} />
