@@ -6,6 +6,20 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## Mutation chase: games.ts and layers.ts — 2026-11-04
+
+- **Survivors of GitHub run 41703314042 chased (one round, tests only, no source change, no bug found).**
+  `apps/api/src/plays/games.ts` (89.01%, 20 survived): 19 killed in `src/plays/meet-games.test.ts` (a sheet with half an
+  open round shows none; an engine read's refusal answers before the limit counts or a round is issued; a refused
+  replay is sent to `finish_game_round` as never unlikely; a paying round answers all six rewards and an unpaid one
+  none; the sweep counts closed rounds and stops at a refusal); 1 equivalent (line 406 `rows[0]?.outcome`: the
+  `SELECT close_one_due_round() AS outcome` always answers one row; FOLLOWUPS). `apps/api/src/settings/layers.ts`
+  (73.53%, 7 survived, 2 no coverage): all 9 killed in the new `src/settings/layers.test.ts` (an unseen event, a
+  switch-off that reads nothing, the platform default for an unset, an off-by-default and an unknown feature, the
+  platform's switch over the default both ways). Each kill was checked by applying the mutant by hand (all 28 failed
+  the suite; the equivalent one passed). Lint, types, `lint:limits`, `format:check` clean; touched suites 25 passed.
+  Re-run of the two files owed on GitHub. CI minutes: 0; agent tokens roughly 0.2M (estimate).
+
 ## T-710b App Review QR picker — 2026-11-03
 
 - **T-710b built (tier A; migration 0147, new and undeployed; ADR-640 and Q-600 Proposed).** Three doors, granted to the
