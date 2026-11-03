@@ -804,8 +804,9 @@ admin password: change `GF_SECURITY_ADMIN_PASSWORD` and redeploy.
 
 ### Auditing the stored labels
 
-Prometheus cannot filter the attributes it is sent (ADR-626): the API's closed list (`ATTRIBUTE_RULES`, ADR-603) is the only wall, tested
-end to end in `apps/api/src/telemetry/pii.test.ts`. So the stored labels are checked by hand after any API release that touches
+Prometheus cannot filter the attributes it is sent (ADR-626): the API's closed list (`ATTRIBUTE_RULES`, ADR-603) is the wall: `safeAttributes` at each call, and a metric view in the SDK
+(`installTelemetry`, Q-585) that applies it again to every recording before export. Both are tested end to end in
+`apps/api/src/telemetry/pii.test.ts` and `sdk.test.ts`. So the stored labels are checked by hand after any API release that touches
 `apps/api/src/telemetry/` and once a month:
 
 `curl -s -u questify-metrics:<password> -G 'https://<app address>/api/v1/labels' --data-urlencode 'match[]={job="questify-api"}'`

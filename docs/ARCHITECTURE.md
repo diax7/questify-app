@@ -175,7 +175,7 @@ API records metrics and traces through OpenTelemetry (off until `TELEMETRY_EXPOR
 the trace id, and counts every named log event, so the existing log events are the alert signals. No attribute can hold personal data
 (a closed list, tested). Telemetry goes to one monitoring app on CranL in `riyadh-1` built from `ops/monitoring/stack/` (prepared in T-018b, ADR-620 to ADR-626): Prometheus
 receives the API's OTLP directly and evaluates the rules, with the Alertmanager and Grafana in the same container behind Caddy; Prometheus cannot
-filter attributes, so the API's closed list is the only wall; alerts are mailed to the owner (Q-561, none for now). The rest of T-018b (the outside probe, database gauges, expiry probes) is open. The list below is the full target; `SLO.md`
+filter attributes, so the API's closed list is the wall, applied twice inside the API (`safeAttributes` at each call and a metric view in the SDK, Q-585); alerts are mailed to the owner (Q-561, none for now). The rest of T-018b (the outside probe, database gauges, expiry probes) is open. The list below is the full target; `SLO.md`
 says which items T-018 covers and which wait.
 
 - Health endpoints for the API, workers and each dependency.

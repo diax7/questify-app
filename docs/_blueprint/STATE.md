@@ -8,7 +8,7 @@
 
 ## T-018b monitoring stack, prepared — 2026-11-03
 
-- **T-018b prepared (tier B; files and checks only, no CranL call, no migration, no device work; ADR-620 to ADR-626 and Q-580 to Q-585 Proposed; T-018b stays open).**
+- **T-018b prepared (tier B; files and checks only, no CranL call, no migration, no device work; ADR-620 to ADR-626 and Q-580 to Q-584 Proposed, Q-585 decided and built; T-018b stays open).**
   Dhia's answers (Q-560, Q-561): telemetry to CranL `riyadh-1`, alerts by email (none for now, Q-581). **Merged into one app the same day (ADR-626; Dhia: Questify on CranL is
   at most three apps, the API, the web app and one monitoring app, plus the two databases).** `ops/monitoring/stack/` is one Dockerfile: Grafana 13.2.5 as the base with
   Prometheus v3.15.1, Alertmanager v0.34.2 and Caddy 2.11.7 copied in (all pinned by version and digest); one public port (8080, Caddy: `/grafana` to Grafana, everything
@@ -16,8 +16,8 @@
   straight to Prometheus's own OTLP receiver (`OTEL_EXPORTER_OTLP_ENDPOINT=https://<app>/api/v1/otlp`, `authorization=Basic%20<base64>`, `TELEMETRY_TRACE_RATIO=0`: traces are
   dropped); the API's configuration needed no change (a test pins the settings). `entrypoint.sh` starts the four programs and stops the container when any dies (tested for
   each, and for a stop signal). **Prometheus cannot filter the attributes it is sent** (verified: sentinel attributes are stored as labels), so the collector's closed-list wall is
-  gone and the API's list is the wall (ADR-626 item 7): backed by `pii.test.ts`, the validation's label checks, the RUNBOOK's label audit, and Q-585 (recommended: an SDK allowlist
-  view in the API, not made here because it is code that sends data outside). **Found while building:** Grafana 13 downloads its preinstalled plugins at every start (an outside
+  gone and the API's list is the wall (ADR-626 item 7): backed by `pii.test.ts`, the validation's label checks, the RUNBOOK's label audit, and a second wall inside the API's SDK (Q-585, decided by the developer 2026-11-03 and built: a metric view
+  that passes every recording's attributes through `safeAttributes`, tested in `sdk.test.ts`). **Found while building:** Grafana 13 downloads its preinstalled plugins at every start (an outside
   call that also stalled its shutdown); now off (`GF_PLUGINS_PREINSTALL_DISABLED`), checked in the validation (the earlier Grafana app downloaded them too). RUNBOOK "Monitoring stack
   on CranL": the app's settings, pointing the API at it, rotating the password, the label audit, retention (no backups, on purpose), operating notes, the footprint.
   **Checks:** `pnpm monitoring:validate` (about 5 minutes; builds the image, runs `promtool`, `amtool`, `caddy validate`, `shellcheck`, `shfmt`, then proves the password refusals,

@@ -17,6 +17,7 @@ import {
   MeterProvider,
   PeriodicExportingMetricReader,
   type MetricReader,
+  type ViewOptions,
 } from "@opentelemetry/sdk-metrics";
 import {
   BatchSpanProcessor,
@@ -26,6 +27,7 @@ import {
   TracerProvider,
   type SpanProcessor,
 } from "@opentelemetry/sdk-trace";
+import { safeAttributes } from "#src/telemetry/attributes";
 import type { TelemetryConfig } from "#src/telemetry/config";
 import { SCOPE, useMeter } from "#src/telemetry/instruments";
 
@@ -58,6 +60,17 @@ export type InstallOptions = Readonly<{
 const NOTHING: Telemetry = { flush: async () => {}, shutdown: async () => {} };
 
 const nothing = (): void => {};
+
+/**
+ * The second wall of the closed list (ADR-603, ADR-626 item 7, Q-585). Prometheus' OTLP receiver cannot drop what it is
+ * sent, so the SDK does it: this view selects every instrument of every meter and cuts each recording's attributes down
+ * to the keys on the list whose values have the right shape (`safeAttributes`), before the value is stored. A call that
+ * skips `safeAttributes` (`counter.add(1, { phone })`) still leaves nothing off the list.
+ */
+const CLOSED_LIST_VIEW: ViewOptions = {
+  instrumentName: "*",
+  attributesProcessors: [{ process: (incoming) => safeAttributes(incoming) }],
+};
 
 /**
  * The OpenTelemetry SDK reports a failed export to a diagnostic logger, which is silent by default: a wrong receiver
@@ -98,7 +111,11 @@ export function installTelemetry(pipelines: Pipelines, options: InstallOptions):
     sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(options.traceRatio) }),
     spanProcessors: [...pipelines.spanProcessors],
   });
-  const meterProvider = new MeterProvider({ resource, readers: [...pipelines.metricReaders] });
+  const meterProvider = new MeterProvider({
+    resource,
+    readers: [...pipelines.metricReaders],
+    views: [CLOSED_LIST_VIEW],
+  });
   diag.setLogger(exportFailureLogger(), DiagLogLevel.ERROR);
   context.setGlobalContextManager(new AsyncLocalStorageContextManager().enable());
   trace.setGlobalTracerProvider(tracerProvider);
