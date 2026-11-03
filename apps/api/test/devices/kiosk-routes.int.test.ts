@@ -202,6 +202,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("kiosks over HTTP", () => {
     }
   };
 
+  const PAUSE = { ar: "الصيانة جارية.", en: "Under maintenance." };
+  const savePause = async (value: object) => {
+    await owner("UPDATE platform_setting SET value = $1::jsonb WHERE key = 'maintenance'", [
+      JSON.stringify(value),
+    ]);
+    settings.forget();
+  };
+  const withPause = async (block: object, work: () => Promise<void>) => {
+    await savePause(block);
+    try {
+      await work();
+    } finally {
+      await savePause({ events: {} });
+    }
+  };
+
   // ============================================================ the live code
   it("serves the player's live code, no-store, changing within 30 s; 6 a minute", async () => {
     const who = await newPlayer(null);
@@ -234,6 +250,37 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("kiosks over HTTP", () => {
         headers: { cookie, origin: DASHBOARD_ORIGIN },
       });
       expect(state.json()).toMatchObject({ kind: "kiosk", shut: "feature_off" });
+    });
+  });
+
+  it("holds a scan with 503 maintenance while the platform or the kiosk's own event is paused (ADR-471)", async () => {
+    const event = await newEvent();
+    const elsewhere = await newEvent();
+    const cookie = await paired(event, await newQuest(event));
+    const who = await newPlayer(event);
+    await withPause({ events: { [event]: PAUSE } }, async () => {
+      const held = await send(cookie, await freshCode(who));
+      expect(held.statusCode).toBe(503);
+      expect(held.headers["retry-after"]).toBe("60");
+      expect(held.json()).toMatchObject({
+        code: "maintenance",
+        message: PAUSE,
+        details: { scope: "event" },
+      });
+      const state = await test.app.inject({
+        method: "GET",
+        url: "/v1/device",
+        headers: { cookie, origin: DASHBOARD_ORIGIN },
+      });
+      expect(state.statusCode).toBe(200);
+    });
+    await withPause({ global: PAUSE, events: {} }, async () => {
+      const held = await send(cookie, await freshCode(who));
+      expect(held.statusCode).toBe(503);
+      expect(held.json()).toMatchObject({ code: "maintenance", details: { scope: "platform" } });
+    });
+    await withPause({ events: { [elsewhere]: PAUSE } }, async () => {
+      expect((await send(cookie, await freshCode(who))).statusCode).toBe(200);
     });
   });
 

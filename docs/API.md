@@ -31,9 +31,10 @@
   "details": {} }`. Status codes: 400 bad input, 401 not signed in, 403 not allowed or paused, 404,
   409 conflict (e.g. already completed), 422 rule failure, 426 update the app, 429 too many
   requests / busy, 503 `maintenance` (T-703b, ADR-471: `message` is the admin's own text in both languages and
-  `details.scope` is `platform` or `event`). It is answered by the play doors only while Questify paused play (a scan,
-  a stamp, a reveal, a reservation, the goal, joining, Questify's sync); reads, leaving, the dashboard and the console
-  are never held. `GET /v1/config` and `GET /v1/events/{id}/config` carry `maintenance` (`{ar, en}` or null) and
+  `details.scope` is `platform` or `event`). It carries `Retry-After: 60` and is answered by the doors that earn or spend
+  only while Questify paused play (a scan, a vote, a quiz, a submission, a game, a tap, a meeting, a stamp, a reveal, a
+  reservation, the goal, joining, the kiosk, the station's scan, award and check-in, Questify's sync, the daily
+  challenge and the gem shop); reads, leaving, ratings, prize handover, the dashboard and the console are never held. `GET /v1/config` and `GET /v1/events/{id}/config` carry `maintenance` (`{ar, en}` or null) and
   `banner` (`{message, startsAt, endsAt}` or null).
 - **Pagination:** cursor-based (`?cursor=&limit=`); lists return `nextCursor`.
 - **Idempotency:** every unsafe action (complete a quest, award points, reserve a prize, send a

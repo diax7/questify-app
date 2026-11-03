@@ -4,6 +4,7 @@ import type { Language, NoticesView } from "@questify/shared";
 import { useState } from "react";
 import { CatalogState, PairInputs } from "#src/components/CatalogParts.tsx";
 import styles from "#src/components/catalog.module.css";
+import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { useSwitchWriter, type Writer } from "#src/components/useSwitchWriter.ts";
 import {
   BANNER_PATH,
@@ -34,19 +35,26 @@ type PausedEvent = NoticesView["maintenance"]["events"][number];
 
 const isBlank = (draft: MessageDraft): boolean => draft.ar === "" && draft.en === "";
 
-/** Pause play in every event with a message, or let it run again. */
+/** Pause play in every event with a message (asked first: it holds every player), or let it run again. */
 function GlobalPause({ language, notices, writer }: PartProps) {
   const t = translatorFor(language);
   const paused = notices.maintenance.global;
   const [draft, setDraft] = useState<MessageDraft>(paused ?? NO_MESSAGE);
   const checked = checkGlobalPause(draft);
+  const { ask, dialog } = useConfirmation(language);
   return (
     <li className={styles.card} data-testid="maintenance-global">
       <form
         onSubmit={(event) => {
           event.preventDefault();
           if (checked.ok) {
-            void writer.put(GLOBAL_MAINTENANCE_PATH, checked.body);
+            const { body } = checked;
+            ask({
+              title: t("console.notices.pauseTitle"),
+              body: t("console.notices.pauseBody"),
+              confirmLabel: t("console.notices.pause"),
+              run: () => writer.put(GLOBAL_MAINTENANCE_PATH, body),
+            });
           }
         }}
       >
@@ -82,6 +90,7 @@ function GlobalPause({ language, notices, writer }: PartProps) {
           </Toolbar>
         </Stack>
       </form>
+      {dialog}
     </li>
   );
 }

@@ -10,6 +10,7 @@ import {
 } from "#test/support/auth-app";
 import {
   TEST_DATABASE_URL,
+  connectAsOwner,
   createTestDatabase,
   seedTwoTenants,
   type TestDatabase,
@@ -23,6 +24,16 @@ const OWN = { ar: "هذه الفعالية متوقفة.", en: "This event is pa
 const SWITCHES = "/v1/admin/switches";
 const code = (answer: { json: () => unknown }) => (answer.json() as { code?: string }).code;
 const WINDOW = { startsAt: "2026-11-05T15:00:00.000Z", endsAt: "2026-11-05T18:00:00.000Z" };
+
+/** The doors a signed code, a pass or the player's own record names: only a platform-wide pause holds them. */
+const PLATFORM_DOORS = [
+  ["POST", "/v1/taps", {}],
+  ["POST", "/v1/meet", {}],
+  ["POST", "/v1/me/questify/sync", {}],
+  ["POST", "/v1/me/daily/challenge/answers", {}],
+  ["POST", "/v1/me/daily/word/guesses", {}],
+  ["POST", "/v1/me/gem-shop/purchases", {}],
+] as const;
 
 /**
  * Maintenance mode and the scheduled banner (T-703b, FR-1771, FR-1772) over HTTP: the console doors are for an active
@@ -43,6 +54,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance mode and the banne
   let categoryA = "";
   let rewardA = "";
   let stepA = "";
+  let sessionA = "";
+  let roundA = "";
+  let saleA = "";
 
   const owner = async <T extends Record<string, unknown>>(sql: string, values: unknown[] = []) =>
     (await db.owner.query<T>(sql, values)).rows;
@@ -101,6 +115,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance mode and the banne
         questB = quest;
       }
     }
+    sessionA = await one(
+      `INSERT INTO event_session (organizer_id, event_id, kind, title_en, starts_at, ends_at, access, created_by)
+       SELECT organizer_id, id, 'talk', 'Keynote', now(), now() + interval '1 hour', 'open', $2
+       FROM event WHERE id = $1 RETURNING id`,
+      [eventA, randomUUID()],
+    );
+    const enrollment = await one(
+      "SELECT id FROM enrollment WHERE event_id = $1 AND player_id = $2",
+      [eventA, seed.playerA],
+    );
+    roundA = await one(
+      `INSERT INTO game_round (organizer_id, event_id, enrollment_id, quest_id, game, level, seed, params, points,
+                               issue_key, engine_version, deadline_at)
+       SELECT organizer_id, id, $2, $3, 'memory_match', 'easy', 1, '{}', 0, 'round-1', 1, now() + interval '1 minute'
+       FROM event WHERE id = $1 RETURNING id::text AS id`,
+      [eventA, enrollment, questA],
+    );
+    saleA = await one(
+      `INSERT INTO desk_sale (organizer_id, event_id, enrollment_id, reward_id, operator_id, price, idempotency_key,
+                              offer_until)
+       SELECT organizer_id, id, $2, $3, $4, 40, 'sale-1', now() + interval '1 hour'
+       FROM event WHERE id = $1 RETURNING id`,
+      [eventA, enrollment, rewardA, seed.playerB],
+    );
   });
   afterAll(async () => {
     await test.close();
@@ -125,21 +163,51 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance mode and the banne
     });
   const notices = async (): Promise<NoticesView> =>
     noticesViewSchema.parse((await admin("GET", `${SWITCHES}/notices`)).json());
+  /** Waits until `count` backends wait on a lock for a platform setting write. */
+  const waitsOnLock = async (count: number): Promise<void> => {
+    for (let tries = 0; tries < 250; tries += 1) {
+      const { rows } = await db.owner.query(
+        `SELECT 1 FROM pg_stat_activity
+         WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE '%FROM platform_setting%FOR UPDATE%'`,
+      );
+      if (rows.length >= count) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error(`fewer than ${count} writes waited on the platform setting row`);
+  };
   const audits = async (block: string) =>
     owner<{ before: Json | null; after: Json }>(
       `SELECT before, after FROM audit_log WHERE action = 'platform_settings.update' AND (after ? $1 OR before ? $1) ORDER BY id`,
       [block],
     );
 
+  /** The play doors that find their event, each with something from event A (a pause of event A holds them). */
   const DOORS = () =>
     [
       ["POST", `/v1/quests/${questA}/complete`, { proof: { type: "code", code: "ABC123" } }],
+      ["POST", `/v1/quests/${questA}/vote`, {}],
+      ["POST", `/v1/quests/${questA}/survey`, {}],
+      ["POST", `/v1/quests/${questA}/share`, {}],
+      ["POST", `/v1/quests/${questA}/quiz/start`, {}],
+      ["POST", `/v1/quests/${questA}/quiz/next`, {}],
+      ["POST", `/v1/quests/${questA}/quiz/answer`, {}],
+      ["POST", `/v1/quests/${questA}/submit`, {}],
+      ["POST", `/v1/quests/${questA}/game-rounds`, {}],
+      ["POST", `/v1/game-rounds/${roundA}/result`, {}],
       ["POST", `/v1/steps/${stepA}/stamp`, {}],
       ["POST", `/v1/categories/${categoryA}/reveal`, {}],
       ["POST", `/v1/rewards/${rewardA}/reserve`, {}],
+      ["POST", `/v1/desk-sales/${saleA}/accept`, {}],
       ["PUT", `/v1/events/${eventA}/goal`, {}],
+      ["POST", `/v1/events/${eventA}/operator/play`, {}],
       ["POST", "/v1/join", { joinCode: "NAJD1", via: "code" }],
       ["POST", "/v1/join", { eventId: eventA, via: "invite" }],
+      ["POST", "/v1/operator/scan", { questId: questA, code: "x" }],
+      ["POST", "/v1/operator/award", { eventId: eventA }],
+      ["POST", `/v1/operator/sessions/${sessionA}/check-in`, {}],
+      ["POST", `/v1/operator/events/${eventA}/submissions/${randomUUID()}/review`, {}],
     ] as const;
 
   it("answers 404 to a team member and 401 to nobody signed in, on every notices door", async () => {
@@ -171,8 +239,34 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance mode and the banne
     });
   });
 
+  it("serializes two first pauses on the seeded row, so both messages land", async () => {
+    const holder = await connectAsOwner(db);
+    try {
+      await holder.query("BEGIN");
+      await holder.query("SELECT 1 FROM platform_setting WHERE key = 'maintenance' FOR UPDATE");
+      const pauses = [
+        admin("PUT", `${SWITCHES}/maintenance/events`, { joinCode: "NAJD1", message: OWN }),
+        admin("PUT", `${SWITCHES}/maintenance/events`, { joinCode: "TABUK1", message: PAUSE }),
+      ];
+      await waitsOnLock(2);
+      await holder.query("COMMIT");
+      expect((await Promise.all(pauses)).map((answer) => answer.statusCode)).toEqual([204, 204]);
+    } finally {
+      await holder.end();
+    }
+    expect((await notices()).maintenance.events.map((row) => row.eventId).toSorted()).toEqual(
+      [eventA, eventB].toSorted(),
+    );
+    for (const event of [eventA, eventB]) {
+      expect((await admin("DELETE", `${SWITCHES}/maintenance/events/${event}`)).statusCode).toBe(
+        204,
+      );
+    }
+    expect((await notices()).maintenance.events).toEqual([]);
+  });
+
   it("lets every play door through while nothing is paused", async () => {
-    for (const [method, url, body] of DOORS()) {
+    for (const [method, url, body] of [...DOORS(), ...PLATFORM_DOORS]) {
       expect(code(await player(method, url, body)), url).not.toBe("maintenance");
     }
     const config = (await test.app.inject({ method: "GET", url: "/v1/config" })).json<Json>();
@@ -204,6 +298,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance mode and the banne
     for (const [method, url, body] of DOORS()) {
       const answer = await player(method, url, body);
       expect(answer.statusCode, url).toBe(503);
+      expect(answer.headers["retry-after"], url).toBe("60");
       expect(answer.json()).toMatchObject({
         code: "maintenance",
         message: OWN,
@@ -217,7 +312,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance mode and the banne
     expect(code(await player("POST", "/v1/join", { joinCode: "TABUK1", via: "code" }))).not.toBe(
       "maintenance",
     );
-    expect(code(await player("POST", "/v1/me/questify/sync"))).not.toBe("maintenance");
+    // A door whose event only a signed code or the player's own record names is held by a platform-wide pause alone
+    // (ADR-471): an event's pause does not reach it.
+    for (const [method, url, body] of PLATFORM_DOORS) {
+      expect(code(await player(method, url, body)), url).not.toBe("maintenance");
+    }
 
     const own = await player("GET", `/v1/events/${eventA}/config`);
     expect(own.json()).toMatchObject({ maintenance: OWN });
@@ -225,7 +324,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance mode and the banne
     expect(platform["maintenance"]).toBeNull();
 
     expect((await audits("maintenance")).at(-1)).toMatchObject({
-      before: { maintenance: null },
+      before: { maintenance: { events: {} } },
       after: { maintenance: { events: { [eventA]: OWN } } },
     });
   });
@@ -264,11 +363,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance mode and the banne
     const key = randomUUID();
     for (const [method, url, body] of [
       ...DOORS(),
+      ...PLATFORM_DOORS,
       ["POST", `/v1/quests/${questB}/complete`, {}],
-      ["POST", "/v1/me/questify/sync", {}],
     ] as const) {
       const answer = await player(method, url, body, key + url.length);
       expect(answer.statusCode, url).toBe(503);
+      expect(answer.headers["retry-after"], url).toBe("60");
       expect(answer.json()).toMatchObject({
         code: "maintenance",
         message: PAUSE,
@@ -285,16 +385,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance mode and the banne
     );
   });
 
-  it("frees the idempotency key of a held call, so the retry after maintenance runs", async () => {
+  it("frees the idempotency key of a held call, so the retry after maintenance pays once", async () => {
+    // The player left event A in the test above; the retry is of a player who plays.
+    await owner("UPDATE enrollment SET status = 'active' WHERE event_id = $1", [eventA]);
+    const retryQuest = await one(
+      `INSERT INTO quest (event_id, category_id, type, title_en, points, type_config)
+       VALUES ($1, $2, 'enter_code', 'Retry booth', 10, '{"code": "RETRY1"}') RETURNING id`,
+      [eventA, categoryA],
+    );
+    const ledgerRows = async (): Promise<number> =>
+      (
+        await owner<{ n: number }>(
+          "SELECT count(*)::int AS n FROM ledger_entry WHERE quest_id = $1",
+          [retryQuest],
+        )
+      )[0]?.n ?? -1;
     const key = randomUUID();
-    const url = `/v1/quests/${questA}/complete`;
-    const body = { proof: { type: "code", code: "ABC123" } };
+    const url = `/v1/quests/${retryQuest}/complete`;
+    const body = { proof: { type: "code", code: "RETRY1" } };
     expect((await player("POST", url, body, key)).statusCode).toBe(503);
+    expect(await ledgerRows()).toBe(0);
     expect((await admin("DELETE", `${SWITCHES}/maintenance/global`)).statusCode).toBe(204);
     const retried = await player("POST", url, body, key);
-    expect(retried.statusCode).not.toBe(503);
-    expect(retried.statusCode).not.toBe(409);
+    expect(retried.statusCode, retried.body).toBe(200);
+    expect(retried.json()).toMatchObject({ points: 10, replayed: false });
     expect(retried.headers["idempotent-replayed"]).toBeUndefined();
+    expect(await ledgerRows()).toBe(1);
+    const again = await player("POST", url, body, key);
+    expect(again.statusCode).toBe(200);
+    expect(again.headers["idempotent-replayed"]).toBe("true");
+    expect(await ledgerRows()).toBe(1);
     expect((await audits("maintenance")).at(-1)).toMatchObject({
       before: { maintenance: { global: PAUSE, events: {} } },
       after: { maintenance: { events: {} } },

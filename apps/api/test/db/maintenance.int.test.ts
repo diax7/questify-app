@@ -23,6 +23,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance and banner (databa
   let event = "";
   let quest = "";
   let reward = "";
+  let session = "";
+  let round = "";
+  let sale = "";
 
   beforeAll(async () => {
     f = await questifyFixture();
@@ -43,6 +46,31 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance and banner (databa
       [event],
     );
     reward = prize?.id ?? "";
+    const player = await f.newPlayer();
+    const enrollment = await f.join(event, player);
+    const [talk] = await f.owner<{ id: string }>(
+      `INSERT INTO event_session (organizer_id, event_id, kind, title_en, starts_at, ends_at, access, created_by)
+       SELECT organizer_id, id, 'talk', 'Keynote', now(), now() + interval '1 hour', 'open', $2
+       FROM event WHERE id = $1 RETURNING id`,
+      [event, randomUUID()],
+    );
+    session = talk?.id ?? "";
+    const [played] = await f.owner<{ id: string }>(
+      `INSERT INTO game_round (organizer_id, event_id, enrollment_id, quest_id, game, level, seed, params, points,
+                               issue_key, engine_version, deadline_at)
+       SELECT organizer_id, id, $2, $3, 'memory_match', 'easy', 1, '{}', 0, 'round-1', 1, now() + interval '1 minute'
+       FROM event WHERE id = $1 RETURNING id::text AS id`,
+      [event, enrollment, quest],
+    );
+    round = played?.id ?? "";
+    const [offered] = await f.owner<{ id: string }>(
+      `INSERT INTO desk_sale (organizer_id, event_id, enrollment_id, reward_id, operator_id, price, idempotency_key,
+                              offer_until)
+       SELECT organizer_id, id, $2, $3, $4, 40, 'sale-1', now() + interval '1 hour'
+       FROM event WHERE id = $1 RETURNING id`,
+      [event, enrollment, reward, player],
+    );
+    sale = offered?.id ?? "";
   });
   afterAll(async () => {
     await f.close();
@@ -55,6 +83,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance and banner (databa
        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
       [key, JSON.stringify(value)],
     );
+
+  it("starts with both blocks present and empty, so a first save has a row to lock", async () => {
+    expect(
+      await f.owner(
+        "SELECT key, value FROM platform_setting WHERE key IN ('maintenance', 'banner') ORDER BY key",
+      ),
+    ).toEqual([
+      { key: "banner", value: {} },
+      { key: "maintenance", value: { events: {} } },
+    ]);
+  });
 
   it("lets only a platform admin write the maintenance and banner blocks", async () => {
     await f.owner("DELETE FROM platform_setting WHERE key IN ('maintenance', 'banner')");
@@ -82,12 +121,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance and banner (databa
     expect(await refusal(write(admin, "banner", { message: MESSAGE, link: "x" }))).toBe("23514");
   });
 
-  it("finds the event of a quest, a reward and a join code, and nothing for anything else", async () => {
+  it("finds the event of a quest, a reward, a session, a desk sale, a game round and a join code, and nothing for anything else", async () => {
     const find = async (kind: string, ref: string) =>
       (await f.owner<{ id: string | null }>("SELECT play_event_id($1, $2) AS id", [kind, ref]))[0]
         ?.id;
     expect(await find("quest", quest)).toBe(event);
     expect(await find("reward", reward)).toBe(event);
+    expect(await find("session", session)).toBe(event);
+    expect(await find("desk_sale", sale)).toBe(event);
+    expect(await find("game_round", round)).toBe(event);
+    expect(await find("game_round", "999999999")).toBeNull();
+    expect(await find("game_round", "0")).toBeNull();
+    expect(await find("game_round", `${round}; DROP TABLE game_round`)).toBeNull();
+    expect(await find("game_round", quest)).toBeNull();
+    expect(await find("session", round)).toBeNull();
+    expect(await find("session", randomUUID())).toBeNull();
+    expect(await find("desk_sale", "not-a-uuid")).toBeNull();
     const [code] = await f.owner<{ join_code: string }>(
       "SELECT join_code FROM event WHERE id = $1",
       [event],

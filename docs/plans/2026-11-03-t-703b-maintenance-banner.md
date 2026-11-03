@@ -23,9 +23,11 @@ showing a banner once it has ended. An older app drops the blocks it does not kn
 ## Enforcement (server)
 
 `preHandler` hook after the player guard (`src/maintenance/gate.ts`): while a message applies, the play doors answer
-`503 maintenance` with the message (and `details.scope`): quest complete, passport stamp, category reveal, reward reserve,
-event goal, join, Questify sync. Reads, the leave door, redemption cancel, deletion, acceptances, the team dashboard, the
-operator doors and the whole console stay open, so staff and platform admins are never locked out and the config door still
+`503 maintenance` with the message (and `details.scope`, and `Retry-After`): every door that earns or spends (ADR-471:
+quest complete, vote, survey, share, quiz, submit, game rounds, taps, meet, kiosk scan, stamp, reveal, reserve, desk-sale
+accept, goal, join, the station's scan, award, check-in and review, Questify sync, daily, gems). Reads, the leave door,
+redemption cancel, prize handover, ratings, deletion, acceptances, the team dashboard, the rest of operator mode and the
+whole console stay open, so staff and platform admins are never locked out and the config door still
 answers (the last-working copy). A 5xx releases the idempotency key, so the offline queue retries after maintenance ends.
 An event's own maintenance needs the event of the door's id: `play_event_id(kind, ref)` (definer, API role only) resolves it,
 and is called only when some event has a message and no global one applies. The settings service's cache (15 s, cleared on

@@ -2077,8 +2077,8 @@ The wall holds every player session, including the account of a Questify admin o
 ## Q-431 - Show the maintenance message where a refused door answers? (T-703b, ADR-471, ADR-473)
 
 **Status:** Proposed (developer, 2026-11-03).
-The server answers 503 `maintenance` with the message, and the app shows the message on Home and under the event pill; a refused scan, join or reservation still shows the generic "try again" text because the screens do not read the code. Other player writes (votes, ratings, submissions, meet, share) are not held by the wall.
-**Recommended (developer):** after the first real pause, read `maintenance` in the refusal mapping of the scan and join screens and show its message; add further doors to `PLAY_DOORS` only if a pause shows a leak.
+The server answers 503 `maintenance` with the message, and the app shows the message on Home and under the event pill; a refused scan, join or reservation still shows the generic "try again" text because the screens do not read the code. Every door that earns or spends is held, votes included (surveys, shares, quizzes, submissions, game rounds, taps, meets, the kiosk, and the station's scan, award and check-in, ADR-471); only quest ratings stay open, since they earn nothing.
+**Recommended (developer):** after the first real pause, read `maintenance` in the refusal mapping of the scan and join screens and show its message; a new door that earns or spends goes into `PLAY_DOORS`, which `test/security/maintenance-doors.int.test.ts` enforces.
 
 ## Q-432 - More than one banner, or a banner for one event? (T-703b, ADR-470)
 

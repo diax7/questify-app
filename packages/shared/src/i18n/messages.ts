@@ -8429,9 +8429,16 @@ export const MESSAGES = {
   "console.switches.tab.features": { ar: "الميزات", en: "Features" },
   "console.switches.tab.numbers": { ar: "الأرقام", en: "Numbers" },
   "console.switches.tab.notices": { ar: "الصيانة واللافتة", en: "Maintenance and banner" },
-  "console.notices.maintenance": { ar: "إيقاف اللعب", en: "Pause play" },
   "console.notices.global": { ar: "إيقاف اللعب في كل الفعاليات", en: "Pause play in every event" },
   "console.notices.pause": { ar: "إيقاف اللعب", en: "Pause play" },
+  "console.notices.pauseTitle": {
+    ar: "إيقاف اللعب في كل الفعاليات؟",
+    en: "Pause play in every event?",
+  },
+  "console.notices.pauseBody": {
+    ar: "لن يستطيع أي لاعب في أي فعالية أن يمسح رمزًا أو يصوّت أو يحجز جائزة أو ينضم حتى تستأنف اللعب. سيرى اللاعبون رسالتك، وتبقى لوحة التحكم مفتوحة لك.",
+    en: "In every event, no player can scan, vote, reserve a prize or join until you resume play. Players see your message, and the console stays open for you.",
+  },
   "console.notices.resume": { ar: "استئناف اللعب", en: "Resume play" },
   "console.notices.events": { ar: "فعاليات موقوفة", en: "Paused events" },
   "console.notices.events.none": { ar: "لا توجد فعالية موقوفة.", en: "No event is paused." },

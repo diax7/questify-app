@@ -37,7 +37,10 @@ async function expectNoSidewaysScroll(page: Page): Promise<void> {
 }
 
 type Notices = {
-  maintenance: { events: { eventId: string; message: { en: string } }[] };
+  maintenance: {
+    global: { en: string } | null;
+    events: { eventId: string; message: { en: string } }[];
+  };
   banner: { message: { en: string }; startsAt: string; endsAt: string } | null;
 };
 
@@ -70,6 +73,25 @@ test("in English an event is paused with a message, then resumed", async ({ page
     .click();
   await expect(page.getByTestId("paused-event")).toHaveCount(0);
   expect((await noticesOf(page)).maintenance.events).toEqual([]);
+});
+
+test("in English pausing the whole platform asks first, and Cancel leaves play running", async ({
+  page,
+}, info) => {
+  test.setTimeout(120_000);
+  await asAdmin(page, info.project.name);
+  await page.goto("/en/console/switches");
+  await page.getByRole("button", { name: "Maintenance and banner", exact: true }).click();
+  const card = page.getByTestId("maintenance-global");
+  await card.getByLabel("Message for players · English").fill("Back at noon.");
+  await card.getByLabel("Message for players · Arabic").fill("نعود عند الظهر.");
+  await card.getByRole("button", { name: "Pause play", exact: true }).click();
+  const asked = page.getByRole("alertdialog", { name: "Pause play in every event?" });
+  await expect(asked).toBeVisible();
+  expect((await noticesOf(page)).maintenance.global).toBeNull();
+  await asked.getByRole("button", { name: "Cancel" }).click();
+  await expect(asked).toBeHidden();
+  expect((await noticesOf(page)).maintenance.global).toBeNull();
 });
 
 test("in English the banner is scheduled with a window the apps read, then removed", async ({

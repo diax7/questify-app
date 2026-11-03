@@ -7,44 +7,90 @@ import type { SettingsService } from "#src/settings/service";
 /** What a play door names to say which event it acts on. */
 type EventRef =
   | Readonly<{ kind: "event"; id: string }>
-  | Readonly<{ kind: "quest" | "step" | "category" | "reward" | "join_code"; ref: string }>;
+  | Readonly<{ kind: ParamKind | "join_code"; ref: string }>;
+
+/** The kinds `play_event_id` (migration 0128) finds an event by, from an id the door carries. */
+type ParamKind = "quest" | "step" | "category" | "reward" | "session" | "desk_sale" | "game_round";
+
+/** How a door finds its event: a reference, null for a door that holds on a platform-wide pause only, or nothing. */
+type Door = (request: FastifyRequest) => EventRef | null | undefined;
 
 const paramOf = (request: FastifyRequest, name: string): string | undefined => {
   const value = (request.params as Record<string, unknown>)[name];
   return typeof value === "string" ? value : undefined;
 };
 
-function param(
-  request: FastifyRequest,
-  name: string,
-  kind: "quest" | "step" | "category" | "reward",
-): EventRef | undefined {
+function param(request: FastifyRequest, name: string, kind: ParamKind): EventRef | undefined {
   const ref = paramOf(request, name);
   return ref === undefined ? undefined : { kind, ref };
 }
 
-/** The play doors, by `METHOD route`, each with the way to find the event it acts on; null for a door of no event. */
-const PLAY_DOORS: Readonly<
-  Record<string, (request: FastifyRequest) => EventRef | null | undefined>
-> = {
-  "POST /v1/quests/:questId/complete": (request) => param(request, "questId", "quest"),
+const bodyField = (request: FastifyRequest, name: string): string | undefined => {
+  const value = (request.body as Record<string, unknown> | null | undefined)?.[name];
+  return typeof value === "string" ? value : undefined;
+};
+
+const ofQuest: Door = (request) => param(request, "questId", "quest");
+const ofEventParam: Door = (request) => {
+  const id = paramOf(request, "eventId");
+  return id === undefined ? undefined : { kind: "event", id };
+};
+/** A door whose event only a signed code, a pass or a player's own record names: held by the platform-wide pause alone. */
+const platformWide: Door = () => null;
+
+/**
+ * The play doors, by `METHOD route`: every player or device write that spends or earns (points, XP, gems, a reserved
+ * prize, a stamp), each with the way to find the event it acts on. `test/security/maintenance-doors.int.test.ts` walks
+ * every player and device write route and fails unless it is here or on that test's open list, so an earning door
+ * cannot ship unpaused.
+ */
+export const PLAY_DOORS: Readonly<Record<string, Door>> = {
+  "POST /v1/quests/:questId/complete": ofQuest,
+  "POST /v1/quests/:questId/vote": ofQuest,
+  "POST /v1/quests/:questId/survey": ofQuest,
+  "POST /v1/quests/:questId/share": ofQuest,
+  "POST /v1/quests/:questId/quiz/start": ofQuest,
+  "POST /v1/quests/:questId/quiz/next": ofQuest,
+  "POST /v1/quests/:questId/quiz/answer": ofQuest,
+  "POST /v1/quests/:questId/submit": ofQuest,
+  "POST /v1/quests/:questId/game-rounds": ofQuest,
+  "POST /v1/game-rounds/:roundId/result": (request) => param(request, "roundId", "game_round"),
   "POST /v1/steps/:stepId/stamp": (request) => param(request, "stepId", "step"),
   "POST /v1/categories/:categoryId/reveal": (request) => param(request, "categoryId", "category"),
   "POST /v1/rewards/:rewardId/reserve": (request) => param(request, "rewardId", "reward"),
-  "PUT /v1/events/:eventId/goal": (request) => {
-    const id = paramOf(request, "eventId");
+  "POST /v1/desk-sales/:saleId/accept": (request) => param(request, "saleId", "desk_sale"),
+  "PUT /v1/events/:eventId/goal": ofEventParam,
+  "POST /v1/events/:eventId/operator/play": ofEventParam,
+  "POST /v1/join": (request) => {
+    const eventId = bodyField(request, "eventId");
+    if (eventId !== undefined) {
+      return { kind: "event", id: eventId };
+    }
+    const joinCode = bodyField(request, "joinCode");
+    return joinCode === undefined ? undefined : { kind: "join_code", ref: joinCode };
+  },
+  // The operator's own doors that pay a player (ADR-471): the station's scan and manual award, the session check-in and
+  // an approved submission. The organizer's dashboard (awards, review, everything under /v1/organizers) is never held.
+  "POST /v1/operator/scan": (request) => {
+    const questId = bodyField(request, "questId");
+    return questId === undefined ? undefined : { kind: "quest", ref: questId };
+  },
+  "POST /v1/operator/award": (request) => {
+    const id = bodyField(request, "eventId");
     return id === undefined ? undefined : { kind: "event", id };
   },
-  "POST /v1/join": (request) => {
-    const body = request.body as { joinCode?: unknown; eventId?: unknown } | null | undefined;
-    if (typeof body?.eventId === "string") {
-      return { kind: "event", id: body.eventId };
-    }
-    return typeof body?.joinCode === "string"
-      ? { kind: "join_code", ref: body.joinCode }
-      : undefined;
-  },
-  "POST /v1/me/questify/sync": () => null,
+  "POST /v1/operator/sessions/:sessionId/check-in": (request) =>
+    param(request, "sessionId", "session"),
+  "POST /v1/operator/events/:eventId/submissions/:submissionId/review": ofEventParam,
+  // A kiosk is paired to one event, so its scan is held by that event's pause too.
+  "POST /v1/device/kiosk-scans": (request) =>
+    request.device?.state === "paired" ? { kind: "event", id: request.device.eventId } : undefined,
+  "POST /v1/taps": platformWide,
+  "POST /v1/meet": platformWide,
+  "POST /v1/me/questify/sync": platformWide,
+  "POST /v1/me/daily/challenge/answers": platformWide,
+  "POST /v1/me/daily/word/guesses": platformWide,
+  "POST /v1/me/gem-shop/purchases": platformWide,
 };
 
 /** The 503 a paused door answers: the admin's own message in both languages, and whether the pause is platform-wide. */
@@ -79,19 +125,23 @@ async function holdingMessage(
   return message === undefined ? undefined : paused(message, "event");
 }
 
+/** What a held door tells a retrying client: the app's queue tries again, and the pause may last minutes or hours. */
+const RETRY_AFTER_SECONDS = "60";
+
 /**
- * Maintenance mode (T-703b, FR-1771): while the platform or the door's event has a message, the play doors (a scan, a
- * stamp, a reveal, a reservation, the goal, joining and Questify's sync) answer 503 `maintenance` with that message. The
- * answer is retryable, so the app's queue keeps the scan until play resumes, and a 5xx frees the idempotency key. Reads,
- * leaving, the dashboard, the operator doors, the console and the configuration door are never held, so a platform admin
- * and the team are never locked out and the app always gets its configuration. The reading is the settings service's
- * (cached, cleared on every save); it runs after the player guard, so only a signed-in player's call reaches it.
+ * Maintenance mode (T-703b, FR-1771): while the platform or the door's event has a message, the play doors (`PLAY_DOORS`:
+ * everything a player, a kiosk or a station operator does that earns or spends) answer 503 `maintenance` with that
+ * message and a `Retry-After`. The answer is retryable, so the app's queue keeps the scan until play resumes, and a 5xx
+ * frees the idempotency key. Reads, leaving, the dashboard, the console and the configuration door are never held, so a
+ * platform admin and the team are never locked out and the app always gets its configuration. The reading is the
+ * settings service's (cached, cleared on every save); it runs after the player and device guards, so only a signed-in
+ * caller's request reaches it.
  */
 export function registerMaintenanceGate(
   app: FastifyInstance,
   deps: Readonly<{ pool: Pool; settings: Pick<SettingsService, "platform"> }>,
 ): void {
-  app.addHook("preHandler", async (request) => {
+  app.addHook("preHandler", async (request, reply) => {
     const door = PLAY_DOORS[`${request.method} ${request.routeOptions.url ?? ""}`];
     if (door === undefined) {
       return;
@@ -102,6 +152,7 @@ export function registerMaintenanceGate(
     }
     const held = await holdingMessage(deps.pool, maintenance, door(request));
     if (held !== undefined) {
+      reply.header("retry-after", RETRY_AFTER_SECONDS);
       throw held;
     }
   });
