@@ -44,7 +44,7 @@ type SaveCall = Readonly<{
 /**
  * One catalog editor (T-709b, T-709c, T-709d): the shape of what an admin edits (`doc`), of an audit entry's `before` a
  * revert puts back (`before`), of a row as the console lists it (`row`), the audit target, and its two database doors
- * (migrations 0119, 0122, 0124 and 0132). A level-title set, the amounts, the XP table and Questify home's layout are one
+ * (migrations 0119, 0122, 0124 and 0137). A level-title set, the amounts, the XP table and Questify home's layout are one
  * document each, so they have no id: `auditId` names them.
  */
 type Editor = Readonly<{

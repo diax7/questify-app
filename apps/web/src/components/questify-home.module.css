@@ -1,6 +1,7 @@
 /* The phone beside Questify home's editor (T-713): the banner's first slide in the accent colour, with a dot per slide. The
    frame, lines and text reuse the event preview's styles. Logical properties only, so it mirrors in Arabic. */
 .slide {
+  inline-size: 100%;
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -39,6 +40,7 @@
 }
 
 .empty {
+  inline-size: 100%;
   padding: var(--space-md);
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-lg);

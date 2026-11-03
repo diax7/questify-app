@@ -229,7 +229,7 @@ export const gemShopItemAdminAnswerSchema = z.strictObject({ item: gemShopItemAd
 /**
  * What an admin edits of Questify home (T-713, FR-1838): the order, the hidden blocks and the banner's slides. The check is the
  * shared one (`checkQuestifyHome`): every block once, none of the protected ones hidden, at most five clean text slides. A save
- * and a revert both go through it, and the database's door checks the same rules again (migration 0132).
+ * and a revert both go through it, and the database's door checks the same rules again (migration 0137).
  */
 export const homeLayoutDocSchema = z.unknown().transform((value, context) => {
   const checked = checkQuestifyHome(value);

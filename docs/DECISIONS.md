@@ -7104,7 +7104,7 @@ A disputed owner email change (ADR-491) is a line of the same digest.
 **Status:** Proposed (worker, 2026-11-03; T-713 plan `docs/plans/2026-11-03-t-713-questify-home-layout.md`; Q-470).
 **Decision:** (1) The layout of Questify home (FR-1838) is `platform_setting` key `questifyHome` = `{order, hidden, banner}`, not
 `event.config.layout` (ADR-395: Questify home has its own list of blocks and its own store). (2) Only the definer door
-`admin_home_layout_save(doc, revert_of, request)` writes it (migration 0132): `console_admin()` first, the row ensured and
+`admin_home_layout_save(doc, revert_of, request)` writes it (migration 0137): `console_admin()` first, the row ensured and
 locked, the document checked again in SQL, one `catalog.home_layout.update` or `.revert` audit entry with the layout before and
 after, and nothing written when nothing changed. The generic settings writer still names `features` and `tuning` alone (0122).
 (3) The editor is one more catalog kind (`home_layout`), so the list, save and revert routes, the throttle helper, the revert

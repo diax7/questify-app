@@ -96,7 +96,7 @@ test("blocks move and hide, the phone follows, a save reaches the apps at once, 
   await page.getByRole("button", { name: "Go back on the last change to Questify home" }).click();
   await expect(page.getByText("Went back to the earlier version.")).toBeVisible();
   expect((await published(page)).blocks).toEqual(DEFAULT_ORDER);
-  expect(await phoneOrder(page)).toEqual(DEFAULT_ORDER);
+  await expect.poll(() => phoneOrder(page)).toEqual(DEFAULT_ORDER);
   await expectNoSidewaysScroll(page);
 });
 
@@ -114,7 +114,7 @@ test("the banner's slides are written, checked and shown on the phone, and a rev
   await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
   await expect(page.getByText("Slide 1 needs a title in Arabic or English.")).toBeVisible();
 
-  await page.getByLabel("Title (English)").fill("Tickets are open");
+  await page.getByLabel("Title (English)", { exact: true }).fill("Tickets are open");
   await page.getByLabel("Line under the title (English)").fill("Book before Friday");
   await expect(page.getByTestId("home-preview-slide")).toContainText("Tickets are open");
   await expect(page.getByTestId("home-preview-slide")).toContainText("Book before Friday");

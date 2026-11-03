@@ -53,7 +53,7 @@ const block = (name: QuestifyHomeBlock, isProtected: boolean): QuestifyHomeBlock
 
 /**
  * Questify home's blocks in the order the app draws them by default. The app, the dashboard's editor and the database's door
- * (`questify_home_blocks()`, migration 0132) all name these and no others. A block keeps its own conditions: a streak the
+ * (`questify_home_blocks()`, migration 0137) all name these and no others. A block keeps its own conditions: a streak the
  * platform switched off, or a game with no content today, draws nothing whatever the layout says.
  */
 export const QUESTIFY_HOME_BLOCKS: readonly QuestifyHomeBlockDefinition[] = [

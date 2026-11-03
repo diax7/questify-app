@@ -34,7 +34,7 @@ const doc = (overrides: Partial<Layout> | Doc = {}): Doc => ({ ...DEFAULT, ...ov
 const reversed = [...QUESTIFY_HOME_KEYS].toReversed();
 
 /**
- * Questify home's layout in the database (T-713, migration 0132): one platform setting written only by the door of an
+ * Questify home's layout in the database (T-713, migration 0137): one platform setting written only by the door of an
  * active platform admin (QE403), checked again here (CA400), audited with the layout before and after, and reverted through
  * the audit log (CA409 when another change landed after the entry).
  */

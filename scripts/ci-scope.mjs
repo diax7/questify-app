@@ -75,6 +75,10 @@ export const AREAS = [
     ["console-catalog"],
   ],
   [
+    /console-?home|questify-?home|home-?layout|banner-?slides?-?editor|console\/home/i,
+    ["console-home"],
+  ],
+  [
     /console-?(health|numbers|admins|platform)|platform-health|use-console-read|console\/(health|numbers|admins)/i,
     ["console-platform"],
   ],

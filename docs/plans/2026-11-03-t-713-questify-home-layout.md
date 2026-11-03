@@ -2,7 +2,7 @@
 
 Delivers FR-1838 (F-340): a platform admin reorders and hides the blocks on Questify home and edits its banner slider; players see
 the new order. Builds on T-610 (the slide shape and its reader, the app's banner slider, the editor's rows) and T-709b (the
-audited door with a revert through the audit log, migration 0119). Migration **0132**, ADR-510 to ADR-514, Q-470 to Q-473.
+audited door with a revert through the audit log, migration 0119). Migration **0137**, ADR-510 to ADR-514, Q-470 to Q-473.
 Nothing here touches points, XP, gems, sign-in or a tenant. Pictures on slides wait for photo storage (Q-149, T-610b): slides are
 text only, as in T-610.
 
@@ -29,7 +29,7 @@ text only, as in T-610.
    sign-in prompt, which is not a block.
 3. **Content.** The banner only: up to five text slides in two languages, the T-610 slide shape; a tap opens nothing or an https
    link (the other taps open event screens). The reader and checker reuse `readSlide`; the Questify reader refuses other taps.
-4. **Door (0132).** `admin_home_layout()` and `admin_home_layout_save(doc, revert_of, request)`: `console_admin()` first, the
+4. **Door (0137).** `admin_home_layout()` and `admin_home_layout_save(doc, revert_of, request)`: `console_admin()` first, the
    row ensured and locked, the document checked again in SQL (a permutation of `questify_home_blocks()`, protected ones not hidden,
    at most five slides, bounded clean text, https links), one `catalog.home_layout.update|revert` audit entry with before and
    after, a save that changes nothing writes nothing. The revert reads the latest entry's `before` under the row lock (CA409
