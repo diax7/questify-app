@@ -2,6 +2,7 @@
 
 import type { Language, MessageKey } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
+import { OrganizerFeaturesPanel } from "#src/components/ConsoleOrganizerFeatures.tsx";
 import { SuspensionPanel } from "#src/components/ConsoleOversight.tsx";
 import { OwnerEmailPanel } from "#src/components/ConsoleOwnerEmail.tsx";
 import { nameIn } from "#src/lib/console.ts";
@@ -205,6 +206,7 @@ function OrganizerBody({
         others={detail.ownerOtherOrganizers}
         onChanged={reload}
       />
+      <OrganizerFeaturesPanel language={language} organizerId={detail.organizer.id} />
       <Section title={t("console.organizer.team")} level={3}>
         <Rows>
           {detail.team.map((member) => (

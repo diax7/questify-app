@@ -1,6 +1,6 @@
 "use client";
 
-import type { Language, SetupStep } from "@questify/shared";
+import type { EventLayers, Language, SetupStep } from "@questify/shared";
 import type { ReactNode } from "react";
 import { ActivationCard } from "#src/components/ActivationCard.tsx";
 import { EventBranding } from "#src/components/EventBranding.tsx";
@@ -11,9 +11,10 @@ import { PushDefaultsPanel } from "#src/components/PushDefaultsPanel.tsx";
 import { ReadinessCard } from "#src/components/ReadinessCard.tsx";
 import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
 import { RehearsalCard } from "#src/components/RehearsalCard.tsx";
-import { ADDONS, AddonCard, DoorRow } from "#src/components/SetupParts.tsx";
+import { AddonCard, DoorRow } from "#src/components/SetupParts.tsx";
 import { StepList } from "#src/components/SetupStepList.tsx";
 import { TemplateStart } from "#src/components/TemplateStart.tsx";
+import { addOnRow, addOnRows, isSwitchListed } from "#src/lib/event-layers.ts";
 import type { EventView } from "#src/lib/events.ts";
 import type { Translate } from "#src/lib/language.ts";
 import type { StepFlow } from "#src/components/SetupStepList.tsx";
@@ -23,14 +24,14 @@ import { infoTip } from "#src/ui/info.tsx";
 
 type SwitchName = (typeof FEATURE_SWITCHES)[number][0];
 
-/** What every step needs: who is asking, the event as read, the unlocked add-ons and the wizard's words. */
+/** What every step needs: who is asking, the event as read, the features the owner may see and the wizard's words. */
 export type StepProps = Readonly<{
   language: Language;
   organizerId: string;
   eventId: string;
   myRole: "owner" | "editor";
   event: EventView;
-  addons: readonly string[];
+  layers: EventLayers | null;
   t: Translate;
 }>;
 
@@ -43,18 +44,20 @@ const pageOf = (props: StepProps, slug: string): string => `${eventPages(props)}
 
 /** Each switch the event page has, saved by the same operation, with the same words and confirmations. */
 function Switches({ names, ...props }: StepProps & Readonly<{ names: readonly SwitchName[] }>) {
-  return names.map((name) => (
-    <EventFeatureSwitch
-      key={name}
-      language={props.language}
-      feature={name}
-      organizerId={props.organizerId}
-      eventId={props.eventId}
-      initial={FEATURE_SWITCHES.find(([feature]) => feature === name)?.[1](props.event) ?? true}
-      myRole={props.myRole}
-      live={props.event.statusNow === "live"}
-    />
-  ));
+  return names
+    .filter((name) => isSwitchListed(props.layers, name))
+    .map((name) => (
+      <EventFeatureSwitch
+        key={name}
+        language={props.language}
+        feature={name}
+        organizerId={props.organizerId}
+        eventId={props.eventId}
+        initial={FEATURE_SWITCHES.find(([feature]) => feature === name)?.[1](props.event) ?? true}
+        myRole={props.myRole}
+        live={props.event.statusNow === "live"}
+      />
+    ));
 }
 
 function QuestsStep(props: StepProps) {
@@ -103,18 +106,26 @@ function RewardsStep(props: StepProps) {
   );
 }
 
+/** The big screen add-on's card: locked until Questify allows it, not shown while the platform keeps it off (FR-1827). */
+function BigScreenCard(props: StepProps) {
+  const row = addOnRow(props.layers, "bigScreen");
+  return row === undefined ? null : (
+    <AddonCard
+      t={props.t}
+      language={props.language}
+      feature="bigScreen"
+      unlocked={row.state === "on"}
+      eventPages={eventPages(props)}
+    />
+  );
+}
+
 function ScreensStep(props: StepProps) {
   const { t } = props;
   return (
     <Section title={t("events.section.features")}>
       <Rows as="div">
-        <AddonCard
-          t={t}
-          language={props.language}
-          feature="bigScreen"
-          unlocked={props.addons.includes("bigScreen")}
-          eventPages={eventPages(props)}
-        />
+        <BigScreenCard {...props} />
         <Switches {...props} names={["helpDesk"]} />
         <DoorRow t={t} title={t("operators.link")} href={pageOf(props, "operators")} />
       </Rows>
@@ -139,6 +150,10 @@ function LookStep(props: StepProps) {
             organizerId={props.organizerId}
             eventId={props.eventId}
             initial={{ ranking: event.ranking, rankingToday: event.rankingToday }}
+            offered={{
+              ranking: isSwitchListed(props.layers, "ranking"),
+              rankingToday: isSwitchListed(props.layers, "rankingToday"),
+            }}
             myRole={props.myRole}
           />
           <Switches {...props} names={["agenda", "maps"]} />
@@ -162,13 +177,13 @@ function AddonsStep(props: StepProps) {
       />
       <Section title={t("wizard.addons.list")}>
         <Rows as="div">
-          {ADDONS.map((feature) => (
+          {addOnRows(props.layers).map((row) => (
             <AddonCard
-              key={feature}
+              key={row.key}
               t={t}
               language={props.language}
-              feature={feature}
-              unlocked={props.addons.includes(feature)}
+              feature={row.key}
+              unlocked={row.state === "on"}
               eventPages={eventPages(props)}
             />
           ))}

@@ -132,7 +132,7 @@ function SetupScreen({ wizard, progress, event, ...props }: ScreenProps) {
           eventId={eventId}
           myRole={props.myRole}
           event={event}
-          addons={wizard.addons}
+          layers={wizard.layers}
           t={t}
           onUnsaved={report}
         />
