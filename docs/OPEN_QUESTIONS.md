@@ -2153,3 +2153,26 @@ The organizer alert transport is off (ADR-360) because it mails organizers' addr
 address and carries ids, names of events and organizers, reason codes and a console link, no personal data.
 **Recommended (developer):** yes, bounded so it can never starve sign-in mail: one digest per 10 minutes, 100 a day on its
 own budget bucket (never `outboundMailPerDay`); past that only the console badge.
+
+## Q-480 - Should the view as organizer cover the whole organizer, not one event? (T-712, ADR-520)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** one event per grant, like the edit grant: the smallest read surface, and an admin can open
+a grant per event. Revisit if support often needs the organizer's team or alert pages.
+
+## Q-481 - Is one log row a minute per page "every view"? (T-712, ADR-523)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** yes: every page and every player record opened is logged; a page left open and polling
+adds one row a minute instead of one every few seconds.
+
+## Q-482 - Should the organizer see that Questify viewed their event? (T-712, ADR-525)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** no, as Dhia decided for support edits (Q-373); the record is Questify's audit log.
+
+## Q-483 - Should player names and contact fields be masked in the view? (T-712, ADR-524)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** no: the view must show what the organizer sees, and the edit grant already shows it; the
+view is one event, 15 minutes, no exports, every record logged by id.
