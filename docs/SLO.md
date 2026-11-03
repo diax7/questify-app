@@ -117,4 +117,5 @@ Off by default: with no setting the server installs nothing and sends nothing. S
 
 An export has a 5-second timeout and is dropped on failure; the request path never waits for it. A failing collector writes one line a
 minute to standard error (`telemetry.export_failed`) and nothing else changes. Where the collector, the store and the pager live is
-Q-560 and Q-561, built in T-018b.
+Q-560 and Q-561 (decided: three CranL apps in `riyadh-1`, alerts by email); their files are `ops/monitoring/` and RUNBOOK "Monitoring stack on CranL"
+(ADR-620 to ADR-625), prepared and not yet created. The dashboard "Questify SLOs" shows the targets of section 1.

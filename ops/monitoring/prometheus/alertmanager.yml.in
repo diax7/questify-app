@@ -1,0 +1,49 @@
+# Alertmanager of the Questify monitoring stack (T-018b, ADR-620 to ADR-625). Alertmanager does not read environment
+# variables, so `render-config.sh` fills the @NAME@ places from the app's environment when the container starts, after
+# checking each value's shape, and writes the SMTP password to a file. This file holds no secret.
+#
+# Both severities go to the same mailbox for now (Q-561): `page` at once and again every 4 hours while it fires,
+# `warning` once a day. A phone SMS or push for `page` (ADR-079) is one more receiver here when there is an on-call team.
+
+global:
+  smtp_smarthost: "@ALERT_SMTP_HOST@"
+  smtp_from: "@ALERT_MAIL_FROM@"
+  smtp_auth_username: "@ALERT_SMTP_USER@"
+  smtp_auth_password_file: /tmp/smtp-password
+  smtp_require_tls: true
+  resolve_timeout: 5m
+
+templates:
+  - /tmp/questify.email.tmpl
+
+# One mail per severity and wave of alerts, not one per alert: a dead API fires several rules at once.
+route:
+  receiver: warning
+  group_by: [severity]
+  group_wait: 1m
+  group_interval: 10m
+  repeat_interval: 24h
+  routes:
+    - matchers: [severity="page"]
+      receiver: page
+      group_wait: 15s
+      group_interval: 5m
+      repeat_interval: 4h
+
+receivers:
+  - name: page
+    email_configs:
+      - to: "@ALERT_MAIL_TO@"
+        send_resolved: true
+        headers:
+          Subject: '{{ template "questify.email.subject" . }}'
+        html: ""
+        text: '{{ template "questify.email.text" . }}'
+  - name: warning
+    email_configs:
+      - to: "@ALERT_MAIL_TO@"
+        send_resolved: true
+        headers:
+          Subject: '{{ template "questify.email.subject" . }}'
+        html: ""
+        text: '{{ template "questify.email.text" . }}'

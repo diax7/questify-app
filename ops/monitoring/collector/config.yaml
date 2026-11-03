@@ -1,0 +1,126 @@
+# Questify telemetry collector (T-018b, ADR-620 to ADR-625). Receives the API's OTLP over HTTP, keeps only the
+# attributes the API is allowed to record (ADR-603), and writes metrics to the Prometheus app. Everything that differs
+# between environments or is secret comes from the app's environment (docs/RUNBOOK.md, "Monitoring stack on CranL"):
+#
+#   OTEL_INGEST_TOKEN_A, OTEL_INGEST_TOKEN_B   two bearer tokens the API may send; both must be set (rotation)
+#   METRICS_PASSWORD                          the password of the Prometheus app's remote-write user
+#   PROMETHEUS_REMOTE_WRITE_URL               https://<prometheus app>/api/v1/write
+#
+# The checks in `ops/monitoring/validate.mjs` and `apps/api/src/telemetry/monitoring.test.ts` keep the two attribute
+# lists below equal to `ATTRIBUTE_RULES` and `RESOURCE_KEYS` in `apps/api/src/telemetry/attributes.ts`.
+
+extensions:
+  # Server side: the API sends `Authorization: Bearer <token>`. Either token opens the door; rotating one at a time
+  # needs no gap. An empty token is never valid, so both variables are required.
+  bearertokenauth/ingest:
+    scheme: Bearer
+    tokens:
+      - ${env:OTEL_INGEST_TOKEN_A}
+      - ${env:OTEL_INGEST_TOKEN_B}
+  # Client side: the same user the Prometheus app's web configuration knows.
+  basicauth/metrics_store:
+    client_auth:
+      username: questify-metrics
+      password: ${env:METRICS_PASSWORD}
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+        max_request_body_size: 4194304
+        auth:
+          authenticator: bearertokenauth/ingest
+
+processors:
+  # Refuses data before the container runs out of memory; the API drops an export that fails and sends the next one.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+    spike_limit_mib: 64
+
+  # Defence in depth for rules.md hard rule 3: the API only records attributes on its closed list (ADR-603), and this
+  # processor keeps only those keys again, on the resource, the scope, every data point, exemplar and span. Anything
+  # else is deleted before it is stored or forwarded. Nothing here carries a free-text value: span events and status
+  # messages are emptied, because the API never records either. Each group names its own context: statements of
+  # several contexts in one group would all run at the lowest one (an exemplar or a span event, of which there are none)
+  # and change nothing, which `validate.mjs` would show by finding the extra attributes in Prometheus.
+  transform/closed_attributes:
+    # Fail closed: if a statement cannot run, the payload is dropped, never passed on unfiltered (the missing data pages
+    # as QuestifyTelemetryMissing).
+    error_mode: propagate
+    metric_statements:
+      - context: resource
+        statements:
+          - keep_keys(resource.attributes, ["service.name", "service.version", "service.instance.id", "deployment.environment.name"])
+      - context: scope
+        statements:
+          - keep_keys(scope.attributes, [])
+      - context: datapoint
+        statements:
+          - keep_keys(datapoint.attributes, ["http.request.method", "http.route", "http.response.status_code", "questify.route_class", "questify.event", "questify.log.level", "questify.operation", "questify.provider", "questify.outcome", "questify.tick", "questify.pool", "questify.pool.state"])
+      - context: exemplar
+        statements:
+          - keep_keys(exemplar.filtered_attributes, [])
+    trace_statements:
+      - context: resource
+        statements:
+          - keep_keys(resource.attributes, ["service.name", "service.version", "service.instance.id", "deployment.environment.name"])
+      - context: scope
+        statements:
+          - keep_keys(scope.attributes, [])
+      - context: span
+        statements:
+          - keep_keys(span.attributes, ["http.request.method", "http.route", "http.response.status_code", "questify.route_class", "questify.event", "questify.log.level", "questify.operation", "questify.provider", "questify.outcome", "questify.tick", "questify.pool", "questify.pool.state"])
+          - set(span.status.message, "")
+      - context: spanevent
+        statements:
+          - keep_keys(spanevent.attributes, [])
+
+  batch:
+    timeout: 10s
+    send_batch_size: 4096
+
+exporters:
+  # The Prometheus app. Names become Prometheus names the way docs/SLO.md section 3 says (dots to underscores, `_total`,
+  # `_seconds`), which is what the alert rules use; `service.name` becomes `job` and `service.instance.id` `instance`.
+  prometheus_remote_write:
+    http:
+      endpoint: ${env:PROMETHEUS_REMOTE_WRITE_URL}
+      timeout: 10s
+      auth:
+        authenticator: basicauth/metrics_store
+    translation_strategy: UnderscoreEscapingWithSuffixes
+    # No otel_scope_* labels: the scope is always questify-api and would only add series labels.
+    disable_scope_info: true
+    # Batches of one request at a time, so a retried batch cannot arrive after a newer one: Prometheus refuses
+    # out-of-order samples.
+    max_batch_request_parallelism: 1
+    remote_write_queue:
+      queue_size: 10000
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 2m
+  # Traces are accepted so the API's span export succeeds, and dropped: there is no trace store yet (Q-583). The API's
+  # `TELEMETRY_TRACE_RATIO=0` stops it sending them at all.
+  nop: {}
+
+service:
+  extensions: [bearertokenauth/ingest, basicauth/metrics_store]
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, transform/closed_attributes, batch]
+      exporters: [prometheus_remote_write]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, transform/closed_attributes, batch]
+      exporters: [nop]
+  telemetry:
+    logs:
+      level: info
+      encoding: json
+    metrics:
+      level: none

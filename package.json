@@ -5,6 +5,7 @@
   "scripts": {
     "lint": "oxlint --deny-warnings .",
     "lint:limits": "node scripts/function-limits.mjs",
+    "monitoring:validate": "node ops/monitoring/validate.mjs",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "typecheck": "pnpm -r --if-present typecheck",
