@@ -3,7 +3,8 @@ import type { PostResult } from "#src/lib/post-json.ts";
 /**
  * Accept all in calls (T-501d, T-221, ADR-631): the API accepts at most 1,000 requests a call (or a hard-limited
  * event's free seats when fewer) under its 5 s statement limit, so the dashboard calls again while a call accepted some
- * and requests are still waiting, at most this many calls per press. Each call is a new HTTP request, so the API gives it a new request id.
+ * and requests are still waiting, at most this many calls per press. Each call is a new HTTP request, so the API gives
+ * it a new request id.
  */
 export const ACCEPT_ALL_CALLS = 10;
 

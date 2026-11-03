@@ -2457,10 +2457,10 @@ With the collector gone, the closed list (ADR-603) is enforced once, by `safeAtt
 
 ## Q-590 - Check the seat limit once per statement, or keep a seat counter? (T-221, ADR-630)
 
-**Status:** Proposed (developer's recommendation, 2026-11-03); answers Q-323 once accepted.
+**Status:** Answered (developer, delegated by Dhia, 2026-11-03, after the T-221 code review 92): statement-level check, ADR-630; answers Q-323.
 **Recommended:** a statement-level check (AFTER statement triggers with transition tables, ADR-630): one count per statement, no stored state, every writer covered. **The other option:** a seat counter on the event kept by the same writes: O(1) free seats on every join, but it must stay right across every path that seats or frees a player (joins, the player's own leave in TypeScript, erase, the rehearsal wipe, the review-demo seed, admin direct writes), needs a backfill and a reconciliation check, updates one hot row 5,000 times in an accept-all (a growing version chain inside one transaction), and serialises joins on events without a limit. Revisit only if a join-rush profile shows the per-join count.
 
 ## Q-591 - How many requests may one accept-all call take? (T-221, ADR-631)
 
-**Status:** Proposed (developer's recommendation, 2026-11-03).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-03, after the T-221 code review 92): 1,000 a call in both modes, ADR-631.
 **Recommended:** up to 5,000 a call in both modes, the dashboard repeating above that. **Measured at build (2026-11-03): 5,000 took 14 to 29 s, so the cap is 1,000 in both modes (2.78 s median on the fixture), ADR-631.** Getting near 5,000 needs the welcome grant's per-row cost lowered first (FOLLOWUPS). **Other options:** truly unbounded (a large queue is refused by the 5 s limit and accepts nothing); keeping 1,000 without a limit and the free seats with one (two numbers for no gain).

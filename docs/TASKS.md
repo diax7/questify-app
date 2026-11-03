@@ -302,7 +302,7 @@ _The shop, reservations and prize desk, staffed events (operators and My QR), fl
     25.33 vs 25.17 ms (+0.7%), a bulk ledger insert of 2,000 award rows (one nested enrollment update per row) 1,479 vs
     1,366 ms (+8%, about 57 µs a nested statement). Profile of 1,000 acceptances: `souvenir_enqueue` 1.73 → 0.42 ms a
     row (PL/pgSQL); `grant_welcome` 1.3 ms self, `apply_ledger_entry` 0.47 ms, `notice_create` 0.28 ms: above the
-    plan's 0.2 ms line, left as a finding (FOLLOWUPS). Hand mutants of the SQL: 7 of 8 killed, the unordered-events one equivalent in practice (STATE).
+    plan's 0.2 ms line, left as a finding (FOLLOWUPS). Hand mutants of the SQL: 7 of 8 killed, the unordered-events one a live survivor (FOLLOWUPS).
 
 ## Phase 3 — Quest depth
 

@@ -21,7 +21,7 @@
   `test/db/seat-limit.int` (20: races in both orders, direct writes, multi-event lock order, lowered limit, rehearsal,
   REPEATABLE READ refusal, marks, the cap, deny by default), `push-producers.int` cap cases replaced. Hand mutants of
   the SQL: `>`→`>=`, count before the lock, no old-status exclusion, rehearsal forgotten, `LIMIT` without `free`, no
-  isolation check, crossing at the final count: all killed; iterating events without `ORDER BY` survives as equivalent
+  isolation check, crossing at the final count: all killed; iterating events without `ORDER BY` survives (live, not equivalent: a hash grouping can return events in any order and the `ORDER BY` keeps multi-event statements from deadlocking; killing test in FOLLOWUPS)
   in practice (the `GROUP BY` returns the same order to both statements). Full vitest once (4 workers): 12,425 passed, 18 skipped, 788 files. Lint, `lint:limits`, `format:check`,
   typecheck clean. CI minutes: 0 (not pushed); agent tokens: roughly 1.5M (estimate). **Mutation:** none (no TypeScript
   logic changed; the SQL hand mutants stand in).
