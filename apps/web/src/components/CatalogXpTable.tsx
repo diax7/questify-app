@@ -34,8 +34,9 @@ import {
   xpLoweringOf,
   type XpRowDraft,
 } from "#src/lib/console-catalog-xp.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { translatorFor, type Translate } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
+import { describeProblem } from "#src/lib/sign-in-errors.ts";
 import { useConsoleRead } from "#src/lib/use-console-read.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Badge, Notice } from "#src/ui/Feedback.tsx";
@@ -181,6 +182,56 @@ function LevelFields({
   );
 }
 
+/**
+ * The confirmation a save asks for: the preview of what the table does to players (`asking`), and the notice when the
+ * preview could not be had (the server is busy with level-ups, or the read failed).
+ */
+function useXpPreview(language: Language) {
+  const [asking, setAsking] = useState<Readonly<{
+    doc: XpTableDoc;
+    preview: XpTablePreview;
+  }> | null>(null);
+  const [busyNote, setBusyNote] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const busyAware = (result: PostResult): boolean => {
+    setBusyNote(isBusy(result.status, result.body));
+    return isBusy(result.status, result.body);
+  };
+  const ask = async (doc: XpTableDoc) => {
+    setProblem(null);
+    const answer = await requestJson("POST", XP_PREVIEW_API, doc);
+    const preview = answer.ok ? readPreview(answer.body) : undefined;
+    if (preview !== undefined) {
+      setBusyNote(false);
+      setAsking({ doc, preview });
+    } else if (!busyAware(answer)) {
+      setProblem(describeProblem(answer.body, language, translatorFor(language)).text);
+    }
+  };
+  return { asking, setAsking, busyNote, problem, busyAware, ask };
+}
+
+function PreviewNotices({
+  t,
+  busy,
+  problem,
+}: Readonly<{ t: Translate; busy: boolean; problem: string | null }>) {
+  return (
+    <>
+      {busy ? (
+        <Notice tone="warning" role="status">
+          {t("console.catalog.xp.busy")}
+        </Notice>
+      ) : null}
+      {problem === null ? null : (
+        <Notice tone="danger" role="alert">
+          {problem}
+        </Notice>
+      )}
+    </>
+  );
+}
+
 function XpEditor({
   language,
   catalog,
@@ -196,22 +247,9 @@ function XpEditor({
 }>) {
   const t = translatorFor(language);
   const [rows, setRows] = useState<XpRowDraft[]>(() => xpDraftOf(table));
-  const [asking, setAsking] = useState<Readonly<{
-    doc: XpTableDoc;
-    preview: XpTablePreview;
-  }> | null>(null);
-  const [busyNote, setBusyNote] = useState(false);
+  const { asking, setAsking, busyNote, problem, busyAware, ask } = useXpPreview(language);
   const checked = checkXpTable(rows);
   const wrong = checked.ok ? new Set<string>() : checked.fields;
-  const busyAware = (result: PostResult): boolean => {
-    setBusyNote(isBusy(result.status, result.body));
-    return isBusy(result.status, result.body);
-  };
-  const ask = async (doc: XpTableDoc) => {
-    const answer = await requestJson("POST", XP_PREVIEW_API, doc);
-    const preview = answer.ok ? readPreview(answer.body) : undefined;
-    if (preview !== undefined) setAsking({ doc, preview });
-  };
   const save = (doc: XpTableDoc) =>
     catalog.save("", { ...doc, confirmed: true }, busyAware).then((saved) => {
       setAsking(null);
@@ -255,11 +293,7 @@ function XpEditor({
             {t("console.catalog.xp.removeTop")}
           </Button>
         </Toolbar>
-        {busyNote ? (
-          <Notice tone="warning" role="status">
-            {t("console.catalog.xp.busy")}
-          </Notice>
-        ) : null}
+        <PreviewNotices t={t} busy={busyNote} problem={problem} />
         {asking === null ? null : (
           <SaveConfirm
             language={language}

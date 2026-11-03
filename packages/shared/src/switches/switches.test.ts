@@ -86,6 +86,10 @@ describe("the bodies", () => {
     ["a missing message field", { enabled: false }],
     ["a long message", { enabled: false, message: { ar: "ا".repeat(301), en: "x" } }],
     ["an unknown field", { enabled: false, message: null, minAppVersion: "1.0" }],
+    ["a control character", { enabled: false, message: { ar: "متوقفة", en: "Pa\u0000used" } }],
+    ["a line break inside", { enabled: false, message: { ar: "متوقفة", en: "Pa\nused" } }],
+    ["a direction override", { enabled: false, message: { ar: "‮متوقفة", en: "Paused" } }],
+    ["a direction isolate", { enabled: false, message: { ar: "متوقفة", en: "Pa⁦used" } }],
   ])("refuses %s", (_name, body) => {
     expect(featureSwitchBodySchema.safeParse(body).success).toBe(false);
   });

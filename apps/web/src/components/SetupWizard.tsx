@@ -123,6 +123,7 @@ function SetupScreen({ wizard, progress, event, ...props }: ScreenProps) {
           {wizard.problem}
         </Notice>
       )}
+      <FeaturesFailedNotice t={t} failed={wizard.layersFailed} />
       {wizard.fresh ? (
         <StepBody
           step={step}
@@ -159,6 +160,15 @@ function SetupScreen({ wizard, progress, event, ...props }: ScreenProps) {
       ) : null}
     </Stack>
   );
+}
+
+/** Says so when the owner's features could not be read, because no switch shows then. */
+function FeaturesFailedNotice({ t, failed }: Readonly<{ t: Translate; failed: boolean }>) {
+  return failed ? (
+    <Notice tone="danger" role="alert">
+      {t("features.loadFailed")}
+    </Notice>
+  ) : null;
 }
 
 /** Done, in single-step mode: back to the page that opened the step. */

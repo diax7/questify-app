@@ -32,6 +32,7 @@ export type {
 export {
   buildSwitchesView,
   featureSwitchBodySchema,
+  isUsableTuning,
   switchesViewSchema,
   tuningBodySchema,
 } from "./switches/switches";

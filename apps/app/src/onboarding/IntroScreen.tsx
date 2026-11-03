@@ -6,7 +6,7 @@ import {
   type Theme,
 } from "@questify/shared";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BackHandler, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, keyValueStore } from "#src/api/app-session.ts";
@@ -146,8 +146,13 @@ function useIntroFlow(
 
   const next = useCallback(() => setIndex((at) => Math.min(at + 1, cards.length - 1)), [cards]);
   const back = useCallback(() => setIndex((at) => Math.max(at - 1, 0)), []);
+  const finishing = useRef(false);
   const finish = useCallback(
     async (ending: Ending) => {
+      if (finishing.current) {
+        return;
+      }
+      finishing.current = true;
       if (variant.kind !== "replay") {
         await writeIntroState(keyValueStore, "seen");
       }
@@ -281,7 +286,12 @@ function CardsStep({ flow }: Readonly<{ flow: Flow }>) {
       <ScrollView style={styles.stage} contentContainerStyle={styles.stageContent}>
         <Panel>
           <IntroArt key={flow.index} art={card.art} />
-          <AppText variant="display" accessibilityRole="header" style={styles.centered}>
+          <AppText
+            variant="display"
+            accessibilityRole="header"
+            accessibilityLiveRegion="polite"
+            style={styles.centered}
+          >
             {t(card.title, card.params)}
           </AppText>
           <AppText style={styles.centered}>{t(card.body, card.params)}</AppText>

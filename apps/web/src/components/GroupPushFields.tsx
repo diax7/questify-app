@@ -49,6 +49,7 @@ export function AudienceFields({
         checked={draft.kind === "event"}
         onChange={() => change({ kind: "event" })}
         label={t("console.push.audience.event")}
+        info={infoTip(t, "console.push.audience.event.info")}
       />
       <Radio
         name="push-audience"

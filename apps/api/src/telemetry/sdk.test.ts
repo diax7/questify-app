@@ -56,6 +56,38 @@ describe("startTelemetry", () => {
     expect(metrics.getMeterProvider().getMeter("x")).toBeDefined();
   }, 30_000);
 
+  it("writes one line when a provider cannot shut down, and still returns to no-ops", async () => {
+    const written: string[] = [];
+    vi.spyOn(process.stderr, "write").mockImplementation((chunk: string | Uint8Array) => {
+      written.push(String(chunk));
+      return true;
+    });
+    const telemetry = installTelemetry(
+      {
+        spanProcessors: [
+          {
+            onStart: () => undefined,
+            onEnd: () => undefined,
+            forceFlush: async () => undefined,
+            shutdown: async () => {
+              throw new Error("receiver gone");
+            },
+          },
+        ],
+        metricReaders: [],
+      },
+      { environment: "test", release: "test-release", traceRatio: 1 },
+    );
+    await expect(telemetry.shutdown()).resolves.toBeUndefined();
+    const reports = written.filter((line) => line.includes("telemetry.shutdown_failed"));
+    expect(reports).toHaveLength(1);
+    expect(JSON.parse(reports[0] ?? "{}")).toMatchObject({
+      level: "error",
+      message: "Error: receiver gone",
+    });
+    expect(trace.getTracer("test").startSpan("after").isRecording()).toBe(false);
+  });
+
   it("returns the instruments to no-ops after shutdown", async () => {
     const telemetry = startTelemetry(configFor({ TELEMETRY_EXPORTER: "console" }));
     await telemetry.shutdown();

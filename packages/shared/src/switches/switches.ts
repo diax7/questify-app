@@ -6,12 +6,20 @@ import type {
   Registries,
   TuningDefinition,
 } from "#src/config/registry";
+import { hasUnsafeCharacter } from "#src/i18n/translate";
 
-/** A message shown to players while a feature is off: both languages or none. */
-export const messageSchema = z.strictObject({
-  ar: z.string().trim().min(1).max(300),
-  en: z.string().trim().min(1).max(300),
-});
+const messageText = z
+  .string()
+  .trim()
+  .min(1)
+  .max(300)
+  .refine((text) => !hasUnsafeCharacter(text), "must not contain control or direction characters");
+
+/**
+ * A message shown to players while a feature is off: both languages or none, with no control or direction character
+ * (a stored message that has one is read as no message, like an unusable translation).
+ */
+export const messageSchema = z.strictObject({ ar: messageText, en: messageText });
 
 /** The body that saves one platform feature switch (T-703, FR-1769): on or off, with the message only while off. */
 export const featureSwitchBodySchema = z
@@ -81,7 +89,10 @@ function featureRowOf(
 }
 
 /** A stored number counts only when every reader would use it: whole and inside the range. */
-const isUsable = (number: number | undefined, definition: TuningDefinition): number is number =>
+export const isUsableTuning = (
+  number: number | undefined,
+  definition: TuningDefinition,
+): number is number =>
   number !== undefined &&
   Number.isInteger(number) &&
   number >= definition.min &&
@@ -92,7 +103,7 @@ function tuningRowOf(
   definition: TuningDefinition,
   stored: number | undefined,
 ): TuningRow {
-  const usable = isUsable(stored, definition);
+  const usable = isUsableTuning(stored, definition);
   return {
     key,
     value: usable ? stored : definition.default,

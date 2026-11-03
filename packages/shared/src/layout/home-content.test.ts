@@ -227,6 +227,7 @@ describe("what a tap may open", () => {
     "https://example.com",
     "https://example.com/path?x=1&y=2#top",
     "https://sub.example.co.uk:8443/a",
+    "https://example.com:65535/",
     "HTTPS://EXAMPLE.COM/A",
   ])("allows %s", (url) => {
     expect(isAllowedLink(url)).toBe(true);
@@ -253,6 +254,9 @@ describe("what a tap may open", () => {
     "https://example.com/\n",
     "https://-bad.example.com/",
     "https://example",
+    "https://example.com:65536/",
+    "https://example.com:99999/",
+    "https://example.com:0/",
     `https://example.com/${"a".repeat(300)}`,
     " https://example.com",
   ])("refuses %j", (url) => {

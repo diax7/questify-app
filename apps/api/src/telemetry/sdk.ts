@@ -22,7 +22,6 @@ import {
 import {
   BatchSpanProcessor,
   ConsoleSpanExporter,
-  ParentBasedSampler,
   TraceIdRatioBasedSampler,
   TracerProvider,
   type SpanProcessor,
@@ -72,6 +71,13 @@ const CLOSED_LIST_VIEW: ViewOptions = {
   attributesProcessors: [{ process: (incoming) => safeAttributes(incoming) }],
 };
 
+/** One JSON line on standard error: an event name and a short message (never a header or a body). */
+function writeErrorLine(event: string, message: unknown): void {
+  process.stderr.write(
+    `${JSON.stringify({ level: "error", event, message: String(message).slice(0, DIAG_MESSAGE_LIMIT) })}\n`,
+  );
+}
+
 /**
  * The OpenTelemetry SDK reports a failed export to a diagnostic logger, which is silent by default: a wrong receiver
  * address would go unseen. This writes the first line it hears each minute to standard error (a name and a short
@@ -83,13 +89,7 @@ function exportFailureLogger(): DiagLogger {
     error: (message) => {
       if (Date.now() - lastAt < DIAG_PAUSE_MS) return;
       lastAt = Date.now();
-      process.stderr.write(
-        `${JSON.stringify({
-          level: "error",
-          event: "telemetry.export_failed",
-          message: String(message).slice(0, DIAG_MESSAGE_LIMIT),
-        })}\n`,
-      );
+      writeErrorLine("telemetry.export_failed", message);
     },
     warn: nothing,
     info: nothing,
@@ -108,7 +108,7 @@ export function installTelemetry(pipelines: Pipelines, options: InstallOptions):
   });
   const tracerProvider = new TracerProvider({
     resource,
-    sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(options.traceRatio) }),
+    sampler: new TraceIdRatioBasedSampler(options.traceRatio),
     spanProcessors: [...pipelines.spanProcessors],
   });
   const meterProvider = new MeterProvider({
@@ -127,7 +127,9 @@ export function installTelemetry(pipelines: Pipelines, options: InstallOptions):
   return {
     flush,
     shutdown: async () => {
-      await Promise.all([tracerProvider.shutdown(), meterProvider.shutdown()]).catch(() => {});
+      await Promise.all([tracerProvider.shutdown(), meterProvider.shutdown()]).catch(
+        (error: unknown) => writeErrorLine("telemetry.shutdown_failed", error),
+      );
       trace.disable();
       metrics.disable();
       context.disable();

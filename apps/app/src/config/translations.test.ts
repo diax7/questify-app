@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { MESSAGES, createTranslator } from "@questify/shared";
 import type { ApiRequest, ApiResult, Client } from "#src/api/client.ts";
 import {
+  TRANSLATIONS_JITTER_MS,
   TRANSLATIONS_KEY,
   cachedTranslations,
   loadTranslations,
+  refreshJitterMs,
 } from "#src/config/translations.ts";
 
 const BUNDLE = { ar: { "nav.home": "البداية" }, en: { "nav.home": "Start" } };
@@ -79,6 +81,24 @@ describe("loadTranslations", () => {
       expect(await loadTranslations({ client: fake([answer]).client, store })).toEqual(BUNDLE);
       expect(JSON.parse(store.data.get(TRANSLATIONS_KEY) ?? "").body).toEqual(BUNDLE);
     }
+  });
+
+  it("still shows a fresh answer when the phone cannot keep a copy of it", async () => {
+    const store = {
+      getItem: async () => null,
+      setItem: async () => {
+        throw new Error("storage full");
+      },
+    };
+    expect(await loadTranslations({ client: fake([ok(BUNDLE, '"v1"')]).client, store })).toEqual(
+      BUNDLE,
+    );
+  });
+
+  it("waits a random 0 to 5 seconds before a refresh", () => {
+    expect(refreshJitterMs(() => 0)).toBe(0);
+    expect(refreshJitterMs(() => 0.5)).toBe(2_500);
+    expect(refreshJitterMs(() => 0.999999)).toBe(TRANSLATIONS_JITTER_MS - 1);
   });
 
   it("overrides nothing without a working copy, and asks without a tag", async () => {

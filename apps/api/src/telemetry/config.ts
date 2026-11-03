@@ -106,9 +106,9 @@ function headersOf(env: Env): Record<string, string> {
 
 function ratioOf(env: Env, exporter: TelemetryExporter): number {
   const fallback = exporter === "otlp" ? OTLP_TRACE_RATIO : DEFAULT_TRACE_RATIO;
-  const text = env["TELEMETRY_TRACE_RATIO"] ?? fallback;
+  const text = optional(env, "TELEMETRY_TRACE_RATIO") ?? fallback;
   const value = Number(text);
-  if (text.trim() === "" || !Number.isFinite(value) || value < 0 || value > 1) {
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
     throw new Error(`TELEMETRY_TRACE_RATIO must be a number from 0 to 1; got "${text}".`);
   }
   return value;

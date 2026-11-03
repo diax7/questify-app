@@ -1,4 +1,4 @@
-import { TUNING, readPlatformSettings } from "@questify/shared";
+import { TUNING, isUsableTuning, readPlatformSettings } from "@questify/shared";
 import type { Client, PoolClient } from "pg";
 import { readStoredPlatform } from "#src/settings/store";
 
@@ -16,10 +16,5 @@ export async function readTuning(
     throw new Error(`"${key}" is not a tuning number of the app; add it to the registry first`);
   }
   const stored = readPlatformSettings(await readStoredPlatform(db)).tuning?.[key];
-  const usable =
-    stored !== undefined &&
-    Number.isInteger(stored) &&
-    stored >= definition.min &&
-    stored <= definition.max;
-  return usable ? stored : definition.default;
+  return isUsableTuning(stored, definition) ? stored : definition.default;
 }

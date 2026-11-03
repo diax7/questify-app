@@ -6490,7 +6490,10 @@ the cached copy at once, fetches `/v1/translations` with the cached ETag on star
 30 seconds while it is in the foreground, and keeps the last working copy on a 304, a failed fetch or an unreadable answer (F-282,
 `loadTranslations`, key `questify.translations`). The translator is `createTranslator(MESSAGES, overrides)`, so a value is used only
 when it is usable and everything else is the shipped text (FR-1768); an event's labels (ADR-399) lay over it as before. Worst case from
-a save to a foreground phone: the server's 15-second cache on another instance plus one 30-second round, about 45 seconds. The text is
+a save to a foreground phone: the server's 15-second cache on another instance plus one 30-second round and up to 5 seconds of
+random jitter (each phone adds 0 to 5 seconds to its first refresh and its interval, so phones that start together drift apart),
+about 50 seconds. Load assumption: one request per foreground phone per 30 seconds, almost all of them a 304 from that cache with
+no body (10,000 phones in the foreground is about 330 requests a second); move the interval to 60 seconds if it ever hurts. The text is
 not composed into `GET /v1/config`: that document is per event and mostly cached for the event, and the store is platform-wide and
 already has its own route, ETag and cache. `readOverrides` moved to `@questify/shared` (the wizard used its own copy).
 **Why:** reuses the built route and the same last-working-copy rule as the configuration, with no change to the configuration schema.
@@ -7644,9 +7647,9 @@ provider (Q-034). Campaigns share the weekly cap per channel with invitations (A
 ## ADR-611 - T-802b the intro makes one anonymous read of the public configuration
 
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-802b code review 93; T-802b). Touches FR-1800 and the T-802 compliance note; question Q-570.
-**Decision:** to play the platform's order on a first launch (when the phone holds no copy yet), the intro reads `GET /v1/config` with the plain client, the same call Home makes: no sign-in, no body, nothing about the player. The order is the last working copy at once, else the fresh answer if it arrives within 1.5 seconds, else the shipped four; the first answer wins and later ones only refresh the stored copy, so the cards never change under the player and the intro never waits longer. `intro-guards.test.ts` now allows exactly that one `api.client` use in `IntroScreen.tsx` and still fails on a permission, tracking, push, sign-in or session module, on `api.session` and on `fetch`.
+**Decision:** to play the platform's order on a first launch (when the phone holds no copy yet), the intro reads `GET /v1/config` with the plain client, the same call Home makes: no sign-in, no body, nothing about the player in it. The plain client adds its usual headers (`X-Device-Id`, the install id, which is personal data; `Accept-Language`; `X-App-Version`); the server ignores them on this route and logs only the method and path. The order is the last working copy at once, else the fresh answer if it arrives within 1.5 seconds, else the shipped four; the first answer wins and later ones only refresh the stored copy, so the cards never change under the player and the intro never waits longer. `intro-guards.test.ts` now allows exactly that one `api.client` use in `IntroScreen.tsx` and still fails on a permission, tracking, push, sign-in or session module, on `api.session` and on `fetch`.
 **Why:** the intro shows once per install, on the first launch, when the phone has no cached configuration; reading only the cache would make the admin's order apply to replays alone, which is not what "an admin hides the third card and the app plays three" means.
-**Trade-offs:** FR-1800 ("no permission, collect no data") is kept in its meaning (nothing about the player leaves the phone, no permission prompt); the T-802 note "no request" in STORE_COMPLIANCE is amended. A first launch with no network plays the shipped four.
+**Trade-offs:** FR-1800 ("no permission, collect no data") is kept in its meaning (no permission prompt, nothing about the player in the request body or the URL, the headers' install id ignored and never stored by this route); the T-802 note "no request" in STORE_COMPLIANCE is amended. A first launch with no network plays the shipped four.
 
 ## ADR-612 - T-802b the join welcome card takes the join card's place
 

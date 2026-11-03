@@ -9,6 +9,7 @@ import { nameIn } from "#src/lib/console.ts";
 import {
   ORGANIZERS_API,
   clockOf,
+  historyKeyOf,
   organizersPath,
   readOrganizerDetail,
   readOrganizerPage,
@@ -16,7 +17,7 @@ import {
   type OrganizerDetail,
   type OrganizerRow,
 } from "#src/lib/console-organizers.ts";
-import { translatorFor } from "#src/lib/language.ts";
+import { translatorFor, type Translate } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
 import { Button } from "#src/ui/Button.tsx";
@@ -152,6 +153,12 @@ export function ConsoleOrganizers({ language }: Readonly<{ language: Language }>
   );
 }
 
+/** An audit action in words when it has some, else its stored name (a code, so it reads left to right). */
+function HistoryAction({ t, action }: Readonly<{ t: Translate; action: string }>) {
+  const key = historyKeyOf(action);
+  return key === undefined ? <bdi dir="ltr">{action}</bdi> : <>{t(key)}</>;
+}
+
 export function HistoryList({
   language,
   history,
@@ -168,7 +175,7 @@ export function HistoryList({
               key={entry.id}
               main={
                 <span>
-                  <bdi dir="ltr">{entry.action}</bdi>{" "}
+                  <HistoryAction t={t} action={entry.action} />{" "}
                   <Muted as="span">
                     {clockOf(entry.at, language)}
                     {entry.bySupport ? ` · ${t("console.organizer.bySupport")}` : ""}

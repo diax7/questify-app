@@ -1,7 +1,25 @@
+import type { MessageKey } from "@questify/shared";
 import { readSuspension, type Suspension } from "#src/lib/staff-api.ts";
 
 /** The console's organizers (T-701): its list, one organizer, and an event's suspension and support grants. */
 export const ORGANIZERS_API = "/v1/admin/organizers";
+
+const HISTORY_KEYS: Readonly<Record<string, MessageKey>> = {
+  "event.suspend": "console.history.eventSuspend",
+  "event.reactivate": "console.history.eventReactivate",
+  "organizer.suspend": "console.history.organizerSuspend",
+  "organizer.reactivate": "console.history.organizerReactivate",
+  "support.opened": "console.history.supportOpened",
+  "support.closed": "console.history.supportClosed",
+};
+
+/** The words for an audit action in the console's history, or undefined for one without words (its name is shown). */
+export function historyKeyOf(action: string): MessageKey | undefined {
+  if (Object.hasOwn(HISTORY_KEYS, action)) {
+    return HISTORY_KEYS[action];
+  }
+  return /^console\.[a-z_]+_read$/.test(action) ? "console.history.read" : undefined;
+}
 
 type Text = Readonly<{ ar: string | null; en: string | null }>;
 

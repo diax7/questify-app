@@ -1,6 +1,7 @@
 import {
   DEFAULT_QUESTIFY_HOME,
   QUESTIFY_HOME_KEYS,
+  QUESTIFY_HOME_PROTECTED,
   type QuestifyHome,
   type TapAction,
 } from "@questify/shared";
@@ -72,6 +73,11 @@ describe("what is wrong with a draft, in the admin's words", () => {
       key: "layout.problem.slideTitle",
       n: 2,
     });
+  });
+
+  it("gives the general line for a problem that is not in a slide, such as a hidden protected block", () => {
+    const hidden = { ...DEFAULT_QUESTIFY_HOME, hidden: [...QUESTIFY_HOME_PROTECTED] };
+    expect(homeProblem(hidden)).toEqual({ key: "layout.problem.other", n: 1 });
   });
 
   it("asks for an https link when the link is not one", () => {

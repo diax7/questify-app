@@ -11,6 +11,7 @@ import {
   maintenanceFor,
   readBanner,
   readMaintenance,
+  readNoticeMessage,
 } from "./notices";
 
 const EVENT = "11111111-1111-4111-8111-111111111111";
@@ -41,6 +42,16 @@ describe("reading the stored maintenance block", () => {
     expect(readMaintenance(null)).toEqual({ events: {} });
     expect(readMaintenance([1])).toEqual({ events: {} });
     expect(readMaintenance({ events: "x" })).toEqual({ events: {} });
+  });
+});
+
+describe("a stored message with a direction override", () => {
+  it("is read as no message, so it is never shown", () => {
+    expect(readNoticeMessage({ ar: "‮متوقفة", en: "Paused" })).toBeUndefined();
+    expect(readNoticeMessage({ ar: "متوقفة", en: "Paused" })).toEqual({
+      ar: "متوقفة",
+      en: "Paused",
+    });
   });
 });
 

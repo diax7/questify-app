@@ -2407,7 +2407,7 @@ The numbers in `ops/alerts/questify.rules.yml` come from ADR-074 (99.9%, 1 s at 
 
 ## Q-570 - May the intro read the public configuration? (T-802b, ADR-611, FR-1800)
 
-**Status:** Decided by the developer (delegated by Dhia, 2026-11-03, after the T-802b code review): yes, the intro makes one `GET /v1/config`; the plain client sends the install id, language and app version, which the server ignores on this route (docs to be corrected, FOLLOWUPS).
+**Status:** Decided by the developer (delegated by Dhia, 2026-11-03, after the T-802b code review): yes, the intro makes one `GET /v1/config`; the plain client sends the install id, language and app version, which the server ignores on this route (STORE_COMPLIANCE, ADR-611 and FR-1800 say so).
 FR-1800 says the intro asks for no permission and collects no data; T-802 went further and made it request-free, with a test that fails on any network use. The platform's card order (FR-1803) cannot reach a first launch from the cache, because the phone has none yet.
 **Recommended (developer):** allow the one anonymous `GET /v1/config` read the app already makes on Home (no sign-in, nothing about the player), bounded to 1.5 seconds, with the shipped four as the fallback. If Dhia wants an intro that makes no request at all, drop `resolveIntroOrder` and play the cached order only (replays) or the shipped four.
 

@@ -6,7 +6,7 @@ import {
   type FeatureUsageRow,
   type Language,
 } from "@questify/shared";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   causeKeyOf,
   featureUsagePath,
@@ -146,9 +146,15 @@ function useFeatureUsage(language: Language, query: string) {
   const [rows, setRows] = useState<FeatureUsageOrganizer[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const latest = useRef(0);
   const load = useCallback(
     async (cursor: string | null) => {
+      latest.current += 1;
+      const mine = latest.current;
       const result = await requestJson("GET", featureUsagePath({ q: query, cursor }));
+      if (mine !== latest.current) {
+        return;
+      }
       const page = result.ok ? readFeatureUsagePage(result.body) : undefined;
       if (page === undefined) {
         setProblem(describeProblem(result.body, language, t).text);

@@ -31,6 +31,8 @@ export type SetupWizardState = Readonly<{
    * when the read failed, so no switch and no add-on shows.
    */
   layers: EventLayers | null;
+  /** The features read failed, so no switch shows; the step says so. */
+  layersFailed: boolean;
   /** The wizard's words: the shipped texts with what an admin changed laid over them. */
   t: Translate;
   loadFailed: boolean;
@@ -106,7 +108,7 @@ export function useSetupWizard(
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const loaded = useRef(false);
-  const { layers } = useEventLayers(organizerId, eventId);
+  const { layers, failed: layersFailed } = useEventLayers(organizerId, eventId);
 
   useEffect(() => {
     if (loaded.current) {
@@ -185,6 +187,7 @@ export function useSetupWizard(
     event: eventRead?.event ?? null,
     fresh: eventRead?.at === progress,
     layers,
+    layersFailed,
     t,
     loadFailed,
     busy,

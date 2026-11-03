@@ -323,7 +323,11 @@ const welcomeLocked = (event: BuilderEvent, row: EventRow) =>
 
 type Work<T> = (client: PoolClient, event: BuilderEvent) => Promise<SetupDone<T>>;
 
-/** Runs one action on the path's event, locked against other saves: not found outside the caller's reach. */
+/**
+ * Runs one action on the path's event: not found outside the caller's reach. A write (the default) locks the event row
+ * against other saves; a read (`writes` false) takes no lock, so it can overlap a save and at worst see the state just
+ * before it (a following write may then answer an extra 409).
+ */
 export function withSetupEvent<T>(
   deps: SetupDeps,
   actor: Actor,

@@ -557,8 +557,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("invitation campaigns (database
           else if (value < 10) expect(count).toEqual({ fewerThan: 10 });
           else expect(count).toEqual({ atLeast: Math.floor(value / 10) * 10 });
         }
-        const text = JSON.stringify(answer);
-        for (const exact of ["9999", "12345"]) expect(text).not.toContain(exact);
+        const numbers: number[] = [];
+        JSON.parse(JSON.stringify(answer), (_key, value: unknown) => {
+          if (typeof value === "number") numbers.push(value);
+          return value;
+        });
+        for (const exact of [9999, 12345]) expect(numbers).not.toContain(exact);
       }
     });
 
