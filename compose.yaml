@@ -5,6 +5,8 @@ services:
     # Every integration test file opens its own pool; on a many-core machine the parallel suite needs more than the
     # default 100 connections (CI's 2-core runner does not).
     command: ["postgres", "-c", "max_connections=300"]
+    # Docker's 64 MB /dev/shm runs out when parallel suites share this server; CI's mutation job uses 1 GB too.
+    shm_size: 1g
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
