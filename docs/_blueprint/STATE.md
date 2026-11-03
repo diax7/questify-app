@@ -18,7 +18,12 @@
   spreadsheet list its souvenirs with the players who earned each (floored). `member_sponsors`, every public item DTO, a duplicate
   of the event, erasure and the export do not carry it. Tests: `test/db/sponsor-souvenirs` (15), `test/db/sponsors`,
   `test/sponsors/routes` (HTTP), the security suites, shared, API, app and web unit tests, `e2e/sponsors.spec.ts` (a souvenir step).
-  CI minutes: 0 (not pushed).
+  Two hand mutants of 0143 (the duplicate's `kind <> 'souvenir'`, and `sponsor_tag_shown`'s `ELSE false`) were each caught by
+  one test. **Local:** pnpm lint, lint:limits, format:check and typecheck clean; `expo export --platform android` passes; web
+  build, then `layout.spec` and `sponsors.spec` on desktop and phone (4 passed). Full vitest ONCE: 11,982 tests in 772 files;
+  on a PC shared with other runs 165 files hit 60 s hook timeouts (8,784 passed, 11 failed and 3,187 skipped, all timeouts but
+  `meet` and the `events` lifecycle tick, both timing); those 165 files re-run with two workers: 3,678 passed, 0 failed.
+  CI minutes: 0 (not pushed); agent tokens: about 700k.
   **Next:** the T-507c code review (tier B, mid-tier); then the next unchecked task in `docs/TASKS.md`. Mutation: not needed (tier B).
 
 ## T-714 per-organizer feature usage — 2026-11-03
