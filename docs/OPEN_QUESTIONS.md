@@ -1351,6 +1351,8 @@ call and the dashboard repeats. Recommended (Proposed, developer's call, T-221):
 so accept-all becomes one call again. The other options: a seat counter on the event kept by every write that seats or
 unseats a player (fast, but every join, leave, ban and removal must keep it right); a partial index on seated
 enrollments (only lowers the cost per row; the count per row stays); keeping the 250 cap (more calls for big events).
+**Answered by Q-590 (T-221, built 2026-11-03, migration 0146):** the limit is checked once per statement; a
+hard-limited event now accepts up to 1,000 a call (ADR-631).
 
 ## Q-324 — Where the T-501e build fills in the event pushes (2026-10-28, T-501e build)
 Recommended (ADR-354): a live or ended event's notices skip rehearsal accounts; every event push skips an operator kept
@@ -2461,4 +2463,4 @@ With the collector gone, the closed list (ADR-603) is enforced once, by `safeAtt
 ## Q-591 - How many requests may one accept-all call take? (T-221, ADR-631)
 
 **Status:** Proposed (developer's recommendation, 2026-11-03).
-**Recommended:** up to 5,000 a call in both modes (the measured bound under the API's 5 s statement limit), the dashboard repeating above that. **Other options:** truly unbounded (a large queue is refused by the 5 s limit and accepts nothing); keeping 1,000 without a limit and the free seats with one (two numbers for no gain).
+**Recommended:** up to 5,000 a call in both modes, the dashboard repeating above that. **Measured at build (2026-11-03): 5,000 took 14 to 29 s, so the cap is 1,000 in both modes (2.78 s median on the fixture), ADR-631.** Getting near 5,000 needs the welcome grant's per-row cost lowered first (FOLLOWUPS). **Other options:** truly unbounded (a large queue is refused by the 5 s limit and accepts nothing); keeping 1,000 without a limit and the free seats with one (two numbers for no gain).

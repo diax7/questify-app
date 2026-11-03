@@ -275,9 +275,11 @@ note, decided_by, decided_at)` and `event_limit_alert(event_id, organizer_id, le
 (event_id, level))` are read by the event's team within their limit and by admins, and written only by definers:
 `request_event_activation` and `withdraw_event_activation` (the owner), `activate_event`, `reject_event_activation` and
 `set_event_player_limit` (an active platform admin, confirmed by `app_admin_id()`), each audited. **Seats** are
-accepted players, enrollments active or banned (T-218, ADR-168: pending and declined take none); the trigger
-`enrollment_player_limit` lets a move into active through only below a hard limit (`QL409` otherwise, serialized per event by a transaction lock) and records the 80% and 100%
-marks once. `event_seat_count(event)` gives the count to the team and admins.
+accepted players, enrollments active or banned (T-218, ADR-168: pending and declined take none); the
+statement triggers `enrollment_seat_limit_insert` and `enrollment_seat_limit_update` (T-221, migration 0146, ADR-630;
+they replace the row trigger `enrollment_player_limit`) count each event's seats once per statement that seats players
+(transition tables), refuse the whole statement past a hard limit (`QL409`, serialized per event by a transaction lock,
+READ COMMITTED only) and record the 80% and 100% marks once, with the count at the crossing. `event_seat_count(event)` gives the count to the team and admins.
 **Join requests (T-218, migration 0036).** The join definers, `decide_join_request`, `accept_all_join_requests` and
 `enroll_operator` take the event's seat lock through `free_seats(event)` before the enrollment row and decide on the
 free seats counted under it (`full` is an answer, never a raised error). `join_requests(event, after, page)` lists the

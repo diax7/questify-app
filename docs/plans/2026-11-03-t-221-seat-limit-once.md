@@ -278,3 +278,9 @@ globs; the SQL hand mutants above stand in, run by the builder and listed in the
 - MINOR 5: the post-deploy timing probe is a required RUNBOOK step; lowering the cap is the planned response. "Risks".
 - NITs 6 to 8: the lock-order wording, the trigger inventory (`mark_ranking_on_enrollment`, the three exit
   triggers), and `record_limit_crossings` reusing `ceil(cap * 0.8)`.
+
+## Build result (2026-11-03)
+
+Built as planned except the cap: 5,000 a call measured 14 to 29 s after the trims (about 3 ms a row, linear), so
+ADR-631's fallback applied and the cap is 1,000 in both modes (median 2.78 s on the fixture). The trigger exits through
+one `EXISTS` before aggregating (32 µs a firing in the profile, within the 50 µs budget). Numbers in the TASKS note.
