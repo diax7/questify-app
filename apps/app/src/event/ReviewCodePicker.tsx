@@ -13,7 +13,6 @@ import {
 } from "#src/event/review-codes.ts";
 import { useReviewDemo } from "#src/event/review-demo-flag.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
-import type { TapRead } from "#src/nfc/NfcTap.tsx";
 import { textIn } from "#src/i18n/text.ts";
 
 type Listing =
@@ -21,7 +20,7 @@ type Listing =
   | Readonly<{ kind: "codes"; codes: ReviewCode[] }>
   | Readonly<{ kind: "failed" }>;
 
-/** One line per code: its quest or category, what kind of code it is, and the step or tag's own name. */
+/** One line per code: its quest or category, what kind of code it is, and the step's own name. */
 function lineOf(
   code: ReviewCode,
   t: ReturnType<typeof useI18n>["t"],
@@ -44,12 +43,10 @@ export function ReviewCodePicker({
   eventId,
   disabled,
   onScan,
-  onTap,
 }: Readonly<{
   eventId: string;
   disabled: boolean;
   onScan: (read: Readonly<{ data: string }>) => void;
-  onTap: (read: TapRead) => void;
 }>) {
   const { t, language } = useI18n();
   const shown = useReviewDemo(eventId);
@@ -72,11 +69,6 @@ export function ReviewCodePicker({
   const pick = async (code: ReviewCode) => {
     const chosen = pickOf(code);
     if (chosen === undefined) {
-      return;
-    }
-    if (chosen.kind === "tap") {
-      setOpen(false);
-      onTap({ url: chosen.url, uid: null });
       return;
     }
     if (chosen.kind === "scan") {

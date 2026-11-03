@@ -642,7 +642,7 @@ function registerPlayDoors(app: FastifyInstance, config: AppConfig, deps: PlayDo
   registerGameRoutes(app, { pool, ranking, keys });
   const tagKey = createTagCodeKey(config.qrSecret);
   const origin = config.auth.dashboardOrigin;
-  registerReviewDemoPlayerRoutes(app, { ...deps.codeKeys, pool, keys, tagKey, origin });
+  registerReviewDemoPlayerRoutes(app, { ...deps.codeKeys, pool, keys, origin });
   registerNfcRoutes(app, {
     pool,
     tagKey,

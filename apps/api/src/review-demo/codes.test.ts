@@ -4,11 +4,9 @@ import {
   createQuestCodeKey,
   createRevealCodeKey,
   createStepCodeKey,
-  createTagCodeKey,
   verifyQuestCode,
   verifyRevealCode,
   verifyStepCode,
-  verifyTagCode,
 } from "#src/quests/qr";
 import { listReviewCodes, reviewDemoFlag, type ReviewCodeDeps } from "#src/review-demo/codes";
 import { fakePool, pgError, type FakeAnswer } from "#test/support/fake-pool";
@@ -24,7 +22,6 @@ const keys = {
   codeKey: createQuestCodeKey(SECRET),
   stepKey: createStepCodeKey(SECRET),
   revealKey: createRevealCodeKey(SECRET),
-  tagKey: createTagCodeKey(SECRET),
 };
 
 const depsOver = (answer: (sql: string) => FakeAnswer): ReviewCodeDeps => ({
@@ -57,21 +54,20 @@ const tokenOf = (url: string | null, path: string) => {
 };
 
 describe("the review demo's code list (T-710b)", () => {
-  it("signs each printable code with the key its sticker or tag uses", async () => {
+  it("signs each printable code with the key its sticker uses", async () => {
     const deps = depsOver(() => ({
       rows: [
         row("quest"),
-        row("step"),
+        row("step", { label_ar: "بوابة", label_en: "Gate" }),
         row("reveal", { quest_id: null }),
-        row("tag", { label_ar: "بوابة", label_en: "Gate" }),
         row("meet"),
       ],
     }));
     const result = await listReviewCodes(deps, PLAYER, EVENT);
     expect(result.kind).toBe("done");
     const codes = result.kind === "done" ? result.value : [];
-    expect(codes.map((code) => code.kind)).toEqual(["quest", "step", "reveal", "tag", "meet"]);
-    const [quest, step, reveal, tag, meet] = codes;
+    expect(codes.map((code) => code.kind)).toEqual(["quest", "step", "reveal", "meet"]);
+    const [quest, step, reveal, meet] = codes;
     expect(verifyQuestCode(keys.codeKey, tokenOf(quest?.url ?? null, "q"), ID)).toEqual({
       kind: "valid",
       questId: ID,
@@ -81,11 +77,6 @@ describe("the review demo's code list (T-710b)", () => {
     expect(verifyRevealCode(keys.revealKey, tokenOf(reveal?.url ?? null, "q"), ID).kind).toBe(
       "valid",
     );
-    expect(verifyTagCode(keys.tagKey, tokenOf(tag?.url ?? null, "t"))).toEqual({
-      kind: "valid",
-      tagId: ID,
-      version: 3,
-    });
     expect(meet?.url).toBeNull();
     expect(quest).toMatchObject({
       questId: QUEST,
@@ -93,7 +84,7 @@ describe("the review demo's code list (T-710b)", () => {
       label: null,
     });
     expect(reveal?.questId).toBeNull();
-    expect(tag?.label).toEqual({ ar: "بوابة", en: "Gate" });
+    expect(step?.label).toEqual({ ar: "بوابة", en: "Gate" });
   });
 
   it("answers not_found for the caller rule's refusal, and throws anything else", async () => {

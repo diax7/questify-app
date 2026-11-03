@@ -138,7 +138,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("review demo QR picker (databas
       )
     )[0]?.player_id ?? "";
 
-  it("lists every printable code of the demo event to the reviewer, and nothing deleted, hidden or revoked", async () => {
+  it("lists every printable code of the demo event to the reviewer, never a tag, and nothing deleted or hidden", async () => {
     expect(await here(reviewer)).toBe(true);
     const listed = await codes(reviewer);
     const pairs = listed.map((code) => `${code.kind}:${code.id}`).toSorted();
@@ -148,11 +148,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("review demo QR picker (databas
         `quest:${made["tagged"]}`,
         `step:${made["step"]}`,
         `reveal:${made["secret"]}`,
-        `tag:${made["tag"]}`,
         `meet:${made["meet"]}`,
       ].toSorted(),
     );
     expect(listed.find((code) => code.kind === "step")?.quest_id).toBe(made["passport"]);
+    expect(
+      listed.filter((code) => code.id === made["tag"] || code.id === made["revokedTag"]),
+    ).toEqual([]);
     expect(listed.every((code) => code.version >= 1)).toBe(true);
   });
 
@@ -235,6 +237,82 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("review demo QR picker (databas
     } finally {
       await f.owner(fictionals, [event, "active"]);
     }
+  });
+
+  it("refuses a reviewer whose account is not active", async () => {
+    const status = "UPDATE player SET status = $2 WHERE id = $1";
+    await f.owner(status, [reviewer, "banned"]);
+    try {
+      expect(await here(reviewer)).toBe(false);
+      expect(await sqlstate(codes(reviewer))).toBe("RD404");
+      expect(await sqlstate(meetCode(reviewer, made["meet"] ?? ""))).toBe("RD404");
+    } finally {
+      await f.owner(status, [reviewer, "active"]);
+    }
+  });
+
+  it("refuses a hidden meet quest's code as not found", async () => {
+    const open = await f.owner<{ category_id: string }>(
+      "SELECT category_id FROM quest WHERE id = $1",
+      [made["meet"]],
+    );
+    const hidden = await quest(open[0]?.category_id ?? "", "meet", {
+      config: { dailyCap: 5 },
+      verification: [],
+      visible: false,
+    });
+    expect(await sqlstate(meetCode(reviewer, hidden))).toBe("RD404");
+  });
+
+  it("passes over a fictional player at its daily meet cap", async () => {
+    const open = await f.owner<{ category_id: string }>(
+      "SELECT category_id FROM quest WHERE id = $1",
+      [made["meet"]],
+    );
+    const capped = await quest(open[0]?.category_id ?? "", "meet", {
+      config: { dailyCap: 1 },
+      verification: [],
+    });
+    const pair = await f.owner<{ id: string; player_id: string }>(
+      `SELECT n.id, n.player_id FROM enrollment n
+       JOIN review_demo_player r ON r.player_id = n.player_id AND r.role = 'fictional'
+       WHERE n.event_id = $1 AND n.status = 'active' ORDER BY n.id LIMIT 2`,
+      [event],
+    );
+    const token = randomBytes(16);
+    await f.asPlayer(pair[0]?.player_id ?? "", "SELECT * FROM issue_meet_pass($1, $2, NULL)", [
+      capped,
+      sha(token),
+    ]);
+    await f.asPlayer(pair[1]?.player_id ?? "", "SELECT * FROM meet_player($1, $2, NULL, NULL)", [
+      sha(token),
+      randomUUID(),
+    ]);
+    const [pass] = await meetCode(reviewer, capped);
+    const [shown] = await f.owner<{ enrollment_id: string }>(
+      "SELECT enrollment_id FROM meet_pass WHERE id = $1",
+      [pass?.pass_id],
+    );
+    expect(pair.map((row) => row.id)).not.toContain(shown?.enrollment_id);
+  });
+
+  it("deletes the fictional player's day-old unused passes when it issues a new one", async () => {
+    const [first] = await meetCode(reviewer, made["meet"] ?? "");
+    const [shown] = await f.owner<{ id: string; organizer_id: string; enrollment_id: string }>(
+      "SELECT id, organizer_id, enrollment_id FROM meet_pass WHERE id = $1",
+      [first?.pass_id],
+    );
+    const [old] = await f.owner<{ id: string }>(
+      `INSERT INTO meet_pass (organizer_id, event_id, quest_id, enrollment_id, token_hash, expires_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, now() - interval '2 days', now() - interval '2 days') RETURNING id`,
+      [shown?.organizer_id, event, made["meet"], shown?.enrollment_id, sha(randomBytes(16))],
+    );
+    const [next] = await meetCode(reviewer, made["meet"] ?? "");
+    const left = await f.owner<{ id: string; enrollment_id: string }>(
+      "SELECT id, enrollment_id FROM meet_pass WHERE id IN ($1, $2)",
+      [old?.id, next?.pass_id],
+    );
+    expect(left).toEqual([{ id: next?.pass_id, enrollment_id: shown?.enrollment_id }]);
   });
 
   it("from the outsider's seat, grants the three doors to the API's role alone", async () => {

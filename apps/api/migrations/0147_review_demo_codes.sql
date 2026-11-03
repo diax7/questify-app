@@ -24,8 +24,9 @@ GRANT EXECUTE ON FUNCTION review_demo_here(uuid) TO questify_app;
 
 -- The demo event's printable codes, for the reviewer only (RD404 otherwise): a visible quest's own QR (its type carries
 -- one, `qr_types` from the registry, and it is verified by quest QR), each passport step's, each hidden category's
--- secret code, each active NFC tag (its `/t/` address), and each meet quest (its code is issued on demand, below). Ids,
--- versions and titles only; the API signs them with the keys a printed sticker uses.
+-- secret code, and each meet quest (its code is issued on demand, below). Ids, versions and titles only; the API signs
+-- them with the keys a printed sticker uses. NFC tags are not listed (ADR-640): a picked tag carries no chip id, which
+-- `tap_quest` records as a copied tag on Android; a tag quest always takes its quest QR, which is listed.
 CREATE FUNCTION review_demo_codes(ev uuid, qr_types text[])
   RETURNS TABLE (kind text, id uuid, version integer, quest_id uuid, title_ar text, title_en text, label_ar text,
                  label_en text)
@@ -52,11 +53,6 @@ BEGIN
     FROM category ca
     WHERE ca.event_id = ev AND ca.hidden
     UNION ALL
-    SELECT 'tag', t.id, 1, q.id, q.title_ar, q.title_en, NULLIF(t.label, ''), NULLIF(t.label, ''), ca.position,
-           q.position, 1
-    FROM nfc_tag t JOIN quest q ON q.id = t.quest_id JOIN category ca ON ca.id = q.category_id
-    WHERE t.event_id = ev AND t.status = 'active' AND q.deleted_at IS NULL AND q.visible
-    UNION ALL
     SELECT 'meet', q.id, 1, q.id, q.title_ar, q.title_en, NULL, NULL, ca.position, q.position, 0
     FROM quest q JOIN category ca ON ca.id = q.category_id
     WHERE q.event_id = ev AND q.deleted_at IS NULL AND q.visible AND q.type = 'meet'
@@ -67,11 +63,11 @@ REVOKE ALL ON FUNCTION review_demo_codes(uuid, text[]) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION review_demo_codes(uuid, text[]) TO questify_app;
 
 -- A one-minute meet code shown by one of the demo's fictional players, for the reviewer only (RD404 otherwise), so a
--- meet quest is playable without a second phone. The quest must be a meet quest of the demo event (RD404 otherwise;
--- QT422 for another type) with meet on (QF403). The fictional player is the first active one, in id order, who has not
--- met the reviewer on this quest and is under its caps; none left is RD409 `none_left`. The pass is written as
--- `issue_meet_pass` writes one (no device, so `same_device` never applies); the reviewer then scans it through
--- `meet_player`, which checks everything again for both sides.
+-- meet quest is playable without a second phone. The quest must be a visible meet quest of the demo event (RD404
+-- otherwise; QT422 for another type) with meet on (QF403). The fictional player is the first active one, in id order,
+-- who has not met the reviewer on this quest and is under its caps; none left is RD409 `none_left`. The pass is written
+-- as `issue_meet_pass` writes one, that player's day-old unused passes deleted (no device, so `same_device` never
+-- applies); the reviewer then scans it through `meet_player`, which checks everything again for both sides.
 CREATE FUNCTION review_demo_meet_code(ev uuid, target uuid, token_hash bytea)
   RETURNS TABLE (pass_id bigint, expires_at timestamptz)
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -83,7 +79,8 @@ BEGIN
   IF NOT review_demo_here(ev) THEN
     RAISE EXCEPTION 'not found' USING ERRCODE = 'RD404';
   END IF;
-  SELECT q.* INTO quest_row FROM quest q WHERE q.id = target AND q.event_id = ev AND q.deleted_at IS NULL;
+  SELECT q.* INTO quest_row FROM quest q WHERE q.id = target AND q.event_id = ev AND q.deleted_at IS NULL
+    AND q.visible;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'not found' USING ERRCODE = 'RD404';
   END IF;
@@ -112,6 +109,9 @@ BEGIN
   END IF;
   UPDATE meet_pass p SET ended_at = now()
   WHERE p.enrollment_id = shown.id AND p.quest_id = target AND p.ended_at IS NULL;
+  DELETE FROM meet_pass p
+  WHERE p.enrollment_id = shown.id AND p.created_at < now() - interval '1 day'
+    AND NOT EXISTS (SELECT 1 FROM meeting m WHERE m.pass_id = p.id);
   RETURN QUERY
   INSERT INTO meet_pass AS p (organizer_id, event_id, quest_id, enrollment_id, device_id, token_hash, expires_at)
   VALUES (shown.organizer_id, shown.event_id, target, shown.id, NULL, review_demo_meet_code.token_hash,

@@ -111,13 +111,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("review demo QR picker over HTT
     );
     quests["qr"] = await quest(category.rows[0]?.id ?? "", "scan_qr", {});
     quests["meet"] = await quest(category.rows[0]?.id ?? "", "meet", { dailyCap: 5 });
+    await db.owner.query("UPDATE quest SET verification = '{quest_qr,nfc}' WHERE id = $1", [
+      quests["qr"],
+    ]);
+    await db.owner.query(
+      `INSERT INTO nfc_tag (id, organizer_id, event_id, quest_id, uid, label, locked, status)
+       SELECT gen_random_uuid(), organizer_id, id, $2, '\x04a1b2c3', 'Gate', true, 'active'
+       FROM event WHERE id = $1`,
+      [event, quests["qr"]],
+    );
   });
   afterAll(async () => {
     await test.close();
     await db.close();
   });
 
-  it("flags Home for the reviewer and lists signed codes the ordinary scan route pays", async () => {
+  it("flags Home for the reviewer and lists signed codes the ordinary scan route pays, never a tag", async () => {
     const home = await as(token, "GET", `/v1/events/${event}/home`);
     expect(home.statusCode, home.body).toBe(200);
     expect(home.json()).toMatchObject({ reviewDemo: true });
@@ -136,6 +145,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("review demo QR picker over HTT
     });
     expect(scanned.statusCode, scanned.body).toBe(200);
     expect(scanned.json()).toMatchObject({ points: 10 });
+    const taps = await db.owner.query("SELECT 1 FROM nfc_tap WHERE event_id = $1", [event]);
+    expect(taps.rowCount).toBe(0);
   });
 
   it("issues a fictional player's meet code that POST /v1/meet pays", async () => {

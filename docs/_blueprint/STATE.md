@@ -11,12 +11,12 @@
 - **T-710b built (tier A; migration 0147, new and undeployed; ADR-640 and Q-600 Proposed).** Three doors, granted to the
   API role alone and revoked from PUBLIC: `review_demo_here` (the caller is the reviewer, in the demo event, the window
   open, an active member with an active account), `review_demo_codes` (the event's printable codes: visible quest QRs,
-  passport steps, hidden categories' secret codes, active NFC tags, meet quests) and `review_demo_meet_code` (a fictional
+  passport steps, hidden categories' secret codes, meet quests; no NFC tags) and `review_demo_meet_code` (a fictional
   player's one-minute pass, first not yet met and under caps; RD409 `none_left`); RD404 to everyone else.
   `GET /v1/events/{id}/review-codes` signs the codes with the sticker keys; `POST .../review-codes/meet` issues the pass
   (meet-pass limit); Home carries `reviewDemo: true` for the reviewer only. The app keeps the flag in memory per event
-  (`review-demo-flag.ts`); the scanner's "Pick a code (review only)" sheet feeds a pick to its own QR, tag (no sticker
-  id) and meet handlers, so every completion rule is unchanged. `buildApp` split (`registerPlayDoors`) and the scanner's
+  (`review-demo-flag.ts`); the scanner's "Pick a code (review only)" sheet feeds a pick to its own QR and meet
+  handlers, so every completion rule is unchanged. `buildApp` split (`registerPlayDoors`) and the scanner's
   return re-check moved to `useRecheckOnReturn` to stay within the function limits (baseline shrank). Tests:
   `test/db/review-demo-codes` (7: the list, refusals for another event, a real player, a fictional one, an unknown event,
   a member who left, a closed window; the meet pass paid by `meet_player`; grants), `test/review-demo/codes` (4, HTTP:
@@ -27,7 +27,11 @@
   `npx expo export` (android) passes. Full vitest once (4 workers): 12,490 passed, 1 failed (the community gate map,
   fixed and re-run), 18 skipped, 810 files. Lint, `lint:limits`, `format:check`, types clean. CI minutes: 0; agent
   tokens roughly 1M (estimate).
-  **Next:** the T-710b code review (tier A, strongest model), then mutation on GitHub
+  **Code review 87, MAJOR fixed:** a picked tag (no chip id) raised a false `nfc_copy` on Android, so tags are no longer
+  listed (a tag quest's QR is; ADR-640 and Q-600 corrected); minors fixed with DB tests: a hidden meet quest refused, an
+  inactive reviewer account refused, the fictional player's day-old passes deleted, a fictional player at its daily cap
+  passed over (kills the surviving `meet_caps` mutant; hand mutants for all four killed).
+  **Next:** mutation on GitHub
   (`apps/api/src/review-demo/codes.ts`); a store build carries the picker (T-806).
 
 ## T-221 seat limit once a statement — 2026-11-03

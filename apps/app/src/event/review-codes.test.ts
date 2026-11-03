@@ -35,27 +35,30 @@ const code = (fields: Partial<ReviewCode> = {}): ReviewCode => ({
 });
 
 describe("the review demo's code picker (T-710b)", () => {
-  it("reads the list, leaving out a code this build cannot read", () => {
-    const tag = code({ kind: "tag", id: "t1", label: { ar: "بوابة", en: "Gate" } });
+  it("reads the list, leaving out a code this build cannot read, a tag among them", () => {
+    const step = code({ kind: "step", id: "s1", label: { ar: "بوابة", en: "Gate" } });
     expect(
       readReviewCodes({
-        codes: [code(), tag, { ...code(), kind: "kiosk" }, { ...code(), title: 3 }, null],
+        codes: [
+          code(),
+          step,
+          { ...code(), kind: "tag", url: "https://questify.sa/t/xyz" },
+          { ...code(), kind: "kiosk" },
+          { ...code(), title: 3 },
+          null,
+        ],
       }),
-    ).toEqual([code(), tag]);
+    ).toEqual([code(), step]);
     expect(readReviewCodes({ codes: [] })).toEqual([]);
     for (const body of [null, {}, { codes: "x" }, "codes"]) {
       expect(readReviewCodes(body)).toBeUndefined();
     }
   });
 
-  it("feeds a QR, step or secret code to the scanner, a tag to the tag handler, and a meet quest asks first", () => {
+  it("feeds a QR, step or secret code to the scanner, and a meet quest asks first", () => {
     for (const kind of ["quest", "step", "reveal"] as const) {
       expect(pickOf(code({ kind }))).toEqual({ kind: "scan", data: "https://questify.sa/q/abc" });
     }
-    expect(pickOf(code({ kind: "tag", url: "https://questify.sa/t/xyz" }))).toEqual({
-      kind: "tap",
-      url: "https://questify.sa/t/xyz",
-    });
     expect(pickOf(code({ kind: "meet", id: "m1", url: null }))).toEqual({
       kind: "meet",
       questId: "m1",

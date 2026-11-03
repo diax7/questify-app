@@ -323,7 +323,7 @@ export default function ScanQuestScreen() {
     <Screen title={t("scanner.title")} header={<BackButton />}>
       {/* FR-306, FR-622: My QR sits behind the same round button. */}
       <Button kind="quiet" label={t("myQr.title")} onPress={() => router.push("/my-qr")} />
-      <ReviewCodePicker eventId={eventId} disabled={!scanning} onScan={scanned} onTap={tapped} />
+      <ReviewCodePicker eventId={eventId} disabled={!scanning} onScan={scanned} />
       {nfcOn ? <NfcTap active={scanning} autoStart={nfc === "1"} onRead={tapped} /> : null}
       {permission === null ? <AppText muted>{t("common.loading")}</AppText> : null}
       {permission !== null && !granted ? (

@@ -12,31 +12,27 @@ import {
   questCodeUrl,
   revealCode,
   stepCode,
-  tagCode,
-  tagCodeUrl,
   type QuestCodeKey,
   type RevealCodeKey,
   type StepCodeKey,
-  type TagCodeKey,
 } from "#src/quests/qr";
 import type { Bilingual } from "#src/quests/store";
 
-/** What signs the picker's codes: the keys and the address a printed sticker or a written tag carries. */
+/** What signs the picker's codes: the keys and the address a printed sticker carries. */
 export type ReviewCodeDeps = Readonly<{
   pool: Pool;
   keys: Pick<AuthKeys, "playerKey">;
   codeKey: QuestCodeKey;
   stepKey: StepCodeKey;
   revealKey: RevealCodeKey;
-  tagKey: TagCodeKey;
   origin: string;
 }>;
 
-export type ReviewCodeKind = "quest" | "step" | "reveal" | "tag" | "meet";
+export type ReviewCodeKind = "quest" | "step" | "reveal" | "meet";
 
 /**
  * One printable code of the demo event (ADR-565): what the app feeds to its scanner. `url` is the signed address a
- * sticker or a tag holds; a meet quest has none, its code is issued on demand (`reviewMeetCode`).
+ * sticker holds; a meet quest has none, its code is issued on demand (`reviewMeetCode`).
  */
 export type ReviewCode = Readonly<{
   kind: ReviewCodeKind;
@@ -102,8 +98,6 @@ function urlOf(deps: ReviewCodeDeps, row: CodeRow): string | null {
       return questCodeUrl(deps.origin, stepCode(deps.stepKey, row.id, row.version));
     case "reveal":
       return questCodeUrl(deps.origin, revealCode(deps.revealKey, row.id, row.version));
-    case "tag":
-      return tagCodeUrl(deps.origin, tagCode(deps.tagKey, row.id, row.version));
     default:
       return null;
   }

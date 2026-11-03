@@ -3,7 +3,7 @@ import type { AuthedResult, Session } from "#src/api/session.ts";
 
 type Text = Readonly<{ ar: string | null; en: string | null }>;
 
-export type ReviewCodeKind = "quest" | "step" | "reveal" | "tag" | "meet";
+export type ReviewCodeKind = "quest" | "step" | "reveal" | "meet";
 
 /** One printable code of the App Review demo event (T-710b, ADR-565): what the picker feeds to the scanner. */
 export type ReviewCode = Readonly<{
@@ -15,17 +15,15 @@ export type ReviewCode = Readonly<{
   url: string | null;
 }>;
 
-/** What picking a code does: the scanner's QR handler, its tag handler, or a fresh meet code first. */
+/** What picking a code does: the scanner's QR handler, or a fresh meet code first. */
 export type ReviewPick =
   | Readonly<{ kind: "scan"; data: string }>
-  | Readonly<{ kind: "tap"; url: string }>
   | Readonly<{ kind: "meet"; questId: string }>;
 
 export const REVIEW_KIND_TEXT: Readonly<Record<ReviewCodeKind, MessageKey>> = {
   quest: "scanner.review.kind.quest",
   step: "scanner.review.kind.step",
   reveal: "scanner.review.kind.reveal",
-  tag: "scanner.review.kind.tag",
   meet: "scanner.review.kind.meet",
 };
 
@@ -78,7 +76,7 @@ export function pickOf(code: ReviewCode): ReviewPick | undefined {
   if (code.url === null) {
     return undefined;
   }
-  return code.kind === "tag" ? { kind: "tap", url: code.url } : { kind: "scan", data: code.url };
+  return { kind: "scan", data: code.url };
 }
 
 export type ReviewCodesAnswer =

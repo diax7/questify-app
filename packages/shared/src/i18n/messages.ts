@@ -1162,7 +1162,6 @@ export const MESSAGES = {
   "scanner.review.kind.quest": { ar: "رمز QR", en: "QR code" },
   "scanner.review.kind.step": { ar: "ختم جواز", en: "Passport stamp" },
   "scanner.review.kind.reveal": { ar: "رمز سري", en: "Secret code" },
-  "scanner.review.kind.tag": { ar: "بطاقة NFC", en: "NFC tag" },
   "scanner.review.kind.meet": { ar: "التعارف مع {playerOne}", en: "Meet a {playerOne}" },
   "history.title": { ar: "السجل", en: "History" },
   "history.empty": {
