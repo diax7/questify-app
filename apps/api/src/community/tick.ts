@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import { payBatches } from "#src/community/payer";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { trackRun } from "#src/telemetry/runs";
 
 /** How long one tick pays before it leaves the rest to the next (ADR-223, Q-187). */
 export const COMMUNITY_PAY_BUDGET_MS = 2000;
@@ -129,7 +130,7 @@ export function startCommunityTick(deps: CommunityTickDeps): CommunityTick {
   const schedule = (): void => {
     const wait = Math.round(deps.intervalMs * (1 - JITTER + 2 * JITTER * random()));
     timer = setTimeout(() => {
-      running = run().finally(() => {
+      running = trackRun("community", run).finally(() => {
         running = undefined;
         if (!stopped) {
           schedule();

@@ -5,6 +5,7 @@ import { runRound, type PushLog } from "#src/push/round";
 import { SYSTEM_CLOCK, type PushClock } from "#src/push/send";
 import { createTargetState } from "#src/push/targets";
 import type { SettingsService } from "#src/settings/service";
+import { markRun } from "#src/telemetry/runs";
 
 /** The worker sleeps this long (give or take a fifth) when there is nothing to fan out or send. */
 export const PUSH_IDLE_MS = 1000;
@@ -142,6 +143,7 @@ export function startPushWorker(deps: PushWorkerDeps): PushWorker {
     const fanned = await step("push.fan_out_failed", deps.doors.fanOut);
     reportFanOut(deps.log, fanned);
     const sent = await step("push.round_failed", round);
+    markRun("push_worker");
     if (!moreWork(fanned, grouped, sent) && !stopped) {
       await clock.wait(
         Math.round(PUSH_IDLE_MS * (1 - JITTER + 2 * JITTER * random())),

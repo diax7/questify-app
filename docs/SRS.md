@@ -828,6 +828,9 @@ technical ones.
 | NFR-030 | Security | Dashboard and console sign-in requires email, password and an email code; sessions expire after inactivity | ADR-078 |
 | NFR-031 | Performance | The store download of the app is at most 50 MB (a belief to be measured at the first build); event art, Rive files for rare scenes and mini-game pictures load when needed. This sets the budget NFR-028 asked for | NFR-028, Stage 6 |
 
+Measured and alerted (T-018, `SLO.md`): NFR-002 is SLO-2 (`QuestifyCompletionSlow`) and, with NFR-003's burst, SLO-3; NFR-005 is SLO-4 (guarded
+indirectly until T-018b, proven by the load test); NFR-006 is SLO-1 (burn-rate alerts); NFR-026 is SLO-5 and SLO-6 (the restore rehearsal, T-805).
+
 Accessibility: v1 has no accessibility target, by the user's choice (ADR-085). NFR-009 (reduce-motion) stays as a performance fallback.
 
 ## 3. External interface requirements

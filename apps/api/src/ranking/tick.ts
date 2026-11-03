@@ -1,4 +1,5 @@
 import type { Ranking } from "#src/ranking/ranking";
+import { trackRun } from "#src/telemetry/runs";
 
 export type RankingTick = Readonly<{
   /** Stops the timer and waits for a run in progress. */
@@ -20,8 +21,7 @@ export function startRankingTick(
 
   const schedule = (): void => {
     timer = setTimeout(() => {
-      running = ranking
-        .repairDue()
+      running = trackRun("ranking_repair", () => ranking.repairDue())
         .catch((error: unknown) => {
           log({
             event: "ranking.repair_failed",

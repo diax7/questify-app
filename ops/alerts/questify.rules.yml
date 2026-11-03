@@ -1,0 +1,293 @@
+# Questify alert rules (T-018, ADR-604). Prometheus rule format: it loads unchanged into Prometheus, VictoriaMetrics
+# (vmalert), Grafana Mimir or Grafana-managed rules, so the choice of store (Q-560) does not change this file.
+#
+# Metric names are the Prometheus spelling of the API's OpenTelemetry metrics (docs/SLO.md, "Names"): dots become
+# underscores, a counter ends in `_total`, a duration in `_seconds`, and an attribute becomes a label
+# (`http.route` is `http_route`). The services' `job` and `instance` labels come from the resource.
+#
+# Every alert carries `severity` (`page` wakes the on-call phone and email, ADR-079; `warning` opens a ticket) and a
+# `runbook` annotation that points at its entry in docs/RUNBOOK.md. `alerts.test.ts` fails when an alert has no entry,
+# when an expression names a metric the API does not record, or when a label is not an attribute the API sets.
+#
+# Check the file with:  promtool check rules ops/alerts/questify.rules.yml   (RUNBOOK, "Telemetry and alerts")
+
+groups:
+  - name: questify-requests
+    rules:
+      # 99.9% a month leaves 0.1% of requests to fail. Burning that budget 14.4 times faster than it is earned spends 2%
+      # of a month in an hour: page. Both windows must agree, so a spike that has already passed does not page.
+      - alert: QuestifyAvailabilityFastBurn
+        expr: |
+          (
+            sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+            / sum(rate(http_server_request_duration_seconds_count[5m]))
+          ) > (14.4 * 0.001)
+          and
+          (
+            sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[1h]))
+            / sum(rate(http_server_request_duration_seconds_count[1h]))
+          ) > (14.4 * 0.001)
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "More than 1.44% of requests fail with a 5xx answer"
+          runbook: docs/RUNBOOK.md#questifyavailabilityfastburn
+
+      # 6 times the budget for six hours spends 5% of a month: a ticket, not a page.
+      - alert: QuestifyAvailabilitySlowBurn
+        expr: |
+          (
+            sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[30m]))
+            / sum(rate(http_server_request_duration_seconds_count[30m]))
+          ) > (6 * 0.001)
+          and
+          (
+            sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[6h]))
+            / sum(rate(http_server_request_duration_seconds_count[6h]))
+          ) > (6 * 0.001)
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Requests have been failing at 6 times the monthly budget for six hours"
+          runbook: docs/RUNBOOK.md#questifyavailabilityslowburn
+
+      # ADR-074: 95% of completions confirmed within one second. The bucket edge is exactly 1 s (the store may print the
+      # label as 1 or 1.0). The rate guard keeps a quiet hour from alerting on three slow scans.
+      - alert: QuestifyCompletionSlow
+        expr: |
+          (
+            1 - (
+              sum(rate(http_server_request_duration_seconds_bucket{questify_route_class="completion",le=~"1|1.0"}[10m]))
+              / sum(rate(http_server_request_duration_seconds_count{questify_route_class="completion"}[10m]))
+            )
+          ) > 0.05
+          and sum(rate(http_server_request_duration_seconds_count{questify_route_class="completion"}[10m])) > 0.2
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: "More than 5% of scans take longer than one second to confirm"
+          runbook: docs/RUNBOOK.md#questifycompletionslow
+
+      - alert: QuestifyCompletionFastBurn
+        expr: |
+          (
+            sum(rate(http_server_request_duration_seconds_count{questify_route_class="completion",http_response_status_code=~"5.."}[5m]))
+            / sum(rate(http_server_request_duration_seconds_count{questify_route_class="completion"}[5m]))
+          ) > (14.4 * 0.001)
+          and
+          (
+            sum(rate(http_server_request_duration_seconds_count{questify_route_class="completion",http_response_status_code=~"5.."}[1h]))
+            / sum(rate(http_server_request_duration_seconds_count{questify_route_class="completion"}[1h]))
+          ) > (14.4 * 0.001)
+          and sum(rate(http_server_request_duration_seconds_count{questify_route_class="completion"}[5m])) > 0.2
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "Scans are failing with a 5xx answer faster than the monthly budget allows"
+          runbook: docs/RUNBOOK.md#questifycompletionfastburn
+
+      # Silence is also an outage: a dead API or a broken exporter both stop the request metric.
+      - alert: QuestifyTelemetryMissing
+        expr: absent(http_server_request_duration_seconds_count)
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: "The API has reported no requests for ten minutes"
+          runbook: docs/RUNBOOK.md#questifytelemetrymissing
+
+  - name: questify-database
+    rules:
+      # `database.busy` is the 503 "busy, retry" answer (a lock or statement timeout, too many connections, a deadlock).
+      - alert: QuestifyDatabaseBusy
+        expr: sum(rate(questify_log_events_total{questify_event="database.busy"}[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "The API is answering 'busy, retry' more than once every two seconds"
+          runbook: docs/RUNBOOK.md#questifydatabasebusy
+
+      # A client waiting for a connection for five minutes in a row: the pool is too small or the database is slow.
+      - alert: QuestifyDatabasePoolWaiting
+        expr: max by (instance, questify_pool) (questify_db_pool_connections{questify_pool_state="waiting"}) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Requests have been waiting for a database connection for five minutes"
+          runbook: docs/RUNBOOK.md#questifydatabasepoolwaiting
+
+  - name: questify-background-work
+    rules:
+      # Every loop finishes a run at least every minute; five minutes without one means it is stuck or dead.
+      #
+      # A deploy or restart gives the process a new `instance` (a random id), and the old instance's series stays visible
+      # for the store's five-minute lookback. `timestamp(x) - x` is how late the loop already was when the instance last
+      # reported: a stopped instance that was healthy shows about zero, a live instance with a stuck loop keeps exporting
+      # the same last-run time and shows more every minute. `time() - timestamp(x) < 120` then drops an instance that
+      # stopped reporting (replaced, or a stuck one that was restarted). A live instance whose export has stopped is
+      # QuestifyTelemetryMissing. The guard needs the metric interval (`TELEMETRY_METRIC_INTERVAL_MS`, default 60 s) to
+      # stay under 120 s.
+      - alert: QuestifyLoopStalled
+        expr: |
+          (timestamp(questify_tick_last_run_seconds) - questify_tick_last_run_seconds > 300)
+          and on (instance, questify_tick)
+          (time() - timestamp(questify_tick_last_run_seconds) < 120)
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "A background loop has not finished a run for five minutes"
+          runbook: docs/RUNBOOK.md#questifyloopstalled
+
+      # The ranking must show a change within 5 s (ADR-074). The repair loop runs every 2 s. The same instance guard as
+      # QuestifyLoopStalled: an old instance must not page after every deploy.
+      - alert: QuestifyRankingRepairStalled
+        expr: |
+          (timestamp(questify_tick_last_run_seconds{questify_tick="ranking_repair"}) - questify_tick_last_run_seconds{questify_tick="ranking_repair"} > 30)
+          and on (instance, questify_tick)
+          (time() - timestamp(questify_tick_last_run_seconds{questify_tick="ranking_repair"}) < 120)
+        for: 1m
+        labels:
+          severity: page
+        annotations:
+          summary: "The ranking repair loop has not run for 30 seconds"
+          runbook: docs/RUNBOOK.md#questifyrankingrepairstalled
+
+      - alert: QuestifyRankingStoreFailing
+        expr: |
+          sum(rate(questify_log_events_total{questify_event=~"redis\\.(error|connect_failed)|ranking\\.(write_failed|read_failed|rebuild_failed|repair_failed|mark_failed|day_write_failed)"}[5m])) > 0
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: "The ranking cache or its repair has been failing for ten minutes"
+          runbook: docs/RUNBOOK.md#questifyrankingstorefailing
+
+      # T-711b: during a deploy the old API logs `community.settle_failed` for seconds. Only a run of failures that goes on
+      # for ten minutes alerts, never a single line.
+      - alert: QuestifyCommunitySettleFailing
+        expr: |
+          sum(rate(questify_log_events_total{questify_event=~"community\\.(settle_failed|tick_failed|pay_failed|health_failed)"}[5m])) > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Community goal settling or paying has been failing for ten minutes"
+          runbook: docs/RUNBOOK.md#questifycommunitysettlefailing
+
+      - alert: QuestifyCommunityPayoutsBehind
+        expr: |
+          sum(rate(questify_log_events_total{questify_event=~"community\\.(settle_behind|payout_stuck|settle_blind)"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Community rewards are late: a goal's settle point or a payout is stuck"
+          runbook: docs/RUNBOOK.md#questifycommunitypayoutsbehind
+
+      # Any other error-level event that keeps repeating. Community events have their own alerts above.
+      - alert: QuestifyErrorEventRepeating
+        expr: |
+          sum by (questify_event) (increase(questify_log_events_total{questify_log_level="error",questify_event!~"community\\..*"}[15m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "An error event has been logged more than ten times in fifteen minutes"
+          runbook: docs/RUNBOOK.md#questifyerroreventrepeating
+
+  - name: questify-providers
+    rules:
+      # Push: a failed, unknown, requeued or held send. A dead token (`invalid_token`) is normal churn, not a failure.
+      - alert: QuestifyPushFailing
+        expr: |
+          (
+            sum(rate(questify_outbound_requests_total{questify_operation="push",questify_outcome=~"failed|unknown|requeue|hold"}[15m]))
+            / sum(rate(questify_outbound_requests_total{questify_operation="push"}[15m]))
+          ) > 0.2
+          and sum(rate(questify_outbound_requests_total{questify_operation="push"}[15m])) > 0.05
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 20% of push sends are failing"
+          runbook: docs/RUNBOOK.md#questifypushfailing
+
+      - alert: QuestifyPushProviderRefusing
+        expr: |
+          sum(rate(questify_log_events_total{questify_event=~"push\\.(provider_hold|mass_invalid|fcm_auth_failed|apns_refused|fcm_refused|notice_parked)"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "APNs or FCM is refusing our requests, or a notice is parked"
+          runbook: docs/RUNBOOK.md#questifypushproviderrefusing
+
+      # SMS delivery rate (ARCHITECTURE, Observability). Sign-in by email still works while this fires.
+      - alert: QuestifySmsFailing
+        expr: |
+          (
+            sum(rate(questify_outbound_requests_total{questify_operation="sms",questify_outcome=~"refused|unknown|failed"}[15m]))
+            / sum(rate(questify_outbound_requests_total{questify_operation="sms"}[15m]))
+          ) > 0.2
+          and sum(rate(questify_outbound_requests_total{questify_operation="sms"}[15m])) > 0.02
+        for: 15m
+        labels:
+          severity: page
+        annotations:
+          summary: "More than 20% of SMS are refused or lost"
+          runbook: docs/RUNBOOK.md#questifysmsfailing
+
+      # With a backup provider a failed Gmail send followed by a good Resend send is a ratio of 0.5; both failing is 1.
+      - alert: QuestifyEmailFailing
+        expr: |
+          (
+            sum(rate(questify_outbound_requests_total{questify_operation="email",questify_outcome="failed"}[10m]))
+            / sum(rate(questify_outbound_requests_total{questify_operation="email"}[10m]))
+          ) > 0.6
+          and sum(rate(questify_outbound_requests_total{questify_operation="email"}[10m])) > 0.005
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: "Staff and player email codes are not going out"
+          runbook: docs/RUNBOOK.md#questifyemailfailing
+
+      - alert: QuestifyEmailBackupInUse
+        expr: sum(increase(questify_log_events_total{questify_event="staff.email_failover"}[15m])) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gmail failed and the backup email provider sent instead"
+          runbook: docs/RUNBOOK.md#questifyemailbackupinuse
+
+  - name: questify-sign-in
+    rules:
+      # T-006 and T-107: a flood of throttled sign-in, reset and code attempts is credential stuffing or a venue behind one
+      # address. Which address key carries it is a log query (RUNBOOK); the metric holds no address.
+      - alert: QuestifySignInThrottleSpike
+        expr: sum(rate(questify_log_events_total{questify_event=~"staff\\.throttled|player\\.throttled"}[10m])) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sign-in attempts are being throttled more than once every two seconds"
+          runbook: docs/RUNBOOK.md#questifysigninthrottlespike
+
+      # The platform's own hourly SMS budget (smsPerHour, player email codes a day) or the day's staff invite and sign-up
+      # email budget is spent: the next sign-up or invite is answered 503 until the window moves.
+      - alert: QuestifySendBudgetSpent
+        expr: sum(increase(questify_log_events_total{questify_event=~"player\\.budget_spent|staff\\.outbound_cap"}[10m])) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "A sending budget is spent: sign-ups or invitations are being refused"
+          runbook: docs/RUNBOOK.md#questifysendbudgetspent

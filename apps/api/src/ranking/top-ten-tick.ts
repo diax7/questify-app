@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { trackRun } from "#src/telemetry/runs";
 
 /** The most live events one tick looks at; the list is oldest snapshot first, so the rest wait for the next tick. */
 const EVENTS_PER_TICK = 1000;
@@ -99,7 +100,7 @@ export function startRankPushTick(deps: RankPushTickDeps): RankPushTick {
   const schedule = (): void => {
     const wait = Math.round(deps.intervalMs * (1 - JITTER + 2 * JITTER * random()));
     timer = setTimeout(() => {
-      running = guarded().finally(() => {
+      running = trackRun("rank_push", guarded).finally(() => {
         running = undefined;
         if (!stopped) schedule();
       });

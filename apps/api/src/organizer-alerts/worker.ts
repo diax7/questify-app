@@ -4,6 +4,7 @@ import type { EmailSender } from "#src/auth/email/sender";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { organizerAlertEmail } from "#src/organizer-alerts/templates";
+import { trackRun } from "#src/telemetry/runs";
 
 /** Rows claimed per round: at 8 seconds a send, a round stays inside the 60-second lease. */
 const CLAIM_SIZE = 5;
@@ -204,7 +205,7 @@ export function startOrganizerAlertWorker(deps: OrganizerAlertWorkerDeps): Organ
   const schedule = (): void => {
     const wait = Math.round(deps.intervalMs * (1 - JITTER + 2 * JITTER * random()));
     timer = setTimeout(() => {
-      running = guarded().finally(() => {
+      running = trackRun("organizer_alerts", guarded).finally(() => {
         running = undefined;
         if (!stopped) schedule();
       });

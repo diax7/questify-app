@@ -85,7 +85,7 @@ export type PushSettings = Readonly<{
   fcm: FcmSettings | undefined;
 }>;
 
-type Env = Readonly<Record<string, string | undefined>>;
+export type Env = Readonly<Record<string, string | undefined>>;
 
 const NODE_ENVS = ["development", "test", "production"] as const;
 const MIN_SECRET_LENGTH = 32;
@@ -98,12 +98,12 @@ function required(env: Env, name: string): string {
   return value;
 }
 
-function optional(env: Env, name: string): string | undefined {
+export function optional(env: Env, name: string): string | undefined {
   const value = env[name];
   return value === undefined || value.trim() === "" ? undefined : value;
 }
 
-function whole(env: Env, name: string, fallback: string, min: number, max: number): number {
+export function whole(env: Env, name: string, fallback: string, min: number, max: number): number {
   const text = env[name] ?? fallback;
   const value = Number(text);
   if (!/^[0-9]+$/.test(text) || value < min || value > max) {

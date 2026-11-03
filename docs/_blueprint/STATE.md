@@ -6,6 +6,32 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-018 observability and service levels — 2026-11-03
+
+- **T-018 built (tier B, API side; no migration, no device work; ADR-600 to ADR-605 and Q-560 to Q-562 Proposed; the place telemetry goes to and who is paged are T-018b, ADR-600).**
+  `apps/api/src/telemetry/`: OpenTelemetry (API 1.10, SDK 3.x, OTLP over HTTP) records a server span and a duration sample per request
+  (route pattern, status, route class `completion` for the four scan routes; an unknown path is `unmatched`), a span, duration and outcome
+  count per outside call (Msegat, Gmail, Resend, APNs, FCM), a root trace and last-run time per pass of the nine background loops, and both
+  database pools' connections. Off unless `TELEMETRY_EXPORTER` is `otlp` (or `console` in development); a bad setting stops the start; an
+  export has a 5 s timeout and a failure is one stderr line a minute. Logs stay JSON, gain `trace_id`/`span_id`, and every line with an
+  `event` is also counted by event and level (the existing ~130 events are the alert signals). **No personal data:** a closed list of
+  attribute keys with value shapes; `pii.test.ts` pushes sentinel usernames, emails, phones, tokens, cookies and addresses through the real
+  server and finds none in a span, metric or log line. It found the request log writing the typed path of a request no route answers
+  (now `unmatched`). **Service levels:** `docs/SLO.md`; `ops/alerts/questify.rules.yml` (20 alerts, Prometheus rule format, checked and
+  unit-tested with `promtool`, which ran once in Docker, no install); RUNBOOK "Telemetry and alerts" has an entry per alert;
+  `alerts.test.ts` fails an alert with no entry or one that names a metric, label, loop or log event the code does not have. Folded in: the
+  T-711b deploy window (`QuestifyCommunitySettleFailing` needs ten unbroken minutes), the community tick lines, the T-006 and T-107
+  sign-in signals. `buildApp` lost 6 lines (a `createServer` helper; baseline lowered). New dependencies, all with a reason in ADR-601:
+  `@opentelemetry/*` (7 packages, pinned) and `yaml` 2.9.1 for tests. **Local:** full vitest ONCE in two parts: web, app, packages and scripts
+  4,174 passed (325 files); the API 8,013 passed, 17 skipped (467 files, `--maxWorkers=4`) plus one plan-shape test in `flash-boosts` that
+  failed under load and passed alone (80 of 80); telemetry tests 97 in 8 files. A first run at the default 16 threads crashed the shared
+  test PostgreSQL (64 MB shared memory, then crash recovery; RUNBOOK Local checks has the fix); pnpm audit clean (the two existing
+  ignores), lint, lint:limits, format:check and `tsc` clean; the API bundle builds and a bundled console-exporter smoke run emits the
+  span and metrics. CI minutes: 0 (not pushed); agent tokens: about 600k (estimate). **Mutation:** none (tier B).
+  **Waiting on Dhia (T-018b):** Q-560 (where telemetry goes; recommended a collector, a Prometheus-compatible store and Grafana in
+  `riyadh-1`) and Q-561 (who is paged, an outside `/readyz` probe). Nothing in the API changes with the answers.
+  **Next:** the T-018 code review (tier B, mid-tier); then the next unchecked task in `docs/TASKS.md`.
+
 ## T-802 player onboarding intro — 2026-11-03
 
 - **T-802 built (tier B; not run on a phone; app only, no migration; ADR-590 to ADR-594 and Q-550 to Q-552 Proposed; ordering and hiding the cards split to T-802b, ADR-593).**

@@ -1,5 +1,6 @@
 import { asSouvenirSystem, paySouvenirs } from "#src/souvenirs/payer";
 import type { SouvenirDeps } from "#src/souvenirs/souvenirs";
+import { trackRun } from "#src/telemetry/runs";
 
 /** Jittered, non-overlapping batches; failures stay durable for the next run. No names/content in logs. */
 export function startSouvenirTick(
@@ -42,7 +43,7 @@ export function startSouvenirTick(
   const schedule = () => {
     timer = setTimeout(
       () => {
-        running = run();
+        running = trackRun("souvenir", run);
       },
       deps.intervalMs * (0.8 + (deps.random ?? Math.random)() * 0.4),
     );

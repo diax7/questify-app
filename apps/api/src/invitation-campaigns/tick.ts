@@ -12,6 +12,7 @@ import { invitationOutcome, type InvitationOutcome } from "#src/invitation-campa
 import { optOutUrl } from "#src/marketing/opt-out";
 import type { SmsSender } from "#src/players/sms";
 import type { SettingsService } from "#src/settings/service";
+import { trackRun } from "#src/telemetry/runs";
 
 /** How long one tick sends before it leaves the rest to the next (ADR-333 (1)). */
 export const INVITATION_BUDGET_MS = 3000;
@@ -263,7 +264,7 @@ export function startInvitationTick(deps: InvitationTickDeps): InvitationTick {
   const schedule = (): void => {
     const wait = Math.round(deps.intervalMs * (1 - JITTER + 2 * JITTER * random()));
     timer = setTimeout(() => {
-      running = run().finally(() => {
+      running = trackRun("invitation", run).finally(() => {
         running = undefined;
         if (!stopped) schedule();
       });
