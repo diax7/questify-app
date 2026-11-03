@@ -2484,7 +2484,7 @@ CranL's backup schedule for `questify-db` (created 2026-10-19) is on, daily at 0
 
 ## Q-612 - Which CranL settings stay outside the files? (T-017, ADR-650)
 
-**Status:** Proposed (developer, 2026-11-04).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-04, after the T-017 code review 88): the named exceptions in ADR-650.
 The CranL API cannot read some settings, so the files can set them at create but `plan` cannot see them drift: the Dockerfile path, the app's automatic rollback, and the health-check path (the RUNBOOK names `/en/sign-in` for the web app; there is no API field). A public-repo app's build folder and branch can be read but changed only in the dashboard.
 **Recommended (developer):** accept these as the named exceptions to "no setting only in the dashboard": the RUNBOOK lists them with the values to check by hand after a create, and `plan` reports a build folder or branch change as a manual step. Revisit when CranL's API adds them (its OpenAPI is at `https://app.cranl.com/api/v1/openapi.json`).
 
