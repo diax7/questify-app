@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openBuilder } from "#e2e/builder.ts";
-import { codeFor, linkFor, PASSWORD } from "#e2e/mail.ts";
+import { BUILDER_PASSWORD, openBuilder } from "#e2e/builder.ts";
+import { codeFor, linkFor } from "#e2e/mail.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
 const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
@@ -55,7 +55,7 @@ test("an admin starts an owner email change and the owner confirms it with the c
     ownerPage.getByRole("heading", { name: "Confirm your new sign-in email" }),
   ).toBeVisible();
   await ownerPage.getByLabel("Code from the email").fill(code);
-  await ownerPage.getByLabel("Current password").fill(PASSWORD);
+  await ownerPage.getByLabel("Current password").fill(BUILDER_PASSWORD);
   await ownerPage.getByRole("button", { name: "Confirm" }).click();
   await expect(ownerPage.getByRole("status")).toHaveText(`Done. Sign in with ${moved}.`);
   const overflow = await ownerPage.evaluate(
