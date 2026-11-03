@@ -2245,7 +2245,7 @@ FR-1772 asks for one scheduled banner on Questify Home. The block holds one bann
 ## Q-500 - Should Questify switching a feature Off for an organizer also stop running boosts and goals? (T-711b, ADR-540)
 
 **Status:** Proposed (developer, 2026-11-03).
-Today the platform switch stops new boosts and goals only; the owner's event switch stops running ones too (ADR-233, ADR-226). **Recommended (developer):** no; the override behaves as the platform switch. A boost ends within a day, and the owner can still switch the event's boosts or community off.
+Today the platform switch stops new boosts and goals only; the owner's event switch stops running ones too (ADR-233, ADR-226). **Recommended (developer):** no; the override behaves as the platform switch. A boost ends within a day. A boost saved before the layer went Off still pays when its window opens, without its "boost started" push. With the layer Off the dashboard hides the event's boosts and community switches, so the owner cannot switch the feature off (which would stop every boost at once); Stop on the Boosts page still ends one running boost (`end_boost` has no switch check; a test holds it), and a scheduled one can be deleted until a minute before its start.
 
 ## Q-501 - Should admins be told of a new Ask Questify request? (T-711b, ADR-545)
 

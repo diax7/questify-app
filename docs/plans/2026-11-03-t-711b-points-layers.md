@@ -6,6 +6,22 @@ and FR-1827 (the recorded Ask Questify request). Depends on T-711 (migration 013
 Q-500 to Q-503 Proposed. Tier A for part 1 (points path): plan review, build, one code review, mutation on GitHub for
 the touched TypeScript. Part 2 (the request) is tier B logic riding in the same task; no mutation for it.
 
+**Amended 2026-11-03 after the plan review (score 86).** (1) MAJOR: a boost saved earlier with a later start still begins
+paying once its window opens under a layer Off (as under the platform switch, ADR-233), but its "boost started" push and
+notice now wait for `feature_enabled(ev, 'boosts')` (the event switch and the layer): `push_on_boost_start`,
+`push_due_boost` and `notice_audience_ok` are restated (section 3, item 5); the scan path is untouched. (2) The old
+`settle_*` signatures are still dropped; RUNBOOK gets the deploy note, and `community.settle_failed` is a log line, not an
+alert (no alert rules exist before T-018, whose note now says to alert on repeats, never on one line). (3) `REVOKE ALL ...
+FROM PUBLIC` on every new function; Allow runs in TypeScript as the admin, so it closes the request through an admin RLS
+policy; Allow closes any open row (whether the unlock was new or already there) and the console list hides open rows
+whose add-on is already unlocked (an owner asking while an admin unlocks). (4) `requested_by` and `decided_by` are staff
+ids with no foreign key, listed as ADMIN in `test/db/personal-data-catalog.ts`; the new routes are staff and admin routes,
+so maintenance's `PLAY_DOORS` does not apply. (5) Notes: test 5 (`meet_player` checks the switch before its replay
+lookup, as before), Q-500 (with the layer Off the owner cannot switch the event's boosts off, the switch is hidden; checked in build: Stop on
+the Boosts page still ends a running boost, `end_boost` has no switch check, and a test holds that).
+Deviation found in build: `platformOnFor` answers undefined (not false) for an event that is not the caller's
+organizer's, so the door answers 404 as before instead of a 403 that would tell one organizer about another's layer.
+
 ## 1. What exists (read for this plan)
 
 **The four SQL rules and every caller** (latest restatement of each caller in brackets):
@@ -32,7 +48,7 @@ the platform is read today, and nowhere else. Concretely:
 
 | Feature | "New" (refused when the layer is Off) | "In flight" (unchanged: event switch only) |
 |---|---|---|
-| boosts | saving or editing a boost | a boost in force pays until its end (at most 1,440 minutes), its start push |
+| boosts | saving or editing a boost; the start push and notice | a boost in force pays until its end (at most 1,440 minutes); a boost saved earlier pays once its window opens (ADR-233) |
 | community | saving or deleting a goal; a scheduled goal starting | a running goal settles, finishes and pays reached steps |
 | miniGames | starting a round | a started round finishes and pays |
 | meetSomeone | issuing a pass; a meet scan | nothing is in flight (a pass is not a payment) |
@@ -65,13 +81,21 @@ rows per organizer, the widened CHECK is satisfied by every existing row).
    `may_start` parameter and is not restated. Reason for dropping the parameter (ADR-542): the platform now has a per-
    organizer value that only the database can give per goal; a boolean from the caller would be dead.
 4. **`feature_request`** and its doors (section 7).
-5. No other function is restated. `boosts_on`, `community_on`, `boost_in_force`, `pay_completion`, `meet_player`,
-   `issue_meet_pass`, `start_game_round`, `finish_game_round`, `notice_audience_ok`, `member_community` keep their
+5. **The boost-start push and notice (review MAJOR 1)**: `push_on_boost_start` (0078), `push_due_boost` (0078) and
+   `notice_audience_ok` (0080) are restated with `feature_enabled(e, 'boosts')` in place of `boosts_on(e)` for the boost
+   kind, nothing else changed. A scheduled boost whose window opens under a layer Off pays (the scan path reads
+   `boost_in_force`, unchanged) but nobody is told of a feature the app hides; the due scan pushes it if the layer comes
+   back On while it still runs. The global platform switch now also silences that push (it hides the feature too).
+6. No other function is restated. `boosts_on`, `community_on`, `boost_in_force`, `pay_completion`, `meet_player`,
+   `issue_meet_pass`, `start_game_round`, `finish_game_round`, `member_community` keep their
    bodies; `meet_player` and `start_game_round` pick the new `meet_on`/`games_on` by name.
 
 Deploy window: between the migration and the new API, the old API calls `settle_goal(uuid, boolean)`, which no longer
 exists. The tick logs `community.settle_failed` and the next run (new code) settles; the settle point catches up (0053).
 The owner's "Settle and pay now" answers 500 for those seconds. Accepted, noted in RUNBOOK's deploy notes.
+`community.settle_failed` is a log line, not an alert (no alert rule exists before T-018; its task note says to alert on
+repeats over several ticks, never on one line). Every function the migration creates gets `REVOKE ALL ... FROM PUBLIC`
+in the same group.
 
 ## 4. TypeScript
 
@@ -140,6 +164,12 @@ the same since 0136. The builder records `EXPLAIN (ANALYZE, BUFFERS)` of `meet_p
   the existing `PUT /v1/admin/events/{id}/addons/{feature}`, which now also closes the open request (`allowed`) in the
   same transaction; **Decline** is `POST /v1/admin/feature-requests/{id}/decline` (audited `feature_request.decline`).
   Both through `throttled`. A lock (`DELETE …/addons/…`) never reopens a request. Admin notification: Q-501.
+  Allow runs in TypeScript as the admin (`insertEntitlement` inside `asAdmin`), so the close is an UPDATE allowed by an
+  admin RLS policy (`app_admin_id()`), the same transaction as the unlock. Allow closes any open row, whether the unlock
+  was new or already there; the console list hides open rows whose add-on is already unlocked (the owner asked in the
+  instant an admin unlocked). `requested_by` and `decided_by` are staff ids with no foreign key (ADMIN in
+  `test/db/personal-data-catalog.ts`). The new routes are staff and console routes: maintenance's `PLAY_DOORS` does not
+  apply.
 - **Owner's card** (event page and guided setup): locked add-on card shows Ask Questify, then "Requested" (button off),
   then the unlocked switch after Allow, or "Not approved" with Ask again after 24 hours. `GET …/events/{id}/features`
   rows gain `request: {status, at} | null`. Arabic and English strings in `messages.ts` (ux-araby), RTL, Western digits.
@@ -157,13 +187,17 @@ the same since 0136. The builder records `EXPLAIN (ANALYZE, BUFFERS)` of `meet_p
 3. `start_game_round`, `issue_meet_pass`, `meet_player`: refused QF403 with nothing written under override Off with the
    platform On; allowed under override On with the platform Off; another organizer's event unaffected.
 4. A round started before override Off finishes with `finish_game_round` and pays once.
-5. A pass issued before override Off: the scan after is refused, neither side gets a completion or ledger row.
+5. A pass issued before override Off: the scan after is refused, neither side gets a completion or ledger row. (As
+   before this task, `meet_player` checks the switch before its replay lookup, so a replayed scan is refused too.)
 6. **Race, both orders, per door (meet scan, round start):** (A) override Off committed, then the door: refused. (B) a
    second session opens a transaction, writes override Off and holds it; the door runs with `lock_timeout = '200ms'` and
    completes without waiting and pays; the admin commits; the points stay; the next call is refused.
 7. **Boost racing a layer Off, both orders:** a completion under a running boost pays doubled whether the override Off
    committed before or is held open during the payment; `pay_completion` never waits (200 ms lock timeout). The event
-   switch Off still stops it at once (existing test kept).
+   switch Off still stops it at once (existing test kept). **A scheduled boost under a layer Off (review MAJOR 1):**
+   saved before the layer went Off, its window opens: a completion pays doubled, no `boost_start` notice is written by
+   the trigger or the due scan and `notice_audience_ok` refuses one written earlier; the layer back On, the due scan
+   writes it.
 8. **Community:** a scheduled goal does not start under override Off and does for another organizer; override On with
    the platform Off starts it; a running goal under override Off keeps settling, reaches, and its reached step pays;
    `settle_goal` racing the override write in both orders (starts or stays scheduled; no wait); `settle_community`
