@@ -2,15 +2,22 @@ import type { Client, PoolClient } from "pg";
 
 type Db = Client | PoolClient;
 
-/** The blocks of `platform_setting` the console writes: the switches, the numbers, maintenance mode and the banner. */
+/**
+ * The blocks of `platform_setting` the console writes through this module: the switches, the numbers, maintenance mode and the
+ * banner. Questify home's layout (`questifyHome`) is read here but written only by its own database door (`admin_home_layout_save`).
+ */
 export type PlatformBlock = "features" | "tuning" | "maintenance" | "banner";
 
 /** The stored blocks of the platform settings, exactly as the database holds them. */
-export async function readStoredPlatform(
-  db: Db,
-): Promise<{ features?: unknown; tuning?: unknown; maintenance?: unknown; banner?: unknown }> {
+export async function readStoredPlatform(db: Db): Promise<{
+  features?: unknown;
+  tuning?: unknown;
+  questifyHome?: unknown;
+  maintenance?: unknown;
+  banner?: unknown;
+}> {
   const { rows } = await db.query<{ key: string; value: unknown }>(
-    "SELECT key, value FROM platform_setting WHERE key IN ('features', 'tuning', 'maintenance', 'banner')",
+    "SELECT key, value FROM platform_setting WHERE key IN ('features', 'tuning', 'questifyHome', 'maintenance', 'banner')",
   );
   return Object.fromEntries(rows.map((row) => [row.key, row.value]));
 }

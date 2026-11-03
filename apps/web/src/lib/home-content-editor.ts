@@ -190,18 +190,14 @@ function pageProblem(path: readonly string[]): Readonly<{ key: MessageKey; n: nu
   return { key: "layout.problem.pageEmpty", n: 1 };
 }
 
-/** What is wrong with the content, in the organizer's words: the first problem, or null when it can be saved. */
-export function contentProblem(
-  content: HomeContent,
-): Readonly<{ key: MessageKey; n: number }> | null {
-  const checked = checkHomeContent(content);
-  const issue = checked.ok ? undefined : checked.issues[0];
-  if (issue === undefined) {
-    return null;
-  }
-  const [, part, position, field, detail] = issue.path.split(".");
+/**
+ * What is wrong at a path of the content check (`content.banner.0.title`), in the organizer's words: the words and the
+ * number of the slide, link, card or part it names.
+ */
+export function problemOf(path: string): Readonly<{ key: MessageKey; n: number }> {
+  const [, part, position, field, detail] = path.split(".");
   if (part === "page") {
-    return pageProblem(issue.path.split("."));
+    return pageProblem(path.split("."));
   }
   const rule = PROBLEMS.find(
     (entry) =>
@@ -211,4 +207,13 @@ export function contentProblem(
   );
   const n = /^\d+$/.test(position ?? "") ? Number(position) + 1 : 1;
   return { key: rule?.key ?? "layout.problem.other", n };
+}
+
+/** What is wrong with the content, in the organizer's words: the first problem, or null when it can be saved. */
+export function contentProblem(
+  content: HomeContent,
+): Readonly<{ key: MessageKey; n: number }> | null {
+  const checked = checkHomeContent(content);
+  const issue = checked.ok ? undefined : checked.issues[0];
+  return issue === undefined ? null : problemOf(issue.path);
 }

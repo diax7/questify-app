@@ -2018,6 +2018,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         "SELECT admin_achievement_save('quests-done', '{}', NULL, true, gen_random_uuid())",
         "SELECT admin_amounts()",
         "SELECT admin_amounts_save('{}', NULL, gen_random_uuid())",
+        "SELECT admin_home_layout()",
+        "SELECT admin_home_layout_save('{}', NULL, gen_random_uuid())",
         "SELECT admin_level_titles()",
         "SELECT admin_level_titles_save('{}', NULL, gen_random_uuid())",
         "SELECT admin_shop_items()",

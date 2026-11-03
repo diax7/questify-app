@@ -1,4 +1,5 @@
 import type { LocalizedText } from "#src/errors";
+import { readQuestifyHome } from "#src/layout/questify-home";
 import { readBanner, readMaintenance } from "#src/maintenance/notices";
 import type { PlatformFeatureSetting, PlatformSettings } from "./registry";
 
@@ -37,6 +38,7 @@ function readFeature(value: unknown): PlatformFeatureSetting {
 export function readPlatformSettings(stored: {
   features?: unknown;
   tuning?: unknown;
+  questifyHome?: unknown;
   maintenance?: unknown;
   banner?: unknown;
 }): PlatformSettings {
@@ -56,6 +58,9 @@ export function readPlatformSettings(stored: {
   return {
     ...(features === undefined ? {} : { features }),
     ...(tuning === undefined ? {} : { tuning }),
+    ...(stored.questifyHome === undefined
+      ? {}
+      : { questifyHome: readQuestifyHome(stored.questifyHome) }),
     ...(stored.maintenance === undefined
       ? {}
       : { maintenance: readMaintenance(stored.maintenance) }),

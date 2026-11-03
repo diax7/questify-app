@@ -2154,6 +2154,32 @@ address and carries ids, names of events and organizers, reason codes and a cons
 **Recommended (developer):** yes, bounded so it can never starve sign-in mail: one digest per 10 minutes, 100 a day on its
 own budget bucket (never `outboundMailPerDay`); past that only the console badge.
 
+## Q-470 - Which blocks of Questify home can never be hidden? (T-713, ADR-511)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (worker):** notices, the typed event code, the account email, operator mode, invitations and My events: each is a
+duty (a message the platform owes players, the way in without a camera, account recovery, staff and invitees reaching their
+event). They can be moved. The banner, the streak, the two daily games and the Questify quests can be hidden.
+
+## Q-471 - May a Questify home slide open the app's own screens? (T-713, ADR-512)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (worker):** not in v1: a slide opens nothing or an https link. The gem shop, Explore and the Questify quests are
+the first candidates; each needs a tap kind the older apps ignore safely (an unknown kind drops the slide, not the banner).
+
+## Q-472 - Pictures on Questify home slides (T-713, ADR-512; Q-149)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (worker):** with T-610b, once photo storage exists (Dhia: later). The slide shape gains an optional `image`;
+older apps already drop a field they do not know.
+
+## Q-473 - How does this banner relate to the scheduled message to all players (FR-1772, T-703b)? (T-713)
+
+**Status:** Proposed (developer, 2026-11-03).
+A banner message scheduled for a time and an end time is a different thing from this always-on slider.
+**Recommended (worker):** keep both: T-703b's scheduled message draws in the `notices` block with the maintenance message
+(a notice with an end time; that block can move but never hides), and the slider stays the admin's standing content.
+
 ## Q-460 - Should the override also reach boosts, community, meet-someone and mini-games? (T-711, ADR-500)
 
 **Status:** Proposed (developer, 2026-11-03).
@@ -2173,6 +2199,7 @@ FR-1827 says "an Ask Questify request" and that an approved request makes the sw
 
 **Status:** Proposed (developer, 2026-11-03).
 FR-1827's "only if Questify has allowed it for that event" could mean every feature needs a per-event allowance. **Recommended (developer):** no; only add-ons are allowed per event. A feature to hold back from one organizer is an override Off (ADR-501); a risky new feature ships platform Off with an override On for the pilot organizers (ADR-105: "an override per organizer does the same job" as a beta label).
+
 ## Q-480 - Should the view as organizer cover the whole organizer, not one event? (T-712, ADR-520)
 
 **Status:** Proposed (developer, 2026-11-03).
@@ -2195,6 +2222,8 @@ adds one row a minute instead of one every few seconds.
 **Status:** Proposed (developer, 2026-11-03).
 **Recommended (developer):** no: the view must show what the organizer sees, and the edit grant already shows it; the
 view is one event, 15 minutes, no exports, every record logged by id.
+
+
 ## Q-430 - Should a platform admin who also plays be exempt from maintenance mode? (T-703b, ADR-471)
 
 **Status:** Proposed (developer, 2026-11-03).
@@ -2212,3 +2241,5 @@ The server answers 503 `maintenance` with the message, and the app shows the mes
 **Status:** Proposed (developer, 2026-11-03).
 FR-1772 asks for one scheduled banner on Questify Home. The block holds one banner; a second replaces the first, and an event's own announcements (T-505) already reach that event's players.
 **Recommended (developer):** keep one banner for v1.
+
+

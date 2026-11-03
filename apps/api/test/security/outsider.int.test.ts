@@ -431,12 +431,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
-  it("keeps the catalog editors closed: sixteen doors for the API's role alone, internals for nobody (T-709b to T-709d)", async () => {
+  it("keeps the catalog editors closed: eighteen doors for the API's role alone, internals for nobody (T-709b to T-709d, T-713)", async () => {
     const doors = [
       "admin_achievement_save",
       "admin_achievements",
       "admin_amounts",
       "admin_amounts_save",
+      "admin_home_layout",
+      "admin_home_layout_save",
       "admin_item_create",
       "admin_item_save",
       "admin_items",
@@ -479,6 +481,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "catalog_audit",
       "catalog_revert_doc",
       "catalog_text",
+      "home_only_keys",
+      "home_slide_checked",
+      "home_text_checked",
+      "questify_home_blocks",
+      "questify_home_checked",
+      "questify_home_default",
+      "questify_home_in_force",
+      "questify_home_repaired",
     ];
     const functions = await rows<{
       proname: string;
@@ -507,6 +517,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       `SELECT public.admin_achievement_save('quests-done', '{}', NULL, true, ${request})`,
       "SELECT public.admin_amounts()",
       `SELECT public.admin_amounts_save('{}', NULL, ${request})`,
+      "SELECT public.admin_home_layout()",
+      `SELECT public.admin_home_layout_save('{}', NULL, ${request})`,
+      "SELECT public.questify_home_blocks()",
+      "SELECT public.questify_home_in_force()",
+      "INSERT INTO public.platform_setting (key, value) VALUES ('questifyHome', '{}')",
+      "UPDATE public.platform_setting SET value = '{}' WHERE key = 'questifyHome'",
       "SELECT public.admin_level_titles()",
       `SELECT public.admin_level_titles_save('{}', NULL, ${request})`,
       "SELECT public.admin_shop_items()",

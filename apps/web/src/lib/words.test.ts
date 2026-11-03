@@ -130,6 +130,7 @@ const QUESTIFY_LEVEL: Readonly<Record<string, string>> = {
   "console.questify.targetFixed": "Questify's own quests on the console, not an event's word",
   "console.questify.invalid.metric": "Questify's own quests on the console, not an event's word",
   "console.catalog.amounts.xp.questXp": "Questify's XP amount on the console, not an event's word",
+  "questifyHome.block.quests": "Questify's own quests on Questify home, not an event's word",
   "console.switches.feature.community":
     "the platform's feature name on the console, not an event's word",
   "console.switches.feature.flashQuests":

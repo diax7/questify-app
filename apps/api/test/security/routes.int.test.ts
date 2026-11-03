@@ -935,6 +935,12 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); the xp and gems settings as one document, each amount in its range (the shared schema, then admin_amounts_save and the table's CHECKs: QE403, CA400); the generic settings writer cannot write these keys; audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
   "POST /v1/admin/catalog/amounts/revert":
     "active platform admins only (walked below); puts back the amounts before the latest change through admin_amounts_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
+  "GET /v1/admin/catalog/home-layout":
+    "active platform admins only (walked below); read only; the order, hidden blocks and banner slides of Questify home in force, no personal data; the admin checked again in admin_home_layout (QE403); 240 a minute per admin (test/console/home-layout, test/db/console-home-layout)",
+  "PUT /v1/admin/catalog/home-layout":
+    "active platform admins only (walked below); the layout as one document: every block once, none of the protected ones hidden, at most five text slides that open nothing or an https link (the shared check, then admin_home_layout_save: QE403, CA400); the generic settings writer cannot write the key; audited with who, before and after; clears the settings cache; 120 changes an hour per admin (test/console/home-layout, test/db/console-home-layout)",
+  "POST /v1/admin/catalog/home-layout/revert":
+    "active platform admins only (walked below); puts back the layout before the latest change through admin_home_layout_save and the same checks (CA409 when another change landed), audited as a revert; idempotency key; 120 an hour per admin (test/console/home-layout, test/db/console-home-layout)",
   "GET /v1/admin/catalog/xp-table":
     "active platform admins only (walked below); read only; every level's start and reward item and whether anyone reached it, no player; the admin checked again in admin_xp_table (QE403); 240 a minute per admin (test/console/catalog-xp-table, test/db/console-xp-table)",
   "PUT /v1/admin/catalog/xp-table":

@@ -3,6 +3,7 @@ import { composeConfig } from "./compose";
 import { DEFAULT_TERMS } from "./terms";
 import { NO_EVENT_TEXTS } from "./texts";
 import { DEFAULT_COMPOSED_LAYOUT, readEventLayout } from "#src/layout/layout";
+import { DEFAULT_COMPOSED_QUESTIFY_HOME } from "#src/layout/questify-home";
 import type { FeatureRegistry, TuningRegistry } from "./registry";
 
 const FEATURES: FeatureRegistry = {
@@ -32,6 +33,7 @@ describe("composeConfig defaults", () => {
       texts: NO_EVENT_TEXTS,
       branding: { accent: null },
       layout: DEFAULT_COMPOSED_LAYOUT,
+      questifyHome: DEFAULT_COMPOSED_QUESTIFY_HOME,
       maintenance: null,
       banner: null,
     });

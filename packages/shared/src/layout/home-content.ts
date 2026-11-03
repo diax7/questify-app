@@ -150,7 +150,7 @@ function readAction(raw: unknown, path: string, mode: Mode): Read<TapAction> {
     : fail(`${path}.type`, "is not a kind of tap");
 }
 
-function readSlide(raw: unknown, path: string, mode: Mode): Read<BannerSlide> {
+export function readSlide(raw: unknown, path: string, mode: Mode): Read<BannerSlide> {
   const found = readKeys(raw, path, ["title", "subtitle", "action"], mode);
   if (!found.ok) return found;
   const title = readLocal(found.value["title"], `${path}.title`, CONTENT_LIMITS.slideTitle, mode, {
@@ -408,6 +408,10 @@ export const cardKeysOf = (content: HomeContent): CardKey[] =>
 export function sameContent(a: HomeContent, b: HomeContent): boolean {
   return canonical(a) === canonical(b);
 }
+
+/** Whether two lists of banner slides say the same, whatever the order of their fields. */
+export const sameBanner = (a: readonly BannerSlide[], b: readonly BannerSlide[]): boolean =>
+  canonical(a) === canonical(b);
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) {

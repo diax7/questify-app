@@ -6,6 +6,8 @@ import {
   amountsDocSchema,
   gemShopDocSchema,
   gemShopItemAdminSchema,
+  homeLayoutAdminSchema,
+  homeLayoutDocSchema,
   itemAdminSchema,
   itemDocSchema,
   levelTitlesAdminSchema,
@@ -42,8 +44,8 @@ type SaveCall = Readonly<{
 /**
  * One catalog editor (T-709b, T-709c, T-709d): the shape of what an admin edits (`doc`), of an audit entry's `before` a
  * revert puts back (`before`), of a row as the console lists it (`row`), the audit target, and its two database doors
- * (migrations 0119, 0122 and 0124). A level-title set, the amounts and the XP table are one document each, so they have no
- * id: `auditId` names them.
+ * (migrations 0119, 0122, 0124 and 0137). A level-title set, the amounts, the XP table and Questify home's layout are one
+ * document each, so they have no id: `auditId` names them.
  */
 type Editor = Readonly<{
   targetType: string;
@@ -179,6 +181,22 @@ const EDITORS: Readonly<Record<CatalogKind, Editor>> = {
     save: (client, call) =>
       answerOf(client, "SELECT admin_item_save($1, $2, $3, $4) AS r", [
         call.id,
+        call.doc,
+        call.revertOf,
+        call.requestId,
+      ]),
+  },
+  home_layout: {
+    targetType: "platform_setting",
+    doc: homeLayoutDocSchema,
+    before: homeLayoutDocSchema,
+    row: homeLayoutAdminSchema,
+    idField: undefined,
+    auditId: "questify_home",
+    confirmable: false,
+    list: (client) => answerOf(client, "SELECT admin_home_layout() AS r"),
+    save: (client, call) =>
+      answerOf(client, "SELECT admin_home_layout_save($1, $2, $3) AS r", [
         call.doc,
         call.revertOf,
         call.requestId,

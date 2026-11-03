@@ -1,6 +1,7 @@
 import type { Branding } from "#src/design/accents";
 import type { LocalizedText } from "#src/errors";
 import type { EventLayout } from "#src/layout/layout";
+import type { QuestifyHome } from "#src/layout/questify-home";
 import type { EventTerms } from "./terms";
 import type { EventTexts } from "./texts";
 import type { BannerSetting, MaintenanceSettings } from "#src/maintenance/notices";
@@ -47,6 +48,8 @@ export type PlatformFeatureSetting = Readonly<{
 export type PlatformSettings = Readonly<{
   features?: Readonly<Record<string, PlatformFeatureSetting>> | undefined;
   tuning?: Readonly<Record<string, number>> | undefined;
+  /** Questify home's blocks and banner (T-713); the default layout while none is stored. */
+  questifyHome?: QuestifyHome | undefined;
   /** Maintenance mode (T-703b, FR-1771): the messages that pause play, for every event or single ones. */
   maintenance?: MaintenanceSettings | undefined;
   /** The banner scheduled for Questify Home (T-703b, FR-1772). */
