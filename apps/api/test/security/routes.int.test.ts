@@ -849,6 +849,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); support_close of a live grant only; audited (test/console/organizers, test/db/support-grant)",
   "GET /v1/admin/health":
     "active platform admins only (walked below); read only; counts and flags of queues, leases and this server's set-up (yes or no), no secret, token or player; the admin checked again in console_health (QE403); 60 a minute per admin (test/console/platform, test/db/platform-health)",
+  "GET /v1/admin/feature-usage":
+    "active platform admins only (walked below); read only; per organizer the layer state of each event-level feature and counts of its 200 latest events that have it on and use it, no player, staff or contact; the admin checked again in console_feature_usage (QE403); 60 a minute per admin (test/console/feature-usage, test/db/feature-usage)",
   "GET /v1/admin/numbers":
     "active platform admins only (walked below); read only; counts of organizers, events, players and staff, no name or contact; the admin checked again in console_numbers (QE403); 60 a minute per admin (test/console/platform, test/db/platform-health)",
   "GET /v1/admin/admins":

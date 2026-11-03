@@ -6,6 +6,7 @@ import {
   ConsoleAdminsLink,
   ConsoleCatalogLink,
   ConsoleContentLink,
+  ConsoleFeatureUsageLink,
   ConsoleFlagsLink,
   ConsoleHealthLink,
   ConsoleHomeLink,
@@ -56,6 +57,7 @@ export function ConsoleNav({ language }: Readonly<{ language: Language }>) {
       <ConsoleInvitationsLink language={language} current={on("/console/invitations")} />
       <ConsoleReadinessLink language={language} current={on("/console/readiness")} />
       <ConsoleUsageLink language={language} current={on("/console/usage")} />
+      <ConsoleFeatureUsageLink language={language} current={on("/console/feature-usage")} />
       <ConsoleHealthLink language={language} current={on("/console/health")} />
       <ConsoleNumbersLink language={language} current={on("/console/numbers")} />
       <ConsoleAdminsLink language={language} current={on("/console/admins")} />

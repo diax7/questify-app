@@ -2243,3 +2243,15 @@ FR-1772 asks for one scheduled banner on Questify Home. The block holds one bann
 **Recommended (developer):** keep one banner for v1.
 
 
+## Q-510 - Should the feature usage page filter by feature and state? (T-714, ADR-550)
+
+**Status:** Proposed (developer, 2026-11-03).
+The page lists organizers by name. "Everyone with Cheers off" or "everyone who has the shop on and never used it" would be a filter on a feature and a state, and needs the layer rules in SQL for a keyset page (or a read of every organizer).
+**Recommended (developer):** wait until the list passes a few dozen organizers, then add the filter in the door with a parity test against `featureUsageOrganizer`.
+
+## Q-511 - Should "used" count player activity instead of set-up rows? (T-714, ADR-551)
+
+**Status:** Proposed (developer, 2026-11-03).
+Today "used" is a row in the feature's table (a map, a reward, a ticket). A shop with rewards and no redemption, or a poll nobody voted in, still counts.
+**Recommended (developer):** keep set-up rows for v1; if the team needs "who actually plays with it", add per-event activity counts as a separate, indexed read after the first real events.
+

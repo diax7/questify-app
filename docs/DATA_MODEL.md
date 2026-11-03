@@ -1726,6 +1726,11 @@ PUBLIC none. Not copied when an event is duplicated.
   10 to 300 characters; QA404 for a missing, ended or non-admin session; audit `staff.session.force_end`).
 - `revoke-admin` (`setPlatformAdmin`) locks every admin row by id and refuses the last active admin.
 
+## Feature usage door (T-714, migration 0140; ADR-550 to ADR-553)
+
+- **No new table.** `console_feature_usage(search, after, page_size, feature_keys)` (STABLE definer, API role alone, `console_admin()` first, QE403) answers for a page of organizers (name or slug prefix, keyset by lower(name) and id, 1 to 50) raw counts over each one's 200 latest events: events read and `more`, `organizer_feature_override` rows, `event.config.features` true and false by key, `event_entitlement` unlocks, and for 14 features the events with a row in the feature's table (`event_session`, `paired_device` kind screen and active, `boost`, `cheers_moment`, `community_goal`, `quest` flash / live poll / share / meet / game, `ticket`, `event_map`, `quest_rating`, active `reward`), each an `EXISTS` through an event-id index. No player, staff or contact is read.
+- **Two indexes:** `quest_rating (event_id)` (the table had none by event) and the partial `quest (event_id, type) WHERE type IN ('share', 'meet', 'game')`. The layers are laid over the counts in TypeScript (`featureUsageOrganizer`).
+
 ## Legal versions and help articles (T-707, migration 0123; ADR-445 to ADR-447)
 
 - **`legal_version`** (id, document, version, body_ar, body_en, note, published_by, published_at; unique (document, version);

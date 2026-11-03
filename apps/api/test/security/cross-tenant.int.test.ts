@@ -1860,6 +1860,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     }
   });
 
+  it("keeps the feature usage of every organizer from every tenant seat (T-714)", async () => {
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      expect(
+        await refusal(
+          asA(seat, "SELECT console_feature_usage(NULL, NULL, 50, ARRAY['shop', 'cheers'])", []),
+        ),
+        seat,
+      ).toBe("QE403");
+    }
+  });
+
   it("keeps a support view inside its one event, read-only, and its log from every tenant seat (T-712)", async () => {
     const admin =
       (

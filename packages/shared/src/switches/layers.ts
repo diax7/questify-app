@@ -29,7 +29,7 @@ const definitionOf = (registries: Registries, key: string): FeatureDefinition | 
   Object.hasOwn(registries.features, key) ? registries.features[key] : undefined;
 
 /** The platform's switch for a feature: what an admin set, else the app's own (off for a feature that ships off). */
-const platformSwitchOf = (
+export const platformSwitchOf = (
   definition: FeatureDefinition,
   platform: PlatformSettings,
   key: string,

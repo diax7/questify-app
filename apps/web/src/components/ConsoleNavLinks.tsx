@@ -190,6 +190,19 @@ export function ConsoleUsageLink({
   );
 }
 
+/** This page's item in the console's navigation (T-714). */
+export function ConsoleFeatureUsageLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/feature-usage`} icon="star" current={current}>
+      {t("console.featureUsage.title")}
+    </NavItem>
+  );
+}
+
 /** This page's item in the console's navigation. */
 export function ConsoleReadinessLink({
   language,

@@ -133,6 +133,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
+  it("keeps the feature usage page closed: one door for the API's role alone (T-714)", async () => {
+    const functions = await rows<{
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+      settings: string[];
+    }>(
+      `SELECT has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname = 'console_feature_usage'`,
+    );
+    expect(functions).toEqual([
+      { app: true, outsider: false, definer: true, settings: ["search_path=public, pg_temp"] },
+    ]);
+    await expect(
+      db.outsider.query("SELECT public.console_feature_usage(NULL, NULL, 50, ARRAY['shop'])"),
+    ).rejects.toThrow(/permission denied/);
+    const held = await rows<{ grantee: string }>(
+      `SELECT DISTINCT CASE WHEN a.grantee = 0 THEN 'public' ELSE a.grantee::regrole::text END AS grantee
+       FROM pg_proc p CROSS JOIN LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+       WHERE p.proname = 'console_feature_usage' AND a.privilege_type = 'EXECUTE' AND a.grantee <> p.proowner`,
+    );
+    expect(held).toEqual([{ grantee: "questify_app" }]);
+  });
+
   it("keeps the player tools closed: six doors for the API's role alone, two tables with no grant (T-704)", async () => {
     const doors = [
       "admin_rename_player",
