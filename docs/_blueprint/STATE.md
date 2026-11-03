@@ -11,6 +11,26 @@
 - **T-711 built (tier B; split, see ADR-500; not run on a phone; migration 0136, new and undeployed; ADR-500 to ADR-504 and Q-460 to Q-463 Proposed).** The console organizer page has a Features panel: for the 12 features whose platform rule reaches one event, an admin sets Off, On or "like the platform" for that organizer (`organizer_feature_override`, audited, applied at once to the composed configuration and to the SQL rules `feature_enabled`, `flash_on`, `shop_on` and the Cheers reading). The owner's Features section (event page and guided setup) lists only what the platform leaves on for the organizer, draws a locked add-on card with Ask Questify (the Contact page) for an add-on Questify has not unlocked, and the server refuses an owner's switch-on that a layer keeps off (403 `feature_not_allowed`). **T-711b** (tier A for its first half): the override for boosts, community, meet-someone and mini-games, whose SQL rules are in the points path, and the recorded Ask Questify request with an Allow and Decline queue. Tests: `packages/shared` layers (16), `test/db/feature-layers` (8), `test/console/organizer-features` (7), `test/events/feature-layers` (6), the security suites, web lib tests, `e2e/feature-layers.spec.ts`, `layout.spec.ts`. CI minutes: 0.
   **Next:** the T-711 review (tier B, mid-tier) with a look at migration 0136's change to `feature_enabled`, `flash_on` and `shop_on`; then T-711b or the next unchecked task in `docs/TASKS.md`; mutation is not needed (tier B).
 
+## T-711b feature layers, part 2 — 2026-11-03
+
+- **T-711b built (tier A; plan review 86 with its MAJOR and MINOR findings folded into the plan, ADR-540/542/545 and Q-500;
+  migration 0139, new and undeployed; ADR-540 to ADR-546 and Q-500 to Q-503 Proposed; not run on a phone).** Questify's
+  per-organizer override now reaches boosts, community quests, meet-someone and mini-games, on new things only (ADR-540):
+  `games_on` and `meet_on` read `feature_enabled` (the API's platform pre-checks are gone; QF403 is the same `feature_off`
+  and does not use the refused-scan limit); `settle_goal(uuid)` and `settle_community(uuid, uuid)` decide may-start per
+  organizer (the boolean versions are dropped; RUNBOOK deploy note); boost and goal saves read the layer per organizer in
+  the team transaction (`platformOnFor`); the boost-start push and notice wait for the layer while the scan path is
+  untouched (a boost saved earlier still pays once its window opens). No lock was added to a payment; both race orders are
+  tested with a 200 ms lock timeout. Ask Questify is recorded: `feature_request` and the owner's `request_feature` door
+  (one open per event and add-on, 24 hours after a decline, 20 an hour per account), the card says Requested or Not
+  approved and keeps the Contact link, the console home lists open requests with Allow (the unlock, which closes the
+  request) and Decline. Tests: `test/db/feature-layers-points` (18), `test/events/feature-layers` (12), the console,
+  security and catalog suites, unit tests for boosts, goals, tick, payer, meet and games, `e2e/feature-layers` and
+  `e2e/setup` (with layout, 18 passed on desktop and phone). Full vitest once: 11,810 passed, 10 failed (one
+  `event-duplicate` guard on the new table, fixed; `live-edits` statement timeouts on the busy shared database, passed on
+  a serial re-run). CI minutes: 0 (not pushed); agent tokens: about 900k.
+  **Next:** the T-711b code review (tier A, strongest model), then mutation on GitHub for the globs in the reply.
+
 ## T-712 view as organizer — 2026-11-03
 
 - **T-712 built (tier A; plan review 86 with its two MAJOR and the MINOR fixes folded in; migration 0135, new and

@@ -125,6 +125,8 @@ const NOT_COPIED = new Set([
   "community_step",
   "event_activation_request",
   "event_entitlement",
+  // the source event's Ask Questify requests (T-711b): a copy asks again for itself
+  "feature_request",
   "event_limit_alert",
   "event_rehearsal",
   "event_result",
