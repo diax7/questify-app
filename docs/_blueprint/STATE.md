@@ -6,6 +6,25 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-802 player onboarding intro — 2026-11-03
+
+- **T-802 built (tier B; not run on a phone; app only, no migration; ADR-590 to ADR-594 and Q-550 to Q-552 Proposed; ordering and hiding the cards split to T-802b, ADR-593).**
+  A first launch opens `/intro`: a language step (Arabic and English each named in itself, the phone's language selected, a restart note
+  when the choice differs), then four story cards (join an event, complete quests, earn points and climb the ranking, win prizes and grow
+  your profile) on a parchment panel in a wood frame with a gold rim, the app's existing 3D icons on a medallion (pop-in and float, still
+  under Reduce Motion), progress dots, Back and Next, and Scan an event QR and Explore events on the last card; Skip is on every step.
+  The texts are `onboarding.*` messages, editable in the translation matrix. One local flag `questify.intro` (`language` or `seen`),
+  marked seen when the first card shows, keeps it to once per install; an unreadable store counts as seen. Settings (the profile
+  screen) has "How Questify works" for everyone: the four cards without the language step. From a join link the order follows ADR-096
+  (join card and join first): "Go to the event" on the join card and the invitation opens the intro while it is due, its first card
+  naming the event, no language step, ending in the event (a request still waiting or a waiting-list place goes straight to the event).
+  No permission, request or tracker, and a test fails if the intro's files import one. Tests: `apps/app/src/onboarding` (30: state,
+  cards, flow, route params, source guard). **Local:** `expo export --platform android` builds; pnpm lint, lint:limits, format:check
+  and `tsc` (app) clean; full vitest ONCE: 12,066 tests in 781 files, 12,049 passed, 17 skipped, 0 failed. CI minutes: 0 (not
+  pushed); agent tokens: about 450k (estimate). The look, the animation, the Arabic layout and the restart after a language change are untried
+  on a device (STORE_COMPLIANCE has a note; T-808 has the copy and phone review). **Mutation:** none (tier B).
+  **Next:** the T-802 code review (tier B, mid-tier); then the next unchecked task in `docs/TASKS.md`.
+
 ## T-022 migration retry on a lock clash — 2026-11-03
 
 - **T-022 built (tier B, deployment tooling; no migration file; ADR-580 and Q-540 Proposed).** `migrate()` now retries a file whose transaction fails with `40P01` (deadlock) or `55P03` (lock timeout): it rolls back whole, waits 1 s, 2 s, 4 s (each between half and one and a half times) and runs the file again, three retries and four attempts in all; every retry is one stderr line (file, SQLSTATE, attempt, wait; no error text, no secrets); any other SQLSTATE fails at once; a fourth clash throws `MigrationLockClashError`; a failing ROLLBACK stops the run without a retry. `node migrate.cjs` exits 0 (all applied), 75 (lost the clash four times, rolled back, run it again) or 1 (read the error); the RUNBOOK "Migration retry" and the coordinator's deploy loop say so. Tests: `test/db/migrate-retry.int.test.ts` (6: a real lock timeout and a real deadlock each retried and applied once with the half-done work proven rolled back between attempts and the first file not run again, the fourth clash with the SQLSTATE and a rerun that finishes, three non-clash errors failing at once) and `src/db/migrate.test.ts` (7: backoff ranges, exit codes, a COMMIT-time deadlock, a failing ROLLBACK, give-up, and a guard that no migration file ends the runner's transaction itself); `migrate.int.test.ts` still passes. Three hand mutants (retry every error, no rollback, four retries) all caught. `migrate` left the function-limits baseline. CI minutes: 0. **Local:** full vitest ONCE: 11965 tests in 772 files, 11760 passed, 194 skipped, 11 failed in 20 files, every one a 60 s hook timeout (a busy shared PC; `live-edits` also statement timeouts), none in a file this task touched; the 20 files re-run serially: 300 passed. Lint, limits, format, `tsc` clean. **Local note:** the worktree had no `node_modules`; `pnpm install --offline --frozen-lockfile --ignore-scripts` filled it (hard links, one minute).

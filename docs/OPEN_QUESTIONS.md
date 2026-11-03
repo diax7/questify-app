@@ -2331,3 +2331,21 @@ The tag is set from the Sponsors page (one editor for quests, categories, reward
 The recap card (ADR-339) is an image the player may share; with a tagged souvenir it now shows "Presented by {sponsor}" under the souvenir's name. The organizer chose to present the souvenir and the player chooses to share, but a sponsor never agreed to appear on a card.
 **Recommended (developer):** keep it, since it is the point of FR-1303 for souvenirs. If a sponsor objects, add an organizer switch "Show the sponsor on the recap card" (default on).
 
+
+## Q-550 - Should a join link play the intro before the join card, as the brief said, or after the join as ADR-096 says? (T-802, ADR-590)
+
+**Status:** Proposed (developer, 2026-11-03).
+The task brief for T-802 said "arriving from a join link shows the intro tailored to joining that event, then lands on the join card". ADR-096 (Accepted by Dhia) and FR-1801 say the event preview and join come first, then the intro, then the event. The build follows ADR-096.
+**Recommended (developer):** keep ADR-096: the join card is the first thing a player on a venue network needs. If Dhia prefers the intro first, change `afterJoinRoute` and the join entry (one function and one redirect in `app/join/[code].tsx`).
+
+## Q-551 - Should an admin be able to hide or reorder the intro's cards? (T-802, ADR-593)
+
+**Status:** Proposed (developer, 2026-11-03).
+FR-1803 (Should) asks for it; T-802 delivers the texts through the translation matrix and T-802b would add the platform setting, the door and the console page.
+**Recommended (developer):** build T-802b only if an admin asks to hide a card. The texts can already be reworded, and a card that is wrong for an event type can be reworded instead.
+
+## Q-552 - Which art should the intro cards carry once the mascot is chosen? (T-802, ADR-594, Q-069)
+
+**Status:** Proposed (developer, 2026-11-03).
+The cards use the app's existing 3D icons. ADR-096 asked for the mascot with animation.
+**Recommended (developer):** swap the four images in `IntroArt.tsx` for the mascot's poses when Q-069 is decided; nothing else in the intro changes.
