@@ -2271,6 +2271,24 @@ export const tooManySupportGrants = make(
   "فتحت وصول دعم كثيرا هذه الساعة. حاول لاحقا.",
   "You opened support access too often this hour. Try again later.",
 );
+export const groupPushEventClosed = make(
+  409,
+  "group_push_event_closed",
+  "لا يمكن إرسال إشعار إلى هذه الفعالية: هي مسودة أو مؤرشفة أو موقوفة.",
+  "A push cannot go to this event: it is a draft, archived or suspended.",
+);
+export const groupPushNobody = make(
+  409,
+  "group_push_nobody",
+  "لا أحد يستقبل هذا الإشعار الآن. غيّر الجمهور.",
+  "Nobody would receive this push now. Change the audience.",
+);
+export const tooManyGroupPushes = make(
+  429,
+  "too_many_group_pushes",
+  "أُرسلت إشعارات جماعية كثيرة هذه الساعة. حاول لاحقا.",
+  "Too many group pushes went out this hour. Try again later.",
+);
 export const invalidCatalog = make(
   422,
   "invalid_catalog",

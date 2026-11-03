@@ -68,6 +68,7 @@ export const BUCKETS = {
   consoleSessionEnd: "console_session_end",
   consoleCatalog: "console_catalog",
   consoleCatalogWrite: "console_catalog_write",
+  consoleGroupPush: "console_group_push",
   consolePlayerSearch: "console_player_search",
   consolePlayerRead: "console_player_read",
   consolePlayerContact: "console_player_contact",

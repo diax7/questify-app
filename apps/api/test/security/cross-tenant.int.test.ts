@@ -983,6 +983,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "platform-wide message templates (login-code SMS, promotional SMS, email and push) with no tenant and no direct API rights; read and written only by the admin-checked admin_message_templates and admin_message_template_save, audited; the table's own checks keep the opt-out and code placeholders (messaging)",
   support_contact:
     "platform-wide single row of support contact details with no tenant and no direct API rights; read publicly through support_contact_public (the contact page) and written only by the admin-checked, audited admin_support_contact_save (messaging)",
+  group_push:
+    "platform-wide record of an admin's push to an event's players or to opted-in players, with no direct API rights; read through the admin-checked admin_group_push_preview and admin_group_push_list, written only by the admin-checked, audited admin_group_push_send and the system-only group_push_fan; an event's row is deleted with the event; holds no player (group-push)",
   event_template:
     "platform-wide catalog of starting setups with no tenant and no direct API rights; read through event_templates for a signed-in team member, applied only by event_apply_template to an empty draft of the caller's own organizer (event-templates)",
   interest:

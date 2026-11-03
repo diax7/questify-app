@@ -52,6 +52,8 @@ export const NOTIFICATION_TARGETS: ReadonlyMap<string, Target> = new Map<string,
   ["staff_briefing", "center"],
   ["username_changed", "center"],
   ["data_exported", "center"],
+  ["group_push_event", "event"],
+  ["group_push_promo", "center"],
 ]);
 
 const EVENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

@@ -169,6 +169,13 @@ the two can deadlock. PostgreSQL ends one; the register answers 503 and the app 
 acknowledgement is logged (`push.ack_failed`) and its rows expire to `unknown` (never sent twice). Devices are locked
 `FOR NO KEY UPDATE` by the acknowledgement, so it never waits on the fan-out's `FOR KEY SHARE`.
 
+**The group push's lock order (T-706b, ADR-531).** `admin_group_push_send` reads the draft without locks, takes the
+transaction advisory lock `group_push_send` (the hourly count), inserts its `group_push` row (the event's `FOR KEY SHARE`
+through the foreign key) and then the one event notice (`notice_create`, last, as every producer). `group_push_fan` takes
+the oldest running send `FOR UPDATE SKIP LOCKED`, reads the audience page without locks, then inserts the notices (the kind's
+`FOR KEY SHARE`); no player, enrollment, consent or ledger row is locked. The push store's own fan-out and claim take over from
+there and are unchanged. No outside call runs inside a transaction.
+
 **Lock order during play (ADR-211).** A function that runs during play and locks more than one enrollment takes them
 all in one statement, in id order, before any item, redemption or advisory lock, and takes more than one device key
 only in ascending key order, and a payer that pays more than one player takes their Questify XP rows in player id

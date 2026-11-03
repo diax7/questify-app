@@ -2,6 +2,8 @@ import type { Pool, PoolClient } from "pg";
 import {
   alreadyInThatState,
   catalogStale,
+  groupPushEventClosed,
+  groupPushNobody,
   invalidCatalog,
   invalidPlayerAction,
   invalidReason,
@@ -10,6 +12,7 @@ import {
   notFound,
   supportBusy,
   supportMember,
+  tooManyGroupPushes,
   tooManySupportGrants,
 } from "#src/auth/http-errors";
 import { withConnection } from "#src/db/connection";
@@ -45,6 +48,13 @@ const REFUSALS: Readonly<Record<string, () => HttpError>> = {
   PA400: invalidPlayerAction,
   PA404: notFound,
   WL400: invalidWord,
+  // Group push (migration 0138): a draft that breaks a rule, an unknown join code, an event that cannot take a push,
+  // nobody to send to, and the hourly limit. The text's own refusals are CA400.
+  GP400: invalidCatalog,
+  GP404: notFound,
+  GP409: groupPushEventClosed,
+  GP204: groupPushNobody,
+  GP429: tooManyGroupPushes,
   SU409: alreadyInThatState,
   SG409: supportMember,
   SG429: tooManySupportGrants,

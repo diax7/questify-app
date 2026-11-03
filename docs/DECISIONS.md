@@ -7099,7 +7099,6 @@ A disputed owner email change (ADR-491) is a line of the same digest.
 **Decision:** FR-1732's urgent marker, due time and alert apply to content and username reports in Questify's queue. Tickets escalated by an event team keep the Tickets page's order.
 **Trade-offs:** an escalated ticket from a live event is not put first.
 
-<<<<<<< HEAD
 ## ADR-520 - T-712 the view as organizer is a `view` kind of the support grant
 
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-712 code review 93; T-712 plan section 2). Migration 0135.
@@ -7149,7 +7148,7 @@ secret, so they stay open.
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-712 code review 93; T-712 plan section 5; follows Q-373 and ADR-409).
 **Decision:** only the admin sees the banner; view entries live in Questify's audit log, shown on the console's event
 and organizer pages. FR-1837's "event's log" is read as that log.
-=======
+
 ## ADR-470 - Maintenance mode and the banner are two more `platform_setting` blocks, composed into the configuration
 
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-703b code review 84, MAJOR fixed; T-703b; FR-1771, FR-1772; migration 0134; plan `docs/plans/2026-11-03-t-703b-maintenance-banner.md`).
@@ -7179,4 +7178,89 @@ The 503 frees the idempotency key, so the same call runs after maintenance. The 
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-703b code review 84, MAJOR fixed; T-703b; `docs/STORE_COMPLIANCE.md`: configuration is data and never downloads a feature).
 **Decision:** Questify Home lists the platform-wide pause, the banner while the phone's clock is inside its window, and the switched-off features' messages (`PlatformNotices`); the event pill shows the event's pause on every event tab. Nothing is blocked on the phone: the server refuses the play doors, and the screens keep working from their cached data. No new screen, feature or code is delivered by configuration.
 **Trade-offs:** a refused scan shows the app's usual "try again" text, not the maintenance message (Q-431).
->>>>>>> main
+
+## ADR-530 - T-706b is split again: push to a group now; promotional SMS and email, their senders and the slots in T-706c
+
+**Status:** Proposed (developer, 2026-11-03; T-706b plan `docs/plans/2026-11-03-t-706b-group-push.md`; ADR-460).
+**Decision:** **T-706b** delivers FR-1777: an admin sends a push to everyone in an event, or to opted-in players by city and
+interests, through the existing push pipeline (migration 0138). **T-706c** holds the promotional SMS and email campaigns
+(recipients through `marketing_audience`, SMS scheduled with `promoSendTime`, quiet hours for SMS only), the promotional email
+sender (ADR-535) and the promotional SMS, email and login-code senders reading their template slot. The login-code part is on
+the sign-in path and is tier A (Q-420). Each half delivers value alone: a push needs no SMS or mail sender, and a campaign
+needs no push.
+**Why:** what was left of T-706b was four features, two with new outside calls (an email provider, the sign-in text). The push
+half is one outcome ("only they receive it") with its own review surface.
+**Trade-offs:** until T-706c the promotional SMS, email and login-code slots are saved and checked but still not read by their
+senders (ADR-460); only the promotional push slot is read, as the composer's starting text (ADR-533).
+
+## ADR-531 - T-706b a group push is two free-text kinds and one record table; opted-in players are written a page at a time by the push worker
+
+**Status:** Proposed (developer, 2026-11-03; T-706b; FR-1777; migration 0138; ADR-345, ADR-346, ADR-358, ADR-331 (7)).
+**Decision:** Two kinds in `notice_kind`, both free text (the announcements' renderer and name rule, `FREE_TEXT_KINDS`):
+`group_push_event` (event class, topic `announcements`, 24 hours) and `group_push_promo` (promo class, no topic, 3 days,
+no membership). `group_push` records each send: the audience (an event, or a city and interests), the text, the admin, the
+state (`sending`, `done`), the reach the admin saw, the notices written and the players left out by the cap. The audience
+and the text are frozen by a trigger, as an announcement's are. An **event** push is one `notice_create` in the send door, and
+the store's existing event fan-out reaches the event's players. An **opted-in** push is written by `group_push_fan()` (system
+seat, a door of the push worker's loop): the oldest running send, 500 players after its cursor through `marketing_audience('push',
+city, interests, ...)`, one `gpush:{send}:{player}` notice each (a repeat writes nothing), then the store's personal fan-out
+makes the center rows and sends. The consent is read again by the store at the fan-out and at the claim (`push_consented`), so
+an opt-out between the page and the phone wins. The doors are `admin_group_push_preview`, `admin_group_push_send` and
+`admin_group_push_list`, each starting with `console_admin()`; a send is audited (`group_push.send`: audience and reach, never
+the text), needs an Idempotency-Key, is held to 10 an hour per admin (API) and 20 an hour overall (door), and is refused with
+`group_push_nobody` when it would reach no one. The console tab is Messages, "Push to a group": audience, text, a review that
+says who would receive it, a confirmation, and the last 50 sends.
+**Why:** it reuses every part of the pipeline that already handles consent, mutes, devices, expiry and erasure; the only new
+loop is the page of players, bounded like the invitation fill. A failed page is logged with its SQLSTATE and the loop goes on.
+**Trade-offs:** a running promotional send cannot be stopped (Q-490); its reach counts opted-in players with or without a
+registered phone, who get the center row only (Q-493); a send of 100,000 players takes about 200 pages, a few minutes.
+
+## ADR-532 - T-706b an event push reaches the real members of a scheduled, live or ended event, never a rehearsal account
+
+**Status:** Proposed (developer, 2026-11-03; T-706b; migration 0138; ADR-354, ADR-358).
+**Decision:** `notice_status_ok` gains one rule for `group_push_event`: the real members (not `joined_via = 'rehearsal'`) of an event
+that is scheduled, live or ended; a draft or archived event gets nothing, and the door refuses a draft, an archived or a
+suspended event (`group_push_event_closed`). The kind keeps the `announcements` topic: a player who muted it keeps the center
+row and loses the push, and an organizer's default for that topic (T-510) applies to players who have not chosen (Q-491).
+**Why:** the other event kinds reach the rehearsal accounts before the start; a Questify message about a scheduled event is for
+the people who joined it.
+**Trade-offs:** a message the event's organizer switched off by default (announcements) reaches only players who chose it on.
+
+## ADR-533 - T-706b the text of a group push follows the promotional push's rules, and the saved promotional push is the composer's starting text
+
+**Status:** Proposed (developer, 2026-11-03; T-706b; ADR-461, ADR-358).
+**Decision:** Both audiences take the same text: a title of at most 60 and a text of at most 140 characters, each in both
+languages and in its own script, no placeholder (a push never carries personal data) and the announcements' cleaning and name
+rule (no address, phone number or control character). The rules are `checkGroupPushText` in the shared package (the template
+rules of `promo_push` plus the name rule); the form, the API and the tests use it, and the door checks length, control
+characters and braces again. The composer's "Use the saved promotional push" button fills the form from the `promo_push`
+template slot; nothing fills it silently.
+**Why:** one set of rules for the text that goes under Questify's name to many phones; the slot stays the place Questify
+keeps its standard wording.
+**Trade-offs:** an admin can send text that differs from the slot; the audit entry holds the audience and the reach, and the
+send record holds the text.
+
+## ADR-534 - T-706b a player gets at most one promotional push a week across group pushes and invitations (Q-421, part 2)
+
+**Status:** Proposed (developer, 2026-11-03; T-706b; Q-421; ADR-331 (2); migration 0138).
+**Decision:** `promo_push_free(player)` is true when the player has no invitation on the push channel that is queued or sending
+or was sent (or unknown) in the last 7 days and no group promotional notice in the last 7 days. The group fan asks it for
+each player (a player it refuses is counted in `capped`), the preview counts only players it accepts, and
+`invitation_candidates` asks the mirror (no push invitation for a player a group push told in the last 7 days). A player
+capped on push is left out of that week's invitation, not moved to SMS. The cap is per channel: it does not count SMS or
+email, and a push to an event's players is not capped.
+**Why:** Q-421's recommendation, kept to the one channel built so far; promotions must not become the spam ADR-065 warns of.
+**Trade-offs:** an invitation can be lost for a week to a group push; T-706c extends the same helper to SMS and email (ADR-535).
+
+## ADR-535 - T-706c the promotional email sender is a separate identity with its own budget, List-Unsubscribe and a Saudi-resident provider (Q-421, part 1)
+
+**Status:** Proposed (developer, 2026-11-03; decided here for T-706c to build; Q-421; ADR-112, ADR-318, `docs/INTEGRATIONS.md`).
+**Decision:** Promotional email is sent from an address and a provider adapter of its own, never the sign-in mailbox: its own
+daily budget (a `promo_mail` bucket; it can never take `outboundMailPerDay` or `team_alert_mail`), a signed `List-Unsubscribe`
+(https, and one-click `List-Unsubscribe-Post`) beside the `{optOutUrl}` in the body, the recipients through `marketing_audience`
+on `email` read again at send time, and no text without the opt-out link (the template floor of migration 0127). The provider
+for a player's address must be in Saudi Arabia (rules.md 3): the foreign mailboxes of ADR-112 stay staff-only, so the sender
+is built against a provider interface and a test double, and sends nothing to a real address until Dhia chooses the in-region
+provider (Q-034). Campaigns share the weekly cap per channel with invitations (ADR-534); transactional mail is not counted.
+**Why:** a promotion that shares a mailbox with sign-in codes can get the domain throttled and take sign-in down with it.
+**Trade-offs:** email campaigns wait for an account only Dhia can open; SMS campaigns do not.

@@ -107,6 +107,8 @@ const NOT_COPIED = new Set([
   "content_report",
   // the team's alert about an urgent report on it (T-701b), Questify's own outbox
   "team_alert",
+  // Questify's push to the source event's players (T-706b): a copy has no players to have been told
+  "group_push",
   // secrets, devices and people who act for the event
   "kiosk_scan",
   "nfc_tag",

@@ -601,6 +601,25 @@ columns or the functions) and the cross-tenant suite (B's setting, notices and n
 - **Console reads audited (Q-116 closed):** organizer list, organizer page and event page each write one audit row with
   ids only.
 
+### Push to a group (T-706b, ADR-530 to ADR-534)
+
+- **Who:** only an active platform admin (`console_admin()` in every door, QE403; the route hook answers 404 to anyone
+  else). The fan door is for the push worker's system seat only (PN403). `group_push` is closed to every role; the
+  outsider suite proves it and the grants.
+- **Who receives:** an event push reaches the event's real, active members through the store's event fan-out (a rehearsal
+  account, a left or banned member and a non-member never); a promotional push reaches only players `marketing_audience`
+  returns (active, adult, opted in to push now, in the city and holding an interest asked for), and the store reads the
+  consent again at the fan-out and at the claim, so an opt-out between the page and the phone wins. A player is told by
+  at most one promotional push a week across group pushes and invitations.
+- **Text:** the promotional push's rules and the name rule (no address, phone number, control or direction character),
+  checked by the form, the API and the door; the notice carries the admin's frozen text and, for an event push, the event's
+  public name, nothing about a player. The audit entry holds the audience and the reach, never the text or a player.
+- **Abuse:** a stolen admin session could send one promotion to everyone: the send needs the reviewed reach confirmed, an
+  Idempotency-Key, and is held to 10 an hour per admin and 20 overall; every send is audited with who. A running send
+  cannot be stopped (Q-490).
+- **Proof:** `test/db/group-push.int.test.ts` (seats, refusals, reach by status and consent, paging, cap, freeze),
+  `test/console/group-push.int.test.ts` (HTTP), the outsider, cross-tenant and route suites.
+
 ## Legal data requests (T-708, ADR-480 to ADR-485)
 
 - **Delivery:** a data export is built in the database at the moment it is asked for and goes straight back on the same

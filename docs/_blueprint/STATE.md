@@ -6,6 +6,24 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-706b push to a group — 2026-11-03
+
+- **T-706b built (tier B; split again, see ADR-530; not run on a phone; migration 0138, new and undeployed; ADR-530 to
+  ADR-535 and Q-490 to Q-493 Proposed).** An admin sends a push from the console (Messages, third tab "Push to a group") to
+  everyone in an event (found by its join code) or to players who opted in to promotional push, by city and interests,
+  through the existing push pipeline (`group_push_event` and `group_push_promo`, free text). An event push is one notice the
+  store fans out to the event's real players; an opted-in push is written by `group_push_fan()` in pages of 500 players
+  through `marketing_audience` (the push worker calls it each loop), with the consent read again at the fan-out and the claim.
+  Text rules: 60 and 140 characters, both languages, no placeholder, the name rule; the saved promotional push is the
+  composer's starting text. A player gets at most one promotional push a week across group pushes and invitations
+  (Q-421 part 2, `promo_push_free`, mirrored in `invitation_candidates`); the promotional email sender is decided in ADR-535
+  for T-706c. Push stays off in practice (no Firebase); the sends still write the center. Tests: `test/db/group-push` (24),
+  `test/console/group-push` (9), shared (13), web lib (8), push worker (2), the security suites,
+  `e2e/console-messaging.spec.ts` (2 more). CI minutes: 0; agent tokens: about 600k. Also: the stale merge-conflict
+  markers left in `docs/DECISIONS.md` and `docs/OPEN_QUESTIONS.md` by the T-712 merge are removed (both sides kept).
+  **Next:** T-706c (promotional SMS and email, the email sender, the slots; its login-code part is tier A), and the code
+  review of T-706b (tier B, one mid-tier review).
+
 ## T-712 view as organizer — 2026-11-03
 
 - **T-712 built (tier A; plan review 86 with its two MAJOR and the MINOR fixes folded in; migration 0135, new and

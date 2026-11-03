@@ -684,6 +684,7 @@ export const NOT_PLAYER: Readonly<Record<string, string>> = {
   "event_setup.updated_by": ADMIN,
   "event_template.body": "the organizer's template",
   "gem_purchase.request_key": OPAQUE,
+  "group_push.cursor_player": OPAQUE,
   "invitation_campaign.request_id": OPAQUE,
   "invitation_recipient.campaign_id": ORG,
   "invitation_recipient.lease_token": OPAQUE,

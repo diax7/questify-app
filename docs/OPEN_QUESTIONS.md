@@ -2077,7 +2077,8 @@ database failure never stops a sign-in, and keeps the current text as the seed. 
 
 ## Q-421 - Which sender sends promotional email, and do campaigns share the one-invitation-a-week cap? (T-706, T-409 note, ADR-331)
 
-**Status:** Proposed (developer, 2026-11-03); decided in T-706b, which builds the sender.
+**Status:** Proposed (developer, 2026-11-03); answered in T-706b: the cap is ADR-534 (built for push), the sender ADR-535 (T-706c
+builds it, and it waits for an in-region provider, Q-034).
 **Recommended (developer):** a promotional mailbox separate from the sign-in one, with `List-Unsubscribe` carrying the signed opt-out
 link, sent from a Saudi-resident provider (Q-034 family); campaigns share the cap of one promotional message a week per player on
 the channel (a player who got an invitation gets no campaign the same week), so the two features cannot together be the spam
@@ -2154,7 +2155,6 @@ address and carries ids, names of events and organizers, reason codes and a cons
 **Recommended (developer):** yes, bounded so it can never starve sign-in mail: one digest per 10 minutes, 100 a day on its
 own budget bucket (never `outboundMailPerDay`); past that only the console badge.
 
-<<<<<<< HEAD
 ## Q-480 - Should the view as organizer cover the whole organizer, not one event? (T-712, ADR-520)
 
 **Status:** Proposed (developer, 2026-11-03).
@@ -2177,7 +2177,7 @@ adds one row a minute instead of one every few seconds.
 **Status:** Proposed (developer, 2026-11-03).
 **Recommended (developer):** no: the view must show what the organizer sees, and the edit grant already shows it; the
 view is one event, 15 minutes, no exports, every record logged by id.
-=======
+
 ## Q-430 - Should a platform admin who also plays be exempt from maintenance mode? (T-703b, ADR-471)
 
 **Status:** Proposed (developer, 2026-11-03).
@@ -2195,4 +2195,33 @@ The server answers 503 `maintenance` with the message, and the app shows the mes
 **Status:** Proposed (developer, 2026-11-03).
 FR-1772 asks for one scheduled banner on Questify Home. The block holds one banner; a second replaces the first, and an event's own announcements (T-505) already reach that event's players.
 **Recommended (developer):** keep one banner for v1.
->>>>>>> main
+
+## Q-490 - Should a running promotional group push be stoppable? (T-706b, ADR-531)
+
+**Status:** Proposed (developer, 2026-11-03).
+A promotional send writes its notices a page of 500 players at a time and the store sends them; once sent, a push cannot be
+recalled. The console confirms with the reach first and holds sends to 10 an hour per admin, but there is no stop.
+**Recommended (developer):** not for v1; add a Stop that ends the send (no more pages) and expires its queued sends if the first
+real send shows the need.
+
+## Q-491 - Should a platform push to an event ignore the organizer's "announcements off" default? (T-706b, ADR-532)
+
+**Status:** Proposed (developer, 2026-11-03).
+The event push uses the `announcements` topic, so a player's mute and an organizer's default (T-510) both apply.
+**Recommended (developer):** keep it: an organizer's choice to silence announcements for their event is respected. A message
+that must always arrive (a safety notice) is a different kind, decided when one is needed.
+
+## Q-492 - Should a player capped on push this week be invited by SMS instead? (T-706b, ADR-534)
+
+**Status:** Proposed (developer, 2026-11-03).
+`invitation_candidates` leaves a push-ready player out for the week when a group push told them, and does not offer them an SMS.
+**Recommended (developer):** no: one promotional message a week per player is the point of the cap; revisit with T-706c, when
+SMS and email campaigns share it.
+
+## Q-493 - Does a promotional push count players with no registered phone? (T-706b, ADR-531)
+
+**Status:** Proposed (developer, 2026-11-03).
+The audience is read through `marketing_audience`, which does not look at devices, so an opted-in player with no signed-in
+phone is counted and gets the center row only (the invitation by push, by contrast, chooses players with a pushable phone).
+**Recommended (developer):** keep it: the player agreed to promotional push, and the center is the record of every message.
+If the count looks too high against real sends, the console can show the pushable share beside it.

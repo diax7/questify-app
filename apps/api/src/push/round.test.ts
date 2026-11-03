@@ -59,6 +59,7 @@ describe("runRound (plan § Review 3 and 4)", () => {
   let ackFails: boolean;
 
   const doors: PushDoors = {
+    groupFan: () => Promise.resolve({ rows: 0, more: false }),
     fanOut: () => Promise.resolve({ rows: 0, more: false }),
     claim: (asked) => {
       claimedTargets.push([...asked]);

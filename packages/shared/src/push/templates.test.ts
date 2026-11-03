@@ -548,7 +548,13 @@ describe("the organizer's announcement (T-502, ADR-358)", () => {
     content({ kind: "announcement", params: frozen, ...over });
 
   it("is a free-text kind with a route, not a template", () => {
-    expect(FREE_TEXT_KINDS).toEqual(["announcement", "session_message", "staff_briefing"]);
+    expect(FREE_TEXT_KINDS).toEqual([
+      "announcement",
+      "session_message",
+      "staff_briefing",
+      "group_push_event",
+      "group_push_promo",
+    ]);
     expect(PUSH_TEMPLATES["announcement"]).toBeUndefined();
   });
 

@@ -1748,6 +1748,15 @@ PUBLIC none. Not copied when an event is duplicated.
 - **`support_contact`** (T-706, migration 0127; one row: whatsapp, phone, email, updated_at): international numbers and a plain email
   pattern in CHECKs. Closed to every role. `support_contact_public()` (public), `admin_support_contact()`,
   `admin_support_contact_save(doc, request)` (audit `catalog.support_contact.update`, CA400).
+- **`group_push`** (T-706b, migration 0138; id, audience `event` or `promo`, event and organizer, city, interests, title and body in
+  both languages, state `sending` or `done`, `cursor_player`, reach, notices, capped, created_by, created_at, finished_at): one
+  row per push an admin sends to an event's players or to opted-in players. The audience, the text and the reach are frozen by a
+  trigger and a finished row never changes (GP409); the row goes with its event. Closed to every role. `admin_group_push_preview(draft)`,
+  `admin_group_push_send(draft, request)` (GP400, GP404, GP409, GP204, GP429, CA400; audit `group_push.send`) and
+  `admin_group_push_list()`; `group_push_fan()` (system seat, PN403) writes a page of 500 opted-in players as `group_push_promo`
+  notices through `marketing_audience`. Two `notice_kind` rows: `group_push_event` (event class, topic `announcements`) and
+  `group_push_promo` (promo class). `promo_push_free(player)` is the weekly cap shared with `invitation_candidates`;
+  `notice_status_ok` reaches an event push's real members of a scheduled, live or ended event.
 
 ## Console foundation (T-701, migration 0114; ADR-405 to ADR-409)
 

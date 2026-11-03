@@ -86,3 +86,61 @@ test("in Arabic the support contact is saved and the contact page shows only wha
   await page.goto("/en/legal/privacy_policy");
   await expect(page.getByText(`help-${info.project.name}@questify.sa`).first()).toBeVisible();
 });
+
+test("in English the push to a group marks a bad text, reviews an empty audience and is refused when sent", async ({
+  page,
+}, info) => {
+  test.setTimeout(120_000);
+  await asAdmin(page, info.project.name);
+  await page.goto("/en/console/messages");
+  await page.getByRole("button", { name: "Push to a group", exact: true }).click();
+
+  const form = page.getByTestId("push-form");
+  await form.getByRole("radio", { name: "Players who opted in to promotions" }).check();
+  await form.getByLabel("City", { exact: true }).selectOption({ label: "Al Baha" });
+  await expect(form.getByRole("button", { name: "Review who gets it" })).toBeDisabled();
+  await form.getByLabel("Title · English").fill("Weekend offer");
+  await form.getByLabel("Title · Arabic").fill("عرض نهاية الأسبوع");
+  await form.getByLabel("Text · Arabic").fill("تحدٍّ جديد بانتظارك.");
+  await form.getByLabel("Text · English").fill("Win at https://example.com now");
+  await expect(form.getByText("Links, email addresses and a dot between letters")).toBeVisible();
+  await expect(form.getByRole("button", { name: "Review who gets it" })).toBeDisabled();
+
+  await form.getByLabel("Text · English").fill("A new challenge is waiting.");
+  await expect(form.getByRole("button", { name: "Send the push" })).toBeDisabled();
+  await form.getByRole("button", { name: "Review who gets it" }).click();
+  await expect(form.getByTestId("push-reach")).toHaveText("About 0 players will get it.");
+  await expectNoSidewaysScroll(page);
+
+  await form.getByRole("button", { name: "Send the push" }).click();
+  const asked = page.getByRole("alertdialog", { name: "Send this push?" });
+  await asked.getByRole("button", { name: "Send the push" }).click();
+  await expect(page.getByText("Nobody would receive this push now.")).toBeVisible();
+  await expect(page.getByTestId("push-row")).toHaveCount(0);
+
+  await form.getByLabel("Title · English").fill("Another offer");
+  await expect(form.getByTestId("push-reach")).toHaveCount(0);
+});
+
+test("in Arabic the push to a group reads right to left and keeps each text in its own direction", async ({
+  page,
+}, info) => {
+  test.setTimeout(120_000);
+  await asAdmin(page, info.project.name);
+  await page.goto("/ar/console/messages");
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await page.getByRole("button", { name: "إشعار جماعي", exact: true }).click();
+
+  const form = page.getByTestId("push-form");
+  await expect(form.getByLabel("رمز انضمام الفعالية")).toHaveAttribute("dir", "ltr");
+  await expect(form.getByLabel("العنوان · العربية")).toHaveAttribute("dir", "rtl");
+  await expect(form.getByLabel("العنوان · الإنجليزية")).toHaveAttribute("dir", "ltr");
+  await form.getByRole("radio", { name: "لاعبون اشتركوا في العروض" }).check();
+  await form.getByLabel("العنوان · العربية").fill("عرض");
+  await form.getByLabel("العنوان · الإنجليزية").fill("Offer");
+  await form.getByLabel("النص · العربية").fill("English");
+  await form.getByLabel("النص · الإنجليزية").fill("A new challenge is waiting.");
+  await expect(form.getByText("اكتب النص بلغة الحقل.")).toBeVisible();
+  await expect(form.getByRole("button", { name: "مراجعة من سيستلم" })).toBeDisabled();
+  await expectNoSidewaysScroll(page);
+});
