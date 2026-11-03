@@ -194,26 +194,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("personal pushes (database)", (
       expect((await f.sends()).filter((row) => row.device_id === early.deviceId)).toHaveLength(1);
     });
 
-    it("accept-all takes at most 1,000 a call: 1,001 requests give (1000, 1), then (1, 0), one notice each", async () => {
-      const event = await f.newEvent({ phase: "live", access: "private" });
-      await pendingRequests(event, 1001);
-      expect(await acceptAll(event)).toEqual({ outcome: "done", accepted: 1000, remaining: 1 });
-      expect(await acceptAll(event)).toEqual({ outcome: "done", accepted: 1, remaining: 0 });
-      expect(await f.count("notice WHERE event_id = $1 AND kind = 'join_accepted'", [event])).toBe(
-        1001,
-      );
-    });
-
-    it("accept-all takes at most 250 a call on a hard-limited event: 300 requests give (250, 50), then (50, 0)", async () => {
+    it("accept-all on a hard-limited event takes every free seat in one call, one notice each (T-221)", async () => {
       const event = await f.newEvent({ phase: "live", access: "private" });
       await f.owner(
         "UPDATE event SET player_limit_mode = 'hard', player_limit = 1000 WHERE id = $1",
         [event],
       );
       await pendingRequests(event, 300);
-      expect(await acceptAll(event)).toEqual({ outcome: "done", accepted: 250, remaining: 50 });
-      expect(await acceptAll(event)).toEqual({ outcome: "done", accepted: 50, remaining: 0 });
-      expect(await f.count("enrollment WHERE event_id = $1 AND status = 'active'", [event])).toBe(
+      expect(await acceptAll(event)).toEqual({ outcome: "done", accepted: 300, remaining: 0 });
+      expect(await f.count("notice WHERE event_id = $1 AND kind = 'join_accepted'", [event])).toBe(
         300,
       );
     });

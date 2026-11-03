@@ -1032,6 +1032,20 @@ Back, failed-read retry and a muted-announcements member (center/Home present, n
 Native Expo export passes for iOS+Android; default web export is unsupported by this native app's existing missing
 react-native-web dependency, which T-502 does not add. No EAS build or real vendor send is part of this task.
 
+### T-221 seat limit once a statement (migration 0146; deploy steps)
+
+- **When:** never during a live event's peak. 0146 takes `enrollment` in ACCESS EXCLUSIVE mode with
+  `lock_timeout = '1s'` (below the app pool's 2 s, so a queued player request never times out behind it); a long join or
+  scan transaction makes it give up with `55P03`, and the runner retries three times before the deploy stops. Re-run
+  the deploy in a quieter minute; nothing was applied.
+- **Required after the deploy (timing probe):** on staging, build an event like the T-221 fixture (a hard limit, about
+  20,000 seated, 5,000 pending, welcome points, one active souvenir rule) and time one `accept_all_join_requests` call
+  (`apps/api/test/perf/seat-limit-timing.int.test.ts` shows the fixture). Record the number in ADR-631. **Above 3.5 s
+  the planned response is lowering the cap**: a new migration restating `accept_all_join_requests` with a smaller
+  `LIMIT least(free, n)` (one line); the dashboard already repeats calls.
+- **Hot path check:** the update trigger fires on every `UPDATE enrollment` (each scan's score update) and exits early.
+  If `QuestifyCompletionSlow` fires after the deploy, compare a quest scan's time with the T-221 numbers in TASKS.
+
 ## Platform admins and support access (T-701, ADR-405, ADR-407)
 
 - **Make or unmake a Questify admin** (owner connection, inside the API container):

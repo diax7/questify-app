@@ -277,7 +277,7 @@ _The shop, reservations and prize desk, staffed events (operators and My QR), fl
   - Done 2026-10-23 (core: CTO plan 86 → revisions folded; code 93 GO, minors folded), not yet run on a phone. Migration 0037, `src/audience`, `packages/shared/src/join/options.ts`: choice fields (custom fields with options, set only before answers; an answered or targeted option cannot go), guest tags (one per entry, set for a whole paste), one rule per category or reward (`set_audience`), `in_audience` filtering the quest, shop and goal reads and refusing in `record_completion` (`not_for_you`) and `reserve_reward` (404); a returning player keeps earlier answers. Dashboard: options in the field editor, the tag in the paste box, "Who sees what" on the Joining page, choice answers on the Players page. App: the picker and the `not_for_you` message. ADR-170 to ADR-173, Q-136 to Q-139 Proposed. **Mutation:** not run locally (Dhia, 2026-10-23: heavy checks on GitHub); targets `apps/api/src/audience/**` (added to `stryker.config.json`), `apps/api/src/join/setup.ts`, `packages/shared/src/join/options.ts`. Plan: `docs/plans/2026-10-23-t-220-targeting.md`.
   - Note (code review): a returning player keeps the answers given on the first join (`join_write`), so leaving cannot switch audience; the join card still asks again on rejoin and the new answer is ignored. Filling the card read-only with the kept answers is a later polish (needs the kept answers in the join read).
 
-- [ ] **T-221** Check a hard limit once per accept-all statement, so accept-all becomes one call again — delivers FR 1821, 1825 (scale); depends on: T-218, T-501d
+- [x] **T-221** Check a hard limit once per accept-all statement, so accept-all becomes one call again — delivers FR 1821, 1825 (scale); depends on: T-218, T-501d
   - Added 2026-10-28 (T-501d cap re-review, Q-323 Proposed). CORE (seat limits, the join path). The seat guard
     `enrollment_player_limit` (0036) recounts the event's seats on every row accept-all moves, so a call grows with the
     event's size (one call of 1,000 measured 3.3 s with 5,000 pending, 9.4 s with 20,000 seated); accept-all takes 1,000
@@ -287,6 +287,22 @@ _The shop, reservations and prize desk, staffed events (operators and My QR), fl
     seated enrollments only lowers the cost per row; it does not remove the per-row count.
   - Done when: accept-all of 5,000 pending requests on a hard-limited event with 20,000 seated players finishes in one
     call under 5 s with the decision push, and two accept-alls racing a join never seat more than the limit.
+  - Plan 2026-11-03 (tier A, awaiting the plan review): `docs/plans/2026-11-03-t-221-seat-limit-once.md`. Migration 0146:
+    the row guard replaced by AFTER statement triggers with transition tables (one count per statement, ADR-630; a seat
+    counter not taken, Q-590); accept-all up to 5,000 a call in both modes (ADR-631, Q-591); the per-row trigger work
+    trimmed (`souvenir_enqueue` in PL/pgSQL, one ranking mark per transaction, ADR-632), because T-501d's 1.4 ms a row
+    alone puts 5,000 near 7 s. Measured by hand on a 20,000-seated fixture before and after, including the scan path.
+  - Done 2026-11-03 (migration 0146; plan review 88 folded in first). **Done-when partly missed:** the race half holds
+    (exactly the limit in every order, `test/db/seat-limit.int`), but 5,000 in one call does not fit: after the trims a
+    call costs about 3 ms a row (5,000 took 14.3 to 28.7 s), so the cap is 1,000 in both modes (ADR-631). Laptop,
+    PostgreSQL 17.11, fixture of `test/perf/seat-limit-timing.int` (hard limit 25,000, 20,000 seated, 5,000 waiting,
+    welcome points, a souvenir rule, the decision push): before, one hard-limited call of 250 took 7.7 to 11.7 s (the
+    per-row seat count); after, one call of 1,000 took 2.69 / 2.78 / 3.10 s. Hot path with the update trigger on vs
+    off on one fixture: a single-row score update within noise (-17 µs; the profile shows 32 µs a firing), a quest scan
+    25.33 vs 25.17 ms (+0.7%), a bulk ledger insert of 2,000 award rows (one nested enrollment update per row) 1,479 vs
+    1,366 ms (+8%, about 57 µs a nested statement). Profile of 1,000 acceptances: `souvenir_enqueue` 1.73 → 0.42 ms a
+    row (PL/pgSQL); `grant_welcome` 1.3 ms self, `apply_ledger_entry` 0.47 ms, `notice_create` 0.28 ms: above the
+    plan's 0.2 ms line, left as a finding (FOLLOWUPS). Hand mutants of the SQL: 7 of 8 killed, the unordered-events one a live survivor (FOLLOWUPS).
 
 ## Phase 3 — Quest depth
 

@@ -1351,6 +1351,8 @@ call and the dashboard repeats. Recommended (Proposed, developer's call, T-221):
 so accept-all becomes one call again. The other options: a seat counter on the event kept by every write that seats or
 unseats a player (fast, but every join, leave, ban and removal must keep it right); a partial index on seated
 enrollments (only lowers the cost per row; the count per row stays); keeping the 250 cap (more calls for big events).
+**Answered by Q-590 (T-221, built 2026-11-03, migration 0146):** the limit is checked once per statement; a
+hard-limited event now accepts up to 1,000 a call (ADR-631).
 
 ## Q-324 — Where the T-501e build fills in the event pushes (2026-10-28, T-501e build)
 Recommended (ADR-354): a live or ended event's notices skip rehearsal accounts; every event push skips an operator kept
@@ -2452,3 +2454,13 @@ If the Prometheus app or its Alertmanager is down, or the SMTP login is wrong, n
 **Status:** Decided by the developer (2026-11-03): yes, built. `installTelemetry` gives the meter provider one view (`instrumentName: "*"`) whose attributes processor is `safeAttributes`, so keys off the list and values out of their shape are dropped inside the SDK before export; `sdk.test.ts` proves it through the real SDK and fails without the view (ADR-626 item 7).
 With the collector gone, the closed list (ADR-603) is enforced once, by `safeAttributes`, because Prometheus cannot drop attributes it is sent (ADR-626 item 7). The collector used to delete anything off the list again.
 **Built (developer):** one OpenTelemetry view on the API's meter provider in `installTelemetry` (`apps/api/src/telemetry/sdk.ts`): `views: [{ instrumentName: "*", attributesProcessors: [{ process: (incoming) => safeAttributes(incoming) }] }]`. It uses `safeAttributes` rather than a key allow-list so the second wall also holds the value shapes (a route with a phone number in it is dropped, not only an off-list key); the resource keeps its four keys (`RESOURCE_KEYS`). Four tests in `sdk.test.ts` (counter, histogram and observable gauge recorded without `safeAttributes`; an off-shape value; the real instruments keep their buckets and attributes; the resource keys) run through the real SDK with an in-memory exporter, and the first three fail with the view removed.
+
+## Q-590 - Check the seat limit once per statement, or keep a seat counter? (T-221, ADR-630)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-03, after the T-221 code review 92): statement-level check, ADR-630; answers Q-323.
+**Recommended:** a statement-level check (AFTER statement triggers with transition tables, ADR-630): one count per statement, no stored state, every writer covered. **The other option:** a seat counter on the event kept by the same writes: O(1) free seats on every join, but it must stay right across every path that seats or frees a player (joins, the player's own leave in TypeScript, erase, the rehearsal wipe, the review-demo seed, admin direct writes), needs a backfill and a reconciliation check, updates one hot row 5,000 times in an accept-all (a growing version chain inside one transaction), and serialises joins on events without a limit. Revisit only if a join-rush profile shows the per-join count.
+
+## Q-591 - How many requests may one accept-all call take? (T-221, ADR-631)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-03, after the T-221 code review 92): 1,000 a call in both modes, ADR-631.
+**Recommended:** up to 5,000 a call in both modes, the dashboard repeating above that. **Measured at build (2026-11-03): 5,000 took 14 to 29 s, so the cap is 1,000 in both modes (2.78 s median on the fixture), ADR-631.** Getting near 5,000 needs the welcome grant's per-row cost lowered first (FOLLOWUPS). **Other options:** truly unbounded (a large queue is refused by the 5 s limit and accepts nothing); keeping 1,000 without a limit and the free seats with one (two numbers for no gain).
