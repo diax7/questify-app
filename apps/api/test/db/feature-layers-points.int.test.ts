@@ -29,7 +29,7 @@ const as = (player: string): RequestContext => ({ playerId: player });
 const PASS = { pairs: 6, moves: 9, ms: 30_000, lucky: 0 };
 
 /**
- * Feature layers, part 2, in the database (T-711b, migration 0139, ADR-540 to ADR-546): Questify's per-organizer override
+ * Feature layers, part 2, in the database (T-711b, migration 0141, ADR-540 to ADR-546): Questify's per-organizer override
  * reaches boosts, community quests, meet-someone and mini-games where the platform switch acts (new things only), the
  * boost-start push waits for the layer, a switch-off racing a payment is decided by commit order without a wait, and
  * the recorded Ask Questify request.

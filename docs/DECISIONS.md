@@ -7294,7 +7294,7 @@ The 503 frees the idempotency key, so the same call runs after maintenance. The 
 ## ADR-542 - T-711b the community settle decides "may start" per goal in SQL; the boolean parameter goes
 
 **Status:** Proposed (developer, 2026-11-03; T-711b plan).
-**Decision:** `settle_goal(uuid)` and `settle_community(uuid, uuid)` replace the versions taking `may_start boolean` (migration 0139 drops the old signatures). Inside, may-start is `platform_feature_on(organizer, 'community')`, read once per call. `settle_goal_at` is unchanged. `communityPlatformOn` is removed; the tick and the owner's settle pass no flag; the live community card reads the event's composed configuration.
+**Decision:** `settle_goal(uuid)` and `settle_community(uuid, uuid)` replace the versions taking `may_start boolean` (migration 0141 drops the old signatures). Inside, may-start is `platform_feature_on(organizer, 'community')`, read once per call. `settle_goal_at` is unchanged. `communityPlatformOn` is removed; the tick and the owner's settle pass no flag; the live community card reads the event's composed configuration.
 **Why:** The tick settles goals of many organizers; only the database gives the per-organizer value per goal, and a caller's flag would be dead.
 **Trade-offs:** During a deploy the old API's tick and settle fail for seconds (logged as `community.settle_failed`, a log line and not an alert before T-018; caught up by the next tick; RUNBOOK deploy note); nine test files change mechanically.
 
@@ -7308,7 +7308,7 @@ The 503 frees the idempotency key, so the same call runs after maintenance. The 
 ## ADR-544 - T-711b the four features become overridable: `noOrganizerOverride` goes, the CHECK widens to 16
 
 **Status:** Proposed (developer, 2026-11-03; T-711b plan; ADR-500, ADR-501).
-**Decision:** The registry drops `noOrganizerOverride` from `boosts`, `community`, `meetSomeone` and `miniGames`, and the field itself (no other user). Migration 0139 widens the CHECK of `organizer_feature_override.feature` to the 16 keys; 0136 is not edited. The console panel, `platformForOrganizer`, the owner's list and the switch-on refusal (ADR-503) pick the four up from the registry.
+**Decision:** The registry drops `noOrganizerOverride` from `boosts`, `community`, `meetSomeone` and `miniGames`, and the field itself (no other user). Migration 0141 widens the CHECK of `organizer_feature_override.feature` to the 16 keys; 0136 is not edited. The console panel, `platformForOrganizer`, the owner's list and the switch-on refusal (ADR-503) pick the four up from the registry.
 **Why:** Replace, don't deprecate; the registry stays the one list a test compares with the CHECK.
 **Trade-offs:** The migration takes the override table's ACCESS EXCLUSIVE lock for milliseconds while scans that read it queue.
 

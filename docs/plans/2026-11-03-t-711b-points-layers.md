@@ -2,7 +2,7 @@
 
 Delivers FR-1826 (completes it: the per-organizer override reaches `boosts`, `community`, `meetSomeone`, `miniGames`)
 and FR-1827 (the recorded Ask Questify request). Depends on T-711 (migration 0136, `organizer_feature_override`,
-`platform_feature_on`, `platformForOrganizer`, ADR-500 to ADR-504). Migration **0139**. ADR-540 to ADR-546 Proposed;
+`platform_feature_on`, `platformForOrganizer`, ADR-500 to ADR-504). Migration **0141**. ADR-540 to ADR-546 Proposed;
 Q-500 to Q-503 Proposed. Tier A for part 1 (points path): plan review, build, one code review, mutation on GitHub for
 the touched TypeScript. Part 2 (the request) is tier B logic riding in the same task; no mutation for it.
 
@@ -60,7 +60,7 @@ task note "make the four SQL rules call `feature_enabled`": doing that would als
 for boosts and community from "stops new" to "stops running" (ADR-233, ADR-226) and add two lookups to every scan's
 `boost_in_force`. Q-500 asks whether a layer Off should stop running boosts and goals; recommended no.
 
-## 3. Migration 0139 (diff-minimal)
+## 3. Migration 0141 (diff-minimal)
 
 Header comment in the style of 0136; `SET LOCAL lock_timeout = '10s'`; lock order up front: `event`, then `organizer`
 (foreign-key targets of the new table, SHARE ROW EXCLUSIVE), then `organizer_feature_override` (ACCESS EXCLUSIVE for the

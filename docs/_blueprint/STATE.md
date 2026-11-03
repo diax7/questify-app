@@ -14,7 +14,7 @@
 ## T-711b feature layers, part 2 — 2026-11-03
 
 - **T-711b built (tier A; plan review 86 with its MAJOR and MINOR findings folded into the plan, ADR-540/542/545 and Q-500;
-  migration 0139, new and undeployed; ADR-540 to ADR-546 and Q-500 to Q-503 Proposed; not run on a phone).** Questify's
+  migration 0141, new and undeployed; ADR-540 to ADR-546 and Q-500 to Q-503 Proposed; not run on a phone).** Questify's
   per-organizer override now reaches boosts, community quests, meet-someone and mini-games, on new things only (ADR-540):
   `games_on` and `meet_on` read `feature_enabled` (the API's platform pre-checks are gone; QF403 is the same `feature_off`
   and does not use the refused-scan limit); `settle_goal(uuid)` and `settle_community(uuid, uuid)` decide may-start per

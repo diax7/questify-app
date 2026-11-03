@@ -43,7 +43,7 @@ export function askRefusalOf(error: PgError): AskOutcome | undefined {
 type AskRow = { id: string; status: "open"; requested_at: Date; created: boolean };
 
 /**
- * The event's owner asks Questify for an add-on (`request_feature`, migration 0139): recorded once, answered again while
+ * The event's owner asks Questify for an add-on (`request_feature`, migration 0141): recorded once, answered again while
  * open, refused as the database refuses. The rate limit is the route's.
  */
 export async function askForFeature(

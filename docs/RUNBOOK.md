@@ -590,7 +590,7 @@ the client-address count (ADR-113).
   settles repeatedly until final. **On CranL, before the first real event with a community quest:** time a batch of 500
   (the same file against a CranL copy, or the `community.paid` log lines' spacing); if a batch takes over 250 ms, lower
   `BATCH_SIZE` in `apps/api/src/community/payer.ts` to 250 (CTO code review nit 5).
-- **Migration 0139 (T-711b, feature layers part 2):** drops `settle_goal(uuid, boolean)` and `settle_community(uuid, boolean,
+- **Migration 0141 (T-711b, feature layers part 2):** drops `settle_goal(uuid, boolean)` and `settle_community(uuid, boolean,
   uuid)` for one-argument and two-argument versions. Between the migration and the new API, the old API's community tick logs
   `community.settle_failed {code: 42883}` and the owner's Settle and pay now answers 500, for the seconds of the deploy; the
   next tick of the new API settles and the settle point catches up. These lines are expected (not an alert; T-018 alerts only
