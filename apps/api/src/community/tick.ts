@@ -1,9 +1,7 @@
 import type { Pool, PoolClient } from "pg";
-import { communityPlatformOn } from "#src/community/goals";
 import { payBatches } from "#src/community/payer";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
-import type { SettingsService } from "#src/settings/service";
 
 /** How long one tick pays before it leaves the rest to the next (ADR-223, Q-187). */
 export const COMMUNITY_PAY_BUDGET_MS = 2000;
@@ -12,7 +10,6 @@ const JITTER = 0.2;
 
 export type CommunityTickDeps = Readonly<{
   pool: Pool;
-  settings: Pick<SettingsService, "forEvent">;
   intervalMs: number;
   log: (level: "info" | "error", fields: Record<string, unknown>) => void;
   /** Spreads several API instances apart; replaced in tests. */
@@ -50,10 +47,10 @@ export function startCommunityTick(deps: CommunityTickDeps): CommunityTick {
   const system = <T>(work: (client: PoolClient) => Promise<T>): Promise<T> =>
     withConnection(deps.pool, (client) => withRequestContext(client, {}, () => work(client)));
 
-  const settleOne = async (goal: string, mayStart: boolean): Promise<void> => {
+  const settleOne = async (goal: string): Promise<void> => {
     try {
       await system(async (client) => {
-        await client.query("SELECT settle_goal($1, $2)", [goal, mayStart]);
+        await client.query("SELECT settle_goal($1)", [goal]);
       });
     } catch (error) {
       const blind = codeOf(error) === "CV500";
@@ -66,7 +63,6 @@ export function startCommunityTick(deps: CommunityTickDeps): CommunityTick {
   };
 
   const settleAll = async (): Promise<void> => {
-    const mayStart = await communityPlatformOn(deps.settings);
     const goals = await system(async (client) => {
       const { rows } = await client.query<{ goal: string }>(
         "SELECT g AS goal FROM community_tick_goals() g",
@@ -74,7 +70,7 @@ export function startCommunityTick(deps: CommunityTickDeps): CommunityTick {
       return rows.map((row) => row.goal);
     });
     for (const goal of goals) {
-      await settleOne(goal, mayStart);
+      await settleOne(goal);
     }
   };
 

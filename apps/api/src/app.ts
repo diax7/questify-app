@@ -271,7 +271,6 @@ function startTicks(
   if (options.communityIntervalMs !== undefined) {
     const tick = startCommunityTick({
       pool: options.pool,
-      settings: deps.settings,
       intervalMs: options.communityIntervalMs,
       log: (level, fields) => app.log[level](fields),
     });
@@ -504,7 +503,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerTicketRoutes(app, { pool: options.pool, settings, keys: signInDeps.keys });
   registerPlayRoutes(app, { pool: options.pool, ranking, settings, firstBonus });
   registerMeetRoutes(app, { pool: options.pool, ranking, settings, keys: signInDeps.keys });
-  registerGameRoutes(app, { pool: options.pool, ranking, settings, keys: signInDeps.keys });
+  registerGameRoutes(app, { pool: options.pool, ranking, keys: signInDeps.keys });
   registerNfcRoutes(app, {
     pool: options.pool,
     tagKey: createTagCodeKey(config.qrSecret),

@@ -52,6 +52,7 @@ import {
   type SwitchActor,
   type SwitchChange,
 } from "#src/settings/save-event-switches";
+import { closeOpenRequests } from "#src/settings/feature-requests";
 import { runAsAdmin } from "#src/settings/platform-switches";
 import type { PublicAccount } from "#src/auth/staff-store";
 
@@ -176,7 +177,7 @@ export type SettingsService = Readonly<{
     input: unknown,
     meta?: AuditMeta,
   ) => Promise<LayoutSaveResult>;
-  /** A Questify admin unlocks an add-on for an event. */
+  /** A Questify admin unlocks an add-on for an event, closing the owner's open Ask Questify request for it (T-711b). */
   unlockFeature: (
     admin: PublicAccount,
     eventId: string,
@@ -393,6 +394,8 @@ export function createSettingsService(options: SettingsOptions): SettingsService
             requestId: meta.requestId,
           });
         }
+        // Allow on the console's Requests list is this unlock: it closes the owner's open request (T-711b, ADR-545).
+        await closeOpenRequests(client, admin, { eventId, feature }, meta);
         return { ok: true };
       }),
 

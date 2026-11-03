@@ -18,7 +18,6 @@ const registries: Registries = {
     shop: { gated: false },
     ratings: { gated: false, eventOffByDefault: true },
     streak: { gated: false, level: "platform" },
-    boosts: { gated: false, noOrganizerOverride: true },
     screen: { gated: true },
     beta: { gated: false, offByDefault: true },
   },
@@ -27,14 +26,13 @@ const registries: Registries = {
 const message = { ar: "متوقفة", en: "Paused" };
 
 describe("isOrganizerOverridable", () => {
-  it("is true only for an event-level feature whose platform rule reaches an event", () => {
+  it("is true for every event-level feature, false for a Questify-wide one", () => {
     expect(isOrganizerOverridable({ gated: false })).toBe(true);
     expect(isOrganizerOverridable({ gated: true })).toBe(true);
     expect(isOrganizerOverridable({ gated: false, level: "platform" })).toBe(false);
-    expect(isOrganizerOverridable({ gated: false, noOrganizerOverride: true })).toBe(false);
   });
 
-  it("names exactly the twelve features whose rule reaches an event today", () => {
+  it("names exactly the sixteen event-level features (T-711b)", () => {
     const keys = Object.entries(FEATURES)
       .filter(([, definition]) => isOrganizerOverridable(definition))
       .map(([key]) => key)
@@ -42,10 +40,14 @@ describe("isOrganizerOverridable", () => {
     expect(keys).toEqual([
       "agenda",
       "bigScreen",
+      "boosts",
       "cheers",
+      "community",
       "flashQuests",
       "helpDesk",
       "maps",
+      "meetSomeone",
+      "miniGames",
       "polls",
       "questRatings",
       "ranking",
@@ -77,12 +79,8 @@ describe("platformForOrganizer", () => {
   });
 
   it("ignores a key the app does not have and a feature that cannot be overridden", () => {
-    const platform = { features: { streak: { enabled: false }, boosts: { enabled: false } } };
-    const result = platformForOrganizer(registries, platform, {
-      gone: true,
-      streak: true,
-      boosts: true,
-    });
+    const platform = { features: { streak: { enabled: false } } };
+    const result = platformForOrganizer(registries, platform, { gone: true, streak: true });
     expect(result.features).toEqual(platform.features);
   });
 
@@ -170,10 +168,24 @@ describe("eventLayersOf", () => {
     );
     expect(eventLayersSchema.parse(layers)).toEqual(layers);
     expect(layers.features).toEqual([
-      { key: "boosts", state: "on", addOn: false },
-      { key: "ratings", state: "on", addOn: false },
-      { key: "screen", state: "locked", addOn: true },
+      { key: "ratings", state: "on", addOn: false, request: null },
+      { key: "screen", state: "locked", addOn: true, request: null },
     ]);
+  });
+
+  it("gives an add-on its latest request and a switch none, whatever the map holds", () => {
+    const asked = { status: "open", at: "2026-11-03T08:00:00.000Z" } as const;
+    const layers = eventLayersOf(registries, {}, {}, { screen: asked, shop: asked });
+    expect(eventLayersSchema.parse(layers)).toEqual(layers);
+    const byKey = Object.fromEntries(layers.features.map((row) => [row.key, row.request]));
+    expect(byKey).toMatchObject({ screen: asked, shop: null, ratings: null });
+    expect(
+      eventLayersSchema.safeParse({
+        features: [
+          { key: "screen", state: "locked", addOn: true, request: { status: "gone", at: "x" } },
+        ],
+      }).success,
+    ).toBe(false);
   });
 
   it("lists the real registry's event-level features and none of the platform ones", () => {

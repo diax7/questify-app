@@ -1,6 +1,5 @@
 import type { Pool } from "pg";
 import { reasonOf } from "#src/auth/sign-in";
-import { communityPlatformOn } from "#src/community/goals";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { etagOf } from "#src/etag";
@@ -228,8 +227,11 @@ export function createLiveReader(deps: LiveDeps, now: () => number = Date.now): 
           };
         }),
       );
+      // The community card follows the event's composed configuration: the event's switch and the platform as its
+      // organizer sees it (T-711b); a running goal still settles and pays while the card is hidden (ADR-540).
       const community =
-        state.community === null || !(await communityPlatformOn(deps.settings))
+        state.community === null ||
+        !(await eventFeatureOn(deps.settings, eventId, playerId, "community"))
           ? null
           : communityOf(state.community);
       // The event's live polls switch (T-602): off, no card shows, open or closed; the lookup waits until a poll is live.

@@ -92,6 +92,7 @@ export const BUCKETS = {
   deviceMissEvent: "device_miss_event",
   deviceMissOrganizer: "device_miss_organizer",
   deviceMissPlatform: "device_miss_platform",
+  featureRequest: "feature_request",
 } as const;
 
 export type Bucket = (typeof BUCKETS)[keyof typeof BUCKETS];

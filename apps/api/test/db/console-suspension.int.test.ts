@@ -533,7 +533,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("suspension (database)", () => 
         [ids.orgA, event],
       );
       const settle = async () =>
-        (await as<{ s: string }>({}, "SELECT settle_goal($1, true) AS s", [goal?.id]))[0]?.s;
+        (await as<{ s: string }>({}, "SELECT settle_goal($1) AS s", [goal?.id]))[0]?.s;
       const settledUntil = async () =>
         (
           await owner<{ at: Date | null }>(

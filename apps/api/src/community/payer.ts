@@ -1,10 +1,5 @@
 import type { Pool } from "pg";
-import {
-  asTeam,
-  communityPlatformOn,
-  type CommunityDeps,
-  type CommunityDone,
-} from "#src/community/goals";
+import { asTeam, type CommunityDeps, type CommunityDone } from "#src/community/goals";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
@@ -73,13 +68,8 @@ export async function settleAndPay(
   request: Readonly<{ eventId: string; requestId: string }>,
   budgetMs = SETTLE_PAY_BUDGET_MS,
 ): Promise<CommunityDone<SettleAnswer>> {
-  const mayStart = await communityPlatformOn(deps.settings);
   const settled = await asTeam(deps, context, async (client) => {
-    await client.query("SELECT settle_community($1, $2, $3)", [
-      request.eventId,
-      mayStart,
-      request.requestId,
-    ]);
+    await client.query("SELECT settle_community($1, $2)", [request.eventId, request.requestId]);
     return null;
   });
   if (settled.kind !== "done") {

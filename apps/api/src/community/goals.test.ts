@@ -1,14 +1,7 @@
 import type { Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
-import {
-  asTeam,
-  communityPlatformOn,
-  deleteGoal,
-  goalBody,
-  listGoals,
-  refusalOf,
-  saveGoal,
-} from "#src/community/goals";
+import { asTeam, deleteGoal, goalBody, listGoals, refusalOf, saveGoal } from "#src/community/goals";
+import { layerAnswer, type FakeLayer } from "#test/support/fake-pool";
 
 const valid = {
   title: { en: "Light the tower" },
@@ -177,31 +170,20 @@ describe("refusalOf", () => {
   });
 });
 
-const settings = (answer: unknown) => ({ forEvent: vi.fn(async () => answer) }) as never;
-
-describe("communityPlatformOn", () => {
-  it("is on unless the platform switched it off, and off when the configuration cannot be read", async () => {
-    expect(await communityPlatformOn(settings({ kind: "ok", config: { features: {} } }))).toBe(
-      true,
-    );
-    expect(
-      await communityPlatformOn(
-        settings({ kind: "ok", config: { features: { community: { enabled: true } } } }),
-      ),
-    ).toBe(true);
-    expect(
-      await communityPlatformOn(
-        settings({ kind: "ok", config: { features: { community: { enabled: false } } } }),
-      ),
-    ).toBe(false);
-    expect(await communityPlatformOn(settings({ kind: "not_found" }))).toBe(false);
-  });
-});
-
 type Answer = (sql: string) => Record<string, unknown>[];
 
-/** A pool whose connection answers each statement through `answer`, keeping the statements and their values. */
-function fakePool(answer: Answer) {
+const CONTEXT = {
+  organizerId: "11111111-1111-4111-8111-111111111111",
+  staffUserId: "22222222-2222-4222-8222-222222222222",
+};
+/** The platform layer of community quests as the organizer sees it: on unless a test says otherwise. */
+const ON: FakeLayer = { feature: "community", organizerId: CONTEXT.organizerId };
+
+/**
+ * A pool whose connection answers each statement through `answer` (the platform layer's reads through `layer`), keeping
+ * the statements and their values.
+ */
+function fakePool(answer: Answer, layer: FakeLayer = ON) {
   const statements: { sql: string; values: unknown[] }[] = [];
   const client = {
     query: vi.fn(async (sql: string, values: unknown[] = []) => {
@@ -209,20 +191,14 @@ function fakePool(answer: Answer) {
         return { rows: [] };
       }
       statements.push({ sql, values });
-      return { rows: answer(sql) };
+      return { rows: layerAnswer(sql, layer)?.rows ?? answer(sql) };
     }),
     release: vi.fn(),
   };
   return { pool: { connect: async () => client } as unknown as Pool, statements };
 }
 
-const CONTEXT = {
-  organizerId: "11111111-1111-4111-8111-111111111111",
-  staffUserId: "22222222-2222-4222-8222-222222222222",
-};
 const EVENT = "33333333-3333-4333-8333-333333333333";
-const on = settings({ kind: "ok", config: { features: {} } });
-const off = settings({ kind: "ok", config: { features: { community: { enabled: false } } } });
 
 /** A goal as `community_goals` writes it (jsonb, times with their offset). */
 const stored = (over: Record<string, unknown> = {}) => ({
@@ -273,7 +249,7 @@ const stored = (over: Record<string, unknown> = {}) => ({
 describe("listGoals", () => {
   it("answers each goal as the dashboard reads it, times in UTC and counts as numbers", async () => {
     const { pool } = fakePool(() => [{ goals: [stored()] }]);
-    expect(await listGoals({ pool, settings: on }, CONTEXT, EVENT)).toEqual({
+    expect(await listGoals({ pool }, CONTEXT, EVENT)).toEqual({
       kind: "done",
       value: [
         {
@@ -337,7 +313,7 @@ describe("listGoals", () => {
         ],
       },
     ]);
-    expect(await listGoals({ pool, settings: on }, CONTEXT, EVENT)).toMatchObject({
+    expect(await listGoals({ pool }, CONTEXT, EVENT)).toMatchObject({
       kind: "done",
       value: [
         {
@@ -354,7 +330,7 @@ describe("listGoals", () => {
 
   it("answers no goals when the event has none", async () => {
     const { pool } = fakePool(() => [{ goals: null }]);
-    expect(await listGoals({ pool, settings: on }, CONTEXT, EVENT)).toEqual({
+    expect(await listGoals({ pool }, CONTEXT, EVENT)).toEqual({
       kind: "done",
       value: [],
     });
@@ -364,9 +340,15 @@ describe("listGoals", () => {
 /** A save that answers `id`, then the event's `goals`. */
 const savedAs = (id: string, goals: object[]) =>
   fakePool((sql) => (sql.includes("save_community_goal") ? [{ id }] : [{ goals }]));
-/** The goal as the first statement wrote it. */
-const written = (statements: { values: unknown[] }[]) =>
-  JSON.parse(String(statements[0]?.values[2])) as Record<string, unknown>;
+/** The goal as the save wrote it. */
+const written = (statements: { sql: string; values: unknown[] }[]) =>
+  JSON.parse(
+    String(statements.find((one) => one.sql.includes("save_community_goal"))?.values[2]),
+  ) as Record<string, unknown>;
+
+/** Whether a goal was saved or deleted among the statements. */
+const wrote = (statements: { sql: string }[]) =>
+  statements.some((one) => /save_community_goal|delete_community_goal/.test(one.sql));
 
 describe("saveGoal and deleteGoal", () => {
   const body = goalBody.parse({ ...valid, measure: "completions", milestones: undefined });
@@ -383,7 +365,7 @@ describe("saveGoal and deleteGoal", () => {
       stored(),
       stored({ id: "goal-2", title: { en: "Second" } }),
     ]);
-    expect(await saveGoal({ pool, settings: on }, CONTEXT, request())).toMatchObject({
+    expect(await saveGoal({ pool }, CONTEXT, request())).toMatchObject({
       kind: "done",
       value: { id: "goal-2", title: { ar: null, en: "Second" } },
     });
@@ -398,36 +380,47 @@ describe("saveGoal and deleteGoal", () => {
   it("writes the category the goal counts", async () => {
     const category = "44444444-4444-4444-8444-444444444444";
     const { pool, statements } = savedAs("goal-1", [stored()]);
-    await saveGoal(
-      { pool, settings: on },
-      CONTEXT,
-      request({ body: { ...body, categoryId: category } }),
-    );
+    await saveGoal({ pool }, CONTEXT, request({ body: { ...body, categoryId: category } }));
     expect(written(statements)).toMatchObject({ categoryId: category });
   });
 
   it("answers not found when the saved goal is not among the event's", async () => {
     const { pool } = savedAs("goal-9", [stored()]);
-    expect(await saveGoal({ pool, settings: on }, CONTEXT, request())).toEqual({
+    expect(await saveGoal({ pool }, CONTEXT, request())).toEqual({
       kind: "not_found",
     });
   });
 
-  it("is refused, writing nothing, while the platform switch is off", async () => {
-    const saving = fakePool(() => []);
-    expect(await saveGoal({ pool: saving.pool, settings: off }, CONTEXT, request())).toEqual({
-      kind: "feature_off",
-    });
-    expect(saving.statements).toEqual([]);
-    const deleting = fakePool(() => []);
+  it("is refused, writing nothing, while the platform switch as the organizer sees it is off", async () => {
+    for (const layer of [
+      { ...ON, platform: false },
+      { ...ON, override: false },
+    ]) {
+      const saving = fakePool(() => [], layer);
+      expect(await saveGoal({ pool: saving.pool }, CONTEXT, request())).toEqual({
+        kind: "feature_off",
+      });
+      expect(wrote(saving.statements)).toBe(false);
+      const deleting = fakePool(() => [], layer);
+      expect(
+        await deleteGoal({ pool: deleting.pool }, CONTEXT, {
+          eventId: EVENT,
+          goalId: "goal-1",
+          requestId: "req-1",
+        }),
+      ).toEqual({ kind: "feature_off" });
+      expect(wrote(deleting.statements)).toBe(false);
+    }
+    // Questify's override On for this organizer wins over the platform's Off (T-711b).
+    const allowed = fakePool(() => [], { ...ON, platform: false, override: true });
     expect(
-      await deleteGoal({ pool: deleting.pool, settings: off }, CONTEXT, {
+      await deleteGoal({ pool: allowed.pool }, CONTEXT, {
         eventId: EVENT,
         goalId: "goal-1",
         requestId: "req-1",
       }),
-    ).toEqual({ kind: "feature_off" });
-    expect(deleting.statements).toEqual([]);
+    ).toEqual({ kind: "done", value: null });
+    expect(wrote(allowed.statements)).toBe(true);
   });
 });
 

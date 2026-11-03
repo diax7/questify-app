@@ -80,6 +80,7 @@ import { enterView, isRead } from "#src/organizers/support-view";
 import type { Actor, ChangeResult, InviteResult, Team } from "#src/organizers/team";
 import type { Ranking } from "#src/ranking/ranking";
 import { ORGANIZER_PREFIX } from "#src/route-access";
+import { registerFeatureRequestTeamRoutes } from "#src/settings/feature-request-routes";
 import type { SettingsService } from "#src/settings/service";
 
 export type OrganizerRoutesDeps = Readonly<{
@@ -376,6 +377,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerOrganizerLegalRoutes(scope, { pool: deps.pool });
       registerOrganizerAlertRoutes(scope, { pool: deps.pool });
       registerEventRoutes(scope, deps.events, deps.settings);
+      registerFeatureRequestTeamRoutes(scope, { pool: deps.pool, keys: deps.devices.keys });
       registerActivationRoutes(scope, deps.activation);
       registerRehearsalTeamRoutes(scope, deps.rehearsal);
       registerBuilderRoutes(scope, {
@@ -402,9 +404,9 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerSubmissionTeamRoutes(scope, { pool: deps.pool, ranking: deps.ranking });
       registerTicketTeamRoutes(scope, { pool: deps.pool });
       registerPlayTeamRoutes(scope, { pool: deps.pool });
-      registerCommunityTeamRoutes(scope, { pool: deps.pool, settings: deps.settings });
+      registerCommunityTeamRoutes(scope, { pool: deps.pool });
       registerSouvenirRoutes(scope, { pool: deps.pool });
-      registerBoostTeamRoutes(scope, { pool: deps.pool, settings: deps.settings });
+      registerBoostTeamRoutes(scope, { pool: deps.pool });
       registerAnnouncementTeamRoutes(scope, { pool: deps.pool });
       registerContentHoldTeamRoutes(scope, { pool: deps.pool });
       registerSessionTeamRoutes(scope, { pool: deps.pool });

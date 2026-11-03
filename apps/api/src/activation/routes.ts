@@ -19,8 +19,10 @@ import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 import type { PublicAccount } from "#src/auth/staff-store";
 import {
   registerConsolePlatformRoutes,
+  throttled,
   type ConsolePlatformDeps,
 } from "#src/console/platform-routes";
+import { CONSOLE_CATALOG_WRITE_LIMIT } from "#src/console/catalog-routes";
 import {
   registerConsoleDataRequestRoutes,
   type ConsoleDataRequestDeps,
@@ -51,6 +53,7 @@ import { registerConsoleTicketRoutes, type ConsoleTicketDeps } from "#src/ticket
 import { registerConsoleCatalogRoutes } from "#src/console/catalog-routes";
 import { registerConsoleLegalRoutes } from "#src/console/legal-routes";
 import { registerConsoleOrganizerFeaturesRoutes } from "#src/console/organizer-features-routes";
+import { registerConsoleFeatureRequestRoutes } from "#src/settings/feature-request-routes";
 import { registerConsoleNoticesRoutes } from "#src/console/notices-routes";
 import { registerConsoleSwitchesRoutes } from "#src/console/switches-routes";
 import { registerConsoleMessagingRoutes } from "#src/console/messaging-routes";
@@ -226,11 +229,13 @@ function registerConsoleWrites(scope: FastifyInstance, deps: ConsoleRoutesDeps):
   });
 
   // Add-ons after activation (FR-1729): the settings service writes and audits them and clears its cache.
+  // Allow on the console's Requests list (T-711b) is this unlock: throttled like the other console writes.
   scope.put("/events/:eventId/addons/:feature", admin, async (request, reply) => {
     const { eventId, feature } = parse(addonParams, request.params);
     if (!isGatedFeature(REGISTRIES, feature)) {
       throw unknownAddon({ feature });
     }
+    await throttled(deps.platform, request, reply, CONSOLE_CATALOG_WRITE_LIMIT);
     const saved = await deps.settings.unlockFeature(adminOf(request), eventId, feature, {
       requestId: request.id,
     });
@@ -311,6 +316,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleLegalRoutes(scope, deps.platform);
       registerConsoleSwitchesRoutes(scope, { ...deps.platform, settings: deps.settings });
       registerConsoleOrganizerFeaturesRoutes(scope, { ...deps.platform, settings: deps.settings });
+      registerConsoleFeatureRequestRoutes(scope, deps.platform);
       registerConsoleMessagingRoutes(scope, deps.platform);
       registerConsoleNoticesRoutes(scope, { ...deps.platform, settings: deps.settings });
       registerConsoleTranslationRoutes(scope, deps.translations);

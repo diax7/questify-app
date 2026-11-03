@@ -9,6 +9,7 @@ import { diff } from "#src/audit/entry";
 import { recordAudit, type AuditMeta } from "#src/audit/record";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { readEventRequests } from "#src/settings/feature-requests";
 import { firstSwitchOnRefused, readEventLayerInputs } from "#src/settings/layers";
 import type { SaveResult } from "#src/settings/service";
 import { lockEventSwitches, readEventOrganizerId, writeEventSwitches } from "#src/settings/store";
@@ -74,8 +75,9 @@ export async function saveSwitches(
 }
 
 /**
- * What a member of the organizer sees of an event's features, or undefined when the event is not the organizer's. A public
- * event of another organizer is visible to every caller, so the owner is checked here as well as by the database.
+ * What a member of the organizer sees of an event's features, each add-on with the owner's latest Ask Questify request, or
+ * undefined when the event is not the organizer's. A public event of another organizer is visible to every caller, so the
+ * owner is checked here as well as by the database.
  */
 export function readOwnerLayers(
   pool: Pool,
@@ -91,7 +93,12 @@ export function readOwnerLayers(
       const inputs = await readEventLayerInputs(client, registries, eventId);
       return inputs === undefined
         ? undefined
-        : eventLayersOf(registries, inputs.platform, inputs.event);
+        : eventLayersOf(
+            registries,
+            inputs.platform,
+            inputs.event,
+            await readEventRequests(client, eventId),
+          );
     }),
   );
 }

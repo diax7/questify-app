@@ -1745,13 +1745,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT * FROM public.community_contributor",
         "SELECT * FROM public.community_payout",
         "SELECT * FROM public.community_tick_goals()",
-        "SELECT public.settle_goal(gen_random_uuid(), true)",
+        "SELECT public.settle_goal(gen_random_uuid())",
         "SELECT * FROM public.pay_community_batch(500, NULL)",
         "SELECT public.community_health()",
         "SELECT public.save_community_goal(gen_random_uuid(), NULL, '{}', NULL)",
         "SELECT public.delete_community_goal(gen_random_uuid(), gen_random_uuid(), NULL)",
         "SELECT public.community_goals(gen_random_uuid())",
-        "SELECT public.settle_community(gen_random_uuid(), true, NULL)",
+        "SELECT public.settle_community(gen_random_uuid(), NULL)",
         "SELECT * FROM public.community_paying(gen_random_uuid())",
         "SELECT * FROM public.community_pending(gen_random_uuid())",
         "SELECT public.community_settle_point()",
@@ -3192,6 +3192,41 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       const tableRights = await rows<{ priv: string }>(
         `SELECT p.priv FROM (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE')) AS p(priv)
          WHERE has_table_privilege('public', 'public.organizer_feature_override', p.priv)`,
+      );
+      expect(tableRights).toEqual([]);
+    });
+
+    it("cannot read, write or reach the Ask Questify requests or the layer-aware doors (T-711b)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.feature_request",
+        "INSERT INTO public.feature_request (organizer_id, event_id, feature, requested_by) VALUES (gen_random_uuid(), gen_random_uuid(), 'bigScreen', gen_random_uuid())",
+        "UPDATE public.feature_request SET status = 'allowed'",
+        "DELETE FROM public.feature_request",
+        "SELECT * FROM public.request_feature(gen_random_uuid(), 'bigScreen', NULL)",
+        "SELECT public.feature_request_addon('bigScreen')",
+        "SELECT public.games_on(gen_random_uuid())",
+        "SELECT public.meet_on(gen_random_uuid())",
+        "SELECT public.push_due_boost(10)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const held = await rows<{ proname: string }>(
+        `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         WHERE n.nspname = 'public'
+           AND p.proname IN ('request_feature', 'feature_request_addon', 'games_on', 'meet_on', 'settle_goal',
+                             'settle_community', 'push_due_boost', 'push_on_boost_start', 'notice_audience_ok')
+           AND has_function_privilege('public', p.oid, 'EXECUTE')`,
+      );
+      expect(held).toEqual([]);
+      const app = await rows<{ proname: string }>(
+        `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         WHERE n.nspname = 'public' AND p.proname IN ('request_feature', 'feature_request_addon')
+           AND has_function_privilege('questify_app', p.oid, 'EXECUTE')`,
+      );
+      expect(app.map((row) => row.proname)).toEqual(["request_feature"]);
+      const tableRights = await rows<{ priv: string }>(
+        `SELECT p.priv FROM (VALUES ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE'), ('TRUNCATE')) AS p(priv)
+         WHERE has_table_privilege('public', 'public.feature_request', p.priv)`,
       );
       expect(tableRights).toEqual([]);
     });

@@ -36,17 +36,23 @@ export {
   tuningBodySchema,
 } from "./switches/switches";
 export type {
+  ConsoleFeatureRequest,
+  ConsoleFeatureRequests,
   EventLayerRow,
   EventLayers,
   FeatureLayer,
+  FeatureRequestState,
   OrganizerFeatureRow,
   OrganizerFeaturesView,
   OrganizerOverrideBody,
   OrganizerOverrides,
 } from "./switches/layers";
 export {
+  FEATURE_REQUEST_WAIT_HOURS,
+  consoleFeatureRequestsSchema,
   eventLayersOf,
   eventLayersSchema,
+  featureRequestBodySchema,
   featureLayer,
   isOrganizerOverridable,
   organizerFeaturesView,

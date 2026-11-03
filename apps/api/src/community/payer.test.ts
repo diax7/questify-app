@@ -25,7 +25,6 @@ function fakePool(answer: Answer) {
 }
 
 const pgError = (code: string) => Object.assign(new Error("database refusal"), { code });
-const settingsOn = { forEvent: vi.fn(async () => ({ kind: "ok", config: { features: {} } })) };
 const CONTEXT = {
   organizerId: "11111111-1111-4111-8111-111111111111",
   staffUserId: "22222222-2222-4222-8222-222222222222",
@@ -49,8 +48,7 @@ describe("payBatches", () => {
   });
 });
 
-const settle = (answer: Answer) =>
-  settleAndPay({ pool: fakePool(answer).pool, settings: settingsOn as never }, CONTEXT, REQUEST);
+const settle = (answer: Answer) => settleAndPay({ pool: fakePool(answer).pool }, CONTEXT, REQUEST);
 
 describe("settleAndPay", () => {
   it("answers the goals and rewards still left, paying while any is due", async () => {
@@ -60,6 +58,15 @@ describe("settleAndPay", () => {
     expect(
       await settle((sql) => (sql.includes("community_paying") ? [{ goals: "1", due: "0" }] : [])),
     ).toEqual({ kind: "done", value: { status: "paid", goals: 1, due: 0 } });
+  });
+
+  it("settles with the event and the request only; the database decides may-start (T-711b)", async () => {
+    const fake = fakePool(() => []);
+    await settleAndPay({ pool: fake.pool }, CONTEXT, REQUEST);
+    expect(fake.statements[0]).toEqual({
+      sql: "SELECT settle_community($1, $2)",
+      values: [REQUEST.eventId, REQUEST.requestId],
+    });
   });
 
   it("answers nothing left when the count comes back empty", async () => {

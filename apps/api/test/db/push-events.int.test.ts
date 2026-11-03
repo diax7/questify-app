@@ -195,7 +195,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event pushes (database)", () =
     return { goal: made?.id ?? "", stepAt };
   };
   const settle = (target: string) =>
-    f.run<{ s: string }>(f.system, "SELECT settle_goal($1, true) AS s", [target]);
+    f.run<{ s: string }>(f.system, "SELECT settle_goal($1) AS s", [target]);
 
   /** A scheduled event starting in 30 minutes, in the zone given. */
   const soon = async (zone = "Asia/Riyadh") => {

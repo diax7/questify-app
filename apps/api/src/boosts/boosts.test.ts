@@ -3,24 +3,18 @@ import {
   MAX_BOOSTS,
   boostBody,
   boostRefusalOf,
-  boostsPlatformOn,
   deleteBoost,
   listBoosts,
   saveBoost,
   stopBoost,
 } from "#src/boosts/boosts";
-import type { ConfigResult } from "#src/settings/service";
-import { fakePool, pgError } from "#test/support/fake-pool";
+import { fakePool, layerAnswer, pgError, type FakeLayer } from "#test/support/fake-pool";
 
 const CONTEXT = {
   organizerId: "11111111-1111-4111-8111-111111111111",
   staffUserId: "22222222-2222-4222-8222-222222222222",
 } as const;
-const settingsWith = (features: Record<string, { enabled: boolean }>) => ({
-  forEvent: async (): Promise<ConfigResult> =>
-    ({ kind: "ok", config: { features }, etag: "x" }) as unknown as ConfigResult,
-});
-const ON = settingsWith({});
+const LAYER: FakeLayer = { feature: "boosts", organizerId: CONTEXT.organizerId };
 const ROW = {
   id: "b1",
   categoryId: "c1",
@@ -80,28 +74,15 @@ describe("the boost body", () => {
   });
 });
 
-describe("the platform switch", () => {
-  it("is on unless a Questify admin turned boosts off, and off when the settings can not be read", async () => {
-    expect(await boostsPlatformOn(ON)).toBe(true);
-    expect(await boostsPlatformOn(settingsWith({ boosts: { enabled: true } }))).toBe(true);
-    expect(await boostsPlatformOn(settingsWith({ boosts: { enabled: false } }))).toBe(false);
-    expect(
-      await boostsPlatformOn({
-        forEvent: async () => ({ kind: "unavailable" }) as unknown as ConfigResult,
-      }),
-    ).toBe(false);
-  });
-});
-
 describe("the boost doors", () => {
   it("lists the event's boosts with their times as ISO strings", async () => {
     const fake = fakePool(() => ({ rows: [{ boosts: [ROW] }] }));
-    expect(await listBoosts({ pool: fake.pool, settings: ON }, CONTEXT, "e1")).toEqual({
+    expect(await listBoosts({ pool: fake.pool }, CONTEXT, "e1")).toEqual({
       kind: "done",
       value: [VIEW],
     });
     const none = fakePool(() => ({ rows: [{ boosts: null }] }));
-    expect(await listBoosts({ pool: none.pool, settings: ON }, CONTEXT, "e1")).toEqual({
+    expect(await listBoosts({ pool: none.pool }, CONTEXT, "e1")).toEqual({
       kind: "done",
       value: [],
     });
@@ -110,13 +91,17 @@ describe("the boost doors", () => {
   it("saves with every field, a missing start as null, and answers the saved boost", async () => {
     const seen: unknown[][] = [];
     const fake = fakePool((sql, values) => {
+      const layer = layerAnswer(sql, LAYER);
+      if (layer !== undefined) {
+        return layer;
+      }
       if (sql.includes("save_boost")) {
         seen.push([...values]);
         return { rows: [{ id: "b1" }] };
       }
       return { rows: [{ boosts: [ROW] }] };
     });
-    const saved = await saveBoost({ pool: fake.pool, settings: ON }, CONTEXT, {
+    const saved = await saveBoost({ pool: fake.pool }, CONTEXT, {
       eventId: "e1",
       boostId: null,
       body: { categoryId: "c1", minutes: 30 },
@@ -127,8 +112,10 @@ describe("the boost doors", () => {
   });
 
   it("answers not_found when the saved boost is not listed, and feature_off without a write", async () => {
-    const fake = fakePool((sql) =>
-      sql.includes("save_boost") ? { rows: [{ id: "b9" }] } : { rows: [{ boosts: [ROW] }] },
+    const fake = fakePool(
+      (sql) =>
+        layerAnswer(sql, LAYER) ??
+        (sql.includes("save_boost") ? { rows: [{ id: "b9" }] } : { rows: [{ boosts: [ROW] }] }),
     );
     const request = {
       eventId: "e1",
@@ -136,29 +123,63 @@ describe("the boost doors", () => {
       body: { categoryId: "c1", startsAt: "2030-11-01T07:00:00Z", minutes: 30 },
       requestId: "r1",
     };
-    expect(await saveBoost({ pool: fake.pool, settings: ON }, CONTEXT, request)).toEqual({
+    expect(await saveBoost({ pool: fake.pool }, CONTEXT, request)).toEqual({
       kind: "not_found",
     });
-    const off = fakePool(() => ({ rows: [] }));
+    const writes = (layer: FakeLayer) => {
+      const layered = fakePool((sql) => layerAnswer(sql, layer) ?? { rows: [{ on: true }] });
+      return { layered, saved: saveBoost({ pool: layered.pool }, CONTEXT, request) };
+    };
+    for (const layer of [
+      { ...LAYER, platform: false },
+      { ...LAYER, override: false },
+      { ...LAYER, platform: true, override: false },
+    ]) {
+      const { layered, saved } = writes(layer);
+      expect(await saved, JSON.stringify(layer)).toEqual({ kind: "feature_off" });
+      expect(layered.queries.some((sql) => sql.includes("save_boost"))).toBe(false);
+    }
+    // Questify's override On for this organizer wins over the platform's Off (T-711b).
+    const allowed = writes({ ...LAYER, platform: false, override: true });
+    expect(await allowed.saved).toEqual({ kind: "not_found" });
+    expect(allowed.layered.queries.some((sql) => sql.includes("save_boost"))).toBe(true);
+  });
+
+  it("leaves another organizer's event to the door, which answers not_found, whatever its layer", async () => {
+    const fake = fakePool((sql) => {
+      const layer = layerAnswer(sql, { ...LAYER, organizerId: "another", platform: false });
+      if (layer !== undefined) {
+        return layer;
+      }
+      if (sql.includes("save_boost")) {
+        throw pgError({ code: "AN404" });
+      }
+      return { rows: [{ on: true }] };
+    });
     expect(
-      await saveBoost(
-        { pool: off.pool, settings: settingsWith({ boosts: { enabled: false } }) },
-        CONTEXT,
-        request,
-      ),
-    ).toEqual({ kind: "feature_off" });
-    expect(off.queries).toEqual([]);
+      await saveBoost({ pool: fake.pool }, CONTEXT, {
+        eventId: "e1",
+        boostId: null,
+        body: { categoryId: "c1", minutes: 30 },
+        requestId: "r1",
+      }),
+    ).toEqual({ kind: "not_found" });
+    expect(fake.queries.some((sql) => sql.includes("platform_setting"))).toBe(false);
   });
 
   it("answers event_feature_off without a write while the event's own switch is off", async () => {
     const fake = fakePool((sql) => {
+      const layer = layerAnswer(sql, LAYER);
+      if (layer !== undefined) {
+        return layer;
+      }
       if (sql.includes("save_boost")) {
         throw new Error("a boost was written while the event's switch was off");
       }
       return { rows: [{ on: false }] };
     });
     expect(
-      await saveBoost({ pool: fake.pool, settings: ON }, CONTEXT, {
+      await saveBoost({ pool: fake.pool }, CONTEXT, {
         eventId: "e1",
         boostId: null,
         body: { categoryId: "c1", minutes: 30 },
@@ -172,7 +193,7 @@ describe("the boost doors", () => {
       throw pgError({ code: "BO409", detail: "boost_started" });
     });
     expect(
-      await deleteBoost({ pool: refusing.pool, settings: ON }, CONTEXT, {
+      await deleteBoost({ pool: refusing.pool }, CONTEXT, {
         eventId: "e1",
         boostId: "b1",
         requestId: "r1",
@@ -183,7 +204,7 @@ describe("the boost doors", () => {
       throw broken;
     });
     await expect(
-      deleteBoost({ pool: failing.pool, settings: ON }, CONTEXT, {
+      deleteBoost({ pool: failing.pool }, CONTEXT, {
         eventId: "e1",
         boostId: "b1",
         requestId: "r1",
@@ -208,11 +229,11 @@ describe("the boost doors", () => {
         : { rows: [{}] };
     });
     const target = { eventId: "e1", boostId: "b1", requestId: "r1" };
-    expect(await deleteBoost({ pool: fake.pool, settings: ON }, CONTEXT, target)).toEqual({
+    expect(await deleteBoost({ pool: fake.pool }, CONTEXT, target)).toEqual({
       kind: "done",
       value: null,
     });
-    expect(await stopBoost({ pool: fake.pool, settings: ON }, CONTEXT, target)).toEqual({
+    expect(await stopBoost({ pool: fake.pool }, CONTEXT, target)).toEqual({
       kind: "done",
       value: {
         startsAt: "2030-11-01T07:00:00.000Z",

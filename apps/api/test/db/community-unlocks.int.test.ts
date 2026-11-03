@@ -256,8 +256,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks (database)",
   /** A goal whose goal step unlocks `target`, started now (or at `startsAt`). */
   const lockWith = (event: string, target: Target, over: Row = {}) =>
     save(event, body({ reward: unlock(target), ...over }));
-  const settleOnce = async (goal: string, mayStart = true) =>
-    (await query<{ s: string }>(SYSTEM, "SELECT settle_goal($1, $2) AS s", [goal, mayStart]))[0]?.s;
+  /** The platform's community switch (T-711b: the settle reads it per goal), or back to the default with null. */
+  const platformCommunity = (on: boolean | null) =>
+    on === null
+      ? owner("DELETE FROM platform_setting WHERE key = 'features'")
+      : owner(
+          `INSERT INTO platform_setting (key, value) VALUES ('features', jsonb_build_object('community',
+             jsonb_build_object('enabled', $1::boolean)))
+           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+          [on],
+        );
+  const settleOnce = async (goal: string) =>
+    (await query<{ s: string }>(SYSTEM, "SELECT settle_goal($1) AS s", [goal]))[0]?.s;
   const goalOf = async (goal: string) =>
     (
       await owner<{ status: string; final_at: Date | null; settled_until: Date | null }>(
@@ -289,9 +299,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks (database)",
     }
   };
   /** The community reaches every step of the goal (its target is 5): a real settle, as the tick runs it. */
-  const reach = async (event: string, goal: string, mayStart = true) => {
+  const reach = async (event: string, goal: string) => {
     await backdate(event, goal, 10);
-    expect(await settleOnce(goal, mayStart)).toBe("reached");
+    expect(await settleOnce(goal)).toBe("reached");
   };
   /** The goal's window ends with nothing earned: it is missed. */
   const miss = async (event: string, goal: string) => {
@@ -1322,7 +1332,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks (database)",
       const goal = await lockWith(event, { kind: "quest", id: quest });
       await backdate(event, goal, 0);
       await settleOnce(goal);
-      await reach(event, goal, false);
+      await platformCommunity(false);
+      try {
+        await reach(event, goal);
+      } finally {
+        await platformCommunity(null);
+      }
       expect(await refusal(complete(who.player, quest))).toBe("none");
     });
 

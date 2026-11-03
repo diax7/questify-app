@@ -218,18 +218,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
     );
     return goal;
   };
+  /** The platform's community switch (T-711b: the settle reads it per goal), or back to the default with null. */
+  const platformCommunity = (on: boolean | null) =>
+    on === null
+      ? owner("DELETE FROM platform_setting WHERE key = 'features'")
+      : owner(
+          `INSERT INTO platform_setting (key, value) VALUES ('features', jsonb_build_object('community',
+             jsonb_build_object('enabled', $1::boolean)))
+           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+          [on],
+        );
   /** One tick's settle of the goal: at most 10 minutes past its last settle point. */
-  const settleOnce = async (goal: string, mayStart = true) =>
-    (await query<{ s: string }>(SYSTEM, "SELECT settle_goal($1, $2) AS s", [goal, mayStart]))[0]?.s;
+  const settleOnce = async (goal: string) =>
+    (await query<{ s: string }>(SYSTEM, "SELECT settle_goal($1) AS s", [goal]))[0]?.s;
   /** Ticks until the goal is final or its settle point stops moving, as a tick would after a pause. */
-  const settle = async (goal: string, mayStart = true) => {
-    let status = await settleOnce(goal, mayStart);
+  const settle = async (goal: string) => {
+    let status = await settleOnce(goal);
     for (let tick = 0; tick < 50; tick += 1) {
       const before = await state(goal);
       if (before === undefined || before.final_at !== null) {
         break;
       }
-      const next = await settleOnce(goal, mayStart);
+      const next = await settleOnce(goal);
       const after = await state(goal);
       if (after.settled_until?.getTime() === before.settled_until?.getTime()) {
         break;
@@ -327,7 +337,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
       randomUUID(),
     ]);
   const settleNow = (event: string, team = teamA()) =>
-    query<{ n: number }>(team, "SELECT settle_community($1, true, $2) AS n", [event, randomUUID()]);
+    query<{ n: number }>(team, "SELECT settle_community($1, $2) AS n", [event, randomUUID()]);
 
   describe("counting each measure inside the window", () => {
     it("counts quest and bonus points, never awards, welcomes or entries outside the window", async () => {
@@ -555,7 +565,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
       const client = await pool.connect();
       try {
         await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ");
-        expect(await refusal(client.query("SELECT settle_goal($1, true)", [goal]))).toBe("CI500");
+        expect(await refusal(client.query("SELECT settle_goal($1)", [goal]))).toBe("CI500");
         await client.query("ROLLBACK");
       } finally {
         client.release();
@@ -567,7 +577,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
       );
       expect(volatility.every((row) => row.provolatile === "v")).toBe(true);
       expect(volatility).toHaveLength(4);
-      expect(await refusal(query(teamA(), "SELECT settle_goal($1, true)", [goal]))).toBe("CS403");
+      expect(await refusal(query(teamA(), "SELECT settle_goal($1)", [goal]))).toBe("CS403");
       expect(
         await refusal(query(as(ids.playerA), "SELECT * FROM pay_community_batch(5, NULL)")),
       ).toBe("CS403");
@@ -1251,7 +1261,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
         [later],
       );
       expect(await settle(later)).toBe("scheduled");
-      expect(await settle(later, false)).toBe("scheduled");
+      await platformCommunity(false);
+      expect(await settle(later)).toBe("scheduled");
+      await platformCommunity(null);
       await owner(
         "UPDATE community_goal SET ends_at = now() - interval '1 second', starts_at = now() - interval '2 minutes' WHERE id = $1",
         [later],
@@ -1260,11 +1272,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests (database)", 
       expect(await paidTo(reached)).toEqual([who.enrollment]);
     });
 
-    it("does not start a goal while the platform switch is off (may_start false)", async () => {
+    it("does not start a goal while the platform switch is off (the settle reads it, T-711b)", async () => {
       const event = await newEvent();
       const goal = await goalIn(event);
-      expect(await settle(goal, false)).toBe("scheduled");
-      expect(await settle(goal, true)).toBe("running");
+      await platformCommunity(false);
+      try {
+        expect(await settle(goal)).toBe("scheduled");
+        expect((await state(goal))?.status).toBe("scheduled");
+      } finally {
+        await platformCommunity(null);
+      }
+      expect(await settle(goal)).toBe("running");
     });
   });
 

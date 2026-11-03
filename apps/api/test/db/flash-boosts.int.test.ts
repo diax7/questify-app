@@ -1667,7 +1667,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("flash quests and boosts (datab
         [goal?.id],
       );
       for (let tick = 0; tick < 3; tick += 1) {
-        await query(SYSTEM, "SELECT settle_goal($1, true)", [goal?.id]);
+        await query(SYSTEM, "SELECT settle_goal($1)", [goal?.id]);
       }
       const [progress] = await owner<{ progress: string }>(
         "SELECT progress FROM community_goal WHERE id = $1",
