@@ -1840,6 +1840,66 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     }
   });
 
+  it("keeps a support view inside its one event, read-only, and its log from every tenant seat (T-712)", async () => {
+    const admin =
+      (
+        await db.owner.query<{ id: string }>(
+          `INSERT INTO staff_user (email, password_hash, platform_role)
+           VALUES ('view-cross@questify.test', 'h', 'admin') RETURNING id`,
+        )
+      ).rows[0]?.id ?? "";
+    const otherA =
+      (
+        await db.owner.query<{ id: string }>(
+          `INSERT INTO event (organizer_id, join_code, name_en, status, access, starts_at, ends_at)
+           VALUES ($1, 'XVIEW1', 'Other A', 'live', 'private', now() - interval '1 hour', now() + interval '1 day')
+           RETURNING id`,
+          [f.orgA],
+        )
+      ).rows[0]?.id ?? "";
+    const grant = await withRequestContext(
+      db.app,
+      { isAdmin: true, staffUserId: admin },
+      async () =>
+        db.app.query<{ grant_id: string }>("SELECT * FROM support_open($1, 'view', $2, NULL)", [
+          f.eventA,
+          "Checking the board for organizer A",
+        ]),
+    );
+    const view = (organizerId: string, sql: string, values: unknown[]) =>
+      withRequestContext(db.app, { organizerId, staffUserId: admin, readOnly: true }, async () =>
+        db.app.query(sql, values),
+      );
+    const tickets = "SELECT * FROM event_tickets($1, 'open', NULL, NULL, 10)";
+    expect((await view(f.orgA, tickets, [f.eventA])).rows).toEqual([]);
+    for (const [organizer, event] of [
+      [f.orgA, otherA],
+      [f.orgB, f.eventB],
+      [f.orgA, f.eventB],
+    ] as const) {
+      expect(await refusal(view(organizer, tickets, [event])), `${organizer} ${event}`).toBe(
+        "AN404",
+      );
+    }
+    expect(
+      (await view(f.orgB, "SELECT app_organizer_id() AS org, app_event_scope() AS scope", [])).rows,
+    ).toEqual([{ org: null, scope: [] }]);
+    for (const seat of ["organizer", "staff", "player"] as const) {
+      expect(
+        await refusal(
+          asA(seat, "SELECT support_view_log($1, 'GET /events', '{}'::jsonb, NULL)", [
+            grant.rows[0]?.grant_id,
+          ]),
+        ),
+        seat,
+      ).toBe("SG404");
+    }
+    await db.owner.query(
+      "UPDATE support_grant SET closed_at = now(), close_kind = 'admin' WHERE admin_id = $1",
+      [admin],
+    );
+  });
+
   it("keeps the console player tools from every tenant seat (T-704)", async () => {
     const note = "'A note long enough to pass'";
     for (const seat of ["organizer", "staff", "player"] as const) {

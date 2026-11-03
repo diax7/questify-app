@@ -47,7 +47,13 @@ export type SessionSummary = Readonly<{
 export type Suspension = Readonly<{ reason: string; since: Date }>;
 
 /** A live support grant on one event (T-701, ADR-407): 15 minutes, as an editor of that event only. */
-export type SupportGrant = Readonly<{ grantId: string; eventId: string; expiresAt: Date }>;
+export type SupportGrant = Readonly<{
+  grantId: string;
+  eventId: string;
+  expiresAt: Date;
+  /** `view` reads only, in read-only transactions (T-712, ADR-520); `edit` is T-701's editor seat. */
+  kind: "view" | "edit";
+}>;
 
 /** An organizer document in force that the organizer has not accepted yet (FR-1781). */
 export type LegalPending = Readonly<{
@@ -408,10 +414,11 @@ async function listSupportSeats(db: Db): Promise<Membership[]> {
     organizer_name: string;
     event_id: string;
     expires_at: Date;
+    kind: "view" | "edit";
     suspension_reason: string | null;
     suspended_at: Date | null;
   }>(
-    `SELECT g.grant_id, g.organizer_id, g.organizer_name, g.event_id, g.expires_at, o.suspension_reason,
+    `SELECT g.grant_id, g.organizer_id, g.organizer_name, g.event_id, g.expires_at, g.kind, o.suspension_reason,
             o.suspended_at
      FROM own_support_grants() g JOIN organizer o ON o.id = g.organizer_id`,
   );
@@ -427,7 +434,12 @@ async function listSupportSeats(db: Db): Promise<Membership[]> {
       support: [],
     };
     seat.eventScope.push(row.event_id);
-    seat.support.push({ grantId: row.grant_id, eventId: row.event_id, expiresAt: row.expires_at });
+    seat.support.push({
+      grantId: row.grant_id,
+      eventId: row.event_id,
+      expiresAt: row.expires_at,
+      kind: row.kind,
+    });
     seats.set(row.organizer_id, seat);
   }
   return [...seats.values()];

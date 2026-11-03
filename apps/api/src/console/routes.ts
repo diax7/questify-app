@@ -43,6 +43,11 @@ const organizerParams = z.object({ organizerId: z.uuid() });
 const eventParams = z.object({ eventId: z.uuid() });
 const grantParams = z.object({ grantId: z.uuid() });
 const reasonBody = z.strictObject({ reason: z.string().max(1200) });
+/** The console names the kind on every open (ADR-520): `view` is its primary button, `edit` the secondary one. */
+const supportBody = z.strictObject({
+  kind: z.enum(["view", "edit"]),
+  reason: z.string().max(1200),
+});
 const emptyBody = z.strictObject({}).optional();
 const liftBody = z.strictObject({ reason: z.string().max(1200).optional() }).optional();
 
@@ -158,9 +163,10 @@ export function registerConsoleOrganizerRoutes(
 
   scope.post("/events/:eventId/support", adminIdempotent, async (request, reply) => {
     const { eventId } = parse(eventParams, request.params);
-    const { reason } = parse(reasonBody, request.body);
+    const { kind, reason } = parse(supportBody, request.body);
     const grant = await openSupport(deps.pool, adminOf(request), {
       eventId,
+      kind,
       reason,
       requestId: request.id,
     });

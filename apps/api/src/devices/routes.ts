@@ -87,7 +87,12 @@ const operatorOf = (request: FastifyRequest): Extract<Actor, { type: "operator" 
 
 const teamOf = (request: FastifyRequest): Extract<Actor, { type: "team" }> => {
   const context = organizerContextOf(request);
-  return { type: "team", organizerId: context.organizerId, staffUserId: context.staffUserId };
+  return {
+    type: "team",
+    organizerId: context.organizerId,
+    staffUserId: context.staffUserId,
+    ...(context.readOnly === true ? { readOnly: true } : {}),
+  };
 };
 
 /**

@@ -4,6 +4,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
 import type { SettingsService } from "#src/settings/service";
+import { teamSeat } from "#src/organizers/store";
 
 export type BoostDeps = Readonly<{ pool: Pool; settings: Pick<SettingsService, "forEvent"> }>;
 
@@ -95,7 +96,7 @@ async function asTeam<T>(
   context: OrganizerContext,
   work: (client: PoolClient) => Promise<T>,
 ): Promise<BoostDone<T>> {
-  const seat = { organizerId: context.organizerId, staffUserId: context.staffUserId };
+  const seat = teamSeat(context);
   try {
     const value = await withConnection(deps.pool, (client) =>
       withRequestContext(client, seat, () => work(client)),

@@ -3,6 +3,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
 import type { Bilingual } from "#src/quests/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type ControlDeps = Readonly<{ pool: Pool }>;
 
@@ -128,31 +129,27 @@ export function createControlReader(
     read: async (team, eventId) => {
       try {
         return await withConnection(deps.pool, (client) =>
-          withRequestContext(
-            client,
-            { organizerId: team.organizerId, staffUserId: team.staffUserId },
-            async () => {
-              const { rows: feed } = await client.query("SELECT * FROM control_feed($1, $2)", [
-                eventId,
-                FEED_SIZE,
-              ]);
-              const { rows: counts } = await client.query("SELECT * FROM control_counts($1)", [
-                eventId,
-              ]);
-              const count = counts[0] ?? {};
-              return {
-                counts: {
-                  players: whole(count["players"]),
-                  online: whole(count["online"]),
-                  lowStock: whole(count["low_stock"]),
-                  inbox: whole(count["inbox"]),
-                  flags: whole(count["flags"]),
-                },
-                feed: feed.map(feedRowOf),
-                ...(await doneOf(client, eventId)),
-              };
-            },
-          ),
+          withRequestContext(client, teamSeat(team), async () => {
+            const { rows: feed } = await client.query("SELECT * FROM control_feed($1, $2)", [
+              eventId,
+              FEED_SIZE,
+            ]);
+            const { rows: counts } = await client.query("SELECT * FROM control_counts($1)", [
+              eventId,
+            ]);
+            const count = counts[0] ?? {};
+            return {
+              counts: {
+                players: whole(count["players"]),
+                online: whole(count["online"]),
+                lowStock: whole(count["low_stock"]),
+                inbox: whole(count["inbox"]),
+                flags: whole(count["flags"]),
+              },
+              feed: feed.map(feedRowOf),
+              ...(await doneOf(client, eventId)),
+            };
+          }),
         );
       } catch (error) {
         if ((error as { code?: string }).code === "AN404") {

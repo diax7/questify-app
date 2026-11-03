@@ -3,6 +3,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { onlyRow } from "#src/db/rows";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type ModerationDeps = Readonly<{ pool: Pool }>;
 
@@ -61,11 +62,7 @@ export const asOrganizer = <T>(
   work: (client: PoolClient) => Promise<T>,
 ) =>
   withConnection(deps.pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: context.organizerId, staffUserId: context.staffUserId },
-      () => work(client),
-    ),
+    withRequestContext(client, teamSeat(context), () => work(client)),
   );
 
 /**

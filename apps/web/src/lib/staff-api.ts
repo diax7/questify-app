@@ -12,7 +12,13 @@ export type Membership = Readonly<{
   /** The organizer documents in force that the owner has not accepted: writes are refused until then (T-707). */
   legalPending: readonly LegalPending[];
   /** Set only for a Questify admin's support grants (ADR-407): the events and when each ends. */
-  support?: readonly Readonly<{ grantId: string; eventId: string; expiresAt: string }>[];
+  support?: readonly Readonly<{
+    grantId: string;
+    eventId: string;
+    expiresAt: string;
+    /** `view` is read-only (T-712); anything unknown is read as a view, so the banner never claims more. */
+    kind: "view" | "edit";
+  }>[];
 }>;
 
 export type Suspension = Readonly<{ reason: string; since: string }>;
@@ -98,15 +104,20 @@ function readGrants(value: unknown): Membership["support"] {
   if (!Array.isArray(value)) {
     return undefined;
   }
-  return value
-    .filter(isRecord)
-    .flatMap((grant) =>
-      typeof grant["grantId"] === "string" &&
-      typeof grant["eventId"] === "string" &&
-      typeof grant["expiresAt"] === "string"
-        ? [{ grantId: grant["grantId"], eventId: grant["eventId"], expiresAt: grant["expiresAt"] }]
-        : [],
-    );
+  return value.filter(isRecord).flatMap((grant) =>
+    typeof grant["grantId"] === "string" &&
+    typeof grant["eventId"] === "string" &&
+    typeof grant["expiresAt"] === "string"
+      ? [
+          {
+            grantId: grant["grantId"],
+            eventId: grant["eventId"],
+            expiresAt: grant["expiresAt"],
+            kind: grant["kind"] === "edit" ? ("edit" as const) : ("view" as const),
+          },
+        ]
+      : [],
+  );
 }
 
 /** Checks the `/me` answer's shape, so a changed API shows the error state instead of a broken page. */

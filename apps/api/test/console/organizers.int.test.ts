@@ -18,7 +18,7 @@ type Row = Record<string, unknown>;
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 const granted = (grantId: string, eventId: string) => [
-  { grantId, eventId, expiresAt: expect.any(Date) as Date },
+  { grantId, eventId, expiresAt: expect.any(Date) as Date, kind: "edit" },
 ];
 const coded = (code: string) => Object.assign(new Error(code), { code });
 
@@ -125,7 +125,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
         expect((await call("GET", "/v1/admin/organizers", cookie)).statusCode).toBe(404);
         expect((await call("GET", `/v1/admin/organizers/${orgA}`, cookie)).statusCode).toBe(404);
         expect(
-          (await call("POST", `/v1/admin/events/${eventA}/support`, cookie, { reason })).statusCode,
+          (
+            await call("POST", `/v1/admin/events/${eventA}/support`, cookie, {
+              kind: "edit",
+              reason,
+            })
+          ).statusCode,
         ).toBe(404);
       }
     });
@@ -269,6 +274,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
     it("opens one event as an editor, refuses everything else, and closes", async () => {
       expect((await team("GET", `/events/${eventA}`, adminCookie)).statusCode).toBe(404);
       const opened = await call("POST", `/v1/admin/events/${eventA}/support`, adminCookie, {
+        kind: "edit",
         reason,
       });
       expect(opened.statusCode).toBe(201);
@@ -342,6 +348,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
 
     it("keeps writing while the event is suspended (Q-377), and ends at expiry", async () => {
       const opened = await call("POST", `/v1/admin/events/${eventA}/support`, adminCookie, {
+        kind: "edit",
         reason,
       });
       const grant = opened.json<{ grant: { grantId: string } }>().grant.grantId;
@@ -359,12 +366,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
 
     it("refuses a member admin and a short reason", async () => {
       const short = await call("POST", `/v1/admin/events/${eventA}/support`, adminCookie, {
+        kind: "edit",
         reason: "short",
       });
       expect(short.json()).toMatchObject({ code: "invalid_reason" });
       expect(
-        (await call("POST", `/v1/admin/events/${randomUUID()}/support`, adminCookie, { reason }))
-          .statusCode,
+        (
+          await call("POST", `/v1/admin/events/${randomUUID()}/support`, adminCookie, {
+            kind: "edit",
+            reason,
+          })
+        ).statusCode,
       ).toBe(404);
     });
   });
@@ -373,7 +385,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
     (await owner<{ id: string }>("SELECT id FROM staff_user WHERE email = $1", [email]))[0]?.id ??
     "";
   const openSupportOn = async (eventId: string) =>
-    (await call("POST", `/v1/admin/events/${eventId}/support`, adminCookie, { reason })).json<{
+    (
+      await call("POST", `/v1/admin/events/${eventId}/support`, adminCookie, {
+        kind: "edit",
+        reason,
+      })
+    ).json<{
       grant: { grantId: string };
     }>().grant.grantId;
   const closeSupportOf = (grantId: string) =>

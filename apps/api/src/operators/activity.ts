@@ -12,6 +12,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { HttpError } from "#src/http-error";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type OperatorActivityDeps = Readonly<{ pool: Pool }>;
 
@@ -52,10 +53,8 @@ const asTeam = <T>(
   work: (query: (sql: string, values: unknown[]) => Promise<unknown[]>) => Promise<T>,
 ): Promise<T> =>
   withConnection(deps.pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: team.organizerId, staffUserId: team.staffUserId },
-      () => work(async (sql, values) => (await client.query(sql, values)).rows),
+    withRequestContext(client, teamSeat(team), () =>
+      work(async (sql, values) => (await client.query(sql, values)).rows),
     ),
   );
 

@@ -37,7 +37,7 @@ describe("the console organizer routes without a signed-in admin", () => {
       { method: "POST", url: `/organizers/${ID}/reactivate`, payload: {} },
       { method: "POST", url: `/events/${ID}/suspend`, payload: reason },
       { method: "POST", url: `/events/${ID}/reactivate`, payload: {} },
-      { method: "POST", url: `/events/${ID}/support`, payload: reason },
+      { method: "POST", url: `/events/${ID}/support`, payload: { kind: "view", ...reason } },
       { method: "POST", url: `/support/${ID}/close`, payload: {} },
     ] as const;
     for (const request of requests) {

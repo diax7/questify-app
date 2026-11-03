@@ -9,6 +9,11 @@ export type RequestContext = Readonly<{
   isAdmin?: boolean;
   /** A paired station, kiosk or big screen (T-309): set only by the device guard from the row it found. */
   deviceId?: string;
+  /**
+   * A support admin's view of an organizer (T-712, ADR-521): the transaction opens READ ONLY, the only kind in which the
+   * database honours a `view` grant. Set by the organizer scope's hook, never by a client.
+   */
+  readOnly?: true;
 }>;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -33,6 +38,10 @@ function settingsOf(context: RequestContext): [string, string][] {
   ];
 }
 
+/** `BEGIN READ ONLY` for a support view (ADR-521), else a plain `BEGIN`. */
+const beginOf = (context: RequestContext): string =>
+  context.readOnly === true ? "BEGIN READ ONLY" : "BEGIN";
+
 /**
  * Runs `work` in one transaction whose row-level-security context is `context`.
  * Every context value is set each time, so nothing from an earlier request can leak into this one.
@@ -45,7 +54,7 @@ export async function withRequestContext<T>(
   work: () => Promise<T>,
 ): Promise<T> {
   const values = settingsOf(context);
-  await client.query("BEGIN");
+  await client.query(beginOf(context));
   try {
     await setLocalSettings(client, values);
     const result = await work();
@@ -73,7 +82,7 @@ export async function withRolledBackContext<T>(
   const client = await pool.connect();
   let outcome: Readonly<{ ok: true; value: T }> | Readonly<{ ok: false; error: unknown }>;
   try {
-    await client.query("BEGIN");
+    await client.query(beginOf(context));
     await setLocalSettings(client, values);
     outcome = { ok: true, value: await work(client) };
   } catch (error) {

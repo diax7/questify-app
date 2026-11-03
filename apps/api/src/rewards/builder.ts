@@ -8,6 +8,7 @@ import { audit, bilingual, changes, NO_TEXT } from "#src/quests/builder";
 import { lockBuilderEvent, type Bilingual, type BuilderEvent } from "#src/quests/store";
 import { markCode, normalizeCode, sealCode, type RewardCodeKey } from "#src/rewards/codes";
 import { windowRefusal, windowRefusalOf, type WindowRefusal } from "#src/rewards/shop-window";
+import { teamSeat } from "#src/organizers/store";
 
 /** At most this many rewards per event (removed ones not counted). */
 export const REWARD_LIMIT = 100;
@@ -266,20 +267,16 @@ function withRewardEvent<T>(
   work: Work<T>,
 ): Promise<RewardDone<T>> {
   return withConnection(deps.pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      async () => {
-        const event = await lockBuilderEvent(client, actor.organizerId, eventId);
-        if (event === undefined) {
-          return { kind: "not_found" } as const;
-        }
-        if (event.statusNow === "archived") {
-          return { kind: "event_archived" } as const;
-        }
-        return work(client, event);
-      },
-    ),
+    withRequestContext(client, teamSeat(actor), async () => {
+      const event = await lockBuilderEvent(client, actor.organizerId, eventId);
+      if (event === undefined) {
+        return { kind: "not_found" } as const;
+      }
+      if (event.statusNow === "archived") {
+        return { kind: "event_archived" } as const;
+      }
+      return work(client, event);
+    }),
   );
 }
 
@@ -572,24 +569,20 @@ export function listRewards(
   eventId: string,
 ): Promise<RewardDone<Readonly<{ shop: ShopView; rewards: RewardRecord[] }>>> {
   return withConnection(deps.pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      async () => {
-        const { rows: found } = await client.query(
-          "SELECT 1 FROM event WHERE organizer_id = $1 AND id = $2",
-          [actor.organizerId, eventId],
-        );
-        if (found.length === 0) {
-          return { kind: "not_found" } as const;
-        }
-        const { rows } = await client.query<RewardRow>(
-          `SELECT ${COLUMNS} FROM reward WHERE event_id = $1 AND status = 'active' ORDER BY position, id`,
-          [eventId],
-        );
-        return done({ shop: viewOf(await readShop(client, eventId)), rewards: rows.map(recordOf) });
-      },
-    ),
+    withRequestContext(client, teamSeat(actor), async () => {
+      const { rows: found } = await client.query(
+        "SELECT 1 FROM event WHERE organizer_id = $1 AND id = $2",
+        [actor.organizerId, eventId],
+      );
+      if (found.length === 0) {
+        return { kind: "not_found" } as const;
+      }
+      const { rows } = await client.query<RewardRow>(
+        `SELECT ${COLUMNS} FROM reward WHERE event_id = $1 AND status = 'active' ORDER BY position, id`,
+        [eventId],
+      );
+      return done({ shop: viewOf(await readShop(client, eventId)), rewards: rows.map(recordOf) });
+    }),
   );
 }
 

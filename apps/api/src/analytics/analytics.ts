@@ -9,6 +9,7 @@ import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type AnalyticsDeps = Readonly<{ pool: Pool }>;
 
@@ -31,14 +32,10 @@ export async function callDoor(
 ): Promise<unknown> {
   try {
     return await withConnection(deps.pool, (client) =>
-      withRequestContext(
-        client,
-        { organizerId: team.organizerId, staffUserId: team.staffUserId },
-        async () => {
-          const { rows } = await client.query(`SELECT ${sql} AS answer`, [...values]);
-          return rows[0]?.["answer"];
-        },
-      ),
+      withRequestContext(client, teamSeat(team), async () => {
+        const { rows } = await client.query(`SELECT ${sql} AS answer`, [...values]);
+        return rows[0]?.["answer"];
+      }),
     );
   } catch (error) {
     if ((error as { code?: string }).code === "AN404") {

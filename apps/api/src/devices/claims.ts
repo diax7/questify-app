@@ -7,6 +7,7 @@ import { deviceErrorOf, inDevice } from "#src/devices/errors";
 import type { DeviceKind } from "#src/devices/guard";
 import { DEVICE_LIMITS, countOne, holdBack } from "#src/devices/limits";
 import { normalizePairingCode } from "#src/devices/pairing-code";
+import { teamSeat } from "#src/organizers/store";
 
 export type ClaimDeps = Readonly<{
   pool: Pool;
@@ -17,7 +18,7 @@ export type ClaimDeps = Readonly<{
 /** Who claims or revokes: an operator in staff mode, or an owner or editor on the Devices page. */
 export type Actor =
   | Readonly<{ type: "operator"; playerId: string }>
-  | Readonly<{ type: "team"; organizerId: string; staffUserId: string }>;
+  | Readonly<{ type: "team"; organizerId: string; staffUserId: string; readOnly?: true }>;
 
 type Reply = Readonly<{ header: (name: string, value: string) => unknown }>;
 type Bilingual = Readonly<{ ar: string | null; en: string | null }>;
@@ -45,9 +46,7 @@ export type DeviceView = Readonly<{
 type Json = Record<string, unknown>;
 
 const contextOf = (actor: Actor): RequestContext =>
-  actor.type === "operator"
-    ? { playerId: actor.playerId }
-    : { organizerId: actor.organizerId, staffUserId: actor.staffUserId };
+  actor.type === "operator" ? { playerId: actor.playerId } : teamSeat(actor);
 
 const isoOrNull = (value: unknown): string | null =>
   value === null || value === undefined ? null : new Date(String(value)).toISOString();

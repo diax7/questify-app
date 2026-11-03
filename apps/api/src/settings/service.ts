@@ -47,6 +47,7 @@ import {
 import { saveBranding, saveLayout, saveTerms, saveTexts } from "#src/settings/save-event-config";
 import { runAsAdmin } from "#src/settings/platform-switches";
 import type { PublicAccount } from "#src/auth/staff-store";
+import { teamSeat } from "#src/organizers/store";
 
 export type ConfigResult =
   | Readonly<{ kind: "ok"; config: ComposedConfig; etag: string }>
@@ -304,30 +305,26 @@ export function createSettingsService(options: SettingsOptions): SettingsService
       }
       const next = checked.value.features ?? {};
       const found = await withConnection(options.pool, (client) =>
-        withRequestContext(
-          client,
-          { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-          async () => {
-            const current = await lockEventSwitches(client, eventId);
-            if (current === undefined) {
-              return false;
-            }
-            const changes = diff({ features: current.features ?? {} }, { features: next });
-            if ("features" in changes.after) {
-              await writeEventSwitches(client, eventId, next);
-              await recordAudit(client, {
-                actor: { type: "staff", id: actor.staffUserId },
-                action: "event.features.update",
-                organizerId: current.organizerId,
-                eventId,
-                target: { type: "event", id: eventId },
-                ...changes,
-                requestId: meta.requestId,
-              });
-            }
-            return true;
-          },
-        ),
+        withRequestContext(client, teamSeat(actor), async () => {
+          const current = await lockEventSwitches(client, eventId);
+          if (current === undefined) {
+            return false;
+          }
+          const changes = diff({ features: current.features ?? {} }, { features: next });
+          if ("features" in changes.after) {
+            await writeEventSwitches(client, eventId, next);
+            await recordAudit(client, {
+              actor: { type: "staff", id: actor.staffUserId },
+              action: "event.features.update",
+              organizerId: current.organizerId,
+              eventId,
+              target: { type: "event", id: eventId },
+              ...changes,
+              requestId: meta.requestId,
+            });
+          }
+          return true;
+        }),
       );
       forgetAll();
       return found ? { ok: true } : { ok: false, reason: "not_found" };
@@ -339,32 +336,28 @@ export function createSettingsService(options: SettingsOptions): SettingsService
         return { ok: false, reason: "invalid", issues: checked.issues };
       }
       const found = await withConnection(options.pool, (client) =>
-        withRequestContext(
-          client,
-          { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-          async () => {
-            const current = await lockEventSwitches(client, eventId);
-            if (current === undefined) {
-              return false;
-            }
-            const before = readEventSwitches({ features: current.features });
-            const next = { ...before, [feature]: enabled };
-            const changes = diff({ features: before }, { features: next });
-            if ("features" in changes.after) {
-              await writeEventSwitches(client, eventId, next);
-              await recordAudit(client, {
-                actor: { type: "staff", id: actor.staffUserId },
-                action: "event.features.update",
-                organizerId: current.organizerId,
-                eventId,
-                target: { type: "event", id: eventId },
-                ...changes,
-                requestId: meta.requestId,
-              });
-            }
-            return true;
-          },
-        ),
+        withRequestContext(client, teamSeat(actor), async () => {
+          const current = await lockEventSwitches(client, eventId);
+          if (current === undefined) {
+            return false;
+          }
+          const before = readEventSwitches({ features: current.features });
+          const next = { ...before, [feature]: enabled };
+          const changes = diff({ features: before }, { features: next });
+          if ("features" in changes.after) {
+            await writeEventSwitches(client, eventId, next);
+            await recordAudit(client, {
+              actor: { type: "staff", id: actor.staffUserId },
+              action: "event.features.update",
+              organizerId: current.organizerId,
+              eventId,
+              target: { type: "event", id: eventId },
+              ...changes,
+              requestId: meta.requestId,
+            });
+          }
+          return true;
+        }),
       );
       forgetAll();
       return found ? { ok: true } : { ok: false, reason: "not_found" };

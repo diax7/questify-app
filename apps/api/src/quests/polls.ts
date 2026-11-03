@@ -2,6 +2,7 @@ import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type PollDeps = Readonly<{ pool: Pool }>;
 
@@ -40,7 +41,7 @@ async function callPoll(
   call: "send_poll" | "close_poll",
   target: Readonly<{ eventId: string; questId: string; requestId: string }>,
 ): Promise<PollDone> {
-  const seat = { organizerId: context.organizerId, staffUserId: context.staffUserId };
+  const seat = teamSeat(context);
   try {
     const row = await withConnection(deps.pool, (client) =>
       withRequestContext(client, seat, async () => {

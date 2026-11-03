@@ -296,7 +296,7 @@
   },
   "apps/api/src/settings/service.ts": {
     "createSettingsService": {
-      "lines": [222]
+      "lines": [214]
     }
   },
   "apps/api/src/souvenirs/tick.ts": {

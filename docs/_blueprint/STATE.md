@@ -6,6 +6,21 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-712 view as organizer — 2026-11-03
+
+- **T-712 built (tier A; plan review 86 with its two MAJOR and the MINOR fixes folded in; migration 0135, new and
+  undeployed; ADR-520 to ADR-525 and Q-480 to Q-483 Proposed).** The console's event page opens "View as organizer"
+  (primary) or support access that can change (secondary). A view grant is read-only twice: the organizer hook refuses
+  every write (403 `support_view_only`) and the codes and rehearsal card, and sets `readOnly` in the request's
+  `RequestContext` (every seat now built by `teamSeat`), so the database, which honours a view only in read-only
+  transactions, runs a lost mark as nobody. Every read is throttled (240 a minute, queued) and logged by
+  `support_view_log` with the route pattern and path ids, once a minute. The admin's banner says read-only; an ended view
+  says so with a link back to the console. The generated sweep found and fixed two reads that broke read-only (the
+  join setup locked the event row; the big screen and finale seats dropped the mark). Tests:
+  `test/organizers/view-mode` (every organizer route), `test/db/support-view` (11), the security suites,
+  `e2e/console-organizers.spec.ts`. CI minutes: 0 (not pushed); agent tokens: about 700k.
+  **Next:** the T-712 code review (tier A, strongest model), then mutation on GitHub for the access globs.
+
 ## T-708 legal data requests — 2026-11-03
 
 - **T-708 built (tier A; plan review 84 with its five MAJOR fixes folded in; not run on a phone; migration 0129, new and

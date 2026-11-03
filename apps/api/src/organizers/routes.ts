@@ -15,6 +15,7 @@ import {
   organizerSuspended,
   ownerOnly,
   ownerRequired,
+  supportViewOnly,
   tooManyAttempts,
 } from "#src/auth/http-errors";
 import { registerOrganizerLegalRoutes } from "#src/legal/organizer-routes";
@@ -74,7 +75,8 @@ import { registerHeldPrizesTeamRoute } from "#src/rewards/held-prizes";
 import { registerRewardBuilderRoutes } from "#src/rewards/routes";
 import { organizerContextOf } from "#src/organizers/context";
 import { membershipOf, readTeam, type OrganizerPrincipal } from "#src/organizers/store";
-import { supportMayUse, supportSeatOf } from "#src/organizers/support-seat";
+import { supportMayUse, supportSeatOf, viewGrantOf } from "#src/organizers/support-seat";
+import { enterView, isRead } from "#src/organizers/support-view";
 import type { Actor, ChangeResult, InviteResult, Team } from "#src/organizers/team";
 import type { Ranking } from "#src/ranking/ranking";
 import { ORGANIZER_PREFIX } from "#src/route-access";
@@ -322,10 +324,31 @@ async function refuseSuspendedWrite(
 }
 
 /**
+ * Support's gate (T-701, T-712): a write on an event under a view grant (or any write while a view is held, without an
+ * event) answers 403 `support_view_only` before any handler runs; then the deny-by-default list (404).
+ */
+function refuseSupport(
+  request: FastifyRequest,
+  params: Readonly<{ eventId?: string }>,
+  membership: OrganizerPrincipal,
+): void {
+  if (membership.support === undefined) {
+    return;
+  }
+  if (viewGrantOf(params, membership) !== undefined && !isRead(request.method)) {
+    throw supportViewOnly();
+  }
+  if (!supportMayUse(request.method, request.routeOptions.url ?? "", params, membership)) {
+    throw notFound();
+  }
+}
+
+/**
  * Registers every /v1/organizers/:organizerId route in one scope. Its hook runs the staff checks (no-store, Origin,
  * session), then reads the caller's membership of that organizer from the database: a non-member gets 404, the same
  * as an organizer that does not exist, and an editor on an `owner` route gets 403. A Questify admin with a live support
- * grant is seated as an editor of the granted events, on a deny-by-default list of routes (T-701). The database checks
+ * grant is seated as an editor of the granted events, on a deny-by-default list of routes (T-701); under a `view` grant
+ * only reads pass, each throttled and logged, and its database work runs in read-only transactions (T-712). The database checks
  * the membership or the grant again on every query (migrations 0008, 0114).
  */
 export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRoutesDeps): void {
@@ -337,18 +360,17 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
         await requireSession(request, reply, deps.sessions);
         const membership = await principalOf(deps.pool, request);
         const params = request.params as { eventId?: string };
-        if (
-          membership.support !== undefined &&
-          !supportMayUse(request.method, request.routeOptions.url ?? "", params, membership)
-        ) {
-          throw notFound();
-        }
+        refuseSupport(request, params, membership);
         if (request.routeOptions.config.access === "owner" && membership.role !== "owner") {
           throw ownerOnly();
         }
         await refuseSuspendedWrite(request, params, membership, deps.suspended);
         refuseUnacceptedWrite(request, membership);
-        request.organizer = membership;
+        const view = viewGrantOf(params, membership);
+        if (view !== undefined) {
+          await enterView({ pool: deps.pool, keys: deps.devices.keys }, request, reply, view);
+        }
+        request.organizer = view === undefined ? membership : { ...membership, readOnly: true };
       });
       registerTeamRoutes(scope, deps);
       registerOrganizerLegalRoutes(scope, { pool: deps.pool });
