@@ -9,7 +9,7 @@ export type TelemetryConfig = Readonly<{
   /** The deployment, as `service.version` and `deployment.environment.name` on every signal. */
   environment: string;
   release: string;
-  /** Where `otlp` sends: the collector's base address and the headers it asks for (a token). Never logged. */
+  /** Where `otlp` sends: the OTLP receiver's base address and the headers it asks for (a credential). Never logged. */
   otlp: Readonly<{ endpoint: string; headers: Readonly<Record<string, string>> }> | undefined;
   /** The share of requests that keep a trace (0 to 1). Metrics and logs always count every request. */
   traceRatio: number;
@@ -19,6 +19,8 @@ export type TelemetryConfig = Readonly<{
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const HEADER_NAME = /^[A-Za-z0-9-]{1,64}$/;
 const DEFAULT_TRACE_RATIO = "0.1";
+// Prometheus's OTLP receiver (the one receiver the API sends to) has no trace endpoint: a span would only fail to export.
+const OTLP_TRACE_RATIO = "0";
 const DEFAULT_METRIC_INTERVAL_MS = "60000";
 
 function exporterOf(env: Env, nodeEnv: string): TelemetryExporter {
@@ -37,15 +39,15 @@ function exporterOf(env: Env, nodeEnv: string): TelemetryExporter {
 }
 
 /**
- * The collector's base address. Telemetry holds no personal data (ADR-603), but the address is still checked: https
- * (plain http only to this machine, where a collector sidecar listens), and no user, password, query or fragment, so
- * a secret cannot ride in a URL that a diagnostic line might print.
+ * The OTLP receiver's base address (Prometheus's, `https://<app>/api/v1/otlp`; the exporters add `/v1/metrics`). Telemetry
+ * holds no personal data (ADR-603), but the address is still checked: https (plain http only to this machine), and no
+ * user, password, query or fragment, so a secret cannot ride in a URL that a diagnostic line might print.
  */
 function endpointOf(env: Env): string {
   const text = optional(env, "OTEL_EXPORTER_OTLP_ENDPOINT");
   if (text === undefined) {
     throw new Error(
-      "OTEL_EXPORTER_OTLP_ENDPOINT is required when TELEMETRY_EXPORTER=otlp: the collector's base address, like https://otel.example.sa:4318.",
+      "OTEL_EXPORTER_OTLP_ENDPOINT is required when TELEMETRY_EXPORTER=otlp: the OTLP receiver's base address, like https://monitoring.example.sa/api/v1/otlp.",
     );
   }
   const url = parsedUrl(text);
@@ -55,7 +57,7 @@ function endpointOf(env: Env): string {
   }
   if (hasSecretPlace(url)) {
     throw new Error(
-      "OTEL_EXPORTER_OTLP_ENDPOINT must not carry a user, password, query or fragment: put a token in OTEL_EXPORTER_OTLP_HEADERS.",
+      "OTEL_EXPORTER_OTLP_ENDPOINT must not carry a user, password, query or fragment: put the credential in OTEL_EXPORTER_OTLP_HEADERS.",
     );
   }
   return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
@@ -66,7 +68,7 @@ function parsedUrl(text: string): URL {
     return new URL(text);
   } catch {
     throw new Error(
-      "OTEL_EXPORTER_OTLP_ENDPOINT must be an address like https://otel.example.sa:4318.",
+      "OTEL_EXPORTER_OTLP_ENDPOINT must be an address like https://monitoring.example.sa/api/v1/otlp.",
     );
   }
 }
@@ -102,8 +104,9 @@ function headersOf(env: Env): Record<string, string> {
   return headers;
 }
 
-function ratioOf(env: Env): number {
-  const text = env["TELEMETRY_TRACE_RATIO"] ?? DEFAULT_TRACE_RATIO;
+function ratioOf(env: Env, exporter: TelemetryExporter): number {
+  const fallback = exporter === "otlp" ? OTLP_TRACE_RATIO : DEFAULT_TRACE_RATIO;
+  const text = env["TELEMETRY_TRACE_RATIO"] ?? fallback;
   const value = Number(text);
   if (text.trim() === "" || !Number.isFinite(value) || value < 0 || value > 1) {
     throw new Error(`TELEMETRY_TRACE_RATIO must be a number from 0 to 1; got "${text}".`);
@@ -113,7 +116,8 @@ function ratioOf(env: Env): number {
 
 /**
  * Reads the telemetry settings from environment variables (12-factor). Off unless asked: a server with no
- * `TELEMETRY_EXPORTER` behaves exactly as before and sends nothing anywhere.
+ * `TELEMETRY_EXPORTER` behaves exactly as before and sends nothing anywhere. With `otlp`, traces are off (ratio 0)
+ * unless `TELEMETRY_TRACE_RATIO` says otherwise.
  *
  * @throws Error naming the variable (never its value) when a setting is missing or not valid.
  */
@@ -127,7 +131,7 @@ export function loadTelemetryConfig(
     environment: server.nodeEnv,
     release: server.release,
     otlp: exporter === "otlp" ? { endpoint: endpointOf(env), headers: headersOf(env) } : undefined,
-    traceRatio: ratioOf(env),
+    traceRatio: ratioOf(env, exporter),
     metricIntervalMs: whole(
       env,
       "TELEMETRY_METRIC_INTERVAL_MS",

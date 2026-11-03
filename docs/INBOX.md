@@ -812,3 +812,9 @@ Dhia: "No email for now" (alerts only on the Grafana dashboard until a sender ex
 ## 2026-11-03 — CranL app count → processed
 
 Dhia: Questify should not sprawl over many CranL apps ("At least 2 applications, 2 databases... merge them... less applications, more control"), then: "add the monitoring is fine, 3 is fine". The two monitoring apps created for T-018b (collector, Prometheus) were deleted with his OK (recoverable until 2026-11-10); monitoring becomes one app. Rule from now on: Questify on CranL is at most three apps (API, web, monitoring) and two databases (PostgreSQL, Redis); any new service runs inside one of them. Processed into ADR-626 (T-018b merge) and the coordinator handoff.
+
+Dhia: "No email for now" (alerts only on the Grafana dashboard until a sender exists). Processed into Q-581 (decided, reopens when a Gmail app password or a Resend key exists), the no-email mode of `ops/monitoring/stack/render-config.sh` (`ALERT_SMTP_HOST` unset or empty), the RUNBOOK section "Monitoring stack on CranL" and `pnpm monitoring:validate`.
+
+## 2026-11-03 - At most three apps on CranL -> processed
+
+Dhia: Questify on CranL is at most three apps (the API, the web app and one monitoring app, plus the two databases). Processed into ADR-626 (the monitoring stack merged into one app built from `ops/monitoring/stack/`, Prometheus's own OTLP receiver in place of the collector), Q-582 and Q-585, the RUNBOOK section "Monitoring stack on CranL" and `pnpm monitoring:validate`.

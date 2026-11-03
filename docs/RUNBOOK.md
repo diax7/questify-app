@@ -523,14 +523,14 @@ the client-address count (ADR-113).
 ## Telemetry and alerts (T-018, ADR-600 to ADR-605)
 
 Targets, the metric catalog and the alert table: `docs/SLO.md`. Rules: `ops/alerts/questify.rules.yml`. The API records metrics and
-traces through OpenTelemetry and sends them nowhere until `TELEMETRY_EXPORTER` is set (SLO.md, section 5); the collector, the store that
-evaluates these rules, the alert mail and the dashboard are prepared in `ops/monitoring/` ("Monitoring stack on CranL", below) and run once
-the three apps are created. Until then nothing evaluates the rules: watch the log lines the entries below name.
+traces through OpenTelemetry and sends them nowhere until `TELEMETRY_EXPORTER` is set (SLO.md, section 5); the store that evaluates these
+rules, the alert mail and the dashboard are prepared in `ops/monitoring/stack/` ("Monitoring stack on CranL", below) and run once the
+monitoring app is created. Until then nothing evaluates the rules: watch the log lines the entries below name.
 
 - **Check the rules:** `promtool check rules ops/alerts/questify.rules.yml` and `promtool test rules ops/alerts/questify.rules.test.yml`
   (no install needed: `docker run --rm --entrypoint promtool -v "$PWD/ops/alerts:/rules:ro" prom/prometheus:v3.15.1 check rules
   /rules/questify.rules.yml`, and `test rules /rules/questify.rules.test.yml`; the tag is pinned, raise it on purpose). Run both after
-  any change to the rules, then copy the file over `ops/monitoring/prometheus/questify.rules.yml`, which the Prometheus app loads (a test fails
+  any change to the rules, then copy the file over `ops/monitoring/stack/questify.rules.yml`, which the monitoring app loads (a test fails
   while the two differ). No CI job runs them yet (`docs/FOLLOWUPS.md`).
   `pnpm vitest run apps/api/src/telemetry/alerts.test.ts` checks that every alert has an entry here and names only metrics, labels
   and events the code has.
@@ -577,8 +577,8 @@ Scans fail with 5xx faster than the budget (SLO-3). **Check:** the breakdown res
 ### QuestifyTelemetryMissing
 
 No request has been reported for ten minutes: the API is down, or its exporter is broken. **Check:** `GET /healthz` and `/readyz` from
-outside, the CranL app status and log. If the API answers, read its standard error for `telemetry.export_failed` (the collector's
-address, its certificate, the `OTEL_EXPORTER_OTLP_HEADERS` token) and the collector's own health. **Do:** restart or roll back the API;
+outside, the CranL app status and log. If the API answers, read its standard error for `telemetry.export_failed` (the monitoring app's
+address, its certificate, the password in `OTEL_EXPORTER_OTLP_HEADERS`) and the monitoring app's own health. **Do:** restart or roll back the API;
 fix the exporter setting.
 
 ### QuestifyDatabaseBusy
@@ -698,53 +698,59 @@ sending limit, the Resend key and verified domain. **Do:** fix the delegation or
 Gmail failed and Resend sent instead (`staff.email_failover`). Nothing is broken for users yet. **Check and do:** as for
 `QuestifyEmailFailing`, on the Gmail side, and open a ticket before the backup fails too.
 
-## Monitoring stack on CranL (T-018b, ADR-620 to ADR-625)
+## Monitoring stack on CranL (T-018b, ADR-620 to ADR-626)
 
-The collector, the store with the alert rules, the alert mail and the dashboard are three CranL apps in `riyadh-1`, built from the
-folders under `ops/monitoring/` (Q-560, Q-561). **Prepared 2026-11-03, not created yet:** no CranL app exists until T-017's scripts, or
-a person following this section, create them; Q-580 lists what to check on the first deploy. One stack per environment (ADR-620):
-staging first, production's own when production exists (Q-582). Telemetry carries no personal data (ADR-603) and stays in Saudi
-Arabia with the rest.
+Telemetry goes to **one CranL app** in `riyadh-1`, built from `ops/monitoring/stack/` (Dhia, 2026-11-03: Questify on CranL is at most three
+apps, the API, the web app and this one, plus the two databases; ADR-626 replaced the first design of three apps). Caddy, Prometheus with
+its OTLP receiver and the alert rules, the Alertmanager and Grafana run in one container behind one public port. **Prepared 2026-11-03, not
+created yet:** no CranL app exists until T-017's scripts, or a person following this section, create it; Q-580 lists what to check on the
+first deploy. One app per environment (ADR-620): staging first, production's own copy of the same folder when production exists (Q-582).
+Telemetry carries no personal data (ADR-603) and stays in Saudi Arabia with the rest.
 
 ```
-API (TELEMETRY_EXPORTER=otlp) --https, bearer token--> collector --https, password--> Prometheus + Alertmanager --mail (optional, Q-581)--> owner
-                                                                                         ^
-                                                                    Grafana --https, password-+   (login for people)
+API (TELEMETRY_EXPORTER=otlp) --https, password--> :8080 Caddy --> Prometheus (OTLP receiver, rules) --> Alertmanager --mail (optional, Q-581)--> owner
+people --https--> :8080 Caddy, /grafana --> Grafana (its own login) --> Prometheus        (Prometheus, Alertmanager and Grafana listen on 127.0.0.1 only)
 ```
 
-**Check the files before any deploy** (Docker, about two minutes, no CranL, no secret): `pnpm monitoring:validate` builds the three
-images and checks them with the programs' own checkers (`otelcol validate`, `promtool check config`, `check rules` and `test rules`,
-`amtool check-config` and the routes, `shellcheck`, `shfmt`), then starts the stack on a private network and proves: the collector
-refuses a missing, wrong or empty token; an attribute off the API's closed list reaches neither Prometheus nor the traces output; the
-metric names and labels are the ones the rules use; Prometheus loads all 20 rules, finds its Alertmanager and refuses a request without
-the password; Grafana needs a login, reaches Prometheus and answers every query of the dashboard; a test alert comes out as an email
-with the runbook link; with `ALERT_SMTP_HOST` unset (or empty) the Prometheus app starts from the two metrics settings, says "alert email off", evaluates the
-rules and has no email integration, while one email setting without the others is refused; the Alertmanager listens on the loopback only; the Prometheus container stops if the Alertmanager dies. `pnpm vitest run
+**Check the files before any deploy** (Docker, about five minutes, no CranL, no secret): `pnpm monitoring:validate` builds the image and
+checks it with the programs' own checkers (`promtool check config`, `check rules` and `test rules`, `amtool check-config` and the routes,
+`caddy validate` and `fmt`, `shellcheck`, `shfmt`), then starts it and proves: Prometheus refuses a missing, wrong or empty password and
+takes the API's OTLP with the right one; the metric names and labels are the ones the rules use and no label off the API's closed list is
+stored from an export shaped like the API's; traces, remote write and the admin and lifecycle APIs are closed; Prometheus loads all 20 rules and
+finds its Alertmanager; only Caddy's port is open outside the machine; Grafana, under `/grafana`, needs a login, reaches Prometheus and
+answers every query of the dashboard; a test alert comes out as an email with the runbook link; with `ALERT_SMTP_HOST` unset (or empty)
+the app starts from the metrics and Grafana settings, says "alert email off", evaluates the rules and has no email integration, while one email
+setting without the others is refused; Prometheus stores the off-list attributes it is sent (the premise of ADR-626, see "Auditing the stored
+labels"); Grafana's login-free health page is closed at Caddy (404, written several ways); a stop signal ends the container cleanly, a
+`/data` the container's user cannot write stops it at once with a message that names `/data`, and the death of any of the four programs,
+by a stop signal or by `kill -KILL`, ends it with an error within seconds. `pnpm vitest run
 apps/api/src/telemetry/monitoring.test.ts` (no Docker) keeps the files in step with the API's attribute list, the alert rules and this
 section. Run both after any change under `ops/monitoring/` or `ops/alerts/`; no CI job runs the first yet (`docs/FOLLOWUPS.md`).
 
-### The three apps
+### The app
 
-Each app is a Docker build from its folder: set the CranL Dockerfile path to the folder's `Dockerfile` (the build context is the folder,
-so each folder holds everything its image copies). Every CranL app has a public `*.cranl.net` address and one port, so every link below
-carries a credential (ADR-622). Create the Prometheus app first (the others need its address), then the collector, then Grafana.
-Names are suggestions; add `-staging` or `-production`.
+A Docker build from the folder: set the CranL Dockerfile path to `ops/monitoring/stack/Dockerfile` (the build context is the folder, so it holds
+everything the image copies). A CranL app has a public `*.cranl.net` address and one port, so every link carries a credential (ADR-622, ADR-626).
+The name is a suggestion (`questify-monitoring`); add `-staging` or `-production`.
 
-| App | Folder | Port | Volume | Image |
-|---|---|---|---|---|
-| `questify-prometheus` | `ops/monitoring/prometheus` | 9090 | `monitoring-data` mounted on `/data`, 5 GB | Prometheus v3.15.1 and Alertmanager v0.34.2 (Alertmanager listens on 127.0.0.1 and is not reachable from outside) |
-| `questify-otel-collector` | `ops/monitoring/collector` | 4318 | none | OpenTelemetry Collector contrib 0.164.0 |
-| `questify-grafana` | `ops/monitoring/grafana` | 3000 | none (dashboards come from the image) | Grafana 13.2.5 |
+| | |
+|---|---|
+| Folder | `ops/monitoring/stack` |
+| Port | `8080` (Caddy; everything else listens on 127.0.0.1) |
+| Volume | `monitoring-data` mounted on `/data`, 5 GB (Prometheus writes `/data/prometheus`, the Alertmanager `/data/alertmanager`); the container user is `grafana` (uid 472) |
+| Image | Grafana 13.2.5 as the base, with Prometheus v3.15.1, Alertmanager v0.34.2 and Caddy 2.11.7 copied in, each pinned by version and digest |
+| Addresses | `https://<app address>/` is Prometheus (query page and API, password); `https://<app address>/grafana/` is Grafana (its own login); `https://<app address>/api/v1/otlp/v1/metrics` is where the API sends |
 
-Settings of each app (CranL environment, secrets in the secret store). A wrong or missing value stops the Prometheus and Grafana
-apps at start with the setting's name, never its value; the collector cannot check its own, so read its first log lines.
+Settings of the app (CranL environment, secrets in the secret store). A wrong or missing value stops the app at start with the setting's name,
+never its value.
 
-**Prometheus app**
-
-- `METRICS_PASSWORD`: 24 or more characters, no spaces; the one password of the user `questify-metrics`, shared with the collector and Grafana.
+- `METRICS_PASSWORD`: 24 or more characters from `A-Z`, `a-z`, `0-9`, `.`, `_`, `~` and `-` only (Grafana's data source file reads it as YAML; the `base64url` command below makes exactly these); the one password of the user `questify-metrics`. The API sends it, Grafana's data source uses it, and it opens Prometheus's own pages.
 - `METRICS_PASSWORD_HASH`: its bcrypt hash. Make it with `docker run --rm
   httpd:2.4.69-alpine@sha256:070da7661f0be8a05430b2c125c0cde9e53176b4048c813024021969a0e3893c htpasswd -nbBC 10 questify-metrics
   "<password>"` and keep what follows `questify-metrics:` (it starts with `$2y$10$`).
+- `GF_SECURITY_ADMIN_PASSWORD`: 24 or more characters, no spaces; the Grafana user is `admin`. Applied at every start (Grafana keeps nothing between deploys).
+- `GF_SECURITY_SECRET_KEY`: 32 or more random characters; signs the stored data source password. Never the Grafana default.
+- `GF_SERVER_ROOT_URL`: `https://<app address>/grafana/` (the address in the CranL dashboard or the custom domain; the trailing `/grafana/` is required).
 - **Alert email is optional (Q-581, decided 2026-11-03: none for now).** With `ALERT_SMTP_HOST` unset or empty the app starts in the
   *no-email mode*: it logs one line, `alert email off: no ALERT_SMTP_HOST`, and the Alertmanager gets a configuration whose only
   receiver sends nothing. The rules are still evaluated and the firing alerts show on the Grafana dashboard ("Alerts firing" and the
@@ -758,31 +764,18 @@ apps at start with the setting's name, never its value; the collector cannot che
 - `MONITORING_ENVIRONMENT`: `staging` or `production`; it is in the subject of every alert mail, so it is needed only with the five above.
 
 **To turn alert email on later** (Q-581 reopens when a sender exists, a Gmail app password or a Resend key): set the five `ALERT_*`
-settings and `MONITORING_ENVIRONMENT` on the Prometheus app and redeploy it; nothing else changes. Then fire the test alert below.
+settings and `MONITORING_ENVIRONMENT` and redeploy the app; nothing else changes. Then fire the test alert below.
 
-**Collector app**
-
-- `OTEL_INGEST_TOKEN_A` and `OTEL_INGEST_TOKEN_B`: two different random tokens of 32 or more URL-safe characters. Both must be set (rotation, below).
-- `METRICS_PASSWORD`: the same value as on the Prometheus app.
-- `PROMETHEUS_REMOTE_WRITE_URL`: `https://<Prometheus app address>/api/v1/write`.
-
-**Grafana app**
-
-- `GF_SECURITY_ADMIN_PASSWORD`: 24 or more characters, no spaces; the user is `admin`. Applied at every start (there is no volume).
-- `GF_SECURITY_SECRET_KEY`: 32 or more random characters; signs the stored data source password. Never the Grafana default.
-- `GF_SERVER_ROOT_URL`: `https://<Grafana app address>/` (the address in the CranL dashboard or the custom domain).
-- `PROMETHEUS_URL`: `https://<Prometheus app address>`, no path.
-- `METRICS_PASSWORD`: the same value as on the Prometheus app.
-
-Make each random value with `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Nothing here is kept in the
+Make each random value with `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"` (`base64url`, never `base64`: its `+`, `/` and
+`=` are refused in `METRICS_PASSWORD`). Nothing here is kept in the
 repository, a log or a chat; Dhia or the T-017 script keeps them in the CranL secret store only.
 
 **After the first deploy** (Q-580 lists the CranL facts this confirms):
 
-1. `GET https://<Prometheus app>/-/healthy` answers 401 without the password and 200 with it; `POST https://<collector>/v1/metrics` with no token answers 401.
-2. Grafana opens a login page (no anonymous view); signed in as `admin`, the folder "Questify" holds "Questify SLOs" and the tile "Last report from the API" fills once the API is pointed at the collector.
-3. The Prometheus app's log shows both `Starting Alertmanager` and `Server is ready to receive web requests`; the data directory is writable (a volume owned by root is the usual cause of "permission denied" on `/data`: set the owner in the Dockerfile, CranL's volume page says how).
-4. **A fired test alert** (do it after every deploy and every change of `ALERT_*`; with alert email off, skip it: the app log has the line `alert email off: no ALERT_SMTP_HOST` and nothing is sent): in the Prometheus app run `amtool --alertmanager.url=http://127.0.0.1:9093 alert add alertname=QuestifyTest severity=page --annotation='summary="Test alert"' --annotation='runbook="docs/RUNBOOK.md#monitoring-stack-on-cranl"'` (`cranl run -- ...`). The mail "[Questify staging PAGE] QuestifyTest" arrives within a minute. No mail: the dashboard tile "Alert mails not sent" and the app's log line `Notify attempt failed` say why (a wrong SMTP login, a sender the account may not use, a closed port).
+1. `GET https://<app>/-/healthy` answers 401 without the password and 200 with it (`curl -u questify-metrics:<password>`); `POST https://<app>/api/v1/otlp/v1/metrics` with no password answers 401.
+2. `https://<app>/grafana/` opens a login page (no anonymous view); signed in as `admin`, the folder "Questify" holds "Questify SLOs" and the tile "Last report from the API" fills once the API is pointed at the app.
+3. The app's log shows `Starting Alertmanager`, `Server is ready to receive web requests.` and Grafana's `HTTP Server Listen`; the data directory is writable (a volume owned by root is the usual cause: the app then stops at once with `render-config: /data is not a directory this container's user ... can write`; set the volume's owner to uid 472, CranL's volume page says how).
+4. **A fired test alert** (do it after every deploy and every change of `ALERT_*`; with alert email off, skip it: the app log has the line `alert email off: no ALERT_SMTP_HOST` and nothing is sent): in the app run `amtool --alertmanager.url=http://127.0.0.1:9093 alert add alertname=QuestifyTest severity=page --annotation='summary="Test alert"' --annotation='runbook="docs/RUNBOOK.md#monitoring-stack-on-cranl"'` (`cranl run -- ...`). The mail "[Questify staging PAGE] QuestifyTest" arrives within a minute. No mail: the dashboard tile "Alert mails not sent" and the app's log line `Notify attempt failed` say why (a wrong SMTP login, a sender the account may not use, a closed port).
 
 ### Pointing the API at it
 
@@ -791,34 +784,49 @@ On each API app (`questify-api-staging`, later production), set, then redeploy:
 | Setting | Value |
 |---|---|
 | `TELEMETRY_EXPORTER` | `otlp` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | `https://<collector app address>` (no path, user, password or query; the API adds `/v1/metrics` and `/v1/traces`) |
-| `OTEL_EXPORTER_OTLP_HEADERS` | `authorization=Bearer%20<OTEL_INGEST_TOKEN_A or _B>` (the space is written `%20`); secret store |
-| `TELEMETRY_TRACE_RATIO` | `0` until a trace store exists (Q-583); the collector accepts and drops traces, so sending them only costs bandwidth |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `https://<app address>/api/v1/otlp` (a path, but no user, password or query; the API adds `/v1/metrics`, which Prometheus's receiver serves) |
+| `OTEL_EXPORTER_OTLP_HEADERS` | `authorization=Basic%20<credential>` (the space is written `%20`); secret store. `<credential>` is `questify-metrics:<METRICS_PASSWORD>` in base64: `METRICS_PASSWORD='<password>' node -e "process.stdout.write(Buffer.from('questify-metrics:' + process.env.METRICS_PASSWORD).toString('base64'))"`. Paste it as it prints, with its `+`, `/` and `=` (only `%` escapes are decoded) |
+| `TELEMETRY_TRACE_RATIO` | leave unset: with `TELEMETRY_EXPORTER=otlp` it defaults to `0`. Prometheus has no trace endpoint (it answers 404), so any ratio above 0 starts spans whose export fails with a `telemetry.export_failed` line every minute (Q-583) |
 | `TELEMETRY_METRIC_INTERVAL_MS` | leave at the default 60000; it must stay under 120000 or the loop alerts never fire (SLO.md section 5) |
 
 Within two minutes the dashboard tile "Last report from the API" drops under 2 minutes and the metrics `http_server_request_duration_seconds_*`
-exist. The API logs one `telemetry.export_failed` line a minute while the collector is unreachable or refuses the token, and nothing
-else changes for users. A 401 there is a token that matches neither slot; a timeout is the address or the collector being down.
-`QuestifyTelemetryMissing` pages after 10 silent minutes, which is also what a wrong token looks like.
+exist. The API logs one `telemetry.export_failed` line a minute while the app is unreachable or refuses the password, and nothing
+else changes for users. A 401 there is a wrong or blank credential; a 413 is a body over 4 MB; a timeout is the address or the app being down.
+`QuestifyTelemetryMissing` pages after 10 silent minutes, which is also what a wrong password looks like.
 
-### Rotating the ingest token
+### Rotating the password
 
-Two tokens are accepted at once so a rotation has no gap. Every six months, when someone who had a token leaves, and at any suspicion:
+One password serves the API, Grafana's data source and people (Prometheus allows one user), so a rotation has a short gap, not none. Every six
+months, when someone who had it leaves, and at any suspicion:
 
-1. Put a new random token in the slot the API is **not** using (if the API uses A, replace B) and redeploy the collector.
-2. Set the API's `OTEL_EXPORTER_OTLP_HEADERS` to the new token and redeploy the API; check that the dashboard keeps filling.
-3. Put a fresh random value (never a blank, and never the old token) in the slot that held the old token and redeploy the collector.
+1. Make a new `METRICS_PASSWORD` and its `METRICS_PASSWORD_HASH`, set both on the app and redeploy it (Grafana and the self-scrape pick them up at start).
+2. Straight after, set the API's `OTEL_EXPORTER_OTLP_HEADERS` to the new credential and redeploy the API; check that the dashboard keeps filling.
 
-A slot left blank accepts nothing (tested), but keep both filled. To rotate `METRICS_PASSWORD`: change it, and its hash, on the three
-apps, then redeploy Grafana, the collector and the Prometheus app one after the other; the gap in the data is a few minutes and does not page.
-To rotate the Grafana admin password: change `GF_SECURITY_ADMIN_PASSWORD` and redeploy.
+Between the two steps the API's exports fail with 401 and are dropped; do both within ten minutes and nothing pages. To rotate the Grafana
+admin password: change `GF_SECURITY_ADMIN_PASSWORD` and redeploy.
+
+### Auditing the stored labels
+
+Prometheus cannot filter the attributes it is sent (ADR-626): the API's closed list (`ATTRIBUTE_RULES`, ADR-603) is the wall: `safeAttributes` at each call, and a metric view in the SDK
+(`installTelemetry`, Q-585) that applies it again to every recording before export. Both are tested end to end in
+`apps/api/src/telemetry/pii.test.ts` and `sdk.test.ts`. So the stored labels are checked by hand after any API release that touches
+`apps/api/src/telemetry/` and once a month:
+
+`curl -s -u questify-metrics:<password> -G 'https://<app address>/api/v1/labels' --data-urlencode 'match[]={job="questify-api"}'`
+
+Each series of the API carries only these labels, and nothing else: `__name__`, `job`, `instance`, `le` and the attributes of the closed list
+as `http_request_method`, `http_route`, `http_response_status_code`, `questify_route_class`, `questify_event`, `questify_log_level`,
+`questify_operation`, `questify_provider`, `questify_outcome`, `questify_tick`, `questify_pool` and `questify_pool_state`. Its `target_info`
+(`{__name__="target_info",job="questify-api"}`) carries `job`, `instance`, `service_version` and `deployment_environment_name`. Any other
+name is a leak: fix the API first, then remove what was stored by stopping the app, clearing the volume and starting it (the history is
+lost, nothing else: "Retention and backups"; the admin API that `delete_series` needs is off).
 
 ### Retention and backups
 
 - **Retention:** 30 days of metrics (`--storage.tsdb.retention.time=30d`), so the 30-day error budget view has its window, and a cap of 4 GB
   (`retention.size`) on the 5 GB volume: Prometheus drops its oldest blocks before the disk fills. At the expected 8,000 to 10,000
   active series a month takes 0.5 to 1 GB (an estimate; the dashboard's "Disk used" tile shows the real figure). To keep more, raise the volume
-  first, then both numbers in `ops/monitoring/prometheus/entrypoint.sh`. Series count: each deploy adds a set for the new instance id
+  first, then both numbers in `ops/monitoring/stack/entrypoint.sh`. Series count: each deploy adds a set for the new instance id
   that fades after 5 minutes; the tile "Series in memory" climbing steadily means a label has started to vary.
 - **Backups: none, on purpose.** Metrics are a view of what the API did; the source of truth is the database (T-019). Losing the
   volume loses the history and restarts the 30-day budget view, not any data. Rules, dashboards and every setting except the secrets are in the
@@ -828,23 +836,24 @@ To rotate the Grafana admin password: change `GF_SECURITY_ADMIN_PASSWORD` and re
 
 ### Operating it
 
-- **Change a rule:** edit `ops/alerts/questify.rules.yml`, copy it over `ops/monitoring/prometheus/questify.rules.yml` (the test fails while they differ), run `pnpm monitoring:validate`, redeploy the Prometheus app.
-- **Change the dashboard:** edit `ops/monitoring/grafana/dashboards/questify-slo.json`, run the validation (it runs every query), redeploy Grafana.
-- **A new attribute or metric in the API:** add it to `ATTRIBUTE_RULES` and to the two `keep_keys` lists of `ops/monitoring/collector/config.yaml`; the test names the list that is missing it. Until then the collector deletes it.
-- **Raise a version:** change the `FROM` tag and digest (`docker pull <image>:<tag>` prints the digest), read the release notes, run the validation, redeploy. Dependabot does not watch `ops/monitoring` yet (`docs/FOLLOWUPS.md`).
-- **Silence an alert:** in the Prometheus app, `amtool --alertmanager.url=http://127.0.0.1:9093 silence add alertname=<name> --duration=2h --comment="<why>"`.
-- **Look at a query by hand:** the Prometheus address, signed in as `questify-metrics` with `METRICS_PASSWORD`, serves the usual query page; the rule states are under Alerts.
-- **The stack watches itself only through the dashboard row "Monitoring stack"** (parts up, mails not sent, rule failures, series, disk). If the Prometheus app or the Alertmanager is down, nothing pages: an outside watcher is Q-584.
+- **Change a rule:** edit `ops/alerts/questify.rules.yml`, copy it over `ops/monitoring/stack/questify.rules.yml` (the test fails while they differ), run `pnpm monitoring:validate`, redeploy the app.
+- **Change the dashboard:** edit `ops/monitoring/stack/grafana/dashboards/questify-slo.json`, run the validation (it runs every query), redeploy.
+- **A new attribute or metric in the API:** add it to `ATTRIBUTE_RULES` and to `DATAPOINT_KEYS` in `ops/monitoring/lib/fixtures.mjs` (and the label to "Auditing the stored labels" above); the test names the list that is missing it. Nothing in the app needs to change: Prometheus stores what it is sent.
+- **Raise a version:** change the `FROM` tag and digest in `ops/monitoring/stack/Dockerfile` (`docker pull <image>:<tag>` prints the digest), read the release notes, run the validation, redeploy. Dependabot does not watch `ops/monitoring` yet (`docs/FOLLOWUPS.md`). The validation fails on purpose if a newer Prometheus starts dropping off-list attributes: that is the day to use it (ADR-626).
+- **Silence an alert:** in the app, `amtool --alertmanager.url=http://127.0.0.1:9093 silence add alertname=<name> --duration=2h --comment="<why>"`.
+- **Look at a query by hand:** the app's address, signed in as `questify-metrics` with `METRICS_PASSWORD`, serves the usual query page; the rule states are under Alerts. Grafana is at `/grafana/`.
+- **A program died:** the container stops and CranL restarts it; the app log says which (`entrypoint: <program> stopped`). A restart loop is a setting or a full disk: read the first lines of the log.
+- **The stack watches itself only through the dashboard row "Monitoring stack"** (parts up, mails not sent, rule failures, series, disk). If the app is down, nothing pages: an outside watcher is Q-584.
 
 ### Footprint (per environment)
 
 | | Expected |
 |---|---|
-| Apps | 3 of the plan's application slots (Pro: 10) |
-| Memory | collector 50 to 150 MB, Prometheus with Alertmanager 150 to 400 MB, Grafana 300 to 400 MB (measured idle on a laptop: 45, 50 and 310 MB) |
+| Apps | 1 of the three CranL apps (API, web, this one) |
+| Memory | 320 MB for the whole app measured idle on a laptop (50 seconds after start, no dashboard open); expect 500 to 900 MB in use (Grafana takes 300 to 400 MB when a dashboard is open, Prometheus 150 to 400 MB with the Alertmanager, Caddy under 50 MB) |
 | CPU | well under one core in total; Grafana spends the most when a dashboard is open |
-| Disk | one 5 GB volume on the Prometheus app, 0.5 to 1 GB used after 30 days; the three images pull about 1 GB |
-| Network | the API sends about 100 KB a minute per instance to the collector (estimate; compare with the app's outbound figure after a day) |
+| Disk | one 5 GB volume, 0.5 to 1 GB used after 30 days; the image is about 2.5 GB (Grafana's own is 2 GB of that) |
+| Network | the API sends about 100 KB a minute per instance to the app (estimate; compare with the app's outbound figure after a day) |
 
 ## Web app (dashboard)
 

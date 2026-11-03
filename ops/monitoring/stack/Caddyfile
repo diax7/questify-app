@@ -1,0 +1,35 @@
+# The public door of the monitoring app (ADR-626): the one port CranL exposes. Grafana is served under /grafana and keeps its
+# own login; everything else is Prometheus (its query page and API, and the OTLP receiver at /api/v1/otlp/v1/metrics), which
+# asks every request for the questify-metrics password itself, so this file holds no credential. Nothing else listens
+# outside this machine. Caddy needs neither certificates nor HTTP/2 and HTTP/3 (CranL ends TLS in front of it), nor its
+# admin endpoint.
+{
+	admin off
+	auto_https off
+	persist_config off
+	servers {
+		protocols h1
+	}
+}
+
+:8080 {
+	# The API reports about 100 KB a minute; the cap stops a large body before it reaches Prometheus.
+	request_body {
+		max_size 4MB
+	}
+
+	# Grafana's health page answers without a login and names its version; the container's health check does not use it.
+	@grafanaHealth path /grafana/api/health /grafana/api/health/*
+	handle @grafanaHealth {
+		respond 404
+	}
+
+	@grafana path /grafana /grafana/*
+	handle @grafana {
+		reverse_proxy 127.0.0.1:3000
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:9090
+	}
+}

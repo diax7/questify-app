@@ -1,0 +1,23 @@
+# The one data source of the Questify dashboards (T-018b, ADR-626): the Prometheus in this container, on this machine,
+# through the shared `questify-metrics` user. Grafana fills the dollar-and-brace place below from the app's environment
+# when it reads this file. The place is in quotes, and render-config.sh lets METRICS_PASSWORD hold only characters that
+# cannot end them or mean anything else in YAML.
+apiVersion: 1
+prune: true
+datasources:
+  - name: Questify Prometheus
+    uid: questify-prometheus
+    type: prometheus
+    access: proxy
+    url: http://127.0.0.1:9090
+    isDefault: true
+    editable: false
+    basicAuth: true
+    basicAuthUser: questify-metrics
+    secureJsonData:
+      basicAuthPassword: "${METRICS_PASSWORD}"
+    jsonData:
+      httpMethod: POST
+      # The API reports once a minute; Grafana sizes its rate windows ($__rate_interval) from this.
+      timeInterval: 60s
+      timeout: 30

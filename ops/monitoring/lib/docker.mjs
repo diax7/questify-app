@@ -1,9 +1,8 @@
 // Docker helpers of the monitoring validation (ops/monitoring/validate.mjs). Everything it starts is named with a run id
-// and removed when the run ends, whether it passed or not (the images it built too; the pinned base images stay).
+// and removed when the run ends, whether it passed or not (the image it built too; the pinned base images stay).
 import { spawnSync } from "node:child_process";
 
 const containers = [];
-const networks = [];
 const images = [];
 
 /** Runs `docker <args>`; throws with the command's start and its output unless `allowFailure`. */
@@ -25,40 +24,31 @@ export function buildImage(tag, directory) {
   images.push(tag);
 }
 
-/** The image reference of the last `FROM` line of a Dockerfile text, `name:tag@sha256:digest`. */
-export function finalImage(dockerfileText) {
-  const froms = [...dockerfileText.matchAll(/^FROM\s+(\S+)/gm)].map((match) => match[1]);
-  return froms.at(-1);
-}
-
-export function createNetwork(name) {
-  docker(["network", "create", name]);
-  networks.push(name);
-}
-
 const envArgs = (env) => Object.entries(env).flatMap(([name, value]) => ["-e", `${name}=${value}`]);
 
 /**
  * Starts a container in the background. `publish` lists container ports to open on 127.0.0.1 (the host port is
- * chosen by Docker, read it with `hostPort`); `mounts` are `{ source, target }` read-only bind mounts.
+ * chosen by Docker, read it with `hostPort`); `mounts` are `{ source, target }` read-only bind mounts; `tmpfs` lists
+ * `target[:options]` memory file systems.
  */
 export function start({
   name,
   image,
-  network,
   env = {},
   publish = [],
   mounts = [],
+  tmpfs = [],
   entrypoint,
   args = [],
 }) {
-  const command = ["run", "--detach", "--name", name, "--network", network];
+  const command = ["run", "--detach", "--name", name];
   command.push("--add-host", "host.docker.internal:host-gateway");
   command.push(...envArgs(env));
   for (const port of publish) command.push("--publish", `127.0.0.1::${port}`);
   for (const { source, target } of mounts) {
     command.push("--mount", `type=bind,source=${source},target=${target},readonly`);
   }
+  for (const target of tmpfs) command.push("--tmpfs", target);
   if (entrypoint !== undefined) command.push("--entrypoint", entrypoint);
   docker([...command, image, ...args]);
   containers.push(name);
@@ -99,6 +89,15 @@ export function isRunning(name) {
   return stdout.trim() === "true";
 }
 
+/** The exit status of a container that has stopped. */
+export function exitCodeOf(name) {
+  const { stdout } = docker(["inspect", "--format", "{{.State.ExitCode}}", name]);
+  return Number(stdout.trim());
+}
+
+/** Runs a shell command inside a running container and returns what it printed; throws when it fails. */
+export const inside = (name, command) => docker(["exec", name, "/bin/sh", "-c", command]).stdout;
+
 /** Polls until `check` returns a truthy value; throws `what` with the last error when the time is up. */
 export async function waitFor(what, check, { timeoutMs = 60_000, intervalMs = 500 } = {}) {
   const deadline = Date.now() + timeoutMs;
@@ -117,6 +116,5 @@ export async function waitFor(what, check, { timeoutMs = 60_000, intervalMs = 50
 
 export function cleanUp() {
   for (const name of containers.splice(0)) docker(["rm", "--force", name], { allowFailure: true });
-  for (const name of networks.splice(0)) docker(["network", "rm", name], { allowFailure: true });
   for (const tag of images.splice(0)) docker(["rmi", tag], { allowFailure: true });
 }

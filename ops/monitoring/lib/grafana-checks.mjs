@@ -1,26 +1,40 @@
-// Grafana stage of the monitoring validation: login is required, the data source reaches the Prometheus app with its
-// password, the dashboard is provisioned, and every query of every panel is accepted by Grafana and Prometheus.
+// Grafana stage of the monitoring validation: Grafana is reached through the app's public port under /grafana, login is
+// required, the data source reaches Prometheus with its password, the dashboard is provisioned, and every query of every
+// panel is accepted by Grafana and Prometheus.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { grafanaEnv, MONITORING } from "./context.mjs";
-import { hostPort, start, waitFor } from "./docker.mjs";
+import { STACK } from "./context.mjs";
+import { inside, logsOf, waitFor } from "./docker.mjs";
 import { basic, ensure, postJson, request } from "./http.mjs";
 
 const DASHBOARD_UID = "questify-slo";
 const DATASOURCE_UID = "questify-prometheus";
+const PREFIX = "/grafana";
 
 /** Every query (`expr`) of every panel of the dashboard file, with the panel's title. */
 export function dashboardQueries() {
   const dashboard = JSON.parse(
-    readFileSync(join(MONITORING, "grafana", "dashboards", "questify-slo.json"), "utf8"),
+    readFileSync(join(STACK, "grafana", "dashboards", "questify-slo.json"), "utf8"),
   );
   return dashboard.panels.flatMap((panel) =>
     (panel.targets ?? []).map((target) => ({ title: panel.title, ...target })),
   );
 }
 
-async function get(base, path, headers) {
-  return request(`${base}${path}`, { headers });
+const get = (base, path, headers) => request(`${base}${PREFIX}${path}`, { headers });
+
+async function checkSubPath(base) {
+  const bare = await request(`${base}${PREFIX}`);
+  ensure(
+    bare.status === 302 && bare.location.startsWith(`${PREFIX}/`),
+    `${PREFIX} was answered ${bare.status} ${bare.location}, not a redirect inside ${PREFIX}/.`,
+  );
+  const login = await get(base, "/login", {});
+  ensure(login.status === 200, `The login page was answered ${login.status}.`);
+  ensure(
+    login.text.includes(`${PREFIX}/public/`),
+    "The login page does not load its files from under /grafana/public/: Grafana is not serving from the sub-path.",
+  );
 }
 
 async function checkLogin(base, admin) {
@@ -37,7 +51,6 @@ async function checkLogin(base, admin) {
     );
   }
   const metrics = await get(base, "/metrics", {});
-  // A closed /metrics redirects to the login page, which fetch follows; only the metrics text itself is a leak.
   ensure(
     !metrics.text.includes("grafana_build_info"),
     `Grafana served its metrics at /metrics without a login (${metrics.status}).`,
@@ -83,7 +96,7 @@ async function runQuery(base, admin, query) {
     maxDataPoints: 500,
   };
   const response = await postJson(
-    `${base}/api/ds/query`,
+    `${base}${PREFIX}/api/ds/query`,
     { queries: [target], from: "now-1h", to: "now" },
     admin,
   );
@@ -94,24 +107,49 @@ async function runQuery(base, admin, query) {
   );
 }
 
-export async function checkGrafana(ctx, stack) {
-  const name = ctx.name("grafana");
-  start({
-    name,
-    image: ctx.image("grafana"),
-    network: ctx.network,
-    env: grafanaEnv(ctx, `http://${stack.prometheusName}:9090`),
-    publish: [3000],
-  });
-  const base = `http://127.0.0.1:${hostPort(name, 3000)}`;
-  await waitFor(
+/** Waits until Grafana answers its health page on its own port inside the container (Caddy does not pass that page on). */
+export const waitForGrafana = (app) =>
+  waitFor(
     "Grafana to start",
-    async () => (await get(base, "/api/health", {})).status === 200,
-    {
-      timeoutMs: 120_000,
+    async () => {
+      inside(app.name, `wget -q -O /dev/null http://127.0.0.1:3000${PREFIX}/api/health`);
+      return true;
     },
+    { timeoutMs: 120_000 },
   );
+
+/** Grafana's health page answers without a login and names its version, so Caddy answers 404 to it, however it is written. */
+async function checkHealthPageBlocked(base, admin) {
+  const paths = [
+    "/api/health",
+    "/api/health/",
+    "//api/health",
+    "/api/%68ealth",
+    "/API/Health",
+    "/api/health?x=1",
+  ];
+  for (const path of paths) {
+    for (const headers of [{}, admin]) {
+      const response = await get(base, path, headers);
+      ensure(
+        response.status === 404,
+        `${PREFIX}${path} was answered ${response.status} through the app's port, not 404.`,
+      );
+    }
+  }
+}
+
+/** Grafana is part of the running app: it must be up behind Caddy, log-in only, provisioned, and answer every query. */
+export async function checkGrafana(ctx, stack) {
+  const base = `http://127.0.0.1:${stack.port}`;
+  await waitForGrafana(stack);
   const admin = { authorization: basic("admin", ctx.secrets.grafanaAdmin) };
+  ensure(
+    !logsOf(stack.name).includes("plugin.backgroundinstaller"),
+    "Grafana is downloading plugins at start: GF_PLUGINS_PREINSTALL_DISABLED is not in force.",
+  );
+  await checkSubPath(base);
+  await checkHealthPageBlocked(base, admin);
   await checkLogin(base, admin);
   await checkProvisioning(base, admin);
   const probe = { title: "a probe", expr: "vector(1)", instant: true, range: false };
