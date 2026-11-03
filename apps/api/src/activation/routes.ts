@@ -54,6 +54,10 @@ import { registerConsoleCatalogRoutes } from "#src/console/catalog-routes";
 import { registerConsoleLegalRoutes } from "#src/console/legal-routes";
 import { registerConsoleFeatureUsageRoutes } from "#src/console/feature-usage-routes";
 import { registerConsoleOrganizerFeaturesRoutes } from "#src/console/organizer-features-routes";
+import {
+  registerConsoleReviewDemoRoutes,
+  type ConsoleReviewDemoDeps,
+} from "#src/console/review-demo-routes";
 import { registerConsoleFeatureRequestRoutes } from "#src/settings/feature-request-routes";
 import { registerConsoleNoticesRoutes } from "#src/console/notices-routes";
 import { registerConsoleSwitchesRoutes } from "#src/console/switches-routes";
@@ -152,6 +156,7 @@ export type ConsoleRoutesDeps = Readonly<{
   organizers: ConsoleOrganizerDeps;
   /** Platform health, numbers and the admin accounts with their sessions (T-709), behind the same hook. */
   platform: ConsolePlatformDeps;
+  reviewDemo: ConsoleReviewDemoDeps;
   /** Find a player, the record, the contact reveal, rename, sign-in reset (T-704), ban and word lists (T-705). */
   players: ConsoleDataRequestDeps;
   /** The translation matrix (T-702), behind the same hook; the service the public texts route reads from. */
@@ -315,6 +320,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleOrganizerRoutes(scope, deps.organizers);
       registerConsolePlatformRoutes(scope, deps.platform);
       registerConsoleFeatureUsageRoutes(scope, deps.platform);
+      registerConsoleReviewDemoRoutes(scope, deps.reviewDemo);
       registerConsoleCatalogRoutes(scope, { ...deps.platform, forgetConfig: deps.settings.forget });
       registerConsoleLegalRoutes(scope, deps.platform);
       registerConsoleSwitchesRoutes(scope, { ...deps.platform, settings: deps.settings });

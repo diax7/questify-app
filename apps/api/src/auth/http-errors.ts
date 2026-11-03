@@ -623,6 +623,42 @@ export const contactInUse = make(
   "هذا الرقم أو البريد مرتبط بحساب آخر، فلا يمكن إضافته إلى حسابك.",
   "This number or email belongs to another account, so it cannot be added to yours.",
 );
+export const contactLocked = make(
+  409,
+  "contact_locked",
+  "لا يمكن تغيير رقم الجوال لهذا الحساب التجريبي.",
+  "This demo account's phone number can't be changed.",
+);
+export const reviewDemoLocked = make(
+  409,
+  "review_demo_locked",
+  "فعالية العرض التجريبي تبقى مباشرة وعامة وبلا حد للاعبين.",
+  "The review demo event stays live, public and without a player limit.",
+);
+export const reviewDemoExists = make(
+  409,
+  "review_demo_exists",
+  "العرض التجريبي للمراجعة موجود بالفعل.",
+  "The review demo already exists.",
+);
+export const reviewDemoContactHeld = make(
+  409,
+  "contact_held",
+  "هذا الرقم مرتبط بحساب لاعب، فلا يصلح رقمًا للمراجع.",
+  "This number belongs to a player's account, so it can't be the reviewer number.",
+);
+export const reviewDemoStale = make(
+  409,
+  "review_demo_stale",
+  "تغيّر العرض التجريبي للتو. حدّث الصفحة وحاول مجددًا.",
+  "The review demo just changed. Refresh the page and try again.",
+);
+export const invalidReviewDemo = make(
+  422,
+  "invalid_review_demo",
+  "راجع الحقل المحدد: القيمة غير صالحة.",
+  "Check the named field: its value is not valid.",
+);
 export const contactUnchanged = make(
   409,
   "contact_unchanged",

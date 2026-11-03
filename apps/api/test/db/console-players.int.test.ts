@@ -130,7 +130,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console player tools (database
     );
     return { token, code };
   }
-  const signInSql = "SELECT outcome, player_id FROM sign_in_player($1, $2, $3, $4, $5, $6)";
+  const signInSql =
+    "SELECT outcome, player_id FROM sign_in_player($1, $2, $3, $4, $5, $6, sha256('not the fixed code'::bytea))";
 
   describe("seats", () => {
     it("refuses every door to anyone but an active platform admin", async () => {

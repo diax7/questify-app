@@ -7,6 +7,7 @@ import {
   challengeExpired,
   contactCodeWrong,
   contactInUse,
+  contactLocked,
   contactUnchanged,
   emailUnavailable,
   invalidRequest,
@@ -23,6 +24,7 @@ import { BUCKETS, tryLock } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { onlyRow } from "#src/db/rows";
+import type { HttpError } from "#src/http-error";
 import { parse } from "#src/auth/request";
 import { readMe, type ProfileDeps } from "#src/players/profile";
 import { askerOf } from "#src/players/routes";
@@ -49,7 +51,7 @@ type Unavailable = Readonly<{ kind: "sms_unavailable" | "email_unavailable" }>;
 
 export type ContactCodeResult =
   | Readonly<{ kind: "code_sent"; challengeToken: string; expiresInSeconds: number }>
-  | Readonly<{ kind: "unchanged" | "phone_not_supported" | "invalid_email" }>
+  | Readonly<{ kind: "unchanged" | "locked" | "phone_not_supported" | "invalid_email" }>
   | Throttled
   | Unavailable;
 
@@ -144,7 +146,7 @@ async function openChange(
   asker: Asker,
 ): Promise<
   | Readonly<{ kind: "opened"; token: string; code: string }>
-  | Readonly<{ kind: "unchanged" }>
+  | Readonly<{ kind: "unchanged" | "locked" }>
   | Throttled
   | Unavailable
 > {
@@ -162,7 +164,7 @@ async function openChange(
     const id = randomUUID();
     const token = generateToken().token;
     const code = generateCode();
-    const { rows } = await client.query<{ outcome: "started" | "unchanged" }>(
+    const { rows } = await client.query<{ outcome: "started" | "unchanged" | "locked" }>(
       "SELECT start_contact_change($1, $2, $3, $4, $5, $6) AS outcome",
       [
         id,
@@ -174,8 +176,10 @@ async function openChange(
       ],
     );
     // Stryker disable next-line StringLiteral: the name only labels an impossible error
-    if (onlyRow(rows, "start_contact_change").outcome === "unchanged") {
-      return { kind: "unchanged" } as const;
+    const outcome = onlyRow(rows, "start_contact_change").outcome;
+    if (outcome !== "started") {
+      // An unchanged contact, or an App Review demo account, whose number never changes (T-710, Q-523).
+      return { kind: outcome } as const;
     }
     const budget = await takePlatformBudget(client, contact.channel);
     if (budget === "spent") {
@@ -392,6 +396,29 @@ function throttledAnswer(reply: FastifyReply, retryAfterSeconds: number) {
   return tooManyAttempts({ retryAfterSeconds });
 }
 
+/** Why a contact code was not sent, as its HTTP answer. */
+function codeRefused(
+  result: Exclude<ContactCodeResult, { kind: "code_sent" }>,
+  reply: FastifyReply,
+): HttpError {
+  switch (result.kind) {
+    case "unchanged":
+      return contactUnchanged();
+    case "locked":
+      return contactLocked();
+    case "phone_not_supported":
+      return phoneNotSupported({ emailOffered: false });
+    case "invalid_email":
+      return invalidRequest();
+    case "throttled":
+      return throttledAnswer(reply, result.retryAfterSeconds);
+    case "sms_unavailable":
+      return smsUnavailable({ emailOffered: false });
+    case "email_unavailable":
+      return emailUnavailable();
+  }
+}
+
 /**
  * `POST /v1/me/contact/code` and `POST /v1/me/contact/verify` (T-108; FR-125, FR-139): the signed-in player changes or
  * adds a phone or email with a code sent to it. A resend is a new request. The verify step takes an Idempotency-Key, so
@@ -411,25 +438,13 @@ export function registerContactRoutes(
         { playerId: playerOf(request), channel: body.channel, value: body.value, lang: body.lang },
         askerOf(request),
       );
-      switch (result.kind) {
-        case "code_sent":
-          return reply.code(202).send({
-            challengeToken: result.challengeToken,
-            expiresInSeconds: result.expiresInSeconds,
-          });
-        case "unchanged":
-          throw contactUnchanged();
-        case "phone_not_supported":
-          throw phoneNotSupported({ emailOffered: false });
-        case "invalid_email":
-          throw invalidRequest();
-        case "throttled":
-          throw throttledAnswer(reply, result.retryAfterSeconds);
-        case "sms_unavailable":
-          throw smsUnavailable({ emailOffered: false });
-        case "email_unavailable":
-          throw emailUnavailable();
+      if (result.kind === "code_sent") {
+        return reply.code(202).send({
+          challengeToken: result.challengeToken,
+          expiresInSeconds: result.expiresInSeconds,
+        });
       }
+      throw codeRefused(result, reply);
     },
   );
 

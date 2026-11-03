@@ -66,6 +66,8 @@ export const BUCKETS = {
   consoleHealth: "console_health",
   consoleAdmins: "console_admins",
   consoleFeatureUsage: "console_feature_usage",
+  consoleReviewDemo: "console_review_demo",
+  consoleReviewDemoWrite: "console_review_demo_write",
   consoleSessionEnd: "console_session_end",
   consoleCatalog: "console_catalog",
   consoleCatalogWrite: "console_catalog_write",

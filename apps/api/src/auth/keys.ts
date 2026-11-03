@@ -80,6 +80,11 @@ export type AuthKeys = Readonly<{
    * its hash is stored. 256 bits, URL-safe; the two purposes never share a value.
    */
   emailChangeToken: (changeId: string, purpose: "confirm" | "stop") => string;
+  /**
+   * Hash of a typed code as the App Review fixed code is stored (T-710, ADR-561): not bound to a challenge, under a
+   * purpose of its own, so it can never match a sign-in, deletion or contact code.
+   */
+  reviewerCodeHash: (code: string) => Buffer;
 }>;
 
 /**
@@ -114,6 +119,7 @@ export function createAuthKeys(secret: string): AuthKeys {
   const optOut = keyed("marketing-opt-out");
   const emailChangeCode = derive("email-change-code");
   const emailChangeLink = keyed("email-change-link");
+  const reviewerCode = keyed("reviewer-code");
   return {
     emailKey: email,
     addressKey: address,
@@ -139,5 +145,6 @@ export function createAuthKeys(secret: string): AuthKeys {
       createHmac("sha256", emailChangeCode).update(`${changeId}\n${value}`).digest(),
     emailChangeToken: (changeId, purpose) =>
       emailChangeLink(`${purpose}\n${changeId}`).toString("base64url"),
+    reviewerCodeHash: reviewerCode,
   };
 }

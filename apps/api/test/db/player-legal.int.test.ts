@@ -64,7 +64,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player acceptances (database)"
   const signIn = async (c: Challenge, signup = bytes()) =>
     (
       await db.app.query<{ outcome: string; player_id: string | null }>(
-        "SELECT outcome, player_id FROM sign_in_player($1, $2, $3, $4, $5, $6)",
+        "SELECT outcome, player_id FROM sign_in_player($1, $2, $3, $4, $5, $6, sha256('not the fixed code'::bytea))",
         [c.token, c.code, sha(bytes()), sha(bytes()), randomUUID(), sha(signup)],
       )
     ).rows[0];

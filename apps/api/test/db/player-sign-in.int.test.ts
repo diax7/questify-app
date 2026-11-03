@@ -64,7 +64,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
   ) =>
     (
       await call<{ outcome: string; attempts_left: number; player_id: string | null }>(
-        "SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6)",
+        "SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6, sha256('not the fixed code'::bytea))",
         [c.token, code, sha(t.access), sha(t.refresh), t.family, sha(signup)],
         client,
       )
@@ -297,13 +297,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
       const c = await challenge();
       const t = tokens();
       await expect(
-        call("SELECT * FROM sign_in_player($1, $2, $3, $4, $5, NULL)", [
-          c.token,
-          c.code,
-          sha(t.access),
-          sha(t.refresh),
-          t.family,
-        ]),
+        call(
+          "SELECT * FROM sign_in_player($1, $2, $3, $4, $5, NULL, sha256('not the fixed code'::bytea))",
+          [c.token, c.code, sha(t.access), sha(t.refresh), t.family],
+        ),
       ).rejects.toThrow(/signup token hash/);
     });
 
@@ -549,7 +546,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
       }
       for (const fn of [
         "start_player_challenge(gen_random_uuid(), '\\x00', 'phone', 'x', '\\x00', '\\x00', '0.1', '0.1', '\\x00')",
-        "sign_in_player('\\x00', '\\x00', '\\x00', '\\x00', gen_random_uuid(), '\\x00')",
+        "sign_in_player('\\x00', '\\x00', '\\x00', '\\x00', gen_random_uuid(), '\\x00', '\\x00')",
         "create_player('\\x00', 'x', 1990, 'falcon', '\\x00', '\\x00', gen_random_uuid())",
         "rotate_player_refresh('\\x00', '\\x00', '\\x00')",
         "sign_out_player('\\x00')",

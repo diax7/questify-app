@@ -54,6 +54,12 @@ const PLAYER_NAME_READS: Readonly<Record<string, string>> = {
   console_words: LIST,
   console_retired_usernames: LIST,
   console_player_record: ADMIN,
+  console_review_demo: `${ADMIN}: the App Review demo's own reviewer account (T-710)`,
+  review_demo_provision:
+    "review demo: makes the reviewer account with a free name, answers an id only (T-710)",
+  review_demo_seed_players:
+    "review demo: makes the 12 fictional players with free names, answers nothing (T-710)",
+  review_demo_username: "review demo: finds a free name for a demo account it makes (T-710)",
   console_report: ADMIN,
   admin_report_resolve: "report: closes reports with an outcome code, answers no name (T-705b)",
   report_content:

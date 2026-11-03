@@ -86,14 +86,15 @@ export function deletionSmsText(code: string, lang: Lang): string {
 
 /**
  * Opens the deletion challenge inside the sign-in send windows and platform budget, under a lock on the contact. True
- * in `known` when an account uses the contact: only then is a code sent.
+ * in `known` when an account uses the contact: only then is a code sent. True in `reviewer` for the App Review phone
+ * while its window is open (T-710, ADR-562): the fixed code answers it, and nothing is sent.
  */
 async function openChallenge(
   deps: DeletionDeps,
   contact: Contact,
   asker: Asker,
 ): Promise<
-  | Readonly<{ kind: "opened"; token: string; code: string; known: boolean }>
+  | Readonly<{ kind: "opened"; token: string; code: string; known: boolean; reviewer: boolean }>
   | Throttled
   | Unavailable
 > {
@@ -118,8 +119,8 @@ async function openChallenge(
     const id = randomUUID();
     const token = generateToken().token;
     const code = generateCode();
-    const { rows } = await client.query<{ known: boolean }>(
-      "SELECT start_deletion_challenge($1, $2, $3, $4, $5, $6) AS known",
+    const { rows } = await client.query<{ known: boolean; reviewer: boolean }>(
+      "SELECT * FROM start_deletion_challenge($1, $2, $3, $4, $5, $6)",
       [
         id,
         tokenHash(token),
@@ -129,12 +130,8 @@ async function openChallenge(
         deps.keys.deletionCodeHash(hashToken(token), code),
       ],
     );
-    return {
-      kind: "opened",
-      token,
-      code,
-      known: onlyRow(rows, "start_deletion_challenge").known,
-    } as const;
+    const row = onlyRow(rows, "start_deletion_challenge");
+    return { kind: "opened", token, code, known: row.known, reviewer: row.reviewer } as const;
   });
 }
 
@@ -192,7 +189,9 @@ export async function requestCode(
   if (opened.kind !== "opened") {
     return opened;
   }
-  if (opened.known) {
+  if (opened.reviewer) {
+    say(deps, asker, "player.reviewer_challenge", { step: "deletion_code" });
+  } else if (opened.known) {
     deps.deferred.defer(async () => {
       await deliver(deps, asker, { contact, code: opened.code, lang: input.lang });
     });
@@ -238,6 +237,10 @@ export async function requestOwnCode(
   const opened = await openChallenge(deps, contact, asker);
   if (opened.kind !== "opened") {
     return opened;
+  }
+  if (opened.reviewer) {
+    say(deps, asker, "player.reviewer_challenge", { step: "deletion_code" });
+    return sent(opened.token);
   }
   const delivered = await deliver(deps, asker, { contact, code: opened.code, lang: input.lang });
   return delivered === "sent" ? sent(opened.token) : { kind: delivered };
@@ -286,11 +289,12 @@ export async function verifyCode(
       return full;
     }
     const { rows } = await client.query<{ outcome: string; attempts_left: number }>(
-      "SELECT * FROM verify_deletion_code($1, $2, $3)",
+      "SELECT * FROM verify_deletion_code($1, $2, $3, $4)",
       [
         tokenHash(input.challengeToken),
         deps.keys.deletionCodeHash(hashToken(input.challengeToken), typedCode(input.code)),
         tokenHash(deletionToken),
+        deps.keys.reviewerCodeHash(typedCode(input.code)),
       ],
     );
     const row = onlyRow(rows, "verify_deletion_code");

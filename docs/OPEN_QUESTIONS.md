@@ -2331,3 +2331,39 @@ The tag is set from the Sponsors page (one editor for quests, categories, reward
 The recap card (ADR-339) is an image the player may share; with a tagged souvenir it now shows "Presented by {sponsor}" under the souvenir's name. The organizer chose to present the souvenir and the player chooses to share, but a sponsor never agreed to appear on a card.
 **Recommended (developer):** keep it, since it is the point of FR-1303 for souvenirs. If a sponsor objects, add an organizer switch "Show the sponsor on the recap card" (default on).
 
+## Q-520 - Which phone number is the reviewer's? (T-710, ADR-560, ADR-561)
+
+**Status:** Proposed (developer, 2026-11-03).
+The fixed code works for one Saudi mobile number. While a review window is open that number gets no SMS, so a real person holding it could not sign in; while it is closed, codes go to it by SMS.
+**Recommended (developer):** a SIM Questify owns (a company line Dhia keeps), entered on the console's review demo page before the first submission (T-806). Not needed to build T-710.
+
+## Q-521 - One reviewer account for Apple and Google, or one each? (T-710, ADR-562)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** one: both reviews can share progress harmlessly, and Prepare resets it before each submission. A second account needs a second number and window.
+
+## Q-522 - Reset the reviewer per build from the console, or automatically on the app version? (T-710, ADR-564)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** from the console's Prepare for review: an automatic reset at the first sign-in of a new version would wipe the level 3 pre-played for the gem shop (T-806).
+
+## Q-523 - May the reviewer change the account's phone number? (T-710, ADR-562)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** no: the app says a demo account's number can't be changed. Allowing it would send a real code to a stranger's number and move the fixed number. Revisit if a reviewer flags it.
+
+## Q-524 - How long is a review window? (T-710, ADR-561, ADR-564)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** 14 days by default, 1 to 30 allowed: a review takes one or two days, and a rejection and resubmission usually fit in 14. A shorter window allows fewer guesses (at most 420 in 14 days).
+
+## Q-525 - Should the demo organizer be left out of platform usage figures? (T-710)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** yes, where a platform total is shown (usage, feature usage, KPIs), in a follow-up; for v1 the console names it "Questify Review Demo", which tells it apart. T-710 build: recorded in `docs/FOLLOWUPS.md` (`console_feature_usage` is not restated in 0144).
+
+## Q-526 - Should the demo content be seeded by a script? (T-710, ADR-568)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** not now: the admin builds it once in the dashboard and the readiness list shows what is missing. If staging and production drift, or each new quest type needs manual upkeep, write a seed that calls the doors the dashboard uses.
+

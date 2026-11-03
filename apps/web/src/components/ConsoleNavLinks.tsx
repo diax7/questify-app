@@ -190,6 +190,19 @@ export function ConsoleUsageLink({
   );
 }
 
+/** This page's item in the console's navigation (T-710). */
+export function ConsoleReviewDemoLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/review-demo`} icon="check" current={current}>
+      {t("console.reviewDemo.title")}
+    </NavItem>
+  );
+}
+
 /** This page's item in the console's navigation (T-714). */
 export function ConsoleFeatureUsageLink({
   language,

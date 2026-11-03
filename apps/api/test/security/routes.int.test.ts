@@ -853,6 +853,16 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); read only; counts and flags of queues, leases and this server's set-up (yes or no), no secret, token or player; the admin checked again in console_health (QE403); 60 a minute per admin (test/console/platform, test/db/platform-health)",
   "GET /v1/admin/feature-usage":
     "active platform admins only (walked below); read only; per organizer the layer state of each event-level feature and counts of its 200 latest events that have it on and use it, no player, staff or contact; the admin checked again in console_feature_usage (QE403); 60 a minute per admin (test/console/feature-usage, test/db/feature-usage)",
+  "GET /v1/admin/review-demo":
+    "active platform admins only (walked below); read only; the App Review demo's event, reviewer account, window and readiness counts; the reviewer phone (Questify's own SIM, Q-520) and never the code; the admin checked again in console_review_demo (QE403); 120 a minute per admin (test/console/review-demo, test/db/review-demo)",
+  "POST /v1/admin/review-demo":
+    "active platform admins only; Idempotency-Key; once (409 review_demo_exists); a phone a real account holds is refused (409 contact_held); audited without the phone; 30 changes an hour per admin (test/console/review-demo, test/db/review-demo)",
+  "PUT /v1/admin/review-demo/contact":
+    "active platform admins only; Idempotency-Key; closes the window, ends the reviewer's sessions and cancels both numbers' codes; a held phone is refused (409 contact_held); audited without the phone; 30 changes an hour (test/db/review-demo)",
+  "POST /v1/admin/review-demo/prepare":
+    "active platform admins only; no Idempotency-Key on purpose (a replay would keep the code in the store; a retry makes a new code); the new six-digit code answered once with no-store, stored only as its keyed hash; erases and provisions the reviewer; audited with the version and window, never the code; 30 changes an hour (test/console/review-demo, test/db/review-demo)",
+  "POST /v1/admin/review-demo/close":
+    "active platform admins only; Idempotency-Key; the window closes and the reviewer's sessions end at once; audited; 30 changes an hour (test/console/review-demo, test/db/review-demo)",
   "GET /v1/admin/numbers":
     "active platform admins only (walked below); read only; counts of organizers, events, players and staff, no name or contact; the admin checked again in console_numbers (QE403); 60 a minute per admin (test/console/platform, test/db/platform-health)",
   "GET /v1/admin/admins":

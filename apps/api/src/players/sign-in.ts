@@ -22,7 +22,7 @@ import { generateCode, generateToken, hashToken, type AuthKeys } from "#src/auth
 import { PLAYER_SIGN_IN_LIMITS } from "#src/auth/limits";
 import { isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
 import { reasonOf, say, type Caller } from "#src/auth/sign-in";
-import { tryLock } from "#src/auth/throttle";
+import { BUCKETS, countRecent, tryLock } from "#src/auth/throttle";
 import { readInForce } from "#src/legal/in-force";
 import { normalizeSaudiMobile } from "#src/players/phone";
 import {
@@ -255,7 +255,8 @@ async function deliver(
   }
 }
 
-type Opened = Readonly<{ kind: "opened"; challengeToken: string; code: string }>;
+/** `reviewer`: the App Review phone while its window is open (T-710, ADR-561): nothing is sent for it. */
+type Opened = Readonly<{ kind: "opened"; challengeToken: string; code: string; reviewer: boolean }>;
 
 async function openChallenge(
   deps: PlayerSignInDeps,
@@ -271,18 +272,22 @@ async function openChallenge(
     const id = randomUUID();
     const token = generateToken();
     const code = generateCode();
-    await client.query("SELECT start_player_challenge($1, $2, $3, $4, $5, $6, $7, $8, $9)", [
-      id,
-      tokenHash(token.token),
-      contact.channel,
-      contact.value,
-      deps.keys.contactLookupKey(contact.value),
-      deps.keys.playerCodeHash(id, code),
-      accept.terms,
-      accept.privacy,
-      deps.keys.deletionFingerprint(contact.value),
-    ]);
-    return { kind: "opened", challengeToken: token.token, code } as const;
+    const { rows } = await client.query<{ reviewer: boolean }>(
+      "SELECT start_player_challenge($1, $2, $3, $4, $5, $6, $7, $8, $9) AS reviewer",
+      [
+        id,
+        tokenHash(token.token),
+        contact.channel,
+        contact.value,
+        deps.keys.contactLookupKey(contact.value),
+        deps.keys.playerCodeHash(id, code),
+        accept.terms,
+        accept.privacy,
+        deps.keys.deletionFingerprint(contact.value),
+      ],
+    );
+    const reviewer = onlyRow(rows, "start_player_challenge").reviewer;
+    return { kind: "opened", challengeToken: token.token, code, reviewer } as const;
   });
 }
 
@@ -323,9 +328,13 @@ async function requestCode(
     return opened;
   }
   await sweepIfDue(deps, asker, clock);
-  const sent = await deliver(deps, asker, { contact, ...opened, lang: input.lang });
-  if (sent !== "sent") {
-    return { kind: sent };
+  if (opened.reviewer) {
+    say(deps, asker, "player.reviewer_challenge");
+  } else {
+    const sent = await deliver(deps, asker, { contact, ...opened, lang: input.lang });
+    if (sent !== "sent") {
+      return { kind: sent };
+    }
   }
   if (input.previous !== undefined) {
     // Only once the new code went out: the email fallback ends the SMS code (FR-1812). An unknown or finished token
@@ -349,6 +358,7 @@ type LiveChallenge = Readonly<{
   contact: string;
   resends: number;
   seconds_since_sent: number;
+  reviewer: boolean;
 }>;
 
 async function liveChallenge(client: PoolClient, hash: Buffer): Promise<LiveChallenge | undefined> {
@@ -361,7 +371,8 @@ async function liveChallenge(client: PoolClient, hash: Buffer): Promise<LiveChal
 
 type Resending =
   | Exclude<ResendResult, { kind: "resent" }>
-  | Readonly<{ kind: "resending"; contact: Contact; code: string }>;
+  | Readonly<{ kind: "resending"; contact: Contact; code: string }>
+  | Readonly<{ kind: "reviewer" }>;
 
 async function prepareResend(
   deps: PlayerSignInDeps,
@@ -372,6 +383,9 @@ async function prepareResend(
     const challenge = await liveChallenge(client, hash);
     if (challenge === undefined) {
       return { kind: "challenge_expired" };
+    }
+    if (challenge.reviewer) {
+      return { kind: "reviewer" };
     }
     if (challenge.resends >= L.maxResends) {
       return { kind: "resend_limit" };
@@ -407,6 +421,14 @@ async function resend(
   asker: Asker,
 ): Promise<ResendResult> {
   const prepared = await prepareResend(deps, tokenHash(input.challengeToken), asker);
+  if (prepared.kind === "reviewer") {
+    // The App Review challenge is answered by the fixed code; nothing is ever sent for it (ADR-561).
+    return {
+      kind: "resent",
+      expiresInSeconds: L.codeLifetimeSeconds,
+      resendAfterSeconds: L.resendSpacingSeconds,
+    };
+  }
   if (prepared.kind !== "resending") {
     return prepared;
   }
@@ -504,17 +526,21 @@ async function judge(
       outcome: string;
       attempts_left: number;
       player_id: string | null;
-    }>("SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6)", [
+    }>("SELECT * FROM sign_in_player($1, $2, $3, $4, $5, $6, $7)", [
       hash,
       deps.keys.playerCodeHash(challenge.id, typedCode(input.code)),
       tokens.accessHash,
       tokens.refreshHash,
       tokens.family,
       tokenHash(signupToken),
+      deps.keys.reviewerCodeHash(typedCode(input.code)),
     ]);
     const row = onlyRow(rows, "sign_in_player");
     if (row.outcome === "wrong") {
       await recordAll(client, counts);
+      if (challenge.reviewer) {
+        await warnGuessing(deps, client, challenge.contact, asker);
+      }
     }
     const verdict = VERDICTS[row.outcome];
     // Stryker disable next-line ConditionalExpression,ObjectLiteral,StringLiteral: unreachable: sign_in_player has only these five outcomes
@@ -522,6 +548,31 @@ async function judge(
       ? { kind: "challenge_expired" }
       : verdict(row.attempts_left, row.player_id ?? "", signupToken);
   });
+}
+
+/** Wrong reviewer codes past this many in a contact's day window log one warning (ADR-561). */
+const GUESSING_WARN_AFTER = 10;
+
+/**
+ * Logs `review_demo.code_guessing` (no contact) once, when the reviewer phone's wrong codes in its day window pass
+ * GUESSING_WARN_AFTER: the admin may close the window or prepare a new code (RUNBOOK).
+ */
+async function warnGuessing(
+  deps: PlayerSignInDeps,
+  client: PoolClient,
+  contact: string,
+  asker: Asker,
+): Promise<void> {
+  const day = L.failuresPerContactDay;
+  const { count } = await countRecent(
+    client,
+    BUCKETS.playerFailContact,
+    deps.keys.contactThrottleKey(contact),
+    day.windowSeconds,
+  );
+  if (count === GUESSING_WARN_AFTER + 1) {
+    say(deps, asker, "review_demo.code_guessing", { wrongToday: count });
+  }
 }
 
 const isBanReason = (code: string | null): code is BanReason =>

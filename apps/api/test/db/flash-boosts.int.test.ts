@@ -2186,6 +2186,8 @@ const PAYER_MAP: Readonly<Record<string, string>> = {
   pay_community_batch: "never: the step's fixed reward (kind community: the boost CHECK)",
   grant_welcome: "never: welcome points",
   bulk_award: "never: a point award from the team",
+  review_demo_seed_players:
+    "never: the App Review demo's seeded award to its fictional players (T-710)",
   session_check_in: "never: a session's points on check-in (T-505b)",
   write_removal: "never: copies the reversed entry's boost (removal test)",
   apply_past_points:
