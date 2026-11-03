@@ -11,6 +11,22 @@ updates:
     groups:
       npm-minor-and-patch:
         update-types: [minor, patch]
+  - package-ecosystem: docker
+    directories:
+      - /
+      - /ops/monitoring/stack
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 2
+    rebase-strategy: disabled
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
+    groups:
+      docker:
+        patterns: ["*"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

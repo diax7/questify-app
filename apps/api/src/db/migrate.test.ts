@@ -146,14 +146,59 @@ describe("migrate retry, without a database", () => {
   });
 });
 
+const TRANSACTION_CONTROL = /^(BEGIN|COMMIT|END|ABORT|ROLLBACK|START\s+TRANSACTION)\b/i;
+
+/** The statements of a file at its top level: comments, quoted text and dollar-quoted bodies removed, split at `;`. */
+function topLevelStatements(sql: string): string[] {
+  return sql
+    .replace(/\$([A-Za-z_]*)\$[\s\S]*?\$\1\$/g, " ")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/--[^\n]*/g, " ")
+    .replace(/'(?:[^']|'')*'/g, "''")
+    .split(";")
+    .map((statement) => statement.trim())
+    .filter((statement) => statement !== "");
+}
+
+const endsTransaction = (sql: string): boolean =>
+  topLevelStatements(sql).some((statement) => TRANSACTION_CONTROL.test(statement));
+
+describe("the check that a migration leaves the transaction alone", () => {
+  it.each([
+    "BEGIN;",
+    "COMMIT;",
+    "commit",
+    "END;",
+    "ABORT;",
+    "ROLLBACK;",
+    "COMMIT AND CHAIN;",
+    "START TRANSACTION;",
+    "SELECT 1; COMMIT;",
+    "CREATE TABLE a (id int);\nEND\n",
+  ])("catches %j", (sql) => {
+    expect(endsTransaction(sql)).toBe(true);
+  });
+
+  it.each([
+    "CREATE TABLE a (id int);",
+    "DO $$ BEGIN PERFORM 1; END; $$;",
+    "CREATE FUNCTION f() RETURNS void LANGUAGE plpgsql AS $body$ BEGIN COMMIT; END $body$;",
+    "-- COMMIT;\nSELECT 1;",
+    "/* ROLLBACK; */ SELECT 1;",
+    "INSERT INTO t VALUES ('COMMIT; END;');",
+    "SELECT 'it''s; END';",
+  ])("lets %j pass", (sql) => {
+    expect(endsTransaction(sql)).toBe(false);
+  });
+});
+
 describe("the migration files", () => {
   it("never end the runner's transaction themselves, because a retry relies on one file being one transaction", async () => {
-    const control = /^\s*(BEGIN|COMMIT|ROLLBACK|START TRANSACTION)(\s+(WORK|TRANSACTION))?\s*;/im;
     const names = (await readdir(MIGRATIONS)).filter((name) => name.endsWith(".sql"));
     expect(names.length).toBeGreaterThan(100);
     const offenders: string[] = [];
     for (const name of names) {
-      if (control.test(await readFile(join(MIGRATIONS, name), "utf8"))) {
+      if (endsTransaction(await readFile(join(MIGRATIONS, name), "utf8"))) {
         offenders.push(name);
       }
     }
