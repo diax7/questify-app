@@ -7756,6 +7756,16 @@ export const MESSAGES = {
   "console.home.blocks": { ar: "الأقسام", en: "Blocks" },
   "console.home.preview": { ar: "معاينة الصفحة الرئيسية", en: "Home preview" },
   "console.home.noSlides": { ar: "لا توجد لافتات بعد", en: "No slides yet" },
+  "console.intro.title": { ar: "بطاقات التعريف", en: "Intro cards" },
+  "console.intro.intro": {
+    ar: "رتّب البطاقات التي يراها اللاعب الجديد عند فتح التطبيق، وأخفِ ما لا تريده على أن تبقى بطاقة واحدة على الأقل. نصوص البطاقات تُعدَّل من صفحة نصوص التطبيق. يصل التغيير إلى التطبيق خلال لحظات، ويمكن التراجع عنه.",
+    en: "Order the cards a new player sees when they open the app and hide the ones you do not want; at least one card stays. The cards' words are edited on the App texts page. A change reaches the app within moments and can be reverted.",
+  },
+  "console.intro.cards": { ar: "البطاقات", en: "Cards" },
+  "console.intro.noneShown": {
+    ar: "أبقِ بطاقة واحدة على الأقل ظاهرة.",
+    en: "Keep at least one card shown.",
+  },
   "home.link.title": { ar: "فتح هذا الرابط؟", en: "Open this link?" },
   "home.link.body": { ar: "سيُفتح {host} في المتصفّح.", en: "This opens {host} in your browser." },
   "home.link.open": { ar: "فتح", en: "Open" },

@@ -6,6 +6,11 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-802b intro card order and visibility — 2026-11-03
+
+- **T-802b built (tier B; not run on a phone; migration 0145, new and undeployed; ADR-610 to ADR-613 and Q-570, Q-571 Proposed).** A platform admin orders and hides the player intro's four cards at `/console/intro` (at least one stays shown), with Save, Discard and Revert. One audited definer door (`admin_player_intro_save`, the 0119/0137 catalog pattern) stores `platform_setting` key `playerIntro`; `GET /v1/config` carries `playerIntro: {cards}`; the app plays the cards in that order, read once when the intro opens (last working copy, else the fresh configuration within 1.5 s, else the shipped four). The join welcome card stands where the join card stands. The cards' words stay in App texts. **Compliance change for Dhia's attention (Q-570):** the intro makes one anonymous `GET /v1/config` (no sign-in, nothing about the player), where T-802 made no request; the source guard allows exactly that. Tests: shared `player-intro` (20), `test/db/console-player-intro` (23), `test/console/player-intro` (8), the security suites, app onboarding (46 with the order and guard cases), web `console-intro` (4), `e2e/console-intro.spec.ts` (3), `layout.spec.ts` desktop and phone. **Local:** full vitest ONCE: 12,178 tests in 789 files; the shared Postgres ran out of shared memory (64 MB /dev/shm) with sixteen workers while other sessions used it and went into crash recovery, so 250 API files failed on hook timeouts and "connection terminated" (no assertion failed); all 250 were re-run (50 serially, then 200 with three workers) and passed (3,467 tests); the 524 other files passed in the first run. CI minutes: 0 (not pushed); agent tokens: roughly 1M (estimate). **Mutation:** none (tier B).
+  **Next:** the T-802b code review (tier B, mid-tier); then the next unchecked task in `docs/TASKS.md`.
+
 ## T-802 player onboarding intro — 2026-11-03
 
 - **T-802 built (tier B; not run on a phone; app only, no migration; ADR-590 to ADR-594 and Q-550 to Q-552 Proposed; ordering and hiding the cards split to T-802b, ADR-593).**

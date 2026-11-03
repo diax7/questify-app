@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { checkPlayerIntro } from "#src/layout/player-intro";
 import { checkQuestifyHome } from "#src/layout/questify-home";
 import { TEMPLATE_KEY, templateBodySchema } from "#src/templates/template";
 import { arabicText, englishText } from "#src/text/bilingual";
@@ -17,6 +18,7 @@ export const CATALOG_KINDS = [
   "xp_table",
   "item",
   "home_layout",
+  "player_intro",
 ] as const;
 export type CatalogKind = (typeof CATALOG_KINDS)[number];
 
@@ -257,6 +259,34 @@ export const homeLayoutAdminSchema = z.strictObject({
   revertible,
 });
 export type HomeLayoutAdmin = z.infer<typeof homeLayoutAdminSchema>;
+
+/**
+ * What an admin edits of the player intro (T-802b, FR-1803): the order of the cards and the hidden ones. The check is the shared
+ * one (`checkPlayerIntro`): every card once, at least one left shown. A save and a revert both go through it, and the database's
+ * door checks the same rules again (migration 0145).
+ */
+export const playerIntroDocSchema = z.unknown().transform((value, context) => {
+  const checked = checkPlayerIntro(value);
+  if (checked.ok) {
+    return checked.value;
+  }
+  for (const issue of checked.issues) {
+    context.addIssue({
+      code: "custom",
+      path: issue.path === "" ? [] : issue.path.split("."),
+      message: issue.message,
+    });
+  }
+  return z.NEVER;
+});
+
+/** The intro in force as the console lists it; read again with `readPlayerIntro`, which also repairs it. */
+export const playerIntroAdminSchema = z.strictObject({
+  order: z.array(z.string()),
+  hidden: z.array(z.string()),
+  revertible,
+});
+export type PlayerIntroAdmin = z.infer<typeof playerIntroAdminSchema>;
 
 /** The issues of a template body that fails the schema, as short lines for the editor ("categories.0.quests.2.points: ..."). */
 export function templateBodyIssues(body: unknown): string[] {

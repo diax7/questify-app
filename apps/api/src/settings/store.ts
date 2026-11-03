@@ -4,7 +4,8 @@ type Db = Client | PoolClient;
 
 /**
  * The blocks of `platform_setting` the console writes through this module: the switches, the numbers, maintenance mode and the
- * banner. Questify home's layout (`questifyHome`) is read here but written only by its own database door (`admin_home_layout_save`).
+ * banner. Questify home's layout (`questifyHome`) and the player intro's cards (`playerIntro`) are read here but written
+ * only by their own database doors (`admin_home_layout_save`, `admin_player_intro_save`).
  */
 export type PlatformBlock = "features" | "tuning" | "maintenance" | "banner";
 
@@ -13,11 +14,12 @@ export async function readStoredPlatform(db: Db): Promise<{
   features?: unknown;
   tuning?: unknown;
   questifyHome?: unknown;
+  playerIntro?: unknown;
   maintenance?: unknown;
   banner?: unknown;
 }> {
   const { rows } = await db.query<{ key: string; value: unknown }>(
-    "SELECT key, value FROM platform_setting WHERE key IN ('features', 'tuning', 'questifyHome', 'maintenance', 'banner')",
+    "SELECT key, value FROM platform_setting WHERE key IN ('features', 'tuning', 'questifyHome', 'playerIntro', 'maintenance', 'banner')",
   );
   return Object.fromEntries(rows.map((row) => [row.key, row.value]));
 }

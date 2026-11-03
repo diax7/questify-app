@@ -2,7 +2,7 @@ import type { ComposedConfig } from "@questify/shared";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { api, keyValueStore } from "#src/api/app-session.ts";
-import { loadHomeConfig } from "#src/config/remote.ts";
+import { loadPlatformConfig } from "#src/config/remote.ts";
 
 /**
  * The platform's configuration for Questify home: the last working copy at once, the fresh one when it arrives, and again
@@ -13,7 +13,7 @@ export function useHomeConfig(): ComposedConfig | undefined {
   useFocusEffect(
     useCallback(() => {
       let current = true;
-      void loadHomeConfig({ client: api.client, store: keyValueStore }, (shown) => {
+      void loadPlatformConfig({ client: api.client, store: keyValueStore }, (shown) => {
         if (current) setConfig(shown);
       });
       return () => {

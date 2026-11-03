@@ -1,10 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { Language, Theme } from "@questify/shared";
+import {
+  DEFAULT_COMPOSED_PLAYER_INTRO,
+  type IntroCardKey,
+  type Language,
+  type Theme,
+} from "@questify/shared";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { BackHandler, Pressable, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { keyValueStore } from "#src/api/app-session.ts";
+import { api, keyValueStore } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { LANGUAGE_OPTIONS } from "#src/i18n/language.ts";
@@ -20,6 +25,7 @@ import {
   type IntroCard,
   type IntroVariant,
 } from "#src/onboarding/intro-flow.ts";
+import { resolveIntroOrder } from "#src/onboarding/intro-order.ts";
 import { readIntroState, writeIntroState, type IntroState } from "#src/onboarding/intro-state.ts";
 import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -28,6 +34,8 @@ type RouteParams = { replay?: string; event?: string; name?: string };
 type Flow = Readonly<{
   variant: IntroVariant;
   onLanguage: boolean;
+  /** The cards' order is still being read, so no card shows yet. */
+  waiting: boolean;
   cards: readonly IntroCard[];
   index: number;
   chosen: Language;
@@ -72,24 +80,53 @@ function useStoredStep(): IntroState | undefined {
 }
 
 /**
+ * The cards to play, in the platform's order (T-802b): the last working copy at once, else the fresh configuration if it
+ * arrives in a moment, else the shipped order. Read once, so the cards never change under the player. Undefined while the
+ * phone is still answering.
+ */
+function useIntroOrder(): readonly IntroCardKey[] | undefined {
+  const [order, setOrder] = useState<readonly IntroCardKey[] | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    void resolveIntroOrder({ client: api.client, store: keyValueStore }).then((resolved) => {
+      if (live) {
+        setOrder(resolved);
+      }
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  return order;
+}
+
+/**
  * The intro's steps and endings. The language step saves the choice (and restarts the app when it changed, ADR-110),
  * the first card marks the intro seen so it shows once per install (FR-1802), and every ending goes where
  * `destinationFor` says. Nothing but that one flag is stored (FR-1800).
  */
-function useIntroFlow(variant: IntroVariant, stored: IntroState): Flow {
+function useIntroFlow(
+  variant: IntroVariant,
+  stored: IntroState,
+  order: readonly IntroCardKey[] | undefined,
+): Flow {
   const { language, switchLanguage } = useI18n();
   const [languageDone, setLanguageDone] = useState(false);
   const [chosen, choose] = useState<Language>(language);
   const [busy, setBusy] = useState(false);
   const [index, setIndex] = useState(0);
-  const cards = useMemo(() => introCards(variant), [variant]);
+  const cards = useMemo(
+    () => introCards(variant, order ?? DEFAULT_COMPOSED_PLAYER_INTRO.cards),
+    [variant, order],
+  );
   const onLanguage = hasLanguageStep(variant, languageDone || stored === "language");
+  const waiting = order === undefined;
 
   useEffect(() => {
-    if (!onLanguage && variant.kind !== "replay") {
+    if (!onLanguage && !waiting && variant.kind !== "replay") {
       void writeIntroState(keyValueStore, "seen");
     }
-  }, [onLanguage, variant.kind]);
+  }, [onLanguage, waiting, variant.kind]);
 
   const confirmLanguage = useCallback(async () => {
     setBusy(true);
@@ -133,6 +170,7 @@ function useIntroFlow(variant: IntroVariant, stored: IntroState): Flow {
   return {
     variant,
     onLanguage,
+    waiting,
     cards,
     index,
     chosen,
@@ -292,20 +330,30 @@ function TopBar({ flow }: Readonly<{ flow: Flow }>) {
   );
 }
 
-function IntroSteps({ variant, stored }: Readonly<{ variant: IntroVariant; stored: IntroState }>) {
-  const flow = useIntroFlow(variant, stored);
+function IntroSteps({
+  variant,
+  stored,
+  order,
+}: Readonly<{
+  variant: IntroVariant;
+  stored: IntroState;
+  order: readonly IntroCardKey[] | undefined;
+}>) {
+  const flow = useIntroFlow(variant, stored, order);
   return (
     <>
       <TopBar flow={flow} />
-      {flow.onLanguage ? <LanguageStep flow={flow} /> : <CardsStep flow={flow} />}
+      {flow.onLanguage ? <LanguageStep flow={flow} /> : null}
+      {flow.onLanguage || flow.waiting ? null : <CardsStep flow={flow} />}
     </>
   );
 }
 
 /**
- * The player's intro (FR-1798 to FR-1802): a language choice on the first launch, then four story cards, each with a
- * Skip. From Settings the same cards replay; right after joining from a join link they name the event. It asks for no
- * permission and sends nothing anywhere.
+ * The player's intro (FR-1798 to FR-1802): a language choice on the first launch, then the story cards (four unless the
+ * platform hid some or reordered them, FR-1803), each with a Skip. From Settings the same cards replay; right after
+ * joining from a join link they name the event. It asks for no permission and sends nothing about the player anywhere:
+ * its one request is the anonymous read of the public configuration that holds the cards' order (ADR-611).
  */
 export function IntroScreen() {
   const { replay, event, name } = useLocalSearchParams<RouteParams>();
@@ -313,10 +361,13 @@ export function IntroScreen() {
   const styles = useThemedStyles(makeStyles);
   const variant = useMemo(() => variantFromParams({ replay, event, name }), [replay, event, name]);
   const stored = useStoredStep();
+  const order = useIntroOrder();
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.page}>
       <View style={[styles.content, { direction: rtl ? "rtl" : "ltr" }]}>
-        {stored === undefined ? null : <IntroSteps variant={variant} stored={stored} />}
+        {stored === undefined ? null : (
+          <IntroSteps variant={variant} stored={stored} order={order} />
+        )}
       </View>
     </SafeAreaView>
   );

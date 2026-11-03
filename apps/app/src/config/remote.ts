@@ -104,11 +104,11 @@ export function loadEventConfig(
 }
 
 /**
- * The platform's configuration for Questify home (T-713): the last working copy first, so the blocks never jump from the
- * default order to the chosen one, then the fresh one. With neither, `show` is never called and Home keeps the order
- * it always had.
+ * The platform's configuration for the screens outside an event (Questify home, T-713; the player intro, T-802b): the last
+ * working copy first, so the blocks never jump from the default order to the chosen one, then the fresh one. With neither,
+ * `show` is never called and the screen keeps the order it always had.
  */
-export function loadHomeConfig(
+export function loadPlatformConfig(
   deps: Readonly<{ client: ConfigClient; store: KeyValueStore }>,
   show: (config: ComposedConfig) => void,
 ): Promise<void> {

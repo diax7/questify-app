@@ -3,6 +3,7 @@ import { composeConfig } from "./compose";
 import { DEFAULT_TERMS } from "./terms";
 import { NO_EVENT_TEXTS } from "./texts";
 import { DEFAULT_COMPOSED_LAYOUT, readEventLayout } from "#src/layout/layout";
+import { DEFAULT_COMPOSED_PLAYER_INTRO } from "#src/layout/player-intro";
 import { DEFAULT_COMPOSED_QUESTIFY_HOME } from "#src/layout/questify-home";
 import type { FeatureRegistry, TuningRegistry } from "./registry";
 
@@ -34,6 +35,7 @@ describe("composeConfig defaults", () => {
       branding: { accent: null },
       layout: DEFAULT_COMPOSED_LAYOUT,
       questifyHome: DEFAULT_COMPOSED_QUESTIFY_HOME,
+      playerIntro: DEFAULT_COMPOSED_PLAYER_INTRO,
       maintenance: null,
       banner: null,
     });

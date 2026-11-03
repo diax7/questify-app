@@ -1,4 +1,4 @@
-import type { MessageKey } from "@questify/shared";
+import type { IntroCardKey, MessageKey } from "@questify/shared";
 
 /**
  * Which intro this is: the first launch (a language step, then the cards), the cards again from Settings, or the cards
@@ -21,28 +21,31 @@ export type IntroCard = Readonly<{
 }>;
 
 /** The four story cards (FR-1798): join an event, do quests, earn points and climb, win prizes and grow a profile. */
-const STORY: readonly IntroCard[] = [
-  { title: "onboarding.card1.title", body: "onboarding.card1.body", art: "compass" },
-  { title: "onboarding.card2.title", body: "onboarding.card2.body", art: "steps" },
-  { title: "onboarding.card3.title", body: "onboarding.card3.body", art: "crown" },
-  { title: "onboarding.card4.title", body: "onboarding.card4.body", art: "gift" },
-];
+const STORY: Readonly<Record<IntroCardKey, IntroCard>> = {
+  join: { title: "onboarding.card1.title", body: "onboarding.card1.body", art: "compass" },
+  quests: { title: "onboarding.card2.title", body: "onboarding.card2.body", art: "steps" },
+  points: { title: "onboarding.card3.title", body: "onboarding.card3.body", art: "crown" },
+  prizes: { title: "onboarding.card4.title", body: "onboarding.card4.body", art: "gift" },
+};
+
+const welcomeCard = (eventName: string): IntroCard => ({
+  title: "onboarding.joined.title",
+  body: "onboarding.joined.body",
+  art: "compass",
+  params: { event: eventName },
+});
 
 /**
- * The cards of a variant. For a player who has just joined, the first card (how to join) names the event they are in
- * instead; the other three are the same.
+ * The cards of a variant, in the order the platform chose (`order`, T-802b). For a player who has just joined, the join
+ * card (how to join) names the event they are in instead, where it stands; if the platform hid the join card, so is it.
  */
-export function introCards(variant: IntroVariant): readonly IntroCard[] {
-  if (variant.kind !== "joined") {
-    return STORY;
-  }
-  const welcome: IntroCard = {
-    title: "onboarding.joined.title",
-    body: "onboarding.joined.body",
-    art: "compass",
-    params: { event: variant.eventName },
-  };
-  return [welcome, ...STORY.slice(1)];
+export function introCards(
+  variant: IntroVariant,
+  order: readonly IntroCardKey[],
+): readonly IntroCard[] {
+  return order.map((key) =>
+    key === "join" && variant.kind === "joined" ? welcomeCard(variant.eventName) : STORY[key],
+  );
 }
 
 /** Whether the language choice comes first: on the first launch only, and not again after the restart it caused. */

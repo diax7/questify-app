@@ -961,6 +961,12 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); the layout as one document: every block once, none of the protected ones hidden, at most five text slides that open nothing or an https link (the shared check, then admin_home_layout_save: QE403, CA400); the generic settings writer cannot write the key; audited with who, before and after; clears the settings cache; 120 changes an hour per admin (test/console/home-layout, test/db/console-home-layout)",
   "POST /v1/admin/catalog/home-layout/revert":
     "active platform admins only (walked below); puts back the layout before the latest change through admin_home_layout_save and the same checks (CA409 when another change landed), audited as a revert; idempotency key; 120 an hour per admin (test/console/home-layout, test/db/console-home-layout)",
+  "GET /v1/admin/catalog/player-intro":
+    "active platform admins only (walked below); read only; the order and hidden cards of the player intro in force, no personal data; the admin checked again in admin_player_intro (QE403); 240 a minute per admin (test/console/player-intro, test/db/console-player-intro)",
+  "PUT /v1/admin/catalog/player-intro":
+    "active platform admins only (walked below); the intro as one document: every card once, hidden known cards, at least one left shown (the shared check, then admin_player_intro_save: QE403, CA400); the generic settings writer cannot write the key; audited with who, before and after; clears the settings cache; 120 changes an hour per admin (test/console/player-intro, test/db/console-player-intro)",
+  "POST /v1/admin/catalog/player-intro/revert":
+    "active platform admins only (walked below); puts back the intro before the latest change through admin_player_intro_save and the same checks (CA409 when another change landed), audited as a revert; idempotency key; 120 an hour per admin (test/console/player-intro, test/db/console-player-intro)",
   "GET /v1/admin/catalog/xp-table":
     "active platform admins only (walked below); read only; every level's start and reward item and whether anyone reached it, no player; the admin checked again in admin_xp_table (QE403); 240 a minute per admin (test/console/catalog-xp-table, test/db/console-xp-table)",
   "PUT /v1/admin/catalog/xp-table":

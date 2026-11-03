@@ -226,6 +226,23 @@ export {
   sameLayout,
 } from "./layout/layout";
 export type {
+  ComposedPlayerIntro,
+  IntroCardDefinition,
+  IntroCardKey,
+  PlayerIntro,
+} from "./layout/player-intro";
+export {
+  DEFAULT_COMPOSED_PLAYER_INTRO,
+  DEFAULT_PLAYER_INTRO,
+  PLAYER_INTRO_CARDS,
+  PLAYER_INTRO_KEYS,
+  checkPlayerIntro,
+  composedPlayerIntroOf,
+  readComposedPlayerIntro,
+  readPlayerIntro,
+  samePlayerIntro,
+} from "./layout/player-intro";
+export type {
   ComposedQuestifyHome,
   QuestifyHome,
   QuestifyHomeBlock,
@@ -1159,6 +1176,8 @@ export {
   homeLayoutDocSchema,
   levelTitlesAdminSchema,
   levelTitlesDocSchema,
+  playerIntroAdminSchema,
+  playerIntroDocSchema,
   templateAdminAnswerSchema,
   templateAdminSchema,
   templateBodyIssues,
@@ -1178,6 +1197,7 @@ export type {
   HomeLayoutAdmin,
   LevelTitlesAdmin,
   LevelTitlesDoc,
+  PlayerIntroAdmin,
   TemplateAdmin,
   TemplateDoc,
 } from "./catalog/catalog";

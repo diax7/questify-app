@@ -531,7 +531,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
-  it("keeps the catalog editors closed: eighteen doors for the API's role alone, internals for nobody (T-709b to T-709d, T-713)", async () => {
+  it("keeps the catalog editors closed: twenty doors for the API's role alone, internals for nobody (T-709b to T-709d, T-713, T-802b)", async () => {
     const doors = [
       "admin_achievement_save",
       "admin_achievements",
@@ -544,6 +544,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "admin_items",
       "admin_level_titles",
       "admin_level_titles_save",
+      "admin_player_intro",
+      "admin_player_intro_save",
       "admin_shop_item_save",
       "admin_shop_items",
       "admin_template_save",
@@ -584,6 +586,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "home_only_keys",
       "home_slide_checked",
       "home_text_checked",
+      "player_intro_cards",
+      "player_intro_checked",
+      "player_intro_default",
+      "player_intro_in_force",
+      "player_intro_repaired",
       "questify_home_blocks",
       "questify_home_checked",
       "questify_home_default",
@@ -623,6 +630,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "SELECT public.questify_home_in_force()",
       "INSERT INTO public.platform_setting (key, value) VALUES ('questifyHome', '{}')",
       "UPDATE public.platform_setting SET value = '{}' WHERE key = 'questifyHome'",
+      "SELECT public.admin_player_intro()",
+      `SELECT public.admin_player_intro_save('{}', NULL, ${request})`,
+      "SELECT public.player_intro_cards()",
+      "SELECT public.player_intro_in_force()",
+      "INSERT INTO public.platform_setting (key, value) VALUES ('playerIntro', '{}')",
+      "UPDATE public.platform_setting SET value = '{}' WHERE key = 'playerIntro'",
       "SELECT public.admin_level_titles()",
       `SELECT public.admin_level_titles_save('{}', NULL, ${request})`,
       "SELECT public.admin_shop_items()",
