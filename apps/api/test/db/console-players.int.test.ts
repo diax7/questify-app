@@ -265,7 +265,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console player tools (database
       const gone = await player();
       await f.erase(gone.id);
       const answer = await record(gone.id);
-      expect(Object.keys(answer)).toEqual(["player"]);
+      expect(Object.keys(answer)).toEqual(["player", "legalRequests"]);
       expect(answer["player"]).toMatchObject({ id: gone.id, status: "deleted" });
       expect(await sqlstate(record(randomUUID()))).toBe("PA404");
     });

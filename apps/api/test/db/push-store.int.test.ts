@@ -825,7 +825,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       await f.playerWithPhone();
       expect(await counts()).toEqual(before);
       // No database function outside the push store reads a device or a mute (erasure, the admin sign-in reset, T-704, and the ban, T-705,
-      // only delete them; the invitation fill reads whether a device can be pushed to pick the channel, consent still
+      // only delete them; the data export, T-708, lists a device's platform and dates, never its token; the invitation fill reads whether a device can be pushed to pick the channel, consent still
       // from promo_pool, ADR-356 (4)).
       const readers = await f.owner<{ proname: string }>(
         `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -838,6 +838,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       ).toEqual([
         "admin_ban_player",
         "admin_reset_player_sign_in",
+        "data_export_account",
         "erase_rows",
         "invitation_candidates",
       ]);
