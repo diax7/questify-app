@@ -55,6 +55,21 @@ for an event.
 - **Still to come:** the admin screens and routes that call these saves (T-703, T-602), the translation bundle (T-008),
   maintenance mode and the banner (T-703).
 
+## As built (T-711): feature layers (FR-1826, FR-1827)
+
+- **Three layers per event** (ADR-105): the platform's switch, which a Questify admin may override for one organizer (a row in
+  `organizer_feature_override`, On or Off, 12 features; the console organizer page); Questify allowing the event (an add-on's
+  unlock in `event_entitlement`); the owner's own switch in `event.config.features`. A lower level can only narrow a higher one.
+- **Composition:** `platformForOrganizer` lays the organizer's overrides over the platform settings; `composeConfig` then reads
+  the result as before, so the apps and every door that reads the composed configuration follow. The SQL rules
+  `feature_enabled`, `flash_on`, `shop_on` and the Cheers reading do the same through `platform_feature_on`. With no override
+  every answer is unchanged. The four event-level features whose platform check is read platform-wide in code (`boosts`,
+  `community`, `meetSomeone`, `miniGames`; `noOrganizerOverride`) cannot be overridden until T-711b.
+- **The owner sees** (`GET …/events/{id}/features`, `eventLayersOf`): the features the platform leaves on for the organizer,
+  each on, off or (an add-on not unlocked) locked. A feature that is off is not listed, so no switch is drawn; a locked add-on is
+  a card with Ask Questify, which opens the Contact page. The server refuses a switch-on that a layer keeps off (403
+  `feature_not_allowed`); switching off is always allowed.
+
 ## As built (T-303): share quests switch
 
 - `shareQuests` (not an add-on) joins the registry. The owner turns it off per event (`PUT …/share-quests`); off hides

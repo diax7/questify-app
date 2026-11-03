@@ -11,7 +11,7 @@
 -- Deny by default: forced row-level security. An admin writes (checked against the account, `app_admin_id()`, not the
 -- context flag alone); anyone who can see one of the organizer's events can read the organizer's rows, as the add-ons of an
 -- event (`event_entitlement`, 0003); nobody else sees a row. PUBLIC holds nothing on the table or the new function; the
--- function is internal like the rules that call it. Migrations 0130 and earlier untouched.
+-- function is internal like the rules that call it. Migrations 0135 and earlier untouched.
 SET LOCAL lock_timeout = '10s';
 -- The organizer is the foreign-key target, locked up front. `set_by` is a plain id (the audit log names the admin too), so the
 -- sign-in path's staff_user table is never locked here.

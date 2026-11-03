@@ -29,7 +29,7 @@ T-602 (the owner's event switches).
 1. **Registry.** `FeatureDefinition.noOrganizerOverride` marks the four features above; `level: "platform"` features (player-wide,
    kiosks, stations, NFC, location, invitations) have no organizer or event to act on, so they are not overridable either
    (`isOrganizerOverridable`).
-2. **Data (migration 0131).** `organizer_feature_override (organizer_id, feature, enabled, set_by, set_at)`, primary key
+2. **Data (migration 0136).** `organizer_feature_override (organizer_id, feature, enabled, set_by, set_at)`, primary key
    `(organizer_id, feature)`. Forced RLS: read when any event of the organizer is visible (as `event_entitlement`), insert, update
    and delete only for `app_is_admin()`; nothing for PUBLIC. Internal rule `platform_feature_on(organizer, feature)` = override,
    else the platform's switch. `feature_enabled`, `flash_on`, `shop_on` and `cheers_json.platformOn` use it; their answer with no

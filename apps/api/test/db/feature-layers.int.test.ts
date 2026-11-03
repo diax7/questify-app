@@ -18,7 +18,7 @@ const refusal = (work: Promise<unknown>): Promise<string> =>
   );
 
 /**
- * Feature layers in the database (T-711, migration 0131, FR-1826): an organizer override lies over the platform's switch
+ * Feature layers in the database (T-711, migration 0136, FR-1826): an organizer override lies over the platform's switch
  * in the four SQL rules that read it, nobody but an active admin writes it, an organizer's rows are read only by whoever
  * can see one of its events, and with no override every rule answers as it did before.
  */

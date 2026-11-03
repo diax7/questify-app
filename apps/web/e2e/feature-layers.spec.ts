@@ -11,7 +11,10 @@ const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
  * back; an override Off takes it away and the server refuses the owner's switch-on; an add-on Questify has not allowed is a
  * locked card with Ask Questify. The platform settings are shared by every spec, so each test puts back what it changed.
  */
-async function asAdmin(page: Page, project: string): Promise<{ organizerId: string; eventId: string }> {
+async function asAdmin(
+  page: Page,
+  project: string,
+): Promise<{ organizerId: string; eventId: string }> {
   await openBuilder(page, project);
   const parts = new URL(page.url()).pathname.split("/");
   const ids = { organizerId: parts[3] ?? "", eventId: parts[5] ?? "" };
@@ -102,7 +105,6 @@ test("in English an add-on Questify has not allowed is a locked card with Ask Qu
   const { organizerId, eventId } = await asAdmin(page, info.project.name);
   await page.goto(`/en/organizers/${organizerId}/events/${eventId}`);
   const features = page.getByRole("region", { name: "Features" });
-  await expect(features.getByText("Big screen")).toBeVisible();
   await expect(features.getByText("Available with an add-on.")).toBeVisible();
   await expect(features.getByRole("checkbox", { name: "Big screen" })).toBeDisabled();
   await expect(features.getByRole("link", { name: "Ask Questify" })).toHaveAttribute(

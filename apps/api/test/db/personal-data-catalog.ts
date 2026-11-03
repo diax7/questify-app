@@ -694,6 +694,7 @@ export const NOT_PLAYER: Readonly<Record<string, string>> = {
   "organizer_alert.lease_token": OPAQUE,
   "organizer_alert.staff_user_id": ADMIN,
   "organizer_invite.event_scope": ORG,
+  "organizer_feature_override.set_by": ADMIN,
   "organizer_member.event_scope": ORG,
   "platform_setting.value": "a platform setting",
   "quest.deleted_by": ADMIN,

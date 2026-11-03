@@ -1418,8 +1418,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1823 | F-325 | Must | built (T-312, 2026-10-25; "take over" = Questify answers a ticket in its queue, Q-218) |
 | FR-1824 | F-326 | Should | built (T-312: My tickets; T-312b merged into T-501c: Profile → Notifications opens the center, every message newest first, read and unread; phone check owed) |
 | FR-1825 | F-327 | Must | built T-616 (ADR-401; reported content waits for T-705, Q-368): `test/db/event-inbox.int`, `test/inbox/routes.int`, `test/security/*` (outsider, cross-tenant, route map), `apps/web/src/lib/inbox.test.ts`, `apps/web/e2e/inbox.spec.ts` (counts by kind equal the Help desk's list, Accept all), `join-requests.spec.ts` |
-| FR-1826 | F-328 | Must | pending |
-| FR-1827 | F-329 | Must | pending |
+| FR-1826 | F-328 | Must | built in part (T-711, ADR-500 to ADR-504: platform switch from T-703, the per-organizer override for 12 features, hidden from owners and refused by the server; `test/db/feature-layers`, `test/console/organizer-features`, `test/events/feature-layers`); the override for boosts, community, meet-someone and mini-games is T-711b |
+| FR-1827 | F-329 | Must | built in part (T-711, ADR-502: the locked add-on card with Ask Questify opening the Contact page, the existing unlock as the approval, the server refusing a switch-on; `test/events/feature-layers`, `e2e/feature-layers.spec`); the recorded request is T-711b |
 | FR-1828 | F-330 | Should | partial (T-610: text cards, quick links, the podium and the featured quest or reward; `test/events/layout.int`, `packages/shared/src/layout/home-content.test.ts`; pictures wait for Q-149) |
 | FR-1829 | F-331 | Should | partial (T-610: up to five text slides with a tap action, one slide without dots, a slider from two; the image of a slide is T-610b, blocked on Q-149) |
 | FR-1830 | F-332 | Should | built (T-610: label, moment, hide or message at zero; `apps/app/src/event/home-content.test.ts`) |
