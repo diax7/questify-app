@@ -2467,5 +2467,5 @@ With the collector gone, the closed list (ADR-603) is enforced once, by `safeAtt
 
 ## Q-600 - How does the review picker give the reviewer a meet code, and does it list NFC tags? (T-710b, ADR-640)
 
-**Status:** Proposed (developer, 2026-11-03).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-03, after the T-710b code review 87): ADR-640.
 **Recommended:** a separate `POST .../review-codes/meet` that issues a fictional player's pass when picked, and no tag entries: a tag quest is reached through its quest QR (ADR-640). The code review (87) found a picked tag, sent with no chip id, is recorded on Android as a copied tag (`nfc_copy`), so the tag entries were dropped. **Other options:** issue a pass for every meet quest inside the GET (a read that writes, passes that expire before they are picked); send tags with a `uidReason` the server trusts for the reviewer (a new path around the copy check); leave meet quests out (the reviewer could not reach a quest type, against Apple 2.1).
