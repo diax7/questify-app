@@ -17,7 +17,7 @@ describe("loadTelemetryConfig", () => {
     });
   });
 
-  it("reads an OTLP collector with its base address and headers", () => {
+  it("reads an OTLP receiver with its base address and headers", () => {
     const config = load({
       TELEMETRY_EXPORTER: "otlp",
       OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel.questify.sa:4318/",
@@ -33,12 +33,30 @@ describe("loadTelemetryConfig", () => {
     expect(config.metricIntervalMs).toBe(15_000);
   });
 
-  it("keeps a path on the collector address and drops its trailing slash", () => {
+  it("keeps a path on the receiver address and drops its trailing slash", () => {
     const config = load({
       TELEMETRY_EXPORTER: "otlp",
       OTEL_EXPORTER_OTLP_ENDPOINT: "https://gateway.example.sa/otlp/",
     });
     expect(config.otlp?.endpoint).toBe("https://gateway.example.sa/otlp");
+  });
+
+  it("sends to Prometheus's OTLP receiver with its basic credential (the RUNBOOK's settings)", () => {
+    // Base64 of "questify-metrics:" and a password, chosen so the encoding has padding, "+" and "/".
+    const credential = Buffer.from("questify-metrics:p?>~+/pass>>>x").toString("base64");
+    expect(credential).toMatch(/[+/]/);
+    expect(credential).toMatch(/=$/);
+    const config = load({
+      TELEMETRY_EXPORTER: "otlp",
+      OTEL_EXPORTER_OTLP_ENDPOINT: "https://monitoring.example.sa/api/v1/otlp",
+      OTEL_EXPORTER_OTLP_HEADERS: `authorization=Basic%20${credential}`,
+      TELEMETRY_TRACE_RATIO: "0",
+    });
+    expect(config.otlp).toEqual({
+      endpoint: "https://monitoring.example.sa/api/v1/otlp",
+      headers: { authorization: `Basic ${credential}` },
+    });
+    expect(config.traceRatio).toBe(0);
   });
 
   it("allows plain http only to this machine", () => {

@@ -2389,7 +2389,7 @@ The cards use the app's existing 3D icons. ADR-096 asked for the mascot with ani
 
 ## Q-560 - Where does the API's telemetry go, and who runs the store? (T-018, ADR-600)
 
-**Status:** Decided by Dhia (2026-11-03, AskUserQuestion): CranL `riyadh-1` — a collector, a Prometheus-compatible store and Grafana as CranL apps, data stays in Saudi Arabia; built in T-018b.
+**Status:** Decided by Dhia (2026-11-03, AskUserQuestion): CranL `riyadh-1` — a collector, a Prometheus-compatible store and Grafana as CranL apps, data stays in Saudi Arabia; built in T-018b (the same day merged into one monitoring app with no collector, ADR-626, after Dhia capped CranL at three apps).
 The API sends metrics and traces over OTLP/HTTP when `TELEMETRY_EXPORTER=otlp`, and nothing until then. Telemetry carries no personal data (ADR-603), so it could go anywhere, but the platform keeps data in Saudi Arabia by default.
 **Recommended (developer):** one small CranL service in `riyadh-1` running the OpenTelemetry Collector with a Prometheus-compatible store (VictoriaMetrics) and its rule evaluator, plus Grafana for dashboards; the API's `OTEL_EXPORTER_OTLP_ENDPOINT` points at it over the private network. It costs one small instance, keeps everything in the region, and takes the rules file as it is. A hosted store (Grafana Cloud) is the alternative if running one more service is not wanted; nothing in the API changes. Built in T-018b.
 
@@ -2416,33 +2416,39 @@ FR-1800 says the intro asks for no permission and collects no data; T-802 went f
 **Status:** Proposed (developer, 2026-11-03).
 **Recommended (developer):** no: it is the join card's variant and follows it. If the event's name should always be said after a join, make the welcome a fixed first card instead and keep the four editable cards after it (`introCards` in `apps/app/src/onboarding/intro-flow.ts` is the one place).
 
-## Q-580 - Which CranL facts must the first deploy of the monitoring stack confirm? (T-018b, ADR-620, ADR-622)
+## Q-580 - Which CranL facts must the first deploy of the monitoring app confirm? (T-018b, ADR-622, ADR-626)
 
 **Status:** Proposed (developer, 2026-11-03). Needs a person with the CranL account; no answer from Dhia, only the result.
-The files were built from CranL's public documentation without calling CranL. Five things they assume: (1) apps reach each other only through their public addresses (nothing documents a private one; if it exists, use it for `PROMETHEUS_REMOTE_WRITE_URL` and `PROMETHEUS_URL` and keep the credentials); (2) a Dockerfile path inside a folder builds with that folder as its context (the web app's note says so); (3) a volume on `/data` is writable by the user `nobody` of the Prometheus image (if it is owned by root, set the owner in the Dockerfile as CranL's volume page says); (4) the collector's public address passes `POST` bodies of up to 4 MB and a request header `Authorization` unchanged through CranL's CDN; (5) CranL gives each app the port it is told (9090, 4318, 3000).
+The files were built from CranL's public documentation without calling CranL. Five things they assume (ADR-626 left the old assumption about apps reaching each other: there is one app): (1) a Dockerfile path inside a folder builds with that folder as its context (the web app's note says so); (2) a volume on `/data` is writable by the user `grafana` (uid 472) of the image, which the Dockerfile sets as the owner of `/data` (if the mounted volume is owned by root, set the owner as CranL's volume page says); (3) the app's public address passes `POST` bodies of up to 4 MB and the request header `Authorization` unchanged through CranL's CDN, and keeps the `Host` header (Grafana's login checks it against `GF_SERVER_ROOT_URL`); (4) CranL gives the app the port it is told (8080) and ends TLS in front of it; (5) the container may use about 1 GB of memory (Grafana alone takes 300 to 400 MB).
 **Recommended (developer):** make them the first checks when the staging stack is created (RUNBOOK, "After the first deploy"), record the answers here, and close the question.
 
 ## Q-581 - Which SMTP account sends the alert mail? (T-018b, ADR-624)
 
 **Status:** Decided by Dhia (2026-11-03): no alert email for now; dashboard only; reopen when a sender (Gmail app password or Resend key) exists.
-Earlier the same day Dhia chose to reuse the sign-in Gmail account; that stays the preference for when a sender exists, but Alertmanager needs an SMTP login, which the API's Gmail service account is not. Built: with `ALERT_SMTP_HOST` unset or empty the Prometheus app runs in a no-email mode (RUNBOOK, "Monitoring stack on CranL"); setting the five `ALERT_*` settings turns email on with no code change.
+Earlier the same day Dhia chose to reuse the sign-in Gmail account; that stays the preference for when a sender exists, but Alertmanager needs an SMTP login, which the API's Gmail service account is not. Built: with `ALERT_SMTP_HOST` unset or empty the monitoring app runs in a no-email mode (RUNBOOK, "Monitoring stack on CranL"); setting the five `ALERT_*` settings turns email on with no code change.
 Alertmanager speaks SMTP; the API's own sender is the Gmail API (a service account), which Alertmanager cannot use. Options: (A) Resend SMTP, `smtp.resend.com:587`, user `resend`, a send-only API key made for alerts, From an address on a domain verified in Resend; (B) Gmail SMTP, `smtp.gmail.com:587`, an app password of the sending mailbox (needs 2-Step Verification, and Google does not recommend app passwords); (C) Google Workspace SMTP relay, `smtp-relay.gmail.com`, which wants an admin setting and a fixed address CranL may not give.
 **Recommended (developer):** (A), because the account and the verified domain already exist for the API's backup sender (`RESEND_API_KEY`), a separate key can be revoked alone, and it needs no admin setting. Until a sender exists the stack runs in the no-email mode: rules are evaluated, firing alerts show on the Grafana dashboard, nothing is sent.
 
 ## Q-582 - One monitoring stack per environment, or one for both? (T-018b, ADR-620)
 
 **Status:** Proposed (developer, 2026-11-03).
-The rules add up every instance and have no environment label, so a shared store would mix staging and production. A stack is three apps of the plan's ten.
-**Recommended (developer):** one stack per environment: staging now, production's own copy of the same folders when production exists. If the application slots run short, run one stack and add `resource_constant_labels` for `deployment.environment.name` in the collector plus a matcher on every rule and test (a day of work, and `deployment.environment.name` is the Node environment, `production`, on staging too, so a new setting is needed first).
+The rules add up every instance and have no environment label, so a shared store would mix staging and production. A stack is one app since ADR-626 (Dhia: at most three apps on CranL, the API, the web app and one monitoring app).
+**Recommended (developer):** one monitoring app per environment: staging now, production's own copy of the same folder when production exists. If the application slots run short, run one app and add a `deployment.environment.name` matcher on every rule and test, and promote that resource attribute with `otlp.promote_resource_attributes` in `prometheus.yml` (a day of work, and `deployment.environment.name` is the Node environment, `production`, on staging too, so a new setting is needed first).
 
 ## Q-583 - Where do traces go? (T-018b, ADR-623)
 
 **Status:** Proposed (developer, 2026-11-03).
-The API can send spans (a share, `TELEMETRY_TRACE_RATIO`), and its logs carry `trace_id`. Prometheus stores no traces. The collector accepts them and drops them.
-**Recommended (developer):** nowhere yet; set the ratio to 0. Add Grafana Tempo (one binary, local disk, 7 days, a fourth app and a second volume) the first time an incident needs to follow one request, and add its exporter to the collector's traces pipeline. The web app's traces joined to the API's (T-018b item 8) wait for the same.
+The API can send spans (a share, `TELEMETRY_TRACE_RATIO`), and its logs carry `trace_id`. Prometheus stores no traces and has no trace endpoint (it answers 404, tested), so the API must run with `TELEMETRY_TRACE_RATIO=0` (the default is 0.1).
+**Recommended (developer):** nowhere yet; set the ratio to 0. Add Grafana Tempo (one binary, local disk, 7 days, a second volume; inside the monitoring container, because of the three-app cap) the first time an incident needs to follow one request, and point the API's trace export at it. The web app's traces joined to the API's (T-018b item 8) wait for the same.
 
 ## Q-584 - What watches the monitoring stack from outside? (T-018b, ADR-624)
 
 **Status:** Proposed (developer, 2026-11-03). Needs an account only Dhia can open.
 If the Prometheus app or its Alertmanager is down, or the SMTP login is wrong, no alert says so; `QuestifyTelemetryMissing` covers a silent API but needs the stack itself. T-018b item 3 (an outside probe of `/readyz`) is still open for the same reason.
-**Recommended (developer):** a free uptime service that probes `/readyz` of the API and the collector's address from two places and emails or messages Dhia, plus a daily "dead man's" heartbeat: an always-firing rule posted to the service, which mails when the heartbeat stops. Dhia chooses the service and opens the account; the rule and the receiver are one block each in `ops/alerts/` and `alertmanager.yml.in`.
+**Recommended (developer):** a free uptime service that probes `/readyz` of the API and the monitoring app's address from two places and emails or messages Dhia, plus a daily "dead man's" heartbeat: an always-firing rule posted to the service, which mails when the heartbeat stops. Dhia chooses the service and opens the account; the rule and the receiver are one block each in `ops/alerts/` and `alertmanager.yml.in`.
+
+## Q-585 - Add a second wall for the closed list of attributes inside the API? (T-018b, ADR-626)
+
+**Status:** Proposed (developer, 2026-11-03).
+With the collector gone, the closed list (ADR-603) is enforced once, by `safeAttributes`, because Prometheus cannot drop attributes it is sent (ADR-626 item 7). The collector used to delete anything off the list again.
+**Recommended (developer):** add one OpenTelemetry view to the API's meter provider in `installTelemetry` (`apps/api/src/telemetry/sdk.ts`): `views: [{ instrumentName: "*", attributesProcessors: [createAllowListProcessor(Object.keys(ATTRIBUTE_RULES))] }]`, with a test in `sdk.test.ts` that a value recorded with an off-list key leaves without it. It is a few lines in code that sends data outside, so it was not made in the infrastructure change; the coordinator may make it, or the first telemetry task after T-018b. If Dhia wants no second wall in the API either, nothing more is needed: the tests and the label audit of ADR-626 stand.

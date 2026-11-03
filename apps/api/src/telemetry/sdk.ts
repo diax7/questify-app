@@ -60,7 +60,7 @@ const NOTHING: Telemetry = { flush: async () => {}, shutdown: async () => {} };
 const nothing = (): void => {};
 
 /**
- * The OpenTelemetry SDK reports a failed export to a diagnostic logger, which is silent by default: a wrong collector
+ * The OpenTelemetry SDK reports a failed export to a diagnostic logger, which is silent by default: a wrong receiver
  * address would go unseen. This writes the first line it hears each minute to standard error (a name and a short
  * message, never a header or a body; the address has no secret in it, `config.ts`).
  */

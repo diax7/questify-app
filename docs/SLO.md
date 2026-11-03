@@ -109,13 +109,13 @@ Off by default: with no setting the server installs nothing and sends nothing. S
 
 | Setting | Meaning |
 |---|---|
-| `TELEMETRY_EXPORTER` | `off` (default), `otlp` (a collector over OTLP/HTTP), or `console` (development only; refused in production) |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | with `otlp`: the collector's base address, https (http only to localhost), no user, password or query. The API adds `/v1/traces` and `/v1/metrics` |
-| `OTEL_EXPORTER_OTLP_HEADERS` | with `otlp`, optional: `authorization=Bearer%20token,other=value` (values percent-encoded) |
-| `TELEMETRY_TRACE_RATIO` | 0 to 1, default 0.1 |
+| `TELEMETRY_EXPORTER` | `off` (default), `otlp` (OTLP/HTTP to Prometheus's receiver), or `console` (development only; refused in production) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | with `otlp`: the receiver's base address (`https://<monitoring app>/api/v1/otlp`), https (http only to localhost), no user, password or query. The API adds `/v1/traces` and `/v1/metrics` |
+| `OTEL_EXPORTER_OTLP_HEADERS` | with `otlp`, optional: `authorization=Basic%20<base64 of user:password>,other=value` (values percent-encoded; the RUNBOOK says how to make the credential) |
+| `TELEMETRY_TRACE_RATIO` | 0 to 1, default 0.1; set it to 0 while the receiver is Prometheus's, which has no trace endpoint |
 | `TELEMETRY_METRIC_INTERVAL_MS` | 5000 to 600000, default 60000; keep it under 120000, or the two loop alerts never fire (they ignore an instance that has not reported for 120 s) |
 
-An export has a 5-second timeout and is dropped on failure; the request path never waits for it. A failing collector writes one line a
-minute to standard error (`telemetry.export_failed`) and nothing else changes. Where the collector, the store and the pager live is
-Q-560 and Q-561 (decided: three CranL apps in `riyadh-1`, alerts by email); their files are `ops/monitoring/` and RUNBOOK "Monitoring stack on CranL"
-(ADR-620 to ADR-625), prepared and not yet created. The dashboard "Questify SLOs" shows the targets of section 1.
+An export has a 5-second timeout and is dropped on failure; the request path never waits for it. A failing receiver writes one line a
+minute to standard error (`telemetry.export_failed`) and nothing else changes. Where the store and the pager live is
+Q-560 and Q-561 (decided: one CranL app in `riyadh-1`, ADR-626, alerts by email once a sender exists); its files are `ops/monitoring/stack/` and RUNBOOK "Monitoring stack on CranL"
+(ADR-620 to ADR-626), prepared and not yet created. The dashboard "Questify SLOs" shows the targets of section 1.

@@ -22,7 +22,7 @@ describe("startTelemetry", () => {
     span.end();
   });
 
-  it("reports a collector that cannot be reached once, and never throws into the caller", async () => {
+  it("reports a receiver that cannot be reached once, and never throws into the caller", async () => {
     const written: string[] = [];
     vi.spyOn(process.stderr, "write").mockImplementation((chunk: string | Uint8Array) => {
       written.push(String(chunk));

@@ -1577,7 +1577,7 @@
       "id": 33,
       "type": "stat",
       "title": "Samples a second",
-      "description": "What the collector writes into Prometheus.",
+      "description": "What Prometheus stores each second: the API's reports and the stack's own.",
       "datasource": {
         "type": "prometheus",
         "uid": "questify-prometheus"

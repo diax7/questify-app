@@ -1,5 +1,7 @@
 # T-018b - The monitoring stack, prepared (plan note, tier B)
 
+> **Layout superseded the same day (ADR-626):** the three apps below became one app built from `ops/monitoring/stack/`, and the collector was removed. Read this note for the reasons behind the pieces that stayed (Prometheus, the Alertmanager, the dashboard, the checks).
+
 Delivers no FR (quality gate; ARCHITECTURE "Observability", ADR-079). Dhia decided (Q-560, Q-561, 2026-11-03): telemetry goes to CranL
 `riyadh-1` (a collector, a Prometheus-compatible store and Grafana as CranL apps; data stays in Saudi Arabia) and alerts go to Dhia by
 email, the sending address `MAIL_FROM` for now. This task **prepares** that, with no CranL call and no secret: the container

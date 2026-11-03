@@ -1,7 +1,7 @@
 // Mail stage of the monitoring validation: a test alert posted to the Alertmanager comes out as an email with the
 // subject, the summary and the runbook link the owner needs. A mail server that keeps what it receives stands in for
 // the real one, and the TLS requirement is switched off for it (the only change to the rendered configuration).
-import { prometheusEnv } from "./context.mjs";
+import { stackEnv } from "./context.mjs";
 import { start, waitFor } from "./docker.mjs";
 import { ensure } from "./http.mjs";
 import { startSmtpSink } from "./smtp-sink.mjs";
@@ -13,7 +13,7 @@ const ALERT_COMMAND = [
   "set -e",
   "/usr/local/bin/render-config.sh",
   "sed -i 's/smtp_require_tls: true/smtp_require_tls: false/' /tmp/alertmanager.yml",
-  "/bin/alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/tmp/alertmanager --web.listen-address=127.0.0.1:9093 --cluster.listen-address= &",
+  "alertmanager --config.file=/tmp/alertmanager.yml --storage.path=/tmp/alertmanager --web.listen-address=127.0.0.1:9093 --cluster.listen-address= &",
   "for i in $(seq 1 30); do wget -q -O /dev/null http://127.0.0.1:9093/-/ready && break; sleep 1; done",
   "amtool --alertmanager.url=http://127.0.0.1:9093 alert add alertname=QuestifyValidationTest severity=page instance=validate --annotation='summary=\"Validation alert\"' --annotation='runbook=\"docs/RUNBOOK.md#questifyvalidationtest\"'",
   "sleep 120",
@@ -30,9 +30,8 @@ export async function checkMail(ctx) {
   try {
     start({
       name: ctx.name("mail"),
-      image: ctx.image("prometheus"),
-      network: ctx.network,
-      env: prometheusEnv(ctx, `host.docker.internal:${sink.port}`),
+      image: ctx.image,
+      env: stackEnv(ctx, `host.docker.internal:${sink.port}`),
       entrypoint: "/bin/sh",
       args: ["-c", ALERT_COMMAND],
     });

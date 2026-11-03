@@ -1,8 +1,11 @@
 #!/bin/sh
-# Writes the files Prometheus and Alertmanager read at start from this app's environment (docs/RUNBOOK.md, "Monitoring
-# stack on CranL"). Neither program expands environment variables in its configuration, so the values are checked here
-# for their shape (a value outside the shape stops the container with the variable's name, never its value) and then
-# written: passwords to their own files, everything else into the @NAME@ places of the templates.
+# Writes the files Prometheus and the Alertmanager read at start from this app's environment (docs/RUNBOOK.md, "Monitoring
+# stack on CranL"), and stops the app when the environment Grafana needs is incomplete. Neither Prometheus nor the
+# Alertmanager expands environment variables in its configuration, so the values are checked here for their shape (a
+# value outside the shape stops the container with the variable's name, never its value) and then written: passwords to
+# their own files, everything else into the @NAME@ places of the templates. Grafana reads its own GF_* settings and
+# METRICS_PASSWORD (for its data source) from the environment; they are checked here so it never starts with its default
+# signing key, an empty admin password or a root address that points nowhere.
 #
 # Alert email is optional (Q-581). With ALERT_SMTP_HOST unset or empty the Alertmanager gets a configuration that
 # sends nothing (alerts are still evaluated and show on the Grafana dashboard); with it set, all five ALERT_* settings
@@ -13,16 +16,21 @@ set -o pipefail
 
 TEMPLATES=/etc/questify
 OUT=/tmp
+NEWLINE=$(printf '\nx')
+NEWLINE=${NEWLINE%x}
 
 fail() {
   echo "render-config: $1" >&2
   exit 1
 }
 
-# check NAME PATTERN SHAPE: the variable is set and matches the extended regular expression.
+# check NAME PATTERN SHAPE: the variable is set, is one line, and matches the extended regular expression.
 check() {
   eval "value=\${$1:-}"
   [ -n "$value" ] || fail "$1 is not set; it must be $3"
+  case $value in
+  *"$NEWLINE"*) fail "$1 has more than one line; it must be $3" ;;
+  esac
   printf '%s' "$value" | grep -Eq "$2" || fail "$1 is not in the expected shape; it must be $3"
 }
 
@@ -57,6 +65,9 @@ render_with_email() {
 check METRICS_PASSWORD '^[^[:space:]]{24,}$' "at least 24 characters, no spaces"
 # shellcheck disable=SC2016 # the pattern is a regular expression; its dollar signs are literal.
 check METRICS_PASSWORD_HASH '^\$2[aby]\$[0-9]{2}\$[./A-Za-z0-9]{53}$' "the bcrypt hash of METRICS_PASSWORD"
+check GF_SECURITY_ADMIN_PASSWORD '^[^[:space:]]{24,}$' "at least 24 characters, no spaces"
+check GF_SECURITY_SECRET_KEY '^[^[:space:]]{32,}$' "at least 32 characters, no spaces"
+check GF_SERVER_ROOT_URL '^https://[A-Za-z0-9.-]+(:[0-9]+)?/grafana/$' "the public https address of this app followed by /grafana/"
 
 umask 077
 if [ -n "${ALERT_SMTP_HOST:-}" ]; then

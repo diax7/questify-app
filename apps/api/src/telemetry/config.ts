@@ -9,7 +9,7 @@ export type TelemetryConfig = Readonly<{
   /** The deployment, as `service.version` and `deployment.environment.name` on every signal. */
   environment: string;
   release: string;
-  /** Where `otlp` sends: the collector's base address and the headers it asks for (a token). Never logged. */
+  /** Where `otlp` sends: the OTLP receiver's base address and the headers it asks for (a credential). Never logged. */
   otlp: Readonly<{ endpoint: string; headers: Readonly<Record<string, string>> }> | undefined;
   /** The share of requests that keep a trace (0 to 1). Metrics and logs always count every request. */
   traceRatio: number;
@@ -37,15 +37,15 @@ function exporterOf(env: Env, nodeEnv: string): TelemetryExporter {
 }
 
 /**
- * The collector's base address. Telemetry holds no personal data (ADR-603), but the address is still checked: https
- * (plain http only to this machine, where a collector sidecar listens), and no user, password, query or fragment, so
- * a secret cannot ride in a URL that a diagnostic line might print.
+ * The OTLP receiver's base address (Prometheus's, `https://<app>/api/v1/otlp`; the exporters add `/v1/metrics`). Telemetry
+ * holds no personal data (ADR-603), but the address is still checked: https (plain http only to this machine), and no
+ * user, password, query or fragment, so a secret cannot ride in a URL that a diagnostic line might print.
  */
 function endpointOf(env: Env): string {
   const text = optional(env, "OTEL_EXPORTER_OTLP_ENDPOINT");
   if (text === undefined) {
     throw new Error(
-      "OTEL_EXPORTER_OTLP_ENDPOINT is required when TELEMETRY_EXPORTER=otlp: the collector's base address, like https://otel.example.sa:4318.",
+      "OTEL_EXPORTER_OTLP_ENDPOINT is required when TELEMETRY_EXPORTER=otlp: the OTLP receiver's base address, like https://monitoring.example.sa/api/v1/otlp.",
     );
   }
   const url = parsedUrl(text);
@@ -55,7 +55,7 @@ function endpointOf(env: Env): string {
   }
   if (hasSecretPlace(url)) {
     throw new Error(
-      "OTEL_EXPORTER_OTLP_ENDPOINT must not carry a user, password, query or fragment: put a token in OTEL_EXPORTER_OTLP_HEADERS.",
+      "OTEL_EXPORTER_OTLP_ENDPOINT must not carry a user, password, query or fragment: put the credential in OTEL_EXPORTER_OTLP_HEADERS.",
     );
   }
   return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
@@ -66,7 +66,7 @@ function parsedUrl(text: string): URL {
     return new URL(text);
   } catch {
     throw new Error(
-      "OTEL_EXPORTER_OTLP_ENDPOINT must be an address like https://otel.example.sa:4318.",
+      "OTEL_EXPORTER_OTLP_ENDPOINT must be an address like https://monitoring.example.sa/api/v1/otlp.",
     );
   }
 }

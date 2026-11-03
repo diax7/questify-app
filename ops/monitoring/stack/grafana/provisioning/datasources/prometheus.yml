@@ -1,6 +1,6 @@
-# The one data source of the Questify dashboards (T-018b): the Prometheus app, through its address and the shared
-# `questify-metrics` user. Grafana fills the dollar-and-brace places below from the app's environment when it reads
-# this file.
+# The one data source of the Questify dashboards (T-018b, ADR-626): the Prometheus in this container, on this machine,
+# through the shared `questify-metrics` user. Grafana fills the dollar-and-brace place below from the app's environment
+# when it reads this file.
 apiVersion: 1
 prune: true
 datasources:
@@ -8,7 +8,7 @@ datasources:
     uid: questify-prometheus
     type: prometheus
     access: proxy
-    url: ${PROMETHEUS_URL}
+    url: http://127.0.0.1:9090
     isDefault: true
     editable: false
     basicAuth: true

@@ -807,4 +807,8 @@ Dhia (AskUserQuestion): alert emails reuse the sign-in Gmail account ("Reuse sig
 
 ## 2026-11-03 - No alert email for now -> processed
 
-Dhia: "No email for now" (alerts only on the Grafana dashboard until a sender exists). Processed into Q-581 (decided, reopens when a Gmail app password or a Resend key exists), the no-email mode of `ops/monitoring/prometheus/render-config.sh` (`ALERT_SMTP_HOST` unset or empty), the RUNBOOK section "Monitoring stack on CranL" and `pnpm monitoring:validate`.
+Dhia: "No email for now" (alerts only on the Grafana dashboard until a sender exists). Processed into Q-581 (decided, reopens when a Gmail app password or a Resend key exists), the no-email mode of `ops/monitoring/stack/render-config.sh` (`ALERT_SMTP_HOST` unset or empty), the RUNBOOK section "Monitoring stack on CranL" and `pnpm monitoring:validate`.
+
+## 2026-11-03 - At most three apps on CranL -> processed
+
+Dhia: Questify on CranL is at most three apps (the API, the web app and one monitoring app, plus the two databases). Processed into ADR-626 (the monitoring stack merged into one app built from `ops/monitoring/stack/`, Prometheus's own OTLP receiver in place of the collector), Q-582 and Q-585, the RUNBOOK section "Monitoring stack on CranL" and `pnpm monitoring:validate`.
