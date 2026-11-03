@@ -9,7 +9,8 @@ const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
  * The feature layers (T-711, FR-1826, FR-1827), desktop and phone, English and Arabic: the platform switches a feature
  * off and the owner no longer sees its switch; Questify sets it On for one organizer in the console and the switch comes
  * back; an override Off takes it away and the server refuses the owner's switch-on; an add-on Questify has not allowed is a
- * locked card with Ask Questify. The platform settings are shared by every spec, so each test puts back what it changed.
+ * locked card whose Ask Questify records a request that the console's home lists and Allow unlocks (T-711b). The platform
+ * settings are shared by every spec, so each test puts back what it changed.
  */
 async function asAdmin(
   page: Page,
@@ -98,7 +99,7 @@ test("in English the console's override brings a platform-off feature back for o
   await resetPlatform(page);
 });
 
-test("in English an add-on Questify has not allowed is a locked card with Ask Questify", async ({
+test("in English the owner asks Questify for a locked add-on, the console allows it, and the add-on works", async ({
   page,
 }, info) => {
   test.setTimeout(120_000);
@@ -107,7 +108,7 @@ test("in English an add-on Questify has not allowed is a locked card with Ask Qu
   const features = page.getByRole("region", { name: "Features" });
   await expect(features.getByText("Available with an add-on.")).toBeVisible();
   await expect(features.getByRole("checkbox", { name: "Big screen" })).toBeDisabled();
-  await expect(features.getByRole("link", { name: "Ask Questify" })).toHaveAttribute(
+  await expect(features.getByRole("link", { name: "Or contact us" })).toHaveAttribute(
     "href",
     "/en/contact",
   );
@@ -117,6 +118,24 @@ test("in English an add-on Questify has not allowed is a locked card with Ask Qu
     { data: { enabled: true }, headers: { origin: WEB } },
   );
   expect(switchOn.status()).toBe(404);
+
+  await features.getByRole("button", { name: "Ask Questify" }).click();
+  await expect(features.getByText("Requested")).toBeVisible();
+  await expect(features.getByRole("button", { name: "Ask Questify" })).toHaveCount(0);
+
+  await page.goto("/en/console");
+  const requests = page.getByRole("region", { name: "Add-on requests" });
+  const asked = requests
+    .getByRole("listitem")
+    .filter({ has: page.locator(`a[href$="/console/events/${eventId}"]`) });
+  await expect(asked).toHaveCount(1);
+  await asked.getByRole("button", { name: "Allow" }).click();
+  await expect(asked).toHaveCount(0);
+  await expectNoSidewaysScroll(page);
+
+  await page.goto(`/en/organizers/${organizerId}/events/${eventId}`);
+  await expect(features.getByText("Unlocked for your event")).toBeVisible();
+  await expect(features.getByText("Requested")).toHaveCount(0);
 });
 
 test("in Arabic the overrides and the locked card mirror, name every feature, and do not scroll sideways", async ({
@@ -129,13 +148,14 @@ test("in Arabic the overrides and the locked card mirror, name every feature, an
   const mapsCard = page.locator('[data-testid="override-card"][data-feature="maps"]');
   await expect(mapsCard.getByText("تعمل للجميع")).toBeVisible();
   await expect(mapsCard.getByLabel("الخرائط لهذه الجهة")).toHaveValue("platform");
-  await expect(page.getByTestId("override-card")).toHaveCount(12);
+  await expect(page.getByTestId("override-card")).toHaveCount(16);
   await expectNoSidewaysScroll(page);
 
   await page.goto(`/ar/organizers/${organizerId}/events/${eventId}`);
   const features = page.getByRole("region", { name: "الميزات" });
   await expect(features.getByText("متاحة مع إضافة.")).toBeVisible();
-  await expect(features.getByRole("link", { name: "اسأل Questify" })).toHaveAttribute(
+  await expect(features.getByRole("button", { name: "اسأل Questify" })).toBeVisible();
+  await expect(features.getByRole("link", { name: "أو تواصل معنا" })).toHaveAttribute(
     "href",
     "/ar/contact",
   );

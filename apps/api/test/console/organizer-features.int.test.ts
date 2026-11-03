@@ -15,7 +15,7 @@ type Json = Record<string, unknown>;
 
 /**
  * The console's per-organizer feature overrides over HTTP (T-711, FR-1826): the door is for an active admin only (404 to
- * anyone else), a feature the platform rule cannot reach for one organizer is refused, each change is audited once, and it
+ * anyone else), a Questify-wide feature is refused, each change is audited once, and it
  * reaches the composed configuration of that organizer's events at once and no one else's.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("console organizer features over HTTP", () => {
@@ -115,15 +115,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizer features ove
     expect(await row("shop")).toMatchObject({ override: null, effective: true });
   });
 
-  it("lists the twelve features an override can act on, none of the others", async () => {
+  it("lists the sixteen features an override can act on, none of the others (T-711b)", async () => {
     const list = await view();
     expect(list.features.map((item) => item.key)).toEqual([
       "agenda",
       "bigScreen",
+      "boosts",
       "cheers",
+      "community",
       "flashQuests",
       "helpDesk",
       "maps",
+      "meetSomeone",
+      "miniGames",
       "polls",
       "questRatings",
       "ranking",
@@ -185,12 +189,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizer features ove
     expect((await composed(event, "helpDesk"))?.enabled).toBe(true);
   });
 
-  it("refuses a feature the platform rule cannot reach for one organizer, and a bad body", async () => {
+  it("refuses a Questify-wide feature, an unknown one, and a bad body", async () => {
     for (const key of [
-      "boosts",
-      "community",
-      "meetSomeone",
-      "miniGames",
+      "nfcTags",
+      "kiosks",
       "dailyStreak",
       "locationQuests",
       "teleporter",

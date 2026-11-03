@@ -62,7 +62,7 @@ async function setOverride(
 /**
  * The console's per-organizer feature overrides (T-711, FR-1826), registered inside the console scope whose hook answers
  * 404 to anyone but an active platform admin; the service checks the admin again and audits each change with the value
- * before and after (`organizer.feature_override.set` and `.clear`). Only the 12 features whose platform rule reaches one event
+ * before and after (`organizer.feature_override.set` and `.clear`). Only the 16 event-level features (T-711b)
  * can be overridden; an override acts at once on the composed configuration and the SQL rules (cache cleared on every save).
  */
 export function registerConsoleOrganizerFeaturesRoutes(

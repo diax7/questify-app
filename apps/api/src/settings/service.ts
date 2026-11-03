@@ -208,6 +208,42 @@ const DEFAULT_TTL_MS = 15_000;
 const MAX_CACHED = 1000;
 
 /** Reads, composes, and saves the platform and event configuration (F-277 to F-282, FR-1503, FR-1504). */
+/** Unlocks an add-on for an event as the admin, audited when new, and closes the owner's open request for it. */
+async function unlockAddon(
+  client: PoolClient,
+  registries: Registries,
+  admin: PublicAccount,
+  target: Readonly<{ eventId: string; feature: string }>,
+  meta: AuditMeta,
+): Promise<SaveResult> {
+  const { eventId, feature } = target;
+  if (!isGatedFeature(registries, feature)) {
+    return {
+      ok: false,
+      reason: "invalid",
+      issues: [{ path: "feature", message: "is not a gated feature of the app" }],
+    };
+  }
+  const change = await insertEntitlement(client, eventId, feature, admin.id);
+  if (change.kind === "no_event") {
+    return { ok: false, reason: "not_found" };
+  }
+  if (change.kind === "added") {
+    await recordAudit(client, {
+      actor: { type: "admin", id: admin.id },
+      action: "event.addon.unlock",
+      organizerId: change.organizerId,
+      eventId,
+      target: { type: "event", id: eventId },
+      after: { feature },
+      requestId: meta.requestId,
+    });
+  }
+  // Allow on the console's Requests list is this unlock: it closes the owner's open request (T-711b, ADR-545).
+  await closeOpenRequests(client, admin, { eventId, feature }, meta);
+  return { ok: true };
+}
+
 export function createSettingsService(options: SettingsOptions): SettingsService {
   const registries = options.registries ?? REGISTRIES;
   const cacheOptions = {
@@ -371,33 +407,9 @@ export function createSettingsService(options: SettingsOptions): SettingsService
     forget: forgetAll,
 
     unlockFeature: (admin, eventId, feature, meta = {}) =>
-      asAdmin(admin, async (client) => {
-        if (!isGatedFeature(registries, feature)) {
-          return {
-            ok: false,
-            reason: "invalid",
-            issues: [{ path: "feature", message: "is not a gated feature of the app" }],
-          };
-        }
-        const change = await insertEntitlement(client, eventId, feature, admin.id);
-        if (change.kind === "no_event") {
-          return { ok: false, reason: "not_found" };
-        }
-        if (change.kind === "added") {
-          await recordAudit(client, {
-            actor: { type: "admin", id: admin.id },
-            action: "event.addon.unlock",
-            organizerId: change.organizerId,
-            eventId,
-            target: { type: "event", id: eventId },
-            after: { feature },
-            requestId: meta.requestId,
-          });
-        }
-        // Allow on the console's Requests list is this unlock: it closes the owner's open request (T-711b, ADR-545).
-        await closeOpenRequests(client, admin, { eventId, feature }, meta);
-        return { ok: true };
-      }),
+      asAdmin(admin, (client) =>
+        unlockAddon(client, registries, admin, { eventId, feature }, meta),
+      ),
 
     lockFeature: (admin, eventId, feature, meta = {}) =>
       asAdmin(admin, async (client) => {

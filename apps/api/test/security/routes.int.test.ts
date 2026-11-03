@@ -95,7 +95,9 @@ const ROUTES: Readonly<Record<string, string>> = {
   "PUT /v1/organizers/:organizerId/events/:eventId/features/agenda":
     "owner of that organizer only (owner route, walked below); changes only the agenda switch of that event (test/events/branding)",
   "GET /v1/organizers/:organizerId/events/:eventId/features":
-    "owner/editor of that organizer (another organizer's event, even a public one, answers 404); the features the platform leaves on for this organizer with on, off or locked, no player (test/events/feature-layers)",
+    "owner/editor of that organizer (another organizer's event, even a public one, answers 404); the features the platform leaves on for this organizer with on, off or locked, each add-on's latest Ask Questify request (status and time only), no player (test/events/feature-layers)",
+  "POST /v1/organizers/:organizerId/events/:eventId/feature-requests":
+    "owner of that organizer only (owner route, walked below; RQ403 in request_feature for an editor, RQ404 for another organizer's event); records one Ask Questify request per event and add-on (ids, the key and times, no text), a repeat answers the open one; 409 already unlocked, 429 within 24 hours of a decline; 20 an hour per staff account; audited (test/events/feature-layers, test/db/feature-layers-points)",
   "PUT /v1/organizers/:organizerId/events/:eventId/features/:feature":
     "owner of that organizer only (owner route, walked below); one switch of that event for a feature an owner can switch; a switch-on the platform, Questify's override for the organizer or the add-on rule keeps off answers 403 feature_not_allowed and writes nothing (test/events/feature-layers)",
   "PUT /v1/organizers/:organizerId/events/:eventId/branding":
@@ -880,7 +882,7 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/admin/organizers/:organizerId/features":
     "active platform admins only (walked below); read only; the overridable features of one organizer with the platform's switch, the override and the result, no personal data; an unknown organizer the same 404; 60 a minute per admin (test/console/organizer-features)",
   "PUT /v1/admin/organizers/:organizerId/features/:key":
-    "active platform admins only (walked below); one override On or Off for one organizer, the 12 features whose platform rule reaches an event (the table's CHECK too); the policy checks the admin again (app_admin_id); audited with who, before and after; 120 changes an hour per admin (test/console/organizer-features, test/db/feature-layers)",
+    "active platform admins only (walked below); one override On or Off for one organizer, the 16 event-level features (the table's CHECK too); the policy checks the admin again (app_admin_id); audited with who, before and after; 120 changes an hour per admin (test/console/organizer-features, test/db/feature-layers)",
   "DELETE /v1/admin/organizers/:organizerId/features/:key":
     "active platform admins only (walked below); puts one feature back to the platform's switch for the organizer; the policy checks the admin again (app_admin_id); audited; 120 changes an hour per admin (test/console/organizer-features)",
   "GET /v1/admin/message-templates":
@@ -1110,7 +1112,11 @@ const ROUTES: Readonly<Record<string, string>> = {
   "PUT /v1/admin/events/:eventId/limit":
     "active platform admins only (walked below); the definer checks again and audits (test/db/activation)",
   "PUT /v1/admin/events/:eventId/addons/:feature":
-    "active platform admins only (walked below); the settings service and the entitlement policy check the admin (test/settings)",
+    "active platform admins only (walked below); the settings service and the entitlement policy check the admin; closes the event's open Ask Questify request in the same transaction (admin policy), audited; 120 changes an hour per admin (test/settings, test/events/feature-layers)",
+  "GET /v1/admin/feature-requests":
+    "active platform admins only (walked below); read only; open Ask Questify requests whose add-on is still locked, oldest first, 50 a page, with business names only (event and organizer), no person; the policy checks the admin again (app_admin_id); 60 a minute per admin (test/events/feature-layers)",
+  "POST /v1/admin/feature-requests/:requestId/decline":
+    "active platform admins only (walked below); declines one open request (404 when none is open by that id); the policy checks the admin again (app_admin_id); audited; 120 changes an hour per admin (test/events/feature-layers)",
   "DELETE /v1/admin/events/:eventId/addons/:feature":
     "active platform admins only (walked below); the settings service and the entitlement policy check the admin (test/settings)",
 };

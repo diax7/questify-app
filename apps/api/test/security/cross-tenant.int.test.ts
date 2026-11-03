@@ -790,6 +790,8 @@ const OWNED: Readonly<Record<string, Owned>> = {
           sql: "INSERT INTO feature_request (organizer_id, event_id, feature, requested_by) VALUES ($1, $2, 'bigScreen', $3)",
           values: [f.orgB, f.publicEventB, f.staffA],
         }),
+        // Nobody holds INSERT: the owner's door (`request_feature`) is the one way in.
+        forgeRefusedBy: /permission denied/,
       },
     ],
   },

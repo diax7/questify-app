@@ -39,6 +39,10 @@ export type StepProps = Readonly<{
 const eventPages = (props: StepProps): string =>
   `/${props.language}/organizers/${props.organizerId}/events/${props.eventId}`;
 
+/** Where the owner's Ask Questify goes; an editor sees the card's state only (Q-502). */
+const askTargetOf = (props: StepProps) =>
+  props.myRole === "owner" ? { organizerId: props.organizerId, eventId: props.eventId } : undefined;
+
 /** The address of one of the event's pages. */
 const pageOf = (props: StepProps, slug: string): string => `${eventPages(props)}/${slug}`;
 
@@ -116,6 +120,8 @@ function BigScreenCard(props: StepProps) {
       feature="bigScreen"
       unlocked={row.state === "on"}
       eventPages={eventPages(props)}
+      request={row.request}
+      askTarget={askTargetOf(props)}
     />
   );
 }
@@ -185,6 +191,8 @@ function AddonsStep(props: StepProps) {
               feature={row.key}
               unlocked={row.state === "on"}
               eventPages={eventPages(props)}
+              request={row.request}
+              askTarget={askTargetOf(props)}
             />
           ))}
         </Rows>

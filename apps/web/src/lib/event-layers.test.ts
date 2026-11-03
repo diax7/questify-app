@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { addOnRow, addOnRows, isSwitchListed, readEventLayers } from "#src/lib/event-layers.ts";
+import {
+  addOnRow,
+  addOnRows,
+  askButtonOf,
+  askState,
+  isSwitchListed,
+  readEventLayers,
+} from "#src/lib/event-layers.ts";
 
 const LAYERS = {
   features: [
-    { key: "bigScreen", state: "locked", addOn: true },
-    { key: "questRatings", state: "off", addOn: false },
-    { key: "shop", state: "on", addOn: false },
+    { key: "bigScreen", state: "locked", addOn: true, request: null },
+    { key: "questRatings", state: "off", addOn: false, request: null },
+    { key: "shop", state: "on", addOn: false, request: null },
   ],
 };
 
@@ -21,7 +28,7 @@ describe("readEventLayers", () => {
       null,
       {},
       { features: [{ key: "shop", state: "hidden", addOn: false }] },
-      { features: [{ key: "shop", state: "on" }] },
+      { features: [{ key: "shop", state: "on", addOn: false }] },
       { features: [], extra: true },
     ]) {
       expect(readEventLayers(broken), JSON.stringify(broken)).toBeUndefined();
@@ -48,5 +55,41 @@ describe("add-on rows", () => {
     expect(addOnRow(layers, "shop")).toBeUndefined();
     expect(addOnRow(null, "bigScreen")).toBeUndefined();
     expect(addOnRows(null)).toEqual([]);
+  });
+});
+
+describe("askState", () => {
+  const now = Date.parse("2026-11-03T12:00:00.000Z");
+  it("offers Ask Questify with no request, and again after an allowed one was locked", () => {
+    expect(askState(null, now)).toEqual({ kind: "ask" });
+    expect(askState({ status: "allowed", at: "2026-11-01T00:00:00.000Z" }, now)).toEqual({
+      kind: "ask",
+    });
+  });
+
+  it("says Requested while one is open", () => {
+    expect(askState({ status: "open", at: "2026-11-03T11:00:00.000Z" }, now)).toEqual({
+      kind: "requested",
+    });
+  });
+
+  it("says Not approved, with Ask again only 24 hours after the decline", () => {
+    expect(askState({ status: "declined", at: "2026-11-03T00:00:00.000Z" }, now)).toEqual({
+      kind: "declined",
+      askAgainAt: "2026-11-04T00:00:00.000Z",
+    });
+    expect(askState({ status: "declined", at: "2026-11-02T11:59:59.000Z" }, now)).toEqual({
+      kind: "declined",
+      askAgainAt: null,
+    });
+  });
+});
+
+describe("askButtonOf", () => {
+  it("offers Ask Questify, Ask again after the wait, and nothing while requested or waiting", () => {
+    expect(askButtonOf({ kind: "ask" })).toBe("ask");
+    expect(askButtonOf({ kind: "declined", askAgainAt: null })).toBe("askAgain");
+    expect(askButtonOf({ kind: "declined", askAgainAt: "2026-11-04T00:00:00.000Z" })).toBeNull();
+    expect(askButtonOf({ kind: "requested" })).toBeNull();
   });
 });
