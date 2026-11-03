@@ -113,6 +113,8 @@ async function applyFile(
   for (let attempt = 1; ; attempt += 1) {
     await client.query("BEGIN");
     try {
+      // A file that sets no lock timeout of its own never waits on a lock for longer than this (Q-540).
+      await client.query("SET LOCAL lock_timeout = '10s'");
       await client.query(file.sql);
       await client.query("INSERT INTO schema_migration (version, checksum) VALUES ($1, $2)", [
         file.name,
@@ -192,6 +194,7 @@ export async function migrate(
     }
     return { applied, alreadyApplied };
   } finally {
-    await client.query("SELECT pg_advisory_unlock($1)", [LOCK_KEY]);
+    // A lost connection already dropped the session lock; its error must not hide the one that ended the run.
+    await client.query("SELECT pg_advisory_unlock($1)", [LOCK_KEY]).catch(() => undefined);
   }
 }

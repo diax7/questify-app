@@ -13,6 +13,8 @@ import {
   retryDelayMs,
 } from "#src/db/migrate";
 
+const LOCK_TIMEOUT = "SET LOCAL lock_timeout = '10s'";
+
 const MIGRATIONS = join(import.meta.dirname, "..", "..", "migrations");
 
 class SqlError extends Error {
@@ -92,11 +94,13 @@ describe("migrate retry, without a database", () => {
     expect(result.applied).toEqual(["0001_a.sql"]);
     expect(statements.slice(3, -1)).toEqual([
       "BEGIN",
+      LOCK_TIMEOUT,
       sql,
       insert,
       "COMMIT",
       "ROLLBACK",
       "BEGIN",
+      LOCK_TIMEOUT,
       sql,
       insert,
       "COMMIT",

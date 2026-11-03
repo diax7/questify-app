@@ -132,6 +132,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("migrate retries a lock clash",
     expect(counts.rows[0]).toEqual({ ran: 1, first: 1, half: 1, rows: 2 });
   });
 
+  it("gives a file that sets no lock timeout the runner's 10 s, so it times out and retries (Q-540)", async () => {
+    await writeFile(
+      join(dir, "0001_no_timeout.sql"),
+      CLASH_FILE.replace("SET LOCAL lock_timeout = '150ms';\n", ""),
+    );
+    await holder.query("BEGIN; LOCK TABLE contested IN ACCESS EXCLUSIVE MODE");
+    beforeRetry = async () => {
+      await holder.query("ROLLBACK");
+    };
+    const started = Date.now();
+
+    const result = await run();
+
+    expect(result.applied).toEqual(["0001_no_timeout.sql"]);
+    expect(lines).toEqual([
+      "Migration 0001_no_timeout.sql hit a lock clash (SQLSTATE 55P03) on attempt 1 of 4 and was rolled back whole; retrying in 1000 ms.",
+    ]);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(9_500);
+  }, 40_000);
+
   it("retries a real deadlock that aborts the migration, and applies the file once", async () => {
     await migrator.query("CREATE TABLE a (id int); CREATE TABLE b (id int)");
     await writeFile(

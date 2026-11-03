@@ -610,7 +610,7 @@ the client-address count (ADR-113).
   `{applied, alreadyApplied}`); `75` a file lost the clash on all four attempts, rolled back whole and recorded nothing, and
   the files before it stay applied: wait a minute and run the same command again; `1` anything else (a failing statement, an
   edited applied file, a bad file name, no connection, a rollback that also failed): stop and read standard error, do not
-  loop. The deploy loop is therefore `until node /srv/migrate.cjs; do [ $? -eq 75 ] || break; sleep 60; done`; a run that
+  loop. The deploy loop is therefore `n=0; until node /srv/migrate.cjs; do s=$?; [ "$s" -eq 75 ] || exit "$s"; n=$((n+1)); [ "$n" -lt 5 ] || exit 75; sleep 60; done` (a real failure ends it with its own code, and a lock held past five tries ends it with 75); a run that
   exits `0` is done, and one more run shows the newest file under `alreadyApplied`. A rollback that fails (a lost connection
   in the middle of a clash) is exit `1`: look at `schema_migration` and the schema before running again.
 - A deploy on CranL is manual (no webhook): build from the Dockerfile, then check `/healthz` and `/readyz`.
