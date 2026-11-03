@@ -8,6 +8,7 @@ import type { OrganizerPage } from "#src/lib/organizer-page.ts";
 import type { Membership, Suspension } from "#src/lib/staff-api.ts";
 import { AppShell } from "#src/ui/Shell.tsx";
 import { Notice } from "#src/ui/Feedback.tsx";
+import { TextLink } from "#src/ui/Text.tsx";
 
 /**
  * The frame of the organizer pages: the dashboard shell with the organizer's navigation (and the event's pages inside
@@ -23,6 +24,17 @@ export function OrganizerShell({
   event?: Readonly<{ id: string; suspension: Suspension | null }>;
   children: ReactNode;
 }>) {
+  if (page.kind === "support_ended") {
+    const t = translatorFor(page.language);
+    return (
+      <AppShell language={page.language} signedIn>
+        <Notice tone="info" role="status">
+          {t("support.viewEnded")}
+        </Notice>
+        <TextLink href={`/${page.language}/console`}>{t("support.backToConsole")}</TextLink>
+      </AppShell>
+    );
+  }
   if (page.kind === "unavailable") {
     return (
       <AppShell language={page.language} signedIn>
@@ -79,8 +91,10 @@ function OrganizerBanners({
         </Notice>
       )}
       {grant === undefined ? null : (
-        <Notice tone="info" role="note">
-          {t("support.banner", { time: clockOf(grant.expiresAt, language) })}
+        <Notice tone={grant.kind === "view" ? "warning" : "info"} role="note">
+          {t(grant.kind === "view" ? "support.viewBanner" : "support.banner", {
+            time: clockOf(grant.expiresAt, language),
+          })}
         </Notice>
       )}
     </>

@@ -8955,11 +8955,28 @@ export const MESSAGES = {
   "suspend.reactivated": { ar: "أُعيد التفعيل.", en: "Reactivated." },
   "support.title": { ar: "وصول الدعم", en: "Support access" },
   "support.intro": {
-    ar: "تدخل الفعالية محرّرًا لمدة 15 دقيقة. يُسجَّل كل تغيير في سجل Questify، ولا تُبلَّغ الجهة المنظِّمة.",
-    en: "You enter the event as an editor for 15 minutes. Every change is recorded in Questify's log; the organizer is not told.",
+    ar: "«عرض كمنظِّم» يفتح الفعالية للقراءة فقط لمدة 15 دقيقة، ووصول الدعم يتيح التعديل. تُسجَّل كل صفحة وكل تغيير في سجل Questify، ولا تُبلَّغ الجهة المنظِّمة.",
+    en: "View as organizer opens the event read-only for 15 minutes; support access lets you change it. Every page and change is recorded in Questify's log; the organizer is not told.",
   },
+  "support.view": { ar: "عرض كمنظِّم", en: "View as organizer" },
+  "support.viewConfirm": {
+    ar: "عرض {name} كما يراها المنظِّم، للقراءة فقط لمدة 15 دقيقة؟",
+    en: "View {name} as the organizer sees it, read-only, for 15 minutes?",
+  },
+  "support.kindView": { ar: "عرض فقط", en: "View only" },
+  "support.kindEdit": { ar: "مع التعديل", en: "Can change" },
+  "support.withKind": { ar: "{grant} ({kind})", en: "{grant} ({kind})" },
+  "support.viewBanner": {
+    ar: "تعرض هذه الفعالية كدعم Questify للقراءة فقط حتى {time}. تُسجَّل كل صفحة تفتحها في سجل Questify.",
+    en: "You are viewing this event as Questify support, read-only, until {time}. Every page you open is recorded in Questify's log.",
+  },
+  "support.viewEnded": {
+    ar: "انتهى وصول الدعم إلى هذه الجهة المنظِّمة.",
+    en: "This support view has ended.",
+  },
+  "support.backToConsole": { ar: "العودة إلى لوحة Questify", en: "Back to the Questify console" },
   "support.reason": { ar: "سبب الدخول", en: "Why you need access" },
-  "support.open": { ar: "الدخول كدعم", en: "Open as support" },
+  "support.open": { ar: "الدخول كدعم (مع التعديل)", en: "Open support access (can change)" },
   "support.confirm": {
     ar: "الدخول إلى {name} كدعم Questify لمدة 15 دقيقة؟",
     en: "Open {name} as Questify support for 15 minutes?",

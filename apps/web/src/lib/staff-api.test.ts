@@ -95,6 +95,28 @@ describe("fetchMe", () => {
     });
   });
 
+  it("carries each support grant's kind, an unknown kind read as a view (T-712)", async () => {
+    const grant = { grantId: "g", eventId: "e1", expiresAt: "2026-11-03T10:00:00Z" };
+    const seat = {
+      ...ME.memberships[0],
+      role: "editor",
+      eventScope: ["e1", "e2", "e3"],
+      support: [
+        { ...grant, kind: "edit" },
+        { ...grant, eventId: "e2", kind: "view" },
+        { ...grant, eventId: "e3", kind: "owner" },
+      ],
+    };
+    reply(200, { ...ME, memberships: [seat] });
+    expect(await ask()).toMatchObject({
+      me: {
+        memberships: [
+          { support: [{ kind: "edit" }, { eventId: "e2", kind: "view" }, { kind: "view" }] },
+        ],
+      },
+    });
+  });
+
   it("says whether the person is a Questify admin", async () => {
     reply(200, { ...ME, platformRole: "admin" });
     expect(await ask()).toMatchObject({ kind: "signed_in", me: { isAdmin: true } });
