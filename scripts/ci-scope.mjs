@@ -68,7 +68,8 @@ export const AREAS = [
     ["setup"],
   ],
   [/analytics/i, ["analytics"]],
-  [/usage/i, ["console-usage"]],
+  [/(?<!feature-?)usage/i, ["console-usage"]],
+  [/feature-?usage/i, ["console-feature-usage"]],
   [/translation|text-matrix|leave-guard/i, ["console-translations"]],
   [
     /console-?catalog|catalog-?(routes|templates|achievements|level|gem)|console\/catalog/i,

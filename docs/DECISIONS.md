@@ -7366,3 +7366,32 @@ is built against a provider interface and a test double, and sends nothing to a 
 provider (Q-034). Campaigns share the weekly cap per channel with invitations (ADR-534); transactional mail is not counted.
 **Why:** a promotion that shares a mailbox with sign-in codes can get the domain throttled and take sign-in down with it.
 **Trade-offs:** email campaigns wait for an account only Dhia can open; SMS campaigns do not.
+
+## ADR-550 - T-714 the feature usage is one read-only console page beside Usage, for the event-level features
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-714 code review 93; T-714 plan `docs/plans/2026-11-03-t-714-feature-usage.md`; FR-1839).
+**Decision:** `/console/feature-usage` ("Feature usage") lists organizers (name or slug prefix search, keyset pages of 25, at most 50) and, for each, the 16 event-level features: the layer state (On or Off for the organizer, with the cause: "Override: on/off" or "Off for everyone"), the events whose own switch leaves it on, and the events that have content in it. `GET /v1/admin/feature-usage` serves it from one door. The Usage view (T-609, FR-1730) is not changed: it counts players, invitations and alert emails of the 100 newest organizers and has no search. The Questify-wide features (`level: "platform"`) have no organizer and are not listed. Counts only, no personal data, so a read is not audited (as the T-709 doors); the admin is checked again in the door (QE403).
+**Why:** The FR asks for a row per organizer showing a feature off (Cheers off). The organizer page already edits the 12 overridable features one organizer at a time; this page is the cross-organizer read.
+**Trade-offs:** A second usage page in the navigation instead of a tab on the first; the two can be merged when the console gets sub-navigation.
+
+## ADR-551 - T-714 "used" means the event has rows in the feature's own table; ranking is not measured
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-714 code review 93; T-714; FR-1839).
+**Decision:** An event uses a feature when its set-up exists: a session (agenda), a screen paired and not revoked (big screen), a boost, a cheers moment, a community goal, a flash quest, a ticket (help desk), a map, a meet / game / share quest, a live poll, a quest rating, an active reward (shop). Each is an `EXISTS` through an event-id index. The event ranking and today's ranking have no content of their own: the page shows their switch and no "used" figure. A feature the door does not measure is told from one nobody used by the key being absent from `using`.
+**Why:** Existing tables only, no counter and no write in a hot path (as ADR-394). "Has set it up" is what tells an admin who needs help getting started.
+**Trade-offs:** A shop with a reward and no sale is "in use". Counting redemptions, scans or votes (player activity) would walk the ledger and the completion tables; see Q-511.
+
+## ADR-552 - T-714 the door reads an organizer's 200 latest events and the layers are laid over its counts in TypeScript
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-714 code review 93; T-714; migration 0140).
+**Decision:** `console_feature_usage(search, after, page_size, feature_keys)` (definer, `console_admin()` first, revoked from PUBLIC, granted to the API's role) reads, per organizer of the page, its 200 latest events (the Usage view's bound) and answers raw counts: events read, `more` (there are older ones), Questify's overrides, the events that set a switch on and off, the add-on unlocks and the events with content. `featureUsageOrganizer` (shared) lays the platform's switch and the override over them with `platformSwitchOf` and `isOrganizerOverridable` (the Features panel's functions) and counts "on" by `featureLayer`'s rules; a test compares the two over every combination of layers. `feature_keys` (the registry's event-level keys) bounds what the door answers. Migration 0140 also adds `quest_rating (event_id)` (the table had no event index) and a partial `quest (event_id, type)` for share, meet and game quests.
+**Why:** The cost of a page is the page size times 200 times 14 index probes at the worst, whatever an organizer's history; one source of layer rules. Measured on a fixture of 50 organizers with 250 events each (10,000 events read, 140,000 probes, every feature table filled for half the events, the PC shared with other test runs): 1.2 to 2.2 s a call at the page maximum, about half that at the default 25 and far less for real organizers with tens of events. A first version that read the events once per part with correlated subqueries took 5 to 9 s; each part is now aggregated once per organizer and joined back.
+**Trade-offs:** An organizer with more than 200 events is counted over the latest 200, and the card says so. Two small indexes on `quest` and `quest_rating` cost a little on their writes.
+
+## ADR-553 - T-714 the page has its own throttle bucket, 60 reads a minute per admin
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-714 code review 93; T-714).
+**Decision:** The route uses the console's `throttled` helper with a new bucket `console_feature_usage` (60 a minute per admin), so a search or a long scroll on this page never waits behind the health tiles' or the catalog's lock.
+**Why:** The helper keys a lock per bucket; sharing one bucket would queue unrelated pages.
+**Trade-offs:** One more bucket name.
+

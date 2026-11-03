@@ -2274,3 +2274,16 @@ The audience is read through `marketing_audience`, which does not look at device
 phone is counted and gets the center row only (the invitation by push, by contrast, chooses players with a pushable phone).
 **Recommended (developer):** keep it: the player agreed to promotional push, and the center is the record of every message.
 If the count looks too high against real sends, the console can show the pushable share beside it.
+
+## Q-510 - Should the feature usage page filter by feature and state? (T-714, ADR-550)
+
+**Status:** Proposed (developer, 2026-11-03).
+The page lists organizers by name. "Everyone with Cheers off" or "everyone who has the shop on and never used it" would be a filter on a feature and a state, and needs the layer rules in SQL for a keyset page (or a read of every organizer).
+**Recommended (developer):** wait until the list passes a few dozen organizers, then add the filter in the door with a parity test against `featureUsageOrganizer`.
+
+## Q-511 - Should "used" count player activity instead of set-up rows? (T-714, ADR-551)
+
+**Status:** Proposed (developer, 2026-11-03).
+Today "used" is a row in the feature's table (a map, a reward, a ticket). A shop with rewards and no redemption, or a poll nobody voted in, still counts.
+**Recommended (developer):** keep set-up rows for v1; if the team needs "who actually plays with it", add per-event activity counts as a separate, indexed read after the first real events.
+

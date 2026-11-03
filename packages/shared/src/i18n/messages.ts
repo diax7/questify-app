@@ -5954,6 +5954,43 @@ export const MESSAGES = {
     ar: "اللاعبون: {players} · الدعوات المرسلة: {invitations} · تنبيهات البريد: {alerts}",
     en: "Players: {players} · Invitations sent: {invitations} · Alert emails: {alerts}",
   },
+  // The console's feature usage (T-714, FR-1839, ADR-550): which features each organizer has on, and where they are used.
+  "console.featureUsage.title": { ar: "استخدام الميزات", en: "Feature usage" },
+  "console.featureUsage.intro": {
+    ar: "تُعدّ الميزة مستخدَمة في الفعالية حين يكون لها محتوى فيها: خريطة أو جلسة أو مكافأة أو تذكرة أو استطلاع وغيرها. تُحسب أحدث {count} فعالية لكل جهة.",
+    en: "An event uses a feature once it has content in it: a map, a session, a reward, a ticket, a poll and so on. Counts cover each organizer's latest {count} events.",
+  },
+  "console.featureUsage.search": {
+    ar: "اسم الجهة أو معرّفها",
+    en: "Organizer name or slug",
+  },
+  "console.featureUsage.events": {
+    ar: "الفعاليات المحسوبة: {count}",
+    en: "Events counted: {count}",
+  },
+  "console.featureUsage.older": {
+    ar: "لهذه الجهة فعاليات أقدم لا تُحسب.",
+    en: "This organizer has older events that are not counted.",
+  },
+  "console.featureUsage.featuresOn": {
+    ar: "الميزات العاملة: {on} من {total}",
+    en: "Features on: {on} of {total}",
+  },
+  "console.featureUsage.on": { ar: "تعمل", en: "On" },
+  "console.featureUsage.off": { ar: "متوقفة", en: "Off" },
+  "console.featureUsage.line": {
+    ar: "الفعاليات التي تعمل فيها: {on} من {total}",
+    en: "Events with it on: {on} of {total}",
+  },
+  "console.featureUsage.lineAddOn": {
+    ar: "الفعاليات المفعّلة لها: {on} من {total}",
+    en: "Events it is unlocked for: {on} of {total}",
+  },
+  "console.featureUsage.used": {
+    ar: "الفعاليات التي تستخدمها: {used}",
+    en: "Events using it: {used}",
+  },
+  "console.featureUsage.noUse": { ar: "لا فعالية تستخدمها بعد", en: "No event uses it yet" },
   "invCampaign.link": { ar: "الدعوات", en: "Invitations" },
   "invCampaign.title": { ar: "الدعوات", en: "Invitations" },
   "invCampaign.intro": {

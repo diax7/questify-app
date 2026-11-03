@@ -28,7 +28,11 @@ const sessionRowsSchema = z.array(
 );
 
 /** The one answer a read door gives, as the JSON the database built. */
-async function answerOf(client: PoolClient, sql: string, values: unknown[] = []): Promise<unknown> {
+export async function answerOf(
+  client: PoolClient,
+  sql: string,
+  values: unknown[] = [],
+): Promise<unknown> {
   const { rows } = await client.query<{ r: unknown }>(sql, values);
   return rows[0]?.r;
 }

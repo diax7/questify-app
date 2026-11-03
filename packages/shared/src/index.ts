@@ -56,6 +56,22 @@ export {
   platformForOrganizer,
 } from "./switches/layers";
 export type {
+  FeatureUsageOrganizer,
+  FeatureUsagePage,
+  FeatureUsageRaw,
+  FeatureUsageRawOrganizer,
+  FeatureUsageRow,
+} from "./switches/usage";
+export {
+  USAGE_EVENTS_CAP,
+  USAGE_PAGE_DEFAULT,
+  USAGE_PAGE_MAX,
+  eventFeatureKeys,
+  featureUsageOrganizer,
+  featureUsagePageSchema,
+  featureUsageRawSchema,
+} from "./switches/usage";
+export type {
   BannerBody,
   BannerSetting,
   EventMaintenanceBody,

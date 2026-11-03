@@ -65,6 +65,7 @@ export const BUCKETS = {
   consoleSuspend: "console_suspend",
   consoleHealth: "console_health",
   consoleAdmins: "console_admins",
+  consoleFeatureUsage: "console_feature_usage",
   consoleSessionEnd: "console_session_end",
   consoleCatalog: "console_catalog",
   consoleCatalogWrite: "console_catalog_write",
