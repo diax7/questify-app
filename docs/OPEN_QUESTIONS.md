@@ -2478,7 +2478,7 @@ With the collector gone, the closed list (ADR-603) is enforced once, by `safeAtt
 
 ## Q-611 - Staging PostgreSQL backups have never succeeded (T-017)
 
-**Status:** Open (developer, 2026-11-04).
+**Status:** Deferred (Dhia, 2026-11-04: "Later"): asked at the CranL go/no-go, T-811.
 CranL's backup schedule for `questify-db` (created 2026-10-19) is on, daily at 00:28 UTC, keeping 7, but on 2026-11-04 it reported no successful run, no failure, and no kept backup (`last_success_at` and `last_failure_at` empty, `kept_count` 0). Staging holds fake data only, but production will use the same schedule.
 **Recommended (developer):** after the next scheduled run, read `GET /databases/{id}/backups` and the policy again; if still empty, take one manual backup (`POST .../backups`) and ask CranL support why the schedule does not run. Production does not open before one backup is restored on a copy (T-019, T-811).
 
@@ -2490,6 +2490,6 @@ The CranL API cannot read some settings, so the files can set them at create but
 
 ## Q-613 - When may production be created on CranL? (T-017b, ADR-626, ADR-650)
 
-**Status:** Open (developer, 2026-11-04). Needs Dhia: slots on the CranL plan.
+**Status:** Answered (Dhia, 2026-11-04: "Skip the proof"): no scratch environment; production is created at launch from the same RUNBOOK steps.
 `ops/cranl/production.json` declares production (three apps and two databases, daily backups at 03:00 Riyadh time keeping 30, the API sending telemetry to its own monitoring app, Q-582). The account is at its plan's limit of 20 apps and databases, and Dhia capped Questify at three apps and two databases (ADR-626). Creating production, or proving a fresh environment on a scratch copy, needs five free slots.
 **Recommended (developer):** decide whether production is three more apps and two more databases (the cap read per environment) or shares staging's slots; then run T-017b (RUNBOOK "Infrastructure as code on CranL", "A fresh environment").

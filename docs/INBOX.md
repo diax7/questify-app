@@ -818,3 +818,8 @@ Dhia: "No email for now" (alerts only on the Grafana dashboard until a sender ex
 ## 2026-11-03 - At most three apps on CranL -> processed
 
 Dhia: Questify on CranL is at most three apps (the API, the web app and one monitoring app, plus the two databases). Processed into ADR-626 (the monitoring stack merged into one app built from `ops/monitoring/stack/`, Prometheus's own OTLP receiver in place of the collector), Q-582 and Q-585, the RUNBOOK section "Monitoring stack on CranL" and `pnpm monitoring:validate`.
+
+## 2026-11-04 - Monitoring build path, the fresh-environment proof, staging backups -> processed
+
+Dhia (AskUserQuestion): the monitoring app's build path, "Later" (still his dashboard step, Q-610). The fresh-environment proof of T-017b, "Skip the proof": the scripts are accepted as checked against staging only. The staging backups that never ran, "Later": left for the CranL go/no-go (T-811). Processed into TASKS (T-017b closed as skipped by Dhia; a T-811 note), Q-610 (still open), Q-611 (deferred to T-811) and Q-613 (answered).
+
