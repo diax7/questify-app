@@ -7633,3 +7633,31 @@ provider (Q-034). Campaigns share the weekly cap per channel with invitations (A
 **Decision:** the nine background loops (lifecycle, community, souvenir, invitation, rank push, organizer alerts, team alerts, ranking repair, and the push worker) call `trackRun`, which makes each pass a root trace and records its duration, outcome and the time it finished (`questify.tick.last_run`); the push worker, which sleeps inside its pass, calls `markRun`. A loop alert fires when a loop's last run is over five minutes old (30 seconds for the ranking repair). Both database pools report total, idle and waiting connections. Outside calls (Msegat, Gmail, Resend, APNs, FCM) are wrapped where the senders are built in `server.ts`, so no provider code changes.
 **Why:** the loops log only their failures, so a hung loop is otherwise silent; the console health view guesses stopped loops from symptoms. A heartbeat is the direct signal, and wrapping at construction keeps the providers and their tests untouched.
 **Trade-offs:** a loop whose very first pass never ends has no gauge and shows only through its symptoms; a restarted process gets a new `instance` id, so its predecessor's series stays visible for the store's five-minute lookback. The two loop alerts therefore count a series only while its instance still reports (`time() - timestamp(x) < 120`) and measure a stall as the lateness already present at the last report (`timestamp(x) - x`), so a deploy never pages; the guard needs the metric interval under 120 s, and an instance that stops exporting while alive is `QuestifyTelemetryMissing`. The `promtool` tests cover a replaced instance, a replaced stuck instance and a live stuck loop.
+
+## ADR-610 - T-802b the intro's cards are one platform setting with an audited door and no protected card
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-802b code review 93; T-802b). Builds on ADR-593 and the T-713 pattern (ADR-510).
+**Decision:** the order and visibility of the player intro's four cards are the `platform_setting` key `playerIntro` = `{order, hidden}` over the card names `join`, `quests`, `points`, `prizes`. It is written only by `admin_player_intro_save` (migration 0145, the catalog door pattern: `console_admin()`, row lock, CA400 checks, `catalog.player_intro.update|revert` audit, revert through the audit log, CA409 `stale`) and reaches the apps in `GET /v1/config` as `playerIntro: {cards}`, the shown cards in order. No card is protected; the one rule is that at least one stays shown (the console refuses to save otherwise, the shared check and the door refuse too). A newer server's unknown card name is dropped by the app, and a list left empty is the shipped four.
+**Why:** FR-1803 asks for orderable and hideable cards "within the protected items"; the intro has no item that must always show, so the safe floor is "never an empty intro". The T-713 pattern is already reviewed, so the door, the route, the config read and the console editor are reused with no new table or column.
+**Trade-offs:** a fifth card needs a migration (`player_intro_cards()`), an app release (the picture and the texts) and a shared-list change, which is the same cost as a new block on Questify home.
+
+## ADR-611 - T-802b the intro makes one anonymous read of the public configuration
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-802b code review 93; T-802b). Touches FR-1800 and the T-802 compliance note; question Q-570.
+**Decision:** to play the platform's order on a first launch (when the phone holds no copy yet), the intro reads `GET /v1/config` with the plain client, the same call Home makes: no sign-in, no body, nothing about the player. The order is the last working copy at once, else the fresh answer if it arrives within 1.5 seconds, else the shipped four; the first answer wins and later ones only refresh the stored copy, so the cards never change under the player and the intro never waits longer. `intro-guards.test.ts` now allows exactly that one `api.client` use in `IntroScreen.tsx` and still fails on a permission, tracking, push, sign-in or session module, on `api.session` and on `fetch`.
+**Why:** the intro shows once per install, on the first launch, when the phone has no cached configuration; reading only the cache would make the admin's order apply to replays alone, which is not what "an admin hides the third card and the app plays three" means.
+**Trade-offs:** FR-1800 ("no permission, collect no data") is kept in its meaning (nothing about the player leaves the phone, no permission prompt); the T-802 note "no request" in STORE_COMPLIANCE is amended. A first launch with no network plays the shipped four.
+
+## ADR-612 - T-802b the join welcome card takes the join card's place
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-802b code review 93; T-802b). Builds on ADR-591; question Q-571.
+**Decision:** in the intro that follows a join, the card "You're in {event}" stands where the join card stands in the platform's order, and when the platform hid the join card it is not shown either.
+**Why:** it is the join card's variant (ADR-591); an admin who hides how-to-join for everyone has decided a player who just joined does not need it, and "at least one card" still holds.
+**Trade-offs:** a player who joined from a link may not see the event's name in the intro when the join card is hidden; the event screen they land on names it.
+
+## ADR-613 - T-802b the editor is its own console page, `/console/intro`
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-802b code review 93; T-802b).
+**Decision:** "Intro cards" is a console page of its own beside Questify home (a nav item, the same drag, move buttons and show switch rows, Save, Discard and Revert), not a section of `/console/home`.
+**Why:** both pages have a Save and a revert for a separate audited document; on one page the two forms would share button names, notices and the page's browser spec, and each page would have to explain the other.
+**Trade-offs:** one more item in the console navigation.

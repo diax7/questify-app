@@ -2379,6 +2379,7 @@ The task brief for T-802 said "arriving from a join link shows the intro tailore
 **Status:** Proposed (developer, 2026-11-03).
 FR-1803 (Should) asks for it; T-802 delivers the texts through the translation matrix and T-802b would add the platform setting, the door and the console page.
 **Recommended (developer):** build T-802b only if an admin asks to hide a card. The texts can already be reworded, and a card that is wrong for an event type can be reworded instead.
+**Update 2026-11-03:** built as T-802b (ADR-610 to ADR-613, `/console/intro`, migration 0145), queued by the coordinator ahead of any request.
 
 ## Q-552 - Which art should the intro cards carry once the mascot is chosen? (T-802, ADR-594, Q-069)
 
@@ -2403,3 +2404,14 @@ ADR-079 says alerts go to the on-call phone and email and the team is three or m
 **Status:** Proposed (developer, 2026-11-03).
 The numbers in `ops/alerts/questify.rules.yml` come from ADR-074 (99.9%, 1 s at the 95th percentile) and from common practice (burn-rate windows, 20% failure for a provider, 5 minutes for a loop). The ADRs give no target for SMS, push or email delivery.
 **Recommended (developer):** keep them until the load test (NFR-003) and the first real event, then read the month's alert history and the metrics together and change only what paged for no reason or stayed quiet through a problem. Edit the rule, run `promtool test rules`, and note the change in SLO.md.
+
+## Q-570 - May the intro read the public configuration? (T-802b, ADR-611, FR-1800)
+
+**Status:** Decided by the developer (delegated by Dhia, 2026-11-03, after the T-802b code review): yes, the intro makes one `GET /v1/config`; the plain client sends the install id, language and app version, which the server ignores on this route (docs to be corrected, FOLLOWUPS).
+FR-1800 says the intro asks for no permission and collects no data; T-802 went further and made it request-free, with a test that fails on any network use. The platform's card order (FR-1803) cannot reach a first launch from the cache, because the phone has none yet.
+**Recommended (developer):** allow the one anonymous `GET /v1/config` read the app already makes on Home (no sign-in, nothing about the player), bounded to 1.5 seconds, with the shipped four as the fallback. If Dhia wants an intro that makes no request at all, drop `resolveIntroOrder` and play the cached order only (replays) or the shipped four.
+
+## Q-571 - Should the join welcome card still show when an admin hides the join card? (T-802b, ADR-612)
+
+**Status:** Proposed (developer, 2026-11-03).
+**Recommended (developer):** no: it is the join card's variant and follows it. If the event's name should always be said after a join, make the welcome a fixed first card instead and keep the four editable cards after it (`introCards` in `apps/app/src/onboarding/intro-flow.ts` is the one place).

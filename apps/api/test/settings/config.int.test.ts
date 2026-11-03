@@ -3,6 +3,7 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_COMPOSED_LAYOUT,
+  DEFAULT_COMPOSED_PLAYER_INTRO,
   DEFAULT_COMPOSED_QUESTIFY_HOME,
   DEFAULT_TERMS,
   parseComposedConfig,
@@ -115,6 +116,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
         branding: { accent: null },
         layout: DEFAULT_COMPOSED_LAYOUT,
         questifyHome: DEFAULT_COMPOSED_QUESTIFY_HOME,
+        playerIntro: DEFAULT_COMPOSED_PLAYER_INTRO,
         maintenance: null,
         banner: null,
       });

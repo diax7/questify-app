@@ -1395,10 +1395,10 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1797 | F-304 | Should | pending |
 | FR-1798 | F-82 | Must | built (T-802: the language step with the phone's language preselected, then four cards at `/intro`; `apps/app/src/onboarding/*.test.ts`; not run on a phone) |
 | FR-1799 | F-82 | Must | built (T-802: Skip on every step, the last card's Scan an event QR and Explore events; same tests) |
-| FR-1800 | F-82 | Must | built (T-802: no permission, no request, one local flag; `intro-guards.test.ts` scans the intro's sources) |
+| FR-1800 | F-82 | Must | built (T-802: no permission, one local flag; `intro-guards.test.ts` scans the intro's sources; T-802b, ADR-611, Q-570: the one request it may make is the anonymous `GET /v1/config` for the cards' order, nothing about the player) |
 | FR-1801 | F-305 | Must | built (T-802: after the join card and the join, "Go to the event" opens the intro naming the event while it is due, then the event; ADR-590, Q-550) |
 | FR-1802 | F-82, F-306 | Must | built (T-802: `questify.intro` flag, "How Questify works" in Settings replays the four cards) |
-| FR-1803 | F-307 | Should | partly built (T-802: the cards' texts are `onboarding.*` keys in the translation matrix; ordering and hiding the cards are T-802b, ADR-593, Q-551) |
+| FR-1803 | F-307 | Should | built (T-802: the cards' texts are `onboarding.*` keys in the translation matrix; T-802b: an admin orders and hides the four cards at `/console/intro`, at least one stays shown, ADR-610 to ADR-613; `packages/shared/src/layout/player-intro.test.ts`, `apps/api/test/db/console-player-intro.int.test.ts`, `apps/api/test/console/player-intro.int.test.ts`, `apps/app/src/onboarding/intro-order.test.ts`, `apps/web/e2e/console-intro.spec.ts`; not run on a phone) |
 | FR-1804 | F-87 | Should | built (T-305: memory match and slide puzzle; T-305c: catch and tap rush, ADR-216 to ADR-218) |
 | FR-1805 | F-308 | Must | built (T-305, ADR-212) |
 | FR-1806 | F-87 | Should | built (T-305, ADR-213, ADR-215) |

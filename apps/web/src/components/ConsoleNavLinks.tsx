@@ -133,6 +133,19 @@ export function ConsoleHomeLink({
   );
 }
 
+/** This page's item in the console's navigation (T-802b). */
+export function ConsoleIntroLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/intro`} icon="compass" current={current}>
+      {t("console.intro.title")}
+    </NavItem>
+  );
+}
+
 /** This page's item in the console's navigation. */
 export function ConsoleTranslationsLink({
   language,

@@ -3,6 +3,7 @@ import { ACCENT_KEYS, readBranding, type AccentKey } from "#src/design/accents";
 import type { ComposedConfig } from "./compose";
 import type { PlatformSettings, Registries } from "./registry";
 import { readComposedLayout } from "#src/layout/layout";
+import { readComposedPlayerIntro } from "#src/layout/player-intro";
 import { readComposedQuestifyHome } from "#src/layout/questify-home";
 import { readBanner, readNoticeMessage } from "#src/maintenance/notices";
 import { readEventTerms } from "./terms";
@@ -160,6 +161,8 @@ const composedShape = z.object({
   layout: z.unknown().optional().transform(readComposedLayout),
   // Read tolerantly as well: a copy saved before T-713 has none, and a layout that leaves out a protected block is the default.
   questifyHome: z.unknown().optional().transform(readComposedQuestifyHome),
+  // Read tolerantly as well: a copy saved before T-802b has none, and a list with no card this app knows is the shipped intro.
+  playerIntro: z.unknown().optional().transform(readComposedPlayerIntro),
   // Read tolerantly as well: a copy saved before T-703b has neither, and a half message or a backwards window shows nothing.
   maintenance: z
     .unknown()

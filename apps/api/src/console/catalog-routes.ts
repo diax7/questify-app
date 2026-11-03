@@ -91,6 +91,13 @@ const CATALOGS: readonly Catalog[] = [
     id: undefined,
     composed: true,
   },
+  {
+    kind: "player_intro",
+    path: "/catalog/player-intro",
+    names: undefined,
+    id: undefined,
+    composed: true,
+  },
 ];
 
 const confirmation = z.strictObject({ confirmed: z.boolean().optional() });
@@ -207,7 +214,7 @@ function registerXpTableExtras(
 /**
  * The console's catalog editors (T-709b, T-709c, T-709d, FR-1403): event templates, achievements (names and thresholds),
  * level titles, the gem shop, the XP and gem amounts, the XP table with its level rewards, Questify's items, and Questify
- * home's layout (T-713, FR-1838). Each is a
+ * home's layout (T-713, FR-1838) and the player intro's cards (T-802b, FR-1803). Each is a
  * list, a save and a revert, registered inside the console scope whose hook answers 404 to anyone but an active platform
  * admin; every door re-reads the admin in the database. A save is checked against the editor's schema here and again by
  * the door, and is audited with the fields before and after; a revert is the same save with the earlier fields. The XP

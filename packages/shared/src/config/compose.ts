@@ -4,6 +4,11 @@ import { maintenanceFor, type BannerSetting } from "#src/maintenance/notices";
 import { playerDocuments, type LegalInForce } from "#src/legal/documents";
 import { DEFAULT_COMPOSED_LAYOUT, composedLayoutOf, type ComposedLayout } from "#src/layout/layout";
 import {
+  DEFAULT_PLAYER_INTRO,
+  composedPlayerIntroOf,
+  type ComposedPlayerIntro,
+} from "#src/layout/player-intro";
+import {
   DEFAULT_QUESTIFY_HOME,
   composedQuestifyHomeOf,
   type ComposedQuestifyHome,
@@ -40,6 +45,8 @@ export type ComposedConfig = Readonly<{
   layout: ComposedLayout;
   /** Questify home's blocks to show, in order, and its banner (T-713, FR-1838); the same inside an event. */
   questifyHome: ComposedQuestifyHome;
+  /** The player intro's cards to play, in order (T-802b, FR-1803). */
+  playerIntro: ComposedPlayerIntro;
   /** Why play is paused (T-703b, FR-1771): the event's own message, else the platform-wide one; null when play runs. */
   maintenance: LocalizedText | null;
   /** The banner for Questify Home (FR-1772) with its window; the app compares it with its own clock. */
@@ -119,6 +126,7 @@ export function composeConfig(
     tuning: composeTuning(registries, platform),
     ...composeEventLook(event),
     questifyHome: composedQuestifyHomeOf(platform.questifyHome ?? DEFAULT_QUESTIFY_HOME),
+    playerIntro: composedPlayerIntroOf(platform.playerIntro ?? DEFAULT_PLAYER_INTRO),
     maintenance: maintenanceFor(platform.maintenance, event?.id),
     banner: platform.banner ?? null,
   };

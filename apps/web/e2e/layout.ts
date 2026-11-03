@@ -720,6 +720,7 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
     ready: { en: "Layout Fest", ar: "مهرجان التخطيط" },
   },
   consolePage("health", "console.health.title"),
+  consolePage("intro", "console.intro.title"),
   consolePage("home", "console.home.title"),
   consolePage("legal", "console.legal.title"),
   consolePage("messages", "console.messages.title"),

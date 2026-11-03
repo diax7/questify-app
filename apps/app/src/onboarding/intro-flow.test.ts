@@ -1,4 +1,4 @@
-import { MESSAGES } from "@questify/shared";
+import { DEFAULT_COMPOSED_PLAYER_INTRO, MESSAGES, type IntroCardKey } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import {
   afterJoinRoute,
@@ -18,11 +18,14 @@ const textOf = (key: string): Pair => TEXTS[key] ?? { ar: "", en: "" };
 const FIRST: IntroVariant = { kind: "first" };
 const REPLAY: IntroVariant = { kind: "replay" };
 const JOINED: IntroVariant = { kind: "joined", eventId: "evt_1", eventName: "Riyadh Fest" };
+const SHIPPED = DEFAULT_COMPOSED_PLAYER_INTRO.cards;
+const titlesOf = (variant: IntroVariant, order: readonly IntroCardKey[]) =>
+  introCards(variant, order).map((card) => card.title);
 
 describe("the story cards", () => {
   it("are four, in the order of FR-1798, on the first launch and on a replay", () => {
     for (const variant of [FIRST, REPLAY]) {
-      expect(introCards(variant).map((card) => card.title)).toEqual([
+      expect(titlesOf(variant, SHIPPED)).toEqual([
         "onboarding.card1.title",
         "onboarding.card2.title",
         "onboarding.card3.title",
@@ -32,19 +35,19 @@ describe("the story cards", () => {
   });
 
   it("name the event in the first card after a join and keep the other three", () => {
-    const cards = introCards(JOINED);
+    const cards = introCards(JOINED, SHIPPED);
     expect(cards).toHaveLength(4);
     expect(cards[0]).toMatchObject({
       title: "onboarding.joined.title",
       params: { event: "Riyadh Fest" },
     });
-    expect(cards.slice(1)).toEqual(introCards(FIRST).slice(1));
+    expect(cards.slice(1)).toEqual(introCards(FIRST, SHIPPED).slice(1));
   });
 
   it("use texts that exist in both languages, with Western digits and the same placeholders", () => {
     const keys = new Set(
       [FIRST, JOINED].flatMap((variant) =>
-        introCards(variant).flatMap((card) => [card.title, card.body]),
+        introCards(variant, SHIPPED).flatMap((card) => [card.title, card.body]),
       ),
     );
     expect(keys.size).toBe(10);
@@ -58,7 +61,7 @@ describe("the story cards", () => {
   });
 
   it("hold exactly the placeholders the card's params fill, in both languages", () => {
-    const welcome = introCards(JOINED)[0];
+    const welcome = introCards(JOINED, SHIPPED)[0];
     const texts = welcome === undefined ? [] : [textOf(welcome.title), textOf(welcome.body)];
     const names = texts.flatMap((text) =>
       [...text.ar.matchAll(/\{(\w+)\}/g), ...text.en.matchAll(/\{(\w+)\}/g)].map(
@@ -66,6 +69,56 @@ describe("the story cards", () => {
       ),
     );
     expect([...new Set(names)]).toEqual(Object.keys(welcome?.params ?? {}));
+  });
+});
+
+describe("the story cards in the platform's order (T-802b, FR-1803)", () => {
+  it("play in the order given, so a reorder reaches every variant", () => {
+    const order = ["prizes", "points", "quests", "join"] as const;
+    for (const variant of [FIRST, REPLAY]) {
+      expect(titlesOf(variant, order)).toEqual([
+        "onboarding.card4.title",
+        "onboarding.card3.title",
+        "onboarding.card2.title",
+        "onboarding.card1.title",
+      ]);
+    }
+  });
+
+  it("play three cards when the platform hid one", () => {
+    expect(titlesOf(FIRST, ["join", "quests", "prizes"])).toEqual([
+      "onboarding.card1.title",
+      "onboarding.card2.title",
+      "onboarding.card4.title",
+    ]);
+  });
+
+  it("play a single card when the platform left one", () => {
+    expect(titlesOf(REPLAY, ["points"])).toEqual(["onboarding.card3.title"]);
+  });
+
+  it("put the event's welcome where the join card stands", () => {
+    expect(titlesOf(JOINED, ["quests", "join", "prizes"])).toEqual([
+      "onboarding.card2.title",
+      "onboarding.joined.title",
+      "onboarding.card4.title",
+    ]);
+  });
+
+  it("leave out the welcome when the platform hid the join card", () => {
+    expect(titlesOf(JOINED, ["quests", "points", "prizes"])).toEqual([
+      "onboarding.card2.title",
+      "onboarding.card3.title",
+      "onboarding.card4.title",
+    ]);
+  });
+
+  it("give every card of the shared list its own title, body and picture", () => {
+    const cards = introCards(FIRST, SHIPPED);
+    expect(cards).toHaveLength(SHIPPED.length);
+    expect(new Set(cards.map((card) => card.title)).size).toBe(SHIPPED.length);
+    expect(new Set(cards.map((card) => card.body)).size).toBe(SHIPPED.length);
+    expect(new Set(cards.map((card) => card.art)).size).toBe(SHIPPED.length);
   });
 });
 

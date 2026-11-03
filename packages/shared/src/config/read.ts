@@ -1,4 +1,5 @@
 import type { LocalizedText } from "#src/errors";
+import { readPlayerIntro } from "#src/layout/player-intro";
 import { readQuestifyHome } from "#src/layout/questify-home";
 import { readBanner, readMaintenance } from "#src/maintenance/notices";
 import type { PlatformFeatureSetting, PlatformSettings } from "./registry";
@@ -30,6 +31,21 @@ function readFeature(value: unknown): PlatformFeatureSetting {
   };
 }
 
+/** The two screen layouts the platform stores: Questify home's (T-713) and the player intro's cards (T-802b). */
+function readPlatformLayouts(stored: {
+  questifyHome?: unknown;
+  playerIntro?: unknown;
+}): Pick<PlatformSettings, "questifyHome" | "playerIntro"> {
+  return {
+    ...(stored.questifyHome === undefined
+      ? {}
+      : { questifyHome: readQuestifyHome(stored.questifyHome) }),
+    ...(stored.playerIntro === undefined
+      ? {}
+      : { playerIntro: readPlayerIntro(stored.playerIntro) }),
+  };
+}
+
 /**
  * Reads stored platform settings tolerantly: whatever is well formed is kept and the rest is dropped, so one
  * damaged value (a manual edit, an older shape) can never stop the app from getting a configuration.
@@ -39,6 +55,7 @@ export function readPlatformSettings(stored: {
   features?: unknown;
   tuning?: unknown;
   questifyHome?: unknown;
+  playerIntro?: unknown;
   maintenance?: unknown;
   banner?: unknown;
 }): PlatformSettings {
@@ -58,9 +75,7 @@ export function readPlatformSettings(stored: {
   return {
     ...(features === undefined ? {} : { features }),
     ...(tuning === undefined ? {} : { tuning }),
-    ...(stored.questifyHome === undefined
-      ? {}
-      : { questifyHome: readQuestifyHome(stored.questifyHome) }),
+    ...readPlatformLayouts(stored),
     ...(stored.maintenance === undefined
       ? {}
       : { maintenance: readMaintenance(stored.maintenance) }),

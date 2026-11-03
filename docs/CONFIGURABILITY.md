@@ -427,3 +427,16 @@ steps of FR-1846. The add-on cards are the registry's gated features, locked unt
   (ADR-512). Pictures wait for photo storage (Q-149).
 - **Saving:** one audited door, reverted through the audit log; a save clears the settings cache. The app draws the last
   working copy first and the fresh one after; a missing or damaged layout is the order the screen always had (ADR-514).
+
+## As built (T-802b): the player intro's cards
+
+- **Where it lives:** `platform_setting` key `playerIntro`, `{order, hidden}`, composed into `GET /v1/config` as
+  `playerIntro: {cards}` (the shown cards in order; ADR-610). It is the platform's, not an event's.
+- **What can move:** four cards (`join`, `quests`, `points`, `prizes`) in the console at `/console/intro`. None is always shown;
+  at least one stays shown (the console, the shared check and the database door all refuse a layout that hides every card).
+  The cards' words are the `onboarding.*` texts, edited in App texts (T-702).
+- **In the app:** the intro plays the last working copy's order at once, else the fresh configuration if it arrives within 1.5
+  seconds, else the shipped four, and keeps that order for the whole run (ADR-611). A name the app does not know is skipped; the
+  language step and the endings are not cards and are not affected. After a join, "You're in {event}" stands where the join card
+  stands and is hidden with it (ADR-612).
+- **Saving:** one audited door, reverted through the audit log; a save clears the settings cache.

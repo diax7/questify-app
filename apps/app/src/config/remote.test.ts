@@ -14,7 +14,7 @@ import {
   consentVersions,
   loadConfig,
   loadEventConfig,
-  loadHomeConfig,
+  loadPlatformConfig,
   signupVersions,
 } from "#src/config/remote.ts";
 
@@ -263,7 +263,7 @@ describe("loadEventConfig", () => {
   });
 });
 
-describe("loadHomeConfig (T-713)", () => {
+describe("loadPlatformConfig (T-713)", () => {
   const moved: ComposedQuestifyHome = {
     blocks: [...QUESTIFY_HOME_KEYS].toReversed(),
     banner: [
@@ -280,7 +280,7 @@ describe("loadHomeConfig (T-713)", () => {
     const shown: ComposedQuestifyHome[] = [];
     const fresh = { ...moved, blocks: QUESTIFY_HOME_KEYS };
     const { client, calls } = fake([ok({ ...CONFIG, questifyHome: fresh }, '"h2"')]);
-    await loadHomeConfig({ client, store }, (config) => shown.push(config.questifyHome));
+    await loadPlatformConfig({ client, store }, (config) => shown.push(config.questifyHome));
     expect(shown).toStrictEqual([moved, fresh]);
     expect(calls[0]?.path).toBe("/v1/config");
     expect(calls[0]?.headers).toEqual({ "if-none-match": '"h1"' });
@@ -290,13 +290,13 @@ describe("loadHomeConfig (T-713)", () => {
     const store = memoryStore({ etag: '"h1"', body: { ...CONFIG, questifyHome: moved } });
     const shown: ComposedQuestifyHome[] = [];
     const client = fake([ok({ nonsense: true })]).client;
-    await loadHomeConfig({ client, store }, (config) => shown.push(config.questifyHome));
+    await loadPlatformConfig({ client, store }, (config) => shown.push(config.questifyHome));
     expect(shown).toStrictEqual([moved, moved]);
   });
 
   it("shows nothing with no copy and no answer, so Home keeps the order it always had", async () => {
     const shown: ComposedQuestifyHome[] = [];
-    await loadHomeConfig({ client: fake([]).client, store: memoryStore() }, (config) =>
+    await loadPlatformConfig({ client: fake([]).client, store: memoryStore() }, (config) =>
       shown.push(config.questifyHome),
     );
     expect(shown).toStrictEqual([]);
@@ -311,7 +311,7 @@ describe("loadHomeConfig (T-713)", () => {
     for (const body of bodies) {
       const shown: ComposedQuestifyHome[] = [];
       const store = memoryStore({ etag: null, body });
-      await loadHomeConfig({ client: fake([]).client, store }, (config) =>
+      await loadPlatformConfig({ client: fake([]).client, store }, (config) =>
         shown.push(config.questifyHome),
       );
       expect(shown.at(-1)).toStrictEqual(DEFAULT_COMPOSED_QUESTIFY_HOME);

@@ -1,6 +1,7 @@
 import type { Branding } from "#src/design/accents";
 import type { LocalizedText } from "#src/errors";
 import type { EventLayout } from "#src/layout/layout";
+import type { PlayerIntro } from "#src/layout/player-intro";
 import type { QuestifyHome } from "#src/layout/questify-home";
 import type { EventTerms } from "./terms";
 import type { EventTexts } from "./texts";
@@ -45,6 +46,8 @@ export type PlatformSettings = Readonly<{
   tuning?: Readonly<Record<string, number>> | undefined;
   /** Questify home's blocks and banner (T-713); the default layout while none is stored. */
   questifyHome?: QuestifyHome | undefined;
+  /** The player intro cards' order and visibility (T-802b); the shipped order while none is stored. */
+  playerIntro?: PlayerIntro | undefined;
   /** Maintenance mode (T-703b, FR-1771): the messages that pause play, for every event or single ones. */
   maintenance?: MaintenanceSettings | undefined;
   /** The banner scheduled for Questify Home (T-703b, FR-1772). */

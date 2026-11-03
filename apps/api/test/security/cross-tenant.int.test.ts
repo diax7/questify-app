@@ -2090,6 +2090,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         "SELECT admin_home_layout_save('{}', NULL, gen_random_uuid())",
         "SELECT admin_level_titles()",
         "SELECT admin_level_titles_save('{}', NULL, gen_random_uuid())",
+        "SELECT admin_player_intro()",
+        "SELECT admin_player_intro_save('{}', NULL, gen_random_uuid())",
         "SELECT admin_shop_items()",
         "SELECT admin_shop_item_save('shop-map-reader', '{}', NULL, gen_random_uuid())",
       ]) {
