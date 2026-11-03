@@ -2388,13 +2388,13 @@ The cards use the app's existing 3D icons. ADR-096 asked for the mascot with ani
 
 ## Q-560 - Where does the API's telemetry go, and who runs the store? (T-018, ADR-600)
 
-**Status:** Proposed (developer, 2026-11-03). Needs Dhia only for the account or the machine.
+**Status:** Decided by Dhia (2026-11-03, AskUserQuestion): CranL `riyadh-1` — a collector, a Prometheus-compatible store and Grafana as CranL apps, data stays in Saudi Arabia; built in T-018b.
 The API sends metrics and traces over OTLP/HTTP when `TELEMETRY_EXPORTER=otlp`, and nothing until then. Telemetry carries no personal data (ADR-603), so it could go anywhere, but the platform keeps data in Saudi Arabia by default.
 **Recommended (developer):** one small CranL service in `riyadh-1` running the OpenTelemetry Collector with a Prometheus-compatible store (VictoriaMetrics) and its rule evaluator, plus Grafana for dashboards; the API's `OTEL_EXPORTER_OTLP_ENDPOINT` points at it over the private network. It costs one small instance, keeps everything in the region, and takes the rules file as it is. A hosted store (Grafana Cloud) is the alternative if running one more service is not wanted; nothing in the API changes. Built in T-018b.
 
 ## Q-561 - Who is paged, by what, and what watches from outside? (T-018, ADR-600, ADR-604)
 
-**Status:** Proposed (developer, 2026-11-03). Needs Dhia: the people, the phone numbers and an account.
+**Status:** Decided by Dhia (2026-11-03, AskUserQuestion): alerts go to Dhia by email (the sending address for now) until there is an on-call team; built in T-018b.
 ADR-079 says alerts go to the on-call phone and email and the team is three or more people. The alert rules mark each alert `page` or `warning`. A monitor on the same machine as the API cannot report that machine's death, and the server's own count cannot see a broken certificate or DNS record.
 **Recommended (developer):** Alertmanager (or the store's own routing) sends `page` alerts to email and a phone push or SMS to the on-call person of the week and `warning` alerts to email; an outside uptime check of `/readyz` from two places (a free tier of an uptime service is enough) pages independently of our own stack. Who is on call, and the numbers, are Dhia's to give. Built in T-018b.
 
