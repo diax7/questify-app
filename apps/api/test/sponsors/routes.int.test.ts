@@ -167,7 +167,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sponsors over HTTP", () => {
       ).toEqual([422, "invalid_sponsor"]);
     }
     const badKind = await team("PUT", base() + "/sponsor-tags", {
-      kind: "souvenir",
+      kind: "badge",
       targetId: randomUUID(),
       sponsorId: null,
     });
@@ -211,6 +211,64 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sponsors over HTTP", () => {
     });
     expect(answer.body).not.toContain(hidden);
     expect(answer.body).not.toMatch(/player|enrollment|email|phone/i);
+  });
+
+  it("tags a souvenir over the same route (T-507c), for the team only, and tells no player", async () => {
+    const solo = await fixture.newEvent({ phase: "live" });
+    const soloPlayer = await fixture.newPlayer();
+    await fixture.join(solo, soloPlayer);
+    const sponsor = await team("POST", base(solo) + "/sponsors", { nameEn: "Gala", tier: "gold" });
+    const sponsorId = sponsor.json<Sponsor>().id;
+    const made = await team("POST", base(solo) + "/souvenirs", {
+      kind: "title",
+      name: { ar: "لقب الحفل", en: "Gala title" },
+      visualKey: null,
+      audience: "joined",
+    });
+    expect(made.statusCode).toBe(201);
+    const rule = made.json<{ rules: { id: string }[] }>().rules[0]?.id ?? "";
+    const tag = (sponsorTo: string | null, session = cookie, kind = "souvenir", id = rule) =>
+      team(
+        "PUT",
+        base(solo) + "/sponsor-tags",
+        { kind, targetId: id, sponsorId: sponsorTo },
+        session,
+      );
+
+    const tagged = await tag(sponsorId, editorCookie);
+    expect(tagged.statusCode).toBe(200);
+    expect(
+      tagged.json<{ sponsors: Sponsor[] }>().sponsors.find((row) => row.id === sponsorId)?.tags,
+    ).toEqual([{ kind: "souvenir", targetId: rule }]);
+    const listed = await team("GET", base(solo) + "/sponsors");
+    expect(listed.json<{ sponsors: Sponsor[] }>().sponsors[0]?.tags).toEqual([
+      { kind: "souvenir", targetId: rule },
+    ]);
+
+    expect(codeOf(await tag(sponsorId, cookie, "badge"))).toEqual([422, "invalid_sponsor"]);
+    expect((await tag(sponsorId, cookie, "souvenir", randomUUID())).statusCode).toBe(404);
+    for (const session of [otherCookie, limitedCookie, viewerCookie])
+      expect((await tag(sponsorId, session)).statusCode).toBe(404);
+    const signedOut = await test.app.inject({
+      method: "PUT",
+      url: base(solo) + "/sponsor-tags",
+      headers: { "idempotency-key": randomUUID() },
+      payload: { kind: "souvenir", targetId: rule, sponsorId },
+    });
+    expect([401, 403]).toContain(signedOut.statusCode);
+    expect((await team("GET", base(solo) + "/sponsors")).body).toContain(rule);
+
+    const soloToken = await bearer(soloPlayer);
+    const seen = await asPlayer("/v1/events/" + solo + "/sponsors", soloToken);
+    expect(seen.statusCode).toBe(200);
+    expect(seen.json<{ tags: unknown[] }>().tags).toEqual([]);
+    expect(seen.body).not.toContain(rule);
+
+    expect((await tag(null)).statusCode).toBe(200);
+    expect(
+      (await team("GET", base(solo) + "/sponsors")).json<{ sponsors: Sponsor[] }>().sponsors[0]
+        ?.tags,
+    ).toEqual([]);
   });
 
   it("answers a stranger and a signed-out caller, and sends no team data to a player", async () => {

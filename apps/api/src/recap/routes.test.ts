@@ -15,6 +15,12 @@ const LANTERN = {
   kind: "frame",
   name: { ar: "فانوس", en: "Lantern" },
   visualKey: null,
+  presentedBy: null,
+};
+const SPONSORED = {
+  ...LANTERN,
+  id: "souvenir-sponsored",
+  presentedBy: { name: { ar: "الراعي", en: "Acme" }, tier: "gold" },
 };
 
 const row = (fields: Partial<Record<keyof RecapRow, unknown>> = {}): RecapRow =>
@@ -69,6 +75,20 @@ describe("recapOf", () => {
         souvenirs: [LANTERN],
       },
     });
+  });
+
+  it("keeps the sponsor a souvenir is presented by, and drops anything else a row carries", () => {
+    const answer = recapOf(
+      EVENT,
+      row({ souvenirs: [SPONSORED, { ...LANTERN, rule: "r", sponsorId: "s" }] }),
+    );
+    expect(answer).toMatchObject({ kind: "recap", recap: { souvenirs: [SPONSORED, LANTERN] } });
+    expect(JSON.stringify(answer)).not.toContain("sponsorId");
+  });
+
+  it("refuses a souvenir whose sponsor has no tier", () => {
+    const broken = { ...SPONSORED, presentedBy: { name: { ar: "ا", en: "A" } } };
+    expect(() => recapOf(EVENT, row({ souvenirs: [broken] }))).toThrow();
   });
 
   it("gives no place while results are pending or for an unranked member", () => {

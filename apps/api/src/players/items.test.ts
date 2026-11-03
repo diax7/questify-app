@@ -18,6 +18,7 @@ const levelRow = (n: number) => ({
   source_event: null,
   seen: n % 2 === 0,
   source: "level",
+  presented_by: null,
 });
 
 /** Reads the locker from rows the database "returns", keeping the statement's values. */
@@ -134,7 +135,32 @@ describe("readLocker", () => {
       undefined,
       5,
     );
-    expect(page.items[0]?.source).toEqual({ kind: "event", event });
+    expect(page.items[0]?.source).toEqual({ kind: "event", event, presentedBy: null });
+  });
+
+  it("carries the sponsor of a tagged souvenir (T-507c) and no sponsor for level and shop entries", async () => {
+    const event = { id: EVENT_ID, name: { ar: "مهرجان", en: "Fest" } };
+    const presentedBy = { name: { ar: "الراعي", en: "Acme" }, tier: "gold" };
+    const { page } = await lockerOf(
+      [
+        {
+          ...levelRow(3),
+          source_level: null,
+          source_event: event,
+          source: "souvenir",
+          presented_by: presentedBy,
+        },
+        levelRow(2),
+        { ...levelRow(4), source_level: null, source_event: null, source: "shop" },
+      ],
+      undefined,
+      5,
+    );
+    expect(page.items.map((entry) => entry.source)).toEqual([
+      { kind: "event", event, presentedBy },
+      { kind: "level", level: 2 },
+      { kind: "shop" },
+    ]);
   });
 
   it("keeps entries got in the gem shop as a shop source (T-404)", async () => {

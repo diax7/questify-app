@@ -70,6 +70,7 @@ describe("profile client contracts", () => {
         id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
         name: { ar: "فعالية خاصة", en: "Private event" },
       },
+      presentedBy: { name: { ar: "الراعي", en: "Acme" }, tier: "gold" },
     };
     const entry = {
       item: { ...item, id: "souvenir-a" },
@@ -85,9 +86,17 @@ describe("profile client contracts", () => {
     );
     expect(page?.items.map((row) => row.source.kind)).toEqual(["event", "level"]);
     expect(page?.items[0]?.earnedAt).toBe(entry.earnedAt);
+    expect(page?.items[0]?.source).toEqual(source);
+    const untagged = { ...entry, source: { ...source, presentedBy: null } };
+    expect(
+      (await lockerPage(session({ items: [untagged], nextCursor: null })))?.items[0]?.source,
+    ).toEqual({ ...source, presentedBy: null });
     for (const bad of [
       { kind: "event" },
       { kind: "event", event: { ...source.event, id: "bad" } },
+      { kind: "event", event: source.event },
+      { ...source, presentedBy: { name: { ar: "ا", en: "A" }, tier: "diamond" } },
+      { ...source, presentedBy: { name: { ar: "ا" }, tier: "gold" } },
       { kind: "unknown" },
     ]) {
       expect(

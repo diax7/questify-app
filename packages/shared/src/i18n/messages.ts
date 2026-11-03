@@ -7202,6 +7202,7 @@ export const MESSAGES = {
   "sponsors.tags.quests": { ar: "{questMany}", en: "{questCap}" },
   "sponsors.tags.categories": { ar: "{categoryMany}", en: "{categoryCap}" },
   "sponsors.tags.rewards": { ar: "الجوائز", en: "Rewards" },
+  "sponsors.tags.souvenirs": { ar: "التذكارات", en: "Souvenirs" },
   "sponsors.tags.none": { ar: "لا عناصر للربط بعد.", en: "Nothing to tag yet." },
   "sponsors.tags.current": { ar: "حاليًا: {sponsor}", en: "Now: {sponsor}" },
   "sponsors.tags.saved": { ar: "تم حفظ الربط.", en: "Tag saved." },
@@ -7758,6 +7759,7 @@ export const MESSAGES = {
   "analytics.group.participation": { ar: "المشاركة", en: "Participation" },
   "analytics.group.quests": { ar: "{questCap} و{categoryCap}", en: "{questCap} and {categoryCap}" },
   "analytics.group.rewards": { ar: "الجوائز", en: "Rewards" },
+  "analytics.group.souvenirs": { ar: "التذكارات", en: "Souvenirs" },
   "analytics.joined": { ar: "المنضمّون", en: "Joined" },
   "analytics.active": { ar: "النشطون", en: "Active" },
   "analytics.activeHint": {
@@ -7887,6 +7889,7 @@ export const MESSAGES = {
   "exports.csv.totals": { ar: "الإجماليات", en: "Totals" },
   "exports.csv.players": { ar: "اللاعبون", en: "Players" },
   "exports.csv.redeemed": { ar: "المستبدَل", en: "Redeemed" },
+  "exports.csv.souvenir": { ar: "التذكار", en: "Souvenir" },
   "report.title": { ar: "تقرير الفعالية", en: "Event report" },
   "report.print": { ar: "طباعة أو حفظ PDF", en: "Print or save as PDF" },
   "report.printFailed": {

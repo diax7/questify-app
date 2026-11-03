@@ -164,7 +164,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sponsors (database)", () => {
     expect(await refusal(tag("reward", foreignReward, sponsor))).toBe("SO404");
     expect(await refusal(tag("quest", await makeQuest(), foreignSponsor))).toBe("SO404");
     expect(await refusal(tag("quest", randomUUID(), sponsor))).toBe("SO404");
-    expect(await refusal(tag("souvenir", randomUUID(), sponsor))).toBe("PS422:kind");
+    expect(await refusal(tag("souvenir", randomUUID(), sponsor))).toBe("SO404");
+    expect(await refusal(tag("badge", randomUUID(), sponsor))).toBe("PS422:kind");
     const removed = await makeReward();
     await f.owner("UPDATE reward SET status = 'removed' WHERE id = $1", [removed]);
     expect(await refusal(tag("reward", removed, sponsor))).toBe("SO404");
@@ -358,6 +359,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sponsors (database)", () => {
       "reward_id",
       "created_by",
       "created_at",
+      "souvenir_id",
     ]);
   });
 });

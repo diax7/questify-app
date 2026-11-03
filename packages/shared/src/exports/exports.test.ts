@@ -140,6 +140,10 @@ describe("the sponsor file", () => {
         quests: [{ id: ID, title: { ar: null, en: "Stage" }, players: 12 }],
         categories: [],
         rewards: [],
+        souvenirs: [
+          { id: ID, name: { ar: null, en: "Gold frame" }, earned: 30 },
+          { id: ID, name: { ar: null, en: "Rare title" }, earned: 2 },
+        ],
       }),
       "en",
       english,
@@ -148,6 +152,8 @@ describe("the sponsor file", () => {
     expect(rows[2]).toEqual(["Totals", "", "Completions", 20]);
     expect(rows[3]).toEqual(["Totals", "", "Redemptions", 0]);
     expect(rows[4]).toEqual(["Quest", "Stage", "Players", 12]);
+    expect(rows[5]).toEqual(["Souvenir", "Gold frame", "Players", 30]);
+    expect(rows[6]).toEqual(["Souvenir", "Rare title", "Players", "Fewer than 5"]);
     expect(JSON.stringify(rows)).not.toMatch(/username/i);
   });
 });

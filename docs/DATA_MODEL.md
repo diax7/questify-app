@@ -588,7 +588,8 @@ quest's type (QR version, typed code), and the cap, and writes the completion an
   a rule names answers 409 souvenir_data; a category a rule names or a quest frozen as a target answers 409
   souvenir_in_use. The enqueue triggers are named `enqueue_souvenir_on_*` so they fire before `mark_ranking_on_*`.
 - Only own locker joins source event names. T-708 must integrate earned provenance into future authorized exports and
-  decide transient-work disclosure/retention; no export assembly is built here. T-507c later attaches sponsor metadata.
+  decide transient-work disclosure/retention; no export assembly is built here. T-507c (0143) attaches the sponsor to the owner's locker and recap
+  only, through `sponsor_tag` (not the export: the sponsor is the organizer's label, not the player's data).
 
 ### reward, reward_code, redemption
 Built in migrations 0024 (T-201, T-202; ADR-133), 0025 (T-219, T-203; ADR-134 to ADR-136) and 0029 (T-206; ADR-150,
@@ -1585,9 +1586,14 @@ API's role alone: counts of events, players (enrollments not pending or declined
   updated_at)`, composite FK to the event with ON DELETE CASCADE. At most 100 per event (the door counts under the event's sponsor lock).
   No contact, link or player column (FR-1304): a database test holds the column list. The logo and banner columns are T-507b (they need the
   storage bucket of Q-149).
-- `sponsor_tag(id, organizer_id, event_id, sponsor_id, kind quest|category|reward, quest_id, category_id, reward_id, created_by/at)`:
-  same-event composite keys to the sponsor, the quest, the category and the reward, all ON DELETE CASCADE; `sponsor_tag_shape` allows
-  exactly the column of its kind; a unique index per kind gives an item one sponsor. Souvenirs are T-507c.
+- `sponsor_tag(id, organizer_id, event_id, sponsor_id, kind quest|category|reward|souvenir, quest_id, category_id, reward_id, souvenir_id,
+  created_by/at)`: same-event composite keys to the sponsor, the quest, the category, the reward and (migration 0143, T-507c) the
+  souvenir rule `souvenir_rule (id, event_id)`, all ON DELETE CASCADE (an active or stopped rule is never deleted, so only a draft takes
+  its tag); `sponsor_tag_shape` allows exactly the column of its kind; a unique index per kind gives an item one sponsor. The rule, its
+  frozen grant identity, the receipts and the recipients' provenance are untouched. `souvenir_presented_by(rule)` (internal, no grant)
+  gives `{name, tier}` to `own_locker` (`presented_by`) and `event_recap` (`presentedBy`), the only two reads of a souvenir's sponsor;
+  `sponsor_tag_shown` answers false for it, so `member_sponsors` never lists it; `event_copy_extras` skips it; `analytics_sponsor`
+  lists the sponsor's non-draft souvenirs with the receipts count. The tag holds no player: no erasure step, no catalog entry.
 - Forced RLS and no grant on both tables; every function is closed to PUBLIC, and only six doors are granted to the API role
   (`sponsor_authorize`, `sponsor_list`, `sponsor_save`, `sponsor_delete`, `sponsor_tag_set`, `member_sponsors`). The internals
   `sponsor_team_item`, `sponsor_team_list`, `sponsor_tag_target`, `sponsor_tier_rank`, `sponsor_tag_shown` (a member sees a tag only on a quest

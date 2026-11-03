@@ -1,4 +1,4 @@
-import type { ColorRole, MemberSponsor, SponsorTier, Theme } from "@questify/shared";
+import type { ColorRole, PresentedBySponsor, SponsorTier, Theme } from "@questify/shared";
 import { View } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -18,7 +18,7 @@ const TIER_COLOR: Readonly<Record<SponsorTier, ColorRole>> = {
  * A sponsor's mark: its first letter in a ring of its tier's colour. It stands where the sponsor's logo will go once
  * logos can be uploaded (T-507b); it is decoration, the name beside it carries the meaning.
  */
-export function SponsorMark({ sponsor }: Readonly<{ sponsor: MemberSponsor }>) {
+export function SponsorMark({ sponsor }: Readonly<{ sponsor: PresentedBySponsor }>) {
   const { language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   const { theme } = useTheme();
@@ -34,8 +34,11 @@ export function SponsorMark({ sponsor }: Readonly<{ sponsor: MemberSponsor }>) {
   );
 }
 
-/** "Presented by {sponsor}" with the sponsor's mark, on a quest, a category or a reward that has one (FR-1303). */
-export function PresentedBy({ sponsor }: Readonly<{ sponsor: MemberSponsor | undefined }>) {
+/**
+ * "Presented by {sponsor}" with the sponsor's mark, on a quest, a category, a reward or a souvenir that has one
+ * (FR-1303).
+ */
+export function PresentedBy({ sponsor }: Readonly<{ sponsor: PresentedBySponsor | undefined }>) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   if (sponsor === undefined) return null;

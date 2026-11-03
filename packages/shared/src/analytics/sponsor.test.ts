@@ -4,6 +4,7 @@ import {
   MIN_GROUP_SIZE,
   groupCount,
   groupParts,
+  sponsorRawSchema,
   sponsorTotals,
   sponsorTotalsSchema,
   type SponsorRaw,
@@ -53,6 +54,11 @@ describe("sponsorTotals", () => {
     ],
     categories: [{ id: ID, name: text("Hall"), players: 0 }],
     rewards: [{ id: ID, name: text("Mug"), redeemed: 0 }],
+    souvenirs: [
+      { id: ID, name: text("Gold frame"), earned: 3 },
+      { id: ID, name: text("Title"), earned: 40 },
+      { id: ID, name: text("Unclaimed"), earned: 0 },
+    ],
   };
 
   it("leaves out each count of one to four and keeps the rest, the sponsor name included", () => {
@@ -61,6 +67,17 @@ describe("sponsorTotals", () => {
     expect(totals.quests.map((quest) => quest.players)).toEqual([null, 5]);
     expect(totals.categories[0]?.players).toBe(0);
     expect(totals.sponsor.name.en).toBe("Acme");
+  });
+
+  it("floors each souvenir's count on its own, because no total is shown beside them (T-507c)", () => {
+    expect(sponsorTotals(raw).souvenirs.map((souvenir) => souvenir.earned)).toEqual([null, 40, 0]);
+  });
+
+  it("refuses a database answer without the souvenirs, or with a player in one", () => {
+    const { souvenirs: _souvenirs, ...without } = raw;
+    expect(sponsorRawSchema.safeParse(without).success).toBe(false);
+    const named = { ...raw, souvenirs: [{ id: ID, name: text("X"), earned: 1, player: "p" }] };
+    expect(sponsorRawSchema.safeParse(named).success).toBe(false);
   });
 
   it("is a shape the response schema accepts, and nothing about a player fits it", () => {
@@ -78,6 +95,7 @@ describe("sponsorTotals", () => {
       quests: [],
       categories: [],
       rewards: [],
+      souvenirs: [],
     });
     expect(empty).toMatchObject({
       visits: 0,
@@ -85,6 +103,7 @@ describe("sponsorTotals", () => {
       redemptions: 0,
       quests: [],
       rewards: [],
+      souvenirs: [],
     });
   });
 });

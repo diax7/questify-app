@@ -148,7 +148,12 @@ function Totals({ language, totals }: Readonly<{ language: Language; totals: Spo
     label: textFor(reward.name, language),
     count: reward.redeemed,
   }));
-  const empty = quests.length + categories.length + rewards.length === 0;
+  const souvenirs = totals.souvenirs.map((souvenir) => ({
+    id: souvenir.id,
+    label: textFor(souvenir.name, language),
+    count: souvenir.earned,
+  }));
+  const empty = quests.length + categories.length + rewards.length + souvenirs.length === 0;
   return (
     <>
       <PanelGrid kind="tiles">
@@ -186,6 +191,11 @@ function Totals({ language, totals }: Readonly<{ language: Language; totals: Spo
                       : t("analytics.rewards.redeemed", { count: formatNumber(count, language) }),
                   )}
                 />
+              </Section>
+            )}
+            {souvenirs.length === 0 ? null : (
+              <Section level={3} title={t("analytics.group.souvenirs")}>
+                <BarRows rows={itemRows(souvenirs, playersText)} />
               </Section>
             )}
           </WideCard>

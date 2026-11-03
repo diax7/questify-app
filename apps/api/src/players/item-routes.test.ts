@@ -68,6 +68,7 @@ describe("GET /v1/me/locker", () => {
     source_level: 2,
     source_event: null,
     seen: false,
+    presented_by: null,
   };
 
   it("answers the page for the signed-in player, never cached", async () => {

@@ -269,5 +269,11 @@ export function sponsorRows(
       t("exports.csv.redeemed"),
       count(reward.redeemed),
     ]),
+    ...totals.souvenirs.map((souvenir) => [
+      t("exports.csv.souvenir"),
+      pick(souvenir.name, language),
+      players,
+      count(souvenir.earned),
+    ]),
   ];
 }

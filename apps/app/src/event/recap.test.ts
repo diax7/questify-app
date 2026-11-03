@@ -23,6 +23,12 @@ const souvenir = (n: number) => ({
   kind: "frame" as const,
   name: { ar: `إطار ${n}`, en: `Frame ${n}` },
   visualKey: "frame-01",
+  presentedBy: null,
+});
+
+const sponsored = (n: number) => ({
+  ...souvenir(n),
+  presentedBy: { name: { ar: "الراعي الذهبي", en: "Gold Co" }, tier: "gold" as const },
 });
 
 const RECAP: EventRecap = {
@@ -45,7 +51,11 @@ describe("recapView", () => {
       where: "1 Nov 2030 · Riyadh",
       rank: { kind: "final", text: "Rank 3" },
       quests: "Quests done: 7",
-      souvenirs: { heading: "Your souvenirs", names: ["Frame 1"], more: null },
+      souvenirs: {
+        heading: "Your souvenirs",
+        items: [{ name: "Frame 1", presentedBy: null }],
+        more: null,
+      },
       summary: "Najd Meetup. 1 Nov 2030, Riyadh. Rank 3. Quests done: 7. Your souvenirs Frame 1",
     });
   });
@@ -57,7 +67,11 @@ describe("recapView", () => {
     expect(view.where).toMatch(/^1 نوفمبر 2030 · الرياض$/);
     expect(view.rank).toEqual({ kind: "final", text: "المركز 3" });
     expect(view.quests).toBe("ما أنجزته من مهام: 7");
-    expect(view.souvenirs).toEqual({ heading: "تذكاراتك", names: ["إطار 1"], more: null });
+    expect(view.souvenirs).toEqual({
+      heading: "تذكاراتك",
+      items: [{ name: "إطار 1", presentedBy: null }],
+      more: null,
+    });
     expect(`${view.where}${view.rank?.text}${view.quests}`).not.toMatch(/[٠-٩]/);
   });
 
@@ -96,15 +110,30 @@ describe("recapView", () => {
     const four = { ...RECAP, souvenirs: [1, 2, 3, 4].map(souvenir) };
     expect(SOUVENIRS_ON_CARD).toBe(3);
     const english = recapView(four, "en", tIn("en")).souvenirs;
-    expect(english?.names).toEqual(["Frame 1", "Frame 2", "Frame 3"]);
+    expect(english?.items.map((item) => item.name)).toEqual(["Frame 1", "Frame 2", "Frame 3"]);
     expect(english?.more).toBe("‎+1");
     const nine = { ...RECAP, souvenirs: Array.from({ length: 12 }, (_, i) => souvenir(i + 1)) };
     expect(recapView(nine, "ar", tIn("ar")).souvenirs).toMatchObject({
-      names: ["إطار 1", "إطار 2", "إطار 3"],
+      items: [{ name: "إطار 1" }, { name: "إطار 2" }, { name: "إطار 3" }],
       more: "‎+9",
     });
     const exactly = { ...RECAP, souvenirs: [1, 2, 3].map(souvenir) };
     expect(recapView(exactly, "en", tIn("en")).souvenirs?.more).toBeNull();
+  });
+
+  it("puts the sponsor line under the souvenir it is tagged to, in the screen's language (T-507c)", () => {
+    const mixed = { ...RECAP, souvenirs: [sponsored(1), souvenir(2)] };
+    const english = recapView(mixed, "en", tIn("en"));
+    expect(english.souvenirs?.items).toEqual([
+      { name: "Frame 1", presentedBy: "Presented by Gold Co" },
+      { name: "Frame 2", presentedBy: null },
+    ]);
+    expect(english.summary).toContain("Frame 1, Presented by Gold Co Frame 2");
+    const arabic = recapView(mixed, "ar", tIn("ar"));
+    expect(arabic.souvenirs?.items[0]).toEqual({
+      name: "إطار 1",
+      presentedBy: "برعاية الراعي الذهبي",
+    });
   });
 
   it("drops the city when the event has none", () => {

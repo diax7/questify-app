@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { MESSAGES } from "#src/i18n/messages";
 import {
+  MEMBER_TAG_KINDS,
   SPONSOR_TAG_KINDS,
   SPONSOR_TIERS,
   memberSponsorsSchema,
+  presentedBySchema,
   sponsorBodySchema,
   sponsorTagBodySchema,
   teamSponsorListSchema,
@@ -46,7 +48,7 @@ describe("sponsor checks", () => {
     }
   });
 
-  it("tags a quest, a category or a reward, or clears a tag, and nothing else", () => {
+  it("tags a quest, a category, a reward or a souvenir, or clears a tag, and nothing else", () => {
     const id = crypto.randomUUID();
     for (const kind of SPONSOR_TAG_KINDS) {
       expect(sponsorTagBodySchema.safeParse({ kind, targetId: id, sponsorId: id }).success).toBe(
@@ -57,7 +59,10 @@ describe("sponsor checks", () => {
       sponsorTagBodySchema.safeParse({ kind: "quest", targetId: id, sponsorId: null }).success,
     ).toBe(true);
     expect(
-      sponsorTagBodySchema.safeParse({ kind: "souvenir", targetId: id, sponsorId: id }).success,
+      sponsorTagBodySchema.safeParse({ kind: "souvenir", targetId: id, sponsorId: null }).success,
+    ).toBe(true);
+    expect(
+      sponsorTagBodySchema.safeParse({ kind: "badge", targetId: id, sponsorId: id }).success,
     ).toBe(false);
     expect(
       sponsorTagBodySchema.safeParse({ kind: "quest", targetId: "x", sponsorId: id }).success,
@@ -88,5 +93,29 @@ describe("sponsor checks", () => {
     expect(
       memberSponsorsSchema.safeParse({ sponsors: [], tags: [{ kind: "quest" }] }).success,
     ).toBe(false);
+  });
+
+  it("lists a souvenir tag for the team, never for a player's app (T-507c)", () => {
+    const id = crypto.randomUUID();
+    const sponsor = { id, nameAr: null, nameEn: "Acme", tier: "gold", booth: null };
+    expect(
+      teamSponsorListSchema.safeParse({
+        sponsors: [{ ...sponsor, tags: [{ kind: "souvenir", targetId: id }] }],
+      }).success,
+    ).toBe(true);
+    expect(MEMBER_TAG_KINDS).toEqual(["quest", "category", "reward"]);
+    expect(
+      memberSponsorsSchema.safeParse({
+        sponsors: [],
+        tags: [{ kind: "souvenir", targetId: id, sponsorId: id }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("holds only a name and a tier for the sponsor a souvenir shows its owner", () => {
+    const sponsor = { name: { ar: "الراعي", en: "Acme" }, tier: "gold" };
+    expect(presentedBySchema.parse({ ...sponsor, booth: "B1", id: "x" })).toEqual(sponsor);
+    expect(presentedBySchema.safeParse({ ...sponsor, tier: "diamond" }).success).toBe(false);
+    expect(presentedBySchema.safeParse({ name: { ar: "ا" }, tier: "gold" }).success).toBe(false);
   });
 });

@@ -6,6 +6,21 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-507c souvenir sponsor tags — 2026-11-03
+
+- **T-507c built (tier B; not run on a phone; migration 0143, new and undeployed; ADR-570 to ADR-574 and Q-530 to Q-532 Proposed).**
+  An owner or editor tags a souvenir to one of the event's sponsors from the Sponsors page (a Souvenirs group beside quests,
+  categories and rewards, saved by the existing `PUT …/sponsor-tags`; no new route or table). The tag is a fourth `sponsor_tag` kind
+  with a same-event composite key to `souvenir_rule (id, event_id)` (any status; a draft's delete takes the tag; `souvenir_rule`,
+  receipts and provenance untouched). The souvenir's owner sees "Presented by {sponsor}" (the sponsor's mark and name, text only,
+  the logo stays T-507b) under the souvenir in the app's locker (`own_locker.presented_by`) and in the recap card's chip
+  (`event_recap`), both from one internal helper; the Souvenirs card shows the badge on the dashboard; the sponsor's totals and
+  spreadsheet list its souvenirs with the players who earned each (floored). `member_sponsors`, every public item DTO, a duplicate
+  of the event, erasure and the export do not carry it. Tests: `test/db/sponsor-souvenirs` (15), `test/db/sponsors`,
+  `test/sponsors/routes` (HTTP), the security suites, shared, API, app and web unit tests, `e2e/sponsors.spec.ts` (a souvenir step).
+  CI minutes: 0 (not pushed).
+  **Next:** the T-507c code review (tier B, mid-tier); then the next unchecked task in `docs/TASKS.md`. Mutation: not needed (tier B).
+
 ## T-714 per-organizer feature usage — 2026-11-03
 
 - **T-714 built (tier B; not run on a phone; migration 0140, new and undeployed; ADR-550 to ADR-553 and Q-510, Q-511 Proposed).** A platform admin opens Feature usage in the console, searches an organizer by the start of its name or slug and reads, for each of the 16 event-level features, whether it is on for the organizer (with the cause: Questify's override or the platform's switch), in how many of its events it is on, and in how many it has content (a map, a reward, a ticket, a poll and so on; the rankings show the switch only). Counts only, over the organizer's 200 latest events; one definer door (`console_feature_usage`), one route with the console `throttled` helper, the layers laid over the counts in shared code. Two small indexes (`quest_rating (event_id)`, partial `quest (event_id, type)`). Scale measured on a 50 x 250 fixture: 1.2 to 2.2 s for a page of 50 organizers on a loaded PC (a first version took 5 to 9 s). Tests: `packages/shared` usage (14), `test/db/feature-usage` (19), `test/console/feature-usage` (9), the security suites, web lib (11), `e2e/console-feature-usage.spec.ts` (3) and `layout.spec.ts` on desktop and phone (8 passed). CI minutes: 0. No mutation run on GitHub (tier B); six hand mutants of the door all caught. **Local:** full vitest ONCE: 11854 tests in 765 files, 11827 passed, 17 skipped, 10 failed in 2 files: `community-unlocks` (1, a real failure of mine: its list of every function that reads a quest, category or reward needed `console_feature_usage`; fixed) and `live-edits` (9, a 60 s hook timeout and statement timeouts while other runs shared the PC; not touched by this task); both files re-run serially: 98 passed.

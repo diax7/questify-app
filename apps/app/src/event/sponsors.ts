@@ -2,7 +2,7 @@ import {
   memberSponsorsSchema,
   type MemberSponsor,
   type MemberSponsors,
-  type SponsorTagKind,
+  type MemberTagKind,
 } from "@questify/shared";
 import type { Session } from "#src/api/session.ts";
 
@@ -28,7 +28,7 @@ export type SponsorLookup = Readonly<{
   /** False until a read has answered for this event: an unknown sponsor is then still loading, not gone. */
   read: boolean;
   sponsors: readonly MemberSponsor[];
-  of: (kind: SponsorTagKind, targetId: string) => MemberSponsor | undefined;
+  of: (kind: MemberTagKind, targetId: string) => MemberSponsor | undefined;
   byId: (id: string) => MemberSponsor | undefined;
 }>;
 
@@ -69,7 +69,7 @@ export function narrowTo<Category extends QuestsOf>(
   sponsorId: string,
   lookup: SponsorLookup,
 ): Category[] {
-  const presents = (kind: SponsorTagKind, id: string) => lookup.of(kind, id)?.id === sponsorId;
+  const presents = (kind: MemberTagKind, id: string) => lookup.of(kind, id)?.id === sponsorId;
   return categories
     .map((category) => ({
       ...category,

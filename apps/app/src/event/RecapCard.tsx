@@ -10,7 +10,8 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
  * The recap card (FR-752, ADR-339): the event, the rank, the quests done and the souvenirs, and nothing else; no
  * username, score, balance, link or code. It is a passport stamp grown into a card (CLAUDE.md principle 4): a wood
  * frame around a parchment panel with a gold edge, the stamp's gold-ringed emblem, and gold-edged souvenir chips, all
- * from the theme's roles and no new art. The view behind `cardRef` is what the phone draws into the shared image, so
+ * from the theme's roles and no new art. A souvenir an organizer tagged to a sponsor carries "Presented by {sponsor}"
+ * under its name (T-507c). The view behind `cardRef` is what the phone draws into the shared image, so
  * it keeps its own background and does not collapse (`collapsable={false}`; Android drops a layout-only view).
  */
 export function RecapCard({ view, cardRef }: Readonly<{ view: RecapView; cardRef: Ref<View> }>) {
@@ -43,9 +44,16 @@ export function RecapCard({ view, cardRef }: Readonly<{ view: RecapView; cardRef
               {view.souvenirs.heading}
             </AppText>
             <View style={styles.chips}>
-              {view.souvenirs.names.map((name, index) => (
-                <View key={`${index}:${name}`} style={styles.chip}>
-                  <AppText variant="label">{name}</AppText>
+              {view.souvenirs.items.map((item, index) => (
+                <View key={`${index}:${item.name}`} style={styles.chip}>
+                  <AppText variant="label" style={styles.center}>
+                    {item.name}
+                  </AppText>
+                  {item.presentedBy === null ? null : (
+                    <AppText muted style={styles.center}>
+                      {item.presentedBy}
+                    </AppText>
+                  )}
                 </View>
               ))}
               {view.souvenirs.more === null ? null : (

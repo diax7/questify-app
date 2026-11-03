@@ -36,6 +36,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event souvenirs", () => {
     expect(locker.items[0]?.source).toEqual({
       kind: "event",
       event: { id: f.ids.eventA, name: { ar: "Tech Fest", en: "Tech Fest" } },
+      presentedBy: null,
     });
     await f.run({ playerId: f.ids.playerA }, "SELECT equip_player($1)", [
       { frameId: rows.rows[0].item_id },

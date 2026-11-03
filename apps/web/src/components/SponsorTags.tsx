@@ -29,12 +29,13 @@ const KIND_TITLES: Readonly<Record<SponsorTagKind, MessageKey>> = {
   quest: "sponsors.tags.quests",
   category: "sponsors.tags.categories",
   reward: "sponsors.tags.rewards",
+  souvenir: "sponsors.tags.souvenirs",
 };
 
 /**
- * The items one sponsor presents (FR-1302): a checkbox for each quest, category and reward of the event, saved as soon
- * as it changes. An item has one sponsor, so ticking one that another sponsor holds moves it, and the other sponsor's
- * name stays beside it until then.
+ * The items one sponsor presents (FR-1302): a checkbox for each quest, category, reward and souvenir of the event,
+ * saved as soon as it changes. An item has one sponsor, so ticking one that another sponsor holds moves it, and the
+ * other sponsor's name stays beside it until then.
  */
 export function SponsorTags({
   language,

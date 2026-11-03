@@ -7444,3 +7444,38 @@ provider (Q-034). Campaigns share the weekly cap per channel with invitations (A
 **Why:** The helper keys a lock per bucket; sharing one bucket would queue unrelated pages.
 **Trade-offs:** One more bucket name.
 
+## ADR-570 - T-507c a souvenir is tagged to a sponsor by a fourth `sponsor_tag` kind, any status, no new route
+
+**Status:** Proposed (developer, 2026-11-03; T-507c; Q-530; plan `docs/plans/2026-11-03-t-507c-souvenir-sponsor-tags.md`; FR-1302, FR-1303). Builds on ADR-375.
+**Decision:** `sponsor_tag` gets the kind `souvenir` and a column `souvenir_id` with a same-event composite key to `souvenir_rule (id, event_id)`, ON DELETE CASCADE, a partial unique index (one sponsor per souvenir) and a restated shape check (exactly the column of its kind). `sponsor_tag_set` takes the fourth kind: the rule must be of the event, in any status (a draft can be tagged before it is activated, a stopped rule keeps its label); the event's advisory lock, the archived refusal and the `SO404` for a rule deleted between the check and the insert are as for the other kinds. There is no new route or door: `PUT …/sponsor-tags` takes `kind: "souvenir"`, so the team roles, the event limit and the support view's read-only seat (`organizerContextOf`, ADR-521) are the ones every sponsor write already has. `sponsor_tag_shown` answers false for a souvenir tag and the member schema keeps three kinds, so `member_sponsors` never names a souvenir.
+**Why:** The tag is cosmetic metadata beside the souvenir. A row of its own leaves `souvenir_rule` (frozen grant identity), the receipts and the recipients' provenance untouched (T-402b), and the one new foreign key is a key share on the rule, compatible with the grant path's rule lock (no player, enrollment or XP lock is taken). A deleted draft takes its tag; an active rule can never be deleted, so a tag never outlives a promise it labels.
+**Trade-offs:** The tag can be changed after the souvenir is active (see ADR-571 and Q-530). No tag UI on the Souvenirs form (Q-531).
+
+## ADR-571 - T-507c "presented by" shows on the souvenir's owner's locker and recap only, from the live tag
+
+**Status:** Proposed (developer, 2026-11-03; T-507c; Q-530, Q-532).
+**Decision:** `own_locker` gains `presented_by` and `event_recap` adds `presentedBy` to each souvenir, both `{name: {ar, en}, tier}` or null, from one internal helper `souvenir_presented_by(rule)` (revoked from PUBLIC, no grant; the two definers call it with the rule of an item the caller holds). A sponsor with one name shows it in both languages. The label is the tag as it stands when the owner reads: a re-tag, a rename or a delete is seen at once, and no tag shows nothing. `item_json` and every public item DTO (equipment, the public profile, ranking) are unchanged and a database test holds their keys and text sponsor-free. The app writes the line "Presented by {sponsor}" (`sponsors.presentedBy`) with the sponsor's mark under "Souvenir from {event}" in the locker, and under the souvenir's name in the recap card's chip.
+**Why:** The organizer chose to present the souvenir; the owner earned it and already sees the event's name on it (ADR-270), so the sponsor's name adds nothing a stranger can read. The locker and recap are the two places a souvenir is shown by event. Following the tag keeps one source of truth and no copy of a name on a receipt.
+**Trade-offs:** A label can change after the souvenir was earned. The recap card is an image a player may share (ADR-339), so a sponsor's name can leave the app on it; the player chooses to share.
+
+## ADR-572 - T-507c a duplicate of an event copies no souvenir tag
+
+**Status:** Proposed (developer, 2026-11-03; T-507c).
+**Decision:** `event_copy_extras` (0098) skips tags of kind `souvenir`, because the duplicate copies no souvenir rule (a rule is a promise with its own activation). Quest, category and reward tags are copied as before.
+**Why:** A tag with nothing to point at would break the shape check.
+**Trade-offs:** The organizer tags the new event's souvenirs again.
+
+## ADR-573 - T-507c a sponsor's totals list its souvenirs and how many players earned each
+
+**Status:** Proposed (developer, 2026-11-03; T-507c; FR-1306, ADR-393).
+**Decision:** `analytics_sponsor` adds `souvenirs`: the active and stopped souvenirs tagged to the sponsor (a draft promised nothing yet) with the number of receipts. The count is exact in the database door, strict in the shared schema, and left out between one and four like the other counts (`groupCount`; no complement rule, since no total is shown beside it). The dashboard's sponsor view and the sponsor spreadsheet list them under Souvenirs; no player is named.
+**Why:** FR-1306 names souvenirs; the T-608 note on this task asked for it.
+**Trade-offs:** Receipts of an erased player are gone, so the count can fall after an erasure.
+
+## ADR-574 - T-507c erasure and the data export are unchanged
+
+**Status:** Proposed (developer, 2026-11-03; T-507c; ADR-482).
+**Decision:** The tag holds no player column, so no erasure step and no catalog entry is added (`souvenir_id` has a foreign key; the personal-data catalog test passes unchanged). An erased player's item, receipt and equipment go as before and their label goes with the item; other owners keep theirs. The data export keeps listing the item and its source event; the sponsor is the organizer's label on the souvenir, not the player's data.
+**Why:** The export section of T-402b covers what the player earned and from which event; the sponsor name is event content the player can read in the app, not data about them.
+**Trade-offs:** A player who downloads their data does not get the sponsor's name beside a souvenir.
+

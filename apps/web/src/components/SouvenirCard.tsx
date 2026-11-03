@@ -1,6 +1,7 @@
 "use client";
 import type { Language, SouvenirRule } from "@questify/shared";
 import { SouvenirPreview } from "#src/components/SouvenirPreview.tsx";
+import { SponsorBadge } from "#src/components/SponsorBadge.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { Button } from "#src/ui/Button.tsx";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
@@ -51,6 +52,7 @@ export function SouvenirCard({
     <Card as="article">
       <SouvenirPreview item={rule.item} language={language} />
       <SubHeading as="h2">{rule.item.name[language]}</SubHeading>
+      <SponsorBadge language={language} kind="souvenir" targetId={rule.id} />
       <Muted>
         {t(`souvenir.${rule.status}`)} · {t(`souvenir.${rule.audience}`)}
         {rule.audience === "rank" ? ` (${rule.rankFrom}–${rule.rankTo})` : ""}

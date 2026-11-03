@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { itemSchema } from "#src/players/items";
+import { presentedBySchema } from "#src/sponsors/sponsors";
 
 const bilingual = z.object({ ar: z.string(), en: z.string() });
+
+/** A souvenir on the recap: the item as everyone sees it, and the sponsor the organizer tagged it to (T-507c). */
+const recapSouvenirSchema = itemSchema.extend({ presentedBy: presentedBySchema.nullable() });
 const localDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 /**
@@ -25,6 +29,6 @@ export const eventRecapSchema = z.object({
   /** Distinct quests completed at least once, removals excluded; 0 shows "Thanks for joining". */
   questsDone: z.number().int().nonnegative(),
   /** The souvenirs this event gave the player, in earned order; empty leaves that part out. */
-  souvenirs: z.array(itemSchema),
+  souvenirs: z.array(recapSouvenirSchema),
 });
 export type EventRecap = z.infer<typeof eventRecapSchema>;

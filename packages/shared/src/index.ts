@@ -904,9 +904,11 @@ export type {
 } from "./maps/maps";
 export {
   SPONSOR_LIMITS,
+  MEMBER_TAG_KINDS,
   SPONSOR_TAG_KINDS,
   SPONSOR_TIERS,
   memberSponsorsSchema,
+  presentedBySchema,
   sponsorBodySchema,
   sponsorTagBodySchema,
   teamSponsorListSchema,
@@ -916,6 +918,8 @@ export type {
   MemberSponsor,
   MemberSponsorTag,
   MemberSponsors,
+  MemberTagKind,
+  PresentedBySponsor,
   SponsorBody,
   SponsorTagBody,
   SponsorTagKind,

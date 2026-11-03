@@ -138,7 +138,11 @@ describe("lockerEntrySchema", () => {
   };
   const event = {
     ...level,
-    source: { kind: "event", event: { id: UUID, name: { ar: "مهرجان", en: "Fest" } } },
+    source: {
+      kind: "event",
+      event: { id: UUID, name: { ar: "مهرجان", en: "Fest" } },
+      presentedBy: null,
+    },
     seen: true,
   };
 
@@ -147,6 +151,27 @@ describe("lockerEntrySchema", () => {
     expect(lockerEntrySchema.parse(event)).toEqual(event);
     const shop = { ...level, source: { kind: "shop" } };
     expect(lockerEntrySchema.parse(shop)).toEqual(shop);
+  });
+
+  it("keeps the sponsor a souvenir is presented by, name and tier only (T-507c)", () => {
+    const presentedBy = { name: { ar: "الراعي", en: "Acme" }, tier: "gold" };
+    const tagged = { ...event, source: { ...event.source, presentedBy } };
+    expect(lockerEntrySchema.parse(tagged)).toEqual(tagged);
+    const wider = {
+      ...tagged,
+      source: { ...tagged.source, presentedBy: { ...presentedBy, id: "x" } },
+    };
+    expect(lockerEntrySchema.parse(wider)).toEqual(tagged);
+    for (const bad of [
+      undefined,
+      { name: { ar: "ا", en: "A" } },
+      { name: { ar: "ا", en: "A" }, tier: "diamond" },
+      { name: { en: "A" }, tier: "gold" },
+    ])
+      expect(
+        lockerEntrySchema.safeParse({ ...event, source: { ...event.source, presentedBy: bad } })
+          .success,
+      ).toBe(false);
   });
 
   it("refuses a source of another kind or with the wrong fields", () => {
