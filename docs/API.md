@@ -638,7 +638,7 @@ limited editor cannot create events (403 `scope_limited`, T-102). The database c
 | `GET /v1/admin/events/{eventId}` (T-210) | admin | now also `event.event.suspension`, `event.event.organizerSuspension`, `event.supportGrants: [{id, adminEmail, mine, openedAt, expiresAt}]` and `event.history` (last 50 entries); audited `console.event_read` (Q-116) | as before |
 | `POST /v1/admin/organizers/{organizerId}/suspend`, `POST /v1/admin/events/{eventId}/suspend` | admin, Idempotency-Key | `{reason}` (10 to 300 characters; the organizer reads it, Q-372) → `{suspendedAt}` (ADR-406). Audited `organizer.suspend` / `event.suspend`; 30 an hour per admin | 400 `invalid_reason`, 404, 409 `suspension_unchanged`, 429 |
 | `POST /v1/admin/organizers/{organizerId}/reactivate`, `POST /v1/admin/events/{eventId}/reactivate` | admin, Idempotency-Key | `{}` or `{reason?}` (10 to 300 characters, audited) → 204; everything comes back as it was | 404, 409 `suspension_unchanged`, 429 |
-| `POST /v1/admin/events/{eventId}/support` | admin, Idempotency-Key | `{reason}` → 201 `{grant: {grantId, organizerId, eventId, expiresAt}}` (ADR-407): 15 minutes as an editor of that event through the organizer's own routes; silent to the organizer (Q-373). Audited `support.opened` | 400 `invalid_reason`, 404, 409 `support_member` / `support_busy`, 429 `too_many_support_grants` |
+| `POST /v1/admin/events/{eventId}/support` | admin, Idempotency-Key | `{kind: "view" \| "edit", reason}` → 201 `{grant: {grantId, organizerId, eventId, expiresAt, kind}}` (ADR-407, ADR-520): 15 minutes on that event through the organizer's own routes, read-only for `view` (T-712), as an editor for `edit`; opening again (either kind) replaces the admin's grant on the event; silent to the organizer (Q-373). Audited `support.opened` with the kind | 400 `invalid_reason`, 404, 409 `support_member` / `support_busy`, 429 `too_many_support_grants` |
 | `POST /v1/admin/support/{grantId}/close` | admin, Idempotency-Key | `{}` → 204; any admin may close a live grant. Audited `support.closed` | 404 |
 | `POST /v1/admin/questify/campaigns` | admin, Idempotency-Key | `{name:{ar,en} (trimmed 1–80, no control/bidi), startsAt, endsAt}` (ISO 8601 with offset; the console enters Saudi time) → `201 {campaign}`, a draft. Audited `questify.campaign_created` `{fields}` | 400, 404, 422 `invalid_questify` `{field: endsAt}` (ends before it starts) |
 | `PUT /v1/admin/questify/campaigns/{campaignId}` | admin, Idempotency-Key | the same body, the whole name and window → `{campaign}`. A draft changes freely; published: the start moves only before it starts and never into the past, then is fixed; the end only moves later while running; an ended window is fixed (names still change). Audited `questify.campaign_updated` with the changed field names | 400, 404, 409 `questify_conflict` `{reason: retired\|start_passed\|started\|ends_earlier\|ended}`, 422 |
@@ -884,11 +884,14 @@ The three public routes count 20 calls per client address in 15 minutes (429 + R
   route did not answer first (`ES423`) answers `423 event_suspended`. Public event reads by code answer not found.
 - **`GET /v1/staff/me`.** Each membership gains `suspension` (`{reason, since}` or null). A Questify admin's live
   support grants appear as memberships with `role: "editor"`, `eventScope` = the granted events and
-  `support: [{grantId, eventId, expiresAt}]`.
+  `support: [{grantId, eventId, expiresAt, kind}]` (`kind` since T-712).
 - **`GET /v1/organizers/{id}/events/{eventId}`** gains `event.suspension` (the dashboard's banner shows the reason).
 - **The support seat.** On a support grant the organizer routes accept only routes of a granted event (not
   `POST …/devices`, `POST …/devices/preview`, `POST …/exports/{kind}`) and `GET …/events`; others answer 404, owner
   routes 403. The events list is filtered by the caller's event limit for everyone (a limited editor no longer sees
   other public events of the organizer there).
+- **The support view (T-712).** Under a `view` grant every write answers `403 support_view_only` ("This is a read-only
+  support view. Nothing was changed."), and `GET …/codes` and `GET …/rehearsal` answer 404 as well; each read counts
+  against 240 a minute per admin (429 `too_many_attempts` with Retry-After) and is logged as `support.viewed`.
 - **Actor names.** `member_ledger.by_staff`, `flag_detail.resolved_by`, `event_tickets.answerer` and `escalated_by`,
   and a device's `pairedBy.name` carry `questify-support` instead of an email for work done under a support grant.

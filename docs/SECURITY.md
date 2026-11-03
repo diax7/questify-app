@@ -589,6 +589,15 @@ columns or the functions) and the cross-tenant suite (B's setting, notices and n
   `app.is_admin` is never set, so support holds an editor's rights in that event only. The API seats support on a
   deny-by-default route list (no device pairing, no exports, no event-less routes). Silent to the organizer by Dhia's
   decision (Q-373); every support write is stamped in the audit log by the database.
+- **Support view (T-712, ADR-520 to ADR-524):** a grant has a kind, `view` (the console's default) or `edit`. Under a
+  view the organizer hook answers 403 `support_view_only` to every write before a handler runs, refuses the quest codes
+  and the rehearsal card as well (404), and marks the request's organizer context `readOnly`, so its transactions open
+  `BEGIN READ ONLY`. The database honours a view grant in `app_organizer_id()` and `app_event_scope()` only while
+  `transaction_read_only` is on: a path that loses the mark runs as nobody. Every allowed read is throttled (240 a
+  minute per admin) and logged by `support_view_log` as `support.viewed` with the route pattern and path UUIDs only,
+  coalesced per minute (no URL, query string or page content). Proven by `test/organizers/view-mode.int.test.ts`,
+  generated from the route inventory (every write refused and nothing changed, every read without a server error,
+  writing nothing and matching an edit grant's answer).
 - **Console reads audited (Q-116 closed):** organizer list, organizer page and event page each write one audit row with
   ids only.
 

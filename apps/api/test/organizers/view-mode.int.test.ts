@@ -24,6 +24,14 @@ type Route = Readonly<{ method: string; url: string }>;
 /** Routes support never reaches in a view (ADR-524): a 404 from the deny-by-default list, not from the handler. */
 const REFUSED_IN_VIEW = ["GET /events/:eventId/codes", "GET /events/:eventId/rehearsal"];
 
+/** A page's "as of" times differ between two reads a moment apart; everything else must match. */
+const timeless = (body: string) =>
+  body.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})/g, "<time>");
+
+/** The tables whose rows differ between two snapshots. */
+const changed = (before: Record<string, string>, after: Record<string, string>) =>
+  Object.keys(after).filter((name) => before[name] !== after[name]);
+
 /**
  * The view as organizer over HTTP (T-712, ADR-521 to ADR-524), generated from the app's route inventory so a new
  * organizer route is covered without editing this file: every write answers 403 `support_view_only` and changes
@@ -91,9 +99,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       expect(answer.statusCode, answer.body).toBe(201);
       return answer.json<{ grant: { grantId: string; kind: string } }>().grant;
     };
-    /** A page's "as of" times differ between two reads a moment apart; everything else must match. */
-    const timeless = (body: string) =>
-      body.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})/g, "<time>");
     const keyOf = (route: Route) => `${route.method} ${route.url.slice(ORGANIZER_PREFIX.length)}`;
     const reads = () => routes.filter((route) => route.method === "GET");
     const writes = () =>
@@ -123,8 +128,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       }
       return sums;
     };
-    const changed = (before: Record<string, string>, after: Record<string, string>) =>
-      Object.keys(after).filter((name) => before[name] !== after[name]);
 
     it("covers the whole organizer surface (a guard against an empty sweep)", () => {
       expect(writes().length).toBeGreaterThan(100);

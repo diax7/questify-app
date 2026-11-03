@@ -76,7 +76,6 @@ function OrganizerBanners({
   event: Readonly<{ id: string; suspension: Suspension | null }> | undefined;
 }>) {
   const t = translatorFor(language);
-  const grant = membership.support?.find((item) => item.eventId === event?.id);
   return (
     <>
       <LegalPendingBanner language={language} membership={membership} />
@@ -90,13 +89,31 @@ function OrganizerBanners({
           <bdi>{t("suspension.eventBanner", { reason: event.suspension.reason })}</bdi>
         </Notice>
       )}
-      {grant === undefined ? null : (
-        <Notice tone={grant.kind === "view" ? "warning" : "info"} role="note">
-          {t(grant.kind === "view" ? "support.viewBanner" : "support.banner", {
-            time: clockOf(grant.expiresAt, language),
-          })}
-        </Notice>
-      )}
+      <SupportBanner
+        language={language}
+        grant={membership.support?.find((item) => item.eventId === event?.id)}
+      />
     </>
+  );
+}
+
+/** Only the admin on a support grant sees this: until when they are in, and whether they can change anything (T-712). */
+function SupportBanner({
+  language,
+  grant,
+}: Readonly<{
+  language: Language;
+  grant: NonNullable<Membership["support"]>[number] | undefined;
+}>) {
+  if (grant === undefined) {
+    return null;
+  }
+  const view = grant.kind === "view";
+  return (
+    <Notice tone={view ? "warning" : "info"} role="note">
+      {translatorFor(language)(view ? "support.viewBanner" : "support.banner", {
+        time: clockOf(grant.expiresAt, language),
+      })}
+    </Notice>
   );
 }

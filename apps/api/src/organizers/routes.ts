@@ -77,7 +77,6 @@ import { organizerContextOf } from "#src/organizers/context";
 import { membershipOf, readTeam, type OrganizerPrincipal } from "#src/organizers/store";
 import { supportMayUse, supportSeatOf, viewGrantOf } from "#src/organizers/support-seat";
 import { enterView, isRead } from "#src/organizers/support-view";
-import type { AuthKeys } from "#src/auth/keys";
 import type { Actor, ChangeResult, InviteResult, Team } from "#src/organizers/team";
 import type { Ranking } from "#src/ranking/ranking";
 import { ORGANIZER_PREFIX } from "#src/route-access";
@@ -111,8 +110,6 @@ export type OrganizerRoutesDeps = Readonly<{
   invitations: InvitationDeps;
   /** The suspended events (T-701): a member's writes to one answer 423. */
   suspended: SuspendedSet;
-  /** Keys the support view's read throttle per admin (T-712). */
-  keys: Pick<AuthKeys, "userKey">;
   dashboardOrigin: string;
 }>;
 
@@ -371,7 +368,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
         refuseUnacceptedWrite(request, membership);
         const view = viewGrantOf(params, membership);
         if (view !== undefined) {
-          await enterView(deps, request, reply, view);
+          await enterView({ pool: deps.pool, keys: deps.devices.keys }, request, reply, view);
         }
         request.organizer = view === undefined ? membership : { ...membership, readOnly: true };
       });
