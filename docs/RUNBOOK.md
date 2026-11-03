@@ -855,6 +855,63 @@ lost, nothing else: "Retention and backups"; the admin API that `delete_series` 
 | Disk | one 5 GB volume, 0.5 to 1 GB used after 30 days; the image is about 2.5 GB (Grafana's own is 2 GB of that) |
 | Network | the API sends about 100 KB a minute per instance to the app (estimate; compare with the app's outbound figure after a day) |
 
+## Infrastructure as code on CranL (T-017, ADR-650)
+
+What Questify has on CranL is declared in `ops/cranl/staging.json` and `ops/cranl/production.json`: the project, the region, the
+repository, the two databases (and PostgreSQL's backup schedule), the buckets (none yet, Q-149) and the three apps with their port,
+build folder, Dockerfile, volumes, cron jobs, domains and every environment variable. Change CranL by changing the file and running
+`apply`, never in the dashboard (except the steps listed under "Dashboard only").
+
+```
+pnpm infra plan staging     # read-only: GET calls only; exit 0 = CranL matches the file, 2 = there is a change, 1 = an error
+pnpm infra apply staging    # creates and updates until CranL matches the file; never deletes anything
+```
+
+- **The API key** comes from `CRANL_API_KEY`, or else the CranL CLI's sign-in (`~/.cranl/config.json`). It is never printed.
+- **Variables.** A string is a plain value; `{"template": "http://{api.host}:3000"}` is filled from the apps' addresses (`url` is the
+  public `https://` origin, `host` the internal name, as `API_ORIGIN` needs); `{"database": "postgres"}` is set by CranL's
+  connect (the connection string never passes through the script); `{"secret": "generate"}` is 32 random bytes made at the first
+  apply; `{"secret": "operator"}` is read from `SECRET_<APP>_<NAME>` in your shell (like `SECRET_API_MSEGAT_API_KEY`), and apply
+  stops before any change when one is missing. A secret that exists on CranL is never read, compared or replaced: rotate it as its own
+  section says (or `PATCH` it by hand), then nothing in the file changes.
+- **What plan prints.** `api` lines are what apply will do (plain values with their old and new value; secrets by name only).
+  `manual` lines are what the API cannot change: a public-repo app's build folder or branch, a region, a database's type, a
+  protected app. `unmanaged` lines are settings CranL has that the file does not declare: add them to the file, or remove them in the
+  dashboard. apply leaves both alone and lists them at the end (exit 2).
+- **apply checks itself.** After its changes it reads CranL again; if any `api` change is left it fails, so a run that succeeds is
+  also the proof that a second run changes nothing. A failed run is safe to repeat: it continues from what exists.
+- **After apply**, a changed variable takes effect on the app's next deploy or restart; deploy as "Database and deploy" says
+  (migrations first for the API). apply never deploys.
+- **Tests:** `pnpm vitest run scripts/cranl` (an in-memory CranL; no network).
+
+**Dashboard only** (Q-612; check these by hand after creating an app, since the API cannot read them):
+
+| App | Dockerfile path | Health check | Build folder |
+|---|---|---|---|
+| API | `Dockerfile` | `/healthz` | `/` |
+| web | `Dockerfile.web` | `/en/sign-in` | `/` |
+| monitoring | `Dockerfile` | none (Caddy answers 401 without the password) | `/ops/monitoring/stack` |
+
+The build folder is set at create; afterwards a public-repo app's build folder or branch changes only in the dashboard (plan shows it
+as `manual`). Automatic rollback is off on every app (not readable by the API either).
+
+**State on 2026-11-04** (`plan staging`, read-only): everything matches except one `manual` line, the monitoring app's build folder
+(`/ops/monitoring/prometheus`, from before ADR-626, so the app is stopped; Q-610). The staging database's backups have not run yet (Q-611).
+
+### A fresh environment (T-017b; needs five free CranL slots, Q-613)
+
+1. In a shell, set the operator secrets plan names (`pnpm infra plan production` lists them under "apply needs these operator
+   variables"): the Gmail service account key and the Msegat login as in their sections; `SECRET_MONITORING_METRICS_PASSWORD` and its
+   hash (`METRICS_PASSWORD_HASH`) as "Monitoring stack on CranL" says; and `SECRET_API_OTEL_EXPORTER_OTLP_HEADERS`, the
+   `authorization=Basic%20...` value made from that password ("Pointing the API at it").
+2. `pnpm infra apply production`. It creates the two databases, the three apps (each starts a first build, which fails until its
+   settings exist; that is expected), then sets every variable, connects the databases, adds the monitoring volume, and checks itself.
+3. In the dashboard, check the "Dashboard only" table for each new app.
+4. Migrate and deploy as "Database and deploy" says (`DATABASE_ADMIN_URL` for `node migrate.cjs --roles` once), then deploy the web app
+   and the monitoring app, and run the monitoring app's "After the first deploy" checks.
+5. `pnpm infra plan production` prints "No changes"; run `apply` once more and it makes no change.
+6. Unset the operator secrets from the shell.
+
 ## Web app (dashboard)
 
 - Image: `Dockerfile.web` at the repository root (CranL builds from the folder holding the Dockerfile), with CranL Dockerfile path `Dockerfile.web`; port 3000; health check on `/en/sign-in`.

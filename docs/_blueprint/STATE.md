@@ -6,6 +6,20 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-017 CranL infrastructure as code — 2026-11-04
+
+- **T-017 built (tier B; ADR-650 and Q-612 Proposed; Q-610, Q-611, Q-613 open; no migration).** `ops/cranl/staging.json` and
+  `production.json` declare everything Questify has on CranL; `pnpm infra plan <env>` (GET calls only) and `pnpm infra apply
+  <env>` (creates and updates, never deletes, re-reads and fails if anything is left) in `scripts/cranl/`. Secrets live only on
+  CranL: generated at the first apply or read from `SECRET_<APP>_<NAME>`; values are never printed. `plan staging` on 2026-11-04
+  matched the API, the web app and both databases; one manual step is left: the monitoring app still builds from
+  `/ops/monitoring/prometheus` and is stopped (Q-610, a dashboard change for Dhia). The staging database's scheduled backups
+  have never run (Q-611). Nothing on CranL was created or changed. Tests: `scripts/cranl/infra.test.ts` (30, an in-memory
+  CranL; a hand mutant of the secret rule failed 10 of them). Lint, `lint:limits`, `format:check` clean; full vitest once (4 workers):
+  12,525 passed, 18 skipped, 811 files. CI minutes: 0; agent tokens roughly 0.4M (estimate).
+  **Next:** Dhia fixes the monitoring app's build folder (Q-610), then the API's `TELEMETRY_*` go into `staging.json` and
+  `apply staging`; T-017b (a fresh environment) once five CranL slots are free (Q-613).
+
 ## T-710b App Review QR picker — 2026-11-03
 
 - **T-710b built (tier A; migration 0147, new and undeployed; ADR-640 and Q-600 Proposed).** Three doors, granted to the
