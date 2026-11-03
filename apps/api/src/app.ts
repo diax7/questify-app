@@ -90,6 +90,8 @@ import { registerLegalRoutes } from "#src/legal/routes";
 import { registerOrganizerRoutes } from "#src/organizers/routes";
 import { createTeam } from "#src/organizers/team";
 import { registerRouteInventory, type RouteInfo } from "#src/route-access";
+import { registerHttpTelemetry } from "#src/telemetry/http";
+import { logTelemetry } from "#src/telemetry/logs";
 import { registerConfigRoutes } from "#src/settings/routes";
 import { createSettingsService, type SettingsService } from "#src/settings/service";
 import { registerTranslationRoutes } from "#src/translations/routes";
@@ -167,20 +169,24 @@ const DRAIN_TIMEOUT_MS = 5000;
 type LogFields = Readonly<Record<string, unknown>>;
 
 /** Log level by environment, with secrets and keys removed from every log line. */
-export function loggerOptions(config: AppConfig): {
+export function loggerOptions(config: AppConfig): ReturnType<typeof logTelemetry> & {
   level: string;
   redact: string[];
   serializers: { req: (request: FastifyRequest) => { method: string; url: string } };
 } {
   return {
+    ...logTelemetry(),
     level: config.nodeEnv === "production" ? "info" : "debug",
-    // Method and path only: the default serializer also writes the client address, which is personal data.
+    // Method and path only: the default serializer also writes the client address, which is personal data. A path no
+    // route answers is anything a caller typed, so it is written as `unmatched` (T-018, ADR-603).
     serializers: {
       req: (request) => ({
         method: request.method,
-        url: (request.url.split("?")[0] ?? "/")
-          .replace(/^\/v1\/players\/[^/]+/, "/v1/players/:username")
-          .replace(/^\/v1\/me\/blocks\/[^/]+/, "/v1/me/blocks/:username"),
+        url: request.is404
+          ? "unmatched"
+          : (request.url.split("?")[0] ?? "/")
+              .replace(/^\/v1\/players\/[^/]+/, "/v1/players/:username")
+              .replace(/^\/v1\/me\/blocks\/[^/]+/, "/v1/me/blocks/:username"),
       }),
     },
     redact: [
@@ -386,8 +392,11 @@ function registerStaff(app: FastifyInstance, deps: PasswordDeps): void {
   });
 }
 
-/** Builds the API server. Nothing listens until the caller starts it. */
-export function buildApp(options: AppOptions): FastifyInstance {
+/**
+ * The bare server: its logger, the proxies it trusts, the route inventory, the request span (first, so every other
+ * hook and the handler run inside it, T-018, ADR-601) and JSON as the only body a handler may receive.
+ */
+function createServer(options: AppOptions): FastifyInstance {
   const { config } = options;
   const app = Fastify({
     logger: options.logger ?? loggerOptions(config),
@@ -396,8 +405,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
     trustProxy: (_address: string, hop: number) => hop < config.trustProxyHops,
   });
   app.decorate("routeInventory", registerRouteInventory(app));
-  // JSON only: a form or plain-text body must never reach a handler.
+  registerHttpTelemetry(app);
   app.removeContentTypeParser("text/plain");
+  return app;
+}
+
+/** Builds the API server. Nothing listens until the caller starts it. */
+export function buildApp(options: AppOptions): FastifyInstance {
+  const { config } = options;
+  const app = createServer(options);
 
   registerConventions(app, {
     minAppVersion: config.minAppVersion,

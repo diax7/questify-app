@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
+import { trackRun } from "#src/telemetry/runs";
 import { closeDueRounds } from "#src/plays/games";
 import { finishDueQuizzes } from "#src/plays/quizzes";
 import { wipeDueRehearsals } from "#src/rehearsal/service";
@@ -127,7 +128,7 @@ export function startLifecycleTick(deps: LifecycleTickDeps): LifecycleTick {
   const schedule = (): void => {
     const wait = Math.round(deps.intervalMs * (1 - JITTER + 2 * JITTER * random()));
     timer = setTimeout(() => {
-      running = run().finally(() => {
+      running = trackRun("lifecycle", run).finally(() => {
         running = undefined;
         if (!stopped) {
           schedule();

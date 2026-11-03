@@ -148,6 +148,16 @@ describe("loggerOptions", () => {
     expect(req(request)).toEqual({ method: "GET", url: "/v1/players/:username" });
   });
 
+  it("writes a path no route answers as `unmatched`, since a caller can type anything there (T-018)", () => {
+    const { req } = loggerOptions(base).serializers;
+    const request = {
+      method: "GET",
+      url: "/someone@example.sa/+966500000000",
+      is404: true,
+    } as unknown as Parameters<typeof req>[0];
+    expect(req(request)).toEqual({ method: "GET", url: "unmatched" });
+  });
+
   it("keeps a blocked username out of request logs (T-705)", () => {
     const { req } = loggerOptions(base).serializers;
     const request = {

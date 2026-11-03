@@ -6,7 +6,7 @@
   },
   "apps/api/src/app.ts": {
     "buildApp": {
-      "lines": [210]
+      "lines": [204]
     }
   },
   "apps/api/src/audience/rules.ts": {

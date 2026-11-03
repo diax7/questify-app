@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 import { createClient, type RedisClientType } from "redis";
-import { buildApp } from "#src/app";
+import { buildApp, type AppOptions } from "#src/app";
 import { createBreachCheck } from "#src/auth/breached";
 import { createFailoverSender } from "#src/auth/email/failover";
 import { createGmailSender } from "#src/auth/email/gmail";
@@ -13,6 +13,11 @@ import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import { createMsegatSender } from "#src/players/sms";
 import { createPushProviders } from "#src/push/providers";
 import { createRankingStore } from "#src/ranking/store";
+import { loadTelemetryConfig } from "#src/telemetry/config";
+import { countLogEvent } from "#src/telemetry/logs";
+import { instrumentEmail, instrumentPush, instrumentSms } from "#src/telemetry/outbound";
+import { watchPool } from "#src/telemetry/pool";
+import { startTelemetry } from "#src/telemetry/sdk";
 
 const LIFECYCLE_INTERVAL_MS = 30_000;
 /** The community tick (ADR-222): settles each goal and pays due rewards every 5 s. */
@@ -74,13 +79,18 @@ const PUSH_POOL_SIZE = 3;
 
 function createEmailSender(config: AppConfig, onFailover: (from: string, to: string) => void) {
   const { gmail } = config.auth;
-  const primary = createGmailSender({
-    key: gmail.key,
-    from: gmail.from,
-    ...(gmail.actAs === undefined ? {} : { actAs: gmail.actAs }),
-  });
+  const primary = instrumentEmail(
+    createGmailSender({
+      key: gmail.key,
+      from: gmail.from,
+      ...(gmail.actAs === undefined ? {} : { actAs: gmail.actAs }),
+    }),
+    "gmail",
+  );
   const backup: EmailSender | undefined =
-    config.auth.resend === undefined ? undefined : createResendSender(config.auth.resend);
+    config.auth.resend === undefined
+      ? undefined
+      : instrumentEmail(createResendSender(config.auth.resend), "resend");
   return createFailoverSender({
     primary,
     ...(backup === undefined ? {} : { backup }),
@@ -88,18 +98,43 @@ function createEmailSender(config: AppConfig, onFailover: (from: string, to: str
   });
 }
 
+/**
+ * The Msegat senders, each counted by outcome (T-018). Invitations go only from the registered promotional sender
+ * (FR-1112); loadConfig refused it equal to the service one.
+ */
+function createSmsSenders(config: AppConfig): Pick<AppOptions, "smsSender" | "promoSmsSender"> {
+  const { msegat, msegatPromoSender } = config;
+  if (msegat === undefined) return {};
+  const service = { smsSender: instrumentSms(createMsegatSender(msegat), "msegat") };
+  if (msegatPromoSender === undefined) return service;
+  return {
+    ...service,
+    promoSmsSender: instrumentSms(
+      createMsegatSender({ ...msegat, sender: msegatPromoSender }),
+      "msegat_promo",
+    ),
+  };
+}
+
 /** A line on standard error for Redis problems, which happen before and outside any request. */
-const warn = (fields: Record<string, string>) =>
-  process.stderr.write(`${JSON.stringify(fields)}
-`);
+const warn = (fields: Record<string, string>) => {
+  countLogEvent(fields["event"], "warn");
+  process.stderr.write(`${JSON.stringify(fields)}\n`);
+};
 
 async function main(): Promise<void> {
   const config = loadConfig(process.env);
+  // First: the context storage and the providers must exist before anything records or logs (T-018).
+  const telemetry = startTelemetry(
+    loadTelemetryConfig(process.env, { nodeEnv: config.nodeEnv, release: config.releaseSha }),
+  );
   const pool = createPool(config);
+  const unwatchPool = watchPool("api", pool);
   pool.on("error", (error) => {
     process.stderr.write(`Database pool error: ${error.name}\n`);
   });
   const pushPool = new Pool({ ...poolOptions(config), max: PUSH_POOL_SIZE });
+  const unwatchPushPool = watchPool("push", pushPool);
   pushPool.on("error", (error) => {
     process.stderr.write(`Push pool error: ${error.name}\n`);
   });
@@ -120,16 +155,7 @@ async function main(): Promise<void> {
       app.log.warn({ event: "staff.email_failover", from, to });
     }),
     breachCheck: createBreachCheck(),
-    ...(config.msegat === undefined ? {} : { smsSender: createMsegatSender(config.msegat) }),
-    // Invitations go only from the registered promotional sender (FR-1112); loadConfig refused it equal to the service one.
-    ...(config.msegat === undefined || config.msegatPromoSender === undefined
-      ? {}
-      : {
-          promoSmsSender: createMsegatSender({
-            ...config.msegat,
-            sender: config.msegatPromoSender,
-          }),
-        }),
+    ...createSmsSenders(config),
     lifecycleIntervalMs: LIFECYCLE_INTERVAL_MS,
     ...(redis === undefined ? {} : { rankingStore: createRankingStore(redis) }),
     rankingRepairIntervalMs: RANKING_REPAIR_INTERVAL_MS,
@@ -142,7 +168,9 @@ async function main(): Promise<void> {
     // Built here so a key that cannot sign stops the start; their log lines run later, once `app` exists.
     push: {
       pool: pushPool,
-      providers: createPushProviders(config.push, (level, fields) => app.log[level](fields)),
+      providers: createPushProviders(config.push, (level, fields) => app.log[level](fields)).map(
+        instrumentPush,
+      ),
     },
   });
   // Make the dummy password hash now, so the first sign-in with an unknown email is not slower than later ones.
@@ -151,11 +179,14 @@ async function main(): Promise<void> {
   const stop = async (signal: string): Promise<void> => {
     app.log.info({ signal }, "shutting down");
     await app.close();
+    unwatchPool();
+    unwatchPushPool();
     await pool.end();
     await pushPool.end();
     if (redis?.isOpen === true) {
       await redis.close();
     }
+    await telemetry.shutdown();
     process.exit(0);
   };
   process.once("SIGTERM", () => void stop("SIGTERM"));

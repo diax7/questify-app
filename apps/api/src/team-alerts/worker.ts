@@ -6,6 +6,7 @@ import { BUCKETS, countRecent, record } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { readModerationAddresses } from "#src/console/moderation/addresses";
+import { trackRun } from "#src/telemetry/runs";
 import { teamAlertDigest, type AlertLine } from "#src/team-alerts/templates";
 
 /** The team mail's own budget (ADR-494, plan review MAJOR 2), never the sign-in transport's `outboundMailPerDay`. */
@@ -182,7 +183,7 @@ export function startTeamAlertWorker(deps: TeamAlertWorkerDeps): TeamAlertWorker
   const schedule = (): void => {
     const wait = Math.round(deps.intervalMs * (1 - JITTER + 2 * JITTER * random()));
     timer = setTimeout(() => {
-      running = guarded().finally(() => {
+      running = trackRun("team_alerts", guarded).finally(() => {
         running = undefined;
         if (!stopped) schedule();
       });
