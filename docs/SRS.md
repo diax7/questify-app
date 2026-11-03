@@ -1119,7 +1119,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-734 | F-138 | Should | built T-407 (`own_for_you`, `GET /v1/me/for-you`; event interests on the dashboard form, `e2e/events.spec.ts`) and T-407b (the For you list; a section of Explore since T-408b), code review pending |
 | FR-735 | F-140 | Must | built T-407 (`set_marketing`: every channel off, the first answer recorded even when all stay off) and T-407b (the one-time step after sign-up); consent wording awaits counsel (Q-288), code review pending |
 | FR-736 | F-140 | Must | built T-407 (the dated log, `GET`/`PUT /v1/me/marketing`) and T-407b (Settings → Offers and notifications, each switch saved at once), code review pending |
-| FR-737 | F-140 | Must | built T-407 as the one audience door (`marketing_audience`, opted-in players only, per channel); the senders are T-409, T-501 and T-706, which must choose recipients there, code review pending |
+| FR-737 | F-140 | Must | built T-407 as the one audience door (`marketing_audience`, opted-in players only, per channel); the senders are T-409, T-501, T-706b (the push to a group, built: `group_push_fan` reads it) and T-706c (SMS and email), which must choose recipients there, code review pending |
 | FR-738 | F-139 | Should | server built T-409 (migration 0073: the owner's request, the admin's approval with frozen names, the fill through `promo_pool`, the SMS sender tick; `invitationCampaigns` switch off until the RUNBOOK's three conditions); the web pages built T-409b (the dashboard's Invitations page, the console's queue and detail); code review pending |
 | FR-739 | F-139 | Should | server built T-409 (rounded daily counts sent, opened, joined; never a player; the landing page's open door); pages built T-409b (rounded counts "120+" / "Fewer than 10" on the dashboard, exact ones in the console, the landing page `/{lang}/i`); code review pending |
 | FR-740 | F-139 | Should | built T-409 (requested on the web, approved in the console, no price on the platform; `no-invitation-purchase.test` keeps the routes out of the app); code review pending |
@@ -1369,7 +1369,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1774 | F-283 | Must | built (T-704: search, read-only record and points record, every look audited) |
 | FR-1775 | F-284 | Should | partly built (T-704: rename and sign-in reset; merging accounts dropped from v1 by Dhia, ADR-423) |
 | FR-1776 | F-284 | Must | built (T-708: the tombstone trigger, no restore door, re-apply after a backup restore; `test/db/data-requests.int`) |
-| FR-1777 | F-285 | Should | pending |
+| FR-1777 | F-285 | Should | built (T-706b: console Messages, "Push to a group": an event's players by join code, or opted-in players by city and interests, through the push pipeline; `test/db/group-push.int`, `test/console/group-push.int`) |
 | FR-1778 | F-286 | Must | built (T-708: console Legal request card, export and erase with a reason and a case reference, audited; `test/console/data-requests.int`, `test/db/data-requests.int`) |
 | FR-1779 | F-287 | Must | built (T-705: console word lists and retired usernames) |
 | FR-1780 | F-288 | Should | built (T-706: four templates edited in the console with the CST rules enforced on save, ADR-461; the senders read them from T-706b) |

@@ -2,6 +2,7 @@
 
 import type { Language } from "@questify/shared";
 import { useState } from "react";
+import { ConsoleGroupPush } from "#src/components/ConsoleGroupPush.tsx";
 import { MessageTemplates } from "#src/components/MessageTemplates.tsx";
 import { SupportContactEditor } from "#src/components/SupportContactEditor.tsx";
 import { MESSAGING_TABS, type MessagingTab } from "#src/lib/console-messaging.ts";
@@ -12,8 +13,9 @@ import { Tabs } from "#src/ui/Tabs.tsx";
 import { infoTip } from "#src/ui/info.tsx";
 
 /**
- * The console's message templates and support contact (T-706, FR-1780, FR-1731), one tab each. Platform admins only. Only
- * the open tab reads from the API: the console answers one read at a time per admin.
+ * The console's message templates, push to a group of players and support contact (T-706, T-706b, FR-1780, FR-1777,
+ * FR-1731), one tab each. Platform admins only. Only the open tab reads from the API: the console answers one read at a
+ * time per admin.
  */
 export function ConsoleMessaging({ language }: Readonly<{ language: Language }>) {
   const t = translatorFor(language);
@@ -34,11 +36,9 @@ export function ConsoleMessaging({ language }: Readonly<{ language: Language }>)
           select: () => setTab(key),
         }))}
       />
-      {tab === "templates" ? (
-        <MessageTemplates language={language} />
-      ) : (
-        <SupportContactEditor language={language} />
-      )}
+      {tab === "templates" ? <MessageTemplates language={language} /> : null}
+      {tab === "push" ? <ConsoleGroupPush language={language} /> : null}
+      {tab === "contact" ? <SupportContactEditor language={language} /> : null}
     </Stack>
   );
 }

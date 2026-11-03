@@ -94,6 +94,9 @@ export const FREE_TEXT_KINDS: readonly string[] = [
   "announcement",
   "session_message",
   "staff_briefing",
+  // T-706b (migration 0138): a platform admin's push to an event's players, or to opted-in players.
+  "group_push_event",
+  "group_push_promo",
 ];
 
 /** What the renderer reads from a claimed send or a center row. */

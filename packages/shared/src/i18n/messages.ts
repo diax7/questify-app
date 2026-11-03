@@ -9589,8 +9589,8 @@ export const MESSAGES = {
     en: "Messages and contact",
   },
   "console.messages.intro": {
-    ar: "قوالب الرسائل القصيرة والبريد والإشعارات، وبيانات التواصل مع الدعم. يرفض النظام أي قالب يخالف قواعد هيئة الاتصالات.",
-    en: "The SMS, email and push templates, and the support contact details. A template that breaks the CST rules is refused.",
+    ar: "قوالب الرسائل القصيرة والبريد والإشعارات، وإرسال إشعار إلى مجموعة لاعبين، وبيانات التواصل مع الدعم. يرفض النظام أي قالب يخالف قواعد هيئة الاتصالات.",
+    en: "The SMS, email and push templates, pushes to a group of players, and the support contact details. A template that breaks the CST rules is refused.",
   },
   "console.messages.tabs": {
     ar: "أقسام الرسائل والتواصل",
@@ -9719,6 +9719,126 @@ export const MESSAGES = {
   "contact.email": {
     ar: "البريد الإلكتروني",
     en: "Email",
+  },
+  "console.messages.tab.push": {
+    ar: "إشعار جماعي",
+    en: "Push to a group",
+  },
+  "console.push.audience": {
+    ar: "من يستقبل الإشعار",
+    en: "Who receives it",
+  },
+  "console.push.audience.event": {
+    ar: "كل لاعبي فعالية",
+    en: "Everyone in an event",
+  },
+  "console.push.audience.promo": {
+    ar: "لاعبون اشتركوا في العروض",
+    en: "Players who opted in to promotions",
+  },
+  "console.push.audience.promo.info": {
+    ar: "يصل الإشعار فقط إلى من وافق على الإشعارات الترويجية ولم يتلقَّ إشعارا ترويجيا هذا الأسبوع. تُراجَع الموافقة عند الإرسال.",
+    en: "Only players who agreed to promotional push, and got no promotional push this week, receive it. The consent is checked again when it is sent.",
+  },
+  "console.push.joinCode": {
+    ar: "رمز انضمام الفعالية",
+    en: "Event join code",
+  },
+  "console.push.city": {
+    ar: "المدينة",
+    en: "City",
+  },
+  "console.push.city.any": {
+    ar: "أي مدينة",
+    en: "Any city",
+  },
+  "console.push.interests": {
+    ar: "الاهتمامات (أي منها)",
+    en: "Interests (any of them)",
+  },
+  "console.push.title": {
+    ar: "العنوان",
+    en: "Title",
+  },
+  "console.push.text": {
+    ar: "النص",
+    en: "Text",
+  },
+  "console.push.count": {
+    ar: "{count} من {max}",
+    en: "{count} of {max}",
+  },
+  "console.push.useSaved": {
+    ar: "استخدام نص الإشعار الترويجي المحفوظ",
+    en: "Use the saved promotional push",
+  },
+  "console.push.review": {
+    ar: "مراجعة من سيستلم",
+    en: "Review who gets it",
+  },
+  "console.push.reach.event": {
+    ar: "{name} ({code}) · {status} · عدد اللاعبين المتوقع: {count}",
+    en: "{name} ({code}) · {status}: about {count} players will get it.",
+  },
+  "console.push.reach.promo": {
+    ar: "عدد اللاعبين المتوقع: {count}",
+    en: "About {count} players will get it.",
+  },
+  "console.push.reach.more": {
+    ar: "عدد اللاعبين المتوقع: أكثر من {count}",
+    en: "More than {count} players will get it.",
+  },
+  "console.push.send": {
+    ar: "إرسال الإشعار",
+    en: "Send the push",
+  },
+  "console.push.confirm.title": {
+    ar: "إرسال هذا الإشعار؟",
+    en: "Send this push?",
+  },
+  "console.push.confirm.body": {
+    ar: "سيصل إلى نحو {count} لاعب ولا يمكن سحبه بعد الإرسال.",
+    en: "It goes to about {count} players and cannot be recalled once sent.",
+  },
+  "console.push.sent": {
+    ar: "أُرسل الإشعار.",
+    en: "The push was sent.",
+  },
+  "console.push.history": {
+    ar: "الإشعارات السابقة",
+    en: "Earlier pushes",
+  },
+  "console.push.history.none": {
+    ar: "لم تُرسل إشعارات جماعية بعد.",
+    en: "No group pushes yet.",
+  },
+  "console.push.state.sending": {
+    ar: "قيد الإرسال",
+    en: "Sending",
+  },
+  "console.push.state.done": {
+    ar: "اكتمل",
+    en: "Sent",
+  },
+  "console.push.row.event": {
+    ar: "كل لاعبي {name} ({code})",
+    en: "Everyone in {name} ({code})",
+  },
+  "console.push.row.promo": {
+    ar: "لاعبون مشتركون في العروض: {where}",
+    en: "Opted-in players: {where}",
+  },
+  "console.push.row.anywhere": {
+    ar: "كل المدن",
+    en: "every city",
+  },
+  "console.push.row.counts.event": {
+    ar: "أُرسل إلى لاعبي الفعالية (نحو {reach})",
+    en: "Sent to the event's players (about {reach})",
+  },
+  "console.push.row.counts.promo": {
+    ar: "كُتب لـ {notices} من نحو {reach} · استُبعد {capped} بسبب حد الأسبوع",
+    en: "Written for {notices} of about {reach} · {capped} left out by the weekly limit",
   },
 } as const satisfies Messages;
 

@@ -895,6 +895,12 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); the one contact row, patterns checked by the shared schema here and again in admin_support_contact_save (QE403, CA400); audited with who, before and after; 120 changes an hour per admin (test/console/messaging, test/db/messaging)",
   "GET /v1/support-contact":
     "no tenant data: the support contact details, the same for everyone (test/console/messaging)",
+  "GET /v1/admin/group-pushes":
+    "active platform admins only (walked below); read only; the last 50 group pushes with their text and counts, no player; the admin checked again in admin_group_push_list (QE403); 240 a minute per admin (test/console/group-push, test/db/group-push)",
+  "POST /v1/admin/group-pushes/preview":
+    "active platform admins only (walked below); read only; who a send would reach (an event named by its join code, or a count of opted-in players), no player named; the text and audience checked by the shared package here and again in admin_group_push_preview (QE403, GP400, GP404, GP409, CA400); 240 a minute per admin (test/console/group-push, test/db/group-push)",
+  "POST /v1/admin/group-pushes":
+    "active platform admins only (walked below); sends one push to an event's players or to players opted in to promotional push, the text and audience checked here and again in admin_group_push_send (QE403, GP400, GP404, GP409, GP204, GP429, CA400); consent read again by the push store at the fan-out and the claim; audited with who, the audience and the reach; idempotency key; 10 an hour per admin and 20 an hour overall (test/console/group-push, test/db/group-push)",
   "GET /v1/admin/switches/notices":
     "active platform admins only (walked below); read only; the platform-wide pause, the paused events' names and join codes, and the banner; no personal data; the admin checked again by the settings service; 60 a minute per admin (test/console/maintenance)",
   "PUT /v1/admin/switches/maintenance/global":

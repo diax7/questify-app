@@ -1,5 +1,5 @@
 import type { PushTexts } from "@questify/shared";
-import type { FanOutResult, PushDoors } from "#src/push/doors";
+import type { FanOutResult, GroupFanResult, PushDoors } from "#src/push/doors";
 import type { PushProvider, PushTarget } from "#src/push/provider";
 import { runRound, type PushLog } from "#src/push/round";
 import { SYSTEM_CLOCK, type PushClock } from "#src/push/send";
@@ -59,6 +59,13 @@ function reportFanOut(log: PushLog, fanned: FanOutResult | undefined): void {
   });
 }
 
+/** Whether the loop goes round again at once: a fan-out or a group page may have more, or a round claimed rows. */
+const moreWork = (
+  fanned: FanOutResult | undefined,
+  grouped: GroupFanResult | undefined,
+  sent: number | undefined,
+): boolean => fanned?.more === true || grouped?.more === true || (sent ?? 0) > 0;
+
 /** Calls a door again while it reports `more`, at most REPEAT_CALLS times. */
 const repeat =
   (door: () => Promise<Readonly<Record<string, unknown>>>) => async (): Promise<void> => {
@@ -75,8 +82,8 @@ async function switchedOn(deps: PushWorkerDeps): Promise<boolean> {
 }
 
 /**
- * The push worker (ADR-345): an in-process loop on its own small pool. While work exists it fans out (personal notices
- * first) and runs a claim round; idle, it sleeps about a second. The due scans run every minute (a due notice fans out
+ * The push worker (ADR-345): an in-process loop on its own small pool. While work exists it writes the next page of a
+ * running group push (T-706b), fans out (personal notices first) and runs a claim round; idle, it sleeps about a second. The due scans run every minute (a due notice fans out
  * in the same pass) and settle every 10 minutes, switch on or off; with the switch off nothing is claimed, while the
  * fan-out keeps writing the center. A failed step is logged (event and
  * SQLSTATE only, never a token, a text or a player) and the loop goes on after a pause. `stop()` lets the wave in
@@ -131,10 +138,11 @@ export function startPushWorker(deps: PushWorkerDeps): PushWorker {
       scannedAt = clock.wallNow();
       await step("push.due_failed", scanDue);
     }
+    const grouped = await step("push.group_fan_failed", deps.doors.groupFan);
     const fanned = await step("push.fan_out_failed", deps.doors.fanOut);
     reportFanOut(deps.log, fanned);
     const sent = await step("push.round_failed", round);
-    if (fanned?.more !== true && (sent ?? 0) === 0 && !stopped) {
+    if (!moreWork(fanned, grouped, sent) && !stopped) {
       await clock.wait(
         Math.round(PUSH_IDLE_MS * (1 - JITTER + 2 * JITTER * random())),
         sleeping.signal,

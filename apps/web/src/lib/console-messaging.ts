@@ -29,7 +29,7 @@ export const TEMPLATE_NAMES = {
   promo_push: "console.messages.key.promoPush",
 } as const satisfies Record<MessageTemplateKey, MessageKey>;
 
-export const MESSAGING_TABS = ["templates", "contact"] as const;
+export const MESSAGING_TABS = ["templates", "push", "contact"] as const;
 export type MessagingTab = (typeof MESSAGING_TABS)[number];
 
 /** Each reader answers undefined when the body is not the expected shape, so a changed API shows the error state. */

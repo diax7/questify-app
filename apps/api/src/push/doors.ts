@@ -30,8 +30,16 @@ export type FanOutResult = Readonly<{
   parked?: boolean;
 }>;
 
-/** The push worker's five system doors; the unit tests replace them. */
+/** One page of a group push to opted-in players (migration 0138): the players read and whether more may be waiting. */
+export type GroupFanResult = Readonly<{ rows: number; more: boolean }>;
+
+/** The push worker's six system doors; the unit tests replace them. */
 export type PushDoors = Readonly<{
+  /**
+   * Writes the next page of the oldest running group push to opted-in players as one promotional notice each
+   * (`group_push_fan`, T-706b); the fan-out below then turns the notices into center rows and sends.
+   */
+  groupFan: () => Promise<GroupFanResult>;
   fanOut: () => Promise<FanOutResult>;
   claim: (targets: readonly PushTarget[], size: number) => Promise<ClaimedSend[]>;
   ack: (rows: readonly AckRow[]) => Promise<number>;
@@ -51,6 +59,11 @@ const system = <T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promis
  */
 export function createPushDoors(pool: Pool): PushDoors {
   return {
+    groupFan: () =>
+      system(pool, async (client) => {
+        const { rows } = await client.query<{ r: GroupFanResult }>("SELECT group_push_fan() AS r");
+        return rows[0]?.r ?? { rows: 0, more: false };
+      }),
     fanOut: () =>
       system(pool, async (client) => {
         const { rows } = await client.query<{ r: FanOutResult }>("SELECT push_fan_out() AS r");

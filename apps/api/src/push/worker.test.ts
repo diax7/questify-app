@@ -50,8 +50,16 @@ describe("startPushWorker (ADR-345)", () => {
   let dueMore: number;
   let failFanOut: boolean;
   let failDue: boolean;
+  let groupFans: Array<{ rows: number; more: boolean }>;
+  let groupFanCalls: number;
+  let failGroupFan: boolean;
 
   const doors: PushDoors = {
+    groupFan: () => {
+      groupFanCalls += 1;
+      if (failGroupFan) return Promise.reject(Object.assign(new Error("down"), { code: "40001" }));
+      return Promise.resolve(groupFans.shift() ?? { rows: 0, more: false });
+    },
     fanOut: () => {
       calls.push("fanOut");
       if (failFanOut) return Promise.reject(Object.assign(new Error("down"), { code: "57P01" }));
@@ -111,9 +119,34 @@ describe("startPushWorker (ADR-345)", () => {
     dueMore = 0;
     failFanOut = false;
     failDue = false;
+    groupFans = [];
+    groupFanCalls = 0;
+    failGroupFan = false;
   });
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("writes the next page of a group push before it fans out, and loops without sleeping while a page was full (T-706b)", async () => {
+    groupFans = [
+      { rows: 500, more: true },
+      { rows: 500, more: true },
+      { rows: 12, more: false },
+    ];
+    const worker = start([createFakeProvider("fcm")]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(groupFanCalls).toBe(3);
+    expect(calls.filter((call) => call === "fanOut")).toHaveLength(3);
+    await worker.stop();
+  });
+
+  it("logs a failed group page with its SQLSTATE only and still fans out and claims", async () => {
+    failGroupFan = true;
+    const worker = start([createFakeProvider("fcm")]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(logs).toContainEqual(["error", { event: "push.group_fan_failed", code: "40001" }]);
+    expect(calls).toEqual(["settle", "due", "fanOut", "claim:fcm:200"]);
+    await worker.stop();
   });
 
   it("settles first, scans what is due, fans out, claims, then sleeps about a second when there is nothing to do", async () => {

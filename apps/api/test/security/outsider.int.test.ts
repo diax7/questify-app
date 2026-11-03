@@ -1069,6 +1069,67 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     }
   });
 
+  it("closes the group push table and grants only its four doors to the API's role (T-706b)", async () => {
+    const doors = [
+      "admin_group_push_list",
+      "admin_group_push_preview",
+      "admin_group_push_send",
+      "group_push_fan",
+    ];
+    const internals = [
+      "group_push_draft",
+      "group_push_frozen",
+      "group_push_json",
+      "group_push_params",
+      "group_push_reach",
+      "promo_push_free",
+    ];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      public: boolean;
+      definer: boolean;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider,
+        has_function_privilege('public', p.oid, 'EXECUTE') AS public,
+        prosecdef AS definer FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${[...doors, ...internals].map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(
+      [...doors, ...internals].toSorted(),
+    );
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.public, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+    }
+    expect(
+      await rows(`SELECT grantee, privilege_type FROM information_schema.role_table_grants
+        WHERE table_schema = 'public' AND table_name = 'group_push'
+          AND grantee IN ('PUBLIC', 'questify_app', 'questify_outsider')`),
+    ).toEqual([]);
+    expect(
+      await rows(
+        "SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'group_push'",
+      ),
+    ).toEqual([{ relrowsecurity: true, relforcerowsecurity: true }]);
+    for (const sql of [
+      "SELECT * FROM public.group_push",
+      "INSERT INTO public.group_push (audience) VALUES ('promo')",
+      "DELETE FROM public.group_push",
+      "SELECT public.admin_group_push_list()",
+      "SELECT public.admin_group_push_preview('{}')",
+      "SELECT public.admin_group_push_send('{}', gen_random_uuid())",
+      "SELECT public.group_push_fan()",
+      "SELECT public.promo_push_free(gen_random_uuid())",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+  });
+
   it("grants only the control room's three reads to the API's role, and nothing to the public (T-603)", async () => {
     const doors = ["control_counts", "control_done", "control_feed"];
     const functions = await rows<{
