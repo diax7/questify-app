@@ -287,6 +287,11 @@ _The shop, reservations and prize desk, staffed events (operators and My QR), fl
     seated enrollments only lowers the cost per row; it does not remove the per-row count.
   - Done when: accept-all of 5,000 pending requests on a hard-limited event with 20,000 seated players finishes in one
     call under 5 s with the decision push, and two accept-alls racing a join never seat more than the limit.
+  - Plan 2026-11-03 (tier A, awaiting the plan review): `docs/plans/2026-11-03-t-221-seat-limit-once.md`. Migration 0146:
+    the row guard replaced by AFTER statement triggers with transition tables (one count per statement, ADR-630; a seat
+    counter not taken, Q-590); accept-all up to 5,000 a call in both modes (ADR-631, Q-591); the per-row trigger work
+    trimmed (`souvenir_enqueue` in PL/pgSQL, one ranking mark per transaction, ADR-632), because T-501d's 1.4 ms a row
+    alone puts 5,000 near 7 s. Measured by hand on a 20,000-seated fixture before and after, including the scan path.
 
 ## Phase 3 — Quest depth
 
