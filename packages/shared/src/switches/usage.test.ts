@@ -14,7 +14,7 @@ const registries: Registries = {
     shop: { gated: false },
     ratings: { gated: false, eventOffByDefault: true },
     streak: { gated: false, level: "platform" },
-    boosts: { gated: false, noOrganizerOverride: true },
+    boosts: { gated: false },
     screen: { gated: true },
   },
   tuning: {},
@@ -127,11 +127,10 @@ describe("featureUsageOrganizer", () => {
     });
   });
 
-  it("ignores an override on a feature that cannot be overridden for one organizer", () => {
+  it("applies an override to a points-path feature too (T-711b made boosts overridable)", () => {
     expect(rowOf({ overrides: { boosts: false } }, {}, "boosts")).toMatchObject({
-      override: null,
-      effective: true,
-      eventsOn: 10,
+      override: false,
+      effective: false,
     });
   });
 
