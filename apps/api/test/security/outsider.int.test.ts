@@ -43,6 +43,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "own_support_grants",
       "support_close",
       "support_open",
+      "support_view_log",
       "suspended_ids",
     ];
     const definers = [

@@ -20,6 +20,7 @@ import {
   readQuest,
   type Bilingual,
 } from "#src/quests/store";
+import { teamSeat } from "#src/organizers/store";
 
 /** What signs the codes and where they point: the dashboard's `/q/{token}` page. */
 export type CodeDeps = BuilderDeps &
@@ -95,48 +96,44 @@ const codeView = (deps: CodeDeps, row: CodeRow): QuestCodeView => ({
  */
 export function listCodes(deps: CodeDeps, actor: Actor, eventId: string): Promise<Done<CodesView>> {
   return withConnection(deps.pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      async () => {
-        const event = await client.query(
-          "SELECT 1 FROM event WHERE organizer_id = $1 AND id = $2",
-          [actor.organizerId, eventId],
-        );
-        if (event.rowCount !== 1) {
-          return { kind: "not_found" };
-        }
-        const { rows } = await client.query<CodeRow>(
-          `SELECT q.id, q.category_id, q.title_ar, q.title_en, coalesce(s.qr_version, q.qr_version) AS qr_version,
+    withRequestContext(client, teamSeat(actor), async () => {
+      const event = await client.query("SELECT 1 FROM event WHERE organizer_id = $1 AND id = $2", [
+        actor.organizerId,
+        eventId,
+      ]);
+      if (event.rowCount !== 1) {
+        return { kind: "not_found" };
+      }
+      const { rows } = await client.query<CodeRow>(
+        `SELECT q.id, q.category_id, q.title_ar, q.title_en, coalesce(s.qr_version, q.qr_version) AS qr_version,
                   c.name_ar, c.name_en, s.id AS step_id, s.name_ar AS step_ar, s.name_en AS step_en
            FROM quest q JOIN category c ON c.id = q.category_id
            LEFT JOIN passport_step s ON s.quest_id = q.id
            WHERE q.event_id = $1 AND q.deleted_at IS NULL
              AND ((q.type = ANY ($2) AND 'quest_qr' = ANY (q.verification)) OR s.id IS NOT NULL)
            ORDER BY c.position, c.id, q.position, q.id, s.position, s.id`,
-          [eventId, QR_QUEST_TYPES],
-        );
-        const hidden = await client.query<{
-          id: string;
-          name_ar: string | null;
-          name_en: string | null;
-          reveal_version: number;
-        }>(
-          `SELECT id, name_ar, name_en, reveal_version FROM category
+        [eventId, QR_QUEST_TYPES],
+      );
+      const hidden = await client.query<{
+        id: string;
+        name_ar: string | null;
+        name_en: string | null;
+        reveal_version: number;
+      }>(
+        `SELECT id, name_ar, name_en, reveal_version FROM category
            WHERE event_id = $1 AND hidden ORDER BY position, id`,
-          [eventId],
-        );
-        return done({
-          codes: rows.map((row) => codeView(deps, row)),
-          secrets: hidden.rows.map((row) => ({
-            categoryId: row.id,
-            category: { ar: row.name_ar, en: row.name_en },
-            version: row.reveal_version,
-            url: revealUrlOf(deps, row.id, row.reveal_version),
-          })),
-        });
-      },
-    ),
+        [eventId],
+      );
+      return done({
+        codes: rows.map((row) => codeView(deps, row)),
+        secrets: hidden.rows.map((row) => ({
+          categoryId: row.id,
+          category: { ar: row.name_ar, en: row.name_en },
+          version: row.reveal_version,
+          url: revealUrlOf(deps, row.id, row.reveal_version),
+        })),
+      });
+    }),
   );
 }
 

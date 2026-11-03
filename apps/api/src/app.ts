@@ -591,6 +591,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     devices: deviceClaims,
     invitations,
     suspended,
+    keys: signInDeps.keys,
     dashboardOrigin: config.auth.dashboardOrigin,
   });
   registerPublicLinkRoutes(app, { pool: options.pool, keys: signInDeps.keys });

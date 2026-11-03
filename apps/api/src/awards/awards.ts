@@ -7,6 +7,7 @@ import { withRequestContext, type RequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
 import type { Bilingual } from "#src/quests/store";
 import type { BulkLines } from "#src/awards/lines";
+import { teamSeat } from "#src/organizers/store";
 
 export type PoolDeps = Readonly<{ pool: Pool }>;
 /** The operator's find also counts toward a per-operator limit, keyed like the other player throttles. */
@@ -96,10 +97,7 @@ async function run<T>(
   }
 }
 
-const staffSeat = (context: OrganizerContext): RequestContext => ({
-  organizerId: context.organizerId,
-  staffUserId: context.staffUserId,
-});
+const staffSeat = (context: OrganizerContext): RequestContext => teamSeat(context);
 const text = (ar: unknown, en: unknown): Bilingual => ({
   ar: typeof ar === "string" ? ar : null,
   en: typeof en === "string" ? en : null,

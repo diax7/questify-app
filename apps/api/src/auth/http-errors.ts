@@ -2369,6 +2369,12 @@ export const organizerAcceptanceRequired = make(
   "نُشر إصدار جديد من وثائق المنظِّمين. يجب أن يوافق عليه مالك الجهة قبل أي تعديل.",
   "A new version of the organizer documents is out. The owner must accept it before anything can be changed.",
 );
+export const supportViewOnly = make(
+  403,
+  "support_view_only",
+  "هذا عرض دعم للقراءة فقط. لم يتغيّر شيء.",
+  "This is a read-only support view. Nothing was changed.",
+);
 export const invalidPlayerAction = make(
   400,
   "invalid_player_action",

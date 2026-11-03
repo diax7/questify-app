@@ -3,6 +3,7 @@ import type { Pool, PoolClient } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type TicketDeps = Readonly<{ pool: Pool }>;
 
@@ -104,10 +105,7 @@ export async function run<T>(
   }
 }
 
-const staffSeat = (context: OrganizerContext): RequestContext => ({
-  organizerId: context.organizerId,
-  staffUserId: context.staffUserId,
-});
+const staffSeat = (context: OrganizerContext): RequestContext => teamSeat(context);
 
 export type Title = Readonly<{ ar: string | null; en: string | null }>;
 export const titleOf = (ar: string | null, en: string | null, id: string | null): Title | null =>

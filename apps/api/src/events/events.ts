@@ -33,6 +33,7 @@ import {
   templateExists,
 } from "#src/events/templates";
 import type { OrganizerContext, OrganizerPrincipal } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 /** What the dashboard sends: times as the event's wall clock (`YYYY-MM-DDTHH:mm`), read in its zone. */
 export type EventInput = Readonly<{
@@ -275,11 +276,7 @@ function changes(before: EventRecord, after: EventRecord) {
 
 const inContext = <T>(deps: EventsDeps, actor: Actor, work: (client: PoolClient) => Promise<T>) =>
   withConnection(deps.pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      () => work(client),
-    ),
+    withRequestContext(client, teamSeat(actor), () => work(client)),
   );
 
 const audit = (

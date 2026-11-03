@@ -9,6 +9,7 @@ import {
   type PaidRow,
   type PlayDeps,
 } from "#src/plays/run";
+import { teamSeat } from "#src/organizers/store";
 
 /** A survey question as a player reads it (ADR-198): never anyone's answers. */
 export type SurveyQuestion = Readonly<{
@@ -119,7 +120,7 @@ export function surveySummary(
   context: OrganizerContext,
   request: Readonly<{ eventId: string; questId: string }>,
 ): Promise<Done<SurveySummary>> {
-  const seat = { organizerId: context.organizerId, staffUserId: context.staffUserId };
+  const seat = teamSeat(context);
   return run(deps, seat, async (client) => {
     const { rows } = await client.query<{
       summary: { total: number; questions: StoredResult[] };

@@ -16,6 +16,7 @@ import {
   type RehearsalCounts,
   type RehearsalRefusal,
 } from "#src/rehearsal/rehearsal";
+import { teamSeat } from "#src/organizers/store";
 
 type Text = Readonly<{ ar: string | null; en: string | null }>;
 
@@ -42,10 +43,7 @@ export type Refused = Readonly<{ kind: "refused"; refusal: RehearsalRefusal }>;
 const CODE_TRIES = 5;
 const UNIQUE_VIOLATION = "23505";
 
-const organizerSeat = (actor: OrganizerContext): RequestContext => ({
-  organizerId: actor.organizerId,
-  staffUserId: actor.staffUserId,
-});
+const organizerSeat = (actor: OrganizerContext): RequestContext => teamSeat(actor);
 
 /** Runs a definer call as the team member; our refusals come back as values, anything else is rethrown. */
 async function asTeam<T>(

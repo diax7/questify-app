@@ -18,6 +18,7 @@ import {
 } from "@questify/shared";
 import { normalizeSaudiMobile } from "#src/players/phone";
 import { lockBuilderEvent, type BuilderEvent } from "#src/quests/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type SetupDeps = Readonly<{ pool: Pool }>;
 
@@ -331,20 +332,16 @@ export function withSetupEvent<T>(
   writes = true,
 ): Promise<SetupDone<T>> {
   return withConnection(deps.pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      async () => {
-        const event = await lockBuilderEvent(client, actor.organizerId, eventId);
-        if (event === undefined) {
-          return { kind: "not_found" } as const;
-        }
-        if (writes && event.statusNow === "archived") {
-          return { kind: "event_archived" } as const;
-        }
-        return work(client, event);
-      },
-    ),
+    withRequestContext(client, teamSeat(actor), async () => {
+      const event = await lockBuilderEvent(client, actor.organizerId, eventId);
+      if (event === undefined) {
+        return { kind: "not_found" } as const;
+      }
+      if (writes && event.statusNow === "archived") {
+        return { kind: "event_archived" } as const;
+      }
+      return work(client, event);
+    }),
   );
 }
 

@@ -1,7 +1,7 @@
 import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import type { LegalPending, Suspension, SupportGrant } from "#src/auth/staff-store";
-import { withRequestContext } from "#src/db/context";
+import { withRequestContext, type RequestContext } from "#src/db/context";
 
 /** The caller's membership of the organizer in the URL, read from the database by the organizer scope. */
 export type OrganizerPrincipal = Readonly<{
@@ -15,6 +15,8 @@ export type OrganizerPrincipal = Readonly<{
   legalPending?: readonly LegalPending[];
   /** A Questify admin on support grants instead of a member (ADR-407): editor of these events only. */
   support?: readonly SupportGrant[];
+  /** This request reads an event under a support `view` grant (T-712, ADR-521): its transactions open READ ONLY. */
+  readOnly?: true;
 }>;
 
 export type TeamMember = Readonly<{
@@ -34,7 +36,22 @@ export type PendingInvite = Readonly<{
 }>;
 
 /** The context every organizer query runs in: the caller and the organizer they are a member of. */
-export type OrganizerContext = Readonly<{ staffUserId: string; organizerId: string }>;
+export type OrganizerContext = Readonly<{
+  staffUserId: string;
+  organizerId: string;
+  /** A support admin's view (T-712, ADR-521): carried into every seat so the database honours the view grant. */
+  readOnly?: true;
+}>;
+
+/**
+ * The row-level-security seat of an organizer context: the caller, the organizer and, for a support view, the read-only
+ * mark (ADR-521). Every store builds its seat here, so a view request never runs read-write by a copied field missing.
+ */
+export const teamSeat = (context: OrganizerContext): RequestContext => ({
+  organizerId: context.organizerId,
+  staffUserId: context.staffUserId,
+  ...(context.readOnly === true ? { readOnly: true } : {}),
+});
 
 /** The caller's own membership of an organizer, or undefined when they are not a member. */
 export async function membershipOf(

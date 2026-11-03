@@ -2,6 +2,7 @@ import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type PauseDeps = Readonly<{ pool: Pool }>;
 
@@ -52,7 +53,7 @@ export async function setRoomSwitch(
   target: Readonly<{ eventId: string; questId: string; requestId: string; action: RoomSwitch }>,
 ): Promise<SwitchDone> {
   const door = DOORS[target.action];
-  const seat = { organizerId: context.organizerId, staffUserId: context.staffUserId };
+  const seat = teamSeat(context);
   try {
     const answer = await withConnection(deps.pool, (client) =>
       withRequestContext(client, seat, async () => {

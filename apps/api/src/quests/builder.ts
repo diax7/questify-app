@@ -28,6 +28,7 @@ import {
   type QuestPlace,
   type QuestRecord,
 } from "#src/quests/store";
+import { teamSeat } from "#src/organizers/store";
 
 /** Caps per event (T-103 plan, decision 9). */
 export const BUILDER_LIMITS = { categories: 30, quests: 300 } as const;
@@ -452,28 +453,24 @@ export async function withEvent<T>(
 ): Promise<Done<T>> {
   try {
     return await withConnection(deps.pool, (client) =>
-      withRequestContext(
-        client,
-        { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-        async () => {
-          const event = await lockBuilderEvent(client, actor.organizerId, eventId);
-          if (event === undefined) {
-            return { kind: "not_found" } as const;
-          }
-          // Stryker disable next-line ConditionalExpression,LogicalOperator,StringLiteral,BlockStatement: the database guard refuses the same writes (migration 0010); this answers before any work
-          if (event.statusNow === "ended" || event.statusNow === "archived") {
-            return { kind: "event_closed" } as const;
-          }
-          if (
-            gate.change !== undefined &&
-            event.statusNow === "live" &&
-            gate.change.confirm !== true
-          ) {
-            return { kind: "confirm_required" } as const;
-          }
-          return work(client, event);
-        },
-      ),
+      withRequestContext(client, teamSeat(actor), async () => {
+        const event = await lockBuilderEvent(client, actor.organizerId, eventId);
+        if (event === undefined) {
+          return { kind: "not_found" } as const;
+        }
+        // Stryker disable next-line ConditionalExpression,LogicalOperator,StringLiteral,BlockStatement: the database guard refuses the same writes (migration 0010); this answers before any work
+        if (event.statusNow === "ended" || event.statusNow === "archived") {
+          return { kind: "event_closed" } as const;
+        }
+        if (
+          gate.change !== undefined &&
+          event.statusNow === "live" &&
+          gate.change.confirm !== true
+        ) {
+          return { kind: "confirm_required" } as const;
+        }
+        return work(client, event);
+      }),
     );
   } catch (error) {
     // Stryker disable all: reached only when the event ends between the check above and a write, milliseconds apart
@@ -641,20 +638,16 @@ export function readBuilder(
   eventId: string,
 ): Promise<Done<BuilderView>> {
   return withConnection(deps.pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      async () => {
-        const { rows } = await client.query<{ focus_quest_id: string | null }>(
-          "SELECT focus_quest_id FROM event WHERE organizer_id = $1 AND id = $2",
-          [actor.organizerId, eventId],
-        );
-        const event = rows[0];
-        return event === undefined
-          ? { kind: "not_found" }
-          : done(await view(client, eventId, event.focus_quest_id));
-      },
-    ),
+    withRequestContext(client, teamSeat(actor), async () => {
+      const { rows } = await client.query<{ focus_quest_id: string | null }>(
+        "SELECT focus_quest_id FROM event WHERE organizer_id = $1 AND id = $2",
+        [actor.organizerId, eventId],
+      );
+      const event = rows[0];
+      return event === undefined
+        ? { kind: "not_found" }
+        : done(await view(client, eventId, event.focus_quest_id));
+    }),
   );
 }
 

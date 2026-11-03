@@ -10,6 +10,7 @@ import {
   type PaidRow,
   type PlayDeps,
 } from "#src/plays/run";
+import { teamSeat } from "#src/organizers/store";
 
 export type VoteView = Readonly<{
   options: readonly Readonly<{ id: string; text: Bilingual }>[];
@@ -91,7 +92,7 @@ export function voteCounts(
   context: OrganizerContext,
   request: Readonly<{ eventId: string; questId: string }>,
 ): Promise<Done<VoteCounts>> {
-  const seat = { organizerId: context.organizerId, staffUserId: context.staffUserId };
+  const seat = teamSeat(context);
   return run(deps, seat, async (client) => {
     const { rows } = await client.query<OptionRow & { votes: string; voters: string }>(
       "SELECT * FROM quest_vote_counts($1, $2)",

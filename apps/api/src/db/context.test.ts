@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 import { describe, expect, it } from "vitest";
-import { withRolledBackContext } from "#src/db/context";
+import { withRequestContext, withRolledBackContext } from "#src/db/context";
 
 const PLAYER = "6f1c1e1a-6b0f-4c39-9d4e-0d5b8e1f2a3c";
 
@@ -72,5 +72,29 @@ describe("withRolledBackContext (the practice scan's API wall, ADR-249)", () => 
     ).rejects.toThrow(RangeError);
     expect(sent).toEqual([]);
     expect(released).toEqual([]);
+  });
+});
+
+describe("readOnly (a support admin's view, T-712, ADR-521)", () => {
+  const STAFF = "7a2c3e4b-1d2e-4f5a-8b9c-0d1e2f3a4b5c";
+
+  it("opens BEGIN READ ONLY only for a readOnly context", async () => {
+    const { pool, sent } = recordingPool();
+    await withRolledBackContext(pool, { staffUserId: STAFF, readOnly: true }, async () => "seen");
+    await withRolledBackContext(pool, { staffUserId: STAFF }, async () => "seen");
+    expect(sent.filter((sql) => sql.startsWith("BEGIN"))).toEqual(["BEGIN READ ONLY", "BEGIN"]);
+  });
+
+  it("commits a read-only transaction like any other in withRequestContext", async () => {
+    const { pool, sent } = recordingPool();
+    const client = await pool.connect();
+    const value = await withRequestContext(
+      client,
+      { staffUserId: STAFF, organizerId: PLAYER, readOnly: true },
+      async () => "read",
+    );
+    await withRequestContext(client, { staffUserId: STAFF }, async () => "written");
+    expect(value).toBe("read");
+    expect(sent).toEqual(["BEGIN READ ONLY", "SET", "COMMIT", "BEGIN", "SET", "COMMIT"]);
   });
 });

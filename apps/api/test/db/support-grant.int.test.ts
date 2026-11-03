@@ -65,7 +65,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("support grants (database)", ()
     (
       await as<Opened>(
         adminSeat(who),
-        "SELECT * FROM support_open($1, $2, $3)",
+        "SELECT * FROM support_open($1, 'edit', $2, $3)",
         [event, reason, randomUUID()],
         client,
       )
@@ -116,11 +116,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("support grants (database)", ()
       { playerId: ids.playerA },
     ]) {
       await expect(
-        as(seat, "SELECT * FROM support_open($1, $2, $3)", [ids.eventA, reason, null]),
+        as(seat, "SELECT * FROM support_open($1, 'edit', $2, $3)", [ids.eventA, reason, null]),
       ).rejects.toMatchObject({ code: "QE403" });
     }
     await expect(
-      as(adminSeat(), "SELECT * FROM support_open($1, $2, $3)", [ids.eventA, "short", null]),
+      as(adminSeat(), "SELECT * FROM support_open($1, 'edit', $2, $3)", [ids.eventA, "short", null]),
     ).rejects.toMatchObject({ code: "SU400" });
     await owner(
       "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'editor')",
@@ -128,8 +128,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("support grants (database)", ()
     );
     await expect(open(ids.eventB, otherAdmin)).rejects.toMatchObject({ code: "SG409" });
     await owner(
-      `INSERT INTO support_grant (admin_id, organizer_id, event_id, reason, opened_at, expires_at, closed_at, close_kind)
-       SELECT $1, $2, $3, 'An earlier support visit', now() - interval '5 minutes',
+      `INSERT INTO support_grant (admin_id, organizer_id, event_id, kind, reason, opened_at, expires_at, closed_at, close_kind)
+       SELECT $1, $2, $3, 'view', 'An earlier support visit', now() - interval '5 minutes',
               now() + interval '10 minutes', now(), 'admin'
        FROM generate_series(1, 20)`,
       [otherAdmin, ids.orgA, eventA2],

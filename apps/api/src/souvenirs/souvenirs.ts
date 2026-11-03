@@ -5,6 +5,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { HttpError } from "#src/http-error";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type SouvenirDeps = Readonly<{ pool: Pool }>;
 const CONFLICTS: Readonly<Record<string, MessageKey>> = {
@@ -39,11 +40,7 @@ export async function asSouvenirTeam<T>(
 ): Promise<T> {
   try {
     return await withConnection(deps.pool, (client) =>
-      withRequestContext(
-        client,
-        { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-        () => work(client),
-      ),
+      withRequestContext(client, teamSeat(actor), () => work(client)),
     );
   } catch (error) {
     return souvenirRefusal(error);

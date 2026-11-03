@@ -142,7 +142,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("platform admin role (database)
     );
     await as(
       { isAdmin: true, staffUserId: id },
-      "SELECT * FROM support_open($1, 'Checking a reported quest', NULL)",
+      "SELECT * FROM support_open($1, 'edit', 'Checking a reported quest', NULL)",
       [ids.eventB],
     );
     expect(await setPlatformAdmin(db.owner, "new.ops@questify.test", false, REVOKE_NOTE)).toEqual({

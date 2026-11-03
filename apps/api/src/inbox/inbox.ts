@@ -3,6 +3,7 @@ import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type InboxDeps = Readonly<{ pool: Pool }>;
 
@@ -19,14 +20,10 @@ export async function readInbox(
 ): Promise<Inbox | undefined> {
   try {
     const answer = await withConnection(deps.pool, (client) =>
-      withRequestContext(
-        client,
-        { organizerId: team.organizerId, staffUserId: team.staffUserId },
-        async () => {
-          const { rows } = await client.query("SELECT event_inbox($1) AS answer", [eventId]);
-          return rows[0]?.["answer"];
-        },
-      ),
+      withRequestContext(client, teamSeat(team), async () => {
+        const { rows } = await client.query("SELECT event_inbox($1) AS answer", [eventId]);
+        return rows[0]?.["answer"];
+      }),
     );
     return inboxSchema.parse(answer);
   } catch (error) {
