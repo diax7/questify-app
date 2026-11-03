@@ -597,6 +597,22 @@ the client-address count (ADR-113).
   on repeats). Deploy the API right after the migration.
 - Migrations: `node migrate.cjs` (owner connection `DATABASE_ADMIN_URL`; `--roles` the first time; `--verify` as the
   app role proves its limits). Remove the owner connection string from the app environment afterwards.
+- **Migration retry (T-022, ADR-291, ADR-580).** Each file runs as one transaction. If it fails with `40P01` (deadlock) or
+  `55P03` (lock timeout), the runner rolls the whole transaction back and runs the file again: three retries after the first
+  try, so four attempts, waiting about 1 s, 2 s and 4 s (each spread between half and one and a half times). Every retry
+  writes one line to standard error with the file, the SQLSTATE and the attempt (`Migration 0067_x.sql hit a lock clash
+  (SQLSTATE 40P01) on attempt 1 of 4 and was rolled back whole; retrying in 1043 ms.`); no error text, no connection string.
+  Any other error fails at once and is never retried. A file never runs twice or half-way: the advisory lock is held across
+  the retries, a failed attempt is rolled back before the next starts, and a test fails if a migration file ends the
+  runner's transaction itself (`COMMIT;`, `BEGIN;`, `ROLLBACK;`); write new files without them. A file that waits on a lock
+  forever never reaches `55P03`: start such a file with `SET LOCAL lock_timeout = '10s';` (as 0063 to 0065 do).
+  **Exit codes of `node migrate.cjs`, which the deploy loop relies on:** `0` every file is applied (stdout is the JSON
+  `{applied, alreadyApplied}`); `75` a file lost the clash on all four attempts, rolled back whole and recorded nothing, and
+  the files before it stay applied: wait a minute and run the same command again; `1` anything else (a failing statement, an
+  edited applied file, a bad file name, no connection, a rollback that also failed): stop and read standard error, do not
+  loop. The deploy loop is therefore `n=0; until node /srv/migrate.cjs; do s=$?; [ "$s" -eq 75 ] || exit "$s"; n=$((n+1)); [ "$n" -lt 5 ] || exit 75; sleep 60; done` (a real failure ends it with its own code, and a lock held past five tries ends it with 75); a run that
+  exits `0` is done, and one more run shows the newest file under `alreadyApplied`. A rollback that fails (a lost connection
+  in the middle of a clash) is exit `1`: look at `schema_migration` and the schema before running again.
 - A deploy on CranL is manual (no webhook): build from the Dockerfile, then check `/healthz` and `/readyz`.
 
 ### Souvenir grant recovery (T-402b; deployment still deferred)

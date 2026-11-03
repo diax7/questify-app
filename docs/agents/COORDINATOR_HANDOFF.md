@@ -65,7 +65,9 @@ Updated 2026-11-02 by the Claude Code coordinator at Dhia's break. Progress: 149
    every 2-3 tasks; parallel tier B pairs in worktrees only when they touch different files and don't run browser
    specs at the same time; worker caps ~400-500k (tier B), ~800-900k (tier A builds). Reviews always run.
 7. **Deploy recipe:** connect the owner URL, deploy the API, loop `test -f /srv/migrations/<newest> && node
-   /srv/migrate.cjs` until `alreadyApplied`, `--verify`, unset the owner URL, restart, deploy web, probe `/readyz` and
+   /srv/migrate.cjs` until `alreadyApplied` (the runner retries a deadlock or lock timeout itself; exit 75 = it lost the
+   clash four times, rolled back whole, run it again; exit 1 = a real failure, stop and read stderr; RUNBOOK
+   "Migration retry"), `--verify`, unset the owner URL, restart, deploy web, probe `/readyz` and
    both sign-in pages. On this PC the web build may need
    `NODE_OPTIONS=--require <scratchpad>/symlink-fallback.cjs` (Windows symlink EPERM).
 

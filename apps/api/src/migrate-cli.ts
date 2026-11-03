@@ -1,11 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Client } from "pg";
-import { migrate } from "./db/migrate";
+import { migrate, migrationExitCode } from "./db/migrate";
 
 /**
  * One-off database administration, run inside the app container (for example `cranl run -- node migrate.cjs`).
- *   (no flag)   apply pending migrations as the owner (DATABASE_ADMIN_URL)
+ *   (no flag)   apply pending migrations as the owner (DATABASE_ADMIN_URL); a deadlock or lock timeout on a file is
+ *               retried (stderr names each retry). Exit 0: all applied. Exit 75: a file lost the clash on every
+ *               attempt and rolled back whole, so running it again is safe. Exit 1: any other failure.
  *   --roles     create the roles first and set the app role password from APP_ROLE_PASSWORD
  *   --check     print what the owner account may do, and change nothing
  *   --verify    connect as the API's own role (DATABASE_URL) and prove its limits, changing nothing
@@ -105,5 +107,5 @@ main().catch((error: unknown) => {
   process.stderr.write(
     `Database task failed: ${error instanceof Error ? error.message : String(error)}\n`,
   );
-  process.exit(1);
+  process.exit(migrationExitCode(error));
 });
