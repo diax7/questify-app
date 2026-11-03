@@ -3,8 +3,9 @@
 import type { FeatureRow, Language, MessageKey, SwitchesView, TuningRow } from "@questify/shared";
 import { useState } from "react";
 import { CatalogState, PairInputs } from "#src/components/CatalogParts.tsx";
-import { keyed, useWrite } from "#src/components/ConsoleOversight.tsx";
+import { ConsoleNotices } from "#src/components/ConsoleNotices.tsx";
 import styles from "#src/components/catalog.module.css";
+import { useSwitchWriter, type Writer } from "#src/components/useSwitchWriter.ts";
 import {
   SWITCHES_API,
   SWITCH_TABS,
@@ -21,7 +22,6 @@ import {
   type SwitchTab,
 } from "#src/lib/console-switches.ts";
 import { translatorFor } from "#src/lib/language.ts";
-import { requestJson } from "#src/lib/post-json.ts";
 import { useConsoleRead } from "#src/lib/use-console-read.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Badge } from "#src/ui/Feedback.tsx";
@@ -31,12 +31,6 @@ import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Stack, Toolbar } from "#src/ui/Section.tsx";
 import { Tabs } from "#src/ui/Tabs.tsx";
 import { infoTip } from "#src/ui/info.tsx";
-
-type Writer = Readonly<{
-  busy: boolean;
-  put: (path: string, body: object) => Promise<boolean>;
-  reset: (path: string) => Promise<boolean>;
-}>;
 
 /** The message players see while a feature is off, in both languages, saved with its own button. */
 function MessageForm({
@@ -227,21 +221,7 @@ export function ConsoleSwitches({ language }: Readonly<{ language: Language }>) 
   const t = translatorFor(language);
   const [tab, setTab] = useState<SwitchTab>("features");
   const { state, reload } = useConsoleRead(SWITCHES_API, readSwitches);
-  const [notice, setNotice] = useState<string | null>(null);
-  const write = useWrite(language, (done) => {
-    setNotice(done);
-    void reload();
-  });
-  const writer: Writer = {
-    busy: write.busy,
-    put: (path, body) =>
-      write.run(() => requestJson("PUT", path, body, keyed()), t("console.catalog.saved")),
-    reset: (path) =>
-      write.run(
-        () => requestJson("DELETE", path, undefined, keyed()),
-        t("console.catalog.reverted"),
-      ),
-  };
+  const { writer, notice, problem } = useSwitchWriter(language, reload);
   return (
     <Stack as="section" aria-labelledby="console-switches-title">
       <PageHeader
@@ -258,9 +238,13 @@ export function ConsoleSwitches({ language }: Readonly<{ language: Language }>) 
           select: () => setTab(key),
         }))}
       />
-      <CatalogState language={language} catalog={{ state, reload, notice, problem: write.problem }}>
-        {(view) => <SwitchesBody language={language} tab={tab} view={view} writer={writer} />}
-      </CatalogState>
+      {tab === "notices" ? (
+        <ConsoleNotices language={language} />
+      ) : (
+        <CatalogState language={language} catalog={{ state, reload, notice, problem }}>
+          {(view) => <SwitchesBody language={language} tab={tab} view={view} writer={writer} />}
+        </CatalogState>
+      )}
     </Stack>
   );
 }

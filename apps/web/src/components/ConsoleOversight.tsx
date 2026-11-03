@@ -244,15 +244,12 @@ function GrantRows({
     <Rows>
       {grants.map((grant) => {
         const time = clockOf(grant.expiresAt, language);
+        const who = grant.mine
+          ? t("support.mine", { time })
+          : t("support.grant", { email: grant.adminEmail, time });
+        const kind = t(grant.kind === "view" ? "support.kindView" : "support.kindEdit");
         return (
-          <Row
-            key={grant.id}
-            main={
-              grant.mine
-                ? t("support.mine", { time })
-                : t("support.grant", { email: grant.adminEmail, time })
-            }
-          >
+          <Row key={grant.id} main={t("support.withKind", { grant: who, kind })}>
             <Button variant="quiet" disabled={busy} onClick={() => end(grant)}>
               {t("support.end")}
             </Button>
@@ -269,8 +266,9 @@ function GrantRows({
 }
 
 /**
- * Support access to one event (T-701, ADR-407): who holds it now, and opening it for yourself for 15 minutes with a
- * reason; once open, the event's own dashboard opens. The organizer is not told (Q-373).
+ * Support access to one event (T-701, ADR-407; T-712, ADR-520): who holds it now and of which kind, and opening it for
+ * yourself for 15 minutes with a reason, read-only by default ("View as organizer", the primary action) or able to
+ * change (the secondary one); once open, the event's own dashboard opens. The organizer is not told (Q-373).
  */
 export function SupportPanel({
   language,
@@ -292,13 +290,13 @@ export function SupportPanel({
   const [reason, setReason] = useState("");
   const { busy, problem, run } = useWrite(language, onChanged);
   const goTo = () => router.push(`/${language}/organizers/${organizerId}/events/${eventId}`);
-  const open = () =>
+  const open = (kind: "view" | "edit") =>
     void run(
       () =>
         requestJson(
           "POST",
           `/v1/admin/events/${eventId}/support`,
-          { reason: reason.trim() },
+          { kind, reason: reason.trim() },
           keyed(),
         ),
       t("support.title"),
@@ -325,11 +323,19 @@ export function SupportPanel({
         />
         <ConfirmedButton
           language={language}
-          label={t("support.open")}
-          question={t("support.confirm", { name })}
+          label={t("support.view")}
+          question={t("support.viewConfirm", { name })}
           variant="primary"
           disabled={busy || !reasonReady(reason)}
-          act={open}
+          act={() => open("view")}
+        />
+        <ConfirmedButton
+          language={language}
+          label={t("support.open")}
+          question={t("support.confirm", { name })}
+          variant="secondary"
+          disabled={busy || !reasonReady(reason)}
+          act={() => open("edit")}
         />
       </Stack>
     </Section>

@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 import { runNfc, type NfcDone } from "#src/nfc/tags";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type TeamNfcDeps = Readonly<{ pool: Pool }>;
 
@@ -41,10 +42,7 @@ const viewOf = (row: Json): TagView => ({
   lastTapAt: isoOrNull(row["lastTapAt"]),
 });
 
-const seatOf = (context: OrganizerContext) => ({
-  organizerId: context.organizerId,
-  staffUserId: context.staffUserId,
-});
+const seatOf = (context: OrganizerContext) => teamSeat(context);
 
 /** A quest's tags, active first and newest first (`quest_nfc_tags`). */
 export function questTags(

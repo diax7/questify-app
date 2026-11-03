@@ -9,6 +9,7 @@ import { withRequestContext, type RequestContext } from "#src/db/context";
 import { onlyRow } from "#src/db/rows";
 import type { OrganizerContext } from "#src/organizers/store";
 import { inviteCode, inviteCodeUrl, type InviteCodeKey } from "#src/quests/qr";
+import { teamSeat } from "#src/organizers/store";
 
 /** FR-908: every ability an operator can hold; all on for a new operator unless a preset says otherwise. */
 export const ABILITIES = [
@@ -89,11 +90,7 @@ const asOrganizer = <T>(
   work: (client: PoolClient) => Promise<T>,
 ) =>
   withConnection(deps.pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: context.organizerId, staffUserId: context.staffUserId },
-      () => work(client),
-    ),
+    withRequestContext(client, teamSeat(context), () => work(client)),
   );
 
 const asPlayer = <T>(

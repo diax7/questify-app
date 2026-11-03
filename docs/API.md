@@ -30,7 +30,12 @@
 - **Errors:** one envelope everywhere: `{ "code": "<machine_code>", "message": { "ar", "en" },
   "details": {} }`. Status codes: 400 bad input, 401 not signed in, 403 not allowed or paused, 404,
   409 conflict (e.g. already completed), 422 rule failure, 426 update the app, 429 too many
-  requests / busy, 503 maintenance (with the maintenance message).
+  requests / busy, 503 `maintenance` (T-703b, ADR-471: `message` is the admin's own text in both languages and
+  `details.scope` is `platform` or `event`). It carries `Retry-After: 60` and is answered by the doors that earn or spend
+  only while Questify paused play (a scan, a vote, a quiz, a submission, a game, a tap, a meeting, a stamp, a reveal, a
+  reservation, the goal, joining, the kiosk, the station's scan, award and check-in, Questify's sync, the daily
+  challenge and the gem shop); reads, leaving, ratings, prize handover, the dashboard and the console are never held. `GET /v1/config` and `GET /v1/events/{id}/config` carry `maintenance` (`{ar, en}` or null) and
+  `banner` (`{message, startsAt, endsAt}` or null).
 - **Pagination:** cursor-based (`?cursor=&limit=`); lists return `nextCursor`.
 - **Idempotency:** every unsafe action (complete a quest, award points, reserve a prize, send a
   message, redeem) requires an `Idempotency-Key` header. The server keeps the first result for 24
@@ -589,6 +594,13 @@ limited editor cannot create events (403 `scope_limited`, T-102). The database c
 | `GET /v1/admin/organizers/{organizerId}/features` | admin | → `{features: [{key, platformEnabled, override: boolean \| null, effective}]}` (T-711, FR-1826, ADR-501): the 12 features an override can act on, with the platform's switch now, Questify's override for this organizer and the result. 60 a minute per admin | 401, 404 (also an unknown organizer), 429 |
 | `PUT /v1/admin/organizers/{organizerId}/features/{key}` | admin | `{enabled}` → 204 (T-711): sets the override On or Off for the organizer; acts at once on the composed configuration and the SQL rules. A feature that has no event layer or whose platform rule is read platform-wide (`boosts`, `community`, `meetSomeone`, `miniGames`, T-711b) is refused. One feature per call under a lock; audited `organizer.feature_override.set` (before and after; nothing for a save that changes nothing). 120 an hour per admin | 401, 404, 422 `invalid_catalog` (`details.issues`), 429 |
 | `DELETE /v1/admin/organizers/{organizerId}/features/{key}` | admin | → 204: the organizer follows the platform's switch again. Audited `organizer.feature_override.clear` | 401, 404, 422 `invalid_catalog`, 429 |
+| `GET /v1/admin/switches/notices` | admin | → `{maintenance: {global: {ar, en} \| null, events: [{eventId, joinCode, name: {ar, en}, message}]}, banner: {message, startsAt, endsAt} \| null}` (T-703b): the pauses in force and the scheduled banner | 401, 404 |
+| `PUT /v1/admin/switches/maintenance/global` | admin | `{message: {ar, en}}` → 204 (T-703b, ADR-470, ADR-471): pauses play everywhere; both languages, 1 to 300 characters each. Audited `platform_settings.update` (block `maintenance`, before and after) | 401, 404, 422 `invalid_catalog` |
+| `DELETE /v1/admin/switches/maintenance/global` | admin | → 204: play runs again everywhere. Audited | 401, 404 |
+| `PUT /v1/admin/switches/maintenance/events` | admin | `{joinCode, message: {ar, en}}` → 204 (ADR-472): pauses the one event with that join code | 401, 404 (also no such event), 422 |
+| `DELETE /v1/admin/switches/maintenance/events/{eventId}` | admin | → 204: the event plays again (also when it was not paused). Audited | 401, 404 |
+| `PUT /v1/admin/switches/banner` | admin | `{message: {ar, en}, startsAt, endsAt}` → 204 (FR-1772): ISO instants, the end after the start; replaces the banner. Audited (block `banner`) | 401, 404, 422 |
+| `DELETE /v1/admin/switches/banner` | admin | → 204: removes the banner (an empty block is stored). Audited | 401, 404 |
 | `POST /v1/admin/help/{id}/revert` | admin | `{}` → `{article}`: puts back the `before` of the article's latest catalog entry (audited `catalog.help.revert`). Idempotency-Key required | 401, 404, 409 `nothing_to_revert` / `stale`, 422 |
 | `GET /v1/admin/message-templates` | admin | → `{templates: [{key, title: {ar, en} \| null, body: {ar, en}, updatedAt, revertible}]}` (T-706, FR-1780, ADR-461): the four templates `login_code_sms`, `promo_email`, `promo_push`, `promo_sms` | 401, 404, 429 |
 | `PUT /v1/admin/message-templates/{key}` | admin | `{title: {ar, en} \| null, body: {ar, en}}` → `{template}`. The CST rules: both languages written, an SMS names Questify, a login-code SMS says it is a sign-in code and holds `{code}`, a promotional SMS or email holds `{optOutUrl}`, no other placeholder, an SMS within 3 parts; a title on email and push only. A refusal names the fields: `details.issues` is `[{path: "body.en", message: "placeholderMissing"}]`. Audited `catalog.message_template.update` (before and after); a save that changes nothing writes nothing | 400 unknown key, 401, 404, 422 `invalid_catalog` |
@@ -642,7 +654,7 @@ limited editor cannot create events (403 `scope_limited`, T-102). The database c
 | `GET /v1/admin/events/{eventId}` (T-210) | admin | now also `event.event.suspension`, `event.event.organizerSuspension`, `event.supportGrants: [{id, adminEmail, mine, openedAt, expiresAt}]` and `event.history` (last 50 entries); audited `console.event_read` (Q-116) | as before |
 | `POST /v1/admin/organizers/{organizerId}/suspend`, `POST /v1/admin/events/{eventId}/suspend` | admin, Idempotency-Key | `{reason}` (10 to 300 characters; the organizer reads it, Q-372) → `{suspendedAt}` (ADR-406). Audited `organizer.suspend` / `event.suspend`; 30 an hour per admin | 400 `invalid_reason`, 404, 409 `suspension_unchanged`, 429 |
 | `POST /v1/admin/organizers/{organizerId}/reactivate`, `POST /v1/admin/events/{eventId}/reactivate` | admin, Idempotency-Key | `{}` or `{reason?}` (10 to 300 characters, audited) → 204; everything comes back as it was | 404, 409 `suspension_unchanged`, 429 |
-| `POST /v1/admin/events/{eventId}/support` | admin, Idempotency-Key | `{reason}` → 201 `{grant: {grantId, organizerId, eventId, expiresAt}}` (ADR-407): 15 minutes as an editor of that event through the organizer's own routes; silent to the organizer (Q-373). Audited `support.opened` | 400 `invalid_reason`, 404, 409 `support_member` / `support_busy`, 429 `too_many_support_grants` |
+| `POST /v1/admin/events/{eventId}/support` | admin, Idempotency-Key | `{kind: "view" \| "edit", reason}` → 201 `{grant: {grantId, organizerId, eventId, expiresAt, kind}}` (ADR-407, ADR-520): 15 minutes on that event through the organizer's own routes, read-only for `view` (T-712), as an editor for `edit`; opening again (either kind) replaces the admin's grant on the event; silent to the organizer (Q-373). Audited `support.opened` with the kind | 400 `invalid_reason`, 404, 409 `support_member` / `support_busy`, 429 `too_many_support_grants` |
 | `POST /v1/admin/support/{grantId}/close` | admin, Idempotency-Key | `{}` → 204; any admin may close a live grant. Audited `support.closed` | 404 |
 | `POST /v1/admin/questify/campaigns` | admin, Idempotency-Key | `{name:{ar,en} (trimmed 1–80, no control/bidi), startsAt, endsAt}` (ISO 8601 with offset; the console enters Saudi time) → `201 {campaign}`, a draft. Audited `questify.campaign_created` `{fields}` | 400, 404, 422 `invalid_questify` `{field: endsAt}` (ends before it starts) |
 | `PUT /v1/admin/questify/campaigns/{campaignId}` | admin, Idempotency-Key | the same body, the whole name and window → `{campaign}`. A draft changes freely; published: the start moves only before it starts and never into the past, then is fixed; the end only moves later while running; an ended window is fixed (names still change). Audited `questify.campaign_updated` with the changed field names | 400, 404, 409 `questify_conflict` `{reason: retired\|start_passed\|started\|ends_earlier\|ended}`, 422 |
@@ -888,11 +900,14 @@ The three public routes count 20 calls per client address in 15 minutes (429 + R
   route did not answer first (`ES423`) answers `423 event_suspended`. Public event reads by code answer not found.
 - **`GET /v1/staff/me`.** Each membership gains `suspension` (`{reason, since}` or null). A Questify admin's live
   support grants appear as memberships with `role: "editor"`, `eventScope` = the granted events and
-  `support: [{grantId, eventId, expiresAt}]`.
+  `support: [{grantId, eventId, expiresAt, kind}]` (`kind` since T-712).
 - **`GET /v1/organizers/{id}/events/{eventId}`** gains `event.suspension` (the dashboard's banner shows the reason).
 - **The support seat.** On a support grant the organizer routes accept only routes of a granted event (not
   `POST …/devices`, `POST …/devices/preview`, `POST …/exports/{kind}`) and `GET …/events`; others answer 404, owner
   routes 403. The events list is filtered by the caller's event limit for everyone (a limited editor no longer sees
   other public events of the organizer there).
+- **The support view (T-712).** Under a `view` grant every write answers `403 support_view_only` ("This is a read-only
+  support view. Nothing was changed."), and `GET …/codes` and `GET …/rehearsal` answer 404 as well; each read counts
+  against 240 a minute per admin (429 `too_many_attempts` with Retry-After) and is logged as `support.viewed`.
 - **Actor names.** `member_ledger.by_staff`, `flag_detail.resolved_by`, `event_tickets.answerer` and `escalated_by`,
   and a device's `pairedBy.name` carry `questify-support` instead of an email for work done under a support grant.

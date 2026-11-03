@@ -12,8 +12,10 @@ import { withRequestContext } from "#src/db/context";
 import { firstSwitchOnRefused, readEventLayerInputs } from "#src/settings/layers";
 import type { SaveResult } from "#src/settings/service";
 import { lockEventSwitches, readEventOrganizerId, writeEventSwitches } from "#src/settings/store";
+import { teamSeat, type OrganizerContext } from "#src/organizers/store";
 
-export type SwitchActor = Readonly<{ staffUserId: string; organizerId: string }>;
+/** The organizer member saving; a support view (T-712) carries `readOnly`, so its seat cannot write. */
+export type SwitchActor = OrganizerContext;
 
 /** The switches an event will hold, and which of them this save asks for. */
 export type SwitchChange = Readonly<{
@@ -37,7 +39,7 @@ export async function saveSwitches(
   const outcome = await withConnection(pool, (client) =>
     withRequestContext(
       client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
+      teamSeat(actor),
       async (): Promise<"saved" | "missing" | "not_allowed"> => {
         const current = await lockEventSwitches(client, eventId);
         if (current === undefined) {
@@ -82,18 +84,14 @@ export function readOwnerLayers(
   eventId: string,
 ): Promise<EventLayers | undefined> {
   return withConnection(pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      async () => {
-        if ((await readEventOrganizerId(client, eventId)) !== actor.organizerId) {
-          return undefined;
-        }
-        const inputs = await readEventLayerInputs(client, registries, eventId);
-        return inputs === undefined
-          ? undefined
-          : eventLayersOf(registries, inputs.platform, inputs.event);
-      },
-    ),
+    withRequestContext(client, teamSeat(actor), async () => {
+      if ((await readEventOrganizerId(client, eventId)) !== actor.organizerId) {
+        return undefined;
+      }
+      const inputs = await readEventLayerInputs(client, registries, eventId);
+      return inputs === undefined
+        ? undefined
+        : eventLayersOf(registries, inputs.platform, inputs.event);
+    }),
   );
 }

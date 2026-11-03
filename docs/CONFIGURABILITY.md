@@ -53,7 +53,7 @@ for an event.
 - **Caching.** The server keeps a reading for 15 seconds; a save on that copy clears it at once, other copies catch up within
   15 seconds. The ETag is a hash of the document, so it changes exactly when the document does.
 - **Still to come:** the admin screens and routes that call these saves (T-703, T-602), the translation bundle (T-008),
-  maintenance mode and the banner (T-703).
+  maintenance mode and the banner (built, T-703b: the `maintenance` and `banner` blocks of `platform_setting`).
 
 ## As built (T-711): feature layers (FR-1826, FR-1827)
 
@@ -316,7 +316,7 @@ for an event.
 | Branding | Logo, banner, accent colour from an approved palette (ADR-085) | Theme itself is code, not data (ADR-093); colours are tokens so a second theme can be added later (NFR-024) |
 | Quests, categories, rewards, sessions, maps, sponsors | Everything an organizer creates | Typed by shared schemas; live edits ask "future only / also past" with confirmation (ADR-063) |
 | Tuning numbers | Built (T-703, ADR-451): flag burst count and window, rehearsal cap, readiness look-ahead (server-only, never sent to a phone), live-poll seconds, username change days, edited on the console's Switches page. Still code (Q-410): QR refresh, login-code limits, reservation time, push/SMS limits, "running low" levels (F-279, Q-074) | Each has a safe range and is a whole number; out-of-range saves are refused; a stored number the readers cannot use gives the shipped one |
-| Platform messages | Banner on Questify home (scheduled); maintenance mode, global or per event (F-280, F-281) | Maintenance shows its message; staff and health checks still work |
+| Platform messages | Built (T-703b, ADR-470 to ADR-473): banner on Questify home (scheduled, shown by the phone's clock inside its window); maintenance mode, global or per event (F-280, F-281), edited on the Switches page | Maintenance holds the play doors with 503 and shows its message; staff, the console and the config door still work |
 | Catalog | Items, achievements, gem prices (F-216) | |
 | Questify quests | Always-on quests and seasonal campaigns: titles, metric (closed list), target, XP, order, window (FR-710, FR-711; T-403b) | Condition fixed once a quest can pay; a campaign published only before it starts; caps 20 per campaign, 50 always-on |
 | Templates and legal | SMS/email/push templates with CST rules checked on save; terms, privacy, guidelines, DPA as versions with forced re-acceptance (F-288, F-289) | Promotional templates cannot omit opt-out; versions are never edited, only replaced |

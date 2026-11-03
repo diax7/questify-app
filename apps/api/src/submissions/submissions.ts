@@ -17,6 +17,7 @@ import { streakBonusPaid } from "#src/streaks/streaks";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type SubmissionDeps = Readonly<{ pool: Pool }>;
 
@@ -100,10 +101,7 @@ async function run<T>(
   }
 }
 
-const staffSeat = (context: OrganizerContext): RequestContext => ({
-  organizerId: context.organizerId,
-  staffUserId: context.staffUserId,
-});
+const staffSeat = (context: OrganizerContext): RequestContext => teamSeat(context);
 
 /** The community guidelines version in force: a first submission needs it accepted (FR-1706). */
 async function guidelinesVersion(client: PoolClient): Promise<string> {

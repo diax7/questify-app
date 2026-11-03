@@ -16,11 +16,12 @@ export function eventName(event: Pick<MyEvent, "name" | "joinCode">, language: L
 
 /**
  * The pill at the top of every event tab (FR-1610, FR-624): the event's name; a tap opens a sheet with Questify home
- * and the player's other events, so leaving takes two taps.
+ * and the player's other events, so leaving takes two taps. While Questify paused play for the event (T-703b, FR-1771) its
+ * message stands under the pill on every tab.
  */
 export function EventPill() {
   const { t, language } = useI18n();
-  const { eventId, events, knownName } = useEvent();
+  const { eventId, events, knownName, maintenance } = useEvent();
   const [open, setOpen] = useState(false);
   const styles = useThemedStyles(makeStyles);
   const current = events?.find((event) => event.id === eventId);
@@ -42,6 +43,9 @@ export function EventPill() {
           {name} ▾
         </AppText>
       </Pressable>
+      {maintenance === null ? null : (
+        <AppText accessibilityRole="alert">{maintenance[language]}</AppText>
+      )}
       <Sheet visible={open} title={t("eventPill.title")} onClose={() => setOpen(false)}>
         <Pressable accessibilityRole="button" onPress={() => go("/home")} style={styles.row}>
           <AppText variant="label">{t("eventPill.home")}</AppText>

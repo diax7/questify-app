@@ -317,12 +317,9 @@ export function registerEventRoutes(
   scope.put("/events/:eventId/terms", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const context = organizerContextOf(request);
-    const saved = await settings.saveEventTerms(
-      { staffUserId: context.staffUserId, organizerId: context.organizerId },
-      eventId,
-      request.body,
-      { requestId: request.id },
-    );
+    const saved = await settings.saveEventTerms(context, eventId, request.body, {
+      requestId: request.id,
+    });
     if (saved.ok) {
       // The body passed the strict check, so the tolerant read gives exactly what was stored, trimmed, defaults filled.
       return { terms: readEventTerms(request.body) };
@@ -351,12 +348,9 @@ function registerEventLayout(scope: FastifyInstance, settings: SettingsService):
   scope.put("/events/:eventId/layout", layoutWriter, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const context = organizerContextOf(request);
-    const saved = await settings.saveEventLayout(
-      { staffUserId: context.staffUserId, organizerId: context.organizerId },
-      eventId,
-      request.body,
-      { requestId: request.id },
-    );
+    const saved = await settings.saveEventLayout(context, eventId, request.body, {
+      requestId: request.id,
+    });
     if (saved.ok) {
       return { layout: saved.layout };
     }
@@ -385,12 +379,9 @@ function registerEventTexts(scope: FastifyInstance, settings: SettingsService): 
   scope.put("/events/:eventId/texts", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const context = organizerContextOf(request);
-    const saved = await settings.saveEventTexts(
-      { staffUserId: context.staffUserId, organizerId: context.organizerId },
-      eventId,
-      request.body,
-      { requestId: request.id },
-    );
+    const saved = await settings.saveEventTexts(context, eventId, request.body, {
+      requestId: request.id,
+    });
     if (saved.ok) {
       return { texts: saved.texts };
     }
@@ -410,12 +401,9 @@ function registerEventBranding(scope: FastifyInstance, settings: SettingsService
   scope.put("/events/:eventId/branding", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const context = organizerContextOf(request);
-    const saved = await settings.saveEventBranding(
-      { staffUserId: context.staffUserId, organizerId: context.organizerId },
-      eventId,
-      request.body,
-      { requestId: request.id },
-    );
+    const saved = await settings.saveEventBranding(context, eventId, request.body, {
+      requestId: request.id,
+    });
     if (saved.ok) {
       return { branding: readBranding(request.body) };
     }
@@ -465,13 +453,9 @@ function registerEventSwitches(scope: FastifyInstance, settings: SettingsService
   ): Promise<Record<string, boolean>> => {
     const { enabled } = parse(rankingBody, request.body);
     const context = organizerContextOf(request);
-    const saved = await settings.saveEventSwitch(
-      { staffUserId: context.staffUserId, organizerId: context.organizerId },
-      eventId,
-      feature,
-      enabled,
-      { requestId: request.id },
-    );
+    const saved = await settings.saveEventSwitch(context, eventId, feature, enabled, {
+      requestId: request.id,
+    });
     if (saved.ok) {
       return { [feature]: enabled };
     }
@@ -488,11 +472,7 @@ function registerEventSwitches(scope: FastifyInstance, settings: SettingsService
   // The features the platform leaves on for this organizer, each on, off or locked (FR-1826, FR-1827).
   scope.get("/events/:eventId/features", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
-    const context = organizerContextOf(request);
-    const layers = await settings.eventLayers(
-      { staffUserId: context.staffUserId, organizerId: context.organizerId },
-      eventId,
-    );
+    const layers = await settings.eventLayers(organizerContextOf(request), eventId);
     if (layers === undefined) {
       throw notFound();
     }

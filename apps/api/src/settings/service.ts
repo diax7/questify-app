@@ -52,6 +52,7 @@ import {
   type SwitchActor,
   type SwitchChange,
 } from "#src/settings/save-event-switches";
+import { runAsAdmin } from "#src/settings/platform-switches";
 import type { PublicAccount } from "#src/auth/staff-store";
 
 export type ConfigResult =
@@ -80,8 +81,9 @@ function answerOf(body: ComposedBody, inForce: LegalInForce): ConfigResult {
 }
 
 /** The event's stored config as the composer reads it: each block tolerantly, so a damaged one is the default. */
-function eventConfigOf(stored: unknown, unlocked: readonly string[]): EventConfig {
+function eventConfigOf(eventId: string, stored: unknown, unlocked: readonly string[]): EventConfig {
   return {
+    id: eventId,
     features: readEventSwitches(stored),
     unlocked,
     terms: readEventTerms(readStoredTerms(stored)),
@@ -97,6 +99,8 @@ export type SettingsService = Readonly<{
    * what anyone may see (a public event); with one, also the events that player joined (unlisted and private ones).
    */
   forEvent: (eventId: string | undefined, playerId?: string) => Promise<ConfigResult>;
+  /** The platform settings as the apps get them (cached for the service's time), for the maintenance wall (T-703b). */
+  platform: () => Promise<PlatformSettings>;
   /** A Questify admin replaces the feature switches and/or tuning numbers. */
   savePlatformSettings: (
     admin: PublicAccount,
@@ -246,7 +250,7 @@ export function createSettingsService(options: SettingsOptions): SettingsService
         const body = composeConfig(
           registries,
           platformForOrganizer(registries, platform, overrides),
-          eventConfigOf(stored, unlocked),
+          eventConfigOf(eventId, stored, unlocked),
         );
         return answerOf(body, inForce);
       }),
@@ -266,19 +270,8 @@ export function createSettingsService(options: SettingsOptions): SettingsService
     return fresh;
   };
 
-  const asAdmin = async (
-    admin: PublicAccount,
-    work: (client: PoolClient) => Promise<SaveResult>,
-  ): Promise<SaveResult> => {
-    if (admin.platformRole !== "admin" || admin.status !== "active") {
-      return { ok: false, reason: "forbidden" };
-    }
-    const result = await withConnection(options.pool, (client) =>
-      withRequestContext(client, { isAdmin: true, staffUserId: admin.id }, () => work(client)),
-    );
-    forgetAll();
-    return result;
-  };
+  const asAdmin = (admin: PublicAccount, work: (client: PoolClient) => Promise<SaveResult>) =>
+    runAsAdmin({ pool: options.pool, forget: forgetAll }, admin, work);
 
   const changeSwitches = (
     actor: SwitchActor,
@@ -289,6 +282,12 @@ export function createSettingsService(options: SettingsOptions): SettingsService
     thenForget(saveSwitches(options.pool, registries, actor, eventId, change, meta));
 
   return {
+    platform: async () =>
+      platformCache.get("platform") ??
+      (await withConnection(options.pool, (client) =>
+        withRequestContext(client, {}, () => loadPlatform(client)),
+      )),
+
     forEvent: async (eventId, playerId) => {
       // The document depends only on the event; who may see it is what differs. A public event is read once for
       // everyone, and only an event hidden from anyone is read again as the player, cached for that player alone.

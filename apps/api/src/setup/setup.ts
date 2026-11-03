@@ -8,6 +8,7 @@ import type { Pool, PoolClient } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Actor } from "#src/events/events";
+import { teamSeat } from "#src/organizers/store";
 
 export type SetupDeps = Readonly<{ pool: Pool }>;
 
@@ -54,17 +55,13 @@ async function onEvent<T>(
   work: (client: PoolClient) => Promise<T>,
 ): Promise<T | undefined> {
   return withConnection(deps.pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      async () => {
-        const { rows } = await client.query(
-          "SELECT 1 FROM event WHERE organizer_id = $1 AND id = $2",
-          [actor.organizerId, eventId],
-        );
-        return rows.length === 0 ? undefined : work(client);
-      },
-    ),
+    withRequestContext(client, teamSeat(actor), async () => {
+      const { rows } = await client.query(
+        "SELECT 1 FROM event WHERE organizer_id = $1 AND id = $2",
+        [actor.organizerId, eventId],
+      );
+      return rows.length === 0 ? undefined : work(client);
+    }),
   );
 }
 

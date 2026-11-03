@@ -469,6 +469,20 @@ END $$;
 REVOKE ALL ON FUNCTION report_team_alert() FROM PUBLIC;
 CREATE TRIGGER report_team_alert AFTER INSERT ON content_report FOR EACH ROW EXECUTE FUNCTION report_team_alert();
 
+-- A report of a username names a player in its alert: when an erasure deletes the report, the alert goes with it
+-- (the personal-data catalog, ADR-482).
+CREATE FUNCTION report_team_alert_forget() RETURNS trigger
+  LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  IF OLD.target_kind = 'username' THEN
+    DELETE FROM team_alert a WHERE a.target_kind = 'username' AND a.target_id = OLD.target_id;
+  END IF;
+  RETURN NULL;
+END $$;
+REVOKE ALL ON FUNCTION report_team_alert_forget() FROM PUBLIC;
+CREATE TRIGGER report_team_alert_forget AFTER DELETE ON content_report
+  FOR EACH ROW EXECUTE FUNCTION report_team_alert_forget();
+
 -- What one alert row says in the digest: for a target, its event and organizer names, the open report count, the open
 -- reasons and the earliest due time (NULL once nothing is open: the row is skipped); for a dispute, the organizer.
 CREATE FUNCTION team_alert_doc(a team_alert) RETURNS jsonb

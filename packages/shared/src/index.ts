@@ -55,6 +55,25 @@ export {
   ownerMaySwitchOn,
   platformForOrganizer,
 } from "./switches/layers";
+export type {
+  BannerBody,
+  BannerSetting,
+  EventMaintenanceBody,
+  MaintenanceBody,
+  MaintenanceSettings,
+  NoticesView,
+} from "./maintenance/notices";
+export {
+  bannerActive,
+  bannerBodySchema,
+  eventMaintenanceBodySchema,
+  maintenanceBodySchema,
+  maintenanceFor,
+  noticesViewSchema,
+  readBanner,
+  readMaintenance,
+  readNoticeMessage,
+} from "./maintenance/notices";
 export {
   readEventSwitches,
   readPlatformSettings,

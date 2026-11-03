@@ -8,6 +8,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { readInForce } from "#src/legal/in-force";
 import { organizerContextOf } from "#src/organizers/context";
+import { teamSeat } from "#src/organizers/store";
 
 const ORGANIZER_DOCUMENT = z.enum(["organizer_terms", "organizer_dpa", "organizer_content_rules"]);
 const acceptBody = z.strictObject({
@@ -34,14 +35,11 @@ export function registerOrganizerLegalRoutes(
     const context = organizerContextOf(request);
     try {
       await withConnection(deps.pool, (client) =>
-        withRequestContext(
-          client,
-          { staffUserId: context.staffUserId, organizerId: context.organizerId },
-          () =>
-            client.query("SELECT accept_organizer_documents($1, $2)", [
-              context.organizerId,
-              JSON.stringify(body.documents),
-            ]),
+        withRequestContext(client, teamSeat(context), () =>
+          client.query("SELECT accept_organizer_documents($1, $2)", [
+            context.organizerId,
+            JSON.stringify(body.documents),
+          ]),
         ),
       );
     } catch (error) {

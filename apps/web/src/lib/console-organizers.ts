@@ -74,6 +74,8 @@ export type SupportGrant = Readonly<{
   adminEmail: string;
   mine: boolean;
   expiresAt: string;
+  /** `view` is read-only (T-712), `edit` can change (T-701). */
+  kind: "view" | "edit";
 }>;
 
 /** What the console's event page adds for T-701: both suspensions and the live support grants. */
@@ -220,6 +222,7 @@ export function readEventOversight(view: unknown): EventOversight | undefined {
               adminEmail: text(grant["adminEmail"]) ?? "",
               mine: grant["mine"] === true,
               expiresAt: grant["expiresAt"],
+              kind: grant["kind"] === "edit" ? ("edit" as const) : ("view" as const),
             },
           ]
         : [],

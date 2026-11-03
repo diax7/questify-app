@@ -102,6 +102,10 @@ export const AREAS = [
     /owner-?email|email-?change|console-?owner-?email|team-?alerts?|moderation-?addresses|urgency/i,
     ["console-owner-email", "console-reports"],
   ],
+  [
+    /console-?notices|console\/notices|platform-?notices|maintenance\/gate|migrations\/\d+_maintenance/i,
+    ["console-notices"],
+  ],
   [/console-?players?|console\/players/i, ["console-players"]],
   [/console-?word-?lists?|console\/word-lists/i, ["console-word-lists"]],
   [

@@ -8,6 +8,7 @@ import { withRequestContext } from "#src/db/context";
 import { deskViewOf, sourceOf, type DeskView, type RedemptionSource } from "#src/desk/desk";
 import { organizerContextOf } from "#src/organizers/context";
 import type { Bilingual } from "#src/quests/store";
+import { teamSeat } from "#src/organizers/store";
 
 export type HeldPrizeDeps = Readonly<{ pool: Pool }>;
 
@@ -85,26 +86,22 @@ export function countHeldPrizes(
   eventId: string,
 ): Promise<number | undefined> {
   return withConnection(deps.pool, (client) =>
-    withRequestContext(
-      client,
-      { organizerId: actor.organizerId, staffUserId: actor.staffUserId },
-      async () => {
-        const { rows: found } = await client.query(
-          "SELECT 1 FROM event WHERE organizer_id = $1 AND id = $2 AND in_event_scope(id, app_event_scope())",
-          [actor.organizerId, eventId],
-        );
-        if (found.length === 0) {
-          return undefined;
-        }
-        const { rows } = await client.query<{ held: string }>(
-          `SELECT count(*) AS held
+    withRequestContext(client, teamSeat(actor), async () => {
+      const { rows: found } = await client.query(
+        "SELECT 1 FROM event WHERE organizer_id = $1 AND id = $2 AND in_event_scope(id, app_event_scope())",
+        [actor.organizerId, eventId],
+      );
+      if (found.length === 0) {
+        return undefined;
+      }
+      const { rows } = await client.query<{ held: string }>(
+        `SELECT count(*) AS held
            FROM redemption d JOIN enrollment n ON n.id = d.enrollment_id
            WHERE d.event_id = $1 AND d.status = 'reserved' AND n.status = 'active'`,
-          [eventId],
-        );
-        return Number(rows[0]?.held ?? 0);
-      },
-    ),
+        [eventId],
+      );
+      return Number(rows[0]?.held ?? 0);
+    }),
   );
 }
 

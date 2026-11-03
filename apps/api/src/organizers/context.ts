@@ -18,5 +18,7 @@ export function organizerContextOf(
     organizerId: organizer.id,
     email: staff.account.email,
     organizer,
+    // A support view (T-712, ADR-521): every seat built from this context opens its transaction READ ONLY.
+    ...(organizer.readOnly === true ? { readOnly: true } : {}),
   };
 }

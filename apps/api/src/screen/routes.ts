@@ -9,6 +9,7 @@ import { readBigScreen, saveBigScreen } from "#src/screen/big-screen";
 import { clearFinale, readFinale, saveFinale } from "#src/screen/finale";
 import { SCREEN_SCENES, createSceneReader } from "#src/screen/scenes";
 import type { Pool } from "pg";
+import type { OrganizerContext } from "#src/organizers/store";
 
 const sceneParams = z.object({ scene: z.enum(SCREEN_SCENES) });
 const eventParams = z.object({ eventId: z.uuid() });
@@ -24,10 +25,8 @@ const member = { config: { access: "member" } } as const;
 const writing = { config: { access: "member", idempotent: true }, bodyLimit: 1024 } as const;
 const ownerWriting = { config: { access: "owner", idempotent: true }, bodyLimit: 1024 } as const;
 
-const seatOf = (request: FastifyRequest) => {
-  const { organizerId, staffUserId } = organizerContextOf(request);
-  return { organizerId, staffUserId };
-};
+/** The caller's organizer context, a support view's read-only mark included (T-712). */
+const seatOf = (request: FastifyRequest): OrganizerContext => organizerContextOf(request);
 
 export type ScreenDeps = Readonly<{ pool: Pool; keys: Pick<AuthKeys, "pairedDeviceKey"> }>;
 

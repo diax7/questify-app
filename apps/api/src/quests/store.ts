@@ -238,16 +238,18 @@ const lockClause = (lock: boolean | "update") => {
 
 /**
  * The event of the path, locked with `FOR NO KEY UPDATE`: builder writes on one event go one at a time (the caps and
- * positions stay right), while the foreign-key inserts a live event makes (joins, completions) are never blocked.
+ * positions stay right), while the foreign-key inserts a live event makes (joins, completions) are never blocked. A read
+ * passes `lock` false: it may run in a support view's read-only transaction, which refuses a row lock (T-712).
  */
 export async function lockBuilderEvent(
   db: PoolClient,
   organizerId: string,
   eventId: string,
+  lock = true,
 ): Promise<BuilderEvent | undefined> {
   const { rows } = await db.query<{ id: string; timezone: string; status_now: EventStatus }>(
     `SELECT id, timezone, event_status_now(status, starts_at, ends_at) AS status_now
-     FROM event WHERE organizer_id = $1 AND id = $2 FOR NO KEY UPDATE`,
+     FROM event WHERE organizer_id = $1 AND id = $2${lockClause(lock)}`,
     [organizerId, eventId],
   );
   const row = rows[0];
