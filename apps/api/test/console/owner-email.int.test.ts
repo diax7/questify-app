@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { loggerOptions } from "#src/app";
+import type { EmailMessage } from "#src/auth/email/sender";
+import { BUCKETS } from "#src/auth/throttle";
 import {
   PASSWORD,
   browserHeaders,
@@ -7,6 +10,7 @@ import {
   postPassword,
   signInFully,
   startApp,
+  testConfig,
   withSession,
   type TestApp,
 } from "#test/support/auth-app";
@@ -30,13 +34,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
   let adminCookie: string;
   let strangerCookie: string;
   let count = 0;
+  const lines: string[] = [];
+  const logged = (event: string) =>
+    lines
+      .map((line) => JSON.parse(line) as { event?: unknown })
+      .filter((entry) => entry.event === event);
 
   const owner = async <T extends Record<string, unknown>>(sql: string, values: unknown[] = []) =>
     (await db.owner.query<T>(sql, values)).rows;
 
   beforeAll(async () => {
     db = await createTestDatabase();
-    test = await startApp(db);
+    test = await startApp(db, {
+      ...loggerOptions(testConfig()),
+      level: "info",
+      stream: { write: (line: string) => void lines.push(line) },
+    });
     await createStaff(db.owner, { email: "admin@questify.test", admin: true });
     await createStaff(db.owner, { email: "stranger@najd.test" });
     adminCookie = await signInFully(test, "admin@questify.test");
@@ -49,6 +62,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
 
   const newOwner = async () => {
     count += 1;
+    await owner("DELETE FROM auth_throttle WHERE bucket = $1", [BUCKETS.consoleOwnerEmail]);
     const email = `owner${count}@najd.test`;
     const [org] = await owner<{ id: string }>(
       "INSERT INTO organizer (name, slug) VALUES ($1, $2) RETURNING id",
@@ -186,6 +200,85 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
       [who.org],
     );
     expect(row?.state).toBe("send_failed");
+    expect(logged("console.owner_email_code_not_sent").at(-1)).toMatchObject({
+      change: expect.stringMatching(/^[0-9a-f-]{36}$/),
+    });
+  });
+
+  it("mails the Arabic link unless English is asked, and refuses a malformed start", async () => {
+    const who = await newOwner();
+    const newEmail = `arabic${count}@mail.test`;
+    const started = await admin(`/v1/admin/organizers/${who.org}/owner-email`, {
+      newEmail,
+      identityCheck: "other",
+      reason: REASON,
+    });
+    expect(started.statusCode, started.body).toBe(201);
+    expect(test.mail.to(newEmail).at(-1)?.text).toContain("/ar/email-change#token=");
+    expect(test.mail.to(who.email).at(-1)?.text).toContain("/ar/email-change/stop#token=");
+    const other = await newOwner();
+    const refused = async (url: string, payload: object) =>
+      (await admin(url, payload)).json<{ code: string }>().code;
+    const good = { newEmail: `x${count}@mail.test`, identityCheck: "other", reason: REASON };
+    const url = `/v1/admin/organizers/${other.org}/owner-email`;
+    expect(await refused(url, { ...good, lang: "fr" })).toBe("invalid_request");
+    expect(await refused(url, { ...good, newEmail: "  ab  " })).toBe("invalid_request");
+    expect(await refused("/v1/admin/organizers/not-a-uuid/owner-email", good)).toBe(
+      "invalid_request",
+    );
+    expect((await admin(url, { ...good, lang: "ar" })).statusCode).toBe(201);
+  });
+
+  it("starts the change and logs it when only the notice to the old address fails", async () => {
+    const who = await newOwner();
+    const send = test.mail.send.bind(test.mail);
+    test.mail.send = (message: EmailMessage) =>
+      message.to === who.email ? Promise.reject(new Error("old inbox down")) : send(message);
+    try {
+      const started = await start(who.org, `notice${count}@mail.test`);
+      expect(started.statusCode, started.body).toBe(201);
+      expect(logged("console.owner_email_notice_failed").at(-1)).toMatchObject({
+        change: started.json<{ changeId: string }>().changeId,
+      });
+    } finally {
+      test.mail.send = send;
+    }
+  });
+
+  it("resends in the asked language, answers 502 when the code cannot be sent, refuses a body on cancel", async () => {
+    const c = await begin();
+    const resend = (payload?: object) =>
+      admin(`/v1/admin/owner-email-changes/${c.changeId}/resend`, payload);
+    const ago = () =>
+      owner(
+        "UPDATE staff_email_change SET last_sent_at = now() - interval '2 minutes' WHERE id = $1",
+        [c.changeId],
+      );
+    const mails = () => test.mail.to(c.newEmail).length;
+    await ago();
+    const before = mails();
+    expect((await resend()).statusCode).toBe(204);
+    expect(mails()).toBe(before + 1);
+    expect(test.mail.to(c.newEmail).at(-1)?.text).toContain("/ar/email-change#token=");
+    await ago();
+    expect((await resend({ lang: "en" })).statusCode).toBe(204);
+    expect(test.mail.to(c.newEmail).at(-1)?.text).toContain("/en/email-change#token=");
+    await ago();
+    test.mail.failing = true;
+    try {
+      const failed = await resend({ lang: "en" });
+      expect(failed.statusCode).toBe(502);
+      expect(failed.json<{ code: string }>().code).toBe("code_not_sent");
+    } finally {
+      test.mail.failing = false;
+    }
+    expect(logged("console.owner_email_code_not_sent").at(-1)).toMatchObject({
+      change: c.changeId,
+    });
+    const bad = await admin("/v1/admin/owner-email-changes/not-a-uuid/resend");
+    expect(bad.json<{ code: string }>().code).toBe("invalid_request");
+    const withBody = await admin(`/v1/admin/owner-email-changes/${c.changeId}/cancel`, { x: 1 });
+    expect(withBody.json<{ code: string }>().code).toBe("invalid_request");
   });
 
   it("resends a minute apart, cancels once, and shows the change on the organizer page", async () => {

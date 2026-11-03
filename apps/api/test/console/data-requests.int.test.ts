@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { dataEraseAnswerSchema } from "@questify/shared";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
 import { BUCKETS } from "#src/auth/throttle";
+import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import {
   createStaff,
   signInFully,
@@ -32,6 +33,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console data requests over HTT
   let serial = 0;
   const lines: string[] = [];
   const keys = createAuthKeys("t".repeat(40));
+  const store = new MemoryIdempotencyStore();
+  const forget = vi.spyOn(store, "forget");
+  const deletedLines = (playerId: string) =>
+    lines
+      .map((line) => JSON.parse(line) as { event?: unknown; player?: unknown })
+      .filter((entry) => entry.event === "player.deleted" && entry.player === playerId);
+  const exportThrottleCount = async () =>
+    (
+      await owner<{ n: number }>("SELECT count(*)::int AS n FROM auth_throttle WHERE bucket = $1", [
+        BUCKETS.consoleDataExport,
+      ])
+    )[0]?.n;
 
   const owner = async <T extends Row>(sql: string, values: unknown[] = []) =>
     (await db.owner.query<T>(sql, values)).rows;
@@ -45,6 +58,37 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console data requests over HTT
     );
     await owner("INSERT INTO player_contact (player_id, email) VALUES ($1, $2)", [made?.id, email]);
     return { id: made?.id ?? "", username, email };
+  };
+  const reserve = async (player: string) => {
+    const [org] = await owner<{ id: string }>(
+      "INSERT INTO organizer (name, slug) VALUES ('Erase Org', $1) RETURNING id",
+      [`erase-${randomUUID().slice(0, 8)}`],
+    );
+    const [ev] = await owner<{ id: string }>(
+      `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
+       VALUES ($1, $2, 'Erase Fest', 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id`,
+      [org?.id, `ER${String(Date.now()).slice(-8)}`],
+    );
+    const [n] = await owner<{ id: string }>(
+      "INSERT INTO enrollment (organizer_id, event_id, player_id) VALUES ($1, $2, $3) RETURNING id",
+      [org?.id, ev?.id, player],
+    );
+    const [rw] = await owner<{ id: string }>(
+      "INSERT INTO reward (event_id, kind, name_en, price, stock_total, units_out) VALUES ($1, 'experience', 'Spa', 5, 9, 1) RETURNING id",
+      [ev?.id],
+    );
+    const [red] = await owner<{ id: string }>(
+      `INSERT INTO redemption (organizer_id, event_id, enrollment_id, reward_id, price, idempotency_key, reserved_until)
+       VALUES ($1, $2, $3, $4, 5, $5, now() + interval '1 day') RETURNING id`,
+      [org?.id, ev?.id, n?.id, rw?.id, randomUUID()],
+    );
+    await owner(
+      `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, redemption_id, actor,
+                                 staff_user_id)
+       VALUES ($1, $2, $3, 'award', 10, 10, NULL, 'staff', $5), ($1, $2, $3, 'redeem', 0, -5, $4, 'player', NULL)`,
+      [org?.id, ev?.id, n?.id, red?.id, adminId],
+    );
+    return { event: ev?.id ?? "", redemption: red?.id ?? "" };
   };
   const call = (
     method: Method,
@@ -62,10 +106,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console data requests over HTT
 
   beforeAll(async () => {
     db = await createTestDatabase();
-    test = await startApp(db, {
-      level: "info",
-      stream: { write: (line: string) => void lines.push(line) },
-    });
+    test = await startApp(
+      db,
+      { level: "info", stream: { write: (line: string) => void lines.push(line) } },
+      {},
+      { idempotencyStore: store },
+    );
     adminId = await createStaff(db.owner, { email: "legal@questify.test", admin: true });
     await createStaff(db.owner, { email: "owner@najd.test" });
     adminCookie = await signInFully(test, "legal@questify.test");
@@ -95,6 +141,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console data requests over HTT
   it("exports as a download with no Idempotency-Key, after checking the case", async () => {
     const p = await newPlayer();
     const url = `/v1/admin/players/${p.id}/data-export`;
+    const counted = await exportThrottleCount();
     const bad = await call("POST", url, adminCookie, { ...CASE, reference: "966551234567" }, null);
     expect(bad.statusCode).toBe(400);
     expect(bad.json()).toMatchObject({ code: "invalid_request", details: { field: "reference" } });
@@ -103,6 +150,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console data requests over HTT
     ).toMatchObject({
       details: { field: "reasonCode" },
     });
+    expect(await exportThrottleCount()).toBe(counted);
+    const malformed = await call(
+      "POST",
+      "/v1/admin/players/nope/data-export",
+      adminCookie,
+      CASE,
+      null,
+    );
+    expect(malformed.json()).toMatchObject({ code: "invalid_request" });
     const answer = await call("POST", url, adminCookie, CASE, null);
     expect(answer.statusCode).toBe(200);
     expect(answer.headers["cache-control"]).toBe("no-store");
@@ -136,9 +192,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console data requests over HTT
     expect(dataEraseAnswerSchema.parse(erased.json())).toEqual({ outcome: "erased", events: [] });
     const again = await call("POST", url, adminCookie, { ...CASE, username: p.username });
     expect(again.json()).toEqual({ outcome: "already_deleted", events: [] });
-    expect(
-      lines.some((line) => line.includes('"event":"player.deleted"') && line.includes(p.id)),
-    ).toBe(true);
+    expect(deletedLines(p.id)).toEqual([expect.objectContaining({ source: "admin" })]);
+    expect(forget.mock.calls).toEqual([[`player:${p.id}`]]);
     expect(lines.join("\n")).not.toContain(p.email);
     const record = await call("GET", `/v1/admin/players/${p.id}`, adminCookie);
     expect(record.json()).toMatchObject({ player: { status: "deleted" } });
@@ -161,5 +216,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console data requests over HTT
     );
     expect(refused.statusCode).toBe(429);
     expect(Number(refused.headers["retry-after"])).toBeGreaterThan(0);
+  });
+
+  it("refuses an erase while a handover waits, lists it, and erases with the forfeit", async () => {
+    const p = await newPlayer();
+    const held = await reserve(p.id);
+    const item = {
+      redemptionId: held.redemption,
+      eventId: held.event,
+      event: { ar: null, en: "Erase Fest" },
+      item: { ar: null, en: "Spa" },
+      rankPrize: false,
+    };
+    expect((await call("GET", `/v1/admin/players/${p.id}/pending`, adminCookie)).json()).toEqual({
+      pending: [item],
+    });
+    const url = `/v1/admin/players/${p.id}/erase`;
+    const refused = await call("POST", url, adminCookie, { ...CASE, username: p.username });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json()).toMatchObject({
+      code: "handover_pending",
+      details: { pending: [item] },
+    });
+    const erased = await call("POST", url, adminCookie, {
+      ...CASE,
+      username: p.username,
+      forfeit: true,
+    });
+    expect(erased.json()).toEqual({ outcome: "erased", events: [held.event] });
   });
 });
