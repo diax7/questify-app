@@ -30,7 +30,11 @@
 - **Errors:** one envelope everywhere: `{ "code": "<machine_code>", "message": { "ar", "en" },
   "details": {} }`. Status codes: 400 bad input, 401 not signed in, 403 not allowed or paused, 404,
   409 conflict (e.g. already completed), 422 rule failure, 426 update the app, 429 too many
-  requests / busy, 503 maintenance (with the maintenance message).
+  requests / busy, 503 `maintenance` (T-703b, ADR-471: `message` is the admin's own text in both languages and
+  `details.scope` is `platform` or `event`). It is answered by the play doors only while Questify paused play (a scan,
+  a stamp, a reveal, a reservation, the goal, joining, Questify's sync); reads, leaving, the dashboard and the console
+  are never held. `GET /v1/config` and `GET /v1/events/{id}/config` carry `maintenance` (`{ar, en}` or null) and
+  `banner` (`{message, startsAt, endsAt}` or null).
 - **Pagination:** cursor-based (`?cursor=&limit=`); lists return `nextCursor`.
 - **Idempotency:** every unsafe action (complete a quest, award points, reserve a prize, send a
   message, redeem) requires an `Idempotency-Key` header. The server keeps the first result for 24
@@ -584,6 +588,13 @@ limited editor cannot create events (403 `scope_limited`, T-102). The database c
 | `DELETE /v1/admin/switches/features/{key}` | admin | → 204: puts the switch back to the app's own (the key is removed). Audited | 401, 404 (also an unknown key) |
 | `PUT /v1/admin/switches/tuning/{key}` | admin | `{value}` → 204 (T-703, ADR-451): a whole number inside the registry's range (`min` and `max` are in the GET); numbers marked `serverOnly` are read by the server and never sent to a phone. Audited as above | 401, 404, 422 `invalid_catalog` |
 | `DELETE /v1/admin/switches/tuning/{key}` | admin | → 204: puts the number back to the default. Audited | 401, 404 |
+| `GET /v1/admin/switches/notices` | admin | → `{maintenance: {global: {ar, en} \| null, events: [{eventId, joinCode, name: {ar, en}, message}]}, banner: {message, startsAt, endsAt} \| null}` (T-703b): the pauses in force and the scheduled banner | 401, 404 |
+| `PUT /v1/admin/switches/maintenance/global` | admin | `{message: {ar, en}}` → 204 (T-703b, ADR-470, ADR-471): pauses play everywhere; both languages, 1 to 300 characters each. Audited `platform_settings.update` (block `maintenance`, before and after) | 401, 404, 422 `invalid_catalog` |
+| `DELETE /v1/admin/switches/maintenance/global` | admin | → 204: play runs again everywhere. Audited | 401, 404 |
+| `PUT /v1/admin/switches/maintenance/events` | admin | `{joinCode, message: {ar, en}}` → 204 (ADR-472): pauses the one event with that join code | 401, 404 (also no such event), 422 |
+| `DELETE /v1/admin/switches/maintenance/events/{eventId}` | admin | → 204: the event plays again (also when it was not paused). Audited | 401, 404 |
+| `PUT /v1/admin/switches/banner` | admin | `{message: {ar, en}, startsAt, endsAt}` → 204 (FR-1772): ISO instants, the end after the start; replaces the banner. Audited (block `banner`) | 401, 404, 422 |
+| `DELETE /v1/admin/switches/banner` | admin | → 204: removes the banner (an empty block is stored). Audited | 401, 404 |
 | `POST /v1/admin/help/{id}/revert` | admin | `{}` → `{article}`: puts back the `before` of the article's latest catalog entry (audited `catalog.help.revert`). Idempotency-Key required | 401, 404, 409 `nothing_to_revert` / `stale`, 422 |
 | `GET /v1/admin/catalog/templates` | admin | → `{templates: [{key, position, name: {ar, en}, description: {ar, en}, body, enabled, updatedAt, revertible}]}` (T-709b, FR-1403, ADR-426): every event template, switched-off ones too, with the body as stored (it may fail the schema, so it can be fixed). `no-store`, 240 a minute per admin. Not audited (no personal data) | 401, 404, 429 |
 | `PUT /v1/admin/catalog/templates/{key}` | admin | `{name: {ar, en}, description: {ar, en}, body, enabled}` → `{template}`. Makes the template (last in order) when the key is new (2 to 30 lower-case letters, digits, underscores). The body must pass `templateBodySchema` and be at most 30,000 bytes of JSON text (the 422 names its size; the database backstop is 60,000 stored bytes); names 1 to 120 and descriptions 1 to 300 characters, the language's script, Western digits, no control or direction character. Changes the row only (events started earlier keep what they got). Audited `catalog.template.update` (who, before and after); a save that changes nothing writes nothing. 120 changes an hour per admin | 400, 401, 404, 409 `stale` (someone made that key a moment ago), 422 `invalid_catalog` (`details.issues`) |

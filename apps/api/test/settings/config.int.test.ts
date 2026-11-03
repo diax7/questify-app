@@ -113,6 +113,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
         texts: { ar: {}, en: {} },
         branding: { accent: null },
         layout: DEFAULT_COMPOSED_LAYOUT,
+        maintenance: null,
+        banner: null,
       });
     });
 

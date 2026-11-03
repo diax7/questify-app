@@ -6963,3 +6963,27 @@ app shows the questions above its ticket cards on the profile's Get help screen.
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-703 code review 93; T-703; FR-1769).
 **Decision:** A feature the platform switched off is hidden everywhere it already was (the switches are read by the server's doors and the app). The admin may add a message in both languages (both or none, 300 characters each, only while off). The app lists the messages of switched-off platform features on Questify Home, in the player's language, from the cached platform configuration, so they appear offline as the last working copy.
 **Trade-offs:** the message shows on Home only, not at the spot where the feature used to be.
+
+## ADR-470 - Maintenance mode and the banner are two more `platform_setting` blocks, composed into the configuration
+
+**Status:** Proposed (developer, 2026-11-03; T-703b; FR-1771, FR-1772; migration 0128; plan `docs/plans/2026-11-03-t-703b-maintenance-banner.md`).
+**Decision:** `platform_setting` gains the keys `maintenance` (`{global?: {ar,en}, events: {<event id>: {ar,en}}}`; a message present means play is paused) and `banner` (`{message: {ar,en}, startsAt, endsAt}`; `{}` is none, since rows are never deleted). Migration 0128 widens the write policies of 0122 by exactly these two keys (active platform admin only) and adds a CHECK that each block holds only its own fields. `GET /v1/config` and `GET /v1/events/{id}/config` carry `maintenance` (the event's own message, else the platform-wide one, else null; the platform document carries the platform-wide one only) and `banner` (with its window). The composer stays pure: the phone compares the window with its own clock, so a kept copy stops showing a finished banner and a maintenance message never needs a store release. An older app drops the blocks; an older cached copy reads as none; a half message or a backwards window reads as none.
+**Trade-offs:** an ended banner stays in the document until an admin removes it (harmless, the phone ignores it); one banner at a time.
+
+## ADR-471 - Maintenance holds the play doors with 503 `maintenance`; everything else stays open
+
+**Status:** Proposed (developer, 2026-11-03; T-703b; FR-1771).
+**Decision:** While the platform or the door's event has a message, these player doors answer `503 maintenance` with the message in both languages and `details.scope` (`platform` or `event`): quest complete (scan, code, check-in), passport stamp, category reveal, reward reserve, event goal, join, Questify sync. They are the doors that spend or earn; the list is `PLAY_DOORS` in `src/maintenance/gate.ts`. Reads, leaving an event, cancelling a redemption, deletion, acceptances, the team's dashboard, the operator doors, the whole console and the configuration door are never held, so a platform admin and the team are never locked out and the app always gets its last-working configuration. The 503 frees the idempotency key, so the same call runs after maintenance. The wall is a `preHandler` after the player guard, read from the settings service's cache (15 seconds, cleared on every save, so one server follows a save at once and others within 15 seconds). For an event's own pause, `play_event_id(kind, ref)` (migration 0128, definer, API role only, ids only) finds the event of a quest, step, category, reward or join code; it is called only while some event has a message and no platform-wide one applies.
+**Trade-offs:** a platform admin who also plays is held like any player; other writes by a player (a vote, a rating, a submission) are not held yet (Q-431).
+
+## ADR-472 - The console pauses one event by its join code; resuming removes the key; every change is audited
+
+**Status:** Proposed (developer, 2026-11-03; T-703b).
+**Decision:** `GET /v1/admin/switches/notices`; `PUT`/`DELETE /v1/admin/switches/maintenance/global`; `PUT /v1/admin/switches/maintenance/events` (`{joinCode, message}`, 404 when no event has the code); `DELETE /v1/admin/switches/maintenance/events/{eventId}`; `PUT`/`DELETE /v1/admin/switches/banner`. Each runs through `throttled` and the catalog write limit, re-checks the admin, and writes `platform_settings.update` with the block before and after (nothing when it would not change). The Switches page gets a third tab, Maintenance and banner; an admin finds the event by the join code printed everywhere, never by an id.
+**Trade-offs:** the banner is edited as a whole (message and window together); times are entered in the admin's browser time zone and stored as instants.
+
+## ADR-473 - The app shows the pause and the banner as notices, not as a blocking screen
+
+**Status:** Proposed (developer, 2026-11-03; T-703b; `docs/STORE_COMPLIANCE.md`: configuration is data and never downloads a feature).
+**Decision:** Questify Home lists the platform-wide pause, the banner while the phone's clock is inside its window, and the switched-off features' messages (`PlatformNotices`); the event pill shows the event's pause on every event tab. Nothing is blocked on the phone: the server refuses the play doors, and the screens keep working from their cached data. No new screen, feature or code is delivered by configuration.
+**Trade-offs:** a refused scan shows the app's usual "try again" text, not the maintenance message (Q-431).

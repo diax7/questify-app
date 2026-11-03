@@ -40,6 +40,7 @@ import type { SettingsService } from "#src/settings/service";
 import { registerConsoleTicketRoutes, type ConsoleTicketDeps } from "#src/tickets/console-routes";
 import { registerConsoleCatalogRoutes } from "#src/console/catalog-routes";
 import { registerConsoleLegalRoutes } from "#src/console/legal-routes";
+import { registerConsoleNoticesRoutes } from "#src/console/notices-routes";
 import { registerConsoleSwitchesRoutes } from "#src/console/switches-routes";
 import { registerConsoleTranslationRoutes } from "#src/translations/admin-routes";
 import type { TranslationService } from "#src/translations/service";
@@ -293,6 +294,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
       registerConsoleCatalogRoutes(scope, deps.platform);
       registerConsoleLegalRoutes(scope, deps.platform);
       registerConsoleSwitchesRoutes(scope, { ...deps.platform, settings: deps.settings });
+      registerConsoleNoticesRoutes(scope, { ...deps.platform, settings: deps.settings });
       registerConsoleTranslationRoutes(scope, deps.translations);
       registerConsolePlayerRoutes(scope, deps.players);
       registerConsoleSafetyRoutes(scope, deps.players);

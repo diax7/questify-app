@@ -423,7 +423,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     log: (level, fields) => app.log[level](fields),
   });
   const suspended = createSuspendedSet(options.pool);
-  registerPlayerGuard(app, options.pool, suspended);
+  registerPlayerGuard(app, options.pool, suspended, settings);
   const playerMail = {
     pool: options.pool,
     keys: signInDeps.keys,

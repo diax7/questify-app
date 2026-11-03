@@ -12,7 +12,7 @@ import {
 /** The console's platform switches and tuning numbers (T-703, FR-1405, FR-1769, FR-1770). */
 export const SWITCHES_API = "/v1/admin/switches";
 
-export const SWITCH_TABS = ["features", "numbers"] as const;
+export const SWITCH_TABS = ["features", "numbers", "notices"] as const;
 export type SwitchTab = (typeof SWITCH_TABS)[number];
 
 export const featurePath = (key: string): string =>

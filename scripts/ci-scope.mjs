@@ -90,6 +90,10 @@ export const AREAS = [
     /console-?switches|console\/switches|platform-?(switches|tuning)|settings\/tuning/i,
     ["console-switches"],
   ],
+  [
+    /console-?notices|console\/notices|platform-?notices|maintenance\/gate|migrations\/\d+_maintenance/i,
+    ["console-notices"],
+  ],
   [/console-?players?|console\/players/i, ["console-players"]],
   [/console-?word-?lists?|console\/word-lists/i, ["console-word-lists"]],
   [

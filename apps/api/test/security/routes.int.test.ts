@@ -855,6 +855,20 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); one number of the platform's `tuning` block, whole and inside its range; the policy checks the admin again (app_admin_id); audited with who, before and after; 120 changes an hour per admin (test/console/switches)",
   "DELETE /v1/admin/switches/tuning/:key":
     "active platform admins only (walked below); puts one number back to the default; the policy checks the admin again (app_admin_id); audited; 120 changes an hour per admin (test/console/switches)",
+  "GET /v1/admin/switches/notices":
+    "active platform admins only (walked below); read only; the platform-wide pause, the paused events' names and join codes, and the banner; no personal data; the admin checked again by the settings service; 60 a minute per admin (test/console/maintenance)",
+  "PUT /v1/admin/switches/maintenance/global":
+    "active platform admins only (walked below); the platform's `maintenance` block, a message in both languages; the policy checks the admin again (app_admin_id); audited with who, before and after; 120 changes an hour per admin (test/console/maintenance, test/db/maintenance)",
+  "DELETE /v1/admin/switches/maintenance/global":
+    "active platform admins only (walked below); lets play run again everywhere; the policy checks the admin again; audited; 120 changes an hour per admin (test/console/maintenance)",
+  "PUT /v1/admin/switches/maintenance/events":
+    "active platform admins only (walked below); pauses the one event with that join code (404 when none), a message in both languages; the policy checks the admin again; audited; 120 changes an hour per admin (test/console/maintenance)",
+  "DELETE /v1/admin/switches/maintenance/events/:eventId":
+    "active platform admins only (walked below); lets one event play again; the policy checks the admin again; audited; 120 changes an hour per admin (test/console/maintenance)",
+  "PUT /v1/admin/switches/banner":
+    "active platform admins only (walked below); the platform's `banner` block, a message in both languages and a window that ends after it starts; the policy checks the admin again; audited; 120 changes an hour per admin (test/console/maintenance)",
+  "DELETE /v1/admin/switches/banner":
+    "active platform admins only (walked below); removes the banner (stores an empty block); the policy checks the admin again; audited; 120 changes an hour per admin (test/console/maintenance)",
   "GET /v1/legal":
     "no tenant data: the version in force of each legal document, the same for everyone (test/console/legal)",
   "GET /v1/legal/:document":

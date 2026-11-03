@@ -2067,3 +2067,21 @@ FR-1769 asks for a hidden feature "as if it were absent" and for a message playe
 The username switch and the daily streak are platform switches (this task); XP amounts are T-709c's Amounts editor. A setting
 "XP on repeats" does not exist: a quest cannot be repeated for points today (ADR-180), so the setting has nothing to switch.
 **Recommended (developer):** leave FR-1734's repeat part open until a repeatable quest type is designed.
+
+## Q-430 - Should a platform admin who also plays be exempt from maintenance mode? (T-703b, ADR-471)
+
+**Status:** Proposed (developer, 2026-11-03).
+The wall holds every player session, including the account of a Questify admin or operator who plays (T-204). The console, the dashboard and the operator doors are never held.
+**Recommended (developer):** no exemption: a pause that some accounts ignore cannot be tested honestly, and the admin's real work is not held.
+
+## Q-431 - Show the maintenance message where a refused door answers? (T-703b, ADR-471, ADR-473)
+
+**Status:** Proposed (developer, 2026-11-03).
+The server answers 503 `maintenance` with the message, and the app shows the message on Home and under the event pill; a refused scan, join or reservation still shows the generic "try again" text because the screens do not read the code. Other player writes (votes, ratings, submissions, meet, share) are not held by the wall.
+**Recommended (developer):** after the first real pause, read `maintenance` in the refusal mapping of the scan and join screens and show its message; add further doors to `PLAY_DOORS` only if a pause shows a leak.
+
+## Q-432 - More than one banner, or a banner for one event? (T-703b, ADR-470)
+
+**Status:** Proposed (developer, 2026-11-03).
+FR-1772 asks for one scheduled banner on Questify Home. The block holds one banner; a second replaces the first, and an event's own announcements (T-505) already reach that event's players.
+**Recommended (developer):** keep one banner for v1.
