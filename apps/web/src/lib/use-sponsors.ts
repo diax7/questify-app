@@ -53,12 +53,12 @@ export function useSponsors({ language, organizerId, eventId }: SponsorsProps) {
     ]);
     if (scope !== generation.current) return;
     const parsed = list.ok ? teamSponsorListSchema.safeParse(list.body) : null;
-    if (parsed?.success === true && quests.ok && rewards.ok && souvenirs.ok) {
+    if (parsed?.success === true && quests.ok && rewards.ok) {
       setSponsors(parsed.data.sponsors);
       setChoices({
         ...questChoices(quests.body, language),
         reward: rewardChoices(rewards.body, language),
-        souvenir: souvenirChoices(souvenirs.body, language),
+        souvenir: souvenirs.ok ? souvenirChoices(souvenirs.body, language) : [],
       });
       setProblem(null);
     } else setProblem(t("sponsors.page.loadFailed"));

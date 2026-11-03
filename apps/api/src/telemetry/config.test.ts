@@ -121,9 +121,19 @@ describe("loadTelemetryConfig", () => {
     expect(message).not.toContain("%E0");
   });
 
-  it.each(["-0.1", "1.5", "half", ""])("refuses a trace ratio of %j", (ratio) => {
+  it.each(["-0.1", "1.5", "half"])("refuses a trace ratio of %j", (ratio) => {
     expect(() => load({ TELEMETRY_TRACE_RATIO: ratio })).toThrow("TELEMETRY_TRACE_RATIO");
   });
+
+  it.each(["", "  "])(
+    "takes the default for an empty trace ratio (%j), like every other setting",
+    (ratio) => {
+      expect(
+        load({ TELEMETRY_EXPORTER: "console", TELEMETRY_TRACE_RATIO: ratio }, "development")
+          .traceRatio,
+      ).toBe(0.1);
+    },
+  );
 
   it("keeps no traces by default when the receiver is OTLP, and an explicit ratio still wins", () => {
     const otlp = {
