@@ -49,9 +49,11 @@ then STATE.md "Next", `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIE
 
 Updated 2026-11-02 by the Claude Code coordinator at Dhia's break. Progress: 149 of 197 tasks (75.6%).
 
-1. **Staging (CranL) runs migrations through 0119** (T-704 player tools and T-709b catalog editors, deployed
-   2026-11-02 after CI run 41446860843 passed).
-2. **T-704 is reviewed (89, MAJOR fixed) and merged** (ca21e74).
+1. **Staging (CranL) runs migrations through 0137** (2026-11-03): T-704, T-705, T-705b, T-707, T-709c, T-709d, T-703,
+   T-703b, T-706, T-708, T-701b, T-712, T-711 and T-713 are merged, reviewed and live.
+2. **In flight at the last update:** T-711b (tier A build, migration 0139), T-706b (tier B build, 0138), T-714 (tier B,
+   0140 if needed); the corrected grouped mutation run, first half (T-708, T-701b), then the second half (T-709c/d
+   catalog files). Migration numbers must stay above what staging has applied: renumber a branch before it merges.
 3. **Then T-705** (ban, block, word lists) and **T-705b** (reports queue, unpublish, flags list) from the same plan;
    one grouped mutation run after T-705 for `apps/api/src/console/players/**` plus the T-705 globs (ADR-355).
 4. **Mutation:** the T-701 chase round is done (5b43356, about 10 tests; scores re-measure in the next grouped run).
