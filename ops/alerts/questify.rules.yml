@@ -125,8 +125,19 @@ groups:
   - name: questify-background-work
     rules:
       # Every loop finishes a run at least every minute; five minutes without one means it is stuck or dead.
+      #
+      # A deploy or restart gives the process a new `instance` (a random id), and the old instance's series stays visible
+      # for the store's five-minute lookback. `timestamp(x) - x` is how late the loop already was when the instance last
+      # reported: a stopped instance that was healthy shows about zero, a live instance with a stuck loop keeps exporting
+      # the same last-run time and shows more every minute. `time() - timestamp(x) < 120` then drops an instance that
+      # stopped reporting (replaced, or a stuck one that was restarted). A live instance whose export has stopped is
+      # QuestifyTelemetryMissing. The guard needs the metric interval (`TELEMETRY_METRIC_INTERVAL_MS`, default 60 s) to
+      # stay under 120 s.
       - alert: QuestifyLoopStalled
-        expr: time() - questify_tick_last_run_seconds > 300
+        expr: |
+          (timestamp(questify_tick_last_run_seconds) - questify_tick_last_run_seconds > 300)
+          and on (instance, questify_tick)
+          (time() - timestamp(questify_tick_last_run_seconds) < 120)
         for: 2m
         labels:
           severity: page
@@ -134,9 +145,13 @@ groups:
           summary: "A background loop has not finished a run for five minutes"
           runbook: docs/RUNBOOK.md#questifyloopstalled
 
-      # The ranking must show a change within 5 s (ADR-074). The repair loop runs every 2 s.
+      # The ranking must show a change within 5 s (ADR-074). The repair loop runs every 2 s. The same instance guard as
+      # QuestifyLoopStalled: an old instance must not page after every deploy.
       - alert: QuestifyRankingRepairStalled
-        expr: time() - questify_tick_last_run_seconds{questify_tick="ranking_repair"} > 30
+        expr: |
+          (timestamp(questify_tick_last_run_seconds{questify_tick="ranking_repair"}) - questify_tick_last_run_seconds{questify_tick="ranking_repair"} > 30)
+          and on (instance, questify_tick)
+          (time() - timestamp(questify_tick_last_run_seconds{questify_tick="ranking_repair"}) < 120)
         for: 1m
         labels:
           severity: page

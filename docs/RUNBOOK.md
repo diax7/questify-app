@@ -528,8 +528,9 @@ a pager are T-018b (Q-560, Q-561). Until then the rules are written and tested b
 entries below name.
 
 - **Check the rules:** `promtool check rules ops/alerts/questify.rules.yml` and `promtool test rules ops/alerts/questify.rules.test.yml`
-  (no install needed: `docker run --rm --entrypoint promtool -v "$PWD/ops/alerts:/rules:ro" prom/prometheus:latest check rules
-  /rules/questify.rules.yml`, and `test rules /rules/questify.rules.test.yml`). Run both after any change to the rules.
+  (no install needed: `docker run --rm --entrypoint promtool -v "$PWD/ops/alerts:/rules:ro" prom/prometheus:v3.15.1 check rules
+  /rules/questify.rules.yml`, and `test rules /rules/questify.rules.test.yml`; the tag is pinned, raise it on purpose). Run both after
+  any change to the rules. No CI job runs them yet (`docs/FOLLOWUPS.md`).
   `pnpm vitest run apps/api/src/telemetry/alerts.test.ts` checks that every alert has an entry here and names only metrics, labels
   and events the code has.
 - **From a log line to its trace:** a line written inside a request or a background run carries `trace_id` and `span_id`; search the

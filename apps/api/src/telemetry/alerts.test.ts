@@ -61,6 +61,8 @@ const PROMQL_WORDS = new Set([
   "and",
   "or",
   "time",
+  "timestamp",
+  "on",
   "absent",
 ]);
 
@@ -69,7 +71,7 @@ function partsOf(expr: string): { metrics: string[]; labels: string[] } {
   const bare = expr.replace(/"(?:[^"\\]|\\.)*"/g, '""').replace(/\[[^\]]*\]/g, "[]");
   const labels = [
     ...[...bare.matchAll(/([a-zA-Z_]\w*)\s*(?:=~|!~|!=|=)\s*""/g)].map((match) => match[1] ?? ""),
-    ...[...bare.matchAll(/\bby\s*\(([^)]*)\)/g)].flatMap((match) =>
+    ...[...bare.matchAll(/\b(?:by|on)\s*\(([^)]*)\)/g)].flatMap((match) =>
       (match[1] ?? "").split(",").map((label) => label.trim()),
     ),
   ];

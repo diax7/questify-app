@@ -1,12 +1,12 @@
 # Unit tests of questify.rules.yml with promtool (RUNBOOK, "Telemetry and alerts"):
 #   promtool test rules ops/alerts/questify.rules.test.yml
-# They prove the behaviour that matters most: a deploy blip does not alert, a sustained failure does, and a short spike
-# does not page.
+# They prove the behaviour that matters most: a deploy blip does not alert, a sustained failure does, a short spike
+# does not page, and a restarted API does not page for the instance it replaced.
 
 rule_files:
   - questify.rules.yml
 
-evaluation_interval: 1m
+evaluation_interval: 15s
 
 tests:
   # T-711b: the old API logs `community.settle_failed` for the seconds of a deploy. Twelve lines in one minute, then
@@ -119,3 +119,71 @@ tests:
             exp_annotations:
               summary: "A background loop has not finished a run for five minutes"
               runbook: docs/RUNBOOK.md#questifyloopstalled
+
+  # A deploy: the old instance (its id is a random value per process) stops reporting at minute 10, the new one has been
+  # running since minute 8. The old series stays visible for the store's five-minute lookback, but its loop is not
+  # stalled, the process is gone. Checked every 15 s, as the rule group runs.
+  - interval: 1m
+    input_series:
+      - series: 'questify_tick_last_run_seconds{questify_tick="ranking_repair",instance="old"}'
+        values: "0+60x10"
+      - series: 'questify_tick_last_run_seconds{questify_tick="ranking_repair",instance="new"}'
+        values: "_x8 480+60x20"
+    alert_rule_test:
+      - eval_time: 10m30s
+        alertname: QuestifyRankingRepairStalled
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: QuestifyRankingRepairStalled
+        exp_alerts: []
+      - eval_time: 11m30s
+        alertname: QuestifyRankingRepairStalled
+        exp_alerts: []
+      - eval_time: 11m45s
+        alertname: QuestifyRankingRepairStalled
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: QuestifyRankingRepairStalled
+        exp_alerts: []
+      - eval_time: 14m
+        alertname: QuestifyRankingRepairStalled
+        exp_alerts: []
+
+  # The same deploy when the replaced instance had a loop stuck since minute 2 and was replaced at minute 6: the stalled
+  # loop pages only while its instance still reports.
+  - interval: 1m
+    input_series:
+      - series: 'questify_tick_last_run_seconds{questify_tick="community",instance="old"}'
+        values: "0+60x2 120x4"
+      - series: 'questify_tick_last_run_seconds{questify_tick="community",instance="new"}'
+        values: "_x5 300+60x20"
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: QuestifyLoopStalled
+        exp_alerts: []
+      - eval_time: 9m
+        alertname: QuestifyLoopStalled
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: QuestifyLoopStalled
+        exp_alerts: []
+
+  # A live instance whose ranking repair is stuck keeps exporting the same last-run time: it pages, and does so while the
+  # healthy instance beside it stays quiet.
+  - interval: 1m
+    input_series:
+      - series: 'questify_tick_last_run_seconds{questify_tick="ranking_repair",instance="stuck"}'
+        values: "0+60x5 300x20"
+      - series: 'questify_tick_last_run_seconds{questify_tick="ranking_repair",instance="healthy"}'
+        values: "0+60x25"
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: QuestifyRankingRepairStalled
+        exp_alerts:
+          - exp_labels:
+              severity: page
+              questify_tick: ranking_repair
+              instance: stuck
+            exp_annotations:
+              summary: "The ranking repair loop has not run for 30 seconds"
+              runbook: docs/RUNBOOK.md#questifyrankingrepairstalled

@@ -230,7 +230,7 @@ hour (10 a day) stop its codes. Email sign-in still works, and support frees the
 SMS"). The windows stay per contact because a per-address limit cannot stop a spread-out attack and would lock out
 whole venues.
 
-**Deviation closed (T-018, 2026-11-03).** The alerts for these signals are rules in `ops/alerts/questify.rules.yml`:
+**Deviation (T-018, 2026-11-03): written; evaluated from T-018b.** The alerts for these signals are rules in `ops/alerts/questify.rules.yml`:
 `QuestifyEmailFailing` and `QuestifyEmailBackupInUse` (email senders down), `QuestifySignInThrottleSpike` (throttle spikes),
 each with a RUNBOOK entry. They are evaluated once the telemetry store exists (T-018b, Q-560). One address key carrying most of the
 traffic is still a log query (RUNBOOK, `QuestifySignInThrottleSpike`): the metrics hold no address tag.
