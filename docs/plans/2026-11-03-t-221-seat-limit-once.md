@@ -38,7 +38,10 @@ call under 5 s with the decision push, and two accept-alls racing a join never s
   `enqueue_souvenir_on_join` (0064; `souvenir_enqueue` is `LANGUAGE sql` with a `SET` clause, so PostgreSQL 17 plans it
   again on every trigger call: T-501d measured about 1 ms a row), `enrollment_welcome` (`grant_welcome`, 0038: a ledger
   insert whose 0012 trigger updates the enrollment's score, then an upsert of the one `ranking_repair` row of the
-  event), `enrollment_push_decision` (0077, `notice_create` one insert a row). Confinement triggers (rehearsal 0032,
+  event), `enrollment_push_decision` (0077, `notice_create` one insert a row), `mark_ranking_on_enrollment` (0015:139,
+  `WHEN` the score is above 0, so a fresh acceptance skips it), and the three exit triggers `enrollment_close_submissions`
+  (0040), `enrollment_void_quizzes` (0041) and `enrollment_abandon_rounds` (0050), all `AFTER UPDATE OF status` and a
+  no-op on a move into `active`. Confinement triggers (rehearsal 0032,
   review demo 0144) fire on `joined_via` / `event_id, player_id` only. The maintenance gate (`src/maintenance/gate.ts`)
   holds player play doors (`POST /v1/join` included); accept-all is a team door and is not on it (unchanged).
 - **Measured** (T-501d, `test/perf/push-producers-timing.int`): one call of 1,000 on an event without a hard limit
@@ -75,8 +78,14 @@ The function:
    SQLSTATE and detail as today). The whole statement is undone.
 4. Any limit mode → the 80 and 100 marks with the **same `players` value the row-by-row guard recorded**: the count at
    the crossing, `greatest(threshold, seats - taken + 1)`, for each mark with `seats >= threshold` (a new internal
-   `record_limit_crossings(event, org, cap, before, after)`; `record_limit_alerts` stays for the admin doors that pass
-   the current count).
+   `record_limit_crossings(event, org, cap, before, after)` that reuses the 80 mark's `ceil(cap * 0.8)` from 0027:77;
+   `record_limit_alerts` stays for the admin doors that pass the current count).
+
+The function branches on `TG_OP` with separate queries, so the INSERT path never names `seated_old` (the INSERT
+trigger has no old table). It is correct only under READ COMMITTED: the count after the seat lock must be a fresh
+snapshot that sees every seat committed while it waited. Its header says so, and once a statement seats a player on a
+limited event it raises if `current_setting('transaction_isolation')` is not `read committed` (no door runs at another
+level; a test proves the raise).
 
 Semantics kept: a seat is `active` or `banned`, rehearsal never counts, a ban lift never takes a new seat, a limit
 lowered below the seats refuses every new seat and keeps everyone in, a soft limit only records marks. The INSERT
@@ -149,7 +158,7 @@ per accepted row (5,000 early exits); counted in the phase 4 number.
 | join / invitation / waiting list / operator / decide / accept-all | event (SHARE) → event KEY SHARE + seat lock (`free_seats`) → enrollment rows → statement trigger (same locks again, re-entrant) | none: no new lock |
 | leave, ban, erase, ban lift | enrollment row only; the trigger finds no seated row and locks nothing | none |
 | admin limit change | event FOR UPDATE → seat lock | none |
-| admin direct write into `active` | enrollment rows → event KEY SHARE → seat lock | was: seat lock taken per row before that row; now after all rows. A deadlock with a definer on the same row is detected and one side gets `40P01` (no admin path in code writes status directly; noted, not tested) |
+| admin direct write into `active` | enrollment rows → event KEY SHARE → seat lock | was: the first row locked, then the seat lock (the row trigger), then the other rows under it; now every row of the statement before the seat lock, so the deadlock window with a definer grows from the first row to all the statement's rows. Such a deadlock is detected and one side gets `40P01` (no admin path in code writes status directly; noted, not tested) |
 
 Accept-all's `FOR UPDATE SKIP LOCKED` stays: a request a concurrent decide or leave holds is skipped and stays pending
 for the next press.
@@ -196,8 +205,11 @@ two-event test with crossed locks); `LIMIT 5000` without `free`.
 
 ## Migration 0146 safety
 
-- `SET LOCAL lock_timeout = '3s'` (shorter than the runner's 10 s default: an ACCESS EXCLUSIVE request queues every
-  reader of `enrollment` behind it while it waits); the runner retries `55P03` three times (T-022, ADR-580).
+- `SET LOCAL lock_timeout = '1s'`, below the app pool's 2 s (`src/db/pool-options.ts`): while the ACCESS EXCLUSIVE
+  request waits, every reader and writer of `enrollment` queues behind it, and an app statement queued longer than its
+  own 2 s fails with `55P03`. At 1 s the migration gives up first, so no player request fails because of it; the
+  runner retries `55P03` three times (T-022, ADR-580). RUNBOOK deploy note: do not deploy 0146 during a live event's
+  peak (a long join or scan transaction then makes every retry miss and the deploy stops).
 - `LOCK TABLE enrollment IN ACCESS EXCLUSIVE MODE` first (`DROP TRIGGER` needs it; taken once up front so nothing
   upgrades a lock mid-file), then: drop the old trigger and function, create the function and two triggers, restate
   `accept_all_join_requests`, `souvenir_enqueue` (and `grant_welcome` if phase 0 keeps 3.2). Revokes next to each create.
@@ -220,6 +232,9 @@ two-event test with crossed locks); `LIMIT 5000` without `free`.
   laptop.
 - **Hot path:** 10,000 single-row `UPDATE enrollment SET score = score + 1` and 1,000 `record_completion` calls on the
   fixture, before and after: overhead under 5%.
+- **Bulk ledger writers:** the 0012 ledger trigger runs one `UPDATE enrollment` per ledger row, so a bulk writer fires
+  the statement trigger once per row. The largest is the bulk award (up to 2,000 enrollments a request); the community
+  payout takes 1,000 a call. One insert of 2,000 award rows, before and after.
 - **Fan-out:** the personal passes for the 5,000 notices: passes and total time.
 - Results go into the TASKS note and ADR-631 (numbers, machine, PostgreSQL version). CranL staging is at 0117 and
   cannot run it; ADR-631 says the cap is lowered by a one-line restatement if production timing differs.
@@ -243,10 +258,23 @@ two-event test with crossed locks); `LIMIT 5000` without `free`.
 - The statement trigger on every enrollment update costs the scan path more than budgeted (PostgreSQL gives no column
   filter with transition tables): the builder stops and reports the numbers to the coordinator; moving the score off
   `enrollment` or a deferred per-event check are larger changes outside this task.
-- CranL may be slower than the laptop; only measurable after deploy (probe after the deploy that carries 0146).
+- CranL may be slower than the laptop; only measurable after deploy. The post-deploy timing probe is a required
+  RUNBOOK step for the deploy that carries 0146 (one accept-all on a staging event sized like the fixture); above 3.5 s
+  the planned response is lowering the cap by a one-line restatement of `accept_all_join_requests` (ADR-631).
 - An admin direct status write can now deadlock with a definer on the same row (detected, retried by the caller).
 
 ## Mutation
 
 Stryker mutates TypeScript only; this task changes no TypeScript logic (the web file changes a comment). No Stryker
 globs; the SQL hand mutants above stand in, run by the builder and listed in the TASKS note.
+
+## Plan review (2026-11-03, scored 88), folded in before the build
+
+- MAJOR 1: migration `lock_timeout` 1 s, below the app pool's 2 s, with the reason, and a RUNBOOK deploy note (not
+  during a live event's peak). "Migration 0146 safety".
+- MINOR 2: READ COMMITTED only: header comment plus a raise under another level, with a test. "Chosen design" 1.
+- MINOR 3: the bulk ledger writers (one nested `UPDATE enrollment` per ledger row) are measured too. "Measurement plan".
+- MINOR 4: `TG_OP` branches with separate queries; the INSERT path is tested. "Chosen design" 1.
+- MINOR 5: the post-deploy timing probe is a required RUNBOOK step; lowering the cap is the planned response. "Risks".
+- NITs 6 to 8: the lock-order wording, the trigger inventory (`mark_ranking_on_enrollment`, the three exit
+  triggers), and `record_limit_crossings` reusing `ceil(cap * 0.8)`.
