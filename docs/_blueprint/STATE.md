@@ -6,6 +6,30 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-018b monitoring stack, prepared — 2026-11-03
+
+- **T-018b prepared (tier B; files and checks only, no CranL call, no migration, no device work; ADR-620 to ADR-625 and Q-580 to Q-584 Proposed; T-018b stays open).**
+  Dhia's answers (Q-560, Q-561): telemetry to CranL `riyadh-1` (a collector, a Prometheus-compatible store, Grafana), alerts by email. `ops/monitoring/`: three apps, a
+  Dockerfile each with the base image pinned by version and digest: `collector/` (OpenTelemetry Collector contrib 0.164.0; OTLP over HTTP with a bearer token, two slots
+  for rotation; **a `transform` filter that deletes every attribute off `ATTRIBUTE_RULES` and `RESOURCE_KEYS`, fails closed**; metrics by remote write; traces accepted
+  and dropped), `prometheus/` (Prometheus v3.15.1 loading a copy of `ops/alerts/questify.rules.yml`, one basic-auth user, 30 days or 4 GB of retention; Alertmanager v0.34.2
+  on 127.0.0.1 in the same container; its SMTP settings checked and rendered from the environment at start) and `grafana/` (13.2.5, no volume, login required, the data
+  source and the "Questify SLOs" dashboard provisioned). Prometheus rather than VictoriaMetrics because the rules' tests are `promtool`'s (ADR-621); every CranL app is
+  public with one port, so every link has a credential (ADR-622). RUNBOOK "Monitoring stack on CranL": the settings of each app, pointing the API at the collector, rotating
+  the token, retention (no backups, on purpose), operating notes, the footprint. **Checks:** `pnpm monitoring:validate` builds the images and runs `otelcol validate`,
+  `promtool`, `amtool`, `shellcheck`, `shfmt`, then starts the stack and proves token and password refusals (including a blank token slot), the closed list reaching
+  Prometheus and the traces output, metric names and labels, 20 rules loaded, Grafana's login, data source and all 27 dashboard queries, a mailed test alert, and the
+  container stopping when the Alertmanager dies; `apps/api/src/telemetry/monitoring.test.ts` (structural, 20 tests). **The live check found three faults in the first
+  draft** (the filter deleted nothing because all statements shared one OTTL group; a test hash that did not match; a mail server that cannot take a password without TLS).
+  Local: `src/telemetry` and `scripts` tests 180 passed (12 files, 20 of them new); lint, `lint:limits`, `format:check` and `tsc` clean; `monitoring:validate` all stages ok. CI minutes: 0 (not
+  pushed); agent tokens: about 700k (estimate). **Mutation:** none (tier B; no ledger or access code).
+  **Waiting on Dhia:** Q-581 (which SMTP account sends the alert mail; recommended a Resend key made for alerts), Q-584 (an outside uptime service for `/readyz` and a
+  heartbeat). **Waiting on a person with the CranL account (or T-017):** create the three apps and set the API's `TELEMETRY_*` on staging (Q-580 lists five CranL facts the
+  first deploy confirms), then fire the test alert. **Footprint per environment:** 3 of the plan's 10 application slots; about 0.5 to 1 GB of memory in all and well under
+  one core; one 5 GB volume (0.5 to 1 GB used after 30 days).
+  **Still open in T-018b:** the outside probe, the database function and migration for queue depth and ranking staleness (tier A), expiry probes, the one-address-key
+  aggregate, the web app's traces, error tracking. **Next:** the review of this branch (tier B, mid-tier); T-017 creates the apps; then the next unchecked task.
+
 ## T-018 observability and service levels — 2026-11-03
 
 - **T-018 built (tier B, API side; no migration, no device work; ADR-600 to ADR-605 and Q-560 to Q-562 Proposed; the place telemetry goes to and who is paged are T-018b, ADR-600).**

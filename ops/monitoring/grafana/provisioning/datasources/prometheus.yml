@@ -1,0 +1,22 @@
+# The one data source of the Questify dashboards (T-018b): the Prometheus app, through its address and the shared
+# `questify-metrics` user. Grafana fills the dollar-and-brace places below from the app's environment when it reads
+# this file.
+apiVersion: 1
+prune: true
+datasources:
+  - name: Questify Prometheus
+    uid: questify-prometheus
+    type: prometheus
+    access: proxy
+    url: ${PROMETHEUS_URL}
+    isDefault: true
+    editable: false
+    basicAuth: true
+    basicAuthUser: questify-metrics
+    secureJsonData:
+      basicAuthPassword: ${METRICS_PASSWORD}
+    jsonData:
+      httpMethod: POST
+      # The API reports once a minute; Grafana sizes its rate windows ($__rate_interval) from this.
+      timeInterval: 60s
+      timeout: 30

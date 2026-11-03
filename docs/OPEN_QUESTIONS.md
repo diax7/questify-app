@@ -2403,3 +2403,33 @@ ADR-079 says alerts go to the on-call phone and email and the team is three or m
 **Status:** Proposed (developer, 2026-11-03).
 The numbers in `ops/alerts/questify.rules.yml` come from ADR-074 (99.9%, 1 s at the 95th percentile) and from common practice (burn-rate windows, 20% failure for a provider, 5 minutes for a loop). The ADRs give no target for SMS, push or email delivery.
 **Recommended (developer):** keep them until the load test (NFR-003) and the first real event, then read the month's alert history and the metrics together and change only what paged for no reason or stayed quiet through a problem. Edit the rule, run `promtool test rules`, and note the change in SLO.md.
+
+## Q-580 - Which CranL facts must the first deploy of the monitoring stack confirm? (T-018b, ADR-620, ADR-622)
+
+**Status:** Proposed (developer, 2026-11-03). Needs a person with the CranL account; no answer from Dhia, only the result.
+The files were built from CranL's public documentation without calling CranL. Five things they assume: (1) apps reach each other only through their public addresses (nothing documents a private one; if it exists, use it for `PROMETHEUS_REMOTE_WRITE_URL` and `PROMETHEUS_URL` and keep the credentials); (2) a Dockerfile path inside a folder builds with that folder as its context (the web app's note says so); (3) a volume on `/data` is writable by the user `nobody` of the Prometheus image (if it is owned by root, set the owner in the Dockerfile as CranL's volume page says); (4) the collector's public address passes `POST` bodies of up to 4 MB and a request header `Authorization` unchanged through CranL's CDN; (5) CranL gives each app the port it is told (9090, 4318, 3000).
+**Recommended (developer):** make them the first checks when the staging stack is created (RUNBOOK, "After the first deploy"), record the answers here, and close the question.
+
+## Q-581 - Which SMTP account sends the alert mail? (T-018b, ADR-624)
+
+**Status:** Proposed (developer, 2026-11-03). An action only Dhia can take (create the key or the password).
+Alertmanager speaks SMTP; the API's own sender is the Gmail API (a service account), which Alertmanager cannot use. Options: (A) Resend SMTP, `smtp.resend.com:587`, user `resend`, a send-only API key made for alerts, From an address on a domain verified in Resend; (B) Gmail SMTP, `smtp.gmail.com:587`, an app password of the sending mailbox (needs 2-Step Verification, and Google does not recommend app passwords); (C) Google Workspace SMTP relay, `smtp-relay.gmail.com`, which wants an admin setting and a fixed address CranL may not give.
+**Recommended (developer):** (A), because the account and the verified domain already exist for the API's backup sender (`RESEND_API_KEY`), a separate key can be revoked alone, and it needs no admin setting. Until it exists the stack runs and the dashboard shows "Alert mails not sent".
+
+## Q-582 - One monitoring stack per environment, or one for both? (T-018b, ADR-620)
+
+**Status:** Proposed (developer, 2026-11-03).
+The rules add up every instance and have no environment label, so a shared store would mix staging and production. A stack is three apps of the plan's ten.
+**Recommended (developer):** one stack per environment: staging now, production's own copy of the same folders when production exists. If the application slots run short, run one stack and add `resource_constant_labels` for `deployment.environment.name` in the collector plus a matcher on every rule and test (a day of work, and `deployment.environment.name` is the Node environment, `production`, on staging too, so a new setting is needed first).
+
+## Q-583 - Where do traces go? (T-018b, ADR-623)
+
+**Status:** Proposed (developer, 2026-11-03).
+The API can send spans (a share, `TELEMETRY_TRACE_RATIO`), and its logs carry `trace_id`. Prometheus stores no traces. The collector accepts them and drops them.
+**Recommended (developer):** nowhere yet; set the ratio to 0. Add Grafana Tempo (one binary, local disk, 7 days, a fourth app and a second volume) the first time an incident needs to follow one request, and add its exporter to the collector's traces pipeline. The web app's traces joined to the API's (T-018b item 8) wait for the same.
+
+## Q-584 - What watches the monitoring stack from outside? (T-018b, ADR-624)
+
+**Status:** Proposed (developer, 2026-11-03). Needs an account only Dhia can open.
+If the Prometheus app or its Alertmanager is down, or the SMTP login is wrong, no alert says so; `QuestifyTelemetryMissing` covers a silent API but needs the stack itself. T-018b item 3 (an outside probe of `/readyz`) is still open for the same reason.
+**Recommended (developer):** a free uptime service that probes `/readyz` of the API and the collector's address from two places and emails or messages Dhia, plus a daily "dead man's" heartbeat: an always-firing rule posted to the service, which mails when the heartbeat stops. Dhia chooses the service and opens the account; the rule and the receiver are one block each in `ops/alerts/` and `alertmanager.yml.in`.

@@ -173,7 +173,9 @@ with replay) end in the same `complete` transaction, differing only in the proof
 Built in T-018 (ADR-600 to ADR-605); the targets, the metric catalog and the alert table are `SLO.md`, the rules `ops/alerts/`. The
 API records metrics and traces through OpenTelemetry (off until `TELEMETRY_EXPORTER` is set), keeps logs as JSON on standard output with
 the trace id, and counts every named log event, so the existing log events are the alert signals. No attribute can hold personal data
-(a closed list, tested). Where telemetry goes and who is paged is T-018b (Q-560, Q-561). The list below is the full target; `SLO.md`
+(a closed list, tested). Telemetry goes to a collector, Prometheus with Alertmanager and Grafana, three CranL apps in `riyadh-1` built from
+`ops/monitoring/` (prepared in T-018b, ADR-620 to ADR-625; the collector deletes any attribute off the closed list again); alerts are mailed to
+the owner (Q-561). The rest of T-018b (the outside probe, database gauges, expiry probes) is open. The list below is the full target; `SLO.md`
 says which items T-018 covers and which wait.
 
 - Health endpoints for the API, workers and each dependency.

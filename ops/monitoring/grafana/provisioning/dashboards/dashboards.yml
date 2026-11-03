@@ -1,0 +1,12 @@
+# Dashboards come from the image (T-018b), never from the screen: a change is a commit to the JSON file, the same way
+# as the alert rules. The folder is outside Grafana's data directory so a volume could never hide it.
+apiVersion: 1
+providers:
+  - name: questify
+    folder: Questify
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 3600
+    options:
+      path: /etc/questify/dashboards

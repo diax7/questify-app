@@ -1,0 +1,31 @@
+# Prometheus of the Questify monitoring stack (T-018b, ADR-620 to ADR-625). It stores what the collector writes
+# (remote write, so each sample keeps the time the API reported it, which the loop alerts depend on), evaluates the
+# alert rules and hands firing alerts to the Alertmanager that runs in the same container.
+#
+# No secret is in this file: the scrape password is read from a file that `render-config.sh` writes at start.
+
+global:
+  scrape_interval: 30s
+  # The rule unit tests (ops/alerts/questify.rules.test.yml) run at this interval.
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/questify.rules.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["127.0.0.1:9093"]
+
+# Only the stack itself is scraped: the API pushes its metrics through the collector. These two jobs feed the
+# "Monitoring stack" row of the dashboard (rule failures, undelivered notifications, series count, disk).
+scrape_configs:
+  - job_name: prometheus
+    basic_auth:
+      username: questify-metrics
+      password_file: /tmp/metrics-password
+    static_configs:
+      - targets: ["127.0.0.1:9090"]
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["127.0.0.1:9093"]
