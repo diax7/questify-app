@@ -175,7 +175,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks over HTTP", 
     const client: PoolClient = await test.pool.connect();
     try {
       await client.query("BEGIN");
-      await client.query("SELECT settle_goal($1, true)", [id]);
+      await client.query("SELECT settle_goal($1)", [id]);
       await client.query("COMMIT");
     } finally {
       client.release();
@@ -383,7 +383,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks over HTTP", 
       const client = await test.pool.connect();
       try {
         await client.query("BEGIN");
-        await client.query("SELECT settle_goal($1, true)", [id]);
+        await client.query("SELECT settle_goal($1)", [id]);
         await client.query("COMMIT");
       } finally {
         client.release();

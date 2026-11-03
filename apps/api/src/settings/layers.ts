@@ -11,6 +11,7 @@ import {
 import type { Client, PoolClient } from "pg";
 import {
   readEntitlements,
+  readEventOrganizerId,
   readEventOverrides,
   readStoredEventConfig,
   readStoredPlatform,
@@ -66,4 +67,30 @@ export async function firstSwitchOnRefused(
   return switchedOn.find(
     (key) => !ownerMaySwitchOn(featureLayer(registries, inputs.platform, inputs.event, key)),
   );
+}
+
+/**
+ * The platform switch of one feature as the event's organizer sees it (the organizer's override, else the platform's own;
+ * ADR-543), read in the caller's transaction. Undefined when the event is not the given organizer's, so the caller's door
+ * answers as it always did (a 404) instead of telling one organizer about another's layer.
+ */
+export async function platformOnFor(
+  db: Db,
+  registries: Registries,
+  target: Readonly<{ eventId: string; organizerId: string }>,
+  feature: string,
+): Promise<boolean | undefined> {
+  if ((await readEventOrganizerId(db, target.eventId)) !== target.organizerId) {
+    return undefined;
+  }
+  const platform = readPlatformSettings(await readStoredPlatform(db));
+  const seen = platformForOrganizer(
+    registries,
+    platform,
+    await readEventOverrides(db, target.eventId),
+  );
+  const definition = Object.hasOwn(registries.features, feature)
+    ? registries.features[feature]
+    : undefined;
+  return seen.features?.[feature]?.enabled ?? definition?.offByDefault !== true;
 }

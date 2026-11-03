@@ -175,7 +175,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("feature layers (database)", ()
       expect(
         await refusal(
           f.owner(
-            "INSERT INTO organizer_feature_override (organizer_id, feature, enabled) VALUES ($1, 'boosts', true)",
+            "INSERT INTO organizer_feature_override (organizer_id, feature, enabled) VALUES ($1, 'nfcTags', true)",
             [f.ids.orgA],
           ),
         ),

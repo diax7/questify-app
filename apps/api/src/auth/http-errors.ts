@@ -1399,6 +1399,20 @@ export const featureNotAllowed = make(
   "لا يمكن تشغيل هذه الميزة لهذه الفعالية. اطلب من Questify تفعيلها.",
   "This feature can't be switched on for this event. Ask Questify to allow it.",
 );
+/** The owner asked Questify for an add-on that is already unlocked for the event (T-711b, FR-1827). */
+export const addonAlreadyUnlocked = make(
+  409,
+  "addon_unlocked",
+  "هذه الإضافة مفعّلة لفعاليتك.",
+  "This add-on is already unlocked for your event.",
+);
+/** Questify declined the same request less than 24 hours ago; `retryAt` says when the owner may ask again (T-711b). */
+export const requestDeclinedRecently = make(
+  429,
+  "request_declined_recently",
+  "لم يُعتمد طلبك الأخير. يمكنك الطلب مجددًا بعد 24 ساعة من الرفض.",
+  "Your last request wasn't approved. You can ask again 24 hours after it was declined.",
+);
 /**
  * A location check-in was refused (T-303b): `reason` is no_position, bad_position, stale, imprecise or not_here, and
  * `distanceM` the player's own rounded distance for not_here. Never the coordinates sent.

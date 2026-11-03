@@ -1,12 +1,13 @@
 import type { Pool, PoolClient } from "pg";
+import { REGISTRIES } from "@questify/shared";
 import { z } from "zod";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
-import type { SettingsService } from "#src/settings/service";
+import { platformOnFor } from "#src/settings/layers";
 import { teamSeat } from "#src/organizers/store";
 
-export type BoostDeps = Readonly<{ pool: Pool; settings: Pick<SettingsService, "forEvent"> }>;
+export type BoostDeps = Readonly<{ pool: Pool }>;
 
 /** The most boosts one event holds (migration 0055's limit_reached). */
 export const MAX_BOOSTS = 100;
@@ -111,14 +112,6 @@ async function asTeam<T>(
   }
 }
 
-/** Whether the platform's `boosts` switch is on; off, no boost is saved and running ones finish (ADR-233). */
-export async function boostsPlatformOn(
-  settings: Pick<SettingsService, "forEvent">,
-): Promise<boolean> {
-  const config = await settings.forEvent(undefined);
-  return config.kind === "ok" && config.config.features["boosts"]?.enabled !== false;
-}
-
 const iso = (value: unknown): string => new Date(String(value)).toISOString();
 
 type BoostJson = Record<string, unknown>;
@@ -163,8 +156,9 @@ async function eventBoostsOn(client: PoolClient, eventId: string): Promise<boole
 
 /**
  * Saves a new boost (`boostId` null) or edits a scheduled one until a minute before its start (FR-252). Refused while
- * the platform switch or the event's own switch is off, since a boost saved then would pay nothing. Audited by the
- * database. Answers the saved boost.
+ * the platform switch as the organizer sees it (`feature_off`: the platform, or Questify's override for the organizer;
+ * ADR-543) or the event's own switch (`event_feature_off`) is off. Off for the platform, running boosts still finish
+ * (ADR-233, ADR-540). Audited by the database. Answers the saved boost.
  */
 export async function saveBoost(
   deps: BoostDeps,
@@ -176,14 +170,19 @@ export async function saveBoost(
     requestId: string;
   }>,
 ): Promise<BoostDone<BoostView>> {
-  if (!(await boostsPlatformOn(deps.settings))) {
+  const target = { eventId: request.eventId, organizerId: context.organizerId };
+  const switchedOn = await asTeam(deps, context, async (client) => ({
+    platform: await platformOnFor(client, REGISTRIES, target, "boosts"),
+    event: await eventBoostsOn(client, request.eventId),
+  }));
+  if (switchedOn.kind !== "done") {
+    return switchedOn;
+  }
+  if (switchedOn.value.platform === false) {
     return { kind: "feature_off" };
   }
-  const switchedOn = await asTeam(deps, context, (client) =>
-    eventBoostsOn(client, request.eventId),
-  );
-  if (switchedOn.kind !== "done" || !switchedOn.value) {
-    return switchedOn.kind === "done" ? { kind: "event_feature_off" } : switchedOn;
+  if (!switchedOn.value.event) {
+    return { kind: "event_feature_off" };
   }
   const result = await asTeam(deps, context, async (client) => {
     const { rows } = await client.query<{ id: string }>(

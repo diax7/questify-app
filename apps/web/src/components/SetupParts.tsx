@@ -1,7 +1,8 @@
 "use client";
 
-import type { Language, MessageKey } from "@questify/shared";
+import type { FeatureRequestState, Language, MessageKey } from "@questify/shared";
 import type { ReactNode } from "react";
+import { AddonAsk } from "#src/components/AddonAsk.tsx";
 import { addonName } from "#src/lib/activation.ts";
 import type { Translate } from "#src/lib/language.ts";
 import { ButtonLink } from "#src/ui/Button.tsx";
@@ -36,7 +37,8 @@ const ADDON_PAGE: Readonly<Record<string, string>> = { bigScreen: "big-screen" }
 
 /**
  * An add-on's card (FR-1755). Locked, it explains the add-on, shows a switch that cannot be ticked and offers "Ask
- * Questify" (the contact page: nothing is bought in the app). Unlocked, it opens the page where the add-on is used.
+ * Questify" (a recorded request, T-711b, FR-1827; the Contact page stays: nothing is bought in the app). Unlocked, it
+ * opens the page where the add-on is used.
  */
 export function AddonCard({
   t,
@@ -44,6 +46,8 @@ export function AddonCard({
   feature,
   unlocked,
   eventPages,
+  request,
+  askTarget,
 }: Readonly<{
   t: Translate;
   language: Language;
@@ -51,6 +55,10 @@ export function AddonCard({
   unlocked: boolean;
   /** The address of the event's pages, without a trailing slash. */
   eventPages: string;
+  /** The owner's latest Ask Questify request for the add-on. */
+  request: FeatureRequestState | null;
+  /** The event the owner asks for; absent for an editor (Q-502). */
+  askTarget?: Readonly<{ organizerId: string; eventId: string }> | undefined;
 }>) {
   const name = addonName(feature, t);
   const summary = ADDON_SUMMARY[feature];
@@ -84,9 +92,13 @@ export function AddonCard({
           </ButtonLink>
         )
       ) : (
-        <ButtonLink href={`/${language}/contact`} variant="secondary">
-          {t("wizard.addon.ask")}
-        </ButtonLink>
+        <AddonAsk
+          t={t}
+          language={language}
+          feature={feature}
+          request={request}
+          target={askTarget}
+        />
       )}
     </Row>
   );

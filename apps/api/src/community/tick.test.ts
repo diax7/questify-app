@@ -45,17 +45,11 @@ function fakePool(script: Script) {
 }
 
 const healthy = { behind: [], stuckSteps: 0, stuckRows: 0, blocker: null };
-const settingsWith = (enabled: boolean | undefined) => ({
-  forEvent: vi.fn(async () => ({
-    kind: "ok" as const,
-    config: { features: enabled === undefined ? {} : { community: { enabled } } },
-  })),
-});
 
 function start(
   script: Partial<Script>,
   logged: Logged[],
-  options: Readonly<{ enabled?: boolean; random?: () => number; now?: () => number }> = {},
+  options: Readonly<{ random?: () => number; now?: () => number }> = {},
 ) {
   const fake = fakePool({
     goals: [],
@@ -66,7 +60,6 @@ function start(
   });
   const tick = startCommunityTick({
     pool: fake.pool,
-    settings: settingsWith(options.enabled) as never,
     intervalMs: 1000,
     random: options.random ?? (() => 0.5),
     ...(options.now === undefined ? {} : { now: options.now }),
@@ -83,17 +76,15 @@ describe("startCommunityTick", () => {
     vi.useRealTimers();
   });
 
-  it("settles each goal in its own system transaction, with the platform switch as may_start", async () => {
+  it("settles each goal in its own system transaction; the database decides may-start per goal", async () => {
     const logged: Logged[] = [];
-    const { tick, statements } = start({ goals: ["g1", "g2"] }, logged, { enabled: false });
+    const { tick, statements } = start({ goals: ["g1", "g2"] }, logged);
     await vi.advanceTimersByTimeAsync(999);
     expect(statements).toEqual([]);
     await vi.advanceTimersByTimeAsync(1);
     const settles = statements.filter((one) => one.sql.includes("settle_goal"));
-    expect(settles.map((one) => one.values)).toEqual([
-      ["g1", false],
-      ["g2", false],
-    ]);
+    expect(settles.map((one) => one.values)).toEqual([["g1"], ["g2"]]);
+    expect(settles.every((one) => one.sql === "SELECT settle_goal($1)")).toBe(true);
     expect(statements.filter((one) => one.sql === "BEGIN").length).toBeGreaterThanOrEqual(4);
     expect(logged).toEqual([]);
     await tick.stop();
@@ -202,7 +193,6 @@ describe("startCommunityTick", () => {
     } as unknown as Pool;
     const tick = startCommunityTick({
       pool: failing,
-      settings: settingsWith(true) as never,
       intervalMs: 1000,
       random: () => 0.5,
       log: (level, fields) => logged.push({ level, fields }),
@@ -256,7 +246,6 @@ describe("startCommunityTick", () => {
           release: vi.fn(),
         }),
       } as unknown as Pool,
-      settings: settingsWith(true) as never,
       intervalMs: 1000,
       random: () => 0.5,
       log: (level, fields) => logged.push({ level, fields }),
@@ -290,7 +279,6 @@ describe("startCommunityTick", () => {
           release: vi.fn(),
         }),
       } as unknown as Pool,
-      settings: settingsWith(true) as never,
       intervalMs: 1000,
       random: () => 0.5,
       log: () => {},

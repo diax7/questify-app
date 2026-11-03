@@ -778,6 +778,23 @@ const OWNED: Readonly<Record<string, Owned>> = {
       },
     ],
   },
+  feature_request: {
+    probes: [
+      {
+        seat: "organizer",
+        column: "organizer_id",
+        mine: (f) => f.orgA,
+        theirs: (f) => f.orgB,
+        // Only the organizer's own members read its requests, not whoever sees a public event (T-711b, ADR-545).
+        forge: (f) => ({
+          sql: "INSERT INTO feature_request (organizer_id, event_id, feature, requested_by) VALUES ($1, $2, 'bigScreen', $3)",
+          values: [f.orgB, f.publicEventB, f.staffA],
+        }),
+        // Nobody holds INSERT: the owner's door (`request_feature`) is the one way in.
+        forgeRefusedBy: /permission denied/,
+      },
+    ],
+  },
   audit_log: {
     probes: [
       {
@@ -1368,6 +1385,10 @@ async function seedFixtures(db: TestDatabase): Promise<Fixtures> {
       await run(
         "INSERT INTO event_entitlement (event_id, organizer_id, feature) VALUES ($1, $2, 'bigScreen')",
         [event, org],
+      );
+      await run(
+        "INSERT INTO feature_request (organizer_id, event_id, feature, requested_by) VALUES ($1, $2, 'bigScreen', $3)",
+        [org, event, staff],
       );
       await run(
         "INSERT INTO event_exclusion (organizer_id, event_id, kind, value, created_by) VALUES ($1, $2, 'email_domain', 'seeded.sa', $3)",

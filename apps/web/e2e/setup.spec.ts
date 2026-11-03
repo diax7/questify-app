@@ -66,7 +66,8 @@ test("walks the guided setup, resumes at the saved step and keeps the defaults o
   await expect(big).toBeDisabled();
   await expect(big).not.toBeChecked();
   await expect(page.getByText("متاحة مع إضافة.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "اسأل Questify" })).toHaveAttribute(
+  await expect(page.getByRole("button", { name: "اسأل Questify" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "أو تواصل معنا" })).toHaveAttribute(
     "href",
     "/ar/contact",
   );

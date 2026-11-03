@@ -1,12 +1,13 @@
 import type { Pool, PoolClient } from "pg";
+import { REGISTRIES } from "@questify/shared";
 import { z } from "zod";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { OrganizerContext } from "#src/organizers/store";
-import type { SettingsService } from "#src/settings/service";
 import { teamSeat } from "#src/organizers/store";
+import { platformOnFor } from "#src/settings/layers";
 
-export type CommunityDeps = Readonly<{ pool: Pool; settings: Pick<SettingsService, "forEvent"> }>;
+export type CommunityDeps = Readonly<{ pool: Pool }>;
 
 /** The most milestones a goal has besides its goal step (FR-246). */
 export const MAX_MILESTONES = 5;
@@ -212,12 +213,27 @@ export async function asTeam<T>(
   }
 }
 
-/** Whether the platform's `community` switch is on; the event's own switch is the database's (`community_on`). */
-export async function communityPlatformOn(
-  settings: Pick<SettingsService, "forEvent">,
-): Promise<boolean> {
-  const config = await settings.forEvent(undefined);
-  return config.kind === "ok" && config.config.features["community"]?.enabled !== false;
+/**
+ * Runs one builder call in the team seat unless the platform switch, as the event's organizer sees it (the platform, or
+ * Questify's override for the organizer; ADR-543), keeps community quests off: then `feature_off` and nothing is written.
+ * The event's own switch is the database's (`community_on`).
+ */
+async function whileCommunityOn<T>(
+  deps: Pick<CommunityDeps, "pool">,
+  context: OrganizerContext,
+  eventId: string,
+  work: (client: PoolClient) => Promise<T>,
+): Promise<CommunityDone<T>> {
+  const target = { eventId, organizerId: context.organizerId };
+  const result = await asTeam(deps, context, async (client) =>
+    (await platformOnFor(client, REGISTRIES, target, "community")) === false
+      ? { off: true as const }
+      : { off: false as const, value: await work(client) },
+  );
+  if (result.kind !== "done") {
+    return result;
+  }
+  return result.value.off ? { kind: "feature_off" } : { kind: "done", value: result.value.value };
 }
 
 const iso = (value: unknown): string | null =>
@@ -302,17 +318,14 @@ const stored = (body: GoalBody) => ({
 
 /**
  * Creates a goal (`goalId` null) or replaces one before it starts; a started goal takes new texts only (FR-243,
- * migration 0053). Refused while the platform switch is off. Audited by the database. Answers the saved goal.
+ * migration 0053). Refused while the platform switch, as the organizer sees it, is off. Audited by the database. Answers the saved goal.
  */
 export async function saveGoal(
   deps: CommunityDeps,
   context: OrganizerContext,
   request: Readonly<{ eventId: string; goalId: string | null; body: GoalBody; requestId: string }>,
 ): Promise<CommunityDone<GoalView>> {
-  if (!(await communityPlatformOn(deps.settings))) {
-    return { kind: "feature_off" };
-  }
-  const result = await asTeam(deps, context, async (client) => {
+  const result = await whileCommunityOn(deps, context, request.eventId, async (client) => {
     const { rows } = await client.query<{ id: string }>(
       "SELECT save_community_goal($1, $2, $3, $4) AS id",
       [request.eventId, request.goalId, JSON.stringify(stored(request.body)), request.requestId],
@@ -332,10 +345,7 @@ export async function deleteGoal(
   context: OrganizerContext,
   request: Readonly<{ eventId: string; goalId: string; requestId: string }>,
 ): Promise<CommunityDone<null>> {
-  if (!(await communityPlatformOn(deps.settings))) {
-    return { kind: "feature_off" };
-  }
-  return asTeam(deps, context, async (client) => {
+  return whileCommunityOn(deps, context, request.eventId, async (client) => {
     await client.query("SELECT delete_community_goal($1, $2, $3)", [
       request.eventId,
       request.goalId,

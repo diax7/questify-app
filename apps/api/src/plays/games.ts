@@ -27,10 +27,8 @@ import { heldBack, type PlayerLimit } from "#src/plays/limits";
 import { run, type Done, type PlayDeps } from "#src/plays/run";
 import { firstBonusPaid, type OwnFirstBonus } from "#src/quests/first-bonus";
 import { streakBonusPaid } from "#src/streaks/streaks";
-import type { SettingsService } from "#src/settings/service";
 
-export type GameDeps = PlayDeps &
-  Readonly<{ keys: Pick<AuthKeys, "playerKey">; settings: Pick<SettingsService, "forEvent"> }>;
+export type GameDeps = PlayDeps & Readonly<{ keys: Pick<AuthKeys, "playerKey"> }>;
 
 /** Rounds issued and results sent per player (T-305): far above any honest play, well below a script's. */
 export const GAME_LIMITS = {
@@ -106,14 +104,6 @@ export type GameResult = Readonly<{
   /** The event streak bonus this round's pay paid with its streak day (T-405), or null; the same on a replay. */
   streakBonus: StreakBonus | null;
 }>;
-
-/** Whether the platform's `miniGames` switch is on; the event's own switch is the database's (`games_on`). */
-export async function gamesPlatformOn(
-  settings: Pick<SettingsService, "forEvent">,
-): Promise<boolean> {
-  const config = await settings.forEvent(undefined);
-  return config.kind === "ok" && config.config.features["miniGames"]?.enabled !== false;
-}
 
 const iso = (value: Date | null): string | null => (value === null ? null : value.toISOString());
 
@@ -246,16 +236,14 @@ async function issue(
 }
 
 /**
- * Starts a round of a game quest (ADR-212, ADR-213): refused while the platform's switch is off, past the per-player
- * limit, for an app whose engine is too old (426, no attempt used), or as `start_game_round` refuses.
+ * Starts a round of a game quest (ADR-212, ADR-213): refused past the per-player limit, for an app whose engine is too old
+ * (426, no attempt used), or as `start_game_round` refuses: QF403 `feature_off` while the event's switch or the platform,
+ * as the event's organizer sees it, is off (`games_on`, ADR-541).
  */
 export async function startRound(
   deps: GameDeps,
   request: StartRequest,
 ): Promise<GameOutcome<IssuedRound>> {
-  if (!(await gamesPlatformOn(deps.settings))) {
-    return { kind: "feature_off" };
-  }
   const engine = await run(deps, { playerId: request.playerId }, (client) =>
     engineCheck(client, request),
   );

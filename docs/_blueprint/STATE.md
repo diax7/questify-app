@@ -34,6 +34,26 @@
   **Next:** T-706c (promotional SMS and email, the email sender, the slots; its login-code part is tier A), and the code
   review of T-706b (tier B, one mid-tier review).
 
+## T-711b feature layers, part 2 — 2026-11-03
+
+- **T-711b built (tier A; plan review 86 with its MAJOR and MINOR findings folded into the plan, ADR-540/542/545 and Q-500;
+  migration 0141, new and undeployed; ADR-540 to ADR-546 and Q-500 to Q-503 Proposed; not run on a phone).** Questify's
+  per-organizer override now reaches boosts, community quests, meet-someone and mini-games, on new things only (ADR-540):
+  `games_on` and `meet_on` read `feature_enabled` (the API's platform pre-checks are gone; QF403 is the same `feature_off`
+  and does not use the refused-scan limit); `settle_goal(uuid)` and `settle_community(uuid, uuid)` decide may-start per
+  organizer (the boolean versions are dropped; RUNBOOK deploy note); boost and goal saves read the layer per organizer in
+  the team transaction (`platformOnFor`); the boost-start push and notice wait for the layer while the scan path is
+  untouched (a boost saved earlier still pays once its window opens). No lock was added to a payment; both race orders are
+  tested with a 200 ms lock timeout. Ask Questify is recorded: `feature_request` and the owner's `request_feature` door
+  (one open per event and add-on, 24 hours after a decline, 20 an hour per account), the card says Requested or Not
+  approved and keeps the Contact link, the console home lists open requests with Allow (the unlock, which closes the
+  request) and Decline. Tests: `test/db/feature-layers-points` (18), `test/events/feature-layers` (12), the console,
+  security and catalog suites, unit tests for boosts, goals, tick, payer, meet and games, `e2e/feature-layers` and
+  `e2e/setup` (with layout, 18 passed on desktop and phone). Full vitest once: 11,810 passed, 10 failed (one
+  `event-duplicate` guard on the new table, fixed; `live-edits` statement timeouts on the busy shared database, passed on
+  a serial re-run). CI minutes: 0 (not pushed); agent tokens: about 900k.
+  **Next:** the T-711b code review (tier A, strongest model), then mutation on GitHub for the globs in the reply.
+
 ## T-712 view as organizer — 2026-11-03
 
 - **T-712 built (tier A; plan review 86 with its two MAJOR and the MINOR fixes folded in; migration 0135, new and

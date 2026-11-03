@@ -7,10 +7,8 @@ import { BUCKETS } from "#src/auth/throttle";
 import type { Position } from "#src/completions/complete";
 import { heldBack, type PlayerLimit } from "#src/plays/limits";
 import { paidOf, run, type Done, type Paid, type PlayDeps } from "#src/plays/run";
-import type { SettingsService } from "#src/settings/service";
 
-export type MeetDeps = PlayDeps &
-  Readonly<{ keys: AuthKeys; settings: Pick<SettingsService, "forEvent"> }>;
+export type MeetDeps = PlayDeps & Readonly<{ keys: AuthKeys }>;
 
 /**
  * The limits of meet-someone (T-303c), per player: codes shown, code states read while one is on screen (the app polls
@@ -121,14 +119,6 @@ async function asPlayer<T>(
   }
 }
 
-/** Whether the platform's `meetSomeone` switch is on; the event's own switch is the database's (`meet_on`). */
-export async function meetPlatformOn(
-  settings: Pick<SettingsService, "forEvent">,
-): Promise<boolean> {
-  const config = await settings.forEvent(undefined);
-  return config.kind === "ok" && config.config.features["meetSomeone"]?.enabled !== false;
-}
-
 const PASS_LIMIT: PlayerLimit = { bucket: BUCKETS.meetPass, ...MEET_LIMITS.passesPerPlayer };
 const STATE_LIMIT: PlayerLimit = { bucket: BUCKETS.meetState, ...MEET_LIMITS.stateReadsPerPlayer };
 const REFUSED_LIMIT: PlayerLimit = {
@@ -138,15 +128,13 @@ const REFUSED_LIMIT: PlayerLimit = {
 
 /**
  * Shows a fresh meet code for the player (ADR-209): a 128-bit random token, of which the database keeps only the hash.
- * Refused while the platform's switch is off, past the per-player limit, or as `issue_meet_pass` refuses.
+ * Refused past the per-player limit, or as `issue_meet_pass` refuses: QF403 `feature_off` while the event's switch or the
+ * platform, as the event's organizer sees it, is off (`meet_on`, ADR-541).
  */
 export async function issueMeetPass(
   deps: MeetDeps,
   request: Readonly<{ playerId: string; questId: string; deviceId: string | undefined }>,
 ): Promise<MeetOutcome<MeetPass>> {
-  if (!(await meetPlatformOn(deps.settings))) {
-    return { kind: "feature_off" };
-  }
   const wait = await heldBack(deps, request.playerId, PASS_LIMIT, true);
   if (wait !== undefined) {
     return { kind: "too_many_attempts", retryAfterSeconds: wait };
@@ -227,7 +215,10 @@ export type MeetRequest = Readonly<{
   position: Position | null;
 }>;
 
-/** Whether a refusal counts against the scanner's refused-scan limit: anything the scanner could retry by script. */
+/**
+ * Whether a refusal counts against the scanner's refused-scan limit: anything the scanner could retry by script. A feature
+ * switched off (QF403 from `meet_on`) is not a bad code and does not count.
+ */
 const counted = (result: MeetOutcome<unknown>): boolean => result.kind === "meet_refused";
 
 /**
@@ -240,9 +231,6 @@ export async function meetPlayer(
   request: MeetRequest,
   caller: Caller,
 ): Promise<MeetOutcome<Readonly<{ answer: Met; other: OtherSide }>>> {
-  if (!(await meetPlatformOn(deps.settings))) {
-    return { kind: "feature_off" };
-  }
   const wait = await heldBack(deps, request.playerId, REFUSED_LIMIT, false);
   if (wait !== undefined) {
     return { kind: "too_many_attempts", retryAfterSeconds: wait };

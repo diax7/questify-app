@@ -12,7 +12,7 @@ import { createSettingsService } from "#src/settings/service";
 import { pushFixture, type PushFixture } from "#test/support/push";
 import { TEST_DATABASE_URL } from "#test/support/test-db";
 
-type Method = "GET" | "PUT" | "DELETE";
+type Method = "GET" | "PUT" | "DELETE" | "POST";
 
 /**
  * The owner's side of the feature layers over HTTP (T-711, FR-1826, FR-1827): the features list shows what the platform
@@ -86,13 +86,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event feature layers over HTTP
       features: Record<string, { enabled: boolean }>;
     }>().features[key]?.enabled;
 
+  const ask = (event: string, cookie = owner, feature = "bigScreen", organizer?: string) =>
+    call("POST", `${base(event, organizer)}/feature-requests`, cookie, { feature });
+  const bigScreen = async (event: string) =>
+    (await layers(event)).features.find((row) => row.key === "bigScreen");
+  const queue = async () =>
+    (await call("GET", "/v1/admin/feature-requests", admin)).json<{
+      requests: { id: string; eventId: string }[];
+    }>().requests;
+
   it("lists the features an owner can see: switches on or off, and the add-on locked", async () => {
     const event = await fixture.newEvent({ phase: "live" });
     const rows = await layers(event);
     const byKey = Object.fromEntries(rows.features.map((row) => [row.key, row]));
-    expect(byKey["shop"]).toEqual({ key: "shop", state: "on", addOn: false });
+    expect(byKey["shop"]).toEqual({ key: "shop", state: "on", addOn: false, request: null });
     expect(byKey["questRatings"]?.state).toBe("off");
-    expect(byKey["bigScreen"]).toEqual({ key: "bigScreen", state: "locked", addOn: true });
+    expect(byKey["bigScreen"]).toEqual({
+      key: "bigScreen",
+      state: "locked",
+      addOn: true,
+      request: null,
+    });
     for (const platformWide of ["dailyStreak", "usernameChanges", "locationQuests", "kiosks"]) {
       expect(byKey[platformWide], platformWide).toBeUndefined();
     }
@@ -220,6 +234,180 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event feature layers over HTTP
       ).statusCode,
     ).toBe(404);
     expect(await stored(event)).toBeNull();
+  });
+
+  it("follows the override for boosts, community, meet-someone and mini-games too (T-711b)", async () => {
+    const event = await fixture.newEvent({ phase: "live" });
+    for (const [key, path] of [
+      ["boosts", "double-points"],
+      ["community", "community"],
+      ["meetSomeone", "meet-someone"],
+      ["miniGames", "mini-games"],
+    ] as const) {
+      expect(await stateOf(event, key), key).toBe("on");
+      expect(
+        (await call("PUT", `${base(event)}/${path}`, owner, { enabled: false })).statusCode,
+      ).toBe(200);
+      expect((await override(key, false)).statusCode).toBe(204);
+      expect(await stateOf(event, key), key).toBeUndefined();
+      expect(await composed(event, key)).toBe(false);
+      const refused = await call("PUT", `${base(event)}/${path}`, owner, { enabled: true });
+      expect([key, refused.statusCode, refused.json<{ code: string }>().code]).toEqual([
+        key,
+        403,
+        "feature_not_allowed",
+      ]);
+      expect((await override(key, null)).statusCode).toBe(204);
+    }
+  });
+
+  it("refuses a boost or a community goal saved under the override Off, and saves one under an override On", async () => {
+    const event = await fixture.newEvent({ phase: "live" });
+    const [category] = await fixture.owner<{ id: string }>(
+      "SELECT id FROM category WHERE event_id = $1",
+      [event],
+    );
+    const boost = { categoryId: category?.id, minutes: 30, startsAt: null };
+    const goal = {
+      title: { en: "Light the tower" },
+      measure: "points",
+      target: 100,
+      startsAt: new Date(Date.now() + 3_600_000).toISOString(),
+      endsAt: new Date(Date.now() + 7_200_000).toISOString(),
+      reward: { kind: "points", points: 20 },
+    };
+    await override("boosts", false);
+    await override("community", false);
+    for (const [path, body] of [
+      ["boosts", boost],
+      ["community-goals", goal],
+    ] as const) {
+      const refused = await call("POST", `${base(event)}/${path}`, owner, body);
+      expect([path, refused.statusCode, refused.json<{ code: string }>().code]).toEqual([
+        path,
+        403,
+        "feature_off",
+      ]);
+    }
+    // Another organizer's event answers as before: not found, nothing said about its layer.
+    const theirs = await fixture.newEvent({ phase: "live", organizer: fixture.ids.orgB });
+    expect((await call("POST", `${base(theirs)}/boosts`, owner, boost)).statusCode).toBe(404);
+    await platform("boosts", false);
+    await platform("community", false);
+    await override("boosts", true);
+    await override("community", true);
+    expect((await call("POST", `${base(event)}/boosts`, owner, boost)).statusCode).toBe(201);
+    expect((await call("POST", `${base(event)}/community-goals`, owner, goal)).statusCode).toBe(
+      201,
+    );
+    await platform("boosts", null);
+    await platform("community", null);
+    await override("boosts", null);
+    await override("community", null);
+  });
+
+  describe("Ask Questify (FR-1827)", () => {
+    it("records the owner's request once, shows it on the card, and refuses the others", async () => {
+      const event = await fixture.newEvent({ phase: "live" });
+      const first = await ask(event);
+      expect(first.statusCode).toBe(201);
+      const { request } = first.json<{ request: { id: string; status: string } }>();
+      expect(request.status).toBe("open");
+      const again = await ask(event);
+      expect([again.statusCode, again.json<{ request: { id: string } }>().request.id]).toEqual([
+        200,
+        request.id,
+      ]);
+      expect((await bigScreen(event))?.request?.status).toBe("open");
+      expect((await ask(event, editor)).statusCode).toBe(403);
+      expect((await ask(event, otherOwner)).statusCode).toBe(404);
+      expect((await ask(event, otherOwner, "bigScreen", fixture.ids.orgB)).statusCode).toBe(404);
+      expect((await ask(event, "")).statusCode).toBe(401);
+      const unknown = await ask(event, owner, "shop");
+      expect([unknown.statusCode, unknown.json<{ code: string }>().code]).toEqual([
+        422,
+        "unknown_addon",
+      ]);
+    });
+
+    it("lists it for admins until Allow (the unlock) closes it; a lock never reopens it", async () => {
+      const event = await fixture.newEvent({ phase: "live" });
+      const { request } = (await ask(event)).json<{ request: { id: string } }>();
+      expect((await queue()).map((row) => row.id)).toContain(request.id);
+      expect((await call("GET", "/v1/admin/feature-requests", owner)).statusCode).toBe(404);
+      expect(
+        (await call("PUT", `/v1/admin/events/${event}/addons/bigScreen`, admin)).statusCode,
+      ).toBe(204);
+      expect((await queue()).map((row) => row.id)).not.toContain(request.id);
+      expect(await bigScreen(event)).toMatchObject({ state: "on", request: { status: "allowed" } });
+      const closed = await fixture.owner<{ status: string; decided_by: string }>(
+        "SELECT status, decided_by FROM feature_request WHERE id = $1",
+        [request.id],
+      );
+      expect(closed).toEqual([
+        { status: "allowed", decided_by: await staffIdOf("admin@layers.test") },
+      ]);
+      const unlocked = await ask(event);
+      expect([unlocked.statusCode, unlocked.json<{ code: string }>().code]).toEqual([
+        409,
+        "addon_unlocked",
+      ]);
+      expect(
+        (await call("DELETE", `/v1/admin/events/${event}/addons/bigScreen`, admin)).statusCode,
+      ).toBe(204);
+      expect((await bigScreen(event))?.request?.status).toBe("allowed");
+      expect((await queue()).map((row) => row.eventId)).not.toContain(event);
+    });
+
+    it("hides an open request whose add-on is already unlocked, and declines one with a 24-hour wait", async () => {
+      const raced = await fixture.newEvent({ phase: "live" });
+      const { request: open } = (await ask(raced)).json<{ request: { id: string } }>();
+      await fixture.owner(
+        "INSERT INTO event_entitlement (event_id, organizer_id, feature) VALUES ($1, $2, 'bigScreen')",
+        [raced, fixture.ids.orgA],
+      );
+      expect((await queue()).map((row) => row.id)).not.toContain(open.id);
+
+      const event = await fixture.newEvent({ phase: "live" });
+      const { request } = (await ask(event)).json<{ request: { id: string } }>();
+      const decline = (cookie: string) =>
+        call("POST", `/v1/admin/feature-requests/${request.id}/decline`, cookie, {});
+      expect((await decline(owner)).statusCode).toBe(404);
+      expect((await decline(admin)).statusCode).toBe(204);
+      expect((await decline(admin)).statusCode).toBe(404);
+      expect(await bigScreen(event)).toMatchObject({
+        state: "locked",
+        request: { status: "declined" },
+      });
+      const wait = await ask(event);
+      expect([wait.statusCode, wait.json<{ code: string }>().code]).toEqual([
+        429,
+        "request_declined_recently",
+      ]);
+      expect(Number(wait.headers["retry-after"])).toBeGreaterThan(86_000);
+      const audit = await fixture.owner<{ action: string }>(
+        "SELECT action FROM audit_log WHERE target_id = $1 ORDER BY id",
+        [request.id],
+      );
+      expect(audit.map((row) => row.action)).toEqual([
+        "feature_request.create",
+        "feature_request.decline",
+      ]);
+    });
+
+    it("holds an owner to 20 requests an hour", async () => {
+      const event = await fixture.newEvent({ phase: "live" });
+      await fixture.owner("DELETE FROM auth_throttle WHERE bucket = 'feature_request'");
+      for (let sent = 0; sent < 20; sent += 1) {
+        expect((await ask(event)).statusCode).toBeLessThan(300);
+      }
+      const held = await ask(event);
+      expect([held.statusCode, held.json<{ code: string }>().code]).toEqual([
+        429,
+        "too_many_attempts",
+      ]);
+      await fixture.owner("DELETE FROM auth_throttle WHERE bucket = 'feature_request'");
+    });
   });
 
   const staffIdOf = async (email: string) =>

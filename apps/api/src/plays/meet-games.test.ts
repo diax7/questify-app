@@ -2,20 +2,14 @@ import { LEVELS } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import type { AuthKeys } from "#src/auth/keys";
 import type { Caller } from "#src/auth/sign-in";
-import { gamesPlatformOn, readGame, sendResult, startRound } from "#src/plays/games";
-import { issueMeetPass, meetPassState, meetPlatformOn, meetPlayer } from "#src/plays/meet";
-import type { ConfigResult, SettingsService } from "#src/settings/service";
+import { readGame, sendResult, startRound } from "#src/plays/games";
+import { issueMeetPass, meetPassState, meetPlayer } from "#src/plays/meet";
 import { fakePool, pgError, type FakeAnswer } from "#test/support/fake-pool";
 
 const PLAYER = "11111111-1111-4111-8111-111111111111";
 const QUEST = "22222222-2222-4222-8222-222222222222";
 const CODE = "questify/meet/v1/AbCdEfGhIjKlMnOpQr_-12";
 
-const settingsWith = (result: ConfigResult) =>
-  ({ forEvent: async () => result }) as unknown as SettingsService;
-const featuring = (features: Record<string, { enabled: boolean }>) =>
-  settingsWith({ kind: "ok", config: { features }, etag: "x" } as unknown as ConfigResult);
-const ON = featuring({});
 const keys = { playerKey: () => Buffer.alloc(32) } as unknown as AuthKeys;
 const caller: Caller = { address: "127.0.0.1", userAgent: null, log: () => undefined };
 
@@ -23,7 +17,7 @@ const caller: Caller = { address: "127.0.0.1", userAgent: null, log: () => undef
  * A database where the player is under every limit and `answer` answers the play's own query. `answer` sees only the
  * play's SQL: the limit's lock, count and record answer as an unlimited player's.
  */
-function playDeps(answer: (sql: string) => FakeAnswer, settings = ON) {
+function playDeps(answer: (sql: string) => FakeAnswer) {
   const { pool, queries } = fakePool((sql) => {
     if (sql.includes("pg_try_advisory_xact_lock")) {
       return { rows: [{ locked: true }] };
@@ -36,31 +30,24 @@ function playDeps(answer: (sql: string) => FakeAnswer, settings = ON) {
     }
     return answer(sql);
   });
-  return { deps: { pool, keys, settings }, queries };
+  return { deps: { pool, keys }, queries };
 }
 
 const nothingAsked = (sql: string): FakeAnswer => {
   throw new Error(`unexpected query: ${sql}`);
 };
 
-describe("the platform's meet-someone and mini-games switches", () => {
-  it("is on unless the platform switched it off, and off when the configuration cannot be read", async () => {
-    for (const isOn of [meetPlatformOn, gamesPlatformOn]) {
-      expect(await isOn(ON)).toBe(true);
-      expect(
-        await isOn(featuring({ meetSomeone: { enabled: true }, miniGames: { enabled: true } })),
-      ).toBe(true);
-      expect(await isOn(settingsWith({ kind: "event_not_found" }))).toBe(false);
+describe("meet-someone and mini-games switched off (the database's doors, T-711b)", () => {
+  const switchedOff = pgError({ code: "QF403" });
+  const offDoors = (sql: string): FakeAnswer => {
+    if (/issue_meet_pass|meet_player|start_game_round/.test(sql)) {
+      throw switchedOff;
     }
-    expect(await meetPlatformOn(featuring({ meetSomeone: { enabled: false } }))).toBe(false);
-    expect(await meetPlatformOn(featuring({ miniGames: { enabled: false } }))).toBe(true);
-    expect(await gamesPlatformOn(featuring({ miniGames: { enabled: false } }))).toBe(false);
-    expect(await gamesPlatformOn(featuring({ meetSomeone: { enabled: false } }))).toBe(true);
-  });
+    return sql.includes("member_game") ? { rows: [{ game: "memory_match" }] } : nothingAsked(sql);
+  };
 
-  it("refuses a meet code, a meeting and a round while switched off, before reading anything", async () => {
-    const off = featuring({ meetSomeone: { enabled: false }, miniGames: { enabled: false } });
-    const { deps, queries } = playDeps(nothingAsked, off);
+  it("answers feature_off for a meet code, a meeting and a round when the door refuses QF403", async () => {
+    const { deps, queries } = playDeps(offDoors);
     const device = { deviceId: undefined };
     expect(await issueMeetPass(deps, { playerId: PLAYER, questId: QUEST, ...device })).toEqual({
       kind: "feature_off",
@@ -69,11 +56,41 @@ describe("the platform's meet-someone and mini-games switches", () => {
     expect(await meetPlayer(deps, { playerId: PLAYER, ...scan }, caller)).toEqual({
       kind: "feature_off",
     });
-    const round = { idempotencyKey: "k", engineVersions: {}, ...device };
+    const round = { idempotencyKey: "k", engineVersions: { memory_match: 99 }, ...device };
     expect(await startRound(deps, { playerId: PLAYER, questId: QUEST, ...round })).toEqual({
       kind: "feature_off",
     });
-    expect(queries).toEqual([]);
+    expect(queries.some((sql) => sql.includes("issue_meet_pass"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("meet_player"))).toBe(true);
+    expect(queries.some((sql) => sql.includes("start_game_round"))).toBe(true);
+  });
+
+  it("does not count a switched-off meeting toward the refused-scan limit", async () => {
+    const recorded: unknown[][] = [];
+    const { pool } = fakePool((sql, values) => {
+      if (sql.includes("pg_try_advisory_xact_lock")) {
+        return { rows: [{ locked: true }] };
+      }
+      if (sql.includes("FROM auth_throttle")) {
+        return { rows: [{ count: 0, retry_after: null }] };
+      }
+      if (sql.startsWith("INSERT INTO auth_throttle")) {
+        recorded.push([...values]);
+        return { rows: [{ at: "now" }] };
+      }
+      return offDoors(sql);
+    });
+    const scan = { code: CODE, idempotencyKey: "k", position: null, deviceId: undefined };
+    expect(await meetPlayer({ pool, keys }, { playerId: PLAYER, ...scan }, caller)).toEqual({
+      kind: "feature_off",
+    });
+    expect(recorded).toEqual([]);
+    const bad = { ...scan, code: "not a meet code" };
+    expect(await meetPlayer({ pool, keys }, { playerId: PLAYER, ...bad }, caller)).toMatchObject({
+      kind: "meet_refused",
+      reason: "bad_code",
+    });
+    expect(recorded).toHaveLength(1);
   });
 });
 

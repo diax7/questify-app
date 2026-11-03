@@ -62,11 +62,6 @@
       "complexity": [12]
     }
   },
-  "apps/api/src/community/tick.ts": {
-    "startCommunityTick": {
-      "lines": [101]
-    }
-  },
   "apps/api/src/completions/complete.ts": {
     "completeQuest": {
       "complexity": [12]
@@ -296,7 +291,7 @@
   },
   "apps/api/src/settings/service.ts": {
     "createSettingsService": {
-      "lines": [187]
+      "lines": [165]
     }
   },
   "apps/api/src/souvenirs/tick.ts": {

@@ -682,6 +682,8 @@ export const NOT_PLAYER: Readonly<Record<string, string>> = {
   "event_rehearsal.erase_counts": "counts of a rehearsal's wiped rows",
   "event_session.created_by": ADMIN,
   "event_setup.updated_by": ADMIN,
+  "feature_request.decided_by": ADMIN,
+  "feature_request.requested_by": ADMIN,
   "event_template.body": "the organizer's template",
   "gem_purchase.request_key": OPAQUE,
   "group_push.cursor_player": OPAQUE,

@@ -19,11 +19,11 @@ export const organizerOverrideBodySchema = z.strictObject({ enabled: z.boolean()
 export type OrganizerOverrideBody = z.infer<typeof organizerOverrideBodySchema>;
 
 /**
- * Whether an organizer's override can act on the feature: it has an event layer (not Questify-wide, FR-1702's username
- * changes and the like have no organizer to act on) and its platform rule is read for one event, not platform-wide (T-711b).
+ * Whether an organizer's override can act on the feature: it has an event layer (Questify-wide features, FR-1702's username
+ * changes and the like, have no organizer to act on).
  */
 export const isOrganizerOverridable = (definition: FeatureDefinition): boolean =>
-  definition.level !== "platform" && definition.noOrganizerOverride !== true;
+  definition.level !== "platform";
 
 const definitionOf = (registries: Registries, key: string): FeatureDefinition | undefined =>
   Object.hasOwn(registries.features, key) ? registries.features[key] : undefined;
@@ -100,11 +100,24 @@ export function featureLayer(
 /** Whether the owner may switch the feature on: the platform leaves it on and Questify allowed it for the event. */
 export const ownerMaySwitchOn = (layer: FeatureLayer): boolean => layer === "on" || layer === "off";
 
+/** The owner's latest Ask Questify request for an add-on (FR-1827): open, or what Questify decided, and when. */
+const featureRequestStateSchema = z.strictObject({
+  status: z.enum(["open", "allowed", "declined"]),
+  /** When it was asked (open) or decided. */
+  at: z.iso.datetime(),
+});
+export type FeatureRequestState = z.infer<typeof featureRequestStateSchema>;
+
+/** Hours after a decline before the owner may ask Questify again for the same add-on (the database's RQ429). */
+export const FEATURE_REQUEST_WAIT_HOURS = 24;
+
 const layerRowSchema = z.strictObject({
   key: z.string(),
   state: z.enum(["on", "off", "locked"]),
   /** An add-on: Questify unlocks it for the event, the owner has no switch for it. */
   addOn: z.boolean(),
+  /** An add-on's latest request; null for a switch, or when the owner never asked. */
+  request: featureRequestStateSchema.nullable(),
 });
 
 /** What `GET …/events/{id}/features` answers: the features the owner can see, hidden ones left out. */
@@ -112,21 +125,49 @@ export const eventLayersSchema = z.strictObject({ features: z.array(layerRowSche
 export type EventLayers = z.infer<typeof eventLayersSchema>;
 export type EventLayerRow = z.infer<typeof layerRowSchema>;
 
-/** The owner's list for an event: every event-level feature the platform leaves on, in key order. */
+/**
+ * The owner's list for an event: every event-level feature the platform leaves on, in key order, each add-on with the
+ * owner's latest Ask Questify request (`requests`, by feature key).
+ */
 export function eventLayersOf(
   registries: Registries,
   platform: PlatformSettings,
   event: EventConfig,
+  requests: Readonly<Record<string, FeatureRequestState>> = {},
 ): EventLayers {
   const rows: EventLayerRow[] = [];
   for (const key of Object.keys(registries.features).sort()) {
     const state = featureLayer(registries, platform, event, key);
     if (state !== "hidden") {
-      rows.push({ key, state, addOn: registries.features[key]?.gated === true });
+      const addOn = registries.features[key]?.gated === true;
+      const request = addOn && Object.hasOwn(requests, key) ? (requests[key] ?? null) : null;
+      rows.push({ key, state, addOn, request });
     }
   }
   return { features: rows };
 }
+
+/** The body of `POST …/events/{id}/feature-requests`: the add-on the owner asks Questify for. */
+export const featureRequestBodySchema = z.strictObject({ feature: z.string().min(1).max(64) });
+
+const consoleRequestRowSchema = z.strictObject({
+  id: z.uuid(),
+  eventId: z.uuid(),
+  /** The event's names (business names only, no person). */
+  event: z.strictObject({ ar: z.string().nullable(), en: z.string().nullable() }),
+  organizerId: z.uuid(),
+  organizer: z.string(),
+  feature: z.string(),
+  requestedAt: z.iso.datetime(),
+});
+
+/** What `GET /v1/admin/feature-requests` answers: open requests, oldest first, and the cursor of the next page. */
+export const consoleFeatureRequestsSchema = z.strictObject({
+  requests: z.array(consoleRequestRowSchema),
+  next: z.strictObject({ afterAt: z.iso.datetime(), afterId: z.uuid() }).nullable(),
+});
+export type ConsoleFeatureRequests = z.infer<typeof consoleFeatureRequestsSchema>;
+export type ConsoleFeatureRequest = z.infer<typeof consoleRequestRowSchema>;
 
 const overrideRowSchema = z.strictObject({
   key: z.string(),

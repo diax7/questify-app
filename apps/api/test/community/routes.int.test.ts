@@ -157,7 +157,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests over HTTP", (
     test.pool.connect().then(async (client: PoolClient) => {
       try {
         await client.query("BEGIN");
-        await client.query("SELECT settle_goal($1, true)", [id]);
+        await client.query("SELECT settle_goal($1)", [id]);
         await client.query("COMMIT");
       } finally {
         client.release();
@@ -410,7 +410,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community quests over HTTP", (
       await earn(player.enrollment, 15, "55 minutes");
       const context = { organizerId: organizer, staffUserId: ownerId };
       const answer = await settleAndPay(
-        { pool: test.pool, settings },
+        { pool: test.pool },
         context,
         { eventId: event, requestId: randomUUID() },
         0,

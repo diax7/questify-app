@@ -66,7 +66,7 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
       );
       await q("ANALYZE");
       let start = performance.now();
-      await q("SELECT settle_goal($1, true)", [goal]);
+      await q("SELECT settle_goal($1)", [goal]);
       say(
         `first settle_goal over 20,000 completions (10,000 new contributors, 10,000 payees frozen): ${(performance.now() - start).toFixed(1)} ms`,
       );
@@ -90,7 +90,7 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
         [goal],
       );
       start = performance.now();
-      await q("SELECT settle_goal($1, true)", [goal]);
+      await q("SELECT settle_goal($1)", [goal]);
       say(`steady settle_goal (1,700 new rows): ${(performance.now() - start).toFixed(1)} ms`);
       const due = (await q("SELECT count(*)::int AS n FROM community_payout WHERE status = 'due'"))
         .rows[0].n;

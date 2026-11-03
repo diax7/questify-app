@@ -7277,6 +7277,55 @@ The 503 frees the idempotency key, so the same call runs after maintenance. The 
 **Decision:** Questify Home lists the platform-wide pause, the banner while the phone's clock is inside its window, and the switched-off features' messages (`PlatformNotices`); the event pill shows the event's pause on every event tab. Nothing is blocked on the phone: the server refuses the play doors, and the screens keep working from their cached data. No new screen, feature or code is delivered by configuration.
 **Trade-offs:** a refused scan shows the app's usual "try again" text, not the maintenance message (Q-431).
 
+## ADR-540 - T-711b the override acts exactly where the platform switch acts: on new things, never on running ones
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-711b code review 92; T-711b plan `docs/plans/2026-11-03-t-711b-points-layers.md`; FR-1826; ADR-233, ADR-226, ADR-501). Q-500.
+**Decision:** For `boosts`, `community`, `meetSomeone` and `miniGames` the organizer's override replaces the platform reading wherever the platform switch is read today, and nowhere else. A layer Off refuses new things: saving a boost, saving or deleting a goal, a scheduled goal starting, a round starting, a meet pass, a meet scan. Running things keep the event switch only: a boost in force pays to its end, a running goal settles and pays its reached steps, a started round finishes and pays. A boost saved before the layer went Off still pays once its window opens, as under the platform switch (ADR-233); its "boost started" push and notice wait for `feature_enabled(ev, 'boosts')` (`push_on_boost_start`, `push_due_boost`, `notice_audience_ok` restated; plan review MAJOR 1), so nobody is told of a feature the app hides. `boosts_on` and `community_on` are not restated, so `boost_in_force`, `pay_completion` and `settle_goal_at` are unchanged; `games_on` and `meet_on` call `feature_enabled`. Nothing paid is ever reversed.
+**Why:** The override is "the platform switch for one organizer" (ADR-501). Making `boosts_on` and `community_on` read the platform would also turn the global platform switch from "stops new" into "stops running" (ADR-233, ADR-226) and add two lookups to every scan's boost check.
+**Trade-offs:** An organizer switched Off still sees a running or scheduled boost pay for up to a day and a running goal finish, with the event's switch hidden from the owner (Stop on the Boosts page still ends one; Q-500). The global platform switch now also silences the boost-start push. Departs from the T-711 task note "the four SQL rules call `feature_enabled`".
+
+## ADR-541 - T-711b the platform check of meet-someone and mini-games moves into their SQL doors
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-711b code review 92; T-711b plan).
+**Decision:** `games_on(uuid)` and `meet_on(uuid)` become `feature_enabled(event, key)` (the event switch and the platform as the organizer sees it), same signature. `gamesPlatformOn`, `meetPlatformOn` and their three pre-checks are removed; the doors' QF403 already answers 403 `feature_off`. A QF403 meet scan does not count toward the refused-scan limit.
+**Why:** A meet scan finds its event only inside SQL (from the token); the check becomes per organizer and atomic with the action, from one source.
+**Trade-offs:** Two index probes on single-page tables per meet scan, pass and round start; a player tapping while off uses the pass or round limit (the app hides the feature anyway).
+
+## ADR-542 - T-711b the community settle decides "may start" per goal in SQL; the boolean parameter goes
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-711b code review 92; T-711b plan).
+**Decision:** `settle_goal(uuid)` and `settle_community(uuid, uuid)` replace the versions taking `may_start boolean` (migration 0141 drops the old signatures). Inside, may-start is `platform_feature_on(organizer, 'community')`, read once per call. `settle_goal_at` is unchanged. `communityPlatformOn` is removed; the tick and the owner's settle pass no flag; the live community card reads the event's composed configuration.
+**Why:** The tick settles goals of many organizers; only the database gives the per-organizer value per goal, and a caller's flag would be dead.
+**Trade-offs:** During a deploy the old API's tick and settle fail for seconds (logged as `community.settle_failed`, a log line and not an alert before T-018; caught up by the next tick; RUNBOOK deploy note); nine test files change mechanically.
+
+## ADR-543 - T-711b boost and goal saves read the platform per organizer inside the team transaction
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-711b code review 92; T-711b plan).
+**Decision:** One helper, `platformOnFor(db, registries, eventId, feature)` in `apps/api/src/settings/layers.ts`, built on `readEventLayerInputs`, used by `saveBoost`, `saveGoal` and `deleteGoal` inside their `asTeam` call. `boostsPlatformOn` is removed; `feature_off` (a layer) and `event_feature_off` (the event's switch) stay distinct answers.
+**Why:** Three callers share the reading; the T-711 owner-switch refusal already reads the layers this way.
+**Trade-offs:** One extra read of the override rows per save.
+
+## ADR-544 - T-711b the four features become overridable: `noOrganizerOverride` goes, the CHECK widens to 16
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-711b code review 92; T-711b plan; ADR-500, ADR-501).
+**Decision:** The registry drops `noOrganizerOverride` from `boosts`, `community`, `meetSomeone` and `miniGames`, and the field itself (no other user). Migration 0141 widens the CHECK of `organizer_feature_override.feature` to the 16 keys; 0136 is not edited. The console panel, `platformForOrganizer`, the owner's list and the switch-on refusal (ADR-503) pick the four up from the registry.
+**Why:** Replace, don't deprecate; the registry stays the one list a test compares with the CHECK.
+**Trade-offs:** The migration takes the override table's ACCESS EXCLUSIVE lock for milliseconds while scans that read it queue.
+
+## ADR-545 - T-711b Ask Questify is a recorded request; Allow is the existing unlock
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-711b code review 92; T-711b plan; FR-1827; extends ADR-502). Q-501, Q-502, Q-503.
+**Decision:** `feature_request` (forced RLS, no PUBLIC): organizer, event, feature (a gated add-on), status `open|allowed|declined`, requested by (staff id), decided by (admin id), times; one open row per event and feature. The event's owner records it through `request_feature` (a repeat returns the open row; 24 hours after a decline before asking again; 20 an hour per account through `holdBack`), audited `feature_request.create`. Admins see a Requests list on the console home (an open row whose add-on is already unlocked is left out); Allow is `PUT /v1/admin/events/{id}/addons/{feature}`, which also closes any open request in its transaction (through an admin RLS policy, as the unlock runs as the admin), whether the unlock was new or not; Decline is `POST /v1/admin/feature-requests/{id}/decline`, audited. The owner's card shows Ask Questify, Requested, or Not approved; the Contact page link stays.
+**Why:** FR-1827 asks for a request that, once approved, makes the switch work; the unlock and its audit exist.
+**Trade-offs:** No free-text message (nothing personal stored); no notification to admins yet (Q-501).
+
+## ADR-546 - T-711b no lock is added to a payment; a switch-off racing a payment is decided by commit order
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-711b code review 92; T-711b plan).
+**Decision:** The gates are plain reads under READ COMMITTED, read first in each door before its enrollment lock. If the override Off commits before the door reads it, the door refuses and writes nothing; if the door read it first, the action completes and pays and the next call is refused. Tests cover both orders with a held-open admin transaction and a 200 ms lock timeout on the payer.
+**Why:** No new waits and no new lock order in the points path; an admin's switch never blocks a scan and a scan never blocks the admin.
+**Trade-offs:** A payment in the same instant as the switch-off may still go through; it is kept.
+
 
 
 ## ADR-530 - T-706b is split again: push to a group now; promotional SMS and email, their senders and the slots in T-706c

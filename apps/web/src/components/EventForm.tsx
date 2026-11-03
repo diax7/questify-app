@@ -608,6 +608,8 @@ function EventFeatures({
               feature={row.key}
               unlocked={row.state === "on"}
               eventPages={`/${language}/organizers/${organizerId}/events/${event.id}`}
+              request={row.request}
+              askTarget={myRole === "owner" ? { organizerId, eventId: event.id } : undefined}
             />
           ))}
         </Rows>
