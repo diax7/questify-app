@@ -7102,7 +7102,7 @@ A disputed owner email change (ADR-491) is a line of the same digest.
 <<<<<<< HEAD
 ## ADR-520 - T-712 the view as organizer is a `view` kind of the support grant
 
-**Status:** Proposed (developer, 2026-11-03; T-712 plan section 2). Migration 0135.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-712 code review 93; T-712 plan section 2). Migration 0135.
 **Decision:** `support_grant.kind` is `view` or `edit` (no default). A view grant keeps every rule of ADR-407: one event,
 a reason, exactly 15 minutes, opening again extends, any admin closes, never for a member, 20 grants an hour per admin
 for both kinds together, one live grant per admin and event (switching kind replaces it). View is the console's default.
@@ -7110,7 +7110,7 @@ for both kinds together, one live grant per admin and event (switching kind repl
 
 ## ADR-521 - T-712 read-only is enforced by the API and by read-only transactions the grant requires
 
-**Status:** Proposed (developer, 2026-11-03; T-712 plan section 3). Migration 0135.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-712 code review 93; T-712 plan section 3). Migration 0135.
 **Decision:** the organizer hook answers 403 `support_view_only` to any write on an event under a view grant, and marks
 the request's organizer context `readOnly` (a field of `RequestContext`, carried by `organizerContextOf` and the seat
 helpers, not a request-wide store, so shared work such as cache loads and ranking rebuilds stays read-write), so its
@@ -7121,13 +7121,13 @@ that loses the mark runs as nobody, never as an editor.
 
 ## ADR-522 - T-712 the view uses the admin's staff session, re-checked on every request and statement
 
-**Status:** Proposed (developer, 2026-11-03; T-712 plan section 4).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-712 code review 93; T-712 plan section 4).
 **Decision:** no new token; the view ends at the grant's expiry, on close, on revoke-admin or when the account stops
 being an active platform admin, at the next request (404, then "This support view has ended").
 
 ## ADR-523 - T-712 every allowed read in the view is logged with the route pattern and ids
 
-**Status:** Proposed (developer, 2026-11-03; T-712 plan sections 5 and 6). Migration 0135.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-712 code review 93; T-712 plan sections 5 and 6). Migration 0135.
 **Decision:** `support_view_log` writes one `support.viewed` audit row per grant, route pattern and path ids, coalesced
 within 60 seconds; never the concrete URL, the query string or page content. Reads are limited to 240 a minute per admin
 (`support_view` bucket, queued like the console's reads so a page's parallel GETs all answer). The coalescing lock is
@@ -7137,7 +7137,7 @@ about four transactions before its handler (membership, seat, throttle, log).
 
 ## ADR-524 - T-712 the view shows what an editor of the event sees; quest codes stay closed
 
-**Status:** Proposed (developer, 2026-11-03; T-712 plan section 7).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-712 code review 93; T-712 plan section 7).
 **Decision:** no extra masking (the edit grant already shows the same data); exports, device pairing,
 `GET /events/:eventId/codes` and `GET /events/:eventId/rehearsal` (its first read before go-live writes a rehearsal
 and a code) are refused in view mode. Invitation campaigns and NFC tag lists were checked: no link, code or tag
@@ -7146,7 +7146,7 @@ secret, so they stay open.
 
 ## ADR-525 - T-712 the view stays silent to the organizer
 
-**Status:** Proposed (developer, 2026-11-03; T-712 plan section 5; follows Q-373 and ADR-409).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-712 code review 93; T-712 plan section 5; follows Q-373 and ADR-409).
 **Decision:** only the admin sees the banner; view entries live in Questify's audit log, shown on the console's event
 and organizer pages. FR-1837's "event's log" is read as that log.
 =======
