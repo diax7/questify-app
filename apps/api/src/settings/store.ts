@@ -20,6 +20,81 @@ export async function readStoredEventConfig(db: Db, eventId: string): Promise<un
   return rows[0] === undefined ? undefined : rows[0].config;
 }
 
+/** The organizer an event belongs to, or undefined when the caller cannot see the event. */
+export async function readEventOrganizerId(db: Db, eventId: string): Promise<string | undefined> {
+  const { rows } = await db.query<{ organizer_id: string }>(
+    "SELECT organizer_id FROM event WHERE id = $1",
+    [eventId],
+  );
+  return rows[0]?.organizer_id;
+}
+
+/** The overrides Questify set for the organizer of an event: feature key to On or Off. Empty when the event is not visible. */
+export async function readEventOverrides(
+  db: Db,
+  eventId: string,
+): Promise<Readonly<Record<string, boolean>>> {
+  const { rows } = await db.query<{ feature: string; enabled: boolean }>(
+    `SELECT o.feature, o.enabled FROM organizer_feature_override o
+     JOIN event e ON e.organizer_id = o.organizer_id WHERE e.id = $1`,
+    [eventId],
+  );
+  return Object.fromEntries(rows.map((row) => [row.feature, row.enabled]));
+}
+
+/** The overrides Questify set for one organizer: feature key to On or Off. */
+export async function readOrganizerOverrides(
+  db: Db,
+  organizerId: string,
+): Promise<Readonly<Record<string, boolean>>> {
+  const { rows } = await db.query<{ feature: string; enabled: boolean }>(
+    "SELECT feature, enabled FROM organizer_feature_override WHERE organizer_id = $1",
+    [organizerId],
+  );
+  return Object.fromEntries(rows.map((row) => [row.feature, row.enabled]));
+}
+
+/**
+ * Takes the lock two admins on the same organizer and feature queue behind, so the audit entry's "before" is exact, and
+ * says whether the organizer exists and what its override is now (undefined: none).
+ */
+export async function lockOverride(
+  db: Db,
+  organizerId: string,
+  feature: string,
+): Promise<{ organizerFound: boolean; current: boolean | undefined }> {
+  await db.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
+    `organizer_feature_override:${organizerId}:${feature}`,
+  ]);
+  const { rows } = await db.query<{ enabled: boolean | null }>(
+    `SELECT (SELECT o.enabled FROM organizer_feature_override o
+             WHERE o.organizer_id = $1 AND o.feature = $2) AS enabled
+     FROM organizer WHERE id = $1`,
+    [organizerId, feature],
+  );
+  const row = rows[0];
+  return { organizerFound: row !== undefined, current: row?.enabled ?? undefined };
+}
+
+export async function upsertOverride(
+  db: Db,
+  override: Readonly<{ organizerId: string; feature: string; enabled: boolean; adminId: string }>,
+): Promise<void> {
+  await db.query(
+    `INSERT INTO organizer_feature_override (organizer_id, feature, enabled, set_by) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (organizer_id, feature)
+     DO UPDATE SET enabled = EXCLUDED.enabled, set_by = EXCLUDED.set_by, set_at = now()`,
+    [override.organizerId, override.feature, override.enabled, override.adminId],
+  );
+}
+
+export async function deleteOverride(db: Db, organizerId: string, feature: string): Promise<void> {
+  await db.query(
+    "DELETE FROM organizer_feature_override WHERE organizer_id = $1 AND feature = $2",
+    [organizerId, feature],
+  );
+}
+
 export async function readEntitlements(db: Db, eventId: string): Promise<string[]> {
   const { rows } = await db.query<{ feature: string }>(
     "SELECT feature FROM event_entitlement WHERE event_id = $1 ORDER BY feature",

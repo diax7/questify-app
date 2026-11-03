@@ -14,6 +14,11 @@ export type FeatureDefinition = Readonly<{
   offByDefault?: true;
   /** Off for an event until its owner switches it on (quest ratings, FR-1623); the platform switch stays on. */
   eventOffByDefault?: true;
+  /**
+   * Its platform switch is read platform-wide in code, not for one event, and its SQL rule sits in the points path, so an
+   * organizer override cannot reach it yet (T-711b). Features with `level: "platform"` are never overridable either.
+   */
+  noOrganizerOverride?: true;
 }>;
 
 /** A number an admin may tune, with the range that is safe (F-279). Out-of-range values are never used. */
@@ -74,7 +79,7 @@ export const FEATURES: FeatureRegistry = {
    * Double-point boosts (T-307, FR-252, ADR-233): the owner turns them off for an event, which stops every boost paying
    * at once; off for the platform, no new boost is saved while running ones finish.
    */
-  boosts: { gated: false },
+  boosts: { gated: false, noOrganizerOverride: true },
   /**
    * Cheers (T-509, FR-1841, ADR-377): the owner turns them off for an event, which ends any live cheers moment at once; off for the
    * platform, no moment can start and the app's cheer card goes. The switch sits on the Big screen page.
@@ -84,7 +89,7 @@ export const FEATURES: FeatureRegistry = {
    * Community quests (T-306b, F-101, ADR-226): the owner turns them off for an event, which finishes its running
    * goals; off for the platform, the bar and the builder are hidden while running goals still finish and pay.
    */
-  community: { gated: false },
+  community: { gated: false, noOrganizerOverride: true },
   /**
    * The daily challenge (T-406, FR-730, ADR-312): off for the platform, the challenge is hidden and its doors refuse at
    * once; a play left unfinished pays nothing.
@@ -136,9 +141,9 @@ export const FEATURES: FeatureRegistry = {
    */
   maps: { gated: false },
   /** Meet-someone quests (T-303c, FR-1009, ADR-210): the owner turns them off for an event, which hides every one. */
-  meetSomeone: { gated: false },
+  meetSomeone: { gated: false, noOrganizerOverride: true },
   /** Mini-games (T-305, FR-1009, ADR-213): the owner turns them off for an event, which hides every game quest. */
-  miniGames: { gated: false },
+  miniGames: { gated: false, noOrganizerOverride: true },
   /**
    * NFC tags (T-308, F-105, ADR-234): off for the platform, the app hides NFC, tags can't be written or tapped, and every
    * NFC quest completes by its QR. No event switch: the quest's own NFC method is the organizer's.

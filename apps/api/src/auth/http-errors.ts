@@ -1390,6 +1390,16 @@ export const platformFeatureOff = make(
   "This is not available yet.",
 );
 /**
+ * An owner tried to switch on a feature that the platform (or Questify, for this organizer) has off, or an add-on Questify has
+ * not allowed for the event (T-711, FR-1826, FR-1827). The dashboard does not offer such a switch; this is the server's answer.
+ */
+export const featureNotAllowed = make(
+  403,
+  "feature_not_allowed",
+  "لا يمكن تشغيل هذه الميزة لهذه الفعالية. اطلب من Questify تفعيلها.",
+  "This feature can't be switched on for this event. Ask Questify to allow it.",
+);
+/**
  * A location check-in was refused (T-303b): `reason` is no_position, bad_position, stale, imprecise or not_here, and
  * `distanceM` the player's own rounded distance for not_here. Never the coordinates sent.
  */
