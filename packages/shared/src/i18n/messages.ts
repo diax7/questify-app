@@ -9969,6 +9969,44 @@ export const MESSAGES = {
     ar: "كُتب لـ {notices} من نحو {reach} · استُبعد {capped} بسبب حد الأسبوع",
     en: "Written for {notices} of about {reach} · {capped} left out by the weekly limit",
   },
+  "onboarding.language.title": { ar: "اختر لغتك", en: "Choose your language" },
+  "onboarding.skip": { ar: "تخطي", en: "Skip" },
+  "onboarding.next": { ar: "التالي", en: "Next" },
+  "onboarding.progress": { ar: "{current} من {total}", en: "{current} of {total}" },
+  "onboarding.card1.title": { ar: "انضم إلى فعالية", en: "Join an event" },
+  "onboarding.card1.body": {
+    ar: "امسح رمز QR في الفعالية أو افتح رابط الانضمام لتدخلها.",
+    en: "Scan the QR code at the event or open its join link, and you're in.",
+  },
+  "onboarding.joined.title": { ar: "أنت الآن في {event}", en: "You're in {event}" },
+  "onboarding.joined.body": {
+    ar: "لتبدأ اللعبة: المهام تمنحك نقاطًا، والنقاط تقرّبك من القمة ومن الجوائز.",
+    en: "Now the game begins: quests earn points, and points take you up the ranking and towards prizes.",
+  },
+  "onboarding.card2.title": { ar: "أكمل المهام", en: "Complete quests" },
+  "onboarding.card2.body": {
+    ar: "امسح رمزًا، أو أنهِ تحديًا، أو أجب عن سؤال، أو صوّت. وكل مهمة تمنحك نقاطًا.",
+    en: "Scan a code, finish a challenge, answer a question or cast a vote. Every quest earns points.",
+  },
+  "onboarding.card3.title": {
+    ar: "اجمع النقاط واصعد في الترتيب",
+    en: "Earn points and climb the ranking",
+  },
+  "onboarding.card3.body": {
+    ar: "يتحدّث ترتيبك فورًا كلما أكملت مهمة. نافس بقية اللاعبين على القمة.",
+    en: "Your place on the live leaderboard updates as you play. Race the other players to the top.",
+  },
+  "onboarding.card4.title": {
+    ar: "اربح الجوائز وارتقِ بمستواك",
+    en: "Win prizes and grow your profile",
+  },
+  "onboarding.card4.body": {
+    ar: "استبدل نقاطك بجوائز حقيقية، وارفع مستواك، واجمع الشارات والتذكارات.",
+    en: "Trade your points for real prizes, level up, and collect badges and souvenirs.",
+  },
+  "onboarding.scan": { ar: "امسح رمز QR للفعالية", en: "Scan an event QR" },
+  "onboarding.explore": { ar: "استكشف الفعاليات", en: "Explore events" },
+  "onboarding.replay": { ar: "كيف يعمل Questify", en: "How Questify works" },
 } as const satisfies Messages;
 
 export type MessageKey = keyof typeof MESSAGES;

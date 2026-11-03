@@ -18,6 +18,7 @@ import {
   type JoinOutcome,
 } from "#src/join/join-api.ts";
 import { JoinForm } from "#src/join/JoinForm.tsx";
+import { openJoinedEvent } from "#src/onboarding/open-joined.ts";
 import { PushExplainer, useJoinExplainer } from "#src/push/PushExplainer.tsx";
 import { WelcomeReward } from "#src/join/WelcomeReward.tsx";
 
@@ -47,7 +48,7 @@ function useInvitation(eventId: string) {
 type Joined = Extract<JoinOutcome, { kind: "joined" }>;
 
 /** What a join that went through says, and the way into the event. */
-function InviteJoined({ joined }: Readonly<{ joined: Joined }>) {
+function InviteJoined({ joined, eventName }: Readonly<{ joined: Joined; eventName: string }>) {
   const { t } = useI18n();
   return (
     <>
@@ -62,7 +63,7 @@ function InviteJoined({ joined }: Readonly<{ joined: Joined }>) {
       </AppText>
       <Button
         label={t("joinCard.openEvent")}
-        onPress={() => router.replace(`/event/${joined.eventId}?joined=1`)}
+        onPress={() => void openJoinedEvent(joined.eventId, eventName, joined.status === "active")}
       />
     </>
   );
@@ -170,7 +171,7 @@ export default function InviteScreen() {
             onPress={() => void tapJoin(full)}
           />
         ) : (
-          <InviteJoined joined={joined} />
+          <InviteJoined joined={joined} eventName={textIn(event.name, language)} />
         )}
       </ScrollView>
     </Screen>

@@ -930,7 +930,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-135 | F-80 | Should | pending |
 | FR-136 | F-81 | Should | pending |
 | FR-137 | F-81 | Should | pending |
-| FR-138 | F-82 | Should | pending |
+| FR-138 | F-82 | Should | superseded (ADR-096: four cards once per install, FR-1798 to FR-1802; built in T-802) |
 | FR-201 | F-03 | Must | pending |
 | FR-202 | F-03, F-92 | Must | pending |
 | FR-203 | F-04 | Must | `test/db/challenge-survey-share.int`, `test/plays/survey-share.int` (T-303) |
@@ -1390,12 +1390,12 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1795 | F-302 | Should | pending |
 | FR-1796 | F-303 | Should | pending |
 | FR-1797 | F-304 | Should | pending |
-| FR-1798 | F-82 | Must | pending |
-| FR-1799 | F-82 | Must | pending |
-| FR-1800 | F-82 | Must | pending |
-| FR-1801 | F-305 | Must | pending |
-| FR-1802 | F-82, F-306 | Must | pending |
-| FR-1803 | F-307 | Should | pending |
+| FR-1798 | F-82 | Must | built (T-802: the language step with the phone's language preselected, then four cards at `/intro`; `apps/app/src/onboarding/*.test.ts`; not run on a phone) |
+| FR-1799 | F-82 | Must | built (T-802: Skip on every step, the last card's Scan an event QR and Explore events; same tests) |
+| FR-1800 | F-82 | Must | built (T-802: no permission, no request, one local flag; `intro-guards.test.ts` scans the intro's sources) |
+| FR-1801 | F-305 | Must | built (T-802: after the join card and the join, "Go to the event" opens the intro naming the event while it is due, then the event; ADR-590, Q-550) |
+| FR-1802 | F-82, F-306 | Must | built (T-802: `questify.intro` flag, "How Questify works" in Settings replays the four cards) |
+| FR-1803 | F-307 | Should | partly built (T-802: the cards' texts are `onboarding.*` keys in the translation matrix; ordering and hiding the cards are T-802b, ADR-593, Q-551) |
 | FR-1804 | F-87 | Should | built (T-305: memory match and slide puzzle; T-305c: catch and tap rush, ADR-216 to ADR-218) |
 | FR-1805 | F-308 | Must | built (T-305, ADR-212) |
 | FR-1806 | F-87 | Should | built (T-305, ADR-213, ADR-215) |

@@ -2367,3 +2367,21 @@ The fixed code works for one Saudi mobile number. While a review window is open 
 **Status:** Proposed (developer, 2026-11-03).
 **Recommended (developer):** not now: the admin builds it once in the dashboard and the readiness list shows what is missing. If staging and production drift, or each new quest type needs manual upkeep, write a seed that calls the doors the dashboard uses.
 
+
+## Q-550 - Should a join link play the intro before the join card, as the brief said, or after the join as ADR-096 says? (T-802, ADR-590)
+
+**Status:** Proposed (developer, 2026-11-03).
+The task brief for T-802 said "arriving from a join link shows the intro tailored to joining that event, then lands on the join card". ADR-096 (Accepted by Dhia) and FR-1801 say the event preview and join come first, then the intro, then the event. The build follows ADR-096.
+**Recommended (developer):** keep ADR-096: the join card is the first thing a player on a venue network needs. If Dhia prefers the intro first, change `afterJoinRoute` and the join entry (one function and one redirect in `app/join/[code].tsx`).
+
+## Q-551 - Should an admin be able to hide or reorder the intro's cards? (T-802, ADR-593)
+
+**Status:** Proposed (developer, 2026-11-03).
+FR-1803 (Should) asks for it; T-802 delivers the texts through the translation matrix and T-802b would add the platform setting, the door and the console page.
+**Recommended (developer):** build T-802b only if an admin asks to hide a card. The texts can already be reworded, and a card that is wrong for an event type can be reworded instead.
+
+## Q-552 - Which art should the intro cards carry once the mascot is chosen? (T-802, ADR-594, Q-069)
+
+**Status:** Proposed (developer, 2026-11-03).
+The cards use the app's existing 3D icons. ADR-096 asked for the mascot with animation.
+**Recommended (developer):** swap the four images in `IntroArt.tsx` for the mascot's poses when Q-069 is decided; nothing else in the intro changes.

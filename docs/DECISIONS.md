@@ -7556,3 +7556,38 @@ provider (Q-034). Campaigns share the weekly cap per channel with invitations (A
 **Decision:** T-710 builds the reviewer sign-in, the demo tenant, confinement, reset, deletion and the console page; T-710b builds the picker door, the home flag and the scanner sheet.
 **Why:** Each delivers value alone: with T-710 a reviewer signs in and plays with the printable QR codes the review notes attach; T-710b needs a store build and saves printing.
 **Trade-offs:** Two reviews instead of one; T-710b's is small.
+
+## ADR-590 - T-802 a join link plays the intro after the join, as ADR-096 orders it
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-802 code review 92; T-802). Follows ADR-096, FR-1801 and F-305.
+**Decision:** a player who arrives from a join QR or link sees the event preview and the join card first. When the join makes them a member, "Go to the event" (the join card and the invitation) opens the intro while it is due on this install, then the event. A request still waiting for approval and a place on the waiting list are not "you're in": they go straight to the event and the intro waits for the next launch. One function (`afterJoinRoute`) holds the order.
+**Why:** the task brief's shorthand read "the intro tailored to the event, then the join card". ADR-096 is Accepted by Dhia and says the event and join come first, and a player on a venue network needs the join card before anything else (ADR-098: the first coin within 3 minutes). Nothing in the code or the docs is overridden: the question is Q-550.
+**Trade-offs:** the intro adds up to about 15 seconds between the join and the event, unless skipped (ADR-096's accepted cost).
+
+## ADR-591 - T-802 the join variant has no language step and names the event
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-802 code review 92; T-802).
+**Decision:** after a join the intro shows the four cards without the language choice; its first card (how to join) becomes "You're in {event}" with the event's name in the player's language. The last card's first action is "Go to the event" (with Explore events beside it) in place of Scan an event QR, and Skip ends in the event too.
+**Why:** the language step belongs to the first organic launch (FR-1798). A language change restarts the app (ADR-110) and a restart in the middle of a join would drop the event. The player has just read the join card in the phone's language. The first card's "how to join" is already done.
+**Trade-offs:** a player who arrives by a link and wants the other language finds it in Settings.
+
+## ADR-592 - T-802 the intro is marked seen when the cards start
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-802 code review 92; T-802).
+**Decision:** one local flag, `questify.intro`: `language` after the language step (so the cards follow the restart it caused) and `seen` as soon as the first card shows or Skip is tapped. A replay from Settings writes nothing. A store that cannot be read counts as seen, a write that fails is not reported to the player.
+**Why:** "shows once per install" (FR-1802) and "never blocks" (STORE_COMPLIANCE): a player who kills the app on the second card is not shown the intro again on every launch, and a broken store never traps anyone in it. Settings can always replay it.
+**Trade-offs:** a player who leaves half way has to find How Questify works in Settings to see the rest.
+
+## ADR-593 - T-802 ordering and hiding the cards is split to T-802b
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-802 code review 92; T-802). Follows ADR-096 ("content through the translation matrix and layout controls").
+**Decision:** the four cards' texts are `onboarding.*` messages, edited in the console's translation matrix (area `onboarding`) with the shipped text as the fallback (FR-1766, FR-1768). Their order and visibility (the layout-controls half of FR-1803) are T-802b: a platform setting, an audited definer door, a console page in the T-713 pattern and a card list in `GET /v1/config`.
+**Why:** the second half needs a migration and a console page, which is a separate piece of work that delivers value on its own; the first half is complete and useful now.
+**Trade-offs:** an admin can reword a card but not hide it until T-802b.
+
+## ADR-594 - T-802 the intro is a plain route over the app, with the existing 3D icons as art
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-802 code review 92; T-802).
+**Decision:** the intro is the route `/intro` (first launch, `?replay=1`, or `?event=&name=` after a join). Settings is the profile screen, which gets "How Questify works" for everyone (no separate Settings screen exists). The cards' art is four of the 3D icons the app already ships (compass, footsteps, crown coin, gift) on a gold-rimmed medallion, and the colours, fonts and spacing are the theme's roles. The mascot is still open (Q-069).
+**Why:** the app has no settings screen to extend and a new asset would need the AI-asset review (one version per asset); the icons are already reviewed and in use.
+**Trade-offs:** the cards say "story" with props, not a character, until Saqr or another mascot is drawn.
