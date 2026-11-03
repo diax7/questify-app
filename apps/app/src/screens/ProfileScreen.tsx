@@ -14,20 +14,16 @@ import { IconButton } from "#src/components/IconButton.tsx";
 import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import type { Channel } from "#src/auth/sign-in-flow.ts";
 import { usePlayer, type Me } from "#src/auth/player.tsx";
+import { HowItWorksButton } from "#src/onboarding/HowItWorksButton.tsx";
 import { NotificationsRow } from "#src/push/NotificationsRow.tsx";
 import { GemIcon } from "#src/questify/GemIcon.tsx";
 import { gemsLabel } from "#src/questify/gems.ts";
 import { levelProgress, type QuestifyLevel } from "#src/questify/level.ts";
 import { DailyStreakCard } from "#src/streaks/DailyStreakCard.tsx";
 import { Screen } from "#src/components/Screen.tsx";
+import { LANGUAGE_OPTIONS } from "#src/i18n/language.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
-
-// Each language is named in itself, so a player can find their own whatever language the screen is in.
-const LANGUAGES: ReadonlyArray<{ code: Language; name: string }> = [
-  { code: "ar", name: "العربية" },
-  { code: "en", name: "English" },
-];
 
 /** Settings → My account (FR-125, FR-139): each sign-in identifier, masked, with Change or Add. */
 function MyAccount({ me }: Readonly<{ me: Me }>) {
@@ -205,7 +201,7 @@ export function ProfileScreen({
       <ScrollView contentContainerStyle={{ gap: 16 }}>
         <AppText variant="title">{t("settings.language")}</AppText>
         <View style={styles.row}>
-          {LANGUAGES.map((option) => (
+          {LANGUAGE_OPTIONS.map((option) => (
             <Pressable
               key={option.code}
               accessibilityRole="button"
@@ -216,6 +212,7 @@ export function ProfileScreen({
             </Pressable>
           ))}
         </View>
+        <HowItWorksButton />
         {state.status === "signed_in" ? (
           <>
             <View style={styles.end}>

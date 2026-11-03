@@ -28,6 +28,7 @@ import {
 import { CardReceives } from "#src/join/CardReceives.tsx";
 import { JoinForm } from "#src/join/JoinForm.tsx";
 import { RehearsalJoin } from "#src/join/RehearsalJoin.tsx";
+import { openJoinedEvent } from "#src/onboarding/open-joined.ts";
 import { PushExplainer, useJoinExplainer } from "#src/push/PushExplainer.tsx";
 import { WelcomeReward } from "#src/join/WelcomeReward.tsx";
 
@@ -243,7 +244,13 @@ function JoinCardScreen() {
         {joined ? (
           <Button
             label={t("joinCard.openEvent")}
-            onPress={() => router.replace(`/event/${event.id}?joined=1`)}
+            onPress={() =>
+              void openJoinedEvent(
+                event.id,
+                textIn(event.name, language),
+                result === "active" || result === "already",
+              )
+            }
           />
         ) : null}
         {ended || joined ? null : (

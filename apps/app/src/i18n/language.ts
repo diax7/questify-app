@@ -9,6 +9,12 @@ export const FALLBACK_LANGUAGE: Language = "en";
 /** One entry of the phone's language list, as `expo-localization` reports it. */
 export type DeviceLocale = Readonly<{ languageCode: string | null }>;
 
+/** Each language named in itself, so a player can find their own whatever language the screen is in. */
+export const LANGUAGE_OPTIONS: ReadonlyArray<Readonly<{ code: Language; name: string }>> = [
+  { code: "ar", name: "العربية" },
+  { code: "en", name: "English" },
+];
+
 export function isLanguage(value: unknown): value is Language {
   return value === "ar" || value === "en";
 }
