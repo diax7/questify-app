@@ -1,0 +1,89 @@
+{
+  "environment": "production",
+  "project": "Nafes",
+  "region": "riyadh-1",
+  "git_url": "https://github.com/diax7/questify-app.git",
+  "branch": "main",
+  "databases": {
+    "postgres": {
+      "name": "questify-db-production",
+      "type": "postgresql",
+      "backups": {
+        "enabled": true,
+        "frequency": "daily",
+        "hour": 3,
+        "minute": 0,
+        "timezone": "Asia/Riyadh",
+        "keep": 30
+      }
+    },
+    "redis": { "name": "questify-cache-production", "type": "redis" }
+  },
+  "buckets": [],
+  "apps": {
+    "api": {
+      "name": "questify-api-production",
+      "description": "Questify API (production)",
+      "port": 3000,
+      "build_path": "/",
+      "dockerfile_path": "Dockerfile",
+      "volumes": [],
+      "cron": [],
+      "domains": [],
+      "env": {
+        "PORT": "3000",
+        "NODE_ENV": "production",
+        "MIN_APP_VERSION": "1.0.0",
+        "DATABASE_URL": { "database": "postgres" },
+        "REDIS_URL": { "database": "redis" },
+        "AUTH_SECRET": { "secret": "generate" },
+        "QR_SECRET": { "secret": "generate" },
+        "REWARD_CODE_SECRET": { "secret": "generate" },
+        "DASHBOARD_ORIGIN": { "template": "{web.url}" },
+        "TRUST_PROXY_HOPS": "1",
+        "MAIL_FROM": "questify@nafes.com",
+        "GMAIL_ACT_AS": "system@nafes.com",
+        "GMAIL_SERVICE_ACCOUNT_KEY": { "secret": "operator" },
+        "MSEGAT_SENDER": "Nafes",
+        "MSEGAT_USERNAME": { "secret": "operator" },
+        "MSEGAT_API_KEY": { "secret": "operator" },
+        "TELEMETRY_EXPORTER": "otlp",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": { "template": "{monitoring.url}/api/v1/otlp" },
+        "OTEL_EXPORTER_OTLP_HEADERS": { "secret": "operator" }
+      }
+    },
+    "web": {
+      "name": "questify-web-production",
+      "description": "Questify web app (production)",
+      "port": 3000,
+      "build_path": "/",
+      "dockerfile_path": "Dockerfile.web",
+      "volumes": [],
+      "cron": [],
+      "domains": [],
+      "env": {
+        "PORT": "3000",
+        "NODE_ENV": "production",
+        "API_ORIGIN": { "template": "http://{api.host}:3000" }
+      }
+    },
+    "monitoring": {
+      "name": "questify-monitoring-production",
+      "description": "Questify monitoring (production, ADR-626)",
+      "port": 8080,
+      "build_path": "/ops/monitoring/stack",
+      "dockerfile_path": "Dockerfile",
+      "volumes": [{ "type": "volume", "mount_path": "/data", "volume_name": "monitoring-data" }],
+      "cron": [],
+      "domains": [],
+      "env": {
+        "PORT": "8080",
+        "METRICS_PASSWORD": { "secret": "operator" },
+        "METRICS_PASSWORD_HASH": { "secret": "operator" },
+        "GF_SECURITY_ADMIN_PASSWORD": { "secret": "generate" },
+        "GF_SECURITY_SECRET_KEY": { "secret": "generate" },
+        "GF_SERVER_ROOT_URL": { "template": "{monitoring.url}/grafana/" }
+      }
+    }
+  }
+}

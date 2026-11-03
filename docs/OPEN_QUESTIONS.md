@@ -2469,3 +2469,27 @@ With the collector gone, the closed list (ADR-603) is enforced once, by `safeAtt
 
 **Status:** Answered (developer, delegated by Dhia, 2026-11-03, after the T-710b code review 87): ADR-640.
 **Recommended:** a separate `POST .../review-codes/meet` that issues a fictional player's pass when picked, and no tag entries: a tag quest is reached through its quest QR (ADR-640). The code review (87) found a picked tag, sent with no chip id, is recorded on Android as a copied tag (`nfc_copy`), so the tag entries were dropped. **Other options:** issue a pass for every meet quest inside the GET (a read that writes, passes that expire before they are picked); send tags with a `uidReason` the server trusts for the reviewer (a new path around the copy check); leave meet quests out (the reviewer could not reach a quest type, against Apple 2.1).
+
+## Q-610 - The staging monitoring app builds from a folder that no longer exists (T-017, ADR-626, ADR-650)
+
+**Status:** Open (developer, 2026-11-04). Needs Dhia: a dashboard step.
+`plan staging` (read-only, 2026-11-04) matched every setting of the API, the web app and both databases, and found one difference: the monitoring app `questify-prometheus-staging` (created under the three-app design, before ADR-626) builds from `/ops/monitoring/prometheus`, which ADR-626 replaced with `/ops/monitoring/stack`, and the app is `stopped`. A public-repo app's build folder can be changed only in the CranL dashboard. Its name keeps the old `prometheus` word; renaming means a delete and a create, and a deleted app holds its slot for 7 days, so the file keeps the name.
+**Recommended (developer):** Dhia sets the app's build folder to `/ops/monitoring/stack` (Dockerfile path `Dockerfile`) in the dashboard and redeploys it; then `plan staging` shows no change, and the API's `TELEMETRY_*` settings are added to `ops/cranl/staging.json` and applied (RUNBOOK "Pointing the API at it"). The metrics password was made by the first setup script, so it must be supplied as `SECRET_MONITORING_METRICS_PASSWORD` (or rotated) for the API's `OTEL_EXPORTER_OTLP_HEADERS`.
+
+## Q-611 - Staging PostgreSQL backups have never succeeded (T-017)
+
+**Status:** Open (developer, 2026-11-04).
+CranL's backup schedule for `questify-db` (created 2026-10-19) is on, daily at 00:28 UTC, keeping 7, but on 2026-11-04 it reported no successful run, no failure, and no kept backup (`last_success_at` and `last_failure_at` empty, `kept_count` 0). Staging holds fake data only, but production will use the same schedule.
+**Recommended (developer):** after the next scheduled run, read `GET /databases/{id}/backups` and the policy again; if still empty, take one manual backup (`POST .../backups`) and ask CranL support why the schedule does not run. Production does not open before one backup is restored on a copy (T-019, T-811).
+
+## Q-612 - Which CranL settings stay outside the files? (T-017, ADR-650)
+
+**Status:** Proposed (developer, 2026-11-04).
+The CranL API cannot read some settings, so the files can set them at create but `plan` cannot see them drift: the Dockerfile path, the app's automatic rollback, and the health-check path (the RUNBOOK names `/en/sign-in` for the web app; there is no API field). A public-repo app's build folder and branch can be read but changed only in the dashboard.
+**Recommended (developer):** accept these as the named exceptions to "no setting only in the dashboard": the RUNBOOK lists them with the values to check by hand after a create, and `plan` reports a build folder or branch change as a manual step. Revisit when CranL's API adds them (its OpenAPI is at `https://app.cranl.com/api/v1/openapi.json`).
+
+## Q-613 - When may production be created on CranL? (T-017b, ADR-626, ADR-650)
+
+**Status:** Open (developer, 2026-11-04). Needs Dhia: slots on the CranL plan.
+`ops/cranl/production.json` declares production (three apps and two databases, daily backups at 03:00 Riyadh time keeping 30, the API sending telemetry to its own monitoring app, Q-582). The account is at its plan's limit of 20 apps and databases, and Dhia capped Questify at three apps and two databases (ADR-626). Creating production, or proving a fresh environment on a scratch copy, needs five free slots.
+**Recommended (developer):** decide whether production is three more apps and two more databases (the cap read per environment) or shares staging's slots; then run T-017b (RUNBOOK "Infrastructure as code on CranL", "A fresh environment").
