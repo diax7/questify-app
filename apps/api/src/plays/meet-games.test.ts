@@ -1,8 +1,8 @@
-import { LEVELS } from "@questify/shared";
+import { ENGINE_VERSIONS, LEVELS } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import type { AuthKeys } from "#src/auth/keys";
 import type { Caller } from "#src/auth/sign-in";
-import { readGame, sendResult, startRound } from "#src/plays/games";
+import { closeDueRounds, readGame, sendResult, startRound } from "#src/plays/games";
 import { issueMeetPass, meetPassState, meetPlayer } from "#src/plays/meet";
 import { fakePool, pgError, type FakeAnswer } from "#test/support/fake-pool";
 
@@ -15,10 +15,10 @@ const caller: Caller = { address: "127.0.0.1", userAgent: null, log: () => undef
 
 /**
  * A database where the player is under every limit and `answer` answers the play's own query. `answer` sees only the
- * play's SQL: the limit's lock, count and record answer as an unlimited player's.
+ * play's SQL and values: the limit's lock, count and record answer as an unlimited player's.
  */
-function playDeps(answer: (sql: string) => FakeAnswer) {
-  const { pool, queries } = fakePool((sql) => {
+function playDeps(answer: (sql: string, values: readonly unknown[]) => FakeAnswer) {
+  const { pool, queries } = fakePool((sql, values) => {
     if (sql.includes("pg_try_advisory_xact_lock")) {
       return { rows: [{ locked: true }] };
     }
@@ -28,7 +28,7 @@ function playDeps(answer: (sql: string) => FakeAnswer) {
     if (sql.startsWith("INSERT INTO auth_throttle")) {
       return { rows: [{ at: "now" }] };
     }
-    return answer(sql);
+    return answer(sql, values);
   });
   return { deps: { pool, keys }, queries };
 }
@@ -245,5 +245,151 @@ describe("a game the database cannot name or refuses", () => {
       kind: "enrollment_inactive",
       reason: "banned",
     });
+  });
+});
+
+describe("a game sheet's open round", () => {
+  it("shows no open round while the database has only half of one", async () => {
+    const deadline = new Date("2026-11-01T12:05:00Z");
+    expect(await sheet(view({ open_round: "42", open_deadline: null }))).toMatchObject({
+      value: { open: null },
+    });
+    expect(await sheet(view({ open_round: null, open_deadline: deadline }))).toMatchObject({
+      value: { open: null },
+    });
+  });
+});
+
+describe("a round the database refuses before it starts", () => {
+  it("answers the engine read's refusal without counting an attempt or issuing a round", async () => {
+    const { deps, queries } = playDeps((sql) => {
+      if (sql.includes("member_game")) {
+        throw pgError({ code: "QC404" });
+      }
+      return sql.includes("start_game_round") ? { rows: [{}] } : nothingAsked(sql);
+    });
+    const round = { idempotencyKey: "k", deviceId: undefined, engineVersions: {} };
+    expect(await startRound(deps, { playerId: PLAYER, questId: QUEST, ...round })).toEqual({
+      kind: "not_found",
+    });
+    expect(queries.some((sql) => sql.includes("auth_throttle"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("start_game_round"))).toBe(false);
+  });
+});
+
+/** What each reward read answers: a level, a category bonus, an item, a boost, a first-N place and a streak day. */
+function rewardRow(sql: string): FakeAnswer | undefined {
+  const rewards: ReadonlyArray<readonly [string, Record<string, unknown>]> = [
+    ["own_level_items(", { items: [] }],
+    ["FROM own_level(", { level_up: 3, up_title_ar: "مستكشف", up_title_en: "Explorer" }],
+    ["own_bonus(", { category_id: "c1", points: "20", name_ar: null, name_en: "Food" }],
+    ["own_quest_item(", { name_ar: null, name_en: "Mug", outcome: "pending", until: null }],
+    ["completion_boost(", { multiplier: 2 }],
+    ["own_first_bonus(", { points: 10, place: 1, slots: 3 }],
+    ["own_streak_bonus(", { points: 15, days: 3 }],
+  ];
+  const found = rewards.find(([marker]) => sql.includes(marker));
+  return found === undefined ? undefined : { rows: [found[1]] };
+}
+
+/** A memory-match round whose inputs the replay refuses, finished by the database with `finish`'s row. */
+async function finishWith(finish: Record<string, unknown>) {
+  const sent: unknown[][] = [];
+  const { deps } = playDeps((sql, values) => {
+    if (sql.includes("game_round_for_replay")) {
+      const params = LEVELS.memory_match.easy;
+      const engine = ENGINE_VERSIONS.memory_match;
+      return { rows: [{ game: "memory_match", seed: 7, params, engine_version: engine }] };
+    }
+    if (sql.includes("finish_game_round")) {
+      sent.push([...values]);
+      return { rows: [finish] };
+    }
+    return rewardRow(sql) ?? nothingAsked(sql);
+  });
+  const result = { roundId: "42", idempotencyKey: "k", inputs: "garbage", claimed: null };
+  const answer = await sendResult(deps, { playerId: PLAYER, ...result }, caller);
+  return { answer, sent };
+}
+
+const finishRow = (fields: Record<string, unknown>) => ({
+  verdict: "passed",
+  completion_id: "77",
+  points: "50",
+  score: "120",
+  balance: "80",
+  attempts_left: 1,
+  replayed: false,
+  result: { pairs: 6 },
+  reason: null,
+  ...fields,
+});
+
+describe("a round's result", () => {
+  it("tells the database a refused replay is never an unlikely pass", async () => {
+    const { sent } = await finishWith(finishRow({ verdict: "refused", completion_id: null }));
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.[2]).toBe("refused");
+    expect(sent[0]?.[5]).toBe(false);
+  });
+
+  it("answers every reward a paying round earned", async () => {
+    const { answer } = await finishWith(finishRow({}));
+    expect(answer).toMatchObject({
+      kind: "done",
+      value: {
+        completionId: "77",
+        levelUp: { level: 3 },
+        bonus: { categoryId: "c1", points: 20 },
+        item: { outcome: "pending" },
+        boost: { multiplier: 2 },
+        firstBonus: { points: 10, place: 1, slots: 3 },
+        streakBonus: { points: 15, days: 3 },
+      },
+    });
+  });
+
+  it("answers no reward for a round that paid nothing", async () => {
+    const { answer } = await finishWith(finishRow({ verdict: "short", completion_id: null }));
+    expect(answer).toMatchObject({
+      kind: "done",
+      value: {
+        completionId: null,
+        points: 50,
+        levelUp: null,
+        bonus: null,
+        item: null,
+        boost: null,
+        firstBonus: null,
+        streakBonus: null,
+      },
+    });
+  });
+});
+
+/** The sweep over a database whose close_one_due_round answers `outcomes` in turn (an error is raised), then null. */
+function sweep(outcomes: ReadonlyArray<string | null | Error>) {
+  let next = 0;
+  const { pool } = fakePool((sql) => {
+    if (!sql.includes("close_one_due_round")) {
+      return nothingAsked(sql);
+    }
+    const outcome = outcomes[next] ?? null;
+    next += 1;
+    if (outcome instanceof Error) {
+      throw outcome;
+    }
+    return { rows: [{ outcome }] };
+  });
+  return closeDueRounds({ pool });
+}
+
+describe("the sweep of rounds left open", () => {
+  it("counts the rounds it closed until none is due", async () => {
+    expect(await sweep(["short", "passed", null])).toBe(2);
+  });
+
+  it("stops at the first round the database refuses to close", async () => {
+    expect(await sweep(["short", pgError({ code: "QC404" }), "short"])).toBe(1);
   });
 });
