@@ -2412,7 +2412,7 @@ The files were built from CranL's public documentation without calling CranL. Fi
 
 ## Q-581 - Which SMTP account sends the alert mail? (T-018b, ADR-624)
 
-**Status:** Proposed (developer, 2026-11-03). An action only Dhia can take (create the key or the password).
+**Status:** Decided by Dhia (2026-11-03, AskUserQuestion): reuse the sign-in Gmail account for the alert email (ALERT_SMTP_* = the API's Gmail sender); alerts are few, so the shared daily limit is acceptable.
 Alertmanager speaks SMTP; the API's own sender is the Gmail API (a service account), which Alertmanager cannot use. Options: (A) Resend SMTP, `smtp.resend.com:587`, user `resend`, a send-only API key made for alerts, From an address on a domain verified in Resend; (B) Gmail SMTP, `smtp.gmail.com:587`, an app password of the sending mailbox (needs 2-Step Verification, and Google does not recommend app passwords); (C) Google Workspace SMTP relay, `smtp-relay.gmail.com`, which wants an admin setting and a fixed address CranL may not give.
 **Recommended (developer):** (A), because the account and the verified domain already exist for the API's backup sender (`RESEND_API_KEY`), a separate key can be revoked alone, and it needs no admin setting. Until it exists the stack runs and the dashboard shows "Alert mails not sent".
 

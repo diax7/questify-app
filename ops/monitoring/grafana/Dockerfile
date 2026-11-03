@@ -17,7 +17,8 @@ ENV GF_SERVER_HTTP_PORT=3000 \
     GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES=false \
     GF_PLUGINS_PLUGIN_ADMIN_ENABLED=false \
     GF_NEWS_NEWS_FEED_ENABLED=false \
-    GF_SNAPSHOTS_EXTERNAL_ENABLED=false
+    GF_SNAPSHOTS_EXTERNAL_ENABLED=false \
+    GF_METRICS_ENABLED=false
 
 COPY --chown=root:root provisioning /etc/grafana/provisioning
 COPY --chown=root:root dashboards /etc/questify/dashboards

@@ -36,6 +36,12 @@ async function checkLogin(base, admin) {
       `Grafana answered ${response.status} to ${path} without a login, not 401.`,
     );
   }
+  const metrics = await get(base, "/metrics", {});
+  // A closed /metrics redirects to the login page, which fetch follows; only the metrics text itself is a leak.
+  ensure(
+    !metrics.text.includes("grafana_build_info"),
+    `Grafana served its metrics at /metrics without a login (${metrics.status}).`,
+  );
   const wrong = await get(base, "/api/user", { authorization: basic("admin", "not-the-password") });
   ensure(wrong.status === 401, `Grafana accepted a wrong password: ${wrong.status}.`);
   const right = await get(base, "/api/user", admin);

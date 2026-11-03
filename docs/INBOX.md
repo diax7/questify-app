@@ -800,3 +800,7 @@ Raw, close to the user's words. Status: **brainstorming; nothing is decided or a
 ## 2026-11-03 — Monitoring destination and alerts → processed
 
 Dhia (AskUserQuestion): monitoring data goes to CranL Riyadh (collector, metrics store, Grafana; "CranL Riyadh (Recommended)"), and alerts go to him by email ("Me by email (Recommended)"). Processed into Q-560 and Q-561 (decided) and T-018b.
+
+## 2026-11-03 — Alert email sender → processed
+
+Dhia (AskUserQuestion): alert emails reuse the sign-in Gmail account ("Reuse sign-in Gmail"). Processed into Q-581 (decided).
