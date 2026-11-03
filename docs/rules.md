@@ -283,3 +283,6 @@ A change is done only when all of these hold:
   with a name and tooltip in the page's language (`infoTip(t, "key")` on the dashboard, `InfoTip` and `IconButton` in the app). A reviewer treats a padded help line
   as a finding. `apps/web/src/lib/help-copy.test.ts` lists the help keys that stay: a new key named `...Hint`, `...Help`, `...Intro`, `...Note` or `...About`, or a new
   `help` or `description` prop, fails it until the diff adds the key to a list, so adding a line is a visible choice.
+
+- A backfill or data fix skips deleted accounts (`WHERE status <> 'deleted'`): a tombstone never changes, and the
+  database refuses it (`player_tombstone_final`, T-708).

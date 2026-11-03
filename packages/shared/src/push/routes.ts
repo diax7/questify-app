@@ -51,6 +51,7 @@ export const NOTIFICATION_TARGETS: ReadonlyMap<string, Target> = new Map<string,
   ["session_message", "agenda"],
   ["staff_briefing", "center"],
   ["username_changed", "center"],
+  ["data_exported", "center"],
 ]);
 
 const EVENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

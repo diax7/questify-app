@@ -927,6 +927,12 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); console_player_record re-reads the admin; read only, masked contacts, an erased account shows its id and dates only; every look audited (ids only); 120 a minute per admin (test/console/players, test/db/console-players)",
   "GET /v1/admin/players/:playerId/ledger":
     "active platform admins only (walked below); console_player_ledger re-reads the admin; 50 entries a page, actor as a kind only, no ledger note; every page audited; 120 a minute per admin (test/console/players, test/db/console-players)",
+  "GET /v1/admin/players/:playerId/pending":
+    "active platform admins only (walked below); console_player_pending re-reads the admin (QE403); a tombstone or unknown id PA404; event and prize names only; 120 a minute per admin (test/console/data-requests, test/db/data-requests)",
+  "POST /v1/admin/players/:playerId/data-export":
+    "active platform admins only (walked below); console_player_export re-reads the admin, reason code and an opaque case reference (DR400), a tombstone PA404; audited with the case, never a value from the file; not idempotent on purpose (no copy kept or replayed); no-store attachment; 10 an hour per admin (test/console/data-requests, test/db/data-requests)",
+  "POST /v1/admin/players/:playerId/erase":
+    "active platform admins only (walked below); admin_erase_player re-reads the admin, the case (DR400) and the username typed (DR409), the deletion challenges then the player locked in erase_player's order; pending handovers need the forfeit; already_deleted on a repeat; Idempotency-Key, audited with the admin; the player's stored answers forgotten; 10 an hour per admin (test/console/data-requests, test/db/data-requests)",
   "POST /v1/admin/players/:playerId/contact":
     "active platform admins only (walked below); console_player_contact re-reads the admin, reason code and note required (PA400), an action row and an audit entry on every call; not idempotent on purpose (no contact kept or replayed); 20 an hour per admin (test/console/players, test/db/console-players)",
   "POST /v1/admin/players/:playerId/username":
@@ -1015,6 +1021,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "starts a change for the bearer only; start_contact_change is bound to the session and never says whether another account has the contact (test/players/contact, test/db/contact-change)",
   "POST /v1/me/contact/verify":
     "changes the bearer's own contact only, through confirm_contact_change bound to the session (test/players/contact, test/db/contact-change)",
+  "POST /v1/me/data-export":
+    "the bearer's own data only: own_data_export reads app_player_id() bound to the session, an active account only (DR404); 3 a day in the database, 5 an hour per player; not idempotent on purpose (no copy kept or replayed); no-store attachment, audited, a notice to the player (test/players/data-export, test/db/data-requests)",
   "POST /v1/me/deletion/code":
     "sends a deletion code to the bearer's own contact only, read through own_deletion_contact bound to the session (test/deletion/deletion, test/db/account-deletion)",
   "POST /v1/me/acceptances":

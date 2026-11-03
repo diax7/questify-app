@@ -332,7 +332,7 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
     invitations: shared.invitations,
     translations: shared.translations,
     organizers: { pool, keys: shared.keys, suspended: shared.suspended },
-    players: { pool, keys: shared.keys },
+    players: { pool, keys: shared.keys, idempotencyStore: options.idempotencyStore },
     platform: {
       pool,
       keys: shared.keys,

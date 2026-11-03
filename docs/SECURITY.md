@@ -591,3 +591,20 @@ columns or the functions) and the cross-tenant suite (B's setting, notices and n
   decision (Q-373); every support write is stamped in the audit log by the database.
 - **Console reads audited (Q-116 closed):** organizer list, organizer page and event page each write one audit row with
   ids only.
+
+## Legal data requests (T-708, ADR-480 to ADR-485)
+
+- **Delivery:** a data export is built in the database at the moment it is asked for and goes straight back on the same
+  HTTPS response (`no-store`, `attachment`, `nosniff`). It is never written to storage, the idempotency store, Redis, a
+  log or an email; the routes are POST and not idempotent, and only the file's size is logged. The app writes it to its
+  cache, opens the share sheet and deletes the cache file after; the console saves it in the admin's browser and the
+  admin hands it over only through the channel counsel names (Q-441).
+- **Abuse:** a stolen session could download the owner's contacts: the download is audited, the player gets a notice,
+  and the database allows 3 a day (5 an hour at HTTP). A fresh code before the download is Q-440.
+- **Admin powers:** export and erase need an active platform admin, a reason code and an opaque case reference that
+  cannot carry a name, contact, phone or id number; the erase needs the username typed and a forfeit for pending
+  handovers. Both are audited with the admin; the audit log outlives the account.
+- **No restore:** a tombstone can never change (trigger enabled ALWAYS). After any database restore, before the API takes
+  traffic, the runbook's "Re-apply erasures" erases again every account erased since the backup (`staff-cli
+  reapply-erasures`). Erased data lives on in backups only until they age out (proposed 35 days, T-019; the privacy
+  policy must say so, Q-443).

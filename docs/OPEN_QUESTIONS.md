@@ -2089,3 +2089,39 @@ Dhia wants to avoid; transactional mail is not counted.
 The legal drafts have two placeholders, the support contact and the privacy contact; both now show the support email.
 **Recommended (developer):** keep one address for v1 (the privacy policy only asks for a way to reach us); add a fourth field
 to `support_contact` when counsel or the PDPL regulator asks for a named data-protection contact.
+
+## Q-440 - Is the in-app JSON download enough for PDPL's right of access, and does it need a fresh code? (T-708, counsel)
+
+**Status:** Open (developer, 2026-11-03; ADR-480, ADR-485).
+The player downloads a JSON file from Settings with their signed-in session; no fresh code is asked. A stolen session could take the full contacts; the notice, the audit entry and the 3-a-day limit make it visible and small. Counsel: is a machine-readable JSON file an acceptable form, what is the answer deadline for a request made outside the app, and is a fresh code needed?
+**Recommended (developer):** keep the session only; add the deletion flow's fresh code if counsel asks.
+
+## Q-441 - How does an admin hand an exported file to the person or authority who asked? (T-708, counsel)
+
+**Status:** Open (developer, 2026-11-03; ADR-480).
+The console downloads the file in the admin's browser. Personal data never goes into an email from the product. Counsel: which channel is acceptable for a data subject and for an authority, and what proof of identity must the admin see first?
+**Recommended (developer):** decide with counsel before launch; build a signed link only if the answer needs one.
+
+## Q-442 - May Questify leave fraud flags, reports by others and internal notes out of an export? (T-708, counsel)
+
+**Status:** Open (developer, 2026-11-03; ADR-481).
+Also for counsel: a banned player cannot use Download my data (`own_data_export` answers DR404 unless the account is active); their access request goes to an admin, whose export covers a banned account. Is that enough for the right of access?
+**Recommended (developer):** leave them out (fraud prevention, other people's data) and keep the reason in the catalog; keep the self-service download for active accounts and serve a banned player through the admin export.
+
+## Q-443 - Backup retention, log retention and the privacy policy wording for erased data (T-708, T-019, counsel)
+
+**Status:** Open (developer, 2026-11-03; ADR-484).
+Erased accounts live on in backups until they age out, and re-applying erasures after a restore reads `player.deleted` log lines. Unknown: CranL's log retention, the backup retention T-019 sets (35 days proposed), and the privacy policy sentence counsel wants.
+**Recommended (developer):** 35-day backups, logs kept at least as long, and a policy sentence naming the window.
+
+## Q-444 - Should the player be told when an admin exports their data? (T-708, counsel)
+
+**Status:** Open (developer, 2026-11-03; ADR-483).
+An authority's request may require silence; a person's own request does not need it.
+**Recommended (developer):** no notice for admin exports until counsel says otherwise.
+
+## Q-445 - Data requests for staff and organizer accounts, and a second admin for an erasure (T-708)
+
+**Status:** Proposed (developer, 2026-11-03; ADR-483).
+T-708 covers players only; `staff_user` (organizer teams, admins) has its own lifecycle. One admin can erase a player with a reason, a case reference and the typed username.
+**Recommended (developer):** staff requests are handled by `staff-cli` until a task needs a console page; no second-admin approval in v1, since the audit entry and the per-admin limit cover it.

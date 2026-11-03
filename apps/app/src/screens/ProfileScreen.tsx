@@ -250,6 +250,11 @@ export function ProfileScreen({
             ) : null}
             <Button
               kind="quiet"
+              label={t("dataExport.title")}
+              onPress={() => router.push("/data-export")}
+            />
+            <Button
+              kind="quiet"
               label={t("deletion.title")}
               onPress={() => router.push("/delete-account")}
             />

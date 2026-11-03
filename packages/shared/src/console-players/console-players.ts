@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ACHIEVEMENT_ID } from "#src/catalog/catalog";
 import { ACHIEVEMENT_TIERS } from "#src/questify/achievements";
+import { legalRequestSchema } from "#src/privacy/data-requests";
 
 /**
  * The console's player tools (T-704, FR-1774, FR-1775, FR-1702): find a player, the read-only record and points
@@ -139,6 +140,8 @@ export const playerRecordSchema = z.strictObject({
   reports: z.array(reportEntry),
   sessions: z.number().int().min(0),
   actions: z.array(actionEntry),
+  /** Exports and erasures on a legal request or the player's own (T-708), newest first. */
+  legalRequests: z.array(legalRequestSchema),
 });
 export type PlayerRecord = z.infer<typeof playerRecordSchema>;
 
@@ -150,6 +153,7 @@ export const erasedPlayerSchema = z.strictObject({
     createdAt: instant,
     deletedAt: instant.nullable(),
   }),
+  legalRequests: z.array(legalRequestSchema),
 });
 export type ErasedPlayer = z.infer<typeof erasedPlayerSchema>;
 export const playerRecordAnswerSchema = playerRecordSchema.or(erasedPlayerSchema);

@@ -6,6 +6,21 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-708 legal data requests — 2026-11-03
+
+- **T-708 built (tier A; plan review 84 with its five MAJOR fixes folded in; not run on a phone; migration 0129, new and
+  undeployed; ADR-480 to ADR-485 Proposed; Q-440 to Q-445 open).** A player downloads their data from Settings (one JSON
+  file, never stored, 3 a day, a notice); an admin exports or erases one player on a legal request from the console's
+  Legal request card with a reason and an opaque case number, audited; `erase_player`'s body is now `erase_account`
+  (the T-217 suite passes unchanged), the admin erase takes the deletion challenges `NOWAIT` before the player (race
+  tested both ways with one and two challenges: it finishes first or answers 503 busy, and the retry finds the
+  tombstone), a tombstone can never change (trigger ALWAYS), and `staff-cli reapply-erasures` re-applies after a
+  restore. `test/db/personal-data-catalog` is the closed list of where a player's data lives. New direct app dependency
+  `expo-file-system` (Expo's own module, already in the lockfile). Export timing: 50 events, 10,000 ledger entries,
+  2,000 notifications, 500 submissions, 1.5 MB, 0.84 s warm and 1.0 s cold on the local database. CI minutes: 0 (not
+  pushed); agent tokens: about 1.2 M.
+  **Next:** the T-708 code review (tier A, strongest model), then the mutation run on the TS globs.
+
 ## T-706 message templates and support contact — 2026-11-03
 
 - **T-706 built (tier B; split, see ADR-460; not run on a phone; migration 0127, new and undeployed; ADR-460 to ADR-462 and Q-420 to Q-422 Proposed).** The four templates (login-code SMS, promotional SMS, email and push) are edited in the console at `/console/messages` with the CST rules enforced on save and on a revert, checked again by the door and by the table's own CHECKs: a promotional SMS or email cannot be saved without `{optOutUrl}`, a login-code SMS without `{code}` and a sign-in-code wording, an SMS stays within 3 parts (`smsParts` moved to the shared package). The support contact (WhatsApp, phone, email) is edited on the same page, read at `GET /v1/support-contact`, shown on `/{lang}/contact` and put into the legal drafts' `{{CONTACT_EMAIL}}` and `{{PRIVACY_CONTACT}}`. **T-706b** (push to a group, promotional campaigns, the promotional email sender, the senders reading their slot) is next in `docs/TASKS.md`. Tests: `packages/shared` messaging (14), `test/db/messaging` (13), `test/console/messaging` (12), the security suites, `legal.test`, `e2e/console-messaging.spec.ts` (2), `layout.spec.ts` with the new page. CI minutes: 0.

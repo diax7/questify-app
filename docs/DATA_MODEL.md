@@ -1745,3 +1745,35 @@ PUBLIC none. Not copied when an event is duplicated.
 - **`audit_log.support_grant_id`**: set only by the `audit_a_stamp_support` trigger (never by a writer).
 - **Triggers:** `ledger_suspension_guard` (BEFORE INSERT on `ledger_entry`, by kind), `enrollment_suspension_guard`
   (BEFORE INSERT or UPDATE OF status on `enrollment`).
+
+## Legal data requests (T-708, migration 0129; ADR-480 to ADR-485)
+
+No new table. The export is built by `player_data_export(target)` from the tables at the moment it is asked for (helpers
+`data_export_account`, `data_export_events` with `data_export_event_play` and `data_export_event_more`,
+`data_export_questify`, `data_export_support`; all internal) and never stored. Doors: `own_data_export(request)` (the
+player; 3 of their own in 24 hours, counted from `audit_log` under a lock on the player row), `console_player_export`,
+`admin_erase_player` and `console_player_pending` (admins), `reapply_erasure` (owner only, after a restore).
+`erase_player` keeps its signature; its body is `erase_account(me, key, forfeit, challenge)`, shared by the self, admin
+and re-apply paths. The admin and re-apply paths lock the player's deletion challenges (by id) before the player, the
+order `erase_player` takes.
+
+- **The tombstone is final:** `player_tombstone_final` (BEFORE UPDATE OR DELETE, ENABLE ALWAYS) refuses any change to a
+  row whose status is `deleted`, and its deletion, for every role and in replica mode.
+- **Index:** `audit_log_data_request_idx (target_id, at) WHERE action IN ('player.data_export', 'player.delete')`.
+- **Notice kind:** `data_exported` (personal, fixed text, opens the center).
+- **The record of requests** is the audit log: `player.data_export` and `player.delete` with `source` (`player`,
+  `admin`, `reapply`), and for an admin the reason code and the case reference. `console_player_record` answers them as
+  `legalRequests` on an account and on a tombstone.
+
+### Personal data catalog
+
+`apps/api/test/db/personal-data-catalog.ts` is the closed list of where a player's data lives: every table reached from
+`player` through foreign keys (at any depth), the tables of FK-less player links (`notice`, `notification`,
+`invitation_recipient`, `questify_streak_day`, `xp_board`, `rank_top_snapshot.enrollment_ids`, the operator columns
+`ledger_entry.operator_id`, `manual_award_key.operator_id`, `submission.reviewed_by_operator`), and `audit_log`,
+`player_login_challenge`, `erased_mark` and `staff_user` by name; each with its export section or why it is left out,
+and what erasure does (delete, clear, keep). Every FK-less `uuid`, `uuid[]` and `jsonb` column of the schema is
+classified as a link, the player's own data, or not a player (`NOT_PLAYER`, with a reason). Stores outside the tables:
+the Redis ranking copy (rebuilt from the ledger, `ranking_repair` drops an erased player), the idempotency store
+(forgotten after every erasure), the API log (ids only), the rate-limit buckets (keyed hashes that expire) and the push
+providers (tokens deleted with `push_device`). The catalog test fails on a new unclassified table or column.

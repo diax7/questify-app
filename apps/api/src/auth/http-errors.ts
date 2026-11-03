@@ -2458,3 +2458,10 @@ export const contentHeld = make(
   "ألغت Questify نشر هذا المحتوى. عدّله ثم تواصل مع Questify لإعادة نشره.",
   "Questify unpublished this. Edit it, then contact Questify to publish it again.",
 );
+/** An admin erase whose typed username does not match the account (T-708, DR409): nothing changed. */
+export const eraseConfirmationRequired = make(
+  409,
+  "confirmation_required",
+  "اكتب اسم المستخدم كما هو تمامًا لتأكيد الحذف.",
+  "Type the username exactly as it is to confirm the deletion.",
+);

@@ -167,13 +167,13 @@ describe("where the two packages may be loaded", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("requires them only in recap-share-native.ts", () => {
+  it("requires them only in the two native loaders (the recap share and the data download, T-708)", () => {
     const requirers = files.filter((file) => {
       const source = readFileSync(file, "utf8");
       return PACKAGES.some((name) => new RegExp(`require\\(\\s*["']${name}["']`).test(source));
     });
-    expect(requirers.map((file) => file.replaceAll("\\", "/").split("/").pop())).toEqual([
-      "recap-share-native.ts",
-    ]);
+    expect(requirers.map((file) => file.replaceAll("\\", "/").split("/").pop()).toSorted()).toEqual(
+      ["data-export-native.ts", "recap-share-native.ts"],
+    );
   });
 });

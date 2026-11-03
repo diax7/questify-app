@@ -4,6 +4,8 @@ import {
   codeLabel,
   ledgerPath,
   readLedger,
+  readEraseAnswer,
+  readPending,
   readRecord,
   readResetAnswer,
   readSearch,
@@ -40,9 +42,36 @@ describe("console player paths and readers", () => {
   it("reads an erased account as its id and dates only", () => {
     const erased = {
       player: { id: ID, status: "deleted", createdAt: "2026-01-01T00:00:00Z", deletedAt: null },
+      legalRequests: [
+        {
+          at: "2026-11-03T10:00:00Z",
+          action: "player.delete",
+          source: "admin",
+          reasonCode: "legal_request",
+          reference: "LEGAL-1",
+          by: "legal@questify.test",
+        },
+      ],
     };
     expect(readRecord(erased)).toEqual(erased);
     expect(readRecord({ player: { ...erased.player, status: "active" } })).toBeUndefined();
+  });
+
+  it("reads the pending handovers and the erase answer of a legal request (T-708)", () => {
+    const item = {
+      redemptionId: ID,
+      eventId: EVENT,
+      event: { ar: "مهرجان", en: "Fest" },
+      item: { ar: null, en: "Mug" },
+      rankPrize: false,
+    };
+    expect(readPending({ pending: [item] })).toEqual([item]);
+    expect(readPending({ pending: [{ ...item, eventId: "x" }] })).toBeUndefined();
+    expect(readEraseAnswer({ outcome: "erased", events: [EVENT] })).toEqual({
+      outcome: "erased",
+      events: [EVENT],
+    });
+    expect(readEraseAnswer({ outcome: "handover_pending", events: [] })).toBeUndefined();
   });
 
   it("reads a ledger page and a reset answer", () => {

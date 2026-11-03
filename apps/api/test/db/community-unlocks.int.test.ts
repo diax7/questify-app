@@ -1639,6 +1639,7 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   event_has_live: "exempt: a boolean for the live cache; names nothing",
   cancel_redemption: "exempt: a redemption already made",
   deletion_pending: "exempt: redemptions already made",
+  console_player_pending: "exempt: redemptions already made (the admin erase, T-708)",
   my_desk_items: "exempt: redemptions already made",
   my_redemptions: "exempt: redemptions already made",
   member_activity: "exempt: ledger entries already written",

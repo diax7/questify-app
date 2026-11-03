@@ -1,8 +1,10 @@
+import { readFile } from "node:fs/promises";
 import { userInfo } from "node:os";
 import { Client } from "pg";
 import { createBreachCheck } from "#src/auth/breached";
 import { createAuthKeys } from "#src/auth/keys";
 import { clearThrottleFor, createStaffAccount, setPlatformAdmin } from "#src/auth/staff-admin";
+import { erasedIdsFrom, reapplyErasures } from "#src/privacy/reapply";
 
 /**
  * One-off staff account administration, run inside the app container with the owner's database connection.
@@ -10,11 +12,19 @@ import { clearThrottleFor, createStaffAccount, setPlatformAdmin } from "#src/aut
  *   clear-throttle <email>     let a person who is throttled try again (needs AUTH_SECRET)
  *   grant-admin <email> --reason "why" [--by <name>]    make an existing account a Questify platform admin (ADR-405)
  *   revoke-admin <email> --reason "why" [--by <name>]   take the role away; ends the account's sessions and grants
+ *   reapply-erasures <file>    after a database restore, erase again every account erased since the backup (ADR-484):
+ *                              the file holds `player.deleted` log lines and/or player ids, one per line
  * The reason is required; the operator is --by, else the operating-system user. Both go in the audit entry.
  */
-const COMMANDS = ["create", "clear-throttle", "grant-admin", "revoke-admin"] as const;
+const COMMANDS = [
+  "create",
+  "clear-throttle",
+  "grant-admin",
+  "revoke-admin",
+  "reapply-erasures",
+] as const;
 const USAGE =
-  'Usage: staff create <email> [--admin]  |  staff clear-throttle <email>  |  staff grant-admin <email> --reason "why" [--by <name>]  |  staff revoke-admin <email> --reason "why" [--by <name>]';
+  'Usage: staff create <email> [--admin]  |  staff clear-throttle <email>  |  staff grant-admin <email> --reason "why" [--by <name>]  |  staff revoke-admin <email> --reason "why" [--by <name>]  |  staff reapply-erasures <file>';
 
 async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
@@ -74,6 +84,14 @@ async function main(): Promise<void> {
         createBreachCheck(),
       );
       process.stdout.write(`Created ${email} (${id}).\n`);
+      return;
+    }
+    if (command === "reapply-erasures") {
+      const counts = await reapplyErasures(owner, erasedIdsFrom(await readFile(email, "utf8")));
+      process.stdout.write(
+        `Erased again: ${counts.erased}; already deleted: ${counts.alreadyDeleted}; not in this database: ${counts.unknown}.
+`,
+      );
       return;
     }
     if (command === "grant-admin" || command === "revoke-admin") {
