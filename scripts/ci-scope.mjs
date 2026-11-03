@@ -94,6 +94,10 @@ export const AREAS = [
     /console-?messag|message-?templates?|support-?contact|console\/messages|sms-?parts|\[lang\]\/contact/i,
     ["console-messaging"],
   ],
+  [
+    /owner-?email|email-?change|console-?owner-?email|team-?alerts?|moderation-?addresses|urgency/i,
+    ["console-owner-email", "console-reports"],
+  ],
   [/console-?players?|console\/players/i, ["console-players"]],
   [/console-?word-?lists?|console\/word-lists/i, ["console-word-lists"]],
   [
