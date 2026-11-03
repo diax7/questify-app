@@ -1,7 +1,7 @@
 /* oxlint-disable unicorn/consistent-function-scoping -- each helper sits in the describe that uses it, beside its tests */
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import type { RequestContext } from "#src/db/context";
+import { withRequestContext, type RequestContext } from "#src/db/context";
 import { pushMessageOf, type ClaimedSend } from "#src/push/message";
 import { invitationFixture, type InvitationFixture } from "#test/support/invitations";
 import { pushFixture, type PushFixture } from "#test/support/push";
@@ -677,6 +677,104 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push to a group (database)", (
       const later = await candidates();
       expect(later).toHaveLength(52);
       expect(later.every((pick) => pick.channel === "push")).toBe(true);
+    });
+  });
+
+  describe("the fill lock the fan shares with the invitations (Q-421)", () => {
+    const FAN = "group_push_fan()";
+    const START = "invitation_start_due()";
+
+    /**
+     * Calls `held` in a system transaction that stays open, calls `meanwhile` in a second system transaction while it
+     * is open, and commits both: the two overlap, which is how two worker instances meet.
+     */
+    const overlapped = async (held: string, meanwhile: string) => {
+      const a = await q.pool.connect();
+      const b = await q.pool.connect();
+      try {
+        return await withRequestContext(a, {}, async () => {
+          const first = (await a.query(`SELECT ${held} AS r`)).rows[0]?.r as unknown;
+          const second = await withRequestContext(
+            b,
+            {},
+            async () => (await b.query(`SELECT ${meanwhile} AS r`)).rows[0]?.r as unknown,
+          );
+          return { first, second };
+        });
+      } finally {
+        a.release();
+        b.release();
+      }
+    };
+    const promoNoticesPerPlayer = async (players: string[]): Promise<number[]> =>
+      (
+        await q.owner<{ n: string }>(
+          `SELECT count(*) AS n FROM notice WHERE kind = 'group_push_promo' AND player_id = ANY($1::uuid[])
+           GROUP BY player_id`,
+          [players],
+        )
+      ).map((one_) => Number(one_.n));
+    /** An approved push campaign over 50 new opted-in players of a city, not yet started. */
+    const approvedOver = async (city: string) => {
+      await iv.reset();
+      await iv.switchOn();
+      await isolate();
+      const players = await optedIn(50, { city });
+      for (const player of players) await p.phone(player);
+      const campaign = (await iv.request(await iv.eligibleEvent())).id;
+      await iv.approve(campaign, { channels: ["push"] });
+      return { players, campaign };
+    };
+
+    it("lets one fan write at a time: a second fan answers nothing, and no player is told twice", async () => {
+      await isolate();
+      const players = await optedIn(3, { city: "sa-yanbu" });
+      const early = await send(draftOf(promoAudience("sa-yanbu")));
+      const late = await send(draftOf(promoAudience("sa-yanbu")));
+
+      expect(await overlapped(FAN, FAN)).toEqual({
+        first: { rows: 3, more: false },
+        second: { rows: 0, more: false },
+      });
+      expect(await row(early["id"])).toMatchObject({ state: "done", notices: 3, capped: 0 });
+      expect(await row(late["id"])).toMatchObject({ state: "sending", notices: 0, capped: 0 });
+      expect(await promoNoticesPerPlayer(players)).toEqual([1, 1, 1]);
+
+      expect(await fan()).toEqual({ rows: 3, more: false });
+      expect(await row(late["id"])).toMatchObject({ state: "done", notices: 0, capped: 3 });
+      expect(await promoNoticesPerPlayer(players)).toEqual([1, 1, 1]);
+    });
+
+    it("keeps the group fan out while an invitation fill runs, and counts the invited players as capped", async () => {
+      const { players, campaign } = await approvedOver("sa-tabuk");
+      const sent = await send(draftOf(promoAudience("sa-tabuk")));
+
+      expect(await overlapped(START, FAN)).toEqual({
+        first: "started",
+        second: { rows: 0, more: false },
+      });
+      expect(await row(sent["id"])).toMatchObject({ state: "sending", notices: 0 });
+      expect(await iv.recipients(campaign)).toHaveLength(50);
+
+      await fanAll();
+      expect(await row(sent["id"])).toMatchObject({ state: "done", notices: 0, capped: 50 });
+      expect(await promoNoticesPerPlayer(players)).toEqual([]);
+    });
+
+    it("keeps the invitation fill out while a group fan runs, and invites no one the fan told", async () => {
+      const { players, campaign } = await approvedOver("sa-taif");
+      const sent = await send(draftOf(promoAudience("sa-taif")));
+
+      expect(await overlapped(FAN, START)).toEqual({
+        first: { rows: 50, more: false },
+        second: "busy",
+      });
+      expect(await row(sent["id"])).toMatchObject({ state: "done", notices: 50, capped: 0 });
+      expect(await iv.campaignRow(campaign)).toMatchObject({ state: "approved" });
+
+      expect(await iv.startDue()).toBe("too_small");
+      expect(await iv.recipients(campaign)).toEqual([]);
+      expect(await promoNoticesPerPlayer(players)).toHaveLength(50);
     });
   });
 });

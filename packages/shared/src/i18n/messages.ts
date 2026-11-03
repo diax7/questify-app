@@ -9746,15 +9746,15 @@ export const MESSAGES = {
     en: "Review who gets it",
   },
   "console.push.reach.event": {
-    ar: "{name} ({code}) · {status}: نحو {count} لاعب سيستلمون الإشعار.",
+    ar: "{name} ({code}) · {status} · عدد اللاعبين المتوقع: {count}",
     en: "{name} ({code}) · {status}: about {count} players will get it.",
   },
   "console.push.reach.promo": {
-    ar: "نحو {count} لاعب سيستلمون الإشعار.",
+    ar: "عدد اللاعبين المتوقع: {count}",
     en: "About {count} players will get it.",
   },
   "console.push.reach.more": {
-    ar: "أكثر من {count} لاعب سيستلمون الإشعار.",
+    ar: "عدد اللاعبين المتوقع: أكثر من {count}",
     en: "More than {count} players will get it.",
   },
   "console.push.send": {

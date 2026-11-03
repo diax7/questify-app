@@ -351,8 +351,11 @@ GRANT EXECUTE ON FUNCTION admin_group_push_list() TO questify_app;
 -- One page of the oldest promotional send still running: up to 500 players after its cursor, read through
 -- `marketing_audience` (push channel, the send's city and interests), each told by one `group_push_promo` notice unless the
 -- weekly cap says no (counted in `capped`). The marker `gpush:{send}:{player}` makes a repeat write nothing. The send is
--- done once a page comes back short. Locks: the send row `FOR UPDATE SKIP LOCKED`, then the notices (insert). The
--- push store checks the consent again at the fan-out and at the claim. `{rows, more}`.
+-- done once a page comes back short. Locks: first `pg_try_advisory_xact_lock(hashtext('invitation_fill'))`, the key the
+-- invitation fill (`invitation_start_due`) takes, so the weekly cap is read and written by one fill at a time: a second
+-- fan or an invitation fill that holds it makes this call answer `{0, false}` and the next tick tries again; then the
+-- send row `FOR UPDATE SKIP LOCKED`, then the notices (insert). The push store checks the consent again at the fan-out
+-- and at the claim. `{rows, more}`.
 CREATE FUNCTION group_push_fan() RETURNS jsonb
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -364,6 +367,9 @@ DECLARE
   width  constant integer := 500;
 BEGIN
   PERFORM push_system_only();
+  IF NOT pg_try_advisory_xact_lock(hashtext('invitation_fill')) THEN
+    RETURN jsonb_build_object('rows', 0, 'more', false);
+  END IF;
   SELECT x.* INTO g FROM group_push x WHERE x.state = 'sending' ORDER BY x.created_at, x.id LIMIT 1
     FOR UPDATE SKIP LOCKED;
   IF NOT FOUND THEN

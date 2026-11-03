@@ -7248,7 +7248,9 @@ or was sent (or unknown) in the last 7 days and no group promotional notice in t
 each player (a player it refuses is counted in `capped`), the preview counts only players it accepts, and
 `invitation_candidates` asks the mirror (no push invitation for a player a group push told in the last 7 days). A player
 capped on push is left out of that week's invitation, not moved to SMS. The cap is per channel: it does not count SMS or
-email, and a push to an event's players is not capped.
+email, and a push to an event's players is not capped. The cap is read and written under the invitation fill's advisory
+lock (`invitation_fill`, tried, not waited on) by both the group fan and `invitation_start_due`, so two workers, or a fan
+and a fill, never both pass it for the same player.
 **Why:** Q-421's recommendation, kept to the one channel built so far; promotions must not become the spam ADR-065 warns of.
 **Trade-offs:** an invitation can be lost for a week to a group push; T-706c extends the same helper to SMS and email (ADR-535).
 

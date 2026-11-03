@@ -1,6 +1,12 @@
 "use client";
 
-import type { City, GroupPushView, Interest, Language } from "@questify/shared";
+import {
+  formatNumber,
+  type City,
+  type GroupPushView,
+  type Interest,
+  type Language,
+} from "@questify/shared";
 import styles from "#src/components/catalog.module.css";
 import { cityName } from "#src/lib/cities.ts";
 import { nameIn } from "#src/lib/console.ts";
@@ -47,11 +53,11 @@ function PushRow({
         });
   const counts =
     push.audience === "event"
-      ? t("console.push.row.counts.event", { reach: push.reach })
+      ? t("console.push.row.counts.event", { reach: formatNumber(push.reach, language) })
       : t("console.push.row.counts.promo", {
-          notices: push.notices,
-          reach: push.reach,
-          capped: push.capped,
+          notices: formatNumber(push.notices, language),
+          reach: formatNumber(push.reach, language),
+          capped: formatNumber(push.capped, language),
         });
   return (
     <li className={styles.card} data-testid="push-row" data-state={push.state}>
