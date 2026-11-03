@@ -3,6 +3,7 @@ import {
   REGISTRIES,
   composeConfig,
   isGatedFeature,
+  platformForOrganizer,
   readBranding,
   readEventLayout,
   readEventSwitches,
@@ -20,6 +21,7 @@ import {
   type ComposedConfig,
   type ConfigIssue,
   type EventConfig,
+  type EventLayers,
   type EventLayout,
   type EventTexts,
   type LegalInForce,
@@ -36,18 +38,22 @@ import { recordAudit, type AuditMeta } from "#src/audit/record";
 import {
   deleteEntitlement,
   insertEntitlement,
-  lockEventSwitches,
   lockPlatformBlocks,
   readEntitlements,
+  readEventOverrides,
   readStoredEventConfig,
   readStoredPlatform,
   upsertPlatformBlock,
-  writeEventSwitches,
 } from "#src/settings/store";
 import { saveBranding, saveLayout, saveTerms, saveTexts } from "#src/settings/save-event-config";
+import {
+  readOwnerLayers,
+  saveSwitches,
+  type SwitchActor,
+  type SwitchChange,
+} from "#src/settings/save-event-switches";
 import { runAsAdmin } from "#src/settings/platform-switches";
 import type { PublicAccount } from "#src/auth/staff-store";
-import { teamSeat } from "#src/organizers/store";
 
 export type ConfigResult =
   | Readonly<{ kind: "ok"; config: ComposedConfig; etag: string }>
@@ -56,7 +62,7 @@ export type ConfigResult =
 export type SaveResult =
   | Readonly<{ ok: true }>
   | Readonly<{ ok: false; reason: "invalid"; issues: readonly ConfigIssue[] }>
-  | Readonly<{ ok: false; reason: "forbidden" | "not_found" | "archived" }>;
+  | Readonly<{ ok: false; reason: "forbidden" | "not_found" | "archived" | "not_allowed" }>;
 
 /** A layout save answers with the layout it stored (a preset is laid over the event's cards, so the caller cannot know it). */
 export type LayoutSaveResult =
@@ -101,7 +107,18 @@ export type SettingsService = Readonly<{
     input: unknown,
     meta?: AuditMeta,
   ) => Promise<SaveResult>;
-  /** A member of the organizer replaces the feature switches of one of the organizer's events. */
+  /**
+   * What a member of the organizer sees of an event's features (FR-1826, FR-1827): the ones the platform leaves on for this
+   * organizer, each on, off or (an add-on Questify has not allowed) locked. Undefined when the event is not theirs.
+   */
+  eventLayers: (
+    actor: Readonly<{ staffUserId: string; organizerId: string }>,
+    eventId: string,
+  ) => Promise<EventLayers | undefined>;
+  /**
+   * A member of the organizer replaces the feature switches of one of the organizer's events. A feature the platform or
+   * Questify keeps off for it cannot be switched on (`not_allowed`).
+   */
   saveEventSwitches: (
     actor: Readonly<{ staffUserId: string; organizerId: string }>,
     eventId: string,
@@ -229,7 +246,12 @@ export function createSettingsService(options: SettingsOptions): SettingsService
           return { kind: "event_not_found" } as const;
         }
         const unlocked = await readEntitlements(client, eventId);
-        const body = composeConfig(registries, platform, eventConfigOf(eventId, stored, unlocked));
+        const overrides = await readEventOverrides(client, eventId);
+        const body = composeConfig(
+          registries,
+          platformForOrganizer(registries, platform, overrides),
+          eventConfigOf(eventId, stored, unlocked),
+        );
         return answerOf(body, inForce);
       }),
     );
@@ -250,6 +272,14 @@ export function createSettingsService(options: SettingsOptions): SettingsService
 
   const asAdmin = (admin: PublicAccount, work: (client: PoolClient) => Promise<SaveResult>) =>
     runAsAdmin({ pool: options.pool, forget: forgetAll }, admin, work);
+
+  const changeSwitches = (
+    actor: SwitchActor,
+    eventId: string,
+    meta: AuditMeta,
+    change: (before: Readonly<Record<string, boolean>>) => SwitchChange,
+  ): Promise<SaveResult> =>
+    thenForget(saveSwitches(options.pool, registries, actor, eventId, change, meta));
 
   return {
     platform: async () =>
@@ -298,36 +328,20 @@ export function createSettingsService(options: SettingsOptions): SettingsService
         return { ok: true };
       }),
 
+    eventLayers: (actor, eventId) => readOwnerLayers(options.pool, registries, actor, eventId),
+
     saveEventSwitches: async (actor, eventId, input, meta = {}) => {
       const checked = validateEventConfig(registries, input);
       if (!checked.ok) {
         return { ok: false, reason: "invalid", issues: checked.issues };
       }
       const next = checked.value.features ?? {};
-      const found = await withConnection(options.pool, (client) =>
-        withRequestContext(client, teamSeat(actor), async () => {
-          const current = await lockEventSwitches(client, eventId);
-          if (current === undefined) {
-            return false;
-          }
-          const changes = diff({ features: current.features ?? {} }, { features: next });
-          if ("features" in changes.after) {
-            await writeEventSwitches(client, eventId, next);
-            await recordAudit(client, {
-              actor: { type: "staff", id: actor.staffUserId },
-              action: "event.features.update",
-              organizerId: current.organizerId,
-              eventId,
-              target: { type: "event", id: eventId },
-              ...changes,
-              requestId: meta.requestId,
-            });
-          }
-          return true;
-        }),
-      );
-      forgetAll();
-      return found ? { ok: true } : { ok: false, reason: "not_found" };
+      return changeSwitches(actor, eventId, meta, (before) => ({
+        next,
+        requested: Object.fromEntries(
+          Object.entries(next).filter(([key, enabled]) => enabled && before[key] !== true),
+        ),
+      }));
     },
 
     saveEventSwitch: async (actor, eventId, feature, enabled, meta = {}) => {
@@ -335,32 +349,10 @@ export function createSettingsService(options: SettingsOptions): SettingsService
       if (!checked.ok) {
         return { ok: false, reason: "invalid", issues: checked.issues };
       }
-      const found = await withConnection(options.pool, (client) =>
-        withRequestContext(client, teamSeat(actor), async () => {
-          const current = await lockEventSwitches(client, eventId);
-          if (current === undefined) {
-            return false;
-          }
-          const before = readEventSwitches({ features: current.features });
-          const next = { ...before, [feature]: enabled };
-          const changes = diff({ features: before }, { features: next });
-          if ("features" in changes.after) {
-            await writeEventSwitches(client, eventId, next);
-            await recordAudit(client, {
-              actor: { type: "staff", id: actor.staffUserId },
-              action: "event.features.update",
-              organizerId: current.organizerId,
-              eventId,
-              target: { type: "event", id: eventId },
-              ...changes,
-              requestId: meta.requestId,
-            });
-          }
-          return true;
-        }),
-      );
-      forgetAll();
-      return found ? { ok: true } : { ok: false, reason: "not_found" };
+      return changeSwitches(actor, eventId, meta, (before) => ({
+        next: { ...before, [feature]: enabled },
+        requested: { [feature]: enabled },
+      }));
     },
 
     saveEventTerms: (actor, eventId, input, meta = {}) =>

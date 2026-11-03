@@ -1,6 +1,6 @@
 "use client";
 
-import { FEATURES, type Language, type MessageKey } from "@questify/shared";
+import type { Language, MessageKey } from "@questify/shared";
 import type { ReactNode } from "react";
 import { addonName } from "#src/lib/activation.ts";
 import type { Translate } from "#src/lib/language.ts";
@@ -33,11 +33,6 @@ const ADDON_SUMMARY: Readonly<Record<string, MessageKey>> = { bigScreen: "wizard
 
 /** The pages an unlocked add-on is set up on. */
 const ADDON_PAGE: Readonly<Record<string, string>> = { bigScreen: "big-screen" };
-
-/** The features that are add-ons: hidden for an event until Questify unlocks them (FR-1729). */
-export const ADDONS: readonly string[] = Object.entries(FEATURES)
-  .filter(([, definition]) => definition.gated)
-  .map(([feature]) => feature);
 
 /**
  * An add-on's card (FR-1755). Locked, it explains the add-on, shows a switch that cannot be ticked and offers "Ask

@@ -226,21 +226,23 @@ export function CheersPanel(props: Props) {
       />
       {reading === null ? null : (
         <>
-          <EventFeatureSwitch
-            language={language}
-            feature="cheers"
-            organizerId={organizerId}
-            eventId={eventId}
-            initial={reading.switchOn}
-            myRole={owner ? "owner" : "editor"}
-            onSaved={(on) =>
-              setReading((before) =>
-                before === null
-                  ? before
-                  : { ...before, switchOn: on, endsAt: on ? before.endsAt : null },
-              )
-            }
-          />
+          {reading.platformOn ? (
+            <EventFeatureSwitch
+              language={language}
+              feature="cheers"
+              organizerId={organizerId}
+              eventId={eventId}
+              initial={reading.switchOn}
+              myRole={owner ? "owner" : "editor"}
+              onSaved={(on) =>
+                setReading((before) =>
+                  before === null
+                    ? before
+                    : { ...before, switchOn: on, endsAt: on ? before.endsAt : null },
+                )
+              }
+            />
+          ) : null}
           <MomentSection
             language={language}
             reading={reading}

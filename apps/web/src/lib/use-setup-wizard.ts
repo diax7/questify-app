@@ -3,18 +3,19 @@
 import {
   NO_OVERRIDES,
   readOverrides,
+  type EventLayers,
   type Language,
   type Overrides,
   type SetupProgress,
 } from "@questify/shared";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEventTerms, useTranslator } from "#src/components/TermsScope.tsx";
-import { readActivation, type ActivationView } from "#src/lib/activation.ts";
 import type { EventView } from "#src/lib/events.ts";
 import type { Translate } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { readSetup, withOverrides } from "#src/lib/setup.ts";
+import { useEventLayers } from "#src/lib/use-event-layers.ts";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -25,8 +26,11 @@ export type SetupWizardState = Readonly<{
   event: EventView | null;
   /** Whether `event` was read since the last move: a step shows its switches only from such a read. */
   fresh: boolean;
-  /** The add-ons Questify unlocked for the event; empty when they could not be read, so nothing shows unlocked. */
-  addons: readonly string[];
+  /**
+   * The features the owner may see (FR-1826, FR-1827): the switches, and the add-ons locked or unlocked. Null until read and
+   * when the read failed, so no switch and no add-on shows.
+   */
+  layers: EventLayers | null;
   /** The wizard's words: the shipped texts with what an admin changed laid over them. */
   t: Translate;
   loadFailed: boolean;
@@ -44,7 +48,6 @@ type EventRead = Readonly<{ event: EventView; at: SetupProgress }>;
 type Load = Readonly<{
   progress: SetupProgress;
   event: EventView;
-  activation: ActivationView | null;
   overrides: Overrides;
 }>;
 
@@ -70,33 +73,23 @@ function readBase(setup: PostResult, found: PostResult): Base | "session_lost" |
   return sessionEnded(setup.body, found.body) ? "session_lost" : "failed";
 }
 
-/** The unlocked add-ons and the changed texts; a read that failed is no add-on and no change, not a failure. */
-function readExtras(activated: PostResult, texts: PostResult) {
-  const activation = activated.ok
-    ? readActivation((activated.body as { activation?: unknown } | undefined)?.activation)
-    : undefined;
-  return {
-    activation: activation ?? null,
-    overrides: texts.ok ? readOverrides(texts.body) : NO_OVERRIDES,
-  };
+/** The texts an admin changed; a read that failed is no change, not a failure. */
+function readExtras(texts: PostResult) {
+  return { overrides: texts.ok ? readOverrides(texts.body) : NO_OVERRIDES };
 }
 
-/** What the four reads of the wizard add up to: the loaded data, that the session ended, or that it did not load. */
+/** What the three reads of the wizard add up to: the loaded data, that the session ended, or that it did not load. */
 function readLoad(answers: readonly PostResult[]): Load | "session_lost" | "failed" {
-  const [setup, found, activated, texts] = answers as readonly [
-    PostResult,
-    PostResult,
-    PostResult,
-    PostResult,
-  ];
+  const [setup, found, texts] = answers as readonly [PostResult, PostResult, PostResult];
   const base = readBase(setup, found);
-  return typeof base === "string" ? base : { ...base, ...readExtras(activated, texts) };
+  return typeof base === "string" ? base : { ...base, ...readExtras(texts) };
 }
 
 /**
- * Everything the guided setup reads: its progress, the event (for the switches it shows), the unlocked add-ons and the
- * texts an admin changed (FR-1754, FR-1755, FR-1757). A text or add-on read that fails leaves the shipped texts and a
- * locked card; a failed progress or event read is the error state. Saving replaces the saved progress (the last save wins).
+ * Everything the guided setup reads: its progress, the event (for the switches it shows), the features the owner may see
+ * and the texts an admin changed (FR-1754, FR-1755, FR-1757, FR-1826). A text read that fails leaves the shipped texts; a
+ * feature read that fails shows no switch; a failed progress or event read is the error state. Saving replaces the saved
+ * progress (the last save wins).
  */
 export function useSetupWizard(
   language: Language,
@@ -108,12 +101,12 @@ export function useSetupWizard(
   const shipped = useTranslator(language);
   const [progress, setProgress] = useState<SetupProgress | null>(null);
   const [eventRead, setEventRead] = useState<EventRead | null>(null);
-  const [activation, setActivation] = useState<ActivationView | null>(null);
   const [overrides, setOverrides] = useState<Overrides>(NO_OVERRIDES);
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const loaded = useRef(false);
+  const { layers } = useEventLayers(organizerId, eventId);
 
   useEffect(() => {
     if (loaded.current) {
@@ -123,7 +116,6 @@ export function useSetupWizard(
     void Promise.all([
       requestJson("GET", `${base}/setup`),
       requestJson("GET", base),
-      requestJson("GET", `${base}/activation`),
       requestJson("GET", "/v1/translations"),
     ]).then((answers) => {
       const read = readLoad(answers);
@@ -134,7 +126,6 @@ export function useSetupWizard(
       } else {
         setProgress(read.progress);
         setEventRead({ event: read.event, at: read.progress });
-        setActivation(read.activation);
         setOverrides(read.overrides);
       }
     });
@@ -193,7 +184,7 @@ export function useSetupWizard(
     progress,
     event: eventRead?.event ?? null,
     fresh: eventRead?.at === progress,
-    addons: activation?.addons ?? [],
+    layers,
     t,
     loadFailed,
     busy,

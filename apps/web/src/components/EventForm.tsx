@@ -32,7 +32,10 @@ import { EventWords } from "#src/components/EventWords.tsx";
 import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
 import { EventBranding } from "#src/components/EventBranding.tsx";
 import { EventFeatureSwitch } from "#src/components/EventFeatureSwitch.tsx";
+import { AddonCard } from "#src/components/SetupParts.tsx";
 import { StreakPanel } from "#src/components/StreakPanel.tsx";
+import { addOnRows, isSwitchListed } from "#src/lib/event-layers.ts";
+import { useEventLayers } from "#src/lib/use-event-layers.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { FieldGroup, Form } from "#src/ui/Field.tsx";
@@ -556,6 +559,7 @@ function EventFeatures({
   myRole: "owner" | "editor";
 }>) {
   const t = useTranslator(language);
+  const { layers, failed } = useEventLayers(organizerId, event.id);
   return (
     <>
       <EventBranding
@@ -565,24 +569,45 @@ function EventFeatures({
         initial={event.branding?.accent ?? null}
       />
       <Section title={t("events.section.features")}>
+        {failed ? (
+          <Notice role="alert" tone="danger">
+            {t("features.loadFailed")}
+          </Notice>
+        ) : null}
         <Rows as="div">
           <RankingSwitch
             language={language}
             organizerId={organizerId}
             eventId={event.id}
             initial={{ ranking: event.ranking, rankingToday: event.rankingToday }}
+            offered={{
+              ranking: isSwitchListed(layers, "ranking"),
+              rankingToday: isSwitchListed(layers, "rankingToday"),
+            }}
             myRole={myRole}
           />
-          {FEATURE_SWITCHES.map(([feature, initial]) => (
-            <EventFeatureSwitch
-              key={feature}
+          {FEATURE_SWITCHES.filter(([feature]) => isSwitchListed(layers, feature)).map(
+            ([feature, initial]) => (
+              <EventFeatureSwitch
+                key={feature}
+                language={language}
+                feature={feature}
+                organizerId={organizerId}
+                eventId={event.id}
+                initial={initial(event)}
+                myRole={myRole}
+                live={event.statusNow === "live"}
+              />
+            ),
+          )}
+          {addOnRows(layers).map((row) => (
+            <AddonCard
+              key={row.key}
+              t={t}
               language={language}
-              feature={feature}
-              organizerId={organizerId}
-              eventId={event.id}
-              initial={initial(event)}
-              myRole={myRole}
-              live={event.statusNow === "live"}
+              feature={row.key}
+              unlocked={row.state === "on"}
+              eventPages={`/${language}/organizers/${organizerId}/events/${event.id}`}
             />
           ))}
         </Rows>

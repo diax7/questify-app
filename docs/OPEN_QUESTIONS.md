@@ -2154,7 +2154,25 @@ address and carries ids, names of events and organizers, reason codes and a cons
 **Recommended (developer):** yes, bounded so it can never starve sign-in mail: one digest per 10 minutes, 100 a day on its
 own budget bucket (never `outboundMailPerDay`); past that only the console badge.
 
-<<<<<<< HEAD
+## Q-460 - Should the override also reach boosts, community, meet-someone and mini-games? (T-711, ADR-500)
+
+**Status:** Proposed (developer, 2026-11-03).
+Their platform switch is read platform-wide in code and their SQL rules are in the points path. **Recommended (developer):** yes, in T-711b as a tier A task: the four SQL rules call `feature_enabled`, the four TypeScript readers take the event, the community tick decides `mayStart` per goal's event, with a plan review and mutation on the touched TypeScript.
+
+## Q-461 - Should a Questify-wide or compliance-gated feature be overridable per organizer? (T-711, ADR-500)
+
+**Status:** Proposed (developer, 2026-11-03).
+Location quests wait on the store privacy answers; invitation campaigns on consent and the promotional SMS sender; the daily games, streak, push and username changes have no organizer. **Recommended (developer):** no. An override that opens location quests for one organizer would put the store declaration (ADR-208) at risk.
+
+## Q-462 - Is Ask Questify a contact link or a recorded request? (T-711, ADR-502)
+
+**Status:** Proposed (developer, 2026-11-03).
+FR-1827 says "an Ask Questify request" and that an approved request makes the switch work. **Recommended (developer):** build the recorded request in T-711b (one row per event and feature, the owner taps once, the console lists open requests with Allow and Decline, Allow is the existing unlock); until then the card opens the Contact page.
+
+## Q-463 - May an admin forbid an ordinary feature for one event? (T-711, ADR-502)
+
+**Status:** Proposed (developer, 2026-11-03).
+FR-1827's "only if Questify has allowed it for that event" could mean every feature needs a per-event allowance. **Recommended (developer):** no; only add-ons are allowed per event. A feature to hold back from one organizer is an override Off (ADR-501); a risky new feature ships platform Off with an override On for the pilot organizers (ADR-105: "an override per organizer does the same job" as a beta label).
 ## Q-480 - Should the view as organizer cover the whole organizer, not one event? (T-712, ADR-520)
 
 **Status:** Proposed (developer, 2026-11-03).
@@ -2177,7 +2195,6 @@ adds one row a minute instead of one every few seconds.
 **Status:** Proposed (developer, 2026-11-03).
 **Recommended (developer):** no: the view must show what the organizer sees, and the edit grant already shows it; the
 view is one event, 15 minutes, no exports, every record logged by id.
-=======
 ## Q-430 - Should a platform admin who also plays be exempt from maintenance mode? (T-703b, ADR-471)
 
 **Status:** Proposed (developer, 2026-11-03).
@@ -2195,4 +2212,3 @@ The server answers 503 `maintenance` with the message, and the app shows the mes
 **Status:** Proposed (developer, 2026-11-03).
 FR-1772 asks for one scheduled banner on Questify Home. The block holds one banner; a second replaces the first, and an event's own announcements (T-505) already reach that event's players.
 **Recommended (developer):** keep one banner for v1.
->>>>>>> main
