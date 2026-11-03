@@ -6,6 +6,7 @@ import {
   TRANSLATIONS_REFRESH_MS,
   cachedTranslations,
   loadTranslations,
+  refreshJitterMs,
 } from "#src/config/translations.ts";
 
 const sameTexts = (a: Overrides, b: Overrides): boolean => JSON.stringify(a) === JSON.stringify(b);
@@ -20,6 +21,8 @@ export function useOverrides(): Overrides {
   useEffect(() => {
     let active = true;
     let timer: ReturnType<typeof setInterval> | undefined;
+    let first: ReturnType<typeof setTimeout> | undefined;
+    const jitter = refreshJitterMs();
     const show = (next: Overrides): void => {
       if (active) {
         setTexts((current) => (sameTexts(current, next) ? current : next));
@@ -33,10 +36,12 @@ export function useOverrides(): Overrides {
       );
     };
     const start = (): void => {
-      refresh();
-      timer ??= setInterval(refresh, TRANSLATIONS_REFRESH_MS);
+      clearTimeout(first);
+      first = setTimeout(refresh, jitter);
+      timer ??= setInterval(refresh, TRANSLATIONS_REFRESH_MS + jitter);
     };
     const stop = (): void => {
+      clearTimeout(first);
       clearInterval(timer);
       timer = undefined;
     };

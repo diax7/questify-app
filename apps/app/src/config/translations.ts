@@ -7,6 +7,13 @@ export const TRANSLATIONS_KEY = "questify.translations";
 /** How often a phone in the foreground asks again; an unchanged answer is a 304 with no body. */
 export const TRANSLATIONS_REFRESH_MS = 30_000;
 
+/** The longest random wait added to a phone's first refresh and its interval, so phones that start together drift apart. */
+export const TRANSLATIONS_JITTER_MS = 5_000;
+
+/** A random wait of 0 up to `TRANSLATIONS_JITTER_MS` (the random source is a parameter for tests). */
+export const refreshJitterMs = (random: () => number = Math.random): number =>
+  Math.floor(random() * TRANSLATIONS_JITTER_MS);
+
 type Cached = Readonly<{ etag: string | null; body: unknown }>;
 
 async function readCached(store: KeyValueStore): Promise<Cached | undefined> {
@@ -44,10 +51,14 @@ export async function loadTranslations(
     ...(cached?.etag == null ? {} : { headers: { "if-none-match": cached.etag } }),
   });
   if (answer.kind === "ok" && typeof answer.body === "object" && answer.body !== null) {
-    await deps.store.setItem(
-      TRANSLATIONS_KEY,
-      JSON.stringify({ etag: answer.headers.get("etag"), body: answer.body } satisfies Cached),
-    );
+    try {
+      await deps.store.setItem(
+        TRANSLATIONS_KEY,
+        JSON.stringify({ etag: answer.headers.get("etag"), body: answer.body } satisfies Cached),
+      );
+    } catch {
+      // The copy could not be kept, so the next start shows the shipped texts until the next answer; this answer still shows.
+    }
     return readOverrides(answer.body);
   }
   return cached === undefined ? NO_OVERRIDES : readOverrides(cached.body);
