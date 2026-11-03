@@ -1637,6 +1637,8 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   reveal_category: "exempt: reveals a hidden category, which stays community-locked (tested)",
   set_goal: "exempt: a player may pin a locked reward (CTO 8, tested)",
   event_has_live: "exempt: a boolean for the live cache; names nothing",
+  play_event_id:
+    "exempt: returns only the event id of a quest, step, category, reward or join code for the maintenance wall; it plays and pays nothing (T-703b)",
   cancel_redemption: "exempt: a redemption already made",
   deletion_pending: "exempt: redemptions already made",
   console_player_pending: "exempt: redemptions already made (the admin erase, T-708)",

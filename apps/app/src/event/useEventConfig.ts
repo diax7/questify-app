@@ -5,6 +5,7 @@ import {
   type AccentKey,
   type ComposedConfig,
   type ComposedLayout,
+  type LocalizedText,
   type EventTerms,
   type EventTexts,
 } from "@questify/shared";
@@ -27,6 +28,8 @@ export type EventSettings = Readonly<{
   accent: AccentKey | null;
   /** The event's bar and Home blocks to show, in order (T-606); Questify's own until the configuration says otherwise. */
   layout: ComposedLayout;
+  /** Why play is paused in this event (T-703b, FR-1771), in both languages; null while it runs. */
+  maintenance: LocalizedText | null;
 }>;
 
 /**
@@ -41,16 +44,19 @@ export function useEventConfig(eventId: string): EventSettings {
   const [helpOn, setHelpOn] = useState(true);
   const [livePollSeconds, setLivePollSeconds] = useState(() => livePollSecondsOf(undefined));
   const [config, setConfig] = useState<ComposedConfig | undefined>(undefined);
+  const [maintenance, setMaintenance] = useState<LocalizedText | null>(null);
   useEffect(() => {
     // Another event never keeps the last one's words, even for the moment before its own load.
     setTerms(DEFAULT_TERMS);
     setLocationOn(false);
     setConfig(undefined);
+    setMaintenance(null);
     let current = true;
     void loadEventConfig({ client: api.session, store: keyValueStore }, eventId, (loaded) => {
       if (current) {
         setTerms(loaded.terms);
         setConfig(loaded);
+        setMaintenance(loaded.maintenance);
         setLocationOn(locationQuestsOn(loaded));
         setNfcOn(nfcTagsOn(loaded));
         setHelpOn(helpDeskOn(loaded));
@@ -75,5 +81,6 @@ export function useEventConfig(eventId: string): EventSettings {
     featureOn,
     accent: config?.branding.accent ?? null,
     layout: config?.layout ?? DEFAULT_COMPOSED_LAYOUT,
+    maintenance,
   };
 }

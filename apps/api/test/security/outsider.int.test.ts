@@ -3151,6 +3151,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       expect(held).toEqual([]);
     });
 
+    it("cannot read or change maintenance mode and the banner, or find an event behind a play door (T-703b)", async () => {
+      for (const sql of [
+        "SELECT public.play_event_id('quest', gen_random_uuid()::text)",
+        "SELECT public.play_event_id('join_code', 'NAJD1')",
+        "SELECT * FROM public.platform_setting",
+        'INSERT INTO public.platform_setting (key, value) VALUES (\'maintenance\', \'{"global": {"ar": "x", "en": "x"}}\')',
+        "UPDATE public.platform_setting SET value = '{}' WHERE key IN ('maintenance', 'banner')",
+        "DELETE FROM public.platform_setting WHERE key IN ('maintenance', 'banner')",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const held = await rows<{ proname: string }>(
+        `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         WHERE n.nspname = 'public' AND p.proname = 'play_event_id'
+           AND (has_function_privilege('public', p.oid, 'EXECUTE')
+             OR has_function_privilege('questify_outsider', p.oid, 'EXECUTE'))`,
+      );
+      expect(held).toEqual([]);
+    });
+
     it("cannot create anything", async () => {
       await expect(db.outsider.query("CREATE TABLE public.sneaky (id int)")).rejects.toThrow(
         /permission denied/,

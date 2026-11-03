@@ -7099,6 +7099,7 @@ A disputed owner email change (ADR-491) is a line of the same digest.
 **Decision:** FR-1732's urgent marker, due time and alert apply to content and username reports in Questify's queue. Tickets escalated by an event team keep the Tickets page's order.
 **Trade-offs:** an escalated ticket from a live event is not put first.
 
+<<<<<<< HEAD
 ## ADR-520 - T-712 the view as organizer is a `view` kind of the support grant
 
 **Status:** Proposed (developer, 2026-11-03; T-712 plan section 2). Migration 0133.
@@ -7148,3 +7149,34 @@ secret, so they stay open.
 **Status:** Proposed (developer, 2026-11-03; T-712 plan section 5; follows Q-373 and ADR-409).
 **Decision:** only the admin sees the banner; view entries live in Questify's audit log, shown on the console's event
 and organizer pages. FR-1837's "event's log" is read as that log.
+=======
+## ADR-470 - Maintenance mode and the banner are two more `platform_setting` blocks, composed into the configuration
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-703b code review 84, MAJOR fixed; T-703b; FR-1771, FR-1772; migration 0134; plan `docs/plans/2026-11-03-t-703b-maintenance-banner.md`).
+**Decision:** `platform_setting` gains the keys `maintenance` (`{global?: {ar,en}, events: {<event id>: {ar,en}}}`; a message present means play is paused) and `banner` (`{message: {ar,en}, startsAt, endsAt}`; `{}` is none, since rows are never deleted). Migration 0134 widens the write policies of 0122 by exactly these two keys (active platform admin only) and adds a CHECK that each block holds only its own fields. `GET /v1/config` and `GET /v1/events/{id}/config` carry `maintenance` (the event's own message, else the platform-wide one, else null; the platform document carries the platform-wide one only) and `banner` (with its window). The composer stays pure: the phone compares the window with its own clock, so a kept copy stops showing a finished banner and a maintenance message never needs a store release. An older app drops the blocks; an older cached copy reads as none; a half message or a backwards window reads as none.
+**Trade-offs:** an ended banner stays in the document until an admin removes it (harmless, the phone ignores it); one banner at a time.
+
+## ADR-471 - Maintenance holds every door that earns or spends with 503 `maintenance`; everything else stays open
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-703b code review 84, MAJOR fixed; T-703b; FR-1771; widened after the T-703b code review, which found earning doors left open).
+**Decision:** While the platform or the door's event has a message, the doors that earn or spend answer `503 maintenance` with the message in both languages, `details.scope` (`platform` or `event`) and `Retry-After: 60`. The list is `PLAY_DOORS` in `src/maintenance/gate.ts`. `test/security/maintenance-doors.int.test.ts` walks every player and device write route and fails unless it is in `PLAY_DOORS` or on that test's commented open list, so a new earning door cannot ship unpaused.
+- **Held with their event:** quest complete, vote, survey, share, quiz start, next and answer, submit and game rounds (by the quest), game result (by the round), passport stamp, category reveal, reward reserve, desk-sale accept, event goal, join, operator play, and the kiosk scan (by the event the kiosk is paired to).
+- **Held on a platform-wide pause only:** NFC tap, meet, Questify sync, the daily challenge and word, gem purchases. An NFC tap and a meet name their event only inside a signed tag code or a one-minute pass, and the daily and gem doors belong to Questify, not to an event; finding the event would cost a key or a lookup in the wall, so an event's own pause does not reach them.
+- **Operator doors (the choice):** the doors that pay a player from a station phone are held with their event: the scan (the quest in the body), the manual award (the event in the body), the session check-in (the session) and the submission review (the event in the path). The rest of operator mode stays open because it pays or spends nothing, or it delivers or gives back what a held door already took: invite claim and preview, look-ups and find-player, the desk offer and its withdraw, hand-over, cancel at the desk, device pairing, NFC tag writing and the practice scan. The organizer's dashboard (everything under `/v1/organizers`: awards, bulk awards, review, settings), the whole console and the configuration door are never held, so the team and a platform admin are never locked out; a team that must keep awarding during a pause does it from the dashboard, where every award is audited with the actor.
+- **Open:** reads, leaving an event, cancelling or declining a redemption or an offer, prize handover (the points were spent at the reservation), deletion, acceptances, the player's own settings, help-desk tickets, agenda seats, cheers and quest ratings (they earn nothing).
+
+The 503 frees the idempotency key, so the same call runs after maintenance. The wall is a `preHandler` after the player and device guards, read from the settings service's cache (15 seconds, cleared on every save, so one server follows a save at once and others within 15 seconds). For an event's own pause, `play_event_id(kind, ref)` (migration 0134, definer, API role only, ids only) finds the event of a quest, step, category, reward, session, desk sale, game round or join code; it is called only while some event has a message and no platform-wide one applies. Migration 0134 also seeds the `maintenance` and `banner` rows empty, so the admin's first save locks a row and two first pauses both land.
+**Trade-offs:** a platform admin who also plays is held like any player (Q-430); an event's own pause leaves taps, meets and Questify's own doors open (a platform-wide pause holds them); a station operator is held at the scan while the dashboard stays open; the refused screen shows the app's usual "try again" text, not the message (Q-431).
+
+## ADR-472 - The console pauses one event by its join code; resuming removes the key; every change is audited
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-703b code review 84, MAJOR fixed; T-703b).
+**Decision:** `GET /v1/admin/switches/notices`; `PUT`/`DELETE /v1/admin/switches/maintenance/global`; `PUT /v1/admin/switches/maintenance/events` (`{joinCode, message}`, 404 when no event has the code); `DELETE /v1/admin/switches/maintenance/events/{eventId}`; `PUT`/`DELETE /v1/admin/switches/banner`. Each runs through `throttled` and the catalog write limit, re-checks the admin, and writes `platform_settings.update` with the block before and after (nothing when it would not change). The Switches page gets a third tab, Maintenance and banner; an admin finds the event by the join code printed everywhere, never by an id.
+**Trade-offs:** the banner is edited as a whole (message and window together); times are entered in the admin's browser time zone and stored as instants.
+
+## ADR-473 - The app shows the pause and the banner as notices, not as a blocking screen
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-703b code review 84, MAJOR fixed; T-703b; `docs/STORE_COMPLIANCE.md`: configuration is data and never downloads a feature).
+**Decision:** Questify Home lists the platform-wide pause, the banner while the phone's clock is inside its window, and the switched-off features' messages (`PlatformNotices`); the event pill shows the event's pause on every event tab. Nothing is blocked on the phone: the server refuses the play doors, and the screens keep working from their cached data. No new screen, feature or code is delivered by configuration.
+**Trade-offs:** a refused scan shows the app's usual "try again" text, not the maintenance message (Q-431).
+>>>>>>> main

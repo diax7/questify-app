@@ -8,7 +8,7 @@ import type {
 } from "#src/config/registry";
 
 /** A message shown to players while a feature is off: both languages or none. */
-const messageSchema = z.strictObject({
+export const messageSchema = z.strictObject({
   ar: z.string().trim().min(1).max(300),
   en: z.string().trim().min(1).max(300),
 });

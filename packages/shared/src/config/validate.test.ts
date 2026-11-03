@@ -178,6 +178,8 @@ describe("parseComposedConfig", () => {
     texts: NO_EVENT_TEXTS,
     branding: { accent: null },
     layout: DEFAULT_COMPOSED_LAYOUT,
+    maintenance: null,
+    banner: null,
   };
 
   it("accepts a composed document", () => {

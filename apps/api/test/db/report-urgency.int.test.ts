@@ -93,6 +93,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("urgent reports (database)", ()
     expect(await alertsOf(normal)).toBe(0);
   });
 
+  it("deletes a username alert with the username report an erasure deletes", async () => {
+    const live = await f.newEvent({ phase: "live" });
+    const [reporter, reported] = [await f.newPlayer(), await f.newPlayer()];
+    await f.join(live, reporter);
+    await f.join(live, reported);
+    const [named] = await f.owner<{ username: string }>(
+      "SELECT username FROM player WHERE id = $1",
+      [reported],
+    );
+    await f.one<string>(
+      { playerId: reporter },
+      "SELECT report_content('username', NULL, $1, $2, 'offensive', NULL) AS r",
+      [named?.username, live],
+    );
+    expect(await alertsOf(reported)).toBe(1);
+    await f.owner("DELETE FROM content_report WHERE target_kind = 'username' AND target_id = $1", [
+      reported,
+    ]);
+    expect(await alertsOf(reported)).toBe(0);
+  });
+
   it("makes one alert of two urgent reports arriving together", async () => {
     const live = await f.newEvent({ phase: "live" });
     const players = [await f.newPlayer(), await f.newPlayer()];
