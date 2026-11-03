@@ -1,4 +1,5 @@
 import type { LocalizedText } from "#src/errors";
+import { readBanner, readMaintenance } from "#src/maintenance/notices";
 import type { PlatformFeatureSetting, PlatformSettings } from "./registry";
 
 const VERSION = /^[0-9]+(\.[0-9]+){1,2}$/;
@@ -36,6 +37,8 @@ function readFeature(value: unknown): PlatformFeatureSetting {
 export function readPlatformSettings(stored: {
   features?: unknown;
   tuning?: unknown;
+  maintenance?: unknown;
+  banner?: unknown;
 }): PlatformSettings {
   const features = isRecord(stored.features)
     ? Object.fromEntries(
@@ -49,9 +52,14 @@ export function readPlatformSettings(stored: {
         ),
       )
     : undefined;
+  const banner = readBanner(stored.banner);
   return {
     ...(features === undefined ? {} : { features }),
     ...(tuning === undefined ? {} : { tuning }),
+    ...(stored.maintenance === undefined
+      ? {}
+      : { maintenance: readMaintenance(stored.maintenance) }),
+    ...(banner === undefined ? {} : { banner }),
   };
 }
 

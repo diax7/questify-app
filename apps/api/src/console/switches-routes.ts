@@ -23,7 +23,7 @@ export type ConsoleSwitchesDeps = Pick<ConsolePlatformDeps, "pool" | "keys"> &
   Readonly<{ settings: SettingsService }>;
 
 /** The admin of a request that passed the console hook. */
-function accountOf(request: FastifyRequest): PublicAccount {
+export function accountOf(request: FastifyRequest): PublicAccount {
   const account = request.staff?.account;
   // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the console hook sets it or answers
   if (account === undefined) {
@@ -32,12 +32,12 @@ function accountOf(request: FastifyRequest): PublicAccount {
   return account;
 }
 
-function refuseInvalid(issues: readonly ConfigIssue[]) {
+export function refuseInvalid(issues: readonly ConfigIssue[]) {
   return invalidCatalog({ issues: issues.map(({ path, message }) => ({ path, message })) });
 }
 
 /** A save's answer: nothing to say on success, 404 for a refused caller, the named fields for a bad value. */
-function settle(saved: SaveResult): void {
+export function settle(saved: SaveResult): void {
   if (saved.ok) {
     return;
   }

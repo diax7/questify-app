@@ -1,5 +1,6 @@
 import { DEFAULT_BRANDING, type Branding } from "#src/design/accents";
 import type { LocalizedText } from "#src/errors";
+import { maintenanceFor, type BannerSetting } from "#src/maintenance/notices";
 import { playerDocuments, type LegalInForce } from "#src/legal/documents";
 import { DEFAULT_COMPOSED_LAYOUT, composedLayoutOf, type ComposedLayout } from "#src/layout/layout";
 import type { EventConfig, PlatformSettings, Registries } from "./registry";
@@ -32,6 +33,10 @@ export type ComposedConfig = Readonly<{
   branding: Branding;
   /** The event's bar and Home blocks to show, in order (T-606, FR-1749); Questify's own outside an event. */
   layout: ComposedLayout;
+  /** Why play is paused (T-703b, FR-1771): the event's own message, else the platform-wide one; null when play runs. */
+  maintenance: LocalizedText | null;
+  /** The banner for Questify Home (FR-1772) with its window; the app compares it with its own clock. */
+  banner: BannerSetting | null;
 }>;
 
 /** The configuration before the legal block: what the shipped defaults, the platform and the event decide. */
@@ -106,6 +111,8 @@ export function composeConfig(
     features: composeFeatures(registries, platform, event),
     tuning: composeTuning(registries, platform),
     ...composeEventLook(event),
+    maintenance: maintenanceFor(platform.maintenance, event?.id),
+    banner: platform.banner ?? null,
   };
 }
 

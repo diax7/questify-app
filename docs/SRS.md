@@ -1363,8 +1363,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1768 | F-277 | Must | pending |
 | FR-1769 | F-278 | Must | built (T-703, ADR-453: switch, message in both languages, notice on Home; `test/console/switches`, `src/config/notices.test`) |
 | FR-1770 | F-279 | Should | partly built (T-703, ADR-451: ranges enforced, rehearsal cap, readiness days, flag numbers, username days, live poll; the other numbers are Q-410) |
-| FR-1771 | F-280 | Should | pending (T-703b) |
-| FR-1772 | F-281 | Should | pending (T-703b) |
+| FR-1771 | F-280 | Should | built (T-703b) |
+| FR-1772 | F-281 | Should | built (T-703b) |
 | FR-1773 | F-282 | Must | built (T-007 and ADR-412; `apps/app/src/config/remote.test`) |
 | FR-1774 | F-283 | Must | built (T-704: search, read-only record and points record, every look audited) |
 | FR-1775 | F-284 | Should | partly built (T-704: rename and sign-in reset; merging accounts dropped from v1 by Dhia, ADR-423) |

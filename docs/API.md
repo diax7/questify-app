@@ -30,7 +30,12 @@
 - **Errors:** one envelope everywhere: `{ "code": "<machine_code>", "message": { "ar", "en" },
   "details": {} }`. Status codes: 400 bad input, 401 not signed in, 403 not allowed or paused, 404,
   409 conflict (e.g. already completed), 422 rule failure, 426 update the app, 429 too many
-  requests / busy, 503 maintenance (with the maintenance message).
+  requests / busy, 503 `maintenance` (T-703b, ADR-471: `message` is the admin's own text in both languages and
+  `details.scope` is `platform` or `event`). It carries `Retry-After: 60` and is answered by the doors that earn or spend
+  only while Questify paused play (a scan, a vote, a quiz, a submission, a game, a tap, a meeting, a stamp, a reveal, a
+  reservation, the goal, joining, the kiosk, the station's scan, award and check-in, Questify's sync, the daily
+  challenge and the gem shop); reads, leaving, ratings, prize handover, the dashboard and the console are never held. `GET /v1/config` and `GET /v1/events/{id}/config` carry `maintenance` (`{ar, en}` or null) and
+  `banner` (`{message, startsAt, endsAt}` or null).
 - **Pagination:** cursor-based (`?cursor=&limit=`); lists return `nextCursor`.
 - **Idempotency:** every unsafe action (complete a quest, award points, reserve a prize, send a
   message, redeem) requires an `Idempotency-Key` header. The server keeps the first result for 24
@@ -585,6 +590,13 @@ limited editor cannot create events (403 `scope_limited`, T-102). The database c
 | `DELETE /v1/admin/switches/features/{key}` | admin | → 204: puts the switch back to the app's own (the key is removed). Audited | 401, 404 (also an unknown key) |
 | `PUT /v1/admin/switches/tuning/{key}` | admin | `{value}` → 204 (T-703, ADR-451): a whole number inside the registry's range (`min` and `max` are in the GET); numbers marked `serverOnly` are read by the server and never sent to a phone. Audited as above | 401, 404, 422 `invalid_catalog` |
 | `DELETE /v1/admin/switches/tuning/{key}` | admin | → 204: puts the number back to the default. Audited | 401, 404 |
+| `GET /v1/admin/switches/notices` | admin | → `{maintenance: {global: {ar, en} \| null, events: [{eventId, joinCode, name: {ar, en}, message}]}, banner: {message, startsAt, endsAt} \| null}` (T-703b): the pauses in force and the scheduled banner | 401, 404 |
+| `PUT /v1/admin/switches/maintenance/global` | admin | `{message: {ar, en}}` → 204 (T-703b, ADR-470, ADR-471): pauses play everywhere; both languages, 1 to 300 characters each. Audited `platform_settings.update` (block `maintenance`, before and after) | 401, 404, 422 `invalid_catalog` |
+| `DELETE /v1/admin/switches/maintenance/global` | admin | → 204: play runs again everywhere. Audited | 401, 404 |
+| `PUT /v1/admin/switches/maintenance/events` | admin | `{joinCode, message: {ar, en}}` → 204 (ADR-472): pauses the one event with that join code | 401, 404 (also no such event), 422 |
+| `DELETE /v1/admin/switches/maintenance/events/{eventId}` | admin | → 204: the event plays again (also when it was not paused). Audited | 401, 404 |
+| `PUT /v1/admin/switches/banner` | admin | `{message: {ar, en}, startsAt, endsAt}` → 204 (FR-1772): ISO instants, the end after the start; replaces the banner. Audited (block `banner`) | 401, 404, 422 |
+| `DELETE /v1/admin/switches/banner` | admin | → 204: removes the banner (an empty block is stored). Audited | 401, 404 |
 | `POST /v1/admin/help/{id}/revert` | admin | `{}` → `{article}`: puts back the `before` of the article's latest catalog entry (audited `catalog.help.revert`). Idempotency-Key required | 401, 404, 409 `nothing_to_revert` / `stale`, 422 |
 | `GET /v1/admin/message-templates` | admin | → `{templates: [{key, title: {ar, en} \| null, body: {ar, en}, updatedAt, revertible}]}` (T-706, FR-1780, ADR-461): the four templates `login_code_sms`, `promo_email`, `promo_push`, `promo_sms` | 401, 404, 429 |
 | `PUT /v1/admin/message-templates/{key}` | admin | `{title: {ar, en} \| null, body: {ar, en}}` → `{template}`. The CST rules: both languages written, an SMS names Questify, a login-code SMS says it is a sign-in code and holds `{code}`, a promotional SMS or email holds `{optOutUrl}`, no other placeholder, an SMS within 3 parts; a title on email and push only. A refusal names the fields: `details.issues` is `[{path: "body.en", message: "placeholderMissing"}]`. Audited `catalog.message_template.update` (before and after); a save that changes nothing writes nothing | 400 unknown key, 401, 404, 422 `invalid_catalog` |

@@ -14,6 +14,7 @@ import {
   type ComposedLayout,
   type EventTerms,
   type EventTexts,
+  type LocalizedText,
   type MemberSponsors,
 } from "@questify/shared";
 import { api, keyValueStore } from "#src/api/app-session.ts";
@@ -57,6 +58,8 @@ type EventValue = Readonly<{
    * apply the event's switches: a layout never shows what a switch took away.
    */
   layout: ComposedLayout;
+  /** Why play is paused in this event (T-703b, FR-1771), in both languages; null while it runs. */
+  maintenance: LocalizedText | null;
   /** Seconds between reads of what is live (T-306, ADR-221): the configuration's tuning, else the default. */
   livePollSeconds: number;
   /** Counts payments made outside a tab's own flow (the live poll card, T-306): Home and Quests read again on it. */
@@ -101,8 +104,18 @@ export function EventProvider({
     void markOpened(keyValueStore, eventId, Date.now());
     void load();
   }, [eventId, load]);
-  const { terms, texts, locationOn, nfcOn, helpOn, livePollSeconds, featureOn, accent, layout } =
-    useEventConfig(eventId);
+  const {
+    terms,
+    texts,
+    locationOn,
+    nfcOn,
+    helpOn,
+    livePollSeconds,
+    featureOn,
+    accent,
+    layout,
+    maintenance,
+  } = useEventConfig(eventId);
   const { theme: baseTheme } = useTheme();
   const eventTheme = useMemo(() => themeWithAccent(baseTheme, accent), [baseTheme, accent]);
   const kind = events?.find((event) => event.id === eventId)?.kind;
@@ -122,6 +135,7 @@ export function EventProvider({
       featureOn,
       accent,
       layout,
+      maintenance,
       livePollSeconds,
       paidCount,
       notePaid,
@@ -141,6 +155,7 @@ export function EventProvider({
       featureOn,
       accent,
       layout,
+      maintenance,
       livePollSeconds,
       paidCount,
       notePaid,
