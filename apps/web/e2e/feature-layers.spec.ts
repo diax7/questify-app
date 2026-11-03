@@ -93,9 +93,9 @@ test("in English the console's override brings a platform-off feature back for o
 
   await page.goto(consolePage);
   await shopCard.getByLabel("Shop for this organizer").selectOption("platform");
+  await expect(shopCard.getByText("Override: off")).toHaveCount(0);
   await mapsCard.getByLabel("Maps for this organizer").selectOption("platform");
   await expect(mapsCard.getByText("Override: on")).toHaveCount(0);
-  await expect(shopCard.getByText("Override: off")).toHaveCount(0);
   await resetPlatform(page);
 });
 
