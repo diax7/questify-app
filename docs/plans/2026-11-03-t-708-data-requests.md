@@ -378,6 +378,21 @@ Download my data (writes, shares, deletes the cache file on success and on error
 Rate limits reuse the console's `throttled` helper (`console/players/routes.ts`) for the admin routes and `holdBack`
 with the player's key for the player route; no new copy of either.
 
+## Build notes (2026-11-03)
+
+- **Timing (section 6):** `player_data_export` for 50 events, 10,000 ledger entries, 2,000 notifications and 500
+  submissions (a 1.5 MB file) takes 1.0 s cold and 0.84 s warm on the local database, inside the 5 s statement budget;
+  no index was missing and no per-section cap is needed yet. The DB test keeps a smaller busy-player case.
+- **Catalog findings:** no personal free text was found in a kept table, so 0129 restates no `erase_rows`. The app
+  install id (`device_id` on completions, flags, stamps, passes and game rounds) and the survey answers are the player's
+  own data in FK-less columns (`personal` in the catalog). `operator_invite.email` is already cleared on claim (0026).
+- **Deviations:** the export helpers are named `data_export_*` (T-608's `export_*` doors are a closed list in the
+  outsider suite); the admin erase's username mismatch answers 409 `confirmation_required` through its own error
+  (`eraseConfirmationRequired`), since T-709c's helper carries other details; `staff-cli reapply-erasures <file>` reads
+  ids and `player.deleted` log lines from a file the operator gathers (the CLI cannot read the log store); the T-217 race
+  tests with a join and a reservation are not repeated for the admin path (both paths share `erase_account` and its
+  locks); the player route is registered with the deletion routes (the app's `buildApp` is at its line limit).
+
 ## 12. Mutation targets (TS only, ADR-355)
 
 `apps/api/src/privacy/**/*.ts` (the export route and its door call), `apps/api/src/console/players/data-request-*.ts`

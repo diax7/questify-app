@@ -663,3 +663,19 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
   then record it in the audit log as a system entry (`support.closed`).
 - **Suspensions** are made and lifted from the console (Organizers, or an event's page); the API walls of other
   instances follow within 10 seconds, the database walls at once.
+
+## Re-apply erasures after a restore (T-708, ADR-484)
+
+A restore brings back accounts erased after the backup was taken. After **any** database restore, before the API takes
+traffic:
+
+1. Gather the ids erased since the backup's time: the API's `player.deleted` log lines (JSON, `player` field) for that
+   period, and, when the pre-restore database is still readable, `SELECT target_id FROM audit_log WHERE action =
+   'player.delete' AND at > '<backup time>'`. Put them in one file (log lines and plain ids may be mixed).
+2. Run `node staff-cli.cjs reapply-erasures <file>` with `DATABASE_ADMIN_URL` (the owner). It calls the owner-only
+   `reapply_erasure` for each id: an active account is erased again (pending prizes forfeited, audited `player.delete`
+   with `source: reapply`), a tombstone or an unknown id is skipped. It prints the counts.
+3. Only then let the API take traffic.
+
+The log store must keep `player.deleted` lines at least as long as the oldest backup (Q-443). The restore rehearsal
+(T-019) erases a test account after the backup, restores, re-applies and checks the account is a tombstone again.

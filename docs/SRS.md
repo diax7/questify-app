@@ -1255,7 +1255,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1415 | F-222 | Must | built (T-705: block and unblock, masked rankings, results and Questify boards, profile not found, meet refused; `test/db/player-blocks.int`, `test/players/blocks.int`) |
 | FR-1416 | F-223 | Should | built (T-705: console ban and lift with a reason, only two doors write a standing; `test/db/player-safety.int`, `test/console/safety.int`) |
 | FR-1417 | F-223 | Should | built (T-705: the reason and the appeal address after the right code; lift logged) |
-| FR-1418 | F-224 | Must | pending |
+| FR-1418 | F-224 | Must | built (T-708: Settings → Download my data, one JSON file through the share sheet, 3 a day; `test/db/data-requests.int`, `test/players/data-export.int`, `test/db/personal-data-catalog.int`) |
 | FR-1419 | F-217 | Should | built (T-709; counts only, no invoiced revenue) |
 | FR-1501 | F-40 | Must | pending |
 | FR-1502 | F-40 | Must | pending |
@@ -1368,9 +1368,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1773 | F-282 | Must | built (T-007 and ADR-412; `apps/app/src/config/remote.test`) |
 | FR-1774 | F-283 | Must | built (T-704: search, read-only record and points record, every look audited) |
 | FR-1775 | F-284 | Should | partly built (T-704: rename and sign-in reset; merging accounts dropped from v1 by Dhia, ADR-423) |
-| FR-1776 | F-284 | Must | pending |
+| FR-1776 | F-284 | Must | built (T-708: the tombstone trigger, no restore door, re-apply after a backup restore; `test/db/data-requests.int`) |
 | FR-1777 | F-285 | Should | pending |
-| FR-1778 | F-286 | Must | pending |
+| FR-1778 | F-286 | Must | built (T-708: console Legal request card, export and erase with a reason and a case reference, audited; `test/console/data-requests.int`, `test/db/data-requests.int`) |
 | FR-1779 | F-287 | Must | built (T-705: console word lists and retired usernames) |
 | FR-1780 | F-288 | Should | built (T-706: four templates edited in the console with the CST rules enforced on save, ADR-461; the senders read them from T-706b) |
 | FR-1781 | F-289 | Must | built (T-707: published versions in force at once; players asked at launch and refused at sign-in, an organizer's team held until its owner accepts, ADR-445, ADR-446; a decline cannot continue in the app, Q-405) |
