@@ -1442,6 +1442,9 @@ _The Questify console: admin tools, translation matrix, switches, player lookup,
 - [ ] **T-710** Review demo tenant and reviewer login — delivers FR 1406, 1407, 1736; depends on: T-703
   - Note 2026-10-21 (T-115): FR-303's App Review demo QR picker belongs here: offered only in the review demo event, never in any other. The scanner (`apps/app/app/event/[eventId]/scan-quest.tsx`) has no image picker today.
   - Done when: The demo login and QR picker work only inside the demo tenant (outsider test).
+  - Plan 2026-11-03 (`docs/plans/2026-11-03-t-710-review-demo.md`, tier A, awaiting plan review; migration 0142; ADR-560 to ADR-569 and Q-520 to Q-526 Proposed): split proposed (ADR-569). T-710 builds the reviewer sign-in (the fixed code decided in `start_player_challenge` and `sign_in_player`), the demo tenant and event, confinement both ways, the reset by Prepare for review, deletion with the fixed code and the console page; the QR picker is **T-710b** below.
+- [ ] **T-710b** Review demo QR picker (split from T-710, ADR-569; plan section 9 of `docs/plans/2026-11-03-t-710-review-demo.md`) — delivers FR 303 (the review half), FR 1407 (the picker half); depends on: T-710
+  - Done when: The reviewer picks any printable code of the demo event in the scanner; the picker door refuses another event, a real player and a closed window (outsider test).
 - [x] **T-711** Feature layers: platform Off/On with per-organizer override, Questify allows per event, owner switches, locked cards with Ask Questify — delivers FR 1826, 1827 (the four points-path features and the recorded request are T-711b); depends on: T-703, T-210
   - Done when: A feature that is Off is invisible to owners and players; a non-allowed feature shows a locked card.
   - Split 2026-11-03 (ADR-500): the override for `boosts`, `community`, `meetSomeone` and `miniGames` and the in-app Ask Questify request are **T-711b**, below; each half delivers value alone.

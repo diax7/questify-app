@@ -7444,3 +7444,73 @@ provider (Q-034). Campaigns share the weekly cap per channel with invitations (A
 **Why:** The helper keys a lock per bucket; sharing one bucket would queue unrelated pages.
 **Trade-offs:** One more bucket name.
 
+
+## ADR-560 - T-710 the review demo is one console-created platform row, with its accounts marked
+
+**Status:** Proposed (developer, 2026-11-03; T-710 plan `docs/plans/2026-11-03-t-710-review-demo.md`; FR-1406, ADR-009).
+**Decision:** A single-row table `review_demo` names the demo organizer, its "App Review Demo" event, the reviewer phone (with its lookup key and fingerprint), the current reviewer account, the fixed code's keyed hash and the review window's end. `review_demo_player` marks every account the demo made (reviewers, retired ones included, and 12 fictional players). Both have RLS forced and no grant. The console creates the row once (`console_review_demo_create`): the organizer with the admin as owner and every overridable feature On, the event live with no activation request, the fictional players with seeded points, the reviewer account. No migration seeds it.
+**Why:** ADR-009 and ARCHITECTURE ask for a data flag inside production; one row gives every guard a single place to read, and a console action lets production and staging each hold their own.
+**Trade-offs:** One demo tenant only; a second would need the row widened.
+
+## ADR-561 - T-710 the fixed code is decided by the sign-in functions, never by TypeScript
+
+**Status:** Proposed (developer, 2026-11-03; T-710; FR-1407, NFR-017).
+**Decision:** The fixed code is six random digits made at every Prepare for review, shown once to the admin, stored as `keys.reviewerCodeHash` (its own derived key). `start_player_challenge` marks a challenge `reviewer` only when its contact key is the reviewer's and the window is open, and returns the flag; the API then sends nothing. `sign_in_player` receives the reviewer hash of every typed code, reads it only for a reviewer challenge, re-checks the window, and signs in only the reviewer account (provisioning it if missing); a reviewer challenge never answers `new`. A normal challenge compares only its own random code, so the fixed code fails for every other number. The existing per-contact, per-address and per-install failure windows apply; there is no automatic close on failures (a stranger could shut a review); a daily log line warns past 10 wrong reviewer codes; every reviewer sign-in is audited.
+**Why:** STORE_COMPLIANCE §1.3 treats the bypass as a hole to contain; a rule in the database is one the outsider test can prove and a TypeScript change cannot widen.
+**Trade-offs:** `sign_in_player` and `start_player_challenge` change signature (deployed with the API). One budget unit is counted for an SMS never sent.
+
+## ADR-562 - T-710 the reviewer account is provisioned by the database and is an operator of the demo event
+
+**Status:** Proposed (developer, 2026-11-03; T-710; FR-1736).
+**Decision:** `review_demo_provision()` makes the reviewer account (username `Reviewer` plus 4 digits, the reviewer phone, the acceptances in force) with an operator assignment in the demo event, and clears the erased marks under the reviewer fingerprint. It runs at create, at Prepare, and at a reviewer sign-in that finds no live account (after the reviewer deleted it in the app). In-app deletion accepts the fixed code for a reviewer deletion challenge (the sign-in rule) and sends nothing. A contact change is refused for demo accounts (RD409, 409 `contact_locked`).
+**Why:** Reviewers test account deletion (Apple 5.1.1(v)) and the next reviewer must still sign in. A contact change would send a real code to a stranger and move the fixed number.
+**Trade-offs:** A tombstone per deletion or build.
+
+## ADR-563 - T-710 the demo is confined both ways by triggers
+
+**Status:** Proposed (developer, 2026-11-03; T-710; FR-1406, FR-1407).
+**Decision:** `enrollment_review_demo_guard` and `staff_assignment_review_demo_guard` (BEFORE INSERT OR UPDATE, enabled ALWAYS) refuse a real player in the demo event and a demo account anywhere else (RD404, answered as an unknown event). `event_review_demo_guard` refuses deleting the demo event, any status but live, `public_list`, private access, a player limit and an end less than a day away. `public_events` leaves it out. The Questify-wide ranking and season top, the promo pool, the marketing audience and the invitation candidates leave demo accounts out; a campaign for the demo event is refused. Push to the reviewer's own phone stays on.
+**Why:** With the QR picker and a fixed code, the demo would otherwise be a way to farm XP, gems and achievements, and a fake event could reach real players.
+**Trade-offs:** One indexed lookup per insert on `enrollment` and `staff_assignment`.
+
+## ADR-564 - T-710 the reset per build is the console's Prepare for review
+
+**Status:** Proposed (developer, 2026-11-03; T-710; FR-1736).
+**Decision:** Prepare for review (the build's version, a window of 1 to 30 days, default 14) erases the current reviewer through `erase_account` (held prizes forfeited), provisions a fresh one, rotates the code and opens the window; audited with the version and the end, never the code. Close, or the window's end through the lifecycle tick, revokes the reviewer's sessions.
+**Why:** The reviewer then signs in to a reset account, as FR-1736 asks; a reset on the app's version header at first sign-in would wipe the level 3 the admin pre-plays for the gem shop (T-806).
+**Trade-offs:** The reset depends on the admin preparing each submission (RUNBOOK checklist).
+
+## ADR-565 - T-710b the QR picker lists signed printable codes for the reviewer only
+
+**Status:** Proposed (developer, 2026-11-03; T-710b; FR-303, FR-1407).
+**Decision:** `review_demo_codes(event)` answers only the reviewer account, in the demo event, while the window is open, as an active member (RD404 otherwise, 404 on the route). It returns the event's printable codes (scan quests, passport steps, hidden categories, NFC tags' QR), which the API signs with the existing keys; a fictional player's meet pass covers meet quests. Home carries `reviewDemo: true` under the same rule; the scanner shows "Pick a code (review only)" and feeds the pick to its existing handler. No new completion path; no image or gallery picker.
+**Why:** Every completion rule stays the one real players meet; the picker only saves printing.
+**Trade-offs:** Rotating station codes and kiosks stay on a paired station page.
+
+## ADR-566 - T-710 what the reviewer can and cannot do
+
+**Status:** Proposed (developer, 2026-11-03; T-710; FR-1406, FR-1736).
+**Decision:** In the demo event the reviewer reaches every player feature and staff mode as an operator allowed to play, and every Questify-wide feature (XP, achievements, Questify quests, daily games, streaks, the gem shop). Prizes are fictional; digital ones carry `DEMO-` codes; there are no payments (ADR-002). The reviewer cannot join or be assigned elsewhere, change the phone, appear in Questify-wide rankings, audiences or invitations, or cause any SMS or email.
+**Why:** Apple 2.1 needs every feature reachable; the limits make a guessed code worthless outside the demo.
+**Trade-offs:** None beyond ADR-563.
+
+## ADR-567 - T-710 the demo event stays live through a rolling end
+
+**Status:** Proposed (developer, 2026-11-03; T-710; FR-1736).
+**Decision:** The demo event is created live with an end 60 days ahead; `review_demo_tick()` (after the lifecycle step, every 30 seconds) moves `ends_at` and `shop_closes_at` to 90 days ahead whenever they come within 60, and the event guard refuses any shortening. No `infinity` end.
+**Why:** `event_status_now` derives the status from the times, so a fixed end would eventually end the event; a rolling end keeps every reader (countdown, shop window) on ordinary dates.
+**Trade-offs:** The countdown reads "about 2 to 3 months".
+
+## ADR-568 - T-710 demo content is built in the dashboard and checked by a readiness list
+
+**Status:** Proposed (developer, 2026-11-03; T-710; FR-1406).
+**Decision:** The admin, as the demo organizer's owner, builds the quests, rewards and review-day items in the ordinary dashboard. The console's review demo page lists every quest type and event feature in the registries, and the RUNBOOK's review-day items, as present or missing in the demo event.
+**Why:** Configuration is data (principle 1); a seed script would copy every quest type's settings and drift as they change.
+**Trade-offs:** Building the demo takes the admin about an hour once; a seed script is Q-526.
+
+## ADR-569 - T-710 is split into T-710 (sign-in, tenant, console) and T-710b (QR picker)
+
+**Status:** Proposed (developer, 2026-11-03; T-710).
+**Decision:** T-710 builds the reviewer sign-in, the demo tenant, confinement, reset, deletion and the console page; T-710b builds the picker door, the home flag and the scanner sheet.
+**Why:** Each delivers value alone: with T-710 a reviewer signs in and plays with the printable QR codes the review notes attach; T-710b needs a store build and saves printing.
+**Trade-offs:** Two reviews instead of one; T-710b's is small.
