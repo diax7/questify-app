@@ -9907,7 +9907,7 @@ export const MESSAGES = {
   },
   "onboarding.joined.title": { ar: "أنت الآن في {event}", en: "You're in {event}" },
   "onboarding.joined.body": {
-    ar: "الآن تبدأ اللعبة: المهام تمنحك نقاطًا، والنقاط تقرّبك من القمة ومن الجوائز.",
+    ar: "لتبدأ اللعبة: المهام تمنحك نقاطًا، والنقاط تقرّبك من القمة ومن الجوائز.",
     en: "Now the game begins: quests earn points, and points take you up the ranking and towards prizes.",
   },
   "onboarding.card2.title": { ar: "أكمل المهام", en: "Complete quests" },
@@ -9920,18 +9920,18 @@ export const MESSAGES = {
     en: "Earn points and climb the ranking",
   },
   "onboarding.card3.body": {
-    ar: "يتحدّث ترتيبك مباشرةً كلما أكملت مهمة. نافس بقية اللاعبين على القمة.",
+    ar: "يتحدّث ترتيبك فورًا كلما أكملت مهمة. نافس بقية اللاعبين على القمة.",
     en: "Your place on the live leaderboard updates as you play. Race the other players to the top.",
   },
   "onboarding.card4.title": {
-    ar: "اربح الجوائز وطوّر ملفك",
+    ar: "اربح الجوائز وارتقِ بمستواك",
     en: "Win prizes and grow your profile",
   },
   "onboarding.card4.body": {
     ar: "استبدل نقاطك بجوائز حقيقية، وارفع مستواك، واجمع الشارات والتذكارات.",
     en: "Trade your points for real prizes, level up, and collect badges and souvenirs.",
   },
-  "onboarding.scan": { ar: "امسح رمز فعالية", en: "Scan an event QR" },
+  "onboarding.scan": { ar: "امسح رمز QR للفعالية", en: "Scan an event QR" },
   "onboarding.explore": { ar: "استكشف الفعاليات", en: "Explore events" },
   "onboarding.replay": { ar: "كيف يعمل Questify", en: "How Questify works" },
 } as const satisfies Messages;
