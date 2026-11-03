@@ -18,6 +18,7 @@ const OPEN_WRITES: Readonly<Record<string, readonly string[]>> = {
     "POST /v1/me/blocks",
     "POST /v1/me/contact/code",
     "POST /v1/me/contact/verify",
+    "POST /v1/me/data-export",
     "POST /v1/me/deletion/code",
     "POST /v1/me/locker/seen",
     "POST /v1/me/notifications/read",
