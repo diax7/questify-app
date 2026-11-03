@@ -1,5 +1,5 @@
 # API image for CranL (build type: Dockerfile). Built from the repository root.
-FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS build
+FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS build
 WORKDIR /repo
 RUN corepack enable
 
@@ -20,7 +20,7 @@ RUN pnpm --filter @questify/api build
 # lockfile into a folder that the runtime image copies.
 RUN pnpm --filter @questify/api deploy --legacy --prod /deploy
 
-FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402
+FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914
 # hashing runs on the libuv thread pool; keep spare threads for DNS and file work
 ENV NODE_ENV=production PORT=3000 UV_THREADPOOL_SIZE=8
 WORKDIR /srv
