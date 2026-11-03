@@ -106,6 +106,13 @@ export function rewardChoices(body: unknown, language: Language): readonly ItemC
   return rewards.map((reward) => ({ id: reward.id, label: labelIn(reward.name, language) }));
 }
 
+/** The souvenirs of `GET …/souvenirs`, named in the page's language (T-507c). */
+export function souvenirChoices(body: unknown, language: Language): readonly ItemChoice[] {
+  const rules =
+    (body as { rules?: { id: string; item?: { name?: Text } }[] } | undefined)?.rules ?? [];
+  return rules.map((rule) => ({ id: rule.id, label: labelIn(rule.item?.name, language) }));
+}
+
 /** The sponsor an item is tagged to, if any. */
 export function sponsorOf(
   sponsors: readonly TeamSponsor[],
@@ -120,7 +127,10 @@ export function sponsorOf(
 /** How many names the delete confirmation lists before it says "and N more". */
 export const LISTED_NAMES = 6;
 
-/** The names of the items a sponsor holds, in the order quests, categories, rewards; an item no longer listed is left out. */
+/**
+ * The names of the items a sponsor holds, in the order quests, categories, rewards, souvenirs; an item no longer
+ * listed is left out.
+ */
 export function taggedLabels(sponsor: TeamSponsor, choices: TagChoices): string[] {
   return SPONSOR_TAG_KINDS.flatMap((kind) =>
     sponsor.tags

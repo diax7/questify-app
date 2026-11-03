@@ -17,6 +17,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
 import { Button, Problem } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
+import { PresentedBy } from "#src/event/PresentedBy.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { lockerPage, saveProfile, type LockerEntry } from "#src/questify/profile-api.ts";
 
@@ -195,9 +196,12 @@ function EarnedChoices({
             ) : null}
             {row.source.kind === "shop" ? <AppText muted>{t("locker.fromShop")}</AppText> : null}
             {row.source.kind === "event" ? (
-              <AppText muted>
-                {t("locker.fromEvent", { event: row.source.event.name[language] })}
-              </AppText>
+              <>
+                <AppText muted>
+                  {t("locker.fromEvent", { event: row.source.event.name[language] })}
+                </AppText>
+                <PresentedBy sponsor={row.source.presentedBy ?? undefined} />
+              </>
             ) : null}
           </View>
         ))}

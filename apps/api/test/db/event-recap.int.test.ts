@@ -11,7 +11,12 @@ type Recap = {
   rank: number | null;
   rank_state: string;
   quests_done: number;
-  souvenirs: { id: string; kind: string; name: { ar: string; en: string } }[];
+  souvenirs: {
+    id: string;
+    kind: string;
+    name: { ar: string; en: string };
+    presentedBy: unknown;
+  }[];
 };
 
 /**
@@ -210,6 +215,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event_recap (database)", () =>
         kind: "title",
         name: { ar: expect.any(String), en: expect.any(String) },
         visualKey: null,
+        presentedBy: null,
       },
     ]);
     const ids = (await one(many.player, event)).souvenirs.map((item) => item.id);

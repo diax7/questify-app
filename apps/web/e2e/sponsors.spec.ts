@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
 
-test("adds a sponsor, tags a category to it, shows it on the builder, and deletes it, in English and in Arabic", async ({
+test("adds a sponsor, tags a category and a souvenir to it, shows it on the builder and the souvenir, and deletes it, in English and in Arabic", async ({
   page,
 }, info) => {
   test.setTimeout(120_000);
@@ -32,6 +32,23 @@ test("adds a sponsor, tags a category to it, shows it on the builder, and delete
   await page.getByRole("checkbox", { name: "General" }).click();
   await expect(page.getByRole("status")).toContainText("Tag saved.");
   await expect(acme).toContainText("Tagged: 1");
+
+  await page.goto(base + "/souvenirs");
+  await page.getByRole("button", { name: "Add souvenir" }).click();
+  await page.getByLabel("Name in Arabic").fill("تذكار الرعاة");
+  await page.getByLabel("Name in English").fill("Sponsor souvenir");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  const souvenir = page.getByRole("article").filter({ hasText: "Sponsor souvenir" });
+  await expect(souvenir).toBeVisible();
+  await expect(souvenir).not.toContainText("Presented by");
+
+  await page.goto(base + "/sponsors");
+  await acme.getByRole("button", { name: "Tags", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Sponsor souvenir" }).click();
+  await expect(page.getByRole("status")).toContainText("Tag saved.");
+  await expect(acme).toContainText("Tagged: 2");
+  await page.goto(base + "/souvenirs");
+  await expect(souvenir).toContainText("Presented by Acme Dates");
 
   await page.goto(base + "/quests");
   await expect(page.getByRole("region", { name: "General" })).toContainText(

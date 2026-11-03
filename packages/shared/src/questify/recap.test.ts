@@ -7,6 +7,7 @@ const souvenir = {
   kind: "frame",
   name: { ar: "فانوس", en: "Lantern" },
   visualKey: null,
+  presentedBy: null,
 };
 const recap = {
   event: {
@@ -61,6 +62,21 @@ describe("eventRecapSchema", () => {
   it("takes souvenirs as profile items only", () => {
     expect(accepts({ ...recap, souvenirs: [{ id: "x" }] })).toBe(false);
     expect(accepts({ ...recap, souvenirs: undefined })).toBe(false);
+  });
+
+  it("carries the sponsor a souvenir is presented by, as a name and a tier and nothing else (T-507c)", () => {
+    const presentedBy = { name: { ar: "الراعي", en: "Acme" }, tier: "silver" };
+    const tagged = { ...recap, souvenirs: [{ ...souvenir, presentedBy }] };
+    expect(eventRecapSchema.parse(tagged)).toEqual(tagged);
+    const wider = {
+      ...recap,
+      souvenirs: [{ ...souvenir, presentedBy: { ...presentedBy, booth: "B1" } }],
+    };
+    expect(eventRecapSchema.parse(wider)).toEqual(tagged);
+    expect(
+      accepts({ ...recap, souvenirs: [{ ...souvenir, presentedBy: { name: presentedBy.name } }] }),
+    ).toBe(false);
+    expect(accepts({ ...recap, souvenirs: [{ ...souvenir, presentedBy: undefined }] })).toBe(false);
   });
 });
 

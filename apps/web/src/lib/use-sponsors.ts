@@ -8,6 +8,7 @@ import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import {
   questChoices,
   rewardChoices,
+  souvenirChoices,
   sponsorIssueKey,
   type TagChoices,
 } from "#src/lib/sponsors.ts";
@@ -31,7 +32,12 @@ export function useSponsors({ language, organizerId, eventId }: SponsorsProps) {
   const t = useTranslator(language);
   const api = `/v1/organizers/${organizerId}/events/${eventId}`;
   const [sponsors, setSponsors] = useState<TeamSponsor[] | null>(null);
-  const [choices, setChoices] = useState<TagChoices>({ quest: [], category: [], reward: [] });
+  const [choices, setChoices] = useState<TagChoices>({
+    quest: [],
+    category: [],
+    reward: [],
+    souvenir: [],
+  });
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const generation = useRef(0);
@@ -39,18 +45,20 @@ export function useSponsors({ language, organizerId, eventId }: SponsorsProps) {
 
   const load = useCallback(async () => {
     const scope = generation.current;
-    const [list, quests, rewards] = await Promise.all([
+    const [list, quests, rewards, souvenirs] = await Promise.all([
       requestJson("GET", `${api}/sponsors`),
       requestJson("GET", `${api}/quests`),
       requestJson("GET", `${api}/rewards`),
+      requestJson("GET", `${api}/souvenirs`),
     ]);
     if (scope !== generation.current) return;
     const parsed = list.ok ? teamSponsorListSchema.safeParse(list.body) : null;
-    if (parsed?.success === true && quests.ok && rewards.ok) {
+    if (parsed?.success === true && quests.ok && rewards.ok && souvenirs.ok) {
       setSponsors(parsed.data.sponsors);
       setChoices({
         ...questChoices(quests.body, language),
         reward: rewardChoices(rewards.body, language),
+        souvenir: souvenirChoices(souvenirs.body, language),
       });
       setProblem(null);
     } else setProblem(t("sponsors.page.loadFailed"));

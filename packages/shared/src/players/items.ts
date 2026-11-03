@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { publicAchievementSchema } from "#src/questify/achievements";
 import { publicStampSchema } from "#src/questify/events";
+import { presentedBySchema } from "#src/sponsors/sponsors";
 
 export const ITEM_KINDS = ["character", "frame", "title"] as const;
 export const itemSchema = z.object({
@@ -37,6 +38,8 @@ export const lockerEntrySchema = z.object({
     z.object({
       kind: z.literal("event"),
       event: z.object({ id: z.uuid(), name: z.object({ ar: z.string(), en: z.string() }) }),
+      /** The sponsor an organizer tagged the souvenir to (T-507c); only the owner's own locker carries it. */
+      presentedBy: presentedBySchema.nullable(),
     }),
     /** Got for gems in the Questify gem shop (T-404). */
     z.object({ kind: z.literal("shop") }),

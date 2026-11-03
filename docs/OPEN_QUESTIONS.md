@@ -2313,3 +2313,21 @@ Today "used" is a row in the feature's table (a map, a reward, a ticket). A shop
 The runner retries a lock timeout (55P03), but a file only raises one when it sets `lock_timeout` itself (0063 to 0065 do). A file that sets none waits on a lock for as long as the other session holds it, and every request that queues behind that wait is held too.
 **Recommended (worker):** have the runner run `SET LOCAL lock_timeout = '10s'` after `BEGIN` in every attempt (a file's own `SET LOCAL` overrides it), in a small follow-up before the first real players. It changes nothing on an empty database, so no test database is affected, and it makes the retry cover the common case, not only the files that opted in.
 
+## Q-530 - Should a souvenir's sponsor label freeze when the souvenir is activated? (T-507c, ADR-570, ADR-571)
+
+**Status:** Proposed (developer, 2026-11-03).
+Today the label follows the tag: an organizer can re-tag, rename or delete the sponsor and every owner sees the change. A frozen label would be a promise like the souvenir's name, audience and art, which an active rule cannot change.
+**Recommended (developer):** follow the tag for v1 (the label is private to the owner and the organizer may correct a wrong sponsor). If an owner or a sponsor complains that a label changed after an event, freeze the sponsor id on the rule at activation and keep the tag editable only while the rule is a draft.
+
+## Q-531 - Should the Souvenirs form also pick the sponsor? (T-507c, ADR-570)
+
+**Status:** Proposed (developer, 2026-11-03).
+The tag is set from the Sponsors page (one editor for quests, categories, rewards and souvenirs); the Souvenirs page shows a "Presented by" badge on a tagged card.
+**Recommended (developer):** keep one place to set it. Add a select to the souvenir form only if organizers look for it there.
+
+## Q-532 - May a player's shared recap image carry the sponsor's name? (T-507c, ADR-571)
+
+**Status:** Proposed (developer, 2026-11-03).
+The recap card (ADR-339) is an image the player may share; with a tagged souvenir it now shows "Presented by {sponsor}" under the souvenir's name. The organizer chose to present the souvenir and the player chooses to share, but a sponsor never agreed to appear on a card.
+**Recommended (developer):** keep it, since it is the point of FR-1303 for souvenirs. If a sponsor objects, add an organizer switch "Show the sponsor on the recap card" (default on).
+

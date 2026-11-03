@@ -22,6 +22,8 @@ export const sponsorRawSchema = z.strictObject({
   quests: z.array(z.strictObject({ id: z.uuid(), title: text, players: count })),
   categories: z.array(z.strictObject({ ...named, players: count })),
   rewards: z.array(z.strictObject({ ...named, redeemed: count })),
+  /** The sponsor's active or stopped souvenirs and how many players earned each (T-507c). */
+  souvenirs: z.array(z.strictObject({ ...named, earned: count })),
 });
 export type SponsorRaw = z.infer<typeof sponsorRawSchema>;
 
@@ -37,6 +39,7 @@ export const sponsorTotalsSchema = z.strictObject({
   quests: z.array(z.strictObject({ id: z.uuid(), title: text, players: shown })),
   categories: z.array(z.strictObject({ ...named, players: shown })),
   rewards: z.array(z.strictObject({ ...named, redeemed: shown })),
+  souvenirs: z.array(z.strictObject({ ...named, earned: shown })),
 });
 export type SponsorTotals = z.infer<typeof sponsorTotalsSchema>;
 
@@ -73,5 +76,9 @@ export function sponsorTotals(raw: SponsorRaw): SponsorTotals {
       players: groupCount(category.players),
     })),
     rewards: raw.rewards.map((reward, index) => ({ ...reward, redeemed: redeemed[index] ?? null })),
+    souvenirs: raw.souvenirs.map((souvenir) => ({
+      ...souvenir,
+      earned: groupCount(souvenir.earned),
+    })),
   };
 }

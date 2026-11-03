@@ -40,17 +40,23 @@ const positionSchema = z.strictObject({
 });
 export type LockerItem = LockerEntry;
 
-/** Where a locker item came from: a level, an event's souvenir or the gem shop (T-404). */
+type EventSource = Extract<LockerEntry["source"], { kind: "event" }>;
+
+/**
+ * Where a locker item came from: a level, an event's souvenir (with the sponsor an organizer tagged it to, T-507c) or
+ * the gem shop (T-404).
+ */
 function sourceOf(
   row: Readonly<{
     source: "level" | "souvenir" | "shop";
     source_level: number;
-    source_event: Extract<LockerEntry["source"], { kind: "event" }>["event"] | null;
+    source_event: EventSource["event"] | null;
+    presented_by: EventSource["presentedBy"] | null;
   }>,
 ): LockerEntry["source"] {
   if (row.source === "shop") return { kind: "shop" };
   if (row.source_event === null) return { kind: "level", level: row.source_level };
-  return { kind: "event", event: row.source_event };
+  return { kind: "event", event: row.source_event, presentedBy: row.presented_by };
 }
 export async function readLocker(client: PoolClient, cursor: string | undefined, limit: number) {
   let before: z.infer<typeof positionSchema> | undefined;
@@ -67,11 +73,12 @@ export async function readLocker(client: PoolClient, cursor: string | undefined,
     item: ProfileItem;
     earned_at: string;
     source_level: number;
-    source_event: Extract<LockerEntry["source"], { kind: "event" }>["event"] | null;
+    source_event: EventSource["event"] | null;
     seen: boolean;
     source: "level" | "souvenir" | "shop";
+    presented_by: EventSource["presentedBy"] | null;
   }>(
-    `SELECT item,to_char(earned_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS earned_at,source_level,source_event,seen,source FROM own_locker($1,$2,$3)`,
+    `SELECT item,to_char(earned_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS earned_at,source_level,source_event,seen,source,presented_by FROM own_locker($1,$2,$3)`,
     [before?.at ?? null, before?.id ?? null, limit + 1],
   );
   const items: LockerItem[] = rows.slice(0, limit).map((row) => ({

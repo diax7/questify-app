@@ -1059,7 +1059,7 @@ const SHARED: Readonly<Record<string, string>> = {
   sponsor:
     "no direct API rights; written only by the owner/editor doors sponsor_save and sponsor_delete inside award_event_of; read by active members through the caller-bound member_sponsors (sponsors database and HTTP suites)",
   sponsor_tag:
-    "no direct API rights; written only by the owner/editor door sponsor_tag_set inside award_event_of, only for a quest, category or reward and a sponsor of the same event; read by active members through the caller-bound member_sponsors, only on items they may see (sponsors database and HTTP suites)",
+    "no direct API rights; written only by the owner/editor door sponsor_tag_set inside award_event_of, only for a quest, category, reward or souvenir rule and a sponsor of the same event; read by active members through the caller-bound member_sponsors, only on items they may see (never a souvenir), and by a souvenir's owner as the name and tier in their own locker and recap (sponsors, sponsor-souvenirs database and HTTP suites)",
   quest_rating:
     "no direct API rights; written only by the caller-bound rate_quest (the player's own active enrollment, a quest they completed, the owner's switch on), read by the owner/editor as counts through quest_rating_scores inside award_event_of and by the player's own row through member_quest_rating (ratings database and HTTP suites)",
   survey_share:

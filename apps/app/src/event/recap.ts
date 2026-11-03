@@ -21,8 +21,15 @@ export type RecapView = Readonly<{
   rank: Readonly<{ kind: "final" | "pending"; text: string }> | null;
   /** The count of quests done, or "Thanks for joining" when there are none. */
   quests: string;
-  /** Up to three souvenir names and "+N" for the rest; null when the event gave none. */
-  souvenirs: Readonly<{ heading: string; names: readonly string[]; more: string | null }> | null;
+  /**
+   * Up to three souvenirs (the name, and "Presented by {sponsor}" when an organizer tagged one) and "+N" for the rest;
+   * null when the event gave none.
+   */
+  souvenirs: Readonly<{
+    heading: string;
+    items: readonly Readonly<{ name: string; presentedBy: string | null }>[];
+    more: string | null;
+  }> | null;
   /** The card read as one line for a screen reader. */
   summary: string;
 }>;
@@ -48,7 +55,13 @@ function souvenirsOf(recap: EventRecap, language: Language, t: Translate): Recap
   const extra = recap.souvenirs.length - SOUVENIRS_ON_CARD;
   return {
     heading: t("recap.souvenirs"),
-    names: recap.souvenirs.slice(0, SOUVENIRS_ON_CARD).map((item) => item.name[language]),
+    items: recap.souvenirs.slice(0, SOUVENIRS_ON_CARD).map((item) => ({
+      name: item.name[language],
+      presentedBy:
+        item.presentedBy === null
+          ? null
+          : t("sponsors.presentedBy", { name: textIn(item.presentedBy.name, language) }),
+    })),
     more:
       extra > 0 ? `${LTR_MARK}${t("recap.more", { count: formatNumber(extra, language) })}` : null,
   };
@@ -56,7 +69,10 @@ function souvenirsOf(recap: EventRecap, language: Language, t: Translate): Recap
 
 function spokenSouvenirs(souvenirs: NonNullable<RecapView["souvenirs"]>): string {
   const more = souvenirs.more === null ? [] : [souvenirs.more];
-  return [souvenirs.heading, ...souvenirs.names, ...more].join(" ");
+  const items = souvenirs.items.map((item) =>
+    item.presentedBy === null ? item.name : `${item.name}, ${item.presentedBy}`,
+  );
+  return [souvenirs.heading, ...items, ...more].join(" ");
 }
 
 /**
