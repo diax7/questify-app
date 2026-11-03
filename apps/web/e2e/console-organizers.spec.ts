@@ -124,7 +124,7 @@ test("a person who is not an admin gets nothing from the console's organizers", 
   const { eventId } = idsOf(page);
   // Without the dashboard's Origin the write stops at the cross-site check (403); either way nothing opens.
   const opened = await page.request.post(`/v1/admin/events/${eventId}/support`, {
-    data: { reason: REASON },
+    data: { kind: "view", reason: REASON },
   });
   expect([403, 404]).toContain(opened.status());
 });

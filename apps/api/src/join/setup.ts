@@ -333,7 +333,7 @@ export function withSetupEvent<T>(
 ): Promise<SetupDone<T>> {
   return withConnection(deps.pool, (client) =>
     withRequestContext(client, teamSeat(actor), async () => {
-      const event = await lockBuilderEvent(client, actor.organizerId, eventId);
+      const event = await lockBuilderEvent(client, actor.organizerId, eventId, writes);
       if (event === undefined) {
         return { kind: "not_found" } as const;
       }

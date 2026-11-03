@@ -120,7 +120,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("support grants (database)", ()
       ).rejects.toMatchObject({ code: "QE403" });
     }
     await expect(
-      as(adminSeat(), "SELECT * FROM support_open($1, 'edit', $2, $3)", [ids.eventA, "short", null]),
+      as(adminSeat(), "SELECT * FROM support_open($1, 'edit', $2, $3)", [
+        ids.eventA,
+        "short",
+        null,
+      ]),
     ).rejects.toMatchObject({ code: "SU400" });
     await owner(
       "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'editor')",

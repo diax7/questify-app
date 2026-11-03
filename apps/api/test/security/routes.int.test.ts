@@ -840,7 +840,7 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/admin/events/:eventId/reactivate":
     "active platform admins only (walked below); admin_reactivate_event re-reads the admin; audited; 30 an hour (test/console/organizers, test/db/console-suspension)",
   "POST /v1/admin/events/:eventId/support":
-    "active platform admins only (walked below); support_open: 15 minutes on that one event, never for a member, 20 an hour; audited (test/console/organizers, test/db/support-grant)",
+    "active platform admins only (walked below); support_open: a view (read-only, T-712) or edit grant, 15 minutes on that one event, never for a member, 20 an hour for both kinds; audited (test/console/organizers, test/db/support-grant, test/db/support-view, test/organizers/view-mode)",
   "POST /v1/admin/support/:grantId/close":
     "active platform admins only (walked below); support_close of a live grant only; audited (test/console/organizers, test/db/support-grant)",
   "GET /v1/admin/health":
