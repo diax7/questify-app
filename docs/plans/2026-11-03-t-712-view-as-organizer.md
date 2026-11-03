@@ -43,17 +43,20 @@ organizer-wide view is Q-480.
 1. If the request's event (`params.eventId`) is under a `view` grant and the method is not GET or HEAD: **403
    `support_view_only`** before any handler runs. Event-less writes are already 404 for support.
 2. `supportMayUse` gains a per-kind refused list. View additionally refuses `GET /events/:eventId/codes` (printed quest
-   codes and hidden category codes are secrets that pay points; a viewer has no need for them). The exports and device
-   pairing refusals stay for both kinds.
+   codes and hidden category codes are secrets that pay points; a viewer has no need for them) and
+   `GET /events/:eventId/rehearsal` (review MAJOR 1: before go-live its first read opens the rehearsal and makes a join
+   code, a write). The exports and device pairing refusals stay for both kinds. Checked and allowed (review MINOR):
+   `GET .../invitation-campaigns` (criteria, states and rounded counts, no link or code) and
+   `GET .../quests/:questId/nfc-tags` (label, status, tap counts, no tag secret).
 3. The throttle (section 6) and the read log (section 5) run here, in their own transactions.
 4. The request is then marked read-only for the rest of its life (below).
 
-**Layer 2, the database, fail closed.** A request-scoped `AsyncLocalStorage` (new `apps/api/src/db/request-scope.ts`,
-about 20 lines) is entered by a callback-style `onRequest` hook (`(request, reply, done) => scope.run({ readOnly: false },
-done)`, the pattern `@fastify/request-context` uses, so the store reaches later hooks and the handler) registered first
-in the organizer scope; the membership hook sets `readOnly = true` when the principal holds any `view` grant in this
-organizer and the request is a read. `withRequestContext` and `withRolledBackContext` open `BEGIN READ ONLY` while the
-store says so. PostgreSQL then refuses every INSERT, UPDATE, DELETE and `nextval` in that transaction, SECURITY DEFINER
+**Layer 2, the database, fail closed.** `RequestContext` gains `readOnly?: true` (review MINOR: not a request-wide
+`AsyncLocalStorage`, so shared work started by a view request, such as a cache load, `mark_ranking_repair` or the
+ranking store's rebuild, which run in their own `{}` context, is never marked read-only). The hook sets it on the
+principal when the request's event is under a `view` grant (or, for an event-less read, when any grant is a view), and
+`organizerContextOf` carries it; the seat helpers that copy `organizerId` and `staffUserId` copy it too, through one
+helper `teamSeat(context)`. `withRequestContext` and `withRolledBackContext` open `BEGIN READ ONLY` when it is set. PostgreSQL then refuses every INSERT, UPDATE, DELETE and `nextval` in that transaction, SECURITY DEFINER
 doors included (SQLSTATE 25006).
 
 And the grant itself only works inside such a transaction: migration 0133 changes the support branch of
@@ -84,7 +87,7 @@ allowed read, in its own short read-write transaction before the request turns r
   concrete URL and never the query string, which can carry a search for a name or a phone number);
 - `ids` is an object of at most 4 keys whose values are UUIDs (the path parameters, e.g. `enrollmentId`); anything else
   is refused (QA422);
-- coalesces: under `pg_advisory_xact_lock` on the grant, route and ids, it writes one `audit_log` row
+- coalesces: under `pg_advisory_xact_lock(hashtextextended(grant || route || ids, 0))` (one bigint), it writes one `audit_log` row
   (`actor_type 'admin'`, `action 'support.viewed'`, organizer and event columns, `target_type 'support_grant'`,
   `target_id` the grant, `after {route, ids}`) unless the same grant, route and ids were logged in the last 60 seconds
   (a live page polls; Q-481). A partial index `audit_log (target_id, at) WHERE action = 'support.viewed'` keeps the check
@@ -99,8 +102,12 @@ read as Questify's audit log of that event (SRS trace note at build).
 ## 6. Rate limits
 
 - Opening: the existing 20 grants an hour per admin, both kinds together (SG429).
-- Reading: a new bucket `support_view` of 240 requests a minute per admin through `holdBack`, before the read log, so a
-  runaway page cannot flood the audit log (at most 240 rows a minute before coalescing). Past it, 429 with `Retry-After`.
+- Reading: a new bucket `support_view` of 240 requests a minute per admin through `holdBack` with `queue = true` (review
+  MAJOR 2: a dashboard page fires several GETs at once; the console helpers queue the same way, so none loses a lock
+  race), before the read log, so a runaway page cannot flood the audit log (at most 240 rows a minute before
+  coalescing). Past it, 429 with `Retry-After`.
+- Cost: each view GET runs about four transactions before its handler's own (membership, support seat, throttle, read
+  log); acceptable for one support admin's pages, recorded in ADR-523.
 - The console route's own `adminIdempotent` limits stay.
 
 ## 7. Personal data in the view (ADR-524)
@@ -157,20 +164,27 @@ audit `after` holds only `route` and `ids` (no email, no name).
 new organizer route is covered without editing the test.
 - For every route under `ORGANIZER_PREFIX` whose method is not GET or HEAD: inject it with the view session, params
   filled from the seed (`organizerId`, the granted `eventId`, any other `:param` a random UUID), body `{}`, an
-  Idempotency-Key: expect 403 `support_view_only`. Afterwards no audit row other than `support.viewed` and no change in
-  the row counts of the organizer's tables (`pg_stat_force_next_flush()` and `pg_stat_user_tables` write counters before
-  and after, or a per-table count when that is flaky).
+  Idempotency-Key: expect 403 `support_view_only`. Afterwards no audit row other than `support.viewed`, and no change
+  in any table's contents: an md5 of every public table's rows (the throttle and audit tables compared without the
+  sweep's own `support_view` and `support.viewed` rows), taken directly before and after on the test's own database
+  (review MINOR: not `pg_stat_user_tables`).
 - The same routes on the granted event under an **edit** grant do not answer `support_view_only` (the refusal is the
   kind's, not the method's).
 - For every GET under the prefix: under the view grant it answers 2xx, 404 (missing child row) or the refused list's
-  404, never 5xx. This catches a GET that writes (it would fail in the read-only transaction).
+  404, never 5xx, and the same table md5 holds before and after. The seed's granted event is before go-live with no
+  rehearsal opened (review MAJOR 1), so a first-read write is reached. This catches a GET that writes (it fails in the
+  read-only transaction, or changes the md5 when it writes as the system).
+- Each allowed GET answers the same status under the view grant as under an edit grant on the same event (the edit
+  sweep runs after the view sweep): a seat helper that drops `readOnly` runs read-write, where the view grant opens
+  nothing, and shows up here.
+- Parallel GETs of one page (six at once) under the view grant all answer 200 (review MAJOR 2).
 - A guard: the inventory has more than 100 organizer writes, so an empty sweep fails.
 
 **Security suites:** `outsider.int.test.ts` (the new and replaced functions refuse anonymous callers and hold no PUBLIC
 grant); `cross-tenant.int.test.ts` (a view grant on organizer A's event reads nothing of organizer B and nothing of A's
 other events, by API and by direct statement); `routes.int.test.ts` entries updated for the console route.
 
-**Unit:** `request-scope` and `withRequestContext` open `BEGIN READ ONLY` only under a read-only store;
+**Unit:** `withRequestContext` and `withRolledBackContext` open `BEGIN READ ONLY` only for a `readOnly` context;
 `supportMayUse` for the view refused list; the hook's order (403 before the handler, the log before the read).
 
 **Web:** `e2e/console-support.spec.ts` (or the T-701 spec): open the view, the banner shows, a save shows the read-only
@@ -185,8 +199,8 @@ error), DATA_MODEL.md (`support_grant.kind`), SRS trace for FR-1837, TASKS.md ti
 
 - **A GET that writes** (marks something seen, audits a read, refreshes a cache row) fails in view mode. The generated
   GET sweep finds each one; the fix is per route (refuse it in view, or move its write out of the read).
-- **AsyncLocalStorage propagation.** If the store is lost the database fails closed (no rows, refused doors), never
-  open; the GET sweep would show such a route as an empty page or 404. The unit test pins the hook pattern.
+- **`readOnly` propagation.** A seat built without it runs read-write, where the view grant opens nothing: the database
+  fails closed (no rows, refused doors), never open; the view-versus-edit comparison in the GET sweep finds it.
 - **Read-only in a definer door.** `transaction_read_only` is per transaction and cannot be lifted after the first
   statement; a door that uses `dblink` or a background worker would escape it. None exist; the migration rehearsal list
   test flags new extensions.
@@ -205,5 +219,5 @@ error), DATA_MODEL.md (`support_grant.kind`), SRS trace for FR-1837, TASKS.md ti
 ## 14. Mutation targets (GitHub only)
 
 `apps/api/src/organizers/support-seat.ts`, `apps/api/src/organizers/routes.ts` (the hook only),
-`apps/api/src/db/request-scope.ts`, `apps/api/src/db/context.ts`, `apps/api/src/console/organizers.ts` (the support
+`apps/api/src/db/context.ts`, `apps/api/src/organizers/context.ts`, `apps/api/src/console/organizers.ts` (the support
 opener).
