@@ -145,6 +145,10 @@ describe("startLifecycleTick", () => {
       },
       {
         level: "error",
+        fields: { event: "review_demo.tick_failed", reason: "unknown", code: null },
+      },
+      {
+        level: "error",
         fields: { event: "event.rehearsal_wipe_failed", reason: "unknown", code: null },
       },
       { level: "error", fields: { event: "reward.expiry_failed", reason: "unknown", code: null } },
@@ -197,9 +201,9 @@ describe("startLifecycleTick", () => {
     await stopping;
     // The lifecycle call, one look each for due rehearsal wipes, reservations, quizzes and game rounds, the ticket
     // sweep, the report and owner-email purges and the archive step; nothing after the stop.
-    expect(connects).toBe(9);
+    expect(connects).toBe(10);
     await vi.advanceTimersByTimeAsync(5000);
-    expect(connects).toBe(9);
+    expect(connects).toBe(10);
   });
 
   it("finishes due quizzes one call at a time, up to a batch, and logs only the count", async () => {

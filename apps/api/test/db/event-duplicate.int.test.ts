@@ -49,6 +49,8 @@ const COPIED = new Set([
  * decides, and the walk below fails until then.
  */
 const NOT_COPIED = new Set([
+  // The App Review demo's own row (T-710): Questify's, never carried to a copy
+  "review_demo",
   // Questify's support grants on the source event (T-701): never carried to a copy
   "support_grant",
   // people and play

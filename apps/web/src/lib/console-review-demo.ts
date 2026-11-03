@@ -55,10 +55,10 @@ const DAY_KEYS: Readonly<Record<string, MessageKey>> = {
 };
 
 const VERIFY_KEYS: Readonly<Record<string, MessageKey>> = {
-  quest_qr: "console.reviewDemo.verify.quest_qr",
-  my_qr: "console.reviewDemo.verify.my_qr",
+  quest_qr: "console.reviewDemo.verify.questQr",
+  my_qr: "console.reviewDemo.verify.myQr",
   nfc: "console.reviewDemo.verify.nfc",
-  screen_qr: "console.reviewDemo.verify.screen_qr",
+  screen_qr: "console.reviewDemo.verify.screenQr",
   kiosk: "console.reviewDemo.verify.kiosk",
 };
 
