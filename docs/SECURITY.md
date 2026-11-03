@@ -608,3 +608,22 @@ columns or the functions) and the cross-tenant suite (B's setting, notices and n
   traffic, the runbook's "Re-apply erasures" erases again every account erased since the backup (`staff-cli
   reapply-erasures`). Erased data lives on in backups only until they age out (proposed 35 days, T-019; the privacy
   policy must say so, Q-443).
+
+### Owner email change and the team alert (T-701b, ADR-490 to ADR-494)
+
+- **Who:** an active admin, for an organizer's owner only; never a platform admin's account, never the admin's own; the
+  new address belongs to no staff account (checked at start and at completion, the unique index settles a race and the
+  close commits). One open change per account, 3 starts a day per account, 10 an hour per admin.
+- **Proof:** the code goes to the new address only; the owner also types the current password (checked through the verify
+  gate; a wrong code and a wrong password count in the same 5 tries and answer alike). Without the password the change
+  waits 24 hours and the old address can stop it. The admin never sees the code.
+- **Old address:** told at start (masked new address, Stop link), at a hold and at completion; after completion Stop
+  queues a team alert (7 days). Completion ends every session, challenge and reset link and the old address's pending
+  invites.
+- **Public routes** (`/v1/staff/auth/email-change/view|confirm|stop`): tokens in bodies, 256-bit HMAC-derived, stored as
+  SHA-256; 20 calls per client address in 15 minutes; unknown, expired and closed links answer alike.
+- **No addresses in audit rows or logs** (ids, states, the identity check and the reason only); addresses live in the
+  change row and are erased 180 days after it closes.
+- **Team alert mail** holds ids, event and organizer names, kinds, counts, reason codes and due times, never a reporter,
+  note, reported text or username; one digest per 10 minutes and 100 a day on its own budget (`team_alert_mail`), so it
+  can never take the sign-in mail budget (`outboundMailPerDay`).

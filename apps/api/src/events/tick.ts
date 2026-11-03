@@ -42,7 +42,8 @@ const counted =
  * events that went live (ADR-160); reservations whose pickup time passed are returned (FR-508); quizzes left open past
  * their close pay what they earned (ADR-193); mini-game rounds past their window count as played (ADR-213); help-desk
  * tickets go 90 days after the later of their event's end and their sending (Q-210); handled content reports go 180
- * days after handling (T-705b); last, ended events whose holds,
+ * days after handling (T-705b); owner email changes past their hour expire and closed ones lose their addresses after
+ * 180 days, finished team alerts go after 30 (T-701b); last, ended events whose holds,
  * tickets and results are settled are archived (T-411, ADR-337 (5)), after the steps that settle them.
  */
 const STEPS: readonly Step[] = [
@@ -76,6 +77,11 @@ const STEPS: readonly Step[] = [
     failed: "report.purge_failed",
     done: "report.purged",
     work: counted("SELECT purge_handled_reports(1000) AS count"),
+  },
+  {
+    failed: "owner_email.purge_failed",
+    done: "owner_email.purged",
+    work: counted("SELECT owner_email_purge(1000) AS count"),
   },
   {
     failed: "event.archive_failed",

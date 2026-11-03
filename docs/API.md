@@ -856,6 +856,24 @@ Player, active member of the event (403 `not_enrolled` otherwise), `private, no-
 |---|---|---|
 | GET | /v1/events/{eventId}/sponsors | `{sponsors: [{id, name: {ar,en}, tier, booth}], tags: [{kind, targetId, sponsorId}]}`. Every sponsor of the event, in the strip's order; a tag only on an item the player may see (a quest by the Quests tab's own rule, a category they have found and are in the audience of, an active reward in their audience). It reads nothing about the caller or any other player and sends nothing to a sponsor (FR-1304). There is no sponsor login, report or share route |
 
+## Owner email change and urgent reports (T-701b, migration 0130; ADR-490 to ADR-496)
+
+| Route | Access | Notes |
+|---|---|---|
+| `POST /v1/admin/organizers/{id}/owner-email` | admin | `{newEmail, identityCheck: known_phone\|id_document\|contract_contact\|other, reason (10-300), lang}`, Idempotency-Key; 201 `{changeId, expiresAt}`; 409 `email_taken`, `same_email`, `email_change_pending`; 403 `owner_is_admin`, `own_account`; 404 no owner; 422 `owner_inactive`, `invalid_email_change`; 429 (10 an hour per admin; `too_many_email_changes` past 3 a day per account); 502 `code_not_sent` (the change closes) |
+| `POST /v1/admin/owner-email-changes/{id}/resend` | admin | `{lang}`; 204; 409 `email_change_closed`; 429 `resend_too_soon` (60 s), `resend_limit` (3); the tries are not reset |
+| `POST /v1/admin/owner-email-changes/{id}/cancel` | admin | 204; 409 `email_change_closed` |
+| `GET /v1/admin/organizers/{id}` | admin | gains `ownerEmailChange` (open, else latest) and `ownerOtherOrganizers` (names) |
+| `POST /v1/staff/auth/email-change/view` | public | `{token}` → `{organizerName, newEmailMasked, expiresAt}`; 404 `email_change_link_invalid` (unknown, expired or closed alike) |
+| `POST /v1/staff/auth/email-change/confirm` | public | `{token, code, password \| null}` → `{outcome: "confirmed", email}` or, with `password: null`, `{outcome: "held", appliesAt}` (24 hours); 422 `wrong_code_or_password` `{attemptsLeft}` (5 in all); 429 `email_change_locked`; 409 `email_taken`; 404 as view |
+| `POST /v1/staff/auth/email-change/stop` | public | `{token}` → `{outcome: "stopped" \| "reported" \| "none"}` (reported: completed, the team is alerted, 7 days) |
+| `GET /v1/admin/reports` | admin | targets gain `urgent`, `dueAt`; `overdue` is past `dueAt`; order urgent first, then due; `urgentTotal` |
+| `GET /v1/admin/reports/counts` | admin | `{open, urgent}` for the console menu; not audited (counts only) |
+| `GET`, `PUT /v1/admin/moderation-addresses` | admin | `{alertEmail, appealEmail}` (string or null; null means the sending address), answer adds `sendingAddress`; 422 `invalid_moderation_address`; PUT audited before and after |
+
+The three public routes count 20 calls per client address in 15 minutes (429 + Retry-After), keep the `Origin` check and
+`no-store`; tokens travel in bodies only.
+
 ## Console foundation (T-701, migration 0114; ADR-405 to ADR-410)
 
 - **Suspension answers.** Player routes with `:eventId` of a suspended event (or of a suspended organizer's event)

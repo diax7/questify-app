@@ -1080,6 +1080,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; Questify-wide, not an organizer's; written and read only by the console's admin doors, deleted by erase_rows (test/db/console-players)",
   content_report:
     "no right for the API role at all; Questify's queue, not an organizer's; written by report_content for the calling player and read and closed only by the console's admin doors, purged and erased by definers (test/db/content-reports)",
+  staff_email_change:
+    "no right for the API role at all; Questify's own support record of a staff account, not an organizer's; written and read only by the console's admin doors and the token-bound public doors (owner_email_view, owner_email_confirm, owner_email_stop), purged by owner_email_purge (test/db/owner-email-change)",
+  team_alert:
+    "no right for the API role at all; ids only, Questify's own outbox; written by the report trigger and owner_email_stop, claimed and answered only by the worker's definers (test/db/report-urgency)",
   player_block:
     "no right for the API role at all; a player's own list, not an organizer's; written and read only by the player-bound doors (block_player, unblock_player, own_blocks) and the masked reads, deleted by erase_rows both ways (test/db/player-blocks)",
   ranking_repair:

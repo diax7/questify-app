@@ -679,3 +679,11 @@ traffic:
 
 The log store must keep `player.deleted` lines at least as long as the oldest backup (Q-443). The restore rehearsal
 (T-019) erases a test account after the backup, restores, re-applies and checks the account is a tombstone again.
+- **Changing an owner's sign-in email (T-701b):** verify identity first: call back the number on file, or check an
+  identity document, or the signatory on the organizer's agreement; record which and why in the dialog. The owner must
+  confirm from the new mailbox with the code and the current password; without the password the change waits 24 hours.
+  To reverse a change, run it again to the old address. "Stopped from the old address" or a dispute alert means call
+  the organizer before anything else.
+- **Moderation addresses:** console, Reports, Moderation addresses: the urgent-report alert address and the ban appeal
+  address; empty means `MAIL_FROM`. The digest goes at most every 10 minutes and 100 times a day; past that only the
+  console's urgent count shows new urgent reports.

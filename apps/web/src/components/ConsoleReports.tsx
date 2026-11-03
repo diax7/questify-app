@@ -11,7 +11,9 @@ import {
 } from "@questify/shared";
 import { useEffect, useState } from "react";
 import { clockOf } from "#src/lib/console-organizers.ts";
+import { ModerationAddresses } from "#src/components/ModerationAddresses.tsx";
 import {
+  dueDistance,
   FLAGS_API,
   FLAG_KIND_KEYS,
   inLanguage,
@@ -60,6 +62,20 @@ function useConsoleRead<T>(
   return { data, problem };
 }
 
+/** "Due in 35 min" or "Overdue by 2 h" (Western digits), from the earliest open report's due time. */
+export function DueLine({ language, dueAt }: Readonly<{ language: Language; dueAt: string }>) {
+  const t = translatorFor(language);
+  const distance = dueDistance(dueAt, Date.now());
+  const time = t(distance.unit === "hours" ? "console.reports.hours" : "console.reports.minutes", {
+    count: formatNumber(distance.count, language),
+  });
+  return distance.late ? (
+    <Badge tone="warning">{t("console.reports.overdueBy", { time })}</Badge>
+  ) : (
+    <Muted as="span">{t("console.reports.dueIn", { time })}</Muted>
+  );
+}
+
 function TargetLine({ language, row }: Readonly<{ language: Language; row: ReportTarget }>) {
   const t = translatorFor(language);
   return (
@@ -71,8 +87,9 @@ function TargetLine({ language, row }: Readonly<{ language: Language; row: Repor
               <bdi dir="auto">{snapshotLabel(row.snapshot, language) || t("reports.untitled")}</bdi>
             </TextLink>{" "}
             <Badge>{t(`reports.kind.${row.kind}`)}</Badge>{" "}
-            {row.overdue ? <Badge tone="warning">{t("console.reports.overdue")}</Badge> : null}
+            {row.urgent ? <Badge tone="danger">{t("console.reports.urgent")}</Badge> : null}
           </span>
+          <DueLine language={language} dueAt={row.dueAt} />
           <Muted as="span">
             {t("console.reports.count", { count: formatNumber(row.reports, language) })}
             {" · "}
@@ -93,8 +110,9 @@ function TargetLine({ language, row }: Readonly<{ language: Language; row: Repor
 }
 
 /**
- * Questify's moderation queue (T-705b, FR-1404): one row per reported item with how many open reports it has, oldest
- * first, marked when the oldest is past the 24 hours the guidelines state. Every read is audited with counts only.
+ * Questify's moderation queue (T-705b, FR-1404; T-701b, FR-1732): one row per reported item with how many open reports
+ * it has, urgent first (a report from a live event), then the earliest due, with "Due in" or "Overdue by". Every read
+ * is audited with counts only. The moderation addresses card sits below.
  */
 export function ConsoleReports({ language }: Readonly<{ language: Language }>) {
   const t = translatorFor(language);
@@ -127,7 +145,13 @@ export function ConsoleReports({ language }: Readonly<{ language: Language }>) {
       )}
       {data === undefined ? null : (
         <>
-          <Muted>{t("console.reports.total", { count: formatNumber(data.total, language) })}</Muted>
+          <Muted>
+            {t("console.reports.total", { count: formatNumber(data.total, language) })}
+            {" · "}
+            {t("console.reports.urgentTotal", {
+              count: formatNumber(data.urgentTotal, language),
+            })}
+          </Muted>
           {data.targets.length === 0 ? (
             <EmptyState>{t("console.reports.empty")}</EmptyState>
           ) : (
@@ -139,6 +163,7 @@ export function ConsoleReports({ language }: Readonly<{ language: Language }>) {
           )}
         </>
       )}
+      <ModerationAddresses language={language} />
     </Stack>
   );
 }

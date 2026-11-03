@@ -11,7 +11,8 @@ import { registerDeletionRoutes } from "#src/deletion/routes";
 import type { EmailSender } from "#src/auth/email/sender";
 import { createAuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
-import { createPasswords } from "#src/auth/password-reset";
+import { createEmailChange, type EmailChangeDeps } from "#src/auth/email-change";
+import { createPasswords, type PasswordDeps } from "#src/auth/password-reset";
 import { createSignUp } from "#src/auth/sign-up";
 import { registerStaffRoutes } from "#src/auth/routes";
 import { createSessions } from "#src/auth/session";
@@ -71,6 +72,7 @@ import type { RankingStore } from "#src/ranking/store";
 import { startRankingTick } from "#src/ranking/tick";
 import { startRankPushTick } from "#src/ranking/top-ten-tick";
 import { startOrganizerAlertWorker } from "#src/organizer-alerts/worker";
+import { startTeamAlertWorker } from "#src/team-alerts/worker";
 import { startLifecycleTick } from "#src/events/tick";
 import { startCommunityTick } from "#src/community/tick";
 import { startSouvenirTick } from "#src/souvenirs/tick";
@@ -135,6 +137,8 @@ export type AppOptions = Readonly<{
    * transport. Production gives none (transport OFF, ADR-360), so nothing leaves the machine. Off when not given.
    */
   organizerAlerts?: Readonly<{ intervalMs: number; transport?: EmailSender }>;
+  /** The team alert worker (T-701b): due owner email changes and the urgent-report digest, on the sign-in transport. */
+  teamAlertIntervalMs?: number;
   /**
    * The push worker (T-501, ADR-345): its own small pool and the providers built from the settings (none without keys,
    * T-501b). Off when not given (tests call the doors); the fan-out and settle run whenever it is on, providers or not.
@@ -202,9 +206,22 @@ async function databaseReady(pool: Pool): Promise<boolean> {
   }
 }
 
-/** The top-10 rank push tick and the organizer alert worker, each on when its option is given. */
-function startAlertTicks(app: FastifyInstance, options: AppOptions): (() => Promise<void>)[] {
+/** The top-10 rank push tick, the organizer alert worker and the team alert worker, each on when its option is given. */
+function startAlertTicks(
+  app: FastifyInstance,
+  options: AppOptions,
+  emailChange: EmailChangeDeps,
+): (() => Promise<void>)[] {
   const stops: (() => Promise<void>)[] = [];
+  if (options.teamAlertIntervalMs !== undefined) {
+    const worker = startTeamAlertWorker({
+      ...emailChange,
+      mailFrom: options.config.auth.gmail.from,
+      intervalMs: options.teamAlertIntervalMs,
+      log: (level, fields) => app.log[level](fields),
+    });
+    stops.push(worker.stop);
+  }
   if (options.rankPushIntervalMs !== undefined) {
     const tick = startRankPushTick({
       pool: options.pool,
@@ -239,9 +256,10 @@ function startTicks(
     settings: SettingsService;
     keys: ReturnType<typeof createAuthKeys>;
     invitations: InvitationDeps;
+    emailChange: EmailChangeDeps;
   }>,
 ): void {
-  const stops = startAlertTicks(app, options);
+  const stops = startAlertTicks(app, options, deps.emailChange);
   if (options.lifecycleIntervalMs !== undefined) {
     const tick = startLifecycleTick({
       pool: options.pool,
@@ -314,6 +332,7 @@ type ConsoleShared = Pick<
   Readonly<{
     keys: ReturnType<typeof createAuthKeys>;
     suspended: ConsoleOrganizerDeps["suspended"];
+    emailChange: EmailChangeDeps;
   }>;
 
 /**
@@ -333,6 +352,11 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
     translations: shared.translations,
     organizers: { pool, keys: shared.keys, suspended: shared.suspended },
     players: { pool, keys: shared.keys, idempotencyStore: options.idempotencyStore },
+    ownerEmail: {
+      ...shared.emailChange,
+      log: (event, fields) => app.log.error({ event, ...fields }),
+    },
+    moderationAddresses: { pool, keys: shared.keys, mailFrom: config.auth.gmail.from },
     platform: {
       pool,
       keys: shared.keys,
@@ -345,6 +369,20 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
         pushAndroid: config.push.fcm !== undefined,
       },
     },
+  });
+}
+
+/** Staff sign-in, password reset, sign-up, invites, sessions and the owner email change link (T-701b). */
+function registerStaff(app: FastifyInstance, deps: PasswordDeps): void {
+  const signIn = createSignIn(deps);
+  registerStaffRoutes(app, {
+    signIn,
+    invites: createInvites(deps, signIn),
+    sessions: createSessions(deps.pool),
+    passwords: createPasswords(deps),
+    signUp: createSignUp(deps),
+    emailChange: createEmailChange(deps),
+    dashboardOrigin: deps.dashboardOrigin,
   });
 }
 
@@ -395,15 +433,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     deferred,
     dashboardOrigin: config.auth.dashboardOrigin,
   };
-  const signIn = createSignIn(signInDeps);
-  registerStaffRoutes(app, {
-    signIn,
-    invites: createInvites(passwordDeps, signIn),
-    sessions: createSessions(options.pool),
-    passwords: createPasswords(passwordDeps),
-    signUp: createSignUp(passwordDeps),
-    dashboardOrigin: config.auth.dashboardOrigin,
-  });
+  registerStaff(app, passwordDeps);
 
   const questCodeKey = createQuestCodeKey(config.qrSecret);
   const stepCodeKey = createStepCodeKey(config.qrSecret);
@@ -539,6 +569,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     keys: signInDeps.keys,
     suspended,
     translations,
+    emailChange: passwordDeps,
   });
   registerOrganizerRoutes(app, {
     pool: options.pool,
@@ -564,7 +595,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
   });
   registerPublicLinkRoutes(app, { pool: options.pool, keys: signInDeps.keys });
 
-  startTicks(app, options, { settings, keys: signInDeps.keys, invitations });
+  startTicks(app, options, {
+    settings,
+    keys: signInDeps.keys,
+    invitations,
+    emailChange: passwordDeps,
+  });
   registerPlatformReads(app, options.pool, { settings, translations });
   registerHealthRoutes(app, options);
   return app;

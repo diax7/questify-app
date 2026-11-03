@@ -52,7 +52,9 @@ export async function linkFor(email: string, previous?: string): Promise<string>
     const link = readMailbox().links[email];
     return link === previous ? undefined : link;
   };
-  await expect.poll(fresh, { timeout: 10_000 }).toMatch(/\/(?:reset-password|invite)#token=/);
+  await expect
+    .poll(fresh, { timeout: 10_000 })
+    .toMatch(/\/(?:reset-password|invite|email-change(?:\/stop)?)#token=/);
   return fresh() ?? "";
 }
 

@@ -134,6 +134,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "a member reads its own organizer's held items through content_hold's policy (organizer and event scope); another organizer's event answers an empty list (test/console/moderation, test/security/cross-tenant)",
   "GET /v1/admin/reports":
     "active platform admins only (walked below); console_reports re-reads the admin; open targets grouped, audited with counts only; 120 a minute per admin (test/console/moderation, test/db/content-reports)",
+  "GET /v1/admin/reports/counts":
+    "active platform admins only (walked below); console_report_counts re-reads the admin; counts only; 120 a minute per admin (test/console/moderation)",
   "GET /v1/admin/reports/:kind/:targetId":
     "active platform admins only (walked below); console_report re-reads the admin; reporters' usernames for the admin only, audited with ids only; 120 a minute per admin (test/console/moderation, test/db/content-reports)",
   "POST /v1/admin/reports/:kind/:targetId/resolve":
@@ -280,6 +282,22 @@ const ROUTES: Readonly<Record<string, string>> = {
     "names no account: the same 202 for every email; the link goes only to the account's own mailbox (test/auth/password-reset)",
   "POST /v1/staff/auth/reset/confirm":
     "bound to the one link its secret token opens (test/auth/password-reset, test/db/password-reset)",
+  "POST /v1/staff/auth/email-change/view":
+    "bound to the one change its secret token opens; masked address only; 20 per address in 15 minutes (test/console/owner-email, test/db/owner-email-change)",
+  "POST /v1/staff/auth/email-change/confirm":
+    "bound to the one change its secret token opens; needs the emailed code and the account's password (or waits 24 hours), 5 tries; 20 per address in 15 minutes (test/console/owner-email, test/db/owner-email-change)",
+  "POST /v1/staff/auth/email-change/stop":
+    "bound to the one change its secret Stop token opens; stops it or alerts the team; 20 per address in 15 minutes (test/console/owner-email, test/db/owner-email-change)",
+  "POST /v1/admin/organizers/:organizerId/owner-email":
+    "active platform admins only (walked below); admin_owner_email_start re-reads the admin; owner only, never an admin or the caller; audited with ids only; 10 an hour per admin, 3 a day per account (test/console/owner-email, test/db/owner-email-change)",
+  "POST /v1/admin/owner-email-changes/:changeId/resend":
+    "active platform admins only (walked below); admin_owner_email_resend re-reads the admin; 3 resends a minute apart; 30 an hour per admin (test/console/owner-email, test/db/owner-email-change)",
+  "POST /v1/admin/owner-email-changes/:changeId/cancel":
+    "active platform admins only (walked below); admin_owner_email_cancel re-reads the admin; audited; 30 an hour per admin (test/console/owner-email, test/db/owner-email-change)",
+  "GET /v1/admin/moderation-addresses":
+    "active platform admins only (walked below); Questify's own role addresses (test/console/owner-email)",
+  "PUT /v1/admin/moderation-addresses":
+    "active platform admins only (walked below); admin_set_moderation_addresses re-reads the admin; audited before and after (test/console/owner-email, test/db/report-urgency)",
   "POST /v1/staff/auth/sign-up":
     "names no account: the same answer for a new and an existing email; only the mailbox owner reads the email (test/auth/sign-up)",
   "POST /v1/staff/auth/sign-up/code":
@@ -1096,6 +1114,9 @@ const PUBLIC_ROUTES = [
   "POST /v1/public/marketing/opt-out",
   "POST /v1/public/survey-results",
   "POST /v1/staff/auth/code",
+  "POST /v1/staff/auth/email-change/confirm",
+  "POST /v1/staff/auth/email-change/stop",
+  "POST /v1/staff/auth/email-change/view",
   "POST /v1/staff/auth/password",
   "POST /v1/staff/auth/resend",
   "POST /v1/staff/auth/reset/confirm",

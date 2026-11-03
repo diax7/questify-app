@@ -4,6 +4,7 @@ import type { Language } from "@questify/shared";
 import { useEffect, useState } from "react";
 import { API, hasWarning, questifyDayOf, readDailyConsole } from "#src/lib/console-daily.ts";
 import { INVITATIONS_API, readQueue, waitingCount } from "#src/lib/console-invitations.ts";
+import { readReportCounts, REPORT_COUNTS_API } from "#src/lib/console-reports.ts";
 import { readConsoleCounts } from "#src/lib/console-tickets.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
@@ -228,15 +229,33 @@ export function ConsoleWordListsLink({
   );
 }
 
-/** This page's item in the console's navigation (T-705b). */
+/** This page's item in the console's navigation (T-705b), with the open urgent count (T-701b). */
 export function ConsoleReportsLink({
   language,
   current,
 }: Readonly<{ language: Language; current: boolean }>) {
   const t = translatorFor(language);
+  const [urgent, setUrgent] = useState<number | null>(null);
+  useEffect(() => {
+    if (current) {
+      return;
+    }
+    let alive = true;
+    void requestJson("GET", REPORT_COUNTS_API).then((result) => {
+      const counts = result.ok ? readReportCounts(result.body) : undefined;
+      if (alive && counts !== undefined) {
+        setUrgent(counts.urgent);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [current]);
   return (
     <NavItem href={`/${language}/console/reports`} icon="alert" current={current}>
-      {t("console.reports.title")}
+      {urgent === null || urgent === 0
+        ? t("console.reports.title")
+        : t("console.reports.link", { count: urgent })}
     </NavItem>
   );
 }

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { parse } from "#src/auth/request";
 import { BUCKETS } from "#src/auth/throttle";
 import {
+  readCounts,
   readFlags,
   readQueue,
   readTarget,
@@ -58,6 +59,11 @@ export function registerConsoleModerationRoutes(
     const query = parse(queueQuery, request.query);
     const who = await throttled(deps, request, reply, CONSOLE_REPORTS_READ_LIMIT);
     return readQueue(deps.pool, who, query.kind ?? null, request.id);
+  });
+
+  scope.get("/reports/counts", read, async (request, reply) => {
+    const who = await throttled(deps, request, reply, CONSOLE_REPORTS_READ_LIMIT);
+    return readCounts(deps.pool, who);
   });
 
   scope.get("/reports/:kind/:targetId", read, async (request, reply) => {

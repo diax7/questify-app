@@ -47,6 +47,26 @@ export type OrganizerDetail = Readonly<{
     suspension: SuspensionView | null;
   }>[];
   history: readonly HistoryEntry[];
+  /** The owner's open email change, else the organizer's latest one (T-701b); null when there was none. */
+  ownerEmailChange: OwnerEmailChange | null;
+  /** The other organizers the owner's account belongs to: an email change applies to all of them (T-701b). */
+  ownerOtherOrganizers: readonly string[];
+}>;
+
+/** An owner email change as the console's owner card shows it (`console_owner_email_change`). */
+export type OwnerEmailChange = Readonly<{
+  id: string;
+  state: string;
+  oldEmail: string | null;
+  newEmail: string | null;
+  createdAt: string;
+  expiresAt: string;
+  appliesAt: string | null;
+  closedAt: string | null;
+  resends: number;
+  lastSentAt: string;
+  completedHow: string | null;
+  disputedAt: string | null;
 }>;
 
 export type HistoryEntry = Readonly<{
@@ -167,6 +187,8 @@ export function readOrganizer(
       team: await readTeamOf(client, organizerId),
       events: await readEventsOf(client, organizerId),
       history: await readHistory(client, { organizerId }),
+      ownerEmailChange: await readOwnerEmailChange(client, organizerId),
+      ownerOtherOrganizers: await readOwnerOthers(client, organizerId),
     };
     await recordAudit(client, {
       actor: { type: "admin", id: admin.id },
@@ -177,6 +199,29 @@ export function readOrganizer(
     });
     return detail;
   });
+}
+
+async function readOwnerEmailChange(
+  client: PoolClient,
+  organizerId: string,
+): Promise<OwnerEmailChange | null> {
+  const { rows } = await client.query<{ r: OwnerEmailChange | null }>(
+    "SELECT console_owner_email_change($1) AS r",
+    [organizerId],
+  );
+  return rows[0]?.r ?? null;
+}
+
+async function readOwnerOthers(client: PoolClient, organizerId: string): Promise<string[]> {
+  const { rows } = await client.query<{ name: string }>(
+    `SELECT o.name FROM organizer_member owner_row
+     JOIN organizer_member m ON m.staff_user_id = owner_row.staff_user_id AND m.organizer_id <> owner_row.organizer_id
+     JOIN organizer o ON o.id = m.organizer_id
+     WHERE owner_row.organizer_id = $1 AND owner_row.role = 'owner'
+     ORDER BY lower(o.name) LIMIT 50`,
+    [organizerId],
+  );
+  return rows.map((row) => row.name);
 }
 
 async function readTeamOf(

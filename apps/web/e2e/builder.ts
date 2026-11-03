@@ -2,7 +2,8 @@ import { expect, type Page } from "@playwright/test";
 import { codeFor, freshAddress } from "#e2e/mail.ts";
 import { openMenu } from "#e2e/nav.ts";
 
-const PASSWORD = "an organizer's own pass phrase";
+/** The password of every owner `openBuilder` signs up. */
+export const BUILDER_PASSWORD = "an organizer's own pass phrase";
 
 /** Signs up as a new organizer's owner, creates a draft event, and opens its quest builder in Arabic. */
 export async function openBuilder(page: Page, project: string): Promise<void> {
@@ -14,8 +15,8 @@ export async function openBuilder(page: Page, project: string): Promise<void> {
   await page.goto("/en/sign-up");
   await page.getByLabel("Organizer name").fill("Najd Quests Co");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("New password", { exact: true }).fill(PASSWORD);
-  await page.getByLabel("Type the new password again", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("New password", { exact: true }).fill(BUILDER_PASSWORD);
+  await page.getByLabel("Type the new password again", { exact: true }).fill(BUILDER_PASSWORD);
   await page.getByLabel("I accept the organizer terms").check();
   await page.getByLabel("I accept the data processing agreement").check();
   await page.getByLabel("I accept the content rules").check();

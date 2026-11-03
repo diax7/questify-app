@@ -51,6 +51,30 @@ export const resolvePath = (kind: ReportKind, targetId: string): string =>
 export const targetPage = (language: Language, kind: ReportKind, targetId: string): string =>
   `/${language}/console/reports/${kind}/${targetId}`;
 
+export const REPORT_COUNTS_API = `${REPORTS_API}/counts`;
+export const MODERATION_ADDRESSES_API = "/v1/admin/moderation-addresses";
+
+/** How far a due time is from now, as minutes under two hours and hours from there; `late` once it passed. */
+export function dueDistance(
+  dueAt: string,
+  now: number,
+): Readonly<{ late: boolean; unit: "minutes" | "hours"; count: number }> {
+  const minutes = Math.round((new Date(dueAt).getTime() - now) / 60_000);
+  const size = Math.abs(minutes);
+  return size >= 120
+    ? { late: minutes < 0, unit: "hours", count: Math.round(size / 60) }
+    : { late: minutes < 0, unit: "minutes", count: size };
+}
+
+/** The console menu's counts (`GET /v1/admin/reports/counts`), or undefined for another shape. */
+export function readReportCounts(
+  body: unknown,
+): Readonly<{ open: number; urgent: number }> | undefined {
+  if (typeof body !== "object" || body === null) return undefined;
+  const { open, urgent } = body as Record<string, unknown>;
+  return typeof open === "number" && typeof urgent === "number" ? { open, urgent } : undefined;
+}
+
 /** Each reader answers undefined when the body is not the expected shape, so a changed API shows the error state. */
 export function readQueue(body: unknown): ReportQueue | undefined {
   const parsed = reportQueueSchema.safeParse(body);

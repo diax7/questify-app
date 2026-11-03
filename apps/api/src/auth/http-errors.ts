@@ -2465,3 +2465,89 @@ export const eraseConfirmationRequired = make(
   "اكتب اسم المستخدم كما هو تمامًا لتأكيد الحذف.",
   "Type the username exactly as it is to confirm the deletion.",
 );
+/** The owner email change (T-701b, migration 0130, EC codes). */
+export const emailTaken = make(
+  409,
+  "email_taken",
+  "هذا البريد مستخدم في حساب آخر.",
+  "Another account already uses this email.",
+);
+export const sameEmail = make(
+  409,
+  "same_email",
+  "هذا هو بريد الدخول الحالي.",
+  "This is already the sign-in email.",
+);
+export const emailChangePending = make(
+  409,
+  "email_change_pending",
+  "يوجد تغيير بريد مفتوح لهذا الحساب. ألغِه أولا.",
+  "This account already has an open email change. Cancel it first.",
+);
+export const emailChangeClosed = make(
+  409,
+  "email_change_closed",
+  "انتهى هذا التغيير ولم يعد ينتظر الرمز.",
+  "This change is no longer waiting for its code.",
+);
+export const ownerIsAdmin = make(
+  403,
+  "owner_is_admin",
+  "لا يتغير بريد حساب مشرف من هنا.",
+  "An admin account's email cannot be changed here.",
+);
+export const ownAccount = make(
+  403,
+  "own_account",
+  "لا يمكنك تغيير بريد حسابك من هنا.",
+  "You cannot change your own account's email here.",
+);
+export const invalidEmailChange = make(
+  422,
+  "invalid_email_change",
+  "راجع البريد الجديد وطريقة التحقق والسبب (من 10 إلى 300 حرف).",
+  "Check the new email, the identity check and the reason (10 to 300 characters).",
+);
+export const ownerInactive = make(
+  422,
+  "owner_inactive",
+  "حساب المالك موقوف.",
+  "The owner's account is disabled.",
+);
+export const tooManyEmailChanges = make(
+  429,
+  "too_many_email_changes",
+  "بدأت 3 تغييرات لهذا الحساب اليوم. حاول غدا.",
+  "Three changes were started for this account today. Try tomorrow.",
+);
+export const codeNotSent = make(
+  502,
+  "code_not_sent",
+  "تعذّر إرسال الرمز. تحقق من البريد.",
+  "We could not send the code. Check the address.",
+);
+export const emailChangeLinkInvalid = make(
+  404,
+  "email_change_link_invalid",
+  "انتهت صلاحية الرابط أو أُغلق التغيير. تواصل مع دعم كويستفاي.",
+  "This link has expired or the change is closed. Contact Questify support.",
+);
+export const wrongCodeOrPassword = make(
+  422,
+  "wrong_code_or_password",
+  "الرمز أو كلمة المرور غير صحيحة.",
+  "The code or the password is not correct.",
+);
+export const emailChangeLocked = make(
+  429,
+  "email_change_locked",
+  "استُنفدت المحاولات. اطلب من دعم كويستفاي البدء من جديد.",
+  "No tries are left. Ask Questify support to start again.",
+);
+/** The moderation addresses card (T-701b, MA422). */
+export const invalidModerationAddress = make(
+  422,
+  "invalid_moderation_address",
+  "أدخل بريدا صحيحا أو اتركه فارغا.",
+  "Enter a valid email or leave it empty.",
+);

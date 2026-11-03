@@ -85,6 +85,22 @@ player's own block list (FR-1415, ADR-431), 500 at most. No grant: written by `b
 `own_blocks` and, through `blocked_by_me`, by the masked reads (rankings, results, Questify boards, public profile) and
 `meet_refusal`. `erase_rows` deletes the rows of an erased account in both directions.
 
+### staff_email_change and team_alert (migration 0130, T-701b)
+`staff_email_change (id, staff_user_id, organizer_id, requested_by, identity_check, reason, old_email, new_email,
+token_hash, stop_hash, code_hash, attempts 0-5, resends 0-3, last_sent_at, created_at, expires_at (+60 min), applies_at,
+state pending|held|confirmed|cancelled|stopped|expired|send_failed|email_taken, completed_how password|waited,
+disputed_at, closed_at)`: an owner's sign-in email change (ADR-490..492). One open (pending or held) per account. The
+confirm and stop tokens are HMACs of the change id under the auth key; only their SHA-256 is stored, the code as an HMAC
+bound to the change. Addresses live only here, erased 180 days after closing (`owner_email_purge`, the lifecycle tick,
+which also expires a pending change past its hour). Rows go with their account (`ON DELETE CASCADE`). No grant.
+`team_alert (id, kind urgent_report|email_change_dispute, target_kind, target_id, event_id, report_id, change_id,
+organizer_id, dedupe, state queued|sending|sent|failed|uncertain|skipped, attempts 0-3, lease, lease_until, created_at,
+finished_at)`: Questify's own ids-only outbox, written by the `report_team_alert` trigger (the first urgent report of a
+target's open episode) and `owner_email_stop` (a dispute), claimed by the team alert worker, deleted 30 days after it
+finished. No grant. `content_report` gains `urgent` and `due_at` (set by the `report_urgency` trigger at insert: live
+event, 1 hour; else 24 hours). `platform_setting` key `moderation` holds `alertEmail` and `appealEmail`, written only by
+`admin_set_moderation_addresses`.
+
 ### content_report and content_hold (migration 0121, T-705b)
 `content_report (id, reporter_id, event_id, target_kind, target_id, snapshot, reason, note, marked, status
 open|actioned|dismissed, outcome, handled_by, handled_at, created_at)`: a player's report (FR-1411, ADR-433). `target_kind`

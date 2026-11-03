@@ -1324,7 +1324,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1729 | F-257 | Must | pending |
 | FR-1730 | F-258 | Should | partly built (T-609, ADR-394: the console's Usage page shows events, players, invitations sent and alert emails sent per organizer and per event; login SMS, promotional email, push volume and storage are not metered yet, Q-361): `test/db/usage.int`, `src/usage/routes.test`, `e2e/console-usage.spec` |
 | FR-1731 | F-259 | Must | built (T-706: the WhatsApp, phone and email an admin sets in the console show on `/{lang}/contact` and fill the legal drafts' contact placeholders, ADR-462) |
-| FR-1732 | F-260 | Must | pending |
+| FR-1732 | F-260 | Must | built (T-701b: urgency at arrival, urgent first with due times, the team digest) |
 | FR-1733 | F-261, F-137 | Should | built: server T-406 (`test/db/daily-content.int`: the warning at 6 vs 7 days, no challenge → `challenge: null`, the streak still kept by an event completion); the console banner and the menu badge built T-406c (`e2e/console-daily.spec.ts`, `console-daily.test`) |
 | FR-1734 | F-262 | Must | partly built (T-703: the username and daily-streak switches; XP by difficulty is T-709c; XP on repeats is Q-412) |
 | FR-1735 | F-263 | Must | pending |
@@ -1376,7 +1376,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1781 | F-289 | Must | built (T-707: published versions in force at once; players asked at launch and refused at sign-in, an organizer's team held until its owner accepts, ADR-445, ADR-446; a decline cannot continue in the app, Q-405) |
 | FR-1782 | F-290 | Should | built (T-707: help and FAQ articles in the console, a language alone shown to both readers, ADR-447) |
 | FR-1783 | F-291 | Should | partly built (T-709: queues, leases, set-up, SMS rate; players online and error counters Q-382) |
-| FR-1784 | F-292 | Should | partly built (T-701 pause and restore; owner email change T-701b; merge dropped, Q-375) |
+| FR-1784 | F-292 | Should | built except merge (T-701 pause and restore; T-701b owner email change; merge dropped, Q-375) |
 | FR-1785 | F-293 | Must | built (T-709: sessions and forced sign-out in the console; add and remove admins by `staff-cli` only, ADR-405; the last admin is refused) |
 | FR-1786 | F-294 | Should | built T-408 (month boards of `xp_board`, `GET /v1/admin/questify/seasons[/:month]`) and T-408c (console page `/console/seasons`; code review pending) |
 | FR-1787 | F-295 | Must | pending |
