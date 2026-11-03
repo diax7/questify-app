@@ -17,7 +17,7 @@ type SignIn = { outcome: string; attempts_left: number; player_id: string | null
 type Demo = Record<string, unknown> & { exists: boolean };
 
 /**
- * The App Review demo in the database (T-710, migration 0142, ADR-560 to ADR-567): the console doors, the fixed code in
+ * The App Review demo in the database (T-710, migration 0144, ADR-560 to ADR-567): the console doors, the fixed code in
  * the sign-in and deletion functions (only the reviewer account, only while the window is open, never on any other
  * number), the lock order against Close, the reviewer number never held by a real account, confinement both ways,
  * the event that stays live, the tick, and the Questify-wide lists that leave demo accounts out. One demo per database,

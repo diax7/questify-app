@@ -2336,7 +2336,7 @@ The fixed code works for one Saudi mobile number. While a review window is open 
 ## Q-525 - Should the demo organizer be left out of platform usage figures? (T-710)
 
 **Status:** Proposed (developer, 2026-11-03).
-**Recommended (developer):** yes, where a platform total is shown (usage, feature usage, KPIs), in a follow-up; for v1 the console names it "Questify Review Demo", which tells it apart. T-710 build: recorded in `docs/FOLLOWUPS.md` (`console_feature_usage` is not restated in 0142).
+**Recommended (developer):** yes, where a platform total is shown (usage, feature usage, KPIs), in a follow-up; for v1 the console names it "Questify Review Demo", which tells it apart. T-710 build: recorded in `docs/FOLLOWUPS.md` (`console_feature_usage` is not restated in 0144).
 
 ## Q-526 - Should the demo content be seeded by a script? (T-710, ADR-568)
 

@@ -39,7 +39,7 @@ const readinessSchema = z.object({
   overrides: z.record(z.string(), z.boolean()),
 });
 
-/** `console_review_demo()` as the database answers it (migration 0142). */
+/** `console_review_demo()` as the database answers it (migration 0144). */
 export const reviewDemoRawSchema = z.discriminatedUnion("exists", [
   z.object({ exists: z.literal(false) }),
   z.object({

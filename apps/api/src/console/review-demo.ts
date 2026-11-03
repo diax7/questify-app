@@ -32,7 +32,7 @@ export const overridableFeatures = (): string[] =>
     .toSorted();
 
 /**
- * The review demo doors' own refusals (migration 0142) by SQLSTATE and DETAIL; an admin check (QE403) and anything else
+ * The review demo doors' own refusals (migration 0144) by SQLSTATE and DETAIL; an admin check (QE403) and anything else
  * go to the console's shared door.
  */
 function refusalOf(error: unknown): HttpError | undefined {
