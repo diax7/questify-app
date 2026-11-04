@@ -1607,7 +1607,7 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Note 2026-11-05 (order): the sheet is drafted before T-809 so the tester starts from it: `docs/security/ASVS_L2.md`
     (253 L1 and L2 controls: 133 Met, 47 Partly, 2 Not met, 71 N/A). T-810 stays open until T-809's findings are in
     the sheet and every gap is closed (T-810b, FOLLOWUPS) or accepted in writing (Q-660 to Q-664).
-- [ ] **T-810b** (tier A) Close the ASVS L2 code gaps from T-810 (`docs/security/ASVS_L2.md`, "Gaps and what to do" 1 to 8) — delivers no FR (infrastructure or quality gate); depends on: none
+- [x] **T-810b** (tier A) Close the ASVS L2 code gaps from T-810 (`docs/security/ASVS_L2.md`, "Gaps and what to do" 1 to 8) — delivers no FR (infrastructure or quality gate); depends on: none
   - (1) `Strict-Transport-Security`, `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` on every `/v1` answer (conventions `onSend`), passed through `apps/web/src/lib/forward.ts`; tests for both and an HSTS assertion on the page headers.
   - (2) `redirect: "error"` on every outside `fetch` (`players/sms.ts`, `auth/breached.ts`, `auth/email/resend.ts`, `auth/email/gmail.ts`, `auth/google-token.ts`), a test per client.
   - (3) A 256-bit random invitation link token in place of `gen_random_uuid()` (migration 0073); links already sent keep working until purged.
@@ -1621,6 +1621,9 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Note 2026-11-05 (plan): `docs/plans/2026-11-05-t-810b-asvs-gaps.md` (ADR-700 to ADR-706, Q-670 to Q-673,
     migrations 0152 to 0154). The plan numbers the Q-662 part of (9) as item 10, and proposes moving (8) to T-810f
     (Q-673).
+  - Done 2026-11-05: items 1 to 7, 9 and 10 built to the plan as amended by its review (score 87); item 8 is T-810f.
+    Invitation links take 128 bits, not 256 (Q-670). The sheet's rows are Met but V6.6.1 (notice, T-810e) and V11.2.2
+    (T-810f). Code review next.
 - [ ] **T-810c** (tier A) Signed-in devices: a "Signed-in devices" list in the app's account screen with Sign out per
   device and for all others (also offered after a phone or email change); a console action that ends every session of
   one staff account or one player, with a reason in the audit log; a fresh code before a staff member ends their other
