@@ -44,6 +44,22 @@
   **Next:** Dhia fixes the monitoring app's build folder (Q-610), then the API's `TELEMETRY_*` go into `staging.json` and
   `apply staging`; T-017b (a fresh environment) once five CranL slots are free (Q-613).
 
+## Mutation chase: review demo access code — 2026-11-04
+- **Survivors and no-coverage mutants of GitHub run 41718131349 chased (one round, tests only, no source change, no bug
+  found).** `apps/api/src/review-demo/codes.ts` (85.92%, 10): 9 killed in `src/review-demo/codes.test.ts` (a label with
+  one language kept, no flag row means no flag, a meet code counts the pass and a caller over the limit gets
+  `too_many_attempts` without a code); 1 equivalent (line 85 `?? ""`: no refusal is keyed by any fallback string).
+  `apps/api/src/review-demo/routes.ts` (59.26%, 11): 9 killed in `test/review-demo/codes.int.test.ts` (403 while meet is
+  off, 409 `none_left` with no fictional player left, 429 with `retry-after` and its details over the pass limit, the
+  meet code's `no-store`); 2 equivalent (lines 55 and 66, the `cache-control` header name: the player guard already sets
+  `no-store` on every player route). `apps/api/src/console/review-demo.ts` (71.67%, 17): all killed, in the new
+  `src/console/review-demo.test.ts` (each SQLSTATE's refusal, 55P03, other errors passed through, Prepare before Create
+  never reaching the prepare door) and `test/console/review-demo.int.test.ts` (change number before Create is 404, after
+  Close shows the new number). `apps/api/src/console/review-demo-routes.ts` (86.11%, 5): all killed there (the malformed
+  phone names its field; the number change). Each kill was checked by applying the mutant by hand (41 failed their
+  suite; the 3 equivalent ones passed). Lint, types, `lint:limits`, `format:check` clean; touched suites 25 passed. Scores
+  are confirmed by the next grouped mutation run. CI minutes: 0; agent tokens roughly 0.3M (estimate).
+
 ## Mutation chase: games.ts and layers.ts — 2026-11-04
 - **Survivors of GitHub run 41703314042 chased (one round, tests only, no source change, no bug found).**
   `apps/api/src/plays/games.ts` (89.01%, 20 survived): 19 killed in `src/plays/meet-games.test.ts` (a sheet with half an

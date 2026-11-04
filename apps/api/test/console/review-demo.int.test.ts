@@ -90,7 +90,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console review demo over HTTP"
     expect(
       reviewDemoAnswerSchema.parse((await admin("GET", "/v1/admin/review-demo")).json()).demo,
     ).toEqual({ exists: false });
-    expect((await admin("POST", "/v1/admin/review-demo", { phone: "12345" })).statusCode).toBe(422);
+    expect(
+      (await admin("PUT", "/v1/admin/review-demo/contact", { phone: REVIEWER })).statusCode,
+    ).toBe(404);
+    const malformed = await admin("POST", "/v1/admin/review-demo", { phone: "12345" });
+    expect(malformed.statusCode).toBe(422);
+    expect(malformed.json()).toMatchObject({
+      code: "invalid_review_demo",
+      details: { field: "phone" },
+    });
     const made = await admin("POST", "/v1/admin/review-demo", { phone: "0500000720" });
     expect(made.statusCode, made.body).toBe(201);
     const demo = reviewDemoAnswerSchema.parse(made.json()).demo;
@@ -193,5 +201,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console review demo over HTTP"
     const after = await signIn(REVIEWER, code);
     expect(after.statusCode).toBe(401);
     expect(test.sms.sent.length).toBe(sent + 1);
+  });
+
+  it("changes the reviewer number and shows the new one", async () => {
+    const changed = await admin("PUT", "/v1/admin/review-demo/contact", { phone: "0500000722" });
+    expect(changed.statusCode, changed.body).toBe(200);
+    expect(reviewDemoAnswerSchema.parse(changed.json()).demo).toMatchObject({
+      exists: true,
+      contact: "+966500000722",
+      windowUntil: null,
+    });
   });
 });

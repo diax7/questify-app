@@ -154,6 +154,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("review demo QR picker over HTT
       questId: quests["meet"],
     });
     expect(pass.statusCode, pass.body).toBe(201);
+    expect(pass.headers["cache-control"]).toBe("no-store");
     const { code } = pass.json<{ code: string; expiresAt: string }>();
     expect(code).toMatch(/^questify\/meet\/v1\//);
     const met = await as(token, "POST", "/v1/meet", { code });
@@ -193,6 +194,44 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("review demo QR picker over HTT
       url: `/v1/events/${event}/review-codes`,
     });
     expect(anonymous.statusCode).toBe(401);
+  });
+
+  it("answers 403 while meet is off and 409 once no fictional player is left to meet", async () => {
+    const meetUrl = `/v1/events/${event}/review-codes/meet`;
+    const { rows } = await db.owner.query<{ config: object }>(
+      "SELECT config FROM event WHERE id = $1",
+      [event],
+    );
+    await db.owner.query(
+      `UPDATE event SET config = jsonb_set(config, '{features}', '{"meetSomeone": false}') WHERE id = $1`,
+      [event],
+    );
+    const off = await as(token, "POST", meetUrl, { questId: quests["meet"] });
+    expect(off.statusCode, off.body).toBe(403);
+    expect(off.json()).toMatchObject({ code: "feature_off" });
+    await db.owner.query("UPDATE event SET config = $2 WHERE id = $1", [event, rows[0]?.config]);
+    const fictional = "SELECT player_id FROM review_demo_player WHERE role = 'fictional'";
+    await db.owner.query(`UPDATE player SET status = 'banned' WHERE id IN (${fictional})`);
+    const none = await as(token, "POST", meetUrl, { questId: quests["meet"] });
+    expect(none.statusCode, none.body).toBe(409);
+    expect(none.json()).toMatchObject({ code: "none_left" });
+    await db.owner.query(`UPDATE player SET status = 'active' WHERE id IN (${fictional})`);
+  });
+
+  it("holds a caller to the meet-pass limit with 429 and when to try again", async () => {
+    const real = await realPlayer();
+    let held = await as(real, "POST", `/v1/events/${event}/review-codes/meet`, {
+      questId: quests["meet"],
+    });
+    for (let tries = 1; held.statusCode === 404 && tries <= 30; tries += 1) {
+      held = await as(real, "POST", `/v1/events/${event}/review-codes/meet`, {
+        questId: quests["meet"],
+      });
+    }
+    expect(held.statusCode, held.body).toBe(429);
+    const wait = Number(held.headers["retry-after"]);
+    expect(wait).toBeGreaterThan(0);
+    expect(held.json()).toMatchObject({ details: { retryAfterSeconds: wait } });
   });
 
   it("answers 404 once the window closes, even to a fresh reviewer session, and drops the Home flag", async () => {
