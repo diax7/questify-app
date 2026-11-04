@@ -107,6 +107,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
       )
     )[0];
 
+  type Ends = { refresh: number; access: number; started: number };
+  const DAY = 86_400;
+
+  /** Seconds from now to the newest row's end, its family's start, and its access token's end. */
+  const endsOf = async (t: Tokens): Promise<Ends | undefined> =>
+    (
+      await owner<Ends>(
+        `SELECT extract(epoch FROM r.expires_at - now())::float AS refresh,
+                extract(epoch FROM r.family_started_at - now())::float AS started,
+                extract(epoch FROM s.expires_at - now())::float AS access
+         FROM player_refresh r JOIN player_session s ON s.token_hash = $2
+         WHERE r.token_hash = $1`,
+        [sha(t.refresh), sha(t.access)],
+      )
+    )[0];
+
+  /** Moves a family's sign-in `days` into the past. */
+  const signedInDaysAgo = (family: string, days: number) =>
+    owner(
+      "UPDATE player_refresh SET family_started_at = now() - make_interval(days => $2) WHERE family = $1",
+      [family, days],
+    );
+
+  const familyOf = async (t: Tokens) =>
+    (
+      await owner<{ family: string }>("SELECT family FROM player_refresh WHERE token_hash = $1", [
+        sha(t.refresh),
+      ])
+    )[0]?.family ?? "";
+
   describe("a code", () => {
     it("takes three tries, says how many are left, and then ends", async () => {
       const c = await challenge();
@@ -437,37 +467,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
     });
 
     describe("a family ends 365 days after its sign-in (T-810b, migration 0154)", () => {
-      type Ends = { refresh: number; access: number; started: number };
-      const DAY = 86_400;
-
-      /** Seconds from now to the newest row's end, its family's start, and its access token's end. */
-      const endsOf = async (t: Tokens): Promise<Ends | undefined> =>
-        (
-          await owner<Ends>(
-            `SELECT extract(epoch FROM r.expires_at - now())::float AS refresh,
-                    extract(epoch FROM r.family_started_at - now())::float AS started,
-                    extract(epoch FROM s.expires_at - now())::float AS access
-             FROM player_refresh r JOIN player_session s ON s.token_hash = $2
-             WHERE r.token_hash = $1`,
-            [sha(t.refresh), sha(t.access)],
-          )
-        )[0];
-
-      /** Moves a family's sign-in `days` into the past. */
-      const signedInDaysAgo = (family: string, days: number) =>
-        owner(
-          "UPDATE player_refresh SET family_started_at = now() - make_interval(days => $2) WHERE family = $1",
-          [family, days],
-        );
-
-      const familyOf = async (t: Tokens) =>
-        (
-          await owner<{ family: string }>(
-            "SELECT family FROM player_refresh WHERE token_hash = $1",
-            [sha(t.refresh)],
-          )
-        )[0]?.family ?? "";
-
       it("gives a fresh sign-in 180 days of refresh and one hour of access, starting now", async () => {
         const { t } = await newPlayer();
         const ends = await endsOf(t);
