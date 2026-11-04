@@ -92,7 +92,10 @@ const principal = (request: FastifyRequest): string => request.principalId ?? "a
  * 0121, ADR-434), and the App Review demo's confinement (migration 0144, ADR-563): a join or assignment across its
  * border answers as an unknown event, and a change that would end, hide or limit its event is refused.
  */
-type Actor = Readonly<{ actorKind: "staff" | "player" | "device" | "anonymous"; actorId: string | null }>;
+type Actor = Readonly<{
+  actorKind: "staff" | "player" | "device" | "anonymous";
+  actorId: string | null;
+}>;
 
 /** Who was refused, read from what the guard set on the request (staff ids carry no prefix to read it from). */
 function actorOf(request: FastifyRequest): Actor {
