@@ -1,11 +1,10 @@
 import { Pool } from "pg";
-import { createClient, type RedisClientType } from "redis";
 import { buildApp } from "#src/app";
 import { poolOptions } from "#src/db/pool-options";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import { createFakeProvider } from "#src/push/fake";
 import { PUSH_TARGETS } from "#src/push/provider";
-import { createRankingStore } from "#src/ranking/store";
+import { createRankingRedis, createRankingStore, type RankingRedis } from "#src/ranking/store";
 import { qrSecret, required } from "#test/load/settings";
 import { testConfig } from "#test/support/auth-app";
 
@@ -23,8 +22,8 @@ const REDIS_CONNECT_TIMEOUT_MS = 2000;
 const PRODUCTION_POOL_SIZE = 10;
 const PUSH_POOL_SIZE = 3;
 
-function createRedis(url: string, prefix: string): RedisClientType {
-  const client: RedisClientType = createClient({
+function createRedis(url: string, prefix: string): RankingRedis {
+  const client: RankingRedis = createRankingRedis({
     url,
     keyPrefix: prefix,
     disableOfflineQueue: true,

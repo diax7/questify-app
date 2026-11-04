@@ -133,7 +133,7 @@ export function registerCompletionRoutes(
       }
       // The player's place after this completion: null when not ranked or when Redis could not answer (T-106).
       logStreakBonus(request.log, result.value);
-      const rank = await deps.ranking.afterCompletion(player.id, result.value.completionId);
+      const rank = await deps.ranking.afterAnswer(result.entries);
       return { ...result.value, rank };
     },
   );

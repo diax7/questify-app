@@ -100,4 +100,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the player legal hold (HTTP)",
       expect(answer.json<{ code: string }>().code, url).not.toBe("legal_acceptance_required");
     }
   });
+
+  // T-804c (ADR-672): one gate call answers the session and the hold together; a write still needs a live session first.
+  it("answers 401 to a write, before any hold, for a banned player, a reset session and an expired token", async () => {
+    const banned = await newPlayer();
+    await owner("UPDATE player SET status = 'banned' WHERE id = $1", [banned.id]);
+    const reset = await newPlayer();
+    await owner("UPDATE player SET tokens_valid_after = now() WHERE id = $1", [reset.id]);
+    const expired = await newPlayer();
+    await owner(
+      "UPDATE player_session SET created_at = now() - interval '2 hours', expires_at = now() - interval '1 hour' WHERE player_id = $1",
+      [expired.id],
+    );
+    const held = await newPlayer();
+    await owner("INSERT INTO legal_version (document, version) VALUES ('privacy_policy', '0.3')");
+    for (const player of [banned, reset, expired]) {
+      for (const [method, url, body] of WRITES) {
+        const answer = await call(player.token, method, url, body);
+        expect(answer.statusCode, url).toBe(401);
+      }
+      expect((await call(player.token, "GET", "/v1/me")).statusCode).toBe(401);
+    }
+    const write = await call(held.token, "POST", "/v1/me/blocks", { username: "someone" });
+    expect(write.json()).toMatchObject({ code: "legal_acceptance_required" });
+    expect((await call(held.token, "GET", "/v1/me")).statusCode).toBe(200);
+  });
 });

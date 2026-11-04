@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { LightMyRequestResponse } from "fastify";
-import type { RedisClientType } from "redis";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createRankingStore } from "#src/ranking/store";
+import { createRankingStore, type RankingRedis } from "#src/ranking/store";
 import {
   DASHBOARD_ORIGIN,
   PASSWORD,
@@ -40,7 +39,7 @@ const expectStatus = (response: LightMyRequestResponse, status: number): LightMy
 describe.skipIf(TEST_DATABASE_URL === undefined)("the first loop (T-118)", () => {
   let db: TestDatabase;
   let test: TestApp;
-  let redis: RedisClientType | undefined;
+  let redis: RankingRedis | undefined;
 
   beforeAll(async () => {
     db = await createTestDatabase();

@@ -21,6 +21,10 @@ const recordingStore = (upserts: Upsert[]): RankingStore => ({
   upsert: async (event, entry) => {
     upserts.push({ event, score: entry.score });
   },
+  upsertRead: async (event, entry) => {
+    upserts.push({ event, score: entry.score });
+    return { top: [], total: 1, place: 1 };
+  },
   remove: async () => undefined,
   read: async () => ({ top: [], total: 1, place: 1 }),
   rebuild: async () => "rebuilt",

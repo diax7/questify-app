@@ -59,6 +59,11 @@ export type RankingScope = "event" | "today";
 export type Ranking = Readonly<{
   /** Copies the player's place after their completion committed; their rank, or null (not ranked, Redis failed). */
   afterCompletion: (playerId: string, completionId: string) => Promise<number | null>;
+  /**
+   * The same, from the entries the completion's own statement read (complete_quest_answer, ADR-671): no PostgreSQL
+   * call unless the copy must be rebuilt or the event marked.
+   */
+  afterAnswer: (entries: CompletionEntries) => Promise<number | null>;
   /** The event's ranking (or today's) as the player sees it; `not_enrolled`; `today_off` when there is no today's. */
   read: (
     eventId: string,
@@ -271,12 +276,27 @@ async function ownIn(
       };
 }
 
-type EntryRow = Readonly<{
+/** A completion's overall entry, as `ranking_entry_of` answers it (bigints as text). */
+export type EntryRow = Readonly<{
   event_id: string;
   enrollment_id: string;
   score: string;
   score_version: string | null;
   ranked: boolean;
+}>;
+
+/** A completion's event-day entry, as `ranking_day_entry_of` answers it, with the day as YYYY-MM-DD. */
+export type DayEntryRow = EntryRow & Readonly<{ day: string }>;
+
+/**
+ * The two entries `complete_quest_answer` read for its completion (ADR-671). `failed` when the database could not read
+ * them (the completion committed regardless); `entry` and `day` are undefined when there is none.
+ */
+export type CompletionEntries = Readonly<{
+  eventId: string;
+  entry: EntryRow | undefined;
+  day: DayEntryRow | undefined;
+  failed: boolean;
 }>;
 
 async function placeAfter(
@@ -293,12 +313,11 @@ async function placeAfter(
     await store.remove(entry.event_id, entry.enrollment_id, version);
     return null;
   }
-  await store.upsert(entry.event_id, {
+  let copy = await store.upsertRead(entry.event_id, {
     enrollmentId: entry.enrollment_id,
     score: BigInt(entry.score),
     version,
   });
-  let copy = await store.read(entry.event_id, 0, entry.enrollment_id);
   if (copy === undefined) {
     // The event's first completion, or a lost copy: build it now so the answer carries the place.
     await rebuild(deps, store, { eventId: entry.event_id, day: undefined });
@@ -338,6 +357,32 @@ async function afterCompletion(
 }
 
 /**
+ * `afterCompletion` from entries already read by the completion's statement. Never fails the completion: entries the
+ * database could not read, or a Redis failure, are logged, the event marked, and the place left null.
+ */
+async function afterAnswer(deps: RankingDeps, entries: CompletionEntries): Promise<number | null> {
+  const { store } = deps;
+  if (store === undefined) {
+    return null;
+  }
+  if (entries.failed) {
+    deps.log("warn", { event: "ranking.write_failed", reason: "entries_unread" });
+    await mark(deps, entries.eventId);
+    return null;
+  }
+  let place: number | null;
+  try {
+    place = entries.entry === undefined ? null : await placeAfter(deps, store, entries.entry);
+  } catch (error) {
+    deps.log("warn", { event: "ranking.write_failed", reason: reasonOf(error) });
+    await mark(deps, entries.eventId);
+    return null;
+  }
+  await dayWrite(deps, store, entries.day);
+  return place;
+}
+
+/**
  * Copies the completion into its event day's board, for a multi-day event (nothing otherwise). A failure here is
  * logged and the event marked; it never takes the overall place from the answer.
  */
@@ -347,20 +392,34 @@ async function dayAfter(
   playerId: string,
   completionId: string,
 ): Promise<void> {
-  let entry: (EntryRow & Readonly<{ day: string }>) | undefined;
+  let entry: DayEntryRow | undefined;
   try {
     entry = await inContext(deps, { playerId }, async (client) => {
-      const { rows } = await client.query<EntryRow & { day: string }>(
+      const { rows } = await client.query<DayEntryRow>(
         `SELECT event_id, day::text AS day, enrollment_id, score, score_version, ranked
          FROM ranking_day_entry_of($1)`,
         [completionId],
       );
       return rows[0];
     });
-    // Stryker disable next-line ConditionalExpression: equivalent: the function gives a row only with a version
-    if (entry === undefined || entry.score_version === null) {
-      return;
-    }
+  } catch (error) {
+    deps.log("warn", { event: "ranking.day_write_failed", reason: reasonOf(error) });
+    return;
+  }
+  await dayWrite(deps, store, entry);
+}
+
+/** Writes an event-day entry to its day's board; a failure is logged and the event marked. */
+async function dayWrite(
+  deps: RankingDeps,
+  store: RankingStore,
+  entry: DayEntryRow | undefined,
+): Promise<void> {
+  // Stryker disable next-line ConditionalExpression: equivalent: the function gives a row only with a version
+  if (entry === undefined || entry.score_version === null) {
+    return;
+  }
+  try {
     const key = keyOf({ eventId: entry.event_id, day: entry.day });
     const version = BigInt(entry.score_version);
     await (entry.ranked
@@ -372,9 +431,7 @@ async function dayAfter(
       : store.remove(key, entry.enrollment_id, version));
   } catch (error) {
     deps.log("warn", { event: "ranking.day_write_failed", reason: reasonOf(error) });
-    if (entry !== undefined) {
-      await mark(deps, entry.event_id);
-    }
+    await mark(deps, entry.event_id);
   }
 }
 
@@ -550,6 +607,7 @@ export function createRanking(deps: RankingDeps): Ranking {
   const clock = { lastBackstop: 0 };
   return {
     afterCompletion: (playerId, completionId) => afterCompletion(deps, playerId, completionId),
+    afterAnswer: (entries) => afterAnswer(deps, entries),
     read: (eventId, playerId, scope = "event") => read(deps, eventId, playerId, scope),
     repairDue: () => repairDue(deps, clock),
   };

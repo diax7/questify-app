@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { createClient, type RedisClientType } from "redis";
+import { createRankingRedis, type RankingRedis } from "#src/ranking/store";
 
 export const TEST_REDIS_URL = process.env["TEST_REDIS_URL"];
 
@@ -8,11 +8,11 @@ export const TEST_REDIS_URL = process.env["TEST_REDIS_URL"];
  *
  * @throws Error when TEST_REDIS_URL is not set (guard the suite with `describe.skipIf`).
  */
-export async function createTestRedis(): Promise<RedisClientType> {
+export async function createTestRedis(): Promise<RankingRedis> {
   if (TEST_REDIS_URL === undefined) {
     throw new Error("TEST_REDIS_URL is not set.");
   }
-  const client: RedisClientType = createClient({
+  const client: RankingRedis = createRankingRedis({
     url: TEST_REDIS_URL,
     keyPrefix: `test:${randomBytes(6).toString("hex")}:`,
   });

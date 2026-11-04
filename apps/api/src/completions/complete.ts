@@ -7,14 +7,14 @@ import type { Caller } from "#src/auth/sign-in";
 import { BUCKETS, countRecent, forget, record, tryLock, type Bucket } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
-import { firstBonusPaid, type OwnFirstBonus } from "#src/quests/first-bonus";
-import { streakBonusPaid } from "#src/streaks/streaks";
+import type { OwnFirstBonus } from "#src/quests/first-bonus";
 import {
   verifyQuestCode,
   verifyScreenCode,
   type QuestCodeKey,
   type ScreenCodeKey,
 } from "#src/quests/qr";
+import type { CompletionEntries } from "#src/ranking/ranking";
 import type { SettingsService } from "#src/settings/service";
 
 export type Proof =
@@ -223,7 +223,8 @@ const LOCATION_PROBLEMS: ReadonlySet<string> = new Set([
 ]);
 
 export type CompletionResult =
-  | Readonly<{ kind: "completed"; value: Completed }>
+  /** `entries` are the ranking entries the same statement read (ADR-671), for `Ranking.afterAnswer`. */
+  | Readonly<{ kind: "completed"; value: Completed; entries: CompletionEntries }>
   | Readonly<{ kind: "not_found" }>
   | Readonly<{ kind: "enrollment_inactive"; reason: string }>
   | Readonly<{ kind: "quest_not_open"; reason: string }>
@@ -369,13 +370,46 @@ async function release(
   }
 }
 
-type Row = {
+/** One row of `complete_quest_answer` (migration 0149, ADR-671): the engine's six columns and every part after them. */
+type AnswerRow = {
   completion_id: string;
   points: string;
   occurrence: number;
   score: string;
   balance: string;
   replayed: boolean;
+  event_id: string;
+  level_up: number | null;
+  level_title_ar: string;
+  level_title_en: string;
+  level_items: ProfileItem[] | null;
+  bonus_category_id: string | null;
+  bonus_points: string;
+  bonus_name_ar: string | null;
+  bonus_name_en: string | null;
+  bonus_item_ar: string | null;
+  bonus_item_en: string | null;
+  bonus_item_outcome: ItemOutcome | null;
+  bonus_item_until: Date | null;
+  bonus_item_time_zone: string | null;
+  item_name_ar: string | null;
+  item_name_en: string | null;
+  item_outcome: ItemOutcome | null;
+  item_until: Date | null;
+  item_time_zone: string | null;
+  boost_multiplier: number | null;
+  first_bonus: OwnFirstBonus | null;
+  streak_bonus: StreakBonus | null;
+  rank_enrollment_id: string | null;
+  rank_score: string;
+  rank_score_version: string | null;
+  rank_ranked: boolean;
+  day_day: string;
+  day_enrollment_id: string | null;
+  day_score: string;
+  day_score_version: string | null;
+  day_ranked: boolean;
+  ranking_failed: boolean;
 };
 
 type EngineProof = Readonly<{
@@ -384,14 +418,90 @@ type EngineProof = Readonly<{
   typed: string | null;
 }>;
 
+/** The parts of the answer, built as `levelReached`, `bonusPaid`, `itemGiven` and the others build them. */
+function partsOf(
+  row: AnswerRow,
+): Omit<Completed, "completionId" | "points" | "occurrence" | "score" | "balance" | "replayed"> {
+  const first = row.first_bonus;
+  const streak = row.streak_bonus;
+  return {
+    levelUp:
+      row.level_up === null
+        ? null
+        : {
+            level: row.level_up,
+            title: { ar: row.level_title_ar, en: row.level_title_en },
+            items: row.level_items ?? [],
+          },
+    bonus: bonusOf(
+      row.bonus_category_id === null
+        ? []
+        : [
+            {
+              category_id: row.bonus_category_id,
+              points: row.bonus_points,
+              name_ar: row.bonus_name_ar,
+              name_en: row.bonus_name_en,
+              item_ar: row.bonus_item_ar,
+              item_en: row.bonus_item_en,
+              item_outcome: row.bonus_item_outcome,
+              item_until: row.bonus_item_until,
+              item_time_zone: row.bonus_item_time_zone,
+            },
+          ],
+    ),
+    item: itemOf({
+      ar: row.item_name_ar,
+      en: row.item_name_en,
+      outcome: row.item_outcome,
+      until: row.item_until,
+      timeZone: row.item_time_zone,
+    }),
+    boost: row.boost_multiplier === null ? null : { multiplier: row.boost_multiplier },
+    firstBonus:
+      first === null ? null : { points: first.points, place: first.place, slots: first.slots },
+    streakBonus: streak === null ? null : { points: streak.points, days: streak.days },
+  };
+}
+
+/** The ranking entries the statement read for its completion, for `Ranking.afterAnswer`. */
+function entriesOf(row: AnswerRow): CompletionEntries {
+  return {
+    eventId: row.event_id,
+    failed: row.ranking_failed,
+    entry:
+      row.rank_enrollment_id === null
+        ? undefined
+        : {
+            event_id: row.event_id,
+            enrollment_id: row.rank_enrollment_id,
+            score: row.rank_score,
+            score_version: row.rank_score_version,
+            ranked: row.rank_ranked,
+          },
+    day:
+      row.day_enrollment_id === null
+        ? undefined
+        : {
+            event_id: row.event_id,
+            day: row.day_day,
+            enrollment_id: row.day_enrollment_id,
+            score: row.day_score,
+            score_version: row.day_score_version,
+            ranked: row.day_ranked,
+          },
+  };
+}
+
+/** One statement completes the quest and reads every part of the answer and both ranking entries (ADR-671). */
 async function callEngine(
   client: PoolClient,
   request: CompletionRequest,
   proof: EngineProof,
 ): Promise<CompletionResult> {
   try {
-    const { rows } = await client.query<Row>(
-      "SELECT * FROM complete_quest($1, $2, $3, $4, $5, $6, $7)",
+    const { rows } = await client.query<AnswerRow>(
+      "SELECT * FROM complete_quest_answer($1, $2, $3, $4, $5, $6, $7)",
       [
         request.questId,
         proof.method,
@@ -402,13 +512,7 @@ async function callEngine(
         request.position,
       ],
     );
-    const row = rows[0] as Row;
-    const levelUp = await levelReached(client, row.completion_id);
-    const bonus = await bonusPaid(client, row.completion_id);
-    const item = await itemGiven(client, row.completion_id);
-    const boost = await boostApplied(client, row.completion_id);
-    const firstBonus = await firstBonusPaid(client, row.completion_id);
-    const streakBonus = await streakBonusPaid(client, row.completion_id);
+    const row = rows[0] as AnswerRow;
     return {
       kind: "completed",
       value: {
@@ -418,13 +522,9 @@ async function callEngine(
         score: Number(row.score),
         balance: Number(row.balance),
         replayed: row.replayed,
-        levelUp,
-        bonus,
-        item,
-        boost,
-        firstBonus,
-        streakBonus,
+        ...partsOf(row),
       },
+      entries: entriesOf(row),
     };
   } catch (error) {
     const pg = error as { code?: string; detail?: string; hint?: string };

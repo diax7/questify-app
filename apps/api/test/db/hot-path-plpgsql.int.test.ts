@@ -37,6 +37,13 @@ type Original = Readonly<{
 const ORIGINALS: readonly Original[] = JSON.parse(
   readFileSync(join(import.meta.dirname, "hot-path-plpgsql.fixture.json"), "utf8"),
 ) as Original[];
+/**
+ * Every LANGUAGE sql function that is SECURITY DEFINER or has a SET clause at migration 0149 (so it is planned on every
+ * call): a new one is written in plpgsql (docs/rules.md, ADR-670); one converted later leaves this list.
+ */
+const SQL_WITH_SETTINGS: readonly string[] = JSON.parse(
+  readFileSync(join(import.meta.dirname, "sql-settings-allowlist.json"), "utf8"),
+) as string[];
 const NAMES = ORIGINALS.map((original) => original.name);
 /** Standard-body SQL functions on the path: kept as SQL with no SET clause, so they are inlined (migration 0148). */
 const INLINED = [
@@ -151,13 +158,51 @@ async function seed(owner: Client): Promise<Ids> {
   const tenants = await seedTwoTenants(owner);
   const one = async (sql: string, values: unknown[] = []): Promise<string> =>
     String((await owner.query<{ id: string }>(sql, values)).rows[0]?.id ?? "");
-  const category = await one("SELECT id FROM category WHERE event_id = $1 LIMIT 1", [
-    tenants.eventA,
-  ]);
+  // A multi-day event with a category bonus and its item, a quest item, a first-N bonus slot and a streak on day 2, so
+  // the set-returning parts compare rows, not empty sets (T-804a review).
+  await owner.query(
+    "UPDATE event SET starts_at = now() - interval '2 days', ends_at = now() + interval '3 days' WHERE id = $1",
+    [tenants.eventA],
+  );
+  const itemOf = (name: string) =>
+    one(
+      `INSERT INTO quest_item (organizer_id, event_id, name_ar, name_en, stock_total)
+       VALUES ($1, $2, $3, $3, 1) RETURNING id`,
+      [tenants.orgA, tenants.eventA, name],
+    );
+  const other = await one(
+    `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, type_config, visible)
+     SELECT $1, id, 'scan_qr', 'Seed', 1, 100, '{}', false FROM category WHERE event_id = $1 LIMIT 1 RETURNING id`,
+    [tenants.eventA],
+  );
+  const category = await one(
+    `INSERT INTO category (event_id, name_ar, name_en, completion_bonus, item_id)
+     VALUES ($1, 'تطابق', 'Parity', 20, $2) RETURNING id`,
+    [tenants.eventA, await itemOf("Mug")],
+  );
   const quest = await one(
-    `INSERT INTO quest (event_id, category_id, type, title_en, points, type_config)
-     VALUES ($1, $2, 'scan_qr', 'Parity quest', 50, '{}') RETURNING id`,
-    [tenants.eventA, category],
+    `INSERT INTO quest (event_id, category_id, type, title_en, points, type_config, item_id)
+     VALUES ($1, $2, 'scan_qr', 'Parity quest', 50, '{}', $3) RETURNING id`,
+    [tenants.eventA, category, await itemOf("Cap")],
+  );
+  await owner.query(
+    `INSERT INTO quest_first_bonus (quest_id, organizer_id, event_id, points, slots) VALUES ($1, $2, $3, 5, 1);
+     INSERT INTO quest_bonus_slot (quest_id, place, organizer_id, event_id) VALUES ($1, 1, $2, $3);
+     INSERT INTO event_streak (event_id, organizer_id, enabled, bonus_points) VALUES ($3, $2, true, 4)`
+      .replaceAll("$1", `'${quest}'`)
+      .replaceAll("$2", `'${tenants.orgA}'`)
+      .replaceAll("$3", `'${tenants.eventA}'`),
+  );
+  await owner.query(
+    `WITH n AS (SELECT id FROM enrollment WHERE player_id = $4 AND event_id = $2),
+     c AS (
+       INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method,
+                                     idempotency_key)
+       SELECT $1, $2, n.id, $3, 1, 'qr', gen_random_uuid()::text FROM n RETURNING id, enrollment_id
+     )
+     INSERT INTO event_streak_day (enrollment_id, day, organizer_id, event_id, days, completion_id)
+     SELECT c.enrollment_id, event_day(now(), e) - 1, $1, $2, 1, c.id FROM c, event e WHERE e.id = $2`,
+    [tenants.orgA, tenants.eventA, other, tenants.playerA],
   );
   await owner.query(
     `INSERT INTO boost (organizer_id, event_id, category_id, starts_at, ends_at)
@@ -288,9 +333,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("hot path in plpgsql (T-804a, A
     const plpgsql = await answers(db.owner, ids, false);
     const byName = (name: string) => plpgsql.answers[CALLS.findIndex((call) => call.name === name)];
     expect(byName("ranking_entry_of")).toEqual([
-      expect.objectContaining({ enrollment_id: ids.enrollment, score: "50" }),
+      // The quest 50, the category bonus 20, the first-N bonus 5 and the streak bonus 4.
+      expect.objectContaining({ enrollment_id: ids.enrollment, score: "79" }),
     ]);
     expect(byName("own_level")).toHaveLength(1);
     expect(byName("player_session_owner")).toEqual([{ v: ids.player }]);
+    for (const name of [
+      "own_bonus",
+      "own_first_bonus",
+      "own_quest_item",
+      "own_streak_bonus",
+      "ranking_day_entry_of",
+    ]) {
+      expect(byName(name), name).toHaveLength(1);
+    }
+    expect(byName("own_first_bonus")).toEqual([expect.objectContaining({ place: 1 })]);
+  });
+
+  it("lets no new LANGUAGE sql function be SECURITY DEFINER or carry a SET clause (ADR-670)", async () => {
+    const { rows } = await db.owner.query<{ name: string }>(
+      `SELECT p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' AS name
+       FROM pg_proc p JOIN pg_language l ON l.oid = p.prolang
+       WHERE p.pronamespace = 'public'::regnamespace AND l.lanname = 'sql'
+         AND (p.prosecdef OR p.proconfig IS NOT NULL)
+       ORDER BY 1`,
+    );
+    const found = rows.map((row) => row.name);
+    expect(found.filter((name) => !SQL_WITH_SETTINGS.includes(name))).toEqual([]);
+    expect(SQL_WITH_SETTINGS.filter((name) => !found.includes(name))).toEqual([]);
   });
 });
