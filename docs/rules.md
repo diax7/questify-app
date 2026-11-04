@@ -229,7 +229,8 @@ rows; `move_nfc_tag` takes the target quest row, then the tag row; none locks an
   **A new table or route fails CI until it is classified there:** a table as owned (by an organizer, a staff
   member or a player, with a forged-insert case) or shared (with the reason); a route with how it keeps callers
   apart, and a test when it touches tenant data.
-- **Web end-to-end:** Playwright for the dashboard, console and event page.
+- **Web end-to-end:** Playwright for the dashboard, console and event page. A switch that saves after it flips
+  (optimistic) is reloaded only after `toHaveAttribute("aria-busy", "false")`, or the reload can beat the save.
 - **App flows:** an open-source mobile flow-test tool (verify the current choice when installing) for
   join, scan, reserve, and Arabic/RTL checks on a real device.
 - **Load test** at 20,000 completions per minute per event is a launch gate (NFR-003).

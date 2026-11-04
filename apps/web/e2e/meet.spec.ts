@@ -52,6 +52,7 @@ test("the owner switches meet-someone quests off and on for the event", async ({
   await expect(box).toBeChecked();
   await box.uncheck();
   await expect(box).not.toBeChecked();
+  await expect(box).toHaveAttribute("aria-busy", "false");
   await page.reload();
   await expect(
     page.getByRole("region", { name: "مهام التعارف" }).getByLabel(/مهام التعارف/),

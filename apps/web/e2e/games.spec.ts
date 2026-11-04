@@ -67,6 +67,7 @@ test("the owner switches mini-games off and on for the event", async ({ page }, 
   await expect(box).toBeChecked();
   await box.uncheck();
   await expect(box).not.toBeChecked();
+  await expect(box).toHaveAttribute("aria-busy", "false");
   await page.reload();
   const again = page.getByRole("region", { name: "الألعاب المصغّرة" });
   await expect(again.getByLabel("إظهار الألعاب المصغّرة للاعبين")).not.toBeChecked();

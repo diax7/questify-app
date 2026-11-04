@@ -29,6 +29,7 @@ test("the owner switches a default topic off and on, in Arabic and English", asy
   await expectNoSidewaysScroll(page);
 
   await rank.uncheck();
+  await expect(rank).toHaveAttribute("aria-busy", "false");
   await expect(arabic.getByRole("alert")).toHaveCount(0);
   await page.reload();
   await expect(rank).not.toBeChecked();
@@ -41,6 +42,7 @@ test("the owner switches a default topic off and on, in Arabic and English", asy
   await expectNoSidewaysScroll(page);
 
   await english.getByLabel("Ranking").check();
+  await expect(english.getByLabel("Ranking")).toHaveAttribute("aria-busy", "false");
   await page.reload();
   await expect(english.getByLabel("Ranking")).toBeChecked();
 });

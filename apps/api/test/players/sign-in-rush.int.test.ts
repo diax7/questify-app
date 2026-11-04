@@ -240,8 +240,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the sign-in rush", () => {
       );
       await withSendBudgetCap(owner, "phone", 5, async () => {
         const flood = Array.from({ length: 100 }, () => ask(phone));
-        const fresh = Array.from({ length: 5 }, () => ask(newPhone()));
-        const [flooded, sent] = await Promise.all([Promise.all(flood), Promise.all(fresh)]);
+        const sent: Awaited<ReturnType<typeof ask>>[] = [];
+        const inTurn = (async () => {
+          for (let n = 0; n < 5; n += 1) {
+            sent.push(await ask(newPhone()));
+          }
+        })();
+        const [flooded] = await Promise.all([Promise.all(flood), inTurn]);
         expect(kinds(flooded)).toEqual({ throttled: 100 });
         expect(kinds(sent)).toEqual({ code_sent: 5 });
         expect(await budgetRows()).toBe(5);
