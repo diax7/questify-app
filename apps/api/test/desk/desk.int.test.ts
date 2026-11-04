@@ -46,6 +46,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk (database)", () => 
 
   const owner = async <T extends Row>(sql: string, values: unknown[] = []) =>
     (await db.owner.query<T>(sql, values)).rows;
+  /** The database's own clock in whole milliseconds: an offer's deadline is made from it, not from this process's. */
+  const databaseMillis = async () =>
+    Number(
+      (
+        await owner<{ ms: string }>(
+          "SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint AS ms",
+        )
+      )[0]?.ms,
+    );
 
   const newEvent = async (
     fields: { mode?: string; hours?: string | null; organizer?: string } = {},
@@ -456,12 +465,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk (database)", () => 
       const id = await reserve(player, await newReward(event));
 
       expect(await refusal(accept(player, id))).toEqual({ code: "RO410" });
+      const before = await databaseMillis();
       const offer = await handOver(desk, id);
+      const after = await databaseMillis();
       expect(offer?.status).toBe("offered");
-      const seconds = ((offer?.offer_until?.getTime() ?? 0) - Date.now()) / 1000;
-      expect(seconds).toBeGreaterThan(100);
-      // The database's clock (offer_until is its now() plus 2 minutes) can run a few ms ahead of this process's.
-      expect(seconds).toBeLessThanOrEqual(120.5);
+      // offer_until is the offering transaction's now() plus 2 minutes, so it lies between two reads of the database's
+      // clock around the call (1 ms either way for the millisecond precision of a Date).
+      const offeredAt = (offer?.offer_until?.getTime() ?? 0) - 120_000;
+      expect(offeredAt).toBeGreaterThanOrEqual(before - 1);
+      expect(offeredAt).toBeLessThanOrEqual(after + 1);
 
       const [poll] = await call<{ status: string; offered: boolean }>(
         desk,
