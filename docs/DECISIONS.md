@@ -7815,7 +7815,7 @@ body has a name clash).
 
 ## ADR-671 - T-804a one statement answers a completion (`complete_quest_answer`)
 
-**Status:** Proposed (developer, 2026-11-04; T-804a plan).
+**Status:** Proposed (developer, 2026-11-04; T-804a plan; built in T-804c, migration 0149, ADR-680, ADR-681).
 **Decision:** A definer door `complete_quest_answer` (same arguments as `complete_quest`, revoked from PUBLIC, granted
 to `questify_app`) calls `complete_quest` and then the existing `own_level`, `own_level_items`, `own_bonus`,
 `own_quest_item`, `completion_boost`, `own_first_bonus`, `own_streak_bonus`, `ranking_entry_of` and
@@ -7830,7 +7830,7 @@ calls); the ranking entries are read inside the writing transaction, which the R
 
 ## ADR-672 - T-804a one player check per write
 
-**Status:** Proposed (developer, 2026-11-04; T-804a plan; sign-in, tier A).
+**Status:** Proposed (developer, 2026-11-04; T-804a plan; sign-in, tier A; built in T-804c, migration 0149, ADR-680).
 **Decision:** `player_request_gate(hash, is_write)` returns the session's player and, for a write, whether the terms in
 force hold it; the guard makes one call instead of `player_session_owner` then `player_legal_held`. Answers (401, 403
 `legal_acceptance_required`, the doors open while unaccepted) are unchanged.
@@ -7839,7 +7839,7 @@ force hold it; the guard makes one call instead of `player_session_owner` then `
 
 ## ADR-673 - T-804a one Redis script per completion, run by its hash
 
-**Status:** Proposed (developer, 2026-11-04; T-804a plan).
+**Status:** Proposed (developer, 2026-11-04; T-804a plan; built in T-804c, migration 0149, ADR-680, ADR-681).
 **Decision:** the ranking store's write and read after a completion become one Lua script called with `EVALSHA`
 (falling back to `EVAL` on `NOSCRIPT`); the version rule, tombstones and the rebuild of a missing board are unchanged.
 **Why:** two `EVAL` calls sent the script text each time; one call halves a completion's Redis round trips.
@@ -7860,3 +7860,51 @@ are the median of two runs.
 **Why:** the shared container has no `pg_stat_statements`, and planning time is what has to be seen.
 **Trade-offs:** the statistics add their own overhead to both sides; Docker Desktop's network makes a round trip about
 1 ms, more than a same-region server would.
+
+## ADR-680 - T-804c the one-statement completion answer as built: typed row, isolated ranking reads, `afterAnswer`
+
+**Status:** Proposed (developer, 2026-11-04; T-804c, builds ADR-671 and ADR-672; Q-640).
+**Decision:** migration 0149. `complete_quest_answer` (plpgsql, `VOLATILE`, `SECURITY DEFINER`, `search_path` fixed,
+PUBLIC revoked by name, `questify_app` only) returns one typed row: `complete_quest`'s six columns, the completion's
+`event_id`, the level-up (`own_level`, and `own_level_items` only on a level-up), the first row of `own_bonus` and of
+`own_quest_item` as typed columns (timestamps stay `timestamptz`), `completion_boost`, the first-N and streak bonuses as
+`to_jsonb` of their functions' first row (the API rebuilds `{points, place, slots}` and `{points, days}` in that key
+order), both ranking entries (bigints as text through node-pg, the day as text) and `ranking_failed`. The two ranking
+reads run in their own `BEGIN ... EXCEPTION WHEN OTHERS` block that clears every entry, sets `ranking_failed` and
+raises a WARNING with the SQLSTATE only; the API's `Ranking.afterAnswer(entries)` then logs `ranking.write_failed`
+(`entries_unread`), marks the event and answers `rank: null`. A Redis failure after it logs, marks and answers null as
+`afterCompletion` does. `statement_timeout` is not caught (it cancels the whole statement, nothing is written, and the
+app's retry with the same key completes or replays). `player_request_gate(hash, is_write)` (plpgsql, `STABLE`, definer)
+calls `player_session_owner` and, for a write by a found player, `player_legal_held`. The player guard calls it once
+per player request, and `playerOfToken` is removed (it had no other caller).
+**Why:** typed columns keep exactly the values the API parsed before (a `Date` for an item's deadline, bigints as text),
+so the HTTP body is unchanged; the event id lets a failed ranking read still mark the right event; catching only
+ordinary errors keeps a cancelled statement a cancelled statement.
+**Trade-offs:** a 39-column row to keep in step with its parts (held by `test/db/completion-answer.int.test.ts`, which
+compares every column with the part functions' own answers on the same completion, and by `complete.test.ts`); the
+exception block is a subtransaction per completion (reads only, so no XID is assigned).
+
+## ADR-681 - T-804c every ranking script is loaded by name and run by its SHA1
+
+**Status:** Proposed (developer, 2026-11-04; T-804c, builds ADR-673).
+**Decision:** the ranking's six Lua scripts (`WRITE`, `READ`, the new `WRITE_READ`, `FILL`, `SWAP`, `UNLOCK`) are
+node-redis `defineScript` scripts carried by the client (`createRankingRedis`, `RANKING_SCRIPTS`), so node-redis sends
+`EVALSHA` and, on `NOSCRIPT`, the body once with `EVAL`. `WRITE_READ` declares the union of `WRITE`'s and `READ`'s keys
+(set, member, next, next:member, building, built), shares their Lua functions (`apply`, `write`, `peek`), and a
+completion makes one Redis call (two on a multi-day event: the day board). The rebuild-then-read after a missing copy
+is kept. `createRankingStore` takes only a client made by `createRankingRedis`, which the type checker enforces.
+**Why:** the plan named only `WRITE_READ`; sending every other script's text on each call would keep the cost the
+change removes, and one way to run scripts is simpler than two.
+**Trade-offs:** every place that makes a ranking client (server, load server, test helper) goes through
+`createRankingRedis`.
+
+## ADR-682 - T-804c no new `LANGUAGE sql` function may be a definer or carry a `SET` clause
+
+**Status:** Proposed (developer, 2026-11-04; T-804c, from the T-804a part A review).
+**Decision:** `test/db/hot-path-plpgsql.int.test.ts` lists every `LANGUAGE sql` function in `public` that is
+`SECURITY DEFINER` or has a `SET` clause and compares the list with `test/db/sql-settings-allowlist.json` (the 426 at
+migration 0149): a new one fails the test (write it in plpgsql, docs/rules.md), and one converted later must leave the
+list. The same file's parity seed now reaches every set-returning part (a multi-day event, a category bonus and its
+item, a quest item, a first-N slot, a streak day 2).
+**Why:** the rule of ADR-670 was held only for the 35 functions of the fixture.
+**Trade-offs:** the allowlist is long and only shrinks; changing a listed function's arguments means editing its line.

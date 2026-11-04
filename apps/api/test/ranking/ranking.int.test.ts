@@ -1,14 +1,21 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { LightMyRequestResponse } from "fastify";
-import { Pool } from "pg";
-import { createClient, type RedisClientType } from "redis";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { Client, Pool } from "pg";
+
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { createQuestCodeKey, questCode } from "#src/quests/qr";
 import { createRanking, type Ranking } from "#src/ranking/ranking";
-import { createRankingStore, type RankingStore } from "#src/ranking/store";
+import {
+  createRankingRedis,
+  createRankingStore,
+  type RankingRedis,
+  type RankingStore,
+} from "#src/ranking/store";
 import {
   createStaff,
   signInFully,
   startApp,
+  testConfig,
   withSession,
   type TestApp,
 } from "#test/support/auth-app";
@@ -39,8 +46,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
   "rankings over HTTP",
   () => {
     let db: TestDatabase;
-    let redis: RedisClientType;
-    let dead: RedisClientType;
+    let redis: RankingRedis;
+    let dead: RankingRedis;
     let store: RankingStore;
     let test: TestApp;
     let down: TestApp;
@@ -54,7 +61,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
       redis = await createTestRedis();
       store = createRankingStore(redis);
       // Never connected and no offline queue: every command fails at once, as when Redis is down.
-      dead = createClient({ url: "redis://127.0.0.1:1", disableOfflineQueue: true });
+      dead = createRankingRedis({ url: "redis://127.0.0.1:1", disableOfflineQueue: true });
       test = await startApp(db, false, {}, { rankingStore: store });
       down = await startApp(db, false, {}, { rankingStore: createRankingStore(dead) });
       pool = new Pool({ connectionString: db.appUrl, max: 2 });
@@ -169,6 +176,59 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
         expect((await complete(a.token, ten)).json()).toMatchObject({ score: 10, rank: 1 });
         expect((await complete(b.token, twenty)).json()).toMatchObject({ score: 20, rank: 1 });
         expect((await complete(a.token, ten)).json()).toMatchObject({ score: 20, rank: 2 });
+      });
+
+      it("makes at most 5 PostgreSQL statements and one ranking store call for a QR scan (T-804c)", async () => {
+        const event = await newEvent();
+        const [general] = await owner<{ id: string }>(
+          "SELECT id FROM category WHERE event_id = $1",
+          [event],
+        );
+        const [scan] = await owner<{ id: string }>(
+          `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, type_config)
+           VALUES ($1, $2, 'scan_qr', 'Gate', 5, 20, '{}') RETURNING id`,
+          [event, general?.id],
+        );
+        const quest = scan?.id ?? "";
+        const code = questCode(createQuestCodeKey(testConfig().qrSecret), quest, 1);
+        const scanAs = (token: string) =>
+          test.app.inject({
+            method: "POST",
+            url: `/v1/quests/${quest}/complete`,
+            headers: { authorization: `Bearer ${token}`, "idempotency-key": randomUUID() },
+            payload: { proof: { type: "qr", code } },
+          });
+        const [a, b] = [await newPlayer(event), await newPlayer(event)];
+        const [shape] = await owner<{ multi: boolean }>(
+          "SELECT event_multi_day(e) AS multi FROM event e WHERE e.id = $1",
+          [event],
+        );
+        const multiDay = shape?.multi === true;
+        // The event's first completion builds its copy; the budget is for every completion after it.
+        expect((await scanAs(a.token)).statusCode).toBe(200);
+        const statements = vi.spyOn(Client.prototype, "query");
+        const calls = (
+          ["upsert", "upsertRead", "remove", "read", "rebuild", "builtAt"] as const
+        ).map((name) => vi.spyOn(store, name));
+        try {
+          const answer = await scanAs(b.token);
+          expect(answer.json()).toMatchObject({ score: 5, rank: 2 });
+          expect(statements.mock.calls.length).toBeLessThanOrEqual(5);
+          // A multi-day event also writes its day's board: the second Redis call (ADR-673).
+          expect(calls.map((spy) => spy.mock.calls.length)).toEqual([
+            multiDay ? 1 : 0,
+            1,
+            0,
+            0,
+            0,
+            0,
+          ]);
+        } finally {
+          statements.mockRestore();
+          for (const spy of calls) {
+            spy.mockRestore();
+          }
+        }
       });
 
       it("answers a null place when Redis cannot be written, and marks the event for repair", async () => {
@@ -472,14 +532,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
       it("never fails a committed completion because the ranking step failed", async () => {
         const event = await newEvent();
         const a = await newPlayer(event);
-        await owner("REVOKE EXECUTE ON FUNCTION ranking_entry_of(bigint) FROM questify_app");
+        // The completion's statement reads the entry as its owner (migration 0149), so the entry's function itself is
+        // broken here, and put back from its own definition afterwards.
+        const [kept] = await owner<{ definition: string }>(
+          "SELECT pg_get_functiondef('ranking_entry_of(bigint)'::regprocedure) AS definition",
+        );
+        await owner(
+          `CREATE OR REPLACE FUNCTION ranking_entry_of(completion bigint)
+             RETURNS TABLE(event_id uuid, enrollment_id uuid, score bigint, score_version bigint, ranked boolean)
+             LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp
+           AS $$ BEGIN RAISE EXCEPTION 'ranking broken for the test'; END $$`,
+        );
         try {
           const answer = await complete(a.token, await newQuest(event, 3));
           expect(answer.statusCode).toBe(200);
           expect(answer.json()).toMatchObject({ score: 3, rank: null });
         } finally {
-          await owner("GRANT EXECUTE ON FUNCTION ranking_entry_of(bigint) TO questify_app");
+          await owner(kept?.definition ?? "");
         }
+        expect(
+          await owner("SELECT 1 FROM ranking_repair WHERE event_id = $1", [event]),
+        ).toHaveLength(1);
       });
 
       it("answers the same from PostgreSQL when Redis is down", async () => {

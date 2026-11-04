@@ -1,5 +1,4 @@
 import { Pool } from "pg";
-import { createClient, type RedisClientType } from "redis";
 import { buildApp, type AppOptions } from "#src/app";
 import { createBreachCheck } from "#src/auth/breached";
 import { createFailoverSender } from "#src/auth/email/failover";
@@ -12,7 +11,7 @@ import { poolOptions } from "#src/db/pool-options";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import { createMsegatSender } from "#src/players/sms";
 import { createPushProviders } from "#src/push/providers";
-import { createRankingStore } from "#src/ranking/store";
+import { createRankingRedis, createRankingStore, type RankingRedis } from "#src/ranking/store";
 import { loadTelemetryConfig } from "#src/telemetry/config";
 import { countLogEvent } from "#src/telemetry/logs";
 import { instrumentEmail, instrumentPush, instrumentSms } from "#src/telemetry/outbound";
@@ -39,8 +38,8 @@ const REDIS_CONNECT_TIMEOUT_MS = 2000;
  * The Redis client for rankings: commands fail at once while it is disconnected (no offline queue), so callers fall
  * back to PostgreSQL instead of waiting; it keeps reconnecting in the background.
  */
-function createRedis(url: string, log: (fields: Record<string, string>) => void): RedisClientType {
-  const client: RedisClientType = createClient({
+function createRedis(url: string, log: (fields: Record<string, string>) => void): RankingRedis {
+  const client: RankingRedis = createRankingRedis({
     url,
     disableOfflineQueue: true,
     commandOptions: { timeout: REDIS_COMMAND_TIMEOUT_MS },
@@ -56,10 +55,7 @@ function createRedis(url: string, log: (fields: Record<string, string>) => void)
 }
 
 /** Rankings need Redis to keep every key: an evicting policy could drop a set while its "built" mark stays. */
-async function checkEviction(
-  client: RedisClientType,
-  log: (fields: Record<string, string>) => void,
-) {
+async function checkEviction(client: RankingRedis, log: (fields: Record<string, string>) => void) {
   try {
     const policy = (await client.configGet("maxmemory-policy"))["maxmemory-policy"];
     if (policy !== "noeviction") {

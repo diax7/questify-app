@@ -21,6 +21,10 @@ const PLAYER = "7a1d2c3b-4e5f-4a60-8b71-92a3b4c5d6e7";
 type Reply = { rows: unknown[] } | Error | unknown;
 type Query = { sql: string; params: unknown[] | undefined };
 
+const EVENT = "5c4d3e2f-1a0b-4c9d-8e7f-6a5b4c3d2e1f";
+const ENROLLMENT = "0f1e2d3c-4b5a-4968-8776-655443322110";
+
+/** complete_quest_answer's row for a plain completion: no part, no ranking entry (migration 0149). */
 const ENGINE_ROW = {
   completion_id: "c1",
   points: "10",
@@ -28,6 +32,38 @@ const ENGINE_ROW = {
   score: "10",
   balance: "10",
   replayed: false,
+  event_id: EVENT,
+  level_up: null,
+  level_title_ar: null,
+  level_title_en: null,
+  level_items: null,
+  bonus_category_id: null,
+  bonus_points: null,
+  bonus_name_ar: null,
+  bonus_name_en: null,
+  bonus_item_ar: null,
+  bonus_item_en: null,
+  bonus_item_outcome: null,
+  bonus_item_until: null,
+  bonus_item_time_zone: null,
+  item_name_ar: null,
+  item_name_en: null,
+  item_outcome: null,
+  item_until: null,
+  item_time_zone: null,
+  boost_multiplier: null,
+  first_bonus: null,
+  streak_bonus: null,
+  rank_enrollment_id: null,
+  rank_score: null,
+  rank_score_version: null,
+  rank_ranked: null,
+  day_day: null,
+  day_enrollment_id: null,
+  day_score: null,
+  day_score_version: null,
+  day_ranked: null,
+  ranking_failed: false,
 };
 
 /** A database that answers by SQL text: `replies` match first, then the throttle and transaction defaults. */
@@ -351,5 +387,139 @@ describe("the category bonus and its item", () => {
   it("has no deadline without the event's zone", async () => {
     const db = fakeDatabase({ own_bonus: { rows: [{ ...bonusRow, item_time_zone: null }] } });
     expect((await bonusPaid(db.client, "c1"))?.item?.until).toBeNull();
+  });
+});
+
+const completeWith = async (row: object) => {
+  const db = fakeDatabase({ complete_quest_answer: { rows: [row] } });
+  const result = await completeQuest(
+    depsOf(db.pool),
+    requestOf({ proof: qr() }),
+    callerWith().caller,
+  );
+  return { result, db };
+};
+
+describe("the one-statement answer (complete_quest_answer, ADR-671)", () => {
+  const until = new Date("2026-11-04T18:00:00.000Z");
+  const full = {
+    ...ENGINE_ROW,
+    replayed: true,
+    level_up: 3,
+    level_title_ar: "رحالة",
+    level_title_en: "Rover",
+    level_items: [{ id: "level-3" }],
+    bonus_category_id: "cat-1",
+    bonus_points: "20",
+    bonus_name_ar: "عام",
+    bonus_name_en: "General",
+    bonus_item_ar: "كوب",
+    bonus_item_en: "Mug",
+    bonus_item_outcome: "pending",
+    bonus_item_until: until,
+    bonus_item_time_zone: "Asia/Riyadh",
+    item_name_ar: "قبعة",
+    item_name_en: "Cap",
+    item_outcome: "out_of_stock",
+    item_until: null,
+    item_time_zone: "Asia/Riyadh",
+    boost_multiplier: 2,
+    first_bonus: { place: 1, slots: 3, points: 5 },
+    streak_bonus: { days: 2, points: 4 },
+    rank_enrollment_id: ENROLLMENT,
+    rank_score: "41",
+    rank_score_version: "900",
+    rank_ranked: true,
+    day_day: "2026-11-04",
+    day_enrollment_id: ENROLLMENT,
+    day_score: "30",
+    day_score_version: "900",
+    day_ranked: false,
+  };
+
+  it("asks one statement, inside the player's transaction, and nothing else", async () => {
+    const { db } = await completeWith(ENGINE_ROW);
+    expect(db.queries.map((query) => query.sql)).toEqual([
+      "BEGIN",
+      expect.stringContaining("set_config"),
+      "SELECT * FROM complete_quest_answer($1, $2, $3, $4, $5, $6, $7)",
+      "COMMIT",
+    ]);
+  });
+
+  it("builds every part of the answer and both ranking entries from the row", async () => {
+    const { result } = await completeWith(full);
+    expect(result).toEqual({
+      kind: "completed",
+      value: {
+        completionId: "c1",
+        points: 10,
+        occurrence: 1,
+        score: 10,
+        balance: 10,
+        replayed: true,
+        levelUp: { level: 3, title: { ar: "رحالة", en: "Rover" }, items: [{ id: "level-3" }] },
+        bonus: {
+          categoryId: "cat-1",
+          points: 20,
+          category: { ar: "عام", en: "General" },
+          item: {
+            name: { ar: "كوب", en: "Mug" },
+            outcome: "pending",
+            until: { at: "2026-11-04T18:00:00.000Z", timeZone: "Asia/Riyadh" },
+          },
+        },
+        item: { name: { ar: "قبعة", en: "Cap" }, outcome: "out_of_stock", until: null },
+        boost: { multiplier: 2 },
+        firstBonus: { points: 5, place: 1, slots: 3 },
+        streakBonus: { points: 4, days: 2 },
+      },
+      entries: {
+        eventId: EVENT,
+        failed: false,
+        entry: {
+          event_id: EVENT,
+          enrollment_id: ENROLLMENT,
+          score: "41",
+          score_version: "900",
+          ranked: true,
+        },
+        day: {
+          event_id: EVENT,
+          day: "2026-11-04",
+          enrollment_id: ENROLLMENT,
+          score: "30",
+          score_version: "900",
+          ranked: false,
+        },
+      },
+    });
+  });
+
+  it("keeps the first bonus's and the streak's keys in their order, a missed place as null", async () => {
+    const { result } = await completeWith({
+      ...full,
+      first_bonus: { place: null, slots: 3, points: 5 },
+    });
+    const value = result.kind === "completed" ? result.value : undefined;
+    expect(Object.keys(value?.firstBonus ?? {})).toEqual(["points", "place", "slots"]);
+    expect(Object.keys(value?.streakBonus ?? {})).toEqual(["points", "days"]);
+    expect(value?.firstBonus?.place).toBeNull();
+  });
+
+  it("has no level-up items when none came back, and no entries when none were read", async () => {
+    const { result } = await completeWith({ ...ENGINE_ROW, level_up: 2, level_items: null });
+    expect(result.kind === "completed" ? result.value.levelUp?.items : undefined).toEqual([]);
+    expect(result.kind === "completed" ? result.entries : undefined).toEqual({
+      eventId: EVENT,
+      failed: false,
+      entry: undefined,
+      day: undefined,
+    });
+  });
+
+  it("passes on that the ranking entries could not be read", async () => {
+    const { result } = await completeWith({ ...ENGINE_ROW, ranking_failed: true });
+    expect(result.kind === "completed" ? result.entries.failed : undefined).toBe(true);
   });
 });

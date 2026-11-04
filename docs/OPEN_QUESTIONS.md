@@ -2591,3 +2591,22 @@ Raising the player per-address window to about 2,000 an hour (Q-621) serves one 
 address would share it.
 **Recommended (developer):** one platform window of about 2,000 an hour in T-804b, then measure; a per-event window needs
 the event before sign-in, which the code request does not carry.
+
+## Q-640 - Do the other completion doors get a one-statement answer too? (T-804c, ADR-680)
+
+**Status:** Open (developer, 2026-11-04).
+Only `POST /v1/quests/:questId/complete` (QR, typed code, check-in, screen code) uses `complete_quest_answer`. The NFC
+tap, the plays (quiz, vote, game, passport, meet, survey, share), submissions, the kiosk and the operator scan still read
+their parts one call at a time and their ranking through `afterCompletion` (two more transactions).
+**Recommended (developer):** leave them until a profile shows one of them on a booked event's peak; a scan at the gate
+is the rush, the others are spread over the day.
+
+## Q-641 - The 10 ms of database time a completion is not reached (T-804c, ADR-674)
+
+**Status:** Open (developer, 2026-11-04).
+T-804c cut the round trips (20 to 5) but not the work: on one throw-away PostgreSQL 17.11, 10 completions a second
+through the T-804 drivers, the statements of a completion took about 23.5 ms before and after (`complete_quest` 14.7 ms,
+of which the ledger insert and its triggers 8 ms: `xp_credit` 3.2, `streak_record` 1.5). T-804a's one-at-a-time
+profile had measured 10.9 ms on another container; the two methods disagree by about 2x on the same function.
+**Recommended (developer):** a tier A task that profiles `record_completion` and its ledger triggers with T-804a's
+one-at-a-time script committed under `ops/load/`, so the number is reproducible, then decides what to make cheaper.

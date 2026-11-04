@@ -22,16 +22,6 @@ export function sessionHashOf(authorization: unknown): Buffer | undefined {
   return token === undefined ? undefined : hashOf(token);
 }
 
-/** The active player a bearer token belongs to, or undefined (expired, revoked, banned, unknown). */
-export async function playerOfToken(pool: Pool, token: string): Promise<string | undefined> {
-  const hash = hashOf(token);
-  const { rows } = await pool.query<{ owner: string | null }>(
-    "SELECT player_session_owner($1) AS owner",
-    [hash],
-  );
-  return rows[0]?.owner ?? undefined;
-}
-
 /**
  * What a player can still do while a new version of the terms or privacy policy waits (ADR-446): accept it, leave the
  * account (deletion code, this phone's push device). Every other write answers 403 until the player accepts.
@@ -42,26 +32,43 @@ const OPEN_WHILE_UNACCEPTED = new Set([
   "DELETE /v1/me/push-device",
 ]);
 
-async function refuseUnacceptedWrite(
-  request: FastifyRequest,
-  pool: Pool,
-  playerId: string,
-): Promise<void> {
+/** Whether the legal hold applies to this request: a write that is not one of the open doors. */
+function heldWrite(request: FastifyRequest): boolean {
   const { method } = request;
-  if (
+  return !(
     method === "GET" ||
     method === "HEAD" ||
     method === "OPTIONS" ||
     OPEN_WHILE_UNACCEPTED.has(`${method} ${request.routeOptions.url ?? ""}`)
-  ) {
-    return;
+  );
+}
+
+type Gate = Readonly<{ player: string | undefined; held: boolean }>;
+
+/**
+ * The active player a bearer token belongs to (undefined when expired, revoked, reset, banned or unknown) and, for a
+ * write, whether a new terms or privacy version holds them: one call, `player_request_gate` (ADR-672).
+ */
+async function gateOf(pool: Pool, token: string, write: boolean): Promise<Gate> {
+  const { rows } = await pool.query<{ player_id: string | null; held: boolean | null }>(
+    "SELECT player_id, held FROM player_request_gate($1, $2)",
+    [hashOf(token), write],
+  );
+  const row = rows[0];
+  return { player: row?.player_id ?? undefined, held: row?.held === true };
+}
+
+/** The request's player and whether its write is held, else 401 (no token, or no live session of an active player). */
+async function gateOfRequest(
+  request: FastifyRequest,
+  pool: Pool,
+): Promise<Readonly<{ player: string; held: boolean }>> {
+  const token = BEARER.exec(request.headers.authorization ?? "")?.[1];
+  const gate = token === undefined ? undefined : await gateOf(pool, token, heldWrite(request));
+  if (gate?.player === undefined) {
+    throw unauthenticated();
   }
-  const { rows } = await pool.query<{ held: boolean }>("SELECT player_legal_held($1) AS held", [
-    playerId,
-  ]);
-  if (rows[0]?.held === true) {
-    throw legalAcceptanceRequired();
-  }
+  return { player: gate.player, held: gate.held };
 }
 
 /**
@@ -85,17 +92,15 @@ export function registerPlayerGuard(
       return;
     }
     reply.header("cache-control", "no-store");
-    const token = BEARER.exec(request.headers.authorization ?? "")?.[1];
-    const player = token === undefined ? undefined : await playerOfToken(pool, token);
-    if (player === undefined) {
-      throw unauthenticated();
-    }
+    const { player, held } = await gateOfRequest(request, pool);
     request.player = { id: player };
     request.principalId = `player:${player}`;
     const { eventId } = request.params as { eventId?: unknown };
     if (typeof eventId === "string" && (await suspended.has(eventId))) {
       throw eventUnavailable();
     }
-    await refuseUnacceptedWrite(request, pool, player);
+    if (held) {
+      throw legalAcceptanceRequired();
+    }
   });
 }

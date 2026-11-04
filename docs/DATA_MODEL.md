@@ -515,6 +515,13 @@ credit and earns no XP; removing a quest leaves it.
 `app.player_id`, never an argument; it locks the player's enrollment, answers a repeated key with the first completion,
 then checks the enrollment is active, the event live at this moment, the quest visible and open, the proof fitting the
 quest's type (QR version, typed code), and the cap, and writes the completion and the entry.
+`complete_quest_answer` (definer, migration 0149, T-804c, ADR-680) is what the API calls: `complete_quest`, then every
+part of the answer from its own function (`own_level`, `own_level_items`, `own_bonus`, `own_quest_item`,
+`completion_boost`, `own_first_bonus`, `own_streak_bonus`) and both ranking entries (`ranking_entry_of`,
+`ranking_day_entry_of`) in one row; a failed ranking read returns `ranking_failed` and never undoes the completion.
+`player_request_gate(hash, is_write)` (definer, migration 0149, ADR-672) is the player guard's one call: the session's
+player (`player_session_owner`) and, for a write, whether a new terms or privacy version holds them (`player_legal_held`).
+Both revoked from PUBLIC, granted to the API role only.
 
 ### Questify XP (built: T-401, migration 0039, ADR-179 to ADR-182; append-only)
 - `player_xp (player_id PK → player, xp ≥ 0, level ≥ 1, updated_at)`: the running total and its level, a cache of

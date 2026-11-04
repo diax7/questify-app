@@ -1525,7 +1525,7 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     `SET search_path`); `test/db/hot-path-plpgsql.int.test.ts` and its fixture; sequential 33.5 to 10.9 ms of database
     time a completion; at 200 a second with a 50,000-player event, before 52 a second confirmed and 0% within 1 s, after
     200 a second, 98.0% within 1 s, p95 518 ms (median of two runs).
-- [ ] **T-804c** Completion hot path, parts B to D: one statement answers a completion, one player check per write, one
+- [x] **T-804c** Completion hot path, parts B to D: one statement answers a completion, one player check per write, one
   Redis script per completion (tier A, ledger and sign-in; plan `docs/plans/2026-11-04-t-804a-completion-hot-path.md`
   sections 0 and 2 B to D; ADR-671 to ADR-673 Proposed) — delivers no FR (NFR-002, NFR-003, NFR-025); depends on:
   T-804a
@@ -1543,6 +1543,12 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     ranking within 5 s (median of two runs), completions, ledger and scores matching, the sequential profile at or under
     10 ms of database time a completion, at most 5 PostgreSQL statements and one Redis call per QR completion, and every
     existing ledger and security test unchanged.
+  - Done 2026-11-04: migration 0149 (`complete_quest_answer`, `player_request_gate`; ADR-680 to ADR-682, Q-640, Q-641
+    Proposed); a QR completion makes 5 PostgreSQL statements (20 before) and one Redis call (two on a multi-day event),
+    run by SHA1. Load, ten events plus a 50,000-player event, three APIs, median of two runs: 240 a second confirmed,
+    100% within 1 s, p95 95 ms, ranking 100% within 5 s, tallies matched (PostgreSQL 5.1 to 5.9 cores); at 400 asked,
+    331 confirmed (the ceiling on this PC). Database time a completion did not fall: about 23.5 ms before and after on
+    the same container by the low-rate method (Q-641; the gate's 10 ms is not met); client mean 57.6 to 36.8 ms.
 - [ ] **T-804b** Sign-in rush: the platform-wide code lock and the per-address limit on shared venue Wi-Fi (tier A,
   sign-in; outline in `docs/plans/2026-11-04-t-804a-completion-hot-path.md` section 8; Q-621, Q-634) — delivers no FR;
   depends on: T-804's harness
@@ -1552,6 +1558,8 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Note 2026-11-04 (T-804a part A, ADR-670): with migration 0148 the same PC carries 200 completions a second for ten
     events plus a 50,000-player event at 98.0% within 1 s (p95 518 ms, PostgreSQL 6.4 to 7.0 cores); before it, 52 a
     second and 0% within 1 s. T-804c is next, then the production-like rerun.
+  - Note 2026-11-04 (T-804c, ADR-680): with migration 0149 the same PC carries 240 a second at 100% within 1 s (p95 95
+    ms) and tops out near 330 a second, PostgreSQL CPU the limit. The production-like rerun is next.
   - Note 2026-11-04 (Dhia): the launch target is set from the biggest event day actually booked, not 20,000 a minute in each of ten events at once; the code is made fast now (T-804a) and the hardware is scaled when bookings need it. Asking CranL for database sizes waits for T-811 (Q-630, Q-631).
   - Done when: 95% of completions confirm within 1 second and the ranking within 5 seconds in the test.
   - Note 2026-10-20 (T-107): every `POST /v1/auth/code` waits its turn on one platform-wide lock (the SMS and email budgets). Measure sign-in at an event's opening rush here instead of assuming it.

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { RedisClientType } from "redis";
+import { createClient, defineScript, type CommandParser, type RedisClientOptions } from "redis";
 import { memberOf, parseMember } from "#src/ranking/member";
 
 /**
@@ -12,6 +12,11 @@ import { memberOf, parseMember } from "#src/ranking/member";
 export type RankingStore = Readonly<{
   /** Puts an enrollment at its points and version; a write with a version not higher than the stored one is ignored. */
   upsert: (event: string, entry: Entry) => Promise<void>;
+  /**
+   * `upsert` and then the enrollment's place in one call (ADR-673): the total and the place with no top, or undefined
+   * when the copy is not built (the write is applied either way, as `upsert` then `read` did).
+   */
+  upsertRead: (event: string, entry: Entry) => Promise<Read | undefined>;
   /** Takes an enrollment out and leaves a tombstone at its version, so a late upsert cannot bring it back. */
   remove: (event: string, enrollmentId: string, version: bigint) => Promise<void>;
   /** The top of the copy and the given enrollment's place, or undefined when the copy is not built. */
@@ -81,13 +86,58 @@ local function apply(set, hash, enrollment, version, member, score, tomb, ttl)
 end
 `;
 
-/** KEYS: set, member, next, next:member, building. ARGV: enrollment, version, member, score, tomb, ttl. */
-const WRITE = `${APPLY}
-local applied = apply(KEYS[1], KEYS[2], ARGV[1], ARGV[2], ARGV[3], ARGV[4], ARGV[5], ARGV[6])
-if redis.call('EXISTS', KEYS[5]) == 1 then
-  apply(KEYS[3], KEYS[4], ARGV[1], ARGV[2], ARGV[3], ARGV[4], ARGV[5], ARGV[6])
+/** Applies a write to the copy and, while a rebuild runs, to the copy being built. Returns 1 when applied to the copy. */
+const WRITE_BOTH = `
+local function write(set, hash, nset, nhash, building, enrollment, version, member, score, tomb, ttl)
+  local applied = apply(set, hash, enrollment, version, member, score, tomb, ttl)
+  if redis.call('EXISTS', building) == 1 then
+    apply(nset, nhash, enrollment, version, member, score, tomb, ttl)
+  end
+  return applied
 end
-return applied
+`;
+
+/**
+ * Nil when the copy is not built, else {total, place or -1, member, score, member, score, ...} for the top `size`.
+ */
+const PEEK = `
+local function peek(set, hash, built, size, enrollment)
+  if redis.call('EXISTS', built) == 0 then return nil end
+  local total = redis.call('ZCARD', set)
+  local place = -1
+  if enrollment ~= '' then
+    local stored = redis.call('HGET', hash, enrollment)
+    if stored and string.sub(stored, 1, 1) == 'v' then
+      local rank = redis.call('ZREVRANK', set, string.sub(stored, 22))
+      if rank then place = rank + 1 end
+    end
+  end
+  local result = {total, place}
+  if tonumber(size) > 0 then
+    local top = redis.call('ZRANGE', set, 0, tonumber(size) - 1, 'REV', 'WITHSCORES')
+    for i = 1, #top do result[#result + 1] = top[i] end
+  end
+  return result
+end
+`;
+
+/** KEYS: set, member, next, next:member, building. ARGV: enrollment, version, member, score, tomb, ttl. */
+const WRITE = `${APPLY}${WRITE_BOTH}
+return write(KEYS[1], KEYS[2], KEYS[3], KEYS[4], KEYS[5], ARGV[1], ARGV[2], ARGV[3], ARGV[4], ARGV[5], ARGV[6])
+`;
+
+/** KEYS: set, member, built. ARGV: size, enrollment (or ''). */
+const READ = `${PEEK}
+return peek(KEYS[1], KEYS[2], KEYS[3], ARGV[1], ARGV[2])
+`;
+
+/**
+ * WRITE then READ of the written enrollment with no top, in one call (ADR-673). KEYS: the union of both, set, member,
+ * next, next:member, building, built. ARGV: WRITE's.
+ */
+const WRITE_READ = `${APPLY}${WRITE_BOTH}${PEEK}
+write(KEYS[1], KEYS[2], KEYS[3], KEYS[4], KEYS[5], ARGV[1], ARGV[2], ARGV[3], ARGV[4], ARGV[5], ARGV[6])
+return peek(KEYS[1], KEYS[2], KEYS[6], '0', ARGV[1])
 `;
 
 /** KEYS: next, next:member. ARGV: ttl, then groups of enrollment, version, member, score, tomb. */
@@ -117,27 +167,36 @@ return 0
 `;
 
 /**
- * KEYS: set, member, built. ARGV: size, enrollment (or ''). Returns nil when the copy is not built, else
- * {total, place or -1, member, score, member, score, ...} for the top.
+ * A script with a fixed number of keys, called as `client.<name>(keys, args)`. node-redis sends `EVALSHA` with its
+ * SHA1 and, when Redis answers NOSCRIPT (a restart, a flush, a new replica), sends the body once with `EVAL`.
  */
-const READ = `
-if redis.call('EXISTS', KEYS[3]) == 0 then return nil end
-local total = redis.call('ZCARD', KEYS[1])
-local place = -1
-if ARGV[2] ~= '' then
-  local stored = redis.call('HGET', KEYS[2], ARGV[2])
-  if stored and string.sub(stored, 1, 1) == 'v' then
-    local rank = redis.call('ZREVRANK', KEYS[1], string.sub(stored, 22))
-    if rank then place = rank + 1 end
-  end
-end
-local result = {total, place}
-if tonumber(ARGV[1]) > 0 then
-  local top = redis.call('ZRANGE', KEYS[1], 0, tonumber(ARGV[1]) - 1, 'REV', 'WITHSCORES')
-  for i = 1, #top do result[#result + 1] = top[i] end
-end
-return result
-`;
+const script = (source: string, keyCount: number) =>
+  defineScript({
+    SCRIPT: source,
+    NUMBER_OF_KEYS: keyCount,
+    parseCommand(parser: CommandParser, keys: string[], args: string[]) {
+      parser.pushKeys(keys);
+      parser.push(...args);
+    },
+    transformReply: (reply: unknown) => reply,
+  });
+
+/** The ranking's scripts, loaded by name on the client (`createRankingRedis`). */
+export const RANKING_SCRIPTS = {
+  rankingWrite: script(WRITE, 5),
+  rankingRead: script(READ, 3),
+  rankingWriteRead: script(WRITE_READ, 6),
+  rankingFill: script(FILL, 2),
+  rankingSwap: script(SWAP, 6),
+  rankingUnlock: script(UNLOCK, 1),
+};
+
+/** A node-redis client that carries the ranking's scripts. */
+export function createRankingRedis(options: Omit<RedisClientOptions, "scripts">) {
+  return createClient({ ...options, scripts: RANKING_SCRIPTS });
+}
+
+export type RankingRedis = ReturnType<typeof createRankingRedis>;
 
 const writeArgs = (entry: Entry, tomb: boolean): string[] => [
   entry.enrollmentId,
@@ -164,19 +223,17 @@ function parseRead(reply: unknown): Read | undefined {
   return { top, total: Number(total), place: Number(place) > 0 ? Number(place) : null };
 }
 
-/**
- * The store over a connected node-redis client. Every call can reject (Redis down, a timeout); callers fall back to
- * PostgreSQL and mark the event for repair.
- */
-export function createRankingStore(client: RedisClientType): RankingStore {
-  const write = async (event: string, entry: Entry, tomb: boolean) => {
-    const keys = keysOf(event);
-    await client.eval(WRITE, {
-      keys: [keys.set, keys.member, keys.next, keys.nextMember, keys.building],
-      arguments: writeArgs(entry, tomb),
-    });
-  };
+/** The keys WRITE takes, in its order. */
+const writeKeys = (event: string): string[] => {
+  const keys = keysOf(event);
+  return [keys.set, keys.member, keys.next, keys.nextMember, keys.building];
+};
 
+/**
+ * The store over a connected client from `createRankingRedis`. Every call can reject (Redis down, a timeout); callers
+ * fall back to PostgreSQL and mark the event for repair.
+ */
+export function createRankingStore(client: RankingRedis): RankingStore {
   const fill = async (event: string, entries: readonly RebuildEntry[]) => {
     const keys = keysOf(event);
     for (let start = 0; start < entries.length; start += FILL_CHUNK) {
@@ -185,21 +242,35 @@ export function createRankingStore(client: RedisClientType): RankingStore {
       for (const entry of chunk) {
         args.push(...writeArgs(entry, !entry.ranked).slice(0, 5));
       }
-      await client.eval(FILL, { keys: [keys.next, keys.nextMember], arguments: args });
+      await client.rankingFill([keys.next, keys.nextMember], args);
     }
   };
 
   return {
-    upsert: (event, entry) => write(event, entry, false),
-    remove: (event, enrollmentId, version) =>
-      write(event, { enrollmentId, version, score: 0n }, true),
+    upsert: async (event, entry) => {
+      await client.rankingWrite(writeKeys(event), writeArgs(entry, false));
+    },
+    upsertRead: async (event, entry) =>
+      parseRead(
+        await client.rankingWriteRead(
+          [...writeKeys(event), keysOf(event).built],
+          writeArgs(entry, false),
+        ),
+      ),
+    remove: async (event, enrollmentId, version) => {
+      await client.rankingWrite(
+        writeKeys(event),
+        writeArgs({ enrollmentId, version, score: 0n }, true),
+      );
+    },
     read: async (event, size, enrollmentId) => {
       const keys = keysOf(event);
-      const reply = await client.eval(READ, {
-        keys: [keys.set, keys.member, keys.built],
-        arguments: [String(size), enrollmentId ?? ""],
-      });
-      return parseRead(reply);
+      return parseRead(
+        await client.rankingRead(
+          [keys.set, keys.member, keys.built],
+          [String(size), enrollmentId ?? ""],
+        ),
+      );
     },
     rebuild: async (event, load) => {
       const keys = keysOf(event);
@@ -214,17 +285,17 @@ export function createRankingStore(client: RedisClientType): RankingStore {
         await client.del([keys.next, keys.nextMember]);
         await client.set(keys.building, "1", { PX: LOCK_MS });
         await fill(event, await load());
-        await client.eval(SWAP, {
-          keys: [keys.set, keys.member, keys.next, keys.nextMember, keys.built, keys.building],
-          arguments: [String(Date.now()), String(TTL_MS)],
-        });
+        await client.rankingSwap(
+          [keys.set, keys.member, keys.next, keys.nextMember, keys.built, keys.building],
+          [String(Date.now()), String(TTL_MS)],
+        );
         swapped = true;
         return "rebuilt";
       } finally {
         if (!swapped) {
           await client.del([keys.next, keys.nextMember, keys.building]);
         }
-        await client.eval(UNLOCK, { keys: [keys.lock], arguments: [token] });
+        await client.rankingUnlock([keys.lock], [token]);
       }
     },
     builtAt: async (event) => {

@@ -1874,6 +1874,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot answer a completion in one statement or ask the player gate (T-804c)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.complete_quest_answer(gen_random_uuid(), 'qr', 1, NULL, 'k', NULL, NULL)",
+        "SELECT * FROM public.player_request_gate(sha256('x'), true)",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
     it("cannot show or scan a meet code, read one, or reach the meet helpers (T-303c)", async () => {
       for (const sql of [
         "SELECT * FROM public.meet_pass",

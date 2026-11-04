@@ -18,6 +18,10 @@ function spyStore() {
     upsert: async () => {
       calls.push("upsert");
     },
+    upsertRead: async () => {
+      calls.push("upsertRead");
+      return undefined;
+    },
     remove: async () => {
       calls.push("remove");
     },

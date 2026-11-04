@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
-import type { RedisClientType } from "redis";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createRankingStore, type RankingStore, type RebuildEntry } from "#src/ranking/store";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  createRankingStore,
+  type RankingRedis,
+  type RankingStore,
+  type RebuildEntry,
+} from "#src/ranking/store";
 import { TEST_REDIS_URL, createTestRedis } from "#test/support/test-redis";
 
 const entry = (score: number, version: number, ranked = true): RebuildEntry => ({
@@ -16,7 +20,7 @@ const entry = (score: number, version: number, ranked = true): RebuildEntry => (
  * written while they run.
  */
 describe.skipIf(TEST_REDIS_URL === undefined)("the ranking store (Redis)", () => {
-  let client: RedisClientType;
+  let client: RankingRedis;
   let store: RankingStore;
 
   beforeAll(async () => {
@@ -173,5 +177,71 @@ describe.skipIf(TEST_REDIS_URL === undefined)("the ranking store (Redis)", () =>
 
   it("refuses a version outside a ledger id's range", async () => {
     await expect(store.upsert(randomUUID(), entry(1, -1))).rejects.toThrow(RangeError);
+  });
+
+  describe("one write and its place in one call (upsertRead, ADR-673)", () => {
+    it("writes and answers the place and total with no top, under the same version rule", async () => {
+      const event = await newEvent();
+      const [a, b] = [entry(10, 5), entry(30, 6)];
+      expect(await store.upsertRead(event, a)).toEqual({ top: [], total: 1, place: 1 });
+      expect(await store.upsertRead(event, b)).toEqual({ top: [], total: 2, place: 1 });
+      expect(await store.upsertRead(event, { ...a, score: 40n, version: 7n })).toEqual({
+        top: [],
+        total: 2,
+        place: 1,
+      });
+      expect(await store.upsertRead(event, { ...a, score: 1n, version: 7n })).toEqual({
+        top: [],
+        total: 2,
+        place: 1,
+      });
+      expect(await order(event)).toEqual([a.enrollmentId, b.enrollmentId]);
+    });
+
+    it("answers undefined for a copy not built, the write applied as upsert applies it", async () => {
+      const event = randomUUID();
+      const a = entry(10, 5);
+      expect(await store.upsertRead(event, a)).toBeUndefined();
+      expect(await client.hGet(`rank:{${event}}:member`, a.enrollmentId)).toMatch(/^v/);
+    });
+
+    it("keeps a removal: a write older than the tombstone answers no place", async () => {
+      const event = await newEvent();
+      const a = entry(10, 5);
+      await store.remove(event, a.enrollmentId, 6n);
+      expect(await store.upsertRead(event, a)).toEqual({ top: [], total: 0, place: null });
+    });
+
+    it("writes the copy being rebuilt as well, so a rebuild loses nothing", async () => {
+      const event = await newEvent();
+      const a = entry(10, 5);
+      await store.rebuild(event, async () => {
+        await store.upsertRead(event, a);
+        return [];
+      });
+      expect(await order(event)).toEqual([a.enrollmentId]);
+    });
+
+    it("runs by its SHA1 and loads the body again after Redis forgot its scripts", async () => {
+      const event = await newEvent();
+      const sent: string[] = [];
+      const send = client.sendCommand.bind(client);
+      const spy = vi.spyOn(client, "sendCommand").mockImplementation((args, options) => {
+        sent.push(String(args[0]));
+        return send(args, options);
+      });
+      try {
+        await store.upsertRead(event, entry(10, 5));
+        await client.scriptFlush();
+        sent.length = 0;
+        expect(await store.upsertRead(event, entry(20, 6))).toMatchObject({ total: 2, place: 1 });
+        expect(sent).toEqual(["EVALSHA", "EVAL"]);
+        sent.length = 0;
+        await store.upsertRead(event, entry(5, 7));
+        expect(sent).toEqual(["EVALSHA"]);
+      } finally {
+        spy.mockRestore();
+      }
+    });
   });
 });

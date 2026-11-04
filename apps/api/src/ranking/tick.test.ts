@@ -4,6 +4,7 @@ import { startRankingTick } from "#src/ranking/tick";
 
 const rankingWith = (repairDue: () => Promise<void>): Ranking => ({
   afterCompletion: () => Promise.resolve(null),
+  afterAnswer: () => Promise.resolve(null),
   read: () => Promise.resolve("not_enrolled"),
   repairDue,
 });
