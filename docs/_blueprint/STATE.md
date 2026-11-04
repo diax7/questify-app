@@ -6,6 +6,18 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-810 ASVS L2 sheet drafted — 2026-11-05
+
+- **T-810 drafted before T-809 (tier C, docs only; not ticked).** `docs/security/ASVS_L2.md` lists all 253 ASVS 5.0
+  L1 and L2 controls (numbering and levels from OWASP's 5.0.0 CSV at tag `v5.0.0`) against the core: 133 Met, 47
+  Partly, 2 Not met, 71 N/A, each with its test, CI step, migration or doc section (every cited file and test title
+  checked by a script against the repository). Top gaps: `/v1` answers carry no HSTS, nosniff or CSP; outside `fetch`
+  calls follow redirects; invitation links are UUIDs; `event_players` (0032) lost the backslash step of its LIKE escape;
+  no `authz.denied` event; player sessions have no absolute end; one-factor player sign-in; one hostname for console and
+  public pages; CranL-held TLS, credentials, egress and log controls; no written fix time frames for dependencies.
+  New: tier A task T-810b (8 code items), Q-660 to Q-664, six FOLLOWUPS lines, a T-811 note. `format:check` clean.
+  CI minutes: 0; agent tokens roughly 0.4M (estimate).
+
 ## FOLLOWUPS batch — 2026-11-04
 
 - **FOLLOWUPS batch (ADR-355; tier A for the migration, otherwise B/C; migration 0151, new and undeployed).** From the
@@ -3105,6 +3117,9 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   (local only, nothing pushed). Rough worker cost: about 190k tokens / 3 hours (estimate, not billing).
 
 ## Next
+
+- **2026-11-05 (T-810):** the ASVS sheet is drafted; T-810b (tier A, plan first) closes its code gaps; Q-660 to Q-663
+  need Dhia's product answers, Q-664 rides with T-811. T-810 is ticked only after T-809's findings are folded in.
 
 - **2026-11-04 (T-804):** T-804 stays open: a tier A task for Q-620 (the completion path's `LANGUAGE sql` functions as
   `plpgsql`, fewer round trips, CranL's PostgreSQL version) comes before its rerun; Q-621 (sign-in lock and address

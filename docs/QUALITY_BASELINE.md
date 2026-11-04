@@ -21,7 +21,7 @@
 | **Threat model** | STRIDE | `SECURITY.md` (done); revisit each phase for new trust boundaries |
 | **Independent penetration test** | An outside tester with open-book access, against ASVS L2 (core) and MASVS L1 | Before the first public event (T-809). OWASP states a tool run alone is not enough evidence |
 
-Evidence for each ASVS/MASVS control is a test, a CI check or a short written note, listed in a verification sheet that T-810 builds.
+Evidence for each ASVS/MASVS control is a test, a CI check or a short written note, listed in a verification sheet that T-810 builds: `docs/security/ASVS_L2.md` (ASVS, the core).
 
 ## 2. Code quality
 

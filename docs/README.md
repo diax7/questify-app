@@ -53,6 +53,7 @@ consolidated at the end. The other docs hold the detail it points to.
 | `TECH_STACK.md` · `ARCHITECTURE.md` · `DATA_MODEL.md` · `API.md` · `INTEGRATIONS.md` | Stack with reasons; how pieces fit; data; contracts; SMS/email/push providers | Done 2026-10-17 (Stage 6); ADR-101 to ADR-103 |
 | `CONFIGURABILITY.md` | What can change from the dashboard without a store release, and how | Drafted 2026-10-17 |
 | `SECURITY.md` | What we protect, from whom; outsider tests | Drafted 2026-10-17 |
+| `security/ASVS_L2.md` | The OWASP ASVS 5.0 L1 and L2 verification sheet for the core: each control's status, evidence and gap, with the gap list on top (T-810) | Drafted 2026-11-05, before T-809 |
 
 ## Compliance & delivery
 

@@ -2639,3 +2639,59 @@ Per stripe, `player.budget_half` would have been logged up to 16 times a window,
 it: `player.budget_spent` (alert `QuestifySendBudgetSpent`) is the only budget line.
 **Recommended (developer):** if a warning before the cap is wanted later, read the channel's total from
 `auth_throttle` in a monitoring query rather than in the request path.
+
+## Q-660 - A player's session has no absolute end (T-810, ASVS V7.3.2, V7.1.1)
+
+**Status:** Open (developer, 2026-11-05).
+A player's refresh token lasts 180 days and every rotation issues a new one for another 180 days (migration 0013,
+`issue_player_tokens`), so a phone that opens the app at least twice a year stays signed in forever. ASVS 5.0 L2 asks
+for an absolute maximum and a written reason for any departure from NIST SP 800-63B's re-authentication times. Staff
+sessions already end after 12 hours (admins 8).
+**Recommended (developer):** end a refresh family 365 days after its sign-in, whatever its use (one fresh code a year
+per phone), and write the reason in SECURITY.md (low-value accounts, a stolen phone ends with sign-out or the 10-family
+limit). The alternative is to keep sliding sessions and record that as an accepted deviation.
+
+## Q-661 - Session controls for players and for admins (T-810, ASVS V7.4.3, V7.4.5, V7.5.2)
+
+**Status:** Open (developer, 2026-11-05).
+A player cannot see their signed-in phones or end the others; changing a phone or email keeps every session (ADR-120)
+and offers no "sign out other devices"; a Questify admin can end only another admin's sessions from the console (an
+organizer member's or a player's need SQL from the RUNBOOK; a ban stops a player at once); a staff member ends their
+own other sessions without typing anything again.
+**Recommended (developer):** one tier A task after launch prep: a "Signed-in devices" list in the app's account screen
+with Sign out per device and for all others (also offered after a contact change); a console action that ends every
+session of one staff account or one player, with a reason in the audit log; a fresh code before a staff member ends
+other sessions. Needs Dhia's yes because it adds screens.
+
+## Q-662 - Players sign in with one factor (T-810, ASVS V6.3.3, V6.6.1)
+
+**Status:** Open (developer, 2026-11-05).
+Players sign in with one code by SMS or email (ADR-030). ASVS L2 asks for more than one factor, or a documented
+rationale with compensating controls, and for SMS codes to come with a stronger option and a note about SMS's risks.
+**Recommended (developer):** accept for v1 and write the rationale in SECURITY.md: a player account holds event points
+and prizes of small value, never money or a card; the compensating controls are the per-contact and per-install
+limits, single-use 5-minute codes, refresh-token theft detection, the handover's accept in the player's own app and
+the notices on every contact change. Revisit passkeys after the first events. Telling players about SMS's risks is a
+copy choice for Dhia (one line on the code screen).
+
+## Q-663 - The console shares a hostname with public pages (T-810, ASVS V3.5.4)
+
+**Status:** Open (developer, 2026-11-05).
+One web app on one hostname serves the console, the organizer dashboard, the public event page, the station and
+kiosk pages and the big screen. A script injected through any public page would run on the console's origin. Today the
+CSP with nonces and text-only organizer content are the walls.
+**Recommended (developer):** serve the console from its own hostname (for example `console.<domain>`) through the same
+CranL web app, so the `__Host-` cookie of the console never reaches the public origin; no new CranL app is needed
+(memory: three apps). Needs Dhia to choose and point the hostname.
+
+## Q-664 - Infrastructure controls held by CranL (T-810, T-811; ASVS V4.1.2, V12.1, V12.2.2, V12.3, V13.2, V13.3, V16.4)
+
+**Status:** Open (developer, 2026-11-05).
+These ASVS L2 controls depend on CranL, and none is confirmed: the TLS versions and cipher suites at the edge and its
+certificates; whether the API host redirects plain HTTP (it should refuse it); TLS between the web app, the API,
+PostgreSQL and Redis on the private network (`DATABASE_URL` carries no `sslmode`, `REDIS_URL` may be `redis://`);
+static database and Redis passwords; no egress allowlist; who can read the app settings (the secrets) and whether
+that is logged; and server log lines kept only in CranL's log view, with no copy outside the API's host.
+**Recommended (developer):** add these to the T-811 questions to CranL. Then require `sslmode=verify-full` and
+`rediss://` where CranL offers them, rotate the database and Redis passwords on a schedule written in the RUNBOOK,
+and ship log lines to the monitoring app (T-018b) so a breached API host cannot rewrite them.
