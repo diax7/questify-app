@@ -1,4 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
@@ -104,6 +106,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
         client,
       )
     )[0];
+
+  type Ends = { refresh: number; access: number; started: number };
+  const DAY = 86_400;
+
+  /** Seconds from now to the newest row's end, its family's start, and its access token's end. */
+  const endsOf = async (t: Tokens): Promise<Ends | undefined> =>
+    (
+      await owner<Ends>(
+        `SELECT extract(epoch FROM r.expires_at - now())::float AS refresh,
+                extract(epoch FROM r.family_started_at - now())::float AS started,
+                extract(epoch FROM s.expires_at - now())::float AS access
+         FROM player_refresh r JOIN player_session s ON s.token_hash = $2
+         WHERE r.token_hash = $1`,
+        [sha(t.refresh), sha(t.access)],
+      )
+    )[0];
+
+  /** Moves a family's sign-in `days` into the past. */
+  const signedInDaysAgo = (family: string, days: number) =>
+    owner(
+      "UPDATE player_refresh SET family_started_at = now() - make_interval(days => $2) WHERE family = $1",
+      [family, days],
+    );
+
+  const familyOf = async (t: Tokens) =>
+    (
+      await owner<{ family: string }>("SELECT family FROM player_refresh WHERE token_hash = $1", [
+        sha(t.refresh),
+      ])
+    )[0]?.family ?? "";
 
   describe("a code", () => {
     it("takes three tries, says how many are left, and then ends", async () => {
@@ -432,6 +464,107 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
           [id],
         ),
       ).toEqual([{ live: 0 }]);
+    });
+
+    describe("a family ends 365 days after its sign-in (T-810b, migration 0154)", () => {
+      it("gives a fresh sign-in 180 days of refresh and one hour of access, starting now", async () => {
+        const { t } = await newPlayer();
+        const ends = await endsOf(t);
+        expect(ends?.refresh).toBeCloseTo(180 * DAY, -2);
+        expect(ends?.access).toBeCloseTo(3600, -1);
+        expect(ends?.started).toBeCloseTo(0, -1);
+      });
+
+      it("ends a rotation 300 days in at the family's 365th day, and keeps the start", async () => {
+        const { t } = await newPlayer();
+        const family = await familyOf(t);
+        await signedInDaysAgo(family, 300);
+        const next = tokens();
+        expect(await rotate(t.refresh, next)).toMatchObject({ outcome: "rotated" });
+        const ends = await endsOf(next);
+        expect(ends?.refresh).toBeCloseTo(65 * DAY, -2);
+        expect(ends?.started).toBeCloseTo(-300 * DAY, -2);
+        expect(ends?.access).toBeCloseTo(3600, -1);
+      });
+
+      it("caps the last access token at the family's end too", async () => {
+        const { t } = await newPlayer();
+        await owner(
+          "UPDATE player_refresh SET family_started_at = now() - interval '365 days' + interval '20 minutes' WHERE family = $1",
+          [await familyOf(t)],
+        );
+        const next = tokens();
+        await rotate(t.refresh, next);
+        const ends = await endsOf(next);
+        expect(ends?.access).toBeCloseTo(20 * 60, -1);
+        expect(ends?.refresh).toBeCloseTo(20 * 60, -1);
+      });
+
+      it("answers invalid once the family has ended, and its access token is over", async () => {
+        const { t } = await newPlayer();
+        const family = await familyOf(t);
+        await owner(
+          `UPDATE player_refresh SET family_started_at = now() - interval '366 days',
+                                     expires_at = now() - interval '1 day' WHERE family = $1`,
+          [family],
+        );
+        await owner(
+          "UPDATE player_session SET expires_at = now() - interval '1 day' WHERE refresh_family = $1",
+          [family],
+        );
+        expect(await rotate(t.refresh)).toMatchObject({ outcome: "invalid" });
+        expect(await ownerOf(t.access)).toBeNull();
+      });
+
+      it("keeps the start through the retry grace and after the sweep removes the older rows", async () => {
+        const { t } = await newPlayer();
+        const family = await familyOf(t);
+        await signedInDaysAgo(family, 100);
+        const lost = tokens();
+        await rotate(t.refresh, lost);
+        const retry = tokens();
+        expect(await rotate(t.refresh, retry)).toMatchObject({ outcome: "rotated" });
+        expect((await endsOf(retry))?.started).toBeCloseTo(-100 * DAY, -2);
+        for (const column of ["used_at", "revoked_at"]) {
+          await owner(
+            `UPDATE player_refresh SET ${column} = now() - interval '8 days' WHERE family = $1 AND ${column} IS NOT NULL`,
+            [family],
+          );
+        }
+        await owner("SELECT sweep_player_sign_in()");
+        const rows = await owner<{ n: number }>(
+          "SELECT count(*)::int AS n FROM player_refresh WHERE family = $1",
+          [family],
+        );
+        expect(rows[0]?.n).toBe(1);
+        const after = tokens();
+        expect(await rotate(retry.refresh, after)).toMatchObject({ outcome: "rotated" });
+        expect((await endsOf(after))?.started).toBeCloseTo(-100 * DAY, -2);
+      });
+
+      it("backfills a family from its earliest surviving row, as the migration does", async () => {
+        const { t } = await newPlayer();
+        const family = await familyOf(t);
+        const next = tokens();
+        await rotate(t.refresh, next);
+        await owner(
+          `UPDATE player_refresh SET created_at = now() - interval '40 days', family_started_at = now()
+           WHERE token_hash = $1`,
+          [sha(t.refresh)],
+        );
+        const migration = readFileSync(
+          join(import.meta.dirname, "..", "..", "migrations", "0154_player_refresh_family_end.sql"),
+          "utf8",
+        );
+        const backfill = /UPDATE player_refresh r\s[\s\S]*?;/.exec(migration)?.[0] ?? "";
+        expect(backfill).toContain("min(created_at)");
+        await owner(backfill);
+        const starts = await owner<{ days: number }>(
+          "SELECT round(extract(epoch FROM now() - family_started_at) / 86400)::int AS days FROM player_refresh WHERE family = $1",
+          [family],
+        );
+        expect(starts.map((row) => row.days)).toEqual([40, 40]);
+      });
     });
 
     it("leave exactly one live pair when two retries arrive at once", async () => {

@@ -10,6 +10,7 @@ import {
   inviteSelf,
   invitesPendingFull,
   mailCap,
+  hiddenNotFound,
   notFound,
   organizerAcceptanceRequired,
   organizerSuspended,
@@ -251,7 +252,7 @@ async function principalOf(pool: Pool, request: FastifyRequest): Promise<Organiz
     (await membershipOf(pool, staff.account.id, organizerId)) ??
     (await supportSeatOf(pool, staff.account, organizerId));
   if (membership === undefined) {
-    throw notFound();
+    throw hiddenNotFound();
   }
   return membership;
 }
@@ -340,7 +341,7 @@ function refuseSupport(
     throw supportViewOnly();
   }
   if (!supportMayUse(request.method, request.routeOptions.url ?? "", params, membership)) {
-    throw notFound();
+    throw hiddenNotFound();
   }
 }
 

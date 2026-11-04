@@ -121,6 +121,7 @@ export function createGmailSender(options: GmailOptions): EmailSender {
           method: "POST",
           headers: { authorization: `Bearer ${bearer}`, "content-type": "application/json" },
           body: JSON.stringify({ raw }),
+          redirect: "error",
           signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
         });
       } catch (error) {

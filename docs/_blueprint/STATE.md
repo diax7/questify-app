@@ -6,6 +6,19 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-810b ASVS L2 code gaps built — 2026-11-05
+
+- **T-810b built (tier A; plan review 87 folded; code review next).** Security headers on every `/v1` answer, set by the
+  API and by the web forwarder (ADR-700); `redirect: "error"` on every outside `fetch` with a parsed source guard and a
+  redirecting-server outsider test (ADR-701); new invitation links carry 128 random bits (0153, ADR-702); the player
+  search escapes a backslash (0152); one `authz.denied` line for every 403 and the central hidden 404s, the
+  cross-tenant test driven by the route inventory (ADR-703); Fastify's poisoning refusals pinned and tested; an SBOM on
+  each `release-*` tag (`sbom.yml`, zizmor and actionlint clean, ADR-704); a player refresh family, its access tokens
+  included, ends 365 days after the sign-in (0154, FR-123 amended, ADR-706); the one-factor exception in SECURITY.md.
+  Reward key rotation moved to T-810f. ASVS sheet: 148 Met, 33 Partly, 1 Not met. **Checks:** full Vitest once: 12,766
+  passed, 18 skipped, 0 failed; 0152 to 0154 apply on PostgreSQL 16.15 (container removed); lint, `lint:limits`,
+  format, types pass. CI minutes: 0 (nothing pushed). Agent tokens roughly 0.6M (estimate).
+
 ## T-810 ASVS L2 sheet drafted — 2026-11-05
 
 - **T-810 drafted before T-809 (tier C, docs only; not ticked).** `docs/security/ASVS_L2.md` lists all 253 ASVS 5.0
@@ -3118,8 +3131,10 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
 
 ## Next
 
-- **2026-11-05 (T-810):** the ASVS sheet is drafted; T-810b (tier A, plan first) closes its code gaps; Q-660 to Q-663
-  need Dhia's product answers, Q-664 rides with T-811. T-810 is ticked only after T-809's findings are folded in.
+- **2026-11-05 (T-810b):** built; a fresh tier A code review is next, then one `mutation.yml` run on
+  `apps/api/src/conventions.ts`, `apps/api/src/http-error.ts`, `apps/api/src/auth/http-errors.ts`,
+  `apps/api/src/organizers/routes.ts`, `apps/api/src/activation/routes.ts`. Then T-810c to T-810f. T-810 is ticked only
+  after T-809's findings are folded in; Q-664 rides with T-811.
 
 - **2026-11-04 (T-804):** T-804 stays open: a tier A task for Q-620 (the completion path's `LANGUAGE sql` functions as
   `plpgsql`, fewer round trips, CranL's PostgreSQL version) comes before its rerun; Q-621 (sign-in lock and address

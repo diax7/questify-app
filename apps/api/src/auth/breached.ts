@@ -50,6 +50,7 @@ export function createBreachCheck(options: Options = {}): BreachCheck {
       try {
         return await call(`${RANGE_URL}${prefix}`, {
           headers: { "add-padding": "true", "user-agent": "Questify-API" },
+          redirect: "error",
           signal,
         });
       } catch (error) {

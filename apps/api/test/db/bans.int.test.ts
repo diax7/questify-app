@@ -197,6 +197,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("bans and exclusions (database)
       expect(await search("SARA")).toHaveLength(2);
     });
 
+    it("takes a backslash in the prefix literally too (T-810b, migration 0152)", async () => {
+      const event = await newEvent();
+      const underscore = await newPlayer(event, {}, "zq_b");
+      const plain = await newPlayer(event, {}, "zqxb");
+      const long = await newPlayer(event, {}, `zq${"w".repeat(28)}`);
+      const search = async (prefix: string) =>
+        (
+          await as<Row>(seatA(), "SELECT * FROM event_players($1, NULL, 100, $2)", [event, prefix])
+        ).map((row) => row["enrollment_id"]);
+      expect(await search("zq_")).toEqual([underscore.enrollment]);
+      expect(await search("zq%")).toEqual([]);
+      // Before 0152 the backslash escaped the `x` and this matched zqxb.
+      expect(await search("zq\\x")).toEqual([]);
+      expect(await search("zq\\")).toEqual([]);
+      expect(await search("zq")).toHaveLength(3);
+      expect(await search(`zq${"w".repeat(28)}and-more`)).toEqual([long.enrollment]);
+      expect(plain.enrollment).toBeDefined();
+    });
+
     it("shows nothing to another organizer, an editor outside their events, a player or an outsider", async () => {
       const event = await newEvent();
       const { player } = await newPlayer(event);
@@ -207,9 +226,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("bans and exclusions (database)
         { playerId: player },
         {},
       ]) {
-        expect(await as(seat, "SELECT * FROM event_players($1, NULL, 100, NULL)", [event])).toEqual(
-          [],
-        );
+        for (const prefix of [null, "%", "\\", "_"]) {
+          expect(
+            await as(seat, "SELECT * FROM event_players($1, NULL, 100, $2)", [event, prefix]),
+          ).toEqual([]);
+        }
       }
       await expect(
         db.outsider.query("SELECT * FROM public.event_players($1, NULL, 1, NULL)", [event]),

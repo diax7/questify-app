@@ -57,6 +57,7 @@ export function createMsegatSender(options: MsegatOptions): SmsSender {
           msg: message.text,
           msgEncoding: "UTF8",
         }),
+        redirect: "error",
         signal: AbortSignal.timeout(options.timeoutMs ?? 5000),
       });
     } catch (error) {

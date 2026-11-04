@@ -1,4 +1,4 @@
-import { apiError, type ApiErrorEnvelope } from "@questify/shared";
+import { API_SECURITY_HEADERS, apiError, type ApiErrorEnvelope } from "@questify/shared";
 
 /** Request headers the API needs; everything else (host, the client's own `x-*`) is dropped. */
 const REQUEST_HEADERS = [
@@ -37,8 +37,22 @@ export type ForwardOptions = Readonly<{
   fetchImpl?: typeof fetch;
 }>;
 
+/**
+ * The API's security headers on every answer the forwarder returns, its own errors included; set here rather than
+ * passed through, so an upstream answer can neither drop nor weaken them (ADR-700).
+ */
+function withSecurityHeaders(headers: Headers): Headers {
+  for (const [name, value] of Object.entries(API_SECURITY_HEADERS)) {
+    headers.set(name, value);
+  }
+  return headers;
+}
+
 function errorResponse(status: number, envelope: ApiErrorEnvelope): Response {
-  return Response.json(envelope, { status, headers: { "cache-control": "no-store" } });
+  return Response.json(envelope, {
+    status,
+    headers: withSecurityHeaders(new Headers({ "cache-control": "no-store" })),
+  });
 }
 
 const notFound = () =>
@@ -89,7 +103,7 @@ function forwardedResponseHeaders(upstream: Headers): Headers {
   for (const cookie of upstream.getSetCookie()) {
     headers.append("set-cookie", cookie);
   }
-  return headers;
+  return withSecurityHeaders(headers);
 }
 
 /** The API address for this request, or undefined when the path is not a plain `/v1/...` path. */

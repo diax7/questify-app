@@ -614,6 +614,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("invitation sending (database)"
       expect(await open(queued?.link ?? "")).toBeNull();
     });
 
+    it("gives a new row a link of 128 random bits, not a version 4 UUID (T-810b, migration 0153)", async () => {
+      const campaign = randomUUID();
+      const rows = await f.owner<{ link: string }>(
+        `INSERT INTO invitation_recipient (campaign_id, player_id, channel)
+         SELECT $1, gen_random_uuid(), 'sms' FROM generate_series(1, 2000) RETURNING link`,
+        [campaign],
+      );
+      await f.owner("DELETE FROM invitation_recipient WHERE campaign_id = $1", [campaign]);
+      const links = rows.map((row) => row.link);
+      expect(new Set(links).size).toBe(2000);
+      const versions = new Set(links.map((link) => link[14]));
+      const variants = new Set(links.map((link) => link[19]));
+      expect(versions.size).toBeGreaterThan(8);
+      expect(variants.size).toBeGreaterThan(8);
+    });
+
+    it("still opens a link written before 0153, a version 4 UUID", async () => {
+      const { campaign } = await f.launch(50);
+      const [claimed] = await f.claimAt(1);
+      await f.ack(claimed ?? { recipient_id: "", lease: "" }, "sent");
+      const [old] = await f.owner<{ link: string }>(
+        "UPDATE invitation_recipient SET link = gen_random_uuid() WHERE id = $1 RETURNING link",
+        [claimed?.recipient_id],
+      );
+      expect(old?.link[14]).toBe("4");
+      expect(await open(old?.link ?? "")).not.toBeNull();
+      expect((await f.campaignRow(campaign)).opened).toBe(1);
+    });
+
     it("answers null for a purged link", async () => {
       const { campaign } = await f.launch(50);
       const [claimed] = await f.claimAt(1);

@@ -4,6 +4,16 @@ import { startUpstream, type Upstream } from "#src/lib/upstream.test-support.ts"
 
 const WEB = "https://app.questify.test";
 
+const expectApiHeaders = (response: Response) => {
+  expect(response.headers.get("strict-transport-security")).toBe(
+    "max-age=31536000; includeSubDomains",
+  );
+  expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+  expect(response.headers.get("content-security-policy")).toBe(
+    "default-src 'none'; frame-ancestors 'none'",
+  );
+};
+
 describe("forward (same-origin /v1 forwarder)", () => {
   let api: Upstream;
   let logged: Readonly<Record<string, string>>[] = [];
@@ -184,5 +194,38 @@ describe("forward (same-origin /v1 forwarder)", () => {
     );
     expect(response.status).toBe(502);
     expect(logged[0]).toMatchObject({ reason: "unreachable" });
+  });
+  describe("security headers (ADR-700)", () => {
+    it("adds them when the API sends none", async () => {
+      const response = await forward(new Request(`${WEB}/v1/staff/me`), options());
+      expect(response.status).toBe(200);
+      expectApiHeaders(response);
+    });
+
+    it("keeps its own values when the API sends weaker ones", async () => {
+      api.answer((_request, response) => {
+        response.setHeader("content-security-policy", "frame-ancestors *");
+        response.setHeader("strict-transport-security", "max-age=0");
+        response.setHeader("x-content-type-options", "sniff-away");
+        response.writeHead(200, { "content-type": "application/json" }).end("{}");
+      });
+      expectApiHeaders(await forward(new Request(`${WEB}/v1/staff/me`), options()));
+    });
+
+    it("puts them on its own 404, 413 and 502 too", async () => {
+      expectApiHeaders(await forward(new Request(`${WEB}/v2/anything`), options()));
+      expectApiHeaders(
+        await forward(
+          new Request(`${WEB}/v1/staff/auth/password`, { method: "POST", body: "x".repeat(1_025) }),
+          options(),
+        ),
+      );
+      expectApiHeaders(
+        await forward(
+          new Request(`${WEB}/v1/staff/me`),
+          options({ apiOrigin: "http://127.0.0.1:9" }),
+        ),
+      );
+    });
   });
 });

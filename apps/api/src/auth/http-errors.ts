@@ -99,6 +99,12 @@ export const invalidRequest = make(
   "The request is not valid.",
 );
 export const notFound = make(404, "not_found", "غير موجود.", "Not found.");
+/**
+ * The same answer as `notFound`, for a central check that refuses access (another organizer's door, the console to a
+ * non-admin): the caller cannot tell it from absence, and the server logs it as `authz.denied` (ADR-703).
+ */
+export const hiddenNotFound = (): HttpError =>
+  new HttpError(404, "not_found", { ar: "غير موجود.", en: "Not found." }, {}, { denied: true });
 export const weakPassword = make(
   422,
   "weak_password",

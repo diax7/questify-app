@@ -1035,6 +1035,11 @@ the first step of that rerun.
 
 ## Database and deploy
 
+- **Tag every release (T-810b, ADR-704):** after each CranL deploy and each store build, tag the deployed commit
+  `release-YYYYMMDD-N` (N counts that day's releases from 1) and push the tag: `git tag release-20261105-1 <sha>` then
+  `git push origin release-20261105-1`. The `SBOM` workflow (`.github/workflows/sbom.yml`) writes the production
+  dependency list (CycloneDX) and keeps it as `sbom.cdx.json` on that tag's GitHub Release; a re-run replaces it. No
+  tag, no SBOM. Releases before 2026-11-05 have none.
 - **Location switch (T-303b, ADR-208): before turning `locationQuests` on** in the console, run on the CranL database
   `SHOW log_parameter_max_length; SHOW log_parameter_max_length_on_error; SHOW log_statement;
   SHOW log_min_duration_statement;` and record the values here. The switch stays off unless

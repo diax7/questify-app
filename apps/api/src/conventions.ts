@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { isBelowMinimum } from "@questify/shared";
+import { API_SECURITY_HEADERS, isBelowMinimum } from "@questify/shared";
 import {
   contentHeld,
   eventSuspended,
@@ -92,6 +92,44 @@ const principal = (request: FastifyRequest): string => request.principalId ?? "a
  * 0121, ADR-434), and the App Review demo's confinement (migration 0144, ADR-563): a join or assignment across its
  * border answers as an unknown event, and a change that would end, hide or limit its event is refused.
  */
+type Actor = Readonly<{
+  actorKind: "staff" | "player" | "device" | "anonymous";
+  actorId: string | null;
+}>;
+
+/** Who was refused, read from what the guard set on the request (staff ids carry no prefix to read it from). */
+function actorOf(request: FastifyRequest): Actor {
+  if (request.staff !== undefined) {
+    return { actorKind: "staff", actorId: request.staff.account.id };
+  }
+  if (request.player !== undefined) {
+    return { actorKind: "player", actorId: request.player.id };
+  }
+  if (request.device?.state === "paired") {
+    return { actorKind: "device", actorId: request.device.id };
+  }
+  return { actorKind: "anonymous", actorId: null };
+}
+
+/**
+ * One `authz.denied` line for a refused access (V16.3.2, ADR-703): every 403, and a 404 a central check marked as a
+ * hidden refusal. The route's pattern, never the filled path or the query; the actor's pseudonymous id, never a
+ * contact, body or header. The request id comes from the request's logger.
+ */
+function logDenied(request: FastifyRequest, error: HttpError): void {
+  if (error.status !== 403 && !error.denied) {
+    return;
+  }
+  request.log.warn({
+    event: "authz.denied",
+    method: request.method,
+    route: request.routeOptions.url ?? "unmatched",
+    status: error.status,
+    code: error.envelope.code,
+    ...actorOf(request),
+  });
+}
+
 const WALLS: ReadonlyMap<string | undefined, () => HttpError> = new Map([
   ["ES423", eventSuspended],
   ["PB423", playerInactive],
@@ -107,10 +145,11 @@ const WALLS: ReadonlyMap<string | undefined, () => HttpError> = new Map([
 function errorHandlerFor(app: FastifyInstance) {
   return async (
     error: Error & { statusCode?: number; code?: string },
-    _request: FastifyRequest,
+    request: FastifyRequest,
     reply: FastifyReply,
   ) => {
     if (error instanceof HttpError) {
+      logDenied(request, error);
       return reply.code(error.status).send(error.envelope);
     }
     if (error.statusCode !== undefined && error.statusCode >= 400 && error.statusCode < 500) {
@@ -152,12 +191,18 @@ function errorHandlerFor(app: FastifyInstance) {
 }
 
 /**
- * Applies the rules in docs/API.md (Conventions) to every route: one error envelope,
- * a request id, the app-version check, and idempotency keys on unsafe routes.
+ * Applies the rules in docs/API.md (Conventions) to every route: one error envelope, the security headers, a request
+ * id, the app-version check, and idempotency keys on unsafe routes.
  */
 export function registerConventions(app: FastifyInstance, options: ConventionOptions): void {
   const claims = new WeakMap<FastifyRequest, Claim>();
   const replays = new WeakSet<FastifyRequest>();
+
+  // First of every `onSend`: it runs before any hook that can throw, and again on the 500 that such a throw becomes.
+  app.addHook("onSend", async (_request, reply, payload) => {
+    reply.headers(API_SECURITY_HEADERS);
+    return payload;
+  });
 
   app.addHook("onRequest", async (request, reply) => {
     reply.header("x-request-id", request.id);

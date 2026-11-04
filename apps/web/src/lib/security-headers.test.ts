@@ -44,6 +44,14 @@ describe("PAGE_HEADERS", () => {
     });
     expect(Object.fromEntries(PAGE_HEADERS)["Permissions-Policy"]).toContain("camera=()");
   });
+
+  it("sends HSTS for a year with subdomains on every page, the kiosk pages included", () => {
+    for (const path of ["/en/station", "/en/kiosk"]) {
+      expect(Object.fromEntries(pageHeaders(path))["Strict-Transport-Security"], path).toBe(
+        "max-age=31536000; includeSubDomains",
+      );
+    }
+  });
 });
 
 describe("the kiosk pages (T-309b, ADR-245)", () => {

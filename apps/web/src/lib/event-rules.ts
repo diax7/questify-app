@@ -58,7 +58,12 @@ export async function fetchRules(request: RulesRequest): Promise<RulesResult> {
   try {
     const response = await (request.fetchImpl ?? fetch)(
       `${request.apiOrigin}/v1/public/events/${encodeURIComponent(request.code)}/rules`,
-      { headers, cache: "no-store", signal: AbortSignal.timeout(request.timeoutMs ?? 5000) },
+      {
+        headers,
+        cache: "no-store",
+        redirect: "error",
+        signal: AbortSignal.timeout(request.timeoutMs ?? 5000),
+      },
     );
     if (response.status === 404) {
       return { kind: "not_found" };
