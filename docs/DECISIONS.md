@@ -7908,3 +7908,33 @@ list. The same file's parity seed now reaches every set-returning part (a multi-
 item, a quest item, a first-N slot, a streak day 2).
 **Why:** the rule of ADR-670 was held only for the 35 functions of the fixture.
 **Trade-offs:** the allowlist is long and only shrinks; changing a listed function's arguments means editing its line.
+
+## ADR-690 - T-804b the platform send budget as striped sliding windows, reserved in their own transaction
+
+**Status:** Proposed (developer, 2026-11-04; T-804b plan, Q-621).
+**Decision:** each channel's budget (login SMS an hour, player email codes a day) is split into up to 16 stripes, each
+its own sliding window in `auth_throttle` with a share of the cap that sums to the cap exactly. `take_send_budget`
+(PL/pgSQL, migration 0150) runs as one autocommit statement before the sign-in transaction, try-locks stripes in a
+random rotation, never waits, and returns `taken`, `busy` or `spent`. The unit is given back by one `DELETE` when the
+request is then refused or fails. The cap, window and stripe count are rows of `platform_send_budget` (API: SELECT
+only), so Q-093's number is changed by data, not a deploy. `takePlatformBudget` is removed.
+**Why:** one advisory lock held to the commit capped the platform at about 100 codes a second (Q-621).
+**Trade-offs:** the half warning is said once per stripe; refused requests hold a unit for milliseconds; old API
+instances still running during the deploy count only the old key.
+
+## ADR-691 - T-804b a client address earns sign-in room from right codes typed from it
+
+**Status:** Proposed (developer, 2026-11-04; T-804b plan, Q-621 part 2, Q-634).
+**Decision:** the player code window of an address is `min(2000, 200 + 2 x right codes from that address in the hour)`
+and its wrong-code window `min(500, 100 + 1 x right codes in 15 minutes)` (bucket `player_verified_address`).
+Per-number, per-install and staff windows and the platform budget are unchanged.
+**Why:** a venue's Wi-Fi needs about 2,000 codes an hour; a flat 2,000 would let one address pump 2,000 SMS an hour.
+**Trade-offs:** a venue where few SMS arrive earns room slowly; one more indexed count per code request.
+
+## ADR-692 - T-804b a busy budget is a retry, never "spent"
+
+**Status:** Proposed (developer, 2026-11-04; T-804b plan).
+**Decision:** `spent` only when every stripe was locked and found full; otherwise `busy`, retried by the service up to 3
+times with 5 to 20 ms jitter, then `throttled` with `retryAfterSeconds: 1`.
+**Why:** a no-wait function cannot deadlock, and a person is told SMS is unavailable only when it is.
+**Trade-offs:** under extreme contention a request may wait a second although a unit was free.
