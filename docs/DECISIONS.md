@@ -7815,7 +7815,7 @@ body has a name clash).
 
 ## ADR-671 - T-804a one statement answers a completion (`complete_quest_answer`)
 
-**Status:** Proposed (developer, 2026-11-04; T-804a plan; built in T-804c, migration 0149, ADR-680, ADR-681).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-04, after the T-804c code review 93; T-804a plan; built in T-804c, migration 0149, ADR-680, ADR-681).
 **Decision:** A definer door `complete_quest_answer` (same arguments as `complete_quest`, revoked from PUBLIC, granted
 to `questify_app`) calls `complete_quest` and then the existing `own_level`, `own_level_items`, `own_bonus`,
 `own_quest_item`, `completion_boost`, `own_first_bonus`, `own_streak_bonus`, `ranking_entry_of` and
@@ -7830,7 +7830,7 @@ calls); the ranking entries are read inside the writing transaction, which the R
 
 ## ADR-672 - T-804a one player check per write
 
-**Status:** Proposed (developer, 2026-11-04; T-804a plan; sign-in, tier A; built in T-804c, migration 0149, ADR-680).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-04, after the T-804c code review 93; T-804a plan; sign-in, tier A; built in T-804c, migration 0149, ADR-680).
 **Decision:** `player_request_gate(hash, is_write)` returns the session's player and, for a write, whether the terms in
 force hold it; the guard makes one call instead of `player_session_owner` then `player_legal_held`. Answers (401, 403
 `legal_acceptance_required`, the doors open while unaccepted) are unchanged.
@@ -7839,7 +7839,7 @@ force hold it; the guard makes one call instead of `player_session_owner` then `
 
 ## ADR-673 - T-804a one Redis script per completion, run by its hash
 
-**Status:** Proposed (developer, 2026-11-04; T-804a plan; built in T-804c, migration 0149, ADR-680, ADR-681).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-04, after the T-804c code review 93; T-804a plan; built in T-804c, migration 0149, ADR-680, ADR-681).
 **Decision:** the ranking store's write and read after a completion become one Lua script called with `EVALSHA`
 (falling back to `EVAL` on `NOSCRIPT`); the version rule, tombstones and the rebuild of a missing board are unchanged.
 **Why:** two `EVAL` calls sent the script text each time; one call halves a completion's Redis round trips.
@@ -7863,7 +7863,7 @@ are the median of two runs.
 
 ## ADR-680 - T-804c the one-statement completion answer as built: typed row, isolated ranking reads, `afterAnswer`
 
-**Status:** Proposed (developer, 2026-11-04; T-804c, builds ADR-671 and ADR-672; Q-640).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-04, after the T-804c code review 93; T-804c, builds ADR-671 and ADR-672; Q-640).
 **Decision:** migration 0149. `complete_quest_answer` (plpgsql, `VOLATILE`, `SECURITY DEFINER`, `search_path` fixed,
 PUBLIC revoked by name, `questify_app` only) returns one typed row: `complete_quest`'s six columns, the completion's
 `event_id`, the level-up (`own_level`, and `own_level_items` only on a level-up), the first row of `own_bonus` and of
@@ -7886,7 +7886,7 @@ exception block is a subtransaction per completion (reads only, so no XID is ass
 
 ## ADR-681 - T-804c every ranking script is loaded by name and run by its SHA1
 
-**Status:** Proposed (developer, 2026-11-04; T-804c, builds ADR-673).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-04, after the T-804c code review 93; T-804c, builds ADR-673).
 **Decision:** the ranking's six Lua scripts (`WRITE`, `READ`, the new `WRITE_READ`, `FILL`, `SWAP`, `UNLOCK`) are
 node-redis `defineScript` scripts carried by the client (`createRankingRedis`, `RANKING_SCRIPTS`), so node-redis sends
 `EVALSHA` and, on `NOSCRIPT`, the body once with `EVAL`. `WRITE_READ` declares the union of `WRITE`'s and `READ`'s keys
@@ -7900,7 +7900,7 @@ change removes, and one way to run scripts is simpler than two.
 
 ## ADR-682 - T-804c no new `LANGUAGE sql` function may be a definer or carry a `SET` clause
 
-**Status:** Proposed (developer, 2026-11-04; T-804c, from the T-804a part A review).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-04, after the T-804c code review 93; T-804c, from the T-804a part A review).
 **Decision:** `test/db/hot-path-plpgsql.int.test.ts` lists every `LANGUAGE sql` function in `public` that is
 `SECURITY DEFINER` or has a `SET` clause and compares the list with `test/db/sql-settings-allowlist.json` (the 426 at
 migration 0149): a new one fails the test (write it in plpgsql, docs/rules.md), and one converted later must leave the
