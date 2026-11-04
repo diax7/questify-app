@@ -5,6 +5,7 @@ import { Client } from "pg";
 import { createClient } from "redis";
 import { readInForce } from "#src/legal/in-force";
 import { createQuestCodeKey, questCode } from "#src/quests/qr";
+import { isLocalServer } from "#test/load/local-server";
 import { qrSecret, required } from "#test/load/settings";
 import { createTestDatabase } from "#test/support/test-db";
 
@@ -136,10 +137,9 @@ async function planOf(owner: Client, seed: string) {
 
 async function create(planFile: string): Promise<void> {
   // The tests' database helper runs roles.sql and sets the API role's password: only ever on this PC's server.
-  const host = new URL(required("TEST_DATABASE_URL")).hostname;
-  if (host !== "127.0.0.1" && host !== "localhost") {
+  if (!isLocalServer(required("TEST_DATABASE_URL"))) {
     throw new Error(
-      `Refusing to seed ${host}: prepare create resets role passwords; local servers only.`,
+      "Refusing to seed TEST_DATABASE_URL: prepare create resets role passwords; local servers only.",
     );
   }
   const sizes = {

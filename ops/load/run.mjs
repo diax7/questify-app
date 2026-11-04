@@ -165,6 +165,8 @@ function samplePostgres() {
       opt["pg-container"],
     ]);
     let out = "";
+    // Without docker (a native PostgreSQL) the sample stays empty instead of crashing the run before its cleanup.
+    child.on("error", () => {});
     child.stdout.on("data", (chunk) => (out += chunk));
     child.on("exit", () => {
       const value = Number.parseFloat(out);
@@ -275,7 +277,7 @@ async function measure(plan, baseUrls, dir, apiPids) {
   const report = {
     startedAt: new Date().toISOString(),
     machine: machine(),
-    options: opt,
+    options: { ...opt, "admin-url": undefined, "redis-url": undefined, target: undefined },
     sizes: plan.sizes,
   };
   if (!opt["skip-completions"]) {
