@@ -10,6 +10,7 @@ import {
   invalidLimit,
   noPendingRequest,
   notActivated,
+  hiddenNotFound,
   notFound,
   unknownAddon,
 } from "#src/auth/http-errors";
@@ -91,8 +92,10 @@ function refuse(refusal: Refusal, conflict: () => HttpError): never {
       throw activationIncomplete({ field: refusal.field });
     case "conflict":
       throw conflict();
+    case "forbidden":
+      // The caller cannot reach such an event, which looks the same as none, but is logged as a refusal.
+      throw hiddenNotFound();
     default:
-      // forbidden and not_found: the caller cannot reach such an event, which looks the same as none.
       throw notFound();
   }
 }
@@ -278,7 +281,7 @@ export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesD
         await requireSession(request, reply, deps.sessions);
         const account = request.staff?.account;
         if (account?.platformRole !== "admin" || account.status !== "active") {
-          throw notFound();
+          throw hiddenNotFound();
         }
       });
 

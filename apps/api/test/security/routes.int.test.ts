@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import type { LightMyRequestResponse } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -1527,5 +1528,84 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
         expect(response.body).not.toContain("tabuk");
       }
     });
+  });
+});
+
+describe.skipIf(TEST_DATABASE_URL === undefined)("refused access is logged (ADR-703)", () => {
+  let db: TestDatabase;
+  let test: TestApp;
+  let ids: Awaited<ReturnType<typeof seedTwoTenants>>;
+  let strangerId = "";
+  let cookie = "";
+  const lines: Record<string, unknown>[] = [];
+
+  beforeAll(async () => {
+    db = await createTestDatabase();
+    ids = await seedTwoTenants(db.owner);
+    test = await startApp(db, {
+      level: "warn",
+      stream: { write: (line: string) => void lines.push(JSON.parse(line)) },
+    });
+    strangerId = await createStaff(db.owner, { email: "member@tabuk-only.test" });
+    await db.owner.query(
+      "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
+      [ids.orgB, strangerId],
+    );
+    cookie = await signInFully(test, "member@tabuk-only.test");
+  });
+  afterAll(async () => {
+    await test.close();
+    await db.close();
+  });
+
+  it("writes exactly one authz.denied line, with B's id and the route pattern, for every organizer-A and console route", async () => {
+    const guarded = test.app.routeInventory.filter(
+      (route) =>
+        route.method !== "HEAD" &&
+        (route.url.startsWith("/v1/organizers/:organizerId") || route.url.startsWith("/v1/admin/")),
+    );
+    expect(guarded.length).toBeGreaterThan(50);
+    for (const route of guarded) {
+      lines.length = 0;
+      const label = `${route.method} ${route.url}`;
+      const response = await test.app.inject({
+        method: route.method as "GET" | "POST" | "PUT" | "DELETE",
+        url: route.url.replace(":organizerId", ids.orgA).replace(/:[a-zA-Z]+/g, MISSING),
+        headers: withSession(cookie, { "idempotency-key": MISSING }),
+        ...(route.method === "GET" ? {} : { payload: {} }),
+      });
+      expect(response.statusCode, label).toBe(404);
+      expect(response.json(), label).toMatchObject({ code: "not_found" });
+      const denied = lines.filter((line) => line["event"] === "authz.denied");
+      expect(denied, label).toHaveLength(1);
+      expect(denied[0], label).toMatchObject({
+        route: route.url,
+        method: route.method,
+        status: 404,
+        actorKind: "staff",
+        actorId: strangerId,
+      });
+      expect(JSON.stringify(denied), label).not.toContain(ids.orgA);
+    }
+  });
+
+  it("writes none for a player asking about an event they never joined (Q-671 boundary)", async () => {
+    const [player] = (
+      await db.owner.query<{ id: string }>(
+        "INSERT INTO player (username) VALUES ('denied_probe') RETURNING id",
+      )
+    ).rows;
+    const token = randomBytes(32).toString("base64url");
+    await db.owner.query(
+      "INSERT INTO player_session (player_id, token_hash, expires_at) VALUES ($1, $2, now() + interval '1 hour')",
+      [player?.id, createHash("sha256").update(token).digest()],
+    );
+    lines.length = 0;
+    const response = await test.app.inject({
+      url: `/v1/events/${ids.eventB}/config`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(response.statusCode).toBe(404);
+    expect(lines.filter((line) => line["event"] === "authz.denied")).toEqual([]);
   });
 });

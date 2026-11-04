@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
+import { hiddenNotFound, notFound } from "#src/auth/http-errors";
+import type { PublicAccount } from "#src/auth/staff-store";
 import { HttpError } from "./http-error";
 import { MemoryIdempotencyStore, type IdempotencyStore } from "./idempotency-store";
 import { loggableError, registerConventions } from "./conventions";
@@ -594,5 +596,87 @@ describe("security headers (ADR-700)", () => {
     const response = await post("/pay", { "idempotency-key": "fail-1" }, { a: 1 });
     expect(response.statusCode).toBe(500);
     expectHeaders(response, "store failure");
+  });
+});
+
+describe("the authz.denied line (ADR-703)", () => {
+  let lines: Record<string, unknown>[] = [];
+
+  async function buildLogged(): Promise<FastifyInstance> {
+    lines = [];
+    const instance = Fastify({
+      logger: {
+        level: "warn",
+        stream: { write: (line: string) => void lines.push(JSON.parse(line)) },
+      },
+    });
+    registerConventions(instance, {
+      minAppVersion: "1.0.0",
+      idempotencyStore: new MemoryIdempotencyStore(),
+    });
+    instance.addHook("onRequest", async (request) => {
+      const kind = request.headers["x-test-kind"];
+      const id = "6f1c2d3e-0000-4000-8000-000000000001";
+      if (kind === "staff") {
+        request.staff = { account: { id } as PublicAccount, sessionId: "s-1" };
+      } else if (kind === "player") {
+        request.player = { id };
+      }
+    });
+    instance.get("/things/:thingId/forbidden", async () => {
+      throw new HttpError(403, "owner_only", { ar: "للمالك فقط.", en: "Owner only." });
+    });
+    instance.get("/things/:thingId/hidden", async () => {
+      throw hiddenNotFound();
+    });
+    instance.get("/things/:thingId/absent", async () => {
+      throw notFound();
+    });
+    await instance.ready();
+    return instance;
+  }
+
+  const denials = () => lines.filter((line) => line["event"] === "authz.denied");
+
+  it("logs a 403 and a hidden 404 once each, and a plain 404 not at all", async () => {
+    app = await buildLogged();
+    const headers = { "x-test-kind": "staff" };
+    const forbidden = await app.inject({ url: "/things/42/forbidden?secret=1", headers });
+    const hidden = await app.inject({ url: "/things/42/hidden", headers });
+    const absent = await app.inject({ url: "/things/42/absent", headers });
+    expect([forbidden.statusCode, hidden.statusCode, absent.statusCode]).toEqual([403, 404, 404]);
+    expect(hidden.json()).toEqual(absent.json());
+    expect(denials()).toHaveLength(2);
+  });
+
+  it("holds exactly the route pattern, the status and code, and who: never the filled path or query", async () => {
+    app = await buildLogged();
+    await app.inject({
+      url: "/things/42/hidden?phone=0500000000",
+      headers: { "x-test-kind": "staff" },
+    });
+    const [line] = denials();
+    const { level: _level, time: _time, pid: _pid, hostname: _host, reqId, ...rest } = line ?? {};
+    expect(typeof reqId).toBe("string");
+    expect(rest).toEqual({
+      event: "authz.denied",
+      method: "GET",
+      route: "/things/:thingId/hidden",
+      status: 404,
+      code: "not_found",
+      actorKind: "staff",
+      actorId: "6f1c2d3e-0000-4000-8000-000000000001",
+    });
+    expect(JSON.stringify(lines)).not.toContain("0500000000");
+    expect(JSON.stringify(denials())).not.toContain("/things/42");
+  });
+
+  it.each([
+    ["player", "player", "6f1c2d3e-0000-4000-8000-000000000001"],
+    ["nobody", "anonymous", null],
+  ])("names a %s by what the guard set", async (kind, actorKind, actorId) => {
+    app = await buildLogged();
+    await app.inject({ url: "/things/1/forbidden", headers: { "x-test-kind": kind } });
+    expect(denials()[0]).toMatchObject({ actorKind, actorId });
   });
 });
