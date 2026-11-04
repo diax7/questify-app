@@ -124,6 +124,48 @@ describe.skipIf(TEST_REDIS_URL === undefined)("the ranking store (Redis)", () =>
     expect((await store.read(event, 1, moved.enrollmentId))?.top[0]?.score).toBe(60n);
   });
 
+  it("keeps the copy being built and its flag under the event's own keys, the flag expiring with the lock", async () => {
+    const event = await newEvent();
+    const seen: { present: number; flagTtl: number } = { present: 0, flagTtl: 0 };
+    await store.rebuild(event, async () => {
+      await store.upsert(event, entry(5, 1));
+      seen.present = await client.exists([
+        `rank:{${event}}:next`,
+        `rank:{${event}}:next:member`,
+        `rank:{${event}}:building`,
+      ]);
+      seen.flagTtl = await client.pTTL(`rank:{${event}}:building`);
+      return [];
+    });
+    expect(seen.present).toBe(3);
+    expect(seen.flagTtl).toBeGreaterThan(0);
+    expect(seen.flagTtl).toBeLessThanOrEqual(30_000);
+  });
+
+  it("sends a large rebuild to Redis in chunks of at most 500 entries", async () => {
+    const event = randomUUID();
+    const entries = Array.from({ length: 1000 }, (_, index) => entry(1000 - index, index + 1));
+    const fill = vi.spyOn(client, "rankingFill");
+    try {
+      expect(await store.rebuild(event, async () => entries)).toBe("rebuilt");
+      // The script takes the lifetime, then five arguments per entry.
+      expect(fill.mock.calls.map(([, args]) => args.length)).toEqual([1 + 5 * 500, 1 + 5 * 500]);
+    } finally {
+      fill.mockRestore();
+    }
+    expect((await store.read(event, 1, undefined))?.total).toBe(1000);
+  });
+
+  it("leaves out a member of the set that stands for no enrollment", async () => {
+    const event = await newEvent();
+    const a = entry(10, 5);
+    await store.upsert(event, a);
+    await client.zAdd(`rank:{${event}}`, { score: 99, value: "not-a-member" });
+    expect((await store.read(event, 10, undefined))?.top).toEqual([
+      { enrollmentId: a.enrollmentId, version: 5n, score: 10n },
+    ]);
+  });
+
   it("lets one rebuild of an event run at a time", async () => {
     const event = await newEvent();
     let second: string | undefined;

@@ -23,6 +23,22 @@
   **Mutation targets touched:** `apps/api/src/completions/complete.ts` (types and one `sqlstate` line),
   `apps/api/src/ranking/ranking.ts` (one log field, covered by the new `flow.int.test.ts` cases).
 
+## Mutation chase: ranking.ts and store.ts — 2026-11-04
+- **Survivors and no-coverage mutants of GitHub run 41851709795 chased (one round, tests only, no source change, no bug
+  found).** `apps/api/src/ranking/ranking.ts` (88.3%, 44): 38 killed in the new `src/ranking/ranking.test.ts` (21 tests
+  over a fake pool and a fake store, no Docker: a blocked player's masked row from both PostgreSQL and the copy, the
+  copy that cannot be built, a player missing from or no longer ranked in the names read, QR403 against any other
+  failure, a reader whose day or name display the database no longer answers, no full-name read while the event shows
+  usernames, a repair of a single-day, not-live and vanished event, a busy whole or day rebuild marking the event
+  again, the backstop's missing and old copies, an entry with no version, one not ranked, and `afterCompletion`'s
+  empty, failed and day-failed reads); 6 equivalent. `apps/api/src/ranking/store.ts` (86.7%, 16): 8 killed in
+  `test/ranking/store.int.test.ts` (3 new: the rebuild's copy and flag under the event's keys with the flag expiring,
+  chunks of 500 sent to Redis, a member that stands for no enrollment left out of the top); 8 equivalent (`defineScript({})`
+  is reported alive as a static mutant but fails the Redis tests by hand). Each kill was checked by applying the mutant
+  by hand (48 failed their suite, 2 of them variants not on the list; the 14 equivalent ones passed; FOLLOWUPS names
+  them). Lint, types, `lint:limits`, `format:check` clean; touched suites (`src/ranking`, `test/ranking`) 101 passed.
+  Scores are confirmed by the next grouped mutation run. CI minutes: 0; agent tokens roughly 0.4M (estimate).
+
 ## T-804b built — 2026-11-04
 
 - **T-804b (tier A, sign-in; ADR-690 to ADR-692 amended to the plan review's Revision 1, Q-650 to Q-652 Proposed):
