@@ -8026,3 +8026,58 @@ the earlier of 1 hour and the same end. Existing families start at their earlies
 nobody out; the migration asserts no live row already ends later (no capping UPDATE is needed).
 **Why:** ASVS V7.3.2 asks for an absolute session end; low-value accounts justify a year (SECURITY.md).
 **Trade-offs:** FR-123 changes: a player types one fresh code a year per phone.
+
+## ADR-710 - T-810c a player device is a refresh family with its own row
+
+**Status:** Proposed (developer, 2026-11-05, T-810c plan).
+**Decision:** `player_sign_in_device`, one row per refresh family (its own id, never the family id, goes to the app),
+labelled once from the app's sign-in body: platform and `expo-device` model. Never an IP, a location, a user agent,
+the phone's own name or the `X-Device-Id` install id. Last used is the family's latest rotation, shown as a day.
+**Why:** Q-661's device list needs a name and times; the refresh rows are swept 7 days after use and carry no label.
+**Trade-offs:** older app builds show "iPhone" / "Android phone" / "Phone" only.
+
+## ADR-711 - T-810c a fresh factor is a code typed here in the last 10 minutes
+
+**Status:** Proposed (developer, 2026-11-05, T-810c plan; Q-680, Q-681).
+**Decision:** ending another session or device needs, on this staff session or player family, a sign-in, a
+re-authentication code or (players) a contact-change code within 10 minutes; checked in the database
+(`staff_session.reauth_at`, `player_sign_in_device.reauth_at`, written only by definers).
+**Why:** ASVS V7.5.2; the lost-phone and contact-change paths need no extra code.
+
+## ADR-712 - T-810c lock the device row before the refresh row
+
+**Status:** Proposed (developer, 2026-11-05, T-810c plan).
+**Decision:** `rotate_player_refresh` and every end function take the family's `player_sign_in_device` row `FOR UPDATE`
+first; a rotation of an ended device answers `invalid`.
+**Why:** without it a rotation committing during an end leaves a new refresh token alive.
+
+## ADR-713 - T-810c the console ends any staff account's sessions; a player's is the sign-in reset
+
+**Status:** Proposed (developer, 2026-11-05, T-810c plan).
+**Decision:** a new console door ends every live session of one staff account (organizer member or admin, not the
+caller's own) with a 10 to 300 character reason in the audit log. For a player the existing sign-in reset (T-704,
+ADR-421) is the action; no second door.
+**Why:** Q-661; the reset already ends every family with a reason and clears codes and push devices.
+
+## ADR-714 - T-810c ending devices stays open while new terms wait
+
+**Status:** Proposed (developer, 2026-11-05, T-810c plan).
+**Decision:** the device end routes and the player re-authentication routes join `OPEN_WHILE_UNACCEPTED` (ADR-446).
+**Why:** signing a lost phone out is a safety action and must not wait for an acceptance.
+
+## ADR-715 - T-810c a contact change marks this family fresh
+
+**Status:** Proposed (developer, 2026-11-05, T-810c plan).
+**Decision:** `confirm_contact_change` takes the request's access-token hash and sets `reauth_at` on that family; the
+3-argument version is dropped in 0155 with a RUNBOOK deploy note. ADR-120 is amended: the other sessions are kept
+unless the player chooses "sign out other devices" in the offer that follows the change.
+**Why:** V7.4.3; the new contact's code is the fresh factor, so the offer needs no second code.
+**Trade-offs:** someone holding an unlocked phone can now move the account and sign the owner out elsewhere; the
+notice to the old contact, the audit entries and support's sign-in reset remain.
+
+## ADR-716 - T-810c the device label is exported and erased
+
+**Status:** Proposed (developer, 2026-11-05, T-810c plan).
+**Decision:** the data export lists live devices (platform, model, signed in, last used); erasure deletes the device
+and re-authentication rows; ended rows go 7 days after the end.
+**Why:** a phone model tied to an account is personal data (PDPL access and erasure).

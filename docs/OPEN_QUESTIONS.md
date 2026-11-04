@@ -2724,3 +2724,17 @@ a later release script can do it automatically.
 The key id touches the config, the seal format, every opener, the upload's duplicate check and a new operator command;
 nothing is at risk until a leak forces a rotation.
 **Recommended (developer):** build it as T-810f after T-810b, with its own plan review; the sheet's row 8 points there.
+
+## Q-680 - Do players type a fresh code before ending their other devices? (T-810c, ASVS V7.5.2, ADR-711)
+
+**Status:** Open (for Dhia, product: it adds a step to a player screen).
+Q-661 asked for a fresh code before a staff member ends other sessions; it said nothing for players. ASVS V7.5.2 asks
+for it for everyone.
+**Recommended (developer):** yes, a sign-in code by SMS or email, except within 10 minutes of signing in on this phone
+or changing the phone or email on it (so the lost-phone and contact-change paths need no extra code). Option B: no code
+for players (the row stays Partly for players). Option C: a code every time (an SMS on the lost-phone path too).
+
+## Q-681 - How long a fresh factor lasts (T-810c, ADR-711)
+
+**Status:** Open (developer).
+**Recommended (developer):** 10 minutes, the life of the staff sign-in code.
