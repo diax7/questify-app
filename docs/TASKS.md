@@ -1559,6 +1559,11 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     of the same channel (each contact once an hour). Load (plan section 9): 250 a second p95 47 and 376 ms on one API,
     79 and 54 ms on three (before: 100 a second p95 2.2 s); cap 5,000 sent exactly 5,000 of 9,000; one address, 2,000
     phones typing codes back after 20 to 90 s, no 429.
+- [ ] **T-804e** Profile the completion's database work: commit T-804a's one-at-a-time profile under `ops/load/` so the
+  number is reproducible, profile `record_completion` and its ledger triggers (`xp_credit`, `streak_record`), then make the
+  costliest parts cheaper (tier A, ledger) — delivers no FR (quality gate); depends on: T-804c; Q-641, ADR-674.
+  - Done when: the profile script gives the same number twice on one container, and the completion's statements are at or
+    under ADR-674's 10 ms, or the gap is written down with what it would cost to close.
 - [ ] **T-804** Load test at 20,000 completions per minute per event and ten events at once — delivers no FR (infrastructure or quality gate); depends on: T-105, T-106
   - Note 2026-11-04 (T-804a part A, ADR-670): with migration 0148 the same PC carries 200 completions a second for ten
     events plus a 50,000-player event at 98.0% within 1 s (p95 518 ms, PostgreSQL 6.4 to 7.0 cores); before it, 52 a
@@ -1599,6 +1604,8 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Done when: A written report exists; every high or medium finding is fixed and retested, or accepted in writing by the user.
 - [ ] **T-810** ASVS L2 verification sheet for the core, with evidence (a test, a CI check or a note) per control — delivers no FR (infrastructure or quality gate); depends on: T-809
   - Done when: Every L2 control for the core has evidence or a written exception.
+  - Order note (developer, 2026-11-04): the sheet is drafted before T-809, so the testers get it as their open-book map;
+    T-809's findings are added to it afterwards. It is ticked only after T-809.
 - [ ] **T-811** CranL go/no-go: written answers on high availability, point-in-time restore, backup copies, uptime, hosting provider and CST status; decide to stay or move production (ADR-107) — delivers no FR (infrastructure or quality gate); depends on: T-805, T-019
   - Note 2026-11-04 (T-804, Q-630): ask CranL for the PostgreSQL sizes and prices, `max_connections`, whether PostgreSQL 17 or 18 is offered (staging runs 16.15) and the app-to-database delay (Dhia: later, at this check).
   - Note 2026-11-04 (T-017, Q-611): staging's scheduled PostgreSQL backups have never run on CranL (no success, no failure, nothing kept). Ask CranL why before production relies on them (Dhia: later, at this check).
