@@ -1615,13 +1615,27 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - (5) One `authz.denied` log event (route pattern, status, actor kind and id) for 403 answers and for the 404 that hides a console route or another tenant's object.
   - (6) Tests that a body key `__proto__` or `constructor` is refused and that a repeated query key is refused.
   - (7) The SBOM (`pnpm sbom:generate`) produced on the release path and kept with the release.
-  - (8) A key id in each sealed reward code and a re-seal command, so `REWARD_CODE_SECRET` can rotate without losing unused codes (split into T-810c if it grows).
+  - (8) A key id in each sealed reward code and a re-seal command, so `REWARD_CODE_SECRET` can rotate without losing unused codes (split into T-810f if it grows).
   - (9) A player refresh family ends 365 days after its sign-in, whatever its use (Q-660), with the reason in SECURITY.md; and the one-factor rationale with its compensating controls in SECURITY.md (Q-662).
   - Done when: each item has its test, the sheet's rows move to Met, and mutation targets are the changed core files.
   - Note 2026-11-05 (plan): `docs/plans/2026-11-05-t-810b-asvs-gaps.md` (ADR-700 to ADR-706, Q-670 to Q-673,
-    migrations 0152 to 0154). The plan numbers the Q-662 part of (9) as item 10, and proposes moving (8) to T-810c
+    migrations 0152 to 0154). The plan numbers the Q-662 part of (9) as item 10, and proposes moving (8) to T-810f
     (Q-673).
-- [ ] **T-810c** (tier A) Reward code key id and re-seal command so `REWARD_CODE_SECRET` can rotate (T-810b item 8,
+- [ ] **T-810c** (tier A) Signed-in devices: a "Signed-in devices" list in the app's account screen with Sign out per
+  device and for all others (also offered after a phone or email change); a console action that ends every session of
+  one staff account or one player, with a reason in the audit log; a fresh code before a staff member ends their other
+  sessions — delivers no FR (ASVS V7.4.3, V7.4.5, V7.5.2); depends on: T-810; Q-661 (Dhia, 2026-11-05).
+  - Done when: the three actions work in Arabic and English with tests, outsider tests show no one ends another
+    person's sessions, and the ASVS sheet's rows move to Met.
+- [ ] **T-810d** (tier A, admin powers) The console on its own hostname (`console.<domain>`) through the same CranL web
+  app: the console answers only there, its `__Host-` cookie is never set on the public origin, and the public hostname
+  redirects console paths — delivers no FR (ASVS V3.5.4); depends on: T-810; Q-663 (Dhia, 2026-11-05). Needs Dhia to add
+  the DNS record and the CranL domain once the code is ready (asked with AskUserQuestion then).
+  - Done when: the console and the public pages are on different origins on staging and the sheet's row moves to Met.
+- [ ] **T-810e** (tier C, copy) One line under the code field of the sign-in code screen (app and web), in Arabic and
+  English with the ux-araby skill: never share this code; Questify never asks for it — delivers no FR (ASVS V6.6.1);
+  depends on: T-810; Q-662 (Dhia, 2026-11-05).
+- [ ] **T-810f** (tier A) Reward code key id and re-seal command so `REWARD_CODE_SECRET` can rotate (T-810b item 8,
   moved out because it touches the config, the seal format, every opener, the upload's duplicate check and a new
   operator command; ADR-705, Q-673) — delivers no FR (infrastructure or quality gate); depends on: T-810b
   - Done when: a rotation followed by the re-seal leaves every code readable, tested, and the sheet's row 8 is Met.

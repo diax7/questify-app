@@ -8006,9 +8006,9 @@ Release; the coordinator tags every CranL deploy and store build (RUNBOOK).
 **Why:** ASVS V15.1.2; a Release asset is kept for good and does not use Actions storage.
 **Trade-offs:** one more manual step per release; an untagged release has no SBOM.
 
-## ADR-705 - T-810c reward codes carry a key id; a re-seal command rotates them
+## ADR-705 - T-810f reward codes carry a key id; a re-seal command rotates them
 
-**Status:** Proposed (developer, 2026-11-05; plan item 8, built in T-810c; Q-673).
+**Status:** Proposed (developer, 2026-11-05; plan item 8, built in T-810f; Q-673).
 **Decision:** new seals start with a 3-byte header (`0x51 0x02 keyId`); legacy seals open under key 1; previous secrets
 are loaded only to open and re-seal; `reward-codes.cjs reseal` rewrites every row (cipher and mark) under the current
 key with the migration owner's connection, no new door.
