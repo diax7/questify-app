@@ -273,6 +273,43 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         expect([await reversed, await ordered]).toEqual(["ok", "ok"]);
         expect([await seats(low ?? ""), await seats(high ?? "")]).toEqual([2, 2]);
       });
+
+      it("takes the seat locks of a 300-event statement in id order even when the planner hashes the groups", async () => {
+        const events: string[] = [];
+        for (let i = 0; i < 300; i += 1) {
+          events.push((await newEvent({ limit: 50 })).id);
+        }
+        const ordered = events.toSorted();
+        const players = await owner<{ id: string }>(
+          "INSERT INTO player (username) SELECT 'seat_many_' || $1 || '_' || g FROM generate_series(1, 300) g RETURNING id",
+          [randomUUID().slice(0, 8)],
+        );
+        const [blocker, writer] = [await ownerClient(), await ownerClient()];
+        await blocker.query("BEGIN");
+        await blocker.query("SELECT lock_event_seats($1)", [ordered[150]]);
+        // Without a sort the planner groups the statement's rows by hash, which is not the id order.
+        await writer.query("SET enable_sort = off");
+        const written = sqlstate(
+          writer.query(
+            `INSERT INTO enrollment (organizer_id, event_id, player_id, status)
+             SELECT $1, e.event, e.player, 'active'
+             FROM unnest($2::uuid[], $3::uuid[]) WITH ORDINALITY AS e(event, player, k) ORDER BY e.k`,
+            [ids.orgA, ordered.toReversed(), players.map((player) => player.id)],
+          ),
+        );
+        await blockedOn(writer);
+        const held = await owner<{ id: string }>(
+          `SELECT e.id FROM pg_locks l
+           JOIN event e ON l.objid::bigint = (hashtext(e.id::text)::bigint & 4294967295)
+           WHERE l.pid = $1 AND l.locktype = 'advisory' AND l.classid = 270027 AND l.granted
+             AND e.id = ANY($2)
+           ORDER BY e.id`,
+          [pids.get(writer), events],
+        );
+        expect(held.map((row) => row.id)).toEqual(ordered.slice(0, 150));
+        await blocker.query("COMMIT");
+        expect(await written).toBe("ok");
+      });
     });
 
     describe("the statement guard on its own", () => {

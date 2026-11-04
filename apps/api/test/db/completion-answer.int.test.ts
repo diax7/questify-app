@@ -40,7 +40,8 @@ const ENGINE_COLUMNS = ["completion_id", "points", "occurrence", "score", "balan
 const partsOf = (row: Answer) =>
   Object.fromEntries(
     Object.entries(row).filter(
-      ([name]) => ![...ENGINE_COLUMNS, "event_id", "ranking_failed"].includes(name),
+      ([name]) =>
+        ![...ENGINE_COLUMNS, "event_id", "ranking_failed", "ranking_sqlstate"].includes(name),
     ),
   );
 
@@ -166,6 +167,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         rank_ranked: true,
         day_enrollment_id: a.enrollment,
         ranking_failed: false,
+        ranking_sqlstate: null,
       });
       expect(row["bonus_category_id"]).not.toBeNull();
       expect(row["level_items"]).not.toEqual([]);
@@ -205,7 +207,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       }
     });
 
-    it("commits the completion and its points when the ranking entries fail, and says so", async () => {
+    it("commits the completion and its points when the ranking entries fail, and names the SQLSTATE", async () => {
       const d = await member();
       const [kept] = await owner<{ definition: string }>(
         "SELECT pg_get_functiondef('ranking_day_entry_of(bigint)'::regprocedure) AS definition",
@@ -230,6 +232,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       }
       expect(row).toMatchObject({
         ranking_failed: true,
+        ranking_sqlstate: "P0001",
         rank_enrollment_id: null,
         rank_score: null,
         rank_score_version: null,

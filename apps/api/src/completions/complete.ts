@@ -370,47 +370,56 @@ async function release(
   }
 }
 
-/** One row of `complete_quest_answer` (migration 0149, ADR-671): the engine's six columns and every part after them. */
-type AnswerRow = {
-  completion_id: string;
-  points: string;
-  occurrence: number;
-  score: string;
-  balance: string;
-  replayed: boolean;
-  event_id: string;
-  level_up: number | null;
-  level_title_ar: string;
-  level_title_en: string;
-  level_items: ProfileItem[] | null;
-  bonus_category_id: string | null;
-  bonus_points: string;
-  bonus_name_ar: string | null;
-  bonus_name_en: string | null;
-  bonus_item_ar: string | null;
-  bonus_item_en: string | null;
-  bonus_item_outcome: ItemOutcome | null;
-  bonus_item_until: Date | null;
-  bonus_item_time_zone: string | null;
-  item_name_ar: string | null;
-  item_name_en: string | null;
-  item_outcome: ItemOutcome | null;
-  item_until: Date | null;
-  item_time_zone: string | null;
-  boost_multiplier: number | null;
-  first_bonus: OwnFirstBonus | null;
-  streak_bonus: StreakBonus | null;
-  rank_enrollment_id: string | null;
-  rank_score: string;
-  rank_score_version: string | null;
-  rank_ranked: boolean;
-  day_day: string;
-  day_enrollment_id: string | null;
-  day_score: string;
-  day_score_version: string | null;
-  day_ranked: boolean;
-  ranking_failed: boolean;
-};
+/**
+ * Columns `complete_quest_answer` fills together: all set when the completion has that part, all NULL when it has none
+ * (its `SELECT ... INTO` found no row) or, for the ranking entries, when the ranking read failed.
+ */
+type LevelColumns =
+  | { level_up: number; level_title_ar: string; level_title_en: string }
+  | { level_up: null; level_title_ar: null; level_title_en: null };
+type BonusColumns =
+  | { bonus_category_id: string; bonus_points: string }
+  | { bonus_category_id: null; bonus_points: null };
+type RankColumns =
+  | { rank_enrollment_id: string; rank_score: string; rank_ranked: boolean }
+  | { rank_enrollment_id: null; rank_score: null; rank_ranked: null };
+type DayColumns =
+  | { day_enrollment_id: string; day_day: string; day_score: string; day_ranked: boolean }
+  | { day_enrollment_id: null; day_day: null; day_score: null; day_ranked: null };
+
+/** One row of `complete_quest_answer` (migration 0151, ADR-671): the engine's six columns and every part after them. */
+type AnswerRow = LevelColumns &
+  BonusColumns &
+  RankColumns &
+  DayColumns & {
+    completion_id: string;
+    points: string;
+    occurrence: number;
+    score: string;
+    balance: string;
+    replayed: boolean;
+    event_id: string;
+    level_items: ProfileItem[] | null;
+    bonus_name_ar: string | null;
+    bonus_name_en: string | null;
+    bonus_item_ar: string | null;
+    bonus_item_en: string | null;
+    bonus_item_outcome: ItemOutcome | null;
+    bonus_item_until: Date | null;
+    bonus_item_time_zone: string | null;
+    item_name_ar: string | null;
+    item_name_en: string | null;
+    item_outcome: ItemOutcome | null;
+    item_until: Date | null;
+    item_time_zone: string | null;
+    boost_multiplier: number | null;
+    first_bonus: OwnFirstBonus | null;
+    streak_bonus: StreakBonus | null;
+    rank_score_version: string | null;
+    day_score_version: string | null;
+    ranking_failed: boolean;
+    ranking_sqlstate: string | null;
+  };
 
 type EngineProof = Readonly<{
   method: "qr" | "code" | "location" | "screen_qr";
@@ -469,6 +478,7 @@ function entriesOf(row: AnswerRow): CompletionEntries {
   return {
     eventId: row.event_id,
     failed: row.ranking_failed,
+    sqlstate: row.ranking_sqlstate ?? undefined,
     entry:
       row.rank_enrollment_id === null
         ? undefined

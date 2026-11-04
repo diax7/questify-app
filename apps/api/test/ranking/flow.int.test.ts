@@ -329,6 +329,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
         return await withRequestContext(client, { playerId: player }, async () => ({
           eventId: event,
           failed: false,
+          sqlstate: undefined,
           entry: (await client.query<EntryRow>("SELECT * FROM ranking_entry_of($1)", [completion]))
             .rows[0],
           day: (
@@ -372,26 +373,57 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
         expect(await redis.hGet(`rank:{${event}}:member`, a.enrollment)).toMatch(/^x/);
       });
 
-      it("logs and marks entries the database could not read, without touching Redis", async () => {
+      it("logs the SQLSTATE and marks entries the database could not read, without touching Redis", async () => {
         const event = await newEvent();
         const spy = vi.spyOn(store, "upsertRead");
         const answer = await createRanking(deps()).afterAnswer({
           eventId: event,
           failed: true,
+          sqlstate: "P0001",
           entry: undefined,
           day: undefined,
         });
         expect(answer).toBeNull();
         expect(logged).toEqual([
-          { level: "warn", fields: { event: "ranking.write_failed", reason: "entries_unread" } },
+          {
+            level: "warn",
+            fields: { event: "ranking.write_failed", reason: "entries_unread", sqlstate: "P0001" },
+          },
         ]);
         expect(await marked(event)).toBe(true);
         expect(spy).not.toHaveBeenCalled();
       });
 
+      it("logs an unknown SQLSTATE when the database named none", async () => {
+        const event = await newEvent();
+        await createRanking(deps()).afterAnswer({
+          eventId: event,
+          failed: true,
+          sqlstate: undefined,
+          entry: undefined,
+          day: undefined,
+        });
+        expect(logged).toEqual([
+          {
+            level: "warn",
+            fields: {
+              event: "ranking.write_failed",
+              reason: "entries_unread",
+              sqlstate: "unknown",
+            },
+          },
+        ]);
+      });
+
       it("answers null for no entry, and does nothing without Redis", async () => {
         const event = await newEvent();
-        const none = { eventId: event, failed: false, entry: undefined, day: undefined };
+        const none = {
+          eventId: event,
+          failed: false,
+          sqlstate: undefined,
+          entry: undefined,
+          day: undefined,
+        };
         expect(await createRanking(deps()).afterAnswer(none)).toBeNull();
         expect(
           await createRanking(deps({ store: undefined })).afterAnswer({ ...none, failed: true }),

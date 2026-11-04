@@ -67,6 +67,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("desk sale over HTTP", () => {
 
   const owner = async <T extends Row>(sql: string, values: unknown[] = []) =>
     (await db.owner.query<T>(sql, values)).rows;
+  /** The database's own clock in whole milliseconds: an offer's deadline is made from it, not from this process's. */
+  const databaseMillis = async () =>
+    Number(
+      (
+        await owner<{ ms: string }>(
+          "SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint AS ms",
+        )
+      )[0]?.ms,
+    );
 
   const newEvent = async (mode = "collect_first"): Promise<string> => {
     counter += 1;
@@ -379,7 +388,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("desk sale over HTTP", () => {
   describe("the offer", () => {
     it("answers the new sale in full, a live repeat as 200, and a re-offer after Pay as just bought", async () => {
       const s = await sell();
+      const before = await databaseMillis();
       const made = await offer(s);
+      const after = await databaseMillis();
       expect(made.statusCode).toBe(201);
       const { sale } = made.json<{ sale: { id: string; offerUntil: string } }>();
       expect(made.json()).toEqual({
@@ -393,11 +404,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("desk sale over HTTP", () => {
           justBought: false,
         },
       });
-      const secondsLeft = (Date.parse(sale.offerUntil) - Date.now()) / 1000;
-      expect(secondsLeft).toBeGreaterThan(100);
-      // offerUntil is the database's now() plus 2 minutes; Docker's clock can run a few ms ahead of this process's, and
-      // since T-804a the offer answers within that gap (seen: 120.005 s left).
-      expect(secondsLeft).toBeLessThanOrEqual(120.5);
+      // offerUntil is the offering transaction's now() plus 2 minutes, so it lies between two reads of the database's
+      // clock around the request (1 ms either way for the answer's millisecond precision).
+      const offeredAt = Date.parse(sale.offerUntil) - 120_000;
+      expect(offeredAt).toBeGreaterThanOrEqual(before - 1);
+      expect(offeredAt).toBeLessThanOrEqual(after + 1);
       const repeat = await offer(s);
       expect(repeat.statusCode).toBe(200);
       expect(repeat.json()).toMatchObject({ sale: { id: sale.id, replayed: true } });

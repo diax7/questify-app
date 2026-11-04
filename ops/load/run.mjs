@@ -3,7 +3,7 @@
 // starts the API, drives completions and a sign-in rush from separate processes, prints the report, and drops the
 // database and Redis keys in `finally`. `--target` against anything but this PC needs `--remote` and a plan seeded there.
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, statfsSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, rmSync, statfsSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import { join } from "node:path";
@@ -252,6 +252,13 @@ function runDriver(job, dir, name) {
   });
 }
 
+/** Deletes the drivers' job files once the run is over: they hold bearer tokens, live ones in `--remote` mode. */
+function removeJobFiles(dir) {
+  for (const name of readdirSync(dir)) {
+    if (name.endsWith(".job.json")) rmSync(join(dir, name), { force: true });
+  }
+}
+
 function baseJob(baseUrls) {
   return { baseUrls, sockets: num("sockets"), maxInFlight: num("max-in-flight") };
 }
@@ -380,13 +387,22 @@ async function runLocal(dir) {
   prepare(["create", planFile]);
   const plan = JSON.parse(readFileSync(planFile, "utf8"));
   const apis = [];
+  // A clean-up that fails must not discard a finished report or hide the run's own error: it warns, with what to drop.
   const cleanUp = () => {
-    for (const api of apis) api.kill();
-    prepare(["drop", plan.database, plan.redisPrefix]);
+    try {
+      for (const api of apis) api.kill();
+      prepare(["drop", plan.database, plan.redisPrefix]);
+    } catch (error) {
+      process.stderr.write(
+        `load test: clean-up failed; drop database ${plan.database} and the Redis keys with prefix ` +
+          `${plan.redisPrefix} by hand: ${error instanceof Error ? error.message : String(error)}\n`,
+      );
+    }
   };
   // Ctrl+C mid-run still drops the database (the drivers are this process's children and stop with it).
   const interrupted = () => {
     cleanUp();
+    removeJobFiles(dir);
     process.exit(130);
   };
   process.once("SIGINT", interrupted);
@@ -419,7 +435,12 @@ async function runRemote(dir) {
 async function main() {
   const dir = join(ROOT, "ops", "load", "out", new Date().toISOString().replaceAll(":", "-"));
   mkdirSync(dir, { recursive: true });
-  const report = opt.target === undefined ? await runLocal(dir) : await runRemote(dir);
+  let report;
+  try {
+    report = opt.target === undefined ? await runLocal(dir) : await runRemote(dir);
+  } finally {
+    removeJobFiles(dir);
+  }
   report.diskAfterGb = Math.round(checkDisk("after") * 10) / 10;
   writeFileSync(join(dir, "report.json"), JSON.stringify(report, null, 2));
   say(JSON.stringify(report, null, 2));
