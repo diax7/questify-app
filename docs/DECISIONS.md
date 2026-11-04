@@ -7965,7 +7965,7 @@ unlocked read a crowd at a spent budget kept seeing each other's locks and heard
 
 ## ADR-700 - T-810b security headers on every API answer, set by the forwarder too
 
-**Status:** Proposed (developer, 2026-11-05; plan `docs/plans/2026-11-05-t-810b-asvs-gaps.md` item 1).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810b code review 92; plan `docs/plans/2026-11-05-t-810b-asvs-gaps.md` item 1).
 **Decision:** one shared constant (HSTS one year with subdomains, `nosniff`, `default-src 'none'; frame-ancestors
 'none'`) set on every API reply by an `onSend` hook, and set again by `apps/web/src/lib/forward.ts` on every answer it
 returns, its own errors included, instead of passing the API's values through.
@@ -7974,7 +7974,7 @@ returns, its own errors included, instead of passing the API's values through.
 
 ## ADR-701 - T-810b outside calls fail on a redirect, enforced by a source guard
 
-**Status:** Proposed (developer, 2026-11-05; plan item 2).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810b code review 92; plan item 2).
 **Decision:** every `fetch` in the API and the web's server-side API calls passes `redirect: "error"`; a test parses the
 sources (with the oxc parser vitest ships, `vitest/node` `parseAst`: TypeScript 7 has no JavaScript compiler API) and
 fails on any call whose callee is named like a fetch, or is a variable set from one, without it. The raw HTTP/2 push client never follows redirects and is left as is.
@@ -7983,7 +7983,7 @@ fails on any call whose callee is named like a fetch, or is a variable set from 
 
 ## ADR-702 - T-810b invitation links: 128 random bits in the same column, not 256
 
-**Status:** Proposed (developer, 2026-11-05; plan item 3; Q-670).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810b code review 92; plan item 3; Q-670).
 **Decision:** `invitation_recipient.link` keeps its type and token path; its default becomes 16 bytes of
 `sha256(two gen_random_uuid())` (128 bits from 244 strong random bits; no pgcrypto), for new rows only. Rows already
 written keep their link (plan review: no rewrite of queued rows); sent links keep working until their 90-day purge.
@@ -7992,7 +7992,7 @@ written keep their link (plan review: no rewrite of queued rows); sent links kee
 
 ## ADR-703 - T-810b `authz.denied`: 403s and explicit hidden 404s only
 
-**Status:** Proposed (developer, 2026-11-05; plan item 5; Q-671).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810b code review 92; plan item 5; Q-671).
 **Decision:** a `denied` flag on `HttpError` and a `hiddenNotFound()` used only at the central checks (the organizer
 hook's membership and support checks, the console hook, activation's `forbidden`; not the device and player guards,
 plan review); the actor kind comes from what the guard set on the request, never an id prefix. The error handler logs one `authz.denied` line (method, route pattern, status, code, actor kind
@@ -8002,7 +8002,7 @@ and id) for those and every 403. A definer's 404 for an object row-level securit
 
 ## ADR-704 - T-810b the SBOM is a Release asset of each `release-*` tag
 
-**Status:** Proposed (developer, 2026-11-05; plan item 7; Q-672).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810b code review 92; plan item 7; Q-672).
 **Decision:** a one-job `sbom.yml` on `release-*` tag pushes runs `pnpm sbom:generate` and attaches the file to a GitHub
 Release; the coordinator tags every CranL deploy and store build (RUNBOOK).
 **Why:** ASVS V15.1.2; a Release asset is kept for good and does not use Actions storage.
@@ -8010,7 +8010,7 @@ Release; the coordinator tags every CranL deploy and store build (RUNBOOK).
 
 ## ADR-705 - T-810f reward codes carry a key id; a re-seal command rotates them
 
-**Status:** Proposed (developer, 2026-11-05; plan item 8, built in T-810f; Q-673).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810b code review 92; plan item 8, built in T-810f; Q-673).
 **Decision:** new seals start with a 3-byte header (`0x51 0x02 keyId`); legacy seals open under key 1; previous secrets
 are loaded only to open and re-seal; `reward-codes.cjs reseal` rewrites every row (cipher and mark) under the current
 key with the migration owner's connection, no new door.
@@ -8019,7 +8019,7 @@ key with the migration owner's connection, no new door.
 
 ## ADR-706 - T-810b a player refresh family ends 365 days after its sign-in
 
-**Status:** Proposed (developer, 2026-11-05; plan item 9; implements the answered Q-660).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810b code review 92; plan item 9; implements the answered Q-660).
 **Decision:** `player_refresh.family_started_at`, copied on every rotation by `issue_player_tokens` (same signature);
 each new refresh token ends at the earlier of 180 days and the family's start plus 365 days, and each access token at
 the earlier of 1 hour and the same end. Existing families start at their earliest surviving row, so the deploy signs
