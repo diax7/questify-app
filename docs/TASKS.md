@@ -1635,9 +1635,13 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   redirects console paths — delivers no FR (ASVS V3.5.4); depends on: T-810; Q-663 (Dhia, 2026-11-05). Needs Dhia to add
   the DNS record and the CranL domain once the code is ready (asked with AskUserQuestion then).
   - Done when: the console and the public pages are on different origins on staging and the sheet's row moves to Met.
-- [ ] **T-810e** (tier C, copy) One line under the code field of the sign-in code screen (app and web), in Arabic and
+- [x] **T-810e** (tier C, copy) One line under the code field of the sign-in code screen (app and web), in Arabic and
   English with the ux-araby skill: never share this code; Questify never asks for it — delivers no FR (ASVS V6.6.1);
   depends on: T-810; Q-662 (Dhia, 2026-11-05).
+  - Done 2026-11-05: `signIn.codeNeverShare` ("Never share this code. Questify will never ask you for it." / "لا تشارك
+    رمزك مع أحد. Questify لن يطلبه منك أبدًا.") under the code field of the web `CodeStep` (staff sign-in, sign-up and
+    invite) and the owner email change confirm form, and of the app's sign-in and phone or email change code steps. The
+    delete-account confirmation code is not a sign-in or contact-change code and has no line. ASVS V6.6.1 is Met.
 - [ ] **T-810f** (tier A) Reward code key id and re-seal command so `REWARD_CODE_SECRET` can rotate (T-810b item 8,
   moved out because it touches the config, the seal format, every opener, the upload's duplicate check and a new
   operator command; ADR-705, Q-673) — delivers no FR (infrastructure or quality gate); depends on: T-810b

@@ -160,8 +160,9 @@ public event page and join code; and the big-screen/station links.
   email is the only factor. Compensating controls: per-contact, per-address and per-install limits; single-use codes
   that end after 5 minutes and 3 tries; refresh-token theft detection (a reused token ends its family); a prize handover
   the player accepts in their own app; a notice on every phone or email change; the 365-day end above. Email is always
-  offered next to SMS. Passkeys are revisited after the first events. The code screen's "never share this code" line is
-  T-810e.
+  offered next to SMS. Passkeys are revisited after the first events. Every code screen (sign-in, sign-up and invite on
+  the web, the app's sign-in and phone or email change, the owner email change page) says under the field "Never share
+  this code. Questify will never ask you for it." (`signIn.codeNeverShare`, T-810e).
 - **Refused access is logged (T-810b, ADR-703; ASVS V16.3.2).** Every 403, and every 404 that a central check uses to
   hide a door (no membership of the organizer in the URL, a route off support's list, the console to a non-admin, an
   event the database says the caller cannot reach), writes one `authz.denied` line: method, route pattern, status,
