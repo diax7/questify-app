@@ -945,13 +945,23 @@ completions and ledger rows written with the answers, and lists the PostgreSQL f
 (`track_functions` is on for the run's database). `schedulerLag` is the client's own delay: when its p95 passes about
 50 ms, the client is the limit and the numbers say nothing about the server.
 
-Main options: `--events` (10), `--players` per event (2,500), `--quests` per event (20), `--rate-per-event` a minute
+Main options: `--events` (10), `--players` per event (2,500), `--big-event-players` (0; above 0, event 1 gets that many
+players, a skewed seed for plan checks), `--quests` per event (20), `--rate-per-event` a minute
 (20,000), `--duration` (60 s), `--warmup` (10 s), `--drivers` (5), `--sockets` per driver and API (64; the server sees
 at most drivers x sockets requests at once), `--max-in-flight` per driver (4,000), `--api-instances` (1, ports 4810
 on; drivers spread over them), `--pool-size` (10), `--rush` (steps `rate:seconds`, default `25:10,50:10,100:10,200:10`,
 below the 5,000 SMS an hour budget), `--rush-per-address` (50 codes from each client address, `X-Forwarded-For`
 10.x.y.z), `--rush-first` (the first phone, +96659 and 7 digits), `--admin-url`, `--redis-url`, `--pg-container`
 (for the CPU samples, `questifyapp-postgres-1`).
+
+**Profiling the completion path** (T-804a, ADR-674): on a throw-away container, never the shared test one:
+`docker run -d --name questify-profile --shm-size=1g -p 127.0.0.1:55441:5432 -e POSTGRES_PASSWORD=postgres
+postgres:17-alpine -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all -c
+pg_stat_statements.track_planning=on -c track_functions=all -c max_connections=300`, `CREATE EXTENSION
+pg_stat_statements` in its `postgres` database, then the load test with `--admin-url
+postgres://postgres:postgres@127.0.0.1:55441/postgres --pg-container questify-profile` after
+`SELECT pg_stat_statements_reset()`; read `pg_stat_statements` (`plans` equal to `calls` on a nested statement means it
+is planned on every call) before the container is removed (`docker rm -f questify-profile`).
 
 **A production-like environment** (the rerun T-804 waits on): never production, and never CranL staging while people
 use it. The driver side is ready: `node ops/load/run.mjs --target https://<api host> --plan plan.json --remote` from a

@@ -5,6 +5,44 @@ second for ten events on the dev PC against NFR-003 x NFR-025's 3,333, PostgreSQ
 the path first, then changes how the database runs it, not what it decides. Decisions: ADR-670 to ADR-674 (Proposed);
 questions Q-630 to Q-634. T-804b (Q-621, the sign-in rush) is outlined in section 8.
 
+## 0. After the plan review (2026-11-04, score 82): built in two parts
+
+The review's findings are folded into the sections below. **Part A (section 2 A, the plpgsql conversion) is built in
+T-804a now. Parts B to D (the merged door, the guard merge, the Redis script) become task T-804c**, planned here with
+the review's fixes and built later, after part A's numbers are in. Dhia answered Q-631 ("size to real bookings"): the
+launch target is the biggest event day actually booked, not 3,333 a second; the code is made fast now and the hardware
+scaled when bookings need it (section 5). Q-630 (what CranL offers) waits for T-811.
+
+What the review changed:
+- **Part A, every rewritten body is run (MAJOR).** plpgsql checks a body only when it runs, so the parity test calls
+  every rewritten function directly at least once and asserts the list it called equals the attribute fixture's list
+  (section 3).
+- **Part A, the generic-plan check is real (MAJOR).** `EXPLAIN (GENERIC_PLAN)` runs on the analysed T-804 seed with one
+  skewed event (50,000 players among the 2,500-player ones; `--big-event-players`), and each hot statement's mean
+  execution time from `pg_stat_statements` under the plpgsql plan cache (`auto`, and forced generic) is compared with
+  the custom-plan baseline (section 5).
+- **Part A, only measured functions (MINOR).** The function list is the profile's: the `LANGUAGE sql` functions that
+  `pg_stat_user_functions` shows called on the path (so not inlined). Functions named in section 2 A but not called are
+  listed as not converted, with the reason (section 2 A's table in the migration's header).
+- **Part A, the gate (MINOR).** Part A is done on: attribute and call parity green on PostgreSQL 17 and once on 16.15 (a
+  throw-away container; Q-632), the sequential database time a completion at or under 14 ms, and the load rerun
+  reported as the median of two runs. A miss means the list is incomplete or a generic plan is slow: re-profile before
+  T-804c, not a reason to start B to D early.
+- **Part A, the rollback (NIT).** The attribute fixture keeps each function's original `CREATE` statement, so a rollback
+  migration is generated from it, never typed by hand.
+- **T-804c, the ranking never fails a completion (MAJOR, section 2 B).** Inside `complete_quest_answer` the two ranking
+  reads run in their own `BEGIN ... EXCEPTION WHEN OTHERS` block that returns NULL entries and `ranking_failed = true`;
+  the API then logs, marks the event for repair and answers `rank: null`, as `afterCompletion` does today
+  (`ranking.ts` 310 to 337). (The alternative, the ranking reads kept outside the door, costs two round trips back.) A
+  test forces a ranking error (a broken `ranking_entry_of` swapped in inside the test's transaction) and checks the
+  completion still commits with its points. The door is `VOLATILE`.
+- **T-804c, the guard merge (MINOR, section 2 C).** `player_request_gate` calls `player_session_owner` and
+  `player_legal_held` (no copied logic), is revoked from PUBLIC by name and granted to `questify_app` only, and is tested
+  with a banned player, a reset session and an expired token.
+- **T-804c, the Redis script (MINOR, section 2 D).** node-redis `defineScript` (it runs `EVALSHA` and falls back on
+  `NOSCRIPT`); `WRITE_READ` declares the union of the keys both halves touch; the rebuild-then-read path on a missing
+  board stays as it is.
+
 ## 1. What was measured (2026-11-04, before any change)
 
 **Set-up.** Dev PC (Ryzen 7 1700, 8 cores / 16 threads, 48 GB, Windows 10, Docker Desktop). The T-804 seed
@@ -132,12 +170,13 @@ Why behaviour stays identical, rule by rule:
   key lookups (completion id, enrollment id, quest id), where the generic plan is the same index scan; the build checks
   the hot statements' generic plans with `EXPLAIN (GENERIC_PLAN)` (PG16+) in a test and keeps any whose generic plan
   is not an index scan as SQL or rewrites it. No `plan_cache_mode` setting (a per-function `SET` costs every call).
-- **Inlined functions stay SQL.** Standard-body and other inlinable functions (`event_day` and friends) are not
+- **Inlined functions stay SQL.** (Built differently, section 9: the profile showed these six are *not* inlined, because
+  of their `SET` clause; part A drops the clause so they are.) Standard-body and other inlinable functions (`event_day` and friends) are not
   touched: converting them would make them slower.
 - **Rule for later.** `docs/rules.md` gains one line: a function on a request path that is `SECURITY DEFINER` or has a
   `SET` clause is plpgsql, not `LANGUAGE sql`; a list-guard test enforces it for the named path (ADR-670).
 
-**(B) One statement answers a completion (ADR-671).** A new definer door `complete_quest_answer(...)` (plpgsql, same
+**(B) One statement answers a completion (ADR-671; T-804c, with section 0's ranking fix).** A new definer door `complete_quest_answer(...)` (plpgsql, same
 arguments as `complete_quest`) calls `complete_quest` and then, inside the server, the existing `own_level` and
 `own_level_items`, `own_bonus`, `own_quest_item`, `completion_boost`, `own_first_bonus`, `own_streak_bonus`,
 `ranking_entry_of` and `ranking_day_entry_of` for the new completion, and returns one row: the six engine columns,
@@ -151,12 +190,12 @@ replays and other routes (kiosk, operator scan, NFC tap) still call them, and an
 works. The ranking's failure path is unchanged: a Redis failure logs, marks the event for repair and answers `rank:
 null`. Revoked from PUBLIC, granted to `questify_app` only, in the same migration (outsider and route-catalog suites).
 
-**(C) One player check (ADR-672).** `player_session_owner` and `player_legal_held` become one call for a write
+**(C) One player check (ADR-672; T-804c).** `player_session_owner` and `player_legal_held` become one call for a write
 (`player_request_gate(hash, is_write)` returning the owner and whether a write is held), so a player's write costs one
 round trip, not two. GETs keep one call. The guard's answers (401, 403 `legal_acceptance_required`, the open doors while
 unaccepted) are unchanged. This touches sign-in, so it is tested as tier A (section 3).
 
-**(D) Redis: one script per completion (ADR-673).** The store's `upsert` then `read` become one Lua script
+**(D) Redis: one script per completion (ADR-673; T-804c).** The store's `upsert` then `read` become one Lua script
 (`WRITE_READ`) run with `EVALSHA` (falling back to `EVAL` on `NOSCRIPT`), so a completion makes one Redis call (two on a
 multi-day event), and the script body is not sent each time. The version rule, tombstones and the rebuild-on-missing
 path are the same code paths, reused by the new script.
@@ -218,18 +257,24 @@ would cache them; Q-630).
 
 ## 5. Target and rerun
 
-- **Done when, on this PC** (Docker PostgreSQL 17, T-804 seed, `node ops/load/run.mjs --rate-per-event 1440 --rush ""
-  --api-instances 3`): **at least 240 completions a second for the ten events with 95% confirmed within 1 s and the
-  ranking within 5 s** (3 times today's 80; the plpgsql rewrite alone reached 200 at exactly 95%), every completion,
-  ledger row and score matching (T-804's tally), and the sequential profile at or under 10 ms of database time a
-  completion. The rerun's numbers go in STATE.md and T-804's line.
-- **Then** T-804's production-like rerun (its seeding step first, RUNBOOK "Load test").
-- **What 3,333 a second needs, honestly.** After (A) to (D) a completion should cost about 10 ms of database CPU on an
-  idle dedicated server and 25 to 40 ms on this loaded PC, and 6 to 7 ms of Node CPU. 3,333 a second is then about
-  35 to 130 database cores on one primary and about 25 API processes (about 22 Node cores). Code changes alone do not
-  reach the target; neither does one CranL database of a size we know of. Reaching it needs one of: events split over
-  several database primaries, part of the completion moved out of its transaction, or a lower NFR-003 x NFR-025
-  (Q-631, a product choice; Q-630, what CranL can offer). Nothing is bought in this task.
+- **Part A (T-804a), on this PC** (Docker PostgreSQL 17 with `pg_stat_statements`, the T-804 seed plus one skewed
+  event, `node ops/load/run.mjs --rate-per-event 1200 --rush "" --api-instances 3 --big-event-players 50000`, two
+  runs, the median reported): 200 completions a second for the ten events with 95% confirmed within 1 s and the
+  ranking within 5 s, every completion, ledger row and score matching (T-804's tally), and the sequential profile at or
+  under 14 ms of database time a completion. Plus the generic-plan check: `EXPLAIN (GENERIC_PLAN)` of the hot
+  statements on that seed, and each hot statement's mean execution time with the plan cache (`auto`, and
+  `force_generic_plan`) within 1.5 times (or 0.05 ms) of the custom-plan baseline (`force_custom_plan`).
+- **T-804c, on this PC:** at least 240 a second on the same terms (3 times T-804's 80), sequential at or under 10 ms.
+- The numbers go in STATE.md and T-804's line. **Then** T-804's production-like rerun (its seeding step first, RUNBOOK
+  "Load test").
+- **The launch target (Q-631, answered by Dhia 2026-11-04: "size to real bookings").** NFR-003 x NFR-025 is set from
+  the biggest event day actually booked, not 20,000 a minute in each of ten events at once. These tasks make the code
+  fast; the hardware is sized to bookings, from the per-completion cost measured here: after (A) to (D) a completion
+  should cost about 10 ms of database CPU on an idle dedicated server and 25 to 40 ms on this loaded PC, and 6 to 7 ms
+  of Node CPU, so a day's peak rate times those figures gives the database cores and API processes it needs. A day
+  beyond one primary (thousands a second) would need events split over several primaries or part of the completion
+  moved out of its transaction, designed only when a booking needs it. What CranL can offer is asked at T-811 (Q-630).
+  Nothing is bought in this task.
 
 ## 6. Steps
 
@@ -267,3 +312,52 @@ minutes.
 4. **Tests:** budget never exceeded under 200 parallel requests at the cap; the per-number and per-install refusals
    unchanged; outsider suite unchanged; the rush rerun must show 250 codes a second at p95 under 1 s on this PC.
 5. Q-093's platform SMS budget stays Dhia's choice.
+
+## 9. Part A results (T-804a, built 2026-11-04)
+
+**What was built.** Migration 0148: the 35 `LANGUAGE sql` functions the profile showed called once or more per
+completion become plpgsql (ADR-670), and the six standard-body functions on the path (`event_day` and friends, called
+up to 18 times a completion) lose their `SET search_path` so PostgreSQL inlines them. The plan had assumed these six
+were inlined already; they were not. `test/db/hot-path-plpgsql.int.test.ts` with `hot-path-plpgsql.fixture.json`
+(attributes and original `CREATE` of each function at 0147). The load seed gained `--big-event-players`.
+
+**Correctness.** Attribute parity, every rewritten function called and run (`pg_stat_get_xact_function_calls`), each
+answer equal to the old SQL body's on the same arguments, and the six shown inlined; hand mutants caught (a changed
+score in `ranking_entry_of`, `boost_in_force` returning a row of NULLs, a wrong column in `own_streak_bonus`, one
+`RESET` dropped); removing `use_column` changed nothing (no body has a name clash; equivalent). The 42 touched ledger,
+ranking, sign-in, player and security files (1,430 tests) and the 5 Redis ranking and completion files (93) unchanged
+and green on 17; the parity, completion engine, XP, streak and ranking suites (121 tests) green on a throw-away 16.15.
+
+**Sequential profile** (throw-away 17.11 with `pg_stat_statements`, T-804 seed plus one 50,000-player event, 2,000 QR
+completions, same database before and after):
+
+| | before | after, `auto` | after, forced custom | after, forced generic |
+| --- | --- | --- | --- | --- |
+| Database time a completion | 33.5 ms | **10.9 ms** | 44.6 ms | 10.8 ms |
+| Client mean (p95) | 63.5 (81.7) ms | 37.2 (48.4) ms | 80.6 (105.9) ms | 37.6 (48.8) ms |
+
+Per statement: `complete_quest` 13.5 to 6.7 ms, `ranking_day_entry_of` 4.5 to 0.8, `own_bonus` 2.9 to 0.24,
+`ranking_entry_of` 2.5 to 0.5, `own_level` 2.4 to 0.7, the guard's two checks 0.76 and 0.71 to 0.23 each. No `LANGUAGE
+sql` function is called per completion any more. (A run of `auto` taken while a container image was downloading gave
+18.0 ms and is not used.)
+
+**Generic plans.** `auto` equals forced generic, so the plan cache settles on generic plans and they are cheap: of 120
+statements compared, one ran more than 1.5 times and 0.05 ms slower generic than custom (an existing streak check, not
+converted here, +0.06 ms). `EXPLAIN (GENERIC_PLAN)` of each of the 35 converted queries on the analysed skewed seed
+reaches every large table (enrollment, ledger, completions, sessions, players) by index; sequential scans only on small
+configuration tables (and on `event`, 11 rows in the seed). Under load, none of the 34 converted statements matched
+against the before run's custom plans ran slower. Seven existing plpgsql statements are still planned on most calls
+under `auto` (cheap; a T-804c note).
+
+**Load** (`node ops/load/run.mjs --rate-per-event 1200 --rush "" --api-instances 3 --big-event-players 50000`, 200 a
+second asked, 60 s after 10 s warm-up, the same throw-away 17.11):
+
+| Run | Confirmed/s | All 200 | p50 / p95 | within 1 s | ranking within 5 s (p95) | PostgreSQL CPU | API CPU |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Before | 52 | 3,136 of 12,000 (8,851 timeouts, 13 errors 500) | 15.0 / 15.0 s | 0% | 30% (14.5 s) | 11.5 cores | 0.41 to 0.45 each |
+| After, run 1 | 200 | 12,000 | 92 / 504 ms | 98.1% | 100% (1.0 s) | 7.0 cores | 0.45 to 0.54 each |
+| After, run 2 | 200 | 12,000 | 100 / 533 ms | 97.9% | 100% (0.86 s) | 6.4 cores | 0.44 to 0.56 each |
+
+Median of the two after runs: **200 a second, 98.0% within 1 s, p95 518 ms**; the gate (200 a second at 95%) is met.
+Every run's completions, ledger rows and scores matched (before: 10,993 written for 3,136 confirmed answers, the
+points-after-give-up case of Q-633). T-804c (parts B to D) is next.

@@ -20,6 +20,8 @@ const { values: opt } = parseArgs({
     events: { type: "string", default: "10" },
     players: { type: "string", default: "2500" },
     quests: { type: "string", default: "20" },
+    // Event 1's players when above 0: one skewed event among small ones, for the generic-plan check (ADR-674).
+    "big-event-players": { type: "string", default: "0" },
     "rate-per-event": { type: "string", default: "20000" },
     duration: { type: "string", default: "60" },
     warmup: { type: "string", default: "10" },
@@ -91,6 +93,7 @@ const prepare = (args) =>
     LOAD_EVENTS: opt.events,
     LOAD_PLAYERS: opt.players,
     LOAD_QUESTS: opt.quests,
+    LOAD_BIG_EVENT: opt["big-event-players"],
   });
 
 /** Bundles the load API and the seeding script from this checkout with the API's own esbuild. */

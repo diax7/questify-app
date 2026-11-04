@@ -2570,6 +2570,8 @@ designed only when bookings need it.
 **Status:** Open (developer, 2026-11-04).
 CI, the local tests and Stryker use `postgres:17-alpine`; staging runs 16.15. On 2026-11-04 all 147 migrations ran
 cleanly on a 16.15 container and the completion path behaved the same, but nothing checks this on each change.
+On 2026-11-04 (T-804a part A) migration 0148 and its parity test, with the completion engine, XP, streak and ranking
+suites (121 tests), passed on a throw-away 16.15 container.
 **Recommended (developer):** move CranL to 17 when it offers it (Q-630); until then run the DB suites on 16.15 locally
 once before each deploy that carries migrations (a RUNBOOK step), not as a second CI job.
 

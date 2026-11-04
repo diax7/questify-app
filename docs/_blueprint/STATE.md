@@ -6,6 +6,24 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-804a part A built — 2026-11-04
+
+- **T-804a part A (tier A, ledger; ADR-670 and ADR-674 updated, Proposed; Q-631 answered by Dhia, Q-630 deferred to
+  T-811): migration 0148.** The plan review (82) was folded into the plan (section 0); parts B to D became T-804c.
+  The profile (throw-away PostgreSQL 17.11 with `pg_stat_statements`, T-804 seed plus one 50,000-player event) named 41
+  `LANGUAGE sql` functions called per completion: 35 became plpgsql (`CREATE OR REPLACE`, attributes from
+  `pg_get_functiondef`), and the six standard-body ones (`event_day` and friends, which the plan had assumed inlined)
+  lost their `SET search_path` and are now inlined. Parity: `test/db/hot-path-plpgsql.int.test.ts` (attributes against
+  a 0147 fixture, every function called and run, each answer equal to the old body's, the six inlined); hand mutants
+  caught, `use_column` removal equivalent; green on 17 and on a throw-away 16.15 (Q-632). Sequential: 33.5 to 10.9 ms
+  of database time a completion (client mean 63.5 to 37.2 ms); forced generic plans 10.8 ms, forced custom 44.6 ms;
+  `EXPLAIN (GENERIC_PLAN)` reaches every large table by index. Load at 200 a second, three APIs: before 52 a second
+  and 0% within 1 s; after (median of two runs) 200 a second, 98.0% within 1 s, p95 518 ms, ranking 100% within 5 s,
+  PostgreSQL 6.4 to 7.0 cores (11.5 before); tallies matched. Full suite once: 801 files passed, 1 failed (`test/desk/sale-routes`: `offer_until` is the database's now() plus 2 min and the test subtracted the host clock, which Docker's runs 2 to 5 ms ahead of; the faster path now answers inside that gap, 120.005 s left; the bound in it and in `desk.int.test.ts` allows 0.5 s of skew, both files green after); 12,604 tests passed. Lint, types, `lint:limits`,
+  `format:check` clean. TS files for mutation: none (no app code changed; the SQL is held by the parity test). Containers
+  and databases removed; disk 14 GB free before and after. CI minutes: 0; agent tokens roughly 0.6M (estimate).
+  **Next:** T-804a code review, then T-804c.
+
 ## T-804a completion hot path (plan) — 2026-11-04
 
 - **T-804a planned (tier A, ledger; plan `docs/plans/2026-11-04-t-804a-completion-hot-path.md`; ADR-670 to ADR-674 and
