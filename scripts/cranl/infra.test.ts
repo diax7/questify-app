@@ -1,9 +1,9 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apply, describe as describeChange } from "./apply.mjs";
-import { createClient } from "./client.mjs";
+import { createClient, readApiKey } from "./client.mjs";
 import { diff } from "./diff.mjs";
 import { fakeCranl } from "./fake-cranl";
 import { main } from "./infra.mjs";
@@ -220,6 +220,23 @@ describe("plan on an existing environment", () => {
   });
 });
 
+describe("apply when CranL does not keep a change", () => {
+  it("fails with what still differs instead of reporting a finished run", async () => {
+    const { cranl } = await applied();
+    const api = cranl.apps.find((a) => a.name === "questify-api-staging")!;
+    api.port = 4000;
+    const forgetful = ((input: string | URL | Request, init?: RequestInit) =>
+      init?.method === "PATCH" && new URL(String(input)).pathname.endsWith(`/apps/${api.id}`)
+        ? Promise.resolve(new Response("{}", { status: 200 }))
+        : cranl.fetch(input, init)) as typeof fetch;
+    const client = createClient({ apiKey: "k", fetch: forgetful, retryDelayMs: 0 });
+    await expect(apply({ client, spec: staging(), env: OPERATOR, runId: "run2" })).rejects.toThrow(
+      /^CranL still differs after apply:\napi +app\.port api/,
+    );
+    expect(api.port).toBe(4000);
+  });
+});
+
 describe("the CranL client", () => {
   it("retries a read that CranL answers with 503", async () => {
     const cranl = fakeCranl();
@@ -267,6 +284,119 @@ describe("the CranL client", () => {
     const cranl = fakeCranl();
     await clientFor(cranl).send("POST", "/buckets", { name: "x" }, "key-1");
     expect(cranl.writes[0]!.body).toEqual({ name: "x", idempotency_key: "key-1" });
+  });
+
+  it("repeats a write that CranL answered with 503 under the same idempotency key", async () => {
+    const cranl = fakeCranl();
+    const bodies: string[] = [];
+    const recording = ((input: string | URL | Request, init?: RequestInit) => {
+      bodies.push(String(init?.body));
+      return cranl.fetch(input, init);
+    }) as typeof fetch;
+    cranl.failNext(503, 1);
+    const client = createClient({ apiKey: "k", fetch: recording, retryDelayMs: 0 });
+    await client.send("POST", "/buckets", { name: "x" }, "key-7");
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1]).toBe(bodies[0]);
+    expect(JSON.parse(bodies[0]!)).toEqual({ name: "x", idempotency_key: "key-7" });
+  });
+
+  it("retries a read after a network error", async () => {
+    let calls = 0;
+    const flaky = (async () => {
+      calls += 1;
+      if (calls === 1) throw new TypeError("fetch failed");
+      return new Response('{"apps":[]}', { status: 200 });
+    }) as typeof fetch;
+    const client = createClient({ apiKey: "k", fetch: flaky, retryDelayMs: 0 });
+    await expect(client.get("/apps")).resolves.toEqual({ apps: [] });
+    expect(calls).toBe(2);
+  });
+
+  it("gives up after three network errors, naming the call and the kind of error but not its text", async () => {
+    let calls = 0;
+    const down = (async () => {
+      calls += 1;
+      throw new TypeError("connect ECONNREFUSED 10.0.0.9:443 with key k-secret");
+    }) as typeof fetch;
+    const client = createClient({ apiKey: "k-secret", fetch: down, retryDelayMs: 0 });
+    const error = await client.get("/apps").catch((e: Error) => e);
+    expect(error.message).toBe("CranL GET /apps failed: no answer (TypeError)");
+    expect(error).toMatchObject({ name: "CranlError", status: 0 });
+    expect(calls).toBe(3);
+  });
+
+  describe("a request that times out", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("is given 30 seconds, and fails as no answer once the signal has fired", async () => {
+      const timeout = vi
+        .spyOn(AbortSignal, "timeout")
+        .mockImplementation(() => AbortSignal.abort(new DOMException("timed out", "TimeoutError")));
+      let calls = 0;
+      const hung = (async (_input: string | URL | Request, init?: RequestInit) => {
+        calls += 1;
+        init?.signal?.throwIfAborted();
+        return new Response("{}", { status: 200 });
+      }) as typeof fetch;
+      const client = createClient({ apiKey: "k", fetch: hung, retryDelayMs: 0 });
+      await expect(client.get("/apps")).rejects.toThrow(
+        "CranL GET /apps failed: no answer (TimeoutError)",
+      );
+      expect(timeout).toHaveBeenCalledWith(30_000);
+      expect(calls).toBe(3);
+    });
+  });
+});
+
+describe("the CranL API key", () => {
+  let home: string;
+  beforeEach(() => {
+    home = mkdtempSync(join(tmpdir(), "cranl-home-"));
+    vi.stubEnv("HOME", home);
+    vi.stubEnv("USERPROFILE", home);
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    rmSync(home, { recursive: true, force: true });
+  });
+  const signedIn = (text: string) => {
+    mkdirSync(join(home, ".cranl"));
+    writeFileSync(join(home, ".cranl", "config.json"), text);
+  };
+
+  it("is CRANL_API_KEY when it is set, before the CLI's file", () => {
+    signedIn('{"api_key":"from-file"}');
+    expect(readApiKey({ CRANL_API_KEY: "from-env" })).toBe("from-env");
+  });
+
+  it("is read from the CranL CLI's file when the variable is not set", () => {
+    signedIn('{"api_key":"from-file"}');
+    expect(readApiKey({})).toBe("from-file");
+  });
+
+  it("is refused, naming the variable and the file, when there is none", () => {
+    expect(() => readApiKey({})).toThrow(
+      `No CranL API key: set CRANL_API_KEY or sign in with the CranL CLI (it writes ${join(home, ".cranl", "config.json")}).`,
+    );
+  });
+
+  it.each(["not json", "{}", '{"api_key":""}', '{"api_key":7}'])(
+    "is refused when the CLI's file holds no usable key (%s)",
+    (text) => {
+      signedIn(text);
+      expect(() => readApiKey({})).toThrow(/^No CranL API key/);
+    },
+  );
+
+  it("stops a command before any request", async () => {
+    const fetchSpy = vi.fn();
+    await expect(
+      main(["plan", "staging"], { env: {}, fetch: fetchSpy as unknown as typeof fetch }),
+    ).rejects.toThrow(/^No CranL API key/);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 
