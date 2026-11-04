@@ -30,7 +30,9 @@ import { readMe, type ProfileDeps } from "#src/players/profile";
 import { askerOf } from "#src/players/routes";
 import {
   contactOf,
+  holdWindows,
   typedCode,
+  windowsRefuse,
   type Asker,
   type Lang,
   type PlayerSignInDeps,
@@ -38,16 +40,16 @@ import {
 import {
   firstFull,
   recordAll,
+  reserveSend,
   sendCounts,
-  takePlatformBudget,
+  withSendBudget,
   type Channel,
   type Count,
   type Throttled,
+  type Unavailable,
 } from "#src/players/sign-in-limits";
 
 const L = PLAYER_SIGN_IN_LIMITS;
-
-type Unavailable = Readonly<{ kind: "sms_unavailable" | "email_unavailable" }>;
 
 export type ContactCodeResult =
   | Readonly<{ kind: "code_sent"; challengeToken: string; expiresInSeconds: number }>
@@ -138,71 +140,84 @@ async function takePlayerWindow(
 
 type Contact = Readonly<{ channel: Channel; value: string }>;
 
-/** Opens the challenge for the new contact, against the same send windows and platform budget as sign-in. */
+type Opened = Readonly<{ kind: "opened"; token: string; code: string }>;
+
+/** The challenge in the player's transaction: the windows under the contact's lock, then the new challenge. */
+async function startChange(
+  deps: PlayerSignInDeps,
+  client: PoolClient,
+  contact: Contact,
+  counts: readonly Count[],
+  asker: Asker,
+): Promise<Opened | Readonly<{ kind: "unchanged" | "locked" }> | Throttled> {
+  const where = { step: "contact_code", channel: contact.channel, contact: contact.value };
+  const refused = await holdWindows(deps, client, counts, asker, where);
+  if (refused !== undefined) {
+    return refused;
+  }
+  const id = randomUUID();
+  const token = generateToken().token;
+  const code = generateCode();
+  const { rows } = await client.query<{ outcome: "started" | "unchanged" | "locked" }>(
+    "SELECT start_contact_change($1, $2, $3, $4, $5, $6) AS outcome",
+    [
+      id,
+      tokenHash(token),
+      contact.channel,
+      contact.value,
+      codeHash(deps, token, code),
+      deps.keys.deletionFingerprint(contact.value),
+    ],
+  );
+  // Stryker disable next-line StringLiteral: the name only labels an impossible error
+  const outcome = onlyRow(rows, "start_contact_change").outcome;
+  if (outcome !== "started") {
+    // An unchanged contact, or an App Review demo account, whose number never changes (T-710, Q-523). Throwing rolls
+    // the windows back: nothing is sent, so nothing is counted.
+    throw new NotStarted(outcome);
+  }
+  return { kind: "opened", token, code } as const;
+}
+
+class NotStarted extends Error {
+  constructor(readonly outcome: "unchanged" | "locked") {
+    // Stryker disable next-line StringLiteral: never shown: the error is caught in openChange
+    super("the contact change did not start");
+  }
+}
+
+/**
+ * Opens the challenge for the new contact against the same send windows and platform budget as sign-in: the windows
+ * without a lock first, then one unit of the budget, then the challenge; the unit is given back unless it opened.
+ */
 async function openChange(
   deps: PlayerSignInDeps,
   playerId: string,
   contact: Contact,
   asker: Asker,
-): Promise<
-  | Readonly<{ kind: "opened"; token: string; code: string }>
-  | Readonly<{ kind: "unchanged" | "locked" }>
-  | Throttled
-  | Unavailable
-> {
-  return asPlayer(deps, playerId, async (client) => {
-    const counts = sendCounts(deps.keys, contact.value, asker.address, asker.deviceId);
-    // Stryker disable next-line ConditionalExpression,BlockStatement,ObjectLiteral: lock contention on one contact: timing, not a path a test can hold
-    if (!(await tryLock(client, deps.keys.contactThrottleKey(contact.value)))) {
-      return { kind: "throttled", retryAfterSeconds: 1 } as const;
+): Promise<Opened | Readonly<{ kind: "unchanged" | "locked" }> | Throttled | Unavailable> {
+  const counts = sendCounts(deps.keys, contact, asker.address, asker.deviceId);
+  return withConnection(deps.pool, async (client) => {
+    const where = { step: "contact_code", channel: contact.channel };
+    const early = await windowsRefuse(deps, client, counts, asker, where);
+    if (early !== undefined) {
+      return early;
     }
-    const full = await firstFull(client, counts);
-    if (full !== undefined) {
-      say(deps, asker, "player.throttled", { step: "contact_code", channel: contact.channel });
-      return full;
-    }
-    const id = randomUUID();
-    const token = generateToken().token;
-    const code = generateCode();
-    const { rows } = await client.query<{ outcome: "started" | "unchanged" | "locked" }>(
-      "SELECT start_contact_change($1, $2, $3, $4, $5, $6) AS outcome",
-      [
-        id,
-        tokenHash(token),
-        contact.channel,
-        contact.value,
-        codeHash(deps, token, code),
-        deps.keys.deletionFingerprint(contact.value),
-      ],
+    return withSendBudget(
+      { deps, asker, client, channel: contact.channel },
+      () =>
+        withRequestContext(client, { playerId }, () =>
+          startChange(deps, client, contact, counts, asker),
+        ).catch((error: unknown) => {
+          // Stryker disable next-line ConditionalExpression: only a database failure reaches the rethrow below
+          if (error instanceof NotStarted) {
+            return { kind: error.outcome } as const;
+          }
+          throw error;
+        }),
+      (opened) => opened.kind === "opened",
     );
-    // Stryker disable next-line StringLiteral: the name only labels an impossible error
-    const outcome = onlyRow(rows, "start_contact_change").outcome;
-    if (outcome !== "started") {
-      // An unchanged contact, or an App Review demo account, whose number never changes (T-710, Q-523).
-      return { kind: outcome } as const;
-    }
-    const budget = await takePlatformBudget(client, contact.channel);
-    if (budget === "spent") {
-      say(deps, asker, "player.budget_spent", { channel: contact.channel });
-      throw new BudgetSpent(contact.channel);
-    }
-    await recordAll(client, counts);
-    return { kind: "opened", token, code } as const;
-  }).catch((error: unknown) => {
-    // A spent budget rolls the challenge back: nothing was sent, so nothing waits for a code.
-    // Stryker disable next-line ConditionalExpression: only a database failure reaches the rethrow below
-    if (error instanceof BudgetSpent) {
-      return { kind: error.channel === "phone" ? "sms_unavailable" : "email_unavailable" } as const;
-    }
-    throw error;
   });
-}
-
-class BudgetSpent extends Error {
-  constructor(readonly channel: Channel) {
-    // Stryker disable next-line StringLiteral: never shown: the error is caught right above
-    super("the platform budget is spent");
-  }
 }
 
 async function sendCode(
@@ -287,9 +302,10 @@ async function notify(
 ): Promise<void> {
   const channel: Channel = to.startsWith("+") ? "phone" : "email";
   try {
-    const budget = await inTransaction(deps, (client) => takePlatformBudget(client, channel));
-    if (budget === "spent") {
-      say(deps, asker, "player.notice_skipped", { channel });
+    // A notice always goes once it holds a unit, so the unit is never given back.
+    const budget = await withConnection(deps.pool, (client) => reserveSend(client, channel));
+    if (budget.kind !== "held") {
+      say(deps, asker, "player.notice_skipped", { channel, budget: budget.kind });
       return;
     }
     if (channel === "email") {

@@ -1549,11 +1549,16 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     100% within 1 s, p95 95 ms, ranking 100% within 5 s, tallies matched (PostgreSQL 5.1 to 5.9 cores); at 400 asked,
     331 confirmed (the ceiling on this PC). Database time a completion did not fall: about 23.5 ms before and after on
     the same container by the low-rate method (Q-641; the gate's 10 ms is not met); client mean 57.6 to 36.8 ms.
-- [ ] **T-804b** Sign-in rush: the platform-wide code lock and the per-address limit on shared venue Wi-Fi (tier A,
+- [x] **T-804b** Sign-in rush: the platform-wide code lock and the per-address limit on shared venue Wi-Fi (tier A,
   sign-in; outline in `docs/plans/2026-11-04-t-804a-completion-hot-path.md` section 8; Q-621, Q-634) — delivers no FR;
   depends on: T-804's harness
   - Done when: the rush reaches 250 codes a second at p95 under 1 s on this PC, the SMS and email budgets are never
     exceeded, and 2,000 players behind one address can ask for a code within an hour.
+  - Done 2026-11-04 (migration 0150, ADR-690 to ADR-692): the budget is 16 stripes taken by `take_send_budget` in its
+    own statement, given back on refusal, its numbers in `platform_send_budget`; an address earns room from right codes
+    of the same channel (each contact once an hour). Load (plan section 9): 250 a second p95 47 and 376 ms on one API,
+    79 and 54 ms on three (before: 100 a second p95 2.2 s); cap 5,000 sent exactly 5,000 of 9,000; one address, 2,000
+    phones typing codes back after 20 to 90 s, no 429.
 - [ ] **T-804** Load test at 20,000 completions per minute per event and ten events at once — delivers no FR (infrastructure or quality gate); depends on: T-105, T-106
   - Note 2026-11-04 (T-804a part A, ADR-670): with migration 0148 the same PC carries 200 completions a second for ten
     events plus a 50,000-player event at 98.0% within 1 s (p95 518 ms, PostgreSQL 6.4 to 7.0 cores); before it, 52 a

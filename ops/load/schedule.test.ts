@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addressOf, dueCount, intendedAt, phoneOf, slotOf } from "./schedule.mjs";
+import { addressOf, contactOf, dueCount, intendedAt, phoneOf, slotOf } from "./schedule.mjs";
 
 describe("the open schedule", () => {
   const stream = { startMs: 1000, ratePerSecond: 200, total: 1000 };
@@ -73,6 +73,8 @@ describe("the rush's callers", () => {
   it("gives each request its own valid Saudi mobile number", () => {
     expect(phoneOf(0)).toBe("+966590000000");
     expect(phoneOf(1234)).toBe("+966590001234");
+    expect(contactOf(1234, "phone")).toBe("+966590001234");
+    expect(contactOf(1234, "email")).toBe("rush1234@najd.sa");
     expect(phoneOf(9_999_999)).toMatch(/^\+966[0-9]{9}$/);
   });
 });

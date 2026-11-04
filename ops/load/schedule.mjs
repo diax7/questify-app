@@ -67,3 +67,13 @@ export function addressOf(index, perAddress) {
 export function phoneOf(index) {
   return `+96659${String(index).padStart(7, "0")}`;
 }
+
+/**
+ * The contact of sign-in request `index` on a channel: `phoneOf(index)`, or a new email address.
+ *
+ * @param {number} index from 0 to 9,999,999
+ * @param {"phone" | "email"} channel
+ */
+export function contactOf(index, channel) {
+  return channel === "email" ? `rush${index}@najd.sa` : phoneOf(index);
+}

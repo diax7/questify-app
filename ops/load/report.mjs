@@ -47,15 +47,19 @@ export function completionReport(results, seconds) {
 }
 
 /**
- * Each rush step's rate, answers and latency.
+ * Each rush step's rate, answers and latency, overall and per answer (T-804b: the p95 of the requests answered after
+ * the budget was spent is the p95 of the 503s).
  *
- * @param {ReadonlyArray<{ ratePerSecond: number; fromIntended: number[]; statuses: Record<string, number> }>} steps
+ * @param {ReadonlyArray<{ ratePerSecond: number; fromIntended: number[]; statuses: Record<string, number>; byStatus?: Record<string, number[]> }>} steps
  */
 export function rushReport(steps) {
   return steps.map((step) => ({
     ratePerSecond: step.ratePerSecond,
     statuses: step.statuses,
     latency: summarize(step.fromIntended),
+    latencyByStatus: Object.fromEntries(
+      Object.entries(step.byStatus ?? {}).map(([status, values]) => [status, summarize(values)]),
+    ),
   }));
 }
 

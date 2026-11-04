@@ -35,6 +35,15 @@ const { values: opt } = parseArgs({
     "rush-per-address": { type: "string", default: "50" },
     // The rush's first phone number (+96659 and 7 digits); move it on between runs against one database.
     "rush-first": { type: "string", default: "0" },
+    // The rush's contacts: new phones, or new emails (the email budget, T-804b).
+    "rush-channel": { type: "string", default: "phone" },
+    // Share of codes typed back (0 to 1), after a typing delay drawn uniformly from `rush-typing` seconds; 5% of them
+    // type a wrong code first. Below 0 (the default) nothing is typed back.
+    "rush-verify": { type: "string", default: "-1" },
+    "rush-typing": { type: "string", default: "20:90" },
+    // The run's platform send budget (platform_send_budget, T-804b): high by default so a throughput run is not stopped.
+    "sms-cap": { type: "string", default: "1000000" },
+    "email-cap": { type: "string", default: "1000000" },
     "skip-completions": { type: "boolean", default: false },
     "pg-container": { type: "string", default: "questifyapp-postgres-1" },
     "admin-url": {
@@ -56,6 +65,7 @@ const num = (/** @type {string} */ name) => {
   if (!(value >= 0)) throw new Error(`--${name} must be a number; got "${opt[name]}".`);
   return value;
 };
+const CODE_PORT_OFFSET = 100;
 
 const say = (/** @type {string} */ line) => process.stdout.write(`${line}\n`);
 
@@ -94,6 +104,8 @@ const prepare = (args) =>
     LOAD_PLAYERS: opt.players,
     LOAD_QUESTS: opt.quests,
     LOAD_BIG_EVENT: opt["big-event-players"],
+    LOAD_SMS_CAP: opt["sms-cap"],
+    LOAD_EMAIL_CAP: opt["email-cap"],
   });
 
 /** Bundles the load API and the seeding script from this checkout with the API's own esbuild. */
@@ -124,6 +136,7 @@ function startApi(plan, port) {
       LOAD_REDIS_URL: opt["redis-url"],
       LOAD_REDIS_PREFIX: plan.redisPrefix,
       LOAD_PORT: String(port),
+      LOAD_CODE_PORT: String(port + CODE_PORT_OFFSET),
       DATABASE_POOL_SIZE: opt["pool-size"],
     },
     stdio: ["ignore", "ignore", "pipe"],
@@ -154,6 +167,45 @@ function cpuMsOf(pid) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Samples the load databases' client backends every 100 ms until `stop()` (T-804b): how many were active and how many
+ * of those waited on an advisory lock, the platform budget's old single lock among them.
+ */
+function sampleWaits() {
+  const { Client } = createRequire(join(ROOT, "apps", "api", "package.json"))("pg");
+  const client = new Client({ connectionString: opt["admin-url"] });
+  const totals = { samples: 0, active: 0, advisory: 0, otherLock: 0 };
+  const state = { running: true };
+  const loop = (async () => {
+    await client.connect();
+    while (state.running) {
+      const { rows } = await client.query(
+        `SELECT wait_event_type, wait_event FROM pg_stat_activity
+         WHERE datname LIKE 'questify_test_%' AND backend_type = 'client backend' AND state = 'active'
+           AND pid <> pg_backend_pid()`,
+      );
+      totals.samples += 1;
+      totals.active += rows.length;
+      for (const row of rows) {
+        if (row.wait_event === "advisory") totals.advisory += 1;
+        else if (row.wait_event_type === "Lock") totals.otherLock += 1;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    await client.end();
+  })();
+  return async () => {
+    state.running = false;
+    await loop;
+    return {
+      ...totals,
+      meanActive: totals.samples === 0 ? 0 : Math.round((totals.active / totals.samples) * 10) / 10,
+      advisoryShareOfActive:
+        totals.active === 0 ? 0 : Math.round((totals.advisory / totals.active) * 1000) / 1000,
+    };
+  };
 }
 
 /** Samples the PostgreSQL container's CPU every 5 s until `stop()`; the samples in % of one core. */
@@ -252,6 +304,8 @@ async function rushPhase(plan, baseUrls, dir) {
       return { ratePerSecond: rate, seconds };
     });
   if (steps.length === 0) return [];
+  const [typingMin, typingMax] = opt["rush-typing"].split(":").map(Number);
+  const verify = Number(opt["rush-verify"]);
   const job = {
     ...baseJob(baseUrls),
     mode: "rush",
@@ -260,10 +314,37 @@ async function rushPhase(plan, baseUrls, dir) {
       perAddress: num("rush-per-address"),
       accept: plan.accept,
       firstIndex: num("rush-first"),
+      channel: opt["rush-channel"] === "email" ? "email" : "phone",
+      verify:
+        verify >= 0
+          ? {
+              share: verify,
+              typingSeconds: [typingMin, typingMax],
+              codeUrls: baseUrls.map((url) => {
+                const code = new URL(url);
+                code.port = String(Number(code.port) + CODE_PORT_OFFSET);
+                return code.origin;
+              }),
+            }
+          : null,
     },
   };
+  const stopWaits = opt.remote ? null : sampleWaits();
+  const stopCpu = samplePostgres();
   const result = await runDriver(job, dir, "rush");
-  return rushReport(result.rush);
+  const pgCpu = stopCpu();
+  return {
+    steps: rushReport(result.rush),
+    verify: result.verify,
+    waits: stopWaits === null ? null : await stopWaits(),
+    postgresCpuPercent:
+      pgCpu.length === 0
+        ? null
+        : {
+            mean: Math.round(pgCpu.reduce((a, b) => a + b, 0) / pgCpu.length),
+            max: Math.max(...pgCpu),
+          },
+  };
 }
 
 function machine() {

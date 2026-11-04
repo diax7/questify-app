@@ -2610,3 +2610,32 @@ of which the ledger insert and its triggers 8 ms: `xp_credit` 3.2, `streak_recor
 profile had measured 10.9 ms on another container; the two methods disagree by about 2x on the same function.
 **Recommended (developer):** a tier A task that profiles `record_completion` and its ledger triggers with T-804a's
 one-at-a-time script committed under `ops/load/`, so the number is reproducible, then decides what to make cheaper.
+
+## Q-650 - The earned address window's numbers and a console screen for the send budget (T-804b, ADR-690, ADR-691)
+
+**Status:** Open (developer, 2026-11-04).
+ADR-691's 200 base, 2 per right code and 2,000 ceiling (and 100, 1, 500 for wrong codes) are guesses until a real
+event's opening shows how many codes a venue types back. The platform budget is now a row of `platform_send_budget`
+changed by an owner `UPDATE` (RUNBOOK); no console screen edits it. A lowered cap settles for one window (ADR-690):
+the budget takes one request at a time until then, so lower it outside an event's opening.
+Email contacts verify at no cost, so one address can reach the 2,000-an-hour ceiling of ADR-691 on email codes and
+drain the 1,000-a-day email budget in under an hour, after which every player's email code is refused until the
+window moves on.
+**Recommended (developer):** review the numbers after the first booked event, and choose a lower email ceiling
+later (not built here); build a console screen only when Dhia
+wants to change Q-093's number himself.
+
+## Q-651 - The staff sign-up and invite mail budget keeps its one lock (T-804b)
+
+**Status:** Open (developer, 2026-11-04).
+`takeOutboundMail` (`auth/outbound.ts`) still takes one platform advisory lock per sign-up or invite email. It is not
+on the player rush path and its traffic is small.
+**Recommended (developer):** leave it; move it onto `take_send_budget` only if a measurement shows it waiting.
+
+## Q-652 - The half-budget warning is dropped (T-804b, ADR-690)
+
+**Status:** Open (developer, 2026-11-04; plan review of T-804b).
+Per stripe, `player.budget_half` would have been logged up to 16 times a window, and no alert read it, so T-804b removed
+it: `player.budget_spent` (alert `QuestifySendBudgetSpent`) is the only budget line.
+**Recommended (developer):** if a warning before the cap is wanted later, read the channel's total from
+`auth_throttle` in a monitoring query rather than in the request path.

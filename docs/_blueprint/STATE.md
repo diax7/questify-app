@@ -6,6 +6,27 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-804b built — 2026-11-04
+
+- **T-804b (tier A, sign-in; ADR-690 to ADR-692 amended to the plan review's Revision 1, Q-650 to Q-652 Proposed):
+  migration 0150.** The platform send budget is 16 stripes (a constant) in `auth_throttle`, taken by
+  `take_send_budget` (PL/pgSQL, VOLATILE, never waits) in its own statement before the request's transaction and given
+  back on every refusal, error or send-nothing (App Review phone, unknown deletion contact, unchanged contact); its
+  numbers are rows of `platform_send_budget` (API read-only; Q-093's 5,000 and 1,000 unchanged), a lowered cap or longer
+  window settles for one window; the old single key's rows are copied. The windows are read once unlocked before the
+  budget and again under the contact lock, in one query each. An address earns 2 codes (1 wrong code) per contact that
+  typed a right code of the same channel from it, once an hour, up to 2,000 (500). No half warning. Tests: new
+  `send-budget.int.test.ts` (concurrency over 20 rounds, odd caps, sliding, busy, give-back, mid-window cap changes,
+  the 0149 to 0150 copy; four hand mutants of the SQL killed), `sign-in-rush.int.test.ts` (exact cap of 200 parallel,
+  give-back paths, throttled flood holds no unit, earned room by channel and contact), outsider and grant lines.
+  Load (plan section 9): before, 100 a second p95 2.2 s with 90% of sessions on the lock; after, 250 a second p95 47
+  and 376 ms on one API, 54 and 79 ms on three; cap 5,000 sent exactly 5,000 of 9,000 (email 1,000 of 3,000); one
+  address with 2,000 phones typing back after 20 to 90 s: no 429. Green on 17 and on a throw-away 16.15. Full suite
+  once: 805 files and 12,664 tests passed (16 files, 18 tests skipped). Lint, types, `lint:limits`, `format:check`
+  clean. CI minutes: 0; agent tokens roughly 1M (estimate).
+  **Next:** T-804b code review (tier A), mutation on `sign-in-limits.ts`, `sign-in.ts`, `contact.ts`, `deletion.ts`;
+  deploy 0150 outside an event's opening (RUNBOOK).
+
 ## T-804c built — 2026-11-04
 
 - **T-804c (tier A, ledger and sign-in; ADR-680 to ADR-682 and Q-640, Q-641 Proposed; ADR-671 to ADR-673 marked

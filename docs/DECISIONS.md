@@ -7908,3 +7908,54 @@ list. The same file's parity seed now reaches every set-returning part (a multi-
 item, a quest item, a first-N slot, a streak day 2).
 **Why:** the rule of ADR-670 was held only for the 35 functions of the fixture.
 **Trade-offs:** the allowlist is long and only shrinks; changing a listed function's arguments means editing its line.
+
+## ADR-690 - T-804b the platform send budget as striped sliding windows, reserved in their own transaction
+
+**Status:** Proposed (developer, 2026-11-04; T-804b plan Revision 1 after its review, Q-621).
+**Decision:** each channel's budget (login SMS an hour, player email codes a day) is split into 16 stripes, a constant
+of `take_send_budget`, each its own sliding window in `auth_throttle` with a share of the cap that sums to the cap
+exactly. `take_send_budget` (PL/pgSQL, `VOLATILE` at READ COMMITTED so each query's snapshot is taken after its
+try-lock; migration 0150) runs as one autocommit statement before the request's transaction, try-locks stripes in a
+random rotation, never waits, and returns `taken`, `busy` or `spent`. The request's windows are read once without a
+lock before the unit is taken (a throttled request never touches the budget) and again under the contact's lock. The
+unit is given back by one `DELETE` when the request is then refused, sends nothing or fails. The cap and window are rows
+of `platform_send_budget` (API: SELECT only), so Q-093's number is changed by data, not a deploy; a trigger stamps
+`changed_at` when the cap is lowered or the window lengthened, and for one window the function then takes all 16
+locks and checks the channel's total as well, so no change mid-window lets more through. The migration copies (never
+moves) the window's rows of the old single keys into the stripes. `takePlatformBudget` and the half warning are removed.
+`window_seconds` is held between 1 and 86,400 (`sweepThrottle` deletes `auth_throttle` rows older than a day, so a
+longer window would count rows already gone), and the function raises unless it runs at READ COMMITTED, so a
+REPEATABLE READ caller fails loudly instead of counting with a stale snapshot.
+**Why:** one advisory lock held to the commit capped the platform at about 100 codes a second (Q-621; the profile
+before the change: 90% of active database sessions waited on that lock, and 100 a second had a p95 of 2.2 s).
+**Trade-offs:** refused requests hold a unit for milliseconds; for one window after a lowered cap the budget takes one
+request at a time; old API instances still running during the deploy count only the old key.
+A caller whose first read (the cap and `changed_at`) ran before a cap-lowering `UPDATE` committed can still take one
+stripe under the old share; the overspend is bounded by the requests in flight at that moment. After a cap is
+lowered, settling holds all 16 locks for one full window (a day for the email budget), so for that long the channel
+takes one request at a time.
+
+## ADR-691 - T-804b a client address earns sign-in room from right codes typed from it
+
+**Status:** Proposed (developer, 2026-11-04; T-804b plan Revision 1 after its review, Q-621 part 2, Q-634).
+**Decision:** the player code window of an address is `min(2000, 200 + 2 x contacts that typed a right code of the
+request's channel from that address in the hour)` and its wrong-code window `min(500, 100 + 1 x such contacts in 15
+minutes)`. An SMS code earns SMS room only and an email code email room only (buckets `player_verified_phone_address`,
+`player_verified_email_address`); each contact earns once an hour (`player_verified_contact`). Per-number, per-install
+and staff windows and the platform budget are unchanged.
+**Why:** a venue's Wi-Fi needs about 2,000 codes an hour; a flat 2,000 would let one address pump 2,000 SMS an hour.
+**The bound, stated honestly:** a pumper gains about one SMS per Saudi SIM it holds and types a code from, an hour
+(each such SIM opens 2 codes, one of which went to it), always under the platform cap. Free email addresses never open
+SMS room.
+**Trade-offs:** a venue where few SMS arrive earns room slowly; one more indexed count once an address passes 200.
+
+## ADR-692 - T-804b a busy budget is a retry, never "spent"
+
+**Status:** Proposed (developer, 2026-11-04; T-804b plan Revision 1).
+**Decision:** `spent` only when every stripe was found full: read under its lock, or, for a stripe another request
+holds, read without it (units are only inserted under the lock, so this can answer "spent" a few milliseconds early
+when a held unit is about to be given back, never overspend). Otherwise `busy`, retried by the service up to 3 times
+with 5 to 20 ms jitter, then `throttled` with `retryAfterSeconds: 1` (`player.budget_busy` in the log).
+**Why:** a no-wait function cannot deadlock, and a person is told SMS is unavailable only when it is; without the
+unlocked read a crowd at a spent budget kept seeing each other's locks and heard `busy` forever.
+**Trade-offs:** under extreme contention a request may wait a second although a unit was free.

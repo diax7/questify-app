@@ -11,6 +11,7 @@ import {
   seedTwoTenants,
   type TestDatabase,
 } from "#test/support/test-db";
+import { SEND_BUDGET_USED_SQL, withSendBudgetCap } from "#test/support/send-budget";
 
 type Row = Record<string, unknown>;
 const tokenOf = (response: LightMyRequestResponse) =>
@@ -55,6 +56,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (HTTP)", () =
 
   const owner = async <T extends Row>(sql: string, values: unknown[] = []) =>
     (await db.owner.query<T>(sql, values)).rows;
+  /** The SMS budget's units used in the last day. */
+  const used = async () => (await owner<{ n: number }>(SEND_BUDGET_USED_SQL, ["phone"]))[0]?.n ?? 0;
 
   /** A player with a phone, an email (either can be left out) and a bearer session. */
   const newPlayer = async (has: { phone?: boolean; email?: boolean } = {}) => {
@@ -99,23 +102,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (HTTP)", () =
   const logged = (event: string) =>
     lines.map((line) => JSON.parse(line) as Row).filter((line) => line["event"] === event);
   /** Fills a platform-wide send budget to its ceiling for one request (the sign-in tests' pattern). */
-  const withBudgetSpent = async (
-    bucket: string,
-    name: string,
-    max: number,
-    work: () => Promise<void>,
-  ) => {
-    await owner("DELETE FROM auth_throttle WHERE bucket = $1", [bucket]);
-    await owner(
-      "INSERT INTO auth_throttle (bucket, key, at) SELECT $1, $2, now() FROM generate_series(1, $3)",
-      [bucket, createHash("sha256").update(name).digest(), max],
-    );
-    try {
-      await work();
-    } finally {
-      await owner("DELETE FROM auth_throttle WHERE bucket = $1", [bucket]);
-    }
-  };
+  const withBudgetSpent = (channel: "phone" | "email", work: () => Promise<void>) =>
+    withSendBudgetCap(owner, channel, 0, work);
   const statusOf = async (player: string) =>
     (await owner<{ status: string }>("SELECT status FROM player WHERE id = $1", [player]))[0]
       ?.status;
@@ -181,6 +169,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (HTTP)", () =
       expect(test.sms.sent.some((message) => message.to === stranger)).toBe(false);
       expect(await verify(tokenOf(unknown), "123456")).toMatchObject({ statusCode: 422 });
       expect(lines.join("\n")).not.toContain(stranger);
+    });
+
+    it("keeps a budget unit only for the known contact it texts, giving back the unknown one's", async () => {
+      const player = await newPlayer();
+      const before = await used();
+      await post("/v1/deletion/code", { channel: "phone", value: player.phone });
+      expect(await used()).toBe(before + 1);
+      const stranger = `+9665${String(28_000_000 + counter).slice(-8)}`;
+      await post("/v1/deletion/code", { channel: "phone", value: stranger });
+      expect(await used()).toBe(before + 1);
+      await test.deferred.idle();
     });
 
     it("counts a wrong code, ends the code after three, and never lets a deletion code sign in", async () => {
@@ -327,7 +326,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (HTTP)", () =
 
     it("answers 503 once the platform's SMS or email budget is spent, offering email on the web page", async () => {
       const player = await newPlayer();
-      await withBudgetSpent("sms_platform", "questify.sms_platform", 5000, async () => {
+      await withBudgetSpent("phone", async () => {
         const app = await ownCode(player.token);
         expect(app.json()).toMatchObject({
           code: "sms_unavailable",
@@ -340,16 +339,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (HTTP)", () =
           details: { emailOffered: true },
         });
       });
-      await withBudgetSpent(
-        "player_email_platform",
-        "questify.player_email_platform",
-        1000,
-        async () => {
-          const web = await post("/v1/deletion/code", { channel: "email", value: player.email });
-          expect(web.statusCode).toBe(503);
-          expect(web.json()).toMatchObject({ code: "email_unavailable" });
-        },
-      );
+      await withBudgetSpent("email", async () => {
+        const web = await post("/v1/deletion/code", { channel: "email", value: player.email });
+        expect(web.statusCode).toBe(503);
+        expect(web.json()).toMatchObject({ code: "email_unavailable" });
+      });
       expect(logged("player.budget_spent").map((line) => line["channel"])).toEqual([
         "phone",
         "phone",

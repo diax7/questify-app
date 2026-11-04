@@ -281,7 +281,7 @@ groups:
           summary: "Sign-in attempts are being throttled more than once every two seconds"
           runbook: docs/RUNBOOK.md#questifysigninthrottlespike
 
-      # The platform's own hourly SMS budget (smsPerHour, player email codes a day) or the day's staff invite and sign-up
+      # The platform's own hourly SMS budget (platform_send_budget, player email codes a day) or the day's staff invite and sign-up
       # email budget is spent: the next sign-up or invite is answered 503 until the window moves.
       - alert: QuestifySendBudgetSpent
         expr: sum(increase(questify_log_events_total{questify_event=~"player\\.budget_spent|staff\\.outbound_cap"}[10m])) > 0

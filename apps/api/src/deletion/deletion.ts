@@ -6,14 +6,16 @@ import { generateCode, generateToken, hashToken } from "#src/auth/keys";
 import { PLAYER_SIGN_IN_LIMITS } from "#src/auth/limits";
 import { addressBucket } from "#src/auth/normalize";
 import { reasonOf, say } from "#src/auth/sign-in";
-import { BUCKETS, tryLock } from "#src/auth/throttle";
+import { BUCKETS } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { onlyRow } from "#src/db/rows";
 import type { IdempotencyStore } from "#src/idempotency-store";
 import {
   contactOf,
+  holdWindows,
   typedCode,
+  windowsRefuse,
   type Asker,
   type Lang,
   type PlayerSignInDeps,
@@ -22,10 +24,11 @@ import {
   firstFull,
   recordAll,
   sendCounts,
-  takePlatformBudget,
+  withSendBudget,
   type Channel,
   type Count,
   type Throttled,
+  type Unavailable,
 } from "#src/players/sign-in-limits";
 
 const L = PLAYER_SIGN_IN_LIMITS;
@@ -39,7 +42,6 @@ export type DeletionDeps = PlayerSignInDeps &
     idempotencyStore: IdempotencyStore;
   }>;
 
-type Unavailable = Readonly<{ kind: "sms_unavailable" | "email_unavailable" }>;
 type Contact = Readonly<{ channel: Channel; value: string }>;
 
 export type CodeResult =
@@ -84,54 +86,69 @@ export function deletionSmsText(code: string, lang: Lang): string {
     : `Your Questify account deletion code is ${code}. Do not share it.`;
 }
 
+type Opened = Readonly<{
+  kind: "opened";
+  token: string;
+  code: string;
+  known: boolean;
+  reviewer: boolean;
+}>;
+
+/** The challenge in the request's transaction: the windows under the contact's lock, then the challenge row. */
+async function startChallenge(
+  deps: DeletionDeps,
+  client: PoolClient,
+  contact: Contact,
+  counts: readonly Count[],
+  asker: Asker,
+): Promise<Opened | Throttled> {
+  const where = { step: "deletion_code", channel: contact.channel, contact: contact.value };
+  const refused = await holdWindows(deps, client, counts, asker, where);
+  if (refused !== undefined) {
+    return refused;
+  }
+  const id = randomUUID();
+  const token = generateToken().token;
+  const code = generateCode();
+  const { rows } = await client.query<{ known: boolean; reviewer: boolean }>(
+    "SELECT * FROM start_deletion_challenge($1, $2, $3, $4, $5, $6)",
+    [
+      id,
+      tokenHash(token),
+      contact.channel,
+      contact.value,
+      deps.keys.contactLookupKey(contact.value),
+      deps.keys.deletionCodeHash(hashToken(token), code),
+    ],
+  );
+  const row = onlyRow(rows, "start_deletion_challenge");
+  return { kind: "opened", token, code, known: row.known, reviewer: row.reviewer } as const;
+}
+
 /**
- * Opens the deletion challenge inside the sign-in send windows and platform budget, under a lock on the contact. True
- * in `known` when an account uses the contact: only then is a code sent. True in `reviewer` for the App Review phone
- * while its window is open (T-710, ADR-562): the fixed code answers it, and nothing is sent.
+ * Opens the deletion challenge inside the sign-in send windows and platform budget: the windows without a lock, one
+ * unit of the budget, then the challenge under a lock on the contact. True in `known` when an account uses the
+ * contact: only then is a code sent, so only then is the unit kept. True in `reviewer` for the App Review phone while
+ * its window is open (T-710, ADR-562): the fixed code answers it, and nothing is sent.
  */
 async function openChallenge(
   deps: DeletionDeps,
   contact: Contact,
   asker: Asker,
-): Promise<
-  | Readonly<{ kind: "opened"; token: string; code: string; known: boolean; reviewer: boolean }>
-  | Throttled
-  | Unavailable
-> {
-  return asSystem(deps, async (client) => {
-    const counts = sendCounts(deps.keys, contact.value, asker.address, asker.deviceId);
-    // Stryker disable next-line ConditionalExpression,BlockStatement,ObjectLiteral: lock contention on one contact: timing, not a path a test can hold
-    if (!(await tryLock(client, deps.keys.contactThrottleKey(contact.value)))) {
-      return { kind: "throttled", retryAfterSeconds: 1 } as const;
+): Promise<Opened | Throttled | Unavailable> {
+  const counts = sendCounts(deps.keys, contact, asker.address, asker.deviceId);
+  return withConnection(deps.pool, async (client) => {
+    const where = { step: "deletion_code", channel: contact.channel };
+    const early = await windowsRefuse(deps, client, counts, asker, where);
+    if (early !== undefined) {
+      return early;
     }
-    const full = await firstFull(client, counts);
-    if (full !== undefined) {
-      say(deps, asker, "player.throttled", { step: "deletion_code", channel: contact.channel });
-      return full;
-    }
-    if ((await takePlatformBudget(client, contact.channel)) === "spent") {
-      say(deps, asker, "player.budget_spent", { channel: contact.channel });
-      return {
-        kind: contact.channel === "phone" ? "sms_unavailable" : "email_unavailable",
-      } as const;
-    }
-    await recordAll(client, counts);
-    const id = randomUUID();
-    const token = generateToken().token;
-    const code = generateCode();
-    const { rows } = await client.query<{ known: boolean; reviewer: boolean }>(
-      "SELECT * FROM start_deletion_challenge($1, $2, $3, $4, $5, $6)",
-      [
-        id,
-        tokenHash(token),
-        contact.channel,
-        contact.value,
-        deps.keys.contactLookupKey(contact.value),
-        deps.keys.deletionCodeHash(hashToken(token), code),
-      ],
+    return withSendBudget(
+      { deps, asker, client, channel: contact.channel },
+      () =>
+        withRequestContext(client, {}, () => startChallenge(deps, client, contact, counts, asker)),
+      (opened) => opened.kind === "opened" && opened.known && !opened.reviewer,
     );
-    const row = onlyRow(rows, "start_deletion_challenge");
-    return { kind: "opened", token, code, known: row.known, reviewer: row.reviewer } as const;
   });
 }
 

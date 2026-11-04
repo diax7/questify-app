@@ -1,0 +1,239 @@
+# T-804b - Sign-in rush: the platform code lock and the shared-address window (plan, tier A, sign-in)
+
+Follows T-804's rush measurement (Q-621) and the outline in `2026-11-04-t-804a-completion-hot-path.md` section 8.
+Decisions: ADR-690 to ADR-692 (Proposed); questions Q-650 to Q-652. Q-621 part (3), the size of the platform SMS
+budget, stays Dhia's choice (Q-093): this plan only makes the number data, it does not change it.
+
+**Revision 1 (plan review, score 80; built to this).** (1) The stripe count is the constant 16 inside
+`take_send_budget`; `platform_send_budget` has no `stripes` column. A lowered cap or a longer window could leave some
+stripes above their new share while others still have room, so a trigger stamps `changed_at` and for one window the
+function settles: it takes all 16 locks and checks the channel total too (tested: a cap lowered mid-window never lets
+more through). (2) The unlocked window check runs before the budget is touched, and again under the contact's lock in
+the transaction: a flood of throttled requests never takes or holds a unit (tested). (3) ADR-691: a right code earns room
+only in its own channel, and each contact once per window; the bound is about one pumped SMS per verifying SIM. (4) Run C
+types codes back after 20 to 90 s, in a burst arrival shape, and asserts no 429. (5) The migration copies the old key's
+rows, never moves them. (6) Run B reports the p95 of the refusals apart. (7) `take_send_budget` is `VOLATILE` at READ
+COMMITTED: each query in it takes a snapshot after its try-lock and sees every row a previous holder committed (a
+STABLE function would reuse the calling statement's snapshot, taken before the lock, and could overspend). (8) No half
+warning at all; SECURITY.md records the weak IPv6 /64 buckets. Found while building: (9) a stripe another request holds
+counts as full when an unlocked read finds it full, or a crowd at a spent budget hears `busy` forever (ADR-692 amended);
+(10) the window reads and records of a code request are one query each (`countWindows`, `recordMany`), which took one
+API from p95 3.8 s to under 0.4 s at 250 a second.
+
+**Done when** (TASKS.md): the rush reaches 250 codes a second at p95 under 1 s on this PC, the SMS and email budgets are
+never exceeded, and 2,000 players behind one address can ask for a code within an hour.
+
+## 1. What is slow today, and why
+
+`POST /v1/auth/code` runs `openChallenge` (`apps/api/src/players/sign-in.ts`) in one transaction: the contact's
+try-lock, the windows (`firstFull`, three or four `count(*)` reads), then `takePlatformBudget`
+(`apps/api/src/players/sign-in-limits.ts`): `pg_advisory_xact_lock` on ONE platform key, a `count(*)` over up to 5,000
+`auth_throttle` rows of the hour, an insert, and then the rest of the transaction (`recordAll`'s inserts,
+`start_player_challenge`, the commit and its WAL flush) still holding that lock. Every code on the platform passes
+through it one at a time: about 10 ms each, so about 100 codes a second (Q-621: 100/s p95 297 ms, 120/s p95 2.3 s).
+Resends (`prepareResend`), contact changes (`players/contact.ts`, both the code and the notice) and account deletion
+codes (`deletion/deletion.ts`) take the same lock.
+
+Second limit: `codesPerAddressHour` is 200, so one venue Wi-Fi or carrier address stops after 200 codes an hour; and
+`failuresPerAddress` (100 wrong codes in 15 minutes) would stop a crowd of 2,000 typing codes at about 5% typos.
+
+**Step 0, profile first (no code change):** rerun the T-804 rush on today's code
+(`node ops/load/run.mjs --skip-completions --rush 50:10,100:10,150:10`) while sampling `pg_stat_activity`
+(`wait_event = 'advisory'`) every 100 ms and `pg_stat_statements` for the sign-in statements. Record: share of request
+time spent waiting on the advisory lock vs work, mean database time a code. This is the baseline table of section 7 and
+confirms the lock is the limit before it is removed.
+
+## 2. The budget without one held lock (ADR-690)
+
+**Shape: striped sliding windows, taken in their own short transaction, given back on any refusal.**
+
+- The budget of a channel is split into 16 stripes (a constant of the function, Revision 1). Stripe `i` is its own sliding window in
+  `auth_throttle` (same bucket `sms_platform` / `player_email_platform`, key
+  `sha256('questify.sms_platform.' || i)`, 32 bytes as the table requires) with its own cap
+  `cap_i = floor(cap / 16) + (i < cap mod 16 ? 1 : 0)`, so `sum(cap_i) = cap` exactly; a stripe whose share is 0 is
+  skipped (a cap of 3 uses 3 stripes; a cap of 0 is always spent). In any sliding window each stripe holds at most `cap_i`
+  rows, so the channel holds at most `cap`: **the budget stays exact and sliding**, as today. (A per-hour counter row,
+  the outline's first idea, would be a fixed clock hour: up to twice the cap across an hour boundary, and the email
+  budget would stop matching the provider's rolling day. Rejected.)
+- **One statement, own transaction.** A new PL/pgSQL function `take_send_budget(p_channel text)` (migration 0150) is
+  called as one autocommit statement on the request's connection, before the request's main transaction opens. It
+  reads the channel's row of `platform_send_budget`, picks a random first stripe and walks the stripes in rotation:
+  `pg_try_advisory_xact_lock(stripe)`; if taken, counts the stripe's rows in the window; if under `cap_i`, inserts one
+  row (`clock_timestamp()`) and returns `('taken', stripe, stripe_key, taken_at)`. A stripe it locks and finds full
+  is passed over. It **never waits**: if no stripe had room and at least one stripe was busy (locked by another
+  request), it returns `busy`; only when every stripe was found full does it return `spent` (a stripe another request holds is read without the
+  lock, Revision 1 (9)). Locks live
+  for the function plus its commit (well under a millisecond plus the WAL flush), never across the sign-in.
+- **Busy is a retry, never a false "spent" (ADR-692).** The service calls the function again up to 3 times with
+  5 to 20 ms jitter (each call is its own transaction, so no locks are held between them), then answers `throttled`
+  with `retryAfterSeconds: 1`, as the contact try-lock already does. No deadlock is possible: the function holds only
+  try-locks and never blocks.
+- **Reserve first, give back on refusal.** A new service helper `reserveSend(deps, channel)` (in
+  `players/sign-in-limits.ts`, replacing `takePlatformBudget`) returns a reservation `{stripe, at}` or `spent`/`busy`.
+  The main transaction then runs as today without the platform lock: contact try-lock, windows, `recordAll`,
+  `start_player_challenge` (or `resend_player_challenge`). Precedence of answers is kept: a throttled request answers
+  `throttled` even when the budget was spent; `spent` answers `sms_unavailable` / `email_unavailable`. On any outcome
+  other than "the send goes" (throttled, contact busy, a refused challenge, an exception and rollback), the unit is
+  given back after the main transaction ends with one `DELETE` of the reservation row (`forget` with the stripe key and
+  `at`), best effort: a failed give-back is logged (`player.budget_give_back_failed`, no contact) and the unit stays
+  used. **Errors can only under-spend, never overspend.** A sent message whose delivery is unknown or refused stays
+  counted, as today.
+- **Same helper everywhere the lock was taken:** `openChallenge`, `prepareResend`, `players/contact.ts` (the code and
+  the best-effort notice), `deletion/deletion.ts`. `takePlatformBudget` and its `PLATFORM` table are removed (replace,
+  don't deprecate); `smsPerHour` and `playerEmailsPerDay` leave `PLAYER_SIGN_IN_LIMITS`.
+- **Out of scope:** `takeOutboundMail` (`auth/outbound.ts`, the staff sign-up and invite mail budget) keeps its global
+  lock: it is not on the player rush path and its traffic is small (Q-651).
+
+**No half warning (Revision 1).** `player.budget_half` is dropped: per stripe it would be up to 16 lines a window, and
+nothing alerted on it. The alert `QuestifySendBudgetSpent` counts `player.budget_spent` and is unchanged (Q-652).
+
+**Configurable budget (Q-621 part 3, Q-093).** New table `platform_send_budget (channel text PRIMARY KEY CHECK
+(channel IN ('phone','email')), cap int NOT NULL CHECK (cap >= 0), window_seconds int NOT NULL CHECK (window_seconds >
+0), changed_at timestamptz NOT NULL DEFAULT '-infinity')`, seeded with today's numbers (phone 5,000 a 3,600 s, email
+1,000 a 86,400 s). Changing Dhia's number is one `UPDATE` (RUNBOOK step), no deploy and no store
+release; a console screen for it is not built (no one asked; Q-650 notes it). A higher cap takes effect on the next call (a
+share never shrinks when the cap grows). A lower cap or a longer window settles for one window (Revision 1 (1)).
+
+**Deploy note.** The migration copies the current window's rows of the old single key into the stripe keys (round
+robin, so each stripe holds at most its share), so the new code sees the hour's history, and the old rows stay for an
+old instance or a rollback. While an old API instance is still running during the deploy it
+counts only the old key: the budget can be overspent by what old instances send in those seconds. RUNBOOK: deploy
+0150 outside an event's opening, as for any sign-in change.
+
+## 3. Shared venue addresses without opening abuse (ADR-691)
+
+The address windows are an abuse ceiling, not the wall (the contact and install windows are, `limits.ts` comment).
+Flat 2,000 an hour (Q-634's recommendation) would let one address pump 2,000 SMS an hour to fresh numbers with no
+cost. Instead **the address earns room from people who finish signing in:**
+
+- New buckets `player_verified_phone_address` and `player_verified_email_address`, and `player_verified_contact`:
+  `judge` records, in the same transaction and under the contact's lock, one row for the asker's address bucket in the
+  challenge's channel when `sign_in_player` answers `signed_in` or `new` (a right code), unless that contact already
+  earned room in the last hour (`player_verified_contact`). An SMS code earns SMS room, an email code email room
+  (Revision 1 (3)): email addresses cost nothing, so they must never open SMS room.
+- The code window for an address becomes `min(ceiling, max + perVerified x verified_in_window)`, `verified` counted in the
+  request's channel, with `codesPerAddressHour = { max: 200, perVerified: 2, ceiling: 2000, windowSeconds: 3600 }`.
+  The code count itself stays shared by both channels. The failure window likewise:
+  `failuresPerAddress = { max: 100, perVerified: 1, ceiling: 500, windowSeconds: 900 }`, counting verified sign-ins of
+  the challenge's channel in its own 15 minutes.
+- A venue: the first 200 codes go at once; while the codes are typed back, each phone that types a right one opens two
+  more, up to 2,000 an hour. A pumper never types codes back, so it stays at 200 an hour. **The honest bound:** to earn
+  room it must hold SIMs: each Saudi SIM it holds that receives and types one code (once an hour) opens 2 codes, one of
+  which went to that SIM, so it gains about one pumped SMS per verifying SIM it holds, an hour. That is far below the
+  platform cap (5,000 an hour, Q-093) and costs a SIM per message. The per-number (5 an hour, 10 a day) and per-install
+  (10 an hour) windows and the platform budget are unchanged and still apply.
+- `firstFull` reads all windows in one query and reads the verified count (one indexed `count(*)`) only when the base is
+  reached. Staff windows are not touched. Per-event address windows (Q-634) stay out: the code request carries no
+  event. The numbers are developer tuning (Q-650 records them for the first real event's review).
+
+## 4. Migration 0150 and grants (deny by default)
+
+- `platform_send_budget`: RLS enabled and forced; one policy `FOR SELECT TO questify_app USING (true)`;
+  `REVOKE ALL ... FROM PUBLIC`; `GRANT SELECT ... TO questify_app` only. No insert, update or delete for the API: the
+  number changes by an owner `UPDATE` (RUNBOOK).
+- `take_send_budget(text)`: PL/pgSQL, `VOLATILE` (Revision 1 (7)), `SECURITY INVOKER` (the API already holds `SELECT, INSERT` on
+  `auth_throttle`; no definer power is needed), `SET search_path = public, pg_temp` as docs/rules.md allows for
+  PL/pgSQL, raises on an unknown channel. `REVOKE EXECUTE ... FROM PUBLIC` in the same migration;
+  `GRANT EXECUTE ... TO questify_app`.
+- The row copy of section 2 (an `INSERT ... SELECT` of the two buckets' old-key rows in their window).
+- `platform_send_budget_settles()`, the trigger function (Revision 1 (1)): `REVOKE ALL ... FROM PUBLIC`, no grant.
+- No new column on any table holding points or standing. No personal data: keys are hashes of fixed names.
+- **Outsider suite** (`apps/api/test/security/outsider.int.test.ts`): `questify_outsider` cannot execute
+  `take_send_budget` (the catalog check already covers new functions; one named assertion is added) and cannot select
+  `platform_send_budget`. The API role cannot `UPDATE`, `INSERT` or `DELETE` `platform_send_budget` (a refusal test
+  from its seat). The rehearsal list and the other list-style guards gain the table and function.
+
+## 5. Tests (test first; DB tests on the real PostgreSQL)
+
+`apps/api/test/players/send-budget.int.test.ts` (new), from the API role's seat:
+1. **Never overspent under concurrency:** cap 50 over the 16 stripes; 200 calls from 40 connections at once (a barrier, then
+   `Promise.all`); exactly 50 `taken`, 0 more rows than 50 in the window; repeated 20 rounds on a cleared bucket.
+2. **Not under-spent either:** in (1) every unit is taken (`busy` answers retried as the service does).
+3. Cap not divisible by stripes (37 over 8): 37. Cap below stripes (3 over 16): 3. Cap 0: `spent` at once.
+4. **Sliding:** rows back-dated beyond the window do not count; rows inside it do, per stripe.
+5. **Busy is not spent:** a second session holds every stripe's lock in an open transaction; the function returns
+   `busy`, inserts nothing; after release it returns `taken`.
+6. **Give back:** a returned reservation frees exactly one unit (the 51st call then succeeds); a give-back of an
+   unknown `at` deletes nothing.
+7. **Config is data:** an owner `UPDATE` of cap from 50 to 60 lets 10 more go without a restart; lowering it to 40
+   refuses until the window drains.
+8. **Migration move:** rows of the old single key inside the window are counted after 0150 (a migration test that
+   seeds the old key at 0149 and migrates).
+
+End to end, through the service (`apps/api/test/players/flow.int.test.ts` and a new rush case):
+9. 200 parallel `requestCode` calls for new phones with the phone cap set to 40: the SMS stub sent exactly 40 messages,
+   the stripe rows sum to 40, the rest answered `sms_unavailable` or `throttled`; email the same with its cap.
+10. **Give back on refusal:** a request throttled by its contact window, one that loses the contact try-lock, and one
+    whose main transaction throws (a pool wrapper failing `start_player_challenge`) each leave the budget where it was.
+11. Throttled outranks spent: a throttled contact with the budget spent answers `throttled`.
+12. Resend, contact change, contact notice and deletion code each take and give back through the helper (their
+    existing suites updated; `players/contact.int.test.ts`, `deletion/deletion.int.test.ts`).
+13. **Address earning:** 200 codes from one address then the 201st refused; after 50 right codes from that address,
+    300 allowed; a wrong code earns nothing; a right code from another address earns nothing for this one; the ceiling
+    2,000 holds with 5,000 verified; the failure window earns the same way up to 500. Per-number and per-install
+    refusals unchanged (existing tests untouched and green).
+14. Outsider and grant tests of section 4. Unit tests for the stripe caps and the earned-limit arithmetic.
+
+Mutation (GitHub, ADR-174): `apps/api/src/players/sign-in-limits.ts`, the changed parts of
+`apps/api/src/players/sign-in.ts`, `apps/api/src/players/contact.ts`, `apps/api/src/deletion/deletion.ts`; hand
+mutants for the SQL function in the DB test (a `<=` for `<` on `cap_i`, the remainder stripe dropped, `busy` turned
+into `spent`): each must fail a test.
+
+## 6. Load measurement (confirms the gate)
+
+Harness changes (`ops/load/`, `apps/api/test/load/`): `prepare.ts` sets `platform_send_budget` to the run's caps
+(`--sms-cap`, `--email-cap`, default 1,000,000 so a throughput run is not stopped). `--rush-channel email` asks for email
+codes. `--rush-verify <share>`: the load server's SMS and email stubs (`test/load/server.ts`, never in `src/`) keep the
+last code per contact in memory and serve it on a 127.0.0.1-only port (API port + 100); the driver types back that
+share of codes after a delay drawn uniformly from `--rush-typing` (default 20:90 seconds, Revision 1 (4)), 5% of them a
+wrong code first. The rush is spread over every API instance. The report gives each step's latency per answer (the 503s'
+p95 is that of the requests after the budget was spent), the typed-back answers, and the database's advisory lock waits
+sampled every 100 ms.
+
+Runs on this PC (Ryzen 7 1700, Docker PostgreSQL 17, one API, pool 10; then three APIs), each the median of two:
+- **A. Throughput:** `--skip-completions --rush 100:10,200:10,250:30,300:10 --rush-per-address 50`, new phones:
+  250 a second at p95 under 1 s, every answer 202; advisory lock waits (sampled) near zero.
+- **B. Budget at the cap:** `--sms-cap 5000 --rush 300:30` (9,000 asked): exactly 5,000 answered 202, the rest 503
+  `sms_unavailable`; the email cap the same way (`--rush-channel email --email-cap 1000`).
+- **C. One venue address, a burst:** 2,000 new phones from one address, `--rush 4:120,2:300,1:920
+  --rush-per-address 2000 --rush-verify 0.8` (480 in the first 2 minutes, 600 in the next 5, 920 in the last 15): no
+  429 on any code or verify request. With `--rush-verify 0` (`--rush 4:100`) the address stops at 200.
+Results go in section 8 of this file, TASKS.md and the RUNBOOK's "Load test" part.
+
+## 7. Order of work
+
+1. Step 0 profile (section 1). 2. Migration 0150 with tests 1 to 8 and the outsider tests. 3. `reserveSend` and the
+four callers, tests 9 to 12. 4. The earned address windows, test 13. 5. Harness options, runs A to C. 6. Docs: API.md
+(no change to answers; the `throttled` retry on a busy budget noted), DATA_MODEL.md (the table and stripes),
+SECURITY.md (the earned window), RUNBOOK (changing the budget, deploy note), TASKS, STATE.
+
+## 8. Open risks
+
+- If removing the lock moves the limit to the commit flush or to the windows' `count(*)` reads, 250 a second may still
+  miss; step 0 and run A show which. The address count for a busy venue reads up to 2,000 rows a request (indexed).
+- Reservations held by requests that are then refused can, at the very edge of the cap, make a concurrent request see
+  every stripe full for a few milliseconds: it answers `sms_unavailable` with at most a handful of units still free.
+  Never an overspend.
+- The deploy overlap (section 2) is the only window where the budget can be exceeded.
+- The earned window assumes about half the codes at a venue are typed back; a venue with many failed SMS deliveries
+  earns slowly (the email fallback still counts the address window). Q-650.
+
+## 9. Results (2026-11-04, this PC, Docker PostgreSQL 17, rush only)
+
+| Run | Shape | Answers | Latency p95 (ms) | Advisory waits |
+|---|---|---|---|---|
+| Step 0 (before) | 50, 100, 150 a second, one API | all 202 | 42 / 2,225 / 9,047 | 90% of active sessions |
+| A, one API, run 1 | 100, 200, 250 (30 s), 300 | all 202 | 44 / 162 / **47** / 158 | 0 |
+| A, one API, run 2 | same | all 202 | 43 / 166 / **376** / 649 | 0 |
+| A, three APIs, runs 1 and 2 | same | all 202 | 178, 48 / 79, 69 / **79, 54** / 249, 131 | 0 |
+| B, SMS cap 5,000, one API | 300 a second, 9,000 asked | 5,000 x 202, 4,000 x 503 (both runs) | 202s 695, 2,835; 503s 102, 2,706 | 0 |
+| B, email cap 1,000 | 300 a second, 3,000 asked | 1,000 x 202, 2,000 x 503 | 202s 691; 503s 503 | 0 |
+| C, one address, verify 0.8 | 4/s 2 min, 2/s 5 min, 1/s 15 min (2,000) | 2,000 x 202, **no 429**; 1,646 typed back (91 wrong first, 401), all 1,646 right ones 200 | 51 / 55 / 64 | - |
+| C, verify 0 | 4/s 100 s (400) | 200 x 202, 200 x 429 | 45 | 0 |
+
+The gate holds: 250 a second at p95 under 1 s with one API (median of the two runs about 210 ms) and with three; the
+SMS and email budgets were never exceeded (exactly the cap answered 202, the stripes' DB tests prove the count); 2,000
+phones behind one address got their codes with no 429. One API passes 250 a second but not steadily 300 (its own CPU;
+PostgreSQL used 2 to 4 cores). Run B's second run and the one-API 300 step show this PC's noise. Run C ran once (22
+minutes; its wait samples overlapped the full test suite and are left out). The 503s after a spent budget answer in
+about 100 ms when the API is not saturated. PostgreSQL 16.15: migration 0150 and the 13 budget tests green.

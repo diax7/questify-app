@@ -1100,6 +1100,8 @@ const SHARED: Readonly<Record<string, string>> = {
   platform_setting: "platform-wide settings; only a Questify admin writes (test/settings)",
   translation: "platform-wide texts; only a Questify admin writes (test/translations)",
   auth_throttle: "keyed by a one-way tag, not by a person; no data to leak (test/auth)",
+  platform_send_budget:
+    "the platform send budget (cap and window per channel); read-only to the API, set by the owner (test/players/send-budget)",
   schema_migration: "the migration record; the API role has no rights on it (outsider suite)",
   player_acceptance:
     "a player reads only their own rows (policy on app_player_id()); no write right at all, the definers record acceptances (test/db/player-legal)",
