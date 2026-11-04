@@ -24,7 +24,7 @@ type Query = { sql: string; params: unknown[] | undefined };
 const EVENT = "5c4d3e2f-1a0b-4c9d-8e7f-6a5b4c3d2e1f";
 const ENROLLMENT = "0f1e2d3c-4b5a-4968-8776-655443322110";
 
-/** complete_quest_answer's row for a plain completion: no part, no ranking entry (migration 0149). */
+/** complete_quest_answer's row for a plain completion: no part, no ranking entry (migration 0151). */
 const ENGINE_ROW = {
   completion_id: "c1",
   points: "10",
@@ -64,6 +64,7 @@ const ENGINE_ROW = {
   day_score_version: null,
   day_ranked: null,
   ranking_failed: false,
+  ranking_sqlstate: null,
 };
 
 /** A database that answers by SQL text: `replies` match first, then the throttle and transaction defaults. */
@@ -477,6 +478,7 @@ describe("the one-statement answer (complete_quest_answer, ADR-671)", () => {
       entries: {
         eventId: EVENT,
         failed: false,
+        sqlstate: undefined,
         entry: {
           event_id: EVENT,
           enrollment_id: ENROLLMENT,
@@ -513,13 +515,19 @@ describe("the one-statement answer (complete_quest_answer, ADR-671)", () => {
     expect(result.kind === "completed" ? result.entries : undefined).toEqual({
       eventId: EVENT,
       failed: false,
+      sqlstate: undefined,
       entry: undefined,
       day: undefined,
     });
   });
 
-  it("passes on that the ranking entries could not be read", async () => {
-    const { result } = await completeWith({ ...ENGINE_ROW, ranking_failed: true });
-    expect(result.kind === "completed" ? result.entries.failed : undefined).toBe(true);
+  it("passes on that the ranking entries could not be read, with the SQLSTATE of the error", async () => {
+    const { result } = await completeWith({
+      ...ENGINE_ROW,
+      ranking_failed: true,
+      ranking_sqlstate: "P0001",
+    });
+    const entries = result.kind === "completed" ? result.entries : undefined;
+    expect([entries?.failed, entries?.sqlstate]).toEqual([true, "P0001"]);
   });
 });

@@ -516,10 +516,11 @@ credit and earns no XP; removing a quest leaves it.
 `app.player_id`, never an argument; it locks the player's enrollment, answers a repeated key with the first completion,
 then checks the enrollment is active, the event live at this moment, the quest visible and open, the proof fitting the
 quest's type (QR version, typed code), and the cap, and writes the completion and the entry.
-`complete_quest_answer` (definer, migration 0149, T-804c, ADR-680) is what the API calls: `complete_quest`, then every
+`complete_quest_answer` (definer, migration 0149, one column added in 0151, T-804c, ADR-680) is what the API calls: `complete_quest`, then every
 part of the answer from its own function (`own_level`, `own_level_items`, `own_bonus`, `own_quest_item`,
 `completion_boost`, `own_first_bonus`, `own_streak_bonus`) and both ranking entries (`ranking_entry_of`,
-`ranking_day_entry_of`) in one row; a failed ranking read returns `ranking_failed` and never undoes the completion.
+`ranking_day_entry_of`) in one row; a failed ranking read returns `ranking_failed` and the error's SQLSTATE in `ranking_sqlstate` and never undoes the
+completion.
 `player_request_gate(hash, is_write)` (definer, migration 0149, ADR-672) is the player guard's one call: the session's
 player (`player_session_owner`) and, for a write, whether a new terms or privacy version holds them (`player_legal_held`).
 Both revoked from PUBLIC, granted to the API role only.

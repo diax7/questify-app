@@ -7874,7 +7874,10 @@ reads run in their own `BEGIN ... EXCEPTION WHEN OTHERS` block that clears every
 raises a WARNING with the SQLSTATE only; the API's `Ranking.afterAnswer(entries)` then logs `ranking.write_failed`
 (`entries_unread`), marks the event and answers `rank: null`. A Redis failure after it logs, marks and answers null as
 `afterCompletion` does. `statement_timeout` is not caught (it cancels the whole statement, nothing is written, and the
-app's retry with the same key completes or replays). `player_request_gate(hash, is_write)` (plpgsql, `STABLE`, definer)
+app's retry with the same key completes or replays). *Amended 2026-11-04 (migration 0151, FOLLOWUPS batch): the block
+returns the SQLSTATE as a column, `ranking_sqlstate`, instead of raising a WARNING, and the API logs it as `sqlstate`
+on `ranking.write_failed` (`entries_unread`); `ranking_failed` stays for an API of the previous release.*
+`player_request_gate(hash, is_write)` (plpgsql, `STABLE`, definer)
 calls `player_session_owner` and, for a write by a found player, `player_legal_held`. The player guard calls it once
 per player request, and `playerOfToken` is removed (it had no other caller).
 **Why:** typed columns keep exactly the values the API parsed before (a `Date` for an item's deadline, bigints as text),

@@ -290,13 +290,15 @@ export type DayEntryRow = EntryRow & Readonly<{ day: string }>;
 
 /**
  * The two entries `complete_quest_answer` read for its completion (ADR-671). `failed` when the database could not read
- * them (the completion committed regardless); `entry` and `day` are undefined when there is none.
+ * them (the completion committed regardless), with the SQLSTATE of the error in `sqlstate`; `entry` and `day` are
+ * undefined when there is none.
  */
 export type CompletionEntries = Readonly<{
   eventId: string;
   entry: EntryRow | undefined;
   day: DayEntryRow | undefined;
   failed: boolean;
+  sqlstate: string | undefined;
 }>;
 
 async function placeAfter(
@@ -366,7 +368,11 @@ async function afterAnswer(deps: RankingDeps, entries: CompletionEntries): Promi
     return null;
   }
   if (entries.failed) {
-    deps.log("warn", { event: "ranking.write_failed", reason: "entries_unread" });
+    deps.log("warn", {
+      event: "ranking.write_failed",
+      reason: "entries_unread",
+      sqlstate: entries.sqlstate ?? "unknown",
+    });
     await mark(deps, entries.eventId);
     return null;
   }
