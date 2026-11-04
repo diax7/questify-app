@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { loggerOptions } from "#src/app";
 import { freshIp, startApp, testConfig, type TestApp } from "#test/support/auth-app";
 import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
+import { SEND_BUDGET_USED_SQL, withSendBudgetCap } from "#test/support/send-budget";
 
 type Row = Record<string, unknown>;
 
@@ -38,6 +39,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
 
   const owner = async <T extends Row>(sql: string, values: unknown[] = []) =>
     (await db.owner.query<T>(sql, values)).rows;
+  /** The SMS budget's units used in the last day. */
+  const used = async () => (await owner<{ n: number }>(SEND_BUDGET_USED_SQL, ["phone"]))[0]?.n ?? 0;
 
   const newPhone = () => {
     counter += 1;
@@ -82,13 +85,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
       },
       payload,
     });
-
-  const spend = (bucket: string, name: string, count: number) =>
-    owner(
-      "INSERT INTO auth_throttle (bucket, key, at) SELECT $1, $2, now() FROM generate_series(1, $3)",
-      [bucket, createHash("sha256").update(name).digest(), count],
-    );
-  const clear = (bucket: string) => owner("DELETE FROM auth_throttle WHERE bucket = $1", [bucket]);
 
   /** The log lines written so far, as objects. */
   const logged = () => lines.map((line) => JSON.parse(line) as Row);
@@ -274,8 +270,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
 
     it("says SMS or email is unavailable when the platform budget is spent, and opens nothing", async () => {
       const player = await newPlayer({ phone: newPhone() });
-      await spend("sms_platform", "questify.sms_platform", 5000);
-      try {
+      await withSendBudgetCap(owner, "phone", 0, async () => {
         const sms = await post("code", player.token, { channel: "phone", value: newPhone() });
         expect([sms.statusCode, sms.json<{ code: string }>().code]).toEqual([
           503,
@@ -284,14 +279,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
         expect(logged()).toContainEqual(
           expect.objectContaining({ event: "player.budget_spent", channel: "phone" }),
         );
-      } finally {
-        await clear("sms_platform");
-      }
+      });
       expect(
         await owner("SELECT 1 FROM player_contact_challenge WHERE player_id = $1", [player.id]),
       ).toEqual([]);
-      await spend("player_email_platform", "questify.player_email_platform", 1000);
-      try {
+      await withSendBudgetCap(owner, "email", 0, async () => {
         const mail = await post("code", player.token, {
           channel: "email",
           value: `b${counter}@najd.sa`,
@@ -300,9 +292,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
           503,
           "email_unavailable",
         ]);
-      } finally {
-        await clear("player_email_platform");
-      }
+      });
     });
 
     it("says email is unavailable when the code email cannot be sent", async () => {
@@ -335,16 +325,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
       const player = await newPlayer({ phone: old });
       const email = `skip${counter}@najd.sa`;
       const asked = await post("code", player.token, { channel: "email", value: email });
-      await spend("sms_platform", "questify.sms_platform", 5000);
-      try {
+      await withSendBudgetCap(owner, "phone", 0, async () => {
         const done = await post("verify", player.token, {
           challengeToken: asked.json<{ challengeToken: string }>().challengeToken,
           code: test.mail.lastCode(email),
         });
         expect(done.statusCode).toBe(200);
-      } finally {
-        await clear("sms_platform");
-      }
+      });
       expect(logged()).toContainEqual(
         expect.objectContaining({ event: "player.notice_skipped", channel: "phone" }),
       );
@@ -416,11 +403,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
     it("refuses the player's own contact, malformed ones and bad bodies", async () => {
       const phone = newPhone();
       const player = await newPlayer({ phone });
+      const before = await used();
       const own = await post("code", player.token, { channel: "phone", value: phone });
       expect([own.statusCode, own.json<{ code: string }>().code]).toEqual([
         409,
         "contact_unchanged",
       ]);
+      // Nothing was sent, so the budget unit it held is given back.
+      expect(await used()).toBe(before);
       const foreign = await post("code", player.token, { channel: "phone", value: "+14155550100" });
       expect([foreign.statusCode, foreign.json<{ code: string }>().code]).toEqual([
         422,

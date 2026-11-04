@@ -1883,6 +1883,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       }
     });
 
+    it("cannot take from the platform send budget or read or change its numbers (T-804b)", async () => {
+      for (const sql of [
+        "SELECT * FROM public.take_send_budget('phone')",
+        "SELECT * FROM public.platform_send_budget",
+        "UPDATE public.platform_send_budget SET cap = 0",
+        "SELECT public.platform_send_budget_settles()",
+      ]) {
+        await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+    });
+
+    it("leaves the API role only reading the send budget's numbers, never changing them (T-804b)", async () => {
+      for (const sql of [
+        "UPDATE public.platform_send_budget SET cap = 1000000",
+        "INSERT INTO public.platform_send_budget (channel, cap, window_seconds) VALUES ('phone', 1, 1)",
+        "DELETE FROM public.platform_send_budget",
+      ]) {
+        await expect(db.app.query(sql), sql).rejects.toThrow(/permission denied/);
+      }
+      const budget = await db.app.query("SELECT channel, cap FROM public.platform_send_budget");
+      expect(budget.rows).toHaveLength(2);
+    });
+
     it("cannot show or scan a meet code, read one, or reach the meet helpers (T-303c)", async () => {
       for (const sql of [
         "SELECT * FROM public.meet_pass",

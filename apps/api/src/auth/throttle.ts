@@ -33,6 +33,9 @@ export const BUCKETS = {
   playerCodeAddress: "player_code_address",
   playerFailContact: "player_fail_contact",
   playerFailAddress: "player_fail_address",
+  playerVerifiedContact: "player_verified_contact",
+  playerVerifiedPhoneAddress: "player_verified_phone_address",
+  playerVerifiedEmailAddress: "player_verified_email_address",
   smsPlatform: "sms_platform",
   playerEmailPlatform: "player_email_platform",
   joinCodeMiss: "join_code_miss",
@@ -139,6 +142,42 @@ export async function countRecent(
   );
   const row = rows[0];
   return { count: row?.count ?? 0, retryAfterSeconds: Math.max(row?.retry_after ?? 0, 1) };
+}
+
+/**
+ * `countRecent` for several windows in one round trip (the sign-in rush, T-804b), answered in the order given. A key
+ * may appear in more than one window (an hour and a day over the same rows).
+ */
+export async function countWindows(
+  db: Db,
+  windows: ReadonlyArray<Readonly<{ bucket: Bucket; key: Buffer; windowSeconds: number }>>,
+): Promise<Window[]> {
+  const { rows } = await db.query<{ count: number; retry_after: number | null }>(
+    `SELECT count(t.at)::int AS count,
+            ceil(extract(epoch FROM min(t.at) + make_interval(secs => w.secs) - now()))::int AS retry_after
+     FROM unnest($1::text[], $2::bytea[], $3::int[]) WITH ORDINALITY AS w(bucket, key, secs, i)
+     LEFT JOIN auth_throttle t
+       ON t.bucket = w.bucket AND t.key = w.key AND t.at > now() - make_interval(secs => w.secs)
+     GROUP BY w.i, w.secs
+     ORDER BY w.i`,
+    [windows.map((w) => w.bucket), windows.map((w) => w.key), windows.map((w) => w.windowSeconds)],
+  );
+  return rows.map((row) => ({
+    count: row.count,
+    retryAfterSeconds: Math.max(row.retry_after ?? 0, 1),
+  }));
+}
+
+/** Records one attempt for each bucket and key in one round trip. */
+export async function recordMany(
+  db: Db,
+  attempts: ReadonlyArray<Readonly<{ bucket: Bucket; key: Buffer }>>,
+): Promise<void> {
+  await db.query(
+    `INSERT INTO auth_throttle (bucket, key, at)
+     SELECT a.bucket, a.key, clock_timestamp() FROM unnest($1::text[], $2::bytea[]) AS a(bucket, key)`,
+    [attempts.map((a) => a.bucket), attempts.map((a) => a.key)],
+  );
 }
 
 /** Records one attempt and returns its exact time (as text, so no precision is lost) to undo it later. */

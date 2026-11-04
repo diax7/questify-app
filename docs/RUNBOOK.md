@@ -177,15 +177,27 @@ that is shared or written to disk (today's is in memory, per process).
 - **Before the first real SMS from a server:** Msegat may reject calls from an unregistered address (`M0037`). Register
   the API's outbound address in the Msegat account or switch the static-IP check off there.
 - **Log events** (never a phone, email, code or token): `player.code_sent {channel, outcome}` (`unknown_timeout` and
-  the like mean the text may still arrive), `player.sms_refused {gateway, reason}` with Msegat's code, `player.budget_half`
-  / `player.budget_spent {channel}`, `player.throttled`, `player.code_failed`, `player.signed_in`, `player.signed_up`,
+  the like mean the text may still arrive), `player.sms_refused {gateway, reason}` with Msegat's code,
+  `player.budget_spent {channel}`, `player.budget_busy {channel}` (the budget stayed busy through three quick retries:
+  answered 429 with `Retry-After: 1`), `player.budget_give_back_failed {channel, reason}` (a refused request's unit stays
+  used: harmless, it only under-spends), `player.throttled`, `player.code_failed`, `player.signed_in`, `player.signed_up`,
   `player.refresh_reuse`.
 - **`sms_refused` reasons:** `1060` the balance is spent (top up the Msegat account; players meanwhile use email);
   `M0037` the static-IP check; `1110` the sender name is wrong or not activated; `1120` the number or international
   sending; `unreachable` Msegat could not be reached twice; `not_configured` no Msegat settings.
-- **Budgets:** at most 5,000 login SMS an hour on the whole platform (`smsPerHour`, a warning at half; Q-093) and 1,000
-  player email codes a day (`playerEmailsPerDay`, below the mailbox quota so staff codes always have room, ADR-117).
-  A spent budget answers 503 until the window moves on. Tuning numbers live in `apps/api/src/auth/limits.ts`.
+- **Budgets:** at most 5,000 login SMS an hour on the whole platform (Q-093) and 1,000 player email codes a day (below
+  the mailbox quota so staff codes always have room, ADR-117). They are rows of `platform_send_budget` (T-804b,
+  ADR-690); a spent budget answers 503 until the window moves on. The per-contact, per-install and per-address numbers
+  live in `apps/api/src/auth/limits.ts`.
+- **Changing the platform budget** (no deploy, no store release; Q-093's number is Dhia's): as the database owner,
+  `UPDATE platform_send_budget SET cap = <n> WHERE channel = 'phone';` (`'email'` for player email codes;
+  `window_seconds` likewise). A higher cap counts from the next request. A lower cap, or a longer window, settles for one
+  window: the trigger stamps `changed_at` and the budget then takes one request at a time (exact, never over the new
+  cap), so lower it outside an event's opening. Read it back with `SELECT * FROM platform_send_budget;`.
+- **Deploying migration 0150** (T-804b): deploy outside an event's opening. The window's rows of the old single budget
+  keys are copied into the 16 stripes, so the hour's history counts; while an instance of the previous release still
+  runs, each release counts only its own keys, so the budget can be exceeded by what the old instances send in those
+  seconds. A rollback still sees the old rows.
 - **Freeing a contact or an address** (a player locked out by someone else's wrong guesses, SECURITY.md): the counts
   are rows in `auth_throttle` (buckets `player_code_contact`, `player_code_device`, `player_code_address`,
   `player_fail_contact`, `player_fail_address`), keyed by `contactThrottleKey` of the stored phone (`+9665…`) or
@@ -665,7 +677,7 @@ Firebase project, the service account; a parked notice shows its SQLSTATE and re
 More than 20% of SMS are refused or lost over 15 minutes. Players can still sign in by email. **Check:** `player.sms_refused {gateway,
 reason}` lines: `1060` the Msegat balance is spent (top up), `M0037` the static-IP check, `1110` the sender name, `1120` the number or
 international sending, `unreachable` Msegat did not answer twice. **Do:** "Player sign-in and SMS" has each fix. The budget lines
-(`player.budget_half`, `player.budget_spent`) say whether the platform's own hourly limit is the cause.
+(`player.budget_spent`) say whether the platform's own hourly limit is the cause.
 
 ### QuestifySignInThrottleSpike
 
@@ -680,10 +692,10 @@ traffic is a manual query until T-018b adds the aggregate.
 
 ### QuestifySendBudgetSpent
 
-`player.budget_spent` (the hourly SMS budget `smsPerHour` or the daily player email budget) or `staff.outbound_cap` (the day's 400
+`player.budget_spent` (the hourly SMS budget or the daily player email budget, `platform_send_budget`) or `staff.outbound_cap` (the day's 400
 sign-up and invitation emails) was reached, so the next request is answered 503 until the window moves. **Check:** whether it is an
-event (many real sign-ups) or abuse (many sign-ups from one `addr`). **Do:** real demand: raise the number in
-`apps/api/src/auth/limits.ts` and deploy (SMS costs money: check the Msegat balance first, `QuestifySmsFailing`); abuse: as for
+event (many real sign-ups) or abuse (many sign-ups from one `addr`). **Do:** real demand: raise the cap with one `UPDATE`
+("Player sign-in and SMS", "Changing the platform budget"; staff mail: `apps/api/src/auth/limits.ts` and deploy) (SMS costs money: check the Msegat balance first, `QuestifySmsFailing`); abuse: as for
 `QuestifySignInThrottleSpike`.
 
 ### QuestifyEmailFailing

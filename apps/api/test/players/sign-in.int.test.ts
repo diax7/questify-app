@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import type { LightMyRequestResponse } from "fastify";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { loggerOptions } from "#src/app";
@@ -10,6 +10,7 @@ import {
   seedTwoTenants,
   type TestDatabase,
 } from "#test/support/test-db";
+import { withSendBudgetCap } from "#test/support/send-budget";
 
 type Sent = { challengeToken: string };
 type Issued = {
@@ -325,30 +326,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in", () => {
 
     it("refuses SMS for the whole platform once the hour's ceiling is spent, and email once the day's is", async () => {
       const ceilings = [
-        ["sms_platform", "questify.sms_platform", L.smsPerHour.max, newPhone(), "sms_unavailable"],
-        [
-          "player_email_platform",
-          "questify.player_email_platform",
-          L.playerEmailsPerDay.max,
-          newEmail(),
-          "email_unavailable",
-        ],
+        ["phone", newPhone(), "sms_unavailable"],
+        ["email", newEmail(), "email_unavailable"],
       ] as const;
-      for (const [bucket, name, max, contact, code] of ceilings) {
-        const key = createHash("sha256").update(name).digest();
-        // Exactly the ceiling: earlier sends in this file are in the same bucket.
-        await owner("DELETE FROM auth_throttle WHERE bucket = $1", [bucket]);
-        await owner(
-          "INSERT INTO auth_throttle (bucket, key, at) SELECT $1, $2, now() FROM generate_series(1, $3)",
-          [bucket, key, max],
-        );
-        try {
+      for (const [channel, contact, code] of ceilings) {
+        await withSendBudgetCap(owner, channel, 0, async () => {
           const refused = await askCode(contact);
           expect(refused.statusCode).toBe(503);
           expect(refused.json()).toMatchObject({ code });
-        } finally {
-          await owner("DELETE FROM auth_throttle WHERE bucket = $1", [bucket]);
-        }
+        });
       }
     });
   });

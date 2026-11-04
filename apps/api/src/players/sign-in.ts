@@ -29,10 +29,13 @@ import {
   failureCounts,
   firstFull,
   recordAll,
+  recordVerified,
   sendCounts,
-  takePlatformBudget,
+  withSendBudget,
   type Channel,
+  type Count,
   type Throttled,
+  type Unavailable,
 } from "#src/players/sign-in-limits";
 import type { SmsSender } from "#src/players/sms";
 
@@ -58,8 +61,6 @@ export type Issued = Readonly<{
   expiresInSeconds: number;
   player: Readonly<{ id: string; username: string; avatar: Avatar }>;
 }>;
-
-type Unavailable = Readonly<{ kind: "sms_unavailable" | "email_unavailable" }>;
 
 export type CodeRequestResult =
   | Readonly<{
@@ -188,31 +189,43 @@ async function cancelChallenge(deps: PlayerSignInDeps, challengeToken: string): 
 }
 
 /**
- * Holds one send against the contact, install and address windows and the platform budget, all under a lock on the
- * contact, inside the caller's transaction. Undefined means the send may go and is counted.
+ * The send windows read without a lock, before the platform budget is touched: a flood of throttled requests never
+ * takes or holds a unit (ADR-690). The same windows are read again under the contact's lock in the transaction.
  */
-async function takeSend(
+export async function windowsRefuse(
   deps: PlayerSignInDeps,
   client: PoolClient,
-  contact: Contact,
+  counts: readonly Count[],
   asker: Asker,
-): Promise<Throttled | Unavailable | undefined> {
-  const counts = sendCounts(deps.keys, contact.value, asker.address, asker.deviceId);
-  if (!(await tryLock(client, deps.keys.contactThrottleKey(contact.value)))) {
-    return { kind: "throttled", retryAfterSeconds: 1 };
-  }
+  where: Readonly<{ step: string; channel: Channel }>,
+): Promise<Throttled | undefined> {
   const full = await firstFull(client, counts);
   if (full !== undefined) {
-    say(deps, asker, "player.throttled", { step: "code", channel: contact.channel });
+    say(deps, asker, "player.throttled", where);
+  }
+  return full;
+}
+
+/**
+ * Holds one send against the contact, install and address windows under a lock on the contact, inside the caller's
+ * transaction. Undefined means the send may go and is counted. The platform budget is held apart (`withSendBudget`).
+ */
+export async function holdWindows(
+  deps: PlayerSignInDeps,
+  client: PoolClient,
+  counts: readonly Count[],
+  asker: Asker,
+  where: Readonly<{ step: string; channel: Channel; contact: string }>,
+): Promise<Throttled | undefined> {
+  if (!(await tryLock(client, deps.keys.contactThrottleKey(where.contact)))) {
+    return { kind: "throttled", retryAfterSeconds: 1 };
+  }
+  const full = await windowsRefuse(deps, client, counts, asker, {
+    step: where.step,
+    channel: where.channel,
+  });
+  if (full !== undefined) {
     return full;
-  }
-  const budget = await takePlatformBudget(client, contact.channel);
-  if (budget === "spent") {
-    say(deps, asker, "player.budget_spent", { channel: contact.channel });
-    return { kind: contact.channel === "phone" ? "sms_unavailable" : "email_unavailable" };
-  }
-  if (budget === "half") {
-    say(deps, asker, "player.budget_half", { channel: contact.channel });
   }
   await recordAll(client, counts);
   return undefined;
@@ -258,36 +271,65 @@ async function deliver(
 /** `reviewer`: the App Review phone while its window is open (T-710, ADR-561): nothing is sent for it. */
 type Opened = Readonly<{ kind: "opened"; challengeToken: string; code: string; reviewer: boolean }>;
 
+async function startChallenge(
+  deps: PlayerSignInDeps,
+  client: PoolClient,
+  contact: Contact,
+  accept: SignupAcceptance,
+  counts: readonly Count[],
+  asker: Asker,
+): Promise<Opened | Throttled> {
+  const where = { step: "code", channel: contact.channel, contact: contact.value };
+  const refused = await holdWindows(deps, client, counts, asker, where);
+  if (refused !== undefined) {
+    return refused;
+  }
+  const id = randomUUID();
+  const token = generateToken();
+  const code = generateCode();
+  const { rows } = await client.query<{ reviewer: boolean }>(
+    "SELECT start_player_challenge($1, $2, $3, $4, $5, $6, $7, $8, $9) AS reviewer",
+    [
+      id,
+      tokenHash(token.token),
+      contact.channel,
+      contact.value,
+      deps.keys.contactLookupKey(contact.value),
+      deps.keys.playerCodeHash(id, code),
+      accept.terms,
+      accept.privacy,
+      deps.keys.deletionFingerprint(contact.value),
+    ],
+  );
+  const reviewer = onlyRow(rows, "start_player_challenge").reviewer;
+  return { kind: "opened", challengeToken: token.token, code, reviewer } as const;
+}
+
+/**
+ * The windows without a lock, then one unit of the platform budget in its own statement, then the challenge in the
+ * request's transaction. The unit is given back unless a code goes out (the App Review phone gets none).
+ */
 async function openChallenge(
   deps: PlayerSignInDeps,
   contact: Contact,
   accept: SignupAcceptance,
   asker: Asker,
 ): Promise<Opened | Throttled | Unavailable> {
-  return inTransaction(deps, async (client) => {
-    const refused = await takeSend(deps, client, contact, asker);
-    if (refused !== undefined) {
-      return refused;
+  const counts = sendCounts(deps.keys, contact, asker.address, asker.deviceId);
+  return withConnection(deps.pool, async (client) => {
+    const where = { step: "code", channel: contact.channel };
+    const early = await windowsRefuse(deps, client, counts, asker, where);
+    if (early !== undefined) {
+      return early;
     }
-    const id = randomUUID();
-    const token = generateToken();
-    const code = generateCode();
-    const { rows } = await client.query<{ reviewer: boolean }>(
-      "SELECT start_player_challenge($1, $2, $3, $4, $5, $6, $7, $8, $9) AS reviewer",
-      [
-        id,
-        tokenHash(token.token),
-        contact.channel,
-        contact.value,
-        deps.keys.contactLookupKey(contact.value),
-        deps.keys.playerCodeHash(id, code),
-        accept.terms,
-        accept.privacy,
-        deps.keys.deletionFingerprint(contact.value),
-      ],
+    return withSendBudget(
+      { deps, asker, client, channel: contact.channel },
+      () =>
+        withRequestContext(client, {}, () =>
+          startChallenge(deps, client, contact, accept, counts, asker),
+        ),
+      (opened) => opened.kind === "opened" && !opened.reviewer,
     );
-    const reviewer = onlyRow(rows, "start_player_challenge").reviewer;
-    return { kind: "opened", challengeToken: token.token, code, reviewer } as const;
   });
 }
 
@@ -374,44 +416,87 @@ type Resending =
   | Readonly<{ kind: "resending"; contact: Contact; code: string }>
   | Readonly<{ kind: "reviewer" }>;
 
+/** Why a challenge cannot be resent now, or the challenge to resend. */
+function resendRefusal(challenge: LiveChallenge | undefined): Resending | LiveChallenge {
+  if (challenge === undefined) {
+    return { kind: "challenge_expired" };
+  }
+  if (challenge.reviewer) {
+    return { kind: "reviewer" };
+  }
+  if (challenge.resends >= L.maxResends) {
+    return { kind: "resend_limit" };
+  }
+  // Stryker disable next-line EqualityOperator: equivalent: fractional seconds from the database clock are never exactly 60
+  if (challenge.seconds_since_sent < L.resendSpacingSeconds) {
+    return {
+      kind: "resend_too_soon",
+      retryAfterSeconds: Math.ceil(L.resendSpacingSeconds - challenge.seconds_since_sent),
+    };
+  }
+  return challenge;
+}
+
+/** The resend in the request's transaction: the challenge read again, the windows under the contact's lock, the code. */
+async function resendInTransaction(
+  deps: PlayerSignInDeps,
+  client: PoolClient,
+  hash: Buffer,
+  asker: Asker,
+): Promise<Resending> {
+  const challenge = resendRefusal(await liveChallenge(client, hash));
+  if ("kind" in challenge) {
+    return challenge;
+  }
+  const contact = { channel: challenge.channel, value: challenge.contact };
+  const counts = sendCounts(deps.keys, contact, asker.address, asker.deviceId);
+  const where = { step: "code", channel: contact.channel, contact: contact.value };
+  const refused = await holdWindows(deps, client, counts, asker, where);
+  if (refused !== undefined) {
+    return refused;
+  }
+  const code = generateCode();
+  const { rows } = await client.query<{ ok: boolean }>(
+    "SELECT resend_player_challenge($1, $2) AS ok",
+    [hash, deps.keys.playerCodeHash(challenge.id, code)],
+  );
+  // Stryker disable next-line ConditionalExpression: defence in depth: the checks above already refused what the function refuses
+  return onlyRow(rows, "resend_player_challenge").ok
+    ? { kind: "resending", contact, code }
+    : // Stryker disable next-line ObjectLiteral,StringLiteral: defence in depth: the checks above already refused what the function refuses
+      { kind: "resend_limit" };
+}
+
+/**
+ * The challenge and the windows are read first without a lock, so a refused resend never touches the platform budget;
+ * then one unit is held for the channel and the resend runs in its own transaction, given back unless a code goes.
+ */
 async function prepareResend(
   deps: PlayerSignInDeps,
   hash: Buffer,
   asker: Asker,
 ): Promise<Resending> {
-  return inTransaction(deps, async (client): Promise<Resending> => {
-    const challenge = await liveChallenge(client, hash);
-    if (challenge === undefined) {
-      return { kind: "challenge_expired" };
-    }
-    if (challenge.reviewer) {
-      return { kind: "reviewer" };
-    }
-    if (challenge.resends >= L.maxResends) {
-      return { kind: "resend_limit" };
-    }
-    // Stryker disable next-line EqualityOperator: equivalent: fractional seconds from the database clock are never exactly 60
-    if (challenge.seconds_since_sent < L.resendSpacingSeconds) {
-      return {
-        kind: "resend_too_soon",
-        retryAfterSeconds: Math.ceil(L.resendSpacingSeconds - challenge.seconds_since_sent),
-      };
-    }
-    const contact = { channel: challenge.channel, value: challenge.contact };
-    const refused = await takeSend(deps, client, contact, asker);
-    if (refused !== undefined) {
-      return refused;
-    }
-    const code = generateCode();
-    const { rows } = await client.query<{ ok: boolean }>(
-      "SELECT resend_player_challenge($1, $2) AS ok",
-      [hash, deps.keys.playerCodeHash(challenge.id, code)],
+  return withConnection(deps.pool, async (client): Promise<Resending> => {
+    const first = resendRefusal(
+      await withRequestContext(client, {}, () => liveChallenge(client, hash)),
     );
-    // Stryker disable next-line ConditionalExpression: defence in depth: the checks above already refused what the function refuses
-    return onlyRow(rows, "resend_player_challenge").ok
-      ? { kind: "resending", contact, code }
-      : // Stryker disable next-line ObjectLiteral,StringLiteral: defence in depth: the checks above already refused what the function refuses
-        { kind: "resend_limit" };
+    if ("kind" in first) {
+      return first;
+    }
+    const contact = { channel: first.channel, value: first.contact };
+    const counts = sendCounts(deps.keys, contact, asker.address, asker.deviceId);
+    const early = await windowsRefuse(deps, client, counts, asker, {
+      step: "code",
+      channel: contact.channel,
+    });
+    if (early !== undefined) {
+      return early;
+    }
+    return withSendBudget(
+      { deps, asker, client, channel: contact.channel },
+      () => withRequestContext(client, {}, () => resendInTransaction(deps, client, hash, asker)),
+      (prepared) => prepared.kind === "resending",
+    );
   });
 }
 
@@ -500,6 +585,29 @@ const VERDICTS: Readonly<
   new: (_left, _id, signupToken) => ({ kind: "new", signupToken }),
 };
 
+/**
+ * Counts what a typed code did, in the judging transaction: a right one earns its address room (ADR-691), a wrong one
+ * counts in the failure windows (and warns when the App Review phone is being guessed).
+ */
+async function countOutcome(
+  deps: PlayerSignInDeps,
+  client: PoolClient,
+  judged: Readonly<{ outcome: string; challenge: LiveChallenge; counts: readonly Count[] }>,
+  asker: Asker,
+): Promise<void> {
+  const { outcome, challenge, counts } = judged;
+  if (outcome === "signed_in" || outcome === "new") {
+    const contact = { channel: challenge.channel, value: challenge.contact };
+    await recordVerified(client, deps.keys, contact, asker.address);
+  }
+  if (outcome === "wrong") {
+    await recordAll(client, counts);
+    if (challenge.reviewer) {
+      await warnGuessing(deps, client, challenge.contact, asker);
+    }
+  }
+}
+
 /** Checks the code under a lock on the contact, inside the failure windows; only a wrong code is counted. */
 async function judge(
   deps: PlayerSignInDeps,
@@ -513,7 +621,8 @@ async function judge(
     if (challenge === undefined) {
       return { kind: "challenge_expired" };
     }
-    const counts = failureCounts(deps.keys, challenge.contact, asker.address);
+    const contact = { channel: challenge.channel, value: challenge.contact };
+    const counts = failureCounts(deps.keys, contact, asker.address);
     if (!(await tryLock(client, deps.keys.contactThrottleKey(challenge.contact)))) {
       return { kind: "throttled", retryAfterSeconds: 1 };
     }
@@ -536,12 +645,7 @@ async function judge(
       deps.keys.reviewerCodeHash(typedCode(input.code)),
     ]);
     const row = onlyRow(rows, "sign_in_player");
-    if (row.outcome === "wrong") {
-      await recordAll(client, counts);
-      if (challenge.reviewer) {
-        await warnGuessing(deps, client, challenge.contact, asker);
-      }
-    }
+    await countOutcome(deps, client, { outcome: row.outcome, challenge, counts }, asker);
     const verdict = VERDICTS[row.outcome];
     // Stryker disable next-line ConditionalExpression,ObjectLiteral,StringLiteral: unreachable: sign_in_player has only these five outcomes
     return verdict === undefined

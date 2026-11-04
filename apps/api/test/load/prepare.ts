@@ -22,7 +22,8 @@ import { createTestDatabase } from "#test/support/test-db";
  * `drop <database> <redis prefix>`: drops the database and deletes the run's Redis keys.
  *
  * Settings: TEST_DATABASE_URL (the admin URL), LOAD_REDIS_URL, LOAD_EVENTS, LOAD_PLAYERS (per event), LOAD_QUESTS,
- * LOAD_BIG_EVENT (players of event 1 when above 0, for a skewed seed).
+ * LOAD_BIG_EVENT (players of event 1 when above 0, for a skewed seed), LOAD_SMS_CAP and LOAD_EMAIL_CAP (the platform
+ * send budget of the run, `platform_send_budget`, T-804b; a fresh database has no sends, so the cap is set settled).
  */
 const NAME = /^questify_test_[0-9]{10}_[0-9a-f]{12}$/;
 const PREFIX = /^load:[0-9a-f]{12}:$/;
@@ -100,6 +101,23 @@ async function seedPlayers(owner: Client, sizes: Sizes, seed: string): Promise<v
 type QuestRow = { event_id: string; id: string; title_en: string; qr_version: number };
 type PlayerRow = { event_id: string; username: string; token: string };
 
+/** Sets the run's platform send budget; the database is fresh, so the lowered cap needs no settling window. */
+async function setBudget(owner: Client, sizes: Readonly<{ sms: number; email: number }>) {
+  for (const [channel, cap] of [
+    ["phone", sizes.sms],
+    ["email", sizes.email],
+  ] as const) {
+    await owner.query("UPDATE platform_send_budget SET cap = $2 WHERE channel = $1", [
+      channel,
+      cap,
+    ]);
+    await owner.query(
+      "UPDATE platform_send_budget SET changed_at = '-infinity' WHERE channel = $1",
+      [channel],
+    );
+  }
+}
+
 async function planOf(owner: Client, seed: string) {
   const quests = await owner.query<QuestRow>(
     `SELECT q.event_id, q.id, q.title_en, q.qr_version FROM quest q JOIN event e ON e.id = q.event_id
@@ -161,6 +179,10 @@ async function create(planFile: string): Promise<void> {
     await db.owner.query(`ALTER DATABASE ${database} SET track_functions = 'all'`);
     await seedEvents(db.owner, sizes);
     await seedPlayers(db.owner, sizes, seed);
+    await setBudget(db.owner, {
+      sms: sizeOf("LOAD_SMS_CAP", 1_000_000, 0),
+      email: sizeOf("LOAD_EMAIL_CAP", 1_000_000, 0),
+    });
     const inForce = await readInForce(db.owner);
     const version = (document: string) =>
       inForce.find((row) => row.document === document)?.version ?? "1";

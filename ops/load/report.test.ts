@@ -109,7 +109,23 @@ describe("rushReport", () => {
         ratePerSecond: 50,
         statuses: { "202": 2 },
         latency: { count: 2, p50: 10, p95: 20, p99: 20, max: 20, mean: 15 },
+        latencyByStatus: {},
       },
     ]);
+  });
+
+  it("summarizes each answer's latency apart, so the refusals after a spent budget show their own p95", () => {
+    const [step] = rushReport([
+      {
+        ratePerSecond: 300,
+        fromIntended: [10, 20, 5],
+        statuses: { "202": 2, "503": 1 },
+        byStatus: { "202": [10, 20], "503": [5] },
+      },
+    ]);
+    expect(step?.latencyByStatus).toEqual({
+      "202": { count: 2, p50: 10, p95: 20, p99: 20, max: 20, mean: 15 },
+      "503": { count: 1, p50: 5, p95: 5, p99: 5, max: 5, mean: 5 },
+    });
   });
 });

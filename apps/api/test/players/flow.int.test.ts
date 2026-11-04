@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
@@ -16,6 +16,7 @@ import {
   testConfig,
 } from "#test/support/auth-app";
 import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
+import { withSendBudgetCap } from "#test/support/send-budget";
 
 type Logged = Readonly<{ event: string; fields: Record<string, unknown> }>;
 
@@ -160,35 +161,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the player sign-in flow", () =
       expect(fieldsOf("player.throttled")).toMatchObject({ step: "code", channel: "phone" });
     });
 
-    it("warns once the platform's SMS budget reaches half, and logs when it is spent", async () => {
-      const key = createHash("sha256").update("questify.sms_platform").digest();
-      const half = Math.floor(L.smsPerHour.max / 2);
-      // Earlier sends in this file are in the same bucket: start from an exact count.
-      await owner("DELETE FROM auth_throttle WHERE bucket = 'sms_platform'");
-      await owner(
-        "INSERT INTO auth_throttle (bucket, key, at) SELECT 'sms_platform', $1, now() FROM generate_series(1, $2)",
-        [key, half - 2],
-      );
-      try {
-        await ask(newPhone());
-        expect(events()).not.toContain("player.budget_half");
-        await ask(newPhone());
-        expect(fieldsOf("player.budget_half")).toEqual({
-          addr: expect.any(String),
-          channel: "phone",
-        });
-        logged = [];
-        await ask(newPhone());
-        expect(events()).not.toContain("player.budget_half");
-        await owner(
-          "INSERT INTO auth_throttle (bucket, key, at) SELECT 'sms_platform', $1, now() FROM generate_series(1, $2)",
-          [key, L.smsPerHour.max],
-        );
+    it("logs when the platform's SMS budget is spent, with no half warning", async () => {
+      await ask(newPhone());
+      expect(events()).not.toContain("player.budget_half");
+      await withSendBudgetCap(owner, "phone", 0, async () => {
         expect(await ask(newPhone())).toEqual({ kind: "sms_unavailable" });
-        expect(fieldsOf("player.budget_spent")).toMatchObject({ channel: "phone" });
-      } finally {
-        await owner("DELETE FROM auth_throttle WHERE bucket = 'sms_platform'");
-      }
+      });
+      expect(fieldsOf("player.budget_spent")).toMatchObject({ channel: "phone" });
     });
   });
 
