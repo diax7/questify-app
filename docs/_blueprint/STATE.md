@@ -6,6 +6,28 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-804c built — 2026-11-04
+
+- **T-804c (tier A, ledger and sign-in; ADR-680 to ADR-682 and Q-640, Q-641 Proposed; ADR-671 to ADR-673 marked
+  built): migration 0149.** `complete_quest_answer` answers a completion in one statement (each part its own
+  function's answer; the ranking reads in their own exception block, so a ranking failure answers `rank: null`, logs
+  and marks the event and never undoes the completion); `player_request_gate` calls `player_session_owner` and
+  `player_legal_held` in one call; the ranking's six Lua scripts run by SHA1 through node-redis `defineScript`
+  (`createRankingRedis`), `WRITE_READ` declaring the union of its keys. A QR completion: 20 PostgreSQL statements and 2
+  Redis calls before, 5 and 1 after (a test holds it). From the T-804a review: the parity seed reaches every set part
+  and a catalog test fails on any new `LANGUAGE sql` definer or `SET` function (ADR-682). Tests: new
+  `test/db/completion-answer.int.test.ts` (column parity with the part functions, a missed first bonus, refusals passed
+  through, a broken ranking function with the completion committed, attributes, the gate with banned, reset, expired
+  and held), HTTP 401 for banned, reset and expired tokens on writes, `afterAnswer` and `upsertRead` (NOSCRIPT
+  reloaded) suites, outsider lines; two existing tests changed how they break the ranking (the door reads as its owner,
+  so a revoked grant no longer breaks it; same assertions). Green on 17 and on a throw-away 16.15 (10 files, 242
+  tests). Load (throw-away 17.11 with `pg_stat_statements`, ten events plus a 50,000-player event, three APIs, two
+  runs): 240 a second confirmed, 100% within 1 s, p95 94 and 95 ms, ranking 100% within 5 s, tallies matched,
+  PostgreSQL 5.1 to 5.9 cores; at 400 asked, 331 confirmed. Database time a completion, same container, 10 a second
+  before and after: about 23.5 ms both (`complete_quest` alone 14.7 ms, not touched here), so the 10 ms gate is not met
+  (Q-641); client mean 57.6 to 36.8 ms. Full suite once: 803 files and 12,632 tests passed (16 files, 18 tests skipped). Lint, types, `lint:limits`, `format:check` clean. CI minutes: 0; agent tokens roughly 0.9M (estimate).
+  **Next:** T-804c code review (tier A), mutation on `complete.ts`, `ranking.ts`, `store.ts`, `guard.ts`.
+
 ## T-804a part A built — 2026-11-04
 
 - **T-804a part A (tier A, ledger; ADR-670 and ADR-674 updated, Proposed; Q-631 answered by Dhia, Q-630 deferred to

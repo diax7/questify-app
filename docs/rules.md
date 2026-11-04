@@ -73,7 +73,8 @@ Database and routes (foundation review, 2026-10-19):
   PL/pgSQL keeps the plan per connection. A scalar is `SELECT ... INTO` (first row, NULL on none), never
   `RETURN (subquery)`. A standard-body (`BEGIN ATOMIC`) function that is not a definer stays SQL with no `SET` clause,
   so it is inlined. The completion path is held to this by `test/db/hot-path-plpgsql.int.test.ts` (T-804a, ADR-670:
-  33.5 ms of database time a completion became 10.9 ms).
+  33.5 ms of database time a completion became 10.9 ms); a new `LANGUAGE sql` function that is a definer or has a
+  `SET` clause fails that file's catalog test, whose allowlist (`sql-settings-allowlist.json`) only shrinks (ADR-682).
 
 ## Error handling
 

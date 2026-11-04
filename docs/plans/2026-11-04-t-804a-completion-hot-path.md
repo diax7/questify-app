@@ -361,3 +361,27 @@ second asked, 60 s after 10 s warm-up, the same throw-away 17.11):
 Median of the two after runs: **200 a second, 98.0% within 1 s, p95 518 ms**; the gate (200 a second at 95%) is met.
 Every run's completions, ledger rows and scores matched (before: 10,993 written for 3,136 confirmed answers, the
 points-after-give-up case of Q-633). T-804c (parts B to D) is next.
+
+## 10. Parts B to D results (T-804c, built 2026-11-04)
+
+**What was built.** Migration 0149: `complete_quest_answer` and `player_request_gate` (ADR-680), the ranking scripts by
+SHA1 (ADR-681), the catalog guard and the richer parity seed (ADR-682). A QR completion: 5 PostgreSQL statements
+(gate; `BEGIN`, `set_config`, the door, `COMMIT`) and one Redis call (`WRITE_READ`; a second for a multi-day event's day
+board), held by a test in `test/ranking/ranking.int.test.ts`.
+
+**Load** (throw-away 17.11 with `pg_stat_statements`, `ANALYZE` after seeding, statistics reset after warm-up; ten
+events plus a 50,000-player event, three APIs, 60 s):
+
+| Run | Confirmed/s | p50 / p95 | within 1 s | ranking within 5 s (p95) | PostgreSQL CPU | API CPU |
+| --- | --- | --- | --- | --- | --- | --- |
+| 240/s, run 1 | 240 | 42 / 94 ms | 100% | 100% (449 ms) | 5.9 cores | 0.28 to 0.33 each |
+| 240/s, run 2 | 240 | 42 / 95 ms | 100% | 100% (456 ms) | 5.1 cores | 0.30 to 0.36 each |
+| 400/s | 331 | 4.8 / 15 s | 0% | 60% | 11.2 cores | 0.39 to 0.50 each |
+
+Every run's completions, ledger rows and scores matched.
+
+**Database time.** Same container, 10 completions a second for 60 s, before (0148's API) and after: about 23.5 ms of
+statement time a completion both ways (before: `complete_quest` 14.7 ms plus ten part and guard calls 9 ms; after:
+the door 22.2 ms plus the gate 1.2 ms); client mean 57.6 to 36.8 ms, p95 79.6 to 46.8 ms. Under load at 240 a second
+the door averaged 22.0 ms and the gate 0.73 ms. The work is the same; the round trips are gone. The 10 ms gate is not
+met and the two measuring methods disagree (Q-641).
