@@ -1,0 +1,90 @@
+import { Pool } from "pg";
+import { createClient, type RedisClientType } from "redis";
+import { buildApp } from "#src/app";
+import { poolOptions } from "#src/db/pool-options";
+import { MemoryIdempotencyStore } from "#src/idempotency-store";
+import { createFakeProvider } from "#src/push/fake";
+import { PUSH_TARGETS } from "#src/push/provider";
+import { createRankingStore } from "#src/ranking/store";
+import { qrSecret, required } from "#test/load/settings";
+import { testConfig } from "#test/support/auth-app";
+
+/**
+ * The API for the load test (T-804, ops/load): the product's app as `src/server.ts` builds it, with production's pool
+ * size, Redis options and background ticks, on a throw-away database. Test code only. Differences from production, on
+ * purpose: SMS and email are stubbed (they answer "sent" at once, as the tests' senders do), push goes to the fake
+ * provider, telemetry is off, and the Redis keys carry a prefix of this run so the cleanup can find them.
+ *
+ * Request logs are production's (pino at info on standard output; the harness discards them, so their cost stays).
+ * Settings: LOAD_DATABASE_URL (the API role's URL), LOAD_REDIS_URL, LOAD_REDIS_PREFIX, LOAD_PORT, DATABASE_POOL_SIZE.
+ */
+const REDIS_COMMAND_TIMEOUT_MS = 250;
+const REDIS_CONNECT_TIMEOUT_MS = 2000;
+const PRODUCTION_POOL_SIZE = 10;
+const PUSH_POOL_SIZE = 3;
+
+function createRedis(url: string, prefix: string): RedisClientType {
+  const client: RedisClientType = createClient({
+    url,
+    keyPrefix: prefix,
+    disableOfflineQueue: true,
+    commandOptions: { timeout: REDIS_COMMAND_TIMEOUT_MS },
+    socket: { connectTimeout: REDIS_CONNECT_TIMEOUT_MS, reconnectStrategy: () => 1000 },
+  });
+  client.on("error", (error: unknown) => {
+    process.stderr.write(`redis error: ${error instanceof Error ? error.message : "unknown"}\n`);
+  });
+  return client;
+}
+
+async function main(): Promise<void> {
+  const databaseUrl = required("LOAD_DATABASE_URL");
+  const poolSize = Number(process.env["DATABASE_POOL_SIZE"] ?? PRODUCTION_POOL_SIZE);
+  const config = {
+    ...testConfig(databaseUrl),
+    qrSecret: qrSecret(),
+    nodeEnv: "production" as const,
+    port: Number(required("LOAD_PORT")),
+    databasePoolSize: poolSize,
+  };
+  const pool = new Pool(poolOptions(config));
+  const pushPool = new Pool({ ...poolOptions(config), max: PUSH_POOL_SIZE });
+  const redis = createRedis(required("LOAD_REDIS_URL"), required("LOAD_REDIS_PREFIX"));
+  await redis.connect();
+  const sent = { send: () => Promise.resolve({ kind: "sent" as const }) };
+  const app = buildApp({
+    config,
+    idempotencyStore: new MemoryIdempotencyStore(),
+    pool,
+    emailSender: { name: "load-stub", send: () => Promise.resolve() },
+    breachCheck: () => Promise.resolve(false),
+    smsSender: { name: "load-stub", ...sent },
+    promoSmsSender: { name: "load-stub-promo", ...sent },
+    lifecycleIntervalMs: 30_000,
+    rankingStore: createRankingStore(redis),
+    rankingRepairIntervalMs: 2000,
+    communityIntervalMs: 5000,
+    souvenirIntervalMs: 5000,
+    invitationIntervalMs: 5000,
+    rankPushIntervalMs: 10_000,
+    organizerAlerts: { intervalMs: 60_000 },
+    teamAlertIntervalMs: 60_000,
+    push: { pool: pushPool, providers: PUSH_TARGETS.map((target) => createFakeProvider(target)) },
+  });
+  const stop = async (): Promise<void> => {
+    await app.close();
+    await pool.end();
+    await pushPool.end();
+    await redis.close();
+    process.exit(0);
+  };
+  process.once("SIGINT", () => void stop());
+  process.once("SIGTERM", () => void stop());
+  await app.listen({ host: "127.0.0.1", port: config.port });
+  process.stderr.write(`load api ready on ${config.port}\n`);
+}
+
+main().catch((error: unknown) => {
+  process.stderr.write(`load api: ${error instanceof Error ? error.message : String(error)}\n`);
+  process.exit(1);
+});

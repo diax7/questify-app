@@ -14,5 +14,13 @@
       "rules": { "unicorn/no-array-sort": "off" }
     }
   ],
-  "ignorePatterns": ["node_modules", "dist", "coverage", ".expo", "docs"]
+  "ignorePatterns": [
+    "node_modules",
+    "dist",
+    "coverage",
+    ".expo",
+    "docs",
+    "apps/api/test/load-bundle",
+    "ops/load/out"
+  ]
 }

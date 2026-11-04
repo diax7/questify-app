@@ -2493,3 +2493,49 @@ The CranL API cannot read some settings, so the files can set them at create but
 **Status:** Answered (Dhia, 2026-11-04: "Skip the proof"): no scratch environment; production is created at launch from the same RUNBOOK steps.
 `ops/cranl/production.json` declares production (three apps and two databases, daily backups at 03:00 Riyadh time keeping 30, the API sending telemetry to its own monitoring app, Q-582). The account is at its plan's limit of 20 apps and databases, and Dhia capped Questify at three apps and two databases (ADR-626). Creating production, or proving a fresh environment on a scratch copy, needs five free slots.
 **Recommended (developer):** decide whether production is three more apps and two more databases (the cap read per environment) or shares staging's slots; then run T-017b (RUNBOOK "Infrastructure as code on CranL", "A fresh environment").
+
+## Q-620 - The completion path is about 40 times too slow for NFR-003 at ten events (T-804, ADR-660)
+
+**Status:** Open (developer, 2026-11-04). Needs a tier A task; no product choice for Dhia.
+Measured on the dev PC (Ryzen 7 1700, 8 cores and 16 threads, 48 GB, Windows 10, Docker PostgreSQL 17.11, one API
+with a pool of 10, 10 events of 2,500 players and 20 quests): the most that meets NFR-002 is about **80 completions a
+second for all ten events together** (p95 245 ms, ranking p95 253 ms after the confirm); 95 a second fails (p95 1.65 s),
+110 fails (p95 6.8 s), and the target 3,333 a second collapses (16 of 149,504 confirmed within the app's 15 s; 1,626
+written). PostgreSQL is the limit: 6 to 7 of its cores busy at 80 to 110 a second (about 60 to 90 ms of database CPU per
+completion), while the API used 0.5 to 0.7 of one core and the client's own delay stayed at 14 ms p95. A pool of 30
+moved PostgreSQL to 10.5 cores and still failed at 110 a second (p95 2.6 s). Where the time goes
+(`pg_stat_user_functions`): `own_bonus`, `ranking_day_entry_of`, `own_level`, `ranking_eligible`, `own_quest_item`,
+`own_first_bonus`, `period_count` and the sign-in check `player_session_owner`, each 1 to 5 ms a call. They are
+`LANGUAGE sql` functions with `SECURITY DEFINER` or `SET search_path`, which PostgreSQL 17 cannot inline and plans
+anew on every call: `own_bonus` took 2.5 ms a call as written and 0.08 ms as the same query in `plpgsql` (plan cached),
+on an idle server. The schema has 494 `LANGUAGE sql` functions, 141 of them `SECURITY DEFINER`. On PostgreSQL 18.6
+(which caches plans for SQL functions; tried in a throw-away container, removed afterwards) the same code used about
+45% less database CPU: 110 a second gave p50 110 ms but p95 1.7 s, and 160 a second needed two API processes to reach
+93% within 1 s, where the single API process reached 87% of one core. A related finding: an overloaded API keeps
+working on requests whose phone has already given up, so points are granted after the app showed a failure (the
+idempotency key returns them on a retry); there is no load shedding before the database pool.
+**Recommended (developer):** a tier A task before the production-like rerun: (1) rewrite the completion path's hot
+functions (the list above, plus `complete_quest`'s other `LANGUAGE sql` callees) as `plpgsql`, in a new migration, with
+the ledger's tests unchanged; (2) find out CranL's PostgreSQL major version and ask for 18 if it is 17; (3) cut the
+completion's round trips (about 12 statements after `complete_quest`, each on the held connection) by returning the
+answer's parts from `complete_quest` itself; then rerun T-804 locally (`node ops/load/run.mjs`) before the
+production-like run. Even at PostgreSQL 18's cost, 3,333 a second needs roughly 130 database cores, so (1) and (3) are
+needed whatever the hardware. **Other options:** more hardware alone (does not reach the target); lowering NFR-003 to
+the measured figure (a product change for Dhia, not recommended before the rewrite is measured).
+
+## Q-621 - The sign-in rush: one platform lock, one address window and the SMS budget (T-804, T-107, Q-093)
+
+**Status:** Open (developer, 2026-11-04). Part (3) is Q-093's choice for Dhia.
+Measured with the SMS sender stubbed (as the tests do), new phones, 50 codes per client address, one API: every
+`POST /v1/auth/code` takes the platform budget's advisory lock inside its transaction, so codes are sent one at a time
+across the whole platform. 25, 50 and 100 a second answered 202 with p95 43 ms, 37 ms and 297 ms; 120 a second p95 2.3 s,
+150 a second p95 5.6 s, 175 a second p95 9.4 s (every request 202, just late). The ceiling is about **100 codes a second
+for the whole platform** (6,000 a minute) on this PC. Two rules then bite at an event's opening: (1) all 250 codes from
+one client address were tried at 50 a second and the 201st was refused (429): a venue's Wi-Fi or a carrier's shared
+address lets 200 people an hour sign in by SMS; (2) the platform's 5,000 SMS an hour (Q-093) is a quarter of ten
+events' 25,000 players, the rest are offered email.
+**Recommended (developer):** (1) replace the per-request platform lock with a counter the database updates without
+holding a lock across the transaction (one `UPDATE ... RETURNING` on a per-hour row, or a sequence per hour), so codes
+are limited by the budget, not by one lock; (2) raise the per-address window for players to about 2,000 an hour (the
+per-number and per-install windows still stop pumping), and keep the staff one; (3) settle Q-093's platform budget from
+the largest booked day before the first ten-event day. Measure again with `--skip-completions` after (1) and (2).
