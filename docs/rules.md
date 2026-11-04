@@ -68,6 +68,12 @@ Database and routes (foundation review, 2026-10-19):
   it, again at every call. Write the check in PL/pgSQL, call such functions in plain expressions (`IF`, `RETURN`
   without a subquery), and keep the queries free of them, or give the function no `SET` clause so it is inlined (T-501e,
   ADR-354 (5): a live poll's fan-out to 50,000 members fell from 336 s to about 27 s).
+- A function on a request path that cannot be inlined (`SECURITY DEFINER`, a `SET` clause, a sub-select, or a set
+  result) is PL/pgSQL, not `LANGUAGE sql`: PostgreSQL 16 and 17 plan a SQL function's statements on every call, and
+  PL/pgSQL keeps the plan per connection. A scalar is `SELECT ... INTO` (first row, NULL on none), never
+  `RETURN (subquery)`. A standard-body (`BEGIN ATOMIC`) function that is not a definer stays SQL with no `SET` clause,
+  so it is inlined. The completion path is held to this by `test/db/hot-path-plpgsql.int.test.ts` (T-804a, ADR-670:
+  33.5 ms of database time a completion became 10.9 ms).
 
 ## Error handling
 

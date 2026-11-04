@@ -395,7 +395,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("desk sale over HTTP", () => {
       });
       const secondsLeft = (Date.parse(sale.offerUntil) - Date.now()) / 1000;
       expect(secondsLeft).toBeGreaterThan(100);
-      expect(secondsLeft).toBeLessThanOrEqual(120);
+      // offerUntil is the database's now() plus 2 minutes; Docker's clock can run a few ms ahead of this process's, and
+      // since T-804a the offer answers within that gap (seen: 120.005 s left).
+      expect(secondsLeft).toBeLessThanOrEqual(120.5);
       const repeat = await offer(s);
       expect(repeat.statusCode).toBe(200);
       expect(repeat.json()).toMatchObject({ sale: { id: sale.id, replayed: true } });

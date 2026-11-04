@@ -460,7 +460,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("prize desk (database)", () => 
       expect(offer?.status).toBe("offered");
       const seconds = ((offer?.offer_until?.getTime() ?? 0) - Date.now()) / 1000;
       expect(seconds).toBeGreaterThan(100);
-      expect(seconds).toBeLessThanOrEqual(120);
+      // The database's clock (offer_until is its now() plus 2 minutes) can run a few ms ahead of this process's.
+      expect(seconds).toBeLessThanOrEqual(120.5);
 
       const [poll] = await call<{ status: string; offered: boolean }>(
         desk,

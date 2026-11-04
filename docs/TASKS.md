@@ -1513,7 +1513,45 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Done 2026-11-03 (tier B; not run on a phone; migration 0145, new and undeployed): `/console/intro` ("Intro cards" in the console navigation) lists the four intro cards (`join`, `quests`, `points`, `prizes`) as the Questify home editor's rows (drag, move buttons, show switch); none is always shown, Save waits while every card is hidden. One audited door (`admin_player_intro_save`, the 0119/0137 catalog pattern: `catalog.player_intro.update|revert`, revert through the audit log, CA409 `stale`, CA400 with the field) writes `platform_setting` key `playerIntro` = `{order, hidden}`; the catalog routes (new kind `player_intro`, `/v1/admin/catalog/player-intro`, the console `throttled` helper) clear the settings cache. `GET /v1/config` carries `playerIntro: {cards}`. The app resolves the order once when the intro opens (`resolveIntroOrder`: the last working copy at once, else the fresh configuration if it arrives within 1.5 s, else the shipped four; the first answer wins so the cards never change under the player; an unknown card name from a newer server is skipped, a list with none left is the shipped four) and plays the cards in it; after a join the "You're in {event}" card stands where the join card stands and is hidden with it (ADR-612). The cards' words stay in App texts. **Compliance change:** the intro now makes one anonymous `GET /v1/config` (plain client, no sign-in, nothing about the player); `intro-guards.test.ts` allows exactly that and still fails on any permission, tracking, push, sign-in or session use (ADR-611, Q-570; STORE_COMPLIANCE note). `loadHomeConfig` renamed `loadPlatformConfig` (two readers now). No new table or column, so nothing for the personal-data catalog. Tests: shared `player-intro` (20), `test/db/console-player-intro` (23), `test/console/player-intro` (8), the security suites (route table, outsider grants and direct writes, cross-tenant seats), app `intro-order` (10) and `intro-flow` (26 with the order cases) and `intro-guards` (3), web `console-intro` (4), `e2e/console-intro.spec.ts` (3, desktop; the phone run skips, one document for the platform) and `layout.spec.ts` on desktop and phone with the new page. `npx expo export --platform android` builds; tsc (shared, api, app, web), oxlint, oxfmt and function limits clean. **Local:** full vitest ONCE: 12,178 tests in 789 files; the shared Postgres ran out of shared memory (64 MB /dev/shm) with sixteen workers while other sessions used it and went into crash recovery, so 250 API files failed on hook timeouts and "connection terminated" (no assertion failed); all 250 were re-run (50 serially, then 200 with three workers) and passed (3,467 tests); the 524 other files passed in the first run. **Not built:** per-event intro cards, a fifth card, hiding the language step; the look on a phone is untried.
 - [ ] **T-803** Player web build of the app (a bonus) — delivers FR 1816; depends on: T-118
   - Done when: A player can sign in on the web, browse and play scan-free quests.
+- [x] **T-804a** Completion hot path, part A: the path's SQL functions stop being planned on every call (tier A,
+  ledger; plan `docs/plans/2026-11-04-t-804a-completion-hot-path.md`; ADR-670 to ADR-674, Q-630 to Q-634 Proposed) —
+  delivers no FR (NFR-002, NFR-003, NFR-025); depends on: T-804's harness (ADR-660)
+  - Split from T-804 (Q-620). After the plan review (82) the plan was built in two parts: part A here, parts B to D
+    (merged door, guard merge, Redis script) are T-804c.
+  - Done when (part A): attribute and call parity on PostgreSQL 17 and once on 16.15, the sequential profile at or
+    under 14 ms of database time a completion, and 200 completions a second for ten events with 95% within 1 s and the
+    ranking within 5 s (median of two runs), completions, ledger and scores matching, every existing test unchanged.
+  - Done 2026-11-04: migration 0148 (35 functions to plpgsql; the six standard-body ones inlined by dropping their
+    `SET search_path`); `test/db/hot-path-plpgsql.int.test.ts` and its fixture; sequential 33.5 to 10.9 ms of database
+    time a completion; at 200 a second with a 50,000-player event, before 52 a second confirmed and 0% within 1 s, after
+    200 a second, 98.0% within 1 s, p95 518 ms (median of two runs).
+- [ ] **T-804c** Completion hot path, parts B to D: one statement answers a completion, one player check per write, one
+  Redis script per completion (tier A, ledger and sign-in; plan `docs/plans/2026-11-04-t-804a-completion-hot-path.md`
+  sections 0 and 2 B to D; ADR-671 to ADR-673 Proposed) — delivers no FR (NFR-002, NFR-003, NFR-025); depends on:
+  T-804a
+  - From the T-804a plan review (score 82), to build in: the merged door `complete_quest_answer` never fails a
+    completion because of the ranking (the ranking reads in their own `BEGIN ... EXCEPTION WHEN OTHERS` block returning
+    NULL entries and `ranking_failed`; the API logs, marks and answers `rank: null` as `afterCompletion` does today),
+    with a test that forces a ranking error and checks the completion commits, and the door `VOLATILE`;
+    `player_request_gate` calls `player_session_owner` and `player_legal_held`, is revoked from PUBLIC by name, and is
+    tested with a banned player, a reset session and an expired token; the Redis script by node-redis `defineScript`
+    (EVALSHA with the NOSCRIPT fallback), `WRITE_READ` declaring the union of its keys, rebuild-then-read kept.
+  - From T-804a part A (plan section 9): seven existing plpgsql statements on the path are still planned on most calls
+    under `plan_cache_mode = auto` (the `event_streak_day` day count, the quest-open checks on `group_row` and
+    `proof_method`, the operator-play check); cheap (about 0.05 ms each) but worth a look in the profile.
+  - Done when: on this PC, at least 240 completions a second for ten events with 95% confirmed within 1 s and the
+    ranking within 5 s (median of two runs), completions, ledger and scores matching, the sequential profile at or under
+    10 ms of database time a completion, at most 5 PostgreSQL statements and one Redis call per QR completion, and every
+    existing ledger and security test unchanged.
+- [ ] **T-804b** Sign-in rush: the platform-wide code lock and the per-address limit on shared venue Wi-Fi (tier A,
+  sign-in; outline in `docs/plans/2026-11-04-t-804a-completion-hot-path.md` section 8; Q-621, Q-634) — delivers no FR;
+  depends on: T-804's harness
+  - Done when: the rush reaches 250 codes a second at p95 under 1 s on this PC, the SMS and email budgets are never
+    exceeded, and 2,000 players behind one address can ask for a code within an hour.
 - [ ] **T-804** Load test at 20,000 completions per minute per event and ten events at once — delivers no FR (infrastructure or quality gate); depends on: T-105, T-106
+  - Note 2026-11-04 (T-804a part A, ADR-670): with migration 0148 the same PC carries 200 completions a second for ten
+    events plus a 50,000-player event at 98.0% within 1 s (p95 518 ms, PostgreSQL 6.4 to 7.0 cores); before it, 52 a
+    second and 0% within 1 s. T-804c is next, then the production-like rerun.
   - Note 2026-11-04 (Dhia): the launch target is set from the biggest event day actually booked, not 20,000 a minute in each of ten events at once; the code is made fast now (T-804a) and the hardware is scaled when bookings need it. Asking CranL for database sizes waits for T-811 (Q-630, Q-631).
   - Done when: 95% of completions confirm within 1 second and the ranking within 5 seconds in the test.
   - Note 2026-10-20 (T-107): every `POST /v1/auth/code` waits its turn on one platform-wide lock (the SMS and email budgets). Measure sign-in at an event's opening rush here instead of assuming it.

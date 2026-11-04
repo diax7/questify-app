@@ -21,17 +21,21 @@ import { createTestDatabase } from "#test/support/test-db";
  *
  * `drop <database> <redis prefix>`: drops the database and deletes the run's Redis keys.
  *
- * Settings: TEST_DATABASE_URL (the admin URL), LOAD_REDIS_URL, LOAD_EVENTS, LOAD_PLAYERS (per event), LOAD_QUESTS.
+ * Settings: TEST_DATABASE_URL (the admin URL), LOAD_REDIS_URL, LOAD_EVENTS, LOAD_PLAYERS (per event), LOAD_QUESTS,
+ * LOAD_BIG_EVENT (players of event 1 when above 0, for a skewed seed).
  */
 const NAME = /^questify_test_[0-9]{10}_[0-9a-f]{12}$/;
 const PREFIX = /^load:[0-9a-f]{12}:$/;
 
-type Sizes = Readonly<{ events: number; players: number; quests: number }>;
+/** `bigEvent`: when above 0, event 1 gets this many players instead of `players` (a skewed event, ADR-674). */
+type Sizes = Readonly<{ events: number; players: number; quests: number; bigEvent: number }>;
 
-const sizeOf = (name: string, fallback: number): number => {
+const sizeOf = (name: string, fallback: number, least = 1): number => {
   const value = Number(process.env[name] ?? fallback);
-  if (!Number.isInteger(value) || value < 1) {
-    throw new Error(`${name} must be a whole number of at least 1; got "${process.env[name]}".`);
+  if (!Number.isInteger(value) || value < least) {
+    throw new Error(
+      `${name} must be a whole number of at least ${least}; got "${process.env[name]}".`,
+    );
   }
   return value;
 };
@@ -65,9 +69,10 @@ async function seedPlayers(owner: Client, sizes: Sizes, seed: string): Promise<v
   // Player n of event k is `ld<k>_<n>`; the probe of event k is `probe<k>`.
   await q(
     `INSERT INTO player (username)
-     SELECT 'ld' || k || '_' || n FROM generate_series(1, $1) k CROSS JOIN generate_series(1, $2) n
+     SELECT 'ld' || k || '_' || n
+     FROM generate_series(1, $1) k CROSS JOIN LATERAL generate_series(1, CASE WHEN k = 1 AND $3 > 0 THEN $3 ELSE $2 END) n
      UNION ALL SELECT 'probe' || k FROM generate_series(1, $1) k`,
-    [sizes.events, sizes.players],
+    [sizes.events, sizes.players, sizes.bigEvent],
   );
   await q(
     `INSERT INTO player_contact (player_id, phone_e164)
@@ -146,6 +151,7 @@ async function create(planFile: string): Promise<void> {
     events: sizeOf("LOAD_EVENTS", 10),
     players: sizeOf("LOAD_PLAYERS", 2500),
     quests: sizeOf("LOAD_QUESTS", 20),
+    bigEvent: sizeOf("LOAD_BIG_EVENT", 0, 0),
   };
   const db = await createTestDatabase();
   const database = new URL(db.appUrl).pathname.slice(1);

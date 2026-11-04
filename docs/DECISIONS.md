@@ -7781,3 +7781,82 @@ and keep; Node is already everywhere the repo runs.
 **Trade-offs:** one Node driver tops out at a few thousand requests a second, so the target needs several (`--drivers`);
 on one PC the client, the API and PostgreSQL share 16 threads, so a local run is a lower bound. The probe measures the
 top of the board, not a player's own place deep in it.
+
+## ADR-670 - T-804a request-path SQL functions that cannot be inlined are plpgsql; standard-body ones are inlined
+
+**Status:** Proposed (developer, 2026-11-04; T-804a part A built, migration 0148). Q-620, Q-632.
+**Decision:** (1) Migration 0148 restates with `CREATE OR REPLACE` (signature, owner, grants, `SECURITY DEFINER`,
+`SET search_path`, volatility, strictness, parallel safety and result taken word for word from `pg_get_functiondef`)
+the 35 `LANGUAGE sql` functions that a 2,000-completion profile showed called once or more per QR completion or player
+guard (`pg_stat_user_functions`, so none is inlined), as plpgsql: `#variable_conflict use_column` first; a scalar is
+`SELECT answer_row.v INTO found_value FROM (<the old query>) AS answer_row(v)` (first row, NULL on none, never an error
+on two rows); a set is `RETURN QUERY` of the old query; `boost_in_force` and `quest_boost` return NULL when no boost is
+in force; `flag_tuning` fills its OUT columns; `levels_reach` keeps its one data-modifying `WITH`, ending in `SELECT ...
+INTO`. (2) The six standard-body (`BEGIN ATOMIC`) functions on the path (`event_day`, `event_day_start`,
+`event_multi_day`, `questify_day`, `questify_month`, `streak_day_closed`) stay SQL and lose their `SET search_path`
+(`ALTER FUNCTION ... RESET`), so PostgreSQL inlines them: none is a definer and a standard body binds its names at
+creation, so the setting did nothing at run time (the plan had assumed they were already inlined; the profile showed
+`event_day` called 18 times a completion). (3) `docs/rules.md` gains the rule; `test/db/hot-path-plpgsql.int.test.ts`
+holds the path to it against `hot-path-plpgsql.fixture.json` (each function's 0147 attributes and original `CREATE`):
+attributes equal, every rewritten function called directly and run (`pg_stat_get_xact_function_calls`), each answer
+equal to the old SQL body's on the same arguments (the old bodies put back inside a rolled-back transaction), and the
+six shown inlined by `EXPLAIN (VERBOSE)`. A rollback migration is generated from the fixture's `definition` values.
+**Why:** PostgreSQL 16 and 17 plan every statement of a non-inlinable SQL function on every call; plpgsql caches the
+plan per connection. Measured on a throw-away PostgreSQL 17.11 with `pg_stat_statements` (ADR-674), the T-804 seed plus
+one 50,000-player event, 2,000 sequential QR completions on the same database before and after: database time a
+completion 33.5 ms to 10.9 ms, client mean 63.5 to 37.2 ms (`complete_quest` 13.5 to 6.7 ms, `ranking_day_entry_of` 4.5
+to 0.8, `own_bonus` 2.9 to 0.24). Forced custom plans cost 44.6 ms, forced generic 10.8 ms, `auto` 10.9 ms; no
+statement's generic plan ran more than 1.5 times and 0.05 ms slower than its custom plan except one existing streak
+check (+0.06 ms), and `EXPLAIN (GENERIC_PLAN)` of each converted query reaches every large table by index.
+**Trade-offs:** the other SQL functions keep the per-call planning cost until PostgreSQL 18 (Q-630); plpgsql bodies are
+checked only when run, hence the call-every-function test; the six inlined functions no longer pin `search_path` (only
+definer functions must, `player-sign-in` guard test); `use_column` is defensive (removing it changed no answer: no
+body has a name clash).
+
+## ADR-671 - T-804a one statement answers a completion (`complete_quest_answer`)
+
+**Status:** Proposed (developer, 2026-11-04; T-804a plan).
+**Decision:** A definer door `complete_quest_answer` (same arguments as `complete_quest`, revoked from PUBLIC, granted
+to `questify_app`) calls `complete_quest` and then the existing `own_level`, `own_level_items`, `own_bonus`,
+`own_quest_item`, `completion_boost`, `own_first_bonus`, `own_streak_bonus`, `ranking_entry_of` and
+`ranking_day_entry_of` for the new completion, and returns one row with every part. `callEngine` makes one call and
+`afterCompletion` uses the returned entries instead of two more transactions. The old doors stay (replays, kiosk,
+operator scan, NFC, and an old API during a rolling deploy).
+**Why:** a QR completion made 20 PostgreSQL round trips in three pool check-outs (about 1 ms each on the dev PC), and
+under load the connections spent as long idle in transaction waiting for the API as on CPU; it becomes 5 in two
+check-outs. No rule is copied: each part is the existing function's answer.
+**Trade-offs:** one wide row type to keep in step with the parts (an answer-parity test compares it with the old
+calls); the ranking entries are read inside the writing transaction, which the Redis version guard already orders.
+
+## ADR-672 - T-804a one player check per write
+
+**Status:** Proposed (developer, 2026-11-04; T-804a plan; sign-in, tier A).
+**Decision:** `player_request_gate(hash, is_write)` returns the session's player and, for a write, whether the terms in
+force hold it; the guard makes one call instead of `player_session_owner` then `player_legal_held`. Answers (401, 403
+`legal_acceptance_required`, the doors open while unaccepted) are unchanged.
+**Why:** every player write paid two round trips before its own work.
+**Trade-offs:** the two old functions stay for their other callers; the guard's tests cover both branches.
+
+## ADR-673 - T-804a one Redis script per completion, run by its hash
+
+**Status:** Proposed (developer, 2026-11-04; T-804a plan).
+**Decision:** the ranking store's write and read after a completion become one Lua script called with `EVALSHA`
+(falling back to `EVAL` on `NOSCRIPT`); the version rule, tombstones and the rebuild of a missing board are unchanged.
+**Why:** two `EVAL` calls sent the script text each time; one call halves a completion's Redis round trips.
+**Trade-offs:** one more script to test; the store's existing tests run against it.
+
+## ADR-674 - How the completion hot path is measured
+
+**Status:** Proposed (developer, 2026-11-04; T-804a plan).
+**Decision:** profiling runs on throw-away PostgreSQL containers started for it (the tests' image and CranL's major
+version) with `pg_stat_statements` (`track = all`, `track_planning = on`) and `track_functions = all`, seeded by the
+T-804 seed, one completion at a time for per-call cost and through T-804's drivers for load; before and after are
+measured on the same container with the same statistics on; containers, databases and Redis keys are removed after.
+The shared test container is never restarted for it. Plan choice is checked on the same database by running the
+sequential profile under `plan_cache_mode` `auto`, `force_custom_plan` and `force_generic_plan` (`ALTER DATABASE`,
+APIs restarted) and comparing each statement's mean execution time, plus `EXPLAIN (GENERIC_PLAN)` of each converted
+query, on a seed with one skewed event (`--big-event-players`, 50,000 players among 2,500-player events). Load results
+are the median of two runs.
+**Why:** the shared container has no `pg_stat_statements`, and planning time is what has to be seen.
+**Trade-offs:** the statistics add their own overhead to both sides; Docker Desktop's network makes a round trip about
+1 ms, more than a same-region server would.
