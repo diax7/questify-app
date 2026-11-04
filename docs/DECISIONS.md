@@ -7784,7 +7784,7 @@ top of the board, not a player's own place deep in it.
 
 ## ADR-670 - T-804a request-path SQL functions that cannot be inlined are plpgsql; standard-body ones are inlined
 
-**Status:** Proposed (developer, 2026-11-04; T-804a part A built, migration 0148). Q-620, Q-632.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-04, after the T-804a plan review 82 and part A code review 93; migration 0148). Q-620, Q-632.
 **Decision:** (1) Migration 0148 restates with `CREATE OR REPLACE` (signature, owner, grants, `SECURITY DEFINER`,
 `SET search_path`, volatility, strictness, parallel safety and result taken word for word from `pg_get_functiondef`)
 the 35 `LANGUAGE sql` functions that a 2,000-completion profile showed called once or more per QR completion or player
