@@ -1,9 +1,22 @@
-import { describe, expect, it } from "vitest";
+import { setTimeout as sleep } from "node:timers/promises";
+import type { PoolClient } from "pg";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
 import { PLAYER_SIGN_IN_LIMITS as L } from "#src/auth/limits";
 import { addressBucket } from "#src/auth/normalize";
+import type { AuthLog } from "#src/auth/sign-in";
 import { BUCKETS } from "#src/auth/throttle";
-import { earnedLimit, failureCounts, sendCounts } from "#src/players/sign-in-limits";
+import {
+  earnedLimit,
+  failureCounts,
+  reserveSend,
+  sendCounts,
+  withSendBudget,
+  type Channel,
+} from "#src/players/sign-in-limits";
+import { fakePool, type FakeAnswer } from "#test/support/fake-pool";
+
+vi.mock("node:timers/promises", () => ({ setTimeout: vi.fn(() => Promise.resolve()) }));
 
 const keys = createAuthKeys("k".repeat(40));
 const PHONE = { channel: "phone", value: "+966551234567" } as const;
@@ -82,5 +95,120 @@ describe("player sign-in windows", () => {
     expect(earnedLimit(200, earned, 899)).toBe(1998);
     expect(earnedLimit(200, earned, 900)).toBe(2000);
     expect(earnedLimit(200, earned, 5000)).toBe(2000);
+  });
+});
+
+const BUSY: FakeAnswer = { rows: [{ outcome: "busy", stripe_key: null, taken_at: null }] };
+const SPENT: FakeAnswer = { rows: [{ outcome: "spent", stripe_key: null, taken_at: null }] };
+const STRIPE = Buffer.alloc(32, 7);
+const TAKEN_AT = "2026-11-04 10:00:00+00";
+const TAKEN: FakeAnswer = {
+  rows: [{ outcome: "taken", stripe_key: STRIPE, taken_at: TAKEN_AT }],
+};
+
+/** A connection that answers each statement from `answer`, with the SQL it was sent. */
+async function connectionAnswering(answer: (sql: string) => FakeAnswer) {
+  const { pool, queries } = fakePool((sql) => answer(sql));
+  return { client: await pool.connect(), queries };
+}
+
+const takesIn = (queries: readonly string[]) =>
+  queries.filter((sql) => sql.includes("take_send_budget")).length;
+
+const sleptMs = () => vi.mocked(sleep).mock.calls.map(([ms]) => ms);
+
+afterEach(() => {
+  vi.mocked(sleep).mockClear();
+  vi.restoreAllMocks();
+});
+
+describe("reserving one unit of the platform send budget", () => {
+  it("answers spent at once: no second try, no wait", async () => {
+    const { client, queries } = await connectionAnswering(() => SPENT);
+    expect(await reserveSend(client, "phone")).toEqual({ kind: "spent" });
+    expect(takesIn(queries)).toBe(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it("tries a busy budget three more times, waiting between tries, then answers busy", async () => {
+    const { client, queries } = await connectionAnswering(() => BUSY);
+    expect(await reserveSend(client, "phone")).toEqual({ kind: "busy" });
+    expect(takesIn(queries)).toBe(4);
+    expect(sleep).toHaveBeenCalledTimes(3);
+  });
+
+  it("waits 5 to 20 ms between tries, spread by chance", async () => {
+    vi.spyOn(Math, "random")
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.5)
+      .mockReturnValueOnce(0.999);
+    const { client } = await connectionAnswering(() => BUSY);
+    await reserveSend(client, "email");
+    const [first, second, third] = sleptMs();
+    expect(first).toBeCloseTo(5, 5);
+    expect(second).toBeCloseTo(12.5, 5);
+    expect(third).toBeCloseTo(19.985, 5);
+  });
+
+  it("follows a busy answer with whatever the next try answers", async () => {
+    let tries = 0;
+    const spent = await connectionAnswering(() => (++tries < 3 ? BUSY : SPENT));
+    expect(await reserveSend(spent.client, "phone")).toEqual({ kind: "spent" });
+    expect(takesIn(spent.queries)).toBe(3);
+    tries = 0;
+    const held = await connectionAnswering(() => (++tries < 2 ? BUSY : TAKEN));
+    expect(await reserveSend(held.client, "email")).toEqual({
+      kind: "held",
+      channel: "email",
+      key: STRIPE,
+      at: TAKEN_AT,
+    });
+  });
+});
+
+const scopeOf = (client: PoolClient, channel: Channel, log: AuthLog) => ({
+  deps: { keys },
+  asker: { address: ADDRESS, userAgent: null, log },
+  client,
+  channel,
+});
+
+describe("holding the platform send budget around a request", () => {
+  it.each(["phone", "email"] as const)(
+    "answers a %s budget still busy after the tries with a one-second wait, running nothing",
+    async (channel) => {
+      const { client } = await connectionAnswering(() => BUSY);
+      const log = vi.fn<AuthLog>();
+      const work = vi.fn(() => Promise.resolve("sent"));
+      const result = await withSendBudget(scopeOf(client, channel, log), work, () => true);
+      expect(result).toEqual({ kind: "throttled", retryAfterSeconds: 1 });
+      expect(work).not.toHaveBeenCalled();
+      expect(log.mock.calls).toEqual([
+        ["player.budget_busy", expect.objectContaining({ channel })],
+      ]);
+    },
+  );
+
+  it("logs a give-back that failed, with its channel and reason, and still answers", async () => {
+    const { client, queries } = await connectionAnswering((sql) => {
+      if (sql.includes("take_send_budget")) {
+        return TAKEN;
+      }
+      throw Object.assign(new Error("connection lost"), { name: "ConnectionLost" });
+    });
+    const log = vi.fn<AuthLog>();
+    const result = await withSendBudget(
+      scopeOf(client, "phone", log),
+      () => Promise.resolve("refused"),
+      () => false,
+    );
+    expect(result).toBe("refused");
+    expect(queries.some((sql) => sql.startsWith("DELETE FROM auth_throttle"))).toBe(true);
+    expect(log.mock.calls).toEqual([
+      [
+        "player.budget_give_back_failed",
+        expect.objectContaining({ channel: "phone", reason: "ConnectionLost" }),
+      ],
+    ]);
   });
 });
