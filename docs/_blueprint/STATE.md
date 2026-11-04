@@ -39,6 +39,28 @@
   them). Lint, types, `lint:limits`, `format:check` clean; touched suites (`src/ranking`, `test/ranking`) 101 passed.
   Scores are confirmed by the next grouped mutation run. CI minutes: 0; agent tokens roughly 0.4M (estimate).
 
+## Mutation chase: contact.ts and sign-in-limits.ts — 2026-11-04
+- **Survivors and no-coverage mutants of GitHub run 41873529684 chased (one round; one dead-code deletion in
+  `contact.ts`, no bug found).** `apps/api/src/players/contact.ts` (89.2%, 32): 24 killed by tests, 6 removed with dead
+  code, 2 equivalent. `apps/api/src/players/sign-in-limits.ts` (89.6%, 14): all 14 killed. New: `src/players/contact.test.ts`
+  (2 tests over a fake pool: the send windows filling after the lock-free look, which logs the step and channel, opens
+  nothing and gives the budget unit back; `confirm_contact_change` answering no row), 7 tests in
+  `src/players/sign-in-limits.test.ts` (`reserveSend` answers spent without a second try, tries a busy budget three more
+  times with 5 to 20 ms of jitter, then answers busy; `withSendBudget` answers a busy budget with a one-second wait and
+  the `player.budget_busy` log, and logs a failed give-back with its channel and reason), and 4 in
+  `test/players/contact.int.test.ts` plus tightened asserts (a full window answers 429 before the platform budget is
+  touched, a sent code keeps its budget unit, a demo account's change answers `contact_locked`, only a wrong code
+  counts in the failure windows, the `notice_sent` and `notice_failed` logs carry their channel, outcome and reason,
+  and the 429, `phone_not_supported` and `sms_unavailable` bodies carry `retryAfterSeconds` and `emailOffered: false`).
+  **Source change:** `Confirmed` in `contact.ts` is a union by outcome (`wrong`, `expired` or `taken`, `changed`), so the
+  unreachable `channel === null || kind === null` checks and their "expired" fallback are gone (the six `373`
+  survivors). 2 equivalent, listed in FOLLOWUPS: the `.filter(to !== null)` before the notices (`notify` throws on a null
+  address before it does anything, and `Promise.allSettled` absorbs it). Each kill was checked by applying the mutant by
+  hand (38 failed their suites, plus 3 variants of the new `outcome !== "changed"` line; the 2 equivalent ones passed).
+  Lint, types, `lint:limits`, `format:check` clean; touched suites (`src/players`, `contact`, `send-budget` and
+  `contact-change` integration files) 178 passed. Scores are confirmed by the next grouped mutation run. CI minutes: 0;
+  agent tokens roughly 0.5M (estimate).
+
 ## T-804b built — 2026-11-04
 
 - **T-804b (tier A, sign-in; ADR-690 to ADR-692 amended to the plan review's Revision 1, Q-650 to Q-652 Proposed):
