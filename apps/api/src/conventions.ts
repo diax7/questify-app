@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { isBelowMinimum } from "@questify/shared";
+import { API_SECURITY_HEADERS, isBelowMinimum } from "@questify/shared";
 import {
   contentHeld,
   eventSuspended,
@@ -152,12 +152,18 @@ function errorHandlerFor(app: FastifyInstance) {
 }
 
 /**
- * Applies the rules in docs/API.md (Conventions) to every route: one error envelope,
- * a request id, the app-version check, and idempotency keys on unsafe routes.
+ * Applies the rules in docs/API.md (Conventions) to every route: one error envelope, the security headers, a request
+ * id, the app-version check, and idempotency keys on unsafe routes.
  */
 export function registerConventions(app: FastifyInstance, options: ConventionOptions): void {
   const claims = new WeakMap<FastifyRequest, Claim>();
   const replays = new WeakSet<FastifyRequest>();
+
+  // First of every `onSend`: it runs before any hook that can throw, and again on the 500 that such a throw becomes.
+  app.addHook("onSend", async (_request, reply, payload) => {
+    reply.headers(API_SECURITY_HEADERS);
+    return payload;
+  });
 
   app.addHook("onRequest", async (request, reply) => {
     reply.header("x-request-id", request.id);

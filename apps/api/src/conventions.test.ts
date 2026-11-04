@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { HttpError } from "./http-error";
-import { MemoryIdempotencyStore } from "./idempotency-store";
+import { MemoryIdempotencyStore, type IdempotencyStore } from "./idempotency-store";
 import { loggableError, registerConventions } from "./conventions";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -522,5 +522,77 @@ describe("error edges", () => {
       },
       details: {},
     });
+  });
+});
+
+const expectHeaders = (response: { headers: Record<string, unknown> }, label: string) => {
+  expect(response.headers["strict-transport-security"], label).toBe(
+    "max-age=31536000; includeSubDomains",
+  );
+  expect(response.headers["x-content-type-options"], label).toBe("nosniff");
+  expect(response.headers["content-security-policy"], label).toBe(
+    "default-src 'none'; frame-ancestors 'none'",
+  );
+};
+
+describe("security headers (ADR-700)", () => {
+  it.each([
+    ["a handler's answer", "POST", "/pay", { "idempotency-key": "k-1" }, 200],
+    ["a refusal it throws", "GET", "/teapot", {}, 418],
+    ["a framework client error", "GET", "/client-400", {}, 400],
+    ["the not-found handler", "GET", "/nowhere", {}, 404],
+    ["an old app's 426 from onRequest", "GET", "/teapot", { "x-app-version": "1.0.0" }, 426],
+    ["an internal error", "GET", "/server-500", {}, 500],
+  ] as const)("are on %s", async (label, method, url, headers, status) => {
+    app = await build();
+    const response = await app.inject({ method, url, headers, payload: { a: 1 } });
+    expect(response.statusCode, label).toBe(status);
+    expectHeaders(response, label);
+  });
+
+  it("are on an idempotent replay", async () => {
+    app = await build();
+    await post("/pay", { "idempotency-key": "replay-1" }, { a: 1 });
+    const replay = await post("/pay", { "idempotency-key": "replay-1" }, { a: 1 });
+    expect(replay.headers["idempotent-replayed"]).toBe("true");
+    expectHeaders(replay, "replay");
+  });
+
+  it("are on a body Fastify refuses as too large (413) or of an unknown type (415)", async () => {
+    app = await build();
+    const tooLarge = await app.inject({
+      method: "POST",
+      url: "/pay",
+      headers: { "idempotency-key": "big-1", "content-type": "application/json" },
+      payload: JSON.stringify({ a: "x".repeat(1_100_000) }),
+    });
+    expect(tooLarge.statusCode).toBe(413);
+    expectHeaders(tooLarge, "413");
+    const unknownType = await app.inject({
+      method: "POST",
+      url: "/pay",
+      headers: { "idempotency-key": "type-1", "content-type": "application/xml" },
+      payload: "<a/>",
+    });
+    expect(unknownType.statusCode).toBe(415);
+    expectHeaders(unknownType, "415");
+  });
+
+  it("stay on the answer when the idempotency store fails inside its own onSend", async () => {
+    const failing: IdempotencyStore = {
+      begin: async () => ({ kind: "new" }),
+      finish: async () => {
+        throw new Error("store down");
+      },
+      abort: async () => undefined,
+      forget: async () => undefined,
+    };
+    app = Fastify();
+    registerConventions(app, { minAppVersion: "1.0.0", idempotencyStore: failing });
+    app.post("/pay", { config: { idempotent: true } }, async () => ({ ok: true }));
+    await app.ready();
+    const response = await post("/pay", { "idempotency-key": "fail-1" }, { a: 1 });
+    expect(response.statusCode).toBe(500);
+    expectHeaders(response, "store failure");
   });
 });

@@ -1240,6 +1240,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
       )
     ).rows.map((row) => row.id);
 
+  const throttleRows = async () =>
+    Number(
+      (await db.owner.query<{ n: string }>("SELECT count(*) AS n FROM auth_throttle")).rows[0]?.n,
+    );
+
   const stillSignedIn = async (cookie: string) =>
     (await test.app.inject({ url: "/v1/staff/me", headers: withSession(cookie) })).statusCode;
 
@@ -1285,6 +1290,61 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
         expect(response.statusCode, `${route.method} ${route.url}`).toBe(401);
         expect(response.headers["cache-control"]).toBe("no-store");
       }
+    });
+
+    it("gets the security headers on every public route and on a refusal of each guarded kind (ADR-700)", async () => {
+      const guarded = new Map<string | undefined, { method: string; url: string }>();
+      for (const route of routes()) {
+        if (route.access !== "public" && !guarded.has(route.access)) {
+          guarded.set(route.access, route);
+        }
+      }
+      expect(guarded.size).toBeGreaterThanOrEqual(5);
+      for (const route of [...routes("public"), ...guarded.values()]) {
+        const response = await test.app.inject({
+          method: route.method as "GET" | "POST",
+          url: route.url.replace(/:[a-zA-Z]+/g, MISSING),
+          headers: browserHeaders(),
+          ...(route.method === "GET" ? {} : { payload: {} }),
+        });
+        const label = `${route.method} ${route.url} ${response.statusCode}`;
+        expect(response.headers["strict-transport-security"], label).toBe(
+          "max-age=31536000; includeSubDomains",
+        );
+        expect(response.headers["x-content-type-options"], label).toBe("nosniff");
+        expect(response.headers["content-security-policy"], label).toBe(
+          "default-src 'none'; frame-ancestors 'none'",
+        );
+      }
+    });
+
+    it("refuses a poisoned body or a bad query before writing any throttle row (V15.3.6)", async () => {
+      const before = await throttleRows();
+      for (const url of [
+        "/v1/auth/code",
+        "/v1/auth/code?phone=1&phone=2",
+        "/v1/public/invitation-open",
+      ]) {
+        for (const payload of [
+          '{"__proto__": {"x": 1}}',
+          '{"constructor": {"prototype": {"x": 1}}}',
+        ]) {
+          const response = await test.app.inject({
+            method: "POST",
+            url,
+            headers: { "content-type": "application/json" },
+            payload,
+          });
+          expect(response.statusCode, `${url} ${payload}`).toBe(400);
+        }
+      }
+      const unshaped = await test.app.inject({
+        method: "POST",
+        url: "/v1/auth/code?channel=sms&channel=email",
+        payload: { phone: ["0500000000", "0500000001"] },
+      });
+      expect(unshaped.statusCode).toBe(400);
+      expect(await throttleRows()).toBe(before);
     });
 
     it("cannot tell another organizer's private event from one that does not exist", async () => {

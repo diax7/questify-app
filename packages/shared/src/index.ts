@@ -1,5 +1,6 @@
 export type { ApiErrorEnvelope, LocalizedText } from "./errors";
 export { apiError } from "./errors";
+export { API_SECURITY_HEADERS } from "./http/api-security-headers";
 export { compareVersions, isBelowMinimum } from "./app-version";
 export type { CursorPosition } from "./pagination";
 export {

@@ -83,6 +83,44 @@ describe("request bodies", () => {
     expect(response.statusCode).toBe(415);
     expect(response.json()).toMatchObject({ code: "invalid_request" });
   });
+
+  it.each([
+    ["a __proto__ key", '{"__proto__": {"polluted": 1}, "phone": "0500000000"}'],
+    ["a constructor.prototype key", '{"constructor": {"prototype": {"polluted": 1}}}'],
+  ])("refuses a body with %s before any handler or database work", async (_name, payload) => {
+    let queries = 0;
+    await build(
+      poolThat(async () => {
+        queries += 1;
+        return { rows: [] };
+      }),
+    );
+    for (const url of ["/v1/auth/code", "/v1/public/invitation-open"]) {
+      const response = await app.inject({
+        method: "POST",
+        url,
+        headers: { "content-type": "application/json" },
+        payload,
+      });
+      expect(response.statusCode, url).toBe(400);
+      expect(response.json()).toMatchObject({ code: "invalid_request" });
+    }
+    expect(queries).toBe(0);
+    expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+  });
+
+  it("pins the poisoning options, so a framework default change cannot loosen them", async () => {
+    await build();
+    expect(app.initialConfig.onProtoPoisoning).toBe("error");
+    expect(app.initialConfig.onConstructorPoisoning).toBe("error");
+  });
+
+  it("refuses a repeated query key where the schema takes one value", async () => {
+    await build();
+    const response = await app.inject({ method: "GET", url: "/v1/config?event=a&event=b" });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "invalid_request" });
+  });
 });
 
 async function ipSeenBehind(forwardedFor: string, hops: number): Promise<string> {

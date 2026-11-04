@@ -398,7 +398,8 @@ function registerStaff(app: FastifyInstance, deps: PasswordDeps): void {
 
 /**
  * The bare server: its logger, the proxies it trusts, the route inventory, the request span (first, so every other
- * hook and the handler run inside it, T-018, ADR-601) and JSON as the only body a handler may receive.
+ * hook and the handler run inside it, T-018, ADR-601) and JSON as the only body a handler may receive, a body carrying
+ * `__proto__` or `constructor.prototype` refused.
  */
 function createServer(options: AppOptions): FastifyInstance {
   const { config } = options;
@@ -407,6 +408,9 @@ function createServer(options: AppOptions): FastifyInstance {
     genReqId: () => randomUUID(),
     // Trust exactly the proxies we run (hop 0 is the nearest); a client-sent X-Forwarded-For beyond them is ignored.
     trustProxy: (_address: string, hop: number) => hop < config.trustProxyHops,
+    // Fastify's defaults today, pinned so a dependency update cannot loosen them (V15.3.6, T-810b).
+    onProtoPoisoning: "error",
+    onConstructorPoisoning: "error",
   });
   app.decorate("routeInventory", registerRouteInventory(app));
   registerHttpTelemetry(app);
