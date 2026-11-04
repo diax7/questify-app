@@ -7760,7 +7760,7 @@ provider (Q-034). Campaigns share the weekly cap per channel with invitations (A
 
 ## ADR-660 - T-804 load test: an open-schedule Node harness on a local stack, the real app in its own process
 
-**Status:** Proposed (developer, 2026-11-04; T-804). Q-620, Q-621.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-04, after the T-804 code review 85, both MAJORs fixed; T-804). Q-620, Q-621.
 **Decision:** (1) The harness is plain Node with no new dependency: `ops/load/run.mjs` (orchestrator), `driver.mjs` (one
 process per group of events; `node:http` with keep-alive), `schedule.mjs`, `stats.mjs` and `report.mjs` (unit-tested in
 `ops/load/*.test.ts`, which `vitest.config.ts` now includes). The API side is test code in `apps/api/test/load/`:
