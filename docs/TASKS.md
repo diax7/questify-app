@@ -1604,11 +1604,23 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Done when: A written report exists; every high or medium finding is fixed and retested, or accepted in writing by the user.
 - [ ] **T-810** ASVS L2 verification sheet for the core, with evidence (a test, a CI check or a note) per control — delivers no FR (infrastructure or quality gate); depends on: T-809
   - Done when: Every L2 control for the core has evidence or a written exception.
-  - Order note (developer, 2026-11-04): the sheet is drafted before T-809, so the testers get it as their open-book map;
-    T-809's findings are added to it afterwards. It is ticked only after T-809.
+  - Note 2026-11-05 (order): the sheet is drafted before T-809 so the tester starts from it: `docs/security/ASVS_L2.md`
+    (253 L1 and L2 controls: 133 Met, 47 Partly, 2 Not met, 71 N/A). T-810 stays open until T-809's findings are in
+    the sheet and every gap is closed (T-810b, FOLLOWUPS) or accepted in writing (Q-660 to Q-664).
+- [ ] **T-810b** (tier A) Close the ASVS L2 code gaps from T-810 (`docs/security/ASVS_L2.md`, "Gaps and what to do" 1 to 8) — delivers no FR (infrastructure or quality gate); depends on: none
+  - (1) `Strict-Transport-Security`, `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` on every `/v1` answer (conventions `onSend`), passed through `apps/web/src/lib/forward.ts`; tests for both and an HSTS assertion on the page headers.
+  - (2) `redirect: "error"` on every outside `fetch` (`players/sms.ts`, `auth/breached.ts`, `auth/email/resend.ts`, `auth/email/gmail.ts`, `auth/google-token.ts`), a test per client.
+  - (3) A 256-bit random invitation link token in place of `gen_random_uuid()` (migration 0073); links already sent keep working until purged.
+  - (4) A new migration restoring the backslash escape in `event_players`' LIKE prefix (0032 has `replace(…, '\', '\')`), with a test searching for `\`, `%` and `_`.
+  - (5) One `authz.denied` log event (route pattern, status, actor kind and id) for 403 answers and for the 404 that hides a console route or another tenant's object.
+  - (6) Tests that a body key `__proto__` or `constructor` is refused and that a repeated query key is refused.
+  - (7) The SBOM (`pnpm sbom:generate`) produced on the release path and kept with the release.
+  - (8) A key id in each sealed reward code and a re-seal command, so `REWARD_CODE_SECRET` can rotate without losing unused codes (split into T-810c if it grows).
+  - Done when: each item has its test, the sheet's rows move to Met, and mutation targets are the changed core files.
 - [ ] **T-811** CranL go/no-go: written answers on high availability, point-in-time restore, backup copies, uptime, hosting provider and CST status; decide to stay or move production (ADR-107) — delivers no FR (infrastructure or quality gate); depends on: T-805, T-019
   - Note 2026-11-04 (T-804, Q-630): ask CranL for the PostgreSQL sizes and prices, `max_connections`, whether PostgreSQL 17 or 18 is offered (staging runs 16.15) and the app-to-database delay (Dhia: later, at this check).
   - Note 2026-11-04 (T-017, Q-611): staging's scheduled PostgreSQL backups have never run on CranL (no success, no failure, nothing kept). Ask CranL why before production relies on them (Dhia: later, at this check).
+  - Note 2026-11-05 (T-810, Q-664): ask CranL for the edge's TLS versions, cipher suites and certificates, plain HTTP on the API host, TLS to PostgreSQL and Redis on the private network, egress filtering, who can read app settings (and whether it is logged), and log access and retention; the ASVS sheet's gap 13 waits on the answers.
   - Done when: A written decision exists: stay on CranL, or move production to Oracle, sccc or Google Dammam.
 - [ ] **T-812** Device-integrity flag: Apple App Attest and Google Play Integrity as one more flag kind, never blocking — delivers FR 334; depends on: T-209, T-806
   - Done when: A phone that fails the check raises a flag on the Flags page and its player can still play and redeem.
