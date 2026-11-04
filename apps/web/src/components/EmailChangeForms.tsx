@@ -116,7 +116,7 @@ function ConfirmForm({
   };
   return (
     <Form onSubmit={(event) => void submit(event)}>
-      <Field label={t("emailChange.code")}>
+      <Field label={t("emailChange.code")} help={t("signIn.codeNeverShare")}>
         <Input
           name="code"
           inputMode="numeric"

@@ -6,6 +6,21 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-810e code screen notice — 2026-11-05
+
+- **T-810e done (tier C, copy; no review).** One line under every sign-in or contact-change code field: "Never share
+  this code. Questify will never ask you for it." / "لا تشارك رمزك مع أحد. Questify لن يطلبه منك أبدًا." (one key,
+  `signIn.codeNeverShare`, worded with ux-araby: masculine imperative, no "هذا", brand name in Latin letters). Web:
+  `CodeStep` (sign-in, sign-up, invite) and the owner email change form, as the field's `help` so a screen reader reads
+  it with the field (`CodeStep` sets its own `aria-describedby`, which replaces the one `Field` wires, so it now names
+  the help line too; the e2e caught this); app: the sign-in and the phone or email change code steps, muted text under
+  the field. The delete-account confirmation code has no line (not a sign-in or contact-change code). ASVS sheet:
+  V6.6.1 Met, 149 Met, 32 Partly, 1 Not met. **Checks:** Vitest for `apps/app`, `apps/web`, `packages` and `scripts`
+  (333 files, 4,335 tests) and the API suites that read the message table (258) pass; types, lint, `lint:limits`,
+  format pass; web e2e `sign-in.spec.ts` (12 passed, desktop and phone), `console-owner-email.spec.ts` and
+  `layout.spec.ts` (desktop) pass, one worker. CI minutes: 0 (nothing pushed). Agent tokens roughly 0.3M (estimate).
+  **Next:** the next unchecked task in `docs/TASKS.md` (T-810c, T-810d, T-810f and T-811 are open).
+
 ## T-810b ASVS L2 code gaps built — 2026-11-05
 
 - **T-810b built (tier A; plan review 87 folded; code review next).** Security headers on every `/v1` answer, set by the

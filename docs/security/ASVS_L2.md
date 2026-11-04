@@ -25,8 +25,8 @@ the step in `.github/workflows/ci.yml`. A doc reference names the section. "Note
 
 | Status | L1 | L2 | Total |
 |---|---|---|---|
-| Met | 52 | 96 | 148 |
-| Partly | 5 | 28 | 33 |
+| Met | 52 | 97 | 149 |
+| Partly | 5 | 27 | 32 |
 | Not met | 1 | 0 | 1 |
 | N/A | 12 | 59 | 71 |
 | **Total** | **70** | **183** | **253** |
@@ -35,7 +35,7 @@ the step in `.github/workflows/ci.yml`. A doc reference names the section. "Note
 
 Code gaps were one tier A task, **T-810b** (`docs/TASKS.md`), done 2026-11-05 but for row 8, now T-810f.
 Documentation gaps are in `docs/FOLLOWUPS.md` (2026-11-05, T-810); product and hosting choices are Q-660 to Q-664
-(`docs/OPEN_QUESTIONS.md`), answered as T-810b (rows 9 and 11), T-810c to T-810e and T-811.
+(`docs/OPEN_QUESTIONS.md`), answered as T-810b (rows 9 and 11), T-810c, T-810d, T-810e (row 11's notice, done) and T-811.
 
 | # | Controls | Status | Gap | Recommendation | Where |
 |---|---|---|---|---|---|
@@ -49,7 +49,7 @@ Documentation gaps are in `docs/FOLLOWUPS.md` (2026-11-05, T-810); product and h
 | 8 | V11.2.2 | Partly | Sealed reward codes carry no key id, so rotating `REWARD_CODE_SECRET` makes unused codes unreadable (RUNBOOK) | A key id in each sealed code and a re-seal command | T-810f |
 | 9 | V7.3.2, V7.1.1 | Met (T-810b, 0154) | Player refresh tokens slide (each rotation is a new 180 days, migration 0013), so a player session has no absolute end, and no note justifies the deviation from NIST SP 800-63B | A 365-day end (Q-660) | T-810b (9) |
 | 10 | V7.4.3, V7.4.5, V7.5.2 | Partly | A player cannot see or end their other devices; a contact change keeps every session with no "sign out other devices"; an admin can end only a platform admin's sessions from the console (others by SQL, RUNBOOK); ending a staff session asks for no re-authentication | Product choice | Q-661 |
-| 11 | V6.3.3, V6.6.1 | Written exception (T-810b; the notice is T-810e) | Players sign in with one factor (a code by SMS or email); no stronger method is offered and players are not told SMS's risks | A written exception (Q-662) | T-810b (10) |
+| 11 | V6.3.3, V6.6.1 | Met (written exception T-810b; notice T-810e) | Players sign in with one factor (a code by SMS or email); no stronger method is offered and players are not told SMS's risks | A written exception (Q-662) and one line under the code field: never share the code, Questify never asks for it | T-810b (10), T-810e |
 | 12 | V3.5.4 | Partly | The console, the dashboard, the public event page, stations and the big screen share one hostname | Product and domain choice | Q-663 |
 | 13 | V4.1.2, V12.1.1, V12.1.2, V12.2.2, V12.3.1, V12.3.3, V12.3.4, V13.2.1, V13.2.4, V13.2.5, V13.3.1, V13.3.2, V16.4.2, V16.4.3 | Partly | Controls that live in CranL: edge TLS versions and ciphers, certificates, HTTP-to-HTTPS behaviour on the API host, TLS to PostgreSQL and Redis on the private network, static database and Redis passwords, no egress allowlist, the secret store's access control, and server logs kept only in CranL's log view | Ask CranL in T-811; decide per item | Q-664 |
 | 14 | V15.1.1, V15.2.1 | Not met / Partly | No written time frame for fixing a vulnerable dependency (Dependabot and `pnpm audit` run, but nothing says how fast a finding must be fixed) | Write them in QUALITY_BASELINE | FOLLOWUPS |
@@ -198,7 +198,7 @@ identity provider.
 | V6.5.3 | 2 | Codes from a CSPRNG | Met | `apps/api/src/auth/keys.test.ts` "is always six Western digits, including leading zeros", "uses the whole range" (`crypto.randomInt`) | |
 | V6.5.4 | 2 | Codes of at least 20 bits | Met | Same test (6 digits) | |
 | V6.5.5 | 2 | Out-of-band codes live at most 10 minutes | Met | `apps/api/test/db/player-sign-in.int.test.ts` "ends after five minutes"; `apps/api/test/auth/sign-in.int.test.ts` "accepts the code until the moment it expires and not after" (5 minutes, `codeLifetimeSeconds: 300`) | |
-| V6.6.1 | 2 | SMS only for a validated number, with a stronger option and a risk notice | Partly | The number is the one the code proves; email is always offered (`apps/api/test/players/sign-in.int.test.ts` "texts a Saudi mobile, in Arabic by default, and says when to resend and when to offer email"); the one-factor exception is written (`docs/SECURITY.md` "Authentication", Q-662) | Gap 11: the risk notice on the code screen is T-810e |
+| V6.6.1 | 2 | SMS only for a validated number, with a stronger option and a risk notice | Met | The number is the one the code proves; email is always offered (`apps/api/test/players/sign-in.int.test.ts` "texts a Saudi mobile, in Arabic by default, and says when to resend and when to offer email"); the one-factor exception is written (`docs/SECURITY.md` "Authentication", Q-662); the code screens say never to share the code and that Questify never asks for it (`apps/app/src/auth/code-notice.test.ts` "tells the person in both languages never to share the code, because Questify never asks for it" and "is shown on the code step of %s"; `apps/web/e2e/sign-in.spec.ts` "signs in and out in Arabic, right to left, without sideways scrolling" and "in English: a wrong password, a wrong code with attempts left, then in, and the language switch") | |
 | V6.6.2 | 2 | Codes bound to their own request | Met | `apps/api/src/auth/keys.test.ts` "binds a code to its challenge and to its digits"; `apps/api/test/db/player-sign-in.int.test.ts` "ends when a new code is asked for the same contact (one live code per contact)" | |
 | V6.6.3 | 2 | Code mechanism rate limited | Met | `apps/api/test/db/player-sign-in.int.test.ts` "counts parallel wrong guesses one after the other: never more than three"; `apps/api/test/auth/sign-in.int.test.ts` "lets only five of many parallel wrong guesses count" | |
 | V6.8.1, V6.8.2, V6.8.3, V6.8.4 | 2 | Identity providers: no spoofing, signed assertions, SAML replay, strength claims | N/A | | No identity provider (4 controls) |
