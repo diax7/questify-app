@@ -7758,6 +7758,30 @@ provider (Q-034). Campaigns share the weekly cap per channel with invitations (A
 **Why:** T-017's done-when: a fresh environment from the scripts alone, a second run that changes nothing, no setting only in the dashboard. CranL's own blueprint (`/blueprint/plan` and `apply`) was read and not used: it has no volumes, Dockerfile path or backup schedule, and its plan is a POST.
 **Trade-offs:** some settings can be written but not read through the API, so plan cannot see them drift: the Dockerfile path (set at create), the app's automatic rollback, and the health-check path (dashboard only; Q-612). Unmanaged settings are reported, never removed, so the operator chooses; a removal is a dashboard step.
 
+## ADR-660 - T-804 load test: an open-schedule Node harness on a local stack, the real app in its own process
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-04, after the T-804 code review 85, both MAJORs fixed; T-804). Q-620, Q-621.
+**Decision:** (1) The harness is plain Node with no new dependency: `ops/load/run.mjs` (orchestrator), `driver.mjs` (one
+process per group of events; `node:http` with keep-alive), `schedule.mjs`, `stats.mjs` and `report.mjs` (unit-tested in
+`ops/load/*.test.ts`, which `vitest.config.ts` now includes). The API side is test code in `apps/api/test/load/`:
+`server.ts` builds the app as `src/server.ts` does (production's pool size, Redis options, ticks and request logs; SMS,
+email and push stubbed) and `prepare.ts` creates, counts and drops the database. Both are bundled by the run with the
+API's own esbuild. (2) The load is open: every request has a due time fixed in advance and its latency counts from
+then, so an overloaded server shows as latency and timeouts, never as a lower rate; the client's own delay is reported
+(`schedulerLag`). A completion is confirmed only by a 200 within 1 s of its due time; refusals, 15 s timeouts and
+requests shed by the client count against NFR-002. (3) Ranking freshness is measured by a probe player per event with a
+5,000-point quest: from its 200 to the moment another player's board read shows it first with the new score. (4) Seeding
+is set-based SQL; sessions come from `issue_player_tokens` (the function every sign-in path ends in) in one statement.
+(5) Local by default: a database named like the tests' ones on the local server, dropped in `finally` and on Ctrl+C,
+with Redis keys under a run prefix; it stops under 8 GB free disk. A target other than this PC needs `--remote`, and
+`prepare create` refuses any server but this PC's.
+**Why:** T-804's done-when needs latency at a fixed arrival rate; a closed-loop tool (k6's default, autocannon) slows
+its sending when the server slows and hides exactly the failure the test looks for. k6 would be a new binary to install
+and keep; Node is already everywhere the repo runs.
+**Trade-offs:** one Node driver tops out at a few thousand requests a second, so the target needs several (`--drivers`);
+on one PC the client, the API and PostgreSQL share 16 threads, so a local run is a lower bound. The probe measures the
+top of the board, not a player's own place deep in it.
+
 ## ADR-670 - T-804a request-path functions that are definer or carry a SET clause are plpgsql, not LANGUAGE sql
 
 **Status:** Proposed (developer, 2026-11-04; T-804a plan). Q-620, Q-632.

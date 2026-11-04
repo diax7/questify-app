@@ -912,6 +912,56 @@ as `manual`). Automatic rollback is off on every app (not readable by the API ei
 5. `pnpm infra plan production` prints "No changes"; run `apply` once more and it makes no change.
 6. Unset the operator secrets from the shell.
 
+## Load test (T-804, ADR-660)
+
+Measures NFR-002 (95% of completions confirmed within 1 s), NFR-003 (20,000 completions a minute in one event), NFR-005
+(the ranking shows a change within 5 s) and NFR-025 (ten events at once), plus the sign-in rush through
+`POST /v1/auth/code`. Results of each run are in STATE.md; the first ones (2026-11-04) are under T-804 in `docs/TASKS.md`.
+
+**Run it on this PC** (Docker's PostgreSQL and Redis up, `pnpm install` done, at least 8 GB free on the disk):
+
+```
+node ops/load/run.mjs                                   # the target: 10 events x 20,000 a minute, 60 s, then the rush
+node ops/load/run.mjs --rate-per-event 480 --rush ""    # one lower rate, completions only (480 a minute = 8 a second)
+node ops/load/run.mjs --skip-completions --events 1 --players 10 --quests 1 --rush 50:10,100:10   # the rush only
+```
+
+What it does: bundles `apps/api/test/load/server.ts` and `prepare.ts` with esbuild; `prepare create` makes a database on
+the local PostgreSQL named like the tests' ones (`questify_test_<time>_<hex>`), runs every migration and seeds with
+set-based SQL (one organizer and live event per `--events`, `--quests` scan quests plus a 5,000-point probe quest per
+event, `--players` players per event with a phone and an enrollment); sessions are issued by `issue_player_tokens`, the
+function every API sign-in ends in, in one statement. It starts the API (production's pool of 10, Redis options, ticks
+and request logs; SMS, email and push stubbed), runs `--drivers` driver processes (`ops/load/driver.mjs`), prints the
+report and writes it to `ops/load/out/<time>/report.json` (git ignores `ops/load/out/`), then drops the database and
+the run's Redis keys, also on Ctrl+C. A run killed harder leaves its database to the test sweeper (gone after 2 hours).
+It stops before starting, and after seeding, when less than 8 GB is free.
+
+How it measures: each event's completions follow an open schedule (request i is due at start + i / rate, sent then
+whether or not earlier ones answered) and latency is counted from that due time, so a slow server shows as latency,
+never as a lower rate. The first `--warmup` seconds are not counted. A refused, timed out (15 s, as the app) or shed
+completion counts as not confirmed. The ranking probe completes its quest every `--probe-every` ms and reads the board
+as another player every 100 ms until the probe leads it with the new score. `database` in the report compares the
+completions and ledger rows written with the answers, and lists the PostgreSQL functions by time spent
+(`track_functions` is on for the run's database). `schedulerLag` is the client's own delay: when its p95 passes about
+50 ms, the client is the limit and the numbers say nothing about the server.
+
+Main options: `--events` (10), `--players` per event (2,500), `--quests` per event (20), `--rate-per-event` a minute
+(20,000), `--duration` (60 s), `--warmup` (10 s), `--drivers` (5), `--sockets` per driver and API (64; the server sees
+at most drivers x sockets requests at once), `--max-in-flight` per driver (4,000), `--api-instances` (1, ports 4810
+on; drivers spread over them), `--pool-size` (10), `--rush` (steps `rate:seconds`, default `25:10,50:10,100:10,200:10`,
+below the 5,000 SMS an hour budget), `--rush-per-address` (50 codes from each client address, `X-Forwarded-For`
+10.x.y.z), `--rush-first` (the first phone, +96659 and 7 digits), `--admin-url`, `--redis-url`, `--pg-container`
+(for the CPU samples, `questifyapp-postgres-1`).
+
+**A production-like environment** (the rerun T-804 waits on): never production, and never CranL staging while people
+use it. The driver side is ready: `node ops/load/run.mjs --target https://<api host> --plan plan.json --remote` from a
+load machine near it (without `--remote`, a target other than this PC is refused); API and PostgreSQL CPU are then not
+sampled, so read the environment's own metrics (Grafana: route latency, pool waiting, database CPU) for the same
+minutes. The seeding side is not: `prepare create` refuses any database server but this PC's, because it runs the
+tests' `roles.sql` and sets the API role's password to the tests' one. Seeding an environment's own database (the same
+SQL, as its owner, without touching roles, with `LOAD_QR_SECRET` set to its `QR_SECRET`) and removing it afterwards is
+the first step of that rerun.
+
 ## Web app (dashboard)
 
 - Image: `Dockerfile.web` at the repository root (CranL builds from the folder holding the Dockerfile), with CranL Dockerfile path `Dockerfile.web`; port 3000; health check on `/en/sign-in`.

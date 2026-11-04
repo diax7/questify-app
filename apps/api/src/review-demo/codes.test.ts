@@ -8,7 +8,12 @@ import {
   verifyRevealCode,
   verifyStepCode,
 } from "#src/quests/qr";
-import { listReviewCodes, reviewDemoFlag, type ReviewCodeDeps } from "#src/review-demo/codes";
+import {
+  listReviewCodes,
+  reviewDemoFlag,
+  reviewMeetCode,
+  type ReviewCodeDeps,
+} from "#src/review-demo/codes";
 import { fakePool, pgError, type FakeAnswer } from "#test/support/fake-pool";
 
 const SECRET = "a-test-secret-that-is-long-enough-for-qr";
@@ -44,8 +49,8 @@ const row = (kind: string, fields: Record<string, unknown> = {}) => ({
 });
 
 /** A client whose one query answers whether the caller is the reviewer. */
-const ask = (here: boolean) => ({
-  query: async () => ({ rows: [{ here }] }),
+const ask = (here?: boolean) => ({
+  query: async () => ({ rows: here === undefined ? [] : [{ here }] }),
 });
 
 const tokenOf = (url: string | null, path: string) => {
@@ -87,6 +92,18 @@ describe("the review demo's code list (T-710b)", () => {
     expect(step?.label).toEqual({ ar: "بوابة", en: "Gate" });
   });
 
+  it("keeps a label that has only one of its two languages", async () => {
+    const deps = depsOver(() => ({
+      rows: [row("step", { label_en: "Gate" }), row("step", { label_ar: "بوابة" })],
+    }));
+    const result = await listReviewCodes(deps, PLAYER, EVENT);
+    const codes = result.kind === "done" ? result.value : [];
+    expect(codes.map((code) => code.label)).toEqual([
+      { ar: null, en: "Gate" },
+      { ar: "بوابة", en: null },
+    ]);
+  });
+
   it("answers not_found for the caller rule's refusal, and throws anything else", async () => {
     const refused = depsOver(() => {
       throw pgError({ code: "RD404" });
@@ -101,5 +118,41 @@ describe("the review demo's code list (T-710b)", () => {
   it("gives Home the flag only when the database says the caller is the reviewer", async () => {
     expect(await reviewDemoFlag(ask(true) as never, EVENT)).toEqual({ reviewDemo: true });
     expect(await reviewDemoFlag(ask(false) as never, EVENT)).toEqual({});
+    expect(await reviewDemoFlag(ask() as never, EVENT)).toEqual({});
+  });
+});
+
+const QUEST_ID = "00000000-0000-4000-8000-0000000000c1";
+/** Deps whose meet-pass window already holds `count` passes; the code door answers one pass. */
+const meetDeps = (count: number) => {
+  const fake = fakePool((sql) => {
+    if (sql.includes("pg_try_advisory_xact_lock")) return { rows: [{ locked: true }] };
+    if (sql.includes("count(*)")) return { rows: [{ count, retry_after: 42 }] };
+    if (sql.includes("INSERT INTO auth_throttle")) return { rows: [{ at: "now" }] };
+    return { rows: [{ expires_at: new Date("2026-11-04T10:00:00Z") }] };
+  });
+  const deps: ReviewCodeDeps = { ...depsOver(() => ({})), pool: fake.pool };
+  return { deps, queries: fake.queries };
+};
+const request = { playerId: PLAYER, eventId: EVENT, questId: QUEST_ID };
+
+describe("the review demo's meet code (T-710b)", () => {
+  it("counts the pass against the caller's meet-pass limit before issuing it", async () => {
+    const { deps, queries } = meetDeps(0);
+    const result = await reviewMeetCode(deps, request);
+    expect(result).toMatchObject({
+      kind: "done",
+      value: { expiresAt: "2026-11-04T10:00:00.000Z" },
+    });
+    expect(queries.some((sql) => sql.includes("INSERT INTO auth_throttle"))).toBe(true);
+  });
+
+  it("holds back a caller over the limit without asking the database for a code", async () => {
+    const { deps, queries } = meetDeps(30);
+    expect(await reviewMeetCode(deps, request)).toEqual({
+      kind: "too_many_attempts",
+      retryAfterSeconds: 42,
+    });
+    expect(queries.some((sql) => sql.includes("review_demo_meet_code"))).toBe(false);
   });
 });

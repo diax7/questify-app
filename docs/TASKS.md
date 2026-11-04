@@ -1529,8 +1529,17 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Done when: the rush reaches 250 codes a second at p95 under 1 s on this PC, the SMS and email budgets are never
     exceeded, and 2,000 players behind one address can ask for a code within an hour.
 - [ ] **T-804** Load test at 20,000 completions per minute per event and ten events at once — delivers no FR (infrastructure or quality gate); depends on: T-105, T-106
+  - Note 2026-11-04 (Dhia): the launch target is set from the biggest event day actually booked, not 20,000 a minute in each of ten events at once; the code is made fast now (T-804a) and the hardware is scaled when bookings need it. Asking CranL for database sizes waits for T-811 (Q-630, Q-631).
   - Done when: 95% of completions confirm within 1 second and the ranking within 5 seconds in the test.
   - Note 2026-10-20 (T-107): every `POST /v1/auth/code` waits its turn on one platform-wide lock (the SMS and email budgets). Measure sign-in at an event's opening rush here instead of assuming it.
+  - Note 2026-11-04 (harness built, target not met, left open; ADR-660, Q-620, Q-621): `node ops/load/run.mjs` (RUNBOOK
+    "Load test"). Dev PC (Ryzen 7 1700 8C/16T, 48 GB, Windows 10, Docker PostgreSQL 17.11, one API, pool 10, 10 events x
+    2,500 players x 20 quests): the most that meets NFR-002 is about 80 completions a second for all ten events (p95
+    245 ms, ranking p95 253 ms after the confirm; 2.4% of the 3,333 a second asked); 95 a second p95 1.65 s; the target
+    collapses (16 of 149,504 confirmed). PostgreSQL CPU is the limit (Q-620: `LANGUAGE sql` definer functions planned on
+    every call). Sign-in rush: about 100 codes a second for the platform (one lock), 200 an hour per client address
+    (Q-621). **Rerun step:** after Q-620's rewrite, rerun locally, then in a production-like environment (seeding there
+    is the first step, RUNBOOK).
 - [ ] **T-805** Restore rehearsal and second-region recovery drill — delivers no FR (infrastructure or quality gate); depends on: T-002
   - Done when: A restore to a point 5 minutes earlier completes within an hour.
 - [ ] **T-806** Store submission: privacy labels, age rating, data-safety form, screenshots, review notes, the review demo event — delivers no FR (infrastructure or quality gate); depends on: T-710
@@ -1555,6 +1564,7 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
 - [ ] **T-810** ASVS L2 verification sheet for the core, with evidence (a test, a CI check or a note) per control — delivers no FR (infrastructure or quality gate); depends on: T-809
   - Done when: Every L2 control for the core has evidence or a written exception.
 - [ ] **T-811** CranL go/no-go: written answers on high availability, point-in-time restore, backup copies, uptime, hosting provider and CST status; decide to stay or move production (ADR-107) — delivers no FR (infrastructure or quality gate); depends on: T-805, T-019
+  - Note 2026-11-04 (T-804, Q-630): ask CranL for the PostgreSQL sizes and prices, `max_connections`, whether PostgreSQL 17 or 18 is offered (staging runs 16.15) and the app-to-database delay (Dhia: later, at this check).
   - Note 2026-11-04 (T-017, Q-611): staging's scheduled PostgreSQL backups have never run on CranL (no success, no failure, nothing kept). Ask CranL why before production relies on them (Dhia: later, at this check).
   - Done when: A written decision exists: stay on CranL, or move production to Oracle, sccc or Google Dammam.
 - [ ] **T-812** Device-integrity flag: Apple App Attest and Google Play Integrity as one more flag kind, never blocking — delivers FR 334; depends on: T-209, T-806

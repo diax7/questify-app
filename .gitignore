@@ -29,3 +29,5 @@ next-env.d.ts
 # Browser-test output and the bundled test API server
 apps/web/.e2e/
 apps/api/test/support/e2e-server.bundle.mjs
+apps/api/test/load-bundle/
+ops/load/out/

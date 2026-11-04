@@ -20,6 +20,30 @@
   needs far more than code (Q-631, Q-630). Containers, databases and Redis keys removed; disk 16 GB free before, 15 GB
   after. CI minutes: 0; agent tokens roughly 0.4M (estimate). **Next:** the T-804a plan review.
 
+## T-804 load test — 2026-11-04
+
+- **T-804 harness built and run; the target is not met, so the task stays open (tier B; ADR-660 Proposed; Q-620, Q-621
+  open; no migration, no app code changed).** `node ops/load/run.mjs` builds the load API from the checkout
+  (`apps/api/test/load/`: production's pool, Redis options, ticks and logs; SMS, email, push stubbed), seeds a
+  throw-away local database with set-based SQL (sessions by `issue_player_tokens`), drives open-schedule completions
+  from 5 processes with a ranking probe per event, runs the `POST /v1/auth/code` rush, and drops the database and Redis
+  keys in `finally` (RUNBOOK "Load test"). PC: AMD Ryzen 7 1700 (8 cores, 16 threads), 48 GB, Windows 10, Node 24,
+  Docker PostgreSQL 17.11 and Redis 8, one API with a pool of 10; 10 events x 2,500 players x 20 quests, 60 s measured
+  after 10 s of warm-up. Completions for all ten events: 50/s p95 224 ms; **80/s p95 245 ms (p50 108, p99 291), 100%
+  within 1 s, ranking p50 175 / p95 253 ms after the confirm**; 95/s p95 1.65 s (42% within 1 s); 110/s p95 6.8 s; the
+  target 3,333/s: 16 of 149,504 confirmed in 15 s (139,768 timeouts, 50,496 shed by the client, 9,720 connection
+  errors), 1,626 written; every run's completion rows, ledger rows and scores matched. Bottleneck: PostgreSQL CPU (6 to
+  7 cores at 80 to 110/s; a pool of 30 used 10.5 cores and still failed at 110/s); the API used 0.5 to 0.7 of a core and
+  the client's delay stayed 14 ms p95 (at the target, 680 ms p95: the client too). Cause: `LANGUAGE sql` definer
+  functions planned on every call (`own_bonus` 2.5 ms vs 0.08 ms as plpgsql); PostgreSQL 18.6 (throw-away container,
+  removed) cut database CPU by about 45% and, with two API processes, reached 93% within 1 s at 160/s (Q-620). Sign-in
+  rush: 100 codes/s p95 297 ms, 120/s p95 2.3 s, 200/s p95 10 s, all 202 (one platform lock); one client address is
+  refused after 200 an hour (Q-621). Tests: `ops/load/*.test.ts` 40 (percentiles, the open schedule, the report and
+  verdict; hand mutants of the rank rounding and the due count failed them). Lint, types, `lint:limits`,
+  `format:check` clean. Disk 15.8 GB free before and 15.7 GB after. CI minutes: 0; agent tokens roughly 0.5M (estimate).
+  **Next:** Q-620's tier A rewrite of the completion path's SQL functions, rerun locally, then the production-like
+  rerun (its seeding is the first step).
+
 ## T-017 CranL infrastructure as code — 2026-11-04
 
 - **T-017 built (tier B; ADR-650 and Q-612 Proposed; Q-610, Q-611, Q-613 open; no migration).** `ops/cranl/staging.json` and
@@ -33,6 +57,22 @@
   12,525 passed, 18 skipped, 811 files. CI minutes: 0; agent tokens roughly 0.4M (estimate).
   **Next:** Dhia fixes the monitoring app's build folder (Q-610), then the API's `TELEMETRY_*` go into `staging.json` and
   `apply staging`; T-017b (a fresh environment) once five CranL slots are free (Q-613).
+
+## Mutation chase: review demo access code — 2026-11-04
+- **Survivors and no-coverage mutants of GitHub run 41718131349 chased (one round, tests only, no source change, no bug
+  found).** `apps/api/src/review-demo/codes.ts` (85.92%, 10): 9 killed in `src/review-demo/codes.test.ts` (a label with
+  one language kept, no flag row means no flag, a meet code counts the pass and a caller over the limit gets
+  `too_many_attempts` without a code); 1 equivalent (line 85 `?? ""`: no refusal is keyed by any fallback string).
+  `apps/api/src/review-demo/routes.ts` (59.26%, 11): 9 killed in `test/review-demo/codes.int.test.ts` (403 while meet is
+  off, 409 `none_left` with no fictional player left, 429 with `retry-after` and its details over the pass limit, the
+  meet code's `no-store`); 2 equivalent (lines 55 and 66, the `cache-control` header name: the player guard already sets
+  `no-store` on every player route). `apps/api/src/console/review-demo.ts` (71.67%, 17): all killed, in the new
+  `src/console/review-demo.test.ts` (each SQLSTATE's refusal, 55P03, other errors passed through, Prepare before Create
+  never reaching the prepare door) and `test/console/review-demo.int.test.ts` (change number before Create is 404, after
+  Close shows the new number). `apps/api/src/console/review-demo-routes.ts` (86.11%, 5): all killed there (the malformed
+  phone names its field; the number change). Each kill was checked by applying the mutant by hand (41 failed their
+  suite; the 3 equivalent ones passed). Lint, types, `lint:limits`, `format:check` clean; touched suites 25 passed. Scores
+  are confirmed by the next grouped mutation run. CI minutes: 0; agent tokens roughly 0.3M (estimate).
 
 ## Mutation chase: games.ts and layers.ts — 2026-11-04
 - **Survivors of GitHub run 41703314042 chased (one round, tests only, no source change, no bug found).**
@@ -2949,6 +2989,10 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   (local only, nothing pushed). Rough worker cost: about 190k tokens / 3 hours (estimate, not billing).
 
 ## Next
+
+- **2026-11-04 (T-804):** T-804 stays open: a tier A task for Q-620 (the completion path's `LANGUAGE sql` functions as
+  `plpgsql`, fewer round trips, CranL's PostgreSQL version) comes before its rerun; Q-621 (sign-in lock and address
+  window) is a tier A sign-in change. T-809 depends on T-804.
 
 - **CURRENT 2026-10-29: T-503 is BUILT (tier B, ADR-362), ticked in TASKS; a fresh tier B code review is next, then the
   coordinator's CI and push (nothing pushed).** Accept ADR-363 / Q-332 after the review. The bullets below about the
