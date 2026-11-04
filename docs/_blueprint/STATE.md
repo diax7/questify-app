@@ -6,6 +6,30 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-804 load test — 2026-11-04
+
+- **T-804 harness built and run; the target is not met, so the task stays open (tier B; ADR-660 Proposed; Q-620, Q-621
+  open; no migration, no app code changed).** `node ops/load/run.mjs` builds the load API from the checkout
+  (`apps/api/test/load/`: production's pool, Redis options, ticks and logs; SMS, email, push stubbed), seeds a
+  throw-away local database with set-based SQL (sessions by `issue_player_tokens`), drives open-schedule completions
+  from 5 processes with a ranking probe per event, runs the `POST /v1/auth/code` rush, and drops the database and Redis
+  keys in `finally` (RUNBOOK "Load test"). PC: AMD Ryzen 7 1700 (8 cores, 16 threads), 48 GB, Windows 10, Node 24,
+  Docker PostgreSQL 17.11 and Redis 8, one API with a pool of 10; 10 events x 2,500 players x 20 quests, 60 s measured
+  after 10 s of warm-up. Completions for all ten events: 50/s p95 224 ms; **80/s p95 245 ms (p50 108, p99 291), 100%
+  within 1 s, ranking p50 175 / p95 253 ms after the confirm**; 95/s p95 1.65 s (42% within 1 s); 110/s p95 6.8 s; the
+  target 3,333/s: 16 of 149,504 confirmed in 15 s (139,768 timeouts, 50,496 shed by the client, 9,720 connection
+  errors), 1,626 written; every run's completion rows, ledger rows and scores matched. Bottleneck: PostgreSQL CPU (6 to
+  7 cores at 80 to 110/s; a pool of 30 used 10.5 cores and still failed at 110/s); the API used 0.5 to 0.7 of a core and
+  the client's delay stayed 14 ms p95 (at the target, 680 ms p95: the client too). Cause: `LANGUAGE sql` definer
+  functions planned on every call (`own_bonus` 2.5 ms vs 0.08 ms as plpgsql); PostgreSQL 18.6 (throw-away container,
+  removed) cut database CPU by about 45% and, with two API processes, reached 93% within 1 s at 160/s (Q-620). Sign-in
+  rush: 100 codes/s p95 297 ms, 120/s p95 2.3 s, 200/s p95 10 s, all 202 (one platform lock); one client address is
+  refused after 200 an hour (Q-621). Tests: `ops/load/*.test.ts` 40 (percentiles, the open schedule, the report and
+  verdict; hand mutants of the rank rounding and the due count failed them). Lint, types, `lint:limits`,
+  `format:check` clean. Disk 15.8 GB free before and 15.7 GB after. CI minutes: 0; agent tokens roughly 0.5M (estimate).
+  **Next:** Q-620's tier A rewrite of the completion path's SQL functions, rerun locally, then the production-like
+  rerun (its seeding is the first step).
+
 ## T-017 CranL infrastructure as code — 2026-11-04
 
 - **T-017 built (tier B; ADR-650 and Q-612 Proposed; Q-610, Q-611, Q-613 open; no migration).** `ops/cranl/staging.json` and
@@ -2935,6 +2959,10 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   (local only, nothing pushed). Rough worker cost: about 190k tokens / 3 hours (estimate, not billing).
 
 ## Next
+
+- **2026-11-04 (T-804):** T-804 stays open: a tier A task for Q-620 (the completion path's `LANGUAGE sql` functions as
+  `plpgsql`, fewer round trips, CranL's PostgreSQL version) comes before its rerun; Q-621 (sign-in lock and address
+  window) is a tier A sign-in change. T-809 depends on T-804.
 
 - **CURRENT 2026-10-29: T-503 is BUILT (tier B, ADR-362), ticked in TASKS; a fresh tier B code review is next, then the
   coordinator's CI and push (nothing pushed).** Accept ADR-363 / Q-332 after the review. The bullets below about the

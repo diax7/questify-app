@@ -7,6 +7,8 @@
     "dist",
     "coverage",
     ".expo",
-    "pnpm-lock.yaml"
+    "pnpm-lock.yaml",
+    "apps/api/test/load-bundle",
+    "ops/load/out"
   ]
 }

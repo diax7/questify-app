@@ -1516,6 +1516,14 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
 - [ ] **T-804** Load test at 20,000 completions per minute per event and ten events at once — delivers no FR (infrastructure or quality gate); depends on: T-105, T-106
   - Done when: 95% of completions confirm within 1 second and the ranking within 5 seconds in the test.
   - Note 2026-10-20 (T-107): every `POST /v1/auth/code` waits its turn on one platform-wide lock (the SMS and email budgets). Measure sign-in at an event's opening rush here instead of assuming it.
+  - Note 2026-11-04 (harness built, target not met, left open; ADR-660, Q-620, Q-621): `node ops/load/run.mjs` (RUNBOOK
+    "Load test"). Dev PC (Ryzen 7 1700 8C/16T, 48 GB, Windows 10, Docker PostgreSQL 17.11, one API, pool 10, 10 events x
+    2,500 players x 20 quests): the most that meets NFR-002 is about 80 completions a second for all ten events (p95
+    245 ms, ranking p95 253 ms after the confirm; 2.4% of the 3,333 a second asked); 95 a second p95 1.65 s; the target
+    collapses (16 of 149,504 confirmed). PostgreSQL CPU is the limit (Q-620: `LANGUAGE sql` definer functions planned on
+    every call). Sign-in rush: about 100 codes a second for the platform (one lock), 200 an hour per client address
+    (Q-621). **Rerun step:** after Q-620's rewrite, rerun locally, then in a production-like environment (seeding there
+    is the first step, RUNBOOK).
 - [ ] **T-805** Restore rehearsal and second-region recovery drill — delivers no FR (infrastructure or quality gate); depends on: T-002
   - Done when: A restore to a point 5 minutes earlier completes within an hour.
 - [ ] **T-806** Store submission: privacy labels, age rating, data-safety form, screenshots, review notes, the review demo event — delivers no FR (infrastructure or quality gate); depends on: T-710
