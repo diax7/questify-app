@@ -5,7 +5,7 @@ name: Full checks
 # only the browser specs of the changed area (ADR-372), so this run is the one that sees all of them together: every
 # day on main, and by hand on any pushed branch.
 # Start it: gh workflow run full.yml --ref <branch>
-# Cost: about 45 minutes a run (checks 19, browser suite 24, builds and install; 2026-11-04), so about 1,350 minutes a
+# Cost: about 55 minutes a run (checks 19, browser suite 35, builds and install; 2026-11-04), so about 1,650 minutes a
 # month for the daily run (30 runs). Free on this public repository; on a private one it would be metered, so change the cron to
 # weekly then.
 on:
@@ -24,7 +24,7 @@ permissions:
 jobs:
   full:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 75
     services:
       postgres:
         image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
