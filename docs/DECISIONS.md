@@ -7911,7 +7911,7 @@ item, a quest item, a first-N slot, a streak day 2).
 
 ## ADR-690 - T-804b the platform send budget as striped sliding windows, reserved in their own transaction
 
-**Status:** Proposed (developer, 2026-11-04; T-804b plan Revision 1 after its review, Q-621).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-04, after the T-804b code review 89 and its fixes; T-804b plan Revision 1 after its review, Q-621).
 **Decision:** each channel's budget (login SMS an hour, player email codes a day) is split into 16 stripes, a constant
 of `take_send_budget`, each its own sliding window in `auth_throttle` with a share of the cap that sums to the cap
 exactly. `take_send_budget` (PL/pgSQL, `VOLATILE` at READ COMMITTED so each query's snapshot is taken after its
@@ -7937,7 +7937,7 @@ takes one request at a time.
 
 ## ADR-691 - T-804b a client address earns sign-in room from right codes typed from it
 
-**Status:** Proposed (developer, 2026-11-04; T-804b plan Revision 1 after its review, Q-621 part 2, Q-634).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-04, after the T-804b code review 89 and its fixes; T-804b plan Revision 1 after its review, Q-621 part 2, Q-634).
 **Decision:** the player code window of an address is `min(2000, 200 + 2 x contacts that typed a right code of the
 request's channel from that address in the hour)` and its wrong-code window `min(500, 100 + 1 x such contacts in 15
 minutes)`. An SMS code earns SMS room only and an email code email room only (buckets `player_verified_phone_address`,
@@ -7951,7 +7951,7 @@ SMS room.
 
 ## ADR-692 - T-804b a busy budget is a retry, never "spent"
 
-**Status:** Proposed (developer, 2026-11-04; T-804b plan Revision 1).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-04, after the T-804b code review 89 and its fixes; T-804b plan Revision 1).
 **Decision:** `spent` only when every stripe was found full: read under its lock, or, for a stripe another request
 holds, read without it (units are only inserted under the lock, so this can answer "spent" a few milliseconds early
 when a held unit is about to be given back, never overspend). Otherwise `busy`, retried by the service up to 3 times
