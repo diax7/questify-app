@@ -191,13 +191,15 @@ that is shared or written to disk (today's is in memory, per process).
   live in `apps/api/src/auth/limits.ts`.
 - **Changing the platform budget** (no deploy, no store release; Q-093's number is Dhia's): as the database owner,
   `UPDATE platform_send_budget SET cap = <n> WHERE channel = 'phone';` (`'email'` for player email codes;
-  `window_seconds` likewise). A higher cap counts from the next request. A lower cap, or a longer window, settles for one
+  `window_seconds` likewise, from 1 to 86,400: the table refuses more than a day because the sweep of `auth_throttle`
+  deletes older rows). A higher cap counts from the next request. A lower cap, or a longer window, settles for one
   window: the trigger stamps `changed_at` and the budget then takes one request at a time (exact, never over the new
   cap), so lower it outside an event's opening. Read it back with `SELECT * FROM platform_send_budget;`.
 - **Deploying migration 0150** (T-804b): deploy outside an event's opening. The window's rows of the old single budget
   keys are copied into the 16 stripes, so the hour's history counts; while an instance of the previous release still
   runs, each release counts only its own keys, so the budget can be exceeded by what the old instances send in those
-  seconds. A rollback still sees the old rows.
+  seconds. A rollback still sees the old rows, but not the units written to the stripes since the deploy: old code
+  counts only the old key, so a rollback can send up to one more full cap in that window.
 - **Freeing a contact or an address** (a player locked out by someone else's wrong guesses, SECURITY.md): the counts
   are rows in `auth_throttle` (buckets `player_code_contact`, `player_code_device`, `player_code_address`,
   `player_fail_contact`, `player_fail_address`), keyed by `contactThrottleKey` of the stored phone (`+9665…`) or

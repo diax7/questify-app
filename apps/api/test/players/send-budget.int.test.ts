@@ -168,6 +168,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the platform send budget", () 
     expect(await reserve()).toEqual({ kind: "spent" });
   });
 
+  it("answers spent, not busy, while another session holds the lock of every full stripe", async () => {
+    await setSendBudget(owner, "phone", 16);
+    for (let i = 0; i < STRIPES; i += 1) {
+      await seed("phone", i, 1);
+    }
+    const holder = await connectAsOwner(db);
+    try {
+      await holder.query("BEGIN");
+      for (let i = 0; i < STRIPES; i += 1) {
+        await holder.query("SELECT pg_advisory_xact_lock($1::bigint)", [
+          stripeKey("phone", i).readBigInt64BE(0).toString(),
+        ]);
+      }
+      expect(await reserve()).toEqual({ kind: "spent" });
+      expect(await rowsIn("phone")).toBe(16);
+    } finally {
+      await holder.end();
+    }
+  });
+
   it("frees exactly one unit when one is given back; an unknown time gives back nothing", async () => {
     await setSendBudget(owner, "phone", 50);
     const held: Held[] = [];
@@ -247,6 +267,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the platform send budget", () 
     expect(await rush(10, "email")).toBe(5);
     expect(await rowsIn("email")).toBe(5);
     expect(await reserve("phone")).toEqual({ kind: "spent" });
+  });
+
+  it("refuses to run at REPEATABLE READ or SERIALIZABLE, where it would count with a stale snapshot", async () => {
+    for (const level of ["REPEATABLE READ", "SERIALIZABLE"]) {
+      const client = await pool.connect();
+      try {
+        await client.query(`BEGIN ISOLATION LEVEL ${level}`);
+        await expect(
+          client.query("SELECT * FROM take_send_budget('phone')"),
+          level,
+        ).rejects.toThrow(/take_send_budget: needs READ COMMITTED, got /);
+      } finally {
+        await client.query("ROLLBACK");
+        client.release();
+      }
+    }
+    expect(await rowsIn("phone")).toBe(0);
+  });
+
+  it("refuses a window longer than a day, which the sweep of old rows would leave uncounted", async () => {
+    await expect(
+      owner("UPDATE platform_send_budget SET window_seconds = 86401 WHERE channel = 'email'"),
+    ).rejects.toThrow(/platform_send_budget_window_seconds_check/);
+    await expect(
+      owner("UPDATE platform_send_budget SET window_seconds = 0 WHERE channel = 'email'"),
+    ).rejects.toThrow(/platform_send_budget_window_seconds_check/);
+    await owner("UPDATE platform_send_budget SET window_seconds = 86400 WHERE channel = 'email'");
   });
 
   it("refuses an unknown channel by name", async () => {

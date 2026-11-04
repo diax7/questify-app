@@ -15,7 +15,8 @@
 --
 -- It is VOLATILE and the API runs at READ COMMITTED: each query in it takes a new snapshot, taken after its try-lock,
 -- so it sees every row a previous holder of that stripe committed (a STABLE function would count with the snapshot of
--- the calling statement, taken before the lock, and could overspend).
+-- the calling statement, taken before the lock, and could overspend). A REPEATABLE READ or SERIALIZABLE caller would
+-- keep its first snapshot and overspend, so the function refuses to run at any other level.
 --
 -- The cap and window are rows of platform_send_budget (Q-093's number is Dhia's: the seed keeps today's 5,000 SMS an
 -- hour and 1,000 player emails a day; the RUNBOOK changes it with one owner UPDATE). Raising a cap is exact at once (a
@@ -38,7 +39,8 @@ SET LOCAL lock_timeout = '10s';
 CREATE TABLE platform_send_budget (
   channel        text PRIMARY KEY CHECK (channel IN ('phone', 'email')),
   cap            integer NOT NULL CHECK (cap >= 0),
-  window_seconds integer NOT NULL CHECK (window_seconds > 0),
+  -- At most a day: sweepThrottle deletes rows older than a day, so a longer window would count rows already gone.
+  window_seconds integer NOT NULL CHECK (window_seconds BETWEEN 1 AND 86400),
   -- When the cap was last lowered or the window lengthened; the budget settles for one window after it.
   changed_at     timestamptz NOT NULL DEFAULT '-infinity'
 );
@@ -87,6 +89,10 @@ DECLARE
   v_locked boolean;
   v_at timestamptz;
 BEGIN
+  IF current_setting('transaction_isolation') <> 'read committed' THEN
+    RAISE EXCEPTION 'take_send_budget: needs READ COMMITTED, got %', current_setting('transaction_isolation')
+      USING ERRCODE = '25000';
+  END IF;
   SELECT b.cap, make_interval(secs => b.window_seconds),
          b.changed_at > now() - make_interval(secs => b.window_seconds)
     INTO v_cap, v_window, v_settling

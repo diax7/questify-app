@@ -2618,7 +2618,11 @@ ADR-691's 200 base, 2 per right code and 2,000 ceiling (and 100, 1, 500 for wron
 event's opening shows how many codes a venue types back. The platform budget is now a row of `platform_send_budget`
 changed by an owner `UPDATE` (RUNBOOK); no console screen edits it. A lowered cap settles for one window (ADR-690):
 the budget takes one request at a time until then, so lower it outside an event's opening.
-**Recommended (developer):** review the numbers after the first booked event; build a console screen only when Dhia
+Email contacts verify at no cost, so one address can reach the 2,000-an-hour ceiling of ADR-691 on email codes and
+drain the 1,000-a-day email budget in under an hour, after which every player's email code is refused until the
+window moves on.
+**Recommended (developer):** review the numbers after the first booked event, and choose a lower email ceiling
+later (not built here); build a console screen only when Dhia
 wants to change Q-093's number himself.
 
 ## Q-651 - The staff sign-up and invite mail budget keeps its one lock (T-804b)

@@ -7923,10 +7923,17 @@ of `platform_send_budget` (API: SELECT only), so Q-093's number is changed by da
 `changed_at` when the cap is lowered or the window lengthened, and for one window the function then takes all 16
 locks and checks the channel's total as well, so no change mid-window lets more through. The migration copies (never
 moves) the window's rows of the old single keys into the stripes. `takePlatformBudget` and the half warning are removed.
+`window_seconds` is held between 1 and 86,400 (`sweepThrottle` deletes `auth_throttle` rows older than a day, so a
+longer window would count rows already gone), and the function raises unless it runs at READ COMMITTED, so a
+REPEATABLE READ caller fails loudly instead of counting with a stale snapshot.
 **Why:** one advisory lock held to the commit capped the platform at about 100 codes a second (Q-621; the profile
 before the change: 90% of active database sessions waited on that lock, and 100 a second had a p95 of 2.2 s).
 **Trade-offs:** refused requests hold a unit for milliseconds; for one window after a lowered cap the budget takes one
 request at a time; old API instances still running during the deploy count only the old key.
+A caller whose first read (the cap and `changed_at`) ran before a cap-lowering `UPDATE` committed can still take one
+stripe under the old share; the overspend is bounded by the requests in flight at that moment. After a cap is
+lowered, settling holds all 16 locks for one full window (a day for the email budget), so for that long the channel
+takes one request at a time.
 
 ## ADR-691 - T-804b a client address earns sign-in room from right codes typed from it
 
