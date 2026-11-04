@@ -7962,3 +7962,64 @@ with 5 to 20 ms jitter, then `throttled` with `retryAfterSeconds: 1` (`player.bu
 **Why:** a no-wait function cannot deadlock, and a person is told SMS is unavailable only when it is; without the
 unlocked read a crowd at a spent budget kept seeing each other's locks and heard `busy` forever.
 **Trade-offs:** under extreme contention a request may wait a second although a unit was free.
+
+## ADR-700 - T-810b security headers on every API answer, set by the forwarder too
+
+**Status:** Proposed (developer, 2026-11-05; plan `docs/plans/2026-11-05-t-810b-asvs-gaps.md` item 1).
+**Decision:** one shared constant (HSTS one year with subdomains, `nosniff`, `default-src 'none'; frame-ancestors
+'none'`) set on every API reply by an `onSend` hook, and set again by `apps/web/src/lib/forward.ts` on every answer it
+returns, its own errors included, instead of passing the API's values through.
+**Why:** ASVS V3.4; the web host's answer must not depend on, or be weakened by, what the API sends.
+**Trade-offs:** the values live in one place both apps read; a route that ever needs another CSP must opt out explicitly.
+
+## ADR-701 - T-810b outside calls fail on a redirect, enforced by a source guard
+
+**Status:** Proposed (developer, 2026-11-05; plan item 2).
+**Decision:** every `fetch` in the API and the web's server-side API calls passes `redirect: "error"`; a test parses the
+sources and fails on a `fetch(` without it. The raw HTTP/2 push client never follows redirects and is left as is.
+**Why:** ASVS V15.3.2; a hijacked provider endpoint must not bounce a secret or a body to another host.
+**Trade-offs:** a provider that moves behind a redirect fails loudly until its URL is updated.
+
+## ADR-702 - T-810b invitation links: 128 random bits in the same column, not 256
+
+**Status:** Proposed (developer, 2026-11-05; plan item 3; Q-670).
+**Decision:** `invitation_recipient.link` keeps its type and token path; its default becomes 16 bytes of
+`sha256(two gen_random_uuid())` (128 bits from 244 strong random bits; no pgcrypto). Unsent queued rows are given new
+links in the migration; sent links keep working until their 90-day purge.
+**Why:** ASVS V11.5.1 asks for 128 bits; 256 bits would add 21 characters to a 3-part SMS and cut every event name.
+**Trade-offs:** the column is typed `uuid` but holds non-UUID bits (commented in the migration).
+
+## ADR-703 - T-810b `authz.denied`: 403s and explicit hidden 404s only
+
+**Status:** Proposed (developer, 2026-11-05; plan item 5; Q-671).
+**Decision:** a `denied` flag on `HttpError` and a `hiddenNotFound()` used where a 404 hides access (organizer and
+console hooks, guards); the error handler logs one `authz.denied` line (method, route pattern, status, code, actor kind
+and id) for those and every 403. A definer's 404 for an object row-level security hides is not logged.
+**Why:** ASVS V16.3.2 without flooding the log with every authenticated 404.
+**Trade-offs:** object-level probing inside one tenant's reach leaves no line.
+
+## ADR-704 - T-810b the SBOM is a Release asset of each `release-*` tag
+
+**Status:** Proposed (developer, 2026-11-05; plan item 7; Q-672).
+**Decision:** a one-job `sbom.yml` on `release-*` tag pushes runs `pnpm sbom:generate` and attaches the file to a GitHub
+Release; the coordinator tags every CranL deploy and store build (RUNBOOK).
+**Why:** ASVS V15.1.2; a Release asset is kept for good and does not use Actions storage.
+**Trade-offs:** one more manual step per release; an untagged release has no SBOM.
+
+## ADR-705 - T-810c reward codes carry a key id; a re-seal command rotates them
+
+**Status:** Proposed (developer, 2026-11-05; plan item 8, built in T-810c; Q-673).
+**Decision:** new seals start with a 3-byte header (`0x51 0x02 keyId`); legacy seals open under key 1; previous secrets
+are loaded only to open and re-seal; `reward-codes.cjs reseal` rewrites every row (cipher and mark) under the current
+key with the migration owner's connection, no new door.
+**Why:** ASVS V11.2.2; today rotating `REWARD_CODE_SECRET` loses every unused code.
+**Trade-offs:** while a previous key is loaded, uploads check duplicates under every key.
+
+## ADR-706 - T-810b a player refresh family ends 365 days after its sign-in
+
+**Status:** Proposed (developer, 2026-11-05; plan item 9; implements the answered Q-660).
+**Decision:** `player_refresh.family_started_at`, copied on every rotation by `issue_player_tokens` (same signature);
+each new token ends at the earlier of 180 days and the family's start plus 365 days. Existing families start at their
+earliest surviving row, so the deploy signs nobody out.
+**Why:** ASVS V7.3.2 asks for an absolute session end; low-value accounts justify a year (SECURITY.md).
+**Trade-offs:** FR-123 changes: a player types one fresh code a year per phone.

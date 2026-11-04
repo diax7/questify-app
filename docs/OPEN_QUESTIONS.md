@@ -2695,3 +2695,32 @@ that is logged; and server log lines kept only in CranL's log view, with no copy
 **Recommended (developer):** add these to the T-811 questions to CranL. Then require `sslmode=verify-full` and
 `rediss://` where CranL offers them, rotate the database and Redis passwords on a schedule written in the RUNBOOK,
 and ship log lines to the monitoring app (T-018b) so a breached API host cannot rewrite them.
+
+## Q-670 - Invitation link tokens: 128 or 256 bits (T-810b item 3, ADR-702)
+
+**Status:** Open (developer, 2026-11-05).
+TASKS.md says 256 bits; ASVS V11.5.1 asks for 128. A 256-bit token is 43 characters instead of 22 in a message held to
+3 SMS parts, so every event name in an invitation would be cut about 21 characters shorter.
+**Recommended (developer):** 128 random bits in the existing column (no SMS change); choose 256 only if a reviewer
+wants margin over the standard.
+
+## Q-671 - Hidden 404s inside definers are not logged as denials (T-810b item 5, ADR-703)
+
+**Status:** Open (developer, 2026-11-05).
+Row-level security makes another tenant's object look absent inside the database, so only the hook-level hides and the
+403s can be named `authz.denied`; logging every authenticated 404 would log every typo and expired link.
+**Recommended (developer):** log 403s and the explicit hides; revisit if the pen test (T-809) shows object probing.
+
+## Q-672 - Tag every release so it gets an SBOM (T-810b item 7, ADR-704)
+
+**Status:** Open (developer, 2026-11-05).
+Releases (CranL deploys, store builds) are started by hand and have no tag today.
+**Recommended (developer):** the coordinator pushes `release-YYYYMMDD-N` on the deployed commit each time (RUNBOOK);
+a later release script can do it automatically.
+
+## Q-673 - Reward code key rotation moves to T-810c (T-810b item 8, ADR-705)
+
+**Status:** Open (developer, 2026-11-05).
+The key id touches the config, the seal format, every opener, the upload's duplicate check and a new operator command;
+nothing is at risk until a leak forces a rotation.
+**Recommended (developer):** build it as T-810c after T-810b, with its own plan review; the sheet's row 8 points there.
