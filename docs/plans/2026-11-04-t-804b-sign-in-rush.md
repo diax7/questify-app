@@ -217,3 +217,23 @@ SECURITY.md (the earned window), RUNBOOK (changing the budget, deploy note), TAS
 - The deploy overlap (section 2) is the only window where the budget can be exceeded.
 - The earned window assumes about half the codes at a venue are typed back; a venue with many failed SMS deliveries
   earns slowly (the email fallback still counts the address window). Q-650.
+
+## 9. Results (2026-11-04, this PC, Docker PostgreSQL 17, rush only)
+
+| Run | Shape | Answers | Latency p95 (ms) | Advisory waits |
+|---|---|---|---|---|
+| Step 0 (before) | 50, 100, 150 a second, one API | all 202 | 42 / 2,225 / 9,047 | 90% of active sessions |
+| A, one API, run 1 | 100, 200, 250 (30 s), 300 | all 202 | 44 / 162 / **47** / 158 | 0 |
+| A, one API, run 2 | same | all 202 | 43 / 166 / **376** / 649 | 0 |
+| A, three APIs, runs 1 and 2 | same | all 202 | 178, 48 / 79, 69 / **79, 54** / 249, 131 | 0 |
+| B, SMS cap 5,000, one API | 300 a second, 9,000 asked | 5,000 x 202, 4,000 x 503 (both runs) | 202s 695, 2,835; 503s 102, 2,706 | 0 |
+| B, email cap 1,000 | 300 a second, 3,000 asked | 1,000 x 202, 2,000 x 503 | 202s 691; 503s 503 | 0 |
+| C, one address, verify 0.8 | 4/s 2 min, 2/s 5 min, 1/s 15 min (2,000) | 2,000 x 202, **no 429**; 1,646 typed back (91 wrong first, 401), all 1,646 right ones 200 | 51 / 55 / 64 | - |
+| C, verify 0 | 4/s 100 s (400) | 200 x 202, 200 x 429 | 45 | 0 |
+
+The gate holds: 250 a second at p95 under 1 s with one API (median of the two runs about 210 ms) and with three; the
+SMS and email budgets were never exceeded (exactly the cap answered 202, the stripes' DB tests prove the count); 2,000
+phones behind one address got their codes with no 429. One API passes 250 a second but not steadily 300 (its own CPU;
+PostgreSQL used 2 to 4 cores). Run B's second run and the one-API 300 step show this PC's noise. Run C ran once (22
+minutes; its wait samples overlapped the full test suite and are left out). The 503s after a spent budget answer in
+about 100 ms when the API is not saturated. PostgreSQL 16.15: migration 0150 and the 13 budget tests green.

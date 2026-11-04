@@ -966,6 +966,17 @@ below the 5,000 SMS an hour budget), `--rush-per-address` (50 codes from each cl
 10.x.y.z), `--rush-first` (the first phone, +96659 and 7 digits), `--admin-url`, `--redis-url`, `--pg-container`
 (for the CPU samples, `questifyapp-postgres-1`).
 
+**Sign-in rush options** (T-804b): the rush is spread over every API instance. `--sms-cap` and `--email-cap` set the
+run's `platform_send_budget` (default 1,000,000 each, so a throughput run is never stopped by it); `--rush-channel email`
+asks for email codes; `--rush-verify <share>` types back that share of the codes (0 to 1; off by default) after a delay
+drawn uniformly from `--rush-typing` seconds (default `20:90`), 5% of them a wrong code first: the load API's stubs
+keep the last code sent to each contact and serve it on 127.0.0.1 at the API port + 100. A burst of arrivals is steps
+of `--rush`, for example `4:120,2:300,1:920` with `--rush-per-address 2000` (one venue address, 2,000 phones in about
+22 minutes). The report's `rush` holds each step's latency overall and per answer (`latencyByStatus`: the 503s' p95 is
+that of the requests after the budget was spent), the typed-back answers (`verify`), the database's sampled advisory
+lock waits (`waits`) and PostgreSQL's CPU. The three runs of the T-804b gate and their numbers are in
+`docs/plans/2026-11-04-t-804b-sign-in-rush.md` section 9.
+
 **Profiling the completion path** (T-804a, ADR-674): on a throw-away container, never the shared test one:
 `docker run -d --name questify-profile --shm-size=1g -p 127.0.0.1:55441:5432 -e POSTGRES_PASSWORD=postgres
 postgres:17-alpine -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all -c
