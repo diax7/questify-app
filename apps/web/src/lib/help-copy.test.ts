@@ -223,6 +223,7 @@ const HELP_PROP_KEYS: readonly string[] = [
   "joinRules.welcomeLocked",
   "players.ownerOnly",
   "requests.count",
+  "signIn.codeNeverShare",
   "souvenir.resultsDepth",
   "staff.codeSent",
   "staff.passwordRules",

@@ -762,6 +762,10 @@ export const MESSAGES = {
     en: "We sent a 6-digit code to {contact}",
   },
   "signIn.code": { ar: "الرمز", en: "Code" },
+  "signIn.codeNeverShare": {
+    ar: "لا تشارك رمزك مع أحد. Questify لن يطلبه منك أبدًا.",
+    en: "Never share this code. Questify will never ask you for it.",
+  },
   "signIn.verify": { ar: "تأكيد", en: "Confirm" },
   "signIn.resend": { ar: "أرسل رمزًا جديدًا", en: "Send a new code" },
   "signIn.resendIn": { ar: "رمز جديد بعد {seconds} ث", en: "New code in {seconds} s" },

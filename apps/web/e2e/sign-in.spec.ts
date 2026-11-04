@@ -27,6 +27,10 @@ test.describe("an Arabic browser", () => {
     await page.getByLabel("كلمة المرور").fill(PASSWORD);
     await page.getByRole("button", { name: "متابعة" }).click();
     await expect(page.getByRole("heading", { name: "أدخل رمز الدخول" })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "رمز الدخول" })).toHaveAccessibleDescription(
+      "لا تشارك رمزك مع أحد. Questify لن يطلبه منك أبدًا.",
+    );
+    await expectNoSidewaysScroll(page);
     await page.getByRole("textbox", { name: "رمز الدخول" }).fill(await codeFor(email));
     await page.getByRole("button", { name: "تسجيل الدخول" }).click();
 
@@ -68,6 +72,9 @@ test("in English: a wrong password, a wrong code with attempts left, then in, an
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Continue" }).click();
   const code = await codeFor(email);
+  await expect(page.getByRole("textbox", { name: "Sign-in code" })).toHaveAccessibleDescription(
+    "Never share this code. Questify will never ask you for it.",
+  );
   await page
     .getByRole("textbox", { name: "Sign-in code" })
     .fill(code === "000000" ? "111111" : "000000");

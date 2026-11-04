@@ -24,6 +24,10 @@ function useCountdown(): [number, (seconds: number) => void] {
   return [left, setLeft];
 }
 
+/** The code field's id, fixed so its own `aria-describedby` can name the "never share" line `Field` draws under it. */
+const CODE_FIELD_ID = "sign-in-code";
+const CODE_HELP_ID = `${CODE_FIELD_ID}-help`;
+
 /** Where the code and its resend go: staff sign-in by default, or the organizer sign-up. */
 export type CodePaths = Readonly<{ code: string; resend: string }>;
 
@@ -115,7 +119,7 @@ export function CodeStep({
         title={t("staff.codeTitle")}
         description={t("staff.codeSent", { email: isolate(email) })}
       />
-      <Field label={t("staff.code")}>
+      <Field id={CODE_FIELD_ID} label={t("staff.code")} help={t("signIn.codeNeverShare")}>
         <Input
           ref={field}
           code
@@ -129,7 +133,7 @@ export function CodeStep({
           value={code}
           onChange={(event) => setCode(toWesternDigits(event.target.value).replace(/[^0-9]/g, ""))}
           disabled={busy}
-          aria-describedby={problem === null ? undefined : "code-problem"}
+          aria-describedby={problem === null ? CODE_HELP_ID : `${CODE_HELP_ID} code-problem`}
         />
       </Field>
       {problem === null ? null : (

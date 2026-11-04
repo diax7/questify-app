@@ -189,6 +189,7 @@ function CodeStep({ state, dispatch }: StepProps<"code">) {
         maxLength={6}
         style={{ writingDirection: "ltr", textAlign: "left" }}
       />
+      <AppText muted>{t("signIn.codeNeverShare")}</AppText>
       {state.attemptsLeft === null ? null : (
         <AppText muted>{t("signIn.attemptsLeft", { count: state.attemptsLeft })}</AppText>
       )}
