@@ -7976,7 +7976,8 @@ returns, its own errors included, instead of passing the API's values through.
 
 **Status:** Proposed (developer, 2026-11-05; plan item 2).
 **Decision:** every `fetch` in the API and the web's server-side API calls passes `redirect: "error"`; a test parses the
-sources and fails on a `fetch(` without it. The raw HTTP/2 push client never follows redirects and is left as is.
+sources (with the oxc parser vitest ships, `vitest/node` `parseAst`: TypeScript 7 has no JavaScript compiler API) and
+fails on any call whose callee is named like a fetch, or is a variable set from one, without it. The raw HTTP/2 push client never follows redirects and is left as is.
 **Why:** ASVS V15.3.2; a hijacked provider endpoint must not bounce a secret or a body to another host.
 **Trade-offs:** a provider that moves behind a redirect fails loudly until its URL is updated.
 
@@ -7984,16 +7985,17 @@ sources and fails on a `fetch(` without it. The raw HTTP/2 push client never fol
 
 **Status:** Proposed (developer, 2026-11-05; plan item 3; Q-670).
 **Decision:** `invitation_recipient.link` keeps its type and token path; its default becomes 16 bytes of
-`sha256(two gen_random_uuid())` (128 bits from 244 strong random bits; no pgcrypto). Unsent queued rows are given new
-links in the migration; sent links keep working until their 90-day purge.
+`sha256(two gen_random_uuid())` (128 bits from 244 strong random bits; no pgcrypto), for new rows only. Rows already
+written keep their link (plan review: no rewrite of queued rows); sent links keep working until their 90-day purge.
 **Why:** ASVS V11.5.1 asks for 128 bits; 256 bits would add 21 characters to a 3-part SMS and cut every event name.
 **Trade-offs:** the column is typed `uuid` but holds non-UUID bits (commented in the migration).
 
 ## ADR-703 - T-810b `authz.denied`: 403s and explicit hidden 404s only
 
 **Status:** Proposed (developer, 2026-11-05; plan item 5; Q-671).
-**Decision:** a `denied` flag on `HttpError` and a `hiddenNotFound()` used where a 404 hides access (organizer and
-console hooks, guards); the error handler logs one `authz.denied` line (method, route pattern, status, code, actor kind
+**Decision:** a `denied` flag on `HttpError` and a `hiddenNotFound()` used only at the central checks (the organizer
+hook's membership and support checks, the console hook, activation's `forbidden`; not the device and player guards,
+plan review); the actor kind comes from what the guard set on the request, never an id prefix. The error handler logs one `authz.denied` line (method, route pattern, status, code, actor kind
 and id) for those and every 403. A definer's 404 for an object row-level security hides is not logged.
 **Why:** ASVS V16.3.2 without flooding the log with every authenticated 404.
 **Trade-offs:** object-level probing inside one tenant's reach leaves no line.
@@ -8019,7 +8021,8 @@ key with the migration owner's connection, no new door.
 
 **Status:** Proposed (developer, 2026-11-05; plan item 9; implements the answered Q-660).
 **Decision:** `player_refresh.family_started_at`, copied on every rotation by `issue_player_tokens` (same signature);
-each new token ends at the earlier of 180 days and the family's start plus 365 days. Existing families start at their
-earliest surviving row, so the deploy signs nobody out.
+each new refresh token ends at the earlier of 180 days and the family's start plus 365 days, and each access token at
+the earlier of 1 hour and the same end. Existing families start at their earliest surviving row, so the deploy signs
+nobody out; the migration asserts no live row already ends later (no capping UPDATE is needed).
 **Why:** ASVS V7.3.2 asks for an absolute session end; low-value accounts justify a year (SECURITY.md).
 **Trade-offs:** FR-123 changes: a player types one fresh code a year per phone.

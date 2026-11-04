@@ -27,6 +27,10 @@
   - Roles: `anonymous`, `player`, `operator` (a player with an event assignment), `editor`, `owner`,
     `admin`. Every route lists who may call it; the server re-checks the organizer and event on
     every request (NFR-016).
+- **Security headers (T-810b, ADR-700):** every answer, errors and replays included, carries
+  `Strict-Transport-Security: max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff` and
+  `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, set by the API and again by the web's `/v1`
+  forwarder. A body with a `__proto__` or `constructor.prototype` key answers 400 `invalid_request`.
 - **Errors:** one envelope everywhere: `{ "code": "<machine_code>", "message": { "ar", "en" },
   "details": {} }`. Status codes: 400 bad input, 401 not signed in, 403 not allowed or paused, 404,
   409 conflict (e.g. already completed), 422 rule failure, 426 update the app, 429 too many

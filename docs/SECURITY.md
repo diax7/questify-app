@@ -151,6 +151,29 @@ public event page and join code; and the big-screen/station links.
 
 - Players: phone (+966) or email, one-time code; 5-minute expiry; attempt limits; resend limits per
   number, email and IP; tokens rotate.
+- **Player sessions end 365 days after the sign-in (T-810b, Q-660, ADR-706; ASVS V7.1.1, V7.3.2).** Access tokens last
+  1 hour and refresh tokens 180 days, renewed on every refresh, but a refresh family never outlives its sign-in by more
+  than 365 days (`family_started_at`, migration 0154), its last access token included. Why a year and not NIST SP
+  800-63B's 30 days at AAL1: the accounts hold event points, never money; a lost phone is ended by sign-out, the
+  10-family limit or a ban; and a fresh code once a year is the friction a game can carry. Recorded as a deviation.
+- **Player sign-in: one factor, accepted for v1 (Q-662; ASVS V6.3.3, V6.6.1, written exception).** A code by SMS or
+  email is the only factor. Compensating controls: per-contact, per-address and per-install limits; single-use codes
+  that end after 5 minutes and 3 tries; refresh-token theft detection (a reused token ends its family); a prize handover
+  the player accepts in their own app; a notice on every phone or email change; the 365-day end above. Email is always
+  offered next to SMS. Passkeys are revisited after the first events. The code screen's "never share this code" line is
+  T-810e.
+- **Refused access is logged (T-810b, ADR-703; ASVS V16.3.2).** Every 403, and every 404 that a central check uses to
+  hide a door (no membership of the organizer in the URL, a route off support's list, the console to a non-admin, an
+  event the database says the caller cannot reach), writes one `authz.denied` line: method, route pattern, status,
+  code, actor kind and id. Never the filled path, the query, a body, a contact or a header. A 404 for an object that
+  row-level security hides inside the database is not logged (Q-671): it cannot be told from absence.
+- **API answers carry their own security headers (T-810b, ADR-700; ASVS V3.4).** HSTS (a year, subdomains),
+  `nosniff` and `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` on every `/v1` answer, set by the
+  API and again by the web forwarder, so neither depends on the other.
+- **Outside calls never follow a redirect (T-810b, ADR-701; ASVS V15.3.2).** Every `fetch` to a provider (Msegat,
+  Have I Been Pwned, Resend, Gmail, Google's token endpoint) and the web's server-side calls to the API pass
+  `redirect: "error"`; `apps/api/src/outbound-redirect.test.ts` parses the sources so a new call cannot forget it. The
+  APNs and FCM sends use the HTTP/2 client, which never follows one.
 - Staff (editors, owners, admins): email + password + email code, sessions expire after inactivity,
   sessions listed and revocable (ADR-078, F-293). The user considers this "very safe" (2026-10-17). It
   means a mailbox takeover can open an admin account, which ADR-078 and ADR-094 accepted.
