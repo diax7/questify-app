@@ -2642,7 +2642,7 @@ it: `player.budget_spent` (alert `QuestifySendBudgetSpent`) is the only budget l
 
 ## Q-660 - A player's session has no absolute end (T-810, ASVS V7.3.2, V7.1.1)
 
-**Status:** Open (developer, 2026-11-05).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05): as recommended, a refresh family ends 365 days after its sign-in; built in T-810b (item 9), the reason goes in SECURITY.md.
 A player's refresh token lasts 180 days and every rotation issues a new one for another 180 days (migration 0013,
 `issue_player_tokens`), so a phone that opens the app at least twice a year stays signed in forever. ASVS 5.0 L2 asks
 for an absolute maximum and a written reason for any departure from NIST SP 800-63B's re-authentication times. Staff
@@ -2665,7 +2665,7 @@ other sessions. Needs Dhia's yes because it adds screens.
 
 ## Q-662 - Players sign in with one factor (T-810, ASVS V6.3.3, V6.6.1)
 
-**Status:** Open (developer, 2026-11-05).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05): as recommended, one factor is accepted for v1 with the rationale and compensating controls written in SECURITY.md (T-810b); passkeys are revisited after the first events. The SMS-risk line on the code screen is asked of Dhia with Q-661.
 Players sign in with one code by SMS or email (ADR-030). ASVS L2 asks for more than one factor, or a documented
 rationale with compensating controls, and for SMS codes to come with a stronger option and a note about SMS's risks.
 **Recommended (developer):** accept for v1 and write the rationale in SECURITY.md: a player account holds event points
@@ -2686,7 +2686,7 @@ CranL web app, so the `__Host-` cookie of the console never reaches the public o
 
 ## Q-664 - Infrastructure controls held by CranL (T-810, T-811; ASVS V4.1.2, V12.1, V12.2.2, V12.3, V13.2, V13.3, V16.4)
 
-**Status:** Open (developer, 2026-11-05).
+**Status:** Deferred (developer, 2026-11-05): with T-811, which Dhia moved to later on 2026-11-04 (Q-630).
 These ASVS L2 controls depend on CranL, and none is confirmed: the TLS versions and cipher suites at the edge and its
 certificates; whether the API host redirects plain HTTP (it should refuse it); TLS between the web app, the API,
 PostgreSQL and Redis on the private network (`DATABASE_URL` carries no `sslmode`, `REDIS_URL` may be `redis://`);

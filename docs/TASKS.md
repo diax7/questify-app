@@ -1616,6 +1616,7 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - (6) Tests that a body key `__proto__` or `constructor` is refused and that a repeated query key is refused.
   - (7) The SBOM (`pnpm sbom:generate`) produced on the release path and kept with the release.
   - (8) A key id in each sealed reward code and a re-seal command, so `REWARD_CODE_SECRET` can rotate without losing unused codes (split into T-810c if it grows).
+  - (9) A player refresh family ends 365 days after its sign-in, whatever its use (Q-660), with the reason in SECURITY.md; and the one-factor rationale with its compensating controls in SECURITY.md (Q-662).
   - Done when: each item has its test, the sheet's rows move to Met, and mutation targets are the changed core files.
 - [ ] **T-811** CranL go/no-go: written answers on high availability, point-in-time restore, backup copies, uptime, hosting provider and CST status; decide to stay or move production (ADR-107) — delivers no FR (infrastructure or quality gate); depends on: T-805, T-019
   - Note 2026-11-04 (T-804, Q-630): ask CranL for the PostgreSQL sizes and prices, `max_connections`, whether PostgreSQL 17 or 18 is offered (staging runs 16.15) and the app-to-database delay (Dhia: later, at this check).
