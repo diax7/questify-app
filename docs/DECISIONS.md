@@ -7757,3 +7757,65 @@ provider (Q-034). Campaigns share the weekly cap per channel with invitations (A
 **Decision:** (1) Each environment is one file, `ops/cranl/<environment>.json` (`staging`, `production`): the project and region, the repository's `.git` URL and branch, the databases (name, type, PostgreSQL's backup schedule), the buckets, and the three apps (name, port, build folder, Dockerfile, volumes, cron jobs, domains and every environment variable). A variable is a plain value, a template filled from the apps' addresses (`{api.host}`, `{monitoring.url}`), a database connection (`{"database": "postgres"}`, set by CranL's connect), or a secret (`{"secret": "generate"}`, 32 random bytes in base64url made at the first apply, or `{"secret": "operator"}`, read from `SECRET_<APP>_<NAME>` in the operator's shell). No secret value is in the repository. (2) `node scripts/cranl/infra.mjs plan <environment>` reads CranL with GET calls only and lists three sorts of change: *api* (apply makes it), *manual* (the API cannot: a public-repo app's build folder or branch, a region, a database type, a protected app) and *unmanaged* (CranL has a variable, volume, cron job or domain the file does not declare). Exit 0 means CranL matches the file; 2, there is a change. (3) `apply` creates what is missing (project, databases, buckets, apps), reads again, sets everything inside them, and reads a third time: any API change left fails the run, so every apply proves that a second run would change nothing. It never deletes anything and never touches a secret that exists (rotation stays a RUNBOOK step). It refuses before any write when an operator secret is missing. Writes carry an idempotency key per run, reads are retried, every call has a 30 s timeout, and no value of a secret is printed: variable values are read revealed but kept only for plain and template names. (4) The script is plain Node (no dependency), in `scripts/cranl/`, unit-tested against an in-memory CranL (`scripts/cranl/fake-cranl.ts`).
 **Why:** T-017's done-when: a fresh environment from the scripts alone, a second run that changes nothing, no setting only in the dashboard. CranL's own blueprint (`/blueprint/plan` and `apply`) was read and not used: it has no volumes, Dockerfile path or backup schedule, and its plan is a POST.
 **Trade-offs:** some settings can be written but not read through the API, so plan cannot see them drift: the Dockerfile path (set at create), the app's automatic rollback, and the health-check path (dashboard only; Q-612). Unmanaged settings are reported, never removed, so the operator chooses; a removal is a dashboard step.
+
+## ADR-670 - T-804a request-path functions that are definer or carry a SET clause are plpgsql, not LANGUAGE sql
+
+**Status:** Proposed (developer, 2026-11-04; T-804a plan). Q-620, Q-632.
+**Decision:** A new migration restates with `CREATE OR REPLACE` (same signature, owner, grants, `SECURITY DEFINER`,
+`SET search_path`, volatility, strictness, parallel safety and return type) every non-inlinable `LANGUAGE sql` function
+the quest completion and the player guard call, as plpgsql: `#variable_conflict use_column` first; scalars by
+`SELECT ... INTO result` (first row, NULL on none, as SQL functions do); sets by `RETURN QUERY`; composites return NULL
+when no row is found; a data-modifying `WITH` stays one statement ending in `SELECT ... INTO`. Inlinable functions
+(standard `BEGIN ATOMIC` bodies such as `event_day`) stay SQL. `docs/rules.md` gains the rule and a list-guard test
+enforces it for the named path.
+**Why:** PostgreSQL 16 and 17 plan every statement of a non-inlinable SQL function on every call; plpgsql caches the
+plan per connection. Measured on the T-804 seed (plan section 1): 36.1 to 12.4 ms of database time a completion on
+17.11, 34.1 to 13.6 ms on 16.15 (`own_bonus` 3.18 to 0.21 ms, 2.59 ms of it planning); under load 80 a second (6.8
+cores) became 200 a second (8.0 cores) at 95% within 1 s.
+**Trade-offs:** plpgsql may settle on a generic plan, checked with `EXPLAIN (GENERIC_PLAN)` for the hot statements; the
+other SQL functions keep the old cost until PostgreSQL 18 (Q-630); a scalar written as `RETURN (subquery)` would raise
+on two rows, so the parity tests check that form is not used.
+
+## ADR-671 - T-804a one statement answers a completion (`complete_quest_answer`)
+
+**Status:** Proposed (developer, 2026-11-04; T-804a plan).
+**Decision:** A definer door `complete_quest_answer` (same arguments as `complete_quest`, revoked from PUBLIC, granted
+to `questify_app`) calls `complete_quest` and then the existing `own_level`, `own_level_items`, `own_bonus`,
+`own_quest_item`, `completion_boost`, `own_first_bonus`, `own_streak_bonus`, `ranking_entry_of` and
+`ranking_day_entry_of` for the new completion, and returns one row with every part. `callEngine` makes one call and
+`afterCompletion` uses the returned entries instead of two more transactions. The old doors stay (replays, kiosk,
+operator scan, NFC, and an old API during a rolling deploy).
+**Why:** a QR completion made 20 PostgreSQL round trips in three pool check-outs (about 1 ms each on the dev PC), and
+under load the connections spent as long idle in transaction waiting for the API as on CPU; it becomes 5 in two
+check-outs. No rule is copied: each part is the existing function's answer.
+**Trade-offs:** one wide row type to keep in step with the parts (an answer-parity test compares it with the old
+calls); the ranking entries are read inside the writing transaction, which the Redis version guard already orders.
+
+## ADR-672 - T-804a one player check per write
+
+**Status:** Proposed (developer, 2026-11-04; T-804a plan; sign-in, tier A).
+**Decision:** `player_request_gate(hash, is_write)` returns the session's player and, for a write, whether the terms in
+force hold it; the guard makes one call instead of `player_session_owner` then `player_legal_held`. Answers (401, 403
+`legal_acceptance_required`, the doors open while unaccepted) are unchanged.
+**Why:** every player write paid two round trips before its own work.
+**Trade-offs:** the two old functions stay for their other callers; the guard's tests cover both branches.
+
+## ADR-673 - T-804a one Redis script per completion, run by its hash
+
+**Status:** Proposed (developer, 2026-11-04; T-804a plan).
+**Decision:** the ranking store's write and read after a completion become one Lua script called with `EVALSHA`
+(falling back to `EVAL` on `NOSCRIPT`); the version rule, tombstones and the rebuild of a missing board are unchanged.
+**Why:** two `EVAL` calls sent the script text each time; one call halves a completion's Redis round trips.
+**Trade-offs:** one more script to test; the store's existing tests run against it.
+
+## ADR-674 - How the completion hot path is measured
+
+**Status:** Proposed (developer, 2026-11-04; T-804a plan).
+**Decision:** profiling runs on throw-away PostgreSQL containers started for it (the tests' image and CranL's major
+version) with `pg_stat_statements` (`track = all`, `track_planning = on`) and `track_functions = all`, seeded by the
+T-804 seed, one completion at a time for per-call cost and through T-804's drivers for load; before and after are
+measured on the same container with the same statistics on; containers, databases and Redis keys are removed after.
+The shared test container is never restarted for it.
+**Why:** the shared container has no `pg_stat_statements`, and planning time is what has to be seen.
+**Trade-offs:** the statistics add their own overhead to both sides; Docker Desktop's network makes a round trip about
+1 ms, more than a same-region server would.

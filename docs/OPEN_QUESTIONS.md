@@ -2493,3 +2493,51 @@ The CranL API cannot read some settings, so the files can set them at create but
 **Status:** Answered (Dhia, 2026-11-04: "Skip the proof"): no scratch environment; production is created at launch from the same RUNBOOK steps.
 `ops/cranl/production.json` declares production (three apps and two databases, daily backups at 03:00 Riyadh time keeping 30, the API sending telemetry to its own monitoring app, Q-582). The account is at its plan's limit of 20 apps and databases, and Dhia capped Questify at three apps and two databases (ADR-626). Creating production, or proving a fresh environment on a scratch copy, needs five free slots.
 **Recommended (developer):** decide whether production is three more apps and two more databases (the cap read per environment) or shares staging's slots; then run T-017b (RUNBOOK "Infrastructure as code on CranL", "A fresh environment").
+
+## Q-630 - What can CranL's database offer for the completion load? (T-804a, ADR-670)
+
+**Status:** Open (developer, 2026-11-04). Needs Dhia to ask CranL; nothing to buy now.
+After T-804a a completion is expected to cost about 10 ms of database CPU on a dedicated server (12.4 ms measured with
+only the plpgsql rewrite, idle) and about 6 to 7 ms of Node CPU. To size the production-like rerun and NFR-003 x NFR-025
+we need from CranL: the largest PostgreSQL plan (vCPU, memory, `max_connections`, which must cover API processes x 13),
+whether PostgreSQL 17 or 18 is offered and how a major upgrade runs (18 caches SQL-function plans itself, about 45% less
+CPU in T-804's try), whether read replicas exist, and the round-trip time between an app and its database in
+`riyadh-1`.
+**Recommended (developer):** ask CranL these points before the production-like rerun; stay on 16.15 until then.
+
+## Q-631 - 3,333 completions a second needs more than one database (NFR-003, NFR-025; T-804a)
+
+**Status:** Open (developer, 2026-11-04). A product choice for Dhia.
+Ten events at 20,000 completions a minute each is 3,333 a second. After T-804a that is roughly 35 to 130 database cores
+on one primary (about 10 ms a completion on a dedicated server, 25 to 40 ms measured on the loaded dev PC) and about 25
+API processes. Code changes reach about 240 a second on the dev PC, not the target. Ways to it: (a) split events over
+several database primaries (an architecture change); (b) move parts of a completion (XP, streaks, souvenirs, flags) out
+of its transaction (changes what the answer can say at once); (c) set NFR-003 x NFR-025 from the largest booked day
+(for example 20,000 a minute in one event and a lower sum across ten).
+**Recommended (developer):** (c) for launch, with the figure measured after T-804a and the production-like rerun; (a)
+designed only when bookings need it.
+
+## Q-632 - Tests run on PostgreSQL 17 while CranL staging runs 16.15 (T-804a)
+
+**Status:** Open (developer, 2026-11-04).
+CI, the local tests and Stryker use `postgres:17-alpine`; staging runs 16.15. On 2026-11-04 all 147 migrations ran
+cleanly on a 16.15 container and the completion path behaved the same, but nothing checks this on each change.
+**Recommended (developer):** move CranL to 17 when it offers it (Q-630); until then run the DB suites on 16.15 locally
+once before each deploy that carries migrations (a RUNBOOK step), not as a second CI job.
+
+## Q-633 - Load shedding before the database pool (T-804, T-804a)
+
+**Status:** Open (developer, 2026-11-04).
+T-804 found that an overloaded API keeps working on completions whose phone has already given up (15 s), so points are
+granted after the app showed a failure (the idempotency key returns them on a retry). Nothing refuses work before the
+pool.
+**Recommended (developer):** a later tier A task: answer 503 with `Retry-After` when a request has waited more than
+about 2 s for a pool connection, before the engine runs; measured with the T-804 harness.
+
+## Q-634 - The sign-in address window: per platform or per event? (T-804b, Q-621)
+
+**Status:** Open (developer, 2026-11-04).
+Raising the player per-address window to about 2,000 an hour (Q-621) serves one venue; ten venues behind one carrier
+address would share it.
+**Recommended (developer):** one platform window of about 2,000 an hour in T-804b, then measure; a per-event window needs
+the event before sign-in, which the code request does not carry.
