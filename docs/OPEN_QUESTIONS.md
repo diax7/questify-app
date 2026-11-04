@@ -2616,7 +2616,8 @@ one-at-a-time script committed under `ops/load/`, so the number is reproducible,
 **Status:** Open (developer, 2026-11-04).
 ADR-691's 200 base, 2 per right code and 2,000 ceiling (and 100, 1, 500 for wrong codes) are guesses until a real
 event's opening shows how many codes a venue types back. The platform budget is now a row of `platform_send_budget`
-changed by an owner `UPDATE` (RUNBOOK); no console screen edits it.
+changed by an owner `UPDATE` (RUNBOOK); no console screen edits it. A lowered cap settles for one window (ADR-690):
+the budget takes one request at a time until then, so lower it outside an event's opening.
 **Recommended (developer):** review the numbers after the first booked event; build a console screen only when Dhia
 wants to change Q-093's number himself.
 
@@ -2627,8 +2628,10 @@ wants to change Q-093's number himself.
 on the player rush path and its traffic is small.
 **Recommended (developer):** leave it; move it onto `take_send_budget` only if a measurement shows it waiting.
 
-## Q-652 - The half-budget warning is said once per stripe (T-804b, ADR-690)
+## Q-652 - The half-budget warning is dropped (T-804b, ADR-690)
 
-**Status:** Open (developer, 2026-11-04).
-With 16 stripes `player.budget_half` can be logged up to 16 times a window instead of once. No alert reads it today.
-**Recommended (developer):** keep it as a log line; if an alert is added later, alert on the first one in the window.
+**Status:** Open (developer, 2026-11-04; plan review of T-804b).
+Per stripe, `player.budget_half` would have been logged up to 16 times a window, and no alert read it, so T-804b removed
+it: `player.budget_spent` (alert `QuestifySendBudgetSpent`) is the only budget line.
+**Recommended (developer):** if a warning before the cap is wanted later, read the channel's total from
+`auth_throttle` in a monitoring query rather than in the request path.
