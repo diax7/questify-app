@@ -35,6 +35,9 @@ then reply and stop.
 ## Local checks (Docker is running)
 - `TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`
 - `TEST_REDIS_URL=redis://127.0.0.1:56379`
+- The PC's Docker is shared with other projects (B7R and its Supabase stack). Remove only the containers, images and
+  databases you created, by name. **Never** run `docker system|volume|image|container prune` or any other
+  machine-wide clean-up (2026-11-04: a worker's `docker volume prune` removed 54 unused volumes of every project).
 - Lint, format, types: `npx oxfmt <paths>`, `npx oxlint --deny-warnings <dirs>`, `npx tsc --noEmit -p apps/<x>`.
 - Tests: `npx vitest run <paths>` from the repo root. Run only the suites your change touches, plus
   `apps/api/test/security` when the schema changes. Browser tests (RUNBOOK, `pnpm --filter @questify/web e2e`):
