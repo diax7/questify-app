@@ -6,6 +6,23 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## FOLLOWUPS batch — 2026-11-04
+
+- **FOLLOWUPS batch (ADR-355; tier A for the migration, otherwise B/C; migration 0151, new and undeployed).** From the
+  2026-11-03 and 2026-11-04 entries: `complete_quest_answer` returns `ranking_sqlstate` (0149 is deployed, so 0151
+  drops and recreates the function with one more column; the WARNING is gone, `ranking_failed` stays for an API of the
+  previous release) and `afterAnswer` logs it as `sqlstate`; the answer row's null-together columns are typed as unions
+  with null; the 0149 comment about a `lock_timeout` is reworded in 0151. New tests: a 300-event insert with
+  `enable_sort = off` holds the seat locks in id order (the hand mutant without `ORDER BY` fails it), the desk offer
+  deadlines bounded by the database clock, the CranL client's network error, timeout, repeated-key write, still-differs
+  and API-key cases. `ops/load/run.mjs` deletes its `*.job.json` files in `finally` and warns when `cleanUp` throws
+  (smoke run with a tiny plan: no job file left). Each done line is marked in `docs/FOLLOWUPS.md`; left there: the
+  `full.yml` sharding, set-based welcome, the monitoring items, Q-650, and the rest of the T-804 `run.mjs` list. 0151
+  also applies on a throw-away PostgreSQL 16.15 (container removed). Full suite once: 805 files and 12,682 tests passed
+  (16 files, 18 tests skipped). Lint, types, `lint:limits`, `format:check` clean. CI minutes: 0.
+  **Mutation targets touched:** `apps/api/src/completions/complete.ts` (types and one `sqlstate` line),
+  `apps/api/src/ranking/ranking.ts` (one log field, covered by the new `flow.int.test.ts` cases).
+
 ## T-804b built — 2026-11-04
 
 - **T-804b (tier A, sign-in; ADR-690 to ADR-692 amended to the plan review's Revision 1, Q-650 to Q-652 Proposed):
