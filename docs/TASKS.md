@@ -1618,6 +1618,20 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - (8) A key id in each sealed reward code and a re-seal command, so `REWARD_CODE_SECRET` can rotate without losing unused codes (split into T-810c if it grows).
   - (9) A player refresh family ends 365 days after its sign-in, whatever its use (Q-660), with the reason in SECURITY.md; and the one-factor rationale with its compensating controls in SECURITY.md (Q-662).
   - Done when: each item has its test, the sheet's rows move to Met, and mutation targets are the changed core files.
+- [ ] **T-810c** (tier A) Signed-in devices: a "Signed-in devices" list in the app's account screen with Sign out per
+  device and for all others (also offered after a phone or email change); a console action that ends every session of
+  one staff account or one player, with a reason in the audit log; a fresh code before a staff member ends their other
+  sessions — delivers no FR (ASVS V7.4.3, V7.4.5, V7.5.2); depends on: T-810; Q-661 (Dhia, 2026-11-05).
+  - Done when: the three actions work in Arabic and English with tests, outsider tests show no one ends another
+    person's sessions, and the ASVS sheet's rows move to Met.
+- [ ] **T-810d** (tier A, admin powers) The console on its own hostname (`console.<domain>`) through the same CranL web
+  app: the console answers only there, its `__Host-` cookie is never set on the public origin, and the public hostname
+  redirects console paths — delivers no FR (ASVS V3.5.4); depends on: T-810; Q-663 (Dhia, 2026-11-05). Needs Dhia to add
+  the DNS record and the CranL domain once the code is ready (asked with AskUserQuestion then).
+  - Done when: the console and the public pages are on different origins on staging and the sheet's row moves to Met.
+- [ ] **T-810e** (tier C, copy) One line under the code field of the sign-in code screen (app and web), in Arabic and
+  English with the ux-araby skill: never share this code; Questify never asks for it — delivers no FR (ASVS V6.6.1);
+  depends on: T-810; Q-662 (Dhia, 2026-11-05).
 - [ ] **T-811** CranL go/no-go: written answers on high availability, point-in-time restore, backup copies, uptime, hosting provider and CST status; decide to stay or move production (ADR-107) — delivers no FR (infrastructure or quality gate); depends on: T-805, T-019
   - Note 2026-11-04 (T-804, Q-630): ask CranL for the PostgreSQL sizes and prices, `max_connections`, whether PostgreSQL 17 or 18 is offered (staging runs 16.15) and the app-to-database delay (Dhia: later, at this check).
   - Note 2026-11-04 (T-017, Q-611): staging's scheduled PostgreSQL backups have never run on CranL (no success, no failure, nothing kept). Ask CranL why before production relies on them (Dhia: later, at this check).

@@ -827,3 +827,10 @@ Dhia (AskUserQuestion): the monitoring app's build path, "Later" (still his dash
 
 Dhia (AskUserQuestion, after the T-804 load test and the T-804a plan): the launch speed target, "Size to real bookings": set it from the biggest event day actually booked, make the code fast now and scale the hardware when bookings need it, instead of 20,000 completions a minute in each of ten events at once. Asking CranL for database sizes, connections, PostgreSQL 17 or 18 and the app-to-database delay: "Later" (the launch check, T-811). Processed into Q-631 (answered, by the T-804a plan branch when it merges), Q-630 (deferred to T-811) and a T-804 note.
 
+
+## 2026-11-05 - Signed-in devices, the console's own address, the SMS note -> processed
+
+Dhia (AskUserQuestion, after the T-810 ASVS L2 sheet): the signed-in devices list and the console action, "Build it
+(Recommended)"; the console on its own subdomain through the same CranL web app, "Yes, console subdomain (Recommended)";
+the one-line note on the code screen about never sharing the code, "Add the line (Recommended)". Processed into Q-661,
+Q-662, Q-663 and tasks T-810c, T-810d and T-810e.

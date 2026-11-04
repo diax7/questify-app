@@ -2653,7 +2653,7 @@ limit). The alternative is to keep sliding sessions and record that as an accept
 
 ## Q-661 - Session controls for players and for admins (T-810, ASVS V7.4.3, V7.4.5, V7.5.2)
 
-**Status:** Open (developer, 2026-11-05).
+**Status:** Answered (Dhia, 2026-11-05, "Build it (Recommended)"): task T-810c.
 A player cannot see their signed-in phones or end the others; changing a phone or email keeps every session (ADR-120)
 and offers no "sign out other devices"; a Questify admin can end only another admin's sessions from the console (an
 organizer member's or a player's need SQL from the RUNBOOK; a ban stops a player at once); a staff member ends their
@@ -2665,7 +2665,7 @@ other sessions. Needs Dhia's yes because it adds screens.
 
 ## Q-662 - Players sign in with one factor (T-810, ASVS V6.3.3, V6.6.1)
 
-**Status:** Answered (developer, delegated by Dhia, 2026-11-05): as recommended, one factor is accepted for v1 with the rationale and compensating controls written in SECURITY.md (T-810b); passkeys are revisited after the first events. The SMS-risk line on the code screen is asked of Dhia with Q-661.
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05): as recommended, one factor is accepted for v1 with the rationale and compensating controls written in SECURITY.md (T-810b); passkeys are revisited after the first events. The line on the code screen: Dhia, 2026-11-05, "Add the line (Recommended)", task T-810e.
 Players sign in with one code by SMS or email (ADR-030). ASVS L2 asks for more than one factor, or a documented
 rationale with compensating controls, and for SMS codes to come with a stronger option and a note about SMS's risks.
 **Recommended (developer):** accept for v1 and write the rationale in SECURITY.md: a player account holds event points
@@ -2676,7 +2676,7 @@ copy choice for Dhia (one line on the code screen).
 
 ## Q-663 - The console shares a hostname with public pages (T-810, ASVS V3.5.4)
 
-**Status:** Open (developer, 2026-11-05).
+**Status:** Answered (Dhia, 2026-11-05, "Yes, console subdomain (Recommended)"): task T-810d; Dhia adds the DNS record and the CranL domain.
 One web app on one hostname serves the console, the organizer dashboard, the public event page, the station and
 kiosk pages and the big screen. A script injected through any public page would run on the console's origin. Today the
 CSP with nonces and text-only organizer content are the walls.
