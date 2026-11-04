@@ -15,6 +15,7 @@ async function read(request: Request, path: string): Promise<unknown> {
   try {
     const response = await (request.fetchImpl ?? fetch)(`${request.apiOrigin}${path}`, {
       cache: "no-store",
+      redirect: "error",
       signal: AbortSignal.timeout(request.timeoutMs ?? 5000),
     });
     return response.ok ? await response.json().catch(() => undefined) : undefined;

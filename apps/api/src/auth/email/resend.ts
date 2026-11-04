@@ -30,6 +30,7 @@ export function createResendSender(options: ResendOptions): EmailSender {
             subject: message.subject,
             text: message.text,
           }),
+          redirect: "error",
           signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
         });
       } catch (error) {

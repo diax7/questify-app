@@ -163,6 +163,7 @@ export async function fetchMe(request: MeRequest): Promise<MeResult> {
     const response = await (request.fetchImpl ?? fetch)(`${request.apiOrigin}/v1/staff/me`, {
       headers,
       cache: "no-store",
+      redirect: "error",
       signal: AbortSignal.timeout(request.timeoutMs ?? 15_000),
     });
     const body: unknown = await response.json().catch(() => undefined);

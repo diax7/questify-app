@@ -169,6 +169,7 @@ async function requestToken(options: GoogleTokenOptions, issuedAt: number): Prom
         grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
         assertion: signed,
       }),
+      redirect: "error",
       signal: AbortSignal.timeout(options.timeoutMs),
     });
   } catch (error) {

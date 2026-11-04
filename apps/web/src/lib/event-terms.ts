@@ -45,6 +45,7 @@ export async function fetchEventFrame(request: EventTermsRequest): Promise<Event
     const response = await (request.fetchImpl ?? fetch)(`${request.apiOrigin}${path}`, {
       headers,
       cache: "no-store",
+      redirect: "error",
       signal: AbortSignal.timeout(request.timeoutMs ?? 5_000),
     });
     if (!response.ok) {
