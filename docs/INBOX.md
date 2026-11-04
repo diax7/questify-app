@@ -823,3 +823,7 @@ Dhia: Questify on CranL is at most three apps (the API, the web app and one moni
 
 Dhia (AskUserQuestion): the monitoring app's build path, "Later" (still his dashboard step, Q-610). The fresh-environment proof of T-017b, "Skip the proof": the scripts are accepted as checked against staging only. The staging backups that never ran, "Later": left for the CranL go/no-go (T-811). Processed into TASKS (T-017b closed as skipped by Dhia; a T-811 note), Q-610 (still open), Q-611 (deferred to T-811) and Q-613 (answered).
 
+## 2026-11-04 - The speed target and the CranL sizing questions -> processed
+
+Dhia (AskUserQuestion, after the T-804 load test and the T-804a plan): the launch speed target, "Size to real bookings": set it from the biggest event day actually booked, make the code fast now and scale the hardware when bookings need it, instead of 20,000 completions a minute in each of ten events at once. Asking CranL for database sizes, connections, PostgreSQL 17 or 18 and the app-to-database delay: "Later" (the launch check, T-811). Processed into Q-631 (answered, by the T-804a plan branch when it merges), Q-630 (deferred to T-811) and a T-804 note.
+
