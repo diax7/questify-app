@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { LightMyRequestResponse } from "fastify";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { loggerOptions } from "#src/app";
+import { BUCKETS } from "#src/auth/throttle";
 import { freshIp, startApp, testConfig, type TestApp } from "#test/support/auth-app";
 import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
 import { SEND_BUDGET_USED_SQL, withSendBudgetCap } from "#test/support/send-budget";
@@ -41,6 +42,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
     (await db.owner.query<T>(sql, values)).rows;
   /** The SMS budget's units used in the last day. */
   const used = async () => (await owner<{ n: number }>(SEND_BUDGET_USED_SQL, ["phone"]))[0]?.n ?? 0;
+  /** The attempts held in the player's failure windows (the player's and the address's). */
+  const failures = async () =>
+    (
+      await owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM auth_throttle WHERE bucket = ANY ($1)",
+        [[BUCKETS.contactFailPlayer, BUCKETS.playerFailAddress]],
+      )
+    )[0]?.n ?? 0;
 
   const newPhone = () => {
     counter += 1;
@@ -139,6 +148,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
       const log = loggedText();
       expect(log).toContain('"event":"player.contact_changed"');
       expect(log).toContain('"event":"player.notice_sent"');
+      expect(logged()).toContainEqual(
+        expect.objectContaining({ event: "player.notice_sent", channel: "phone", outcome: "sent" }),
+      );
       // The contacts themselves, not digit runs: a log line's hex address tag may hold any digits.
       for (const contact of ["sara@najd.sa", "Sara@Najd.SA", phone, phone.slice(4)]) {
         expect(log).not.toContain(contact);
@@ -173,6 +185,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
       const email = test.mail.sent.at(-1);
       expect(email?.text).toContain("The phone number on your Questify account was changed.");
       expect(email?.text).not.toContain(fresh.slice(-8));
+      expect(logged()).toContainEqual(
+        expect.objectContaining({ event: "player.notice_sent", channel: "email" }),
+      );
     });
 
     it("keeps the change when a notice fails", async () => {
@@ -186,7 +201,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
       });
       expect(done.statusCode).toBe(200);
       expect((await contactOf(player.id))?.phone_e164).toBe(fresh);
-      expect(lines.join("")).toContain('"event":"player.notice_failed"');
+      expect(logged()).toContainEqual(
+        expect.objectContaining({
+          event: "player.notice_failed",
+          channel: "email",
+          reason: "EmailSendError",
+        }),
+      );
     });
   });
 
@@ -204,7 +225,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
     });
     expect(done.statusCode).toBe(200);
     expect((await contactOf(player.id))?.email).toBe(`notice${counter}@najd.sa`);
-    expect(lines.join("")).toContain('"event":"player.notice_failed"');
+    expect(logged()).toContainEqual(
+      expect.objectContaining({
+        event: "player.notice_failed",
+        channel: "phone",
+        reason: "gateway",
+      }),
+    );
     expect(lines.join("")).not.toContain('"event":"player.notice_sent"');
   });
 
@@ -268,6 +295,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
       );
     });
 
+    it("answers a full send window with 429 before it touches the platform budget", async () => {
+      const target = newPhone();
+      for (let i = 0; i < 5; i += 1) {
+        const player = await newPlayer({ phone: newPhone() });
+        await post("code", player.token, { channel: "phone", value: target });
+      }
+      const late = await newPlayer({ phone: newPhone() });
+      await withSendBudgetCap(owner, "phone", 0, async () => {
+        const blocked = await post("code", late.token, { channel: "phone", value: target });
+        expect([blocked.statusCode, blocked.json<{ code: string }>().code]).toEqual([
+          429,
+          "too_many_attempts",
+        ]);
+      });
+      expect(logged()).not.toContainEqual(
+        expect.objectContaining({ event: "player.budget_spent" }),
+      );
+    });
+
+    it("keeps the budget unit of a code that went", async () => {
+      const player = await newPlayer({ phone: newPhone() });
+      const before = await used();
+      const sent = await post("code", player.token, { channel: "phone", value: newPhone() });
+      expect(sent.statusCode).toBe(202);
+      expect(await used()).toBe(before + 1);
+    });
+
     it("says SMS or email is unavailable when the platform budget is spent, and opens nothing", async () => {
       const player = await newPlayer({ phone: newPhone() });
       await withSendBudgetCap(owner, "phone", 0, async () => {
@@ -276,6 +330,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
           503,
           "sms_unavailable",
         ]);
+        expect(sms.json()).toMatchObject({ details: { emailOffered: false } });
         expect(logged()).toContainEqual(
           expect.objectContaining({ event: "player.budget_spent", channel: "phone" }),
         );
@@ -355,6 +410,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
         if (round === 3) {
           const blocked = await post("verify", player.token, { challengeToken, code: "000000" });
           expect(blocked.statusCode).toBe(429);
+          expect(blocked.json()).toMatchObject({
+            code: "too_many_attempts",
+            details: { retryAfterSeconds: Number(blocked.headers["retry-after"]) },
+          });
         }
       }
     });
@@ -412,10 +471,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
       // Nothing was sent, so the budget unit it held is given back.
       expect(await used()).toBe(before);
       const foreign = await post("code", player.token, { channel: "phone", value: "+14155550100" });
-      expect([foreign.statusCode, foreign.json<{ code: string }>().code]).toEqual([
-        422,
-        "phone_not_supported",
-      ]);
+      expect(foreign.statusCode).toBe(422);
+      expect(foreign.json()).toMatchObject({
+        code: "phone_not_supported",
+        details: { emailOffered: false },
+      });
       expect(
         (await post("code", player.token, { channel: "email", value: "not an email" })).statusCode,
       ).toBe(400);
@@ -444,7 +504,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
       }
       const blocked = await post("code", player.token, { channel: "phone", value: newPhone() });
       expect(blocked.statusCode).toBe(429);
-      expect(Number(blocked.headers["retry-after"])).toBeGreaterThan(0);
+      const waitSeconds = Number(blocked.headers["retry-after"]);
+      expect(waitSeconds).toBeGreaterThan(0);
+      expect(blocked.json()).toMatchObject({
+        code: "too_many_attempts",
+        details: { retryAfterSeconds: waitSeconds },
+      });
     });
 
     it("says the SMS gateway refused, and changes nothing", async () => {
@@ -455,6 +520,51 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("changing a contact", () => {
         503,
         "sms_unavailable",
       ]);
+      expect(refused.json()).toMatchObject({ details: { emailOffered: false } });
+    });
+
+    it("refuses a demo account's contact change, sending nothing and keeping no budget unit", async () => {
+      const player = await newPlayer({ phone: newPhone() });
+      await owner("INSERT INTO review_demo_player (player_id, role) VALUES ($1, 'fictional')", [
+        player.id,
+      ]);
+      const before = await used();
+      const fresh = newPhone();
+      const refused = await post("code", player.token, { channel: "phone", value: fresh });
+      expect([refused.statusCode, refused.json<{ code: string }>().code]).toEqual([
+        409,
+        "contact_locked",
+      ]);
+      expect(test.sms.sent.filter((sms) => sms.to === fresh)).toEqual([]);
+      expect(await used()).toBe(before);
+    });
+
+    it("counts a wrong code in the failure windows, and a right or a taken one in none", async () => {
+      await newPlayer({ email: "held-count@najd.sa" });
+      const player = await newPlayer({ phone: newPhone() });
+      const fresh = newPhone();
+      const asked = await post("code", player.token, { channel: "phone", value: fresh });
+      const challengeToken = asked.json<{ challengeToken: string }>().challengeToken;
+      const start = await failures();
+      await post("verify", player.token, { challengeToken, code: "000000" });
+      const afterWrong = await failures();
+      expect(afterWrong).toBeGreaterThan(start);
+      const done = await post("verify", player.token, {
+        challengeToken,
+        code: test.sms.lastCode(fresh),
+      });
+      expect(done.statusCode).toBe(200);
+      expect(await failures()).toBe(afterWrong);
+      const askedTaken = await post("code", player.token, {
+        channel: "email",
+        value: "held-count@najd.sa",
+      });
+      const taken = await post("verify", player.token, {
+        challengeToken: askedTaken.json<{ challengeToken: string }>().challengeToken,
+        code: test.mail.lastCode("held-count@najd.sa"),
+      });
+      expect(taken.statusCode).toBe(409);
+      expect(await failures()).toBe(afterWrong);
     });
   });
 

@@ -284,14 +284,17 @@ export async function requestContactCode(
   };
 }
 
-type Confirmed = Readonly<{
-  outcome: "changed" | "wrong" | "expired" | "taken";
-  attempts_left: number;
-  channel: Channel | null;
-  kind: "added" | "replaced" | null;
-  previous: string | null;
-  other: string | null;
-}>;
+/** A row of `confirm_contact_change` (migration 0144): only a changed one carries its channel, kind and old values. */
+type Confirmed =
+  | Readonly<{ outcome: "wrong"; attempts_left: number }>
+  | Readonly<{ outcome: "expired" | "taken" }>
+  | Readonly<{
+      outcome: "changed";
+      channel: Channel;
+      kind: "added" | "replaced";
+      previous: string | null;
+      other: string | null;
+    }>;
 
 /** One notice, best effort: it takes from the platform budget, and a failure or a spent budget is only logged. */
 async function notify(
@@ -370,9 +373,8 @@ export async function confirmContactCode(
     say(deps, asker, "player.contact_code_failed", {});
     return { kind: "invalid_code", attemptsLeft: result.attempts_left };
   }
-  if (result.outcome !== "changed" || result.channel === null || result.kind === null) {
-    // Stryker disable next-line ConditionalExpression,StringLiteral: unreachable: a change always carries its channel and kind
-    return { kind: result.outcome === "changed" ? "expired" : result.outcome };
+  if (result.outcome !== "changed") {
+    return { kind: result.outcome };
   }
   say(deps, asker, "player.contact_changed", { channel: result.channel, kind: result.kind });
   const change = { channel: result.channel, kind: result.kind, lang: input.lang };
