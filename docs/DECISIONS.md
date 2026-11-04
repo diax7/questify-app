@@ -7847,7 +7847,7 @@ force hold it; the guard makes one call instead of `player_session_owner` then `
 
 ## ADR-674 - How the completion hot path is measured
 
-**Status:** Proposed (developer, 2026-11-04; T-804a plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-04, after the T-804a plan review 82 and part A code review 93).
 **Decision:** profiling runs on throw-away PostgreSQL containers started for it (the tests' image and CranL's major
 version) with `pg_stat_statements` (`track = all`, `track_planning = on`) and `track_functions = all`, seeded by the
 T-804 seed, one completion at a time for per-call cost and through T-804's drivers for load; before and after are
