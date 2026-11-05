@@ -8026,3 +8026,55 @@ the earlier of 1 hour and the same end. Existing families start at their earlies
 nobody out; the migration asserts no live row already ends later (no capping UPDATE is needed).
 **Why:** ASVS V7.3.2 asks for an absolute session end; low-value accounts justify a year (SECURITY.md).
 **Trade-offs:** FR-123 changes: a player types one fresh code a year per phone.
+
+## ADR-720 - T-810d a staff session belongs to one surface, dashboard or console
+
+**Status:** Proposed (developer, 2026-11-05, T-810d plan; Q-663).
+**Decision:** `staff_session.surface` (`dashboard` or `console`, default `dashboard`, migration 0156) is set by
+`open_staff_session` from the sign-in request's `Origin`: the console origin opens `console`, anything else
+(including no Origin) `dashboard`; sign-up always opens `dashboard`. The console hook (`/v1/admin/*`) accepts only
+`console` sessions and answers a hidden 404 otherwise; organizer and device doors accept only `dashboard` sessions;
+`/v1/staff/*` accepts both.
+**Why:** ASVS V3.5.4. A script on a public page can then never use console powers, even with an admin's public-host
+cookie: the power belongs to a session opened on the console origin, whose `__Host-` cookie lives only there.
+**Trade-offs:** existing sessions become `dashboard`, so admins sign in again on the console host after the deploy;
+an admin giving support (ADR-407) holds two sessions, one per host (Q-692).
+
+## ADR-721 - T-810d every cookie request is checked against its own session's origin
+
+**Status:** Proposed (developer, 2026-11-05, T-810d plan).
+**Decision:** `checkOrigin` takes the allowed origins. Sign-in steps without a cookie accept either origin; every
+cookie request with an unsafe method must come from its session's own origin (`dashboard` -> `DASHBOARD_ORIGIN`,
+`console` -> `CONSOLE_ORIGIN`), else 403 `csrf_rejected`.
+**Why:** `console.questify.nafes.com` and `questify.nafes.com` are same-site, so `SameSite=Strict` lets one host's page
+send the other host's cookie; the Origin is what tells them apart.
+**Trade-offs:** none known; GET stays exempt as today (no state change on GET).
+
+## ADR-722 - T-810d the web app routes pages by host
+
+**Status:** Proposed (developer, 2026-11-05, T-810d plan).
+**Decision:** one CranL web app answers on both hosts. `proxy.ts` reads `Host`: on the public host `/{lang}/console/**`
+goes 308 to the console host; on the console host only the console, `/{lang}/sign-in` and `/{lang}/account` are
+served, `/` and `/{lang}` go to `/{lang}/console`, and every other page goes 308 to the public host. The forwarder
+answers 404 to `/v1/admin/*` on the public host without calling the API.
+**Why:** no public page (organizer content, event page, station, big screen) ever runs on the console origin, and the
+browser keeps the two hosts' cookies apart. No new CranL app (three-app budget).
+**Trade-offs:** cross-host links become absolute; the result depends on CranL passing `Host` unchanged (Q-691).
+
+## ADR-723 - T-810d `CONSOLE_ORIGIN` is required on the API and the web app
+
+**Status:** Proposed (developer, 2026-11-05, T-810d plan).
+**Decision:** both apps refuse to start without `CONSOLE_ORIGIN`, with a value that is not an origin, or with the same
+value as `DASHBOARD_ORIGIN`; the web app also gets `DASHBOARD_ORIGIN`. Console links in team alert emails use
+`CONSOLE_ORIGIN`.
+**Why:** an optional setting would fail open (the console on the public host, as today).
+**Trade-offs:** the settings must be on CranL before the deploy (RUNBOOK order).
+
+## ADR-724 - T-810d browser tests use `console.localhost` as the console origin
+
+**Status:** Proposed (developer, 2026-11-05, T-810d plan).
+**Decision:** Playwright runs the public host on `http://localhost:3100` and the console on
+`http://console.localhost:3100`; console specs set that `baseURL`. Fallback `http://127.0.0.1:3100` if Chromium
+refuses the `__Host-` cookie on `*.localhost`.
+**Why:** two real origins on one web server, with secure-context cookies over http, and no extra certificates.
+**Trade-offs:** the console specs change their `baseURL` (mechanical).

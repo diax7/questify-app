@@ -1635,6 +1635,10 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   redirects console paths — delivers no FR (ASVS V3.5.4); depends on: T-810; Q-663 (Dhia, 2026-11-05). Needs Dhia to add
   the DNS record and the CranL domain once the code is ready (asked with AskUserQuestion then).
   - Done when: the console and the public pages are on different origins on staging and the sheet's row moves to Met.
+  - Note 2026-11-05 (plan): `docs/plans/2026-11-05-t-810d-console-hostname.md` (ADR-720 to ADR-724, Q-690 to Q-693,
+    migration 0156 after T-810c's 0155): a session's surface (dashboard or console) set from the sign-in origin, each
+    cookie request checked against its own session's origin, and host routing in `proxy.ts`; host
+    `console.questify.nafes.com` on staging. Plan review next.
 - [x] **T-810e** (tier C, copy) One line under the code field of the sign-in code screen (app and web), in Arabic and
   English with the ux-araby skill: never share this code; Questify never asks for it — delivers no FR (ASVS V6.6.1);
   depends on: T-810; Q-662 (Dhia, 2026-11-05).

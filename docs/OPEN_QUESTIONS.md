@@ -2724,3 +2724,30 @@ a later release script can do it automatically.
 The key id touches the config, the seal format, every opener, the upload's duplicate check and a new operator command;
 nothing is at risk until a leak forces a rotation.
 **Recommended (developer):** build it as T-810f after T-810b, with its own plan review; the sheet's row 8 points there.
+
+## Q-690 - A subdomain or a separate domain for the console (T-810d, ADR-722)
+
+**Status:** Open (developer, 2026-11-05).
+`console.questify.nafes.com` (and later `console.questify.sa`) is a different origin but the same site as the public
+host, so `SameSite` cookies do not separate them; the per-session origin check (ADR-721) and the surface (ADR-720) do.
+**Recommended (developer):** the subdomain, as Dhia chose; a separate registrable domain only if the pen test (T-809)
+asks for it.
+
+## Q-691 - Does CranL pass the `Host` header unchanged to the web app? (T-810d, ADR-722)
+
+**Status:** Open (developer, 2026-11-05): proved by the staging probes after the first deploy.
+**Recommended (developer):** read `Host` only. If CranL rewrites it, read `x-forwarded-host` set by the edge (the
+console fails closed until then: a redirect loop, never exposure).
+
+## Q-692 - An admin giving support signs in on both hosts (T-810d, ADR-720, ADR-407)
+
+**Status:** Open (developer, 2026-11-05).
+Support works inside the organizer's dashboard on the public host, which refuses console sessions.
+**Recommended (developer):** two sessions, one per host, each with its own sign-in code; no hand-off token between
+hosts (a hand-off would carry console trust onto the public origin).
+
+## Q-693 - Which pages the console host serves (T-810d, ADR-722)
+
+**Status:** Open (developer, 2026-11-05).
+**Recommended (developer):** the console, sign-in and the staff account page (own sessions, password; T-810c). Password
+reset, invitations, sign-up and every public page stay on the public host.
