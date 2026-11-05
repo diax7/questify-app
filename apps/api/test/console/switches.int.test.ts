@@ -8,7 +8,12 @@ import {
   withSession,
   type TestApp,
 } from "#test/support/auth-app";
-import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
+import {
+  TEST_DATABASE_URL,
+  connectAsOwner,
+  createTestDatabase,
+  type TestDatabase,
+} from "#test/support/test-db";
 
 type Method = "GET" | "PUT" | "DELETE";
 type Json = Record<string, unknown>;
@@ -75,6 +80,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console switches over HTTP", (
       features: Record<string, { enabled: boolean; message: unknown }>;
       tuning: Record<string, number>;
     }>();
+  /** Waits until `count` backends wait on a lock for a platform setting write. */
+  const waitsOnLock = async (count: number): Promise<void> => {
+    for (let tries = 0; tries < 250; tries += 1) {
+      const { rows } = await db.owner.query(
+        `SELECT 1 FROM pg_stat_activity
+         WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE '%FROM platform_setting%FOR UPDATE%'`,
+      );
+      if (rows.length >= count) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error(`fewer than ${count} writes waited on the platform setting row`);
+  };
   const audits = async (key: string) =>
     (
       await db.owner.query<{ actor_id: string; before: Json | null; after: Json }>(
@@ -168,6 +187,41 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console switches over HTTP", (
     expect((await feature("maps"))?.enabled).toBe(false);
     await admin("DELETE", "/v1/admin/switches/features/maps");
   });
+
+  it.each([
+    ["features", "features/cheers", { enabled: false, message: null }, "features/maps"],
+    ["tuning", "tuning/livePollSeconds", { value: 20 }, "tuning/readinessDays"],
+  ])(
+    "serializes two saves of the %s block on its seeded row, so both keys land",
+    async (block, firstPath, firstBody, secondPath) => {
+      const secondBody = block === "features" ? { enabled: false, message: MESSAGE } : { value: 5 };
+      const holder = await connectAsOwner(db);
+      try {
+        await holder.query("BEGIN");
+        await holder.query("SELECT 1 FROM platform_setting WHERE key = $1 FOR UPDATE", [block]);
+        const saves = [
+          admin("PUT", `/v1/admin/switches/${firstPath}`, firstBody),
+          admin("PUT", `/v1/admin/switches/${secondPath}`, secondBody),
+        ];
+        await waitsOnLock(2);
+        await holder.query("COMMIT");
+        expect((await Promise.all(saves)).map((answer) => answer.statusCode)).toEqual([204, 204]);
+      } finally {
+        await holder.end();
+      }
+      const [row] = (
+        await db.owner.query<{ value: Json }>("SELECT value FROM platform_setting WHERE key = $1", [
+          block,
+        ])
+      ).rows;
+      expect(Object.keys(row?.value ?? {})).toEqual(
+        expect.arrayContaining([firstPath, secondPath].map((path) => path.split("/")[1] ?? "")),
+      );
+      for (const path of [firstPath, secondPath]) {
+        expect((await admin("DELETE", `/v1/admin/switches/${path}`)).statusCode).toBe(204);
+      }
+    },
+  );
 
   it("switches on a feature that ships off, and shows it as changed", async () => {
     expect((await feature("locationQuests"))?.enabled).toBe(false);

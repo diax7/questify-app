@@ -324,7 +324,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("audit log", () => {
           action: "platform_settings.update",
           target_type: "platform_setting",
           target_id: "tuning",
-          before: { tuning: null },
+          before: { tuning: {} },
           after: { tuning: { livePollSeconds: 9 } },
           request_id: requestId,
         },
@@ -339,7 +339,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("audit log", () => {
       const [entry] = await newEntries();
       expect(entry).toMatchObject({
         target_id: "features",
-        before: { features: null },
+        before: { features: {} },
         after: { features: { shop: { enabled: false } } },
       });
     });
