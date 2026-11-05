@@ -4,9 +4,12 @@ import {
   directionOf,
   isolate,
   languageCookie,
+  languageCookieUpdates,
+  legacyLanguageCookieRemoval,
   negotiateLanguage,
   otherLanguage,
   pathAfterLanguage,
+  savedLanguage,
   translatorFor,
 } from "#src/lib/language.ts";
 
@@ -39,6 +42,59 @@ describe("negotiateLanguage", () => {
   });
 });
 
+const jar = (values: Record<string, string>) => ({
+  get: (name: string) => (name in values ? { value: values[name] ?? "" } : undefined),
+});
+
+describe("the saved language", () => {
+  it("is the prefixed cookie", () => {
+    expect(savedLanguage(jar({ "__Host-qs_lang": "en" }))).toBe("en");
+  });
+
+  it("falls back to the cookie of the old name, so a choice made before the prefix survives", () => {
+    expect(savedLanguage(jar({ qs_lang: "ar" }))).toBe("ar");
+  });
+
+  it("prefers the prefixed cookie when both are there", () => {
+    expect(savedLanguage(jar({ "__Host-qs_lang": "en", qs_lang: "ar" }))).toBe("en");
+  });
+
+  it("skips a value that is no language and takes the next cookie", () => {
+    expect(savedLanguage(jar({ "__Host-qs_lang": "fr", qs_lang: "ar" }))).toBe("ar");
+    expect(savedLanguage(jar({ "__Host-qs_lang": "fr" }))).toBeUndefined();
+    expect(savedLanguage(jar({}))).toBeUndefined();
+  });
+});
+
+describe("the cookies a page sets", () => {
+  it("sets the prefixed cookie for a browser with none", () => {
+    expect(languageCookieUpdates(jar({}), "ar")).toEqual([languageCookie("ar")]);
+  });
+
+  it("sets nothing when the prefixed cookie already holds the language", () => {
+    expect(languageCookieUpdates(jar({ "__Host-qs_lang": "en" }), "en")).toEqual([]);
+  });
+
+  it("changes the prefixed cookie when the page is in another language", () => {
+    expect(languageCookieUpdates(jar({ "__Host-qs_lang": "en" }), "ar")).toEqual([
+      languageCookie("ar"),
+    ]);
+  });
+
+  it("moves a choice saved under the old name: sets the new cookie and removes the old one", () => {
+    expect(languageCookieUpdates(jar({ qs_lang: "ar" }), "ar")).toEqual([
+      languageCookie("ar"),
+      legacyLanguageCookieRemoval(),
+    ]);
+  });
+
+  it("removes a leftover old cookie even when the prefixed one is current", () => {
+    expect(languageCookieUpdates(jar({ "__Host-qs_lang": "en", qs_lang: "ar" }), "en")).toEqual([
+      legacyLanguageCookieRemoval(),
+    ]);
+  });
+});
+
 describe("language helpers", () => {
   it("pairs each language with the other and with its direction", () => {
     expect(otherLanguage("ar")).toBe("en");
@@ -54,8 +110,14 @@ describe("language helpers", () => {
     expect(pathAfterLanguage("/english/page")).toBe("/english/page");
   });
 
-  it("remembers the language for a year, site-wide, secure, readable by the page", () => {
-    expect(languageCookie("ar")).toBe("qs_lang=ar; Path=/; Max-Age=31536000; SameSite=Lax; Secure");
+  it("remembers the language for a year under the __Host- prefix: site-wide, secure, no Domain, readable by the page", () => {
+    const cookie = languageCookie("ar");
+    expect(cookie).toBe("__Host-qs_lang=ar; Path=/; Max-Age=31536000; SameSite=Lax; Secure");
+    expect(cookie).not.toMatch(/Domain=/i);
+  });
+
+  it("removes the cookie of the old name with the attributes it was set with", () => {
+    expect(legacyLanguageCookieRemoval()).toBe("qs_lang=; Path=/; Max-Age=0; SameSite=Lax; Secure");
   });
 
   it("isolates left-to-right text placed inside a sentence", () => {

@@ -31,6 +31,30 @@ Evidence for each ASVS/MASVS control is a test, a CI check or a short written no
 - Every design choice that is hard to reverse is an ADR before code is written.
 - Dependencies: justified, current, licensed; lockfile committed; audit on every change.
 
+### Fixing a vulnerable dependency (ASVS V15.1.1, V15.2.1)
+
+A finding is a published advisory (as `pnpm audit` or a Dependabot alert reports it) against a version Questify uses.
+Its clock starts when a fixed release exists; the install takes a new release one day after it appears
+(`minimumReleaseAge`). A fix is the patched version in the lockfile (a `pnpm-workspace.yaml` override when a parent
+package is late) or the dependency removed.
+
+| Severity | Fixed within |
+|---|---|
+| Critical | 7 days |
+| High | 14 days |
+| Moderate | 30 days |
+| Low and the rest | The monthly Dependabot batch |
+
+- The time frames apply to build and test tooling too (Expo, Metro, Stryker); only the urgency in practice differs.
+- CI's "Dependency audit" (`pnpm audit`) fails a pull request on any finding that is not listed, so a finding is dealt
+  with when it appears and the time frame is the longest a finding may wait.
+- An advisory with no patched release goes into `auditConfig.ignoreGhsas` in `pnpm-workspace.yaml` with the date it was
+  checked and why it cannot reach what Questify ships. Every listed advisory is re-checked in the monthly batch and
+  removed the day a fix exists; its time frame then runs from that day.
+- A critical or high finding that can reach the app or the API image and has no patched release is not left listed: the
+  affected package is replaced or the feature that uses it is switched off within the same time frame, and the case is
+  recorded in `docs/OPEN_QUESTIONS.md`.
+
 ## 3. Tests
 
 - **Pyramid:** many fast unit tests, fewer integration tests against a real PostgreSQL and cache, a few end-to-end flows.

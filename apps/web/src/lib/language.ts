@@ -9,8 +9,14 @@ import {
   type MessageKey,
 } from "@questify/shared";
 
-/** The saved language choice: a preference only, readable by scripts, sent on same-site navigation. */
-export const LANGUAGE_COOKIE = "qs_lang";
+/**
+ * The saved language choice: a preference only, readable by scripts, sent on same-site navigation. The `__Host-` prefix
+ * makes a browser accept it only from this host, over https, with `Path=/` and no `Domain` (ASVS V3.3.1, V3.3.3).
+ */
+export const LANGUAGE_COOKIE = "__Host-qs_lang";
+
+/** The name before the prefix; still read, so a choice saved earlier survives, and removed once the new cookie is set. */
+export const LEGACY_LANGUAGE_COOKIE = "qs_lang";
 
 export const LANGUAGE_NAMES: Readonly<Record<Language, string>> = { ar: "العربية", en: "English" };
 
@@ -62,6 +68,36 @@ export function negotiateLanguage(
 /** The `Set-Cookie` value that remembers a language for a year. */
 export function languageCookie(language: Language): string {
   return `${LANGUAGE_COOKIE}=${language}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`;
+}
+
+/** The `Set-Cookie` value that removes the cookie saved under the name before the prefix. */
+export function legacyLanguageCookieRemoval(): string {
+  return `${LEGACY_LANGUAGE_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax; Secure`;
+}
+
+/** What a request's cookies can be asked: the shape of Next's `request.cookies`. */
+export type CookieReader = Readonly<{ get: (name: string) => { value: string } | undefined }>;
+
+/** The saved language choice: the prefixed cookie, else the one saved under the old name, ignoring a value that is no language. */
+export function savedLanguage(cookies: CookieReader): Language | undefined {
+  return [cookies.get(LANGUAGE_COOKIE)?.value, cookies.get(LEGACY_LANGUAGE_COOKIE)?.value].find(
+    isLanguage,
+  );
+}
+
+/**
+ * The `Set-Cookie` values a page shown in `language` needs: the prefixed cookie when it is missing or holds another
+ * language, and the removal of the cookie under the old name when the browser still sends one.
+ */
+export function languageCookieUpdates(cookies: CookieReader, language: Language): string[] {
+  const updates: string[] = [];
+  if (cookies.get(LANGUAGE_COOKIE)?.value !== language) {
+    updates.push(languageCookie(language));
+  }
+  if (cookies.get(LEGACY_LANGUAGE_COOKIE) !== undefined) {
+    updates.push(legacyLanguageCookieRemoval());
+  }
+  return updates;
 }
 
 /**
