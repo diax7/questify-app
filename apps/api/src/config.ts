@@ -4,6 +4,7 @@ import {
   readServiceAccount,
   type ServiceAccountKey,
 } from "#src/auth/google-token";
+import type { RewardCodeSecret, RewardCodeSettings } from "#src/rewards/codes";
 
 export type AuthConfig = Readonly<{
   /** Key material for code hashes and throttle keys; at least 32 characters. */
@@ -39,10 +40,11 @@ export type AppConfig = Readonly<{
    */
   qrSecret: string;
   /**
-   * Key material for digital reward codes kept encrypted in the database (T-203); at least 32 characters. Its own
-   * secret: losing it makes every code not yet given unreadable, so it is rotated only by re-uploading codes (RUNBOOK).
+   * Key material for digital reward codes kept encrypted in the database (T-203, T-810f): the current secret and its
+   * key id, and during a rotation the secret being retired, kept only to open and re-seal (RUNBOOK "Rotating
+   * REWARD_CODE_SECRET"). Its own secret: losing it makes every code sealed under it unreadable.
    */
-  rewardCodeSecret: string;
+  rewardCodes: RewardCodeSettings;
   /**
    * The Msegat account for player sign-in SMS (ADR-103): its user name, API key and activated services sender. Required
    * in production; elsewhere, without it, every SMS is refused and the app offers email.
@@ -205,7 +207,7 @@ export function loadConfig(env: Env): AppConfig {
     trustProxyHops: proxyHops(env, nodeEnv),
     auth: authConfig(env),
     qrSecret: longSecret(env, "QR_SECRET"),
-    rewardCodeSecret: longSecret(env, "REWARD_CODE_SECRET"),
+    rewardCodes: rewardCodeSettings(env),
     msegat: msegat(env, nodeEnv),
     msegatPromoSender: msegatPromoSender(env),
     redisUrl: redisUrl(env, nodeEnv),
@@ -280,6 +282,50 @@ function longSecret(env: Env, name: string): string {
     throw new Error(`${name} must be at least ${MIN_SECRET_LENGTH} characters.`);
   }
   return secret;
+}
+
+function keyId(env: Env, name: string): number {
+  return whole(env, name, "1", 1, 255);
+}
+
+/**
+ * The reward code secrets (ADR-725): the current one with its id (default 1, today's secret), and optionally the
+ * previous one with its own id while a rotation's re-seal runs. Shared by the API and `reward-codes.cjs`, so both
+ * refuse the same settings. Messages name the setting, never a value.
+ *
+ * @throws Error when an id is not 1 to 255, only one of the two previous settings is set, the ids are equal, the
+ *   previous secret equals the current one, or a secret is shorter than 32 characters.
+ */
+export function rewardCodeSettings(env: Env): RewardCodeSettings {
+  const current: RewardCodeSecret = {
+    id: keyId(env, "REWARD_CODE_KEY_ID"),
+    secret: longSecret(env, "REWARD_CODE_SECRET"),
+  };
+  const previousSecret = optional(env, "REWARD_CODE_PREVIOUS_SECRET");
+  const previousId = optional(env, "REWARD_CODE_PREVIOUS_KEY_ID");
+  if ((previousSecret === undefined) !== (previousId === undefined)) {
+    throw new Error(
+      "REWARD_CODE_PREVIOUS_SECRET and REWARD_CODE_PREVIOUS_KEY_ID go together: set both during a rotation, or neither.",
+    );
+  }
+  if (previousSecret === undefined) {
+    return { current, previous: undefined };
+  }
+  const previous: RewardCodeSecret = {
+    id: keyId(env, "REWARD_CODE_PREVIOUS_KEY_ID"),
+    secret: longSecret(env, "REWARD_CODE_PREVIOUS_SECRET"),
+  };
+  if (previous.id === current.id) {
+    throw new Error(
+      "REWARD_CODE_PREVIOUS_KEY_ID must differ from REWARD_CODE_KEY_ID: each secret has its own key id.",
+    );
+  }
+  if (previous.secret === current.secret) {
+    throw new Error(
+      "REWARD_CODE_PREVIOUS_SECRET must differ from REWARD_CODE_SECRET: a rotation needs a new secret.",
+    );
+  }
+  return { current, previous };
 }
 
 const APNS_NAMES = ["APNS_KEY_ID", "APNS_TEAM_ID", "APNS_PRIVATE_KEY", "APNS_TOPIC"] as const;

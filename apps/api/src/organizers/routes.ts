@@ -67,7 +67,7 @@ import type { QuestCodeKey, RevealCodeKey, StepCodeKey } from "#src/quests/qr";
 import { registerAnalyticsTeamRoutes } from "#src/analytics/routes";
 import { registerChangeSetRoutes } from "#src/change-sets/routes";
 import { registerBuilderRoutes } from "#src/quests/routes";
-import type { RewardCodeKey } from "#src/rewards/codes";
+import type { RewardCodeKeyring } from "#src/rewards/codes";
 import { createControlReader } from "#src/control/control";
 import { registerControlTeamRoutes } from "#src/control/routes";
 import { registerInboxTeamRoutes } from "#src/inbox/routes";
@@ -101,7 +101,7 @@ export type OrganizerRoutesDeps = Readonly<{
     codeOrigin: string;
   }>;
   /** Seals and marks digital reward codes before they reach the database (T-203). */
-  rewardCodeKey: RewardCodeKey;
+  rewardCodeKey: RewardCodeKeyring;
   /** Operator invites: signed claim addresses and the invite email (T-204). */
   operators: OperatorsDeps;
   /** Moves a player's place after a reviewer approves their submission (T-301). */

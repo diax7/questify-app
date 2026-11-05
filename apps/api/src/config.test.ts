@@ -69,7 +69,7 @@ describe("loadConfig", () => {
         securityAlertEmail: undefined,
       },
       qrSecret: REQUIRED.QR_SECRET,
-      rewardCodeSecret: REQUIRED.REWARD_CODE_SECRET,
+      rewardCodes: { current: { id: 1, secret: REQUIRED.REWARD_CODE_SECRET }, previous: undefined },
       msegat: undefined,
       msegatPromoSender: undefined,
       redisUrl: undefined,
@@ -166,6 +166,60 @@ describe("loadConfig", () => {
       expect(loadConfig({ ...REQUIRED, [name]: "x".repeat(32) })).toBeDefined();
     },
   );
+
+  describe("reward code keys (ADR-725)", () => {
+    const PREVIOUS = {
+      REWARD_CODE_KEY_ID: "2",
+      REWARD_CODE_PREVIOUS_SECRET: "p".repeat(32),
+      REWARD_CODE_PREVIOUS_KEY_ID: "1",
+    };
+
+    it("reads the current key id and the previous key during a rotation", () => {
+      expect(loadConfig({ ...REQUIRED, REWARD_CODE_KEY_ID: "255" }).rewardCodes).toEqual({
+        current: { id: 255, secret: REQUIRED.REWARD_CODE_SECRET },
+        previous: undefined,
+      });
+      expect(loadConfig({ ...REQUIRED, ...PREVIOUS }).rewardCodes).toEqual({
+        current: { id: 2, secret: REQUIRED.REWARD_CODE_SECRET },
+        previous: { id: 1, secret: "p".repeat(32) },
+      });
+    });
+
+    it.each([
+      [{ REWARD_CODE_KEY_ID: "0" }, /REWARD_CODE_KEY_ID must be a whole number from 1 to 255/],
+      [{ REWARD_CODE_KEY_ID: "256" }, /REWARD_CODE_KEY_ID must be a whole number from 1 to 255/],
+      [{ REWARD_CODE_KEY_ID: "1.5" }, /REWARD_CODE_KEY_ID must be a whole number/],
+      [
+        { ...PREVIOUS, REWARD_CODE_PREVIOUS_KEY_ID: "0" },
+        /REWARD_CODE_PREVIOUS_KEY_ID must be a whole/,
+      ],
+      [
+        { ...PREVIOUS, REWARD_CODE_PREVIOUS_KEY_ID: "x" },
+        /REWARD_CODE_PREVIOUS_KEY_ID must be a whole/,
+      ],
+      [{ ...PREVIOUS, REWARD_CODE_PREVIOUS_KEY_ID: "" }, /go together/],
+      [{ ...PREVIOUS, REWARD_CODE_PREVIOUS_SECRET: " " }, /go together/],
+      [{ ...PREVIOUS, REWARD_CODE_PREVIOUS_KEY_ID: "2" }, /must differ from REWARD_CODE_KEY_ID/],
+      [
+        { ...PREVIOUS, REWARD_CODE_PREVIOUS_SECRET: REQUIRED.REWARD_CODE_SECRET },
+        /REWARD_CODE_PREVIOUS_SECRET must differ from REWARD_CODE_SECRET/,
+      ],
+      [
+        { ...PREVIOUS, REWARD_CODE_PREVIOUS_SECRET: "p".repeat(31) },
+        /REWARD_CODE_PREVIOUS_SECRET must be at least 32/,
+      ],
+    ])("refuses %j", (env, message) => {
+      expect(errorOf(env)).toMatch(message);
+    });
+
+    it("never prints a secret in a refusal", () => {
+      const secret = "p".repeat(31);
+      expect(errorOf({ ...PREVIOUS, REWARD_CODE_PREVIOUS_SECRET: secret })).not.toContain(secret);
+      expect(
+        errorOf({ ...PREVIOUS, REWARD_CODE_PREVIOUS_SECRET: REQUIRED.REWARD_CODE_SECRET }),
+      ).not.toContain(REQUIRED.REWARD_CODE_SECRET);
+    });
+  });
 
   it("rejects an AUTH_SECRET shorter than 32 characters", () => {
     expect(() => loadConfig({ ...REQUIRED, AUTH_SECRET: "x".repeat(31) })).toThrow(/AUTH_SECRET/);

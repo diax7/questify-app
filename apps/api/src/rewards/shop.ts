@@ -5,11 +5,11 @@ import { withRequestContext } from "#src/db/context";
 import type { Bilingual } from "#src/quests/store";
 import { deskViewOf, sourceOf, type DeskView } from "#src/desk/desk";
 import { testCode } from "#src/rehearsal/rehearsal";
-import { openCode, type RewardCodeKey } from "#src/rewards/codes";
+import { headerKeyId, openCode, type RewardCodeKeyring } from "#src/rewards/codes";
 
 export type ShopDeps = Readonly<{
   pool: Pool;
-  codeKey: RewardCodeKey;
+  codeKey: RewardCodeKeyring;
   /** Ids only: a code never reaches a log. */
   log: (fields: Record<string, unknown>) => void;
 }>;
@@ -135,12 +135,19 @@ function reveal(
       ? { code: testCode(String(redemptionId)), testCode: true }
       : {};
   }
-  const code = openCode(deps.codeKey, String(rewardId), sealed);
-  if (code === undefined) {
-    deps.log({ event: "reward.code_unreadable", redemptionId, rewardId });
+  const opened = openCode(deps.codeKey, String(rewardId), sealed);
+  if (opened === undefined) {
+    // The header's key id (an id, never a secret) shows a previous key removed before its re-seal finished.
+    const keyId = headerKeyId(sealed);
+    deps.log({
+      event: "reward.code_unreadable",
+      redemptionId,
+      rewardId,
+      ...(keyId === undefined ? {} : { keyId }),
+    });
     return { codeUnavailable: true };
   }
-  return { code };
+  return { code: opened.code };
 }
 const text = (ar: unknown, en: unknown): Bilingual => ({
   ar: typeof ar === "string" ? ar : null,

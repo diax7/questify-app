@@ -6,7 +6,7 @@ import { withRequestContext } from "#src/db/context";
 import type { Actor } from "#src/events/events";
 import { audit, bilingual, changes, NO_TEXT } from "#src/quests/builder";
 import { lockBuilderEvent, type Bilingual, type BuilderEvent } from "#src/quests/store";
-import { markCode, normalizeCode, sealCode, type RewardCodeKey } from "#src/rewards/codes";
+import { markCode, normalizeCode, sealCode, type RewardCodeKeyring } from "#src/rewards/codes";
 import { windowRefusal, windowRefusalOf, type WindowRefusal } from "#src/rewards/shop-window";
 import { teamSeat } from "#src/organizers/store";
 
@@ -132,7 +132,7 @@ export type RewardDone<T> =
   /** The days after the end cannot change this way (ADR-336): the shop has closed, or the window would shrink. */
   | Readonly<{ kind: "shop_window_locked"; reason: WindowRefusal }>;
 
-export type RewardDeps = Readonly<{ pool: Pool; codeKey: RewardCodeKey }>;
+export type RewardDeps = Readonly<{ pool: Pool; codeKey: RewardCodeKeyring }>;
 
 export type CodesAdded = Readonly<{
   added: number;
@@ -778,16 +778,19 @@ export function addRewardCodes(
       return { kind: "not_found" };
     }
     // The kind, a removal since the read and the 100 000 ceiling are the definer's to refuse (RD409, RN404, RC422).
-    const sealed = codes.map((code) => sealCode(deps.codeKey, target.id, code));
-    const marks = codes.map((code) => markCode(deps.codeKey, code));
+    // During a rotation an old unused code is marked under the previous key; its mark there finds it (ADR-727).
+    const ring = deps.codeKey;
+    const sealed = codes.map((code) => sealCode(ring, target.id, code));
+    const marks = codes.map((code) => markCode(ring.current, code));
+    const previous = ring.previous;
+    const priorMarks = previous === undefined ? [] : codes.map((code) => markCode(previous, code));
     await client.query("SAVEPOINT add_codes");
     let row: CodesRow;
     try {
-      const { rows } = await client.query<CodesRow>("SELECT * FROM add_reward_codes($1, $2, $3)", [
-        target.id,
-        sealed,
-        marks,
-      ]);
+      const { rows } = await client.query<CodesRow>(
+        "SELECT * FROM add_reward_codes($1, $2, $3, $4)",
+        [target.id, sealed, marks, priorMarks],
+      );
       row = rows[0] as CodesRow;
     } catch (error) {
       const pg = error as { code?: string; detail?: string };
