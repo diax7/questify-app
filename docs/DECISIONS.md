@@ -8041,7 +8041,7 @@ the phone's own name or the `X-Device-Id` install id. Last used is the family's 
 
 ## ADR-711 - T-810c a fresh factor is a code typed here in the last 10 minutes
 
-**Status:** Proposed (developer, 2026-11-05, T-810c plan; Q-680 answered by Dhia 2026-11-05, Q-681 answered
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810c code review 91; T-810c plan; Q-680 answered by Dhia 2026-11-05, Q-681 answered
 by the developer, delegated by Dhia: 10 minutes).
 **Decision:** ending another session or device needs, on this staff session or player family, a sign-in, a
 re-authentication code or (players) a contact-change code within 10 minutes; checked in the database
