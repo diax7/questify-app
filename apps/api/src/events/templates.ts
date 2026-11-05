@@ -17,10 +17,16 @@ async function storedTemplates(client: PoolClient): Promise<unknown[]> {
   return rows[0]?.list ?? [];
 }
 
+function keyOf(stored: unknown): unknown {
+  return typeof stored === "object" && stored !== null
+    ? (stored as { key?: unknown }).key
+    : undefined;
+}
+
 function problemOf(stored: unknown, error: ZodError): { key: string; problem: string } {
   const issue = error.issues[0];
   return {
-    key: String((stored as { key?: unknown }).key),
+    key: String(keyOf(stored)),
     problem: issue === undefined ? "" : `${issue.path.join(".")}: ${issue.message}`,
   };
 }
@@ -36,7 +42,10 @@ export async function readTemplates(client: PoolClient, log: TemplateLog): Promi
     if (parsed.success) {
       templates.push(parsed.data);
     } else {
-      log("warn", { event: "event_template.invalid", ...problemOf(stored, parsed.error) });
+      log("warn", {
+        event: "event_template.invalid",
+        ...problemOf(stored, parsed.error),
+      });
     }
   }
   return templates;
@@ -47,9 +56,7 @@ export async function readTemplates(client: PoolClient, log: TemplateLog): Promi
  * one; a bad row of this key stops here with the key named, never half-way through a new event.
  */
 export async function templateExists(client: PoolClient, key: string): Promise<boolean> {
-  const stored = (await storedTemplates(client)).find(
-    (row) => (row as { key?: unknown }).key === key,
-  );
+  const stored = (await storedTemplates(client)).find((row) => keyOf(row) === key);
   if (stored === undefined) {
     return false;
   }

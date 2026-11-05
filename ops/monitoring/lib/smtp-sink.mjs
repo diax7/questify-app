@@ -53,14 +53,16 @@ function handleSocket(socket, messages) {
   socket.on("error", () => {});
 }
 
+const LISTEN_HOST = process.platform === "linux" ? "0.0.0.0" : "127.0.0.1";
+
 /**
- * Listens on 127.0.0.1 only and returns the port and the mail. A container reaches it as host.docker.internal, which on
- * Docker Desktop (Windows, macOS) arrives as a connection from the machine itself; Docker Engine on Linux resolves that
- * name to its bridge address instead, where this listener is not reachable.
+ * Listens and returns the port and the mail. A container reaches it as host.docker.internal: on Docker Desktop (Windows,
+ * macOS) that arrives from the machine itself, so 127.0.0.1 is enough; Docker Engine on Linux resolves the name to its
+ * bridge address, so there it listens on every address (the buffers are capped and the run is short-lived).
  */
 export async function startSmtpSink() {
   const messages = [];
   const server = createServer((socket) => handleSocket(socket, messages));
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise((resolve) => server.listen(0, LISTEN_HOST, resolve));
   return { port: server.address().port, messages, close: () => server.close() };
 }
