@@ -2760,6 +2760,8 @@ any next rotation.
 **Status:** Open (developer, T-810f plan, 2026-11-05).
 **Recommended (developer):** after T-810f is deployed, run `reward-codes.cjs reseal` then `check` on staging (and on
 production before launch); when both exit 0, a small follow-up removes the legacy path.
+**Caveat (plan review 88):** the legacy path may be removed only after every database backup taken before the re-seal
+has expired: a restored backup holds legacy rows, which only the legacy path opens.
 
 ## Q-696 - Rehearse a reward code rotation on staging (T-810f)
 

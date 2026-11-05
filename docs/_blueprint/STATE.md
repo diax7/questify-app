@@ -6,6 +6,22 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-810f reward code key rotation — 2026-11-05
+
+- **T-810f built (tier A; plan review 88 folded; migration 0157, new and undeployed; ADR-725 to ADR-729 and Q-694 to
+  Q-696 Proposed or open; code review next).** Each sealed reward code names its key (`0x51 0x02 keyId`, header in the
+  AAD); legacy rows open under key 1. Settings `REWARD_CODE_KEY_ID`, `REWARD_CODE_PREVIOUS_SECRET`,
+  `REWARD_CODE_PREVIOUS_KEY_ID`, one parser (`rewardCodeSettings`) for the API and the command. 0157:
+  `add_reward_codes(..., prior_hashes DEFAULT '{}')`, 3-argument version dropped, each prior mark 32 bytes. New
+  `reward-codes.cjs reseal | check` (owner only; reads outside transactions, batch writes of 100 with compare-and-set,
+  `NOT EXISTS` on the mark and `lock_timeout` 2 s; start and end audit entries; prints counts and row ids only). RUNBOOK:
+  rotation steps, deploy overlap and forward-fix-only rollback. ASVS row 8 and V11.2.2 Met (153 Met, 28 Partly).
+  Reseal never run against staging. **Checks:** full Vitest once: 12,860 passed, 18 skipped, 1 failed
+  (`db/seat-limit` timed out at 30 s under load; passes alone, 21/21); security, rehearsal and touched suites pass;
+  types, lint, `lint:limits`, format, API build pass. CI minutes: 0 (nothing pushed). Agent tokens roughly 0.5M
+  (estimate).
+  **Next:** T-810f code review; then T-810d and T-811.
+
 ## Mutation chase: T-810c re-authentication and devices — 2026-11-05
 
 - **Survivors and no-coverage mutants of GitHub run 41961473533 chased (one round; dead checks deleted, no bug
@@ -60,7 +76,7 @@
   (333 files, 4,335 tests) and the API suites that read the message table (258) pass; types, lint, `lint:limits`,
   format pass; web e2e `sign-in.spec.ts` (12 passed, desktop and phone), `console-owner-email.spec.ts` and
   `layout.spec.ts` (desktop) pass, one worker. CI minutes: 0 (nothing pushed). Agent tokens roughly 0.3M (estimate).
-  **Next:** the next unchecked task in `docs/TASKS.md` (T-810d, T-810f and T-811 are open).
+  **Next:** the next unchecked task in `docs/TASKS.md` (T-810d and T-811 are open; T-810f is built, review next).
 
 ## T-810b ASVS L2 code gaps built — 2026-11-05
 

@@ -75,7 +75,7 @@
 
 ## Staff sign-in
 
-Settings: `DATABASE_URL`, `AUTH_SECRET` (32+ characters), `QR_SECRET` (32+ characters, its own value), `REWARD_CODE_SECRET` (32+ characters, its own value; T-203), `DASHBOARD_ORIGIN`, `GMAIL_SERVICE_ACCOUNT_KEY`, `MAIL_FROM`,
+Settings: `DATABASE_URL`, `AUTH_SECRET` (32+ characters), `QR_SECRET` (32+ characters, its own value), `REWARD_CODE_SECRET` (32+ characters, its own value; T-203) with optional `REWARD_CODE_KEY_ID` (1 to 255, default 1) and, only during a rotation, `REWARD_CODE_PREVIOUS_SECRET` + `REWARD_CODE_PREVIOUS_KEY_ID` (T-810f), `DASHBOARD_ORIGIN`, `GMAIL_SERVICE_ACCOUNT_KEY`, `MAIL_FROM`,
 optional `GMAIL_ACT_AS` (the mailbox to act for when `MAIL_FROM` is an alias), optional `RESEND_API_KEY` + `RESEND_FROM`, `SECURITY_ALERT_EMAIL`, `TRUST_PROXY_HOPS`. All come from the host's
 secret store, never from chat or the repository. The app refuses to start without the required ones.
 
@@ -162,12 +162,48 @@ event to open Print codes and reprint (the page shows the new codes); note it in
 an old code get "this code no longer works" (T-105). A routine rotation is not needed: the key signs codes, it does
 not encrypt data.
 
-**`REWARD_CODE_SECRET`** (ADR-136) encrypts digital reward codes. Unlike `QR_SECRET` it protects data: losing or
-changing it makes every code not yet given unreadable (players who already redeemed see "We couldn't show this code";
-the log says `reward.code_unreadable` with ids). Back it up with the database's backups, in a separate place. To rotate
-after a leak: set the new value and redeploy; ask each organizer with digital rewards to upload their unused codes again
-on a new reward (the old ones cannot be read), and remove the old reward. Keep the code out of any idempotency cache
-that is shared or written to disk (today's is in memory, per process).
+**`REWARD_CODE_SECRET`** (ADR-136, ADR-705) encrypts digital reward codes. Unlike `QR_SECRET` it protects data:
+losing it makes every code sealed under it unreadable (players who already redeemed see "We couldn't show this code";
+the log says `reward.code_unreadable` with ids, and `keyId` when the code names a key the API does not hold). Back it
+up with the database's backups, in a separate place. Keep the code out of any idempotency cache that is shared or
+written to disk (today's is in memory, per process).
+
+Each sealed code names its key: `0x51 0x02 keyId` then the AES-GCM body (T-810f). Codes sealed before T-810f have no
+header and open under key 1 only, so today's secret is key 1. The API seals and marks new codes under
+`REWARD_CODE_SECRET` / `REWARD_CODE_KEY_ID` and opens with that key and, during a rotation, the previous one. It refuses
+to start (naming the setting, never a value) when an id is not 1 to 255, only one of the two previous settings is set,
+the two ids are equal, the previous secret equals the current one, or a secret is shorter than 32 characters.
+`reward-codes.cjs` reads the same settings with the same checks.
+
+**Rotating `REWARD_CODE_SECRET`** (after a leak, or by choice; one previous key at a time, ADR-725):
+
+1. Choose the next id (current + 1). In the host's secret store: `REWARD_CODE_PREVIOUS_SECRET` = the current value,
+   `REWARD_CODE_PREVIOUS_KEY_ID` = the current id, `REWARD_CODE_SECRET` = a new value (32+ characters, generated in the
+   store, never in chat or a file), `REWARD_CODE_KEY_ID` = the next id. Redeploy, and wait until the old instance has
+   stopped: while it runs it still uploads under the old key without the previous-key check, so a code uploaded in
+   that minute on both instances can be stored twice (it then shows as a `conflict` in step 2).
+2. Inside the new API container, with the owner connection:
+   `DATABASE_ADMIN_URL=... node reward-codes.cjs reseal --by <your name>`. It refuses a connection that is not a
+   superuser or `BYPASSRLS` (`reward_code` forces row-level security). It reads 100 rows at a time outside any
+   transaction, seals each again under the current key (a fresh IV) and writes each batch in one short transaction
+   (`lock_timeout` 2 s) only if the row's cipher is still the one read. It prints one JSON line: `current`,
+   `resealed`, `unreadable`, `conflict`, `changed` and up to 100 row ids for the last three, never a code, cipher or
+   mark. Exit 0 when the last three are all 0. Run it again until it exits 0: `changed` (a row changed after the read,
+   or its lock was busy) clears on a rerun; `unreadable` means no key held opens the row (a previous key missing);
+   `conflict` is the same code twice in one event (resolve with the organizer by row id: remove the unused one, then
+   rerun). A stopped run is simply run again. The audit log gets `reward.codes.reseal_start` before the walk and
+   `reward.codes.reseal` with the counts and `finished` when it ends or fails.
+3. `node reward-codes.cjs check` exits 0: every row opens under the current key alone, in the new format.
+4. Remove `REWARD_CODE_PREVIOUS_SECRET` and `REWARD_CODE_PREVIOUS_KEY_ID`; redeploy. Back up the new secret apart from
+   the database, as before. Database backups taken before step 2 need the old secret: keep it with them until they
+   expire.
+
+**Rolling back across T-810f.** A release before T-810f reads the new header as the IV, so it cannot open a code
+uploaded or re-sealed by T-810f or later. While the first T-810f deploy overlaps the old instance, a player buying on
+the old instance a code the new instance just uploaded sees "We couldn't show this code" (the redemption list shows it
+once the old instance stops). Once any row in the new format exists, fix forward only: never roll the API back past
+T-810f. Never run `reseal` before the release is confirmed. Migration 0157 is safe for the old instance (its
+3-argument `add_reward_codes` call takes the new default).
 
 ## Player sign-in and SMS (T-107)
 

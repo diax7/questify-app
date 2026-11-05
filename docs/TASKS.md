@@ -1646,12 +1646,16 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     رمزك مع أحد. Questify لن يطلبه منك أبدًا.") under the code field of the web `CodeStep` (staff sign-in, sign-up and
     invite) and the owner email change confirm form, and of the app's sign-in and phone or email change code steps. The
     delete-account confirmation code is not a sign-in or contact-change code and has no line. ASVS V6.6.1 is Met.
-- [ ] **T-810f** (tier A) Reward code key id and re-seal command so `REWARD_CODE_SECRET` can rotate (T-810b item 8,
+- [x] **T-810f** (tier A) Reward code key id and re-seal command so `REWARD_CODE_SECRET` can rotate (T-810b item 8,
   moved out because it touches the config, the seal format, every opener, the upload's duplicate check and a new
   operator command; ADR-705, Q-673) — delivers no FR (infrastructure or quality gate); depends on: T-810b
   - Done when: a rotation followed by the re-seal leaves every code readable, tested, and the sheet's row 8 is Met.
   - Plan 2026-11-05 (core): `docs/plans/2026-11-05-t-810f-reward-code-rotation.md`, migration 0157 (0156 is T-810d's,
     unmerged), ADR-725 to ADR-729 Proposed, Q-694, Q-695 and Q-696 (for Dhia: a staging rotation rehearsal).
+  - Done 2026-11-05: built to the plan as amended by its review (88): key id header in the seal and the AAD, the
+    keyring with one previous key (`REWARD_CODE_KEY_ID`, `REWARD_CODE_PREVIOUS_SECRET`, `REWARD_CODE_PREVIOUS_KEY_ID`),
+    0157 (`add_reward_codes` with `prior_hashes`), `reward-codes.cjs reseal` and `check`, the RUNBOOK rotation and
+    rollback notes; ASVS gap row 8 and V11.2.2 Met. Code review next; reseal never run against staging (Q-696).
 - [ ] **T-811** CranL go/no-go: written answers on high availability, point-in-time restore, backup copies, uptime, hosting provider and CST status; decide to stay or move production (ADR-107) — delivers no FR (infrastructure or quality gate); depends on: T-805, T-019
   - Note 2026-11-04 (T-804, Q-630): ask CranL for the PostgreSQL sizes and prices, `max_connections`, whether PostgreSQL 17 or 18 is offered (staging runs 16.15) and the app-to-database delay (Dhia: later, at this check).
   - Note 2026-11-04 (T-017, Q-611): staging's scheduled PostgreSQL backups have never run on CranL (no success, no failure, nothing kept). Ask CranL why before production relies on them (Dhia: later, at this check).

@@ -8141,10 +8141,13 @@ working during the deploy.
 ## ADR-728 - T-810f `reward-codes.cjs reseal` and `check`
 
 **Status:** Proposed (T-810f plan, 2026-11-05; implements ADR-705's command).
-**Decision:** a container command on the owner connection (refused unless superuser or BYPASSRLS): `reseal` walks every
-row in batches of 500, compare-and-set on the old cipher, reports conflicts, unreadable and changed rows by id, writes
-one audit entry with counts; `check` proves, without writes and with only the current key, that every row opens.
-Output never holds a code, cipher or mark.
+**Decision:** a container command on the owner connection (refused unless superuser or BYPASSRLS): `reseal` reads
+every row in batches of 100 outside any transaction, seals each again (fresh IV) and writes each batch in one short
+transaction (`lock_timeout` 2 s) with a compare-and-set on the old cipher and `NOT EXISTS` on the new mark in the event
+(the unique index the backstop; only SQLSTATE and row id are printed); reports conflicts, unreadable and changed rows by
+id; writes a start audit entry and a counts entry when it ends or fails. `check` proves, without writes and with only
+the current key, that every row opens. Both read the settings with the API's `rewardCodeSettings`. Output never holds a
+code, cipher or mark (amended by plan review 88, items 2, 4, 5 and 6).
 **Why:** a rotation must leave every code readable, and the operator needs a proof before removing the old secret.
 **Trade-offs:** a fourth bundled binary in the image.
 
@@ -8152,6 +8155,6 @@ Output never holds a code, cipher or mark.
 
 **Status:** Proposed (T-810f plan, 2026-11-05; Q-695).
 **Decision:** `openCode` keeps the legacy path (no header, key 1). It is removed in a later task once `check` exits 0
-on staging and production.
+on staging and production and every backup taken before those re-seals has expired (plan review 88).
 **Why:** existing rows are legacy until the first re-seal runs on each database.
 **Trade-offs:** one extra decrypt attempt on a refused value.
