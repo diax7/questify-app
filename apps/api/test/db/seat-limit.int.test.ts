@@ -16,6 +16,10 @@ type Row = Record<string, unknown>;
 type Mode = "hard" | "soft" | "none";
 type Accepted = { outcome: string; accepted: number; remaining: number };
 
+/** How long a blocked call may take to show up waiting on a lock, and the pause between two looks. */
+const LOCK_WAIT_MS = 20_000;
+const POLL_MS = 10;
+
 const sqlstate = async (work: Promise<unknown>) => {
   try {
     await work;
@@ -79,26 +83,46 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       (await db.owner.query<T>(sql, values)).rows;
     const team = (): RequestContext => ({ organizerId: ids.orgA, staffUserId: staff });
 
-    const newEvent = async (
+    /** `n` new events in one statement (`join_code` numbered from the counter); answers their ids and codes. */
+    const newEvents = async (
+      n: number,
       spec: { mode?: Mode; limit?: number; access?: string; welcome?: number } = {},
     ) => {
-      counter += 1;
-      const code = `SL${String(counter).padStart(4, "0")}`;
-      const [event] = await owner<{ id: string }>(
+      const first = counter + 1;
+      counter += n;
+      return owner<{ id: string; code: string }>(
         `INSERT INTO event (organizer_id, join_code, name_en, status, access, starts_at, ends_at, welcome_points,
                           player_limit_mode, player_limit)
-       VALUES ($1, $2, 'Seat Fest', 'live', $3, now() - interval '2 hours', now() + interval '1 day', $6, $4, $5)
-       RETURNING id`,
+       SELECT $1, 'SL' || lpad(g::text, 4, '0'), 'Seat Fest', 'live', $3, now() - interval '2 hours',
+              now() + interval '1 day', $6, $4, $5
+       FROM generate_series($2::int, $7::int) g
+       RETURNING id, join_code AS code`,
         [
           ids.orgA,
-          code,
+          first,
           spec.access ?? "public",
           spec.mode ?? "hard",
           spec.limit ?? null,
           spec.welcome ?? null,
+          counter,
         ],
       );
-      return { id: event?.id ?? "", code };
+    };
+    const newEvent = async (spec: Parameters<typeof newEvents>[1] = {}) => {
+      const [event] = await newEvents(1, spec);
+      return { id: event?.id ?? "", code: event?.code ?? "" };
+    };
+    /**
+     * Hundreds of events: the time zone guard looks each zone up in pg_timezone_names (about 50 ms a row, 14 s for
+     * 300), which would bury the test under seeding, so it is off for this insert only and back on after it.
+     */
+    const newManyEvents = async (n: number, limit: number) => {
+      await owner("ALTER TABLE event DISABLE TRIGGER event_timezone_guard");
+      try {
+        return await newEvents(n, { limit });
+      } finally {
+        await owner("ALTER TABLE event ENABLE TRIGGER event_timezone_guard");
+      }
     };
     /** `n` new players enrolled with `status` in one statement; answers the enrollment ids, oldest first. */
     const enrol = async (event: string, n: number, status = "active", via: string | null = null) =>
@@ -146,18 +170,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       pids.set(client, Number((await client.query("SELECT pg_backend_pid() AS pid")).rows[0]?.pid));
       return client;
     };
-    /** Waits until `client` is blocked on a lock (pg_stat_activity), polling the catalog, never sleeping blindly. */
+    /**
+     * Waits until `client` is blocked on a lock (pg_stat_activity), polling the catalog against a deadline, never
+     * sleeping blindly and never counting attempts: a loaded runner stretches each poll, not the time allowed.
+     */
     const blockedOn = async (client: Client) => {
       const pid = pids.get(client);
-      for (let attempt = 0; attempt < 500; attempt += 1) {
+      const deadline = Date.now() + LOCK_WAIT_MS;
+      while (Date.now() < deadline) {
         const rows = await owner(
           "SELECT 1 FROM pg_stat_activity WHERE pid = $1 AND wait_event_type = 'Lock'",
           [pid],
         );
         if (rows.length > 0) return;
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, POLL_MS));
       }
-      throw new Error(`connection ${pid} never waited on a lock`);
+      throw new Error(`connection ${pid} never waited on a lock within ${LOCK_WAIT_MS} ms`);
     };
     const marks = (event: string) =>
       owner<{ level: number; players: number }>(
@@ -275,10 +303,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       });
 
       it("takes the seat locks of a 300-event statement in id order even when the planner hashes the groups", async () => {
-        const events: string[] = [];
-        for (let i = 0; i < 300; i += 1) {
-          events.push((await newEvent({ limit: 50 })).id);
-        }
+        const events = (await newManyEvents(300, 50)).map((event) => event.id);
         const ordered = events.toSorted();
         const players = await owner<{ id: string }>(
           "INSERT INTO player (username) SELECT 'seat_many_' || $1 || '_' || g FROM generate_series(1, 300) g RETURNING id",
@@ -309,7 +334,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         expect(held.map((row) => row.id)).toEqual(ordered.slice(0, 150));
         await blocker.query("COMMIT");
         expect(await written).toBe("ok");
-      });
+      }, 120_000);
     });
 
     describe("the statement guard on its own", () => {
