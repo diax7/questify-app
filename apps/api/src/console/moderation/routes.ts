@@ -12,7 +12,8 @@ import {
   resolveReports,
   unpublish,
 } from "#src/console/moderation/doors";
-import { throttled, type ConsolePlayerDeps } from "#src/console/players/routes";
+import type { ConsolePlayerDeps } from "#src/console/players/routes";
+import { throttled } from "#src/console/throttle";
 import type { DeviceLimit } from "#src/devices/limits";
 
 const read = { config: { access: "admin" }, bodyLimit: 1024 } as const;

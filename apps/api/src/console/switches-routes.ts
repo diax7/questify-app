@@ -10,7 +10,8 @@ import { invalidCatalog, notFound } from "#src/auth/http-errors";
 import type { PublicAccount } from "#src/auth/staff-store";
 import { parse } from "#src/auth/request";
 import { CONSOLE_CATALOG_LIMIT, CONSOLE_CATALOG_WRITE_LIMIT } from "#src/console/catalog-routes";
-import { throttled, type ConsolePlatformDeps } from "#src/console/platform-routes";
+import type { ConsolePlatformDeps } from "#src/console/platform-routes";
+import { throttled } from "#src/console/throttle";
 import { createPlatformSwitches } from "#src/settings/platform-switches";
 import type { SaveResult, SettingsService } from "#src/settings/service";
 

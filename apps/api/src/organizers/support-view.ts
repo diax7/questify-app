@@ -1,12 +1,11 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import type { Pool } from "pg";
-import type { AuthKeys } from "#src/auth/keys";
 import { notFound } from "#src/auth/http-errors";
 import type { SupportGrant } from "#src/auth/staff-store";
 import { BUCKETS } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
-import { holdBack, type DeviceLimit } from "#src/devices/limits";
+import { holdBackAdmin, type AdminLimitDeps } from "#src/console/throttle";
+import type { DeviceLimit } from "#src/devices/limits";
 import { routeKeyOf } from "#src/organizers/support-seat";
 
 /** A support view's reads: 240 a minute per admin (ADR-523), so a runaway page cannot flood the audit log. */
@@ -15,8 +14,6 @@ export const SUPPORT_VIEW_LIMIT = {
   max: 240,
   windowSeconds: 60,
 } as const satisfies DeviceLimit;
-
-export type SupportViewDeps = Readonly<{ pool: Pool; keys: Pick<AuthKeys, "userKey"> }>;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** The organizer and the event are columns of the log row already. */
@@ -52,24 +49,13 @@ export function idsOf(params: unknown): Record<string, string> {
  * @throws HttpError `too_many_attempts` past the limit; `not_found` when the grant ended since the seat was read.
  */
 export async function enterView(
-  deps: SupportViewDeps,
+  deps: AdminLimitDeps,
   request: FastifyRequest,
   reply: FastifyReply,
   grant: SupportGrant,
 ): Promise<void> {
   const adminId = request.staff?.account.id ?? "";
-  await holdBack(
-    deps.pool,
-    [
-      {
-        limit: SUPPORT_VIEW_LIMIT,
-        key: deps.keys.userKey(`${SUPPORT_VIEW_LIMIT.bucket}:${adminId}`),
-      },
-    ],
-    true,
-    reply,
-    true,
-  );
+  await holdBackAdmin(deps, adminId, reply, SUPPORT_VIEW_LIMIT);
   const route = routeKeyOf("GET", request.routeOptions.url ?? "");
   try {
     await withConnection(deps.pool, (client) =>

@@ -8,7 +8,7 @@ import { z } from "zod";
 import { notFound } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
 import { CONSOLE_CATALOG_LIMIT, CONSOLE_CATALOG_WRITE_LIMIT } from "#src/console/catalog-routes";
-import { throttled } from "#src/console/platform-routes";
+import { throttled } from "#src/console/throttle";
 import {
   accountOf,
   refuseInvalid,

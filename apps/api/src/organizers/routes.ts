@@ -74,11 +74,11 @@ import { registerInboxTeamRoutes } from "#src/inbox/routes";
 import { registerReadinessTeamRoutes } from "#src/readiness/routes";
 import { registerHeldPrizesTeamRoute } from "#src/rewards/held-prizes";
 import { registerRewardBuilderRoutes } from "#src/rewards/routes";
-import { organizerContextOf } from "#src/organizers/context";
+import { actorOf, organizerContextOf } from "#src/organizers/context";
 import { membershipOf, readTeam, type OrganizerPrincipal } from "#src/organizers/store";
 import { supportMayUse, supportSeatOf, viewGrantOf } from "#src/organizers/support-seat";
 import { enterView, isRead } from "#src/organizers/support-view";
-import type { Actor, ChangeResult, InviteResult, Team } from "#src/organizers/team";
+import type { ChangeResult, InviteResult, Team } from "#src/organizers/team";
 import type { Ranking } from "#src/ranking/ranking";
 import { ORGANIZER_PREFIX } from "#src/route-access";
 import { registerFeatureRequestTeamRoutes } from "#src/settings/feature-request-routes";
@@ -130,15 +130,6 @@ const ownershipBody = z.object({ email: z.string().min(3).max(254), lang: langua
 const scopeBody = z.object({ eventScope: scopeList.nullable() });
 const memberParams = z.object({ staffUserId: z.uuid() });
 const inviteParams = z.object({ inviteId: z.uuid() });
-
-function actorOf(request: FastifyRequest): Actor {
-  const context = organizerContextOf(request);
-  return {
-    organizerId: context.organizerId,
-    staffUserId: context.staffUserId,
-    email: context.email,
-  };
-}
 
 function answerInvite(reply: FastifyReply, result: InviteResult) {
   switch (result.kind) {

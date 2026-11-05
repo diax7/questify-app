@@ -5,7 +5,8 @@ import { invalidCatalog } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
 import { CONSOLE_CATALOG_LIMIT, CONSOLE_CATALOG_WRITE_LIMIT } from "#src/console/catalog-routes";
 import { listHelp, listLegal, publishLegal, revertHelp, saveHelp } from "#src/console/legal";
-import { throttled, type ConsolePlatformDeps } from "#src/console/platform-routes";
+import type { ConsolePlatformDeps } from "#src/console/platform-routes";
+import { throttled } from "#src/console/throttle";
 
 const read = { config: { access: "admin" }, bodyLimit: 1024 } as const;
 // A legal text is at most 100,000 characters in each language, which is up to about 600 KB as UTF-8.

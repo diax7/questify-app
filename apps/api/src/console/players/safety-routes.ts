@@ -3,7 +3,8 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { parse } from "#src/auth/request";
 import { BUCKETS } from "#src/auth/throttle";
-import { reasonOf, throttled, type ConsolePlayerDeps } from "#src/console/players/routes";
+import { reasonOf, type ConsolePlayerDeps } from "#src/console/players/routes";
+import { throttled } from "#src/console/throttle";
 import {
   addWord,
   changeStanding,

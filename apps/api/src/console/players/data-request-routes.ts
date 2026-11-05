@@ -10,11 +10,8 @@ import {
   readPendingHandovers,
   type CaseOf,
 } from "#src/console/players/data-request-doors";
-import {
-  CONSOLE_PLAYER_READ_LIMIT,
-  throttled,
-  type ConsolePlayerDeps,
-} from "#src/console/players/routes";
+import { CONSOLE_PLAYER_READ_LIMIT, type ConsolePlayerDeps } from "#src/console/players/routes";
+import { throttled } from "#src/console/throttle";
 import type { DeviceLimit } from "#src/devices/limits";
 import type { IdempotencyStore } from "#src/idempotency-store";
 import { sendDataFile } from "#src/privacy/data-export";

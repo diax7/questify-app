@@ -18,7 +18,8 @@ import {
   saveSupportContact,
   saveTemplate,
 } from "#src/console/messaging";
-import { throttled, type ConsolePlatformDeps } from "#src/console/platform-routes";
+import type { ConsolePlatformDeps } from "#src/console/platform-routes";
+import { throttled } from "#src/console/throttle";
 
 const read = { config: { access: "admin" }, bodyLimit: 1024 } as const;
 const write = { config: { access: "admin" }, bodyLimit: 32 * 1024 } as const;

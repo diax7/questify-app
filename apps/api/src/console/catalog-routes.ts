@@ -18,7 +18,8 @@ import {
   revertCatalog,
   saveCatalog,
 } from "#src/console/catalog";
-import { throttled, type ConsolePlatformDeps } from "#src/console/platform-routes";
+import type { ConsolePlatformDeps } from "#src/console/platform-routes";
+import { throttled } from "#src/console/throttle";
 import { createItem, previewXpTable } from "#src/console/xp-table";
 import type { DeviceLimit } from "#src/devices/limits";
 

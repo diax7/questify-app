@@ -20,9 +20,9 @@ import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 import type { PublicAccount } from "#src/auth/staff-store";
 import {
   registerConsolePlatformRoutes,
-  throttled,
   type ConsolePlatformDeps,
 } from "#src/console/platform-routes";
+import { throttled } from "#src/console/throttle";
 import { CONSOLE_CATALOG_WRITE_LIMIT } from "#src/console/catalog-routes";
 import {
   registerConsoleDataRequestRoutes,
