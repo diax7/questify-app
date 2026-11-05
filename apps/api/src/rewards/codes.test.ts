@@ -100,6 +100,18 @@ describe("sealing a code", () => {
     expect(codeOf(ring(9, S), REWARD, sealed)).toBe("GIFT-3");
   });
 
+  it("reads a key id only from a value longer than the header that starts with both magic bytes", () => {
+    expect(headerKeyId(Buffer.from([0x51, 0x02, 5, 0]))).toBe(5);
+    expect(headerKeyId(Buffer.from([0x51, 0x02, 5]))).toBeUndefined();
+    expect(headerKeyId(Buffer.from([0x00, 0x02, 5, 0]))).toBeUndefined();
+    expect(headerKeyId(Buffer.from([0x51, 0x00, 5, 0]))).toBeUndefined();
+    expect(headerKeyId(Buffer.from([0x00, 0x00, 5, 0]))).toBeUndefined();
+  });
+
+  // Mutation run 42106959753, equivalent survivors in openCode/openBody: emptying openBody's `catch` still returns
+  // undefined; and dropping the `named === undefined`, `key !== undefined` or `legacy === undefined` guards only
+  // reaches `ring.keys.get(undefined)` or `openBody(undefined, ...)`, whose `key.seal` throws inside the same try.
+
   it("fits the database's size check for the longest code and the shortest", () => {
     const longest = sealCode(KEY, REWARD, "ك".repeat(CODE_MAX_LENGTH));
     expect(longest.length).toBeLessThanOrEqual(1024);
