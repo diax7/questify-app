@@ -6,6 +6,26 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## Mutation chase: T-810c re-authentication and devices — 2026-11-05
+
+- **Survivors and no-coverage mutants of GitHub run 41961473533 chased (one round; dead checks deleted, no bug
+  found).** Files under 90%: `auth/reauth.ts` (60%), `players/reauth.ts` (61%), `players/devices.ts` (81%),
+  `console/staff-sessions.ts` (83%); `session.ts` and `staff-store.ts` are above 90% and were not chased. New tests:
+  `test/players/devices.int.test.ts` +8 (the Arabic SMS by default, the email channel and its 5-minute text, one
+  platform unit spent per text; the gateway's refusal and a failed email answer 503 and log only why; a full contact
+  window answers 429 with `retry-after`, logs `step: reauth_code` and gives the unit back; a wrong code counts in the
+  player's failure window and a right one does not, and a full window refuses the verify; PN401 from an ended device
+  row answers 401 on the list and the code request; `asDevicePlayer` passes another error on unchanged; a stale sign-in
+  ending one device answers `reauth_required`, and both end routes take no body or `{}` only; `labelDevice` stores the
+  platform and the folded model). `test/auth/sessions.int.test.ts` +2 (a wrong staff code answers 4 tries left, a right
+  one `freshUntil` about 10 minutes ahead, the email says 10 minutes; a second code inside a minute and the hour's
+  sixth answer 429, a failed email 503, each logged). **Source change:** the confirm rows of both re-authentications
+  and the player's start row are unions by outcome, so the unreachable `fresh_until !== null`,
+  `contact === null` and `masked === null` checks are gone. 11 equivalent, listed in FOLLOWUPS. Kills spot-checked by
+  applying mutants by hand (8 mutants, every one failed a new test). Lint, types and format clean; touched suites
+  (`players/devices`, `auth/sessions`, `db/signed-in-devices`, `src/players/devices`, `src/auth/routes`) 128 passed.
+  Scores are confirmed by the next grouped mutation run. CI minutes: 0; agent tokens roughly 0.3M (estimate).
+
 ## T-810c signed-in devices — 2026-11-05
 
 - **T-810c built (tier A; migration 0155, new and undeployed; ADR-717, ADR-718 and Q-682 Proposed; Q-680 answered by

@@ -1,6 +1,6 @@
 import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { generateToken } from "#src/auth/keys";
+import { createAuthKeys, generateToken } from "#src/auth/keys";
 import { loggerOptions } from "#src/app";
 import { createSessions } from "#src/auth/session";
 import {
@@ -498,6 +498,100 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
       expect([ended.statusCode, ended.json<{ ended: number }>().ended]).toEqual([200, 1]);
       expect((await stateOf(laptop.id))?.revoked_at).not.toBeNull();
       expect((await me(here.cookie)).statusCode).toBe(200);
+    });
+
+    it("tells a wrong code from a right one, and answers how long the session stays fresh", async () => {
+      const email = newEmail();
+      const user = await createStaff(db.owner, { email });
+      const here = await seedSession(user, { ageMinutes: 11 });
+      const asked = await send(here.cookie, "POST", "/v1/staff/reauth/code", {});
+      const { challengeToken, expiresInSeconds } = asked.json<{
+        challengeToken: string;
+        expiresInSeconds: number;
+      }>();
+      expect(expiresInSeconds).toBe(600);
+      expect(test.mail.to(email).at(-1)?.text).toContain("It is valid for 10 minutes.");
+      const code = test.mail.lastCode(email);
+      const verify = (typed: string) =>
+        send(here.cookie, "POST", "/v1/staff/reauth/verify", { challengeToken, code: typed });
+      const wrong = await verify(code === "000000" ? "111111" : "000000");
+      expect([wrong.statusCode, wrong.json<{ code: string }>().code]).toEqual([
+        422,
+        "invalid_code",
+      ]);
+      expect(wrong.json<{ details: { attemptsLeft: number } }>().details.attemptsLeft).toBe(4);
+      const right = await verify(code);
+      expect(right.statusCode).toBe(200);
+      const freshFor = Date.parse(right.json<{ freshUntil: string }>().freshUntil) - Date.now();
+      expect(freshFor).toBeGreaterThan(9 * 60_000);
+      expect(freshFor).toBeLessThanOrEqual(10 * 60_000);
+    });
+
+    it("holds a second code inside a minute and the hour's sixth, answers 503 when the email fails, and logs each", async () => {
+      const lines: string[] = [];
+      const logged = await startApp(db, {
+        ...loggerOptions(testConfig()),
+        level: "debug",
+        stream: { write: (line: string) => void lines.push(line) },
+      });
+      const keys = createAuthKeys(testConfig().auth.secret);
+      const ask = (cookie: string) =>
+        logged.app.inject({
+          method: "POST",
+          url: "/v1/staff/reauth/code",
+          headers: withSession(cookie, { "idempotency-key": crypto.randomUUID() }),
+          payload: {},
+        });
+      try {
+        const resender = await seedSession(await createStaff(db.owner, { email: newEmail() }), {
+          ageMinutes: 11,
+        });
+        expect((await ask(resender.cookie)).statusCode).toBe(202);
+        const again = await ask(resender.cookie);
+        expect([again.statusCode, again.json<{ code: string }>().code]).toEqual([
+          429,
+          "too_many_attempts",
+        ]);
+        expect(Number(again.headers["retry-after"])).toBeGreaterThan(0);
+        expect(Number(again.headers["retry-after"])).toBeLessThanOrEqual(60);
+
+        const busyEmail = newEmail();
+        const busy = await createStaff(db.owner, { email: busyEmail });
+        await owner(
+          `INSERT INTO auth_throttle (bucket, key, at)
+           SELECT 'challenge_user', $1, clock_timestamp() FROM generate_series(1, 5)`,
+          [keys.userKey(busy)],
+        );
+        const capped = await ask((await seedSession(busy, { ageMinutes: 11 })).cookie);
+        expect(capped.statusCode).toBe(429);
+        expect(logged.mail.to(busyEmail)).toHaveLength(0);
+
+        logged.mail.failing = true;
+        const failed = await ask(
+          (
+            await seedSession(await createStaff(db.owner, { email: newEmail() }), {
+              ageMinutes: 11,
+            })
+          ).cookie,
+        );
+        expect([failed.statusCode, failed.json<{ code: string }>().code]).toEqual([
+          503,
+          "email_unavailable",
+        ]);
+
+        const events = lines
+          .map((line) => JSON.parse(line) as Record<string, unknown>)
+          .filter((line) => typeof line["event"] === "string" && line["event"].includes("staff."));
+        const named = (event: string) => events.filter((line) => line["event"] === event);
+        expect(named("staff.reauth_code_sent")).toHaveLength(1);
+        expect(named("staff.reauth_throttled")).toHaveLength(2);
+        expect(named("staff.email_unavailable")).toEqual([
+          expect.objectContaining({ reason: "EmailSendError" }),
+        ]);
+        expect(lines.join("\n")).not.toContain(busyEmail);
+      } finally {
+        await logged.close();
+      }
     });
 
     it("signs this session out with no code, and answers 404 for another person's session", async () => {
