@@ -188,11 +188,35 @@ function runDriver(job, dir, name) {
   });
 }
 
-/** Deletes the drivers' job files once the run is over: they hold bearer tokens, live ones in `--remote` mode. */
+/**
+ * Deletes the drivers' job files once the run is over: they hold bearer tokens, live ones in `--remote` mode. A failure
+ * warns and never discards a finished report or hides the run's own error.
+ */
 function removeJobFiles(dir) {
-  for (const name of readdirSync(dir)) {
-    if (name.endsWith(".job.json")) rmSync(join(dir, name), { force: true });
+  try {
+    for (const name of readdirSync(dir)) {
+      if (name.endsWith(".job.json")) rmSync(join(dir, name), { force: true });
+    }
+  } catch (error) {
+    process.stderr.write(
+      `load test: could not delete the job files (bearer tokens) in ${dir}; delete the *.job.json files by hand: ` +
+        `${error instanceof Error ? error.message : String(error)}\n`,
+    );
   }
+}
+
+/**
+ * Ctrl+C mid-run: `cleanUp`, then the job files go and the process exits 130 (the drivers are this process's
+ * children and stop with it). Returns the function that takes the handler off again.
+ */
+function exitOnInterrupt(dir, cleanUp) {
+  const interrupted = () => {
+    cleanUp();
+    removeJobFiles(dir);
+    process.exit(130);
+  };
+  process.once("SIGINT", interrupted);
+  return () => process.removeListener("SIGINT", interrupted);
 }
 
 function baseJob(baseUrls) {
@@ -335,13 +359,8 @@ async function runLocal(dir) {
       );
     }
   };
-  // Ctrl+C mid-run still drops the database (the drivers are this process's children and stop with it).
-  const interrupted = () => {
-    cleanUp();
-    removeJobFiles(dir);
-    process.exit(130);
-  };
-  process.once("SIGINT", interrupted);
+  // Ctrl+C mid-run still drops the database.
+  const stopListening = exitOnInterrupt(dir, cleanUp);
   try {
     checkDisk("after seeding");
     const ports = Array.from({ length: Math.max(1, num("api-instances")) }, (_x, i) => 4810 + i);
@@ -353,7 +372,7 @@ async function runLocal(dir) {
       apis.map((api) => api.pid),
     );
   } finally {
-    process.removeListener("SIGINT", interrupted);
+    stopListening();
     cleanUp();
   }
 }
@@ -365,7 +384,12 @@ async function runRemote(dir) {
     throw new Error("--target is not this PC: add --remote, and never point it at production.");
   if (opt.plan === undefined)
     throw new Error("--target needs --plan, seeded in that environment (RUNBOOK).");
-  return measure(JSON.parse(readFileSync(opt.plan, "utf8")), targets, dir, []);
+  const stopListening = exitOnInterrupt(dir, () => {});
+  try {
+    return await measure(JSON.parse(readFileSync(opt.plan, "utf8")), targets, dir, []);
+  } finally {
+    stopListening();
+  }
 }
 
 async function main() {

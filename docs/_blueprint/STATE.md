@@ -6,6 +6,24 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## FOLLOWUPS batch 2 — 2026-11-05
+
+- **FOLLOWUPS batch (ADR-355; tier B, no migration).** Cleared: a wrong staff re-authentication code now counts in the
+  staff sign-in failure windows (`confirmStaffReauth` records it in the same transaction; counted, not gated, so a
+  flood of failures against an email cannot also lock its owner out of ending other sessions); the RUNBOOK gives the
+  owner statement for a re-seal `conflict` (delete only when `redemption_id IS NULL`, lower `stock_total` in the same
+  transaction; two tests run it); `writeBatch` keeps the first error when `ROLLBACK` throws (test with a connection
+  whose `ROLLBACK` raises); the `/v1` route is `[[...path]]` and exports `OPTIONS`, so OPTIONS and a bare `/v1` carry
+  the API security headers (`lib/v1-route.test.ts`; checked on a real `next build` and `next start`);
+  `outbound-redirect.test.ts` walks every server-side file of `apps/web/src` (client files, `forward.ts` and
+  `post-json.ts` left out); the `WALLS` comment sits above `WALLS`; `ops/load/run.mjs` `removeJobFiles` warns instead
+  of throwing and `runRemote` deletes the job files on Ctrl+C. Left, with the reason in `docs/FOLLOWUPS.md`: the 0155
+  sweep order and the end-others lock (a new migration rewriting sign-in functions, tier A). Nothing about the console
+  host was touched. Full suite once: 834 files; 790 passed, 16 skipped, 28 failed on hook timeouts (the shared
+  PostgreSQL was overloaded at sixteen workers; no assertion failed); those 28 files re-run with three workers: all
+  passed (251 tests). Oxlint, oxfmt, `lint:limits` and types clean. CI minutes: 0 (not pushed); agent tokens roughly
+  0.5M (estimate).
+
 ## T-804e completion profile — 2026-11-05
 
 - **T-804e done (tier A, ledger; no code shipped).** `ops/load/profile.mjs` (ADR-734) gives a reproducible number:

@@ -186,7 +186,8 @@ async function writeBatch(
       }
     });
   } catch (error) {
-    await owner.query("ROLLBACK");
+    // A ROLLBACK that fails means the connection is gone and the server rolls back with it; report the first error.
+    await owner.query("ROLLBACK").catch(() => undefined);
     throw error;
   }
 }

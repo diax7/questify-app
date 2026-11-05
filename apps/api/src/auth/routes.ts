@@ -537,6 +537,7 @@ function registerReauthRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): vo
       const result = await deps.reauth.confirm(
         { ...ownerOf(request), email: account.email },
         { challengeToken: body.challengeToken, code: body.code, requestId: request.id },
+        callerOf(request),
       );
       switch (result.kind) {
         case "confirmed":
