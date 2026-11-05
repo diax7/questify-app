@@ -9,8 +9,8 @@ Delivers no FR (quality gate).
 **Done when** (TASKS.md): the profile script gives the same number twice on one container, and the completion's
 statements are at or under ADR-674's 10 ms, or the gap is written down with what it would cost to close.
 
-This plan step already did the measuring half (section 1). Sections 3 to 6 are the build, which waits for the plan
-review. No migration or ledger code changed in this step.
+This plan step already did the measuring half (section 1). Sections 3 to 6 are the plan as written; section 8 records the
+plan review and the narrower scope the coordinator chose, and section 9 what was built and measured.
 
 ## 1. The profile, committed and run twice
 
@@ -182,3 +182,54 @@ Two limits of the number, kept in view (Q-697):
 
 STATE, TASKS (T-804e ticked with both runs' numbers), DATA_MODEL (the two ledger triggers), RUNBOOK (done),
 FOLLOWUPS (the time zone guard line stays, with "not on the completion path, T-804e"), DECISIONS, OPEN_QUESTIONS.
+
+## 8. Plan review (84) and coordinator scope
+
+The tier A plan review scored the plan 84. Its findings, as the coordinator passed them on:
+
+- **MAJOR 1 (part A).** `ledger_after` must not trust enrollment or event values read in `ledger_before`: between the
+  two, `apply_ledger_entry`'s own UPDATE and other BEFORE triggers change the row. An AFTER step reads what it needs
+  itself.
+- **MAJOR 2 (part A).** `ledger_player_guard` locks the enrollment `FOR NO KEY UPDATE` only for a paying entry
+  (`redeem_return`, `removal` and a lowering `adjust` take no lock). Reading the enrollment once for every kind in
+  `ledger_before` would add a lock to those kinds; the lock must stay conditional, as today.
+- **MAJOR 3 (part A).** Per-function parity cannot prove a trigger merge: order and interplay are the risk. Equivalence
+  needs a scenario test over every ledger kind, rehearsal on and off, comparing the rows and SQLSTATEs of the 0157 and
+  0158 versions.
+- **Part B.** Prefer `RETURNING id, questify_month(created_at)` in `xp_credit` to `questify_month(now())`: equal by
+  construction, no reliance on the column default. `xp_reverse` keeps the lookup.
+- **Part C.** `ranking_day_entry_for` keeps the `app_player_id()` filter, and returns no row when the overall entry has
+  none (the day entry must not appear without the overall one).
+- **Part D.** A per-transaction cache in a custom setting (`set_config(..., true)`) can be set by the session before the
+  trigger reads it, so a client could choose its own burst numbers. Not acceptable on a fraud check.
+- **Part E.** Sound only if no row is already `waitlisted` outside `pending`; assert it in the migration before relying
+  on the `WHEN`.
+
+**Coordinator decision (2026-11-05): build only the low-risk parts now, then measure.**
+
+- ADR-731 as the review prefers (`RETURNING`), xp_reverse's lookup kept.
+- ADR-732 with the player filter kept and no day row without an overall one.
+- ADR-733 part E with the migration assertion; part D's cache dropped, the tuning row read once instead of twice.
+- **ADR-730 (the trigger merge) is not built now** and is Proposed-deferred, with MAJORs 1 to 3 as its conditions.
+
+## 9. Built (migration 0158) and measured
+
+Migration `0158_completion_profile.sql`: `xp_apply(who, made, delta, known_month DEFAULT NULL)` replaces the three-argument
+one; `xp_credit` passes the month from `RETURNING`; `ranking_day_entry_for(completion, eligible)` (internal, PUBLIC
+revoked, no grant) is called by `complete_quest_answer` only when the overall entry exists; `flag_tuning` reads the
+setting row once; `enrollment_status_guard` and `enrollment_waitlist_clear` fire on UPDATE only when what they act on
+changed (the insert side is `enrollment_waitlist_clear_insert`); the migration asserts no row is waitlisted outside
+pending after taking the table lock. No lock order changes (`docs/rules.md` unchanged).
+
+Rollback: `apps/api/db/rollback/0158_completion_profile.sql` restores the 0157 bodies and triggers (taken from
+`pg_get_functiondef` on a 0157 database); run it as the owner, then delete the 0158 row from `schema_migration`.
+
+Equivalence: `apps/api/test/db/completion-profile.int.test.ts` runs one scenario twice in rolled-back transactions on one
+database, once after the rollback file, with every sequence reset so ids match: the completion door (first completion
+with category bonus, first-N bonus and streak; replay; repeat), and raw entries of every other kind (award, community,
+session, redeem, redeem_return, removal, adjust up and down) for a real and a rehearsal member, each guard's refusal
+(PB423, QP403, LB500, ES423, the status guard's 42501), the waiting list through a score write, an award, a leave and a
+flag set outside pending. Answers, SQLSTATEs, enrollments, ledger, completions, XP entries, boards, totals, levels,
+event and Questify streak days and flags must be equal. Two deliberate breaks (a wrong XP month; the waiting-list WHEN
+without `waitlisted`) each failed it. A third test proves the migration's assertion refuses a bad row (23514).
+`completion-answer.int.test.ts`'s "ranking fails" case now breaks `ranking_day_entry_for`, the function the answer calls.

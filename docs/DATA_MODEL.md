@@ -339,7 +339,9 @@ database test lists each one as copied or not copied, so a new table must be dec
 `join_answer` (below), `score bigint` and `balance bigint` (**caches of the
 ledger**), `status` pending/active/left/removed/banned/declined (`declined`: the team declined the request, ADR-167),
 `waitlisted boolean` (a pending row from a full event's waiting list, FR-1821; cleared by a trigger on any move out of
-pending; written by the join definers only). **Unique (event_id, player_id).** `name_notice` (`staff`, `everyone`, NULL; T-615, migration 0109) is who the join card told the player would see their full name, written by `join_name_notice` in the join's own transaction and replaced when a player who left joins again; a full name reaches other players only for `everyone`. Score is points
+pending; written by the join definers only. Since 0158 (ADR-733) that trigger and `enrollment_status_guard` fire on an
+UPDATE only when the status or `waitlisted` changed, so a score write skips both; a row never holds `waitlisted` outside
+pending, which 0158 asserted). **Unique (event_id, player_id).** `name_notice` (`staff`, `everyone`, NULL; T-615, migration 0109) is who the join card told the player would see their full name, written by `join_name_notice` in the join's own transaction and replaced when a player who left joins again; a full name reaches other players only for `everyone`. Score is points
 earned and ranks; balance is earned minus spent (ADR-043).
 **Ranking (T-106, migration 0015):** `score_version bigint`, the id of the ledger entry that last changed the score
 (set by the ledger trigger; ties go to the lower version, FR-606); index `(event_id, score DESC, score_version)` for
@@ -519,7 +521,8 @@ quest's type (QR version, typed code), and the cap, and writes the completion an
 `complete_quest_answer` (definer, migration 0149, one column added in 0151, T-804c, ADR-680) is what the API calls: `complete_quest`, then every
 part of the answer from its own function (`own_level`, `own_level_items`, `own_bonus`, `own_quest_item`,
 `completion_boost`, `own_first_bonus`, `own_streak_bonus`) and both ranking entries (`ranking_entry_of`,
-`ranking_day_entry_of`) in one row; a failed ranking read returns `ranking_failed` and the error's SQLSTATE in `ranking_sqlstate` and never undoes the
+`ranking_day_entry_of`; since 0158 the internal `ranking_day_entry_for(completion, eligible)`, given the overall entry's
+`ranked` so eligibility is checked once, ADR-732) in one row; a failed ranking read returns `ranking_failed` and the error's SQLSTATE in `ranking_sqlstate` and never undoes the
 completion.
 `player_request_gate(hash, is_write)` (definer, migration 0149, ADR-672) is the player guard's one call: the session's
 player (`player_session_owner`) and, for a write, whether a new terms or privacy version holds them (`player_legal_held`).
@@ -978,7 +981,8 @@ ADR-151):
   and the sync hold FOR UPDATE); rows come only from `xp_apply` and the 0072 backfill. RLS forced, no grant; kept on
   the tombstone. This is the baseline's `ranking_season`: each month board is a season and its archive.
 - `xp_apply` (restated) writes both boards after its `player_xp` UPDATE, under that row lock (an UPDATE, or an INSERT
-  for a new row). `xp_backfill` (0039, a one-time backfill that bypassed `xp_apply`) is dropped. The backfill fills
+  for a new row). Since 0158 (T-804e, ADR-731) it takes `known_month DEFAULT NULL`: `xp_credit` passes the month of the
+  row it just inserted (`RETURNING questify_month(created_at)`); every other caller still looks it up (`xp_month_of`). `xp_backfill` (0039, a one-time backfill that bypassed `xp_apply`) is dropped. The backfill fills
   both boards under `xp_entry` ACCESS EXCLUSIVE and aborts unless they equal the ledger.
 - `player_inactive_idx` on `player (id) WHERE status <> 'active'`: a reader's place counts the rows ahead from the board
   index alone, then takes off the inactive players among them.

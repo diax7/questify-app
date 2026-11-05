@@ -8161,7 +8161,11 @@ on staging and production and every backup taken before those re-seals has expir
 
 ## ADR-730 - T-804e one BEFORE and one AFTER trigger on `ledger_entry`
 
-**Status:** Proposed (developer, 2026-11-05; T-804e plan section 3 A).
+**Status:** Proposed-deferred (developer, 2026-11-05; T-804e plan section 3 A; not built: the coordinator kept T-804e to
+the low-risk parts after the plan review (84). If it is built later it takes the review's MAJORs 1 to 3: the AFTER step
+reads the rows it needs itself rather than trusting values passed from BEFORE, the player lock stays conditional as
+today (no lock for `redeem_return`, `removal` and a lowering `adjust`), and equivalence is proved by the T-804e scenario
+test, not by per-function parity alone.)
 **Decision:** migration 0158 replaces the four BEFORE INSERT triggers (`ledger_a_stamp_rehearsal`,
 `ledger_operator_play_guard`, `ledger_player_guard`, `ledger_suspension_guard`) and the three AFTER INSERT triggers
 (`apply_ledger_entry`, `ledger_streak`, `ledger_xp`) with `ledger_before()` and `ledger_after()`, which run the same
@@ -8176,28 +8180,32 @@ held by a test of the trigger list and the existing order-dependent suites.
 
 ## ADR-731 - T-804e a fresh XP credit names its month instead of reading it back
 
-**Status:** Proposed (developer, 2026-11-05; T-804e plan section 3 B).
-**Decision:** `xp_apply` takes the board month from its caller: `xp_credit` passes `questify_month(now())` (the new
-entry's `created_at` default is `now()`), `xp_reverse` and every other caller keep `xp_month_of(made)`.
+**Status:** Proposed (developer, 2026-11-05; T-804e plan section 3 B; built in 0158 as the plan review preferred).
+**Decision:** `xp_apply(who, made, delta, known_month DEFAULT NULL)` replaces the three-argument function (dropped, not
+kept beside it): `xp_credit` passes `questify_month(created_at)` from `RETURNING` of the row it inserts, equal to
+`xp_month_of` by construction (a credit reverses nothing); NULL (`xp_reverse` and every other caller) looks it up.
 **Why:** `xp_month_of` reads back the row just inserted, 0.31 ms a completion.
 **Trade-offs:** a second signature of `xp_apply` or a defaulted argument; parity tests compare the boards written.
 
 ## ADR-732 - T-804e one ranking eligibility check a completion
 
-**Status:** Proposed (developer, 2026-11-05; T-804e plan section 3 C).
+**Status:** Proposed (developer, 2026-11-05; T-804e plan section 3 C; built in 0158).
 **Decision:** `complete_quest_answer` reads the overall ranking entry first and passes its `ranked` to a new internal
-`ranking_day_entry_for(completion, ranked)` (no grant to `questify_app`, PUBLIC revoked by name);
+`ranking_day_entry_for(completion, eligible)` (no grant to `questify_app`, PUBLIC revoked by name), which keeps the
+`app_player_id()` filter; with no overall entry it is not called and the day entry is empty, as before.
 `ranking_day_entry_of` stays for its other callers.
 **Why:** `ranking_eligible` runs 2.3 times a completion on the same enrollment, 0.66 ms.
 **Trade-offs:** two ways to read a day entry; the parity test holds them equal.
 
 ## ADR-733 - T-804e cheaper completion and enrollment triggers
 
-**Status:** Proposed (developer, 2026-11-05; T-804e plan section 3 D and E).
-**Decision:** `flag_tuning()` keeps its two platform settings for the transaction (`set_config(..., true)`), so a
-change applies from the next transaction as now; `raise_completion_flags` takes the event's kind from one read.
+**Status:** Proposed (developer, 2026-11-05; T-804e plan section 3 D and E; built in 0158 as amended by the
+coordinator after the plan review).
+**Decision:** part D's per-transaction cache is dropped (a custom setting the session can set first would spoof it);
+`flag_tuning()` reads the `tuning` row once instead of twice, with `platform_tuning_int`'s rule inline.
 `enrollment_status_guard` fires only `WHEN (OLD.status IS DISTINCT FROM NEW.status)` and the update trigger of
-`enrollment_waitlist_clear` only when the status or `waitlisted` changed (its insert trigger unchanged).
+`enrollment_waitlist_clear` only when the status or `waitlisted` changed (the insert side is its own trigger,
+`enrollment_waitlist_clear_insert`, unconditional). 0158 asserts no row is waitlisted outside pending before it commits.
 **Why:** both enrollment triggers run on every score write, which changes neither column; the flag trigger reads the
 same two settings on every completion. About 0.25 ms together.
 **Trade-offs:** a trigger condition that must follow the function's body if the body ever reads another column; a
