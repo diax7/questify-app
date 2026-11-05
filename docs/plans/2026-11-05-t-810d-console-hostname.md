@@ -65,9 +65,8 @@ closed, the console is unreachable, never exposed); the fix is Q-691 (read `x-fo
 `apps/api/migrations/0156_staff_session_surface.sql`, starting with `SET LOCAL lock_timeout = '10s'`:
 - `ALTER TABLE staff_session ADD COLUMN surface text NOT NULL DEFAULT 'dashboard' CHECK (surface IN ('dashboard',
   'console'))`. Existing rows become `dashboard`: after the deploy every admin signs in once more on the console
-  host (RUNBOOK note). No grant changes: the API role still has no INSERT and no UPDATE of this column (T-810c's
-  policy covers only the touch and lapse columns; the builder checks the column list and narrows it if the policy is
-  column-wide).
+  host (RUNBOOK note). No grant changes: the API role has no INSERT (revoked in 0155) and cannot UPDATE this column,
+  because its UPDATE is the column grant of 0002 (`GRANT UPDATE (last_seen_at, revoked_at)`, 0002:89), not a policy.
 - `DROP FUNCTION open_staff_session(bytea, text, text)`; `CREATE FUNCTION open_staff_session(token bytea, agent
   text, address text, surface text)` with T-810c's body plus the surface in the INSERT; `REVOKE ALL ... FROM PUBLIC`
   and `GRANT EXECUTE ... TO questify_app` beside it. A value outside the CHECK raises `22023` from the definer before
@@ -88,7 +87,8 @@ updated if they list functions.
 
 `apps/api/src/auth/staff-guard.ts`:
 - `surfaceOf(request, origins)`: `console` when the request's `Origin` equals `consoleOrigin`, else `dashboard`
-  (a missing Origin is the lesser surface). Used only by the two steps that open a session: `POST
+  (a missing Origin is the lesser surface). The code step opens `console` only for a platform admin: a non-admin
+  signing in on the console origin opens a `dashboard` session (review 86, NIT). Used only by the two steps that open a session: `POST
   /v1/staff/auth/code` (sign-in) and `POST /v1/staff/auth/sign-up/code` (sign-up). Sign-up always opens
   `dashboard`: a new account is an organizer and has no console (ADR-720).
 - `checkOrigin(request, allowed, cookieRequired)` takes a list. Sign-in steps (no cookie yet) accept either origin;
@@ -104,7 +104,8 @@ Per door:
 | `/v1/admin/*` console hook (`activation/routes.ts`) | `CONSOLE_ORIGIN` | `console` only | hidden 404 (as for a non-admin today) |
 | `/v1/staff/*` (`auth/routes.ts`) | the session's own origin; either for the public sign-in steps | both | 403 `csrf_rejected` on an origin mismatch |
 | `/v1/organizers/*` (`organizers/routes.ts`) | `DASHBOARD_ORIGIN` | `dashboard` only | hidden 404 (as for a non-member) |
-| device pairing and guard (`devices/*`) | `DASHBOARD_ORIGIN` | `dashboard` only | as today for a missing session |
+
+The device doors (`devices/*`) take the device cookie, not a staff session, and are unchanged.
 
 Organizer doors refuse console sessions (deny by default, ADR-720): the console host never shows a dashboard page,
 so a console session has no reason to call them. Questify support (ADR-407) works in the organizer's dashboard, so
@@ -154,8 +155,13 @@ The sign-in page on the console host sends an admin to `/{lang}/console` after s
 there sees the console's not-found page with a link to the public host's sign-in (one new string pair,
 `console.wrongHost`, Arabic with the ux-araby skill).
 
+The proxy's matcher skips any path whose last part has a dot (files such as `robots.txt`), so such a path never meets
+the host step; no page path (an event code, a slug) contains a dot, and a console page reached that way on the public
+host still gets nothing, because the forwarder there never passes `/v1/admin/*` on.
+
 Tests: `console-host.test.ts` (each rule above, with and without query, upper-case host, the port, a path that only
-starts with `console`, such as `/en/consoleX`); `forward.test.ts` (`/v1/admin/x` on the public host is 404 and calls
+starts with `console`, such as `/en/consoleX`; `x-forwarded-host: console…` with a public `Host` is public; redirects
+use the configured origins, never the request's `Host`, and a path such as `//evil.example` stays on them); `forward.test.ts` (`/v1/admin/x` on the public host is 404 and calls
 no fetch; on the console host it forwards); `proxy` test for the 308 and the console-host home redirect.
 
 ## 5. Browser tests (ADR-724)
@@ -190,9 +196,47 @@ no fetch; on the console host it forwards); `proxy` test for the 308 and the con
   `curl -sI https://console.questify.nafes.com/en/organizers` -> 308 to the public host;
   `curl -sI https://console.questify.nafes.com/en/sign-in` -> 200; a `POST` to the public host's
   `/v1/admin/activation-requests` -> 404 from the forwarder. Then Dhia's admin signs in on the console host.
-4. Rollback: redeploy the previous release and clear `CONSOLE_ORIGIN`; 0156 stays (its column is harmless to the
-   old code, but the old code calls the three-argument definer, so staff sign-in stays down until the new release
-   is back; T-810c has the same property). Know this before merging.
+4. Rollback is fixing forward (review 86, item 2): 0155 already revoked INSERT on `staff_session`, so the release
+   before T-810c cannot open a session on this schema at all, and the T-810c release calls the three-argument definer
+   that 0156 drops. The RUNBOOK ("T-810d rollback") has the SQL that puts the three-argument opener back beside the
+   new one, for a redeploy of the T-810c release while the fix is made. Know this before merging.
+5. After the deploy, `curl -s -o /dev/null -w "%{http_code}" https://questify.nafes.com/en` answers 200 (the public
+   home still serves; review 86, item 6).
+
+## Plan review (86)
+
+The review's items, all built in this task:
+
+1. **MAJOR: a same-site GET reached the console session.** The two hosts are the same site, so a public page's GET (an
+   image, a fetch) to `console…/v1/admin/*` carried the console cookie, refreshed `last_seen_at` (defeating the idle
+   timeout) and spent the admin player-read limit. Now, on `/v1/admin/*` and every other staff session door, the
+   check runs **before** `requireSession`: a `Sec-Fetch-Site` of `same-site` or `cross-site` is refused, and so is an
+   Origin outside the door's list (`/v1/admin/*`: the console origin only). On `/v1/staff/*` the Origin must be one of
+   the two before the lookup and the session's own after it. The forwarder passes `Sec-Fetch-Site` on. Tests
+   (`test/auth/console-surface.int.test.ts`): a same-site GET to the console is refused and `last_seen_at` does not
+   move; a forged POST does not touch the session; the console's own same-origin read does.
+2. **Rollback is fixing forward.** 0155 already revokes INSERT on `staff_session`; the RUNBOOK gives the SQL and the
+   order (§7, step 4).
+3. **`console-host.test.ts`:** `x-forwarded-host: console…` with a public `Host` is public; redirects use the
+   configured origins, never the request's `Host` (no open redirect). The proxy matcher skips paths whose last part
+   has a dot, so slugs never contain one (§4).
+4. **SECURITY.md:** support seats remain an admin power usable from a dashboard session (`organizers/routes.ts`,
+   `principalOf` and `supportSeatOf`), stated as a known risk.
+5. **NITs:** §2 credits the column grant (0002:89), not a policy; the device row left the §3 door table; a non-admin
+   signing in on the console origin opens a dashboard session.
+6. **Post-deploy probe:** `https://questify.nafes.com/en` answers 200 (§7, step 5; RUNBOOK).
+
+ADR-720, ADR-722, ADR-723, ADR-724 and Q-690 to Q-693 were judged acceptable and stay Proposed for the coordinator.
+
+### As built
+
+- Next makes a proxy redirect relative when its target host is the server's own, and counts `localhost`, 127.0.0.1
+  and ::1 as one host. Production listens on `0.0.0.0` (Dockerfile.web), so its redirects stay absolute; the browser
+  tests now start the web server with `HOSTNAME=0.0.0.0` too, and the 127.0.0.1 fallback of ADR-724 cannot work.
+- A signed-in non-admin on the console host is sent to the public host's home rather than shown a not-found page
+  with a link, so no new string pair was needed.
+- The browser specs keep the public `baseURL`: `makeAdmin` (e2e/hosts.ts) signs the admin in on the console host, and
+  console API calls run in a console-host page (`consoleRequest`).
 
 ## Order of commits
 

@@ -8122,6 +8122,10 @@ the deploy's minute (RUNBOOK). Setting a new password still ends the other sessi
 cookie: the power belongs to a session opened on the console origin, whose `__Host-` cookie lives only there.
 **Trade-offs:** existing sessions become `dashboard`, so admins sign in again on the console host after the deploy;
 an admin giving support (ADR-407) holds two sessions, one per host (Q-692).
+**As built (2026-11-05, plan review 86):** only a platform admin's sign-in from the console origin opens `console`; a
+non-admin signing in there gets a `dashboard` session, and the console page sends them to the public host's home. The
+device doors are not staff session doors (they take the device cookie) and are unchanged. A support seat remains an
+admin power usable from a dashboard session (SECURITY.md, known risk).
 
 ## ADR-721 - T-810d every cookie request is checked against its own session's origin
 
@@ -8132,6 +8136,12 @@ cookie request with an unsafe method must come from its session's own origin (`d
 **Why:** `console.questify.nafes.com` and `questify.nafes.com` are same-site, so `SameSite=Strict` lets one host's page
 send the other host's cookie; the Origin is what tells them apart.
 **Trade-offs:** none known; GET stays exempt as today (no state change on GET).
+**As built (2026-11-05, plan review 86 item 1):** the check now runs in two steps. Before any session lookup, on every
+method: a `Sec-Fetch-Site` of `same-site` or `cross-site` is refused, and so is an Origin outside the door's list
+(`/v1/admin/*`: the console origin only; `/v1/organizers/*`: the dashboard origin only; `/v1/staff/*`: either), so a
+refused request never refreshes `last_seen_at` or spends a session's limits. After the lookup, `/v1/staff/*` requires
+an Origin, when sent, to be the session's own. GET is no longer exempt from the Origin rule when an Origin is sent. The
+web forwarder passes `Sec-Fetch-Site` on.
 
 ## ADR-722 - T-810d the web app routes pages by host
 
@@ -8161,3 +8171,11 @@ value as `DASHBOARD_ORIGIN`; the web app also gets `DASHBOARD_ORIGIN`. Console l
 refuses the `__Host-` cookie on `*.localhost`.
 **Why:** two real origins on one web server, with secure-context cookies over http, and no extra certificates.
 **Trade-offs:** the console specs change their `baseURL` (mechanical).
+**As built (2026-11-05):** the specs keep the public `baseURL`; `makeAdmin` (e2e/hosts.ts) signs the admin in on the
+console host, and relative console paths reach it through the proxy's redirect. Console API calls in specs run in a
+console-host page (`consoleRequest`), since Node on Windows does not resolve `*.localhost`. The web server listens on
+`0.0.0.0` as the Docker image does: Next makes a proxy redirect relative when its target host is the server's own and
+counts `localhost`, 127.0.0.1 and ::1 as one host, so a loopback `HOSTNAME`, or a 127.0.0.1 console origin, loops.
+Chromium counts `console.localhost` and `localhost` as two sites, so a link from the console to a dashboard page
+arrives there without the `SameSite=Strict` cookie in the browser tests (`followToDashboard` opens it again); on
+staging and production the two hosts are one site and the cookie goes with the link.

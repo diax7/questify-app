@@ -6,6 +6,24 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-810d console on its own host — 2026-11-05
+
+- **T-810d built (tier A; migration 0156, new and undeployed; plan review 86 folded; ADR-720 to ADR-724 and Q-690 to
+  Q-693 Proposed).** A staff session has a surface: `console` only for a platform admin signing in from
+  `CONSOLE_ORIGIN`, the only kind `/v1/admin/*` takes (an admin's dashboard session gets the hidden 404, logged
+  `wrong_surface`); organizer routes take dashboard sessions only. Every staff session door refuses a `same-site` or
+  `cross-site` fetch and a foreign Origin before the session lookup (review 86 MAJOR: no idle refresh, no spent limits),
+  then `/v1/staff/*` matches the Origin to the session's own. The web app routes by `Host` (`console-host.ts`, the
+  proxy; redirects only to configured origins), the public forwarder answers `/v1/admin/*` itself, and cross-host links
+  are absolute. `CONSOLE_ORIGIN` is required on both apps; team alert links use it. Browser specs run the console on
+  `http://console.localhost:3100` (`makeAdmin`, `consoleRequest`; web server on 0.0.0.0). RUNBOOK: settings, order,
+  probes (the public `/en` answers 200), fix-forward rollback SQL. CI minutes: 0 (nothing pushed). Agent tokens roughly
+  1.2M (estimate).
+  **Waiting on Dhia:** the Cloudflare record `console.questify` and the CranL domain on `questify-web-staging`
+  (plan, "Needs Dhia"). Then the coordinator sets `CONSOLE_ORIGIN` (both apps) and `DASHBOARD_ORIGIN` (web), deploys,
+  runs the probes, and moves ASVS row 12 / V3.5.4 to Met and ticks T-810d.
+  **Next:** T-810d code review (tier A), then mutation; T-810f, T-811.
+
 ## T-810c signed-in devices — 2026-11-05
 
 - **T-810c built (tier A; migration 0155, new and undeployed; ADR-717, ADR-718 and Q-682 Proposed; Q-680 answered by

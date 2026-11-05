@@ -1643,6 +1643,12 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     migration 0156 after T-810c's 0155): a session's surface (dashboard or console) set from the sign-in origin, each
     cookie request checked against its own session's origin, and host routing in `proxy.ts`; host
     `console.questify.nafes.com` on staging. Plan review next.
+  - Note 2026-11-05 (built, plan review 86 folded into the plan): migration 0156 (`staff_session.surface`, the
+    four-argument `open_staff_session`), the caller check before every staff session lookup (`Sec-Fetch-Site`, Origin),
+    the console hook on console sessions only, host routing in `proxy.ts` and the forwarder, `CONSOLE_ORIGIN` on both
+    apps, browser specs on `console.localhost`. Not ticked: the done-when needs staging, after Dhia's DNS record and
+    CranL domain and the coordinator's settings (RUNBOOK "The console on its own host"); then the probes, and the
+    sheet's row 12 / V3.5.4 move to Met.
 - [x] **T-810e** (tier C, copy) One line under the code field of the sign-in code screen (app and web), in Arabic and
   English with the ux-araby skill: never share this code; Questify never asks for it — delivers no FR (ASVS V6.6.1);
   depends on: T-810; Q-662 (Dhia, 2026-11-05).

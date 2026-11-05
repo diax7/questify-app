@@ -410,6 +410,34 @@ T-501d); every helper and trigger function is granted to nobody (outsider suite,
   `player.devices.end_others`) and support's sign-in reset.
 - Ending sessions does not stop someone who knows a staff password: the console note and the RUNBOOK say to reset it.
 
+### The console on its own host (T-810d, ADR-720 to ADR-724; ASVS V3.5.4)
+
+Threat (Q-663): a script that gets into any public page (an event page, a station, the big screen, organizer
+content) calls `/v1/admin/*` with a platform admin's cookie. Three layers, each enough for that on its own:
+
+- **Session surface (ADR-720):** a session opened on the public host, even an admin's, never passes the console hook
+  (hidden 404, `authz.denied` with `reason: wrong_surface`). Only a platform admin's sign-in from `CONSOLE_ORIGIN`
+  opens a `console` session; the API role can neither write nor change the column (`open_staff_session` is the one
+  way in; its UPDATE is the 0002 column grant on `last_seen_at` and `revoked_at`).
+- **Caller and origin checks (ADR-721):** the two hosts are the same site, so `SameSite=Strict` does not separate them.
+  Every staff session door refuses a `same-site` or `cross-site` fetch and a foreign Origin before it reads any
+  session, so a public page's request to the console host neither reaches the console nor refreshes the session's
+  idle clock or spends its limits; after the lookup an Origin must be the session's own.
+- **Host routing (ADR-722):** no public page is ever served on the console host, and the public host's forwarder never
+  passes `/v1/admin/*` on. Redirects use the configured origins only, never the request's `Host` (no open redirect);
+  only `Host` is read (Q-691).
+
+Known risks:
+- **Support seats are an admin power usable from a dashboard session.** A support grant is opened only from the
+  console, but once open the admin uses it from the organizer's dashboard on the public host
+  (`organizers/routes.ts`, `principalOf` -> `supportSeatOf`), where a script on that dashboard page could act within
+  the grant: one event, 15 minutes, an editor's rights (or read-only under a view grant), every write audited. Moving
+  support onto the console host is a later choice (Q-692).
+- A browser that sends neither `Sec-Fetch-Site` nor `Origin` on a cross-host GET (very old browsers) still reaches the
+  session lookup on `/v1/organizers/*` with a console cookie; it gets the hidden 404 and touches only that session's
+  idle time.
+- The hosts are subdomains of one registrable domain (Q-690); a separate domain stays open for the pen test (T-809).
+
 ## Top abuse cases
 
 | # | Abuse case | Type | Mitigation |

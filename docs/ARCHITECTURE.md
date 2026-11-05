@@ -37,7 +37,7 @@ graph TD
 | Component | Responsibility | Interface | Depends on |
 |---|---|---|---|
 | Player app | All player and operator screens; scanning; mini-games; keeps the last working configuration | HTTPS JSON `/v1`, server-sent events for live updates | API |
-| Web app | Event page, station (rotating QR) page, big screen, deletion page, organizer dashboard, Questify console | Same API; staff cookie session | API |
+| Web app | Event page, station (rotating QR) page, big screen, deletion page, organizer dashboard, Questify console | Same API; staff cookie session. One app on two hosts (T-810d, ADR-722): the console, sign-in and the account page on `CONSOLE_ORIGIN`, everything else on `DASHBOARD_ORIGIN`; `proxy.ts` routes by `Host`, each host has its own session cookie | API |
 | API server | Authentication, authorization, all rules; the modules below | REST `/v1`, event stream | PostgreSQL, Redis, storage |
 | Workers | Sends SMS, email, push; scheduled jobs (daily word, reports, reservation expiry, flag checks, nightly backup dump); wallet pass updates. **Run inside the API container in v1** (mode setting; ADR-109) and can be split out later | In-process loops over PostgreSQL tables with leases (`SKIP LOCKED`; ADR-333, ADR-345); pg-boss is not used | PostgreSQL, providers |
 | PostgreSQL | The only source of truth, including the append-only points record | SQL | none |

@@ -19,7 +19,15 @@
     `Domain`) after email + password + email code (ADR-078), with inactivity expiry (NFR-030). **The
     dashboard's server reverse-proxies `/v1` to the API**, so the browser sees one origin: no CORS, and the
     cookie works. State-changing requests must carry `Origin` equal to the dashboard origin (else
-    `403 csrf_rejected`). The web app's `/v1` forwarder passes `X-Forwarded-For` through
+    `403 csrf_rejected`). **Two hosts (T-810d, ADR-720 to ADR-723):** the same web app serves the public host
+    (`DASHBOARD_ORIGIN`) and the console's own host (`CONSOLE_ORIGIN`), and the browser keeps one session cookie per
+    host. A session has a surface: `console` only when a platform admin signs in from `CONSOLE_ORIGIN`, otherwise
+    `dashboard`. Per door: `/v1/admin/*` takes the console origin and a `console` session only (a `dashboard` session
+    gets the hidden 404); `/v1/organizers/*` takes the dashboard origin and a `dashboard` session only; `/v1/staff/*`
+    takes either origin before the lookup and, after it, only the session's own. On every staff session door, before
+    any session is read, a `Sec-Fetch-Site` of `same-site` or `cross-site` and an Origin outside the door's list answer
+    `403 csrf_rejected`, on every method. The public host's forwarder answers `/v1/admin/*` with its own 404 and never
+    calls the API. The web app's `/v1` forwarder passes `X-Forwarded-For` and `Sec-Fetch-Site` through
     unchanged and reaches the API over the private network, so the API trusts exactly one hop (CranL's edge) on
     both paths (`TRUST_PROXY_HOPS=1`, ADR-113). Every `/v1/staff/*` answer is `Cache-Control: no-store`.
   - *Screen token:* a signed read-only token in the big-screen and station page links.
@@ -711,8 +719,9 @@ limited editor cannot create events (403 `scope_limited`, T-102). The database c
 | `…/admin/templates`, `…/legal`, `…/words`, `…/help` | admin | templates (CST rules enforced), legal versions, word lists, FAQ | 422 |
 | `…/admin/health`, `…/admin/admins` | admin | health view; admin accounts and sessions (ranking seasons: `GET /v1/admin/questify/seasons`, T-408) | |
 
-**Console routes (T-210):** every `/v1/admin/…` route has the access kind `admin`: the staff session and Origin
-checks, then **404 for anyone who is not an active platform admin** (the console is not advertised); the database
+**Console routes (T-210):** every `/v1/admin/…` route has the access kind `admin`: the caller check (the console
+origin, no other-host fetch; T-810d), the staff session, a `console` session (else the hidden 404, logged
+`authz.denied` with `reason: wrong_surface`), then **404 for anyone who is not an active platform admin** (the console is not advertised); the database
 checks the account again inside each definer (`app_admin_id()`, migration 0027). Every state-changing call writes to
 the audit log (NFR-019).
 
