@@ -231,7 +231,7 @@ that is shared or written to disk (today's is in memory, per process).
   dashboard) and `console.questify.nafes.com` (the console, sign-in and the account page only). The public host sends
   `/{lang}/console/**` to the console host (308); the console host sends every other page back (308). Production later:
   `console.questify.sa` beside `questify.sa`, the same steps.
-- **Settings, both apps, before the deploy** (each refuses to start without them, ADR-723):
+- **Settings, both apps, before the deploy** (the API refuses to start without them; the web app answers 500 on every page, ADR-723):
   API `CONSOLE_ORIGIN=https://console.questify.nafes.com` beside `DASHBOARD_ORIGIN`; web `DASHBOARD_ORIGIN=
   https://questify.nafes.com` and `CONSOLE_ORIGIN=https://console.questify.nafes.com`. The two must differ. The web
   image listens on `HOSTNAME=0.0.0.0` (Dockerfile.web); never set it to a public host name, or Next makes the

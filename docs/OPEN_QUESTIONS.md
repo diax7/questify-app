@@ -2751,7 +2751,7 @@ phone only signs in again. Re-reading the oldest family after the lock would add
 
 ## Q-690 - A subdomain or a separate domain for the console (T-810d, ADR-722)
 
-**Status:** Open (developer, 2026-11-05).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92: as recommended).
 `console.questify.nafes.com` (and later `console.questify.sa`) is a different origin but the same site as the public
 host, so `SameSite` cookies do not separate them; the per-session origin check (ADR-721) and the surface (ADR-720) do.
 **Recommended (developer):** the subdomain, as Dhia chose; a separate registrable domain only if the pen test (T-809)
@@ -2765,13 +2765,13 @@ console fails closed until then: a redirect loop, never exposure).
 
 ## Q-692 - An admin giving support signs in on both hosts (T-810d, ADR-720, ADR-407)
 
-**Status:** Open (developer, 2026-11-05).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92: as recommended).
 Support works inside the organizer's dashboard on the public host, which refuses console sessions.
 **Recommended (developer):** two sessions, one per host, each with its own sign-in code; no hand-off token between
 hosts (a hand-off would carry console trust onto the public origin).
 
 ## Q-693 - Which pages the console host serves (T-810d, ADR-722)
 
-**Status:** Open (developer, 2026-11-05).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92: as recommended).
 **Recommended (developer):** the console, sign-in and the staff account page (own sessions, password; T-810c). Password
 reset, invitations, sign-up and every public page stay on the public host.

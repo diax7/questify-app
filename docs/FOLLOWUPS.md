@@ -120,3 +120,11 @@ Format: `- <date> <task>: <what and where> (<source>)`
   staff sign-in failure bucket (bounded by 5 tries per code and 5 codes an hour). NIT: the staff session list hides
   idle-lapsed sessions that `end_other_staff_sessions` still ends, so "ended N" can exceed the rows shown.
   Fixed in the review commit: erasure locks the device rows before the push deletes; "has changed" strings.
+- T-810d code review (92; MINOR, NIT): `apps/web/src/lib/config.ts:128` `webConfig()` runs on the first request, so a
+  web deploy without `CONSOLE_ORIGIN`/`DASHBOARD_ORIGIN` boots and answers 500 on every page (fails closed; ADR-723 now
+  says so); call it from an `instrumentation.ts` `register()` so the web app refuses to start like the API. A non-admin
+  who signs in or signs up on the console host gets a dashboard cookie there that every POST refuses (wrong origin), so
+  sign-out answers 403 until the idle timeout (`apps/api/src/auth/sign-in.ts:484`,
+  `staff-guard.ts:452`): refuse the console-origin code step for non-admins before the challenge is spent, or let
+  sign-out accept either origin. NIT: browsers sending neither `Sec-Fetch-Site` nor `Origin` still refresh the idle
+  clock on a cross-host GET (accepted, `docs/SECURITY.md:436`).

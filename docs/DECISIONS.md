@@ -8112,7 +8112,7 @@ the deploy's minute (RUNBOOK). Setting a new password still ends the other sessi
 
 ## ADR-720 - T-810d a staff session belongs to one surface, dashboard or console
 
-**Status:** Proposed (developer, 2026-11-05, T-810d plan; Q-663).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92; T-810d plan; Q-663).
 **Decision:** `staff_session.surface` (`dashboard` or `console`, default `dashboard`, migration 0156) is set by
 `open_staff_session` from the sign-in request's `Origin`: the console origin opens `console`, anything else
 (including no Origin) `dashboard`; sign-up always opens `dashboard`. The console hook (`/v1/admin/*`) accepts only
@@ -8129,7 +8129,7 @@ admin power usable from a dashboard session (SECURITY.md, known risk).
 
 ## ADR-721 - T-810d every cookie request is checked against its own session's origin
 
-**Status:** Proposed (developer, 2026-11-05, T-810d plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92; T-810d plan).
 **Decision:** `checkOrigin` takes the allowed origins. Sign-in steps without a cookie accept either origin; every
 cookie request with an unsafe method must come from its session's own origin (`dashboard` -> `DASHBOARD_ORIGIN`,
 `console` -> `CONSOLE_ORIGIN`), else 403 `csrf_rejected`.
@@ -8145,7 +8145,7 @@ web forwarder passes `Sec-Fetch-Site` on.
 
 ## ADR-722 - T-810d the web app routes pages by host
 
-**Status:** Proposed (developer, 2026-11-05, T-810d plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92; T-810d plan).
 **Decision:** one CranL web app answers on both hosts. `proxy.ts` reads `Host`: on the public host `/{lang}/console/**`
 goes 308 to the console host; on the console host only the console, `/{lang}/sign-in` and `/{lang}/account` are
 served, `/` and `/{lang}` go to `/{lang}/console`, and every other page goes 308 to the public host. The forwarder
@@ -8156,19 +8156,19 @@ browser keeps the two hosts' cookies apart. No new CranL app (three-app budget).
 
 ## ADR-723 - T-810d `CONSOLE_ORIGIN` is required on the API and the web app
 
-**Status:** Proposed (developer, 2026-11-05, T-810d plan).
-**Decision:** both apps refuse to start without `CONSOLE_ORIGIN`, with a value that is not an origin, or with the same
-value as `DASHBOARD_ORIGIN`; the web app also gets `DASHBOARD_ORIGIN`. Console links in team alert emails use
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92; T-810d plan).
+**Decision:** both apps require `CONSOLE_ORIGIN`, refusing a missing value, one that is not an origin, or the same
+value as `DASHBOARD_ORIGIN`; the web app also gets `DASHBOARD_ORIGIN`. The API refuses to start; the web app reads its
+settings on the first request and then answers 500 on every page (fails closed; T-810d review 92). Console links in team alert emails use
 `CONSOLE_ORIGIN`.
 **Why:** an optional setting would fail open (the console on the public host, as today).
 **Trade-offs:** the settings must be on CranL before the deploy (RUNBOOK order).
 
 ## ADR-724 - T-810d browser tests use `console.localhost` as the console origin
 
-**Status:** Proposed (developer, 2026-11-05, T-810d plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810d code review 92; T-810d plan).
 **Decision:** Playwright runs the public host on `http://localhost:3100` and the console on
-`http://console.localhost:3100`; console specs set that `baseURL`. Fallback `http://127.0.0.1:3100` if Chromium
-refuses the `__Host-` cookie on `*.localhost`.
+`http://console.localhost:3100`; console specs set that `baseURL`.
 **Why:** two real origins on one web server, with secure-context cookies over http, and no extra certificates.
 **Trade-offs:** the console specs change their `baseURL` (mechanical).
 **As built (2026-11-05):** the specs keep the public `baseURL`; `makeAdmin` (e2e/hosts.ts) signs the admin in on the
