@@ -7118,8 +7118,8 @@ export const MESSAGES = {
     en: "Registration must close before the session starts.",
   },
   "sessions.issue.questId": {
-    ar: "الربط المحدد ليس من هذه الفعالية.",
-    en: "The selected link is not in this event.",
+    ar: "اختر {questOne} من هذه الفعالية.",
+    en: "Choose one of this event's {questMany}.",
   },
   "sessions.issue.reminderMinutes": {
     ar: "التذكير من دقيقة إلى 1440 دقيقة.",
