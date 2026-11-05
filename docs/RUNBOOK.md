@@ -553,7 +553,10 @@ are native. An older build still runs: push is off there (Settings says so), eve
   read from PostgreSQL; the event is marked in `ranking_repair` and the repair job (every 2 seconds) rebuilds it when
   Redis is back. A backstop rebuilds every live event whose copy is older than 5 minutes. Log events:
   `ranking.write_failed`, `ranking.read_failed`, `ranking.rebuild_failed`, `ranking.mark_failed`, `redis.error`,
-  `redis.connect_failed`.
+  `redis.connect_failed`. A `ranking.write_failed` with `reason: "entries_unread"` means the completion's own
+  statement could not read the ranking entries (the completion itself was written); its `sqlstate` is the only trace of
+  why, because migration 0151 removed the PostgreSQL WARNING that 0149 raised, so the database log holds nothing about
+  it. Look the code up in PostgreSQL's error code list.
 - **Rebuild one event by hand:** mark it, and the repair job rebuilds it within seconds. With the owner connection (no
   request context): `SELECT mark_ranking_repair('<event id>');`. Losing the whole Redis is harmless: every copy is
   rebuilt from PostgreSQL the first time it is read.
