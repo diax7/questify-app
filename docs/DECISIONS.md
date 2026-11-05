@@ -8158,3 +8158,59 @@ code, cipher or mark (amended by plan review 88, items 2, 4, 5 and 6).
 on staging and production and every backup taken before those re-seals has expired (plan review 88).
 **Why:** existing rows are legacy until the first re-seal runs on each database.
 **Trade-offs:** one extra decrypt attempt on a refused value.
+
+## ADR-730 - T-804e one BEFORE and one AFTER trigger on `ledger_entry`
+
+**Status:** Proposed (developer, 2026-11-05; T-804e plan section 3 A).
+**Decision:** migration 0158 replaces the four BEFORE INSERT triggers (`ledger_a_stamp_rehearsal`,
+`ledger_operator_play_guard`, `ledger_player_guard`, `ledger_suspension_guard`) and the three AFTER INSERT triggers
+(`apply_ledger_entry`, `ledger_streak`, `ledger_xp`) with `ledger_before()` and `ledger_after()`, which run the same
+steps in today's name order, each trigger's `WHEN` moved inside as an `IF`. The enrollment row (locked `FOR NO KEY
+UPDATE` as today) and the event row are read once and passed to the steps (`streak_record(entry, ev, who)`,
+`xp_credit(entry, who)`). The old trigger functions are dropped. The no-update and no-truncate triggers stay.
+**Why:** the profile (T-804e section 2) shows the ledger insert is half the engine's time, made of seven trigger
+firings, each a definer entry, and the same enrollment read four times. Expected 0.6 to 0.9 ms a completion, and the
+same gain for every other ledger writer.
+**Trade-offs:** one larger function where seven small ones were; the order that the trigger names gave is now code,
+held by a test of the trigger list and the existing order-dependent suites.
+
+## ADR-731 - T-804e a fresh XP credit names its month instead of reading it back
+
+**Status:** Proposed (developer, 2026-11-05; T-804e plan section 3 B).
+**Decision:** `xp_apply` takes the board month from its caller: `xp_credit` passes `questify_month(now())` (the new
+entry's `created_at` default is `now()`), `xp_reverse` and every other caller keep `xp_month_of(made)`.
+**Why:** `xp_month_of` reads back the row just inserted, 0.31 ms a completion.
+**Trade-offs:** a second signature of `xp_apply` or a defaulted argument; parity tests compare the boards written.
+
+## ADR-732 - T-804e one ranking eligibility check a completion
+
+**Status:** Proposed (developer, 2026-11-05; T-804e plan section 3 C).
+**Decision:** `complete_quest_answer` reads the overall ranking entry first and passes its `ranked` to a new internal
+`ranking_day_entry_for(completion, ranked)` (no grant to `questify_app`, PUBLIC revoked by name);
+`ranking_day_entry_of` stays for its other callers.
+**Why:** `ranking_eligible` runs 2.3 times a completion on the same enrollment, 0.66 ms.
+**Trade-offs:** two ways to read a day entry; the parity test holds them equal.
+
+## ADR-733 - T-804e cheaper completion and enrollment triggers
+
+**Status:** Proposed (developer, 2026-11-05; T-804e plan section 3 D and E).
+**Decision:** `flag_tuning()` keeps its two platform settings for the transaction (`set_config(..., true)`), so a
+change applies from the next transaction as now; `raise_completion_flags` takes the event's kind from one read.
+`enrollment_status_guard` fires only `WHEN (OLD.status IS DISTINCT FROM NEW.status)` and the update trigger of
+`enrollment_waitlist_clear` only when the status or `waitlisted` changed (its insert trigger unchanged).
+**Why:** both enrollment triggers run on every score write, which changes neither column; the flag trigger reads the
+same two settings on every completion. About 0.25 ms together.
+**Trade-offs:** a trigger condition that must follow the function's body if the body ever reads another column; a
+comment on each function says so.
+
+## ADR-734 - The completion gate is measured by `ops/load/profile.mjs`
+
+**Status:** Proposed (developer, 2026-11-05; T-804e; amends ADR-674; Q-641, Q-697, Q-699).
+**Decision:** ADR-674's "database time a completion" is the number `node ops/load/profile.mjs --big-event-players
+50000` reports: the total time of `complete_quest_answer` and `player_request_gate` in `pg_stat_user_functions`
+over 2,000 one-at-a-time first completions after 300 to warm, one load API. It may run on the shared test container
+(no restart, no extension; auto_explain loaded into its own session only). Load runs and plan-choice checks stay on
+throw-away containers with `pg_stat_statements` as ADR-674 says.
+**Why:** two runs on one container gave 10.78 and 10.98 ms, and T-804a's other method gave 10.9 ms; T-804c's 23.5 ms
+came from timing every nested statement under load-driver traffic, not from the server (a paced run gave 11.7 ms).
+**Trade-offs:** first completions only; a player's later ones cost more and are reported beside it, not gated.

@@ -1564,6 +1564,10 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   costliest parts cheaper (tier A, ledger) — delivers no FR (quality gate); depends on: T-804c; Q-641, ADR-674.
   - Done when: the profile script gives the same number twice on one container, and the completion's statements are at or
     under ADR-674's 10 ms, or the gap is written down with what it would cost to close.
+  - Plan 2026-11-05 (`docs/plans/2026-11-05-t-804e-completion-profile.md`; ADR-730 to ADR-734, Q-697 to Q-699;
+    migration 0158): `ops/load/profile.mjs` committed; two runs on one container 10.78 and 10.98 ms a completion. The
+    build (section 3) merges the ledger triggers and trims four smaller costs, about 1.4 to 1.8 ms; waits for the plan
+    review.
 - [ ] **T-804** Load test at 20,000 completions per minute per event and ten events at once — delivers no FR (infrastructure or quality gate); depends on: T-105, T-106
   - Note 2026-11-04 (T-804a part A, ADR-670): with migration 0148 the same PC carries 200 completions a second for ten
     events plus a 50,000-player event at 98.0% within 1 s (p95 518 ms, PostgreSQL 6.4 to 7.0 cores); before it, 52 a
