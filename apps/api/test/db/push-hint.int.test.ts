@@ -449,7 +449,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the hidden-category hint (data
       await f.claim();
       const notice = await onlyNotice(event);
       expect((await f.sends(notice.id)).map((row) => [row.state, row.code])).toEqual([
-        ["skipped", "not_member"],
+        ["skipped", "category_shown"],
       ]);
       expect(await f.recipients(notice.id)).toEqual([one.who]);
     });

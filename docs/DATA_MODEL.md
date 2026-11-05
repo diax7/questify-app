@@ -763,7 +763,8 @@ ADR-151):
   <= notice.created_at`), the category still hidden, the member in its audience, not told by an earlier hint of the category
   since they joined. `category_hint_preview` is the count behind the confirmation (the event's exclusion list as an inline
   anti-join, not `excluded_from_event` per row), and `send_category_hint` refuses a press when it is 0 (`PT409`
-  `hint_nobody`). No new table or column; `category_reveal` keeps no grant.
+  `hint_nobody`). A hint whose category was shown before the claim is skipped with the code `category_shown` (0159,
+  `push_skip_reason` restated), not `not_member`. No new table or column; `category_reveal` keeps no grant.
 - `notice(id bigint identity, kind → notice_kind, organizer_id, event_id → event (with organizer) CASCADE, player_id
   (the one recipient of a personal or promotional notice), audience player|event, refs jsonb (ids only), params jsonb
   (frozen public names `{ar, en}` cut to 40 and dates), dedupe UNIQUE (the once-only marker), fan_cursor (an enrollment
