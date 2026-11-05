@@ -1,9 +1,8 @@
 import type { FastifyRequest } from "fastify";
 import { describe, expect, it } from "vitest";
-import { teamSeat } from "#src/organizers/store";
-import type { OrganizerPrincipal } from "#src/organizers/store";
-import { actorOf, organizerContextOf } from "#src/organizers/context";
 import { unauthenticated } from "#src/auth/http-errors";
+import { actorOf, organizerContextOf } from "#src/organizers/context";
+import { teamSeat, type OrganizerPrincipal } from "#src/organizers/store";
 
 const STAFF = "11111111-1111-4111-8111-111111111111";
 const ORGANIZER = "22222222-2222-4222-8222-222222222222";
