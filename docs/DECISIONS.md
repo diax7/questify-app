@@ -8112,7 +8112,7 @@ the deploy's minute (RUNBOOK). Setting a new password still ends the other sessi
 
 ## ADR-725 - T-810f one previous reward code key at a time
 
-**Status:** Proposed (T-810f plan, 2026-11-05; refines ADR-705's `REWARD_CODE_PREVIOUS_SECRETS` list; Q-694).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93; T-810f plan; refines ADR-705's `REWARD_CODE_PREVIOUS_SECRETS` list; Q-694).
 **Decision:** `REWARD_CODE_KEY_ID` (1 to 255, default 1) names the current secret; an optional pair
 `REWARD_CODE_PREVIOUS_SECRET` and `REWARD_CODE_PREVIOUS_KEY_ID` (both or neither, ids and secrets different) is read
 only to open and re-seal. The API refuses to start on any other combination.
@@ -8121,7 +8121,7 @@ only to open and re-seal. The API refuses to start on any other combination.
 
 ## ADR-726 - T-810f the key id header is part of the associated data
 
-**Status:** Proposed (T-810f plan, 2026-11-05).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93; T-810f plan).
 **Decision:** new seals are `0x51 0x02 keyId ‖ iv ‖ tag ‖ ciphertext` with AAD = the 3 header bytes then the reward id.
 Opening tries the header's key, then the legacy format under key 1, then refuses. Key derivation is unchanged, so key 1
 is today's key.
@@ -8130,7 +8130,7 @@ is today's key.
 
 ## ADR-727 - T-810f uploads check the previous key's marks in the database (migration 0157)
 
-**Status:** Proposed (T-810f plan, 2026-11-05; implements ADR-705's duplicate rule).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93; T-810f plan; implements ADR-705's duplicate rule).
 **Decision:** `add_reward_codes(target, ciphers, hashes, prior_hashes bytea[] DEFAULT '{}')` replaces the
 three-argument function; an item whose prior mark already exists in the event is a duplicate. Same single grant to
 `questify_app`, revoked from PUBLIC.
@@ -8140,7 +8140,7 @@ working during the deploy.
 
 ## ADR-728 - T-810f `reward-codes.cjs reseal` and `check`
 
-**Status:** Proposed (T-810f plan, 2026-11-05; implements ADR-705's command).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93; T-810f plan; implements ADR-705's command).
 **Decision:** a container command on the owner connection (refused unless superuser or BYPASSRLS): `reseal` reads
 every row in batches of 100 outside any transaction, seals each again (fresh IV) and writes each batch in one short
 transaction (`lock_timeout` 2 s) with a compare-and-set on the old cipher and `NOT EXISTS` on the new mark in the event
@@ -8153,7 +8153,7 @@ code, cipher or mark (amended by plan review 88, items 2, 4, 5 and 6).
 
 ## ADR-729 - T-810f the legacy seal format stays readable for now
 
-**Status:** Proposed (T-810f plan, 2026-11-05; Q-695).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93; T-810f plan; Q-695).
 **Decision:** `openCode` keeps the legacy path (no header, key 1). It is removed in a later task once `check` exits 0
 on staging and production and every backup taken before those re-seals has expired (plan review 88).
 **Why:** existing rows are legacy until the first re-seal runs on each database.
