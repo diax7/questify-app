@@ -47,7 +47,8 @@ const until = async (check: () => boolean): Promise<void> => {
 };
 
 describe("the validation's mail sink", () => {
-  it.skipIf(otherAddress === undefined)(
+  // On Linux the sink listens on every address so a container reaches it through the bridge (smtp-sink.mjs).
+  it.skipIf(otherAddress === undefined || process.platform === "linux")(
     "does not answer on the machine's other addresses",
     async () => {
       const started = await sink();
