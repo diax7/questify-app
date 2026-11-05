@@ -122,6 +122,7 @@ beforeEach(async () => {
     request.staff = {
       account: { id: ADMIN, email: "support@test.sa", status: "active", platformRole: "admin" },
       sessionId: "session",
+      tokenHash: "",
     };
     request.organizer = { id: "organizer", role: "owner", eventScope: null };
   });

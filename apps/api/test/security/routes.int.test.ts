@@ -220,6 +220,12 @@ const ROUTES: Readonly<Record<string, string>> = {
     "names the player only inside a signed token (HMAC under the server's key): a forged or altered token answers 400 and touches nothing; turns a channel off only, never on; the same 204 for a known and an unknown player; 30 tries an hour per address (test/marketing/routes, src/marketing/opt-out)",
   "PUT /v1/me/push-device":
     "registers a device only for the request's own live sign-in (the bearer token's hash and the caller, re-checked active in push_device_register); a token held by another sign-in moves here; no player id taken; 20 an hour per player; the token never logged (push-store, push/routes)",
+  "GET /v1/me/devices":
+    "only the calling player's own live devices through player_devices, bound to the request's own access token; no family id, IP or install id leaves (test/db/signed-in-devices, test/players/devices)",
+  "POST /v1/me/devices/:id/end":
+    "ends only another device of the calling player through end_player_device, bound to the request's own access token and a fresh code; another player's device answers 404 and stays live (tested below, test/db/signed-in-devices)",
+  "POST /v1/me/devices/end-others":
+    "ends only the calling player's own other devices through end_other_player_devices after the fresh check in the database (test/db/signed-in-devices, test/players/devices)",
   "DELETE /v1/me/push-device":
     "removes only the device of the request's own sign-in through push_device_remove; idempotent (push-store, push/routes)",
   "GET /v1/me/notifications":
@@ -285,6 +291,12 @@ const ROUTES: Readonly<Record<string, string>> = {
   "DELETE /v1/staff/sessions/:id":
     "another person's session answers 404 and stays live (tested below)",
   "POST /v1/staff/auth/sign-out": "ends only the caller's own session (tested below)",
+  "POST /v1/staff/sessions/end-others":
+    "ends only the caller's own other sessions through end_other_staff_sessions, bound to the request's own session token, after the fresh check in the database (test/db/signed-in-devices, test/auth/sessions)",
+  "POST /v1/staff/reauth/code":
+    "emails a code only to the caller's own address, bound to the request's own session token (test/auth/sessions)",
+  "POST /v1/staff/reauth/verify":
+    "confirms only a code asked on this session; 5 tries (test/db/signed-in-devices, test/auth/sessions)",
   "POST /v1/staff/auth/reset/request":
     "names no account: the same 202 for every email; the link goes only to the account's own mailbox (test/auth/password-reset)",
   "POST /v1/staff/auth/reset/confirm":
@@ -876,6 +888,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); one platform admin's open sessions with browser and address, never a token; a member's account is the same 404; audited with the account id; 60 a minute per admin (test/console/platform, test/db/platform-health)",
   "POST /v1/admin/sessions/:sessionId/end":
     "active platform admins only (walked below); admin_end_session re-reads the admin, ends one open session of a platform admin only, reason required, audited; the caller's own session is refused (409); 30 an hour per admin (test/console/platform, test/db/platform-health)",
+  "POST /v1/admin/staff/:staffUserId/end-sessions":
+    "active platform admins only (walked below); admin_end_staff_sessions re-reads the admin, ends every live session of one staff account, reason required, audited with the count; the caller's own account is refused (409); 30 an hour per admin (test/console/staff-sessions, test/db/signed-in-devices)",
   "GET /v1/admin/legal":
     "active platform admins only (walked below); read only; the six legal documents with their version history, no texts; the admin checked again in admin_legal_list (QE403); 60 a minute per admin (test/console/legal, test/db/legal-help)",
   "POST /v1/admin/legal/:document/versions":

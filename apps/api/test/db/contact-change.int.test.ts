@@ -82,7 +82,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("contact changes (database)", (
   };
   const confirm = async (player: string, started: Started, code = started.code) =>
     (
-      await as<Confirmed>(player, "SELECT * FROM confirm_contact_change($1, $2, $3)", [
+      await as<Confirmed>(player, "SELECT * FROM confirm_contact_change(NULL, $1, $2, $3)", [
         sha(started.token),
         code,
         randomUUID(),

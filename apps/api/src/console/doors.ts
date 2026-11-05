@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import {
   alreadyInThatState,
   catalogStale,
+  endOwnSession,
   groupPushEventClosed,
   groupPushNobody,
   invalidCatalog,
@@ -38,6 +39,8 @@ export type OpenedGrant = Readonly<{
 const REFUSALS: Readonly<Record<string, () => HttpError>> = {
   QE403: notFound,
   QA404: notFound,
+  // An admin ending their own account's sessions from the console (migration 0155): their sessions page does that.
+  QA422: endOwnSession,
   SG404: notFound,
   SU400: invalidReason,
   CA400: invalidCatalog,

@@ -17,6 +17,24 @@ export function signInCodeEmail(input: { code: string; expiresInMinutes: number 
   };
 }
 
+/**
+ * The code that confirms it is the account's owner before other sessions or devices are signed out (T-810c, ASVS
+ * V7.5.2): it says what it is for, and that nothing is signed out without it.
+ */
+export function reauthCodeEmail(input: { code: string; expiresInMinutes: number }): Content {
+  const { code, expiresInMinutes } = input;
+  return {
+    subject: "رمز تأكيد هويتك في كويستفاي | Your Questify code to confirm it is you",
+    text: [
+      `رمز تأكيد هويتك: ${code}`,
+      `استخدمه لتسجيل الخروج من أجهزتك الأخرى. الرمز صالح لمدة ${expiresInMinutes} دقائق. إذا لم تطلبه، تجاهل هذه الرسالة ولا تشارك الرمز مع أحد.`,
+      "",
+      `Your code to confirm it is you: ${code}`,
+      `Use it to sign out of your other devices. It is valid for ${expiresInMinutes} minutes. If you did not ask for it, ignore this email and never share the code.`,
+    ].join("\n"),
+  };
+}
+
 /** The code that confirms an account deletion (T-217): it says what it is for, and that nothing happens without it. */
 export function deletionCodeEmail(input: { code: string; expiresInMinutes: number }): Content {
   const { code, expiresInMinutes } = input;

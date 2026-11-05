@@ -130,6 +130,10 @@ export async function pushFixture(base?: QuestifyFixture) {
       [player, family, refresh],
     );
     await f.owner(
+      "INSERT INTO player_sign_in_device (player_id, family, signed_in_at) VALUES ($1, $2, now())",
+      [player, family],
+    );
+    await f.owner(
       `INSERT INTO player_session (player_id, token_hash, expires_at, refresh_family)
        VALUES ($1, $2, now() + interval '1 hour', $3)`,
       [player, session, family],

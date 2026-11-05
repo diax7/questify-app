@@ -2648,3 +2648,23 @@ export const invalidModerationAddress = make(
   "أدخل بريدا صحيحا أو اتركه فارغا.",
   "Enter a valid email or leave it empty.",
 );
+
+// ---------------------------------------------------------------- signed-in devices and sessions (T-810c)
+export const reauthRequired = make(
+  403,
+  "reauth_required",
+  "أكّد هويتك أولًا بالرمز الذي نرسله إليك.",
+  "Confirm it's you first with the code we send you.",
+);
+export const currentDevice = make(
+  422,
+  "current_device",
+  "هذا هو الجهاز الذي تستخدمه الآن. استخدم تسجيل الخروج بدلًا من ذلك.",
+  "This is the device you're using. Use Sign out instead.",
+);
+export const noContact = make(
+  422,
+  "no_contact",
+  "لا تتوفر هذه الوسيلة في حسابك. اختر الوسيلة الأخرى.",
+  "Your account has no contact of that kind. Choose the other one.",
+);

@@ -28,7 +28,6 @@ export const AUTH_LIMITS = {
   maxCodeAttempts: 5,
   maxResends: 3,
   resendSpacingSeconds: 60,
-  maxLiveSessions: 10,
   /** Idle limit and maximum age by role. Admins get shorter sessions (ADR-078 risk, R9). */
   session: {
     staff: { idleSeconds: 30 * 60, maxAgeSeconds: 12 * 3600 },

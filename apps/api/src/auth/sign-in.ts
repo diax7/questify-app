@@ -24,11 +24,10 @@ import {
 import {
   deleteOwnChallenges,
   bumpAttempts,
-  capLiveSessions,
   consumeChallenge,
   findAccountByEmail,
   insertChallenge,
-  insertSession,
+  openStaffSession,
   killChallenge,
   lockChallenge,
   readAccount,
@@ -400,17 +399,15 @@ export async function openSession(
   tokenHash: string,
   caller: Caller,
 ): Promise<void> {
-  const sessionId = await insertSession(client, {
-    staffUserId,
+  const { id, endedOlder } = await openStaffSession(client, {
     tokenHash,
     userAgent: caller.userAgent,
     ip: caller.address,
   });
-  const endedOlder = await capLiveSessions(client, staffUserId, L.maxLiveSessions);
   await recordAudit(client, {
     actor: { type: "staff", id: staffUserId },
     action: "staff.session.open",
-    target: { type: "staff_session", id: sessionId },
+    target: { type: "staff_session", id },
     after: { endedOlderSessions: endedOlder },
     requestId: caller.requestId,
   });

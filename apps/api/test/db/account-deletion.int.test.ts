@@ -473,7 +473,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (database)", 
       ]);
       const [changed] = await as<{ outcome: string }>(
         { playerId: other.id },
-        "SELECT * FROM confirm_contact_change($1, $2, $3)",
+        "SELECT * FROM confirm_contact_change(NULL, $1, $2, $3)",
         [sha(changeToken), changeCode, randomUUID()],
       );
       expect(changed?.outcome).toBe("taken");
@@ -510,7 +510,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (database)", 
         "SELECT start_contact_change($1, $2, 'email', 'fresh_fp@example.com', $3, $4)",
         [randomUUID(), sha(changeToken), changeCode, fp("fresh_fp@example.com")],
       );
-      await as({ playerId: player }, "SELECT * FROM confirm_contact_change($1, $2, $3)", [
+      await as({ playerId: player }, "SELECT * FROM confirm_contact_change(NULL, $1, $2, $3)", [
         sha(changeToken),
         changeCode,
         randomUUID(),

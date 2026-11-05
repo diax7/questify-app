@@ -87,6 +87,10 @@ async function start(results: {
       stop: async () => "none",
     },
     sessions: results.signedIn === true ? liveSession : noSessions,
+    reauth: {
+      start: async () => ({ kind: "email_unavailable" }),
+      confirm: async () => ({ kind: "challenge_expired" }),
+    },
     dashboardOrigin: ORIGIN,
   });
   await app.ready();

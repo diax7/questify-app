@@ -68,6 +68,12 @@ BEGIN
   VALUES (me, sha256(convert_to('session' || k, 'UTF8')), now() + interval '1 hour');
   INSERT INTO player_refresh (player_id, family, token_hash, expires_at)
   VALUES (me, gen_random_uuid(), sha256(convert_to('refresh' || k, 'UTF8')), now() + interval '1 day');
+  INSERT INTO player_sign_in_device (player_id, family, platform, model, signed_in_at)
+  SELECT me, r.family, 'android', 'Pixel 8', now() FROM player_refresh r WHERE r.player_id = me;
+  INSERT INTO player_reauth_challenge (player_id, family, token_hash, channel, code_hash, expires_at)
+  SELECT me, r.family, sha256(convert_to('reauth' || k, 'UTF8')), 'phone', sha256(convert_to('code' || k, 'UTF8')),
+         now() + interval '5 minutes'
+  FROM player_refresh r WHERE r.player_id = me;
   INSERT INTO player_block (blocker_id, blocked_id) VALUES (me, other);
   INSERT INTO invitation_campaign (organizer_id, event_id, request_id, fingerprint, size)
   VALUES (org, ev, gen_random_uuid(), 'fp' || k, 50) RETURNING id INTO camp;
