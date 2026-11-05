@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import type { ZodError } from "zod";
 import { applyPreset, presetLayout, templateRowSchema, type TemplateRow } from "@questify/shared";
 import { readEvent } from "#src/events/store";
 import { writeEventLayout } from "#src/settings/store";
@@ -8,29 +9,58 @@ export const UNKNOWN_TEMPLATE = "ET404";
 /** The SQLSTATE it raises for an event that is not an empty draft (T-601's rule). */
 export const NOT_EMPTY = "ED409";
 
-/**
- * The enabled templates, in order. Every body is checked against the shared schema here, so a template the Questify console
- * saved badly stops at the read with its key named, never half-way through a new event.
- */
-export async function readTemplates(client: PoolClient): Promise<TemplateRow[]> {
+/** Where a template row that fails the schema is reported. */
+export type TemplateLog = (level: "warn", fields: Readonly<Record<string, string>>) => void;
+
+async function storedTemplates(client: PoolClient): Promise<unknown[]> {
   const { rows } = await client.query<{ list: unknown[] }>("SELECT event_templates() AS list");
-  return (rows[0]?.list ?? []).map((stored) => {
-    const parsed = templateRowSchema.safeParse(stored);
-    if (parsed.success) {
-      return parsed.data;
-    }
-    const key = (stored as { key?: unknown }).key;
-    const issue = parsed.error.issues[0];
-    const at = issue === undefined ? "" : ` at ${issue.path.join(".")}: ${issue.message}`;
-    throw new Error(
-      `The event template "${String(key)}" is not valid${at}. Fix its row in event_template.`,
-    );
-  });
+  return rows[0]?.list ?? [];
 }
 
-/** Whether a key names an enabled template. */
+function problemOf(stored: unknown, error: ZodError): { key: string; problem: string } {
+  const issue = error.issues[0];
+  return {
+    key: String((stored as { key?: unknown }).key),
+    problem: issue === undefined ? "" : `${issue.path.join(".")}: ${issue.message}`,
+  };
+}
+
+/**
+ * The enabled templates, in order. Every body is checked against the shared schema here; a template the Questify console
+ * saved badly is left out of the list and logged with its key named, so one bad row never hides the others.
+ */
+export async function readTemplates(client: PoolClient, log: TemplateLog): Promise<TemplateRow[]> {
+  const templates: TemplateRow[] = [];
+  for (const stored of await storedTemplates(client)) {
+    const parsed = templateRowSchema.safeParse(stored);
+    if (parsed.success) {
+      templates.push(parsed.data);
+    } else {
+      log("warn", { event: "event_template.invalid", ...problemOf(stored, parsed.error) });
+    }
+  }
+  return templates;
+}
+
+/**
+ * Whether a key names an enabled template. Only the named row is checked, so a bad row of another template never stops this
+ * one; a bad row of this key stops here with the key named, never half-way through a new event.
+ */
 export async function templateExists(client: PoolClient, key: string): Promise<boolean> {
-  return (await readTemplates(client)).some((template) => template.key === key);
+  const stored = (await storedTemplates(client)).find(
+    (row) => (row as { key?: unknown }).key === key,
+  );
+  if (stored === undefined) {
+    return false;
+  }
+  const parsed = templateRowSchema.safeParse(stored);
+  if (!parsed.success) {
+    const { problem } = problemOf(stored, parsed.error);
+    throw new Error(
+      `The event template "${key}" is not valid at ${problem}. Fix its row in event_template.`,
+    );
+  }
+  return true;
 }
 
 /**
