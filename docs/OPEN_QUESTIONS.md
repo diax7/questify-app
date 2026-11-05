@@ -2769,3 +2769,30 @@ has expired: a restored backup holds legacy rows, which only the legacy path ope
 **Recommended (developer):** yes, once: Dhia sets the four settings of the plan's section 7 in CranL (the new secret
 generated there, never sent anywhere), the coordinator runs `reseal` and `check`, then Dhia removes the previous two.
 Without it the proof is the integration tests only.
+
+## Q-697 - Is ADR-674's 10 ms judged on first completions? (T-804e, ADR-734)
+
+**Status:** Open (developer, 2026-11-05).
+The committed profile measures a player's first completion: 10.78 and 10.98 ms. Later completions read a growing
+history (the day's ledger sum, the flag trigger's recent scan, the period count) and cost more.
+**Recommended (developer):** yes, the gate is the first-completion number; the build also reports
+`--quests-per-player 10` before and after, without a limit, and a later rerun on production-like data decides whether
+a second gate is needed.
+
+## Q-698 - Fewer foreign keys and an answer built from memory are not done (T-804e plan section 4)
+
+**Status:** Open (developer, 2026-11-05).
+Merging the enrollment and event-organizer key pairs into one three-column key saves about 0.25 ms but needs a new
+unique index on `enrollment`, keys validated on the biggest tables during a deploy and a weaker guarantee. Having
+`record_completion` return the answer's parts saves about 1 ms but changes the engine's shared return type and leaves
+two ways to answer.
+**Recommended (developer):** neither now; revisit only if the build of section 3 lands above 10 ms or a production-like
+rerun needs the time.
+
+## Q-699 - The one-at-a-time profile runs on the shared test container (T-804e, ADR-674, ADR-734)
+
+**Status:** Open (developer, 2026-11-05).
+ADR-674 kept profiling off the shared container because it had no `pg_stat_statements`. `ops/load/profile.mjs` needs
+none: it reads `pg_stat_user_functions` of its own database and loads auto_explain into its own session only.
+**Recommended (developer):** allow it there; other sessions' tests share the CPU, so a run taken while the full suite
+runs elsewhere is discarded, as T-804a discarded one taken during an image download.

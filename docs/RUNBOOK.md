@@ -1043,6 +1043,22 @@ postgres://postgres:postgres@127.0.0.1:55441/postgres --pg-container questify-pr
 `SELECT pg_stat_statements_reset()`; read `pg_stat_statements` (`plans` equal to `calls` on a nested statement means it
 is planned on every call) before the container is removed (`docker rm -f questify-profile`).
 
+**The one-at-a-time profile** (T-804e): `node ops/load/profile.mjs --big-event-players 50000` seeds the load test's
+database (10 events of 2,500 players plus one of 50,000), starts one load API and sends 300 QR completions to warm it,
+then 2,000 one after another, each a player's first. It needs no extension, so it runs on the shared test container.
+It reports the client's latency, the **database time a completion** (the total time of `complete_quest_answer` and
+`player_request_gate` in `pg_stat_user_functions`, read 11 s after each phase so the API's connections have flushed
+their statistics) and every function's calls and self time a completion; then, on one superuser connection that loads
+auto_explain for itself only (`log_analyze`, `log_nested_statements`, `log_triggers`, notices to the client) and acts as
+`questify_app`, it calls `complete_quest_answer` 200 more times as the API does and lists its statements and triggers
+by time a completion. auto_explain's own timing roughly doubles what it measures, so read those rows as shares, and
+read the database time from the first part. Options: `--completions`, `--warmup`, `--quests-per-player` (completions
+each player makes in a row; 1 by default), `--gap-ms` (a pause between completions: 100 is about 10 a second, the
+low rate of T-804c's measure), `--explain` and `--explain-warmup` (0 skips that part), the seed sizes of the load
+test, `--admin-url`, `--redis-url`. The report goes to `ops/load/out/profile-<time>/report.json`; the database and
+the Redis keys are dropped after. In a worktree without its own `node_modules`, link `apps/api/node_modules` to the
+main checkout's first (the script bundles with its esbuild).
+
 **A production-like environment** (the rerun T-804 waits on): never production, and never CranL staging while people
 use it. The driver side is ready: `node ops/load/run.mjs --target https://<api host> --plan plan.json --remote` from a
 load machine near it (without `--remote`, a target other than this PC is refused); API and PostgreSQL CPU are then not

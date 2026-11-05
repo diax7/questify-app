@@ -2,17 +2,24 @@
 // Local by default: builds the load API from this checkout, seeds a throw-away database on the local PostgreSQL,
 // starts the API, drives completions and a sign-in rush from separate processes, prints the report, and drops the
 // database and Redis keys in `finally`. `--target` against anything but this PC needs `--remote` and a plan seeded there.
-import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, readdirSync, readFileSync, rmSync, statfsSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
+import { spawn } from "node:child_process";
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import {
+  build,
+  checkDisk,
+  CODE_PORT_OFFSET,
+  pg,
+  prepare as prepareWith,
+  ROOT,
+  runSync,
+  say,
+  startApi as startApiWith,
+} from "./local.mjs";
 import { completionReport, rushReport, verdict } from "./report.mjs";
 
-const ROOT = join(import.meta.dirname, "..", "..");
-const BUNDLE = join(ROOT, "apps", "api", "test", "load-bundle");
-const MIN_FREE_GB = 8;
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
 const { values: opt } = parseArgs({
@@ -65,39 +72,8 @@ const num = (/** @type {string} */ name) => {
   if (!(value >= 0)) throw new Error(`--${name} must be a number; got "${opt[name]}".`);
   return value;
 };
-const CODE_PORT_OFFSET = 100;
-
-const say = (/** @type {string} */ line) => process.stdout.write(`${line}\n`);
-
-function freeGb() {
-  const fs = statfsSync(ROOT);
-  return (fs.bavail * fs.bsize) / 1024 ** 3;
-}
-
-function checkDisk(stage) {
-  const gb = freeGb();
-  say(`disk ${stage}: ${gb.toFixed(1)} GB free`);
-  if (gb < MIN_FREE_GB)
-    throw new Error(
-      `Only ${gb.toFixed(1)} GB free (${stage}); the load test stops under ${MIN_FREE_GB} GB.`,
-    );
-  return gb;
-}
-
-function runSync(command, args, env = {}) {
-  const result = spawnSync(command, args, {
-    cwd: ROOT,
-    env: { ...process.env, ...env },
-    encoding: "utf8",
-  });
-  if (result.status !== 0) {
-    throw new Error(`${command} ${args.join(" ")} failed: ${result.stderr || result.stdout}`);
-  }
-  return result.stdout;
-}
-
 const prepare = (args) =>
-  runSync(process.execPath, [join(BUNDLE, "prepare.mjs"), ...args], {
+  prepareWith(args, {
     TEST_DATABASE_URL: opt["admin-url"],
     LOAD_REDIS_URL: opt["redis-url"],
     LOAD_EVENTS: opt.events,
@@ -108,48 +84,8 @@ const prepare = (args) =>
     LOAD_EMAIL_CAP: opt["email-cap"],
   });
 
-/** Bundles the load API and the seeding script from this checkout with the API's own esbuild. */
-function build() {
-  const api = join(ROOT, "apps", "api");
-  const esbuild = createRequire(join(api, "package.json"))("esbuild");
-  esbuild.buildSync({
-    entryPoints: [join(api, "test", "load", "server.ts"), join(api, "test", "load", "prepare.ts")],
-    absWorkingDir: api,
-    bundle: true,
-    platform: "node",
-    target: "node22",
-    format: "esm",
-    external: ["pg", "fastify", "@node-rs/argon2", "zod", "redis"],
-    outdir: BUNDLE,
-    outExtension: { ".js": ".mjs" },
-    logLevel: "warning",
-  });
-}
-
-/** Starts one load API and resolves with its process once it says it is ready. */
-function startApi(plan, port) {
-  const child = spawn(process.execPath, [join(BUNDLE, "server.mjs")], {
-    cwd: ROOT,
-    env: {
-      ...process.env,
-      LOAD_DATABASE_URL: plan.appUrl,
-      LOAD_REDIS_URL: opt["redis-url"],
-      LOAD_REDIS_PREFIX: plan.redisPrefix,
-      LOAD_PORT: String(port),
-      LOAD_CODE_PORT: String(port + CODE_PORT_OFFSET),
-      DATABASE_POOL_SIZE: opt["pool-size"],
-    },
-    stdio: ["ignore", "ignore", "pipe"],
-  });
-  return new Promise((resolve, reject) => {
-    let said = "";
-    child.stderr.on("data", (chunk) => {
-      said += chunk;
-      if (said.includes("load api ready")) resolve(child);
-    });
-    child.on("exit", (code) => reject(new Error(`The load API stopped (${code}): ${said}`)));
-  });
-}
+const startApi = (plan, port) =>
+  startApiWith(plan, { port, redisUrl: opt["redis-url"], poolSize: opt["pool-size"] });
 
 /** The CPU time a process has used, in ms (Windows and Linux), or null when it cannot be read. */
 function cpuMsOf(pid) {
@@ -174,7 +110,7 @@ function cpuMsOf(pid) {
  * of those waited on an advisory lock, the platform budget's old single lock among them.
  */
 function sampleWaits() {
-  const { Client } = createRequire(join(ROOT, "apps", "api", "package.json"))("pg");
+  const { Client } = pg();
   const client = new Client({ connectionString: opt["admin-url"] });
   const totals = { samples: 0, active: 0, advisory: 0, otherLock: 0 };
   const state = { running: true };

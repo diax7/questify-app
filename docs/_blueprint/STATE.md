@@ -6,6 +6,31 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-804e completion profile — 2026-11-05
+
+- **T-804e done (tier A, ledger; no code shipped).** `ops/load/profile.mjs` (ADR-734) gives a reproducible number:
+  10.78 and 10.98 ms a completion before; a draft 0158 (ADR-731 to 733) measured 11.32 and 10.73 ms, no gain, so it was
+  dropped and those ADRs Rejected. Gap about 0.9 ms over ADR-674's 10 ms; ADR-730 (trigger merge, about 0.5 to 0.8 ms)
+  deferred to T-804. Disk: C: had 7 GB free; eight merged agent worktrees and the web build cache were removed (9.5 GB
+  free, still 98% full). CI minutes 0; agent tokens about 0.7M.
+
+## T-804e completion profile (plan) — 2026-11-05
+
+- **T-804e planned (tier A, ledger; plan `docs/plans/2026-11-05-t-804e-completion-profile.md`; ADR-730 to ADR-734 and
+  Q-697 to Q-699 Proposed or open; migration 0158 reserved, nothing built).** The profile is committed:
+  `ops/load/profile.mjs` (one load API, 300 QR completions to warm, 2,000 one at a time, database time from
+  `pg_stat_user_functions`, then auto_explain in its own session for the statements and triggers), with
+  `ops/load/local.mjs` shared with `run.mjs` and `profile-stats.mjs` (7 tests). Two runs on the shared test container
+  (17.11, T-804 seed plus a 50,000-player event): **10.78 and 10.98 ms** a completion (client mean 24.0 and 24.3 ms);
+  paced at 7.6 a second, 11.73 ms, so T-804c's 23.5 ms was its method, not the rate (Q-641). Top costs: the ledger
+  insert's seven triggers (`xp_credit` 1.71, `streak_record` 0.84, `apply_ledger_entry` 0.44, guards 0.45),
+  `record_completion`'s own statements and 13 key checks 2.37, the answer's read-backs 2.3. The plan merges the ledger
+  triggers into one BEFORE and one AFTER, passes the XP month, checks ranking eligibility once and skips enrollment and
+  flag work a score write does not need: about 1.4 to 1.8 ms off. `event_timezone_guard` is not on the completion path.
+  Ops tests 48 passed; oxlint and oxfmt clean; full suite not run (no app or schema change). CI minutes: 0; agent
+  tokens roughly 0.4M (estimate).
+  **Next:** T-804e plan review (tier A), then the build.
+
 ## T-810f reward code key rotation — 2026-11-05
 
 - **T-810f built (tier A; plan review 88 folded; migration 0157, new and undeployed; ADR-725 to ADR-729 and Q-694 to
