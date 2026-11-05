@@ -182,9 +182,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("devices over HTTP", () => {
     return { cookie: cookieOf(activated), old: page.cookie, id: claimed.json<{ id: string }>().id };
   };
   const withStationsOff = async (work: () => Promise<void>) => {
-    await owner("INSERT INTO platform_setting (key, value) VALUES ('features', $1)", [
-      JSON.stringify({ stations: { enabled: false } }),
-    ]);
+    await owner(
+      "INSERT INTO platform_setting (key, value) VALUES ('features', $1) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+      [JSON.stringify({ stations: { enabled: false } })],
+    );
     settings.forget();
     try {
       await work();

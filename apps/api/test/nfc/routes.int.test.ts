@@ -147,9 +147,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("NFC tags over HTTP", () => {
   const tap = (who: Person, code: string, extra: Row = {}, key?: string) =>
     call("POST", "/v1/taps", who, { code, uid: UID, platform: "android", ...extra }, key);
   const withFeatures = async (features: Row, work: () => Promise<void>) => {
-    await owner("INSERT INTO platform_setting (key, value) VALUES ('features', $1)", [
-      JSON.stringify(features),
-    ]);
+    await owner(
+      "INSERT INTO platform_setting (key, value) VALUES ('features', $1) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+      [JSON.stringify(features)],
+    );
     settings.forget();
     try {
       await work();

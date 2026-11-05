@@ -6,6 +6,27 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## FOLLOWUPS batch 3 — 2026-11-06
+
+- **FOLLOWUPS batch 3 (ADR-355; tier B; two small migrations, 0158 and 0159; 0156 stays reserved).** Cleared: the team's
+  actor carries the support-view mark (`actorOf` moved to `organizers/context.ts`, tested) and the console's rate-limit
+  helper is one module (`console/throttle.ts`: `throttled`, `holdBackAdmin`; the three console copies and the support
+  view's `enterView` use it); `readTemplates` skips and logs a bad template row (`event_template.invalid`) and
+  `templateExists` checks only the requested key; a hint push whose category was shown before the claim is skipped as
+  `category_shown` (0159, `push_skip_reason` restated); the monitoring stack's `stop_all` sends TERM then KILL after
+  20 s, the mail sink listens on 127.0.0.1 with capped buffers (a note says Docker Engine on Linux cannot reach it),
+  and `validate.mjs` removes its containers on Ctrl+C (the full `pnpm monitoring:validate` passed; the SIGINT handler
+  itself is not exercised on Windows); the language cookie is `__Host-qs_lang` and the proxy still reads `qs_lang`
+  once and removes it; `outbound-redirect.test.ts` finds `"use client"` only among the leading directives (parsed);
+  the RUNBOOK says the `ranking.write_failed` `sqlstate` is the only trace; 0158 seeds empty `features` and `tuning`
+  rows (a first save locks a row; an audit entry's `before` for a first save is now `{}`; two concurrent-save tests);
+  the two plain refresh-expiry tests are renamed; the session link message names the quest; `QUALITY_BASELINE` §2 has
+  the dependency fix time frames (critical 7 days, high 14, moderate 30, the rest monthly) and ASVS gaps 14 and 19 are
+  Met (counts 157 Met, 25 Partly, 0 Not met). Nothing touched the ledger, sign-in logic or redemptions. Full suite once (four workers): 837 files,
+  12,934 tests; five files failed because they inserted the `features` row that 0158 now seeds (fixed with an upsert);
+  those five re-ran green (85 tests). Oxlint, oxfmt, `lint:limits` and types clean.
+  CI minutes: 0 (not pushed); agent tokens roughly 1.2M (estimate).
+
 ## FOLLOWUPS batch 2 — 2026-11-05
 
 - **FOLLOWUPS batch (ADR-355; tier B, no migration).** Cleared: a wrong staff re-authentication code now counts in the
