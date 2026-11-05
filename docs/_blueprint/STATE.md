@@ -19,7 +19,13 @@
   rotation, the 11th sign-in vs the oldest rotation, end-others vs a new sign-in). ASVS V7.4.3, V7.4.5, V7.5.2 Met
   (152 Met, 29 Partly). **Checks:** see the reply; 0155 also passes on PostgreSQL 16.15. CI minutes: 0 (nothing
   pushed). Agent tokens roughly 1.5M (estimate).
-  **Next:** T-810c code review (tier A), then mutation; the next unchecked task (T-810d, T-810f, T-811).
+- **T-810c reviewed (91, no BLOCKER or MAJOR) and live on staging** (0155 applied and verified, tag
+  `release-20261105-3`; probes 200/200/200/307). The coordinator fixed two minors (erasure locks device rows first;
+  "has changed" strings); ADR-710 to 718 Accepted, Q-682 answered; the rest in FOLLOWUPS. Mutation run 41961473533
+  on the six T-810c files. The T-810b run 41927893554 hit the 240-minute limit (82% static mutants); its access files
+  `auth/http-errors.ts` and `organizers/routes.ts` ride a later run, `conventions.ts` and `http-error.ts` are dropped
+  (no ledger, sign-in, tenant or redemption logic). CI minutes about 20; review tokens about 0.15M.
+  **Next:** T-810d (plan reviewed 86, build running; Dhia adds the console DNS and CranL domain when it is ready).
 
 ## T-810e code screen notice — 2026-11-05
 
