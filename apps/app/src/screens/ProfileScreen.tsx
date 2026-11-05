@@ -25,7 +25,10 @@ import { LANGUAGE_OPTIONS } from "#src/i18n/language.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
-/** Settings → My account (FR-125, FR-139): each sign-in identifier, masked, with Change or Add. */
+/**
+ * Settings → My account (FR-125, FR-139, FR-140): each sign-in identifier, masked, with Change or Add, and the signed-in
+ * devices.
+ */
 function MyAccount({ me }: Readonly<{ me: Me }>) {
   const { t } = useI18n();
   const styles = useThemedStyles(makeStyles);
@@ -52,6 +55,12 @@ function MyAccount({ me }: Readonly<{ me: Me }>) {
           </View>
         );
       })}
+      <View style={styles.identifier}>
+        <View style={styles.identifierText}>
+          <AppText variant="label">{t("myDevices.title")}</AppText>
+        </View>
+        <Button kind="quiet" label={t("myDevices.open")} onPress={() => router.push("/devices")} />
+      </View>
     </>
   );
 }

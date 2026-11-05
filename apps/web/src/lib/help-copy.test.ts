@@ -48,6 +48,7 @@ const HELP_LINES: readonly string[] = [
   "console.player.tiers.restore.intro",
   "console.player.tiers.revoke.intro",
   "console.players.queryHint",
+  "console.staffSessions.passwordNote",
   "console.tickets.returnNote",
   "console.tickets.teamNote",
   "dataExport.intro",

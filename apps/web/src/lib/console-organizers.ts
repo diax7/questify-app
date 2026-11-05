@@ -48,7 +48,12 @@ export type OrganizerDetail = Readonly<{
     status: string;
     suspension: Suspension | null;
   }>;
-  team: readonly Readonly<{ email: string; role: "owner" | "editor"; limited: number | null }>[];
+  team: readonly Readonly<{
+    staffUserId: string;
+    email: string;
+    role: "owner" | "editor";
+    limited: number | null;
+  }>[];
   events: readonly Readonly<{
     id: string;
     joinCode: string;
@@ -191,6 +196,7 @@ export function readOrganizerDetail(value: unknown): OrganizerDetail | undefined
       suspension: readSuspension(organizer["suspension"]),
     },
     team: records(value["team"]).map((member) => ({
+      staffUserId: text(member["staffUserId"]) ?? "",
       email: text(member["email"]) ?? "",
       role: member["role"] === "owner" ? "owner" : "editor",
       limited: Array.isArray(member["eventScope"]) ? member["eventScope"].length : null,

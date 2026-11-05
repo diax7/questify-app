@@ -29,6 +29,10 @@ export const adminSessionsPath = (staffUserId: string): string =>
 /** The API path that ends one session. */
 export const endSessionPath = (sessionId: string): string => `/v1/admin/sessions/${sessionId}/end`;
 
+/** The API path that ends every session of one staff account (T-810c, FR-141). */
+export const endStaffSessionsPath = (staffUserId: string): string =>
+  `/v1/admin/staff/${staffUserId}/end-sessions`;
+
 /** Each reader answers undefined when the body is not the expected shape, so a changed API shows the error state. */
 export function readHealthView(body: unknown): HealthView | undefined {
   const parsed = healthViewSchema.safeParse(body);

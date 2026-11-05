@@ -1,4 +1,4 @@
-import { toWesternDigits } from "@questify/shared";
+import { toWesternDigits, type LocalizedText } from "@questify/shared";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { ScrollView } from "react-native";
@@ -10,6 +10,7 @@ import {
   type ContactDeps,
 } from "#src/account/contact-api.ts";
 import { contactStep, startContact, type ContactState } from "#src/account/contact-flow.ts";
+import { endDevices, otherDeviceCount, type DevicesDeps } from "#src/account/devices-api.ts";
 import { isolatedLtr, westernDigits } from "#src/auth/sign-in-api.ts";
 import type { Channel } from "#src/auth/sign-in-flow.ts";
 import { usePlayer } from "#src/auth/player.tsx";
@@ -19,6 +20,7 @@ import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 
 const deps: ContactDeps = { session: api.session, now: Date.now, newKey: randomUuid };
+const deviceDeps: DevicesDeps = deps;
 
 const LTR = { writingDirection: "ltr", textAlign: "left" } as const;
 
@@ -142,6 +144,44 @@ function CodeStep({ state, dispatch }: StepProps<"code">) {
   );
 }
 
+/**
+ * After a phone or email change (V7.4.3, ADR-120 amended): when other devices are signed in, the offer to sign them out.
+ * The contact's code made this phone fresh, so no second code is asked.
+ */
+function AfterChangeOffer({ channel }: Readonly<{ channel: Channel }>) {
+  const { t } = useI18n();
+  const [others, setOthers] = useState(0);
+  const [answer, setAnswer] = useState<"open" | "busy" | "kept" | "ended">("open");
+  const [problem, setProblem] = useState<LocalizedText | null>(null);
+  useEffect(() => {
+    void otherDeviceCount(deviceDeps).then(setOthers);
+  }, []);
+  if (others === 0 || answer === "kept") {
+    return null;
+  }
+  if (answer === "ended") {
+    return <AppText accessibilityRole="alert">{t("myDevices.doneOthers")}</AppText>;
+  }
+  const end = async () => {
+    setAnswer("busy");
+    const result = await endDevices(deviceDeps, { kind: "others" });
+    setAnswer(result.type === "ended" ? "ended" : "open");
+    setProblem(result.type === "refused" ? result.problem : null);
+  };
+  return (
+    <>
+      <AppText>{t(channel === "phone" ? "myDevices.afterPhone" : "myDevices.afterEmail")}</AppText>
+      <Problem problem={problem} />
+      <Button
+        label={t("myDevices.afterYes")}
+        disabled={answer === "busy"}
+        onPress={() => void end()}
+      />
+      <Button kind="quiet" label={t("myDevices.afterNo")} onPress={() => setAnswer("kept")} />
+    </>
+  );
+}
+
 const channelOf = (value: unknown): Channel => (value === "phone" ? "phone" : "email");
 
 /**
@@ -190,9 +230,12 @@ export default function AccountScreen() {
         ) : null}
         {signedIn && state.step === "code" ? <CodeStep state={state} dispatch={dispatch} /> : null}
         {state.step === "done" ? (
-          <AppText accessibilityRole="alert">
-            {t(adding ? "account.added" : "account.changed")}
-          </AppText>
+          <>
+            <AppText accessibilityRole="alert">
+              {t(adding ? "account.added" : "account.changed")}
+            </AppText>
+            <AfterChangeOffer channel={state.channel} />
+          </>
         ) : null}
         <Button kind="quiet" label={t("signIn.close")} onPress={close} />
       </ScrollView>
