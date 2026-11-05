@@ -2748,3 +2748,24 @@ When an 11th sign-in has to wait for the oldest family's rotation, it ends that 
 new tokens included, although that phone was just used. No token is left alive and nothing deadlocks.
 **Recommended (developer):** accept it: it needs ten other live sign-ins and a rotation in the same moment, and the
 phone only signs in again. Re-reading the oldest family after the lock would add a query to every capped sign-in.
+
+## Q-694 - One previous reward code key or a list (T-810f, ADR-725)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93: one previous key, as recommended).
+**Recommended (developer):** one previous key: two plain settings, no separator parsing, and the re-seal finishes before
+any next rotation.
+
+## Q-695 - When the legacy reward code format stops being readable (T-810f, ADR-729)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93: per ADR-729: remove the legacy path only after `check` exits 0 on every database and the backups taken before the re-seal have expired).
+**Recommended (developer):** after T-810f is deployed, run `reward-codes.cjs reseal` then `check` on staging (and on
+production before launch); when both exit 0, a small follow-up removes the legacy path.
+**Caveat (plan review 88):** the legacy path may be removed only after every database backup taken before the re-seal
+has expired: a restored backup holds legacy rows, which only the legacy path opens.
+
+## Q-696 - Rehearse a reward code rotation on staging (T-810f)
+
+**Status:** Open (for Dhia, asked with AskUserQuestion after the deploy, T-810f plan, 2026-11-05).
+**Recommended (developer):** yes, once: Dhia sets the four settings of the plan's section 7 in CranL (the new secret
+generated there, never sent anywhere), the coordinator runs `reseal` and `check`, then Dhia removes the previous two.
+Without it the proof is the integration tests only.

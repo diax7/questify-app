@@ -632,6 +632,12 @@ ADR-151):
   null, created_at)` (**secret**, organizer-uploaded; T-203): the API's AES-256-GCM cipher bound to the reward and an
   HMAC for finding repeats, unique per event. Organizers read only `id, reward_id, redemption_id, created_at`; players
   and outsiders nothing; `add_reward_codes` writes and `reserve_reward` gives the oldest unused code.
+  `code_cipher` format (T-810f, ADR-726): `0x51 0x02 keyId ‖ iv(12) ‖ tag(16) ‖ ciphertext`, the AAD being the 3 header
+  bytes then the reward id; rows from before T-810f are `iv ‖ tag ‖ ciphertext` (AAD the reward id) under key 1.
+  `code_hash` is the HMAC under the sealing key's `mark` key. `add_reward_codes(target, ciphers, hashes, prior_hashes
+  DEFAULT '{}')` (0157, ADR-727): `prior_hashes` empty or one 32-byte mark per code under the previous key during a
+  rotation; an item whose prior mark is in the event is a duplicate. The owner-only `reward-codes.cjs reseal` rewrites
+  `code_cipher` and `code_hash` together under compare-and-set (ADR-728).
   The desk's hold (0031, T-209): `desk_hold(enrollment, event)` answers `paused` (the owner's pause), then `held` (a
   banned player, or an open flag while `event.flag_hold` is on), and `finish_handover` and the desk's offer refuse
   either (`RH409`) **before** the status check, so the desk never learns of a ban. `desk_items` (the lookup and the

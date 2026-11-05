@@ -43,7 +43,7 @@ export function testConfig(
       ...auth,
     },
     qrSecret: "q".repeat(40),
-    rewardCodeSecret: "r".repeat(40),
+    rewardCodes: { current: { id: 1, secret: "r".repeat(40) }, previous: undefined },
     msegat: undefined,
     msegatPromoSender: undefined,
     redisUrl: undefined,
@@ -166,8 +166,10 @@ export async function startApp(
       AppOptions,
       "settings" | "translations" | "rankingStore" | "idempotencyStore" | "promoSmsSender" | "push"
     >
-  > = {},
+  > & { rewardCodes?: AppConfig["rewardCodes"] } = {},
 ): Promise<TestApp> {
+  const { rewardCodes, ...options } = extra;
+  const config = testConfig(db.appUrl, auth);
   const pool = new Pool({ connectionString: db.appUrl, max: 8 });
   const mail = new RecordingEmailSender();
   const sms = new RecordingSmsSender();
@@ -176,14 +178,14 @@ export async function startApp(
     throw error;
   });
   const app = buildApp({
-    config: testConfig(db.appUrl, auth),
+    config: rewardCodes === undefined ? config : { ...config, rewardCodes },
     idempotencyStore: new MemoryIdempotencyStore(),
     pool,
     emailSender: mail,
     smsSender: sms,
     breachCheck: breach.check,
     deferred,
-    ...extra,
+    ...options,
     logger,
   });
   await app.ready();

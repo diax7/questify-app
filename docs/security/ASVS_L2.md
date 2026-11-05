@@ -25,15 +25,15 @@ the step in `.github/workflows/ci.yml`. A doc reference names the section. "Note
 
 | Status | L1 | L2 | Total |
 |---|---|---|---|
-| Met | 52 | 100 | 152 |
-| Partly | 5 | 24 | 29 |
+| Met | 52 | 101 | 153 |
+| Partly | 5 | 23 | 28 |
 | Not met | 1 | 0 | 1 |
 | N/A | 12 | 59 | 71 |
 | **Total** | **70** | **183** | **253** |
 
 ## Gaps and what to do
 
-Code gaps were one tier A task, **T-810b** (`docs/TASKS.md`), done 2026-11-05 but for row 8, now T-810f.
+Code gaps were one tier A task, **T-810b** (`docs/TASKS.md`), done 2026-11-05 but for row 8, done as T-810f the same day.
 Documentation gaps are in `docs/FOLLOWUPS.md` (2026-11-05, T-810); product and hosting choices are Q-660 to Q-664
 (`docs/OPEN_QUESTIONS.md`), answered as T-810b (rows 9 and 11), T-810c, T-810d, T-810e (row 11's notice, done) and T-811.
 
@@ -46,7 +46,7 @@ Documentation gaps are in `docs/FOLLOWUPS.md` (2026-11-05, T-810); product and h
 | 5 | V16.3.2 | Met (T-810b) | A refused request leaves only the access-log line (method, path, status, request id); no event names the caller | One `authz.denied` event (route pattern, status, actor kind and id, never a body) for 403 answers and the 404 that hides a console or another tenant's object | T-810b (5) |
 | 6 | V15.3.6, V15.3.7 | Met (T-810b) | Fastify's JSON parser refuses `__proto__` and the shared schemas refuse a repeated query key, but no test proves either | Two tests at the conventions layer | T-810b (6) |
 | 7 | V15.1.2 | Met (T-810b; proven on the first release tag) | `pnpm sbom:generate` exists; no workflow runs it, so no release has an SBOM | Generate it on the release path and keep it with the release | T-810b (7) |
-| 8 | V11.2.2 | Partly | Sealed reward codes carry no key id, so rotating `REWARD_CODE_SECRET` makes unused codes unreadable (RUNBOOK) | A key id in each sealed code and a re-seal command | T-810f |
+| 8 | V11.2.2 | Met (T-810f, 2026-11-05) | Each sealed reward code names its key id; the API holds a previous key during a rotation, and `reward-codes.cjs reseal` then `check` move every code to the new key (RUNBOOK "Rotating `REWARD_CODE_SECRET`") | Done | T-810f |
 | 9 | V7.3.2, V7.1.1 | Met (T-810b, 0154) | Player refresh tokens slide (each rotation is a new 180 days, migration 0013), so a player session has no absolute end, and no note justifies the deviation from NIST SP 800-63B | A 365-day end (Q-660) | T-810b (9) |
 | 10 | V7.4.3, V7.4.5, V7.5.2 | Met (T-810c, 0155; `docs/plans/2026-11-05-t-810c-signed-in-devices.md`) | A player cannot see or end their other devices; a contact change keeps every session with no "sign out other devices"; an admin can end only a platform admin's sessions from the console (others by SQL, RUNBOOK); ending a staff session asks for no re-authentication | Product choice | Q-661 |
 | 11 | V6.3.3, V6.6.1 | Met (written exception T-810b; notice T-810e) | Players sign in with one factor (a code by SMS or email); no stronger method is offered and players are not told SMS's risks | A written exception (Q-662) and one line under the code field: never share the code, Questify never asks for it | T-810b (10), T-810e |
@@ -279,7 +279,7 @@ for FCM and Gmail (`apps/api/src/auth/google-token.test.ts`), which carries no u
 | V11.1.1 | 2 | Key-management policy and lifecycle | Partly | `docs/RUNBOOK.md` "Staff sign-in" (rotating `AUTH_SECRET`, `QR_SECRET`, `REWARD_CODE_SECRET`); `docs/SECURITY.md` "Secrets policy" | Gap 15 |
 | V11.1.2 | 2 | Cryptographic inventory | Partly | `docs/SECURITY.md` "Staff sign-in controls (T-006)" (V11 row) | Gap 15 |
 | V11.2.1 | 2 | Industry-validated implementations | Met | Node's `crypto` and the `argon2` library only: `apps/api/src/auth/password.test.ts` "round-trips and uses argon2id with the current parameters" | |
-| V11.2.2 | 2 | Crypto agility: algorithms and keys replaceable | Partly | `apps/api/test/auth/sign-in.int.test.ts` "upgrades an old password hash to the current parameters after a good sign-in"; codes carry a format byte (`apps/api/src/quests/qr.test.ts` "opens a tag's token to its id and version, 50 characters of format 0x06") | Gap 8: reward codes cannot be re-sealed (T-810f) |
+| V11.2.2 | 2 | Crypto agility: algorithms and keys replaceable | Met | `apps/api/test/auth/sign-in.int.test.ts` "upgrades an old password hash to the current parameters after a good sign-in"; codes carry a format byte (`apps/api/src/quests/qr.test.ts` "opens a tag's token to its id and version, 50 characters of format 0x06"); reward codes carry a key id and are re-sealed (`apps/api/test/rewards/reseal.int.test.ts` "re-seals every code after a rotation so each reveals with the new key alone, then does nothing") | Gap 8 closed (T-810f) |
 | V11.2.3 | 2 | At least 128 bits of security | Met | `apps/api/src/auth/keys.test.ts` "gives 32-byte keys that are stable for the same input"; AES-256-GCM and a 128-bit QR tag (`docs/SECURITY.md` T-006 V11 row) | |
 | V11.3.1 | 1 | No ECB, no weak padding | Met | AES-256-GCM only: `apps/api/src/rewards/codes.test.ts` "never seals one code twice the same way" | |
 | V11.3.2 | 1 | Approved ciphers and modes | Met | Same file, "opens to the same code for the same reward" | |

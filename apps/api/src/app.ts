@@ -22,7 +22,7 @@ import { createVerifyGate } from "#src/auth/verify-gate";
 import type { AppConfig } from "#src/config";
 import { registerConventions } from "#src/conventions";
 import { registerCompletionRoutes } from "#src/completions/routes";
-import { createRewardCodeKey } from "#src/rewards/codes";
+import { createRewardCodeKeyring } from "#src/rewards/codes";
 import { registerShopRoutes } from "#src/rewards/routes";
 import { createEvents } from "#src/events/events";
 import { registerPlayerGuard } from "#src/players/guard";
@@ -562,7 +562,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   registerPassportRoutes(app, { pool: options.pool, stepKey: stepCodeKey, ranking });
   registerRevealRoutes(app, { pool: options.pool, revealKey: revealCodeKey });
   registerResultsPlayerRoutes(app, { pool: options.pool, settings });
-  const rewardCodeKey = createRewardCodeKey(config.rewardCodeSecret);
+  const rewardCodeKey = createRewardCodeKeyring(config.rewardCodes);
   registerShopRoutes(app, {
     pool: options.pool,
     settings,

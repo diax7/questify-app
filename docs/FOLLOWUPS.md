@@ -121,3 +121,11 @@ Format: `- <date> <task>: <what and where> (<source>)`
   staff sign-in failure bucket (bounded by 5 tries per code and 5 codes an hour). NIT: the staff session list hides
   idle-lapsed sessions that `end_other_staff_sessions` still ends, so "ended N" can exceed the rows shown.
   Fixed in the review commit: erasure locks the device rows before the push deletes; "has changed" strings.
+- T-810f code review (93; MINOR, NIT): `docs/RUNBOOK.md:193` "remove the unused one" for a re-seal `conflict` gives no
+  command; deleting a `reward_code` row by hand without lowering `reward.stock_total` overstates stock (give the owner
+  SQL: delete only when `redemption_id IS NULL` and decrement `stock_total` in the same transaction).
+  `apps/api/test/rewards/reseal.int.test.ts:424,456` run the "during the re-seal" upload and reservation in
+  `beforeWrite`, before the batch transaction opens; add one test that holds the batch open while an upload runs. NITs:
+  `apps/api/src/rewards/reseal.ts:188-190` a throwing `ROLLBACK` replaces the first error (catch it, rethrow the
+  first); `apps/api/src/rewards/shop.ts:141` logs a `keyId` for a legacy value whose IV starts like a header (about 1
+  in 65,536, harmless).

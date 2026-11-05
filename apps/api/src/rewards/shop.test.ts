@@ -8,7 +8,7 @@ import {
   reserveReward,
   setGoal,
 } from "#src/rewards/shop";
-import { createRewardCodeKey, sealCode } from "#src/rewards/codes";
+import { createRewardCodeKeyring, sealCode } from "#src/rewards/codes";
 
 const PLAYER = "11111111-1111-4111-8111-111111111111";
 const EVENT = "22222222-2222-4222-8222-222222222222";
@@ -41,7 +41,10 @@ function fakePool(answer: Answer) {
 const pgError = (code: string, detail?: string) =>
   Object.assign(new Error("refused"), detail === undefined ? { code } : { code, detail });
 
-const KEY = createRewardCodeKey("r".repeat(32));
+const KEY = createRewardCodeKeyring({
+  current: { id: 1, secret: "r".repeat(32) },
+  previous: undefined,
+});
 const logged: Record<string, unknown>[] = [];
 const deps = (pool: Pool) => ({
   pool,
@@ -185,6 +188,23 @@ describe("digital codes (FR-511)", () => {
     expect(result).not.toHaveProperty("value.redemption.code");
     expect(logged).toEqual([
       { event: "reward.code_unreadable", redemptionId: "d9", rewardId: REWARD },
+    ]);
+  });
+
+  it("logs the key id a header names when the ring lacks that key", async () => {
+    logged.length = 0;
+    const retired = createRewardCodeKeyring({
+      current: { id: 7, secret: "s".repeat(32) },
+      previous: undefined,
+    });
+    const { pool } = fakePool(() => [
+      { ...delivered, code_cipher: sealCode(retired, REWARD, "GIFT-7") },
+    ]);
+    expect(await reserveReward(deps(pool), RESERVE)).toMatchObject({
+      value: { redemption: { codeUnavailable: true } },
+    });
+    expect(logged).toEqual([
+      { event: "reward.code_unreadable", redemptionId: "d9", rewardId: REWARD, keyId: 7 },
     ]);
   });
 

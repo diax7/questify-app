@@ -8109,3 +8109,52 @@ the request's own session token.
 **Why:** the database, not only the route, refuses ending another session without a fresh code (V7.5.2).
 **Trade-offs:** an API instance of the old release cannot open a staff session once 0155 ran; staff sign in again after
 the deploy's minute (RUNBOOK). Setting a new password still ends the other sessions, the documented path.
+
+## ADR-725 - T-810f one previous reward code key at a time
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93; T-810f plan; refines ADR-705's `REWARD_CODE_PREVIOUS_SECRETS` list; Q-694).
+**Decision:** `REWARD_CODE_KEY_ID` (1 to 255, default 1) names the current secret; an optional pair
+`REWARD_CODE_PREVIOUS_SECRET` and `REWARD_CODE_PREVIOUS_KEY_ID` (both or neither, ids and secrets different) is read
+only to open and re-seal. The API refuses to start on any other combination.
+**Why:** a list needs a separator the secret may contain; the re-seal empties the previous key before the next rotation.
+**Trade-offs:** a second rotation must wait for the first re-seal to finish.
+
+## ADR-726 - T-810f the key id header is part of the associated data
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93; T-810f plan).
+**Decision:** new seals are `0x51 0x02 keyId ‖ iv ‖ tag ‖ ciphertext` with AAD = the 3 header bytes then the reward id.
+Opening tries the header's key, then the legacy format under key 1, then refuses. Key derivation is unchanged, so key 1
+is today's key.
+**Why:** binds the header to the body explicitly; a legacy IV that starts with the header bytes still opens.
+**Trade-offs:** none beyond 3 bytes a code.
+
+## ADR-727 - T-810f uploads check the previous key's marks in the database (migration 0157)
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93; T-810f plan; implements ADR-705's duplicate rule).
+**Decision:** `add_reward_codes(target, ciphers, hashes, prior_hashes bytea[] DEFAULT '{}')` replaces the
+three-argument function; an item whose prior mark already exists in the event is a duplicate. Same single grant to
+`questify_app`, revoked from PUBLIC.
+**Why:** `questify_app` cannot read `code_hash`, so only the definer can check; the default keeps the old API instance
+working during the deploy.
+**Trade-offs:** one more indexed lookup per uploaded code while a previous key is loaded.
+
+## ADR-728 - T-810f `reward-codes.cjs reseal` and `check`
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93; T-810f plan; implements ADR-705's command).
+**Decision:** a container command on the owner connection (refused unless superuser or BYPASSRLS): `reseal` reads
+every row in batches of 100 outside any transaction, seals each again (fresh IV) and writes each batch in one short
+transaction (`lock_timeout` 2 s) with a compare-and-set on the old cipher and `NOT EXISTS` on the new mark in the event
+(the unique index the backstop; only SQLSTATE and row id are printed); reports conflicts, unreadable and changed rows by
+id; writes a start audit entry and a counts entry when it ends or fails. `check` proves, without writes and with only
+the current key, that every row opens. Both read the settings with the API's `rewardCodeSettings`. Output never holds a
+code, cipher or mark (amended by plan review 88, items 2, 4, 5 and 6).
+**Why:** a rotation must leave every code readable, and the operator needs a proof before removing the old secret.
+**Trade-offs:** a fourth bundled binary in the image.
+
+## ADR-729 - T-810f the legacy seal format stays readable for now
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93; T-810f plan; Q-695).
+**Decision:** `openCode` keeps the legacy path (no header, key 1). It is removed in a later task once `check` exits 0
+on staging and production and every backup taken before those re-seals has expired (plan review 88).
+**Why:** existing rows are legacy until the first re-seal runs on each database.
+**Trade-offs:** one extra decrypt attempt on a refused value.

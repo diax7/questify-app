@@ -23,7 +23,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Actor } from "#src/events/events";
 import type { BuilderEvent } from "#src/quests/store";
-import type { RewardCodeKey } from "#src/rewards/codes";
+import type { RewardCodeKeyring } from "#src/rewards/codes";
 import type { SettingsService } from "#src/settings/service";
 import { teamSeat } from "#src/organizers/store";
 
@@ -32,7 +32,7 @@ export const SET_LIMITS = { items: 100, open: 20, listed: 50 } as const;
 
 export type ChangeSetDeps = Readonly<{
   pool: Pool;
-  codeKey: RewardCodeKey;
+  codeKey: RewardCodeKeyring;
   settings: Pick<SettingsService, "forEvent">;
 }>;
 

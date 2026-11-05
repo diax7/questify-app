@@ -277,6 +277,50 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         expect(JSON.stringify(await owner("SELECT * FROM audit_log"))).not.toContain("SECRET-");
       });
 
+      it("counts an old code as a duplicate during a rotation, and reveals both keys' codes (T-810f)", async () => {
+        const base = await newEvent();
+        const reward = await newDigital(base);
+        const url = `${base}/rewards/${reward.id}/codes`;
+        const before = await call(ownerCookie, "POST", url, { codes: ["ROT-1"] }, key());
+        expect(before.json()).toMatchObject({ added: 1 });
+        const rotated = await startApp(
+          db,
+          false,
+          {},
+          {
+            rewardCodes: {
+              current: { id: 2, secret: "z".repeat(40) },
+              previous: { id: 1, secret: "r".repeat(40) },
+            },
+          },
+        );
+        try {
+          const during = await rotated.app.inject({
+            method: "POST",
+            url,
+            headers: withSession(ownerCookie, key()),
+            payload: { codes: ["ROT-1", "ROT-2"] },
+          });
+          expect(during.json()).toEqual({ added: 1, duplicates: 1, stock: 2, stockLeft: 2 });
+          const keyIds = await owner<{ key_id: number }>(
+            "SELECT get_byte(code_cipher, 2) AS key_id FROM reward_code WHERE reward_id = $1 ORDER BY id",
+            [reward.id],
+          );
+          expect(keyIds.map((row) => row.key_id)).toEqual([1, 2]);
+          const token = await newPlayer(eventOf(base));
+          for (const expected of ["ROT-1", "ROT-2"]) {
+            const bought = await rotated.app.inject({
+              method: "POST",
+              url: `/v1/rewards/${reward.id}/reserve`,
+              headers: { authorization: `Bearer ${token}`, ...key() },
+            });
+            expect(bought.json()).toMatchObject({ redemption: { code: expected } });
+          }
+        } finally {
+          await rotated.close();
+        }
+      });
+
       it("takes a stock of 0 for a digital reward, and edits that leave its stock alone", async () => {
         const base = await newEvent();
         const made = await call(
