@@ -2765,7 +2765,7 @@ has expired: a restored backup holds legacy rows, which only the legacy path ope
 
 ## Q-696 - Rehearse a reward code rotation on staging (T-810f)
 
-**Status:** Open (for Dhia, asked with AskUserQuestion after the deploy, T-810f plan, 2026-11-05).
+**Status:** Deferred (Dhia, 2026-11-05: "Later"; ask again before the first production rotation).
 **Recommended (developer):** yes, once: Dhia sets the four settings of the plan's section 7 in CranL (the new secret
 generated there, never sent anywhere), the coordinator runs `reseal` and `check`, then Dhia removes the previous two.
 Without it the proof is the integration tests only.
