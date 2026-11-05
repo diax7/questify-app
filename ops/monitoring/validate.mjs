@@ -134,6 +134,12 @@ function createStages() {
 }
 
 async function main() {
+  // Ctrl+C removes the containers and the image this run started (they are all named with the run id), then ends.
+  process.once("SIGINT", () => {
+    say("\nInterrupted: removing the containers and the image this run started.");
+    cleanUp();
+    process.exit(130);
+  });
   const ctx = createContext();
   const stages = createStages();
   try {
