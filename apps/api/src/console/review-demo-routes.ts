@@ -4,7 +4,8 @@ import { z } from "zod";
 import { invalidReviewDemo } from "#src/auth/http-errors";
 import { parse } from "#src/auth/request";
 import { BUCKETS } from "#src/auth/throttle";
-import { throttled, type ConsolePlatformDeps } from "#src/console/platform-routes";
+import type { ConsolePlatformDeps } from "#src/console/platform-routes";
+import { throttled } from "#src/console/throttle";
 import {
   closeReviewDemo,
   createReviewDemo,

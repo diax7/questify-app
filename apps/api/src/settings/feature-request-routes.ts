@@ -14,7 +14,8 @@ import { parse } from "#src/auth/request";
 import type { PublicAccount } from "#src/auth/staff-store";
 import { BUCKETS } from "#src/auth/throttle";
 import { CONSOLE_CATALOG_LIMIT, CONSOLE_CATALOG_WRITE_LIMIT } from "#src/console/catalog-routes";
-import { throttled, type ConsolePlatformDeps } from "#src/console/platform-routes";
+import type { ConsolePlatformDeps } from "#src/console/platform-routes";
+import { throttled } from "#src/console/throttle";
 import { holdBack, type DeviceLimit } from "#src/devices/limits";
 import { organizerContextOf } from "#src/organizers/context";
 import {

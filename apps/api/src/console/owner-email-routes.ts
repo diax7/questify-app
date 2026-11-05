@@ -9,7 +9,7 @@ import {
   startOwnerEmailChange,
   type OwnerEmailDeps,
 } from "#src/console/owner-email";
-import { throttled } from "#src/console/players/routes";
+import { throttled } from "#src/console/throttle";
 import type { DeviceLimit } from "#src/devices/limits";
 
 const change = { config: { access: "admin", idempotent: true }, bodyLimit: 4096 } as const;

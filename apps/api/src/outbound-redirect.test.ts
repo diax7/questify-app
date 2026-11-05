@@ -24,9 +24,6 @@ const WEB_SERVER_CALLS = [
 /** Web files left out of the walk: the forwarder (`"manual"`, see above) and the browser's own same-origin calls. */
 const WEB_NOT_SERVER_CALLS = new Set(["lib/forward.ts", "lib/post-json.ts"]);
 
-/** A file that runs in the browser (a `"use client"` directive), whose calls never leave the web origin. */
-const CLIENT_FILE = /^\s*["']use client["']/mu;
-
 type Node = Readonly<Record<string, unknown>> & { type: string };
 
 const FETCH_NAME = /fetch(Impl)?$/i;
@@ -87,12 +84,33 @@ function passesRedirectError(init: unknown): boolean {
   });
 }
 
+const programOf = (file: string, text: string): Node =>
+  parseAst(text, {
+    lang: file.endsWith(".tsx") ? "tsx" : "ts",
+    sourceType: "module",
+  }) as unknown as Node;
+
+/**
+ * Whether a file runs in the browser, whose calls never leave the web origin: `"use client"` is one of its directives,
+ * the statements before any import or code. The same words later in the file, in a string or in a comment do not count.
+ */
+export function isClientFile(file: string, text: string): boolean {
+  const statements = programOf(file, text)["body"] as Node[];
+  const directives: unknown[] = [];
+  for (const statement of statements) {
+    if (typeof statement["directive"] !== "string") {
+      break;
+    }
+    directives.push(statement["directive"]);
+  }
+  return directives.includes("use client");
+}
+
 type FetchCall = Readonly<{ file: string; line: number; redirectError: boolean }>;
 
 /** Every fetch call in one file, with whether it refuses redirects. */
 export function fetchCallsIn(file: string, text: string): FetchCall[] {
-  const lang = file.endsWith(".tsx") ? "tsx" : "ts";
-  const program = parseAst(text, { lang, sourceType: "module" }) as unknown as Node;
+  const program = programOf(file, text);
   const aliases = new Set<string>();
   walk(program, (node) => {
     const id = node["id"];
@@ -130,7 +148,7 @@ function sources(directory: string, extension: RegExp): string[] {
 function webServerSources(web: string): string[] {
   return sources(web, /\.tsx?$/u)
     .filter((path) => !WEB_NOT_SERVER_CALLS.has(relative(web, path).replaceAll("\\", "/")))
-    .filter((path) => !CLIENT_FILE.test(readFileSync(path, "utf8")));
+    .filter((path) => !isClientFile(path, readFileSync(path, "utf8")));
 }
 
 describe("outside calls never follow a redirect (ADR-701)", () => {
@@ -189,6 +207,26 @@ describe("outside calls never follow a redirect (ADR-701)", () => {
     expect(fetchCallsIn("x.tsx", "const page = <main />;\nawait fetch(url);")).toEqual([
       expect.objectContaining({ redirectError: false }),
     ]);
+  });
+
+  it.each([
+    ["first", '"use client";\nimport { x } from "y";'],
+    ["after a comment", '// Browser only.\n"use client";\nimport { x } from "y";'],
+    ["after another directive", '"use strict";\n"use client";\nconst a = 1;'],
+    ["in single quotes", "'use client';\nconst a = 1;"],
+  ])("takes a file with the directive %s for a client file", (_name, text) => {
+    expect(isClientFile("x.tsx", text)).toBe(true);
+  });
+
+  it.each([
+    ["after an import", 'import { x } from "y";\n"use client";'],
+    ["after code", 'const a = 1;\n"use client";'],
+    ["inside a string", 'const a = `\n"use client"\n`;'],
+    ["inside a comment", '/*\n"use client"\n*/\nconst a = 1;'],
+    ["after a call", 'foo();\n"use client";'],
+    ["not at all", "const a = 1;"],
+  ])("does not take a file with the directive %s for a client file", (_name, text) => {
+    expect(isClientFile("x.ts", text)).toBe(false);
   });
 
   it("does not count a call that is not a fetch", () => {

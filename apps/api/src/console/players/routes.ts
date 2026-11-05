@@ -7,10 +7,10 @@ import {
   isUsableActionNote,
   type PlayerActionKind,
 } from "@questify/shared";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { z } from "zod";
-import { invalidPlayerAction, invalidUsername, notFound } from "#src/auth/http-errors";
+import { invalidPlayerAction, invalidUsername } from "#src/auth/http-errors";
 import type { AuthKeys } from "#src/auth/keys";
 import { parse } from "#src/auth/request";
 import { BUCKETS } from "#src/auth/throttle";
@@ -23,7 +23,8 @@ import {
   searchPlayers,
   type ActionReason,
 } from "#src/console/players/doors";
-import { holdBack, type DeviceLimit } from "#src/devices/limits";
+import { throttled } from "#src/console/throttle";
+import type { DeviceLimit } from "#src/devices/limits";
 
 const BODY_LIMIT = 8192;
 const read = { config: { access: "admin" }, bodyLimit: 1024 } as const;
@@ -79,33 +80,6 @@ export type ConsolePlayerDeps = Readonly<{
   pool: Pool;
   keys: Pick<AuthKeys, "userKey" | "contactThrottleKey">;
 }>;
-
-/** The admin of a request that passed the console hook (activation/routes.ts). */
-function adminOf(request: FastifyRequest): { id: string } {
-  const account = request.staff?.account;
-  // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the console hook sets it or answers
-  if (account === undefined) {
-    throw notFound();
-  }
-  return { id: account.id };
-}
-
-export async function throttled(
-  deps: ConsolePlayerDeps,
-  request: FastifyRequest,
-  reply: FastifyReply,
-  limit: DeviceLimit,
-): Promise<{ id: string }> {
-  const who = adminOf(request);
-  await holdBack(
-    deps.pool,
-    [{ limit, key: deps.keys.userKey(`${limit.bucket}:${who.id}`) }],
-    true,
-    reply,
-    true,
-  );
-  return who;
-}
 
 /**
  * The reason of an action, checked against the action's list and the note rules before the door checks them again.

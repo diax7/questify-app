@@ -98,9 +98,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("meet-someone over HTTP", () =>
       .filter((entry) => String(entry["event"]).startsWith("meet."));
   /** Runs `work` with the platform's location quests switched on. */
   const withLocationOn = async (work: () => Promise<void>) => {
-    await db.owner.query("INSERT INTO platform_setting (key, value) VALUES ('features', $1)", [
-      JSON.stringify({ locationQuests: { enabled: true } }),
-    ]);
+    await db.owner.query(
+      "INSERT INTO platform_setting (key, value) VALUES ('features', $1) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+      [JSON.stringify({ locationQuests: { enabled: true } })],
+    );
     settings.forget();
     try {
       await work();

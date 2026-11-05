@@ -755,13 +755,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the event builder (T-102)", ()
       const actor = { ...ownerOf(org.id), staffUserId: staff?.staff_user_id ?? "" };
       const taken = (await created(org.id, org.cookie)).joinCode;
       const codes = [taken, taken, "FRESH2"];
-      const retrying = createEvents({ pool: test.pool, joinCodes: () => codes.shift() ?? taken });
+      const retrying = createEvents({
+        pool: test.pool,
+        joinCodes: () => codes.shift() ?? taken,
+        log: () => undefined,
+      });
       const made = await retrying.create(actor, { ...DRAFT, name: { en: "Second" } }, caller);
       expect(made).toMatchObject({ kind: "created", event: { joinCode: "FRESH2" } });
 
       let tries = 0;
       const stuck = createEvents({
         pool: test.pool,
+        log: () => undefined,
         joinCodes: () => {
           tries += 1;
           return taken;

@@ -4,7 +4,8 @@ import { z } from "zod";
 import { parse } from "#src/auth/request";
 import { BUCKETS } from "#src/auth/throttle";
 import { readFeatureUsage } from "#src/console/feature-usage";
-import { throttled, type ConsolePlatformDeps } from "#src/console/platform-routes";
+import type { ConsolePlatformDeps } from "#src/console/platform-routes";
+import { throttled } from "#src/console/throttle";
 import type { DeviceLimit } from "#src/devices/limits";
 
 const read = { config: { access: "admin" }, bodyLimit: 1024 } as const;

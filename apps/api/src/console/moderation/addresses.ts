@@ -8,7 +8,8 @@ import {
   CONSOLE_MODERATION_LIMIT,
   CONSOLE_REPORTS_READ_LIMIT,
 } from "#src/console/moderation/routes";
-import { throttled, type ConsolePlayerDeps } from "#src/console/players/routes";
+import type { ConsolePlayerDeps } from "#src/console/players/routes";
+import { throttled } from "#src/console/throttle";
 
 /** The moderation addresses (ADR-495): where urgent-report alerts go and the address a banned player appeals to. */
 export type ModerationAddresses = Readonly<{

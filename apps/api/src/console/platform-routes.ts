@@ -1,8 +1,8 @@
 import type { Transports } from "@questify/shared";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { z } from "zod";
-import { endOwnSession, notFound } from "#src/auth/http-errors";
+import { endOwnSession } from "#src/auth/http-errors";
 import type { AuthKeys } from "#src/auth/keys";
 import { parse } from "#src/auth/request";
 import { BUCKETS } from "#src/auth/throttle";
@@ -14,7 +14,8 @@ import {
   readNumbers,
 } from "#src/console/platform";
 import { endStaffAccountSessions } from "#src/console/staff-sessions";
-import { holdBack, type DeviceLimit } from "#src/devices/limits";
+import { callerOf, throttled } from "#src/console/throttle";
+import type { DeviceLimit } from "#src/devices/limits";
 
 const read = { config: { access: "admin" }, bodyLimit: 1024 } as const;
 const endSession = {
@@ -50,30 +51,6 @@ export type ConsolePlatformDeps = Readonly<{
   /** What this server has set up (yes or no), for the health view. */
   transports: Transports;
 }>;
-
-/** The admin and the session of a request that passed the console hook (activation/routes.ts). */
-export function callerOf(request: FastifyRequest): { id: string; sessionId: string } {
-  const staff = request.staff;
-  // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the console hook sets it or answers
-  if (staff === undefined) {
-    throw notFound();
-  }
-  return { id: staff.account.id, sessionId: staff.sessionId };
-}
-
-export async function throttled(
-  deps: Pick<ConsolePlatformDeps, "pool" | "keys">,
-  request: FastifyRequest,
-  reply: FastifyReply,
-  limit: DeviceLimit,
-): Promise<{ id: string; sessionId: string }> {
-  const caller = callerOf(request);
-  // The key is per bucket, and an admin's calls on one bucket queue for its lock: a page opening several tabs at once
-  // reads them all instead of refusing the ones that lost the race.
-  const key = deps.keys.userKey(`${limit.bucket}:${caller.id}`);
-  await holdBack(deps.pool, [{ limit, key }], true, reply, true);
-  return caller;
-}
 
 /**
  * The console's platform pages (T-709): health (FR-1783), numbers (FR-1419) and the admin accounts with their sessions

@@ -3,6 +3,12 @@
 // It offers no AUTH: Go refuses to send a password over a connection without TLS, so the Alertmanager skips it.
 import { createServer } from "node:net";
 
+// The sink holds what a validation run sends it and nothing more: a line, a message and the list of messages are
+// capped, and a connection that passes a cap is dropped.
+const MAX_LINE_BYTES = 64 * 1024;
+const MAX_MESSAGE_BYTES = 1024 * 1024;
+const MAX_MESSAGES = 100;
+
 function handleLine(socket, state, line) {
   const command = line.slice(0, 4).toUpperCase();
   if (command === "EHLO" || command === "HELO") {
@@ -32,7 +38,7 @@ function handleSocket(socket, messages) {
         handleLine(socket, state, line);
       } else if (line === ".") {
         state.inData = false;
-        messages.push(state.message);
+        if (messages.length < MAX_MESSAGES) messages.push(state.message);
         state.message = "";
         socket.write("250 queued\r\n");
       } else {
@@ -40,14 +46,23 @@ function handleSocket(socket, messages) {
       }
       end = state.buffer.indexOf("\r\n");
     }
+    if (state.buffer.length > MAX_LINE_BYTES || state.message.length > MAX_MESSAGE_BYTES) {
+      socket.destroy();
+    }
   });
   socket.on("error", () => {});
 }
 
-/** Listens on every address (a container reaches it as host.docker.internal) and returns the port and the mail. */
+const LISTEN_HOST = process.platform === "linux" ? "0.0.0.0" : "127.0.0.1";
+
+/**
+ * Listens and returns the port and the mail. A container reaches it as host.docker.internal: on Docker Desktop (Windows,
+ * macOS) that arrives from the machine itself, so 127.0.0.1 is enough; Docker Engine on Linux resolves the name to its
+ * bridge address, so there it listens on every address (the buffers are capped and the run is short-lived).
+ */
 export async function startSmtpSink() {
   const messages = [];
   const server = createServer((socket) => handleSocket(socket, messages));
-  await new Promise((resolve) => server.listen(0, "0.0.0.0", resolve));
+  await new Promise((resolve) => server.listen(0, LISTEN_HOST, resolve));
   return { port: server.address().port, messages, close: () => server.close() };
 }

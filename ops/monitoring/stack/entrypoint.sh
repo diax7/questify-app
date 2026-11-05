@@ -5,7 +5,8 @@
 #
 # This script is the supervisor: if any of the four exits for any reason, it stops the other three and exits with an
 # error, so the container ends and CranL starts it again; a half-working stack (rules evaluated and nobody to hear them,
-# or a dashboard without data) is never left running. A stop signal (a redeploy) stops all four and exits cleanly.
+# or a dashboard without data) is never left running. A stop signal (a redeploy) stops all four and exits cleanly; a
+# program that has not ended 20 seconds after its TERM is killed, so a stuck program cannot hold the container open.
 # The data directory is the app's volume.
 set -eu
 # shellcheck disable=SC3040 # BusyBox ash (this image) supports pipefail.
@@ -23,9 +24,39 @@ launch() {
   processes="$processes $name:$!"
 }
 
+# is_dead PID: true when the program is gone or is a zombie (it has exited and nobody has collected its status yet; kill -0
+# still succeeds on a zombie). A /proc file that cannot be read means the program is gone.
+is_dead() {
+  kill -0 "$1" 2>/dev/null || return 0
+  found=0
+  grep -q '^State:[[:space:]]*Z' "/proc/$1/status" 2>/dev/null || found=$?
+  [ "$found" -ne 1 ]
+}
+
+# all_dead: true when every program has exited.
+all_dead() {
+  for entry in $processes; do
+    is_dead "${entry#*:}" || return 1
+  done
+}
+
+# How long the programs have to end after a TERM before they are killed. CranL waits about 30 seconds after its stop
+# signal before it kills the container, so this stays below that.
+STOP_GRACE_SECONDS=20
+
+# stop_all: sends TERM to every program, waits up to STOP_GRACE_SECONDS for them to end, then sends KILL to any that are
+# left and collects them all.
 stop_all() {
   for entry in $processes; do
     kill -TERM "${entry#*:}" 2>/dev/null || true
+  done
+  waited=0
+  until all_dead || [ "$waited" -ge "$STOP_GRACE_SECONDS" ]; do
+    sleep 1
+    waited=$((waited + 1))
+  done
+  for entry in $processes; do
+    is_dead "${entry#*:}" || kill -KILL "${entry#*:}" 2>/dev/null || true
   done
   wait || true
 }
@@ -61,15 +92,6 @@ launch prometheus /usr/local/bin/prometheus \
 launch grafana /run.sh
 
 launch caddy /usr/local/bin/caddy run --config /etc/questify/Caddyfile --adapter caddyfile
-
-# is_dead PID: true when the program is gone or is a zombie (it has exited and nobody has collected its status yet; kill -0
-# still succeeds on a zombie). A /proc file that cannot be read means the program is gone.
-is_dead() {
-  kill -0 "$1" 2>/dev/null || return 0
-  found=0
-  grep -q '^State:[[:space:]]*Z' "/proc/$1/status" 2>/dev/null || found=$?
-  [ "$found" -ne 1 ]
-}
 
 # The programs are polled once a second. `wait -n` is not used: in this image's BusyBox 1.37 it does not return when a
 # program exits with an error or is killed by a signal, which would leave the container running half-broken.

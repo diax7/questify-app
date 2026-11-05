@@ -213,7 +213,7 @@ const CALLER = {
 
 describe("database errors the flows answer", () => {
   it("answers an interest the catalog refuses as an invalid interests field, on create and edit", async () => {
-    const events = createEvents({ pool: failingPool("EI422") });
+    const events = createEvents({ pool: failingPool("EI422"), log: () => undefined });
     await expect(
       events.create(ACTOR, { name: { en: "A" }, ...TIMES, interests: ["bogus"] }, CALLER),
     ).resolves.toEqual({ kind: "invalid", field: "interests" });
@@ -226,12 +226,12 @@ describe("database errors the flows answer", () => {
 
 describe("database errors the flows do not expect", () => {
   it.each(["23514", "40001", "QE403"])("pass %s through an edit", async (code) => {
-    const events = createEvents({ pool: failingPool(code) });
+    const events = createEvents({ pool: failingPool(code), log: () => undefined });
     await expect(events.update(ACTOR, STORED.id, {}, CALLER)).rejects.toMatchObject({ code });
   });
 
   it.each(["23514", "40001", "QE422"])("pass %s through ending early", async (code) => {
-    const events = createEvents({ pool: failingPool(code) });
+    const events = createEvents({ pool: failingPool(code), log: () => undefined });
     await expect(events.endEarly(ACTOR, STORED.id, CALLER)).rejects.toMatchObject({ code });
   });
 });

@@ -596,7 +596,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     activation,
     rehearsal,
     team: createTeam(passwordDeps),
-    events: createEvents({ pool: options.pool }),
+    events: createEvents({ pool: options.pool, log: (level, fields) => app.log[level](fields) }),
     settings,
     questCodes: {
       codeKey: questCodeKey,

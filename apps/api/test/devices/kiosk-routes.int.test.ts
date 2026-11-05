@@ -190,9 +190,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("kiosks over HTTP", () => {
     return answer.json<{ code: string; changesInMs: number }>().code;
   };
   const withKiosksOff = async (work: () => Promise<void>) => {
-    await owner("INSERT INTO platform_setting (key, value) VALUES ('features', $1)", [
-      JSON.stringify({ kiosks: { enabled: false } }),
-    ]);
+    await owner(
+      "INSERT INTO platform_setting (key, value) VALUES ('features', $1) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+      [JSON.stringify({ kiosks: { enabled: false } })],
+    );
     settings.forget();
     try {
       await work();

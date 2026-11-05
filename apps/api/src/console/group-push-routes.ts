@@ -3,7 +3,8 @@ import type { FastifyInstance } from "fastify";
 import { BUCKETS } from "#src/auth/throttle";
 import { CONSOLE_CATALOG_LIMIT } from "#src/console/catalog-routes";
 import { listGroupPushes, previewGroupPush, sendGroupPush } from "#src/console/group-push";
-import { throttled, type ConsolePlatformDeps } from "#src/console/platform-routes";
+import type { ConsolePlatformDeps } from "#src/console/platform-routes";
+import { throttled } from "#src/console/throttle";
 import { refuseInvalid } from "#src/console/switches-routes";
 import type { DeviceLimit } from "#src/devices/limits";
 

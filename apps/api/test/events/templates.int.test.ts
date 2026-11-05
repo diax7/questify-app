@@ -8,6 +8,7 @@ import {
   withSession,
   type TestApp,
 } from "#test/support/auth-app";
+import { createEvents } from "#src/events/events";
 import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
 
 type EventView = {
@@ -113,6 +114,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event templates (API)", () => 
       ])
     )[0]?.n ?? 0;
 
+  const insertBadTemplate = () =>
+    owner(
+      `INSERT INTO event_template (key, position, name_ar, name_en, description_ar, description_en, body)
+       VALUES ('badly', 96, 'قالب', 'Badly', 'وصف', 'Text',
+               '{"config": {}, "categories": [], "rewards": []}'::jsonb)`,
+    );
+  const deleteBadTemplate = () => owner("DELETE FROM event_template WHERE key = 'badly'");
+
   describe("the picker's list", () => {
     it("lists the four templates in order with what each sets up, and nothing a player would not see", async () => {
       const org = await newOrganizer();
@@ -134,6 +143,43 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event templates (API)", () => 
       );
       expect(response.body).not.toContain("typeConfig");
       expect(response.body).not.toContain("descriptionEn");
+    });
+
+    it("leaves out a template saved badly and names it in the log, so the others still list", async () => {
+      await insertBadTemplate();
+      try {
+        const org = await newOrganizer();
+        const response = await call("GET", `/v1/organizers/${org.id}/event-templates`, org.cookie);
+        expect(response.statusCode).toBe(200);
+        const { templates } = templateListSchema.parse(response.json());
+        expect(templates.map((one) => one.key)).toEqual([
+          "conference",
+          "festival",
+          "campus",
+          "corporate",
+        ]);
+
+        const lines: Array<Record<string, string>> = [];
+        const events = createEvents({
+          pool: test.pool,
+          log: (level, fields) => lines.push({ level, ...fields }),
+        });
+        const [member] = await owner<{ staff_user_id: string }>(
+          "SELECT staff_user_id FROM organizer_member WHERE organizer_id = $1",
+          [org.id],
+        );
+        const actor = {
+          organizerId: org.id,
+          staffUserId: member?.staff_user_id ?? "",
+          organizer: { id: org.id, role: "owner" as const, eventScope: null },
+        };
+        expect(await events.templates(actor)).toHaveLength(4);
+        expect(lines).toEqual([
+          expect.objectContaining({ level: "warn", event: "event_template.invalid", key: "badly" }),
+        ]);
+      } finally {
+        await deleteBadTemplate();
+      }
     });
 
     it("answers a member of any organizer and nobody who is signed out", async () => {
@@ -227,19 +273,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event templates (API)", () => 
       },
     );
 
-    it("stops at a template saved badly, with no event left behind", async () => {
-      await owner(
-        `INSERT INTO event_template (key, position, name_ar, name_en, description_ar, description_en, body)
-         VALUES ('badly', 96, 'قالب', 'Badly', 'وصف', 'Text',
-                 '{"config": {}, "categories": [], "rewards": []}'::jsonb)`,
-      );
+    it("starts from a good template while another is saved badly, and stops at the bad one with no event left behind", async () => {
+      await insertBadTemplate();
       try {
         const org = await newOrganizer();
-        const response = await create(org.id, org.cookie, { ...DRAFT, template: "festival" });
-        expect(response.statusCode).toBe(500);
-        expect(await eventsOf(org.id)).toBe(0);
+        const good = await create(org.id, org.cookie, { ...DRAFT, template: "festival" });
+        expect(good.statusCode).toBe(201);
+        const bad = await create(org.id, org.cookie, { ...DRAFT, template: "badly" });
+        expect(bad.statusCode).toBe(500);
+        expect(await eventsOf(org.id)).toBe(1);
       } finally {
-        await owner("DELETE FROM event_template WHERE key = 'badly'");
+        await deleteBadTemplate();
       }
     });
 

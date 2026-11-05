@@ -25,9 +25,9 @@ the step in `.github/workflows/ci.yml`. A doc reference names the section. "Note
 
 | Status | L1 | L2 | Total |
 |---|---|---|---|
-| Met | 52 | 101 | 153 |
-| Partly | 5 | 23 | 28 |
-| Not met | 1 | 0 | 1 |
+| Met | 55 | 102 | 157 |
+| Partly | 3 | 22 | 25 |
+| Not met | 0 | 0 | 0 |
 | N/A | 12 | 59 | 71 |
 | **Total** | **70** | **183** | **253** |
 
@@ -52,12 +52,12 @@ Documentation gaps are in `docs/FOLLOWUPS.md` (2026-11-05, T-810); product and h
 | 11 | V6.3.3, V6.6.1 | Met (written exception T-810b; notice T-810e) | Players sign in with one factor (a code by SMS or email); no stronger method is offered and players are not told SMS's risks | A written exception (Q-662) and one line under the code field: never share the code, Questify never asks for it | T-810b (10), T-810e |
 | 12 | V3.5.4 | Partly | The console, the dashboard, the public event page, stations and the big screen share one hostname | Product and domain choice | Q-663 |
 | 13 | V4.1.2, V12.1.1, V12.1.2, V12.2.2, V12.3.1, V12.3.3, V12.3.4, V13.2.1, V13.2.4, V13.2.5, V13.3.1, V13.3.2, V16.4.2, V16.4.3 | Partly | Controls that live in CranL: edge TLS versions and ciphers, certificates, HTTP-to-HTTPS behaviour on the API host, TLS to PostgreSQL and Redis on the private network, static database and Redis passwords, no egress allowlist, the secret store's access control, and server logs kept only in CranL's log view | Ask CranL in T-811; decide per item | Q-664 |
-| 14 | V15.1.1, V15.2.1 | Not met / Partly | No written time frame for fixing a vulnerable dependency (Dependabot and `pnpm audit` run, but nothing says how fast a finding must be fixed) | Write them in QUALITY_BASELINE | FOLLOWUPS |
+| 14 | V15.1.1, V15.2.1 | Met (T-810, 2026-11-06) | Written time frames for fixing a vulnerable dependency: critical 7 days, high 14, moderate 30, the rest in the monthly Dependabot batch; CI's "Dependency audit" fails a pull request on any finding not listed in `auditConfig.ignoreGhsas` | Done | `docs/QUALITY_BASELINE.md` §2, "Fixing a vulnerable dependency" |
 | 15 | V11.1.1, V11.1.2 | Partly | Rotation steps exist per secret (RUNBOOK "Staff sign-in"), but there is no key-management policy and no complete cryptographic inventory (APNs ES256, Google RS256, the opt-out HMAC and TLS are missing from SECURITY's V11 row) | One inventory table: key, algorithm, purpose, where it may be used, owner, rotation | FOLLOWUPS |
 | 16 | V16.1.1 | Partly | No single log inventory (what each layer logs, where it is stored, who reads it, how long it is kept) | One table in SLO.md or RUNBOOK | FOLLOWUPS |
 | 17 | V6.1.3 | Partly | The sign-in pathways (staff password and code, staff sign-up, invites, owner email change, player SMS and email codes, the App Review code, device pairing, kiosk live codes) are documented section by section, not together with their strength | One table in SECURITY.md | FOLLOWUPS |
 | 18 | V6.4.1, V6.4.4 | Partly | `staff.cjs create` sets a password the operator knows and nothing asks for a change; a lost staff mailbox or a player's lost number is handled by support with no written identity-proofing steps | Prefer invites; write the proofing steps in RUNBOOK | FOLLOWUPS |
-| 19 | V3.3.1, V3.3.3 | Partly | The language cookie (`apps/web/src/lib/language.ts`) is `Secure` but has no `__Host-` prefix (the session and device cookies have it) | Rename it with the prefix | FOLLOWUPS |
+| 19 | V3.3.1, V3.3.3 | Met (T-810, 2026-11-06) | The language cookie (`apps/web/src/lib/language.ts`) is `__Host-qs_lang`; the proxy still reads the old `qs_lang` once, so a saved choice survives, and removes it when it sets the new one | Done | `apps/web/src/lib/language.ts`, `apps/web/src/proxy.ts` |
 | 20 | V7.5.1 | Partly | A player's phone or email change is not re-authenticated (accepted deviation, ADR-120, SECURITY "Data protection") | Keep; covered by Q-661's session controls | ADR-120 |
 | 21 | V14.1.2, V14.2.4 | Partly | Retention periods wait for counsel (Q-075) | T-807 | Q-075 |
 | 22 | V4.2.1 | Partly | Request smuggling rests on Node's parser and CranL's edge; nothing tests it | The tester checks it | T-809 |
@@ -116,9 +116,9 @@ Documentation gaps are in `docs/FOLLOWUPS.md` (2026-11-05, T-810); product and h
 |---|---|---|---|---|---|
 | V3.2.1 | 1 | Content not rendered in the wrong context | Met | API answers are `application/json`; the data export is an attachment with `nosniff`: `apps/api/test/players/data-export.int.test.ts` "downloads the file as an attachment nothing keeps, three times a day" | |
 | V3.2.2 | 1 | Text drawn with safe text functions | Met | `docs/SECURITY.md` "Home blocks written by the organizer" (drawn as text, nothing tappable inside) | |
-| V3.3.1 | 1 | Cookies `Secure`, with `__Host-` or `__Secure-` | Partly | `apps/api/test/auth/sign-in.int.test.ts` "sets a __Host- cookie that is HttpOnly, Secure, SameSite=Strict, Path=/ and has no Domain"; `apps/api/test/devices/routes.int.test.ts` "answers a pairing request with its code and an HttpOnly __Host- cookie, no-store" | Gap 19: the language cookie has no prefix |
+| V3.3.1 | 1 | Cookies `Secure`, with `__Host-` or `__Secure-` | Met | `apps/api/test/auth/sign-in.int.test.ts` "sets a __Host- cookie that is HttpOnly, Secure, SameSite=Strict, Path=/ and has no Domain"; `apps/api/test/devices/routes.int.test.ts` "answers a pairing request with its code and an HttpOnly __Host- cookie, no-store"; `apps/web/src/lib/language.test.ts` "remembers the language for a year under the __Host- prefix: site-wide, secure, no Domain, readable by the page" | |
 | V3.3.2 | 2 | `SameSite` set by purpose | Met | Same sign-in test (`Strict`); the language cookie is `Lax` | |
-| V3.3.3 | 2 | `__Host-` unless shared on purpose | Partly | As V3.3.1 | Gap 19 |
+| V3.3.3 | 2 | `__Host-` unless shared on purpose | Met | As V3.3.1; `apps/web/src/proxy.test.ts` "moves a choice from the old cookie to the new one on the next page" | |
 | V3.3.4 | 2 | `HttpOnly` on tokens; set only by `Set-Cookie` | Met | `apps/api/test/auth/sign-in.int.test.ts` "sets a __Host- cookie that is HttpOnly, Secure, SameSite=Strict, Path=/ and has no Domain" | |
 | V3.4.1 | 1 | HSTS of at least a year, subdomains at L2 | Met | Pages: `apps/web/src/lib/security-headers.ts` `PAGE_HEADERS` (`max-age=31536000; includeSubDomains`); `apps/web/src/lib/security-headers.test.ts` "sends HSTS for a year with subdomains on every page, the kiosk pages included"; `/v1`: `apps/api/src/conventions.test.ts` "security headers (ADR-700)" › "are on %s", "are on an idempotent replay", "stay on the answer when the idempotency store fails inside its own onSend"; `apps/web/src/lib/forward.test.ts` "security headers (ADR-700)" › "keeps its own values when the API sends weaker ones", "puts them on its own 404, 413 and 502 too"; `apps/api/test/security/routes.int.test.ts` "gets the security headers on every public route and on a refusal of each guarded kind (ADR-700)" | |
 | V3.4.2 | 1 | CORS origin fixed or allowlisted | Met | No `Access-Control-Allow-Origin` is ever sent; the browser reaches the API on the page's origin: `docs/API.md` "Conventions" (auth schemes); `apps/web/src/lib/forward.test.ts` "returns every set-cookie and only the allowed response headers" | |
@@ -341,10 +341,10 @@ for FCM and Gmail (`apps/api/src/auth/google-token.test.ts`), which carries no u
 
 | ID | L | Control | Status | Evidence | Gap |
 |---|---|---|---|---|---|
-| V15.1.1 | 1 | Remediation time frames for vulnerable components documented | Not met | `.github/dependabot.yml` (monthly, 7-day cooldown) | Gap 14 |
+| V15.1.1 | 1 | Remediation time frames for vulnerable components documented | Met | `docs/QUALITY_BASELINE.md` §2, "Fixing a vulnerable dependency" (critical 7 days, high 14, moderate 30, the rest monthly); `.github/dependabot.yml` (monthly, 7-day cooldown) | |
 | V15.1.2 | 2 | SBOM maintained, trusted sources | Met | `package.json` script `sbom:generate`; `pnpm install --frozen-lockfile` in CI; `.github/workflows/sbom.yml` keeps `sbom.cdx.json` on each `release-*` tag's GitHub Release (`docs/RUNBOOK.md` "Database and deploy", ADR-704); releases before 2026-11-05 have none | |
 | V15.1.3 | 2 | Resource-heavy functions documented with defences | Met | `docs/SLO.md` "1. Targets"; `docs/SECURITY.md` "Top abuse cases" #4; `docs/TASKS.md` T-804 (the load test) | |
-| V15.2.1 | 1 | Components within their remediation time frames | Partly | CI "Dependency audit" (`pnpm audit`) on every pull request | Gap 14: no time frame to hold them to |
+| V15.2.1 | 1 | Components within their remediation time frames | Met | CI "Dependency audit" (`pnpm audit`) on every pull request fails on a finding not listed in `auditConfig.ignoreGhsas` (`pnpm-workspace.yaml`); each listed one has a dated reason and is re-checked monthly (`docs/QUALITY_BASELINE.md` §2) | |
 | V15.2.2 | 2 | Defences against resource exhaustion | Met | `apps/api/src/auth/verify-gate.test.ts` "never runs more than the limit at once"; `apps/api/test/auth/edges.int.test.ts` "answers busy and gives back the reserved attempt" | |
 | V15.2.3 | 2 | No test or sample code in production | Met | CI "API build (the bundle the Docker image ships)"; `.dockerignore` (the test server bundle, coverage, docs) | |
 | V15.3.1 | 1 | Only the needed fields returned | Met | `apps/api/test/security/routes.int.test.ts` "shows the team to its members, owner first, with emails and no other account fields"; `packages/shared/src/questify/ranking.test.ts` "refuses a row with an extra key (an id, gems), more than 10 rows, or a row without XP" | |

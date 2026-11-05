@@ -36,7 +36,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("completing a quest (T-105)", (
     ids = await seedTwoTenants(db.owner);
     // The platform's location switch, on for this test's database (it is off by default, ADR-208).
     await db.owner.query(
-      `INSERT INTO platform_setting (key, value) VALUES ('features', '{"locationQuests": {"enabled": true}}')`,
+      `INSERT INTO platform_setting (key, value) VALUES ('features', '{"locationQuests": {"enabled": true}}')
+       ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
     );
   });
   afterAll(async () => {

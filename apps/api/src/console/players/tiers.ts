@@ -14,9 +14,9 @@ import { door, type Admin } from "#src/console/doors";
 import {
   CONSOLE_PLAYER_CHANGE_LIMIT,
   reasonOf,
-  throttled,
   type ConsolePlayerDeps,
 } from "#src/console/players/routes";
+import { throttled } from "#src/console/throttle";
 import type { ActionReason } from "#src/console/players/doors";
 import type { HttpError } from "#src/http-error";
 

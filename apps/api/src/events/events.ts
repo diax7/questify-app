@@ -31,6 +31,7 @@ import {
   fillFromTemplate,
   readTemplates,
   templateExists,
+  type TemplateLog,
 } from "#src/events/templates";
 import type { OrganizerContext, OrganizerPrincipal } from "#src/organizers/store";
 import { teamSeat } from "#src/organizers/store";
@@ -126,7 +127,7 @@ export type Events = Readonly<{
   ) => Promise<StartResult>;
 }>;
 
-export type EventsDeps = Readonly<{ pool: Pool; joinCodes?: () => string }>;
+export type EventsDeps = Readonly<{ pool: Pool; joinCodes?: () => string; log: TemplateLog }>;
 
 const DEFAULTS = {
   kind: "physical",
@@ -585,7 +586,10 @@ export function createEvents(deps: EventsDeps): Events {
     update: (actor, id, input, caller) => update(deps, actor, id, input, caller),
     remove: (actor, id, caller) => remove(deps, actor, id, caller),
     endEarly: (actor, id, caller) => endEarly(deps, actor, id, caller),
-    templates: async (actor) => (await inContext(deps, actor, readTemplates)).map(templateViewOf),
+    templates: async (actor) =>
+      (await inContext(deps, actor, (client) => readTemplates(client, deps.log))).map(
+        templateViewOf,
+      ),
     startFromTemplate: (actor, id, template, caller) =>
       startFromTemplate(deps, actor, id, template, caller),
   };

@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance } from "fastify";
 import type { Pool } from "pg";
 import { z } from "zod";
 import { notFound } from "#src/auth/http-errors";
@@ -13,7 +13,8 @@ import {
   type SuspendTarget,
 } from "#src/console/doors";
 import { readOrganizer, readOrganizers } from "#src/console/organizers";
-import { holdBack, type DeviceLimit } from "#src/devices/limits";
+import { callerOf, throttled } from "#src/console/throttle";
+import type { DeviceLimit } from "#src/devices/limits";
 import type { SuspendedSet } from "#src/events/suspended-set";
 
 const BODY_LIMIT = 8192;
@@ -57,34 +58,6 @@ export type ConsoleOrganizerDeps = Readonly<{
   /** Told at once when a suspension changes here; other instances follow within 10 s. */
   suspended: SuspendedSet;
 }>;
-
-/** The admin of a request that passed the console hook (activation/routes.ts). */
-function adminOf(request: FastifyRequest): { id: string } {
-  const account = request.staff?.account;
-  // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the console hook sets it or answers
-  if (account === undefined) {
-    throw notFound();
-  }
-  return { id: account.id };
-}
-
-async function throttled(
-  deps: ConsoleOrganizerDeps,
-  request: FastifyRequest,
-  reply: FastifyReply,
-  limit: DeviceLimit,
-): Promise<{ id: string }> {
-  const who = adminOf(request);
-  // Keyed per bucket, so the navigation's ticket count on the same page load never takes this lock.
-  await holdBack(
-    deps.pool,
-    [{ limit, key: deps.keys.userKey(`${limit.bucket}:${who.id}`) }],
-    true,
-    reply,
-    true,
-  );
-  return who;
-}
 
 function registerSuspensionRoutes(scope: FastifyInstance, deps: ConsoleOrganizerDeps): void {
   const targets: ReadonlyArray<
@@ -164,7 +137,7 @@ export function registerConsoleOrganizerRoutes(
   scope.post("/events/:eventId/support", adminIdempotent, async (request, reply) => {
     const { eventId } = parse(eventParams, request.params);
     const { kind, reason } = parse(supportBody, request.body);
-    const grant = await openSupport(deps.pool, adminOf(request), {
+    const grant = await openSupport(deps.pool, callerOf(request), {
       eventId,
       kind,
       reason,
@@ -176,7 +149,7 @@ export function registerConsoleOrganizerRoutes(
   scope.post("/support/:grantId/close", adminIdempotent, async (request, reply) => {
     const { grantId } = parse(grantParams, request.params);
     parse(emptyBody, request.body);
-    await closeSupport(deps.pool, adminOf(request), grantId, request.id);
+    await closeSupport(deps.pool, callerOf(request), grantId, request.id);
     return reply.code(204).send();
   });
 }
