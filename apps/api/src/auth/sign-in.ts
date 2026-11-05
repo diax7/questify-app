@@ -36,6 +36,7 @@ import {
   sweepRetention,
   type Account,
   type PublicAccount,
+  type Surface,
 } from "#src/auth/staff-store";
 import { BUCKETS, countRecent, forget, record, sweepThrottle, tryLock } from "#src/auth/throttle";
 import { GateBusyError, type VerifyGate } from "#src/auth/verify-gate";
@@ -89,8 +90,12 @@ export type SignIn = Readonly<{
     input: { email: string; password: string },
     caller: Caller,
   ) => Promise<PasswordResult>;
+  /**
+   * The second step; `surface` is the host the request came from (`surfaceOf`). The session is a console one only for a
+   * platform admin signing in there (ADR-720).
+   */
   codeStep: (
-    input: { challengeToken: string; code: string },
+    input: { challengeToken: string; code: string; surface: Surface },
     caller: Caller,
   ) => Promise<CodeResult>;
   resend: (input: { challengeToken: string }, caller: Caller) => Promise<ResendResult>;
@@ -390,25 +395,25 @@ async function passwordStep(
 }
 
 /**
- * Inside the caller's transaction, as the user: stores the new session, ends the oldest ones beyond the cap, and audits
- * the opening. Shared by sign-in and sign-up, so both open a session the same way.
+ * Inside the caller's transaction, as the user: stores the new session on its surface, ends the oldest ones beyond the
+ * cap, and audits the opening. Shared by sign-in and sign-up, so both open a session the same way.
  */
 export async function openSession(
   client: PoolClient,
-  staffUserId: string,
-  tokenHash: string,
+  opening: Readonly<{ staffUserId: string; tokenHash: string; surface: Surface }>,
   caller: Caller,
 ): Promise<void> {
   const { id, endedOlder } = await openStaffSession(client, {
-    tokenHash,
+    tokenHash: opening.tokenHash,
     userAgent: caller.userAgent,
     ip: caller.address,
+    surface: opening.surface,
   });
   await recordAudit(client, {
-    actor: { type: "staff", id: staffUserId },
+    actor: { type: "staff", id: opening.staffUserId },
     action: "staff.session.open",
     target: { type: "staff_session", id },
-    after: { endedOlderSessions: endedOlder },
+    after: { endedOlderSessions: endedOlder, surface: opening.surface },
     requestId: caller.requestId,
   });
 }
@@ -444,7 +449,7 @@ async function judgeCode(
 
 async function codeStep(
   deps: SignInDeps,
-  input: { challengeToken: string; code: string },
+  input: { challengeToken: string; code: string; surface: Surface },
   caller: Caller,
 ): Promise<CodeResult> {
   const tokenHash = hashToken(input.challengeToken);
@@ -474,7 +479,15 @@ async function codeStep(
       if (!(await consumeChallenge(client, challenge.id))) {
         return { kind: "challenge_expired" } as const;
       }
-      await openSession(client, account.id, session.hash, caller);
+      // Only a platform admin's sign-in on the console host opens a console session; anyone else gets a dashboard one,
+      // which no console door takes (T-810d plan review 86, item 5).
+      const surface =
+        input.surface === "console" && account.platformRole === "admin" ? "console" : "dashboard";
+      await openSession(
+        client,
+        { staffUserId: account.id, tokenHash: session.hash, surface },
+        caller,
+      );
       return { kind: "signed_in", sessionToken: session.token, account } as const;
     }),
   );

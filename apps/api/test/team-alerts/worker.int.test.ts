@@ -24,6 +24,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("team alert worker", () => {
       email: mail,
       gate: createVerifyGate({ limit: 1, waitMs: 100 }),
       dashboardOrigin: "https://app.questify.test",
+      consoleOrigin: "https://console.questify.test",
       mailFrom: MAIL_FROM,
       intervalMs: 3_600_000,
       log: () => undefined,
@@ -70,7 +71,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("team alert worker", () => {
     expect(mail.sent).toHaveLength(1);
     const [digest] = mail.sent;
     expect(digest?.to).toBe(MAIL_FROM);
-    expect(digest?.text).toContain(`/en/console/reports/event/${first.event}`);
+    expect(digest?.text).toContain(
+      `https://console.questify.test/en/console/reports/event/${first.event}`,
+    );
+    expect(digest?.text).not.toContain("https://app.questify.test");
     expect(digest?.text).not.toContain("@secret");
     const [name] = await f.owner<{ username: string }>(
       "SELECT username FROM player WHERE id = $1",

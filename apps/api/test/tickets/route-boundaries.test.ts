@@ -123,6 +123,7 @@ beforeEach(async () => {
       account: { id: ADMIN, email: "support@test.sa", status: "active", platformRole: "admin" },
       sessionId: "session",
       tokenHash: "",
+      surface: "console",
     };
     request.organizer = { id: "organizer", role: "owner", eventScope: null };
   });

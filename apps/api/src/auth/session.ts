@@ -16,6 +16,7 @@ import {
   type Membership,
   type PublicAccount,
   type SessionSummary,
+  type Surface,
 } from "#src/auth/staff-store";
 
 export const SESSION_COOKIE = "__Host-qs_session";
@@ -23,7 +24,13 @@ export const SESSION_COOKIE = "__Host-qs_session";
 const TOKEN_FORMAT = /^[A-Za-z0-9_-]{43}$/;
 
 export type Authenticated =
-  | Readonly<{ kind: "valid"; sessionId: string; tokenHash: string; account: PublicAccount }>
+  | Readonly<{
+      kind: "valid";
+      sessionId: string;
+      tokenHash: string;
+      surface: Surface;
+      account: PublicAccount;
+    }>
   | Readonly<{ kind: "none" }>
   | Readonly<{ kind: "expired" }>;
 
@@ -96,7 +103,13 @@ async function authenticate(pool: Pool, token: string): Promise<Authenticated> {
         if (session.idleSeconds > AUTH_LIMITS.touchIntervalSeconds) {
           await touchSession(client, session.id);
         }
-        return { kind: "valid", sessionId: session.id, tokenHash: hashToken(token), account };
+        return {
+          kind: "valid",
+          sessionId: session.id,
+          tokenHash: hashToken(token),
+          surface: session.surface,
+          account,
+        };
       },
     ),
   );

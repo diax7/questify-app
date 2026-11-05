@@ -27,7 +27,7 @@ import { registerRehearsalTeamRoutes } from "#src/rehearsal/routes";
 import type { Rehearsal } from "#src/rehearsal/service";
 import type { Sessions } from "#src/auth/session";
 import { callerOf, parse } from "#src/auth/request";
-import { checkOrigin, requireSession } from "#src/auth/staff-guard";
+import { checkCaller, requireSession, requireSurface } from "#src/auth/staff-guard";
 import type { Events } from "#src/events/events";
 import type { SuspendedSet } from "#src/events/suspended-set";
 import { registerEventRoutes } from "#src/events/routes";
@@ -346,20 +346,23 @@ function refuseSupport(
 }
 
 /**
- * Registers every /v1/organizers/:organizerId route in one scope. Its hook runs the staff checks (no-store, Origin,
- * session), then reads the caller's membership of that organizer from the database: a non-member gets 404, the same
- * as an organizer that does not exist, and an editor on an `owner` route gets 403. A Questify admin with a live support
- * grant is seated as an editor of the granted events, on a deny-by-default list of routes (T-701); under a `view` grant
- * only reads pass, each throttled and logged, and its database work runs in read-only transactions (T-712). The database checks
- * the membership or the grant again on every query (migrations 0008, 0114).
+ * Registers every /v1/organizers/:organizerId route in one scope. Its hook runs the staff checks (no-store, the
+ * caller's host before any session lookup, a `dashboard` session; T-810d), then reads the caller's membership of that
+ * organizer from the database: a non-member gets 404, the same as an organizer that does not exist, and an editor on an
+ * `owner` route gets 403. A Questify admin with a live support grant is seated as an editor of the granted events, on a
+ * deny-by-default list of routes (T-701); under a `view` grant only reads pass, each throttled and logged, and its
+ * database work runs in read-only transactions (T-712). The database checks the membership or the grant again on every
+ * query (migrations 0008, 0114).
  */
 export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRoutesDeps): void {
   app.register(
     async (scope) => {
       scope.addHook("onRequest", async (request, reply) => {
         reply.header("cache-control", "no-store");
-        checkOrigin(request, deps.dashboardOrigin, true);
+        checkCaller(request, [deps.dashboardOrigin], true);
         await requireSession(request, reply, deps.sessions);
+        // The console host never shows a dashboard page, so a console session has no business here (ADR-720).
+        requireSurface(request, "dashboard");
         const membership = await principalOf(deps.pool, request);
         const params = request.params as { eventId?: string };
         refuseSupport(request, params, membership);

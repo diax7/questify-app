@@ -7,6 +7,7 @@ import { HttpError } from "#src/http-error";
 import { supportSeatOf } from "#src/organizers/support-seat";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -38,6 +39,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
   let eventBDraft: string;
   let ownerCookie: string;
   let adminCookie: string;
+  let supportCookie = "";
   let strangerCookie: string;
   let playerToken: string;
 
@@ -80,7 +82,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
       [orgA, ownerId, orgB, ownerB],
     );
     ownerCookie = await signInFully(test, "owner@najd.test");
-    adminCookie = await signInFully(test, "admin@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
+    // Support works in the organizer's dashboard on the public host: a second sign-in there (Q-692).
+    supportCookie = await signInFully(test, "admin@questify.test");
     strangerCookie = await signInFully(test, "stranger@najd.test");
     const [player] = await owner<{ id: string }>(
       "INSERT INTO player (username) VALUES ('console_player') RETURNING id",
@@ -105,7 +109,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, { "idempotency-key": randomUUID() }),
+      headers: withSession(cookie, { "idempotency-key": randomUUID() }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const team = (method: Method, path: string, cookie = ownerCookie, payload?: object) =>
@@ -272,7 +276,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
 
   describe("the support seat", () => {
     it("opens one event as an editor, refuses everything else, and closes", async () => {
-      expect((await team("GET", `/events/${eventA}`, adminCookie)).statusCode).toBe(404);
+      expect((await team("GET", `/events/${eventA}`, supportCookie)).statusCode).toBe(404);
       const opened = await call("POST", `/v1/admin/events/${eventA}/support`, adminCookie, {
         kind: "edit",
         reason,
@@ -290,8 +294,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
           },
         ],
       });
-      expect((await team("GET", `/events/${eventA}`, adminCookie)).statusCode).toBe(200);
-      const list = await team("GET", "/events", adminCookie);
+      expect((await team("GET", `/events/${eventA}`, supportCookie)).statusCode).toBe(200);
+      const list = await team("GET", "/events", supportCookie);
       expect(list.statusCode).toBe(200);
       expect(JSON.stringify(list.json())).not.toContain(eventA2);
       const gems = {
@@ -302,7 +306,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
           en: { one: "gem", many: "gems" },
         },
       };
-      expect((await team("PUT", `/events/${eventA}/terms`, adminCookie, gems)).statusCode).toBe(
+      expect((await team("PUT", `/events/${eventA}/terms`, supportCookie, gems)).statusCode).toBe(
         200,
       );
       expect(
@@ -323,15 +327,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
         ["POST", `/events/${eventA}/devices/preview`],
         ["POST", `/events/${eventA}/exports/players`],
       ] as const) {
-        expect((await team(method, path, adminCookie, {})).statusCode, `${method} ${path}`).toBe(
+        expect((await team(method, path, supportCookie, {})).statusCode, `${method} ${path}`).toBe(
           404,
         );
       }
-      expect((await team("POST", `/events/${eventA}/activation`, adminCookie)).statusCode).toBe(
+      expect((await team("POST", `/events/${eventA}/activation`, supportCookie)).statusCode).toBe(
         403,
       );
       expect(
-        (await call("GET", `/v1/organizers/${orgB}/events/${eventB}`, adminCookie)).statusCode,
+        (await call("GET", `/v1/organizers/${orgB}/events/${eventB}`, supportCookie)).statusCode,
       ).toBe(404);
       const view = await call("GET", `/v1/admin/events/${eventA}`, adminCookie);
       expect(view.json()).toMatchObject({
@@ -343,7 +347,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
       expect((await call("POST", `/v1/admin/support/${grant}/close`, adminCookie)).statusCode).toBe(
         404,
       );
-      expect((await team("GET", `/events/${eventA}`, adminCookie)).statusCode).toBe(404);
+      expect((await team("GET", `/events/${eventA}`, supportCookie)).statusCode).toBe(404);
     });
 
     it("keeps writing while the event is suspended (Q-377), and ends at expiry", async () => {
@@ -353,7 +357,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
       });
       const grant = opened.json<{ grant: { grantId: string } }>().grant.grantId;
       await call("POST", `/v1/admin/events/${eventA}/suspend`, adminCookie, { reason });
-      expect((await team("PUT", `/events/${eventA}/terms`, adminCookie, {})).statusCode).toBe(200);
+      expect((await team("PUT", `/events/${eventA}/terms`, supportCookie, {})).statusCode).toBe(
+        200,
+      );
       expect((await team("PUT", `/events/${eventA}/terms`, ownerCookie, {})).statusCode).toBe(423);
       await call("POST", `/v1/admin/events/${eventA}/reactivate`, adminCookie);
       await owner(
@@ -361,7 +367,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
                                   expires_at = expires_at - interval '20 minutes' WHERE id = $1`,
         [grant],
       );
-      expect((await team("GET", `/events/${eventA}`, adminCookie)).statusCode).toBe(404);
+      expect((await team("GET", `/events/${eventA}`, supportCookie)).statusCode).toBe(404);
     });
 
     it("refuses a member admin and a short reason", async () => {
@@ -613,7 +619,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
     let secondCookie = "";
     beforeAll(async () => {
       await createStaff(db.owner, { email: "admin2@questify.test", admin: true });
-      secondCookie = await signInFully(test, "admin2@questify.test");
+      secondCookie = await signInConsole(test, "admin2@questify.test");
     });
     const clear = () => owner(`DELETE FROM auth_throttle WHERE bucket IN ${BUCKETS}`);
 

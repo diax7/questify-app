@@ -9,6 +9,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -45,7 +46,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table and items ove
     test = await startApp(db);
     await createStaff(db.owner, { email: "admin@questify.test", admin: true });
     await createStaff(db.owner, { email: "stranger@najd.test" });
-    adminCookie = await signInFully(test, "admin@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
     memberCookie = await signInFully(test, "stranger@najd.test");
   });
   afterAll(async () => {
@@ -57,7 +58,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table and items ove
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, { "idempotency-key": key ?? randomUUID() }),
+      headers: withSession(cookie, { "idempotency-key": key ?? randomUUID() }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const admin = (method: Method, url: string, payload?: object, key?: string) =>

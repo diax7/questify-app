@@ -9,17 +9,20 @@ export class HttpError extends Error {
    * `authz.denied` like a 403, while the caller sees only the envelope (ADR-703).
    */
   readonly denied: boolean;
+  /** Why access was refused, for the `authz.denied` line only (never sent): such as `wrong_surface` (T-810d). */
+  readonly reason: string | undefined;
 
   constructor(
     status: number,
     code: string,
     message: LocalizedText,
     details: Readonly<Record<string, unknown>> = {},
-    options: Readonly<{ denied?: boolean }> = {},
+    options: Readonly<{ denied?: boolean; reason?: string }> = {},
   ) {
     super(`${code}: ${message.en}`);
     this.status = status;
     this.envelope = apiError(code, message, details);
     this.denied = options.denied ?? false;
+    this.reason = options.reason;
   }
 }

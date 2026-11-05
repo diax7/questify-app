@@ -5,6 +5,7 @@ import { ORGANIZER_PREFIX } from "#src/route-access";
 import { seedAnalytics } from "#test/support/analytics-seed";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -45,6 +46,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
     let ids: Awaited<ReturnType<typeof seedTwoTenants>>;
     let eventP: string;
     let adminCookie: string;
+    let supportCookie: string;
     let routes: Route[];
 
     const owner = async <T extends Row>(sql: string, values: unknown[] = []) =>
@@ -67,7 +69,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         )[0]?.id ?? "";
       await seedAnalytics(db.owner, eventP);
       await createStaff(db.owner, { email: "viewer@questify.test", admin: true });
-      adminCookie = await signInFully(test, "viewer@questify.test");
+      adminCookie = await signInConsole(test, "viewer@questify.test");
+      // The grant is opened in the console; the dashboard is read on the public host, with its own session (Q-692).
+      supportCookie = await signInFully(test, "viewer@questify.test");
       routes = test.app.routeInventory
         .filter(
           (route) => route.url.startsWith(`${ORGANIZER_PREFIX}/`) || route.url === ORGANIZER_PREFIX,
@@ -88,7 +92,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       test.app.inject({
         method: method as "GET",
         url,
-        headers: withSession(adminCookie, { "idempotency-key": randomUUID() }),
+        headers: withSession(
+          url.startsWith("/v1/admin") ? adminCookie : supportCookie,
+          { "idempotency-key": randomUUID() },
+          url,
+        ),
         ...(payload === undefined ? {} : { payload }),
       });
     const open = async (kind: "view" | "edit", eventId = eventP) => {

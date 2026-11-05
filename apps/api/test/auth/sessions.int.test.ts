@@ -381,12 +381,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
       expect((await me(session.cookie)).statusCode).toBe(200);
     });
 
-    it("lets a plain read through from any origin, and a sign-in step from no origin", async () => {
+    it("refuses even a read from another origin (T-810d), and lets a sign-in step from no origin", async () => {
       const user = await createStaff(db.owner, { email: newEmail() });
-      const session = await seedSession(user);
+      const session = await seedSession(user, { idleMinutes: 5 });
+      const before = await stateOf(session.id);
       expect((await me(session.cookie, { origin: "https://elsewhere.example" })).statusCode).toBe(
-        200,
+        403,
       );
+      expect((await stateOf(session.id))?.last_seen_at).toEqual(before?.last_seen_at);
+      expect((await me(session.cookie)).statusCode).toBe(200);
       const noOrigin = await test.app.inject({
         method: "POST",
         url: "/v1/staff/auth/password",

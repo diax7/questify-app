@@ -10,6 +10,7 @@ import { createAuthKeys } from "#src/auth/keys";
 import { BUCKETS } from "#src/auth/throttle";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -95,7 +96,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console player tools over HTTP
     });
     adminId = await createStaff(db.owner, { email: "support@questify.test", admin: true });
     await createStaff(db.owner, { email: "owner@najd.test" });
-    adminCookie = await signInFully(test, "support@questify.test");
+    adminCookie = await signInConsole(test, "support@questify.test");
     memberCookie = await signInFully(test, "owner@najd.test");
     playerId = await newPlayer("layla_records", PHONE, EMAIL);
   });
@@ -114,7 +115,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console player tools over HTTP
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, key === null ? {} : { "idempotency-key": key }),
+      headers: withSession(cookie, key === null ? {} : { "idempotency-key": key }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const reveal = { reasonCode: "support_request", note: NOTE };

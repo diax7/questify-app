@@ -3,6 +3,7 @@ import { organizerFeaturesViewSchema, type OrganizerFeaturesView } from "@questi
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -54,7 +55,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizer features ove
       );
     event = await newEvent(organizer, "NAJD1");
     otherEvent = await newEvent(other, "TABUK1");
-    adminCookie = await signInFully(test, "admin@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
     ownerCookie = await signInFully(test, "owner@najd.test");
   });
   afterAll(async () => {
@@ -66,7 +67,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizer features ove
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, { "idempotency-key": randomUUID() }),
+      headers: withSession(cookie, { "idempotency-key": randomUUID() }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const path = (org = organizer, key = "") => `/v1/admin/organizers/${org}/features${key}`;
@@ -107,7 +108,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizer features ove
       const signedOut = await test.app.inject({
         method,
         url,
-        headers: withSession("", { "idempotency-key": randomUUID() }),
+        headers: withSession("", { "idempotency-key": randomUUID() }, url),
         ...(payload === undefined ? {} : { payload }),
       });
       expect(signedOut.statusCode, `${method} ${url}`).toBe(401);

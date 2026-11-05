@@ -10,6 +10,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -61,7 +62,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
       "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
       [org?.id, memberId],
     );
-    adminCookie = await signInFully(test, "admin@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
     memberCookie = await signInFully(test, "owner@najd.test");
     strangerCookie = await signInFully(test, "stranger@najd.test");
   });
@@ -74,7 +75,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, { "idempotency-key": key ?? randomUUID() }),
+      headers: withSession(cookie, { "idempotency-key": key ?? randomUUID() }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const admin = (method: Method, url: string, payload?: object, key?: string) =>

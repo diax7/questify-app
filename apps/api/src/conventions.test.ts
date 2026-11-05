@@ -618,7 +618,12 @@ describe("the authz.denied line (ADR-703)", () => {
       const kind = request.headers["x-test-kind"];
       const id = "6f1c2d3e-0000-4000-8000-000000000001";
       if (kind === "staff") {
-        request.staff = { account: { id } as PublicAccount, sessionId: "s-1", tokenHash: "" };
+        request.staff = {
+          account: { id } as PublicAccount,
+          sessionId: "s-1",
+          tokenHash: "",
+          surface: "dashboard",
+        };
       } else if (kind === "player") {
         request.player = { id };
       }

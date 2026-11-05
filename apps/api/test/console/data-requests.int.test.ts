@@ -6,6 +6,7 @@ import { BUCKETS } from "#src/auth/throttle";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -100,7 +101,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console data requests over HTT
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, key === null ? {} : { "idempotency-key": key }),
+      headers: withSession(cookie, key === null ? {} : { "idempotency-key": key }, url),
       ...(payload === undefined ? {} : { payload }),
     });
 
@@ -114,7 +115,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console data requests over HTT
     );
     adminId = await createStaff(db.owner, { email: "legal@questify.test", admin: true });
     await createStaff(db.owner, { email: "owner@najd.test" });
-    adminCookie = await signInFully(test, "legal@questify.test");
+    adminCookie = await signInConsole(test, "legal@questify.test");
     memberCookie = await signInFully(test, "owner@najd.test");
   });
   afterAll(async () => {

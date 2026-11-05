@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -56,7 +57,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push to a group (HTTP)", () =>
       "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
       [ids.orgA, memberId],
     );
-    adminCookie = await signInFully(test, "admin@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
     memberCookie = await signInFully(test, "owner@najd.test");
   });
   afterAll(async () => {
@@ -74,7 +75,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push to a group (HTTP)", () =>
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, key === null ? {} : { "idempotency-key": key }),
+      headers: withSession(cookie, key === null ? {} : { "idempotency-key": key }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const admin = (method: Method, url: string, payload?: object, key?: string | null) =>
@@ -301,7 +302,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push to a group (HTTP)", () =>
     it("answers 429 after ten sends an hour from one admin, whatever the answer to each", async () => {
       await reset();
       await createStaff(db.owner, { email: "second-admin@questify.test", admin: true });
-      const cookie = await signInFully(test, "second-admin@questify.test");
+      const cookie = await signInConsole(test, "second-admin@questify.test");
       const send = () =>
         call("POST", "/v1/admin/group-pushes", cookie, body(promoAudience("sa-al-baha")));
       for (let n = 1; n <= 10; n += 1) {

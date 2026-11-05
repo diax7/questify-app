@@ -6,6 +6,7 @@ import type { PublicAccount } from "#src/auth/staff-store";
 import { createTranslationService, type TranslationService } from "#src/translations/service";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -364,12 +365,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
       test.app.inject({
         method,
         url: `/v1/admin/translations${url}`,
-        headers: withSession(cookie),
+        headers: withSession(cookie, {}, `/v1/admin/translations${url}`),
         ...(payload === undefined ? {} : { payload: payload as Record<string, unknown> }),
       });
 
     beforeAll(async () => {
-      cookie = await signInFully(test, "root@questify.test");
+      cookie = await signInConsole(test, "root@questify.test");
     });
 
     it("lists a searched key with its Arabic and English text (FR-1765)", async () => {
@@ -501,7 +502,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
         const response = await test.app.inject({
           method,
           url,
-          headers: withSession(other),
+          headers: withSession(other, {}, url),
           ...(method === "PUT" ? { payload: { en: "x" } } : {}),
         });
         expect(response.statusCode, url).toBe(404);

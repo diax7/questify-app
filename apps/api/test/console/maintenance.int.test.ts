@@ -3,6 +3,7 @@ import { noticesViewSchema, type NoticesView } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -75,7 +76,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance mode and the banne
       "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
       [seed.orgA, member],
     );
-    adminCookie = await signInFully(test, "admin@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
     memberCookie = await signInFully(test, "member@najd.test");
     token = randomBytes(32).toString("base64url");
     await owner(
@@ -149,7 +150,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance mode and the banne
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, { "idempotency-key": randomUUID() }),
+      headers: withSession(cookie, { "idempotency-key": randomUUID() }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const admin = (method: Method, url: string, payload?: object) =>
@@ -225,7 +226,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maintenance mode and the banne
       const signedOut = await test.app.inject({
         method,
         url,
-        headers: withSession("", { "idempotency-key": randomUUID() }),
+        headers: withSession("", { "idempotency-key": randomUUID() }, url),
         ...(payload === undefined ? {} : { payload }),
       });
       expect(signedOut.statusCode, url).toBe(401);

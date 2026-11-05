@@ -9,6 +9,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -57,7 +58,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console feature usage over HTT
        VALUES ($1, 'TABUKU1', 'Fest', 'live', now() - interval '1 hour', now() + interval '3 days')`,
       [other],
     );
-    adminCookie = await signInFully(test, "admin@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
     ownerCookie = await signInFully(test, "owner@najd.test");
   });
   afterAll(async () => {
@@ -66,7 +67,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console feature usage over HTT
   });
 
   const get = (url: string, cookie = adminCookie) =>
-    test.app.inject({ method: "GET", url, headers: withSession(cookie) });
+    test.app.inject({ method: "GET", url, headers: withSession(cookie, {}, url) });
   const page = async (query = ""): Promise<FeatureUsagePage> => {
     const response = await get(`/v1/admin/feature-usage${query}`);
     expect(response.statusCode, response.body).toBe(200);
@@ -85,7 +86,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console feature usage over HTT
     test.app.inject({
       method,
       url,
-      headers: withSession(adminCookie, { "idempotency-key": randomUUID() }),
+      headers: withSession(adminCookie, { "idempotency-key": randomUUID() }, url),
       ...(payload === undefined ? {} : { payload }),
     });
 

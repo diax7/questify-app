@@ -19,7 +19,8 @@ import { createTestDatabase, seedTwoTenants } from "#test/support/test-db";
  * bundled and started by Playwright, never part of the product. Sign-in codes are written to a file the tests read,
  * so the product needs no test endpoint.
  *
- * Settings: TEST_DATABASE_URL, E2E_API_PORT, E2E_WEB_ORIGIN (the browser's origin), E2E_CODES_FILE, E2E_CONTROL_PORT.
+ * Settings: TEST_DATABASE_URL, E2E_API_PORT, E2E_WEB_ORIGIN (the browser's origin), E2E_CONSOLE_ORIGIN (the console
+ * host's), E2E_CODES_FILE, E2E_CONTROL_PORT.
  */
 const required = (name: string): string => {
   const value = process.env[name];
@@ -82,7 +83,10 @@ async function main(): Promise<void> {
   }
   const pool = new Pool({ connectionString: db.appUrl, max: 8 });
   const config = {
-    ...testConfig(db.appUrl, { dashboardOrigin: required("E2E_WEB_ORIGIN") }),
+    ...testConfig(db.appUrl, {
+      dashboardOrigin: required("E2E_WEB_ORIGIN"),
+      consoleOrigin: required("E2E_CONSOLE_ORIGIN"),
+    }),
     port,
   };
   const pushPool = new Pool({ connectionString: db.appUrl, max: 3 });

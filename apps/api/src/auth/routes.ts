@@ -39,7 +39,13 @@ import type { ResendResult, SignIn } from "#src/auth/sign-in";
 import type { SignUp } from "#src/auth/sign-up";
 import type { Invites } from "#src/organizers/accept";
 import { callerOf, parse } from "#src/auth/request";
-import { checkOrigin, requireSession } from "#src/auth/staff-guard";
+import {
+  checkCaller,
+  checkSessionOrigin,
+  requireSession,
+  surfaceOf,
+  type StaffOrigins,
+} from "#src/auth/staff-guard";
 
 export type StaffRoutesDeps = Readonly<{
   signIn: SignIn;
@@ -49,8 +55,11 @@ export type StaffRoutesDeps = Readonly<{
   signUp: SignUp;
   invites: Invites;
   emailChange: EmailChange;
-  /** The one origin allowed to make state-changing requests with the session cookie. */
-  dashboardOrigin: string;
+  /**
+   * The two origins (T-810d): sign-in steps take either; a cookie request takes only its own session's (ADR-721). A
+   * sign-in from `console` opens a console session (ADR-720).
+   */
+  origins: StaffOrigins;
 }>;
 
 const SIGN_IN_BODY_LIMIT = 4096;
@@ -389,7 +398,10 @@ function registerSignInRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): vo
 
   scope.post("/auth/code", open, async (request, reply) => {
     const body = parse(codeBody, request.body);
-    const result = await deps.signIn.codeStep(body, callerOf(request));
+    const result = await deps.signIn.codeStep(
+      { ...body, surface: surfaceOf(request, deps.origins) },
+      callerOf(request),
+    );
     switch (result.kind) {
       case "signed_in": {
         const limits = sessionLimitsFor(result.account.platformRole);
@@ -557,8 +569,9 @@ function failClosed(): never {
 
 /**
  * Registers every /v1/staff route inside one scope whose hook demands a valid session unless the route's access is
- * "public" (the three sign-in steps and the two reset steps). Every route declares its access; the app refuses to start otherwise
- * (route-access.ts).
+ * "public" (the three sign-in steps and the two reset steps). Before any session lookup it refuses a request from
+ * another host or with an Origin that is neither of the two; after it, an Origin must be the session's own (T-810d).
+ * Every route declares its access; the app refuses to start otherwise (route-access.ts).
  */
 export function registerStaffRoutes(app: FastifyInstance, deps: StaffRoutesDeps): void {
   app.register(
@@ -566,9 +579,10 @@ export function registerStaffRoutes(app: FastifyInstance, deps: StaffRoutesDeps)
       scope.addHook("onRequest", async (request, reply) => {
         reply.header("cache-control", "no-store");
         const isPublic = request.routeOptions.config.access === "public";
-        checkOrigin(request, deps.dashboardOrigin, !isPublic);
+        checkCaller(request, [deps.origins.dashboard, deps.origins.console], !isPublic);
         if (!isPublic) {
           await requireSession(request, reply, deps.sessions);
+          checkSessionOrigin(request, deps.origins);
         }
       });
       registerSignInRoutes(scope, deps);

@@ -3,7 +3,9 @@ import type { LightMyRequestResponse } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   browserHeaders,
+  consoleHeaders,
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -1247,7 +1249,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
     test.app.inject({
       method: route.method as "GET" | "POST" | "PATCH" | "DELETE",
       url: route.url.replace(":organizerId", organizerId).replace(/:[a-zA-Z]+/g, MISSING),
-      headers: withSession(cookie),
+      headers: withSession(
+        cookie,
+        {},
+        route.url.replace(":organizerId", organizerId).replace(/:[a-zA-Z]+/g, MISSING),
+      ),
       ...(route.method === "GET" ? {} : { payload: {} }),
     });
 
@@ -1304,10 +1310,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
         const response = await test.app.inject({
           method: route.method as "GET" | "POST" | "DELETE",
           url: route.url.replace(":id", MISSING).replace(":organizerId", MISSING),
-          headers: browserHeaders(),
+          // Only the console host forwards /v1/admin/* (T-810d), so its outsider comes from there.
+          headers: route.url.startsWith("/v1/admin/") ? consoleHeaders() : browserHeaders(),
         });
         expect(response.statusCode, `${route.method} ${route.url}`).toBe(401);
         expect(response.headers["cache-control"]).toBe("no-store");
+      }
+    });
+
+    it("answers every /v1/admin/ route from the public origin, or a same-site fetch, 403 before any session (T-810d)", async () => {
+      const consoleRoutes = routes("admin");
+      for (const route of consoleRoutes) {
+        for (const headers of [
+          browserHeaders(),
+          consoleHeaders({ "sec-fetch-site": "same-site" }),
+        ]) {
+          const response = await test.app.inject({
+            method: route.method as "GET" | "POST" | "DELETE",
+            url: route.url.replace(/:[a-zA-Z]+/g, MISSING),
+            headers,
+          });
+          expect(response.statusCode, `${route.method} ${route.url}`).toBe(403);
+          expect(response.json()).toMatchObject({ code: "csrf_rejected" });
+        }
       }
     });
 
@@ -1405,7 +1430,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
     it("lists only A's own sessions", async () => {
       const list = await test.app.inject({
         url: "/v1/staff/sessions",
-        headers: withSession(cookieA),
+        headers: withSession(cookieA, {}, "/v1/staff/sessions"),
       });
       expect(list.statusCode).toBe(200);
       const listed = list.json<{ sessions: { id: string }[] }>().sessions.map((s) => s.id);
@@ -1421,12 +1446,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
       const attempt = await test.app.inject({
         method: "DELETE",
         url: `/v1/staff/sessions/${sessionB}`,
-        headers: withSession(cookieA),
+        headers: withSession(cookieA, {}, `/v1/staff/sessions/${sessionB}`),
       });
       const missing = await test.app.inject({
         method: "DELETE",
         url: `/v1/staff/sessions/${MISSING}`,
-        headers: withSession(cookieA),
+        headers: withSession(cookieA, {}, `/v1/staff/sessions/${MISSING}`),
       });
       expect(attempt.statusCode).toBe(404);
       expect(missing.statusCode).toBe(404);
@@ -1438,7 +1463,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
       const out = await test.app.inject({
         method: "POST",
         url: "/v1/staff/auth/sign-out",
-        headers: withSession(cookieA),
+        headers: withSession(cookieA, {}, "/v1/staff/auth/sign-out"),
       });
       expect(out.statusCode).toBe(204);
       expect(await stillSignedIn(cookieA)).toBe(401);
@@ -1447,11 +1472,34 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
   });
 
   describe("console routes", () => {
+    it("refuses an active admin's dashboard session on every /v1/admin/ route with 404; the console session passes (T-810d)", async () => {
+      await createStaff(db.owner, { email: "two-hosts@questify.test", admin: true });
+      const dashboard = await signInFully(test, "two-hosts@questify.test");
+      const consoleSeat = await signInConsole(test, "two-hosts@questify.test");
+      const consoleRoutes = routes("admin");
+      expect(consoleRoutes.length).toBeGreaterThanOrEqual(8);
+      for (const route of consoleRoutes) {
+        const url = route.url.replace(/:[a-zA-Z]+/g, MISSING);
+        const response = await test.app.inject({
+          method: route.method as "GET" | "POST" | "PUT" | "DELETE",
+          url,
+          headers: withSession(dashboard, { "idempotency-key": MISSING }, url),
+          ...(route.method === "GET" ? {} : { payload: {} }),
+        });
+        expect(response.statusCode, `${route.method} ${route.url}`).toBe(404);
+      }
+      const queue = await test.app.inject({
+        url: "/v1/admin/activation-requests",
+        headers: withSession(consoleSeat),
+      });
+      expect(queue.statusCode).toBe(200);
+    });
+
     it("keeps every /v1/admin/ route admin-only and answers any other signed-in person 404", async () => {
       await createStaff(db.owner, { email: "not-an-admin@najd.test" });
       await createStaff(db.owner, { email: "retired-admin@questify.test", admin: true });
       const cookie = await signInFully(test, "not-an-admin@najd.test");
-      const retired = await signInFully(test, "retired-admin@questify.test");
+      const retired = await signInConsole(test, "retired-admin@questify.test");
       await db.owner.query(
         "UPDATE staff_user SET platform_role = 'none' WHERE email = 'retired-admin@questify.test'",
       );
@@ -1463,7 +1511,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
           const response = await test.app.inject({
             method: route.method as "GET" | "POST" | "PUT" | "DELETE",
             url: route.url.replace(/:[a-zA-Z]+/g, MISSING),
-            headers: withSession(seat, { "idempotency-key": MISSING }),
+            headers: withSession(
+              seat,
+              { "idempotency-key": MISSING },
+              route.url.replace(/:[a-zA-Z]+/g, MISSING),
+            ),
             ...(route.method === "GET" ? {} : { payload: {} }),
           });
           expect(response.statusCode, `${route.method} ${route.url}`).toBe(404);
@@ -1530,7 +1582,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
       for (const cookie of [ownerCookie, editorCookie]) {
         const response = await test.app.inject({
           url: `/v1/organizers/${organizerOfTeam}/members`,
-          headers: withSession(cookie),
+          headers: withSession(cookie, {}, `/v1/organizers/${organizerOfTeam}/members`),
         });
         expect(response.statusCode).toBe(200);
         expect(response.headers["cache-control"]).toBe("no-store");
@@ -1589,7 +1641,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("refused access is logged (ADR-
       const response = await test.app.inject({
         method: route.method as "GET" | "POST" | "PUT" | "DELETE",
         url: route.url.replace(":organizerId", ids.orgA).replace(/:[a-zA-Z]+/g, MISSING),
-        headers: withSession(cookie, { "idempotency-key": MISSING }),
+        headers: withSession(
+          cookie,
+          { "idempotency-key": MISSING },
+          route.url.replace(":organizerId", ids.orgA).replace(/:[a-zA-Z]+/g, MISSING),
+        ),
         ...(route.method === "GET" ? {} : { payload: {} }),
       });
       expect(response.statusCode, label).toBe(404);

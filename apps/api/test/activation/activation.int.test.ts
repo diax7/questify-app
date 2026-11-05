@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
   freshIp,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -43,7 +44,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event activation over HTTP", (
     );
     ownerCookie = await signInFully(test, "owner@act.test");
     editorCookie = await signInFully(test, "editor@act.test");
-    adminCookie = await signInFully(test, "admin@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
     strangerCookie = await signInFully(test, "stranger@act.test");
   });
   afterAll(async () => {
@@ -76,7 +77,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event activation over HTTP", (
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, headers),
+      headers: withSession(cookie, headers, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const team = (method: "GET" | "POST" | "DELETE", event: string, cookie = ownerCookie) =>

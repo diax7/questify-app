@@ -11,6 +11,8 @@ import type { SmsMessage, SmsResult, SmsSender } from "#src/players/sms";
 import type { TestDatabase } from "#test/support/test-db";
 
 export const DASHBOARD_ORIGIN = "https://app.questify.test";
+/** The console's own host (T-810d): only a sign-in from it opens a session `/v1/admin/*` takes. */
+export const CONSOLE_ORIGIN = "https://console.questify.test";
 export const PASSWORD = "correct horse battery staple";
 
 export function testConfig(
@@ -29,6 +31,7 @@ export function testConfig(
     auth: {
       secret: "t".repeat(40),
       dashboardOrigin: DASHBOARD_ORIGIN,
+      consoleOrigin: CONSOLE_ORIGIN,
       gmail: {
         key: {
           clientEmail: "mailer@questify.iam.gserviceaccount.test",
@@ -214,6 +217,14 @@ export function browserHeaders(extra: Record<string, string> = {}): Record<strin
   return { origin: DASHBOARD_ORIGIN, "x-forwarded-for": freshIp(), ...extra };
 }
 
+/** Headers a browser on the console host sends (T-810d). */
+export function consoleHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return browserHeaders({ origin: CONSOLE_ORIGIN, ...extra });
+}
+
+/** The session cookies opened on the console host, so `withSession` sends each with its own origin. */
+const consoleCookies = new Set<string>();
+
 export async function postPassword(
   test: TestApp,
   email: string,
@@ -268,6 +279,20 @@ export async function signInFully(
   return sessionCookieOf(done);
 }
 
-export function withSession(cookie: string, extra: Record<string, string> = {}) {
-  return browserHeaders({ cookie, ...extra });
+/** Signs in on the console host (T-810d): the session is a console one, the only kind `/v1/admin/*` takes. */
+export async function signInConsole(test: TestApp, email: string): Promise<string> {
+  const cookie = await signInFully(test, email, { origin: CONSOLE_ORIGIN });
+  consoleCookies.add(cookie);
+  return cookie;
+}
+
+/**
+ * A browser's headers with this session cookie, from the host that opened it. Given the door's `url`, a `/v1/admin/*`
+ * call comes from the console host whoever makes it (only the console host forwards it, T-810d): a member there is
+ * refused by the session's surface, not by the Origin.
+ */
+export function withSession(cookie: string, extra: Record<string, string> = {}, url?: string) {
+  return consoleCookies.has(cookie) || url?.startsWith("/v1/admin") === true
+    ? consoleHeaders({ cookie, ...extra })
+    : browserHeaders({ cookie, ...extra });
 }

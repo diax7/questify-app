@@ -15,6 +15,7 @@ import type { CodeResult, PasswordResult, ResendResult, SignIn } from "#src/auth
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 
 const ORIGIN = "https://app.test";
+const CONSOLE = "https://console.app.test";
 const TOKEN = "T".repeat(43);
 
 let app: FastifyInstance;
@@ -24,9 +25,15 @@ const noSessions = {
 } as unknown as Sessions;
 
 const ACCOUNT = { id: "u1", email: "a@x.sa", status: "active", platformRole: "none" } as const;
+let lookups = 0;
 const liveSession = {
-  authenticate: async () => ({ kind: "valid", account: ACCOUNT, sessionId: "s1" }),
+  authenticate: async () => {
+    lookups += 1;
+    return { kind: "valid", account: ACCOUNT, sessionId: "s1", surface: "dashboard" };
+  },
+  memberships: async () => [],
 } as unknown as Sessions;
+let codeSurface: string | undefined;
 
 async function start(results: {
   password?: PasswordResult;
@@ -45,7 +52,10 @@ async function start(results: {
 }): Promise<void> {
   const signIn: SignIn = {
     passwordStep: async () => results.password ?? { kind: "invalid_credentials" },
-    codeStep: async () => results.code ?? { kind: "challenge_expired" },
+    codeStep: async (input) => {
+      codeSurface = input.surface;
+      return results.code ?? { kind: "challenge_expired" };
+    },
     resend: async () => results.resend ?? { kind: "challenge_expired" },
   };
   const passwords: Passwords = {
@@ -91,8 +101,10 @@ async function start(results: {
       start: async () => ({ kind: "email_unavailable" }),
       confirm: async () => ({ kind: "challenge_expired" }),
     },
-    dashboardOrigin: ORIGIN,
+    origins: { dashboard: ORIGIN, console: CONSOLE },
   });
+  lookups = 0;
+  codeSurface = undefined;
   await app.ready();
 }
 
@@ -561,5 +573,74 @@ describe("invite answers (T-101)", () => {
       password: "a long enough password",
     });
     expect(response.json()).toEqual({ challengeToken: TOKEN, expiresInSeconds: 600 });
+  });
+});
+
+const me = (headers: Record<string, string>) =>
+  app.inject({
+    method: "GET",
+    url: "/v1/staff/me",
+    headers: { cookie: `__Host-qs_session=${TOKEN}`, ...headers },
+  });
+
+describe("which host a staff request may come from (T-810d)", () => {
+  it.each(["same-site", "cross-site"])(
+    "refuses a %s fetch before the session is looked up",
+    async (site) => {
+      await start({ signedIn: true });
+      const response = await me({ "sec-fetch-site": site });
+      expect(response.statusCode).toBe(403);
+      expect(response.json()).toMatchObject({ code: "csrf_rejected" });
+      expect(lookups).toBe(0);
+    },
+  );
+
+  it("refuses an Origin that is neither host before the session is looked up", async () => {
+    await start({ signedIn: true });
+    const response = await me({ origin: "https://questify.evil.example" });
+    expect(response.statusCode).toBe(403);
+    expect(lookups).toBe(0);
+  });
+
+  it("refuses the console's Origin on a dashboard session, after the lookup", async () => {
+    await start({ signedIn: true });
+    const response = await me({ origin: CONSOLE });
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "csrf_rejected" });
+    expect(lookups).toBe(1);
+  });
+
+  it("takes a same-origin read, its own Origin, and a server render with neither header", async () => {
+    await start({ signedIn: true });
+    expect((await me({ "sec-fetch-site": "same-origin" })).statusCode).toBe(200);
+    expect((await me({ origin: ORIGIN })).statusCode).toBe(200);
+    expect((await me({ "sec-fetch-site": "none" })).statusCode).toBe(200);
+    expect((await me({})).statusCode).toBe(200);
+  });
+
+  it("takes a sign-in step from either host and opens the surface of its origin", async () => {
+    await start({});
+    const body = { challengeToken: TOKEN, code: "123456" };
+    await app.inject({
+      method: "POST",
+      url: "/v1/staff/auth/code",
+      headers: { origin: CONSOLE },
+      payload: body,
+    });
+    expect(codeSurface).toBe("console");
+    await app.inject({
+      method: "POST",
+      url: "/v1/staff/auth/code",
+      headers: { origin: ORIGIN },
+      payload: body,
+    });
+    expect(codeSurface).toBe("dashboard");
+    const refused = await app.inject({
+      method: "POST",
+      url: "/v1/staff/auth/code",
+      headers: { origin: "https://evil.example" },
+      payload: body,
+    });
+    expect(refused.statusCode).toBe(403);
   });
 });

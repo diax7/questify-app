@@ -3,6 +3,7 @@ import { readinessSchema, readinessSoonSchema } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -43,13 +44,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("readiness over HTTP", () => {
     test.app.inject({
       method: "GET",
       url: `/v1/organizers/${org}/events/${ev}/readiness`,
-      ...(cookie === null ? {} : { headers: withSession(cookie) }),
+      ...(cookie === null
+        ? {}
+        : { headers: withSession(cookie, {}, `/v1/organizers/${org}/events/${ev}/readiness`) }),
     });
   const list = (cookie: string | null = adminCookie) =>
     test.app.inject({
       method: "GET",
       url: "/v1/admin/readiness",
-      ...(cookie === null ? {} : { headers: withSession(cookie) }),
+      ...(cookie === null ? {} : { headers: withSession(cookie, {}, "/v1/admin/readiness") }),
     });
 
   beforeAll(async () => {
@@ -68,7 +71,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("readiness over HTTP", () => {
     );
     ownerCookie = await signInFully(test, "owner@ready.test");
     await createStaff(db.owner, { email: "root@ready.test", admin: true });
-    adminCookie = await signInFully(test, "root@ready.test");
+    adminCookie = await signInConsole(test, "root@ready.test");
   });
   afterAll(async () => {
     await test.close();

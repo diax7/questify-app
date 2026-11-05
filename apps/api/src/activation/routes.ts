@@ -16,7 +16,7 @@ import {
 } from "#src/auth/http-errors";
 import { callerOf, parse } from "#src/auth/request";
 import type { Sessions } from "#src/auth/session";
-import { checkOrigin, requireSession } from "#src/auth/staff-guard";
+import { checkCaller, requireSession, requireSurface } from "#src/auth/staff-guard";
 import type { PublicAccount } from "#src/auth/staff-store";
 import {
   registerConsolePlatformRoutes,
@@ -148,7 +148,8 @@ export type ConsoleRoutesDeps = Readonly<{
   activation: Activation;
   settings: SettingsService;
   sessions: Sessions;
-  dashboardOrigin: string;
+  /** The console's own origin (T-810d): the only one these routes take, on every method. */
+  consoleOrigin: string;
   /** Questify's ticket queue (T-312), behind the same hook. */
   tickets: ConsoleTicketDeps;
   /** The Questify quests page (T-403b), behind the same hook. */
@@ -268,17 +269,19 @@ function registerConsoleWrites(scope: FastifyInstance, deps: ConsoleRoutesDeps):
 }
 
 /**
- * The console's activation routes (FR-1021, FR-1402), all under /v1/admin/. The hook runs the staff checks, then
- * answers 404 to anyone who is not an active platform admin, so the console is not advertised. The database checks the
- * admin again inside every definer (`app_admin_id`, migration 0027).
+ * The console's activation routes (FR-1021, FR-1402), all under /v1/admin/. The hook refuses a request from another
+ * host before it looks up any session (T-810d), takes only a `console` session (one opened on the console's own
+ * origin, ADR-720), then answers 404 to anyone who is not an active platform admin, so the console is not advertised.
+ * The database checks the admin again inside every definer (`app_admin_id`, migration 0027).
  */
 export function registerConsoleRoutes(app: FastifyInstance, deps: ConsoleRoutesDeps): void {
   app.register(
     async (scope) => {
       scope.addHook("onRequest", async (request, reply) => {
         reply.header("cache-control", "no-store");
-        checkOrigin(request, deps.dashboardOrigin, true);
+        checkCaller(request, [deps.consoleOrigin], true);
         await requireSession(request, reply, deps.sessions);
+        requireSurface(request, "console");
         const account = request.staff?.account;
         if (account?.platformRole !== "admin" || account.status !== "active") {
           throw hiddenNotFound();

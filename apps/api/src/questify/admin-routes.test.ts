@@ -46,6 +46,7 @@ function build(answer: unknown = { ok: true }) {
         account: { id: ADMIN } as PublicAccount,
         sessionId: "session-1",
         tokenHash: "",
+        surface: "console",
       };
     }
   });

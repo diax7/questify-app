@@ -12,6 +12,7 @@ import { createAuthKeys } from "#src/auth/keys";
 import { optOutToken } from "#src/marketing/opt-out";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   testConfig,
@@ -47,7 +48,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("marketing and preferences over
     f = await questifyFixture();
     test = await startApp(f.db);
     await createStaff(f.db.owner, { email: "root@marketing.test", admin: true });
-    adminCookie = await signInFully(test, "root@marketing.test");
+    adminCookie = await signInConsole(test, "root@marketing.test");
     await createStaff(f.db.owner, { email: "staff@marketing.test" });
     staffCookie = await signInFully(test, "staff@marketing.test");
   });
@@ -106,12 +107,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("marketing and preferences over
     return row?.language;
   };
 
-  const consoleGet = (cookie: string | null, player: string) =>
-    test.app.inject({
+  const consoleGet = (cookie: string | null, player: string) => {
+    const url = `/v1/admin/players/${player}/marketing-consent`;
+    return test.app.inject({
       method: "GET",
-      url: `/v1/admin/players/${player}/marketing-consent`,
-      headers: cookie === null ? {} : withSession(cookie),
+      url,
+      headers: cookie === null ? {} : withSession(cookie, {}, url),
     });
+  };
 
   const optOut = (token: string) =>
     test.app.inject({ method: "POST", url: "/v1/public/marketing/opt-out", payload: { token } });
@@ -215,7 +218,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("marketing and preferences over
         const staff = await test.app.inject({
           method,
           url,
-          headers: withSession(staffCookie),
+          headers: withSession(staffCookie, {}, url),
           ...payload,
         });
         expect(staff.statusCode, `${method} ${url}`).toBe(401);

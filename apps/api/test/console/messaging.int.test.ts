@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -46,7 +47,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("message templates and support 
       "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
       [org?.id, ownerId],
     );
-    adminCookie = await signInFully(test, "admin@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
     ownerCookie = await signInFully(test, "owner@najd.test");
   });
   afterAll(async () => {
@@ -58,7 +59,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("message templates and support 
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, { "idempotency-key": randomUUID() }),
+      headers: withSession(cookie, { "idempotency-key": randomUUID() }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const admin = (method: Method, url: string, payload?: object) =>
@@ -87,7 +88,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("message templates and support 
         const anonymous = await test.app.inject({
           method,
           url,
-          headers: withSession("", { "idempotency-key": randomUUID() }),
+          headers: withSession("", { "idempotency-key": randomUUID() }, url),
           ...(payload === undefined ? {} : { payload }),
         });
         expect(anonymous.statusCode, url).toBe(401);

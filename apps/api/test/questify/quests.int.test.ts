@@ -9,7 +9,7 @@ import {
 } from "@questify/shared";
 import {
   createStaff,
-  signInFully,
+  signInConsole,
   startApp,
   withSession,
   type TestApp,
@@ -36,7 +36,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests routes (T-403b
     f = await questifyFixture();
     test = await startApp(f.db);
     await createStaff(f.db.owner, { email: "quests-admin@questify.test", admin: true });
-    cookie = await signInFully(test, "quests-admin@questify.test");
+    cookie = await signInConsole(test, "quests-admin@questify.test");
   });
   afterAll(async () => {
     await test.close();

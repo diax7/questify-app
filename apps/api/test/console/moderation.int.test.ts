@@ -3,6 +3,7 @@ import { reportDetailSchema, reportQueueSchema, teamHoldsSchema } from "@questif
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -64,7 +65,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reports and moderation over HT
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, method === "GET" ? {} : { "idempotency-key": randomUUID() }),
+      headers: withSession(
+        cookie,
+        method === "GET" ? {} : { "idempotency-key": randomUUID() },
+        url,
+      ),
       ...(payload === undefined ? {} : { payload }),
     });
 
@@ -76,7 +81,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reports and moderation over HT
     });
     await createStaff(db.owner, { email: "mod@questify.test", admin: true });
     const staff = await createStaff(db.owner, { email: "owner@mod.test" });
-    adminCookie = await signInFully(test, "mod@questify.test");
+    adminCookie = await signInConsole(test, "mod@questify.test");
     teamCookie = await signInFully(test, "owner@mod.test");
     [org] = (
       await owner<{ id: string }>(

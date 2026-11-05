@@ -3,6 +3,7 @@ import { eventLayersSchema, type EventLayers } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -46,7 +47,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event feature layers over HTTP
     editor = await staff("editor", "editor", fixture.ids.orgA);
     otherOwner = await staff("other", "owner", fixture.ids.orgB);
     await createStaff(fixture.db.owner, { email: "admin@layers.test", admin: true });
-    admin = await signInFully(test, "admin@layers.test");
+    admin = await signInConsole(test, "admin@layers.test");
   });
   afterAll(async () => {
     await test.close();
@@ -57,7 +58,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event feature layers over HTTP
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, { "idempotency-key": randomUUID() }),
+      headers: withSession(cookie, { "idempotency-key": randomUUID() }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const base = (event: string, organizer = fixture.ids.orgA) =>

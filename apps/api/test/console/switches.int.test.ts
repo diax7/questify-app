@@ -3,6 +3,7 @@ import { switchesViewSchema, type SwitchesView } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -48,7 +49,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console switches over HTTP", (
         [row?.id, staff, role],
       );
     }
-    adminCookie = await signInFully(test, "admin@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
     ownerCookie = await signInFully(test, "owner@najd.test");
     editorCookie = await signInFully(test, "editor@najd.test");
   });
@@ -61,7 +62,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console switches over HTTP", (
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, { "idempotency-key": randomUUID() }),
+      headers: withSession(cookie, { "idempotency-key": randomUUID() }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const admin = (method: Method, url: string, payload?: object) =>
@@ -99,7 +100,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console switches over HTTP", (
       const signedOut = await test.app.inject({
         method,
         url,
-        headers: withSession("", { "idempotency-key": randomUUID() }),
+        headers: withSession("", { "idempotency-key": randomUUID() }, url),
         ...(payload === undefined ? {} : { payload }),
       });
       expect(signedOut.statusCode, `${method} ${url}`).toBe(401);

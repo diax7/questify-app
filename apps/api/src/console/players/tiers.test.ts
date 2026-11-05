@@ -39,6 +39,7 @@ function build(outcome = "changed") {
       account: { id: ADMIN } as PublicAccount,
       sessionId: "session-1",
       tokenHash: "",
+      surface: "console",
     };
   });
   const keys = { userKey: () => Buffer.alloc(32, 7), contactThrottleKey: () => Buffer.alloc(32) };

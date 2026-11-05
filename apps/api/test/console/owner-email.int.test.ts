@@ -6,8 +6,10 @@ import { BUCKETS } from "#src/auth/throttle";
 import {
   PASSWORD,
   browserHeaders,
+  consoleHeaders,
   createStaff,
   postPassword,
+  signInConsole,
   signInFully,
   startApp,
   testConfig,
@@ -52,7 +54,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
     });
     await createStaff(db.owner, { email: "admin@questify.test", admin: true });
     await createStaff(db.owner, { email: "stranger@najd.test" });
-    adminCookie = await signInFully(test, "admin@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
     strangerCookie = await signInFully(test, "stranger@najd.test");
   }, 180_000);
   afterAll(async () => {
@@ -79,7 +81,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
     test.app.inject({
       method: "POST",
       url,
-      headers: withSession(cookie, { "idempotency-key": randomUUID() }),
+      headers: withSession(cookie, { "idempotency-key": randomUUID() }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const start = (org: string, newEmail: string, cookie = adminCookie) =>
@@ -119,7 +121,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
     const anonymous = await test.app.inject({
       method: "POST",
       url: `/v1/admin/organizers/${who.org}/owner-email`,
-      headers: browserHeaders({ "idempotency-key": randomUUID() }),
+      headers: consoleHeaders({ "idempotency-key": randomUUID() }),
       payload: { newEmail: "x@mail.test", identityCheck: "other", reason: REASON },
     });
     expect([401, 404]).toContain(anonymous.statusCode);
@@ -161,7 +163,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
     const me = await test.app.inject({
       method: "GET",
       url: "/v1/staff/me",
-      headers: withSession(ownerCookie),
+      headers: withSession(ownerCookie, {}, "/v1/staff/me"),
     });
     expect(me.statusCode).toBe(401);
     expect((await postPassword(test, c.newEmail)).statusCode).toBe(200);
@@ -297,7 +299,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
     const page = await test.app.inject({
       method: "GET",
       url: `/v1/admin/organizers/${c.org}`,
-      headers: withSession(adminCookie),
+      headers: withSession(adminCookie, {}, `/v1/admin/organizers/${c.org}`),
     });
     expect(page.json()).toMatchObject({
       ownerEmailChange: { id: c.changeId, state: "pending", resends: 1, newEmail: c.newEmail },
@@ -324,7 +326,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
       test.app.inject({
         method: "GET",
         url: "/v1/admin/moderation-addresses",
-        headers: withSession(adminCookie),
+        headers: withSession(adminCookie, {}, "/v1/admin/moderation-addresses"),
       });
     expect((await read()).json()).toEqual({
       alertEmail: null,
@@ -335,7 +337,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
       test.app.inject({
         method: "PUT",
         url: "/v1/admin/moderation-addresses",
-        headers: withSession(adminCookie, { "idempotency-key": randomUUID() }),
+        headers: withSession(
+          adminCookie,
+          { "idempotency-key": randomUUID() },
+          "/v1/admin/moderation-addresses",
+        ),
         payload,
       });
     expect((await put({ alertEmail: "nope", appealEmail: null })).statusCode).toBe(422);
@@ -344,7 +350,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
     const stranger = await test.app.inject({
       method: "GET",
       url: "/v1/admin/moderation-addresses",
-      headers: withSession(strangerCookie),
+      headers: withSession(strangerCookie, {}, "/v1/admin/moderation-addresses"),
     });
     expect(stranger.statusCode).toBe(404);
   });

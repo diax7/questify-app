@@ -126,6 +126,7 @@ function logDenied(request: FastifyRequest, error: HttpError): void {
     route: request.routeOptions.url ?? "unmatched",
     status: error.status,
     code: error.envelope.code,
+    ...(error.reason === undefined ? {} : { reason: error.reason }),
     ...actorOf(request),
   });
 }

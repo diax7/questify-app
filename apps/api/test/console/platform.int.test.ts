@@ -8,6 +8,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -70,8 +71,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console platform pages over HT
       "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
       [org?.id, memberId],
     );
-    adminCookie = await signInFully(test, "admin@questify.test");
-    nightCookie = await signInFully(test, "night@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
+    nightCookie = await signInConsole(test, "night@questify.test");
     memberCookie = await signInFully(test, "owner@najd.test");
     strangerCookie = await signInFully(test, "stranger@najd.test");
   });
@@ -84,7 +85,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console platform pages over HT
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, { "idempotency-key": randomUUID() }),
+      headers: withSession(cookie, { "idempotency-key": randomUUID() }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const reason = "Laptop lost at the airport";
@@ -243,7 +244,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console platform pages over HT
     });
 
     it("end the same admin's other session but refuse to end the one asking", async () => {
-      const second = await signInFully(test, "admin@questify.test");
+      const second = await signInConsole(test, "admin@questify.test");
       const sessions = await sessionIdsOf(adminId);
       expect(sessions).toHaveLength(2);
       const [first, other] = sessions;
@@ -259,7 +260,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console platform pages over HT
     });
 
     it("refuse a short reason, an unknown or ended session and a member's session, and change nothing", async () => {
-      const third = await signInFully(test, "night@questify.test");
+      const third = await signInConsole(test, "night@questify.test");
       const [nightSession] = await sessionIdsOf(nightId);
       const [memberSession] = await sessionIdsOf(memberId);
       const short = await call("POST", `/v1/admin/sessions/${nightSession}/end`, adminCookie, {

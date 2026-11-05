@@ -15,6 +15,7 @@ import {
   browserHeaders,
   createStaff,
   freshIp,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -75,7 +76,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("invitations over HTTP", () => 
     cookies.editor = await member("editor@iv.test", f.ids.orgA, "editor", null);
     cookies.scoped = await member("scoped@iv.test", f.ids.orgA, "editor", [f.ids.eventA]);
     await createStaff(f.db.owner, { email: "admin@iv.test", admin: true });
-    cookies.admin = await signInFully(test, "admin@iv.test");
+    cookies.admin = await signInConsole(test, "admin@iv.test");
   });
   afterAll(async () => {
     await test.close();
@@ -95,6 +96,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("invitations over HTTP", () => 
       headers: withSession(
         cookie,
         key === null || method === "GET" ? {} : { "idempotency-key": key },
+        url,
       ),
       ...(payload === undefined ? {} : { payload: payload as object }),
     });

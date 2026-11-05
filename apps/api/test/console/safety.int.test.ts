@@ -3,6 +3,7 @@ import { banAnswerSchema, retiredPageSchema, wordsPageSchema } from "@questify/s
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -50,7 +51,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console safety tools over HTTP
     });
     await createStaff(db.owner, { email: "safety@questify.test", admin: true });
     await createStaff(db.owner, { email: "owner@najd.test" });
-    adminCookie = await signInFully(test, "safety@questify.test");
+    adminCookie = await signInConsole(test, "safety@questify.test");
     memberCookie = await signInFully(test, "owner@najd.test");
     playerId = await newPlayer();
   });
@@ -63,7 +64,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console safety tools over HTTP
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, method === "GET" ? {} : { "idempotency-key": randomUUID() }),
+      headers: withSession(
+        cookie,
+        method === "GET" ? {} : { "idempotency-key": randomUUID() },
+        url,
+      ),
       ...(payload === undefined ? {} : { payload }),
     });
 

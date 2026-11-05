@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
   freshIp,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -30,7 +31,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console review demo over HTTP"
     test = await startApp(db);
     await createStaff(db.owner, { email: "admin@questify.test", admin: true });
     await createStaff(db.owner, { email: "owner@najd.test" });
-    adminCookie = await signInFully(test, "admin@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
     ownerCookie = await signInFully(test, "owner@najd.test");
   });
   afterAll(async () => {
@@ -47,7 +48,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console review demo over HTTP"
     test.app.inject({
       method,
       url,
-      headers: withSession(cookie, { "idempotency-key": crypto.randomUUID() }),
+      headers: withSession(cookie, { "idempotency-key": crypto.randomUUID() }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const askCode = (phone: string, address = freshIp()) =>

@@ -8,6 +8,7 @@ const REQUIRED = {
   QR_SECRET: "q".repeat(32),
   REWARD_CODE_SECRET: "r".repeat(32),
   DASHBOARD_ORIGIN: "https://app.questify.sa",
+  CONSOLE_ORIGIN: "https://console.questify.sa",
   GMAIL_SERVICE_ACCOUNT_KEY: JSON.stringify({
     type: "service_account",
     client_email: "mailer@questify.iam.gserviceaccount.com",
@@ -56,6 +57,7 @@ describe("loadConfig", () => {
       auth: {
         secret: REQUIRED.AUTH_SECRET,
         dashboardOrigin: "https://app.questify.sa",
+        consoleOrigin: "https://console.questify.sa",
         gmail: {
           key: {
             clientEmail: "mailer@questify.iam.gserviceaccount.com",
@@ -183,6 +185,29 @@ describe("loadConfig", () => {
   it("accepts a local dashboard origin with a port", () => {
     const config = loadConfig({ ...REQUIRED, DASHBOARD_ORIGIN: "http://localhost:3001" });
     expect(config.auth.dashboardOrigin).toBe("http://localhost:3001");
+  });
+
+  it("reads the console origin beside the dashboard's", () => {
+    expect(loadConfig(REQUIRED).auth.consoleOrigin).toBe("https://console.questify.sa");
+  });
+
+  it("refuses a missing console origin, naming the setting", () => {
+    expect(() => loadConfig({ ...REQUIRED, CONSOLE_ORIGIN: "" })).toThrow(
+      /CONSOLE_ORIGIN is required/,
+    );
+  });
+
+  it.each(["https://console.questify.sa/", "console.questify.sa", "nonsense"])(
+    "refuses the console origin %j",
+    (value) => {
+      expect(() => loadConfig({ ...REQUIRED, CONSOLE_ORIGIN: value })).toThrow(/CONSOLE_ORIGIN/);
+    },
+  );
+
+  it("refuses a console origin equal to the dashboard's, naming both settings", () => {
+    expect(() => loadConfig({ ...REQUIRED, CONSOLE_ORIGIN: REQUIRED.DASHBOARD_ORIGIN })).toThrow(
+      /CONSOLE_ORIGIN must be a different host from DASHBOARD_ORIGIN/,
+    );
   });
 
   it("refuses a Resend key without its From address, and the other way round", () => {

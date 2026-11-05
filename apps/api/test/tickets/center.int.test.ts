@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loggerOptions } from "#src/app";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   testConfig,
@@ -57,7 +58,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the ticket center over HTTP", 
     );
     await createStaff(db.owner, { email: "support@questify.test", admin: true });
     ownerCookie = await signInFully(test, "owner@center.test");
-    adminCookie = await signInFully(test, "support@questify.test");
+    adminCookie = await signInConsole(test, "support@questify.test");
   });
   afterAll(async () => {
     await test.close();
@@ -119,7 +120,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the ticket center over HTTP", 
     target.app.inject({
       method,
       url,
-      headers: withSession(cookie, { "idempotency-key": randomUUID() }),
+      headers: withSession(cookie, { "idempotency-key": randomUUID() }, url),
       ...(payload === undefined ? {} : { payload }),
     });
   const dashboard = (method: "GET" | "POST", path: string, payload?: object) =>
@@ -380,7 +381,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the ticket center over HTTP", 
     });
     try {
       await createStaff(db.owner, { email: "busy@questify.test", admin: true });
-      const busy = await signInFully(logged, "busy@questify.test");
+      const busy = await signInConsole(logged, "busy@questify.test");
       let last = 0;
       for (let call = 0; call < 121; call += 1) {
         last = (await staff(busy, "GET", "/v1/admin/tickets/counts", undefined, logged)).statusCode;
@@ -403,7 +404,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the ticket center over HTTP", 
     });
     try {
       const cookie = await signInFully(logged, "owner@center.test");
-      const admin = await signInFully(logged, "support@questify.test");
+      const admin = await signInConsole(logged, "support@questify.test");
       const event = await newEvent();
       const sara = await newPlayer(event);
       const target = await newPlayer(event);

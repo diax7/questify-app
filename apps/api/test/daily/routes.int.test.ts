@@ -12,6 +12,7 @@ import type { PublicAccount } from "#src/auth/staff-store";
 import { createSettingsService, type SettingsService } from "#src/settings/service";
 import {
   createStaff,
+  signInConsole,
   signInFully,
   startApp,
   withSession,
@@ -61,7 +62,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily games over HTTP", ()
     );
     const adminId = await createStaff(f.db.owner, { email: "root@daily.test", admin: true });
     admin = { id: adminId, email: "root@daily.test", status: "active", platformRole: "admin" };
-    cookie = await signInFully(test, "root@daily.test");
+    cookie = await signInConsole(test, "root@daily.test");
     await createStaff(f.db.owner, { email: "staff@daily.test" });
     staffCookie = await signInFully(test, "staff@daily.test");
     await f.listWords("en", ["adieu", "stomp", "light"]);
@@ -91,7 +92,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily games over HTTP", ()
     test.app.inject({
       method,
       url: `/v1/admin/daily${url}`,
-      headers: withSession(cookie, { "idempotency-key": key }),
+      headers: withSession(cookie, { "idempotency-key": key }, `/v1/admin/daily${url}`),
       ...(payload === undefined ? {} : { payload }),
     });
   /** The `daily.*` log lines written since `from` lines were logged. */
@@ -134,7 +135,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily games over HTTP", ()
     const staff = await test.app.inject({
       method: "GET",
       url: "/v1/me/daily",
-      headers: withSession(staffCookie),
+      headers: withSession(staffCookie, {}, "/v1/me/daily"),
     });
     expect(staff.statusCode).toBe(401);
   });
@@ -400,7 +401,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily games over HTTP", ()
     const bare = await test.app.inject({
       method: "POST",
       url: "/v1/admin/daily/questions",
-      headers: withSession(cookie),
+      headers: withSession(cookie, {}, "/v1/admin/daily/questions"),
       payload: questionFields(8),
     });
     expect([bare.statusCode, bare.json().code]).toEqual([400, "idempotency_key_required"]);
@@ -417,7 +418,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily games over HTTP", ()
       const staff = await test.app.inject({
         method,
         url,
-        headers: withSession(staffCookie, { "idempotency-key": randomUUID() }),
+        headers: withSession(staffCookie, { "idempotency-key": randomUUID() }, url),
         ...(method === "GET" ? {} : { payload: {} }),
       });
       expect(staff.statusCode, `${method} ${url}`).toBe(404);

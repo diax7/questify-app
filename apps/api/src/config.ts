@@ -10,6 +10,11 @@ export type AuthConfig = Readonly<{
   secret: string;
   /** The one origin of the dashboard, which proxies /v1. State-changing cookie requests must come from it. */
   dashboardOrigin: string;
+  /**
+   * The console's own origin (T-810d, ADR-723), a different host of the same web app. Only a sign-in from it opens a
+   * console session, the only kind `/v1/admin/*` takes (ADR-720).
+   */
+  consoleOrigin: string;
   /** The Gmail API sender (ADR-112): a service account acting for a Workspace mailbox, sending from `from`. */
   gmail: Readonly<{ key: ServiceAccountKey; from: string; actAs: string | undefined }>;
   /** The backup email provider. Present only when both its key and its verified From address are set. */
@@ -158,9 +163,17 @@ function authConfig(env: Env): AuthConfig {
       "RESEND_API_KEY and RESEND_FROM go together: Resend only sends from an address on a verified domain.",
     );
   }
+  const dashboardOrigin = origin(env, "DASHBOARD_ORIGIN");
+  const consoleOrigin = origin(env, "CONSOLE_ORIGIN");
+  if (consoleOrigin === dashboardOrigin) {
+    throw new Error(
+      `CONSOLE_ORIGIN must be a different host from DASHBOARD_ORIGIN (both are "${consoleOrigin}"); use the console's own host, such as https://console.questify.nafes.com.`,
+    );
+  }
   return {
     secret,
-    dashboardOrigin: origin(env, "DASHBOARD_ORIGIN"),
+    dashboardOrigin,
+    consoleOrigin,
     gmail: {
       key: parseServiceAccountKey(
         required(env, "GMAIL_SERVICE_ACCOUNT_KEY"),

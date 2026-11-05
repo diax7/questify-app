@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
   freshIp,
-  signInFully,
+  signInConsole,
   startApp,
   withSession,
   type TestApp,
@@ -88,7 +88,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("review demo QR picker over HTT
     db = await createTestDatabase();
     test = await startApp(db);
     await createStaff(db.owner, { email: "admin@questify.test", admin: true });
-    adminCookie = await signInFully(test, "admin@questify.test");
+    adminCookie = await signInConsole(test, "admin@questify.test");
     expect((await admin("/v1/admin/review-demo", { phone: "+966500000730" })).statusCode).toBe(201);
     expect((await admin("/v1/admin/review-demo/prepare", { version: "1.5.0" })).statusCode).toBe(
       200,

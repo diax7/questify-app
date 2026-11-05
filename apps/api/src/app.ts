@@ -227,6 +227,7 @@ function startAlertTicks(
   if (options.teamAlertIntervalMs !== undefined) {
     const worker = startTeamAlertWorker({
       ...emailChange,
+      consoleOrigin: options.config.auth.consoleOrigin,
       mailFrom: options.config.auth.gmail.from,
       intervalMs: options.teamAlertIntervalMs,
       log: (level, fields) => app.log[level](fields),
@@ -355,7 +356,7 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
     activation: shared.activation,
     settings: shared.settings,
     sessions: shared.sessions,
-    dashboardOrigin: config.auth.dashboardOrigin,
+    consoleOrigin: config.auth.consoleOrigin,
     tickets: { pool, keys: shared.keys },
     questify: { pool },
     invitations: shared.invitations,
@@ -384,7 +385,7 @@ function registerConsole(app: FastifyInstance, options: AppOptions, shared: Cons
 }
 
 /** Staff sign-in, password reset, sign-up, invites, sessions and the owner email change link (T-701b). */
-function registerStaff(app: FastifyInstance, deps: PasswordDeps): void {
+function registerStaff(app: FastifyInstance, deps: PasswordDeps, consoleOrigin: string): void {
   const signIn = createSignIn(deps);
   registerStaffRoutes(app, {
     signIn,
@@ -394,7 +395,7 @@ function registerStaff(app: FastifyInstance, deps: PasswordDeps): void {
     passwords: createPasswords(deps),
     signUp: createSignUp(deps),
     emailChange: createEmailChange(deps),
-    dashboardOrigin: deps.dashboardOrigin,
+    origins: { dashboard: deps.dashboardOrigin, console: consoleOrigin },
   });
 }
 
@@ -459,7 +460,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
     deferred,
     dashboardOrigin: config.auth.dashboardOrigin,
   };
-  registerStaff(app, passwordDeps);
+  registerStaff(app, passwordDeps, config.auth.consoleOrigin);
 
   const questCodeKey = createQuestCodeKey(config.qrSecret);
   const stepCodeKey = createStepCodeKey(config.qrSecret);

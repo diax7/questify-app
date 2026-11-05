@@ -32,6 +32,7 @@ function build(answer: unknown = { organizers: [] }, fail?: { code: string }) {
         account: { id: ADMIN } as PublicAccount,
         sessionId: "session-1",
         tokenHash: "",
+        surface: "console",
       };
     }
   });
