@@ -130,3 +130,8 @@ Format: `- <date> <task>: <what and where> (<source>)`
   `apps/api/src/rewards/reseal.ts:188-190` a throwing `ROLLBACK` replaces the first error (catch it, rethrow the
   first); `apps/api/src/rewards/shop.ts:141` logs a `keyId` for a legacy value whose IV starts like a header (about 1
   in 65,536, harmless).
+- 2026-11-05 CI run 42048259497 (browser shard 1): `e2e/shop-window.spec.ts:168` (ar, desktop) waited 10 s for the
+  sign-up code and none reached the mailbox file; the page showed the code step, the trace holds no finished response
+  for `POST /v1/staff/auth/sign-up`, and it passes locally. `codeFor`/`linkFor` (`apps/web/e2e/mail.ts`) now poll for
+  30 s. Root cause not confirmed: if it recurs, log the e2e API's email sends with a timestamp to see whether the send
+  is late (argon2id plus a loaded 2-core runner) or missing.
