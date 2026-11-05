@@ -210,13 +210,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
     it("commits the completion and its points when the ranking entries fail, and names the SQLSTATE", async () => {
       const d = await member();
       const [kept] = await owner<{ definition: string }>(
-        "SELECT pg_get_functiondef('ranking_day_entry_for(bigint, boolean)'::regprocedure) AS definition",
+        "SELECT pg_get_functiondef('ranking_day_entry_of(bigint)'::regprocedure) AS definition",
       );
       await owner("BEGIN");
       let row: Answer | undefined;
       try {
         await owner(
-          `CREATE OR REPLACE FUNCTION ranking_day_entry_for(completion bigint, eligible boolean)
+          `CREATE OR REPLACE FUNCTION ranking_day_entry_of(completion bigint)
            RETURNS TABLE(event_id uuid, day date, enrollment_id uuid, score bigint, score_version bigint,
                          ranked boolean)
            LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp

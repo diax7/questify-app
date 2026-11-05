@@ -241,3 +241,13 @@ eligibility check about 0.3, the enrollment triggers about 0.1, one tuning read 
 If the result is over 10 ms the gap goes here and in TASKS: ADR-730, built with the review's MAJORs 1 to 3, would save
 about 0.5 to 0.8 ms more (fewer trigger entries and definer switches); its cost is one larger trigger function whose
 step order becomes code, a conditional player lock kept by hand, and the scenario test as the gate.
+
+## 9. Result (coordinator, 2026-11-05)
+
+Measured after freeing disk space, twice on an idle container: **11.32 and 10.73 ms** a completion (client mean 26.8
+and 25.1 ms), against 10.78 and 10.98 ms before. `xp_credit` fell from 1.71 to about 1.57 ms, but the new
+`ranking_day_entry_for` costs about 0.4 ms, so the draft 0158 gained nothing measurable. It was not shipped: the
+migration, its rollback file and its equivalence test are dropped, and ADR-731 to ADR-733 are Rejected. The profile
+script (ADR-734) stays and is the gate. The gap (about 0.9 ms over ADR-674's 10 ms) and what closing it would cost are
+in `docs/TASKS.md` under T-804e; ADR-730 stays deferred until T-804 shows the 10 ms gate binding.
+
