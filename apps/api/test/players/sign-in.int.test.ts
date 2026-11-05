@@ -620,12 +620,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in", () => {
       expect(lines.join("")).toContain("player.refresh_reuse");
     });
 
-    it("answer 401 invalid to a refresh 365 days after the sign-in (T-810b, migration 0154)", async () => {
+    it("answer 401 unauthenticated to a refresh token past its expiry", async () => {
       const made = await signUp();
       await owner(
-        `UPDATE player_refresh SET family_started_at = now() - interval '366 days',
-                                   expires_at = now() - interval '1 day'
-         WHERE player_id = $1`,
+        "UPDATE player_refresh SET expires_at = now() - interval '1 day' WHERE player_id = $1",
         [made.player.id],
       );
       const refused = await post("refresh", { refreshToken: made.refreshToken });

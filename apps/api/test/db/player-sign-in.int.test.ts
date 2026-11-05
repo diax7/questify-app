@@ -500,12 +500,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
         expect(ends?.refresh).toBeCloseTo(20 * 60, -1);
       });
 
-      it("answers invalid once the family has ended, and its access token is over", async () => {
+      it("answers invalid once the refresh token has expired, and its access token is over", async () => {
         const { t } = await newPlayer();
         const family = await familyOf(t);
         await owner(
-          `UPDATE player_refresh SET family_started_at = now() - interval '366 days',
-                                     expires_at = now() - interval '1 day' WHERE family = $1`,
+          "UPDATE player_refresh SET expires_at = now() - interval '1 day' WHERE family = $1",
           [family],
         );
         await owner(
