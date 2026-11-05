@@ -2751,13 +2751,13 @@ phone only signs in again. Re-reading the oldest family after the lock would add
 
 ## Q-694 - One previous reward code key or a list (T-810f, ADR-725)
 
-**Status:** Open (developer, T-810f plan, 2026-11-05).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93: one previous key, as recommended).
 **Recommended (developer):** one previous key: two plain settings, no separator parsing, and the re-seal finishes before
 any next rotation.
 
 ## Q-695 - When the legacy reward code format stops being readable (T-810f, ADR-729)
 
-**Status:** Open (developer, T-810f plan, 2026-11-05).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05, after the T-810f code review 93: per ADR-729: remove the legacy path only after `check` exits 0 on every database and the backups taken before the re-seal have expired).
 **Recommended (developer):** after T-810f is deployed, run `reward-codes.cjs reseal` then `check` on staging (and on
 production before launch); when both exit 0, a small follow-up removes the legacy path.
 **Caveat (plan review 88):** the legacy path may be removed only after every database backup taken before the re-seal
