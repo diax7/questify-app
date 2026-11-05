@@ -2740,3 +2740,11 @@ for players (the row stays Partly for players). Option C: a code every time (an 
 
 **Status:** Answered (developer, delegated by Dhia, 2026-11-05): 10 minutes, as recommended.
 **Recommended (developer):** 10 minutes, the life of the staff sign-in code.
+
+## Q-682 - An 11th sign-in racing the oldest family's rotation (T-810c, ADR-717)
+
+**Status:** Open (developer).
+When an 11th sign-in has to wait for the oldest family's rotation, it ends that family once the rotation commits, its
+new tokens included, although that phone was just used. No token is left alive and nothing deadlocks.
+**Recommended (developer):** accept it: it needs ten other live sign-ins and a rotation in the same moment, and the
+phone only signs in again. Re-reading the oldest family after the lock would add a query to every capped sign-in.

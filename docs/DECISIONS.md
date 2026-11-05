@@ -1766,6 +1766,9 @@ sessions (so the real owner can change it back) compensate, and support handles 
 **Cost:** someone holding an unlocked phone with the app can move the account to their own number; the owner learns of
 it from the notice. Revisit if support sees such cases (an extra code to the old contact when it is still reachable).
 
+**Amended 2026-11-05 (T-810c, ADR-715):** the other sessions are kept unless the player chooses "Sign them out"
+in the offer that follows the change; the contact code makes this phone fresh, so the offer asks no second code.
+
 ## ADR-121 — One font at one size for every player
 **Status:** Accepted (user, 2026-10-21: "there is no accessibility settings in our app, its one font, one size and
 its the same for all users, we accept this").
@@ -8038,7 +8041,8 @@ the phone's own name or the `X-Device-Id` install id. Last used is the family's 
 
 ## ADR-711 - T-810c a fresh factor is a code typed here in the last 10 minutes
 
-**Status:** Proposed (developer, 2026-11-05, T-810c plan; Q-680, Q-681).
+**Status:** Proposed (developer, 2026-11-05, T-810c plan; Q-680 answered by Dhia 2026-11-05, Q-681 answered
+by the developer, delegated by Dhia: 10 minutes).
 **Decision:** ending another session or device needs, on this staff session or player family, a sign-in, a
 re-authentication code or (players) a contact-change code within 10 minutes; checked in the database
 (`staff_session.reauth_at`, `player_sign_in_device.reauth_at`, written only by definers).
@@ -8081,3 +8085,27 @@ notice to the old contact, the audit entries and support's sign-in reset remain.
 **Decision:** the data export lists live devices (platform, model, signed in, last used); erasure deletes the device
 and re-authentication rows; ended rows go 7 days after the end.
 **Why:** a phone model tied to an account is personal data (PDPL access and erasure).
+
+## ADR-717 - T-810c every end of a player family goes through end_family
+
+**Status:** Proposed (developer, 2026-11-05, T-810c plan review 84; Q-682).
+**Decision:** one ungranted `end_family(family)` locks the family's device row, sets `ended_at`, then revokes its
+refresh and access rows and deletes its re-authentication code, push device and queued sends. `revoke_family` is
+dropped; sign-out, the three ends in `rotate_player_refresh`, the 10-family cap, the sign-in reset, the ban, the review
+demo and the new end doors call it (several families in device-id order; the player-wide ones through
+`end_player_families`). A rotation of a family with no device row answers `invalid`.
+**Why:** one lock order everywhere (ADR-712): no end leaves a token alive and no two ends deadlock.
+**Trade-offs:** an 11th sign-in that waits for the oldest family's rotation ends that family although it was just used
+(Q-682); that phone signs in again.
+
+## ADR-718 - T-810c the API writes staff sessions only through definers
+
+**Status:** Proposed (developer, 2026-11-05, T-810c plan review 84).
+**Decision:** the `staff_session` UPDATE policy covers only the row of the token being looked up (the session check's
+touch and lapse) and the API role loses INSERT. Opening a session with the 10-session cap (`open_staff_session`), a
+password change or reset (`set_staff_password`: the hash and the end of the other sessions in one step) and ending
+one's own sessions (`end_own_staff_session`, `end_other_staff_sessions`, with the fresh check) are definers bound to
+the request's own session token.
+**Why:** the database, not only the route, refuses ending another session without a fresh code (V7.5.2).
+**Trade-offs:** an API instance of the old release cannot open a staff session once 0155 ran; staff sign in again after
+the deploy's minute (RUNBOOK). Setting a new password still ends the other sessions, the documented path.

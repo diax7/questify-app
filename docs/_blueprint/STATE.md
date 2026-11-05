@@ -6,6 +6,21 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-810c signed-in devices — 2026-11-05
+
+- **T-810c built (tier A; migration 0155, new and undeployed; ADR-717, ADR-718 and Q-682 Proposed; Q-680 answered by
+  Dhia, Q-681 by the developer).** Players: `GET /v1/me/devices`, end one or all other devices, a fresh code
+  (`/v1/me/reauth/*`) unless the phone signed in or changed its contact in the last 10 minutes; the app's "Signed-in
+  devices" screen and the offer after a phone or email change; the sign-in sends the platform and `expo-device` model.
+  Staff: the dashboard account page lists sessions, ends another or all others after an emailed code
+  (`/v1/staff/reauth/*`); the database checks freshness (`staff_session` writes are definers, ADR-718). Console: "End
+  all sessions" on the Admins page and each organizer team row (`POST /v1/admin/staff/{id}/end-sessions`, FR-141).
+  Every family end goes through `end_family` (device row locked first, ADR-717); races tested in parallel (end vs
+  rotation, the 11th sign-in vs the oldest rotation, end-others vs a new sign-in). ASVS V7.4.3, V7.4.5, V7.5.2 Met
+  (152 Met, 29 Partly). **Checks:** see the reply; 0155 also passes on PostgreSQL 16.15. CI minutes: 0 (nothing
+  pushed). Agent tokens roughly 1.5M (estimate).
+  **Next:** T-810c code review (tier A), then mutation; the next unchecked task (T-810d, T-810f, T-811).
+
 ## T-810e code screen notice — 2026-11-05
 
 - **T-810e done (tier C, copy; no review).** One line under every sign-in or contact-change code field: "Never share
@@ -19,7 +34,7 @@
   (333 files, 4,335 tests) and the API suites that read the message table (258) pass; types, lint, `lint:limits`,
   format pass; web e2e `sign-in.spec.ts` (12 passed, desktop and phone), `console-owner-email.spec.ts` and
   `layout.spec.ts` (desktop) pass, one worker. CI minutes: 0 (nothing pushed). Agent tokens roughly 0.3M (estimate).
-  **Next:** the next unchecked task in `docs/TASKS.md` (T-810c, T-810d, T-810f and T-811 are open).
+  **Next:** the next unchecked task in `docs/TASKS.md` (T-810d, T-810f and T-811 are open).
 
 ## T-810b ASVS L2 code gaps built — 2026-11-05
 

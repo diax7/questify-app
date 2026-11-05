@@ -108,3 +108,8 @@ Format: `- <date> <task>: <what and where> (<source>)`
 - 2026-11-05 T-810: `staff.cjs create` sets a password the operator knows and nothing asks for a change: prefer an invite, or make the first sign-in ask for a new password; write the identity-proofing steps for a lost staff mailbox and a player's lost number in the RUNBOOK (ASVS V6.4.1, V6.4.4; gap 18).
 - 2026-11-05 T-810: the language cookie (`apps/web/src/lib/language.ts`, `languageCookie`) is `Secure` but has no `__Host-` prefix; rename it (keep reading the old name once so a language choice survives) (ASVS V3.3.1, V3.3.3; gap 19).
 - 2026-11-05 T-810b review (92; MINOR, NIT): `apps/api/src/outbound-redirect.test.ts:13` reads a fixed list of 5 web files, so a new server-side web caller is not checked (walk `apps/web/src/lib` and the server files under `app/`, minus the browser-only callers). Two `/v1` answers carry no security headers: Next answers OPTIONS itself (`apps/web/src/app/v1/[...path]/route.ts:21` exports none; export `OPTIONS` through `handle`) and a bare `/v1` falls to Next's 404, which the matcher in `apps/web/src/proxy.ts:61` skips (make the route `[[...path]]`). NITs: "answers invalid once the family has ended" (`test/db/player-sign-in.int.test.ts`) and the 401 case in `test/players/sign-in.int.test.ts` set `expires_at` by hand and pass without 0154 (rename as plain expiry tests or drop; "caps the last access token" is the real proof); the `WALLS` comment in `apps/api/src/conventions.ts:88-95` sits above `type Actor` (move it to line 133).
+
+## 2026-11-05 - T-810c
+
+- MINOR (design): the app's icon set has no 3D phone, so the signed-in devices cards use the padlock icon. Ask for a
+  phone icon in the brand-deck style (`apps/app/assets/icons/`).
