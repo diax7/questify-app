@@ -24,12 +24,17 @@ export function sessionHashOf(authorization: unknown): Buffer | undefined {
 
 /**
  * What a player can still do while a new version of the terms or privacy policy waits (ADR-446): accept it, leave the
- * account (deletion code, this phone's push device). Every other write answers 403 until the player accepts.
+ * account (deletion code, this phone's push device), or sign other devices out (ADR-714). Every other write answers 403 until the player accepts.
  */
 const OPEN_WHILE_UNACCEPTED = new Set([
   "POST /v1/me/acceptances",
   "POST /v1/me/deletion/code",
   "DELETE /v1/me/push-device",
+  // Signing a lost phone out is a safety action (ADR-714).
+  "POST /v1/me/devices/:id/end",
+  "POST /v1/me/devices/end-others",
+  "POST /v1/me/reauth/code",
+  "POST /v1/me/reauth/verify",
 ]);
 
 /** Whether the legal hold applies to this request: a write that is not one of the open doors. */

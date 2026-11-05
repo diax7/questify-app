@@ -41,7 +41,11 @@ export async function requireSession(
   }
   const result = await sessions.authenticate(token);
   if (result.kind === "valid") {
-    request.staff = { account: result.account, sessionId: result.sessionId };
+    request.staff = {
+      account: result.account,
+      sessionId: result.sessionId,
+      tokenHash: result.tokenHash,
+    };
     request.principalId = result.account.id;
     return;
   }

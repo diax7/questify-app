@@ -1,16 +1,17 @@
 import type { Pool, PoolClient } from "pg";
-import { recordAudit, type AuditMeta } from "#src/audit/record";
+import type { AuditMeta } from "#src/audit/record";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { withPreIdentityContext } from "#src/db/pre-identity";
 import { hashToken } from "#src/auth/keys";
 import { AUTH_LIMITS, sessionLimitsFor } from "#src/auth/limits";
 import {
+  endLookedUpSession,
   findSession,
   listLiveSessions,
   listMemberships,
   readAccount,
-  revokeSessionById,
+  sessionFreshUntil,
   touchSession,
   type Membership,
   type PublicAccount,
@@ -22,7 +23,7 @@ export const SESSION_COOKIE = "__Host-qs_session";
 const TOKEN_FORMAT = /^[A-Za-z0-9_-]{43}$/;
 
 export type Authenticated =
-  | Readonly<{ kind: "valid"; sessionId: string; account: PublicAccount }>
+  | Readonly<{ kind: "valid"; sessionId: string; tokenHash: string; account: PublicAccount }>
   | Readonly<{ kind: "none" }>
   | Readonly<{ kind: "expired" }>;
 
@@ -33,10 +34,25 @@ export type Sessions = Readonly<{
     staffUserId: string,
     platformRole: PublicAccount["platformRole"],
   ) => Promise<SessionSummary[]>;
-  /** Ends one of the user's own sessions and records it. False when there is no such live session. */
-  revoke: (staffUserId: string, sessionId: string, meta?: AuditMeta) => Promise<boolean>;
+  /** This session's fresh end (sign-in or re-authentication in the last 10 minutes), or null. */
+  freshUntil: (staffUserId: string, sessionId: string) => Promise<Date | null>;
+  /**
+   * Ends one of the user's own sessions (`end_own_staff_session`, migration 0155): this one is a sign-out, another
+   * needs this session fresh. Audited in the database.
+   */
+  end: (who: SessionOwner, target: string, meta?: AuditMeta) => Promise<EndOutcome>;
+  /** Ends every other live session of the user after the fresh check (`end_other_staff_sessions`). */
+  endOthers: (who: SessionOwner, meta?: AuditMeta) => Promise<EndOthersOutcome>;
   memberships: (staffUserId: string) => Promise<Membership[]>;
 }>;
+
+/** The caller of a session door: the user and the hash of the request's own session token. */
+export type SessionOwner = Readonly<{ staffUserId: string; tokenHash: string }>;
+
+export type EndOutcome = "ended" | "not_found" | "reauth_required";
+export type EndOthersOutcome =
+  | Readonly<{ kind: "ended"; ended: number }>
+  | Readonly<{ kind: "reauth_required" }>;
 
 const asUser = <T>(pool: Pool, staffUserId: string, work: (client: PoolClient) => Promise<T>) =>
   withConnection(pool, (client) => withRequestContext(client, { staffUserId }, () => work(client)));
@@ -73,14 +89,14 @@ async function authenticate(pool: Pool, token: string): Promise<Authenticated> {
           // Stryker disable next-line EqualityOperator: equivalent: fractional seconds from a moving clock are never exactly equal
           session.ageSeconds > limits.maxAgeSeconds;
         if (lapsed) {
-          await revokeSessionById(client, session.staffUserId, session.id);
+          await endLookedUpSession(client, session.id);
           return { kind: "expired" };
         }
         // Stryker disable next-line EqualityOperator: equivalent: fractional seconds from a moving clock are never exactly equal
         if (session.idleSeconds > AUTH_LIMITS.touchIntervalSeconds) {
           await touchSession(client, session.id);
         }
-        return { kind: "valid", sessionId: session.id, account };
+        return { kind: "valid", sessionId: session.id, tokenHash: hashToken(token), account };
       },
     ),
   );
@@ -94,18 +110,29 @@ export function createSessions(pool: Pool): Sessions {
       asUser(pool, staffUserId, (client) =>
         listLiveSessions(client, staffUserId, sessionLimitsFor(platformRole)),
       ),
-    revoke: (staffUserId, sessionId, meta = {}) =>
-      asUser(pool, staffUserId, async (client) => {
-        const ended = await revokeSessionById(client, staffUserId, sessionId);
-        if (ended) {
-          await recordAudit(client, {
-            actor: { type: "staff", id: staffUserId },
-            action: "staff.session.end",
-            target: { type: "staff_session", id: sessionId },
-            requestId: meta.requestId,
-          });
-        }
-        return ended;
+    freshUntil: (staffUserId, sessionId) =>
+      asUser(pool, staffUserId, (client) => sessionFreshUntil(client, sessionId)),
+    end: (who, target, meta = {}) =>
+      asUser(pool, who.staffUserId, async (client) => {
+        const { rows } = await client.query<{ outcome: EndOutcome }>(
+          "SELECT end_own_staff_session(decode($1, 'hex'), $2, $3) AS outcome",
+          [who.tokenHash, target, meta.requestId ?? null],
+        );
+        return rows[0]?.outcome ?? "not_found";
+      }),
+    endOthers: (who, meta = {}) =>
+      asUser(pool, who.staffUserId, async (client) => {
+        const { rows } = await client.query<{
+          outcome: "ended" | "reauth_required";
+          ended: number;
+        }>("SELECT outcome, ended FROM end_other_staff_sessions(decode($1, 'hex'), $2)", [
+          who.tokenHash,
+          meta.requestId ?? null,
+        ]);
+        const row = rows[0];
+        return row?.outcome === "ended"
+          ? { kind: "ended", ended: row.ended }
+          : { kind: "reauth_required" };
       }),
     memberships: (staffUserId) =>
       asUser(pool, staffUserId, (client) => listMemberships(client, staffUserId)),

@@ -396,6 +396,20 @@ token and a fixed text; everything else stays in the center, read only by its pl
 The six tables keep row-level security forced with no grant; the API role holds only the 12 doors (`push_due` added by
 T-501d); every helper and trigger function is granted to nobody (outsider suite, by name).
 
+### Signed-in devices and sessions (T-810c, ADR-710 to ADR-718)
+
+- A player device is a refresh family with its own row, labelled from the app at sign-in with the platform and the
+  `expo-device` model only: never an IP, a location, a user agent, the phone's own name or the `X-Device-Id`. The model
+  and platform are personal data: kept in Saudi Arabia, exported, erased with the account, never in an audit entry
+  (`model` is on the audit key guard) or a log line (a label failure logs the error's class only).
+- Ending another device or session needs a fresh factor (ADR-711), checked in the database; ending this one never asks.
+  Every family end locks the device row first and a rotation of an ended family answers `invalid` (ADR-712, ADR-717),
+  proven by the parallel tests in `apps/api/test/db/signed-in-devices.int.test.ts`.
+- Threat: someone holding the owner's unlocked phone can now change the number and sign the owner out everywhere else
+  (ADR-120 amended). Compensations: the notice to the old contact, the audit entries (`player.contact_change`,
+  `player.devices.end_others`) and support's sign-in reset.
+- Ending sessions does not stop someone who knows a staff password: the console note and the RUNBOOK say to reset it.
+
 ## Top abuse cases
 
 | # | Abuse case | Type | Mitigation |

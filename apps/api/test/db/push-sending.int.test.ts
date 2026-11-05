@@ -245,7 +245,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push sending (database)", () =
       });
       await f.fanOut();
       await f.owner("UPDATE player SET status = 'banned' WHERE id = $1", [banned.who]);
-      await f.owner("SELECT revoke_family($1)", [signedOut.family]);
+      await f.owner("UPDATE player_refresh SET revoked_at = now() WHERE family = $1", [
+        signedOut.family,
+      ]);
       await f.owner("UPDATE enrollment SET status = 'left' WHERE player_id = $1", [leaver.who]);
       await f.owner(
         "UPDATE event SET status = 'archived', ends_at = now() - interval '1 day' WHERE id = $1",

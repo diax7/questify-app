@@ -254,39 +254,26 @@ export async function consumeResetLink(db: Db): Promise<string | undefined> {
 
 // ---------------------------------------------------------------- sessions
 
-export async function insertSession(
+/**
+ * As the user: opens a session (`open_staff_session`, migration 0155) and ends the oldest live ones beyond 10.
+ *
+ * @returns the new session's id and how many older sessions ended.
+ */
+export async function openStaffSession(
   db: Db,
-  session: { staffUserId: string; tokenHash: string; userAgent: string | null; ip: string },
-): Promise<string> {
-  const { rows } = await db.query<{ id: string }>(
-    `INSERT INTO staff_session (staff_user_id, token_hash, user_agent, ip)
-     VALUES ($1, decode($2, 'hex'), $3, $4) RETURNING id`,
-    [
-      session.staffUserId,
-      session.tokenHash,
-      session.userAgent === null ? null : session.userAgent.slice(0, 300),
-      session.ip.slice(0, 64),
-    ],
+  session: { tokenHash: string; userAgent: string | null; ip: string },
+): Promise<{ id: string; endedOlder: number }> {
+  const { rows } = await db.query<{ session_id: string | null; ended: number }>(
+    "SELECT session_id, ended FROM open_staff_session(decode($1, 'hex'), $2, $3)",
+    [session.tokenHash, session.userAgent, session.ip],
   );
-  const id = rows[0]?.id;
+  const id = rows[0]?.session_id ?? undefined;
   if (id === undefined) {
     throw new Error(
-      "Opening a staff session returned no id; the insert was refused without an error.",
+      "Opening a staff session returned no id; open_staff_session answered without a row.",
     );
   }
-  return id;
-}
-
-/** Ends the user's oldest live sessions beyond `keep`, newest first, and says how many it ended. */
-export async function capLiveSessions(db: Db, staffUserId: string, keep: number): Promise<number> {
-  const { rowCount } = await db.query(
-    `UPDATE staff_session SET revoked_at = now()
-     WHERE id IN (SELECT id FROM staff_session
-                  WHERE staff_user_id = $1 AND revoked_at IS NULL
-                  ORDER BY created_at DESC OFFSET $2)`,
-    [staffUserId, keep],
-  );
-  return rowCount ?? 0;
+  return { id, endedOlder: rows[0]?.ended ?? 0 };
 }
 
 /** Under the session lookup context: the one session, with its age and idle time from the database clock. */
@@ -319,30 +306,41 @@ export async function touchSession(db: Db, id: string): Promise<void> {
   await db.query("UPDATE staff_session SET last_seen_at = now() WHERE id = $1", [id]);
 }
 
-export async function revokeSessionById(db: Db, staffUserId: string, id: string): Promise<boolean> {
-  const { rowCount } = await db.query(
-    "UPDATE staff_session SET revoked_at = now() WHERE id = $1 AND staff_user_id = $2 AND revoked_at IS NULL",
-    [id, staffUserId],
+/** Under the session lookup context: ends the looked-up session (idle, too old, or its user disabled). */
+export async function endLookedUpSession(db: Db, id: string): Promise<void> {
+  await db.query(
+    "UPDATE staff_session SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL",
+    [id],
   );
-  return rowCount === 1;
 }
 
 /**
- * Ends every live session of a user, or every one but `keep` (a password change keeps the session it came from).
+ * As the user: sets the new password hash and ends every other live session, or all of them without `keep`
+ * (`set_staff_password`, migration 0155).
  *
  * @returns how many sessions were ended.
  */
-export async function revokeUserSessions(
+export async function setPasswordAndEndSessions(
   db: Db,
-  staffUserId: string,
+  passwordHash: string,
   keep?: string,
 ): Promise<number> {
-  const { rowCount } = await db.query(
-    `UPDATE staff_session SET revoked_at = now()
-     WHERE staff_user_id = $1 AND revoked_at IS NULL AND id IS DISTINCT FROM $2::uuid`,
-    [staffUserId, keep ?? null],
+  const { rows } = await db.query<{ ended: number }>(
+    "SELECT set_staff_password($1, $2::uuid) AS ended",
+    [passwordHash, keep ?? null],
   );
-  return rowCount ?? 0;
+  return rows[0]?.ended ?? 0;
+}
+
+/** A session's fresh end: 10 minutes after its sign-in or its last re-authentication, or null once past. */
+export async function sessionFreshUntil(db: Db, id: string): Promise<Date | null> {
+  const { rows } = await db.query<{ fresh_until: Date | null }>(
+    `SELECT CASE WHEN t.at > now() THEN t.at END AS fresh_until
+     FROM (SELECT greatest(created_at, coalesce(reauth_at, '-infinity'::timestamptz)) + interval '10 minutes' AS at
+           FROM staff_session WHERE id = $1) t`,
+    [id],
+  );
+  return rows[0]?.fresh_until ?? null;
 }
 
 export async function listLiveSessions(

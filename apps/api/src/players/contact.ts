@@ -26,6 +26,8 @@ import { withRequestContext } from "#src/db/context";
 import { onlyRow } from "#src/db/rows";
 import type { HttpError } from "#src/http-error";
 import { parse } from "#src/auth/request";
+import { ownSession, registerSignedInDeviceRoutes } from "#src/players/devices";
+import { registerReauthRoutes } from "#src/players/reauth";
 import { readMe, type ProfileDeps } from "#src/players/profile";
 import { askerOf } from "#src/players/routes";
 import {
@@ -284,7 +286,7 @@ export async function requestContactCode(
   };
 }
 
-/** A row of `confirm_contact_change` (migration 0144): only a changed one carries its channel, kind and old values. */
+/** A row of `confirm_contact_change` (migrations 0144, 0155): only a changed one carries its channel, kind and old values. */
 type Confirmed =
   | Readonly<{ outcome: "wrong"; attempts_left: number }>
   | Readonly<{ outcome: "expired" | "taken" }>
@@ -339,6 +341,8 @@ export async function confirmContactCode(
   deps: PlayerSignInDeps,
   input: Readonly<{
     playerId: string;
+    /** The hash of the request's own access token: a change made here marks this family fresh (ADR-715). */
+    session: Buffer;
     challengeToken: string;
     code: string;
     lang: Lang;
@@ -353,8 +357,9 @@ export async function confirmContactCode(
       return full;
     }
     const { rows } = await client.query<Confirmed>(
-      "SELECT * FROM confirm_contact_change($1, $2, $3)",
+      "SELECT * FROM confirm_contact_change($1, $2, $3, $4)",
       [
+        input.session,
         tokenHash(input.challengeToken),
         codeHash(deps, input.challengeToken, typedCode(input.code)),
         input.requestId,
@@ -476,6 +481,7 @@ export function registerContactRoutes(
         deps,
         {
           playerId,
+          session: ownSession(request),
           challengeToken: body.challengeToken,
           code: body.code,
           lang: body.lang,
@@ -497,4 +503,7 @@ export function registerContactRoutes(
       }
     },
   );
+  // The signed-in devices and their fresh code (T-810c): the account's other sign-in safety doors.
+  registerSignedInDeviceRoutes(app, deps);
+  registerReauthRoutes(app, deps);
 }

@@ -27,6 +27,7 @@ import type { Asker, Issued, PlayerSignIn } from "#src/players/sign-in";
 import type { HttpError } from "#src/http-error";
 
 const BODY_LIMIT = 2048;
+import { deviceLabelBody } from "#src/players/devices";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
 const LANG = z.enum(["ar", "en"]).default("ar");
@@ -41,12 +42,18 @@ const codeBody = z.strictObject({
   accept: z.strictObject({ terms: VERSION, privacy: VERSION }),
 });
 const resendBody = z.strictObject({ challengeToken: TOKEN, lang: LANG });
-const verifyBody = z.strictObject({ challengeToken: TOKEN, code: z.string().min(1).max(20) });
+// `device` (T-810c, ADR-710): the platform and model the signed-in devices list shows; an older app sends none.
+const verifyBody = z.strictObject({
+  challengeToken: TOKEN,
+  code: z.string().min(1).max(20),
+  device: deviceLabelBody.optional(),
+});
 const signupBody = z.strictObject({
   signupToken: TOKEN,
   username: z.string().min(1).max(120),
   birthYear: z.int().min(0).max(9999),
   avatar: z.enum(AVATARS),
+  device: deviceLabelBody.optional(),
 });
 const refreshBody = z.strictObject({ refreshToken: TOKEN });
 

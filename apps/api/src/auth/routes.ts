@@ -1,10 +1,11 @@
-import type { FastifyInstance, FastifyReply } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
   acceptanceRequired,
   breachCheckUnavailable,
   busy,
   challengeExpired,
+  contactCodeWrong,
   emailChangeLinkInvalid,
   emailChangeLocked,
   emailTaken,
@@ -22,6 +23,7 @@ import {
   notFound,
   resendLimit,
   resendTooSoon,
+  reauthRequired,
   resetLinkInvalid,
   tooManyAttempts,
   tooManyChallenges,
@@ -31,6 +33,7 @@ import {
 import { sessionLimitsFor } from "#src/auth/limits";
 import type { EmailChange } from "#src/auth/email-change";
 import type { Passwords, WeakReason } from "#src/auth/password-reset";
+import type { StaffReauth } from "#src/auth/reauth";
 import { clearedSessionCookie, sessionCookie, type Sessions } from "#src/auth/session";
 import type { ResendResult, SignIn } from "#src/auth/sign-in";
 import type { SignUp } from "#src/auth/sign-up";
@@ -41,6 +44,7 @@ import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 export type StaffRoutesDeps = Readonly<{
   signIn: SignIn;
   sessions: Sessions;
+  reauth: StaffReauth;
   passwords: Passwords;
   signUp: SignUp;
   invites: Invites;
@@ -89,6 +93,7 @@ const acceptNewBody = inviteTokenBody.extend({ password: z.string().min(1).max(1
 const createOrganizerBody = z.object({ name: z.string().min(1).max(400), accept: acceptBody });
 const BREACH_RETRY_SECONDS = 30;
 const staffOnly = { config: { access: "staff" } } as const;
+const emptyBody = z.strictObject({});
 
 function waitThen(reply: FastifyReply, seconds: number): void {
   reply.header("retry-after", String(seconds));
@@ -426,21 +431,45 @@ function registerSessionRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): v
 
   scope.get("/sessions", staffOnly, async (request) => {
     const { account, sessionId } = request.staff ?? failClosed();
-    const live = await deps.sessions.list(account.id, account.platformRole);
-    return { sessions: live.map((session) => ({ ...session, current: session.id === sessionId })) };
+    const [live, freshUntil] = await Promise.all([
+      deps.sessions.list(account.id, account.platformRole),
+      deps.sessions.freshUntil(account.id, sessionId),
+    ]);
+    return {
+      sessions: live.map((session) => ({ ...session, current: session.id === sessionId })),
+      freshUntil,
+    };
   });
 
   scope.delete("/sessions/:id", staffOnly, async (request, reply) => {
-    const { account, sessionId } = request.staff ?? failClosed();
     const { id } = parse(sessionParams, request.params);
-    if (!(await deps.sessions.revoke(account.id, id, { requestId: request.id }))) {
+    const outcome = await deps.sessions.end(ownerOf(request), id, { requestId: request.id });
+    if (outcome === "reauth_required") {
+      throw reauthRequired();
+    }
+    if (outcome === "not_found") {
       throw notFound();
     }
-    if (id === sessionId) {
+    if (id === request.staff?.sessionId) {
       reply.header("set-cookie", clearedSessionCookie());
     }
     return reply.code(204).send();
   });
+
+  scope.post(
+    "/sessions/end-others",
+    { config: { access: "staff", idempotent: true } } as const,
+    async (request) => {
+      parse(emptyBody, request.body ?? {});
+      const result = await deps.sessions.endOthers(ownerOf(request), { requestId: request.id });
+      if (result.kind === "reauth_required") {
+        throw reauthRequired();
+      }
+      return { ended: result.ended };
+    },
+  );
+
+  registerReauthRoutes(scope, deps);
 
   scope.post(
     "/password",
@@ -460,11 +489,65 @@ function registerSessionRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): v
   );
 
   scope.post("/auth/sign-out", staffOnly, async (request, reply) => {
-    const { account, sessionId } = request.staff ?? failClosed();
-    await deps.sessions.revoke(account.id, sessionId, { requestId: request.id });
+    const { sessionId } = request.staff ?? failClosed();
+    await deps.sessions.end(ownerOf(request), sessionId, { requestId: request.id });
     reply.header("set-cookie", clearedSessionCookie());
     return reply.code(204).send();
   });
+}
+
+/** The caller of a session door: the user and their own session token's hash. */
+function ownerOf(request: FastifyRequest): Readonly<{ staffUserId: string; tokenHash: string }> {
+  const { account, tokenHash } = request.staff ?? failClosed();
+  return { staffUserId: account.id, tokenHash };
+}
+
+/**
+ * `POST /v1/staff/reauth/code` and `/v1/staff/reauth/verify` (T-810c, ASVS V7.5.2): a fresh emailed code before this
+ * session ends the person's other sessions.
+ */
+function registerReauthRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): void {
+  scope.post("/reauth/code", staffOnly, async (request, reply) => {
+    parse(emptyBody, request.body ?? {});
+    const { account } = request.staff ?? failClosed();
+    const result = await deps.reauth.start(
+      { ...ownerOf(request), email: account.email },
+      callerOf(request),
+    );
+    switch (result.kind) {
+      case "code_sent":
+        return reply.code(202).send({
+          challengeToken: result.challengeToken,
+          expiresInSeconds: result.expiresInSeconds,
+        });
+      case "throttled":
+        waitThen(reply, result.retryAfterSeconds);
+        throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
+      case "email_unavailable":
+        throw emailUnavailable();
+    }
+  });
+
+  scope.post(
+    "/reauth/verify",
+    { config: { access: "staff", idempotent: true } } as const,
+    async (request) => {
+      const body = parse(codeBody, request.body);
+      const { account } = request.staff ?? failClosed();
+      const result = await deps.reauth.confirm(
+        { ...ownerOf(request), email: account.email },
+        { challengeToken: body.challengeToken, code: body.code, requestId: request.id },
+      );
+      switch (result.kind) {
+        case "confirmed":
+          return { freshUntil: result.freshUntil };
+        case "invalid_code":
+          throw contactCodeWrong({ attemptsLeft: result.attemptsLeft });
+        case "challenge_expired":
+          throw challengeExpired();
+      }
+    },
+  );
 }
 
 /** Reached only if the scope's session hook was bypassed, which must never answer a request. */

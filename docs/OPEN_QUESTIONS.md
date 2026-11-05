@@ -2725,6 +2725,30 @@ The key id touches the config, the seal format, every opener, the upload's dupli
 nothing is at risk until a leak forces a rotation.
 **Recommended (developer):** build it as T-810f after T-810b, with its own plan review; the sheet's row 8 points there.
 
+## Q-680 - Do players type a fresh code before ending their other devices? (T-810c, ASVS V7.5.2, ADR-711)
+
+**Status:** Answered (Dhia, 2026-11-05, AskUserQuestion: "Yes, ask a code (Recommended)"; INBOX 2026-11-05). Players
+type a fresh sign-in code before ending other devices, skipped within 10 minutes of a sign-in or a contact change on
+this phone (ADR-711).
+Q-661 asked for a fresh code before a staff member ends other sessions; it said nothing for players. ASVS V7.5.2 asks
+for it for everyone.
+**Recommended (developer):** yes, a sign-in code by SMS or email, except within 10 minutes of signing in on this phone
+or changing the phone or email on it (so the lost-phone and contact-change paths need no extra code). Option B: no code
+for players (the row stays Partly for players). Option C: a code every time (an SMS on the lost-phone path too).
+
+## Q-681 - How long a fresh factor lasts (T-810c, ADR-711)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05): 10 minutes, as recommended.
+**Recommended (developer):** 10 minutes, the life of the staff sign-in code.
+
+## Q-682 - An 11th sign-in racing the oldest family's rotation (T-810c, ADR-717)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05, after the T-810c code review 91: accepted as recommended).
+When an 11th sign-in has to wait for the oldest family's rotation, it ends that family once the rotation commits, its
+new tokens included, although that phone was just used. No token is left alive and nothing deadlocks.
+**Recommended (developer):** accept it: it needs ten other live sign-ins and a rotation in the same moment, and the
+phone only signs in again. Re-reading the oldest family after the lock would add a query to every capped sign-in.
+
 ## Q-690 - A subdomain or a separate domain for the console (T-810d, ADR-722)
 
 **Status:** Open (developer, 2026-11-05).

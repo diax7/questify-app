@@ -31,8 +31,7 @@ import {
   findResetLink,
   insertResetLink,
   readAccount,
-  revokeUserSessions,
-  setPasswordHash,
+  setPasswordAndEndSessions,
   type PublicAccount,
 } from "#src/auth/staff-store";
 import { BUCKETS, clearKey, countRecent, record, tryLock } from "#src/auth/throttle";
@@ -239,8 +238,7 @@ async function applyNewPassword(
   hash: string,
   how: Readonly<{ action: string; keep?: string; requestId: string | undefined }>,
 ): Promise<void> {
-  await setPasswordHash(client, account.id, hash);
-  const sessionsEnded = await revokeUserSessions(client, account.id, how.keep);
+  const sessionsEnded = await setPasswordAndEndSessions(client, hash, how.keep);
   await deleteOwnChallenges(client);
   await deleteOwnResetLinks(client);
   await recordAudit(client, {

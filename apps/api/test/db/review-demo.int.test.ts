@@ -413,7 +413,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("review demo (database)", () =>
       expect(
         await f.run<{ outcome: string }>(
           { playerId: other },
-          "SELECT outcome FROM confirm_contact_change($1, $2, $3)",
+          "SELECT outcome FROM confirm_contact_change(NULL, $1, $2, $3)",
           [sha(token.toString("hex")), code, randomUUID()],
         ),
       ).toEqual([{ outcome: "taken" }]);

@@ -8,7 +8,9 @@ import {
 } from "@questify/shared";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useReducer, useRef, useState } from "react";
-import { Linking, Pressable, ScrollView, View } from "react-native";
+import { Linking, Platform, Pressable, ScrollView, View } from "react-native";
+import { deviceLabelOf } from "#src/account/device-label.ts";
+import { loadExpoDevice } from "#src/help/device.ts";
 import { api, keyValueStore } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button, Field, Problem } from "#src/components/Controls.tsx";
@@ -47,7 +49,12 @@ const AVATAR_NAMES: Readonly<Record<Avatar, MessageKey>> = {
   "explorer-hat": "avatar.explorerHat",
 };
 
-const deps: SignInDeps = { client: api.client, session: api.session, now: Date.now };
+const deps: SignInDeps = {
+  client: api.client,
+  session: api.session,
+  now: Date.now,
+  device: () => deviceLabelOf(Platform.OS, loadExpoDevice),
+};
 
 const SAVE_FAILED = MESSAGES["signIn.saveFailed"];
 

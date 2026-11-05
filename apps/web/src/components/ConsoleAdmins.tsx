@@ -11,6 +11,7 @@ import {
   reasonReady,
   useWrite,
 } from "#src/components/ConsoleOversight.tsx";
+import { EndAllSessions } from "#src/components/ConsoleEndSessions.tsx";
 import styles from "#src/components/health.module.css";
 import { clockOf } from "#src/lib/console-organizers.ts";
 import {
@@ -182,6 +183,12 @@ function AdminCard({
             {open ? t("console.admins.hide") : t("console.admins.show")}
           </Button>
         </Toolbar>
+        <EndAllSessions
+          language={language}
+          staffUserId={account.id}
+          email={account.email}
+          onEnded={onEnded}
+        />
         {open ? <Sessions language={language} account={account} onEnded={onEnded} /> : null}
       </Stack>
     </Card>

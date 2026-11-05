@@ -83,6 +83,7 @@ describe("changing a contact, seen from the database's answers", () => {
         deps,
         {
           playerId: PLAYER,
+          session: Buffer.alloc(32),
           challengeToken: "t".repeat(32),
           code: "123456",
           lang: "en",

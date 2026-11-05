@@ -2,7 +2,12 @@ import type { PublicAccount } from "#src/auth/staff-store";
 import type { OrganizerPrincipal } from "#src/organizers/store";
 
 /** The signed-in staff member behind a request, set by the staff scope after the session checks out. */
-export type StaffPrincipal = Readonly<{ account: PublicAccount; sessionId: string }>;
+export type StaffPrincipal = Readonly<{
+  account: PublicAccount;
+  sessionId: string;
+  /** The hex SHA-256 of the request's own session token: the session doors bind to it (migration 0155). */
+  tokenHash: string;
+}>;
 
 declare module "fastify" {
   interface FastifyRequest {

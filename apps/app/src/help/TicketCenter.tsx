@@ -33,7 +33,13 @@ import {
   usernameOf,
   type CenterCard,
 } from "#src/help/center.ts";
-import { deviceFactsOf, deviceLine, readModelName, type DeviceFacts } from "#src/help/device.ts";
+import {
+  deviceFactsOf,
+  deviceLine,
+  loadExpoDevice,
+  readModelName,
+  type DeviceFacts,
+} from "#src/help/device.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -48,7 +54,7 @@ function useDeviceFacts(): DeviceFacts | null | undefined {
   const [facts, setFacts] = useState<DeviceFacts | null | undefined>(undefined);
   useEffect(() => {
     let current = true;
-    void readModelName(() => import("expo-device")).then((modelName) => {
+    void readModelName(loadExpoDevice).then((modelName) => {
       if (current) {
         setFacts(
           deviceFactsOf({

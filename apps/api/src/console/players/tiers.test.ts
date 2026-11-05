@@ -35,7 +35,11 @@ function build(outcome = "changed") {
     idempotencyStore: new MemoryIdempotencyStore(),
   });
   app.addHook("onRequest", async (request) => {
-    request.staff = { account: { id: ADMIN } as PublicAccount, sessionId: "session-1" };
+    request.staff = {
+      account: { id: ADMIN } as PublicAccount,
+      sessionId: "session-1",
+      tokenHash: "",
+    };
   });
   const keys = { userKey: () => Buffer.alloc(32, 7), contactThrottleKey: () => Buffer.alloc(32) };
   app.register(async (scope) => registerConsoleTierRoutes(scope, { pool, keys }), {

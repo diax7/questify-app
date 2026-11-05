@@ -2,6 +2,7 @@
 
 import type { Language, MessageKey } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
+import { EndAllSessions } from "#src/components/ConsoleEndSessions.tsx";
 import { OrganizerFeaturesPanel } from "#src/components/ConsoleOrganizerFeatures.tsx";
 import { SuspensionPanel } from "#src/components/ConsoleOversight.tsx";
 import { OwnerEmailPanel } from "#src/components/ConsoleOwnerEmail.tsx";
@@ -228,7 +229,14 @@ function OrganizerBody({
                     : ` ${t("console.organizer.limited", { count: member.limited })}`}
                 </span>
               }
-            />
+            >
+              <EndAllSessions
+                language={language}
+                staffUserId={member.staffUserId}
+                email={member.email}
+                onEnded={reload}
+              />
+            </Row>
           ))}
         </Rows>
       </Section>
