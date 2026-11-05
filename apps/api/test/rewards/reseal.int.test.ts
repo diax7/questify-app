@@ -45,6 +45,24 @@ function legacySeal(rewardId: string, code: string): Buffer {
   return Buffer.concat([iv, cipher.getAuthTag(), body]);
 }
 
+/** The same connection, except that a ROLLBACK runs and then raises, as one on a dying connection would. */
+const rollbackRefused = (client: Client): Client =>
+  new Proxy(client, {
+    get(target, property, receiver) {
+      const value: unknown = Reflect.get(target, property, receiver);
+      if (property !== "query" || typeof value !== "function") {
+        return value;
+      }
+      return async (...args: unknown[]) => {
+        const result: unknown = await Reflect.apply(value, target, args);
+        if (args[0] === "ROLLBACK") {
+          throw new Error("rollback refused");
+        }
+        return result;
+      };
+    },
+  });
+
 const refusal = async (work: Promise<unknown>): Promise<string> => {
   try {
     await work;
@@ -75,6 +93,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
 
   const owner = async <T extends Record<string, unknown>>(sql: string, values: unknown[] = []) =>
     (await db.owner.query<T>(sql, values)).rows;
+
+  /** The RUNBOOK's statement for a re-seal conflict (Rotating REWARD_CODE_SECRET, step 2). */
+  const removeUnused = (id: string) =>
+    db.owner.query(
+      `WITH gone AS (
+         DELETE FROM reward_code WHERE id = $1 AND redemption_id IS NULL RETURNING reward_id
+       )
+       UPDATE reward SET stock_total = stock_total - 1 WHERE id IN (SELECT reward_id FROM gone)`,
+      [id],
+    );
+  const stockOf = async (reward: string) =>
+    (
+      await owner<{ stock_total: number }>("SELECT stock_total FROM reward WHERE id = $1", [reward])
+    )[0]?.stock_total;
 
   const newReward = async (): Promise<string> => {
     const [row] = await owner<{ id: string }>(
@@ -278,6 +310,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
     });
   });
 
+  /** Runs `work` while every update of one reward_code row raises SQLSTATE P0001, with a detail that holds a code. */
+  const withRefusedUpdate = async <T>(id: string, work: () => Promise<T>): Promise<T> => {
+    await owner(`CREATE FUNCTION test_refuse_reseal() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN RAISE EXCEPTION 'refused' USING ERRCODE = 'P0001', DETAIL = 'detail-${SENTINEL}'; END $$`);
+    await owner(
+      `CREATE TRIGGER test_refuse_reseal BEFORE UPDATE ON reward_code FOR EACH ROW
+         WHEN (OLD.id = ${id}) EXECUTE FUNCTION test_refuse_reseal()`,
+    );
+    try {
+      return await work();
+    } finally {
+      await owner("DROP TRIGGER test_refuse_reseal ON reward_code");
+      await owner("DROP FUNCTION test_refuse_reseal()");
+    }
+  };
+
   describe("the re-seal", () => {
     beforeEach(async () => {
       await owner("DELETE FROM reward_code");
@@ -399,6 +447,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
       expect(lines[0]).not.toContain(markCode(NEW.current, `${SENTINEL}-TWICE`).toString("hex"));
     });
 
+    describe("the RUNBOOK's statement for a conflict", () => {
+      it("removes the unused copy, lowers the stock with it, and the rerun finds no conflict", async () => {
+        const reward = await newReward();
+        await plantUnder(ROTATED, reward, `${SENTINEL}-DUP`);
+        const legacy = await plantLegacy(reward, `${SENTINEL}-DUP`);
+        expect(await reseal(ROTATED)).toMatchObject({ conflict: 1, ids: { conflict: [legacy] } });
+        expect(await stockOf(reward)).toBe(2);
+
+        expect((await removeUnused(legacy)).rowCount).toBe(1);
+        expect(await stockOf(reward)).toBe(1);
+        expect(await reseal(ROTATED)).toMatchObject({ conflict: 0, unreadable: 0, changed: 0 });
+      });
+
+      it("deletes nothing and leaves the stock when a player holds the row", async () => {
+        const reward = await newReward();
+        const held = await plantLegacy(reward, `${SENTINEL}-HELD`);
+        await buy(ROTATED, await newPlayer(), reward);
+
+        expect((await removeUnused(held)).rowCount).toBe(0);
+        expect(await stockOf(reward)).toBe(1);
+        expect(await owner("SELECT 1 FROM reward_code WHERE id = $1", [held])).toHaveLength(1);
+      });
+    });
+
     it("reports a row no key opens and leaves it as it was", async () => {
       const reward = await newReward();
       const lost = await plantUnder(ring(7, "t".repeat(32)), reward, `${SENTINEL}-LOST`);
@@ -483,30 +555,37 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
       const reward = await newReward();
       const first = await plantLegacy(reward, `${SENTINEL}-E1`);
       const failing = await plantLegacy(reward, `${SENTINEL}-E2`);
-      await owner(`CREATE FUNCTION test_refuse_reseal() RETURNS trigger LANGUAGE plpgsql AS $$
-        BEGIN RAISE EXCEPTION 'refused' USING ERRCODE = 'P0001', DETAIL = 'detail-${SENTINEL}'; END $$`);
-      await owner(
-        `CREATE TRIGGER test_refuse_reseal BEFORE UPDATE ON reward_code FOR EACH ROW
-           WHEN (OLD.id = ${failing}) EXECUTE FUNCTION test_refuse_reseal()`,
-      );
-      try {
-        const stopped = await reseal(ROTATED).then(
+      const stopped = await withRefusedUpdate(failing, () =>
+        reseal(ROTATED).then(
           () => "no error",
           (error: unknown) => (error as Error).message,
-        );
-        expect(stopped).toBe(
-          `The re-seal stopped at reward_code ${failing} (SQLSTATE P0001); run it again.`,
-        );
-      } finally {
-        await owner("DROP TRIGGER test_refuse_reseal ON reward_code");
-        await owner("DROP FUNCTION test_refuse_reseal()");
-      }
+        ),
+      );
+      expect(stopped).toBe(
+        `The re-seal stopped at reward_code ${failing} (SQLSTATE P0001); run it again.`,
+      );
       expect(await checkCodes(db.owner, NEW)).toMatchObject({ current: 0, stale: 2 });
       const [last] = (await auditsOf()).slice(-1);
       expect(last?.after).toMatchObject({ finished: false, resealed: 0 });
       expect(JSON.stringify(last)).not.toContain(SENTINEL);
       expect(await reseal(ROTATED)).toMatchObject({ resealed: 2, ids: { changed: [] } });
       expect(first).not.toBe(failing);
+    });
+
+    it("reports the first error when the rollback of the failed batch fails too", async () => {
+      const reward = await newReward();
+      await plantLegacy(reward, `${SENTINEL}-R1`);
+      const failing = await plantLegacy(reward, `${SENTINEL}-R2`);
+      const stopped = await withRefusedUpdate(failing, () =>
+        resealCodes(rollbackRefused(db.owner), ROTATED, { by: "test-operator" }).then(
+          () => "no error",
+          (error: unknown) => (error as Error).message,
+        ),
+      );
+      expect(stopped).toBe(
+        `The re-seal stopped at reward_code ${failing} (SQLSTATE P0001); run it again.`,
+      );
+      expect(await checkCodes(db.owner, NEW)).toMatchObject({ current: 0, stale: 2 });
     });
 
     it("refuses a connection that cannot see every row before any read or write", async () => {

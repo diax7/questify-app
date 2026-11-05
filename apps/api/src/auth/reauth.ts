@@ -4,7 +4,7 @@ import type { EmailSender } from "#src/auth/email/sender";
 import { generateCode, generateToken, hashToken, type AuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
 import type { SessionOwner } from "#src/auth/session";
-import { reasonOf, say, type Caller } from "#src/auth/sign-in";
+import { keysFor, reasonOf, recordFailure, say, type Caller } from "#src/auth/sign-in";
 import { BUCKETS, countRecent, record, tryLock } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
@@ -111,11 +111,15 @@ type ConfirmRow =
   | Readonly<{ outcome: "confirmed"; attempts_left: number; fresh_until: Date }>
   | Readonly<{ outcome: "expired" | "wrong"; attempts_left: number; fresh_until: null }>;
 
-/** Confirms the session's code (`confirm_staff_reauth`): the session is fresh for 10 minutes. */
+/**
+ * Confirms the session's code (`confirm_staff_reauth`): the session is fresh for 10 minutes. A wrong code also counts
+ * in the staff sign-in failure windows, in the same transaction, so it spends the budget of the sign-in guesses.
+ */
 export async function confirmStaffReauth(
   deps: StaffReauthDeps,
   who: ReauthOwner,
   input: Readonly<{ challengeToken: string; code: string; requestId: string }>,
+  caller: Caller,
 ): Promise<StaffReauthConfirm> {
   const tokenHash = hashToken(input.challengeToken);
   const row = await asUser(deps.pool, who.staffUserId, async (client) => {
@@ -123,6 +127,9 @@ export async function confirmStaffReauth(
       "SELECT * FROM confirm_staff_reauth(decode($1, 'hex'), decode($2, 'hex'), $3, $4)",
       [who.tokenHash, tokenHash, codeHashOf(deps.keys, tokenHash, input.code), input.requestId],
     );
+    if (rows[0]?.outcome === "wrong") {
+      await recordFailure(client, keysFor(deps, who.email, caller));
+    }
     return rows[0];
   });
   if (row?.outcome === "confirmed") {
@@ -139,6 +146,7 @@ export type StaffReauth = Readonly<{
   confirm: (
     who: ReauthOwner,
     input: Readonly<{ challengeToken: string; code: string; requestId: string }>,
+    caller: Caller,
   ) => Promise<StaffReauthConfirm>;
 }>;
 
@@ -146,6 +154,6 @@ export type StaffReauth = Readonly<{
 export function createStaffReauth(deps: StaffReauthDeps): StaffReauth {
   return {
     start: (who, caller) => startStaffReauth(deps, who, caller),
-    confirm: (who, input) => confirmStaffReauth(deps, who, input),
+    confirm: (who, input, caller) => confirmStaffReauth(deps, who, input, caller),
   };
 }

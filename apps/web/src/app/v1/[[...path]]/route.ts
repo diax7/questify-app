@@ -7,7 +7,11 @@ export const dynamic = "force-dynamic";
 const EXPORT_PATH = /^\/v1\/organizers\/[^/]+\/events\/[^/]+\/exports\/[a-z]+$/u;
 const EXPORT_TIMEOUT_MS = 180_000;
 
-/** Every `/v1` call from the browser goes to the API through here (T-011 plan, same-origin forwarder). */
+/**
+ * Every `/v1` call from the browser goes to the API through here (T-011 plan, same-origin forwarder). Every method is
+ * exported, OPTIONS included, and the route is an optional catch-all so a bare `/v1` reaches it too: Next answers
+ * neither on its own, and its answers carry none of the API's security headers.
+ */
 function handle(request: Request): Promise<Response> {
   return forward(request, {
     apiOrigin: webConfig().apiOrigin,
@@ -18,4 +22,11 @@ function handle(request: Request): Promise<Response> {
   });
 }
 
-export { handle as DELETE, handle as GET, handle as PATCH, handle as POST, handle as PUT };
+export {
+  handle as DELETE,
+  handle as GET,
+  handle as OPTIONS,
+  handle as PATCH,
+  handle as POST,
+  handle as PUT,
+};

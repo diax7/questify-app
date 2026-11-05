@@ -190,9 +190,23 @@ the two ids are equal, the previous secret equals the current one, or a secret i
    `resealed`, `unreadable`, `conflict`, `changed` and up to 100 row ids for the last three, never a code, cipher or
    mark. Exit 0 when the last three are all 0. Run it again until it exits 0: `changed` (a row changed after the read,
    or its lock was busy) clears on a rerun; `unreadable` means no key held opens the row (a previous key missing);
-   `conflict` is the same code twice in one event (resolve with the organizer by row id: remove the unused one, then
-   rerun). A stopped run is simply run again. The audit log gets `reward.codes.reseal_start` before the walk and
-   `reward.codes.reseal` with the counts and `finished` when it ends or fails.
+   `conflict` is the same code twice in one event (the id is one of the two rows; resolve with the organizer by row
+   id: when the organizer says that row is the unused copy, delete it and lower its reward's stock in one owner
+   transaction, then rerun):
+
+   ```sql
+   BEGIN;
+   WITH gone AS (
+     DELETE FROM reward_code WHERE id = <row id> AND redemption_id IS NULL RETURNING reward_id
+   )
+   UPDATE reward SET stock_total = stock_total - 1 WHERE id IN (SELECT reward_id FROM gone);
+   COMMIT;
+   ```
+
+   `UPDATE 1` means the row is gone and the stock is one lower; `UPDATE 0` means a player holds that row, which is
+   never deleted (ask the organizer which other copy is unused). Deleting the row without lowering `stock_total`
+   would overstate the stock. A stopped run is simply run again. The audit log gets `reward.codes.reseal_start`
+   before the walk and `reward.codes.reseal` with the counts and `finished` when it ends or fails.
 3. `node reward-codes.cjs check` exits 0: every row opens under the current key alone, in the new format.
 4. Remove `REWARD_CODE_PREVIOUS_SECRET` and `REWARD_CODE_PREVIOUS_KEY_ID`; redeploy. Back up the new secret apart from
    the database, as before. Database backups taken before step 2 need the old secret: keep it with them until they

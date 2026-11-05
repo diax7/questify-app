@@ -2,12 +2,15 @@ import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuthKeys, generateToken } from "#src/auth/keys";
 import { loggerOptions } from "#src/app";
+import { addressBucket } from "#src/auth/normalize";
 import { createSessions } from "#src/auth/session";
+import { BUCKETS } from "#src/auth/throttle";
 import {
   DASHBOARD_ORIGIN,
   PASSWORD,
   browserHeaders,
   createStaff,
+  freshIp,
   postCode,
   postPassword,
   startApp,
@@ -40,6 +43,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
 
   const owner = <T extends Record<string, unknown>>(sql: string, values: unknown[] = []) =>
     db.owner.query<T>(sql, values).then((result) => result.rows);
+
+  /** How many attempts a failure bucket holds for a key. */
+  const failures = async (bucket: string, key: Buffer): Promise<number> =>
+    (
+      await owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM auth_throttle WHERE bucket = $1 AND key = $2",
+        [bucket, key],
+      )
+    )[0]?.n ?? -1;
 
   /** Creates a session with a token we know and the given age, bypassing the sign-in steps. */
   const seedSession = async (
@@ -525,6 +537,37 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
       const freshFor = Date.parse(right.json<{ freshUntil: string }>().freshUntil) - Date.now();
       expect(freshFor).toBeGreaterThan(9 * 60_000);
       expect(freshFor).toBeLessThanOrEqual(10 * 60_000);
+    });
+
+    it("counts each wrong code in the sign-in failure windows and a right one not", async () => {
+      const email = newEmail();
+      const user = await createStaff(db.owner, { email });
+      const here = await seedSession(user, { ageMinutes: 11 });
+      const { challengeToken } = (
+        await send(here.cookie, "POST", "/v1/staff/reauth/code", {})
+      ).json<{ challengeToken: string }>();
+      const code = test.mail.lastCode(email);
+      const wrongCode = code === "000000" ? "111111" : "000000";
+      const keys = createAuthKeys(testConfig().auth.secret);
+      const ip = freshIp();
+      const verify = (typed: string) =>
+        test.app.inject({
+          method: "POST",
+          url: "/v1/staff/reauth/verify",
+          headers: withSession(here.cookie, {
+            "idempotency-key": crypto.randomUUID(),
+            "x-forwarded-for": ip,
+          }),
+          payload: { challengeToken, code: typed },
+        });
+
+      expect((await verify(wrongCode)).statusCode).toBe(422);
+      expect((await verify(wrongCode)).statusCode).toBe(422);
+      expect(await failures(BUCKETS.failEmail, keys.emailKey(email))).toBe(2);
+      expect(await failures(BUCKETS.failAddress, keys.addressKey(addressBucket(ip)))).toBe(2);
+
+      expect((await verify(code)).statusCode).toBe(200);
+      expect(await failures(BUCKETS.failEmail, keys.emailKey(email))).toBe(2);
     });
 
     it("holds a second code inside a minute and the hour's sixth, answers 503 when the email fails, and logs each", async () => {

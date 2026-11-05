@@ -4,12 +4,15 @@ import { describe, expect, it } from "vitest";
 import { parseAst } from "vitest/node";
 
 /**
- * Outside calls never follow a redirect (V15.3.2, ADR-701): every `fetch` call in the API, and in the web's server-side
- * calls to the API, passes `redirect: "error"`, so a hostile or hijacked provider cannot bounce a request, its bearer
- * or its body somewhere else. Parsed, not matched by text: a call counts when its callee is named like a fetch
- * (`fetch`, `options.fetch`, `request.fetchImpl ?? fetch`) or is a variable set from one (`const call = options.fetch
- * ?? fetch`). The forwarder (`forward.ts`) keeps `"manual"`: it passes the API's own answer through.
+ * Outside calls never follow a redirect (V15.3.2, ADR-701): every `fetch` call in the API, and in every server-side
+ * file of the web (all of `apps/web/src` but client files, the forwarder and `post-json.ts`), passes
+ * `redirect: "error"`, so a hostile or hijacked provider cannot bounce a request, its bearer or its body somewhere
+ * else. Parsed, not matched by text: a call counts when its callee is named like a fetch (`fetch`, `options.fetch`,
+ * `request.fetchImpl ?? fetch`) or is a variable set from one (`const call = options.fetch ?? fetch`). The forwarder
+ * (`forward.ts`) keeps `"manual"`: it passes the API's own answer through.
  */
+
+/** Web files known to call the API from the server: the walk must find each of them. */
 const WEB_SERVER_CALLS = [
   "event-card.ts",
   "event-terms.ts",
@@ -17,6 +20,12 @@ const WEB_SERVER_CALLS = [
   "legal-api.ts",
   "staff-api.ts",
 ];
+
+/** Web files left out of the walk: the forwarder (`"manual"`, see above) and the browser's own same-origin calls. */
+const WEB_NOT_SERVER_CALLS = new Set(["lib/forward.ts", "lib/post-json.ts"]);
+
+/** A file that runs in the browser (a `"use client"` directive), whose calls never leave the web origin. */
+const CLIENT_FILE = /^\s*["']use client["']/mu;
 
 type Node = Readonly<Record<string, unknown>> & { type: string };
 
@@ -82,7 +91,8 @@ type FetchCall = Readonly<{ file: string; line: number; redirectError: boolean }
 
 /** Every fetch call in one file, with whether it refuses redirects. */
 export function fetchCallsIn(file: string, text: string): FetchCall[] {
-  const program = parseAst(text, { lang: "ts", sourceType: "module" }) as unknown as Node;
+  const lang = file.endsWith(".tsx") ? "tsx" : "ts";
+  const program = parseAst(text, { lang, sourceType: "module" }) as unknown as Node;
   const aliases = new Set<string>();
   walk(program, (node) => {
     const id = node["id"];
@@ -104,22 +114,31 @@ export function fetchCallsIn(file: string, text: string): FetchCall[] {
   return calls;
 }
 
-function sources(directory: string): string[] {
+const TEST_FILE = /\.test(-support)?\.tsx?$/u;
+
+function sources(directory: string, extension: RegExp): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) {
-      return sources(path);
+      return sources(path, extension);
     }
-    return entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts") ? [path] : [];
+    return extension.test(entry.name) && !TEST_FILE.test(entry.name) ? [path] : [];
   });
+}
+
+/** Every web source file whose calls run on the server: all but the forwarder, the browser helper and client files. */
+function webServerSources(web: string): string[] {
+  return sources(web, /\.tsx?$/u)
+    .filter((path) => !WEB_NOT_SERVER_CALLS.has(relative(web, path).replaceAll("\\", "/")))
+    .filter((path) => !CLIENT_FILE.test(readFileSync(path, "utf8")));
 }
 
 describe("outside calls never follow a redirect (ADR-701)", () => {
   const api = join(import.meta.dirname);
-  const web = join(import.meta.dirname, "..", "..", "web", "src", "lib");
+  const web = join(import.meta.dirname, "..", "..", "web", "src");
   const files = [
-    ...sources(api).map((path) => ({ name: `api/${relative(api, path)}`, path })),
-    ...WEB_SERVER_CALLS.map((name) => ({ name: `web/lib/${name}`, path: join(web, name) })),
+    ...sources(api, /\.ts$/u).map((path) => ({ name: `api/${relative(api, path)}`, path })),
+    ...webServerSources(web).map((path) => ({ name: `web/${relative(web, path)}`, path })),
   ];
   const calls = files.flatMap(({ name, path }) =>
     fetchCallsIn(name.replaceAll("\\", "/"), readFileSync(path, "utf8")),
@@ -139,6 +158,19 @@ describe("outside calls never follow a redirect (ADR-701)", () => {
     }
   });
 
+  it("walks the web's server files and leaves out its client files, the forwarder and the browser helper", () => {
+    const names = files.map((file) => file.name.replaceAll("\\", "/"));
+    expect(names.some((name) => name.startsWith("web/app/"))).toBe(true);
+    for (const left of [
+      "web/lib/forward.ts",
+      "web/lib/post-json.ts",
+      "web/components/SignOutButton.tsx",
+      "web/components/AnalyticsExports.tsx",
+    ]) {
+      expect(names, left).not.toContain(left);
+    }
+  });
+
   it('passes redirect: "error" on every one', () => {
     expect(calls.filter((call) => !call.redirectError)).toEqual([]);
   });
@@ -151,6 +183,12 @@ describe("outside calls never follow a redirect (ADR-701)", () => {
     ["no init at all", "await fetch(url);"],
   ])("catches %s that forgets it", (_name, text) => {
     expect(fetchCallsIn("x.ts", text)).toEqual([expect.objectContaining({ redirectError: false })]);
+  });
+
+  it("reads a .tsx file", () => {
+    expect(fetchCallsIn("x.tsx", "const page = <main />;\nawait fetch(url);")).toEqual([
+      expect.objectContaining({ redirectError: false }),
+    ]);
   });
 
   it("does not count a call that is not a fetch", () => {

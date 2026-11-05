@@ -336,7 +336,7 @@ async function sweepIfDue(deps: SignInDeps, caller: Caller, clock: SweepClock): 
   }
 }
 
-export function keysFor(deps: SignInDeps, email: string, caller: Caller): Keys {
+export function keysFor(deps: Pick<SignInDeps, "keys">, email: string, caller: Caller): Keys {
   return {
     email: deps.keys.emailKey(email),
     address: deps.keys.addressKey(addressBucket(caller.address)),
