@@ -106,6 +106,11 @@ export async function startStaffReauth(
   };
 }
 
+/** A confirmed code always carries the session's new freshness (migration 0155). */
+type ConfirmRow =
+  | Readonly<{ outcome: "confirmed"; attempts_left: number; fresh_until: Date }>
+  | Readonly<{ outcome: "expired" | "wrong"; attempts_left: number; fresh_until: null }>;
+
 /** Confirms the session's code (`confirm_staff_reauth`): the session is fresh for 10 minutes. */
 export async function confirmStaffReauth(
   deps: StaffReauthDeps,
@@ -114,19 +119,13 @@ export async function confirmStaffReauth(
 ): Promise<StaffReauthConfirm> {
   const tokenHash = hashToken(input.challengeToken);
   const row = await asUser(deps.pool, who.staffUserId, async (client) => {
-    const { rows } = await client.query<{
-      outcome: "expired" | "wrong" | "confirmed";
-      attempts_left: number;
-      fresh_until: Date | null;
-    }>("SELECT * FROM confirm_staff_reauth(decode($1, 'hex'), decode($2, 'hex'), $3, $4)", [
-      who.tokenHash,
-      tokenHash,
-      codeHashOf(deps.keys, tokenHash, input.code),
-      input.requestId,
-    ]);
+    const { rows } = await client.query<ConfirmRow>(
+      "SELECT * FROM confirm_staff_reauth(decode($1, 'hex'), decode($2, 'hex'), $3, $4)",
+      [who.tokenHash, tokenHash, codeHashOf(deps.keys, tokenHash, input.code), input.requestId],
+    );
     return rows[0];
   });
-  if (row?.outcome === "confirmed" && row.fresh_until !== null) {
+  if (row?.outcome === "confirmed") {
     return { kind: "confirmed", freshUntil: row.fresh_until };
   }
   if (row?.outcome === "wrong") {

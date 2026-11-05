@@ -80,6 +80,16 @@ type Opened = Readonly<{
   sentTo: string;
 }>;
 
+/** A started code always carries the contact and its mask; no contact carries neither (migration 0155). */
+type StartRow =
+  | Readonly<{ outcome: "started"; contact: string; masked: string }>
+  | Readonly<{ outcome: "no_contact"; contact: null; masked: null }>;
+
+/** A confirmed code always carries the device's new freshness (migration 0155). */
+type ConfirmRow =
+  | Readonly<{ outcome: "confirmed"; attempts_left: number; fresh_until: Date }>
+  | Readonly<{ outcome: "expired" | "wrong"; attempts_left: number; fresh_until: null }>;
+
 /** Rolls the request's transaction back with its answer: nothing was sent, so nothing is counted. */
 class NotOpened extends Error {
   constructor(readonly answer: Readonly<{ kind: "no_contact" }> | Throttled) {
@@ -100,18 +110,12 @@ async function startReauth(
 ): Promise<Opened> {
   const token = generateToken().token;
   const code = generateCode();
-  const { rows } = await client.query<{
-    outcome: "started" | "no_contact";
-    contact: string | null;
-    masked: string | null;
-  }>("SELECT * FROM start_player_reauth($1, $2, $3, $4)", [
-    input.session,
-    input.channel,
-    tokenHash(token),
-    codeHash(deps, token, code),
-  ]);
+  const { rows } = await client.query<StartRow>(
+    "SELECT * FROM start_player_reauth($1, $2, $3, $4)",
+    [input.session, input.channel, tokenHash(token), codeHash(deps, token, code)],
+  );
   const row = onlyRow(rows, "start_player_reauth");
-  if (row.outcome !== "started" || row.contact === null || row.masked === null) {
+  if (row.outcome !== "started") {
     throw new NotOpened({ kind: "no_contact" });
   }
   const contact = { channel: input.channel, value: row.contact };
@@ -237,16 +241,15 @@ export async function confirmReauthCode(
     if (full !== undefined) {
       return full;
     }
-    const { rows } = await client.query<{
-      outcome: "expired" | "wrong" | "confirmed";
-      attempts_left: number;
-      fresh_until: Date | null;
-    }>("SELECT * FROM confirm_player_reauth($1, $2, $3, $4)", [
-      input.session,
-      tokenHash(input.challengeToken),
-      codeHash(deps, input.challengeToken, typedCode(input.code)),
-      input.requestId,
-    ]);
+    const { rows } = await client.query<ConfirmRow>(
+      "SELECT * FROM confirm_player_reauth($1, $2, $3, $4)",
+      [
+        input.session,
+        tokenHash(input.challengeToken),
+        codeHash(deps, input.challengeToken, typedCode(input.code)),
+        input.requestId,
+      ],
+    );
     const row = onlyRow(rows, "confirm_player_reauth");
     if (row.outcome === "wrong") {
       await recordAll(client, failures);
@@ -256,7 +259,7 @@ export async function confirmReauthCode(
   if ("retryAfterSeconds" in result) {
     return result;
   }
-  if (result.outcome === "confirmed" && result.fresh_until !== null) {
+  if (result.outcome === "confirmed") {
     return { kind: "confirmed", freshUntil: result.fresh_until };
   }
   if (result.outcome === "wrong") {
