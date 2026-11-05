@@ -63,7 +63,7 @@ consolidated at the end. The other docs hold the detail it points to.
 | `legal/` + `legal/README.md` | Player terms of use, privacy policy and community guidelines (Arabic first, English alongside), placeholders and the counsel question list. Prize rules and organizer terms come later | v0.1 drafts 2026-10-20 (T-119); counsel review T-807 |
 | `ROADMAP.md` · `TASKS.md` · `TEST_STRATEGY.md` · `RISKS.md` | Build order (9 phases), 132 tasks covering all 546 requirements, testing, 18 risks | Drafted 2026-10-17 (Stage 8) |
 | `RUNBOOK.md` | How to run the checks, create staff accounts, free a locked-out person, and what to do when sign-in email is down | Started 2026-10-19 (T-006) |
-| `SLO.md` | The service-level targets, how each is measured, the alert table, the metric catalog and what telemetry never holds; the rules are in `../ops/alerts/` | Written 2026-11-03 (T-018) |
+| `SLO.md` | The service-level targets, how each is measured, the alert table, the metric catalog, what telemetry never holds and the log inventory of every layer (T-810); the rules are in `../ops/alerts/` | Written 2026-11-03 (T-018) |
 | `QUALITY_BASELINE.md` | The standards every phase and release is checked against (OWASP ASVS/MASVS, tests, infrastructure, operations) | Written 2026-10-19 (ADR-108) |
 | `rules.md` | Hard rules, quality bar, coding standards, Definition of Done | Drafted 2026-10-17 (Stage 7) |
 | `_blueprint/CLAUDE_BUILD_DRAFT.md` | The proposed build-phase changes to the root `CLAUDE.md`; applied when planning is approved | Draft, not applied |

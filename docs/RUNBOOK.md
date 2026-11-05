@@ -152,15 +152,20 @@ A platform admin's sessions can be ended from the console's Admins page (T-709),
 **Audit log**: read it from the owner connection (`SELECT * FROM audit_log ORDER BY id DESC LIMIT 50`). No one can
 change or remove an entry, the owner included; do not try to work around the triggers.
 
-**Rotating `AUTH_SECRET`**: kills open sign-in codes and resets the throttle windows; nothing stored depends on
-it. Sessions stay valid. Do it when someone with access leaves or the secret may have leaked.
+**Rotating `AUTH_SECRET`**: kills open sign-in codes and resets the throttle windows. Sessions stay valid. It also
+loses the ban and welcome marks of erased accounts (Q-141), ends the promotional opt-out links already sent, the links
+of open owner email changes and the pairing codes on screen, and voids the App Review code (Prepare again). SECURITY.md
+"Cryptographic inventory and key policy" lists each use. Do it when someone with access leaves or the secret may have
+leaked.
 
 **Rotating `QR_SECRET`** (ADR-116): every quest QR ever printed, in every organizer's events, stops working at once;
 there is no grace period. Do it only when the secret may have leaked (anyone holding it can make a code for any
 quest). Steps: set a new value in the secret store and redeploy the API; tell every organizer with a scheduled or live
 event to open Print codes and reprint (the page shows the new codes); note it in the incident log. Players who scan
-an old code get "this code no longer works" (T-105). A routine rotation is not needed: the key signs codes, it does
-not encrypt data.
+an old code get "this code no longer works" (T-105). The same rotation ends the passport step, hidden category and NFC
+tag codes and the operator invite links already issued (SECURITY.md "Cryptographic inventory and key policy" lists the
+eight purposes): reprint the step and secret-category sheets and rewrite the NFC tags. A routine rotation is not needed:
+the key signs codes, it does not encrypt data.
 
 **`REWARD_CODE_SECRET`** (ADR-136, ADR-705) encrypts digital reward codes. Unlike `QR_SECRET` it protects data:
 losing it makes every code sealed under it unreadable (players who already redeemed see "We couldn't show this code";

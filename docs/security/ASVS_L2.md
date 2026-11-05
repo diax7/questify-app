@@ -25,8 +25,8 @@ the step in `.github/workflows/ci.yml`. A doc reference names the section. "Note
 
 | Status | L1 | L2 | Total |
 |---|---|---|---|
-| Met | 55 | 102 | 157 |
-| Partly | 3 | 22 | 25 |
+| Met | 55 | 104 | 159 |
+| Partly | 3 | 20 | 23 |
 | Not met | 0 | 0 | 0 |
 | N/A | 12 | 59 | 71 |
 | **Total** | **70** | **183** | **253** |
@@ -34,7 +34,7 @@ the step in `.github/workflows/ci.yml`. A doc reference names the section. "Note
 ## Gaps and what to do
 
 Code gaps were one tier A task, **T-810b** (`docs/TASKS.md`), done 2026-11-05 but for row 8, done as T-810f the same day.
-Documentation gaps are in `docs/FOLLOWUPS.md` (2026-11-05, T-810); product and hosting choices are Q-660 to Q-664
+Documentation gaps 15 to 17 were written on 2026-11-06 (T-810); gap 18 is still in `docs/FOLLOWUPS.md`; product and hosting choices are Q-660 to Q-664
 (`docs/OPEN_QUESTIONS.md`), answered as T-810b (rows 9 and 11), T-810c, T-810d, T-810e (row 11's notice, done) and T-811.
 
 | # | Controls | Status | Gap | Recommendation | Where |
@@ -53,9 +53,9 @@ Documentation gaps are in `docs/FOLLOWUPS.md` (2026-11-05, T-810); product and h
 | 12 | V3.5.4 | Partly | The console, the dashboard, the public event page, stations and the big screen share one hostname | Product and domain choice | Q-663 |
 | 13 | V4.1.2, V12.1.1, V12.1.2, V12.2.2, V12.3.1, V12.3.3, V12.3.4, V13.2.1, V13.2.4, V13.2.5, V13.3.1, V13.3.2, V16.4.2, V16.4.3 | Partly | Controls that live in CranL: edge TLS versions and ciphers, certificates, HTTP-to-HTTPS behaviour on the API host, TLS to PostgreSQL and Redis on the private network, static database and Redis passwords, no egress allowlist, the secret store's access control, and server logs kept only in CranL's log view | Ask CranL in T-811; decide per item | Q-664 |
 | 14 | V15.1.1, V15.2.1 | Met (T-810, 2026-11-06) | Written time frames for fixing a vulnerable dependency: critical 7 days, high 14, moderate 30, the rest in the monthly Dependabot batch; CI's "Dependency audit" fails a pull request on any finding not listed in `auditConfig.ignoreGhsas` | Done | `docs/QUALITY_BASELINE.md` §2, "Fixing a vulnerable dependency" |
-| 15 | V11.1.1, V11.1.2 | Partly | Rotation steps exist per secret (RUNBOOK "Staff sign-in"), but there is no key-management policy and no complete cryptographic inventory (APNs ES256, Google RS256, the opt-out HMAC and TLS are missing from SECURITY's V11 row) | One inventory table: key, algorithm, purpose, where it may be used, owner, rotation | FOLLOWUPS |
-| 16 | V16.1.1 | Partly | No single log inventory (what each layer logs, where it is stored, who reads it, how long it is kept) | One table in SLO.md or RUNBOOK | FOLLOWUPS |
-| 17 | V6.1.3 | Partly | The sign-in pathways (staff password and code, staff sign-up, invites, owner email change, player SMS and email codes, the App Review code, device pairing, kiosk live codes) are documented section by section, not together with their strength | One table in SECURITY.md | FOLLOWUPS |
+| 15 | V11.1.1, V11.1.2 | V11.1.2 Met, V11.1.1 Partly (T-810, 2026-11-06) | The cryptographic inventory and key policy are written (`docs/SECURITY.md` "Cryptographic inventory and key policy"), so V11.1.2 is Met. V11.1.1 stays Partly: rotation is event-driven with no schedule (QUALITY_BASELINE section 4 says "on a schedule"), `AUTH_SECRET` and `QR_SECRET` have no previous-key slot, the RUNBOOK has no steps for the provider keys, who can read the secret store is unconfirmed (Q-664), and the policy is not mapped to NIST SP 800-57 | Q-700's recommendation | Q-700 |
+| 16 | V16.1.1 | Partly (inventory written, T-810, 2026-11-06) | The log inventory is written (`docs/SLO.md` section 6). It records that Questify sets no retention for CranL's logs (Q-443) and that the audit log is kept with no period (Q-084), so the control's retention clause is not met | Set the periods when counsel and T-811 answer | Q-443, Q-084 |
+| 17 | V6.1.3 | Met (T-810, 2026-11-06) | Done: `docs/SECURITY.md` "Sign-in pathways and their strength" lists every pathway of the product with its proof, the limits that bound guessing, what it opens and its test, and says how the access kinds enforce them alike. The operator's own accounts sit outside the product (Q-701) | Done | `docs/SECURITY.md` "Sign-in pathways and their strength" |
 | 18 | V6.4.1, V6.4.4 | Partly | `staff.cjs create` sets a password the operator knows and nothing asks for a change; a lost staff mailbox or a player's lost number is handled by support with no written identity-proofing steps | Prefer invites; write the proofing steps in RUNBOOK | FOLLOWUPS |
 | 19 | V3.3.1, V3.3.3 | Met (T-810, 2026-11-06) | The language cookie (`apps/web/src/lib/language.ts`) is `__Host-qs_lang`; the proxy still reads the old `qs_lang` once, so a saved choice survives, and removes it when it sets the new one | Done | `apps/web/src/lib/language.ts`, `apps/web/src/proxy.ts` |
 | 20 | V7.5.1 | Partly | A player's phone or email change is not re-authenticated (accepted deviation, ADR-120, SECURITY "Data protection") | Keep; covered by Q-661's session controls | ADR-120 |
@@ -172,7 +172,7 @@ identity provider.
 |---|---|---|---|---|---|
 | V6.1.1 | 1 | Brute-force and stuffing defences documented | Met | `docs/SECURITY.md` "Staff sign-in controls (T-006)" (V6 row) and "Top abuse cases" #4; `docs/RUNBOOK.md` "Staff sign-in", "Player sign-in and SMS (T-107)" | |
 | V6.1.2 | 2 | Context-specific password words documented | Met | `docs/SECURITY.md` "Authentication" (the passwords bullet: product names and the email's name part) | |
-| V6.1.3 | 2 | All pathways documented with their strength | Partly | Section by section in `docs/SECURITY.md` | Gap 17 |
+| V6.1.3 | 2 | All pathways documented with their strength | Met | `docs/SECURITY.md` "Sign-in pathways and their strength" (23 pathways, each with its limits and test, and the access-kind rule that enforces them alike); `apps/api/src/route-access.test.ts`; `apps/api/test/security/routes.int.test.ts` | |
 | V6.2.1 | 1 | Passwords of at least 8 (15 advised) | Met | `apps/api/src/auth/password.test.ts` "refuses 11 characters and accepts 12" | |
 | V6.2.2 | 1 | Users can change their password | Met | `apps/api/test/auth/password-reset.int.test.ts` "keeps the current session, ends the others, and swaps the passwords" | |
 | V6.2.3 | 1 | Change needs the current password | Met | `apps/api/test/auth/password-reset.int.test.ts` "refuses a wrong current password with 403 and counts it toward the sign-in lockout" | |
@@ -276,8 +276,8 @@ for FCM and Gmail (`apps/api/src/auth/google-token.test.ts`), which carries no u
 
 | ID | L | Control | Status | Evidence | Gap |
 |---|---|---|---|---|---|
-| V11.1.1 | 2 | Key-management policy and lifecycle | Partly | `docs/RUNBOOK.md` "Staff sign-in" (rotating `AUTH_SECRET`, `QR_SECRET`, `REWARD_CODE_SECRET`); `docs/SECURITY.md` "Secrets policy" | Gap 15 |
-| V11.1.2 | 2 | Cryptographic inventory | Partly | `docs/SECURITY.md` "Staff sign-in controls (T-006)" (V11 row) | Gap 15 |
+| V11.1.1 | 2 | Key-management policy and lifecycle | Partly | `docs/SECURITY.md` "Cryptographic inventory and key policy" (the six-point policy: generation, storage, separation, use, rotation, retirement) and "Secrets policy"; `docs/RUNBOOK.md` "Staff sign-in" (rotating `AUTH_SECRET`, `QR_SECRET`, `REWARD_CODE_SECRET`) | Gap 15, Q-700 |
+| V11.1.2 | 2 | Cryptographic inventory | Met | `docs/SECURITY.md` "Cryptographic inventory and key policy": every key, algorithm, use, what it may not be used for, holder and rotation, read from `apps/api/src` and `ops/cranl/*.json`; Questify holds no certificate (TLS is CranL's, Q-664) | |
 | V11.2.1 | 2 | Industry-validated implementations | Met | Node's `crypto` and the `argon2` library only: `apps/api/src/auth/password.test.ts` "round-trips and uses argon2id with the current parameters" | |
 | V11.2.2 | 2 | Crypto agility: algorithms and keys replaceable | Met | `apps/api/test/auth/sign-in.int.test.ts` "upgrades an old password hash to the current parameters after a good sign-in"; codes carry a format byte (`apps/api/src/quests/qr.test.ts` "opens a tag's token to its id and version, 50 characters of format 0x06"); reward codes carry a key id and are re-sealed (`apps/api/test/rewards/reseal.int.test.ts` "re-seals every code after a rotation so each reveals with the new key alone, then does nothing") | Gap 8 closed (T-810f) |
 | V11.2.3 | 2 | At least 128 bits of security | Met | `apps/api/src/auth/keys.test.ts` "gives 32-byte keys that are stable for the same input"; AES-256-GCM and a 128-bit QR tag (`docs/SECURITY.md` T-006 V11 row) | |
@@ -359,7 +359,7 @@ for FCM and Gmail (`apps/api/src/auth/google-token.test.ts`), which carries no u
 
 | ID | L | Control | Status | Evidence | Gap |
 |---|---|---|---|---|---|
-| V16.1.1 | 2 | Log inventory | Partly | `docs/SLO.md` "3. What is recorded", "4. What is never recorded"; `docs/SECURITY.md` T-006 (V16 row) | Gap 16 |
+| V16.1.1 | 2 | Log inventory | Partly | `docs/SLO.md` "6. Log inventory: every layer" (each layer, its events, format, store, readers and retention); sections 3 and 4 | Gap 16: retention is not set for CranL's logs (Q-443) and the audit log has no period (Q-084) |
 | V16.2.1 | 2 | When, where, who, what in each entry | Met | `apps/api/test/auth/edges.int.test.ts` "names every event with its fields and a keyed address tag"; `apps/api/test/audit/audit.int.test.ts` "does not let the API choose the time or the number of an entry" | |
 | V16.2.2 | 2 | Synchronised clocks, UTC | Met | Log lines carry pino's epoch-millisecond `time` (UTC); audit times are set by the database (same audit test) | |
 | V16.2.3 | 2 | Logs only to documented destinations | Met | Standard output only (`docs/QUALITY_BASELINE.md` §4); `apps/api/src/telemetry/pii.test.ts` "uses only attribute keys on the list, on every span and every metric point" | |

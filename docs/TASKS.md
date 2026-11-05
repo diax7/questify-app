@@ -1619,6 +1619,9 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Note 2026-11-05 (order): the sheet is drafted before T-809 so the tester starts from it: `docs/security/ASVS_L2.md`
     (253 L1 and L2 controls: 133 Met, 47 Partly, 2 Not met, 71 N/A). T-810 stays open until T-809's findings are in
     the sheet and every gap is closed (T-810b, FOLLOWUPS) or accepted in writing (Q-660 to Q-664).
+  - Note 2026-11-06 (tier C): gaps 15 to 17 written, no code. SECURITY.md has "Cryptographic inventory and key policy" and
+    "Sign-in pathways and their strength", SLO.md section 6 the log inventory. V11.1.2 and V6.1.3 Met; V11.1.1 and V16.1.1
+    stay Partly (Q-700; Q-443, Q-084); Q-701 added (159 Met, 23 Partly, 0 Not met).
 - [x] **T-810b** (tier A) Close the ASVS L2 code gaps from T-810 (`docs/security/ASVS_L2.md`, "Gaps and what to do" 1 to 8) — delivers no FR (infrastructure or quality gate); depends on: none
   - (1) `Strict-Transport-Security`, `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` on every `/v1` answer (conventions `onSend`), passed through `apps/web/src/lib/forward.ts`; tests for both and an HSTS assertion on the page headers.
   - (2) `redirect: "error"` on every outside `fetch` (`players/sms.ts`, `auth/breached.ts`, `auth/email/resend.ts`, `auth/email/gmail.ts`, `auth/google-token.ts`), a test per client.

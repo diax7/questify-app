@@ -2796,3 +2796,30 @@ ADR-674 kept profiling off the shared container because it had no `pg_stat_state
 none: it reads `pg_stat_user_functions` of its own database and loads auto_explain into its own session only.
 **Recommended (developer):** allow it there; other sessions' tests share the CPU, so a run taken while the full suite
 runs elsewhere is discarded, as T-804a discarded one taken during an image download.
+
+## Q-700 - Key management gaps found while writing the cryptographic inventory (T-810, ASVS V11.1.1)
+
+**Status:** Open (developer, 2026-11-06).
+SECURITY.md "Cryptographic inventory and key policy" is written from the code. It shows what is missing; none of it is built:
+(1) QUALITY_BASELINE section 4 says secrets are "rotated on a schedule and when someone leaves"; only the monitoring password has a
+schedule (every six months, RUNBOOK). `AUTH_SECRET`, `QR_SECRET` and `REWARD_CODE_SECRET` rotate on a leak, on suspicion or when someone
+leaves. (2) `AUTH_SECRET` and `QR_SECRET` have no previous-key slot (`REWARD_CODE_SECRET` has one, ADR-725). A rotation of `AUTH_SECRET`
+loses the deletion marks (Q-141), the opt-out links already sent, the links of open owner email changes and the App Review code; a rotation
+of `QR_SECRET` ends the printed or written codes of eight purposes, not only the quest QR. The RUNBOOK said "nothing stored depends on" for
+`AUTH_SECRET` and named only the quest QR for `QR_SECRET`; both paragraphs now point at the inventory. (3) The RUNBOOK has no rotation
+steps for the APNs `.p8`, the FCM and Gmail service accounts, the Msegat and Resend keys or the database and Redis passwords, and no alert
+fires before a key expires (SLO.md section 2). (4) Who can read the CranL secret store is unconfirmed (Q-664). (5) The policy is not mapped
+phase by phase to NIST SP 800-57.
+**Recommended (developer):** keep the rotation of the three secrets event-driven (a routine `AUTH_SECRET` rotation costs the deletion marks
+and a routine `QR_SECRET` rotation costs every printed sheet, for no gain while the keys only sign or hash) and say so in QUALITY_BASELINE
+section 4; write the provider-key rotation steps in the RUNBOOK when the keys exist (the push go-live checklist, T-806); add a previous-key
+slot to `AUTH_SECRET` only if Q-141's marks must survive a rotation; ask CranL about the secret store with Q-664's list in T-811.
+
+## Q-701 - Sign-in strength of the operator's own accounts is not recorded (T-810, ASVS V6.1.3)
+
+**Status:** Open (developer, 2026-11-06).
+SECURITY.md "Sign-in pathways and their strength" covers the product. It cannot record how the CranL account, its API key and the
+provider consoles (Google Workspace, Apple Developer, Firebase, Msegat) are protected: who holds each and whether each has a second factor.
+The database owner connection is a static password given for a command (Q-664).
+**Recommended (developer):** Dhia confirms that each of these accounts has a second factor and who holds it, and the date goes in this
+entry; the CranL parts join the T-811 questions.

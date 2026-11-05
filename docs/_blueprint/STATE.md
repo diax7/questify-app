@@ -6,6 +6,20 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-810 documentation gaps 15 to 17 — 2026-11-06
+
+- **ASVS gaps 15, 16 and 17 written (tier C, docs only; no code, no review).** `docs/SECURITY.md` has "Cryptographic
+  inventory and key policy" (every key and secret: algorithm, use, what it may not be used for, holder, rotation and what a
+  rotation breaks, from the code and `ops/cranl/*.json`) and "Sign-in pathways and their strength" (23 numbered pathways in
+  three tables, plus three links that open one thing). `docs/SLO.md` section 6 is the log inventory of every layer. The sheet:
+  V11.1.2 and V6.1.3 Met; V11.1.1 stays Partly (Q-700: no rotation schedule, no previous-key slot for `AUTH_SECRET` or
+  `QR_SECRET`, no provider-key steps) and V16.1.1 stays Partly (retention not set: Q-443, Q-084). Counts 159 Met, 23 Partly,
+  0 Not met. Found while writing and fixed in the RUNBOOK: its `AUTH_SECRET` paragraph said nothing stored depends on it
+  (the deletion marks, opt-out links and email-change links do) and its `QR_SECRET` paragraph named only the quest QR.
+  QUALITY_BASELINE section 4 says secrets rotate "on a schedule", which no document sets (Q-700). Q-700 and Q-701 added.
+  The three FOLLOWUPS lines are gone. CI minutes: 0 (not pushed); agent tokens roughly 0.4M (estimate).
+  **Next:** the next unchecked task in `docs/TASKS.md` (T-810d, T-811 open; ASVS gap 18 stays in FOLLOWUPS).
+
 ## FOLLOWUPS batch 3 — 2026-11-06
 
 - **FOLLOWUPS batch 3 (ADR-355; tier B; two small migrations, 0158 and 0159; 0156 stays reserved).** Cleared: the team's
