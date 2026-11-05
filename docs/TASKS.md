@@ -1568,6 +1568,13 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     migration 0158): `ops/load/profile.mjs` committed; two runs on one container 10.78 and 10.98 ms a completion. The
     build (section 3) merges the ledger triggers and trims four smaller costs, about 1.4 to 1.8 ms; waits for the plan
     review.
+  - Build 2026-11-05 (plan review 84; coordinator scope, plan section 8): migration 0158 built ADR-731, ADR-732 and
+    ADR-733 (part E, and the tuning row read once instead of part D's cache); ADR-730 (trigger merge) deferred. A
+    scenario equivalence test over every ledger kind holds 0158 equal to the 0157 bodies (rollback file
+    `apps/api/db/rollback/0158_completion_profile.sql`). **Still open: the two after-build profile runs.** They were not
+    taken: `ops/load/profile.mjs` stops under 8 GB free on C: and the PC had 7.0 GB. Once there is room, run it twice on an
+    idle container; at or under 10 ms ticks this task, over 10 ms writes the gap (ADR-730 with the review's MAJORs 1 to 3
+    would save about 0.5 to 0.8 ms, at the cost of one larger trigger function and its order held by tests).
 - [ ] **T-804** Load test at 20,000 completions per minute per event and ten events at once — delivers no FR (infrastructure or quality gate); depends on: T-105, T-106
   - Note 2026-11-04 (T-804a part A, ADR-670): with migration 0148 the same PC carries 200 completions a second for ten
     events plus a 50,000-player event at 98.0% within 1 s (p95 518 ms, PostgreSQL 6.4 to 7.0 cores); before it, 52 a

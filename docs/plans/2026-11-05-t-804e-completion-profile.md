@@ -233,3 +233,11 @@ flag set outside pending. Answers, SQLSTATEs, enrollments, ledger, completions, 
 event and Questify streak days and flags must be equal. Two deliberate breaks (a wrong XP month; the waiting-list WHEN
 without `waitlisted`) each failed it. A third test proves the migration's assertion refuses a bad row (23514).
 `completion-answer.int.test.ts`'s "ranking fails" case now breaks `ranking_day_entry_for`, the function the answer calls.
+
+**Measurement: not taken yet.** `node ops/load/profile.mjs --big-event-players 50000` stopped at its disk check (7.0 GB
+free on C:, it needs 8 GB) before it seeded anything. Once there is room it runs twice on an idle container (no other
+client database in `pg_stat_activity`). Expected from section 2: about 0.8 to 1.0 ms off (the XP month 0.31, one
+eligibility check about 0.3, the enrollment triggers about 0.1, one tuning read about 0.05), so about 9.8 to 10.2 ms.
+If the result is over 10 ms the gap goes here and in TASKS: ADR-730, built with the review's MAJORs 1 to 3, would save
+about 0.5 to 0.8 ms more (fewer trigger entries and definer switches); its cost is one larger trigger function whose
+step order becomes code, a conditional player lock kept by hand, and the scenario test as the gate.

@@ -6,6 +6,19 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-804e completion profile (build) — 2026-11-05
+
+- **T-804e built, profile pending (tier A, ledger; plan review 84; migration 0158, new and undeployed; ADR-731 to
+  ADR-733 Proposed, ADR-730 Proposed-deferred).** Coordinator scope (plan section 8): `xp_credit` passes the XP month
+  from `RETURNING`, the completion answer checks ranking eligibility once (`ranking_day_entry_for`, internal),
+  `flag_tuning` reads its row once, and the enrollment status guard and waiting-list clear skip score writes (`WHEN`,
+  with an assertion that no row is waitlisted outside pending). Rollback file `apps/api/db/rollback/0158_completion_profile.sql`;
+  `test/db/completion-profile.int.test.ts` runs every ledger kind against the 0157 and 0158 bodies (equal; two
+  deliberate breaks caught). Full suite: 12,861 passed, 10 failed, all timeouts in `live-edits` and `sign-in-rush` while
+  a Playwright shard shared the container (both files 38/38 alone). **The two profile runs are not taken:** C: has 7.0 GB
+  free and `profile.mjs` stops under 8 GB. CI minutes: 0; agent tokens roughly 0.6M (estimate).
+  **Next:** free disk space, run the profile twice on an idle container, then the T-804e code review.
+
 ## T-804e completion profile (plan) — 2026-11-05
 
 - **T-804e planned (tier A, ledger; plan `docs/plans/2026-11-05-t-804e-completion-profile.md`; ADR-730 to ADR-734 and
