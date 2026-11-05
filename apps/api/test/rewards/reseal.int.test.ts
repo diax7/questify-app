@@ -63,6 +63,23 @@ const rollbackRefused = (client: Client): Client =>
     },
   });
 
+/** The same connection, except that writing an audit entry raises once `refused()` answers true. */
+const auditRefused = (client: Client, refused: () => boolean): Client =>
+  new Proxy(client, {
+    get(target, property, receiver) {
+      const value: unknown = Reflect.get(target, property, receiver);
+      if (property !== "query" || typeof value !== "function") {
+        return value;
+      }
+      return async (...args: unknown[]) => {
+        if (refused() && String(args[0]).includes("INSERT INTO audit_log")) {
+          throw new Error("audit refused");
+        }
+        return Reflect.apply(value, target, args) as unknown;
+      };
+    },
+  });
+
 const refusal = async (work: Promise<unknown>): Promise<string> => {
   try {
     await work;
@@ -484,11 +501,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
       const reward = await newReward();
       const row = await plantLegacy(reward, `${SENTINEL}-MOVED`);
       const other = legacySeal(reward, `${SENTINEL}-MOVED`);
+      const handed: string[] = [];
       const report = await reseal(ROTATED, {
-        beforeWrite: async () => {
+        beforeWrite: async (planned) => {
+          handed.push(...planned);
           await owner("UPDATE reward_code SET code_cipher = $2 WHERE id = $1", [row, other]);
         },
       });
+      expect(handed).toEqual([row]);
       expect(report).toMatchObject({ resealed: 0, changed: 1, ids: { changed: [row] } });
       expect(await reseal(ROTATED)).toMatchObject({ resealed: 1, changed: 0 });
     });
@@ -587,6 +607,136 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
       );
       expect(await checkCodes(db.owner, NEW)).toMatchObject({ current: 0, stale: 2 });
     });
+
+    it("reports both errors when a stopped run cannot write its closing audit entry", async () => {
+      const reward = await newReward();
+      await plantLegacy(reward, `${SENTINEL}-AUDIT`);
+      const stop = new Error("operator pressed Ctrl+C");
+      let stopping = false;
+      const failure = await resealCodes(
+        auditRefused(db.owner, () => stopping),
+        ROTATED,
+        {
+          by: "test-operator",
+          afterBatch: () => {
+            stopping = true;
+            return Promise.reject(stop);
+          },
+        },
+      ).then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      expect(failure).toBeInstanceOf(AggregateError);
+      const both = failure as AggregateError;
+      expect(both.message).toBe("The re-seal stopped and its audit entry failed.");
+      expect(both.cause).toBe(stop);
+      expect(both.errors).toHaveLength(2);
+      expect(both.errors[0]).toBe(stop);
+      expect((both.errors[1] as Error).message).toBe("audit refused");
+    });
+
+    it("counts every row of a kind but lists only the first 100 ids", async () => {
+      const reward = await newReward();
+      const lost = ring(7, "t".repeat(32));
+      const codes = Array.from({ length: 101 }, (_, n) => `${SENTINEL}-CAP-${n}`);
+      const planted = await owner<{ id: string }>(
+        `INSERT INTO reward_code (organizer_id, event_id, reward_id, code_cipher, code_hash)
+         SELECT $1, $2, $3, cipher, mark FROM unnest($4::bytea[], $5::bytea[]) AS t(cipher, mark)
+         RETURNING id::text`,
+        [
+          ids.orgA,
+          ids.eventA,
+          reward,
+          codes.map((code) => sealCode(lost, reward, code)),
+          codes.map((code) => markCode(lost.current, code)),
+        ],
+      );
+      const inOrder = planted.map((row) => row.id).toSorted((a, b) => Number(a) - Number(b));
+      const report = await reseal(ROTATED);
+      expect(report.unreadable).toBe(101);
+      expect(report.ids.unreadable).toEqual(inOrder.slice(0, 100));
+    });
+
+    it("walks ids in number order where they gain a digit, re-sealing and checking each row once", async () => {
+      const [last] = await owner<{ value: string }>(
+        "SELECT last_value::text AS value FROM reward_code_id_seq",
+      );
+      const width = String(BigInt(last?.value ?? "1") + 2n).length;
+      await owner("SELECT setval('reward_code_id_seq', $1::bigint)", [
+        `${10n ** BigInt(width) - 2n}`,
+      ]);
+      const reward = await newReward();
+      const rows: string[] = [];
+      for (const code of ["W-1", "W-2", "W-3"]) {
+        rows.push(await plantLegacy(reward, `${SENTINEL}-${code}`));
+      }
+      expect(rows.map((id) => id.length)).toEqual([width, width + 1, width + 1]);
+      expect(await checkCodes(db.owner, NEW)).toEqual({ current: 0, stale: 3, ids: rows });
+      expect(await reseal(ROTATED, { batchSize: 2 })).toMatchObject({ current: 0, resealed: 3 });
+      expect(await checkCodes(db.owner, NEW)).toEqual({ current: 3, stale: 0, ids: [] });
+    });
+
+    it("counts a conflict when the unique index refuses the new mark at write time", async () => {
+      const reward = await newReward();
+      const row = await plantLegacy(reward, `${SENTINEL}-LATE`);
+      const [self] = await owner<{ pid: number }>("SELECT pg_backend_pid() AS pid");
+      const rival = await connectAsOwner(db);
+      const watcher = await connectAsOwner(db);
+      let committed: Promise<unknown> = Promise.resolve();
+      /** Commits the rival's copy once the re-seal's write waits on it, so the index (not the NOT EXISTS) decides. */
+      const commitWhenWaited = async () => {
+        const deadline = Date.now() + 5000;
+        while (Date.now() < deadline) {
+          const { rows } = await watcher.query<{ wait: string | null }>(
+            "SELECT wait_event_type AS wait FROM pg_stat_activity WHERE pid = $1",
+            [self?.pid],
+          );
+          if (rows[0]?.wait === "Lock") {
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        await rival.query("COMMIT");
+      };
+      try {
+        const report = await reseal(ROTATED, {
+          beforeWrite: async (planned) => {
+            if (planned.length === 0) {
+              return;
+            }
+            await rival.query("BEGIN");
+            await rival.query(
+              `INSERT INTO reward_code (organizer_id, event_id, reward_id, code_cipher, code_hash)
+               VALUES ($1, $2, $3, $4, $5)`,
+              [
+                ids.orgA,
+                ids.eventA,
+                reward,
+                sealCode(ROTATED, reward, `${SENTINEL}-LATE`),
+                markCode(ROTATED.current, `${SENTINEL}-LATE`),
+              ],
+            );
+            committed = commitWhenWaited();
+          },
+        });
+        await committed;
+        expect(report).toMatchObject({
+          resealed: 0,
+          conflict: 1,
+          changed: 0,
+          ids: { conflict: [row], changed: [] },
+        });
+      } finally {
+        await rival.end();
+        await watcher.end();
+      }
+    });
+
+    // Mutation run 42106959753, equivalent survivors: `rows[0]?.` to `rows[0].` in assertSeesEveryRow, codeBatches and
+    // writeOne (each query always answers a row there); the emptied `RELEASE SAVEPOINT` (the next ROLLBACK TO names
+    // the newest savepoint, which is this row's, and COMMIT keeps them all); `outcome !== undefined` to `true` (one
+    // outcome per planned row); `planned.length > 0` to `true` or `>= 0` (an empty batch commits an empty transaction).
 
     it("refuses a connection that cannot see every row before any read or write", async () => {
       const reward = await newReward();

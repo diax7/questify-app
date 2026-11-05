@@ -65,13 +65,17 @@ async function assertSeesEveryRow(owner: Client): Promise<void> {
   }
 }
 
-/** Walks `reward_code` by id, `size` rows at a time, outside any transaction. */
+/**
+ * Walks `reward_code` by id, `size` rows at a time, outside any transaction. The order names the table's column: a bare
+ * `id` would sort the text output column, and a walk across 99 and 100 would then skip or repeat rows.
+ */
 async function* codeBatches(owner: Client, size: number): AsyncGenerator<CodeRow[]> {
   let after = "0";
   for (;;) {
     const { rows } = await owner.query<CodeRow>(
-      `SELECT id::text, reward_id::text, event_id::text, code_cipher FROM reward_code
-        WHERE id > $1::bigint ORDER BY id LIMIT $2`,
+      `SELECT c.id::text AS id, c.reward_id::text AS reward_id, c.event_id::text AS event_id, c.code_cipher
+         FROM reward_code c
+        WHERE c.id > $1::bigint ORDER BY c.id LIMIT $2`,
       [after, size],
     );
     if (rows.length === 0) {

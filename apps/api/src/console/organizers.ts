@@ -297,7 +297,7 @@ export async function readHistory(
     by_support: boolean;
   }>(
     `SELECT id::text, at, actor_type, action, target_type, event_id, support_grant_id IS NOT NULL AS by_support
-     FROM audit_log WHERE ${byOrganizer ? "organizer_id" : "event_id"} = $1 ORDER BY id DESC LIMIT 50`,
+     FROM audit_log WHERE ${byOrganizer ? "organizer_id" : "event_id"} = $1 ORDER BY audit_log.id DESC LIMIT 50`,
     [byOrganizer ? scope.organizerId : scope.eventId],
   );
   return rows.map((row) => ({

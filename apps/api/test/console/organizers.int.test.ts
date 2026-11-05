@@ -515,7 +515,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
           event_id: string | null;
         }>(
           `SELECT id::text, at, actor_type, action, target_type, event_id FROM audit_log
-           WHERE organizer_id = $1 ORDER BY id DESC LIMIT 50`,
+           WHERE organizer_id = $1 ORDER BY audit_log.id DESC LIMIT 50`,
           [orgB],
         )
       ).map((row) => ({
@@ -575,6 +575,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
       expect((await organizers("")).nextCursor).toBeNull();
       expect((await organizers("?limit=3")).nextCursor).toBeNull();
       expect((await organizers("?limit=2")).nextCursor).toBe(orgB);
+    });
+  });
+
+  describe("an organizer's history", () => {
+    it("lists the newest entries first by number, across ids that gain a digit", async () => {
+      await owner(
+        `INSERT INTO audit_log (id, actor_type, organizer_id, action, target_type)
+           OVERRIDING SYSTEM VALUE
+         VALUES (999999999, 'system', $1, 'organizer.test_entry', 'organizer'),
+                (1000000000, 'system', $1, 'organizer.test_entry', 'organizer')`,
+        [orgA],
+      );
+
+      const detail = (await call("GET", `/v1/admin/organizers/${orgA}`, adminCookie)).json<{
+        history: { id: string }[];
+      }>();
+
+      expect(detail.history.slice(0, 2).map((entry) => entry.id)).toEqual([
+        "1000000000",
+        "999999999",
+      ]);
     });
   });
 

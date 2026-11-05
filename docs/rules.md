@@ -305,3 +305,7 @@ A change is done only when all of these hold:
 
 - A backfill or data fix skips deleted accounts (`WHERE status <> 'deleted'`): a tombstone never changes, and the
   database refuses it (`player_tombstone_final`, T-708).
+
+- A query that selects a column cast to text under its own name (`SELECT id::text ...`) orders and pages by the
+  table's column (`ORDER BY c.id`, `audit_log.id`), never the bare name: PostgreSQL sorts a bare name by the text
+  output column, so `"99"` sorts after `"100"` and a paged walk skips or repeats rows (T-810f chase).
