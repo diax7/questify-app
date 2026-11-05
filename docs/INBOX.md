@@ -834,3 +834,9 @@ Dhia (AskUserQuestion, after the T-810 ASVS L2 sheet): the signed-in devices lis
 (Recommended)"; the console on its own subdomain through the same CranL web app, "Yes, console subdomain (Recommended)";
 the one-line note on the code screen about never sharing the code, "Add the line (Recommended)". Processed into Q-661,
 Q-662, Q-663 and tasks T-810c, T-810d and T-810e.
+
+## 2026-11-05 - A fresh code before a player ends other devices -> processed
+
+Dhia (AskUserQuestion, T-810c plan, Q-680): "Yes, ask a code (Recommended)". Players type a fresh code before ending
+their other devices; the code is skipped within 10 minutes of a sign-in or a contact change. Processed into Q-680
+(answered), ADR-711 and the ASVS rows V7.5.2 and gap row 10.

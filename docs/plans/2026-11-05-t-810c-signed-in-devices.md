@@ -351,3 +351,44 @@ with other devices), the label sender (no `deviceName`, model trimmed, `expo-dev
   else "Phone"; nothing breaks.
 - **The dropped `confirm_contact_change` signature** fails contact changes on the old API instance for the deploy's
   minute (RUNBOOK note).
+
+---
+
+## 12. Plan review (84) amendments (2026-11-05)
+
+Q-680 answered by Dhia ("Yes, ask a code (Recommended)"); Q-681 answered by the developer (10 minutes). These replace
+the sections above where they differ.
+
+1. **One way to end a family (MAJOR).** A new ungranted `end_family(target uuid) RETURNS boolean` locks the family's
+   `player_sign_in_device` row `FOR UPDATE`, sets `ended_at`, then revokes the family's refresh rows and access rows and
+   deletes its reauth challenge, its `push_device` and the device's queued `push_send` rows. `revoke_family` (0013) is
+   **dropped**; every path that ends a family calls `end_family`: `sign_out_player`, the three ends inside
+   `rotate_player_refresh` (theft twice, an inactive or reset player), the 10-family cap in `issue_player_tokens`,
+   `admin_reset_player_sign_in`, `admin_ban_player`, `review_demo_revoke`, and the new end doors. A door that ends
+   several families calls it once per family in device-id order (rows without a device row last), so two ends never
+   lock in opposite orders. The player-wide paths (reset, ban, review demo) keep their blanket `UPDATE` after the loop
+   and their `tokens_valid_after` cutoff, so nothing a family-less row holds survives.
+   The DB test adds **the cap race**: an 11th sign-in while the oldest family rotates, in both orders: no deadlock, and
+   afterwards the oldest family holds no live refresh or access token.
+2. **A family with no device row cannot rotate.** `rotate_player_refresh` answers `invalid` when the presented token's
+   family has no `player_sign_in_device` row, as for an ended one. The backfill gives a row to every family with a
+   live, unexpired refresh token, so nobody is signed out by the deploy.
+3. **The list shows live families only.** `player_devices` returns a device only while its family holds a refresh
+   token that is not revoked and not expired.
+4. **The parallel end-others test**: end-others ends exactly the families it locked (its count), and a sign-in that
+   commits after its lock stays live.
+5. **Staff freshness in the database.** The `session_update` policy on `staff_session` is narrowed to the row of the
+   looked-up token (`token_hash = app_session_token_hash()`, the session check's touch and lapse), and the API role
+   loses its `INSERT` on `staff_session`. Every other write moves into definers: `open_staff_session(token, agent,
+   address)` (insert plus the 10-session cap, used by sign-in and sign-up), `set_staff_password(new_hash, keep)`
+   (password change and reset: sets the hash and ends the other sessions in one step, so ending them takes a password
+   change), and `end_own_staff_session(session, target, request)` (the current session is a sign-out; another needs a
+   fresh session). Staff definers take the request's own session-token hash (`session bytea`), as the player doors do.
+   Staff routes live under `/v1/staff`, not `/v1/auth` as section 4 wrote.
+6. **Erasure** changes `erase_rows(uuid, uuid[], bytea)` (last replaced in 0121): it deletes the player's
+   `player_reauth_challenge` and `player_sign_in_device` rows. The label failure after a sign-in logs only the error's
+   class name (`player.device_label_failed`, `reason`), never the platform or model.
+7. **New FR-141** (console, Must): an admin can end every session of any staff account with a reason. FR-140 stays the
+   player's device list. FR-1785 is not amended.
+8. **RUNBOOK**: ending sessions does not stop someone who knows the password; for a staff account that may be taken,
+   end its sessions and send a password reset. No email to the person is added.

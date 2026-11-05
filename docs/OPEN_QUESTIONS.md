@@ -2727,7 +2727,9 @@ nothing is at risk until a leak forces a rotation.
 
 ## Q-680 - Do players type a fresh code before ending their other devices? (T-810c, ASVS V7.5.2, ADR-711)
 
-**Status:** Open (for Dhia, product: it adds a step to a player screen).
+**Status:** Answered (Dhia, 2026-11-05, AskUserQuestion: "Yes, ask a code (Recommended)"; INBOX 2026-11-05). Players
+type a fresh sign-in code before ending other devices, skipped within 10 minutes of a sign-in or a contact change on
+this phone (ADR-711).
 Q-661 asked for a fresh code before a staff member ends other sessions; it said nothing for players. ASVS V7.5.2 asks
 for it for everyone.
 **Recommended (developer):** yes, a sign-in code by SMS or email, except within 10 minutes of signing in on this phone
@@ -2736,5 +2738,5 @@ for players (the row stays Partly for players). Option C: a code every time (an 
 
 ## Q-681 - How long a fresh factor lasts (T-810c, ADR-711)
 
-**Status:** Open (developer).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05): 10 minutes, as recommended.
 **Recommended (developer):** 10 minutes, the life of the staff sign-in code.
