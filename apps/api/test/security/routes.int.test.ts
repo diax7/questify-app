@@ -226,6 +226,10 @@ const ROUTES: Readonly<Record<string, string>> = {
     "ends only another device of the calling player through end_player_device, bound to the request's own access token and a fresh code; another player's device answers 404 and stays live (tested below, test/db/signed-in-devices)",
   "POST /v1/me/devices/end-others":
     "ends only the calling player's own other devices through end_other_player_devices after the fresh check in the database (test/db/signed-in-devices, test/players/devices)",
+  "POST /v1/me/reauth/code":
+    "sends a code only to the calling player's own contact, read in start_player_reauth; masked in the answer; the sign-in send windows and budget (test/players/devices)",
+  "POST /v1/me/reauth/verify":
+    "confirms only a code asked on this family, bound to the request's own access token; 3 tries; the failure windows (test/db/signed-in-devices, test/players/devices)",
   "DELETE /v1/me/push-device":
     "removes only the device of the request's own sign-in through push_device_remove; idempotent (push-store, push/routes)",
   "GET /v1/me/notifications":

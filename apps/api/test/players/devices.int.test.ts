@@ -138,11 +138,57 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("signed-in devices (HTTP)", () 
     expect(gone.statusCode).toBe(401);
   });
 
+  it("asks a stale sign-in for a fresh code, then ends the others", async () => {
+    const player = await newPlayer();
+    const laptop = await signIn(player.id);
+    const tablet = await signIn(player.id);
+    const here = await signIn(player.id);
+    await stale(here.family);
+    const refused = await call("POST", "/v1/me/devices/end-others", here, {});
+    expect([refused.statusCode, refused.json<Row>()["code"]]).toEqual([403, "reauth_required"]);
+    const noEmail = await call("POST", "/v1/me/reauth/code", here, {
+      channel: "email",
+      lang: "en",
+    });
+    expect([noEmail.statusCode, noEmail.json<Row>()["code"]]).toEqual([422, "no_contact"]);
+    const asked = await call("POST", "/v1/me/reauth/code", here, { channel: "phone", lang: "en" });
+    expect(asked.statusCode).toBe(202);
+    const sent = asked.json<{ challengeToken: string; sentTo: string; expiresInSeconds: number }>();
+    expect(sent.sentTo).toBe(`${player.phone.slice(0, 5)}•••••${player.phone.slice(-2)}`);
+    expect(sent.expiresInSeconds).toBe(300);
+    const text = test.sms.sent.filter((sms) => sms.to === player.phone).at(-1)?.text ?? "";
+    expect(text).toContain("confirm it's you");
+    const wrong = await call("POST", "/v1/me/reauth/verify", here, {
+      challengeToken: sent.challengeToken,
+      code: "000000" === test.sms.lastCode(player.phone) ? "111111" : "000000",
+    });
+    expect([wrong.statusCode, wrong.json<Row>()["code"]]).toEqual([422, "invalid_code"]);
+    expect(wrong.json<{ details: Row }>().details["attemptsLeft"]).toBe(2);
+    const fromLaptop = await call("POST", "/v1/me/reauth/verify", laptop, {
+      challengeToken: sent.challengeToken,
+      code: test.sms.lastCode(player.phone),
+    });
+    expect(fromLaptop.statusCode).toBe(410);
+    const right = await call("POST", "/v1/me/reauth/verify", here, {
+      challengeToken: sent.challengeToken,
+      code: test.sms.lastCode(player.phone),
+    });
+    expect(right.statusCode).toBe(200);
+    expect(typeof right.json<Row>()["freshUntil"]).toBe("string");
+    const ended = await call("POST", "/v1/me/devices/end-others", here, {});
+    expect([ended.statusCode, ended.json<Row>()["ended"]]).toEqual([200, 2]);
+    expect(await liveRefresh(laptop.family)).toBe(0);
+    expect(await liveRefresh(tablet.family)).toBe(0);
+    expect(await liveRefresh(here.family)).toBe(1);
+  });
+
   it("answers 401 on every device route without a bearer token", async () => {
     for (const [method, url, payload] of [
       ["GET", "/v1/me/devices", undefined],
       ["POST", `/v1/me/devices/${randomUUID()}/end`, {}],
       ["POST", "/v1/me/devices/end-others", {}],
+      ["POST", "/v1/me/reauth/code", { channel: "phone" }],
+      ["POST", "/v1/me/reauth/verify", { challengeToken: "x".repeat(43), code: "123456" }],
     ] as const) {
       expect((await call(method, url, null, payload)).statusCode, url).toBe(401);
     }

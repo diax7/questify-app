@@ -27,6 +27,7 @@ import { onlyRow } from "#src/db/rows";
 import type { HttpError } from "#src/http-error";
 import { parse } from "#src/auth/request";
 import { ownSession, registerSignedInDeviceRoutes } from "#src/players/devices";
+import { registerReauthRoutes } from "#src/players/reauth";
 import { readMe, type ProfileDeps } from "#src/players/profile";
 import { askerOf } from "#src/players/routes";
 import {
@@ -504,4 +505,5 @@ export function registerContactRoutes(
   );
   // The signed-in devices and their fresh code (T-810c): the account's other sign-in safety doors.
   registerSignedInDeviceRoutes(app, deps);
+  registerReauthRoutes(app, deps);
 }
