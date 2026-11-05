@@ -673,7 +673,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("player sign-in (database)", ()
       }
       for (const fn of [
         "issue_player_tokens(gen_random_uuid(), '\\x00', '\\x00', gen_random_uuid())",
-        "revoke_family(gen_random_uuid())",
+        "end_family(gen_random_uuid())",
+        "end_player_families(gen_random_uuid())",
       ]) {
         await expect(db.app.query(`SELECT public.${fn}`)).rejects.toThrow(/permission denied/);
       }

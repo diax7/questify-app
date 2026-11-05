@@ -2,13 +2,22 @@ import { MESSAGES, toWesternDigits, type Language, type SignupAcceptance } from 
 import type { ApiResult, Client } from "#src/api/client.ts";
 import type { Issued, Session } from "#src/api/session.ts";
 import type { BanNotice, Channel, SignInEvent } from "#src/auth/sign-in-flow.ts";
+import type { DeviceLabel } from "#src/account/device-label.ts";
 import { versionsFrom } from "#src/config/remote.ts";
 
 export type SignInDeps = Readonly<{
   client: Client;
   session: Pick<Session, "start">;
   now: () => number;
+  /** This phone's label for the signed-in devices list (T-810c); undefined sends none. */
+  device?: () => Promise<DeviceLabel | undefined>;
 }>;
+
+/** The body of a sign-in step with this phone's label when there is one; a failure to read it sends none. */
+async function withDevice<T extends object>(deps: SignInDeps, body: T): Promise<T> {
+  const device = await deps.device?.().catch(() => undefined);
+  return device === undefined ? body : { ...body, device };
+}
 
 const OFFLINE = MESSAGES["signIn.offline"];
 
@@ -118,7 +127,7 @@ export async function verifyCode(
   const answer = await deps.client.request({
     method: "POST",
     path: "/v1/auth/verify",
-    body: input,
+    body: await withDevice(deps, input),
   });
   if (answer.kind === "ok" && isIssued(answer.body)) {
     await deps.session.start(answer.body);
@@ -171,7 +180,7 @@ export async function signUp(
   const answer = await deps.client.request({
     method: "POST",
     path: "/v1/auth/signup",
-    body: input,
+    body: await withDevice(deps, input),
   });
   if (answer.kind === "ok" && isIssued(answer.body)) {
     await deps.session.start(answer.body);

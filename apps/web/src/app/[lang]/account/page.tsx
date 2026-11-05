@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { ChangePasswordForm } from "#src/components/ChangePasswordForm.tsx";
+import { StaffSessions } from "#src/components/StaffSessions.tsx";
 import { isLanguage, isolate, translatorFor } from "#src/lib/language.ts";
 import { currentStaff } from "#src/lib/session.ts";
 import { ButtonLink } from "#src/ui/Button.tsx";
@@ -7,7 +8,7 @@ import { Notice } from "#src/ui/Feedback.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { AppShell } from "#src/ui/Shell.tsx";
 
-/** The signed-in person's own account: who they are and a password change (T-020). */
+/** The signed-in person's own account: who they are, a password change (T-020) and their sessions (T-810c). */
 export default async function AccountPage({
   params,
 }: Readonly<{ params: Promise<{ lang: string }> }>) {
@@ -39,6 +40,7 @@ export default async function AccountPage({
         description={t("staff.signedInAs", { email: isolate(staff.me.email) })}
       />
       <ChangePasswordForm language={lang} email={staff.me.email} />
+      <StaffSessions language={lang} />
     </AppShell>
   );
 }

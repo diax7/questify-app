@@ -285,4 +285,42 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console platform pages over HT
       expect(await sessionIdsOf(memberId)).toEqual([memberSession]);
     });
   });
+
+  describe("ending every session of one staff account (T-810c, FR-141)", () => {
+    it("ends a member's sessions at once with a reason, audited with the count; refuses the caller's own and a non-admin", async () => {
+      const member = await signInFully(test, "owner@najd.test");
+      expect((await call("GET", "/v1/staff/me", member)).statusCode).toBe(200);
+      const refused = await call("POST", `/v1/admin/staff/${memberId}/end-sessions`, member, {
+        reason,
+      });
+      expect(refused.statusCode).toBe(404);
+      const own = await call("POST", `/v1/admin/staff/${adminId}/end-sessions`, adminCookie, {
+        reason,
+      });
+      expect([own.statusCode, own.json<Row>()["code"]]).toEqual([409, "own_session"]);
+      const unknown = await call(
+        "POST",
+        `/v1/admin/staff/${randomUUID()}/end-sessions`,
+        adminCookie,
+        {
+          reason,
+        },
+      );
+      expect(unknown.statusCode).toBe(404);
+      const live = (await sessionIdsOf(memberId)).length;
+      const ended = await call("POST", `/v1/admin/staff/${memberId}/end-sessions`, adminCookie, {
+        reason,
+      });
+      expect([ended.statusCode, ended.json<Row>()["ended"]]).toEqual([200, live]);
+      expect((await call("GET", "/v1/staff/me", member)).statusCode).toBe(401);
+      expect(await sessionIdsOf(memberId)).toEqual([]);
+      expect(await lastAudit("staff.session.end_all")).toMatchObject({
+        actor_type: "admin",
+        actor_id: adminId,
+        target_id: memberId,
+        after: { reason, ended: live },
+      });
+      expect((await call("GET", "/v1/admin/health", adminCookie)).statusCode).toBe(200);
+    });
+  });
 });

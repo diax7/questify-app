@@ -65,6 +65,8 @@
 | FR-137 | The welcome reward shall count toward the player's score and balance like any other points. | Should | F-81 | Given a player who received a welcome reward, when they view their score and balance, then both include it. Given the points record, when the welcome reward is looked up, then it appears as an entry with its reason. |
 | FR-138 | The app shall show a mascot intro of three skippable cards (quests, then points, then prizes) once per account. | Should | F-82 | Given a new account, when the player first reaches the app's home, then the three cards are shown in order and each can be skipped. Given an account that has seen or skipped the intro, when it signs in again on any phone, then the intro is not shown. |
 | FR-139 | The app shall let any player add a second sign-in identifier (an email to a phone account, or a +966 number to an email account), applied only after a one-time code sent to it is entered; the player can then sign in with either. | Should | F-76, F-80 | Given a phone-only player, when they add `ali@company.com` and enter the code sent there, then their profile shows the verified email and they can join an event locked to `@company.com`. Given the email already belongs to another account, when they try to add it, then the app refuses and explains why. |
+| FR-140 | The app shall list the devices where the player is signed in, with the phone's model, when it was signed in and last used, and let the player sign out of one or all other devices after confirming with a fresh code (not asked within 10 minutes of signing in or changing the phone or email on this device); after a phone or email change it shall offer to sign out of the other devices. | Should | F-76 | Given two signed-in phones, when the player signs out of the other one from this one, then the other phone shows the sign-in screen on its next request. Given a player who changed their number, when they choose to sign out other devices, then no other phone stays signed in. |
+| FR-141 | An admin shall be able to end every session of any staff account (an organizer member or another admin, never their own) at once, with a reason kept in the audit log. | Must | F-293 | Given a staff member's lost laptop, when an admin ends their sessions with a reason, then every browser of that account is signed out on its next request and the audit log holds the reason and the count. |
 
 ### 1.2 Area 2 — Quests
 
@@ -1268,6 +1270,8 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1506 | F-45 | Must | pending |
 | FR-1507 | F-45 | Must | pending |
 | FR-139 | F-76, F-80 | Should | pending |
+| FR-140 | F-76 | Should | built (T-810c) |
+| FR-141 | F-293 | Must | built (T-810c) |
 | FR-1601 | F-112, F-121 | Must | pending |
 | FR-1602 | F-112, F-124 | Must | pending |
 | FR-1603 | F-145, F-147 | Must | pending |

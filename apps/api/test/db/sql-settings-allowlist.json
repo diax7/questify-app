@@ -373,8 +373,6 @@
   "review_demo_here(ev uuid)",
   "review_demo_open(key bytea)",
   "review_demo_readiness(ev uuid, org uuid)",
-  "review_demo_revoke(target uuid)",
-  "revoke_family(target uuid)",
   "reward_community_lock(reward_row reward)",
   "rounded_m(metres double precision)",
   "rules_of(ev event)",

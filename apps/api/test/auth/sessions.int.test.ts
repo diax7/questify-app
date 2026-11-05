@@ -450,4 +450,85 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
       }
     });
   });
+
+  const send = (cookie: string, method: "POST" | "DELETE", url: string, payload?: object) =>
+    test.app.inject({
+      method,
+      url,
+      headers: withSession(
+        cookie,
+        method === "POST" ? { "idempotency-key": crypto.randomUUID() } : {},
+      ),
+      ...(payload === undefined ? {} : { payload }),
+    });
+
+  describe("ending other sessions after a fresh code (T-810c, ASVS V7.5.2)", () => {
+    it("asks a session older than 10 minutes for an emailed code, then ends the others", async () => {
+      const email = newEmail();
+      const user = await createStaff(db.owner, { email });
+      const here = await seedSession(user, { ageMinutes: 11 });
+      const laptop = await seedSession(user, { ageMinutes: 30 });
+      const listed = await send(here.cookie, "DELETE", `/v1/staff/sessions/${laptop.id}`);
+      expect([listed.statusCode, listed.json<{ code: string }>().code]).toEqual([
+        403,
+        "reauth_required",
+      ]);
+      const others = await send(here.cookie, "POST", "/v1/staff/sessions/end-others", {});
+      expect(others.statusCode).toBe(403);
+      const asked = await send(here.cookie, "POST", "/v1/staff/reauth/code", {});
+      expect(asked.statusCode).toBe(202);
+      const { challengeToken } = asked.json<{ challengeToken: string }>();
+      const fromLaptop = await send(laptop.cookie, "POST", "/v1/staff/reauth/verify", {
+        challengeToken,
+        code: test.mail.lastCode(email),
+      });
+      expect(fromLaptop.statusCode).toBe(410);
+      const confirmed = await send(here.cookie, "POST", "/v1/staff/reauth/verify", {
+        challengeToken,
+        code: test.mail.lastCode(email),
+      });
+      expect(confirmed.statusCode).toBe(200);
+      const sessions = await test.app.inject({
+        method: "GET",
+        url: "/v1/staff/sessions",
+        headers: withSession(here.cookie),
+      });
+      expect(sessions.json<{ freshUntil: string | null }>().freshUntil).not.toBeNull();
+      const ended = await send(here.cookie, "POST", "/v1/staff/sessions/end-others", {});
+      expect([ended.statusCode, ended.json<{ ended: number }>().ended]).toEqual([200, 1]);
+      expect((await stateOf(laptop.id))?.revoked_at).not.toBeNull();
+      expect((await me(here.cookie)).statusCode).toBe(200);
+    });
+
+    it("signs this session out with no code, and answers 404 for another person's session", async () => {
+      const user = await createStaff(db.owner, { email: newEmail() });
+      const stranger = await createStaff(db.owner, { email: newEmail() });
+      const here = await seedSession(user, { ageMinutes: 20 });
+      const theirs = await seedSession(stranger, { ageMinutes: 1 });
+      expect(
+        (await send(here.cookie, "DELETE", `/v1/staff/sessions/${theirs.id}`)).statusCode,
+      ).toBe(404);
+      expect((await stateOf(theirs.id))?.revoked_at).toBeNull();
+      expect((await send(here.cookie, "DELETE", `/v1/staff/sessions/${here.id}`)).statusCode).toBe(
+        204,
+      );
+      expect((await me(here.cookie)).statusCode).toBe(401);
+    });
+
+    it("answers 401 on the new session routes without a session", async () => {
+      for (const url of [
+        "/v1/staff/sessions/end-others",
+        "/v1/staff/reauth/code",
+        "/v1/staff/reauth/verify",
+      ]) {
+        const answer = await test.app.inject({
+          method: "POST",
+          url,
+          headers: browserHeaders(),
+          payload: {},
+        });
+        expect(answer.statusCode, url).toBe(401);
+      }
+    });
+  });
 });

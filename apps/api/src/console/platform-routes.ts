@@ -13,6 +13,7 @@ import {
   readHealth,
   readNumbers,
 } from "#src/console/platform";
+import { endStaffAccountSessions } from "#src/console/staff-sessions";
 import { holdBack, type DeviceLimit } from "#src/devices/limits";
 
 const read = { config: { access: "admin" }, bodyLimit: 1024 } as const;
@@ -76,7 +77,7 @@ export async function throttled(
 
 /**
  * The console's platform pages (T-709): health (FR-1783), numbers (FR-1419) and the admin accounts with their sessions
- * and the forced sign-out (FR-1785). Registered inside the console scope, whose hook answers 404 to anyone but an
+ * and the forced sign-out (FR-1785), and the end of every session of one staff account (FR-141, T-810c). Registered inside the console scope, whose hook answers 404 to anyone but an
  * active platform admin; every door re-reads the admin in the database. Rights are not changed here: an admin is made
  * or removed only by `staff-cli` (ADR-405).
  */
@@ -120,5 +121,20 @@ export function registerConsolePlatformRoutes(
     const caller = await throttled(deps, request, reply, CONSOLE_SESSION_END_LIMIT);
     await endAdminSession(deps.pool, caller, { sessionId, reason, requestId: request.id });
     return reply.code(204).send();
+  });
+
+  scope.post("/staff/:staffUserId/end-sessions", endSession, async (request, reply) => {
+    const { staffUserId } = parse(accountParams, request.params);
+    const { reason } = parse(reasonBody, request.body);
+    if (staffUserId === callerOf(request).id) {
+      throw endOwnSession();
+    }
+    const caller = await throttled(deps, request, reply, CONSOLE_SESSION_END_LIMIT);
+    const ended = await endStaffAccountSessions(deps.pool, caller, {
+      staffUserId,
+      reason,
+      requestId: request.id,
+    });
+    return { ended };
   });
 }

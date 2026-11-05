@@ -836,6 +836,7 @@ const OWNED: Readonly<Record<string, Owned>> = {
           sql: "INSERT INTO staff_session (staff_user_id, token_hash) VALUES ($1, $2)",
           values: [f.staffB, hash()],
         }),
+        forgeRefusedBy: /permission denied/,
       },
     ],
   },
@@ -1111,6 +1112,12 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; a challenge is reached only through definers bound to its token (test/db/player-sign-in)",
   player_refresh:
     "no right for the API role at all; a refresh token is rotated only through a definer bound to it (test/db/player-sign-in)",
+  player_sign_in_device:
+    "no right for the API role at all; listed, labelled and ended only through definers bound to the caller's own access token or a refresh token just issued (test/db/signed-in-devices)",
+  player_reauth_challenge:
+    "no right for the API role at all; asked and confirmed only through definers bound to the caller's own access token and family (test/db/signed-in-devices)",
+  staff_reauth_challenge:
+    "no right for the API role at all; asked and confirmed only through definers bound to the caller's own session token (test/db/signed-in-devices)",
   username_history:
     "no right for the API role at all; written by a trigger on player and read by the console later (test/db/usernames)",
   username_word:

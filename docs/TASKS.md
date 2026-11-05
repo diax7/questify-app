@@ -1624,12 +1624,16 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Done 2026-11-05: items 1 to 7, 9 and 10 built to the plan as amended by its review (score 87); item 8 is T-810f.
     Invitation links take 128 bits, not 256 (Q-670). The sheet's rows are Met but V6.6.1 (notice, T-810e) and V11.2.2
     (T-810f). Code review next.
-- [ ] **T-810c** (tier A) Signed-in devices: a "Signed-in devices" list in the app's account screen with Sign out per
+- [x] **T-810c** (tier A) Signed-in devices: a "Signed-in devices" list in the app's account screen with Sign out per
   device and for all others (also offered after a phone or email change); a console action that ends every session of
   one staff account or one player, with a reason in the audit log; a fresh code before a staff member ends their other
   sessions — delivers no FR (ASVS V7.4.3, V7.4.5, V7.5.2); depends on: T-810; Q-661 (Dhia, 2026-11-05).
   - Done when: the three actions work in Arabic and English with tests, outsider tests show no one ends another
     person's sessions, and the ASVS sheet's rows move to Met.
+  - Plan 2026-11-05 (core): `docs/plans/2026-11-05-t-810c-signed-in-devices.md`, migration 0155, ADR-710 to ADR-716
+    Proposed, Q-680 (for Dhia: a fresh code for players) and Q-681.
+  - Done 2026-11-05: migration 0155, FR-140 and FR-141, ADR-717 and ADR-718 Proposed, Q-682; the three ASVS
+    rows Met (152 Met, 29 Partly).
 - [ ] **T-810d** (tier A, admin powers) The console on its own hostname (`console.<domain>`) through the same CranL web
   app: the console answers only there, its `__Host-` cookie is never set on the public origin, and the public hostname
   redirects console paths — delivers no FR (ASVS V3.5.4); depends on: T-810; Q-663 (Dhia, 2026-11-05). Needs Dhia to add

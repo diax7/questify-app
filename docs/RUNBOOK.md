@@ -206,6 +206,25 @@ that is shared or written to disk (today's is in memory, per process).
   lower-case email under `AUTH_SECRET`. Compute the key in a one-off script and call `clearKey(db, bucket, key)` (owner
   connection), as for staff.
 
+## Signed-in devices and ending sessions (T-810c, migration 0155)
+
+- **Deploy note.** 0155 drops the 3-argument `confirm_contact_change` and moves staff session writes into definers.
+  Between the migration and the new API instance, a contact change on the old instance answers 500 (the app's retry with
+  the same Idempotency-Key recovers it) and a staff sign-in on the old instance fails (sign in again a minute later).
+- **One staff account** (a lost laptop, a member who left): Console -> Admins (an admin) or the organizer's page (a team
+  member) -> "End all sessions", with a reason. Ending sessions does not stop someone who knows the password: also ask
+  the person to reset it (`/forgot-password`), or end their access with `staff-cli`. No email is sent to them.
+- **One player:** Console -> the player -> "Reset sign-in" ends every signed-in device, their codes and push devices.
+- **A staff account in no organizer and not an admin** (a sign-up that never made an organizer) has no console page:
+  `UPDATE staff_session SET revoked_at = now() WHERE staff_user_id = '<id>' AND revoked_at IS NULL;` as the owner, plus
+  an `audit_log` row with the reason.
+- **Ending every session at once** (an incident): as the owner, in one transaction,
+  `UPDATE staff_session SET revoked_at = now() WHERE revoked_at IS NULL;`,
+  `UPDATE player_sign_in_device SET ended_at = now() WHERE ended_at IS NULL;`,
+  `UPDATE player_refresh SET revoked_at = now() WHERE revoked_at IS NULL;`,
+  `UPDATE player_session SET revoked_at = now() WHERE revoked_at IS NULL;` and one `audit_log` row
+  (`actor_type 'system'`, `action 'sessions.end_all'`, the reason in `after`). Everyone signs in again.
+
 ## The App Review demo (T-710, ADR-560 to ADR-568)
 
 - **Once per environment:** console, **App Review demo**, type Questify's reviewer SIM number (Q-520; never a real

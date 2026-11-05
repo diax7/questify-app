@@ -32,6 +32,8 @@ export type OrganizerDetail = Readonly<{
     suspension: SuspensionView | null;
   }>;
   team: readonly Readonly<{
+    /** The member's staff account, for the console's "end every session" (T-810c, FR-141). */
+    staffUserId: string;
     email: string;
     role: "owner" | "editor";
     eventScope: readonly string[] | null;
@@ -229,15 +231,21 @@ async function readTeamOf(
   organizerId: string,
 ): Promise<OrganizerDetail["team"]> {
   const { rows } = await client.query<{
+    staff_user_id: string;
     email: string;
     role: "owner" | "editor";
     event_scope: string[] | null;
   }>(
-    `SELECT s.email, m.role, m.event_scope FROM organizer_member m JOIN staff_user s ON s.id = m.staff_user_id
+    `SELECT m.staff_user_id, s.email, m.role, m.event_scope FROM organizer_member m JOIN staff_user s ON s.id = m.staff_user_id
      WHERE m.organizer_id = $1 ORDER BY m.role DESC, m.created_at`,
     [organizerId],
   );
-  return rows.map((row) => ({ email: row.email, role: row.role, eventScope: row.event_scope }));
+  return rows.map((row) => ({
+    staffUserId: row.staff_user_id,
+    email: row.email,
+    role: row.role,
+    eventScope: row.event_scope,
+  }));
 }
 
 async function readEventsOf(

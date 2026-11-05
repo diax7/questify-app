@@ -66,6 +66,9 @@ export function deviceLine(facts: DeviceFacts): string {
 
 type DeviceModule = Readonly<{ modelName?: string | null }>;
 
+/** The one lazy load of `expo-device` (help form and the sign-in's device label share it). */
+export const loadExpoDevice = (): Promise<DeviceModule> => import("expo-device");
+
 /**
  * `expo-device`'s model name, loaded only when the form asks; undefined when the binary was built before the module
  * was added (its load throws there), so an old development build still sends an app problem, without the model.

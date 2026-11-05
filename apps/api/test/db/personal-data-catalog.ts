@@ -413,6 +413,20 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
     rows: P("player_id"),
     why: PIDS,
   },
+  player_sign_in_device: {
+    links: ["player_id"],
+    personal: ["family"],
+    export: "signedInDevices",
+    erasure: "delete",
+    rows: P("player_id"),
+  },
+  player_reauth_challenge: {
+    links: ["player_id"],
+    personal: ["family"],
+    export: { excluded: "a re-authentication code, minutes long (a security secret)" },
+    erasure: "delete",
+    rows: P("player_id"),
+  },
   push_device: {
     links: ["player_id"],
     personal: ["family"],

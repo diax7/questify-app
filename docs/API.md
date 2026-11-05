@@ -784,6 +784,43 @@ preHandler. A still-active organizer editor whose event scope was revoked receiv
 successful mutation key. This covers create/edit/delete/activate/stop/process; the handler SQL independently
 reauthorizes writes. A cached success is never authority to read the former event's private rule list.
 
+## Signed-in devices and sessions (T-810c, migration 0155; ADR-710 to ADR-718)
+
+Every answer is `cache-control: no-store`; every write is idempotent by key (Idempotency-Key, replayed 24 hours) and by
+state (ending what is already ended answers the same success; a second "end others" ends 0). A fresh factor is a
+sign-in, a re-authentication code or (players) a contact-change code on this session or family in the last 10 minutes,
+checked in the database.
+
+**Player** (`access: "player"`, bearer; all four writes stay open while new terms wait, ADR-714):
+
+| Route | Answer | Refusals |
+|---|---|---|
+| `GET /v1/me/devices` | `{devices: [{id, platform: "ios"\|"android"\|null, model: string\|null, signedInAt, lastUsedAt, current}], freshUntil: ISO\|null}`: live families only, this one first, then by last use; never a family id | 401 |
+| `POST /v1/me/devices/{id}/end` | 204 (also when that device of the caller was already ended) | 401, 403 `reauth_required`, 404 (unknown or another player's), 422 `current_device` (use `/v1/auth/logout`) |
+| `POST /v1/me/devices/end-others` | `{ended}` | 401, 403 `reauth_required` |
+| `POST /v1/me/reauth/code` | `{channel: "phone"\|"email", lang}` -> 202 `{challengeToken, expiresInSeconds: 300, sentTo}` (`sentTo` masked as the console masks contacts) | 401, 422 `no_contact`, 429 (the sign-in send windows), 503 `sms_unavailable` / `email_unavailable` |
+| `POST /v1/me/reauth/verify` | `{challengeToken, code}` -> `{freshUntil}` | 401, 410 `challenge_expired` (also a code asked on another phone), 422 `invalid_code {attemptsLeft}` (3 tries), 429 |
+
+`POST /v1/auth/verify` and `/v1/auth/signup` take an optional `device: {platform: "ios"|"android", model?}`; a model that
+is not 1 to 40 of `[A-Za-z0-9 ._()+-]` is dropped, and a label failure never fails the sign-in. `POST
+/v1/me/contact/verify` marks this family fresh when the change goes through.
+
+**Staff** (`/v1/staff`, staff cookie):
+- `GET /v1/staff/sessions` gains `freshUntil` (this session's, or null).
+- `DELETE /v1/staff/sessions/{id}`: this session signs out (no code); another needs a fresh session, else 403
+  `reauth_required`; 404 when it is not the caller's live session.
+- `POST /v1/staff/sessions/end-others` -> `{ended}`; 403 `reauth_required`.
+- `POST /v1/staff/reauth/code` `{}` -> 202 `{challengeToken, expiresInSeconds: 600}`: emailed to the account's own
+  address; at most 3 resends 60 seconds apart and the hourly sign-in code cap; 429, 503 `email_unavailable`.
+- `POST /v1/staff/reauth/verify` `{challengeToken, code}` -> `{freshUntil}`; 410 `challenge_expired` (also a code asked
+  on another session), 422 `invalid_code` (5 tries).
+
+**Console** (`/v1/admin`, active platform admins only, 404 to anyone else):
+- `POST /v1/admin/staff/{staffUserId}/end-sessions` `{reason}` (10 to 300 characters; Idempotency-Key; 30 an hour
+  per admin) -> `{ended}`: every live session of one staff account, audited `staff.session.end_all` with the reason and
+  the count; 409 `own_session` for the caller's own account, 404 for an unknown one. A player's sessions end with the
+  existing sign-in reset (ADR-713). `GET /v1/admin/organizers/{id}` team rows gain `staffUserId`.
+
 ## Announcements (T-502, migration 0081; Proposed ADR-358 / Q-327)
 
 Organizer prefix: /v1/organizers/{organizerId}/events/{eventId}, owner/editor within event scope. Writes require

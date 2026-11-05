@@ -12,6 +12,7 @@ import type { EmailSender } from "#src/auth/email/sender";
 import { createAuthKeys, type AuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
 import { createEmailChange, type EmailChangeDeps } from "#src/auth/email-change";
+import { createStaffReauth } from "#src/auth/reauth";
 import { createPasswords, type PasswordDeps } from "#src/auth/password-reset";
 import { createSignUp } from "#src/auth/sign-up";
 import { registerStaffRoutes } from "#src/auth/routes";
@@ -389,6 +390,7 @@ function registerStaff(app: FastifyInstance, deps: PasswordDeps): void {
     signIn,
     invites: createInvites(deps, signIn),
     sessions: createSessions(deps.pool),
+    reauth: createStaffReauth(deps),
     passwords: createPasswords(deps),
     signUp: createSignUp(deps),
     emailChange: createEmailChange(deps),

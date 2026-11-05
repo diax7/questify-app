@@ -761,13 +761,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
     });
 
     it("pushes only to a live sign-in: rotation keeps it, sign-out, the 10-family limit, a reused token and 60 days unseen stop it", async () => {
+      // An ended sign-in also deletes its device (end_family, T-810c): no row is as unpushable as a refused one.
       const pushable = async (family: string) =>
         (
           await f.owner<{ ok: boolean }>(
             "SELECT push_pushable(d) AS ok FROM push_device d WHERE d.family = $1",
             [family],
           )
-        )[0]?.ok;
+        )[0]?.ok ?? false;
       const rotated = await f.playerWithPhone();
       const [turn] = await f.owner<{ outcome: string }>(
         "SELECT outcome FROM rotate_player_refresh($1, $2, $3)",
@@ -825,7 +826,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       await f.playerWithPhone();
       expect(await counts()).toEqual(before);
       // No database function outside the push store reads a device or a mute (erasure, the admin sign-in reset, T-704, and the ban, T-705,
-      // only delete them; the data export, T-708, lists a device's platform and dates, never its token; the invitation fill reads whether a device can be pushed to pick the channel, consent still
+      // only delete them, as end_family does when a sign-in ends, T-810c; the data export, T-708, lists a device's platform and dates, never its token; the invitation fill reads whether a device can be pushed to pick the channel, consent still
       // from promo_pool, ADR-356 (4)).
       const readers = await f.owner<{ proname: string }>(
         `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -839,6 +840,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
         "admin_ban_player",
         "admin_reset_player_sign_in",
         "data_export_account",
+        "end_family",
         "erase_rows",
         "invitation_candidates",
       ]);
@@ -1099,7 +1101,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
         [invalid.family],
       );
       const signedOut = await f.playerWithPhone();
-      await f.owner("SELECT revoke_family($1)", [signedOut.family]);
+      await f.owner("UPDATE player_refresh SET revoked_at = now() WHERE family = $1", [
+        signedOut.family,
+      ]);
       const fresh = await f.playerWithPhone();
       await f.settle();
       expect(

@@ -42,7 +42,11 @@ function build(answer: unknown = { ok: true }) {
   });
   app.addHook("onRequest", async (request) => {
     if (request.headers["x-test-admin"] !== undefined) {
-      request.staff = { account: { id: ADMIN } as PublicAccount, sessionId: "session-1" };
+      request.staff = {
+        account: { id: ADMIN } as PublicAccount,
+        sessionId: "session-1",
+        tokenHash: "",
+      };
     }
   });
   app.register(async (scope) => registerConsoleQuestifyRoutes(scope, { pool }), {

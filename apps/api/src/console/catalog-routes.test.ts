@@ -94,7 +94,11 @@ function build(answer: unknown = {}) {
     idempotencyStore: new MemoryIdempotencyStore(),
   });
   app.addHook("onRequest", async (request) => {
-    request.staff = { account: { id: ADMIN } as PublicAccount, sessionId: "session-1" };
+    request.staff = {
+      account: { id: ADMIN } as PublicAccount,
+      sessionId: "session-1",
+      tokenHash: "",
+    };
   });
   const deps = {
     pool,

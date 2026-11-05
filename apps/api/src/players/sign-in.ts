@@ -24,6 +24,7 @@ import { isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
 import { reasonOf, say, type Caller } from "#src/auth/sign-in";
 import { BUCKETS, countRecent, tryLock } from "#src/auth/throttle";
 import { readInForce } from "#src/legal/in-force";
+import { labelDevice, type DeviceLabel } from "#src/players/devices";
 import { normalizeSaudiMobile } from "#src/players/phone";
 import {
   failureCounts,
@@ -125,9 +126,18 @@ export type PlayerSignIn = Readonly<{
     asker: Asker,
   ) => Promise<CodeRequestResult>;
   resend: (input: { challengeToken: string; lang: Lang }, asker: Asker) => Promise<ResendResult>;
-  verify: (input: { challengeToken: string; code: string }, asker: Asker) => Promise<VerifyResult>;
+  verify: (
+    input: { challengeToken: string; code: string; device?: DeviceLabel | undefined },
+    asker: Asker,
+  ) => Promise<VerifyResult>;
   signup: (
-    input: { signupToken: string; username: string; birthYear: number; avatar: Avatar },
+    input: {
+      signupToken: string;
+      username: string;
+      birthYear: number;
+      avatar: Avatar;
+      device?: DeviceLabel | undefined;
+    },
     asker: Asker,
   ) => Promise<SignupResult>;
   refresh: (input: { refreshToken: string }, asker: Asker) => Promise<RefreshResult>;
@@ -721,6 +731,7 @@ async function verify(
     return judged;
   }
   say(deps, asker, "player.signed_in", { player: judged.playerId });
+  await labelDevice(deps, tokens.refreshHash, input.device, asker);
   return { kind: "signed_in", issued: await issuedTo(deps, judged.playerId, tokens) };
 }
 
@@ -766,6 +777,7 @@ async function signup(
     return { kind: SIGNUP_OUTCOMES[row.outcome] ?? "signup_expired" };
   }
   say(deps, asker, "player.signed_up", { player: row.player_id });
+  await labelDevice(deps, tokens.refreshHash, input.device, asker);
   return { kind: "created", issued: await issuedTo(deps, row.player_id, tokens) };
 }
 

@@ -1547,6 +1547,21 @@ API's role alone: counts of events, players (enrollments not pending or declined
 (`invitation_campaign.sent`) and alert emails sent (`organizer_alert` in state `sent`, kept 30 days). No counter table, no index, no write.
 
 
+### Signed-in devices and fresh factors (T-810c, migration 0155)
+
+- `player_sign_in_device`: one row per refresh family. `id` (what the app sees), `player_id`, `family` (unique),
+  `platform` (`ios`|`android`, null until labelled), `model` (1 to 40 of `[A-Za-z0-9 ._()+-]`, from `expo-device`),
+  `signed_in_at` (the family's start), `reauth_at`, `ended_at`. Written only by definers; ended rows and rows whose
+  family has no refresh row left go in `sweep_player_sign_in` (7 days after the end). Exported as `signedInDevices`
+  (live ones; never the family), deleted by `erase_rows`.
+- `player_reauth_challenge`: one live code per family (`family` unique), keyed hash only, 3 tries, 5 minutes; no
+  contact column. Swept an hour after it expires, deleted with the family's end and by `erase_rows`.
+- `staff_session.reauth_at`: written only by `confirm_staff_reauth`; the guard refuses moving it back.
+- `staff_reauth_challenge`: one per session (`session_id` unique, cascades), keyed hash, 5 tries, 3 resends 60 seconds
+  apart, 10 minutes.
+- Every family end goes through `end_family` (ADR-717); `revoke_family` is gone. The API role keeps UPDATE on
+  `staff_session` only for the looked-up token's row and has no INSERT (ADR-718).
+
 ## Agenda and sessions (T-505, migration 0086; Proposed ADR-373)
 
 - `event_session(id, organizer_id, event_id, kind talk|workshop|activity, title_ar/en, description_ar/en, place_ar/en (a title in

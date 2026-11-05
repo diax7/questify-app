@@ -28,7 +28,11 @@ function build(answer: unknown = { organizers: [] }, fail?: { code: string }) {
   });
   app.addHook("onRequest", async (request) => {
     if (request.headers["x-test-admin"] !== undefined) {
-      request.staff = { account: { id: ADMIN } as PublicAccount, sessionId: "session-1" };
+      request.staff = {
+        account: { id: ADMIN } as PublicAccount,
+        sessionId: "session-1",
+        tokenHash: "",
+      };
     }
   });
   app.register(async (scope) => registerConsoleUsageRoutes(scope, { pool }), {
