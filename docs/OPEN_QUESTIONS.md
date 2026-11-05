@@ -2743,7 +2743,7 @@ for players (the row stays Partly for players). Option C: a code every time (an 
 
 ## Q-682 - An 11th sign-in racing the oldest family's rotation (T-810c, ADR-717)
 
-**Status:** Open (developer).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-05, after the T-810c code review 91: accepted as recommended).
 When an 11th sign-in has to wait for the oldest family's rotation, it ends that family once the rotation commits, its
 new tokens included, although that phone was just used. No token is left alive and nothing deadlocks.
 **Recommended (developer):** accept it: it needs ten other live sign-ins and a rotation in the same moment, and the

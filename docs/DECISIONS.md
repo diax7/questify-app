@@ -8032,7 +8032,7 @@ nobody out; the migration asserts no live row already ends later (no capping UPD
 
 ## ADR-710 - T-810c a player device is a refresh family with its own row
 
-**Status:** Proposed (developer, 2026-11-05, T-810c plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810c code review 91; T-810c plan).
 **Decision:** `player_sign_in_device`, one row per refresh family (its own id, never the family id, goes to the app),
 labelled once from the app's sign-in body: platform and `expo-device` model. Never an IP, a location, a user agent,
 the phone's own name or the `X-Device-Id` install id. Last used is the family's latest rotation, shown as a day.
@@ -8050,14 +8050,14 @@ re-authentication code or (players) a contact-change code within 10 minutes; che
 
 ## ADR-712 - T-810c lock the device row before the refresh row
 
-**Status:** Proposed (developer, 2026-11-05, T-810c plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810c code review 91; T-810c plan).
 **Decision:** `rotate_player_refresh` and every end function take the family's `player_sign_in_device` row `FOR UPDATE`
 first; a rotation of an ended device answers `invalid`.
 **Why:** without it a rotation committing during an end leaves a new refresh token alive.
 
 ## ADR-713 - T-810c the console ends any staff account's sessions; a player's is the sign-in reset
 
-**Status:** Proposed (developer, 2026-11-05, T-810c plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810c code review 91; T-810c plan).
 **Decision:** a new console door ends every live session of one staff account (organizer member or admin, not the
 caller's own) with a 10 to 300 character reason in the audit log. For a player the existing sign-in reset (T-704,
 ADR-421) is the action; no second door.
@@ -8065,13 +8065,13 @@ ADR-421) is the action; no second door.
 
 ## ADR-714 - T-810c ending devices stays open while new terms wait
 
-**Status:** Proposed (developer, 2026-11-05, T-810c plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810c code review 91; T-810c plan).
 **Decision:** the device end routes and the player re-authentication routes join `OPEN_WHILE_UNACCEPTED` (ADR-446).
 **Why:** signing a lost phone out is a safety action and must not wait for an acceptance.
 
 ## ADR-715 - T-810c a contact change marks this family fresh
 
-**Status:** Proposed (developer, 2026-11-05, T-810c plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810c code review 91; T-810c plan).
 **Decision:** `confirm_contact_change` takes the request's access-token hash and sets `reauth_at` on that family; the
 3-argument version is dropped in 0155 with a RUNBOOK deploy note. ADR-120 is amended: the other sessions are kept
 unless the player chooses "sign out other devices" in the offer that follows the change.
@@ -8081,14 +8081,14 @@ notice to the old contact, the audit entries and support's sign-in reset remain.
 
 ## ADR-716 - T-810c the device label is exported and erased
 
-**Status:** Proposed (developer, 2026-11-05, T-810c plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810c code review 91; T-810c plan).
 **Decision:** the data export lists live devices (platform, model, signed in, last used); erasure deletes the device
 and re-authentication rows; ended rows go 7 days after the end.
 **Why:** a phone model tied to an account is personal data (PDPL access and erasure).
 
 ## ADR-717 - T-810c every end of a player family goes through end_family
 
-**Status:** Proposed (developer, 2026-11-05, T-810c plan review 84; Q-682).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810c code review 91; T-810c plan review 84; Q-682).
 **Decision:** one ungranted `end_family(family)` locks the family's device row, sets `ended_at`, then revokes its
 refresh and access rows and deletes its re-authentication code, push device and queued sends. `revoke_family` is
 dropped; sign-out, the three ends in `rotate_player_refresh`, the 10-family cap, the sign-in reset, the ban, the review
@@ -8100,7 +8100,7 @@ demo and the new end doors call it (several families in device-id order; the pla
 
 ## ADR-718 - T-810c the API writes staff sessions only through definers
 
-**Status:** Proposed (developer, 2026-11-05, T-810c plan review 84).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-05, after the T-810c code review 91; T-810c plan review 84).
 **Decision:** the `staff_session` UPDATE policy covers only the row of the token being looked up (the session check's
 touch and lapse) and the API role loses INSERT. Opening a session with the 10-session cap (`open_staff_session`), a
 password change or reset (`set_staff_password`: the hash and the end of the other sessions in one step) and ending

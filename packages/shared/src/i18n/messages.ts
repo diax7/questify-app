@@ -1758,11 +1758,11 @@ export const MESSAGES = {
   },
   "myDevices.afterPhone": {
     ar: "تغيّر رقم جوالك. هل تريد تسجيل الخروج من أجهزتك الأخرى؟",
-    en: "Your number is changed. Sign out of your other devices?",
+    en: "Your number has changed. Sign out of your other devices?",
   },
   "myDevices.afterEmail": {
     ar: "تغيّر بريدك الإلكتروني. هل تريد تسجيل الخروج من أجهزتك الأخرى؟",
-    en: "Your email is changed. Sign out of your other devices?",
+    en: "Your email has changed. Sign out of your other devices?",
   },
   "myDevices.afterYes": { ar: "تسجيل الخروج منها", en: "Sign them out" },
   "myDevices.afterNo": { ar: "إبقاؤها", en: "Keep them" },

@@ -113,3 +113,10 @@ Format: `- <date> <task>: <what and where> (<source>)`
 
 - MINOR (design): the app's icon set has no 3D phone, so the signed-in devices cards use the padlock icon. Ask for a
   phone icon in the brand-deck style (`apps/app/assets/icons/`).
+- T-810c code review (91; MINOR, NIT): the sweep in 0155 (`player_refresh` cleanup) deletes refresh rows before device
+  rows, the reverse of rotation's order; it can deadlock only with a token older than the 7-day sweep window (lock the
+  device rows first). The end-others fresh check reads the caller's own device row without a lock (`FOR UPDATE` it in
+  id order with the others). Wrong staff re-auth codes (`apps/api/src/auth/reauth.ts:105-128`) are not counted in the
+  staff sign-in failure bucket (bounded by 5 tries per code and 5 codes an hour). NIT: the staff session list hides
+  idle-lapsed sessions that `end_other_staff_sessions` still ends, so "ended N" can exceed the rows shown.
+  Fixed in the review commit: erasure locks the device rows before the push deletes; "has changed" strings.

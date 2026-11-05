@@ -870,6 +870,8 @@ BEGIN
   DELETE FROM invitation_recipient WHERE player_id = me;
   DELETE FROM notice WHERE player_id = me;
   DELETE FROM notification WHERE player_id = me;
+  -- Device rows first, in id order, as end_family takes them; otherwise erasure and a sign-out can deadlock.
+  PERFORM 1 FROM player_sign_in_device WHERE player_id = me ORDER BY id FOR UPDATE;
   DELETE FROM push_send s USING push_device d WHERE s.device_id = d.id AND d.player_id = me;
   DELETE FROM push_device WHERE player_id = me;
   DELETE FROM push_topic_mute WHERE player_id = me;

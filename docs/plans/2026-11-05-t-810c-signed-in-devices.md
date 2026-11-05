@@ -232,7 +232,7 @@ outlined danger button for "Sign out". In RTL the icon sits at the start (right)
 | doneOne / doneOthers | Signed out of {device}. / Signed out of your other devices. | تم تسجيل الخروج من {device}. / تم تسجيل الخروج من أجهزتك الأخرى. |
 | alreadyEnded | That device was already signed out. | تم تسجيل الخروج من هذا الجهاز مسبقًا. |
 | onlyThis | Only this device is signed in. | لا يوجد جهاز آخر مسجَّل الدخول. |
-| afterPhone / afterEmail | Your number is changed. Sign out of your other devices? / Your email is changed. Sign out of your other devices? | تم تغيير رقم جوالك. هل تريد تسجيل الخروج من أجهزتك الأخرى؟ / تم تغيير بريدك الإلكتروني. هل تريد تسجيل الخروج من أجهزتك الأخرى؟ |
+| afterPhone / afterEmail | Your number has changed. Sign out of your other devices? / Your email has changed. Sign out of your other devices? | تم تغيير رقم جوالك. هل تريد تسجيل الخروج من أجهزتك الأخرى؟ / تم تغيير بريدك الإلكتروني. هل تريد تسجيل الخروج من أجهزتك الأخرى؟ |
 | afterYes / afterNo | Sign them out / Keep them | تسجيل الخروج منها / إبقاؤها |
 
 Arabic plurals for {n} use the existing plural helper (1, 2, 3 to 10, 11+ forms).
