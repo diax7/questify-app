@@ -1650,6 +1650,8 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   moved out because it touches the config, the seal format, every opener, the upload's duplicate check and a new
   operator command; ADR-705, Q-673) — delivers no FR (infrastructure or quality gate); depends on: T-810b
   - Done when: a rotation followed by the re-seal leaves every code readable, tested, and the sheet's row 8 is Met.
+  - Plan 2026-11-05 (core): `docs/plans/2026-11-05-t-810f-reward-code-rotation.md`, migration 0157 (0156 is T-810d's,
+    unmerged), ADR-725 to ADR-729 Proposed, Q-694, Q-695 and Q-696 (for Dhia: a staging rotation rehearsal).
 - [ ] **T-811** CranL go/no-go: written answers on high availability, point-in-time restore, backup copies, uptime, hosting provider and CST status; decide to stay or move production (ADR-107) — delivers no FR (infrastructure or quality gate); depends on: T-805, T-019
   - Note 2026-11-04 (T-804, Q-630): ask CranL for the PostgreSQL sizes and prices, `max_connections`, whether PostgreSQL 17 or 18 is offered (staging runs 16.15) and the app-to-database delay (Dhia: later, at this check).
   - Note 2026-11-04 (T-017, Q-611): staging's scheduled PostgreSQL backups have never run on CranL (no success, no failure, nothing kept). Ask CranL why before production relies on them (Dhia: later, at this check).
