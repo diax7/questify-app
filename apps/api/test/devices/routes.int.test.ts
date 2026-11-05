@@ -5,6 +5,7 @@ import { createAuthKeys } from "#src/auth/keys";
 import { createScreenCodeKey, screenCode } from "#src/quests/qr";
 import { createSettingsService, type SettingsService } from "#src/settings/service";
 import {
+  CONSOLE_ORIGIN,
   DASHBOARD_ORIGIN,
   createStaff,
   freshIp,
@@ -691,7 +692,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("devices over HTTP", () => {
         url: route.url
           .replace(":organizerId", organizer)
           .replace(/:[a-zA-Z]+/g, "00000000-0000-4000-8000-000000000000"),
-        headers: { cookie: made.cookie, origin: DASHBOARD_ORIGIN, "idempotency-key": randomUUID() },
+        headers: {
+          cookie: made.cookie,
+          // Console routes take only the console host's origin before any cookie is read (T-810d).
+          origin: route.url.startsWith("/v1/admin/") ? CONSOLE_ORIGIN : DASHBOARD_ORIGIN,
+          "idempotency-key": randomUUID(),
+        },
         ...(route.method === "GET" ? {} : { payload: {} }),
       });
       expect(response.statusCode, `${route.method} ${route.url}`).toBe(401);

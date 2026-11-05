@@ -68,6 +68,7 @@ export const AREAS = [
     ["setup"],
   ],
   [/analytics/i, ["analytics"]],
+  [/console-?host|staff-guard|lib\/config\.|e2e\/hosts/i, ["console-host"]],
   [/(?<!feature-?)usage/i, ["console-usage"]],
   [/feature-?usage/i, ["console-feature-usage"]],
   [/translation|text-matrix|leave-guard/i, ["console-translations"]],

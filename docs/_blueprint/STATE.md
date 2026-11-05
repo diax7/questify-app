@@ -17,7 +17,7 @@
   proxy; redirects only to configured origins), the public forwarder answers `/v1/admin/*` itself, and cross-host links
   are absolute. `CONSOLE_ORIGIN` is required on both apps; team alert links use it. Browser specs run the console on
   `http://console.localhost:3100` (`makeAdmin`, `consoleRequest`; web server on 0.0.0.0). RUNBOOK: settings, order,
-  probes (the public `/en` answers 200), fix-forward rollback SQL. CI minutes: 0 (nothing pushed). Agent tokens roughly
+  probes (the public `/en` answers 200), fix-forward rollback SQL. **Checks:** full vitest 12,896 passed, 3 failed then fixed (two tests left on the old origin rule, rerun green; one seat-limit lock-order test timed out under load, green alone); browser: console-host, layout, console-organizers and console-feature-usage green on both projects. CI minutes: 0 (nothing pushed). Agent tokens roughly
   1.2M (estimate).
   **Waiting on Dhia:** the Cloudflare record `console.questify` and the CranL domain on `questify-web-staging`
   (plan, "Needs Dhia"). Then the coordinator sets `CONSOLE_ORIGIN` (both apps) and `DASHBOARD_ORIGIN` (web), deploys,
