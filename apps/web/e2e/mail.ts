@@ -42,7 +42,7 @@ export async function codeFor(email: string, previous?: string): Promise<string>
     const code = readMailbox().codes[email];
     return code === previous ? undefined : code;
   };
-  await expect.poll(fresh, { timeout: 10_000 }).toMatch(/^[0-9]{6}$/);
+  await expect.poll(fresh, { timeout: 30_000 }).toMatch(/^[0-9]{6}$/);
   return fresh() ?? "";
 }
 
@@ -53,7 +53,7 @@ export async function linkFor(email: string, previous?: string): Promise<string>
     return link === previous ? undefined : link;
   };
   await expect
-    .poll(fresh, { timeout: 10_000 })
+    .poll(fresh, { timeout: 30_000 })
     .toMatch(/\/(?:reset-password|invite|email-change(?:\/stop)?)#token=/);
   return fresh() ?? "";
 }
