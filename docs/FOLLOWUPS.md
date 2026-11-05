@@ -136,3 +136,4 @@ Format: `- <date> <task>: <what and where> (<source>)`
   error context has no page snapshot. Not reproduced: the same shard run locally on a fresh build (2 workers) passed it.
   That local run instead caught `e2e/events.spec.ts:78` clicking the today-ranking switch while its save was busy (now
   waits for `aria-busy="false"`, per `docs/rules.md`). If the template flake recurs, keep a screenshot on failure.
+- FOLLOWUPS batch review (94; NIT): `apps/api/src/outbound-redirect.test.ts:147` finds `"use client"` with a multiline regex, so a server file with that line anywhere is left out of the walk (check the first statement is the directive).
