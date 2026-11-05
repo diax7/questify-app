@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { webConfig } from "#src/lib/config.ts";
 import { isLanguage, isolate, translatorFor } from "#src/lib/language.ts";
 import { currentStaff } from "#src/lib/session.ts";
 import { AppShell } from "#src/ui/Shell.tsx";
@@ -40,7 +41,8 @@ export default async function HomePage({
         description={t("staff.signedInAs", { email: isolate(me.email) })}
         actions={
           me.isAdmin ? (
-            <ButtonLink variant="secondary" href={`/${lang}/console`}>
+            // The console has its own host (T-810d): a full page load there, where the admin signs in on its own.
+            <ButtonLink variant="secondary" href={`${webConfig().consoleOrigin}/${lang}/console`}>
               {t("console.title")}
             </ButtonLink>
           ) : undefined

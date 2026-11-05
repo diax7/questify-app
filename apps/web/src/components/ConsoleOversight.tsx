@@ -1,7 +1,6 @@
 "use client";
 
 import type { Language, MessageKey } from "@questify/shared";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { clockOf, type SupportGrant } from "#src/lib/console-organizers.ts";
 import { translatorFor } from "#src/lib/language.ts";
@@ -277,6 +276,7 @@ export function SupportPanel({
   name,
   grants,
   onChanged,
+  dashboardOrigin,
 }: Readonly<{
   language: Language;
   eventId: string;
@@ -284,12 +284,16 @@ export function SupportPanel({
   name: string;
   grants: readonly SupportGrant[];
   onChanged: (done: string) => void;
+  /** The public host: the dashboard is not served on the console host, so support opens it there (T-810d, Q-692). */
+  dashboardOrigin: string;
 }>) {
   const t = translatorFor(language);
-  const router = useRouter();
   const [reason, setReason] = useState("");
   const { busy, problem, run } = useWrite(language, onChanged);
-  const goTo = () => router.push(`/${language}/organizers/${organizerId}/events/${eventId}`);
+  const goTo = () =>
+    window.location.assign(
+      `${dashboardOrigin}/${language}/organizers/${organizerId}/events/${eventId}`,
+    );
   const open = (kind: "view" | "edit") =>
     void run(
       () =>

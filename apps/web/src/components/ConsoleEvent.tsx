@@ -24,7 +24,8 @@ import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Stack, Toolbar } from "#src/ui/Section.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
 
-type Props = Readonly<{ language: Language; eventId: string }>;
+/** `dashboardOrigin`: the public host, where support opens the organizer's dashboard (T-810d). */
+type Props = Readonly<{ language: Language; eventId: string; dashboardOrigin: string }>;
 type Loaded = Readonly<{
   view: ConsoleEventView;
   available: readonly string[];
@@ -35,7 +36,7 @@ type Loaded = Readonly<{
  * One event in the console (FR-1021, FR-1402, FR-1729): activate a draft with a limit and add-ons, reject a request
  * with a note, or change the limit and add-ons of an activated event. Nothing is charged here (FR-1020).
  */
-export function ConsoleEvent({ language, eventId }: Props) {
+export function ConsoleEvent({ language, eventId, dashboardOrigin }: Props) {
   const t = translatorFor(language);
   const path = `/v1/admin/events/${eventId}`;
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -111,6 +112,7 @@ export function ConsoleEvent({ language, eventId }: Props) {
           eventId={eventId}
           name={nameIn(view.event.name, language)}
           oversight={oversight}
+          dashboardOrigin={dashboardOrigin}
           changed={(done) => {
             setNotice(done);
             void load();
@@ -199,12 +201,14 @@ function Oversight({
   name,
   oversight,
   changed,
+  dashboardOrigin,
 }: Readonly<{
   language: Language;
   eventId: string;
   name: string;
   oversight: EventOversight;
   changed: (done: string) => void;
+  dashboardOrigin: string;
 }>) {
   const t = translatorFor(language);
   return (
@@ -232,6 +236,7 @@ function Oversight({
         name={name}
         grants={oversight.grants}
         onChanged={changed}
+        dashboardOrigin={dashboardOrigin}
       />
       <HistoryList language={language} history={oversight.history} />
     </>

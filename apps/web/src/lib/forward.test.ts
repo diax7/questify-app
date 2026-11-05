@@ -19,6 +19,7 @@ describe("forward (same-origin /v1 forwarder)", () => {
   let logged: Readonly<Record<string, string>>[] = [];
   const options = (extra: Partial<ForwardOptions> = {}): ForwardOptions => ({
     apiOrigin: api.origin,
+    host: "public",
     timeoutMs: 2_000,
     maxBodyBytes: 1_024,
     log: (fields) => logged.push(fields),
@@ -68,6 +69,7 @@ describe("forward (same-origin /v1 forwarder)", () => {
           "x-internal-secret": "nope",
           authorization: "Bearer stolen",
           "idempotency-key": "key-1",
+          "sec-fetch-site": "same-site",
         },
       }),
       options(),
@@ -76,6 +78,7 @@ describe("forward (same-origin /v1 forwarder)", () => {
     expect(headers).toMatchObject({
       cookie: "__Host-qs_session=abc",
       origin: WEB,
+      "sec-fetch-site": "same-site",
       "x-forwarded-for": "203.0.113.9, 198.51.100.1",
       "idempotency-key": "key-1",
     });
@@ -83,6 +86,40 @@ describe("forward (same-origin /v1 forwarder)", () => {
     expect(headers["x-internal-secret"]).toBeUndefined();
     expect(headers["authorization"]).toBeUndefined();
     expect(headers["host"]).toBe(new URL(api.origin).host);
+  });
+
+  describe("the console's API on each host (T-810d)", () => {
+    it.each(["/v1/admin/activation-requests", "/v1/admin/", "/v1/admin/x?y=1"])(
+      "answers %s on the public host with its own 404 and calls nothing",
+      async (path) => {
+        const response = await forward(
+          new Request(`${WEB}${path}`, {
+            method: "POST",
+            headers: { cookie: "__Host-qs_session=abc" },
+          }),
+          options({ host: "public" }),
+        );
+        expect(response.status).toBe(404);
+        expect(await response.json()).toMatchObject({ code: "not_found" });
+        expectApiHeaders(response);
+        expect(api.seen).toHaveLength(0);
+      },
+    );
+
+    it("forwards it on the console host", async () => {
+      const response = await forward(
+        new Request(`${WEB}/v1/admin/activation-requests`),
+        options({ host: "console" }),
+      );
+      expect(response.status).toBe(200);
+      expect(api.seen[0]?.url).toBe("/v1/admin/activation-requests");
+    });
+
+    it("forwards every other path on both hosts", async () => {
+      await forward(new Request(`${WEB}/v1/administrators`), options({ host: "public" }));
+      await forward(new Request(`${WEB}/v1/staff/me`), options({ host: "console" }));
+      expect(api.seen.map((seen) => seen.url)).toEqual(["/v1/administrators", "/v1/staff/me"]);
+    });
   });
 
   it("returns every set-cookie and only the allowed response headers", async () => {

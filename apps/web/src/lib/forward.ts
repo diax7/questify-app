@@ -1,4 +1,5 @@
 import { API_SECURITY_HEADERS, apiError, type ApiErrorEnvelope } from "@questify/shared";
+import type { HostKind } from "#src/lib/console-host.ts";
 
 /** Request headers the API needs; everything else (host, the client's own `x-*`) is dropped. */
 const REQUEST_HEADERS = [
@@ -9,6 +10,9 @@ const REQUEST_HEADERS = [
   "if-none-match",
   "accept-language",
   "user-agent",
+  // Who started the request, by the browser's own account: the API refuses a staff request from the other host on it
+  // before any session lookup (T-810d).
+  "sec-fetch-site",
   // Passed through unchanged: behind CranL's edge its last entry is the real client, and the API trusts one hop.
   "x-forwarded-for",
 ];
@@ -30,6 +34,8 @@ const ENCODED_PATH_TRICK = /%2e|%2f|%5c/i;
 
 export type ForwardOptions = Readonly<{
   apiOrigin: string;
+  /** The host the request reached (`hostKind`): the public host never forwards `/v1/admin/*` (T-810d, ADR-722). */
+  host: HostKind;
   timeoutMs: number;
   maxBodyBytes: number;
   /** Receives only the method, path and reason of a failure: never a body, a cookie or a query. */
@@ -106,10 +112,18 @@ function forwardedResponseHeaders(upstream: Headers): Headers {
   return withSecurityHeaders(headers);
 }
 
-/** The API address for this request, or undefined when the path is not a plain `/v1/...` path. */
-function targetOf(request: Request, apiOrigin: string): URL | undefined {
+const CONSOLE_API = "/v1/admin/";
+
+/**
+ * The API address for this request, or undefined when the path is not a plain `/v1/...` path, or is a console path on
+ * the public host.
+ */
+function targetOf(request: Request, apiOrigin: string, host: HostKind): URL | undefined {
   const incoming = new URL(request.url);
   if (!incoming.pathname.startsWith("/v1/") || ENCODED_PATH_TRICK.test(incoming.pathname)) {
+    return undefined;
+  }
+  if (host === "public" && incoming.pathname.startsWith(CONSOLE_API)) {
     return undefined;
   }
   const target = new URL(incoming.pathname + incoming.search, apiOrigin);
@@ -123,7 +137,7 @@ function targetOf(request: Request, apiOrigin: string): URL | undefined {
  * `SameSite=Strict` work without CORS). Never retries: sign-in steps are not safe to repeat.
  */
 export async function forward(request: Request, options: ForwardOptions): Promise<Response> {
-  const target = targetOf(request, options.apiOrigin);
+  const target = targetOf(request, options.apiOrigin, options.host);
   if (target === undefined) {
     return notFound();
   }

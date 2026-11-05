@@ -1,4 +1,5 @@
 import { webConfig } from "#src/lib/config.ts";
+import { hostKind } from "#src/lib/console-host.ts";
 import { forward } from "#src/lib/forward.ts";
 
 export const dynamic = "force-dynamic";
@@ -9,8 +10,10 @@ const EXPORT_TIMEOUT_MS = 180_000;
 
 /** Every `/v1` call from the browser goes to the API through here (T-011 plan, same-origin forwarder). */
 function handle(request: Request): Promise<Response> {
+  const config = webConfig();
   return forward(request, {
-    apiOrigin: webConfig().apiOrigin,
+    apiOrigin: config.apiOrigin,
+    host: hostKind(request.headers.get("host"), config),
     timeoutMs: EXPORT_PATH.test(new URL(request.url).pathname) ? EXPORT_TIMEOUT_MS : 15_000,
     maxBodyBytes: 1_048_576,
     // One JSON line on the server log (stderr), like the API's own log lines.
