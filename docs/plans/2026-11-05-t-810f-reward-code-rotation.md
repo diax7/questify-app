@@ -154,3 +154,33 @@ Nothing to build it. One optional step after the deploy (Q-696, asked with AskUs
 on staging, where Dhia sets the four settings of section 7 step 1 in CranL's secret settings (the new secret typed or
 generated there, never sent in chat), the coordinator runs `reseal` and `check`, and Dhia removes the two previous
 settings. Without it the proof is the integration tests only.
+
+## Plan review (88)
+
+Reviewed 2026-11-05, score 88. Every item is folded into the build; this section overrides the text above where they
+differ.
+
+- **MAJOR 1, rollback and deploy overlap.** A release before T-810f reads the new header as the IV, so it cannot open
+  codes uploaded or re-sealed after it. RUNBOOK rollback: forward-fix only once a row in the new format exists; never
+  run `reseal` until the release is confirmed; during the first deploy an old instance still running fails the reveal
+  of codes the new instance uploaded (the player sees "code unavailable" and the redemption list shows it after).
+- **MINOR 2, row locks.** `reserve_reward` locks the reward, then the first unused code `FOR UPDATE` (0025:219-220). The
+  re-seal reads and seals outside any transaction and relies on the compare-and-set on `code_cipher`; each batch
+  transaction (about 100 rows) only updates, with `SET LOCAL lock_timeout = '2s'`. A row whose lock is not granted in
+  time counts as `changed` and is taken by the next run.
+- **MINOR 3, duplicates during the rotation redeploy.** Section 4's "no deploy window" holds for the migration, not for
+  the rotation: an old instance still running after step 1 uploads under key 1 without `prior_hashes`, so a code can be
+  added twice in that minute. RUNBOOK step 2 runs `reseal` only after the old instance has stopped; a duplicate that
+  slipped in shows as a `conflict`.
+- **MINOR 4, no mark in the output.** A unique violation's `err.detail` holds the `code_hash`. The update carries
+  `AND NOT EXISTS` (another row of the same event with the same mark), the unique index stays as the backstop, and the
+  command prints only the SQLSTATE and the row id.
+- **MINOR 5, a trail for a crashed run.** The command writes a start audit entry before the walk and the counts entry in
+  `finally`, so a run that stops half way still leaves both.
+- **MINOR 6, one parser.** `reward-codes.cjs` reads the four settings with the API's `rewardCodeSettings` (config.ts), so
+  it refuses the same combinations; a test runs the command with a bad combination.
+- **NITs.** The re-seal always takes a fresh IV through `sealCode`; `add_reward_codes` checks that every `prior_hashes`
+  item is 32 bytes; a DB test shows the 3-argument `add_reward_codes` is gone and that `questify_outsider` and `PUBLIC`
+  have no EXECUTE on the 4-argument one.
+- **Q-695 caveat.** The legacy opening path may be removed only after every backup taken before the re-seal has expired
+  (a restored backup holds legacy rows).
