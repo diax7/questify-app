@@ -135,3 +135,8 @@ Format: `- <date> <task>: <what and where> (<source>)`
   for `POST /v1/staff/auth/sign-up`, and it passes locally. `codeFor`/`linkFor` (`apps/web/e2e/mail.ts`) now poll for
   30 s. Root cause not confirmed: if it recurs, log the e2e API's email sends with a timestamp to see whether the send
   is late (argon2id plus a loaded 2-core runner) or missing.
+- 2026-11-05 CI run 42052799552 (browser shard 2): `e2e/event-templates.spec.ts:100` (phone) waited 180 s in
+  `openBuilder` for "إنشاء الفعالية" after its fields were filled; every request in the trace answered fast and the
+  error context has no page snapshot. Not reproduced: the same shard run locally on a fresh build (2 workers) passed it.
+  That local run instead caught `e2e/events.spec.ts:78` clicking the today-ranking switch while its save was busy (now
+  waits for `aria-busy="false"`, per `docs/rules.md`). If the template flake recurs, keep a screenshot on failure.
