@@ -1,10 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { consoleRequest, makeAdmin } from "#e2e/hosts.ts";
 import { openMenu } from "#e2e/nav.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
-
-const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
-const WEB = "http://localhost:3100";
 
 /**
  * The console's App texts (T-702, FR-1765, FR-1766, FR-1757), desktop and phone, English and Arabic. The database is
@@ -21,9 +18,7 @@ const ownOf = (project: string) => (project === "phone" ? OWN.phone : OWN.deskto
 async function asAdmin(page: Page, project: string): Promise<void> {
   await openBuilder(page, project);
   const eventId = page.url().split("/").at(-2) ?? "";
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
 }
 
 async function expectNoSidewaysScroll(page: Page): Promise<void> {
@@ -50,10 +45,7 @@ async function search(page: Page, text: string): Promise<void> {
 /** Puts the key back to the shipped text through the API, whatever state a failed test left it in. */
 test.afterEach(async ({ page }, info) => {
   const { key } = ownOf(info.project.name);
-  await page.request.put(`/v1/admin/translations/${key}`, {
-    data: { ar: "", en: "" },
-    headers: { origin: WEB },
-  });
+  await consoleRequest(page, "PUT", `/v1/admin/translations/${key}`, { ar: "", en: "" });
 });
 
 test("in English an admin finds a text, edits it, sees the shipped text kept, and reverts it", async ({

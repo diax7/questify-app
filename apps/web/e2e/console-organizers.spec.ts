@@ -1,8 +1,7 @@
 import { expect, test, type Browser, type Page, type TestInfo } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
+import { followToDashboard, makeAdmin } from "#e2e/hosts.ts";
 
-const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
 const REASON = "Prize desk reported for fraud";
 const WEB = "http://localhost:3100";
 
@@ -22,9 +21,7 @@ function idsOf(page: Page): { organizerId: string; eventId: string } {
 async function asAdmin(page: Page, project: string): Promise<void> {
   await openBuilder(page, project);
   const { eventId } = idsOf(page);
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
 }
 
 /** Another organizer in its own browser: its owner's page and its ids. */
@@ -90,9 +87,7 @@ test("an admin opens an event as support and lands in its dashboard; the owner s
     .getByRole("alert")
     .getByRole("button", { name: "Open support access (can change)" })
     .click();
-  await expect(page).toHaveURL(
-    new RegExp(`/en/organizers/${other.organizerId}/events/${other.eventId}$`),
-  );
+  await followToDashboard(page, `/en/organizers/${other.organizerId}/events/${other.eventId}`);
   await expect(page.getByText("You are in this event as Questify support until")).toBeVisible();
   await expectNoSidewaysScroll(page);
 
@@ -146,7 +141,7 @@ test("an admin views an event as the organizer: read-only banner, writes refused
   await page.getByRole("button", { name: "View as organizer" }).click();
   await page.getByRole("alert").getByRole("button", { name: "View as organizer" }).click();
   const dashboard = `/organizers/${other.organizerId}/events/${other.eventId}`;
-  await expect(page).toHaveURL(new RegExp(`/en${dashboard}$`));
+  await followToDashboard(page, `/en${dashboard}`);
   await expect(
     page.getByText("You are viewing this event as Questify support, read-only, until"),
   ).toBeVisible();

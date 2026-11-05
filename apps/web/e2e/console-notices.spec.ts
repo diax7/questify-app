@@ -1,10 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
-
-const WEB = "http://localhost:3100";
-const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
-const HEADERS = { origin: WEB };
+import { consoleRequest, makeAdmin } from "#e2e/hosts.ts";
 
 /**
  * The console's Maintenance and banner tab (T-703b, FR-1771, FR-1772), desktop and phone, English and Arabic. The platform
@@ -17,12 +13,8 @@ async function asAdmin(
 ): Promise<{ eventId: string; joinCode: string }> {
   await openBuilder(page, project);
   const eventId = page.url().split("/").at(-2) ?? "";
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
-  expect(
-    (await page.request.delete("/v1/admin/switches/banner", { headers: HEADERS })).status(),
-  ).toBe(204);
+  await makeAdmin(page, eventId);
+  expect((await consoleRequest(page, "DELETE", "/v1/admin/switches/banner")).status()).toBe(204);
   const organizerId = /\/organizers\/([^/]+)\//.exec(page.url())?.[1] ?? "";
   const event = await page.request.get(`/v1/organizers/${organizerId}/events/${eventId}`);
   const joinCode = ((await event.json()) as { event: { joinCode: string } }).event.joinCode;
@@ -45,7 +37,7 @@ type Notices = {
 };
 
 const noticesOf = async (page: Page): Promise<Notices> =>
-  (await (await page.request.get("/v1/admin/switches/notices")).json()) as Notices;
+  (await (await consoleRequest(page, "GET", "/v1/admin/switches/notices")).json()) as Notices;
 
 test("in English an event is paused with a message, then resumed", async ({ page }, info) => {
   test.setTimeout(120_000);

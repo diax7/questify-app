@@ -1,9 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
+import { makeAdmin } from "#e2e/hosts.ts";
 import { BUILDER_PASSWORD, openBuilder } from "#e2e/builder.ts";
 import { codeFor, linkFor } from "#e2e/mail.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
 
-const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
 const REASON = "Owner called back on the number on file";
 
 /** The organizer and event ids of the builder page a run just opened (`…/organizers/{id}/events/{id}/quests`). */
@@ -30,11 +29,7 @@ test("an admin starts an owner email change and the owner confirms it with the c
   const other = idsOf(ownerPage);
   await openBuilder(page, info.project.name);
   const mine = idsOf(page);
-  expect(
-    (
-      await page.request.post(`${CONTROL}/make-admin`, { data: { eventId: mine.eventId } })
-    ).status(),
-  ).toBe(204);
+  await makeAdmin(page, mine.eventId);
 
   await page.goto(`/en/console/organizers/${other.organizerId}`);
   const card = page.getByRole("region", { name: "Owner sign-in email" });

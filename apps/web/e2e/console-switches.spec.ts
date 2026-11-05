@@ -1,9 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
-
-const WEB = "http://localhost:3100";
-const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
+import { consoleRequest, makeAdmin } from "#e2e/hosts.ts";
 
 /**
  * The console's switches and tuning numbers (T-703, FR-1769, FR-1770), desktop and phone, English and Arabic. The platform
@@ -12,16 +9,10 @@ const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
 async function asAdmin(page: Page, project: string): Promise<void> {
   await openBuilder(page, project);
   const eventId = page.url().split("/").at(-2) ?? "";
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
   // The switches are shared by every run: start from the app's own, whatever an earlier run left.
   for (const path of ["features/maps", "tuning/rehearsalCap"]) {
-    expect(
-      (
-        await page.request.delete(`/v1/admin/switches/${path}`, { headers: { origin: WEB } })
-      ).status(),
-    ).toBe(204);
+    expect((await consoleRequest(page, "DELETE", `/v1/admin/switches/${path}`)).status()).toBe(204);
   }
 }
 

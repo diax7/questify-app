@@ -1,8 +1,7 @@
 import { expect, test, type Browser, type Page, type TestInfo } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
+import { makeAdmin } from "#e2e/hosts.ts";
 
-const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
 const TILES = ["database", "events", "push", "sms", "email", "background"] as const;
 const REASON = "Laptop lost at the airport";
 
@@ -14,9 +13,7 @@ const REASON = "Laptop lost at the airport";
 async function asAdmin(page: Page, project: string): Promise<void> {
   await openBuilder(page, project);
   const eventId = page.url().split("/").at(-2) ?? "";
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
 }
 
 async function expectNoSidewaysScroll(page: Page): Promise<void> {

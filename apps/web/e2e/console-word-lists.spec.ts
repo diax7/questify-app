@@ -1,8 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
-
-const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
+import { makeAdmin } from "#e2e/hosts.ts";
 
 /**
  * The console's word lists (T-705, FR-1779), desktop and phone: an admin adds a word, finds it with the filters, and
@@ -14,9 +12,7 @@ test("an admin adds, finds and removes a list word; the Arabic page reads right 
   test.setTimeout(120_000);
   await openBuilder(page, info.project.name);
   const eventId = page.url().split("/").at(-2) ?? "";
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
   const word = `zq${Date.now().toString(36).replace(/[0-9]/g, "x")}`;
   await page.goto("/en/console/word-lists");
   await expect(page.getByRole("heading", { name: "Word lists", level: 1 })).toBeVisible();

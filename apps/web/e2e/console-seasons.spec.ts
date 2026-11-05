@@ -1,7 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { makeAdmin } from "#e2e/hosts.ts";
 import { openMenu } from "#e2e/nav.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
+import { CONSOLE_ORIGIN, CONTROL_PORT } from "#e2e/paths.ts";
 
 const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
 
@@ -22,9 +23,7 @@ async function expectNoSidewaysScroll(page: Page): Promise<void> {
 async function asAdmin(page: Page, project: string): Promise<void> {
   await openBuilder(page, project);
   const eventId = page.url().split("/").at(-2) ?? "";
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
 }
 
 /**
@@ -166,6 +165,8 @@ test("in English the page is read only, marks the current month and shows a past
 
 test("an organizer who is not a Questify admin does not find the page", async ({ page }, info) => {
   await openBuilder(page, info.project.name);
-  const response = await page.goto("/ar/console/seasons");
-  expect(response?.status()).toBe(404);
+  // The public host sends the console to its own host (T-810d), where this person has no session: the sign-in page,
+  // and nothing of the console.
+  await page.goto("/ar/console/seasons");
+  await expect(page).toHaveURL(`${CONSOLE_ORIGIN}/ar/sign-in`);
 });

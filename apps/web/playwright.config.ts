@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { CODES_FILE, CONTROL_PORT } from "#e2e/paths.ts";
+import { CODES_FILE, CONSOLE_ORIGIN, CONTROL_PORT, WEB_ORIGIN } from "#e2e/paths.ts";
 
 /**
  * Browser tests of the dashboard sign-in (T-011) against the real API on a throw-away database. The API server is
@@ -8,7 +8,6 @@ import { CODES_FILE, CONTROL_PORT } from "#e2e/paths.ts";
  */
 const WEB_PORT = 3100;
 const API_PORT = 4100;
-const WEB_ORIGIN = `http://localhost:${WEB_PORT}`;
 
 export default defineConfig({
   testDir: "e2e",
@@ -32,6 +31,7 @@ export default defineConfig({
         ...process.env,
         E2E_API_PORT: String(API_PORT),
         E2E_WEB_ORIGIN: WEB_ORIGIN,
+        E2E_CONSOLE_ORIGIN: CONSOLE_ORIGIN,
         E2E_CODES_FILE: CODES_FILE,
         E2E_CONTROL_PORT: String(CONTROL_PORT),
       },
@@ -45,8 +45,13 @@ export default defineConfig({
       env: {
         ...process.env,
         API_ORIGIN: `http://127.0.0.1:${API_PORT}`,
+        DASHBOARD_ORIGIN: WEB_ORIGIN,
+        CONSOLE_ORIGIN,
         PORT: String(WEB_PORT),
-        HOSTNAME: "localhost",
+        // As the Docker image: Next makes a proxy redirect relative when its host is the server's own, and it counts
+        // `localhost`, 127.0.0.1 and ::1 as one host, so a loopback name here would turn the console host's redirect
+        // to the public host (localhost) into a loop (T-810d).
+        HOSTNAME: "0.0.0.0",
       },
       reuseExistingServer: false,
       timeout: 60_000,

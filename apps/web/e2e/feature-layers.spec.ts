@@ -1,9 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
+import { consoleRequest, makeAdmin } from "#e2e/hosts.ts";
 
 const WEB = "http://localhost:3100";
-const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
 
 /**
  * The feature layers (T-711, FR-1826, FR-1827), desktop and phone, English and Arabic: the platform switches a feature
@@ -19,9 +18,7 @@ async function asAdmin(
   await openBuilder(page, project);
   const parts = new URL(page.url()).pathname.split("/");
   const ids = { organizerId: parts[3] ?? "", eventId: parts[5] ?? "" };
-  expect(
-    (await page.request.post(`${CONTROL}/make-admin`, { data: { eventId: ids.eventId } })).status(),
-  ).toBe(204);
+  await makeAdmin(page, ids.eventId);
   await resetPlatform(page);
   return ids;
 }
@@ -29,17 +26,15 @@ async function asAdmin(
 /** Puts the platform's Maps and Shop switches back to the app's own, whatever an earlier run left. */
 async function resetPlatform(page: Page): Promise<void> {
   for (const feature of ["maps", "shop"]) {
-    const answer = await page.request.delete(`/v1/admin/switches/features/${feature}`, {
-      headers: { origin: WEB },
-    });
+    const answer = await consoleRequest(page, "DELETE", `/v1/admin/switches/features/${feature}`);
     expect(answer.status()).toBe(204);
   }
 }
 
 async function platformOff(page: Page, feature: string): Promise<void> {
-  const answer = await page.request.put(`/v1/admin/switches/features/${feature}`, {
-    data: { enabled: false, message: null },
-    headers: { origin: WEB },
+  const answer = await consoleRequest(page, "PUT", `/v1/admin/switches/features/${feature}`, {
+    enabled: false,
+    message: null,
   });
   expect(answer.status()).toBe(204);
 }

@@ -14,6 +14,7 @@ import {
 } from "#e2e/layout.ts";
 import { codeFor, freshAddress } from "#e2e/mail.ts";
 import { openMenu } from "#e2e/nav.ts";
+import { consoleRequest, signInOnConsole } from "#e2e/hosts.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
 /**
@@ -62,7 +63,8 @@ async function send(page: Page, method: "POST" | "PUT", path: string, data: obje
   return response;
 }
 
-type Event = Readonly<{ organizerId: string; eventId: string }>;
+/** Where the owner's event lives, and the owner's email (the console sign-in needs it, T-810d). */
+type Event = Readonly<{ organizerId: string; eventId: string; email: string }>;
 
 /** A new organizer's owner with one draft event that has one quest; returns where they live. */
 async function createEvent(page: Page, project: string): Promise<Event> {
@@ -89,7 +91,7 @@ async function createEvent(page: Page, project: string): Promise<Event> {
   await page.getByRole("button", { name: "Create event" }).click();
   await expect(page.getByRole("button", { name: "Save changes" })).toBeVisible();
   const match = /\/organizers\/([^/]+)\/events\/([^/?#]+)/.exec(page.url());
-  const ids = { organizerId: match?.[1] ?? "", eventId: match?.[2] ?? "" };
+  const ids = { organizerId: match?.[1] ?? "", eventId: match?.[2] ?? "", email };
 
   await page.goto(`/en/organizers/${ids.organizerId}/events/${ids.eventId}/quests`);
   await page.getByRole("button", { name: "Add quest" }).first().click();
@@ -183,6 +185,7 @@ async function startAndFill(page: Page, ids: Event): Promise<LayoutIds> {
   });
 
   await control(page, "/make-admin", { eventId });
+  await signInOnConsole(page, ids.email, PASSWORD);
   await control(page, "/invitations-switch");
   await control(page, "/invitation-event", { eventId, days: 10 });
   await send(page, "POST", `${base}/invitation-campaigns`, {
@@ -196,10 +199,12 @@ async function startAndFill(page: Page, ids: Event): Promise<LayoutIds> {
   const campaignId = ((await campaigns.json()) as { campaigns: { id: string }[] }).campaigns[0]?.id;
   const event = await page.request.get(base);
   const joinCode = ((await event.json()) as { event: { joinCode: string } }).event.joinCode;
-  const found = await send(page, "POST", "/v1/admin/players/search", {
+  // The console's search, from the console host, where the owner is now signed in as an admin (T-810d).
+  const found = await consoleRequest(page, "POST", "/v1/admin/players/search", {
     by: "username",
     q: "help_" + tag,
   });
+  expect(found.status()).toBe(200);
   const playerId = ((await found.json()) as { players: { id: string }[] }).players[0]?.id ?? "";
   return { organizerId, eventId, joinCode, ticketId, campaignId: campaignId ?? "", playerId };
 }

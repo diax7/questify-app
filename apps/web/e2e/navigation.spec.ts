@@ -2,7 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { expectNavReachable, readBrokenImages } from "#e2e/layout.ts";
 import { codeFor, freshAddress } from "#e2e/mail.ts";
 import { openMenu } from "#e2e/nav.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
+import { signInOnConsole } from "#e2e/hosts.ts";
+import { CONSOLE_ORIGIN, CONTROL_PORT } from "#e2e/paths.ts";
 
 /**
  * Moving around the dashboard stays inside the app (T-599c): a link between its pages changes the page in place, with
@@ -42,7 +43,7 @@ async function expectSameDocument(page: Page, where: string): Promise<void> {
 }
 
 /** Signs up a new organizer and lands on the home page. */
-async function signUp(page: Page, project: string): Promise<void> {
+async function signUp(page: Page, project: string): Promise<string> {
   const email = `nav.${project}.${Date.now()}.${Math.floor(Math.random() * 1e6)}@riyadh.test`;
   await freshAddress(page);
   await page.goto("/en/sign-up");
@@ -57,6 +58,7 @@ async function signUp(page: Page, project: string): Promise<void> {
   await page.getByRole("textbox", { name: "Sign-in code" }).fill(await codeFor(email));
   await page.getByRole("button", { name: "Create the account" }).click();
   await expect(page).toHaveURL(/\/en$/);
+  return email;
 }
 
 /** Creates a draft event from the events list and returns its id (the form ends with a full load). */
@@ -110,7 +112,7 @@ test("moving between the dashboard's pages never loads the document again", asyn
   page,
 }, info) => {
   test.setTimeout(120_000);
-  await signUp(page, info.project.name);
+  const email = await signUp(page, info.project.name);
   const eventId = await createDraftEvent(page);
   await markDocument(page);
   await markShell(page);
@@ -146,16 +148,22 @@ test("moving between the dashboard's pages never loads the document again", asyn
   await expect(page.getByRole("heading", { name: "My account", level: 1 })).toBeVisible();
   await expectSameDocument(page, "after My account");
 
-  // The console shares the document too: Home links to it for an admin, and its navigation stays put.
+  // Home links an admin to the console, on its own host (T-810d): a full load and a sign-in there. Inside the console
+  // the navigation stays put again.
   const made = await page.request.post(`http://127.0.0.1:${CONTROL_PORT}/make-admin`, {
     data: { eventId },
   });
   expect(made.status()).toBe(204);
   await page.getByRole("banner").getByRole("link", { name: BRAND }).click();
+  await expect(page.getByRole("link", { name: "Questify console" })).toHaveAttribute(
+    "href",
+    `${CONSOLE_ORIGIN}/en/console`,
+  );
   await page.getByRole("link", { name: "Questify console" }).click();
-  await expect(page).toHaveURL(/\/en\/console$/);
+  await expect(page).toHaveURL(`${CONSOLE_ORIGIN}/en/sign-in`);
+  await signInOnConsole(page, email, PASSWORD);
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expectSameDocument(page, "after opening the console");
+  await markDocument(page);
   await markShell(page);
   await goTo(page, "Ranking seasons", /\/en\/console\/seasons$/);
   await goTo(page, /^Content/, /\/en\/console\/content$/);

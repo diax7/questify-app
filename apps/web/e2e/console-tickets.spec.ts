@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { makeAdmin } from "#e2e/hosts.ts";
 import { openBuilder } from "#e2e/builder.ts";
 import { openMenu } from "#e2e/nav.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
@@ -57,9 +58,7 @@ test("an escalated ticket reaches the console, Questify answers, the dashboard s
   await expect(waiting).toContainText("ملاحظتكم لكويستفاي: سألنا مكتب الجوائز");
   await expect(waiting.getByRole("button", { name: "أرسل الرد" })).toHaveCount(0);
 
-  expect((await page.request.post(`${control}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
   await page.goto("/ar/console");
   await openMenu(page);
   await page.getByRole("link", { name: /^التذاكر/ }).click();

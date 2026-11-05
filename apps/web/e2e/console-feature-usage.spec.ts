@@ -1,9 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
-
-const WEB = "http://localhost:3100";
-const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
+import { consoleRequest, makeAdmin } from "#e2e/hosts.ts";
 
 /**
  * The console's feature usage (T-714, FR-1839), desktop and phone, English and Arabic. The organizer a run just created
@@ -18,20 +15,20 @@ async function asAdmin(
   const parts = new URL(page.url()).pathname.split("/");
   const organizerId = parts[3] ?? "";
   const eventId = parts[5] ?? "";
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
-  const detail = await page.request.get(`/v1/admin/organizers/${organizerId}`);
+  await makeAdmin(page, eventId);
+  const detail = await consoleRequest(page, "GET", `/v1/admin/organizers/${organizerId}`);
   expect(detail.status()).toBe(200);
   const { organizer } = (await detail.json()) as { organizer: { slug: string } };
   return { organizerId, slug: organizer.slug };
 }
 
 async function cheersOff(page: Page, organizerId: string): Promise<void> {
-  const answer = await page.request.put(`/v1/admin/organizers/${organizerId}/features/cheers`, {
-    data: { enabled: false },
-    headers: { origin: WEB },
-  });
+  const answer = await consoleRequest(
+    page,
+    "PUT",
+    `/v1/admin/organizers/${organizerId}/features/cheers`,
+    { enabled: false },
+  );
   expect(answer.status()).toBe(204);
 }
 

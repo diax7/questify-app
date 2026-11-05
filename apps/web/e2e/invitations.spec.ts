@@ -1,7 +1,8 @@
 import { expect, test, type Browser, type Locator, type Page } from "@playwright/test";
+import { makeAdmin } from "#e2e/hosts.ts";
 import { openBuilder } from "#e2e/builder.ts";
 import { account, freshAddress, signIn } from "#e2e/mail.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
+import { CONSOLE_ORIGIN, CONTROL_PORT } from "#e2e/paths.ts";
 import { openMenu } from "#e2e/nav.ts";
 
 const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
@@ -10,7 +11,8 @@ const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
  * Questify invitations on the web (T-409b, FR-738, FR-739): the owner's Invitations page, the console's queue and
  * detail, and the landing page of an invitation link. The sender tick is off in the e2e API, so the parts of a
  * campaign's life that it would write (started, a recipient's link, the published counts) come from the test control.
- * One browser session holds the owner and the admin (`make-admin`), as the console specs do.
+ * One browser holds the owner's session on the public host and the admin's on the console host (`makeAdmin`, T-810d),
+ * as the console specs do.
  */
 
 /** The page's own error line (Next's route announcer is a second alert on every page). */
@@ -39,7 +41,7 @@ async function setUp(page: Page, project: string): Promise<Scene> {
   await openBuilder(page, project);
   const ids = /organizers\/([^/]+)\/events\/([^/]+)/.exec(new URL(page.url()).pathname);
   const scene = { organizerId: ids?.[1] ?? "", eventId: ids?.[2] ?? "" };
-  await control(page, "/make-admin", { eventId: scene.eventId });
+  await makeAdmin(page, scene.eventId);
   await control(page, "/invitations-switch");
   await control(page, "/invitation-event", { eventId: scene.eventId, days: 10 });
   page.on("dialog", (dialog) => void dialog.accept());
@@ -349,7 +351,10 @@ test("an organizer who is not a Questify admin does not find the console pages",
   page,
 }, info) => {
   await openBuilder(page, info.project.name);
-  expect((await page.goto("/ar/console/invitations"))?.status()).toBe(404);
-  const missing = await page.goto("/ar/console/invitations/44444444-4444-4444-8444-444444444444");
-  expect(missing?.status()).toBe(404);
+  // The public host sends the console to its own host (T-810d), where this person has no session: the sign-in page,
+  // and nothing of the console.
+  await page.goto("/ar/console/invitations");
+  await expect(page).toHaveURL(`${CONSOLE_ORIGIN}/ar/sign-in`);
+  await page.goto("/ar/console/invitations/44444444-4444-4444-8444-444444444444");
+  await expect(page).toHaveURL(`${CONSOLE_ORIGIN}/ar/sign-in`);
 });

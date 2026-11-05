@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { makeAdmin } from "#e2e/hosts.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
 const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
@@ -106,9 +107,7 @@ async function asAdminWithEventSoon(page: Page, project: string): Promise<string
   expect((await page.request.post(`${CONTROL}/event-soon`, { data: { eventId } })).status()).toBe(
     204,
   );
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
   return eventId;
 }
 

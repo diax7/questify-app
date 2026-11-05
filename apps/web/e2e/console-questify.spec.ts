@@ -1,9 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
+import { CONSOLE_ORIGIN } from "#e2e/paths.ts";
 import { openBuilder } from "#e2e/builder.ts";
+import { makeAdmin } from "#e2e/hosts.ts";
 import { expectModal, openMenu } from "#e2e/nav.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
-
-const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
 
 /**
  * The console's Questify quests (T-403c, FR-710, FR-711), in Arabic: the seeded always-on quests show; an admin makes
@@ -28,9 +27,7 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
   test.setTimeout(120_000);
   await openBuilder(page, info.project.name);
   const eventId = page.url().split("/").at(-2) ?? "";
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
 
   await page.goto("/ar/console");
   await openMenu(page);
@@ -145,9 +142,7 @@ test("in English the publish dialog says it cannot be undone and starts paying X
 }, info) => {
   await openBuilder(page, info.project.name);
   const eventId = page.url().split("/").at(-2) ?? "";
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
   await page.goto("/en/console/questify");
   await page.getByRole("button", { name: "New campaign" }).click();
   await page.getByLabel("Campaign name in Arabic", { exact: true }).fill("موسم الربيع");
@@ -179,9 +174,7 @@ test("Escape closes the publish dialog, sends nothing, and the page cannot take 
 }, info) => {
   await openBuilder(page, info.project.name);
   const eventId = page.url().split("/").at(-2) ?? "";
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
   await page.goto("/en/console/questify");
   await page.getByRole("button", { name: "New campaign" }).click();
   await page.getByLabel("Campaign name in Arabic", { exact: true }).fill("موسم الصيف");
@@ -212,6 +205,8 @@ test("Escape closes the publish dialog, sends nothing, and the page cannot take 
 
 test("an organizer who is not a Questify admin does not find the page", async ({ page }, info) => {
   await openBuilder(page, info.project.name);
-  const response = await page.goto("/ar/console/questify");
-  expect(response?.status()).toBe(404);
+  // The public host sends the console to its own host (T-810d), where this person has no session: the sign-in page,
+  // and nothing of the console.
+  await page.goto("/ar/console/questify");
+  await expect(page).toHaveURL(`${CONSOLE_ORIGIN}/ar/sign-in`);
 });

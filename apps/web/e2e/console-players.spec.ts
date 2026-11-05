@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { makeAdmin } from "#e2e/hosts.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
 const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
@@ -14,9 +15,7 @@ const NOTE = "Ticket 5512 from the help desk";
 async function adminWithPlayer(page: Page, project: string): Promise<string> {
   await openBuilder(page, project);
   const eventId = page.url().split("/").at(-2) ?? "";
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
   const username = `pt_${Date.now().toString(36)}${Math.floor(Math.random() * 1000)}`;
   const made = await page.request.post(`${CONTROL}/players`, {
     data: { eventId, usernames: [username] },

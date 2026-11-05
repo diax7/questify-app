@@ -1,8 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
-import { CONTROL_PORT } from "#e2e/paths.ts";
-
-const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
+import { makeAdmin } from "#e2e/hosts.ts";
 
 /**
  * The console's message templates and support contact (T-706, FR-1780, FR-1731), desktop and phone, English and Arabic.
@@ -11,9 +9,7 @@ const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
 async function asAdmin(page: Page, project: string): Promise<void> {
   await openBuilder(page, project);
   const eventId = page.url().split("/").at(-2) ?? "";
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
 }
 
 async function expectNoSidewaysScroll(page: Page): Promise<void> {

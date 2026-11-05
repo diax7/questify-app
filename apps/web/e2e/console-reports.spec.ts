@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
+import { makeAdmin } from "#e2e/hosts.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
 const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
@@ -14,9 +15,7 @@ test("an admin unpublishes a reported quest and the organizer sees why", async (
   await openBuilder(page, info.project.name);
   const questsUrl = page.url();
   const eventId = questsUrl.split("/").at(-2) ?? "";
-  expect((await page.request.post(`${CONTROL}/make-admin`, { data: { eventId } })).status()).toBe(
-    204,
-  );
+  await makeAdmin(page, eventId);
   const title = `Rude quest ${info.project.name} ${Date.now() % 1e6}`;
   const seeded = await page.request.post(`${CONTROL}/reported`, {
     data: {

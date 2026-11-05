@@ -5,12 +5,26 @@ import { openMenu } from "#e2e/nav.ts";
 /** The password of every owner `openBuilder` signs up. */
 export const BUILDER_PASSWORD = "an organizer's own pass phrase";
 
+const builders = new WeakMap<Page, string>();
+
+/** The email `openBuilder` signed up with on this page. */
+export function builderEmailOf(page: Page): string {
+  const email = builders.get(page);
+  if (email === undefined) {
+    throw new Error(
+      "openBuilder has not run on this page, so there is no builder account to sign in.",
+    );
+  }
+  return email;
+}
+
 /** Signs up as a new organizer's owner, creates a draft event, and opens its quest builder in Arabic. */
 export async function openBuilder(page: Page, project: string): Promise<void> {
   page.on("pageerror", (error) => {
     throw error;
   });
   const email = `quests.${project}.${Date.now()}.${Math.floor(Math.random() * 1e6)}@riyadh.test`;
+  builders.set(page, email);
   await freshAddress(page);
   await page.goto("/en/sign-up");
   await page.getByLabel("Organizer name").fill("Najd Quests Co");
