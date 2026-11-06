@@ -3,6 +3,7 @@
 import { formatNumber, type Language, type SessionBody, type TeamSession } from "@questify/shared";
 import { useState } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
+import { ExplainThis } from "#src/components/ExplainThis.tsx";
 import { SessionForm } from "#src/components/SessionForm.tsx";
 import { SessionImportSection } from "#src/components/SessionImport.tsx";
 import { SessionList } from "#src/components/SessionList.tsx";
@@ -286,6 +287,12 @@ export function SessionsPanel(props: SessionsProps) {
               >
                 {t("sessions.page.add")}
               </Button>
+              <ExplainThis
+                language={language}
+                organizerId={props.organizerId}
+                eventId={props.eventId}
+                slug="sessions"
+              />
             </>
           }
         />

@@ -37,9 +37,11 @@ describe("guided setup helpers", () => {
 
   it("maps the build pages to the step that explains them", () => {
     expect(stepOfPage("rewards")).toBe("rewards");
-    expect(stepOfPage("prizes")).toBeUndefined();
+    expect(stepOfPage("prizes")).toBe("rewards");
     expect(stepOfPage("big-screen")).toBe("screens");
-    expect(stepOfPage("operators")).toBeUndefined();
+    expect(stepOfPage("operators")).toBe("screens");
+    expect(stepOfPage("maps")).toBe("look");
+    expect(stepOfPage("sessions")).toBe("look");
     expect(stepOfPage("players")).toBeUndefined();
     expect(stepOfPage("")).toBeUndefined();
   });
