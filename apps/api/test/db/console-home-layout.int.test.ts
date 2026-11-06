@@ -308,6 +308,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("Questify home layout (database
       }
     });
 
+    it("zero-width and mark characters in a slide's text (migration 0161)", async () => {
+      for (const bad of ["a​b", "a‌b", "a‍b", "a‎b", "a‏b", "a؜b", "a﻿b"]) {
+        await refused(doc({ banner: [slide(bad)] }), "banner.0.title");
+        await refused(
+          doc({ banner: [{ ...slide("A"), subtitle: { ar: "", en: bad } }] }),
+          "banner.0.subtitle",
+        );
+      }
+    });
+
+    it("a title of whitespace alone, and stores a subtitle of whitespace as empty (migration 0161)", async () => {
+      for (const blank of ["   ", " ", "　  "]) {
+        await refused(doc({ banner: [slide(blank)] }), "banner.0.title");
+      }
+      const answer = await save(
+        doc({ banner: [{ ...slide("A"), subtitle: { ar: " ", en: "　" } }] }),
+      );
+      expect(answer.banner[0]?.["subtitle"]).toEqual({ ar: "", en: "" });
+      expect(answer.banner[0]?.["title"]).toEqual({ ar: "", en: "A" });
+    });
+
     it("a tap that opens an event's screen, and a link that is not an https address to a named host", async () => {
       await refused(doc({ banner: [slide("A", { type: "agenda" })] }), "banner.0.action");
       await refused(
