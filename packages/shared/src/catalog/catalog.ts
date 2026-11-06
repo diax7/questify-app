@@ -1,8 +1,8 @@
 import { z } from "zod";
+import { catalogPair as pair } from "#src/catalog/catalog-pair";
 import { checkPlayerIntro } from "#src/layout/player-intro";
 import { checkQuestifyHome } from "#src/layout/questify-home";
 import { TEMPLATE_KEY, templateBodySchema } from "#src/templates/template";
-import { arabicText, englishText } from "#src/text/bilingual";
 
 /**
  * The console's catalog editors (T-709b, T-709c, T-709d, FR-1403): event templates, achievements, level titles, the gem
@@ -29,8 +29,6 @@ export type CatalogKind = (typeof CATALOG_KINDS)[number];
 export const TEMPLATE_BODY_MAX_BYTES = 30_000;
 
 const utf8Bytes = (text: string): number => new TextEncoder().encode(text).length;
-
-const pair = (max: number) => z.strictObject({ ar: arabicText(max), en: englishText(max) });
 
 export const ACHIEVEMENT_ID = /^[a-z][a-z0-9-]{0,63}$/;
 export const ITEM_ID = /^[a-z][a-z0-9-]{0,63}$/;

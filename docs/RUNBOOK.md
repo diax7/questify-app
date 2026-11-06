@@ -86,7 +86,9 @@ secret store, never from chat or the repository. The app refuses to start withou
 typed on the command line or kept in an environment variable). Pipe a random password that nobody sees, then send the
 person to "Forgot your password?" on the sign-in page: the emailed link (30 minutes, one use) lets them choose a password
 only they know, so no operator ever holds a working password (ASVS V6.4.1). The generated one is 32 characters of
-random base64url, which passes the password policy and the breached-password check:
+random base64url. It nearly always passes the password policy and the breached-password check (about 3 in 100,000 are
+refused for holding "questify", "nafes" or the email's name part, and the check needs `api.pwnedpasswords.com` to be
+reachable); if `create` refuses, run it again:
 
     node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('base64url'))" | node staff.cjs create someone@example.com [--admin]
 
@@ -302,10 +304,12 @@ and there is no command that changes a staff email. By role:
 
 - **Organizer owner** (keeps the account, the organizers and the history): an admin starts "Owner sign-in email" on the
   organizer's console page (ADR-490; `POST /v1/admin/organizers/{id}/owner-email`).
-  1. Prove the person first, before any address is typed. Call back on the phone number Questify held before the request
-     (the signup, the agreement or a past ticket), not one given in the request: choose "Called back on the number on
-     file". Or see an identity document that matches the organizer's agreement, or reach the signatory of the agreement:
-     "Identity document" or "The signatory on the agreement". "Other" needs the reason to say how.
+  1. Prove the person first, before any address is typed. Organizer sign-up collects no phone number, so Questify holds
+     one only in an agreement or a past ticket. When one exists, call back on it (never on a number given in the
+     request): choose "Called back on the number on file". Or see an identity document that matches the organizer's
+     agreement, or reach the signatory of the agreement: "Identity document" or "The signatory on the agreement". With
+     none of these the choice is "Other", and its reason must say how the person was proven; if nothing proves them,
+     refuse.
   2. Type the new address (a mailbox the person controls; it must belong to no staff account) and a reason of 10 to 300
      characters. The confirmation screen lists every organizer the account belongs to: read it to the person.
   3. They have 60 minutes to open the link in the new mailbox and type the code plus the account's current password. The
@@ -323,7 +327,7 @@ and there is no command that changes a staff email. By role:
   under "Create an account" (`revoke-admin` refuses the last active admin, so the new one must exist), then
   `node staff.cjs revoke-admin <old email> --reason "..."` (ends the sessions and closes the support grants), then in one
   transaction `UPDATE staff_user SET status = 'disabled' WHERE email = '<old email>'` and an `audit_log` row
-  (`actor_type 'system'`, `action 'staff.disable'`, `target_type 'staff_user'`, the reason in `after`). The old account stays
+  (`actor_type 'system'`, `action 'staff.disable'`, `target_type 'staff_user'`, `target_id` the old account's id, the reason in `after`). The old account stays
   out because it is disabled; the new one has the same power and none of the old history.
 
 **A player lost their number.** A code to the phone or the email is the only factor (Q-662), and no admin door changes

@@ -2858,7 +2858,8 @@ whitespace alone (ADR-746); an index on an organizer's events by creation time, 
 
 ## Q-705 - Which feature switches the server refuses on, and which only change what it does (T-703 review, ADR-453)
 
-**Status:** Answered (developer, delegated by Dhia, 2026-11-06): read from the code on 2026-11-06 (FOLLOWUPS batch 7);
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 5 code review 82): read from the
+code on 2026-11-06 (FOLLOWUPS batch 7);
 nothing to build. ADR-453 says a switched-off feature is hidden "by the server's doors"; that holds for 25 of the 27
 switches in `FEATURES` (`packages/shared/src/config/registry.ts`). Two have no door to refuse (`dailyStreak`,
 `pushNotifications`): off, the server counts, pays or sends nothing. Every switch is read on the server somewhere; the
@@ -2905,9 +2906,10 @@ map would catch a new switch with no row; it is not built, and a new switch adds
 
 ## Q-706 - FOLLOWUPS batch 7 (2026-11-06): five choices to confirm (ADR-780)
 
-**Status:** Proposed (worker, 2026-11-06): taken as the recommended option; the coordinator decides after the review.
-The batch chose: `cleanText` refuses zero-width marks while `hasUnsafeCharacter` stays as it is, because translation
-overrides share its pattern and the shipped texts keep U+200E (ADR-780 (1)); `alerts:check --always` for the nightly run
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 5 code review 82): accepted as
+built. The batch chose: the catalog's name pairs (`catalogPair`) refuse zero-width marks while `cleanText` and
+`hasUnsafeCharacter` stay as they are, because template body text is never read by `catalog_text` and translation
+overrides share the pattern of `hasUnsafeCharacter` (the shipped texts keep U+200E) (ADR-780 (1)); `alerts:check --always` for the nightly run
 and `ci:full` (2); a short title for the today-ranking confirmation (3); SIGTERM and SIGHUP stop a load run like Ctrl+C
 (4); the lost-mailbox and lost-number steps written from the doors that exist, and `staff.cjs create` kept as it is with
 a random unseen password (5).

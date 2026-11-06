@@ -8422,14 +8422,20 @@ job runs it with `CI_SCOPE_BASE` set to the pull request's base or the push's pr
 
 ## ADR-780 - FOLLOWUPS batch 7: names refuse zero-width marks in the API, promtool runs every night, and the load run stops on SIGTERM
 
-**Status:** Proposed (worker, 2026-11-06; for the developer to accept after review). Q-705, Q-706.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 5 code review 82). Q-705, Q-706.
 **Decision:**
-1. `cleanText` (the console's catalog names, `packages/shared/src/text/bilingual.ts`) refuses U+200B to U+200F, U+061C and
-   U+FEFF, the set `catalog_text` refuses (ADR-746), with its own message ("no zero-width or mark characters"), so a pasted
-   name fails at the console naming the field instead of with CA400 from the database. `hasUnsafeCharacter` is left as it
-   was: it shares its pattern with the translation override check (`isUsableOverride`, `validateTranslation`), and the
-   shipped texts hold U+200E before a plus sign (the Arabic bonus lines), so widening it would stop an admin from keeping
-   those texts when overriding them.
+1. The catalog's name pairs refuse U+200B to U+200F, U+061C and U+FEFF, the set `catalog_text` refuses (ADR-746), with
+   their own message ("no zero-width or mark characters"), so a pasted name fails at the console naming the field
+   instead of with CA400 from the database. The refusal lives in `catalogPair`
+   (`packages/shared/src/catalog/catalog-pair.ts`), which the `pair` of `catalog.ts` (template names and descriptions,
+   achievement names, level titles) and of `xp-table.ts` (item names) use: the fields `catalog_text` reads, and only
+   those. `cleanText`, `arabicText` and `englishText` are unchanged. A template body's quest, category and reward titles
+   and descriptions are text `catalog_text` never reads, and `templateRowSchema` parses stored templates with them: a
+   stored title holding U+200E, U+200F or a joiner has to keep parsing, or the template would drop out of the picker,
+   `templateExists` would throw and the console could not save it again. `hasUnsafeCharacter` is left as it was too: it
+   shares its pattern with the translation override check (`isUsableOverride`, `validateTranslation`), and the shipped
+   texts hold U+200E before a plus sign (the Arabic bonus lines), so widening it would stop an admin from keeping those
+   texts when overriding them.
 2. `scripts/check-alerts.mjs` takes `--always`, which skips the changed-files scope. `pnpm ci:full` ends with
    `pnpm alerts:check --always` and `full.yml` runs it as its own step, so the nightly run checks the rules whatever
    changed. `ci:changed` stays scoped. When the rules changed, `ci:full` runs promtool twice (the scoped run and the forced
@@ -8446,6 +8452,6 @@ job runs it with `CI_SCOPE_BASE` set to the pull request's base or the push's pr
    migration and a change to the sign-in path (tier A) and stays in FOLLOWUPS.
 **Why:** each closes a review line (FOLLOWUPS batch 3 and 4 reviews, T-703, T-705, T-804, T-810) with the smallest change
 that holds.
-**Trade-offs:** (1) a name with a direction mark that is legitimate in the author's eyes is refused at the console as it
-already was in the database; (2) the nightly run pulls the Prometheus image (a minute); (5) between creating an account and
+**Trade-offs:** (1) a catalog name with a direction mark that is legitimate in the author's eyes is refused at the console
+as it already was in the database, while a template body keeps accepting one; (2) the nightly run pulls the Prometheus image (a minute); (5) between creating an account and
 its first reset, a random password nobody knows is the only credential.

@@ -204,6 +204,15 @@ describe("an item's edit and creation", () => {
     expect(itemDocSchema.safeParse({ name: { ar: "إطار" }, visualKey: null }).success).toBe(false);
   });
 
+  it("refuses an invisible mark in an item name, as catalog_text does", () => {
+    const marked = { ar: "إطار‍", en: "Gold‎frame" };
+    expect(itemDocSchema.safeParse({ name: marked, visualKey: null }).success).toBe(false);
+    expect(itemCreateSchema.safeParse({ ...created, name: marked }).success).toBe(false);
+    expect(
+      itemDocSchema.safeParse({ name: { ...name, en: "Gold‎frame" }, visualKey: null }).success,
+    ).toBe(false);
+  });
+
   it("makes an item of each kind with its own art, on sale or not", () => {
     expect(itemCreateSchema.parse(created)).toEqual(created);
     expect(itemCreateSchema.parse({ ...created, shop })).toEqual({ ...created, shop });

@@ -5,8 +5,9 @@ import { exitOnSignals, INTERRUPT_SIGNALS } from "./interrupt.mjs";
 const setup = (onInterrupt: () => void = () => {}) => {
   const target = new EventEmitter();
   const exit = vi.fn();
-  const stop = exitOnSignals(onInterrupt, { target, exit });
-  return { target, exit, stop };
+  const report = vi.fn();
+  const stop = exitOnSignals(onInterrupt, { target, exit, report });
+  return { target, exit, report, stop };
 };
 
 describe("exitOnSignals", () => {
@@ -26,11 +27,13 @@ describe("exitOnSignals", () => {
     expect(Object.keys(INTERRUPT_SIGNALS).toSorted()).toEqual(["SIGHUP", "SIGINT", "SIGTERM"]);
   });
 
-  it("exits even when the clean-up throws", () => {
-    const { target, exit } = setup(() => {
-      throw new Error("clean-up failed");
+  it("prints a clean-up that throws and still exits with the signal's code", () => {
+    const failure = new Error("clean-up failed");
+    const { target, exit, report } = setup(() => {
+      throw failure;
     });
-    expect(() => target.emit("SIGTERM")).toThrow("clean-up failed");
+    target.emit("SIGTERM");
+    expect(report).toHaveBeenCalledExactlyOnceWith(failure);
     expect(exit).toHaveBeenCalledExactlyOnceWith(143);
   });
 

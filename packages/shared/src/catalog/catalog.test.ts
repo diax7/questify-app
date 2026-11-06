@@ -28,6 +28,7 @@ import {
   templateDocSchema,
   templatesAdminListSchema,
 } from "#src/catalog/catalog";
+import { catalogPair } from "#src/catalog/catalog-pair";
 import { templateBodySchema } from "#src/templates/template";
 import { arabicText, englishText } from "#src/text/bilingual";
 
@@ -189,27 +190,6 @@ describe("a name an admin types", () => {
     ]);
   });
 
-  it.each([
-    ["a zero-width space", "\u200B"],
-    ["a joiner", "\u200D"],
-    ["a left-to-right mark", "\u200E"],
-    ["a right-to-left mark", "\u200F"],
-    ["an Arabic letter mark", "\u061C"],
-    ["a byte order mark", "\uFEFF"],
-  ])("refuses %s inside a name, as catalog_text does", (_label, mark) => {
-    expect(messagesOf(arabicText(20).safeParse(`اس${mark}م`))).toEqual([
-      "no zero-width or mark characters",
-    ]);
-    expect(messagesOf(englishText(20).safeParse(`Na${mark}me`))).toContain(
-      "no zero-width or mark characters",
-    );
-  });
-
-  it("accepts the characters next to the refused ones", () => {
-    expect(arabicText(20).safeParse("اسم\u2010").success).toBe(true);
-    expect(englishText(20).safeParse("Na\u200Ame").success).toBe(true);
-  });
-
   it("reports both when a name has both problems", () => {
     expect(messagesOf(arabicText(20).safeParse("اسم ٣\u0007"))).toEqual([
       "Western digits only",
@@ -223,6 +203,81 @@ type Issues = Readonly<{
 }>;
 const issuesOf = (result: Issues) =>
   (result.error?.issues ?? []).map(({ code, path, message }) => ({ code, path, message }));
+
+const INVISIBLE_MARKS = [
+  ["a zero-width space", "​"],
+  ["a joiner", "‍"],
+  ["a left-to-right mark", "‎"],
+  ["a right-to-left mark", "‏"],
+  ["an Arabic letter mark", "؜"],
+  ["a byte order mark", "﻿"],
+] as const;
+
+describe("a catalog name with an invisible mark (as catalog_text refuses it)", () => {
+  it.each(INVISIBLE_MARKS)("refuses %s in either language, naming the field", (_label, mark) => {
+    const pair = catalogPair(20);
+    const arabic = pair.safeParse({ ar: `اس${mark}م`, en: "Name" });
+    expect(issuesOf(arabic)).toEqual([
+      { code: "custom", path: ["ar"], message: "no zero-width or mark characters" },
+    ]);
+    const english = pair.safeParse({ ar: "اسم", en: `Na${mark}me` });
+    expect(issuesOf(english)).toContainEqual({
+      code: "custom",
+      path: ["en"],
+      message: "no zero-width or mark characters",
+    });
+  });
+
+  it("accepts the characters next to the refused ones", () => {
+    expect(catalogPair(20).safeParse({ ar: "اسم‐", en: "Na me" }).success).toBe(true);
+  });
+
+  it("refuses the mark in a template's name and description", () => {
+    const named = templateDocSchema.safeParse({ ...doc([]), name: { ar: "مؤ‍تمر", en: "X" } });
+    expect(issuesOf(named).map((issue) => issue.path.join("."))).toEqual(["name.ar"]);
+    const described = templateDocSchema.safeParse({
+      ...doc([]),
+      description: { ar: "يوم", en: "A‎day" },
+    });
+    expect(issuesOf(described).map((issue) => issue.path.join("."))).toEqual(["description.en"]);
+  });
+
+  it("refuses the mark in an achievement's name and in a level title", () => {
+    const tiers = { bronze: 1, silver: 2, gold: 3 };
+    const achievement = achievementDocSchema.safeParse({
+      name: { ar: "صائد", en: "Hun​ter" },
+      ...tiers,
+    });
+    expect(achievement.success).toBe(false);
+    const titles = levelTitlesDocSchema.safeParse({
+      titles: [{ levelFrom: 1, name: { ar: "مبتدئ‏", en: "Novice" } }],
+    });
+    expect(titles.success).toBe(false);
+  });
+
+  it("still parses a template body whose titles and descriptions hold a mark", () => {
+    const marked = {
+      ...quest,
+      titleAr: "سجّل‏ حضورك",
+      titleEn: "Check‎ in",
+      descriptionEn: "Scan‍ the code.",
+    };
+    const body = {
+      ...doc([reward("وصف‏", "Tour‎")]).body,
+      categories: [
+        {
+          nameAr: "البداية‏",
+          nameEn: "Start‎",
+          orderMode: "any",
+          completionBonus: 0,
+          quests: [marked],
+        },
+      ],
+    };
+    expect(templateBodySchema.safeParse(body).success).toBe(true);
+    expect(templateDocSchema.safeParse({ ...doc([]), body }).success).toBe(true);
+  });
+});
 
 /** The bytes of a setup's body as the schema reads it. */
 const sizeOf = (setup: ReturnType<typeof doc>) =>

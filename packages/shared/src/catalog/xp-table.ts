@@ -1,6 +1,6 @@
 import { z } from "zod";
+import { catalogPair } from "#src/catalog/catalog-pair";
 import { ITEM_KINDS } from "#src/players/items";
-import { arabicText, englishText } from "#src/text/bilingual";
 
 /**
  * The console's XP table and item catalog (T-709d, FR-1403, ADR-440, ADR-441). The XP table is one document: the start
@@ -114,7 +114,7 @@ export const xpTableLoweringSchema = z.strictObject({
 });
 export type XpTableLowering = z.infer<typeof xpTableLoweringSchema>;
 
-const pair = z.strictObject({ ar: arabicText(60), en: englishText(60) });
+const pair = catalogPair(60);
 
 /** What an admin edits of an item: its names always, its art while it is not on sale and nobody owns it. */
 export const itemDocSchema = z.strictObject({
