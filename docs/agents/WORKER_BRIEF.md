@@ -68,3 +68,6 @@ then reply and stop.
    the BLOCKER/MAJOR findings only and commit. MINOR and NIT findings are not yours to fix: the coordinator lists
    them in `docs/FOLLOWUPS.md`.
 5. Do not split the task into slices on your own unless each slice delivers value alone; say so in the reply.
+
+- A worktree gets its own `pnpm install --offline`. Never link its `node_modules` to the main checkout: a later `pnpm` call
+  installs through the links and repoints the main checkout at the worktree (2026-11-06).
