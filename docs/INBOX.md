@@ -852,3 +852,7 @@ Achievement items, Level badge on rankings"; the Shop tab becomes "Rewards / Lev
 The developer's caution, agreed in the options: level perks stay cosmetic or Questify-wide, never extra points or odds
 inside an event. Processed into task T-404c (an ADR superseding ADR-046's gems and shop is written with its plan).
 
+## 2026-11-06 - Two tasks at once -> processed
+
+Dhia: "Start 2 task at the same time, lets finish faster". Processed into the cost cap in `CLAUDE.md` (two builders in
+separate worktrees; one full test suite at a time).

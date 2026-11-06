@@ -59,8 +59,10 @@ The main session is the **coordinator**. It does not build tasks itself; it runs
 coordinator, all plans, all reviews and core builds; use Medium for standard builds. Max is reserved only for the
 riskiest reviews. The review independence rule applies to every model and task, including docs and config.
 
-**Cost cap (Dhia, 2026-10-26):** at most one sub-agent at a time; two only when a reviewer checks finished work
-while the next task's worker builds. No extra helper agents alongside them. In a Claude Code session, which cannot
+**Cost cap (Dhia, 2026-10-26; raised 2026-11-06, "Start 2 task at the same time, lets finish faster"):** at most two
+builders at a time, each in its own worktree, and a reviewer may run alongside them. Only one of them runs the full test
+suite at a time (the test database is shared); the other runs its touched suites and leaves the full run to CI. No
+extra helper agents. In a Claude Code session, which cannot
 run GPT-6.1 Sol, use the strongest model only for core builds and core reviews (points ledger, sign-in, tenant
 isolation, SQL and locking) and the mid-tier model for docs, ticking tasks, copy checks and non-core builds and
 reviews. A worker runs the full test suite once into a log file and reads the summary line; no polling or duplicate
