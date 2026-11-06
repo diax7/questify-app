@@ -1131,6 +1131,12 @@ the first step of that rerun.
 
 ## Database and deploy
 
+**Check a CranL deploy before migrating.** The deploy call can answer `succeeded` while the build failed (2026-11-06: the
+log said only "Error occurred"; a retry built fine), and the old container keeps serving. Read
+`GET /api/v1/apps/{id}/deployments?limit=1` and confirm the newest migration file is in the container
+(`ls /srv/migrations | sort | tail -1`). `applied: []` from `migrate.cjs` with a new migration on `main` means the
+container is old. `DATABASE_ADMIN_URL` set after a deploy reaches the app only after a restart or the next deploy.
+
 - **Tag every release (T-810b, ADR-704):** after each CranL deploy and each store build, tag the deployed commit
   `release-YYYYMMDD-N` (N counts that day's releases from 1) and push the tag: `git tag release-20261105-1 <sha>` then
   `git push origin release-20261105-1`. The `SBOM` workflow (`.github/workflows/sbom.yml`) writes the production
