@@ -13,6 +13,17 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## FOLLOWUPS batch 8 — 2026-11-06
+
+- **FOLLOWUPS batch 8 (tier B; web, console, ops script; no migration, no package change).** The console organizers list empties and
+  says Loading on a new search (stale replies ignored); the template preview reads its switch titles from the event page's switch
+  maps (cheers and ranking now show) and the wizard's template step shows only for a draft; the template confirmation no longer
+  says it replaces features (Arabic and English); `DELETE /v1/admin/switches/{features,tuning}/{key}` answers 422
+  `invalid_catalog` for an unknown key like the PUT (API.md); load test: `startApi` times out, the rush waits for idle databases,
+  a local run refuses non-loopback URLs, bad `--rush` steps are refused; `Telemetry.flush` documented as test-only. Left in
+  FOLLOWUPS: the feature-usage cursor (needs a migration), intro row labels (web has no text overrides), `afterCompletion`
+  routes (Q-640), the `openStream` test. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 7 — 2026-11-06
 
 - **FOLLOWUPS batch 7 (ADR-355; tier B, SQL and locking; migration 0166, new and undeployed; ADR-800 to ADR-802, Q-740, Q-741).**

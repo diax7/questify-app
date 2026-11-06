@@ -255,8 +255,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console switches over HTTP", (
     }
     const range = await admin("PUT", "/v1/admin/switches/tuning/livePollSeconds", { value: 4 });
     expect(JSON.stringify(range.json())).toContain("whole number from 5 to 60");
-    expect((await admin("DELETE", "/v1/admin/switches/features/teleporter")).statusCode).toBe(404);
-    expect((await admin("DELETE", "/v1/admin/switches/tuning/constructor")).statusCode).toBe(404);
+    expect((await admin("DELETE", "/v1/admin/switches/features/teleporter")).statusCode).toBe(422);
+    expect((await admin("DELETE", "/v1/admin/switches/tuning/constructor")).statusCode).toBe(422);
     expect((await number("livePollSeconds"))?.value).toBe(10);
   });
 

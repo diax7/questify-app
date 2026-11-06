@@ -9194,8 +9194,8 @@ export const MESSAGES = {
   "templates.use": { ar: "استخدام القالب", en: "Use this template" },
   "templates.confirm.title": { ar: "تطبيق قالب {name}؟", en: "Apply the {name} template?" },
   "templates.confirm.body": {
-    ar: "ستُضاف {categoryMany} و{questMany} والجوائز إلى هذه الفعالية. كما تُضبط الميزات واللون المميّز والتخطيط وفق القالب، بدلًا من إعداداتها الحالية. يمكنك تعديل كل شيء بعد ذلك.",
-    en: "{categoryMany}, {questMany} and rewards will be added to this event. Its features, accent colour and layout are also set to the template's, replacing the current ones. You can edit all of it afterwards.",
+    ar: "ستُضاف {categoryMany} و{questMany} والجوائز إلى هذه الفعالية. كما يضبط القالب الميزات التي يذكرها واللون المميّز والتخطيط، وتبقى الميزات الأخرى كما هي. يمكنك تعديل كل شيء بعد ذلك.",
+    en: "{categoryMany}, {questMany} and rewards will be added to this event. The template also sets the features it lists, the accent colour and the layout; other features stay as they are. You can edit all of it afterwards.",
   },
   "templates.confirm.action": { ar: "تطبيق القالب", en: "Apply template" },
   "templates.done": { ar: "جُهِّز قالب {name}.", en: "The {name} template is set up." },

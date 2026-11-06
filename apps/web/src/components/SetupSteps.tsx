@@ -257,7 +257,7 @@ function ReviewStep(props: BodyProps) {
 const BODIES: Readonly<Record<SetupStep, (props: BodyProps) => ReactNode>> = {
   basics: (props) => (
     <>
-      <TemplateStart {...idsOf(props)} />
+      <TemplateStart {...idsOf(props)} draft={props.event.statusNow === "draft"} />
       <EventForm {...idsOf(props)} myRole={props.myRole} bare onUnsaved={props.onUnsaved} />
     </>
   ),

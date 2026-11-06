@@ -67,6 +67,9 @@ export function build() {
   });
 }
 
+/** How long a load API may take to say it is ready (it connects to PostgreSQL and Redis first). */
+const START_TIMEOUT_MS = 60_000;
+
 /**
  * Starts one load API on `port` and resolves with its process once it says it is ready.
  *
@@ -89,10 +92,24 @@ export function startApi(plan, options) {
   });
   return new Promise((resolve, reject) => {
     let said = "";
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(
+        new Error(
+          `The load API did not say it was ready within ${START_TIMEOUT_MS / 1000} s: ${said}`,
+        ),
+      );
+    }, START_TIMEOUT_MS);
     child.stderr.on("data", (chunk) => {
       said += chunk;
-      if (said.includes("load api ready")) resolve(child);
+      if (said.includes("load api ready")) {
+        clearTimeout(timer);
+        resolve(child);
+      }
     });
-    child.on("exit", (code) => reject(new Error(`The load API stopped (${code}): ${said}`)));
+    child.on("exit", (code) => {
+      clearTimeout(timer);
+      reject(new Error(`The load API stopped (${code}): ${said}`));
+    });
   });
 }
