@@ -69,6 +69,9 @@ jobs:
       - name: Lint, format, types, tests
         run: pnpm ci:changed
 
+      - name: Alert rules (promtool)
+        run: pnpm alerts:check --always
+
       - name: API build
         run: pnpm --filter @questify/api build
 

@@ -13,7 +13,7 @@ import {
   planBrowserSpecs,
   scopeOutput,
 } from "./ci-scope.mjs";
-import { PROMETHEUS_IMAGE, promtoolRuns } from "./check-alerts.mjs";
+import { PROMETHEUS_IMAGE, parseArguments, promtoolRuns } from "./check-alerts.mjs";
 
 const ROOT = join(import.meta.dirname, "..");
 const E2E_DIR = join(ROOT, "apps", "web", "e2e");
@@ -369,6 +369,26 @@ describe("needsAlertChecks", () => {
     expect(needsAlertChecks(["ops/alertsx/notes.md"])).toBe(false);
     expect(needsAlertChecks([])).toBe(false);
     expect(needsAlertChecks(undefined)).toBe(true);
+  });
+});
+
+describe("parseArguments", () => {
+  it("scopes by the base: the argument, else CI_SCOPE_BASE, else origin/main", () => {
+    expect(parseArguments(["abc123"], { CI_SCOPE_BASE: "def456" })).toEqual({
+      always: false,
+      base: "abc123",
+    });
+    expect(parseArguments([], { CI_SCOPE_BASE: "def456" })).toEqual({
+      always: false,
+      base: "def456",
+    });
+    expect(parseArguments([], {})).toEqual({ always: false, base: "origin/main" });
+  });
+
+  it("--always runs the checks whatever changed, wherever it stands among the arguments", () => {
+    expect(parseArguments(["--always"], {})).toEqual({ always: true, base: "origin/main" });
+    expect(parseArguments(["abc123", "--always"], {})).toEqual({ always: true, base: "abc123" });
+    expect(parseArguments(["--always", "abc123"], {})).toEqual({ always: true, base: "abc123" });
   });
 });
 
