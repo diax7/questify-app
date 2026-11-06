@@ -40,7 +40,14 @@ Report both to Dhia plainly, including if it is not faster.
 Node from `.nvmrc`, pnpm, Docker, `gh`, Python 3. Clone `diax7/questify-app`, `pnpm install`, `docker compose up -d` for the
 test database and Redis (`compose.yaml`). Test env:
 `TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`, `TEST_REDIS_URL=redis://127.0.0.1:56379`. Commits
-use Dhia's git identity.
+use Dhia's git identity (`git config user.name dhiaaddin`, and the email he gives you).
+
+Install the Arabic copy skill for every project on this server (Dhia, 2026-11-06). It is public:
+`git clone https://github.com/abadLife/ux-araby ~/.claude/skills/ux-araby`, with `~` the home of the user Claude Code runs as.
+Every new Arabic string goes through it.
+
+The test database and Redis listen on 127.0.0.1 only (`compose.yaml`). This is a public server and the test password is
+`postgres`, so never publish those ports on another address. Run long work inside `tmux`, so it survives a dropped connection.
 
 ## Standing rules that live outside the repo
 
@@ -58,8 +65,7 @@ use Dhia's git identity.
   plus a reviewer. One full test suite at a time: the test database is shared. Never resume a worker with a large context;
   fixes go to a fresh worker given the findings. A review never runs in the author's session.
 - Keep tools in the repo, not a scratchpad. A script vanished from the shared scratchpad once.
-- If the `cto` agent or the `ux-araby` and `cto-cycle` skills are missing here, use a general agent with
-  `docs/agents/REVIEW_BRIEF.md`, and ask Dhia to copy them if Arabic copy quality suffers.
+- If the `cto` agent or the `cto-cycle` skill is missing here, use a general agent with `docs/agents/REVIEW_BRIEF.md`.
 
 ## Pushing and deploying staging
 
