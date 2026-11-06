@@ -125,6 +125,82 @@ test("in Arabic the catalog reads right to left; an achievement's name and thres
   await expectNoSidewaysScroll(page);
 });
 
+/** The words of the achievement "Unlocks" flow in each language of the console (T-404d). */
+const UNLOCKS = {
+  en: {
+    tab: "Achievements",
+    edit: /^Edit /,
+    revert: /^Go back on the last change to /,
+    saved: "Change saved.",
+    reverted: "Went back to the earlier version.",
+    save: "Save",
+    silver: "Silver",
+    none: "No item",
+  },
+  ar: {
+    tab: "الإنجازات",
+    edit: /^تعديل /,
+    revert: /^التراجع عن آخر تغيير في /,
+    saved: "حُفظ التغيير.",
+    reverted: "عدنا إلى ما قبل التغيير.",
+    save: "حفظ",
+    silver: "فضية",
+    none: "بلا عنصر",
+  },
+} as const;
+
+for (const language of ["en", "ar"] as const) {
+  test(`in ${language === "en" ? "English" : "Arabic"} an achievement's Unlocks item is changed, removed, and put back by a revert`, async ({
+    page,
+  }, info) => {
+    test.setTimeout(120_000);
+    const words = UNLOCKS[language];
+    const own = ownOf(info.project.name).achievement;
+    await asAdmin(page, info.project.name);
+    await page.goto(`/${language}/console/catalog`);
+    await expect(page.locator("html")).toHaveAttribute("dir", language === "ar" ? "rtl" : "ltr");
+    await page.getByRole("button", { name: words.tab }).click();
+
+    const card = page.locator(`[data-testid="achievement-card"][data-id="${own.id}"]`);
+    const line = card.getByTestId("achievement-unlocks");
+    await expect(line).toBeVisible();
+    const stored = await line.innerText();
+
+    await card.getByRole("button", { name: words.edit }).click();
+    const item = card.getByTestId("achievement-item");
+    const tier = card.getByTestId("achievement-item-tier");
+    const kept = await item.inputValue();
+    const options = await item
+      .locator("option")
+      .evaluateAll((all) => all.map((option) => (option as HTMLOptionElement).value));
+    // A level's item, or another achievement's, is never offered: only the free ones and the one held.
+    expect(options.filter((value) => value.startsWith("level-"))).toEqual([]);
+    const other = options.find((value) => value !== "" && value !== kept);
+    expect(other, "an unassigned item to move to").toBeDefined();
+
+    await item.selectOption(other ?? "");
+    await tier.selectOption("silver");
+    await card.getByRole("button", { name: words.save, exact: true }).click();
+    await expect(page.getByText(words.saved)).toBeVisible();
+    await expect(line).toContainText(words.silver);
+    await expect(line).not.toHaveText(stored);
+    // A revert puts back the item and the tier the card held before the change.
+    await card.getByRole("button", { name: words.revert }).click();
+    await expect(page.getByText(words.reverted)).toBeVisible();
+    await expect(line).toHaveText(stored);
+
+    await card.getByRole("button", { name: words.edit }).click();
+    await item.selectOption("");
+    await expect(item.locator("option:checked")).toHaveText(words.none);
+    await expect(tier).toBeDisabled();
+    await card.getByRole("button", { name: words.save, exact: true }).click();
+    await expect(line).toHaveCount(0);
+    await card.getByRole("button", { name: words.revert }).click();
+    await expect(line).toHaveText(stored);
+    await expectNoSidewaysScroll(page);
+  });
+}
+
 test("the amounts are two equal cards; a save names each changed amount once and is reverted", async ({
   page,
 }, info) => {
@@ -160,7 +236,7 @@ test("the amounts are two equal cards; a save names each changed amount once and
     .getByRole("button", { name: "Go back", exact: true })
     .click();
   await expect(page.getByText("Went back to the earlier version.")).toBeVisible();
-  await expect(page.getByLabel("Level up")).toHaveValue(String(stored));
+  await expect(page.getByLabel("Gold tier")).toHaveValue(String(stored));
   await expectNoSidewaysScroll(page);
 });
 
@@ -229,6 +305,6 @@ test("in Arabic an item's names are edited and reverted; an achievement item nam
   await card.getByRole("button", { name: /^التراجع عن آخر تغيير/ }).click();
   await expect(card.getByText(stored, { exact: true })).toBeVisible();
   const earned = page.locator('[data-testid="item-card"][data-id="shop-dune-ring"]');
-  await expect(earned.getByTestId("item-facts")).toContainText("إنجاز");
+  await expect(earned).toContainText("إنجاز");
   await expectNoSidewaysScroll(page);
 });

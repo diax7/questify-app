@@ -3,6 +3,7 @@ import {
   XP_AMOUNTS,
   type AchievementAdmin,
   type AmountsAdmin,
+  type ItemAdmin,
   type TemplateAdmin,
 } from "@questify/shared";
 import { describe, expect, it } from "vitest";
@@ -33,6 +34,7 @@ import {
   storedBodyIssues,
   templateCounts,
   templateDraftOf,
+  unlockChoices,
 } from "#src/lib/console-catalog.ts";
 
 const quest = {
@@ -154,9 +156,16 @@ describe("a template draft", () => {
 describe("an achievement draft", () => {
   it("holds the name and the three thresholds, and is dirty when either changes", () => {
     const draft = achievementDraftOf(achievement);
-    expect(draft).toEqual({ name: achievement.name, bronze: "10", silver: "50", gold: "200" });
+    expect(draft).toEqual({
+      name: achievement.name,
+      bronze: "10",
+      silver: "50",
+      gold: "200",
+      itemId: "",
+      itemTier: "gold",
+    });
     expect(isAchievementDirty(achievement, draft)).toBe(false);
-    expect(checkAchievement(draft)).toEqual({
+    expect(checkAchievement(achievement, draft)).toEqual({
       ok: true,
       doc: { name: achievement.name, bronze: 10, silver: 50, gold: 200 },
     });
@@ -184,9 +193,11 @@ describe("an achievement draft", () => {
       { bronze: "" },
       { gold: "1e3" },
     ]) {
-      expect(checkAchievement({ ...draft, ...tiers }).ok, JSON.stringify(tiers)).toBe(false);
+      expect(checkAchievement(achievement, { ...draft, ...tiers }).ok, JSON.stringify(tiers)).toBe(
+        false,
+      );
     }
-    const falling = checkAchievement({ ...draft, bronze: "60" });
+    const falling = checkAchievement(achievement, { ...draft, bronze: "60" });
     expect(!falling.ok && falling.fields.has("thresholds")).toBe(true);
   });
 
@@ -200,9 +211,80 @@ describe("an achievement draft", () => {
       [{ ar: "ا", en: "اسم" }, "name.en"],
       [{ ar: "ا٣", en: "A" }, "name.ar"],
     ] as const) {
-      const checked = checkAchievement({ ...draft, name });
+      const checked = checkAchievement(achievement, { ...draft, name });
       expect(!checked.ok && checked.fields.has(field), JSON.stringify(name)).toBe(true);
     }
+  });
+
+  it("sends the item only when the draft changes it: left out, the API keeps it (T-404d)", () => {
+    const holding: AchievementAdmin = {
+      ...achievement,
+      item: { tier: "silver", itemId: "ring-a" },
+    };
+    const draft = achievementDraftOf(holding);
+    expect(draft).toMatchObject({ itemId: "ring-a", itemTier: "silver" });
+    const same = checkAchievement(holding, draft);
+    expect(same.ok && "item" in same.doc).toBe(false);
+    expect(isAchievementDirty(holding, draft)).toBe(false);
+  });
+
+  it("sets, moves and removes the item, and is dirty for each", () => {
+    const none = achievementDraftOf(achievement);
+    const set = { ...none, itemId: "ring-a", itemTier: "bronze" as const };
+    const setDoc = checkAchievement(achievement, set);
+    expect(setDoc.ok && setDoc.doc.item).toEqual({ tier: "bronze", itemId: "ring-a" });
+    expect(isAchievementDirty(achievement, set)).toBe(true);
+
+    const holding: AchievementAdmin = { ...achievement, item: { tier: "gold", itemId: "ring-a" } };
+    const held = achievementDraftOf(holding);
+    const moved = checkAchievement(holding, { ...held, itemId: "ring-b" });
+    expect(moved.ok && moved.doc.item).toEqual({ tier: "gold", itemId: "ring-b" });
+    const retiered = checkAchievement(holding, { ...held, itemTier: "silver" });
+    expect(retiered.ok && retiered.doc.item).toEqual({ tier: "silver", itemId: "ring-a" });
+    const removed = checkAchievement(holding, { ...held, itemId: "" });
+    expect(removed.ok && removed.doc.item).toBeNull();
+    expect(isAchievementDirty(holding, { ...held, itemId: "" })).toBe(true);
+    expect(isAchievementDirty(holding, { ...held, itemTier: "bronze" })).toBe(true);
+  });
+
+  it("changes nothing when an achievement with no item is left with none, whatever tier the box holds", () => {
+    const draft = { ...achievementDraftOf(achievement), itemTier: "bronze" as const };
+    const checked = checkAchievement(achievement, draft);
+    expect(checked.ok && "item" in checked.doc).toBe(false);
+    expect(isAchievementDirty(achievement, draft)).toBe(false);
+  });
+
+  it("refuses an item id the API would not take", () => {
+    const draft = { ...achievementDraftOf(achievement), itemId: "Not An Id" };
+    const checked = checkAchievement(achievement, draft);
+    expect(!checked.ok && checked.fields.has("item.itemId")).toBe(true);
+  });
+
+  it("offers the items nothing else uses, and the one this achievement holds", () => {
+    const base = {
+      name: { ar: "ا", en: "A" },
+      visualKey: null,
+      locked: { art: null },
+      revertible: false,
+    };
+    const items: ItemAdmin[] = [
+      { ...base, id: "free", kind: "frame", source: null },
+      {
+        ...base,
+        id: "mine",
+        kind: "title",
+        source: { achievement: { id: "quests-done", tier: "gold" } },
+      },
+      {
+        ...base,
+        id: "other",
+        kind: "frame",
+        source: { achievement: { id: "top-ten", tier: "gold" } },
+      },
+      { ...base, id: "level-5", kind: "frame", source: { level: 5 } },
+    ];
+    expect(unlockChoices(items, "quests-done").map((item) => item.id)).toEqual(["free", "mine"]);
+    expect(unlockChoices([], "quests-done")).toEqual([]);
   });
 
   it("reads what a lowering pays only from a confirmation_required answer", () => {

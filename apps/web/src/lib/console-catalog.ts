@@ -12,9 +12,11 @@ import {
   templateDocSchema,
   templatesAdminListSchema,
   type AchievementAdmin,
+  type AchievementItem,
   type AmountGroup,
   type AmountsAdmin,
   type AmountsDoc,
+  type ItemAdmin,
   type LoweredTiers,
   type MessageKey,
   type LevelTitlesAdmin,
@@ -199,28 +201,65 @@ export function templateCounts(
 export const TIERS = ["bronze", "silver", "gold"] as const;
 type Tier = (typeof TIERS)[number];
 
-/** An achievement's name and its three tier thresholds, as typed (T-709c). */
-export type AchievementDraft = Readonly<{ name: Pair } & Record<Tier, string>>;
+/**
+ * An achievement's name, its three tier thresholds and the item it unlocks, as typed (T-709c, T-404d). `itemId` is empty
+ * for no item; `itemTier` is the tier that gives it (gold until one is chosen).
+ */
+export type AchievementDraft = Readonly<
+  { name: Pair; itemId: string; itemTier: Tier } & Record<Tier, string>
+>;
 
 export const achievementDraftOf = (row: AchievementAdmin): AchievementDraft => ({
   name: row.name,
   bronze: String(row.bronze),
   silver: String(row.silver),
   gold: String(row.gold),
+  itemId: row.item?.itemId ?? "",
+  itemTier: row.item?.tier ?? "gold",
 });
 
-export const checkAchievement = (draft: AchievementDraft) =>
+/**
+ * The `item` part of a save, only when the draft changes it (T-404c: left out, the API keeps the item): `null` removes
+ * it, a pair sets or moves it.
+ */
+function itemChange(
+  row: AchievementAdmin,
+  draft: AchievementDraft,
+): { item?: AchievementItem | null } {
+  const stored = row.item;
+  if (draft.itemId === "") {
+    return stored === null ? {} : { item: null };
+  }
+  const same = stored?.itemId === draft.itemId && stored.tier === draft.itemTier;
+  return same ? {} : { item: { tier: draft.itemTier, itemId: draft.itemId } };
+}
+
+export const checkAchievement = (row: AchievementAdmin, draft: AchievementDraft) =>
   checked(achievementDocSchema, {
     name: draft.name,
     bronze: wholeNumber(draft.bronze),
     silver: wholeNumber(draft.silver),
     gold: wholeNumber(draft.gold),
+    ...itemChange(row, draft),
   });
 
 export const isAchievementDirty = (row: AchievementAdmin, draft: AchievementDraft): boolean =>
   draft.name.ar.trim() !== row.name.ar ||
   draft.name.en.trim() !== row.name.en ||
-  TIERS.some((tier) => draft[tier].trim() !== String(row[tier]));
+  TIERS.some((tier) => draft[tier].trim() !== String(row[tier])) ||
+  Object.keys(itemChange(row, draft)).length > 0;
+
+/**
+ * The items an achievement's "Unlocks" picker offers: the one it holds and every item with no source. A level's item,
+ * or another achievement's, is refused by the database all the same (`item_has_source`).
+ */
+export function unlockChoices(items: readonly ItemAdmin[], achievementId: string): ItemAdmin[] {
+  return items.filter(
+    (item) =>
+      item.source === null ||
+      ("achievement" in item.source && item.source.achievement.id === achievementId),
+  );
+}
 
 // ---------------------------------------------------------------- the amounts
 
