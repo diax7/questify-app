@@ -2,8 +2,10 @@
 // touches ops/alerts/ or ops/monitoring/ (`needsAlertChecks` in scripts/ci-scope.mjs). Part of `pnpm ci:changed`, so the
 // PR gate runs it as well. promtool comes from the Prometheus image the monitoring stack builds on, pinned by digest, so
 // Docker must be running when the rules changed.
-// Usage: node scripts/check-alerts.mjs [base]
+// Usage: node scripts/check-alerts.mjs [--always] [base]
 // The base is the argument, else $CI_SCOPE_BASE (CI sets it), else origin/main; uncommitted and new files count too.
+// --always skips that scoping and runs promtool whatever changed: the nightly full run (full.yml) and `ci:full` use it,
+// because a run of the whole suite has no change to compare with.
 import { execFileSync, spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,6 +33,14 @@ export function promtoolRuns(alertsDir) {
   ];
 }
 
+/** Reads `[--always] [base]`; the base falls back to $CI_SCOPE_BASE, then origin/main. */
+export function parseArguments(argv, env) {
+  const always = argv.includes("--always");
+  const base =
+    argv.find((argument) => !argument.startsWith("--")) ?? env["CI_SCOPE_BASE"] ?? "origin/main";
+  return { always, base };
+}
+
 function gitFiles(args) {
   return execFileSync("git", ["-c", "core.quotepath=false", ...args], { encoding: "utf8" })
     .split("\n")
@@ -45,10 +55,13 @@ function uncommitted() {
   ];
 }
 
-function main(base) {
+function alertsChanged(base) {
   const committed = changesSince(base)?.files;
-  const files = committed === undefined ? undefined : [...committed, ...uncommitted()];
-  if (!needsAlertChecks(files)) {
+  return needsAlertChecks(committed === undefined ? undefined : [...committed, ...uncommitted()]);
+}
+
+function main({ always, base }) {
+  if (!always && !alertsChanged(base)) {
     process.stderr.write(
       "alert rules: nothing under ops/alerts/ or ops/monitoring/ changed, promtool skipped\n",
     );
@@ -71,5 +84,5 @@ function main(base) {
 }
 
 if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  main(process.argv[2] ?? process.env["CI_SCOPE_BASE"] ?? "origin/main");
+  main(parseArguments(process.argv.slice(2), process.env));
 }

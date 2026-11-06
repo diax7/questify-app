@@ -443,6 +443,7 @@ export const MESSAGES = {
     ar: "يبقى الترتيب محدّثًا وهو مخفي، ويعود بالمراكز الحالية عند إظهاره.",
     en: "The ranking stays up to date while hidden and comes back with current places.",
   },
+  "events.ranking.todayTitle": { ar: "ترتيب اليوم", en: "Today's ranking" },
   "events.ranking.todayLabel": {
     ar: "إظهار ترتيب اليوم",
     en: "Show today's ranking",

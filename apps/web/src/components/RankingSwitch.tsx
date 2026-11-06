@@ -15,9 +15,15 @@ const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
 /** The two switches: the event's ranking (FR-607) and today's ranking for a multi-day event (FR-608). */
 const SWITCHES = {
-  ranking: { path: "ranking", label: "events.ranking.label", info: "events.ranking.hint" },
+  ranking: {
+    path: "ranking",
+    title: "events.ranking.title",
+    label: "events.ranking.label",
+    info: "events.ranking.hint",
+  },
   rankingToday: {
     path: "ranking-today",
+    title: "events.ranking.todayTitle",
     label: "events.ranking.todayLabel",
     info: "events.ranking.todayHint",
   },
@@ -113,7 +119,7 @@ export function RankingSwitch({
                     return;
                   }
                   confirmation.ask({
-                    title: t("events.switchOff.title", { feature: t(SWITCHES[feature].label) }),
+                    title: t("events.switchOff.title", { feature: t(SWITCHES[feature].title) }),
                     body: t("events.switchOff.body"),
                     confirmLabel: t("events.switchOff.confirm"),
                     run: () => save(feature, false),

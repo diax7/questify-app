@@ -2855,3 +2855,63 @@ whitespace alone (ADR-746); an index on an organizer's events by creation time, 
 (ADR-747); the health view's oldest push and notice read through two partial indexes (ADR-748); promtool runs in
 `ci:changed` when the alert rules or the monitoring stack change (ADR-749).
 **Recommended (developer):** accept them as built.
+
+## Q-705 - Which feature switches the server refuses on, and which only change what it does (T-703 review, ADR-453)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 5 code review 82): read from the
+code on 2026-11-06 (FOLLOWUPS batch 7);
+nothing to build. ADR-453 says a switched-off feature is hidden "by the server's doors"; that holds for 25 of the 27
+switches in `FEATURES` (`packages/shared/src/config/registry.ts`). Two have no door to refuse (`dailyStreak`,
+`pushNotifications`): off, the server counts, pays or sends nothing. Every switch is read on the server somewhere; the
+table says where, and the answer a caller gets. A new switch adds its row here in the change that builds it.
+
+A refusal is `403 feature_off` unless the row says otherwise (`featureOff` for an event's switch, `platformFeatureOff` for
+a Questify-wide one, `apps/api/src/auth/http-errors.ts`). "Stays" is deliberate (the registry comments and ADR-233,
+ADR-226, ADR-540 say why).
+
+| Switch | Level | Where the server reads it, and what it does when off | Stays open by design |
+|---|---|---|---|
+| `agenda` | event | `GET …/sessions` and `POST …/sessions/{id}/register` (`requireEventFeature`); `session_check_in` and `operator_sessions` (0093, AG403) | cancelling a registration; the team's page |
+| `bigScreen` | event, add-on | the screen's reads, scenes and finale (`big_screen_on`, 0083, 0084, 0085) | |
+| `boosts` | event | saving a boost (`feature_off` platform or organizer layer, `event_feature_off` the event's); `boosts_on` (the event's switch) stops every boost paying at once | a boost already in force when only the platform's switch goes off pays to its end (ADR-233, ADR-540) |
+| `cheers` | event | starting a moment (0090) and a tap (`cheers_live_until`); the moment ends at once | |
+| `community` | event | saving and deleting a goal, the player's community read, the settle's "may start" (`platform_feature_on`, ADR-542) | a running goal settles and pays its reached steps |
+| `dailyChallenge` | Questify | the play function raises DC404 `unavailable` (0069); the view returns nothing | |
+| `dailyStreak` | Questify | **no refusal**: `daily_streak_on()` false counts no day, shows nothing and pays no milestone (0068, 0069, 0079) | |
+| `dailyWord` | Questify | the guess function raises DW404 `unavailable` (0069); the view returns nothing | |
+| `flashQuests` | event | launching (FF403), and a flash quest is hidden and refused (`flash_on`, 0136) | |
+| `helpDesk` | event | sending a question or a report (`featureOff`, `tickets/routes.ts`) | reading, answering and marking seen |
+| `invitationCampaigns` | Questify | requesting a campaign (`platformFeatureOff`), the sender tick (`tick.ts`) | results keep being counted |
+| `locationQuests` | Questify, off until a Questify admin turns it on | the builder refuses the location type (`quests/routes.ts`, change sets), a check-in is refused (`completions/complete.ts`) | the quest's QR |
+| `kiosks` | Questify | the kiosk scan and the live code (`devices/kiosk.ts`, `devices/live-code.ts`) | pairing and the Devices page |
+| `maps` | event | `GET …/maps` (`requireEventFeature`) | the team's Maps page and every pin |
+| `meetSomeone` | event | the meet pass and scan doors (QF403, ADR-541) | |
+| `miniGames` | event | starting a round (QF403, ADR-541) | a started round finishes |
+| `nfcTags` | Questify | the NFC reading door (`nfc/routes.ts`) | the quest's QR |
+| `polls` | event | a live poll's vote and reads (`polls_off`, 0094, 0083) | votes already cast; the team's results |
+| `pushNotifications` | Questify | **no refusal**: `push_on()` false claims and sends nothing, queued pushes expire (0076, `push/worker.ts`) | registration, mutes, settle and the notification center |
+| `questifyRanking` | Questify | `GET /v1/questify/ranking` answers 404 `ranking_off` (QW404, 0072) | the boards keep being written |
+| `questRatings` | event, off until the owner turns it on | `PUT /v1/quests/{id}/rating` answers 409 `ratings_off`; the read says `on: false` (`ratings/routes.ts`) | |
+| `ranking` | event | the ranking door answers 404 `ranking_off` (`ranking/routes.ts`); Home hides the card | the boards keep being written |
+| `rankingToday` | event | the same door answers 404 `today_ranking_off` | |
+| `shareQuests` | event | the share completion (`plays/shares.ts`) and every quest list hide the type (`switched-off.ts`) | |
+| `shop` | event | the shop read, a goal pin, a new reservation and the desk sale (0094, 0107, `rewards/routes.ts`) | a prize a player already holds is handed over at the desk |
+| `stations` | Questify | the station's screen code (`devices/devices.ts`) | pairing and the Devices page |
+| `usernameChanges` | Questify | `PATCH /v1/me` with a username answers 403 `username_changes_off` (`players/profile.ts`) | |
+
+**Recommended (developer):** keep as built. ADR-453's sentence is right for 25 switches and loose for two, which are
+switches of what a worker or a counter does. If a test should hold the table, one that lists `FEATURES` against a door
+map would catch a new switch with no row; it is not built, and a new switch adds its row here by hand.
+
+
+## Q-706 - FOLLOWUPS batch 7 (2026-11-06): five choices to confirm (ADR-780)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 5 code review 82): accepted as
+built. The batch chose: the catalog's name pairs (`catalogPair`) refuse zero-width marks while `cleanText` and
+`hasUnsafeCharacter` stay as they are, because template body text is never read by `catalog_text` and translation
+overrides share the pattern of `hasUnsafeCharacter` (the shipped texts keep U+200E) (ADR-780 (1)); `alerts:check --always` for the nightly run
+and `ci:full` (2); a short title for the today-ranking confirmation (3); SIGTERM and SIGHUP stop a load run like Ctrl+C
+(4); the lost-mailbox and lost-number steps written from the doors that exist, and `staff.cjs create` kept as it is with
+a random unseen password (5).
+**Recommended (developer):** accept. Open for Dhia only if he wants `create` to send an invite or force a first password
+change (a migration and a sign-in change, tier A), or a support door that moves a player to a new number (ADR-423 dropped it).

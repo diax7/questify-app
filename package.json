@@ -14,7 +14,7 @@
     "test": "vitest run",
     "audit": "pnpm audit --audit-level moderate",
     "ci:changed": "pnpm lint && pnpm lint:limits && pnpm format:check && pnpm alerts:check && pnpm typecheck && pnpm test",
-    "ci:full": "pnpm ci:changed && pnpm audit",
+    "ci:full": "pnpm ci:changed && pnpm alerts:check --always && pnpm audit",
     "mutation": "stryker run",
     "sbom:generate": "pnpm sbom --sbom-format cyclonedx --prod --lockfile-only > sbom.cdx.json"
   },

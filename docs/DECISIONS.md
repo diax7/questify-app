@@ -6735,6 +6735,20 @@ awards (`bulk_award_eligible`, counted in `skipped`), the past points change (`a
 lowering still applies) and the community payout (`pay_community_batch`, already `inactive`). Every other writer pays one
 player and meets PB423, which the API answers once, globally, as 423 `player_inactive` ("This player can't receive points
 right now"), never a 500.
+**The guarantee, as the code gives it (restated 2026-11-06, FOLLOWUPS batch 7; the first wording said more than the
+lock does):** no payment that reads the player as active commits after the ban commits, for every membership that exists
+when the ban runs. The ban takes those memberships' locks (in id order) before it changes the status, and a ledger
+payment takes its membership's lock before it reads the status. So either the payment holds the lock first, reads
+"active" and commits before the ban's own lock is granted, or the ban holds it first and the payment, once it gets the
+lock, reads "banned" and is refused (PB423). What the lock does not cover, and what covers it instead: (1) XP and gem
+entries take no lock; those written by a payment ride in the transaction that already passed the ledger guard (the same
+ordering), and the others come from the player's own signed-in actions, which the ban ends by revoking the sessions and
+setting `tokens_valid_after`, so a request already past authentication can still land one entry up to one transaction
+after the commit; (2) a membership created while the ban runs is not in the ban's lock set, so a payment to it can read
+"active" before the commit and commit after it, again at most one transaction wide. Every payment that reads the status
+after the commit is refused. The lock in `ledger_player_guard` is also a backstop for a writer that does not lock the
+membership before its ledger insert; `staff_award` does, so the crossed test of `player-safety.int.test.ts` (ban, then
+`staff_award`, PB423) passes even without the guard's `FOR NO KEY UPDATE`.
 **Trade-offs:** a banned player's points stay as they were when a quest's points are raised for everyone; a lift does not
 replay the raise (Q-393).
 
@@ -6969,6 +6983,9 @@ app shows the questions above its ticket cards on the profile's Get help screen.
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-703 code review 93; T-703; FR-1769).
 **Decision:** A feature the platform switched off is hidden everywhere it already was (the switches are read by the server's doors and the app). The admin may add a message in both languages (both or none, 300 characters each, only while off). The app lists the messages of switched-off platform features on Questify Home, in the player's language, from the cached platform configuration, so they appear offline as the last working copy.
 **Trade-offs:** the message shows on Home only, not at the spot where the feature used to be.
+**Amended 2026-11-06 (FOLLOWUPS batch 7, Q-705):** "the server's doors" holds for 25 of the 27 switches, each of which has a
+door that answers `feature_off` (or its own code) while off. `dailyStreak` and `pushNotifications` have no door to
+refuse: off, the server counts, pays or sends nothing. Q-705 lists every switch with the door that reads it.
 
 ## ADR-460 - T-706 is split: templates and the support contact now; push to a group, campaigns and the senders in T-706b
 
@@ -8330,14 +8347,15 @@ built for a revert without an API change. The words say what is at stake; naming
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 3 code review 90).
 **Decision:** `readFeatureUsage` reads `console_review_demo()` in the same seat and drops that organizer from the page; the
 cursor still ends on the last organizer the database sent, so paging goes on past it (a page can be one short).
-**Why:** the follow-up asked for no migration; `console_feature_usage` (0140) is paged in SQL, and restating it for one
-filter is not worth a migration. A later restatement can move the filter into the query.
+**Why:** the follow-up asked for the filter when the function is next restated, not for a migration of its own;
+`console_feature_usage` (0140) is paged in SQL, and restating it for one filter is not worth a migration. A later restatement can move the filter into the query.
 **Trade-offs:** one more read per page; the console's numbers and usage pages still count the demo organizer (Q-525).
 
 ## ADR-744 - Questify home text refuses zero-width marks and stores whitespace as empty (migration 0161)
 
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 3 code review 90).
-**Decision:** `home_text_checked` also refuses U+200B to U+200F, U+061C and U+FEFF; a text of whitespace alone (spaces,
+**Decision:** `home_text_checked` also refuses U+200B to U+200F (the zero-width space, the joiners U+200C and U+200D, and
+the left-to-right and right-to-left marks), U+061C and U+FEFF; a text of whitespace alone (spaces,
 no-break and ideographic spaces) is stored as empty, so a required banner title of whitespace is refused like an empty one.
 **Why:** the dashboard strips these before it sends; the database check is the backstop for a direct caller.
 **Trade-offs:** `catalog_text` (0119) has the same gap and is left for its next restatement.
@@ -8401,3 +8419,39 @@ job runs it with `CI_SCOPE_BASE` set to the pull request's base or the push's pr
 **Why:** one place for the rule, locally and in CI, and no extra job (a job is billed by the whole minute plus its setup).
 **Trade-offs:** a change to the rules needs Docker locally; without it the script stops with the commands to run by hand.
 `pnpm monitoring:validate` (5 minutes, a 4 GB pull) is still not in CI (FOLLOWUPS, T-018b).
+
+## ADR-780 - FOLLOWUPS batch 7: names refuse zero-width marks in the API, promtool runs every night, and the load run stops on SIGTERM
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 5 code review 82). Q-705, Q-706.
+**Decision:**
+1. The catalog's name pairs refuse U+200B to U+200F, U+061C and U+FEFF, the set `catalog_text` refuses (ADR-746), with
+   their own message ("no zero-width or mark characters"), so a pasted name fails at the console naming the field
+   instead of with CA400 from the database. The refusal lives in `catalogPair`
+   (`packages/shared/src/catalog/catalog-pair.ts`), which the `pair` of `catalog.ts` (template names and descriptions,
+   achievement names, level titles) and of `xp-table.ts` (item names) use: the fields `catalog_text` reads, and only
+   those. `cleanText`, `arabicText` and `englishText` are unchanged. A template body's quest, category and reward titles
+   and descriptions are text `catalog_text` never reads, and `templateRowSchema` parses stored templates with them: a
+   stored title holding U+200E, U+200F or a joiner has to keep parsing, or the template would drop out of the picker,
+   `templateExists` would throw and the console could not save it again. `hasUnsafeCharacter` is left as it was too: it
+   shares its pattern with the translation override check (`isUsableOverride`, `validateTranslation`), and the shipped
+   texts hold U+200E before a plus sign (the Arabic bonus lines), so widening it would stop an admin from keeping those
+   texts when overriding them.
+2. `scripts/check-alerts.mjs` takes `--always`, which skips the changed-files scope. `pnpm ci:full` ends with
+   `pnpm alerts:check --always` and `full.yml` runs it as its own step, so the nightly run checks the rules whatever
+   changed. `ci:changed` stays scoped. When the rules changed, `ci:full` runs promtool twice (the scoped run and the forced
+   one), about ten seconds.
+3. The ranking switches' confirmation names the switch by a short title: `events.ranking.title` for the ranking and a new
+   text, `events.ranking.todayTitle` ("Today's ranking"), for the other, instead of the long checkbox label.
+4. The load run (`ops/load/run.mjs`) stops on SIGTERM and SIGHUP as on Ctrl+C (`ops/load/interrupt.mjs`, exit codes 143
+   and 129): it stops the driver processes, drops the database and Redis keys and deletes the job files. A `kill` or a
+   closed terminal does not reach the drivers the way Ctrl+C does, so they are killed explicitly.
+5. The RUNBOOK writes the proofing steps for a lost staff mailbox (by role: an owner through the console's owner email
+   change, an editor through the owner's team page, an admin through the owner connection) and a player's lost number
+   (only what the doors allow: no contact change, no merge). `staff.cjs create` pipes a random password nobody sees and
+   the person resets it by email; making `create` send an invite or forcing a password change at the first sign-in needs a
+   migration and a change to the sign-in path (tier A) and stays in FOLLOWUPS.
+**Why:** each closes a review line (FOLLOWUPS batch 3 and 4 reviews, T-703, T-705, T-804, T-810) with the smallest change
+that holds.
+**Trade-offs:** (1) a catalog name with a direction mark that is legitimate in the author's eyes is refused at the console
+as it already was in the database, while a template body keeps accepting one; (2) the nightly run pulls the Prometheus image (a minute); (5) between creating an account and
+its first reset, a random password nobody knows is the only credential.

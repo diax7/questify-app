@@ -5,8 +5,8 @@ name: Full checks
 # only the browser specs of the changed area (ADR-372), so this run is the one that sees all of them together: every
 # day on main, and by hand on any pushed branch.
 # Start it: gh workflow run full.yml --ref <branch>
-# Cost: about 55 minutes a run (checks 19, browser suite 35, builds and install; 2026-11-04), so about 1,650 minutes a
-# month for the daily run (30 runs). Free on this public repository; on a private one it would be metered, so change the cron to
+# Cost: about 55 minutes a run (checks 19, browser suite 35, builds and install; 2026-11-04) plus about 1 minute to pull
+# the Prometheus image for the alert-rule check (ADR-780), so about 1,700 minutes a month for the daily run (30 runs). Free on this public repository; on a private one it would be metered, so change the cron to
 # weekly then.
 on:
   schedule:
@@ -68,6 +68,9 @@ jobs:
 
       - name: Lint, format, types, tests
         run: pnpm ci:changed
+
+      - name: Alert rules (promtool)
+        run: pnpm alerts:check --always
 
       - name: API build
         run: pnpm --filter @questify/api build

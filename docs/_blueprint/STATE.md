@@ -6,6 +6,24 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## FOLLOWUPS batch 7 (light; tier B and C) — 2026-11-06
+
+- **FOLLOWUPS batch 7 (no migration; ADR-780 Accepted and Q-705, Q-706 Answered after review 82).** Cleared: the catalog's
+  name pairs (`catalogPair`) refuse the zero-width and mark characters `catalog_text` refuses, so the console names the
+  field (`cleanText` and `hasUnsafeCharacter` stay: a template body's text is not read by `catalog_text`, translation
+  overrides share the second and the shipped texts keep U+200E); `alerts:check --always` for `ci:full` and a step in `full.yml`, so
+  the nightly run checks the alert rules (actionlint and zizmor clean); ADR-743 and ADR-744 wording, and the ranking
+  switches' confirmation title (new text `events.ranking.todayTitle`); the real guarantee of the T-705 wall in ADR-430;
+  Q-705 lists, from the code, which of the 27 switches have a door that refuses (25) and which only change what the server
+  does (`dailyStreak`, `pushNotifications`); the RUNBOOK's proofing steps for a lost staff mailbox and a player's lost
+  number, and `staff.cjs create` with a random unseen password (ASVS V6.4.4 Met, V6.4.1 Partly); a load run stops on
+  SIGTERM and SIGHUP like Ctrl+C and kills its drivers (`ops/load/interrupt.mjs`). Left, with notes in FOLLOWUPS: the T-705
+  comments and copy in 0120 (a migration), a ledger-insert test for the guard's lock (needs a database), an invite or a
+  forced first password change for `create` (tier A). Unit suites only (no database, browser or build, the PC was shared):
+  343 files, 4,445 tests passed (`apps/web apps/app packages scripts ops`); oxfmt, oxlint, `lint:limits` and types clean.
+  CI minutes: 0 (not pushed); agent tokens roughly 700k (estimate).
+  **Next:** the next unchecked task in `docs/TASKS.md`.
+
 ## FOLLOWUPS batch 6 — 2026-11-06
 
 - **FOLLOWUPS batch 6 (tier B; migration 0162; 0156 stays reserved; ADR-745 to ADR-749 and Q-704 Proposed).** Cleared:

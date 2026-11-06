@@ -18,6 +18,7 @@ import {
   say,
   startApi as startApiWith,
 } from "./local.mjs";
+import { exitOnSignals } from "./interrupt.mjs";
 import { completionReport, rushReport, verdict } from "./report.mjs";
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
@@ -170,6 +171,13 @@ function samplePostgres() {
   };
 }
 
+/** The driver processes still running: a terminal's Ctrl+C reaches them, a `kill` or a closed terminal does not. */
+const runningDrivers = new Set();
+
+function killDrivers() {
+  for (const child of runningDrivers) child.kill();
+}
+
 function runDriver(job, dir, name) {
   const jobFile = join(dir, `${name}.job.json`);
   const resultFile = join(dir, `${name}.result.json`);
@@ -180,11 +188,12 @@ function runDriver(job, dir, name) {
       [join(ROOT, "ops", "load", "driver.mjs"), jobFile, resultFile],
       { stdio: ["ignore", "inherit", "inherit"] },
     );
-    child.on("exit", (code) =>
-      code === 0
-        ? resolve(JSON.parse(readFileSync(resultFile, "utf8")))
-        : reject(new Error(`Driver ${name} failed (${code}).`)),
-    );
+    runningDrivers.add(child);
+    child.on("exit", (code) => {
+      runningDrivers.delete(child);
+      if (code === 0) resolve(JSON.parse(readFileSync(resultFile, "utf8")));
+      else reject(new Error(`Driver ${name} failed (${code}).`));
+    });
   });
 }
 
@@ -206,17 +215,15 @@ function removeJobFiles(dir) {
 }
 
 /**
- * Ctrl+C mid-run: `cleanUp`, then the job files go and the process exits 130 (the drivers are this process's
- * children and stop with it). Returns the function that takes the handler off again.
+ * Ctrl+C, `kill` or a closed terminal mid-run: the drivers are stopped, `cleanUp` runs, the job files go and the
+ * process exits with the signal's code (`interrupt.mjs`). Returns the function that takes the handlers off again.
  */
 function exitOnInterrupt(dir, cleanUp) {
-  const interrupted = () => {
+  return exitOnSignals(() => {
+    killDrivers();
     cleanUp();
     removeJobFiles(dir);
-    process.exit(130);
-  };
-  process.once("SIGINT", interrupted);
-  return () => process.removeListener("SIGINT", interrupted);
+  });
 }
 
 function baseJob(baseUrls) {
