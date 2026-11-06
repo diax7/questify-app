@@ -192,6 +192,65 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("migrate retries a lock clash",
     expect(migrated.rows).toEqual([{ n: 1 }]);
   });
 
+  it("retries a real deadlock that PostgreSQL raises at COMMIT, and applies the file once", async () => {
+    // A deferred foreign key is checked at COMMIT: the check needs a share lock on the parent row, which the other
+    // session holds while it waits for the table the migration locked.
+    await migrator.query(
+      `CREATE TABLE b (id int);
+       CREATE TABLE parent (id int PRIMARY KEY);
+       INSERT INTO parent VALUES (1);
+       CREATE TABLE child (parent_id int REFERENCES parent DEFERRABLE INITIALLY DEFERRED)`,
+    );
+    await writeFile(
+      join(dir, "0001_commit_deadlock.sql"),
+      `CREATE TABLE migrated (n int);
+       INSERT INTO child VALUES (1);
+       LOCK TABLE b IN ACCESS EXCLUSIVE MODE;
+       SELECT pg_advisory_xact_lock(${GATE});
+       INSERT INTO migrated VALUES (1);`,
+    );
+    await migrator.query("SET deadlock_timeout = '200ms'");
+    await holder.query("SET deadlock_timeout = '30s'");
+    await holder.query("BEGIN; SELECT id FROM parent WHERE id = 1 FOR UPDATE");
+    await observer.query("SELECT pg_advisory_lock($1)", [GATE]);
+    const failedAt: string[] = [];
+    const query = migrator.query.bind(migrator) as (text: string, ...rest: unknown[]) => unknown;
+    migrator.query = (async (text: string, ...rest: unknown[]) => {
+      try {
+        return await query(text, ...rest);
+      } catch (error) {
+        failedAt.push(`${text}: ${(error as { code?: string }).code}`);
+        throw error;
+      }
+    }) as unknown as Client["query"];
+    const migratorPid = await pidOf(migrator);
+    const holderPid = await pidOf(holder);
+    let holderGetsB: Promise<unknown> = Promise.resolve();
+    beforeRetry = async () => {
+      await holderGetsB;
+      await holder.query("ROLLBACK");
+    };
+
+    const running = run();
+    await eventually(() => isWaiting(migratorPid, "advisory"), "the migration to wait at the gate");
+    holderGetsB = holder.query("LOCK TABLE b IN ACCESS EXCLUSIVE MODE");
+    await eventually(() => isWaiting(holderPid, "relation"), "the other session to wait for b");
+    await observer.query("SELECT pg_advisory_unlock($1)", [GATE]);
+    const result = await running;
+
+    expect(failedAt).toEqual(["COMMIT: 40P01"]);
+    expect(result).toEqual({ applied: ["0001_commit_deadlock.sql"], alreadyApplied: [] });
+    expect(delays).toEqual([1000]);
+    expect(lines).toEqual([
+      "Migration 0001_commit_deadlock.sql hit a lock clash (SQLSTATE 40P01) on attempt 1 of 4 and was rolled back whole; retrying in 1000 ms.",
+    ]);
+    const counts = await migrator.query<{ migrated: number; child: number; rows: number }>(
+      `SELECT (SELECT count(*)::int FROM migrated) AS migrated, (SELECT count(*)::int FROM child) AS child,
+              (SELECT count(*)::int FROM schema_migration) AS rows`,
+    );
+    expect(counts.rows[0]).toEqual({ migrated: 1, child: 1, rows: 1 });
+  });
+
   it("fails on the fourth clash with the SQLSTATE, leaves nothing of the file, and is safe to run again", async () => {
     await writeFile(join(dir, "0001_first.sql"), FIRST_FILE);
     await writeFile(join(dir, "0002_clash.sql"), CLASH_FILE);

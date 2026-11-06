@@ -342,6 +342,67 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reports and moderation (databa
       ).toBe("QA404");
     });
 
+    it("closes with an action only once that action is in place, and leaves the reports open otherwise (RP409)", async () => {
+      const event = await live();
+      const target = await quest(event, "Not yet");
+      const reporter = await member(event);
+      await report(reporter.player, { kind: "quest", target });
+      for (const outcome of [
+        "unpublished",
+        "event_suspended",
+        "username_changed",
+        "player_banned",
+      ]) {
+        expect(await sqlstate(resolve("quest", target, outcome)), outcome).toBe("RP409");
+      }
+      expect((await reportsOf(target)).map((one) => one.status)).toEqual(["open"]);
+      await unpublish("quest", target);
+      await f.owner(
+        `INSERT INTO content_report (reporter_id, event_id, target_kind, target_id, snapshot, reason)
+         VALUES ($1, $2, 'quest', $3, '{}', 'spam')`,
+        [(await member(event)).player, event, target],
+      );
+      expect(await resolve("quest", target, "unpublished")).toBe(1);
+
+      await report(reporter.player, { kind: "event", target: event });
+      expect(await sqlstate(resolve("event", event, "event_suspended"))).toBe("RP409");
+      await f.owner(
+        "UPDATE event SET suspended_at = now(), suspension_reason = 'Reported content under review.' WHERE id = $1",
+        [event],
+      );
+      expect(await resolve("event", event, "event_suspended")).toBe(1);
+      expect(await sqlstate(resolve("event", event, "unpublished"))).toBe("RP409");
+    });
+
+    it("closes a username's reports as changed or banned only when the player was renamed or banned", async () => {
+      const reported = await f.newPlayer();
+      const name = await f.usernameOf(reported);
+      await report(await f.newPlayer(), { kind: "username", target: null, name });
+      for (const outcome of [
+        "username_changed",
+        "player_banned",
+        "unpublished",
+        "event_suspended",
+      ]) {
+        expect(await sqlstate(resolve("username", reported, outcome)), outcome).toBe("RP409");
+      }
+      await f.owner("UPDATE player SET username = $2 WHERE id = $1", [
+        reported,
+        `renamed_${randomUUID().slice(0, 8)}`,
+      ]);
+      expect(await resolve("username", reported, "username_changed")).toBe(1);
+
+      const renamed = await f.usernameOf(reported);
+      await report(await f.newPlayer(), { kind: "username", target: null, name: renamed });
+      expect(await sqlstate(resolve("username", reported, "player_banned"))).toBe("RP409");
+      await f.owner("UPDATE player SET status = 'banned' WHERE id = $1", [reported]);
+      expect(await resolve("username", reported, "player_banned")).toBe(1);
+      expect((await reportsOf(reported)).map((one) => one.outcome)).toEqual([
+        "username_changed",
+        "player_banned",
+      ]);
+    });
+
     it("lists the open flags of every event, grouped, read-only", async () => {
       const event = await live();
       const { enrollment } = await member(event);

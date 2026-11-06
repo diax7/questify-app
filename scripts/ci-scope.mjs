@@ -346,12 +346,23 @@ function matches(patterns, file) {
   return !TEST_FILE.test(file) && patterns.some((pattern) => pattern.test(file));
 }
 
+/** The alert rules, their promtool tests and the monitoring stack that loads a copy of them. */
+const ALERTS = [/^ops\/alerts\//, /^ops\/monitoring\//];
+
+/**
+ * Whether a change needs promtool's rule checks (scripts/check-alerts.mjs): a file under ops/alerts/ or ops/monitoring/
+ * changed, or the changed files are unknown (never skip on doubt).
+ */
+export function needsAlertChecks(files) {
+  return files === undefined || files.some((file) => ALERTS.some((pattern) => pattern.test(file)));
+}
+
 function git(args) {
   return execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 }
 
 /** The changed files and which of them only gained lines, or undefined when the base is missing or unknown. */
-function changesSince(base) {
+export function changesSince(base) {
   if (base === undefined || base === "" || /^0+$/.test(base)) {
     return undefined;
   }

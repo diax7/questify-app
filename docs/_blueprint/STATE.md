@@ -14,6 +14,23 @@
   ADR-760 Accepted (Dhia); ADR-761 to ADR-768 and Q-720 to Q-725 Proposed. CI minutes: 0.
   **Next:** the tier A plan review of T-404c.
 
+## FOLLOWUPS batch 6 — 2026-11-06
+
+- **FOLLOWUPS batch 6 (tier B; migration 0162; 0156 stays reserved; ADR-745 to ADR-749 and Q-704 Proposed).** Cleared:
+  `admin_report_resolve` closes with `unpublished`, `event_suspended`, `username_changed` or `player_banned` only once that
+  action is in place (RP409, HTTP 409 `outcome_not_taken`); `report_target_seen` and the username 404 vs 201 kept, reasons
+  in ADR-745 (T-705b; its `community_goals` part stays open); `catalog_text` refuses zero-width marks and whitespace alone
+  (ADR-746); `event (organizer_id, created_at DESC, id)` after the plan on 3,000 events showed a sort of all of them
+  (T-714, ADR-747); the health view's oldest push and notice are exact through two partial indexes (T-709, ADR-748); a
+  real-database COMMIT-deadlock test for the migration runner (T-022); the feature-usage page parses only the demo's id;
+  `pnpm alerts:check` runs promtool in `ci:changed` and the PR gate when `ops/alerts/` or `ops/monitoring/` change
+  (T-018, ADR-749; actionlint and zizmor clean). The T-221 `ORDER BY` mutant was already killed in 44d44d98. Nothing
+  touches points, sign-in or redemptions.
+  Full suite once: 839 files; 66 files timed out in their database setup hooks on the shared PC and passed on one rerun
+  of those files (2,787 tests); every other file passed. Oxlint, oxfmt, `lint:limits` and types clean. CI minutes: 0 (not
+  pushed); agent tokens roughly 400k (estimate).
+  **Next:** the next unchecked task in `docs/TASKS.md`.
+
 ## FOLLOWUPS batch 5 — 2026-11-06
 
 - **FOLLOWUPS batch 5 (tier B; migration 0161; 0156 stays reserved; ADR-742 to ADR-744 and Q-703 Proposed).** Cleared:
