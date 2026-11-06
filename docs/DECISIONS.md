@@ -8565,14 +8565,14 @@ build; whether the change needs a new terms version and new acceptance is left t
 
 ## ADR-790 - The staff briefing's confirmation counts the operators it reaches
 
-**Status:** Proposed (developer, FOLLOWUPS batch, 2026-11-06; Q-730).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 6 code review 92).
 **Decision:** `operator_activity` (restated in migration 0165, same arguments and grant) returns `reachable`: the event's operators with an active player account, the same set `staff_briefing_send` writes a notice for. The Operators page's confirmation says that number, where it counted every operator listed, a banned one included.
 **Why:** the page promised a number of operators and the briefing then reported fewer. The server's count is the one that is true, and the read already joins the operators.
 **Trade-offs:** one more count in a read that is already one call; a notice that is later skipped at the fan-out (an operator removed meanwhile) still lowers the real number below `reachable`, as before.
 
 ## ADR-791 - The console history shows a suspension's reason and says 29 audit actions in words
 
-**Status:** Proposed (developer, FOLLOWUPS batch, 2026-11-06; Q-730).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 6 code review 92).
 **Decision:** a history entry for `event.suspend`, `event.reactivate`, `organizer.suspend` and `organizer.reactivate` carries the reason an admin typed (`after.reason`), shown beside it; no other entry carries a value. `historyKeyOf` words 23 more actions: the event's lifecycle (created, copied, deleted, template, activation requested, withdrawn, not approved, activated, limit, ended early, moved on by the system), results confirmed and revealed, export, a player's ban and its lifting, take-down and put-back of content, and the organizer's creation, ownership transfer and team joins, removals and scope changes. The other audit actions show their stored name.
 **Why:** support reads this list to see what happened to an organizer; the reason is already on the suspension panel and in the audit row, and the list is read by platform admins only.
 **Trade-offs:** about 170 audit actions still show their code name; the reason is free text typed by an admin, shown as typed.

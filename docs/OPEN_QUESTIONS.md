@@ -2958,5 +2958,5 @@ a new terms version that players accept again is a legal call.
 
 ## Q-730 - The console history shows the typed reason and more actions in words (ADR-790, ADR-791)
 
-**Status:** Proposed (developer, 2026-11-06).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the code review 92): accepted as built.
 **Recommended (developer):** show the reason beside a suspension and its lifting, and word the 23 lifecycle, results, ban, take-down and team actions; leave the rest by name until a support case needs one. Alternative: word all audit actions now (about 170 more texts in two languages) or none.
