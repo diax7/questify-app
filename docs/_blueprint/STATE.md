@@ -18,6 +18,11 @@
   dropped, no client called it (T-711; ADR-503 amended, API.md updated); `e2e/console-review-demo.spec.ts` and the
   feature-usage page leaving out the demo's organizer in `readFeatureUsage` (T-710); migration 0161 tightens
   `home_text_checked` (T-713). Nothing touches points, sign-in or redemptions.
+  Full suite once: 838 files, 12,951 tests passed after `scripts/ci-scope.mjs` learned the new spec (16 files skipped).
+  Browser: `layout`, `cheers`, `confirmations`, `streak`, `setup`, `console-catalog`, `console-review-demo` on desktop and
+  phone (36 passed, 2 phone skips), and `feature-layers`, `events`, `organizers`, `operators`, `maps`, `prizes`, `sessions`,
+  `console-feature-usage` on desktop (26 passed). Oxlint, oxfmt, `lint:limits` and types clean. CI minutes: 0 (not
+  pushed); agent tokens roughly 1M (estimate).
   **Next:** the next unchecked task in `docs/TASKS.md`.
 
 ## FOLLOWUPS batch 4 — 2026-11-06
