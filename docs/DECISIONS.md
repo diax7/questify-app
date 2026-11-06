@@ -8604,8 +8604,8 @@ lock can still slip in between the check and the write.
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 7 code review 93). Migration 0166.
 **Decision:** `rehearsal_card` and `wipe_rehearsal`'s summary both sum `quest`, `award`, `removal`, `bonus`, `first_bonus`,
 `session`, `adjust`, `streak` and `community`. Reporting only: no ledger row is written differently.
-**Why:** the summary left out `session`, which a rehearsal can pay, so it disagreed with the card. `streak` and `community` are
- The two sums read the same kinds, so they agree; `welcome` rows stay out of both.
+**Why:** the summary left out `session`, which a rehearsal can pay, so it disagreed with the card. `streak` and `community` are not paid in a rehearsal today; they are listed as a safeguard. The
+two sums read the same kinds, so they agree; `welcome` rows stay out of both.
 **Trade-offs:** none.
 
 ## ADR-802 - Duplicating an event copies the big screen's scenes only from an event holding the add-on
