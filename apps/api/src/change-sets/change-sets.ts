@@ -6,12 +6,14 @@ import type { Caller } from "#src/auth/sign-in";
 import { KINDS, evaluate, viewOf, type ItemView } from "#src/change-sets/review";
 import type { RunContext } from "#src/change-sets/kinds";
 import {
+  claimSet,
   decideItem,
   finishSet,
   insertSet,
   listSets,
   readItems,
   readSet,
+  releaseSet,
   type ItemRecord,
   type NewItem,
   type SetRecord,
@@ -22,6 +24,7 @@ import type { JsonObject, ItemOp, ItemTarget } from "#src/change-sets/store";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Actor } from "#src/events/events";
+import type { ItemGuard } from "#src/quests/builder";
 import type { BuilderEvent } from "#src/quests/store";
 import type { RewardCodeKeyring } from "#src/rewards/codes";
 import type { SettingsService } from "#src/settings/service";
@@ -243,13 +246,44 @@ function decide(
   });
 }
 
+/** An item that no longer passes once the event is locked: thrown so its transaction writes nothing. */
+class ItemNotApplied extends Error {
+  constructor(
+    readonly status: "failed" | "stale",
+    readonly problem: ApiErrorEnvelope | null,
+  ) {
+    super(`The change set item is ${status}.`);
+  }
+}
+
+/**
+ * The item's guard (ADR-800): with the event locked, as every builder write locks it, the target is checked again, so a
+ * change that came in after the first check makes the item stale instead of being overwritten; and the item is decided
+ * in the write's own transaction, so a crash cannot leave an applied item pending to be applied again. An item already
+ * decided (an apply that outlived its claim) writes nothing.
+ */
+const guardOf = (item: ItemRecord): ItemGuard => ({
+  async check(client, event) {
+    const found = await evaluate({ client, event }, item, false);
+    if (found.state !== "ready") {
+      throw new ItemNotApplied(found.state === "stale" ? "stale" : "failed", found.problem);
+    }
+  },
+  async applied(client) {
+    if (!(await decideItem(client, item.id, { status: "applied", error: null }))) {
+      throw new ItemNotApplied("stale", null);
+    }
+  },
+});
+
 /**
  * Applies one pending item: checked against the event now, then run through the builder's service with the caller's
- * own seat in its own transaction, then recorded. A target that changed since the set was made is skipped as stale.
+ * own seat in its own transaction, which checks it again and records it. A target that changed since the set was made is
+ * skipped as stale.
  */
 async function applyOne(
   deps: ChangeSetDeps,
-  context: RunContext,
+  context: Omit<RunContext, "guard">,
   item: ItemRecord,
 ): Promise<ItemResult> {
   const { actor, eventId } = context;
@@ -270,43 +304,50 @@ async function applyOne(
   if (found.state === "stale") {
     return record("stale", null);
   }
-  const refusal = await KINDS[item.target].run(context, item, found.input);
-  return record(refusal === null ? "applied" : "failed", refusal);
+  try {
+    const guard = guardOf(item);
+    const refusal = await KINDS[item.target].run({ ...context, guard }, item, found.input);
+    return refusal === null
+      ? { itemId: item.id, status: "applied", error: null }
+      : await record("failed", refusal);
+  } catch (error) {
+    if (error instanceof ItemNotApplied) {
+      return record(error.status, error.problem);
+    }
+    throw error;
+  }
 }
 
-/** Holds the set's advisory lock on its own connection while `work` runs; busy when an apply or a close has it. */
-async function withSetLock<T>(
-  pool: Pool,
-  setId: string,
+/** Claims the open set for this apply and always lets go after `work`; busy when an apply or a close has it. */
+async function withSetClaim<T>(
+  deps: ChangeSetDeps,
+  actor: Actor,
+  target: Readonly<{ eventId: string; setId: string }>,
   caller: Caller,
   work: () => Promise<SetDone<T>>,
 ): Promise<SetDone<T>> {
-  const key = `change_set_apply:${setId}`;
-  const holder = await pool.connect();
-  let healthy = true;
+  const { eventId, setId } = target;
+  const claimed = await inEvent(deps.pool, actor, eventId, async (client) => {
+    const set = await readSet(client, eventId, setId, true);
+    if (set === undefined) {
+      return { kind: "not_found" };
+    }
+    if (set.status !== "open") {
+      return { kind: "finished" };
+    }
+    return (await claimSet(client, set.id)) ? done(null) : { kind: "busy" };
+  });
+  if (claimed.kind !== "done") {
+    return claimed;
+  }
   try {
-    const { rows } = await holder.query<{ held: boolean }>(
-      "SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS held",
-      [key],
-    );
-    if (rows[0]?.held !== true) {
-      return { kind: "busy" };
-    }
-    try {
-      return await work();
-    } finally {
-      healthy = await holder
-        .query("SELECT pg_advisory_unlock(hashtextextended($1, 0))", [key])
-        .then(
-          () => true,
-          (error: unknown) => {
-            caller.log("change_set.unlock_failed", { setId, error: String(error) });
-            return false;
-          },
-        );
-    }
+    return await work();
   } finally {
-    holder.release(!healthy);
+    await inEvent(deps.pool, actor, eventId, async (client) =>
+      done(await releaseSet(client, setId)),
+    ).catch((error: unknown) => {
+      caller.log("change_set.unlock_failed", { setId, error: String(error) });
+    });
   }
 }
 
@@ -347,12 +388,12 @@ export function applyChangeSet(
   target: Readonly<{ eventId: string; setId: string; itemIds: readonly string[] }>,
   caller: Caller,
 ): Promise<SetDone<ApplyOutcome>> {
-  return withSetLock(deps.pool, target.setId, caller, async () => {
+  return withSetClaim(deps, actor, target, caller, async () => {
     const chosen = await selectedItems(deps, actor, target);
     if (chosen.kind !== "done") {
       return chosen;
     }
-    const context: RunContext = { ...deps, actor, caller, eventId: target.eventId };
+    const context = { ...deps, actor, caller, eventId: target.eventId };
     const results: ItemResult[] = [];
     for (const item of chosen.value) {
       results.push(await applyOne(deps, context, item));
@@ -386,22 +427,23 @@ export function closeChangeSet(
   target: Readonly<{ eventId: string; setId: string }>,
   caller: Caller,
 ): Promise<SetDone<Readonly<{ status: "closed" }>>> {
-  return withSetLock(deps.pool, target.setId, caller, () =>
-    inEvent(deps.pool, actor, target.eventId, async (client) => {
-      const set = await readSet(client, target.eventId, target.setId, true);
-      if (set === undefined) {
-        return { kind: "not_found" };
-      }
-      if (set.status !== "open") {
-        return { kind: "finished" };
-      }
-      await finishSet(client, set.id, "closed");
-      await auditSet(client, actor, caller, {
-        action: "change_set.close",
-        eventId: target.eventId,
-        after: { changeSetId: set.id },
-      });
-      return done({ status: "closed" as const });
-    }),
-  );
+  return inEvent(deps.pool, actor, target.eventId, async (client) => {
+    const set = await readSet(client, target.eventId, target.setId, true);
+    if (set === undefined) {
+      return { kind: "not_found" };
+    }
+    if (set.status !== "open") {
+      return { kind: "finished" };
+    }
+    if (!(await claimSet(client, set.id))) {
+      return { kind: "busy" };
+    }
+    await finishSet(client, set.id, "closed");
+    await auditSet(client, actor, caller, {
+      action: "change_set.close",
+      eventId: target.eventId,
+      after: { changeSetId: set.id },
+    });
+    return done({ status: "closed" as const });
+  });
 }

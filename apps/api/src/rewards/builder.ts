@@ -4,7 +4,7 @@ import type { Caller } from "#src/auth/sign-in";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Actor } from "#src/events/events";
-import { audit, bilingual, changes, NO_TEXT } from "#src/quests/builder";
+import { audit, bilingual, changes, guarded, NO_TEXT, type ItemGuard } from "#src/quests/builder";
 import { lockBuilderEvent, type Bilingual, type BuilderEvent } from "#src/quests/store";
 import { markCode, normalizeCode, sealCode, type RewardCodeKeyring } from "#src/rewards/codes";
 import { windowRefusal, windowRefusalOf, type WindowRefusal } from "#src/rewards/shop-window";
@@ -132,7 +132,11 @@ export type RewardDone<T> =
   /** The days after the end cannot change this way (ADR-336): the shop has closed, or the window would shrink. */
   | Readonly<{ kind: "shop_window_locked"; reason: WindowRefusal }>;
 
-export type RewardDeps = Readonly<{ pool: Pool; codeKey: RewardCodeKeyring }>;
+export type RewardDeps = Readonly<{
+  pool: Pool;
+  codeKey: RewardCodeKeyring;
+  guard?: ItemGuard | undefined;
+}>;
 
 export type CodesAdded = Readonly<{
   added: number;
@@ -275,7 +279,7 @@ function withRewardEvent<T>(
       if (event.statusNow === "archived") {
         return { kind: "event_archived" } as const;
       }
-      return work(client, event);
+      return guarded(deps.guard, client, event, () => work(client, event));
     }),
   );
 }

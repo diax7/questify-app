@@ -24,6 +24,7 @@ const LABELS: SurveyCsvLabels = {
   average: "Average",
   responses: "Responses",
   noAnswers: "No answers were received.",
+  textsCut: "Only the newest answers are listed; the count is all of them.",
 };
 const text = (en: string | null, ar: string | null = null) => ({ ar, en });
 const BOM = "﻿";
@@ -89,6 +90,26 @@ describe("the survey spreadsheet (FR-1624)", () => {
     expect(csv.startsWith(BOM)).toBe(true);
     expect(lines(csv)[2]).toBe("المفضل؟,Choice,AI,2");
     expect(lines(csv)[3]).toBe("المفضل؟,Choice,ويب,1");
+  });
+
+  it("says so under text answers cut to the newest, with the count of all of them", () => {
+    const cut = results();
+    const questions = cut.questions.map((question) =>
+      question.kind === "text" ? { ...question, answered: 60 } : question,
+    );
+    expect(lines(surveyResultsCsv({ ...cut, questions }, "en", LABELS)).at(-1)).toBe(
+      'Note,Text,"Only the newest answers are listed; the count is all of them.",60',
+    );
+  });
+
+  it("does not call answers left out of a speaker's copy cut", () => {
+    const shared = results();
+    const questions = shared.questions.map((question) =>
+      question.kind === "text" ? { ...question, answered: 6, hiddenTexts: 2 } : question,
+    );
+    expect(lines(surveyResultsCsv({ ...shared, questions }, "en", LABELS)).join()).not.toContain(
+      "newest",
+    );
   });
 
   it("says no answers were received for a survey nobody answered", () => {

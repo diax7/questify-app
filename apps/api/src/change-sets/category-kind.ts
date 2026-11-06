@@ -114,17 +114,17 @@ export const categoryKind: TargetKind = {
   read,
   parse,
   after,
-  async run({ pool, actor, caller, eventId }, item, input) {
+  async run({ pool, guard, actor, caller, eventId }, item, input) {
     if (item.op === "add") {
       const body = { ...(input as AddInput), confirm: true };
-      return refusalOf(await createCategory({ pool }, actor, eventId, body, caller));
+      return refusalOf(await createCategory({ pool, guard }, actor, eventId, body, caller));
     }
     const target = { eventId, id: item.targetId as string };
     if (item.op === "edit") {
       const edit = { ...(input as EditInput), confirm: true };
-      return refusalOf(await updateCategory({ pool }, actor, target, edit, caller));
+      return refusalOf(await updateCategory({ pool, guard }, actor, target, edit, caller));
     }
     const choice = { ...(input as DeleteInput), confirm: true };
-    return refusalOf(await deleteCategory({ pool }, actor, target, choice, caller));
+    return refusalOf(await deleteCategory({ pool, guard }, actor, target, choice, caller));
   },
 };

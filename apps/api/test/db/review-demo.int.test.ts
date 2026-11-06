@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { RequestContext } from "#src/db/context";
 import { sqlstate } from "#test/support/push";
 import { questifyFixture, type QuestifyFixture } from "#test/support/questify";
-import { TEST_DATABASE_URL } from "#test/support/test-db";
+import { TEST_DATABASE_URL, connectAsOwner } from "#test/support/test-db";
 
 const sha = (value: string): Buffer => createHash("sha256").update(value).digest();
 /** Stand-ins for the API's keyed hashes: any fixed 32 bytes per input. */
@@ -259,6 +259,34 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("review demo (database)", () =>
       const [audit] = await audits("review_demo.prepare");
       expect(audit?.after).toMatchObject({ version: "1.4.0" });
       expect(JSON.stringify(audit)).not.toContain(fixed("424242").toString("hex"));
+    });
+
+    it("waits for an SMS sign-in in flight before it locks the reviewer, so neither deadlocks", async () => {
+      const reviewer = (await row())?.player_id;
+      const plain = await challenge(REVIEWER);
+      const signingIn = await connectAsOwner(f.db);
+      try {
+        await signingIn.query("BEGIN");
+        await signingIn.query(
+          "SELECT 1 FROM player_login_challenge WHERE token_hash = $1 FOR UPDATE",
+          [plain.token],
+        );
+        const preparing = prepare("424242");
+        for (let tries = 0; tries < 200; tries += 1) {
+          const waiting = await f.owner(
+            `SELECT 1 FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'
+               AND query LIKE 'SELECT console_review_demo_prepare%'`,
+          );
+          if (waiting.length > 0) break;
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        await signingIn.query("SELECT 1 FROM player WHERE id = $1 FOR KEY SHARE", [reviewer]);
+        await signingIn.query("COMMIT");
+        await expect(preparing).resolves.toHaveLength(1);
+      } finally {
+        await signingIn.end();
+      }
+      expect((await row())?.player_id).not.toBe(reviewer);
     });
 
     it("signs in only the reviewer with the fixed code, and never answers new", async () => {

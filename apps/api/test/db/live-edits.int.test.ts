@@ -464,7 +464,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits (database)",
         ]);
         expect(sum).toMatchObject({ completions: 3000, players: 500, lowered: 3000, clamped: 500 });
       } finally {
-        client.release();
+        // Destroyed, not reused: a statement timeout leaves it inside an aborted transaction, which fails later tests.
+        client.release(true);
       }
       // oxlint-disable-next-line no-console -- the measured calls are the numbers ADR-387 cites
       console.info(`past points at scale: calls of ${timings.join(" ms, ")} ms`);

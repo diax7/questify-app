@@ -910,6 +910,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       WHERE table_schema = 'public' AND table_name IN ('quest_rating', 'survey_share')
         AND grantee IN ('PUBLIC', 'questify_app', 'questify_outsider')`),
     ).toEqual([]);
+    await expect(
+      db.outsider.query("SELECT public.survey_shared_results('guessed')"),
+    ).rejects.toMatchObject({ code: "42501" });
+    const anonymous = await db.app.query<{ r: unknown }>(
+      "SELECT survey_shared_results('guessed') AS r",
+    );
+    expect(anonymous.rows).toEqual([{ r: null }]);
   });
 
   it("keeps the Cheers tables and internals closed and grants only its seven doors (T-509)", async () => {

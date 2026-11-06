@@ -120,22 +120,21 @@ export const questKind: TargetKind = {
   parse,
   after,
   async run(context, item, input) {
-    const { pool, actor, caller, eventId } = context;
+    const { pool, guard, actor, caller, eventId } = context;
     if (item.op === "add") {
       const body = input as AddInput;
       if (body.type === "location" && !(await locationQuestsOn(context.settings))) {
         return platformFeatureOff().envelope;
       }
-      return refusalOf(await createQuest({ pool }, actor, eventId, body, caller));
+      return refusalOf(await createQuest({ pool, guard }, actor, eventId, body, caller));
     }
     const target = { eventId, id: item.targetId as string };
     if (item.op === "edit") {
       const edit = { ...(input as EditInput), confirm: true };
-      return refusalOf(
-        await updateQuest({ pool }, actor, { ...target, key: `cs:${item.id}` }, edit, caller),
-      );
+      const keyed = { ...target, key: `cs:${item.id}` };
+      return refusalOf(await updateQuest({ pool, guard }, actor, keyed, edit, caller));
     }
     const choice = { ...(input as DeleteInput), confirm: true };
-    return refusalOf(await deleteQuest({ pool }, actor, target, choice, caller));
+    return refusalOf(await deleteQuest({ pool, guard }, actor, target, choice, caller));
   },
 };

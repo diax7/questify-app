@@ -1982,7 +1982,8 @@ The app thanks the reporter ("Thanks. Questify will review this.") and sends not
 
 **Status:** Proposed (developer, 2026-11-02; ADR-434).
 Unpublishing a reward takes it out of the shop, the goal, the desk and the reserve door, and out of pushes. A quest item that
-hands it out as a prize and a community goal that unlocks it still name it (their own reads were not restated).
+hands it out as a prize still names it (its read was not restated). A community goal's unlock marker no longer names it to a
+player (migration 0166); the team's own `community_goals` keeps the name, since the team sees its held items and the reason.
 **Recommended (developer):** leave until a report shows the need; the admin can suspend the event meanwhile.
 
 ## Q-398 - Gems already paid for a revoked tier stay with the player (T-709c)
@@ -2967,3 +2968,16 @@ a new terms version that players accept again is a legal call.
 A key that can run commands in production apps, kept on a server outside Saudi Arabia, could read personal data from there.
 **Recommended (developer):** production deploys run from CI or from a machine in Saudi Arabia, with `apps:exec` and `env:reveal` left off any key on the company server.
 
+## Q-740 - How long a change set's apply holds its set (ADR-800)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the code review 93): as built.
+A crash mid-apply leaves the set answering busy until the claim runs out. Shorter frees it sooner; longer keeps a slow apply
+from overlapping another (which still cannot apply an item twice).
+**Recommended (developer):** 5 minutes.
+
+## Q-741 - Which event decides whether a duplicate takes the big screen's scenes (ADR-802)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the code review 93): as built.
+The line asked to stop copying to an event without the add-on, but a new draft never has it yet, so that would drop the scenes
+for every buyer.
+**Recommended (developer):** copy only from a source that holds the add-on.

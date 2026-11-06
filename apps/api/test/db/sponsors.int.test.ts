@@ -246,6 +246,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sponsors (database)", () => {
     expect((await list()).find((entry) => entry.id === sponsor)?.tags).toEqual([]);
   });
 
+  it("counts on a delete only the tags the dialog listed, not one on a removed reward", async () => {
+    const sponsor = await make(gold({ nameEn: "Count" }));
+    await tag("quest", await makeQuest(), sponsor);
+    const reward = await makeReward();
+    await tag("reward", reward, sponsor);
+    await f.owner("UPDATE reward SET status = 'removed' WHERE id = $1", [reward]);
+    const lost = await f.run<{ r: number }>(f.team(), "SELECT sponsor_delete($1, $2, $3) AS r", [
+      event,
+      sponsor,
+      randomUUID(),
+    ]);
+    expect(lost[0]?.r).toBe(1);
+  });
+
+  it("refuses a tag whose organizer is not its event's, in the database too", async () => {
+    const sponsor = await make(gold({ nameEn: "Foreign" }));
+    const quest = await makeQuest();
+    await expect(
+      f.owner(
+        `INSERT INTO sponsor_tag (organizer_id, event_id, sponsor_id, kind, quest_id, created_by)
+         VALUES ($1, $2, $3, 'quest', $4, $5)`,
+        [f.ids.orgB, event, sponsor, quest, f.ownerA],
+      ),
+    ).rejects.toMatchObject({ code: "23503", constraint: "sponsor_tag_event_fk" });
+  });
+
   it("holds the cap of 100 sponsors per event", async () => {
     const crowded = await f.newEvent({ phase: "live" });
     await f.owner(

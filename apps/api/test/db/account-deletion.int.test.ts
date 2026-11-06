@@ -5,6 +5,7 @@ import { withRequestContext, type RequestContext } from "#src/db/context";
 import {
   TEST_DATABASE_URL,
   addMember,
+  connectAsOwner,
   createTestDatabase,
   seedTwoTenants,
   type TestDatabase,
@@ -734,6 +735,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("account deletion (database)", 
   };
 
   describe("races", () => {
+    it("lets one of two self-erases of different challenges of a player win, without a deadlock", async () => {
+      const gone = await newPlayer();
+      const first = (await verify(await startCode(gone.email))).deletion;
+      const second = (await verify(await startCode(gone.phone, "phone"))).deletion;
+      const hold = await connectAsOwner(db);
+      const [one, two] = [await connect(), await connect()];
+      try {
+        await hold.query("BEGIN");
+        await hold.query("SELECT 1 FROM player WHERE id = $1 FOR UPDATE", [gone.id]);
+        const [onePid, twoPid] = [await pidOf(one), await pidOf(two)];
+        const racing = Promise.allSettled([erase(first, true, one), erase(second, true, two)]);
+        await waitUntilBlocked(onePid);
+        await waitUntilBlocked(twoPid);
+        await hold.query("COMMIT");
+        const settled = await racing;
+        expect(
+          settled
+            .map((result) =>
+              result.status === "fulfilled" ? result.value?.outcome : String(result.reason),
+            )
+            .toSorted(),
+        ).toEqual(["erased", "expired"]);
+      } finally {
+        await Promise.all([hold.end(), one.end(), two.end()]);
+      }
+    });
+
     it("makes a join in flight wait for the deletion, then refuse", async () => {
       const event = await newEvent({ welcome: 5 });
       const gone = await newPlayer();

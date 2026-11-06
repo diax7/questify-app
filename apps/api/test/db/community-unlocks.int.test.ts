@@ -944,6 +944,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("community unlocks (database)",
       await owner("UPDATE reward SET status = 'removed' WHERE id = $1", [removed]);
       expect(await markerOf(removedWho.player, removedEvent)).toEqual({ kind: "unlock" });
 
+      const heldEvent = await newEvent();
+      const heldWho = await member(heldEvent);
+      const held = await newReward(heldEvent);
+      await running(heldEvent, { kind: "reward", id: held });
+      await owner("UPDATE reward SET held_at = now() WHERE id = $1", [held]);
+      expect(await markerOf(heldWho.player, heldEvent)).toEqual({ kind: "unlock" });
+
       const questEvent = await newEvent();
       const questWho = await member(questEvent);
       const quest = await newQuest(questEvent);
@@ -1609,6 +1616,8 @@ const GATE_MAP: Readonly<Record<string, string>> = {
     "staff: an owner or editor within their event limit (award_event_of) skips or restores a step of an in-order category; it plays and pays nothing (T-603b)",
   control_feed:
     "staff: an owner or editor within their event limit (award_event_of) reads the newest completions with their quests' titles, locked quests included; it plays and pays nothing (T-603)",
+  sponsor_delete:
+    "exempt: counts the tags on rewards still in the shop for the team's own dialog; it plays and pays nothing (T-507)",
   sponsor_tag_set:
     "exempt: checks that the quest, category or reward exists in the event before tagging it to a sponsor; it plays and pays nothing (T-507)",
   event_copy_setup:
