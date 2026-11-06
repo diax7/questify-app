@@ -46,7 +46,11 @@
         "GMAIL_SERVICE_ACCOUNT_KEY": { "secret": "operator" },
         "MSEGAT_SENDER": "Nafes",
         "MSEGAT_USERNAME": { "secret": "operator" },
-        "MSEGAT_API_KEY": { "secret": "operator" }
+        "MSEGAT_API_KEY": { "secret": "operator" },
+        "TELEMETRY_EXPORTER": "otlp",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": { "template": "{monitoring.url}/api/v1/otlp" },
+        "OTEL_EXPORTER_OTLP_HEADERS": { "secret": "operator" },
+        "TELEMETRY_TRACE_RATIO": "0"
       }
     },
     "web": {
@@ -65,7 +69,7 @@
       }
     },
     "monitoring": {
-      "name": "questify-prometheus-staging",
+      "name": "questify-monitoring-staging",
       "description": "Questify monitoring (staging, ADR-626)",
       "port": 8080,
       "build_path": "/ops/monitoring/stack",

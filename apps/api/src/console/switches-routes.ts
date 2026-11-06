@@ -93,7 +93,7 @@ export function registerConsoleSwitchesRoutes(
   scope.delete("/switches/features/:key", write, async (request, reply) => {
     const { key } = parse(keyParams, request.params);
     if (!Object.hasOwn(REGISTRIES.features, key)) {
-      throw notFound();
+      throw refuseInvalid([{ path: `features.${key}`, message: "is not a feature of the app" }]);
     }
     await throttled(deps, request, reply, CONSOLE_CATALOG_WRITE_LIMIT);
     settle(
@@ -124,7 +124,9 @@ export function registerConsoleSwitchesRoutes(
   scope.delete("/switches/tuning/:key", write, async (request, reply) => {
     const { key } = parse(keyParams, request.params);
     if (!Object.hasOwn(REGISTRIES.tuning, key)) {
-      throw notFound();
+      throw refuseInvalid([
+        { path: `tuning.${key}`, message: "is not a tuning number of the app" },
+      ]);
     }
     await throttled(deps, request, reply, CONSOLE_CATALOG_WRITE_LIMIT);
     settle(

@@ -182,7 +182,7 @@ test("pairs a kiosk opened from the Devices page; its camera reads a live code a
 test("serves the decoder's wasm as application/wasm; only the kiosk pages may use the camera", async ({
   page,
 }) => {
-  const wasm = await page.request.get("/zxing/zxing_reader-3.1.5.wasm");
+  const wasm = await page.request.get("/zxing/zxing_reader-3.1.6.wasm");
   expect(wasm.status()).toBe(200);
   expect(wasm.headers()["content-type"]).toContain("application/wasm");
   for (const path of ["/en/station", "/ar/screen", "/en/sign-in"]) {

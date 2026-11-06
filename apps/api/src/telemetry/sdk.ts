@@ -38,7 +38,10 @@ const DIAG_MESSAGE_LIMIT = 200;
 const DIAG_PAUSE_MS = 60_000;
 
 export type Telemetry = Readonly<{
-  /** Sends what is waiting (the metrics' next collection and the traces' batch) now. */
+  /**
+   * Sends what is waiting (the metrics' next collection and the traces' batch) now. Only the tests call it, to read what
+   * the in-memory pipelines hold without stopping the providers; the server only calls `shutdown`.
+   */
   flush: () => Promise<void>;
   /** Flushes, stops both providers and returns the instruments to no-ops. Never throws. */
   shutdown: () => Promise<void>;

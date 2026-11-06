@@ -14,7 +14,7 @@ import { infoTip } from "#src/ui/info.tsx";
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
 /** The two switches: the event's ranking (FR-607) and today's ranking for a multi-day event (FR-608). */
-const SWITCHES = {
+export const SWITCHES = {
   ranking: {
     path: "ranking",
     title: "events.ranking.title",

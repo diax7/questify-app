@@ -101,10 +101,7 @@ test("in Arabic the page reads right to left and a card moves, saves and goes ba
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(cardRows(page)).toHaveCount(4);
 
-  await page
-    .getByRole("button", { name: /^أخّر / })
-    .first()
-    .click();
+  await page.getByRole("button", { name: /^أخّر / }).first().click();
   await page.getByRole("button", { name: "حفظ", exact: true }).click();
   await expect(page.getByText("حُفظ التغيير.")).toBeVisible();
   expect(await published(page)).toEqual(["quests", "join", "points", "prizes"]);

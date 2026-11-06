@@ -15,6 +15,7 @@ const OPERATOR = {
   SECRET_API_GMAIL_SERVICE_ACCOUNT_KEY: "operator-gmail-key",
   SECRET_API_MSEGAT_USERNAME: "operator-msegat-user",
   SECRET_API_MSEGAT_API_KEY: "operator-msegat-key",
+  SECRET_API_OTEL_EXPORTER_OTLP_HEADERS: "operator-otlp-headers",
   SECRET_MONITORING_METRICS_PASSWORD: "operator-metrics-password",
   SECRET_MONITORING_METRICS_PASSWORD_HASH: "operator-metrics-hash",
 };
@@ -47,7 +48,7 @@ describe("apply on an empty account", () => {
     const { cranl, result } = await applied();
     expect(cranl.apps.map((a) => a.name).toSorted()).toEqual([
       "questify-api-staging",
-      "questify-prometheus-staging",
+      "questify-monitoring-staging",
       "questify-web-staging",
     ]);
     expect(cranl.databases.map((d) => `${d.name}:${d.type}:${d.region}`)).toEqual([
@@ -75,11 +76,14 @@ describe("apply on an empty account", () => {
     const { cranl } = await applied();
     const api = cranl.apps.find((a) => a.name === "questify-api-staging")!;
     const web = cranl.apps.find((a) => a.name === "questify-web-staging")!;
-    const monitoring = cranl.apps.find((a) => a.name === "questify-prometheus-staging")!;
+    const monitoring = cranl.apps.find((a) => a.name === "questify-monitoring-staging")!;
     expect(web.env.get("API_ORIGIN")).toBe(
       `http://${new URL(api.url).hostname.split(".")[0]}:3000`,
     );
     expect(monitoring.env.get("GF_SERVER_ROOT_URL")).toBe(`${monitoring.url}/grafana/`);
+    expect(api.env.get("TELEMETRY_EXPORTER")).toBe("otlp");
+    expect(api.env.get("OTEL_EXPORTER_OTLP_ENDPOINT")).toBe(`${monitoring.url}/api/v1/otlp`);
+    expect(api.env.get("OTEL_EXPORTER_OTLP_HEADERS")).toBe("operator-otlp-headers");
     expect(api.env.get("DATABASE_URL")).toMatch(/^postgresql:\/\//);
     expect(api.env.get("REDIS_URL")).toMatch(/^redis:\/\//);
     expect(monitoring.volumes).toEqual([
@@ -179,7 +183,7 @@ describe("plan on an existing environment", () => {
 
   it("names a build folder, branch or region the API cannot change as a manual step", async () => {
     const { cranl } = await applied();
-    const monitoring = cranl.apps.find((a) => a.name === "questify-prometheus-staging")!;
+    const monitoring = cranl.apps.find((a) => a.name === "questify-monitoring-staging")!;
     monitoring.source.build_path = "/ops/monitoring/prometheus";
     monitoring.region = "germany-1";
     monitoring.protected = true;

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Language, MessageKey } from "@questify/shared";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { EndAllSessions } from "#src/components/ConsoleEndSessions.tsx";
 import { OrganizerFeaturesPanel } from "#src/components/ConsoleOrganizerFeatures.tsx";
 import { SuspensionPanel } from "#src/components/ConsoleOversight.tsx";
@@ -69,10 +69,24 @@ export function ConsoleOrganizers({ language }: Readonly<{ language: Language }>
   const [rows, setRows] = useState<OrganizerRow[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const latest = useRef(0);
 
   const load = useCallback(
     async (cursor: string | null) => {
+      latest.current += 1;
+      const mine = latest.current;
+      setLoading(true);
+      if (cursor === null) {
+        setRows(null);
+        setNext(null);
+        setProblem(null);
+      }
       const result = await requestJson("GET", organizersPath({ ...query, cursor }));
+      if (mine !== latest.current) {
+        return;
+      }
+      setLoading(false);
       const page = result.ok ? readOrganizerPage(result.body) : undefined;
       if (page === undefined) {
         setProblem(describeProblem(result.body, language, t).text);
@@ -135,7 +149,9 @@ export function ConsoleOrganizers({ language }: Readonly<{ language: Language }>
         </Notice>
       )}
       {rows === null ? (
-        <Muted>{t("common.loading")}</Muted>
+        problem === null ? (
+          <Muted>{t("common.loading")}</Muted>
+        ) : null
       ) : rows.length === 0 ? (
         <Muted>{t("console.organizers.none")}</Muted>
       ) : (
@@ -145,7 +161,8 @@ export function ConsoleOrganizers({ language }: Readonly<{ language: Language }>
           ))}
         </Rows>
       )}
-      {next === null ? null : (
+      {rows !== null && loading ? <Muted role="status">{t("common.loading")}</Muted> : null}
+      {next === null || loading ? null : (
         <Button variant="quiet" onClick={() => void load(next)}>
           {t("console.organizers.more")}
         </Button>

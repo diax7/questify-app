@@ -5,6 +5,20 @@ Raw ideas, dated, close to the user's words. Each entry is sorted into the right
 
 ---
 
+## 2026-11-06 — The staging monitoring app was replaced (Dhia's report) → processed
+
+- Dhia: CranL refused `PUT /apps/{id}/source` because `questify-prometheus-staging` is a public_repo app ("unsupported"), and `plan: true`
+  passed without checking that. So he created `questify-monitoring-staging` (id 24b87cd2-f985-4db3-a1fd-18f9d75ac108,
+  https://questify-monitoring-staging-xxy5fy.cranl.net) from /ops/monitoring/stack, with a `monitoring-data` volume on /data and a fresh
+  metrics password held only in CranL settings. He set the TELEMETRY_* and OTEL_* settings on `questify-api-staging` and restarted it.
+  Metrics arrive, 20 rules are loaded, /-/healthy and OTLP answer 401 with no password, /readyz is 200. Alert email is off (Q-581). The old
+  `questify-prometheus-staging` still exists, stopped; only he deletes it.
+- Also from the CranL Environment page: apps have a twin on a second server at another provider, which receives the app's variables; the
+  page shows region Saudi-3 while our docs say riyadh-1.
+- Processed: ADR-812 (Proposed); `staging.json`, `infra.test.ts`, RUNBOOK, the handoff and Q-610 (still open: three checks wait for a key that
+  covers the new app, and `plan staging` must show no differences); T-018b note; T-811 questions (where the twin is hosted, whether it holds
+  data, Saudi-3 against riyadh-1; personal data and secrets stay in Saudi Arabia, rule 3); STATE bullet.
+
 ## 2026-11-02 — Break and handoff to a new session → processed
 
 - Dhia: "When you finish what you have in your hand please stop, take a break, another session will keep the working, so

@@ -1,20 +1,14 @@
 import type { MessageKey } from "@questify/shared";
+import { FEATURES } from "#src/components/EventFeatureSwitch.tsx";
+import { SWITCHES } from "#src/components/RankingSwitch.tsx";
 
-/** The title of each event switch a template may set; the same words the event page's switches carry. */
-const SWITCH_TITLES: Readonly<Record<string, MessageKey>> = {
-  shareQuests: "events.shareQuests.title",
-  meetSomeone: "events.meetSomeone.title",
-  miniGames: "events.miniGames.title",
-  community: "events.community.title",
-  flashQuests: "events.flashQuests.title",
-  boosts: "events.boosts.title",
-  helpDesk: "events.helpDesk.title",
-  questRatings: "events.questRatings.title",
-  shop: "events.shop.title",
-  polls: "events.polls.title",
-  maps: "events.maps.title",
-  agenda: "events.agenda.title",
-};
+/** The title of each event switch a template may set: the same words the event page's switches carry, read from them. */
+const SWITCH_TITLES: Readonly<Record<string, MessageKey>> = Object.fromEntries(
+  [...Object.entries(FEATURES), ...Object.entries(SWITCHES)].map(([key, switchOf]) => [
+    key,
+    switchOf.title,
+  ]),
+);
 
 /** The switches of a template that have a title to show, in the order the template lists them. */
 export function switchesOf(

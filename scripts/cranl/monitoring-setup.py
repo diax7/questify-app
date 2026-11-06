@@ -5,6 +5,7 @@ Usage: python monitoring_setup.py create | api
 """
 import base64
 import json
+import os
 import secrets
 import subprocess
 import sys
@@ -33,6 +34,25 @@ def bcrypt_hash(password):
     return out.split(":", 1)[1]
 
 
+def write_state(state):
+    """Writes the state file readable by its owner only; it holds the metrics password until "api" removes it."""
+    fd = os.open(STATE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(state, f)
+
+
+def refuse_second_create():
+    """A second create makes a second app, so stop when a state file or an app of this name already exists."""
+    if os.path.exists(STATE):
+        sys.exit(f"create refused: {STATE} exists (a first create ran). Run 'api' or remove the file on purpose.")
+    s, r = call("GET", "/api/v1/apps")
+    if s >= 300:
+        fail("list apps", s, r)
+    if any(a.get("name") == NAME for a in r.get("apps", [])):
+        sys.exit(f"create refused: an app named {NAME} already exists.")
+
+
 def fail(tag, status, body):
     err = body.get("error", {}) if isinstance(body, dict) else {}
     print(tag, status, err.get("code"), err.get("field"), str(err.get("message"))[:200])
@@ -40,6 +60,7 @@ def fail(tag, status, body):
 
 
 def cmd_create():
+    refuse_second_create()
     metrics_password = token()
     s, r = call("POST", "/api/v1/apps", {
         "name": NAME, "region": REGION, "git_url": REPO, "branch": "main", "project_id": PROJECT,
@@ -57,7 +78,7 @@ def cmd_create():
         fail("create", s, r)
     app = r.get("app", r)
     app_id, url = app["id"], app["url"].rstrip("/")
-    json.dump({"id": app_id, "url": url, "metrics_password": metrics_password}, open(STATE, "w"))
+    write_state({"id": app_id, "url": url, "metrics_password": metrics_password})
     print("created", app_id, url)
     s, r = call("POST", f"/api/v1/apps/{app_id}/volumes",
                 {"type": "volume", "mount_path": "/data", "volume_name": "monitoring-data"})
@@ -79,7 +100,7 @@ def cmd_api():
     }})
     print("api env", s)
     del state["metrics_password"]
-    json.dump(state, open(STATE, "w"))
+    write_state(state)
 
 
 if __name__ == "__main__":
