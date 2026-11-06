@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView } from "react-native";
+import { ScrollView, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { usePlayer } from "#src/auth/player.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
@@ -11,6 +11,7 @@ import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { PublicAchievements } from "#src/questify/AchievementsSection.tsx";
 import { BlockButton, BlockedLine } from "#src/questify/BlockButton.tsx";
+import { LevelBadge } from "#src/questify/LevelBadge.tsx";
 import { PublicPassport } from "#src/questify/PassportSection.tsx";
 import { ReportButton } from "#src/questify/ReportButton.tsx";
 import { publicProfileSchema, type PublicProfile } from "#src/questify/profile-api.ts";
@@ -40,7 +41,10 @@ function ProfileDetails({
           title: profile.title,
         }}
       />
-      <AppText variant="title">@{profile.username}</AppText>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <AppText variant="title">@{profile.username}</AppText>
+        <LevelBadge level={profile.level.number} size={32} />
+      </View>
       {profile.title === null ? null : (
         <>
           <AppText variant="label">{t("profile.equippedTitle")}</AppText>

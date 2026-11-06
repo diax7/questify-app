@@ -16,6 +16,7 @@ import type { Channel } from "#src/auth/sign-in-flow.ts";
 import { usePlayer, type Me } from "#src/auth/player.tsx";
 import { HowItWorksButton } from "#src/onboarding/HowItWorksButton.tsx";
 import { NotificationsRow } from "#src/push/NotificationsRow.tsx";
+import { LevelBadge } from "#src/questify/LevelBadge.tsx";
 import { levelProgress, type QuestifyLevel } from "#src/questify/level.ts";
 import { DailyStreakCard } from "#src/streaks/DailyStreakCard.tsx";
 import { Screen } from "#src/components/Screen.tsx";
@@ -114,10 +115,14 @@ function useHasRequests(signedIn: boolean): boolean {
 
 function MyIdentity({ me }: { me: Me }) {
   const { t, language } = useI18n();
+  const styles = useThemedStyles(makeStyles);
   return (
     <>
       <Avatar name={me.avatar} username={me.username} equipment={me.equipment} size={96} />
-      <AppText variant="title">@{me.username}</AppText>
+      <View style={styles.nameLine}>
+        <AppText variant="title">@{me.username}</AppText>
+        {me.questify === undefined ? null : <LevelBadge level={me.questify.level} size={32} />}
+      </View>
       {me.equipment?.title == null ? null : (
         <>
           <AppText variant="label">{t("locker.equippedTitle")}</AppText>
@@ -272,6 +277,11 @@ const makeStyles = (theme: Theme) => ({
   },
   identifierText: { flex: 1, gap: theme.spacing.xs },
   level: { gap: theme.spacing.xs },
+  nameLine: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: theme.spacing.sm,
+  },
   // The bar fills from the start of the reading direction: right in Arabic, left in English (RTL layout flips it).
   track: {
     height: 12,

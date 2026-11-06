@@ -287,6 +287,11 @@ export type RankRow = Readonly<{
    * equipment; `username` and `avatar` are empty and the row reads "Hidden name" and opens nothing.
    */
   hidden: boolean;
+  /**
+   * The player's Questify level, beside the name (T-404d, ADR-766); a blocked player's row keeps it. Absent from an older API,
+   * and then the row draws no badge.
+   */
+  level?: number;
 }>;
 
 /**
@@ -302,6 +307,7 @@ export type Ranking = Readonly<{
     avatar: string;
     equipment?: Equipment;
     score: number | null;
+    level?: number;
   }> | null;
   total: number;
   today: boolean;
@@ -339,9 +345,14 @@ const isRow = (value: unknown): value is RankRow =>
   isScore(value["score"]) &&
   typeof value["isMe"] === "boolean";
 
-/** A row as drawn: a hidden row keeps its place and score and nothing of the player. */
+/** The level of a row when the answer holds a whole level from 1 up, else nothing (an older API sends none). */
+const levelField = (value: unknown): { level?: number } =>
+  typeof value === "number" && Number.isInteger(value) && value >= 1 ? { level: value } : {};
+
+/** A row as drawn: a hidden row keeps its place, score and level and nothing else of the player. */
 function rowOf(row: RankRow, scores: boolean): RankRow {
   const score = scoreOf(row.score, scores);
+  const { level, ...rest } = row;
   if (row.hidden === true) {
     return {
       rank: row.rank,
@@ -351,14 +362,28 @@ function rowOf(row: RankRow, scores: boolean): RankRow {
       score,
       isMe: false,
       hidden: true,
+      ...levelField(level),
     };
   }
   return {
-    ...row,
+    ...rest,
     fullName: fullNameOf(row.fullName),
     score,
     hidden: false,
     ...(row.equipment === undefined ? {} : { equipment: equipmentOf(row.equipment) }),
+    ...levelField(level),
+  };
+}
+
+/** The player's own place as drawn: the names and score by the same rules as a row's. */
+function meOf(me: Record<string, unknown>, scores: boolean): NonNullable<Ranking["me"]> {
+  const { level, ...rest } = me;
+  return {
+    ...(rest as NonNullable<Ranking["me"]>),
+    fullName: fullNameOf(me["fullName"]),
+    score: scoreOf(me["score"], scores),
+    ...(me["equipment"] === undefined ? {} : { equipment: equipmentOf(me["equipment"]) }),
+    ...levelField(level),
   };
 }
 
@@ -385,17 +410,7 @@ export function readRanking(body: unknown): Ranking | undefined {
   const scores = body["scores"] !== false;
   return {
     rows: body["rows"].map((row) => rowOf(row, scores)),
-    me:
-      me === null
-        ? null
-        : {
-            ...(me as NonNullable<Ranking["me"]>),
-            fullName: fullNameOf((me as Record<string, unknown>)["fullName"]),
-            score: scoreOf((me as Record<string, unknown>)["score"], scores),
-            ...((me as Record<string, unknown>)["equipment"] === undefined
-              ? {}
-              : { equipment: equipmentOf((me as Record<string, unknown>)["equipment"]) }),
-          },
+    me: me === null ? null : meOf(me as Record<string, unknown>, scores),
     total: body["total"],
     today: body["today"] === true,
     scores,

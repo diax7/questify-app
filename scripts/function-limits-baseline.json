@@ -646,7 +646,7 @@
       "complexity": [15]
     },
     "readRanking": {
-      "complexity": [13]
+      "complexity": [12]
     }
   },
   "apps/app/src/event/live-code.ts": {
