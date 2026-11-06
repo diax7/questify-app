@@ -65,6 +65,7 @@ consolidated at the end. The other docs hold the detail it points to.
 | `RUNBOOK.md` | How to run the checks, create staff accounts, free a locked-out person, and what to do when sign-in email is down | Started 2026-10-19 (T-006) |
 | `SLO.md` | The service-level targets, how each is measured, the alert table, the metric catalog, what telemetry never holds and the log inventory of every layer (T-810); the rules are in `../ops/alerts/` | Written 2026-11-03 (T-018) |
 | `QUALITY_BASELINE.md` | The standards every phase and release is checked against (OWASP ASVS/MASVS, tests, infrastructure, operations) | Written 2026-10-19 (ADR-108) |
+| `PERFORMANCE_AUDIT.md` | Dhia's twelve performance rules: applied while building, run in full as T-813 before launch | Written 2026-11-06 |
 | `rules.md` | Hard rules, quality bar, coding standards, Definition of Done | Drafted 2026-10-17 (Stage 7) |
 | `_blueprint/CLAUDE_BUILD_DRAFT.md` | The proposed build-phase changes to the root `CLAUDE.md`; applied when planning is approved | Draft, not applied |
 

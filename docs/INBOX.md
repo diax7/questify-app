@@ -856,3 +856,13 @@ inside an event. Processed into task T-404c (an ADR superseding ADR-046's gems a
 
 Dhia: "Start 2 task at the same time, lets finish faster". Processed into the cost cap in `CLAUDE.md` (two builders in
 separate worktrees; one full test suite at a time).
+
+## 2026-11-06 - Performance rules to keep and use when needed -> processed
+
+Dhia pasted a twelve-item performance audit (indexes, N+1, selective fetching, pagination, images, lazy loading, CDN and
+caching, parallel requests, loading states, optimistic updates, AI streaming, benchmarking), then: "They are not
+necessarily to be done right now because I know that you didn't finish the application and some of stuff are changing,
+but those are a good information and notes of performance that I would like you to save it ... use it when you need to
+... to make my application feel good faster on the application level and on the dashboard and the admin level also."
+Processed into `docs/PERFORMANCE_AUDIT.md`, a line in `docs/rules.md` and task T-813.
+

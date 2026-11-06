@@ -309,3 +309,6 @@ A change is done only when all of these hold:
 - A query that selects a column cast to text under its own name (`SELECT id::text ...`) orders and pages by the
   table's column (`ORDER BY c.id`, `audit_log.id`), never the bare name: PostgreSQL sorts a bare name by the text
   output column, so `"99"` sorts after `"100"` and a paged walk skips or repeats rows (T-810f chase).
+
+- Performance: apply `docs/PERFORMANCE_AUDIT.md` to the work in hand (Dhia, 2026-11-06), and back every speed claim
+  with a measurement.
