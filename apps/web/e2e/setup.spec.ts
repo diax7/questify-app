@@ -249,10 +249,7 @@ test("opens a step from the single-step review without saving progress", async (
 
   await page.goto(`${eventUrl}/setup?step=review&only=1`);
   await expect(stepBar(page)).toHaveCount(0);
-  await page
-    .getByRole("button", { name: /^فتح / })
-    .first()
-    .click();
+  await page.getByRole("button", { name: /^فتح / }).first().click();
   await expect(page).toHaveURL(/\/setup\?step=basics&only=1$/);
   await expect(
     page.getByRole("heading", { name: "ما فعاليتك، ومن يمكنه إيجادها؟", level: 2 }),
