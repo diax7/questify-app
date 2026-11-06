@@ -11,8 +11,30 @@ const HISTORY_KEYS: Readonly<Record<string, MessageKey>> = {
   "organizer.reactivate": "console.history.organizerReactivate",
   "support.opened": "console.history.supportOpened",
   "support.closed": "console.history.supportClosed",
+  "event.create": "console.history.eventCreate",
+  "event.duplicate": "console.history.eventDuplicate",
+  "event.delete": "console.history.eventDelete",
+  "event.template": "console.history.eventTemplate",
+  "event.activation.request": "console.history.activationRequest",
+  "event.activation.withdraw": "console.history.activationWithdraw",
+  "event.activation.reject": "console.history.activationReject",
+  "event.activate": "console.history.eventActivate",
+  "event.limit": "console.history.eventLimit",
+  "event.end": "console.history.eventEnd",
+  "event.lifecycle": "console.history.eventLifecycle",
+  "event.results_confirmed": "console.history.resultsConfirmed",
+  "event.results_revealed": "console.history.resultsRevealed",
+  "event.export": "console.history.eventExport",
+  "event.player_ban": "console.history.playerBan",
+  "event.player_unban": "console.history.playerUnban",
+  "content.unpublish": "console.history.contentUnpublish",
+  "content.republish": "console.history.contentRepublish",
+  "organizer.create": "console.history.organizerCreate",
+  "organizer.owner.transfer": "console.history.ownerTransfer",
+  "organizer.member.join": "console.history.memberJoin",
+  "organizer.member.remove": "console.history.memberRemove",
+  "organizer.member.scope": "console.history.memberScope",
 };
-
 /** The words for an audit action in the console's history, or undefined for one without words (its name is shown). */
 export function historyKeyOf(action: string): MessageKey | undefined {
   if (Object.hasOwn(HISTORY_KEYS, action)) {
@@ -38,6 +60,8 @@ export type HistoryEntry = Readonly<{
   actorType: string;
   action: string;
   bySupport: boolean;
+  /** What a person typed for a suspension or its lifting (the entry's reason), else null. */
+  reason: string | null;
 }>;
 
 export type OrganizerDetail = Readonly<{
@@ -173,6 +197,7 @@ function readHistory(value: unknown): HistoryEntry[] {
             actorType: text(entry["actorType"]) ?? "",
             action: text(entry["action"]) ?? "",
             bySupport: entry["bySupport"] === true,
+            reason: text(entry["reason"]),
           },
         ]
       : [],

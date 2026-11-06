@@ -2955,3 +2955,8 @@ The plan had the level beside names on the app's event ranking and podium and th
 Organizers can still pick a gem icon for their event's points. The terms of use lose Questify gems; whether that needs
 a new terms version that players accept again is a legal call.
 **Recommended (developer):** keep the icon; edit the terms text at build and leave the version bump to the legal pass.
+
+## Q-730 - The console history shows the typed reason and more actions in words (ADR-790, ADR-791)
+
+**Status:** Proposed (developer, 2026-11-06).
+**Recommended (developer):** show the reason beside a suspension and its lifting, and word the 23 lifecycle, results, ban, take-down and team actions; leave the rest by name until a support case needs one. Alternative: word all audit actions now (about 170 more texts in two languages) or none.

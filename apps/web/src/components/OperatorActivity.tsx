@@ -100,7 +100,7 @@ export function OperatorActivity({
             <StaffBriefing
               language={language}
               eventApi={eventApi}
-              operators={activity.operators.length}
+              reachable={activity.reachable}
               briefings={activity.briefings}
               sent={read}
             />

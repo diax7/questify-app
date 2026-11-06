@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
@@ -94,6 +94,31 @@ test("in Arabic the page reads right to left with the same facts", async ({ page
   );
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expectNoSidewaysScroll(page);
+});
+
+test("a new search empties the list and says it is loading until the answer arrives", async ({
+  page,
+}, info) => {
+  test.setTimeout(120_000);
+  const { organizerId, slug } = await asAdmin(page, info.project.name);
+  await page.goto("/en/console/feature-usage");
+  await page.getByLabel("Organizer name or slug").fill(slug);
+  await page.getByRole("button", { name: "Search" }).click();
+  const card = page.locator(`[data-organizer="${organizerId}"]`);
+  await expect(card).toBeVisible();
+
+  // The next read is held until the test lets it through.
+  const held: Route[] = [];
+  await page.route("**/v1/admin/feature-usage*", (route) => {
+    held.push(route);
+  });
+  await page.getByRole("button", { name: "Search" }).click();
+  await expect.poll(() => held.length).toBe(1);
+  await expect(page.getByText("Loading…")).toBeVisible();
+  await expect(card).toHaveCount(0);
+  await held[0]?.continue();
+  await expect(card).toBeVisible();
+  await expect(page.getByText("Loading…")).toHaveCount(0);
 });
 
 test("a person who is not an admin does not get the page's data", async ({ page }, info) => {

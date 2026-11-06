@@ -237,6 +237,43 @@ describe("apply when CranL does not keep a change", () => {
   });
 });
 
+const isCreate = (write: { method: string; path: string }) =>
+  write.method === "POST" && /^\/api\/v1\/(apps|databases)$/.test(write.path);
+
+/** CranL as `cranl` answers it, except that adding a volume is refused for good (a 422 is not retried). */
+const refusingVolumes = (cranl: ReturnType<typeof fakeCranl>) =>
+  ((input: string | URL | Request, init?: RequestInit) =>
+    init?.method === "POST" && new URL(String(input)).pathname.endsWith("/volumes")
+      ? Promise.resolve(new Response(JSON.stringify({ error: { code: "quota" } }), { status: 422 }))
+      : cranl.fetch(input, init)) as typeof fetch;
+
+describe("apply that stops halfway", () => {
+  it("keeps what was made, and a re-run continues without making it twice", async () => {
+    const cranl = fakeCranl();
+    const stopped = createClient({ apiKey: "k", fetch: refusingVolumes(cranl), retryDelayMs: 0 });
+    await expect(
+      apply({ client: stopped, spec: staging(), env: OPERATOR, runId: "run1" }),
+    ).rejects.toThrow(/^CranL POST \/apps\/app-\d+\/volumes failed: 422 quota$/);
+    expect(cranl.writes.filter(isCreate)).toHaveLength(5);
+    expect((await planOf(cranl)).length).toBeGreaterThan(0);
+
+    const before = cranl.writes.length;
+    await apply({
+      client: clientFor(cranl),
+      spec: staging(),
+      env: OPERATOR,
+      generate: () => "generated-after-restart",
+      runId: "run2",
+    });
+    const rerun = cranl.writes.slice(before);
+    expect(rerun.filter(isCreate)).toEqual([]);
+    expect(rerun.some((write) => write.path.endsWith("/volumes"))).toBe(true);
+    expect(cranl.apps).toHaveLength(3);
+    expect(cranl.databases).toHaveLength(2);
+    expect(await planOf(cranl)).toEqual([]);
+  });
+});
+
 describe("the CranL client", () => {
   it("retries a read that CranL answers with 503", async () => {
     const cranl = fakeCranl();

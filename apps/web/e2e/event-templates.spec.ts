@@ -117,6 +117,9 @@ test("the guided setup starts an empty draft from a template after a confirmatio
   await page.getByRole("radio", { name: "Campus event" }).check();
   await use.click();
   const dialog = page.getByRole("alertdialog", { name: "Apply the Campus event template?" });
+  await expect(dialog).toContainText(
+    "Its features, accent colour and layout are also set to the template's, replacing the current ones.",
+  );
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toHaveCount(0);
   await use.click();

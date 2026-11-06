@@ -1,7 +1,14 @@
 import type { createTestDatabase } from "#test/support/test-db";
 
-/** One operator to seed: a username and the minutes ago of each station scan, newest first or not. */
-export type SeededOperator = Readonly<{ username: string; scans: readonly number[] }>;
+/**
+ * One operator to seed: a username and the minutes ago of each station scan, newest first or not. A `banned` operator
+ * is still listed but no briefing reaches them (T-617 follow-up).
+ */
+export type SeededOperator = Readonly<{
+  username: string;
+  scans: readonly number[];
+  banned?: boolean;
+}>;
 
 /**
  * Operators for the Operators page's activity (T-617): each new player staffs the event and has scanned the event's one
@@ -35,6 +42,11 @@ export async function seedOperators(
        SELECT e.organizer_id, e.id, who.id FROM event e, who WHERE e.id = $1`,
       [eventId, operator.username],
     );
+    if (operator.banned === true) {
+      await db.owner.query("UPDATE player SET status = 'banned' WHERE username = $1", [
+        operator.username,
+      ]);
+    }
     for (const [index, minutesAgo] of operator.scans.entries()) {
       await db.owner.query(
         `WITH served AS (INSERT INTO player (username) VALUES ($5) RETURNING id),

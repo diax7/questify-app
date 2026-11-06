@@ -80,9 +80,19 @@ export type HistoryEntry = Readonly<{
   eventId: string | null;
   /** Made by Questify support inside the organizer's dashboard (the entry's stamp, ADR-408). */
   bySupport: boolean;
+  /** What the admin typed for a suspension, or for lifting one; null for every other entry. */
+  reason: string | null;
 }>;
 
 type Admin = Readonly<{ id: string }>;
+
+/** The audit actions whose entry keeps the admin's typed reason in `after` (the suspension doors and their lifting). */
+const REASON_ACTIONS: readonly string[] = [
+  "event.suspend",
+  "event.reactivate",
+  "organizer.suspend",
+  "organizer.reactivate",
+];
 
 const suspensionOf = (reason: string | null, since: Date | null): SuspensionView | null =>
   reason === null || since === null ? null : { reason, since: since.toISOString() };
@@ -281,7 +291,10 @@ async function readEventsOf(
   }));
 }
 
-/** The last 50 audit entries of an organizer or of one event: what happened, never the values or who by name. */
+/**
+ * The last 50 audit entries of an organizer or of one event: what happened, never the values or who by name. The one
+ * value shown is the reason an admin typed for a suspension or for lifting it, beside that entry.
+ */
 export async function readHistory(
   client: PoolClient,
   scope: Readonly<{ organizerId: string } | { eventId: string }>,
@@ -295,10 +308,12 @@ export async function readHistory(
     target_type: string;
     event_id: string | null;
     by_support: boolean;
+    reason: string | null;
   }>(
-    `SELECT id::text, at, actor_type, action, target_type, event_id, support_grant_id IS NOT NULL AS by_support
+    `SELECT id::text, at, actor_type, action, target_type, event_id, support_grant_id IS NOT NULL AS by_support,
+            CASE WHEN action = ANY ($2::text[]) THEN after ->> 'reason' END AS reason
      FROM audit_log WHERE ${byOrganizer ? "organizer_id" : "event_id"} = $1 ORDER BY audit_log.id DESC LIMIT 50`,
-    [byOrganizer ? scope.organizerId : scope.eventId],
+    [byOrganizer ? scope.organizerId : scope.eventId, REASON_ACTIONS],
   );
   return rows.map((row) => ({
     id: row.id,
@@ -308,5 +323,6 @@ export async function readHistory(
     targetType: row.target_type,
     eventId: row.event_id,
     bySupport: row.by_support,
+    reason: row.reason,
   }));
 }

@@ -513,9 +513,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
           action: string;
           target_type: string;
           event_id: string | null;
+          reason: string | null;
         }>(
-          `SELECT id::text, at, actor_type, action, target_type, event_id FROM audit_log
-           WHERE organizer_id = $1 ORDER BY audit_log.id DESC LIMIT 50`,
+          `SELECT id::text, at, actor_type, action, target_type, event_id,
+                  CASE WHEN action LIKE '%.suspend' THEN after ->> 'reason' END AS reason
+           FROM audit_log WHERE organizer_id = $1 ORDER BY audit_log.id DESC LIMIT 50`,
           [orgB],
         )
       ).map((row) => ({
@@ -526,6 +528,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
         targetType: row.target_type,
         eventId: row.event_id,
         bySupport: false,
+        reason: row.reason,
       }));
 
       const detail = (await call("GET", orgPath, adminCookie)).json<{
@@ -562,13 +565,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
         },
       ]);
       expect(history.length).toBeGreaterThanOrEqual(2);
-      expect(history[0]).toMatchObject({ action: "event.suspend", eventId: eventB });
+      expect(history[0]).toMatchObject({ action: "event.suspend", eventId: eventB, reason });
+      expect(history[1]).toMatchObject({ action: "organizer.suspend", reason });
       expect(detail.history).toEqual(history);
 
       expect((await organizers("?status=paused")).organizers.map((row) => row.id)).toEqual([orgB]);
       expect((await organizers("?status=active")).organizers.map((row) => row.id)).toEqual([orgA]);
       expect((await call("POST", `${eventPath}/reactivate`, adminCookie)).statusCode).toBe(204);
       expect((await call("POST", `${orgPath}/reactivate`, adminCookie)).statusCode).toBe(204);
+    });
+
+    it("shows the reason typed for a lifting beside it, and none beside other entries", async () => {
+      const orgPath = `/v1/admin/organizers/${orgB}`;
+      const lifted = "The organizer paid the outstanding invoice.";
+      expect((await call("POST", `${orgPath}/suspend`, adminCookie, { reason })).statusCode).toBe(
+        200,
+      );
+      expect(
+        (await call("POST", `${orgPath}/reactivate`, adminCookie, { reason: lifted })).statusCode,
+      ).toBe(204);
+      const { history } = (await call("GET", orgPath, adminCookie)).json<{
+        history: { action: string; reason: string | null }[];
+      }>();
+      expect(history.slice(0, 2).map(({ action, reason: shown }) => [action, shown])).toEqual([
+        ["organizer.reactivate", lifted],
+        ["organizer.suspend", reason],
+      ]);
+      const typed = new Set(["organizer.suspend", "organizer.reactivate", "event.suspend"]);
+      expect(history.filter((entry) => !typed.has(entry.action) && entry.reason !== null)).toEqual(
+        [],
+      );
     });
 
     it("gives a cursor only for a full page", async () => {

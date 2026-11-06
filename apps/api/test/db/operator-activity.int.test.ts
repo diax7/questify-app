@@ -33,6 +33,7 @@ type Recent = {
 };
 type Activity = {
   asOf: string;
+  reachable: number;
   operators: Row[];
   recent: Recent[];
   briefings: { id: string; titleEn: string; bodyEn: string; recipients: number }[];
@@ -218,6 +219,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operator activity (database)",
       const answered = await activity(event);
       expect(answered).toMatchObject({ operators: [], recent: [], briefings: [] });
       expect(new Date(answered.asOf).getTime()).toBeGreaterThan(Date.now() - 60_000);
+    });
+
+    it("counts the operators a briefing reaches as the briefing does: active accounts of this event only", async () => {
+      const { event } = await liveEvent();
+      const { event: other } = await liveEvent();
+      expect((await activity(event)).reachable).toBe(0);
+      await operator(event);
+      await operator(event);
+      const banned = await operator(event);
+      await operator(other);
+      await f.owner("UPDATE player SET status = 'banned' WHERE id = $1", [banned.who]);
+      const answered = await activity(event);
+      expect(answered.operators).toHaveLength(3);
+      expect(answered.reachable).toBe(2);
+      const [made] = await send(event);
+      expect(made?.recipients).toBe(answered.reachable);
     });
 
     it("shows an operator who did nothing as quiet, with no last action", async () => {

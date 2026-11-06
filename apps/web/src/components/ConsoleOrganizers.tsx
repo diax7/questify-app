@@ -181,6 +181,14 @@ export function HistoryList({
                     {clockOf(entry.at, language)}
                     {entry.bySupport ? ` · ${t("console.organizer.bySupport")}` : ""}
                   </Muted>
+                  {entry.reason === null ? null : (
+                    <>
+                      {" "}
+                      <span data-testid="history-reason">
+                        {t("console.history.reason")} <bdi>{entry.reason}</bdi>
+                      </span>
+                    </>
+                  )}
                 </span>
               }
             />

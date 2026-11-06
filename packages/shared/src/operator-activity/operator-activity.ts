@@ -137,6 +137,8 @@ export type StaffBriefingView = z.infer<typeof staffBriefingViewSchema>;
 /** `GET …/operators/activity`. */
 export const operatorActivitySchema = z.strictObject({
   asOf: z.string(),
+  /** How many of the event's operators a briefing would reach now: those with an active account. */
+  reachable: count,
   operators: operatorActivityRowSchema.array(),
   recent: operatorRecentSchema.array().max(OPERATOR_RECENT_MAX),
   briefings: staffBriefingViewSchema.array().max(5),

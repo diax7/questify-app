@@ -98,6 +98,25 @@ describe("the order the intro plays this time", () => {
     expect(Date.now() - started).toBeLessThan(1000);
   });
 
+  it("plays the shipped order when the answer is late, and the late answer still refreshes the stored copy", async () => {
+    const store = memoryStore();
+    const late: Client = {
+      request: () =>
+        new Promise((done) =>
+          setTimeout(() => done(ok(configWith(["prizes", "points"]))), WAIT * 3),
+        ),
+    };
+    expect(await resolveWith(late, store)).toEqual(SHIPPED);
+    expect(store.data.has(CONFIG_KEY)).toBe(false);
+    await new Promise((done) => setTimeout(done, WAIT * 6));
+    const kept = JSON.parse(store.data.get(CONFIG_KEY) ?? "{}") as {
+      body: { playerIntro: { cards: string[] } };
+    };
+    expect(kept.body.playerIntro.cards).toEqual(["prizes", "points"]);
+    // The next launch plays what the late answer chose, at once.
+    expect(await resolveWith(clientAnswering().client, store)).toEqual(["prizes", "points"]);
+  });
+
   it("is the shipped order when the request fails outright", async () => {
     const broken: Client = { request: () => Promise.reject(new Error("socket closed")) };
     expect(await resolveWith(broken, memoryStore())).toEqual(SHIPPED);

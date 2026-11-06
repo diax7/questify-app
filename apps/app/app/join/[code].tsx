@@ -27,6 +27,7 @@ import {
 } from "#src/join/join-api.ts";
 import { CardReceives } from "#src/join/CardReceives.tsx";
 import { JoinForm } from "#src/join/JoinForm.tsx";
+import { isInEvent, joinedResult } from "#src/join/join-result.ts";
 import { RehearsalJoin } from "#src/join/RehearsalJoin.tsx";
 import { openJoinedEvent } from "#src/onboarding/open-joined.ts";
 import { PushExplainer, useJoinExplainer } from "#src/push/PushExplainer.tsx";
@@ -91,14 +92,6 @@ export default function JoinScreen() {
   const rehearsal = parseRehearsalCode(String(code));
   return rehearsal === null ? <JoinCardScreen /> : <RehearsalJoin code={rehearsal} />;
 }
-
-/** What a join that went through says: the waiting list and a request still waiting before "already in". */
-const joinedResult = (outcome: Extract<JoinOutcome, { kind: "joined" }>): Outcome =>
-  outcome.waitlisted
-    ? "waitlisted"
-    : outcome.alreadyMember && outcome.status === "active"
-      ? "already"
-      : outcome.status;
 
 type JoinParams = Readonly<{
   code: string;
@@ -245,11 +238,7 @@ function JoinCardScreen() {
           <Button
             label={t("joinCard.openEvent")}
             onPress={() =>
-              void openJoinedEvent(
-                event.id,
-                textIn(event.name, language),
-                result === "active" || result === "already",
-              )
+              void openJoinedEvent(event.id, textIn(event.name, language), isInEvent(result))
             }
           />
         ) : null}
