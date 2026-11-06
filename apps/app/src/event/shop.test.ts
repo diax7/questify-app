@@ -1,3 +1,4 @@
+import { DEFAULT_TERMS, readEventTerms } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import type { ApiRequest } from "#src/api/client.ts";
 import type { AuthedResult } from "#src/api/session.ts";
@@ -79,6 +80,8 @@ function sessionAnswering(answer: AuthedResult) {
     },
   };
 }
+
+const GEMS = { ar: { one: "جوهرة", many: "جواهر" }, en: { one: "gem", many: "gems" } };
 
 describe("setGoal", () => {
   it("puts the goal, or null to clear it, and answers the API's words on a refusal", async () => {
@@ -526,6 +529,7 @@ describe("the desk's calls (T-206)", () => {
             desk: { ar: "القاعة ب", en: null },
             rules: { en: "One each" },
             justBought: true,
+            currency: GEMS,
           },
           { id: "s2", name: {}, price: 5, offerUntil: null, balanceAfter: 0 },
           { name: "no id" },
@@ -548,6 +552,7 @@ describe("the desk's calls (T-206)", () => {
           desk: { ar: "القاعة ب", en: null },
           rules: { ar: null, en: "One each" },
           justBought: true,
+          currency: readEventTerms({ currency: GEMS }).currency,
         },
         {
           id: "s2",
@@ -558,6 +563,7 @@ describe("the desk's calls (T-206)", () => {
           desk: null,
           rules: null,
           justBought: false,
+          currency: DEFAULT_TERMS.currency,
         },
       ],
       watch: false,

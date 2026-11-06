@@ -465,6 +465,38 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("desk sale (database)", () => {
       expect(await salesOf(s.enrollment)).toBe(1);
     });
 
+    it("a key replayed after its offer ran out answers expired and leaves the row as it was", async () => {
+      const s = await setup();
+      const key = randomUUID();
+      const first = await offer(s.desk, s.event, s.player, s.reward, key);
+      await owner("UPDATE desk_sale SET offer_until = now() - interval '1 second' WHERE id = $1", [
+        first.sale_id,
+      ]);
+      expect(await offer(s.desk, s.event, s.player, s.reward, key)).toMatchObject({
+        sale_id: first.sale_id,
+        status: "expired",
+        replayed: true,
+      });
+      expect((await saleRow(first.sale_id))?.status).toBe("offered");
+      expect(await salesOf(s.enrollment)).toBe(1);
+    });
+
+    it("names the price on My QR with the event's own word, and leaves an unnamed event to the default", async () => {
+      const s = await setup();
+      await offer(s.desk, s.event, s.player, s.reward);
+      const word = (await call(s.player, "SELECT currency FROM my_desk_sales()"))[0];
+      expect(word).toEqual({ currency: null });
+      const gems = { ar: { one: "جوهرة", many: "جواهر" }, en: { one: "gem", many: "gems" } };
+      await owner(
+        `UPDATE event SET config = jsonb_set(config, '{terms}', jsonb_build_object('currency', $2::jsonb))
+         WHERE id = $1`,
+        [s.event, JSON.stringify(gems)],
+      );
+      expect(await call(s.player, "SELECT currency FROM my_desk_sales()")).toEqual([
+        { currency: gems },
+      ]);
+    });
+
     it("a double tap with two keys answers the live offer; another reward replaces it", async () => {
       const s = await setup();
       const first = await offer(s.desk, s.event, s.player, s.reward);

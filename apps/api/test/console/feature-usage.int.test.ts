@@ -185,11 +185,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console feature usage over HTT
   it("pages by name with a cursor that ends on the last page", async () => {
     const first = await page("?q=T&limit=1");
     expect(first.organizers.map((row) => row.slug)).toEqual(["tabuk-usage"]);
-    expect(first.nextCursor).toBe(other);
-    const next = await page(`?q=T&limit=1&cursor=${other}`);
-    expect(next.organizers).toEqual([]);
-    expect(next.nextCursor).toBeNull();
+    expect(first.nextCursor).toBeNull();
     expect((await page("?q=T&limit=5")).nextCursor).toBeNull();
+    const everyone = (await page("?limit=50")).organizers;
+    expect(everyone.length).toBeGreaterThan(1);
+    const head = await page("?limit=1");
+    expect(head.organizers).toHaveLength(1);
+    expect(head.nextCursor).toBe(head.organizers[0]?.id);
+    expect((await page(`?limit=${everyone.length}`)).nextCursor).toBeNull();
+    const past = await page(`?limit=50&cursor=${head.nextCursor}`);
+    expect(past.organizers).toHaveLength(everyone.length - 1);
   });
 
   it("refuses a malformed query and an unknown parameter", async () => {

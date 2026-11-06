@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { RequestContext } from "#src/db/context";
 import { eventFeatureOn } from "#src/settings/feature-guard";
 import { createSettingsService } from "#src/settings/service";
-import { pushFixture, type PushFixture } from "#test/support/push";
+import { pushFixture, sqlstate, type PushFixture } from "#test/support/push";
 import { TEST_DATABASE_URL } from "#test/support/test-db";
 
 /** A call's SQLSTATE and detail ("RS403:feature_off"), or "none". */
@@ -200,6 +200,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("feature layers (database)", ()
         .map(([key]) => key)
         .toSorted();
       expect(listed).toEqual(overridable);
+    });
+
+    it("shows the rows but never who set them to the API role (T-711, 0167)", async () => {
+      const seats: RequestContext[] = [{ playerId: f.ids.playerA }, {}];
+      for (const seat of seats) {
+        expect(await sqlstate(f.run(seat, "SELECT set_by FROM organizer_feature_override"))).toBe(
+          "42501",
+        );
+        expect(await sqlstate(f.run(seat, "SELECT * FROM organizer_feature_override"))).toBe(
+          "42501",
+        );
+        await f.run(
+          seat,
+          "SELECT organizer_id, feature, enabled, set_at FROM organizer_feature_override",
+        );
+      }
     });
 
     it("holds nothing for PUBLIC and keeps the platform rule internal", async () => {

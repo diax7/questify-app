@@ -1,3 +1,4 @@
+import { DEFAULT_TERMS, readEventTerms } from "@questify/shared";
 import type { Pool } from "pg";
 import { describe, expect, it, vi } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
@@ -17,6 +18,8 @@ import {
   startCollect,
 } from "#src/desk/desk";
 import { createMyCodeKey, myCode } from "#src/quests/qr";
+
+const GEMS = { ar: { one: "جوهرة", many: "جواهر" }, en: { one: "gem", many: "gems" } };
 
 const PLAYER = "11111111-1111-4111-8111-111111111111";
 const OPERATOR = "22222222-2222-4222-8222-222222222222";
@@ -455,10 +458,20 @@ describe("the poll and the player's calls", () => {
       rules_ar: null,
       rules_en: "One each",
       just_bought: true,
+      currency: GEMS,
     };
     const { deps, statements } = fakePool((sql) => {
       if (sql.includes("my_desk_sales")) {
-        return [sale, { ...sale, sale_id: "s2", first_redemption: false, desk_location_en: null }];
+        return [
+          sale,
+          {
+            ...sale,
+            sale_id: "s2",
+            first_redemption: false,
+            desk_location_en: null,
+            currency: null,
+          },
+        ];
       }
       return sql.includes("my_desk_watch")
         ? [{ watch: true }]
@@ -488,6 +501,7 @@ describe("the poll and the player's calls", () => {
       desk: { ar: null, en: "Hall B" },
       rules: { ar: null, en: "One each" },
       justBought: true,
+      currency: readEventTerms({ currency: GEMS }).currency,
     };
     expect(await myDeskItems(deps, PLAYER)).toEqual({
       items: [
@@ -502,7 +516,10 @@ describe("the poll and the player's calls", () => {
           source: "shop",
         },
       ],
-      sales: [offered, { ...offered, id: "s2", desk: null, rules: null }],
+      sales: [
+        offered,
+        { ...offered, id: "s2", desk: null, rules: null, currency: DEFAULT_TERMS.currency },
+      ],
       watch: true,
     });
     expect(statements.map((s) => s.sql)).toEqual([

@@ -432,7 +432,7 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/events/:eventId/shop":
     "an active member of that event only, through event_shop, shop_rewards and my_redemptions bound to the session; anyone else 404 (test/rewards/routes, test/rewards/rewards)",
   "GET /v1/events/:eventId/held-prizes":
-    "the bearer's own reserved prizes in an event they are an active member of, through event_shop and my_redemptions bound to the session; not behind the shop switch; anyone else 404 (test/rewards/routes)",
+    "the bearer's own reserved prizes in an event they are an active member of, through event_shop and my_held_prizes bound to the session; not behind the shop switch; anyone else 404 (test/rewards/routes)",
   "GET /v1/organizers/:organizerId/events/:eventId/held-prizes":
     "members inside their event limit; a count of reserved prizes of active members under row-level security, no player named; another organizer's event answers 404 (test/rewards/routes)",
   "POST /v1/organizers/:organizerId/events/:eventId/quests/:questId/pause":

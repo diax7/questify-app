@@ -1,3 +1,4 @@
+import { readEventTerms, type EventTerms } from "@questify/shared";
 import type { FastifyInstance } from "fastify";
 import type { PoolClient } from "pg";
 import { z } from "zod";
@@ -349,6 +350,8 @@ export type MySale = Readonly<{
   /** The shop's rules, shown before a first redemption only (FR-515). */
   rules: Bilingual | null;
   justBought: boolean;
+  /** The event's own currency word, for the price on My QR, which is outside one event. */
+  currency: EventTerms["currency"];
 }>;
 
 /** The caller's live desk offers in every event, for My QR. */
@@ -370,6 +373,7 @@ export async function mySales(client: PoolClient): Promise<readonly MySale[]> {
       desk: desk.ar === null && desk.en === null ? null : desk,
       rules: showRules ? rules : null,
       justBought: row["just_bought"] === true,
+      currency: readEventTerms({ currency: row["currency"] }).currency,
     };
   });
 }

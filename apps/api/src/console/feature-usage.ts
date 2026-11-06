@@ -40,9 +40,10 @@ async function demoOrganizerOf(client: PoolClient): Promise<string | null> {
 /**
  * One page of the console's feature usage (T-714, FR-1839): `console_feature_usage` (migration 0140) answers the counts of
  * the page's organizers and the platform's settings are read in the same seat, so the layers laid over the counts are the
- * ones in force at that moment. The review demo's organizer is left out of the page (Q-525), and the cursor still ends on
- * the last organizer the database sent, so paging goes on past it. Counts only, no personal data, so the read is not
- * audited (the T-709 doors are not either).
+ * ones in force at that moment. One organizer more than the page is asked for, and only ever used to tell that a next page
+ * exists (the door allows 51, the route 50), so a last page of exactly `limit` ends with no cursor. The review demo's
+ * organizer is left out of the page (Q-525), and the cursor still ends on the page's last organizer before that, so paging
+ * goes on past it. Counts only, no personal data, so the read is not audited (the T-709 doors are not either).
  */
 export function readFeatureUsage(
   pool: Pool,
@@ -54,16 +55,17 @@ export function readFeatureUsage(
     const answer = await answerOf(client, "SELECT console_feature_usage($1, $2, $3, $4) AS r", [
       query.q,
       query.cursor,
-      query.limit,
+      query.limit + 1,
       eventFeatureKeys(REGISTRIES),
     ]);
-    const { organizers } = featureUsageRawSchema.parse(answer);
+    const { organizers: read } = featureUsageRawSchema.parse(answer);
+    const organizers = read.slice(0, query.limit);
     const demo = await demoOrganizerOf(client);
     return {
       organizers: organizers
         .filter((raw) => raw.id !== demo)
         .map((raw) => featureUsageOrganizer(REGISTRIES, platform, raw)),
-      nextCursor: organizers.length === query.limit ? (organizers.at(-1)?.id ?? null) : null,
+      nextCursor: read.length > query.limit ? (organizers.at(-1)?.id ?? null) : null,
     };
   });
 }

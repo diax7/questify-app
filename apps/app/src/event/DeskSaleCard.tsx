@@ -1,4 +1,4 @@
-import { DEFAULT_TERMS, formatNumber, termFor } from "@questify/shared";
+import { formatNumber, termFor } from "@questify/shared";
 import { useRef, useState } from "react";
 import { View } from "react-native";
 import { api } from "#src/api/app-session.ts";
@@ -29,9 +29,8 @@ export function DeskSaleCard({
   const [busy, setBusy] = useState(false);
   const payKey = useRef<string | undefined>(undefined);
   const name = textIn(sale.name, language);
-  // My QR is not inside one event, so the price is named with the default currency word.
   const amount = (value: number) =>
-    `${formatNumber(value, language)} ${termFor(DEFAULT_TERMS.currency, language, value)}`;
+    `${formatNumber(value, language)} ${termFor(sale.currency, language, value)}`;
 
   const pay = async () => {
     setBusy(true);

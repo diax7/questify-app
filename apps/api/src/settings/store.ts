@@ -88,6 +88,7 @@ export async function lockOverride(
   return { organizerFound: row !== undefined, current: row?.enabled ?? undefined };
 }
 
+/** `set_by` is written, never read, by the API role (0167), so the update takes the value itself and not `EXCLUDED.set_by`. */
 export async function upsertOverride(
   db: Db,
   override: Readonly<{ organizerId: string; feature: string; enabled: boolean; adminId: string }>,
@@ -95,7 +96,7 @@ export async function upsertOverride(
   await db.query(
     `INSERT INTO organizer_feature_override (organizer_id, feature, enabled, set_by) VALUES ($1, $2, $3, $4)
      ON CONFLICT (organizer_id, feature)
-     DO UPDATE SET enabled = EXCLUDED.enabled, set_by = EXCLUDED.set_by, set_at = now()`,
+     DO UPDATE SET enabled = EXCLUDED.enabled, set_by = $4, set_at = now()`,
     [override.organizerId, override.feature, override.enabled, override.adminId],
   );
 }

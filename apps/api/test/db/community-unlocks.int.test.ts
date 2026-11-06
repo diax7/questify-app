@@ -1671,6 +1671,7 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   deletion_pending: "exempt: redemptions already made",
   console_player_pending: "exempt: redemptions already made (the admin erase, T-708)",
   my_desk_items: "exempt: redemptions already made",
+  my_held_prizes: "exempt: redemptions already made",
   my_redemptions: "exempt: redemptions already made",
   member_activity: "exempt: ledger entries already written",
   member_ledger: "exempt: ledger entries already written (team)",

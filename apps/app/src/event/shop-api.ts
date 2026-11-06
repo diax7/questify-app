@@ -1,4 +1,4 @@
-import type { LocalizedText } from "@questify/shared";
+import { readEventTerms, type LocalizedText, type Word } from "@questify/shared";
 import type { AuthedResult, Session } from "#src/api/session.ts";
 import type { Bilingual } from "#src/i18n/text.ts";
 import { lockNoteOf, type CommunityLock } from "#src/event/unlock.ts";
@@ -361,6 +361,8 @@ export type DeskSaleNow = Readonly<{
   rules: Bilingual | null;
   /** The player paid for this reward at a desk in the last 2 minutes. */
   justBought: boolean;
+  /** The event's own currency word; the default until the API sends one. */
+  currency: Word;
 }>;
 
 function saleOf(row: unknown): DeskSaleNow[] {
@@ -377,6 +379,7 @@ function saleOf(row: unknown): DeskSaleNow[] {
       desk: row["desk"] === null || row["desk"] === undefined ? null : textOf(row["desk"]),
       rules: row["rules"] === null || row["rules"] === undefined ? null : textOf(row["rules"]),
       justBought: row["justBought"] === true,
+      currency: readEventTerms({ currency: row["currency"] }).currency,
     },
   ];
 }

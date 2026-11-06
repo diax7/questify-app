@@ -1,4 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { DEFAULT_TERMS } from "@questify/shared";
 import type { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { Caller } from "#src/auth/sign-in";
@@ -503,6 +504,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("desk sale over HTTP", () => {
           desk: { ar: "desk-ar", en: null },
           rules: { ar: "rules-ar", en: null },
           justBought: false,
+          currency: DEFAULT_TERMS.currency,
         },
       ]);
     });

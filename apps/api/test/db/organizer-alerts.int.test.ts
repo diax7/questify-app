@@ -145,6 +145,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer alerts (database)", 
     );
   };
   const scan = () => f.one<number>(f.system, "SELECT alert_scan_flags(2000) AS r");
+  /** Moves an event's flags to one moment, so a test never straddles two 15-minute windows. */
+  const raisedAt = (event: string, at: string) =>
+    f.owner("UPDATE flag SET raised_at = $2 WHERE event_id = $1", [event, at]);
+  const minuteAgo = async () =>
+    (await f.owner<{ at: string }>("SELECT (now() - interval '1 minute')::text AS at"))[0]?.at ??
+    "";
 
   const worker = (transport?: EmailSender, sendDeadlineMs?: number) =>
     startOrganizerAlertWorker({
@@ -438,26 +444,60 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer alerts (database)", 
       expect(await alerts(team.org, "support_access")).toHaveLength(4);
     });
 
-    it("find new flags by a scan, once each, never a rehearsal account's or an old one", async () => {
+    it("find new flags by a scan, one alert per event per window, never a rehearsal account's or an old one", async () => {
       const team = await newTeam();
+      const at = await minuteAgo();
       await flagFor(team.event);
+      await flagFor(team.event);
+      await flagFor(team.event);
+      await raisedAt(team.event, at);
       await flagFor(team.event, "rehearsal");
+      await raisedAt(team.event, at);
       expect(await alerts(team.org)).toEqual([]);
       expect(await scan()).toBe(2);
       expect(await staffOf(team.org, "new_flags")).toEqual([team.owner, team.editor].toSorted());
       expect(await scan()).toBe(0);
-      expect(await alerts(team.org, "new_flags")).toHaveLength(2);
       await flagFor(team.event);
-      await scan();
-      expect(await alerts(team.org, "new_flags")).toHaveLength(4);
+      await raisedAt(team.event, at);
+      expect(await scan()).toBe(0);
+      expect(await alerts(team.org, "new_flags")).toHaveLength(2);
+      const keys = await f.owner<{ dedupe: string; slot: string }>(
+        `SELECT dedupe, floor(extract(epoch FROM $2::timestamptz) / 900)::bigint::text AS slot
+         FROM organizer_alert WHERE organizer_id = $1`,
+        [team.org, at],
+      );
+      for (const key of keys) {
+        expect(key.dedupe.startsWith(`flags:${team.event}:${key.slot}:`)).toBe(true);
+      }
       await f.owner(
         "UPDATE flag SET raised_at = now() - interval '20 minutes' WHERE event_id = $1",
         [team.event],
       );
-      await flagFor(team.event);
       await f.owner("DELETE FROM organizer_alert WHERE organizer_id = $1", [team.org]);
+      expect(await scan()).toBe(0);
+      expect(await alerts(team.org, "new_flags")).toEqual([]);
+      const rehearsing = await newTeam();
+      await flagFor(rehearsing.event, "rehearsal");
+      expect(await scan()).toBe(0);
+    });
+
+    it("spend the limit on event windows, newest first, so a storm starves nobody", async () => {
+      const stormy = await newTeam();
+      const newest = await newTeam();
+      await f.owner(
+        "UPDATE flag SET raised_at = now() - interval '1 hour' WHERE raised_at > now() - interval '30 minutes'",
+      );
+      for (let flag = 0; flag < 5; flag += 1) await flagFor(stormy.event);
+      await f.owner(
+        "UPDATE flag SET raised_at = now() - interval '5 minutes' WHERE event_id = $1",
+        [stormy.event],
+      );
+      await flagFor(newest.event);
+      await f.one<number>(f.system, "SELECT alert_scan_flags(1) AS r");
+      expect(await alerts(stormy.org, "new_flags")).toEqual([]);
+      expect(await alerts(newest.org, "new_flags")).toHaveLength(2);
       await scan();
-      expect(await alerts(team.org, "new_flags")).toHaveLength(2);
+      expect(await alerts(stormy.org, "new_flags")).toHaveLength(2);
     });
   });
 

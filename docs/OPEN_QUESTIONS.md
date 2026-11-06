@@ -2981,3 +2981,9 @@ from overlapping another (which still cannot apply an item twice).
 The line asked to stop copying to an event without the add-on, but a new draft never has it yet, so that would drop the scenes
 for every buyer.
 **Recommended (developer):** copy only from a source that holds the add-on.
+
+## Q-742 - Batch 8's three calls: flag alert window, real staff in the demo, the dropped index (ADR-811)
+
+**Status:** Open (worker's recommendation in ADR-811; the coordinator decides after review).
+**Question:** is a 15-minute window right for `new_flags`, does the demo event stay closed to real staff, and is `event_organizer_idx`
+safe to lose at a member change's slower read? **Recommended:** yes to all three, as built in migration 0167.

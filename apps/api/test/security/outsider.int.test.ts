@@ -1888,6 +1888,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         "SELECT * FROM public.remove_award(gen_random_uuid(), 1, 'x', 'k', NULL)",
         "SELECT * FROM public.my_desk_items()",
         "SELECT * FROM public.my_redemptions(gen_random_uuid())",
+        "SELECT * FROM public.my_held_prizes(gen_random_uuid())",
         "SELECT * FROM public.desk_lookup(gen_random_uuid(), gen_random_uuid(), 1)",
         "SELECT * FROM public.desk_find(gen_random_uuid(), 'x', NULL)",
       ]) {

@@ -8617,3 +8617,19 @@ entitlement is not the test: Questify unlocks the add-on per event, so a new dra
 leftovers from an event that no longer has it.
 **Trade-offs:** a copy from an entitled event still holds scenes until the new event is unlocked; the screen stays closed
 meanwhile, as before.
+
+## ADR-811 - FOLLOWUPS batch 8: one flag alert per event per window, the demo stays closed to real staff, the second organizer index goes
+
+**Status:** Proposed (worker, FOLLOWUPS batch 8, 2026-11-06). Migration 0167. Q-742.
+**Decision:** (1) `alert_scan_flags` writes one `new_flags` row per member, event and 15-minute window of `raised_at`; `lim` counts
+event windows, newest first. (2) The refusal of a real player's staff assignment into the demo event stands: ADR-563 and the T-710 plan
+say so, and `staff_assignment.player_id` is NOT NULL, so no assignment without a player exists to allow. No code changed.
+(3) `event_organizer_idx (organizer_id, status)` is dropped although it is not an exact duplicate of `event_organizer_created_idx`.
+**Why:** (1) The window comes from `raised_at`, not the clock of the scan, so a flag seen by a later scan keeps its key. (2) A real
+operator in the demo event would be a way into the fake event that confinement exists to close. (3) A scan of the SQL in migrations
+and `src` found two statements filtering `event` on an organizer and a status: `team.ts` uses `status <> 'draft'`, which the index
+never narrowed, and `mark_ranking_on_member` runs only when a team member is added or removed.
+**Trade-offs:** (1) An alert in a storm says less than one per flag, and two can arrive when a storm crosses a window's edge; the
+email still reads "a new flag". (2) Questify's own staff cannot work the demo event as operators. (3) On a temporary table of 30,000
+events, one organizer holding 10,000, that trigger's read went from about 0.2 ms to about 16 ms (a sequential scan). A status change
+writes one index less.

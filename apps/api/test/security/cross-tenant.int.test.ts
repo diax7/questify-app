@@ -2640,11 +2640,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     });
 
     it("lets A change none of B's rows it can see, through any column it may update", async () => {
+      // A sample value, not the column itself: the API role may write a column it cannot read (`set_by`, 0167).
       for (const column of await updatableColumns(db, table)) {
         const result = await asA(
           spec.seat,
-          `UPDATE ${table} SET "${column}" = "${column}" WHERE ${spec.column} = $1`,
-          [theirs()],
+          `UPDATE ${table} SET "${column}" = $2 WHERE ${spec.column} = $1`,
+          [theirs(), await sampleValue(db, table, column)],
         );
         expect(result.rowCount, `${table}.${column}`).toBe(0);
       }

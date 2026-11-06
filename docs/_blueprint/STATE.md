@@ -13,6 +13,14 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## FOLLOWUPS batch 8 — 2026-11-06
+
+- **FOLLOWUPS batch 8 (ADR-355; tier B; migration 0167, new and undeployed; ADR-811 Proposed, Q-742).** Feature usage's last page ends
+  with no cursor; `set_by` is closed to the API role's reads; a key replayed after its offer ran out answers `expired`; flag alerts
+  are one per event per 15-minute window, newest first; held prizes are read by `my_held_prizes`, so an old one is never missed; My
+  QR's sale card uses the event's currency word; `event_organizer_idx` is dropped. T-710's staff refusal is confirmed, no code. Left in
+  FOLLOWUPS: the organizers page's loading state, and `start_player_challenge`'s window read (sign-in, tier A). CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 7 — 2026-11-06
 
 - **FOLLOWUPS batch 7 (ADR-355; tier B, SQL and locking; migration 0166, new and undeployed; ADR-800 to ADR-802, Q-740, Q-741).**

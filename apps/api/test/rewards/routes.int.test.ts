@@ -865,6 +865,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
       expect(others.prizes.map((prize) => prize.id)).toEqual([other]);
     });
 
+    it("finds an old held prize behind more than 100 newer redemptions", async () => {
+      const reward = await newReward({ price: 5, stock: 10 });
+      const token = await newPlayer(100);
+      const old = await reserve(token, reward.id);
+      await owner(
+        `INSERT INTO redemption (organizer_id, event_id, enrollment_id, reward_id, price, status, idempotency_key,
+                                 reserved_until, ended_at, ended_by, created_at)
+         SELECT d.organizer_id, d.event_id, d.enrollment_id, d.reward_id, d.price, 'cancelled', 'older-' || g,
+                d.reserved_until, now(), 'player', now() + g * interval '1 second'
+         FROM redemption d CROSS JOIN generate_series(1, 120) g WHERE d.id = $1`,
+        [old],
+      );
+      const body = (await heldOf(token)).json<{ prizes: Held[] }>();
+      expect(body.prizes.map((prize) => prize.id)).toEqual([old]);
+    });
+
     it("stops listing a prize once its time ran out", async () => {
       const reward = await newReward({ price: 5, stock: 10 });
       const token = await newPlayer(100);

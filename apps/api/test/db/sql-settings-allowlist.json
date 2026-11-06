@@ -212,6 +212,7 @@
   "my_desk_items()",
   "my_desk_sales()",
   "my_desk_watch()",
+  "my_held_prizes(target uuid)",
   "my_invitations()",
   "my_qr_version()",
   "my_redemptions(target uuid)",

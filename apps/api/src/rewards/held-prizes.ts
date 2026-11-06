@@ -33,15 +33,12 @@ const textOf = (ar: unknown, en: unknown): Bilingual => ({
   en: typeof en === "string" ? en : null,
 });
 
-/** The deadline as a number to sort by; a prize with none (the table does not allow it while reserved) goes last. */
-const deadlineOf = (prize: HeldPrize): number =>
-  prize.reservedUntil === null ? Number.MAX_SAFE_INTEGER : Date.parse(prize.reservedUntil);
-
 /**
- * The prizes a member holds in an event, soonest deadline first, and the desk to collect them from (T-602d). It reads
- * what the shop reads (`event_shop`, `my_redemptions`) and keeps only the reserved ones, so it names the bearer's own
- * holdings and nothing else. It is not behind the shop switch: a prize reserved before the shop went off stays
- * collectable. Undefined for anyone who is not an active member (not found, never "forbidden").
+ * The prizes a member holds in an event, soonest deadline first, and the desk to collect them from (T-602d). `event_shop`
+ * says who is a member and `my_held_prizes` (0167) answers the reserved ones in SQL, so an old held prize never falls off a
+ * list of newer redemptions, and it names the bearer's own holdings and nothing else. It is not behind the shop switch: a
+ * prize reserved before the shop went off stays collectable. Undefined for anyone who is not an active member (not found,
+ * never "forbidden").
  */
 export function readHeldPrizes(
   deps: HeldPrizeDeps,
@@ -54,21 +51,18 @@ export function readHeldPrizes(
       if (shop === undefined) {
         return undefined;
       }
-      const { rows: mine } = await client.query("SELECT * FROM my_redemptions($1)", [
+      const { rows: mine } = await client.query("SELECT * FROM my_held_prizes($1)", [
         request.eventId,
       ]);
-      const prizes = mine
-        .filter((row) => row["status"] === "reserved")
-        .map((row): HeldPrize => ({
-          id: String(row["id"]),
-          kind: String(row["kind"]),
-          name: textOf(row["name_ar"], row["name_en"]),
-          reservedUntil: iso(row["reserved_until"]),
-          collectUntil: iso(row["collect_until"]),
-          rank: typeof row["rank"] === "number" ? row["rank"] : null,
-          source: sourceOf(row["source"]),
-        }))
-        .toSorted((a, b) => deadlineOf(a) - deadlineOf(b));
+      const prizes = mine.map((row): HeldPrize => ({
+        id: String(row["id"]),
+        kind: String(row["kind"]),
+        name: textOf(row["name_ar"], row["name_en"]),
+        reservedUntil: iso(row["reserved_until"]),
+        collectUntil: iso(row["collect_until"]),
+        rank: typeof row["rank"] === "number" ? row["rank"] : null,
+        source: sourceOf(row["source"]),
+      }));
       return { desk: deskViewOf(shop), prizes };
     }),
   );

@@ -39,7 +39,7 @@ const QUEST_BODY = `INSERT INTO quest (organizer_id, event_id, category_id, type
 /**
  * The console's feature usage door (T-714, FR-1839, migration 0140): for a page of organizers, what their events switch on
  * and which of them have content in the feature. Counts only; for an active platform admin alone (QE403 to every other
- * seat); bounded to an organizer's 200 latest events and a page of 50.
+ * seat); bounded to an organizer's 200 latest events and a page of 51 (the route shows 50, the 51st says there is more).
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("feature usage door (database)", () => {
   let f: QuestifyFixture;
@@ -418,7 +418,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("feature usage door (database)"
       expect(await door("%")).toEqual([]);
     });
 
-    it("pages by name and id without repeating or skipping an organizer, and holds the size to 1..50", async () => {
+    it("pages by name and id without repeating or skipping an organizer, and holds the size to 1..51", async () => {
       for (const name of ["Pg Alpha", "Pg Beta", "Pg Gamma", "Pg Delta", "Pg Epsilon"]) {
         await newOrganizer(name);
       }
@@ -439,7 +439,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("feature usage door (database)"
       expect(await door("Pg ", null, 0)).toHaveLength(1);
       expect(await door("Pg ", null, -4)).toHaveLength(1);
       expect(await door(null, null, 1000)).not.toHaveLength(0);
-      expect((await door(null, null, 1000)).length).toBeLessThanOrEqual(50);
+      await f.owner(
+        "INSERT INTO organizer (name, slug) SELECT 'Fill ' || g, 'fill-' || g FROM generate_series(1, 52) g",
+      );
+      expect(await door(null, null, 1000)).toHaveLength(51);
       expect(await door("Pg ", null, null)).toHaveLength(5);
     });
 
