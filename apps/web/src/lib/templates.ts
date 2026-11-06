@@ -1,6 +1,5 @@
 import type { MessageKey } from "@questify/shared";
-import { FEATURES } from "#src/components/EventFeatureSwitch.tsx";
-import { SWITCHES } from "#src/components/RankingSwitch.tsx";
+import { FEATURES, SWITCHES } from "#src/lib/event-switches.ts";
 
 /** The title of each event switch a template may set: the same words the event page's switches carry, read from them. */
 const SWITCH_TITLES: Readonly<Record<string, MessageKey>> = Object.fromEntries(

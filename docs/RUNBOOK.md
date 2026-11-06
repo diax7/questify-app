@@ -1133,6 +1133,8 @@ on; drivers spread over them), `--pool-size` (10), `--rush` (steps `rate:seconds
 below the 5,000 SMS an hour budget), `--rush-per-address` (50 codes from each client address, `X-Forwarded-For`
 10.x.y.z), `--rush-first` (the first phone, +96659 and 7 digits), `--admin-url`, `--redis-url`, `--pg-container`
 (for the CPU samples, `questifyapp-postgres-1`).
+A local run (and `profile.mjs`) refuses an `--admin-url` or `--redis-url` that is not on this PC (127.0.0.1, localhost or [::1]), since it creates and drops data there;
+its idle wait and lock samples look only at its own database.
 
 **Sign-in rush options** (T-804b): the rush is spread over every API instance. `--sms-cap` and `--email-cap` set the
 run's `platform_send_budget` (default 1,000,000 each, so a throughput run is never stopped by it); `--rush-channel email`

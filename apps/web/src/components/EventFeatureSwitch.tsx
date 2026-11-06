@@ -1,9 +1,10 @@
 "use client";
 
-import type { Language, MessageKey } from "@questify/shared";
+import type { Language } from "@questify/shared";
 import { useState } from "react";
 import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
+import { FEATURES } from "#src/lib/event-switches.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
@@ -44,78 +45,6 @@ function HeldNotice({
     </Notice>
   );
 }
-
-/** An event switch a player feature has (FR-219, FR-1009): its route and its words. The template preview reads its titles. */
-export const FEATURES = {
-  shareQuests: {
-    path: "share-quests",
-    title: "events.shareQuests.title",
-    label: "events.shareQuests.label",
-  },
-  meetSomeone: {
-    path: "meet-someone",
-    title: "events.meetSomeone.title",
-    label: "events.meetSomeone.label",
-  },
-  miniGames: {
-    path: "mini-games",
-    title: "events.miniGames.title",
-    label: "events.miniGames.label",
-  },
-  community: {
-    path: "community",
-    title: "events.community.title",
-    label: "events.community.label",
-  },
-  flashQuests: {
-    path: "flash-quests",
-    title: "events.flashQuests.title",
-    label: "events.flashQuests.label",
-  },
-  boosts: {
-    path: "double-points",
-    title: "events.boosts.title",
-    label: "events.boosts.label",
-  },
-  helpDesk: {
-    path: "help-desk",
-    title: "events.helpDesk.title",
-    label: "events.helpDesk.label",
-  },
-  questRatings: {
-    path: "quest-ratings",
-    title: "events.questRatings.title",
-    label: "events.questRatings.label",
-  },
-  cheers: {
-    path: "cheers",
-    title: "events.cheers.title",
-    label: "events.cheers.label",
-  },
-  shop: {
-    path: "features/shop",
-    title: "events.shop.title",
-    label: "events.shop.label",
-  },
-  polls: {
-    path: "features/polls",
-    title: "events.polls.title",
-    label: "events.polls.label",
-  },
-  maps: {
-    path: "features/maps",
-    title: "events.maps.title",
-    label: "events.maps.label",
-  },
-  agenda: {
-    path: "features/agenda",
-    title: "events.agenda.title",
-    label: "events.agenda.label",
-  },
-} as const satisfies Record<
-  string,
-  Readonly<{ path: string; title: MessageKey; label: MessageKey }>
->;
 
 type Props = Readonly<{
   language: Language;
