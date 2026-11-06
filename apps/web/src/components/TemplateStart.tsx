@@ -109,15 +109,14 @@ function TemplateConfirm({
 /**
  * "Start from" inside the guided setup's first step (FR-1015, FR-1752): while the draft has no quest, the same picker as the
  * new-event page, then a confirmation that names what is added. Skipping it leaves the event as it is, so the step keeps its
- * "empty" default. The picker shows only for a draft (a scheduled or live event would get `event_not_empty`); the API
- * refuses anything but an empty draft, so a template never replaces an organizer's work.
+ * "empty" default. The setup step renders this only for a draft (a scheduled or live event would get `event_not_empty`); the
+ * API refuses anything but an empty draft, so a template never replaces an organizer's work.
  */
 export function TemplateStart({
   language,
   organizerId,
   eventId,
-  draft,
-}: Readonly<{ language: Language; organizerId: string; eventId: string; draft: boolean }>) {
+}: Readonly<{ language: Language; organizerId: string; eventId: string }>) {
   const t = useTranslator(language);
   const empty = useHasNoQuests(`/v1/organizers/${organizerId}/events/${eventId}`);
   const applying = useApplyTemplate(language, `/v1/organizers/${organizerId}/events/${eventId}`, t);
@@ -131,7 +130,7 @@ export function TemplateStart({
       </Notice>
     );
   }
-  if (!empty || !draft) {
+  if (!empty) {
     return null;
   }
   const stopAsking = () => {

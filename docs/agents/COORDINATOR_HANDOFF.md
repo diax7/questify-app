@@ -109,7 +109,7 @@ He wants speed, and he pays for every token and every wasted hour.
 
 ## Pushing and deploying staging
 
-Before every push, with nothing skipped: `pnpm -s format:check`, `pnpm -s lint`, `pnpm -s typecheck`; gitleaks over
+Before every push, with nothing skipped: `pnpm -s format:check`, `pnpm -s lint`, `pnpm -s lint:limits`, `pnpm -s typecheck`; gitleaks over
 `origin/main..HEAD` (`zricethezav/gitleaks:v8.30.1`); and no CI run in progress on `main`. CI must pass before a deploy. CI scans
 the whole history, and any line like `API = "<id>"` or a quoted key label trips it: a false alarm goes in `.gitleaksignore` by
 fingerprint with a comment. A failed secret scan stops the `checks` job before its tests, so read which step failed before

@@ -59,6 +59,28 @@ function OrganizerLine({ language, row }: Readonly<{ language: Language; row: Or
   );
 }
 
+/** The list under the search: nothing after a failed first read, else Loading, the empty line or the rows. */
+function OrganizerResults({
+  language,
+  rows,
+  failed,
+}: Readonly<{ language: Language; rows: OrganizerList["rows"]; failed: boolean }>) {
+  const t = translatorFor(language);
+  if (rows === null) {
+    return failed ? null : <Muted>{t("common.loading")}</Muted>;
+  }
+  if (rows.length === 0) {
+    return <Muted>{t("console.organizers.none")}</Muted>;
+  }
+  return (
+    <Rows>
+      {rows.map((row) => (
+        <OrganizerLine key={row.id} language={language} row={row} />
+      ))}
+    </Rows>
+  );
+}
+
 /**
  * The console's organizers (T-701, wireframe 4.2): search by name, slug or the owner's full email, filter by status,
  * and open one. Every read is audited by the API with the organizer ids shown.
@@ -135,19 +157,7 @@ export function ConsoleOrganizers({ language }: Readonly<{ language: Language }>
           {problem}
         </Notice>
       )}
-      {rows === null ? (
-        problem === null ? (
-          <Muted>{t("common.loading")}</Muted>
-        ) : null
-      ) : rows.length === 0 ? (
-        <Muted>{t("console.organizers.none")}</Muted>
-      ) : (
-        <Rows>
-          {rows.map((row) => (
-            <OrganizerLine key={row.id} language={language} row={row} />
-          ))}
-        </Rows>
-      )}
+      <OrganizerResults language={language} rows={rows} failed={problem !== null} />
       {rows !== null && loading ? <Muted role="status">{t("common.loading")}</Muted> : null}
       {next === null || loading ? null : (
         <Button variant="quiet" onClick={() => void load(next)}>
