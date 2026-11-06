@@ -19,11 +19,11 @@
     "sbom:generate": "pnpm sbom --sbom-format cyclonedx --prod --lockfile-only > sbom.cdx.json"
   },
   "devDependencies": {
-    "@stryker-mutator/core": "10.0.0",
-    "@stryker-mutator/vitest-runner": "10.0.0",
-    "@types/node": "26.6.5",
-    "oxfmt": "0.73.0",
-    "oxlint": "1.88.0",
+    "@stryker-mutator/core": "10.1.1",
+    "@stryker-mutator/vitest-runner": "10.1.1",
+    "@types/node": "26.6.6",
+    "oxfmt": "0.75.0",
+    "oxlint": "1.90.0",
     "typescript": "7.0.2",
     "vitest": "4.1.12"
   },

@@ -3,7 +3,7 @@ import type { PostResult } from "#src/lib/post-json.ts";
 import { errorCodeOf } from "#src/lib/sign-in-errors.ts";
 
 /** The decoder's wasm, self-hosted with its version in the name so a long cache never serves a stale one (ADR-245). */
-export const ZXING_WASM_PATH = "/zxing/zxing_reader-3.1.5.wasm";
+export const ZXING_WASM_PATH = "/zxing/zxing_reader-3.1.6.wasm";
 /** How long a result card stays up. */
 export const KIOSK_CARD_MS = 4000;
 /** A code just sent is not sent again for this long: one held-up phone is one scan. */
