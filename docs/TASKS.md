@@ -1692,3 +1692,7 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
 - [ ] **T-812** Device-integrity flag: Apple App Attest and Google Play Integrity as one more flag kind, never blocking — delivers FR 334; depends on: T-209, T-806
   - Done when: A phone that fails the check raises a flag on the Flags page and its player can still play and redeem.
   - Note 2026-10-23 (T-209, ADR-153): moved here from T-209; needs Dhia's Apple developer and Google Cloud/Play Console setup and a native module. Add the kind to `flag` and the trigger (migration 0031).
+- [ ] **T-813** Performance audit of the player app, the dashboard and the console, by `docs/PERFORMANCE_AUDIT.md` (Dhia,
+  2026-11-06); run when the features stop changing, before launch
+  - Done when: each of the twelve items is applied or has a stated reason to skip, and the before-and-after numbers are
+    written down with their conditions.
