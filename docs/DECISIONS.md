@@ -8314,7 +8314,7 @@ hours ago and the console shows the stock.
 
 ## ADR-742 - Three switches ask before a live event loses them; a revert asks without naming amounts
 
-**Status:** Proposed (developer, FOLLOWUPS batch 5, 2026-11-06).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 3 code review 90).
 **Decision:** the Cheers switch (Big screen page), the ranking switches and the day streak ask first in a live event, with the
 text of the event page's twelve switches ("Turn off X?", "Players lose this feature now"). The ranking switches name
 themselves by their label. The streak is saved as a whole form, so it asks at Save, when the stored streak is on, the
@@ -8327,7 +8327,7 @@ built for a revert without an API change. The words say what is at stake; naming
 
 ## ADR-743 - The feature-usage page leaves out the review demo's organizer in the API, not in SQL
 
-**Status:** Proposed (developer, FOLLOWUPS batch 5, 2026-11-06).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 3 code review 90).
 **Decision:** `readFeatureUsage` reads `console_review_demo()` in the same seat and drops that organizer from the page; the
 cursor still ends on the last organizer the database sent, so paging goes on past it (a page can be one short).
 **Why:** the follow-up asked for no migration; `console_feature_usage` (0140) is paged in SQL, and restating it for one
@@ -8336,7 +8336,7 @@ filter is not worth a migration. A later restatement can move the filter into th
 
 ## ADR-744 - Questify home text refuses zero-width marks and stores whitespace as empty (migration 0161)
 
-**Status:** Proposed (developer, FOLLOWUPS batch 5, 2026-11-06).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 3 code review 90).
 **Decision:** `home_text_checked` also refuses U+200B to U+200F, U+061C and U+FEFF; a text of whitespace alone (spaces,
 no-break and ideographic spaces) is stored as empty, so a required banner title of whitespace is refused like an empty one.
 **Why:** the dashboard strips these before it sends; the database check is the backstop for a direct caller.

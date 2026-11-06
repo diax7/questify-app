@@ -2839,7 +2839,7 @@ change are the 3 days of cheers and the 6-hour stock cooldown.
 
 ## Q-703 - FOLLOWUPS batch 5 (2026-11-06): three design choices to confirm (ADR-742 to ADR-744)
 
-**Status:** Open (proposed by the developer, to be decided after the batch's review).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the code review 90): accepted as built.
 The batch took the recommended option where the follow-ups left a choice: the Amounts revert asks without naming the amounts
 it restores (ADR-742); the feature-usage page drops the review demo's organizer in the API (ADR-743); Questify home text
 refuses zero-width marks and stores whitespace-only text as empty (ADR-744, migration 0161).
