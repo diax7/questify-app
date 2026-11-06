@@ -573,6 +573,15 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     unlocked or still to unlock.
   - Done when: no gem appears anywhere in the app, console or API; Questify quests and achievements pay XP; the docs
     (FEATURES, SRS, DATA_MODEL, API, ADR-046 superseded) say the same.
+  - Plan 2026-11-06 (awaiting the tier A plan review): `docs/plans/2026-11-06-t-404c-levels-only.md`; ADR-760 Accepted
+    (Dhia), ADR-761 to ADR-768 and Q-720 to Q-725 Proposed. Split (ADR-761): T-404c is the removal everywhere plus the
+    server rewards (migrations 0162 and 0163: achievement tier XP, achievement items, `level` on event ranking rows,
+    `GET /v1/me/rewards`, the console Amounts shape); the screens are T-404d below.
+- [ ] **T-404d** The Levels tab and screen, the level badge on event rankings and profiles, the console achievement
+  "Unlocks" field (tier B; plan `docs/plans/2026-11-06-t-404c-levels-only.md` sections 7 and 9) — delivers FR 744 and
+  the screen half of FR 742, 743 (F-171, F-349, F-350); depends on: T-404c
+  - Done when: the bar shows Home, Explore, scan, Levels, Profile; the Levels screen shows the level, the next level's
+    item and every level and achievement item unlocked or locked, in both languages and right to left, with no price.
 - [x] **T-405** Streaks: event day streak (with or without bonus), Questify daily streak, switch off platform-wide — delivers FR 417, 418, 419, 420, 421, 1615; depends on: T-401
   - Note 2026-10-27 (T-404): the daily streak never writes gems (FR-421); `gem_entry` has no streak source and adding
     one needs a migration a review sees.

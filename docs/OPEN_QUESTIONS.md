@@ -2845,3 +2845,43 @@ it restores (ADR-742); the feature-usage page drops the review demo's organizer 
 refuses zero-width marks and stores whitespace-only text as empty (ADR-744, migration 0161).
 **Recommended (developer):** accept them as built. If an admin should see the old to new lines on an Amounts revert, add the
 audit entry's `before` to the amounts list answer.
+
+## Q-720 - T-404c: the split and the two migrations (ADR-761, ADR-762)
+
+**Status:** Open (T-404c plan, 2026-11-06). For the plan review and the developer.
+T-404c (tier A) removes gems everywhere and adds the server rewards; T-404d (tier B) adds the Levels screen and badges.
+Between them the bar has four tabs on `main`. Migration 0162 touches only `platform_setting`; 0163 does the rest.
+**Recommended (developer):** as planned. Alternative: one part, which puts the screens under the tier A review.
+
+## Q-721 - Achievement tier XP amounts and no back pay (ADR-764)
+
+**Status:** Open (T-404c plan, 2026-11-06).
+Tiers pay 50, 150 and 300 XP (editable, 0 to 1000) when earned; tiers earned before the change pay nothing.
+**Recommended (developer):** as planned. Alternative: pay earned tiers at the next sync, which lifts this month's
+Questify ranking for everyone with tiers at once.
+
+## Q-722 - Gem balances vanish; bought items show as "A Questify reward" (ADR-763)
+
+**Status:** Open (T-404c plan, 2026-11-06).
+**Recommended (developer):** drop balances with no conversion; keep bought items with the `questify` source.
+Alternative: give each player XP for unspent gems (it invents an exchange rate).
+
+## Q-723 - Achievement items: one per achievement; gold tiers seeded with the former shop frames (ADR-765)
+
+**Status:** Open (T-404c plan, 2026-11-06).
+**Recommended (developer):** one item per achievement at a tier the admin picks; seed the five gold tiers. Alternatives:
+an item per tier (three per achievement), or silver instead of gold for the seeds so more players reach them.
+
+## Q-724 - The level on event rankings and the "Levels" tab name (ADR-766, ADR-767)
+
+**Status:** Open (T-404c plan, 2026-11-06).
+The level shows beside names on the app's event ranking and podium, not on the big screen; the tab is called Levels.
+**Recommended (developer):** as planned. Product choices Dhia may want to change: the level on the big screen too, and
+the tab name ("Levels" vs "Rewards").
+
+## Q-725 - The event currency icon "gem" and the terms of use (ADR-768)
+
+**Status:** Open (T-404c plan, 2026-11-06).
+Organizers can still pick a gem icon for their event's points. The terms of use lose Questify gems; whether that needs
+a new terms version that players accept again is a legal call.
+**Recommended (developer):** keep the icon; edit the terms text at build and leave the version bump to the legal pass.

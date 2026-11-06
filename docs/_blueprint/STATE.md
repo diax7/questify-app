@@ -6,6 +6,14 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-404c plan — 2026-11-06
+
+- **T-404c planned (tier A; no code yet; awaiting the plan review).** `docs/plans/2026-11-06-t-404c-levels-only.md`:
+  gems and the gem shop removed everywhere (migrations 0162 `platform_setting` only, 0163 the rest), achievement tiers pay
+  XP, achievement items, the level on event ranking rows, `GET /v1/me/rewards`; the screens split out as T-404d (tier B).
+  ADR-760 Accepted (Dhia); ADR-761 to ADR-768 and Q-720 to Q-725 Proposed. CI minutes: 0.
+  **Next:** the tier A plan review of T-404c.
+
 ## FOLLOWUPS batch 5 — 2026-11-06
 
 - **FOLLOWUPS batch 5 (tier B; migration 0161; 0156 stays reserved; ADR-742 to ADR-744 and Q-703 Proposed).** Cleared:
