@@ -29,7 +29,8 @@
 
 ## FOLLOWUPS batch 8 — 2026-11-06
 
-- **FOLLOWUPS batch 8 (tier B; web, console, ops script; no migration, no package change).** The console organizers list empties and
+- **FOLLOWUPS batch 9 (tier B; web, console, ops script; no migration, no package change).** The console organizers list empties and
+- **Dependency batch (tier B).** The packages of closed PR #9 are in: `next` 16.4.3, `oxfmt` 0.75, `oxlint` 1.90, `redis` 6.3.1, `zxing-wasm` 3.1.6 (the kiosk's wasm moved with it), `@types/node` 26.6.6, Stryker 10.1.1. Format, lint, types and the web build pass; CI is the gate for the suite and the browser tests.
   says Loading on a new search (stale replies ignored); the template preview reads its switch titles from the event page's switch
   maps (cheers and ranking now show) and the wizard's template step shows only for a draft; the template confirmation no longer
   says it replaces features (Arabic and English); `DELETE /v1/admin/switches/{features,tuning}/{key}` answers 422
