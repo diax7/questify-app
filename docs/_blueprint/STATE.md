@@ -6,6 +6,29 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-404d built — 2026-11-06
+
+- **T-404d built (tier B; no migration, no server change, no new ADR; the tier B code review with the Arabic pass is owed,
+  and a phone check: RTL, Reduce Motion, VoiceOver and TalkBack on the trail).** The Questify bar has five tabs again: Home,
+  Explore, scan, Journey («رحلتي»), Profile (`QUESTIFY_TABS`, ribbon icon until the 3D set). `JourneyScreen`: wooden plaque with
+  the level medallion, title and XP bar ("1,400 of 2,000 XP"); the next level's item as a locked preview; the level trail
+  (reached levels with a gold check, the player's own glowing and still under Reduce Motion, later ones faded with a padlock;
+  it opens at the player's stone when that is below the first screen); the achievement items with tier medal, state icon and
+  "Reach gold in Wanderer"; skeleton, retry on a failed read, a sign-in button signed out. A tap on an owned item opens the
+  locker on its tab. `LevelBadge` (a wooden shield with the number, decorative to a screen reader) beside the name on event
+  ranking rows, the podium and both profile headers, a blocked row included; the spoken row ends with "Level n"; an answer
+  without a valid `level` draws no badge. The podium's name line grew from 18 to 22 points for the badge, so `PODIUM_MIN` is
+  100 (was 96). Sync toasts: an achievement toast carries the XP its tiers paid, and one toast for each item given. Console:
+  the achievement editor's "Unlocks" item and tier fields and a card line; `item` is sent only when changed. Two leftovers of
+  T-404c in `console-catalog.spec.ts` fixed (the amounts revert read the removed "Level up" field; the item source check read
+  the wrong element). No gem or price word on any new string (`no-gems.test`, `journey.test`).
+  Tests: touched suites 234 files, 2,645 passed (apps/app, i18n, apps/web/src/lib); browser `console-catalog.spec.ts` 14
+  passed and 2 skipped on desktop and phone, `layout.spec.ts` passed on both (one earlier run; the rerun after its race fix was
+  `console-catalog` only); `npx expo export` (Android) bundles; oxlint, oxfmt, `lint:limits` and types clean; the full suite
+  was not run on this shared PC (CI runs it). `readRanking` complexity 13 to 12 in the limits baseline. CI minutes: 0 (not
+  pushed); agent tokens roughly 700k (estimate). Mutation: none (tier B).
+  **Next:** the tier B code review of T-404d, the tier A code review of T-404c, then the next unchecked task in `docs/TASKS.md`.
+
 ## T-404c built — 2026-11-06
 
 - **T-404c built (tier A; migrations 0163 and 0164; tier A code review and mutation owed).** Gems and the Questify gem shop
