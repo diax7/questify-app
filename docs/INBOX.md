@@ -840,3 +840,15 @@ Q-662, Q-663 and tasks T-810c, T-810d and T-810e.
 Dhia (AskUserQuestion, T-810c plan, Q-680): "Yes, ask a code (Recommended)". Players type a fresh code before ending
 their other devices; the code is skipped within 10 minutes of a sign-in or a contact change. Processed into Q-680
 (answered), ADR-711 and the ASVS rows V7.5.2 and gap row 10.
+
+## 2026-11-06 - No Questify store; levels are the reward across Questify -> processed
+
+Dhia: "Changing the Questify itself we will not have our own store. Like reward store, because we don't want people to
+get confused between our store and the event store. So what we can do is just by levels. If you reach level you will get
+the most benefits, or those items or whatever. So we didn't confuse people. There are level and the level are across all
+Questify, and there are your points and your rewards. Inside each event."
+Then (AskUserQuestion): "Yes, remove gems and shop (Recommended)"; level rewards: "Items per level (Recommended),
+Achievement items, Level badge on rankings"; the Shop tab becomes "Rewards / Levels screen (Recommended)".
+The developer's caution, agreed in the options: level perks stay cosmetic or Questify-wide, never extra points or odds
+inside an event. Processed into task T-404c (an ADR superseding ADR-046's gems and shop is written with its plan).
+

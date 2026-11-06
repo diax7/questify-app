@@ -560,6 +560,19 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     quest can pay) and the gems in the list row; every string in both languages. Proposed ADR-292, ADR-293 / Q-257, Q-258.
     Phone check owed (RTL, Reduce Motion, the sheet, VoiceOver/TalkBack labels, the six rings). Progress 81/157 (51.59%).
   - Done when: No purchase or gift option exists on any screen; a player with too few gems is told how gems are earned.
+- [ ] **T-404c** Remove gems and the Questify gem shop; the lifetime level is the only reward across Questify (Dhia,
+  2026-11-06, INBOX) — removes FR 724, 725, 726 (F-135, F-136); depends on: T-404, T-404b
+  - Tier A (it rewrites the XP and level payouts and drops a ledger): plan, plan review, build, code review, mutation.
+  - Remove entirely (no shim): `gem_entry`, `player_xp.gems`, `gem_shop_item`, `gem_purchase`, `gem_amounts`, the gem
+    columns of quests, achievements and the XP table, `gem_shop`/`gem_buy`/`own_gems`, `/v1/me/gem-shop*`, `gems` on
+    `/v1/me` and the sync answer, the app's gem shop screens and toasts, the console's gem shop and gem amount fields,
+    the shared `questify/gems.ts`. Items already bought in the shop stay in players' lockers.
+  - Level rewards: every level unlocks an item (F-131, kept); some achievements unlock their own item; the player's
+    level shows beside their name on event rankings and the profile. Never extra points or better odds inside an event.
+  - The Questify bar's Shop tab becomes a Rewards / Levels screen: your level, the next level's reward, every item
+    unlocked or still to unlock.
+  - Done when: no gem appears anywhere in the app, console or API; Questify quests and achievements pay XP; the docs
+    (FEATURES, SRS, DATA_MODEL, API, ADR-046 superseded) say the same.
 - [x] **T-405** Streaks: event day streak (with or without bonus), Questify daily streak, switch off platform-wide — delivers FR 417, 418, 419, 420, 421, 1615; depends on: T-401
   - Note 2026-10-27 (T-404): the daily streak never writes gems (FR-421); `gem_entry` has no streak source and adding
     one needs a migration a review sees.
