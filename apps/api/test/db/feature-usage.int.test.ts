@@ -505,5 +505,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("feature usage door (database)"
         expect(await planOf(sql, [event]), sql).toMatch(index);
       }
     });
+
+    it(
+      "reads a busy organizer's latest events in index order, without sorting all of them",
+      { timeout: 120_000 },
+      async () => {
+        const organizer = await newOrganizer("Thousands Co");
+        await manyEvents(organizer, 3000, "THSD");
+        await f.owner("ANALYZE event");
+        const plan = await planOf(
+          `SELECT x.id FROM event x WHERE x.organizer_id = $1
+           ORDER BY x.created_at DESC, x.id LIMIT ${USAGE_EVENTS_CAP + 1}`,
+          [organizer],
+        );
+        expect(plan).toMatch(/event_organizer_created_idx/);
+        expect(plan).not.toMatch(/Sort/);
+      },
+    );
   });
 });

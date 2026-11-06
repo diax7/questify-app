@@ -4,10 +4,10 @@ import {
   featureUsageOrganizer,
   featureUsageRawSchema,
   readPlatformSettings,
-  reviewDemoRawSchema,
   type FeatureUsagePage,
 } from "@questify/shared";
 import type { Pool, PoolClient } from "pg";
+import { z } from "zod";
 import { door, type Admin } from "#src/console/doors";
 import { answerOf } from "#src/console/platform";
 import { readStoredPlatform } from "#src/settings/store";
@@ -20,12 +20,21 @@ export type FeatureUsageQuery = Readonly<{
   limit: number;
 }>;
 
+/** The two fields of `console_review_demo()` this page needs; the rest of its answer (the readiness) is not read. */
+const demoOrganizerSchema = z.looseObject({
+  exists: z.boolean(),
+  organizerId: z.uuid().optional(),
+});
+
+/** The demo's organizer id in a `console_review_demo()` answer, or null when there is no demo. */
+export function demoOrganizerIn(answer: unknown): string | null {
+  const demo = demoOrganizerSchema.parse(answer);
+  return demo.exists ? (demo.organizerId ?? null) : null;
+}
+
 /** The organizer the App Review demo runs under, or null when there is no demo (T-710): Questify's own, not a customer's. */
 async function demoOrganizerOf(client: PoolClient): Promise<string | null> {
-  const demo = reviewDemoRawSchema.parse(
-    await answerOf(client, "SELECT console_review_demo() AS r"),
-  );
-  return demo.exists ? demo.organizerId : null;
+  return demoOrganizerIn(await answerOf(client, "SELECT console_review_demo() AS r"));
 }
 
 /**

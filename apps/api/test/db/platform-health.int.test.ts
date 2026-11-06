@@ -307,6 +307,58 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         await f.owner("DELETE FROM organizer_alert WHERE dedupe LIKE 'cap-%'");
       });
 
+      it("finds the oldest waiting push and notice past 10,001 rows, where a capped sample would miss it", async () => {
+        const kind = await f.kind();
+        await f.owner("SET session_replication_role = replica");
+        try {
+          await f.owner(
+            `INSERT INTO push_send (notification_id, device_id, notice_id, target, priority, expires_at, created_at)
+             SELECT -g, gen_random_uuid(), 0, 'fcm', 0, now() + interval '1 day',
+                    CASE WHEN g = 10002 THEN now() - interval '1 day' ELSE now() - interval '1 minute' END
+             FROM generate_series(1, 10002) g`,
+          );
+        } finally {
+          await f.owner("SET session_replication_role = origin");
+        }
+        await f.owner(
+          `INSERT INTO notice (kind, audience, dedupe, expires_at, created_at)
+           SELECT $1, 'player', 'oldest-' || g, now() + interval '1 day',
+                  CASE WHEN g = 10002 THEN now() - interval '1 day' ELSE now() - interval '1 minute' END
+           FROM generate_series(1, 10002) g`,
+          [kind],
+        );
+        try {
+          const { push, fanOut } = await health();
+          expect(push.queued).toBe(10_001);
+          expect(push.oldestSeconds).toBeGreaterThanOrEqual(86_000);
+          expect(fanOut.waiting).toBe(10_001);
+          expect(fanOut.oldestSeconds).toBeGreaterThanOrEqual(86_000);
+        } finally {
+          await f.owner("DELETE FROM push_send WHERE notification_id < 0");
+          await f.owner("DELETE FROM notice WHERE dedupe LIKE 'oldest-%'");
+        }
+      });
+
+      it("reads the oldest waiting push and notice through an index, not a scan of the queue", async () => {
+        await f.owner("BEGIN");
+        try {
+          await f.owner("SET LOCAL enable_seqscan = off");
+          const plans: string[] = [];
+          for (const sql of [
+            "SELECT created_at FROM push_send WHERE state = 'queued' ORDER BY created_at LIMIT 1",
+            "SELECT created_at FROM notice WHERE fanned_at IS NULL AND fan_failures = 0 ORDER BY created_at LIMIT 1",
+          ]) {
+            const lines = await f.owner<Record<string, unknown>>(`EXPLAIN ${sql}`);
+            plans.push(lines.map((line) => String(line["QUERY PLAN"])).join(" "));
+          }
+          expect(plans[0]).toMatch(/push_send_queued_oldest/);
+          expect(plans[1]).toMatch(/notice_unfanned_oldest/);
+          expect(plans.join(" ")).not.toMatch(/Sort/);
+        } finally {
+          await f.owner("ROLLBACK");
+        }
+      });
+
       it("answers with ids, names and counts only: no contact, token or text", async () => {
         const text = JSON.stringify(await health());
         expect(text).not.toMatch(/@|token|password|phone/i);

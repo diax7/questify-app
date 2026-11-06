@@ -2541,6 +2541,13 @@ export const notUnpublished = make(
   "هذا المحتوى منشور.",
   "This is already published.",
 );
+/** Closing reports with an action (an unpublish, a suspension, a rename, a ban) that is not in place (T-705b, RP409). */
+export const outcomeNotTaken = make(
+  409,
+  "outcome_not_taken",
+  "لم يُنفَّذ هذا الإجراء بعد. نفّذه أولًا ثم أغلق البلاغات به.",
+  "That action hasn't been taken yet. Take it first, then close the reports with it.",
+);
 /** The database wall on a quest Questify unpublished: the team cannot show it again (T-705b, HD423). */
 export const contentHeld = make(
   423,

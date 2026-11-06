@@ -256,6 +256,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
           `CA400:${detail}`,
         );
       }
+      for (const mark of [0x200b, 0x200c, 0x200d, 0x200e, 0x200f, 0x061c, 0xfeff]) {
+        const en = "Na" + String.fromCharCode(mark) + "me";
+        expect(await refusal(save("corporate", named("اسم", en))), mark.toString(16)).toBe(
+          "CA400:name.en",
+        );
+      }
+      for (const blank of ["  ", "　", "   "]) {
+        expect(await refusal(save("corporate", named(blank, "Name"))), JSON.stringify(blank)).toBe(
+          "CA400:name.ar",
+        );
+      }
       expect(await checkViolation(save("corporate", { ...base, body: { config: {} } }))).toBe(true);
       const huge = { ...(base["body"] as Doc), padding: "x".repeat(70_000) };
       expect(await refusal(save("corporate", { ...base, body: huge }))).toBe("CA400:body");
