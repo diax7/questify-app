@@ -3,6 +3,7 @@ import {
   eventFeatureKeys,
   featureUsagePageSchema,
   REGISTRIES,
+  reviewDemoAnswerSchema,
   type FeatureUsageOrganizer,
   type FeatureUsagePage,
 } from "@questify/shared";
@@ -81,7 +82,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console feature usage over HTT
   };
   const feature = async (name: string, key: string) =>
     (await rowOf(name)).features.find((row) => row.key === key);
-  const admin = (method: "PUT" | "DELETE", url: string, payload?: object) =>
+  const admin = (method: "POST" | "PUT" | "DELETE", url: string, payload?: object) =>
     test.app.inject({
       method,
       url,
@@ -213,5 +214,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console feature usage over HTT
     expect((await db.owner.query("SELECT count(*)::int AS n FROM audit_log")).rows[0]).toEqual(
       before,
     );
+  });
+
+  it("leaves the App Review demo's organizer out of the page, and paging goes on past it (Q-525)", async () => {
+    const made = await admin("POST", "/v1/admin/review-demo", { phone: "0500000714" });
+    expect(made.statusCode, made.body).toBe(201);
+    const demo = reviewDemoAnswerSchema.parse(made.json()).demo;
+    if (!demo.exists) {
+      throw new Error("the demo was just created");
+    }
+    const stored = await db.owner.query("SELECT name FROM organizer WHERE id = $1", [
+      demo.organizerId,
+    ]);
+    expect(stored.rows).toEqual([{ name: "Questify Review Demo" }]);
+
+    expect((await page("?q=Questify")).organizers).toEqual([]);
+    const everyone = await page("?limit=50");
+    expect(everyone.organizers.map((row) => row.slug)).toEqual(["najd-usage", "tabuk-usage"]);
+    // The database's page of one after Najd is the demo organizer: nothing to show, and the cursor moves on to it.
+    const gap = await page(`?limit=1&cursor=${organizer}`);
+    expect(gap).toEqual({ organizers: [], nextCursor: demo.organizerId });
+    expect(
+      (await page(`?limit=1&cursor=${demo.organizerId}`)).organizers.map((row) => row.slug),
+    ).toEqual(["tabuk-usage"]);
   });
 });

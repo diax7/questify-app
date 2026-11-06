@@ -1,9 +1,17 @@
 "use client";
 
-import { termFor, type EventTerms, type Language, type StreakSettings } from "@questify/shared";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  termFor,
+  type EventTerms,
+  type Language,
+  type StreakSettings,
+  type StreakSettingsBody,
+} from "@questify/shared";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { NumberField } from "#src/components/NumberField.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
+import { useConfirmation } from "#src/components/useConfirmation.tsx";
+import type { Translate } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import {
@@ -35,6 +43,8 @@ type Props = Readonly<{
   eventId: string;
   myRole: "owner" | "editor";
   terms: EventTerms;
+  /** The event is live: saving with the streak turned off then asks first (FR-1031). */
+  live: boolean;
 }>;
 
 type Loaded = Readonly<{ settings: StreakSettings; draft: StreakDraft }>;
@@ -191,15 +201,44 @@ type Panel = Readonly<{
   problem: string | null;
   saved: boolean;
   invalidBonus: boolean;
+  /** The confirmation dialog, open while the owner is asked about turning the streak off in a live event. */
+  dialog: ReactNode;
   load: () => Promise<void>;
   edit: (draft: StreakDraft) => void;
   clearBonusProblem: () => void;
   save: (event: FormEvent) => Promise<void>;
 }>;
 
-/** Reads the settings once per event and saves the whole draft; the API's refusals become words. */
-function useStreakPanel(language: Language, organizerId: string, eventId: string): Panel {
+/** Sends a person whose session ended to sign in; true when the answer said so. */
+function endSession(language: Language, body: unknown): boolean {
+  const code = errorCodeOf(body);
+  if (code === undefined || !SESSION_LOST.has(code)) {
+    return false;
+  }
+  window.location.assign(`/${language}/sign-in?ended=1`);
+  return true;
+}
+
+/** The words for a refused save: the streak's own reasons first, then the general ones. */
+function refusalText(language: Language, t: Translate, body: unknown): string {
+  const refusal = refusalOf(body);
+  return refusal === undefined
+    ? describeProblem(body, language, t).text
+    : t(refusal.key, refusal.day === undefined ? {} : { day: isolatedDay(refusal.day) });
+}
+
+/**
+ * Reads the settings once per event and saves the whole draft; the API's refusals become words. In a live event,
+ * a save that turns the streak off asks first, like the event's other switches (FR-1031).
+ */
+function useStreakPanel(
+  language: Language,
+  organizerId: string,
+  eventId: string,
+  live: boolean,
+): Panel {
   const t = useTranslator(language);
+  const confirmation = useConfirmation(language);
   const [loaded, setLoaded] = useState<Loaded | "loading" | "failed">("loading");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -208,19 +247,10 @@ function useStreakPanel(language: Language, organizerId: string, eventId: string
   const keyFor = useIdempotencyKey();
   const path = `/v1/organizers/${organizerId}/events/${eventId}/streak`;
 
-  const lostSession = (body: unknown): boolean => {
-    const code = errorCodeOf(body);
-    if (code === undefined || !SESSION_LOST.has(code)) {
-      return false;
-    }
-    window.location.assign(`/${language}/sign-in?ended=1`);
-    return true;
-  };
-
   const load = async () => {
     setLoaded("loading");
     const result = await requestJson("GET", path);
-    if (!result.ok && lostSession(result.body)) {
+    if (!result.ok && endSession(language, result.body)) {
       return;
     }
     const settings = result.ok ? settingsOf(result.body) : undefined;
@@ -239,11 +269,22 @@ function useStreakPanel(language: Language, organizerId: string, eventId: string
     }
   };
 
-  const refusalText = (body: unknown): string => {
-    const refusal = refusalOf(body);
-    return refusal === undefined
-      ? describeProblem(body, language, t).text
-      : t(refusal.key, refusal.day === undefined ? {} : { day: isolatedDay(refusal.day) });
+  const persist = async (body: StreakSettingsBody) => {
+    setBusy(true);
+    setProblem(null);
+    setSaved(false);
+    const result = await requestJson("PUT", path, body, { "idempotency-key": keyFor(body) });
+    setBusy(false);
+    if (!result.ok && endSession(language, result.body)) {
+      return;
+    }
+    const settings = result.ok ? settingsOf(result.body) : undefined;
+    if (settings === undefined) {
+      setProblem(refusalText(language, t, result.body));
+      return;
+    }
+    setLoaded({ settings, draft: draftOf(settings) });
+    setSaved(true);
   };
 
   const save = async (event: FormEvent) => {
@@ -257,23 +298,16 @@ function useStreakPanel(language: Language, organizerId: string, eventId: string
       setProblem(t(`events.streak.invalid.${checked.field}`));
       return;
     }
-    setBusy(true);
-    setProblem(null);
-    setSaved(false);
-    const result = await requestJson("PUT", path, checked.body, {
-      "idempotency-key": keyFor(checked.body),
-    });
-    setBusy(false);
-    if (!result.ok && lostSession(result.body)) {
+    if (live && loaded.settings.enabled && !checked.body.enabled) {
+      confirmation.ask({
+        title: t("events.switchOff.title", { feature: t("events.streak.title") }),
+        body: t("events.switchOff.body"),
+        confirmLabel: t("events.switchOff.confirm"),
+        run: () => persist(checked.body),
+      });
       return;
     }
-    const settings = result.ok ? settingsOf(result.body) : undefined;
-    if (settings === undefined) {
-      setProblem(refusalText(result.body));
-      return;
-    }
-    setLoaded({ settings, draft: draftOf(settings) });
-    setSaved(true);
+    await persist(checked.body);
   };
 
   return {
@@ -282,6 +316,7 @@ function useStreakPanel(language: Language, organizerId: string, eventId: string
     problem,
     saved,
     invalidBonus,
+    dialog: confirmation.dialog,
     load,
     edit,
     clearBonusProblem: () => setInvalidBonus(false),
@@ -402,9 +437,9 @@ function PanelBody({
  * day 2, closes weekdays and upcoming dates, and saves the whole thing; an editor reads it. A single-day event says why
  * there is no streak. Days that have started can't change, so the API's refusals are said in words by reason.
  */
-export function StreakPanel({ language, organizerId, eventId, myRole, terms }: Props) {
+export function StreakPanel({ language, organizerId, eventId, myRole, terms, live }: Props) {
   const t = useTranslator(language);
-  const panel = useStreakPanel(language, organizerId, eventId);
+  const panel = useStreakPanel(language, organizerId, eventId, live);
   return (
     <Section
       titleId="streak-title"
@@ -417,6 +452,7 @@ export function StreakPanel({ language, organizerId, eventId, myRole, terms }: P
           {panel.problem}
         </Notice>
       )}
+      {panel.dialog}
     </Section>
   );
 }

@@ -161,6 +161,7 @@ function LookStep(props: StepProps) {
               rankingToday: isSwitchListed(props.layers, "rankingToday"),
             }}
             myRole={props.myRole}
+            live={event.statusNow === "live"}
           />
           <Switches {...props} names={["agenda", "maps"]} />
           <DoorRow t={t} title={t("layout.title")} href={pageOf(props, "layout")} />

@@ -2,6 +2,7 @@
 
 import type { Language } from "@questify/shared";
 import { useState } from "react";
+import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -33,15 +34,27 @@ type Props = Readonly<{
   /** Which of the two the owner is offered: the platform may keep either off for this organizer (FR-1826). */
   offered: Readonly<Record<Feature, boolean>>;
   myRole: "owner" | "editor";
+  /** The event is live: hiding a ranking then asks first (FR-1031), since players lose it at once. */
+  live: boolean;
 }>;
 
 /**
  * The event's ranking switches (FR-607, FR-608): the owner hides the ranking, or only today's ranking, from players and
- * shows it again; an editor sees which it is. A change is saved as soon as a box is ticked or cleared. A switch the platform
- * keeps off for the organizer is not offered, and with neither offered the section is not shown (FR-1826).
+ * shows it again; an editor sees which it is. A change is saved as soon as a box is ticked or cleared; in a live event,
+ * turning one off asks first, like the other event switches. A switch the platform keeps off for the organizer is not
+ * offered, and with neither offered the section is not shown (FR-1826).
  */
-export function RankingSwitch({ language, organizerId, eventId, initial, offered, myRole }: Props) {
+export function RankingSwitch({
+  language,
+  organizerId,
+  eventId,
+  initial,
+  offered,
+  myRole,
+  live,
+}: Props) {
   const t = translatorFor(language);
+  const confirmation = useConfirmation(language);
   const [shown, setShown] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -93,7 +106,19 @@ export function RankingSwitch({ language, organizerId, eventId, initial, offered
                 checked={shown[feature]}
                 disabled={myRole !== "owner"}
                 aria-busy={busy}
-                onChange={(changed) => void save(feature, changed.target.checked)}
+                onChange={(changed) => {
+                  const enabled = changed.target.checked;
+                  if (enabled || !live) {
+                    void save(feature, enabled);
+                    return;
+                  }
+                  confirmation.ask({
+                    title: t("events.switchOff.title", { feature: t(SWITCHES[feature].label) }),
+                    body: t("events.switchOff.body"),
+                    confirmLabel: t("events.switchOff.confirm"),
+                    run: () => save(feature, false),
+                  });
+                }}
               />
             ))}
           {problem === null ? null : (
@@ -101,6 +126,7 @@ export function RankingSwitch({ language, organizerId, eventId, initial, offered
               {problem}
             </Notice>
           )}
+          {confirmation.dialog}
         </>
       }
     />

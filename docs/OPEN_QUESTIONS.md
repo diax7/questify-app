@@ -2836,3 +2836,12 @@ who becomes reachable in the evening waits up to an hour (ADR-740); a low-stock 
 before it mails again (ADR-741).
 **Recommended (developer):** accept them as built after the batch's review. The two numbers a product owner may want to
 change are the 3 days of cheers and the 6-hour stock cooldown.
+
+## Q-703 - FOLLOWUPS batch 5 (2026-11-06): three design choices to confirm (ADR-742 to ADR-744)
+
+**Status:** Open (proposed by the developer, to be decided after the batch's review).
+The batch took the recommended option where the follow-ups left a choice: the Amounts revert asks without naming the amounts
+it restores (ADR-742); the feature-usage page drops the review demo's organizer in the API (ADR-743); Questify home text
+refuses zero-width marks and stores whitespace-only text as empty (ADR-744, migration 0161).
+**Recommended (developer):** accept them as built. If an admin should see the old to new lines on an Amounts revert, add the
+audit entry's `before` to the amounts list answer.

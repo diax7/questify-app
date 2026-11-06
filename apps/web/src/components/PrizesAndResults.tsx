@@ -2,6 +2,7 @@
 
 import type { Language } from "@questify/shared";
 import { useEffect, useState } from "react";
+import { ExplainThis } from "#src/components/ExplainThis.tsx";
 import { PrizesPanel } from "#src/components/PrizesPanel.tsx";
 import { QuestItemsPanel } from "#src/components/QuestItemsPanel.tsx";
 import { ResultsPanel } from "#src/components/ResultsPanel.tsx";
@@ -50,7 +51,17 @@ export function PrizesAndResults({ language, organizerId, eventId, myRole }: Pro
   const live = ["live", "ended", "archived"].includes(event.statusNow);
   return (
     <>
-      <PageHeader title={t("prizes.link")} />
+      <PageHeader
+        title={t("prizes.link")}
+        actions={
+          <ExplainThis
+            language={language}
+            organizerId={organizerId}
+            eventId={eventId}
+            slug="prizes"
+          />
+        }
+      />
       <PrizesPanel
         language={language}
         organizerId={organizerId}

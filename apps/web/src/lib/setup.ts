@@ -19,8 +19,12 @@ export const STEP_PAGES: Readonly<Record<string, SetupStep>> = {
   joining: "join",
   quests: "quests",
   rewards: "rewards",
+  prizes: "rewards",
   sponsors: "sponsors",
   "big-screen": "screens",
+  operators: "screens",
+  maps: "look",
+  sessions: "look",
   announcements: "messages",
 };
 

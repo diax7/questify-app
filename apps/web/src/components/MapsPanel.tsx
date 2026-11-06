@@ -3,6 +3,7 @@
 import { MAP_LIMITS, formatNumber, type Language, type TeamMap } from "@questify/shared";
 import { useState } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
+import { ExplainThis } from "#src/components/ExplainThis.tsx";
 import { MapEditor, type MapWrites } from "#src/components/MapEditor.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { mapName, pinnedQuestIds } from "#src/lib/maps.ts";
@@ -365,13 +366,21 @@ export function MapsPanel(props: MapsProps) {
           title={t("maps.page.title")}
           info={infoTip(t, "maps.page.intro")}
           actions={
-            <Button
-              variant="primary"
-              disabled={maps === null || model.busy}
-              onClick={() => setNameEdit({ id: null, nameAr: "", nameEn: "" })}
-            >
-              {t("maps.page.add")}
-            </Button>
+            <>
+              <Button
+                variant="primary"
+                disabled={maps === null || model.busy}
+                onClick={() => setNameEdit({ id: null, nameAr: "", nameEn: "" })}
+              >
+                {t("maps.page.add")}
+              </Button>
+              <ExplainThis
+                language={language}
+                organizerId={props.organizerId}
+                eventId={props.eventId}
+                slug="maps"
+              />
+            </>
           }
         />
         <MapsNotices

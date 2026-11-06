@@ -6,6 +6,25 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## FOLLOWUPS batch 5 — 2026-11-06
+
+- **FOLLOWUPS batch 5 (tier B; migration 0161; 0156 stays reserved; ADR-742 to ADR-744 and Q-703 Proposed).** Cleared:
+  the Cheers switch (Big screen page), the ranking switches and the day streak ask before a live event loses them, with
+  the twelve switches' text (T-604b; the streak asks at Save); "Explain this" on Maps, Agenda (`sessions`), Prizes and
+  Operators, with the pages in `STEP_PAGES`, `OperatorsPanel` split into `useOperators` (T-605); `useOverrides` unit test
+  with a fake React and `AppState` (T-702); a test that only `admin_amounts_save` writes the `xp`/`gems` rows of
+  `platform_setting`, and an Amounts revert that asks (T-709c; its dialog does not name the amounts, see FOLLOWUPS); an
+  XP-table revert that lowers the curve names the levels and the gems (T-709d); the generic `PUT …/features/:feature`
+  dropped, no client called it (T-711; ADR-503 amended, API.md updated); `e2e/console-review-demo.spec.ts` and the
+  feature-usage page leaving out the demo's organizer in `readFeatureUsage` (T-710); migration 0161 tightens
+  `home_text_checked` (T-713). Nothing touches points, sign-in or redemptions.
+  Full suite once: 838 files, 12,951 tests passed after `scripts/ci-scope.mjs` learned the new spec (16 files skipped).
+  Browser: `layout`, `cheers`, `confirmations`, `streak`, `setup`, `console-catalog`, `console-review-demo` on desktop and
+  phone (36 passed, 2 phone skips), and `feature-layers`, `events`, `organizers`, `operators`, `maps`, `prizes`, `sessions`,
+  `console-feature-usage` on desktop (26 passed). Oxlint, oxfmt, `lint:limits` and types clean. CI minutes: 0 (not
+  pushed); agent tokens roughly 1M (estimate).
+  **Next:** the next unchecked task in `docs/TASKS.md`.
+
 ## FOLLOWUPS batch 4 — 2026-11-06
 
 - **FOLLOWUPS batch 4 (tier B; migration 0160; 0156 stays reserved; ADR-735 to ADR-741 Accepted after code review 88, Q-702 Answered).** Cleared:

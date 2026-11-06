@@ -56,7 +56,16 @@ test("starts a cheers moment, shows the reactions on the screen, and stops", asy
   const toggle = page.getByLabel("إظهار زر التشجيع في التطبيق أثناء لحظة التشجيع");
   await expect(start).toBeEnabled();
   await expectNoSidewaysScroll(page);
-  await toggle.uncheck();
+  // The event is live, so turning the switch off asks first; Cancel leaves it on.
+  await toggle.click();
+  const asking = page.getByRole("alertdialog");
+  await expect(asking).toContainText("يفقد اللاعبون هذه الميزة الآن.");
+  await asking.getByRole("button", { name: "إلغاء" }).click();
+  await expect(toggle).toBeChecked();
+  await expect(start).toBeEnabled();
+  await toggle.click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "إيقاف" }).click();
+  await expect(toggle).not.toBeChecked();
   await expect(start).toBeDisabled();
   await toggle.check();
   await expect(start).toBeEnabled();

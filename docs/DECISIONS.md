@@ -7191,7 +7191,7 @@ until the app next asks.
 ## ADR-503 - The server refuses an owner's switch-on that a layer keeps off (403 `feature_not_allowed`)
 
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-711 code review 93; T-711; FR-1826, FR-1827).
-**Decision:** Every route that saves an owner's switch (the 15 per-feature paths and `PUT …/events/{id}/features/{feature}`) reads the platform as the event's organizer sees it, the unlocks and the event's own switches under the event's row lock, and refuses `enabled: true` for a feature that is hidden (platform or override Off) or locked (add-on not unlocked) with 403 `feature_not_allowed`, writing nothing. Switching off is always allowed. The bulk replace `saveEventSwitches` (no route calls it) checks only the switches newly turned on. `PUT …/features/{feature}` answers 404 for an add-on, a Questify-wide feature and an unknown key.
+**Decision:** Every route that saves an owner's switch (the 15 per-feature paths; amended 2026-11-06: the generic `PUT …/events/{id}/features/{feature}` had no client and was dropped) reads the platform as the event's organizer sees it, the unlocks and the event's own switches under the event's row lock, and refuses `enabled: true` for a feature that is hidden (platform or override Off) or locked (add-on not unlocked) with 403 `feature_not_allowed`, writing nothing. Switching off is always allowed. The bulk replace `saveEventSwitches` (no route calls it) checks only the switches newly turned on. `PUT …/features/{feature}` answers 404 for an add-on, a Questify-wide feature and an unknown key (no route exists for them).
 **Why:** A hidden switch in the dashboard is not a wall; the doors for players already follow the composed configuration.
 **Trade-offs:** A feature already on in the event's config keeps its stored value when a layer later turns it off; the player doors follow the composed configuration, so it is off at once.
 
@@ -8311,3 +8311,33 @@ The crossing rule is unchanged; the next crossing after the 6 hours mails again.
 **Why:** a reservation that expired and was taken again re-crossed the line and mailed the team each time.
 **Trade-offs:** a real restock that runs out again within 6 hours is not mailed a second time; the team was told 6
 hours ago and the console shows the stock.
+
+## ADR-742 - Three switches ask before a live event loses them; a revert asks without naming amounts
+
+**Status:** Proposed (developer, FOLLOWUPS batch 5, 2026-11-06).
+**Decision:** the Cheers switch (Big screen page), the ranking switches and the day streak ask first in a live event, with the
+text of the event page's twelve switches ("Turn off X?", "Players lose this feature now"). The ranking switches name
+themselves by their label. The streak is saved as a whole form, so it asks at Save, when the stored streak is on, the
+draft is off and the event is live. The Amounts revert asks with the dialog a save shows, but it says what a revert does
+(the amounts before the last change apply from now on, nothing paid changes) instead of listing old to new lines. An XP-table
+revert that lowers the curve names the levels and the gems each pays, from the API's refusal.
+**Why:** the list answer of the amounts does not carry the audit entry's `before`, so the lines a save shows cannot be
+built for a revert without an API change. The words say what is at stake; naming the amounts is a follow-up.
+**Trade-offs:** an admin reverting the amounts sees the effect, not the numbers, until the API gives them.
+
+## ADR-743 - The feature-usage page leaves out the review demo's organizer in the API, not in SQL
+
+**Status:** Proposed (developer, FOLLOWUPS batch 5, 2026-11-06).
+**Decision:** `readFeatureUsage` reads `console_review_demo()` in the same seat and drops that organizer from the page; the
+cursor still ends on the last organizer the database sent, so paging goes on past it (a page can be one short).
+**Why:** the follow-up asked for no migration; `console_feature_usage` (0140) is paged in SQL, and restating it for one
+filter is not worth a migration. A later restatement can move the filter into the query.
+**Trade-offs:** one more read per page; the console's numbers and usage pages still count the demo organizer (Q-525).
+
+## ADR-744 - Questify home text refuses zero-width marks and stores whitespace as empty (migration 0161)
+
+**Status:** Proposed (developer, FOLLOWUPS batch 5, 2026-11-06).
+**Decision:** `home_text_checked` also refuses U+200B to U+200F, U+061C and U+FEFF; a text of whitespace alone (spaces,
+no-break and ideographic spaces) is stored as empty, so a required banner title of whitespace is refused like an empty one.
+**Why:** the dashboard strips these before it sends; the database check is the backstop for a direct caller.
+**Trade-offs:** `catalog_text` (0119) has the same gap and is left for its next restatement.

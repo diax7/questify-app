@@ -9371,6 +9371,15 @@ export const MESSAGES = {
     en: "From now on: {name} {old} → {new} gems.",
   },
   "console.catalog.amounts.apply": { ar: "حفظ المقادير", en: "Save amounts" },
+  "console.catalog.amounts.revertConfirm": {
+    ar: "العودة إلى المقادير السابقة؟",
+    en: "Go back to the earlier amounts?",
+  },
+  "console.catalog.amounts.revertLine": {
+    ar: "ستعود المقادير إلى ما كانت عليه قبل آخر تغيير، وتسري من الآن، حتى على المستويات والدرجات التي لم تُدفع جواهرها بعد. ما مُنح سابقًا لا يتغير.",
+    en: "The amounts from before the last change come back and apply from now on, including levels and tiers whose gems are not paid yet. Nothing already paid changes.",
+  },
+  "console.catalog.amounts.revertApply": { ar: "تراجع", en: "Go back" },
   "console.catalog.lower.title": { ar: "منح جواهر مقابل {name}؟", en: "Pay gems for {name}?" },
   "console.catalog.lower.line": {
     ar: "اللاعبون الذين يبلغون الدرجة {tier} الآن يحصلون على {gems} جوهرة عند مزامنتهم القادمة.",
@@ -9504,6 +9513,10 @@ export const MESSAGES = {
   "console.catalog.xp.down": {
     ar: "سينخفض مستوى نحو {down} من اللاعبين. يحتفظون بكل ما حصلوا عليه.",
     en: "About {down} players go down a level. They keep what they earned.",
+  },
+  "console.catalog.xp.lowering": {
+    ar: "العودة تخفّض بداية المستويات {levels}. اللاعبون الذين يبلغونها الآن يحصلون على {gems} جوهرة عن كل مستوى، مع جوائز المستويات، عند مزامنتهم التالية. التراجع لا يستردها.",
+    en: "Going back lowers where levels {levels} start. Players who now reach them get {gems} gems for each level, and the level rewards, at their next sync. Undoing this does not take them back.",
   },
   "console.catalog.xp.pay": { ar: "حفظ ومنح الجوائز", en: "Save and pay" },
   "console.catalog.xp.busy": {

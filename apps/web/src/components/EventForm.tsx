@@ -435,6 +435,7 @@ function EventSettings({
         eventId={event.id}
         myRole={myRole}
         terms={terms}
+        live={status === "live"}
       />
       <EventWords
         language={language}
@@ -585,6 +586,7 @@ function EventFeatures({
               rankingToday: isSwitchListed(layers, "rankingToday"),
             }}
             myRole={myRole}
+            live={event.statusNow === "live"}
           />
           {FEATURE_SWITCHES.filter(([feature]) => isSwitchListed(layers, feature)).map(
             ([feature, initial]) => (

@@ -21,11 +21,15 @@ import { Field, Select } from "#src/ui/Field.tsx";
 import { Section, Toolbar } from "#src/ui/Section.tsx";
 
 type Props = Readonly<{ language: Language; organizerId: string; eventId: string; owner: boolean }>;
-type Loaded = Readonly<{ reading: CheersReading; timeZone: string }>;
+type Loaded = Readonly<{ reading: CheersReading; timeZone: string; live: boolean }>;
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
-/** The Cheers reading and the event's zone together; why not, when the session is gone or the reading is unreadable. */
+/** Whether the event is live now, from the event read; players then lose a switch the moment it goes off. */
+const liveOf = (event: Readonly<{ ok: boolean; body: unknown }>): boolean =>
+  event.ok && (event.body as { event?: { statusNow?: string } }).event?.statusNow === "live";
+
+/** The Cheers reading, the event's zone and whether it is live together; why not, when the session is gone or the reading is unreadable. */
 async function loadCheers(eventApi: string): Promise<Loaded | "session_lost" | "failed"> {
   const [cheers, event] = await Promise.all([
     requestJson("GET", `${eventApi}/cheers`),
@@ -36,7 +40,9 @@ async function loadCheers(eventApi: string): Promise<Loaded | "session_lost" | "
     return "session_lost";
   }
   const reading = cheers.ok ? cheersReadingOf(cheers.body) : undefined;
-  return reading === undefined ? "failed" : { reading, timeZone: zoneOf(event) };
+  return reading === undefined
+    ? "failed"
+    : { reading, timeZone: zoneOf(event), live: liveOf(event) };
 }
 
 /** What the section reads; it reads again when a live moment's end passes, so the page never claims a finished moment. */
@@ -45,6 +51,7 @@ function useCheers({ language, organizerId, eventId }: Props) {
   const eventApi = `/v1/organizers/${organizerId}/events/${eventId}`;
   const [reading, setReading] = useState<CheersReading | null>(null);
   const [timeZone, setTimeZone] = useState(DEFAULT_ZONE);
+  const [live, setLive] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [reloads, setReloads] = useState(0);
   const endsAt = reading?.endsAt ?? null;
@@ -58,6 +65,7 @@ function useCheers({ language, organizerId, eventId }: Props) {
       } else {
         setReading(loaded.reading);
         setTimeZone(loaded.timeZone);
+        setLive(loaded.live);
       }
     });
   }, [eventApi, language, t, reloads]);
@@ -69,7 +77,7 @@ function useCheers({ language, organizerId, eventId }: Props) {
     const timer = setTimeout(() => setReloads((count) => count + 1), wait);
     return () => clearTimeout(timer);
   }, [endsAt]);
-  return { eventApi, reading, setReading, timeZone, problem, setProblem };
+  return { eventApi, reading, setReading, timeZone, live, problem, setProblem };
 }
 
 /** The moment's length, from the lengths offered. */
@@ -188,7 +196,7 @@ function MomentSection({
 export function CheersPanel(props: Props) {
   const { language, organizerId, eventId, owner } = props;
   const t = useTranslator(language);
-  const { eventApi, reading, setReading, timeZone, problem, setProblem } = useCheers(props);
+  const { eventApi, reading, setReading, timeZone, live, problem, setProblem } = useCheers(props);
   const [minutes, setMinutes] = useState(DEFAULT_MOMENT_MINUTES);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -234,6 +242,7 @@ export function CheersPanel(props: Props) {
               eventId={eventId}
               initial={reading.switchOn}
               myRole={owner ? "owner" : "editor"}
+              live={live}
               onSaved={(on) =>
                 setReading((before) =>
                   before === null

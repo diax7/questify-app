@@ -138,6 +138,29 @@ test("opens one step alone from a build page and returns to it", async ({ page }
   });
 });
 
+/** The Maps, Agenda, Prizes and Operators pages explain themselves with the step that holds their switches (FR-1756). */
+test("opens the step of the maps, agenda, prizes and operators pages and returns", async ({
+  page,
+}, info) => {
+  test.setTimeout(120_000);
+  await openBuilder(page, info.project.name);
+  const eventUrl = page.url().replace(/\/quests$/, "");
+
+  for (const [slug, step] of [
+    ["maps", "look"],
+    ["sessions", "look"],
+    ["prizes", "rewards"],
+    ["operators", "screens"],
+  ] as const) {
+    await page.goto(`${eventUrl}/${slug}`);
+    await page.getByRole("link", { name: "اشرح لي هذه الصفحة" }).click();
+    await expect(page).toHaveURL(new RegExp(`/setup\\?step=${step}&only=1&from=${slug}$`));
+    await expect(stepBar(page)).toHaveCount(0);
+    await page.getByRole("link", { name: "تم" }).click();
+    await expect(page).toHaveURL(`${eventUrl}/${slug}`);
+  }
+});
+
 /**
  * A text a Questify admin changed in the translation store shows in the wizard without a release (FR-1757); a change that
  * drops a placeholder, or a blank one, is ignored and the shipped text stays (FR-1768).

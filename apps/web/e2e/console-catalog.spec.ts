@@ -152,6 +152,17 @@ test("the amounts are two equal cards; a save names each changed amount once and
   await expect(page.getByText("Change saved.")).toBeVisible();
   await expect(page.getByLabel("Level up")).toHaveValue(String(stored + 1));
   await page.getByRole("button", { name: "Go back on the last change to Amounts" }).click();
+  const revert = page.getByRole("alert").filter({ hasText: "Go back to the earlier amounts?" });
+  await expect(revert.getByText("Nothing already paid changes.")).toBeVisible();
+  await revert.getByRole("button", { name: "Cancel" }).click();
+  await expect(revert).toHaveCount(0);
+  await expect(page.getByLabel("Level up")).toHaveValue(String(stored + 1));
+  await page.getByRole("button", { name: "Go back on the last change to Amounts" }).click();
+  await page
+    .getByRole("alert")
+    .filter({ hasText: "Go back to the earlier amounts?" })
+    .getByRole("button", { name: "Go back", exact: true })
+    .click();
   await expect(page.getByText("Went back to the earlier version.")).toBeVisible();
   await expect(page.getByLabel("Level up")).toHaveValue(String(stored));
   await expectNoSidewaysScroll(page);
@@ -208,6 +219,8 @@ test("the XP table shows each level and its reward; a raise is saved after its s
   await ask.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText("Change saved.")).toBeVisible();
   await table.getByRole("button", { name: "Go back on the last change to XP table" }).click();
+  // The revert names the levels it lowers and the gems each pays (the API's refusal), not only that it cannot be undone.
+  await expect(table.getByTestId("xp-lowering")).toContainText("levels 30 start");
   await table.getByRole("alert").getByRole("button", { name: "Save and pay" }).click();
   await expect(page.getByText("Went back to the earlier version.")).toBeVisible();
   await expectNoSidewaysScroll(page);
