@@ -34,6 +34,22 @@ test("asks before a live event loses a switch or moves its times", async ({ page
   await toggle.check();
   await expect(toggle).toBeChecked();
 
+  // The ranking switch asks the same way; turning it back on asks nothing.
+  const ranking = page.getByRole("checkbox", { name: "إظهار الترتيب في التطبيق" });
+  await expect(ranking).toBeChecked();
+  await ranking.click();
+  const hiding = page.getByRole("alertdialog");
+  await expect(hiding).toContainText("يفقد اللاعبون هذه الميزة الآن.");
+  await hiding.getByRole("button", { name: "إلغاء" }).click();
+  await expect(hiding).toHaveCount(0);
+  await expect(ranking).toBeChecked();
+  await ranking.click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "إيقاف" }).click();
+  await expect(ranking).not.toBeChecked();
+  await expect(ranking).toHaveAttribute("aria-busy", "false");
+  await ranking.check();
+  await expect(ranking).toBeChecked();
+
   const ends = page.getByLabel("تنتهي", { exact: true });
   const before = await ends.inputValue();
   await ends.fill("2031-01-01T10:00");

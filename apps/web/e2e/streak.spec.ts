@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { codeFor, freshAddress } from "#e2e/mail.ts";
+import { CONTROL_PORT } from "#e2e/paths.ts";
 
 /**
  * The event's Day streak panel (T-405b), in English and in Arabic, on desktop and phone: the owner of a three-day event
@@ -133,3 +134,48 @@ for (const language of ["en", "ar"] as const) {
     await expectNoSidewaysScroll(page);
   });
 }
+
+/** In a live event, a save that turns the streak off says what players lose first; Cancel saves nothing (FR-1031). */
+test("asks before a live event's streak is turned off", async ({ page }, info) => {
+  test.setTimeout(120_000);
+  page.on("pageerror", (error) => {
+    throw error;
+  });
+  const words = WORDS.ar;
+  await openThreeDayEvent(page, info.project.name, "ar");
+  const eventId = /\/events\/([0-9a-f-]{36})/.exec(page.url())?.[1];
+  const panel = page.getByRole("region", { name: words.title });
+  await panel.getByRole("checkbox", { name: words.enable }).check();
+  await panel.getByRole("button", { name: words.save }).click();
+  await expect(panel.getByText(words.saved)).toBeVisible();
+
+  const live = await page.request.post(`http://127.0.0.1:${CONTROL_PORT}/event-status`, {
+    data: { eventId, status: "live" },
+  });
+  expect(live.status()).toBe(204);
+  await page.reload();
+  const again = page.getByRole("region", { name: words.title });
+  await again.getByRole("checkbox", { name: words.enable }).uncheck();
+  await again.getByRole("button", { name: words.save }).click();
+  const asking = page.getByRole("alertdialog");
+  await expect(asking).toContainText("يفقد اللاعبون هذه الميزة الآن.");
+  await asking.getByRole("button", { name: "إلغاء" }).click();
+  await expect(asking).toHaveCount(0);
+  await page.reload();
+  const enable = page
+    .getByRole("region", { name: words.title })
+    .getByRole("checkbox", { name: words.enable });
+  await expect(enable).toBeChecked();
+
+  await enable.uncheck();
+  await page
+    .getByRole("region", { name: words.title })
+    .getByRole("button", { name: words.save })
+    .click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "إيقاف" }).click();
+  await expect(
+    page.getByRole("region", { name: words.title }).getByText(words.saved),
+  ).toBeVisible();
+  await page.reload();
+  await expect(enable).not.toBeChecked();
+});
