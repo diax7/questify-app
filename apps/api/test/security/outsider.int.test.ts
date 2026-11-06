@@ -449,6 +449,46 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
+  it("keeps the 0160 follow-ups closed: two doors for the API's role alone, two helpers for nobody, one table shut", async () => {
+    const doors = ["cheers_purge", "rank_push_failed"];
+    const internals = ["group_push_fan_failed", "group_push_page"];
+    const listed = [...doors, ...internals].map((name) => `'${name}'`).join(", ");
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider, prosecdef AS definer
+        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${listed})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(
+      [...doors, ...internals].toSorted(),
+    );
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(doors.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+    }
+    for (const sql of [
+      "SELECT public.cheers_purge(10)",
+      "SELECT public.rank_push_failed(gen_random_uuid())",
+      "SELECT public.group_push_fan_failed(gen_random_uuid(), 'XX000')",
+      "SELECT * FROM public.streak_scan_quiet",
+      "INSERT INTO public.streak_scan_quiet (day, quiet_until) VALUES (current_date, now())",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+    expect(
+      await rows(
+        `SELECT grantee FROM information_schema.role_table_grants
+         WHERE table_name = 'streak_scan_quiet' AND grantee <> 'postgres'`,
+      ),
+    ).toEqual([]);
+  });
+
   it("keeps reports and moderation closed: nine doors for the API's role alone, two tables shut (T-705b)", async () => {
     const doors = [
       "admin_report_resolve",

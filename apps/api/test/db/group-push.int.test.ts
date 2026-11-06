@@ -464,6 +464,79 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push to a group (database)", (
       expect(await row(second["id"])).toMatchObject({ state: "done", notices: 2 });
     });
 
+    it("counts a page that fails, backs it off and writes the later send meanwhile (T-706b review)", async () => {
+      await isolate();
+      await optedIn(2, { city: "sa-jazan" });
+      await optedIn(2, { city: "sa-al-baha" });
+      const poisoned = await send(draftOf(promoAudience("sa-jazan")));
+      const later = await send(draftOf(promoAudience("sa-al-baha")));
+      // A test-only trigger refuses every notice of the first send, as a page that keeps failing would.
+      await q.owner(
+        `CREATE FUNCTION test_poison_send() RETURNS trigger LANGUAGE plpgsql AS $$
+         BEGIN RAISE EXCEPTION 'poisoned' USING ERRCODE = 'XX001'; END $$`,
+      );
+      await q.owner(
+        `CREATE TRIGGER test_poison_send BEFORE INSERT ON notice FOR EACH ROW
+         WHEN (NEW.dedupe LIKE 'gpush:${String(poisoned["id"])}:%') EXECUTE FUNCTION test_poison_send()`,
+      );
+      try {
+        const failed = await one<Doc>("SELECT group_push_fan() AS r", [], p.system);
+        expect(failed).toMatchObject({
+          rows: 0,
+          more: false,
+          failed: poisoned["id"],
+          code: "XX001",
+          parked: false,
+        });
+        expect(await row(poisoned["id"])).toMatchObject({
+          state: "sending",
+          notices: 0,
+          fan_failures: 1,
+        });
+        expect(await noticeIds(poisoned)).toEqual([]);
+        // The poisoned send waits out its minute, so the next call writes the later one.
+        expect(await fan()).toEqual({ rows: 2, more: false });
+        expect(await row(later["id"])).toMatchObject({ state: "done", notices: 2 });
+        expect(await fan()).toEqual({ rows: 0, more: false });
+        // The third failure in a row is the parked alert; the wait grows 1, 4, 16 minutes.
+        const waits: unknown[] = [];
+        for (const parked of [false, true]) {
+          await q.owner(
+            "UPDATE group_push SET retry_after = now() - interval '1 second' WHERE id = $1",
+            [poisoned["id"]],
+          );
+          expect(await one<Doc>("SELECT group_push_fan() AS r", [], p.system)).toMatchObject({
+            failed: poisoned["id"],
+            parked,
+          });
+          waits.push(
+            (
+              await q.owner<{ wait: string }>(
+                "SELECT round(extract(epoch FROM retry_after - now()) / 60)::text AS wait FROM group_push WHERE id = $1",
+                [poisoned["id"]],
+              )
+            )[0]?.wait,
+          );
+        }
+        expect(waits).toEqual(["4", "16"]);
+      } finally {
+        await q.owner("DROP TRIGGER test_poison_send ON notice");
+        await q.owner("DROP FUNCTION test_poison_send()");
+      }
+      // Once the cause is gone, the next try writes the page and clears the count.
+      await q.owner(
+        "UPDATE group_push SET retry_after = now() - interval '1 second' WHERE id = $1",
+        [poisoned["id"]],
+      );
+      expect(await fan()).toEqual({ rows: 2, more: false });
+      expect(await row(poisoned["id"])).toMatchObject({
+        state: "done",
+        notices: 2,
+        fan_failures: 0,
+        retry_after: null,
+      });
+    });
+
     it("erases with the player: no notice or center row is left for an erased player", async () => {
       await isolate();
       const [gone, kept] = await optedIn(2, { city: "sa-najran" });

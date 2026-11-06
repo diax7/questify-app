@@ -14,6 +14,11 @@ export type RequestContext = Readonly<{
    * database honours a `view` grant. Set by the organizer scope's hook, never by a client.
    */
   readOnly?: true;
+  /**
+   * One snapshot for the whole transaction (REPEATABLE READ): set only by a service whose database door asks for it, the
+   * duplicate's `event_copy_setup` (ADR-739). A serialization failure (40001) is the caller's to retry.
+   */
+  repeatableRead?: true;
 }>;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -38,9 +43,13 @@ function settingsOf(context: RequestContext): [string, string][] {
   ];
 }
 
-/** `BEGIN READ ONLY` for a support view (ADR-521), else a plain `BEGIN`. */
+/** `BEGIN READ ONLY` for a support view (ADR-521), `ISOLATION LEVEL REPEATABLE READ` when asked (ADR-739). */
 const beginOf = (context: RequestContext): string =>
-  context.readOnly === true ? "BEGIN READ ONLY" : "BEGIN";
+  [
+    "BEGIN",
+    ...(context.repeatableRead === true ? ["ISOLATION LEVEL REPEATABLE READ"] : []),
+    ...(context.readOnly === true ? ["READ ONLY"] : []),
+  ].join(" ");
 
 /**
  * Runs `work` in one transaction whose row-level-security context is `context`.

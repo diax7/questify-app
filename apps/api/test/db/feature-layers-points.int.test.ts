@@ -4,7 +4,9 @@ import { Pool, type Client, type PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import { eventFeatureOn } from "#src/settings/feature-guard";
+import { closeOpenRequests } from "#src/settings/feature-requests";
 import { createSettingsService } from "#src/settings/service";
+import { insertEntitlement } from "#src/settings/store";
 import {
   TEST_DATABASE_URL,
   addMember,
@@ -717,6 +719,55 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         const [second] = await ask(teamA(), event);
         expect(second).toMatchObject({ created: true });
         expect(second?.id).not.toBe(id);
+      });
+
+      it("waits for an Allow being written and then refuses, so no ask stays open beside an unlock (T-711b review)", async () => {
+        const event = await newEvent();
+        const client: PoolClient = await pool.connect();
+        let asked: Promise<string> | undefined;
+        try {
+          await withRequestContext(client, admin(), async () => {
+            await insertEntitlement(client, event, "bigScreen", adminId);
+            asked = refusal(ask(teamA(), event));
+            const early = await Promise.race([
+              asked,
+              new Promise<string>((resolve) => setTimeout(() => resolve("waiting"), 300)),
+            ]);
+            expect(early).toBe("waiting");
+            await closeOpenRequests(
+              client,
+              { id: adminId },
+              { eventId: event, feature: "bigScreen" },
+              {},
+            );
+          });
+        } finally {
+          client.release();
+        }
+        expect(await asked).toBe("RQ409");
+        expect(
+          await owner(
+            "SELECT count(*)::int AS n FROM feature_request WHERE event_id = $1 AND status = 'open'",
+            [event],
+          ),
+        ).toEqual([{ n: 0 }]);
+      });
+
+      it("does not lock another organizer's event, so a stranger's ask answers at once during an Allow (T-711b review)", async () => {
+        const event = await newEvent();
+        const client: PoolClient = await pool.connect();
+        try {
+          await withRequestContext(client, admin(), async () => {
+            await insertEntitlement(client, event, "bigScreen", adminId);
+            const early = await Promise.race([
+              refusal(ask(teamB(), event)),
+              new Promise<string>((resolve) => setTimeout(() => resolve("waiting"), 1000)),
+            ]);
+            expect(early).toBe("RQ404");
+          });
+        } finally {
+          client.release();
+        }
       });
 
       it("is read by the organizer's own members and admins, never by another organizer or a player", async () => {

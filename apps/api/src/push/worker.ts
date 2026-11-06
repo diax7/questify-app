@@ -60,6 +60,19 @@ function reportFanOut(log: PushLog, fanned: FanOutResult | undefined): void {
   });
 }
 
+/**
+ * Logs a failed group push page (the database undid it, counted it and set the send's back-off):
+ * `push.group_page_failed`, and the alert `push.group_push_parked` at its third failure in a row. Ids and SQLSTATEs only.
+ */
+function reportGroupFan(log: PushLog, grouped: GroupFanResult | undefined): void {
+  if (grouped?.failed === undefined) return;
+  log("error", {
+    event: grouped.parked === true ? "push.group_push_parked" : "push.group_page_failed",
+    send: grouped.failed,
+    code: grouped.code ?? null,
+  });
+}
+
 /** Whether the loop goes round again at once: a fan-out or a group page may have more, or a round claimed rows. */
 const moreWork = (
   fanned: FanOutResult | undefined,
@@ -140,6 +153,7 @@ export function startPushWorker(deps: PushWorkerDeps): PushWorker {
       await step("push.due_failed", scanDue);
     }
     const grouped = await step("push.group_fan_failed", deps.doors.groupFan);
+    reportGroupFan(deps.log, grouped);
     const fanned = await step("push.fan_out_failed", deps.doors.fanOut);
     reportFanOut(deps.log, fanned);
     const sent = await step("push.round_failed", round);

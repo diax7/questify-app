@@ -51,6 +51,15 @@ export function startRankPushTick(deps: RankPushTickDeps): RankPushTick {
   const system = <T>(work: (client: PoolClient) => Promise<T>): Promise<T> =>
     withConnection(deps.pool, (client) => withRequestContext(client, {}, () => work(client)));
 
+  /** Puts a failed event behind the others in the next list (`rank_push_failed`), so it never holds the budget. */
+  const markFailed = async (event: string): Promise<void> => {
+    try {
+      await system((client) => client.query("SELECT rank_push_failed($1)", [event]));
+    } catch (error) {
+      deps.log("error", { event: "ranking.push_mark_failed", code: codeOf(error) });
+    }
+  };
+
   const diffOne = async (event: string): Promise<Diff | undefined> => {
     try {
       return await system(async (client) => {
@@ -59,6 +68,7 @@ export function startRankPushTick(deps: RankPushTickDeps): RankPushTick {
       });
     } catch (error) {
       deps.log("error", { event: "ranking.push_diff_failed", code: codeOf(error) });
+      await markFailed(event);
       return undefined;
     }
   };

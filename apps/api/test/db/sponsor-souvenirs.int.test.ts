@@ -355,11 +355,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("souvenir sponsor tags (databas
       )
     ).rows[0].id as string;
     const counts = (
-      await f.run(f.actor, "SELECT event_copy_setup($1, $2, $3) AS r", [
-        f.ids.eventA,
-        target,
-        randomUUID(),
-      ])
+      await f.run(
+        { ...f.actor, repeatableRead: true },
+        "SELECT event_copy_setup($1, $2, $3) AS r",
+        [f.ids.eventA, target, randomUUID()],
+      )
     ).rows[0].r;
     expect(counts.sponsorTags).toBeGreaterThanOrEqual(1);
     const copied = (

@@ -113,6 +113,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer alerts (database)", 
   };
   const stock = (id: string, total: number, out: number) =>
     f.owner("UPDATE reward SET stock_total = $2, units_out = $3 WHERE id = $1", [id, total, out]);
+  /** Ages the event's alerts past the 6-hour low-stock cooldown (ADR-741). */
+  const coolDown = (event: string) =>
+    f.owner(
+      "UPDATE organizer_alert SET created_at = created_at - interval '6 hours 1 minute' WHERE event_id = $1",
+      [event],
+    );
 
   const item = async (event: string, total: number, out: number) => {
     const [made] = await f.owner<{ id: string }>(
@@ -329,9 +335,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer alerts (database)", 
       await stock(id, 101, 90);
       await stock(id, 101, 101);
       expect(await alerts(team.org, "stock_low")).toHaveLength(2);
-      // Recovery closes the episode without a mail; the next fall opens a new one.
+      // Recovery closes the episode without a mail; a fall within 6 hours of the last alert (a reservation that expired
+      // and was taken again) mails nobody, and the next fall after them opens a new one (T-609 review, ADR-741).
       await stock(id, 102, 90);
       expect(await alerts(team.org)).toHaveLength(2);
+      await stock(id, 102, 91);
+      expect(await alerts(team.org, "stock_low")).toHaveLength(2);
+      await stock(id, 102, 90);
+      await coolDown(team.event);
       await stock(id, 102, 91);
       expect(await alerts(team.org, "stock_low")).toHaveLength(4);
     });
@@ -368,11 +379,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer alerts (database)", 
       await itemStock(id, 101, 90);
       await itemStock(id, 101, 101);
       expect(await alerts(team.org, "stock_low")).toHaveLength(2);
-      // Recovery closes the episode without a mail; the next fall opens a new one.
+      // Recovery closes the episode without a mail; a fall within 6 hours mails nobody, the next one after them does.
       await itemStock(id, 102, 90);
       expect(await alerts(team.org)).toHaveLength(2);
       await itemStock(id, 102, 91);
+      expect(await alerts(team.org, "stock_low")).toHaveLength(2);
+      // Another item of the same event is not held by this one's cooldown.
+      const other = await item(team.event, 10, 0);
+      await itemStock(other, 10, 9);
       expect(await alerts(team.org, "stock_low")).toHaveLength(4);
+      await itemStock(id, 102, 90);
+      await coolDown(team.event);
+      await itemStock(id, 102, 91);
+      expect(await alerts(team.org, "stock_low")).toHaveLength(6);
     });
 
     it("skip a quest item that cannot run low, is removed or is not in play, and honour the switch", async () => {

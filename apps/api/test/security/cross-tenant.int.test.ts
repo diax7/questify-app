@@ -1221,6 +1221,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; append-only; holds no personal data beyond an enrollment id the ledger already names; written only by the ledger_streak trigger for the paying enrollment; read as the calling member's own by own_event_streak and own_streak_bonus, and by the team through member_ledger (award_event_of) (test/db/event-streak)",
   questify_streak_day:
     "no right for the API role at all; append-only, no tenant: a player's own Questify days, written by the ledger_streak trigger for the paying enrollment's player; read only for the caller by own_daily_streak and questify_sync, never by an organizer (test/security cross-tenant streak doors, test/db/daily-streak)",
+  streak_scan_quiet:
+    "no right for the API role at all, no tenant and no personal data: one row per Questify day (a date and a time) written and read only by the system-only streak scan push_due_streak (test/db/push-reminders)",
   questify_streak_milestone:
     "platform-wide data with no tenant and no direct API rights; append-only; seeded by migration, read through the caller-bound own_daily_streak and questify_sync (test/db/daily-streak)",
   questify_streak_reward:

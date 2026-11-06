@@ -8,7 +8,14 @@ import {
   type Caps,
   type QuestOption,
 } from "#src/components/PlayerAwards.tsx";
-import { pointsOf, reasonOk, whoOf, kindKey, type ReportLine } from "#src/lib/awards.ts";
+import {
+  pointsOf,
+  reasonOk,
+  reportAmount,
+  whoOf,
+  kindKey,
+  type ReportLine,
+} from "#src/lib/awards.ts";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { handleOf } from "#src/lib/players.ts";
 import { requestJson } from "#src/lib/post-json.ts";
@@ -518,7 +525,7 @@ function ReportRow({
 }: Readonly<{ language: Language; timeZone: string; line: ReportLine }>) {
   const t = useTranslator(language);
   const who = staffShown(whoOf(line.by), language);
-  const sign = line.kind === "removal" ? "−" : "+";
+  const { sign, size } = reportAmount(line);
   return (
     <Card as="li">
       <Toolbar>
@@ -527,7 +534,7 @@ function ReportRow({
         {line.quest === null ? null : <span dir="auto">{textFor(line.quest.title, language)}</span>}
         <span dir="ltr">
           {sign}
-          {formatNumber(line.points, language)}
+          {formatNumber(size, language)}
         </span>
         {line.bulkId === null ? null : <Badge>{t("awards.bulkTag")}</Badge>}
         {line.removed ? <Badge>{t("awards.removedTag")}</Badge> : null}

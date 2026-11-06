@@ -566,7 +566,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reports and moderation (databa
          FROM event WHERE id = $1 RETURNING id`,
         [event],
       );
-      await f.run(f.team(), "SELECT event_copy_setup($1, $2, $3)", [
+      await f.run({ ...f.team(), repeatableRead: true }, "SELECT event_copy_setup($1, $2, $3)", [
         event,
         target?.id,
         randomUUID(),

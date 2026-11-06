@@ -378,8 +378,9 @@ export function memberLedger(
 export type ReportLine = Readonly<{
   id: string;
   at: Date;
-  kind: "quest" | "award" | "removal";
-  /** The full amount: for a removal, the amount of the entry it reverses (FR-1601). */
+  /** `adjust`: a quest's points changed for completions already made (T-604), signed. */
+  kind: "quest" | "award" | "removal" | "adjust";
+  /** The full amount: for a removal, the amount of the entry it reverses (FR-1601); for an adjust, the signed change. */
   points: number;
   scoreDelta: number;
   balanceDelta: number;

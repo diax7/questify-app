@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { capProblem, kindKey, pointsOf, reasonOk, whoOf } from "#src/lib/awards.ts";
+import { capProblem, kindKey, pointsOf, reasonOk, reportAmount, whoOf } from "#src/lib/awards.ts";
 import { translatorFor } from "#src/lib/language.ts";
 
 const t = translatorFor("en");
@@ -10,6 +10,41 @@ describe("awards helpers", () => {
     expect(kindKey("bonus")).toBe("awards.kind.bonus");
     expect(kindKey("redeem_return")).toBe("awards.kind.redeemReturn");
     expect(kindKey("future_kind")).toBe("history.other");
+  });
+
+  it("signs a report line: a removal subtracts, an adjust keeps its own sign, the rest add (T-604)", () => {
+    expect(kindKey("adjust")).toBe("awards.kind.adjust");
+    expect(reportAmount({ kind: "removal", points: 200, balanceDelta: -200 })).toEqual({
+      sign: "−",
+      size: 200,
+    });
+    expect(reportAmount({ kind: "adjust", points: -30, balanceDelta: -30 })).toEqual({
+      sign: "−",
+      size: 30,
+    });
+    expect(reportAmount({ kind: "adjust", points: 50, balanceDelta: 0 })).toEqual({
+      sign: "+",
+      size: 50,
+    });
+    expect(reportAmount({ kind: "award", points: 10, balanceDelta: 10 })).toEqual({
+      sign: "+",
+      size: 10,
+    });
+    expect(reportAmount({ kind: "quest", points: 25, balanceDelta: 25 })).toEqual({
+      sign: "+",
+      size: 25,
+    });
+  });
+
+  it("shows an adjust that moved only the balance by its balance change, not as +0", () => {
+    expect(reportAmount({ kind: "adjust", points: 0, balanceDelta: 12 })).toEqual({
+      sign: "+",
+      size: 12,
+    });
+    expect(reportAmount({ kind: "adjust", points: 0, balanceDelta: -7 })).toEqual({
+      sign: "−",
+      size: 7,
+    });
   });
 
   it("names the operator by username, else the staff email, else nobody", () => {
