@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { FEATURES, VENUE_RADIUS, readBranding, readEventTerms } from "@questify/shared";
+import { VENUE_RADIUS, readBranding, readEventTerms } from "@questify/shared";
 import {
   eventNotDraft,
   eventNotEmpty,
@@ -94,10 +94,6 @@ const duplicateBody = z.strictObject({
 const endBody = z.strictObject({ confirm: z.literal(true) });
 const rankingBody = z.strictObject({ enabled: z.boolean() });
 const eventParams = z.object({ eventId: z.uuid() });
-const featureParams = z.object({
-  eventId: z.uuid(),
-  feature: z.string().regex(/^[a-z][a-zA-Z0-9]*$/),
-});
 
 const member = { config: { access: "member" }, bodyLimit: BODY_LIMIT } as const;
 const owner = { config: { access: "owner" }, bodyLimit: BODY_LIMIT } as const;
@@ -477,15 +473,5 @@ function registerEventSwitches(scope: FastifyInstance, settings: SettingsService
       throw notFound();
     }
     return layers;
-  });
-
-  // The same save for any feature an owner can switch; the paths above are the ones the dashboard's pages already use.
-  scope.put("/events/:eventId/features/:feature", owner, async (request) => {
-    const { eventId, feature } = parse(featureParams, request.params);
-    const definition = Object.hasOwn(FEATURES, feature) ? FEATURES[feature] : undefined;
-    if (definition === undefined || definition.gated || definition.level === "platform") {
-      throw notFound();
-    }
-    return save(request, eventId, feature);
   });
 }

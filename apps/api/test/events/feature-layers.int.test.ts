@@ -127,7 +127,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event feature layers over HTTP
     expect((await call("GET", `${base(event)}/features`, "")).statusCode).toBe(401);
   });
 
-  it("hides what the platform turns off and refuses the owner's switch-on, on the generic route and the page's own", async () => {
+  it("hides what the platform turns off and refuses the owner's switch-on, on the shop's route and the ranking's", async () => {
     const event = await fixture.newEvent({ phase: "live" });
     await call("PUT", `${base(event)}/features/shop`, owner, { enabled: false });
     await platform("shop", false);
@@ -215,7 +215,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event feature layers over HTTP
     await platform("polls", null);
   });
 
-  it("answers 404 for a switch that does not exist or that Questify sets for everyone, and 403 to an editor", async () => {
+  it("has no owner route for a switch Questify sets for everyone, and answers 403 to an editor", async () => {
     const event = await fixture.newEvent({ phase: "live" });
     for (const feature of ["dailyStreak", "locationQuests", "teleporter", "constructor"]) {
       const refused = await call("PUT", `${base(event)}/features/${feature}`, owner, {

@@ -99,8 +99,6 @@ const ROUTES: Readonly<Record<string, string>> = {
     "owner/editor of that organizer (another organizer's event, even a public one, answers 404); the features the platform leaves on for this organizer with on, off or locked, each add-on's latest Ask Questify request (status and time only), no player (test/events/feature-layers)",
   "POST /v1/organizers/:organizerId/events/:eventId/feature-requests":
     "owner of that organizer only (owner route, walked below; RQ403 in request_feature for an editor, RQ404 for another organizer's event); records one Ask Questify request per event and add-on (ids, the key and times, no text), a repeat answers the open one; 409 already unlocked, 429 within 24 hours of a decline; 20 an hour per staff account; audited (test/events/feature-layers, test/db/feature-layers-points)",
-  "PUT /v1/organizers/:organizerId/events/:eventId/features/:feature":
-    "owner of that organizer only (owner route, walked below); one switch of that event for a feature an owner can switch; a switch-on the platform, Questify's override for the organizer or the add-on rule keeps off answers 403 feature_not_allowed and writes nothing (test/events/feature-layers)",
   "PUT /v1/organizers/:organizerId/events/:eventId/branding":
     "a member of that organizer, an editor within their chosen events (the database applies the limit); another organizer's event answers 404; one accent from the curated list, nothing else is stored (test/events/branding)",
   "PUT /v1/organizers/:organizerId/events/:eventId/texts":
