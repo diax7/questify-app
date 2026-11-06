@@ -5,7 +5,13 @@ import type { Me } from "#src/auth/player.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { ItemPreview } from "#src/questify/ItemPreview.tsx";
-import { levelOfRewards, xpLine } from "#src/questify/journey.ts";
+import {
+  levelOfRewards,
+  nextRewardLabel,
+  plaqueLabel,
+  previewNamesItem,
+  xpLine,
+} from "#src/questify/journey.ts";
 import { levelProgress } from "#src/questify/level.ts";
 import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
 
@@ -23,11 +29,16 @@ export function LevelPlaque({ rewards }: Readonly<{ rewards: LevelRewards }>) {
       <View
         accessible
         accessibilityRole="header"
-        accessibilityLabel={`${t("level.number", { level: number })}, ${title[language]}`}
+        accessibilityLabel={plaqueLabel(t, language, rewards)}
         style={styles.top}
       >
         <View style={styles.medallion}>
-          <AppText variant="display" style={styles.medallionText}>
+          <AppText
+            variant="display"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={styles.medallionText}
+          >
             {String(number)}
           </AppText>
         </View>
@@ -72,15 +83,17 @@ export function NextRewardCard({
   return (
     <View
       accessible
-      accessibilityLabel={`${t("locker.next", { item: name })}, ${t("level.number", { level })}`}
+      accessibilityLabel={nextRewardLabel(t, language, level, item)}
       style={styles.next}
     >
       <ItemPreview item={item} me={me} size={64} locked />
       <View style={styles.grow}>
         <AppText variant="label">{t("level.number", { level })}</AppText>
-        <AppText variant="title" numberOfLines={2}>
-          {name}
-        </AppText>
+        {previewNamesItem(item) ? null : (
+          <AppText variant="title" numberOfLines={2}>
+            {name}
+          </AppText>
+        )}
       </View>
       <Ionicons name="gift-outline" size={28} color={theme.colors.tierGold} />
     </View>

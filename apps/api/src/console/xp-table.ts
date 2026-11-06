@@ -18,7 +18,7 @@ export function previewXpTable(pool: Pool, admin: Admin, doc: unknown): Promise<
 }
 
 /**
- * Makes a new Questify item (T-709d, ADR-441), optionally on sale in the same transaction, audited as
+ * Makes a new Questify item (T-709d, ADR-441), audited as
  * `catalog.item.create`. 409 `item_exists` when the id is taken. A new item has nothing to revert to.
  */
 export function createItem(

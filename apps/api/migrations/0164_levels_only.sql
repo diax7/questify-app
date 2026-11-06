@@ -7,12 +7,14 @@
 -- in XP or in anything (FR-415).
 --
 -- Locks: every table this migration changes or references, up front, in live-path order and at the strongest mode a
--- later statement needs, so no lock is upgraded mid-way (0067's lesson; plan review 86). xp_entry first: every live path
--- that reaches player_xp touched xp_entry before it (a completion's xp_credit, the sync's pre-check; 0069, 0072). player
--- before player_xp: sign-up and erasure take the player first. Dropping a foreign key takes ACCESS EXCLUSIVE on the table
--- it references, so level_reached and achievement_earned (gem_entry's keys) and item (gem_shop_item's key) are taken
--- ACCESS EXCLUSIVE from the start; item after player_xp, as the scan, the sync and erasure reach it. platform_setting is
--- never touched (0163 did its part): a scan reads it before it locks player_xp.
+-- later statement needs, so no lock is upgraded mid-way (0067's lesson; plan review 86). xp_entry first: a completion's
+-- xp_credit and the sync's pre-check touch xp_entry before player_xp (0069, 0072). Not every path does: daily_finish_play
+-- and xp_reverse lock player or player_xp first, so a daily finish or an XP removal in flight can deadlock with this
+-- migration; PostgreSQL aborts one side (40P01) with no data harm, and the runner retries a deadlocked file (it rolls
+-- back whole). player before player_xp: sign-up and erasure take the player first. Dropping a foreign key takes ACCESS
+-- EXCLUSIVE on the table it references, so level_reached and achievement_earned (gem_entry's keys) and item
+-- (gem_shop_item's key) are taken ACCESS EXCLUSIVE from the start; item after player_xp, as the scan, the sync and
+-- erasure reach it. platform_setting is never touched (0163 did its part): a scan reads it before it locks player_xp.
 --
 -- Deny by default: the new table is closed to PUBLIC and the API role with row-level security forced; every new function
 -- is revoked from PUBLIC next to its CREATE and only own_level_rewards is granted; every replaced door keeps exactly its

@@ -8,7 +8,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { useReduceMotion } from "#src/components/motion.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { ItemPreview } from "#src/questify/ItemPreview.tsx";
-import { stoneLabel, type Stone } from "#src/questify/journey.ts";
+import { previewNamesItem, stoneLabel, type Stone } from "#src/questify/journey.ts";
 import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
 
 const STONE = 40;
@@ -65,9 +65,37 @@ function StoneEnd({ stone }: Readonly<{ stone: Stone }>) {
   );
 }
 
+/** The picture at the start of a stone's card: the item on the player, or a flag for a level that gives none. */
+function StonePicture({ stone, me }: Readonly<{ stone: Stone; me: Me }>) {
+  const { theme } = useTheme();
+  return stone.item === null ? (
+    <Ionicons name="flag" size={32} color={theme.colors.tierGold} />
+  ) : (
+    <ItemPreview item={stone.item} me={me} size={48} locked={stone.state === "locked"} />
+  );
+}
+
+/** What a stone's card says: the item's name (a title's plate already shows it) and the XP the level starts at. */
+function StoneText({ stone }: Readonly<{ stone: Stone }>) {
+  const { t, language } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  const item = stone.item;
+  return (
+    <View style={styles.cardText}>
+      {item === null || previewNamesItem(item) ? null : (
+        <AppText variant="label" numberOfLines={2}>
+          {item.name[language]}
+        </AppText>
+      )}
+      <AppText muted numberOfLines={1}>
+        {t("explore.xp", { xp: formatNumber(stone.xpFrom, language) })}
+      </AppText>
+    </View>
+  );
+}
+
 function StoneCard({ stone, me }: Readonly<{ stone: Stone; me: Me }>) {
   const { t, language } = useI18n();
-  const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const item = stone.item;
   const open =
@@ -79,25 +107,12 @@ function StoneCard({ stone, me }: Readonly<{ stone: Stone; me: Me }>) {
       accessible
       accessibilityRole={open === undefined ? "text" : "button"}
       accessibilityLabel={stoneLabel(t, language, stone)}
-      {...(open === undefined ? {} : { accessibilityHint: t("locker.title") })}
+      {...(open === undefined ? {} : { accessibilityHint: t("journey.opensLocker") })}
       onPress={open}
       style={[styles.card, stone.state === "current" ? styles.cardCurrent : null]}
     >
-      {item === null ? (
-        <Ionicons name="flag" size={32} color={theme.colors.tierGold} />
-      ) : (
-        <ItemPreview item={item} me={me} size={48} locked={stone.state === "locked"} />
-      )}
-      <View style={styles.cardText}>
-        {item === null ? null : (
-          <AppText variant="label" numberOfLines={2}>
-            {item.name[language]}
-          </AppText>
-        )}
-        <AppText muted numberOfLines={1}>
-          {t("explore.xp", { xp: formatNumber(stone.xpFrom, language) })}
-        </AppText>
-      </View>
+      <StonePicture stone={stone} me={me} />
+      <StoneText stone={stone} />
       <StoneEnd stone={stone} />
     </Pressable>
   );
@@ -185,5 +200,5 @@ const makeStyles = (theme: Theme) => ({
     backgroundColor: theme.colors.surface,
   },
   cardCurrent: { borderColor: theme.colors.highlight, borderWidth: 3 },
-  cardText: { flex: 1, gap: 2 },
+  cardText: { flex: 1, minWidth: 72, gap: 2 },
 });

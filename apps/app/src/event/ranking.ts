@@ -1,5 +1,6 @@
 import type { Language, NameDisplay } from "@questify/shared";
 import type { RankRow, Ranking } from "#src/event/home-api.ts";
+import { joinSpoken } from "#src/i18n/text.ts";
 import type { Translate } from "#src/i18n/words.ts";
 
 /** A row to draw, with how the event names players (FR-1842) so the row and its spoken label agree. */
@@ -26,9 +27,7 @@ export function withLevel(
   t: Translate,
   language: Language,
 ): string {
-  return level === undefined
-    ? label
-    : `${label}${language === "ar" ? "، " : ", "}${t("level.number", { level })}`;
+  return level === undefined ? label : joinSpoken(language, label, t("level.number", { level }));
 }
 
 /** The tallest a row grows on a big phone; rows never scroll, so they shrink instead (FR-603). */
@@ -78,8 +77,11 @@ export function podiumPlaces(top: readonly ShownRow[]): readonly (ShownRow | und
   return [top[1], top[0], top[2]];
 }
 
-/** The name line is as tall as the level badge beside the name (T-404d), so the smallest podium rose from 96 to 100. */
-export const NAME_LINE = 22;
+/**
+ * The name line is one `label` line (18 points) and the level badge beside a podium name is that size, so a name keeps its
+ * width in a third of a 320-point phone (T-404d).
+ */
+export const NAME_LINE = 18;
 const SCORE_LINE = 18;
 const FACE_PADDING = 8;
 /**

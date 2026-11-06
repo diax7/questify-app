@@ -10,15 +10,17 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
 const PADLOCK: ImageSourcePropType = require("#assets/icons/padlock.png");
 
 /**
- * An item as it will look on the player: a frame or a character on their own avatar, a title on a name plate. A locked
- * item is faded with a padlock on it. Decorative: the card around it carries the spoken label.
+ * An item as it will look on the player: a frame or a character on their own avatar, a title on a name plate (which
+ * names the title, so the card around it does not say it again; see `previewNamesItem`). A locked item is faded with a
+ * padlock on it, unless the card already shows one (`padlock` false). Decorative: the card carries the spoken label.
  */
 export function ItemPreview({
   item,
   me,
   size,
   locked,
-}: Readonly<{ item: ProfileItem; me: Me; size: number; locked: boolean }>) {
+  padlock = locked,
+}: Readonly<{ item: ProfileItem; me: Me; size: number; locked: boolean; padlock?: boolean }>) {
   const { language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   const body =
@@ -27,7 +29,7 @@ export function ItemPreview({
         <AppText variant="label" numberOfLines={1} style={{ writingDirection: "ltr" }}>
           {isolatedLtr(`@${me.username}`)}
         </AppText>
-        <AppText variant="label" numberOfLines={1}>
+        <AppText variant="label" numberOfLines={2}>
           {item.name[language]}
         </AppText>
       </View>
@@ -45,8 +47,8 @@ export function ItemPreview({
       importantForAccessibility="no-hide-descendants"
       style={styles.slot}
     >
-      <View style={locked ? styles.faded : null}>{body}</View>
-      {locked ? (
+      <View style={[styles.shrink, locked ? styles.faded : null]}>{body}</View>
+      {padlock ? (
         <Image
           source={PADLOCK}
           resizeMode="contain"
@@ -58,11 +60,13 @@ export function ItemPreview({
 }
 
 const makeStyles = (theme: Theme) => ({
-  slot: { alignItems: "center" as const, justifyContent: "center" as const },
+  slot: { flexShrink: 1, alignItems: "center" as const, justifyContent: "center" as const },
+  shrink: { flexShrink: 1 },
   faded: { opacity: 0.4 },
   padlock: { position: "absolute" as const },
   plate: {
     maxWidth: 140,
+    flexShrink: 1,
     gap: 2,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.xs,

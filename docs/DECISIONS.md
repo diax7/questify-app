@@ -8496,7 +8496,9 @@ big screen, the station or the top-10 push. The completion path is untouched
 the next level's item, the trail of every level's item (unlocked or locked) and the achievement items. One caller-bound
 read, `own_level_rewards()`, answers it. No price, currency or "get" word anywhere.
 **Why:** inside an event the prizes action is already "Rewards" («الجوائز»); the change exists to avoid confusing the two.
-**Trade-offs:** the word "rewards" is not used outside events; the route is `app/(questify)/journey.tsx` (T-404d).
+**Trade-offs:** inside an event "Rewards" («الجوائز») names the prizes action; outside events the word names only what a
+level or an achievement opens (the Journey headings «مكافآت المستويات» and «مكافآت الإنجازات», and the locker), never a
+price or a prize; the route is `app/(questify)/journey.tsx` (T-404d).
 
 ## ADR-768 - The event currency icon "gem" stays; the terms lose Questify gems
 

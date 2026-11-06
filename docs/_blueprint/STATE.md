@@ -17,8 +17,8 @@
   "Reach gold in Wanderer"; skeleton, retry on a failed read, a sign-in button signed out. A tap on an owned item opens the
   locker on its tab. `LevelBadge` (a wooden shield with the number, decorative to a screen reader) beside the name on event
   ranking rows, the podium and both profile headers, a blocked row included; the spoken row ends with "Level n"; an answer
-  without a valid `level` draws no badge. The podium's name line grew from 18 to 22 points for the badge, so `PODIUM_MIN` is
-  100 (was 96). Sync toasts: an achievement toast carries the XP its tiers paid, and one toast for each item given. Console:
+  without a valid `level` draws no badge. The podium's badge is 18 points, the name line's height (26 at most on a row), so a name keeps
+  its width at 320 points; `PODIUM_MIN` stays 100 (it was 96 before the badge; it can go back, FOLLOWUPS). Sync toasts: an achievement toast carries the XP its tiers paid, and one toast for each item given. Console:
   the achievement editor's "Unlocks" item and tier fields and a card line; `item` is sent only when changed. Two leftovers of
   T-404c in `console-catalog.spec.ts` fixed (the amounts revert read the removed "Level up" field; the item source check read
   the wrong element). No gem or price word on any new string (`no-gems.test`, `journey.test`).
@@ -26,7 +26,10 @@
   passed and 2 skipped on desktop and phone, `layout.spec.ts` passed on both (one earlier run; the rerun after its race fix was
   `console-catalog` only); `npx expo export` (Android) bundles; oxlint, oxfmt, `lint:limits` and types clean; the full suite
   was not run on this shared PC (CI runs it). `readRanking` complexity 13 to 12 in the limits baseline. CI minutes: 0 (not
-  pushed); agent tokens roughly 700k (estimate). Mutation: none (tier B).
+  pushed); agent tokens roughly 700k (estimate). Mutation: none (tier B). Review fixes (86): a title's name plate shrinks
+  and its name is shown once (trail, rewards, next-reward card); a locked achievement card shows one padlock; a failed
+  items read in the console shows a notice with Retry instead of raw ids; Arabic copy («العنصر الذي يفتحه», «ستحصل على … قريبًا»,
+  hint «يفتح الخزانة»); spoken labels use «،»; a level with no item is no longer "where you start" after level 1.
   **Next:** the tier B code review of T-404d, the tier A code review of T-404c, then the next unchecked task in `docs/TASKS.md`.
 
 ## T-404c built — 2026-11-06

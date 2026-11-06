@@ -201,7 +201,7 @@ for (const language of ["en", "ar"] as const) {
   });
 }
 
-test("the amounts are two equal cards; a save names each changed amount once and is reverted", async ({
+test("the amounts are one card; a save names each changed amount once and is reverted", async ({
   page,
 }, info) => {
   // One document for the whole platform: only the desktop run edits it, so two runs never cross.

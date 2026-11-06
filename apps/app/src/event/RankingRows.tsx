@@ -12,6 +12,9 @@ import type { Translate } from "#src/i18n/words.ts";
 import { LevelBadge } from "#src/questify/LevelBadge.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
+/** The level badge beside a row's name; a shorter row draws it smaller so it never fills the row. */
+const MAX_BADGE = 26;
+
 /** Who a row names aloud: the username, or the full name the event shows (with the username when it shows both). */
 function spokenName(row: ShownRow): string {
   const shown = shownName(row.fullName, row.names);
@@ -134,7 +137,9 @@ export function RankingRow({ row, height }: Readonly<{ row: ShownRow; height: nu
           suffix={row.equipment?.title == null ? "" : ` · ${row.equipment.title.name[language]}`}
           style={styles.shrink}
         />
-        {row.level === undefined ? null : <LevelBadge level={row.level} size={26} />}
+        {row.level === undefined ? null : (
+          <LevelBadge level={row.level} size={Math.max(0, Math.min(MAX_BADGE, height - 4))} />
+        )}
       </View>
       {row.isMe ? <AppText variant="label">{t("ranking.you")}</AppText> : null}
       {row.score === null ? null : (

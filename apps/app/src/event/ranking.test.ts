@@ -232,13 +232,13 @@ describe("podiumMetrics", () => {
 
   it("measures the smallest podium exactly, with and without a score line", () => {
     expect(podiumMetrics(PODIUM_MIN, true)).toEqual({
-      face: 26,
-      steps: [24, 26, 22],
+      face: 28,
+      steps: [24, 28, 22],
       rankText: "label",
     });
     expect(podiumMetrics(PODIUM_MIN, false)).toEqual({
       face: 28,
-      steps: [30, 42, 22],
+      steps: [33, 46, 24],
       rankText: "label",
     });
   });

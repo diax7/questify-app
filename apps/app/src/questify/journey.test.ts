@@ -17,10 +17,14 @@ import {
   levelOfRewards,
   lockerStartKind,
   nextReward,
+  nextRewardLabel,
+  plaqueLabel,
+  previewNamesItem,
   reachLine,
   stoneLabel,
   stonesOf,
   xpLine,
+  type Stone,
 } from "#src/questify/journey.ts";
 
 const translate = createTranslator(MESSAGES, NO_OVERRIDES);
@@ -147,6 +151,7 @@ describe("lockerStartKind", () => {
 
 describe("what a screen reader says", () => {
   const stones = stonesOf(rewards);
+  const empty = (state: Stone["state"]): Stone => ({ ...stones[4]!, state });
 
   it("names the level, the item and where the player stands, in both languages", () => {
     expect(stoneLabel(tIn("en"), "en", stones[1]!)).toBe("Level 2 reached: Green ring");
@@ -157,9 +162,31 @@ describe("what a screen reader says", () => {
     expect(stoneLabel(tIn("ar"), "ar", stones[3]!)).toBe("المستوى 4 مقفل: تاج");
   });
 
-  it("calls a level with no item the start", () => {
+  it("calls level 1 the start", () => {
     expect(stoneLabel(tIn("en"), "en", stones[0]!)).toBe("Level 1: where you start");
     expect(stoneLabel(tIn("ar"), "ar", stones[0]!)).toBe("المستوى 1: نقطة البداية");
+  });
+
+  it("says only where the player stands at a later level that gives no item", () => {
+    expect(stoneLabel(tIn("en"), "en", empty("locked"))).toBe("Level 5 locked");
+    expect(stoneLabel(tIn("en"), "en", empty("current"))).toBe("You are at level 5");
+    expect(stoneLabel(tIn("en"), "en", empty("reached"))).toBe("Level 5 reached");
+    expect(stoneLabel(tIn("ar"), "ar", empty("locked"))).toBe("المستوى 5 مقفل");
+    expect(stoneLabel(tIn("ar"), "ar", empty("current"))).toBe("أنت في المستوى 5");
+    expect(stoneLabel(tIn("ar"), "ar", empty("reached"))).toBe("بلغت المستوى 5");
+  });
+
+  it("joins the plaque's and the next reward's words with each language's comma", () => {
+    expect(plaqueLabel(tIn("en"), "en", rewards)).toBe("Level 3, Explorer");
+    expect(plaqueLabel(tIn("ar"), "ar", rewards)).toBe("المستوى 3، مستكشف");
+    expect(nextRewardLabel(tIn("en"), "en", 4, crown)).toBe("Next reward: Crown, Level 4");
+    expect(nextRewardLabel(tIn("ar"), "ar", 4, crown)).toBe("المكافأة التالية: تاج، المستوى 4");
+  });
+
+  it("leaves a title's name to its name plate and names the other kinds beside them", () => {
+    expect(previewNamesItem({ ...title, kind: "title" })).toBe(true);
+    expect(previewNamesItem({ ...ring, kind: "frame" })).toBe(false);
+    expect(previewNamesItem({ ...ring, kind: "character" })).toBe(false);
   });
 
   it("tells the three states of an achievement reward apart", () => {
@@ -189,6 +216,9 @@ describe("what a screen reader says", () => {
     expect(achievementLabel(en, "en", wanderer({}))).toBe("Green ring: Reach gold in Wanderer");
     expect(achievementLabel(tIn("ar"), "ar", wanderer({}))).toBe(
       "إطار أخضر: ابلغ الدرجة الذهبية في إنجاز رحّالة",
+    );
+    expect(achievementLabel(tIn("ar"), "ar", wanderer({ earned: true }))).toBe(
+      "ستحصل على إطار أخضر من إنجاز رحّالة قريبًا",
     );
   });
 

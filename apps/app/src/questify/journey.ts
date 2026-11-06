@@ -6,6 +6,7 @@ import {
   type LevelRewards,
   type ProfileItem,
 } from "@questify/shared";
+import { joinSpoken } from "#src/i18n/text.ts";
 import type { Translate } from "#src/i18n/words.ts";
 import type { QuestifyLevel } from "#src/questify/level.ts";
 
@@ -34,6 +35,9 @@ export function stonesOf(rewards: LevelRewards): readonly Stone[] {
   }));
 }
 
+/** A title's preview is a name plate that already shows its name, so the card around it leaves the name out. */
+export const previewNamesItem = (item: ProfileItem): boolean => item.kind === "title";
+
 /** The nearest level ahead that gives an item, or null at the top. */
 export function nextReward(
   stones: readonly Stone[],
@@ -52,18 +56,45 @@ export const levelOfRewards = (rewards: LevelRewards): QuestifyLevel => ({
 });
 
 const STONE_KEY = {
-  reached: "journey.stoneReached",
-  current: "journey.stoneCurrent",
-  locked: "journey.stoneLocked",
-} as const;
+  reached: { item: "journey.stoneReached", plain: "journey.stoneReachedPlain" },
+  current: { item: "journey.stoneCurrent", plain: "journey.stoneCurrentPlain" },
+  locked: { item: "journey.stoneLocked", plain: "journey.stoneLockedPlain" },
+} as const satisfies Record<StoneState, Record<"item" | "plain", string>>;
 
-/** What a screen reader says for a stone: the level, the item and where the player stands. */
+/**
+ * What a screen reader says for a stone: the level, the item and where the player stands. Level 1 is "where you start";
+ * a later level that gives no item says only where the player stands.
+ */
 export function stoneLabel(t: Translate, language: Language, stone: Stone): string {
-  if (stone.item === null) {
-    return t("journey.stoneStart", { level: stone.level });
+  const keys = STONE_KEY[stone.state];
+  if (stone.item !== null) {
+    return t(keys.item, { level: stone.level, item: stone.item.name[language] });
   }
-  return t(STONE_KEY[stone.state], { level: stone.level, item: stone.item.name[language] });
+  return stone.level === 1
+    ? t("journey.stoneStart", { level: stone.level })
+    : t(keys.plain, { level: stone.level });
 }
+
+/** What a screen reader says for the level plaque: "Level 3, Explorer". */
+export const plaqueLabel = (t: Translate, language: Language, rewards: LevelRewards): string =>
+  joinSpoken(
+    language,
+    t("level.number", { level: rewards.level.number }),
+    rewards.level.title[language],
+  );
+
+/** What a screen reader says for the next reward card: "Next reward: Crown, Level 4". */
+export const nextRewardLabel = (
+  t: Translate,
+  language: Language,
+  level: number,
+  item: ProfileItem,
+): string =>
+  joinSpoken(
+    language,
+    t("locker.next", { item: item.name[language] }),
+    t("level.number", { level }),
+  );
 
 /** Whether the player has the item, holds the tier and waits for the next sync to give it, or has not reached the tier. */
 export type RewardState = "owned" | "soon" | "locked";

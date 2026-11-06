@@ -5388,6 +5388,10 @@ export const MESSAGES = {
     ar: "المستوى {level}: نقطة البداية",
     en: "Level {level}: where you start",
   },
+  "journey.stoneReachedPlain": { ar: "بلغت المستوى {level}", en: "Level {level} reached" },
+  "journey.stoneCurrentPlain": { ar: "أنت في المستوى {level}", en: "You are at level {level}" },
+  "journey.stoneLockedPlain": { ar: "المستوى {level} مقفل", en: "Level {level} locked" },
+  "journey.opensLocker": { ar: "يفتح الخزانة", en: "Opens your locker" },
   "journey.stoneReached": {
     ar: "بلغت المستوى {level}: {item}",
     en: "Level {level} reached: {item}",
@@ -5402,7 +5406,7 @@ export const MESSAGES = {
     en: "You have {item} from {name}",
   },
   "journey.achievementSoon": {
-    ar: "{item} في الطريق إليك من إنجاز {name}",
+    ar: "ستحصل على {item} من إنجاز {name} قريبًا",
     en: "{item} from {name} is on its way",
   },
   "journey.achievementLocked": { ar: "{item}: {reach}", en: "{item}: {reach}" },
@@ -5431,7 +5435,11 @@ export const MESSAGES = {
     en: "You unlocked a new achievement, +{xp} XP",
   },
   "sync.item": { ar: "مكافأة جديدة: {item}", en: "New reward: {item}" },
-  "console.catalog.achievements.unlocks": { ar: "يفتح", en: "Unlocks" },
+  "console.catalog.achievements.unlocks": { ar: "العنصر الذي يفتحه", en: "Unlocks" },
+  "console.catalog.achievements.itemsFailed": {
+    ar: "تعذّر تحميل العناصر، فلا يظهر ما يفتحه كل إنجاز.",
+    en: "We could not load the items, so what each achievement unlocks is not shown.",
+  },
   "console.catalog.achievements.unlocksTier": { ar: "عند الدرجة", en: "At tier" },
   "console.catalog.achievements.noItem": { ar: "بلا عنصر", en: "No item" },
   // ---------------------------------------------------------------- streaks (T-405b, ADR-300: no loss or guilt copy)

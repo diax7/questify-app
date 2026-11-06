@@ -589,8 +589,8 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     player's own glowing unless Reduce Motion, later ones faded with a padlock; opens at the player's stone when it is
     below the first screen), the achievement items with tier medal, state icon and "Reach gold in Wanderer", a skeleton,
     a retry on a failed read, a sign-in button signed out; a tap on an owned item opens the locker on its tab. `LevelBadge`
-    (a wooden shield with the number) beside the name on the app's event ranking rows, the podium (name line 18 to 22,
-    `PODIUM_MIN` 96 to 100) and both profile headers, also on a blocked row; the spoken row label ends with "Level n";
+    (a wooden shield with the number) beside the name on the app's event ranking rows (26 points at most), the podium (18 points, the
+    name line's height; `PODIUM_MIN` stays 100) and both profile headers, also on a blocked row; the spoken row label ends with "Level n";
     `level` is read from the answer when it is a whole number from 1 up (an older API draws no badge). Sync toasts:
     an achievement toast carries the XP its tiers paid, and one toast for each item given. Console: the achievement
     editor's "Unlocks" item and tier fields and the card line (`unlockChoices`: free items and the one held; `item`

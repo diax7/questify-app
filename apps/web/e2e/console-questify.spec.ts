@@ -55,7 +55,7 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
 
   // "Set your interests" (T-407c): seeded always-on, met or not, so its target is fixed at 1.
   const interests = page.getByTestId("questify-quest").filter({ hasText: "اختر اهتماماتك" });
-  await expect(interests).toContainText("اختيار الاهتمامات: 1، الخبرة 100، الجواهر 10");
+  await expect(interests).toContainText("اختيار الاهتمامات: 1، الخبرة 100");
   await interests.getByRole("button", { name: "عدّل المهمة" }).click();
   await expect(page.getByLabel("ما تحسبه المهمة")).toHaveValue("interests_set");
   await expect(page.getByLabel("الهدف (من 1 إلى 1000)")).toBeDisabled();
@@ -115,18 +115,17 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
   await page.getByLabel("ما تحسبه المهمة").selectOption("cities");
   await page.getByLabel("الهدف (من 1 إلى 1000)").fill("0");
   await page.getByLabel("الخبرة (XP، من 1 إلى 10000)").fill("50");
-  await page.getByLabel("الجواهر (من 0 إلى 1000)").fill("15");
   await page.getByRole("button", { name: "احفظ", exact: true }).click();
   await expect(page.getByText("الهدف عدد صحيح من 1 إلى 1000.", { exact: true })).toBeVisible();
   await page.getByLabel("الهدف (من 1 إلى 1000)").fill("4");
-  await page.getByLabel("الجواهر (من 0 إلى 1000)").fill("1001");
+  await page.getByLabel("الخبرة (XP، من 1 إلى 10000)").fill("10001");
   await page.getByRole("button", { name: "احفظ", exact: true }).click();
-  await expect(page.getByText("الجواهر عدد صحيح من 0 إلى 1000.", { exact: true })).toBeVisible();
-  await page.getByLabel("الجواهر (من 0 إلى 1000)").fill("15");
+  await expect(page.getByText("الخبرة عدد صحيح من 1 إلى 10000.", { exact: true })).toBeVisible();
+  await page.getByLabel("الخبرة (XP، من 1 إلى 10000)").fill("50");
   await page.getByRole("button", { name: "احفظ", exact: true }).click();
   await expect(page.getByText("حُفظت التغييرات.")).toBeVisible();
   const quest = campaign.getByTestId("questify-quest").filter({ hasText: "العب في 4 مدن" });
-  await expect(quest).toContainText("المدن التي لعب فيها: 4، الخبرة 50، الجواهر 15");
+  await expect(quest).toContainText("المدن التي لعب فيها: 4، الخبرة 50");
   await expectNoSidewaysScroll(page);
 
   // Retiring asks first and is permanent.
@@ -168,6 +167,7 @@ test("in English the publish dialog says it cannot be undone and starts paying X
 
   // A new quest asks for its XP; there is no gems field any more.
   await campaign.getByRole("button", { name: "New quest" }).click();
+  await expect(page.getByLabel("XP paid (1 to 10000)")).toBeVisible();
   await expect(page.getByLabel(/gems/i)).toHaveCount(0);
 });
 

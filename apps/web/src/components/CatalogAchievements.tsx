@@ -44,7 +44,7 @@ type Ask = Readonly<{ tiers: LoweredTiers; again: () => Promise<boolean> }>;
 
 type Items = readonly ItemAdmin[];
 
-/** An item's name, or its id when the items could not be read (the picker still shows what the achievement holds). */
+/** An item's name, or its id when the list has no such item (the picker still shows what the achievement holds). */
 const itemName = (items: Items, id: string, language: Language): string =>
   items.find((item) => item.id === id)?.name[language] ?? id;
 
@@ -174,7 +174,8 @@ function AchievementEditor({
   language: Language;
   catalog: Catalog<AchievementAdmin[]>;
   row: AchievementAdmin;
-  items: Items;
+  /** Null while the items are being read or when they could not be: the Unlocks fields are then left out. */
+  items: Items | null;
   /** The refusal handler of a save of `doc`: a lowering opens the confirmation instead of a problem. */
   onAsk: (doc: object) => (result: PostResult) => boolean;
   onDone: () => void;
@@ -234,14 +235,16 @@ function AchievementEditor({
             </Field>
           ))}
         </div>
-        <UnlockFields
-          language={language}
-          achievementId={row.id}
-          items={items}
-          draft={draft}
-          disabled={catalog.busy}
-          onChange={setDraft}
-        />
+        {items === null ? null : (
+          <UnlockFields
+            language={language}
+            achievementId={row.id}
+            items={items}
+            draft={draft}
+            disabled={catalog.busy}
+            onChange={setDraft}
+          />
+        )}
         <EditorButtons
           language={language}
           busy={catalog.busy}
@@ -262,7 +265,7 @@ function AchievementCard({
   language: Language;
   catalog: Catalog<AchievementAdmin[]>;
   row: AchievementAdmin;
-  /** Null while the items are being read: the card then shows no "Unlocks" line rather than an id. */
+  /** Null while the items are being read or when they could not be: the card then shows no "Unlocks" line rather than an id. */
   items: Items | null;
 }>) {
   const t = translatorFor(language);
@@ -312,7 +315,7 @@ function AchievementCard({
           language={language}
           catalog={catalog}
           row={row}
-          items={items ?? []}
+          items={items}
           onAsk={(doc) =>
             asking(() =>
               catalog.save(row.id, { ...doc, confirmed: true }).then((saved) => {
@@ -357,14 +360,10 @@ function AchievementCard({
  * save or a revert that lowers one asks once, naming them (ADR-437).
  */
 export function CatalogAchievements({ language }: Readonly<{ language: Language }>) {
+  const t = translatorFor(language);
   const own = useCatalog(language, ACHIEVEMENTS_API, readAchievements);
   const itemsRead = useConsoleRead(ITEMS_API, readItems);
-  const items: Items | null =
-    itemsRead.state.kind === "loading"
-      ? null
-      : itemsRead.state.kind === "ready"
-        ? itemsRead.state.value
-        : [];
+  const items: Items | null = itemsRead.state.kind === "ready" ? itemsRead.state.value : null;
   // A save or a revert can move an item's source, so the items are read again after each one the API accepted.
   const catalog: Catalog<AchievementAdmin[]> = {
     ...own,
@@ -381,6 +380,14 @@ export function CatalogAchievements({ language }: Readonly<{ language: Language 
   };
   return (
     <Stack>
+      {itemsRead.state.kind === "failed" ? (
+        <Notice tone="warning" role="alert">
+          {t("console.catalog.achievements.itemsFailed")}{" "}
+          <Button size="sm" onClick={() => void itemsRead.reload()}>
+            {t("common.retry")}
+          </Button>
+        </Notice>
+      ) : null}
       <CatalogState language={language} catalog={catalog}>
         {(rows) => (
           <ul className={styles.cards}>

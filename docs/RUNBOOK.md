@@ -1289,6 +1289,17 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
 - **Hot path check:** the update trigger fires on every `UPDATE enrollment` (each scan's score update) and exits early.
   If `QuestifyCompletionSlow` fires after the deploy, compare a quest scan's time with the T-221 numbers in TASKS.
 
+### T-404c levels only (migration 0164; deploy steps)
+
+- **When:** migrate 0164 in a quiet minute. It locks every table it changes up front (`lock_timeout` 10 s), and a daily
+  finish or an XP removal in flight can deadlock with it: PostgreSQL aborts one side (`40P01`) with no data harm, and
+  the runner retries the file; if it still loses, run `node migrate.cjs` again (nothing was applied).
+- **Deploy and migrate together.** An old API on 0164 fails `GET /v1/me` (`own_gems` is gone); a new API on 0162 fails
+  the rankings and the rewards read (they use what 0164 adds). Run the migration and switch
+  the API in the same window.
+- **App builds:** a staging app build from before T-404c breaks on its first sync (the gem fields are gone) until it is
+  rebuilt; rebuild and reinstall the staging build with the deploy.
+
 ## Platform admins and support access (T-701, ADR-405, ADR-407)
 
 - **Make or unmake a Questify admin** (owner connection, inside the API container):
