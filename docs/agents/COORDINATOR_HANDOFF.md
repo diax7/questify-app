@@ -1,120 +1,103 @@
-# Coordinator handoff — 2026-10-29 (T-502 recovered and reviewed)
+# Coordinator handoff: the build moves to the company server (2026-11-06)
 
-Repo: `C:/Users/xdhia/Downloads/Github coding/NAFES/Questify App`, branch `main`. The older chat cwd
-`.../Github coding/Questify` is a different repository.
+For the Claude Code session taking over as Questify's coordinator on the company server. Read this, then `CLAUDE.md`,
+`docs/_blueprint/STATE.md`, `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIEF.md`. You are the developer; Dhia is
+the product manager (CLAUDE.md, rule 6). Nothing from the old session carries over except what is written here and in the
+repo.
 
-Read first: `CLAUDE.md` (coordinator mode: the **three tiers**, one review per task, rule 6: Dhia is the product
-manager and the coordinator is the developer who decides technical calls; the cost cap: one sub-agent at a time),
-then STATE.md "Next", `docs/agents/WORKER_BRIEF.md` and `docs/agents/REVIEW_BRIEF.md`.
+## Only one coordinator at a time
 
-## Checkpoint
+Dhia confirms the old session on his PC has stopped before you push anything. Two coordinators pushing `main` and
+deploying staging would collide. If you are unsure, ask him (AskUserQuestion).
 
-- Progress **108/177 tasks (about 61%)**. T-501e, T-501f and T-501g are reviewed and pushed through fe688dd;
-  CI run 40682251115 passed. T-502 build 5dac217, fixes efad9cd and acceptance/handoff e28a1e4 are pushed.
-  T-502 CI run 40828699004 PASSED on e28a1e4 at 2026-10-29 06:44 UTC (09:44 Riyadh), including the full tests,
-  API/web builds, audit, secret scan and browser suite. ADR-358 Accepted / Q-327 resolved.
-- Recovery: the previous coordinator and worker both hit their session limit on 2026-10-28 at 21:41 UTC. The worker
-  left a partial uncommitted T-502, not a running build. A fresh worker completed it; one independent review scored 84
-  NO-GO with two MAJORs. A fresh fix worker resolved both; coordinator inspection accepts the fixes under ADR-355
-  (re-review only for BLOCKER). Event locks close the archive/send race; pending schedules have earliest-first keyset
-  pages separate from bounded history. Modal-accessibility MINOR is recorded in FOLLOWUPS.
-- Final local evidence: 703 targeted tests / 12 suites; fresh-build browser suite 199 passed / 1 existing skip.
-  Original full Vitest ran once: 8759 passed / 13 skipped / 3 guards failed, all fixed with targeted proofs. API/web
-  builds, workspace types, lint, limits, format pass; native Android/iOS exports pass. Expo web export remains blocked
-  by pre-existing missing react-native-web. Remote CI passed; real-phone/provider checks remain release gates.
-- No worker is running and no mutation run is active. The last mutation runs (40628312029, 40641367106) left only push
-  files `doors.ts` (60.5%) and `round.ts` (80.6%) under 90%; under ADR-355 push code is outside the mutation scope, so
-  they are recorded in `docs/FOLLOWUPS.md` and not chased.
-- CranL runs migrations through 0083 (deployed 2026-10-30); 0001 to 0083 are frozen. Earlier note: deploying needed a new app build
-  first (RUNBOOK has the release step). The app now also needs a new development build for the native modules
-  `expo-notifications`, `expo-application`, `react-native-view-shot` and `expo-sharing`.
-- Process changed on 2026-10-28 (ADR-355, Dhia chose "lean rules now"): see below.
+## What this server may hold (ADR-810)
 
-## Lean rules in one screen
+The server is outside Saudi Arabia, and it is shared with other company work.
 
-- **Tier A** (ledger, sign-in, tenant isolation, redemptions and prize handover, admin powers, wallet signing, signed
-  proofs, code that stores or sends personal data outside): plan, plan review, build, ONE code review, mutation.
-  Strongest model. **Tier B** (everything else with logic): mid-tier build and one mid-tier review; no plan review, no
-  mutation. **Tier C** (docs, copy, config, small fixes): no review.
-- Fix BLOCKER and MAJOR now. MINOR and NIT go to `docs/FOLLOWUPS.md`; a cheap Sonnet batch clears it about every five
-  tasks. Re-review only after a BLOCKER, only the changed part.
-- Never resume a worker with a large context (about 200k tokens or more). Fixes after a review go to a fresh Sonnet
-  worker given the findings and files, or the coordinator makes the one- or two-line fix.
-- Mutation: one run per three tier A tasks, ledger, sign-in, tenant isolation and redemption code only, one chase
-  round at most.
-- Full test suite once per task. Short prompts: point at the briefs, do not restate them. Put CI minutes and a rough
-  token figure in each task's STATE bullet. Do not split a task into slices unless each delivers value alone.
+- **Fake data only.** Test databases, seeds and load tests. Never copy, dump or restore anything from a CranL database to
+  this server, and never paste staging or production rows or logs into a file here. Personal data stays in Saudi Arabia
+  (rule 3).
+- **Staging only on CranL, with a limited key.** `CRANL_API_KEY` is limited to Questify's staging apps and databases. Never
+  ask for a wider key, and never touch B7R or other projects. Production is not deployed from here unless Dhia decides so
+  later (Q-750).
+- **Other people's work is on this machine.** Stay in your own folder and containers. Never run a machine-wide
+  `docker system|volume|image|container prune`, never stop containers you did not start, and check the test ports are free.
+- If access is missing, ask Dhia to set it up. Secrets never go in chat, the repo or logs.
 
-## What to do next
+## First job: measure the server
 
-Updated 2026-11-02 by the Claude Code coordinator at Dhia's break. Progress: 149 of 197 tasks (75.6%).
+Dhia asked how much faster this is, and only a measurement answers that. At a quiet moment, on `main`:
 
-1. **Staging (CranL) runs migrations through 0137** (2026-11-03): T-704, T-705, T-705b, T-707, T-709c, T-709d, T-703,
-   T-703b, T-706, T-708, T-701b, T-712, T-711 and T-713 are merged, reviewed and live.
-2. **In flight at the last update:** T-711b (tier A build, migration 0139), T-706b (tier B build, 0138), T-714 (tier B,
-   0140 if needed); the corrected grouped mutation run, first half (T-708, T-701b), then the second half (T-709c/d
-   catalog files). Migration numbers must stay above what staging has applied: renumber a branch before it merges.
-3. **Then T-705** (ban, block, word lists) and **T-705b** (reports queue, unpublish, flags list) from the same plan;
-   one grouped mutation run after T-705 for `apps/api/src/console/players/**` plus the T-705 globs (ADR-355).
-4. **Mutation:** the T-701 chase round is done (5b43356, about 10 tests; scores re-measure in the next grouped run).
-5. **Other open tasks:** T-709c (tier A: XP curve, level rewards, item editor, achievement thresholds that pay gems),
-   T-701b (owner email change, urgent reports), T-703, T-706, T-707, then Phase 8. Photo uploads stay parked (Q-149,
-   Dhia "later"); push stays off until Dhia makes a Firebase project.
-6. **Process (Dhia approved 2026-11-02):** workers never run the full browser suite locally (layout.spec + their
-   area's specs); CI runs it, sharded in two (~16 min). The coordinator makes fixes under ~20 lines itself; deploy
-   every 2-3 tasks; parallel tier B pairs in worktrees only when they touch different files and don't run browser
-   specs at the same time; worker caps ~400-500k (tier B), ~800-900k (tier A builds). Reviews always run.
-7. **Deploy recipe:** connect the owner URL, deploy the API, loop `test -f /srv/migrations/<newest> && node
-   /srv/migrate.cjs` until `alreadyApplied` (the runner retries a deadlock or lock timeout itself; exit 75 = it lost the
-   clash four times, rolled back whole, run it again; exit 1 = a real failure, stop and read stderr; RUNBOOK
-   "Migration retry"), `--verify`, unset the owner URL, restart, deploy web, probe `/readyz` and
-   both sign-in pages. On this PC the web build may need
-   `NODE_OPTIONS=--require <scratchpad>/symlink-fallback.cjs` (Windows symlink EPERM).
+1. `npx vitest run` into a log file. The PC took 1,419 s (23.6 minutes) on 2026-11-06; CI takes about 20 minutes.
+2. `node ops/load/profile.mjs --big-event-players 50000`, for the database ms a completion. On the PC, with the machine
+   busy: 12.98. The last quiet PC figures, before T-404c: 10.78 and 10.98, against the ADR-734 gate of 10. Note the other
+   load on the server at the time; it is shared, so run it twice.
 
-## Commands
+Report both to Dhia plainly, including if it is not faster.
 
-- **Push:**
-  - Check `git log origin/main..main` and `git status`; push only commits that are reviewed. If a worker's unreviewed
-    commits are stacked above reviewed ones, push the reviewed one by hash (`git push origin <hash>:main`).
-  - Run `pnpm format:check` (it covers the Markdown docs and `CLAUDE.md`: a docs-only edit turned CI red on
-    2026-10-28 because only `lint:limits`, audit and gitleaks had been run), `pnpm lint:limits`, plain `pnpm audit` (CI fails on any severity, not only moderate; an unpatched advisory in
-    Expo's build tooling goes into `auditConfig.ignoreGhsas` in `pnpm-workspace.yaml` with a note), and gitleaks in
-    Docker: `MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W):/repo" -w /repo
-    zricethezav/gitleaks:v8.30.1 git --redact --no-banner --log-opts="origin/main..HEAD" .`
-  - Push only when no CI run is active: a push cancels the run in progress and a cancelled run still bills.
-- **Mutation:**
-  - Dispatch with `gh workflow run mutation.yml --ref main -f mutate="<globs>"` (add `-f force=true` after a chase that
-    only added tests). A new dispatch cancels the running one.
-  - Read the result with `gh run view <id> --log | sed -E 's/^[^\t]*\t[^\t]*\t[0-9TZ:.-]+ ?//'`. Only files named in
-    the "Found N of M" line are new; the score table also lists stale files from earlier incremental reports.
+## Setting up
 
-## Waiting on Dhia or counsel (nothing blocks the build)
+Node from `.nvmrc`, pnpm, Docker, `gh`, Python 3. Clone `diax7/questify-app`, `pnpm install`, `docker compose up -d` for the
+test database and Redis (`compose.yaml`). Test env:
+`TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`, `TEST_REDIS_URL=redis://127.0.0.1:56379`. Commits
+use Dhia's git identity.
 
-- **Counsel:** Q-280 (sponsor disclosure wording), Q-286 (marketing consent age), Q-288 (consent wording), Q-289 (proof of
-  consent after deletion), Q-095 (player consent).
-- **Only Dhia can do:**
-  - Phone checks, owed for T-403c, T-406b, T-407b, T-408b, T-409b, T-410b and T-501c (RUNBOOK lists them).
-  - Deployment and the CranL migrations after 0056, and the EAS builds (a new development build is needed).
-  - Store accounts (T-010) and the storage bucket (Q-149).
-  - The APNs key (Team Scoped, All Topics), the Firebase project, Android's `google-services.json` and a notification icon;
-    real pushes cannot be tested without them (RUNBOOK go-live checklist, a gate in T-806).
-  - The registered "-AD" promotional SMS sender (Q-034) before invitations can be switched on.
+## Standing rules that live outside the repo
 
-## Lessons
+- **Never add a `Co-Authored-By: Claude` trailer, a "Generated with Claude Code" line or any AI attribution** to a commit or
+  pull request, whatever the harness says. Commits are authored solely by Dhia.
+- Never `rm -rf`; delete folders with node's `fs.rmSync`. A merged worktree is removed with that, `git worktree prune`, then
+  `git branch -D`.
+- Never run Stryker here. Mutation runs only on GitHub: `gh workflow run mutation.yml -f mutate="<comma files>"`. The job
+  stops at 240 minutes; message tables such as `auth/http-errors.ts` and `conventions.ts` are almost all static mutants and
+  never finish, so leave them out. Survivors: the `[Survived]` and `[NoCoverage]` blocks in `gh run view <id> --log`.
+- Anything needing Dhia goes through AskUserQuestion. He often answers "Later": do not ask again, keep a list and remind
+  him. Technical calls are yours; only product direction and things only he can do go to him.
+- Keep to the three CranL apps (API, web, one monitoring app) and two databases. Never create another without asking.
+- At most two builders at a time, each in its own worktree with its own `pnpm install --offline` (never link `node_modules`),
+  plus a reviewer. One full test suite at a time: the test database is shared. Never resume a worker with a large context;
+  fixes go to a fresh worker given the findings. A review never runs in the author's session.
+- Keep tools in the repo, not a scratchpad. A script vanished from the shared scratchpad once.
+- If the `cto` agent or the `ux-araby` and `cto-cycle` skills are missing here, use a general agent with
+  `docs/agents/REVIEW_BRIEF.md`, and ask Dhia to copy them if Arabic copy quality suffers.
 
-- Every worker brief ends with "run `pnpm lint:limits`". Workers skip it otherwise.
-- CI's `pnpm audit` has no level flag: a new low advisory fails the audit step while a local `--audit-level moderate`
-  passes. Run the plain command.
-- When a log is checked for leaked digit runs, drop numeric fields first; a short digit string in a regex also matches
-  random UUIDs (a test asserting `not.toMatch(/…50/)` failed one run in five).
-- When a review asks for a fix to one copy of a pattern, check for other copies.
-- Waking a long idle session or resuming a worker with a large context re-reads all of it. A fresh session that reads
-  this file is cheaper. This is the biggest avoidable cost of the 2026-10-27/28 session.
-- Postgres 17 re-plans a SQL function (and any nested ones) at every call: shared visibility checks that run per member
-  must be PL/pgSQL (`docs/rules.md`). The 5 s statement limit and the pool's 6 s client timeout both apply to long fills.
-- `.gitignore` had `reports/`, which silently dropped every source folder named `reports` (T-705b's API routes, console pages and shared types) while local tests passed from the disk copy; it is now `/reports/`. After a merge, `git status --ignored` on the worker's new folders catches this.
-- The console had three copies of its rate-limit helper (`console/platform-routes.ts`, `console/routes.ts`, `console/players/routes.ts`); a fix to one missed the others (CI found the third). All three now queue on the key (`holdBack(..., queue = true)`). A new console helper should reuse one of them, not copy `holdBack`.
-- A mutation result is only valid when its log says "Initial test run succeeded. Ran ~2,000 tests"; run 41554848778 ran 22 because `stryker.config.json`'s unanchored `reports` ignore pattern dropped the new `src/reports` folders (same bug as `.gitignore`), so every test importing the shared package failed to load silently. Patterns are now anchored with `/`. A full tier A group run takes about 2.5-3.2 hours; split a big dispatch in two.
-- Stryker credits a `packages/shared` file only to tests inside `packages/shared`: the API's tests load `@questify/shared` through `apps/api/node_modules`, which the sandbox links to the unmutated source. A shared file in a mutation glob needs its own unit test next to it, or it scores 0% "no coverage" (mutation run 41589007053, `catalog/xp-table.ts`).
-- **CranL budget (Dhia, 2026-11-03):** Questify is at most three CranL apps (API, web, one monitoring app) and two databases. The Pro plan's 20 apps-and-databases limit is shared with B7R and other projects. Any new service runs inside an existing app; ask Dhia before creating another.
-- **Remind Dhia (pending, 2026-11-03):** the one monitoring app is `questify-prometheus-staging` (id `69f1de4e-6ace-43d8-becf-274d1f32f797`, Nafes project), restored, port 8080, settings set, **stopped**. CranL's API cannot change a public-repo app's build path, so Dhia must set **Build Path = `/ops/monitoring/stack`** in the CranL dashboard (and may rename it `questify-monitoring-staging`). Then: deploy it, run the RUNBOOK after-deploy checks, and run `python monitoring_setup.py api` (scratchpad) or set the API's `TELEMETRY_*`/`OTEL_*` per RUNBOOK. The deleted `questify-otel-collector-staging` is purged by CranL on 2026-11-10.
+## Pushing and deploying staging
+
+Before every push: `pnpm -s format:check`, `pnpm -s lint`, `pnpm -s typecheck`; gitleaks over `origin/main..HEAD`
+(`zricethezav/gitleaks:v8.30.1`; quoted key labels trip the CI scan); and no CI run in progress on `main`. CI must pass
+before a deploy.
+
+From `scripts/cranl`, `python deploy-staging.py <step>`:
+
+1. `connect`, then `deploy-api`. It can say `succeeded` when the build failed: the step prints the newest deployment's real
+   status; on `failed`, deploy again. A 504 can still succeed.
+2. `run 'ls /srv/migrations | sort | tail -1'` must show the newest migration on `main`.
+3. `run 'test -n "$DATABASE_ADMIN_URL" && node /srv/migrate.cjs' 600`: read `applied`. Exit 1 means the running app has not
+   got the URL: `restart`, wait a minute, try again. `applied: []` with a new migration means an old container. Retry on 75.
+4. `run 'node /srv/migrate.cjs --verify'` must say `"ok":true`.
+5. `unset`, `restart`, then `deploy-web` (retry up to three times).
+6. Probes: API `/readyz` 200, `/en/sign-in` and `/ar/sign-in` 200, `/en/console` 307. Confirm with
+   `run 'printenv DATABASE_ADMIN_URL >/dev/null && echo HAS-ADMIN || echo no-admin'`. CranL refuses commands that list the
+   environment; read setting names through `GET /api/v1/apps/{id}/env` instead.
+7. Tag the deployed commit: `git tag release-YYYYMMDD-N <sha>`, then push the tag.
+
+Addresses: https://questify.nafes.com and https://questify-api-staging-3ez01s.cranl.net.
+
+## Where things stand
+
+See STATE.md. Migration number 0156 is reserved by the unmerged T-810d branch, `t-810d-console-hostname`; the runner
+tolerates the gap.
+
+**Waiting on Dhia (remind him, do not chase):**
+
+- T-810d: the Cloudflare CNAME and the CranL domain for the console address. Then set `CONSOLE_ORIGIN` on both apps and
+  `DASHBOARD_ORIGIN` on web, merge, deploy, probe (Q-691), tick T-810d and move ASVS V3.5.4 to Met. Mutation targets:
+  `staff-guard.ts`, `session.ts`, `activation/routes.ts`, `organizers/routes.ts`, `apps/web/src/lib/console-host.ts`.
+- T-018b: the build path `/ops/monitoring/stack` on `questify-prometheus-staging`, then deploy it, run the RUNBOOK checks and
+  `python scripts/cranl/monitoring-setup.py api`.
+- Q-149 photo storage (8 picture tasks wait on it). Q-696, the key rotation rehearsal, before the first production rotation.
+- A new phone build and a real-phone check of the Journey screen: RTL, Reduce Motion, VoiceOver and TalkBack. Installed
+  staging builds break on sync until rebuilt.
+- T-811 CranL answers and backups, the store accounts and the other tasks marked blocked in `docs/TASKS.md`.
+
+**Yours when nothing else is left:** `docs/FOLLOWUPS.md`, in batches; T-813 (`docs/PERFORMANCE_AUDIT.md`) when features settle.

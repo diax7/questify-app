@@ -1202,6 +1202,8 @@ the first step of that rerun.
 
 ## Database and deploy
 
+Staging deploy steps: `docs/agents/COORDINATOR_HANDOFF.md`, using `scripts/cranl/deploy-staging.py`.
+
 **Check a CranL deploy before migrating.** The deploy call can answer `succeeded` while the build failed (2026-11-06: the
 log said only "Error occurred"; a retry built fine), and the old container keeps serving. Read
 `GET /api/v1/apps/{id}/deployments?limit=1` and confirm the newest migration file is in the container

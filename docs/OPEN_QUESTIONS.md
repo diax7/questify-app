@@ -2960,3 +2960,10 @@ a new terms version that players accept again is a legal call.
 
 **Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the code review 92): accepted as built.
 **Recommended (developer):** show the reason beside a suspension and its lifting, and word the 23 lifecycle, results, ban, take-down and team actions; leave the rest by name until a support case needs one. Alternative: word all audit actions now (about 170 more texts in two languages) or none.
+
+## Q-750 - Who deploys production once the build is on the company server (ADR-810)
+
+**Status:** Open (2026-11-06; to decide before the first production deploy).
+A key that can run commands in production apps, kept on a server outside Saudi Arabia, could read personal data from there.
+**Recommended (developer):** production deploys run from CI or from a machine in Saudi Arabia, with `apps:exec` and `env:reveal` left off any key on the company server.
+

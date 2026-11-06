@@ -869,3 +869,7 @@ but those are a good information and notes of performance that I would like you 
 ... to make my application feel good faster on the application level and on the dashboard and the admin level also."
 Processed into `docs/PERFORMANCE_AUDIT.md`, a line in `docs/rules.md` and task T-813.
 
+## 2026-11-06 - A company server for the build; CranL stays -> processed
+
+Dhia: "We do have this server ... Cloud VPS 12 (2026) ... 400 GB ... 12 ... 48 GB ... What if I moved your work into this server? ... And what if we also moved everything from CRANL". Then (AskUserQuestion): outside Saudi Arabia; "it is shared, yes, but we also have Claude Code is installed there. So maybe you just somehow hand off everything for him there, and he will have the access for the whole server. And he can build the application from there. ... a way to use cranl like you do now"; "lets keep cranl for now, just tell me what to apps to delete"; "Stay on CranL for now". Processed into ADR-810, Q-750 and `docs/agents/COORDINATOR_HANDOFF.md`.
+

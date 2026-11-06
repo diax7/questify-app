@@ -8576,3 +8576,11 @@ build; whether the change needs a new terms version and new acceptance is left t
 **Decision:** a history entry for `event.suspend`, `event.reactivate`, `organizer.suspend` and `organizer.reactivate` carries the reason an admin typed (`after.reason`), shown beside it; no other entry carries a value. `historyKeyOf` words 23 more actions: the event's lifecycle (created, copied, deleted, template, activation requested, withdrawn, not approved, activated, limit, ended early, moved on by the system), results confirmed and revealed, export, a player's ban and its lifting, take-down and put-back of content, and the organizer's creation, ownership transfer and team joins, removals and scope changes. The other audit actions show their stored name.
 **Why:** support reads this list to see what happened to an organizer; the reason is already on the suspension panel and in the audit row, and the list is read by platform admins only.
 **Trade-offs:** about 170 audit actions still show their code name; the reason is free text typed by an admin, shown as typed.
+
+## ADR-810 - The company server builds and tests; CranL keeps the hosting
+
+**Status:** Accepted (Dhia, 2026-11-06: stay on CranL for now; hand the build to the server's Claude Code; the server is outside Saudi Arabia and shared).
+**Decision:** Building, tests and load tests may run on the company server (12 virtual cores, 48 GB, 400 GB). It holds fake data only: nothing is copied from a CranL database to it, and its CranL key is limited to Questify's staging apps and databases. Staging and production stay on CranL, `riyadh-1` (ADR-107). Deploy scripts move into `scripts/cranl/`.
+**Why:** The server is outside Saudi Arabia, so personal data cannot live there (ADR-070), and one shared machine has no failover. Build work holds no personal data. The expected gains are free disk, no contention with other projects, and work that goes on while the PC is off; the speed gain is unmeasured until the handoff's first job runs.
+**Risk accepted:** A key on a shared machine can be read by anyone with access to that machine. So it is limited and expires, and it can run commands in staging apps. If real personal data ever reaches staging, this decision is reopened.
+
