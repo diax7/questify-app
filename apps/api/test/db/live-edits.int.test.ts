@@ -255,6 +255,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits (database)",
       expect(audit?.after).toMatchObject({ points: 120, completions: 40, lowered: 40 });
     });
 
+    it("lists each points change in the manual-awards report, signed, newest first, page by page (T-604)", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const stage = await quest(event);
+      const players = [await member(event), await member(event)];
+      for (const one of players) await scan(one.player, stage);
+      await past(event, stage, 150, { from: 100 });
+      await past(event, stage, 120, { from: 150 });
+      type Line = { id: string; kind: string; points: string; quest_id: string; by_staff: string };
+      const page = (before: string | null, size: number) =>
+        f.run<Line>(f.team(), "SELECT * FROM manual_awards($1, $2, $3)", [event, before, size]);
+      const all = await page(null, 50);
+      expect(all.map((line) => [line.kind, line.points])).toEqual([
+        ["adjust", "-30"],
+        ["adjust", "-30"],
+        ["adjust", "50"],
+        ["adjust", "50"],
+      ]);
+      expect(new Set(all.map((line) => line.quest_id))).toEqual(new Set([stage]));
+      expect(all.every((line) => line.by_staff !== null)).toBe(true);
+      const first = await page(null, 3);
+      const rest = await page(first.at(-1)?.id ?? null, 3);
+      expect([...first, ...rest].map((line) => line.id)).toEqual(all.map((line) => line.id));
+    });
+
     it("converges earlier future-only edits, targets a boost's multiple and leaves a removed completion", async () => {
       const event = await f.newEvent({ phase: "live" });
       const stage = await quest(event, { cap: 3 });
@@ -607,7 +631,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits (database)",
          VALUES ($1, $2, 'Copy', now() + interval '30 days', now() + interval '31 days') RETURNING id`,
         [f.ids.orgA, `LVE${(counter += 1)}`],
       );
-      await f.run(f.team(), "SELECT event_copy_setup($1, $2, $3)", [
+      await f.run({ ...f.team(), repeatableRead: true }, "SELECT event_copy_setup($1, $2, $3)", [
         event,
         target?.id,
         randomUUID(),

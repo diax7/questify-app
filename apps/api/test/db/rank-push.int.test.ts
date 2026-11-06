@@ -438,6 +438,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the top-10 rank push (database
     expect(await snapshotOf(ended)).toBeUndefined();
   });
 
+  it("puts an event whose diff failed behind the others, and reads a baseline after it (T-503 review)", async () => {
+    const list = async () =>
+      (
+        await f.run<{ rank_push_events: string }>(f.system, "SELECT * FROM rank_push_events(1000)")
+      ).map((row) => row.rank_push_events);
+    const failed = (event: string) => f.run(f.system, "SELECT rank_push_failed($1)", [event]);
+    const poisoned = await liveEvent();
+    const read = await liveEvent();
+    const crowd = await field(read, 11);
+    await diff(read);
+    // A never-read event that fails is no longer first: it goes behind the event read just before it.
+    expect((await list()).indexOf(poisoned)).toBeLessThan((await list()).indexOf(read));
+    await failed(poisoned);
+    expect((await list()).indexOf(poisoned)).toBeGreaterThan((await list()).indexOf(read));
+    expect(await snapshotOf(poisoned)).toBeNull();
+    const players = await field(poisoned, 3);
+    expect(await diff(poisoned)).toEqual({ state: "baseline" });
+    expect(await snapshotOf(poisoned)).toEqual(players.map((one) => one.enrollment));
+    // A failure of a read event keeps its ten, so the next diff still tells who moved.
+    await failed(read);
+    expect(await snapshotOf(read)).toEqual(crowd.slice(0, 10).map((one) => one.enrollment));
+    await f.earn(read, at(crowd, 10).enrollment, { points: 5000 });
+    expect(await diff(read)).toEqual({ state: "diffed", notices: 2 });
+    // Nothing for an event that is not live.
+    const ended = await f.newEvent({ phase: "ended" });
+    await failed(ended);
+    expect(await snapshotOf(ended)).toBeUndefined();
+  });
+
   it("answers the system seat only", async () => {
     const event = await liveEvent();
     const player = await f.newPlayer();
@@ -445,6 +474,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the top-10 rank push (database
     for (const seat of seats) {
       expect(await sqlstate(f.run(seat, "SELECT rank_push_diff($1)", [event]))).toBe("PN403");
       expect(await sqlstate(f.run(seat, "SELECT * FROM rank_push_events(10)"))).toBe("PN403");
+      expect(await sqlstate(f.run(seat, "SELECT rank_push_failed($1)", [event]))).toBe("PN403");
     }
     expect(await snapshotOf(event)).toBeUndefined();
   });

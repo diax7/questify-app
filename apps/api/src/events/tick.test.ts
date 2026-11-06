@@ -156,6 +156,7 @@ describe("startLifecycleTick", () => {
       { level: "error", fields: { event: "game.sweep_failed", reason: "unknown", code: null } },
       { level: "error", fields: { event: "ticket.purge_failed", reason: "unknown", code: null } },
       { level: "error", fields: { event: "report.purge_failed", reason: "unknown", code: null } },
+      { level: "error", fields: { event: "cheers.purge_failed", reason: "unknown", code: null } },
       {
         level: "error",
         fields: { event: "owner_email.purge_failed", reason: "unknown", code: null },
@@ -200,10 +201,10 @@ describe("startLifecycleTick", () => {
     finish?.();
     await stopping;
     // The lifecycle call, one look each for due rehearsal wipes, reservations, quizzes and game rounds, the ticket
-    // sweep, the report and owner-email purges and the archive step; nothing after the stop.
-    expect(connects).toBe(10);
+    // sweep, the report, cheers and owner-email purges and the archive step; nothing after the stop.
+    expect(connects).toBe(11);
     await vi.advanceTimersByTimeAsync(5000);
-    expect(connects).toBe(10);
+    expect(connects).toBe(11);
   });
 
   it("finishes due quizzes one call at a time, up to a batch, and logs only the count", async () => {
@@ -272,6 +273,26 @@ describe("startLifecycleTick", () => {
     await vi.advanceTimersByTimeAsync(2000);
     expect(statements.filter((sql) => sql.includes("purge_handled_reports(1000)"))).toHaveLength(2);
     expect(logged).toEqual([{ level: "info", fields: { event: "report.purged", count: 3 } }]);
+    await tick.stop();
+  });
+
+  it("purges the cheers of moments ended 3 days ago, 5,000 a run, and logs only the count (T-509)", async () => {
+    const { pool, statements, client } = fakePool(() => 0);
+    const answer = client.query.getMockImplementation();
+    const purged = [5000, 0];
+    const sweep = async (sql: string) => {
+      if (sql.includes("cheers_purge")) {
+        statements.push(sql);
+        return { rows: [{ count: purged.shift() ?? 0 }] };
+      }
+      return answer === undefined ? { rows: [] } : answer(sql);
+    };
+    client.query.mockImplementation(sweep as unknown as NonNullable<typeof answer>);
+    const logged: Logged[] = [];
+    const tick = start(pool, logged);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(statements.filter((sql) => sql.includes("cheers_purge(5000)"))).toHaveLength(2);
+    expect(logged).toEqual([{ level: "info", fields: { event: "cheers.purged", count: 5000 } }]);
     await tick.stop();
   });
 

@@ -6,20 +6,34 @@ type Logged = { level: string; fields: Record<string, unknown> };
 
 const EVENTS = ["e1", "e2", "e3"];
 
-/** A pool answering the tick's two statements: the list of live events and each event's diff. */
-function scripted(diffs: (event: string) => unknown, live: readonly string[] = EVENTS) {
+/**
+ * A pool answering the tick's three statements: the list of live events, each event's diff and the mark of a failed one
+ * (`marking` may refuse it).
+ */
+function scripted(
+  diffs: (event: string) => unknown,
+  live: readonly string[] = EVENTS,
+  marking: () => Error | undefined = () => undefined,
+) {
   const asked: string[] = [];
+  const marked: string[] = [];
   const fake = fakePool((sql, values) => {
     if (sql.includes("rank_push_events")) {
       return { rows: live.map((rank_push_events) => ({ rank_push_events })) };
     }
     const event = String(values[0]);
+    if (sql.includes("rank_push_failed")) {
+      const refused = marking();
+      if (refused !== undefined) throw refused;
+      marked.push(event);
+      return { rows: [] };
+    }
     asked.push(event);
     const answer = diffs(event);
     if (answer instanceof Error) throw answer;
     return { rows: [{ r: answer }] };
   });
-  return { ...fake, asked };
+  return { ...fake, asked, marked };
 }
 
 const start = (
@@ -53,16 +67,35 @@ describe("the top-10 rank push tick (ADR-362)", () => {
     await tick.stop();
   });
 
-  it("logs a failed event by its SQLSTATE and goes on with the others", async () => {
+  it("logs a failed event by its SQLSTATE, puts it at the back of the list and goes on with the others", async () => {
     const logged: Logged[] = [];
-    const { pool, asked } = scripted((event) =>
-      event === "e1" ? pgError({ code: "PN403" }) : { state: "baseline" },
+    const { pool, asked, marked } = scripted((event) =>
+      event === "e1" ? pgError({ code: "57014" }) : { state: "baseline" },
     );
     const tick = start(pool, logged);
     expect(await tick.runOnce()).toEqual({ events: 2, notices: 0, busy: 0 });
     expect(asked).toEqual(EVENTS);
+    expect(marked).toEqual(["e1"]);
     expect(logged).toEqual([
-      { level: "error", fields: { event: "ranking.push_diff_failed", code: "PN403" } },
+      { level: "error", fields: { event: "ranking.push_diff_failed", code: "57014" } },
+    ]);
+    await tick.stop();
+  });
+
+  it("logs a mark that fails too, and still goes on with the others", async () => {
+    const logged: Logged[] = [];
+    const { pool, asked, marked } = scripted(
+      (event) => (event === "e2" ? pgError({ code: "57014" }) : { state: "idle" }),
+      EVENTS,
+      () => pgError({ code: "08006" }),
+    );
+    const tick = start(pool, logged);
+    expect(await tick.runOnce()).toEqual({ events: 2, notices: 0, busy: 0 });
+    expect(asked).toEqual(EVENTS);
+    expect(marked).toEqual([]);
+    expect(logged).toEqual([
+      { level: "error", fields: { event: "ranking.push_diff_failed", code: "57014" } },
+      { level: "error", fields: { event: "ranking.push_mark_failed", code: "08006" } },
     ]);
     await tick.stop();
   });

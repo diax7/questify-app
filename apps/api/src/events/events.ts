@@ -390,6 +390,9 @@ async function startFromTemplate(
   }
 }
 
+/** A change to the source that committed after the copy's snapshot and before its lock: the copy is tried once more. */
+const SERIALIZATION_FAILURE = "40001";
+
 /**
  * A new draft that starts as a copy of another event of the same organizer (FR-1016): its settings, switches and words,
  * and everything `event_copy_setup` copies (migration 0092), never a player, a play row or a secret. The new name and
@@ -407,7 +410,34 @@ async function duplicate(
     return { kind: "scope_limited" };
   }
   try {
-    return await inContext(deps, actor, async (client) => {
+    return await copyOnce(deps, actor, sourceId, input, caller).catch((error: unknown) => {
+      if ((error as { code?: unknown } | undefined)?.code !== SERIALIZATION_FAILURE) throw error;
+      return copyOnce(deps, actor, sourceId, input, caller);
+    });
+  } catch (error) {
+    if (unknownCity(error)) {
+      return { kind: "invalid", field: "cityId" };
+    }
+    if (unknownInterest(error)) {
+      return { kind: "invalid", field: "interests" };
+    }
+    throw error;
+  }
+}
+
+/**
+ * One try of a duplicate in one REPEATABLE READ transaction (ADR-739): every read of the source sees the same moment, so
+ * a quest added to it meanwhile is wholly in the copy or wholly out of it. `event_copy_setup` refuses any other level.
+ */
+function copyOnce(
+  deps: EventsDeps,
+  actor: Actor,
+  sourceId: string,
+  input: EventInput,
+  caller: Caller,
+): Promise<DuplicateResult> {
+  return withConnection(deps.pool, (client) =>
+    withRequestContext(client, { ...teamSeat(actor), repeatableRead: true }, async () => {
       const source = await readEvent(client, actor.organizerId, sourceId);
       if (source === undefined) {
         return { kind: "not_found" } as const;
@@ -431,16 +461,8 @@ async function duplicate(
       const copied = await readEvent(client, actor.organizerId, made.id);
       // Stryker disable next-line all: unreachable: the event was inserted in this transaction
       return { kind: "created", event: copied ?? made } as const;
-    });
-  } catch (error) {
-    if (unknownCity(error)) {
-      return { kind: "invalid", field: "cityId" };
-    }
-    if (unknownInterest(error)) {
-      return { kind: "invalid", field: "interests" };
-    }
-    throw error;
-  }
+    }),
+  );
 }
 
 async function update(

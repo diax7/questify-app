@@ -1,6 +1,6 @@
 import { MESSAGES, type PushTexts } from "@questify/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AckRow, FanOutResult, PushDoors } from "#src/push/doors";
+import type { AckRow, FanOutResult, GroupFanResult, PushDoors } from "#src/push/doors";
 import { createFakeProvider } from "#src/push/fake";
 import type { ClaimedSend } from "#src/push/message";
 import type { PushProvider } from "#src/push/provider";
@@ -50,7 +50,7 @@ describe("startPushWorker (ADR-345)", () => {
   let dueMore: number;
   let failFanOut: boolean;
   let failDue: boolean;
-  let groupFans: Array<{ rows: number; more: boolean }>;
+  let groupFans: GroupFanResult[];
   let groupFanCalls: number;
   let failGroupFan: boolean;
 
@@ -245,6 +245,22 @@ describe("startPushWorker (ADR-345)", () => {
       ["error", { event: "push.fan_out_batch_failed", notice: 41, code: "57014" }],
       ["error", { event: "push.notice_parked", notice: 41, code: "57014" }],
     ]);
+    await worker.stop();
+  });
+
+  it("logs a failed group push page, and the parked alert at the third failure (T-706b review)", async () => {
+    const send = "8b0e64f4-5d3c-4c8e-9a39-0f7d1b9f6a21";
+    groupFans = [
+      { rows: 0, more: false, failed: send, code: "57014", parked: false },
+      { rows: 0, more: false, failed: send, code: "57014", parked: true },
+    ];
+    const worker = start([createFakeProvider("fcm")]);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(logs).toEqual([
+      ["error", { event: "push.group_page_failed", send, code: "57014" }],
+      ["error", { event: "push.group_push_parked", send, code: "57014" }],
+    ]);
+    expect(calls.filter((call) => call === "fanOut")).toHaveLength(2);
     await worker.stop();
   });
 

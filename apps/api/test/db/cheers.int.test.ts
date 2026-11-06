@@ -174,6 +174,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cheers (database)", () => {
       )[0]?.n,
     );
 
+  const cheersOf = async (event: string) =>
+    Number(
+      (
+        await owner<{ n: string }>("SELECT count(*) AS n FROM cheer WHERE event_id = $1", [event])
+      )[0]?.n,
+    );
+  const endedAgo = (event: string, ago: string) =>
+    owner(
+      `UPDATE cheers_moment SET started_at = now() - $2::interval - interval '5 minutes',
+                                ends_at = now() - $2::interval WHERE event_id = $1`,
+      [event, ago],
+    );
+  /** The retention sweep in the system seat (no context), as the lifecycle tick calls it. */
+  const purge = async (batch: number) =>
+    (await query<{ n: number }>({}, "SELECT cheers_purge($1) AS n", [batch]))[0]?.n;
+
   describe("starting and stopping a moment (FR-1841)", () => {
     it("starts for the owner, replaces the last moment with its cheers, stops, and audits both", async () => {
       const event = await newEvent();
@@ -401,6 +417,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cheers (database)", () => {
       await cheer(fan, event);
       await owner("DELETE FROM enrollment WHERE id = $1", [fan.enrollment]);
       expect(await owner("SELECT 1 FROM cheer WHERE event_id = $1", [event])).toEqual([]);
+    });
+
+    it("purges a moment's cheers 3 days after it ended, in batches, and keeps the rest (T-509 review)", async () => {
+      const [old, recent, live] = [await newEvent(), await newEvent(), await newEvent()];
+      for (const event of [old, recent, live]) {
+        const fans = [await newPlayer(event), await newPlayer(event)];
+        await start(event, 5);
+        for (const fan of fans) {
+          await cheer(fan, event, "fire");
+          await cheer(fan, event, "star");
+        }
+      }
+      await endedAgo(old, "3 days 1 minute");
+      await endedAgo(recent, "2 days 23 hours");
+      // A batch of 1 takes one row; the next calls take the rest until nothing is due.
+      expect(await purge(1)).toBe(1);
+      expect(await cheersOf(old)).toBe(3);
+      let calls = 0;
+      while ((await purge(5000)) !== 0) calls += 1;
+      expect(calls).toBeGreaterThan(0);
+      expect(await cheersOf(old)).toBe(0);
+      expect(await cheersOf(recent)).toBe(4);
+      expect(await cheersOf(live)).toBe(4);
+      expect(await owner("SELECT 1 FROM cheers_moment WHERE event_id = $1", [old])).toHaveLength(1);
     });
   });
 

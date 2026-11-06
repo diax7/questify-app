@@ -30,8 +30,19 @@ export type FanOutResult = Readonly<{
   parked?: boolean;
 }>;
 
-/** One page of a group push to opted-in players (migration 0138): the players read and whether more may be waiting. */
-export type GroupFanResult = Readonly<{ rows: number; more: boolean }>;
+/**
+ * One page of a group push to opted-in players (migrations 0138, 0160): the players read and whether more may be waiting;
+ * a failed page also names the send, its SQLSTATE, when it is tried again (`retryAfter`) and `parked` at its third failure
+ * in a row (the alert).
+ */
+export type GroupFanResult = Readonly<{
+  rows: number;
+  more: boolean;
+  failed?: string;
+  code?: string;
+  retryAfter?: string;
+  parked?: boolean;
+}>;
 
 /** The push worker's six system doors; the unit tests replace them. */
 export type PushDoors = Readonly<{

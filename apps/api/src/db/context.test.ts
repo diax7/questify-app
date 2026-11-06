@@ -85,6 +85,20 @@ describe("readOnly (a support admin's view, T-712, ADR-521)", () => {
     expect(sent.filter((sql) => sql.startsWith("BEGIN"))).toEqual(["BEGIN READ ONLY", "BEGIN"]);
   });
 
+  it("opens one snapshot only for a repeatableRead context, read-only or not (ADR-739)", async () => {
+    const { pool, sent } = recordingPool();
+    await withRolledBackContext(pool, { staffUserId: STAFF, repeatableRead: true }, async () => "");
+    await withRolledBackContext(
+      pool,
+      { staffUserId: STAFF, repeatableRead: true, readOnly: true },
+      async () => "",
+    );
+    expect(sent.filter((sql) => sql.startsWith("BEGIN"))).toEqual([
+      "BEGIN ISOLATION LEVEL REPEATABLE READ",
+      "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY",
+    ]);
+  });
+
   it("commits a read-only transaction like any other in withRequestContext", async () => {
     const { pool, sent } = recordingPool();
     const client = await pool.connect();

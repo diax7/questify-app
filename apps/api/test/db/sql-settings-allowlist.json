@@ -300,7 +300,6 @@
   "push_due_reservations(ending_by timestamp with time zone)",
   "push_due_session(lim integer)",
   "push_due_shop(lim integer)",
-  "push_due_streak(lim integer, at timestamp with time zone)",
   "push_expire_due(lim integer)",
   "push_expire_leases(lim integer)",
   "push_fan_out_failed(target bigint, state text)",

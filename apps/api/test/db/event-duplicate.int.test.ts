@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { RequestContext } from "#src/db/context";
 import { addMember, TEST_DATABASE_URL } from "#test/support/test-db";
 import { pushFixture, type PushFixture } from "#test/support/push";
 
@@ -173,12 +174,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("duplicate an event (database)"
       [organizer, `DUP${counter}`, startsInDays],
     );
   };
-  const copy = (from: string, to: string, seat = f.team()) =>
-    f.run<{ r: Counts }>(seat, "SELECT event_copy_setup($1, $2, $3) AS r", [
-      from,
-      to,
-      randomUUID(),
-    ]);
+  /** The door in one snapshot, as the API's duplicate opens it (ADR-739). */
+  const copy = (from: string, to: string, seat: RequestContext = f.team()) =>
+    f.run<{ r: Counts }>(
+      { ...seat, repeatableRead: true },
+      "SELECT event_copy_setup($1, $2, $3) AS r",
+      [from, to, randomUUID()],
+    );
 
   const withLayout = async (content: unknown, work: () => Promise<void>): Promise<void> => {
     const layout = {
@@ -786,6 +788,65 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("duplicate an event (database)"
     await f.join(joined, await f.newPlayer());
     expect(await refusal(copy(source, joined))).toBe("ED409:target_not_empty");
     expect(await count("quest", joined)).toBe(0);
+  });
+
+  it("copies only inside one snapshot (T-601 review, ADR-739)", async () => {
+    const target = await draft();
+    expect(
+      await refusal(f.run(f.team(), "SELECT event_copy_setup($1, $2, $3)", [source, target, null])),
+    ).toBe("ED500:needs_repeatable_read");
+    expect(await count("quest", target)).toBe(0);
+  });
+
+  it("never copies a quest added to the source while the copy runs without its category", async () => {
+    const origin = await draft(10);
+    const tag = `Pause ${randomUUID().slice(0, 8)}`;
+    await one(
+      "INSERT INTO category (event_id, name_en, position) VALUES ($1, $2, 1) RETURNING id",
+      [origin, tag],
+    );
+    const target = await draft();
+    // A test-only trigger holds the copy right after it wrote its first category, until the test lets it go.
+    await f.owner(
+      `CREATE FUNCTION test_pause_copy() RETURNS trigger LANGUAGE plpgsql AS $$
+       BEGIN PERFORM pg_advisory_xact_lock(6010); RETURN NULL; END $$`,
+    );
+    await f.owner(
+      `CREATE TRIGGER test_pause_copy AFTER INSERT ON category FOR EACH ROW
+       WHEN (NEW.name_en = '${tag}' AND NEW.event_id = '${target}') EXECUTE FUNCTION test_pause_copy()`,
+    );
+    await f.owner("SELECT pg_advisory_lock(6010)");
+    try {
+      const copying = refusal(copy(origin, target));
+      for (let look = 0; look < 50; look += 1) {
+        const [waiting] = await f.owner<{ n: number }>(
+          "SELECT count(*)::int AS n FROM pg_locks WHERE locktype = 'advisory' AND objid = 6010 AND NOT granted",
+        );
+        if ((waiting?.n ?? 0) > 0) break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      const late = await one(
+        "INSERT INTO category (event_id, name_en, position) VALUES ($1, 'Late zone', 2) RETURNING id",
+        [origin],
+      );
+      await f.owner(
+        "INSERT INTO quest (event_id, category_id, type, title_en, points) VALUES ($1, $2, 'scan_qr', 'Late quest', 5)",
+        [origin, late],
+      );
+      await f.owner("SELECT pg_advisory_unlock(6010)");
+      expect(await copying).toBe("none");
+    } finally {
+      await f.owner("SELECT pg_advisory_unlock_all()");
+      await f.owner("DROP TRIGGER test_pause_copy ON category");
+      await f.owner("DROP FUNCTION test_pause_copy()");
+    }
+    expect(await copied(target, "Late quest")).toBeUndefined();
+    const names = await f.owner<{ name_en: string }>(
+      "SELECT name_en FROM category WHERE event_id = $1 ORDER BY name_en",
+      [target],
+    );
+    expect(names.map((row) => row.name_en)).toContain(tag);
+    expect(names.map((row) => row.name_en)).not.toContain("Late zone");
   });
 
   it("works only between events of the caller's own organizer and scope", async () => {

@@ -28,7 +28,8 @@ export type LedgerLine = Readonly<{
 export type ReportLine = Readonly<{
   id: string;
   at: string;
-  kind: "quest" | "award" | "removal";
+  /** `adjust`: a quest's points changed for completions already made (T-604); its `points` are signed. */
+  kind: "quest" | "award" | "removal" | "adjust";
   points: number;
   /** `username` is null for a deleted account (T-217). */
   player: Readonly<{ enrollmentId: string; username: string | null }>;
@@ -76,6 +77,19 @@ export function removeBonusHint(
   return line.kind === "quest" && bonus !== null
     ? t("awards.removeBonusHint", { slots: format(bonus.slots) })
     : undefined;
+}
+
+/**
+ * A report line's sign and size: a removal takes points away (its `points` are the amount it reversed), an `adjust`
+ * carries its own sign (a lowered quest is negative), and every other line adds.
+ */
+export function reportAmount(line: Pick<ReportLine, "kind" | "points">): {
+  sign: "+" | "−";
+  size: number;
+} {
+  if (line.kind === "removal") return { sign: "−", size: line.points };
+  if (line.kind === "adjust" && line.points < 0) return { sign: "−", size: -line.points };
+  return { sign: "+", size: line.points };
 }
 
 /** The record's label for an entry kind; a kind this dashboard does not know reads as a balance change. */

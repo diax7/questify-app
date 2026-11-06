@@ -47,9 +47,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reminder pushes (database)", (
   const sendsOf = async (notices: readonly NoticeRow[]) =>
     (await f.sends()).filter((send) => notices.some((notice) => notice.id === send.notice_id));
 
-  const scan = async (time = "18:30:00"): Promise<number> =>
-    (await f.owner<{ n: number }>("SELECT push_due_streak(500, $1) AS n", [riyadhAt(time)]))[0]
-      ?.n ?? 0;
+  /** One pass at `time` today; `rested` keeps the rest an empty pass left (by default each test's pass starts fresh). */
+  const scan = async (time = "18:30:00", rested = false): Promise<number> => {
+    if (!rested) await f.owner("DELETE FROM streak_scan_quiet");
+    return (
+      (await f.owner<{ n: number }>("SELECT push_due_streak(500, $1) AS n", [riyadhAt(time)]))[0]
+        ?.n ?? 0
+    );
+  };
   const remindersOf = (who: string) => kindNotices("player_id", who, "streak_reminder");
   /** A player with a phone and Questify streak days `ago` days before today. */
   const streaker = async (ago: readonly number[] = [1, 2], phone?: Phone) => {
@@ -190,6 +195,34 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reminder pushes (database)", (
       expect(await remindersOf(waiting.who)).toEqual([]);
       await scan();
       expect(await remindersOf(waiting.who)).toHaveLength(1);
+    });
+
+    it("rests an hour after a pass that finds nobody, then scans again (T-501f review, ADR-740)", async () => {
+      // Remind whoever earlier tests left waiting, then start from no rest.
+      await scan("18:00:00");
+      expect(await scan("18:10:00")).toBe(0);
+      expect(await f.owner("SELECT quiet_until FROM streak_scan_quiet")).toEqual([
+        { quiet_until: riyadhAt("19:10:00") },
+      ]);
+      // A player who gets a streak (or a phone) in the hour waits for the end of the rest, then is reminded.
+      const late = await streaker();
+      expect(await scan("18:40:00", true)).toBe(0);
+      expect(await remindersOf(late.who)).toEqual([]);
+      expect(await scan("19:10:00", true)).toBe(1);
+      expect(await remindersOf(late.who)).toHaveLength(1);
+      // A pass that found someone sets no rest; the next empty one does, and an earlier day's rest goes.
+      await f.owner(
+        "INSERT INTO streak_scan_quiet (day, quiet_until) VALUES ($1::date - 3, now())",
+        [riyadhDate()],
+      );
+      expect(await scan("19:11:00", true)).toBe(0);
+      expect(await f.owner("SELECT quiet_until FROM streak_scan_quiet")).toEqual([
+        { quiet_until: riyadhAt("20:11:00") },
+      ]);
+      // Before 18:00 nothing is read and nothing is rested.
+      await f.owner("DELETE FROM streak_scan_quiet");
+      expect(await scan("17:30:00", true)).toBe(0);
+      expect(await f.owner("SELECT 1 FROM streak_scan_quiet")).toEqual([]);
     });
   });
 
