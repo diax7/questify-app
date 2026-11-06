@@ -167,7 +167,7 @@ describe("planBrowserSpecs", () => {
       "apps/web/src/components/TermsScope.tsx",
     ]);
 
-    expect(wide).toEqual({ all: true, reason: "21 specs across the changed areas" });
+    expect(wide).toEqual({ all: true, reason: "22 specs across the changed areas" });
     expect(MAX_AREA_SPECS).toBe(20);
   });
 

@@ -140,21 +140,33 @@ function Results({
   );
 }
 
-/** The pages read for a search: the organizers so far, the cursor of the next page, and why the last read failed. */
+/**
+ * The pages read for a search: the organizers so far, the cursor of the next page, whether a read is running, and why
+ * the last read failed. A new search empties the list while it loads, so the rows of the old search never stand in
+ * for the new one; "More" keeps the rows and waits for the next page.
+ */
 function useFeatureUsage(language: Language, query: string) {
   const t = translatorFor(language);
   const [rows, setRows] = useState<FeatureUsageOrganizer[] | null>(null);
   const [next, setNext] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const latest = useRef(0);
   const load = useCallback(
     async (cursor: string | null) => {
       latest.current += 1;
       const mine = latest.current;
+      setLoading(true);
+      if (cursor === null) {
+        setRows(null);
+        setNext(null);
+        setProblem(null);
+      }
       const result = await requestJson("GET", featureUsagePath({ q: query, cursor }));
       if (mine !== latest.current) {
         return;
       }
+      setLoading(false);
       const page = result.ok ? readFeatureUsagePage(result.body) : undefined;
       if (page === undefined) {
         setProblem(describeProblem(result.body, language, t).text);
@@ -171,7 +183,7 @@ function useFeatureUsage(language: Language, query: string) {
   useEffect(() => {
     void load(null);
   }, [load]);
-  return { rows, next, problem, load };
+  return { rows, next, problem, loading, load };
 }
 
 /**
@@ -183,7 +195,7 @@ export function ConsoleFeatureUsage({ language }: Readonly<{ language: Language 
   const t = translatorFor(language);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
-  const { rows, next, problem, load } = useFeatureUsage(language, query);
+  const { rows, next, problem, loading, load } = useFeatureUsage(language, query);
   return (
     <Stack as="section" aria-labelledby="console-feature-usage-title">
       <PageHeader
@@ -225,7 +237,8 @@ export function ConsoleFeatureUsage({ language }: Readonly<{ language: Language 
         </Notice>
       )}
       <Results language={language} rows={rows} failed={problem !== null} />
-      {next === null ? null : (
+      {rows !== null && loading ? <Muted role="status">{t("common.loading")}</Muted> : null}
+      {next === null || loading ? null : (
         <Button variant="quiet" onClick={() => void load(next)}>
           {t("console.organizers.more")}
         </Button>

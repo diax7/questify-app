@@ -1663,6 +1663,7 @@ API's role alone: counts of events, players (enrollments not pending or declined
   `STABLE`, `search_path = public, pg_temp`, opening with `award_event_of` (AN404); PUBLIC holds no EXECUTE. The internal helpers `operator_activity_rows`, `operator_activity_recent` and
   `operator_action_of` have no grant. Three partial indexes: `ledger_entry_operator_event_idx (event_id, operator_id, created_at DESC) INCLUDE (kind, quest_id) WHERE operator_id IS NOT NULL`,
   `submission_operator_reviewed_idx (event_id, reviewed_by_operator, reviewed_at DESC)` and `ticket_operator_answered_idx (event_id, answered_by_operator, closed_at DESC)`.
+- **`reachable` (migration 0165; ADR-790).** `operator_activity` also answers `reachable`: the event's staff assignments whose player account is active, the set `staff_briefing_send` writes a notice for. The function was restated with the same arguments and grant (closed to PUBLIC); no table or column.
 - **`staff_briefing`** (organizer_id, event_id, title_ar/en 1-60, body_ar/en 1-140, `press` the Idempotency-Key hash unique per event, `recipients` >= 1, created_by, created_at): the text as sent, the
   replay and the rate limit, and the dashboard's last five. Row-level security forced, no grant, written only by `staff_briefing_send` (owner and editor, `award_event_of`), which also writes one
   `staff_briefing` notice per current staff assignment whose player is active. Not copied by an event duplicate. No personal data of a player.

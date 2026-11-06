@@ -67,6 +67,24 @@
   ADR-760 Accepted (Dhia); ADR-761 to ADR-768 and Q-720 to Q-725 Proposed. CI minutes: 0.
   **Next:** the tier A plan review of T-404c.
 
+## FOLLOWUPS batch 8 (tier B) — 2026-11-06
+
+- **FOLLOWUPS batch 8 (migration 0165, new and undeployed; ADR-790, ADR-791 and Q-730 Proposed).** Cleared: a browser
+  test for the points and keep-or-remove dialogs of a played quest in a live event (`live-points.spec.ts`, with the
+  `/played` control and `test/support/played-seed.ts`; it proves future-only leaves past completions alone and
+  past-too rewrites them, through the impact read, and that Cancel changes nothing); the template confirmation names
+  the features, accent colour and layout it also sets; the console history says 29 audit actions in words and shows a
+  suspension's or lifting's reason beside it (`readHistory` returns `reason` for those four actions only); `operator_activity`
+  (restated in 0165, closed to PUBLIC, same grant) returns `reachable`, the operators a briefing reaches, and the
+  confirmation says it (a banned operator is listed but not counted); `useFeatureUsage` empties the list while a new search loads and
+  says Loading; the `openJoinedEvent` membership mapping is one tested pure function (`join-result.ts`) used by the join
+  card and the invitation; a late config answer after the intro's fallback refreshes the stored copy (tested); `infra.test.ts`
+  covers an apply that stops halfway and a re-run that continues. T-605's Ask Questify line stays with a note (T-703
+  stores no support contact; T-706 does, and the Contact page already shows it). Not touched: points, the ledger,
+  sign-in, redemptions, levels and the Journey screen (the new browser test only reads them). Left in FOLLOWUPS: the rest of
+  the audit actions in words, the organizers page's loading state, the `index.tsx` intro order test, the budget guard.
+  **Next:** the next unchecked task in `docs/TASKS.md`.
+
 ## FOLLOWUPS batch 7 (light; tier B and C) — 2026-11-06
 
 - **FOLLOWUPS batch 7 (no migration; ADR-780 Accepted and Q-705, Q-706 Answered after review 82).** Cleared: the catalog's

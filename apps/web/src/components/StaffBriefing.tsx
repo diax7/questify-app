@@ -29,8 +29,8 @@ type Props = Readonly<{
   language: Language;
   /** The event's API path, `/v1/organizers/{o}/events/{e}`. */
   eventApi: string;
-  /** How many operators the event has now: who the confirmation says will be told. */
-  operators: number;
+  /** How many operators a briefing reaches now (those with an active account): who the confirmation says will be told. */
+  reachable: number;
   briefings: readonly StaffBriefingView[];
   /** Runs after a send, so the history shows it. */
   sent: () => Promise<void>;
@@ -157,7 +157,7 @@ function History({
  * player. The text is checked as an announcement's is, a confirmation says how many operators will be told, and the last
  * five messages sent are listed under the form.
  */
-export function StaffBriefing({ language, eventApi, operators, briefings, sent }: Props) {
+export function StaffBriefing({ language, eventApi, reachable, briefings, sent }: Props) {
   const t = useTranslator(language);
   const [draft, setDraft] = useState(blankStaffBriefing);
   const [confirming, setConfirming] = useState<StaffBriefingBody | undefined>(undefined);
@@ -230,7 +230,7 @@ export function StaffBriefing({ language, eventApi, operators, briefings, sent }
         <ConfirmDialog
           language={language}
           title={t("briefing.confirmTitle")}
-          body={t("briefing.confirmBody", { count: formatNumber(operators, language) })}
+          body={t("briefing.confirmBody", { count: formatNumber(reachable, language) })}
           confirmLabel={t("briefing.send")}
           noteLabel={null}
           busy={press.busy}

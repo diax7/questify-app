@@ -61,7 +61,13 @@ test("an admin suspends an organizer, its owner reads the reason, and the admin 
   await expect(page.getByText("Suspend Najd Quests Co?", { exact: false })).toBeVisible();
   await page.getByRole("alert").getByRole("button", { name: "Suspend organizer" }).click();
   await expect(page.getByRole("status")).toHaveText("Suspended.");
-  await expect(page.getByText(`: ${REASON}`, { exact: false })).toBeVisible();
+  await expect(
+    page.getByText("Suspended since", { exact: false }).filter({ hasText: REASON }),
+  ).toBeVisible();
+  // The history says it in words, with the reason beside it, not the stored name.
+  await expect(page.getByText("Organizer suspended", { exact: false })).toBeVisible();
+  await expect(page.getByText("organizer.suspend", { exact: false })).toHaveCount(0);
+  await expect(page.getByTestId("history-reason")).toHaveText(`Reason: ${REASON}`);
   await expectNoSidewaysScroll(page);
 
   await other.page.goto(`/en/organizers/${other.organizerId}/events/${other.eventId}`);

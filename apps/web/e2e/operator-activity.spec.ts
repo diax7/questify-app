@@ -37,7 +37,7 @@ test("the owner sees what each operator did and sends the operators a briefing",
       operators: [
         { username: `nora_${tag}`, scans: [2, 3, 4, 6, 8, 10] },
         { username: `omar_${tag}`, scans: [45, 50] },
-        { username: `sami_${tag}`, scans: [] },
+        { username: `sami_${tag}`, scans: [], banned: true },
       ],
     },
   });
@@ -96,11 +96,12 @@ test("the owner sees what each operator did and sends the operators a briefing",
 
   await briefing.getByRole("button", { name: "إرسال" }).click();
   const confirm = page.getByRole("alertdialog");
-  await expect(confirm).toContainText("المشغّلون الذين سيصلهم الإشعار: 3. لن يصل إلى اللاعبين.");
+  // Three operators are listed, but the banned one is not told, so the confirmation says two.
+  await expect(confirm).toContainText("المشغّلون الذين سيصلهم الإشعار: 2. لن يصل إلى اللاعبين.");
   await confirm.getByRole("button", { name: "إرسال" }).click();
-  await expect(briefing.getByRole("status")).toContainText("عدد المشغّلين الذين وصلهم الإشعار: 3");
+  await expect(briefing.getByRole("status")).toContainText("عدد المشغّلين الذين وصلهم الإشعار: 2");
   await expect(briefing.getByText("تغيير البوابة")).toBeVisible();
-  await expect(briefing.getByText("وصلت إلى: 3")).toBeVisible();
+  await expect(briefing.getByText("وصلت إلى: 2")).toBeVisible();
   await expect(briefing.getByLabel("العنوان بالعربية")).toHaveValue("");
 
   await page.goto(`${eventUrl.replace("/ar/", "/en/")}/operators`);
@@ -114,7 +115,7 @@ test("the owner sees what each operator did and sends the operators a briefing",
   );
   await expect(english.getByRole("listitem").nth(1)).toContainText("Quiet");
   await expect(page.getByRole("region", { name: "Message the operators" })).toContainText(
-    "Notified: 3",
+    "Notified: 2",
   );
   await checkLayout(page, `${info.project.name} operators activity en`);
 });

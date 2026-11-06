@@ -210,6 +210,7 @@ export const AREAS = [
     [
       "quests",
       "quest-items",
+      "live-points",
       "live-polls",
       "vote-quiz",
       "hidden-hint",

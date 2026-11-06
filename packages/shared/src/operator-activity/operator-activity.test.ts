@@ -111,7 +111,13 @@ describe("the activity answer", () => {
       },
     ],
   };
-  const answer = { asOf: "2026-11-02T10:05:00+00:00", operators: [row], recent: [], briefings: [] };
+  const answer = {
+    asOf: "2026-11-02T10:05:00+00:00",
+    reachable: 1,
+    operators: [row],
+    recent: [],
+    briefings: [],
+  };
 
   it("reads what the door sends", () => {
     expect(operatorActivitySchema.safeParse(answer).success).toBe(true);
@@ -133,5 +139,13 @@ describe("the activity answer", () => {
       expect(operatorActivitySchema.safeParse({ ...answer, operators }).success).toBe(false);
     }
     expect(operatorActivitySchema.safeParse({ ...answer, extra: 1 }).success).toBe(false);
+  });
+
+  it("needs the number of operators a briefing reaches, a whole number from 0", () => {
+    const { reachable: _removed, ...without } = answer;
+    expect(operatorActivitySchema.safeParse(without).success).toBe(false);
+    expect(operatorActivitySchema.safeParse({ ...answer, reachable: -1 }).success).toBe(false);
+    expect(operatorActivitySchema.safeParse({ ...answer, reachable: 1.5 }).success).toBe(false);
+    expect(operatorActivitySchema.safeParse({ ...answer, reachable: 0 }).success).toBe(true);
   });
 });

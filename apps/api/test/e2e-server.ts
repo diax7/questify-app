@@ -12,6 +12,7 @@ import { createStaff, testConfig } from "#test/support/auth-app";
 import { seedAnalytics } from "#test/support/analytics-seed";
 import { seedBigScreen } from "#test/support/big-screen";
 import { seedOperators, type SeededOperator } from "#test/support/operator-seed";
+import { seedPlayedQuest } from "#test/support/played-seed";
 import { createTestDatabase, seedTwoTenants } from "#test/support/test-db";
 
 /**
@@ -386,6 +387,20 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
         seedOperators(db, body.eventId ?? "", body.operators ?? [])
           .then(() => {
             response.writeHead(204).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /played: new players, one per username, each having completed the event's quest titled `ar` once and been paid
+      // its points, so the builder asks about the real completions when its points change or it is deleted (T-604).
+      if (request.url === "/played") {
+        seedPlayedQuest(db, body.eventId ?? "", body.ar ?? "", body.usernames ?? [])
+          .then((seeded) => {
+            response
+              .writeHead(seeded === (body.usernames ?? []).length && seeded > 0 ? 204 : 404)
+              .end();
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));
