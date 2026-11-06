@@ -518,6 +518,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         );
         expect(features).toEqual([{ key: "features" }]);
       });
+
+      it("lets no function but admin_amounts_save write the xp or gems rows of platform_setting", async () => {
+        const writers = await f.owner<{ proname: string; amounts: boolean }>(
+          `SELECT p.proname, p.prosrc ~* '''(xp|gems)''' AS amounts
+           FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           WHERE n.nspname = 'public'
+             AND p.prosrc ~* '(insert\\s+into|update|delete\\s+from)\\s+(public\\.)?platform_setting\\M'
+           ORDER BY 1`,
+        );
+        expect(writers.filter((writer) => writer.amounts).map((writer) => writer.proname)).toEqual([
+          "admin_amounts_save",
+        ]);
+        // Each other writer names one key of its own; a new writer of this table is reviewed against the amounts first.
+        expect(writers.map((writer) => writer.proname)).toEqual([
+          "admin_amounts_save",
+          "admin_home_layout_save",
+          "admin_player_intro_save",
+          "admin_set_moderation_addresses",
+        ]);
+      });
     });
 
     describe("revoking a banned player's tiers", () => {

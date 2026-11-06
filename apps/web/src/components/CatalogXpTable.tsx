@@ -6,6 +6,7 @@ import {
   type Language,
   type XpTableAdmin,
   type XpTableDoc,
+  type XpTableLowering,
   type XpTablePreview,
 } from "@questify/shared";
 import { useState } from "react";
@@ -59,12 +60,32 @@ function LockMark({ language, level }: Readonly<{ language: Language; level: num
   );
 }
 
-/** What a save does, from the preview: about how many go up (and the gems), and how many go down. */
+/**
+ * What a save does, from the preview: about how many go up (and the gems), and how many go down. A revert that lowers the
+ * curve has no preview; it says which levels it lowers and the gems each pays, from the API's refusal (`lowering`).
+ */
 function PreviewLines({
   language,
   preview,
-}: Readonly<{ language: Language; preview: XpTablePreview | null }>) {
+  lowering,
+}: Readonly<{
+  language: Language;
+  preview: XpTablePreview | null;
+  lowering: XpTableLowering | null;
+}>) {
   const t = translatorFor(language);
+  if (lowering !== null) {
+    return (
+      <p data-testid="xp-lowering">
+        {t("console.catalog.xp.lowering", {
+          levels: lowering.levels
+            .map((level) => formatNumber(level, language))
+            .join(language === "ar" ? "، " : ", "),
+          gems: formatNumber(lowering.levelUp, language),
+        })}
+      </p>
+    );
+  }
   if (preview === null) {
     return <p>{t("console.catalog.lower.undo")}</p>;
   }
@@ -95,12 +116,14 @@ function PreviewLines({
 function SaveConfirm({
   language,
   preview,
+  lowering,
   busy,
   onSave,
   onCancel,
 }: Readonly<{
   language: Language;
   preview: XpTablePreview | null;
+  lowering: XpTableLowering | null;
   busy: boolean;
   onSave: () => void;
   onCancel: () => void;
@@ -111,7 +134,7 @@ function SaveConfirm({
     <Notice tone="warning" as="div" role="alert">
       <Stack>
         <strong>{t("console.catalog.xp.confirm")}</strong>
-        <PreviewLines language={language} preview={preview} />
+        <PreviewLines language={language} preview={preview} lowering={lowering} />
         <Toolbar>
           <Button variant="quiet" disabled={busy} onClick={onCancel}>
             {t("common.cancel")}
@@ -298,6 +321,7 @@ function XpEditor({
           <SaveConfirm
             language={language}
             preview={asking.preview}
+            lowering={null}
             busy={catalog.busy}
             onSave={() => void save(asking.doc)}
             onCancel={() => setAsking(null)}
@@ -349,12 +373,12 @@ export function CatalogXpTable({ language }: Readonly<{ language: Language }>) {
   const { state: itemsState } = useConsoleRead(ITEMS_API, readItems);
   const items: Items = itemsState.kind === "ready" ? itemsState.value : [];
   const [editing, setEditing] = useState(false);
-  const [revertAsk, setRevertAsk] = useState(false);
+  const [revertAsk, setRevertAsk] = useState<XpTableLowering | null>(null);
   const revert = (confirmed: boolean) =>
     catalog.revert("", confirmed ? { confirmed } : {}, (result) => {
-      const lowering = xpLoweringOf(result.body) !== undefined;
-      setRevertAsk(lowering);
-      return lowering;
+      const lowering = xpLoweringOf(result.body);
+      setRevertAsk(lowering ?? null);
+      return lowering !== undefined;
     });
   return (
     <Stack>
@@ -378,15 +402,16 @@ export function CatalogXpTable({ language }: Readonly<{ language: Language }>) {
                 onRevert={() => void revert(false)}
               />
             </div>
-            {revertAsk ? (
+            {revertAsk === null ? null : (
               <SaveConfirm
                 language={language}
                 preview={null}
+                lowering={revertAsk}
                 busy={catalog.busy}
-                onSave={() => void revert(true).then(() => setRevertAsk(false))}
-                onCancel={() => setRevertAsk(false)}
+                onSave={() => void revert(true).then(() => setRevertAsk(null))}
+                onCancel={() => setRevertAsk(null)}
               />
-            ) : null}
+            )}
             {editing ? (
               <XpEditor
                 language={language}
