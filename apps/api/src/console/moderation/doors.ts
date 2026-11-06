@@ -11,7 +11,13 @@ import {
   type ReportQueue,
 } from "@questify/shared";
 import type { Pool } from "pg";
-import { invalidHold, invalidReport, notFound, notUnpublished } from "#src/auth/http-errors";
+import {
+  invalidHold,
+  invalidReport,
+  notFound,
+  notUnpublished,
+  outcomeNotTaken,
+} from "#src/auth/http-errors";
 import { door, type Admin } from "#src/console/doors";
 import type { HttpError } from "#src/http-error";
 
@@ -19,6 +25,7 @@ import type { HttpError } from "#src/http-error";
 const REFUSALS: Readonly<Record<string, () => HttpError>> = {
   HD400: invalidHold,
   HD404: notFound,
+  RP409: outcomeNotTaken,
   RP422: invalidReport,
 };
 

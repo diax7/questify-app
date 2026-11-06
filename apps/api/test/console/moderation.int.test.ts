@@ -235,6 +235,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reports and moderation over HT
   it("closes a target's reports with the action taken and lists the flags", async () => {
     const [me] = [await player()];
     await send(me.token, { kind: "event", targetId: event, reason: "misleading" });
+    const early = await call("POST", `/v1/admin/reports/event/${event}/resolve`, adminCookie, {
+      outcome: "event_suspended",
+    });
+    expect(early.statusCode).toBe(409);
+    expect(early.json()).toMatchObject({ code: "outcome_not_taken" });
+    await owner(
+      "UPDATE event SET suspended_at = now(), suspension_reason = 'Reported content under review.' WHERE id = $1",
+      [event],
+    );
     const closed = await call("POST", `/v1/admin/reports/event/${event}/resolve`, adminCookie, {
       outcome: "event_suspended",
     });

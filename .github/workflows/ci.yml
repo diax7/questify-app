@@ -81,7 +81,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Lint, format, types, tests
+      # `ci:changed` also runs promtool on ops/alerts/ through Docker (scripts/check-alerts.mjs), only when the change
+      # touches ops/alerts/ or ops/monitoring/ since the base: one pull of the pinned Prometheus image, then two short runs.
+      - name: Lint, format, alert rules, types, tests
+        env:
+          CI_SCOPE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: pnpm ci:changed
 
       - name: API build (the bundle the Docker image ships)

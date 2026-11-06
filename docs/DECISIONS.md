@@ -8341,3 +8341,63 @@ filter is not worth a migration. A later restatement can move the filter into th
 no-break and ideographic spaces) is stored as empty, so a required banner title of whitespace is refused like an empty one.
 **Why:** the dashboard strips these before it sends; the database check is the backstop for a direct caller.
 **Trade-offs:** `catalog_text` (0119) has the same gap and is left for its next restatement.
+
+## ADR-745 - Closing reports with an action needs that action in place (migration 0162)
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 4 code review 91).
+**Decision:** `admin_report_resolve` accepts `unpublished` only while a quest, reward or announcement has a live hold;
+`event_suspended` only while the target's event (or its organizer) is suspended, never for a username; `username_changed`
+only when the player's username is no longer the one an open report names; `player_banned` only while the player is banned.
+Otherwise it closes nothing and answers RP409, which the API sends as 409 `outcome_not_taken` ("take it first"). `dismissed`
+needs nothing. Two parts of the T-705b review line are kept as they are: `report_target_seen` answers true for a session, a
+sponsor or the event page because every active member of the event reads all of them (`member_sessions`, `member_sponsors`
+and the event page filter nothing), so the report door already matches what the member sees; and a username reported
+outside an event answers 404 for an unknown name and 201 for a known one, which tells nothing new, because usernames are
+public in the app and sign-up already says when one is taken.
+**Why:** the outcome is the queue's record of what Questify did; a recorded ban that never happened misleads the next admin
+and the player's history.
+**Trade-offs:** an admin takes the action first and closes second, so a slow suspension briefly leaves reports open. The
+check reads the state at closing time: an unban afterwards does not reopen the reports.
+
+## ADR-746 - Catalog names refuse zero-width marks and whitespace alone (migration 0162)
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 4 code review 91).
+**Decision:** `catalog_text` refuses U+200B to U+200F, U+061C and U+FEFF as well as the control and direction characters,
+and refuses a name of whitespace alone (no-break, ideographic and the other Unicode spaces that `btrim` keeps) like an empty
+one, CA400 with the field as before. This closes the gap ADR-744 left.
+**Why:** the database is the one check every writer passes. The API and console do not strip these marks yet, so a pasted name holding one is refused with CA400 (`invalid_catalog`), a handled refusal; matching the API check is a follow-up.
+**Trade-offs:** none beyond a slightly longer error text.
+
+## ADR-747 - An index on an organizer's events by creation time (migration 0162)
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 4 code review 91).
+**Decision:** `event (organizer_id, created_at DESC, id)` (`event_organizer_created_idx`) serves the `latest` CTE of
+`console_feature_usage` (0140). Measured first, as the follow-up asked: on an organizer with 3,000 events (analyzed), the
+plan without it was a bitmap scan of all 3,000 rows through `event_organizer_idx` and a top-201 sort; with it, an index
+scan that stops after 201 entries and no sort. A test keeps that plan. ADR-552's "whatever an organizer's history" now holds
+for the events read as well as for the probes, so its wording stays.
+**Why:** a busy organizer would otherwise cost the usage page a read of all its events on every visit.
+**Trade-offs:** one more index on `event`, which is written rarely.
+
+## ADR-748 - The health view's oldest push and notice are the oldest waiting (migration 0162)
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 4 code review 91).
+**Decision:** `console_health` reads the push queue's and the fan-out's `oldestSeconds` from the oldest waiting row by
+`created_at` (`ORDER BY created_at LIMIT 1`), through two new partial indexes, `push_send (created_at) WHERE state =
+'queued'` and `notice (created_at) WHERE fanned_at IS NULL AND fan_failures = 0`. Counts still stop at 10,001.
+**Why:** the oldest of an unordered sample of 10,001 rows could be younger than the real oldest exactly when the backlog is
+big, which is when the number matters.
+**Trade-offs:** two small partial indexes on hot queues: each push row is indexed while queued and each notice until it is
+fanned out or fails.
+
+## ADR-749 - promtool checks the alert rules in `ci:changed` when they change
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 4 code review 91).
+**Decision:** `pnpm alerts:check` (`scripts/check-alerts.mjs`) runs `promtool check rules` and `promtool test rules` on
+`ops/alerts/` in the Prometheus image the monitoring stack pins (`prom/prometheus:v3.15.1` by digest) through Docker, only
+when a file under `ops/alerts/` or `ops/monitoring/` changed since the base (`needsAlertChecks` in `scripts/ci-scope.mjs`;
+uncommitted and new files count locally; an unknown base runs them). It is part of `ci:changed`, so the PR gate's `checks`
+job runs it with `CI_SCOPE_BASE` set to the pull request's base or the push's previous commit.
+**Why:** one place for the rule, locally and in CI, and no extra job (a job is billed by the whole minute plus its setup).
+**Trade-offs:** a change to the rules needs Docker locally; without it the script stops with the commands to run by hand.
+`pnpm monitoring:validate` (5 minutes, a 4 GB pull) is still not in CI (FOLLOWUPS, T-018b).
