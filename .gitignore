@@ -31,3 +31,6 @@ apps/web/.e2e/
 apps/api/test/support/e2e-server.bundle.mjs
 apps/api/test/load-bundle/
 ops/load/out/
+
+# The monitoring setup script keeps the metrics password here until its "api" step (scripts/cranl/monitoring-setup.py)
+monitoring_state.json

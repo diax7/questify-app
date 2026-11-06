@@ -865,9 +865,9 @@ Gmail failed and Resend sent instead (`staff.email_failover`). Nothing is broken
 
 Telemetry goes to **one CranL app** in `riyadh-1`, built from `ops/monitoring/stack/` (Dhia, 2026-11-03: Questify on CranL is at most three
 apps, the API, the web app and this one, plus the two databases; ADR-626 replaced the first design of three apps). Caddy, Prometheus with
-its OTLP receiver and the alert rules, the Alertmanager and Grafana run in one container behind one public port. **Prepared 2026-11-03, not
-created yet:** no CranL app exists until T-017's scripts, or a person following this section, create it; Q-580 lists what to check on the
-first deploy. One app per environment (ADR-620): staging first, production's own copy of the same folder when production exists (Q-582).
+its OTLP receiver and the alert rules, the Alertmanager and Grafana run in one container behind one public port. **Prepared 2026-11-03;
+staging's app was created by hand on 2026-11-06 as `questify-monitoring-staging`** (ADR-812: CranL refused a source change on the old
+`questify-prometheus-staging`, a public-repo app); production's does not exist yet. Q-580 lists what to check on the first deploy. One app per environment (ADR-620): staging first, production's own copy of the same folder when production exists (Q-582).
 Telemetry carries no personal data (ADR-603) and stays in Saudi Arabia with the rest.
 
 ```
@@ -942,7 +942,8 @@ repository, a log or a chat; Dhia or the T-017 script keeps them in the CranL se
 
 ### Pointing the API at it
 
-On each API app (`questify-api-staging`, later production), set, then redeploy:
+On each API app (`questify-api-staging`, later production), set, then redeploy (staging's four settings are in `ops/cranl/staging.json`, so
+`pnpm infra apply staging` sets them; the password stays an operator secret, `SECRET_API_OTEL_EXPORTER_OTLP_HEADERS`):
 
 | Setting | Value |
 |---|---|
@@ -1058,7 +1059,12 @@ pnpm infra apply staging    # creates and updates until CranL matches the file; 
 The build folder is set at create; afterwards a public-repo app's build folder or branch changes only in the dashboard (plan shows it
 as `manual`). Automatic rollback is off on every app (not readable by the API either).
 
-**State on 2026-11-04** (`plan staging`, read-only): everything matches except one `manual` line, the monitoring app's build folder
+**State on 2026-11-06:** the monitoring app is `questify-monitoring-staging` (ADR-812, Q-610). The old `questify-prometheus-staging` is stopped
+and stays until Dhia deletes it, so the account holds 4 apps until then. Metrics arrive, 20 rules are loaded, `/-/healthy` and the OTLP
+path answer 401 without the password, `/readyz` is 200; alert email is off (Q-581). Still to check once the key covers the new app: why CranL
+shows "deploying", that `/data` survives a redeploy, Grafana sign-in, and `plan staging` showing no differences.
+
+**State on 2026-11-04, before that** (`plan staging`, read-only): everything matches except one `manual` line, the monitoring app's build folder
 (`/ops/monitoring/prometheus`, from before ADR-626, so the app is stopped; Q-610). The staging database's backups have not run yet (Q-611).
 
 ### A fresh environment (T-017b; needs five free CranL slots, Q-613)

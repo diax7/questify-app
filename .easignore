@@ -36,3 +36,6 @@ docs/
 
 # Local agent worktrees
 .claude/
+
+# The monitoring setup script keeps the metrics password here until its "api" step
+monitoring_state.json
