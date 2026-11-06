@@ -180,6 +180,7 @@ export const AREAS = [
   [/flag|moderation/i, ["flags"]],
   [/games?(-?fields)?\b|games\//i, ["games"]],
   [/hint/i, ["hidden-hint"]],
+  [/review-?demo|console\/review-demo/i, ["console-review-demo"]],
   [/invit/i, ["invitations"]],
   [/join/i, ["join-requests", "terms", "names", "inbox"]],
   [/name-?display|full-?name|names?-?(editor|preview)/i, ["names"]],
