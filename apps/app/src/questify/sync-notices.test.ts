@@ -46,9 +46,22 @@ describe("syncNotices", () => {
       achievements: [{ id: "events-attended", tier: "bronze" as const, xp: 50 }],
     };
     expect(syncNotices(sync, catalog, tIn("en"), "en")).toEqual([
+      "New achievement: Wanderer (Bronze), +50 XP",
+    ]);
+    expect(syncNotices(sync, catalog, tIn("ar"), "ar")).toEqual([
+      "إنجاز جديد: رحّالة (برونزي)، ‎+50 XP",
+    ]);
+  });
+
+  it("leaves the XP out when the tier paid none (the amount set to 0)", () => {
+    const sync = {
+      ...none,
+      achievements: [{ id: "events-attended", tier: "bronze" as const, xp: 0 }],
+    };
+    expect(syncNotices(sync, catalog, tIn("en"), "en")).toEqual([
       "New achievement: Wanderer (Bronze)",
     ]);
-    expect(syncNotices(sync, catalog, tIn("ar"), "ar")).toEqual(["إنجاز جديد: رحّالة (برونزي)"]);
+    expect(syncNotices(sync, null, tIn("en"), "en")).toEqual(["You unlocked a new achievement."]);
   });
 
   it("shows one toast for an achievement that jumped several tiers, at the highest", () => {
@@ -61,7 +74,7 @@ describe("syncNotices", () => {
       ],
     };
     expect(syncNotices(sync, catalog, tIn("en"), "en")).toEqual([
-      "New achievement: Wanderer (Gold)",
+      "New achievement: Wanderer (Gold), +500 XP",
     ]);
   });
 
@@ -70,8 +83,10 @@ describe("syncNotices", () => {
       ...none,
       achievements: [{ id: "events-attended", tier: "silver" as const, xp: 150 }],
     };
-    expect(syncNotices(sync, null, tIn("en"), "en")).toEqual(["You unlocked a new achievement."]);
-    expect(syncNotices(sync, [], tIn("ar"), "ar")).toEqual(["فتحت إنجازًا جديدًا."]);
+    expect(syncNotices(sync, null, tIn("en"), "en")).toEqual([
+      "You unlocked a new achievement, +150 XP",
+    ]);
+    expect(syncNotices(sync, [], tIn("ar"), "ar")).toEqual(["فتحت إنجازًا جديدًا، ‎+150 XP"]);
   });
 
   it("says each Questify quest with its XP, in Western digits", () => {
@@ -129,6 +144,47 @@ describe("syncNotices", () => {
     const paid = { ...counted, days: 3, rewards: [{ days: 3, xp: 50 }] };
     expect(wroteSomething({ ...none, dailyStreak: paid })).toBe(true);
     expect(wroteSomething(none)).toBe(false);
+  });
+
+  it("adds a toast for each achievement item given, after the achievements and before the quests (T-404d)", () => {
+    const ring = {
+      id: "ring",
+      kind: "frame" as const,
+      name: { ar: "إطار الحوت", en: "Whale ring" },
+      visualKey: "frame-16",
+    };
+    const sync = {
+      ...none,
+      achievements: [{ id: "events-attended", tier: "gold" as const, xp: 300 }],
+      items: [{ achievementId: "events-attended", tier: "gold" as const, item: ring }],
+      quests: [
+        {
+          id: "6f1c7a0e-0000-4000-8000-000000000001",
+          title: { ar: "مهمة", en: "A quest" },
+          xp: 10,
+        },
+      ],
+    };
+    expect(syncNotices(sync, catalog, tIn("en"), "en")).toEqual([
+      "New achievement: Wanderer (Gold), +300 XP",
+      "New reward: Whale ring",
+      "Quest done: A quest (+10 XP)",
+    ]);
+    expect(syncNotices(sync, catalog, tIn("ar"), "ar")[1]).toBe("مكافأة جديدة: إطار الحوت");
+  });
+
+  it("tells the player about an item given when no achievement moved up", () => {
+    const ring = {
+      id: "ring",
+      kind: "frame" as const,
+      name: { ar: "ا", en: "A ring" },
+      visualKey: null,
+    };
+    const sync = {
+      ...none,
+      items: [{ achievementId: "top-ten", tier: "gold" as const, item: ring }],
+    };
+    expect(syncNotices(sync, catalog, tIn("en"), "en")).toEqual(["New reward: A ring"]);
   });
 
   it("counts a sync that only gave an achievement item as something written (T-404c)", () => {

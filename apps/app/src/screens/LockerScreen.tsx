@@ -7,7 +7,7 @@ import {
   type Equipment,
   type ProfileItem,
 } from "@questify/shared";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
@@ -19,6 +19,7 @@ import { Button, Problem } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { PresentedBy } from "#src/event/PresentedBy.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { lockerStartKind } from "#src/questify/journey.ts";
 import { lockerPage, saveProfile, type LockerEntry } from "#src/questify/profile-api.ts";
 
 function useLocker(owner: string | undefined) {
@@ -267,7 +268,9 @@ export function LockerScreen() {
   const me = state.status === "signed_in" ? state.me : undefined;
   const locker = useLocker(me?.id);
   const model = useAppearance(me, locker);
-  const [kind, setKind] = useState<ProfileItem["kind"]>("character");
+  // Journey opens the locker on the tab of the item the player tapped (T-404d).
+  const params = useLocalSearchParams<{ kind?: string }>();
+  const [kind, setKind] = useState<ProfileItem["kind"]>(lockerStartKind(params.kind));
   return (
     <Screen title={t("locker.title")} header={<BackButton />}>
       <ScrollView contentContainerStyle={{ gap: 12 }}>

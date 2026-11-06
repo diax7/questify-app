@@ -5379,6 +5379,61 @@ export const MESSAGES = {
   },
   "locker.fromQuestify": { ar: "مكافأة من Questify", en: "A Questify reward" },
   "locker.fromAchievement": { ar: "من إنجاز {name}", en: "From the {name} achievement" },
+  // ---------------------------------------------------------------- the Journey tab (T-404d, ADR-767: no price anywhere)
+  "nav.journey": { ar: "رحلتي", en: "Journey" },
+  "journey.levels": { ar: "مكافآت المستويات", en: "Level rewards" },
+  "journey.achievements": { ar: "مكافآت الإنجازات", en: "Achievement rewards" },
+  "journey.xpLine": { ar: "{xp} من {next} XP", en: "{xp} of {next} XP" },
+  "journey.stoneStart": {
+    ar: "المستوى {level}: نقطة البداية",
+    en: "Level {level}: where you start",
+  },
+  "journey.stoneReached": {
+    ar: "بلغت المستوى {level}: {item}",
+    en: "Level {level} reached: {item}",
+  },
+  "journey.stoneCurrent": {
+    ar: "أنت في المستوى {level}: {item}",
+    en: "You are at level {level}: {item}",
+  },
+  "journey.stoneLocked": { ar: "المستوى {level} مقفل: {item}", en: "Level {level} locked: {item}" },
+  "journey.achievementOwned": {
+    ar: "حصلت على {item} من إنجاز {name}",
+    en: "You have {item} from {name}",
+  },
+  "journey.achievementSoon": {
+    ar: "{item} في الطريق إليك من إنجاز {name}",
+    en: "{item} from {name} is on its way",
+  },
+  "journey.achievementLocked": { ar: "{item}: {reach}", en: "{item}: {reach}" },
+  "journey.reach.bronze": {
+    ar: "ابلغ الدرجة البرونزية في إنجاز {name}",
+    en: "Reach bronze in {name}",
+  },
+  "journey.reach.silver": {
+    ar: "ابلغ الدرجة الفضية في إنجاز {name}",
+    en: "Reach silver in {name}",
+  },
+  "journey.reach.gold": {
+    ar: "ابلغ الدرجة الذهبية في إنجاز {name}",
+    en: "Reach gold in {name}",
+  },
+  "journey.failed": {
+    ar: "تعذّر تحميل رحلتك. تحقق من اتصالك وأعد المحاولة.",
+    en: "Could not load your journey. Check your connection and try again.",
+  },
+  "sync.achievementXp": {
+    ar: "إنجاز جديد: {name} ({tier})، ‎+{xp} XP",
+    en: "New achievement: {name} ({tier}), +{xp} XP",
+  },
+  "sync.achievementGenericXp": {
+    ar: "فتحت إنجازًا جديدًا، ‎+{xp} XP",
+    en: "You unlocked a new achievement, +{xp} XP",
+  },
+  "sync.item": { ar: "مكافأة جديدة: {item}", en: "New reward: {item}" },
+  "console.catalog.achievements.unlocks": { ar: "يفتح", en: "Unlocks" },
+  "console.catalog.achievements.unlocksTier": { ar: "عند الدرجة", en: "At tier" },
+  "console.catalog.achievements.noItem": { ar: "بلا عنصر", en: "No item" },
   // ---------------------------------------------------------------- streaks (T-405b, ADR-300: no loss or guilt copy)
   "streak.days.one": { ar: "يوم واحد", en: "1 day" },
   "streak.days.two": { ar: "يومان", en: "2 days" },
