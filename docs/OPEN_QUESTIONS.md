@@ -2845,3 +2845,13 @@ it restores (ADR-742); the feature-usage page drops the review demo's organizer 
 refuses zero-width marks and stores whitespace-only text as empty (ADR-744, migration 0161).
 **Recommended (developer):** accept them as built. If an admin should see the old to new lines on an Amounts revert, add the
 audit entry's `before` to the amounts list answer.
+
+## Q-704 - FOLLOWUPS batch 6 (2026-11-06): five design choices to confirm (ADR-745 to ADR-749)
+
+**Status:** Open (developer decides after the code review).
+The batch took the recommended option where the follow-ups left a choice: closing reports with an action needs that action
+in place, and two parts of the T-705b line are kept with their reasons (ADR-745); catalog names refuse zero-width marks and
+whitespace alone (ADR-746); an index on an organizer's events by creation time, after the plan showed a sort of all 3,000
+(ADR-747); the health view's oldest push and notice read through two partial indexes (ADR-748); promtool runs in
+`ci:changed` when the alert rules or the monitoring stack change (ADR-749).
+**Recommended (developer):** accept them as built.

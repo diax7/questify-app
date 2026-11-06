@@ -4,8 +4,10 @@
 
 ## Local checks
 
-- `pnpm ci:changed`: lint, the function-limit ratchet, format check, types and all tests (the checks of the push and
-  pull-request gate, ADR-372). The gate adds the browser specs of the changed area: `node scripts/ci-scope.mjs origin/main`
+- `pnpm ci:changed`: lint, the function-limit ratchet, format check, the alert rules, types and all tests (the checks of
+  the push and pull-request gate, ADR-372). The alert rules step (`pnpm alerts:check`, ADR-749) runs `promtool check rules`
+  and `test rules` on `ops/alerts/` through Docker only when `ops/alerts/` or `ops/monitoring/` changed since
+  `origin/main` (or `$CI_SCOPE_BASE`), uncommitted files included; otherwise it prints that it skipped. The gate adds the browser specs of the changed area: `node scripts/ci-scope.mjs origin/main`
   prints them as `specs=e2e/a.spec.ts e2e/b.spec.ts` (or `specs=all`, with the reason on stderr); after a web build run
   `pnpm --filter @questify/web e2e <those paths>`.
 - `pnpm lint:limits`: the ratchet for the 100-line and complexity-8 limits of `docs/rules.md` (T-023). It fails on a
@@ -622,7 +624,8 @@ monitoring app is created. Until then nothing evaluates the rules: watch the log
   (no install needed: `docker run --rm --entrypoint promtool -v "$PWD/ops/alerts:/rules:ro" prom/prometheus:v3.15.1 check rules
   /rules/questify.rules.yml`, and `test rules /rules/questify.rules.test.yml`; the tag is pinned, raise it on purpose). Run both after
   any change to the rules, then copy the file over `ops/monitoring/stack/questify.rules.yml`, which the monitoring app loads (a test fails
-  while the two differ). No CI job runs them yet (`docs/FOLLOWUPS.md`).
+  while the two differ). `pnpm ci:changed` and the PR gate run both when `ops/alerts/` or `ops/monitoring/` change
+  (`pnpm alerts:check`, ADR-749).
   `pnpm vitest run apps/api/src/telemetry/alerts.test.ts` checks that every alert has an entry here and names only metrics, labels
   and events the code has.
 - **From a log line to its trace:** a line written inside a request or a background run carries `trace_id` and `span_id`; search the
