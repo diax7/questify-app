@@ -2826,7 +2826,8 @@ entry; the CranL parts join the T-811 questions.
 
 ## Q-702 - The FOLLOWUPS batch of 2026-11-06: seven design choices to confirm (ADR-735 to ADR-741)
 
-**Status:** Open (developer, 2026-11-06).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 2 code review 88): ADR-735 to
+ADR-741 are Accepted as built; the 3 days of cheers and the 6-hour stock cooldown are kept.
 The batch took the recommended option where the review left a choice: a failed top-10 diff goes to the back of the list
 (ADR-735); a failing group push page backs off 1, 4, 16 minutes to an hour and parks at the third failure (ADR-736); an
 ended moment's cheers go after 3 days (ADR-737); an Ask Questify and an Allow are serialized on the event row (ADR-738); a

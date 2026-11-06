@@ -173,23 +173,38 @@ REVOKE ALL ON FUNCTION group_push_fan() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION group_push_fan() TO questify_app;
 
 -- ================================================================ old cheers go (T-509 review, ADR-737)
--- The cheers of a moment that ended 3 days ago or more, at most `batch` (1 to 5,000) a call, oldest event first; the
--- lifecycle tick calls it once a run (every 30 s), so 1.5M rows go in about 2.5 hours. A cheer is kept only to draw the moment on the big screen and
--- to count a player's last minute, so nothing reads it after its moment ends. Reads across organizers on purpose (a
--- retention sweep, rules.md). Row locks are SKIP LOCKED, so a moment being restarted is left for the next call.
--- Answers how many went.
+-- The cheers of one moment that ended 3 days ago or more, at most `batch` (1 to 5,000) a call; the lifecycle tick calls it
+-- once a run (every 30 s), so 1.5M rows go in about 2.5 hours. The event is picked first (the oldest moment that still
+-- holds cheers), then its lowest cheer ids are locked in id order (SKIP LOCKED: a moment restarted after the pick keeps
+-- its cheers, and the lock query asks again that the moment is over), then those ids are deleted by key. The first read
+-- walks an index (`cheer_by_event`, or the primary key when the event is dense) and stops at `batch` rows; the delete is
+-- an index lookup per id, not a join the planner can answer with a scan of the whole table. The event id and the id list are
+-- values when each statement is planned (`force_custom_plan`), so the planner sees how big that event is and does not
+-- fall back to an average guess (a bitmap scan and a sort of all its cheers). A cheer is kept only to draw the moment on
+-- the big screen and to count a player's last minute, so nothing reads it after its moment ends. Reads across organizers
+-- on purpose (a retention sweep, rules.md). Answers how many went.
 CREATE FUNCTION cheers_purge(batch integer) RETURNS integer
-  LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp SET plan_cache_mode = force_custom_plan AS $$
 DECLARE
-  gone integer;
+  target uuid;
+  chosen bigint[];
+  gone   integer;
 BEGIN
-  WITH due AS (
-    SELECT c.id FROM cheers_moment m JOIN cheer c ON c.event_id = m.event_id
-    WHERE m.ends_at <= now() - interval '3 days'
-    ORDER BY m.ends_at, c.event_id, c.id
+  SELECT m.event_id INTO target FROM cheers_moment m
+  WHERE m.ends_at <= now() - interval '3 days' AND EXISTS (SELECT 1 FROM cheer x WHERE x.event_id = m.event_id)
+  ORDER BY m.ends_at, m.event_id
+  LIMIT 1;
+  IF target IS NULL THEN
+    RETURN 0;
+  END IF;
+  SELECT array_agg(d.id) INTO chosen FROM (
+    SELECT c.id FROM cheer c
+    WHERE c.event_id = target
+      AND EXISTS (SELECT 1 FROM cheers_moment m WHERE m.event_id = target AND m.ends_at <= now() - interval '3 days')
+    ORDER BY c.id
     LIMIT least(greatest(coalesce(batch, 5000), 1), 5000)
-    FOR UPDATE OF c SKIP LOCKED)
-  DELETE FROM cheer c USING due WHERE c.id = due.id;
+    FOR UPDATE SKIP LOCKED) d;
+  DELETE FROM cheer c WHERE c.id = ANY(chosen);
   GET DIAGNOSTICS gone = ROW_COUNT;
   RETURN gone;
 END $$;
@@ -197,10 +212,12 @@ REVOKE ALL ON FUNCTION cheers_purge(integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION cheers_purge(integer) TO questify_app;
 
 -- ================================================================ the Ask Questify request under a lock (T-711b review)
--- As 0141, with one change (ADR-738): the event row is read `FOR SHARE`, and the admin's unlock takes it `FOR UPDATE`
--- before it writes the entitlement (settings/store.ts insertEntitlement). An ask that starts while an Allow is being
--- written waits for it and then reads the entitlement (RQ409); an Allow that starts while an ask is being written waits
--- for it and then closes the request it opened. Lock order: the event row, then the request rows.
+-- As 0141, with one change (ADR-738): once the caller is known to be the owner of the event's organizer, the event row is
+-- locked `FOR SHARE`, and the admin's unlock takes it `FOR NO KEY UPDATE` before it writes the entitlement
+-- (settings/store.ts insertEntitlement). An ask that starts while an Allow is being written waits for it and then reads
+-- the entitlement (RQ409); an Allow that starts while an ask is being written waits for it and then closes the request it
+-- opened. The organizer and owner checks read the row without a lock, so a stranger's call never locks another
+-- organizer's event. Lock order: the event row, then the request rows.
 CREATE OR REPLACE FUNCTION request_feature(target_event uuid, wanted text, request uuid)
   RETURNS TABLE (id uuid, status text, requested_at timestamptz, created boolean)
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -211,13 +228,17 @@ DECLARE
   made     feature_request%ROWTYPE;
   declined timestamptz;
 BEGIN
-  SELECT e.* INTO ev FROM event e WHERE e.id = target_event FOR SHARE;
+  SELECT e.* INTO ev FROM event e WHERE e.id = target_event;
   IF NOT FOUND OR me IS NULL OR ev.organizer_id IS DISTINCT FROM app_organizer_id() THEN
     RAISE EXCEPTION 'no such event' USING ERRCODE = 'RQ404';
   ELSIF NOT app_is_owner(ev.organizer_id) THEN
     RAISE EXCEPTION 'only the owner asks Questify' USING ERRCODE = 'RQ403';
   ELSIF wanted IS NULL OR NOT feature_request_addon(wanted) THEN
     RAISE EXCEPTION 'not an add-on' USING ERRCODE = 'RQ422';
+  END IF;
+  PERFORM 1 FROM event e WHERE e.id = ev.id FOR SHARE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'no such event' USING ERRCODE = 'RQ404';
   ELSIF EXISTS (SELECT 1 FROM event_entitlement x WHERE x.event_id = ev.id AND x.feature = wanted) THEN
     RAISE EXCEPTION 'already unlocked' USING ERRCODE = 'RQ409';
   END IF;
@@ -385,7 +406,9 @@ REVOKE ALL ON FUNCTION alert_on_item_low() FROM PUBLIC;
 
 -- ================================================================ points changes in the manual-awards report (T-604)
 -- As 0030, plus the `adjust` lines a quest's points change wrote (FR-311; display only, the ledger is unchanged): one line
--- per player whose points moved, with the quest, the signed amount and the staff member who changed it, and no reason.
+-- per completion whose points moved (a player who completed the quest twice has two), with the quest, the signed score
+-- change and the staff member who changed it, and no reason. `balance_delta` rides along for a line that moved only the
+-- balance (score change 0), which the dashboard shows by its balance change.
 -- Each branch walks its own index newest first and stops at the page, then the two are merged by entry id.
 CREATE OR REPLACE FUNCTION manual_awards(target_event uuid, before_id bigint, page integer)
   RETURNS TABLE (id bigint, at timestamptz, kind text, points bigint, score_delta bigint, balance_delta bigint,

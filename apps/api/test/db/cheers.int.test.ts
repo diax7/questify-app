@@ -442,6 +442,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cheers (database)", () => {
       expect(await cheersOf(live)).toBe(4);
       expect(await owner("SELECT 1 FROM cheers_moment WHERE event_id = $1", [old])).toHaveLength(1);
     });
+
+    it("purges one event a call, the oldest ended moment first, and never reaches a live moment (T-509 review)", async () => {
+      const [older, old, live] = [await newEvent(), await newEvent(), await newEvent()];
+      for (const event of [older, old, live]) {
+        const fan = await newPlayer(event);
+        await start(event, 5);
+        await cheer(fan, event, "fire");
+        await cheer(fan, event, "star");
+      }
+      await endedAgo(older, "5 days");
+      await endedAgo(old, "4 days");
+      expect(await purge(5000)).toBe(2);
+      expect([await cheersOf(older), await cheersOf(old)]).toEqual([0, 2]);
+      expect(await purge(5000)).toBe(2);
+      expect(await cheersOf(old)).toBe(0);
+      expect(await purge(5000)).toBe(0);
+      expect(await cheersOf(live)).toBe(2);
+    });
   });
 
   describe("the big screen's scene", () => {

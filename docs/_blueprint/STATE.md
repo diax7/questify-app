@@ -8,20 +8,21 @@
 
 ## FOLLOWUPS batch 4 — 2026-11-06
 
-- **FOLLOWUPS batch 4 (tier B; migration 0160; 0156 stays reserved; ADR-735 to ADR-741 Proposed, Q-702).** Cleared:
+- **FOLLOWUPS batch 4 (tier B; migration 0160; 0156 stays reserved; ADR-735 to ADR-741 Accepted after code review 88, Q-702 Answered).** Cleared:
   a failed top-10 diff is stamped by `rank_push_failed` and goes to the back of the list (T-503); a failing group push
   page is counted, backed off 1/4/16 minutes to an hour and parked at the third failure, so later sends go ahead
   (T-706b; worker logs `push.group_page_failed` / `push.group_push_parked`); `cheers_purge` deletes an ended moment's
-  cheers after 3 days, 5,000 a lifecycle run (T-509); `request_feature` reads the event `FOR SHARE` and the admin's unlock
-  takes it `FOR UPDATE` (T-711b, two-connection test); the duplicate runs at REPEATABLE READ, retries once on 40001, and
+  cheers after 3 days, one event and 5,000 a lifecycle run (T-509); `request_feature` checks the organizer unlocked, then
+  reads the event `FOR SHARE`, and the admin's unlock takes it `FOR NO KEY UPDATE` (T-711b, two-connection test); the duplicate runs at REPEATABLE READ, retries once on 40001, and
   `event_copy_setup` refuses a lower level (T-601, mid-copy race test); the streak scan rests an hour after an empty
   pass (`streak_scan_quiet`, now PL/pgSQL, left the SQL allowlist) (T-501f); low-stock alerts have a 6-hour cooldown per
   reward and item (T-609; its "no two-connection claim test" part stays); the manual-awards report lists `adjust` lines,
   signed (T-604, display only). Nothing writes points differently. Full suite once: 837 files, 12,936 tests passed
   (16 files skipped). Oxlint, oxfmt, `lint:limits` and types clean. CI minutes: 0 (not pushed); agent tokens roughly
   1.5M (estimate).
-  **Next:** the batch's code review (SQL and locking: 0160, `settings/store.ts`, `events/events.ts`, `db/context.ts`);
-  then the next unchecked task in `docs/TASKS.md`.
+  Code review 88: `cheers_purge` now picks one event and walks `cheer_by_event`; the Allow takes `FOR NO KEY UPDATE`;
+  `request_feature` locks only after its checks; a balance-only `adjust` line shows its balance change.
+  **Next:** the next unchecked task in `docs/TASKS.md`.
 
 ## T-810 documentation gaps 15 to 17 — 2026-11-06
 

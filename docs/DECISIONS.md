@@ -8220,7 +8220,7 @@ came from timing every nested statement under load-driver traffic, not from the 
 
 ## ADR-735 - A failed top-10 diff goes to the back of the rank push list
 
-**Status:** Proposed (developer, 2026-11-06, FOLLOWUPS batch, T-503 review; migration 0160).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 2 code review 88). FOLLOWUPS batch, T-503 review; migration 0160.
 **Decision:** when `rank_push_diff` fails for an event (a statement timeout, any error), the tick calls
 `rank_push_failed(event)` in a transaction of its own: the event's snapshot row is stamped `taken_at = now()` and keeps
 its ids, or a live event with no snapshot gets a row with no ids (`enrollment_ids` may now be NULL, which means "no
@@ -8232,7 +8232,7 @@ budget before any other event was read.
 
 ## ADR-736 - A failing group push page is counted and backed off
 
-**Status:** Proposed (developer, 2026-11-06, FOLLOWUPS batch, T-706b review; migration 0160).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 2 code review 88). FOLLOWUPS batch, T-706b review; migration 0160.
 **Decision:** `group_push` gains `fan_failures` and `retry_after`. `group_push_fan` picks the oldest running send not
 waiting out a back-off and runs its page (`group_push_page`, 0138's body) in a block of its own; a page that fails for any
 reason, a statement timeout included, is undone alone and counted (`group_push_fan_failed`, as `push_fan_out_failed`):
@@ -8245,30 +8245,41 @@ existed before either).
 
 ## ADR-737 - Cheers of an ended moment go after 3 days
 
-**Status:** Proposed (developer, 2026-11-06, FOLLOWUPS batch, T-509 review; migration 0160).
-**Decision:** `cheers_purge(batch)` deletes the cheers of moments that ended 3 days ago or more, at most 5,000 a call,
-oldest moment first, row locks `SKIP LOCKED`. The in-process lifecycle tick (`events/tick.ts`, every 30 s, the pattern of ADR-333)
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 2 code review 88). FOLLOWUPS batch, T-509 review; migration 0160.
+**Decision:** `cheers_purge(batch)` picks the oldest moment that ended 3 days ago or more and still holds cheers, locks its
+lowest cheer ids in id order (`FOR UPDATE SKIP LOCKED`, asking again that the moment is over), at most 5,000 a call (one
+event a call), and deletes them by key. The function plans with `plan_cache_mode = force_custom_plan`: the event id is a
+value when the lock query is planned, so the planner sees the event's size and does not take an average guess (a bitmap
+scan and a sort of all the event's cheers). On a seeded table (700,000 cheers, 201 events, ids interleaved, one event
+of 300,000) the call took 22 ms: the lock query walks `cheer_pkey` (a dense event) or `cheer_by_event` (a sparse one) and
+stops at the batch, and the delete is an index scan of 5,000 keys (4.7 ms; as a join with the lock query the planner
+chose a sequential scan of the whole table, 190 ms). The in-process lifecycle tick (`events/tick.ts`, every 30 s, the pattern of ADR-333)
 calls it once a run, beside the other retention sweeps (`cheers.purged` with the count). The moment row stays (setup, as before).
 **Why:** nothing reads a cheer after its moment ends, and ended events kept up to about 1.5M rows each. 3 days leaves the
 moment's counts readable for a support question about the event; 5,000 a run keeps each delete short (about 2.5 hours for
 1.5M rows).
-**Trade-offs:** a support question asked after 3 days cannot see the moment's counts.
+**Trade-offs:** a support question asked after 3 days cannot see the moment's counts. A call works on one event, so
+many small events go at one per 30 s run (2,880 a day); the pick reads the moment rows (one per event ever ended), each
+with an index probe.
 
 ## ADR-738 - Ask Questify and an admin's Allow are serialized on the event row
 
-**Status:** Proposed (developer, 2026-11-06, FOLLOWUPS batch, T-711b review; migration 0160).
-**Decision:** `request_feature` reads the event row `FOR SHARE`; the admin's unlock (`insertEntitlement`, the first
-statement of `unlockAddon`) takes it `FOR UPDATE`. An ask that starts while an Allow is written waits and then sees the
-entitlement (RQ409); an Allow that starts while an ask is written waits and then closes the request. Lock order: the event
-row, then the request rows. Of the review's two options this one closes the gap at its cause; closing stale rows in
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 2 code review 88). FOLLOWUPS batch, T-711b review; migration 0160.
+**Decision:** `request_feature` reads the event row without a lock, checks the organizer, the owner and the add-on, and
+only then locks the row `FOR SHARE` (a stranger's call never locks another organizer's event; a row gone by then answers
+RQ404); the admin's unlock (`insertEntitlement`, the first statement of `unlockAddon`) takes it `FOR NO KEY UPDATE`,
+which still conflicts with `FOR SHARE` but not with the key-share locks that foreign-key checks take, so inserts that
+reference the event are not held. An ask that starts while an Allow is written waits and then sees the entitlement
+(RQ409); an Allow that starts while an ask is written waits and then closes the request. Lock order: the event row, then
+the request rows. Of the review's two options this one closes the gap at its cause; closing stale rows in
 `lockFeature` would leave a stale open row visible until then.
 **Why:** an owner's ask that committed just after an Allow stayed open beside the unlock.
 **Trade-offs:** an ask waits for an Allow of the same event (milliseconds); other writers of the event row wait for an
-Allow as they already did for the switch and words doors, which take it `FOR UPDATE` too.
+Allow as they already did for the switch and words doors.
 
 ## ADR-739 - An event is duplicated in one snapshot (REPEATABLE READ)
 
-**Status:** Proposed (developer, 2026-11-06, FOLLOWUPS batch, T-601 review; migration 0160).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 2 code review 88). FOLLOWUPS batch, T-601 review; migration 0160.
 **Decision:** the API's duplicate opens its transaction at REPEATABLE READ (`RequestContext.repeatableRead`) and retries
 once on a serialization failure (40001, a change to the source row that committed after the snapshot); `event_copy_setup`
 refuses any other level (ED500 `needs_repeatable_read`). Every helper reads the source as of one moment.
@@ -8277,11 +8288,12 @@ category copy and the quest copy failed the copy on a foreign key. Of the two op
 simpler safe one: one setting covers every table the copy reads (16 of them), where a share lock would need every writer
 of each of those tables (quest builder, change sets, templates, imports) to take it, and a lock on the source row would
 block a live source event's completions during the copy.
-**Trade-offs:** a rare 40001 costs one retry; a second one in a row answers 500 and the organizer tries again.
+**Trade-offs:** a rare 40001 costs one retry; a second one in a row answers 503 busy with Retry-After (`conventions.ts` maps 40001 to database-busy) and the
+organizer tries again.
 
 ## ADR-740 - The streak scan rests an hour after an empty pass
 
-**Status:** Proposed (developer, 2026-11-06, FOLLOWUPS batch, T-501f review; migration 0160).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 2 code review 88). FOLLOWUPS batch, T-501f review; migration 0160.
 **Decision:** a pass of `push_due_streak` that finds nobody to remind writes `streak_scan_quiet (day, quiet_until =
 pass + 1 hour)`; passes before `quiet_until` that day return 0 without reading. A pass that finds someone sets no rest.
 Rows of earlier days are deleted by the next empty pass. The function is now PL/pgSQL (it left the SQL allowlist).
@@ -8292,7 +8304,7 @@ reminded up to an hour later than before; a cursor would miss that player entire
 
 ## ADR-741 - A 6-hour cooldown on low-stock alerts per reward and quest item
 
-**Status:** Proposed (developer, 2026-11-06, FOLLOWUPS batch, T-609 review; migration 0160).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the FOLLOWUPS batch 2 code review 88). FOLLOWUPS batch, T-609 review; migration 0160.
 **Decision:** `alert_on_reward_low` and `alert_on_item_low` write no alert when the same reward or item had a low alert in
 the last 6 hours (its outbox rows by event and time, a new partial index on `organizer_alert (event_id, created_at)`).
 The crossing rule is unchanged; the next crossing after the 6 hours mails again.

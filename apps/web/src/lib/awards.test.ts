@@ -14,11 +14,37 @@ describe("awards helpers", () => {
 
   it("signs a report line: a removal subtracts, an adjust keeps its own sign, the rest add (T-604)", () => {
     expect(kindKey("adjust")).toBe("awards.kind.adjust");
-    expect(reportAmount({ kind: "removal", points: 200 })).toEqual({ sign: "−", size: 200 });
-    expect(reportAmount({ kind: "adjust", points: -30 })).toEqual({ sign: "−", size: 30 });
-    expect(reportAmount({ kind: "adjust", points: 50 })).toEqual({ sign: "+", size: 50 });
-    expect(reportAmount({ kind: "award", points: 10 })).toEqual({ sign: "+", size: 10 });
-    expect(reportAmount({ kind: "quest", points: 25 })).toEqual({ sign: "+", size: 25 });
+    expect(reportAmount({ kind: "removal", points: 200, balanceDelta: -200 })).toEqual({
+      sign: "−",
+      size: 200,
+    });
+    expect(reportAmount({ kind: "adjust", points: -30, balanceDelta: -30 })).toEqual({
+      sign: "−",
+      size: 30,
+    });
+    expect(reportAmount({ kind: "adjust", points: 50, balanceDelta: 0 })).toEqual({
+      sign: "+",
+      size: 50,
+    });
+    expect(reportAmount({ kind: "award", points: 10, balanceDelta: 10 })).toEqual({
+      sign: "+",
+      size: 10,
+    });
+    expect(reportAmount({ kind: "quest", points: 25, balanceDelta: 25 })).toEqual({
+      sign: "+",
+      size: 25,
+    });
+  });
+
+  it("shows an adjust that moved only the balance by its balance change, not as +0", () => {
+    expect(reportAmount({ kind: "adjust", points: 0, balanceDelta: 12 })).toEqual({
+      sign: "+",
+      size: 12,
+    });
+    expect(reportAmount({ kind: "adjust", points: 0, balanceDelta: -7 })).toEqual({
+      sign: "−",
+      size: 7,
+    });
   });
 
   it("names the operator by username, else the staff email, else nobody", () => {

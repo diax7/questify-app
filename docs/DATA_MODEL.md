@@ -1888,12 +1888,15 @@ list, compared with the shared package by a test), `player_intro_default()`, `pl
 - `group_push.fan_failures` (0 to 1000) and `retry_after`: a page that fails is counted and waits 1, 4, 16 minutes and at most an hour;
   `group_push_fan()` skips a send waiting out its back-off and answers `failed`, `code`, `retryAfter` and `parked` (third failure) for a
   failed page. Internal `group_push_page(g)` (0138's page) and `group_push_fan_failed(send, state)`, no grant.
-- `cheers_purge(batch)` (granted to the API role, run by the lifecycle tick): deletes the cheers of moments that ended 3 days ago or
-  more, at most 5,000 a call. The moment row stays.
+- `cheers_purge(batch)` (granted to the API role, run by the lifecycle tick): deletes the cheers of the oldest moment that ended 3 days ago or
+  more and still holds cheers, at most 5,000 a call (one event a call: its lowest ids locked in id order, then deleted by key; the
+  function plans with `force_custom_plan`). The moment row stays.
 - `streak_scan_quiet (day date PK, quiet_until timestamptz)`: no personal data; row-level security forced, no grant. `push_due_streak`
   (now PL/pgSQL) writes it after a pass that found nobody (quiet for an hour) and returns 0 until then; earlier days' rows go.
 - Index `organizer_alert_event_recent_idx (event_id, created_at) WHERE event_id IS NOT NULL`: the 6-hour low-stock cooldown's probe in
   `alert_on_reward_low` and `alert_on_item_low` (same reward or item, by its dedupe prefix).
-- `request_feature` reads the event `FOR SHARE`; the admin's unlock takes it `FOR UPDATE` first. `event_copy_setup` refuses a transaction
+- `request_feature` checks the organizer and owner on an unlocked read, then locks the event `FOR SHARE`; the admin's unlock takes it
+  `FOR NO KEY UPDATE` first. `event_copy_setup` refuses a transaction
   below REPEATABLE READ (ED500 `needs_repeatable_read`). `manual_awards` also answers the `adjust` lines of the event's past points
-  changes (no reason, the staff member who changed the quest).
+  changes, one per completion whose points moved (no reason, the staff member who changed the quest); `balanceDelta` shows
+  a line that moved only the balance.

@@ -753,6 +753,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         ).toEqual([{ n: 0 }]);
       });
 
+      it("does not lock another organizer's event, so a stranger's ask answers at once during an Allow (T-711b review)", async () => {
+        const event = await newEvent();
+        const client: PoolClient = await pool.connect();
+        try {
+          await withRequestContext(client, admin(), async () => {
+            await insertEntitlement(client, event, "bigScreen", adminId);
+            const early = await Promise.race([
+              refusal(ask(teamB(), event)),
+              new Promise<string>((resolve) => setTimeout(() => resolve("waiting"), 1000)),
+            ]);
+            expect(early).toBe("RQ404");
+          });
+        } finally {
+          client.release();
+        }
+      });
+
       it("is read by the organizer's own members and admins, never by another organizer or a player", async () => {
         const event = await newEvent(ids.orgA, "public");
         await ask(teamA(), event);

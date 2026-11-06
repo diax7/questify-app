@@ -280,9 +280,11 @@ export type EntitlementChange =
   | Readonly<{ kind: "added" | "already"; organizerId: string }>;
 
 /**
- * Records that Questify unlocked an add-on for an event, and says whether it was new. The event row is taken `FOR UPDATE`
- * until the transaction ends, so an owner's Ask Questify (`request_feature`, which reads it `FOR SHARE`) either commits
- * before and is closed by this unlock, or waits and then sees the entitlement (ADR-738).
+ * Records that Questify unlocked an add-on for an event, and says whether it was new. The event row is taken
+ * `FOR NO KEY UPDATE` until the transaction ends (it still conflicts with `FOR SHARE` but not with the key-share locks
+ * of foreign-key checks, so inserts that reference the event go on), so an owner's Ask Questify (`request_feature`,
+ * which locks it `FOR SHARE`) either commits before and is closed by this unlock, or waits and then sees the
+ * entitlement (ADR-738).
  */
 export async function insertEntitlement(
   db: Db,
@@ -291,7 +293,7 @@ export async function insertEntitlement(
   adminId: string,
 ): Promise<EntitlementChange> {
   const { rows } = await db.query<{ organizer_id: string | null; added: number }>(
-    `WITH target AS (SELECT id, organizer_id FROM event WHERE id = $1 FOR UPDATE),
+    `WITH target AS (SELECT id, organizer_id FROM event WHERE id = $1 FOR NO KEY UPDATE),
           added AS (
             INSERT INTO event_entitlement (event_id, organizer_id, feature, granted_by)
             SELECT id, organizer_id, $2, $3 FROM target
