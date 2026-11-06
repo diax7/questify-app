@@ -851,4 +851,7 @@ Then (AskUserQuestion): "Yes, remove gems and shop (Recommended)"; level rewards
 Achievement items, Level badge on rankings"; the Shop tab becomes "Rewards / Levels screen (Recommended)".
 The developer's caution, agreed in the options: level perks stay cosmetic or Questify-wide, never extra points or odds
 inside an event. Processed into task T-404c (an ADR superseding ADR-046's gems and shop is written with its plan).
+Then (AskUserQuestion, 2026-11-06, after the plan review): the tab is named "Journey" («رحلتي»), not "Levels"; the
+level shows on app rankings, the podium and profiles, not the big screen (Q-724); keep the event currency's gem icon
+(Q-725). Processed into ADR-766, ADR-767, ADR-768 and the T-404c plan.
 

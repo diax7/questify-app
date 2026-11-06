@@ -1,9 +1,9 @@
 # T-404c — Levels only: remove gems and the Questify gem shop
 
-**Status:** plan, awaiting the tier A plan review (no code yet). Dhia's decision: `docs/INBOX.md` 2026-11-06, ADR-760
+**Status:** plan reviewed (tier A plan review 86, approve with revisions; the revisions are folded in below, 2026-11-06). Dhia's decision: `docs/INBOX.md` 2026-11-06, ADR-760
 (Accepted by Dhia). Removes FR-724, FR-725, FR-726 (F-135, F-136); amends FR-415, FR-421, FR-830, FR-1106; adds
 FR-741 to FR-744. Depends on T-404, T-404b, T-709b to T-709d (all built). Choices left are **Proposed ADR-761 to
-ADR-768 / Q-720 to Q-725**. Never push, deploy, run EAS or run local mutation testing.
+ADR-768 / Q-720 to Q-725**, all decided 2026-11-06 (Q-724 and Q-725 by Dhia, the rest by the developer after the plan review). Never push, deploy, run EAS or run local mutation testing.
 
 **The rule this plan enforces (ADR-760):** the lifetime level is the only reward across Questify. Levels, achievements
 and Questify quests give XP and cosmetic items. Inside an event a player has that event's points and that event's
@@ -14,8 +14,8 @@ event. Nothing in Questify has a price: not in money, not in XP (FR-415), not in
 
 | Part | Tier | Delivers | Migrations |
 |---|---|---|---|
-| **T-404c** | **A** (drops a ledger, adds an XP source, changes the sync and the player item sources) | Every gem object gone from the database, API, shared package, app and console; achievement tiers pay XP; achievement items (table, grant, console door); `level` on event ranking rows; `GET /v1/me/rewards`; the console Amounts editor's new shape | 0162, 0163 |
-| **T-404d** | **B** (screens and copy) | The Levels tab and screen (the old Shop tab's place), the level badge beside names on event rankings and both profiles, the achievement editor's "Unlocks" field, the sync toast for achievement XP and items, every new string | none |
+| **T-404c** | **A** (drops a ledger, adds an XP source, changes the sync and the player item sources) | Every gem object gone from the database, API, shared package, app and console; achievement tiers pay XP; achievement items (table, grant, console door); `level` on event ranking rows; `GET /v1/me/rewards`; the console Amounts editor's new shape | 0163, 0164 |
+| **T-404d** | **B** (screens and copy) | The Journey tab and screen (the old Shop tab's place), the level badge beside names on event rankings and both profiles, the achievement editor's "Unlocks" field, the sync toast for achievement XP and items, every new string | none |
 
 Each part is valuable alone: after T-404c no gem exists anywhere (the decision Dhia took) and the server rewards are
 complete; T-404d is the new way to see them. Between the two the Questify bar has four tabs (Home, Explore, scan,
@@ -37,10 +37,10 @@ the new migrations and by deleting code. No shim, no deprecated route, no "gems:
 | `player_xp.gems` column and its CHECK (0067) | DROP COLUMN (balances vanish) |
 | `questify_quest.gems` column and its CHECK (0067) | DROP COLUMN |
 | `questify_award_owner_key` UNIQUE (id, player_id) (0067, only for the gem FK) | DROP CONSTRAINT |
-| `player_item.source_purchase_id`, `player_item_shop_fk`, the `shop` branch of `player_item_source_check` (0067) | Rows rewritten first (2.3), then column and FK dropped, CHECK replaced |
-| `platform_setting` row `gems`, constraint `platform_setting_gems_check` (0122) | DELETE row, DROP CONSTRAINT (migration 0162 alone, 4.1) |
+| `player_item.source_purchase_id`, `player_item_shop_fk`, the `shop` branch of `player_item_source_check` (0067) | In this order (3): drop `player_item_source_check`; `DISABLE TRIGGER owned_item_guard` by name (never `DISABLE TRIGGER ALL`); UPDATE `shop` → `questify`; `ENABLE ALWAYS TRIGGER owned_item_guard`; drop the FK and the column; add the new CHECK. A catalog test asserts the guard's `tgenabled = 'A'` afterwards |
+| `platform_setting` row `gems`, constraint `platform_setting_gems_check` (0122) | DELETE row, DROP CONSTRAINT (migration 0163 alone, 4.1) |
 | Functions `gem_append_only`, `gem_amount`, `gem_amounts`, `gems_due`, `own_gems`, `gem_shop`, `gem_buy`, `questify_gems_of`, `admin_shop_item_doc`, `admin_shop_items`, `admin_shop_item_save` (0067, 0119, 0122) | DROP FUNCTION (exact signatures) |
-| Functions whose latest body names a gem object: `questify_sync` (0124), `questify_quest_json`, `questify_quest_save`, `own_questify_quests`, `own_locker` (0067), `souvenir_catalog_guard`, `owned_item_guard`, `admin_xp_table_save`, `admin_xp_table_preview`, `xp_table_refusals`, `admin_item_row`, `admin_item_save`, `admin_item_create` (0124), `admin_amounts_doc`, `admin_amounts`, `admin_amounts_save`, `admin_achievement_save` (0122), `data_export_questify` (0129), `data_export_account` (0155), `wallet_player_guard` (0120, comment only: no change needed, it stays for `xp_entry`) | Replaced without the gem parts (4.2). `admin_item_create` loses its `shop` argument (DROP and CREATE, new signature) |
+| Functions whose latest body names a gem object: `questify_sync` (0124), `questify_quest_json`, `questify_quest_save`, `own_questify_quests`, `own_locker` (0067), `souvenir_catalog_guard`, `owned_item_guard`, `admin_xp_table_save`, `admin_xp_table_preview`, `xp_table_refusals`, `admin_item_row`, `admin_item_save`, `admin_item_create` (0124), `admin_amounts_doc`, `admin_amounts`, `admin_amounts_save`, `admin_achievement_save` (0122), `data_export_questify` (0129; its `items` list also gains the achievement id and tier for `achievement`-source items, 0129:493), `data_export_account` (0155), `wallet_player_guard` (0120, comment only: no change needed, it stays for `xp_entry`) | Replaced without the gem parts (4.2). `admin_item_create` loses its `shop` argument (DROP and CREATE, new signature) |
 | Audit entries `catalog.gem_shop.*` and `catalog.amounts.*` holding `gems` (0119, 0122) | Kept: `audit_log` is append-only history. A revert of an amounts entry ignores its `gems` group (4.2) |
 | Items `shop-*` (six titles, six frames, visual keys `frame-15` to `frame-20`) | Kept: players own them. Five frames become achievement rewards (5.2); the ids stay (immutable, never shown) |
 
@@ -67,10 +67,9 @@ A catalog test in the upgrade suite asserts afterwards that no relation, column,
   `loweredGemsSchema` becomes `loweredTiersSchema`), `catalog/xp-table.ts` (preview `gems`, refusal `levelUp`);
   `questify/quests.ts` (`gems`); `players/items.ts` (locker source `shop` → `questify`, new `achievement`);
   `players/frame.ts` (comment: the six rings are no longer "bought"); new `questify/rewards.ts`.
-- `i18n/messages.ts`: delete `gems.*`, `gemShop.*`, `profile.gems`, `questifyQuests.gems`, `sync.gems`,
-  `console.questify.field.gems`, `console.questify.gemsFixed`, `console.questify.invalid.gems`,
-  `console.catalog.tab.shop`, `console.catalog.amounts.gems*`, `console.catalog.amounts.line.gems`,
-  `console.catalog.shop.*`, `console.catalog.items.source.shop`; `nav.shop` becomes `nav.levels` (T-404d).
+- `i18n/messages.ts`: every gem and gem shop message goes. Instead of a list, a test enforces it: no English message
+  value matches `gems?` (case-insensitive) and no Arabic value contains «جوهر» or «جواهر», except
+  `terms.icon.gem` and `games.picture.gem`. `nav.shop` goes; `nav.journey` comes with T-404d.
 - **Kept on purpose (ADR-768, Q-725):** `CURRENCY_ICONS` `gem` and `terms.icon.gem` (an organizer may call an event's
   points "gems"; that is the event's currency, not Questify's) and the memory game's `games.picture.gem` card.
 
@@ -78,7 +77,7 @@ A catalog test in the upgrade suite asserts afterwards that no relation, column,
 
 Delete `app/(questify)/gem-shop.tsx`, `src/questify/GemShopScreen.tsx`, `GemShopCards.tsx`, `GemIcon.tsx`,
 `gems.ts`, `gem-shop-api.ts`, `gem-shop-flow.ts` and their tests. `_layout.tsx` drops the Shop tab (T-404c) and gains
-the Levels tab (T-404d). `ProfileScreen.tsx` drops `GemsCard`; `LockerScreen.tsx` drops the shop door and shows the
+the Journey tab (T-404d). `ProfileScreen.tsx` drops `GemsCard`; `LockerScreen.tsx` drops the shop door and shows the
 `questify` and `achievement` sources (T-404c, plain lines; T-404d polishes); `QuestifyQuestsScreen.tsx` drops "+N gems";
 `sync-notices.ts` and `QuestifySyncProvider.tsx` drop the gem toast and the gems-only write; `auth/player-state.ts`
 drops `gems`; comments in `DailyStreakCard.tsx` and `daily/use-daily.ts`. `#assets/currency/gem.png` stays (the event
@@ -89,7 +88,7 @@ currency icon and the catch game use it).
 Delete `components/CatalogGemShop.tsx` and the Gem shop tab in `ConsoleCatalog.tsx`; `lib/console-catalog.ts` loses
 `GEM_SHOP_API`, `readGemShop`, `shopDraftOf`, `isShopDirty`; `CatalogAmounts.tsx` loses the Gems group and gains the
 three achievement XP fields (T-404c, since the door's document changes); `CatalogAchievements.tsx` and
-`CatalogXpTable.tsx` confirmations name XP and items, not gems; `ConsoleQuestify.tsx` and `lib/console-questify.ts`
+`CatalogXpTable.tsx` and `lib/console-catalog-xp.ts` (`xpLoweringOf`, line 36) confirmations name XP and items, not gems; `ConsoleQuestify.tsx` and `lib/console-questify.ts`
 lose the Gems field; the item list's source line loses "Shop" and gains "Achievement"; `ConsolePlayerActions.tsx`
 comment; the catalog page comment. E2E: `console-catalog.spec.ts`, `console-questify.spec.ts`,
 `console-players.spec.ts` updated.
@@ -123,23 +122,27 @@ comment; the catalog page comment. E2E: `console-catalog.spec.ts`, `console-ques
 
 ## 4. Database changes
 
-### 4.1 Migration 0162 (platform_setting only)
+### 4.1 Migration 0163 (platform_setting only)
 
 Its own file, so its own transaction: `questify_sync` locks `player_xp` and then reads `platform_setting`, while a scan
 reads `platform_setting` before it locks `player_xp`; a migration holding both strongly would deadlock with one of
-them (0067's lesson, ADR-291). 0162 touches `platform_setting` alone: `DELETE` the `gems` row, `DROP CONSTRAINT
+them (0067's lesson, ADR-291). 0163 touches `platform_setting` alone: `DELETE` the `gems` row, `DROP CONSTRAINT
 platform_setting_gems_check`, and replace `platform_setting_xp_daily_check` with the same check plus three optional
 fields `bronzeXp`, `silverXp`, `goldXp` (each 0 to 1000). It waits for in-flight readers and holds nothing else. Until
-0163 runs, the old sync falls back to its built-in gem amounts; nothing breaks.
+0164 runs, the old sync falls back to its built-in gem amounts; nothing breaks.
 
-### 4.2 Migration 0163 (the rest)
+### 4.2 Migration 0164 (the rest)
 
 `SET LOCAL lock_timeout = '10s'`; every table locked up front in live-path order at the strongest mode a later
 statement needs (0067 precedent): `player` EXCLUSIVE (drains erasures), `player_xp` ACCESS EXCLUSIVE, `xp_entry`
-ACCESS EXCLUSIVE, `level_reached`, `achievement_earned` SHARE ROW EXCLUSIVE, `achievement` SHARE ROW EXCLUSIVE,
+ACCESS EXCLUSIVE, `level_reached`, `achievement_earned` **ACCESS EXCLUSIVE**, `achievement` SHARE ROW EXCLUSIVE,
 `questify_quest`, `questify_award` ACCESS EXCLUSIVE, `gem_shop_item`, `gem_purchase`, `gem_entry` ACCESS EXCLUSIVE,
-`item` SHARE ROW EXCLUSIVE, `player_item` ACCESS EXCLUSIVE, `level_item`, `souvenir_rule` SHARE ROW EXCLUSIVE. Never
-`platform_setting`. The build worker derives the order again from the live code (`complete_quest_answer` 0151,
+`item` **ACCESS EXCLUSIVE**, `player_item` ACCESS EXCLUSIVE, `level_item`, `souvenir_rule` SHARE ROW EXCLUSIVE. Never
+`platform_setting`. Dropping a foreign key (DROP TABLE or DROP CONSTRAINT) takes ACCESS EXCLUSIVE on the referenced
+table too: `gem_entry` references `level_reached` and `achievement_earned` (0067:84-85) and `gem_shop_item` references
+`item` (0067:28), so those three are taken ACCESS EXCLUSIVE up front; a weaker first lock would upgrade mid-way while
+`player_xp` is held and could deadlock with a reader holding `item` (`item_json` in `ranking_top` or the profile) and
+then waiting on `player_xp` (plan review 86). The build worker derives the order again from the live code (`complete_quest_answer` 0151,
 `questify_sync` 0124, `erase_player`, the daily doors) and writes it in the header; an upgrade test proves it (9).
 
 Deny by default: `achievement_item` ENABLE and FORCE RLS, REVOKE ALL FROM PUBLIC and `questify_app` in the same group;
@@ -153,7 +156,7 @@ every new function `SET search_path = public, pg_temp` and `REVOKE ALL ... FROM 
 - `achievement_xp()` (internal) reads `bronzeXp`, `silverXp`, `goldXp` from the `xp` setting, each falling back to
   **50, 150, 300** when absent. A tier set to 0 pays no XP and writes no entry.
 - `questify_sync` (replaced) pays the XP **in the same statement group that inserts the tier**: for each row the tier
-  INSERT returns, one `xp_entry (achievement)` and one `xp_apply`. Not retroactive: tiers earned before 0163 pay
+  INSERT returns, one `xp_entry (achievement)` and one `xp_apply`. Not retroactive: tiers earned before 0164 pay
   nothing (the product is not launched; a retroactive pay would land in one month's Questify ranking at once). No due
   check is needed, so the pre-check gets cheaper (`gems_due` goes).
 - **How the amounts are chosen:** a scan quest pays `questXp` 100 and the curve puts level 5 at 1,400 XP and level 30
@@ -163,7 +166,7 @@ every new function `SET search_path = public, pg_temp` and `REVOKE ALL ... FROM 
 - **Questify quests** keep paying the XP they already pay (`questify_quest.xp`); their gems simply go. No XP is added
   in their place: the level items that XP leads to are the reward.
 - **Level-ups** paid 20 gems; they now pay only their level item (F-131, unchanged). Nothing replaces the gems.
-- **No XP is ever priced (FR-415):** after 0163 no function subtracts XP except the existing FR-1602 removal, and no
+- **No XP is ever priced (FR-415):** after 0164 no function subtracts XP except the existing FR-1602 removal, and no
   door takes XP as a price. A catalog test asserts the only writers of negative `xp_entry.delta` are the removal doors.
 
 **Achievement items (ADR-765, Q-723).**
@@ -185,13 +188,13 @@ every new function `SET search_path = public, pg_temp` and `REVOKE ALL ... FROM 
   → Falcon ring, City Roamer → Dune ring, Top Ten → Moon ring, Teamwork → Pearl ring. Desert ring and the six titles
   stay unassigned for the console. Players who bought one keep it and are simply not given it twice.
 - **The console door:** `admin_achievement_save` (replaced) takes an optional `item: {tier, itemId} | null` in its
-  document (absent means unchanged, so an entry written before 0163 reverts without touching it). Refusals, as the XP
+  document (absent means unchanged, so an entry written before 0164 reverts without touching it). Refusals, as the XP
   table's: an unknown item or a souvenir `CA409 item_unknown`; an item with another source `item_has_source`; a change
   or removal while any player owns the item from this achievement `item_given`. Setting it pays items at players' next
   syncs; no confirmation (cosmetic, nothing to take back). The threshold-lowering confirmation (`CA428`) now names, per
   lowered tier, the XP it pays and its item. `admin_achievements` lists `item`.
 
-**The rest of 0163.** `own_questify_quests`, `questify_quest_json`, `questify_quest_save` without `gems`;
+**The rest of 0164.** `own_questify_quests`, `questify_quest_json`, `questify_quest_save` without `gems`;
 `own_locker` answers `source: questify` and `achievement` (with the achievement's name and tier); `admin_xp_table_save`
 asks `confirmed` with the levels it pays (no `levelUp`); `admin_xp_table_preview` answers `{up, down, levels}`;
 `xp_table_refusals` and the item doors check the achievement source instead of the shop; `admin_item_row` source is
@@ -229,11 +232,11 @@ tables.
 - Not on the big screen, the top-10 push or the station: those are the organizer's displays; the level is a player's
   Questify identity. A later task can add it.
 
-## 7. The Levels tab and screen (ADR-767, Q-724)
+## 7. The Journey tab and screen (ADR-767, Q-724)
 
-**Name.** The tab is **Levels** («المستويات»), not "Rewards": inside an event the bar's prizes action is already
-"Rewards" («الجوائز»), and Dhia's reason for the change is that players must never confuse Questify with an event's
-rewards. Route `app/(questify)/levels.tsx`; tab icon a laurel/medal (Ionicons `ribbon` until the 3D set, ADR-013).
+**Name (Dhia, Q-724, 2026-11-06).** The tab is **Journey** («رحلتي»), not "Levels" or "Rewards": inside an event the
+bar's prizes action is already "Rewards" («الجوائز»), and players must never confuse Questify with an event's rewards.
+Route `app/(questify)/journey.tsx`; tab icon a laurel/medal (Ionicons `ribbon` until the 3D set, ADR-013).
 
 **Read.** `GET /v1/me/rewards` (player only; staff sessions refused as every player door; no parameters; no other
 player's data) → `{level: {number, title, xp, levelFrom, nextLevelAt}, levels: [{level, xpFrom, item, owned}],
@@ -255,10 +258,10 @@ beyond the screen's own load (a last working copy is not needed; the profile rea
 - Tapping an owned item opens the locker on it (the existing equip flow); nothing else is actionable. No price, no
   currency, no "get" or "buy" word anywhere.
 - States: loading skeleton, a failed read with Retry, signed out handled as every Questify tab. Reduce Motion: the
-  glow does not pulse. Strings: `levels.*` in both languages through `ux-araby`.
+  glow does not pulse. Strings: `journey.*` in both languages through `ux-araby`.
 
-**Level badge (T-404d):** a small shield with the number beside the name on the event ranking rows, the podium, the
-player's own row, the own Profile header and the public profile header; label "Level {n}" / «المستوى {n}».
+**Level badge (T-404d):** a small shield with the number beside the name on the app's event ranking rows, the podium,
+the player's own row, the own Profile header and the public profile header (Dhia, Q-724: not the big screen); label "Level {n}" / «المستوى {n}».
 
 ## 8. Store compliance (`docs/STORE_COMPLIANCE.md`)
 
@@ -275,13 +278,14 @@ shows on rankings only as a cosmetic; a test proves a completion pays the same p
 
 **T-404c DB** (`test/db/levels-only-upgrade.int.test.ts`, `test/db/achievement-rewards.int.test.ts`):
 - Upgrade: a database with gem balances, entries, purchases, a bought equipped frame and a shop-priced audit history
-  runs 0162 and 0163: the catalog has no gem object (2.1); the bought frame is still owned and equipped with `source =
-  'questify'`; balances are gone; event ledger, scores and XP are unchanged byte for byte. 0163 applied while a scan
-  transaction and a sync transaction are each in flight completes with no deadlock (the gems-upgrade pattern); 0162
+  runs 0163 and 0164: the catalog has no gem object (2.1); the bought frame is still owned and equipped with `source =
+  'questify'`; balances are gone; event ledger, scores and XP are unchanged byte for byte. 0164 applied while a scan
+  transaction, a sync transaction and a profile or ranking read holding `item` are each in flight completes with no
+  deadlock (the gems-upgrade pattern); 0163
   applied while a scan holds `player_xp` waits and completes.
 - Achievement XP: a tier pays its amount once (replay, two concurrent syncs on two connections: one entry); a
   three-tier jump pays three; a 0 amount writes nothing; amounts come from the setting, absent fields fall back; tiers
-  earned before 0163 pay nothing; a level crossed by tier XP gives its level item in the same call; the XP never
+  earned before 0164 pay nothing; a level crossed by tier XP gives its level item in the same call; the XP never
   touches `ledger_entry`, `enrollment.score` or any event balance; a banned player is refused (`PI401`).
 - Achievement items: given once at the mapped tier; retroactive after the mapping is set; not given while the tier is
   revoked, given after restore; an already owned item is skipped; the guard refuses an item with a level, souvenir or
@@ -299,17 +303,16 @@ the gem routes, adds `/v1/me/rewards`, and asserts `GET /v1/me/gem-shop` is 404;
 allowlists gain `level` only.
 
 **Route and unit:** sync, profile, rewards, ranking display, catalog (amounts, achievements with `item`, items,
-XP-table preview), shared schemas (strict rewards, locker sources). **T-404d:** app unit tests for the Levels screen
+XP-table preview), shared schemas (strict rewards, locker sources). **T-404d:** app unit tests for the Journey screen
 states and the trail's labels, the level badge's label and RTL, the sync toast lines; console unit and e2e for the
 achievement "Unlocks" field in both languages at phone width; `npx expo export`; the bar's order test (Home, Explore,
-scan, Levels, Profile).
+scan, Journey, Profile).
 
 ## 10. Mutation (GitHub only, ADR-174) and reviews
 
 - T-404c globs (core, changed files only): `apps/api/src/questify/questify.ts`, `apps/api/src/questify/rewards.ts`,
-  `apps/api/src/players/items.ts`, `apps/api/src/players/profile.ts`, `apps/api/src/ranking/display.ts`,
-  `apps/api/src/console/catalog.ts`, `packages/shared/src/questify/rewards.ts`, `packages/shared/src/players/items.ts`,
-  `packages/shared/src/catalog/catalog.ts`; tests excluded. Most logic is SQL, covered by the DB suites.
+  `apps/api/src/players/items.ts`, `packages/shared/src/questify/rewards.ts`, `packages/shared/src/players/items.ts`;
+  tests excluded. Most logic is SQL, covered by the DB suites.
 - T-404d: none (tier B).
 - Reviews: this plan, one tier A plan review. T-404c: one tier A code review on the strongest model. T-404d: one tier B
   code review with the Arabic pass.
@@ -319,28 +322,29 @@ scan, Levels, Profile).
 - **DECISIONS:** ADR-760 (Accepted by Dhia, in this commit); ADR-046's status line notes its gems and shop are
   superseded (this commit); ADR-284 to ADR-293 each get a "Superseded by ADR-760" line at build.
 - **FEATURES:** F-135 and F-136 marked "Removed 2026-11-06 (ADR-760)", rows kept, IDs never reused; F-131 kept; F-171
-  "Shop" → "Levels"; new F-349 (achievement items) and F-350 (level beside the name on event rankings).
+  "Shop" → "Journey"; new F-349 (achievement items) and F-350 (level beside the name on event rankings).
 - **SRS:** FR-724, FR-725, FR-726 retired with a dated sentence (the FR-253 pattern) and their status rows marked
   retired; new **FR-741** (no way to buy, trade or gift items or XP; carries FR-725's item half), **FR-742**
   (achievement items), **FR-743** (the level beside the name on event rankings and profiles, never an advantage inside
-  an event), **FR-744** (the Levels screen); FR-415 drops "buys in the Questify shop"; FR-421 and FR-1106 drop "gems";
-  FR-830 "Shop" → "Levels" and its Given about the gem shop.
+  an event), **FR-744** (the Journey screen); FR-415 drops "buys in the Questify shop"; FR-421 and FR-1106 drop "gems";
+  FR-830 "Shop" → "Journey" and its Given about the gem shop.
 - **DATA_MODEL** (gem tables out; `achievement_item`; `player_item` sources; `xp_entry` source; `xp` setting fields),
   **API** (2.2, 6, 7), **CONFIGURABILITY** (`gems` setting out, tier XP in), **ARCHITECTURE** (ledger line),
   **SECURITY** (FR-421 line), **SCOPE** (area 7 line; "points, gems and items are never sold" → "points, XP and items"),
-  **STORE_COMPLIANCE** (8), **RUNBOOK** (review demo level note), **ROADMAP**, `ux/PLAYER.md` (P22 becomes Levels),
-  `ux/DASHBOARD_AND_CONSOLE.md`, `legal/terms-of-use.md` §5 (Q-725), TASKS (T-404c/T-404d, T-806 note), STATE.
+  **STORE_COMPLIANCE** (8), **RUNBOOK** (review demo level note), **ROADMAP**, `ux/PLAYER.md` (P22 becomes Journey),
+  `ux/DASHBOARD_AND_CONSOLE.md`, `legal/terms-of-use.md` §5 (Q-725), TASKS (T-404c/T-404d, T-806 note), STATE (noting that staging app builds
+  break on sync until they are rebuilt: the old app parses the sync answer's `gems`).
 
 ## 12. Proposed decisions and questions
 
 - **ADR-760** (Accepted, Dhia 2026-11-06): no gems, no Questify shop; levels are the reward across Questify.
 - **ADR-761 / Q-720** the split: T-404c (tier A) then T-404d (tier B); four tabs on `main` in between.
-- **ADR-762 / Q-720** two migrations: 0162 `platform_setting` only, 0163 the rest with the up-front lock list.
+- **ADR-762 / Q-720** two migrations: 0163 `platform_setting` only, 0164 the rest with the up-front lock list.
 - **ADR-763 / Q-722** balances vanish; bought items stay with source `questify`, shown as "A Questify reward".
 - **ADR-764 / Q-721** achievement tiers pay XP 50/150/300 (data), at earn time, not retroactively.
 - **ADR-765 / Q-723** achievement items: one per achievement at a chosen tier, retroactive, change refused once given;
   five gold tiers seeded with the former shop frames.
 - **ADR-766 / Q-724** the derived level on event ranking rows, kept for blocked rows, not on the big screen.
-- **ADR-767 / Q-724** the tab is "Levels", not "Rewards"; `GET /v1/me/rewards`.
-- **ADR-768 / Q-725** the event currency icon `gem` and the game card stay; the terms of use lose gems at build, with
+- **ADR-767 / Q-724** the tab is "Journey" («رحلتي», Dhia), not "Levels" or "Rewards"; `GET /v1/me/rewards`.
+- **ADR-768 / Q-725** the event currency icon `gem` and the game card stay (Dhia); the terms of use lose gems at build, with
   the version bump left to the legal pass.

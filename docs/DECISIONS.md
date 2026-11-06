@@ -8417,7 +8417,7 @@ The Questify bar's Shop tab becomes a levels screen. FR-724, FR-725 and FR-726 a
 
 ## ADR-761 - T-404c is split: the removal and server rewards (tier A), then the screens (tier B)
 
-**Status:** Proposed (T-404c plan, 2026-11-06; Q-720).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86; Q-720).
 **Decision:** T-404c removes every gem object from the database, API, shared package, app and console, makes
 achievement tiers pay XP, adds achievement items and the level on event ranking rows, and adds `GET /v1/me/rewards`.
 T-404d builds the Levels tab and screen, the level badge, the console's achievement "Unlocks" field and the toast lines.
@@ -8427,17 +8427,18 @@ Between the two the bar has four tabs on `main`; no build is cut in between.
 
 ## ADR-762 - Two migrations: `platform_setting` alone first, then everything else
 
-**Status:** Proposed (T-404c plan, 2026-11-06; Q-720).
-**Decision:** migration 0162 only deletes the `gems` setting row, drops its CHECK and widens the `xp` CHECK with three
-optional tier XP fields. Migration 0163 does the rest with every table locked up front in live-path order and never
-touches `platform_setting`.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86; Q-720).
+**Decision:** migration 0163 only deletes the `gems` setting row, drops its CHECK and widens the `xp` CHECK with three
+optional tier XP fields. Migration 0164 does the rest with every table locked up front in live-path order (tables a
+dropped foreign key references, `level_reached`, `achievement_earned` and `item`, ACCESS EXCLUSIVE from the start, plan
+review 86) and never touches `platform_setting`.
 **Why:** a sync locks `player_xp` and then reads `platform_setting`; a scan does the reverse. One transaction holding
 both strongly would deadlock with one of them (ADR-291).
 **Trade-offs:** for the moment between the two files the old sync falls back to its built-in gem amounts.
 
 ## ADR-763 - Gem balances vanish; items bought with gems stay as "A Questify reward"
 
-**Status:** Proposed (T-404c plan, 2026-11-06; Q-722).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86; Q-722).
 **Decision:** balances, gem entries and purchases are dropped with no conversion. Items bought in the shop stay owned
 and equipped; their `player_item` source is rewritten from `shop` to `questify` (no key), which the locker shows as
 "A Questify reward" / «مكافأة من Questify». No door can write that source.
@@ -8446,18 +8447,18 @@ and equipped; their `player_item` source is rewritten from `shop` to `questify` 
 
 ## ADR-764 - Achievement tiers pay XP when they are earned (50, 150, 300 by default)
 
-**Status:** Proposed (T-404c plan, 2026-11-06; Q-721).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86; Q-721).
 **Decision:** `xp_entry` gains the source `achievement` (one entry per player, achievement and tier). `questify_sync`
 pays it in the same step that writes the tier. Amounts are `bronzeXp`, `silverXp`, `goldXp` in the `xp` setting
 (0 to 1000, edited in the console's Amounts editor), falling back to 50, 150 and 300. Tiers earned before the migration
-pay nothing. Questify quests keep their XP; level-ups keep only their item. Nothing is priced in XP (FR-415).
+pay nothing (before 0164). Questify quests keep their XP; level-ups keep only their item. Nothing is priced in XP (FR-415).
 **Why:** a bronze tier is half a 100 XP quest and all fifteen tiers give 2,500 XP, about 5% of the 30-level curve, so
 achievements help a level without replacing play. Paying at earn time needs no due check.
 **Trade-offs:** players who earned tiers on staging before the change get no XP for them.
 
 ## ADR-765 - Achievement items: one per achievement, at a tier the admin picks
 
-**Status:** Proposed (T-404c plan, 2026-11-06; Q-723).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86; Q-723).
 **Decision:** a closed table `achievement_item (achievement_id, tier, item_id)`, one item per achievement, an item
 having only one source (level, souvenir or achievement). `questify_sync` gives the item to every holder of that tier who
 does not own it, retroactively, except while the tier is revoked. The console's achievement editor sets it; a change or
@@ -8468,28 +8469,29 @@ unlocks one of the former shop frames (Compass, Falcon, Dune, Moon and Pearl rin
 
 ## ADR-766 - The derived level on event ranking rows
 
-**Status:** Proposed (T-404c plan, 2026-11-06; Q-724).
+**Status:** Accepted (Dhia, 2026-11-06, AskUserQuestion; Q-724).
 **Decision:** `ranking_rows`, `ranking_top`, `ranking_day_top` and the reader's own row carry `level`, derived from the
 player's XP (`xp_level_of`) through one primary-key lookup per row. A blocked row keeps its level, as its place and
-score. Rank-only events keep it. Not on the big screen, the station or the top-10 push. The completion path is untouched
+score. Rank-only events keep it. The app shows it on event rankings, the podium and profiles (Dhia, Q-724); not on the
+big screen, the station or the top-10 push. The completion path is untouched
 (ADR-734); the ranking read may grow by at most 0.5 ms or 10%.
 **Why:** Dhia chose the level badge on rankings; the read already joins the player per row.
 **Trade-offs:** one more join per row on every ranking read.
 
-## ADR-767 - The Questify bar's fourth tab is "Levels", read from `GET /v1/me/rewards`
+## ADR-767 - The Questify bar's fourth tab is "Journey", read from `GET /v1/me/rewards`
 
-**Status:** Proposed (T-404c plan, 2026-11-06; Q-724).
-**Decision:** the tab and screen are named Levels («المستويات»), not Rewards. The screen shows the level and its bar,
+**Status:** Accepted (Dhia, 2026-11-06, AskUserQuestion; Q-724).
+**Decision:** the tab and screen are named Journey («رحلتي», Dhia's choice, Q-724), not Levels or Rewards. The screen shows the level and its bar,
 the next level's item, the trail of every level's item (unlocked or locked) and the achievement items. One caller-bound
 read, `own_level_rewards()`, answers it. No price, currency or "get" word anywhere.
 **Why:** inside an event the prizes action is already "Rewards" («الجوائز»); the change exists to avoid confusing the two.
-**Trade-offs:** the word "rewards" is not used outside events.
+**Trade-offs:** the word "rewards" is not used outside events; the route is `app/(questify)/journey.tsx` (T-404d).
 
 ## ADR-768 - The event currency icon "gem" stays; the terms lose Questify gems
 
-**Status:** Proposed (T-404c plan, 2026-11-06; Q-725).
+**Status:** Accepted (Dhia, 2026-11-06, AskUserQuestion; Q-725).
 **Decision:** the organizer's currency icon choice `gem` (`CURRENCY_ICONS`), its label and the memory game's gem card
 stay: they belong to an event's points, not to Questify. `docs/legal/terms-of-use.md` section 5 drops Questify gems at
 build; whether the change needs a new terms version and new acceptance is left to the legal pass.
-**Why:** removing the icon would take a choice away from organizers for no player-facing gain.
+**Why:** removing the icon would take a choice away from organizers for no player-facing gain. Dhia confirmed: keep it.
 **Trade-offs:** an event may still call its points "gems".
