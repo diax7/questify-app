@@ -7,7 +7,8 @@
 - `pnpm ci:changed`: lint, the function-limit ratchet, format check, the alert rules, types and all tests (the checks of
   the push and pull-request gate, ADR-372). The alert rules step (`pnpm alerts:check`, ADR-749) runs `promtool check rules`
   and `test rules` on `ops/alerts/` through Docker only when `ops/alerts/` or `ops/monitoring/` changed since
-  `origin/main` (or `$CI_SCOPE_BASE`), uncommitted files included; otherwise it prints that it skipped. The gate adds the browser specs of the changed area: `node scripts/ci-scope.mjs origin/main`
+  `origin/main` (or `$CI_SCOPE_BASE`), uncommitted files included; otherwise it prints that it skipped; `--always`
+  (`pnpm alerts:check --always`) runs it whatever changed. The gate adds the browser specs of the changed area: `node scripts/ci-scope.mjs origin/main`
   prints them as `specs=e2e/a.spec.ts e2e/b.spec.ts` (or `specs=all`, with the reason on stderr); after a web build run
   `pnpm --filter @questify/web e2e <those paths>`.
 - `pnpm lint:limits`: the ratchet for the 100-line and complexity-8 limits of `docs/rules.md` (T-023). It fails on a
@@ -15,7 +16,7 @@
   (the message names the file, line and values). Fix it by splitting the function. It lists shrunk or removed
   offenders without failing; `node scripts/function-limits.mjs --update` then rewrites the baseline, only downward
   (it refuses while anything grew). Commit the baseline with the change. A renamed offender counts as new.
-- `pnpm ci:full`: `ci:changed` plus the dependency audit, and, for the browser side, the whole suite after a web build
+- `pnpm ci:full`: `ci:changed` plus the alert rules checked whatever changed (`alerts:check --always`) and the dependency audit, and, for the browser side, the whole suite after a web build
   (`pnpm --filter @questify/web e2e`, about 21 minutes on a CI runner, below). `full.yml` runs the same on GitHub, daily and by hand. The
   mutation check is not run here (ADR-174): it runs only on GitHub, see below.
 - Integration tests need a throw-away PostgreSQL: `docker compose up -d`, then set
@@ -82,9 +83,16 @@ optional `GMAIL_ACT_AS` (the mailbox to act for when `MAIL_FROM` is an alias), o
 secret store, never from chat or the repository. The app refuses to start without the required ones.
 
 **Create an account** (inside the app container, with the owner connection; the password is piped in, never
-typed on the command line or kept in an environment variable):
+typed on the command line or kept in an environment variable). Pipe a random password that nobody sees, then send the
+person to "Forgot your password?" on the sign-in page: the emailed link (30 minutes, one use) lets them choose a password
+only they know, so no operator ever holds a working password (ASVS V6.4.1). The generated one is 32 characters of
+random base64url, which passes the password policy and the breached-password check:
 
-    printf '%s' "$PASSWORD" | node staff.cjs create someone@example.com [--admin]
+    node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('base64url'))" | node staff.cjs create someone@example.com [--admin]
+
+Until the person has reset it the account can be signed in to only with that unseen password. The code still sets
+whatever password is piped in and nothing forces a change at the first sign-in; making `create` send an invite instead,
+or forcing the first sign-in to choose a new password, needs a migration and a change to the sign-in path (FOLLOWUPS).
 
 **A person is locked out ("too many attempts")**: wait 15 minutes, or free them now:
 
@@ -101,8 +109,8 @@ too; then change the password (dashboard, My account) or reset it.
    ends every session and clears the sign-in lockout, so the next sign-in works.
 2. Throttled, or the reset requests are used up (3 an hour per email): `node staff.cjs clear-throttle <email>` clears
    the failures, the code count and the reset-request count.
-3. Lost the mailbox: there is no web way back (the mailbox is the second factor, ADR-078). With the owner connection,
-   disable the account and create a new one; record it.
+3. Lost the mailbox: there is no way back on the sign-in page (the mailbox is the second factor, ADR-078). Follow "Lost
+   mailbox or lost number: proving who is asking" below; which way depends on the person's role.
 
 **`staff.outbound_cap` in the log** (sign-up answers 503, invites answer `mail_cap`): the day's budget of 400 sign-up and
 invite emails is spent. Sign-in and reset codes are not counted and still go out. Look for an abuse pattern (many
@@ -281,6 +289,63 @@ T-810f. Never run `reseal` before the release is confirmed. Migration 0157 is sa
   `UPDATE player_refresh SET revoked_at = now() WHERE revoked_at IS NULL;`,
   `UPDATE player_session SET revoked_at = now() WHERE revoked_at IS NULL;` and one `audit_log` row
   (`actor_type 'system'`, `action 'sessions.end_all'`, the reason in `after`). Everyone signs in again.
+
+## Lost mailbox or lost number: proving who is asking (T-810; ASVS V6.4.1, V6.4.4)
+
+Written from what the code allows on 2026-11-06. It names only doors that exist; where there is none, it says so. The
+rule for every case: **a request never proves itself.** Do not act on a message that arrives from the lost mailbox, from
+a number or address Questify did not hold before the request, or from a chat that only says "I can't get in". Check
+through a channel Questify already had, then record the check where the tool asks for it.
+
+**A staff member lost their mailbox.** The mailbox is the second factor (ADR-078), so nothing on the sign-in page helps
+and there is no command that changes a staff email. By role:
+
+- **Organizer owner** (keeps the account, the organizers and the history): an admin starts "Owner sign-in email" on the
+  organizer's console page (ADR-490; `POST /v1/admin/organizers/{id}/owner-email`).
+  1. Prove the person first, before any address is typed. Call back on the phone number Questify held before the request
+     (the signup, the agreement or a past ticket), not one given in the request: choose "Called back on the number on
+     file". Or see an identity document that matches the organizer's agreement, or reach the signatory of the agreement:
+     "Identity document" or "The signatory on the agreement". "Other" needs the reason to say how.
+  2. Type the new address (a mailbox the person controls; it must belong to no staff account) and a reason of 10 to 300
+     characters. The confirmation screen lists every organizer the account belongs to: read it to the person.
+  3. They have 60 minutes to open the link in the new mailbox and type the code plus the account's current password. The
+     admin never sees the code. On success every session, code and reset link of the account ends and the old address is
+     told.
+  4. A person who also forgot the password ticks "I don't know my password": the change is held 24 hours, and the old
+     address can stop it in that time (a person who lost the mailbox cannot; whoever holds it can). When it applies,
+     "Forgot your password?" goes to the new address.
+  The code limits it to 3 starts a day per account, never a platform admin, never your own account.
+- **Editor**: no admin door. The organizer's owner removes the member and invites the new address from the Team page
+  (a 7-day, single-use link; the invited address signs in with its own password and code). The owner knows the editor, so
+  the owner is the proof.
+- **Platform admin**: no console door. A second admin, or Dhia, confirms the person in a call to a number saved before
+  the request. Then, as the owner, inside the app container: first `staff.cjs create <new email> --admin` as described
+  under "Create an account" (`revoke-admin` refuses the last active admin, so the new one must exist), then
+  `node staff.cjs revoke-admin <old email> --reason "..."` (ends the sessions and closes the support grants), then in one
+  transaction `UPDATE staff_user SET status = 'disabled' WHERE email = '<old email>'` and an `audit_log` row
+  (`actor_type 'system'`, `action 'staff.disable'`, `target_type 'staff_user'`, the reason in `after`). The old account stays
+  out because it is disabled; the new one has the same power and none of the old history.
+
+**A player lost their number.** A code to the phone or the email is the only factor (Q-662), and no admin door changes
+or adds a contact, sends a code, moves points or merges accounts (ADR-421, ADR-423, Q-387). So:
+
+1. Ask first whether they still have any way in: the app signed in on a phone, or the other contact on the account (an
+   email next to a lost number). Then they need no support: Settings, contact, add or change the phone (the code goes to
+   the new one only), then end the other devices (a code to a contact they hold).
+2. They have none. Find the player: Console, Players, search by the username they give, or by a contact they still hold
+   (exact match; contacts show masked, as `+9665•••••12`). The page shows what only the account's holder would know: the
+   masked end of the number, the events and roughly when they joined, their score, the usernames they had, and (in
+   the player's ledger) the quests they did and the rewards they took. Ask them to tell you these; do not read them out. A photo of
+   an identity document proves nothing here, because nothing ties it to a player.
+3. If they pass and the number may be in someone else's hands (a stolen phone, a recycled number): "Reset sign-in" with the
+   reason `lost_access` or `compromised` and a note. It ends every signed-in device, open code and push device, so a
+   thief's phone is out. It grants nothing: whoever holds the number can still ask for a code and sign in. Say so.
+4. "Show full contacts" (reason and a note of 10 to 300 characters, audited, 20 an hour per admin) is for a verified
+   support or legal request. Never read a full number back to the caller: let them say it and compare it yourself.
+5. When no contact on the account is theirs any more, the answer is a new account with the new number; the points stay
+   with the old one, and nothing moves them. Do not promise otherwise. The old account is erased only on a data request
+   with a case reference (`POST /v1/admin/players/{id}/erase`, T-708: the reference and the username typed exactly), never
+   because a caller says the account is theirs.
 
 ## The App Review demo (T-710, ADR-560 to ADR-568)
 
@@ -625,7 +690,7 @@ monitoring app is created. Until then nothing evaluates the rules: watch the log
   /rules/questify.rules.yml`, and `test rules /rules/questify.rules.test.yml`; the tag is pinned, raise it on purpose). Run both after
   any change to the rules, then copy the file over `ops/monitoring/stack/questify.rules.yml`, which the monitoring app loads (a test fails
   while the two differ). `pnpm ci:changed` and the PR gate run both when `ops/alerts/` or `ops/monitoring/` change
-  (`pnpm alerts:check`, ADR-749).
+  (`pnpm alerts:check`, ADR-749); `ci:full` and the nightly `full.yml` run them with `--always`, so every night checks the rules.
   `pnpm vitest run apps/api/src/telemetry/alerts.test.ts` checks that every alert has an entry here and names only metrics, labels
   and events the code has.
 - **From a log line to its trace:** a line written inside a request or a background run carries `trace_id` and `span_id`; search the
@@ -1027,7 +1092,9 @@ event, `--players` players per event with a phone and an enrollment); sessions a
 function every API sign-in ends in, in one statement. It starts the API (production's pool of 10, Redis options, ticks
 and request logs; SMS, email and push stubbed), runs `--drivers` driver processes (`ops/load/driver.mjs`), prints the
 report and writes it to `ops/load/out/<time>/report.json` (git ignores `ops/load/out/`), then drops the database and
-the run's Redis keys, also on Ctrl+C. A run killed harder leaves its database to the test sweeper (gone after 2 hours).
+the run's Redis keys, also on Ctrl+C, a plain `kill` (SIGTERM) and a closed terminal (SIGHUP); those also stop the driver
+processes and delete the job files (bearer tokens). A run killed harder (`kill -9`) leaves its database to the test sweeper
+(gone after 2 hours), its job files in `ops/load/out/<time>/` to delete by hand, and its drivers running until they finish.
 It stops before starting, and after seeding, when less than 8 GB is free.
 
 How it measures: each event's completions follow an open schedule (request i is due at start + i / rate, sent then

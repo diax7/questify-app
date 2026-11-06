@@ -25,8 +25,8 @@ the step in `.github/workflows/ci.yml`. A doc reference names the section. "Note
 
 | Status | L1 | L2 | Total |
 |---|---|---|---|
-| Met | 55 | 104 | 159 |
-| Partly | 3 | 20 | 23 |
+| Met | 55 | 105 | 160 |
+| Partly | 3 | 19 | 22 |
 | Not met | 0 | 0 | 0 |
 | N/A | 12 | 59 | 71 |
 | **Total** | **70** | **183** | **253** |
@@ -34,7 +34,7 @@ the step in `.github/workflows/ci.yml`. A doc reference names the section. "Note
 ## Gaps and what to do
 
 Code gaps were one tier A task, **T-810b** (`docs/TASKS.md`), done 2026-11-05 but for row 8, done as T-810f the same day.
-Documentation gaps 15 to 17 were written on 2026-11-06 (T-810); gap 18 is still in `docs/FOLLOWUPS.md`; product and hosting choices are Q-660 to Q-664
+Documentation gaps 15 to 17 were written on 2026-11-06 (T-810), and gap 18's proofing steps the same day; the part of gap 18 that needs code (an invite or a forced first password change for `staff.cjs create`) is in `docs/FOLLOWUPS.md`; product and hosting choices are Q-660 to Q-664
 (`docs/OPEN_QUESTIONS.md`), answered as T-810b (rows 9 and 11), T-810c, T-810d, T-810e (row 11's notice, done) and T-811.
 
 | # | Controls | Status | Gap | Recommendation | Where |
@@ -56,7 +56,7 @@ Documentation gaps 15 to 17 were written on 2026-11-06 (T-810); gap 18 is still 
 | 15 | V11.1.1, V11.1.2 | V11.1.2 Met, V11.1.1 Partly (T-810, 2026-11-06) | The cryptographic inventory and key policy are written (`docs/SECURITY.md` "Cryptographic inventory and key policy"), so V11.1.2 is Met. V11.1.1 stays Partly: rotation is event-driven with no schedule (QUALITY_BASELINE section 4 says "on a schedule"), `AUTH_SECRET` and `QR_SECRET` have no previous-key slot, the RUNBOOK has no steps for the provider keys, who can read the secret store is unconfirmed (Q-664), and the policy is not mapped to NIST SP 800-57 | Q-700's recommendation | Q-700 |
 | 16 | V16.1.1 | Partly (inventory written, T-810, 2026-11-06) | The log inventory is written (`docs/SLO.md` section 6). It records that Questify sets no retention for CranL's logs (Q-443) and that the audit log is kept with no period (Q-084), so the control's retention clause is not met | Set the periods when counsel and T-811 answer | Q-443, Q-084 |
 | 17 | V6.1.3 | Met (T-810, 2026-11-06) | Done: `docs/SECURITY.md` "Sign-in pathways and their strength" lists every pathway of the product with its proof, the limits that bound guessing, what it opens and its test, and says how the access kinds enforce them alike. The operator's own accounts sit outside the product (Q-701) | Done | `docs/SECURITY.md` "Sign-in pathways and their strength" |
-| 18 | V6.4.1, V6.4.4 | Partly | `staff.cjs create` sets a password the operator knows and nothing asks for a change; a lost staff mailbox or a player's lost number is handled by support with no written identity-proofing steps | Prefer invites; write the proofing steps in RUNBOOK | FOLLOWUPS |
+| 18 | V6.4.1, V6.4.4 | V6.4.4 Met, V6.4.1 Partly (RUNBOOK steps written 2026-11-06) | The proofing steps for a lost staff mailbox and a player's lost number are written from the doors that exist (RUNBOOK "Lost mailbox or lost number: proving who is asking"). `staff.cjs create` still accepts any password piped in and nothing forces a change at the first sign-in; the RUNBOOK now pipes a random password nobody sees and sends the person to "Forgot your password?", so no operator holds a working password | Make `create` send an invite, or make the first sign-in choose a new password (a migration and a change to the sign-in path: a plan and a race test) | FOLLOWUPS |
 | 19 | V3.3.1, V3.3.3 | Met (T-810, 2026-11-06) | The language cookie (`apps/web/src/lib/language.ts`) is `__Host-qs_lang`; the proxy still reads the old `qs_lang` once, so a saved choice survives, and removes it when it sets the new one | Done | `apps/web/src/lib/language.ts`, `apps/web/src/proxy.ts` |
 | 20 | V7.5.1 | Partly | A player's phone or email change is not re-authenticated (accepted deviation, ADR-120, SECURITY "Data protection") | Keep; covered by Q-661's session controls | ADR-120 |
 | 21 | V14.1.2, V14.2.4 | Partly | Retention periods wait for counsel (Q-075) | T-807 | Q-075 |
@@ -189,10 +189,10 @@ identity provider.
 | V6.3.2 | 1 | No default accounts | Met | Accounts come only from sign-up, invites and `staff.cjs create` (`docs/RUNBOOK.md` "Staff sign-in"); `apps/api/test/auth/staff-admin.int.test.ts` "creates an account with a hashed password and the right role" | |
 | V6.3.3 | 2 | Multi-factor, or a documented combination | Met | Staff: `apps/api/test/auth/sign-in.int.test.ts` "opens a session only after the password and then the emailed code"; players: one factor as a written exception with its compensating controls, `docs/SECURITY.md` "Authentication" ("Player sign-in: one factor, accepted for v1", Q-662) | |
 | V6.3.4 | 2 | No undocumented pathways; same strength across them | Met | `apps/api/test/security/routes.int.test.ts` "has exactly these public routes and nothing else open"; `apps/api/src/route-access.test.ts` "stops the server from starting when a route does not say who may call it" | |
-| V6.4.1 | 1 | Initial secrets random, short-lived, never long-term | Partly | Invites last 7 days and are used once: `apps/api/test/organizers/team.int.test.ts` "lets only the invited account accept it, once"; the invitee sets their own password | Gap 18: `staff.cjs create` |
+| V6.4.1 | 1 | Initial secrets random, short-lived, never long-term | Partly | Invites last 7 days and are used once: `apps/api/test/organizers/team.int.test.ts` "lets only the invited account accept it, once"; the invitee sets their own password. `staff.cjs create` pipes a random password nobody sees and the person resets it by email (RUNBOOK "Staff sign-in"); the code does not force it | Gap 18: `staff.cjs create` |
 | V6.4.2 | 1 | No hints or secret questions | Met | Note: none exist (`docs/SECURITY.md` "Authentication") | |
 | V6.4.3 | 2 | Reset does not bypass the second factor | Met | The reset ends every session; the next sign-in needs the password and the code: `apps/api/test/auth/password-reset.int.test.ts` "ends every session the person had" | |
-| V6.4.4 | 2 | Lost factor: identity proofed as at enrolment | Partly | `docs/RUNBOOK.md` "Staff sign-in" (a lost mailbox: disable and create a new account); owner email change by an admin: `docs/SECURITY.md` "Owner email change and the team alert" | Gap 18: no written proofing steps |
+| V6.4.4 | 2 | Lost factor: identity proofed as at enrolment | Met | `docs/RUNBOOK.md` "Lost mailbox or lost number: proving who is asking" (staff by role, players); owner email change by an admin records how identity was checked: `docs/SECURITY.md` "Owner email change and the team alert", `apps/api/test/console/owner-email.int.test.ts` | Gap 18 (steps written 2026-11-06) |
 | V6.5.1 | 2 | One-time codes usable once | Met | `apps/api/test/auth/sign-in.int.test.ts` "does not accept the same code twice", "makes one session when the right code is sent twice at once"; `apps/api/test/db/player-sign-in.int.test.ts` "signs in a returning player and uses the challenge up" | |
 | V6.5.2 | 2 | Weak lookup secrets hashed with a password hash | N/A | | No lookup secrets (backup codes); sign-in codes are out-of-band codes, stored as a keyed HMAC (`apps/api/src/auth/keys.test.ts` "binds a code to its challenge and to its digits") |
 | V6.5.3 | 2 | Codes from a CSPRNG | Met | `apps/api/src/auth/keys.test.ts` "is always six Western digits, including leading zeros", "uses the whole range" (`crypto.randomInt`) | |
