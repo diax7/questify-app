@@ -9,9 +9,11 @@ import {
   MAX_AREA_SPECS,
   changedMessageKeys,
   importersIn,
+  needsAlertChecks,
   planBrowserSpecs,
   scopeOutput,
 } from "./ci-scope.mjs";
+import { PROMETHEUS_IMAGE, promtoolRuns } from "./check-alerts.mjs";
 
 const ROOT = join(import.meta.dirname, "..");
 const E2E_DIR = join(ROOT, "apps", "web", "e2e");
@@ -352,5 +354,33 @@ describe("the command", () => {
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }
+  });
+});
+
+describe("needsAlertChecks", () => {
+  it("runs promtool when the rules, their tests or the monitoring stack change", () => {
+    expect(needsAlertChecks(["ops/alerts/questify.rules.yml"])).toBe(true);
+    expect(needsAlertChecks(["docs/SLO.md", "ops/alerts/questify.rules.test.yml"])).toBe(true);
+    expect(needsAlertChecks(["ops/monitoring/stack/questify.rules.yml"])).toBe(true);
+  });
+
+  it("skips promtool for any other change, and runs it when the changed files are unknown", () => {
+    expect(needsAlertChecks(["apps/api/src/telemetry/alerts.ts", "docs/RUNBOOK.md"])).toBe(false);
+    expect(needsAlertChecks(["ops/alertsx/notes.md"])).toBe(false);
+    expect(needsAlertChecks([])).toBe(false);
+    expect(needsAlertChecks(undefined)).toBe(true);
+  });
+});
+
+describe("promtoolRuns", () => {
+  it("checks and tests the rules in the image the monitoring stack pins, with the folder read-only", () => {
+    const dockerfile = readFileSync(join(ROOT, "ops", "monitoring", "stack", "Dockerfile"), "utf8");
+    expect(dockerfile).toContain(`FROM ${PROMETHEUS_IMAGE} AS prometheus`);
+    const runs = promtoolRuns("/repo/ops/alerts");
+    expect(runs.map((args) => args.slice(-3).join(" "))).toEqual([
+      "check rules /rules/questify.rules.yml",
+      "test rules /rules/questify.rules.test.yml",
+    ]);
+    expect(runs[0]).toContain("/repo/ops/alerts:/rules:ro");
   });
 });
