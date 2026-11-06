@@ -2848,7 +2848,7 @@ audit entry's `before` to the amounts list answer.
 
 ## Q-704 - FOLLOWUPS batch 6 (2026-11-06): five design choices to confirm (ADR-745 to ADR-749)
 
-**Status:** Open (developer decides after the code review).
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the code review 91): accepted as built.
 The batch took the recommended option where the follow-ups left a choice: closing reports with an action needs that action
 in place, and two parts of the T-705b line are kept with their reasons (ADR-745); catalog names refuse zero-width marks and
 whitespace alone (ADR-746); an index on an organizer's events by creation time, after the plan showed a sort of all 3,000
