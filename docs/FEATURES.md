@@ -436,7 +436,7 @@ Decisions:
 
 | # | Feature | Priority | Source | Notes |
 |---|---|---|---|---|
-| F-171 | Questify home bar: Home, Explore, ● (scan an event's join QR), Journey, Profile | Must | Claude | The same center button as inside events. The Journey tab comes with T-404d («رحلتي», Dhia, Q-724) |
+| F-171 | Questify home bar: Home, Explore, ● (scan an event's join QR), Journey, Profile | Must | Claude | The same center button as inside events. Journey («رحلتي», Dhia, Q-724) is the fourth tab since T-404d |
 | F-172 | Questify Home: your events (live, upcoming, past), daily challenge, streak, Questify quests | Must | Claude | |
 | F-173 | Explore: the public events list (ADR-024), "For you" (F-138), Questify-wide ranking (F-154) | Must | Claude | "For you" and the Questify-wide ranking appear as F-138 and F-154 (Should) are built |
 

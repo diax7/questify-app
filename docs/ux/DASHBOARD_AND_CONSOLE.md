@@ -911,6 +911,10 @@ Daily questions, Templates, Questify quests, Level titles, XP table.
   screen says so.
 - Questify quests, achievements and items: lists with the same editor pattern as
   the quest builder.
+- Built T-404d (ADR-765): an achievement's editor has an "Unlocks" field («يفتح»): the item it gives, from the items no level
+  or other achievement uses, and the tier that gives it (the tier box is off while no item is chosen). The card shows
+  "Unlocks: Falcon ring (Gold)" under the thresholds. A move or removal after a player got the item is refused by the
+  API in the page's language; a revert puts the item back with the thresholds.
 - Level titles and XP table: one row per level, title in Arabic and English, XP needed. Saving
   opens a confirmation screen if players already hold those levels.
 

@@ -370,7 +370,7 @@ Questify's default words, not an event's renamed words (ADR-058).
 | FR-741 | The app shall offer no way to buy, trade or gift items or XP. | Must | F-124, F-131 | Given any player on any screen, when they look at an item or their XP, then no price, buy or gift option appears. Given any door, when it runs, then none takes a price or names another player as a recipient. Carries FR-725's item half (ADR-760). |
 | FR-742 | The system shall let an achievement unlock one cosmetic item at a tier the admin picks. | Should | F-349 | Given an admin maps an item to an achievement's tier, when a player holds that tier, then the player gets the item once at their next sync, even if they reached the tier earlier. Given the tier is revoked, when the player syncs, then the item is not given until it is restored. Given any player got the item, when an admin tries to change it, then the door refuses. Tiers also pay XP once when earned: 50, 150 and 300 by default, as data (ADR-764). |
 | FR-743 | The app shall show the player's level beside their name on event rankings, the podium and profiles, never as an advantage inside an event. | Should | F-350 | Given a ranking is read, when a row is answered, then it carries the level derived from the player's XP, also for a row the reader blocked and in a rank-only event. Given two players at level 1 and level 20, when each completes the same quest, then they get the same points (ADR-760, ADR-766). The big screen does not show it (Q-724). |
-| FR-744 | The app shall have a Journey screen («رحلتي») showing the player's level, the next level's item and every level and achievement item, unlocked or locked. | Should | F-171, F-349 | Given a player opens Journey, when it loads, then it shows their level and bar, the trail of levels with each item, and the achievement items, with no price, currency or "get" word. The server read is `GET /v1/me/rewards` (T-404c); the screen is T-404d. |
+| FR-744 | The app shall have a Journey screen («رحلتي») showing the player's level, the next level's item and every level and achievement item, unlocked or locked. | Should | F-171, F-349 | Given a player opens Journey, when it loads, then it shows their level and bar, the trail of levels with each item, and the achievement items, with no price, currency or "get" word. The server read is `GET /v1/me/rewards` (T-404c); the screen is T-404d (built 2026-11-06). |
 
 #### After the event
 
@@ -1132,9 +1132,9 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-739 | F-139 | Should | server built T-409 (rounded daily counts sent, opened, joined; never a player; the landing page's open door); pages built T-409b (rounded counts "120+" / "Fewer than 10" on the dashboard, exact ones in the console, the landing page `/{lang}/i`); code review pending |
 | FR-740 | F-139 | Should | built T-409 (requested on the web, approved in the console, no price on the platform; `no-invitation-purchase.test` keeps the routes out of the app); code review pending |
 | FR-741 | F-124, F-131 | Must | built T-404c (`test/db/achievement-rewards.int`, `test/db/levels-only-upgrade.int`: no gem object, no price, `no-gems.test` for the words) |
-| FR-742 | F-349 | Should | server built T-404c (`test/db/achievement-rewards.int`); the console's field is T-404d |
-| FR-743 | F-350 | Should | server built T-404c (`test/db/achievement-rewards.int`, `ranking.test`); the badge is T-404d |
-| FR-744 | F-171, F-349 | Should | read built T-404c (`GET /v1/me/rewards`); the screen is T-404d |
+| FR-742 | F-349 | Should | built T-404c (`test/db/achievement-rewards.int`) and T-404d (the console's Unlocks field: `console-catalog.test`, `console-catalog.spec`; the sync toasts: `sync-notices.test`); code review pending |
+| FR-743 | F-350 | Should | built T-404c (`test/db/achievement-rewards.int`, `ranking.test`) and T-404d (`LevelBadge` on event rows, the podium and both profiles; `event.test`, `ranking.test`); code review pending |
+| FR-744 | F-171, F-349 | Should | built T-404c (`GET /v1/me/rewards`) and T-404d (`app/(questify)/journey.tsx`, `JourneyScreen`; `journey.test`, `tabs.test`); code review pending |
 | FR-750 | F-142 | Must | server built T-410 (migration 0074: the window guard, the API's rule, Home's `shopWindow` and no goal once closed; the balance closes by rule; `test/db/shop-window.int`); screens built T-410b (Home's banner with the desk line, the balance "Closed" and no goal once closed, the Rewards tab's closed panel and the cancel note; unit tests, device checks owed); T-410b code review 89 folded |
 | FR-751 | F-142 | Must | built T-410 (the close writes nothing; score, final rank, stamp, souvenirs, XP, level, achievements and items proven untouched across the close, `test/db/shop-window.int`); code review pending |
 | FR-752 | F-141 | Should | server built T-410 (`event_recap`, `GET /v1/events/{id}/recap`, `test/db/event-recap.int`); card built T-410b (`/event/[eventId]/recap`, shared as an image made on the phone, a text line on a build without the two native modules; unit tests, device checks owed); T-410b code review 89 folded |
@@ -1156,7 +1156,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-825 | F-64, F-170 | Should | built T-506 (`apps/api/src/maps`, `apps/app/src/event/MapsView.tsx`); code review pending |
 | FR-826 | F-170 | Should | built T-506 (`apps/api/src/maps`, `apps/app/src/event/MapsView.tsx`); code review pending |
 | FR-827 | F-170 | Should | built T-506 (`apps/api/src/maps`, `apps/app/src/event/MapsView.tsx`); code review pending |
-| FR-830 | F-171 | Must | built T-408b (`app/(questify)/_layout.tsx`); code review pending |
+| FR-830 | F-171 | Must | built T-408b (`app/(questify)/_layout.tsx`); Journey is the fourth tab since T-404d (`tabs.test`); code review pending |
 | FR-831 | F-171 | Must | built T-408b (`/join-scan`, `classifyJoinScan`; `join-scan.test`); code review pending |
 | FR-832 | F-172 | Must | built T-408b (`src/home/`; `home-groups.test`); code review pending |
 | FR-833 | F-173 | Must | built T-408b (`src/explore/`); code review pending |

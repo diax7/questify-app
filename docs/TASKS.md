@@ -578,11 +578,24 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     server rewards (migrations 0163 and 0164: achievement tier XP, achievement items, `level` on event ranking rows,
     `GET /v1/me/rewards`, the console Amounts shape); the screens are T-404d below.
   - Done 2026-11-06 (tier A code review and mutation owed): migrations 0163 and 0164; no gem object anywhere (database, API, shared, app, console); tiers pay XP (50, 150, 300, data); achievement items with the console door; `level` on event ranking rows; `GET /v1/me/rewards`; the Questify bar has four tabs until T-404d.
-- [ ] **T-404d** The Journey tab and screen («رحلتي», Dhia, Q-724), the level badge on event rankings and profiles, the console achievement
+- [x] **T-404d** The Journey tab and screen («رحلتي», Dhia, Q-724), the level badge on event rankings and profiles, the console achievement
   "Unlocks" field (tier B; plan `docs/plans/2026-11-06-t-404c-levels-only.md` sections 7 and 9) — delivers FR 744 and
   the screen half of FR 742, 743 (F-171, F-349, F-350); depends on: T-404c
   - Done when: the bar shows Home, Explore, scan, Journey, Profile; the Journey screen shows the level, the next level's
     item and every level and achievement item unlocked or locked, in both languages and right to left, with no price.
+  - Done 2026-11-06 (tier B, one code review with the Arabic pass owed; phone check owed): the fourth tab `journey`
+    (`QUESTIFY_TABS`, ribbon icon until the 3D set) and `JourneyScreen`: wooden plaque (medallion, title, XP bar,
+    "1,400 of 2,000 XP"), the next level's item as a locked preview, the level trail (reached with a gold check, the
+    player's own glowing unless Reduce Motion, later ones faded with a padlock; opens at the player's stone when it is
+    below the first screen), the achievement items with tier medal, state icon and "Reach gold in Wanderer", a skeleton,
+    a retry on a failed read, a sign-in button signed out; a tap on an owned item opens the locker on its tab. `LevelBadge`
+    (a wooden shield with the number) beside the name on the app's event ranking rows, the podium (name line 18 to 22,
+    `PODIUM_MIN` 96 to 100) and both profile headers, also on a blocked row; the spoken row label ends with "Level n";
+    `level` is read from the answer when it is a whole number from 1 up (an older API draws no badge). Sync toasts:
+    an achievement toast carries the XP its tiers paid, and one toast for each item given. Console: the achievement
+    editor's "Unlocks" item and tier fields and the card line (`unlockChoices`: free items and the one held; `item`
+    sent only when changed). Strings `nav.journey`, `journey.*`, `sync.achievementXp`, `sync.item`, three console labels.
+    No gem or price word anywhere (`no-gems.test`, `journey.test`). No migration, no server change, no new ADR.
 - [x] **T-405** Streaks: event day streak (with or without bonus), Questify daily streak, switch off platform-wide — delivers FR 417, 418, 419, 420, 421, 1615; depends on: T-401
   - Note 2026-10-27 (T-404): the daily streak never writes gems (FR-421); `gem_entry` has no streak source and adding
     one needs a migration a review sees.
