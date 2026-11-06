@@ -309,19 +309,7 @@ export const invalidOptOut = make(
   "رابط إلغاء الاشتراك غير صالح.",
   "This opt-out link is not valid.",
 );
-export const gemItemNotFound = make(
-  404,
-  "gem_item_not_found",
-  "هذا العنصر غير متاح في متجر الجواهر.",
-  "This item isn't in the gem shop.",
-);
-export const gemShopConflict = make(
-  409,
-  "gem_shop_conflict",
-  "تعذّر الحصول على هذا العنصر الآن. حدّث المتجر وحاول مرة أخرى.",
-  "You can't get this item right now. Refresh the shop and try again.",
-);
-/** One answer for a malformed key: the conventions' format check and a door that needs a UUID key (the gem shop). */
+/** One answer for a malformed key: the conventions' format check and a door that needs a UUID key. */
 export const idempotencyKeyInvalid = make(
   400,
   "idempotency_key_invalid",
@@ -2373,16 +2361,16 @@ export const catalogStale = make(
   "تغيّر هذا العنصر أثناء عملك. أعد تحميل الصفحة وحاول مرة أخرى.",
   "This item changed while you worked. Reload the page and try again.",
 );
-/** `details.gems` names what a lowering pays now, per lowered tier (T-709c). */
+/** `details.tiers` names what a lowering pays now, per lowered tier, or `details.levels` the levels it pays (T-404c). */
 export const confirmationRequired = make(
   409,
   "confirmation_required",
-  "هذا التغيير يمنح جواهر لا يمكن استردادها. أكّده للمتابعة.",
-  "This change pays gems that cannot be taken back. Confirm it to go on.",
+  "هذا التغيير يمنح جوائز لا يمكن استردادها. أكّده للمتابعة.",
+  "This change pays rewards that cannot be taken back. Confirm it to go on.",
 );
 /**
  * The refusals of the XP table and item editors (T-709d, migration 0124). `details.level` names the level where one has
- * a level. Rewards already given never move, and an item players own or can buy keeps its art.
+ * a level. Rewards already given never move, and an item players own keeps its art.
  */
 export const CATALOG_CONFLICTS = {
   level_held: make(
@@ -2401,14 +2389,14 @@ export const CATALOG_CONFLICTS = {
   item_has_source: make(
     409,
     "item_has_source",
-    "هذا العنصر يُباع في المتجر أو هو تذكار فعالية.",
-    "That item is sold in the shop or is an event souvenir.",
+    "هذا العنصر جائزة مستوى أو إنجاز آخر، أو تذكار فعالية.",
+    "That item is a level's or another achievement's reward, or an event souvenir.",
   ),
-  item_on_sale: make(
+  item_given: make(
     409,
-    "item_on_sale",
-    "عنصر المتجر يحتفظ بشكله: يحتفظ المشترون بما رأوه.",
-    "A shop item keeps its art: buyers keep what they saw.",
+    "item_given",
+    "حصل لاعبون على جائزة هذا الإنجاز، فلا تتغير.",
+    "Players already got this achievement's item, so it stays.",
   ),
   item_owned: make(
     409,

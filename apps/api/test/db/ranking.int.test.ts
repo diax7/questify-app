@@ -243,6 +243,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rankings (database)", () => {
           avatar: "falcon",
           equipment: { character: null, frame: null, title: null },
           ranked: true,
+          level: 1,
         },
         {
           enrollment_id: b.enrollment,
@@ -250,6 +251,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rankings (database)", () => {
           avatar: null,
           equipment: null,
           ranked: false,
+          level: 1,
         },
       ]);
       await expect(

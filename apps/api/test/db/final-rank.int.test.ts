@@ -107,8 +107,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("final ranks (database)", () =>
     await f.confirm(event);
     await f.reveal(event);
     expect(await f.sync(player)).toEqual([
-      { id: "events-attended", tier: "bronze" },
-      { id: "top-ten", tier: "bronze" },
+      { id: "events-attended", tier: "bronze", xp: 50 },
+      { id: "top-ten", tier: "bronze", xp: 50 },
     ]);
     await f.asPlayer(player, "SELECT * FROM erase_player($1, true, $2)", [
       await f.deletionToken(player),

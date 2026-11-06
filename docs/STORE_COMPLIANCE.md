@@ -190,12 +190,10 @@ What App Review needs from Questify:
    unchanged: the live code is the signed-in player's own request; no camera frame is stored or sent. Kiosks are
    optional and every kiosk quest in the demo event also has another way in; the reviewer can open For kiosks and see
    the code change.
-   **Gems and the gem shop (T-404, ADR-285 to ADR-289):** the note says gems are earned only by playing (level-ups,
-   achievement tiers, Questify quests) and are spent only on cosmetic frames and titles in the Questify gem shop that
-   give no gameplay, points or prize advantage; nothing in the app is sold, so there is no purchase, no "add gems"
-   control and no link out; gems cannot be traded, gifted or turned into event points, and another player's gems are
-   never shown; every item has a fixed price chosen by the player (no chance, no mystery item). The demo account is
-   played to level 3 (at least 40 gems) before submission, so the reviewer can get one item (T-806).
+   **Levels and items (T-404c, ADR-760):** the note says items are earned only by levels, achievements and organizers'
+   souvenirs; none can be bought, traded or gifted, and they give no advantage inside an event. Nothing in the app is sold,
+   so there is no purchase, no currency and no link out; every item comes from a fixed level or tier (no chance, no mystery
+   item). The demo account is played to level 3 before submission, so the reviewer sees two level items (T-806).
    **Stations and the screen QR (T-309):** station, kiosk and big-screen pages are web pages on organizer hardware, in
    neither store build. The app gains staff-mode screens (Pair a device, Rotating QR, My paired devices) and a scanner
    case for `/s/` codes: no new permission, entitlement or native module, nothing downloaded (the method is data, the
@@ -309,7 +307,7 @@ Rules [all verified 2026-10-16]:
 | Attendee pays for a physical event ticket in the app | No IAP; use Apple Pay/card | 3.1.3(e) service consumed outside the app. |
 | Sponsor pays to be featured inside the app | IAP if bought in the app; B2B contract outside the app is a sales deal | 3.1.3(g). Interpretation for the off-app contract. |
 | "Rate us 5 stars for 50 points" | Forbidden | 3.2.2(x), 5.6.1, 5.6.3. |
-| Gems earned by play, spent on cosmetic items in the Questify shop (T-404, ADR-289) | No | Nothing is sold; no buy button ("Get", never "Buy"); no "add gems" control or link out; no trading or gifting; fixed prices, no chance. Gems never expire anyway. |
+| Levels and achievements unlock cosmetic items (T-404c, ADR-760) | No | Nothing is sold or priced, no currency, no trading, no chance. |
 
 ### 1.7 Guideline 4.2 — Minimum functionality
 
@@ -434,7 +432,7 @@ What this means for Questify:
   disclose it at the point of submission and get explicit permission, or run moderation in-house.
 - **Push and location can never be required** to play, to earn redeemable points, or to redeem.
   No points for enabling notifications. Every location quest has a QR or staff-check alternative.
-  As built (T-501, server): registering a device writes no ledger, XP or gem row (a database test, FR-1106); every
+  As built (T-501, server): registering a device writes no ledger or XP row (a database test, FR-1106); every
   message lands in the in-app notification center whether the OS permission was refused or the topic muted (FR-1104);
   push text is a fixed template with public names only and the payload carries ids only (4.5.4: no sensitive data);
   a promotional push needs the recorded push consent, never the OS permission alone (4.5.4, FR-1111). The permission

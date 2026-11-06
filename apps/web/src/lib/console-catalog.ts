@@ -1,25 +1,23 @@
 import {
-  GEM_AMOUNTS,
   TEMPLATE_KEY,
   XP_AMOUNTS,
   achievementDocSchema,
   achievementsAdminListSchema,
   amountsAdminSchema,
   amountsDocSchema,
-  loweredGemsSchema,
-  gemShopAdminListSchema,
-  gemShopDocSchema,
+  loweredTiersSchema,
   levelTitlesAdminSchema,
   levelTitlesDocSchema,
   templateBodyIssues,
   templateDocSchema,
   templatesAdminListSchema,
   type AchievementAdmin,
+  type AchievementItem,
   type AmountGroup,
   type AmountsAdmin,
   type AmountsDoc,
-  type GemShopItemAdmin,
-  type LoweredGems,
+  type ItemAdmin,
+  type LoweredTiers,
   type MessageKey,
   type LevelTitlesAdmin,
   type TemplateDoc,
@@ -31,14 +29,12 @@ export const CATALOG_API = "/v1/admin/catalog";
 export const TEMPLATES_API = `${CATALOG_API}/templates`;
 export const ACHIEVEMENTS_API = `${CATALOG_API}/achievements`;
 export const LEVEL_TITLES_API = `${CATALOG_API}/level-titles`;
-export const GEM_SHOP_API = `${CATALOG_API}/gem-shop`;
 export const AMOUNTS_API = `${CATALOG_API}/amounts`;
 
 export const CATALOG_TABS = [
   "templates",
   "achievements",
   "levels",
-  "shop",
   "amounts",
   "xp",
   "items",
@@ -63,25 +59,21 @@ export function readLevelTitles(body: unknown): LevelTitlesAdmin | undefined {
   const parsed = levelTitlesAdminSchema.safeParse(body);
   return parsed.success ? parsed.data : undefined;
 }
-export function readGemShop(body: unknown): GemShopItemAdmin[] | undefined {
-  const parsed = gemShopAdminListSchema.safeParse(body);
-  return parsed.success ? parsed.data.items : undefined;
-}
 export function readAmounts(body: unknown): AmountsAdmin | undefined {
   const parsed = amountsAdminSchema.safeParse(body);
   return parsed.success ? parsed.data : undefined;
 }
 
 /**
- * The gems a lowering would pay, when the API refused it for want of a confirmation (409 `confirmation_required`), or
- * undefined for any other answer.
+ * What a lowering would pay per lowered tier, when the API refused it for want of a confirmation (409
+ * `confirmation_required`), or undefined for any other answer.
  */
-export function loweredGemsOf(body: unknown): LoweredGems | undefined {
-  const answer = body as { code?: unknown; details?: { gems?: unknown } } | null | undefined;
+export function loweredTiersOf(body: unknown): LoweredTiers | undefined {
+  const answer = body as { code?: unknown; details?: { tiers?: unknown } } | null | undefined;
   if (answer?.code !== "confirmation_required") {
     return undefined;
   }
-  const parsed = loweredGemsSchema.safeParse(answer.details?.gems);
+  const parsed = loweredTiersSchema.safeParse(answer.details?.tiers);
   return parsed.success ? parsed.data : undefined;
 }
 
@@ -209,37 +201,73 @@ export function templateCounts(
 export const TIERS = ["bronze", "silver", "gold"] as const;
 type Tier = (typeof TIERS)[number];
 
-/** An achievement's name and its three tier thresholds, as typed (T-709c). */
-export type AchievementDraft = Readonly<{ name: Pair } & Record<Tier, string>>;
+/**
+ * An achievement's name, its three tier thresholds and the item it unlocks, as typed (T-709c, T-404d). `itemId` is empty
+ * for no item; `itemTier` is the tier that gives it (gold until one is chosen).
+ */
+export type AchievementDraft = Readonly<
+  { name: Pair; itemId: string; itemTier: Tier } & Record<Tier, string>
+>;
 
 export const achievementDraftOf = (row: AchievementAdmin): AchievementDraft => ({
   name: row.name,
   bronze: String(row.bronze),
   silver: String(row.silver),
   gold: String(row.gold),
+  itemId: row.item?.itemId ?? "",
+  itemTier: row.item?.tier ?? "gold",
 });
 
-export const checkAchievement = (draft: AchievementDraft) =>
+/**
+ * The `item` part of a save, only when the draft changes it (T-404c: left out, the API keeps the item): `null` removes
+ * it, a pair sets or moves it.
+ */
+function itemChange(
+  row: AchievementAdmin,
+  draft: AchievementDraft,
+): { item?: AchievementItem | null } {
+  const stored = row.item;
+  if (draft.itemId === "") {
+    return stored === null ? {} : { item: null };
+  }
+  const same = stored?.itemId === draft.itemId && stored.tier === draft.itemTier;
+  return same ? {} : { item: { tier: draft.itemTier, itemId: draft.itemId } };
+}
+
+export const checkAchievement = (row: AchievementAdmin, draft: AchievementDraft) =>
   checked(achievementDocSchema, {
     name: draft.name,
     bronze: wholeNumber(draft.bronze),
     silver: wholeNumber(draft.silver),
     gold: wholeNumber(draft.gold),
+    ...itemChange(row, draft),
   });
 
 export const isAchievementDirty = (row: AchievementAdmin, draft: AchievementDraft): boolean =>
   draft.name.ar.trim() !== row.name.ar ||
   draft.name.en.trim() !== row.name.en ||
-  TIERS.some((tier) => draft[tier].trim() !== String(row[tier]));
+  TIERS.some((tier) => draft[tier].trim() !== String(row[tier])) ||
+  Object.keys(itemChange(row, draft)).length > 0;
+
+/**
+ * The items an achievement's "Unlocks" picker offers: the one it holds and every item with no source. A level's item,
+ * or another achievement's, is refused by the database all the same (`item_has_source`).
+ */
+export function unlockChoices(items: readonly ItemAdmin[], achievementId: string): ItemAdmin[] {
+  return items.filter(
+    (item) =>
+      item.source === null ||
+      ("achievement" in item.source && item.source.achievement.id === achievementId),
+  );
+}
 
 // ---------------------------------------------------------------- the amounts
 
 type Fields<Names extends readonly string[]> = Readonly<Record<Names[number], string>>;
 
-/** The XP and gem amounts as typed (T-709c). */
+/** The XP amounts as typed (T-709c, T-404c). */
 export type AmountsDraft = Readonly<{
   xp: Fields<typeof XP_AMOUNTS>;
-  gems: Fields<typeof GEM_AMOUNTS>;
 }>;
 
 const textOf = <Names extends readonly string[]>(
@@ -252,11 +280,10 @@ const numbersOf = (values: Readonly<Record<string, string>>): Record<string, num
 
 export const amountsDraftOf = (row: AmountsAdmin): AmountsDraft => ({
   xp: textOf(XP_AMOUNTS, row.xp),
-  gems: textOf(GEM_AMOUNTS, row.gems),
 });
 
 export const checkAmounts = (draft: AmountsDraft) =>
-  checked(amountsDocSchema, { xp: numbersOf(draft.xp), gems: numbersOf(draft.gems) });
+  checked(amountsDocSchema, { xp: numbersOf(draft.xp) });
 
 /** The words of one amount; every amount has them (console-catalog.test). */
 export const amountLabel = (group: AmountGroup, field: string): MessageKey =>
@@ -281,7 +308,7 @@ export function amountChanges(row: AmountsAdmin, doc: AmountsDoc): AmountChange[
         to: (doc[group] as Readonly<Record<string, number>>)[field] ?? 0,
       }))
       .filter((change) => change.from !== change.to);
-  return [...of("xp", XP_AMOUNTS), ...of("gems", GEM_AMOUNTS)];
+  return of("xp", XP_AMOUNTS);
 }
 
 // ---------------------------------------------------------------- level titles
@@ -313,29 +340,3 @@ const trimmed = (titles: readonly LevelTitleDraft[]): LevelTitleDraft[] =>
     levelFrom: title.levelFrom.trim(),
     name: { ar: title.name.ar.trim(), en: title.name.en.trim() },
   }));
-
-// ---------------------------------------------------------------- the gem shop
-
-export type ShopDraft = Readonly<{ price: string; status: "active" | "retired"; position: string }>;
-
-export const shopDraftOf = (row: GemShopItemAdmin): ShopDraft => ({
-  price: String(row.price),
-  status: row.status,
-  position: String(row.position),
-});
-
-export const checkShop = (draft: ShopDraft) =>
-  checked(gemShopDocSchema, {
-    price: wholeNumber(draft.price),
-    status: draft.status,
-    position: wholeNumber(draft.position),
-  });
-
-export const isShopDirty = (row: GemShopItemAdmin, draft: ShopDraft): boolean => {
-  const stored = shopDraftOf(row);
-  return (
-    draft.price.trim() !== stored.price ||
-    draft.status !== stored.status ||
-    draft.position.trim() !== stored.position
-  );
-};

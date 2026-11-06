@@ -43,14 +43,14 @@ describe("the XP table editor (T-709d)", () => {
   it("reads the table, the preview and a lowering refusal, and nothing else", () => {
     expect(readXpTable(TABLE)).toEqual(TABLE);
     expect(readXpTable({ levels: "x" })).toBeUndefined();
-    expect(readPreview({ up: 1, down: 0, levels: 1, gems: 20, levelUp: 20 })).toMatchObject({
+    expect(readPreview({ up: 1, down: 0, levels: 1 })).toMatchObject({
       up: 1,
     });
     expect(readPreview({ up: -1 })).toBeUndefined();
-    expect(
-      xpLoweringOf({ code: "confirmation_required", details: { levels: [3], levelUp: 20 } }),
-    ).toEqual({ levels: [3], levelUp: 20 });
-    expect(xpLoweringOf({ code: "confirmation_required", details: { gems: {} } })).toBeUndefined();
+    expect(xpLoweringOf({ code: "confirmation_required", details: { levels: [3] } })).toEqual({
+      levels: [3],
+    });
+    expect(xpLoweringOf({ code: "confirmation_required", details: { tiers: {} } })).toBeUndefined();
     expect(xpLoweringOf({ code: "stale" })).toBeUndefined();
     expect(xpLoweringOf(null)).toBeUndefined();
   });
@@ -79,12 +79,12 @@ describe("the XP table editor (T-709d)", () => {
     );
   });
 
-  it("offers a level its own item and every free one, never a shop item or another level's", () => {
+  it("offers a level its own item and every free one, never an achievement's or another level's", () => {
     const items = [
       item("level-2", { level: 2 }),
       item("level-3", { level: 3 }),
       item("loose", null),
-      item("shop-ring", { shop: { status: "active" } }),
+      item("earned-ring", { achievement: { id: "top-ten", tier: "gold" } }),
     ];
     const rows = xpDraftOf(TABLE);
     expect(rewardChoices(items, rows, "level-3").map((one) => one.id)).toEqual([
@@ -109,7 +109,9 @@ describe("the items editor (T-709d)", () => {
     expect(readItems({ items: [{ id: 1 }] })).toBeUndefined();
     expect(sourceOf(item("a", null))).toEqual({ kind: "none" });
     expect(sourceOf(item("a", { level: 4 }))).toEqual({ kind: "level", level: 4 });
-    expect(sourceOf(item("a", { shop: { status: "retired" } }))).toEqual({ kind: "shop" });
+    expect(sourceOf(item("a", { achievement: { id: "top-ten", tier: "gold" } }))).toEqual({
+      kind: "achievement",
+    });
   });
 
   it("knows when an item's names or art changed", () => {
@@ -120,7 +122,7 @@ describe("the items editor (T-709d)", () => {
     expect(isItemDirty(one, { ...draft, visualKey: "frame-02" })).toBe(true);
   });
 
-  it("checks a new item: the art of its kind, a shop listing when on sale, never a souvenir- id", () => {
+  it("checks a new item: the art of its kind, never a souvenir- id", () => {
     const base = {
       ...newItemDraft(),
       id: "dawn-frame",
@@ -133,12 +135,6 @@ describe("the items editor (T-709d)", () => {
     expect(checkNewItem(title).ok).toBe(true);
     expect(checkNewItem({ ...title, visualKey: "frame-01" }).ok).toBe(false);
     expect(withKind(base, "character").visualKey).toBe("chest");
-    const onSale = { ...base, onSale: true, price: "90", position: "40" };
-    expect(checkNewItem(onSale)).toMatchObject({
-      ok: true,
-      doc: { shop: { price: 90, position: 40, status: "active" } },
-    });
-    expect(checkNewItem({ ...onSale, price: "0" }).ok).toBe(false);
   });
 
   it("has words for every tab and every item lock and source in both languages", () => {
@@ -146,10 +142,9 @@ describe("the items editor (T-709d)", () => {
       expect(MESSAGES[`console.catalog.tab.${tab}`], tab).toBeDefined();
     }
     for (const key of [
-      "console.catalog.items.lock.onSale",
       "console.catalog.items.lock.owned",
       "console.catalog.items.source.none",
-      "console.catalog.items.source.shop",
+      "console.catalog.items.source.achievement",
       "console.catalog.xp.busy",
     ] as const) {
       expect(MESSAGES[key].ar.length, key).toBeGreaterThan(0);

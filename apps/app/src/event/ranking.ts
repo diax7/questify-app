@@ -1,5 +1,7 @@
-import type { NameDisplay } from "@questify/shared";
+import type { Language, NameDisplay } from "@questify/shared";
 import type { RankRow, Ranking } from "#src/event/home-api.ts";
+import { joinSpoken } from "#src/i18n/text.ts";
+import type { Translate } from "#src/i18n/words.ts";
 
 /** A row to draw, with how the event names players (FR-1842) so the row and its spoken label agree. */
 export type ShownRow = RankRow & Readonly<{ key: string; names: NameDisplay }>;
@@ -18,6 +20,16 @@ export function rankingRows(ranking: Ranking): readonly ShownRow[] {
   return [...top, { ...me, isMe: true, hidden: false, key: `${me.rank}:${me.username}`, names }];
 }
 
+/** A row's spoken label with the player's level at its end (T-404d); a row without a level reads as it did. */
+export function withLevel(
+  label: string,
+  level: number | undefined,
+  t: Translate,
+  language: Language,
+): string {
+  return level === undefined ? label : joinSpoken(language, label, t("level.number", { level }));
+}
+
 /** The tallest a row grows on a big phone; rows never scroll, so they shrink instead (FR-603). */
 export const MAX_ROW_HEIGHT = 56;
 
@@ -34,7 +46,7 @@ export function rowHeight(available: number, slots: number, gap: number): number
 }
 
 /** The podium's height bounds in points: below the lower the faces are too small to read, above the upper it wastes the screen. */
-export const PODIUM_MIN = 96;
+export const PODIUM_MIN = 100;
 export const PODIUM_MAX = 168;
 /** Without any row below it the podium may take the whole space, up to this. */
 export const PODIUM_ALONE_MAX = 220;
@@ -65,7 +77,11 @@ export function podiumPlaces(top: readonly ShownRow[]): readonly (ShownRow | und
   return [top[1], top[0], top[2]];
 }
 
-const NAME_LINE = 18;
+/**
+ * The name line is one `label` line (18 points) and the level badge beside a podium name is that size, so a name keeps its
+ * width in a third of a 320-point phone (T-404d).
+ */
+export const NAME_LINE = 18;
 const SCORE_LINE = 18;
 const FACE_PADDING = 8;
 /**

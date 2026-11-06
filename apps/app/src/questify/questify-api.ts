@@ -1,9 +1,11 @@
 import {
   achievementsSchema,
+  levelRewardsSchema,
   ownEventsSchema,
   questifyQuestsSchema,
   questifySyncSchema,
   type Achievement,
+  type LevelRewards,
   type QuestifyQuests,
   type QuestifySync,
 } from "@questify/shared";
@@ -28,6 +30,11 @@ export async function readOk<T>(
 /** The five achievements with the caller's tier and progress (FR-707, FR-708); null when unreadable. */
 export async function fetchAchievements(session: Reader): Promise<Achievement[] | null> {
   return (await readOk(session, "/v1/me/achievements", achievementsSchema))?.achievements ?? null;
+}
+
+/** The caller's level, every level's item and the achievement items (the Journey tab, ADR-767); null when unreadable. */
+export function fetchLevelRewards(session: Reader): Promise<LevelRewards | null> {
+  return readOk(session, "/v1/me/rewards", levelRewardsSchema);
 }
 
 /** One page of the caller's events: the passport with `played`, the whole history without it (owner only). */

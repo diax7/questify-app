@@ -47,7 +47,7 @@ holds five doors: `set_event_streak` (the event organizer's owner within their e
 its owner only: no public profile, ranking or organizer read carries it (cross-tenant suite: the only granted doors that
 read it are `own_daily_streak` and `questify_sync`). Day rows and bonuses come only from the quest ledger entry's trigger
 (never rehearsal); a forged bonus row fails `ledger_entry_streak_shape`; a milestone's XP row is bound by a composite key
-to the same player's reward row, and no gem or points source exists for a streak (FR-421). Crossed-lock tests cover two
+to the same player's reward row, and no points source exists for a streak (FR-421). Crossed-lock tests cover two
 completions of one enrollment, a meet crossing a scan, one player in two events, an erasure and the settings door.
 
 ## T-403b Questify quests boundary (implemented; core code review pending)

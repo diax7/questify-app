@@ -308,7 +308,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the Questify-wide ranking (dat
         "SELECT DISTINCT source FROM xp_entry WHERE player_id = $1 ORDER BY 1",
         [player],
       );
-      expect(sources.map((row) => row.source)).toEqual(["daily", "quest", "questify", "removal"]);
+      expect(sources.map((row) => row.source)).toEqual([
+        "achievement",
+        "daily",
+        "quest",
+        "questify",
+        "removal",
+      ]);
       expect(await h.mismatches(player)).toEqual([]);
       expect((await highestIds(player))[0]?.ok).toBe(true);
     });

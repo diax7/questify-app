@@ -186,20 +186,6 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
     erasure: "delete",
     rows: E("enrollment_id"),
   },
-  gem_entry: {
-    links: ["player_id", "purchase_id", "questify_award_id"],
-    export: "questify.gemEntries",
-    erasure: "keep",
-    rows: P("player_id"),
-    why: PIDS,
-  },
-  gem_purchase: {
-    links: ["player_id"],
-    export: "questify.gemPurchases",
-    erasure: "keep",
-    rows: P("player_id"),
-    why: PIDS,
-  },
   join_answer: {
     links: ["enrollment_id"],
     export: "events[].joinAnswers",
@@ -381,7 +367,7 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
     rows: P("player_id"),
   },
   player_item: {
-    links: ["player_id", "item_id", "source_purchase_id", "source_rule_id", "source_level"],
+    links: ["player_id", "item_id", "source_rule_id", "source_level", "source_achievement_id"],
     export: "questify.items",
     erasure: "delete",
     rows: P("player_id"),
@@ -717,7 +703,6 @@ export const NOT_PLAYER: Readonly<Record<string, string>> = {
   "feature_request.decided_by": ADMIN,
   "feature_request.requested_by": ADMIN,
   "event_template.body": "the organizer's template",
-  "gem_purchase.request_key": OPAQUE,
   "group_push.cursor_player": OPAQUE,
   "invitation_campaign.request_id": OPAQUE,
   "invitation_recipient.campaign_id": ORG,

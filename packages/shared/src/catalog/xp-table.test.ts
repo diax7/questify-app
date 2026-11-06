@@ -164,36 +164,30 @@ describe("the XP table as the console reads it", () => {
     );
   });
 
-  it("previews counts of 0 or more and a level gem amount of 1 or more", () => {
-    const preview = { up: 0, down: 0, levels: 0, gems: 0, levelUp: 1 };
+  it("previews counts of 0 or more", () => {
+    const preview = { up: 0, down: 0, levels: 0 };
     expect(xpTablePreviewSchema.parse(preview)).toEqual(preview);
-    const busy = { up: 4, down: 2, levels: 7, gems: 140, levelUp: 20 };
+    const busy = { up: 4, down: 2, levels: 7 };
     expect(xpTablePreviewSchema.parse(busy)).toEqual(busy);
-    for (const field of ["up", "down", "levels", "gems"] as const) {
+    for (const field of ["up", "down", "levels"] as const) {
       expect(xpTablePreviewSchema.safeParse({ ...preview, [field]: -1 }).success, field).toBe(
         false,
       );
     }
-    expect(xpTablePreviewSchema.safeParse({ ...preview, levelUp: 0 }).success).toBe(false);
     expect(xpTablePreviewSchema.safeParse({ ...preview, extra: 1 }).success).toBe(false);
   });
 
-  it("reads a refused lowering: one or more levels from 2, and the level gems", () => {
-    expect(xpTableLoweringSchema.parse({ levels: [2, 5], levelUp: 20 })).toEqual({
-      levels: [2, 5],
-      levelUp: 20,
-    });
-    expect(xpTableLoweringSchema.safeParse({ levels: [], levelUp: 20 }).success).toBe(false);
-    expect(xpTableLoweringSchema.safeParse({ levels: [1], levelUp: 20 }).success).toBe(false);
-    expect(xpTableLoweringSchema.safeParse({ levels: [3], levelUp: 0 }).success).toBe(false);
-    expect(xpTableLoweringSchema.safeParse({ levels: [3] }).success).toBe(false);
+  it("reads a refused lowering: one or more levels from 2", () => {
+    expect(xpTableLoweringSchema.parse({ levels: [2, 5] })).toEqual({ levels: [2, 5] });
+    expect(xpTableLoweringSchema.safeParse({ levels: [] }).success).toBe(false);
+    expect(xpTableLoweringSchema.safeParse({ levels: [1] }).success).toBe(false);
+    expect(xpTableLoweringSchema.safeParse({ levels: [3], levelUp: 20 }).success).toBe(false);
   });
 });
 
 describe("an item's edit and creation", () => {
   const name = { ar: "إطار الذهب", en: "Gold frame" };
   const created = { id: "gold-frame", kind: "frame", name, visualKey: "frame-03" } as const;
-  const shop = { price: 100, position: 1, status: "active" } as const;
 
   it("edits names and art of up to 20 characters, or no art", () => {
     expect(itemDocSchema.parse({ name, visualKey: "chest" })).toEqual({ name, visualKey: "chest" });
@@ -213,9 +207,9 @@ describe("an item's edit and creation", () => {
     ).toBe(false);
   });
 
-  it("makes an item of each kind with its own art, on sale or not", () => {
+  it("makes an item of each kind with its own art, and never with a shop listing", () => {
     expect(itemCreateSchema.parse(created)).toEqual(created);
-    expect(itemCreateSchema.parse({ ...created, shop })).toEqual({ ...created, shop });
+    expect(itemCreateSchema.safeParse({ ...created, shop: { price: 1 } }).success).toBe(false);
     expect(
       itemCreateSchema.safeParse({ ...created, kind: "character", visualKey: "chest" }).success,
     ).toBe(true);
@@ -250,29 +244,6 @@ describe("an item's edit and creation", () => {
       expect(itemCreateSchema.safeParse({ ...created, id }).success, id).toBe(false);
     }
   });
-
-  it("puts an item on sale at a price of 1 to 100,000 and a place of 1 to 1,000", () => {
-    for (const listing of [
-      { ...shop, price: 1, position: 1 },
-      { ...shop, price: 100_000, position: 1000, status: "retired" },
-    ]) {
-      expect(itemCreateSchema.safeParse({ ...created, shop: listing }).success).toBe(true);
-    }
-    for (const listing of [
-      { ...shop, price: 0 },
-      { ...shop, price: 100_001 },
-      { ...shop, position: 0 },
-      { ...shop, position: 1001 },
-      { ...shop, status: "hidden" },
-      { price: 100, position: 1 },
-      { ...shop, extra: 1 },
-    ]) {
-      expect(
-        itemCreateSchema.safeParse({ ...created, shop: listing }).success,
-        JSON.stringify(listing),
-      ).toBe(false);
-    }
-  });
 });
 
 describe("an item as the console reads it", () => {
@@ -286,15 +257,21 @@ describe("an item as the console reads it", () => {
     revertible: false,
   } as const;
 
-  it("reads its source as a level from 2, a shop listing, or none", () => {
+  it("reads its source as a level from 2, an achievement's tier, or none", () => {
     expect(itemAdminSchema.parse(row)).toEqual(row);
     expect(itemAdminSchema.parse({ ...row, source: { level: 40 } }).source).toEqual({ level: 40 });
-    for (const status of ["active", "retired"]) {
-      const shop = { ...row, source: { shop: { status } } };
-      expect(itemAdminSchema.parse(shop)).toEqual(shop);
+    for (const tier of ["bronze", "silver", "gold"]) {
+      const earned = { ...row, source: { achievement: { id: "top-ten", tier } } };
+      expect(itemAdminSchema.parse(earned)).toEqual(earned);
     }
     expect(itemAdminSchema.safeParse({ ...row, source: null }).success).toBe(true);
-    for (const source of [{ level: 1 }, { shop: { status: "hidden" } }, { shop: {} }, {}]) {
+    for (const source of [
+      { level: 1 },
+      { shop: { status: "active" } },
+      { achievement: { id: "top-ten", tier: "platinum" } },
+      { achievement: {} },
+      {},
+    ]) {
       expect(itemAdminSchema.safeParse({ ...row, source }).success, JSON.stringify(source)).toBe(
         false,
       );
@@ -302,12 +279,12 @@ describe("an item as the console reads it", () => {
   });
 
   it("reads why its art is locked, and refuses a malformed row", () => {
-    for (const art of ["on_sale", "owned", null]) {
+    for (const art of ["owned", null]) {
       expect(itemAdminSchema.safeParse({ ...row, locked: { art } }).success, String(art)).toBe(
         true,
       );
     }
-    expect(itemAdminSchema.safeParse({ ...row, locked: { art: "sold" } }).success).toBe(false);
+    expect(itemAdminSchema.safeParse({ ...row, locked: { art: "on_sale" } }).success).toBe(false);
     expect(itemAdminSchema.safeParse({ ...row, locked: {} }).success).toBe(false);
     expect(itemAdminSchema.safeParse({ ...row, name: { ar: "إطار" } }).success).toBe(false);
     expect(itemAdminSchema.safeParse({ ...row, revertible: undefined }).success).toBe(false);

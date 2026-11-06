@@ -6,6 +6,67 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-404c completion speed, old against new — 2026-11-06
+
+- `profile.mjs --big-event-players 50000`, database ms a completion, old (`d56e0f8c`) and new in turns on one database:
+  old 20.66, new 12.72, old 14.76, new 12.77, then old 12.81, new 12.98 (+0.17 ms). The PC was not quiet: a B7R test run
+  used about 3 cores for the first rounds and CPU stayed at 44 to 75% in the last pair. No slowdown shows, and the code
+  review found only a NULL-key foreign key check, a partial-index predicate and a longer CHECK on the path (at most
+  +68 us, one run). The absolute ADR-734 gate is still not re-measured on a quiet machine: the last quiet old-code figures
+  are 10.78 and 10.98 ms against 10 ms. T-804's production-like rerun settles it.
+
+## T-404d built — 2026-11-06
+
+- **T-404d built (tier B; no migration, no server change, no new ADR; the tier B code review with the Arabic pass is owed,
+  and a phone check: RTL, Reduce Motion, VoiceOver and TalkBack on the trail).** The Questify bar has five tabs again: Home,
+  Explore, scan, Journey («رحلتي»), Profile (`QUESTIFY_TABS`, ribbon icon until the 3D set). `JourneyScreen`: wooden plaque with
+  the level medallion, title and XP bar ("1,400 of 2,000 XP"); the next level's item as a locked preview; the level trail
+  (reached levels with a gold check, the player's own glowing and still under Reduce Motion, later ones faded with a padlock;
+  it opens at the player's stone when that is below the first screen); the achievement items with tier medal, state icon and
+  "Reach gold in Wanderer"; skeleton, retry on a failed read, a sign-in button signed out. A tap on an owned item opens the
+  locker on its tab. `LevelBadge` (a wooden shield with the number, decorative to a screen reader) beside the name on event
+  ranking rows, the podium and both profile headers, a blocked row included; the spoken row ends with "Level n"; an answer
+  without a valid `level` draws no badge. The podium's badge is 18 points, the name line's height (26 at most on a row), so a name keeps
+  its width at 320 points; `PODIUM_MIN` stays 100 (it was 96 before the badge; it can go back, FOLLOWUPS). Sync toasts: an achievement toast carries the XP its tiers paid, and one toast for each item given. Console:
+  the achievement editor's "Unlocks" item and tier fields and a card line; `item` is sent only when changed. Two leftovers of
+  T-404c in `console-catalog.spec.ts` fixed (the amounts revert read the removed "Level up" field; the item source check read
+  the wrong element). No gem or price word on any new string (`no-gems.test`, `journey.test`).
+  Tests: touched suites 234 files, 2,645 passed (apps/app, i18n, apps/web/src/lib); browser `console-catalog.spec.ts` 14
+  passed and 2 skipped on desktop and phone, `layout.spec.ts` passed on both (one earlier run; the rerun after its race fix was
+  `console-catalog` only); `npx expo export` (Android) bundles; oxlint, oxfmt, `lint:limits` and types clean; the full suite
+  was not run on this shared PC (CI runs it). `readRanking` complexity 13 to 12 in the limits baseline. CI minutes: 0 (not
+  pushed); agent tokens roughly 700k (estimate). Mutation: none (tier B). Review fixes (86): a title's name plate shrinks
+  and its name is shown once (trail, rewards, next-reward card); a locked achievement card shows one padlock; a failed
+  items read in the console shows a notice with Retry instead of raw ids; Arabic copy («العنصر الذي يفتحه», «ستحصل على … قريبًا»,
+  hint «يفتح الخزانة»); spoken labels use «،»; a level with no item is no longer "where you start" after level 1.
+  **Next:** the tier B code review of T-404d, the tier A code review of T-404c, then the next unchecked task in `docs/TASKS.md`.
+
+## T-404c built — 2026-11-06
+
+- **T-404c built (tier A; migrations 0163 and 0164; tier A code review and mutation owed).** Gems and the Questify gem shop
+  are gone from the database, API, shared package, app and console. Achievement tiers pay XP once when earned (50, 150, 300,
+  edited in Amounts); achievement items with the console door (five gold tiers seeded with former shop frames); bought items
+  stay owned as source `questify`; `level` on event ranking rows and `me`; `GET /v1/me/rewards`. Plan review 86 folded; ADR-761
+  to ADR-768 Accepted; Q-720 to Q-725 Answered (Q-724 the tab is "Journey" «رحلتي»; Q-725 the event's gem icon stays).
+  Tests: full suite once: 835 files, 12,871 passed, 6 fixture failures, fixed and passing on rerun; the suites the later 0164
+  edits touch were rerun, not the whole suite. Ranking read (50,000 players, old and new alternating on one database, median
+  of 15): `ranking_top(…, 100)` 173.1 to 181.3 ms (+4.7%), `ranking_rows` 78.6 to 79.0 ms (+0.4%), inside the gate.
+  **Completion gate (ADR-734) not settled:** `profile.mjs --big-event-players 50000`, one run each, back to back, base first, with
+  another worker sharing the container: base (d56e0f8c, before T-404c) 14.64 ms, branch 15.87 ms (+8%); both over the 10 ms gate,
+  so the load is the machine's, but this cannot show the completion did not move. Self times rise across functions T-404c does
+  not touch, except `xp_credit`, 0.83 to 1.05 ms, which does insert into `xp_entry` (its new CHECK and foreign key). A
+  quiet-machine run of both is owed. Staging app builds break on sync until rebuilt: the old app parses the answer's `gems`.
+  The bar has four tabs until T-404d. CI minutes: 0 (not pushed).
+  **Next:** the tier A code review of T-404c, then T-404d (Journey screen, badge, console Unlocks field).
+
+## T-404c plan — 2026-11-06
+
+- **T-404c planned (tier A; no code yet; awaiting the plan review).** `docs/plans/2026-11-06-t-404c-levels-only.md`:
+  gems and the gem shop removed everywhere (migrations 0162 `platform_setting` only, 0163 the rest), achievement tiers pay
+  XP, achievement items, the level on event ranking rows, `GET /v1/me/rewards`; the screens split out as T-404d (tier B).
+  ADR-760 Accepted (Dhia); ADR-761 to ADR-768 and Q-720 to Q-725 Proposed. CI minutes: 0.
+  **Next:** the tier A plan review of T-404c.
+
 ## FOLLOWUPS batch 7 (light; tier B and C) — 2026-11-06
 
 - **FOLLOWUPS batch 7 (no migration; ADR-780 Accepted and Q-705, Q-706 Answered after review 82).** Cleared: the catalog's

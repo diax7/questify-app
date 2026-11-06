@@ -309,7 +309,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("platform ban and word lists (d
   });
 
   describe("the wall", () => {
-    it("pays no points, XP or gems to a banned or erased player; refunds and removals pass", async () => {
+    it("pays no points or XP to a banned or erased player; refunds and removals pass", async () => {
       const event = await live();
       const paid = await member(event);
       const cut = await member(event);
@@ -320,7 +320,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("platform ban and word lists (d
       expect(
         await sqlstate(
           f.owner(
-            "INSERT INTO gem_entry (player_id, delta, source, source_level) VALUES ($1, 5, 'level', 2)",
+            "INSERT INTO xp_entry (player_id, delta, source, achievement_id, tier) VALUES ($1, 5, 'achievement', 'top-ten', 'gold')",
             [cut.player],
           ),
         ),

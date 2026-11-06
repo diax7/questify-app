@@ -9,6 +9,7 @@ type PlaceRow = Readonly<{
   avatar: string | null;
   equipment: Equipment | null;
   hidden: boolean;
+  level: number;
   isMe: boolean;
 }>;
 
@@ -43,6 +44,7 @@ export function playerRanking(view: RankingView, hideScores: boolean): PlayerRan
       avatar: row.avatar,
       equipment: row.equipment,
       hidden: row.hidden,
+      level: row.level,
       isMe: row.isMe,
     })),
     me:
@@ -54,6 +56,7 @@ export function playerRanking(view: RankingView, hideScores: boolean): PlayerRan
             fullName: view.me.fullName,
             avatar: view.me.avatar,
             equipment: view.me.equipment,
+            level: view.me.level,
           },
     total: view.total,
     today: view.today,

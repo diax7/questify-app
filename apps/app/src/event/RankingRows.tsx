@@ -1,4 +1,4 @@
-import { formatNumber, shownName, termFor, type Theme } from "@questify/shared";
+import { formatNumber, shownName, termFor, type Language, type Theme } from "@questify/shared";
 import { router } from "expo-router";
 import { Pressable, View, type StyleProp, type TextStyle } from "react-native";
 import { CurrencyIcon } from "#src/components/Amount.tsx";
@@ -6,9 +6,14 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
 import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { PlayerName } from "#src/event/PlayerName.tsx";
-import type { ShownRow } from "#src/event/ranking.ts";
+import { withLevel, type ShownRow } from "#src/event/ranking.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
+import type { Translate } from "#src/i18n/words.ts";
+import { LevelBadge } from "#src/questify/LevelBadge.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
+
+/** The level badge beside a row's name; a shorter row draws it smaller so it never fills the row. */
+const MAX_BADGE = 26;
 
 /** Who a row names aloud: the username, or the full name the event shows (with the username when it shows both). */
 function spokenName(row: ShownRow): string {
@@ -20,9 +25,12 @@ function spokenName(row: ShownRow): string {
 }
 
 /** The words a screen reader says for a row: the place, who, the score when the row has one, and the title worn. */
-export function useRowLabel(row: ShownRow): string {
-  const { t, language } = useI18n();
-  const terms = useTerms();
+function rowLabel(
+  row: ShownRow,
+  t: Translate,
+  language: Language,
+  terms: ReturnType<typeof useTerms>,
+): string {
   if (row.hidden) {
     return t("ranking.rowLabelHidden", { rank: row.rank });
   }
@@ -38,6 +46,13 @@ export function useRowLabel(row: ShownRow): string {
     ? t("ranking.rowLabelMe", { rank: row.rank, score, currency })
     : t("ranking.rowLabel", { rank: row.rank, username: who, score, currency });
   return `${label}${title}`;
+}
+
+/** What a row is called aloud, ending with the player's level when the row has one (T-404d). */
+export function useRowLabel(row: ShownRow): string {
+  const { t, language } = useI18n();
+  const terms = useTerms();
+  return withLevel(rowLabel(row, t, language, terms), row.level, t, language);
 }
 
 /** The player's profile; from an event's ranking it carries the event, so a report of the name reaches its team. */
@@ -116,11 +131,16 @@ export function RankingRow({ row, height }: Readonly<{ row: ShownRow; height: nu
         size={Math.max(0, height - 8)}
         equipment={row.equipment}
       />
-      <RowName
-        row={row}
-        suffix={row.equipment?.title == null ? "" : ` · ${row.equipment.title.name[language]}`}
-        style={styles.grow}
-      />
+      <View style={styles.who}>
+        <RowName
+          row={row}
+          suffix={row.equipment?.title == null ? "" : ` · ${row.equipment.title.name[language]}`}
+          style={styles.shrink}
+        />
+        {row.level === undefined ? null : (
+          <LevelBadge level={row.level} size={Math.max(0, Math.min(MAX_BADGE, height - 4))} />
+        )}
+      </View>
       {row.isMe ? <AppText variant="label">{t("ranking.you")}</AppText> : null}
       {row.score === null ? null : (
         <>
@@ -155,5 +175,11 @@ const makeStyles = (theme: Theme) => ({
     borderColor: theme.colors.highlight,
   },
   badgeTop: { backgroundColor: theme.colors.highlight },
-  grow: { flex: 1 },
+  who: {
+    flex: 1,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: theme.spacing.xs,
+  },
+  shrink: { flexShrink: 1 },
 });

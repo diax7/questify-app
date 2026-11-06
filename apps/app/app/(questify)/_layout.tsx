@@ -1,25 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
-import type { MessageKey } from "@questify/shared";
 import { Tabs, router } from "expo-router";
 import { ScanButton } from "#src/components/ScanButton.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { QUESTIFY_TABS } from "#src/questify/tabs.ts";
 import { useTheme } from "#src/theme/theme.tsx";
 
-type Icon = keyof typeof Ionicons.glyphMap;
-
-// Placeholder icons until the 3D icon set from the brand deck is ready (ADR-013).
-const TABS: ReadonlyArray<{ name: string; title: MessageKey; icon: Icon }> = [
-  { name: "home", title: "nav.home", icon: "home" },
-  { name: "explore", title: "nav.explore", icon: "compass" },
-  { name: "scan", title: "nav.scan", icon: "scan" },
-  { name: "gem-shop", title: "nav.shop", icon: "diamond" },
-  { name: "profile", title: "nav.profile", icon: "person" },
-];
-
 /**
- * The bar outside events (FR-830, T-408b): Home, Explore, Scan in the middle, Shop (the gem shop, never an event's
- * shop) and Profile. It looks and orders like the event's bar, in one left-to-right order in both languages (user,
- * ADR-110 note; Q-100). The center button opens the join scanner.
+ * The bar outside events (FR-830, T-408b, T-404d): the tabs are listed in `QUESTIFY_TABS`. It looks and orders like the
+ * event's bar, in one left-to-right order in both languages (user, ADR-110 note; Q-100). The center button opens the join
+ * scanner.
  */
 export default function QuestifyTabsLayout() {
   const { t } = useI18n();
@@ -34,7 +23,7 @@ export default function QuestifyTabsLayout() {
         tabBarLabelStyle: { fontFamily: text.label.fontFamily, fontSize: text.label.fontSize },
       }}
     >
-      {TABS.map((tab) => (
+      {QUESTIFY_TABS.map((tab) => (
         <Tabs.Screen
           key={tab.name}
           name={tab.name}

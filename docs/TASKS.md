@@ -560,7 +560,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     quest can pay) and the gems in the list row; every string in both languages. Proposed ADR-292, ADR-293 / Q-257, Q-258.
     Phone check owed (RTL, Reduce Motion, the sheet, VoiceOver/TalkBack labels, the six rings). Progress 81/157 (51.59%).
   - Done when: No purchase or gift option exists on any screen; a player with too few gems is told how gems are earned.
-- [ ] **T-404c** Remove gems and the Questify gem shop; the lifetime level is the only reward across Questify (Dhia,
+- [x] **T-404c** Remove gems and the Questify gem shop; the lifetime level is the only reward across Questify (Dhia,
   2026-11-06, INBOX) — removes FR 724, 725, 726 (F-135, F-136); depends on: T-404, T-404b
   - Tier A (it rewrites the XP and level payouts and drops a ledger): plan, plan review, build, code review, mutation.
   - Remove entirely (no shim): `gem_entry`, `player_xp.gems`, `gem_shop_item`, `gem_purchase`, `gem_amounts`, the gem
@@ -573,6 +573,29 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     unlocked or still to unlock.
   - Done when: no gem appears anywhere in the app, console or API; Questify quests and achievements pay XP; the docs
     (FEATURES, SRS, DATA_MODEL, API, ADR-046 superseded) say the same.
+  - Plan 2026-11-06 (plan review 86, revisions folded): `docs/plans/2026-11-06-t-404c-levels-only.md`; ADR-760 to
+    ADR-768 Accepted, Q-720 to Q-725 Answered. Split (ADR-761): T-404c is the removal everywhere plus the
+    server rewards (migrations 0163 and 0164: achievement tier XP, achievement items, `level` on event ranking rows,
+    `GET /v1/me/rewards`, the console Amounts shape); the screens are T-404d below.
+  - Done 2026-11-06 (tier A code review and mutation owed): migrations 0163 and 0164; no gem object anywhere (database, API, shared, app, console); tiers pay XP (50, 150, 300, data); achievement items with the console door; `level` on event ranking rows; `GET /v1/me/rewards`; the Questify bar has four tabs until T-404d.
+- [x] **T-404d** The Journey tab and screen («رحلتي», Dhia, Q-724), the level badge on event rankings and profiles, the console achievement
+  "Unlocks" field (tier B; plan `docs/plans/2026-11-06-t-404c-levels-only.md` sections 7 and 9) — delivers FR 744 and
+  the screen half of FR 742, 743 (F-171, F-349, F-350); depends on: T-404c
+  - Done when: the bar shows Home, Explore, scan, Journey, Profile; the Journey screen shows the level, the next level's
+    item and every level and achievement item unlocked or locked, in both languages and right to left, with no price.
+  - Done 2026-11-06 (tier B, one code review with the Arabic pass owed; phone check owed): the fourth tab `journey`
+    (`QUESTIFY_TABS`, ribbon icon until the 3D set) and `JourneyScreen`: wooden plaque (medallion, title, XP bar,
+    "1,400 of 2,000 XP"), the next level's item as a locked preview, the level trail (reached with a gold check, the
+    player's own glowing unless Reduce Motion, later ones faded with a padlock; opens at the player's stone when it is
+    below the first screen), the achievement items with tier medal, state icon and "Reach gold in Wanderer", a skeleton,
+    a retry on a failed read, a sign-in button signed out; a tap on an owned item opens the locker on its tab. `LevelBadge`
+    (a wooden shield with the number) beside the name on the app's event ranking rows (26 points at most), the podium (18 points, the
+    name line's height; `PODIUM_MIN` stays 100) and both profile headers, also on a blocked row; the spoken row label ends with "Level n";
+    `level` is read from the answer when it is a whole number from 1 up (an older API draws no badge). Sync toasts:
+    an achievement toast carries the XP its tiers paid, and one toast for each item given. Console: the achievement
+    editor's "Unlocks" item and tier fields and the card line (`unlockChoices`: free items and the one held; `item`
+    sent only when changed). Strings `nav.journey`, `journey.*`, `sync.achievementXp`, `sync.item`, three console labels.
+    No gem or price word anywhere (`no-gems.test`, `journey.test`). No migration, no server change, no new ADR.
 - [x] **T-405** Streaks: event day streak (with or without bonus), Questify daily streak, switch off platform-wide — delivers FR 417, 418, 419, 420, 421, 1615; depends on: T-401
   - Note 2026-10-27 (T-404): the daily streak never writes gems (FR-421); `gem_entry` has no streak source and adding
     one needs a migration a review sees.

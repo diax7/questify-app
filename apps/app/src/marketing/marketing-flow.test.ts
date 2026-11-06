@@ -120,7 +120,7 @@ describe("atLanding", () => {
     expect(atLanding([])).toBe(true);
     expect(atLanding(["index"])).toBe(true);
     expect(atLanding(["(questify)", "home"])).toBe(true);
-    for (const tab of ["explore", "gem-shop", "profile"]) {
+    for (const tab of ["explore", "profile"]) {
       expect(atLanding(["(questify)", tab]), tab).toBe(false);
     }
     for (const route of [

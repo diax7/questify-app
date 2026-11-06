@@ -4,15 +4,14 @@ import {
   achievementDocSchema,
   amountsAdminSchema,
   amountsDocSchema,
-  gemShopDocSchema,
-  gemShopItemAdminSchema,
   homeLayoutAdminSchema,
   homeLayoutDocSchema,
   itemAdminSchema,
   itemDocSchema,
   levelTitlesAdminSchema,
   levelTitlesDocSchema,
-  loweredGemsSchema,
+  amountsBeforeSchema,
+  loweredTiersSchema,
   playerIntroAdminSchema,
   playerIntroDocSchema,
   templateAdminSchema,
@@ -58,7 +57,7 @@ type Editor = Readonly<{
   idField: "key" | "id" | "itemId" | undefined;
   /** The audit target id of a single document. */
   auditId: string;
-  /** Whether a save can pay gems that cannot come back, so the door asks for a confirmation (409 confirmation_required). */
+  /** Whether a save can pay XP or items that cannot come back, so the door asks for a confirmation (409 confirmation_required). */
   confirmable: boolean;
   list: (client: PoolClient) => Promise<unknown>;
   save: (client: PoolClient, call: SaveCall) => Promise<unknown>;
@@ -121,27 +120,10 @@ const EDITORS: Readonly<Record<CatalogKind, Editor>> = {
         call.requestId,
       ]),
   },
-  gem_shop: {
-    targetType: "gem_shop_item",
-    doc: gemShopDocSchema,
-    before: gemShopDocSchema,
-    row: gemShopItemAdminSchema,
-    idField: "itemId",
-    auditId: "",
-    confirmable: false,
-    list: (client) => answerOf(client, "SELECT admin_shop_items() AS r"),
-    save: (client, call) =>
-      answerOf(client, "SELECT admin_shop_item_save($1, $2, $3, $4) AS r", [
-        call.id,
-        call.doc,
-        call.revertOf,
-        call.requestId,
-      ]),
-  },
   amounts: {
     targetType: "platform_setting",
     doc: amountsDocSchema,
-    before: amountsDocSchema,
+    before: amountsBeforeSchema,
     row: amountsAdminSchema,
     idField: undefined,
     auditId: "amounts",
@@ -226,20 +208,22 @@ const EDITORS: Readonly<Record<CatalogKind, Editor>> = {
 function detailOf(detail: unknown): Readonly<Record<string, unknown>> {
   // Stryker disable next-line ConditionalExpression: those doors always set the detail; a missing one is a broken door
   if (typeof detail !== "string") {
-    throw new Error("a catalog refusal came without its detail; check migrations 0122 and 0124");
+    throw new Error(
+      "a catalog refusal came without its detail; check migrations 0122, 0124 and 0164",
+    );
   }
   return JSON.parse(detail) as Readonly<Record<string, unknown>>;
 }
 
 /**
- * What an unconfirmed lowering pays: the gems per lowered tier of an achievement (migration 0122), or the levels an XP
- * table makes due and the gems each pays (migration 0124).
+ * What an unconfirmed lowering pays: the XP and item per lowered tier of an achievement, or the levels an XP table makes
+ * due (migration 0164).
  */
 function lowering(detail: unknown) {
   const parsed = detailOf(detail);
   return Object.hasOwn(parsed, "levels")
     ? confirmationRequired(xpTableLoweringSchema.parse(parsed))
-    : confirmationRequired({ gems: loweredGemsSchema.parse(parsed) });
+    : confirmationRequired({ tiers: loweredTiersSchema.parse(parsed) });
 }
 
 /** A CA409 that names its reason (migration 0124) as its own answer; a bare CA409 stays the console door's `stale`. */
@@ -251,9 +235,9 @@ function conflict(error: unknown, detail: unknown): unknown {
   const answer = Object.hasOwn(CATALOG_CONFLICTS, String(reason))
     ? CATALOG_CONFLICTS[reason as keyof typeof CATALOG_CONFLICTS]
     : undefined;
-  // Stryker disable next-line ConditionalExpression: every reason 0124 raises is listed; an unknown one is a broken door
+  // Stryker disable next-line ConditionalExpression: every reason 0124 and 0164 raise is listed; an unknown one is a broken door
   if (answer === undefined) {
-    throw new Error(`unknown catalog refusal ${String(reason)}; check migration 0124`);
+    throw new Error(`unknown catalog refusal ${String(reason)}; check migrations 0124 and 0164`);
   }
   return answer(level === undefined ? {} : { level });
 }
@@ -343,7 +327,7 @@ async function savedRow(
 /**
  * Saves one row from an admin's input. The caller has already checked `input` against the editor's schema; the door checks
  * it again, writes the row and its audit entry in one transaction, and a save that changes nothing writes nothing. An
- * achievement whose threshold falls answers 409 `confirmation_required` with the gems it pays unless `confirmed`.
+ * achievement whose threshold falls answers 409 `confirmation_required` with what it pays unless `confirmed`.
  */
 export function saveCatalog(
   pool: Pool,
@@ -407,5 +391,5 @@ export function revertCatalog(
 /** The editor's schema for an admin's input, for the routes to check a body before the door sees it. */
 export const docSchemaOf = (kind: CatalogKind): z.ZodType => EDITORS[kind].doc;
 
-/** Whether the editor's saves and reverts take `confirmed` (a lowering pays gems that cannot come back). */
+/** Whether the editor's saves and reverts take `confirmed` (a lowering pays XP and items that cannot come back). */
 export const isConfirmable = (kind: CatalogKind): boolean => EDITORS[kind].confirmable;

@@ -2,7 +2,6 @@
 
 import {
   AMOUNT_RANGES,
-  GEM_AMOUNTS,
   XP_AMOUNTS,
   formatNumber,
   type AmountGroup,
@@ -34,7 +33,7 @@ import { Field, Input } from "#src/ui/Field.tsx";
 import { IconButton } from "#src/ui/IconControl.tsx";
 import { Stack, Toolbar } from "#src/ui/Section.tsx";
 
-const GROUP_FIELDS = { xp: XP_AMOUNTS, gems: GEM_AMOUNTS } as const;
+const GROUP_FIELDS = { xp: XP_AMOUNTS } as const;
 
 /** One card of number fields: each field's range is its own min and max (ADR-370: no help line). */
 function AmountCard({
@@ -79,9 +78,7 @@ function AmountCard({
                 value={values[field] ?? ""}
                 disabled={busy}
                 data-field={field}
-                onChange={(event) =>
-                  onChange({ ...draft, [group]: { ...values, [field]: event.target.value } })
-                }
+                onChange={(event) => onChange({ xp: { ...draft.xp, [field]: event.target.value } })}
               />
             </Field>
           );
@@ -216,17 +213,14 @@ function AmountsEditor({
           />
         </div>
         <ul className={styles.cards}>
-          {(["xp", "gems"] as const).map((group) => (
-            <AmountCard
-              key={group}
-              language={language}
-              group={group}
-              draft={draft}
-              wrong={wrong}
-              busy={catalog.busy}
-              onChange={setDraft}
-            />
-          ))}
+          <AmountCard
+            language={language}
+            group="xp"
+            draft={draft}
+            wrong={wrong}
+            busy={catalog.busy}
+            onChange={setDraft}
+          />
         </ul>
         {ask === null ? null : (
           <AmountsConfirm
@@ -251,8 +245,8 @@ function AmountsEditor({
 }
 
 /**
- * The amounts (T-709c, FR-1403, ADR-438): two equal cards, XP and gems, each amount a number field in its range. A save
- * asks once, naming each changed amount; it applies from the save on, including levels and tiers not yet paid.
+ * The amounts (T-709c, T-404c, FR-1403, ADR-438, ADR-764): one card of XP amounts, each a number field in its range. A
+ * save asks once, naming each changed amount; it applies from the save on.
  */
 export function CatalogAmounts({ language }: Readonly<{ language: Language }>) {
   const catalog = useCatalog(language, AMOUNTS_API, readAmounts);
@@ -261,7 +255,7 @@ export function CatalogAmounts({ language }: Readonly<{ language: Language }>) {
       <CatalogState language={language} catalog={catalog}>
         {(row) => (
           <AmountsEditor
-            key={JSON.stringify([row.xp, row.gems])}
+            key={JSON.stringify(row.xp)}
             language={language}
             catalog={catalog}
             row={row}

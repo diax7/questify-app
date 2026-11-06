@@ -31,13 +31,12 @@ import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Badge } from "#src/ui/Feedback.tsx";
-import { Checkbox, Field, Input, Select } from "#src/ui/Field.tsx";
+import { Field, Input, Select } from "#src/ui/Field.tsx";
 import { Icon } from "#src/ui/Icon.tsx";
 import { Stack } from "#src/ui/Section.tsx";
 
 const KIND_ICON = { character: "users", frame: "layout", title: "award" } as const;
 const ART_LOCK = {
-  on_sale: "console.catalog.items.lock.onSale",
   owned: "console.catalog.items.lock.owned",
 } as const;
 
@@ -135,7 +134,7 @@ function SourceBadge({ language, item }: Readonly<{ language: Language; item: It
     );
   }
   return (
-    <Badge tone={source.kind === "shop" ? "info" : "neutral"}>
+    <Badge tone={source.kind === "achievement" ? "info" : "neutral"}>
       {t(`console.catalog.items.source.${source.kind}`)}
     </Badge>
   );
@@ -179,7 +178,7 @@ function ItemCard({
         <PairCells language={language} value={item.name} />
       )}
       <p className={styles.facts} data-testid="item-facts">
-        <Icon name={KIND_ICON[item.kind]} /> {t(`console.catalog.shop.kind.${item.kind}`)} ·{" "}
+        <Icon name={KIND_ICON[item.kind]} /> {t(`console.catalog.items.kind.${item.kind}`)} ·{" "}
         <span dir="ltr">{item.visualKey ?? t("console.catalog.items.noArt")}</span>
         {item.locked.art === null ? null : <> · {t(ART_LOCK[item.locked.art])}</>}
       </p>
@@ -202,17 +201,6 @@ function NewItemFields({
 }>) {
   const t = translatorFor(language);
   const invalid = (field: string) => (wrong.has(field) ? t("console.catalog.invalid") : undefined);
-  const number = (field: "price" | "position", label: string) => (
-    <Field label={label} error={invalid(`shop.${field}`)}>
-      <Input
-        inputMode="numeric"
-        dir="ltr"
-        value={draft[field]}
-        disabled={disabled}
-        onChange={(event) => onChange({ ...draft, [field]: event.target.value })}
-      />
-    </Field>
-  );
   return (
     <>
       <div className={styles.fields}>
@@ -234,7 +222,7 @@ function NewItemFields({
           >
             {ITEM_KINDS.map((kind) => (
               <option key={kind} value={kind}>
-                {t(`console.catalog.shop.kind.${kind}`)}
+                {t(`console.catalog.items.kind.${kind}`)}
               </option>
             ))}
           </Select>
@@ -256,18 +244,6 @@ function NewItemFields({
         disabled={disabled}
         onChange={(name) => onChange({ ...draft, name })}
       />
-      <Checkbox
-        label={t("console.catalog.items.onSale")}
-        checked={draft.onSale}
-        disabled={disabled}
-        onChange={(event) => onChange({ ...draft, onSale: event.target.checked })}
-      />
-      {draft.onSale ? (
-        <div className={styles.fields}>
-          {number("price", t("console.catalog.shop.price"))}
-          {number("position", t("console.catalog.shop.position"))}
-        </div>
-      ) : null}
     </>
   );
 }
@@ -325,7 +301,7 @@ function NewItem({
 
 /**
  * Questify's items (T-709d, FR-1403, ADR-441): equal cards with the kind, both names, the art and a source badge (the level
- * it rewards, the shop, or unassigned). Names can always change; the art picker is off, with the reason, once the item is
+ * it rewards, the achievement that unlocks it, or unassigned). Names can always change; the art picker is off, with the reason, once the item is
  * on sale or players own it. A new item is made here, optionally on sale. Organizers' souvenirs are never shown.
  */
 export function CatalogItems({ language }: Readonly<{ language: Language }>) {

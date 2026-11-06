@@ -377,9 +377,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("audit log", () => {
 
     it("translations: the languages that changed, nothing for a repeat", async () => {
       const translations = createTranslationService({ pool });
-      await translations.save(admin, "nav.shop", { en: "Market" });
-      await translations.save(admin, "nav.shop", { en: "Market" });
-      await translations.save(admin, "nav.shop", { en: "" });
+      await translations.save(admin, "nav.ranking", { en: "Market" });
+      await translations.save(admin, "nav.ranking", { en: "Market" });
+      await translations.save(admin, "nav.ranking", { en: "" });
       expect((await newEntries()).map((entry) => [entry.before, entry.after])).toEqual([
         [{ en: null }, { en: "Market" }],
         [{ en: "Market" }, { en: null }],

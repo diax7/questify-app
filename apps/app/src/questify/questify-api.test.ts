@@ -3,6 +3,7 @@ import type { Session } from "#src/api/session.ts";
 import {
   fetchAchievements,
   fetchEventPage,
+  fetchLevelRewards,
   fetchQuestifyQuests,
   postSync,
 } from "#src/questify/questify-api.ts";
@@ -77,12 +78,40 @@ describe("reads", () => {
   });
 });
 
+describe("fetchLevelRewards", () => {
+  const frame = { id: "level-2", kind: "frame", name: { ar: "ا", en: "A" }, visualKey: "frame-02" };
+  const rewards = {
+    level: { number: 2, title: { ar: "ا", en: "A" }, xp: 150, levelFrom: 100, nextLevelAt: 300 },
+    levels: [
+      { level: 1, xpFrom: 0, item: null, owned: false },
+      { level: 2, xpFrom: 100, item: frame, owned: true },
+    ],
+    achievements: [],
+  };
+
+  it("reads the caller's rewards from /v1/me/rewards", async () => {
+    const reader = session(ok(rewards));
+    expect(await fetchLevelRewards(reader)).toEqual(rewards);
+    expect(vi.mocked(reader.request).mock.calls[0]?.[0]).toMatchObject({
+      method: "GET",
+      path: "/v1/me/rewards",
+    });
+  });
+
+  it("returns null for a failed answer, a signed-out caller or a body with an unknown field", async () => {
+    expect(await fetchLevelRewards(session({ kind: "network" }))).toBeNull();
+    expect(await fetchLevelRewards(session({ kind: "signed_out" }))).toBeNull();
+    expect(await fetchLevelRewards(session(refused(401)))).toBeNull();
+    expect(await fetchLevelRewards(session(ok({ ...rewards, gems: 5 })))).toBeNull();
+  });
+});
+
 describe("postSync", () => {
   const written = {
-    achievements: [{ id: "events-attended", tier: "bronze" }],
+    achievements: [{ id: "events-attended", tier: "bronze", xp: 50 }],
     quests: [],
     levelUp: null,
-    gems: { earned: 10, balance: 10 },
+    items: [],
     dailyStreak: null,
   };
 

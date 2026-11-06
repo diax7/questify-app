@@ -27,7 +27,7 @@ The detail, with IDs, priorities and notes, is in `FEATURES.md`. In summary:
 | 4. Points, levels, streaks | Score and balance; fixed Questify XP and lifetime level; event and Questify streaks; currency name and icon; fair live edits |
 | 5. Rewards shop | Items, digital codes and experiences; reserve then pick up; uploaded codes; honest stock; rank prizes; prizes as quest rewards; pinned goals |
 | 6. Rankings and big screen | The 11-row ranking (top 10 + you); today's and Questify-wide rankings; the event and Questify bars; big-screen scenes including the photo wall |
-| 7. The Questify layer | Profile, level titles, achievements, Event Passport, Questify quests, frames, titles, characters, souvenirs, gems and the gem shop, daily challenge, interests and "For you", Questify-run invitations, event recap |
+| 7. The Questify layer | Profile, level titles, achievements, Event Passport, Questify quests, frames, titles, characters, souvenirs, levels as the only reward across Questify, daily challenge, interests and "For you", Questify-run invitations, event recap |
 | 8. Home and maps | Event Home (Up next, Happening now, announcements, info); light agenda; any number of maps with optional pins; Questify home and Explore |
 | 9. Staff mode | Operator invites and personal operator QR; Operator / Player modes; abilities and assignment; station, prize desk, inbox, today's numbers, practice; renameable words |
 | 10. Organizer dashboard | Events, quests, rewards; feature switches; owner and editors; templates; duplicate; lifecycle; invoice activation; logo and banner; live control room; change log; confirmation screens; API-first operations and change sets |
@@ -70,7 +70,7 @@ review point after the Musts. If the build runs long, nothing is cut unless the 
 
 ## Out of scope (never, unless a decision is reversed)
 
-- Purchases of any kind in the app; points, gems and items are never sold (ADR-002, PD-22).
+- Purchases of any kind in the app; points, XP and items are never sold (ADR-002, PD-22).
 - Raffles, draws, mystery boxes, wheels or any chance reward (ADR-008, ADR-026).
 - Apps published per client; the app icon and name never change (ADR-006, PD-30).
 - Downloaded features or remote code; new quest mechanics need a store release (ADR-007).

@@ -53,7 +53,6 @@ export type QuestDraft = Readonly<{
   metric: QuestBody["metric"];
   target: string;
   xp: string;
-  gems: string;
   position: string;
   status: QuestBody["status"];
 }>;
@@ -64,7 +63,6 @@ export const BLANK_QUEST: QuestDraft = {
   metric: "events",
   target: "",
   xp: "",
-  gems: "0",
   position: "1",
   status: "draft",
 };
@@ -75,7 +73,6 @@ export const questDraftOf = (quest: AdminQuest): QuestDraft => ({
   metric: quest.metric,
   target: String(quest.target),
   xp: String(quest.xp),
-  gems: String(quest.gems),
   position: String(quest.position),
   // A retired quest has no form; the others are saved as a draft or active.
   status: quest.status === "active" ? "active" : "draft",
@@ -89,7 +86,6 @@ export type QuestifyField =
   | "metric"
   | "target"
   | "xp"
-  | "gems"
   | "position";
 
 export type Checked<T> =
@@ -104,7 +100,6 @@ const FIELD_OF: Readonly<Record<string, QuestifyField>> = {
   metric: "metric",
   target: "target",
   xp: "xp",
-  gems: "gems",
   position: "position",
 };
 
@@ -141,19 +136,10 @@ function questFields(draft: QuestDraft) {
     target: WHOLE.test(draft.target.trim()) ? Number(draft.target) : Number.NaN,
     title: { ar: draft.titleAr, en: draft.titleEn },
     xp: WHOLE.test(draft.xp.trim()) ? Number(draft.xp) : Number.NaN,
-    gems: WHOLE.test(draft.gems.trim()) ? Number(draft.gems) : Number.NaN,
     position: WHOLE.test(draft.position.trim()) ? Number(draft.position) : Number.NaN,
     status: draft.status,
   };
 }
-
-/**
- * Whether a quest can pay players now, as migration 0067 decides it: an active always-on quest, or any quest of a
- * published campaign (a draft quest there too, since it can be made active at once). Its gems are then fixed, as its
- * condition is: raising them later could never pay earlier awardees (ADR-286).
- */
-export const questCanPay = (quest: AdminQuest, campaign: AdminCampaign | null): boolean =>
-  campaign === null ? quest.status === "active" : campaign.status === "published";
 
 /** What a quest may count: "set your interests" has no date to place in a window, so never in a campaign (ADR-320). */
 export const metricsFor = (campaignId: string | null): readonly QuestifyMetric[] =>

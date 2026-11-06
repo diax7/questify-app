@@ -61,8 +61,8 @@ function LockMark({ language, level }: Readonly<{ language: Language; level: num
 }
 
 /**
- * What a save does, from the preview: about how many go up (and the gems), and how many go down. A revert that lowers the
- * curve has no preview; it says which levels it lowers and the gems each pays, from the API's refusal (`lowering`).
+ * What a save does, from the preview: about how many go up, and how many go down. A revert that lowers the curve has no
+ * preview; it says which levels it lowers, from the API's refusal (`lowering`).
  */
 function PreviewLines({
   language,
@@ -81,7 +81,6 @@ function PreviewLines({
           levels: lowering.levels
             .map((level) => formatNumber(level, language))
             .join(language === "ar" ? "، " : ", "),
-          gems: formatNumber(lowering.levelUp, language),
         })}
       </p>
     );
@@ -93,10 +92,7 @@ function PreviewLines({
     <>
       {preview.up > 0 ? (
         <p data-testid="xp-up">
-          {t("console.catalog.xp.up", {
-            up: formatNumber(preview.up, language),
-            gems: formatNumber(preview.gems, language),
-          })}
+          {t("console.catalog.xp.up", { up: formatNumber(preview.up, language) })}
         </p>
       ) : null}
       {preview.down > 0 ? (
@@ -109,7 +105,7 @@ function PreviewLines({
 }
 
 /**
- * The one confirmation of a save (ADR-440): about how many players go up and the gems they get at their next sync, about
+ * The one confirmation of a save (ADR-440): about how many players go up and get their level rewards at their next sync, about
  * how many go down and keep what they earned, then the save with the confirmation. The numbers are the preview's, so the
  * console says "about".
  */
@@ -365,7 +361,7 @@ function XpRows({
 /**
  * The XP table (T-709d, FR-1403, ADR-440): every level's start in XP and the item it gives, one document saved at once. A
  * level anyone reached keeps its reward and cannot be removed (a lock icon). A save shows what it does first (about how
- * many players go up, the gems they get, how many go down) and pays only once confirmed; a revert that lowers asks too.
+ * many players go up, how many go down) and pays only once confirmed; a revert that lowers asks too.
  */
 export function CatalogXpTable({ language }: Readonly<{ language: Language }>) {
   const t = translatorFor(language);

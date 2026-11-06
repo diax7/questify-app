@@ -9,7 +9,7 @@ type Sync = {
   achievements: { id: string; tier: string }[];
   quests: { id: string; title: Bilingual; xp: number }[];
   levelUp: null | { level: number; title: Bilingual; items: { id: string }[] };
-  gems: { earned: number; balance: number };
+  items: unknown[];
 };
 type Campaign = { id: string; status: string; startsAt: string; endsAt: string; name: Bilingual };
 type Quest = {
@@ -145,16 +145,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
     expect(answer.quests).toEqual([
       { id: seeded[0]?.id, title: { ar: "شارك في 3 فعاليات", en: "Attend 3 events" }, xp: 300 },
     ]);
-    // 3 quest credits of 100 and two awards of 300: 900 XP is level 4; the second award reached it.
-    expect(await xpOf(player)).toBe(900);
+    // 3 quest credits of 100 and two awards of 300 and two bronze tiers of 50: 1000 XP is level 4; the second award reached it.
+    expect(await xpOf(player)).toBe(1000);
     expect(answer.levelUp).toMatchObject({ level: 4, title: { en: "Explorer" } });
     expect(answer.levelUp?.items.map((item) => item.id)).toEqual(["level-4"]);
-    // Gems (T-404): levels 2 to 4 at 20, two bronze tiers at 10 and the two seeded quests at 25.
     expect(await sync(player)).toEqual({
       achievements: [],
       quests: [],
       levelUp: null,
-      gems: { earned: 0, balance: 130 },
+      items: [],
       // The daily streak (T-405): the plays above counted today.
       dailyStreak: { days: 1, today: true, next: { days: 3, xp: 50 }, rewards: [] },
     });
@@ -199,7 +198,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       achievements: [],
       quests: [],
       levelUp: null,
-      gems: { earned: 0, balance: 30 },
+      items: [],
       // The daily streak (T-405): the plays above counted today.
       dailyStreak: { days: 1, today: true, next: { days: 3, xp: 50 }, rewards: [] },
     });
@@ -284,7 +283,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
             target: 2,
             progress: 1,
             xp: 75,
-            gems: 0,
             done: false,
           },
         ],
@@ -420,15 +418,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
     const event = await f.newEvent();
     const entry = await f.earn(event, await f.join(event, player));
     expect(await paid(player)).toEqual([quest.id]);
-    expect(await xpOf(player)).toBe(150);
+    expect(await xpOf(player)).toBe(200);
     await f.removeEntry(event, entry);
-    expect(await xpOf(player)).toBe(50);
+    expect(await xpOf(player)).toBe(100);
     const rows = await f.owner<{ source: string; delta: number }>(
       "SELECT source, delta FROM xp_entry WHERE player_id = $1 ORDER BY id",
       [player],
     );
     expect(rows).toEqual([
       { source: "quest", delta: 100 },
+      { source: "achievement", delta: 50 },
       { source: "questify", delta: 50 },
       { source: "removal", delta: -100 },
     ]);
@@ -628,7 +627,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
         ...onQuest,
         action: "questify.quest_created",
         after: {
-          fields: ["metric", "target", "title", "xp", "gems", "position", "status", "campaignId"],
+          fields: ["metric", "target", "title", "xp", "position", "status", "campaignId"],
         },
       },
       { ...onQuest, action: "questify.quest_updated", after: { fields: ["title"] } },
@@ -708,7 +707,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       expect(outcome.waited).toBe(true);
       expect(outcome.second).not.toBeInstanceOf(Error);
       expect(await awards(player)).toEqual([quest.id]);
-      expect(await xpOf(player)).toBe(320);
+      expect(await xpOf(player)).toBe(370);
       await retireQuest(quest.id);
     },
   );
@@ -758,14 +757,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
     )[0]?.id ?? "";
   const card = async (player: string) =>
     (await own(player))?.alwaysOn.find((one) => one.metric === "interests_set");
-  const gemsFor = async (player: string, quest: string) =>
-    (
-      await f.owner<{ delta: number }>(
-        `SELECT g.delta FROM gem_entry g JOIN questify_award a ON a.id = g.questify_award_id
-           WHERE a.player_id = $1 AND a.quest_id = $2`,
-        [player, quest],
-      )
-    ).map((row) => row.delta);
   const xpRows = async (player: string, quest: string) =>
     (
       await f.owner<{ delta: number }>(
@@ -782,10 +773,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       [campaign, target],
     );
   describe("set your interests (T-407c)", () => {
-    it("is seeded as one active always-on quest: target 1, 100 XP, 10 gems, third in line", async () => {
+    it("is seeded as one active always-on quest: target 1, 100 XP, third in line", async () => {
       expect(
         await f.owner(
-          `SELECT campaign_id, target, title_ar, title_en, xp, gems, position, status FROM questify_quest
+          `SELECT campaign_id, target, title_ar, title_en, xp, position, status FROM questify_quest
            WHERE metric = 'interests_set'`,
         ),
       ).toEqual([
@@ -795,7 +786,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
           title_ar: "اختر اهتماماتك",
           title_en: "Set your interests",
           xp: 100,
-          gems: 10,
           position: 3,
           status: "active",
         },
@@ -816,7 +806,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       }
     });
 
-    it("pays once for one interest: one award, one XP entry of 100 and 10 gems; a replay pays nothing", async () => {
+    it("pays once for one interest: one award and one XP entry of 100; a replay pays nothing", async () => {
       const quest = await interestsQuest();
       const player = await f.newPlayer();
       await choose(player, ["sport"]);
@@ -827,7 +817,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       ]);
       expect(await xpOf(player)).toBe(100);
       expect(await xpRows(player, quest)).toEqual([100]);
-      expect(await gemsFor(player, quest)).toEqual([10]);
       expect(await card(player)).toMatchObject({ progress: 1, done: true });
       await choose(player, ["sport", "music", "tech"]);
       expect(await paid(player)).toEqual([]);
@@ -835,7 +824,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       expect(await xpRows(player, quest)).toEqual([100]);
     });
 
-    it("writes one award, XP entry and gem entry when two syncs cross", async () => {
+    it("writes one award and one XP entry when two syncs cross", async () => {
       const quest = await interestsQuest();
       const player = await f.newPlayer();
       await choose(player, ["food"]);
@@ -846,7 +835,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       expect((outcome.second as { r: Sync }).r.quests).toEqual([]);
       expect(await awards(player)).toEqual([quest]);
       expect(await xpRows(player, quest)).toEqual([100]);
-      expect(await gemsFor(player, quest)).toEqual([10]);
     });
 
     it("never makes a sync wait on a preference save held open; the save counts once committed", async () => {
@@ -885,7 +873,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("questify quests (database)", (
       expect(await paid(kept)).toEqual([]);
       expect(await awards(kept)).toEqual([quest]);
       expect(await xpRows(kept, quest)).toEqual([100]);
-      expect(await gemsFor(kept, quest)).toEqual([10]);
       const undone = await f.newPlayer();
       await choose(undone, ["travel"]);
       await choose(undone, []);

@@ -31,7 +31,7 @@ const NAME = { ar: "إطار الفجر", en: "Dawn frame" };
 /**
  * The XP table and item editors over HTTP (T-709d, FR-1403, ADR-440, ADR-441): admin-only (404 to everyone else), each body
  * checked by the shared schema before the door, a lowering answered 409 `confirmation_required` with the levels and the
- * gems until confirmed, the door's refusals as their own 409 codes with the level, a busy table as 503 with Retry-After,
+ * until confirmed, the door's refusals as their own 409 codes with the level, a busy table as 503 with Retry-After,
  * the preview as a read, a new item as 201, and idempotent reverts.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table and items over HTTP", () => {
@@ -93,7 +93,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table and items ove
   });
 
   describe("the XP table", () => {
-    it("lists the curve, previews a lowering, asks to confirm it with the levels and gems, saves and reverts", async () => {
+    it("lists the curve, previews a lowering, asks to confirm it with the levels, saves and reverts", async () => {
       const shown = await table();
       expect(shown.levels).toHaveLength(30);
       expect(shown.revertible).toBe(false);
@@ -103,12 +103,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table and items ove
       };
       const preview = await admin("POST", `${URL}/preview`, lower);
       expect(preview.statusCode).toBe(200);
-      expect(xpTablePreviewSchema.parse(preview.json())).toMatchObject({ levelUp: 20 });
+      expect(xpTablePreviewSchema.parse(preview.json())).toMatchObject({ up: 0 });
       const asked = await admin("PUT", URL, lower);
       expect(asked.statusCode).toBe(409);
       expect(asked.json()).toMatchObject({
         code: "confirmation_required",
-        details: { levels: [3], levelUp: 20 },
+        details: { levels: [3] },
       });
       const saved = await admin("PUT", URL, { ...lower, confirmed: true });
       expect(saved.statusCode).toBe(200);
@@ -149,7 +149,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table and items ove
       const original = docOf(await table());
       const remap = {
         levels: original.levels.map((row) =>
-          row.level === 30 ? { ...row, itemId: "shop-map-reader" } : row,
+          row.level === 30 ? { ...row, itemId: "shop-moon-ring" } : row,
         ),
       };
       const refused = await admin("PUT", URL, remap);
@@ -190,7 +190,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table and items ove
     it("lists items, makes one (201) and refuses its id twice, and edits names and art", async () => {
       const list = itemsAdminListSchema.parse((await admin("GET", ITEMS)).json()).items;
       expect(list.find((row) => row.id === "shop-map-reader")).toMatchObject({
-        locked: { art: "on_sale" },
+        locked: { art: null },
         revertible: false,
       });
       const made = await admin("POST", ITEMS, {
@@ -198,11 +198,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table and items ove
         kind: "frame",
         name: NAME,
         visualKey: "frame-07",
-        shop: { price: 90, position: 50, status: "active" },
       });
       expect(made.statusCode).toBe(201);
       expect(itemAdminAnswerSchema.parse(made.json()).item).toMatchObject({
-        source: { shop: { status: "active" } },
+        source: null,
       });
       const again = await admin("POST", ITEMS, {
         id: "dawn-frame",
@@ -213,7 +212,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table and items ove
       expect(again.statusCode).toBe(409);
       expect(again.json()).toMatchObject({ code: "item_exists" });
       const art = await admin("PUT", `${ITEMS}/dawn-frame`, { name: NAME, visualKey: "frame-08" });
-      expect(art.json()).toMatchObject({ code: "item_on_sale" });
+      expect(art.statusCode).toBe(200);
+      await admin("PUT", `${ITEMS}/dawn-frame`, { name: NAME, visualKey: "frame-07" });
       const renamed = { ar: "إطار الشروق", en: "Sunrise frame" };
       const named = await admin("PUT", `${ITEMS}/dawn-frame`, {
         name: renamed,

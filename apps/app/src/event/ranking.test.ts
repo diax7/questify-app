@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { MESSAGES, NO_OVERRIDES, createTranslator, type Language } from "@questify/shared";
 import type { RankRow, Ranking } from "#src/event/home-api.ts";
+import type { Translate } from "#src/i18n/words.ts";
 import {
   MAX_ROW_HEIGHT,
   PODIUM_ALONE_MAX,
   PODIUM_MAX,
+  NAME_LINE,
   PODIUM_MIN,
   podiumFit,
   podiumMetrics,
   podiumPlaces,
   rankingRows,
   rowHeight,
+  withLevel,
 } from "#src/event/ranking.ts";
 
 const row = (rank: number, isMe = false): RankRow => ({
@@ -189,7 +193,7 @@ describe("podiumMetrics", () => {
     for (let height = PODIUM_MIN; height <= PODIUM_ALONE_MAX; height += 4) {
       for (const withScore of [true, false]) {
         const { face, steps } = podiumMetrics(height, withScore);
-        const above = face + 18 + (withScore ? 18 : 0) + 8;
+        const above = face + NAME_LINE + (withScore ? 18 : 0) + 8;
         expect(above + steps[1], `${height} ${withScore}`).toBeLessThanOrEqual(height);
       }
     }
@@ -228,13 +232,13 @@ describe("podiumMetrics", () => {
 
   it("measures the smallest podium exactly, with and without a score line", () => {
     expect(podiumMetrics(PODIUM_MIN, true)).toEqual({
-      face: 26,
-      steps: [24, 26, 22],
+      face: 28,
+      steps: [24, 28, 22],
       rankText: "label",
     });
     expect(podiumMetrics(PODIUM_MIN, false)).toEqual({
-      face: 27,
-      steps: [31, 43, 22],
+      face: 28,
+      steps: [33, 46, 24],
       rankText: "label",
     });
   });
@@ -247,5 +251,38 @@ describe("podiumMetrics", () => {
       }
     }
     expect(podiumMetrics(PODIUM_MAX, true).rankText).toBe("title");
+  });
+});
+
+describe("withLevel (T-404d)", () => {
+  const translate = createTranslator(MESSAGES, NO_OVERRIDES);
+  const tIn =
+    (language: Language): Translate =>
+    (key, params) =>
+      translate(key, language, params);
+
+  it("ends the spoken row with the player's level, in each language's punctuation", () => {
+    expect(withLevel("Rank 2, @sara, 90 pts", 7, tIn("en"), "en")).toBe(
+      "Rank 2, @sara, 90 pts, Level 7",
+    );
+    expect(withLevel("المركز 2، @sara", 7, tIn("ar"), "ar")).toBe("المركز 2، @sara، المستوى 7");
+  });
+
+  it("leaves a row without a level as it was (an older API sends none)", () => {
+    expect(withLevel("Rank 2, @sara", undefined, tIn("en"), "en")).toBe("Rank 2, @sara");
+  });
+
+  it("carries a level on the player's own 11th row", () => {
+    const shown = rankingRows(
+      ranking(topTen(), {
+        rank: 37,
+        username: "me",
+        fullName: null,
+        avatar: "owl",
+        score: 12,
+        level: 9,
+      }),
+    );
+    expect(shown[10]).toMatchObject({ isMe: true, level: 9 });
   });
 });

@@ -9,7 +9,6 @@ import {
   metricKey,
   metricsFor,
   questBodyOf,
-  questCanPay,
   questDraftOf,
   questPatchOf,
   readAdminQuestify,
@@ -113,7 +112,6 @@ const quest = (status: AdminQuest["status"]): AdminQuest => ({
   target: 2,
   title: { ar: "العب في مدينتين", en: "Play in 2 cities" },
   xp: 300,
-  gems: 25,
   position: 2,
   status,
   createdAt: "2026-11-01T00:00:00.000Z",
@@ -129,7 +127,6 @@ describe("questBodyOf and questPatchOf", () => {
         target: 3,
         title: { ar: "شارك في 3 فعاليات", en: "Attend 3 events" },
         xp: 300,
-        gems: 0,
         position: 1,
         status: "draft",
         campaignId: CAMPAIGN_ID,
@@ -141,7 +138,6 @@ describe("questBodyOf and questPatchOf", () => {
   it("leaves the campaign out of an edit, which can never move it", () => {
     const checked = questPatchOf({ ...questDraft, status: "active" });
     expect(checked.ok && Object.keys(checked.body).toSorted()).toEqual([
-      "gems",
       "metric",
       "position",
       "status",
@@ -158,27 +154,12 @@ describe("questBodyOf and questPatchOf", () => {
     ["a fractional target", { target: "2.5" }, "target"],
     ["no XP", { xp: "" }, "xp"],
     ["XP past 10000", { xp: "10001" }, "xp"],
-    ["no gems", { gems: "" }, "gems"],
-    ["gems past 1000", { gems: "1001" }, "gems"],
-    ["fractional gems", { gems: "2.5" }, "gems"],
-    ["negative gems", { gems: "-1" }, "gems"],
     ["a position of 0", { position: "0" }, "position"],
     ["no Arabic title", { titleAr: "" }, "label"],
     ["a title past 80 characters", { titleEn: "x".repeat(81) }, "label"],
   ] as const)("refuses %s before sending", (_name, patch, field) => {
     expect(questBodyOf({ ...questDraft, ...patch }, null)).toEqual({ ok: false, field });
     expect(questPatchOf({ ...questDraft, ...patch })).toEqual({ ok: false, field });
-  });
-
-  it("sends the gems a quest pays, 0 to 1000, and starts a new quest at 0", () => {
-    expect(BLANK_QUEST.gems).toBe("0");
-    expect(questPatchOf({ ...questDraft, gems: "25" })).toMatchObject({
-      ok: true,
-      body: { gems: 25 },
-    });
-    expect(questPatchOf({ ...questDraft, gems: "1000" }).ok).toBe(true);
-    expect(questPatchOf({ ...questDraft, gems: "0" }).ok).toBe(true);
-    expect(questDraftOf(quest("active")).gems).toBe("25");
   });
 
   it("shows an active quest as active and a draft or retired one as a draft in the form", () => {
@@ -222,7 +203,6 @@ describe("refusalKey", () => {
     ["metric", "metric"],
     ["target", "target"],
     ["xp", "xp"],
-    ["gems", "gems"],
     ["position", "position"],
     ["campaignId", "other"],
     ["status", "other"],
@@ -272,33 +252,6 @@ describe("saudiStamp", () => {
 
   it("moves to the next Saudi day after 21:00 UTC", () => {
     expect(saudiStamp("2026-12-01T21:30:00.000Z", "en")).toBe("2 Dec 2026 00:30");
-  });
-});
-
-const campaignWith = (status: AdminCampaign["status"]): AdminCampaign => ({
-  id: CAMPAIGN_ID,
-  name: { ar: "موسم", en: "Season" },
-  startsAt: "2026-12-01T06:00:00.000Z",
-  endsAt: "2026-12-31T18:30:00.000Z",
-  status,
-  createdAt: "2026-11-01T00:00:00.000Z",
-  updatedAt: "2026-11-01T00:00:00.000Z",
-});
-describe("questCanPay", () => {
-  it("fixes the gems of an active always-on quest and of an active quest in a published campaign", () => {
-    expect(questCanPay(quest("active"), null)).toBe(true);
-    expect(questCanPay(quest("active"), campaignWith("published"))).toBe(true);
-  });
-
-  it("fixes the gems of a draft quest in a published campaign too, as the database does", () => {
-    expect(questCanPay(quest("draft"), campaignWith("published"))).toBe(true);
-  });
-
-  it("leaves the gems of a draft, of a quest in a draft campaign and of a retired quest editable", () => {
-    expect(questCanPay(quest("draft"), null)).toBe(false);
-    expect(questCanPay(quest("active"), campaignWith("draft"))).toBe(false);
-    expect(questCanPay(quest("draft"), campaignWith("draft"))).toBe(false);
-    expect(questCanPay(quest("retired"), null)).toBe(false);
   });
 });
 

@@ -817,10 +817,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       expect(await pushable(unseen.family)).toBe(false);
     });
 
-    it("writes no ledger, XP or gem row when a device registers (FR-1106)", async () => {
+    it("writes no ledger or XP row when a device registers (FR-1106)", async () => {
       const counts = () =>
-        f.owner<{ l: number; x: number; g: number }>(
-          "SELECT (SELECT count(*) FROM ledger_entry)::int AS l, (SELECT count(*) FROM xp_entry)::int AS x, (SELECT count(*) FROM gem_entry)::int AS g",
+        f.owner<{ l: number; x: number }>(
+          "SELECT (SELECT count(*) FROM ledger_entry)::int AS l, (SELECT count(*) FROM xp_entry)::int AS x",
         );
       const before = await counts();
       await f.playerWithPhone();

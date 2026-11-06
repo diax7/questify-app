@@ -42,24 +42,6 @@ function build(
 const asked = (seen: Seen[], name: string) => seen.filter((one) => one.sql.includes(name));
 const call = (method: "GET" | "POST", url: string, headers: Record<string, string> = SIGNED_IN) =>
   app.inject({ method, url, headers });
-const KEY = "55555555-5555-4555-8555-555555555555";
-const ITEM = {
-  id: "shop-map-reader",
-  kind: "title",
-  name: { ar: "قارئ الخرائط", en: "Map reader" },
-  visualKey: null,
-};
-const purchase = (
-  payload: unknown = { itemId: ITEM.id, price: 40 },
-  headers: Record<string, string> = { ...SIGNED_IN, "idempotency-key": KEY },
-) =>
-  app.inject({
-    method: "POST",
-    url: "/v1/me/gem-shop/purchases",
-    headers,
-    payload: payload as object,
-  });
-
 afterEach(async () => {
   await app.close();
 });
@@ -115,7 +97,7 @@ describe("POST /v1/me/questify/sync", () => {
       achievements: [],
       quests: [],
       levelUp: null,
-      gems: { earned: 0, balance: 12 },
+      items: [],
     };
     const { seen } = build(() => ({ rows: [{ result }] }));
     const response = await call("POST", "/v1/me/questify/sync");
@@ -172,111 +154,47 @@ describe("GET /v1/questify/ranking", () => {
   });
 });
 
-describe("GET /v1/me/gem-shop", () => {
-  it("answers the caller's balance and the items, never cached", async () => {
-    const shop = { gems: 30, items: [{ ...ITEM, price: 40, owned: false }] };
-    const { seen } = build(() => ({ rows: [{ shop }] }));
-    const response = await call("GET", "/v1/me/gem-shop");
+describe("GET /v1/me/rewards", () => {
+  const item = { id: "frame-a", kind: "frame", name: { ar: "ا", en: "A" }, visualKey: "frame-01" };
+  const rewards = {
+    level: { number: 2, title: { ar: "ا", en: "A" }, xp: 150, levelFrom: 100, nextLevelAt: 300 },
+    levels: [{ level: 2, xpFrom: 100, item, owned: true }],
+    achievements: [],
+  };
+
+  it("answers the caller's level rewards, never cached", async () => {
+    const { seen } = build(() => ({ rows: [{ r: rewards }] }));
+    const response = await call("GET", "/v1/me/rewards");
     expect(response.statusCode).toBe(200);
     expect(response.headers["cache-control"]).toBe(NO_STORE);
-    expect(response.json()).toEqual(shop);
-    expect(asked(seen, "gem_shop()")).toHaveLength(1);
+    expect(response.json()).toEqual(rewards);
+    expect(asked(seen, "own_level_rewards()")).toHaveLength(1);
   });
 
-  it("answers 401 for an inactive caller and without a player", async () => {
-    build(() => ({ rows: [{ shop: null }] }));
-    expect((await call("GET", "/v1/me/gem-shop")).statusCode).toBe(401);
-    const { seen } = build(() => ({ rows: [] }));
-    expect((await call("GET", "/v1/me/gem-shop", {})).statusCode).toBe(401);
-    expect(seen).toEqual([]);
-  });
-});
-
-describe("POST /v1/me/gem-shop/purchases", () => {
-  const bought = { itemId: ITEM.id, gems: 10, item: ITEM, replayed: false };
-
-  it("gets the item with the seen price and the key, after recording the attempt", async () => {
-    const { seen } = build(() => ({ rows: [{ result: bought }] }));
-    const response = await purchase();
-    expect(response.statusCode).toBe(200);
-    expect(response.headers["cache-control"]).toBe(NO_STORE);
-    expect(response.json()).toEqual({ itemId: ITEM.id, gems: 10, item: ITEM });
-    expect(asked(seen, "INSERT INTO auth_throttle")).toHaveLength(1);
-    expect(asked(seen, "gem_buy")[0]?.values).toEqual([ITEM.id, 40, KEY]);
-  });
-
-  it.each([
-    ["no key", { ...SIGNED_IN }, "idempotency_key_required"],
-    [
-      "a key that is not a UUID",
-      { ...SIGNED_IN, "idempotency-key": "tap-1" },
-      "idempotency_key_invalid",
-    ],
-  ])("answers 400 for %s and asks the database nothing", async (_label, headers, code) => {
-    const { seen } = build(() => ({ rows: [{ result: bought }] }));
-    const response = await purchase(undefined, headers);
-    expect(response.statusCode).toBe(400);
-    expect(response.json()).toMatchObject({ code });
-    expect(asked(seen, "gem_buy")).toEqual([]);
-  });
-
-  it.each([
-    ["a price that is not an integer", { itemId: ITEM.id, price: 40.5 }],
-    ["a price of 0", { itemId: ITEM.id, price: 0 }],
-    ["a price as text", { itemId: ITEM.id, price: "40" }],
-    ["no item", { price: 40 }],
-    ["an unknown field", { itemId: ITEM.id, price: 40, playerId: KEY }],
-  ])("answers 400 for %s", async (_label, payload) => {
-    const { seen } = build(() => ({ rows: [{ result: bought }] }));
-    expect((await purchase(payload)).statusCode).toBe(400);
-    expect(asked(seen, "gem_buy")).toEqual([]);
-  });
-
-  it("answers 429 and buys nothing when the player's minute is used up", async () => {
-    const { seen } = build(() => ({ rows: [{ result: bought }] }), { count: 10, retry_after: 20 });
-    const response = await purchase();
-    expect(response.statusCode).toBe(429);
-    expect(asked(seen, "gem_buy")).toEqual([]);
-  });
-
-  it.each([
-    [{ code: "GS404" }, 404, { code: "gem_item_not_found" }],
-    [
-      { code: "GS409", detail: "too_few_gems", hint: "10" },
-      409,
-      { code: "gem_shop_conflict", details: { reason: "too_few_gems", gems: 10 } },
-    ],
-    [{ code: "GS422", detail: "key_reused" }, 422, { code: "idempotency_key_reused" }],
-    [{ code: "PI401" }, 401, { code: "unauthenticated" }],
-  ])("answers the refusal %o as %i", async (fields, status, body) => {
-    build((sql) => {
-      if (sql.includes("gem_buy")) throw Object.assign(new Error("refused"), fields);
-      return { rows: [] };
+  it("refuses a caller the door refuses, and a request with no player", async () => {
+    build(() => {
+      throw Object.assign(new Error("refused"), { code: "PI401" });
     });
-    const response = await purchase();
-    expect(response.statusCode).toBe(status);
-    expect(response.json()).toMatchObject(body);
+    expect((await call("GET", "/v1/me/rewards")).statusCode).toBe(401);
+    await app.close();
+    build(() => ({ rows: [] }));
+    expect((await call("GET", "/v1/me/rewards", {})).statusCode).toBe(401);
   });
 
-  it("replays a refusal to a retry with the same key, so the app sends a fresh key per confirmation", async () => {
-    let balance = 10;
-    const { seen } = build((sql) => {
-      if (sql.includes("gem_buy")) {
-        throw Object.assign(new Error("refused"), {
-          code: "GS409",
-          detail: "too_few_gems",
-          hint: String(balance),
-        });
-      }
-      return { rows: [] };
+  it("fails as a server fault on a field the schema does not know, and any other database error", async () => {
+    build(() => ({ rows: [{ r: { ...rewards, price: 5 } }] }));
+    expect((await call("GET", "/v1/me/rewards")).statusCode).toBe(500);
+    await app.close();
+    build(() => {
+      throw new Error("down");
     });
-    expect((await purchase()).json()).toMatchObject({ details: { gems: 10 } });
-    balance = 500;
-    const retry = await purchase();
-    expect(retry.statusCode).toBe(409);
-    expect(retry.headers["idempotent-replayed"]).toBe("true");
-    expect(retry.json()).toMatchObject({ details: { reason: "too_few_gems", gems: 10 } });
-    expect(asked(seen, "gem_buy")).toHaveLength(1);
+    expect((await call("GET", "/v1/me/rewards")).statusCode).toBe(500);
+  });
+
+  it("has no gem shop door any more", async () => {
+    build(() => ({ rows: [] }));
+    expect((await call("GET", "/v1/me/gem-shop")).statusCode).toBe(404);
+    expect((await call("POST", "/v1/me/gem-shop/purchases")).statusCode).toBe(404);
   });
 });
 

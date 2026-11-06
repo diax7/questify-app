@@ -537,6 +537,37 @@ describe("rankingAnswer", () => {
     });
   });
 
+  it("reads each player's level beside the name, on a blocked row too, and none from an older API (T-404d)", () => {
+    const withLevels = {
+      ...ranking,
+      rows: [
+        { ...ranking.rows[0], level: 7 },
+        { rank: 2, username: null, avatar: null, score: 80, isMe: false, hidden: true, level: 3 },
+      ],
+      me: { ...ranking.me, level: 12 },
+    };
+    expect(rankingAnswer(ok(withLevels))).toMatchObject({
+      ranking: { rows: [{ level: 7 }, { hidden: true, level: 3 }], me: { level: 12 } },
+    });
+    const older = rankingAnswer(ok(ranking));
+    expect(older.kind === "ranking" && older.ranking.rows[0]).not.toHaveProperty("level");
+    expect(older.kind === "ranking" && older.ranking.me).not.toHaveProperty("level");
+  });
+
+  it("drops a level that is not a whole number from 1 up, and keeps the rest of the row", () => {
+    for (const level of [0, -1, 1.5, "7", null, Number.NaN]) {
+      const answer = rankingAnswer(
+        ok({ ...ranking, rows: [{ ...ranking.rows[0], level }], me: { ...ranking.me, level } }),
+      );
+      expect(answer).toMatchObject({
+        kind: "ranking",
+        ranking: { rows: [{ rank: 1, score: 90 }] },
+      });
+      expect(answer.kind === "ranking" && answer.ranking.rows[0]).not.toHaveProperty("level");
+      expect(answer.kind === "ranking" && answer.ranking.me).not.toHaveProperty("level");
+    }
+  });
+
   it("hides the card when the ranking is off, and says so for any other failure", () => {
     expect(rankingAnswer(error(404, "ranking_off"))).toEqual({ kind: "off" });
     expect(rankingAnswer(error(404, "not_found"))).toEqual({ kind: "gone" });

@@ -71,12 +71,6 @@ const CATALOGS: readonly Catalog[] = [
     id: z.string().regex(ACHIEVEMENT_ID),
   },
   { kind: "level_titles", path: "/catalog/level-titles", names: undefined, id: undefined },
-  {
-    kind: "gem_shop",
-    path: "/catalog/gem-shop",
-    names: { list: "items", one: "item" },
-    id: z.string().regex(ITEM_ID),
-  },
   { kind: "amounts", path: "/catalog/amounts", names: undefined, id: undefined },
   { kind: "xp_table", path: "/catalog/xp-table", names: undefined, id: undefined },
   {
@@ -106,7 +100,7 @@ const confirmation = z.strictObject({ confirmed: z.boolean().optional() });
 const noConfirmation = z.strictObject({ confirmed: z.never().optional() });
 
 /**
- * A save's body split into the document and the confirmation. Only an editor that can pay gems (the achievements) takes
+ * A save's body split into the document and the confirmation. Only an editor that can pay XP or items (the achievements) takes
  * `confirmed`; anywhere else it is an unknown field the document's schema refuses.
  */
 function splitConfirmed(
@@ -214,7 +208,7 @@ function registerXpTableExtras(
 
 /**
  * The console's catalog editors (T-709b, T-709c, T-709d, FR-1403): event templates, achievements (names and thresholds),
- * level titles, the gem shop, the XP and gem amounts, the XP table with its level rewards, Questify's items, and Questify
+ * level titles, the XP amounts, the XP table with its level rewards, Questify's items, and Questify
  * home's layout (T-713, FR-1838) and the player intro's cards (T-802b, FR-1803). Each is a
  * list, a save and a revert, registered inside the console scope whose hook answers 404 to anyone but an active platform
  * admin; every door re-reads the admin in the database. A save is checked against the editor's schema here and again by

@@ -259,17 +259,14 @@ for an event.
 - **Seeded:** attend 3 events and play in 2 cities, 300 XP each, live from the deploy (ADR-279).
 - **Audit:** every change is in the audit log with the admin, the ids and the names of the fields changed.
 
-## As built (T-404): gems and the gem shop
+## As built (T-404c): levels only (ADR-760, ADR-764, ADR-765)
 
-- **Amounts are data (ADR-286):** `platform_setting` key `gems` `{levelUp, bronze, silver, gold}` sets the gems paid per
-  level reached and per achievement tier; each field counts only when it is a whole number 1–1000, else its default
-  (20, 10, 25, 50). No row exists until T-709 adds the editor and the row's CHECK; a changed amount pays rows earned
-  later. Server-only, never in the public `features`/`tuning`.
-- **Quest gems:** each Questify quest pays 0–1000 gems with its XP (the two seeded quests 25), fixed once the quest can
-  pay. The console quest form has the Gems field (T-404b), disabled once the quest can pay.
-- **The shop catalog:** items are seeded by migration (new items and names wait for T-709c); prices, sale status and place are
-  edited in the console's Catalog page (T-709b, FR-1403). Nothing is
-  sold for money; gems are earned only by playing (STORE_COMPLIANCE 1.6).
+- **Tier XP is data:** the `xp` setting's `bronzeXp`, `silverXp` and `goldXp` (0 to 1000, default 50, 150, 300) are edited in the
+  console's Amounts tab; a change applies to tiers earned from the save on; 0 pays none.
+- **Achievement items are data:** each achievement may unlock one item at a tier the admin picks (the door takes it; the
+  console's field is T-404d). A change is refused once a player owns it from that achievement.
+- **No currency and no shop:** nothing in Questify has a price (`gems` setting removed, 0163). An event's currency icon may
+  still be a gem; that is the event's word for its points (ADR-768).
 
 ## As built (T-410): the shop's window after the event
 
@@ -321,7 +318,7 @@ for an event.
 | Quests, categories, rewards, sessions, maps, sponsors | Everything an organizer creates | Typed by shared schemas; live edits ask "future only / also past" with confirmation (ADR-063) |
 | Tuning numbers | Built (T-703, ADR-451): flag burst count and window, rehearsal cap, readiness look-ahead (server-only, never sent to a phone), live-poll seconds, username change days, edited on the console's Switches page. Still code (Q-410): QR refresh, login-code limits, reservation time, push/SMS limits, "running low" levels (F-279, Q-074) | Each has a safe range and is a whole number; out-of-range saves are refused; a stored number the readers cannot use gives the shipped one |
 | Platform messages | Built (T-703b, ADR-470 to ADR-473): banner on Questify home (scheduled, shown by the phone's clock inside its window); maintenance mode, global or per event (F-280, F-281), edited on the Switches page | Maintenance holds the play doors with 503 and shows its message; staff, the console and the config door still work |
-| Catalog | Items, achievements, gem prices (F-216) | |
+| Catalog | Items, achievements, tier XP (F-216) | |
 | Questify quests | Always-on quests and seasonal campaigns: titles, metric (closed list), target, XP, order, window (FR-710, FR-711; T-403b) | Condition fixed once a quest can pay; a campaign published only before it starts; caps 20 per campaign, 50 always-on |
 | Templates and legal | SMS/email/push templates with CST rules checked on save; terms, privacy, guidelines, DPA as versions with forced re-acceptance (F-288, F-289) | Promotional templates cannot omit opt-out; versions are never edited, only replaced |
 | Content | Daily questions, word bank, help/FAQ, word lists (F-261, F-313, F-287, F-290) | A day with no daily word shows no game |

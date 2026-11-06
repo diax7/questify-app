@@ -6,19 +6,17 @@ const CONTROL = `http://127.0.0.1:${CONTROL_PORT}`;
 
 /**
  * The console's catalog editors (T-709b, T-709c, FR-1403), desktop and phone, English and Arabic: event templates,
- * achievements, level titles, the gem shop and the amounts. The database is shared by the runs, so each project edits its own rows and every test
+ * achievements, level titles and the amounts. The database is shared by the runs, so each project edits its own rows and every test
  * leaves them as shipped (it reverts what it saved, which also proves the revert).
  */
 const OWN = {
   desktop: {
     template: { key: "conference", en: "Conference", ar: "مؤتمر" },
     achievement: { id: "quests-done", ar: "صائد المهام" },
-    shop: { id: "shop-map-reader", price: 40 },
   },
   phone: {
     template: { key: "festival", en: "Festival", ar: "مهرجان" },
     achievement: { id: "cities-played", ar: "جوّاب المدن" },
-    shop: { id: "shop-dune-watcher", price: 50 },
   },
 } as const;
 
@@ -115,19 +113,95 @@ test("in Arabic the catalog reads right to left; an achievement's name and thres
   await expect(page.getByText("حُفظ التغيير.")).toBeVisible();
   await expect(card.getByTestId("cell-ar").getByText(`${own.ar} جدًا`)).toBeVisible();
   await expect(tiers).toContainText(String(storedGold + 1));
-  // Going back lowers gold again, so it asks once and names the gems before it pays.
+  // Going back lowers gold again, so it asks once and names the XP and the item before it pays.
   await card.getByRole("button", { name: `التراجع عن آخر تغيير في ${own.ar} جدًا` }).click();
   const ask = card.getByRole("alert");
-  await expect(ask.getByText(`منح جواهر مقابل ${own.ar} جدًا؟`)).toBeVisible();
-  await expect(ask.getByText("التراجع عن هذا التغيير لا يسترد الجواهر.")).toBeVisible();
-  await ask.getByRole("button", { name: "خفض ومنح الجواهر" }).click();
+  await expect(ask.getByText(`منح خبرة مقابل ${own.ar} جدًا؟`)).toBeVisible();
+  await expect(ask.getByText("التراجع عن هذا التغيير لا يستردها.")).toBeVisible();
+  await ask.getByRole("button", { name: "خفض ومنح الخبرة" }).click();
   await expect(page.getByText("عدنا إلى ما قبل التغيير.")).toBeVisible();
   await expect(card.getByTestId("cell-ar").getByText(own.ar, { exact: true })).toBeVisible();
   await expect(tiers).toHaveText(shown);
   await expectNoSidewaysScroll(page);
 });
 
-test("the amounts are two equal cards; a save names each changed amount once and is reverted", async ({
+/** The words of the achievement "Unlocks" flow in each language of the console (T-404d). */
+const UNLOCKS = {
+  en: {
+    tab: "Achievements",
+    edit: /^Edit /,
+    revert: /^Go back on the last change to /,
+    saved: "Change saved.",
+    reverted: "Went back to the earlier version.",
+    save: "Save",
+    silver: "Silver",
+    none: "No item",
+  },
+  ar: {
+    tab: "الإنجازات",
+    edit: /^تعديل /,
+    revert: /^التراجع عن آخر تغيير في /,
+    saved: "حُفظ التغيير.",
+    reverted: "عدنا إلى ما قبل التغيير.",
+    save: "حفظ",
+    silver: "فضية",
+    none: "بلا عنصر",
+  },
+} as const;
+
+for (const language of ["en", "ar"] as const) {
+  test(`in ${language === "en" ? "English" : "Arabic"} an achievement's Unlocks item is changed, removed, and put back by a revert`, async ({
+    page,
+  }, info) => {
+    test.setTimeout(120_000);
+    const words = UNLOCKS[language];
+    const own = ownOf(info.project.name).achievement;
+    await asAdmin(page, info.project.name);
+    await page.goto(`/${language}/console/catalog`);
+    await expect(page.locator("html")).toHaveAttribute("dir", language === "ar" ? "rtl" : "ltr");
+    await page.getByRole("button", { name: words.tab }).click();
+
+    const card = page.locator(`[data-testid="achievement-card"][data-id="${own.id}"]`);
+    const line = card.getByTestId("achievement-unlocks");
+    await expect(line).toBeVisible();
+    const stored = await line.innerText();
+
+    await card.getByRole("button", { name: words.edit }).click();
+    const item = card.getByTestId("achievement-item");
+    const tier = card.getByTestId("achievement-item-tier");
+    const kept = await item.inputValue();
+    const options = await item
+      .locator("option")
+      .evaluateAll((all) => all.map((option) => (option as HTMLOptionElement).value));
+    // A level's item, or another achievement's, is never offered: only the free ones and the one held.
+    expect(options.filter((value) => value.startsWith("level-"))).toEqual([]);
+    const other = options.find((value) => value !== "" && value !== kept);
+    expect(other, "an unassigned item to move to").toBeDefined();
+
+    await item.selectOption(other ?? "");
+    await tier.selectOption("silver");
+    await card.getByRole("button", { name: words.save, exact: true }).click();
+    await expect(page.getByText(words.saved)).toBeVisible();
+    await expect(line).toContainText(words.silver);
+    await expect(line).not.toHaveText(stored);
+    // A revert puts back the item and the tier the card held before the change.
+    await card.getByRole("button", { name: words.revert }).click();
+    await expect(page.getByText(words.reverted)).toBeVisible();
+    await expect(line).toHaveText(stored);
+
+    await card.getByRole("button", { name: words.edit }).click();
+    await item.selectOption("");
+    await expect(item.locator("option:checked")).toHaveText(words.none);
+    await expect(tier).toBeDisabled();
+    await card.getByRole("button", { name: words.save, exact: true }).click();
+    await expect(line).toHaveCount(0);
+    await card.getByRole("button", { name: words.revert }).click();
+    await expect(line).toHaveText(stored);
+    await expectNoSidewaysScroll(page);
+  });
+}
+
+test("the amounts are one card; a save names each changed amount once and is reverted", async ({
   page,
 }, info) => {
   // One document for the whole platform: only the desktop run edits it, so two runs never cross.
@@ -137,26 +211,24 @@ test("the amounts are two equal cards; a save names each changed amount once and
   await page.goto("/en/console/catalog");
   await page.getByRole("button", { name: "Amounts" }).click();
   const cards = page.getByTestId("amounts-card");
-  await expect(cards).toHaveCount(2);
-  const levelUp = page.getByLabel("Level up");
-  const stored = Number(await levelUp.inputValue());
-  await levelUp.fill("1001");
+  await expect(cards).toHaveCount(1);
+  const gold = page.getByLabel("Gold tier");
+  const stored = Number(await gold.inputValue());
+  await gold.fill("1001");
   await expect(page.getByRole("button", { name: "Save" })).toBeDisabled();
-  await levelUp.fill(String(stored + 1));
+  await gold.fill(String(stored + 1));
   await page.getByRole("button", { name: "Save" }).click();
   const ask = page.getByRole("alert");
-  await expect(
-    ask.getByText(`From now on: Level up ${stored} → ${stored + 1} gems.`),
-  ).toBeVisible();
+  await expect(ask.getByText(`From now on: Gold tier ${stored} → ${stored + 1} XP.`)).toBeVisible();
   await ask.getByRole("button", { name: "Save amounts" }).click();
   await expect(page.getByText("Change saved.")).toBeVisible();
-  await expect(page.getByLabel("Level up")).toHaveValue(String(stored + 1));
+  await expect(page.getByLabel("Gold tier")).toHaveValue(String(stored + 1));
   await page.getByRole("button", { name: "Go back on the last change to Amounts" }).click();
   const revert = page.getByRole("alert").filter({ hasText: "Go back to the earlier amounts?" });
   await expect(revert.getByText("Nothing already paid changes.")).toBeVisible();
   await revert.getByRole("button", { name: "Cancel" }).click();
   await expect(revert).toHaveCount(0);
-  await expect(page.getByLabel("Level up")).toHaveValue(String(stored + 1));
+  await expect(page.getByLabel("Gold tier")).toHaveValue(String(stored + 1));
   await page.getByRole("button", { name: "Go back on the last change to Amounts" }).click();
   await page
     .getByRole("alert")
@@ -164,15 +236,12 @@ test("the amounts are two equal cards; a save names each changed amount once and
     .getByRole("button", { name: "Go back", exact: true })
     .click();
   await expect(page.getByText("Went back to the earlier version.")).toBeVisible();
-  await expect(page.getByLabel("Level up")).toHaveValue(String(stored));
+  await expect(page.getByLabel("Gold tier")).toHaveValue(String(stored));
   await expectNoSidewaysScroll(page);
 });
 
-test("level titles are edited as a set and the gem shop price is changed and reverted", async ({
-  page,
-}, info) => {
+test("level titles are edited as a set", async ({ page }, info) => {
   test.setTimeout(120_000);
-  const shop = ownOf(info.project.name).shop;
   await asAdmin(page, info.project.name);
   await page.goto("/en/console/catalog");
 
@@ -185,15 +254,6 @@ test("level titles are edited as a set and the gem shop price is changed and rev
   await titles.getByRole("button", { name: "Discard" }).click();
   await expect(titles.getByTestId("title-row")).toHaveCount(6);
 
-  await page.getByRole("button", { name: "Gem shop" }).click();
-  const card = page.locator(`[data-testid="shop-card"][data-id="${shop.id}"]`);
-  await expect(card.getByText(`Gems: ${shop.price}, place:`)).toBeVisible();
-  await card.getByRole("button", { name: /^Edit / }).click();
-  await card.getByLabel("Price in gems").fill(String(shop.price + 1));
-  await card.getByRole("button", { name: "Save" }).click();
-  await expect(card.getByText(`Gems: ${shop.price + 1}, place:`)).toBeVisible();
-  await card.getByRole("button", { name: /^Go back on the last change/ }).click();
-  await expect(card.getByText(`Gems: ${shop.price}, place:`)).toBeVisible();
   await expectNoSidewaysScroll(page);
 });
 
@@ -219,14 +279,14 @@ test("the XP table shows each level and its reward; a raise is saved after its s
   await ask.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByText("Change saved.")).toBeVisible();
   await table.getByRole("button", { name: "Go back on the last change to XP table" }).click();
-  // The revert names the levels it lowers and the gems each pays (the API's refusal), not only that it cannot be undone.
+  // The revert names the levels it lowers (the API's refusal), not only that it cannot be undone.
   await expect(table.getByTestId("xp-lowering")).toContainText("levels 30 start");
   await table.getByRole("alert").getByRole("button", { name: "Save and pay" }).click();
   await expect(page.getByText("Went back to the earlier version.")).toBeVisible();
   await expectNoSidewaysScroll(page);
 });
 
-test("in Arabic an item's names are edited and reverted; a shop item's art is locked", async ({
+test("in Arabic an item's names are edited and reverted; an achievement item names its source", async ({
   page,
 }, info) => {
   test.setTimeout(120_000);
@@ -244,7 +304,7 @@ test("in Arabic an item's names are edited and reverted; a shop item's art is lo
   await expect(card.getByText(`${stored} II`)).toBeVisible();
   await card.getByRole("button", { name: /^التراجع عن آخر تغيير/ }).click();
   await expect(card.getByText(stored, { exact: true })).toBeVisible();
-  const shop = page.locator('[data-testid="item-card"][data-id="shop-dune-ring"]');
-  await expect(shop.getByTestId("item-facts")).toContainText("معروض في المتجر");
+  const earned = page.locator('[data-testid="item-card"][data-id="shop-dune-ring"]');
+  await expect(earned).toContainText("إنجاز");
   await expectNoSidewaysScroll(page);
 });

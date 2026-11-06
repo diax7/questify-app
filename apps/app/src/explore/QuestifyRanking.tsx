@@ -187,7 +187,7 @@ function Board({
 
 /**
  * The Questify-wide ranking by XP on Explore (FR-611): All time and This month, the top 10 and the player's own place
- * as an 11th row. Gems are never part of it. Nothing is shown while the platform has the ranking switched off.
+ * as an 11th row. Nothing is shown while the platform has the ranking switched off.
  */
 export function QuestifyRanking() {
   const { t } = useI18n();

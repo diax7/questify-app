@@ -32,7 +32,6 @@ const PLATFORM_DOORS = [
   ["POST", "/v1/me/questify/sync", {}],
   ["POST", "/v1/me/daily/challenge/answers", {}],
   ["POST", "/v1/me/daily/word/guesses", {}],
-  ["POST", "/v1/me/gem-shop/purchases", {}],
 ] as const;
 
 /**

@@ -10,7 +10,7 @@ type Row = {
   kind: string;
   name: { ar: string; en: string };
   visualKey: string | null;
-  source: { level: number } | { shop: { status: string } } | null;
+  source: { level: number } | { achievement: { id: string; tier: string } } | null;
   locked: { art: string | null };
 };
 
@@ -27,18 +27,16 @@ const because = (reason: string) => `CA409:{"reason": "${reason}"}`;
 const NAME = { ar: "إطار الفجر", en: "Dawn frame" };
 const SOUVENIR = "souvenir-0123456789abcdef0123456789abcdef";
 
-const frame = (id: string, visualKey = "frame-06", shop?: unknown) => ({
+const frame = (id: string, visualKey = "frame-06") => ({
   id,
   kind: "frame",
   name: NAME,
   visualKey,
-  ...(shop === undefined ? {} : { shop }),
 });
 /**
  * T-709d's item catalog in the database (migration 0124, ADR-441): Questify's items are listed with their source and art
- * lock, souvenirs never; names always change, art only while the item is not in the shop and no one reached the level it
- * rewards; a new item is made with its art and optionally put on sale; the exclusive-source guard lets a shop item change
- * its names only.
+ * lock, souvenirs never; names always change, art only while no player owns the item and no one reached the level it
+ * rewards (T-404c); a new item is made with its art; the exclusive-source guard keeps one source per item.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("console items (database)", () => {
   let f: QuestifyFixture;
@@ -151,7 +149,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console items (database)", () 
     }
   });
 
-  it("lists level rewards, shop items and unassigned items with their source and art lock, never a souvenir", async () => {
+  it("lists level rewards, achievement items and unassigned items with their source and art lock, never a souvenir", async () => {
     await reachLevel2();
     await create(frame("loose-frame"));
     const all = await items();
@@ -168,8 +166,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console items (database)", () 
       locked: { art: null },
     });
     expect(all.find((row) => row.id === "shop-map-reader")).toMatchObject({
-      source: { shop: { status: "active" } },
-      locked: { art: "on_sale" },
+      source: null,
+      locked: { art: null },
+    });
+    expect(all.find((row) => row.id === "shop-moon-ring")).toMatchObject({
+      source: { achievement: { id: "top-ten", tier: "gold" } },
+      locked: { art: null },
     });
     expect(all.find((row) => row.id === "loose-frame")).toMatchObject({
       source: null,
@@ -183,21 +185,31 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console items (database)", () 
   });
 
   describe("saving", () => {
-    it("renames a shop item, on sale or retired, and refuses its art (item_on_sale)", async () => {
-      const shop = await listed("shop-map-reader");
-      expect((await save("shop-map-reader", { name: NAME, visualKey: null })).name).toEqual(NAME);
-      await f.owner(
-        "UPDATE gem_shop_item SET status = 'retired' WHERE item_id = 'shop-map-reader'",
-      );
-      expect((await save("shop-map-reader", { name: shop?.name, visualKey: null })).name).toEqual(
-        shop?.name,
-      );
-      const frameShop = (await items()).find(
-        (row) => row.kind === "frame" && row.locked.art === "on_sale",
+    it("renames an item nobody owns and changes its art; refuses the art once a player owns it (item_owned)", async () => {
+      expect((await save("shop-desert-ring", { name: NAME, visualKey: "frame-18" })).name).toEqual(
+        NAME,
       );
       expect(
-        await refusal(save(frameShop?.id ?? "", { name: frameShop?.name, visualKey: "frame-20" })),
-      ).toBe(because("item_on_sale"));
+        (await save("shop-desert-ring", { name: NAME, visualKey: "frame-20" })).visualKey,
+      ).toBe("frame-20");
+      await save("shop-desert-ring", { name: NAME, visualKey: "frame-18" });
+      const someone = await f.newPlayer();
+      await f.owner(
+        "INSERT INTO player_item (player_id, item_id, source, earned_at) VALUES ($1, 'shop-desert-ring', 'questify', now())",
+        [someone],
+      );
+      expect((await listed("shop-desert-ring"))?.locked.art).toBe("owned");
+      expect(
+        (
+          await save("shop-desert-ring", {
+            name: { ...NAME, en: "Owned ring" },
+            visualKey: "frame-18",
+          })
+        ).name.en,
+      ).toBe("Owned ring");
+      expect(await refusal(save("shop-desert-ring", { name: NAME, visualKey: "frame-20" }))).toBe(
+        because("item_owned"),
+      );
     });
 
     it("refuses the art of a level reward someone reached (item_owned) and allows it on one nobody reached", async () => {
@@ -256,16 +268,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console items (database)", () 
   });
 
   describe("creating", () => {
-    it("makes an item with and without a shop listing", async () => {
+    it("makes an item", async () => {
       expect(await create(frame("plain-new"))).toMatchObject({ id: "plain-new", source: null });
-      expect(
-        await create(frame("sale-new", "frame-11", { price: 90, position: 40, status: "active" })),
-      ).toMatchObject({ source: { shop: { status: "active" } }, locked: { art: "on_sale" } });
-      expect(
-        await f.owner(
-          "SELECT price, position, status FROM gem_shop_item WHERE item_id = 'sale-new'",
-        ),
-      ).toEqual([{ price: 90, position: 40, status: "active" }]);
       expect(
         await create({ id: "title-new", kind: "title", name: NAME, visualKey: null }),
       ).toMatchObject({ kind: "title", visualKey: null });
@@ -277,11 +281,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console items (database)", () 
       ["an unknown kind", { ...frame("kind-x"), kind: "hat" }, "CA400:kind"],
       ["an unknown field", { ...frame("field-x"), price: 4 }, "CA400:doc"],
       ["no art key", { id: "noart-x", kind: "title", name: NAME }, "CA400:doc"],
-      [
-        "a bad shop listing",
-        frame("shop-x", "frame-02", { price: 0, position: 1, status: "active" }),
-        "CA400:shop",
-      ],
+      ["a shop listing", { ...frame("shop-x"), shop: { price: 1 } }, "CA400:doc"],
       ["art for another kind", { ...frame("art-x"), visualKey: "chest" }, "23514:"],
       ["a bad name", { ...frame("name-x"), name: { ar: "", en: "x" } }, "CA400:name.ar"],
     ])("refuses %s", async (_name, doc, code) => {
@@ -290,11 +290,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console items (database)", () 
 
     it("refuses an id that exists, a level reward's included (item_exists), and lets one of two creates win", async () => {
       expect(await refusal(create(frame("level-2")))).toBe(because("exists"));
-      expect(
-        await refusal(
-          create(frame("shop-map-reader", "frame-02", { price: 5, position: 5, status: "active" })),
-        ),
-      ).toBe(because("exists"));
+      expect(await refusal(create(frame("shop-map-reader", "frame-02")))).toBe(because("exists"));
       const outcomes = await Promise.all([
         refusal(create(frame("twin"))),
         refusal(create(frame("twin"))),
@@ -304,17 +300,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console items (database)", () 
   });
 
   describe("the exclusive-source guard (restated)", () => {
-    it("lets a shop item change its names only (GS409 on art) and keeps an active souvenir frozen (SV409)", async () => {
-      expect(
-        await refusal(
-          f.owner("UPDATE item SET name_en = 'Dune ring two' WHERE id = 'shop-dune-ring'"),
-        ),
-      ).toBe("none");
-      expect(
-        await refusal(
-          f.owner("UPDATE item SET visual_key = 'frame-03' WHERE id = 'shop-dune-ring'"),
-        ),
-      ).toBe("GS409:shop_item_locked");
+    it("keeps an active souvenir frozen (SV409) and one source per item, both ways", async () => {
       await f.owner(
         "UPDATE souvenir_rule SET status = 'active', activated_at = now() WHERE item_id = 'organizer-made'",
       );
@@ -324,10 +310,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console items (database)", () 
       expect(
         await refusal(
           f.owner(
-            "INSERT INTO gem_shop_item (item_id, price, position) VALUES ('level-5', 10, 10)",
+            "INSERT INTO achievement_item (achievement_id, tier, item_id) VALUES ('top-ten', 'gold', 'level-5')",
+          ),
+        ),
+      ).toMatch(/^23505|^23514/);
+      await f.owner("DELETE FROM achievement_item WHERE achievement_id = 'quests-done'");
+      expect(
+        await refusal(
+          f.owner(
+            "INSERT INTO achievement_item (achievement_id, tier, item_id) VALUES ('quests-done', 'gold', 'level-5')",
           ),
         ),
       ).toMatch(/^23514/);
+      expect(
+        await refusal(f.owner("UPDATE level_item SET item_id = 'shop-moon-ring' WHERE level = 5")),
+      ).toMatch(/^23514/);
+      await f.owner(
+        "INSERT INTO achievement_item (achievement_id, tier, item_id) VALUES ('quests-done', 'gold', 'shop-falcon-ring')",
+      );
     });
   });
 

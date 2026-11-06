@@ -2915,3 +2915,43 @@ and `ci:full` (2); a short title for the today-ranking confirmation (3); SIGTERM
 a random unseen password (5).
 **Recommended (developer):** accept. Open for Dhia only if he wants `create` to send an invite or force a first password
 change (a migration and a sign-in change, tier A), or a support door that moves a player to a new number (ADR-423 dropped it).
+
+## Q-720 - T-404c: the split and the two migrations (ADR-761, ADR-762)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86): as the plan recommends.
+T-404c (tier A) removes gems everywhere and adds the server rewards; T-404d (tier B) adds the Journey screen and badges.
+Between them the bar has four tabs on `main`. Migration 0163 touches only `platform_setting`; 0164 does the rest
+(renumbered after main took 0162).
+**Recommended (developer):** as planned. Alternative: one part, which puts the screens under the tier A review.
+
+## Q-721 - Achievement tier XP amounts and no back pay (ADR-764)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86): as the plan recommends.
+Tiers pay 50, 150 and 300 XP (editable, 0 to 1000) when earned; tiers earned before the change pay nothing.
+**Recommended (developer):** as planned. Alternative: pay earned tiers at the next sync, which lifts this month's
+Questify ranking for everyone with tiers at once.
+
+## Q-722 - Gem balances vanish; bought items show as "A Questify reward" (ADR-763)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86): as the plan recommends.
+**Recommended (developer):** drop balances with no conversion; keep bought items with the `questify` source.
+Alternative: give each player XP for unspent gems (it invents an exchange rate).
+
+## Q-723 - Achievement items: one per achievement; gold tiers seeded with the former shop frames (ADR-765)
+
+**Status:** Answered (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86): as the plan recommends.
+**Recommended (developer):** one item per achievement at a tier the admin picks; seed the five gold tiers. Alternatives:
+an item per tier (three per achievement), or silver instead of gold for the seeds so more players reach them.
+
+## Q-724 - The level on event rankings and the tab name (ADR-766, ADR-767)
+
+**Status:** Answered (Dhia, 2026-11-06, AskUserQuestion): the tab is named **"Journey"** («رحلتي»), not "Levels";
+the level shows on the app's event rankings, the podium and profiles, not on the big screen.
+The plan had the level beside names on the app's event ranking and podium and the tab called Levels.
+
+## Q-725 - The event currency icon "gem" and the terms of use (ADR-768)
+
+**Status:** Answered (Dhia, 2026-11-06, AskUserQuestion): keep the event currency's gem icon.
+Organizers can still pick a gem icon for their event's points. The terms of use lose Questify gems; whether that needs
+a new terms version that players accept again is a legal call.
+**Recommended (developer):** keep the icon; edit the terms text at build and leave the version bump to the legal pass.

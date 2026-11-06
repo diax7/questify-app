@@ -4,7 +4,7 @@ import { equipmentSchema } from "#src/players/items";
 /**
  * The Questify-wide ranking by XP (T-408, FR-611, ADR-322, ADR-323): a lifetime board and one board per Questify month
  * (a season, changing at 04:00 Riyadh time on the 1st). Only the username, avatar, equipment, XP and lifetime level of
- * a player are ever shown (FR-120); never an id, a contact or gems.
+ * a player are ever shown (FR-120); never an id or a contact.
  */
 
 export const QUESTIFY_RANKING_SCOPES = ["lifetime", "month"] as const;

@@ -50,8 +50,8 @@ describe("questifyRankingSchema", () => {
     );
   });
 
-  it("refuses a row with an extra key (an id, gems), more than 10 rows, or a row without XP", () => {
-    for (const extra of [{ playerId: "x" }, { gems: 5 }]) {
+  it("refuses a row with an extra key (an id, a balance), more than 10 rows, or a row without XP", () => {
+    for (const extra of [{ playerId: "x" }, { balance: 5 }]) {
       expect(accepts(questifyRankingSchema, { ...ranking, me: { ...shown, ...extra } })).toBe(
         false,
       );

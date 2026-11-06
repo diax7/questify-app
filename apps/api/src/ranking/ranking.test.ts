@@ -46,13 +46,21 @@ const SHOWN: Equipment = {
   frame: null,
   title: null,
 };
-const OWN = { id: ME, score: "10", username: "me", avatar: "falcon", equipment: EMPTY_EQUIPMENT };
+const OWN = {
+  id: ME,
+  score: "10",
+  username: "me",
+  avatar: "falcon",
+  equipment: EMPTY_EQUIPMENT,
+  level: 3,
+};
 const ANN_TOP = {
   enrollment_id: ANN,
   username: "ann",
   avatar: "fox",
   equipment: EMPTY_EQUIPMENT,
   score: "20",
+  level: 7,
 };
 const BLOCKED_TOP = {
   enrollment_id: BEA,
@@ -60,6 +68,7 @@ const BLOCKED_TOP = {
   avatar: null,
   equipment: null,
   score: "15",
+  level: 5,
 };
 const named = (id: string, over: Record<string, unknown> = {}) => ({
   enrollment_id: id,
@@ -67,6 +76,7 @@ const named = (id: string, over: Record<string, unknown> = {}) => ({
   avatar: "fox",
   equipment: EMPTY_EQUIPMENT,
   ranked: true,
+  level: 7,
   ...over,
 });
 
@@ -161,6 +171,7 @@ describe("the ranking read from PostgreSQL alone", () => {
           avatar: "fox",
           equipment: EMPTY_EQUIPMENT,
           hidden: false,
+          level: 7,
           score: 20,
           isMe: false,
         },
@@ -170,6 +181,7 @@ describe("the ranking read from PostgreSQL alone", () => {
         username: "me",
         fullName: null,
         avatar: "falcon",
+        level: 3,
         equipment: EMPTY_EQUIPMENT,
         score: 10,
       },
@@ -260,6 +272,7 @@ describe("the ranking read from the Redis copy", () => {
         avatar: null,
         equipment: null,
         hidden: true,
+        level: 7,
         score: 30,
         isMe: false,
       },
@@ -270,6 +283,7 @@ describe("the ranking read from the Redis copy", () => {
         avatar: "fox",
         equipment: SHOWN,
         hidden: false,
+        level: 7,
         score: 20,
         isMe: false,
       },
@@ -280,6 +294,7 @@ describe("the ranking read from the Redis copy", () => {
         avatar: "fox",
         equipment: EMPTY_EQUIPMENT,
         hidden: false,
+        level: 7,
         score: 10,
         isMe: true,
       },

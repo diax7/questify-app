@@ -4,6 +4,7 @@ import { CurrencyIcon } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Avatar } from "#src/components/Avatar.tsx";
 import {
+  NAME_LINE,
   podiumMetrics,
   podiumPlaces,
   type PodiumMetrics,
@@ -12,6 +13,7 @@ import {
 import { useEvent } from "#src/event/EventContext.tsx";
 import { RowName, pressOf, useRowLabel } from "#src/event/RankingRows.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { LevelBadge } from "#src/questify/LevelBadge.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 type StepColor = "tierSilver" | "tierGold" | "tierBronze";
@@ -50,7 +52,10 @@ function Place({
       <View style={row.isMe ? [styles.ring, { borderRadius: face }] : styles.noRing}>
         <Avatar name={row.avatar} username={row.username} size={face} equipment={row.equipment} />
       </View>
-      <RowName row={row} variant="label" style={styles.name} />
+      <View style={styles.nameLine}>
+        <RowName row={row} variant="label" style={styles.name} />
+        {row.level === undefined ? null : <LevelBadge level={row.level} size={NAME_LINE} />}
+      </View>
       {scoreLine ? (
         <View style={styles.score}>
           {row.score === null ? null : (
@@ -149,7 +154,14 @@ const makeStyles = (theme: Theme) => ({
   place: { flex: 1, alignItems: "center" as const, justifyContent: "flex-end" as const },
   ring: { borderWidth: 3, borderColor: theme.colors.highlight, padding: 1 },
   noRing: { padding: 4 },
-  name: { alignSelf: "stretch" as const, textAlign: "center" as const },
+  nameLine: {
+    alignSelf: "stretch" as const,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+    gap: theme.spacing.xs,
+  },
+  name: { flexShrink: 1, textAlign: "center" as const },
   score: {
     flexDirection: "row" as const,
     alignItems: "center" as const,

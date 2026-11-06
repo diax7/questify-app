@@ -5,7 +5,7 @@ import { ITEM_KINDS } from "#src/players/items";
 /**
  * The console's XP table and item catalog (T-709d, FR-1403, ADR-440, ADR-441). The XP table is one document: the start
  * of every level and the item each level above 1 gives. A save that lowers a start (or adds a level within someone's XP)
- * pays level items and gems at each player's next sync, which no revert takes back, so the API refuses it until the admin
+ * pays level items at each player's next sync, which no revert takes back, so the API refuses it until the admin
  * confirms (409 `confirmation_required`). The database checks the same rules again (migration 0124).
  */
 export const XP_LEVELS_MIN = 2;
@@ -102,34 +102,25 @@ export const xpTablePreviewSchema = z.strictObject({
   up: z.number().int().min(0),
   down: z.number().int().min(0),
   levels: z.number().int().min(0),
-  gems: z.number().int().min(0),
-  levelUp: z.number().int().min(1),
 });
 export type XpTablePreview = z.infer<typeof xpTablePreviewSchema>;
 
-/** The `details` of a refused lowering: the levels it pays and the gems each pays now. */
+/** The `details` of a refused lowering: the levels whose items it pays. */
 export const xpTableLoweringSchema = z.strictObject({
   levels: z.array(z.number().int().min(2)).min(1),
-  levelUp: z.number().int().min(1),
 });
 export type XpTableLowering = z.infer<typeof xpTableLoweringSchema>;
 
 const pair = catalogPair(60);
 
-/** What an admin edits of an item: its names always, its art while it is not on sale and nobody owns it. */
+/** What an admin edits of an item: its names always, its art while nobody owns it. */
 export const itemDocSchema = z.strictObject({
   name: pair,
   visualKey: z.string().max(20).nullable(),
 });
 export type ItemDoc = z.infer<typeof itemDocSchema>;
 
-const shopListing = z.strictObject({
-  price: z.number().int().min(1).max(100_000),
-  position: z.number().int().min(1).max(1000),
-  status: z.enum(["active", "retired"]),
-});
-
-/** A new item: its id (never `souvenir-`, an organizer's), kind, names, shipped art, and optionally on sale. */
+/** A new item: its id (never `souvenir-`, an organizer's), kind, names and shipped art. */
 export const itemCreateSchema = z
   .strictObject({
     id: z
@@ -139,7 +130,6 @@ export const itemCreateSchema = z
     kind: z.enum(ITEM_KINDS),
     name: pair,
     visualKey: z.string().nullable(),
-    shop: shopListing.optional(),
   })
   .superRefine((doc, context) => {
     if (!visualsOf(doc.kind).includes(doc.visualKey)) {
@@ -152,8 +142,8 @@ export const itemCreateSchema = z
   });
 export type ItemCreate = z.infer<typeof itemCreateSchema>;
 
-/** Why an item's art cannot change: it is in the shop, or a level anyone reached gives it. */
-export const ITEM_ART_LOCKS = ["on_sale", "owned"] as const;
+/** Why an item's art cannot change: a player owns it, or a level anyone reached gives it. */
+export const ITEM_ART_LOCKS = ["owned"] as const;
 
 export const itemAdminSchema = z.strictObject({
   id: z.string().regex(ITEM_ID_PATTERN),
@@ -162,7 +152,14 @@ export const itemAdminSchema = z.strictObject({
   visualKey: z.string().nullable(),
   source: z
     .strictObject({ level: z.number().int().min(2) })
-    .or(z.strictObject({ shop: z.strictObject({ status: z.enum(["active", "retired"]) }) }))
+    .or(
+      z.strictObject({
+        achievement: z.strictObject({
+          id: z.string().regex(ITEM_ID_PATTERN),
+          tier: z.enum(["bronze", "silver", "gold"]),
+        }),
+      }),
+    )
     .nullable(),
   locked: z.strictObject({ art: z.enum(ITEM_ART_LOCKS).nullable() }),
   revertible: z.boolean(),

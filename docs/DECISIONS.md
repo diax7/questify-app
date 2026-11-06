@@ -531,7 +531,8 @@ an event quest, or a Questify quest. It rewards XP or items, never event points 
 gems come only from Questify quests, achievements and level-ups (ADR-046).
 
 ## ADR-046 — Special items, gems and the Questify shop
-**Status:** Accepted (user, 2026-10-16)
+**Status:** Accepted (user, 2026-10-16). **Gems and the Questify shop superseded by ADR-760** (Dhia, 2026-11-06): no
+gems, no shop; items come from levels, achievements and souvenirs. The item kinds below still stand.
 **Decision:**
 - **Items in v1:** avatar frames, titles, and extra characters. No name colors.
 - **How items are earned:**
@@ -3671,6 +3672,7 @@ publishing cannot be undone and starts paying XP to players. Only the dialog's c
 
 ## ADR-284 — T-404 split: the gem ledger and shop (core), then the screens (standard)
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-249).
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** T-404 (CORE) builds migration 0067, the API doors and the shared schemas: the gem ledger, the payments in
 `questify_sync`, the gem shop and its purchase door, quest `gems` on the console doors. T-404b (STANDARD) builds the
 app's gem count and gem shop screen, the "+N gems" toast line, gems on the Questify quests list, the console quest
@@ -3681,6 +3683,7 @@ goes to the cheaper model and a standard review.
 
 ## ADR-285 — The gem ledger: append-only, closed sources, balance on `player_xp`
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-250). Extends ADR-046.
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** `gem_entry` is append-only and kept on the erasure tombstone, like `xp_entry`. Its source list is closed:
 `level`, `achievement`, `questify` (credits) and `purchase` (a spend), each bound by a composite foreign key to the
 same player's source row and unique per source row. There is no transfer, gift, adjustment or expiry source. The
@@ -3692,6 +3695,7 @@ later task cannot add a gem source without a migration a review sees; one locked
 
 ## ADR-286 — Gems are paid by the sync, once per earned row, retroactively; amounts are data
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-251). Extends ADR-274, ADR-280.
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** `questify_sync()` is the only door that credits gems. Under its existing locks it pays every
 `level_reached` row (level 2 and up), `achievement_earned` row and `questify_award` row (quest `gems` above 0) of the
 caller that has no gem entry yet; nothing is added to the completion transaction. Rows earned before T-404 are paid
@@ -3706,6 +3710,7 @@ gem reward cannot be raised after launch (retire it and make a new quest).
 
 ## ADR-287 — The gem shop: exclusive seeded items, one copy each, a checked purchase
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-252). Extends ADR-046, ADR-002.
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** `gem_shop_item` lists items for sale at a fixed gem price (active or retired); an item sold in the shop is
 never a level reward or a souvenir (a guard refuses both directions). A player owns at most one copy. `gem_buy` takes
 the item, the price the player saw and an idempotency key; it refuses an unknown or retired item, an owned item, a
@@ -3720,6 +3725,7 @@ silent charge after a price change; the key makes a retried tap safe.
 
 ## ADR-288 — Seeded shop catalog: six frames and six titles, no characters yet
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-253).
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** Six frames on six new procedural frame designs (`frame-15` to `frame-20`, rendered by `frameDesign`) and six
 titles, adventure-themed in both languages; titles cost 40 to 80 gems, frames 80 to 150. No character is sold until new
 character art exists, so FR-726 is partial for characters.
@@ -3730,6 +3736,7 @@ item is within reach after one event and the whole catalog takes a season.
 
 ## ADR-289 — Gem shop wording and the store-compliance row
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-254).
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** The shop's action reads "Get" (احصل عليه), never "Buy". The app has no "add gems" or "get more" control
 and no link out; a player short of gems is told how gems are earned. The shop shows "Gems are earned by playing. They
 can't be bought." STORE_COMPLIANCE 1.6 gains the row: gems earned by play, spent on cosmetic items, no IAP needed,
@@ -3740,6 +3747,7 @@ reading the shop as an unpaid in-app purchase; no chance keeps the age rating un
 
 ## ADR-290 — T-404 build choices: the purchase key, the quest gems field, the locker's shop source, the profile balance
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; CTO code review GO 93; Q-255). Extends ADR-286, ADR-287.
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** (1) `POST /v1/me/gem-shop/purchases` needs a UUID Idempotency-Key (400 `idempotency_key_invalid`
 otherwise): the database keeps it with the purchase as `gem_purchase.request_key uuid` (the plan's type), and the app
 already makes UUID keys. (2) The console quest body's `gems` is optional: left out, a new quest pays none and a saved
@@ -3762,6 +3770,7 @@ that forgets it keeps the old value rather than failing.
 
 ## ADR-291 — 0067 keeps the plan's lock order; two deploy-time deadlock windows are accepted
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; CTO code review GO 93; Q-256). Extends ADR-286 (plan review MAJOR-1).
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** 0067 takes the plan's lock list in the plan's order (player, player_xp, level_reached, achievement_earned,
 questify_quest, questify_award, item, player_item, level_item, souvenir_rule). Two live paths cannot fit any single
 order: a sync whose unlocked pre-check read `questify_quest` and `questify_award` and then waits for the player lock,
@@ -3778,6 +3787,7 @@ real players) removes the rerun.
 
 ## ADR-292 — T-404b: how the gem shop screen buys, asks again and equips
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; code review GO 91; was a worker recommendation, 2026-10-27, T-404b build; Q-257). Extends ADR-287, ADR-289, ADR-290.
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** The gem shop (`app/gem-shop.tsx`) opens from the Profile (beside the gem count) and from the locker. It
 shows the balance, the line "Gems are earned by playing. They can't be bought." on every visit, and items in sections
 (frames, titles) as cards: a frame on the player's own avatar, a title on a name plate, the price in gems, then "Get"
@@ -3798,6 +3808,7 @@ change, read the shop again; the latter keeps the sheet open with the load failu
 
 ## ADR-293 — T-404b: gem counts in Arabic, the six rings' colours, the console Gems field
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; code review GO 91; was a worker recommendation, 2026-10-27, T-404b build; Q-258). Extends ADR-288, ADR-018.
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** (1) Gems are counted by one helper with its own message forms: English "1 gem" / "N gems"; Arabic
 جوهرة واحدة, جوهرتان (subject: «لديك جوهرتان») or جوهرتين (after a verb or preposition), «N جواهر» for 3 to 10 (and 0),
 «N جوهرة» for 11 and over; digits are Western with a thousands comma. Gems are Questify's own word, not an event's
@@ -8455,3 +8466,99 @@ that holds.
 **Trade-offs:** (1) a catalog name with a direction mark that is legitimate in the author's eyes is refused at the console
 as it already was in the database, while a template body keeps accepting one; (2) the nightly run pulls the Prometheus image (a minute); (5) between creating an account and
 its first reset, a random password nobody knows is the only credential.
+
+## ADR-760 - No gems and no Questify shop: the lifetime level is the reward across Questify
+
+**Status:** Accepted (Dhia, 2026-11-06, INBOX). Supersedes ADR-046's gems and Questify shop, and the gem parts of
+ADR-284 to ADR-293. Task T-404c; plan `docs/plans/2026-11-06-t-404c-levels-only.md`.
+**Decision:** gems, the gem ledger and the Questify gem shop are removed entirely. Across Questify the reward is the
+lifetime level: every level unlocks an item, some achievements unlock their own item, and the player's level shows
+beside their name on event rankings and the profile. Inside each event a player has that event's points and rewards
+only. Level perks are cosmetic or Questify-wide, never extra points, better odds or any other advantage inside an event.
+The Questify bar's Shop tab becomes a levels screen. FR-724, FR-725 and FR-726 are retired (F-135, F-136 removed).
+**Why:** Dhia: "we don't want people to get confused between our store and the event store."
+**Trade-offs:** players lose a way to choose their items; items come only from levels, achievements and souvenirs.
+
+## ADR-761 - T-404c is split: the removal and server rewards (tier A), then the screens (tier B)
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86; Q-720).
+**Decision:** T-404c removes every gem object from the database, API, shared package, app and console, makes
+achievement tiers pay XP, adds achievement items and the level on event ranking rows, and adds `GET /v1/me/rewards`.
+T-404d builds the Levels tab and screen, the level badge, the console's achievement "Unlocks" field and the toast lines.
+Between the two the bar has four tabs on `main`; no build is cut in between.
+**Why:** the ledger and source changes need the tier A gate; the screens do not. T-404c alone completes the decision.
+**Trade-offs:** a short internal gap with no fifth tab.
+
+## ADR-762 - Two migrations: `platform_setting` alone first, then everything else
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86; Q-720).
+**Decision:** migration 0163 only deletes the `gems` setting row, drops its CHECK and widens the `xp` CHECK with three
+optional tier XP fields. Migration 0164 does the rest with every table locked up front in live-path order (tables a
+dropped foreign key references, `level_reached`, `achievement_earned` and `item`, ACCESS EXCLUSIVE from the start, plan
+review 86) and never touches `platform_setting`.
+**Why:** a sync locks `player_xp` and then reads `platform_setting`; a scan does the reverse. One transaction holding
+both strongly would deadlock with one of them (ADR-291).
+**Trade-offs:** for the moment between the two files the old sync falls back to its built-in gem amounts.
+
+## ADR-763 - Gem balances vanish; items bought with gems stay as "A Questify reward"
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86; Q-722).
+**Decision:** balances, gem entries and purchases are dropped with no conversion. Items bought in the shop stay owned
+and equipped; their `player_item` source is rewritten from `shop` to `questify` (no key), which the locker shows as
+"A Questify reward" / «مكافأة من Questify». No door can write that source.
+**Why:** no money was ever involved, the product is not launched, and converting gems to XP would invent a price.
+**Trade-offs:** test players lose unspent gems; the bought items keep a source with no detail behind it.
+
+## ADR-764 - Achievement tiers pay XP when they are earned (50, 150, 300 by default)
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86; Q-721).
+**Decision:** `xp_entry` gains the source `achievement` (one entry per player, achievement and tier). `questify_sync`
+pays it in the same step that writes the tier. Amounts are `bronzeXp`, `silverXp`, `goldXp` in the `xp` setting
+(0 to 1000, edited in the console's Amounts editor), falling back to 50, 150 and 300. Tiers earned before the migration
+pay nothing (before 0164). Questify quests keep their XP; level-ups keep only their item. Nothing is priced in XP (FR-415).
+**Why:** a bronze tier is half a 100 XP quest and all fifteen tiers give 2,500 XP, about 5% of the 30-level curve, so
+achievements help a level without replacing play. Paying at earn time needs no due check.
+**Trade-offs:** players who earned tiers on staging before the change get no XP for them.
+
+## ADR-765 - Achievement items: one per achievement, at a tier the admin picks
+
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-06, after the tier A plan review 86; Q-723).
+**Decision:** a closed table `achievement_item (achievement_id, tier, item_id)`, one item per achievement, an item
+having only one source (level, souvenir or achievement). `questify_sync` gives the item to every holder of that tier who
+does not own it, retroactively, except while the tier is revoked. The console's achievement editor sets it; a change or
+removal is refused once any player owns it from that achievement. Seeded: the gold tier of each of the five achievements
+unlocks one of the former shop frames (Compass, Falcon, Dune, Moon and Pearl rings).
+**Why:** the smallest model that lets "some achievements unlock their own item" be data, with the level item's rules.
+**Trade-offs:** one item per achievement; gold tiers take a while to reach.
+
+## ADR-766 - The derived level on event ranking rows
+
+**Status:** Accepted (Dhia, 2026-11-06, AskUserQuestion; Q-724).
+**Decision:** `ranking_rows`, `ranking_top`, `ranking_day_top` and the reader's own row carry `level`, derived from the
+player's XP (`xp_level_of`) through one primary-key lookup per row. A blocked row keeps its level, as its place and
+score. Rank-only events keep it. The app shows it on event rankings, the podium and profiles (Dhia, Q-724); not on the
+big screen, the station or the top-10 push. The completion path is untouched
+(ADR-734); the ranking read may grow by at most 0.5 ms or 10%.
+**Build note:** the level is an inline subquery per answered row: calling `xp_level_of` per row added about 36% to `ranking_top(…, 100)` on 50,000 players. As built, old and new alternating on one database (median of 15): `ranking_top` 173.1 to 181.3 ms (+4.7%), `ranking_rows` 78.6 to 79.0 ms (+0.4%).
+**Why:** Dhia chose the level badge on rankings; the read already joins the player per row.
+**Trade-offs:** one more join per row on every ranking read.
+
+## ADR-767 - The Questify bar's fourth tab is "Journey", read from `GET /v1/me/rewards`
+
+**Status:** Accepted (Dhia, 2026-11-06, AskUserQuestion; Q-724).
+**Decision:** the tab and screen are named Journey («رحلتي», Dhia's choice, Q-724), not Levels or Rewards. The screen shows the level and its bar,
+the next level's item, the trail of every level's item (unlocked or locked) and the achievement items. One caller-bound
+read, `own_level_rewards()`, answers it. No price, currency or "get" word anywhere.
+**Why:** inside an event the prizes action is already "Rewards" («الجوائز»); the change exists to avoid confusing the two.
+**Trade-offs:** inside an event "Rewards" («الجوائز») names the prizes action; outside events the word names only what a
+level or an achievement opens (the Journey headings «مكافآت المستويات» and «مكافآت الإنجازات», and the locker), never a
+price or a prize; the route is `app/(questify)/journey.tsx` (T-404d).
+
+## ADR-768 - The event currency icon "gem" stays; the terms lose Questify gems
+
+**Status:** Accepted (Dhia, 2026-11-06, AskUserQuestion; Q-725).
+**Decision:** the organizer's currency icon choice `gem` (`CURRENCY_ICONS`), its label and the memory game's gem card
+stay: they belong to an event's points, not to Questify. `docs/legal/terms-of-use.md` section 5 drops Questify gems at
+build; whether the change needs a new terms version and new acceptance is left to the legal pass.
+**Why:** removing the icon would take a choice away from organizers for no player-facing gain. Dhia confirmed: keep it.
+**Trade-offs:** an event may still call its points "gems".

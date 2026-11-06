@@ -88,8 +88,8 @@ describe("streakLines", () => {
 
 describe("spokenLabel", () => {
   it("joins the lines with a pause, drops full stops and skips empty ones", () => {
-    expect(spokenLabel(["Day streak", null, "The event is closed today.", "+5 gems."])).toBe(
-      "Day streak. The event is closed today. +5 gems",
+    expect(spokenLabel(["Day streak", null, "The event is closed today.", "+5 points."])).toBe(
+      "Day streak. The event is closed today. +5 points",
     );
   });
 });

@@ -1011,8 +1011,6 @@ const SHARED: Readonly<Record<string, string>> = {
     "platform-wide catalog with no tenant, no direct API rights; written only by the admin-checked, audited console doors, read by the caller-bound own_questify_quests (questify-quests)",
   questify_award:
     "no direct API rights; append-only, written only by questify_sync for the calling player from their own facts, read as `done` by own_questify_quests; no organizer read exists (questify-quests)",
-  gem_entry:
-    "no direct API rights; append-only, written only by questify_sync and gem_buy for the calling player, each row bound to the same player's source row; never shown to anyone else, no organizer read exists (gems)",
   legal_version:
     "platform-wide legal document versions with no tenant and no direct API rights; append-only for every role; read through legal_in_force and legal_text (public texts), written only by the admin-checked admin_legal_publish; the organizer's own acceptance of one is organizer_acceptance (legal-help)",
   help_article:
@@ -1033,8 +1031,6 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; append-only, written only by set_marketing for the calling player and marketing_opt_out for a signed link; read by the calling player's state and a platform admin's audited door; erased with the account (marketing)",
   marketing_state:
     "no direct API rights; written only by the consent log's trigger, read by own_marketing for the caller and by marketing_audience as ids of opted-in players; no organizer or public read exists (marketing)",
-  gem_purchase:
-    "no direct API rights; append-only, written only by gem_buy for the calling player; no organizer read exists (gem-shop)",
   invitation_campaign:
     "no direct API rights; written only by the owner's tenant- and scope-checked doors (invitation_request, invitation_cancel), the admin-checked console doors and the system-only sender; read by its event's team through invitation_list with rounded counts only (tested below, invitation-campaigns, invitations/routes)",
   invitation_recipient:
@@ -1091,9 +1087,9 @@ const SHARED: Readonly<Record<string, string>> = {
     "no direct API rights; one row per member and type, read and written only by the caller-bound own_alert_switches and set_own_alert_switches (a member of that organizer, their own row), read by the producers and the system-only claim (organizer-alerts, organizer-alerts/routes)",
   organizer_alert:
     "no direct API rights; the alert outbox, ids only: written by the producers' triggers and the system-only flag scan for the organizer's own members, read and moved only by the system-only claim, ack and settle (organizer-alerts)",
-  gem_shop_item:
-    "platform-wide catalog with no tenant, no direct API rights; seeded only, read through the caller-bound gem_shop (gem-shop)",
   level_item: "global reward map, no API writes; one item per configured level (profile-items)",
+  achievement_item:
+    "platform-wide catalog with no tenant, no direct API rights; one item per achievement, written only by the console door admin_achievement_save, read through the caller-bound own_level_rewards and questify_sync; no organizer read exists (achievement-rewards)",
   player_item:
     "no direct API rights; own_locker/equip/seen caller-bound and forged access tested in profile-items",
   player_equipment:
@@ -2103,8 +2099,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         "SELECT admin_level_titles_save('{}', NULL, gen_random_uuid())",
         "SELECT admin_player_intro()",
         "SELECT admin_player_intro_save('{}', NULL, gen_random_uuid())",
-        "SELECT admin_shop_items()",
-        "SELECT admin_shop_item_save('shop-map-reader', '{}', NULL, gen_random_uuid())",
       ]) {
         expect(await refusal(asA(seat, sql, [])), `${seat} ${sql}`).toBe("QE403");
       }

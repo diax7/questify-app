@@ -39,7 +39,7 @@ const ofEventParam: Door = (request) => {
 const platformWide: Door = () => null;
 
 /**
- * The play doors, by `METHOD route`: every player or device write that spends or earns (points, XP, gems, a reserved
+ * The play doors, by `METHOD route`: every player or device write that spends or earns (points, XP, a reserved
  * prize, a stamp), each with the way to find the event it acts on. `test/security/maintenance-doors.int.test.ts` walks
  * every player and device write route and fails unless it is here or on that test's open list, so an earning door
  * cannot ship unpaused.
@@ -90,7 +90,6 @@ export const PLAY_DOORS: Readonly<Record<string, Door>> = {
   "POST /v1/me/questify/sync": platformWide,
   "POST /v1/me/daily/challenge/answers": platformWide,
   "POST /v1/me/daily/word/guesses": platformWide,
-  "POST /v1/me/gem-shop/purchases": platformWide,
 };
 
 /** The 503 a paused door answers: the admin's own message in both languages, and whether the pause is platform-wide. */

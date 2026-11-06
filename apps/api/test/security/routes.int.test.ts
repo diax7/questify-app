@@ -193,10 +193,8 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); Idempotency-Key; the freeze and the admin checked in questify_quest_save, audited (questify-quests)",
   "POST /v1/admin/questify/quests/:questId/retire":
     "active platform admins only (walked below); Idempotency-Key; the admin checked again, audited; awards stay (questify-quests)",
-  "GET /v1/me/gem-shop":
-    "the calling player's own balance and owned flags through gem_shop; the catalog has no tenant (gem-shop, test/questify)",
-  "POST /v1/me/gem-shop/purchases":
-    "spends only the calling player's gems on one item through gem_buy, bound to the caller and re-checked active; UUID Idempotency-Key; no recipient (gem-shop, test/questify)",
+  "GET /v1/me/rewards":
+    "the calling player's own level, the curve's items and the achievement items through own_level_rewards, bound to the caller and re-checked active (PI401); no parameter, no other player's data; the answer's schema is strict (achievement-rewards, test/questify)",
   "GET /v1/me/daily":
     "the calling player's own games through own_daily; another player's play never shows, a right option only once the caller answered it, a word only once the caller finished it (test/security/daily-players, test/daily/routes)",
   "POST /v1/me/daily/challenge/answers":
@@ -967,13 +965,13 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/admin/catalog/achievements":
     "active platform admins only (walked below); read only; the five achievements with thresholds and names; the admin checked again in admin_achievements (QE403); 240 a minute per admin (test/console/catalog, test/db/console-catalog)",
   "PUT /v1/admin/catalog/achievements/:id":
-    "active platform admins only (walked below); one achievement's name and rising thresholds; a lowering pays gems at the next sync and is refused (409 confirmation_required, the gems named) unless confirmed; admin_achievement_save checks the admin again (QE403, CA400, CA404, CA428); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
+    "active platform admins only (walked below); one achievement's name and rising thresholds; and its optional item; a lowering pays XP and the item at the next sync and is refused (409 confirmation_required, what it pays named) unless confirmed; admin_achievement_save checks the admin again (QE403, CA400, CA404, CA428); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
   "POST /v1/admin/catalog/achievements/:id/revert":
-    "active platform admins only (walked below); puts back the before of the achievement's latest catalog audit entry through admin_achievement_save (the door re-reads it under the row lock, CA409 when stale; a revert that lowers needs confirmed), never removes an earned tier or a gem; audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
+    "active platform admins only (walked below); puts back the before of the achievement's latest catalog audit entry through admin_achievement_save (the door re-reads it under the row lock, CA409 when stale; a revert that lowers needs confirmed), never removes an earned tier or XP paid; audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
   "GET /v1/admin/catalog/amounts":
-    "active platform admins only (walked below); read only; the XP and gem amounts in force and whether each row is stored; the admin checked again in admin_amounts (QE403); 240 a minute per admin (test/console/catalog, test/db/console-catalog-xp)",
+    "active platform admins only (walked below); read only; the XP amounts in force and whether the row is stored; the admin checked again in admin_amounts (QE403); 240 a minute per admin (test/console/catalog, test/db/console-catalog-xp)",
   "PUT /v1/admin/catalog/amounts":
-    "active platform admins only (walked below); the xp and gems settings as one document, each amount in its range (the shared schema, then admin_amounts_save and the table's CHECKs: QE403, CA400); the generic settings writer cannot write these keys; audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
+    "active platform admins only (walked below); the xp setting as one document, each amount in its range (the shared schema, then admin_amounts_save and the table's CHECKs: QE403, CA400); the generic settings writer cannot write these keys; audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
   "POST /v1/admin/catalog/amounts/revert":
     "active platform admins only (walked below); puts back the amounts before the latest change through admin_amounts_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog-xp)",
   "GET /v1/admin/catalog/home-layout":
@@ -991,17 +989,17 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/admin/catalog/xp-table":
     "active platform admins only (walked below); read only; every level's start and reward item and whether anyone reached it, no player; the admin checked again in admin_xp_table (QE403); 240 a minute per admin (test/console/catalog-xp-table, test/db/console-xp-table)",
   "PUT /v1/admin/catalog/xp-table":
-    "active platform admins only (walked below); the whole curve and reward map as one document (the shared schema, then admin_xp_table_save: QE403, CA400, CA409 with the level); row locks within one 1 s budget (503 busy), never a player row; a lowering pays at each player's next sync and is refused (409 confirmation_required, the levels and gems named) unless confirmed; a reached level is never removed or remapped; audited with who, before and after; 120 changes an hour per admin (test/console/catalog-xp-table, test/db/console-xp-table, test/db/console-xp-table-races)",
+    "active platform admins only (walked below); the whole curve and reward map as one document (the shared schema, then admin_xp_table_save: QE403, CA400, CA409 with the level); row locks within one 1 s budget (503 busy), never a player row; a lowering pays at each player's next sync and is refused (409 confirmation_required, the levels named) unless confirmed; a reached level is never removed or remapped; audited with who, before and after; 120 changes an hour per admin (test/console/catalog-xp-table, test/db/console-xp-table, test/db/console-xp-table-races)",
   "POST /v1/admin/catalog/xp-table/preview":
-    "active platform admins only (walked below); read only and advisory; counts of active players going up or down and the level rewards and gems due, never a name or id; the admin checked again in admin_xp_table_preview (QE403, CA400); 240 a minute per admin, as a read (test/console/catalog-xp-table, test/db/console-xp-table)",
+    "active platform admins only (walked below); read only and advisory; counts of active players going up or down and the level rewards due, never a name or id; the admin checked again in admin_xp_table_preview (QE403, CA400); 240 a minute per admin, as a read (test/console/catalog-xp-table, test/db/console-xp-table)",
   "POST /v1/admin/catalog/xp-table/revert":
     "active platform admins only (walked below); puts back the table before its latest change through admin_xp_table_save and the same checks (CA409 when stale or when it would remove a reached level; confirmed when it lowers), never removes a reached level or an item; audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog-xp-table, test/db/console-xp-table)",
   "GET /v1/admin/catalog/items":
-    "active platform admins only (walked below); read only; Questify's items (level rewards, shop items, unassigned) with source and art lock, never an organizer's souvenir; the admin checked again in admin_items (QE403); 240 a minute per admin (test/console/catalog-xp-table, test/db/console-items)",
+    "active platform admins only (walked below); read only; Questify's items (level rewards, achievement items, unassigned) with source and art lock, never an organizer's souvenir; the admin checked again in admin_items (QE403); 240 a minute per admin (test/console/catalog-xp-table, test/db/console-items)",
   "POST /v1/admin/catalog/items":
-    "active platform admins only (walked below); a new item with id, kind, names and shipped art, optionally on sale in the same transaction (the shared schema, then admin_item_create: QE403, CA400, CA409 item_exists, the source guard); audited; 120 changes an hour per admin (test/console/catalog-xp-table, test/db/console-items)",
+    "active platform admins only (walked below); a new item with id, kind, names and shipped art (the shared schema, then admin_item_create: QE403, CA400, CA409 item_exists, the source guard); audited; 120 changes an hour per admin (test/console/catalog-xp-table, test/db/console-items)",
   "PUT /v1/admin/catalog/items/:id":
-    "active platform admins only (walked below); one item's names, and its art only while it is not on sale and no player owns it (admin_item_save: QE403, CA400, CA404 for a souvenir, CA409 item_on_sale or item_owned under the item's row lock); audited with who, before and after; 120 changes an hour per admin (test/console/catalog-xp-table, test/db/console-items)",
+    "active platform admins only (walked below); one item's names, and its art only while no player owns it or reached its level (admin_item_save: QE403, CA400, CA404 for a souvenir, CA409 item_owned under the item's row lock); audited with who, before and after; 120 changes an hour per admin (test/console/catalog-xp-table, test/db/console-items)",
   "POST /v1/admin/catalog/items/:id/revert":
     "active platform admins only (walked below); puts back the item's names and art before its latest change through admin_item_save and the same checks; a new item has nothing to revert; idempotency key; 120 an hour per admin (test/console/catalog-xp-table, test/db/console-items)",
   "GET /v1/admin/catalog/level-titles":
@@ -1010,12 +1008,6 @@ const ROUTES: Readonly<Record<string, string>> = {
     "active platform admins only (walked below); replaces the whole set of level titles (level 1 required, no level twice); admin_level_titles_save checks the admin again (QE403, CA400) and queues writers on the table; audited with the set before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog)",
   "POST /v1/admin/catalog/level-titles/revert":
     "active platform admins only (walked below); puts back the set before the latest catalog change through admin_level_titles_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog)",
-  "GET /v1/admin/catalog/gem-shop":
-    "active platform admins only (walked below); read only; the gem shop items with name, price, status and place; the admin checked again in admin_shop_items (QE403); 240 a minute per admin (test/console/catalog, test/db/console-catalog)",
-  "PUT /v1/admin/catalog/gem-shop/:id":
-    "active platform admins only (walked below); price, sale status and place of one shop item (what players paid stays in gem_purchase); admin_shop_item_save checks the admin again (QE403, CA404); audited with who, before and after; 120 changes an hour per admin (test/console/catalog, test/db/console-catalog)",
-  "POST /v1/admin/catalog/gem-shop/:id/revert":
-    "active platform admins only (walked below); puts back the before of the shop item's latest catalog audit entry through admin_shop_item_save, audited as a revert; idempotency key; 120 an hour per admin (test/console/catalog, test/db/console-catalog)",
   "POST /v1/admin/players/search":
     "active platform admins only (walked below); console_player_search re-reads the admin (QE403); a folded username prefix or an exact phone or email (the text in the body, never the URL), masked contacts, tombstones never found; not idempotent on purpose (no contact kept or replayed); audited with how, how many and the ids, never the text; 30 a minute per admin (test/console/players, test/db/console-players)",
   "GET /v1/admin/players/:playerId":
@@ -1037,9 +1029,9 @@ const ROUTES: Readonly<Record<string, string>> = {
   "POST /v1/admin/players/:playerId/ban":
     "active platform admins only (walked below); admin_ban_player re-reads the admin, a ban reason code and a note (PA400), the player locked, every way in ended, rankings repaired; never automatic, the only writer of banned with the lift; Idempotency-Key, audited (ids only); 20 an hour per admin with lifts (test/console/safety, test/db/player-safety)",
   "POST /v1/admin/players/:playerId/achievement-tiers/revoke":
-    "active platform admins only (walked below); admin_revoke_tiers re-reads the admin, a reason code and a note (PA400), 1 to 15 earned tiers of a banned player; the player and its XP row locked; an append-only mark, the earned rows and paid gems untouched; Idempotency-Key, audited (ids and tiers only); 30 an hour per admin with player changes (test/console/safety, test/db/console-catalog-xp)",
+    "active platform admins only (walked below); admin_revoke_tiers re-reads the admin, a reason code and a note (PA400), 1 to 15 earned tiers of a banned player; the player and its XP row locked; an append-only mark, the earned rows and paid XP untouched; Idempotency-Key, audited (ids and tiers only); 30 an hour per admin with player changes (test/console/safety, test/db/console-catalog-xp)",
   "POST /v1/admin/players/:playerId/achievement-tiers/restore":
-    "active platform admins only (walked below); admin_restore_tiers re-reads the admin, a reason code and a note (PA400), 1 to 15 revoked tiers; unpaid gems are paid at the next sync; Idempotency-Key, audited (ids and tiers only); 30 an hour per admin with player changes (test/console/safety, test/db/console-catalog-xp)",
+    "active platform admins only (walked below); admin_restore_tiers re-reads the admin, a reason code and a note (PA400), 1 to 15 revoked tiers; their items are given at the next sync; Idempotency-Key, audited (ids and tiers only); 30 an hour per admin with player changes (test/console/safety, test/db/console-catalog-xp)",
   "POST /v1/admin/players/:playerId/lift-ban":
     "active platform admins only (walked below); admin_lift_ban re-reads the admin, a reason code and a note; restores the account, the token cutoff stays; Idempotency-Key, audited (ids only); 20 an hour per admin with bans (test/console/safety, test/db/player-safety)",
   "GET /v1/admin/words":

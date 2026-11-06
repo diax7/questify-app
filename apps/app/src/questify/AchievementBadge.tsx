@@ -13,7 +13,8 @@ const ART: Readonly<Record<string, ImageSourcePropType>> = {
 };
 const PADLOCK: ImageSourcePropType = require("#assets/icons/padlock.png");
 
-const RING: Readonly<Record<AchievementTier, ColorRole>> = {
+/** The colour role of each tier's ring and medal. */
+export const TIER_COLOR: Readonly<Record<AchievementTier, ColorRole>> = {
   bronze: "tierBronze",
   silver: "tierSilver",
   gold: "tierGold",
@@ -48,7 +49,7 @@ export function AchievementBadge({
           width: size,
           height: size,
           borderRadius: size / 2,
-          borderColor: earned ? theme.colors[RING[tier]] : theme.colors.border,
+          borderColor: earned ? theme.colors[TIER_COLOR[tier]] : theme.colors.border,
         },
       ]}
     >

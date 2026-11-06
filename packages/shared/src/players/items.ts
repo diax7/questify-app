@@ -41,8 +41,17 @@ export const lockerEntrySchema = z.object({
       /** The sponsor an organizer tagged the souvenir to (T-507c); only the owner's own locker carries it. */
       presentedBy: presentedBySchema.nullable(),
     }),
-    /** Got for gems in the Questify gem shop (T-404). */
-    z.object({ kind: z.literal("shop") }),
+    /** A reward from Questify itself, with no detail behind it (T-404c, ADR-763). */
+    z.object({ kind: z.literal("questify") }),
+    /** Unlocked by reaching a tier of an achievement (T-404c, ADR-765). */
+    z.object({
+      kind: z.literal("achievement"),
+      achievement: z.object({
+        id: z.string().min(1).max(64),
+        name: z.object({ ar: z.string(), en: z.string() }),
+        tier: z.enum(["bronze", "silver", "gold"]),
+      }),
+    }),
   ]),
   seen: z.boolean(),
 });

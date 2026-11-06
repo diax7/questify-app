@@ -34,8 +34,8 @@ const TIER_REFUSALS: Readonly<Record<string, () => HttpError>> = {
 };
 
 /**
- * Revokes or restores earned achievement tiers of one player (T-709c, ADR-439). The earned rows and gem entries stay: a
- * revoked tier is hidden and its unpaid gems are not paid; a restore shows it again and the next sync pays what is unpaid.
+ * Revokes or restores earned achievement tiers of one player (T-709c, ADR-439). The earned rows and XP entries stay: a
+ * revoked tier is hidden and its item is not given; a restore shows it again and the next sync gives the item.
  * Only a banned player's tiers can be revoked; a restore needs no ban. The door locks the player, then its XP row (the
  * sync's order), and audits with ids and tiers only.
  *

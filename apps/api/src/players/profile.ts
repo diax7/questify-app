@@ -58,8 +58,6 @@ export type MyProfile = Readonly<{
   questify: QuestifyLevel;
   /** Answers to the player's requests not seen yet, in every queue (T-312): the profile tab's dot. */
   help: Readonly<{ unread: number }>;
-  /** The player's gem balance (T-404): earned by playing, spent in the gem shop; never shown to anyone else. */
-  gems: number;
   /** The Questify daily streak (T-405, FR-419): the owner's alone; null while the platform switch is off. */
   dailyStreak: DailyStreak | null;
   /** Whether the one-time marketing consent step was answered, and whether the player may opt in (T-407, FR-735). */
@@ -99,17 +97,6 @@ async function readLevel(client: PoolClient): Promise<Omit<QuestifyLevel, "nextR
     nextLevelAt: row.next_level_at === null ? null : Number(row.next_level_at),
     title: { ar: row.title_ar, en: row.title_en },
   };
-}
-
-/** The caller's gem balance through own_gems (migration 0067); a player always has an XP row. */
-async function readGems(client: PoolClient): Promise<number> {
-  const { rows } = await client.query<{ gems: string | null }>("SELECT own_gems() AS gems");
-  const gems = rows[0]?.gems;
-  // Stryker disable next-line ConditionalExpression,BlockStatement: unreachable: the player guard found this active player
-  if (gems === null || gems === undefined) {
-    throw unauthenticated();
-  }
-  return Number(gems);
 }
 
 /** A phone as its last four digits. */
@@ -166,7 +153,6 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
     const questify = await readLevel(client);
     const cosmetics = await readEquipment(client);
     const unread = await readUnreadTickets(client, null);
-    const gems = await readGems(client);
     const dailyStreak = await readOwnDailyStreak(client);
     const { asked, canOptIn } = await readMarketing(client);
     const notifications = await readUnread(client);
@@ -186,7 +172,6 @@ export async function readMe(deps: ProfileDeps, playerId: string): Promise<MyPro
       questify: { ...questify, nextReward: cosmetics.next_reward },
       equipment: cosmetics.equipment,
       help: { unread },
-      gems,
       dailyStreak,
       marketing: { asked, canOptIn },
       notifications: { unread: notifications },

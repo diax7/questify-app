@@ -124,7 +124,6 @@ const QUESTIFY_LEVEL: Readonly<Record<string, string>> = {
   "console.questify.conflict.tooMany": "Questify's own quests on the console, not an event's word",
   "console.questify.conflict.campaignClosed":
     "Questify's own quests on the console, not an event's word",
-  "console.questify.gemsFixed": "Questify's own quests on the console, not an event's word",
   "console.questify.metric.quests": "Questify's own quests on the console, not an event's word",
   "console.questify.secondInterests": "Questify's own quests on the console, not an event's word",
   "console.questify.targetFixed": "Questify's own quests on the console, not an event's word",

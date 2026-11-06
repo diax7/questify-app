@@ -14,8 +14,6 @@ export type Me = Readonly<{
   legal: Readonly<{ toAccept: readonly string[]; guidelinesAccepted: boolean }>;
   identifiers: Readonly<{ phone: string | null; email: string | null }>;
   questify: QuestifyLevel | undefined;
-  /** The player's own gem balance (T-404); absent from an older API. */
-  gems?: number;
   /** The Questify daily streak (T-405b); null while the platform switch is off, absent from an older API. */
   dailyStreak?: DailyStreak | null;
   /** Whether the one-time marketing step was answered, and whether the player may opt in (T-407); absent from an older API. */

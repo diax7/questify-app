@@ -29,15 +29,15 @@ const item = {
 };
 
 const sync = {
-  achievements: [{ id: "regular", tier: "bronze" }],
+  achievements: [{ id: "regular", tier: "bronze", xp: 50 }],
   quests: [{ id: UUID, title, xp: 50 }],
   levelUp: { level: 2, title, items: [] },
-  gems: { earned: 30, balance: 120 },
+  items: [],
   dailyStreak: { days: 3, today: true, next: { days: 7, xp: 100 }, rewards: [{ days: 3, xp: 50 }] },
 };
 const syncWithAchievement = (achievement: Record<string, unknown>) => ({
   ...sync,
-  achievements: [{ id: "regular", tier: "gold", ...achievement }],
+  achievements: [{ id: "regular", tier: "gold", xp: 300, ...achievement }],
 });
 const syncWithQuest = (change: Record<string, unknown>) => ({
   ...sync,
@@ -88,7 +88,7 @@ describe("questifySyncSchema", () => {
       achievements: [],
       quests: [],
       levelUp: null,
-      gems: { earned: 0, balance: 0 },
+      items: [],
       dailyStreak: null,
     };
     expect(questifySyncSchema.parse(empty)).toEqual(empty);
@@ -105,17 +105,22 @@ describe("questifySyncSchema", () => {
     ).toBe(false);
   });
 
-  it("needs the gems paid and the balance, each a whole number from 0 (T-404)", () => {
-    const { gems: _gems, ...withoutGems } = sync;
-    expect(accepts(questifySyncSchema, withoutGems)).toBe(false);
-    for (const gems of [
-      { earned: -1, balance: 0 },
-      { earned: 0, balance: -1 },
-      { earned: 1.5, balance: 2 },
-      { earned: "1", balance: 2 },
-      { earned: 1 },
-    ])
-      expect(accepts(questifySyncSchema, { ...sync, gems }), JSON.stringify(gems)).toBe(false);
+  it("needs the items it gave and each tier's XP, and never carries a balance (T-404c)", () => {
+    const { items: _items, ...withoutItems } = sync;
+    expect(accepts(questifySyncSchema, withoutItems)).toBe(false);
+    const given = { id: "x", kind: "frame", name: { ar: "ا", en: "A" }, visualKey: "frame-01" };
+    expect(
+      accepts(questifySyncSchema, {
+        ...sync,
+        items: [{ achievementId: "top-ten", tier: "gold", item: given }],
+      }),
+    ).toBe(true);
+    expect(
+      accepts(questifySyncSchema, { ...sync, items: [{ achievementId: "top-ten", tier: "gold" }] }),
+    ).toBe(false);
+    expect(
+      accepts(questifySyncSchema, { ...sync, achievements: [{ id: "top-ten", tier: "gold" }] }),
+    ).toBe(false);
   });
 
   it("bounds an achievement id to 1..64 characters and takes only the three tiers", () => {
@@ -154,7 +159,6 @@ describe("questifyQuestSchema and questifyQuestsSchema", () => {
     target: 3,
     progress: 1,
     xp: 40,
-    gems: 25,
     done: false,
   };
 
@@ -309,7 +313,6 @@ describe("questPatchSchema and questBodySchema", () => {
     target: 5,
     title,
     xp: 80,
-    gems: 10,
     position: 2,
     status: "active",
   };
@@ -320,13 +323,8 @@ describe("questPatchSchema and questBodySchema", () => {
     ["position", 1, 1000],
   ];
 
-  it("takes gems as a whole number from 0 to 1000, or leaves them out (T-404)", () => {
-    for (const gems of [0, 1, 1000])
-      expect(accepts(questPatchSchema, { ...patch, gems })).toBe(true);
-    const { gems: _gems, ...withoutGems } = patch;
-    expect(questPatchSchema.parse(withoutGems)).toEqual(withoutGems);
-    for (const gems of [-1, 1001, 2.5, "5", null])
-      expect(accepts(questPatchSchema, { ...patch, gems }), String(gems)).toBe(false);
+  it("refuses gems: quests pay XP only (T-404c)", () => {
+    expect(accepts(questPatchSchema, { ...patch, gems: 5 })).toBe(false);
   });
 
   it("keeps every field of a patch and of a body", () => {
@@ -405,7 +403,6 @@ describe("the console's reads", () => {
     target: 2000,
     title,
     xp: 0,
-    gems: 0,
     position: -1,
     status: "retired",
     createdAt: stamp,
