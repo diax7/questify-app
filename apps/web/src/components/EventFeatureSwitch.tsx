@@ -45,8 +45,8 @@ function HeldNotice({
   );
 }
 
-/** An event switch a player feature has (FR-219, FR-1009): its route and its words. */
-const FEATURES = {
+/** An event switch a player feature has (FR-219, FR-1009): its route and its words. The template preview reads its titles. */
+export const FEATURES = {
   shareQuests: {
     path: "share-quests",
     title: "events.shareQuests.title",

@@ -1113,7 +1113,7 @@ completions and ledger rows written with the answers, and lists the PostgreSQL f
 Main options: `--events` (10), `--players` per event (2,500), `--big-event-players` (0; above 0, event 1 gets that many
 players, a skewed seed for plan checks), `--quests` per event (20), `--rate-per-event` a minute
 (20,000), `--duration` (60 s), `--warmup` (10 s), `--drivers` (5), `--sockets` per driver and API (64; the server sees
-at most drivers x sockets requests at once), `--max-in-flight` per driver (4,000), `--api-instances` (1, ports 4810
+at most drivers x sockets requests at once), `--max-in-flight` per event stream of a driver (4,000), `--api-instances` (1, ports 4810
 on; drivers spread over them), `--pool-size` (10), `--rush` (steps `rate:seconds`, default `25:10,50:10,100:10,200:10`,
 below the 5,000 SMS an hour budget), `--rush-per-address` (50 codes from each client address, `X-Forwarded-For`
 10.x.y.z), `--rush-first` (the first phone, +96659 and 7 digits), `--admin-url`, `--redis-url`, `--pg-container`

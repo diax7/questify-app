@@ -145,6 +145,36 @@ function sampleWaits() {
   };
 }
 
+/**
+ * Waits (at most `limitMs`) until no load-database backend is active, so the completions' last statements do not
+ * share the rush's first seconds; says so when the wait ran out. Needs the admin connection, so local runs only.
+ */
+async function waitForIdle(limitMs = 30_000) {
+  const { Client } = pg();
+  const client = new Client({ connectionString: opt["admin-url"] });
+  await client.connect();
+  try {
+    const until = Date.now() + limitMs;
+    for (;;) {
+      const { rows } = await client.query(
+        `SELECT count(*)::int AS active FROM pg_stat_activity
+         WHERE datname LIKE 'questify_test_%' AND backend_type = 'client backend' AND state = 'active'
+           AND pid <> pg_backend_pid()`,
+      );
+      if (rows[0].active === 0) return;
+      if (Date.now() > until) {
+        say(
+          `load test: ${rows[0].active} backends still active after ${limitMs / 1000} s; the rush starts anyway.`,
+        );
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  } finally {
+    await client.end();
+  }
+}
+
 /** Samples the PostgreSQL container's CPU every 5 s until `stop()`; the samples in % of one core. */
 function samplePostgres() {
   const samples = [];
@@ -275,6 +305,8 @@ async function rushPhase(plan, baseUrls, dir) {
     .filter(Boolean)
     .map((part) => {
       const [rate, seconds] = part.split(":").map(Number);
+      if (!(rate > 0) || !(seconds > 0))
+        throw new Error(`--rush steps are rate:seconds, both above 0; got "${part}".`);
       return { ratePerSecond: rate, seconds };
     });
   if (steps.length === 0) return [];
@@ -303,6 +335,7 @@ async function rushPhase(plan, baseUrls, dir) {
           : null,
     },
   };
+  if (!opt.remote) await waitForIdle();
   const stopWaits = opt.remote ? null : sampleWaits();
   const stopCpu = samplePostgres();
   const result = await runDriver(job, dir, "rush");
@@ -347,7 +380,19 @@ async function measure(plan, baseUrls, dir, apiPids) {
   return report;
 }
 
+/** A local run creates and drops databases and Redis keys: refuse an admin or Redis address that is not this PC. */
+function requireLoopback() {
+  for (const name of ["admin-url", "redis-url"]) {
+    const host = new URL(opt[name]).hostname;
+    if (!LOOPBACK.has(host))
+      throw new Error(
+        `--${name} points at ${host}, not this PC: a local run creates and drops data there.`,
+      );
+  }
+}
+
 async function runLocal(dir) {
+  requireLoopback();
   checkDisk("before");
   build();
   const planFile = join(dir, "plan.json");
