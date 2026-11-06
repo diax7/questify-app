@@ -19,6 +19,7 @@ import {
   type OrganizerRow,
 } from "#src/lib/console-organizers.ts";
 import { translatorFor, type Translate } from "#src/lib/language.ts";
+import { FIRST_LOAD, readOrganizers, type OrganizerList } from "#src/lib/organizer-list.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
 import { Button } from "#src/ui/Button.tsx";
@@ -66,38 +67,24 @@ export function ConsoleOrganizers({ language }: Readonly<{ language: Language }>
   const t = translatorFor(language);
   const [query, setQuery] = useState({ q: "", status: "" });
   const [draft, setDraft] = useState({ q: "", status: "" });
-  const [rows, setRows] = useState<OrganizerRow[] | null>(null);
-  const [next, setNext] = useState<string | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const latest = useRef(0);
+  const [list, setList] = useState<OrganizerList>(FIRST_LOAD);
+  const { rows, next, problem, loading } = list;
+  const guard = useRef({ latest: 0 });
 
   const load = useCallback(
-    async (cursor: string | null) => {
-      latest.current += 1;
-      const mine = latest.current;
-      setLoading(true);
-      if (cursor === null) {
-        setRows(null);
-        setNext(null);
-        setProblem(null);
-      }
-      const result = await requestJson("GET", organizersPath({ ...query, cursor }));
-      if (mine !== latest.current) {
-        return;
-      }
-      setLoading(false);
-      const page = result.ok ? readOrganizerPage(result.body) : undefined;
-      if (page === undefined) {
-        setProblem(describeProblem(result.body, language, t).text);
-        return;
-      }
-      setProblem(null);
-      setRows((current) =>
-        cursor === null ? page.organizers : [...(current ?? []), ...page.organizers],
-      );
-      setNext(page.nextCursor);
-    },
+    (cursor: string | null) =>
+      readOrganizers(
+        guard.current,
+        async (at) => {
+          const result = await requestJson("GET", organizersPath({ ...query, cursor: at }));
+          const page = result.ok ? readOrganizerPage(result.body) : undefined;
+          return page === undefined
+            ? { problem: describeProblem(result.body, language, t).text }
+            : { page };
+        },
+        setList,
+        cursor,
+      ),
     [query, language, t],
   );
   useEffect(() => {

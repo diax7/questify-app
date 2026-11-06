@@ -7,6 +7,17 @@
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
 
+## FOLLOWUPS batch 11 — 2026-11-07
+
+- **FOLLOWUPS batch 11 (tier B; web, ops scripts, copy; no migration, no package change).** The load test's idle wait and lock samples
+  look at the run's own database, not every `questify_test_` one; `requireLoopback` lives in `local.mjs` and `profile.mjs` uses it; the
+  RUNBOOK says a non-loopback `--admin-url` or `--redis-url` is refused; the event switches' routes and titles moved from two client
+  components into `lib/event-switches.ts`, so the template preview imports no component; the console organizers list's reads moved
+  into `lib/organizer-list.ts` with tests for loading, appending, failures and stale replies; the template confirmation's Arabic and
+  English agree in voice (e2e string updated); the `--rush` error says rate and seconds are numbers.
+  `scripts/cranl/monitoring-setup.test.ts` (a local fake, never CranL): `create` refuses on a state file or an app of that name and
+  makes no write, and the state file is 0600. Touched suites: 118 passed. Not pushed.
+
 ## T-018b staging monitoring app, replaced — 2026-11-06
 
 - **Staging monitoring app is `questify-monitoring-staging` (tier C; ADR-812 Proposed; Q-610 stays open, T-018b stays unticked; no migration).**

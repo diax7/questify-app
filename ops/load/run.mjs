@@ -11,8 +11,10 @@ import {
   build,
   checkDisk,
   CODE_PORT_OFFSET,
+  LOOPBACK,
   pg,
   prepare as prepareWith,
+  requireLoopback,
   ROOT,
   runSync,
   say,
@@ -20,8 +22,6 @@ import {
 } from "./local.mjs";
 import { exitOnSignals } from "./interrupt.mjs";
 import { completionReport, rushReport, verdict } from "./report.mjs";
-
-const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
 const { values: opt } = parseArgs({
   options: {
@@ -110,7 +110,7 @@ function cpuMsOf(pid) {
  * Samples the load databases' client backends every 100 ms until `stop()` (T-804b): how many were active and how many
  * of those waited on an advisory lock, the platform budget's old single lock among them.
  */
-function sampleWaits() {
+function sampleWaits(database) {
   const { Client } = pg();
   const client = new Client({ connectionString: opt["admin-url"] });
   const totals = { samples: 0, active: 0, advisory: 0, otherLock: 0 };
@@ -120,8 +120,9 @@ function sampleWaits() {
     while (state.running) {
       const { rows } = await client.query(
         `SELECT wait_event_type, wait_event FROM pg_stat_activity
-         WHERE datname LIKE 'questify_test_%' AND backend_type = 'client backend' AND state = 'active'
+         WHERE datname = $1 AND backend_type = 'client backend' AND state = 'active'
            AND pid <> pg_backend_pid()`,
+        [database],
       );
       totals.samples += 1;
       totals.active += rows.length;
@@ -149,7 +150,7 @@ function sampleWaits() {
  * Waits (at most `limitMs`) until no load-database backend is active, so the completions' last statements do not
  * share the rush's first seconds; says so when the wait ran out. Needs the admin connection, so local runs only.
  */
-async function waitForIdle(limitMs = 30_000) {
+async function waitForIdle(database, limitMs = 30_000) {
   const { Client } = pg();
   const client = new Client({ connectionString: opt["admin-url"] });
   await client.connect();
@@ -158,8 +159,9 @@ async function waitForIdle(limitMs = 30_000) {
     for (;;) {
       const { rows } = await client.query(
         `SELECT count(*)::int AS active FROM pg_stat_activity
-         WHERE datname LIKE 'questify_test_%' AND backend_type = 'client backend' AND state = 'active'
+         WHERE datname = $1 AND backend_type = 'client backend' AND state = 'active'
            AND pid <> pg_backend_pid()`,
+        [database],
       );
       if (rows[0].active === 0) return;
       if (Date.now() > until) {
@@ -306,7 +308,9 @@ async function rushPhase(plan, baseUrls, dir) {
     .map((part) => {
       const [rate, seconds] = part.split(":").map(Number);
       if (!(rate > 0) || !(seconds > 0))
-        throw new Error(`--rush steps are rate:seconds, both above 0; got "${part}".`);
+        throw new Error(
+          `--rush steps are rate:seconds, both numbers above 0 (for example 25:10); got "${part}".`,
+        );
       return { ratePerSecond: rate, seconds };
     });
   if (steps.length === 0) return [];
@@ -335,8 +339,8 @@ async function rushPhase(plan, baseUrls, dir) {
           : null,
     },
   };
-  if (!opt.remote) await waitForIdle();
-  const stopWaits = opt.remote ? null : sampleWaits();
+  if (!opt.remote) await waitForIdle(plan.database);
+  const stopWaits = opt.remote ? null : sampleWaits(plan.database);
   const stopCpu = samplePostgres();
   const result = await runDriver(job, dir, "rush");
   const pgCpu = stopCpu();
@@ -380,19 +384,8 @@ async function measure(plan, baseUrls, dir, apiPids) {
   return report;
 }
 
-/** A local run creates and drops databases and Redis keys: refuse an admin or Redis address that is not this PC. */
-function requireLoopback() {
-  for (const name of ["admin-url", "redis-url"]) {
-    const host = new URL(opt[name]).hostname;
-    if (!LOOPBACK.has(host))
-      throw new Error(
-        `--${name} points at ${host}, not this PC: a local run creates and drops data there.`,
-      );
-  }
-}
-
 async function runLocal(dir) {
-  requireLoopback();
+  requireLoopback(opt);
   checkDisk("before");
   build();
   const planFile = join(dir, "plan.json");

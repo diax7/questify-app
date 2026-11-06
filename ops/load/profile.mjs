@@ -9,7 +9,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { createClient, playerHeaders } from "./http.mjs";
-import { build, checkDisk, pg, prepare, ROOT, say, startApi } from "./local.mjs";
+import { build, checkDisk, pg, prepare, requireLoopback, ROOT, say, startApi } from "./local.mjs";
 import { functionsPerCompletion, parseExplain, statementsPerCompletion } from "./profile-stats.mjs";
 import { summarize } from "./stats.mjs";
 
@@ -231,6 +231,7 @@ async function main() {
     "out",
     `profile-${new Date().toISOString().replaceAll(":", "-")}`,
   );
+  requireLoopback(opt);
   mkdirSync(dir, { recursive: true });
   checkDisk("before");
   build();

@@ -9,6 +9,7 @@ export const ROOT = join(import.meta.dirname, "..", "..");
 const BUNDLE = join(ROOT, "apps", "api", "test", "load-bundle");
 const MIN_FREE_GB = 8;
 export const CODE_PORT_OFFSET = 100;
+export const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
 export const say = (/** @type {string} */ line) => process.stdout.write(`${line}\n`);
 
@@ -25,6 +26,17 @@ export function checkDisk(stage) {
       `Only ${gb.toFixed(1)} GB free (${stage}); the load test stops under ${MIN_FREE_GB} GB.`,
     );
   return gb;
+}
+
+/** A local run creates and drops databases and Redis keys: refuse an admin or Redis address that is not this PC. */
+export function requireLoopback(opt) {
+  for (const name of ["admin-url", "redis-url"]) {
+    const host = new URL(opt[name]).hostname;
+    if (!LOOPBACK.has(host))
+      throw new Error(
+        `--${name} points at ${host}, not this PC: a local run creates and drops data there.`,
+      );
+  }
 }
 
 export function runSync(command, args, env = {}) {

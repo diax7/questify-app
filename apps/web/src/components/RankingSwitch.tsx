@@ -3,6 +3,7 @@
 import type { Language } from "@questify/shared";
 import { useState } from "react";
 import { useConfirmation } from "#src/components/useConfirmation.tsx";
+import { SWITCHES } from "#src/lib/event-switches.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -12,22 +13,6 @@ import { Row, SubHeading } from "#src/ui/Section.tsx";
 import { infoTip } from "#src/ui/info.tsx";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
-
-/** The two switches: the event's ranking (FR-607) and today's ranking for a multi-day event (FR-608). */
-export const SWITCHES = {
-  ranking: {
-    path: "ranking",
-    title: "events.ranking.title",
-    label: "events.ranking.label",
-    info: "events.ranking.hint",
-  },
-  rankingToday: {
-    path: "ranking-today",
-    title: "events.ranking.todayTitle",
-    label: "events.ranking.todayLabel",
-    info: "events.ranking.todayHint",
-  },
-} as const;
 
 type Feature = keyof typeof SWITCHES;
 
