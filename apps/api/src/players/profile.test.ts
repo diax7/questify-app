@@ -12,7 +12,6 @@ const NOW = new Date("2030-01-01T00:00:00.000Z");
 
 type Answers = Readonly<{
   level?: FakeAnswer;
-  gems?: FakeAnswer;
   marketing?: FakeAnswer;
   marketingError?: Error;
   next?: Date | null;
@@ -44,7 +43,6 @@ function build(config: ConfigResult, answers: Answers = {}) {
     if (sql.includes("legal_in_force")) return { rows: [{ r: [] }] };
     seen.push({ sql, values });
     if (sql.includes("own_level")) return answers.level ?? { rows: [levelRow("300")] };
-    if (sql.includes("own_gems")) return answers.gems ?? { rows: [{ gems: "5" }] };
     if (sql.includes("own_equipment")) {
       return {
         rows: [{ equipment: { character: null, frame: null, title: null }, next_reward: null }],
@@ -135,20 +133,12 @@ describe("GET /v1/me: the marketing step", () => {
   });
 });
 
-describe("GET /v1/me: the gem balance", () => {
-  it("answers the balance as a number", async () => {
-    build(composed({}, {}), { gems: { rows: [{ gems: "12" }] } });
-    expect((await getMe()).json().gems).toBe(12);
-  });
-
-  it.each([
-    ["no row", { rows: [] }],
-    ["a null balance", { rows: [{ gems: null }] }],
-  ])("answers 401 for %s", async (_name, gems) => {
-    build(composed({}, {}), { gems });
+describe("GET /v1/me: levels only (T-404c)", () => {
+  it("answers no gem balance", async () => {
+    build(composed({}, {}));
     const response = await getMe();
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toMatchObject({ code: "unauthenticated" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).not.toHaveProperty("gems");
   });
 });
 

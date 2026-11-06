@@ -695,7 +695,7 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
           });
         return;
       }
-      // /earned-tier: the player with this username has earned this achievement tier, its gems not paid yet (the
+      // /earned-tier: the player with this username has earned this achievement tier (the
       // console's tier revoke, T-709c).
       if (request.url === "/earned-tier") {
         db.owner

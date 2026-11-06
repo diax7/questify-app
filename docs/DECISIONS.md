@@ -3672,6 +3672,7 @@ publishing cannot be undone and starts paying XP to players. Only the dialog's c
 
 ## ADR-284 — T-404 split: the gem ledger and shop (core), then the screens (standard)
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-249).
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** T-404 (CORE) builds migration 0067, the API doors and the shared schemas: the gem ledger, the payments in
 `questify_sync`, the gem shop and its purchase door, quest `gems` on the console doors. T-404b (STANDARD) builds the
 app's gem count and gem shop screen, the "+N gems" toast line, gems on the Questify quests list, the console quest
@@ -3682,6 +3683,7 @@ goes to the cheaper model and a standard review.
 
 ## ADR-285 — The gem ledger: append-only, closed sources, balance on `player_xp`
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-250). Extends ADR-046.
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** `gem_entry` is append-only and kept on the erasure tombstone, like `xp_entry`. Its source list is closed:
 `level`, `achievement`, `questify` (credits) and `purchase` (a spend), each bound by a composite foreign key to the
 same player's source row and unique per source row. There is no transfer, gift, adjustment or expiry source. The
@@ -3693,6 +3695,7 @@ later task cannot add a gem source without a migration a review sees; one locked
 
 ## ADR-286 — Gems are paid by the sync, once per earned row, retroactively; amounts are data
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-251). Extends ADR-274, ADR-280.
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** `questify_sync()` is the only door that credits gems. Under its existing locks it pays every
 `level_reached` row (level 2 and up), `achievement_earned` row and `questify_award` row (quest `gems` above 0) of the
 caller that has no gem entry yet; nothing is added to the completion transaction. Rows earned before T-404 are paid
@@ -3707,6 +3710,7 @@ gem reward cannot be raised after launch (retire it and make a new quest).
 
 ## ADR-287 — The gem shop: exclusive seeded items, one copy each, a checked purchase
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-252). Extends ADR-046, ADR-002.
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** `gem_shop_item` lists items for sale at a fixed gem price (active or retired); an item sold in the shop is
 never a level reward or a souvenir (a guard refuses both directions). A player owns at most one copy. `gem_buy` takes
 the item, the price the player saw and an idempotency key; it refuses an unknown or retired item, an owned item, a
@@ -3721,6 +3725,7 @@ silent charge after a price change; the key makes a retried tap safe.
 
 ## ADR-288 — Seeded shop catalog: six frames and six titles, no characters yet
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-253).
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** Six frames on six new procedural frame designs (`frame-15` to `frame-20`, rendered by `frameDesign`) and six
 titles, adventure-themed in both languages; titles cost 40 to 80 gems, frames 80 to 150. No character is sold until new
 character art exists, so FR-726 is partial for characters.
@@ -3731,6 +3736,7 @@ item is within reach after one event and the whole catalog takes a season.
 
 ## ADR-289 — Gem shop wording and the store-compliance row
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; plan review 88 folded, code review GO 93; was a worker recommendation, 2026-10-27, T-404 plan; Q-254).
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** The shop's action reads "Get" (احصل عليه), never "Buy". The app has no "add gems" or "get more" control
 and no link out; a player short of gems is told how gems are earned. The shop shows "Gems are earned by playing. They
 can't be bought." STORE_COMPLIANCE 1.6 gains the row: gems earned by play, spent on cosmetic items, no IAP needed,
@@ -3741,6 +3747,7 @@ reading the shop as an unpaid in-app purchase; no chance keeps the age rating un
 
 ## ADR-290 — T-404 build choices: the purchase key, the quest gems field, the locker's shop source, the profile balance
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; CTO code review GO 93; Q-255). Extends ADR-286, ADR-287.
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** (1) `POST /v1/me/gem-shop/purchases` needs a UUID Idempotency-Key (400 `idempotency_key_invalid`
 otherwise): the database keeps it with the purchase as `gem_purchase.request_key uuid` (the plan's type), and the app
 already makes UUID keys. (2) The console quest body's `gems` is optional: left out, a new quest pays none and a saved
@@ -3763,6 +3770,7 @@ that forgets it keeps the old value rather than failing.
 
 ## ADR-291 — 0067 keeps the plan's lock order; two deploy-time deadlock windows are accepted
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; CTO code review GO 93; Q-256). Extends ADR-286 (plan review MAJOR-1).
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** 0067 takes the plan's lock list in the plan's order (player, player_xp, level_reached, achievement_earned,
 questify_quest, questify_award, item, player_item, level_item, souvenir_rule). Two live paths cannot fit any single
 order: a sync whose unlocked pre-check read `questify_quest` and `questify_award` and then waits for the player lock,
@@ -3779,6 +3787,7 @@ real players) removes the rerun.
 
 ## ADR-292 — T-404b: how the gem shop screen buys, asks again and equips
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; code review GO 91; was a worker recommendation, 2026-10-27, T-404b build; Q-257). Extends ADR-287, ADR-289, ADR-290.
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** The gem shop (`app/gem-shop.tsx`) opens from the Profile (beside the gem count) and from the locker. It
 shows the balance, the line "Gems are earned by playing. They can't be bought." on every visit, and items in sections
 (frames, titles) as cards: a frame on the player's own avatar, a title on a name plate, the price in gems, then "Get"
@@ -3799,6 +3808,7 @@ change, read the shop again; the latter keeps the sheet open with the load failu
 
 ## ADR-293 — T-404b: gem counts in Arabic, the six rings' colours, the console Gems field
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; code review GO 91; was a worker recommendation, 2026-10-27, T-404b build; Q-258). Extends ADR-288, ADR-018.
+**Superseded by ADR-760** (Dhia, 2026-11-06): no gems and no Questify shop; built out by T-404c.
 **Decision:** (1) Gems are counted by one helper with its own message forms: English "1 gem" / "N gems"; Arabic
 جوهرة واحدة, جوهرتان (subject: «لديك جوهرتان») or جوهرتين (after a verb or preposition), «N جواهر» for 3 to 10 (and 0),
 «N جوهرة» for 11 and over; digits are Western with a thousands comma. Gems are Questify's own word, not an event's
@@ -8475,6 +8485,7 @@ player's XP (`xp_level_of`) through one primary-key lookup per row. A blocked ro
 score. Rank-only events keep it. The app shows it on event rankings, the podium and profiles (Dhia, Q-724); not on the
 big screen, the station or the top-10 push. The completion path is untouched
 (ADR-734); the ranking read may grow by at most 0.5 ms or 10%.
+**Build note:** the level is an inline subquery per answered row: calling `xp_level_of` per row added about 36% to `ranking_top(…, 100)` on 50,000 players. As built, old and new alternating on one database (median of 15): `ranking_top` 173.1 to 181.3 ms (+4.7%), `ranking_rows` 78.6 to 79.0 ms (+0.4%).
 **Why:** Dhia chose the level badge on rankings; the read already joins the player per row.
 **Trade-offs:** one more join per row on every ranking read.
 

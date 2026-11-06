@@ -6,6 +6,24 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## T-404c built — 2026-11-06
+
+- **T-404c built (tier A; migrations 0163 and 0164; tier A code review and mutation owed).** Gems and the Questify gem shop
+  are gone from the database, API, shared package, app and console. Achievement tiers pay XP once when earned (50, 150, 300,
+  edited in Amounts); achievement items with the console door (five gold tiers seeded with former shop frames); bought items
+  stay owned as source `questify`; `level` on event ranking rows and `me`; `GET /v1/me/rewards`. Plan review 86 folded; ADR-761
+  to ADR-768 Accepted; Q-720 to Q-725 Answered (Q-724 the tab is "Journey" «رحلتي»; Q-725 the event's gem icon stays).
+  Tests: full suite once: 835 files, 12,871 passed, 6 fixture failures, fixed and passing on rerun; the suites the later 0164
+  edits touch were rerun, not the whole suite. Ranking read (50,000 players, old and new alternating on one database, median
+  of 15): `ranking_top(…, 100)` 173.1 to 181.3 ms (+4.7%), `ranking_rows` 78.6 to 79.0 ms (+0.4%), inside the gate.
+  **Completion gate (ADR-734) not settled:** `profile.mjs --big-event-players 50000`, one run each, back to back, base first, with
+  another worker sharing the container: base (d56e0f8c, before T-404c) 14.64 ms, branch 15.87 ms (+8%); both over the 10 ms gate,
+  so the load is the machine's, but this cannot show the completion did not move. Self times rise across functions T-404c does
+  not touch, except `xp_credit`, 0.83 to 1.05 ms, which does insert into `xp_entry` (its new CHECK and foreign key). A
+  quiet-machine run of both is owed. Staging app builds break on sync until rebuilt: the old app parses the answer's `gems`.
+  The bar has four tabs until T-404d. CI minutes: 0 (not pushed).
+  **Next:** the tier A code review of T-404c, then T-404d (Journey screen, badge, console Unlocks field).
+
 ## T-404c plan — 2026-11-06
 
 - **T-404c planned (tier A; no code yet; awaiting the plan review).** `docs/plans/2026-11-06-t-404c-levels-only.md`:

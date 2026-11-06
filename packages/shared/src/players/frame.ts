@@ -6,10 +6,10 @@ export type FrameDesign = Readonly<{
 }>;
 
 /**
- * The six gem shop rings (T-404, ADR-288): `frame-15` to `frame-20`. Their colours are not in the level frames' palette
- * so a bought ring never reads as a level reward, and each is dark enough for 3:1 on the page background.
+ * Six special rings (T-404, ADR-288, ADR-765): `frame-15` to `frame-20`. Their colours are not in the level frames'
+ * palette so one never reads as a level reward, and each is dark enough for 3:1 on the page background.
  */
-const SHOP_FRAMES: Readonly<Record<string, FrameDesign>> = {
+const SPECIAL_FRAMES: Readonly<Record<string, FrameDesign>> = {
   "frame-15": { color: "#7A3FB5", double: false, rounded: true, motif: true },
   "frame-16": { color: "#1F7F8C", double: true, rounded: false, motif: false },
   "frame-17": { color: "#B3261E", double: false, rounded: false, motif: true },
@@ -20,8 +20,8 @@ const SHOP_FRAMES: Readonly<Record<string, FrameDesign>> = {
 
 /** Finite shipped ring/motif vocabulary. Unknown future keys render no frame. */
 export function frameDesign(key: string | null | undefined): FrameDesign | null {
-  const shop = Object.hasOwn(SHOP_FRAMES, key ?? "") ? SHOP_FRAMES[key ?? ""] : undefined;
-  if (shop !== undefined) return shop;
+  const special = Object.hasOwn(SPECIAL_FRAMES, key ?? "") ? SPECIAL_FRAMES[key ?? ""] : undefined;
+  if (special !== undefined) return special;
   const match = /^frame-(0[1-9]|1[0-4])$/.exec(key ?? "");
   if (match === null) return null;
   const index = Number(match[1]) - 1;

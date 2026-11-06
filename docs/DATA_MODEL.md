@@ -52,7 +52,6 @@ admins are **staff users** with their own email-and-password accounts (ADR-078).
 | character_id, frame_item_id, title_item_id | uuid | FK | no | Avatar parts |
 | locale | text | `ar`/`en` | no | |
 | xp, level | | moved to `player_xp` (migration 0039, T-401) | no | Lifetime; see "Questify XP" below |
-| gems | bigint | ≥ 0, cache | no | |
 | status | enum | active, banned, deleted | no | Bans stick after deletion (ADR-084). `deleted` is a tombstone: only `erase_player` makes it (T-217) |
 | created_at, deleted_at | timestamptz | | no | |
 
@@ -76,7 +75,7 @@ written and read only by the console's admin doors. The audit log holds the same
 Migration 0122 (T-709c): `kind` gains `revoke_tiers` and `restore_tiers`. Migration 0120 (T-705): `kind` gains `ban` and `lift_ban`; `player.ban_action_id` points at the ban in force (its reason
 code is what the player is shown; a CHECK keeps it on banned rows only; erasure clears it first). `player.status` is written
 only by `admin_ban_player` and `admin_lift_ban` (the API's role has no UPDATE on it, ADR-429). BEFORE INSERT guards on
-`ledger_entry`, `xp_entry` and `gem_entry` pay a player who is not active nothing (PB423; refunds, removals and lowerings
+`ledger_entry` and `xp_entry` pay a player who is not active nothing (PB423; refunds, removals and lowerings
 pass, ADR-430).
 
 ### player_block (migration 0120, T-705)
@@ -130,7 +129,7 @@ Players created before 0017 have no rows and are asked again.
 - **Tombstone:** a deleted player keeps `id`, `status = 'deleted'`, `deleted_at`; `username` and `birth_year` NULL,
   `avatar` the default. Enrollments stay (active and pending ones become `left`, a ban stays), with the ledger,
   completions (`device_id` cleared), frozen `result_place` and `final_rank` rows, `achievement_earned` tiers (T-403),
-  `questify_award` rows and their XP entries (T-403b), `gem_entry` and `gem_purchase` rows (T-404), the streak rows
+  `questify_award` rows and their XP entries (T-403b), the streak rows
   (`event_streak_day`, `questify_streak_day`, `questify_streak_reward`, T-405), the ranking boards (`xp_board`, T-408)
   and handed-over redemptions; they name no one.
   Deleted: contacts, sessions, refresh tokens, username history, acceptances, fingerprints, join answers, the
@@ -539,14 +538,14 @@ Both revoked from PUBLIC, granted to the API role only.
   name_en)` (six titles): data for T-709 to edit. The amount per quest is `platform_setting` key `xp` `{questXp}`
   (1–99999, CHECKed on write; server-only, never in the public config; read with a fallback of 100).
 - No grant on any of them; `own_level(completion)` is the detailed owner XP read (the caller's xp, level, range, title
-  and the level a completion reached first). The gem ledger (T-404) will have the same shape.
+  and the level a completion reached first).
 - Migration 0124 (T-709d, ADR-440): the console edits `xp_level` and `level_item` as one document through
   `admin_xp_table_save` only (row locks: level 1 first, then each level, the changed rewards and the new items, one row per
   statement within one 1 s lock budget, CA503 when it runs out; no table lock, no player row). Index
   `level_reached_level_idx (level)` serves its "anyone reached it" probes. `levels_reach(who, made, total)` is the only
   inserter into `level_reached`: it takes FOR KEY SHARE on each level it writes, in level order, so a reach and a save
   never interleave. `player_xp.level` is a cache: `xp_apply` sets it at the player's next XP, `questify_sync`'s
-  `xp_catch_up` (right after its `player_xp` lock) writes the levels a lowering made due (item and level-up gems once) and
+  `xp_catch_up` (right after its `player_xp` lock) writes the levels a lowering made due (each item once) and
   corrects it; `own_level`, `own_equipment` and `console_player_record` derive the level from XP, while
   `public_player_profile` and `xp_board_row` show the stored level until the player's next sync (Q-399).
 
@@ -568,7 +567,7 @@ Both revoked from PUBLIC, granted to the API role only.
   backfill; historical deleted tombstones are excluded. Erasure deletes equipment then grants under the XP lock,
   preserving retained XP/reached. Tests cross old/new upgrade order, XP in flight, equip/seen and erasure both ways.
 - Future curve editing (T-709) must maintain complete distinct reward mappings atomically; grant FKs freeze used
-  mapping pairs. T-402b extends typed provenance for event souvenirs; T-404 for gem purchases, no speculative columns.
+  mapping pairs. T-402b extends typed provenance for event souvenirs; T-404c for achievement items, no speculative columns.
 - Account/locker/public-profile data remains in memory on the app, never persisted. Passport, achievements and owner
   event history are T-403 (server, below) and T-403c (screens, built; the app reads them through `GET /v1/me/event-history` and `GET /v1/me/achievements`). Source event history is never public.
 
@@ -823,13 +822,13 @@ ADR-151):
   quests 10/50/200, cities 2/4/8, top10 1/3/10, goals 1/5/15); data T-709 edits, a change never removes an earned row.
 - `achievement_earned(player_id → player_xp, achievement_id → achievement RESTRICT, tier bronze|silver|gold, earned_at)`:
   PK (player, achievement, tier); append-only for every role; kept on the tombstone (no personal data). Written only by
-  `questify_sync()`; a jump writes every tier passed. T-404 pays gems once per row.
+  `questify_sync()`; a jump writes every tier passed, each paying its XP in the same step (T-404c).
 - `achievement_revocation(id, player_id, achievement_id, tier, change revoke|restore, action_id → player_admin_action ON
   DELETE SET NULL, created_at)` (migration 0122, T-709c, ADR-439): FK (player, achievement, tier) → `achievement_earned`; a
   tier is revoked while its latest row is `revoke` (`tier_revoked()`). Append-only for every role (the guard lets only
   erasure's SET NULL of `action_id` through); kept on the tombstone. No grant: written by `admin_revoke_tiers` /
-  `admin_restore_tiers`; `earned_tier`, `own_achievements` (no next tier for an achievement with a revoked tier), `gems_due`
-  and `questify_sync`'s gem list skip a revoked tier. Thresholds are edited by `admin_achievement_save` (0122: name and
+  `admin_restore_tiers`; `earned_tier`, `own_achievements` (no next tier for an achievement with a revoked tier), and
+  `achievement_items_due` and `achievement_items_give` skip a revoked tier. Thresholds are edited by `admin_achievement_save` (0122: name and
   thresholds, row FOR NO KEY UPDATE, a lowering refused with CA428 unless confirmed).
 - Played (ADR-274): a standing quest XP credit (`xp_entry` source `quest`, never reversed) through `ledger_entry →
   enrollment` on a membership passing `played_enrollment(status, joined_via)` (not banned, not removed, not rehearsal),
@@ -872,7 +871,7 @@ ADR-151):
   NULL). A bounded call answers events, quests and cities only (top10 and goals are lifetime).
 - `player_metrics(player, since, until)` gains `interests_set` (0071, lifetime only): 1 when the player's
   `player_preference` row holds at least one interest, else 0; the city is never read. Seeded quest "Set your
-  interests" (100 XP, 10 gems, position 3; ADR-320). Clearing interests never takes the award back.
+  interests" (100 XP, position 3; ADR-320). Clearing interests never takes the award back.
 - Evaluator: `questify_due(player)` lists active always-on quests met on lifetime metrics and active quests of a
   published campaign met inside its window, from its start until `ends_at + 3 days`, not yet awarded. `questify_sync()`
   pays each after the tiers under the same locks: one award (`ON CONFLICT DO NOTHING`), one `xp_entry` (xp read under
@@ -886,49 +885,36 @@ ADR-151):
 - Migration lock order: `xp_entry` ACCESS EXCLUSIVE then `player_xp` SHARE ROW EXCLUSIVE up front, the order a scan
   takes them, under `lock_timeout = 10s`.
 
-### Gems and the gem shop (migration 0067, T-404, ADR-285 to ADR-291)
-- `player_xp.gems bigint NOT NULL DEFAULT 0 CHECK (gems >= 0)`: the balance, a cache of `gem_entry` like `xp`, on the
-  row every sync and purchase already locks FOR UPDATE. Invariant: `gems = sum(gem_entry.delta)` per player.
-- `gem_entry(id bigint identity, player_id → player_xp, delta ≠ 0, source level|achievement|questify|purchase,
-  source_level, achievement_id, tier, questify_award_id, purchase_id, created_at)`: CHECK `gem_entry_shape` (exactly the
-  key of its source; credits `delta > 0`, a purchase `delta < 0`); composite FKs to the same player's row: (player_id,
-  source_level) → `level_reached`, (player_id, achievement_id, tier) → `achievement_earned`, (questify_award_id,
-  player_id) → `questify_award (id, player_id)` (new UNIQUE `questify_award_owner_key`), (purchase_id, player_id) →
-  `gem_purchase (id, player_id)`; UNIQUE (player_id, source_level), (player_id, achievement_id, tier),
-  (questify_award_id), (purchase_id). Append-only for every role (`gem_append_only`, ENABLE ALWAYS). No transfer, gift,
-  adjustment or expiry source; never shown to anyone but its player.
-- `gem_shop_item(item_id pk → item, price 1–100000, status active|retired, position 1–1000, created_at)`: the seeded
-  catalog (six titles at 40–80, six frames at 80–150 on `frame-15`…`frame-20`, ADR-290); T-709 edits it. A retired item
-  stays owned and equippable.
-- `gem_purchase(id bigint identity, player_id → player_xp, item_id → gem_shop_item, price, request_key uuid, created_at)`:
-  UNIQUE (player_id, item_id) (one copy), (player_id, request_key) (the replay), (id, player_id), (player_id, item_id,
-  id); append-only.
-- `player_item` (altered): `source` gains `shop` with `source_purchase_id` (CHECK rewritten: level, souvenir as 0064,
-  shop has only `source_purchase_id`); FK (player_id, item_id, source_purchase_id) → `gem_purchase (player_id, item_id,
-  id)`; `owned_item_guard` freezes the new column too. `item`'s frame key allowlist widens to `frame-01`…`frame-20`.
-- Exclusive sources: `souvenir_catalog_guard` (replaced) refuses an item named by two of `level_item`, `souvenir_rule`,
-  `gem_shop_item`, each write taking the item FOR UPDATE first; an item the shop names is frozen (`GS409
-  shop_item_locked`), as an active souvenir's. Migration 0124 (T-709d, ADR-441): a shop item may change its names, its
-  art stays frozen (GS409 on `visual_key` only); the console's items doors (`admin_items`, `admin_item_save`,
-  `admin_item_create`) never list or edit a souvenir (named by a rule or `souvenir-` id, CA404).
-- Amounts: `gem_amounts()` reads `platform_setting` key `gems` `{levelUp, bronze, silver, gold}`, each field only when an
-  integer 1–1000, else 20/10/25/50 (no row is written by 0067; T-709 adds it with its CHECK). Migration 0122 (T-709c):
-  `platform_setting_gems_check` (all four present, each a JSON whole number 1–1000) and `platform_setting_xp_daily_check`
-  (`questXp` a number 1–99,999; each daily field absent or 0–400 / 0–200 / 0–1000), so `gem_amount()` falls back only for
-  a missing row; the row is written by `admin_amounts_save` (the console's Amounts tab), which first stores a missing row
-  with the amounts in force (`INSERT … ON CONFLICT DO NOTHING`) and locks both rows in key order. The table's write
-  policies now ask `app_admin_id()` and allow only the keys `features` and `tuning` (USING and WITH CHECK). `questify_quest.gems
-  integer 0–1000` (the two seeded quests 25), frozen with metric and target once the quest can pay.
-- Earning: `questify_sync()` (replaced) pays, after the tiers and the Questify quests under the same locks, every
-  `level_reached`, `achievement_earned` and paying `questify_award` row of the caller with no entry yet (retroactive for
-  rows before 0067), then moves the balance once; the unlocked pre-check gains `gems_due(player)`. Nothing is added to
-  the completion transaction. It is the only credit writer; `gem_buy` the only spend writer.
-- Doors: `gem_shop()`, `gem_buy(item, seen_price, request)`, `own_gems()` (player, caller-bound); `own_locker` gains
-  `source`. Internal, no grant: `gems_due`, `gem_amounts`, `gem_amount`, `questify_gems_of`. Kept on the erasure
-  tombstone: `gem_entry`, `gem_purchase` (no personal data); the shop's `player_item` rows are erased with the locker.
-- Migration lock order (plan review MAJOR-1, ADR-291): player EXCLUSIVE, player_xp ACCESS EXCLUSIVE, level_reached and
-  achievement_earned SHARE ROW EXCLUSIVE, questify_quest, questify_award, item, player_item ACCESS EXCLUSIVE, level_item
-  and souvenir_rule SHARE ROW EXCLUSIVE, under `lock_timeout = 10s`; `platform_setting` is never touched.
+### Levels only: achievement XP and items (migrations 0163 and 0164, T-404c, ADR-760 to ADR-768)
+
+The gem tables, `player_xp.gems`, `questify_quest.gems`, the `gems` setting and every gem door (0067, 0119, 0122) are gone.
+Balances vanished with no conversion (ADR-763). `audit_log` keeps its `catalog.gem_shop.*` entries as history.
+
+- `xp_entry` gains `achievement_id`, `tier` and the source `achievement` (`delta > 0`, both set, every other key NULL;
+  a partial UNIQUE index on (player_id, achievement_id, tier), so a scan writes no extra index entry; FK to `achievement_earned`). `questify_sync` pays it in the step that writes the
+  tier; tiers earned before 0164 pay nothing. `achievement_xp()` reads `bronzeXp`, `silverXp` and `goldXp` of the `xp`
+  setting (0 to 1000, 0163's CHECK), falling back to 50, 150, 300; a tier at 0 writes no entry.
+- `achievement_item(achievement_id pk → achievement, tier bronze|silver|gold, item_id UNIQUE → item, UNIQUE (achievement_id,
+  item_id))`: at most one item per achievement, an item having one source (`souvenir_catalog_guard` covers `level_item`,
+  `souvenir_rule` and this table, each write locking the item FOR UPDATE first). Row-level security forced, closed to PUBLIC and
+  the API role; written only by `admin_achievement_save`. Seeded: each gold tier unlocks a former shop frame.
+- `player_item.source` is `level`, `souvenir`, `questify` or `achievement`. `questify` has no key: items bought before 0164,
+  rewritten from `shop`; no door writes it. `achievement` sets `source_achievement_id` and `source_tier`, with FKs to the same
+  player's `achievement_earned` row and to `achievement_item (achievement_id, item_id)`. `owned_item_guard` freezes them.
+  `player_item_item_idx (item_id)` serves the console's "anyone owns this" checks.
+- `questify_sync` gives the items due after the tiers, the quests and the streak (`achievement_items_give`: earned, not revoked,
+  not owned; the map rows FOR KEY SHARE, so a door moving the map is waited for and then seen; retroactive; never taken back).
+  The unlocked pre-check gains `achievement_items_due`.
+- `ranking_top`, `ranking_day_top` and `ranking_rows` answer `level`: derived from the player's XP as `xp_level_of` does, in one
+  subquery per answered row (not a call of that function, not a join before the sort), kept for a row the reader blocked. The completion path does not change.
+- Doors: `own_level_rewards()` (player, caller-bound, PI401); `admin_achievement_save` takes `item` (CA409 `item_unknown`,
+  `item_has_source`, `item_given`); `admin_item_row` and `admin_item_save` lock art once any player owns the item. Internal,
+  no grant: `achievement_xp`, `achievement_items_due`, `achievement_items_give`, `admin_achievement_item`,
+  `achievement_item_checked`, `achievement_item_write`, `achievement_refuse`.
+- Lock order of 0164 (plan review 86): `xp_entry`, `player`, `player_xp`, `level_reached`, `achievement_earned`, `achievement`,
+  `questify_quest`, `questify_award`, the three gem tables, `item`, `player_item`, `level_item`, `souvenir_rule`. A dropped foreign
+  key takes ACCESS EXCLUSIVE on the table it references, so `level_reached`, `achievement_earned` and `item` are taken at that
+  mode from the start. `platform_setting` is only ever in 0163, alone (ADR-762).
 
 ### Streaks (migration 0068, T-405, ADR-294 to ADR-303)
 - `event_streak(event_id PK, organizer_id, (event_id, organizer_id) → event CASCADE, enabled bool default false,
@@ -952,7 +938,6 @@ ADR-151):
   (player_id, days), UNIQUE (id, player_id))`: a milestone paid, once ever per player. Append-only.
 - `xp_entry` gains source `streak` and `streak_reward_id bigint UNIQUE`, (streak_reward_id, player_id) →
   `questify_streak_reward (id, player_id)`; the shape CHECK's `streak` branch: `delta > 0`, only `streak_reward_id` set.
-  No `gem_entry` source exists for a streak (FR-421).
 - Writer: the `ledger_streak` trigger (AFTER INSERT ON ledger_entry WHEN kind = 'quest', after `apply_ledger_entry`,
   before `ledger_xp`) calls `streak_record`: on a live multi-day event's open day, one probe ends it when today or a
   later day is counted; else the length from the previous open day's row (`prev_open_day` skips closed weekdays and
@@ -962,7 +947,7 @@ ADR-151):
 - Reads and doors: `set_event_streak` (owner, `ST409`/`ST422`/`RF409`, audited `event.streak_set`),
   `event_streak_settings` (owners and editors), `own_event_streak`, `own_streak_bonus`, `own_daily_streak` (the caller
   only). `questify_sync` pays the milestones (`questify_streak_reward` + `xp_entry streak` + `xp_apply`) after the
-  Questify quests and before the gems; its pre-check gains `streak_due`. Internal: `streak_record`, `streak_day_closed`,
+  Questify quests; its pre-check gains `streak_due`. Internal: `streak_record`, `streak_day_closed`,
   `prev_open_day`, `daily_streak_on`, `daily_streak_length`, `daily_streak_of`, `streak_due`, `questify_day`.
 - Migration lock order: enrollment EXCLUSIVE, event, quest_completion SHARE ROW EXCLUSIVE, xp_entry, ledger_entry ACCESS
   EXCLUSIVE, player_xp SHARE ROW EXCLUSIVE, under `lock_timeout = 10s`; never `platform_setting` or `player`.
@@ -1017,7 +1002,7 @@ ADR-151):
   append-only for every role, kept on the erasure tombstone (no personal data).
 - `xp_entry` gains source `daily` and `daily_finish_id bigint UNIQUE`, (daily_finish_id, player_id) → `daily_finish (id,
   player_id)`; every shape branch gains `daily_finish_id IS NULL`, and the `daily` branch has `delta > 0` with only
-  `daily_finish_id` set. A 0-XP finish writes no entry. No `gem_entry` source and no ledger entry exist for the games.
+  `daily_finish_id` set. A 0-XP finish writes no entry. No ledger entry exists for the games.
 - Every table forces row-level security with no API or PUBLIC right. Doors (granted): `own_daily`,
   `daily_answer_submit`, `daily_guess_submit`; console: `daily_question_save`, `daily_question_retire`,
   `daily_challenge_set`, `daily_challenge_clear`, `daily_word_set`, `daily_word_clear`, `word_list_change`,
@@ -1461,7 +1446,7 @@ rows or push text.
   and many ledger entries.
 - A completion belongs to exactly one enrollment and one quest.
 - A reward has many redemptions; a redemption belongs to one enrollment.
-- XP, gems, items, achievements and Event Passport stamps (`event_stamp`; a passport quest's step stamp is
+- XP, items, achievements and Event Passport stamps (`event_stamp`; a passport quest's step stamp is
   `passport_stamp`, T-304b) belong to the **player**, not the enrollment, so
   they follow the player across events (ADR-044).
 - Staff users belong to organizers through memberships; operators are players with an assignment.
@@ -1764,7 +1749,7 @@ PUBLIC none. Not copied when an event is duplicated.
   `console_health()` and `console_numbers()` (STABLE; counts and flags; every unbounded count reads through `LIMIT 10001`),
   `console_admin_accounts(idle, max_age)` and `console_admin_sessions(account, idle, max_age)` (STABLE; QA404 for a non-admin
   account), and `admin_end_session(session, reason, request)` (VOLATILE; row lock on the session; SU400 for a reason outside
-- **Console catalog editors (T-709b, migration 0119):** eight definer doors for the API's role alone, each starting with `console_admin()` (QE403): `admin_templates()` and `admin_template_save(key, doc, revert_of, request)`, `admin_achievements()` and `admin_achievement_save(id, doc, revert_of, request)` (the name only; a threshold is CA400), `admin_level_titles()` and `admin_level_titles_save(doc, revert_of, request)`, `admin_shop_items()` and `admin_shop_item_save(item, doc, revert_of, request)`. `revert_of` is the id of the audit entry a revert undoes (NULL for a save): the door locks the row, then `catalog_revert_doc` reads that entry's `before` and raises CA409 unless it is still the row's latest catalog entry, so a revert never puts an older state over another admin's change; a second admin making the same new template key gets CA409 too. A save locks the row, changes only that row, checks text through `catalog_text` (CA400) and writes one `audit_log` entry (`catalog.<kind>.update` or `.revert`, target `event_template`, `achievement`, `level_title` (id `all`) or `gem_shop_item`) holding the edited fields before and after; CA404 for an unknown row. The partial index `audit_log_catalog_idx` finds a row's latest entry, which is what a revert reads. No table, column or grant changed.
+- **Console catalog editors (T-709b, migration 0119):** eight definer doors for the API's role alone, each starting with `console_admin()` (QE403): `admin_templates()` and `admin_template_save(key, doc, revert_of, request)`, `admin_achievements()` and `admin_achievement_save(id, doc, revert_of, request)` (the name only; a threshold is CA400), `admin_level_titles()` and `admin_level_titles_save(doc, revert_of, request)`, `admin_shop_items()` and `admin_shop_item_save(item, doc, revert_of, request)`. `revert_of` is the id of the audit entry a revert undoes (NULL for a save): the door locks the row, then `catalog_revert_doc` reads that entry's `before` and raises CA409 unless it is still the row's latest catalog entry, so a revert never puts an older state over another admin's change; a second admin making the same new template key gets CA409 too. A save locks the row, changes only that row, checks text through `catalog_text` (CA400) and writes one `audit_log` entry (`catalog.<kind>.update` or `.revert`, target `event_template`, `achievement`, `level_title` (id `all`); `gem_shop_item` in entries from before T-404c) holding the edited fields before and after; CA404 for an unknown row. The partial index `audit_log_catalog_idx` finds a row's latest entry, which is what a revert reads. No table, column or grant changed.
   10 to 300 characters; QA404 for a missing, ended or non-admin session; audit `staff.session.force_end`).
 - `revoke-admin` (`setPlatformAdmin`) locks every admin row by id and refuses the last active admin.
 

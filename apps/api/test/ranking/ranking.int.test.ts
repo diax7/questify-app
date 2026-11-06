@@ -398,6 +398,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
           fullName: null,
           avatar: "falcon",
           equipment: { character: null, frame: null, title: null },
+          level: 1,
           score: 10,
         });
         expect(seen.rows.some((row) => row.isMe)).toBe(false);
@@ -409,6 +410,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined || TEST_REDIS_URL === undefined)
             "fullName",
             "hidden",
             "isMe",
+            "level",
             "rank",
             "score",
             "username",

@@ -45,13 +45,11 @@ test("an admin builds a campaign, hears why it cannot publish yet, publishes it 
   ).toBeVisible();
   await expectNoSidewaysScroll(page);
 
-  // A seeded quest already pays, so its gems show (25) and can no longer change.
+  // A seeded quest shows the XP it pays, and nothing else (T-404c).
   const seeded = page.getByTestId("questify-quest").filter({ hasText: "شارك في 3 فعاليات" });
-  await expect(seeded).toContainText("الجواهر 25");
+  await expect(seeded).toContainText("الخبرة");
+  await expect(seeded).not.toContainText("الجواهر");
   await seeded.getByRole("button", { name: "عدّل المهمة" }).click();
-  await expect(page.getByLabel("الجواهر (من 0 إلى 1000)")).toBeDisabled();
-  await expect(page.getByLabel("الجواهر (من 0 إلى 1000)")).toHaveValue("25");
-  await expect(page.getByText("تثبت الجواهر عندما تصبح المهمة قابلة للدفع.")).toBeVisible();
   await expectNoSidewaysScroll(page);
   await page.getByRole("button", { name: "إلغاء", exact: true }).click();
 
@@ -168,10 +166,9 @@ test("in English the publish dialog says it cannot be undone and starts paying X
   await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
 
-  // A new quest starts paying no gems, and its gems can be set while it cannot pay yet.
+  // A new quest asks for its XP; there is no gems field any more.
   await campaign.getByRole("button", { name: "New quest" }).click();
-  await expect(page.getByLabel("Gems paid (0 to 1000)")).toHaveValue("0");
-  await expect(page.getByLabel("Gems paid (0 to 1000)")).toBeEnabled();
+  await expect(page.getByLabel(/gems/i)).toHaveCount(0);
 });
 
 test("Escape closes the publish dialog, sends nothing, and the page cannot take focus while it is open", async ({

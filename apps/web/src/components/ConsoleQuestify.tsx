@@ -19,7 +19,6 @@ import {
   metricKey,
   metricsFor,
   questBodyOf,
-  questCanPay,
   questDraftOf,
   questPatchOf,
   readAdminQuestify,
@@ -50,8 +49,6 @@ type Editing =
       id: string | null;
       campaignId: string | null;
       draft: QuestDraft;
-      /** The quest can pay, so its gems cannot change (ADR-286). */
-      gemsFixed: boolean;
     }>;
 type Retiring = Readonly<{ kind: "campaign" | "quest"; id: string }>;
 
@@ -170,7 +167,6 @@ function QuestForm({
   language,
   draft,
   campaignId,
-  gemsFixed,
   secondInterests,
   busy,
   change,
@@ -180,7 +176,6 @@ function QuestForm({
   language: Language;
   draft: QuestDraft;
   campaignId: string | null;
-  gemsFixed: boolean;
   /** Saving adds a second "set your interests" quest, which pays everyone who chose interests again. */
   secondInterests: boolean;
   busy: boolean;
@@ -201,12 +196,12 @@ function QuestForm({
       />
     </Field>
   );
-  const number = (key: "target" | "xp" | "gems" | "position", label: string) => (
+  const number = (key: "target" | "xp" | "position", label: string) => (
     <NumberField
       label={label}
       value={draft[key]}
       invalid={false}
-      disabled={busy || (key === "gems" && gemsFixed) || (key === "target" && targetFixed(draft))}
+      disabled={busy || (key === "target" && targetFixed(draft))}
       change={(value) => change({ [key]: value })}
     />
   );
@@ -224,8 +219,6 @@ function QuestForm({
       />
       {number("target", t("console.questify.field.target"))}
       {number("xp", t("console.questify.field.xp"))}
-      {number("gems", t("console.questify.field.gems"))}
-      {gemsFixed ? <Muted>{t("console.questify.gemsFixed")}</Muted> : null}
       {number("position", t("console.questify.field.position"))}
       <Field label={t("console.questify.field.status")}>
         <Select
@@ -278,7 +271,6 @@ function QuestRow({
           metric: t(metricKey(quest.metric)),
           target: formatNumber(quest.target, language),
           xp: formatNumber(quest.xp, language),
-          gems: formatNumber(quest.gems, language),
         })}
       </Muted>
       {open ? (
@@ -479,7 +471,6 @@ function Editor({
           {...common}
           draft={editing.draft}
           campaignId={editing.campaignId}
-          gemsFixed={editing.gemsFixed}
           secondInterests={secondInterestsQuest(view, editing.draft, editing.id)}
           change={(patch) => setEditing({ ...editing, draft: { ...editing.draft, ...patch } })}
         />
@@ -663,7 +654,6 @@ export function ConsoleQuestify({ language }: Readonly<{ language: Language }>) 
       id: quest?.id ?? null,
       campaignId: campaign?.id ?? null,
       draft: quest === undefined ? BLANK_QUEST : questDraftOf(quest),
-      gemsFixed: quest !== undefined && questCanPay(quest, campaign),
     });
 
   const doors: Doors = {

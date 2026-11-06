@@ -12,13 +12,11 @@ const TABS: ReadonlyArray<{ name: string; title: MessageKey; icon: Icon }> = [
   { name: "home", title: "nav.home", icon: "home" },
   { name: "explore", title: "nav.explore", icon: "compass" },
   { name: "scan", title: "nav.scan", icon: "scan" },
-  { name: "gem-shop", title: "nav.shop", icon: "diamond" },
   { name: "profile", title: "nav.profile", icon: "person" },
 ];
 
 /**
- * The bar outside events (FR-830, T-408b): Home, Explore, Scan in the middle, Shop (the gem shop, never an event's
- * shop) and Profile. It looks and orders like the event's bar, in one left-to-right order in both languages (user,
+ * The bar outside events (FR-830, T-408b): Home, Explore, Scan and Profile (T-404d adds Journey). It looks and orders like the event's bar, in one left-to-right order in both languages (user,
  * ADR-110 note; Q-100). The center button opens the join scanner.
  */
 export default function QuestifyTabsLayout() {

@@ -33,7 +33,7 @@ export function readPreview(body: unknown): XpTablePreview | undefined {
   return parsed.success ? parsed.data : undefined;
 }
 
-/** The levels and gems a refused lowering pays (409 `confirmation_required`), or undefined for any other answer. */
+/** The levels a refused lowering pays (409 `confirmation_required`), or undefined for any other answer. */
 export function xpLoweringOf(body: unknown): XpTableLowering | undefined {
   const answer = body as { code?: unknown; details?: unknown } | null | undefined;
   if (answer?.code !== "confirmation_required") {
@@ -89,7 +89,7 @@ export const canRemoveTop = (rows: readonly XpRowDraft[]): boolean =>
   rows.length > 2 && rows.at(-1)?.reached === false;
 
 /**
- * The items a level's picker offers: the one it holds now and every item no level holds and the shop does not sell. The
+ * The items a level's picker offers: the one it holds now and every item no level or achievement holds. The
  * database refuses the rest (an item with another source) all the same.
  */
 export function rewardChoices(
@@ -132,9 +132,6 @@ export type NewItemDraft = Readonly<{
   kind: ItemKind;
   name: Pair;
   visualKey: string | null;
-  onSale: boolean;
-  price: string;
-  position: string;
 }>;
 
 export const newItemDraft = (): NewItemDraft => ({
@@ -142,9 +139,6 @@ export const newItemDraft = (): NewItemDraft => ({
   kind: "frame",
   name: { ar: "", en: "" },
   visualKey: "frame-01",
-  onSale: false,
-  price: "",
-  position: "",
 });
 
 /** The draft of another kind, with that kind's first shipped art. */
@@ -160,21 +154,14 @@ export const checkNewItem = (draft: NewItemDraft) =>
     kind: draft.kind,
     name: { ar: draft.name.ar.trim(), en: draft.name.en.trim() },
     visualKey: draft.visualKey,
-    ...(draft.onSale
-      ? {
-          shop: {
-            price: wholeNumber(draft.price),
-            position: wholeNumber(draft.position),
-            status: "active",
-          },
-        }
-      : {}),
   });
 
-/** The source badge of an item: the level it rewards, the shop, or none. */
+/** The source badge of an item: the level it rewards, the achievement that unlocks it, or none. */
 export function sourceOf(
   item: ItemAdmin,
-): Readonly<{ kind: "level"; level: number } | { kind: "shop" } | { kind: "none" }> {
+): Readonly<{ kind: "level"; level: number } | { kind: "achievement" } | { kind: "none" }> {
   if (item.source === null) return { kind: "none" };
-  return "level" in item.source ? { kind: "level", level: item.source.level } : { kind: "shop" };
+  return "level" in item.source
+    ? { kind: "level", level: item.source.level }
+    : { kind: "achievement" };
 }

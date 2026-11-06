@@ -274,7 +274,7 @@ export function BanPanel({
 
 /**
  * Revokes earned tiers of a banned player, or restores revoked ones (T-709c, ADR-439): the tiers ticked, a reason and a
- * note, one confirmation. Paid gems stay with the player; a restored tier's unpaid gems are paid at their next sync.
+ * note, one confirmation. What the player already got stays; a restored tier's item is given at their next sync.
  * Revoke shows only while the player is banned; Restore whenever a tier is revoked.
  */
 export function TiersPanel({

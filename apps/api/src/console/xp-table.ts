@@ -5,7 +5,7 @@ import type { Admin } from "#src/console/doors";
 
 /**
  * What an XP table would do to active players now (T-709d, ADR-440): how many go up and down a level, the level rewards
- * that fall due at their next sync and the gems those pay. Read only and advisory (the console says "about"); the caller
+ * that fall due at their next sync. Read only and advisory (the console says "about"); the caller
  * has checked the document against the shared schema and the door checks it again (CA400).
  */
 export function previewXpTable(pool: Pool, admin: Admin, doc: unknown): Promise<XpTablePreview> {

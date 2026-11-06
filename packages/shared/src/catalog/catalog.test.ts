@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   ACHIEVEMENT_ID,
   AMOUNT_RANGES,
-  GEM_AMOUNTS,
   ITEM_ID,
   TEMPLATE_BODY_MAX_BYTES,
   XP_AMOUNTS,
@@ -13,15 +12,13 @@ import {
   achievementsAdminListSchema,
   amountsAdminSchema,
   amountsDocSchema,
-  gemShopAdminListSchema,
-  gemShopDocSchema,
-  gemShopItemAdminAnswerSchema,
-  gemShopItemAdminSchema,
   homeLayoutAdminSchema,
   homeLayoutDocSchema,
   levelTitlesAdminSchema,
   levelTitlesDocSchema,
-  loweredGemsSchema,
+  achievementItemSchema,
+  amountsBeforeSchema,
+  loweredTiersSchema,
   templateAdminAnswerSchema,
   templateAdminSchema,
   templateBodyIssues,
@@ -133,44 +130,65 @@ describe("achievement edit document", () => {
     );
   });
 
-  it("reads the gems a lowering pays, per lowered tier", () => {
-    expect(loweredGemsSchema.safeParse({ bronze: 10, gold: 50 }).success).toBe(true);
-    expect(loweredGemsSchema.safeParse({ platinum: 1 }).success).toBe(false);
+  it("reads the XP and the item a lowering pays, per lowered tier", () => {
+    const pays = { xp: 50, itemId: "gold-frame" };
+    expect(
+      loweredTiersSchema.safeParse({ bronze: pays, gold: { xp: 0, itemId: null } }).success,
+    ).toBe(true);
+    expect(loweredTiersSchema.safeParse({ platinum: pays }).success).toBe(false);
+    expect(loweredTiersSchema.safeParse({ bronze: 10 }).success).toBe(false);
+  });
+
+  it("takes an optional item at a tier, and null removes it (T-404c)", () => {
+    const tiers = { name, bronze: 1, silver: 2, gold: 3 };
+    const item = { tier: "gold", itemId: "gold-frame" };
+    expect(achievementDocSchema.parse({ ...tiers, item })).toEqual({ ...tiers, item });
+    expect(achievementDocSchema.parse({ ...tiers, item: null })).toEqual({ ...tiers, item: null });
+    expect(achievementDocSchema.parse(tiers)).toEqual(tiers);
+    for (const bad of [{ tier: "platinum", itemId: "a" }, { tier: "gold" }, { itemId: "a" }]) {
+      expect(achievementItemSchema.safeParse(bad).success, JSON.stringify(bad)).toBe(false);
+    }
+    expect(achievementBeforeSchema.safeParse({ name, item }).success).toBe(true);
   });
 });
 
 describe("amounts document", () => {
   const amounts = {
-    xp: { questXp: 100, dailyFinishXp: 20, dailyRightXp: 10, dailyWordXp: 50 },
-    gems: { levelUp: 20, bronze: 10, silver: 25, gold: 50 },
+    xp: {
+      questXp: 100,
+      dailyFinishXp: 20,
+      dailyRightXp: 10,
+      dailyWordXp: 50,
+      bronzeXp: 50,
+      silverXp: 150,
+      goldXp: 300,
+    },
   };
 
   it("takes every range's ends and refuses one past them", () => {
-    for (const group of ["xp", "gems"] as const) {
-      for (const [field, [low, high]] of Object.entries(AMOUNT_RANGES[group])) {
-        const at = (value: number) => ({
-          ...amounts,
-          [group]: { ...amounts[group], [field]: value },
-        });
-        expect(amountsDocSchema.safeParse(at(low)).success, `${field} ${low}`).toBe(true);
-        expect(amountsDocSchema.safeParse(at(high)).success, `${field} ${high}`).toBe(true);
-        expect(amountsDocSchema.safeParse(at(low - 1)).success, `${field} ${low - 1}`).toBe(false);
-        expect(amountsDocSchema.safeParse(at(high + 1)).success, `${field} ${high + 1}`).toBe(
-          false,
-        );
-      }
+    for (const [field, [low, high]] of Object.entries(AMOUNT_RANGES.xp)) {
+      const at = (value: number) => ({ xp: { ...amounts.xp, [field]: value } });
+      expect(amountsDocSchema.safeParse(at(low)).success, `${field} ${low}`).toBe(true);
+      expect(amountsDocSchema.safeParse(at(high)).success, `${field} ${high}`).toBe(true);
+      expect(amountsDocSchema.safeParse(at(low - 1)).success, `${field} ${low - 1}`).toBe(false);
+      expect(amountsDocSchema.safeParse(at(high + 1)).success, `${field} ${high + 1}`).toBe(false);
     }
   });
 
   it("names every amount once and refuses a missing or extra one", () => {
     expect(Object.keys(AMOUNT_RANGES.xp)).toEqual([...XP_AMOUNTS]);
-    expect(Object.keys(AMOUNT_RANGES.gems)).toEqual([...GEM_AMOUNTS]);
-    const { gold: _gold, ...three } = amounts.gems;
-    expect(amountsDocSchema.safeParse({ ...amounts, gems: three }).success).toBe(false);
-    expect(
-      amountsDocSchema.safeParse({ ...amounts, gems: { ...amounts.gems, ruby: 1 } }).success,
-    ).toBe(false);
+    const { goldXp: _goldXp, ...six } = amounts.xp;
+    expect(amountsDocSchema.safeParse({ xp: six }).success).toBe(false);
+    expect(amountsDocSchema.safeParse({ xp: { ...amounts.xp, ruby: 1 } }).success).toBe(false);
     expect(amountsDocSchema.safeParse({ ...amounts, moderation: {} }).success).toBe(false);
+    expect(amountsDocSchema.safeParse({ ...amounts, gems: {} }).success).toBe(false);
+  });
+
+  it("reads an entry from before T-404c as a revert's before: four XP fields and a gems group", () => {
+    const { bronzeXp: _b, silverXp: _s, goldXp: _g, ...four } = amounts.xp;
+    expect(amountsBeforeSchema.safeParse({ xp: four, gems: { levelUp: 20 } }).success).toBe(true);
+    expect(amountsBeforeSchema.safeParse(amounts).success).toBe(true);
+    expect(amountsBeforeSchema.safeParse({ gems: {} }).success).toBe(false);
   });
 });
 
@@ -256,9 +274,10 @@ describe("achievement thresholds out of order", () => {
     ]);
   });
 
-  it("reads a lowering's gems for any tier, each 1 or more", () => {
-    expect(loweredGemsSchema.parse({ silver: 25 })).toEqual({ silver: 25 });
-    expect(loweredGemsSchema.safeParse({ silver: 0 }).success).toBe(false);
+  it("reads a lowering's XP for any tier, 0 or more", () => {
+    const silver = { xp: 0, itemId: null };
+    expect(loweredTiersSchema.parse({ silver })).toEqual({ silver });
+    expect(loweredTiersSchema.safeParse({ silver: { xp: -1, itemId: null } }).success).toBe(false);
   });
 });
 
@@ -313,23 +332,6 @@ describe("level titles document", () => {
   });
 });
 
-describe("gem shop document", () => {
-  it("takes a price of 1 to 100,000 and a place of 1 to 1,000, and refuses past them", () => {
-    const item = { price: 1, status: "active", position: 1 };
-    expect(gemShopDocSchema.parse(item)).toEqual(item);
-    expect(
-      gemShopDocSchema.safeParse({ price: 100_000, status: "retired", position: 1000 }).success,
-    ).toBe(true);
-    for (const change of [{ price: 0 }, { price: 100_001 }, { position: 0 }, { position: 1001 }]) {
-      expect(
-        gemShopDocSchema.safeParse({ ...item, ...change }).success,
-        JSON.stringify(change),
-      ).toBe(false);
-    }
-    expect(gemShopDocSchema.safeParse({ price: 1, status: "active" }).success).toBe(false);
-  });
-});
-
 describe("the console's catalog rows", () => {
   const name = { ar: "اسم", en: "Name" };
   const template = {
@@ -351,19 +353,9 @@ describe("the console's catalog rows", () => {
     name,
     visualKey: "trophy",
     position: 2,
+    item: null,
     revertible: true,
   };
-  const shopItem = {
-    itemId: "gold-frame",
-    kind: "frame",
-    name,
-    visualKey: null,
-    price: 5,
-    status: "active",
-    position: 4,
-    revertible: false,
-  };
-
   it("reads a template, a list of them and one, and refuses a malformed one", () => {
     expect(templateAdminSchema.parse(template)).toEqual(template);
     expect(templatesAdminListSchema.parse({ templates: [template] })).toEqual({
@@ -392,24 +384,18 @@ describe("the console's catalog rows", () => {
     expect(achievementAdminAnswerSchema.safeParse({}).success).toBe(false);
   });
 
-  it("reads a gem shop item of each kind, a list of them and one", () => {
-    for (const kind of ["character", "frame", "title"]) {
-      expect(gemShopItemAdminSchema.parse({ ...shopItem, kind }).kind).toBe(kind);
-    }
-    expect(gemShopAdminListSchema.parse({ items: [shopItem] })).toEqual({ items: [shopItem] });
-    expect(gemShopItemAdminAnswerSchema.parse({ item: shopItem })).toEqual({ item: shopItem });
-    for (const change of [{ kind: "badge" }, { price: 0 }, { position: 0 }, { name: {} }]) {
-      expect(gemShopItemAdminSchema.safeParse({ ...shopItem, ...change }).success).toBe(false);
-    }
-    expect(gemShopAdminListSchema.safeParse({}).success).toBe(false);
-    expect(gemShopItemAdminAnswerSchema.safeParse({}).success).toBe(false);
-  });
-
   it("reads the amounts with what is stored, and the level titles from level 1", () => {
     const amounts = {
-      xp: { questXp: 100, dailyFinishXp: 20, dailyRightXp: 10, dailyWordXp: 50 },
-      gems: { levelUp: 20, bronze: 10, silver: 25, gold: 50 },
-      stored: { xp: true, gems: false },
+      xp: {
+        questXp: 100,
+        dailyFinishXp: 20,
+        dailyRightXp: 10,
+        dailyWordXp: 50,
+        bronzeXp: 50,
+        silverXp: 150,
+        goldXp: 300,
+      },
+      stored: { xp: true },
       revertible: false,
     };
     expect(amountsAdminSchema.parse(amounts)).toEqual(amounts);

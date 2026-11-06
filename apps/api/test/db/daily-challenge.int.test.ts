@@ -27,7 +27,7 @@ type Challenge = {
  * The daily challenge in the database (T-406, migration 0069, FR-730, FR-731, ADR-309): three answers in order, each
  * final, the finish paying 20 XP plus 10 a right answer once through xp_entry's `daily` source and keeping the daily
  * streak; the period and content checks before anything secret; replays by the natural key; the switch; the XP field
- * ranges; levels and gems; the lock order against every live path that shares the player's rows.
+ * ranges; levels; the lock order against every live path that shares the player's rows.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("the daily challenge (database)", () => {
   let f: DailyFixture;
@@ -275,7 +275,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily challenge (database)
     }
   });
 
-  it("levels up at once from daily XP and pays the level's gems at the next sync", async () => {
+  it("levels up at once from daily XP, with its item in the same call", async () => {
     const { picked, challenge } = await f.challengeToday();
     const player = await f.newPlayer();
     await f.play(await f.newEvent({ phase: "live" }), player);
@@ -294,19 +294,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily challenge (database)
     } finally {
       await f.owner("UPDATE platform_setting SET value = value - 'dailyFinishXp' WHERE key = 'xp'");
     }
-    const synced = (
-      await f.asPlayer<{ r: { gems: { earned: number } } }>(player, "SELECT questify_sync() AS r")
-    )[0]?.r;
-    expect(synced?.gems.earned).toBeGreaterThan(0);
-    expect(
-      await count("gem_entry WHERE player_id = $1 AND source = 'level' AND source_level = 2", [
-        player,
-      ]),
-    ).toBe(1);
+    await f.asPlayer(player, "SELECT questify_sync() AS r");
     expect(await f.xpHolds(player)).toBe(true);
   });
 
-  it("refuses forged daily XP rows, and no gem source or gem writer knows the daily games", async () => {
+  it("refuses forged daily XP rows, and no daily door writes the points ledger", async () => {
     const { picked, challenge } = await f.challengeToday();
     const player = await f.newPlayer();
     await playAll(player, challenge.id, picked);
@@ -358,18 +350,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily challenge (database)
         [zero, empty?.id],
       ),
     ).toMatch(/^23514/);
-    const [gems] = await f.owner<{ def: string }>(
-      "SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = 'gem_entry_shape'",
-    );
-    expect(gems?.def).not.toMatch(/daily/);
-    const writers = await f.owner<{ name: string }>(
-      `SELECT p.proname AS name FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-       WHERE n.nspname = 'public' AND p.prosrc ~ 'INSERT INTO gem_entry' ORDER BY 1`,
-    );
-    expect(writers.map((w) => w.name)).toEqual(["gem_buy", "questify_sync"]);
     const daily = await f.owner<{ name: string }>(
       `SELECT p.proname AS name FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-       WHERE n.nspname = 'public' AND p.proname LIKE 'daily%' AND p.prosrc ~ '(gem_entry|ledger_entry|enrollment)'`,
+       WHERE n.nspname = 'public' AND p.proname LIKE 'daily%' AND p.prosrc ~ '(ledger_entry|enrollment)'`,
     );
     expect(daily).toEqual([]);
   });
@@ -466,22 +449,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the daily challenge (database)
       }
     });
 
-    it("questify_sync and gem_buy, both orders", async () => {
-      for (const other of [
-        "SELECT questify_sync() AS r",
-        "SELECT gem_buy('shop-map-reader', 40, gen_random_uuid()) AS r",
-      ]) {
-        for (const dailyFirst of [true, false]) {
-          const { player, last } = await ready();
-          await f.owner("UPDATE player_xp SET gems = 100 WHERE player_id = $1", [player]);
-          const statement = f.asPlayerStatement(player, other, []);
-          const crossed = dailyFirst
-            ? await f.held(last, statement)
-            : await f.held(statement, last);
-          expect(crossed.second).toHaveProperty("r");
-          expect(await f.xpOf(player)).toBe(50);
-          expect(await f.xpHolds(player)).toBe(true);
-        }
+    it("questify_sync, both orders", async () => {
+      for (const dailyFirst of [true, false]) {
+        const { player, last } = await ready();
+        const statement = f.asPlayerStatement(player, "SELECT questify_sync() AS r", []);
+        const crossed = dailyFirst ? await f.held(last, statement) : await f.held(statement, last);
+        expect(crossed.second).toHaveProperty("r");
+        expect(await f.xpOf(player)).toBe(50);
+        expect(await f.xpHolds(player)).toBe(true);
       }
     });
 

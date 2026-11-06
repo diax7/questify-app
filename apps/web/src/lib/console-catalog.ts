@@ -1,14 +1,11 @@
 import {
-  GEM_AMOUNTS,
   TEMPLATE_KEY,
   XP_AMOUNTS,
   achievementDocSchema,
   achievementsAdminListSchema,
   amountsAdminSchema,
   amountsDocSchema,
-  loweredGemsSchema,
-  gemShopAdminListSchema,
-  gemShopDocSchema,
+  loweredTiersSchema,
   levelTitlesAdminSchema,
   levelTitlesDocSchema,
   templateBodyIssues,
@@ -18,8 +15,7 @@ import {
   type AmountGroup,
   type AmountsAdmin,
   type AmountsDoc,
-  type GemShopItemAdmin,
-  type LoweredGems,
+  type LoweredTiers,
   type MessageKey,
   type LevelTitlesAdmin,
   type TemplateDoc,
@@ -31,14 +27,12 @@ export const CATALOG_API = "/v1/admin/catalog";
 export const TEMPLATES_API = `${CATALOG_API}/templates`;
 export const ACHIEVEMENTS_API = `${CATALOG_API}/achievements`;
 export const LEVEL_TITLES_API = `${CATALOG_API}/level-titles`;
-export const GEM_SHOP_API = `${CATALOG_API}/gem-shop`;
 export const AMOUNTS_API = `${CATALOG_API}/amounts`;
 
 export const CATALOG_TABS = [
   "templates",
   "achievements",
   "levels",
-  "shop",
   "amounts",
   "xp",
   "items",
@@ -63,25 +57,21 @@ export function readLevelTitles(body: unknown): LevelTitlesAdmin | undefined {
   const parsed = levelTitlesAdminSchema.safeParse(body);
   return parsed.success ? parsed.data : undefined;
 }
-export function readGemShop(body: unknown): GemShopItemAdmin[] | undefined {
-  const parsed = gemShopAdminListSchema.safeParse(body);
-  return parsed.success ? parsed.data.items : undefined;
-}
 export function readAmounts(body: unknown): AmountsAdmin | undefined {
   const parsed = amountsAdminSchema.safeParse(body);
   return parsed.success ? parsed.data : undefined;
 }
 
 /**
- * The gems a lowering would pay, when the API refused it for want of a confirmation (409 `confirmation_required`), or
- * undefined for any other answer.
+ * What a lowering would pay per lowered tier, when the API refused it for want of a confirmation (409
+ * `confirmation_required`), or undefined for any other answer.
  */
-export function loweredGemsOf(body: unknown): LoweredGems | undefined {
-  const answer = body as { code?: unknown; details?: { gems?: unknown } } | null | undefined;
+export function loweredTiersOf(body: unknown): LoweredTiers | undefined {
+  const answer = body as { code?: unknown; details?: { tiers?: unknown } } | null | undefined;
   if (answer?.code !== "confirmation_required") {
     return undefined;
   }
-  const parsed = loweredGemsSchema.safeParse(answer.details?.gems);
+  const parsed = loweredTiersSchema.safeParse(answer.details?.tiers);
   return parsed.success ? parsed.data : undefined;
 }
 
@@ -236,10 +226,9 @@ export const isAchievementDirty = (row: AchievementAdmin, draft: AchievementDraf
 
 type Fields<Names extends readonly string[]> = Readonly<Record<Names[number], string>>;
 
-/** The XP and gem amounts as typed (T-709c). */
+/** The XP amounts as typed (T-709c, T-404c). */
 export type AmountsDraft = Readonly<{
   xp: Fields<typeof XP_AMOUNTS>;
-  gems: Fields<typeof GEM_AMOUNTS>;
 }>;
 
 const textOf = <Names extends readonly string[]>(
@@ -252,11 +241,10 @@ const numbersOf = (values: Readonly<Record<string, string>>): Record<string, num
 
 export const amountsDraftOf = (row: AmountsAdmin): AmountsDraft => ({
   xp: textOf(XP_AMOUNTS, row.xp),
-  gems: textOf(GEM_AMOUNTS, row.gems),
 });
 
 export const checkAmounts = (draft: AmountsDraft) =>
-  checked(amountsDocSchema, { xp: numbersOf(draft.xp), gems: numbersOf(draft.gems) });
+  checked(amountsDocSchema, { xp: numbersOf(draft.xp) });
 
 /** The words of one amount; every amount has them (console-catalog.test). */
 export const amountLabel = (group: AmountGroup, field: string): MessageKey =>
@@ -281,7 +269,7 @@ export function amountChanges(row: AmountsAdmin, doc: AmountsDoc): AmountChange[
         to: (doc[group] as Readonly<Record<string, number>>)[field] ?? 0,
       }))
       .filter((change) => change.from !== change.to);
-  return [...of("xp", XP_AMOUNTS), ...of("gems", GEM_AMOUNTS)];
+  return of("xp", XP_AMOUNTS);
 }
 
 // ---------------------------------------------------------------- level titles
@@ -313,29 +301,3 @@ const trimmed = (titles: readonly LevelTitleDraft[]): LevelTitleDraft[] =>
     levelFrom: title.levelFrom.trim(),
     name: { ar: title.name.ar.trim(), en: title.name.en.trim() },
   }));
-
-// ---------------------------------------------------------------- the gem shop
-
-export type ShopDraft = Readonly<{ price: string; status: "active" | "retired"; position: string }>;
-
-export const shopDraftOf = (row: GemShopItemAdmin): ShopDraft => ({
-  price: String(row.price),
-  status: row.status,
-  position: String(row.position),
-});
-
-export const checkShop = (draft: ShopDraft) =>
-  checked(gemShopDocSchema, {
-    price: wholeNumber(draft.price),
-    status: draft.status,
-    position: wholeNumber(draft.position),
-  });
-
-export const isShopDirty = (row: GemShopItemAdmin, draft: ShopDraft): boolean => {
-  const stored = shopDraftOf(row);
-  return (
-    draft.price.trim() !== stored.price ||
-    draft.status !== stored.status ||
-    draft.position.trim() !== stored.position
-  );
-};

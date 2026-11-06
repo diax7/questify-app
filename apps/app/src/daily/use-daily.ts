@@ -43,7 +43,7 @@ export function useOwnDaily(): DailyRead {
 }
 
 /**
- * What a finishing move sets going: the profile read again (XP, level, streak) and a sync, which pays the gems of a
+ * What a finishing move sets going: the profile read again (XP, level, streak) and a sync, which pays the items of a
  * level crossed and any streak milestone (ADR-309). The level-up card waits for `useCelebrateWhen`.
  */
 export function useAfterFinish(): () => void {

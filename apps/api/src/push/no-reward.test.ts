@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const SRC = join(import.meta.dirname, "..");
-/** What pays or opens anything: rewards and the desk, the ledger's writers, quests and plays, XP and gems. */
+/** What pays or opens anything: rewards and the desk, the ledger's writers, quests and plays, XP. */
 const PAYING = [
   "rewards",
   "desk",
@@ -24,7 +24,7 @@ const files = (directory: string): string[] =>
     .map((entry) => join(entry.parentPath, entry.name));
 
 describe("FR-1106: push is never rewarded and blocks nothing", () => {
-  it("no rewards, ledger, quest, XP or gem code reads the push device or the permission", () => {
+  it("no rewards, ledger, quest or XP code reads the push device or the permission", () => {
     const offenders = PAYING.flatMap((folder) => files(join(SRC, folder)))
       .filter((file) => NAMES.test(readFileSync(file, "utf8")))
       .map((file) => file.slice(SRC.length + 1));

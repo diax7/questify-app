@@ -560,7 +560,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     quest can pay) and the gems in the list row; every string in both languages. Proposed ADR-292, ADR-293 / Q-257, Q-258.
     Phone check owed (RTL, Reduce Motion, the sheet, VoiceOver/TalkBack labels, the six rings). Progress 81/157 (51.59%).
   - Done when: No purchase or gift option exists on any screen; a player with too few gems is told how gems are earned.
-- [ ] **T-404c** Remove gems and the Questify gem shop; the lifetime level is the only reward across Questify (Dhia,
+- [x] **T-404c** Remove gems and the Questify gem shop; the lifetime level is the only reward across Questify (Dhia,
   2026-11-06, INBOX) — removes FR 724, 725, 726 (F-135, F-136); depends on: T-404, T-404b
   - Tier A (it rewrites the XP and level payouts and drops a ledger): plan, plan review, build, code review, mutation.
   - Remove entirely (no shim): `gem_entry`, `player_xp.gems`, `gem_shop_item`, `gem_purchase`, `gem_amounts`, the gem
@@ -577,6 +577,7 @@ _XP, levels, items, gems, passport, streaks, achievements, the daily challenge a
     ADR-768 Accepted, Q-720 to Q-725 Answered. Split (ADR-761): T-404c is the removal everywhere plus the
     server rewards (migrations 0163 and 0164: achievement tier XP, achievement items, `level` on event ranking rows,
     `GET /v1/me/rewards`, the console Amounts shape); the screens are T-404d below.
+  - Done 2026-11-06 (tier A code review and mutation owed): migrations 0163 and 0164; no gem object anywhere (database, API, shared, app, console); tiers pay XP (50, 150, 300, data); achievement items with the console door; `level` on event ranking rows; `GET /v1/me/rewards`; the Questify bar has four tabs until T-404d.
 - [ ] **T-404d** The Journey tab and screen («رحلتي», Dhia, Q-724), the level badge on event rankings and profiles, the console achievement
   "Unlocks" field (tier B; plan `docs/plans/2026-11-06-t-404c-levels-only.md` sections 7 and 9) — delivers FR 744 and
   the screen half of FR 742, 743 (F-171, F-349, F-350); depends on: T-404c

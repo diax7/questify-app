@@ -136,7 +136,6 @@ const INFO_TIPS: readonly string[] = [
   "console.catalog.intro",
   "console.catalog.items.intro",
   "console.catalog.levels.intro",
-  "console.catalog.shop.intro",
   "console.catalog.templates.intro",
   "console.catalog.xp.intro",
   "console.featureUsage.intro",

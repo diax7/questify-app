@@ -580,7 +580,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
-  it("keeps the catalog editors closed: twenty doors for the API's role alone, internals for nobody (T-709b to T-709d, T-713, T-802b)", async () => {
+  it("keeps the catalog editors closed: eighteen doors for the API's role alone, internals for nobody (T-709b to T-709d, T-713, T-802b)", async () => {
     const doors = [
       "admin_achievement_save",
       "admin_achievements",
@@ -595,8 +595,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "admin_level_titles_save",
       "admin_player_intro",
       "admin_player_intro_save",
-      "admin_shop_item_save",
-      "admin_shop_items",
       "admin_template_save",
       "admin_templates",
       "admin_xp_table",
@@ -608,7 +606,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "admin_item_row",
       "admin_xp_table_doc",
       "item_is_souvenir",
-      "item_shop_checked",
       "levels_due",
       "levels_reach",
       "xp_board_active_between",
@@ -626,7 +623,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "admin_amounts_doc",
       "amount_field_ok",
       "amounts_group",
-      "admin_shop_item_doc",
       "admin_level_titles_doc",
       "admin_template_doc",
       "catalog_audit",
@@ -687,8 +683,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "UPDATE public.platform_setting SET value = '{}' WHERE key = 'playerIntro'",
       "SELECT public.admin_level_titles()",
       `SELECT public.admin_level_titles_save('{}', NULL, ${request})`,
-      "SELECT public.admin_shop_items()",
-      `SELECT public.admin_shop_item_save('shop-map-reader', '{}', NULL, ${request})`,
       "SELECT public.admin_xp_table()",
       `SELECT public.admin_xp_table_save('{}', NULL, true, ${request})`,
       "SELECT public.admin_xp_table_preview('{}')",
@@ -2557,31 +2551,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       expect(overloads).toEqual([]);
     });
 
-    it("cannot read the gem record or the shop, sync, buy, or reach the gem helpers (T-404)", async () => {
+    it("cannot read the achievement map or the level rewards, or reach their helpers (T-404c)", async () => {
       const probe = "gen_random_uuid()";
       for (const sql of [
-        "SELECT * FROM public.gem_entry",
-        "SELECT * FROM public.gem_purchase",
-        "SELECT * FROM public.gem_shop_item",
-        "SELECT public.gem_shop()",
-        `SELECT public.gem_buy('shop-map-reader', 40, ${probe})`,
-        "SELECT public.own_gems()",
-        `SELECT public.gems_due(${probe})`,
-        "SELECT * FROM public.gem_amounts()",
-        "SELECT public.gem_amount('{}', 'levelUp', 20)",
-        "SELECT public.questify_gems_of('{}', 0)",
+        "SELECT * FROM public.achievement_item",
+        "INSERT INTO public.achievement_item (achievement_id, tier, item_id) VALUES ('top-ten', 'gold', 'x')",
+        "SELECT public.own_level_rewards()",
+        "SELECT * FROM public.achievement_xp()",
+        `SELECT public.achievement_items_due(${probe})`,
+        `SELECT public.achievement_items_give(${probe})`,
+        "SELECT public.admin_achievement_item('top-ten')",
+        "SELECT public.achievement_refuse('a', 'b')",
+        "SELECT public.achievement_item_checked('{}', NULL)",
+        "SELECT public.achievement_item_write('top-ten', NULL, NULL)",
+        "SELECT public.own_locker(NULL, NULL, 1)",
+        "SELECT * FROM public.ranking_top(gen_random_uuid(), 10)",
+        "SELECT * FROM public.ranking_day_top(gen_random_uuid(), 10)",
+        "SELECT * FROM public.ranking_rows(gen_random_uuid(), ARRAY[]::uuid[])",
       ]) {
         await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
       }
       const names = [
-        "gem_shop",
-        "gem_buy",
-        "own_gems",
-        "gems_due",
-        "gem_amounts",
-        "gem_amount",
-        "gem_append_only",
-        "questify_gems_of",
+        "own_level_rewards",
+        "achievement_xp",
+        "achievement_items_due",
+        "achievement_items_give",
+        "admin_achievement_item",
+        "achievement_refuse",
+        "achievement_item_checked",
+        "achievement_item_write",
         "own_locker",
         "souvenir_catalog_guard",
         "owned_item_guard",
@@ -2594,14 +2592,24 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
              AND p.proname IN (${names.map((name) => `'${name}'`).join(", ")})
            ORDER BY 1`,
         );
-      // PUBLIC holds nothing; the API's role holds the three player doors and the locker read only.
+      // PUBLIC holds nothing; the API's role holds the player's two reads only.
       expect(await grants("0")).toEqual([]);
       expect((await grants("'questify_app'::regrole")).map((row) => row.proname)).toEqual([
-        "gem_buy",
-        "gem_shop",
-        "own_gems",
+        "own_level_rewards",
         "own_locker",
       ]);
+    });
+
+    it("finds no gem table, door or column left (ADR-760)", async () => {
+      expect(
+        await rows<{ name: string }>(
+          `SELECT p.proname AS name FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           WHERE n.nspname = 'public' AND p.proname ~ '(^|_)gems?(_|$)'
+           UNION ALL
+           SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+           WHERE n.nspname = 'public' AND c.relname ~ '(^|_)gems?(_|$)'`,
+        ),
+      ).toEqual([]);
     });
 
     it("cannot read or play the daily games, set their content, or reach their helpers (T-406)", async () => {

@@ -719,7 +719,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the shop window (database)", (
       );
       const before = [await kept(first, event), await kept(second, event)];
       expect(before[0]?.passport[0]).toMatchObject({ rank: 1, rank_state: "final", played: true });
-      expect(before[0]?.stored?.["items"]).toHaveLength(1);
+      // The souvenir, and level 2: the two tiers' XP (T-404c) carries the first player to 200.
+      expect(before[0]?.stored?.["items"]).toHaveLength(2);
       expect(before[1]?.stored?.["achievements"]).not.toEqual([]);
 
       await owner("UPDATE event SET shop_days_after = 0 WHERE id = $1", [event]);

@@ -6,8 +6,15 @@ import { questifyFixture, type QuestifyFixture } from "#test/support/questify";
 import { addMember, TEST_DATABASE_URL } from "#test/support/test-db";
 
 type Doc = Record<string, unknown>;
-type Achievement = { id: string; bronze: number; silver: number; gold: number; name: Doc };
-type Amounts = { xp: Doc; gems: Doc; stored: { xp: boolean; gems: boolean } };
+type Achievement = {
+  id: string;
+  bronze: number;
+  silver: number;
+  gold: number;
+  name: Doc;
+  item: Doc | null;
+};
+type Amounts = { xp: Doc; stored: { xp: boolean } };
 
 /** A call's SQLSTATE and detail ("CA400:thresholds"), or "none". */
 const refusal = (work: Promise<unknown>): Promise<string> =>
@@ -28,14 +35,21 @@ const thresholds = (bronze: number, silver: number, gold: number) => ({
   gold,
 });
 const DEFAULT_AMOUNTS = {
-  xp: { questXp: 100, dailyFinishXp: 20, dailyRightXp: 10, dailyWordXp: 50 },
-  gems: { levelUp: 20, bronze: 10, silver: 25, gold: 50 },
+  xp: {
+    questXp: 100,
+    dailyFinishXp: 20,
+    dailyRightXp: 10,
+    dailyWordXp: 50,
+    bronzeXp: 50,
+    silverXp: 150,
+    goldXp: 300,
+  },
 };
 
 /**
  * T-709c part 1 in the database (migration 0122): the achievement thresholds (a lowering pays once at the next sync and
- * needs a confirmation; a revert never claws back), the XP and gem amounts (CHECKed, one audited door, the generic writer
- * narrowed), and the revoke and restore of a banned player's tiers (an append-only mark; paid gems stay).
+ * needs a confirmation; a revert never claws back), the XP amounts (CHECKed, one audited door, the generic writer
+ * narrowed), and the revoke and restore of a banned player's tiers (an append-only mark; paid XP stays).
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)(
   "console thresholds, amounts and tiers (database)",
@@ -55,7 +69,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
     afterEach(async () => {
       const drift = await f.owner(
         `SELECT x.player_id FROM player_xp x
-       WHERE x.gems <> coalesce((SELECT sum(g.delta) FROM gem_entry g WHERE g.player_id = x.player_id), 0)`,
+       WHERE x.xp <> coalesce((SELECT sum(e.delta) FROM xp_entry e WHERE e.player_id = x.player_id), 0)`,
       );
       expect(drift).toEqual([]);
     });
@@ -97,20 +111,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       )[0]?.id ?? "";
     const sync = async (player: string) =>
       (
-        await f.asPlayer<{ r: { gems: { earned: number } } }>(player, "SELECT questify_sync() AS r")
+        await f.asPlayer<{ r: { achievements: Doc[]; items: { item: { id: string } }[] } }>(
+          player,
+          "SELECT questify_sync() AS r",
+        )
       )[0]?.r;
-    const tierGems = (player: string, id: string) =>
+    const tierXp = (player: string, id: string) =>
       f.owner<{ tier: string; delta: number }>(
-        `SELECT tier, delta FROM gem_entry WHERE player_id = $1 AND achievement_id = $2 ORDER BY id`,
+        `SELECT tier, delta FROM xp_entry WHERE player_id = $1 AND achievement_id = $2 ORDER BY id`,
         [player, id],
       );
     const balance = async (player: string): Promise<number> =>
       Number(
         (
-          await f.owner<{ gems: string }>("SELECT gems FROM player_xp WHERE player_id = $1", [
-            player,
-          ])
-        )[0]?.gems,
+          await f.owner<{ xp: string }>("SELECT xp FROM player_xp WHERE player_id = $1", [player])
+        )[0]?.xp,
       );
     const amounts = () => one<Amounts>("SELECT admin_amounts() AS r");
     const saveAmounts = (doc: unknown, revertOf: string | null = null) =>
@@ -140,7 +155,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
           [player, JSON.stringify(tiers), code, NOTE, randomUUID()],
         )
       )[0];
-    /** A player with `quests` quest credits, synced once (so the levels' gems are paid) unless `synced` is false. */
+    /** A player with `quests` quest credits, synced once unless `synced` is false. */
     const player = async (quests: number, synced = true) => {
       const id = await f.newPlayer();
       await f.play(await f.newEvent(), id, quests);
@@ -154,7 +169,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       return player(quests);
     };
 
-    /** A player with the events-attended bronze earned and unpaid; `quests` 2 also leaves level 2 unpaid. */
+    /** A player with the events-attended bronze earned as before migration 0164: an earned row and no XP entry. */
     const earnedUnpaid = async (quests = 1) => {
       const someone = await player(quests, false);
       await f.owner(
@@ -213,7 +228,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         ).toBe(true);
       });
 
-      it("refuses a lowering without the confirmation, naming the gems, and writes nothing (T3)", async () => {
+      it("refuses a lowering without the confirmation, naming the XP and the item, and writes nothing (T3)", async () => {
         const before = await achievement("top-ten");
         const entries = (await audits("catalog.achievement.update")).length;
         const asked = await refusal(
@@ -225,7 +240,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
           }),
         );
         expect(asked.startsWith("CA428:")).toBe(true);
-        expect(JSON.parse(asked.slice("CA428:".length))).toEqual({ silver: 25, gold: 50 });
+        expect(JSON.parse(asked.slice("CA428:".length))).toEqual({
+          silver: { xp: 150, itemId: null },
+          gold: { xp: 300, itemId: "shop-moon-ring" },
+        });
         expect(await achievement("top-ten")).toEqual(before);
         expect((await audits("catalog.achievement.update")).length).toBe(entries);
       });
@@ -245,6 +263,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
           bronze: before.bronze,
           silver: before.silver,
           gold: before.gold,
+          item: before.item,
         });
         expect(entry?.after).toMatchObject({ silver: before.silver + 1, gold: before.gold + 1 });
       });
@@ -275,14 +294,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
 
       it("pays a lowered tier once at the next sync, and a second sync pays nothing (T1)", async () => {
         const someone = await belowBronze(2);
-        expect(await tierGems(someone, "quests-done")).toEqual([]);
+        expect(await tierXp(someone, "quests-done")).toEqual([]);
         await saveAchievement("quests-done", thresholds(2, 50, 200), true);
-        expect(await tierGems(someone, "quests-done")).toEqual([]);
+        expect(await tierXp(someone, "quests-done")).toEqual([]);
         const first = await sync(someone);
-        expect(first?.gems.earned).toBe(10);
-        expect(await tierGems(someone, "quests-done")).toEqual([{ tier: "bronze", delta: 10 }]);
-        expect((await sync(someone))?.gems.earned).toBe(0);
-        expect(await tierGems(someone, "quests-done")).toHaveLength(1);
+        expect(first?.achievements).toEqual([{ id: "quests-done", tier: "bronze", xp: 50 }]);
+        expect(await tierXp(someone, "quests-done")).toEqual([{ tier: "bronze", delta: 50 }]);
+        expect((await sync(someone))?.achievements).toEqual([]);
+        expect(await tierXp(someone, "quests-done")).toHaveLength(1);
       });
 
       it("pays once when two syncs of one player cross", async () => {
@@ -291,10 +310,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         const call = { context: { playerId: someone }, sql: "SELECT questify_sync() AS r" };
         const crossed = await f.crossed(call, call);
         expect(crossed.waited).toBe(true);
-        expect(await tierGems(someone, "quests-done")).toEqual([{ tier: "bronze", delta: 10 }]);
+        expect(await tierXp(someone, "quests-done")).toEqual([{ tier: "bronze", delta: 50 }]);
       });
 
-      it("a revert that raises back keeps the earned tier, its gems and the balance (T2)", async () => {
+      it("a revert that raises back keeps the earned tier and its XP (T2)", async () => {
         const someone = await belowBronze(4);
         await saveAchievement("quests-done", thresholds(4, 50, 200), true);
         await sync(someone);
@@ -306,9 +325,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
           await latestEntry("achievement", "quests-done"),
         );
         expect(reverted.bronze).toBe(20);
-        expect((await sync(someone))?.gems.earned).toBe(0);
+        expect((await sync(someone))?.achievements).toEqual([]);
         expect(await f.earned(someone)).toContain("quests-done:bronze");
-        expect(await tierGems(someone, "quests-done")).toEqual([{ tier: "bronze", delta: 10 }]);
+        expect(await tierXp(someone, "quests-done")).toEqual([{ tier: "bronze", delta: 50 }]);
         expect(await balance(someone)).toBe(held);
         expect((await audits("catalog.achievement.revert")).at(-1)?.after).toMatchObject({
           bronze: 20,
@@ -325,7 +344,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         });
         const entry = await latestEntry("achievement", "events-attended");
         expect(await refusal(saveAchievement("events-attended", null, false, entry))).toBe(
-          'CA428:{"silver": 25}',
+          'CA428:{"silver": {"xp": 150, "itemId": null}}',
         );
         expect((await saveAchievement("events-attended", null, true, entry)).silver).toBe(
           before.silver,
@@ -385,16 +404,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
     });
 
     describe("the amounts", () => {
-      it("answers the amounts in force, fallbacks filled in, and which rows are stored", async () => {
-        expect(await amounts()).toEqual({ ...DEFAULT_AMOUNTS, stored: { xp: true, gems: false } });
+      it("answers the amounts in force, fallbacks filled in, and whether the row is stored", async () => {
+        expect(await amounts()).toEqual({ ...DEFAULT_AMOUNTS, stored: { xp: true } });
         expect(amountsDocSchema.safeParse(DEFAULT_AMOUNTS).success).toBe(true);
       });
 
       it.each([
-        ["gems", "levelUp", 0],
-        ["gems", "bronze", 1001],
-        ["gems", "gold", 2.5],
-        ["gems", "silver", "25"],
+        ["xp", "bronzeXp", -1],
+        ["xp", "bronzeXp", 1001],
+        ["xp", "goldXp", 2.5],
+        ["xp", "silverXp", "25"],
         ["xp", "questXp", 0],
         ["xp", "questXp", 100_000],
         ["xp", "dailyFinishXp", 401],
@@ -404,99 +423,118 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       ] as const)("refuses %s.%s = %j", async (group, field, value) => {
         const doc = { ...DEFAULT_AMOUNTS, [group]: { ...DEFAULT_AMOUNTS[group], [field]: value } };
         expect(await refusal(saveAmounts(doc))).toBe(`CA400:${group}.${field}`);
-        expect((await amounts()).stored.gems).toBe(false);
+        expect((await amounts()).xp).toEqual(DEFAULT_AMOUNTS.xp);
       });
 
       it("refuses a missing or an extra field", async () => {
-        const { gold: _gold, ...three } = DEFAULT_AMOUNTS.gems;
-        expect(await refusal(saveAmounts({ ...DEFAULT_AMOUNTS, gems: three }))).toBe(
-          "CA400:gems.gold",
+        const { goldXp: _gold, ...six } = DEFAULT_AMOUNTS.xp;
+        expect(await refusal(saveAmounts({ xp: six }))).toBe("CA400:xp.goldXp");
+        expect(await refusal(saveAmounts({ xp: { ...DEFAULT_AMOUNTS.xp, ruby: 1 } }))).toBe(
+          "CA400:xp",
         );
-        expect(
-          await refusal(
-            saveAmounts({ ...DEFAULT_AMOUNTS, gems: { ...DEFAULT_AMOUNTS.gems, ruby: 1 } }),
-          ),
-        ).toBe("CA400:gems");
+        expect(await refusal(saveAmounts({ ...DEFAULT_AMOUNTS, gems: {} }))).toBe("CA400:amounts");
         expect(await refusal(saveAmounts({ ...DEFAULT_AMOUNTS, moderation: {} }))).toBe(
           "CA400:amounts",
         );
-        expect(await refusal(saveAmounts({ xp: DEFAULT_AMOUNTS.xp }))).toBe("CA400:gems");
+        expect(await refusal(saveAmounts({}))).toBe("CA400:xp");
       });
 
-      it("takes every boundary, writes both rows and one audit entry, and nothing for no change", async () => {
+      it("takes every boundary, writes the row and one audit entry, and nothing for no change", async () => {
         const low = {
-          xp: { questXp: 1, dailyFinishXp: 0, dailyRightXp: 0, dailyWordXp: 0 },
-          gems: { levelUp: 1, bronze: 1, silver: 1, gold: 1 },
+          xp: {
+            questXp: 1,
+            dailyFinishXp: 0,
+            dailyRightXp: 0,
+            dailyWordXp: 0,
+            bronzeXp: 0,
+            silverXp: 0,
+            goldXp: 0,
+          },
         };
         const high = {
-          xp: { questXp: 99_999, dailyFinishXp: 400, dailyRightXp: 200, dailyWordXp: 1000 },
-          gems: { levelUp: 1000, bronze: 1000, silver: 1000, gold: 1000 },
+          xp: {
+            questXp: 99_999,
+            dailyFinishXp: 400,
+            dailyRightXp: 200,
+            dailyWordXp: 1000,
+            bronzeXp: 1000,
+            silverXp: 1000,
+            goldXp: 1000,
+          },
         };
-        expect(await saveAmounts(low)).toEqual({ ...low, stored: { xp: true, gems: true } });
+        expect(await saveAmounts(low)).toEqual({ ...low, stored: { xp: true } });
         expect(await saveAmounts(high)).toMatchObject(high);
         const entries = (await audits("catalog.amounts.update")).length;
         await saveAmounts(high);
         expect((await audits("catalog.amounts.update")).length).toBe(entries);
         const rows = await f.owner<{ key: string; updated_by: string }>(
-          "SELECT key, updated_by FROM platform_setting WHERE key IN ('gems', 'xp') ORDER BY key",
+          "SELECT key, updated_by FROM platform_setting WHERE key = 'xp' ORDER BY key",
         );
-        expect(rows).toEqual([
-          { key: "gems", updated_by: adminId },
-          { key: "xp", updated_by: adminId },
-        ]);
+        expect(rows).toEqual([{ key: "xp", updated_by: adminId }]);
         const reverted = await saveAmounts(null, await latestEntry("platform_setting", "amounts"));
         expect(reverted).toMatchObject(low);
         expect((await audits("catalog.amounts.revert")).at(-1)?.before).toEqual(high);
         await saveAmounts(DEFAULT_AMOUNTS);
       });
 
-      it("pays the new level amount for a level reached but not paid, and leaves credited XP alone", async () => {
+      it("pays the new tier amount for a tier earned after the save, and leaves credited XP alone", async () => {
         const someone = await player(2, false);
-        const xpBefore = await f.owner<{ xp: string }>(
-          "SELECT xp FROM player_xp WHERE player_id = $1",
-          [someone],
-        );
-        await saveAmounts({
-          xp: { ...DEFAULT_AMOUNTS.xp, questXp: 7 },
-          gems: { ...DEFAULT_AMOUNTS.gems, levelUp: 33 },
-        });
-        try {
-          await sync(someone);
-          const levels = await f.owner<{ delta: number }>(
-            "SELECT delta FROM gem_entry WHERE player_id = $1 AND source = 'level'",
+        const credited = () =>
+          f.owner<{ delta: number }>(
+            "SELECT delta FROM xp_entry WHERE player_id = $1 AND source = 'quest' ORDER BY id",
             [someone],
           );
-          expect(levels.map((row) => row.delta)).toEqual([33]);
-          expect(await f.owner("SELECT xp FROM player_xp WHERE player_id = $1", [someone])).toEqual(
-            xpBefore,
-          );
+        const before = await credited();
+        await saveAmounts({ xp: { ...DEFAULT_AMOUNTS.xp, questXp: 7, bronzeXp: 77 } });
+        try {
+          await sync(someone);
+          expect(await tierXp(someone, "events-attended")).toEqual([{ tier: "bronze", delta: 77 }]);
+          expect(await credited()).toEqual(before);
         } finally {
           await saveAmounts(DEFAULT_AMOUNTS);
         }
       });
 
+      it("reverts an entry from before migration 0164: drops its gems group, keeps the tier amounts in force", async () => {
+        await saveAmounts({ xp: { ...DEFAULT_AMOUNTS.xp, goldXp: 400 } });
+        const [entry] = await f.owner<{ id: string }>(
+          `INSERT INTO audit_log (actor_type, actor_id, action, target_type, target_id, before, after, request_id)
+           VALUES ('admin', $1, 'catalog.amounts.update', 'platform_setting', 'amounts', $2, $3, $4) RETURNING id`,
+          [
+            adminId,
+            {
+              xp: { questXp: 90, dailyFinishXp: 20, dailyRightXp: 10, dailyWordXp: 50 },
+              gems: { levelUp: 20, bronze: 10, silver: 25, gold: 50 },
+            },
+            { xp: DEFAULT_AMOUNTS.xp },
+            randomUUID(),
+          ],
+        );
+        const reverted = await saveAmounts(null, entry?.id ?? null);
+        expect(reverted.xp).toEqual({ ...DEFAULT_AMOUNTS.xp, questXp: 90, goldXp: 400 });
+        expect(reverted).not.toHaveProperty("gems");
+        await saveAmounts(DEFAULT_AMOUNTS);
+      });
+
       it("lets two first saves cross with no table lock: the second waits on the rows and lands after", async () => {
-        await f.owner("DELETE FROM platform_setting WHERE key = 'gems'");
-        const doc = (levelUp: number) => ({
-          ...DEFAULT_AMOUNTS,
-          gems: { ...DEFAULT_AMOUNTS.gems, levelUp },
-        });
-        const save = (levelUp: number) => ({
+        await f.owner("DELETE FROM platform_setting WHERE key = 'xp'");
+        const doc = (bronzeXp: number) => ({ xp: { ...DEFAULT_AMOUNTS.xp, bronzeXp } });
+        const save = (bronzeXp: number) => ({
           context: admin,
           sql: "SELECT admin_amounts_save($1, NULL, $2) AS r",
-          values: [doc(levelUp), randomUUID()],
+          values: [doc(bronzeXp), randomUUID()],
         });
         const crossed = await f.crossed(save(21), save(22));
         expect(crossed.waited).toBe(true);
         expect(crossed.second).not.toBeInstanceOf(Error);
-        expect((await amounts()).gems).toMatchObject({ levelUp: 22 });
+        expect((await amounts()).xp).toMatchObject({ bronzeXp: 22 });
         await saveAmounts(DEFAULT_AMOUNTS);
       });
 
-      it("keeps the API's role from writing xp, gems or moderation directly, and still lets it write features", async () => {
+      it("keeps the API's role from writing xp or moderation directly, and still lets it write features", async () => {
         const before = await f.owner("SELECT key, value FROM platform_setting ORDER BY key");
         for (const sql of [
-          'INSERT INTO platform_setting (key, value) VALUES (\'gems\', \'{"levelUp": 1, "bronze": 1, "silver": 1, "gold": 1}\')',
+          "INSERT INTO platform_setting (key, value) VALUES ('xp', '{\"questXp\": 1}')",
           "INSERT INTO platform_setting (key, value) VALUES ('moderation', '{\"appealEmail\": \"x@y.z\"}')",
           "INSERT INTO platform_setting (key, value) VALUES ('anything', '{}')",
         ]) {
@@ -519,9 +557,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         expect(features).toEqual([{ key: "features" }]);
       });
 
-      it("lets no function but admin_amounts_save write the xp or gems rows of platform_setting", async () => {
+      it("lets no function but admin_amounts_save write the xp row of platform_setting", async () => {
         const writers = await f.owner<{ proname: string; amounts: boolean }>(
-          `SELECT p.proname, p.prosrc ~* '''(xp|gems)''' AS amounts
+          `SELECT p.proname, p.prosrc ~* '''xp''' AS amounts
            FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname = 'public'
              AND p.prosrc ~* '(insert\\s+into|update|delete\\s+from)\\s+(public\\.)?platform_setting\\M'
@@ -602,7 +640,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         expect(await call(bronze, "cheating", randomUUID())).toBe("PA404");
       });
 
-      it("hides a revoked tier, never earns it again, never pays it while revoked, and pays it once after a restore", async () => {
+      it("hides a revoked tier, never earns it again, gives no item while revoked, and one after a restore", async () => {
+        await f.owner(
+          "UPDATE achievement_item SET tier = 'bronze' WHERE achievement_id = 'events-attended'",
+        );
         const someone = await earnedUnpaid();
         await ban(someone);
         await tierDoor("revoke", someone, bronze);
@@ -619,24 +660,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
           )
         )[0]?.r.find((row) => row.id === "events-attended");
         expect(own).toMatchObject({ tier: null, next: null });
-        await sync(someone);
-        await sync(someone);
-        expect(await tierGems(someone, "events-attended")).toEqual([]);
+        expect((await sync(someone))?.items).toEqual([]);
+        expect((await sync(someone))?.items).toEqual([]);
         expect(await f.earned(someone)).toEqual(["events-attended:bronze"]);
         await tierDoor("restore", someone, bronze);
-        expect((await sync(someone))?.gems.earned).toBeGreaterThanOrEqual(10);
-        expect(await tierGems(someone, "events-attended")).toEqual([{ tier: "bronze", delta: 10 }]);
-        expect((await sync(someone))?.gems.earned).toBe(0);
+        expect((await sync(someone))?.items.map((given) => given.item.id)).toEqual([
+          "shop-compass-ring",
+        ]);
+        expect((await sync(someone))?.items).toEqual([]);
+        expect(await tierXp(someone, "events-attended")).toEqual([]);
+        await f.owner(
+          "UPDATE achievement_item SET tier = 'gold' WHERE achievement_id = 'events-attended'",
+        );
       });
 
-      it("keeps the gems already paid for a revoked tier", async () => {
+      it("keeps the XP already paid for a revoked tier", async () => {
         const someone = await player(1);
         const held = await balance(someone);
-        expect(await tierGems(someone, "events-attended")).toHaveLength(1);
+        expect(await tierXp(someone, "events-attended")).toHaveLength(1);
         await ban(someone);
         await tierDoor("revoke", someone, bronze);
         expect(await balance(someone)).toBe(held);
-        expect(await tierGems(someone, "events-attended")).toHaveLength(1);
+        expect(await tierXp(someone, "events-attended")).toHaveLength(1);
       });
 
       it("shows the tiers and the actions on the player's record", async () => {
@@ -660,6 +705,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
           await ban(someone);
           await tierDoor("revoke", someone, bronze);
           await lift(someone);
+          // A tier due, so the sync takes its locks whichever goes first.
+          await saveAchievement("quests-done", thresholds(2, 50, 200), true);
           const restore = {
             context: admin,
             sql: "SELECT * FROM admin_restore_tiers($1, $2, 'mistake', $3, $4)",
@@ -673,9 +720,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
           expect(crossed.waited).toBe(true);
           expect(crossed.second).not.toBeInstanceOf(Error);
           await sync(someone);
-          expect(await tierGems(someone, "events-attended")).toEqual([
-            { tier: "bronze", delta: 10 },
-          ]);
+          expect(await tierXp(someone, "quests-done")).toEqual([{ tier: "bronze", delta: 50 }]);
+          expect(await tierXp(someone, "events-attended")).toEqual([]);
         },
       );
 

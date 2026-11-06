@@ -56,15 +56,7 @@ const ACHIEVEMENT_ROW = {
   gold: 3,
   name: NAME,
   visualKey: "trophy",
-  position: 1,
-};
-const SHOP_ROW = {
-  itemId: "gold-frame",
-  kind: "frame",
-  name: NAME,
-  visualKey: null,
-  price: 5,
-  status: "active",
+  item: null,
   position: 1,
 };
 const ITEM_ROW = {
@@ -128,7 +120,6 @@ describe("each catalog's address and answer names", () => {
   it.each([
     ["/templates", "SELECT admin_templates() AS r", "templates"],
     ["/achievements", "SELECT admin_achievements() AS r", "achievements"],
-    ["/gem-shop", "SELECT admin_shop_items() AS r", "items"],
     ["/items", "SELECT admin_items() AS r", "items"],
   ])("lists %s through its door as { %s }", async (path, sql, list) => {
     const { doors } = build([]);
@@ -145,9 +136,16 @@ describe("each catalog's address and answer names", () => {
     ["/home-layout", "SELECT admin_home_layout() AS r", HOME_ROW],
   ])("answers %s as the document itself", async (path, sql, row) => {
     const amounts = {
-      xp: { questXp: 100, dailyFinishXp: 20, dailyRightXp: 10, dailyWordXp: 50 },
-      gems: { levelUp: 20, bronze: 10, silver: 25, gold: 50 },
-      stored: { xp: true, gems: true },
+      xp: {
+        questXp: 100,
+        dailyFinishXp: 20,
+        dailyRightXp: 10,
+        dailyWordXp: 50,
+        bronzeXp: 50,
+        silverXp: 150,
+        goldXp: 300,
+      },
+      stored: { xp: true },
     };
     const document = row ?? amounts;
     const { doors } = build(document);
@@ -165,7 +163,6 @@ describe("each catalog's address and answer names", () => {
       ACHIEVEMENT_ROW,
       "achievement",
     ],
-    ["/gem-shop/gold-frame", { price: 5, status: "active", position: 1 }, SHOP_ROW, "item"],
     ["/items/gold-frame", { name: NAME, visualKey: "frame-03" }, ITEM_ROW, "item"],
   ])("saves %s and answers it as { %s }", async (path, doc, row, one) => {
     build(row);
@@ -176,7 +173,7 @@ describe("each catalog's address and answer names", () => {
 });
 
 describe("a save's confirmation", () => {
-  it("is an unknown field of an editor that pays no gems, refused before the door", async () => {
+  it("is an unknown field of an editor that pays nothing, refused before the door", async () => {
     const { doors } = build(TEMPLATE_ROW);
     const response = await send("PUT", "/templates/conference", {
       ...TEMPLATE_DOC,
@@ -231,7 +228,7 @@ describe("the settings cache", () => {
 
 describe("the XP table's preview and a new item", () => {
   it("refuses a table that fails the shared schema with its issues, before the limits and the door", async () => {
-    const { seen } = build({ up: 0, down: 0, levels: 0, gems: 0, levelUp: 1 });
+    const { seen } = build({ up: 0, down: 0, levels: 0 });
     const levels = [
       { level: 1, xpFrom: 5, itemId: null },
       { level: 2, xpFrom: 10, itemId: "a" },

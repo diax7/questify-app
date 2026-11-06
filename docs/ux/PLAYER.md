@@ -145,7 +145,7 @@ pattern (ADR-063).
 | P19 | Help desk | Report a problem or ask a question | Send |
 | P20 | Questify Home | My events, daily challenge, streak | Open an event |
 | P21 | Explore | Find public events | Open an event |
-| P22 | Questify shop | Spend gems | Buy |
+| P22 | Journey | See the level and every level and achievement item, unlocked or locked (T-404d) | Open an item |
 | P23 | Update required | Update the app to continue | Update |
 | P24 | Wallet pass | Keep the event pass in my wallet | Add to Wallet |
 | P25 | First-time intro | Understand Questify in about 15 seconds | Next / Skip |
@@ -338,7 +338,7 @@ Eleven rows, no scrolling. The Today tab appears only on multi-day events.
 │   (avatar + frame)       │
 │   @falcon · Pathfinder   │
 │   Level 7  ▓▓▓░░         │
-│   Streak 3 · Gems 40     │
+│   Streak 3               │
 ├──────────────────────────┤
 │ Event Passport         ▸ │
 │ Achievements           ▸ │
@@ -428,7 +428,7 @@ and says why.
 | P19 Help desk | – | No tickets: "Report a problem or ask a question." | Send failed: draft kept, [Retry] | "Sent. We'll reply here and notify you." | Ticket list |
 | P20 Questify Home | Placeholders | No events: "Scan an event's QR or browse Explore." | Retry | – | Normal view |
 | P21 Explore | Placeholders | "No public events yet." | Retry | – | List |
-| P22 Shop | Placeholders | "The shop is empty." | "Not enough gems." | Item unlocked | Grid |
+| P22 Journey | Placeholders | (never empty: the curve always has levels) | Retry on a failed read | Item unlocked | Trail |
 | P23 Update | – | – | – | – | "A newer version is needed to play this event." [Update] |
 | P25 Intro | Scenes loading: the first card shows at once | – | – | Last card: Scan / Explore | Four cards |
 | P24 Wallet pass | Button shows a spinner | – | "Couldn't add the pass. Try again." Wallet unavailable on this phone: the button is hidden | "In your wallet" | Pass in the wallet; numbers may be a few minutes old ("Updated 14:02") |

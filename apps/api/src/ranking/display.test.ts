@@ -12,6 +12,7 @@ const view: RankingView = {
       avatar: "fox",
       equipment: EMPTY_EQUIPMENT,
       hidden: false,
+      level: 4,
       score: 910,
       isMe: false,
     },
@@ -22,6 +23,7 @@ const view: RankingView = {
       avatar: "owl",
       equipment: EMPTY_EQUIPMENT,
       hidden: false,
+      level: 2,
       score: 870,
       isMe: true,
     },
@@ -32,6 +34,7 @@ const view: RankingView = {
     fullName: null,
     avatar: "owl",
     equipment: EMPTY_EQUIPMENT,
+    level: 2,
     score: 870,
   },
   total: 42,
@@ -48,13 +51,14 @@ describe("playerRanking", () => {
     const answer = playerRanking(view, true);
     expect(answer.scores).toBe(false);
     expect(answer.rows.map((row) => Object.keys(row).toSorted())).toEqual([
-      ["avatar", "equipment", "fullName", "hidden", "isMe", "rank", "username"],
-      ["avatar", "equipment", "fullName", "hidden", "isMe", "rank", "username"],
+      ["avatar", "equipment", "fullName", "hidden", "isMe", "level", "rank", "username"],
+      ["avatar", "equipment", "fullName", "hidden", "isMe", "level", "rank", "username"],
     ]);
     expect(Object.keys(answer.me ?? {}).toSorted()).toEqual([
       "avatar",
       "equipment",
       "fullName",
+      "level",
       "rank",
       "username",
     ]);
@@ -71,6 +75,7 @@ describe("playerRanking", () => {
           avatar: "fox",
           equipment: EMPTY_EQUIPMENT,
           hidden: false,
+          level: 4,
           isMe: false,
         },
         {
@@ -80,10 +85,18 @@ describe("playerRanking", () => {
           avatar: "owl",
           equipment: EMPTY_EQUIPMENT,
           hidden: false,
+          level: 2,
           isMe: true,
         },
       ],
-      me: { rank: 2, username: "omar", fullName: null, avatar: "owl", equipment: EMPTY_EQUIPMENT },
+      me: {
+        rank: 2,
+        username: "omar",
+        fullName: null,
+        avatar: "owl",
+        equipment: EMPTY_EQUIPMENT,
+        level: 2,
+      },
       total: 42,
       today: true,
       names: "both",

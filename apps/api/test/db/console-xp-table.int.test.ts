@@ -9,7 +9,6 @@ type Doc = { levels: Level[] };
 type Table = { levels: (Level & { reached: boolean })[] };
 type Sync = {
   levelUp: { level: number; items: { id: string }[] } | null;
-  gems: { earned: number };
 };
 
 /** A call's SQLSTATE and detail ("CA409:{...}"), or "none". */
@@ -34,7 +33,7 @@ const START = (n: number) => 50 * (n - 1) * (n + 2);
 /**
  * T-709d in the database (migration 0124): the XP table door (one document, row locks within one 1 s budget, the
  * refusals that keep rewards given, a confirmation for a lowering), the preview, each player's catch-up at the next sync
- * (items and level-up gems once), the readers that derive the level from XP, and the deny-by-default checks. The lock
+ * (items once), the readers that derive the level from XP, and the deny-by-default checks. The lock
  * races are in console-xp-table-races.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", () => {
@@ -53,10 +52,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
       randomUUID(),
     ]);
   const preview = (doc: unknown) =>
-    one<{ up: number; down: number; levels: number; gems: number; levelUp: number }>(
-      "SELECT admin_xp_table_preview($1) AS r",
-      [doc],
-    );
+    one<{ up: number; down: number; levels: number }>("SELECT admin_xp_table_preview($1) AS r", [
+      doc,
+    ]);
   /** The default curve with some levels changed: `{ 3: { xpFrom: 250 } }`. */
   const edit = (changes: Record<number, Partial<Level>>, base = original): Doc => ({
     levels: base.levels.map((row) => ({ ...row, ...changes[row.level] })),
@@ -85,13 +83,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
         [player],
       )
     ).map((row) => row.item_id);
-  const levelGems = async (player: string) =>
-    (
-      await f.owner<{ source_level: number; delta: number }>(
-        "SELECT source_level, delta FROM gem_entry WHERE player_id = $1 AND source = 'level' ORDER BY source_level",
-        [player],
-      )
-    ).map((row) => `${row.source_level}:${row.delta}`);
   /** A player with `quests` quest credits (100 XP each), synced once unless `synced` is false. */
   const player = async (quests: number, synced = true) => {
     const id = await f.newPlayer();
@@ -124,7 +115,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
     await save(original, true);
     const drift = await f.owner(
       `SELECT x.player_id FROM player_xp x
-       WHERE x.gems <> coalesce((SELECT sum(g.delta) FROM gem_entry g WHERE g.player_id = x.player_id), 0)`,
+       WHERE x.xp <> coalesce((SELECT sum(e.delta) FROM xp_entry e WHERE e.player_id = x.player_id), 0)`,
     );
     expect(drift).toEqual([]);
   });
@@ -245,7 +236,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
       );
       for (const [itemId, reason] of [
         ["no-such-item", "item_unknown"],
-        ["shop-map-reader", "item_has_source"],
+        ["shop-moon-ring", "item_has_source"],
         ["souvenir-0123456789abcdef0123456789abcdef", "item_has_source"],
       ] as const) {
         expect(await refusal(save(edit({ 30: { itemId } }), true))).toBe(held(reason, 30));
@@ -363,11 +354,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
   });
 
   describe("a lowering pays, so it needs a confirmation", () => {
-    it("refuses a lowering without confirmed (CA428 naming the levels and the gems per level), writes nothing", async () => {
+    it("refuses a lowering without confirmed (CA428 naming the levels), writes nothing", async () => {
       const lower = edit({ 3: { xpFrom: 300 }, 5: { xpFrom: 1000 } });
       const answer = await refusal(save(lower));
       expect(answer.startsWith("CA428:")).toBe(true);
-      expect(JSON.parse(answer.slice("CA428:".length))).toEqual({ levels: [3, 5], levelUp: 20 });
+      expect(JSON.parse(answer.slice("CA428:".length))).toEqual({ levels: [3, 5] });
       expect(docOf(await table())).toEqual(original);
       expect(await refusal(save(lower, true))).toBe("none");
     });
@@ -393,18 +384,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
       ).toBe("CA400:xpFrom:31");
     });
 
-    it("previews how many players go up and down and the gems due", async () => {
-      const levelUp = 20;
+    it("previews how many players go up and down and the level rewards due", async () => {
       const low = await player(3);
       const mid = await player(6);
       expect(await stored(low)).toMatchObject({ level: 2 });
       expect(await stored(mid)).toMatchObject({ level: 3 });
       const before = await preview(original);
-      expect(before).toEqual({ up: 0, down: 0, levels: 0, gems: 0, levelUp });
+      expect(before).toEqual({ up: 0, down: 0, levels: 0 });
       const lower = await preview(edit({ 3: { xpFrom: 300 } }));
       expect(lower.up).toBeGreaterThanOrEqual(1);
       expect(lower.levels).toBe(lower.up);
-      expect(lower.gems).toBe(lower.levels * levelUp);
       const raise = await preview(edit({ 3: { xpFrom: 650 }, 2: { xpFrom: 400 } }));
       expect(raise.down).toBeGreaterThanOrEqual(2);
       expect(raise.levels).toBe(0);
@@ -412,31 +401,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
   });
 
   describe("each player follows at their next sync", () => {
-    it("writes the missing levels once, gives each item once, pays the level-up once per level, and names the top level", async () => {
+    it("writes the missing levels once, gives each item once, and names the top level", async () => {
       const someone = await player(3);
       expect(await reached(someone)).toEqual([2]);
-      expect(await levelGems(someone)).toEqual(["2:20"]);
       await save(edit({ 3: { xpFrom: 250 }, 4: { xpFrom: 280 } }), true);
       expect(await stored(someone)).toMatchObject({ level: 2 });
       const first = await sync(someone);
       expect(first?.levelUp).toMatchObject({ level: 4 });
       expect(first?.levelUp?.items.map((item) => item.id)).toEqual(["level-3", "level-4"]);
-      expect(first?.gems.earned).toBe(40);
       expect(await reached(someone)).toEqual([2, 3, 4]);
       expect(await owned(someone)).toEqual(["level-2", "level-3", "level-4"]);
-      expect(await levelGems(someone)).toEqual(["2:20", "3:20", "4:20"]);
       expect(await stored(someone)).toMatchObject({ level: 4 });
       const second = await sync(someone);
-      expect(second).toMatchObject({ levelUp: null, gems: { earned: 0 } });
-      expect(await levelGems(someone)).toEqual(["2:20", "3:20", "4:20"]);
+      expect(second).toMatchObject({ levelUp: null });
+      expect(await reached(someone)).toEqual([2, 3, 4]);
     });
 
-    it("pays once when two syncs of one player run at once", async () => {
+    it("gives once when three syncs of one player run at once", async () => {
       const someone = await player(3);
       await save(edit({ 3: { xpFrom: 250 } }), true);
       const answers = await Promise.all([sync(someone), sync(someone), sync(someone)]);
-      expect(answers.map((answer) => answer?.gems.earned).toSorted()).toEqual([0, 0, 20]);
-      expect(await levelGems(someone)).toEqual(["2:20", "3:20"]);
+      expect(answers.filter((answer) => answer?.levelUp !== null)).toHaveLength(1);
+      expect(await reached(someone)).toEqual([2, 3]);
       expect(await owned(someone)).toEqual(["level-2", "level-3"]);
     });
 
@@ -455,12 +441,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
         "SELECT * FROM admin_lift_ban($1, 'mistake', 'Fraud ticket 4411 confirmed', $2)",
         [someone, randomUUID()],
       );
-      expect((await sync(someone))?.gems.earned).toBe(20);
-      expect((await sync(someone))?.gems.earned).toBe(0);
-      expect(await levelGems(someone)).toEqual(["2:20", "3:20"]);
+      expect((await sync(someone))?.levelUp).toMatchObject({ level: 3 });
+      expect((await sync(someone))?.levelUp).toBeNull();
+      expect(await reached(someone)).toEqual([2, 3]);
     });
 
-    it("lowers the stored level after a raise at the next sync, and keeps items and gems", async () => {
+    it("lowers the stored level after a raise at the next sync, and keeps the items", async () => {
       const someone = await player(5);
       expect(await stored(someone)).toMatchObject({ level: 3 });
       await save(edit({ 3: { xpFrom: 600 }, 4: { xpFrom: 950 } }));
@@ -468,7 +454,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
       expect((await sync(someone))?.levelUp).toBeNull();
       expect(await stored(someone)).toMatchObject({ level: 2 });
       expect(await owned(someone)).toEqual(["level-2", "level-3"]);
-      expect(await levelGems(someone)).toEqual(["2:20", "3:20"]);
     });
 
     it("leaves a sync that has nothing due on its unlocked fast path", async () => {

@@ -146,11 +146,23 @@ describe("lockerEntrySchema", () => {
     seen: true,
   };
 
-  it("keeps an entry earned at a level, one earned at an event and one got in the gem shop", () => {
+  it("keeps an entry earned at a level, at an event, at an achievement's tier, and a Questify reward", () => {
     expect(lockerEntrySchema.parse(level)).toEqual(level);
     expect(lockerEntrySchema.parse(event)).toEqual(event);
-    const shop = { ...level, source: { kind: "shop" } };
-    expect(lockerEntrySchema.parse(shop)).toEqual(shop);
+    const questify = { ...level, source: { kind: "questify" } };
+    expect(lockerEntrySchema.parse(questify)).toEqual(questify);
+    const achievement = {
+      ...level,
+      source: {
+        kind: "achievement",
+        achievement: { id: "top-ten", name: { ar: "ا", en: "A" }, tier: "gold" },
+      },
+    };
+    expect(lockerEntrySchema.parse(achievement)).toEqual(achievement);
+    expect(lockerEntrySchema.safeParse({ ...level, source: { kind: "shop" } }).success).toBe(false);
+    expect(lockerEntrySchema.safeParse({ ...level, source: { kind: "achievement" } }).success).toBe(
+      false,
+    );
   });
 
   it("keeps the sponsor a souvenir is presented by, name and tier only (T-507c)", () => {

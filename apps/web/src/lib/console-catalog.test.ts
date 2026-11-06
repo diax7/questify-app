@@ -1,10 +1,8 @@
 import {
-  GEM_AMOUNTS,
   MESSAGES,
   XP_AMOUNTS,
   type AchievementAdmin,
   type AmountsAdmin,
-  type GemShopItemAdmin,
   type TemplateAdmin,
 } from "@questify/shared";
 import { describe, expect, it } from "vitest";
@@ -14,28 +12,24 @@ import {
   amountLabel,
   amountsDraftOf,
   checkAmounts,
-  loweredGemsOf,
+  loweredTiersOf,
   readAmounts,
   byLevel,
   checkAchievement,
   checkLevelTitles,
-  checkShop,
   checkTemplate,
   isAchievementDirty,
   isLevelTitlesDirty,
-  isShopDirty,
   isTemplateDirty,
   isTemplateKey,
   levelTitlesDraftOf,
   newTemplateDraft,
   parseBody,
   readAchievements,
-  readGemShop,
   readLevelTitles,
   readTemplates,
   revertPath,
   rowPath,
-  shopDraftOf,
   storedBodyIssues,
   templateCounts,
   templateDraftOf,
@@ -77,31 +71,20 @@ const achievement: AchievementAdmin = {
   name: { ar: "صائد المهام", en: "Quest Hunter" },
   visualKey: "ach-collector",
   position: 2,
+  item: null,
   revertible: false,
 };
-const item: GemShopItemAdmin = {
-  itemId: "shop-map-reader",
-  kind: "title",
-  name: { ar: "قارئ الخرائط", en: "Map reader" },
-  visualKey: null,
-  price: 40,
-  status: "active",
-  position: 1,
-  revertible: true,
-};
-
 describe("the readers", () => {
   it("answer the rows of a well-formed list and undefined for any other shape", () => {
     expect(readTemplates({ templates: [template] })).toEqual([template]);
     expect(readAchievements({ achievements: [achievement] })).toEqual([achievement]);
-    expect(readGemShop({ items: [item] })).toEqual([item]);
     expect(
       readLevelTitles({
         titles: [{ levelFrom: 1, name: { ar: "ا", en: "A" } }],
         revertible: false,
       }),
     ).toEqual({ titles: [{ levelFrom: 1, name: { ar: "ا", en: "A" } }], revertible: false });
-    for (const read of [readTemplates, readAchievements, readGemShop, readLevelTitles]) {
+    for (const read of [readTemplates, readAchievements, readLevelTitles]) {
       expect(read({}), read.name).toBeUndefined();
       expect(read(null), read.name).toBeUndefined();
       expect(read({ extra: true }), read.name).toBeUndefined();
@@ -222,40 +205,45 @@ describe("an achievement draft", () => {
     }
   });
 
-  it("reads the gems of a lowering only from a confirmation_required answer", () => {
-    expect(
-      loweredGemsOf({ code: "confirmation_required", details: { gems: { bronze: 10 } } }),
-    ).toEqual({ bronze: 10 });
-    expect(loweredGemsOf({ code: "stale", details: { gems: { bronze: 10 } } })).toBeUndefined();
-    expect(loweredGemsOf({ code: "confirmation_required", details: {} })).toBeUndefined();
-    expect(loweredGemsOf(undefined)).toBeUndefined();
+  it("reads what a lowering pays only from a confirmation_required answer", () => {
+    const tiers = { bronze: { xp: 50, itemId: null } };
+    expect(loweredTiersOf({ code: "confirmation_required", details: { tiers } })).toEqual(tiers);
+    expect(loweredTiersOf({ code: "stale", details: { tiers } })).toBeUndefined();
+    expect(loweredTiersOf({ code: "confirmation_required", details: {} })).toBeUndefined();
+    expect(loweredTiersOf(undefined)).toBeUndefined();
   });
 });
 
 describe("an amounts draft", () => {
   const row: AmountsAdmin = {
-    xp: { questXp: 100, dailyFinishXp: 20, dailyRightXp: 10, dailyWordXp: 50 },
-    gems: { levelUp: 20, bronze: 10, silver: 25, gold: 50 },
-    stored: { xp: true, gems: false },
+    xp: {
+      questXp: 100,
+      dailyFinishXp: 20,
+      dailyRightXp: 10,
+      dailyWordXp: 50,
+      bronzeXp: 50,
+      silverXp: 150,
+      goldXp: 300,
+    },
+    stored: { xp: true },
     revertible: false,
   };
 
   it("checks every amount in its range and lists what a save changes, XP first", () => {
     const draft = amountsDraftOf(row);
     const same = checkAmounts(draft);
-    expect(same).toEqual({ ok: true, doc: { xp: row.xp, gems: row.gems } });
+    expect(same).toEqual({ ok: true, doc: { xp: row.xp } });
     expect(same.ok && amountChanges(row, same.doc)).toEqual([]);
     const edited = checkAmounts({
-      xp: { ...draft.xp, dailyWordXp: "0" },
-      gems: { ...draft.gems, levelUp: "30" },
+      xp: { ...draft.xp, dailyWordXp: "0", goldXp: "400" },
     });
     expect(edited.ok && amountChanges(row, edited.doc)).toEqual([
       { group: "xp", field: "dailyWordXp", from: 50, to: 0 },
-      { group: "gems", field: "levelUp", from: 20, to: 30 },
+      { group: "xp", field: "goldXp", from: 300, to: 400 },
     ]);
     for (const [group, field, value] of [
-      ["gems", "gold", "0"],
-      ["gems", "gold", "1001"],
+      ["xp", "goldXp", "-1"],
+      ["xp", "goldXp", "1001"],
       ["xp", "dailyRightXp", "201"],
       ["xp", "questXp", "1.5"],
     ] as const) {
@@ -267,9 +255,6 @@ describe("an amounts draft", () => {
   it("has words for every amount", () => {
     for (const field of XP_AMOUNTS)
       expect(Object.hasOwn(MESSAGES, amountLabel("xp", field))).toBe(true);
-    for (const field of GEM_AMOUNTS) {
-      expect(Object.hasOwn(MESSAGES, amountLabel("gems", field))).toBe(true);
-    }
     expect(readAmounts(row)).toEqual(row);
     expect(readAmounts({ ...row, extra: 1 })).toBeUndefined();
   });
@@ -303,30 +288,5 @@ describe("a level-titles draft", () => {
     expect(!blank.ok && blank.fields.has("titles.2.levelFrom")).toBe(true);
     const long = checkLevelTitles([{ levelFrom: "1", name: { ar: "ا".repeat(41), en: "A" } }]);
     expect(!long.ok && long.fields.has("titles.0.name.ar")).toBe(true);
-  });
-});
-
-describe("a gem shop draft", () => {
-  it("accepts a whole price and place and a known status", () => {
-    const draft = shopDraftOf(item);
-    expect(isShopDirty(item, draft)).toBe(false);
-    expect(checkShop(draft)).toMatchObject({ ok: true, doc: { price: 40, status: "active" } });
-    expect(isShopDirty(item, { ...draft, status: "retired" })).toBe(true);
-    expect(isShopDirty(item, { ...draft, price: "41" })).toBe(true);
-  });
-
-  it("refuses a price or place that is zero, too big or not a whole number", () => {
-    const draft = shopDraftOf(item);
-    for (const [change, field] of [
-      [{ price: "0" }, "price"],
-      [{ price: "100001" }, "price"],
-      [{ price: "4.5" }, "price"],
-      [{ price: "" }, "price"],
-      [{ position: "0" }, "position"],
-      [{ position: "1001" }, "position"],
-    ] as const) {
-      const checked = checkShop({ ...draft, ...change });
-      expect(!checked.ok && checked.fields.has(field), JSON.stringify(change)).toBe(true);
-    }
   });
 });

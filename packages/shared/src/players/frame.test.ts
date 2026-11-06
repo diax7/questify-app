@@ -20,7 +20,7 @@ const levelFrames = Array.from({ length: 14 }, (_, i) => frameDesign(key(i + 1))
 const shopFrames = Array.from({ length: 6 }, (_, i) => frameDesign(key(i + 15)));
 
 describe("frameDesign", () => {
-  it("knows the fourteen level frames and the six gem shop rings, and nothing else", () => {
+  it("knows the fourteen level frames and the six special rings, and nothing else", () => {
     expect([...levelFrames, ...shopFrames].every((frame) => frame !== null)).toBe(true);
     for (const unknown of [null, undefined, "", "frame-00", "frame-21", "frame-1", "toString"]) {
       expect(frameDesign(unknown)).toBeNull();

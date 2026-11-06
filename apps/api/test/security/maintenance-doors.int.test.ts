@@ -9,7 +9,7 @@ import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/
  * fails for a route that is on neither list, so a new earning door cannot ship unpaused.
  */
 const OPEN_WRITES: Readonly<Record<string, readonly string[]>> = {
-  // The player's own account and safety: nothing here moves points, XP or gems.
+  // The player's own account and safety: nothing here moves points or XP.
   "the player's own account, settings and safety": [
     "DELETE /v1/me/blocks/:username",
     "DELETE /v1/me/push-device",

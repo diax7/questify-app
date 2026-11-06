@@ -909,7 +909,7 @@ Daily questions, Templates, Questify quests, Level titles, XP table.
 - Templates: conference, festival, campus, corporate; each holds categories, quests, rewards in
   Arabic and English. Editing a template does not change events already made from it. The edit
   screen says so.
-- Questify quests, achievements, items and the gem shop: lists with the same editor pattern as
+- Questify quests, achievements and items: lists with the same editor pattern as
   the quest builder.
 - Level titles and XP table: one row per level, title in Arabic and English, XP needed. Saving
   opens a confirmation screen if players already hold those levels.

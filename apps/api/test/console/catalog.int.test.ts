@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import {
   achievementsAdminListSchema,
   amountsAdminSchema,
-  gemShopAdminListSchema,
   levelTitlesAdminSchema,
   templatesAdminListSchema,
   type TemplateAdmin,
@@ -117,9 +116,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
         ["GET", "/v1/admin/catalog/level-titles"],
         ["PUT", "/v1/admin/catalog/level-titles", {}],
         ["POST", "/v1/admin/catalog/level-titles/revert", {}],
-        ["GET", "/v1/admin/catalog/gem-shop"],
-        ["PUT", "/v1/admin/catalog/gem-shop/shop-map-reader", {}],
-        ["POST", "/v1/admin/catalog/gem-shop/shop-map-reader/revert", {}],
         ["GET", "/v1/admin/catalog/amounts"],
         ["PUT", "/v1/admin/catalog/amounts", {}],
         ["POST", "/v1/admin/catalog/amounts/revert", {}],
@@ -146,7 +142,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
 
   describe("reads at once", () => {
     it("answers every tab an admin opens at the same moment, not 429 for the one that lost the race", async () => {
-      const tabs = ["templates", "achievements", "amounts", "level-titles", "gem-shop", "xp-table"];
+      const tabs = ["templates", "achievements", "amounts", "level-titles", "xp-table"];
       for (let round = 0; round < 3; round += 1) {
         const answers = await Promise.all(
           tabs.map((tab) => admin("GET", `/v1/admin/catalog/${tab}`)),
@@ -282,7 +278,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
   describe("achievements", () => {
     const URL = "/v1/admin/catalog/achievements/quests-done";
 
-    it("saves a name and a raise, answers 409 with the gems for a lowering until confirmed, and reverts", async () => {
+    it("saves a name and a raise, answers 409 with the XP and item for a lowering until confirmed, and reverts", async () => {
       const list = achievementsAdminListSchema.parse(
         (await admin("GET", "/v1/admin/catalog/achievements")).json(),
       ).achievements;
@@ -302,7 +298,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
       expect(asked.statusCode).toBe(409);
       expect(asked.json()).toMatchObject({
         code: "confirmation_required",
-        details: { gems: { bronze: 10, gold: 50 } },
+        details: {
+          tiers: {
+            bronze: { xp: 50, itemId: null },
+            gold: { xp: 300, itemId: "shop-falcon-ring" },
+          },
+        },
       });
       expect((await admin("PUT", URL, { ...lower, confirmed: false })).statusCode).toBe(409);
       const paid = await admin("PUT", URL, { ...lower, confirmed: true });
@@ -312,7 +313,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
       expect(revertAsk.json()).toMatchObject({ achievement: { bronze: original?.bronze } });
       const undoRaise = await admin("POST", `${URL}/revert`, {});
       expect(undoRaise.statusCode).toBe(409);
-      expect(undoRaise.json()).toMatchObject({ details: { gems: { bronze: 10, gold: 50 } } });
+      expect(undoRaise.json()).toMatchObject({
+        details: { tiers: { bronze: { xp: 50 }, gold: { xp: 300 } } },
+      });
       expect((await admin("POST", `${URL}/revert`, { confirmed: true })).statusCode).toBe(200);
       expect(
         (await admin("PUT", "/v1/admin/catalog/achievements/nothing-here", doc)).statusCode,
@@ -346,28 +349,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
     it("reads the amounts in force, saves a change with its audit, refuses one out of range, and reverts", async () => {
       const shown = amountsAdminSchema.parse((await admin("GET", URL)).json());
       expect(shown).toMatchObject({
-        xp: { questXp: 100, dailyFinishXp: 20, dailyRightXp: 10, dailyWordXp: 50 },
-        gems: { levelUp: 20, bronze: 10, silver: 25, gold: 50 },
-        stored: { xp: true, gems: false },
+        xp: {
+          questXp: 100,
+          dailyFinishXp: 20,
+          dailyRightXp: 10,
+          dailyWordXp: 50,
+          bronzeXp: 50,
+          silverXp: 150,
+          goldXp: 300,
+        },
+        stored: { xp: true },
         revertible: false,
       });
-      const doc = { xp: shown.xp, gems: { ...shown.gems, levelUp: 30 } };
+      const doc = { xp: { ...shown.xp, goldXp: 400 } };
       const saved = await admin("PUT", URL, doc);
       expect(saved.statusCode).toBe(200);
-      expect(saved.json()).toMatchObject({ ...doc, stored: { gems: true }, revertible: true });
+      expect(saved.json()).toMatchObject({ ...doc, stored: { xp: true }, revertible: true });
       const [entry] = await audits("catalog.amounts.update", "amounts");
       expect(entry).toMatchObject({ actor_id: adminId, after: doc });
       for (const bad of [
-        { ...doc, gems: { ...doc.gems, levelUp: 1001 } },
-        { ...doc, xp: { ...doc.xp, dailyWordXp: 1001 } },
-        { ...doc, gems: { ...doc.gems, extra: 1 } },
-        { xp: doc.xp },
+        { xp: { ...doc.xp, goldXp: 1001 } },
+        { xp: { ...doc.xp, dailyWordXp: 1001 } },
+        { xp: { ...doc.xp, extra: 1 } },
+        { ...doc, gems: { levelUp: 20 } },
+        {},
       ]) {
         expect((await admin("PUT", URL, bad)).statusCode, JSON.stringify(bad)).toBe(422);
       }
       const key = randomUUID();
       const reverted = await admin("POST", `${URL}/revert`, {}, key);
-      expect(reverted.json()).toMatchObject({ gems: { levelUp: 20 } });
+      expect(reverted.json()).toMatchObject({ xp: { goldXp: 300 } });
       expect((await admin("POST", `${URL}/revert`, {}, key)).json()).toEqual(reverted.json());
       expect((await audits("catalog.amounts.revert", "amounts")).length).toBe(1);
     });
@@ -391,53 +402,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
       const reverted = await admin("POST", "/v1/admin/catalog/level-titles/revert", {});
       expect(levelTitlesAdminSchema.parse(reverted.json()).titles).toEqual(first.titles);
       expect((await audits("catalog.level_titles.update", "all")).length).toBe(1);
-    });
-  });
-
-  describe("gem shop", () => {
-    it("saves price, status and place, refuses what is out of range, and reverts", async () => {
-      const list = gemShopAdminListSchema.parse(
-        (await admin("GET", "/v1/admin/catalog/gem-shop")).json(),
-      ).items;
-      expect(list).toHaveLength(12);
-      const saved = await admin("PUT", "/v1/admin/catalog/gem-shop/shop-star-navigator", {
-        price: 95,
-        status: "retired",
-        position: 2,
-      });
-      expect(saved.json()).toMatchObject({
-        item: { itemId: "shop-star-navigator", price: 95, status: "retired", revertible: true },
-      });
-      for (const payload of [
-        { price: 0, status: "active", position: 1 },
-        { price: 10, status: "free", position: 1 },
-        { price: 10, status: "active", position: 1001 },
-        { price: 1.5, status: "active", position: 1 },
-      ]) {
-        const answer = await admin(
-          "PUT",
-          "/v1/admin/catalog/gem-shop/shop-star-navigator",
-          payload,
-        );
-        expect(answer.statusCode, JSON.stringify(payload)).toBe(422);
-      }
-      const reverted = await admin(
-        "POST",
-        "/v1/admin/catalog/gem-shop/shop-star-navigator/revert",
-        {},
-      );
-      expect(reverted.json()).toMatchObject({
-        item: { price: 80, status: "active", position: 6, revertible: true },
-      });
-      expect(
-        (
-          await admin("PUT", "/v1/admin/catalog/gem-shop/level-4", {
-            price: 5,
-            status: "active",
-            position: 1,
-          })
-        ).statusCode,
-      ).toBe(404);
     });
   });
 });

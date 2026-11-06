@@ -138,7 +138,7 @@ describe("readLocker", () => {
     expect(page.items[0]?.source).toEqual({ kind: "event", event, presentedBy: null });
   });
 
-  it("carries the sponsor of a tagged souvenir (T-507c) and no sponsor for level and shop entries", async () => {
+  it("carries the sponsor of a tagged souvenir (T-507c) and no sponsor for level and Questify entries", async () => {
     const event = { id: EVENT_ID, name: { ar: "مهرجان", en: "Fest" } };
     const presentedBy = { name: { ar: "الراعي", en: "Acme" }, tier: "gold" };
     const { page } = await lockerOf(
@@ -151,7 +151,7 @@ describe("readLocker", () => {
           presented_by: presentedBy,
         },
         levelRow(2),
-        { ...levelRow(4), source_level: null, source_event: null, source: "shop" },
+        { ...levelRow(4), source_level: null, source_event: null, source: "questify" },
       ],
       undefined,
       5,
@@ -159,17 +159,26 @@ describe("readLocker", () => {
     expect(page.items.map((entry) => entry.source)).toEqual([
       { kind: "event", event, presentedBy },
       { kind: "level", level: 2 },
-      { kind: "shop" },
+      { kind: "questify" },
     ]);
   });
 
-  it("keeps entries got in the gem shop as a shop source (T-404)", async () => {
+  it("names an achievement item's achievement and tier (T-404c)", async () => {
+    const achievement = { id: "top-ten", name: { ar: "ا", en: "A" }, tier: "gold" };
     const { page } = await lockerOf(
-      [{ ...levelRow(4), source_level: null, source_event: null, source: "shop" }],
+      [
+        {
+          ...levelRow(4),
+          source_level: null,
+          source_event: null,
+          source: "achievement",
+          source_achievement: achievement,
+        },
+      ],
       undefined,
       5,
     );
-    expect(page.items[0]?.source).toEqual({ kind: "shop" });
+    expect(page.items[0]?.source).toEqual({ kind: "achievement", achievement });
   });
 
   it("returns no next cursor when the rows fit the page exactly or fall short of it", async () => {

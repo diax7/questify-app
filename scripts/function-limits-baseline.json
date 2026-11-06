@@ -813,11 +813,6 @@
       "complexity": [12]
     }
   },
-  "apps/app/src/questify/GemShopScreen.tsx": {
-    "ShopBody": {
-      "complexity": [16]
-    }
-  },
   "apps/app/src/questify/QuestifyQuestsScreen.tsx": {
     "QuestifyQuestsScreen": {
       "complexity": [11]
@@ -825,21 +820,6 @@
   },
   "apps/app/src/questify/QuestifySyncProvider.tsx": {
     "<anonymous>": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/questify/gem-shop-api.ts": {
-    "buyGemItem": {
-      "complexity": [12]
-    }
-  },
-  "apps/app/src/questify/gem-shop-flow.ts": {
-    "stepAfter": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/questify/gems.ts": {
-    "gemsKey": {
       "complexity": [9]
     }
   },

@@ -286,8 +286,8 @@ Lifetime XP and level: F-124 and F-57 (Area 4).
 | F-131 | Every level-up unlocks an item | Must | user / Claude | |
 | F-130 | Extra characters beyond the starter avatars | Should | user | New 3D art per character (Codex) |
 | F-134 | Event souvenirs: the organizer grants an exclusive frame, title or character to winners, finishers or everyone who attended | Should | Claude | A possible paid add-on (Stage 3) |
-| F-135 | Gems: the Questify layer's currency, earned from Questify quests, achievements and level-ups; never bought | Should | user | Separate from event points and XP (ADR-046) |
-| F-136 | Questify shop: spend gems on frames, titles and characters | Should | user | No real money (ADR-002); no trading between players |
+| F-135 | **Removed 2026-11-06 (ADR-760).** Gems: the Questify layer's currency | | user | The lifetime level is the only reward across Questify |
+| F-136 | **Removed 2026-11-06 (ADR-760).** Questify shop | | user | No Questify store: players must never confuse it with an event's rewards |
 
 ### Daily, discovery and invitations
 
@@ -436,7 +436,7 @@ Decisions:
 
 | # | Feature | Priority | Source | Notes |
 |---|---|---|---|---|
-| F-171 | Questify home bar: Home, Explore, ● (scan an event's join QR), Shop, Profile | Must | Claude | The same center button as inside events. The Shop tab appears with the gem shop (F-136, Should) |
+| F-171 | Questify home bar: Home, Explore, ● (scan an event's join QR), Journey, Profile | Must | Claude | The same center button as inside events. The Journey tab comes with T-404d («رحلتي», Dhia, Q-724) |
 | F-172 | Questify Home: your events (live, upcoming, past), daily challenge, streak, Questify quests | Must | Claude | |
 | F-173 | Explore: the public events list (ADR-024), "For you" (F-138), Questify-wide ranking (F-154) | Must | Claude | "For you" and the Questify-wide ranking appear as F-138 and F-154 (Should) are built |
 
@@ -782,6 +782,8 @@ first column.
 | F-346 | 9 | Operator activity view (scans per hour, awards, last activity per operator and station) and a staff briefing push to operators only | Should | user | Wireframe review 2026-10-18; ADR-105/ADR-106 |
 | F-347 | 10 | Go-live readiness checklist: quests, QR printed, prize desk hours, rehearsal, at least two operators, big screen paired; also shown to the Questify team for events starting soon | Should | user | Wireframe review 2026-10-18; ADR-105/ADR-106 |
 | F-348 | 10 | The guided setup wizard has ten steps: Basics and access; Join rules; Quests; Rewards; Sponsors; Screens and staff; Home and look; Messages; Add-ons and activation; Rehearse and review | Must | user | Wireframe review 2026-10-18; ADR-105/ADR-106 |
+| F-349 | 7 | Some achievements unlock their own cosmetic item at a tier the admin picks (ADR-765) |
+| F-350 | 7 | The player's level beside their name on the app's event rankings, the podium and profiles; never on the big screen, never an advantage inside an event (ADR-766, Q-724) |
 
 
 **Won't (v1), decided in the review:**

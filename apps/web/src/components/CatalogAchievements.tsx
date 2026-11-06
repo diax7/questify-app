@@ -4,7 +4,7 @@ import {
   formatNumber,
   type AchievementAdmin,
   type Language,
-  type LoweredGems,
+  type LoweredTiers,
 } from "@questify/shared";
 import { useState } from "react";
 import {
@@ -23,7 +23,7 @@ import {
   achievementDraftOf,
   checkAchievement,
   isAchievementDirty,
-  loweredGemsOf,
+  loweredTiersOf,
   readAchievements,
   type AchievementDraft,
 } from "#src/lib/console-catalog.ts";
@@ -36,10 +36,10 @@ import { Icon } from "#src/ui/Icon.tsx";
 import { Stack, Toolbar } from "#src/ui/Section.tsx";
 
 /** A lowering the API refused until confirmed: what it pays, and the same call with the confirmation. */
-type Ask = Readonly<{ gems: LoweredGems; again: () => Promise<boolean> }>;
+type Ask = Readonly<{ tiers: LoweredTiers; again: () => Promise<boolean> }>;
 
 /**
- * The one confirmation of a lowering (ADR-437): one line per lowered tier with the gems it pays now, and that undoing
+ * The one confirmation of a lowering (ADR-437): one line per lowered tier with the XP it pays now and whether its item comes with it, and that undoing
  * does not take them back.
  */
 function LowerConfirm({
@@ -55,13 +55,14 @@ function LowerConfirm({
       <Stack>
         <strong>{t("console.catalog.lower.title", { name })}</strong>
         {TIERS.map((tier) => {
-          const gems = ask.gems[tier];
-          return gems === undefined ? null : (
+          const pays = ask.tiers[tier];
+          return pays === undefined ? null : (
             <p key={tier}>
               {t("console.catalog.lower.line", {
                 tier: t(`console.catalog.achievements.${tier}`),
-                gems: formatNumber(gems, language),
+                xp: formatNumber(pays.xp, language),
               })}
+              {pays.itemId === null ? null : <> {t("console.catalog.lower.item")}</>}
             </p>
           );
         })}
@@ -175,11 +176,11 @@ function AchievementCard({
   const asking =
     (again: () => Promise<boolean>) =>
     (result: PostResult): boolean => {
-      const gems = loweredGemsOf(result.body);
-      if (gems === undefined) {
+      const tiers = loweredTiersOf(result.body);
+      if (tiers === undefined) {
         return false;
       }
-      setAsk({ gems, again });
+      setAsk({ tiers, again });
       return true;
     };
   return (
@@ -248,8 +249,8 @@ function AchievementCard({
 
 /**
  * The achievements (T-709b, T-709c, FR-1403): five equal cards with the name in both languages and the three tier
- * thresholds. A lower threshold pays gems at every player's next sync and a revert cannot take them back, so a save or a
- * revert that lowers one asks once, naming the gems (ADR-437).
+ * thresholds. A lower threshold pays XP and the tier's item at every player's next sync and a revert cannot take them back, so a
+ * save or a revert that lowers one asks once, naming them (ADR-437).
  */
 export function CatalogAchievements({ language }: Readonly<{ language: Language }>) {
   const catalog = useCatalog(language, ACHIEVEMENTS_API, readAchievements);

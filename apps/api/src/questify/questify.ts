@@ -13,8 +13,8 @@ import { z } from "zod";
 import { invalidRequest, unauthenticated } from "#src/auth/http-errors";
 
 /**
- * Runs the sync evaluator (ADR-274, ADR-278, ADR-286): the tiers earned, the Questify quests paid, the highest level
- * reached and the gems paid by this call with the balance after; empty (with the balance) on a replay.
+ * Runs the sync evaluator (ADR-274, ADR-278, ADR-764, ADR-765): the tiers earned with their XP, the Questify quests paid,
+ * the highest level reached and the achievement items given by this call; empty on a replay.
  */
 export async function syncQuestify(client: PoolClient): Promise<QuestifySync> {
   try {

@@ -1,7 +1,7 @@
 import {
   achievementDocSchema,
+  amountsBeforeSchema,
   amountsDocSchema,
-  gemShopDocSchema,
   homeLayoutDocSchema,
   itemDocSchema,
   levelTitlesDocSchema,
@@ -25,8 +25,15 @@ import { fakePool, pgError, type FakeAnswer } from "#test/support/fake-pool";
 const ADMIN = { id: "11111111-1111-4111-8111-111111111111" };
 const NAME = { ar: "اسم", en: "Name" };
 const AMOUNTS = {
-  xp: { questXp: 100, dailyFinishXp: 20, dailyRightXp: 10, dailyWordXp: 50 },
-  gems: { levelUp: 20, bronze: 10, silver: 25, gold: 50 },
+  xp: {
+    questXp: 100,
+    dailyFinishXp: 20,
+    dailyRightXp: 10,
+    dailyWordXp: 50,
+    bronzeXp: 50,
+    silverXp: 150,
+    goldXp: 300,
+  },
 };
 const ITEM_ROW = {
   id: "gold-frame",
@@ -83,25 +90,23 @@ describe("a catalog door's refusals", () => {
     expect(answered(error)).toEqual({ status: 422, code: "invalid_catalog", details: {} });
   });
 
-  it("answers an unconfirmed lowering with the gems per tier, or the levels and level gems", async () => {
-    const tiers = await failure(refusing(pgError({ code: "CA428", detail: '{"bronze":10}' })));
+  it("answers an unconfirmed lowering with what each tier pays, or the levels", async () => {
+    const detail = '{"bronze":{"xp":50,"itemId":null}}';
+    const tiers = await failure(refusing(pgError({ code: "CA428", detail })));
     expect(answered(tiers)).toEqual({
       status: 409,
       code: "confirmation_required",
-      details: { gems: { bronze: 10 } },
+      details: { tiers: { bronze: { xp: 50, itemId: null } } },
     });
-    const table = pgError({ code: "CA428", detail: '{"levels":[2,3],"levelUp":20}' });
-    expect(answered(await failure(refusing(table))).details).toEqual({
-      levels: [2, 3],
-      levelUp: 20,
-    });
+    const table = pgError({ code: "CA428", detail: '{"levels":[2,3]}' });
+    expect(answered(await failure(refusing(table))).details).toEqual({ levels: [2, 3] });
   });
 
   it("fails as a server fault on a lowering without its detail", async () => {
     const error = await failure(refusing(pgError({ code: "CA428" })));
     expect(error).not.toBeInstanceOf(HttpError);
     expect(error).toMatchObject({
-      message: "a catalog refusal came without its detail; check migrations 0122 and 0124",
+      message: "a catalog refusal came without its detail; check migrations 0122, 0124 and 0164",
     });
   });
 
@@ -119,17 +124,19 @@ describe("a catalog door's refusals", () => {
       code: "level_held",
       details: { level: 4 },
     });
-    const onSale = answered(
-      await failure(refusing(pgError({ code: "CA409", detail: '{"reason":"item_on_sale"}' }))),
+    const given = answered(
+      await failure(refusing(pgError({ code: "CA409", detail: '{"reason":"item_given"}' }))),
     );
-    expect(onSale.code).toBe("item_on_sale");
-    expect(Object.keys(onSale.details ?? {})).toEqual([]);
+    expect(given.code).toBe("item_given");
+    expect(Object.keys(given.details ?? {})).toEqual([]);
   });
 
   it("fails as a server fault on a reason no door raises", async () => {
     const error = await failure(refusing(pgError({ code: "CA409", detail: '{"reason":"nope"}' })));
     expect(error).not.toBeInstanceOf(HttpError);
-    expect(error).toMatchObject({ message: "unknown catalog refusal nope; check migration 0124" });
+    expect(error).toMatchObject({
+      message: "unknown catalog refusal nope; check migrations 0124 and 0164",
+    });
   });
 
   it("lets any other error through as it came, even one with a JSON detail", async () => {
@@ -186,30 +193,12 @@ const ID_CASES: readonly Case[] = [
       gold: 3,
       name: NAME,
       visualKey: "trophy",
+      item: null,
       position: 1,
     },
     values: ["quests-done", "doc", null, true, "req"],
     doc: achievementDocSchema,
     confirmable: true,
-  },
-  {
-    kind: "gem_shop",
-    list: "SELECT admin_shop_items() AS r",
-    save: "SELECT admin_shop_item_save($1, $2, $3, $4) AS r",
-    targetType: "gem_shop_item",
-    target: "gold-frame",
-    row: {
-      itemId: "gold-frame",
-      kind: "frame",
-      name: NAME,
-      visualKey: null,
-      price: 5,
-      status: "active",
-      position: 1,
-    },
-    values: ["gold-frame", "doc", null, "req"],
-    doc: gemShopDocSchema,
-    confirmable: false,
   },
   {
     kind: "item",
@@ -242,7 +231,7 @@ const DOCUMENT_CASES: readonly Case[] = [
     save: "SELECT admin_amounts_save($1, $2, $3) AS r",
     targetType: "platform_setting",
     target: "amounts",
-    row: { ...AMOUNTS, stored: { xp: true, gems: true } },
+    row: { ...AMOUNTS, stored: { xp: true } },
     values: ["doc", null, "req"],
     doc: amountsDocSchema,
     confirmable: false,
@@ -288,7 +277,7 @@ describe.each([...ID_CASES, ...DOCUMENT_CASES])("the $kind editor", (editor) => 
     expect(seen[1]?.values).toEqual([editor.targetType]);
   });
 
-  it("saves through its door with the confirmation only where it pays gems", async () => {
+  it("saves through its door with the confirmation only where it pays XP or items", async () => {
     const { pool, seen } = poolAnswering(editor.row, [editor.target]);
     const id = isDocument ? "all" : editor.target;
     const saved = await saveCatalog(pool, ADMIN, editor.kind, {
@@ -338,17 +327,13 @@ describe("a revert", () => {
     );
     const { status, code, details } = answered(error);
     expect({ status, code }).toEqual({ status: 422, code: "invalid_catalog" });
-    const issues = amountsDocSchema.safeParse({ xp: {} }).error?.issues ?? [];
+    const issues = amountsBeforeSchema.safeParse({ xp: {} }).error?.issues ?? [];
     expect(details).toEqual({ issues: issues.map((issue) => issue.message) });
     expect(seen).toHaveLength(1);
   });
 
   it("puts the entry back through the save door, by its id", async () => {
-    const { pool, seen } = poolAnswering(
-      { ...AMOUNTS, stored: { xp: true, gems: true } },
-      [],
-      latest(AMOUNTS),
-    );
+    const { pool, seen } = poolAnswering({ ...AMOUNTS, stored: { xp: true } }, [], latest(AMOUNTS));
     await revertCatalog(pool, ADMIN, "amounts", { id: "all", requestId: "req" });
     expect(seen[1]).toEqual({
       sql: "SELECT admin_amounts_save($1, $2, $3) AS r",
@@ -359,7 +344,7 @@ describe("a revert", () => {
 
 describe("the XP table's extras", () => {
   it("previews what the door answers", async () => {
-    const preview = { up: 1, down: 0, levels: 2, gems: 40, levelUp: 20 };
+    const preview = { up: 1, down: 0, levels: 2 };
     const { pool, seen } = poolAnswering(preview);
     await expect(previewXpTable(pool, ADMIN, { levels: [] })).resolves.toEqual(preview);
     expect(seen[0]).toEqual({

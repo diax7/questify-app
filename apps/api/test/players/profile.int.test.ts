@@ -91,7 +91,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("my profile", () => {
         title: { ar: "مستكشف", en: "Explorer" },
       },
       help: { unread: 0 },
-      gems: 0,
       dailyStreak: { days: 0, today: false, next: { days: 3, xp: 50 } },
       marketing: { asked: false, canOptIn: false },
       notifications: { unread: 0 },

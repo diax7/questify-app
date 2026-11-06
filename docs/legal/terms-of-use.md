@@ -142,14 +142,13 @@ them, do not create an account. You can browse public events without one.
   rules differ from these terms on a matter about that event, the event's rules apply to it.
 - You can leave an event at any time. The organizer keeps what the join card disclosed.
 
-### 5. Points, gems and XP
+### 5. Points and XP
 
 - **Points** are earned only by taking part in an event. They cannot be bought, sold or
   transferred to anyone else, have no cash value and cannot be exchanged for money.
 - Each event's points belong to that event. After the event ends, its shop stays open for a period
   the organizer sets, then your balance there closes. Your score and rank stay.
-- **XP** and **gems** belong to Questify across events. They cannot be bought or traded, and gems
-  can only be spent in the Questify shop.
+- **XP** and levels belong to Questify across events. They cannot be bought or traded.
 - The app has no purchases, no draws, no raffles and no prize that depends on chance.
 - The organizer or we may correct or remove points after a mistake, cheating or the removal of
   content that breaks the rules. Every change is written to the permanent points record, and your

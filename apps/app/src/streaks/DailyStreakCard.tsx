@@ -7,7 +7,7 @@ import { FlameIcon } from "#src/streaks/FlameIcon.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /**
- * The player's Questify daily streak on their own profile, beside the gems (T-405b, FR-419): days in a row, one neutral
+ * The player's Questify daily streak on their own profile (T-405b, FR-419): days in a row, one neutral
  * sentence and the next reward. Hidden while the platform switch is off (`/v1/me` sends null). Nobody else sees it,
  * and nothing counts down (ADR-300).
  */
@@ -31,7 +31,7 @@ export function DailyStreakCard({ streak }: Readonly<{ streak: DailyStreak | nul
   );
 }
 
-// Like the level and the gems above it on the profile: no frame, a small gap.
+// Like the level above it on the profile: no frame, a small gap.
 const makeStyles = (theme: Theme) => ({
   card: { gap: theme.spacing.xs },
   row: { flexDirection: "row" as const, gap: theme.spacing.md, alignItems: "center" as const },

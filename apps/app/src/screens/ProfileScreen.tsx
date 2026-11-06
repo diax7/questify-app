@@ -16,8 +16,6 @@ import type { Channel } from "#src/auth/sign-in-flow.ts";
 import { usePlayer, type Me } from "#src/auth/player.tsx";
 import { HowItWorksButton } from "#src/onboarding/HowItWorksButton.tsx";
 import { NotificationsRow } from "#src/push/NotificationsRow.tsx";
-import { GemIcon } from "#src/questify/GemIcon.tsx";
-import { gemsLabel } from "#src/questify/gems.ts";
 import { levelProgress, type QuestifyLevel } from "#src/questify/level.ts";
 import { DailyStreakCard } from "#src/streaks/DailyStreakCard.tsx";
 import { Screen } from "#src/components/Screen.tsx";
@@ -94,24 +92,6 @@ function LevelCard({ level }: Readonly<{ level: QuestifyLevel }>) {
   );
 }
 
-/** The player's gems and the door to the gem shop (FR-724, FR-726). Nobody else ever sees this count. */
-function GemsCard({ gems }: Readonly<{ gems: number | undefined }>) {
-  const { t, language } = useI18n();
-  const styles = useThemedStyles(makeStyles);
-  return (
-    <View style={styles.level}>
-      <AppText variant="label">{t("profile.gems")}</AppText>
-      {gems === undefined ? null : (
-        <View style={styles.identifier}>
-          <GemIcon size={28} />
-          <AppText variant="title">{gemsLabel(t, gems, language, "subject")}</AppText>
-        </View>
-      )}
-      <Button kind="quiet" label={t("gemShop.title")} onPress={() => router.push("/gem-shop")} />
-    </View>
-  );
-}
-
 /** Whether the player has sent any help-desk request (T-310): the profile then shows Your requests. */
 function useHasRequests(signedIn: boolean): boolean {
   const [has, setHas] = useState(false);
@@ -160,7 +140,6 @@ function MyIdentity({ me }: { me: Me }) {
       />
       <RewardNotices />
       {me.questify === undefined ? null : <LevelCard level={me.questify} />}
-      <GemsCard gems={me.gems} />
       <DailyStreakCard streak={me.dailyStreak} />
       <ProfileQuestify />
       <MyAccount me={me} />

@@ -79,10 +79,10 @@ describe("reads", () => {
 
 describe("postSync", () => {
   const written = {
-    achievements: [{ id: "events-attended", tier: "bronze" }],
+    achievements: [{ id: "events-attended", tier: "bronze", xp: 50 }],
     quests: [],
     levelUp: null,
-    gems: { earned: 10, balance: 10 },
+    items: [],
     dailyStreak: null,
   };
 

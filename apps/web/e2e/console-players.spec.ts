@@ -95,7 +95,7 @@ test("in English an admin finds a player, reads the record, changes the name and
   await expect(page.getByText("Account banned.")).toBeVisible();
   await expect(page.getByRole("region", { name: "Lift ban" })).toBeVisible();
   const revoke = page.getByRole("region", { name: "Revoke tiers" });
-  await expect(revoke.getByText("Paid gems stay with the player.")).toBeVisible();
+  await expect(revoke.getByText("What the player already got stays.")).toBeVisible();
   await revoke.getByRole("checkbox", { name: "Wanderer · Bronze" }).check();
   await act(page, "Revoke tiers", "Revoke tiers", "Cheating");
   await expect(page.getByText("Tiers revoked.")).toBeVisible();

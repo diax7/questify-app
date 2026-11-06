@@ -295,7 +295,7 @@ T-810f. Never run `reseal` before the release is confirmed. Migration 0157 is sa
 - **Before each store submission:** **Prepare for review** with the build's version and a window (14 days by default,
   30 at most). The reviewer account is erased and made again (held prizes forfeited) and a new six-digit code is shown
   **once**: paste it into App Store Connect and Play Console at once with the reviewer number and the event's join
-  code. Then sign in as the reviewer with that code and play to level 3 (at least 40 gems, T-806). No SMS is ever sent
+  code. Then sign in as the reviewer with that code and play to level 3, so the reviewer sees two level items (T-806). No SMS is ever sent
   while the window is open.
 - **After review:** **Close window**. The fixed code stops and the reviewer is signed out; the window also closes by
   itself at its end (the lifecycle tick, within 30 seconds). With the window closed the reviewer number is an ordinary

@@ -30,7 +30,7 @@ const none: QuestifySync = {
   achievements: [],
   quests: [],
   levelUp: null,
-  gems: { earned: 0, balance: 0 },
+  items: [],
   dailyStreak: null,
 };
 
@@ -41,7 +41,10 @@ describe("syncNotices", () => {
   });
 
   it("names the achievement and its tier in the screen's language", () => {
-    const sync = { ...none, achievements: [{ id: "events-attended", tier: "bronze" as const }] };
+    const sync = {
+      ...none,
+      achievements: [{ id: "events-attended", tier: "bronze" as const, xp: 50 }],
+    };
     expect(syncNotices(sync, catalog, tIn("en"), "en")).toEqual([
       "New achievement: Wanderer (Bronze)",
     ]);
@@ -52,9 +55,9 @@ describe("syncNotices", () => {
     const sync = {
       ...none,
       achievements: [
-        { id: "events-attended", tier: "bronze" as const },
-        { id: "events-attended", tier: "gold" as const },
-        { id: "events-attended", tier: "silver" as const },
+        { id: "events-attended", tier: "bronze" as const, xp: 50 },
+        { id: "events-attended", tier: "gold" as const, xp: 300 },
+        { id: "events-attended", tier: "silver" as const, xp: 150 },
       ],
     };
     expect(syncNotices(sync, catalog, tIn("en"), "en")).toEqual([
@@ -63,7 +66,10 @@ describe("syncNotices", () => {
   });
 
   it("still tells the player when the catalog did not load or does not know the achievement", () => {
-    const sync = { ...none, achievements: [{ id: "events-attended", tier: "silver" as const }] };
+    const sync = {
+      ...none,
+      achievements: [{ id: "events-attended", tier: "silver" as const, xp: 150 }],
+    };
     expect(syncNotices(sync, null, tIn("en"), "en")).toEqual(["You unlocked a new achievement."]);
     expect(syncNotices(sync, [], tIn("ar"), "ar")).toEqual(["فتحت إنجازًا جديدًا."]);
   });
@@ -96,28 +102,9 @@ describe("syncNotices", () => {
     expect(syncNotices(sync, catalog, tIn("en"), "en")).toEqual([]);
   });
 
-  it("adds one gems line for everything the sync paid, after the other toasts", () => {
+  it("adds one toast for each daily streak milestone, after the quests (T-405b)", () => {
     const sync = {
       ...none,
-      achievements: [{ id: "events-attended", tier: "bronze" as const }],
-      gems: { earned: 30, balance: 130 },
-    };
-    expect(syncNotices(sync, catalog, tIn("en"), "en")).toEqual([
-      "New achievement: Wanderer (Bronze)",
-      "You earned 30 gems",
-    ]);
-    expect(
-      syncNotices({ ...none, gems: { earned: 1, balance: 1 } }, catalog, tIn("en"), "en"),
-    ).toEqual(["You earned 1 gem"]);
-    expect(
-      syncNotices({ ...none, gems: { earned: 2, balance: 2 } }, catalog, tIn("ar"), "ar"),
-    ).toEqual(["حصلت على جوهرتين"]);
-  });
-
-  it("adds one toast for each daily streak milestone, after the quests and before the gems (T-405b)", () => {
-    const sync = {
-      ...none,
-      gems: { earned: 30, balance: 130 },
       dailyStreak: {
         days: 7,
         today: true,
@@ -131,7 +118,6 @@ describe("syncNotices", () => {
     expect(syncNotices(sync, catalog, tIn("en"), "en")).toEqual([
       "Streak of 3 days! +50 XP",
       "Streak of 7 days! +100 XP",
-      "You earned 30 gems",
     ]);
     expect(syncNotices(sync, catalog, tIn("ar"), "ar")[0]).toBe("سلسلة 3 أيام! ‎+50 XP");
   });
@@ -145,8 +131,14 @@ describe("syncNotices", () => {
     expect(wroteSomething(none)).toBe(false);
   });
 
-  it("counts a sync that only paid gems as something written, and a balance alone as nothing", () => {
-    expect(wroteSomething({ ...none, gems: { earned: 20, balance: 20 } })).toBe(true);
-    expect(wroteSomething({ ...none, gems: { earned: 0, balance: 90 } })).toBe(false);
+  it("counts a sync that only gave an achievement item as something written (T-404c)", () => {
+    const item = {
+      id: "ring",
+      kind: "frame" as const,
+      name: { ar: "ا", en: "A" },
+      visualKey: "frame-16",
+    };
+    const given = { achievementId: "top-ten", tier: "gold" as const, item };
+    expect(wroteSomething({ ...none, items: [given] })).toBe(true);
   });
 });

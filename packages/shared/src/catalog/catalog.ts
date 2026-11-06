@@ -5,15 +5,14 @@ import { TEMPLATE_KEY, templateBodySchema } from "#src/templates/template";
 import { arabicText, englishText } from "#src/text/bilingual";
 
 /**
- * The console's catalog editors (T-709b, T-709c, T-709d, FR-1403): event templates, achievements, level titles, the gem
- * shop, the XP and gem amounts, the XP table with its level rewards, and Questify's items (`xp-table.ts`). Each editor changes configuration the platform already reads. A saved change is an audit entry holding the edited fields
+ * The console's catalog editors (T-709b, T-709c, T-709d, FR-1403): event templates, achievements, level titles,
+ * the XP amounts, the XP table with its level rewards, and Questify's items (`xp-table.ts`). Each editor changes configuration the platform already reads. A saved change is an audit entry holding the edited fields
  * before and after (`CatalogDoc`), and the same shape is what a revert puts back, so one schema guards a save and a revert.
  */
 export const CATALOG_KINDS = [
   "template",
   "achievement",
   "level_titles",
-  "gem_shop",
   "amounts",
   "xp_table",
   "item",
@@ -34,7 +33,6 @@ const pair = (max: number) => z.strictObject({ ar: arabicText(max), en: englishT
 
 export const ACHIEVEMENT_ID = /^[a-z][a-z0-9-]{0,63}$/;
 export const ITEM_ID = /^[a-z][a-z0-9-]{0,63}$/;
-export const GEM_SHOP_STATUSES = ["active", "retired"] as const;
 export const LEVEL_TITLE_LIMIT = 100;
 
 /** What an admin edits of a template. */
@@ -57,13 +55,29 @@ export type TemplateDoc = z.infer<typeof templateDocSchema>;
 export const THRESHOLD_MAX = 100_000;
 const threshold = z.number().int().min(1).max(THRESHOLD_MAX);
 
+const ACHIEVEMENT_TIERS = ["bronze", "silver", "gold"] as const;
+
+/** The item an achievement unlocks, at the tier the admin picks (T-404c, ADR-765). */
+export const achievementItemSchema = z.strictObject({
+  tier: z.enum(ACHIEVEMENT_TIERS),
+  itemId: z.string().regex(ITEM_ID),
+});
+export type AchievementItem = z.infer<typeof achievementItemSchema>;
+
 /**
- * What an admin edits of an achievement (T-709c): the name and the three tier thresholds, whole and strictly rising. A
- * lower threshold makes questify_sync pay gems to every player who now reaches the tier, and a revert cannot take them
- * back, so the API refuses a lowering until the admin confirms it (409 `confirmation_required`).
+ * What an admin edits of an achievement (T-709c, T-404c): the name, the three tier thresholds, whole and strictly rising,
+ * and the optional item (left out, it is unchanged; null removes it). A
+ * lower threshold makes questify_sync pay XP and the tier's item to every player who now reaches the tier, and a revert
+ * cannot take them back, so the API refuses a lowering until the admin confirms it (409 `confirmation_required`).
  */
 export const achievementDocSchema = z
-  .strictObject({ name: pair(60), bronze: threshold, silver: threshold, gold: threshold })
+  .strictObject({
+    name: pair(60),
+    bronze: threshold,
+    silver: threshold,
+    gold: threshold,
+    item: achievementItemSchema.nullable().optional(),
+  })
   .superRefine((doc, context) => {
     if (!(doc.bronze < doc.silver && doc.silver < doc.gold)) {
       context.addIssue({
@@ -77,26 +91,32 @@ export type AchievementDoc = z.infer<typeof achievementDocSchema>;
 
 /**
  * The `before` of an achievement's audit entry, which a revert puts back: T-709b's entries hold the name only, and their
- * revert keeps the thresholds in force.
+ * revert keeps the thresholds in force; entries from before T-404c hold no item, and their revert keeps it.
  */
 export const achievementBeforeSchema = z.strictObject({
   name: pair(60),
   bronze: threshold.optional(),
   silver: threshold.optional(),
   gold: threshold.optional(),
+  item: achievementItemSchema.nullable().optional(),
 });
 
-/** What a lowering pays now, per lowered tier: the `details.gems` of a 409 `confirmation_required`. */
-export const loweredGemsSchema = z.strictObject({
-  bronze: z.number().int().min(1).optional(),
-  silver: z.number().int().min(1).optional(),
-  gold: z.number().int().min(1).optional(),
+const loweredTier = z.strictObject({
+  xp: z.number().int().min(0),
+  itemId: z.string().regex(ITEM_ID).nullable(),
 });
-export type LoweredGems = z.infer<typeof loweredGemsSchema>;
+
+/** What a lowering pays now, per lowered tier: the `details.tiers` of a 409 `confirmation_required`. */
+export const loweredTiersSchema = z.strictObject({
+  bronze: loweredTier.optional(),
+  silver: loweredTier.optional(),
+  gold: loweredTier.optional(),
+});
+export type LoweredTiers = z.infer<typeof loweredTiersSchema>;
 
 /**
- * The XP and gem amounts (T-709c, ADR-438), each a whole number in its range: quest XP, the daily XP, and the gems of a
- * level and of each achievement tier. The database's CHECKs hold the same ranges (migration 0122).
+ * The XP amounts (T-709c, T-404c; ADR-438, ADR-764), each a whole number in its range: quest XP, the daily XP and the XP of
+ * each achievement tier. The database's CHECK holds the same ranges (migration 0163).
  */
 export const AMOUNT_RANGES = {
   xp: {
@@ -104,12 +124,21 @@ export const AMOUNT_RANGES = {
     dailyFinishXp: [0, 400],
     dailyRightXp: [0, 200],
     dailyWordXp: [0, 1000],
+    bronzeXp: [0, 1000],
+    silverXp: [0, 1000],
+    goldXp: [0, 1000],
   },
-  gems: { levelUp: [1, 1000], bronze: [1, 1000], silver: [1, 1000], gold: [1, 1000] },
 } as const;
 export type AmountGroup = keyof typeof AMOUNT_RANGES;
-export const XP_AMOUNTS = ["questXp", "dailyFinishXp", "dailyRightXp", "dailyWordXp"] as const;
-export const GEM_AMOUNTS = ["levelUp", "bronze", "silver", "gold"] as const;
+export const XP_AMOUNTS = [
+  "questXp",
+  "dailyFinishXp",
+  "dailyRightXp",
+  "dailyWordXp",
+  "bronzeXp",
+  "silverXp",
+  "goldXp",
+] as const;
 
 const amount = (range: readonly [number, number]) => z.number().int().min(range[0]).max(range[1]);
 const xpAmounts = z.strictObject({
@@ -117,17 +146,23 @@ const xpAmounts = z.strictObject({
   dailyFinishXp: amount(AMOUNT_RANGES.xp.dailyFinishXp),
   dailyRightXp: amount(AMOUNT_RANGES.xp.dailyRightXp),
   dailyWordXp: amount(AMOUNT_RANGES.xp.dailyWordXp),
-});
-const gemAmounts = z.strictObject({
-  levelUp: amount(AMOUNT_RANGES.gems.levelUp),
-  bronze: amount(AMOUNT_RANGES.gems.bronze),
-  silver: amount(AMOUNT_RANGES.gems.silver),
-  gold: amount(AMOUNT_RANGES.gems.gold),
+  bronzeXp: amount(AMOUNT_RANGES.xp.bronzeXp),
+  silverXp: amount(AMOUNT_RANGES.xp.silverXp),
+  goldXp: amount(AMOUNT_RANGES.xp.goldXp),
 });
 
-/** The amounts as one document: what a save sends, an audit entry holds and a revert puts back. */
-export const amountsDocSchema = z.strictObject({ xp: xpAmounts, gems: gemAmounts });
+/** The amounts as one document: what a save sends and an audit entry holds. */
+export const amountsDocSchema = z.strictObject({ xp: xpAmounts });
 export type AmountsDoc = z.infer<typeof amountsDocSchema>;
+
+/**
+ * The `before` of an amounts audit entry, which a revert puts back: entries from before T-404c hold a `gems` group, which
+ * the door drops, and no tier XP, which it keeps as it stands now.
+ */
+export const amountsBeforeSchema = z.strictObject({
+  xp: xpAmounts.partial({ bronzeXp: true, silverXp: true, goldXp: true }),
+  gems: z.record(z.string(), z.number()).optional(),
+});
 
 const levelTitle = z.strictObject({
   levelFrom: z.number().int().min(1).max(LEVEL_TITLE_LIMIT),
@@ -147,14 +182,6 @@ export const levelTitlesDocSchema = z
     }
   });
 export type LevelTitlesDoc = z.infer<typeof levelTitlesDocSchema>;
-
-/** What an admin edits of a gem shop item: price, whether it is on sale, and its place in the shop. */
-export const gemShopDocSchema = z.strictObject({
-  price: z.number().int().min(1).max(100_000),
-  status: z.enum(GEM_SHOP_STATUSES),
-  position: z.number().int().min(1).max(1000),
-});
-export type GemShopDoc = z.infer<typeof gemShopDocSchema>;
 
 const revertible = z.boolean();
 
@@ -177,8 +204,7 @@ export type TemplateAdmin = z.infer<typeof templateAdminSchema>;
 /** The amounts in force (fallbacks filled in), and whether each setting row is stored yet. */
 export const amountsAdminSchema = z.strictObject({
   xp: xpAmounts,
-  gems: gemAmounts,
-  stored: z.strictObject({ xp: z.boolean(), gems: z.boolean() }),
+  stored: z.strictObject({ xp: z.boolean() }),
   revertible,
 });
 export type AmountsAdmin = z.infer<typeof amountsAdminSchema>;
@@ -192,6 +218,7 @@ export const achievementAdminSchema = z.strictObject({
   name: z.strictObject({ ar: z.string(), en: z.string() }),
   visualKey: z.string(),
   position: z.number().int().min(1),
+  item: achievementItemSchema.nullable(),
   revertible,
 });
 export type AchievementAdmin = z.infer<typeof achievementAdminSchema>;
@@ -207,26 +234,12 @@ export const levelTitlesAdminSchema = z.strictObject({
 });
 export type LevelTitlesAdmin = z.infer<typeof levelTitlesAdminSchema>;
 
-export const gemShopItemAdminSchema = z.strictObject({
-  itemId: z.string().regex(ITEM_ID),
-  kind: z.enum(["character", "frame", "title"]),
-  name: z.strictObject({ ar: z.string(), en: z.string() }),
-  visualKey: z.string().nullable(),
-  price: z.number().int().min(1),
-  status: z.enum(GEM_SHOP_STATUSES),
-  position: z.number().int().min(1),
-  revertible,
-});
-export type GemShopItemAdmin = z.infer<typeof gemShopItemAdminSchema>;
-
 export const templatesAdminListSchema = z.strictObject({ templates: z.array(templateAdminSchema) });
 export const templateAdminAnswerSchema = z.strictObject({ template: templateAdminSchema });
 export const achievementsAdminListSchema = z.strictObject({
   achievements: z.array(achievementAdminSchema),
 });
 export const achievementAdminAnswerSchema = z.strictObject({ achievement: achievementAdminSchema });
-export const gemShopAdminListSchema = z.strictObject({ items: z.array(gemShopItemAdminSchema) });
-export const gemShopItemAdminAnswerSchema = z.strictObject({ item: gemShopItemAdminSchema });
 
 /**
  * What an admin edits of Questify home (T-713, FR-1838): the order, the hidden blocks and the banner's slides. The check is the

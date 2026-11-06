@@ -20,7 +20,8 @@ export type RankingDeps = Readonly<{
  * Only the username and avatar of another player are ever shown (FR-120), and the full name where the event shows it to
  * every player and the player was told so when they joined (FR-1842, ADR-400): `fullName` is null everywhere else.
  * A player the reader blocked keeps the place and score with `hidden` set and no username, avatar, equipment or full
- * name (FR-1415, T-705): the database masks them.
+ * name (FR-1415, T-705): the database masks them. `level` is the player's Questify level, derived from their XP, kept for
+ * a hidden row like its place, and never an advantage inside the event (ADR-760, ADR-766).
  */
 export type RankingRow = Readonly<{
   rank: number;
@@ -29,6 +30,7 @@ export type RankingRow = Readonly<{
   avatar: string | null;
   equipment: Equipment | null;
   hidden: boolean;
+  level: number;
   score: number;
   isMe: boolean;
 }>;
@@ -45,6 +47,7 @@ export type RankingView = Readonly<{
     fullName: string | null;
     avatar: string;
     equipment: Equipment;
+    level: number;
     score: number;
   }> | null;
   total: number;
@@ -143,10 +146,11 @@ function fromPostgres(
       avatar: string | null;
       equipment: Equipment | null;
       score: string;
+      level: number;
     }>(
       daily
-        ? "SELECT enrollment_id, username, avatar, equipment, score FROM ranking_day_top($1, $2)"
-        : "SELECT enrollment_id, username, avatar, equipment, score FROM ranking_top($1, $2)",
+        ? "SELECT enrollment_id, username, avatar, equipment, score, level FROM ranking_day_top($1, $2)"
+        : "SELECT enrollment_id, username, avatar, equipment, score, level FROM ranking_top($1, $2)",
       [board.eventId, TOP],
     );
     const { rows } = await client.query<{ place: string | null; total: string }>(
@@ -165,6 +169,7 @@ function fromPostgres(
         avatar: row.avatar,
         equipment: row.equipment,
         hidden: row.username === null,
+        level: row.level,
         score: Number(row.score),
         isMe: row.enrollment_id === me.enrollmentId,
       })),
@@ -186,6 +191,7 @@ type Named = ReadonlyMap<
     avatar: string | null;
     equipment: Equipment | null;
     ranked: boolean;
+    level: number;
   }>
 >;
 
@@ -204,6 +210,7 @@ async function rowsOf(
         avatar: string | null;
         equipment: Equipment | null;
         ranked: boolean;
+        level: number;
       }>("SELECT * FROM ranking_rows($1, $2)", [eventId, top.map((row) => row.enrollmentId)]);
       return new Map(rows.map((row) => [row.enrollment_id, row]));
     });
@@ -259,8 +266,10 @@ async function ownIn(
     username: string;
     avatar: string;
     equipment: Equipment;
+    level: number;
   }>(
-    `SELECT e.id, e.score, p.username, p.avatar, c.equipment FROM enrollment e JOIN player p ON p.id = e.player_id CROSS JOIN own_equipment() c
+    `SELECT e.id, e.score, p.username, p.avatar, c.equipment, l.level FROM enrollment e JOIN player p ON p.id = e.player_id
+     CROSS JOIN own_equipment() c CROSS JOIN own_level(NULL) l
      WHERE e.event_id = $1 AND e.player_id = $2 AND e.status = 'active'`,
     [eventId, playerId],
   );
@@ -273,6 +282,7 @@ async function ownIn(
         username: row.username,
         avatar: row.avatar,
         equipment: row.equipment,
+        level: row.level,
       };
 }
 
@@ -625,6 +635,7 @@ type Own = Readonly<{
   username: string;
   avatar: string;
   equipment: Equipment;
+  level: number;
 }>;
 
 /** A board as the builders make it: each row still names its enrollment, which the answer never carries. */
@@ -640,6 +651,7 @@ const meOf = (me: Own, place: number | null): RankingView["me"] =>
         fullName: null,
         avatar: me.avatar,
         equipment: me.equipment,
+        level: me.level,
         score: me.score,
       };
 
@@ -650,16 +662,18 @@ const meOf = (me: Own, place: number | null): RankingView["me"] =>
 function shownOf(
   named: Named,
   enrollmentId: string,
-): Pick<RankingRow, "username" | "avatar" | "equipment" | "hidden"> {
+): Pick<RankingRow, "username" | "avatar" | "equipment" | "hidden" | "level"> {
   const shown = named.get(enrollmentId);
+  const level = shown?.level ?? 1;
   if (shown?.username === null || shown?.username === undefined) {
-    return { username: null, avatar: null, equipment: null, hidden: true };
+    return { username: null, avatar: null, equipment: null, hidden: true, level };
   }
   return {
     username: shown.username,
     avatar: shown.avatar,
     equipment: shown.equipment ?? EMPTY_EQUIPMENT,
     hidden: false,
+    level,
   };
 }
 

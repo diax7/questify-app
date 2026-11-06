@@ -86,10 +86,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       const player = await f.newPlayer();
       const event = await f.newEvent();
       const enrollment = await f.play(event, player, 9);
-      expect(await f.sync(player)).toEqual([{ id: "events-attended", tier: "bronze" }]);
+      expect(await f.sync(player)).toEqual([{ id: "events-attended", tier: "bronze", xp: 50 }]);
       expect(await progressOf(player, "quests-done")).toMatchObject({ tier: null, progress: 9 });
       await f.earn(event, enrollment);
-      expect(await f.sync(player)).toEqual([{ id: "quests-done", tier: "bronze" }]);
+      expect(await f.sync(player)).toEqual([{ id: "quests-done", tier: "bronze", xp: 50 }]);
       await f.earn(event, enrollment);
       expect(await f.sync(player)).toEqual([]);
       expect(await progressOf(player, "quests-done")).toMatchObject({
@@ -105,9 +105,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         const player = await f.newPlayer();
         for (let i = 0; i < 3; i += 1) await f.play(await f.newEvent(), player);
         expect(await f.sync(player)).toEqual([
-          { id: "events-attended", tier: "bronze" },
-          { id: "events-attended", tier: "silver" },
-          { id: "events-attended", tier: "gold" },
+          { id: "events-attended", tier: "bronze", xp: 50 },
+          { id: "events-attended", tier: "silver", xp: 150 },
+          { id: "events-attended", tier: "gold", xp: 300 },
         ]);
         expect(await f.sync(player)).toEqual([]);
         expect(await progressOf(player, "events-attended")).toMatchObject({
@@ -122,7 +122,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       const event = await f.newEvent();
       const enrollment = await f.join(event, player);
       const entry = await f.earn(event, enrollment);
-      expect(await f.sync(player)).toEqual([{ id: "events-attended", tier: "bronze" }]);
+      expect(await f.sync(player)).toEqual([{ id: "events-attended", tier: "bronze", xp: 50 }]);
       await f.removeEntry(event, entry);
       expect(await progressOf(player, "events-attended")).toMatchObject({
         tier: "bronze",
@@ -143,8 +143,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       await f.sync(player);
       await f.play(await f.newEvent({ cityId: "sa-abha" }), player);
       expect(await f.sync(player)).toEqual([
-        { id: "events-attended", tier: "silver" },
-        { id: "cities-played", tier: "bronze" },
+        { id: "events-attended", tier: "silver", xp: 150 },
+        { id: "cities-played", tier: "bronze", xp: 50 },
       ]);
     });
 
@@ -167,7 +167,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       expect(await f.confirm(first)).toBe("confirmed");
       expect(await f.sync(player)).toEqual([]);
       expect(await f.reveal(first)).toBe("revealed");
-      expect(await f.sync(player)).toEqual([{ id: "top-ten", tier: "bronze" }]);
+      expect(await f.sync(player)).toEqual([{ id: "top-ten", tier: "bronze", xp: 50 }]);
     });
 
     it("never counts a top-ten place held by welcome points alone; a member who played does", async () => {
@@ -188,8 +188,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       expect(await f.sync(idle)).toEqual([]);
       expect(await progressOf(player, "top-ten")).toMatchObject({ progress: 1 });
       expect(await f.sync(player)).toEqual([
-        { id: "events-attended", tier: "bronze" },
-        { id: "top-ten", tier: "bronze" },
+        { id: "events-attended", tier: "bronze", xp: 50 },
+        { id: "top-ten", tier: "bronze", xp: 50 },
       ]);
     });
 
@@ -215,7 +215,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       await goal("reached");
       expect(await progressOf(player, "community-goals")).toMatchObject({ progress: 0 });
       await contribute(await goal("reached"), enrollment);
-      expect(await f.sync(player)).toEqual([{ id: "community-goals", tier: "bronze" }]);
+      expect(await f.sync(player)).toEqual([{ id: "community-goals", tier: "bronze", xp: 50 }]);
 
       const banned = await f.newPlayer();
       const bannedEnrollment = await f.join(event, banned);
@@ -242,17 +242,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       const outcome = await f.crossed(call, call);
       expect(outcome.waited).toBe(true);
       expect((outcome.first as { r: unknown }).r).toEqual({
-        achievements: [{ id: "events-attended", tier: "bronze" }],
+        achievements: [{ id: "events-attended", tier: "bronze", xp: 50 }],
         quests: [],
         levelUp: null,
-        gems: { earned: 10, balance: 10 },
+        items: [],
         dailyStreak: { days: 1, today: true, next: { days: 3, xp: 50 }, rewards: [] },
       });
       expect((outcome.second as { r: unknown }).r).toEqual({
         achievements: [],
         quests: [],
         levelUp: null,
-        gems: { earned: 0, balance: 10 },
+        items: [],
         dailyStreak: { days: 1, today: true, next: { days: 3, xp: 50 }, rewards: [] },
       });
       expect(await f.earned(player)).toEqual(["events-attended:bronze"]);
@@ -352,7 +352,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       ]) {
         await expect(f.owner(sql, [player])).rejects.toThrow(/never be changed/);
       }
-      // gem_entry points at the earned tiers (T-404), so a plain TRUNCATE is refused by its key; CASCADE meets the triggers.
+      // xp_entry points at the earned tiers (T-404c), so a plain TRUNCATE is refused by its key; CASCADE meets the triggers.
       await expect(f.owner("TRUNCATE achievement_earned CASCADE")).rejects.toThrow(
         /never be changed/,
       );

@@ -10,7 +10,7 @@ type Streak = Readonly<{
 }>;
 type SyncAnswer = Readonly<{
   levelUp: Readonly<{ level: number; items: readonly { id: string }[] }> | null;
-  gems: Readonly<{ earned: number; balance: number }>;
+  items: readonly unknown[];
   dailyStreak: (Streak & Readonly<{ rewards: readonly { days: number; xp: number }[] }>) | null;
 }>;
 
@@ -27,7 +27,7 @@ const range = (from: number, to: number) =>
  * The Questify daily streak in the database (T-405, migration 0068, ADR-297, ADR-298, FR-419 to FR-421): one row per
  * player and Questify day (04:00 to 04:00 Riyadh) from any event's completion while the platform switch is on, the
  * length read from the run of rows, the XP milestones paid once ever by questify_sync, the pre-check that takes no lock,
- * no points and no gems from a milestone, and the XP invariant. Earlier days are written as rows, since a test cannot
+ * no points from a milestone, and the XP invariant. Earlier days are written as rows, since a test cannot
  * move the clock.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("the Questify daily streak (database)", () => {
@@ -136,7 +136,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the Questify daily streak (dat
         { days: 7, xp: 100 },
       ],
     });
-    expect(await xpOf(player)).toBe(250);
+    expect(await xpOf(player)).toBe(300);
     expect((await sync(player))?.dailyStreak?.rewards).toEqual([]);
     // A player paid at 3 in an earlier run who reaches 3 again is paid nothing: each milestone is paid once ever.
     const again = await playedToday();
@@ -145,7 +145,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the Questify daily streak (dat
     ]);
     await seed(again, [1, 2]);
     expect((await sync(again))?.dailyStreak).toMatchObject({ days: 3, rewards: [] });
-    expect(await xpOf(again)).toBe(100);
+    expect(await xpOf(again)).toBe(150);
     expect(
       await owner<{ days: number; xp: number }>(
         "SELECT days, xp FROM questify_streak_reward WHERE player_id = $1 ORDER BY days",
@@ -157,20 +157,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the Questify daily streak (dat
     ]);
   });
 
-  it("streak XP raises the level, grants the level item and the level's gems through the level source", async () => {
+  it("streak XP raises the level and grants the level item", async () => {
     const player = await playedToday();
     await seed(player, range(1, 6));
     const answer = await sync(player);
     expect(answer?.levelUp).toMatchObject({ level: 2, items: [{ id: "level-2" }] });
-    const gems = await owner<{ source: string; source_level: number | null; delta: number }>(
-      "SELECT source, source_level, delta FROM gem_entry WHERE player_id = $1 ORDER BY id",
-      [player],
-    );
-    // The level's gems through the level source; any other row is an achievement tier of the play itself.
-    expect(gems.filter((row) => row.source !== "achievement")).toEqual([
-      { source: "level", source_level: 2, delta: 20 },
-    ]);
-    expect(answer?.gems.earned).toBe(gems.reduce((sum, row) => sum + row.delta, 0));
     expect(
       await owner<{ source: string }>(
         `SELECT x.source FROM level_reached r JOIN xp_entry x ON x.id = r.xp_entry_id
@@ -180,7 +171,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the Questify daily streak (dat
     ).toEqual([{ source: "streak" }]);
   });
 
-  it("a milestone pays XP only: no points and no gems of its own (FR-421, Q-263)", async () => {
+  it("a milestone pays XP only: no points of its own (FR-421, Q-263)", async () => {
     const player = await playedToday();
     await seed(player, [1, 2]);
     const entries = async () =>
@@ -196,27 +187,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the Questify daily streak (dat
     const before = await entries();
     expect((await sync(player))?.dailyStreak?.rewards).toEqual([{ days: 3, xp: 50 }]);
     expect(await entries()).toBe(before);
-    expect(
-      await owner("SELECT 1 FROM gem_entry WHERE player_id = $1 AND source <> 'achievement'", [
-        player,
-      ]),
-    ).toEqual([]);
-    const writers = await owner<{ name: string }>(
-      `SELECT p.proname AS name FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-       WHERE n.nspname = 'public' AND p.prosrc ~* 'insert\\s+into\\s+(public\\.)?gem_entry' ORDER BY 1`,
-    );
-    expect(writers.map((row) => row.name)).toEqual(["gem_buy", "questify_sync"]);
-    const [check] = await owner<{ def: string }>(
-      "SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = 'gem_entry_source_check'",
-    );
-    expect(check?.def).not.toMatch(/streak/);
-    expect(
-      await refusal(
-        owner("INSERT INTO gem_entry (player_id, delta, source) VALUES ($1, 5, 'streak')", [
-          player,
-        ]),
-      ),
-    ).toBe("23514");
   });
 
   it("two syncs crossing pay each milestone once", async () => {
@@ -229,7 +199,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the Questify daily streak (dat
       (one) => (one as { r: SyncAnswer }).r.dailyStreak?.rewards,
     );
     expect(rewards).toEqual([[{ days: 3, xp: 50 }], []]);
-    expect(await xpOf(player)).toBe(150);
+    expect(await xpOf(player)).toBe(200);
   });
 
   it("with nothing due, the sync takes no row lock (player_xp held elsewhere)", async () => {

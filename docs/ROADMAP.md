@@ -33,7 +33,7 @@
 - **Depends on:** Phase 2 for operators and stations.
 
 ## Phase 4 — The Questify layer
-- **Delivers:** XP and levels, the profile with items, achievements and passport, gems and shop,
+- **Delivers:** XP and levels, the profile with items, achievements and passport, levels and their rewards,
   streaks, the daily challenge and word, consent and interests, Questify home and Explore, invitations,
   the after-event window (T-401 to T-410).
 - **Depends on:** Phase 1 (completions) and Phase 3 (quest types for Questify quests).

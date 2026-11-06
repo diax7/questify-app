@@ -41,20 +41,25 @@ const positionSchema = z.strictObject({
 export type LockerItem = LockerEntry;
 
 type EventSource = Extract<LockerEntry["source"], { kind: "event" }>;
+type AchievementSource = Extract<LockerEntry["source"], { kind: "achievement" }>;
 
 /**
- * Where a locker item came from: a level, an event's souvenir (with the sponsor an organizer tagged it to, T-507c) or
- * the gem shop (T-404).
+ * Where a locker item came from: a level, an event's souvenir (with the sponsor an organizer tagged it to, T-507c), an
+ * achievement, or Questify itself (an item from before T-404c, ADR-763).
  */
 function sourceOf(
   row: Readonly<{
-    source: "level" | "souvenir" | "shop";
+    source: "level" | "souvenir" | "questify" | "achievement";
     source_level: number;
     source_event: EventSource["event"] | null;
     presented_by: EventSource["presentedBy"] | null;
+    source_achievement: AchievementSource["achievement"] | null;
   }>,
 ): LockerEntry["source"] {
-  if (row.source === "shop") return { kind: "shop" };
+  if (row.source === "questify") return { kind: "questify" };
+  if (row.source === "achievement" && row.source_achievement !== null) {
+    return { kind: "achievement", achievement: row.source_achievement };
+  }
   if (row.source_event === null) return { kind: "level", level: row.source_level };
   return { kind: "event", event: row.source_event, presentedBy: row.presented_by };
 }
@@ -75,10 +80,11 @@ export async function readLocker(client: PoolClient, cursor: string | undefined,
     source_level: number;
     source_event: EventSource["event"] | null;
     seen: boolean;
-    source: "level" | "souvenir" | "shop";
+    source: "level" | "souvenir" | "questify" | "achievement";
     presented_by: EventSource["presentedBy"] | null;
+    source_achievement: AchievementSource["achievement"] | null;
   }>(
-    `SELECT item,to_char(earned_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS earned_at,source_level,source_event,seen,source,presented_by FROM own_locker($1,$2,$3)`,
+    `SELECT item,to_char(earned_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS earned_at,source_level,source_event,seen,source,presented_by,source_achievement FROM own_locker($1,$2,$3)`,
     [before?.at ?? null, before?.id ?? null, limit + 1],
   );
   const items: LockerItem[] = rows.slice(0, limit).map((row) => ({

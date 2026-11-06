@@ -1,11 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import {
-  TEMPLATE_BODY_MAX_BYTES,
-  gemShopDocSchema,
-  levelTitlesDocSchema,
-  templateDocSchema,
-} from "@questify/shared";
+import { TEMPLATE_BODY_MAX_BYTES, levelTitlesDocSchema, templateDocSchema } from "@questify/shared";
 import type { RequestContext } from "#src/db/context";
 import { pushFixture, type PushFixture } from "#test/support/push";
 import { addMember, connectAsOwner, TEST_DATABASE_URL } from "#test/support/test-db";
@@ -32,8 +27,8 @@ const checkViolation = async (work: Promise<unknown>): Promise<boolean> =>
   (await refusal(work)).startsWith("23514");
 
 /**
- * The console's catalog editors in the database (T-709b, migration 0119): event templates, level titles and the gem
- * shop (achievements and the amounts: console-catalog-xp, T-709c). Every door is for an active platform admin only
+ * The console's catalog editors in the database (T-709b, migration 0119): event templates and level titles
+ * (achievements and the amounts: console-catalog-xp, T-709c). Every door is for an active platform admin only
  * (QE403), changes only the row it names, checks the text it is given, writes one audit entry holding the fields before
  * and after, and writes nothing when nothing changed. A revert names the audit entry it undoes and is refused (CA409)
  * when another change landed after that entry.
@@ -42,7 +37,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
   let f: PushFixture;
   let adminId = "";
   let admin: RequestContext = {};
-  let otherAdmin: RequestContext = {};
 
   beforeAll(async () => {
     f = await pushFixture();
@@ -51,10 +45,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
     );
     adminId = row?.id ?? "";
     admin = { isAdmin: true, staffUserId: adminId };
-    const [second] = await f.owner<{ id: string }>(
-      "INSERT INTO staff_user (email, password_hash, platform_role, status) VALUES ('catalog2@questify.test', 'h', 'admin', 'active') RETURNING id",
-    );
-    otherAdmin = { isAdmin: true, staffUserId: second?.id ?? "" };
   });
   afterAll(async () => {
     await f.close();
@@ -79,15 +69,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
       [action, target ?? null],
     );
   const count = async (action: string): Promise<number> => (await audits(action)).length;
-  /** The latest catalog entry of a row, the one a revert would undo. */
-  const latestEntry = async (targetType: string, target: string): Promise<string> =>
-    (
-      await f.owner<{ id: string }>(
-        `SELECT id FROM audit_log WHERE target_type = $1 AND target_id = $2 AND action LIKE 'catalog.%'
-         ORDER BY id DESC LIMIT 1`,
-        [targetType, target],
-      )
-    )[0]?.id ?? "";
   /** Waits until a backend running `fragment` is waiting on a lock. */
   const waitsOnLock = async (fragment: string): Promise<boolean> => {
     for (let tries = 0; tries < 100; tries += 1) {
@@ -129,8 +110,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
         `SELECT admin_achievement_save('quests-done', '${doc}', NULL, false, '${request}')`,
         "SELECT admin_level_titles()",
         `SELECT admin_level_titles_save('${doc}', NULL, '${request}')`,
-        "SELECT admin_shop_items()",
-        `SELECT admin_shop_item_save('shop-map-reader', '${doc}', NULL, '${request}')`,
       ];
       for (const seat of seats) {
         for (const call of calls) {
@@ -356,109 +335,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors (datab
       const before = await count("catalog.level_titles.update");
       await saveTitles(await titlesNow());
       expect(await count("catalog.level_titles.update")).toBe(before);
-    });
-  });
-
-  describe("gem shop", () => {
-    type Item = { itemId: string; price: number; status: string; position: number } & Doc;
-    const list = () => one<Item[]>("SELECT admin_shop_items() AS r");
-    const save = (id: string, doc: unknown, revertOf: string | null = null, seat = admin) =>
-      one<Item>(
-        "SELECT admin_shop_item_save($1, $2, $3, $4) AS r",
-        [id, doc, revertOf, randomUUID()],
-        seat,
-      );
-
-    it("lists the twelve shop items in shop order with their names, each a valid edit document", async () => {
-      const rows = await list();
-      expect(rows).toHaveLength(12);
-      expect(rows[0]).toMatchObject({ itemId: "shop-map-reader", kind: "title", price: 40 });
-      for (const row of rows) {
-        expect(
-          gemShopDocSchema.safeParse({
-            price: row.price,
-            status: row.status,
-            position: row.position,
-          }).success,
-          row.itemId,
-        ).toBe(true);
-      }
-    });
-
-    it("changes price, status and place of one item, audits it, and leaves what players paid", async () => {
-      const player = await f.newPlayer();
-      await f.owner("INSERT INTO player_xp (player_id) VALUES ($1) ON CONFLICT DO NOTHING", [
-        player,
-      ]);
-      await f.owner("UPDATE player_xp SET gems = 500 WHERE player_id = $1", [player]);
-      const bought = await f.run<{ r: unknown }>(
-        { playerId: player },
-        "SELECT gem_buy('shop-map-reader', 40, $1) AS r",
-        [randomUUID()],
-      );
-      expect(bought).toHaveLength(1);
-      const saved = await save("shop-map-reader", { price: 45, status: "retired", position: 3 });
-      expect(saved).toMatchObject({ price: 45, status: "retired", position: 3 });
-      const [entry] = await audits("catalog.gem_shop.update", "shop-map-reader");
-      expect(entry?.before).toEqual({ price: 40, status: "active", position: 1 });
-      expect(entry?.after).toEqual({ price: 45, status: "retired", position: 3 });
-      const paid = await f.owner<{ price: number }>(
-        "SELECT price FROM gem_purchase WHERE item_id = 'shop-map-reader'",
-      );
-      expect(paid.map((row) => row.price)).toEqual([40]);
-      expect((await list()).filter((row) => row.itemId !== "shop-map-reader")).toHaveLength(11);
-    });
-
-    it("refuses a price or place out of range, a bad status and an item not in the shop", async () => {
-      const dune = (price: number, status: string, position: number) =>
-        save("shop-dune-ring", { price, status, position });
-      expect(await checkViolation(dune(0, "active", 1))).toBe(true);
-      expect(await checkViolation(dune(100_001, "active", 1))).toBe(true);
-      expect(await checkViolation(dune(80, "free", 1))).toBe(true);
-      expect(await checkViolation(dune(80, "active", 0))).toBe(true);
-      expect(await refusal(save("level-4", { price: 80, status: "active", position: 1 }))).toBe(
-        "CA404",
-      );
-    });
-
-    it("writes nothing when nothing changed", async () => {
-      const row = (await list()).find(
-        (candidate) => candidate.itemId === "shop-pearl-ring",
-      ) as Item;
-      const before = await count("catalog.gem_shop.update");
-      await save("shop-pearl-ring", {
-        price: row.price,
-        status: row.status,
-        position: row.position,
-      });
-      expect(await count("catalog.gem_shop.update")).toBe(before);
-    });
-    it("refuses a revert of an entry another admin has since followed with a change, and reverts the latest", async () => {
-      const id = "shop-star-navigator";
-      const stored = (await list()).find((row) => row.itemId === id) as Item;
-      const doc = (price: number) => ({ price, status: stored.status, position: stored.position });
-      await save(id, doc(stored.price + 1));
-      const first = await latestEntry("gem_shop_item", id);
-      await save(id, doc(stored.price + 2), null, otherAdmin);
-      const second = await latestEntry("gem_shop_item", id);
-
-      expect(await refusal(save(id, null, first))).toBe("CA409");
-      expect((await list()).find((row) => row.itemId === id)?.price).toBe(stored.price + 2);
-
-      const reverted = await save(id, null, second);
-      expect(reverted.price).toBe(stored.price + 1);
-      const third = await latestEntry("gem_shop_item", id);
-      expect(await refusal(save(id, null, second))).toBe("CA409");
-      expect((await save(id, null, third)).price).toBe(stored.price + 2);
-      const reverts = await audits("catalog.gem_shop.revert", id);
-      expect(reverts.map((entry) => entry.actor_id)).toEqual([adminId, adminId]);
-    });
-
-    it("refuses a revert that names another row's entry or an entry that does not exist", async () => {
-      const entry = await latestEntry("gem_shop_item", "shop-star-navigator");
-      expect(await refusal(save("shop-pearl-ring", null, entry))).toBe("CA409");
-      expect(await refusal(save("shop-pearl-ring", null, "999999999"))).toBe("CA409");
-      expect(await refusal(save("level-4", null, entry))).toBe("CA404");
     });
   });
 });

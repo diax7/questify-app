@@ -13,7 +13,7 @@ describe("the push texts", () => {
   });
 
   /** FR-1106 and Apple 5.1.1: allowing notifications is never rewarded, so no text may offer anything for it. */
-  it("never offer a reward, points, gems or XP for allowing notifications", () => {
+  it("never offer a reward, points or XP for allowing notifications", () => {
     for (const key of PUSH_KEYS.filter((k) => k.startsWith("push.explain."))) {
       const text = MESSAGES[key as keyof typeof MESSAGES];
       expect(text.en, key).not.toMatch(/reward|point|gem|\bxp\b|bonus/i);
@@ -77,7 +77,7 @@ describe("who may read the permission or the device", () => {
 });
 
 /**
- * A failed profile read publishes `me: undefined`, and screens gated on `me` (a daily game, the gem shop) then unmount.
+ * A failed profile read publishes `me: undefined`, and screens gated on `me` (a daily game) then unmount.
  * The push code refreshes the bell with a one-row center read and never asks the player provider to reload.
  */
 describe("what the push code may refresh", () => {

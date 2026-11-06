@@ -7,7 +7,7 @@ import {
   type Equipment,
   type ProfileItem,
 } from "@questify/shared";
-import { router, useFocusEffect } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
@@ -194,7 +194,14 @@ function EarnedChoices({
             {row.source.kind === "level" ? (
               <AppText muted>{t("locker.fromLevel", { level: row.source.level })}</AppText>
             ) : null}
-            {row.source.kind === "shop" ? <AppText muted>{t("locker.fromShop")}</AppText> : null}
+            {row.source.kind === "questify" ? (
+              <AppText muted>{t("locker.fromQuestify")}</AppText>
+            ) : null}
+            {row.source.kind === "achievement" ? (
+              <AppText muted>
+                {t("locker.fromAchievement", { name: row.source.achievement.name[language] })}
+              </AppText>
+            ) : null}
             {row.source.kind === "event" ? (
               <>
                 <AppText muted>
@@ -299,11 +306,6 @@ export function LockerScreen() {
               label={t("locker.equip")}
               disabled={model.busy || Object.keys(model.draft).length === 0}
               onPress={() => void model.save()}
-            />
-            <Button
-              kind="quiet"
-              label={t("gemShop.title")}
-              onPress={() => router.push("/gem-shop")}
             />
           </>
         )}

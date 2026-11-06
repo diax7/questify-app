@@ -54,7 +54,7 @@ graph TD
 | config | Platform settings, event configuration, feature switches, translations (see `CONFIGURABILITY.md`) |
 | quests | Categories, quests, quest types, schedules, community goals, polls, sessions (agenda) |
 | verification | Quest QR codes, My QR, NFC tags, operator scans, kiosk, mini-game rounds, flags |
-| ledger | The points record (event layer) and Questify XP/gems (Questify layer) |
+| ledger | The points record (event layer) and Questify XP (Questify layer) |
 | ranking | Scores to ranks, ties, seasons, big-screen scenes |
 | rewards | Shop, reservations, uploaded codes, prize desk, handover |
 | notifications | Templates, push/SMS/email, campaigns, notification center, consent checks |

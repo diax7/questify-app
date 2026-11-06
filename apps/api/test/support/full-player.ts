@@ -35,7 +35,7 @@ DECLARE
   org    uuid; ev uuid; cat uuid; q uuid; rw uuid; me uuid; other uuid; n uuid; n2 uuid;
   comp   bigint; comp2 bigint; entry bigint; play bigint; attempt bigint; pass bigint; xpe bigint;
   fld    uuid; ses uuid; goal uuid; step uuid; pstep uuid; red uuid; dev uuid; nid bigint; sa uuid;
-  award  bigint; pq uuid; finish bigint; purchase bigint; streak bigint; staff uuid; camp uuid; prize uuid;
+  award  bigint; pq uuid; finish bigint; streak bigint; staff uuid; camp uuid; prize uuid;
 BEGIN
   INSERT INTO organizer (name, slug) VALUES ('Full Org ' || k, 'full-' || k) RETURNING id INTO org;
   INSERT INTO staff_user (email, password_hash) VALUES ('team' || k || '@team.test', 'unused') RETURNING id INTO staff;
@@ -161,17 +161,18 @@ BEGIN
 
   INSERT INTO player_xp (player_id) VALUES (me) ON CONFLICT DO NOTHING;
   INSERT INTO achievement_earned (player_id, achievement_id, tier) VALUES (me, 'events-attended', 'bronze');
-  INSERT INTO gem_entry (player_id, delta, source, achievement_id, tier) VALUES (me, 50, 'achievement', 'events-attended', 'bronze')
+  INSERT INTO xp_entry (player_id, delta, source, achievement_id, tier) VALUES (me, 50, 'achievement', 'events-attended', 'bronze')
   ON CONFLICT DO NOTHING;
-  INSERT INTO gem_purchase (player_id, item_id, price, request_key) VALUES (me, 'shop-map-reader', 1, gen_random_uuid())
-  RETURNING id INTO purchase;
   INSERT INTO achievement_revocation (player_id, achievement_id, tier, change)
   VALUES (me, 'events-attended', 'bronze', 'revoke');
   INSERT INTO questify_award (player_id, quest_id) SELECT me, id FROM questify_quest LIMIT 1;
   INSERT INTO questify_streak_reward (player_id, days, xp) VALUES (me, 3, 50);
   INSERT INTO questify_streak_day (player_id, day) VALUES (me, current_date) ON CONFLICT DO NOTHING;
-  INSERT INTO player_item (player_id, item_id, source, source_purchase_id, earned_at)
-  VALUES (me, 'shop-map-reader', 'shop', purchase, now()) ON CONFLICT DO NOTHING;
+  INSERT INTO player_item (player_id, item_id, source, earned_at)
+  VALUES (me, 'shop-map-reader', 'questify', now()) ON CONFLICT DO NOTHING;
+  INSERT INTO achievement_earned (player_id, achievement_id, tier) VALUES (me, 'top-ten', 'gold') ON CONFLICT DO NOTHING;
+  INSERT INTO player_item (player_id, item_id, source, source_achievement_id, source_tier, earned_at)
+  VALUES (me, 'shop-moon-ring', 'achievement', 'top-ten', 'gold', now()) ON CONFLICT DO NOTHING;
   INSERT INTO item (id, kind, name_ar, name_en) VALUES ('seed-title-' || k, 'title', 'لقب', 'Title');
   INSERT INTO souvenir_rule (organizer_id, event_id, item_id, audience)
   VALUES (org, ev, 'seed-title-' || k, 'joined') RETURNING id INTO camp;

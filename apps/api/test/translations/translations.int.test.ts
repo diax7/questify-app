@@ -280,7 +280,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("translation store", () => {
       const t = createTranslator(MESSAGES, downloaded);
       expect(t("nav.home", "en")).toBe("Start");
       expect(t("nav.home", "ar")).toBe(MESSAGES["nav.home"].ar);
-      expect(t("nav.shop", "en")).toBe(MESSAGES["nav.shop"].en);
+      expect(t("nav.ranking", "en")).toBe(MESSAGES["nav.ranking"].en);
       const offline = createTranslator(MESSAGES, NO_OVERRIDES);
       expect(offline("nav.home", "en")).toBe("Home");
     });
