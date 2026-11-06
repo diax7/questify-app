@@ -1,4 +1,4 @@
--- A batch of review follow-ups (docs/FOLLOWUPS.md, 2026-11-06 batch 8; ADR-811). Nothing here writes points, changes what a
+-- A batch of review follow-ups (docs/FOLLOWUPS.md, 2026-11-06 batch 10; ADR-811). Nothing here writes points, changes what a
 -- sign-in does, or changes how a redemption is locked or written. Three functions restated with their arguments and grants
 -- (console_feature_usage, desk_offer_sale, alert_scan_flags); my_desk_sales gains a result column; one new read
 -- (my_held_prizes, closed to PUBLIC, the API role's door); one column closed; one index dropped. No new table. Deployed

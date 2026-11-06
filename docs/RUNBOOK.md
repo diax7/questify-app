@@ -273,6 +273,15 @@ T-810f. Never run `reseal` before the release is confirmed. Migration 0157 is sa
   lower-case email under `AUTH_SECRET`. Compute the key in a one-off script and call `clearKey(db, bucket, key)` (owner
   connection), as for staff.
 
+## FOLLOWUPS batch 10 (migration 0167)
+
+- **Deploy note.** 0167 closes `organizer_feature_override.set_by` to the API role's reads, so the old API's override Save
+  (its upsert reads `EXCLUDED.set_by`) fails with 42501 in the seconds between the migration and the new API instance; the
+  admin retries and nothing is lost. 0167 also runs `DROP INDEX event_organizer_idx` (0167:264), which takes ACCESS EXCLUSIVE
+  on `event` for a moment: run it in a quiet minute, not during a live event's peak.
+- **Rolling back to the old API** after 0167 fails every override Save (42501) until the API rolls forward again; reads and
+  everything else keep working.
+
 ## Signed-in devices and ending sessions (T-810c, migration 0155)
 
 - **Deploy note.** 0155 drops the 3-argument `confirm_contact_change` and moves staff session writes into definers.

@@ -233,6 +233,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizer features ove
     ).toBe(true);
   });
 
+  it("records the admin who saved last in set_by, read as the owner (0167)", async () => {
+    const secondId = await createStaff(db.owner, { email: "admin2@questify.test", admin: true });
+    const secondCookie = await signInFully(test, "admin2@questify.test");
+    const setBy = async () =>
+      (
+        await db.owner.query<{ set_by: string; enabled: boolean }>(
+          "SELECT set_by, enabled FROM organizer_feature_override WHERE organizer_id = $1 AND feature = 'polls'",
+          [organizer],
+        )
+      ).rows[0];
+    expect((await admin("PUT", path(organizer, "/polls"), { enabled: false })).statusCode).toBe(
+      204,
+    );
+    expect(await setBy()).toEqual({ set_by: adminId, enabled: false });
+    expect(
+      (await call("PUT", path(organizer, "/polls"), secondCookie, { enabled: true })).statusCode,
+    ).toBe(204);
+    expect(await setBy()).toEqual({ set_by: secondId, enabled: true });
+    await admin("DELETE", path(organizer, "/polls"));
+  });
+
   it("keeps two admins on two features, and two on one feature, exact", async () => {
     await Promise.all([
       admin("PUT", path(organizer, "/maps"), { enabled: false }),

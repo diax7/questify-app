@@ -1,4 +1,4 @@
-# FOLLOWUPS batch 8 (plan note)
+# FOLLOWUPS batch 10 (plan note)
 
 Tier B, migration 0167 (new and undeployed; 0156 stays reserved for T-810d). No points, sign-in or redemption locking.
 

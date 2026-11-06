@@ -27,9 +27,9 @@ const WORDING: Readonly<Record<OrganizerAlertType, Wording>> = {
     en: "The available codes of one of your digital rewards are running low.",
   },
   new_flags: {
-    subject: "علامة جديدة تحتاج مراجعة | A new flag to review",
-    ar: "ظهرت علامة جديدة على لاعب في إحدى فعالياتك.",
-    en: "A new flag was raised on a player in one of your events.",
+    subject: "علامات جديدة تحتاج مراجعة | New flags to review",
+    ar: "توجد علامات جديدة تنتظر المراجعة في إحدى فعالياتك.",
+    en: "New flags are waiting for review in one of your events.",
   },
   content_unpublished: {
     subject: "إلغاء نشر محتوى | Content was unpublished",

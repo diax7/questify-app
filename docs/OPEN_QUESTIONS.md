@@ -2983,7 +2983,7 @@ The line asked to stop copying to an event without the add-on, but a new draft n
 for every buyer.
 **Recommended (developer):** copy only from a source that holds the add-on.
 
-## Q-742 - Batch 8's three calls: flag alert window, real staff in the demo, the dropped index (ADR-811)
+## Q-742 - Batch 10's three calls: flag alert window, real staff in the demo, the dropped index (ADR-811)
 
 **Status:** Open (worker's recommendation in ADR-811; the coordinator decides after review).
 **Question:** is a 15-minute window right for `new_flags`, does the demo event stay closed to real staff, and is `event_organizer_idx`

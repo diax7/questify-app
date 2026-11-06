@@ -872,7 +872,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
       await owner(
         `INSERT INTO redemption (organizer_id, event_id, enrollment_id, reward_id, price, status, idempotency_key,
                                  reserved_until, ended_at, ended_by, created_at)
-         SELECT d.organizer_id, d.event_id, d.enrollment_id, d.reward_id, d.price, 'cancelled', 'older-' || g,
+         SELECT d.organizer_id, d.event_id, d.enrollment_id, d.reward_id, d.price, 'cancelled', 'newer-' || g,
                 d.reserved_until, now(), 'player', now() + g * interval '1 second'
          FROM redemption d CROSS JOIN generate_series(1, 120) g WHERE d.id = $1`,
         [old],

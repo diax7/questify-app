@@ -463,6 +463,34 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards and reservations (T-20
       expect(rewards).toEqual([]);
     });
 
+    it("lists held prizes by my_held_prizes: its exact columns, and only the caller's own rows (0167)", async () => {
+      const reward = await newReward({ price: 10, stock: 5 });
+      const a = await newPlayer(100);
+      const b = await newPlayer(100);
+      const bystander = await newPlayer(0);
+      const mineA = await reserve(a.player, reward);
+      const mineB = await reserve(b.player, reward);
+      const held = await asPlayer(b.player, (c) =>
+        c.query("SELECT * FROM my_held_prizes($1)", [ids.eventA]),
+      );
+      expect(held.fields.map((field) => field.name)).toEqual([
+        "id",
+        "kind",
+        "name_ar",
+        "name_en",
+        "reserved_until",
+        "collect_until",
+        "rank",
+        "source",
+      ]);
+      expect(held.rows.map((row: { id: string }) => row.id)).toEqual([mineB.redemption_id]);
+      expect(held.rows.map((row: { id: string }) => row.id)).not.toContain(mineA.redemption_id);
+      const none = await asPlayer(bystander.player, (c) =>
+        c.query("SELECT * FROM my_held_prizes($1)", [ids.eventA]),
+      );
+      expect(none.rows).toEqual([]);
+    });
+
     it("marks the most reserved rewards popular (FR-1618)", async () => {
       const hot = await newReward({ price: 1, stock: 10 });
       for (let i = 0; i < 3; i += 1) {
