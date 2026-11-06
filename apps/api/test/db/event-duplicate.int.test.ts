@@ -358,6 +358,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("duplicate an event (database)"
       "INSERT INTO big_screen (event_id, organizer_id, scenes) SELECT id, organizer_id, '{poll,ranking}' FROM event WHERE id = $1",
       [source],
     );
+    await f.owner(
+      "INSERT INTO event_entitlement (event_id, organizer_id, feature) SELECT id, organizer_id, 'bigScreen' FROM event WHERE id = $1",
+      [source],
+    );
   };
 
   /** People, play, secrets and live operation on the source: none of it may reach a copy. */
@@ -553,6 +557,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("duplicate an event (database)"
       terms: { currency: { en: "Gems" } },
     });
     expect(row?.["join_code"]).toBe(`DUP${counter}`);
+  });
+
+  it("copies the big screen's scenes only from an event that holds the add-on", async () => {
+    await f.owner("DELETE FROM event_entitlement WHERE event_id = $1 AND feature = 'bigScreen'", [
+      source,
+    ]);
+    try {
+      const target = await draft();
+      await copy(source, target);
+      expect(await f.owner("SELECT 1 FROM big_screen WHERE event_id = $1", [target])).toEqual([]);
+    } finally {
+      await f.owner(
+        "INSERT INTO event_entitlement (event_id, organizer_id, feature) SELECT id, organizer_id, 'bigScreen' FROM event WHERE id = $1",
+        [source],
+      );
+    }
   });
 
   describe("the Home content (migration 0105)", () => {

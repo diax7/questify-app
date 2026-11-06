@@ -325,7 +325,7 @@ PUBLIC and to the API role) copies the setup of one event into the empty draft t
 (`award_event_of` for both; ED422 one event onto itself, ED409 a target that is not an empty draft). Copied: the event's own settings
 (shop, desk and its hours, limits, caps, rules, `config` with switches and words), `event_topic_off`, `quest_item` (active),
 `event_join_field`, `category`, `quest`, `quest_first_bonus`, `passport_step`, the focus quest, `reward` (active), `rank_prize`
-(active), `event_streak`, `event_session`, `event_map`, `map_pin`, `sponsor`, `sponsor_tag`, `big_screen`. Every copied row has a new id
+(active), `event_streak`, `event_session`, `event_map`, `map_pin`, `sponsor`, `sponsor_tag`, `big_screen` (only from an event that holds the add-on, ADR-802). Every copied row has a new id
 (`copy_id(old, target)`, an md5 of both) and references the copies; absolute times move by the distance between the two starts. A typed
 entry code is replaced by a new random one, a digital reward starts at stock 0, a launched flash quest and a sent poll start unsent. The Home content in
 `config.layout.content` (migration 0105) points at the copies: a quest action of a banner slide or quick link and the featured quest or reward take the copy's id; where no
@@ -460,7 +460,9 @@ is written into an open set only, its content never changes, and it is decided o
 tables follow their event's delete (cascade). The four trigger functions (`change_set_limit`, `change_set_frozen`,
 `change_set_item_into_open`, `change_set_item_frozen`) are the only functions; none is callable (no grant). An item body
 is checked at 16 KiB as `pg_column_size`; the API answers a body that passes its text-length check but is larger as
-jsonb with `422 invalid_change_set {field: body}`.
+jsonb with `422 invalid_change_set {field: body}`. `change_set.applying_until` (migration 0166, ADR-800) is an apply's claim on
+the set for 5 minutes: while it runs, another apply or a close answers busy; it clears when the apply ends or the set finishes.
+An item's `applied` decision commits in the write's own transaction, and only while the item is pending.
 
 ### quest_completion
 **Built (T-105, migration 0012):** `id bigint, organizer_id, event_id, enrollment_id, quest_id, occurrence (1 … the

@@ -130,6 +130,7 @@ export type SurveyCsvLabels = Readonly<{
   average: string;
   responses: string;
   noAnswers: string;
+  textsCut: string;
 }>;
 
 /** The shape both the team's results and the speaker's share. */
@@ -142,6 +143,7 @@ export type SurveyResultsRows = Readonly<{
     choices: readonly Readonly<{ text: Plain; count: number }>[] | null;
     average: number | null;
     texts: readonly string[] | null;
+    hiddenTexts?: number | undefined;
   }>[];
 }>;
 
@@ -151,6 +153,22 @@ const pick = (text: Plain, language: "ar" | "en"): string =>
 type CsvQuestion = SurveyResultsRows["questions"][number];
 
 /** One question's lines: a line a choice, one for a rating's average, or a line a text answer. */
+/** A text question's answers, one line each, and a line that says so when they were cut to the newest. */
+function textLines(
+  question: CsvQuestion,
+  title: string,
+  labels: SurveyCsvLabels,
+): (string | number)[][] {
+  const texts = question.texts ?? [];
+  if (texts.length === 0) {
+    return [[title, labels.text, labels.noAnswers, 0]];
+  }
+  const lines: (string | number)[][] = texts.map((text) => [title, labels.text, text, ""]);
+  return question.answered > texts.length + (question.hiddenTexts ?? 0)
+    ? [...lines, [title, labels.text, labels.textsCut, question.answered]]
+    : lines;
+}
+
 function questionLines(
   question: CsvQuestion,
   language: "ar" | "en",
@@ -171,10 +189,7 @@ function questionLines(
       [title, labels.rating, answered ? labels.average : labels.noAnswers, question.average ?? ""],
     ];
   }
-  const texts = question.texts ?? [];
-  return texts.length === 0
-    ? [[title, labels.text, labels.noAnswers, 0]]
-    : texts.map((text) => [title, labels.text, text, ""]);
+  return textLines(question, title, labels);
 }
 
 /**
@@ -218,5 +233,6 @@ export function surveyCsvLabelsOf(t: (key: MessageKey) => string): SurveyCsvLabe
     average: t("surveyResults.csv.average"),
     responses: t("surveyResults.csv.responses"),
     noAnswers: t("surveyResults.csv.noAnswers"),
+    textsCut: t("surveyResults.csv.textsCut"),
   };
 }

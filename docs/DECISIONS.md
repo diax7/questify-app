@@ -8562,3 +8562,37 @@ stay: they belong to an event's points, not to Questify. `docs/legal/terms-of-us
 build; whether the change needs a new terms version and new acceptance is left to the legal pass.
 **Why:** removing the icon would take a choice away from organizers for no player-facing gain. Dhia confirmed: keep it.
 **Trade-offs:** an event may still call its points "gems".
+
+## ADR-800 - A change set's apply checks and records an item in the write's transaction, and claims the set by a column
+
+**Status:** Proposed (developer, FOLLOWUPS batch 7, 2026-11-06; Q-740). Migration 0166.
+**Decision:** the builder's and the shop's action wrappers take an optional guard. With the event locked, the guard checks
+the item again (stale or invalid: the transaction writes nothing), and after an action that is done it decides the item in
+the same transaction, only while the item is pending. A set is claimed by `change_set.applying_until` for 5 minutes, in place
+of a session advisory lock; a close claims and finishes in one transaction. What an applied item does, and its `cs:<item>`
+points key, are unchanged.
+**Why:** a change between the check and the write was overwritten; a crash between applying an add and recording it left it
+pending to be added twice; and each apply held one pooled connection while its items took another, so as many applies as the
+pool has connections could wait on each other for good.
+**Trade-offs:** a process that dies mid-apply leaves its set busy for up to 5 minutes. An apply that outlives its claim can
+overlap another, which cannot apply an item twice but may report that item as stale. A writer that does not take the event
+lock can still slip in between the check and the write.
+
+## ADR-801 - The rehearsal's two points sums read the same kinds
+
+**Status:** Proposed (developer, FOLLOWUPS batch 7, 2026-11-06). Migration 0166.
+**Decision:** `rehearsal_card` and `wipe_rehearsal`'s summary both sum `quest`, `award`, `removal`, `bonus`, `first_bonus`,
+`session`, `adjust`, `streak` and `community`. Reporting only: no ledger row is written differently.
+**Why:** the summary left out `session`, which a rehearsal can pay, so it disagreed with the card. `streak` and `community` are
+not paid in a rehearsal today; a sum still must not hide a row.
+**Trade-offs:** none.
+
+## ADR-802 - Duplicating an event copies the big screen's scenes only from an event holding the add-on
+
+**Status:** Proposed (developer, FOLLOWUPS batch 7, 2026-11-06; Q-741). Migration 0166.
+**Decision:** `event_copy_extras` copies `big_screen` only when the source holds the `bigScreen` entitlement. A new event's own
+entitlement is not the test: Questify unlocks the add-on per event, so a new draft never holds it at that moment.
+**Why:** gating on the new event would lose the scenes for everyone who has the add-on; gating on the source stops copying
+leftovers from an event that no longer has it.
+**Trade-offs:** a copy from an entitled event still holds scenes until the new event is unlocked; the screen stays closed
+meanwhile, as before.

@@ -677,6 +677,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rehearsal mode (database)", ()
       expect(kept?.rehearsal).toBe(true);
     });
 
+    it("sums a streak's points on the card and in the erase summary", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      await open(event);
+      const target = await rehearser(event);
+      const [paid] = await scan(target.player, quest);
+      await owner(
+        `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, completion_id,
+                                   quest_id, actor)
+         VALUES ($1, $2, $3, 'streak', 5, 5, $4, $5, 'system')`,
+        [ids.orgA, event, target.enrollment, paid?.completion_id, quest],
+      );
+      const [card] = await run<{ points: string }>(
+        team(ownerA),
+        "SELECT points FROM rehearsal_card($1)",
+        [event],
+      );
+      expect(card?.points).toBe("15");
+      const [erased] = await run<{ counts: Record<string, number> }>(
+        team(ownerA),
+        "SELECT erase_rehearsal($1, $2) AS counts",
+        [event, randomUUID()],
+      );
+      expect(erased?.counts).toMatchObject({ points: 15 });
+    });
+
     it("lets a quest named by a kept rehearsal bulk award be deleted after an erase", async () => {
       const event = await newEvent();
       const quest = await newQuest(event);

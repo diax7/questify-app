@@ -6,6 +6,17 @@
   is built on branch `worktree-agent-a5a2d1538fa9b8395`, awaiting its tier A code review. Next steps are in
   `docs/agents/COORDINATOR_HANDOFF.md` "What to do next".
 
+## FOLLOWUPS batch 7 — 2026-11-06
+
+- **FOLLOWUPS batch 7 (ADR-355; tier B, SQL and locking; migration 0166, new and undeployed; ADR-800 to ADR-802, Q-740, Q-741).**
+  Prepare ends the numbers' challenges before locking the reviewer; a self-erase locks all the player's deletion challenges in
+  id order; a change set's apply rechecks and records each item in the write's transaction and claims the set by a column
+  instead of holding a connection; `sponsor_tag` has its event foreign key and `sponsor_delete` counts what the dialog lists; the
+  rehearsal's two sums read the same kinds; a player no longer reads a held reward's name in a goal's marker; the survey CSV says
+  when text answers were cut; the outsider suite calls `survey_shared_results` for real; a duplicate copies the big screen's
+  scenes only from an event with the add-on. No points, sign-in or redemption logic changed. Each fix has a test seen failing
+  first (the outsider call is a new test on behaviour that already held). CI 0 minutes (not pushed).
+
 ## T-404c completion speed, old against new — 2026-11-06
 
 - `profile.mjs --big-event-players 50000`, database ms a completion, old (`d56e0f8c`) and new in turns on one database:

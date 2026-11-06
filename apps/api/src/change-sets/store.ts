@@ -166,6 +166,27 @@ export async function decideItem(
   return rowCount === 1;
 }
 
+/**
+ * Claims an open set for an apply or a close (ADR-800): false while another holds it. A claim its process never let go
+ * of runs out; a late overlap is safe, because an item's decision commits with its write.
+ */
+export async function claimSet(client: PoolClient, setId: string): Promise<boolean> {
+  const { rowCount } = await client.query(
+    `UPDATE change_set SET applying_until = now() + interval '5 minutes'
+     WHERE id = $1 AND status = 'open' AND (applying_until IS NULL OR applying_until <= now())`,
+    [setId],
+  );
+  return rowCount === 1;
+}
+
+/** Lets go of a claim; a set the apply finished has already let go. */
+export async function releaseSet(client: PoolClient, setId: string): Promise<void> {
+  await client.query(
+    "UPDATE change_set SET applying_until = NULL WHERE id = $1 AND status = 'open'",
+    [setId],
+  );
+}
+
 /** Finishes an open set as applied or closed. */
 export async function finishSet(
   client: PoolClient,
@@ -173,7 +194,8 @@ export async function finishSet(
   status: "applied" | "closed",
 ): Promise<void> {
   await client.query(
-    "UPDATE change_set SET status = $2, finished_at = now() WHERE id = $1 AND status = 'open'",
+    `UPDATE change_set SET status = $2, finished_at = now(), applying_until = NULL
+     WHERE id = $1 AND status = 'open'`,
     [setId, status],
   );
 }

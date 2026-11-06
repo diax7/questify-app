@@ -743,7 +743,6 @@ export const NOT_PLAYER: Readonly<Record<string, string>> = {
   "souvenir_work.lease_token": OPAQUE,
   "sponsor.created_by": ADMIN,
   "sponsor_tag.created_by": ADMIN,
-  "sponsor_tag.organizer_id": ORG,
   "staff_assignment.invite_id": OPAQUE,
   "staff_briefing.created_by": ADMIN,
   "submission.reviewed_by_staff": ADMIN,

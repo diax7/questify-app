@@ -166,7 +166,35 @@ export type CategoryDelete = Readonly<{
 /** What every change carries: whether the person confirmed a change to a live event (FR-1007, ADR-063). */
 export type Change = Readonly<{ confirm?: boolean | undefined }>;
 
-export type BuilderDeps = Readonly<{ pool: Pool }>;
+/**
+ * What a change set's apply adds to one builder action (ADR-800), in the action's own transaction with the event locked:
+ * `check` before the action, which throws to leave it unwritten; `applied` after an action that is done, so the item's
+ * decision commits with the write.
+ */
+export type ItemGuard = Readonly<{
+  check: (client: PoolClient, event: BuilderEvent) => Promise<void>;
+  applied: (client: PoolClient) => Promise<void>;
+}>;
+
+export type BuilderDeps = Readonly<{ pool: Pool; guard?: ItemGuard | undefined }>;
+
+/** Runs one action inside its guard, when it has one. A refusal has written nothing, and records nothing here. */
+export async function guarded<T extends Readonly<{ kind: string }>>(
+  guard: ItemGuard | undefined,
+  client: PoolClient,
+  event: BuilderEvent,
+  action: () => Promise<T>,
+): Promise<T> {
+  if (guard === undefined) {
+    return action();
+  }
+  await guard.check(client, event);
+  const result = await action();
+  if (result.kind === "done") {
+    await guard.applied(client);
+  }
+  return result;
+}
 
 const CLOSED = "QE409";
 const LOCKED = "QL409";
@@ -469,7 +497,7 @@ export async function withEvent<T>(
         ) {
           return { kind: "confirm_required" } as const;
         }
-        return work(client, event);
+        return guarded(deps.guard, client, event, () => work(client, event));
       }),
     );
   } catch (error) {

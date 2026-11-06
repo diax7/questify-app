@@ -7490,6 +7490,10 @@ export const MESSAGES = {
   "surveyResults.csv.average": { ar: "المتوسط", en: "Average" },
   "surveyResults.csv.responses": { ar: "عدد الإجابات", en: "Responses" },
   "surveyResults.csv.noAnswers": { ar: "لم تصل أي إجابات.", en: "No answers were received." },
+  "surveyResults.csv.textsCut": {
+    ar: "تظهر هنا أحدث الإجابات فقط، والعدد يشملها كلها.",
+    en: "Only the newest answers are listed; the count is all of them.",
+  },
   "surveyResults.share.title": { ar: "مشاركة مع المتحدث", en: "Share with the speaker" },
   "surveyResults.share.info": {
     ar: "يفتح الرابط الأرقام والمتوسطات والإجابات النصية دون أسماء، لمن يملكه فقط. تُحذف الإجابات التي قد تحتوي على بيانات اتصال.",

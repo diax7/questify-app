@@ -5,11 +5,12 @@ import type { Caller } from "#src/auth/sign-in";
 import type { JsonObject, ItemOp } from "#src/change-sets/store";
 import type { Actor } from "#src/events/events";
 import { HttpError } from "#src/http-error";
+import type { ItemGuard } from "#src/quests/builder";
 import type { Bilingual, BuilderEvent } from "#src/quests/store";
 import type { RewardCodeKeyring } from "#src/rewards/codes";
 import type { SettingsService } from "#src/settings/service";
 
-/** What an item's operation runs on: the builder's own services, with the caller's seat. */
+/** What an item's operation runs on: the builder's own services, with the caller's seat and the item's guard. */
 export type RunContext = Readonly<{
   pool: Pool;
   codeKey: RewardCodeKeyring;
@@ -17,6 +18,7 @@ export type RunContext = Readonly<{
   actor: Actor;
   caller: Caller;
   eventId: string;
+  guard: ItemGuard;
 }>;
 
 /** A target as it is now: the view the audit log keeps of it, its name, and the record the kind reads back. */

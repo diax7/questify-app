@@ -106,8 +106,8 @@ export const rewardKind: TargetKind = {
   read,
   parse,
   after,
-  async run({ pool, codeKey, actor, caller, eventId }, item, input) {
-    const deps = { pool, codeKey };
+  async run({ pool, codeKey, guard, actor, caller, eventId }, item, input) {
+    const deps = { pool, codeKey, guard };
     if (item.op === "add") {
       return refusalOf(await createReward(deps, actor, eventId, input as AddInput, caller));
     }

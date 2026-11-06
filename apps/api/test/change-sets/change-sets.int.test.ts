@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { LightMyRequestResponse } from "fastify";
+import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
@@ -8,7 +9,14 @@ import {
   withSession,
   type TestApp,
 } from "#test/support/auth-app";
-import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
+import { applyChangeSet, type ChangeSetDeps } from "#src/change-sets/change-sets";
+import type { Actor } from "#src/events/events";
+import {
+  TEST_DATABASE_URL,
+  connectAsOwner,
+  createTestDatabase,
+  type TestDatabase,
+} from "#test/support/test-db";
 
 /**
  * Change sets over HTTP (T-604b, FR-1034, FR-1035, ADR-388): a set lists add, edit and delete items for review and
@@ -348,6 +356,118 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("change sets over HTTP", () => 
     const both = await Promise.all([apply(f.event, set, [item]), apply(f.event, set, [item])]);
     expect(both.map((one) => one.statusCode).toSorted()).toContain(200);
     expect((await questTitles(f.event)).filter((title) => title === "Once")).toHaveLength(1);
+  });
+
+  it("skips as stale a change that came in while the apply waited for the event", async () => {
+    const f = await newEvent();
+    const set = await make(f.event, [
+      { op: "edit", target: "quest", targetId: f.quest, body: { title: { en: "From the set" } } },
+    ]);
+    const item = (await open(f.event, set)).items[0]?.id as string;
+    const builder = await connectAsOwner(db);
+    try {
+      await builder.query("BEGIN");
+      await builder.query("SELECT 1 FROM event WHERE id = $1 FOR NO KEY UPDATE", [f.event]);
+      await builder.query("UPDATE quest SET title_en = 'Meanwhile' WHERE id = $1", [f.quest]);
+      const applying = apply(f.event, set, [item]);
+      for (let tries = 0; tries < 300; tries += 1) {
+        const waiting = await owner(
+          `SELECT 1 FROM pg_stat_activity WHERE datname = current_database()
+             AND wait_event_type = 'Lock' AND query LIKE '%FROM event WHERE organizer_id%'`,
+        );
+        if (waiting.length > 0) break;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      await builder.query("COMMIT");
+      const answer = await applying;
+      expect(answer.statusCode, answer.body).toBe(200);
+      expect(answer.json<{ results: { status: string }[] }>().results[0]?.status).toBe("stale");
+    } finally {
+      await builder.end();
+    }
+    expect(await questTitles(f.event)).toEqual(["Meanwhile"]);
+  });
+
+  it("commits an applied add with its record, so a failure leaves neither and a retry adds it once", async () => {
+    const f = await newEvent();
+    const set = await make(f.event, [
+      {
+        op: "add",
+        target: "quest",
+        body: { categoryId: f.category, type: "scan_qr", title: { en: "Together" }, points: 1 },
+      },
+    ]);
+    const item = (await open(f.event, set)).items[0]?.id as string;
+    await owner(
+      `CREATE FUNCTION test_refuse_record() RETURNS trigger LANGUAGE plpgsql AS $$
+       BEGIN RAISE EXCEPTION 'the process died here'; END $$`,
+    );
+    await owner(
+      `CREATE TRIGGER test_refuse_record BEFORE UPDATE ON change_set_item FOR EACH ROW
+       WHEN (NEW.status = 'applied') EXECUTE FUNCTION test_refuse_record()`,
+    );
+    try {
+      expect((await apply(f.event, set, [item])).statusCode).toBe(500);
+      expect(await questTitles(f.event)).toEqual(["Stage"]);
+    } finally {
+      await owner("DROP TRIGGER test_refuse_record ON change_set_item");
+      await owner("DROP FUNCTION test_refuse_record()");
+    }
+    const retried = await apply(f.event, set, [item]);
+    expect(retried.statusCode, retried.body).toBe(200);
+    expect(await questTitles(f.event)).toEqual(["Stage", "Together"]);
+    expect((await open(f.event, set)).status).toBe("applied");
+  });
+
+  it("applies on a pool of one connection: the apply holds none while an item takes one", async () => {
+    const f = await newEvent();
+    const set = await make(f.event, [
+      { op: "add", target: "category", body: { name: { en: "Solo" } } },
+    ]);
+    const item = (await open(f.event, set)).items[0]?.id as string;
+    const [staff] = await owner<{ id: string }>(
+      "SELECT id FROM staff_user WHERE email = 'owner@change-sets.test'",
+    );
+    const pool = new Pool({ connectionString: db.appUrl, max: 1, connectionTimeoutMillis: 2000 });
+    try {
+      const outcome = await applyChangeSet(
+        { pool } as unknown as ChangeSetDeps,
+        { organizerId: organizer, staffUserId: staff?.id } as unknown as Actor,
+        { eventId: f.event, setId: set, itemIds: [item] },
+        { address: "test", userAgent: null, log: () => undefined },
+      );
+      expect(outcome).toMatchObject({ kind: "done", value: { status: "applied" } });
+    } finally {
+      await pool.end();
+    }
+  });
+
+  it("answers busy while another holds the set, and lets a claim that ran out go", async () => {
+    const f = await newEvent();
+    const set = await make(f.event, [
+      { op: "edit", target: "reward", targetId: f.reward, body: { price: 25 } },
+    ]);
+    const item = (await open(f.event, set)).items[0]?.id as string;
+    await owner(
+      "UPDATE change_set SET applying_until = now() + interval '1 minute' WHERE id = $1",
+      [set],
+    );
+    expect((await apply(f.event, set, [item])).statusCode).toBe(409);
+    expect((await call("POST", `/events/${f.event}/change-sets/${set}/close`)).statusCode).toBe(
+      409,
+    );
+    expect((await open(f.event, set)).status).toBe("open");
+    await owner(
+      "UPDATE change_set SET applying_until = now() - interval '1 second' WHERE id = $1",
+      [set],
+    );
+    const applied = await apply(f.event, set, [item]);
+    expect(applied.statusCode, applied.body).toBe(200);
+    const [row] = await owner<{ applying_until: Date | null }>(
+      "SELECT applying_until FROM change_set WHERE id = $1",
+      [set],
+    );
+    expect(row?.applying_until).toBeNull();
   });
 
   it("never reaches a target of another organizer, as a review or as an apply", async () => {
