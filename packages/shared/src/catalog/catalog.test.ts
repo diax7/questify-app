@@ -189,6 +189,27 @@ describe("a name an admin types", () => {
     ]);
   });
 
+  it.each([
+    ["a zero-width space", "\u200B"],
+    ["a joiner", "\u200D"],
+    ["a left-to-right mark", "\u200E"],
+    ["a right-to-left mark", "\u200F"],
+    ["an Arabic letter mark", "\u061C"],
+    ["a byte order mark", "\uFEFF"],
+  ])("refuses %s inside a name, as catalog_text does", (_label, mark) => {
+    expect(messagesOf(arabicText(20).safeParse(`اس${mark}م`))).toEqual([
+      "no zero-width or mark characters",
+    ]);
+    expect(messagesOf(englishText(20).safeParse(`Na${mark}me`))).toContain(
+      "no zero-width or mark characters",
+    );
+  });
+
+  it("accepts the characters next to the refused ones", () => {
+    expect(arabicText(20).safeParse("اسم\u2010").success).toBe(true);
+    expect(englishText(20).safeParse("Na\u200Ame").success).toBe(true);
+  });
+
   it("reports both when a name has both problems", () => {
     expect(messagesOf(arabicText(20).safeParse("اسم ٣\u0007"))).toEqual([
       "Western digits only",
