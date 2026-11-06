@@ -8,6 +8,19 @@ updates:
       default-days: 7
     open-pull-requests-limit: 3
     rebase-strategy: disabled
+    # The Expo SDK fixes these versions; they move together in an Expo upgrade (npx expo install --fix).
+    ignore:
+      - dependency-name: expo
+      - dependency-name: expo-*
+      - dependency-name: "@expo/*"
+      - dependency-name: react
+      - dependency-name: react-dom
+      - dependency-name: "@types/react"
+      - dependency-name: "@types/react-dom"
+      - dependency-name: react-native
+      - dependency-name: react-native-*
+      - dependency-name: "@react-native/*"
+      - dependency-name: "@react-native-*/*"
     groups:
       npm-minor-and-patch:
         update-types: [minor, patch]

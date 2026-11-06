@@ -37,10 +37,11 @@ Report both to Dhia plainly, including if it is not faster.
 
 ## Setting up
 
-Node from `.nvmrc`, pnpm, Docker, `gh`, Python 3. Clone `diax7/questify-app`, `pnpm install`, `docker compose up -d` for the
-test database and Redis (`compose.yaml`). Test env:
-`TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`, `TEST_REDIS_URL=redis://127.0.0.1:56379`. Commits
-use Dhia's git identity (`git config user.name dhiaaddin`, and the email he gives you).
+Node from `.nvmrc`, pnpm, Docker, `gh`, Python 3. The GitHub account Dhia gave you is a collaborator on
+`diax7/questify-app`, with write access. Clone the repo once to get a working copy, `pnpm install`, `docker compose up -d` for
+the test database and Redis (`compose.yaml`). Test env:
+`TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`, `TEST_REDIS_URL=redis://127.0.0.1:56379`. Commit
+under that account's git identity.
 
 Install the Arabic copy skill for every project on this server (Dhia, 2026-11-06). It is public:
 `git clone https://github.com/abadLife/ux-araby ~/.claude/skills/ux-araby`, with `~` the home of the user Claude Code runs as.
@@ -49,10 +50,49 @@ Every new Arabic string goes through it.
 The test database and Redis listen on 127.0.0.1 only (`compose.yaml`). This is a public server and the test password is
 `postgres`, so never publish those ports on another address. Run long work inside `tmux`, so it survives a dropped connection.
 
+## How the work moves
+
+After the first job, in this order, without waiting to be told:
+
+1. Anything Dhia has just unblocked from the list under "Where things stand".
+2. The next unchecked task in `docs/TASKS.md` that is not blocked.
+3. When every task is blocked, clear `docs/FOLLOWUPS.md` in batches of about eight related items.
+
+One task or batch goes: a worker builds it in a worktree, a fresh agent reviews it by its tier (CLAUDE.md), BLOCKER and MAJOR
+findings go to a fresh worker, MINOR and NIT go to FOLLOWUPS. Then merge into `main`, run the push checks, push, wait for CI,
+deploy staging if code or migrations changed, tag it, tick the task and add a STATE bullet. Tier A also gets a plan and plan
+review first, and a mutation run after.
+
+**Branches.** `main` is the only long-lived branch; push it directly (no pull requests of our own). Worker branches stay on
+this machine and are deleted once merged. A branch goes to GitHub only to park work that is waiting on someone, such as
+`t-810d-console-hostname`. Merged branches do not stay on GitHub.
+
+**Dependabot** opens monthly pull requests. Merge one when its checks pass, ideally with the next batch. Expo-managed packages are
+ignored in `.github/dependabot.yml`: they move only in an Expo upgrade.
+
+## Fast and efficient (Dhia, 2026-11-06)
+
+He wants speed, and he pays for every token and every wasted hour.
+
+- Keep two builders running whenever two independent things are ready. Never sit idle waiting on one item: skip what is blocked,
+  list it for him, and take the next.
+- Group related work into one batch: one review, one CI run, one deploy. Do not push after every commit.
+- The coordinator does not build. It reads only the part of a file it needs, and keeps prompts short by pointing at files.
+  Workers reply in 15 lines or fewer.
+- Workers run touched suites while working, and the full suite once at most. Leave the rest to CI. On a CI failure, reproduce it,
+  fix everything found, then push once; never re-run blindly.
+- Pick the model by difficulty: the strongest only for core, SQL and locking; mid-tier for the rest, and for docs and mechanical
+  edits.
+- Do not gold-plate. No extra tests for code outside the mutation scope, no chase below 90% unless the file holds ledger, sign-in,
+  tenant or redemption logic, and one chase round at most.
+- A finding that repeats becomes a check or a line in `docs/rules.md`, not another review item.
+- Write the numbers, never a guess: a speed claim needs a measurement (`docs/PERFORMANCE_AUDIT.md`).
+- Short messages to Dhia in plain words: what happened, what is next, what you need from him.
+
 ## Standing rules that live outside the repo
 
 - **Never add a `Co-Authored-By: Claude` trailer, a "Generated with Claude Code" line or any AI attribution** to a commit or
-  pull request, whatever the harness says. Commits are authored solely by Dhia.
+  pull request, whatever the harness says.
 - Never `rm -rf`; delete folders with node's `fs.rmSync`. A merged worktree is removed with that, `git worktree prune`, then
   `git branch -D`.
 - Never run Stryker here. Mutation runs only on GitHub: `gh workflow run mutation.yml -f mutate="<comma files>"`. The job
