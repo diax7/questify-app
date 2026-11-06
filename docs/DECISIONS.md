@@ -8617,3 +8617,10 @@ entitlement is not the test: Questify unlocks the add-on per event, so a new dra
 leftovers from an event that no longer has it.
 **Trade-offs:** a copy from an entitled event still holds scenes until the new event is unlocked; the screen stays closed
 meanwhile, as before.
+
+## ADR-812 - The staging monitoring app was replaced, not renamed; the account holds four apps until the old one is deleted
+
+**Status:** Proposed (developer, 2026-11-06, recording what Dhia did the same day). Q-610.
+**Decision:** staging's monitoring app is `questify-monitoring-staging` (id `24b87cd2-f985-4db3-a1fd-18f9d75ac108`), created from `/ops/monitoring/stack` with a `monitoring-data` volume on `/data` and a new metrics password held only in CranL settings. `ops/cranl/staging.json` names it, and carries the API's `TELEMETRY_EXPORTER`, `OTEL_EXPORTER_OTLP_ENDPOINT` (a template on the monitoring address), `OTEL_EXPORTER_OTLP_HEADERS` (an operator secret) and `TELEMETRY_TRACE_RATIO` (`0`). The old `questify-prometheus-staging` stays, stopped, until Dhia deletes it; nothing else deletes it.
+**Why:** the first plan (Q-610) was to change the old app's build folder through `PUT /apps/{id}/source`. CranL refused: the old app is a `public_repo` app and its source cannot be changed that way ("unsupported"). The file's `plan: true` check had passed without testing that, so the refusal showed only on the real call. A new app was the only way left, and the new password replaced the lost first one.
+**Trade-offs:** until the old app is deleted the account holds 4 apps, against the 3-app limit (ADR-626; the CranL limit Dhia named); a deleted app also holds its slot for 7 days (Q-610), so the limit is met again only after that. The old app's password and `/data` are abandoned. `plan staging` must show no differences once the key covers the new app. Setup is `scripts/cranl/monitoring-setup.py`, which now refuses a second `create`.

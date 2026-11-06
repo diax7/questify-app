@@ -142,8 +142,8 @@ tolerates the gap.
 - T-810d: the Cloudflare CNAME and the CranL domain for the console address. Then set `CONSOLE_ORIGIN` on both apps and
   `DASHBOARD_ORIGIN` on web, merge, deploy, probe (Q-691), tick T-810d and move ASVS V3.5.4 to Met. Mutation targets:
   `staff-guard.ts`, `session.ts`, `activation/routes.ts`, `organizers/routes.ts`, `apps/web/src/lib/console-host.ts`.
-- T-018b: the build path `/ops/monitoring/stack` on `questify-prometheus-staging`, then deploy it, run the RUNBOOK checks and
-  `python scripts/cranl/monitoring-setup.py api`.
+- T-018b: the staging monitoring app is `questify-monitoring-staging` (ADR-812, Q-610); the key must cover it, then three checks and
+  `plan staging` remain. Dhia alone deletes the stopped `questify-prometheus-staging`.
 - Q-149 photo storage (8 picture tasks wait on it). Q-696, the key rotation rehearsal, before the first production rotation.
 - A new phone build and a real-phone check of the Journey screen: RTL, Reduce Motion, VoiceOver and TalkBack. Installed
   staging builds break on sync until rebuilt.

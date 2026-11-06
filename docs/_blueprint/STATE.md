@@ -7,6 +7,20 @@
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
 
+## T-018b staging monitoring app, replaced — 2026-11-06
+
+- **Staging monitoring app is `questify-monitoring-staging` (tier C; ADR-812 Proposed; Q-610 stays open, T-018b stays unticked; no migration).**
+  CranL refused a source change on the public-repo `questify-prometheus-staging` and `plan: true` had not caught it, so Dhia created a new
+  app from `/ops/monitoring/stack` (volume on `/data`, a new password held only in CranL), set the API's telemetry settings and restarted
+  the API: metrics arrive, 20 rules are loaded, `/-/healthy` and OTLP answer 401 without the password, `/readyz` is 200, alert email is off
+  (Q-581). Done in the repo: `staging.json` and its test name the new app and carry the API's `TELEMETRY_*` and `OTEL_*` (the password an
+  operator secret), RUNBOOK and the handoff updated, `monitoring_state.json` ignored by git and EAS, the state file written 0600, and
+  `monitoring-setup.py create` refuses when the state file or an app of that name exists. T-811 gained the questions about CranL's twin
+  server and "Saudi-3". **Still open:** the key does not cover the new app (403), so three checks wait (why CranL shows "deploying", `/data`
+  surviving a redeploy, Grafana sign-in) and `plan staging` must show no differences; the old app stays stopped until Dhia deletes it
+  (4 apps against the limit of 3 until then). `infra.test.ts` and `monitoring.test.ts`: 76 passed.
+  **Next:** the key covers the new app, then those checks, then tick T-018b's staging part; the rest of T-018b is unchanged.
+
 ## Break and handoff — 2026-11-02
 
 - Progress 149/197 (75.6%). Staging at migration 0117. `main` has T-709b (0119, CI green, undeployed); T-704 (0118)

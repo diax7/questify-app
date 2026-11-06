@@ -33,3 +33,6 @@ apps/web/.e2e/
 apps/api/test/support/e2e-server.bundle.mjs
 
 docs/
+
+# The monitoring setup script keeps the metrics password here until its "api" step
+monitoring_state.json
