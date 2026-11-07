@@ -9807,6 +9807,10 @@ export const MESSAGES = {
     ar: "تعذّر إرسال الرمز في {time}.",
     en: "The code could not be sent at {time}.",
   },
+  "console.ownerEmail.last.noticeFailed": {
+    ar: "أُغلق في {time}: تعذّر إشعار البريد القديم.",
+    en: "Closed at {time}: the old address could not be notified.",
+  },
   "console.ownerEmail.last.emailTaken": {
     ar: "أُغلق في {time} لأن حسابًا آخر أخذ البريد.",
     en: "Closed at {time}: another account took the email.",

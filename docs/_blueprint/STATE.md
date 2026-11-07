@@ -7,6 +7,17 @@
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
 
+## Staff first password and the held change's notice — 2026-11-07
+
+- **Staff first password and the held change's notice (tier A; migration 0169, new and undeployed; ADR-814, ADR-815, Q-751, Q-752
+  Proposed).** `staff.cjs create` takes no password, no flags and no standard input: it makes an account with no role and mails a
+  24-hour set-password link; a platform admin is plain `create`, a confirmed sign-in, then `grant-admin --reason`. A held email change
+  applies only with a recorded notice to the old address: a failed send closes it (503 `email_change_notice_failed`), and a waited
+  apply with no record closes `send_failed`. V6.4.1 stays Partly and gap 18 open until the audit query in the plan has run on each
+  environment (FOLLOWUPS). `RESEND_API_KEY` is unset in `ops/cranl/*.json`, so one Gmail failure closes the change. CI 0 minutes
+  (not pushed).
+  **Next:** the tier A code review, then the audit query on each environment.
+
 ## FOLLOWUPS batch 14 — 2026-11-07
 
 - **FOLLOWUPS batch 14 (tier B; migration 0168, new and undeployed; ADR-813 and Q-743 Proposed).** The console's numbers leave out the

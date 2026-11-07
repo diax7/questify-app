@@ -148,7 +148,7 @@ function emailAddress(env: Env, name: string): string {
   return text;
 }
 
-function authConfig(env: Env): AuthConfig {
+export function authConfig(env: Env): AuthConfig {
   const secret = required(env, "AUTH_SECRET");
   if (secret.length < MIN_SECRET_LENGTH) {
     throw new Error(`AUTH_SECRET must be at least ${MIN_SECRET_LENGTH} characters.`);

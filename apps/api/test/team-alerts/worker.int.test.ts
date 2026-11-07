@@ -8,6 +8,7 @@ import { pushFixture, type PushFixture } from "#test/support/push";
 import { TEST_DATABASE_URL } from "#test/support/test-db";
 
 const MAIL_FROM = "team@questify.test";
+type TeamAlertWorkerLog = (level: "info" | "error", fields: Record<string, unknown>) => void;
 
 /**
  * The team alert worker (T-701b, ADR-494, plan review MAJOR 2): one digest of the queued urgent-report alerts to the
@@ -17,7 +18,7 @@ const MAIL_FROM = "team@questify.test";
 describe.skipIf(TEST_DATABASE_URL === undefined)("team alert worker", () => {
   let f: PushFixture;
   const mail = new RecordingEmailSender();
-  const worker = () =>
+  const worker = (log: TeamAlertWorkerLog = () => undefined) =>
     startTeamAlertWorker({
       pool: f.pool,
       keys: createAuthKeys("x".repeat(40)),
@@ -26,7 +27,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("team alert worker", () => {
       dashboardOrigin: "https://app.questify.test",
       mailFrom: MAIL_FROM,
       intervalMs: 3_600_000,
-      log: () => undefined,
+      log,
     });
   beforeAll(async () => {
     f = await pushFixture();
@@ -54,8 +55,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("team alert worker", () => {
     );
     return { event, player };
   };
-  const run = async () => {
-    const one = worker();
+  const run = async (log?: TeamAlertWorkerLog) => {
+    const one = worker(log);
     try {
       return await one.runOnce();
     } finally {
@@ -144,14 +145,48 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("team alert worker", () => {
     );
     await f.owner(
       `INSERT INTO staff_email_change (staff_user_id, organizer_id, identity_check, reason, old_email, new_email,
-         token_hash, stop_hash, code_hash, created_at, expires_at, state, applies_at)
+         token_hash, stop_hash, code_hash, created_at, expires_at, state, applies_at, hold_notice_at)
        VALUES ($1, $2, 'other', 'Lost the old mailbox.', 'held.owner@najd.test', 'held.new@mail.test',
          sha256(gen_random_uuid()::text::bytea), sha256(gen_random_uuid()::text::bytea), sha256(gen_random_uuid()::text::bytea), now() - interval '2 days',
-         now() - interval '2 days' + interval '60 minutes', 'held', now() - interval '1 minute')`,
+         now() - interval '2 days' + interval '60 minutes', 'held', now() - interval '1 minute', now() - interval '1 day')`,
       [account?.id, org?.id],
     );
     expect((await run()).applied).toBe(1);
     expect(mail.to("held.new@mail.test")).toHaveLength(1);
     expect(mail.to("held.owner@najd.test")[0]?.text).toContain("h•••@m•••.test");
+  });
+
+  it("closes a due hold with no recorded notice, sends nothing and logs its id only", async () => {
+    const [account] = await f.owner<{ id: string }>(
+      "INSERT INTO staff_user (email, password_hash) VALUES ('unsent.owner@najd.test', 'h') RETURNING id",
+    );
+    const [org] = await f.owner<{ id: string }>(
+      "INSERT INTO organizer (name, slug) VALUES ('Unsent', 'unsent-org') RETURNING id",
+    );
+    await f.owner(
+      "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
+      [org?.id, account?.id],
+    );
+    const [change] = await f.owner<{ id: string }>(
+      `INSERT INTO staff_email_change (staff_user_id, organizer_id, identity_check, reason, old_email, new_email,
+         token_hash, stop_hash, code_hash, created_at, expires_at, state, applies_at)
+       VALUES ($1, $2, 'other', 'Lost the old mailbox.', 'unsent.owner@najd.test', 'unsent.new@mail.test',
+         sha256(gen_random_uuid()::text::bytea), sha256(gen_random_uuid()::text::bytea), sha256(gen_random_uuid()::text::bytea), now() - interval '2 days',
+         now() - interval '2 days' + interval '60 minutes', 'held', now() - interval '1 minute')
+       RETURNING id`,
+      [account?.id, org?.id],
+    );
+    const logged: unknown[][] = [];
+    await run((...entry) => void logged.push(entry));
+    expect(mail.sent).toEqual([]);
+    expect(logged).toContainEqual([
+      "error",
+      { event: "team_alert.hold_unsent", change: change?.id },
+    ]);
+    const [row] = await f.owner<{ state: string }>(
+      "SELECT state FROM staff_email_change WHERE id = $1",
+      [change?.id],
+    );
+    expect(row?.state).toBe("send_failed");
   });
 });

@@ -1,58 +1,80 @@
+import { randomBytes } from "node:crypto";
 import type { Client } from "pg";
 import { recordAudit } from "#src/audit/record";
-import type { AuthKeys } from "#src/auth/keys";
+import type { EmailSender } from "#src/auth/email/sender";
+import { staffInviteEmail } from "#src/auth/email/templates";
+import { generateToken, type AuthKeys } from "#src/auth/keys";
+import { AUTH_LIMITS } from "#src/auth/limits";
 import { isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
-import { BreachCheckUnavailable, type BreachCheck } from "#src/auth/breached";
-import { checkPasswordPolicy, hashPassword } from "#src/auth/password";
+import { hashPassword } from "#src/auth/password";
+import { insertResetLink } from "#src/auth/staff-store";
 import { BUCKETS, clearKey } from "#src/auth/throttle";
 
 const DOMAIN_WITH_DOT = /@[^\s@]+\.[^\s@]+$/;
 const UNIQUE_VIOLATION = "23505";
 
-const REASONS = {
-  too_short: "The password must have at least 12 characters.",
-  too_long: "The password must have at most 128 characters.",
-  same_as_email: "The password must not be the email address.",
-  context_word: "The password must not contain Questify, Nafes or the email's name.",
-  breached: "This password appears in a known data breach; choose another.",
-} as const;
+export type InviteMail = Readonly<{ email: EmailSender; dashboardOrigin: string }>;
+
+/** What `create` came to: the account exists either way. */
+export type CreatedAccount = Readonly<{
+  id: string;
+  /** Whether the provider took the set-password email. */
+  sent: boolean;
+  /** Whether the `staff.invite` audit entry was written after the send. */
+  audited: boolean;
+}>;
 
 /**
- * Creates a staff account with the database owner's connection. This is the only way an account is made
- * until organizer sign-up (T-101) and admin management (T-701) add their own narrow paths.
+ * Creates a staff account with the database owner's connection and mails its one set-password link (ADR-814). This is the
+ * only way an account is made until organizer sign-up (T-101) and admin management (T-701) add their own narrow paths. No
+ * initial secret exists: the stored hash is of 32 random bytes that are dropped here, and nobody takes a password in. The
+ * account has no platform role; `grant-admin` gives one, with a reason, after the person has signed in.
  *
- * @throws Error with a plain explanation when the email or password is not acceptable or the account exists.
+ * @throws Error with a plain explanation when the email is not acceptable or the account exists; nothing is sent.
  */
 export async function createStaffAccount(
   owner: Client,
-  input: { email: string; password: string; admin: boolean },
-  breachCheck: BreachCheck,
-): Promise<string> {
+  input: { email: string },
+  mail: InviteMail,
+): Promise<CreatedAccount> {
   const email = normalizeEmail(input.email);
   if (!isPlausibleEmail(email) || !DOMAIN_WITH_DOT.test(email)) {
     throw new Error(`"${email}" is not a valid email address.`);
   }
-  const policy = checkPasswordPolicy(input.password, email);
-  if (!policy.ok) {
-    throw new Error(REASONS[policy.reason]);
-  }
-  await refuseBreached(breachCheck, input.password);
-  const passwordHash = await hashPassword(input.password);
+  const passwordHash = await hashPassword(randomBytes(32).toString("base64url"));
+  const link = generateToken();
+  const id = await insertAccount(owner, email, passwordHash, link.hash);
+  const sent = await sendInvite(mail, email, link.token);
+  return { id, sent, audited: await auditInvite(owner, id, sent) };
+}
+
+/** The account, its link and the `staff.create` entry in one transaction. */
+async function insertAccount(
+  owner: Client,
+  email: string,
+  passwordHash: string,
+  tokenHash: string,
+): Promise<string> {
   try {
     return await inTransaction(owner, async () => {
       const { rows } = await owner.query<{ id: string }>(
-        "INSERT INTO staff_user (email, password_hash, platform_role) VALUES ($1, $2, $3) RETURNING id",
-        [email, passwordHash, input.admin ? "admin" : "none"],
+        "INSERT INTO staff_user (email, password_hash, platform_role) VALUES ($1, $2, 'none') RETURNING id",
+        [email, passwordHash],
       );
       const id = rows[0]?.id;
       if (id === undefined) {
         throw new Error("Creating the staff account returned no id; nothing was saved.");
       }
+      await insertResetLink(owner, {
+        staffUserId: id,
+        tokenHash,
+        validForSeconds: AUTH_LIMITS.staffInviteValiditySeconds,
+      });
       await recordAudit(owner, {
         actor: { type: "system" },
         action: "staff.create",
         target: { type: "staff_user", id },
-        after: { platformRole: input.admin ? "admin" : "none" },
+        after: { platformRole: "none" },
       });
       return id;
     });
@@ -64,20 +86,59 @@ export async function createStaffAccount(
   }
 }
 
-/** Every password set goes through the breach list (T-020); no answer means no account. */
-async function refuseBreached(breachCheck: BreachCheck, password: string): Promise<void> {
-  let breached: boolean;
+/** Runs after the commit, so no transaction waits on the network. False when no provider took the email. */
+async function sendInvite(mail: InviteMail, to: string, token: string): Promise<boolean> {
   try {
-    breached = await breachCheck(password);
-  } catch (error) {
-    if (error instanceof BreachCheckUnavailable) {
-      throw new Error("The breached-password check is unreachable; try again.", { cause: error });
-    }
-    throw error;
+    await mail.email.send({
+      to,
+      ...staffInviteEmail({
+        token,
+        dashboardOrigin: mail.dashboardOrigin,
+        expiresInHours: AUTH_LIMITS.staffInviteValiditySeconds / 3600,
+      }),
+    });
+    return true;
+  } catch {
+    return false;
   }
-  if (breached) {
-    throw new Error(REASONS.breached);
+}
+
+/** False when the entry could not be written: the send already happened, so this must not read as a failed send. */
+async function auditInvite(owner: Client, id: string, sent: boolean): Promise<boolean> {
+  try {
+    await recordAudit(owner, {
+      actor: { type: "system" },
+      action: "staff.invite",
+      target: { type: "staff_user", id },
+      after: { sent },
+    });
+    return true;
+  } catch {
+    return false;
   }
+}
+
+/** What the operator reads and the exit code. Anything short of a sent, audited invite exits 1. */
+export function createOutcome(
+  email: string,
+  created: CreatedAccount,
+): Readonly<{ text: string; exitCode: 0 | 1 }> {
+  if (!created.sent) {
+    return {
+      text: `Created ${email}, but the email did not go out. Send them to "Forgot your password?".`,
+      exitCode: 1,
+    };
+  }
+  if (!created.audited) {
+    return {
+      text: `Created ${email} (${created.id}) and sent the email, but its staff.invite audit entry was not saved.`,
+      exitCode: 1,
+    };
+  }
+  return {
+    text: `Created ${email} (${created.id}). They set their own password from the emailed link. The account has no platform role.`,
+    exitCode: 0,
+  };
 }
 
 /** Runs `work` in one transaction on the owner connection, so a change and its audit entry stay together. */

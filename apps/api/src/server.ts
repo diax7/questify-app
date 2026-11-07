@@ -1,10 +1,7 @@
 import { Pool } from "pg";
 import { buildApp, type AppOptions } from "#src/app";
 import { createBreachCheck } from "#src/auth/breached";
-import { createFailoverSender } from "#src/auth/email/failover";
-import { createGmailSender } from "#src/auth/email/gmail";
-import { createResendSender } from "#src/auth/email/resend";
-import type { EmailSender } from "#src/auth/email/sender";
+import { createEmailSender } from "#src/auth/email/from-config";
 import { dummyVerify } from "#src/auth/password";
 import { loadConfig, type AppConfig } from "#src/config";
 import { poolOptions } from "#src/db/pool-options";
@@ -73,27 +70,6 @@ function createPool(config: AppConfig): Pool {
 /** The push worker's own pool (ADR-345 (1)): a large fan-out never takes the API's connections. */
 const PUSH_POOL_SIZE = 3;
 
-function createEmailSender(config: AppConfig, onFailover: (from: string, to: string) => void) {
-  const { gmail } = config.auth;
-  const primary = instrumentEmail(
-    createGmailSender({
-      key: gmail.key,
-      from: gmail.from,
-      ...(gmail.actAs === undefined ? {} : { actAs: gmail.actAs }),
-    }),
-    "gmail",
-  );
-  const backup: EmailSender | undefined =
-    config.auth.resend === undefined
-      ? undefined
-      : instrumentEmail(createResendSender(config.auth.resend), "resend");
-  return createFailoverSender({
-    primary,
-    ...(backup === undefined ? {} : { backup }),
-    onFailover,
-  });
-}
-
 /**
  * The Msegat senders, each counted by outcome (T-018). Invitations go only from the registered promotional sender
  * (FR-1112); loadConfig refused it equal to the service one.
@@ -147,8 +123,11 @@ async function main(): Promise<void> {
     config,
     idempotencyStore: new MemoryIdempotencyStore(),
     pool,
-    emailSender: createEmailSender(config, (from, to) => {
-      app.log.warn({ event: "staff.email_failover", from, to });
+    emailSender: createEmailSender(config.auth, {
+      wrap: instrumentEmail,
+      onFailover: (from, to) => {
+        app.log.warn({ event: "staff.email_failover", from, to });
+      },
     }),
     breachCheck: createBreachCheck(),
     ...createSmsSenders(config),

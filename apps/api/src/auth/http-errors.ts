@@ -2636,6 +2636,13 @@ export const emailChangeLocked = make(
   "استُنفدت المحاولات. اطلب من دعم كويستفاي البدء من جديد.",
   "No tries are left. Ask Questify support to start again.",
 );
+/** The notice to the old address could not be sent, so the held change closed (ADR-815). */
+export const emailChangeNoticeFailed = make(
+  503,
+  "email_change_notice_failed",
+  "تعذّر إرسال الإشعار إلى بريدك القديم، فأُغلق التغيير. اطلب من دعم كويستفاي البدء من جديد.",
+  "We could not notify your old address, so the change was closed. Ask Questify support to start again.",
+);
 /** The moderation addresses card (T-701b, MA422). */
 export const invalidModerationAddress = make(
   422,

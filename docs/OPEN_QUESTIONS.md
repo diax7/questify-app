@@ -3004,4 +3004,4 @@ messages. **Recommended:** keep it one way, as built in migration 0168.
 ## Q-752 - Should a failed held-change notice close the change or be resent? (ADR-815)
 
 **Status:** Open (worker's recommendation in ADR-815; the coordinator decides after review).
-**Question:** a failed send can close the change at once, or the worker can retry it during the 24 hours. **Recommended:** close it; the sender already fails over to a second provider and the admin can start again.
+**Question:** a failed send can close the change at once, or the worker can retry it during the 24 hours. **Recommended:** close it; the admin can start again. Failover does not soften this today: `RESEND_API_KEY` is not set in `ops/cranl/*.json`, so one Gmail failure closes the owner's change.

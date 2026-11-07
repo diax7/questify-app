@@ -121,7 +121,10 @@ async function sendDigest(
   }
 }
 
-/** Applies the held email changes whose 24 hours passed and mails their notices; answers how many it handled. */
+/**
+ * Applies the held email changes whose 24 hours passed and mails their notices; answers how many it handled. A change
+ * with no recorded notice closed instead (ADR-815): it is logged and nothing is mailed.
+ */
 async function applyDue(deps: TeamAlertWorkerDeps): Promise<number> {
   const applied = await system(deps.pool, async (client) => {
     const { rows } = await client.query<{ r: Applied }>("SELECT owner_email_apply_due(50) AS r");
@@ -130,6 +133,8 @@ async function applyDue(deps: TeamAlertWorkerDeps): Promise<number> {
   for (const one of applied) {
     if (one.outcome === "confirmed") {
       await mailApplied(deps, one, (event, fields) => deps.log("error", { event, ...fields }));
+    } else if (one.outcome === "send_failed") {
+      deps.log("error", { event: "team_alert.hold_unsent", change: one.changeId ?? "" });
     }
   }
   return applied.length;

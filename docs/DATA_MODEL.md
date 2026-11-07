@@ -88,7 +88,8 @@ player's own block list (FR-1415, ADR-431), 500 at most. No grant: written by `b
 `staff_email_change (id, staff_user_id, organizer_id, requested_by, identity_check, reason, old_email, new_email,
 token_hash, stop_hash, code_hash, attempts 0-5, resends 0-3, last_sent_at, created_at, expires_at (+60 min), applies_at,
 state pending|held|confirmed|cancelled|stopped|expired|send_failed|email_taken, completed_how password|waited,
-disputed_at, closed_at)`: an owner's sign-in email change (ADR-490..492). One open (pending or held) per account. The
+disputed_at, closed_at, hold_notice_at (0169))`: an owner's sign-in email change (ADR-490..492). One open (pending or held)
+per account. `hold_notice_at` records the notice to the old address; a waited apply without it closes `send_failed` (ADR-815). The
 confirm and stop tokens are HMACs of the change id under the auth key; only their SHA-256 is stored, the code as an HMAC
 bound to the change. Addresses live only here, erased 180 days after closing (`owner_email_purge`, the lifecycle tick,
 which also expires a pending change past its hour). Rows go with their account (`ON DELETE CASCADE`). No grant.

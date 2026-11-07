@@ -82,19 +82,21 @@ Settings: `DATABASE_URL`, `AUTH_SECRET` (32+ characters), `QR_SECRET` (32+ chara
 optional `GMAIL_ACT_AS` (the mailbox to act for when `MAIL_FROM` is an alias), optional `RESEND_API_KEY` + `RESEND_FROM`, `SECURITY_ALERT_EMAIL`, `TRUST_PROXY_HOPS`. All come from the host's
 secret store, never from chat or the repository. The app refuses to start without the required ones.
 
-**Create an account** (inside the app container, with the owner connection; the password is piped in, never
-typed on the command line or kept in an environment variable). Pipe a random password that nobody sees, then send the
-person to "Forgot your password?" on the sign-in page: the emailed link (30 minutes, one use) lets them choose a password
-only they know, so no operator ever holds a working password (ASVS V6.4.1). The generated one is 32 characters of
-random base64url. It nearly always passes the password policy and the breached-password check (about 3 in 100,000 are
-refused for holding "questify", "nafes" or the email's name part, and the check needs `api.pwnedpasswords.com` to be
-reachable); if `create` refuses, run it again:
+**Create an account** (inside the app container, with the owner connection and the app's mail settings). `create` takes no
+password and never reads standard input: the account gets a random secret nobody sees, and the address gets a link to choose
+a password (24 hours, one use), so no operator ever holds a working password (ADR-814).
 
-    node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('base64url'))" | node staff.cjs create someone@example.com [--admin]
+    node staff.cjs create someone@example.com
 
-Until the person has reset it the account can be signed in to only with that unseen password. The code still sets
-whatever password is piped in and nothing forces a change at the first sign-in; making `create` send an invite instead,
-or forcing the first sign-in to choose a new password, needs a migration and a change to the sign-in path (FOLLOWUPS).
+After 24 hours the person uses "Forgot your password?" on the sign-in page. Read the output: if it says the email did not go
+out it exits 1, the account exists, and the person uses "Forgot your password?" once mail is back; running `create` again only
+answers "already exists". If it says the audit entry was not saved, the email did go out: do not send a second one.
+
+**Make a platform admin.** `create` gives no role and refuses `--admin`. A typo would mail a stranger a link, and that mailbox
+also gets the sign-in code (ADR-078). Run plain `create`, confirm with the person, in a call to a number saved before the
+request, that they set a password and signed in, then:
+
+    node staff.cjs grant-admin someone@example.com --reason "why" [--by <name>]
 
 **A person is locked out ("too many attempts")**: wait 15 minutes, or free them now:
 
@@ -150,6 +152,11 @@ extra counted attempt for 10 minutes. No action unless it repeats (then check th
 **`staff.breach_check_unavailable` in the log** (password set answers 503): the API cannot reach
 `api.pwnedpasswords.com`. Check outbound HTTPS from the API container; nothing is changed while it is down.
 `staff.password_notice_failed` means a "password changed" email did not go out (see the email senders below).
+`staff.email_change_notice_failed` on a hold means the old address was not told, so the change closed `send_failed` and the
+owner saw a 503 (ADR-815). Check the email senders; there is no second provider while `RESEND_API_KEY` is unset. The admin
+starts the change again from the console.
+`team_alert.hold_unsent {change}` (error level) means a held change reached its due time with no notice on record, so it closed
+instead of applying and nothing was mailed. Check the console's owner card, then restart the change from there.
 
 **Both email senders are down** (`staff.email_unavailable` in the log, sign-in answers 503): nobody can sign in.
 The log line names the step and Google's reason (`unauthorized_client`: the domain-wide delegation or its scope is missing; `invalid_grant`: the mailbox in `GMAIL_ACT_AS` or `MAIL_FROM` is not a real user, or the clock is off). Check Google's daily sending limit, then Resend's key and domain. A sender that is
@@ -332,8 +339,10 @@ and there is no command that changes a staff email. By role:
   (a 7-day, single-use link; the invited address signs in with its own password and code). The owner knows the editor, so
   the owner is the proof.
 - **Platform admin**: no console door. A second admin, or Dhia, confirms the person in a call to a number saved before
-  the request. Then, as the owner, inside the app container: first `staff.cjs create <new email> --admin` as described
-  under "Create an account" (`revoke-admin` refuses the last active admin, so the new one must exist), then
+  the request. Then, as the owner, inside the app container: first plain `staff.cjs create <new email>` as described
+  under "Create an account"; confirm the new person has set a password and signed in; then `staff.cjs grant-admin <new
+  email> --reason "..."` (`revoke-admin` refuses the last active admin but counts admins who cannot sign in yet, so the new
+  one must be in first), then
   `node staff.cjs revoke-admin <old email> --reason "..."` (ends the sessions and closes the support grants), then in one
   transaction `UPDATE staff_user SET status = 'disabled' WHERE email = '<old email>'` and an `audit_log` row
   (`actor_type 'system'`, `action 'staff.disable'`, `target_type 'staff_user'`, `target_id` the old account's id, the reason in `after`). The old account stays
@@ -1299,6 +1308,10 @@ container is old. `DATABASE_ADMIN_URL` set after a deploy reaches the app only a
   `community.settle_failed {code: 42883}` and the owner's Settle and pay now answers 500, for the seconds of the deploy; the
   next tick of the new API settles and the settle point catches up. These lines are expected (`QuestifyCommunitySettleFailing` alerts only
   when they go on for ten minutes, never on one line). Deploy the API right after the migration.
+- **Migration 0169 (held email notice, ADR-815):** before migrating run `SELECT count(*) FROM staff_email_change WHERE state =
+  'held';`. Any such row closes `send_failed` at its due time (no backfill), so wait for them to apply or restart them
+  afterwards. Order: migrate, then the API, then web. A hold confirmed on the old API in those seconds closes 24 hours later
+  and the admin restarts it.
 - Migrations: `node migrate.cjs` (owner connection `DATABASE_ADMIN_URL`; `--roles` the first time; `--verify` as the
   app role proves its limits). Remove the owner connection string from the app environment afterwards.
 - **Migration retry (T-022, ADR-291, ADR-580).** Each file runs as one transaction. If it fails with `40P01` (deadlock) or

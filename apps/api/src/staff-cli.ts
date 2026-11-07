@@ -1,14 +1,22 @@
 import { readFile } from "node:fs/promises";
 import { userInfo } from "node:os";
 import { Client } from "pg";
-import { createBreachCheck } from "#src/auth/breached";
+import { createEmailSender } from "#src/auth/email/from-config";
 import { createAuthKeys } from "#src/auth/keys";
-import { clearThrottleFor, createStaffAccount, setPlatformAdmin } from "#src/auth/staff-admin";
+import {
+  clearThrottleFor,
+  createOutcome,
+  createStaffAccount,
+  setPlatformAdmin,
+  type InviteMail,
+} from "#src/auth/staff-admin";
+import { authConfig } from "#src/config";
 import { erasedIdsFrom, reapplyErasures } from "#src/privacy/reapply";
 
 /**
  * One-off staff account administration, run inside the app container with the owner's database connection.
- *   create <email> [--admin]   make an account; the password is read from standard input, never from arguments
+ *   create <email>             make an account with no platform role and mail its set-password link (needs the mail
+ *                              settings); it takes no password and no flags, and never reads standard input
  *   clear-throttle <email>     let a person who is throttled try again (needs AUTH_SECRET)
  *   grant-admin <email> --reason "why" [--by <name>]    make an existing account a Questify platform admin (ADR-405)
  *   revoke-admin <email> --reason "why" [--by <name>]   take the role away; ends the account's sessions and grants
@@ -24,17 +32,7 @@ const COMMANDS = [
   "reapply-erasures",
 ] as const;
 const USAGE =
-  'Usage: staff create <email> [--admin]  |  staff clear-throttle <email>  |  staff grant-admin <email> --reason "why" [--by <name>]  |  staff revoke-admin <email> --reason "why" [--by <name>]  |  staff reapply-erasures <file>';
-
-async function readStdin(): Promise<string> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of process.stdin) {
-    chunks.push(Buffer.from(chunk as Uint8Array));
-  }
-  return Buffer.concat(chunks)
-    .toString("utf8")
-    .replace(/\r?\n$/, "");
-}
+  'Usage: staff create <email>  |  staff clear-throttle <email>  |  staff grant-admin <email> --reason "why" [--by <name>]  |  staff revoke-admin <email> --reason "why" [--by <name>]  |  staff reapply-erasures <file>';
 
 function need(name: string): string {
   const value = process.env[name];
@@ -69,41 +67,65 @@ async function changeRole(
   );
 }
 
-async function main(): Promise<void> {
-  const [command, email, ...flags] = process.argv.slice(2);
-  if (email === undefined || !(COMMANDS as readonly (string | undefined)[]).includes(command)) {
+/** Read before anything is written, so missing mail settings refuse with nothing made. */
+function inviteMail(): InviteMail {
+  const auth = authConfig(process.env);
+  return { email: createEmailSender(auth), dashboardOrigin: auth.dashboardOrigin };
+}
+
+/** The command line, refused with the usage text; `create` takes no flags, so an old `--admin` cannot pass quietly. */
+function parseArguments(args: readonly string[]) {
+  const [command, email, ...flags] = args;
+  const known = (COMMANDS as readonly (string | undefined)[]).includes(command);
+  if (command === undefined || email === undefined || !known) {
     throw new Error(USAGE);
   }
+  if (command === "create" && flags.length > 0) {
+    throw new Error(USAGE);
+  }
+  return { command, email, flags };
+}
+
+/** Every command but `create`, on the open owner connection. */
+async function runCommand(
+  owner: Client,
+  command: string,
+  email: string,
+  flags: readonly string[],
+): Promise<void> {
+  if (command === "reapply-erasures") {
+    const counts = await reapplyErasures(owner, erasedIdsFrom(await readFile(email, "utf8")));
+    process.stdout.write(
+      `Erased again: ${counts.erased}; already deleted: ${counts.alreadyDeleted}; not in this database: ${counts.unknown}.
+`,
+    );
+    return;
+  }
+  if (command === "grant-admin" || command === "revoke-admin") {
+    await changeRole(owner, email, command === "grant-admin", flags);
+    return;
+  }
+  const found = await clearThrottleFor(owner, createAuthKeys(need("AUTH_SECRET")), email);
+  process.stdout.write(
+    found
+      ? `Cleared the limits for ${email}.\n`
+      : `No account for ${email}; cleared its failure count.\n`,
+  );
+}
+
+async function main(): Promise<void> {
+  const { command, email, flags } = parseArguments(process.argv.slice(2));
+  const mail = command === "create" ? inviteMail() : undefined;
   const owner = new Client({ connectionString: need("DATABASE_ADMIN_URL") });
   await owner.connect();
   try {
-    if (command === "create") {
-      const id = await createStaffAccount(
-        owner,
-        { email, password: await readStdin(), admin: flags.includes("--admin") },
-        createBreachCheck(),
-      );
-      process.stdout.write(`Created ${email} (${id}).\n`);
+    if (mail !== undefined) {
+      const outcome = createOutcome(email, await createStaffAccount(owner, { email }, mail));
+      process.stdout.write(`${outcome.text}\n`);
+      process.exitCode = outcome.exitCode;
       return;
     }
-    if (command === "reapply-erasures") {
-      const counts = await reapplyErasures(owner, erasedIdsFrom(await readFile(email, "utf8")));
-      process.stdout.write(
-        `Erased again: ${counts.erased}; already deleted: ${counts.alreadyDeleted}; not in this database: ${counts.unknown}.
-`,
-      );
-      return;
-    }
-    if (command === "grant-admin" || command === "revoke-admin") {
-      await changeRole(owner, email, command === "grant-admin", flags);
-      return;
-    }
-    const found = await clearThrottleFor(owner, createAuthKeys(need("AUTH_SECRET")), email);
-    process.stdout.write(
-      found
-        ? `Cleared the limits for ${email}.\n`
-        : `No account for ${email}; cleared its failure count.\n`,
-    );
+    await runCommand(owner, command, email, flags);
   } finally {
     await owner.end();
   }

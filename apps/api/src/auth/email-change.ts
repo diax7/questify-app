@@ -38,12 +38,15 @@ export type EmailChangeView = Readonly<{
   expiresAt: string;
 }>;
 
-/** What the owner's confirm came to; `held` waits 24 hours because the password was not given. */
+/**
+ * What the owner's confirm came to; `held` waits 24 hours because the password was not given and the old address was
+ * told; `notice_failed` closed the change because it could not be.
+ */
 export type ConfirmOutcome =
   | Readonly<{ kind: "confirmed"; email: string }>
   | Readonly<{ kind: "held"; appliesAt: string }>
   | Readonly<{ kind: "wrong"; attemptsLeft: number }>
-  | Readonly<{ kind: "invalid" | "locked" | "email_taken" | "busy" }>;
+  | Readonly<{ kind: "invalid" | "locked" | "email_taken" | "busy" | "notice_failed" }>;
 
 /** An applied change as the database answers it (`owner_email_apply`). */
 export type Applied = Readonly<{
@@ -193,12 +196,13 @@ async function confirm(
     );
     return rows[0]?.r ?? { outcome: "invalid" };
   });
-  return settle(deps, found, answer, caller);
+  return settle(deps, input.token, found, answer, caller);
 }
 
 /** Turns the door's answer into the route's, sending the notices a held or applied change needs. */
 async function settle(
   deps: EmailChangeDeps,
+  token: string,
   found: Viewed,
   answer: Applied & { attemptsLeft?: number },
   caller: Caller,
@@ -212,7 +216,7 @@ async function settle(
       return { kind: answer.outcome };
     case "held":
     case "confirmed":
-      return notify(deps, found, answer, caller);
+      return notify(deps, token, found, answer, caller);
     default:
       return { kind: "invalid" };
   }
@@ -221,6 +225,7 @@ async function settle(
 /** Mails the notices of a held or applied change and answers it. */
 async function notify(
   deps: EmailChangeDeps,
+  token: string,
   found: Viewed,
   answer: Applied,
   caller: Caller,
@@ -229,18 +234,41 @@ async function notify(
     say(deps, caller, event, fields);
   say(deps, caller, `staff.email_change_${answer.outcome}`, { change: found.changeId });
   if (answer.outcome === "held") {
-    await mailHeld(deps, answer, log);
-    return { kind: "held", appliesAt: answer.appliesAt ?? "" };
+    const sent = await mailHeld(deps, answer, log);
+    return settleHold(await recordHoldNotice(deps, token, sent, caller), answer);
   }
   await mailApplied(deps, answer, log);
   return { kind: "confirmed", email: answer.newEmail ?? found.newEmail };
 }
 
+/** The route's answer once the door has the notice's result: only a recorded notice stays held. */
+function settleHold(noticed: string, held: Applied): ConfirmOutcome {
+  if (noticed === "noticed") return { kind: "held", appliesAt: held.appliesAt ?? "" };
+  return { kind: noticed === "closed" ? "notice_failed" : "invalid" };
+}
+
+/** Tells the door how the notice went, by the link's token hash: `noticed`, `closed` or `gone`. */
+async function recordHoldNotice(
+  deps: EmailChangeDeps,
+  token: string,
+  sent: boolean,
+  caller: Caller,
+): Promise<string> {
+  return system(deps.pool, async (client) => {
+    const { rows } = await client.query<{ r: string }>(
+      "SELECT owner_email_hold_notice($1, $2, $3) AS r",
+      [Buffer.from(hashToken(token), "hex"), sent, caller.requestId ?? null],
+    );
+    return rows[0]?.r ?? "gone";
+  });
+}
+
+/** Sends the old address its notice of a hold; true only when it went. A field missing from the answer counts as a failure. */
 async function mailHeld(
   deps: EmailChangeDeps,
   held: Applied,
   log: (event: string, fields: Readonly<Record<string, string>>) => void,
-): Promise<void> {
+): Promise<boolean> {
   const { changeId, oldEmail, newEmail, appliesAt } = held;
   if (
     changeId === undefined ||
@@ -248,7 +276,7 @@ async function mailHeld(
     newEmail === undefined ||
     appliesAt === undefined
   ) {
-    return;
+    return false;
   }
   try {
     await deps.email.send({
@@ -259,8 +287,10 @@ async function mailHeld(
         stopLink: stopLinkOf(deps, changeId),
       }),
     });
+    return true;
   } catch (error) {
     log("staff.email_change_notice_failed", { change: changeId, reason: reasonOf(error) });
+    return false;
   }
 }
 

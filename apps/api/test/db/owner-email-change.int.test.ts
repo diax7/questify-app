@@ -329,6 +329,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change (database)"
       const { org, owner } = await newOrganizer();
       const c = await start(org, fresh());
       await confirm(c, c.code, null);
+      await f.one({}, "SELECT owner_email_hold_notice($1, true, NULL) AS r", [c.token]);
       await f.owner(
         "UPDATE staff_email_change SET applies_at = now() - interval '1 second' WHERE id = $1",
         [c.id],

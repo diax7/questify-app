@@ -943,7 +943,7 @@ Player, active member of the event (403 `not_enrolled` otherwise), `private, no-
 | `POST /v1/admin/owner-email-changes/{id}/cancel` | admin | 204; 409 `email_change_closed` |
 | `GET /v1/admin/organizers/{id}` | admin | gains `ownerEmailChange` (open, else latest) and `ownerOtherOrganizers` (names) |
 | `POST /v1/staff/auth/email-change/view` | public | `{token}` → `{organizerName, newEmailMasked, expiresAt}`; 404 `email_change_link_invalid` (unknown, expired or closed alike) |
-| `POST /v1/staff/auth/email-change/confirm` | public | `{token, code, password \| null}` → `{outcome: "confirmed", email}` or, with `password: null`, `{outcome: "held", appliesAt}` (24 hours); 422 `wrong_code_or_password` `{attemptsLeft}` (5 in all); 429 `email_change_locked`; 409 `email_taken`; 404 as view |
+| `POST /v1/staff/auth/email-change/confirm` | public | `{token, code, password \| null}` → `{outcome: "confirmed", email}` or, with `password: null`, `{outcome: "held", appliesAt}` (24 hours); 422 `wrong_code_or_password` `{attemptsLeft}` (5 in all); 429 `email_change_locked`; 409 `email_taken`; 503 `email_change_notice_failed` (the old address could not be told, so the held change closed; ADR-815); 404 as view, also when the change was stopped or cancelled during the hold's notice |
 | `POST /v1/staff/auth/email-change/stop` | public | `{token}` → `{outcome: "stopped" \| "reported" \| "none"}` (reported: completed, the team is alerted, 7 days) |
 | `GET /v1/admin/reports` | admin | targets gain `urgent`, `dueAt`; `overdue` is past `dueAt`; order urgent first, then due; `urgentTotal` |
 | `GET /v1/admin/reports/counts` | admin | `{open, urgent}` for the console menu; not audited (counts only) |
