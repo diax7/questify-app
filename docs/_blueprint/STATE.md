@@ -18,6 +18,15 @@
   is read; the first stop of a launch is a tested function (`firstStop`); iOS announces each new intro card's title. Left in
   FOLLOWUPS: the numbers page's demo rows (SQL, needs a migration), the first frame of shipped text, the Android export-file check
   (device), Android focus after Next.
+## FOLLOWUPS batch 12 — 2026-11-07
+
+- **FOLLOWUPS batch 12 (tier B; missing API tests only; no production change, no migration, no package change).** Seven new tests, none
+  exposed a bug: the maps' player read leaves out a hidden category's pin until revealed and a flash quest outside its window (database
+  and HTTP) and a quest of a switched-off type (HTTP, through the organizer's `shareQuests` override); two simultaneous `alert_claim`
+  calls on two connections lease different rows; the same briefing key on two connections writes one briefing, and five simultaneous
+  briefings let exactly 3 through the hour limit; an upload runs while the re-seal batch is open (one row written, one waiting on a lock);
+  0164 waits for a daily-challenge finish in flight with no deadlock. The rewards guard test's `pg_stat_activity` match now names the
+  builder's event-lock query. Touched suites: 138 passed (logs in `/home/deploy/questify-logs/b12-*.log`). Not pushed.
 
 ## FOLLOWUPS batch 11 — 2026-11-07
 

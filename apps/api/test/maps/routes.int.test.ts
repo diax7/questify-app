@@ -258,6 +258,77 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maps over HTTP", () => {
     );
   });
 
+  it("leaves out the pin of a hidden category until revealed, a flash quest outside its window and a switched-off quest type", async () => {
+    const solo = await fixture.newEvent({ phase: "live" });
+    const soloPlayer = await fixture.newPlayer();
+    const soloEnrollment = await fixture.join(solo, soloPlayer);
+    const soloToken = await bearer(soloPlayer);
+    const made = (await team("POST", base(solo), { nameEn: "Hall" })).json<TeamMap>();
+    const [secret] = await fixture.owner<{ id: string }>(
+      `INSERT INTO category (event_id, name_en, hidden) VALUES ($1, 'Secret', true) RETURNING id`,
+      [solo],
+    );
+    const station = async (title: string, type = "scan_qr", category: string | null = null) =>
+      (
+        await fixture.owner<{ id: string }>(
+          `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, visible, type_config)
+           VALUES ($1, coalesce($4::uuid, (SELECT id FROM category WHERE event_id = $1 AND NOT hidden LIMIT 1)),
+                   $2, $3, 40, 1, true, $5::jsonb) RETURNING id`,
+          [
+            solo,
+            type,
+            title,
+            category,
+            type === "share" ? '{"message":{"en":"Fest"},"link":"https://example.com/fest"}' : "{}",
+          ],
+        )
+      )[0]?.id ?? "";
+    const plain = await station("Plain one");
+    const sealed = await station("Sealed one", "scan_qr", secret?.id ?? null);
+    const flash = await station("Flash one");
+    const shared = await station("Share one", "share");
+    await fixture.owner(
+      `UPDATE quest SET flash = true, opens_at = now() + interval '1 hour',
+                        closes_at = now() + interval '2 hours' WHERE id = $1`,
+      [flash],
+    );
+    for (const [index, id] of [plain, sealed, flash, shared].entries()) {
+      await team("POST", base(solo) + "/" + made.id + "/pins", {
+        kind: "quest",
+        questId: id,
+        x: 100 * (index + 1),
+        y: 50,
+      });
+    }
+    await fixture.owner(
+      `INSERT INTO organizer_feature_override (organizer_id, feature, enabled)
+       VALUES ($1, 'shareQuests', false)`,
+      [fixture.ids.orgA],
+    );
+    try {
+      const titles = async (): Promise<string[]> =>
+        (await asPlayer(maps(solo), soloToken))
+          .json<{ maps: { pins: { quest: { title: { en: string } } }[] }[] }>()
+          .maps.flatMap((map) => map.pins.map((pin) => pin.quest.title.en));
+      expect(await titles()).toEqual(["Plain one"]);
+
+      await fixture.owner(
+        `INSERT INTO category_reveal (organizer_id, event_id, enrollment_id, category_id)
+         VALUES ($1, $2, $3, $4)`,
+        [fixture.ids.orgA, solo, soloEnrollment, secret?.id],
+      );
+      await fixture.owner(`UPDATE quest SET opens_at = now() - interval '1 minute' WHERE id = $1`, [
+        flash,
+      ]);
+      expect(await titles()).toEqual(["Plain one", "Sealed one", "Flash one"]);
+    } finally {
+      await fixture.owner(
+        "DELETE FROM organizer_feature_override WHERE organizer_id = $1 AND feature = 'shareQuests'",
+        [fixture.ids.orgA],
+      );
+    }
+  });
+
   it("answers a stranger and a signed-out caller, and sends no team data to a player", async () => {
     const other = await fixture.newEvent({ phase: "live" });
     expect(codeOf(await asPlayer(maps(other)))).toEqual([403, "not_enrolled"]);
