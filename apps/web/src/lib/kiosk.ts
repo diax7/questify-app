@@ -48,6 +48,17 @@ const playerOf = (value: unknown): KioskPlayer | null =>
       }
     : null;
 
+/** A completed scan as a card. A replay after a removal pays 0: the orange "already done" card, not a green success. */
+function completedCard(body: Record<string, unknown>): KioskCard | undefined {
+  const player = playerOf(body["player"]);
+  if (body["replayed"] === true && body["points"] === 0) {
+    return { kind: "already", player };
+  }
+  return typeof body["points"] === "number"
+    ? { kind: "paid", player, points: body["points"], boosted: body["boosted"] === true }
+    : undefined;
+}
+
 /** A scan's answer as a card, or undefined when it is not one of the three shapes. A red card never names anyone. */
 export function kioskCardOf(body: unknown): KioskCard | undefined {
   if (!isRecord(body)) {
@@ -55,14 +66,7 @@ export function kioskCardOf(body: unknown): KioskCard | undefined {
   }
   switch (body["result"]) {
     case "completed":
-      return typeof body["points"] === "number"
-        ? {
-            kind: "paid",
-            player: playerOf(body["player"]),
-            points: body["points"],
-            boosted: body["boosted"] === true,
-          }
-        : undefined;
+      return completedCard(body);
     case "already_completed":
       return { kind: "already", player: playerOf(body["player"]) };
     case "refused":

@@ -16,7 +16,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Button, Field } from "#src/components/Controls.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
 import { spanText } from "#src/event/countdown.ts";
-import { paidText } from "#src/event/amount.ts";
+import { isRecordedAgain, paidText } from "#src/event/amount.ts";
 import { scanReading } from "#src/event/location.ts";
 import { FirstBonusRibbon } from "#src/event/FirstBonusRibbon.tsx";
 import { GameEntry } from "#src/event/GameEntry.tsx";
@@ -110,6 +110,21 @@ function locationText(
 /** Letters and digits only as typed (Arabic-Indic digits pass and the server makes them Western). */
 const typedCode = (text: string) => text.replace(/[^A-Za-z0-9٠-٩۰-۹]/g, "").slice(0, 32);
 
+/** A completion in words; a replay that paid nothing is "Already recorded", not "+0". */
+function completedOutcome(
+  answer: Extract<CompletionAnswer, { kind: "completed" }>,
+  t: ReturnType<typeof useI18n>["t"],
+  language: "ar" | "en",
+  terms: EventTerms,
+): string {
+  if (isRecordedAgain(answer)) {
+    return t("scanner.alreadyRecorded");
+  }
+  const paid = paidText(t, terms, language, answer);
+  // FR-407: a level-up reached here (a typed code) is said in words; the scanner gives it its own beat.
+  return answer.levelUp === null ? paid : `${paid} ${levelUpMessage(t, language, answer.levelUp)}`;
+}
+
 export function outcomeText(
   answer: CompletionAnswer,
   t: ReturnType<typeof useI18n>["t"],
@@ -117,13 +132,8 @@ export function outcomeText(
   terms: EventTerms,
 ): string | null {
   switch (answer.kind) {
-    case "completed": {
-      const paid = paidText(t, terms, language, answer);
-      // FR-407: a level-up reached here (a typed code) is said in words; the scanner gives it its own beat.
-      return answer.levelUp === null
-        ? paid
-        : `${paid} ${levelUpMessage(t, language, answer.levelUp)}`;
-    }
+    case "completed":
+      return completedOutcome(answer, t, language, terms);
     case "wrong_code":
       return answer.problem?.[language] ?? t("questsTab.failed");
     case "location_refused":

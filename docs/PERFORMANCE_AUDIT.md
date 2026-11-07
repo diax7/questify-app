@@ -119,6 +119,26 @@ difference between runs is larger than the difference between schemas, on this s
 `ledger_entry_completion_idx` 42 MB, `xp_entry_ledger_idx` 41 MB, `audit_log_player_export_idx` 8.7 MB, `ledger_entry_reverses_idx`
 0.5 MB, `invitation_recipient_queued` 4 MB after its rebuild. The ledger's other 25 indexes hold 188 MB. ADR-816 has the tradeoff.
 
+**Item 1, insert cost of the three T-617 partial indexes (2026-11-07, FOLLOWUPS batch 21).** Migration 0111's
+`ledger_entry_operator_event_idx`, `submission_operator_reviewed_idx` and `ticket_operator_answered_idx`, each on its table at the
+size the T-617 timing used (150,000 operator ledger entries, 6,000 reviews, 2,000 answers, 20,000 enrollments, 20 operators;
+vacuumed). The shared test PostgreSQL on port 55432, a private database through `questifyFixture`, triggers on. One statement per
+measure, 1,000 rows, `EXPLAIN (ANALYZE, BUFFERS)` inside a transaction that is rolled back, with the index and with the index dropped
+in that transaction, two passes. Buffers are `shared hit` of the whole statement, source rows and triggers included:
+
+| Index | With | Without | Difference | Per row |
+|---|---|---|---|---|
+| `ledger_entry_operator_event_idx`, award rows | 33,801 and 36,605 | 33,412 and 33,766 | +389 and +2,839 | about 0.4 to 2.8 (+1% to +8%) |
+| `submission_operator_reviewed_idx`, reviews | 14,790 and 15,720 | 13,509 and 13,692 | +1,281 and +2,028 | about 1.3 to 2.0 (+9% to +15%) |
+| `ticket_operator_answered_idx`, answers | 22,795 and 22,732 | 20,729 and 20,701 | +2,066 and +2,031 | about 2.0 (+10%) |
+
+Pages dirtied and written differed by at most 17, in either direction, so the index adds no pages to flush at this size. Read: an
+operator row costs one more tree descent, about two buffers, and the two small tables show it steadily; the ledger figure is noisy
+because its statement is dominated by its own triggers and the descent lands on a different leaf each pass. A row with no operator
+is outside every predicate, so it writes no entry: only the submission case was run (10,287 and 10,326 buffers), the ledger and
+ticket rows with no operator could not be built under their shape checks without more fixture. Milliseconds were not recorded: the
+server was shared. A by-hand measurement, not a CI test; the script is not kept.
+
 **Item 1, measured and left.**
 
 - **`ledger_entry (quest_id)`: built, measured, taken out.** On the first seed, deleting one quest nobody played scanned the ledger

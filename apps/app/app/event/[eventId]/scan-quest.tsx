@@ -13,7 +13,7 @@ import { Button } from "#src/components/Controls.tsx";
 import { PopIn, SpinningCoin } from "#src/components/motion.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { celebrationBeats, detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
-import { bonusLine, completedText, itemLine } from "#src/event/amount.ts";
+import { bonusLine, headlineText, itemLine } from "#src/event/amount.ts";
 import { firstBonusLine } from "#src/event/first-bonus.ts";
 import { FlameIcon } from "#src/streaks/FlameIcon.tsx";
 import { streakBonusLine } from "#src/streaks/event-streak.ts";
@@ -161,7 +161,7 @@ function Celebration({
     <PopIn>
       <AppText variant="display">
         {/* Paid in another event: its words are unknown here, so Questify's own name the amount. */}
-        {completedText(t, step.details?.otherEvent ? DEFAULT_TERMS : terms, language, step.points)}
+        {headlineText(t, step.details?.otherEvent ? DEFAULT_TERMS : terms, language, step)}
       </AppText>
       {step.boosted ? <AppText variant="title">{t("completion.boosted")}</AppText> : null}
       {step.met === null ? null : (

@@ -39,6 +39,18 @@
   entries; the ADR-734 gate shows 9.92 ms old and 9.89 ms new. N+1 and selective fetching had nothing to apply, and one tie-breaker
   landed (`readOwnerOthers`). T-813 stays open: part 2 (items 5 to 10) is still running. CI 0 minutes (not pushed).
 
+## FOLLOWUPS batch 21 — 2026-11-07
+
+- **FOLLOWUPS batch 21 (tier B, app, web and shared; no migration, no package change, no ADR, one new string).**
+  A replay that pays nothing (the first answer's points were later removed) is no longer a "+0" success: the player's scanner and the quest
+  sheet say "Already recorded" («سجّلنا هذا من قبل», `scanner.alreadyRecorded`, ux-araby and the glossary: a نحن verb, no heavy passive), and the
+  kiosk and the operator station show their existing orange "already done" card instead of a green one (`replayed` with `points` 0 only; a
+  replay that paid, and a first scan of a 0-point quest, stay as they were). The T-617 partial indexes' insert cost is measured in buffers
+  (`PERFORMANCE_AUDIT.md`, Item 1): about two more buffers a row for an operator row, +1% to +15% of the statement, no extra dirty pages.
+  Checked and left: the T-804c NIT (no door but `complete_quest_answer` returns the ranking entries, so each other door needs its own
+  migration; Q-640 stands), the `use-read.ts` rejected-load test (the app has no hook renderer or DOM in its tests; one needs a dependency)
+  and the `sum()` NULL note (SQL). CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 19 — 2026-11-07
 
 - **FOLLOWUPS batch 19 (tier B, API, app and web; no migration, no package change, no ADR, no new string).**

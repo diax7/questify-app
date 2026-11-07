@@ -44,6 +44,25 @@ export function completedText(
   });
 }
 
+/**
+ * A replay that pays nothing: the first answer was recorded and its points later removed, so the server answers the
+ * same key with 0. It is not a success worth "+0", it is "already recorded".
+ */
+export const isRecordedAgain = (answer: Readonly<{ replayed: boolean; points: number }>): boolean =>
+  answer.replayed && answer.points === 0;
+
+/** What a completion's headline says: "Already recorded" for a replay that paid nothing, else the points. */
+export function headlineText(
+  t: Translate,
+  terms: EventTerms,
+  language: Language,
+  answer: Readonly<{ replayed: boolean; points: number }>,
+): string {
+  return isRecordedAgain(answer)
+    ? t("scanner.alreadyRecorded")
+    : completedText(t, terms, language, answer.points);
+}
+
 const ITEM_TEXT: Readonly<Record<ItemOutcome, MessageKey>> = {
   pending: "questsTab.itemPending",
   out_of_stock: "questsTab.itemOut",

@@ -78,6 +78,24 @@ const playerOf = (value: unknown): ScannedPlayer | null =>
 const camel = (value: string) =>
   value.replace(/_([a-z])/g, (_match, letter: string) => letter.toUpperCase());
 
+/** A completed scan. A replay after a removal pays 0: the orange "already completed" card, not a green success. */
+function completedResult(
+  body: Record<string, unknown>,
+  player: ScannedPlayer | null,
+): StationResult | undefined {
+  if (body["replayed"] === true && body["points"] === 0) {
+    return { color: "orange", player };
+  }
+  return typeof body["points"] === "number"
+    ? {
+        color: "green",
+        points: body["points"],
+        player,
+        bonusPoints: typeof body["bonusPoints"] === "number" ? body["bonusPoints"] : null,
+      }
+    : undefined;
+}
+
 /** The scan's answer as the station shows it; undefined for a body this app cannot read. */
 export function stationResult(body: unknown): StationResult | undefined {
   if (!isRecord(body)) {
@@ -86,14 +104,7 @@ export function stationResult(body: unknown): StationResult | undefined {
   const player = playerOf(body["player"]);
   switch (body["result"]) {
     case "completed":
-      return typeof body["points"] === "number"
-        ? {
-            color: "green",
-            points: body["points"],
-            player,
-            bonusPoints: typeof body["bonusPoints"] === "number" ? body["bonusPoints"] : null,
-          }
-        : undefined;
+      return completedResult(body, player);
     case "already_completed":
       return { color: "orange", player };
     case "refused": {

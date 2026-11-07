@@ -10,6 +10,8 @@ import {
   amountLabel,
   bonusLine,
   completedText,
+  headlineText,
+  isRecordedAgain,
   itemLine,
   knownIcon,
   paidText,
@@ -147,5 +149,23 @@ describe("paidText", () => {
     expect(paidText(tIn("en"), GEMS, "en", { points: 10, bonus: null, item: null })).toBe(
       "+10 gems",
     );
+  });
+});
+
+describe("isRecordedAgain", () => {
+  it("is a replay that paid nothing, and says so in both languages", () => {
+    expect(isRecordedAgain({ replayed: true, points: 0 })).toBe(true);
+    expect(isRecordedAgain({ replayed: true, points: 10 })).toBe(false);
+    expect(isRecordedAgain({ replayed: false, points: 0 })).toBe(false);
+    expect(headlineText(tIn("en"), GEMS, "en", { replayed: true, points: 0 })).toBe(
+      "Already recorded",
+    );
+    expect(headlineText(tIn("ar"), GEMS, "ar", { replayed: true, points: 0 })).toBe(
+      "سجّلنا هذا من قبل",
+    );
+    expect(headlineText(tIn("en"), GEMS, "en", { replayed: true, points: 10 })).toBe("+10 gems");
+    expect(headlineText(tIn("en"), GEMS, "en", { replayed: false, points: 0 })).toBe("+0 gems");
+    expect(tIn("en")("scanner.alreadyRecorded")).toBe("Already recorded");
+    expect(tIn("ar")("scanner.alreadyRecorded")).toBe("سجّلنا هذا من قبل");
   });
 });

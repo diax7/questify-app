@@ -153,6 +153,16 @@ describe("the kiosk reader", () => {
 });
 
 describe("the kiosk's answers", () => {
+  it("reads a replay that paid nothing as the orange card, not a green +0", () => {
+    const body = { result: "completed", player: { username: "sara" }, points: 0 };
+    expect(kioskCardOf({ ...body, replayed: true })).toEqual({
+      kind: "already",
+      player: { username: "sara", avatar: "" },
+    });
+    expect(kioskCardOf({ ...body, replayed: false })).toMatchObject({ kind: "paid", points: 0 });
+    expect(kioskCardOf({ ...body, points: 10, replayed: true })).toMatchObject({ kind: "paid" });
+  });
+
   it("reads green with the player, orange, and red with the reason only", () => {
     expect(kioskCardOf({ ...(PAID.body as object), boosted: true })).toEqual({
       kind: "paid",

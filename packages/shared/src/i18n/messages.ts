@@ -1150,6 +1150,8 @@ export const MESSAGES = {
   "scanner.title": { ar: "امسح الرمز", en: "Scan the {questOne} code" },
   "scanner.checking": { ar: "قرأنا الرمز! نتحقق منه…", en: "Scanned! Checking…" },
   "scanner.claim": { ar: "اجمعها", en: "Claim" },
+  // A replay that pays nothing (the first answer was later removed): no "+0 points" success.
+  "scanner.alreadyRecorded": { ar: "سجّلنا هذا من قبل", en: "Already recorded" },
   "scanner.otherEvent": {
     ar: "احتُسب هذا الرمز في فعالية أخرى من فعالياتك.",
     en: "This code counted in another of your events.",

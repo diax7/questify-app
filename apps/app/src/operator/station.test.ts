@@ -58,6 +58,19 @@ describe("stationResult", () => {
     ).toMatchObject({ player: { username: "n", fullName: null } });
   });
 
+  it("shows a replay that paid nothing as orange, never a green +0", () => {
+    expect(stationResult({ result: "completed", points: 0, replayed: true, player })).toEqual({
+      color: "orange",
+      player,
+    });
+    expect(
+      stationResult({ result: "completed", points: 0, replayed: false, player }),
+    ).toMatchObject({ color: "green", points: 0 });
+    expect(
+      stationResult({ result: "completed", points: 25, replayed: true, player }),
+    ).toMatchObject({ color: "green", points: 25 });
+  });
+
   it("shows green with the points, orange for a repeat, red with words for each reason", () => {
     expect(stationResult({ result: "completed", points: 25, player, occurrence: 1 })).toEqual({
       color: "green",
