@@ -129,7 +129,7 @@ test("opens one step alone from a build page and returns to it", async ({ page }
   await expect(stepBar(page)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "كل الخطوات" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "تخطي الخطوة" })).toHaveCount(0);
-  await page.getByRole("link", { name: "تم" }).click();
+  await page.getByRole("link", { name: "إنهاء" }).click();
   await expect(page).toHaveURL(`${eventUrl}/rewards`);
   expect(await savedSetup(page, eventUrl)).toMatchObject({
     currentStep: 1,
@@ -156,7 +156,7 @@ test("opens the step of the maps, agenda, prizes and operators pages and returns
     await page.getByRole("link", { name: "اشرح لي هذه الصفحة" }).click();
     await expect(page).toHaveURL(new RegExp(`/setup\\?step=${step}&only=1&from=${slug}$`));
     await expect(stepBar(page)).toHaveCount(0);
-    await page.getByRole("link", { name: "تم" }).click();
+    await page.getByRole("link", { name: "إنهاء" }).click();
     await expect(page).toHaveURL(`${eventUrl}/${slug}`);
   }
 });

@@ -26,7 +26,9 @@ test("the owner reads the rehearsal code, changes it and erases the rehearsal", 
 
   await card.getByRole("button", { name: "امسح التجربة" }).click();
   await card.getByRole("alertdialog").getByRole("button", { name: "امسح التجربة" }).click();
-  await expect(card.getByRole("status")).toHaveText("مُسحت بيانات التجربة: 0 حساب، و0 مسح، و0 حجز.");
+  await expect(card.getByRole("status")).toHaveText(
+    "مُسحت بيانات التجربة: الحسابات 0، والمسح 0، والحجوزات 0.",
+  );
 
   await page.goto(page.url().replace("/ar/", "/en/"));
   await expect(page.getByRole("heading", { name: "Rehearsal", level: 2 })).toBeVisible();

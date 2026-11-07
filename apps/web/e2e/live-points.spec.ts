@@ -96,7 +96,7 @@ test("new points on a played quest ask future or past first, and Cancel changes 
 
   const dialog = page.getByRole("alertdialog");
   await expect(dialog.getByRole("heading", { name: `تغيير نقاط «${STAGE}»؟` })).toBeFocused();
-  await expect(dialog).toContainText("أُنجزت 3 مرة حتى الآن من 3 لاعبًا.");
+  await expect(dialog).toContainText("مرات الإنجاز حتى الآن: 3، واللاعبون الذين أنجزوها: 3.");
   // Nothing is chosen for the person: the button waits for a choice.
   const save = dialog.getByRole("button", { name: "حفظ النقاط" });
   await expect(save).toBeDisabled();
@@ -147,7 +147,9 @@ test("deleting a played quest asks keep or remove first, and Cancel keeps the qu
   await remove.click();
   const dialog = page.getByRole("alertdialog");
   await expect(dialog.getByRole("heading", { name: "حذف مهمة؟" })).toBeFocused();
-  await expect(dialog).toContainText(`أُنجزت «${SPONSORS}» 2 مرة من 2 لاعبًا. ماذا يحدث لنقاطهم؟`);
+  await expect(dialog).toContainText(
+    `«${SPONSORS}»: عدد مرات الإنجاز 2، واللاعبون الذين أنجزوها 2. ماذا يحدث لنقاطهم؟`,
+  );
   const confirm = dialog.getByRole("button", { name: "حذف مهمة" });
   // Nothing is chosen for the person: the button waits for a choice.
   await expect(confirm).toBeDisabled();
