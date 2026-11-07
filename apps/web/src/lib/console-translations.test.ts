@@ -9,6 +9,7 @@ import {
   draftOf,
   insertPlaceholder,
   isChanged,
+  notOnPhone,
   isDirty,
   isInvalid,
   keyPath,
@@ -150,6 +151,14 @@ describe("editing a row", () => {
     const row = plain();
     expect(canSave(row, { ...draftOf(row), en: "a".repeat(1001) })).toBe(false);
     expect(canSave(row, { ...draftOf(row), en: "a".repeat(1000) })).toBe(true);
+  });
+});
+
+describe("a key the phone never shows", () => {
+  it("is a console text, whatever else the key contains", () => {
+    expect(notOnPhone("console.translations.title")).toBe(true);
+    expect(notOnPhone("home.console.title")).toBe(false);
+    expect(notOnPhone("consolex.title")).toBe(false);
   });
 });
 

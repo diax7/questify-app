@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   INTRO_KEY,
+  firstStop,
   introDue,
   readIntroState,
   writeIntroState,
@@ -65,5 +66,18 @@ describe("the intro's stored step", () => {
 
   it("does not fail the player when the step cannot be saved", async () => {
     await expect(writeIntroState(brokenStore, "seen")).resolves.toBeUndefined();
+  });
+});
+
+describe("the first stop of a launch", () => {
+  it("is the intro before anything else, signed in or not", () => {
+    expect(firstStop("fresh", true)).toBe("intro");
+    expect(firstStop("fresh", false)).toBe("intro");
+    expect(firstStop("language", true)).toBe("intro");
+  });
+
+  it("is Questify home when signed out, and the player's events when signed in, once the intro is seen", () => {
+    expect(firstStop("seen", true)).toBe("home");
+    expect(firstStop("seen", false)).toBe("events");
   });
 });

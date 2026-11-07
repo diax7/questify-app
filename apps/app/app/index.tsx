@@ -6,7 +6,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { chooseLaunchEvent, readMyEvents, readRecent } from "#src/event/launch.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { introDue, readIntroState } from "#src/onboarding/intro-state.ts";
+import { firstStop, readIntroState } from "#src/onboarding/intro-state.ts";
 
 /**
  * Where the app opens (FR-624, FR-1610): the intro on the first launch of an install (FR-1798), else inside the player's
@@ -23,12 +23,9 @@ export default function LaunchScreen() {
     }
     decided.current = true;
     void (async () => {
-      if (introDue(await readIntroState(keyValueStore))) {
-        router.replace("/intro");
-        return;
-      }
-      if (state.status === "signed_out") {
-        router.replace("/home");
+      const stop = firstStop(await readIntroState(keyValueStore), state.status === "signed_out");
+      if (stop !== "events") {
+        router.replace(stop === "intro" ? "/intro" : "/home");
         return;
       }
       const answer = await api.session.request({ method: "GET", path: "/v1/me/events" });

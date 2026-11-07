@@ -29,6 +29,17 @@ export async function readIntroState(store: IntroStore): Promise<IntroState> {
 export const introDue = (state: IntroState): boolean => state !== "seen";
 
 /**
+ * The first place the app opens (FR-624, FR-1798): the intro comes before everything else, even for a signed-out player, then
+ * Questify home for a signed-out one, else the player's events decide.
+ */
+export function firstStop(state: IntroState, signedOut: boolean): "intro" | "home" | "events" {
+  if (introDue(state)) {
+    return "intro";
+  }
+  return signedOut ? "home" : "events";
+}
+
+/**
  * Remembers the step. A write that fails is not an error for the player: the intro may then show once more on a later
  * launch, which is better than stopping them here.
  */

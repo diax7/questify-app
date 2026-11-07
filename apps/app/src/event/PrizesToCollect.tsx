@@ -5,6 +5,7 @@ import { AppState, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
+import { InfoTip } from "#src/components/InfoTip.tsx";
 import { DeskLine } from "#src/event/DeskLine.tsx";
 import {
   fetchHeldPrizes,
@@ -140,15 +141,15 @@ export function PrizesToCollect({ eventId }: Readonly<{ eventId: string }>) {
   }
   return (
     <View style={styles.card}>
-      <AppText variant="title">{t("heldPrizes.title")}</AppText>
+      <InfoTip
+        info={t(held.desk.confirm === "collect_first" ? "shop.collectHint" : "shop.offerHint")}
+        subject={t("heldPrizes.title")}
+      >
+        <AppText variant="title">{t("heldPrizes.title")}</AppText>
+      </InfoTip>
       <DeskLine desk={held.desk} />
-      {held.desk.confirm === "collect_first" ? (
-        <AppText muted>{t("shop.collectHint")}</AppText>
-      ) : (
-        <>
-          <AppText muted>{t("shop.offerHint")}</AppText>
-          <Button label={t("heldPrizes.openMyQr")} onPress={() => router.push("/my-qr")} />
-        </>
+      {held.desk.confirm === "collect_first" ? null : (
+        <Button label={t("heldPrizes.openMyQr")} onPress={() => router.push("/my-qr")} />
       )}
       {held.prizes.map((prize) => (
         <PrizeRow

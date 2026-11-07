@@ -7,7 +7,14 @@ import {
 } from "@questify/shared";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { BackHandler, Pressable, ScrollView, View } from "react-native";
+import {
+  AccessibilityInfo,
+  BackHandler,
+  Platform,
+  Pressable,
+  ScrollView,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, keyValueStore } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
@@ -277,6 +284,13 @@ function CardsStep({ flow }: Readonly<{ flow: Flow }>) {
   const { t } = useI18n();
   const styles = useThemedStyles(makeStyles);
   const card = flow.cards[flow.index];
+  const title = card === undefined ? "" : t(card.title, card.params);
+  useEffect(() => {
+    // Android reads the title's live region; iOS has none, so a screen reader is told the new card's title.
+    if (Platform.OS === "ios" && flow.index > 0 && title !== "") {
+      AccessibilityInfo.announceForAccessibility(title);
+    }
+  }, [flow.index, title]);
   if (card === undefined) {
     return null;
   }
@@ -292,7 +306,7 @@ function CardsStep({ flow }: Readonly<{ flow: Flow }>) {
             accessibilityLiveRegion="polite"
             style={styles.centered}
           >
-            {t(card.title, card.params)}
+            {title}
           </AppText>
           <AppText style={styles.centered}>{t(card.body, card.params)}</AppText>
         </Panel>
@@ -340,6 +354,19 @@ function TopBar({ flow }: Readonly<{ flow: Flow }>) {
   );
 }
 
+/** What the stage shows while the cards' order is still being read (up to 1.5 s with no copy kept on the phone). */
+function Waiting() {
+  const { t } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={styles.stageContent}>
+      <AppText muted accessibilityLiveRegion="polite" style={styles.centered}>
+        {t("common.loading")}
+      </AppText>
+    </View>
+  );
+}
+
 function IntroSteps({
   variant,
   stored,
@@ -354,7 +381,7 @@ function IntroSteps({
     <>
       <TopBar flow={flow} />
       {flow.onLanguage ? <LanguageStep flow={flow} /> : null}
-      {flow.onLanguage || flow.waiting ? null : <CardsStep flow={flow} />}
+      {flow.onLanguage ? null : flow.waiting ? <Waiting /> : <CardsStep flow={flow} />}
     </>
   );
 }

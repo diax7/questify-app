@@ -24,6 +24,8 @@ import {
   amountsDraftOf,
   checkAmounts,
   readAmounts,
+  revertChanges,
+  type AmountChange,
   type AmountsDraft,
 } from "#src/lib/console-catalog.ts";
 import { translatorFor } from "#src/lib/language.ts";
@@ -96,6 +98,19 @@ type AmountsAsk = Readonly<{
   apply: () => void;
 }>;
 
+/** The lines of a confirmation: each amount that changes, old to new, from now on. */
+function changeLines(language: Language, changes: readonly AmountChange[]) {
+  const t = translatorFor(language);
+  return changes.map((change) => ({
+    key: `${change.group}.${change.field}`,
+    text: t(`console.catalog.amounts.line.${change.group}`, {
+      name: t(amountLabel(change.group, change.field)),
+      old: formatNumber(change.from, language),
+      new: formatNumber(change.to, language),
+    }),
+  }));
+}
+
 /** The words of a save's confirmation: each changed amount, old to new, from now on. */
 function saveAsk(
   language: Language,
@@ -106,25 +121,21 @@ function saveAsk(
   const t = translatorFor(language);
   return {
     title: t("console.catalog.amounts.confirm"),
-    lines: amountChanges(row, doc).map((change) => ({
-      key: `${change.group}.${change.field}`,
-      text: t(`console.catalog.amounts.line.${change.group}`, {
-        name: t(amountLabel(change.group, change.field)),
-        old: formatNumber(change.from, language),
-        new: formatNumber(change.to, language),
-      }),
-    })),
+    lines: changeLines(language, amountChanges(row, doc)),
     applyLabel: t("console.catalog.amounts.apply"),
     apply,
   };
 }
 
-/** The words of a revert's confirmation: the amounts before the last change pay from now on. */
-function revertAsk(language: Language, apply: () => void): AmountsAsk {
+/** The words of a revert's confirmation: each amount that comes back, then what coming back means. */
+function revertAsk(language: Language, row: AmountsAdmin, apply: () => void): AmountsAsk {
   const t = translatorFor(language);
   return {
     title: t("console.catalog.amounts.revertConfirm"),
-    lines: [{ key: "revert", text: t("console.catalog.amounts.revertLine") }],
+    lines: [
+      ...changeLines(language, revertChanges(row)),
+      { key: "revert", text: t("console.catalog.amounts.revertLine") },
+    ],
     applyLabel: t("console.catalog.amounts.revertApply"),
     apply,
   };
@@ -142,7 +153,7 @@ function askFor(
   run: Readonly<{ catalog: Catalog<AmountsAdmin>; done: () => void }>,
 ): AmountsAsk | null {
   if (asking === "revert") {
-    return revertAsk(language, () => void run.catalog.revert("").then(run.done));
+    return revertAsk(language, row, () => void run.catalog.revert("").then(run.done));
   }
   if (asking === "save" && doc !== undefined) {
     return saveAsk(language, row, doc, () => void run.catalog.save("", doc).then(run.done));

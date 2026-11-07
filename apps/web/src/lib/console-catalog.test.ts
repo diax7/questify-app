@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   achievementDraftOf,
   amountChanges,
+  revertChanges,
   amountLabel,
   amountsDraftOf,
   checkAmounts,
@@ -332,6 +333,15 @@ describe("an amounts draft", () => {
       const bad = checkAmounts({ ...draft, [group]: { ...draft[group], [field]: value } });
       expect(!bad.ok && bad.fields.has(`${group}.${field}`), `${field} ${value}`).toBe(true);
     }
+  });
+
+  it("lists what a revert puts back, and nothing when the API names no earlier amounts", () => {
+    expect(revertChanges(row)).toEqual([]);
+    const earlier = { xp: { ...row.xp, questXp: 80, goldXp: 250 } };
+    expect(revertChanges({ ...row, previous: earlier, revertible: true })).toEqual([
+      { group: "xp", field: "questXp", from: 100, to: 80 },
+      { group: "xp", field: "goldXp", from: 300, to: 250 },
+    ]);
   });
 
   it("has words for every amount", () => {
