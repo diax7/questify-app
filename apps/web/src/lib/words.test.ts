@@ -148,6 +148,16 @@ const QUESTIFY_LEVEL: Readonly<Record<string, string>> = {
     "the platform's feature name on the console, not an event's word",
   "console.switches.feature.shareQuests":
     "the platform's feature name on the console, not an event's word",
+  "console.history.categoryChange":
+    "the console's history of one organizer spans its events, so no event's word applies",
+  "console.history.questCreate":
+    "the console's history of one organizer spans its events, so no event's word applies",
+  "console.history.questEdit":
+    "the console's history of one organizer spans its events, so no event's word applies",
+  "console.history.questDelete":
+    "the console's history of one organizer spans its events, so no event's word applies",
+  "console.history.questQr":
+    "the console's history of one organizer spans its events, so no event's word applies",
 };
 
 describe("the dashboard's source", () => {
