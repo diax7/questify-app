@@ -64,11 +64,16 @@ export function I18nProvider({
     };
     void (async () => {
       try {
+        // Two reads of the phone's storage that do not depend on each other, on the way to the first screen.
+        const [stored, restartTriedFor] = await Promise.all([
+          loadStoredLanguage(AsyncStorage),
+          loadRestartNote(AsyncStorage),
+        ]);
         const decision = decideBoot({
-          stored: await loadStoredLanguage(AsyncStorage),
+          stored,
           device: deviceLocales(),
           layoutIsRtl: layoutIsRtl(),
-          restartTriedFor: await loadRestartNote(AsyncStorage),
+          restartTriedFor,
         });
         if (decision.needsRestart) {
           await saveRestartNote(AsyncStorage, decision.language);

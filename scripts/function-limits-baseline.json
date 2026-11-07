@@ -1065,11 +1065,6 @@
       "complexity": [9]
     }
   },
-  "apps/web/src/components/SubmissionsPanel.tsx": {
-    "SubmissionsPanel": {
-      "complexity": [12]
-    }
-  },
   "apps/web/src/components/TeamPanel.tsx": {
     "TeamPanel": {
       "lines": [108]

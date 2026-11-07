@@ -38,6 +38,21 @@ const STATUS_KEYS: Readonly<Record<SubmissionStatus, MessageKey>> = {
 
 export const statusKey = (status: SubmissionStatus): MessageKey => STATUS_KEYS[status];
 
+/** "Nothing here": the list is read and empty, and no read mark is still waiting for the server (the rows are only hidden). */
+export const showsEmpty = (items: readonly QueueItem[] | null, marking: boolean): boolean =>
+  items?.length === 0 && !marking;
+
+/** The "Mark these as read" button: on the unseen tab while there are rows, and while a mark is waiting for the server. */
+export const showsMarkSeen = (
+  filter: QueueFilter,
+  items: readonly QueueItem[] | null,
+  marking: boolean,
+): boolean => filter === "unseen" && ((items?.length ?? 0) > 0 || marking);
+
+/** The queue without the items named: what the "unseen" tab shows at once while the server is told they were read. */
+export const withoutItems = (items: readonly QueueItem[], ids: readonly string[]): QueueItem[] =>
+  items.filter((item) => !ids.includes(item.id));
+
 /** A rejection or a removal needs a reason of 1 to 300 characters (the player sees it). */
 export const canGiveReason = (reason: string): boolean => {
   const length = reason.trim().length;

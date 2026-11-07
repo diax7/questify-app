@@ -21,7 +21,7 @@ import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** The brand's padlock (icon-padlock, 128 px), on a pin for a locked quest; decorative, the pin's words say "Locked". */
-const PADLOCK = require("#assets/icons/padlock.png");
+const PADLOCK = require("#assets/icons/padlock.webp");
 
 const deviceZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
 const BOARD_SIZE = 40;

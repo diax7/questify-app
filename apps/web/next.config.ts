@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import type { NextConfig } from "next";
+import { STATIC_FILE_RULES } from "./src/lib/static-cache.ts";
 
 const config: NextConfig = {
   poweredByHeader: false,
@@ -11,6 +12,8 @@ const config: NextConfig = {
   outputFileTracingIncludes: { "/[lang]/legal/[document]": ["../../docs/legal/organizer-*.md"] },
   // No image optimiser on the server (and so no `sharp`): nothing needs resized images yet.
   images: { unoptimized: true },
+  // Long-lived cache headers for the files of `public/` (the pages stay `no-store`, from the proxy).
+  headers: async () => STATIC_FILE_RULES.map((rule) => ({ ...rule, headers: [...rule.headers] })),
   // The shared package ships TypeScript sources.
   transpilePackages: ["@questify/shared"],
   // Next's own type pass needs the TypeScript 5 JS API, which the repo's TypeScript 7 does not have. Types are

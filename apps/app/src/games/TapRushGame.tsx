@@ -18,7 +18,7 @@ import { gateTap, monotonicNow, secondsLeftOf, type Finished } from "#src/games/
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
-const TREASURE = require("#assets/games/cards/chest.png");
+const TREASURE = require("#assets/games/cards/chest.webp");
 
 const haptic = (run: () => Promise<void>) => void run().catch(() => undefined);
 

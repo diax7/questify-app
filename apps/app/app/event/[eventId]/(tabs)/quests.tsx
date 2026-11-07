@@ -88,7 +88,7 @@ function useQuests(eventId: string) {
 }
 
 /** The brand's lightning (icon-lightning, 128 px), beside a flash quest's badge; decorative, the words say "Flash". */
-const LIGHTNING = require("#assets/icons/lightning.png");
+const LIGHTNING = require("#assets/icons/lightning.webp");
 
 /**
  * A flash quest's badge with its end, and a boosted category's "×2" seal with "Double points until …" (T-307). The

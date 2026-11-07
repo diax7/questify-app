@@ -7,12 +7,12 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** The six default avatars (FR-117), from the brand set, trimmed and reduced to 128 px (T-116). */
 const IMAGES: Readonly<Record<AvatarName, ImageSourcePropType>> = {
-  falcon: require("#assets/avatars/falcon.png"),
-  fox: require("#assets/avatars/fox.png"),
-  camel: require("#assets/avatars/camel.png"),
-  owl: require("#assets/avatars/owl.png"),
-  lantern: require("#assets/avatars/lantern.png"),
-  "explorer-hat": require("#assets/avatars/explorer-hat.png"),
+  falcon: require("#assets/avatars/falcon.webp"),
+  fox: require("#assets/avatars/fox.webp"),
+  camel: require("#assets/avatars/camel.webp"),
+  owl: require("#assets/avatars/owl.webp"),
+  lantern: require("#assets/avatars/lantern.webp"),
+  "explorer-hat": require("#assets/avatars/explorer-hat.webp"),
 };
 
 /**
@@ -74,7 +74,7 @@ export function Avatar({
       ) : null}
       {chosen === "chest" ? (
         <Image
-          source={require("#assets/games/cards/chest.png")}
+          source={require("#assets/games/cards/chest.webp")}
           resizeMode="contain"
           style={{ width: size * 0.72, height: size * 0.72 }}
         />

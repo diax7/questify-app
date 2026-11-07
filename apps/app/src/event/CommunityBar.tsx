@@ -112,7 +112,7 @@ export function CommunityBar({ card }: Readonly<{ card: CommunityCard }>) {
 }
 
 /** The brand's padlock (icon-padlock, 128 px), beside an unlock step; decorative, the words say "Unlocks". */
-const PADLOCK = require("#assets/icons/padlock.png");
+const PADLOCK = require("#assets/icons/padlock.webp");
 
 const makeStyles = (theme: Theme) => ({
   stepRow: { flexDirection: "row" as const, alignItems: "center" as const, gap: theme.spacing.xs },

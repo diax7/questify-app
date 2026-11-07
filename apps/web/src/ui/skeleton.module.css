@@ -3,6 +3,16 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-xl);
+  /* Drawn only after 0.4 s: a page that answers sooner never shows a flash of grey bars (T-813 part 2). The words
+     for a screen reader are there at once. */
+  opacity: 0;
+  animation: reveal 0s linear 0.4s forwards;
+}
+
+@keyframes reveal {
+  to {
+    opacity: 1;
+  }
 }
 
 .title,

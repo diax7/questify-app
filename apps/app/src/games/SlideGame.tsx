@@ -11,9 +11,9 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** The default puzzle pictures (ADR-215), chosen by the seed; organizer pictures are T-305b. */
 const PICTURES = [
-  require("#assets/games/puzzles/picture-0.jpg"),
-  require("#assets/games/puzzles/picture-1.jpg"),
-  require("#assets/games/puzzles/picture-2.jpg"),
+  require("#assets/games/puzzles/picture-0.webp"),
+  require("#assets/games/puzzles/picture-1.webp"),
+  require("#assets/games/puzzles/picture-2.webp"),
 ] as const;
 
 const haptic = (run: () => Promise<void>) => void run().catch(() => undefined);

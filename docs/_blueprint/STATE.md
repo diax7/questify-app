@@ -1,5 +1,24 @@
 # Blueprint State — Questify
 
+## T-813 part 2 — 2026-11-07
+
+- **T-813 part 2 (performance audit items 5 to 12, apps/web and apps/app; tier B; no migration, no new dependency, no ADR, no new
+  string; T-813 itself stays open, items 1 to 4 are the other worker's).** Results with their conditions are in
+  `docs/PERFORMANCE_AUDIT.md`, "T-813 results, part 2". Images: 45 art files became WebP, 1,710,486 to 626,804 bytes (the header
+  wordmark 51,898 to 15,864 on every page; the phone's asset folder 10,205,424 to 9,374,146); app icons, `icon.png` and the store
+  art stay PNG. Caching: `public/` files had `max-age=0` on staging; the decoder is now immutable for a year and the art keeps a
+  day (`static-cache.ts`, with a test that every public file is covered). Parallel reads in the quests page, Home, launch and
+  the phone's boot. The web page skeleton appears after 0.4 s, so fast answers show no flash. "Mark these as read" on submissions
+  is optimistic with rollback and a new browser test. Skipped with reasons: lazy loading (one picture in the first viewport,
+  already eager), the bundle (framework floor 1,290,195 B, a route's own code at most 111,205 B, unchanged), the phone's
+  skeleton delay (no render tests), `icon.png` and the adaptive icons (art and a store decision), AI streaming (no AI feature),
+  throttled-Chrome timings (no baseline, shared loaded server). `function-limits-baseline.json` shrank by one entry
+  (`SubmissionsPanel`). Run: `apps/app` and `apps/web/src` vitest 235 files, 2,681 tests passed (includes `words.test.ts`, the
+  new `static-cache.test.ts` and `submissions.test.ts`); Playwright with one worker on desktop and phone, `layout`, `layout-check`
+  and `submissions` 26 passed, then `submissions` and `quests` 18 passed after the last edit, and on desktop `quest-items`,
+  `kiosks`, `big-screen`, `console-seasons` and `souvenirs` with `quests` 18 passed (the first run of the new submissions test
+  failed on a locator that matched Next's route announcer too; fixed). Not run: the full suite (CI). CI 0 minutes (not pushed).
+
 ## Handoff to the company server — 2026-11-06
 
 - The newest entries are below, then older ones. Staging: `release-20261107-6`, migration 0171 (0156 reserved for T-810d). Live

@@ -1,12 +1,12 @@
 import { Image } from "react-native";
 
-/** The brand's flame (`icons/flame.png`). Decorative: the lines beside it say the streak. */
+/** The brand's flame (`icons/flame.webp`). Decorative: the lines beside it say the streak. */
 export function FlameIcon({ size }: Readonly<{ size: number }>) {
   return (
     <Image
       accessibilityElementsHidden
       importantForAccessibility="no"
-      source={require("#assets/icons/flame.png")}
+      source={require("#assets/icons/flame.webp")}
       resizeMode="contain"
       style={{ width: size, height: size }}
     />

@@ -124,14 +124,14 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
   );
 
   const reload = useCallback(async () => {
-    const result = await requestJson("GET", `${base}/quests`);
+    // Both reads at once; without the item picker's choices (T-304d) it offers none and the rest works.
+    const read = (path: string) => requestJson("GET", `${base}${path}`);
+    const [result, listed] = await Promise.all([read("/quests"), read("/quest-items")]);
     if (!failed(result)) {
       const view = result.body as { focusQuestId: string | null; categories: CategoryView[] };
       setFocusQuestId(view.focusQuestId);
       setCategories(view.categories);
     }
-    // The item picker's choices (T-304d); without them the picker offers none and the rest works.
-    const listed = await requestJson("GET", `${base}/quest-items`);
     setItems((listed.ok ? questItemsOf(listed.body) : undefined) ?? []);
   }, [base, failed]);
 

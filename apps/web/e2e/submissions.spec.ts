@@ -55,3 +55,80 @@ test("the owner reviews and removes submissions", async ({ page, request }, info
     "السبب: منقولة من الإنترنت",
   );
 });
+
+/**
+ * "Mark these as read" is optimistic: the rows leave the list while the server is still answering, with the button
+ * busy, and come back with the problem if it refuses. The auto-approved queue is answered by the test, since the
+ * test server has no way to make one.
+ */
+test("marking auto-approved submissions as read shows at once and rolls back on a refusal", async ({
+  page,
+}, info) => {
+  test.setTimeout(90_000);
+  await openBuilder(page, info.project.name);
+  const queue = /\/submissions\?filter=unseen/;
+  let unseen = [seenRow("a"), seenRow("b")];
+  await page.route(queue, (route) =>
+    route.fulfill({ json: { submissions: unseen, nextCursor: null } }),
+  );
+  // The server's two answers to "seen", given by the test when it chooses; the first is a refusal, the second agrees.
+  const answers: Array<(status: number) => void> = [];
+  const statuses = [0, 1].map(
+    (index) =>
+      new Promise<number>((resolve) => {
+        answers[index] = resolve;
+      }),
+  );
+  let asks = 0;
+  await page.route(/\/submissions\/seen$/, async (route) => {
+    const status = (await statuses[asks++]) ?? 500;
+    if (status === 204) {
+      unseen = [];
+      await route.fulfill({ status });
+    } else {
+      await route.fulfill({ status, json: { code: "internal" } });
+    }
+  });
+
+  await page.goto(page.url().replace(/\/quests$/, "/submissions"));
+  await page.getByRole("button", { name: "قُبلت تلقائيًا ولم تُقرأ" }).click();
+  const items = page.getByTestId("submission");
+  await expect(items).toHaveCount(2);
+
+  const mark = page.getByRole("button", { name: "علّم الظاهرة كمقروءة" });
+  await mark.click();
+  await expect(items).toHaveCount(0);
+  await expect(mark).toHaveAttribute("aria-busy", "true");
+  await expect(page.getByText("لا شيء هنا.")).toBeHidden();
+  answers[0]?.(503);
+  await expect(items).toHaveCount(2);
+  await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toBeVisible();
+
+  await mark.click();
+  await expect(items).toHaveCount(0);
+  answers[1]?.(204);
+  await expect(page.getByText("لا شيء هنا.")).toBeVisible();
+  await expect(mark).toBeHidden();
+});
+
+/** One auto-approved submission as the queue lists it. */
+function seenRow(id: string) {
+  return {
+    id,
+    questId: "q",
+    questTitle: { ar: "مهمة", en: "Quest" },
+    enrollmentId: "e",
+    username: `sam_${id}`,
+    avatar: "fox",
+    text: "نص",
+    points: 5,
+    status: "approved",
+    auto: true,
+    marked: false,
+    reason: null,
+    reasonSystem: false,
+    createdAt: "2030-11-01T10:00:00Z",
+    reviewedAt: null,
+    seenAt: null,
+  };
+}

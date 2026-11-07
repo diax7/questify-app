@@ -5,13 +5,16 @@ import { describe, expect, it } from "vitest";
 
 const WEB = join(import.meta.dirname, "..", "..");
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const isWebp = (file: Buffer): boolean =>
+  file.subarray(0, 4).toString("latin1") === "RIFF" &&
+  file.subarray(8, 12).toString("latin1") === "WEBP";
 
 /** Every picture the pages ask for from `public/`, as the address the page uses. */
 const PICTURES: readonly string[] = [
-  ...AVATARS.map((name) => `/avatars/${name}.png`),
-  ...CURRENCY_ICONS.map((name) => `/currency/${name}.png`),
-  "/souvenirs/chest.png",
-  "/brand/questify-wordmark.png",
+  ...AVATARS.map((name) => `/avatars/${name}.webp`),
+  ...CURRENCY_ICONS.map((name) => `/currency/${name}.webp`),
+  "/souvenirs/chest.webp",
+  "/brand/questify-wordmark.webp",
   "/brand/icon-192.png",
   "/brand/apple-touch-icon.png",
 ];
@@ -30,9 +33,13 @@ function sourceFiles(folder: string): string[] {
 }
 
 describe("the pictures the pages show", () => {
-  it.each(PICTURES)("%s is shipped as a PNG that has content", (address) => {
+  // The art is WebP; the tab and home-screen icons stay PNG, which every platform asks for.
+  it.each(PICTURES)("%s is shipped as the format its name says, and has content", (address) => {
     const file = readFileSync(join(WEB, "public", address));
-    expect(file.subarray(0, 8).equals(PNG_SIGNATURE)).toBe(true);
+    const signature = address.endsWith(".webp")
+      ? isWebp(file)
+      : file.subarray(0, 8).equals(PNG_SIGNATURE);
+    expect(signature).toBe(true);
     expect(file.length).toBeGreaterThan(1000);
   });
 

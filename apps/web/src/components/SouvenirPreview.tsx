@@ -42,7 +42,7 @@ export function SouvenirPreview({ item, language }: { item: ProfileItem; languag
       ) : null}
       {/* Shipped local artwork, never organizer-provided URLs. */}
       <img
-        src={item.kind === "character" ? "/souvenirs/chest.png" : "/avatars/falcon.png"}
+        src={item.kind === "character" ? "/souvenirs/chest.webp" : "/avatars/falcon.webp"}
         alt=""
         width={42}
         height={42}

@@ -233,7 +233,7 @@ function CardAvatar({ player }: Readonly<{ player: KioskPlayer }>) {
       {player.username.slice(0, 1).toUpperCase()}
     </span>
   ) : (
-    <img className={styles.avatar} src={`/avatars/${known}.png`} alt="" width={96} height={96} />
+    <img className={styles.avatar} src={`/avatars/${known}.webp`} alt="" width={96} height={96} />
   );
 }
 

@@ -28,10 +28,12 @@ export default function LaunchScreen() {
         router.replace(stop === "intro" ? "/intro" : "/home");
         return;
       }
-      const answer = await api.session.request({ method: "GET", path: "/v1/me/events" });
+      const [answer, recent] = await Promise.all([
+        api.session.request({ method: "GET", path: "/v1/me/events" }),
+        readRecent(keyValueStore),
+      ]);
       const events = answer.kind === "ok" ? readMyEvents(answer.body) : undefined;
-      const chosen =
-        events === undefined ? null : chooseLaunchEvent(events, await readRecent(keyValueStore));
+      const chosen = events === undefined ? null : chooseLaunchEvent(events, recent);
       router.replace(chosen === null ? "/home" : `/event/${chosen}`);
     })();
   }, [state.status]);

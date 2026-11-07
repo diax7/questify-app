@@ -89,11 +89,11 @@ export function CountingNumber({
   return <AppText variant={variant ?? "body"}>{format(shown)}</AppText>;
 }
 
-const COIN: ImageSourcePropType = require("#assets/currency/coin.png");
+const COIN: ImageSourcePropType = require("#assets/currency/coin.webp");
 
 /**
  * A coin that turns while the server checks a scan (FR-406); still, facing front, without motion. It is the brand set's
- * coin (`currency/coin.png`).
+ * coin (`currency/coin.webp`).
  */
 export function SpinningCoin({ size = 72 }: Readonly<{ size?: number }>) {
   const reduce = useReduceMotion();

@@ -33,7 +33,7 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
 const deps: DevicesDeps = { session: api.session, now: Date.now, newKey: randomUuid };
 
 // No phone icon exists in the set yet (docs/FOLLOWUPS.md): the 3D padlock stands for a signed-in device.
-const ICON = require("#assets/icons/padlock.png");
+const ICON = require("#assets/icons/padlock.webp");
 
 const LTR = { writingDirection: "ltr", textAlign: "left" } as const;
 

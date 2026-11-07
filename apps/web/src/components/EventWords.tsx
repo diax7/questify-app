@@ -108,7 +108,7 @@ function IconChoice({
           key={option}
           label={
             <>
-              <img src={`/currency/${option}.png`} alt="" width={32} height={32} />{" "}
+              <img src={`/currency/${option}.webp`} alt="" width={32} height={32} />{" "}
               {t(`terms.icon.${option}`)}
             </>
           }

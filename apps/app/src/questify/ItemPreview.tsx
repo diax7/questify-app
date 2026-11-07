@@ -7,7 +7,7 @@ import { Avatar } from "#src/components/Avatar.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
-const PADLOCK: ImageSourcePropType = require("#assets/icons/padlock.png");
+const PADLOCK: ImageSourcePropType = require("#assets/icons/padlock.webp");
 
 /**
  * An item as it will look on the player: a frame or a character on their own avatar, a title on a name plate (which

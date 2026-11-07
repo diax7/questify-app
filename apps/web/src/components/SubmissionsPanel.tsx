@@ -10,7 +10,10 @@ import { textFor } from "#src/lib/quests.ts";
 import {
   FILTERS,
   canGiveReason,
+  showsEmpty,
+  showsMarkSeen,
   statusKey,
+  withoutItems,
   type QueueFilter,
   type QueueItem,
 } from "#src/lib/submissions.ts";
@@ -52,6 +55,12 @@ function useQueue(eventApi: string, filter: QueueFilter, onFailure: (body: unkno
   });
   return {
     items,
+    /** Takes the items named off the list at once; the function it returns puts the list back as it was. */
+    hide: (ids: readonly string[]) => {
+      const before = items;
+      setItems((current) => (current === null ? current : withoutItems(current, ids)));
+      return () => setItems(before);
+    },
     reload: () => void load(null),
     more: next === null ? null : () => void load(next),
   };
@@ -191,15 +200,22 @@ export function SubmissionsPanel({ language, organizerId, eventId }: Props) {
     }
     setProblem(body === undefined ? t("join.network") : problemOf(body, language, t));
   });
+  const [marking, setMarking] = useState(false);
+  // Optimistic: a read mark pays nothing and grants nothing, so the rows leave the list at once and come back, with the
+  // problem, if the server says no.
   const markRead = async () => {
     const ids = (queue.items ?? []).map((item) => item.id);
-    if (ids.length === 0) {
+    if (ids.length === 0 || marking) {
       return;
     }
+    setMarking(true);
+    const restore = queue.hide(ids);
     const result = await requestJson("POST", `${eventApi}/submissions/seen`, { ids });
+    setMarking(false);
     if (result.ok) {
       queue.reload();
     } else {
+      restore();
       setProblem(
         result.body === undefined ? t("join.network") : problemOf(result.body, language, t),
       );
@@ -224,9 +240,14 @@ export function SubmissionsPanel({ language, organizerId, eventId }: Props) {
         </Notice>
       )}
       {queue.items === null && problem === null ? <Muted>{t("common.loading")}</Muted> : null}
-      {queue.items?.length === 0 ? <EmptyState>{t("submissions.empty")}</EmptyState> : null}
-      {filter === "unseen" && (queue.items?.length ?? 0) > 0 ? (
-        <Button variant="quiet" onClick={() => void markRead()}>
+      {showsEmpty(queue.items, marking) ? <EmptyState>{t("submissions.empty")}</EmptyState> : null}
+      {showsMarkSeen(filter, queue.items, marking) ? (
+        <Button
+          variant="quiet"
+          disabled={marking}
+          aria-busy={marking}
+          onClick={() => void markRead()}
+        >
           {t("submissions.markSeen")}
         </Button>
       ) : null}

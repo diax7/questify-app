@@ -17,16 +17,16 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** The default card pictures (ADR-215), one per pair; organizer images are T-305b. */
 const CARDS = [
-  { art: require("#assets/games/cards/coffee.png"), name: "games.picture.coffee" },
-  { art: require("#assets/games/cards/cap.png"), name: "games.picture.cap" },
-  { art: require("#assets/games/cards/gift.png"), name: "games.picture.gift" },
-  { art: require("#assets/games/cards/tote.png"), name: "games.picture.tote" },
-  { art: require("#assets/games/cards/gem.png"), name: "games.picture.gem" },
-  { art: require("#assets/games/cards/compass.png"), name: "games.picture.compass" },
-  { art: require("#assets/games/cards/crown.png"), name: "games.picture.crown" },
-  { art: require("#assets/games/cards/key.png"), name: "games.picture.key" },
-  { art: require("#assets/games/cards/chest.png"), name: "games.picture.chest" },
-  { art: require("#assets/games/cards/hourglass.png"), name: "games.picture.hourglass" },
+  { art: require("#assets/games/cards/coffee.webp"), name: "games.picture.coffee" },
+  { art: require("#assets/games/cards/cap.webp"), name: "games.picture.cap" },
+  { art: require("#assets/games/cards/gift.webp"), name: "games.picture.gift" },
+  { art: require("#assets/games/cards/tote.webp"), name: "games.picture.tote" },
+  { art: require("#assets/games/cards/gem.webp"), name: "games.picture.gem" },
+  { art: require("#assets/games/cards/compass.webp"), name: "games.picture.compass" },
+  { art: require("#assets/games/cards/crown.webp"), name: "games.picture.crown" },
+  { art: require("#assets/games/cards/key.webp"), name: "games.picture.key" },
+  { art: require("#assets/games/cards/chest.webp"), name: "games.picture.chest" },
+  { art: require("#assets/games/cards/hourglass.webp"), name: "games.picture.hourglass" },
 ] as const satisfies readonly { art: number; name: MessageKey }[];
 
 const haptic = (run: () => Promise<void>) => void run().catch(() => undefined);

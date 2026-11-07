@@ -25,11 +25,11 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** The falling items' faces (ADR-218), from the reviewed currency art; the seed picks one of the 5 per item. */
 const FACES = [
-  require("#assets/currency/coin.png"),
-  require("#assets/currency/crownCoin.png"),
-  require("#assets/currency/gem.png"),
-  require("#assets/currency/leaf.png"),
-  require("#assets/currency/star.png"),
+  require("#assets/currency/coin.webp"),
+  require("#assets/currency/crownCoin.webp"),
+  require("#assets/currency/gem.webp"),
+  require("#assets/currency/leaf.webp"),
+  require("#assets/currency/star.webp"),
 ] as const;
 
 /** At most this many items fall at once at any level: the views are a fixed pool, moved every frame. */

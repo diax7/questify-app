@@ -59,7 +59,7 @@ function Avatar({ avatar }: Readonly<{ avatar: string }>) {
   const known = AVATARS.find((name) => name === avatar);
   return known === undefined ? null : (
     <img
-      src={`/avatars/${known}.png`}
+      src={`/avatars/${known}.webp`}
       alt=""
       width={32}
       height={32}

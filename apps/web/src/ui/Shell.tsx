@@ -48,7 +48,7 @@ export function AppShell({
         <AppLink className={styles.brand} href={`/${language}`}>
           <img
             className={styles.logo}
-            src="/brand/questify-wordmark.png"
+            src="/brand/questify-wordmark.webp"
             alt="Questify"
             width={122}
             height={32}

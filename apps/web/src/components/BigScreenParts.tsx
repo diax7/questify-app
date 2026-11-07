@@ -16,7 +16,7 @@ export function Avatar({ row }: Readonly<{ row: Pick<RankingRow, "avatar" | "use
   ) : (
     <img
       className={styles.boardAvatar}
-      src={`/avatars/${file}.png`}
+      src={`/avatars/${file}.webp`}
       alt=""
       width={51}
       height={51}

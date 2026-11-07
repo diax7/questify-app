@@ -8,11 +8,11 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** The five currency icons FR-405 names, from the brand set at 128 px. */
 const ICONS: Readonly<Record<IconName, ImageSourcePropType>> = {
-  coin: require("#assets/currency/coin.png"),
-  crownCoin: require("#assets/currency/crownCoin.png"),
-  gem: require("#assets/currency/gem.png"),
-  leaf: require("#assets/currency/leaf.png"),
-  star: require("#assets/currency/star.png"),
+  coin: require("#assets/currency/coin.webp"),
+  crownCoin: require("#assets/currency/crownCoin.webp"),
+  gem: require("#assets/currency/gem.webp"),
+  leaf: require("#assets/currency/leaf.webp"),
+  star: require("#assets/currency/star.webp"),
 };
 
 /** The event's currency icon. Decorative: the text beside it, or its accessibility label, names the currency. */

@@ -5,13 +5,13 @@ import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";
 
 /** The five badges of the shipped achievement set, trimmed and reduced to 192 px (`docs/design/assets/achievements`). */
 const ART: Readonly<Record<string, ImageSourcePropType>> = {
-  "ach-first-steps": require("#assets/achievements/ach-first-steps.png"),
-  "ach-collector": require("#assets/achievements/ach-collector.png"),
-  "ach-swift": require("#assets/achievements/ach-swift.png"),
-  "ach-summit": require("#assets/achievements/ach-summit.png"),
-  "ach-social": require("#assets/achievements/ach-social.png"),
+  "ach-first-steps": require("#assets/achievements/ach-first-steps.webp"),
+  "ach-collector": require("#assets/achievements/ach-collector.webp"),
+  "ach-swift": require("#assets/achievements/ach-swift.webp"),
+  "ach-summit": require("#assets/achievements/ach-summit.webp"),
+  "ach-social": require("#assets/achievements/ach-social.webp"),
 };
-const PADLOCK: ImageSourcePropType = require("#assets/icons/padlock.png");
+const PADLOCK: ImageSourcePropType = require("#assets/icons/padlock.webp");
 
 /** The colour role of each tier's ring and medal. */
 export const TIER_COLOR: Readonly<Record<AchievementTier, ColorRole>> = {

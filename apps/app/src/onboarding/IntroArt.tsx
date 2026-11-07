@@ -7,10 +7,10 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** The brand's 3D icons the app already ships, until the mascot is chosen (Q-069, ADR-013). */
 const IMAGES: Readonly<Record<CardArt, ImageSourcePropType>> = {
-  compass: require("#assets/games/cards/compass.png"),
-  steps: require("#assets/achievements/ach-first-steps.png"),
-  crown: require("#assets/currency/crownCoin.png"),
-  gift: require("#assets/games/cards/gift.png"),
+  compass: require("#assets/games/cards/compass.webp"),
+  steps: require("#assets/achievements/ach-first-steps.webp"),
+  crown: require("#assets/currency/crownCoin.webp"),
+  gift: require("#assets/games/cards/gift.webp"),
 };
 
 const SIZE = 168;
