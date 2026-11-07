@@ -311,6 +311,10 @@ export function amountChanges(row: AmountsAdmin, doc: AmountsDoc): AmountChange[
   return of("xp", XP_AMOUNTS);
 }
 
+/** Every amount a revert would change: the ones the API says it puts back, against the ones in force (none when it names none). */
+export const revertChanges = (row: AmountsAdmin): AmountChange[] =>
+  row.previous === undefined ? [] : amountChanges(row, row.previous);
+
 // ---------------------------------------------------------------- level titles
 
 export type LevelTitleDraft = Readonly<{ levelFrom: string; name: Pair }>;

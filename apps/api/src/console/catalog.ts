@@ -272,26 +272,55 @@ export function catalogDoor<T>(
   });
 }
 
-/** Which targets of a kind hold an earlier state to go back to: the latest catalog entry has a `before`. */
-async function revertibleIds(client: PoolClient, targetType: string): Promise<ReadonlySet<string>> {
-  const { rows } = await client.query<{ target_id: string }>(
-    `SELECT target_id FROM (
+/** Which targets of a kind hold an earlier state to go back to (the latest catalog entry has a `before`), and that `before`. */
+async function revertibleIds(
+  client: PoolClient,
+  targetType: string,
+): Promise<ReadonlyMap<string, unknown>> {
+  const { rows } = await client.query<{ target_id: string; before: unknown }>(
+    `SELECT target_id, before FROM (
        SELECT DISTINCT ON (target_id) target_id, before FROM audit_log
        WHERE target_type = $1 AND action LIKE 'catalog.%' AND target_id IS NOT NULL
        ORDER BY target_id, id DESC) latest
      WHERE before IS NOT NULL`,
     [targetType],
   );
-  return new Set(rows.map((row) => row.target_id));
+  return new Map(rows.map((row) => [row.target_id, row.before]));
 }
 
 /** The audit target of a row: its id, or the name of the single document. */
 const auditIdOf = (editor: Editor, id: string): string =>
   editor.idField === undefined ? editor.auditId : id;
 
-function withRevertible(editor: Editor, answer: unknown, undoable: ReadonlySet<string>): Answer[] {
+/**
+ * The amounts a revert would put back (T-709c), for its confirmation to name: the latest entry's `before`, with the tier
+ * amounts it lacks (an entry from before T-404c) as they stand now. Nothing when the entry does not read.
+ */
+function previousAmounts(current: Answer, before: unknown): Answer {
+  const parsed = amountsBeforeSchema.safeParse(before);
+  return parsed.success
+    ? { previous: { xp: { ...(current["xp"] as object), ...parsed.data.xp } } }
+    : {};
+}
+
+/** A single document with whether it can be reverted, and for the amounts what a revert would put back. */
+function documentRow(
+  editor: Editor,
+  row: Answer,
+  id: string,
+  undoable: ReadonlyMap<string, unknown>,
+): Answer {
+  const extra = editor === EDITORS.amounts ? previousAmounts(row, undoable.get(id)) : {};
+  return { ...row, ...extra, revertible: undoable.has(id) };
+}
+
+function withRevertible(
+  editor: Editor,
+  answer: unknown,
+  undoable: ReadonlyMap<string, unknown>,
+): Answer[] {
   if (editor.idField === undefined) {
-    return [{ ...(answer as Answer), revertible: undoable.has(editor.auditId) }];
+    return [documentRow(editor, answer as Answer, editor.auditId, undoable)];
   }
   const field = editor.idField;
   return (answer as Answer[]).map((row) => ({
@@ -318,10 +347,13 @@ async function savedRow(
   saved: unknown,
 ): Promise<unknown> {
   const undoable = await revertibleIds(client, editor.targetType);
-  return editor.row.parse({
-    ...(saved as Answer),
-    revertible: undoable.has(auditIdOf(editor, id)),
-  });
+  const answer = saved as Answer;
+  const audited = auditIdOf(editor, id);
+  return editor.row.parse(
+    editor.idField === undefined
+      ? documentRow(editor, answer, audited, undoable)
+      : { ...answer, revertible: undoable.has(audited) },
+  );
 }
 
 /**

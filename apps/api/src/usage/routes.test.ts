@@ -14,12 +14,16 @@ type Seen = { sql: string; values: readonly unknown[] };
 let app: FastifyInstance;
 
 /** The usage routes at the admin prefix over a pool answering every door with `answer` as its `r` column. */
-function build(answer: unknown = { organizers: [] }, fail?: { code: string }) {
+function build(
+  answer: unknown = { organizers: [] },
+  fail?: { code: string },
+  demo: unknown = { exists: false },
+) {
   const seen: Seen[] = [];
   const { pool } = fakePool((sql, values) => {
     seen.push({ sql, values });
     if (fail !== undefined) throw Object.assign(new Error("refused"), fail);
-    return { rows: [{ r: answer }] };
+    return { rows: [{ r: sql.includes("console_review_demo") ? demo : answer }] };
   });
   app = Fastify();
   registerConventions(app, {
@@ -55,7 +59,23 @@ describe("GET /v1/admin/usage", () => {
     const response = await get("/usage");
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual(list);
-    expect(seen).toEqual([{ sql: "SELECT usage_organizers() AS r", values: [] }]);
+    expect(seen.map((door) => door.sql)).toEqual([
+      "SELECT usage_organizers() AS r",
+      "SELECT console_review_demo() AS r",
+    ]);
+  });
+
+  it("leaves out the organizer the review demo runs under (T-710)", async () => {
+    const demo = "33333333-3333-4333-8333-333333333333";
+    const list = {
+      organizers: [
+        { id: ORGANIZER, name: "Najd", events: 1, players: 2 },
+        { id: demo, name: "Questify Review Demo", events: 1, players: 1 },
+      ],
+    };
+    build(list, undefined, { exists: true, organizerId: demo });
+    const response = await get("/usage");
+    expect(response.json()).toEqual({ organizers: [list.organizers[0]] });
   });
 
   it("answers 404 and asks nothing when the request carries no staff member", async () => {

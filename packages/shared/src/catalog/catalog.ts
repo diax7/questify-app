@@ -203,6 +203,8 @@ export type TemplateAdmin = z.infer<typeof templateAdminSchema>;
 export const amountsAdminSchema = z.strictObject({
   xp: xpAmounts,
   stored: z.strictObject({ xp: z.boolean() }),
+  /** What a revert would put back (the latest entry's `before`, tiers filled in), when there is one that reads. */
+  previous: z.strictObject({ xp: xpAmounts }).optional(),
   revertible,
 });
 export type AmountsAdmin = z.infer<typeof amountsAdminSchema>;

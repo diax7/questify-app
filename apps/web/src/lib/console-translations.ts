@@ -132,6 +132,12 @@ export function bodyOf(row: MatrixRow, draft: RowDraft): Partial<Record<Language
 export const isChanged = (row: MatrixRow): boolean =>
   row.stored.ar !== null || row.stored.en !== null;
 
+/**
+ * Whether the phone never shows this key (Q-380): the console's own texts. The dashboard's other pages are not marked, since
+ * the matrix cannot tell a dashboard-only key from a phone one.
+ */
+export const notOnPhone = (key: string): boolean => key.startsWith("console.");
+
 /** The body that returns every changed language of a key to the shipped text. */
 export function revertBody(row: MatrixRow): Partial<Record<Language, string>> {
   const body: Partial<Record<Language, string>> = {};

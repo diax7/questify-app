@@ -7,6 +7,18 @@
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
 
+## FOLLOWUPS batch 13 — 2026-11-07
+
+- **FOLLOWUPS batch 13 (tier B; web, console, player app; no migration, no package change; touched suites only, the full run is CI's).**
+  "Prizes to collect" keeps its two desk hints behind the info button beside the title (`InfoTip`); the console history says 36 more
+  audit actions in words (14 new texts: event, quest, reward, category, guest-list, feature-request and invitation edits); the Amounts
+  revert dialog names each amount it puts back (`GET /v1/admin/catalog/amounts` now carries `previous`, read from the newest audit
+  entry's `before` in the API, no SQL change); the texts matrix badges `console.*` keys "Not shown in the app"; the usage list leaves
+  out the review demo's organizer (read in the same seat); the intro shows "Loading…" instead of an empty stage while the card order
+  is read; the first stop of a launch is a tested function (`firstStop`); iOS announces each new intro card's title. Left in
+  FOLLOWUPS: the numbers page's demo rows (SQL, needs a migration), the first frame of shipped text, the Android export-file check
+  (device), Android focus after Next.
+
 ## FOLLOWUPS batch 11 — 2026-11-07
 
 - **FOLLOWUPS batch 11 (tier B; web, ops scripts, copy; no migration, no package change).** The load test's idle wait and lock samples

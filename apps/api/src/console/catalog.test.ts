@@ -365,3 +365,31 @@ describe("the XP table's extras", () => {
     });
   });
 });
+
+const listed = async (before: unknown) => {
+  const { pool } = fakePool((sql) =>
+    isAudit(sql)
+      ? { rows: [{ target_id: "amounts", before }] }
+      : { rows: [{ r: { ...AMOUNTS, stored: { xp: true } } }] },
+  );
+  return listCatalog(pool, ADMIN, "amounts");
+};
+
+describe("the amounts a revert would put back", () => {
+  it("are the latest entry's before, with the tier amounts an older entry lacks as they stand", async () => {
+    const { questXp, dailyFinishXp, dailyRightXp, dailyWordXp } = AMOUNTS.xp;
+    const older = { questXp: 80, dailyFinishXp, dailyRightXp, dailyWordXp };
+    const [row] = await listed({ xp: older, gems: { gold: 3 } });
+    expect(row).toMatchObject({
+      revertible: true,
+      previous: { xp: { ...AMOUNTS.xp, questXp: 80 } },
+    });
+    expect(questXp).toBe(100);
+  });
+
+  it("are left out when the entry does not read", async () => {
+    const [row] = await listed({ xp: { questXp: "many" } });
+    expect(row).toMatchObject({ revertible: true });
+    expect(row).not.toHaveProperty("previous");
+  });
+});

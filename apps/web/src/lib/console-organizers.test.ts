@@ -35,12 +35,48 @@ describe("the words for an audit action in the console's history", () => {
     ["organizer.member.join", "console.history.memberJoin"],
     ["organizer.member.remove", "console.history.memberRemove"],
     ["organizer.member.scope", "console.history.memberScope"],
+    ["event.update", "console.history.eventEdit"],
+    ["event.names.update", "console.history.eventEdit"],
+    ["event.texts.update", "console.history.eventEdit"],
+    ["event.branding.update", "console.history.eventEdit"],
+    ["event.layout.update", "console.history.eventEdit"],
+    ["event.terms.update", "console.history.eventEdit"],
+    ["event.focus_set", "console.history.eventEdit"],
+    ["event.join_fields.update", "console.history.eventJoin"],
+    ["event.join_rules.update", "console.history.eventJoin"],
+    ["event.features.update", "console.history.eventFeatures"],
+    ["event.shop.update", "console.history.eventShop"],
+    ["event.guests.add", "console.history.guestsChange"],
+    ["event.guests.remove", "console.history.guestsChange"],
+    ["category.create", "console.history.categoryChange"],
+    ["category.update", "console.history.categoryChange"],
+    ["category.delete", "console.history.categoryChange"],
+    ["category.reorder", "console.history.categoryChange"],
+    ["quest.create", "console.history.questCreate"],
+    ["quest.update", "console.history.questEdit"],
+    ["quest.reorder", "console.history.questEdit"],
+    ["quest_item.create", "console.history.questEdit"],
+    ["quest_item.update", "console.history.questEdit"],
+    ["quest_item.remove", "console.history.questEdit"],
+    ["quest.delete", "console.history.questDelete"],
+    ["quest.qr_regenerate", "console.history.questQr"],
+    ["quest.step_qr_regenerate", "console.history.questQr"],
+    ["reward.create", "console.history.rewardChange"],
+    ["reward.update", "console.history.rewardChange"],
+    ["reward.remove", "console.history.rewardChange"],
+    ["reward.codes.add", "console.history.rewardChange"],
+    ["rank_prize.create", "console.history.rewardChange"],
+    ["rank_prize.update", "console.history.rewardChange"],
+    ["rank_prize.remove", "console.history.rewardChange"],
+    ["feature_request.allow", "console.history.featureRequestAllow"],
+    ["feature_request.decline", "console.history.featureRequestDecline"],
+    ["organizer.member.invite_cancel", "console.history.inviteCancel"],
   ])("says %s with %s", (action, key) => {
     expect(historyKeyOf(action)).toBe(key);
     expect(MESSAGES[key as keyof typeof MESSAGES]).toBeDefined();
   });
 
-  it.each(["event.update", "console.read", "constructor", "__proto__", ""])(
+  it.each(["event.unknown_edit", "console.read", "constructor", "__proto__", ""])(
     "has none for %j, so the stored name is shown",
     (action) => {
       expect(historyKeyOf(action)).toBeUndefined();

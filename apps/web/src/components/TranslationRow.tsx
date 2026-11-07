@@ -4,7 +4,7 @@ import { shownText, type Language, type MatrixRow } from "@questify/shared";
 import { Fragment } from "react";
 import { TranslationEditor } from "#src/components/TranslationEditor.tsx";
 import styles from "#src/components/translations.module.css";
-import { LANGUAGES, isChanged } from "#src/lib/console-translations.ts";
+import { LANGUAGES, isChanged, notOnPhone } from "#src/lib/console-translations.ts";
 import { directionOf, translatorFor } from "#src/lib/language.ts";
 import type { Editing } from "#src/lib/use-translation-edit.ts";
 import { Badge } from "#src/ui/Feedback.tsx";
@@ -49,6 +49,30 @@ function Cell({
   );
 }
 
+/** A key's name, with a badge for a read-only text and one for a text the phone never shows (Q-380). */
+function KeyCell({ uiLanguage, row }: Readonly<{ uiLanguage: Language; row: MatrixRow }>) {
+  const t = translatorFor(uiLanguage);
+  return (
+    <div className={styles.key}>
+      <code className={styles.keyName} dir="ltr">
+        {/* A key breaks only after a dot, never inside a word. */}
+        {row.key.split(".").map((part, index, parts) => (
+          <Fragment key={index}>
+            {part}
+            {index < parts.length - 1 ? (
+              <>
+                .<wbr />
+              </>
+            ) : null}
+          </Fragment>
+        ))}
+      </code>
+      {row.locked ? <Badge>{t("console.translations.locked")}</Badge> : null}
+      {notOnPhone(row.key) ? <Badge>{t("console.translations.notOnPhone")}</Badge> : null}
+    </div>
+  );
+}
+
 /**
  * One key of the matrix: its name, English and Arabic side by side with the shipped text kept in view for a changed one,
  * and an edit and a revert button. A legal or consent text is marked read-only and has neither. While it is being
@@ -82,22 +106,7 @@ export function TranslationRow({
   const changed = isChanged(row);
   return (
     <li className={styles.row} data-testid="translation-row" data-key={row.key} data-editing={open}>
-      <div className={styles.key}>
-        <code className={styles.keyName} dir="ltr">
-          {/* A key breaks only after a dot, never inside a word. */}
-          {row.key.split(".").map((part, index, parts) => (
-            <Fragment key={index}>
-              {part}
-              {index < parts.length - 1 ? (
-                <>
-                  .<wbr />
-                </>
-              ) : null}
-            </Fragment>
-          ))}
-        </code>
-        {row.locked ? <Badge>{t("console.translations.locked")}</Badge> : null}
-      </div>
+      <KeyCell uiLanguage={uiLanguage} row={row} />
       {open && editing !== null ? (
         <TranslationEditor
           uiLanguage={uiLanguage}
