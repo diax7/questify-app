@@ -598,6 +598,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operator activity (database)",
       expect(await f.count("staff_briefing WHERE event_id = $1", [event])).toBe(1);
     });
 
+    it("writes one briefing when the same key arrives on two connections at once, and answers the other as a replay", async () => {
+      const { event } = await liveEvent();
+      await operator(event);
+      const key = randomUUID();
+      const [one, two] = await Promise.all([send(event, { key }), send(event, { key })]);
+      expect(one[0]?.id).toBe(two[0]?.id);
+      expect([one[0]?.replayed, two[0]?.replayed].toSorted()).toEqual([false, true]);
+      expect(await noticesOf(event)).toHaveLength(1);
+      expect(await f.count("staff_briefing WHERE event_id = $1", [event])).toBe(1);
+      expect(
+        await f.count("audit_log WHERE event_id = $1 AND action = 'staff.briefing'", [event]),
+      ).toBe(1);
+    });
+
+    it("lets only 3 of 5 simultaneous briefings through in an hour, and the rest are refused for the hour", async () => {
+      const { event } = await liveEvent();
+      await operator(event);
+      const outcomes = await Promise.all(Array.from({ length: 5 }, () => refusal(send(event))));
+      expect(outcomes.filter((outcome) => outcome === "none")).toHaveLength(3);
+      expect(outcomes.filter((outcome) => outcome === "PL429:hour")).toHaveLength(2);
+      expect(await f.count("staff_briefing WHERE event_id = $1", [event])).toBe(3);
+      expect(await noticesOf(event)).toHaveLength(3);
+    });
+
     it("limits an event to 3 briefings an hour and 10 a day, and counts a window not a clock hour", async () => {
       const { event } = await liveEvent();
       await operator(event);

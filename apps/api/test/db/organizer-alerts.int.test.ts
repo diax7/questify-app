@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
+import type { PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { EmailMessage, EmailSender } from "#src/auth/email/sender";
+import { withRequestContext } from "#src/db/context";
 import { startOrganizerAlertWorker } from "#src/organizer-alerts/worker";
 import { pushFixture, sqlstate, type PushFixture } from "#test/support/push";
 import { TEST_DATABASE_URL, addMember } from "#test/support/test-db";
@@ -679,6 +681,40 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer alerts (database)", 
       await f.owner("UPDATE organizer_alert SET finished_at = now() - interval '31 days'");
       await f.one(f.system, "SELECT alert_settle(false) AS r");
       expect(await alerts(team.org)).toEqual([]);
+    });
+
+    it("gives two simultaneous claims different rows: one connection holds its lease open while the other claims", async () => {
+      const team = await newTeam();
+      await queue(team);
+      type Leased = { alert_id: string; lease: string };
+      const claim = (client: PoolClient, size: number) =>
+        client.query<Leased>("SELECT alert_id, lease FROM alert_claim($1)", [size]);
+      const a = await f.pool.connect();
+      const b = await f.pool.connect();
+      try {
+        const [first, second, third] = await withRequestContext(a, f.system, async () => {
+          const held = (await claim(a, 1)).rows;
+          // The first connection's transaction is still open and holds its row's lock.
+          const other = await withRequestContext(b, f.system, async () => (await claim(b, 5)).rows);
+          const rest = (await claim(a, 5)).rows;
+          return [held, other, rest];
+        });
+        expect(first).toHaveLength(1);
+        expect(second).toHaveLength(1);
+        expect(second[0]?.alert_id).not.toBe(first[0]?.alert_id);
+        expect(second[0]?.lease).not.toBe(first[0]?.lease);
+        expect(third).toEqual([]);
+      } finally {
+        a.release();
+        b.release();
+      }
+      const states = (await alerts(team.org)).map((row) => row.state);
+      expect(states).toEqual(["sending", "sending"]);
+      const tokens = await f.owner<{ n: number }>(
+        "SELECT count(DISTINCT lease_token)::int AS n FROM organizer_alert WHERE organizer_id = $1",
+        [team.org],
+      );
+      expect(tokens[0]?.n).toBe(2);
     });
 
     it("answers the system seat only", async () => {

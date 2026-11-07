@@ -571,6 +571,53 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
       expect(rows.map((row) => row.n)).toEqual([1, 1]);
     });
 
+    it("counts an upload once while the batch is open with a row written and another waiting on a lock", async () => {
+      const reward = await newReward();
+      const written = await plantLegacy(reward, `${SENTINEL}-OPEN-A`);
+      const busy = await plantLegacy(reward, `${SENTINEL}-OPEN-B`);
+      const [{ pid } = { pid: 0 }] = (
+        await db.owner.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")
+      ).rows;
+      const holder = await connectAsOwner(db);
+      let pending: Promise<unknown> | undefined;
+      try {
+        await holder.query("BEGIN");
+        await holder.query("SELECT 1 FROM reward_code WHERE id = $1 FOR UPDATE", [busy]);
+        pending = reseal(ROTATED);
+        let waiting = false;
+        for (let attempt = 0; attempt < 200 && !waiting; attempt += 1) {
+          await holder.query("SELECT pg_stat_clear_snapshot()");
+          const { rowCount } = await holder.query(
+            "SELECT 1 FROM pg_stat_activity WHERE pid = $1 AND wait_event_type = 'Lock'",
+            [pid],
+          );
+          waiting = rowCount === 1;
+          if (!waiting) await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        expect(waiting).toBe(true);
+        // The batch has written the first row (uncommitted) and waits for the second: an upload now sees only committed rows.
+        expect(
+          await upload(reward, [`${SENTINEL}-OPEN-A`, `${SENTINEL}-OPEN-NEW`], ROTATED),
+        ).toEqual({
+          added: 1,
+          duplicates: 1,
+        });
+        await holder.query("COMMIT");
+      } finally {
+        await holder.end();
+      }
+      expect(await pending).toMatchObject({ resealed: 2, conflict: 0, changed: 0 });
+      expect(written).not.toBe(busy);
+      expect(await stockOf(reward)).toBe(3);
+      const [{ n } = { n: 0 }] = await owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM reward_code WHERE reward_id = $1",
+        [reward],
+      );
+      expect(n).toBe(3);
+      expect(await reseal(ROTATED)).toMatchObject({ current: 3, resealed: 0, changed: 0 });
+      expect(await checkCodes(db.owner, NEW)).toEqual({ current: 3, stale: 0, ids: [] });
+    });
+
     it("stops on any other database error with the row id and SQLSTATE only, keeping nothing of the batch", async () => {
       const reward = await newReward();
       const first = await plantLegacy(reward, `${SENTINEL}-E1`);

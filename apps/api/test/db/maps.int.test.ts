@@ -293,6 +293,64 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maps (database)", () => {
     expect(JSON.stringify(read)).not.toContain(sealed);
   });
 
+  it("lists a quest pin of a hidden category once the member has revealed it, and a flash quest's only inside its window", async () => {
+    const solo = await f.newEvent({ phase: "live" });
+    const mapId = (
+      await f.run<{ r: MapItem }>(f.team(), "SELECT map_save($1, $2::jsonb, NULL, $3) AS r", [
+        solo,
+        JSON.stringify({ nameEn: "Hall" }),
+        randomUUID(),
+      ])
+    )[0]?.r.id as string;
+    const pin = async (quest: string) => {
+      await f.run(f.team(), "SELECT map_pin_save($1, $2, $3::jsonb, NULL, $4)", [
+        solo,
+        mapId,
+        JSON.stringify({ kind: "quest", questId: quest, x: 10, y: 10 }),
+        randomUUID(),
+      ]);
+    };
+    const sealed = await makeQuest(solo);
+    const [secret] = await f.owner<{ id: string }>(
+      `INSERT INTO category (event_id, name_en, hidden) VALUES ($1, 'Secret', true) RETURNING id`,
+      [solo],
+    );
+    await f.owner("UPDATE quest SET category_id = $1 WHERE id = $2", [secret?.id, sealed]);
+    const flash = await makeQuest(solo);
+    await pin(sealed);
+    await pin(flash);
+
+    const who = await f.newPlayer();
+    const enrollment = await f.join(solo, who);
+    const shownQuests = async (): Promise<string[]> => {
+      const rows = await f.run<{ r: Seen }>({ playerId: who }, "SELECT member_maps($1) AS r", [
+        solo,
+      ]);
+      const seenNow = rows[0]?.r as Seen;
+      return seenNow.maps.flatMap((map) => map.pins.map((row) => `${row["questId"]}`));
+    };
+    const window = (from: number, to: number) =>
+      f.owner(
+        `UPDATE quest SET flash = true, visible = true, opens_at = now() + make_interval(mins => $2),
+                          closes_at = now() + make_interval(mins => $3) WHERE id = $1`,
+        [flash, from, to],
+      );
+
+    await window(60, 120);
+    expect(await shownQuests()).toEqual([]);
+    await window(-120, -60);
+    expect(await shownQuests()).toEqual([]);
+    await window(-1, 30);
+    expect(await shownQuests()).toEqual([flash]);
+
+    await f.owner(
+      `INSERT INTO category_reveal (organizer_id, event_id, enrollment_id, category_id)
+       VALUES ($1, $2, $3, $4)`,
+      [f.ids.orgA, solo, enrollment, secret?.id],
+    );
+    expect((await shownQuests()).toSorted()).toEqual([flash, sealed].toSorted());
+  });
+
   it("refuses anyone who is not an active member, and a team seat on the player door", async () => {
     const stranger = await f.newPlayer();
     expect(await refusal(f.run({ playerId: stranger }, "SELECT member_maps($1)", [event]))).toBe(

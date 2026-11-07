@@ -579,7 +579,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
           await owner("SELECT pg_stat_clear_snapshot()");
           waiting = await owner<{ started: Date; query: string }>(
             `SELECT xact_start AS started, query FROM pg_stat_activity
-             WHERE datname = current_database() AND wait_event_type = 'Lock'`,
+             WHERE datname = current_database() AND wait_event_type = 'Lock'
+               AND query LIKE '%event_status_now(status, starts_at, ends_at)%FROM event%FOR NO KEY UPDATE%'`,
           );
           if (waiting.length === 0) await new Promise((resolve) => setTimeout(resolve, 10));
         }

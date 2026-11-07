@@ -7,6 +7,16 @@
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
 
+## FOLLOWUPS batch 12 — 2026-11-07
+
+- **FOLLOWUPS batch 12 (tier B; missing API tests only; no production change, no migration, no package change).** Seven new tests, none
+  exposed a bug: the maps' player read leaves out a hidden category's pin until revealed and a flash quest outside its window (database
+  and HTTP) and a quest of a switched-off type (HTTP, through the organizer's `shareQuests` override); two simultaneous `alert_claim`
+  calls on two connections lease different rows; the same briefing key on two connections writes one briefing, and five simultaneous
+  briefings let exactly 3 through the hour limit; an upload runs while the re-seal batch is open (one row written, one waiting on a lock);
+  0164 waits for a daily-challenge finish in flight with no deadlock. The rewards guard test's `pg_stat_activity` match now names the
+  builder's event-lock query. Touched suites: 138 passed (logs in `/home/deploy/questify-logs/b12-*.log`). Not pushed.
+
 ## FOLLOWUPS batch 11 — 2026-11-07
 
 - **FOLLOWUPS batch 11 (tier B; web, ops scripts, copy; no migration, no package change).** The load test's idle wait and lock samples

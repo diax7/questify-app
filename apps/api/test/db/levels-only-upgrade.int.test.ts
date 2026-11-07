@@ -279,11 +279,52 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("levels only (0163 and 0164) on
     expect(rows[0]?.r.gems.earned).toBeGreaterThanOrEqual(0);
   });
 
+  /** Today's challenge for the period, then its three answers in the open transaction: the third one finishes the play. */
+  async function finishDaily(live: Awaited<ReturnType<typeof fixture>>) {
+    const owner = live.db.owner;
+    // Started content is frozen by guards that bind the owner too; this throwaway database starts today's challenge.
+    await owner.query("ALTER TABLE daily_challenge DISABLE TRIGGER daily_challenge_guard");
+    await owner.query(
+      "ALTER TABLE daily_challenge_question DISABLE TRIGGER daily_challenge_question_guard",
+    );
+    const { rows: period } = await owner.query<{ starts_on: string }>(
+      "SELECT starts_on::text AS starts_on FROM daily_current('challenge')",
+    );
+    // One transaction: the challenge must hold its three questions when it commits.
+    await owner.query("BEGIN");
+    const { rows: made } = await owner.query<{ id: string }>(
+      "INSERT INTO daily_challenge (starts_on) VALUES ($1) RETURNING id",
+      [period[0]?.starts_on],
+    );
+    const questions: string[] = [];
+    for (const position of [1, 2, 3]) {
+      const { rows } = await owner.query<{ id: string }>(
+        `INSERT INTO daily_question (prompt_ar, prompt_en, options_ar, options_en, answer)
+         VALUES ($1, $2, ARRAY['خيار 1', 'خيار 2', 'خيار 3'], ARRAY['Option 1', 'Option 2', 'Option 3'], 2)
+         RETURNING id`,
+        [`سؤال ${position}`, `Question ${position}`],
+      );
+      questions.push(rows[0]?.id ?? "");
+      await owner.query(
+        "INSERT INTO daily_challenge_question (challenge_id, position, question_id) VALUES ($1, $2, $3)",
+        [made[0]?.id, position, rows[0]?.id],
+      );
+    }
+    await owner.query("COMMIT");
+    for (const [at, question] of questions.entries()) {
+      await live.db.app.query(
+        "SELECT daily_answer_submit($1::bigint, $2::uuid, $3::smallint, 2::smallint)",
+        [made[0]?.id, question, at + 1],
+      );
+    }
+  }
+
   it.each([
     ["a scan", "scan"],
     ["a sync", "sync"],
     ["a ranking read holding item", "ranking"],
     ["a profile read holding item", "profile"],
+    ["a daily challenge finish holding player_xp", "daily"],
   ])("0164 waits for %s in flight and completes with no deadlock", async (_name, kind) => {
     await f.migration.query("BEGIN");
     await f.migration.query(f.settings);
@@ -296,6 +337,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("levels only (0163 and 0164) on
       await f.db.app.query("SELECT * FROM ranking_top($1, 10)", [f.ids.eventA]);
     }
     if (kind === "profile") await f.db.app.query("SELECT * FROM own_equipment()");
+    if (kind === "daily") await finishDaily(f);
     const pid = await pidOf(f.migration);
     await f.migration.query("BEGIN");
     const upgrading = f.migration.query(f.rest);
