@@ -8,6 +8,7 @@ import {
   contactCodeWrong,
   emailChangeLinkInvalid,
   emailChangeLocked,
+  emailChangeNoticeFailed,
   emailTaken,
   wrongCodeOrPassword,
   currentPasswordWrong,
@@ -150,6 +151,14 @@ function registerResetRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): voi
   });
 }
 
+/** The confirm's refusals that carry no detail. */
+const CONFIRM_REFUSALS = {
+  locked: emailChangeLocked,
+  notice_failed: emailChangeNoticeFailed,
+  email_taken: emailTaken,
+  invalid: emailChangeLinkInvalid,
+} as const;
+
 const emailChangeTokenBody = z.strictObject({ token: z.string().regex(/^[A-Za-z0-9_-]{43}$/) });
 const emailChangeConfirmBody = emailChangeTokenBody.extend({
   code: z.string().regex(/^[0-9]{6}$/),
@@ -186,15 +195,11 @@ function registerEmailChangeRoutes(scope: FastifyInstance, deps: StaffRoutesDeps
         return { outcome: "held", appliesAt: result.appliesAt };
       case "wrong":
         throw wrongCodeOrPassword({ attemptsLeft: result.attemptsLeft });
-      case "locked":
-        throw emailChangeLocked();
-      case "email_taken":
-        throw emailTaken();
-      case "invalid":
-        throw emailChangeLinkInvalid();
       case "busy":
         waitThen(reply, 2);
         throw busy();
+      default:
+        throw CONFIRM_REFUSALS[result.kind]();
     }
   });
 

@@ -104,6 +104,27 @@ export function passwordResetEmail(input: { link: string; expiresInMinutes: numb
   };
 }
 
+/** The first set-password link of an account the operator made (ADR-814). `expiresInHours` is 24: the Arabic singular fits it. */
+export function staffInviteEmail(input: {
+  token: string;
+  dashboardOrigin: string;
+  expiresInHours: number;
+}): Content {
+  const { token, dashboardOrigin, expiresInHours } = input;
+  return {
+    subject: "اختر كلمة مرور حسابك في كويستفاي | Choose your Questify password",
+    text: [
+      `أنشأنا لك حسابًا في كويستفاي. اختر كلمة المرور من هذا الرابط: ${dashboardOrigin}/ar/reset-password#token=${token}`,
+      `الرابط صالح لمدة ${expiresInHours} ساعة ولمرة واحدة. إذا انتهت مهلته، اختر «نسيت كلمة المرور؟» في صفحة تسجيل الدخول.`,
+      "إذا لم تتوقع هذه الرسالة، تجاهلها.",
+      "",
+      `A Questify account was created for you. Choose your password here: ${dashboardOrigin}/en/reset-password#token=${token}`,
+      `The link works once and lasts ${expiresInHours} hours. If it runs out, use "Forgot your password?" on the sign-in page.`,
+      "If you did not expect this email, ignore it.",
+    ].join("\n"),
+  };
+}
+
 /** Sent after every password change or reset, so a person learns at once if it was not them. */
 export function passwordChangedEmail(input: { at: Date; dashboardOrigin: string }): Content {
   const when = `${riyadhTime(input.at)} (Riyadh)`;

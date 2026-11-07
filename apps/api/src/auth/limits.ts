@@ -11,6 +11,8 @@ export const AUTH_LIMITS = {
   resetRequestsPerEmail: { max: 3, windowSeconds: 3600 },
   resetRequestsPerAddress: { max: 10, windowSeconds: 3600 },
   resetValiditySeconds: 1800,
+  /** The first set-password link of `staff.cjs create`: the longest the reset table's 1-day sweep allows (ADR-814). */
+  staffInviteValiditySeconds: 86_400,
   /** Organizer sign-ups started per email and per client address (T-101). */
   signupsPerEmail: { max: 3, windowSeconds: 3600 },
   signupsPerAddress: { max: 10, windowSeconds: 3600 },

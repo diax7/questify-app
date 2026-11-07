@@ -185,6 +185,46 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
     expect((await postPassword(test, c.email)).statusCode).toBe(200);
   });
 
+  it("closes a held change and answers 503 when the old address cannot be told", async () => {
+    const c = await begin();
+    test.mail.failing = true;
+    try {
+      const held = await open("confirm", { token: c.token, code: c.code, password: null });
+      expect(held.statusCode).toBe(503);
+      expect(held.json<{ code: string }>().code).toBe("email_change_notice_failed");
+    } finally {
+      test.mail.failing = false;
+    }
+    const [row] = await owner<{ state: string; applies_at: Date | null }>(
+      "SELECT state, applies_at FROM staff_email_change WHERE id = $1",
+      [c.changeId],
+    );
+    expect(row?.state).toBe("send_failed");
+    expect(row?.applies_at).not.toBeNull();
+    expect((await postPassword(test, c.email)).statusCode).toBe(200);
+  });
+
+  it("never applies a hold when the door fails after the send", async () => {
+    const c = await begin();
+    await owner("ALTER FUNCTION owner_email_hold_notice(bytea, boolean, uuid) RENAME TO door_gone");
+    try {
+      const held = await open("confirm", { token: c.token, code: c.code, password: null });
+      expect(held.statusCode).toBe(500);
+    } finally {
+      await owner(
+        "ALTER FUNCTION door_gone(bytea, boolean, uuid) RENAME TO owner_email_hold_notice",
+      );
+    }
+    await owner("UPDATE staff_email_change SET applies_at = now() WHERE id = $1", [c.changeId]);
+    await owner("SELECT owner_email_apply_due(50)");
+    const [row] = await owner<{ state: string }>(
+      "SELECT state FROM staff_email_change WHERE id = $1",
+      [c.changeId],
+    );
+    expect(row?.state).toBe("send_failed");
+    expect((await postPassword(test, c.email)).statusCode).toBe(200);
+  });
+
   it("closes the change and answers 502 when the code email cannot be sent", async () => {
     const who = await newOwner();
     test.mail.failing = true;

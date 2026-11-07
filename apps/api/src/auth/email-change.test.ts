@@ -8,7 +8,7 @@ import {
   type EmailChangeDeps,
 } from "#src/auth/email-change";
 import { EmailSendError, type EmailMessage } from "#src/auth/email/sender";
-import { createAuthKeys } from "#src/auth/keys";
+import { createAuthKeys, hashToken } from "#src/auth/keys";
 import { GateBusyError, type VerifyGate } from "#src/auth/verify-gate";
 
 const CHANGE = "6f1d2b3c-4a5e-4f60-8a71-92b3c4d5e6f7";
@@ -29,7 +29,7 @@ const APPLIED = {
   appliesAt: "2026-11-04T10:00:00.000Z",
 };
 
-type Rows = Readonly<Record<"view" | "password" | "confirm" | "stop", unknown[]>>;
+type Rows = Readonly<Record<"view" | "password" | "confirm" | "stop" | "notice", unknown[]>>;
 
 /** A pool whose one connection answers each door function with the rows given; every other statement gets none. */
 function fakePool(rows: Partial<Rows>) {
@@ -38,6 +38,9 @@ function fakePool(rows: Partial<Rows>) {
     if (sql.includes("password_hash")) return { rows: rows.password ?? [] };
     if (sql.includes("owner_email_confirm")) return { rows: rows.confirm ?? [] };
     if (sql.includes("owner_email_stop")) return { rows: rows.stop ?? [] };
+    if (sql.includes("owner_email_hold_notice")) {
+      return { rows: rows.notice ?? [{ r: "noticed" }] };
+    }
     return { rows: [] };
   });
   const pool = { connect: async () => ({ query, release: () => undefined }) } as unknown as Pool;
@@ -225,23 +228,71 @@ describe("confirm", () => {
     expect(events(log)).toEqual(["staff.email_change_held"]);
   });
 
+  it("records a sent hold notice by the link's token hash, with the request id", async () => {
+    const { change, caller, paramsOf } = setup({
+      view: [{ r: VIEWED }],
+      confirm: [{ r: { ...APPLIED, outcome: "held" } }],
+    });
+    await change.confirm(confirmInput, caller);
+    expect(paramsOf("owner_email_hold_notice")).toEqual([
+      Buffer.from(hashToken(confirmInput.token), "hex"),
+      true,
+      "req-1",
+    ]);
+  });
+
+  it("tells the door a failed send, and answers notice_failed once it closes", async () => {
+    const { change, caller, paramsOf } = setup(
+      {
+        view: [{ r: VIEWED }],
+        confirm: [{ r: { ...APPLIED, outcome: "held" } }],
+        notice: [{ r: "closed" }],
+      },
+      { failSend: true },
+    );
+    expect(await change.confirm(confirmInput, caller)).toEqual({ kind: "notice_failed" });
+    expect(paramsOf("owner_email_hold_notice")[1]).toBe(false);
+  });
+
+  it("answers invalid when the change was stopped or cancelled meanwhile", async () => {
+    for (const notice of [[{ r: "gone" }], []]) {
+      const { change, caller } = setup({
+        view: [{ r: VIEWED }],
+        confirm: [{ r: { ...APPLIED, outcome: "held" } }],
+        notice,
+      });
+      expect(await change.confirm(confirmInput, caller)).toEqual({ kind: "invalid" });
+    }
+  });
+
+  it("sends no request id to the door when the caller has none", async () => {
+    const { change, caller, paramsOf } = setup({
+      view: [{ r: VIEWED }],
+      confirm: [{ r: { ...APPLIED, outcome: "held" } }],
+    });
+    await change.confirm(confirmInput, { ...caller, requestId: undefined });
+    expect(paramsOf("owner_email_hold_notice")[2]).toBeNull();
+  });
+
   it("answers a held change without its time as an empty time", async () => {
-    const { change, caller } = setup({
+    const { change, caller, paramsOf } = setup({
       view: [{ r: VIEWED }],
       confirm: [{ r: { outcome: "held" } }],
     });
     expect(await change.confirm(confirmInput, caller)).toEqual({ kind: "held", appliesAt: "" });
+    expect(paramsOf("owner_email_hold_notice")[1]).toBe(false);
   });
 
   it("mails no hold notice when the door's answer misses a field", async () => {
     for (const missing of ["changeId", "oldEmail", "newEmail", "appliesAt"] as const) {
       const answer = { ...APPLIED, outcome: "held", [missing]: undefined };
-      const { change, caller, send, log } = setup({
+      const { change, caller, send, log, paramsOf } = setup({
         view: [{ r: VIEWED }],
         confirm: [{ r: answer }],
       });
       await change.confirm(confirmInput, caller);
       expect(send, missing).not.toHaveBeenCalled();
+      expect(paramsOf("owner_email_hold_notice")[1], missing).toBe(false);
       expect(events(log), missing).toEqual(["staff.email_change_held"]);
     }
   });

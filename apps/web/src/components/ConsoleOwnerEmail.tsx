@@ -44,6 +44,14 @@ type Props = Readonly<{
   onChanged: (done: string) => void;
 }>;
 
+/** The words of a closed change. Only a held row has `appliesAt`, so `send_failed` with one failed at the old address's notice. */
+export function closedKey(change: Pick<OwnerEmailChange, "state" | "appliesAt">): MessageKey {
+  if (change.state === "send_failed" && change.appliesAt !== null) {
+    return "console.ownerEmail.last.noticeFailed";
+  }
+  return CLOSED_KEYS[change.state] ?? "console.ownerEmail.last.cancelled";
+}
+
 /** What the owner card says about the open change, or about the last one. */
 function ChangeStatus({
   language,
@@ -56,7 +64,7 @@ function ChangeStatus({
       ? t("console.ownerEmail.pending", { email, time: clockOf(change.expiresAt, language) })
       : change.state === "held"
         ? t("console.ownerEmail.held", { email, time: clockOf(change.appliesAt ?? "", language) })
-        : t(CLOSED_KEYS[change.state] ?? "console.ownerEmail.last.cancelled", {
+        : t(closedKey(change), {
             email,
             time: clockOf(change.closedAt ?? change.expiresAt, language),
           });

@@ -387,10 +387,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("audit log", () => {
     });
 
     it("staff CLI: a system entry for each command, without the email", async () => {
-      const id = await createStaffAccount(
+      const { id } = await createStaffAccount(
         db.owner,
-        { email: "cli@najd.test", password: "a long enough password", admin: false },
-        async () => false,
+        { email: "cli@najd.test" },
+        {
+          email: { name: "test", send: async () => undefined },
+          dashboardOrigin: "https://app.questify.test",
+        },
       );
       await clearThrottleFor(db.owner, createAuthKeys(testConfig().auth.secret), "cli@najd.test");
       await clearThrottleFor(db.owner, createAuthKeys(testConfig().auth.secret), "ghost@najd.test");
@@ -405,6 +408,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("audit log", () => {
         ]),
       ).toEqual([
         ["system", null, "staff.create", id, { platformRole: "none" }],
+        ["system", null, "staff.invite", id, { sent: true }],
         ["system", null, "staff.throttle.clear", id, { found: true }],
         ["system", null, "staff.throttle.clear", null, { found: false }],
       ]);
