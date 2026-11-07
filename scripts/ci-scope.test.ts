@@ -372,7 +372,7 @@ describe("needsMonitoringValidation", () => {
 
   it("skips any other change", () => {
     expect(needsMonitoringValidation([])).toBe(false);
-    expect(needsMonitoringValidation(["ops/alerts/questify.rules.test.yml"])).toBe(false);
+    expect(needsMonitoringValidation(["ops/alerts/questify.rules.test.yml"])).toBe(true);
     expect(needsMonitoringValidation(["apps/api/src/telemetry/alerts.ts"])).toBe(false);
   });
 });

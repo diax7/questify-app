@@ -358,8 +358,8 @@ export function needsAlertChecks(files) {
   return files === undefined || files.some((file) => ALERTS.some((pattern) => pattern.test(file)));
 }
 
-/** The files `pnpm monitoring:validate` reads: the monitoring app and the rules it copies. */
-const MONITORING = [/^ops\/monitoring\//, /^ops\/alerts\/questify\.rules\.yml$/];
+/** The files `pnpm monitoring:validate` reads (the monitoring app and all of ops/alerts), and the job that runs it. */
+const MONITORING = [/^ops\/monitoring\//, /^ops\/alerts\//, /^\.github\/workflows\/ci\.yml$/];
 
 /**
  * Whether a change needs the Docker check of the monitoring app (`pnpm monitoring:validate`, about 5 minutes):
