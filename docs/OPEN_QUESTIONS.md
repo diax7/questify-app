@@ -2387,9 +2387,9 @@ FR-1803 (Should) asks for it; T-802 delivers the texts through the translation m
 
 ## Q-552 - Which art should the intro cards carry once the mascot is chosen? (T-802, ADR-594, Q-069)
 
-**Status:** Proposed (developer, 2026-11-03).
+**Status:** Proposed (developer, 2026-11-03). The mascot question is settled: Q-069 was decided by ADR-130 (Saqr, the falcon explorer). What waits is Saqr's art, not a choice.
 The cards use the app's existing 3D icons. ADR-096 asked for the mascot with animation.
-**Recommended (developer):** swap the four images in `IntroArt.tsx` for the mascot's poses when Q-069 is decided; nothing else in the intro changes.
+**Recommended (developer):** swap the four images in `IntroArt.tsx` for Saqr's poses once they are drawn; nothing else in the intro changes.
 
 ## Q-560 - Where does the API's telemetry go, and who runs the store? (T-018, ADR-600)
 

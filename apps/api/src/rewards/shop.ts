@@ -137,7 +137,8 @@ function reveal(
   }
   const opened = openCode(deps.codeKey, String(rewardId), sealed);
   if (opened === undefined) {
-    // The header's key id (an id, never a secret) shows a previous key removed before its re-seal finished.
+    // The header's key id (an id, never a secret) shows a previous key removed before its re-seal finished. It is a
+    // hint: about 1 in 65,536 values sealed before key ids have an IV that starts like a header.
     const keyId = headerKeyId(sealed);
     deps.log({
       event: "reward.code_unreadable",

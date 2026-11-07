@@ -122,16 +122,42 @@ test("a chosen override stays shown, and the selects stay disabled, until the li
   await expect(mapsSelect).toHaveValue("on");
   await expect(mapsSelect).toBeDisabled();
   await expect(shopSelect).toBeDisabled();
+  await expect(mapsCard).toHaveAttribute("aria-busy", "true");
   await held[0]?.continue();
   await expect(mapsCard.getByText("Override: on")).toBeVisible();
   await expect(mapsSelect).toHaveValue("on");
   await expect(mapsSelect).toBeEnabled();
   await expect(shopSelect).toBeEnabled();
+  await expect(mapsCard).toHaveAttribute("aria-busy", "false");
+  await expect(mapsSelect).toBeFocused();
 
   await page.unroute(`**/v1/admin/organizers/${organizerId}/features`);
   await mapsSelect.selectOption("platform");
   await expect(mapsCard.getByText("Override: on")).toHaveCount(0);
   await resetPlatform(page);
+});
+
+test("a failed save puts the select back, says so, and returns focus to the select", async ({
+  page,
+}, info) => {
+  test.setTimeout(150_000);
+  const { organizerId } = await asAdmin(page, info.project.name);
+  await page.goto(`/en/console/organizers/${organizerId}`);
+  const mapsCard = page.locator('[data-testid="override-card"][data-feature="maps"]');
+  const mapsSelect = mapsCard.getByLabel("Maps for this organizer");
+  await expect(mapsSelect).toHaveValue("platform");
+
+  await page.route(`**/v1/admin/organizers/${organizerId}/features/maps`, (route) =>
+    route.fulfill({ status: 500, contentType: "application/json", body: "{}" }),
+  );
+  await mapsSelect.selectOption("on");
+  await expect(page.getByRole("alert").filter({ hasText: "Could not connect" })).toBeVisible();
+  await expect(mapsCard).toHaveAttribute("aria-busy", "false");
+  await expect(mapsSelect).toHaveValue("platform");
+  await expect(mapsSelect).toBeEnabled();
+  await expect(mapsSelect).toBeFocused();
+  await expect(page.getByText("Change saved.")).toHaveCount(0);
+  await page.unroute(`**/v1/admin/organizers/${organizerId}/features/maps`);
 });
 
 test("in English the owner asks Questify for a locked add-on, the console allows it, and the add-on works", async ({

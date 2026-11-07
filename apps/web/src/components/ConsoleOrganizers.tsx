@@ -236,7 +236,11 @@ function OrganizerBody({
         others={detail.ownerOtherOrganizers}
         onChanged={reload}
       />
-      <OrganizerFeaturesPanel language={language} organizerId={detail.organizer.id} />
+      <OrganizerFeaturesPanel
+        key={detail.organizer.id}
+        language={language}
+        organizerId={detail.organizer.id}
+      />
       <Section title={t("console.organizer.team")} level={3}>
         <Rows>
           {detail.team.map((member) => (

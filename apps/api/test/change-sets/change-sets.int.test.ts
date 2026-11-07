@@ -501,7 +501,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("change sets over HTTP", () => 
     ).toEqual([]);
   });
 
-  it("lets go of the set when the caller loses the event during the apply", async () => {
+  it.each([
+    [
+      "narrowed to another event",
+      (editor: string, other: string) =>
+        owner("UPDATE organizer_member SET event_scope = $2 WHERE staff_user_id = $1", [
+          editor,
+          [other],
+        ]),
+    ],
+    [
+      "removed from the team",
+      (editor: string) => owner("DELETE FROM organizer_member WHERE staff_user_id = $1", [editor]),
+    ],
+  ])("lets go of the set when the caller is %s during the apply", async (_how, lose) => {
     const f = await newEvent();
     const other = await newEvent();
     const set = await make(f.event, [
@@ -515,10 +528,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("change sets over HTTP", () => 
       [organizer, editor, [f.event]],
     );
     const spy = vi.spyOn(KINDS.reward, "run").mockImplementationOnce(async () => {
-      await owner("UPDATE organizer_member SET event_scope = $2 WHERE staff_user_id = $1", [
-        editor,
-        [other.event],
-      ]);
+      await lose(editor, other.event);
       return null;
     });
     const pool = new Pool({ connectionString: db.appUrl, max: 2 });

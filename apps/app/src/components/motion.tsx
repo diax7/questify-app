@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { TextVariant } from "@questify/shared";
-import { AccessibilityInfo, Animated, Easing } from "react-native";
+import { AccessibilityInfo, Animated, Easing, type ImageSourcePropType } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";
 
 /**
@@ -89,9 +89,11 @@ export function CountingNumber({
   return <AppText variant={variant ?? "body"}>{format(shown)}</AppText>;
 }
 
+const COIN: ImageSourcePropType = require("#assets/currency/coin.png");
+
 /**
- * A coin that turns while the server checks a scan (FR-406); still, facing front, without motion. A placeholder glyph
- * until the brand deck's coin exists (ADR-013, Q-103).
+ * A coin that turns while the server checks a scan (FR-406); still, facing front, without motion. It is the brand set's
+ * coin (`currency/coin.png`).
  */
 export function SpinningCoin({ size = 72 }: Readonly<{ size?: number }>) {
   const reduce = useReduceMotion();
@@ -117,13 +119,13 @@ export function SpinningCoin({ size = 72 }: Readonly<{ size?: number }>) {
   }, [reduce, turn]);
   const rotateY = turn.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
   return (
-    <Animated.Text
+    <Animated.Image
       accessibilityElementsHidden
       importantForAccessibility="no"
-      style={{ fontSize: size, textAlign: "center", transform: [{ rotateY }] }}
-    >
-      🪙
-    </Animated.Text>
+      source={COIN}
+      resizeMode="contain"
+      style={{ width: size, height: size, transform: [{ rotateY }] }}
+    />
   );
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Language, MessageKey, OrganizerFeatureRow } from "@questify/shared";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CatalogState } from "#src/components/CatalogParts.tsx";
 import { keyed, useWrite } from "#src/components/ConsoleOversight.tsx";
 import styles from "#src/components/catalog.module.css";
@@ -46,7 +46,7 @@ function FeatureCard({
   const nameKey = nameKeyOf("feature", row.key);
   const name = nameKey === undefined ? row.key : t(nameKey);
   return (
-    <li className={styles.card} data-testid="override-card" data-feature={row.key}>
+    <li className={styles.card} data-testid="override-card" data-feature={row.key} aria-busy={busy}>
       <div className={styles.head}>
         <span className={styles.name}>
           {name}
@@ -107,9 +107,22 @@ export function OrganizerFeaturesPanel({
     setNotice(done);
     void reload().finally(() => setPending(null));
   });
+  const busy = write.busy || pending !== null;
+  const list = useRef<HTMLUListElement>(null);
+  const refocus = useRef<string | null>(null);
+  // The selects disable while a choice saves, which drops focus to the body: give it back to the one just used.
+  useEffect(() => {
+    if (busy || refocus.current === null) {
+      return;
+    }
+    const used = refocus.current;
+    refocus.current = null;
+    list.current?.querySelector<HTMLElement>(`[data-field="${CSS.escape(used)}"]`)?.focus();
+  }, [busy]);
   const choose = (key: string, choice: OverrideChoice) => {
     const body = bodyOf(choice);
     const path = organizerFeaturePath(organizerId, key);
+    refocus.current = key;
     setPending({ key, choice });
     void write
       .run(
@@ -129,14 +142,14 @@ export function OrganizerFeaturesPanel({
     <Section title={t("console.organizer.features")} level={3}>
       <CatalogState language={language} catalog={{ state, reload, notice, problem: write.problem }}>
         {(view) => (
-          <ul className={styles.cards}>
+          <ul className={styles.cards} ref={list}>
             {view.features.map((row) => (
               <FeatureCard
                 key={row.key}
                 language={language}
                 row={row}
                 pending={pending}
-                busy={write.busy || pending !== null}
+                busy={busy}
                 choose={(choice) => choose(row.key, choice)}
               />
             ))}

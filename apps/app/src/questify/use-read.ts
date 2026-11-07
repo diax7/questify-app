@@ -40,12 +40,16 @@ export function useRead<T>(load: () => Promise<T | null>, reloadOn: readonly unk
   }, []);
   useEffect(() => {
     let current = true;
-    void loadRef.current().then((answer) => {
-      if (!current) return;
-      setFailed(answer === null);
-      setRetrying(false);
-      if (answer !== null) setData(answer);
-    });
+    // A loader that rejects counts as a failed read, so Retry never stays disabled.
+    void loadRef
+      .current()
+      .catch(() => null)
+      .then((answer) => {
+        if (!current) return;
+        setFailed(answer === null);
+        setRetrying(false);
+        if (answer !== null) setData(answer);
+      });
     return () => {
       current = false;
     };

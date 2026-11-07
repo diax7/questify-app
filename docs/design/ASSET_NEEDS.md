@@ -38,11 +38,3 @@ RTL-mirrored ornaments, the Saudi cultural set, venue and event-type icons, anim
 ## Not art
 
 T-305b, T-504b, T-506b, T-507b, T-602b, T-610b and T-613b are organizer uploads waiting on photo storage (Q-149, Later).
-
-## Fixes needing no new art
-
-The daily challenge spinner uses a coin emoji though `coin.png` exists (`motion.tsx:125`).
-
-## Stale notes
-
-Q-069 was decided by ADR-130 (Saqr), but Q-552 and risk R16 still read as open.

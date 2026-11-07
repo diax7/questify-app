@@ -20,6 +20,6 @@
 | R13 | **NFC tags can be cloned** (Q-071) | Medium | Medium | Basic tags only (Dhia, 2026-10-24): a tap whose sticker id differs is flagged and paid (ADR-041, ADR-234); the QR is always on; flags are the proof | Dhia |
 | R14 | **Dependency churn** in Expo and React Native (several SDK releases a year) | Medium | Low to medium | Pin versions, upgrade between phases, keep the dependency list short (rules.md) | Dhia |
 | R15 | **Cloud-build queue or outage** on the free Expo plan before a release | Low | Medium | Upgrade to the $19 plan near a release; a borrowed Mac with Xcode is the fallback | Dhia |
-| R16 | **Mascot and art assets delayed** (Codex image limit, resets 18 Oct; seven mascot images remain; mascot vote Q-069) | Medium | Low | Theme-agnostic UX plan; screens work with placeholder art; design tokens allow later swaps | Dhia |
+| R16 | **Mascot and art assets delayed** (Codex image limit, resets 18 Oct; the mascot is Saqr, ADR-130, but its poses and the rest of the art are not all drawn) | Medium | Low | Theme-agnostic UX plan; screens work with placeholder art; design tokens allow later swaps | Dhia |
 | R17 | **Unit economics unknown** (SMS cost absorbed by Questify; per-event prices outside the platform; no prices yet) | Medium | Medium | Usage view; written SMS quotes; set price tiers before the first paid event | Dhia |
 | R18 | **A key person risk:** one developer; no second reader for core changes | Medium | High | Max-bar second read via review agents; documentation kept alive; keep the build runnable from a fresh checkout | Dhia |

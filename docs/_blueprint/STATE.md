@@ -7,6 +7,18 @@
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
 
+## FOLLOWUPS batch 19 — 2026-11-07
+
+- **FOLLOWUPS batch 19 (tier B, API, app and web; no migration, no package change, no ADR, no new string).**
+  The English busy text now ends "Refresh the page in a few minutes." (the Arabic is as it was); `useRead` counts a rejected load as a
+  failed read, so Retry cannot stay disabled; the `change_set_release` test also runs with the editor's member row deleted. The feature
+  cards carry `aria-busy` while a choice saves and focus returns to the select by `data-field`; the panel is keyed by organizer; a
+  browser test of a failed save (and `aria-busy` and focus in the held-reload test) joined `feature-layers.spec.ts`. The daily
+  challenge spinner turns `coin.png`, not the emoji. R16 and Q-552 no longer read as if Q-069 were open (ADR-130, Saqr); the "Fixes
+  needing no new art" and "Stale notes" sections left `ASSET_NEEDS.md`. The T-810f NIT is now a comment at `shop.ts` (the key id is a
+  hint). Left in FOLLOWUPS: `requestJson`'s timeout (141 callers, some run for minutes, so it needs per-call limits) and a failed-reload
+  test; T-810c's items (each is a sign-in function change or a migration). CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 18 — 2026-11-07
 
 - **FOLLOWUPS batch 18 (tier B, API, SQL and app; migration 0171; no package change, no ADR, ADR-766's build note amended).**
