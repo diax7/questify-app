@@ -1,19 +1,25 @@
 import { randomBytes } from "node:crypto";
 import type { Client } from "pg";
 import { recordAudit } from "#src/audit/record";
-import type { EmailSender } from "#src/auth/email/sender";
+import { EmailSendError, type EmailSender } from "#src/auth/email/sender";
 import { staffInviteEmail } from "#src/auth/email/templates";
 import { generateToken, type AuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
 import { isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
 import { hashPassword } from "#src/auth/password";
+import { reasonOf } from "#src/auth/sign-in";
 import { insertResetLink } from "#src/auth/staff-store";
 import { BUCKETS, clearKey } from "#src/auth/throttle";
 
 const DOMAIN_WITH_DOT = /@[^\s@]+\.[^\s@]+$/;
 const UNIQUE_VIOLATION = "23505";
 
-export type InviteMail = Readonly<{ email: EmailSender; dashboardOrigin: string }>;
+export type InviteMail = Readonly<{
+  email: EmailSender;
+  dashboardOrigin: string;
+  /** Where the cause of a failed send or audit write goes, one line each; standard error when absent. */
+  report?: (line: string) => void;
+}>;
 
 /** What `create` came to: the account exists either way. */
 export type CreatedAccount = Readonly<{
@@ -44,8 +50,9 @@ export async function createStaffAccount(
   const passwordHash = await hashPassword(randomBytes(32).toString("base64url"));
   const link = generateToken();
   const id = await insertAccount(owner, email, passwordHash, link.hash);
-  const sent = await sendInvite(mail, email, link.token);
-  return { id, sent, audited: await auditInvite(owner, id, sent) };
+  const report = mail.report ?? ((line: string) => process.stderr.write(`${line}\n`));
+  const sent = await sendInvite(mail, email, link.token, report);
+  return { id, sent, audited: await auditInvite(owner, id, sent, report) };
 }
 
 /** The account, its link and the `staff.create` entry in one transaction. */
@@ -86,8 +93,17 @@ async function insertAccount(
   }
 }
 
-/** Runs after the commit, so no transaction waits on the network. False when no provider took the email. */
-async function sendInvite(mail: InviteMail, to: string, token: string): Promise<boolean> {
+/**
+ * Runs after the commit, so no transaction waits on the network. False when no provider took the email, with the cause
+ * reported: an `EmailSendError` names its step and the provider's reason and never holds the recipient or the link, so
+ * its message is safe; any other error is reported by name only.
+ */
+async function sendInvite(
+  mail: InviteMail,
+  to: string,
+  token: string,
+  report: (line: string) => void,
+): Promise<boolean> {
   try {
     await mail.email.send({
       to,
@@ -98,13 +114,21 @@ async function sendInvite(mail: InviteMail, to: string, token: string): Promise<
       }),
     });
     return true;
-  } catch {
+  } catch (error) {
+    report(
+      `The invite email failed: ${error instanceof EmailSendError ? error.message : reasonOf(error)}`,
+    );
     return false;
   }
 }
 
 /** False when the entry could not be written: the send already happened, so this must not read as a failed send. */
-async function auditInvite(owner: Client, id: string, sent: boolean): Promise<boolean> {
+async function auditInvite(
+  owner: Client,
+  id: string,
+  sent: boolean,
+  report: (line: string) => void,
+): Promise<boolean> {
   try {
     await recordAudit(owner, {
       actor: { type: "system" },
@@ -113,7 +137,8 @@ async function auditInvite(owner: Client, id: string, sent: boolean): Promise<bo
       after: { sent },
     });
     return true;
-  } catch {
+  } catch (error) {
+    report(`The staff.invite audit entry failed: ${reasonOf(error)}`);
     return false;
   }
 }

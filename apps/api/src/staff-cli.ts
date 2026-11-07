@@ -73,11 +73,14 @@ function inviteMail(): InviteMail {
   return { email: createEmailSender(auth), dashboardOrigin: auth.dashboardOrigin };
 }
 
-/** The command line, refused with the usage text; `create` takes no flags, so an old `--admin` cannot pass quietly. */
+/**
+ * The command line, refused with the usage text; `create` takes no flags, so an old `--admin` cannot pass quietly, and
+ * an email that starts with `-` is a flag in the wrong place, never an address.
+ */
 function parseArguments(args: readonly string[]) {
   const [command, email, ...flags] = args;
   const known = (COMMANDS as readonly (string | undefined)[]).includes(command);
-  if (command === undefined || email === undefined || !known) {
+  if (command === undefined || email === undefined || !known || email.startsWith("-")) {
     throw new Error(USAGE);
   }
   if (command === "create" && flags.length > 0) {

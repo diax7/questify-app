@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { join } from "node:path";
 import type { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { EmailSendError } from "#src/auth/email/sender";
 import { createAuthKeys } from "#src/auth/keys";
 import { clearThrottleFor, createOutcome, createStaffAccount } from "#src/auth/staff-admin";
 import { BUCKETS, record } from "#src/auth/throttle";
@@ -78,7 +79,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration",
     await db.close();
   });
 
-  const invite = () => ({ email: test.mail, dashboardOrigin: DASHBOARD_ORIGIN });
+  const invite = () => ({ email: test.mail, dashboardOrigin: DASHBOARD_ORIGIN, report: () => {} });
   const create = (email: string, owner: Client = db.owner) =>
     createStaffAccount(owner, { email }, invite());
   const owner = async <T extends Record<string, unknown>>(sql: string, values: unknown[] = []) =>
@@ -218,6 +219,56 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration",
     expect(outcome.exitCode).toBe(1);
   });
 
+  it("reports why the send or the audit write failed, and never the link", async () => {
+    let link = "";
+    const sender = {
+      name: "gmail",
+      send: (message: { text: string }) => {
+        link = message.text;
+        return Promise.reject(
+          new EmailSendError("gmail", "the Gmail API answered 401 (UNAUTHENTICATED)"),
+        );
+      },
+    };
+    const lines: string[] = [];
+    const report = (line: string) => lines.push(line);
+    const failedSend = await createStaffAccount(
+      db.owner,
+      { email: "why@najd.sa" },
+      { email: sender, dashboardOrigin: DASHBOARD_ORIGIN, report },
+    );
+    expect(failedSend).toMatchObject({ sent: false, audited: true });
+    expect(lines).toEqual([
+      'The invite email failed: Email sender "gmail" failed: the Gmail API answered 401 (UNAUTHENTICATED)',
+    ]);
+
+    const noInviteAudit = {
+      query: (...args: Parameters<Client["query"]>) =>
+        JSON.stringify(args).includes("staff.invite")
+          ? Promise.reject(new TypeError("audit write failed for why2@najd.sa"))
+          : db.owner.query(...args),
+    } as unknown as Client;
+    const failedAudit = await createStaffAccount(
+      noInviteAudit,
+      { email: "why2@najd.sa" },
+      {
+        email: { name: "other", send: () => Promise.reject(new RangeError("down")) },
+        dashboardOrigin: DASHBOARD_ORIGIN,
+        report,
+      },
+    );
+    expect(failedAudit).toMatchObject({ sent: false, audited: false });
+    expect(lines.slice(1)).toEqual([
+      "The invite email failed: RangeError",
+      "The staff.invite audit entry failed: TypeError",
+    ]);
+
+    const token = /token=([A-Za-z0-9_-]{43})/.exec(link)?.[1];
+    expect(token).toBeDefined();
+    expect(lines.join("\n")).not.toContain(token);
+    expect(lines.join("\n")).not.toContain("najd.sa");
+  });
+
   it("reports a sent, audited invite as done, with no platform role", async () => {
     const made = { id: "an-id", sent: true, audited: true };
     expect(createOutcome("done@najd.sa", made)).toEqual({
@@ -241,6 +292,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration",
       expect(run.output).toContain("Usage: staff create <email>  |");
       expect(run.code).toBe(1);
       expect(await owner("SELECT 1 FROM staff_user WHERE email = 'cli.admin@najd.sa'")).toEqual([]);
+    }, 60_000);
+
+    it("prints why the email did not go out, and nothing of the link", async () => {
+      const run = await runCli(["create", "cli.why@najd.sa"], settings());
+      expect(run.output).toContain('The invite email failed: Email sender "gmail" failed:');
+      expect(run.output).not.toContain("token=");
+      expect(run.output).not.toMatch(/[A-Za-z0-9_-]{43}/);
+      expect(run.code).toBe(1);
+    }, 60_000);
+
+    it("refuses an email that starts with a dash, as bare --admin does", async () => {
+      const run = await runCli(["create", "--admin"], settings());
+      expect(run.output).toContain("Usage: staff create <email>  |");
+      expect(run.code).toBe(1);
+      expect(await owner("SELECT 1 FROM staff_user WHERE email = '--admin'")).toEqual([]);
     }, 60_000);
 
     it("refuses before writing anything when the mail settings are missing", async () => {
