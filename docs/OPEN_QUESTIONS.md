@@ -2995,3 +2995,13 @@ safe to lose at a member change's slower read? **Recommended:** yes to all three
 **Status:** Open (worker's recommendation in ADR-813; the coordinator decides after review).
 **Question:** the limit is shared one way only: a session message counts announcements, an announcement does not count session
 messages. **Recommended:** keep it one way, as built in migration 0168.
+
+## Q-751 - How long should the first set-password link last? (ADR-814)
+
+**Status:** Open (worker's recommendation in ADR-814; the coordinator decides after review).
+**Question:** `create`'s link lives in `staff_password_reset`, whose sweep removes rows after 1 day. **Recommended:** 24 hours, then "Forgot your password?". Team invites last 7 days, but matching them needs a policy change or a new table.
+
+## Q-752 - Should a failed held-change notice close the change or be resent? (ADR-815)
+
+**Status:** Open (worker's recommendation in ADR-815; the coordinator decides after review).
+**Question:** a failed send can close the change at once, or the worker can retry it during the 24 hours. **Recommended:** close it; the sender already fails over to a second provider and the admin can start again.

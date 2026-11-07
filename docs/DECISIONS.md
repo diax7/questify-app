@@ -8646,3 +8646,17 @@ writes one index less.
 **Decision:** `session_message`'s limit (3 an hour, 10 a day for the event) adds the event's announcements that are `scheduled` or `sent` with a send time inside the window. An announcement due later does not count, and `announcement_send` still counts only announcements.
 **Why:** the T-505b plan names the limit as shared. Restating `announcement_send` too would let a burst of session messages block a planned announcement, the more important of the two, and adds a door to a small batch.
 **Trade-offs:** an event can still send up to 3 announcements after 3 session messages in the same hour. Three due announcements block session messages for up to an hour, and ten for up to a rolling day, with no bypass.
+
+## ADR-814 - `staff.cjs create` takes no password and mails a set-password link
+
+**Status:** Proposed (developer, 2026-11-07). Q-751. Plan `docs/plans/2026-11-07-staff-first-password.md`.
+**Decision:** `create` never reads a password. The account gets the argon2id hash of 32 random bytes that are dropped at once, and one link in `staff_password_reset`, valid 24 hours and used once, is mailed after the commit. After it expires "Forgot your password?" gives the normal link. Existing accounts are not touched, and T-810 needs no migration.
+**Why:** no initial secret reaches a person, so nothing has to be forced at the first sign-in and no route or session state changes. A forced change would leave an operator holding a working secret and put a new state on every staff route.
+**Trade-offs:** `create` now needs mail settings. 24 hours is the table's sweep limit, so a person who misses it uses Forgot. A pending link can be replaced by a Forgot request. Accounts made before this keep their passwords until the audit query in the plan is worked through.
+
+## ADR-815 - A held email change applies only with a recorded notice to the old address
+
+**Status:** Proposed (developer, 2026-11-07). Q-752. Plan `docs/plans/2026-11-07-staff-first-password.md`; refines ADR-491.
+**Decision:** migration 0169 adds `staff_email_change.hold_notice_at` and the door `owner_email_hold_notice`, bound to the link's token hash. A sent notice is recorded; a failed send closes the change `send_failed` and the owner gets a 503. `owner_email_apply` closes a waited change with no record instead of applying it. Rows held before 0169 are not backfilled.
+**Why:** the notice is the only guard on the no-password path, so its absence must stop the change. A close on failure alone would still apply after a crash between the commit and the send.
+**Trade-offs:** a held row from before 0169, or one made on the old API, closes at its due time and the admin restarts it. A false failure closes a good change. The owner of a change closed at the due time is not told. Resending is not built.
