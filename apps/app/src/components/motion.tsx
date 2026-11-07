@@ -124,7 +124,7 @@ export function SpinningCoin({ size = 72 }: Readonly<{ size?: number }>) {
       importantForAccessibility="no"
       source={COIN}
       resizeMode="contain"
-      style={{ width: size, height: size, transform: [{ rotateY }] }}
+      style={{ width: size, height: size, alignSelf: "center", transform: [{ rotateY }] }}
     />
   );
 }

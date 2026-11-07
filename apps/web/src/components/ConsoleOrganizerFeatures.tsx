@@ -110,14 +110,18 @@ export function OrganizerFeaturesPanel({
   const busy = write.busy || pending !== null;
   const list = useRef<HTMLUListElement>(null);
   const refocus = useRef<string | null>(null);
-  // The selects disable while a choice saves, which drops focus to the body: give it back to the one just used.
+  // The selects disable while a choice saves, which drops focus to the body: give it back to the one just used, unless the person has moved on.
   useEffect(() => {
     if (busy || refocus.current === null) {
       return;
     }
     const used = refocus.current;
     refocus.current = null;
-    list.current?.querySelector<HTMLElement>(`[data-field="${CSS.escape(used)}"]`)?.focus();
+    const select = list.current?.querySelector<HTMLElement>(`[data-field="${CSS.escape(used)}"]`);
+    const moved = document.activeElement !== document.body && document.activeElement !== select;
+    if (!moved) {
+      select?.focus();
+    }
   }, [busy]);
   const choose = (key: string, choice: OverrideChoice) => {
     const body = bodyOf(choice);

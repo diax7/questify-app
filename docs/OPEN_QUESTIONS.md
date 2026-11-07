@@ -2385,7 +2385,7 @@ FR-1803 (Should) asks for it; T-802 delivers the texts through the translation m
 **Recommended (developer):** build T-802b only if an admin asks to hide a card. The texts can already be reworded, and a card that is wrong for an event type can be reworded instead.
 **Update 2026-11-03:** built as T-802b (ADR-610 to ADR-613, `/console/intro`, migration 0145), queued by the coordinator ahead of any request.
 
-## Q-552 - Which art should the intro cards carry once the mascot is chosen? (T-802, ADR-594, Q-069)
+## Q-552 - Which art should the intro cards carry now the mascot is chosen? (T-802, ADR-594, Q-069)
 
 **Status:** Proposed (developer, 2026-11-03). The mascot question is settled: Q-069 was decided by ADR-130 (Saqr, the falcon explorer). What waits is Saqr's art, not a choice.
 The cards use the app's existing 3D icons. ADR-096 asked for the mascot with animation.
