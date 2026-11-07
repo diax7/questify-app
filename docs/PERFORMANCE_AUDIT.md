@@ -37,7 +37,7 @@ before-and-after metrics with their conditions, the remaining risks, and anythin
 
 ## T-813 results
 
-### Part 1: items 1 to 4, the API and SQL (2026-11-07, migration 0172, ADR-816)
+### Part 1: items 1 to 4, the API and SQL (2026-11-07, migrations 0172 to 0175, ADR-816)
 
 Items 5 to 10 are part 2. T-813 stays open until that is in.
 
@@ -58,29 +58,58 @@ sends. Rows of real players are not this even, and a real event's history is lon
 | `member_ledger`, 22 lines of one player (staff) | 2,811,259 buffers, 17.1 s | 3,249 buffers, 59 ms | `ledger_entry_reverses_idx` |
 | `manual_awards`, first page | 2,160,935 buffers, 11.9 s | 1,177 buffers, 29 ms | `ledger_entry_reverses_idx` |
 | `wipe_rehearsal`, 323 ledger rows | 276.7 s; 968 full table scans, 1.92 billion rows read | 0.27 s; none | the three indexes below |
-| `invitation_claim_at`'s read, 100,000 queued | 8,664 buffers, 14 MB sorted on disk, 217 ms | 431 buffers, in memory, 1.1 ms | wider index, read per campaign |
-| The same, queued rows behind 500,000 finished ones | not run on the old read | 209 buffers, 0.5 ms | |
+| `invitation_claim_at`'s read, 100,000 queued in 2 campaigns behind 400,000 finished rows, its first fetch | 1,955 buffers, 13.9 MB sorted on disk, 245 ms | 79 buffers, in memory, 1.3 ms | 0173: `(campaign_id, channel, id)`, read per campaign, locked as fetched |
+| The same read inside the function (`auto_explain`) | | 36 buffers for the page | |
+| Rows a claim of 5 holds locked (2 campaigns of 200, test database) | 10 | 10 | 0172's first version held 400 |
+| A draft of 26 quests deleted (`deleteDraft`) | 7.76 s, the ledger check 7.51 s | 0.23 s | 0174: the ledger's quest key on `(quest_id, event_id)` |
+| A category of 10 quests deleted (`deleteQuestsOf`), event of 26,000 ledger rows | 3.13 s | 0.11 s | the same |
+| The same, event of 1,100,000 ledger rows | 3.00 s | 2.98 s | none: the check reads that event's rows (Q-753) |
 | `data_export_support`'s audit read | 63,713 buffers, parallel scan, 226 ms | 6 buffers, 0.2 ms | `audit_log_player_export_idx` |
 
 - The first two scanned the whole ledger once per EXISTS per line, because `x.reverses = l.id` names no kind and the only
   index on `reverses` was partial on `kind = 'removal'`. No function changed: the new index's predicate is the same rows as
   the old key's (`ledger_entry_removal_shape`), so `session_bulk_targets` and `session_points_held`, which read the same way,
-  get it too.
+  get it too (inferred from their SQL, not measured).
 - The wipe runs on go-live and from the dashboard's erase button. A foreign key's check names no kind, so `ledger_entry.completion_id`,
   `ledger_entry.reverses` and `xp_entry.ledger_entry_id` could not use their partial keys: each deleted row scanned a table.
 - **One figure went the wrong way:** `quest_bulk_targets` on a quest with 100,000 credits touches more buffers, 482,919 to 643,699.
   Its generic plan now does 200,000 cached index probes in place of a hash; the time did not move (1.11 s to 1.19 s under this load).
   The same statement run with its values went from 92,801 to 49,664. Left as it is: a rare bulk action.
+- **The claim's read (0173).** The first version of 0172 locked each campaign's page inside the read, and the sort above it
+  pulled every page before the first row came back: a claim of 5 over two campaigns of 200 locked all 400, a lock written to each
+  heap tuple and to WAL on every round, and a wider net for a player erasure (2 s lock_timeout) to wait on. 0173 reads the page with no
+  lock and locks rows as the loop fetches them, 10 for a claim of 5, as 0073 did; a page row another session holds is skipped, not
+  waited on (both in `performance-indexes.int.test.ts`). The page bounds `campaign_id` by a range: with `=`, the planner walked the
+  primary key past the 400,000 finished rows (14,582 buffers) whenever it read the visibility map as unset, and `channel` is in the key
+  so the page is read from the index alone. The 431 and 209 buffers first recorded here were that first version on the first seed.
+- **Quest deletes (0174, 0175).** Each quest deleted runs the ledger's foreign-key check once, so a delete costs one check times its
+  quests. On `quest_id` alone the check scanned the ledger, 290 ms a quest at 2.1 million rows. On `(quest_id, event_id)` it reads
+  `ledger_entry_event_idx` for that event only, with no new index: 5.2 ms for 26 draft quests, 87 ms for 10 quests of a 26,000-row
+  event, but 2,961 ms for 10 of the 1.1-million-row event (480 ms and 28,441 buffers for one quest read cold). Measured on a second seed
+  of the same shape (2,114,000 ledger rows, 1,936,000 completions; E0 100,000 players and 1,100,000 ledger rows), by
+  `EXPLAIN (ANALYZE, BUFFERS)` in a rolled-back transaction, second run. `VALIDATE` took 0.72 s under SHARE UPDATE EXCLUSIVE.
+- **Other foreign keys on `quest`.** Each quest delete checks 26 more tables. Every one but three has a full index led by its quest
+  column (`quest_completion`, `quiz_attempt`, `quest_vote`, `submission`, `survey_response`, `game_round`, `meeting`,
+  `passport_stamp`, `quest_points_change`, `ticket` and the rest, some partial on `IS NOT NULL`, which the check can use) or by
+  `event_id` (`bulk_award`). Without one: `meet_pass` (CASCADE; indexes lead by `enrollment_id`, `token_hash`, `id`),
+  `souvenir_target` (NO ACTION; its key is `(rule_id, quest_id)`) and `nfc_tag` (RESTRICT; both quest and event indexes are partial on
+  `status = 'active'`, though `quest_delete_nfc_tags` deletes a quest's tags first). All three already key on `(quest_id,
+  event_id)`, so the 0174 change has nothing to give; only a new index would, with a write cost. Not changed and not measured at
+  size: the seed holds none of their rows.
 - **Migration safety.** The runner holds each file in one transaction, so `CREATE INDEX CONCURRENTLY` cannot run (ADR-580). 0172
-  does what 0162 does: `lock_timeout` 10 s, every table locked up front in one order. The whole file took 2.9 s on the data above,
-  1.15 s of it the largest index, and writers to those tables wait for it.
+  does what 0162 does: `lock_timeout` 10 s, every table locked up front in one order. The whole file took 2.9 s on the data above
+  (with the invitation index then still in it), 1.15 s of it the largest index. For that time writers to `ledger_entry`, `xp_entry`
+  and `audit_log` are stopped: an API writer waits its 2 s `lock_timeout` and fails with 55P03, and every audited write fails
+  because `audit_log` is locked SHARE. Safe on staging; production needs a quiet window. 0173 holds `invitation_recipient` ACCESS
+  EXCLUSIVE for one small rebuild, 0174 holds `quest` and `ledger_entry` ACCESS EXCLUSIVE for two catalog changes, and 0175 lets
+  reads and writes through.
 
 **Item 1, write cost.** Bulk inserts of 20,000 rows with triggers off, rolled back, old and new by turns:
 
 | Table, rows | Buffers | WAL records | WAL bytes |
 |---|---|---|---|
 | `ledger_entry`, quest | 259,000 to 319,000 (+23%) | 101,800 to 122,000 (+20%) | 10.4 to 12.0 MB (+15%) |
-| `xp_entry`, quest | 395,000 to 455,000 (+15%) | 161,700 to 182,000 (+12%) | 14.0 to 16.5 MB (+18%) |
+| `xp_entry`, quest | 395,000 to 455,000 (+15%) | 161,700 to 182,000 (+13%) | 14.0 to 16.5 MB (+18%) |
 | `audit_log`, an action outside the new index | 61,000, no change | 40,661, no change | 3.6 MB, no change |
 
 So a quest row costs one more index entry on each of the two tables: about 3 buffers and 80 to 125 bytes of WAL. A completion also
@@ -92,10 +121,11 @@ difference between runs is larger than the difference between schemas, on this s
 
 **Item 1, measured and left.**
 
-- **`ledger_entry (quest_id)`: built, measured, taken out.** Deleting a quest nobody played scans the ledger once for the foreign
-  key: about 2,000,000 rows, 280 to 350 ms, against 28 ms with the index. It would cost every quest row one more index entry to help a
-  rare organizer action, and it did nothing for `delete_played_quest` (43,000 buffers either way, as that quest's rows fill the
-  heap). Q-753 asks when to revisit.
+- **`ledger_entry (quest_id)`: built, measured, taken out.** On the first seed, deleting one quest nobody played scanned the ledger
+  once for the foreign key: about 2,000,000 rows, 280 to 350 ms, against 28 ms with the index. That figure is per quest, and a draft
+  or category delete removes many (above): 0174 took the no-write-cost part of the cure, and the index stays out because it would
+  cost every quest row one more entry while helping only deletes in the largest events. It did nothing for `delete_played_quest`
+  (43,000 buffers either way, as that quest's rows fill the heap). Q-753 asks when to revisit.
 - **Throttle sweep:** 6,187 pages per run, at most once in 10 minutes and only on a staff sign-in. An index on `at` would add a
   write to every attempt during a sign-in rush, so no.
 - **Control room and analytics, on the 100,000-player event:** `control_done` 1,531 buffers, `control_counts` 13,899,
@@ -122,8 +152,10 @@ limit. Left: `console_player_record` and `console_report` take one row by a time
 in one microsecond, and restating either function is not worth that. `export_players` answers all 100,000 rows at once (8,146
 buffers, 1.5 s, 13 MB spilled to disk): it is a download of the whole list, not a page.
 
-**Tests.** New `apps/api/test/db/performance-indexes.int.test.ts` (5): each read reaches its index, and the claim keeps its campaign and row
-order. With `apps/api/test/security` and the touched suites: 964 passed in 21 files. `pg_get_functiondef` before and after 0172
+**Tests.** New `apps/api/test/db/performance-indexes.int.test.ts` (8): each read reaches its index, the ledger's quest key is the
+validated composite RESTRICT key and its check reads `ledger_entry_event_idx`, the claim keeps its campaign and row order, a claim of 5
+left open holds at most 10 rows, and a row another session holds is skipped without waiting. The `readOwnerOthers` tie-breaker has no
+test: the read returns names only, so two organizers of one name give the same answer in either order. With `apps/api/test/security` and the touched suites: 1,284 passed in 35 files. `pg_get_functiondef` before and after 0173
 differs in `invitation_claim_at`'s one statement, and its grants are unchanged.
 
 ## T-813 results, part 2 (items 5 to 12; apps/web and apps/app)

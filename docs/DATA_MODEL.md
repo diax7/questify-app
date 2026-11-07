@@ -483,7 +483,8 @@ UPDATE, DELETE, TRUNCATE; NFR-019). Only definers write it; corrections are new 
 migration 0032): a row with `rehearsal = true` (set at insert from its enrollment, never by a writer) may be deleted by
 the rehearsal wipe of its own event. A partial unique
 index pays a completion once. Plain `completion_id` and `reverses` indexes (0172, ADR-816) serve the foreign keys' own checks and
-reads that name no kind, which a partial key cannot.
+reads that name no kind, which a partial key cannot. The quest key is `(quest_id, event_id) → quest (id, event_id)` RESTRICT (0174,
+validated by 0175), so a quest delete's check reads only its event's rows.
 
 **Manual awards (T-207, migration 0030, ADR-152):** kinds `award` (points by hand: `score_delta = balance_delta > 0`,
 no completion, quest or redemption, actor `operator` or `staff`) and `removal` (`reverses` names the credit entry it
@@ -706,7 +707,7 @@ ADR-151):
   (a provider code only), skip_reason opted_out|member|event_over|event_changed, created_at, sent_at, opened_at,
   joined_at)`: **personal data** (who was invited); no contact or text stored (the claim reads them fresh through
   `promo_pool`); deleted 90 days after its campaign finished (whatever its state) and at once by erasure. No foreign keys
-  (ADR-334): a trigger deletes a deleted campaign's rows. Indexes: queued rows by campaign and id (0172), leases by expiry, rows by
+  (ADR-334): a trigger deletes a deleted campaign's rows. Indexes: queued rows by campaign, channel and id (0173), leases by expiry, rows by
   player and `sent_at` (the 7-day limit). T-501f (0079): each row's `channel` is fixed at the fill, `push` when the
   campaign has push and the player is opted in on push with a pushable device, else `sms`; never two rows or two
   channels for one player. A push row is handed to the push store by `invitation_push_hand` (one `invitation`

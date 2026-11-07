@@ -3009,9 +3009,19 @@ messages. **Recommended:** keep it one way, as built in migration 0168.
 ## Q-753 - When should `ledger_entry` get an index on `quest_id`, and how are big indexes built after launch? (ADR-816)
 
 **Status:** Open. Recommended options taken in T-813 part 1; the coordinator decides after the review.
-**Question:** (1) deleting a quest scans the whole ledger once for its foreign key: 280 to 350 ms at 2 million rows, against 28 ms with
-an index on `quest_id`, which would add an index entry to every completion. **Recommended:** leave it out, and add it when the ledger
-passes about 20 million rows or a quest delete is seen over 1 s. (2) A migration cannot use `CREATE INDEX CONCURRENTLY`, because the
-runner holds each file in one transaction, so a big index stops writers on that table for the build. **Recommended:** keep the
-runner as it is until there is a live event to protect, then build such an index by hand with `CONCURRENTLY` before the release and
-write the file with `IF NOT EXISTS`.
+**Question:** (1) a quest delete checks the ledger once per quest, so a delete costs one check times the quests it removes (a draft's
+`deleteDraft` cascades to all its quests, `deleteQuestsOf` to a category's). On `quest_id` alone a check scanned the whole ledger,
+290 ms at 2.1 million rows (280 to 350 ms in earlier runs), about 140 to 175 ms a million rows: a draft of 26 quests took 7.8 s, past
+the 5 s statement_timeout, and one quest alone would reach about 1 s at 6 to 7 million rows. 0174 makes the key `(quest_id,
+event_id)`, so a check reads only its event's rows, at no write cost: the draft 0.23 s, a category of 10 in a small event 0.11 s. The
+largest event is not helped: 10 quests in an event of 1.1 million ledger rows took 3.0 s before and after, about 300 ms a quest, so a
+category of about 17 quests there passes 5 s, and one quest reaches 1 s at about 3.5 million rows in one event. An index on
+`quest_id` (28 ms a quest) would cure it for one more index entry on every completion. **Recommended:** leave the index out, and add
+it when one event's ledger nears 500,000 rows (about 135 ms a quest, so some 37 quests to 5 s) or a category delete is seen over
+1 s. The seeded 100,000-player event is past that already, so a real event of that size should get it before it runs. (2) A migration cannot use `CREATE
+INDEX CONCURRENTLY`, because the runner holds each file in one transaction, so a big index stops writers on that table for the build.
+**Recommended:** keep the runner as it is until there is a live event to protect. Then build such an index by hand with
+`CONCURRENTLY` before the release, and check it: `SELECT indisvalid FROM pg_index WHERE indexrelid = '<name>'::regclass` must be
+true. A failed or cancelled concurrent build leaves an INVALID index, which `IF NOT EXISTS` would accept silently and which serves no
+read; drop it (`DROP INDEX CONCURRENTLY`) and build again. Only then ship the file, with `CREATE INDEX IF NOT EXISTS` and without
+the up-front `LOCK TABLE` lines, which would otherwise stop writers for nothing.

@@ -28,13 +28,16 @@
 
 ## T-813 part 1 — 2026-11-07
 
-- **T-813 part 1 (tier B, API and SQL; migration 0172; no package change; ADR-816 and Q-753 proposed).** Items 1 to 4 of
+- **T-813 part 1 (tier B, API and SQL; migrations 0172 to 0175; no package change; ADR-816 and Q-753 proposed).** Items 1 to 4 of
   `docs/PERFORMANCE_AUDIT.md`, measured on 2 million ledger rows (the audit's "T-813 results" has every figure and its conditions).
-  Four new indexes and one wider: `member_ledger` 2.8 million buffers to 3,249, `manual_awards` 2.2 million to 1,177, a rehearsal wipe of
-  323 rows 276.7 s to 0.27 s (968 table scans to none), the invitation claim's read 8,664 buffers with a disk sort to 431 (`invitation_claim_at`
-  restated, one read), the data export's audit read 63,713 to 6. Each quest row writes two more index entries; the ADR-734 gate shows
-  9.92 ms old and 9.89 ms new. `ledger_entry (quest_id)` was measured and left out (Q-753). N+1 and selective fetching had nothing to
-  apply, and one tie-breaker landed (`readOwnerOthers`). T-813 stays open: part 2 (items 5 to 10) is still running. CI 0 minutes (not pushed).
+  0172: four ledger, XP and audit indexes: `member_ledger` 2.8 million buffers to 3,249, `manual_awards` 2.2 million to 1,177, a
+  rehearsal wipe of 323 rows 276.7 s to 0.27 s (968 table scans to none), the data export's audit read 63,713 to 6. 0173: the
+  invitation queue index `(campaign_id, channel, id)` and `invitation_claim_at` restated to read its page unlocked and lock as it
+  fetches: first fetch 1,955 buffers and a disk sort to 79, and a claim of 5 holds 10 rows (the first version held 400). 0174 and
+  0175: the ledger's quest key on `(quest_id, event_id)`, no new index: a 26-quest draft delete 7.76 s to 0.23 s, a 10-quest
+  category in a small event 3.13 s to 0.11 s, in the largest event 3.0 s unchanged (Q-753). Each quest row writes two more index
+  entries; the ADR-734 gate shows 9.92 ms old and 9.89 ms new. N+1 and selective fetching had nothing to apply, and one tie-breaker
+  landed (`readOwnerOthers`). T-813 stays open: part 2 (items 5 to 10) is still running. CI 0 minutes (not pushed).
 
 ## FOLLOWUPS batch 19 — 2026-11-07
 

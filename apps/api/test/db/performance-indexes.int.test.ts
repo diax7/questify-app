@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { invitationFixture, type InvitationFixture } from "#test/support/invitations";
-import { TEST_DATABASE_URL } from "#test/support/test-db";
+import { connectAsOwner, TEST_DATABASE_URL } from "#test/support/test-db";
 
 /**
- * T-813 part 1 (migration 0172, ADR-816). The reads a partial key could not serve: a foreign key's own check and a read
- * with no kind. With sequential scans priced out, each must reach its index whatever the size of this small database; the
- * sizes and buffers are in docs/PERFORMANCE_AUDIT.md. The claim's new read keeps the order and the limit it had.
+ * T-813 part 1 (migrations 0172 to 0175, ADR-816). The reads a partial key could not serve: a foreign key's own check and
+ * a read with no kind. With sequential scans priced out, each must reach its index whatever the size of this small
+ * database; the sizes and buffers are in docs/PERFORMANCE_AUDIT.md. The claim's new read keeps the order and the limit it
+ * had, and locks rows as its loop fetches them, not its whole page.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("T-813 indexes (database)", () => {
   let f: InvitationFixture;
@@ -48,6 +49,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("T-813 indexes (database)", () 
     ],
   ])("reaches %s by its index, as the foreign key's check does", async (_name, sql, index) => {
     expect(await planOf(sql, [1])).toContain(index);
+  });
+
+  it("checks a deleted quest's ledger rows through the event index, on a key named by quest and event", async () => {
+    const keys = await f.owner(
+      `SELECT c.conname, c.confdeltype, c.convalidated,
+              ARRAY(SELECT a.attname::text FROM unnest(c.conkey) WITH ORDINALITY k (n, i)
+                    JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.n ORDER BY k.i) AS cols
+       FROM pg_constraint c
+       WHERE c.contype = 'f' AND c.conrelid = 'ledger_entry'::regclass AND c.confrelid = 'quest'::regclass`,
+    );
+    expect(keys).toEqual([
+      {
+        conname: "ledger_entry_quest_id_event_id_fkey",
+        confdeltype: "r",
+        convalidated: true,
+        cols: ["quest_id", "event_id"],
+      },
+    ]);
+    const plan = await planOf(
+      "SELECT 1 FROM ONLY ledger_entry x WHERE $1::uuid = x.quest_id AND $2::uuid = x.event_id FOR KEY SHARE OF x",
+      [randomUUID(), randomUUID()],
+    );
+    expect(plan).toContain("ledger_entry_event_idx");
   });
 
   it("reads a player's export rows from audit_log by index", async () => {
@@ -92,5 +116,76 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("T-813 indexes (database)", () 
 
     const claimed = await f.claimAt(5);
     expect(claimed.map((row) => String(row.recipient_id))).toEqual(queued.slice(25, 30));
+  });
+
+  /** Two running campaigns of 200 queued rows each: the reviewer's shape, where the old read locked all 400. */
+  const twoCampaigns = async (): Promise<string[]> => {
+    const { campaign, event } = await f.launch(400);
+    const rows = await f.owner(
+      "SELECT id FROM invitation_recipient WHERE campaign_id = $1 AND state = 'queued' ORDER BY id",
+      [campaign],
+    );
+    const queued = rows.map((row) => String(row["id"]));
+    const later = randomUUID();
+    const code = `T813${later.slice(0, 4)}`;
+    await f.owner(
+      `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
+       SELECT organizer_id, $2, name_en, status, starts_at, ends_at FROM event WHERE id = $1`,
+      [event, code],
+    );
+    await f.owner(
+      `INSERT INTO invitation_campaign (id, organizer_id, event_id, request_id, fingerprint, size, state, channels, cap,
+                                        send_at, name_en, started_at, planned)
+       SELECT $2, c.organizer_id, e.id, gen_random_uuid(), 'later', c.size, c.state, c.channels, c.cap, c.send_at,
+              c.name_en, c.started_at + interval '1 minute', 200
+       FROM invitation_campaign c JOIN event e ON e.join_code = $3 WHERE c.id = $1`,
+      [campaign, later, code],
+    );
+    await f.owner(
+      "UPDATE invitation_recipient SET campaign_id = $1 WHERE id = ANY ($2::bigint[])",
+      [later, queued.slice(200)],
+    );
+    return queued;
+  };
+
+  it("locks only the rows its loop fetched while a claim of 5 is open", async () => {
+    await twoCampaigns();
+    const other = await connectAsOwner(f.db);
+    await f.owner("BEGIN");
+    try {
+      const claimed = await f.claimAt(5);
+      expect(claimed).toHaveLength(5);
+      await other.query("BEGIN");
+      const visible = await other.query<{ n: number }>(
+        "SELECT count(*)::int AS n FROM invitation_recipient WHERE state = 'queued'",
+      );
+      const free = await other.query<{ n: number }>(
+        `SELECT count(*)::int AS n
+         FROM (SELECT id FROM invitation_recipient WHERE state = 'queued' FOR UPDATE SKIP LOCKED) s`,
+      );
+      await other.query("ROLLBACK");
+      // The 5 claimed and the rest of the loop's first fetch of 10, never the page of 200 or the 400 the page spans.
+      expect(visible.rows[0]?.n).toBe(400);
+      expect((visible.rows[0]?.n ?? 0) - (free.rows[0]?.n ?? 0)).toBeLessThanOrEqual(10);
+    } finally {
+      await f.owner("ROLLBACK");
+      await other.end();
+    }
+  });
+
+  it("skips a page row another session holds, and does not wait for it", async () => {
+    const queued = await twoCampaigns();
+    const other = await connectAsOwner(f.db);
+    try {
+      await other.query("BEGIN");
+      await other.query("SELECT 1 FROM invitation_recipient WHERE id = $1 FOR UPDATE", [queued[0]]);
+      await f.owner("SET lock_timeout = '1s'");
+      const claimed = await f.claimAt(5);
+      expect(claimed.map((row) => String(row.recipient_id))).toEqual(queued.slice(1, 6));
+    } finally {
+      await f.owner("RESET lock_timeout");
+      await other.query("ROLLBACK");
+      await other.end();
+    }
   });
 });

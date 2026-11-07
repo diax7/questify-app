@@ -8661,25 +8661,40 @@ writes one index less.
 **Why:** the notice is the only guard on the no-password path, so its absence must stop the change. A close on failure alone would still apply after a crash between the commit and the send. The close does not rest on the sender failing over: `RESEND_API_KEY` is not set in `ops/cranl/*.json`, so there is no second provider today.
 **Trade-offs:** a held row from before 0169, or one made on the old API, closes at its due time and the admin restarts it. A false failure closes a good change. With Gmail alone, one Gmail failure closes the owner's change, and the admin starts again (3 starts a day). The owner of a change closed at the due time is not told. Resending is not built.
 
-## ADR-816 - T-813 part 1: three index entries' worth of write cost buys the rehearsal wipe; `ledger_entry (quest_id)` stays out
+## ADR-816 - T-813 part 1: two index entries a quest row (three a removal) buy the rehearsal wipe; the ledger's quest key moves to `(quest_id, event_id)` in place of a `quest_id` index
 
 **Status:** Proposed (T-813 part 1, 2026-11-07; Q-753). Numbers in `docs/PERFORMANCE_AUDIT.md`, "T-813 results".
 **Decision:** migration 0172 adds `ledger_entry_reverses_idx (reverses) WHERE reverses IS NOT NULL`,
 `ledger_entry_completion_idx (completion_id) WHERE completion_id IS NOT NULL`, `xp_entry_ledger_idx (ledger_entry_id) WHERE
-ledger_entry_id IS NOT NULL` and `audit_log_player_export_idx`, rebuilds `invitation_recipient_queued` as `(campaign_id, id)`, and
-restates `invitation_claim_at` with one change, a read per campaign. No function that reads `reverses` changes: the new index's
-predicate is the same rows as `ledger_entry_removal_key`'s (`ledger_entry_removal_shape`). `ledger_entry (quest_id)` was built,
-measured and left out. Plain `CREATE INDEX` under an up-front `LOCK TABLE ... IN SHARE MODE`, as 0162.
+ledger_entry_id IS NOT NULL` and `audit_log_player_export_idx`. 0173 rebuilds `invitation_recipient_queued` as `(campaign_id,
+channel, id)` and restates `invitation_claim_at` with one change: each campaign's first 200 queued rows per channel are read through
+that index with no lock, and the loop locks them as it fetches them (`FOR UPDATE OF t SKIP LOCKED` over the page). 0174 replaces
+`ledger_entry_quest_id_fkey (quest_id)` with `ledger_entry_quest_id_event_id_fkey (quest_id, event_id) REFERENCES quest (id, event_id)
+ON DELETE RESTRICT`, added `NOT VALID`, and 0175 validates it. No function that reads `reverses` changes: the new index's predicate
+is the same rows as `ledger_entry_removal_key`'s (`ledger_entry_removal_shape`). `ledger_entry (quest_id)` was built, measured and
+left out. Plain `CREATE INDEX` under an up-front `LOCK TABLE`, as 0162, one file per lock so the invitation and quest locks last
+milliseconds.
 **Why:** a partial key serves no foreign-key check and no read that omits its predicate. A staff member's view of one player's points
 scanned the ledger once per line, 2.8 million buffers on 2 million rows; a wipe of 323 rehearsal rows took 276.7 s and 968 table
 scans, on go-live and on the erase button, with the event's rehearsal locks held throughout. A full `(completion_id)` and
 `(ledger_entry_id)` are the only ways to serve those checks: a foreign key has no way to name a kind, and the check runs per row.
-`(quest_id)` serves only a rare organizer delete, 280 to 350 ms at this size, so it does not earn a cost on every completion.
+A quest delete pays its ledger check once per quest, so the cost is the price of one check times the quests one delete removes:
+`deleteDraft` cascades to every quest of a draft and `deleteQuestsOf` deletes a whole category. On `quest_id` alone each check
+scanned the ledger, 290 ms a quest at 2.1 million rows, and a draft of 26 quests took 7.8 s, past the API's 5 s statement_timeout.
+The composite key adds no index and no write: the check reads `ledger_entry_event_idx` for that quest's event only, so the draft took
+0.23 s and a category of 10 quests in an event of 26,000 ledger rows 0.11 s (from 3.1 s). It does not help the largest event: a
+category of 10 in the event holding 1.1 million of the 2.1 million rows took 3.0 s before and after, so about 17 quests there pass
+5 s (Q-753). The insert's check probes `quest_id_event_key` in place of the primary key, one probe as before. The claim's first
+version locked every row of its page before returning one (400 rows for a claim of 5 over two campaigns), which wrote a lock to each
+heap tuple and WAL on every round and widened what a player erasure (2 s lock_timeout) waits on; the lazy lock takes 10, as 0073 did.
 **Trade-offs:** every quest row writes two index entries more (one on `ledger_entry`, one on `xp_entry`), and a removal three; 83 MB
 of index at this size. The figures are in the audit. The XP index could instead replace
 `xp_entry_ledger_key` with one unique key over credits and removals, which would cost no new entry, but that rewrites a guard on
-points history for a saving on one table, so it is not done. A deleted quest still scans the ledger once, and grows with it
-(Q-753). `quest_bulk_targets` touches more buffers on a very large quest and takes the same time. A file that builds indexes holds
-writers off those tables while it runs, because the runner's one transaction rules out `CONCURRENTLY` (ADR-580): 2.9 s for 0172 at this
-size, and about ten times that at ten times the rows. No live event runs on the deployed database today. After launch, a file
-like this needs a quiet minute.
+points history for a saving on one table, so it is not done. A ledger row's event must now be its quest's; every writer already
+does so, and 0175 fails the deploy, with nothing of it applied, if history disagrees. A claim's page skips a row another session
+holds without fetching the 201st, so a page can give fewer than 200 rows. `quest_bulk_targets` touches more buffers on a very large
+quest and takes the same time. A file that builds indexes runs in one transaction, so `CONCURRENTLY` is ruled out (ADR-580), and its
+up-front `SHARE` locks stop every writer of those tables until it commits: an API writer waits its 2 s `lock_timeout`
+(`pool-options.ts`) and then fails with 55P03, and every audited write fails the same way because `audit_log` is locked. Reads go on.
+0172 held those locks 2.9 s at this size; at ten times the rows it would be about ten times that (an extrapolation, not measured).
+That is safe on staging, where no live event runs; on production such a file needs a quiet window.
