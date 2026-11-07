@@ -127,6 +127,7 @@ From `scripts/cranl`, `python deploy-staging.py <step>`:
 3. `run 'test -n "$DATABASE_ADMIN_URL" && node /srv/migrate.cjs' 600`: read `applied`. Exit 1 means the running app has not
    got the URL: `restart`, wait a minute, try again. `applied: []` with a new migration means an old container. Retry on 75.
 4. `run 'node /srv/migrate.cjs --verify'` must say `"ok":true`.
+   Before 0175 on any database with data: `SELECT count(*) FROM ledger_entry l JOIN quest q ON q.id = l.quest_id WHERE q.event_id <> l.event_id` must be 0.
 5. `unset`, `restart`, then `deploy-web` (retry up to three times).
 6. Probes: API `/readyz` 200, `/en/sign-in` and `/ar/sign-in` 200, `/en/console` 307. Confirm with
    `run 'printenv DATABASE_ADMIN_URL >/dev/null && echo HAS-ADMIN || echo no-admin'`. CranL refuses commands that list the

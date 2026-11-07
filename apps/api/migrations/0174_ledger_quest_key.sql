@@ -9,7 +9,8 @@
 --
 -- Added NOT VALID, so this file reads no row; the old key is dropped here, so a quest is never without one. Dropping a
 -- foreign key needs ACCESS EXCLUSIVE on both tables: taken up front, quest before ledger_entry (a completion locks the
--- quest, then writes the ledger), held for milliseconds. 0175 validates under a lock that lets writers through.
+-- quest, then writes the ledger), held for milliseconds once taken; while it waits (up to
+-- 10 s) quest reads queue and API calls hit their 2 s lock_timeout, so production needs a quiet window. 0175 validates under a lock that lets writers through.
 SET LOCAL lock_timeout = '10s';
 LOCK TABLE quest IN ACCESS EXCLUSIVE MODE;
 LOCK TABLE ledger_entry IN ACCESS EXCLUSIVE MODE;
