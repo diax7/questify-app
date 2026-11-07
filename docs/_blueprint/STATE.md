@@ -2,7 +2,7 @@
 
 ## Handoff to the company server — 2026-11-06
 
-- The newest entries are below, then older ones. Staging: `release-20261107-2`, migration 0168 (0156 reserved for T-810d). Live
+- The newest entries are below, then older ones. Staging: `release-20261107-3`, migration 0169 (0156 reserved for T-810d). Live
   today: gems removed and the Journey tab (T-404c, T-404d; ADR-760 to 768), FOLLOWUPS batches 1 to 7, ADR-810 (the company server
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
@@ -32,7 +32,7 @@
 
 ## Staff first password and the held change's notice — 2026-11-07
 
-- **Staff first password and the held change's notice (tier A; migration 0169, new and undeployed; ADR-814, ADR-815, Q-751, Q-752
+- **Staff first password and the held change's notice (tier A; migration 0169; ADR-814, ADR-815, Q-751, Q-752
   Proposed).** `staff.cjs create` takes no password, no flags and no standard input: it makes an account with no role and mails a
   24-hour set-password link; a platform admin is plain `create`, a confirmed sign-in, then `grant-admin --reason`. A held email change
   applies only with a recorded notice to the old address: a failed send closes it (503 `email_change_notice_failed`), and a waited
@@ -40,6 +40,7 @@
   environment (FOLLOWUPS). `RESEND_API_KEY` is unset in `ops/cranl/*.json`, so one Gmail failure closes the change. CI 0 minutes
   (not pushed).
   Code review 89, its MAJOR fixed (the CLI now prints why a send failed).
+  Deployed as `release-20261107-3`; rows held before 0169 on staging were not counted (the check printed nothing) and close `send_failed` at their due time.
   **Next:** the audit query on each environment.
 
 ## FOLLOWUPS batch 17 — 2026-11-07
