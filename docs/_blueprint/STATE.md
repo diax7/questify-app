@@ -2,14 +2,14 @@
 
 ## Handoff to the company server — 2026-11-06
 
-- The newest entries are below, then older ones. Staging: `release-20261107-4`, migration 0170 (0156 reserved for T-810d). Live
+- The newest entries are below, then older ones. Staging: `release-20261107-5`, migration 0171 (0156 reserved for T-810d). Live
   today: gems removed and the Journey tab (T-404c, T-404d; ADR-760 to 768), FOLLOWUPS batches 1 to 7, ADR-810 (the company server
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
 
 ## FOLLOWUPS batch 18 — 2026-11-07
 
-- **FOLLOWUPS batch 18 (tier B, API, SQL and app; migration 0171, new and undeployed; no package change, no ADR, ADR-766's build note amended).**
+- **FOLLOWUPS batch 18 (tier B, API, SQL and app; migration 0171; no package change, no ADR, ADR-766's build note amended).**
   `own_achievements` hides "next" only when the next tier is the revoked one; `admin_amounts_save` stores a missing row only for a save
   that changes something; `daily_xp_field` loses its unreachable range branch and its `top` (the CHECK of 0163 holds the range, and the
   amounts paid do not move); `admin_xp_table_save` takes no lock on a souvenir or unknown item id; `admin_report_resolve` compares
