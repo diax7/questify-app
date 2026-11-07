@@ -1,5 +1,8 @@
-import { expect, type Page, type Request } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { DEFAULT_TERMS, MESSAGES, termFor, type MessageKey } from "@questify/shared";
+import { SETTLE_LIMIT_MS, settleRequests } from "#e2e/open-requests.ts";
+
+export { watchRequests } from "#e2e/open-requests.ts";
 
 /** The smallest text a dashboard page may show (ADR-364). */
 export const MIN_TEXT_PX = 14;
@@ -440,42 +443,8 @@ export async function expectStateContrast(
   await page.mouse.move(0, 0);
 }
 
-/** How long the page's requests must stay quiet before it counts as settled, and the longest wait for that. */
-const QUIET_MS = 300;
-const SETTLE_LIMIT_MS = 5000;
-
 /** The words a page shows while its data is on the way, in both languages (the skeleton and the "Loading…" lines). */
 const LOADING = new RegExp(`${MESSAGES["common.loading"].en}|${MESSAGES["common.loading"].ar}`);
-
-const settlers = new WeakMap<Page, () => Promise<void>>();
-
-/**
- * Counts the page's requests from now on, for `waitUntilSettled`: a page that fetches its data after it first draws is
- * read once it has it. Faster than Playwright's `networkidle`, which always waits a fixed 500ms (it was a fifth of the
- * layout check's time). Call it once, before the first page is opened.
- */
-export function watchRequests(page: Page): void {
-  const requests = { open: new Set<Request>(), lastActivity: Date.now() };
-  const change = (request: Request, started: boolean): void => {
-    requests.open[started ? "add" : "delete"](request);
-    requests.lastActivity = Date.now();
-  };
-  page.on("request", (request) => change(request, true));
-  page.on("requestfinished", (request) => change(request, false));
-  page.on("requestfailed", (request) => change(request, false));
-  settlers.set(page, async () => {
-    const giveUp = Date.now() + SETTLE_LIMIT_MS;
-    while (requests.open.size > 0 || Date.now() - requests.lastActivity < QUIET_MS) {
-      if (Date.now() >= giveUp) {
-        const waiting = [...requests.open].map((one) => `${one.method()} ${one.url()}`).join(", ");
-        throw new Error(
-          `${page.url()}: ${requests.open.size} requests still open after ${SETTLE_LIMIT_MS}ms (${waiting}), so the page never settled`,
-        );
-      }
-      await page.waitForTimeout(25);
-    }
-  });
-}
 
 /**
  * Waits until no request of the page is open and none has started or ended for 300ms, then until the page's main area
@@ -484,11 +453,7 @@ export function watchRequests(page: Page): void {
  * before it has its data.
  */
 export async function waitUntilSettled(page: Page, where: string): Promise<void> {
-  const settle = settlers.get(page);
-  if (settle === undefined) {
-    throw new Error("watchRequests(page) must be called before the first page is opened");
-  }
-  await settle();
+  await settleRequests(page);
   const loading = page
     .locator("main [role='status']")
     .filter({ hasText: LOADING })
@@ -496,7 +461,7 @@ export async function waitUntilSettled(page: Page, where: string): Promise<void>
   await expect(loading, `${where}: still showing its loading state`).toHaveCount(0, {
     timeout: SETTLE_LIMIT_MS,
   });
-  await settle();
+  await settleRequests(page);
 }
 
 /** The open page's layout problems, as the check sees them. */

@@ -1,5 +1,20 @@
 # Blueprint State — Questify
 
+## The layout check's stuck rehearsal read — 2026-11-08
+
+- **`layout.spec.ts:261` "events page never settled" (CI runs 42412664875 shard 1 desktop, 42422503343 shard 2 phone; tier C,
+  test harness only; no API change, no migration).** Cause: not the API. Both traces show one rehearsal GET, started on the
+  event page right after "Create event" and cut off 150 to 240 ms later by `createEvent`'s `page.goto` to the quests page; the
+  browser cancelled it, Playwright reported neither `requestfinished` nor `requestfailed`, and `watchRequests` kept it in its
+  open set, so the first page that waited next (the events list) failed. It was the rehearsal read because it is the event
+  page's slowest call (a first read opens the rehearsal: two transactions). The API side is fast and lock-free here:
+  `open_rehearsal` (0032) is `INSERT … ON CONFLICT DO NOTHING`, `rehearsal_card` (0166) takes no row lock, the wipe tick skips
+  events before go-live, and `withFreshCode` retries only on a unique clash, at most 5 times; against the test database a first
+  read took 20 to 60 ms and 2, 4, 8 and 16 concurrent first reads of one event all answered in under 100 ms with one code. Fix:
+  the request count moved to `apps/web/e2e/open-requests.ts` and drops the old document's requests when the top frame starts
+  loading a new one; `open-requests.test.ts` (vitest, 3 tests) fails with the CI message before the fix. Playwright now matches
+  only `*.spec.ts`. CI 0 minutes (not pushed).
+
 ## T-813 part 2 — 2026-11-07
 
 - **T-813 part 2 (performance audit items 5 to 12, apps/web and apps/app; tier B; no migration, no new dependency, no ADR, no new

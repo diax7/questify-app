@@ -12,6 +12,8 @@ const WEB_ORIGIN = `http://localhost:${WEB_PORT}`;
 
 export default defineConfig({
   testDir: "e2e",
+  // Only the browser specs: e2e/*.test.ts are unit tests of the helpers, run by vitest.
+  testMatch: "**/*.spec.ts",
   outputDir: ".e2e/results",
   fullyParallel: false,
   workers: 1,
