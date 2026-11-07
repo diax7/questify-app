@@ -45,8 +45,8 @@
   A replay that pays nothing (the first answer's points were later removed) is no longer a "+0" success: the player's scanner and the quest
   sheet say "Already recorded" («سجّلنا هذا من قبل», `scanner.alreadyRecorded`, ux-araby and the glossary: a نحن verb, no heavy passive), and the
   kiosk and the operator station show their existing orange "already done" card instead of a green one (`replayed` with `points` 0 only; a
-  replay that paid, and a first scan of a 0-point quest, stay as they were). The T-617 partial indexes' insert cost is measured in buffers
-  (`PERFORMANCE_AUDIT.md`, Item 1): about two more buffers a row for an operator row, +1% to +15% of the statement, no extra dirty pages.
+  replay that paid, and a first scan of a 0-point quest unless its response was lost and retried, stay as they were). The T-617 partial indexes' insert cost is measured in buffers
+  (`PERFORMANCE_AUDIT.md`, Item 1): about two more buffers a row for a submission or ticket operator row (the ledger case is noisy, 0.4 to 2.8), +1% to +15% of the statement, extra dirty pages not distinguishable from noise; UPDATEs not measured.
   Checked and left: the T-804c NIT (no door but `complete_quest_answer` returns the ranking entries, so each other door needs its own
   migration; Q-640 stands), the `use-read.ts` rejected-load test (the app has no hook renderer or DOM in its tests; one needs a dependency)
   and the `sum()` NULL note (SQL). CI 0 minutes (not pushed).

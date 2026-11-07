@@ -132,9 +132,9 @@ in that transaction, two passes. Buffers are `shared hit` of the whole statement
 | `submission_operator_reviewed_idx`, reviews | 14,790 and 15,720 | 13,509 and 13,692 | +1,281 and +2,028 | about 1.3 to 2.0 (+9% to +15%) |
 | `ticket_operator_answered_idx`, answers | 22,795 and 22,732 | 20,729 and 20,701 | +2,066 and +2,031 | about 2.0 (+10%) |
 
-Pages dirtied and written differed by at most 17, in either direction, so the index adds no pages to flush at this size. Read: an
+Pages dirtied and written differed by at most 17, in either direction, so any extra pages to flush are not distinguishable from noise at 1,000 rows. Read: an
 operator row costs one more tree descent, about two buffers, and the two small tables show it steadily; the ledger figure is noisy
-because its statement is dominated by its own triggers and the descent lands on a different leaf each pass. A row with no operator
+because its statement is dominated by its own triggers and the descent lands on a different leaf each pass. Reviews and answers are UPDATEs in production (`0040_submissions.sql:428,444`); the UPDATE cost, including the HOT updates lost when an indexed-predicate column is set, was not measured. A row with no operator
 is outside every predicate, so it writes no entry: only the submission case was run (10,287 and 10,326 buffers), the ledger and
 ticket rows with no operator could not be built under their shape checks without more fixture. Milliseconds were not recorded: the
 server was shared. A by-hand measurement, not a CI test; the script is not kept.
