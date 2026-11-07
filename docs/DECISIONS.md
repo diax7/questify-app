@@ -7102,7 +7102,7 @@ and revokes its open operator invites. A deleted account's change rows go with i
 ## ADR-492 - T-701b completing an email change signs the account out everywhere
 
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-03, after the T-701b code review 92; T-701b plan section 2).
-**Decision:** In one transaction the account's email changes, every live session ends and its sign-in challenges and reset links are deleted. No session is issued; the password stays; the owner signs in with the new address (or uses Forgot password). Both addresses are emailed after commit (the old one with the new address masked). The change applies to the account across every organizer it belongs to.
+**Decision:** In one transaction the account's email changes, every live session ends and its sign-in challenges and reset links are deleted. No session is issued; the password stays; the owner signs in with the new address (or uses Forgot password). Both addresses are emailed after commit (the old one with the new address masked). The change applies to the account across every organizer it belongs to. These applied notices go at most once: they are sent after the commit and never recorded or resent, so a crash between a due apply (`owner_email_apply_due`) and its sends loses them (the audit entry and the console still show the change; FOLLOWUPS batch 20). None of the owner email change's notices takes the `outboundMailPerDay` budget; only its code email does (plan section 2).
 **Trade-offs:** an owner working in another tab is signed out mid-task.
 
 ## ADR-493 - T-701b report urgency and due times are set by the database when a report arrives

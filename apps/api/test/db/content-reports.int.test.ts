@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { RequestContext } from "#src/db/context";
 import { pushFixture, sqlstate, type PushFixture } from "#test/support/push";
-import { TEST_DATABASE_URL, addMember } from "#test/support/test-db";
+import { TEST_DATABASE_URL, addMember, connectAsOwner } from "#test/support/test-db";
 
 type Report = Readonly<{
   kind: string;
@@ -438,6 +438,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reports and moderation (databa
   });
 
   describe("unpublish", () => {
+    it("takes the target's report lock before it locks the target row (migration 0176)", async () => {
+      const target = await quest(await live());
+      const holder = await connectAsOwner(f.db);
+      try {
+        await holder.query("BEGIN");
+        await holder.query(
+          "SELECT pg_advisory_xact_lock(hashtextextended('report_target:quest:' || $1, 0))",
+          [target],
+        );
+        const waiting = unpublish("quest", target);
+        let queued = false;
+        for (let attempt = 0; attempt < 300 && !queued; attempt += 1) {
+          const rows = await f.owner(
+            "SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%admin_unpublish%'",
+          );
+          queued = rows.length > 0;
+          if (!queued) await new Promise((done) => setTimeout(done, 10));
+        }
+        expect(queued).toBe(true);
+        expect(
+          await f.owner("SELECT id FROM quest WHERE id = $1 FOR UPDATE NOWAIT", [target]),
+        ).toHaveLength(1);
+        await holder.query("COMMIT");
+        expect((await waiting)?.outcome).toBe("unpublished");
+      } finally {
+        await holder.query("ROLLBACK").catch(() => undefined);
+        await holder.end();
+      }
+    });
+
     it("hides a quest from players, keeps the team from showing it, alerts once and closes its reports", async () => {
       const event = await live();
       const { player, enrollment } = await member(event);

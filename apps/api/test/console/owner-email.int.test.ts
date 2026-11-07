@@ -225,12 +225,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
     expect((await postPassword(test, c.email)).statusCode).toBe(200);
   });
 
-  it("closes the change and answers 502 when the code email cannot be sent", async () => {
+  it("closes the change and answers 503 when the code email cannot be sent", async () => {
     const who = await newOwner();
     test.mail.failing = true;
     try {
       const failed = await start(who.org, `lost${count}@mail.test`);
-      expect(failed.statusCode).toBe(502);
+      expect(failed.statusCode).toBe(503);
       expect(failed.json<{ code: string }>().code).toBe("code_not_sent");
     } finally {
       test.mail.failing = false;
@@ -285,7 +285,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
     }
   });
 
-  it("resends in the asked language, answers 502 when the code cannot be sent, refuses a body on cancel", async () => {
+  it("resends in the asked language, answers 503 when the code cannot be sent, refuses a body on cancel", async () => {
     const c = await begin();
     const resend = (payload?: object) =>
       admin(`/v1/admin/owner-email-changes/${c.changeId}/resend`, payload);
@@ -307,7 +307,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("owner email change over HTTP",
     test.mail.failing = true;
     try {
       const failed = await resend({ lang: "en" });
-      expect(failed.statusCode).toBe(502);
+      expect(failed.statusCode).toBe(503);
       expect(failed.json<{ code: string }>().code).toBe("code_not_sent");
     } finally {
       test.mail.failing = false;

@@ -70,9 +70,9 @@ export function readHeldPrizes(
 
 /**
  * How many prizes players of the event still hold (T-602d): reserved, not yet handed over, cancelled or expired, for
- * members who are still active. Read under the team member's own row-level security, so another organizer's event is
- * not found, and an event outside an editor's limit is not found either (the event is public, so its own policy
- * alone would show it).
+ * members who are still active and not rehearsal accounts (the go-live wipe removes theirs). Read under the team
+ * member's own row-level security, so another organizer's event is not found, and an event outside an editor's limit
+ * is not found either (the event is public, so its own policy alone would show it).
  */
 export function countHeldPrizes(
   deps: HeldPrizeDeps,
@@ -91,7 +91,8 @@ export function countHeldPrizes(
       const { rows } = await client.query<{ held: string }>(
         `SELECT count(*) AS held
            FROM redemption d JOIN enrollment n ON n.id = d.enrollment_id
-           WHERE d.event_id = $1 AND d.status = 'reserved' AND n.status = 'active'`,
+           WHERE d.event_id = $1 AND d.status = 'reserved' AND n.status = 'active'
+             AND n.joined_via IS DISTINCT FROM 'rehearsal'`,
         [eventId],
       );
       return Number(rows[0]?.held ?? 0);

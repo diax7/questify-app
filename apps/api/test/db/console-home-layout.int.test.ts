@@ -249,6 +249,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("Questify home layout (database
         doc({ banner: [slide("A", { type: "agenda" })] }),
         doc({ banner: [slide("")] }),
         doc({ banner: [slide("A", { type: "link", url: "http://questify.example" })] }),
+        doc({ banner: [slide("A", { type: "link", url: "https://questify.example:65535/x" })] }),
+        doc({ banner: [slide("A", { type: "link", url: "https://questify.example:65536/x" })] }),
+        doc({ banner: [slide("A", { type: "link", url: "https://questify.example:0" })] }),
         doc({ order: QUESTIFY_HOME_KEYS.slice(1) }),
       ];
       for (const input of cases) {
@@ -341,6 +344,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("Questify home layout (database
         "http://questify.example",
         "https://127.0.0.1/x",
         "https://localhost/x",
+        "https://questify.example:65536/x",
+        "https://questify.example:99999",
+        "https://questify.example:0/x",
         "javascript:alert(1)",
         "https://questify.example/a b",
         "https://questify.example/a\u0001b",

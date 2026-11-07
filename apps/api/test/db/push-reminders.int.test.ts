@@ -186,6 +186,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reminder pushes (database)", (
       ]);
     });
 
+    it("writes no center row for a player who played between the scan and the fan-out (migration 0176)", async () => {
+      const quick = await streaker();
+      const control = await streaker();
+      await f.drain();
+      await scan();
+      const [reminder] = await remindersOf(quick.who);
+      const [kept] = await remindersOf(control.who);
+      await f.owner("INSERT INTO questify_streak_day (player_id, day) VALUES ($1, $2::date)", [
+        quick.who,
+        riyadhDate(),
+      ]);
+      await f.fanOut();
+      expect(await f.recipients(reminder?.id ?? null)).toEqual([]);
+      expect(await f.recipients(kept?.id ?? null)).toEqual([control.who]);
+    });
+
     it("a broken kind cannot roll back the scan: it writes nothing and raises nothing, and the marker stays free", async () => {
       const waiting = await streaker();
       await f.withoutKind("streak_reminder", async () => {

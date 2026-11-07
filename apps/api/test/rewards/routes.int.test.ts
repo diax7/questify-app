@@ -942,6 +942,37 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rewards over HTTP (T-201, T-20
       expect((await call("GET", url)).json()).toEqual({ held: 2 });
     });
 
+    it("leaves rehearsal accounts out of the team's count (FOLLOWUPS batch 20)", async () => {
+      const [fresh] = await owner<{ id: string }>(
+        `INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, status, starts_at, ends_at)
+         VALUES ($1, 'Hall C', 'HELD3', 'Rehearsed', 'scheduled', now() + interval '1 day', now() + interval '2 days')
+         RETURNING id`,
+        [orgId],
+      );
+      const event = fresh?.id ?? "";
+      const [reward] = await owner<{ id: string }>(
+        "INSERT INTO reward (event_id, kind, name_en, price, stock_total) VALUES ($1, 'item', 'Cap', 5, 20) RETURNING id",
+        [event],
+      );
+      for (const via of ["rehearsal", "code"]) {
+        const [player] = await owner<{ id: string }>(
+          "INSERT INTO player (username) VALUES ($1) RETURNING id",
+          [`held_${via}`],
+        );
+        const [enrolled] = await owner<{ id: string }>(
+          "INSERT INTO enrollment (organizer_id, event_id, player_id, joined_via) VALUES ($1, $2, $3, $4) RETURNING id",
+          [orgId, event, player?.id, via],
+        );
+        await owner(
+          `INSERT INTO redemption (organizer_id, event_id, enrollment_id, reward_id, price, idempotency_key, reserved_until)
+           VALUES ($1, $2, $3, $4, 5, $5, now() + interval '1 day')`,
+          [orgId, event, enrolled?.id, reward?.id, randomUUID()],
+        );
+      }
+      const url = `/v1/organizers/${orgId}/events/${event}/held-prizes`;
+      expect((await call("GET", url)).json()).toEqual({ held: 1 });
+    });
+
     it("keeps the team's count to its own organizer's events", async () => {
       const [rival] = await owner<{ id: string }>(
         "INSERT INTO organizer (name, slug) VALUES ('Rival Events', 'rival-held') RETURNING id",

@@ -91,8 +91,11 @@ real protection (FR-1784's "after verification"). The design narrows what a fool
   pending one's expiry (cancel it first). Two admins at once: one wins, the other gets 409.
 - **Rate limits:** per admin 10 starts an hour and 30 resends or cancels an hour (console buckets, 429 + Retry-After);
   per account 3 starts a day (counted in the door, EC429); per change 5 code attempts and 3 resends; per IP 20
-  confirm, view or stop calls in 15 minutes on the public routes (`throttle.ts`); every mail counts against
-  `outboundMailPerDay`.
+  confirm, view or stop calls in 15 minutes on the public routes (`throttle.ts`); the code email (start and resend)
+  counts against `outboundMailPerDay`. The notices do not (the old address's started, held and applied notices, and the new
+  address's applied one): each carries or goes with the Stop link, the held one is the only guard on the no-password path
+  (ADR-815), and a budget spent by sign-up traffic must never silence a takeover warning. The per-admin and per-account caps
+  above bound them (FOLLOWUPS batch 20).
 - **Stop link:** while pending or held, the old address can stop the change (no sign-in needed; the token is the
   authority); the console shows "Stopped from the old address" and the audit log records it, so support knows to call
   back. Once a change completed on the **password path** (or after its hold), the same link (valid 7 days after
@@ -164,7 +167,7 @@ real protection (FR-1784's "after verification"). The design narrows what a fool
 
 | Route | Access | Notes |
 |---|---|---|
-| `POST /v1/admin/organizers/{id}/owner-email` | admin | body `{newEmail, identityCheck, reason}`, Idempotency-Key; 201 `{changeId, expiresAt}`; 409 `email_taken`, `same_email`, `email_change_pending`; 403 `owner_is_admin`, `own_account`; 404 `not_owner`; 422 inactive account or bad reason; 429; 502 `code_not_sent` |
+| `POST /v1/admin/organizers/{id}/owner-email` | admin | body `{newEmail, identityCheck, reason}`, Idempotency-Key; 201 `{changeId, expiresAt}`; 409 `email_taken`, `same_email`, `email_change_pending`; 403 `owner_is_admin`, `own_account`; 404 `not_owner`; 422 inactive account or bad reason; 429; 503 `code_not_sent` (502 until FOLLOWUPS batch 20) |
 | `POST /v1/admin/owner-email-changes/{id}/resend` | admin | 409 when not pending or too soon; 429 after 3 |
 | `POST /v1/admin/owner-email-changes/{id}/cancel` | admin | idempotent; 409 when already closed |
 | `GET /v1/admin/organizers/{id}` | admin | gains `ownerEmailChange` (pending or last, with addresses: the admin already sees the owner's email there) |
@@ -256,7 +259,7 @@ the alert address), SRS trace (FR-1784 built except merge; FR-1732 built), TASKS
 2. **The change affects every organizer the account belongs to.** Shown on the confirmation screen; accepted.
 3. **Lost alert mail.** `uncertain` is never resent (no duplicates); the console badge and due times are the primary
    signal, the email is a nudge.
-4. **Report floods at a large live event.** One alert per target episode and one digest per minute keep the mailbox
+4. **Report floods at a large live event.** One alert per target episode and one digest per 10 minutes keep the mailbox
    readable; the reporters' caps (10 an hour, 30 a day) stay.
 5. **Restating `console_reports` and `console_report`** (0121 is undeployed: CranL runs through 0086, staging 0117;
    restated in 0130 rather than edited, since later branches build on 0121): the T-705b suites rerun.
@@ -278,8 +281,8 @@ index).
   the password unchanged; the change applies to the account across organizers.
 - **ADR-493** (Proposed): urgency and due time set by the database at arrival (live event: urgent, 1 hour; else 24
   hours); the queue puts urgent first, then the earliest due.
-- **ADR-494** (Proposed): the team alert is an ids-only outbox, one alert per target episode, one digest email a minute
-  at most, sent through the sign-in transport because it carries no personal data, to `moderation.alertEmail` or
+- **ADR-494** (Proposed): the team alert is an ids-only outbox, one alert per target episode, one digest email per 10
+  minutes at most, sent through the sign-in transport because it carries no personal data, to `moderation.alertEmail` or
   `MAIL_FROM`.
 - **ADR-495** (Proposed): the console edits the moderation addresses (alert and appeal) through one door; the generic
   settings policy is not widened.

@@ -53,7 +53,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("T-813 indexes (database)", () 
 
   it("checks a deleted quest's ledger rows through the event index, on a key named by quest and event", async () => {
     const keys = await f.owner(
-      `SELECT c.conname, c.confdeltype, c.convalidated,
+      `SELECT c.conname, c.confdeltype, c.confupdtype, c.condeferrable, c.convalidated,
               ARRAY(SELECT a.attname::text FROM unnest(c.conkey) WITH ORDINALITY k (n, i)
                     JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.n ORDER BY k.i) AS cols
        FROM pg_constraint c
@@ -63,6 +63,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("T-813 indexes (database)", () 
       {
         conname: "ledger_entry_quest_id_event_id_fkey",
         confdeltype: "r",
+        confupdtype: "a",
+        condeferrable: false,
         convalidated: true,
         cols: ["quest_id", "event_id"],
       },
@@ -72,6 +74,38 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("T-813 indexes (database)", () 
       [randomUUID(), randomUUID()],
     );
     expect(plan).toContain("ledger_entry_event_idx");
+  });
+
+  it("refuses a ledger row whose event is not its quest's event (23503)", async () => {
+    const [home, other] = [
+      await f.newEvent({ phase: "live" }),
+      await f.newEvent({ phase: "live" }),
+    ];
+    const player = await f.newPlayer();
+    const here = await f.join(home, player);
+    const there = await f.join(other, player);
+    const [quest] = await f.owner<{ id: string }>(
+      `INSERT INTO quest (event_id, category_id, type, title_en, points, visible, type_config)
+       SELECT $1, id, 'scan_qr', 'Elsewhere', 10, true, '{}' FROM category WHERE event_id = $1 LIMIT 1 RETURNING id`,
+      [other],
+    );
+    const [done] = await f.owner<{ id: string }>(
+      `INSERT INTO quest_completion (organizer_id, event_id, enrollment_id, quest_id, occurrence, method, idempotency_key)
+       SELECT organizer_id, id, $2, $3, 1, 'qr', gen_random_uuid()::text FROM event WHERE id = $1 RETURNING id`,
+      [other, there, quest?.id],
+    );
+    const refused = await f
+      .owner(
+        `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, completion_id,
+                                   quest_id, actor)
+         SELECT organizer_id, id, $2, 'quest', 10, 10, $3, $4, 'player' FROM event WHERE id = $1`,
+        [home, here, done?.id, quest?.id],
+      )
+      .then(
+        () => "none",
+        (error: { code?: string; constraint?: string }) => `${error.code}:${error.constraint}`,
+      );
+    expect(refused).toBe("23503:ledger_entry_quest_id_event_id_fkey");
   });
 
   it("reads a player's export rows from audit_log by index", async () => {

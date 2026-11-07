@@ -51,6 +51,21 @@
   migration; Q-640 stands), the `use-read.ts` rejected-load test (the app has no hook renderer or DOM in its tests; one needs a dependency)
   and the `sum()` NULL note (SQL). CI 0 minutes (not pushed).
 
+## FOLLOWUPS batch 20 — 2026-11-07
+
+- **FOLLOWUPS batch 20 (tier B, API and SQL; migration 0176, new and undeployed; no package change, no new ADR, ADR-492 amended, no
+  new string).** 0176 restates four functions with their grants: the personal fan-out checks `notice_audience_ok`, so a streak
+  reminder or an invitation whose player played or joined since writes no center row; a banner slide's link port must be 1 to 65535,
+  as `isAllowedLink` says; `own_level_items` matches `reached_at` to the XP entry, as `own_level` does since 0168; `admin_unpublish`
+  takes the target's report lock before the target row, the order `admin_report_resolve` keeps. The team's held-prize count leaves
+  rehearsal accounts out. `code_not_sent` answers 503, as `email_change_notice_failed` and every failed send (no client reads the
+  status; API.md and the plan row updated). The owner email change's notices stay outside `outboundMailPerDay`: they carry the Stop
+  link and the held one is the only guard on the no-password path (ADR-815), so the plan text now says only the code email counts;
+  ADR-492 records the applied notices as at-most-once; the plan's digest lines say one per 10 minutes. T-813's key test also checks
+  `confupdtype`, `condeferrable` and a 23503 for a ledger row in another event than its quest. Each fix's test failed without it.
+  Left in FOLLOWUPS: the first password's notice (telling it from a reset needs a reset-link marker in sign-in, tier A), the T-713
+  render test, ADR-816's index line. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 19 — 2026-11-07
 
 - **FOLLOWUPS batch 19 (tier B, API, app and web; no migration, no package change, no ADR, no new string).**

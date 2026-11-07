@@ -2606,7 +2606,7 @@ export const tooManyEmailChanges = make(
   "Three changes were started for this account today. Try tomorrow.",
 );
 export const codeNotSent = make(
-  502,
+  503,
   "code_not_sent",
   "تعذّر إرسال الرمز. تحقق من البريد.",
   "We could not send the code. Check the address.",

@@ -111,7 +111,7 @@ async function sendCode(
  * Starts an owner email change (ADR-490): the door checks every guard and stores only hashes; the new address gets the
  * code and the link, the old one the notice with the Stop link. A code email that cannot be sent closes the change.
  *
- * @throws HttpError for each refusal of the door, and code_not_sent (502) when the code email failed.
+ * @throws HttpError for each refusal of the door, and code_not_sent (503) when the code email failed.
  */
 export async function startOwnerEmailChange(
   deps: OwnerEmailDeps,
