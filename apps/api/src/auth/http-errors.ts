@@ -1181,7 +1181,7 @@ export const badDeadline = make(
 export const deskClosedUntilDeadline = make(
   409,
   "desk_closed_until_deadline",
-  "مكتب الجوائز لا تفتح قبل هذا الموعد. أضف ساعات عمل قبله أو اختر موعدًا أبعد.",
+  "مكتب الجوائز لا يفتح قبل هذا الموعد. أضف ساعات عمل قبله أو اختر موعدًا أبعد.",
   "The prize desk doesn't open before this deadline. Add desk hours before it or pick a later one.",
 );
 export const prizesLocked = make(

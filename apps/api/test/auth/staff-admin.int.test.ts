@@ -160,7 +160,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration",
     const mail = test.mail.to("link@najd.sa");
     expect(mail).toHaveLength(1);
     expect(mail[0]?.subject).toBe(
-      "اختر كلمة مرور حسابك في Questify | Choose your Questify password",
+      "حسابك في Questify: اختر كلمة المرور | Choose your Questify password",
     );
     expect(mail[0]?.text).toContain(`${DASHBOARD_ORIGIN}/ar/reset-password#token=`);
     expect(mail[0]?.text).toContain(`${DASHBOARD_ORIGIN}/en/reset-password#token=`);

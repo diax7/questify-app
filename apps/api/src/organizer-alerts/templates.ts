@@ -13,7 +13,7 @@ type Wording = Readonly<{ subject: string; ar: string; en: string }>;
 const WORDING: Readonly<Record<OrganizerAlertType, Wording>> = {
   activated: {
     subject: "تفعيل فعالية | An event was activated",
-    ar: "فُعّلت إحدى فعالياتك.",
+    ar: "فعّلنا إحدى فعالياتك.",
     en: "One of your events was activated.",
   },
   stock_low: {

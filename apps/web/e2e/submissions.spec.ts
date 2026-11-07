@@ -43,7 +43,7 @@ test("the owner reviews and removes submissions", async ({ page, request }, info
   await oryx.getByRole("button", { name: "ارفض" }).click();
   await expect(page.getByText("لا شيء هنا.")).toBeVisible();
 
-  await page.getByRole("button", { name: "رُوجعت" }).click();
+  await page.getByRole("button", { name: "المراجَعة" }).click();
   await expect(items).toHaveCount(2);
   await expect(items.filter({ hasText: `@oryx_${tag}` })).toContainText("السبب: الإجابة قصيرة جدًا");
   const approved = items.filter({ hasText: `@falcon_${tag}` });

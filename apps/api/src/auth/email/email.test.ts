@@ -150,7 +150,7 @@ describe("newSignInAlertEmail", () => {
 describe("exact email text", () => {
   it("writes the sign-in code email word for word, Arabic first", () => {
     expect(signInCodeEmail({ code: "042917", expiresInMinutes: 10 })).toEqual({
-      subject: "رمز الدخول إلى Questify | Your Questify sign-in code",
+      subject: "رمز Questify لتسجيل الدخول | Your Questify sign-in code",
       text: [
         "رمز دخولك: 042917",
         "الرمز صالح لمدة 10 دقائق. إذا لم تحاول تسجيل الدخول، تجاهل هذه الرسالة ولا تشارك الرمز مع أحد.",

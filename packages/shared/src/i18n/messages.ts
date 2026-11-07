@@ -594,7 +594,7 @@ export const MESSAGES = {
   "quests.delete": { ar: "حذف {questOne}", en: "Delete {questOne}" },
   "quests.points.title": { ar: "تغيير نقاط «{title}»؟", en: "Change the points of “{title}”?" },
   "quests.points.reach": {
-    ar: "عدد مرات الإنجاز حتى الآن: {completions}، وعدد اللاعبين: {players}.",
+    ar: "مرات الإنجاز حتى الآن: {completions}، واللاعبون الذين أنجزوها: {players}.",
     en: "Completed {completions} times so far by {players} players.",
   },
   "quests.points.choose": {
@@ -623,7 +623,7 @@ export const MESSAGES = {
   },
   "quests.points.save": { ar: "حفظ النقاط", en: "Save points" },
   "quests.deletePlayed.legend": {
-    ar: "«{name}»: عدد مرات الإنجاز {completions}، وعدد اللاعبين {players}. ماذا يحدث لنقاطهم؟",
+    ar: "«{name}»: عدد مرات الإنجاز {completions}، واللاعبون الذين أنجزوها {players}. ماذا يحدث لنقاطهم؟",
     en: "“{name}” was completed {completions} times by {players} players. What happens to their points?",
   },
   "quests.deletePlayed.keep": {
@@ -3180,7 +3180,7 @@ export const MESSAGES = {
   "submissions.filter.pending": { ar: "بانتظار المراجعة", en: "Waiting" },
   "submissions.filter.unseen": { ar: "قُبلت تلقائيًا ولم تُقرأ", en: "Auto-approved, not read" },
   "submissions.filter.marked": { ar: "فيها كلمة ممنوعة", en: "Listed words" },
-  "submissions.filter.done": { ar: "رُوجعت", en: "Reviewed" },
+  "submissions.filter.done": { ar: "المراجَعة", en: "Reviewed" },
   "submissions.empty": { ar: "لا شيء هنا.", en: "Nothing here." },
   "submissions.from": { ar: "{player} · {quest}", en: "{player} · {quest}" },
   "submissions.deletedPlayer": { ar: "حساب محذوف", en: "Deleted account" },
@@ -4771,7 +4771,7 @@ export const MESSAGES = {
     en: "This request moved to the event's owners",
   },
   "operator.inbox.prize": { ar: "جائزة", en: "Prize" },
-  "tickets.withQuestify": { ar: "لدى Questify ({count})", en: "With Questify ({count})" },
+  "tickets.withQuestify": { ar: "لدى Questify: {count}", en: "With Questify ({count})" },
   "tickets.escalate": { ar: "أحِله إلى Questify", en: "Escalate to Questify" },
   "tickets.escalate.note": {
     ar: "ماذا جرّبتم؟ يقرأ هذا فريق Questify، ولا يراه اللاعب",
@@ -8311,9 +8311,9 @@ export const MESSAGES = {
   "setup.allSteps": { ar: "كل الخطوات", en: "All steps" },
   "setup.state.open": { ar: "لم تُحسم", en: "Not decided" },
   "setup.state.done": { ar: "مكتملة", en: "Done" },
-  "setup.state.skipped": { ar: "تخطيتها", en: "Skipped" },
+  "setup.state.skipped": { ar: "متخطّاة", en: "Skipped" },
   "setup.open": { ar: "فتح", en: "Open" },
-  "setup.done": { ar: "اكتمل", en: "Done" },
+  "setup.done": { ar: "إنهاء", en: "Done" },
   "setup.finish": { ar: "إنهاء الإعداد", en: "Finish setup" },
   "setup.finished": { ar: "انتهى الإعداد.", en: "Setup is finished." },
   "setup.start": { ar: "ابدأ الإعداد الموجّه", en: "Start guided setup" },
@@ -8344,7 +8344,7 @@ export const MESSAGES = {
   },
   "wizard.quests.nfc": { ar: "بطاقات NFC", en: "NFC tags" },
   "wizard.quests.nfcHint": {
-    ar: "يحتاج NFC إلى بطاقات فعلية. توفّرها Questify أو تشتريها بنفسك. يلمسها الحضور بهواتفهم. أبقِ رمز QR احتياطًا.",
+    ar: "يحتاج NFC إلى بطاقات فعلية. يمكن أن توفّرها Questify، أو تشتريها بنفسك. يلمسها الحضور بهواتفهم. أبقِ رمز QR احتياطًا.",
     en: "NFC needs physical tags. Questify can supply them, or you can buy your own. People tap them with their phones. Keep the QR code as a backup.",
   },
   "wizard.rewards.name": { ar: "الجوائز", en: "Rewards" },
@@ -8811,7 +8811,7 @@ export const MESSAGES = {
   "console.switches.feature.stations": { ar: "صفحات المحطات", en: "Station pages" },
   "console.switches.feature.usernameChanges": { ar: "تغيير اسم المستخدم", en: "Username changes" },
   "console.switches.number.flagBurstCount": {
-    ar: "مسحات تثير علامة المسح المتتابع",
+    ar: "مسحات تثير حالة المسح المتتابع",
     en: "Scans that raise a burst flag",
   },
   "console.switches.number.flagBurstMinutes": {

@@ -50,8 +50,8 @@ test("an escalated ticket reaches the console, Questify answers, the dashboard s
     .fill("سألنا مكتب الجوائز");
   page.once("dialog", (dialog) => void dialog.accept());
   await first.getByRole("button", { name: "أحِل الطلب" }).click();
-  await expect(page.getByRole("button", { name: "لدى Questify (1)" })).toBeVisible();
-  await page.getByRole("button", { name: "لدى Questify (1)" }).click();
+  await expect(page.getByRole("button", { name: "لدى Questify: 1" })).toBeVisible();
+  await page.getByRole("button", { name: "لدى Questify: 1" }).click();
   const waiting = page.getByTestId("ticket");
   await expect(waiting).toHaveCount(1);
   await expect(waiting).toContainText("ملاحظتكم إلى Questify: سألنا مكتب الجوائز");

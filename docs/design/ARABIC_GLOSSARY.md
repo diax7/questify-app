@@ -66,6 +66,11 @@ so the next string keeps to them. It does not replace the person's read of every
 9. «يستغرق» (`location.timeout`, `changeSetBusy`, `results.settleBody`) and «عندما تكون الفعالية مباشرة» (three `event_not_live`
    errors): correct modern Arabic, the skill's lighter forms are a taste call.
 
+10. **Three words for "flags".** «حالات» (the flag screens, `console.switches.number.flagBurstCount`), «بلاغات» (`results.flags`,
+   `results.reviewFlags`) and «إشارات» (`console.player.flags`,
+   `console.player.noFlags`) all render the English "flags". They should converge on one word; which one (the glossary says
+   «حالة») is a person's call, so the two other families are left as they are.
+
 ## What was checked
 
 All 5,144 message keys, the 407 error texts, the email and alert templates and the `ar.json` permission texts passed
