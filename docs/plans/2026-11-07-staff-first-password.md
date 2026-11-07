@@ -40,8 +40,12 @@ session end and the notice are all row 5 as built. 0169 belongs to T-701b alone.
 After expiry the reset page's existing "request a new link" gives the normal 30-minute link (Q-751).
 
 **CLI (`apps/api/src/staff-cli.ts`, `auth/staff-admin.ts`):**
-1. `create <email> [--admin]` never reads stdin, so an old piped command cannot hang; its input is ignored and the output
-   says the person sets their own password. Usage text and the file comment change. `createBreachCheck` leaves the CLI.
+1. `create <email>` never reads stdin, so an old piped command cannot hang; its input is ignored and the output says the
+   person sets their own password. Usage text and the file comment change. `createBreachCheck` leaves the CLI. **`--admin` is
+   gone, and any flag after the email refuses with the usage text**, so an old `create --admin` cannot quietly make a plain
+   account. A typo would mail a stranger a link, and that mailbox also gets the sign-in code (ADR-078), which would hand over
+   a platform admin; `create --admin` also skipped the reason `grant-admin` requires. The flow is plain `create`, confirm the
+   person has signed in, then `grant-admin --reason`.
 2. Mail settings are read first: `authConfig` is exported, and `createEmailSender` moves from `server.ts` to
    `apps/api/src/auth/email/from-config.ts` (the server passes its `instrumentEmail` wrapper). Missing settings refuse before
    anything is written.
@@ -49,11 +53,12 @@ After expiry the reset page's existing "request a new link" gives the normal 30-
 4. One transaction: `staff_user`, `insertResetLink` (reused), audit `staff.create`.
 5. After the commit, send (never holding a transaction across a network call). Then audit `staff.invite` with `{sent}`.
 6. A failed send exits 1: `Created <email>, but the email did not go out. Send them to "Forgot your password?".` A second
-   `create` answers "already exists" and sends nothing.
+   `create` answers "already exists" and sends nothing. A sent email whose `staff.invite` audit row failed also exits 1, but
+   says the email went out and only the audit entry is missing. The outcome text lives in `staff-admin.ts` (`createOutcome`),
+   so tests reach it without running the CLI.
 
-`createStaffAccount(owner, {email, admin}, {email: sender, dashboardOrigin})` returns `{id, sent}`. `REASONS` keeps only what
-is used; `refuseBreached` and `checkPasswordPolicy` leave this file. The `--admin` account follows the same path: the first
-password mails the security mailbox through `notifyChanged`, as a reset does.
+`createStaffAccount(owner, {email}, {email: sender, dashboardOrigin})` returns `{id, sent, audited}`. `REASONS`,
+`refuseBreached` and `checkPasswordPolicy` leave this file. Every account starts with `platform_role = 'none'`.
 
 **API and web:** no route or page changes. The link opens `/{lang}/reset-password#token=…`; the page's existing title and
 strings fit a first password. The password policy and breach check run there, so V6.2.12 still holds.
@@ -70,7 +75,7 @@ the change at once.
 |---|---|
 | **Record the notice; refuse to apply without it; close on a failed send** | **Recommended.** Fails closed on a failed send, a crash and a lost write |
 | Close on a failed send only | Rejected. A crash after the commit still applies unnoticed |
-| Worker resends until it goes | Rejected for now. New retry state in a path whose sender already fails over to a second provider (Q-752) |
+| Worker resends until it goes | Rejected for now. New retry state, for a close the admin can undo by starting again (Q-752). This does not rest on failover: `RESEND_API_KEY` is not set in `ops/cranl/*.json`, so there is no second provider and one Gmail failure closes the owner's change |
 
 Flow in `email-change.ts`: `mailHeld` returns whether the send worked, and `notify` then calls the door with the link's token
 hash. `noticed` answers `held`; `closed` answers the new `notice_failed` kind; `gone` (stopped or cancelled meanwhile) answers
@@ -139,8 +144,9 @@ Both stay in FOLLOWUPS for the next task that rewrites those functions.
 - **New accounts need the mailbox:** no new dependency, since sign-in already emails a code there. A wrong address means
   no access, as now.
 - **Mail down at `create`:** the account exists and "Forgot your password?" works once mail is back.
-- **Replacing an admin (RUNBOOK "Lost mailbox"):** the new admin must set a password and sign in *before* `revoke-admin` on the
-  old one. The RUNBOOK step says so. `revoke-admin` counts active admins, not admins who can sign in, so it would pass early.
+- **Replacing an admin (RUNBOOK "Lost mailbox"):** plain `create`, confirm the new person has set a password and signed in,
+  then `grant-admin --reason`, and only then `revoke-admin` on the old one. The RUNBOOK step says so. `revoke-admin` counts
+  active admins, not admins who can sign in, so it would pass early.
 - **Open email changes:** see section 10. A change waiting for its code is unaffected.
 
 ## 7. Audit rows
@@ -169,16 +175,18 @@ No address, token or hash in any of them.
 - **Evidence only:** V6.2.12 moves to `password-reset.int.test.ts` "refuses a breached new password and keeps the old one"
   (its `staff-admin` test goes); V6.3.2 takes the renamed `create` test; V7.5.1 stays Partly with the notice added; V16.5.2 gains
   the failed-notice test.
-- **Docs:** SECURITY rows 8 and 9; RUNBOOK "Create an account", "Lost mailbox", the `staff.email_change_notice_failed` line and
-  a 0169 deploy note; API.md, DATA_MODEL.md (`hold_notice_at`); FOLLOWUPS, removing what shipped.
+- **Docs:** SECURITY rows 5, 8 and 9 (row 5 gains the 24-hour `create` link); RUNBOOK "Create an account", "Lost mailbox", the
+  `staff.email_change_notice_failed` line, a `team_alert.hold_unsent` line (check the console and restart) and a 0169 deploy note; API.md, DATA_MODEL.md (`hold_notice_at`); FOLLOWUPS, removing what shipped.
 
 ## 9. Tests (test first)
 
 **`apps/api/test/auth/staff-admin.int.test.ts`, `test/audit/audit.int.test.ts`:**
 - Refusals: bad email and an existing account send nothing and leave no second link; missing mail settings write nothing;
-  no password is accepted (the input type has none, and the stored hash opens to no piped value); sign-in before the link is
-  used answers the ordinary 401; a used, expired (past 24 hours) or disabled account's link is refused; a failed send keeps the
-  account and link, records `sent: false`, and the CLI exits 1.
+  no password is accepted: the input type has none, and a spawned CLI never touches stdin; a flag after the email refuses;
+  sign-in before the link is used answers the ordinary 401; a used, expired (past 24 hours) or disabled account's link is
+  refused; a failed send keeps the account and link, records `sent: false`, and the CLI exits 1 (spawned, mail stubbed).
+- `create` grants no role.
+- `sent: true` with a failed `staff.invite` audit does not print "the email did not go out".
 - Works: link sets a password, then row 1 signs in with the code; the expired path through "Forgot your password?".
 - Races: the same link used twice at once sets one password; two `create` calls at once make one account, one link, one mail;
   a Forgot request replaces the link, and the older one then fails.
