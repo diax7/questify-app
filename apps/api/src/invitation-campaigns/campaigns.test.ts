@@ -297,7 +297,7 @@ describe("campaignDetail", () => {
     expect(detail.messages.ar?.text.startsWith("دعوة إلى مهرجان: ")).toBe(true);
     expect(detail.messages.en?.parts).toBeLessThanOrEqual(3);
     expect(detail.availableChannels).toEqual(["sms"]);
-    expect(detail.pushMessages.ar).toEqual({ title: "مهرجان", body: "لديك دعوة إلى مهرجان." });
+    expect(detail.pushMessages.ar).toEqual({ title: "مهرجان", body: "وصلتك دعوة إلى مهرجان." });
     expect(detail.pushMessages.en).toEqual({
       title: "Festival",
       body: "You have an invitation to Festival.",

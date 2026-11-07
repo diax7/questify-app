@@ -61,7 +61,7 @@ test("sets a finale, counts down, pushes, and shows the winners only after the o
   await page.getByRole("button", { name: "متابعة" }).click();
   await page.getByRole("textbox", { name: "الاسم" }).fill("شاشة المسرح");
   await page.getByRole("button", { name: "ربط", exact: true }).click();
-  await expect(page.getByText("تم الربط. يظهر المحتوى على الشاشة خلال ثوانٍ.")).toBeVisible();
+  await expect(page.getByText("اكتمل الربط. يظهر المحتوى على الشاشة خلال ثوانٍ.")).toBeVisible();
   await expect(screen.getByText("أفضل 10")).toBeVisible({ timeout: 20_000 });
 
   // The owner picks no other scene, sets the finale 40 minutes ahead with the community goal as its last push.

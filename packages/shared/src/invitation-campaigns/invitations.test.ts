@@ -272,7 +272,7 @@ describe("adminInvitationDetailSchema", () => {
     },
     messages: { ar: { text: "دعوة إلى مهرجان الرياض", parts: 2 }, en: null },
     pushMessages: {
-      ar: { title: "مهرجان الرياض", body: "لديك دعوة إلى مهرجان الرياض." },
+      ar: { title: "مهرجان الرياض", body: "وصلتك دعوة إلى مهرجان الرياض." },
       en: null,
     },
     estimate: 1200,

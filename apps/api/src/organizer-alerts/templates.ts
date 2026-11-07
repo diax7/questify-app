@@ -13,7 +13,7 @@ type Wording = Readonly<{ subject: string; ar: string; en: string }>;
 const WORDING: Readonly<Record<OrganizerAlertType, Wording>> = {
   activated: {
     subject: "تفعيل فعالية | An event was activated",
-    ar: "تم تفعيل إحدى فعالياتك.",
+    ar: "فُعّلت إحدى فعالياتك.",
     en: "One of your events was activated.",
   },
   stock_low: {
@@ -22,13 +22,13 @@ const WORDING: Readonly<Record<OrganizerAlertType, Wording>> = {
     en: "The stock of one of your rewards or quest items is running low.",
   },
   codes_low: {
-    subject: "الأكواد على وشك النفاد | Codes are running low",
-    ar: "اقتربت الأكواد المتاحة لإحدى جوائزك الرقمية من النفاد.",
+    subject: "الرموز على وشك النفاد | Codes are running low",
+    ar: "اقتربت الرموز المتاحة لإحدى جوائزك الرقمية من النفاد.",
     en: "The available codes of one of your digital rewards are running low.",
   },
   new_flags: {
-    subject: "علامات جديدة تحتاج مراجعة | New flags to review",
-    ar: "توجد علامات جديدة تنتظر المراجعة في إحدى فعالياتك.",
+    subject: "حالات جديدة تحتاج مراجعة | New flags to review",
+    ar: "توجد حالات جديدة تنتظر المراجعة في إحدى فعالياتك.",
     en: "New flags are waiting for review in one of your events.",
   },
   content_unpublished: {
@@ -38,7 +38,7 @@ const WORDING: Readonly<Record<OrganizerAlertType, Wording>> = {
   },
   support_access: {
     subject: "اطّلع فريق الدعم على فعاليتك | Support looked at your event",
-    ar: "اطّلع فريق دعم كويستفاي على تذاكر إحدى فعالياتك.",
+    ar: "اطّلع فريق دعم Questify على تذاكر إحدى فعالياتك.",
     en: "Questify support looked at the tickets of one of your events.",
   },
   size_limit: {

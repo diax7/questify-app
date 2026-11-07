@@ -60,7 +60,7 @@ test("pairs a big screen, picks and orders its scenes, and shows the ranking, th
   await expect(page.getByText("تقول الشاشة إنها:")).toBeVisible();
   await page.getByRole("textbox", { name: "الاسم" }).fill("شاشة المدخل");
   await page.getByRole("button", { name: "ربط", exact: true }).click();
-  await expect(page.getByText("تم الربط. يظهر المحتوى على الشاشة خلال ثوانٍ.")).toBeVisible();
+  await expect(page.getByText("اكتمل الربط. يظهر المحتوى على الشاشة خلال ثوانٍ.")).toBeVisible();
 
   // The first scene is the ranking, in the board's order, with Western digits.
   await expect(screen.getByText("ملتقى نجد")).toBeVisible({ timeout: 20_000 });
@@ -134,7 +134,7 @@ test("a big screen without the add-on says so, and the Big screen page says the 
 
   await page.goto(`${eventUrl}/big-screen`);
   await expect(
-    page.getByText("الشاشة الكبيرة غير مفعّلة لهذه الفعالية. تواصل مع كويستفاي لتفعيلها."),
+    page.getByText("الشاشة الكبيرة غير مفعّلة لهذه الفعالية. تواصل مع Questify لتفعيلها."),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "حفظ المشاهد" })).toBeDisabled();
 

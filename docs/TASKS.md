@@ -1648,6 +1648,15 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Note 2026-10-21 (T-110): add Q-095 (minors accepting before the birth year, keeping acceptance records after erasure) to the batch; the company details fill the contact page and the drafts' placeholders.
 - [ ] **T-808** Final accessibility-of-text and Arabic copy pass; microcopy review with the ux-araby skill — delivers no FR (infrastructure or quality gate); depends on: T-802
   - Note 2026-11-03 (T-802): read the intro's 17 `onboarding.*` texts in both languages (written with the ux-araby rules: Arabic with "Questify" in Latin letters, masculine imperative, no "تم"; "Skip" is "تخطي" as on the rating prompt) and the intro screens at `/intro` on a phone in Arabic (RTL layout, the Back chevron, the dots' direction, the language step's two options).
+  - Note 2026-11-07 (machine sweep, tier C): the machine-checkable part is done and the task stays open. Covered: all 5,144
+    keys of `messages.ts`, the 407 error texts in `http-errors.ts` (plus `conventions.ts`), the email and alert templates and
+    `ar.json`, scanned for Eastern digits, empty or English Arabic, number and placeholder mismatches against the English,
+    «تم», عرنجي phrasing, tanween and spelling, Latin punctuation and term variants; the longer texts and every error text were
+    also read. Fixed: «كويستفاي» to "Questify" (ADR-125, except SMS), «تم» openings, term variants, spelling, plural-by-number
+    labels, the «منصة الجوائز» meaning error and the busy text of `change_set_busy`. Not covered: the 56 locked legal and
+    consent keys and `rules.*` (T-807), the SMS brand (needs a migration), short labels beyond the scans, and how any screen
+    looks in RTL. Glossary, rules and the list for a human decision: `docs/design/ARABIC_GLOSSARY.md`. A person's read of every
+    screen in both languages is still required.
   - Done when: Every screen has been read in Arabic and English by a person.
 - [ ] **T-809** Independent penetration test against ASVS L2 (core) and MASVS L1 with open-book access; fix or accept in writing every finding — delivers no FR (infrastructure or quality gate); depends on: T-804, T-805
   - Done when: A written report exists; every high or medium finding is fixed and retested, or accepted in writing by the user.

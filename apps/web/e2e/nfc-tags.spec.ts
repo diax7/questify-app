@@ -37,8 +37,8 @@ test("a tag tapped outside the app lands on a page that says to tap it from the 
   await page.goto(`/t/${token}`);
   await expect(page).toHaveURL(new RegExp(`/(ar|en)/t/${token}$`));
   await page.goto(`/ar/t/${token}`);
-  await expect(page.getByRole("heading", { name: "بطاقة كويستفاي" })).toBeVisible();
-  await expect(page.getByText("المس هذه البطاقة من الماسح داخل تطبيق كويستفاي.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "بطاقة Questify" })).toBeVisible();
+  await expect(page.getByText("المس هذه البطاقة من الماسح داخل تطبيق Questify.")).toBeVisible();
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
   await page.getByRole("link", { name: "التبديل إلى English" }).click();
   await expect(page.getByRole("heading", { name: "A Questify tag" })).toBeVisible();

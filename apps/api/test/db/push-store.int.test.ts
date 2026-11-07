@@ -978,7 +978,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push store (database)", () => 
       );
       expect(row === undefined ? null : centerItem(row, "ar")).toMatchObject({
         title: "مهرجان",
-        body: "لديك رسالة جديدة",
+        body: "وصلتك رسالة جديدة",
         optOut: false,
         read: false,
       });

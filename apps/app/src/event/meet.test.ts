@@ -61,7 +61,7 @@ describe("meet refusals", () => {
       "They've reached today's limit. Try again tomorrow.",
     );
     expect(meetRefusalText(refusal("their_daily_cap"), tIn("ar"))).toBe(
-      "بلغ الطرف الآخر حد اليوم. حاول مجددًا غدًا.",
+      "بلغ الطرف الآخر حد اليوم. حاول مرة أخرى غدًا.",
     );
     expect(meetRefusalText(refusal(undefined), t)).toBe(t("questsTab.failed"));
   });

@@ -144,7 +144,7 @@ test("in Arabic the page reads right to left and an Arabic text is edited in a r
   await expect(row.getByTestId("box-en").getByRole("textbox")).toHaveAttribute("dir", "ltr");
   await row.getByTestId("box-ar").getByRole("textbox").fill("أعد المحاولة الآن");
   await row.getByRole("button", { name: "حفظ", exact: true }).click();
-  await expect(page.getByText(`تم حفظ ${key}.`)).toBeVisible();
+  await expect(page.getByText(`حُفظ ${key}.`)).toBeVisible();
   await expect(row.getByTestId("cell-ar")).toContainText("أعد المحاولة الآن");
   await expect(row.getByTestId("cell-ar")).toContainText(`النص الأصلي: ${ar}`);
   await expect(row.getByTestId("cell-en")).toContainText(en);

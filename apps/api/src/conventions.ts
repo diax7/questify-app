@@ -244,7 +244,7 @@ export function registerConventions(app: FastifyInstance, options: ConventionOpt
     const result = await options.idempotencyStore.begin(scope, key, bodyHash(request));
     if (result.kind === "mismatch") {
       throw new HttpError(422, "idempotency_key_reused", {
-        ar: "تم استخدام هذا المفتاح مع طلب مختلف.",
+        ar: "استُخدم هذا المفتاح مع طلب مختلف.",
         en: "This key was already used with a different request.",
       });
     }

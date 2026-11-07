@@ -47,19 +47,19 @@ export const challengeExpired = make(
 export const tooManyAttempts = make(
   429,
   "too_many_attempts",
-  "محاولات كثيرة. حاول مرة أخرى لاحقا.",
+  "محاولات كثيرة. حاول مرة أخرى لاحقًا.",
   "Too many attempts. Try again later.",
 );
 export const tooManyChallenges = make(
   429,
   "too_many_challenges",
-  "طلبات كثيرة لرموز الدخول. حاول مرة أخرى لاحقا.",
+  "طلبات كثيرة لرموز الدخول. حاول مرة أخرى لاحقًا.",
   "Too many sign-in codes were requested. Try again later.",
 );
 export const resendTooSoon = make(
   429,
   "resend_too_soon",
-  "انتظر قليلا قبل طلب رمز جديد.",
+  "انتظر قليلًا قبل طلب رمز جديد.",
   "Wait a moment before asking for a new code.",
 );
 export const resendLimit = make(
@@ -89,7 +89,7 @@ export const busy = make(
 export const emailUnavailable = make(
   503,
   "email_unavailable",
-  "تعذر إرسال الرمز. حاول مرة أخرى بعد قليل.",
+  "تعذّر إرسال الرمز. حاول مرة أخرى بعد قليل.",
   "We could not send the code. Try again shortly.",
 );
 export const invalidRequest = make(
@@ -114,7 +114,7 @@ export const weakPassword = make(
 export const resetLinkInvalid = make(
   410,
   "reset_link_invalid",
-  "انتهت صلاحية الرابط أو استُخدم من قبل. اطلب رابطا جديدا.",
+  "انتهت صلاحية الرابط أو استُخدم من قبل. اطلب رابطًا جديدًا.",
   "This link has expired or was already used. Ask for a new one.",
 );
 export const currentPasswordWrong = make(
@@ -126,7 +126,7 @@ export const currentPasswordWrong = make(
 export const breachCheckUnavailable = make(
   503,
   "breach_check_unavailable",
-  "تعذر فحص كلمة المرور الآن. حاول بعد قليل.",
+  "تعذّر فحص كلمة المرور الآن. حاول بعد قليل.",
   "We could not check the password right now. Try again shortly.",
 );
 export const ownerOnly = make(
@@ -421,7 +421,7 @@ export const questCodeInvalid = make(
 export const idempotencyKeyReused = make(
   422,
   "idempotency_key_reused",
-  "تم استخدام هذا المفتاح مع طلب مختلف.",
+  "استُخدم هذا المفتاح مع طلب مختلف.",
   "This key was already used with a different request.",
 );
 export const hasCompletions = make(
@@ -644,7 +644,7 @@ export const reviewDemoContactHeld = make(
 export const reviewDemoStale = make(
   409,
   "review_demo_stale",
-  "تغيّر العرض التجريبي للتو. حدّث الصفحة وحاول مجددًا.",
+  "تغيّر العرض التجريبي للتو. حدّث الصفحة وحاول مرة أخرى.",
   "The review demo just changed. Refresh the page and try again.",
 );
 export const invalidReviewDemo = make(
@@ -1181,7 +1181,7 @@ export const badDeadline = make(
 export const deskClosedUntilDeadline = make(
   409,
   "desk_closed_until_deadline",
-  "منصة الجوائز لا تفتح قبل هذا الموعد. أضف ساعات عمل قبله أو اختر موعدًا أبعد.",
+  "مكتب الجوائز لا تفتح قبل هذا الموعد. أضف ساعات عمل قبله أو اختر موعدًا أبعد.",
   "The prize desk doesn't open before this deadline. Add desk hours before it or pick a later one.",
 );
 export const prizesLocked = make(
@@ -1903,7 +1903,7 @@ export const invalidBigScreen = make(
 export const bigScreenOff = make(
   403,
   "big_screen_off",
-  "الشاشة الكبيرة غير مفعّلة لهذه الفعالية. تواصل مع كويستفاي لتفعيلها.",
+  "الشاشة الكبيرة غير مفعّلة لهذه الفعالية. تواصل مع Questify لتفعيلها.",
   "The big screen isn't active for this event. Ask Questify to activate it.",
 );
 
@@ -2259,7 +2259,7 @@ export const changeSetFinished = make(
 export const changeSetBusy = make(
   409,
   "change_set_busy",
-  "يجري تطبيق هذه المجموعة الآن، وقد يستغرق ذلك حتى 5 دقائق. حدّث الصفحة بعد قليل.",
+  "يجري تطبيق هذه المجموعة الآن، وقد يستغرق ذلك حتى 5 دقائق. حدّث الصفحة بعد بضع دقائق.",
   "This change set is being applied right now, which can take up to 5 minutes. Refresh the page in a few minutes.",
 );
 /** `field` names what is wrong: items (the list), or itemIds (an id that is not a pending item of the set). */
@@ -2274,13 +2274,13 @@ export const invalidChangeSet = make(
 export const eventSuspended = make(
   423,
   "event_suspended",
-  "أوقفت Questify هذه الفعالية مؤقتا. لا يمكن تعديلها الآن.",
+  "أوقفت Questify هذه الفعالية مؤقتًا. لا يمكن تعديلها الآن.",
   "Questify has paused this event. It cannot be changed right now.",
 );
 export const organizerSuspended = make(
   423,
   "organizer_suspended",
-  "أوقفت Questify هذه الجهة المنظِّمة مؤقتا. لا يمكن تعديلها الآن.",
+  "أوقفت Questify هذه الجهة المنظِّمة مؤقتًا. لا يمكن تعديلها الآن.",
   "Questify has paused this organizer. Nothing can be changed right now.",
 );
 export const eventUnavailable = make(
@@ -2292,13 +2292,13 @@ export const eventUnavailable = make(
 export const invalidReason = make(
   400,
   "invalid_reason",
-  "اكتب سببا من 10 إلى 300 حرف.",
+  "اكتب سببًا من 10 إلى 300 حرف.",
   "Write a reason of 10 to 300 characters.",
 );
 export const alreadyInThatState = make(
   409,
   "suspension_unchanged",
-  "الحالة مطبقة مسبقا.",
+  "الحالة مطبقة مسبقًا.",
   "It is already in that state.",
 );
 export const endOwnSession = make(
@@ -2322,7 +2322,7 @@ export const supportBusy = make(
 export const tooManySupportGrants = make(
   429,
   "too_many_support_grants",
-  "فتحت وصول دعم كثيرا هذه الساعة. حاول لاحقا.",
+  "فتحت وصول دعم كثيرًا هذه الساعة. حاول لاحقًا.",
   "You opened support access too often this hour. Try again later.",
 );
 export const groupPushEventClosed = make(
@@ -2340,7 +2340,7 @@ export const groupPushNobody = make(
 export const tooManyGroupPushes = make(
   429,
   "too_many_group_pushes",
-  "أُرسلت إشعارات جماعية كثيرة هذه الساعة. حاول لاحقا.",
+  "أُرسلت إشعارات جماعية كثيرة هذه الساعة. حاول لاحقًا.",
   "Too many group pushes went out this hour. Try again later.",
 );
 export const invalidCatalog = make(
@@ -2450,13 +2450,13 @@ export const supportViewOnly = make(
 export const invalidPlayerAction = make(
   400,
   "invalid_player_action",
-  "اختر سببا واكتب ملاحظة من 10 إلى 300 حرف.",
+  "اختر سببًا واكتب ملاحظة من 10 إلى 300 حرف.",
   "Choose a reason and write a note of 10 to 300 characters.",
 );
 export const invalidPlayerSearch = make(
   400,
   "invalid_player_search",
-  "اكتب 3 أحرف على الأقل من اسم المستخدم، أو رقم جوال سعوديا، أو بريدا كاملا.",
+  "اكتب 3 أحرف على الأقل من اسم المستخدم، أو رقم جوال سعوديًا، أو بريدًا كاملًا.",
   "Type at least 3 characters of a username, a Saudi mobile number or a full email.",
 );
 export const usernameUnchanged = make(
@@ -2468,7 +2468,7 @@ export const usernameUnchanged = make(
 export const alreadyBanned = make(
   409,
   "already_banned",
-  "هذا الحساب محظور مسبقا.",
+  "هذا الحساب محظور مسبقًا.",
   "This account is already banned.",
 );
 export const notBanned = make(
@@ -2498,7 +2498,7 @@ export const wordExists = make(
 export const blockLimit = make(
   409,
   "block_limit",
-  "وصلت إلى حد 500 لاعب محظور. ألغِ حظر أحدهم أولا.",
+  "وصلت إلى حد 500 لاعب محظور. ألغِ حظر أحدهم أولًا.",
   "You've blocked 500 players, the most allowed. Unblock someone first.",
 );
 /** A report that names no kind, reason or target the lists know, or a note that is too long (T-705b). */
@@ -2566,7 +2566,7 @@ export const sameEmail = make(
 export const emailChangePending = make(
   409,
   "email_change_pending",
-  "يوجد تغيير بريد مفتوح لهذا الحساب. ألغِه أولا.",
+  "يوجد تغيير بريد مفتوح لهذا الحساب. ألغِه أولًا.",
   "This account already has an open email change. Cancel it first.",
 );
 export const emailChangeClosed = make(
@@ -2602,7 +2602,7 @@ export const ownerInactive = make(
 export const tooManyEmailChanges = make(
   429,
   "too_many_email_changes",
-  "بدأت 3 تغييرات لهذا الحساب اليوم. حاول غدا.",
+  "بدأت 3 تغييرات لهذا الحساب اليوم. حاول غدًا.",
   "Three changes were started for this account today. Try tomorrow.",
 );
 export const codeNotSent = make(
@@ -2614,7 +2614,7 @@ export const codeNotSent = make(
 export const emailChangeLinkInvalid = make(
   404,
   "email_change_link_invalid",
-  "انتهت صلاحية الرابط أو أُغلق التغيير. تواصل مع دعم كويستفاي.",
+  "انتهت صلاحية الرابط أو أُغلق التغيير. تواصل مع دعم Questify.",
   "This link has expired or the change is closed. Contact Questify support.",
 );
 export const wrongCodeOrPassword = make(
@@ -2633,21 +2633,21 @@ export const reviewNoneLeft = make(
 export const emailChangeLocked = make(
   429,
   "email_change_locked",
-  "استُنفدت المحاولات. اطلب من دعم كويستفاي البدء من جديد.",
+  "استُنفدت المحاولات. اطلب من دعم Questify البدء من جديد.",
   "No tries are left. Ask Questify support to start again.",
 );
 /** The notice to the old address could not be sent, so the held change closed (ADR-815). */
 export const emailChangeNoticeFailed = make(
   503,
   "email_change_notice_failed",
-  "تعذّر إرسال الإشعار إلى بريدك القديم، فأُغلق التغيير. اطلب من دعم كويستفاي البدء من جديد.",
+  "تعذّر إرسال الإشعار إلى بريدك القديم، فأُغلق التغيير. اطلب من دعم Questify البدء من جديد.",
   "We could not notify your old address, so the change was closed. Ask Questify support to start again.",
 );
 /** The moderation addresses card (T-701b, MA422). */
 export const invalidModerationAddress = make(
   422,
   "invalid_moderation_address",
-  "أدخل بريدا صحيحا أو اتركه فارغا.",
+  "أدخل بريدًا صحيحًا أو اتركه فارغًا.",
   "Enter a valid email or leave it empty.",
 );
 

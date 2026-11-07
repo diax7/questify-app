@@ -69,13 +69,13 @@ test("pairs a station from the Devices page, pays a scan of its code, and blanks
     .selectOption({ label: "شاشة القاعة" });
   await page.getByRole("textbox", { name: "الاسم" }).fill("شاشة القاعة ب");
   await page.getByRole("button", { name: "ربط", exact: true }).click();
-  await expect(page.getByText("تم الربط. يظهر المحتوى على الشاشة خلال ثوانٍ.")).toBeVisible();
+  await expect(page.getByText("اكتمل الربط. يظهر المحتوى على الشاشة خلال ثوانٍ.")).toBeVisible();
   await expectNoSidewaysScroll(page);
 
   await expect(station.getByRole("heading", { name: "شاشة القاعة" })).toBeVisible({
     timeout: 20_000,
   });
-  await expect(station.getByRole("img", { name: "امسح الرمز بتطبيق كويستفاي" })).toBeVisible();
+  await expect(station.getByRole("img", { name: "امسح الرمز بتطبيق Questify" })).toBeVisible();
   await expect(station.getByText("شاشة القاعة ب")).toBeVisible();
   await expectNoSidewaysScroll(station);
 
@@ -122,8 +122,8 @@ test("a station's code scanned outside the app, and a pairing QR, land on pages 
   await page.goto(`/s/${token}`);
   await expect(page).toHaveURL(new RegExp(`/(ar|en)/s/${token}$`));
   await page.goto(`/ar/s/${token}`);
-  await expect(page.getByRole("heading", { name: "رمز شاشة كويستفاي" })).toBeVisible();
-  await expect(page.getByText("امسح هذا الرمز من داخل تطبيق كويستفاي")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "رمز شاشة Questify" })).toBeVisible();
+  await expect(page.getByText("امسح هذا الرمز من داخل تطبيق Questify")).toBeVisible();
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
   await page.goto("/en/pair#ABCDEFGH");
   await expect(page.getByRole("heading", { name: "Pair a device" })).toBeVisible();

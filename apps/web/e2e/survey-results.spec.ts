@@ -58,7 +58,7 @@ test("exports a survey's results, shares them with a speaker and stops sharing",
 
   await page.getByRole("button", { name: "إيقاف المشاركة" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "إيقاف المشاركة" }).click();
-  await expect(page.getByText(/تم إيقاف المشاركة/)).toBeVisible();
+  await expect(page.getByText(/أُوقفت المشاركة/)).toBeVisible();
   await speaker.reload();
   await expect(speaker.getByText("لم يعد هذا الرابط فعّالًا.")).toBeVisible();
   await speaker.goto(link.replace(/#.*$/, ""));

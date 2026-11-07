@@ -47,7 +47,7 @@ test("starts a cheers moment, shows the reactions on the screen, and stops", asy
   await page.getByRole("button", { name: "متابعة" }).click();
   await page.getByRole("textbox", { name: "الاسم" }).fill("شاشة المسرح");
   await page.getByRole("button", { name: "ربط", exact: true }).click();
-  await expect(page.getByText("تم الربط. يظهر المحتوى على الشاشة خلال ثوانٍ.")).toBeVisible();
+  await expect(page.getByText("اكتمل الربط. يظهر المحتوى على الشاشة خلال ثوانٍ.")).toBeVisible();
   await expect(screen.getByText("أفضل 10")).toBeVisible(STATUS);
 
   // The Cheers switch is on from the start; switched off, a moment cannot start.
@@ -78,7 +78,7 @@ test("starts a cheers moment, shows the reactions on the screen, and stops", asy
   await expect(page.getByText(/^مباشرة حتى /)).toBeVisible();
 
   // The screen leaves its scenes for the Cheers scene alone and counts what players send.
-  await expect(screen.getByText("شجّع من تطبيق كويستفاي!")).toBeVisible(STATUS);
+  await expect(screen.getByText("شجّع من تطبيق Questify!")).toBeVisible(STATUS);
   await expect(screen.getByText("أفضل 10")).toHaveCount(0);
   await control(page, "/cheered", { eventId, reactions: ["heart", "heart", "fire"] });
   const hearts = screen
@@ -95,6 +95,6 @@ test("starts a cheers moment, shows the reactions on the screen, and stops", asy
   await page.getByRole("button", { name: "أوقف اللحظة" }).click();
   await expect(page.getByText("انتهت لحظة التشجيع.")).toBeVisible();
   await expect(screen.getByText("أفضل 10")).toBeVisible(STATUS);
-  await expect(screen.getByText("شجّع من تطبيق كويستفاي!")).toHaveCount(0);
+  await expect(screen.getByText("شجّع من تطبيق Questify!")).toHaveCount(0);
   await tv.close();
 });

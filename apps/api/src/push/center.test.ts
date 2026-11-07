@@ -113,7 +113,7 @@ describe("the center", () => {
     });
     expect(centerItem(row(4, { class: "promo", read: true }), "ar")).toMatchObject({
       title: "مهرجان",
-      body: "لديك رسالة جديدة",
+      body: "وصلتك رسالة جديدة",
       optOut: true,
       read: true,
     });

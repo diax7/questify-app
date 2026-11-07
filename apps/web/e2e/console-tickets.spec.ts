@@ -44,17 +44,17 @@ test("an escalated ticket reaches the console, Questify answers, the dashboard s
   const tickets = page.getByTestId("ticket");
   await expect(tickets).toHaveCount(2);
   const first = tickets.filter({ hasText: "أين أستلم جائزتي؟" });
-  await first.getByRole("button", { name: "أحِله إلى كويستفاي" }).click();
+  await first.getByRole("button", { name: "أحِله إلى Questify" }).click();
   await first
-    .getByLabel("ماذا جرّبتم؟ يقرأ هذا فريق كويستفاي، ولا يراه اللاعب")
+    .getByLabel("ماذا جرّبتم؟ يقرأ هذا فريق Questify، ولا يراه اللاعب")
     .fill("سألنا مكتب الجوائز");
   page.once("dialog", (dialog) => void dialog.accept());
   await first.getByRole("button", { name: "أحِل الطلب" }).click();
-  await expect(page.getByRole("button", { name: "لدى كويستفاي (1)" })).toBeVisible();
-  await page.getByRole("button", { name: "لدى كويستفاي (1)" }).click();
+  await expect(page.getByRole("button", { name: "لدى Questify (1)" })).toBeVisible();
+  await page.getByRole("button", { name: "لدى Questify (1)" }).click();
   const waiting = page.getByTestId("ticket");
   await expect(waiting).toHaveCount(1);
-  await expect(waiting).toContainText("ملاحظتكم لكويستفاي: سألنا مكتب الجوائز");
+  await expect(waiting).toContainText("ملاحظتكم إلى Questify: سألنا مكتب الجوائز");
   await expect(waiting.getByRole("button", { name: "أرسل الرد" })).toHaveCount(0);
 
   expect((await page.request.post(`${control}/make-admin`, { data: { eventId } })).status()).toBe(
@@ -68,9 +68,9 @@ test("an escalated ticket reaches the console, Questify answers, the dashboard s
   await expect(row).toContainText("محالة");
   await row.getByRole("link", { name: "أين أستلم جائزتي؟" }).click();
   await expect(page.getByText("ملاحظة فريق الفعالية: سألنا مكتب الجوائز")).toBeVisible();
-  await page.getByLabel("الرد (يراه اللاعب باسم فريق كويستفاي)").fill("من البوابة 3");
+  await page.getByLabel("الرد (يراه اللاعب باسم فريق Questify)").fill("من البوابة 3");
   await page.getByRole("button", { name: "أرسل الرد" }).click();
-  await expect(page.getByText("ردّ عليه فريق كويستفاي")).toBeVisible();
+  await expect(page.getByText("ردّ عليه فريق Questify")).toBeVisible();
 
   await page.goto(`/ar/console/tickets/${never}`);
   await expect(page.getByText("لم نجد هذه التذكرة.")).toBeVisible();
@@ -79,7 +79,7 @@ test("an escalated ticket reaches the console, Questify answers, the dashboard s
   await page.getByRole("button", { name: "مغلقة (1)" }).click();
   const closed = page.getByTestId("ticket");
   await expect(closed).toContainText("من البوابة 3");
-  await expect(closed).toContainText("ردّ عليه فريق كويستفاي");
+  await expect(closed).toContainText("ردّ عليه فريق Questify");
 
   const mine = await page.request.get(`${API}/v1/me/tickets`, {
     headers: { authorization: `Bearer ${player.token}` },

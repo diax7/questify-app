@@ -152,7 +152,7 @@ test("in Arabic the editor reads right to left and a block moves, saves and goes
   await asAdmin(page, info.project.name);
   await page.goto("/ar/console/home");
   await expect(
-    page.getByRole("heading", { name: "صفحة كويستفاي الرئيسية", level: 1 }),
+    page.getByRole("heading", { name: "صفحة Questify الرئيسية", level: 1 }),
   ).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(blockRows(page).getByText("يظهر دائمًا")).toHaveCount(6);
@@ -165,7 +165,7 @@ test("in Arabic the editor reads right to left and a block moves, saves and goes
   expect((await published(page)).blocks.slice(7, 9)).toEqual(["dailyWord", "dailyChallenge"]);
 
   await page
-    .getByRole("button", { name: "التراجع عن آخر تغيير في صفحة كويستفاي الرئيسية" })
+    .getByRole("button", { name: "التراجع عن آخر تغيير في صفحة Questify الرئيسية" })
     .click();
   await expect(page.getByText("عدنا إلى ما قبل التغيير.")).toBeVisible();
   expect((await published(page)).blocks).toEqual(DEFAULT_ORDER);

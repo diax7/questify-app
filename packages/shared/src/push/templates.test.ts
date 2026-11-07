@@ -176,7 +176,7 @@ describe("renderNotice", () => {
     });
     expect(renderNotice(content({ kind: "unknown_kind", language: "ar" }))).toEqual({
       title: "مهرجان الشتاء",
-      body: "لديك رسالة جديدة",
+      body: "وصلتك رسالة جديدة",
       pushable: false,
     });
   });
@@ -364,7 +364,7 @@ describe("the event pushes (T-501e, ADR-354)", () => {
   it("says a milestone in fixed text, and the start's time in the event's zone", () => {
     expect(both("community_step", {})).toEqual([
       "The community reached a new milestone.",
-      "تحقّقت مرحلة جديدة في الهدف الجماعي.",
+      "تحققت مرحلة جديدة في الهدف الجماعي.",
     ]);
     const start = "2026-07-01T17:00:00Z";
     expect(both("event_soon", { time: start })).toEqual([
@@ -383,7 +383,7 @@ describe("the event pushes (T-501e, ADR-354)", () => {
       body: "The event starts at 18:00.",
       pushable: true,
     });
-    expect(both("event_soon", {})).toEqual(["You have a new message", "لديك رسالة جديدة"]);
+    expect(both("event_soon", {})).toEqual(["You have a new message", "وصلتك رسالة جديدة"]);
   });
 });
 
@@ -420,18 +420,18 @@ describe("reminders and promotion (T-501f, ADR-356)", () => {
     ]);
     expect(both("shop_closing", { event: EVENT })).toEqual([
       "You have a new message",
-      "لديك رسالة جديدة",
+      "وصلتك رسالة جديدة",
     ]);
   });
 
   it("invites to the event by its name, else without it", () => {
     expect(both("invitation", { event: EVENT, code: "WINTER26" })).toEqual([
       "You have an invitation to Winter Fest.",
-      "لديك دعوة إلى مهرجان الشتاء.",
+      "وصلتك دعوة إلى مهرجان الشتاء.",
     ]);
     expect(both("invitation", { event: { ar: "+966551234567" } })).toEqual([
       "You have an invitation to an event.",
-      "لديك دعوة إلى فعالية.",
+      "وصلتك دعوة إلى فعالية.",
     ]);
   });
 });

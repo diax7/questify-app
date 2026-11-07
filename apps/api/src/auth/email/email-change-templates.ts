@@ -29,10 +29,10 @@ export function ownerEmailCodeEmail(
   return {
     subject: "تأكيد بريد الدخول الجديد | Confirm your new Questify sign-in email",
     text: [
-      `طلب دعم كويستفاي تغيير بريد الدخول لحساب «${organizerName}» إلى هذا البريد.`,
+      `طلب دعم Questify تغيير بريد الدخول لحساب «${organizerName}» إلى هذا البريد.`,
       `رمز التأكيد: ${code}`,
       `افتح هذا الرابط واكتب الرمز وكلمة المرور الحالية: ${link}`,
-      `الرمز صالح لمدة ${expiresInMinutes} دقيقة. لا تشاركه مع أحد، ولن يطلبه منك فريق الدعم أبدا.`,
+      `الرمز صالح لمدة ${expiresInMinutes} دقيقة. لا تشاركه مع أحد، ولن يطلبه منك فريق الدعم أبدًا.`,
       "",
       `Questify support asked to change the sign-in email of the "${organizerName}" account to this address.`,
       `Confirmation code: ${code}`,
@@ -49,9 +49,9 @@ export function ownerEmailStartedEmail(
   return {
     subject: "طلب تغيير بريد الدخول | A change of your Questify sign-in email was started",
     text: [
-      `بدأ دعم كويستفاي تغيير بريد الدخول لحسابك إلى ${input.newMasked}.`,
+      `بدأ دعم Questify تغيير بريد الدخول لحسابك إلى ${input.newMasked}.`,
       `إذا لم تطلب ذلك، أوقف التغيير من هنا: ${input.stopLink}`,
-      "ثم تواصل مع دعم كويستفاي.",
+      "ثم تواصل مع دعم Questify.",
       "",
       `Questify support started changing your sign-in email to ${input.newMasked}.`,
       `If you did not ask for this, stop the change here: ${input.stopLink}`,
@@ -84,7 +84,7 @@ export function ownerEmailChangedNewEmail(
   return {
     subject: "تغيّر بريد الدخول | Your Questify sign-in email was changed",
     text: [
-      `أصبح بريد الدخول لحسابك في كويستفاي: ${input.email}`,
+      `أصبح بريد الدخول لحسابك في Questify: ${input.email}`,
       `سجّل الدخول من ${input.dashboardOrigin}/ar/sign-in بكلمة مرورك. إن نسيتها فاختر «نسيت كلمة المرور».`,
       "",
       `Your Questify sign-in email is now ${input.email}.`,
@@ -101,7 +101,7 @@ export function ownerEmailChangedOldEmail(
     subject: "تغيّر بريد الدخول | Your Questify sign-in email was changed",
     text: [
       `تغيّر بريد الدخول لحسابك إلى ${input.newMasked}، وخرج الحساب من كل الأجهزة.`,
-      `إذا لم يكن هذا أنت، أبلغ دعم كويستفاي من هنا خلال 7 أيام: ${input.stopLink}`,
+      `إذا لم يكن هذا أنت، أبلغ دعم Questify من هنا خلال 7 أيام: ${input.stopLink}`,
       "",
       `Your sign-in email was changed to ${input.newMasked} and you were signed out everywhere.`,
       `If this was not you, tell Questify support here within 7 days: ${input.stopLink}`,

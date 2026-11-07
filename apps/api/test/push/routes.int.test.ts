@@ -223,7 +223,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("push over HTTP", () => {
       expect(arabic.headers["cache-control"]).toBe("private, no-store");
       const second = notificationListSchema.parse(arabic.json());
       expect(second.items.map((item) => item.title)).toEqual(["مهرجان", "مهرجان"]);
-      expect(second.items[0]?.body).toBe("لديك رسالة جديدة");
+      expect(second.items[0]?.body).toBe("وصلتك رسالة جديدة");
       expect(second.nextBefore).toBe(second.items[1]?.id);
       const unnamed = await test.app.inject({
         method: "GET",

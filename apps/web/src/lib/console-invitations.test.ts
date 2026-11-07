@@ -67,7 +67,7 @@ const detail = {
   },
   messages: { ar: rendered, en: { ...rendered, text: "Invitation to Festival: https://q/en/i#x" } },
   pushMessages: {
-    ar: { title: "مهرجان", body: "لديك دعوة إلى مهرجان." },
+    ar: { title: "مهرجان", body: "وصلتك دعوة إلى مهرجان." },
     en: { title: "Festival", body: "You have an invitation to Festival." },
   },
   estimate: 120,

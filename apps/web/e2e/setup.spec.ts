@@ -51,7 +51,7 @@ test("walks the guided setup, resumes at the saved step and keeps the defaults o
   await page.getByRole("button", { name: "متابعة" }).click();
   await expect(stepBar(page)).toHaveAttribute("aria-valuenow", "2");
   await expect(page.getByRole("heading", { name: "كيف ينضم الحضور؟", level: 2 })).toBeFocused();
-  await page.getByRole("button", { name: "تخطّي الخطوة" }).click();
+  await page.getByRole("button", { name: "تخطي الخطوة" }).click();
   await expect(stepBar(page)).toHaveAttribute("aria-valuenow", "3");
   const early = await savedSetup(page, eventUrl);
   expect(early).toMatchObject({ currentStep: 3, finished: false });
@@ -87,13 +87,13 @@ test("walks the guided setup, resumes at the saved step and keeps the defaults o
   await page.getByRole("link", { name: "تابع الإعداد" }).click();
   await expect(stepBar(page)).toHaveAttribute("aria-valuenow", "6");
 
-  await page.getByRole("button", { name: "تخطّي الإعداد الموجّه" }).click();
+  await page.getByRole("button", { name: "تخطي الإعداد الموجّه" }).click();
   const asking = page.getByRole("alertdialog");
-  await expect(asking).toContainText("تخطّي الإعداد الموجّه؟");
+  await expect(asking).toContainText("تخطي الإعداد الموجّه؟");
   await asking.getByRole("button", { name: "إلغاء" }).click();
   expect((await savedSetup(page, eventUrl)).finished).toBe(false);
-  await page.getByRole("button", { name: "تخطّي الإعداد الموجّه" }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "تخطّي الكل" }).click();
+  await page.getByRole("button", { name: "تخطي الإعداد الموجّه" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "تخطي الكل" }).click();
   await expect(page).toHaveURL(eventUrl);
   await expect(page.getByText("انتهى الإعداد.")).toBeVisible();
   const skipped = await savedSetup(page, eventUrl);
@@ -128,7 +128,7 @@ test("opens one step alone from a build page and returns to it", async ({ page }
   ).toBeVisible();
   await expect(stepBar(page)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "كل الخطوات" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "تخطّي الخطوة" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "تخطي الخطوة" })).toHaveCount(0);
   await page.getByRole("link", { name: "تم" }).click();
   await expect(page).toHaveURL(`${eventUrl}/rewards`);
   expect(await savedSetup(page, eventUrl)).toMatchObject({
@@ -233,7 +233,7 @@ test("shows a step's switches as left after Back and asks before dropping unsave
 
   const guests = page.getByRole("checkbox", { name: "المدعوون في القائمة فقط" });
   await guests.check();
-  await page.getByRole("button", { name: "تخطّي الخطوة" }).click();
+  await page.getByRole("button", { name: "تخطي الخطوة" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "تجاهل", exact: true }).click();
   await expect(stepBar(page)).toHaveAttribute("aria-valuenow", "3");
   await page.getByRole("button", { name: "رجوع" }).click();

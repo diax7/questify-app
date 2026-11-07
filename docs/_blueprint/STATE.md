@@ -3615,6 +3615,22 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
   leaders: diff 257-306 ms (gate 1 s per event). Two mutations (cooldown, membership start) were caught by the tests. CI minutes: 0
   (local only, nothing pushed). Rough worker cost: about 190k tokens / 3 hours (estimate, not billing).
 
+## T-808 Arabic sweep (2026-11-07)
+
+- Tier C, the machine-checkable part of T-808; T-808 stays open because a person must read every screen in both languages.
+  Covered: 5,144 message keys, 407 error texts, email and alert templates, `ar.json`; none of the locked legal and consent keys
+  (56) or `rules.*` (T-807) were edited. No Eastern digits, empty or English-only Arabic text were found.
+- Fixed in about 190 message keys, 28 error lines and 33 template lines: «كويستفاي» to "Questify" (ADR-125, all but the SMS
+  family), «تم» openings to the product's light passive or a نحن verb, «الخاص بك», «لديك» push openings, term variants
+  (مقترن to مرتبط, أكواد to رموز, علامات to حالات, المنظمة to الجهة المنظِّمة, تجاوز to تخطي), tanween and shadda spelling, one
+  retry phrase, labels in place of «N + noun» where the count can be 1 to 10, «منصة الجوائز» to «مكتب الجوائز» (3 texts), and the
+  `change_set_busy` text («بعد بضع دقائق», the mismatch left by the batch 19 review; that clause is out of `FOLLOWUPS.md`).
+  Pinned strings were updated in 18 test files.
+- New: `docs/design/ARABIC_GLOSSARY.md` (terms, rules applied, nine items for a human decision, among them the SMS brand that
+  needs a migration, the `rules.*` text and the «المشارك»/«المشاركة» ambiguity).
+- Checks: Vitest `packages/shared` 1,665; `apps/web` and `apps/app` unit 2,660; `apps/api/src` 2,672; four DB suites 99; format,
+  lint, `lint:limits` and types pass. Not run: browser specs (e2e strings were updated, CI runs them). CI 0 minutes (not pushed).
+
 ## Next
 
 - **2026-11-05 (T-810b):** built; a fresh tier A code review is next, then one `mutation.yml` run on

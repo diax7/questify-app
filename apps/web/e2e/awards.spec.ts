@@ -62,7 +62,7 @@ test("the owner awards, removes and bulk-awards points", async ({ page, request 
   await bulk
     .getByLabel("أسماء المستخدمين أو أرقام الجوال، واحد في كل سطر")
     .fill(`falcon_${tag}\n@ORYX_${tag}\nnobody_${tag}`);
-  await bulk.getByRole("button", { name: "تحقّق" }).click();
+  await bulk.getByRole("button", { name: "تحقق" }).click();
   await expect(bulk.getByText("سيحصل على النقاط: 2")).toBeVisible();
   await expect(bulk.getByText(`غير موجودين: nobody_${tag}`)).toBeVisible();
   await expect(bulk.getByRole("button", { name: "منح", exact: true })).toBeDisabled();

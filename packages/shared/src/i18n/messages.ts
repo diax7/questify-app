@@ -140,7 +140,7 @@ export const MESSAGES = {
   "staff.reauth.code": { ar: "الرمز", en: "Code" },
   "staff.reauth.confirm": { ar: "تأكيد", en: "Confirm" },
   "common.continue": { ar: "متابعة", en: "Continue" },
-  "common.comingSoon": { ar: "قريبا", en: "Coming soon" },
+  "common.comingSoon": { ar: "قريبًا", en: "Coming soon" },
   "settings.language": { ar: "اللغة", en: "Language" },
   "settings.restartTitle": { ar: "تغيير اللغة", en: "Change language" },
   "settings.restartBody": {
@@ -241,10 +241,10 @@ export const MESSAGES = {
     en: "Reward or item stock is running low",
   },
   "alerts.type.codesLow": {
-    ar: "اقتراب نفاد أكواد الجوائز الرقمية",
+    ar: "اقتراب نفاد رموز الجوائز الرقمية",
     en: "Digital reward codes are running low",
   },
-  "alerts.type.newFlags": { ar: "علامات جديدة تحتاج مراجعة", en: "New flags to review" },
+  "alerts.type.newFlags": { ar: "حالات جديدة تحتاج مراجعة", en: "New flags to review" },
   "alerts.type.contentUnpublished": { ar: "إلغاء نشر محتوى", en: "Content is unpublished" },
   "alerts.type.supportAccess": {
     ar: "اطّلاع فريق الدعم على فعاليتك",
@@ -594,7 +594,7 @@ export const MESSAGES = {
   "quests.delete": { ar: "حذف {questOne}", en: "Delete {questOne}" },
   "quests.points.title": { ar: "تغيير نقاط «{title}»؟", en: "Change the points of “{title}”?" },
   "quests.points.reach": {
-    ar: "أُنجزت {completions} مرة حتى الآن من {players} لاعبًا.",
+    ar: "عدد مرات الإنجاز حتى الآن: {completions}، وعدد اللاعبين: {players}.",
     en: "Completed {completions} times so far by {players} players.",
   },
   "quests.points.choose": {
@@ -623,7 +623,7 @@ export const MESSAGES = {
   },
   "quests.points.save": { ar: "حفظ النقاط", en: "Save points" },
   "quests.deletePlayed.legend": {
-    ar: "أُنجزت «{name}» {completions} مرة من {players} لاعبًا. ماذا يحدث لنقاطهم؟",
+    ar: "«{name}»: عدد مرات الإنجاز {completions}، وعدد اللاعبين {players}. ماذا يحدث لنقاطهم؟",
     en: "“{name}” was completed {completions} times by {players} players. What happens to their points?",
   },
   "quests.deletePlayed.keep": {
@@ -833,7 +833,7 @@ export const MESSAGES = {
     en: "Sign-in could not be kept on this phone. Try again.",
   },
   "signIn.offline": {
-    ar: "تعذّر الوصول إلى كويستفاي. تحقّق من اتصالك ثم حاول مرة أخرى.",
+    ar: "تعذّر الوصول إلى Questify. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Questify could not be reached. Check your connection, then try again.",
   },
   "signIn.versionsChanged": {
@@ -869,7 +869,7 @@ export const MESSAGES = {
   "join.waitlistJoin": { ar: "انضم إلى قائمة الانتظار", en: "Join the waiting list" },
   "joinCard.request": { ar: "اطلب الانضمام", en: "Request to join" },
   "join.network": {
-    ar: "تعذّر الوصول إلى كويستفاي. تحقّق من اتصالك ثم حاول مرة أخرى.",
+    ar: "تعذّر الوصول إلى Questify. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Questify could not be reached. Check your connection, then try again.",
   },
   "join.notFound": { ar: "لا توجد فعالية بهذا الرمز.", en: "No event has this code." },
@@ -893,9 +893,9 @@ export const MESSAGES = {
     ar: "لم تنضم إلى فعالية بعد. أدخل رمزها أو افتح رابطها.",
     en: "You have not joined an event yet. Enter its code or open its link.",
   },
-  "home.title": { ar: "كويستفاي", en: "Questify" },
+  "home.title": { ar: "Questify", en: "Questify" },
   "home.eventsFailed": {
-    ar: "تعذّر تحميل فعالياتك. تحقّق من اتصالك ثم حاول مرة أخرى.",
+    ar: "تعذّر تحميل فعالياتك. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Couldn't load your events. Check your connection, then try again.",
   },
   "nav.rewards": { ar: "الجوائز", en: "Rewards" },
@@ -936,13 +936,13 @@ export const MESSAGES = {
   },
   "eventHome.rankingFailed": { ar: "تعذّر تحميل الترتيب.", en: "Couldn't load the ranking." },
   "eventHome.loadFailed": {
-    ar: "تعذّر تحميل الفعالية. تحقّق من اتصالك ثم حاول مرة أخرى.",
+    ar: "تعذّر تحميل الفعالية. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Couldn't load the event. Check your connection, then try again.",
   },
   "eventHome.info": { ar: "عن الفعالية", en: "About the event" },
   "eventPill.label": { ar: "تبديل الفعالية: {name}", en: "Switch event: {name}" },
   "eventPill.title": { ar: "فعالياتك", en: "Your events" },
-  "eventPill.home": { ar: "صفحة كويستفاي الرئيسية", en: "Questify home" },
+  "eventPill.home": { ar: "صفحة Questify الرئيسية", en: "Questify home" },
   "eventInfo.venue": { ar: "المكان", en: "Venue" },
   "eventInfo.openMaps": { ar: "فتح في الخرائط", en: "Open in Maps" },
   "eventInfo.when": { ar: "الموعد", en: "When" },
@@ -963,7 +963,7 @@ export const MESSAGES = {
     en: "No {questMany} yet. Check back soon.",
   },
   "questsTab.loadFailed": {
-    ar: "تعذّر التحميل. تحقّق من اتصالك ثم حاول مرة أخرى.",
+    ar: "تعذّر التحميل. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Couldn't load the {questMany}. Check your connection, then try again.",
   },
   "questsTab.repeat": { ar: "{done} من {cap}", en: "{done} of {cap}" },
@@ -1148,7 +1148,7 @@ export const MESSAGES = {
     en: "Couldn't complete the {questOne}. Try again.",
   },
   "scanner.title": { ar: "امسح الرمز", en: "Scan the {questOne} code" },
-  "scanner.checking": { ar: "قرأنا الرمز! نتحقّق منه…", en: "Scanned! Checking…" },
+  "scanner.checking": { ar: "قرأنا الرمز! نتحقق منه…", en: "Scanned! Checking…" },
   "scanner.claim": { ar: "اجمعها", en: "Claim" },
   "scanner.otherEvent": {
     ar: "احتُسب هذا الرمز في فعالية أخرى من فعالياتك.",
@@ -1158,7 +1158,7 @@ export const MESSAGES = {
     ar: "أنجزت كل ما في «{name}»!",
     en: "You finished every {questOne} in {name}!",
   },
-  "scanner.notQuestify": { ar: "هذا ليس رمز كويستفاي.", en: "This isn't a Questify code." },
+  "scanner.notQuestify": { ar: "هذا ليس رمز Questify.", en: "This isn't a Questify code." },
   "scanner.unavailable": {
     ar: "هذا غير متاح لك.",
     en: "This {questOne} isn't available to you.",
@@ -1226,7 +1226,7 @@ export const MESSAGES = {
   "history.redeem": { ar: "حجز: {title}", en: "Reserved: {title}" },
   "history.redeemReturn": { ar: "استرداد: {title}", en: "Returned: {title}" },
   "history.failed": {
-    ar: "تعذّر تحميل السجل. تحقّق من اتصالك ثم حاول مرة أخرى.",
+    ar: "تعذّر تحميل السجل. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Couldn't load the history. Check your connection, then try again.",
   },
   "ranking.rowLabel": {
@@ -1410,7 +1410,7 @@ export const MESSAGES = {
     en: "Buying in the shop lowers ranking points",
   },
   "rewards.spendLowersRank.hint": {
-    ar: "عند التفعيل يُخصم السعر من نقاط الترتيب أيضًا أثناء الفعالية، فيتبع الترتيب ما بقي مع كل مشارك. قد يحتفظ المشاركون حينها بنقاطهم بدل استخدام المتجر.",
+    ar: "عند التفعيل يُخصم السعر من نقاط الترتيب أيضًا أثناء الفعالية، فيتبع الترتيب ما بقي مع كل لاعب. قد يحتفظ اللاعبون حينها بنقاطهم بدل استخدام المتجر.",
     en: "When on, the price also comes off the ranking during the event, so the ranking follows what each player still holds. Players may then keep their points instead of using the shop.",
   },
   "rewards.spendLowersRank.locked": {
@@ -1423,7 +1423,7 @@ export const MESSAGES = {
   },
   "rewards.reservation": { ar: "حجز الجوائز من التطبيق", en: "Prize reservation in the app" },
   "rewards.reservation.hint": {
-    ar: "عند الإيقاف لا تُحجز الجوائز الملموسة والتجارب من التطبيق: يمسح المكتب رمز المشارك ويعرض عليه الجائزة، فيدفع من جواله ويستلمها فورًا. الجوائز الرقمية تبقى في التطبيق، والحجوزات السابقة تبقى كما هي.",
+    ar: "عند الإيقاف لا تُحجز الجوائز الملموسة والتجارب من التطبيق: يمسح المكتب رمز اللاعب ويعرض عليه الجائزة، فيدفع من جواله ويستلمها فورًا. الجوائز الرقمية تبقى في التطبيق، والحجوزات السابقة تبقى كما هي.",
     en: "When off, items and experiences are not reserved in the app: the desk scans the player's code and offers the prize, and the player pays on their phone and takes it at once. Digital rewards stay in the app, and earlier reservations stand.",
   },
   "rewards.reservation.offTitle": { ar: "إيقاف حجز الجوائز؟", en: "Turn off prize reservation?" },
@@ -1701,11 +1701,11 @@ export const MESSAGES = {
   "account.newPhone": { ar: "رقم الجوال الجديد", en: "New mobile number" },
   "account.newEmail": { ar: "البريد الإلكتروني الجديد", en: "New email" },
   "account.changed": {
-    ar: "تم الحفظ. ادخل به من الآن، فالسابق لم يعد يعمل.",
+    ar: "حُفظ. ادخل به من الآن، فالسابق لم يعد يعمل.",
     en: "Saved. Sign in with it from now on; the old one no longer works.",
   },
   "account.added": {
-    ar: "تمت الإضافة. يمكنك الدخول به أو بالسابق.",
+    ar: "أُضيف. يمكنك الدخول به أو بالسابق.",
     en: "Added. You can sign in with either one.",
   },
   // ---------------------------------------------------------------- signed-in devices (T-810c, FR-140)
@@ -1772,7 +1772,7 @@ export const MESSAGES = {
     en: "If a text message cannot reach you, we send your sign-in code by email.",
   },
   "addEmail.skip": { ar: "ليس الآن", en: "Not now" },
-  "eventPage.getReady": { ar: "استعدّ: ثبّت تطبيق كويستفاي", en: "Get ready: install Questify" },
+  "eventPage.getReady": { ar: "استعدّ: ثبّت تطبيق Questify", en: "Get ready: install Questify" },
   "eventPage.liveNow": { ar: "الفعالية جارية الآن", en: "The event is on now" },
   "eventPage.ended": { ar: "انتهت هذه الفعالية.", en: "This event has ended." },
   "eventPage.code": { ar: "رمز الفعالية", en: "Event code" },
@@ -2187,7 +2187,7 @@ export const MESSAGES = {
   "operators.revoke": { ar: "إلغاء الرمز", en: "Cancel code" },
   "operators.print": { ar: "طباعة الرموز", en: "Print codes" },
   "operators.printHint": {
-    ar: "يمسح الشخص رمزه بتطبيق كويستفاي ويؤكد. كل رمز يعمل مرة واحدة.",
+    ar: "يمسح الشخص رمزه بتطبيق Questify ويؤكد. كل رمز يعمل مرة واحدة.",
     en: "The person scans their code with the Questify app and confirms. Each code works once.",
   },
   "operators.printCard": { ar: "رمز مشغّل لـ {label}", en: "Operator code for {label}" },
@@ -2206,7 +2206,7 @@ export const MESSAGES = {
   },
   "invitePage.title": { ar: "دعوة مشغّل", en: "Operator invite" },
   "invitePage.body": {
-    ar: "افتح هذا الرابط على جوالك وفيه تطبيق كويستفاي، ثم أكّد. أو امسح رمز الدعوة من داخل التطبيق.",
+    ar: "افتح هذا الرابط على جوالك وفيه تطبيق Questify، ثم أكّد. أو امسح رمز الدعوة من داخل التطبيق.",
     en: "Open this link on a phone with the Questify app, then confirm. Or scan the invite code from inside the app.",
   },
   "invitePage.open": { ar: "فتح في التطبيق", en: "Open in the app" },
@@ -2216,7 +2216,7 @@ export const MESSAGES = {
   },
   "operator.claimTitle": { ar: "ستصبح مشغّلًا في {event}", en: "You'll be an operator for {event}" },
   "operator.claimBody": {
-    ar: "ستمسح رموز {playerMany} في هذه الفعالية. يرى المنظِّم اسم المستخدم الخاص بك.",
+    ar: "ستمسح رموز {playerMany} في هذه الفعالية. يرى المنظِّم اسم مستخدمك.",
     en: "You'll scan {playerOne} codes at this event. The organizer sees your username.",
   },
   "operator.confirm": { ar: "تأكيد", en: "Confirm" },
@@ -2333,8 +2333,8 @@ export const MESSAGES = {
     en: "You just bought this. Check before paying again.",
   },
   "myQr.pay": { ar: "ادفع واستلم", en: "Pay and take it" },
-  "myQr.saleDone": { ar: "تم الدفع. {name} لك.", en: "Paid. {name} is yours." },
-  "myQr.checkAgain": { ar: "تنتظر المكتب؟ تحقّق مجددًا", en: "Waiting for the desk? Check again" },
+  "myQr.saleDone": { ar: "اكتمل الدفع. {name} لك.", en: "Paid. {name} is yours." },
+  "myQr.checkAgain": { ar: "تنتظر المكتب؟ تحقق مجددًا", en: "Waiting for the desk? Check again" },
   "operator.desk.alwaysOpen": { ar: "مفتوح طوال الوقت", en: "Open the whole time" },
   "operator.desk.open": { ar: "المكتب مفتوح", en: "The desk is open" },
   "operator.desk.closed": {
@@ -2370,7 +2370,7 @@ export const MESSAGES = {
     en: "Waiting for {player} to accept…",
   },
   "operator.desk.notAccepted": {
-    ar: "لم يُقبل التسليم. حاول مجددًا.",
+    ar: "لم يُقبل التسليم. حاول مرة أخرى.",
     en: "Not accepted. Try again.",
   },
   "operator.desk.done": { ar: "سُلِّمت", en: "Handed over" },
@@ -2483,16 +2483,16 @@ export const MESSAGES = {
   "activation.requestAgain": { ar: "اطلب التفعيل مجددًا", en: "Request again" },
   "activation.limit.none": { ar: "لا حد لعدد اللاعبين.", en: "No player limit." },
   "activation.limit.soft": {
-    ar: "حتى {limit} لاعب، مع تنبيه عند 80%. يبقى الانضمام مفتوحًا.",
+    ar: "حد اللاعبين: {limit}، مع تنبيه عند 80%. يبقى الانضمام مفتوحًا.",
     en: "Up to {limit} players, warning at 80%. Joining stays open.",
   },
   "activation.limit.hard": {
-    ar: "حتى {limit} لاعب. يُغلق الانضمام عند بلوغ الحد.",
+    ar: "حد اللاعبين: {limit}. يُغلق الانضمام عند بلوغ الحد.",
     en: "Up to {limit} players. Joining closes at the limit.",
   },
-  "activation.players": { ar: "انضم {count} لاعب.", en: "{count} players joined." },
+  "activation.players": { ar: "اللاعبون المنضمون: {count}.", en: "{count} players joined." },
   "activation.alert.near": {
-    ar: "انضم {count} من أصل {limit} لاعب.",
+    ar: "اللاعبون المنضمون: {count} من {limit}.",
     en: "{count} of {limit} players joined.",
   },
   "activation.alert.fullHard": {
@@ -2520,7 +2520,7 @@ export const MESSAGES = {
     en: "Rehearsal accounts: {count} of {cap}",
   },
   "rehearsal.counts": {
-    ar: "حتى الآن: {completions} مسح، و{points} نقطة، و{reservations} حجز.",
+    ar: "حتى الآن: المسح {completions}، والنقاط {points}، والحجوزات {reservations}.",
     en: "So far: {completions} scans, {points} points, {reservations} reservations.",
   },
   "rehearsal.notice": {
@@ -2533,11 +2533,11 @@ export const MESSAGES = {
     en: "Every rehearsal scan, point, reservation and account is erased now. Your team joins again with the code.",
   },
   "rehearsal.erased": {
-    ar: "مُسحت بيانات التجربة: {accounts} حساب، و{completions} مسح، و{reservations} حجز.",
+    ar: "مُسحت بيانات التجربة: الحسابات {accounts}، والمسح {completions}، والحجوزات {reservations}.",
     en: "Rehearsal data erased: {accounts} accounts, {completions} scans, {reservations} reservations.",
   },
   "rehearsal.wiped": {
-    ar: "مُسحت بيانات التجربة عند البدء: {accounts} حساب، و{completions} مسح، و{reservations} حجز.",
+    ar: "مُسحت بيانات التجربة عند البدء: الحسابات {accounts}، والمسح {completions}، والحجوزات {reservations}.",
     en: "Rehearsal data erased at go-live: {accounts} accounts, {completions} scans, {reservations} reservations.",
   },
   "rehearsal.over": {
@@ -2718,7 +2718,7 @@ export const MESSAGES = {
     en: "Usernames or mobile numbers, one per line",
   },
   "awards.bulkFile": { ar: "أو ارفع ملف ‎.csv أو ‎.txt", en: "Or upload a .csv or .txt file" },
-  "awards.check": { ar: "تحقّق", en: "Check" },
+  "awards.check": { ar: "تحقق", en: "Check" },
   "awards.matched": { ar: "سيحصل على النقاط: {count}", en: "Will get the points: {count}" },
   "awards.notFound": { ar: "غير موجودين: {lines}", en: "Not found: {lines}" },
   "awards.inactive": {
@@ -2750,7 +2750,7 @@ export const MESSAGES = {
   "flags.empty": { ar: "لا حالات.", en: "No flags." },
   "flags.emptyClosed": { ar: "لا حالات مغلقة بعد.", en: "No closed cases yet." },
   "flags.kind.sharedDevice": {
-    ar: "جوال واحد، {count} حسابات",
+    ar: "جوال واحد، الحسابات: {count}",
     en: "Same phone, {count} accounts",
   },
   "flags.kind.burst": { ar: "{count} مسحًا في وقت قصير", en: "{count} scans in a short time" },
@@ -2871,7 +2871,7 @@ export const MESSAGES = {
   "operator.award.findHint": { ar: "اسم المستخدم أو رقم الجوال", en: "Username or mobile number" },
   "operator.award.search": { ar: "بحث", en: "Search" },
   "operator.award.noMatch": {
-    ar: "لم نجد أحدًا. تحقّق من الاسم أو الرقم.",
+    ar: "لم نجد أحدًا. تحقق من الاسم أو الرقم.",
     en: "No one found. Check the spelling or the number.",
   },
   "operator.award.inactive": {
@@ -3083,7 +3083,7 @@ export const MESSAGES = {
   },
   "results.revealTitle": { ar: "إعلان الفائزين؟", en: "Reveal the winners?" },
   "results.revealBody": {
-    ar: "سيرى الفائزون جوائزهم في التطبيق ويستلمونها من منصة الجوائز قبل {deadline}.",
+    ar: "سيرى الفائزون جوائزهم في التطبيق ويستلمونها من مكتب الجوائز قبل {deadline}.",
     en: "Winners will see their prize in the app and collect it at the prize desk by {deadline}.",
   },
   "results.revealed": { ar: "أُعلن الفائزون.", en: "The winners are revealed." },
@@ -3093,7 +3093,7 @@ export const MESSAGES = {
   },
   "win.title": { ar: "فزت بجائزة!", en: "You won a prize!" },
   "win.body": {
-    ar: "المركز {rank}: {prize}. استلمها من منصة الجوائز قبل {deadline}.",
+    ar: "المركز {rank}: {prize}. استلمها من مكتب الجوائز قبل {deadline}.",
     en: "Rank {rank}: {prize}. Collect it at the prize desk by {deadline}.",
   },
   "win.open": { ar: "عرض الجائزة", en: "See the prize" },
@@ -3107,7 +3107,7 @@ export const MESSAGES = {
   "heldPrizes.title": { ar: "جوائز بانتظار الاستلام", en: "Prizes to collect" },
   "heldPrizes.openMyQr": { ar: "افتح رمزي", en: "Open My QR" },
   "info.rules": { ar: "القواعد الرسمية", en: "Official rules" },
-  "level.up": { ar: "ارتقيت مستوى!", en: "Level up!" },
+  "level.up": { ar: "ارتقيت إلى مستوى أعلى!", en: "Level up!" },
   "level.number": { ar: "المستوى {level}", en: "Level {level}" },
   "level.upLine": {
     ar: "ارتقيت إلى المستوى {level}: {title}",
@@ -3155,7 +3155,7 @@ export const MESSAGES = {
   },
   "submission.guidelines": { ar: "إرشادات المجتمع", en: "Community guidelines" },
   "submission.loadFailed": {
-    ar: "تعذّر تحميل إجاباتك. أعد المحاولة.",
+    ar: "تعذّر تحميل إجاباتك. حاول مرة أخرى.",
     en: "Couldn't load your answers. Try again.",
   },
   "operator.review.empty": {
@@ -3170,9 +3170,9 @@ export const MESSAGES = {
   "operator.review.approve": { ar: "اقبل", en: "Approve" },
   "operator.review.reject": { ar: "ارفض", en: "Reject" },
   "operator.review.reason": { ar: "سبب الرفض", en: "Reason for rejecting" },
-  "operator.review.done": { ar: "تمت المراجعة.", en: "Reviewed." },
+  "operator.review.done": { ar: "اكتملت المراجعة.", en: "Reviewed." },
   "operator.review.loadFailed": {
-    ar: "تعذّر تحميل المشاركات. أعد المحاولة.",
+    ar: "تعذّر تحميل المشاركات. حاول مرة أخرى.",
     en: "Couldn't load the submissions. Try again.",
   },
   "submissions.link": { ar: "المشاركات", en: "Submissions" },
@@ -3180,7 +3180,7 @@ export const MESSAGES = {
   "submissions.filter.pending": { ar: "بانتظار المراجعة", en: "Waiting" },
   "submissions.filter.unseen": { ar: "قُبلت تلقائيًا ولم تُقرأ", en: "Auto-approved, not read" },
   "submissions.filter.marked": { ar: "فيها كلمة ممنوعة", en: "Listed words" },
-  "submissions.filter.done": { ar: "تمت مراجعتها", en: "Reviewed" },
+  "submissions.filter.done": { ar: "رُوجعت", en: "Reviewed" },
   "submissions.empty": { ar: "لا شيء هنا.", en: "Nothing here." },
   "submissions.from": { ar: "{player} · {quest}", en: "{player} · {quest}" },
   "submissions.deletedPlayer": { ar: "حساب محذوف", en: "Deleted account" },
@@ -3384,7 +3384,7 @@ export const MESSAGES = {
     en: "You've reached today's limit ({count}). You can meet more tomorrow.",
   },
   "meet.refused.theirDailyCap": {
-    ar: "بلغ الطرف الآخر حد اليوم. حاول مجددًا غدًا.",
+    ar: "بلغ الطرف الآخر حد اليوم. حاول مرة أخرى غدًا.",
     en: "They've reached today's limit. Try again tomorrow.",
   },
   "meet.refused.done": {
@@ -3854,8 +3854,8 @@ export const MESSAGES = {
   "community.measure.players": { ar: "عدد المشاركين", en: "{playerCap} taking part" },
   "community.endsIn": { ar: "ينتهي خلال {time}", en: "Ends in {time}" },
   "community.counting": { ar: "نحسب آخر النقاط…", en: "Counting the last points…" },
-  "community.reached": { ar: "تحقّق الهدف!", en: "Reached!" },
-  "community.notReached": { ar: "لم يتحقّق الهدف", en: "Not reached" },
+  "community.reached": { ar: "تحقق الهدف!", en: "Reached!" },
+  "community.notReached": { ar: "لم يتحقق الهدف", en: "Not reached" },
   "community.forContributors": {
     ar: "+{points} لكل من شارك",
     en: "+{points} for everyone who took part",
@@ -3869,7 +3869,7 @@ export const MESSAGES = {
   "community.step": { ar: "عند {threshold}: {reward}", en: "At {threshold}: {reward}" },
   "community.nothing": { ar: "إنجاز للجميع", en: "A win for everyone" },
   "community.bar": { ar: "تقدّم الجميع", en: "Community {questOne} progress" },
-  "community.momentTitle": { ar: "تحقّق هدف جماعي", en: "A community goal is reached" },
+  "community.momentTitle": { ar: "تحقق هدف جماعي", en: "A community goal is reached" },
   "community.paidTitle": { ar: "وصلت مكافأتك الجماعية", en: "Your community reward is in" },
   "community.unlock.points": {
     ar: "يُفتح حين تبلغ النقاط الجماعية {threshold}",
@@ -3888,7 +3888,7 @@ export const MESSAGES = {
     en: "Unlocks with a community goal that starts {time}",
   },
   "community.unlock.missed": {
-    ar: "لم يُفتح: لم يتحقّق الهدف الجماعي",
+    ar: "لم يُفتح: لم يتحقق الهدف الجماعي",
     en: "Not unlocked: the community goal was missed",
   },
   "community.reward.unlock": { ar: "يفتح {name}", en: "Unlocks {name}" },
@@ -3970,7 +3970,7 @@ export const MESSAGES = {
     en: "{name} (another community {questOne} unlocks it)",
   },
   "community.page.unlock.note": {
-    ar: "يبقى مقفلًا للاعبين من لحظة الحفظ حتى تحقيق هذه المحطة، ويبقى مقفلًا إن لم تتحقّق.",
+    ar: "يبقى مقفلًا للاعبين من لحظة الحفظ حتى تحقيق هذه المحطة، ويبقى مقفلًا إن لم تتحقق.",
     en: "Players see it locked from the moment you save until this step is reached, and it stays locked if it isn't.",
   },
   "community.page.titleHint": {
@@ -4004,8 +4004,8 @@ export const MESSAGES = {
   "community.page.window": { ar: "{start} إلى {end}", en: "{start} to {end}" },
   "community.page.status.scheduled": { ar: "مجدولة", en: "Scheduled" },
   "community.page.status.running": { ar: "جارية", en: "Running" },
-  "community.page.status.reached": { ar: "تحقّقت", en: "Reached" },
-  "community.page.status.missed": { ar: "لم تتحقّق", en: "Missed" },
+  "community.page.status.reached": { ar: "تحققت", en: "Reached" },
+  "community.page.status.missed": { ar: "لم تتحقق", en: "Missed" },
   "community.page.payouts": {
     ar: "صُرفت {paid}، بانتظار الصرف {due}، تُخطّيت {skipped}",
     en: "{paid} paid, {due} waiting, {skipped} skipped",
@@ -4143,7 +4143,7 @@ export const MESSAGES = {
     en: "NFC is off. Turn it on in Settings, or scan the QR.",
   },
   "scanner.nfc.notQuestify": {
-    ar: "هذه البطاقة ليست من كويستفاي.",
+    ar: "هذه البطاقة ليست من Questify.",
     en: "This isn't a Questify tag.",
   },
   "operator.nfc.write": { ar: "كتابة بطاقة NFC", en: "Write NFC tag" },
@@ -4171,7 +4171,7 @@ export const MESSAGES = {
     en: "This tag is locked, so it can't be written.",
   },
   "operator.nfc.taken": {
-    ar: "على هذه البطاقة رابط من كويستفاي، وقد لا يكون مسجّلًا. اختر «إعادة الكتابة» لتكتبها لما اخترته.",
+    ar: "على هذه البطاقة رابط من Questify، وقد لا يكون مسجّلًا. اختر «إعادة الكتابة» لتكتبها لما اخترته.",
     en: "This tag already holds a Questify link, which may not be registered. Choose Rewrite to write it for this {questOne}.",
   },
   "operator.nfc.notLocked": {
@@ -4188,7 +4188,7 @@ export const MESSAGES = {
     en: "NFC is off on this phone. Turn it on in Settings, then try again.",
   },
   "operator.nfc.unusable": {
-    ar: "لا يحمل هذا النوع من البطاقات رابط كويستفاي. استخدم ملصقات NTAG213 أو NTAG215.",
+    ar: "لا يحمل هذا النوع من البطاقات رابط Questify. استخدم ملصقات NTAG213 أو NTAG215.",
     en: "This kind of tag can't hold a Questify link. Use NTAG213 or NTAG215 stickers.",
   },
   "operator.nfc.unsupported": {
@@ -4227,9 +4227,9 @@ export const MESSAGES = {
     en: "Making a new QR doesn't revoke the NFC tags.",
   },
   "tags.failed": { ar: "تعذّر الحفظ. حاول مرة أخرى.", en: "Couldn't save. Try again." },
-  "tag.landing.title": { ar: "بطاقة كويستفاي", en: "A Questify tag" },
+  "tag.landing.title": { ar: "بطاقة Questify", en: "A Questify tag" },
   "tag.landing": {
-    ar: "المس هذه البطاقة من الماسح داخل تطبيق كويستفاي.",
+    ar: "المس هذه البطاقة من الماسح داخل تطبيق Questify.",
     en: "Tap this tag inside the Questify app, from the scanner.",
   },
   "flags.kind.nfcCopy": {
@@ -4273,12 +4273,12 @@ export const MESSAGES = {
     en: "Ask the event team to pair this screen with this code",
   },
   "device.pair.scanHint": {
-    ar: "أو امسح هذا الرمز من تطبيق كويستفاي: الأدوات ← ربط جهاز",
+    ar: "أو امسح هذا الرمز من تطبيق Questify: الأدوات ← ربط جهاز",
     en: "Or scan this in the Questify app: Tools → Pair a device",
   },
   "device.pair.starting": { ar: "جارٍ التجهيز…", en: "Getting ready…" },
   "device.pair.busy": {
-    ar: "الخدمة مشغولة. نحاول مجددًا بعد قليل…",
+    ar: "الخدمة مشغولة. نحاول مرة أخرى بعد قليل…",
     en: "We're busy. Trying again in a moment…",
   },
   "device.pair.otherKind": {
@@ -4301,7 +4301,7 @@ export const MESSAGES = {
   "device.shut.eventEnded": { ar: "انتهت الفعالية", en: "This event has ended" },
   "device.notAvailable": { ar: "غير متاح حاليًا", en: "Not available" },
   "kiosk.show": { ar: "اعرض رمزك المباشر أمام الكاميرا", en: "Show your live code to the camera" },
-  "kiosk.howTo": { ar: "في كويستفاي: رمزي ← للأكشاك", en: "In Questify: My QR → For kiosks" },
+  "kiosk.howTo": { ar: "في Questify: رمزي ← للأكشاك", en: "In Questify: My QR → For kiosks" },
   "kiosk.paid": { ar: "+{points} نقطة", en: "+{points} points" },
   "kiosk.boosted": { ar: "×2", en: "×2" },
   "kiosk.already": { ar: "أنجزتها من قبل", en: "Already done" },
@@ -4313,7 +4313,7 @@ export const MESSAGES = {
     ar: "انتهت صلاحية هذا الرمز. اعرض الرمز الجديد",
     en: "This code has expired. Show the new one",
   },
-  "kiosk.invalid": { ar: "هذا ليس رمزًا من كويستفاي", en: "This isn't a Questify code" },
+  "kiosk.invalid": { ar: "هذا ليس رمزًا من Questify", en: "This isn't a Questify code" },
   "kiosk.notInEvent": {
     ar: "لم ينضم هذا الحساب إلى هذه الفعالية",
     en: "This account hasn't joined this event",
@@ -4346,7 +4346,7 @@ export const MESSAGES = {
   "kiosk.camera.switch": { ar: "تبديل الكاميرا", en: "Switch camera" },
   "kiosk.camera.label": { ar: "كاميرا الكشك", en: "The kiosk's camera" },
   "station.points": { ar: "{points} نقطة", en: "{points} points" },
-  "station.scan": { ar: "امسح الرمز بتطبيق كويستفاي", en: "Scan with the Questify app" },
+  "station.scan": { ar: "امسح الرمز بتطبيق Questify", en: "Scan with the Questify app" },
   "screen.score": { ar: "{currency}: {score}", en: "{score} {currency}" },
   "screen.ranking.title": { ar: "أفضل 10", en: "Top 10" },
   "screen.ranking.empty": { ar: "لم يسجّل أحد نقاطًا بعد", en: "No one has scored yet" },
@@ -4374,14 +4374,14 @@ export const MESSAGES = {
   "screen.finale.push": { ar: "الدفعة الأخيرة", en: "The last push" },
   "screen.finale.soon": { ar: "يُعلن الفائزون بعد قليل", en: "The winners will be announced soon" },
   "screen.finale.winners": { ar: "الفائزون", en: "The winners" },
-  "screen.landing.title": { ar: "رمز شاشة كويستفاي", en: "A Questify screen code" },
+  "screen.landing.title": { ar: "رمز شاشة Questify", en: "A Questify screen code" },
   "screen.landing": {
-    ar: "امسح هذا الرمز من داخل تطبيق كويستفاي",
+    ar: "امسح هذا الرمز من داخل تطبيق Questify",
     en: "Scan this code inside the Questify app",
   },
   "pair.landing.title": { ar: "ربط جهاز", en: "Pair a device" },
   "pair.landing": {
-    ar: "افتح تطبيق كويستفاي، ثم الأدوات ← ربط جهاز",
+    ar: "افتح تطبيق Questify، ثم الأدوات ← ربط جهاز",
     en: "Open Questify, then Tools → Pair a device",
   },
   "devices.link": { ar: "الأجهزة", en: "Devices" },
@@ -4401,7 +4401,7 @@ export const MESSAGES = {
   "devices.labelHint": { ar: "مثل: شاشة القاعة ب", en: "For example: Hall B TV" },
   "devices.confirm": { ar: "ربط", en: "Pair" },
   "devices.done": {
-    ar: "تم الربط. يظهر المحتوى على الشاشة خلال ثوانٍ.",
+    ar: "اكتمل الربط. يظهر المحتوى على الشاشة خلال ثوانٍ.",
     en: "Paired. The screen shows it in a few seconds.",
   },
   "devices.noQuests": {
@@ -4450,7 +4450,7 @@ export const MESSAGES = {
   "bigScreen.link": { ar: "الشاشة الكبيرة", en: "Big screen" },
   "bigScreen.title": { ar: "الشاشة الكبيرة", en: "Big screen" },
   "bigScreen.intro": {
-    ar: "اختر المشاهد التي تعرضها الشاشة الكبيرة ورتّبها. يبقى كل مشهد 15 ثانية، ويُتجاوز المشهد الذي لا شيء فيه. افتح صفحة الشاشة الكبيرة في متصفح التلفاز أو الحاسوب، ثم اربطها من صفحة الأجهزة.",
+    ar: "اختر المشاهد التي تعرضها الشاشة الكبيرة ورتّبها. يبقى كل مشهد 15 ثانية، ويُتخطّى المشهد الذي لا شيء فيه. افتح صفحة الشاشة الكبيرة في متصفح التلفاز أو الحاسوب، ثم اربطها من صفحة الأجهزة.",
     en: "Pick the scenes the big screen shows and set their order. Each scene stays up for 15 seconds, and a scene with nothing to show is skipped. Open the big screen page in a TV or laptop browser, then pair it from the Devices page.",
   },
   "bigScreen.scenes": { ar: "المشاهد", en: "Scenes" },
@@ -4473,7 +4473,7 @@ export const MESSAGES = {
     en: "The ranking is off for this event, so its scene isn't offered.",
   },
   "bigScreen.off": {
-    ar: "الشاشة الكبيرة غير مفعّلة لهذه الفعالية. تواصل مع كويستفاي لتفعيلها.",
+    ar: "الشاشة الكبيرة غير مفعّلة لهذه الفعالية. تواصل مع Questify لتفعيلها.",
     en: "The big screen isn't active for this event. Ask Questify to activate it.",
   },
   "bigScreen.loadFailed": { ar: "تعذّر تحميل المشاهد.", en: "Couldn't load the scenes." },
@@ -4543,10 +4543,10 @@ export const MESSAGES = {
   "operator.devices.mine": { ar: "أجهزتي المرتبطة", en: "My paired devices" },
   "operator.devices.scan": { ar: "امسح الرمز على الشاشة", en: "Scan the code on the screen" },
   "operator.devices.notPair": {
-    ar: "هذا ليس رمز ربط من كويستفاي.",
+    ar: "هذا ليس رمز ربط من Questify.",
     en: "This isn't a Questify pairing code.",
   },
-  "operator.devices.done": { ar: "تم ربط «{label}».", en: "“{label}” is paired." },
+  "operator.devices.done": { ar: "رُبط «{label}».", en: "“{label}” is paired." },
   "operator.devices.none": { ar: "لم تربط أي جهاز بعد.", en: "You haven't paired a device yet." },
   "operator.devices.stationsOnly": {
     ar: "من وضع الطاقم تُربط المحطات والأكشاك الذاتية. تُربط الشاشات الكبيرة من لوحة التحكم.",
@@ -4591,7 +4591,7 @@ export const MESSAGES = {
   "help.mine": { ar: "طلباتك", en: "Your requests" },
   "help.none": { ar: "لم ترسل أي طلب بعد.", en: "You haven't sent a request yet." },
   "help.loadFailed": {
-    ar: "تعذّر تحميل طلباتك. أعد المحاولة.",
+    ar: "تعذّر تحميل طلباتك. حاول مرة أخرى.",
     en: "Couldn't load your requests. Try again.",
   },
   "help.kind.question": { ar: "سؤال", en: "Question" },
@@ -4626,7 +4626,7 @@ export const MESSAGES = {
     en: "You can't send new requests for this event. Your answers stay here",
   },
   "help.appProblem": {
-    ar: "مشكلة في التطبيق نفسه؟ تواصل مع كويستفاي",
+    ar: "مشكلة في التطبيق نفسه؟ تواصل مع Questify",
     en: "A problem with the app itself? Contact Questify",
   },
   "home.helpAnswered": { ar: "ردّ عليك فريق الفعالية", en: "The event team answered you" },
@@ -4637,7 +4637,7 @@ export const MESSAGES = {
     en: "Your inbox is off for this event",
   },
   "operator.inbox.loadFailed": {
-    ar: "تعذّر تحميل الوارد. أعد المحاولة.",
+    ar: "تعذّر تحميل الوارد. حاول مرة أخرى.",
     en: "Couldn't load the inbox. Try again.",
   },
   "operator.inbox.submission": { ar: "مشاركة", en: "Submission" },
@@ -4663,7 +4663,7 @@ export const MESSAGES = {
   },
   "operator.ticket.done": { ar: "أُغلق الطلب.", en: "The request is closed." },
   "operator.ticket.loadFailed": {
-    ar: "تعذّر تحميل الطلب. أعد المحاولة.",
+    ar: "تعذّر تحميل الطلب. حاول مرة أخرى.",
     en: "Couldn't load the request. Try again.",
   },
   "tickets.page": { ar: "المساعدة", en: "Help desk" },
@@ -4707,7 +4707,7 @@ export const MESSAGES = {
   "help.type.app": { ar: "مشكلة في التطبيق", en: "App problem" },
   "help.type.suggestion": { ar: "اقتراح", en: "Suggestion" },
   "help.to.event": { ar: "يصل إلى فريق الفعالية", en: "Goes to the event team" },
-  "help.to.questify": { ar: "يصل إلى فريق كويستفاي", en: "Goes to the Questify team" },
+  "help.to.questify": { ar: "يصل إلى فريق Questify", en: "Goes to the Questify team" },
   "help.event.question": { ar: "سؤال", en: "A question" },
   "help.event.prize": { ar: "مشكلة في جائزة", en: "A prize problem" },
   "help.event.other": { ar: "أمر آخر هنا", en: "Something else here" },
@@ -4736,28 +4736,28 @@ export const MESSAGES = {
     en: "What didn't work in the app?",
   },
   "help.placeholder.suggestion": {
-    ar: "ما الذي يجعل كويستفاي أفضل؟",
+    ar: "ما الذي يجعل Questify أفضل؟",
     en: "What would make Questify better?",
   },
   "help.private.event": {
-    ar: "لا يراه إلا أنت وفريق الفعالية، وإن طلبوا مساعدة كويستفاي فسيراه فريق كويستفاي أيضًا",
+    ar: "لا يراه إلا أنت وفريق الفعالية، وإن طلبوا مساعدة Questify فسيراه فريق Questify أيضًا",
     en: "Only you and the event team can see this. If they ask Questify for help, the Questify team can see it too",
   },
   "help.private.questify": {
-    ar: "لا يراه إلا أنت وفريق كويستفاي",
+    ar: "لا يراه إلا أنت وفريق Questify",
     en: "Only you and the Questify team can see this",
   },
   "help.device.sentWith": { ar: "يُرسل معه: {facts}", en: "Sent with: {facts}" },
   "help.needEvent": { ar: "انضم إلى فعالية لاستخدام هذا", en: "Join an event to use this" },
   "help.pickEvent": { ar: "في أي فعالية؟", en: "Which event?" },
-  "help.status.withQuestify": { ar: "لدى فريق كويستفاي", en: "With the Questify team" },
-  "help.replyFromQuestify": { ar: "فريق كويستفاي", en: "The Questify team" },
+  "help.status.withQuestify": { ar: "لدى فريق Questify", en: "With the Questify team" },
+  "help.replyFromQuestify": { ar: "فريق Questify", en: "The Questify team" },
   "help.sentQuestify": {
-    ar: "أُرسل طلبك، وسيصلك ردّ فريق كويستفاي هنا",
+    ar: "أُرسل طلبك، وسيصلك ردّ فريق Questify هنا",
     en: "Sent. The Questify team will answer here",
   },
   "help.tooManyPlatform": {
-    ar: "لديك 3 طلبات بانتظار رد فريق كويستفاي",
+    ar: "لديك 3 طلبات بانتظار رد فريق Questify",
     en: "You have 3 requests waiting for the Questify team",
   },
   "help.reportedName": { ar: "البلاغ عن: @{username}", en: "Reported: @{username}" },
@@ -4771,25 +4771,28 @@ export const MESSAGES = {
     en: "This request moved to the event's owners",
   },
   "operator.inbox.prize": { ar: "جائزة", en: "Prize" },
-  "tickets.withQuestify": { ar: "لدى كويستفاي ({count})", en: "With Questify ({count})" },
-  "tickets.escalate": { ar: "أحِله إلى كويستفاي", en: "Escalate to Questify" },
+  "tickets.withQuestify": { ar: "لدى Questify ({count})", en: "With Questify ({count})" },
+  "tickets.escalate": { ar: "أحِله إلى Questify", en: "Escalate to Questify" },
   "tickets.escalate.note": {
-    ar: "ماذا جرّبتم؟ يقرأ هذا فريق كويستفاي، ولا يراه اللاعب",
+    ar: "ماذا جرّبتم؟ يقرأ هذا فريق Questify، ولا يراه اللاعب",
     en: "What did you try? The Questify team reads this, the player doesn't",
   },
   "tickets.escalate.confirm": {
-    ar: "سيرد فريق كويستفاي على اللاعب، ويبقى الطلب ظاهرًا لك هنا",
+    ar: "سيرد فريق Questify على اللاعب، ويبقى الطلب ظاهرًا لك هنا",
     en: "The Questify team will answer the player. You can still read it here",
   },
   "tickets.escalate.send": { ar: "أحِل الطلب", en: "Escalate" },
-  "tickets.escalatedNote": { ar: "ملاحظتكم لكويستفاي: {note}", en: "Your note to Questify: {note}" },
+  "tickets.escalatedNote": {
+    ar: "ملاحظتكم إلى Questify: {note}",
+    en: "Your note to Questify: {note}",
+  },
   "tickets.escalatedBy": { ar: "أحاله {name}", en: "Escalated by {name}" },
-  "tickets.returned": { ar: "أعاده فريق كويستفاي: {note}", en: "Sent back by Questify: {note}" },
+  "tickets.returned": { ar: "أعاده فريق Questify: {note}", en: "Sent back by Questify: {note}" },
   "tickets.answeredByQuestify": {
-    ar: "ردّ عليه فريق كويستفاي",
+    ar: "ردّ عليه فريق Questify",
     en: "Answered by the Questify team",
   },
-  "tickets.closedByQuestify": { ar: "أغلقه فريق كويستفاي", en: "Closed by the Questify team" },
+  "tickets.closedByQuestify": { ar: "أغلقه فريق Questify", en: "Closed by the Questify team" },
   "tickets.kind.report": { ar: "بلاغ عن لاعب", en: "Report a player" },
   "tickets.kind.prize": { ar: "جائزة", en: "Prize" },
   "tickets.kind.app": { ar: "مشكلة في التطبيق", en: "App problem" },
@@ -4807,7 +4810,7 @@ export const MESSAGES = {
   "console.tickets.device": { ar: "الجهاز", en: "Device" },
   "console.tickets.sent": { ar: "أُرسل {date}", en: "Sent {date}" },
   "console.tickets.reply": {
-    ar: "الرد (يراه اللاعب باسم فريق كويستفاي)",
+    ar: "الرد (يراه اللاعب باسم فريق Questify)",
     en: "Reply (the player sees it from the Questify team)",
   },
   "console.tickets.teamNote": {
@@ -4893,7 +4896,7 @@ export const MESSAGES = {
     en: "No earned items here yet. Complete quests to level up.",
   },
   "locker.failed": {
-    ar: "تعذّر تحميل الخزانة. تحقق من اتصالك وأعد المحاولة.",
+    ar: "تعذّر تحميل الخزانة. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Could not load your locker. Check your connection and try again.",
   },
   "locker.saved": { ar: "حُفظت التغييرات.", en: "Changes saved." },
@@ -4902,7 +4905,7 @@ export const MESSAGES = {
   "locker.fromEvent": { ar: "تذكار من {event}", en: "Souvenir from {event}" },
   "souvenir.title": { ar: "تذكارات الفعالية", en: "Event souvenirs" },
   "souvenir.empty": {
-    ar: "لا تذكارات بعد. أضف تذكارًا للمشاركين.",
+    ar: "لا تذكارات بعد. أضف تذكارًا للاعبين.",
     en: "No souvenirs yet. Add one for your players.",
   },
   "souvenir.add": { ar: "أضف تذكارًا", en: "Add souvenir" },
@@ -4996,7 +4999,7 @@ export const MESSAGES = {
     en: "The 100-souvenir limit is reached. Delete a draft to add one.",
   },
   "souvenir.keyError": {
-    ar: "مفتاح المحاولة مستخدم لطلب آخر. حدّث الصفحة وحاول مجددًا.",
+    ar: "مفتاح المحاولة مستخدم لطلب آخر. حدّث الصفحة وحاول مرة أخرى.",
     en: "This retry key belongs to another request. Refresh and try again.",
   },
   "souvenir.eventDeleteError": {
@@ -5035,11 +5038,11 @@ export const MESSAGES = {
   "locker.equippedTitle": { ar: "لقبك المختار", en: "Equipped title" },
   "locker.rewardLine": { ar: "مكافآتك الجديدة: {items}", en: "Your new rewards: {items}" },
   "profile.failed": {
-    ar: "تعذّر تحميل الحساب. تحقق من اتصالك وأعد المحاولة.",
+    ar: "تعذّر تحميل الحساب. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Could not load the profile. Check your connection and try again.",
   },
   "profile.saveFailed": {
-    ar: "تعذّر حفظ التغييرات. تحقق من اتصالك وأعد المحاولة.",
+    ar: "تعذّر حفظ التغييرات. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Could not save your changes. Check your connection and try again.",
   },
   "profile.equippedTitle": { ar: "اللقب المختار", en: "Equipped title" },
@@ -5057,7 +5060,7 @@ export const MESSAGES = {
   },
   "achievements.topTier": { ar: "بلغت أعلى درجة", en: "Top tier reached" },
   "achievements.failed": {
-    ar: "تعذّر تحميل الإنجازات. تحقق من اتصالك وأعد المحاولة.",
+    ar: "تعذّر تحميل الإنجازات. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Could not load the achievements. Check your connection and try again.",
   },
   "passport.title": { ar: "جواز الفعاليات", en: "Event Passport" },
@@ -5073,7 +5076,7 @@ export const MESSAGES = {
   "passport.upcoming": { ar: "قادمة", en: "Upcoming" },
   "passport.private": { ar: "لا يراه غيرك", en: "Only you see this" },
   "passport.failed": {
-    ar: "تعذّر تحميل جواز الفعاليات. تحقق من اتصالك وأعد المحاولة.",
+    ar: "تعذّر تحميل جواز الفعاليات. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Could not load the Event Passport. Check your connection and try again.",
   },
   "eventHistory.title": { ar: "سجل فعالياتك", en: "Your event history" },
@@ -5085,7 +5088,7 @@ export const MESSAGES = {
   "eventHistory.removed": { ar: "أُزيلت عضويتك", en: "Your membership was removed" },
   "eventHistory.banned": { ar: "أُوقفت عضويتك", en: "Your membership was suspended" },
   "eventHistory.failed": {
-    ar: "تعذّر تحميل سجل الفعاليات. تحقق من اتصالك وأعد المحاولة.",
+    ar: "تعذّر تحميل سجل الفعاليات. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Could not load the event history. Check your connection and try again.",
   },
   "questifyQuests.title": { ar: "مهام Questify", en: "Questify quests" },
@@ -5104,7 +5107,7 @@ export const MESSAGES = {
     en: "No quests right now. Check back soon.",
   },
   "questifyQuests.failed": {
-    ar: "تعذّر تحميل مهام Questify. تحقق من اتصالك وأعد المحاولة.",
+    ar: "تعذّر تحميل مهام Questify. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Could not load the Questify quests. Check your connection and try again.",
   },
   "sync.achievement": {
@@ -5221,7 +5224,7 @@ export const MESSAGES = {
   "interests.city": { ar: "مدينتك", en: "Your city" },
   "interests.noCity": { ar: "بلا مدينة", en: "No city" },
   "interests.save": { ar: "حفظ", en: "Save" },
-  "interests.saved": { ar: "تم الحفظ.", en: "Saved." },
+  "interests.saved": { ar: "حُفظ.", en: "Saved." },
   "interests.loadFailed": {
     ar: "تعذّر تحميل القوائم. حاول مرة أخرى.",
     en: "Couldn't load the lists. Try again.",
@@ -5375,7 +5378,7 @@ export const MESSAGES = {
     en: "The interests quest is always available only, never part of a season.",
   },
   "console.questify.invalid.other": {
-    ar: "راجع الحقول ثم أعد المحاولة.",
+    ar: "راجع الحقول ثم حاول مرة أخرى.",
     en: "Check the fields and try again.",
   },
   "locker.fromQuestify": { ar: "مكافأة من Questify", en: "A Questify reward" },
@@ -5424,7 +5427,7 @@ export const MESSAGES = {
     en: "Reach gold in {name}",
   },
   "journey.failed": {
-    ar: "تعذّر تحميل رحلتك. تحقق من اتصالك وأعد المحاولة.",
+    ar: "تعذّر تحميل رحلتك. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Could not load your journey. Check your connection and try again.",
   },
   "sync.achievementXp": {
@@ -5535,7 +5538,7 @@ export const MESSAGES = {
   "events.streak.save": { ar: "احفظ إعدادات السلسلة", en: "Save the streak settings" },
   "events.streak.saved": { ar: "حُفظت إعدادات السلسلة.", en: "The streak settings are saved." },
   "events.streak.failed": {
-    ar: "تعذّر تحميل إعدادات السلسلة. تحقق من اتصالك وأعد المحاولة.",
+    ar: "تعذّر تحميل إعدادات السلسلة. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Could not load the streak settings. Check your connection and try again.",
   },
   "events.streak.refuse.singleDay": {
@@ -5576,7 +5579,7 @@ export const MESSAGES = {
   "daily.seeResult": { ar: "اعرض النتيجة", en: "See result" },
   "daily.sponsor": { ar: "برعاية {name}", en: "Presented by {name}" },
   "daily.failed": {
-    ar: "تعذّر تحميل ألعاب اليوم. تحقق من اتصالك وأعد المحاولة.",
+    ar: "تعذّر تحميل ألعاب اليوم. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Could not load the daily games. Check your connection and try again.",
   },
   "daily.periodOver": {
@@ -5844,7 +5847,7 @@ export const MESSAGES = {
     en: "A retired question can't be scheduled.",
   },
   "console.daily.conflict.changed": {
-    ar: "تغيّر المحتوى أثناء التحرير. أعد تحميل الصفحة وحاول مجددًا.",
+    ar: "تغيّر المحتوى أثناء التحرير. أعد تحميل الصفحة وحاول مرة أخرى.",
     en: "The content changed while you were editing. Reload the page and try again.",
   },
   "console.daily.conflict.usedQuestion": {
@@ -5856,7 +5859,7 @@ export const MESSAGES = {
     en: "That word was already a daily word. A word is used once.",
   },
   "console.daily.conflict.other": {
-    ar: "لا يمكن إجراء هذا التغيير الآن. أعد تحميل الصفحة وحاول مجددًا.",
+    ar: "لا يمكن إجراء هذا التغيير الآن. أعد تحميل الصفحة وحاول مرة أخرى.",
     en: "This change isn't possible now. Reload the page and try again.",
   },
   "console.daily.invalid.prompt": {
@@ -5888,7 +5891,7 @@ export const MESSAGES = {
     en: "No period starts on that day under the current length.",
   },
   "console.daily.invalid.other": {
-    ar: "راجع القيم وحاول مجددًا.",
+    ar: "راجع القيم وحاول مرة أخرى.",
     en: "Check the values and try again.",
   },
   "console.words.list": { ar: "قائمة التخمين", en: "Guess list" },
@@ -5969,10 +5972,10 @@ export const MESSAGES = {
     en: "This is not an event join code.",
   },
   "explore.signInPrompt": {
-    ar: "سجّل الدخول لترى الفعاليات المقترحة لك وترتيب كويستفاي.",
+    ar: "سجّل الدخول لترى الفعاليات المقترحة لك وترتيب Questify.",
     en: "Sign in to see events suggested for you and the Questify ranking.",
   },
-  "explore.ranking.title": { ar: "ترتيب كويستفاي", en: "Questify ranking" },
+  "explore.ranking.title": { ar: "ترتيب Questify", en: "Questify ranking" },
   "explore.ranking.lifetime": { ar: "كل الأوقات", en: "All time" },
   "explore.ranking.month": { ar: "هذا الشهر", en: "This month" },
   "explore.ranking.empty": {
@@ -5984,7 +5987,7 @@ export const MESSAGES = {
     en: "You are not in this ranking yet. Earn XP to appear in it.",
   },
   "explore.ranking.failed": {
-    ar: "تعذّر تحميل الترتيب. تحقّق من اتصالك ثم حاول مرة أخرى.",
+    ar: "تعذّر تحميل الترتيب. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "Couldn't load the ranking. Check your connection, then try again.",
   },
   "explore.ranking.rowLabel": {
@@ -6056,7 +6059,7 @@ export const MESSAGES = {
     ar: "أبقِ كل اسم بين أقواس، ولا تُضف غيره، وابقَ تحت 1000 حرف.",
     en: "Keep every name in braces, add none, and stay under 1,000 characters.",
   },
-  "console.translations.saved": { ar: "تم حفظ {key}.", en: "Saved {key}." },
+  "console.translations.saved": { ar: "حُفظ {key}.", en: "Saved {key}." },
   "console.translations.reverted": {
     ar: "عاد {key} إلى النص الأصلي.",
     en: "{key} is back to the shipped text.",
@@ -6087,7 +6090,7 @@ export const MESSAGES = {
   "console.usage.show": { ar: "عرض الفعاليات", en: "Show events" },
   "console.usage.hide": { ar: "إخفاء الفعاليات", en: "Hide events" },
   "console.usage.noEvents": {
-    ar: "لا توجد فعاليات لهذه المنظمة.",
+    ar: "لا توجد فعاليات لهذه الجهة المنظِّمة.",
     en: "This organizer has no events.",
   },
   "console.usage.eventFigures": {
@@ -6167,7 +6170,7 @@ export const MESSAGES = {
   },
   "console.reviewDemo.code": { ar: "رمز الدخول الثابت", en: "Fixed sign-in code" },
   "console.reviewDemo.codeOnce": {
-    ar: "يظهر مرة واحدة. الصقه الآن في App Store Connect وPlay Console.",
+    ar: "يظهر مرة واحدة. ألصقه الآن في App Store Connect وPlay Console.",
     en: "Shown once. Paste it into App Store Connect and Play Console now.",
   },
   "console.reviewDemo.copy": { ar: "نسخ", en: "Copy" },
@@ -6197,7 +6200,7 @@ export const MESSAGES = {
   "console.reviewDemo.item.flashQuest": { ar: "مهمة خاطفة", en: "A flash quest" },
   "console.reviewDemo.item.boost": { ar: "مضاعفة نقاط", en: "A boost" },
   "console.reviewDemo.item.nfcTag": { ar: "بطاقة NFC", en: "An NFC tag" },
-  "console.reviewDemo.item.station": { ar: "محطة مقترنة", en: "A paired station" },
+  "console.reviewDemo.item.station": { ar: "محطة مرتبطة", en: "A paired station" },
   "console.reviewDemo.item.sessions": { ar: "جلسات في البرنامج", en: "Agenda sessions" },
   "console.reviewDemo.verify.questQr": { ar: "رمز المهمة المطبوع", en: "Printed quest QR" },
   "console.reviewDemo.verify.myQr": { ar: "رمز اللاعب", en: "Player's My QR" },
@@ -6554,7 +6557,7 @@ export const MESSAGES = {
   // Push and the notification center (T-501, ADR-346): the title when the event's name cannot be shown, and the text of
   // a kind with no template (shown in the center only, never pushed).
   "push.title": { ar: "Questify", en: "Questify" },
-  "push.generic.body": { ar: "لديك رسالة جديدة", en: "You have a new message" },
+  "push.generic.body": { ar: "وصلتك رسالة جديدة", en: "You have a new message" },
   // The personal pushes (T-501d, ADR-353): fixed text naming only an organizer's public name and a moment; never a
   // ticket, a reply, a reason, points or a person. Gender-neutral («يمكنك»), light passives, never «تم» + masdar.
   "push.joinAccepted.body": { ar: "قُبل طلب انضمامك.", en: "Your request to join was accepted." },
@@ -6569,7 +6572,7 @@ export const MESSAGES = {
   },
   "push.helpSolved.body": { ar: "حُلّ طلبك.", en: "Your request was marked solved." },
   "push.usernameChanged.body": {
-    ar: "غيّر Questify اسم المستخدم الخاص بك لأنه يخالف القواعد. يمكنك اختيار اسم جديد من ملفك.",
+    ar: "غيّر Questify اسم مستخدمك لأنه يخالف القواعد. يمكنك اختيار اسم جديد من ملفك.",
     en: "Questify changed your username because it broke the rules. You can choose a new one in your profile.",
   },
   "push.dataExported.body": {
@@ -6631,7 +6634,7 @@ export const MESSAGES = {
   "push.pollSent.body": { ar: "تصويت مباشر جديد: «{quest}»", en: "New live poll: “{quest}”" },
   "push.pollSent.nameless": { ar: "بدأ تصويت مباشر جديد.", en: "A new live poll has started." },
   "push.communityStep.body": {
-    ar: "تحقّقت مرحلة جديدة في الهدف الجماعي.",
+    ar: "تحققت مرحلة جديدة في الهدف الجماعي.",
     en: "The community reached a new milestone.",
   },
   "push.categoryOpen.body": {
@@ -6681,11 +6684,11 @@ export const MESSAGES = {
     en: "The rewards shop is open until {date} at {time}.",
   },
   "push.invitation.body": {
-    ar: "لديك دعوة إلى {event}.",
+    ar: "وصلتك دعوة إلى {event}.",
     en: "You have an invitation to {event}.",
   },
   "push.invitation.nameless": {
-    ar: "لديك دعوة إلى فعالية.",
+    ar: "وصلتك دعوة إلى فعالية.",
     en: "You have an invitation to an event.",
   },
   // The app's side of push (T-501c): the explainer after joining, the notification center, Settings and the Android
@@ -6710,7 +6713,7 @@ export const MESSAGES = {
     en: "No notifications yet. Every message from Questify to you shows up here.",
   },
   "notifications.loadFailed": {
-    ar: "تعذّر تحميل الإشعارات. تحقق من اتصالك ثم أعد المحاولة.",
+    ar: "تعذّر تحميل الإشعارات. تحقق من اتصالك ثم حاول مرة أخرى.",
     en: "We couldn't load your notifications. Check your connection and try again.",
   },
   "notifications.more": { ar: "عرض المزيد", en: "Show more" },
@@ -6842,10 +6845,10 @@ export const MESSAGES = {
   "announcements.page.cancelled": { ar: "أُلغي الإعلان.", en: "The announcement is cancelled." },
   "announcements.page.list": { ar: "إعلانات الفعالية", en: "The event's announcements" },
   "announcements.page.pending": {
-    ar: "الإعلانات المجدولة — الأقرب أولاً",
+    ar: "الإعلانات المجدولة: الأقرب أولًا",
     en: "Pending schedules — earliest first",
   },
-  "announcements.page.history": { ar: "آخر 30 إعلاناً منتهياً", en: "Latest 30 past announcements" },
+  "announcements.page.history": { ar: "آخر 30 إعلانًا منتهيًا", en: "Latest 30 past announcements" },
   "announcements.page.pendingEmpty": {
     ar: "لا إعلانات مجدولة في هذه الصفحة.",
     en: "No pending schedules on this page.",
@@ -6981,9 +6984,9 @@ export const MESSAGES = {
   "sessions.page.add": { ar: "إضافة جلسة", en: "Add a session" },
   "sessions.page.edit": { ar: "تعديل", en: "Edit" },
   "sessions.page.save": { ar: "حفظ", en: "Save" },
-  "sessions.page.saved": { ar: "تم حفظ الجلسة.", en: "Session saved." },
+  "sessions.page.saved": { ar: "حُفظت الجلسة.", en: "Session saved." },
   "sessions.page.delete": { ar: "حذف", en: "Delete" },
-  "sessions.page.deleted": { ar: "تم حذف الجلسة.", en: "Session deleted." },
+  "sessions.page.deleted": { ar: "حُذفت الجلسة.", en: "Session deleted." },
   "sessions.page.deleteTitle": { ar: "حذف الجلسة؟", en: "Delete this session?" },
   "sessions.page.deleteBody": {
     ar: "سيفقد المسجلون مقاعدهم. يمكنك مراسلتهم قبل الحذف.",
@@ -7028,7 +7031,7 @@ export const MESSAGES = {
   "sessions.page.registrationClosed": { ar: "التسجيل مغلق", en: "Registration closed" },
   "sessions.page.closeRegistration": { ar: "إغلاق التسجيل", en: "Close registration" },
   "sessions.page.reopenRegistration": { ar: "إعادة فتح التسجيل", en: "Reopen registration" },
-  "sessions.page.updated": { ar: "تم التحديث.", en: "Updated." },
+  "sessions.page.updated": { ar: "حُدّثت الجلسة.", en: "Updated." },
   "sessions.page.message": { ar: "مراسلة المسجلين", en: "Message registrants" },
   "sessions.page.messageTitle": { ar: "رسالة إلى المسجلين", en: "Message to registrants" },
   "sessions.page.messageSend": { ar: "إرسال", en: "Send" },
@@ -7042,9 +7045,12 @@ export const MESSAGES = {
     en: "A CSV file with the columns type, title_en, title_ar, start, end, place_en, place_ar, speakers, description_en, description_ar, access and seats. Times look like 2026-11-02 14:30 in the event's time zone. Type is talk, workshop or activity; access is open or registration. Separate speakers with a semicolon.",
   },
   "sessions.page.template": { ar: "تنزيل نموذج الملف", en: "Download the template" },
-  "sessions.page.importSend": { ar: "استيراد {count} جلسة", en: "Import {count} sessions" },
+  "sessions.page.importSend": { ar: "استيراد الجلسات ({count})", en: "Import {count} sessions" },
   "sessions.page.importFile": { ar: "ملف الجلسات", en: "Sessions file" },
-  "sessions.page.importDone": { ar: "تم استيراد {count} جلسة.", en: "{count} sessions imported." },
+  "sessions.page.importDone": {
+    ar: "استوردنا الجلسات: {count}.",
+    en: "{count} sessions imported.",
+  },
   "sessions.page.importFailedRow": { ar: "السطر {line}: {reason}", en: "Row {line}: {reason}" },
   "sessions.page.importSkipped": {
     ar: "قُرئت أول {limit} صفًّا فقط، وتُرك {count} صفًّا. استورد الباقي في ملف آخر.",
@@ -7220,7 +7226,7 @@ export const MESSAGES = {
   "agenda.full": { ar: "اكتملت المقاعد", en: "Full" },
   "agenda.closed": { ar: "أُغلق التسجيل", en: "Registration closed" },
   "agenda.started": { ar: "بدأت الجلسة", en: "Started" },
-  "agenda.checkedIn": { ar: "تم تسجيل حضورك", en: "You are checked in" },
+  "agenda.checkedIn": { ar: "سجّلنا حضورك", en: "You are checked in" },
   "agenda.points": {
     ar: "\u200E+{points} {currency} عند تسجيل الحضور",
     en: "+{points} {currency} on check-in",
@@ -7242,7 +7248,7 @@ export const MESSAGES = {
     ar: "لا جلسات لتسجيل الحضور فيها الآن.",
     en: "No sessions to check in to right now.",
   },
-  "door.checkedIn": { ar: "تم تسجيل الحضور", en: "Checked in" },
+  "door.checkedIn": { ar: "سجّلنا الحضور", en: "Checked in" },
   "door.walkIn": { ar: "حضر دون تسجيل مسبق", en: "Walk-in, not registered" },
   "door.already": { ar: "سُجّل حضوره من قبل", en: "Already checked in" },
   "door.notRegistered": { ar: "غير مسجل", en: "Not registered" },
@@ -7271,10 +7277,10 @@ export const MESSAGES = {
   "maps.page.nameAr": { ar: "الاسم بالعربية", en: "Name in Arabic" },
   "maps.page.nameEn": { ar: "الاسم بالإنجليزية", en: "Name in English" },
   "maps.page.save": { ar: "حفظ", en: "Save" },
-  "maps.page.saved": { ar: "تم حفظ الخريطة.", en: "Map saved." },
+  "maps.page.saved": { ar: "حُفظت الخريطة.", en: "Map saved." },
   "maps.page.rename": { ar: "تعديل الاسم", en: "Rename" },
   "maps.page.delete": { ar: "حذف", en: "Delete" },
-  "maps.page.deleted": { ar: "تم حذف الخريطة.", en: "Map deleted." },
+  "maps.page.deleted": { ar: "حُذفت الخريطة.", en: "Map deleted." },
   "maps.page.deleteTitle": { ar: "حذف الخريطة؟", en: "Delete this map?" },
   "maps.page.deleteBody": {
     ar: "تُحذف الخريطة مع كل دبابيسها ({count}).",
@@ -7292,8 +7298,8 @@ export const MESSAGES = {
   "maps.pin.add": { ar: "إضافة دبوس", en: "Add a pin" },
   "maps.pin.edit": { ar: "تعديل", en: "Edit" },
   "maps.pin.save": { ar: "حفظ الدبوس", en: "Save pin" },
-  "maps.pin.saved": { ar: "تم حفظ الدبوس.", en: "Pin saved." },
-  "maps.pin.deleted": { ar: "تم حذف الدبوس.", en: "Pin deleted." },
+  "maps.pin.saved": { ar: "حُفظ الدبوس.", en: "Pin saved." },
+  "maps.pin.deleted": { ar: "حُذف الدبوس.", en: "Pin deleted." },
   "maps.pin.kind": { ar: "النوع", en: "Type" },
   "maps.pin.kind.section": { ar: "قسم", en: "Section" },
   "maps.pin.kind.booth": { ar: "كشك", en: "Booth" },
@@ -7388,9 +7394,9 @@ export const MESSAGES = {
   "sponsors.page.booth": { ar: "الكشك", en: "Booth" },
   "sponsors.boothLine": { ar: "الكشك {booth}", en: "Booth {booth}" },
   "sponsors.page.save": { ar: "حفظ", en: "Save" },
-  "sponsors.page.saved": { ar: "تم حفظ الراعي.", en: "Sponsor saved." },
+  "sponsors.page.saved": { ar: "حُفظ الراعي.", en: "Sponsor saved." },
   "sponsors.page.delete": { ar: "حذف", en: "Delete" },
-  "sponsors.page.deleted": { ar: "تم حذف الراعي.", en: "Sponsor deleted." },
+  "sponsors.page.deleted": { ar: "حُذف الراعي.", en: "Sponsor deleted." },
   "sponsors.page.deleteTitle": { ar: "حذف هذا الراعي؟", en: "Delete this sponsor?" },
   "sponsors.page.deleteBody": {
     ar: "تُزال عبارة «برعاية» من العناصر المرتبطة به: {items}.",
@@ -7410,7 +7416,7 @@ export const MESSAGES = {
   "sponsors.tags.souvenirs": { ar: "التذكارات", en: "Souvenirs" },
   "sponsors.tags.none": { ar: "لا عناصر للربط بعد.", en: "Nothing to tag yet." },
   "sponsors.tags.current": { ar: "حاليًا: {sponsor}", en: "Now: {sponsor}" },
-  "sponsors.tags.saved": { ar: "تم حفظ الربط.", en: "Tag saved." },
+  "sponsors.tags.saved": { ar: "حُفظ الربط.", en: "Tag saved." },
   "sponsors.tier.platinum": { ar: "بلاتيني", en: "Platinum" },
   "sponsors.tier.gold": { ar: "ذهبي", en: "Gold" },
   "sponsors.tier.silver": { ar: "فضي", en: "Silver" },
@@ -7511,8 +7517,8 @@ export const MESSAGES = {
   },
   "surveyResults.share.link": { ar: "رابط النتائج", en: "Results link" },
   "surveyResults.share.copy": { ar: "نسخ الرابط", en: "Copy link" },
-  "surveyResults.share.copied": { ar: "تم النسخ.", en: "Copied." },
-  "surveyResults.share.stopped": { ar: "تم إيقاف المشاركة.", en: "Sharing stopped." },
+  "surveyResults.share.copied": { ar: "نُسخ.", en: "Copied." },
+  "surveyResults.share.stopped": { ar: "أُوقفت المشاركة.", en: "Sharing stopped." },
   "surveyResults.share.failed": {
     ar: "تعذّرت العملية. حاول مرة أخرى.",
     en: "That did not work. Try again.",
@@ -7524,11 +7530,11 @@ export const MESSAGES = {
     en: "This link is no longer active.",
   },
   "surveyShared.throttled": {
-    ar: "محاولات كثيرة. انتظر دقائق ثم أعد المحاولة.",
+    ar: "محاولات كثيرة. انتظر دقائق ثم حاول مرة أخرى.",
     en: "Too many tries. Wait a few minutes and try again.",
   },
   "surveyShared.failed": {
-    ar: "تعذّر تحميل النتائج. أعد المحاولة.",
+    ar: "تعذّر تحميل النتائج. حاول مرة أخرى.",
     en: "The results did not load. Try again.",
   },
   "surveyShared.hidden": {
@@ -7555,7 +7561,7 @@ export const MESSAGES = {
   "cheers.started": { ar: "بدأت لحظة التشجيع.", en: "The cheers moment has started." },
   "cheers.stopped": { ar: "انتهت لحظة التشجيع.", en: "The cheers moment has ended." },
   "cheers.platformOff": {
-    ar: "أوقف كويستفاي التشجيع لكل الفعاليات.",
+    ar: "أوقف Questify التشجيع لكل الفعاليات.",
     en: "Questify has switched Cheers off for every event.",
   },
   "cheers.ownerOnly": {
@@ -7583,7 +7589,7 @@ export const MESSAGES = {
   },
   "cheers.over": { ar: "انتهت لحظة التشجيع.", en: "The cheers moment is over." },
   "screen.cheers.title": { ar: "التشجيع", en: "Cheers" },
-  "screen.cheers.prompt": { ar: "شجّع من تطبيق كويستفاي!", en: "Cheer from the Questify app!" },
+  "screen.cheers.prompt": { ar: "شجّع من تطبيق Questify!", en: "Cheer from the Questify app!" },
   "screen.cheers.endsIn": { ar: "تنتهي بعد {time}", en: "Ends in {time}" },
   // ---------------------------------------------------------------- feature switches, look and preview (T-602)
   "events.shop.title": { ar: "المتجر", en: "Shop" },
@@ -7607,7 +7613,7 @@ export const MESSAGES = {
   "events.agenda.label": { ar: "إظهار الجدول في الفعالية", en: "Show the agenda in the event" },
   "branding.title": { ar: "المظهر", en: "Look" },
   "branding.accent": { ar: "اللون المميّز", en: "Accent colour" },
-  "branding.accent.default": { ar: "أخضر كويستفاي", en: "Questify green" },
+  "branding.accent.default": { ar: "أخضر Questify", en: "Questify green" },
   "branding.accent.sky": { ar: "سماوي", en: "Sky" },
   "branding.accent.ember": { ar: "جمري", en: "Ember" },
   "branding.accent.rose": { ar: "وردي", en: "Rose" },
@@ -7619,7 +7625,7 @@ export const MESSAGES = {
   "preview.noQuests": { ar: "لا {questMany} ظاهرة بعد.", en: "No {questMany} shown yet." },
   "preview.noRewards": { ar: "لا جوائز ظاهرة بعد.", en: "No rewards shown yet." },
   "preview.loadFailed": {
-    ar: "تعذّر تحميل المعاينة. أعد المحاولة.",
+    ar: "تعذّر تحميل المعاينة. حاول مرة أخرى.",
     en: "The preview did not load. Try again.",
   },
   "layout.title": { ar: "التخطيط", en: "Layout" },
@@ -7627,7 +7633,7 @@ export const MESSAGES = {
   "layout.home": { ar: "الشاشة الرئيسية", en: "Home screen" },
   "layout.presets": { ar: "قوالب جاهزة", en: "Presets" },
   "layout.custom": { ar: "تخطيط مخصّص", en: "Custom layout" },
-  "layout.preset.classic": { ar: "تخطيط كويستفاي", en: "Questify default" },
+  "layout.preset.classic": { ar: "تخطيط Questify", en: "Questify default" },
   "layout.preset.playFirst": { ar: "اللعب أولًا", en: "Play first" },
   "layout.preset.prizesFirst": { ar: "الجوائز أولًا", en: "Prizes first" },
   "layout.preset.essentials": { ar: "الأساسيات", en: "Essentials" },
@@ -7643,7 +7649,7 @@ export const MESSAGES = {
   "layout.switchedOff": { ar: "معطّل في الفعالية", en: "Switched off for the event" },
   "layout.save": { ar: "حفظ التخطيط", en: "Save layout" },
   "layout.discard": { ar: "تراجع عن التعديلات", en: "Discard changes" },
-  "layout.saved": { ar: "تم حفظ التخطيط.", en: "Layout saved." },
+  "layout.saved": { ar: "حُفظ التخطيط.", en: "Layout saved." },
   "layout.protectedNamed": {
     ar: "{item} يظهر دائمًا ولا يمكن إخفاؤه.",
     en: "{item} is always shown and cannot be hidden.",
@@ -7670,7 +7676,7 @@ export const MESSAGES = {
   "layout.cardsFull": { ar: "الحد الأقصى {max} بطاقات.", en: "Up to {max} cards." },
   "layout.edit": { ar: "تعديل {item}", en: "Edit {item}" },
   "layout.editing": { ar: "تعديل: {item}", en: "Editing: {item}" },
-  "layout.closeEditor": { ar: "تم التعديل", en: "Done editing" },
+  "layout.closeEditor": { ar: "إنهاء التعديل", en: "Done editing" },
   "layout.remove": { ar: "حذف {item}", en: "Remove {item}" },
   "layout.removeTitle": { ar: "حذف هذه البطاقة؟", en: "Remove this card?" },
   "layout.removeBody": {
@@ -7680,11 +7686,11 @@ export const MESSAGES = {
   "layout.removeConfirm": { ar: "حذف", en: "Remove" },
   "layout.reset": { ar: "إعادة التعيين إلى الافتراضي", en: "Reset to default" },
   "layout.resetTitle": {
-    ar: "إعادة الشاشة الرئيسية إلى تخطيط كويستفاي؟",
+    ar: "إعادة الشاشة الرئيسية إلى تخطيط Questify؟",
     en: "Reset Home to Questify's default?",
   },
   "layout.resetBody": {
-    ar: "تعود الكتل إلى ترتيب كويستفاي وإظهارها. تبقى بطاقاتك واللافتات والروابط والعنصر المميّز وصفحة المعلومات والصفحة الإضافية كما هي.",
+    ar: "تعود الكتل إلى ترتيب Questify وإظهارها. تبقى بطاقاتك واللافتات والروابط والعنصر المميّز وصفحة المعلومات والصفحة الإضافية كما هي.",
     en: "Blocks return to Questify's order and visibility. Your cards, banner, links, featured item, info page and extra page stay as they are.",
   },
   "layout.resetConfirm": { ar: "إعادة التعيين", en: "Reset" },
@@ -7874,7 +7880,7 @@ export const MESSAGES = {
   "home.banner.slideOf": { ar: "لافتة {n} من {total}", en: "Slide {n} of {total}" },
   "home.banner.goTo": { ar: "عرض اللافتة {n}", en: "Show slide {n}" },
   "questifyHome.block.banner": { ar: "اللافتات", en: "Banner" },
-  "questifyHome.block.notices": { ar: "رسائل كويستفاي", en: "Questify notices" },
+  "questifyHome.block.notices": { ar: "رسائل Questify", en: "Questify notices" },
   "questifyHome.block.code": { ar: "رمز الفعالية", en: "Event code" },
   "questifyHome.block.account": { ar: "بريد الحساب", en: "Account email" },
   "questifyHome.block.operator": { ar: "وضع المشغّل", en: "Operator mode" },
@@ -7883,8 +7889,8 @@ export const MESSAGES = {
   "questifyHome.block.dailyChallenge": { ar: "تحدي اليوم", en: "Daily challenge" },
   "questifyHome.block.dailyWord": { ar: "كلمة اليوم", en: "Daily word" },
   "questifyHome.block.events": { ar: "فعالياتي", en: "My events" },
-  "questifyHome.block.quests": { ar: "مهام كويستفاي", en: "Questify quests" },
-  "console.home.title": { ar: "صفحة كويستفاي الرئيسية", en: "Questify home" },
+  "questifyHome.block.quests": { ar: "مهام Questify", en: "Questify quests" },
+  "console.home.title": { ar: "صفحة Questify الرئيسية", en: "Questify home" },
   "console.home.intro": {
     ar: "رتّب أقسام الصفحة التي يراها اللاعبون خارج الفعاليات، وأخفِ ما لا تريده، واكتب لافتاتها. الأقسام المقفلة تتحرك ولا تُخفى. يصل التغيير إلى التطبيق خلال لحظات، ويمكن التراجع عنه.",
     en: "Order the blocks players see outside an event, hide the ones you do not want and write the banner. Locked blocks can move but not be hidden. A change reaches the app within moments and can be reverted.",
@@ -7952,7 +7958,7 @@ export const MESSAGES = {
   "control.unskip.action": { ar: "إعادة الخطوة", en: "Restore step" },
   "control.unskip.title": { ar: "إعادة «{title}»؟", en: "Restore “{title}”?" },
   "control.unskip.body": {
-    ar: "ستعود الخطوة إلى التسلسل: {count} من اللاعبين تجاوزوها دون إنجازها وسيتوقفون عندها حتى ينجزوها. لا تُسحب أي نقاط.",
+    ar: "ستعود الخطوة إلى التسلسل: {count} من اللاعبين تخطّوها دون إنجازها وسيتوقفون عندها حتى ينجزوها. لا تُسحب أي نقاط.",
     en: "The step goes back into the order: {count} players who moved past it without doing it will be held at it until they complete it. No points are taken back.",
   },
   "control.offline": {
@@ -7960,7 +7966,7 @@ export const MESSAGES = {
     en: "Offline. Showing data from {time}.",
   },
   "control.loadFailed": {
-    ar: "تعذّر تحميل غرفة التحكم. أعد المحاولة.",
+    ar: "تعذّر تحميل غرفة التحكم. حاول مرة أخرى.",
     en: "The control room did not load. Try again.",
   },
   "control.ended": {
@@ -8112,7 +8118,7 @@ export const MESSAGES = {
   "report.title": { ar: "تقرير الفعالية", en: "Event report" },
   "report.print": { ar: "طباعة أو حفظ PDF", en: "Print or save as PDF" },
   "report.printFailed": {
-    ar: "تعذر تسجيل الطباعة. حاول مرة أخرى بعد قليل.",
+    ar: "تعذّر تسجيل الطباعة. حاول مرة أخرى بعد قليل.",
     en: "We could not record the print. Try again shortly.",
   },
   "report.numbers": { ar: "الأرقام الرئيسية", en: "Headline numbers" },
@@ -8124,7 +8130,7 @@ export const MESSAGES = {
   "report.survey.average": { ar: "المتوسط: {average}", en: "Average: {average}" },
   "report.survey.written": { ar: "إجابات مكتوبة: {count}", en: "{count} written answers" },
   "report.survey.more": {
-    ar: "و{count} استبيانات أخرى في الجدول.",
+    ar: "وعدد الاستبيانات الأخرى في الجدول: {count}.",
     en: "And {count} more surveys in the spreadsheet.",
   },
   // Confirmation sweep (T-604b, FR-1031, FR-1032): what each action says before it runs.
@@ -8202,7 +8208,7 @@ export const MESSAGES = {
   // Change sets (T-604b, FR-1034, FR-1035).
   "changeSets.page.title": { ar: "مجموعات التغييرات", en: "Change sets" },
   "changeSets.loadFailed": {
-    ar: "تعذّر تحميل مجموعات التغييرات. أعد المحاولة.",
+    ar: "تعذّر تحميل مجموعات التغييرات. حاول مرة أخرى.",
     en: "The change sets did not load. Try again.",
   },
   "changeSets.empty": { ar: "لا توجد مجموعات تغييرات.", en: "No change sets yet." },
@@ -8288,14 +8294,14 @@ export const MESSAGES = {
   "setup.title": { ar: "الإعداد الموجّه", en: "Guided setup" },
   "setup.stepOf": { ar: "الخطوة {step} من {total}", en: "Step {step} of {total}" },
   "setup.progressLabel": { ar: "تقدّم الإعداد", en: "Setup progress" },
-  "setup.skipStep": { ar: "تخطّي الخطوة", en: "Skip this step" },
-  "setup.skipAll": { ar: "تخطّي الإعداد الموجّه", en: "Skip guided setup" },
-  "setup.skipAll.title": { ar: "تخطّي الإعداد الموجّه؟", en: "Skip guided setup?" },
+  "setup.skipStep": { ar: "تخطي الخطوة", en: "Skip this step" },
+  "setup.skipAll": { ar: "تخطي الإعداد الموجّه", en: "Skip guided setup" },
+  "setup.skipAll.title": { ar: "تخطي الإعداد الموجّه؟", en: "Skip guided setup?" },
   "setup.skipAll.body": {
     ar: "تبقى الإعدادات الافتراضية في الخطوات التي لم تحسمها. يمكنك تغيير أي شيء لاحقًا من صفحات الفعالية.",
     en: "Steps you have not decided keep their defaults. You can change anything later from the event's pages.",
   },
-  "setup.skipAll.confirm": { ar: "تخطّي الكل", en: "Skip all" },
+  "setup.skipAll.confirm": { ar: "تخطي الكل", en: "Skip all" },
   "setup.unsaved.title": { ar: "تجاهل التغييرات غير المحفوظة؟", en: "Discard unsaved changes?" },
   "setup.unsaved.body": {
     ar: "لم تحفظ تغييراتك في هذه الخطوة. ألغِ لتحفظها أولًا، أو تجاهلها وتابع.",
@@ -8304,10 +8310,10 @@ export const MESSAGES = {
   "setup.unsaved.confirm": { ar: "تجاهل", en: "Discard" },
   "setup.allSteps": { ar: "كل الخطوات", en: "All steps" },
   "setup.state.open": { ar: "لم تُحسم", en: "Not decided" },
-  "setup.state.done": { ar: "تمّت", en: "Done" },
-  "setup.state.skipped": { ar: "تم تخطّيها", en: "Skipped" },
+  "setup.state.done": { ar: "مكتملة", en: "Done" },
+  "setup.state.skipped": { ar: "تخطيتها", en: "Skipped" },
   "setup.open": { ar: "فتح", en: "Open" },
-  "setup.done": { ar: "تم", en: "Done" },
+  "setup.done": { ar: "اكتمل", en: "Done" },
   "setup.finish": { ar: "إنهاء الإعداد", en: "Finish setup" },
   "setup.finished": { ar: "انتهى الإعداد.", en: "Setup is finished." },
   "setup.start": { ar: "ابدأ الإعداد الموجّه", en: "Start guided setup" },
@@ -8336,9 +8342,9 @@ export const MESSAGES = {
     ar: "أي أنواع {questMany} ستستخدم؟",
     en: "Which kinds of {questMany} will you use?",
   },
-  "wizard.quests.nfc": { ar: "علامات NFC", en: "NFC tags" },
+  "wizard.quests.nfc": { ar: "بطاقات NFC", en: "NFC tags" },
   "wizard.quests.nfcHint": {
-    ar: "تحتاج علامات NFC إلى بطاقات فعلية. يمكن لـ Questify توفيرها أو تشتريها بنفسك. يلمسها الحضور بهواتفهم. أبقِ رمز QR احتياطًا.",
+    ar: "يحتاج NFC إلى بطاقات فعلية. توفّرها Questify أو تشتريها بنفسك. يلمسها الحضور بهواتفهم. أبقِ رمز QR احتياطًا.",
     en: "NFC needs physical tags. Questify can supply them, or you can buy your own. People tap them with their phones. Keep the QR code as a backup.",
   },
   "wizard.rewards.name": { ar: "الجوائز", en: "Rewards" },
@@ -8389,7 +8395,7 @@ export const MESSAGES = {
   "texts.defaultLabel": { ar: "الافتراضي", en: "Default" },
   "texts.reset": { ar: "إعادة {name} إلى الافتراضي", en: "Reset {name} to default" },
   "texts.save": { ar: "حفظ التسميات", en: "Save labels" },
-  "texts.saved": { ar: "تم حفظ التسميات.", en: "Labels saved." },
+  "texts.saved": { ar: "حُفظت التسميات.", en: "Labels saved." },
   "texts.invalid": {
     ar: "أزل الأقواس المعقوفة من {name} ({language}).",
     en: "Remove the curly brackets from {name} ({language}).",
@@ -8403,7 +8409,7 @@ export const MESSAGES = {
   "inbox.kind.problem": { ar: "مشكلات", en: "Problems" },
   "inbox.kind.prize": { ar: "مشكلات الجوائز", en: "Prize problems" },
   "inbox.kind.report": { ar: "بلاغات عن لاعبين", en: "Player reports" },
-  "inbox.withQuestify": { ar: "لدى كويستفاي", en: "With Questify" },
+  "inbox.withQuestify": { ar: "لدى Questify", en: "With Questify" },
   "inbox.openList": { ar: "افتح {title}: {count}", en: "Open {title}: {count}" },
   "inbox.reported.title": { ar: "اللاعبون المُبلَّغ عنهم", en: "Reported players" },
   "inbox.prizes.title": { ar: "أقدم مشكلات الجوائز", en: "Oldest prize problems" },
@@ -8541,11 +8547,11 @@ export const MESSAGES = {
     en: "Start and end not set",
   },
   "readiness.line.dates.past": { ar: "انتهى موعد الفعالية", en: "The end date has passed" },
-  "readiness.line.dates.set": { ar: "تم تحديد البدء والانتهاء", en: "Start and end set" },
+  "readiness.line.dates.set": { ar: "البدء والانتهاء محدَّدان", en: "Start and end set" },
   "readiness.line.activation.none": { ar: "لم يُطلب التفعيل", en: "Not requested" },
   "readiness.line.activation.pending": { ar: "بانتظار Questify", en: "Waiting for Questify" },
   "readiness.line.activation.rejected": { ar: "رُفض الطلب", en: "Declined" },
-  "readiness.line.activation.active": { ar: "تم التفعيل", en: "Approved" },
+  "readiness.line.activation.active": { ar: "اعتُمد الطلب", en: "Approved" },
   "readiness.line.quests.none": { ar: "لا توجد {questMany} بعد", en: "No {questMany} yet" },
   "readiness.line.quests.unplayable": {
     ar: "لا يمكن لعب أي من {questMany} الآن",
@@ -8568,7 +8574,7 @@ export const MESSAGES = {
     ar: "لم يُحدَّد مكان مكتب الجوائز",
     en: "Prize desk place not set",
   },
-  "readiness.line.desk.set": { ar: "تم تحديد مكان مكتب الجوائز", en: "Prize desk place set" },
+  "readiness.line.desk.set": { ar: "مكان مكتب الجوائز محدَّد", en: "Prize desk place set" },
   "readiness.line.operators.none": { ar: "لا يوجد مشغّلون بعد", en: "No operators yet" },
   "readiness.line.operators.one": { ar: "مشغّل واحد فقط", en: "Only one operator" },
   "readiness.line.operators.ready": { ar: "المشغّلون: {count}", en: "Operators: {count}" },
@@ -8581,17 +8587,17 @@ export const MESSAGES = {
   },
   "readiness.line.rules.missing": { ar: "لم تُكتب بعد", en: "Not written yet" },
   "readiness.line.rules.set": { ar: "مكتوبة", en: "Written" },
-  "readiness.line.bigScreen.unpaired": { ar: "لا توجد شاشة مقترنة", en: "No screen paired" },
+  "readiness.line.bigScreen.unpaired": { ar: "لا توجد شاشة مرتبطة", en: "No screen paired" },
   "readiness.line.bigScreen.paired": {
-    ar: "الشاشات المقترنة: {count}",
+    ar: "الشاشات المرتبطة: {count}",
     en: "Screens paired: {count}",
   },
   "readiness.line.devices.none": {
-    ar: "{questMany} بانتظار جهاز مقترن: {count}",
+    ar: "{questMany} بانتظار جهاز مرتبط: {count}",
     en: "{questCap} waiting for a paired device: {count}",
   },
   "readiness.line.devices.paired": {
-    ar: "الأجهزة المقترنة: {count}",
+    ar: "الأجهزة المرتبطة: {count}",
     en: "Devices paired: {count}",
   },
   "readiness.line.rehearsal.missing": { ar: "ناقصة", en: "Missing" },
@@ -8796,7 +8802,7 @@ export const MESSAGES = {
   "console.switches.feature.nfcTags": { ar: "بطاقات NFC", en: "NFC tags" },
   "console.switches.feature.polls": { ar: "الاستطلاعات المباشرة", en: "Live polls" },
   "console.switches.feature.pushNotifications": { ar: "الإشعارات", en: "Push notifications" },
-  "console.switches.feature.questifyRanking": { ar: "ترتيب كويستفاي", en: "Questify ranking" },
+  "console.switches.feature.questifyRanking": { ar: "ترتيب Questify", en: "Questify ranking" },
   "console.switches.feature.questRatings": { ar: "تقييم المهام", en: "Quest ratings" },
   "console.switches.feature.ranking": { ar: "ترتيب الفعالية", en: "Event ranking" },
   "console.switches.feature.rankingToday": { ar: "ترتيب اليوم", en: "Today's ranking" },
@@ -8946,7 +8952,7 @@ export const MESSAGES = {
   "console.players.status.deleted": { ar: "محذوف", en: "Deleted" },
   "console.player.back": { ar: "كل اللاعبين", en: "All players" },
   "console.player.loadFailed": {
-    ar: "تعذر تحميل حساب اللاعب.",
+    ar: "تعذّر تحميل حساب اللاعب.",
     en: "The player's account couldn't be loaded.",
   },
   "console.player.erasedTitle": { ar: "حساب محذوف", en: "Deleted account" },
@@ -9336,7 +9342,7 @@ export const MESSAGES = {
     en: "Its organizer is suspended: {reason}",
   },
   "suspend.active": { ar: "غير موقوفة.", en: "Not suspended." },
-  "suspend.done": { ar: "تم الإيقاف.", en: "Suspended." },
+  "suspend.done": { ar: "أُوقف.", en: "Suspended." },
   "suspend.reactivated": { ar: "أُعيد التفعيل.", en: "Reactivated." },
   "support.title": { ar: "وصول الدعم", en: "Support access" },
   "support.intro": {
@@ -9482,7 +9488,7 @@ export const MESSAGES = {
   "console.catalog.templates.off": { ar: "غير ظاهر", en: "Switched off" },
   "console.catalog.templates.setup": { ar: "الإعداد (JSON)", en: "Setup (JSON)" },
   "console.catalog.templates.counts": {
-    ar: "الفئات: {categories}، المهام: {quests}، المكافآت: {rewards}",
+    ar: "الفئات: {categories}، المهام: {quests}، الجوائز: {rewards}",
     en: "Categories: {categories}, quests: {quests}, rewards: {rewards}",
   },
   "console.catalog.templates.broken": {
@@ -9650,7 +9656,7 @@ export const MESSAGES = {
     en: "Remove “{word}” from the list?",
   },
   "console.wordLists.removed": { ar: "حُذفت الكلمة.", en: "Word removed." },
-  "console.wordLists.loadFailed": { ar: "تعذر تحميل القائمة.", en: "The list couldn't be loaded." },
+  "console.wordLists.loadFailed": { ar: "تعذّر تحميل القائمة.", en: "The list couldn't be loaded." },
   "console.wordLists.empty": { ar: "لا توجد كلمات.", en: "No words." },
   "console.wordLists.total": { ar: "{count} كلمة", en: "{count} words" },
   "console.wordLists.more": { ar: "عرض المزيد", en: "Show more" },
@@ -9691,8 +9697,8 @@ export const MESSAGES = {
   "block.done": { ar: "حظرت {name}.", en: "You blocked {name}." },
   "block.undo": { ar: "إلغاء الحظر", en: "Unblock" },
   "block.undone": { ar: "ألغيت حظر {name}.", en: "You unblocked {name}." },
-  "block.failed": { ar: "تعذر الحفظ. حاول مرة أخرى.", en: "Couldn't save. Try again." },
-  "block.loadFailed": { ar: "تعذر تحميل القائمة.", en: "Couldn't load the list." },
+  "block.failed": { ar: "تعذّر الحفظ. حاول مرة أخرى.", en: "Couldn't save. Try again." },
+  "block.loadFailed": { ar: "تعذّر تحميل القائمة.", en: "Couldn't load the list." },
   "block.list": { ar: "الحسابات المحظورة", en: "Blocked accounts" },
   "block.empty": { ar: "لم تحظر أحدًا.", en: "You haven't blocked anyone." },
   "contentReport.action": { ar: "إبلاغ", en: "Report" },
@@ -9703,7 +9709,7 @@ export const MESSAGES = {
     ar: "شكرًا. ستراجعه Questify.",
     en: "Thanks. Questify will review this.",
   },
-  "contentReport.failed": { ar: "تعذر الإرسال. حاول مرة أخرى.", en: "Couldn't send. Try again." },
+  "contentReport.failed": { ar: "تعذّر الإرسال. حاول مرة أخرى.", en: "Couldn't send. Try again." },
   "contentReport.limit": {
     ar: "أرسلت بلاغات كثيرة. حاول لاحقًا.",
     en: "You've sent many reports. Try again later.",
@@ -9827,7 +9833,7 @@ export const MESSAGES = {
   "console.ownerEmail.cancelled": { ar: "أُلغي التغيير.", en: "The change was cancelled." },
   "emailChange.title": { ar: "تأكيد بريد الدخول الجديد", en: "Confirm your new sign-in email" },
   "emailChange.request": {
-    ar: "طلب دعم كويستفاي تغيير بريد الدخول لحساب «{organizer}» إلى {email}.",
+    ar: "طلب دعم Questify تغيير بريد الدخول لحساب «{organizer}» إلى {email}.",
     en: 'Questify support asked to change the sign-in email of the "{organizer}" account to {email}.',
   },
   "emailChange.code": { ar: "الرمز المرسل إلى بريدك", en: "Code from the email" },
@@ -9838,7 +9844,10 @@ export const MESSAGES = {
     en: "Your email changes in 24 hours, and we tell your old address.",
   },
   "emailChange.submit": { ar: "تأكيد", en: "Confirm" },
-  "emailChange.done": { ar: "تم. سجّل الدخول بالبريد {email}.", en: "Done. Sign in with {email}." },
+  "emailChange.done": {
+    ar: "اكتمل التغيير. سجّل الدخول بالبريد {email}.",
+    en: "Done. Sign in with {email}.",
+  },
   "emailChange.held": {
     ar: "يتغير بريدك في {time}. سجّل الدخول بالبريد الجديد بعد ذلك.",
     en: "Your email changes at {time}. Sign in with the new email after that.",
@@ -9854,11 +9863,11 @@ export const MESSAGES = {
   },
   "emailStop.submit": { ar: "إيقاف التغيير", en: "Stop the change" },
   "emailStop.stopped": {
-    ar: "أوقفنا التغيير. تواصل مع دعم كويستفاي.",
+    ar: "أوقفنا التغيير. تواصل مع دعم Questify.",
     en: "The change is stopped. Contact Questify support.",
   },
   "emailStop.reported": {
-    ar: "اكتمل التغيير قبل الإيقاف، وأبلغنا دعم كويستفاي ليتواصل معك.",
+    ar: "اكتمل التغيير قبل الإيقاف، وأبلغنا دعم Questify ليتواصل معك.",
     en: "The change was already complete. We told Questify support, who will contact you.",
   },
   "emailStop.none": {
@@ -10078,7 +10087,7 @@ export const MESSAGES = {
     en: "Players who opted in to promotions",
   },
   "console.push.audience.promo.info": {
-    ar: "يصل الإشعار فقط إلى من وافق على الإشعارات الترويجية ولم يتلقَّ إشعارا ترويجيا هذا الأسبوع. تُراجَع الموافقة عند الإرسال.",
+    ar: "يصل الإشعار فقط إلى من وافق على الإشعارات الترويجية ولم يتلقَّ إشعارًا ترويجيًا هذا الأسبوع. تُراجَع الموافقة عند الإرسال.",
     en: "Only players who agreed to promotional push, and got no promotional push this week, receive it. The consent is checked again when it is sent.",
   },
   "console.push.joinCode": {

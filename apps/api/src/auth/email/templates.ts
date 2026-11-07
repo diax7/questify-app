@@ -6,9 +6,9 @@ type Content = Pick<EmailMessage, "subject" | "text">;
 export function signInCodeEmail(input: { code: string; expiresInMinutes: number }): Content {
   const { code, expiresInMinutes } = input;
   return {
-    subject: "رمز الدخول إلى كويستفاي | Your Questify sign-in code",
+    subject: "رمز الدخول إلى Questify | Your Questify sign-in code",
     text: [
-      `رمز الدخول الخاص بك: ${code}`,
+      `رمز دخولك: ${code}`,
       `الرمز صالح لمدة ${expiresInMinutes} دقائق. إذا لم تحاول تسجيل الدخول، تجاهل هذه الرسالة ولا تشارك الرمز مع أحد.`,
       "",
       `Your sign-in code: ${code}`,
@@ -24,7 +24,7 @@ export function signInCodeEmail(input: { code: string; expiresInMinutes: number 
 export function reauthCodeEmail(input: { code: string; expiresInMinutes: number }): Content {
   const { code, expiresInMinutes } = input;
   return {
-    subject: "رمز تأكيد هويتك في كويستفاي | Your Questify code to confirm it is you",
+    subject: "رمز تأكيد هويتك في Questify | Your Questify code to confirm it is you",
     text: [
       `رمز تأكيد هويتك: ${code}`,
       `استخدمه لتسجيل الخروج من أجهزتك الأخرى. الرمز صالح لمدة ${expiresInMinutes} دقائق. إذا لم تطلبه، تجاهل هذه الرسالة ولا تشارك الرمز مع أحد.`,
@@ -39,7 +39,7 @@ export function reauthCodeEmail(input: { code: string; expiresInMinutes: number 
 export function deletionCodeEmail(input: { code: string; expiresInMinutes: number }): Content {
   const { code, expiresInMinutes } = input;
   return {
-    subject: "رمز حذف حسابك في كويستفاي | Your Questify account deletion code",
+    subject: "رمز حذف حسابك في Questify | Your Questify account deletion code",
     text: [
       `رمز حذف حسابك: ${code}`,
       `الرمز صالح لمدة ${expiresInMinutes} دقائق. إذا لم تطلب حذف حسابك، تجاهل هذه الرسالة ولن يُحذف شيء.`,
@@ -65,9 +65,9 @@ export function newSignInAlertEmail(input: { at: Date; userAgent: string | null 
   return {
     subject: "تسجيل دخول جديد إلى حسابك | New sign-in to your Questify account",
     text: [
-      `تم تسجيل دخول جديد إلى حسابك في ${when}.`,
+      `سجّلنا دخولًا جديدًا إلى حسابك في ${when}.`,
       `الجهاز: ${device}`,
-      "إذا لم تكن أنت، تواصل مع فريق كويستفاي فورا.",
+      "إذا لم تكن أنت، تواصل مع فريق Questify فورًا.",
       "",
       `A new sign-in to your account happened at ${when}.`,
       `Device: ${device}`,
@@ -93,7 +93,7 @@ export function passwordResetEmail(input: { link: string; expiresInMinutes: numb
   return {
     subject: "إعادة تعيين كلمة المرور | Reset your Questify password",
     text: [
-      "وصلنا طلب لإعادة تعيين كلمة مرور حسابك في كويستفاي.",
+      "وصلنا طلب لإعادة تعيين كلمة مرور حسابك في Questify.",
       `افتح هذا الرابط لاختيار كلمة مرور جديدة: ${link}`,
       `يعمل الرابط مرة واحدة لمدة ${minutesAr(expiresInMinutes)}. إذا لم تطلب ذلك، تجاهل هذه الرسالة، فكلمة مرورك لم تتغير.`,
       "",
@@ -112,9 +112,9 @@ export function staffInviteEmail(input: {
 }): Content {
   const { token, dashboardOrigin, expiresInHours } = input;
   return {
-    subject: "اختر كلمة مرور حسابك في كويستفاي | Choose your Questify password",
+    subject: "اختر كلمة مرور حسابك في Questify | Choose your Questify password",
     text: [
-      `أنشأنا لك حسابًا في كويستفاي. اختر كلمة المرور من هذا الرابط: ${dashboardOrigin}/ar/reset-password#token=${token}`,
+      `أنشأنا لك حسابًا في Questify. اختر كلمة المرور من هذا الرابط: ${dashboardOrigin}/ar/reset-password#token=${token}`,
       `الرابط صالح لمدة ${expiresInHours} ساعة ولمرة واحدة. إذا انتهت مهلته، اختر «نسيت كلمة المرور؟» في صفحة تسجيل الدخول.`,
       "إذا لم تتوقع هذه الرسالة، تجاهلها.",
       "",
@@ -131,8 +131,8 @@ export function passwordChangedEmail(input: { at: Date; dashboardOrigin: string 
   return {
     subject: "تغيّرت كلمة المرور | Your Questify password was changed",
     text: [
-      `تغيّرت كلمة مرور حسابك في كويستفاي في ${when}.`,
-      `إذا لم تغيّرها أنت، أعد تعيينها فورا من ${input.dashboardOrigin}/ar/forgot-password وتواصل مع فريق كويستفاي.`,
+      `تغيّرت كلمة مرور حسابك في Questify في ${when}.`,
+      `إذا لم تغيّرها أنت، أعد تعيينها فورًا من ${input.dashboardOrigin}/ar/forgot-password وتواصل مع فريق Questify.`,
       "",
       `The password of your Questify account was changed at ${when}.`,
       `If this was not you, reset it now at ${input.dashboardOrigin}/en/forgot-password and contact the Questify team.`,
@@ -144,10 +144,10 @@ export function passwordChangedEmail(input: { at: Date; dashboardOrigin: string 
 export function signUpCodeEmail(input: { code: string; expiresInMinutes: number }): Content {
   const { code, expiresInMinutes } = input;
   return {
-    subject: "رمز إنشاء حسابك في كويستفاي | Your Questify sign-up code",
+    subject: "رمز إنشاء حسابك في Questify | Your Questify sign-up code",
     text: [
       `رمز إنشاء حسابك: ${code}`,
-      `الرمز صالح لمدة ${minutesAr(expiresInMinutes)}. إذا لم تحاول إنشاء حساب في كويستفاي، تجاهل هذه الرسالة ولا تشارك الرمز مع أحد.`,
+      `الرمز صالح لمدة ${minutesAr(expiresInMinutes)}. إذا لم تحاول إنشاء حساب في Questify، تجاهل هذه الرسالة ولا تشارك الرمز مع أحد.`,
       "",
       `Your sign-up code: ${code}`,
       `It is valid for ${expiresInMinutes} minutes. If you did not try to create a Questify account, ignore this email and never share the code.`,
@@ -159,9 +159,9 @@ export function signUpCodeEmail(input: { code: string; expiresInMinutes: number 
 export function alreadyHaveAccountEmail(input: { dashboardOrigin: string }): Content {
   const origin = input.dashboardOrigin;
   return {
-    subject: "لديك حساب في كويستفاي | You already have a Questify account",
+    subject: "لديك حساب في Questify | You already have a Questify account",
     text: [
-      "طُلب إنشاء حساب جديد في كويستفاي بهذا البريد، وله حساب لدينا من قبل.",
+      "طُلب إنشاء حساب جديد في Questify بهذا البريد، وله حساب لدينا من قبل.",
       `سجّل الدخول من ${origin}/ar/sign-in ثم أنشئ جهة منظِّمة جديدة من حسابك.`,
       `إذا نسيت كلمة المرور، فأعد تعيينها من ${origin}/ar/forgot-password.`,
       "إذا لم تطلب ذلك، تجاهل هذه الرسالة.",
@@ -187,8 +187,8 @@ export function inviteEmail(input: {
   const { organizerName, link, validForDays } = input;
   const ar =
     input.role === "owner"
-      ? `دُعيت لتصبح مالك «${organizerName}» في كويستفاي.`
-      : `دُعيت إلى فريق «${organizerName}» في كويستفاي محررًا للفعاليات.`;
+      ? `دُعيت لتصبح مالك «${organizerName}» في Questify.`
+      : `دُعيت إلى فريق «${organizerName}» في Questify محررًا للفعاليات.`;
   const en =
     input.role === "owner"
       ? `You are invited to become the owner of "${organizerName}" on Questify.`
@@ -197,7 +197,7 @@ export function inviteEmail(input: {
     subject:
       input.role === "owner"
         ? "دعوة لملكية جهة منظِّمة | Become an organizer's owner on Questify"
-        : "دعوة إلى فريق في كويستفاي | You are invited to a Questify team",
+        : "دعوة إلى فريق في Questify | You are invited to a Questify team",
     text: [
       ar,
       `افتح الرابط لقبول الدعوة: ${link}`,
@@ -214,9 +214,9 @@ export function inviteEmail(input: {
 export function contactCodeEmail(input: { code: string; expiresInMinutes: number }): Content {
   const { code, expiresInMinutes } = input;
   return {
-    subject: "رمز إضافة بريدك إلى كويستفاي | Your code to add this email to Questify",
+    subject: "رمز إضافة بريدك إلى Questify | Your code to add this email to Questify",
     text: [
-      `رمز إضافة هذا البريد إلى حسابك في كويستفاي: ${code}`,
+      `رمز إضافة هذا البريد إلى حسابك في Questify: ${code}`,
       `الرمز صالح لمدة ${expiresInMinutes} دقائق. إذا لم تطلبه، تجاهل هذه الرسالة ولا تشاركه مع أحد.`,
       "",
       `Your code to add this email to a Questify account: ${code}`,
@@ -235,7 +235,7 @@ export function contactChangedEmail(input: {
 }): Content {
   const [ar, en] = CHANGE_LINES[input.channel][input.kind];
   return {
-    subject: "تغيّرت بيانات دخولك في كويستفاي | Your Questify sign-in details changed",
+    subject: "تغيّرت بيانات دخولك في Questify | Your Questify sign-in details changed",
     text: [
       ar,
       "إذا كان هذا أنت، فلا داعي لأي إجراء. إن لم تكن أنت، تواصل معنا من الإعدادات في التطبيق.",
@@ -249,21 +249,21 @@ export function contactChangedEmail(input: {
 const CHANGE_LINES = {
   phone: {
     added: [
-      "أُضيف رقم جوال إلى حسابك في كويستفاي.",
+      "أُضيف رقم جوال إلى حسابك في Questify.",
       "A phone number was added to your Questify account.",
     ],
     replaced: [
-      "تغيّر رقم الجوال في حسابك في كويستفاي.",
+      "تغيّر رقم الجوال في حسابك في Questify.",
       "The phone number on your Questify account was changed.",
     ],
   },
   email: {
     added: [
-      "أُضيف بريد إلكتروني إلى حسابك في كويستفاي.",
+      "أُضيف بريد إلكتروني إلى حسابك في Questify.",
       "An email address was added to your Questify account.",
     ],
     replaced: [
-      "تغيّر البريد الإلكتروني في حسابك في كويستفاي.",
+      "تغيّر البريد الإلكتروني في حسابك في Questify.",
       "The email address on your Questify account was changed.",
     ],
   },
@@ -278,8 +278,8 @@ export function operatorInviteEmail(input: { link: string; validForDays: number 
   return {
     subject: "دعوة لتكون مشغّلًا في فعالية | You are invited to staff an event on Questify",
     text: [
-      "دُعيت لتعمل مشغّلًا في فعالية على كويستفاي.",
-      `افتح الرابط على جوالك وأكّد في تطبيق كويستفاي: ${link}`,
+      "دُعيت لتعمل مشغّلًا في فعالية على Questify.",
+      `افتح الرابط على جوالك وأكّد في تطبيق Questify: ${link}`,
       `سجّل الدخول بهذا البريد نفسه. الرابط صالح لمدة ${validForDays} أيام، أو حتى نهاية الفعالية. إذا لم تتوقع هذه الدعوة، تجاهل الرسالة.`,
       "",
       "You are invited to work as an operator at an event on Questify.",
