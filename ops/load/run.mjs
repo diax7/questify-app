@@ -377,8 +377,7 @@ async function measure(plan, baseUrls, dir, apiPids) {
   };
   if (!opt["skip-completions"]) {
     report.completions = await completionsPhase(plan, baseUrls, dir, apiPids);
-    if (plan.database !== undefined && !opt.remote)
-      report.database = JSON.parse(prepare(["count", plan.database]));
+    if (!opt.remote) report.database = JSON.parse(prepare(["count", plan.database]));
   }
   report.rush = await rushPhase(plan, baseUrls, dir);
   return report;
@@ -391,6 +390,12 @@ async function runLocal(dir) {
   const planFile = join(dir, "plan.json");
   prepare(["create", planFile]);
   const plan = JSON.parse(readFileSync(planFile, "utf8"));
+  // Without the name, waitForIdle and sampleWaits would measure nothing and say nothing, and clean-up could not drop it.
+  if (typeof plan.database !== "string" || plan.database === "") {
+    throw new Error(
+      `load test: the seeded plan (${planFile}) names no database; nothing was measured.`,
+    );
+  }
   const apis = [];
   // A clean-up that fails must not discard a finished report or hide the run's own error: it warns, with what to drop.
   const cleanUp = () => {

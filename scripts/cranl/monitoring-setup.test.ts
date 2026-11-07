@@ -53,13 +53,16 @@ function python(args: string[]): Promise<{ code: number; out: string; err: strin
   });
 }
 
-const create = () =>
+/** Loads monitoring-setup.py as a module and runs one Python expression on it (`m` is the module). */
+const callSetup = (expression: string) =>
   python([
     "-c",
     `import sys; sys.path.insert(0, ${JSON.stringify(SCRIPTS)}); import importlib.util as u
 spec = u.spec_from_file_location("setup", ${JSON.stringify(SETUP)}); m = u.module_from_spec(spec)
-spec.loader.exec_module(m); m.cmd_create()`,
+spec.loader.exec_module(m); ${expression}`,
   ]);
+
+const create = () => callSetup("m.cmd_create()");
 
 describe("monitoring-setup.py create (ADR-626)", () => {
   it("refuses when the state file exists, before it asks CranL anything", async () => {
@@ -81,12 +84,7 @@ describe("monitoring-setup.py create (ADR-626)", () => {
   it("writes the state file readable by its owner only, also over a looser existing file", async () => {
     const path = join(dir, "monitoring_state.json");
     writeFileSync(path, "{}", { mode: 0o644 });
-    const result = await python([
-      "-c",
-      `import sys; sys.path.insert(0, ${JSON.stringify(SCRIPTS)}); import importlib.util as u
-spec = u.spec_from_file_location("setup", ${JSON.stringify(SETUP)}); m = u.module_from_spec(spec)
-spec.loader.exec_module(m); m.write_state({"id": "a"})`,
-    ]);
+    const result = await callSetup('m.write_state({"id": "a"})');
     expect(result.err).toBe("");
     expect(statSync(path).mode & 0o777).toBe(0o600);
   });

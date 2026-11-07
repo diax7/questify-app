@@ -7,6 +7,17 @@
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
 
+## FOLLOWUPS batch 15 — 2026-11-07
+
+- **FOLLOWUPS batch 15 (tier B, CI and ops upkeep; no migration, no package change, no ADR).** `ci.yml` gets a `monitoring` job that runs
+  `pnpm monitoring:validate` only when `ops/monitoring/` or `ops/alerts/questify.rules.yml` changed (`ci-scope.mjs` prints
+  `monitoring=true|false`, true on doubt); `full.yml` splits into `checks` and a two-shard `browser` job copied from `ci.yml`;
+  `pnpm infra apply` refuses a file of more than 3 apps or 2 databases and a create past that count (staging's fourth app, ADR-812,
+  passes while nothing is created); `openStream` moved to `ops/load/schedule.mjs` with tests (shed, intended time, slot freed); a local
+  load run throws on a plan without `database`; the seat-limit 1,000 accept-all test has a 120 s limit; the `monitoring-setup` test has
+  one module-loading helper. Left in FOLLOWUPS: the email template's repo URL (needs a Docker validation and a redeploy), the rules
+  copy, the T-804 NITs, 0148's rollback SQL, the routes on `afterCompletion`. CI 0 minutes (not pushed; the new workflow jobs have not run).
+
 ## FOLLOWUPS batch 14 — 2026-11-07
 
 - **FOLLOWUPS batch 14 (tier B; migration 0168, new and undeployed; ADR-813 and Q-743 Proposed).** The console's numbers leave out the

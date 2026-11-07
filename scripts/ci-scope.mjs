@@ -1,5 +1,5 @@
 // Decides which heavier CI steps a change needs, from the files it touches (CI budget rules: scope by changed files).
-// Prints `web=true|false`, `e2e=true|false` and `specs=` lines for $GITHUB_OUTPUT; the reason goes to stderr (ADR-372).
+// Prints `web=true|false`, `e2e=true|false`, `specs=` and `monitoring=true|false` lines for $GITHUB_OUTPUT; the reason goes to stderr (ADR-372).
 // `specs=all` means the whole browser suite; otherwise a space-separated list of spec files, relative to apps/web.
 // Usage: node scripts/ci-scope.mjs <base-ref-or-sha>
 // When the base is missing or unknown (first push, force push), everything runs: never skip on doubt.
@@ -358,6 +358,19 @@ export function needsAlertChecks(files) {
   return files === undefined || files.some((file) => ALERTS.some((pattern) => pattern.test(file)));
 }
 
+/** The files `pnpm monitoring:validate` reads: the monitoring app and the rules it copies. */
+const MONITORING = [/^ops\/monitoring\//, /^ops\/alerts\/questify\.rules\.yml$/];
+
+/**
+ * Whether a change needs the Docker check of the monitoring app (`pnpm monitoring:validate`, about 5 minutes):
+ * a file it builds or reads changed, or the changed files are unknown (never skip on doubt).
+ */
+export function needsMonitoringValidation(files) {
+  return (
+    files === undefined || files.some((file) => MONITORING.some((pattern) => pattern.test(file)))
+  );
+}
+
 function git(args) {
   return execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
 }
@@ -448,9 +461,11 @@ function contextOf(changes, base, root) {
 
 function main(base) {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-  const { lines, reason } = scopeOutput(changesSince(base), base, root);
-  process.stderr.write(`${reason}\n`);
-  process.stdout.write(lines);
+  const changes = changesSince(base);
+  const { lines, reason } = scopeOutput(changes, base, root);
+  const monitoring = needsMonitoringValidation(changes?.files);
+  process.stderr.write(`${reason}\nmonitoring check: ${monitoring}\n`);
+  process.stdout.write(`${lines}monitoring=${monitoring}\n`);
 }
 
 if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {

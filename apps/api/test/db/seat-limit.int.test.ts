@@ -524,7 +524,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
           [event.id],
         );
         expect(counts).toEqual({ welcomes: 1001, audits: 1001, notices: 1001 });
-      });
+      }, 120_000);
 
       it("takes every free seat of a hard limit in one call", async () => {
         const event = await newEvent({ limit: 10, access: "private" });

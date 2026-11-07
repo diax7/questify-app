@@ -1,6 +1,10 @@
 // Rate control for the load test (T-804). The load is open: each request has an intended send time fixed in advance,
 // it is sent then whether or not earlier ones have answered, and its latency is measured from that intended time. A
 // slow server therefore shows up as latency, never as a quietly lower rate (no coordinated omission).
+import { performance } from "node:perf_hooks";
+import { setTimeout as sleep } from "node:timers/promises";
+
+const TICK_MS = 1;
 
 /**
  * How many of a stream's requests are due at `nowMs`: request i is intended at `startMs + i * 1000 / ratePerSecond`,
@@ -76,4 +80,32 @@ export function phoneOf(index) {
  */
 export function contactOf(index, channel) {
   return channel === "email" ? `rush${index}@najd.sa` : phoneOf(index);
+}
+
+/**
+ * Runs `total` requests on an open schedule at `ratePerSecond`; `fire(index, intendedMs)` sends one and returns its
+ * promise. Requests past `maxInFlight` unanswered are not sent and are counted by `shed(index)`.
+ */
+export async function openStream(spec, fire, shed) {
+  const stream = {
+    startMs: performance.now(),
+    ratePerSecond: spec.ratePerSecond,
+    total: spec.total,
+  };
+  const pending = new Set();
+  let sent = 0;
+  while (sent < stream.total) {
+    const due = dueCount(stream, performance.now());
+    for (; sent < due; sent += 1) {
+      if (pending.size >= spec.maxInFlight) {
+        shed(sent);
+        continue;
+      }
+      const promise = fire(sent, intendedAt(stream, sent));
+      pending.add(promise);
+      void promise.finally(() => pending.delete(promise));
+    }
+    await sleep(TICK_MS);
+  }
+  await Promise.all(pending);
 }

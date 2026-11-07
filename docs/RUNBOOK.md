@@ -1053,6 +1053,10 @@ pnpm infra apply staging    # creates and updates until CranL matches the file; 
   dashboard. apply leaves both alone and lists them at the end (exit 2).
 - **apply checks itself.** After its changes it reads CranL again; if any `api` change is left it fails, so a run that succeeds is
   also the proof that a second run changes nothing. A failed run is safe to repeat: it continues from what exists.
+- **apply keeps the budget.** Before any write it refuses a file that declares more than 3 apps or 2 databases, and a create that
+  would take the environment's project past that count (apps and databases the file does not name count too). A project already
+  over it, like staging with its old monitoring app (ADR-812), is fine while apply creates no app or database. The count is per
+  environment; the account-wide reading is Q-613.
 - **After apply**, a changed variable takes effect on the app's next deploy or restart; deploy as "Database and deploy" says
   (migrations first for the API). apply never deploys.
 - **Tests:** `pnpm vitest run scripts/cranl` (an in-memory CranL; no network).

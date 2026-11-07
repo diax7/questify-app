@@ -127,6 +127,35 @@ describe("apply on an empty account", () => {
     expect(cranl.writes).toEqual([]);
   });
 
+  it("refuses before any write a file that declares more than 3 apps or 2 databases", async () => {
+    const spec = staging();
+    spec.apps.extra = { ...spec.apps.web, name: "questify-extra-staging" };
+    const cranl = fakeCranl();
+    await expect(apply({ client: clientFor(cranl), spec, env: OPERATOR })).rejects.toThrow(
+      /budget \(nothing was changed\): the file declares 4 apps, the budget is 3$/,
+    );
+    expect(cranl.writes).toEqual([]);
+  });
+
+  it("refuses a create past the budget, and lets staging hold a fourth app while it creates none", async () => {
+    const { cranl } = await applied();
+    const old = { ...cranl.apps[0]!, id: "old-prometheus", name: "questify-prometheus-staging" };
+    cranl.apps.push(old);
+    const writes = cranl.writes.length;
+    await apply({ client: clientFor(cranl), spec: staging(), env: OPERATOR, runId: "run2" });
+    expect(cranl.apps).toHaveLength(4);
+    expect(cranl.writes.length).toBe(writes);
+
+    cranl.apps.splice(
+      cranl.apps.findIndex((a) => a.name === "questify-web-staging"),
+      1,
+    );
+    cranl.apps.push({ ...old, id: "old-2", name: "questify-other-staging" });
+    await expect(
+      apply({ client: clientFor(cranl), spec: staging(), env: OPERATOR, runId: "run3" }),
+    ).rejects.toThrow(/apps: 4 exist and 1 would be created, the budget is 3$/);
+  });
+
   it("creates a missing project and buckets", async () => {
     const spec = { ...staging(), project: "Questify", buckets: ["questify-media"] };
     const { cranl } = await applied(spec);

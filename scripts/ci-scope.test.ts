@@ -10,6 +10,7 @@ import {
   changedMessageKeys,
   importersIn,
   needsAlertChecks,
+  needsMonitoringValidation,
   planBrowserSpecs,
   scopeOutput,
 } from "./ci-scope.mjs";
@@ -344,16 +345,35 @@ describe("the command", () => {
       write(repo, "apps/web/src/components/StreakPanel.tsx", "b\n");
       git(repo, "commit", "--quiet", "-am", "added");
       expect(run(repo, base)).toBe(
-        "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts e2e/streak.spec.ts\n",
+        "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts e2e/streak.spec.ts\nmonitoring=false\n",
       );
 
       write(repo, "apps/api/src/app.ts", "uno\ntwo\nthree\n");
       git(repo, "commit", "--quiet", "-am", "edited");
-      expect(run(repo, base)).toBe("web=true\ne2e=true\nspecs=all\n");
-      expect(run(repo, "")).toBe("web=true\ne2e=true\nspecs=all\n");
+      expect(run(repo, base)).toBe("web=true\ne2e=true\nspecs=all\nmonitoring=false\n");
+      expect(run(repo, "")).toBe("web=true\ne2e=true\nspecs=all\nmonitoring=true\n");
+
+      write(repo, "ops/monitoring/stack/Dockerfile", "FROM scratch\n");
+      git(repo, "add", ".");
+      git(repo, "commit", "--quiet", "-m", "monitoring");
+      expect(run(repo, base)).toMatch(/\nmonitoring=true\n$/);
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }
+  });
+});
+
+describe("needsMonitoringValidation", () => {
+  it("runs when the monitoring app or the rules it copies change, or the files are unknown", () => {
+    expect(needsMonitoringValidation(["ops/monitoring/stack/Dockerfile"])).toBe(true);
+    expect(needsMonitoringValidation(["docs/SLO.md", "ops/alerts/questify.rules.yml"])).toBe(true);
+    expect(needsMonitoringValidation(undefined)).toBe(true);
+  });
+
+  it("skips any other change", () => {
+    expect(needsMonitoringValidation([])).toBe(false);
+    expect(needsMonitoringValidation(["ops/alerts/questify.rules.test.yml"])).toBe(false);
+    expect(needsMonitoringValidation(["apps/api/src/telemetry/alerts.ts"])).toBe(false);
   });
 });
 

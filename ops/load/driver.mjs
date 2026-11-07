@@ -6,9 +6,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
 import { setTimeout as sleep } from "node:timers/promises";
 import { createClient, playerHeaders } from "./http.mjs";
-import { addressOf, contactOf, dueCount, intendedAt, slotOf } from "./schedule.mjs";
+import { addressOf, contactOf, openStream, slotOf } from "./schedule.mjs";
 
-const TICK_MS = 1;
 const PROBE_POLL_MS = 100;
 const PROBE_GIVE_UP_MS = 15_000;
 /** The probe quest allows 100 completions; stop short of the cap. */
@@ -29,34 +28,6 @@ function newResult() {
     rush: [],
     verify: { asked: 0, statuses: {}, wrongFirst: 0, noCode: 0 },
   };
-}
-
-/**
- * Runs `total` requests on an open schedule at `ratePerSecond`; `fire(index, intendedMs)` sends one and returns its
- * promise. Requests past `maxInFlight` unanswered are not sent and are counted by `shed(index)`.
- */
-async function openStream(spec, fire, shed) {
-  const stream = {
-    startMs: performance.now(),
-    ratePerSecond: spec.ratePerSecond,
-    total: spec.total,
-  };
-  const pending = new Set();
-  let sent = 0;
-  while (sent < stream.total) {
-    const due = dueCount(stream, performance.now());
-    for (; sent < due; sent += 1) {
-      if (pending.size >= spec.maxInFlight) {
-        shed(sent);
-        continue;
-      }
-      const promise = fire(sent, intendedAt(stream, sent));
-      pending.add(promise);
-      void promise.finally(() => pending.delete(promise));
-    }
-    await sleep(TICK_MS);
-  }
-  await Promise.all(pending);
 }
 
 /** One event's completion stream; only completions intended after the warm-up are measured. */
