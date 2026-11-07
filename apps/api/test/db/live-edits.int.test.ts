@@ -616,13 +616,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits (database)",
       expect(await standing(enrollment)).toEqual({ score: "0", balance: "0" });
     });
 
-    it("a replayed completion answers the net after each adjust and after its removal", async () => {
+    it("a replayed completion answers the net after each adjust and after its removal, its bonus left out", async () => {
       const event = await f.newEvent({ phase: "live" });
       const stage = await quest(event);
+      await f.owner(
+        `INSERT INTO quest_first_bonus (quest_id, organizer_id, event_id, points, slots)
+         SELECT id, organizer_id, event_id, 5, 1 FROM quest WHERE id = $1`,
+        [stage],
+      );
+      await f.owner(
+        `INSERT INTO quest_bonus_slot (quest_id, place, organizer_id, event_id)
+         SELECT id, 1, organizer_id, event_id FROM quest WHERE id = $1`,
+        [stage],
+      );
       const { player } = await member(event);
       const key = randomUUID();
       const [paid] = await scan(player, stage, key);
       expect(paid?.points).toBe("100");
+      const [bonus] = await f.owner<{ id: string }>(
+        "SELECT id FROM ledger_entry WHERE completion_id = $1 AND kind = 'first_bonus'",
+        [paid?.completion_id],
+      );
+      expect((await scan(player, stage, key))[0]?.points).toBe("100");
+      await f.removeEntry(event, bonus?.id ?? "");
+      expect((await scan(player, stage, key))[0]?.points).toBe("100");
       await past(event, stage, 130);
       await past(event, stage, 90);
       const [replay] = await scan(player, stage, key);

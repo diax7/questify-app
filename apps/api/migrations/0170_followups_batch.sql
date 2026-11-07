@@ -6,7 +6,9 @@ SET LOCAL lock_timeout = '10s';
 -- ================================================================ a replay answers the current net (T-604)
 -- As 0098, with one change: a replayed key answers the quest entry with its adjusts and its own removal folded in, what
 -- the completion is worth now, not what it paid first. Score only, as the first answer. A bonus or a removal of a bonus
--- on the same completion stays out: the first answer never held a bonus.
+-- on the same completion stays out: the first answer never held a bonus. The enrollment keeps the read on
+-- ledger_entry_enrollment_idx, as no plain index has completion_id and this runs under the enrollment lock; a
+-- completion's quest entry, adjusts and removal all carry its enrollment.
 CREATE OR REPLACE FUNCTION public.record_completion(target uuid, who uuid, proof_method text, proof_version integer, typed_code text, request_key text, device uuid, operator uuid, staff uuid, reason text, expected_event uuid, reading jsonb DEFAULT NULL::jsonb)
  RETURNS TABLE(completion_id bigint, points bigint, occurrence integer, score bigint, balance bigint, replayed boolean)
  LANGUAGE plpgsql
@@ -59,7 +61,7 @@ BEGIN
     END IF;
     RETURN QUERY SELECT earlier.id, sum(l.score_delta)::bigint, earlier.occurrence, enrolled.score, enrolled.balance, true
       FROM ledger_entry l
-      WHERE l.completion_id = earlier.id
+      WHERE l.enrollment_id = enrolled.id AND l.completion_id = earlier.id
         AND (l.kind IN ('quest', 'adjust') OR (l.kind = 'removal' AND l.reverses = earlier_entry));
     RETURN;
   END IF;
