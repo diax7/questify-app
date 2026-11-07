@@ -28,6 +28,7 @@ const refusal = (work: Promise<unknown>): Promise<string> =>
 
 const NAME = { ar: "صائد المهام", en: "Quest Hunter" };
 const NOTE = "Fraud ticket 4411 confirmed";
+const questsTier = (which: string) => [{ achievementId: "quests-done", tier: which }];
 const thresholds = (bronze: number, silver: number, gold: number) => ({
   name: NAME,
   bronze,
@@ -403,10 +404,80 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       );
     });
 
+    /** Runs `work`, then puts the `xp` row back as it was. */
+    const keepingXpRow = async (work: () => Promise<void>) => {
+      const [kept] = await f.owner<{ value: Doc }>(
+        "SELECT value FROM platform_setting WHERE key = 'xp'",
+      );
+      try {
+        await work();
+      } finally {
+        await f.owner(
+          `INSERT INTO platform_setting (key, value) VALUES ('xp', $1)
+           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+          [JSON.stringify(kept?.value)],
+        );
+      }
+    };
+
     describe("the amounts", () => {
       it("answers the amounts in force, fallbacks filled in, and whether the row is stored", async () => {
         expect(await amounts()).toEqual({ ...DEFAULT_AMOUNTS, stored: { xp: true } });
         expect(amountsDocSchema.safeParse(DEFAULT_AMOUNTS).success).toBe(true);
+      });
+
+      it("stores a missing row only for a save that changes something, and audits that one", async () => {
+        await keepingXpRow(async () => {
+          await f.owner("DELETE FROM platform_setting WHERE key = 'xp'");
+          const entries = (await audits("catalog.amounts.update")).length;
+          expect(await saveAmounts(DEFAULT_AMOUNTS)).toEqual({
+            ...DEFAULT_AMOUNTS,
+            stored: { xp: false },
+          });
+          expect(await f.owner("SELECT 1 FROM platform_setting WHERE key = 'xp'")).toEqual([]);
+          expect((await audits("catalog.amounts.update")).length).toBe(entries);
+          const changed = { xp: { ...DEFAULT_AMOUNTS.xp, dailyWordXp: 77 } };
+          expect(await saveAmounts(changed)).toEqual({ ...changed, stored: { xp: true } });
+          const written = await audits("catalog.amounts.update");
+          expect(written.length).toBe(entries + 1);
+          expect(written.at(-1)).toMatchObject({ before: DEFAULT_AMOUNTS, after: changed });
+        });
+      });
+
+      it("pays each stored amount as it is, its limits and 0 included, and the fallback when absent", async () => {
+        await keepingXpRow(async () => {
+          await f.owner("UPDATE platform_setting SET value = value || $1 WHERE key = 'xp'", [
+            JSON.stringify({
+              dailyFinishXp: 0,
+              dailyRightXp: 200,
+              dailyWordXp: 1000,
+              bronzeXp: 0,
+              silverXp: 1000,
+              goldXp: 1,
+            }),
+          ]);
+          expect(await f.owner("SELECT * FROM daily_xp()")).toEqual([
+            { finish: 0, per_right: 200, word: 1000 },
+          ]);
+          expect(await f.owner("SELECT * FROM achievement_xp()")).toEqual([
+            { bronze: 0, silver: 1000, gold: 1 },
+          ]);
+          await f.owner(
+            `UPDATE platform_setting
+             SET value = value - ARRAY['dailyFinishXp', 'dailyRightXp', 'dailyWordXp', 'bronzeXp', 'silverXp', 'goldXp']
+             WHERE key = 'xp'`,
+          );
+          expect(await f.owner("SELECT * FROM daily_xp()")).toEqual([
+            { finish: 20, per_right: 10, word: 50 },
+          ]);
+          expect(await f.owner("SELECT * FROM achievement_xp()")).toEqual([
+            { bronze: 50, silver: 150, gold: 300 },
+          ]);
+          await f.owner("DELETE FROM platform_setting WHERE key = 'xp'");
+          expect(await f.owner("SELECT * FROM daily_xp()")).toEqual([
+            { finish: 20, per_right: 10, word: 50 },
+          ]);
+        });
       });
 
       it.each([
@@ -578,8 +649,49 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       });
     });
 
+    const shown = async (who: string) =>
+      (
+        await f.asPlayer<{ list: { id: string; tier: string | null; next: unknown }[] }>(
+          who,
+          "SELECT own_achievements() AS list",
+        )
+      )[0]?.list.find((row) => row.id === "quests-done");
+    const revokeOne = async (who: string, which: string) => {
+      await ban(who);
+      expect((await tierDoor("revoke", who, questsTier(which)))?.outcome).toBe("changed");
+      await lift(who);
+    };
+
     describe("revoking a banned player's tiers", () => {
       const bronze = [{ achievementId: "events-attended", tier: "bronze" }];
+
+      it("hides the next tier only when it is the revoked one", async () => {
+        const [seeded] = await f.owner<{ bronze: number; silver: number; gold: number }>(
+          "SELECT bronze, silver, gold FROM achievement WHERE id = 'quests-done'",
+        );
+        const setTiers = (values: unknown[]) =>
+          f.owner(
+            "UPDATE achievement SET bronze = $1, silver = $2, gold = $3 WHERE id = 'quests-done'",
+            values,
+          );
+        await setTiers([1, 2, 3]);
+        try {
+          const belowHeld = await player(2);
+          await revokeOne(belowHeld, "bronze");
+          expect(await shown(belowHeld)).toMatchObject({
+            tier: "silver",
+            next: { tier: "gold", target: 3 },
+          });
+          const nextRevoked = await player(2);
+          await revokeOne(nextRevoked, "silver");
+          expect(await shown(nextRevoked)).toMatchObject({ tier: "bronze", next: null });
+          const onlyTier = await player(1);
+          await revokeOne(onlyTier, "bronze");
+          expect(await shown(onlyTier)).toMatchObject({ tier: null, next: null });
+        } finally {
+          await setTiers([seeded?.bronze, seeded?.silver, seeded?.gold]);
+        }
+      });
 
       it("revokes only a banned player's earned tiers, once, and restores only a revoked one", async () => {
         const someone = await player(1);

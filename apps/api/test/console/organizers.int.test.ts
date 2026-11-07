@@ -3,6 +3,7 @@ import { DEFAULT_TERMS } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PublicAccount } from "#src/auth/staff-store";
 import { door } from "#src/console/doors";
+import { REASON_ACTIONS } from "#src/console/organizers";
 import { HttpError } from "#src/http-error";
 import { supportSeatOf } from "#src/organizers/support-seat";
 import {
@@ -516,9 +517,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
           reason: string | null;
         }>(
           `SELECT id::text, at, actor_type, action, target_type, event_id,
-                  CASE WHEN action LIKE '%.suspend' THEN after ->> 'reason' END AS reason
+                  CASE WHEN action = ANY ($2::text[]) THEN after ->> 'reason' END AS reason
            FROM audit_log WHERE organizer_id = $1 ORDER BY audit_log.id DESC LIMIT 50`,
-          [orgB],
+          [orgB, REASON_ACTIONS],
         )
       ).map((row) => ({
         id: row.id,

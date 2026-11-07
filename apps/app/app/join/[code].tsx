@@ -27,7 +27,7 @@ import {
 } from "#src/join/join-api.ts";
 import { CardReceives } from "#src/join/CardReceives.tsx";
 import { JoinForm } from "#src/join/JoinForm.tsx";
-import { isInEvent, joinedResult } from "#src/join/join-result.ts";
+import { isInEvent, joinedResult, type JoinResult } from "#src/join/join-result.ts";
 import { RehearsalJoin } from "#src/join/RehearsalJoin.tsx";
 import { openJoinedEvent } from "#src/onboarding/open-joined.ts";
 import { PushExplainer, useJoinExplainer } from "#src/push/PushExplainer.tsx";
@@ -48,7 +48,7 @@ const OUTCOME_KEY = {
   not_found: "join.notFound",
   throttled: "join.throttled",
   stale: "join.stale",
-} as const satisfies Readonly<Record<string, MessageKey>>;
+} as const satisfies Readonly<Record<JoinResult, MessageKey>>;
 
 type Outcome = keyof typeof OUTCOME_KEY;
 

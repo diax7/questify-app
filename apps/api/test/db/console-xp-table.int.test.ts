@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { RequestContext } from "#src/db/context";
 import { questifyFixture, type QuestifyFixture } from "#test/support/questify";
-import { addMember, TEST_DATABASE_URL } from "#test/support/test-db";
+import { addMember, connectAsOwner, TEST_DATABASE_URL } from "#test/support/test-db";
 
 type Level = { level: number; xpFrom: number; itemId: string | null };
 type Doc = { levels: Level[] };
@@ -242,6 +242,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console XP table (database)", 
         expect(await refusal(save(edit({ 30: { itemId } }), true))).toBe(held(reason, 30));
       }
       expect(await refusal(save(edit({ 30: { itemId: "loose-title" } }), true))).toBe("none");
+    });
+
+    it("refuses a souvenir's id without waiting on the item's row", async () => {
+      const itemId = "souvenir-fedcba9876543210fedcba9876543210";
+      await f.owner(
+        "INSERT INTO item (id, kind, name_ar, name_en) VALUES ($1, 'title', 'تذكار', 'Souvenir')",
+        [itemId],
+      );
+      const holder = await connectAsOwner(f.db);
+      try {
+        await holder.query("BEGIN");
+        await holder.query("SELECT 1 FROM item WHERE id = $1 FOR UPDATE", [itemId]);
+        expect(await refusal(save(edit({ 30: { itemId } }), true))).toBe(
+          held("item_has_source", 30),
+        );
+      } finally {
+        await holder.query("ROLLBACK");
+        await holder.end();
+      }
     });
 
     it("keeps a document that changes nothing out of the audit", async () => {

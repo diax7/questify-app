@@ -2259,8 +2259,8 @@ export const changeSetFinished = make(
 export const changeSetBusy = make(
   409,
   "change_set_busy",
-  "يجري تطبيق هذه المجموعة الآن. انتظر لحظات ثم حدّث الصفحة.",
-  "This change set is being applied right now. Wait a moment and refresh.",
+  "يجري تطبيق هذه المجموعة الآن، وقد يستغرق ذلك حتى 5 دقائق. حدّث الصفحة بعد قليل.",
+  "This change set is being applied right now, which can take up to 5 minutes. Refresh in a moment.",
 );
 /** `field` names what is wrong: items (the list), or itemIds (an id that is not a pending item of the set). */
 export const invalidChangeSet = make(

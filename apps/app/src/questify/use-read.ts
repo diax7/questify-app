@@ -10,6 +10,8 @@ export type Read<T> = Readonly<{
   data: T | null;
   /** The latest read failed: say so with a retry, never show it as an empty list. */
   failed: boolean;
+  /** A retry is on its way: its button waits, so a press shows it was heard. */
+  retrying: boolean;
   retry: () => void;
 }>;
 
@@ -20,6 +22,7 @@ export type Read<T> = Readonly<{
 export function useRead<T>(load: () => Promise<T | null>, reloadOn: readonly unknown[]): Read<T> {
   const [data, setData] = useState<T | null>(null);
   const [failed, setFailed] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [tick, setTick] = useState(0);
   const loadRef = useRef(load);
   loadRef.current = load;
@@ -31,12 +34,16 @@ export function useRead<T>(load: () => Promise<T | null>, reloadOn: readonly unk
       focused.current = true;
     }, []),
   );
-  const retry = useCallback(() => setTick((current) => current + 1), []);
+  const retry = useCallback(() => {
+    setRetrying(true);
+    setTick((current) => current + 1);
+  }, []);
   useEffect(() => {
     let current = true;
     void loadRef.current().then((answer) => {
       if (!current) return;
       setFailed(answer === null);
+      setRetrying(false);
       if (answer !== null) setData(answer);
     });
     return () => {
@@ -44,7 +51,7 @@ export function useRead<T>(load: () => Promise<T | null>, reloadOn: readonly unk
     };
     // `reloadOn` is the caller's list of reasons to read again.
   }, [tick, ...reloadOn]);
-  return { data, failed, retry };
+  return { data, failed, retrying, retry };
 }
 
 export type EventPages = Readonly<{

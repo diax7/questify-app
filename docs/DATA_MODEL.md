@@ -459,11 +459,11 @@ sees nothing); the API's role has column grants only (no DELETE), PUBLIC none. T
 (`CS429`); a set's owner, event and author never change and it moves from open to applied or closed once (`CS409`); an item
 is written into an open set only, its content never changes, and it is decided once while its set is open (`CS409`). Both
 tables follow their event's delete (cascade). The four trigger functions (`change_set_limit`, `change_set_frozen`,
-`change_set_item_into_open`, `change_set_item_frozen`) are the only functions; none is callable (no grant). An item body
+`change_set_item_into_open`, `change_set_item_frozen`) are not callable (no grant). An item body
 is checked at 16 KiB as `pg_column_size`; the API answers a body that passes its text-length check but is larger as
 jsonb with `422 invalid_change_set {field: body}`. `change_set.applying_until` (migration 0166, ADR-800) is an apply's claim on
 the set for 5 minutes: while it runs, another apply or a close answers busy; it clears when that apply ends, which leaves a later apply's claim held, or when the set finishes.
-An item's `applied` decision commits in the write's own transaction, and only while the item is pending.
+An item's `applied` decision commits in the write's own transaction, and only while the item is pending. `change_set_release` (migration 0171, the API role's door) lets go of an apply's exact claim for the organizer in context, even when its caller just lost the event and the row policies hide the set.
 
 ### quest_completion
 **Built (T-105, migration 0012):** `id bigint, organizer_id, event_id, enrollment_id, quest_id, occurrence (1 … the

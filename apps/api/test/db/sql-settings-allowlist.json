@@ -94,7 +94,6 @@
   "daily_word_json(w daily_word)",
   "daily_word_view(who uuid, today date)",
   "daily_xp()",
-  "daily_xp_field(setting jsonb, field text, top integer, fallback integer)",
   "data_export_account(p player)",
   "data_export_event_more(n enrollment)",
   "data_export_event_play(n enrollment)",

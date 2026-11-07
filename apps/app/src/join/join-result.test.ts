@@ -37,7 +37,16 @@ describe("whether the player is in the event now", () => {
   });
 
   it("is no for a request waiting for approval, a waiting-list place and every other state", () => {
-    for (const result of ["pending", "waitlisted", "full", "network", "stale", "", undefined]) {
+    for (const result of [
+      "pending",
+      "waitlisted",
+      "full",
+      "network",
+      "not_found",
+      "throttled",
+      "stale",
+      undefined,
+    ] as const) {
       expect(isInEvent(result), String(result)).toBe(false);
     }
   });

@@ -318,7 +318,11 @@ async function applyOne(
   }
 }
 
-/** Claims the open set for this apply and always lets go after `work`; busy when an apply or a close has it. */
+/**
+ * Claims the open set for this apply and always lets go after `work`, even if the caller lost the event meanwhile; busy
+ * when an apply or a close has it. A close that overtook an apply whose claim ran out stops it as finished: the item's
+ * guard meets the closed set in the database (CS409) and that item's write rolls back.
+ */
 async function withSetClaim<T>(
   deps: ChangeSetDeps,
   actor: Actor,
@@ -343,9 +347,15 @@ async function withSetClaim<T>(
   }
   try {
     return await work();
+  } catch (error) {
+    const refused = refusalOfError(error);
+    if (refused === undefined) {
+      throw error;
+    }
+    return refused;
   } finally {
-    await inEvent(deps.pool, actor, eventId, async (client) =>
-      done(await releaseSet(client, setId, claimed.value)),
+    await withConnection(deps.pool, (client) =>
+      withRequestContext(client, seatOf(actor), () => releaseSet(client, setId, claimed.value)),
     ).catch((error: unknown) => {
       caller.log("change_set.unlock_failed", { setId, error: String(error) });
     });

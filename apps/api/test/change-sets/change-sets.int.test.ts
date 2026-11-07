@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { LightMyRequestResponse } from "fastify";
 import { Pool, type PoolClient } from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   createStaff,
   signInFully,
@@ -10,7 +10,9 @@ import {
   type TestApp,
 } from "#test/support/auth-app";
 import { applyChangeSet, type ChangeSetDeps } from "#src/change-sets/change-sets";
+import { KINDS } from "#src/change-sets/review";
 import { claimSet, releaseSet } from "#src/change-sets/store";
+import { withRequestContext } from "#src/db/context";
 import type { Actor } from "#src/events/events";
 import {
   TEST_DATABASE_URL,
@@ -471,6 +473,101 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("change sets over HTTP", () => 
     expect(row?.applying_until).toBeNull();
   });
 
+  it("answers finished, not a fault, when a close overtakes an apply at the item's record", async () => {
+    const f = await newEvent();
+    const set = await make(f.event, [
+      { op: "add", target: "category", body: { name: { en: "Overtaken" } } },
+    ]);
+    const item = (await open(f.event, set)).items[0]?.id as string;
+    const run = KINDS.category.run.bind(KINDS.category);
+    const spy = vi.spyOn(KINDS.category, "run").mockImplementationOnce(async (...args) => {
+      await owner(
+        "UPDATE change_set SET status = 'closed', finished_at = now(), applying_until = NULL WHERE id = $1",
+        [set],
+      );
+      return run(...args);
+    });
+    try {
+      const answer = await apply(f.event, set, [item]);
+      expect(answer.statusCode, answer.body).toBe(409);
+      expect(answer.json()).toMatchObject({ code: "change_set_finished" });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(
+      await owner("SELECT 1 FROM category WHERE event_id = $1 AND name_en = 'Overtaken'", [
+        f.event,
+      ]),
+    ).toEqual([]);
+  });
+
+  it("lets go of the set when the caller loses the event during the apply", async () => {
+    const f = await newEvent();
+    const other = await newEvent();
+    const set = await make(f.event, [
+      { op: "edit", target: "reward", targetId: f.reward, body: { price: 25 } },
+    ]);
+    const item = (await open(f.event, set)).items[0]?.id as string;
+    counter += 1;
+    const editor = await createStaff(db.owner, { email: `leaving${counter}@change-sets.test` });
+    await owner(
+      "INSERT INTO organizer_member (organizer_id, staff_user_id, role, event_scope) VALUES ($1, $2, 'editor', $3)",
+      [organizer, editor, [f.event]],
+    );
+    const spy = vi.spyOn(KINDS.reward, "run").mockImplementationOnce(async () => {
+      await owner("UPDATE organizer_member SET event_scope = $2 WHERE staff_user_id = $1", [
+        editor,
+        [other.event],
+      ]);
+      return null;
+    });
+    const pool = new Pool({ connectionString: db.appUrl, max: 2 });
+    try {
+      const outcome = await applyChangeSet(
+        { pool } as unknown as ChangeSetDeps,
+        { organizerId: organizer, staffUserId: editor } as unknown as Actor,
+        { eventId: f.event, setId: set, itemIds: [item] },
+        { address: "test", userAgent: null, log: () => undefined },
+      );
+      expect(outcome).toEqual({ kind: "not_found" });
+    } finally {
+      spy.mockRestore();
+      await pool.end();
+    }
+    const [row] = await owner<{ applying_until: Date | null }>(
+      "SELECT applying_until FROM change_set WHERE id = $1",
+      [set],
+    );
+    expect(row?.applying_until).toBeNull();
+  });
+
+  it("lets go of a claim for its own organizer only", async () => {
+    const f = await newEvent();
+    const set = await make(f.event, [
+      { op: "edit", target: "reward", targetId: f.reward, body: { price: 25 } },
+    ]);
+    const client = db.owner as unknown as PoolClient;
+    const claim = (await claimSet(client, set)) ?? "";
+    const [rival] = await owner<{ id: string }>(
+      "INSERT INTO organizer (name, slug) VALUES ('rival-release', 'rival-release') RETURNING id",
+    );
+    const releaseAs = (organizerId?: string) =>
+      withRequestContext(db.app, organizerId === undefined ? {} : { organizerId }, () =>
+        releaseSet(db.app as unknown as PoolClient, set, claim),
+      );
+    expect(
+      await owner(
+        `SELECT has_function_privilege('questify_outsider', 'change_set_release(uuid, timestamptz)', 'EXECUTE') AS outsider,
+                has_function_privilege('questify_app', 'change_set_release(uuid, timestamptz)', 'EXECUTE') AS api`,
+      ),
+    ).toEqual([{ outsider: false, api: true }]);
+    await releaseAs(rival?.id);
+    await releaseAs();
+    expect(await claimSet(client, set)).toBeNull();
+    await releaseAs(organizer);
+    expect(await claimSet(client, set)).not.toBeNull();
+  });
+
   it("lets go of its own claim only, so a late apply leaves the next apply's claim held", async () => {
     const f = await newEvent();
     const set = await make(f.event, [
@@ -484,6 +581,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("change sets over HTTP", () => 
           [set],
         )
       )[0]?.applying_until ?? null;
+    const release = (claim: string | null) =>
+      withRequestContext(db.app, { organizerId: organizer }, () =>
+        releaseSet(db.app as unknown as PoolClient, set, claim ?? ""),
+      );
     const late = await claimSet(client, set);
     await owner(
       "UPDATE change_set SET applying_until = now() - interval '1 second' WHERE id = $1",
@@ -492,10 +593,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("change sets over HTTP", () => 
     const next = await claimSet(client, set);
     expect(late).not.toBeNull();
     expect(next).not.toBeNull();
-    await releaseSet(client, set, late ?? "");
+    await release(late);
     expect(await holder()).not.toBeNull();
     expect(await claimSet(client, set)).toBeNull();
-    await releaseSet(client, set, next ?? "");
+    await release(next);
     expect(await holder()).toBeNull();
   });
 

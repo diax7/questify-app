@@ -152,7 +152,6 @@ const pick = (text: Plain, language: "ar" | "en"): string =>
 
 type CsvQuestion = SurveyResultsRows["questions"][number];
 
-/** One question's lines: a line a choice, one for a rating's average, or a line a text answer. */
 /** A text question's answers, one line each, and a line that says so when they were cut to the newest. */
 function textLines(
   question: CsvQuestion,
@@ -169,6 +168,7 @@ function textLines(
     : lines;
 }
 
+/** One question's lines: a line a choice, one for a rating's average, or a line a text answer. */
 function questionLines(
   question: CsvQuestion,
   language: "ar" | "en",

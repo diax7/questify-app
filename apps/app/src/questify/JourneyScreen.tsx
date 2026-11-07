@@ -118,7 +118,12 @@ function JourneyBody({ me }: Readonly<{ me: Me }>) {
       {read.failed ? (
         <>
           <AppText accessibilityRole="alert">{t("journey.failed")}</AppText>
-          <Button kind="quiet" label={t("common.retry")} onPress={read.retry} />
+          <Button
+            kind="quiet"
+            label={t("common.retry")}
+            onPress={read.retry}
+            disabled={read.retrying}
+          />
         </>
       ) : null}
       {read.data === null ? (

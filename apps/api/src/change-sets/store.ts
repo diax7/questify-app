@@ -181,13 +181,12 @@ export async function claimSet(client: PoolClient, setId: string): Promise<strin
   return rows[0]?.claim ?? null;
 }
 
-/** Lets go of this claim only; a set the apply finished has already let go, and a later claim stays. */
+/**
+ * Lets go of this claim only; a set the apply finished has already let go, and a later claim stays. Through a door
+ * (migration 0171), because the row policies hide the set from a caller who lost the event during the apply.
+ */
 export async function releaseSet(client: PoolClient, setId: string, claim: string): Promise<void> {
-  await client.query(
-    `UPDATE change_set SET applying_until = NULL
-     WHERE id = $1 AND status = 'open' AND applying_until = $2::timestamptz`,
-    [setId, claim],
-  );
+  await client.query("SELECT change_set_release($1, $2::timestamptz)", [setId, claim]);
 }
 
 /** Finishes an open set as applied or closed. */

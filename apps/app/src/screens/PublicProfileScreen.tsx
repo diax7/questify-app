@@ -15,6 +15,7 @@ import { LevelBadge } from "#src/questify/LevelBadge.tsx";
 import { PublicPassport } from "#src/questify/PassportSection.tsx";
 import { ReportButton } from "#src/questify/ReportButton.tsx";
 import { publicProfileSchema, type PublicProfile } from "#src/questify/profile-api.ts";
+import { useTheme } from "#src/theme/theme.tsx";
 
 /** The public profile itself, and Block and Report for anyone but the reader (FR-1415, FR-1411). */
 function ProfileDetails({
@@ -29,6 +30,7 @@ function ProfileDetails({
   onBlock: (blocked: boolean) => void;
 }>) {
   const { t, language } = useI18n();
+  const { theme } = useTheme();
   return (
     <>
       <Avatar
@@ -41,7 +43,7 @@ function ProfileDetails({
           title: profile.title,
         }}
       />
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: theme.spacing.sm }}>
         <AppText variant="title">@{profile.username}</AppText>
         <LevelBadge level={profile.level.number} size={32} />
       </View>

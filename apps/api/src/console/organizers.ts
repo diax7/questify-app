@@ -87,7 +87,7 @@ export type HistoryEntry = Readonly<{
 type Admin = Readonly<{ id: string }>;
 
 /** The audit actions whose entry keeps the admin's typed reason in `after` (the suspension doors and their lifting). */
-const REASON_ACTIONS: readonly string[] = [
+export const REASON_ACTIONS: readonly string[] = [
   "event.suspend",
   "event.reactivate",
   "organizer.suspend",

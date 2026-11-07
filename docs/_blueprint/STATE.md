@@ -7,6 +7,20 @@
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
 
+## FOLLOWUPS batch 18 — 2026-11-07
+
+- **FOLLOWUPS batch 18 (tier B, API, SQL and app; migration 0171, new and undeployed; no package change, no ADR, ADR-766's build note amended).**
+  `own_achievements` hides "next" only when the next tier is the revoked one; `admin_amounts_save` stores a missing row only for a save
+  that changes something; `daily_xp_field` loses its unreachable range branch and its `top` (the CHECK of 0163 holds the range, and the
+  amounts paid do not move); `admin_xp_table_save` takes no lock on a souvenir or unknown item id; `admin_report_resolve` compares
+  usernames folded, as the unique index does. A change set's claim is let go of through a new door, `change_set_release`, even when the
+  caller just lost the event, and a close that overtakes an apply answers 409 `change_set_finished`, not 500. The busy text says up to 5
+  minutes (Arabic through ux-araby). The past points 5 s check runs only with `PAST_POINTS_TIMING`. Smaller: `isInEvent`'s type, the
+  survey docstring, the `GET /v1/admin/events/{eventId}` row (`reason`), the organizers test's four actions, Journey's Retry waits while it
+  reloads, the profile's theme gap. Closed without code: T-714's cursor (already done, 0167 clamps to 51) and `ranking.ts`'s `own_level(NULL)`
+  (measured at +1.3 ms a read, ADR-766; the API role cannot read `player_xp`). Left in FOLLOWUPS: the level subquery in 0164 (a shared
+  function would not inline), `PODIUM_MIN`, the template `branding`, `sign-in-rush`. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 16 — 2026-11-07
 
 - **FOLLOWUPS batch 16 (tier B, API and SQL; migration 0170, no package change, no new ADR, ADR-494 amended).** `record_completion`'s

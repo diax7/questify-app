@@ -374,6 +374,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reports and moderation (databa
       expect(await sqlstate(resolve("event", event, "unpublished"))).toBe("RP409");
     });
 
+    it("does not take a change of case or of an Arabic letter form for a rename", async () => {
+      const reported = await f.newPlayer();
+      const name = `أحمد_${randomUUID().slice(0, 8)}`;
+      const rename = (to: string) =>
+        f.owner("UPDATE player SET username = $2 WHERE id = $1", [reported, to]);
+      await rename(name);
+      await report(await f.newPlayer(), { kind: "username", target: null, name });
+      await rename(name.replace("أ", "ا").toUpperCase());
+      expect(await sqlstate(resolve("username", reported, "username_changed"))).toBe("RP409");
+      await rename(`renamed_${randomUUID().slice(0, 8)}`);
+      expect(await resolve("username", reported, "username_changed")).toBe(1);
+    });
+
     it("closes a username's reports as changed or banned only when the player was renamed or banned", async () => {
       const reported = await f.newPlayer();
       const name = await f.usernameOf(reported);

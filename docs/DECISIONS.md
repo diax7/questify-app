@@ -8539,7 +8539,7 @@ player's XP (`xp_level_of`) through one primary-key lookup per row. A blocked ro
 score. Rank-only events keep it. The app shows it on event rankings, the podium and profiles (Dhia, Q-724); not on the
 big screen, the station or the top-10 push. The completion path is untouched
 (ADR-734); the ranking read may grow by at most 0.5 ms or 10%.
-**Build note:** the level is an inline subquery per answered row: calling `xp_level_of` per row added about 36% to `ranking_top(…, 100)` on 50,000 players. As built, old and new alternating on one database (median of 15): `ranking_top` 173.1 to 181.3 ms (+4.7%), `ranking_rows` 78.6 to 79.0 ms (+0.4%).
+**Build note:** the level is an inline subquery per answered row: calling `xp_level_of` per row added about 36% to `ranking_top(…, 100)` on 50,000 players. As built, old and new alternating on one database (median of 15): `ranking_top` 173.1 to 181.3 ms (+4.7%), `ranking_rows` 78.6 to 79.0 ms (+0.4%). The reader's own row was not in that measurement: it reads `own_level(NULL)`, because the API role has no read of `player_xp` to inline. Measured in batch 18 (50,000 players, median of 350, company server at load 17): 6.96 to 8.26 ms, so +1.3 ms once per ranking read, under 1% of a `ranking_top` read; left as it is.
 **Why:** Dhia chose the level badge on rankings; the read already joins the player per row.
 **Trade-offs:** one more join per row on every ranking read.
 
