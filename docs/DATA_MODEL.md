@@ -462,7 +462,7 @@ tables follow their event's delete (cascade). The four trigger functions (`chang
 `change_set_item_into_open`, `change_set_item_frozen`) are the only functions; none is callable (no grant). An item body
 is checked at 16 KiB as `pg_column_size`; the API answers a body that passes its text-length check but is larger as
 jsonb with `422 invalid_change_set {field: body}`. `change_set.applying_until` (migration 0166, ADR-800) is an apply's claim on
-the set for 5 minutes: while it runs, another apply or a close answers busy; it clears when the apply ends or the set finishes.
+the set for 5 minutes: while it runs, another apply or a close answers busy; it clears when that apply ends, which leaves a later apply's claim held, or when the set finishes.
 An item's `applied` decision commits in the write's own transaction, and only while the item is pending.
 
 ### quest_completion

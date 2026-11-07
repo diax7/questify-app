@@ -167,23 +167,26 @@ export async function decideItem(
 }
 
 /**
- * Claims an open set for an apply or a close (ADR-800): false while another holds it. A claim its process never let go
- * of runs out; a late overlap is safe, because an item's decision commits with its write.
+ * Claims an open set for an apply or a close (ADR-800): the claim, null while another holds it. A claim its process never
+ * let go of runs out; a late overlap is safe, because an item's decision commits with its write. The claim is its end
+ * time, as text to keep the microseconds: a new claim waits for the old end, so no two claims share one.
  */
-export async function claimSet(client: PoolClient, setId: string): Promise<boolean> {
-  const { rowCount } = await client.query(
+export async function claimSet(client: PoolClient, setId: string): Promise<string | null> {
+  const { rows } = await client.query<{ claim: string }>(
     `UPDATE change_set SET applying_until = now() + interval '5 minutes'
-     WHERE id = $1 AND status = 'open' AND (applying_until IS NULL OR applying_until <= now())`,
+     WHERE id = $1 AND status = 'open' AND (applying_until IS NULL OR applying_until <= now())
+     RETURNING applying_until::text AS claim`,
     [setId],
   );
-  return rowCount === 1;
+  return rows[0]?.claim ?? null;
 }
 
-/** Lets go of a claim; a set the apply finished has already let go. */
-export async function releaseSet(client: PoolClient, setId: string): Promise<void> {
+/** Lets go of this claim only; a set the apply finished has already let go, and a later claim stays. */
+export async function releaseSet(client: PoolClient, setId: string, claim: string): Promise<void> {
   await client.query(
-    "UPDATE change_set SET applying_until = NULL WHERE id = $1 AND status = 'open'",
-    [setId],
+    `UPDATE change_set SET applying_until = NULL
+     WHERE id = $1 AND status = 'open' AND applying_until = $2::timestamptz`,
+    [setId, claim],
   );
 }
 

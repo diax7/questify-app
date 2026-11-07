@@ -1,9 +1,11 @@
 import { spawn } from "node:child_process";
+import { generateKeyPairSync } from "node:crypto";
 import { join } from "node:path";
 import type { Client } from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { EmailSendError } from "#src/auth/email/sender";
 import { createAuthKeys } from "#src/auth/keys";
+import * as passwordModule from "#src/auth/password";
 import { clearThrottleFor, createOutcome, createStaffAccount } from "#src/auth/staff-admin";
 import { BUCKETS, record } from "#src/auth/throttle";
 import {
@@ -23,13 +25,20 @@ import {
   type TestDatabase,
 } from "#test/support/test-db";
 
+vi.mock("#src/auth/password", async (importOriginal) => {
+  const actual = await importOriginal<typeof passwordModule>();
+  return { ...actual, hashPassword: vi.fn(actual.hashPassword) };
+});
+
 const API_ROOT = join(import.meta.dirname, "..", "..");
 const PRELOAD = join(API_ROOT, "test", "support", "staff-cli-preload.mjs");
+const MAIL_OK_PRELOAD = join(API_ROOT, "test", "support", "staff-cli-mail-ok-preload.mjs");
 
 /** What a run of the real CLI came to. `stdin` stays open until it exits, as a hung pipe would. */
 function runCli(
   args: readonly string[],
   env: Readonly<Record<string, string>>,
+  preload: string = PRELOAD,
 ): Promise<{ code: number | null; output: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(
@@ -38,7 +47,7 @@ function runCli(
         "--experimental-strip-types",
         "--no-warnings",
         "--import",
-        PRELOAD,
+        preload,
         "src/staff-cli.ts",
         ...args,
       ],
@@ -113,6 +122,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration",
   };
 
   const settings = () => ({ ...mailSettings, DATABASE_ADMIN_URL: ownerUrl });
+
+  it("hashes a new random secret for each account, never a constant", async () => {
+    vi.mocked(passwordModule.hashPassword).mockClear();
+    await create("random.one@najd.sa");
+    await create("random.two@najd.sa");
+    const [first, second] = vi
+      .mocked(passwordModule.hashPassword)
+      .mock.calls.map(([secret]) => secret);
+    expect(first).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(second).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(first).not.toBe(second);
+  });
 
   it("create grants no role", async () => {
     const made = await create("  New.Person@Najd.SA ");
@@ -285,6 +306,35 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration",
       expect(await owner("SELECT 1 FROM staff_user WHERE email = 'cli.down@najd.sa'")).toHaveLength(
         1,
       );
+    }, 60_000);
+
+    it("exits 0 when the provider takes the email, and prints nothing of the link", async () => {
+      const { privateKey } = generateKeyPairSync("rsa", {
+        modulusLength: 2048,
+        privateKeyEncoding: { type: "pkcs8", format: "pem" },
+        publicKeyEncoding: { type: "spki", format: "pem" },
+      });
+      const run = await runCli(
+        ["create", "cli.sent@najd.sa"],
+        {
+          ...settings(),
+          GMAIL_SERVICE_ACCOUNT_KEY: JSON.stringify({
+            ...JSON.parse(mailSettings.GMAIL_SERVICE_ACCOUNT_KEY),
+            private_key: privateKey,
+          }),
+        },
+        MAIL_OK_PRELOAD,
+      );
+      expect(run.output).toContain("Created cli.sent@najd.sa (");
+      expect(run.output).toContain("They set their own password from the emailed link.");
+      expect(run.output).not.toContain("token=");
+      expect(run.code).toBe(0);
+      expect(
+        await owner(
+          `SELECT 1 FROM audit_log a JOIN staff_user s ON s.id = a.target_id::uuid
+           WHERE s.email = 'cli.sent@najd.sa' AND a.action = 'staff.invite'`,
+        ),
+      ).toHaveLength(1);
     }, 60_000);
 
     it("refuses --admin with the usage text, and makes no account", async () => {

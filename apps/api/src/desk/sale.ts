@@ -228,7 +228,7 @@ export async function offerSale(
       };
     },
   );
-  if (result.kind === "done") {
+  if (result.kind === "done" && result.value.status !== "expired") {
     caller.log("desk.sale_offered", {
       saleId: result.value.id,
       replayed: String(result.value.replayed),

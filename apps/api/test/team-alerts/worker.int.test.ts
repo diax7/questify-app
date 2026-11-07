@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
 import { createVerifyGate } from "#src/auth/verify-gate";
-import { startTeamAlertWorker, TEAM_ALERT_BUDGET } from "#src/team-alerts/worker";
+import { logTotals, startTeamAlertWorker, TEAM_ALERT_BUDGET } from "#src/team-alerts/worker";
 import { RecordingEmailSender } from "#test/support/auth-app";
 import { pushFixture, type PushFixture } from "#test/support/push";
 import { TEST_DATABASE_URL } from "#test/support/test-db";
@@ -113,6 +113,46 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("team alert worker", () => {
     );
     expect(row?.state).toBe("skipped");
     expect(await f.count("auth_throttle WHERE bucket = 'outbound_mail'")).toBe(0);
+  });
+
+  it("past 100 digests a day still mails a dispute, alone, and closes the report beside it", async () => {
+    await f.owner(
+      `INSERT INTO auth_throttle (bucket, key, at)
+       SELECT 'team_alert_mail', sha256('questify.team_alert_mail'), now() - interval '1 hour'
+       FROM generate_series(1, $1)`,
+      [TEAM_ALERT_BUDGET.perDay],
+    );
+    const { event } = await urgentReport();
+    const change = randomUUID();
+    await f.owner(
+      `INSERT INTO team_alert (kind, change_id, organizer_id, dedupe)
+       SELECT 'email_change_dispute', $1::uuid, e.organizer_id, 'dispute:' || $1::text
+       FROM event e WHERE e.id = $2`,
+      [change, event],
+    );
+    expect(await run()).toMatchObject({ digest: "sent", lines: 1, capped: 1 });
+    expect(mail.sent).toHaveLength(1);
+    expect(mail.sent[0]?.text).not.toContain(event);
+    const rows = await f.owner<{ kind: string; state: string }>(
+      "SELECT kind, state FROM team_alert WHERE change_id = $1 OR target_id = $2 ORDER BY kind",
+      [change, event],
+    );
+    expect(rows).toEqual([
+      { kind: "email_change_dispute", state: "sent" },
+      { kind: "urgent_report", state: "skipped" },
+    ]);
+    await urgentReport();
+    expect((await run()).digest).toBe("wait");
+  });
+
+  it("logs a sent digest as an error when the cap closed alerts beside it", () => {
+    const levels: string[] = [];
+    const log: TeamAlertWorkerLog = (level) => levels.push(level);
+    logTotals({ log }, { applied: 0, digest: "sent", lines: 1, capped: 0 });
+    logTotals({ log }, { applied: 0, digest: "sent", lines: 1, capped: 2 });
+    logTotals({ log }, { applied: 0, digest: "capped", lines: 0, capped: 2 });
+    logTotals({ log }, { applied: 0, digest: "none", lines: 0, capped: 0 });
+    expect(levels).toEqual(["info", "error", "error"]);
   });
 
   it("retries a refused send at the next digest", async () => {

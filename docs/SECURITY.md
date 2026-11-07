@@ -833,5 +833,5 @@ window allows at most 420 guesses of 1,000,000; `review_demo.code_guessing` logs
 - **No addresses in audit rows or logs** (ids, states, the identity check and the reason only); addresses live in the
   change row and are erased 180 days after it closes.
 - **Team alert mail** holds ids, event and organizer names, kinds, counts, reason codes and due times, never a reporter,
-  note, reported text or username; one digest per 10 minutes and 100 a day on its own budget (`team_alert_mail`), so it
+  note, reported text or username; one digest per 10 minutes and 100 a day (a disputed email change still goes past that) on its own budget (`team_alert_mail`), so it
   can never take the sign-in mail budget (`outboundMailPerDay`).

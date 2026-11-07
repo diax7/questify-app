@@ -7,6 +7,18 @@
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
 
+## FOLLOWUPS batch 16 — 2026-11-07
+
+- **FOLLOWUPS batch 16 (tier B, API and SQL; migration 0170, no package change, no new ADR, ADR-494 amended).** `record_completion`'s
+  replay answers the completion's current net: the quest entry, its adjusts and its own removal (0170 restates it from 0098, score only;
+  a bonus stays out, as in the first answer). `releaseSet` clears only its own claim: `claimSet` answers its end time as the token, no new
+  column. An `email_change_dispute` alert goes past the 100-a-day digest cap in a digest of its own, because the console badge counts
+  urgent reports only; the urgent rows beside it still close `skipped`, the run's `capped` count logs as an error, and the digest keeps the
+  10-minute spacing. A repeat that answers `expired` no longer logs `desk.sale_offered`. New tests: `cancelled` and `skipped`
+  announcements stay out of the hour and day message counts; the staff CLI's success path exits 0 with a generated RSA key and a preload
+  `fetch` that answers OK; the initial secret differs per account. Left in FOLLOWUPS: the rest of the T-701b, batch 7 and batch 14 lines,
+  and the staff invite's 502 and 503. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 15 — 2026-11-07
 
 - **FOLLOWUPS batch 15 (tier B, CI and ops upkeep; no migration, no package change, no ADR).** `ci.yml` gets a `monitoring` job that runs

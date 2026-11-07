@@ -335,7 +335,8 @@ async function withSetClaim<T>(
     if (set.status !== "open") {
       return { kind: "finished" };
     }
-    return (await claimSet(client, set.id)) ? done(null) : { kind: "busy" };
+    const claim = await claimSet(client, set.id);
+    return claim === null ? { kind: "busy" } : done(claim);
   });
   if (claimed.kind !== "done") {
     return claimed;
@@ -344,7 +345,7 @@ async function withSetClaim<T>(
     return await work();
   } finally {
     await inEvent(deps.pool, actor, eventId, async (client) =>
-      done(await releaseSet(client, setId)),
+      done(await releaseSet(client, setId, claimed.value)),
     ).catch((error: unknown) => {
       caller.log("change_set.unlock_failed", { setId, error: String(error) });
     });
@@ -435,7 +436,7 @@ export function closeChangeSet(
     if (set.status !== "open") {
       return { kind: "finished" };
     }
-    if (!(await claimSet(client, set.id))) {
+    if ((await claimSet(client, set.id)) === null) {
       return { kind: "busy" };
     }
     await finishSet(client, set.id, "closed");

@@ -574,6 +574,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("desk sale over HTTP", () => {
       ]);
     });
 
+    it("logs no offer for a repeat that answers expired", async () => {
+      const s = await sell();
+      const log = vi.fn();
+      const request = {
+        operatorId: s.desk.id,
+        eventId: s.event,
+        code: s.buyer.code,
+        rewardId: s.reward,
+        idempotencyKey: randomUUID(),
+      };
+      const made = await offerSale(deskDeps(), request, callerWith(log));
+      const sale = made.kind === "done" ? made.value.id : "";
+      await db.owner.query(
+        "UPDATE desk_sale SET offer_until = now() - interval '1 second' WHERE id = $1",
+        [sale],
+      );
+      expect(await offerSale(deskDeps(), request, callerWith(log))).toMatchObject({
+        kind: "done",
+        value: { id: sale, status: "expired", replayed: true },
+      });
+      expect(log.mock.calls).toEqual([["desk.sale_offered", { saleId: sale, replayed: "false" }]]);
+    });
+
     it("answers Not now true once and false when the offer had already ended", async () => {
       const s = await sell();
       const request = { playerId: s.buyer.id, saleId: await saleOf(s) };

@@ -101,10 +101,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sessions (database)", () => {
   const announce = (fresh: string, status: string, at: string) =>
     f.owner(
       `INSERT INTO announcement (organizer_id, event_id, title_ar, title_en, body_ar, body_en, push_body_ar,
-                                 push_body_en, status, send_at, press, notice_id, sent_at, created_by)
+                                 push_body_en, status, send_at, press, notice_id, sent_at, cancelled_at,
+                                 skip_reason, created_by)
        SELECT e.organizer_id, e.id, 'a', 'a', 'a', 'a', 'a', 'a', $2, now() + $3::interval,
               encode(sha256(convert_to(gen_random_uuid()::text, 'UTF8')), 'hex'),
-              CASE WHEN $2 = 'sent' THEN 1 END, CASE WHEN $2 = 'sent' THEN now() END, gen_random_uuid()
+              CASE WHEN $2 = 'sent' THEN 1 END, CASE WHEN $2 = 'sent' THEN now() END,
+              CASE WHEN $2 = 'cancelled' THEN now() END, CASE WHEN $2 = 'skipped' THEN 'late' END,
+              gen_random_uuid()
        FROM event e WHERE e.id = $1`,
       [fresh, status, at],
     );
@@ -604,6 +607,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sessions (database)", () => {
       await add("sent", "-20 minutes");
       await add("sent", "-2 hours");
       await add("scheduled", "30 minutes");
+      await add("cancelled", "-5 minutes");
+      await add("skipped", "-5 minutes");
       await send();
       expect(await refusal(send())).toBe("PL429:hour");
     });
@@ -611,6 +616,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sessions (database)", () => {
     it("the day's message limit counts the announcements of that day", async () => {
       const { send, announce: add } = await messaging();
       await add("sent", "-25 hours");
+      await add("cancelled", "-2 hours");
+      await add("skipped", "-2 hours");
       for (let sent = 0; sent < 9; sent += 1) {
         await add("sent", "-2 hours");
       }

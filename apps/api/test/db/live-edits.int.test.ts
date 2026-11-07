@@ -616,6 +616,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("live points edits (database)",
       expect(await standing(enrollment)).toEqual({ score: "0", balance: "0" });
     });
 
+    it("a replayed completion answers the net after each adjust and after its removal", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const stage = await quest(event);
+      const { player } = await member(event);
+      const key = randomUUID();
+      const [paid] = await scan(player, stage, key);
+      expect(paid?.points).toBe("100");
+      await past(event, stage, 130);
+      await past(event, stage, 90);
+      const [replay] = await scan(player, stage, key);
+      expect(replay).toMatchObject({ completion_id: paid?.completion_id, points: "90" });
+      const [entry] = await f.owner<{ id: string }>(
+        "SELECT id FROM ledger_entry WHERE completion_id = $1 AND kind = 'quest'",
+        [paid?.completion_id],
+      );
+      await f.removeEntry(event, entry?.id ?? "");
+      expect((await scan(player, stage, key))[0]?.points).toBe("0");
+    });
+
     it("duplicates an event with a deleted quest without it or any link to it", async () => {
       const event = await f.newEvent({ phase: "live" });
       const stage = await quest(event);

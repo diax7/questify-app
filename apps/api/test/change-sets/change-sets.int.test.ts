@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { LightMyRequestResponse } from "fastify";
-import { Pool } from "pg";
+import { Pool, type PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
@@ -10,6 +10,7 @@ import {
   type TestApp,
 } from "#test/support/auth-app";
 import { applyChangeSet, type ChangeSetDeps } from "#src/change-sets/change-sets";
+import { claimSet, releaseSet } from "#src/change-sets/store";
 import type { Actor } from "#src/events/events";
 import {
   TEST_DATABASE_URL,
@@ -468,6 +469,34 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("change sets over HTTP", () => 
       [set],
     );
     expect(row?.applying_until).toBeNull();
+  });
+
+  it("lets go of its own claim only, so a late apply leaves the next apply's claim held", async () => {
+    const f = await newEvent();
+    const set = await make(f.event, [
+      { op: "edit", target: "reward", targetId: f.reward, body: { price: 25 } },
+    ]);
+    const client = db.owner as unknown as PoolClient;
+    const holder = async () =>
+      (
+        await owner<{ applying_until: Date | null }>(
+          "SELECT applying_until FROM change_set WHERE id = $1",
+          [set],
+        )
+      )[0]?.applying_until ?? null;
+    const late = await claimSet(client, set);
+    await owner(
+      "UPDATE change_set SET applying_until = now() - interval '1 second' WHERE id = $1",
+      [set],
+    );
+    const next = await claimSet(client, set);
+    expect(late).not.toBeNull();
+    expect(next).not.toBeNull();
+    await releaseSet(client, set, late ?? "");
+    expect(await holder()).not.toBeNull();
+    expect(await claimSet(client, set)).toBeNull();
+    await releaseSet(client, set, next ?? "");
+    expect(await holder()).toBeNull();
   });
 
   it("never reaches a target of another organizer, as a review or as an apply", async () => {

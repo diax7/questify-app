@@ -13,7 +13,7 @@ import { teamAlertDigest, type AlertLine } from "#src/team-alerts/templates";
 export const TEAM_ALERT_BUDGET = {
   /** One digest at most in this many seconds. */
   spacingSeconds: 600,
-  /** Digests at most a day; past it only the console badge shows the alerts. */
+  /** Digests at most a day; past it only the console badge shows the alerts. A dispute, which it omits, still goes. */
   perDay: 100,
 } as const;
 /** Rows one digest claims at most (the mail lists 20 and counts the rest). */
@@ -38,11 +38,15 @@ export type TeamAlertTotals = Readonly<{
   applied: number;
   digest: "none" | "wait" | "capped" | "sent" | "failed" | "uncertain";
   lines: number;
+  /** Alerts the daily cap closed unmailed in this run. */
+  capped: number;
 }>;
 
 type Claimed = Readonly<{ id: string; doc: AlertLine }>;
 type Claim = Readonly<
-  { kind: "wait" | "none" | "capped" } | { kind: "send"; lease: string; rows: Claimed[] }
+  | { kind: "wait" | "none" }
+  | { kind: "capped"; capped: number }
+  | { kind: "send"; lease: string; rows: Claimed[]; capped: number }
 >;
 
 const system = <T>(pool: Pool, work: (client: PoolClient) => Promise<T>): Promise<T> =>
@@ -57,8 +61,9 @@ const ack = (client: PoolClient, rows: readonly Claimed[], lease: string, outcom
 
 /**
  * In one transaction under one lock (so two instances never send two digests): waits while a digest went out in the
- * last 10 minutes; claims the waiting rows; past 100 digests a day closes them `skipped`; else records one digest in
- * the budget and hands the rows over.
+ * last 10 minutes; claims the waiting rows; past 100 digests a day closes them `skipped`, except a dispute, whose one
+ * signal is this mail (the console badge counts urgent reports only); records one digest in the budget for what is left,
+ * so a dispute past the cap keeps the spacing, and hands those rows over.
  */
 const claim = (pool: Pool): Promise<Claim> =>
   system(pool, async (client) => {
@@ -79,12 +84,13 @@ const claim = (pool: Pool): Promise<Claim> =>
     ]);
     if (rows.length === 0) return { kind: "none" };
     const today = await countRecent(client, BUCKETS.teamAlertMail, BUDGET_KEY, 86_400);
-    if (today.count >= TEAM_ALERT_BUDGET.perDay) {
-      await ack(client, rows, lease, "skipped");
-      return { kind: "capped" };
-    }
+    const over = today.count >= TEAM_ALERT_BUDGET.perDay;
+    const closed = over ? rows.filter((row) => row.doc.kind !== "email_change_dispute") : [];
+    if (closed.length > 0) await ack(client, closed, lease, "skipped");
+    if (closed.length === rows.length) return { kind: "capped", capped: closed.length };
     await record(client, BUCKETS.teamAlertMail, BUDGET_KEY);
-    return { kind: "send", lease, rows };
+    const left = rows.filter((row) => !closed.includes(row));
+    return { kind: "send", lease, rows: left, capped: closed.length };
   });
 
 /** Rejects after `ms`; the timer never keeps the process alive. */
@@ -144,17 +150,21 @@ async function applyDue(deps: TeamAlertWorkerDeps): Promise<number> {
 async function runOnce(deps: TeamAlertWorkerDeps): Promise<TeamAlertTotals> {
   const applied = await applyDue(deps);
   const claimed = await claim(deps.pool);
-  if (claimed.kind !== "send") return { applied, digest: claimed.kind, lines: 0 };
+  if (claimed.kind !== "send") {
+    const capped = claimed.kind === "capped" ? claimed.capped : 0;
+    return { applied, digest: claimed.kind, lines: 0, capped };
+  }
   const outcome = await sendDigest(deps, claimed.rows);
   await system(deps.pool, (client) => ack(client, claimed.rows, claimed.lease, outcome));
-  return { applied, digest: outcome, lines: claimed.rows.length };
+  return { applied, digest: outcome, lines: claimed.rows.length, capped: claimed.capped };
 }
 
-/** Logs a run that did something; a digest not sent as planned is an error. */
-function logTotals(deps: TeamAlertWorkerDeps, totals: TeamAlertTotals): void {
-  const quiet = totals.applied === 0 && totals.lines === 0 && totals.digest !== "capped";
+/** Logs a run that did something; a digest not sent as planned, or alerts the cap closed, is an error. */
+export function logTotals(deps: Pick<TeamAlertWorkerDeps, "log">, totals: TeamAlertTotals): void {
+  const quiet = totals.applied === 0 && totals.lines === 0 && totals.capped === 0;
   if (quiet) return;
-  const fine = totals.digest === "sent" || totals.digest === "none" || totals.digest === "wait";
+  const planned = totals.digest === "sent" || totals.digest === "none" || totals.digest === "wait";
+  const fine = planned && totals.capped === 0;
   deps.log(fine ? "info" : "error", { event: "team_alert.run", ...totals });
 }
 
@@ -166,7 +176,8 @@ export type TeamAlertWorker = Readonly<{
 /**
  * The team alert worker (T-701b, FR-1732, FR-1784, ADR-494): each run applies the held owner email changes that are
  * due, then sends at most one digest of the queued alerts to `moderation.alertEmail` (else `MAIL_FROM`) through the
- * sign-in transport: one per 10 minutes, 100 a day on its own budget. Logs carry counts and outcomes only.
+ * sign-in transport: one per 10 minutes, 100 a day on its own budget (a dispute past that still goes). Logs carry counts
+ * and outcomes only.
  */
 export function startTeamAlertWorker(deps: TeamAlertWorkerDeps): TeamAlertWorker {
   const random = deps.random ?? Math.random;

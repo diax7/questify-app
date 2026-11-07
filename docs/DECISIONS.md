@@ -7118,7 +7118,7 @@ and revokes its open operator invites. A deleted account's change rows go with i
 (`team_alert_mail`, never the sign-in `outboundMailPerDay`; past the cap only the console badge shows them, plan review
 MAJOR 2), listing up to 20 targets (event, organizer, item kind, count, reason codes, due time, console link) with no reporter, note, reported text or username. It uses the sign-in mail transport because it carries no personal data (the organizer alert transport stays off, ADR-360). The address is `platform_setting` key `moderation` field `alertEmail`, else `MAIL_FROM`. A timed-out send is `uncertain` and never resent; a refused one is retried twice (`attempts`). The alert trigger,
 `admin_unpublish` and `admin_report_resolve` share one advisory lock per target, so one alert per open episode is exact.
-A disputed owner email change (ADR-491) is a line of the same digest.
+A disputed owner email change (ADR-491) is a line of the same digest, and still goes past the daily cap, in a digest of its own that keeps the 10-minute spacing: the console badge counts urgent reports only, so this mail is its one signal (FOLLOWUPS batch 16).
 **Trade-offs:** an alert can be lost; the console badge and due times remain the primary signal.
 
 ## ADR-495 - T-701b the console edits the moderation addresses through one door
