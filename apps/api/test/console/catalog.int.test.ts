@@ -365,6 +365,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console catalog editors over H
       const saved = await admin("PUT", URL, doc);
       expect(saved.statusCode).toBe(200);
       expect(saved.json()).toMatchObject({ ...doc, stored: { xp: true }, revertible: true });
+      const read = amountsAdminSchema.parse((await admin("GET", URL)).json());
+      expect(read).toMatchObject({ revertible: true, previous: { xp: shown.xp } });
       const [entry] = await audits("catalog.amounts.update", "amounts");
       expect(entry).toMatchObject({ actor_id: adminId, after: doc });
       for (const bad of [

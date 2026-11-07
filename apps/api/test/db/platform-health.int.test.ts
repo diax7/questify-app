@@ -409,6 +409,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         expect(after.activity.entriesHour - before.activity.entriesHour).toBe(1);
       });
 
+      it("leaves out the review demo: its organizer, its events and the accounts it made (Q-525)", async () => {
+        const [org] = await f.owner<{ id: string }>(
+          "INSERT INTO organizer (name, slug) VALUES ('Questify Review Demo', 'review-demo-numbers') RETURNING id",
+        );
+        const demoEvent = await f.newEvent({ phase: "live", organizer: org?.id ?? "" });
+        const account = await f.newPlayer();
+        await f.join(demoEvent, account);
+        const shown = await numbers();
+        await f.owner(
+          `INSERT INTO review_demo (organizer_id, event_id, contact, contact_key, contact_fp, created_by)
+           VALUES ($1, $2, '+966500000000', $3, $3, $4)`,
+          [org?.id, demoEvent, Buffer.alloc(32, 1), adminId],
+        );
+        await f.owner("INSERT INTO review_demo_player (player_id, role) VALUES ($1, 'fictional')", [
+          account,
+        ]);
+        const after = await numbers();
+        expect(after.organizers.active).toBe(shown.organizers.active - 1);
+        expect(after.events.live).toBe(shown.events.live - 1);
+        expect(after.players.active).toBe(shown.players.active - 1);
+        expect(after.activity.playersInLiveEvents).toBe(shown.activity.playersInLiveEvents - 1);
+      });
+
       it("holds nothing but counts", async () => {
         const text = JSON.stringify(await numbers());
         expect(text).not.toMatch(/@|username|email|name/i);

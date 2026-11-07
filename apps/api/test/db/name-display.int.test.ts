@@ -677,6 +677,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("name display (database)", () =
         "ranking_names",
         "screen_finale",
         "screen_ranking",
+        "session_check_in",
         "staff_full_name",
       ]);
     });

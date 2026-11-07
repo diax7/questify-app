@@ -9292,7 +9292,7 @@ export const MESSAGES = {
   "console.history.rewardChange": { ar: "عُدّلت الجوائز", en: "Rewards changed" },
   "console.history.featureRequestAllow": { ar: "قُبل طلب إضافة", en: "Add-on request approved" },
   "console.history.featureRequestDecline": { ar: "رُفض طلب إضافة", en: "Add-on request declined" },
-  "console.history.inviteCancel": { ar: "أُلغيت دعوة إلى الفريق", en: "Team invitation cancelled" },
+  "console.history.inviteCancel": { ar: "سُحبت دعوة إلى الفريق", en: "Team invitation withdrawn" },
   "console.organizer.limited": { ar: "محدود بفعاليات: {count}", en: "Limited to events: {count}" },
   "console.organizer.back": { ar: "كل الجهات المنظِّمة", en: "All organizers" },
   "console.organizer.open": { ar: "صفحة الجهة المنظِّمة", en: "Organizer page" },

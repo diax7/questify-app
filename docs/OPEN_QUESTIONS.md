@@ -2363,6 +2363,7 @@ The fixed code works for one Saudi mobile number. While a review window is open 
 ## Q-525 - Should the demo organizer be left out of platform usage figures? (T-710)
 
 **Status:** Proposed (developer, 2026-11-03).
+**Built:** left out of the usage list, feature usage and the numbers page (batch 13, batch 14, migration 0168).
 **Recommended (developer):** yes, where a platform total is shown (usage, feature usage, KPIs), in a follow-up; for v1 the console names it "Questify Review Demo", which tells it apart. T-710 build: recorded in `docs/FOLLOWUPS.md` (`console_feature_usage` is not restated in 0144).
 
 ## Q-526 - Should the demo content be seeded by a script? (T-710, ADR-568)
@@ -2988,3 +2989,9 @@ for every buyer.
 **Status:** Open (worker's recommendation in ADR-811; the coordinator decides after review).
 **Question:** is a 15-minute window right for `new_flags`, does the demo event stay closed to real staff, and is `event_organizer_idx`
 safe to lose at a member change's slower read? **Recommended:** yes to all three, as built in migration 0167.
+
+## Q-743 - Should an announcement also count session messages? (ADR-813)
+
+**Status:** Open (worker's recommendation in ADR-813; the coordinator decides after review).
+**Question:** the limit is shared one way only: a session message counts announcements, an announcement does not count session
+messages. **Recommended:** keep it one way, as built in migration 0168.

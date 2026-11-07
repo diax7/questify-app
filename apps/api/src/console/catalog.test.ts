@@ -274,7 +274,7 @@ describe.each([...ID_CASES, ...DOCUMENT_CASES])("the $kind editor", (editor) => 
     const rows = await listCatalog(pool, ADMIN, editor.kind);
     expect(rows).toEqual([{ ...editor.row, revertible: true }]);
     expect(seen[0]).toEqual({ sql: editor.list, values: [] });
-    expect(seen[1]?.values).toEqual([editor.targetType]);
+    expect(seen[1]?.values).toEqual([editor.targetType, editor.kind === "amounts"]);
   });
 
   it("saves through its door with the confirmation only where it pays XP or items", async () => {
@@ -375,16 +375,28 @@ const listed = async (before: unknown) => {
   return listCatalog(pool, ADMIN, "amounts");
 };
 
+/** What the audit read of a list was asked: its second value says whether `before` comes back. */
+const beforeAsked = async (kind: "amounts" | "template", answer: unknown) => {
+  const { pool, seen } = poolAnswering(answer);
+  await listCatalog(pool, ADMIN, kind);
+  return seen.find((call) => isAudit(call.sql))?.values;
+};
+
 describe("the amounts a revert would put back", () => {
   it("are the latest entry's before, with the tier amounts an older entry lacks as they stand", async () => {
-    const { questXp, dailyFinishXp, dailyRightXp, dailyWordXp } = AMOUNTS.xp;
+    const { dailyFinishXp, dailyRightXp, dailyWordXp } = AMOUNTS.xp;
     const older = { questXp: 80, dailyFinishXp, dailyRightXp, dailyWordXp };
     const [row] = await listed({ xp: older, gems: { gold: 3 } });
     expect(row).toMatchObject({
       revertible: true,
       previous: { xp: { ...AMOUNTS.xp, questXp: 80 } },
     });
-    expect(questXp).toBe(100);
+  });
+
+  it("are the only kind whose before is read", async () => {
+    const amounts = { ...AMOUNTS, stored: { xp: true } };
+    expect(await beforeAsked("amounts", amounts)).toEqual([expect.any(String), true]);
+    expect(await beforeAsked("template", [])).toEqual([expect.any(String), false]);
   });
 
   it("are left out when the entry does not read", async () => {

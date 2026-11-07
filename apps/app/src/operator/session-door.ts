@@ -5,6 +5,7 @@ import {
   type OperatorSession,
 } from "@questify/shared";
 import type { AuthedResult, Session } from "#src/api/session.ts";
+import { fullNameOf } from "#src/event/full-name.ts";
 
 type Requester = Pick<Session, "request">;
 
@@ -46,6 +47,8 @@ export type DoorResult = Readonly<{
   color: "green" | "orange" | "red";
   message: MessageKey;
   username: string | null;
+  /** Set while the event shows full names to its staff (T-615, FR-1842). */
+  fullName: string | null;
   /** The session's points the player holds (T-505b): shown as "+N" on a check-in or a repeat scan; 0 shows nothing. */
   points: number;
 }>;
@@ -68,15 +71,23 @@ const REFUSAL_MESSAGES: Readonly<Record<string, MessageKey>> = {
 
 function refusal(reason: string | undefined, username: string | null): DoorResult {
   const message = REFUSAL_MESSAGES[reason ?? ""] ?? "door.refused";
-  return { color: "red", message, username, points: 0 };
+  return { color: "red", message, username, fullName: null, points: 0 };
 }
+
+/** Who the door's answer names: the username, and the full name while the event shows it to its staff. */
+const namesOf = (
+  player: Readonly<{ username: string; fullName?: string | null | undefined }> | null | undefined,
+) => ({
+  username: player?.username ?? null,
+  fullName: fullNameOf(player?.fullName),
+});
 
 /** What the door's answer means: a walk-in is green with its own words; any refusal is red. */
 export function doorResultOf(body: unknown): DoorResult | null {
   const parsed = doorAnswerSchema.safeParse(body);
   if (!parsed.success) return null;
   const { result, reason, walkIn, points, player } = parsed.data;
-  const username = player?.username ?? null;
+  const { username, fullName } = namesOf(player);
   if (result === "refused") return refusal(reason, username);
   const outcome = OUTCOMES[result];
   if (outcome === undefined) return null;
@@ -85,6 +96,7 @@ export function doorResultOf(body: unknown): DoorResult | null {
     ...outcome,
     message: arrivedUnregistered ? "door.walkIn" : outcome.message,
     username,
+    fullName,
     points,
   };
 }

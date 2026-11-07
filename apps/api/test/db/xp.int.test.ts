@@ -357,6 +357,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("Questify XP (database)", () =>
       expect(await xpOf(player)).toEqual({ xp: "100", level: 1 });
     });
 
+    it("does not report a level filed on the scan's entry later (a catch-up) as that scan's level-up", async () => {
+      const event = await newEvent();
+      const quest = await newQuest(event);
+      const player = await newPlayer();
+      await enroll(player, event);
+      const done = await complete(player, quest);
+      expect(await levelOf(player, done)).toMatchObject({ level_up: null });
+      await owner(
+        `INSERT INTO level_reached (player_id, level, xp_entry_id)
+         SELECT e.player_id, 2, e.id FROM xp_entry e WHERE e.player_id = $1`,
+        [player],
+      );
+      expect(await reached(player)).toEqual([2]);
+      expect(await levelOf(player, done)).toMatchObject({ level_up: null, up_title_en: null });
+    });
+
     it("keeps a level reached after a drop; climbing back writes no new row and no level-up", async () => {
       await setQuestXp(200);
       const event = await newEvent();

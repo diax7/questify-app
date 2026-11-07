@@ -152,7 +152,11 @@ export const doorAnswerSchema = z.object({
   walkIn: z.boolean().optional(),
   /** The session's points the player holds after this scan (`checked_in`, `already`); 0 when none. */
   points: z.number().default(0),
-  player: z.object({ username: z.string() }).nullable().optional(),
+  /** `fullName` is set while the event shows full names to its staff (T-615, FR-1842). */
+  player: z
+    .object({ username: z.string(), fullName: z.string().nullable().optional() })
+    .nullable()
+    .optional(),
 });
 
 /** What registering answers: registered, or an overlap with sessions already held (nothing written yet). */
@@ -177,7 +181,11 @@ export const sessionCheckInSchema = z.object({
   outcome: z.enum(SESSION_CHECK_IN_OUTCOMES),
   walkIn: z.boolean().optional(),
   points: z.number().optional(),
-  player: z.object({ username: z.string(), avatar: z.string() }),
+  player: z.object({
+    username: z.string(),
+    avatar: z.string(),
+    fullName: z.string().nullable().optional(),
+  }),
 });
 export type SessionCheckInAnswer = z.infer<typeof sessionCheckInSchema>;
 

@@ -272,18 +272,21 @@ export function catalogDoor<T>(
   });
 }
 
-/** Which targets of a kind hold an earlier state to go back to (the latest catalog entry has a `before`), and that `before`. */
+/**
+ * Which targets of a kind hold an earlier state to go back to (the latest catalog entry has a `before`). Only the amounts
+ * read that `before` back (a template's can hold 30 KB); for every other kind the value is null.
+ */
 async function revertibleIds(
   client: PoolClient,
-  targetType: string,
+  editor: Editor,
 ): Promise<ReadonlyMap<string, unknown>> {
   const { rows } = await client.query<{ target_id: string; before: unknown }>(
-    `SELECT target_id, before FROM (
+    `SELECT target_id, CASE WHEN $2 THEN before END AS before FROM (
        SELECT DISTINCT ON (target_id) target_id, before FROM audit_log
        WHERE target_type = $1 AND action LIKE 'catalog.%' AND target_id IS NOT NULL
        ORDER BY target_id, id DESC) latest
      WHERE before IS NOT NULL`,
-    [targetType],
+    [editor.targetType, editor === EDITORS.amounts],
   );
   return new Map(rows.map((row) => [row.target_id, row.before]));
 }
@@ -334,7 +337,7 @@ export function listCatalog(pool: Pool, admin: Admin, kind: CatalogKind): Promis
   const editor = EDITORS[kind];
   return catalogDoor(pool, admin, async (client) => {
     const answer = await editor.list(client);
-    const undoable = await revertibleIds(client, editor.targetType);
+    const undoable = await revertibleIds(client, editor);
     return withRevertible(editor, answer, undoable).map((row) => editor.row.parse(row));
   });
 }
@@ -346,7 +349,7 @@ async function savedRow(
   id: string,
   saved: unknown,
 ): Promise<unknown> {
-  const undoable = await revertibleIds(client, editor.targetType);
+  const undoable = await revertibleIds(client, editor);
   const answer = saved as Answer;
   const audited = auditIdOf(editor, id);
   return editor.row.parse(
