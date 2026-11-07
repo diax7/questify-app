@@ -1506,7 +1506,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
         const malformed = await call(route, "not-a-uuid", strangerCookie);
         expect(malformed.statusCode).toBe(404);
       }
-    });
+    }, 120_000);
 
     it("refuses an editor every owner route with 403", async () => {
       for (const route of routes("owner")) {

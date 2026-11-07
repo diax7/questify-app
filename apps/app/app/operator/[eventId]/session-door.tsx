@@ -10,6 +10,7 @@ import { BackButton } from "#src/components/BackButton.tsx";
 import { PermissionCard, useCameraActive } from "#src/components/Camera.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
+import { isolatedName } from "#src/event/full-name.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
@@ -120,6 +121,11 @@ function ResultCover({ result }: Readonly<{ result: DoorResult }>) {
       <AppText variant="display" style={styles.coverText} accessibilityRole="alert">
         {t(result.message)}
       </AppText>
+      {result.fullName === null ? null : (
+        <AppText variant="title" style={styles.coverText}>
+          {isolatedName(result.fullName)}
+        </AppText>
+      )}
       {result.username === null ? null : (
         <AppText variant="title" style={styles.coverText}>
           {result.username}
@@ -187,7 +193,7 @@ function DoorScanner({
     last.current = { code, at: now };
     setProblem(null);
     if (!isPlayerCode(code)) {
-      show({ color: "red", message: "door.invalid", username: null, points: 0 });
+      show({ color: "red", message: "door.invalid", username: null, fullName: null, points: 0 });
       return;
     }
     const answer = await checkInPlayer(api.session, session.id, code);

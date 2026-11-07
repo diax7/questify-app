@@ -33,6 +33,7 @@ describe("doorResultOf", () => {
         color,
         message,
         username: "sara",
+        fullName: null,
         points: 0,
       });
     }
@@ -55,6 +56,7 @@ describe("doorResultOf", () => {
       color: "red",
       message: "door.invalid",
       username: null,
+      fullName: null,
       points: 0,
     });
     expect(doorResultOf({ result: "refused", reason: "old_code", player: null })?.message).toBe(
@@ -69,6 +71,14 @@ describe("doorResultOf", () => {
   it("gives a closed event and a switched-off agenda their own words (T-505b)", () => {
     expect(refusedFor("event_not_live")).toBe("door.notLive");
     expect(refusedFor("feature_off")).toBe("door.agendaOff");
+  });
+
+  it("carries the full name the event shows its staff (T-615)", () => {
+    const answer = { result: "checked_in", points: 0 };
+    const named = (fullName: string | null) => ({ ...answer, player: { ...player, fullName } });
+    expect(doorResultOf(named("Sara Ali"))?.fullName).toBe("Sara Ali");
+    expect(doorResultOf(named(null))?.fullName).toBeNull();
+    expect(doorResultOf({ ...answer, player })?.fullName).toBeNull();
   });
 
   it("does not guess at an answer it does not know", () => {
@@ -122,7 +132,13 @@ describe("checkInPlayer", () => {
     const answer = await checkInPlayer(api, ID, "code-1");
     expect(answer).toEqual({
       kind: "result",
-      result: { color: "green", message: "door.checkedIn", username: "sara", points: 0 },
+      result: {
+        color: "green",
+        message: "door.checkedIn",
+        username: "sara",
+        fullName: null,
+        points: 0,
+      },
     });
     expect(api.request).toHaveBeenCalledWith({
       method: "POST",

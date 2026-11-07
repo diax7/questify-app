@@ -45,6 +45,17 @@ const SQL_WITH_SETTINGS: readonly string[] = JSON.parse(
   readFileSync(join(import.meta.dirname, "sql-settings-allowlist.json"), "utf8"),
 ) as string[];
 const NAMES = ORIGINALS.map((original) => original.name);
+/**
+ * The body an answer is compared with: as 0147 left it, with the one meant change since. Migration 0168 made `own_level`
+ * skip a level filed on a scan's entry later (T-709d), which is what this test's `levels_reach` call does.
+ */
+const comparedBody = (original: Original): string =>
+  original.name === "own_level"
+    ? original.definition.replace(
+        "AND l.kind = 'quest') up ON true",
+        "AND l.kind = 'quest' AND r.reached_at = e.created_at) up ON true",
+      )
+    : original.definition;
 /** Standard-body SQL functions on the path: kept as SQL with no SET clause, so they are inlined (migration 0148). */
 const INLINED = [
   "event_day",
@@ -243,7 +254,7 @@ async function answers(
   await owner.query("BEGIN");
   try {
     if (restoreOld) {
-      await owner.query(ORIGINALS.map((original) => original.definition).join(";\n"));
+      await owner.query(ORIGINALS.map(comparedBody).join(";\n"));
     }
     await owner.query("SELECT set_config('app.player_id', $1, true)", [ids.player]);
     const found: unknown[] = [];

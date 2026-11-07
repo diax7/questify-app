@@ -7,6 +7,16 @@
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
 
+## FOLLOWUPS batch 14 — 2026-11-07
+
+- **FOLLOWUPS batch 14 (tier B; migration 0168, new and undeployed; ADR-813 and Q-743 Proposed).** The console's numbers leave out the
+  review demo's organizer, its events and its accounts; the session message limit counts the event's announcements of the window
+  (one way, ADR-813); the door's check-in shows staff the full name while the event shows names; `own_level` reports a level-up only
+  for a level written in the scan's own transaction (read only). Batch 13 review: `inviteCancel` says withdrawn, `revertibleIds`
+  reads `before` only for amounts, `previous` has a real-database test, the empty assertion is gone. T-612's expired offers: no code,
+  batch 10's `expired` answer closed the line and a row left `offered` is the design. Left in FOLLOWUPS: the rest of the T-615 line,
+  the T-709d item pre-check, the two device checks. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 13 — 2026-11-07
 
 - **FOLLOWUPS batch 13 (tier B; web, console, player app; no migration, no package change; touched suites only, the full run is CI's).**

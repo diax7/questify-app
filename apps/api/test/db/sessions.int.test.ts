@@ -98,6 +98,41 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sessions (database)", () => {
     );
     return who;
   };
+  const announce = (fresh: string, status: string, at: string) =>
+    f.owner(
+      `INSERT INTO announcement (organizer_id, event_id, title_ar, title_en, body_ar, body_en, push_body_ar,
+                                 push_body_en, status, send_at, press, notice_id, sent_at, created_by)
+       SELECT e.organizer_id, e.id, 'a', 'a', 'a', 'a', 'a', 'a', $2, now() + $3::interval,
+              encode(sha256(convert_to(gen_random_uuid()::text, 'UTF8')), 'hex'),
+              CASE WHEN $2 = 'sent' THEN 1 END, CASE WHEN $2 = 'sent' THEN now() END, gen_random_uuid()
+       FROM event e WHERE e.id = $1`,
+      [fresh, status, at],
+    );
+  const messaging = async () => {
+    const fresh = await f.newEvent({ phase: "live" });
+    const who = await f.newPlayer();
+    const enrollment = await f.join(fresh, who);
+    const [made] = await f.owner<{ id: string }>(
+      `INSERT INTO event_session (organizer_id, event_id, kind, title_en, starts_at, ends_at, access, created_by)
+       SELECT e.organizer_id, e.id, 'workshop', 'Msg', now() + interval '1 hour', now() + interval '2 hours',
+              'registration', gen_random_uuid() FROM event e WHERE e.id = $1 RETURNING id`,
+      [fresh],
+    );
+    await f.owner(
+      `INSERT INTO session_registration (organizer_id, event_id, session_id, enrollment_id, player_id)
+       SELECT e.organizer_id, e.id, $2, $3, $4 FROM event e WHERE e.id = $1`,
+      [fresh, made?.id, enrollment, who],
+    );
+    const send = () =>
+      f.run(f.team(), "SELECT * FROM session_message($1, $2, $3::jsonb, $4, $5)", [
+        fresh,
+        made?.id,
+        JSON.stringify(GOOD_MESSAGE),
+        randomUUID(),
+        randomUUID(),
+      ]);
+    return { send, announce: (status: string, at: string) => announce(fresh, status, at) };
+  };
   const checkIn = (op: string, session: string, scanned: string, version = 1) =>
     f.run<{ r: { outcome: string; walkIn?: boolean; player: { username: string } } }>(
       { playerId: op },
@@ -372,6 +407,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sessions (database)", () => {
       expect((await agenda(here)).find((row) => row.id === id)?.["checkedIn"]).toBe(true);
     });
 
+    it("names the player to the staff only while the event shows full names (T-615)", async () => {
+      const id = await make({ access: "open", startsAt: minutes(10), endsAt: minutes(70) });
+      const op = await operator();
+      const who = await member();
+      const [field] = await f.owner<{ id: string }>(
+        "INSERT INTO event_join_field (organizer_id, event_id, kind, position) VALUES ($1, $2, 'full_name', 0) RETURNING id",
+        [f.ids.orgA, event],
+      );
+      await f.owner(
+        `INSERT INTO join_answer (enrollment_id, field_id, organizer_id, event_id, value)
+         SELECT n.id, $3, n.organizer_id, n.event_id, $4 FROM enrollment n WHERE n.event_id = $1 AND n.player_id = $2`,
+        [event, who, field?.id, "Sara Ali"],
+      );
+      const named = async () => (await checkIn(op, id, who))[0]?.r.player;
+      expect(await named()).toMatchObject({ fullName: null });
+      await f.owner(
+        "UPDATE event SET name_display = 'both', name_audience = 'staff' WHERE id = $1",
+        [event],
+      );
+      expect(await named()).toMatchObject({ fullName: "Sara Ali" });
+      await f.owner("UPDATE event SET name_display = 'username' WHERE id = $1", [event]);
+      await f.owner("DELETE FROM event_join_field WHERE id = $1", [field?.id]);
+    });
+
     it("a player who did not register is 'not registered' unless the organizer allows walk-ins", async () => {
       const strict = await make({ startsAt: minutes(10), endsAt: minutes(70) });
       const loose = await make({ startsAt: minutes(10), endsAt: minutes(70), walkIns: true });
@@ -537,6 +596,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sessions (database)", () => {
       await send("k2", session);
       await send("k3", session);
       expect(await refusal(send("k4", session))).toBe("PL429:hour");
+    });
+
+    it("the hour's message limit counts the announcements of that hour, not one due later", async () => {
+      const { send, announce: add } = await messaging();
+      await add("sent", "-10 minutes");
+      await add("sent", "-20 minutes");
+      await add("sent", "-2 hours");
+      await add("scheduled", "30 minutes");
+      await send();
+      expect(await refusal(send())).toBe("PL429:hour");
+    });
+
+    it("the day's message limit counts the announcements of that day", async () => {
+      const { send, announce: add } = await messaging();
+      await add("sent", "-25 hours");
+      for (let sent = 0; sent < 9; sent += 1) {
+        await add("sent", "-2 hours");
+      }
+      await send();
+      expect(await refusal(send())).toBe("PL429:day");
     });
   });
 
