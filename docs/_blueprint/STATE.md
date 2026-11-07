@@ -26,6 +26,16 @@
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
 
+## T-813 part 1 — 2026-11-07
+
+- **T-813 part 1 (tier B, API and SQL; migration 0172; no package change; ADR-816 and Q-753 proposed).** Items 1 to 4 of
+  `docs/PERFORMANCE_AUDIT.md`, measured on 2 million ledger rows (the audit's "T-813 results" has every figure and its conditions).
+  Four new indexes and one wider: `member_ledger` 2.8 million buffers to 3,249, `manual_awards` 2.2 million to 1,177, a rehearsal wipe of
+  323 rows 276.7 s to 0.27 s (968 table scans to none), the invitation claim's read 8,664 buffers with a disk sort to 431 (`invitation_claim_at`
+  restated, one read), the data export's audit read 63,713 to 6. Each quest row writes two more index entries; the ADR-734 gate shows
+  9.92 ms old and 9.89 ms new. `ledger_entry (quest_id)` was measured and left out (Q-753). N+1 and selective fetching had nothing to
+  apply, and one tie-breaker landed (`readOwnerOthers`). T-813 stays open: part 2 (items 5 to 10) is still running. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 19 — 2026-11-07
 
 - **FOLLOWUPS batch 19 (tier B, API, app and web; no migration, no package change, no ADR, no new string).**

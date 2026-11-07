@@ -35,6 +35,97 @@ production change. Say why an item is skipped. **Every performance claim needs a
 Run all existing test suites. Then report: the optimizations applied, the files and migrations changed, the checks run,
 before-and-after metrics with their conditions, the remaining risks, and anything skipped or not measurable.
 
+## T-813 results
+
+### Part 1: items 1 to 4, the API and SQL (2026-11-07, migration 0172, ADR-816)
+
+Items 5 to 10 are part 2. T-813 stays open until that is in.
+
+**Conditions.** PostgreSQL 17.11, the shared test container: `shared_buffers` 128 MB, `work_mem` 4 MB, `random_page_cost` 4.
+The server was in use by other projects and test runs, load average 2.4 to 10. So compare buffers and plan shape; the
+milliseconds are only an indication. Two private databases seeded alike, with the migrations through 0171 and then one with
+0172 run as written, read by turns; each figure is the second pass, so caches are warm. `EXPLAIN (ANALYZE, BUFFERS)`, with
+`TIMING OFF` on single reads. Buffers are `shared hit + read`. Inner plans of functions came from `auto_explain` in one session.
+Faked data, generated in sets with triggers off: 40 events (one of 100,000 players, 39 of 2,000), 178,000 enrollments, 1,936,398
+completions, 2,000,854 ledger rows (19,962 removals, 44,494 welcomes, 323 rehearsal rows), 1,936,076 XP rows, 1,000,000
+audit rows, 600,000 throttle rows, 500,000 invitation rows (100,000 queued), 150,000 notices and notifications, 120,000 push
+sends. Rows of real players are not this even, and a real event's history is longer: no figure here predicts production.
+
+**Item 1, indexes and queries. Applied.**
+
+| Read | Before | After | What changed |
+|---|---|---|---|
+| `member_ledger`, 22 lines of one player (staff) | 2,811,259 buffers, 17.1 s | 3,249 buffers, 59 ms | `ledger_entry_reverses_idx` |
+| `manual_awards`, first page | 2,160,935 buffers, 11.9 s | 1,177 buffers, 29 ms | `ledger_entry_reverses_idx` |
+| `wipe_rehearsal`, 323 ledger rows | 276.7 s; 968 full table scans, 1.92 billion rows read | 0.27 s; none | the three indexes below |
+| `invitation_claim_at`'s read, 100,000 queued | 8,664 buffers, 14 MB sorted on disk, 217 ms | 431 buffers, in memory, 1.1 ms | wider index, read per campaign |
+| The same, queued rows behind 500,000 finished ones | not run on the old read | 209 buffers, 0.5 ms | |
+| `data_export_support`'s audit read | 63,713 buffers, parallel scan, 226 ms | 6 buffers, 0.2 ms | `audit_log_player_export_idx` |
+
+- The first two scanned the whole ledger once per EXISTS per line, because `x.reverses = l.id` names no kind and the only
+  index on `reverses` was partial on `kind = 'removal'`. No function changed: the new index's predicate is the same rows as
+  the old key's (`ledger_entry_removal_shape`), so `session_bulk_targets` and `session_points_held`, which read the same way,
+  get it too.
+- The wipe runs on go-live and from the dashboard's erase button. A foreign key's check names no kind, so `ledger_entry.completion_id`,
+  `ledger_entry.reverses` and `xp_entry.ledger_entry_id` could not use their partial keys: each deleted row scanned a table.
+- **One figure went the wrong way:** `quest_bulk_targets` on a quest with 100,000 credits touches more buffers, 482,919 to 643,699.
+  Its generic plan now does 200,000 cached index probes in place of a hash; the time did not move (1.11 s to 1.19 s under this load).
+  The same statement run with its values went from 92,801 to 49,664. Left as it is: a rare bulk action.
+- **Migration safety.** The runner holds each file in one transaction, so `CREATE INDEX CONCURRENTLY` cannot run (ADR-580). 0172
+  does what 0162 does: `lock_timeout` 10 s, every table locked up front in one order. The whole file took 2.9 s on the data above,
+  1.15 s of it the largest index, and writers to those tables wait for it.
+
+**Item 1, write cost.** Bulk inserts of 20,000 rows with triggers off, rolled back, old and new by turns:
+
+| Table, rows | Buffers | WAL records | WAL bytes |
+|---|---|---|---|
+| `ledger_entry`, quest | 259,000 to 319,000 (+23%) | 101,800 to 122,000 (+20%) | 10.4 to 12.0 MB (+15%) |
+| `xp_entry`, quest | 395,000 to 455,000 (+15%) | 161,700 to 182,000 (+12%) | 14.0 to 16.5 MB (+18%) |
+| `audit_log`, an action outside the new index | 61,000, no change | 40,661, no change | 3.6 MB, no change |
+
+So a quest row costs one more index entry on each of the two tables: about 3 buffers and 80 to 125 bytes of WAL. A completion also
+writes other rows, so the gate is the number that counts. `node ops/load/profile.mjs --big-event-players 50000` (ADR-734), 2,000
+first completions, old, new, old, new: **10.16, 10.51, 9.68, 9.27 ms** of database time a completion, so 9.92 and 9.89 on average. The
+difference between runs is larger than the difference between schemas, on this server. New index sizes at these rows:
+`ledger_entry_completion_idx` 42 MB, `xp_entry_ledger_idx` 41 MB, `audit_log_player_export_idx` 8.7 MB, `ledger_entry_reverses_idx`
+0.5 MB, `invitation_recipient_queued` 4 MB after its rebuild. The ledger's other 25 indexes hold 188 MB. ADR-816 has the tradeoff.
+
+**Item 1, measured and left.**
+
+- **`ledger_entry (quest_id)`: built, measured, taken out.** Deleting a quest nobody played scans the ledger once for the foreign
+  key: about 2,000,000 rows, 280 to 350 ms, against 28 ms with the index. It would cost every quest row one more index entry to help a
+  rare organizer action, and it did nothing for `delete_played_quest` (43,000 buffers either way, as that quest's rows fill the
+  heap). Q-753 asks when to revisit.
+- **Throttle sweep:** 6,187 pages per run, at most once in 10 minutes and only on a staff sign-in. An index on `at` would add a
+  write to every attempt during a sign-in rush, so no.
+- **Control room and analytics, on the 100,000-player event:** `control_done` 1,531 buffers, `control_counts` 13,899,
+  `analytics_quests` 88,105, `analytics_participation` 404,844 (947 ms). Each is bounded by one event and already reads by index.
+  Nothing was changed: a cheaper answer needs stored counters, a behaviour change this task rules out.
+- **Already good, no change:** `console_player_ledger` 9 buffers, `awarded_today` 67, `control_feed` 320, `member_activity` 176,
+  `own_notifications` 452.
+
+**Item 2, N+1 queries. Nothing to apply.** Routes reach PostgreSQL through set-returning doors, so a loop over a query is rare. The
+loops in `apps/api/src` (`quests/store.ts`, `join/setup.ts`, `change-sets/store.ts`, `privacy/reapply.ts`, `deletion/deletion.ts`) are
+small ordered writes over a form's rows, one call per due event in a tick, or a two-item retry. `member_event_quests` calls helpers per quest, which is the shape to look at: 3,020 buffers,
+63 ms for 60 quests and a player with 22 lines. Those helpers hold the category, boost and lock rules, so merging them risks
+behaviour for a read that is not slow. The per-line scans above were the real N+1, and an index cured them.
+
+**Item 3, selective fetching. Nothing to apply.** `SELECT *` in `apps/api/src` reads a door's declared columns, not a table.
+`SELECT x.*` inside a sub-select costs nothing: on `console_player_legal` and `console_player_ledger`, `EXPLAIN VERBOSE` shows the
+planner replacing unused columns with NULL, so the sort carries none of `before`, `after` or the rest. Whole-row reads into PL/pgSQL
+variables are passed on to functions that take the row type, so narrowing them means changing those signatures with no number to
+justify it.
+
+**Item 4, pagination. One tie-breaker applied.** Every paged list orders by a unique key or ends in `id`, and page sizes are clamped.
+`readOwnerOthers` (`ORDER BY lower(o.name) LIMIT 50`) now ends in `o.id`, so two organizers of one name cannot swap at the
+limit. Left: `console_player_record` and `console_report` take one row by a timestamp, so a tie needs two rows of one target
+in one microsecond, and restating either function is not worth that. `export_players` answers all 100,000 rows at once (8,146
+buffers, 1.5 s, 13 MB spilled to disk): it is a download of the whole list, not a page.
+
+**Tests.** New `apps/api/test/db/performance-indexes.int.test.ts` (5): each read reaches its index, and the claim keeps its campaign and row
+order. With `apps/api/test/security` and the touched suites: 964 passed in 21 files. `pg_get_functiondef` before and after 0172
+differs in `invitation_claim_at`'s one statement, and its grants are unchanged.
+
 ## T-813 results, part 2 (items 5 to 12; apps/web and apps/app)
 
 2026-11-07. Items 1 to 4 (apps/api and migrations) are reported by the other worker under "T-813 results". Conditions of every

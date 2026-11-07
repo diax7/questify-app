@@ -482,7 +482,8 @@ moves the enrollment's caches on every insert. Append-only for every role, the o
 UPDATE, DELETE, TRUNCATE; NFR-019). Only definers write it; corrections are new entries. The one exception (ADR-157,
 migration 0032): a row with `rehearsal = true` (set at insert from its enrollment, never by a writer) may be deleted by
 the rehearsal wipe of its own event. A partial unique
-index pays a completion once.
+index pays a completion once. Plain `completion_id` and `reverses` indexes (0172, ADR-816) serve the foreign keys' own checks and
+reads that name no kind, which a partial key cannot.
 
 **Manual awards (T-207, migration 0030, ADR-152):** kinds `award` (points by hand: `score_delta = balance_delta > 0`,
 no completion, quest or redemption, actor `operator` or `staff`) and `removal` (`reverses` names the credit entry it
@@ -534,7 +535,8 @@ Both revoked from PUBLIC, granted to the API role only.
 - `xp_entry (id, player_id → player_xp, delta ≠ 0, source quest|removal, ledger_entry_id → ledger_entry RESTRICT,
   quest_id, reverses → xp_entry, created_at)`: written only by the `ledger_xp` trigger on `ledger_entry` (`xp_credit`
   for a non-rehearsal `quest` entry, `xp_reverse` for a `removal` of the credited entry). Unique (player_id, quest_id)
-  and (ledger_entry_id) for credits, (reverses) for reversals: one credit per quest ever, one reversal per credit.
+  and (ledger_entry_id) for credits, (reverses) for reversals: one credit per quest ever, one reversal per credit. A
+  plain index on `ledger_entry_id` (0172, ADR-816) serves the foreign key's check when a rehearsal is wiped.
 - `level_reached (player_id, level ≥ 2, xp_entry_id, reached_at; PK player_id, level)`: the first time each level was
   reached; a drop never removes it and climbing back writes nothing (T-402 grants an item per row, FR-721).
 - `xp_level (level 1–100, xp_from)` (seeded 30 levels, `50·(n−1)·(n+2)`) and `level_title (level_from, name_ar,
@@ -704,7 +706,7 @@ ADR-151):
   (a provider code only), skip_reason opted_out|member|event_over|event_changed, created_at, sent_at, opened_at,
   joined_at)`: **personal data** (who was invited); no contact or text stored (the claim reads them fresh through
   `promo_pool`); deleted 90 days after its campaign finished (whatever its state) and at once by erasure. No foreign keys
-  (ADR-334): a trigger deletes a deleted campaign's rows. Indexes: queued rows by campaign, leases by expiry, rows by
+  (ADR-334): a trigger deletes a deleted campaign's rows. Indexes: queued rows by campaign and id (0172), leases by expiry, rows by
   player and `sent_at` (the 7-day limit). T-501f (0079): each row's `channel` is fixed at the fill, `push` when the
   campaign has push and the player is opted in on push with a pushable device, else `sms`; never two rows or two
   channels for one player. A push row is handed to the push store by `invitation_push_hand` (one `invitation`

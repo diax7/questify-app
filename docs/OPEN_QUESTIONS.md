@@ -3005,3 +3005,13 @@ messages. **Recommended:** keep it one way, as built in migration 0168.
 
 **Status:** Decided (developer, delegated by Dhia, 2026-11-07): as recommended, ADR-815 accepted.
 **Question:** a failed send can close the change at once, or the worker can retry it during the 24 hours. **Recommended:** close it; the admin can start again. Failover does not soften this today: `RESEND_API_KEY` is not set in `ops/cranl/*.json`, so one Gmail failure closes the owner's change.
+
+## Q-753 - When should `ledger_entry` get an index on `quest_id`, and how are big indexes built after launch? (ADR-816)
+
+**Status:** Open. Recommended options taken in T-813 part 1; the coordinator decides after the review.
+**Question:** (1) deleting a quest scans the whole ledger once for its foreign key: 280 to 350 ms at 2 million rows, against 28 ms with
+an index on `quest_id`, which would add an index entry to every completion. **Recommended:** leave it out, and add it when the ledger
+passes about 20 million rows or a quest delete is seen over 1 s. (2) A migration cannot use `CREATE INDEX CONCURRENTLY`, because the
+runner holds each file in one transaction, so a big index stops writers on that table for the build. **Recommended:** keep the
+runner as it is until there is a live event to protect, then build such an index by hand with `CONCURRENTLY` before the release and
+write the file with `IF NOT EXISTS`.

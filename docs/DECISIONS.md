@@ -8660,3 +8660,26 @@ writes one index less.
 **Decision:** migration 0169 adds `staff_email_change.hold_notice_at` and the door `owner_email_hold_notice`, bound to the link's token hash. A sent notice is recorded; a failed send closes the change `send_failed` and the owner gets a 503. `owner_email_apply` closes a waited change with no record instead of applying it. Rows held before 0169 are not backfilled.
 **Why:** the notice is the only guard on the no-password path, so its absence must stop the change. A close on failure alone would still apply after a crash between the commit and the send. The close does not rest on the sender failing over: `RESEND_API_KEY` is not set in `ops/cranl/*.json`, so there is no second provider today.
 **Trade-offs:** a held row from before 0169, or one made on the old API, closes at its due time and the admin restarts it. A false failure closes a good change. With Gmail alone, one Gmail failure closes the owner's change, and the admin starts again (3 starts a day). The owner of a change closed at the due time is not told. Resending is not built.
+
+## ADR-816 - T-813 part 1: three index entries' worth of write cost buys the rehearsal wipe; `ledger_entry (quest_id)` stays out
+
+**Status:** Proposed (T-813 part 1, 2026-11-07; Q-753). Numbers in `docs/PERFORMANCE_AUDIT.md`, "T-813 results".
+**Decision:** migration 0172 adds `ledger_entry_reverses_idx (reverses) WHERE reverses IS NOT NULL`,
+`ledger_entry_completion_idx (completion_id) WHERE completion_id IS NOT NULL`, `xp_entry_ledger_idx (ledger_entry_id) WHERE
+ledger_entry_id IS NOT NULL` and `audit_log_player_export_idx`, rebuilds `invitation_recipient_queued` as `(campaign_id, id)`, and
+restates `invitation_claim_at` with one change, a read per campaign. No function that reads `reverses` changes: the new index's
+predicate is the same rows as `ledger_entry_removal_key`'s (`ledger_entry_removal_shape`). `ledger_entry (quest_id)` was built,
+measured and left out. Plain `CREATE INDEX` under an up-front `LOCK TABLE ... IN SHARE MODE`, as 0162.
+**Why:** a partial key serves no foreign-key check and no read that omits its predicate. A staff member's view of one player's points
+scanned the ledger once per line, 2.8 million buffers on 2 million rows; a wipe of 323 rehearsal rows took 276.7 s and 968 table
+scans, on go-live and on the erase button, with the event's rehearsal locks held throughout. A full `(completion_id)` and
+`(ledger_entry_id)` are the only ways to serve those checks: a foreign key has no way to name a kind, and the check runs per row.
+`(quest_id)` serves only a rare organizer delete, 280 to 350 ms at this size, so it does not earn a cost on every completion.
+**Trade-offs:** every quest row writes two index entries more (one on `ledger_entry`, one on `xp_entry`), and a removal three; 83 MB
+of index at this size. The figures are in the audit. The XP index could instead replace
+`xp_entry_ledger_key` with one unique key over credits and removals, which would cost no new entry, but that rewrites a guard on
+points history for a saving on one table, so it is not done. A deleted quest still scans the ledger once, and grows with it
+(Q-753). `quest_bulk_targets` touches more buffers on a very large quest and takes the same time. A file that builds indexes holds
+writers off those tables while it runs, because the runner's one transaction rules out `CONCURRENTLY` (ADR-580): 2.9 s for 0172 at this
+size, and about ten times that at ten times the rows. No live event runs on the deployed database today. After launch, a file
+like this needs a quiet minute.

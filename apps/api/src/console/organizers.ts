@@ -230,7 +230,7 @@ async function readOwnerOthers(client: PoolClient, organizerId: string): Promise
      JOIN organizer_member m ON m.staff_user_id = owner_row.staff_user_id AND m.organizer_id <> owner_row.organizer_id
      JOIN organizer o ON o.id = m.organizer_id
      WHERE owner_row.organizer_id = $1 AND owner_row.role = 'owner'
-     ORDER BY lower(o.name) LIMIT 50`,
+     ORDER BY lower(o.name), o.id LIMIT 50`,
     [organizerId],
   );
   return rows.map((row) => row.name);
