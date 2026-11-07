@@ -69,7 +69,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("maps (database)", () => {
     (
       await f.owner<{ id: string }>(
         `INSERT INTO quest (event_id, category_id, type, title_en, points, repeat_cap, visible, type_config)
-         SELECT $1, id, 'scan_qr', 'Station', 25, 3, $2, '{}' FROM category WHERE event_id = $1 LIMIT 1
+         SELECT $1, id, 'scan_qr', 'Station', 25, 3, $2, '{}' FROM category
+         WHERE event_id = $1 ORDER BY hidden LIMIT 1
          RETURNING id`,
         [ev, over.visible ?? true],
       )
