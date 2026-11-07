@@ -30,6 +30,16 @@
   Code review 89, its MAJOR fixed (the CLI now prints why a send failed).
   **Next:** the audit query on each environment.
 
+## FOLLOWUPS batch 17 — 2026-11-07
+
+- **FOLLOWUPS batch 17 (tier B, web only; no migration, no package change, no ADR, no new text; touched suites and the two browser specs only).**
+  The console's per-organizer feature selects keep the chosen value, and stay disabled, from the save until the list read answers
+  (`shownChoice`; a failed save drops the choice); the feature usage page clears its last error when "More" starts, so an old error
+  no longer stands beside a running read. Closed without code: the organizers page's loading state (already done in batch 9,
+  `organizer-list.ts`). Left in FOLLOWUPS, with a 2026-11-07 check note: the matrix "stale" filter (a new `show` value, so an API
+  change), the dashboard pages reading the store (Q-380 waits for a product call), `event words not read` (an API 500, no web fix).
+  CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 14 — 2026-11-07
 
 - **FOLLOWUPS batch 14 (tier B; migration 0168, new and undeployed; ADR-813 and Q-743 Proposed).** The console's numbers leave out the

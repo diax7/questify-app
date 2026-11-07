@@ -143,7 +143,8 @@ function Results({
 /**
  * The pages read for a search: the organizers so far, the cursor of the next page, whether a read is running, and why
  * the last read failed. A new search empties the list while it loads, so the rows of the old search never stand in
- * for the new one; "More" keeps the rows and waits for the next page.
+ * for the new one; "More" keeps the rows and waits for the next page. Every read clears the last failure, so an old
+ * error never stands beside a read that is running.
  */
 function useFeatureUsage(language: Language, query: string) {
   const t = translatorFor(language);
@@ -157,10 +158,10 @@ function useFeatureUsage(language: Language, query: string) {
       latest.current += 1;
       const mine = latest.current;
       setLoading(true);
+      setProblem(null);
       if (cursor === null) {
         setRows(null);
         setNext(null);
-        setProblem(null);
       }
       const result = await requestJson("GET", featureUsagePath({ q: query, cursor }));
       if (mine !== latest.current) {
@@ -172,7 +173,6 @@ function useFeatureUsage(language: Language, query: string) {
         setProblem(describeProblem(result.body, language, t).text);
         return;
       }
-      setProblem(null);
       setRows((current) =>
         cursor === null ? page.organizers : [...(current ?? []), ...page.organizers],
       );

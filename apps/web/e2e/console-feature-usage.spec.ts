@@ -121,6 +121,43 @@ test("a new search empties the list and says it is loading until the answer arri
   await expect(page.getByText("Loading…")).toHaveCount(0);
 });
 
+test("a failed page of More clears its error when the next read starts", async ({ page }, info) => {
+  test.setTimeout(120_000);
+  const { organizerId, slug } = await asAdmin(page, info.project.name);
+  await page.goto("/en/console/feature-usage");
+  // The first page answers for real but claims a next page; the next read fails once, then is held.
+  const reads: Route[] = [];
+  await page.route("**/v1/admin/feature-usage*", async (route) => {
+    const cursor = new URL(route.request().url()).searchParams.get("cursor");
+    if (cursor === null) {
+      const real = await route.fetch();
+      const body = (await real.json()) as Record<string, unknown>;
+      await route.fulfill({
+        status: real.status(),
+        json: { ...body, nextCursor: "00000000-0000-4000-8000-000000000001" },
+      });
+      return;
+    }
+    reads.push(route);
+    if (reads.length === 1) {
+      await route.fulfill({ status: 500, json: { code: "internal_error" } });
+    }
+  });
+  await page.getByLabel("Organizer name or slug").fill(slug);
+  await page.getByRole("button", { name: "Search" }).click();
+  await expect(page.locator(`[data-organizer="${organizerId}"]`)).toBeVisible();
+
+  const problem = page.getByRole("region", { name: "Feature usage" }).getByRole("alert");
+  const more = page.getByRole("button", { name: "Show more" });
+  await more.click();
+  await expect(problem).toBeVisible();
+  await more.click();
+  await expect.poll(() => reads.length).toBe(2);
+  await expect(problem).toHaveCount(0);
+  await expect(page.locator(`[data-organizer="${organizerId}"]`)).toBeVisible();
+  await reads[1]?.continue();
+});
+
 test("a person who is not an admin does not get the page's data", async ({ page }, info) => {
   test.setTimeout(120_000);
   await openBuilder(page, info.project.name);

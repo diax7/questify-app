@@ -9,11 +9,12 @@ import { nameKeyOf } from "#src/lib/console-switches.ts";
 import {
   OVERRIDE_CHOICES,
   bodyOf,
-  choiceOf,
   organizerFeaturePath,
   organizerFeaturesPath,
   readOrganizerFeatures,
+  shownChoice,
   type OverrideChoice,
+  type PendingChoice,
 } from "#src/lib/console-organizer-features.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
@@ -31,11 +32,13 @@ const CHOICE_KEYS = {
 function FeatureCard({
   language,
   row,
+  pending,
   busy,
   choose,
 }: Readonly<{
   language: Language;
   row: OrganizerFeatureRow;
+  pending: PendingChoice | null;
   busy: boolean;
   choose: (choice: OverrideChoice) => void;
 }>) {
@@ -67,7 +70,7 @@ function FeatureCard({
       </div>
       <Field label={t("console.organizer.features.for", { name })}>
         <Select
-          value={choiceOf(row.override)}
+          value={shownChoice(row, pending)}
           disabled={busy}
           data-field={row.key}
           onChange={(event) => choose(event.target.value as OverrideChoice)}
@@ -86,7 +89,8 @@ function FeatureCard({
 /**
  * One organizer's feature overrides in the console (T-711, FR-1826): for each feature an override can act on, the
  * platform's switch and Questify's choice for this organizer (like the platform, Off, or On). A choice saves at once and the
- * list is read again, so the page shows what the database holds now. Platform admins only.
+ * list is read again, so the page shows what the database holds now; until that read answers, every select is disabled
+ * and the one just changed shows the value chosen. Platform admins only.
  */
 export function OrganizerFeaturesPanel({
   language,
@@ -98,20 +102,28 @@ export function OrganizerFeaturesPanel({
     readOrganizerFeatures,
   );
   const [notice, setNotice] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingChoice | null>(null);
   const write = useWrite(language, (done) => {
     setNotice(done);
-    void reload();
+    void reload().finally(() => setPending(null));
   });
   const choose = (key: string, choice: OverrideChoice) => {
     const body = bodyOf(choice);
     const path = organizerFeaturePath(organizerId, key);
-    void write.run(
-      () =>
-        body === null
-          ? requestJson("DELETE", path, undefined, keyed())
-          : requestJson("PUT", path, body, keyed()),
-      t("console.catalog.saved"),
-    );
+    setPending({ key, choice });
+    void write
+      .run(
+        () =>
+          body === null
+            ? requestJson("DELETE", path, undefined, keyed())
+            : requestJson("PUT", path, body, keyed()),
+        t("console.catalog.saved"),
+      )
+      .then((saved) => {
+        if (!saved) {
+          setPending(null);
+        }
+      });
   };
   return (
     <Section title={t("console.organizer.features")} level={3}>
@@ -123,7 +135,8 @@ export function OrganizerFeaturesPanel({
                 key={row.key}
                 language={language}
                 row={row}
-                busy={write.busy}
+                pending={pending}
+                busy={write.busy || pending !== null}
                 choose={(choice) => choose(row.key, choice)}
               />
             ))}

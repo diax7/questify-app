@@ -6,6 +6,7 @@ import {
   organizerFeaturePath,
   organizerFeaturesPath,
   readOrganizerFeatures,
+  shownChoice,
 } from "#src/lib/console-organizer-features.ts";
 
 describe("paths", () => {
@@ -41,5 +42,22 @@ describe("the select's choices", () => {
     expect(OVERRIDE_CHOICES).toEqual(["platform", "off", "on"]);
     expect([null, false, true].map(choiceOf)).toEqual(["platform", "off", "on"]);
     expect(OVERRIDE_CHOICES.map(bodyOf)).toEqual([null, { enabled: false }, { enabled: true }]);
+  });
+});
+
+describe("shownChoice", () => {
+  const shop = { key: "shop", override: null };
+
+  it("shows the stored choice when nothing is pending", () => {
+    expect(shownChoice(shop, null)).toBe("platform");
+    expect(shownChoice({ key: "shop", override: false }, null)).toBe("off");
+  });
+
+  it("shows the choice just made for its own feature until the list is read again", () => {
+    expect(shownChoice(shop, { key: "shop", choice: "on" })).toBe("on");
+  });
+
+  it("leaves the other features on their stored choice", () => {
+    expect(shownChoice({ key: "maps", override: true }, { key: "shop", choice: "off" })).toBe("on");
   });
 });

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
@@ -95,6 +95,41 @@ test("in English the console's override brings a platform-off feature back for o
   await shopCard.getByLabel("Shop for this organizer").selectOption("platform");
   await expect(shopCard.getByText("Override: off")).toHaveCount(0);
   await mapsCard.getByLabel("Maps for this organizer").selectOption("platform");
+  await expect(mapsCard.getByText("Override: on")).toHaveCount(0);
+  await resetPlatform(page);
+});
+
+test("a chosen override stays shown, and the selects stay disabled, until the list is read again", async ({
+  page,
+}, info) => {
+  test.setTimeout(150_000);
+  const { organizerId } = await asAdmin(page, info.project.name);
+  await page.goto(`/en/console/organizers/${organizerId}`);
+  const mapsCard = page.locator('[data-testid="override-card"][data-feature="maps"]');
+  const mapsSelect = mapsCard.getByLabel("Maps for this organizer");
+  const shopSelect = page
+    .locator('[data-testid="override-card"][data-feature="shop"]')
+    .getByLabel("Shop for this organizer");
+  await expect(mapsSelect).toHaveValue("platform");
+
+  // The read that follows the save is held until the test lets it through.
+  const held: Route[] = [];
+  await page.route(`**/v1/admin/organizers/${organizerId}/features`, (route) => {
+    held.push(route);
+  });
+  await mapsSelect.selectOption("on");
+  await expect.poll(() => held.length).toBe(1);
+  await expect(mapsSelect).toHaveValue("on");
+  await expect(mapsSelect).toBeDisabled();
+  await expect(shopSelect).toBeDisabled();
+  await held[0]?.continue();
+  await expect(mapsCard.getByText("Override: on")).toBeVisible();
+  await expect(mapsSelect).toHaveValue("on");
+  await expect(mapsSelect).toBeEnabled();
+  await expect(shopSelect).toBeEnabled();
+
+  await page.unroute(`**/v1/admin/organizers/${organizerId}/features`);
+  await mapsSelect.selectOption("platform");
   await expect(mapsCard.getByText("Override: on")).toHaveCount(0);
   await resetPlatform(page);
 });

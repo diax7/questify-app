@@ -24,3 +24,12 @@ export const choiceOf = (override: boolean | null): OverrideChoice =>
 export function bodyOf(choice: OverrideChoice): Readonly<{ enabled: boolean }> | null {
   return choice === "platform" ? null : { enabled: choice === "on" };
 }
+
+/** A choice just made, not yet in the list the page holds: the feature and the value picked. */
+export type PendingChoice = Readonly<{ key: string; choice: OverrideChoice }>;
+
+/** What a feature's select shows: the choice just made for it while the list is being read again, else the stored one. */
+export const shownChoice = (
+  row: Readonly<{ key: string; override: boolean | null }>,
+  pending: PendingChoice | null,
+): OverrideChoice => (pending?.key === row.key ? pending.choice : choiceOf(row.override));
