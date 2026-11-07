@@ -8620,7 +8620,7 @@ meanwhile, as before.
 
 ## ADR-811 - FOLLOWUPS batch 10: one flag alert per event per window, the demo stays closed to real staff, the second organizer index goes
 
-**Status:** Proposed (worker, FOLLOWUPS batch 10, 2026-11-06). Migration 0167. Q-742.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-07, after the FOLLOWUPS batch 10 code review). Migration 0167. Q-742.
 **Decision:** (1) `alert_scan_flags` writes one `new_flags` row per member, event and 15-minute window of `raised_at`; `lim` counts
 event windows, newest first. (2) The refusal of a real player's staff assignment into the demo event stands: ADR-563 and the T-710 plan
 say so, and `staff_assignment.player_id` is NOT NULL, so no assignment without a player exists to allow. No code changed.
@@ -8649,14 +8649,14 @@ writes one index less.
 
 ## ADR-814 - `staff.cjs create` takes no password and mails a set-password link
 
-**Status:** Proposed (developer, 2026-11-07). Q-751. Plan `docs/plans/2026-11-07-staff-first-password.md`.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-07, after the code review 89 and its fix). Q-751. Plan `docs/plans/2026-11-07-staff-first-password.md`.
 **Decision:** `create` never reads a password. The account gets the argon2id hash of 32 random bytes that are dropped at once, and one link in `staff_password_reset`, valid 24 hours and used once, is mailed after the commit. After it expires "Forgot your password?" gives the normal link. Existing accounts are not touched, and T-810 needs no migration. `create` has no `--admin` and refuses any flag: every account starts with no platform role. A platform admin is plain `create`, then confirming the person has signed in, then `grant-admin --reason`.
 **Why:** no initial secret reaches a person, so nothing has to be forced at the first sign-in and no route or session state changes. A forced change would leave an operator holding a working secret and put a new state on every staff route. A typo in `create --admin` would mail a stranger a link, and that mailbox also gets the sign-in code (ADR-078), which hands over a platform admin; the flag also skipped the reason `grant-admin` requires.
 **Trade-offs:** `create` now needs mail settings. 24 hours is the table's sweep limit, so a person who misses it uses Forgot. A pending link can be replaced by a Forgot request. Accounts made before this keep their passwords until the audit query in the plan is worked through.
 
 ## ADR-815 - A held email change applies only with a recorded notice to the old address
 
-**Status:** Proposed (developer, 2026-11-07). Q-752. Plan `docs/plans/2026-11-07-staff-first-password.md`; refines ADR-491.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-07, after the code review 89 and its fix). Q-752. Plan `docs/plans/2026-11-07-staff-first-password.md`; refines ADR-491.
 **Decision:** migration 0169 adds `staff_email_change.hold_notice_at` and the door `owner_email_hold_notice`, bound to the link's token hash. A sent notice is recorded; a failed send closes the change `send_failed` and the owner gets a 503. `owner_email_apply` closes a waited change with no record instead of applying it. Rows held before 0169 are not backfilled.
 **Why:** the notice is the only guard on the no-password path, so its absence must stop the change. A close on failure alone would still apply after a crash between the commit and the send. The close does not rest on the sender failing over: `RESEND_API_KEY` is not set in `ops/cranl/*.json`, so there is no second provider today.
 **Trade-offs:** a held row from before 0169, or one made on the old API, closes at its due time and the admin restarts it. A false failure closes a good change. With Gmail alone, one Gmail failure closes the owner's change, and the admin starts again (3 starts a day). The owner of a change closed at the due time is not told. Resending is not built.

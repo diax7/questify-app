@@ -2986,7 +2986,7 @@ for every buyer.
 
 ## Q-742 - Batch 10's three calls: flag alert window, real staff in the demo, the dropped index (ADR-811)
 
-**Status:** Open (worker's recommendation in ADR-811; the coordinator decides after review).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-07): as recommended, ADR-811 accepted.
 **Question:** is a 15-minute window right for `new_flags`, does the demo event stay closed to real staff, and is `event_organizer_idx`
 safe to lose at a member change's slower read? **Recommended:** yes to all three, as built in migration 0167.
 
@@ -2998,10 +2998,10 @@ messages. **Recommended:** keep it one way, as built in migration 0168.
 
 ## Q-751 - How long should the first set-password link last? (ADR-814)
 
-**Status:** Open (worker's recommendation in ADR-814; the coordinator decides after review).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-07): as recommended, ADR-814 accepted.
 **Question:** `create`'s link lives in `staff_password_reset`, whose sweep removes rows after 1 day. **Recommended:** 24 hours, then "Forgot your password?". Team invites last 7 days, but matching them needs a policy change or a new table.
 
 ## Q-752 - Should a failed held-change notice close the change or be resent? (ADR-815)
 
-**Status:** Open (worker's recommendation in ADR-815; the coordinator decides after review).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-07): as recommended, ADR-815 accepted.
 **Question:** a failed send can close the change at once, or the worker can retry it during the 24 hours. **Recommended:** close it; the admin can start again. Failover does not soften this today: `RESEND_API_KEY` is not set in `ops/cranl/*.json`, so one Gmail failure closes the owner's change.
