@@ -42,6 +42,7 @@ Node from `.nvmrc`, pnpm, Docker, `gh`, Python 3. The GitHub account Dhia gave y
 the test database and Redis (`compose.yaml`). Test env:
 `TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`, `TEST_REDIS_URL=redis://127.0.0.1:56379`. Commit
 under that account's git identity.
+The server's `gh` token has no `workflow` scope, so a push touching `.github/workflows/` is refused. Check every push's exit code.
 Without those two variables integration tests skip and the run still exits 0, so read the pass count. On a loaded shared server add
 `--maxWorkers=3 --hookTimeout=500000 --testTimeout=400000`: a test that times out at 30 s keeps running and fails the next one with a
 wrong count, which looks like a bug (2026-11-07: `send-budget`, `sign-in-rush`, `push-sending`; all 43 pass with the longer limit).

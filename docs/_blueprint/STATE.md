@@ -16,7 +16,7 @@
   passes while nothing is created); `openStream` moved to `ops/load/schedule.mjs` with tests (shed, intended time, slot freed); a local
   load run throws on a plan without `database`; the seat-limit 1,000 accept-all test has a 120 s limit; the `monitoring-setup` test has
   one module-loading helper. Left in FOLLOWUPS: the email template's repo URL (needs a Docker validation and a redeploy), the rules
-  copy, the T-804 NITs, 0148's rollback SQL, the routes on `afterCompletion`. CI 0 minutes (not pushed; the new workflow jobs have not run).
+  copy, the T-804 NITs, 0148's rollback SQL, the routes on `afterCompletion`. The two workflow edits are held on local branch `workflows-pending` (FOLLOWUPS): the server's token has no `workflow` scope.
 
 ## Staff first password and the held change's notice — 2026-11-07
 
