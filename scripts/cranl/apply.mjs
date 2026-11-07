@@ -11,6 +11,34 @@ import { operatorVariable } from "./spec.mjs";
 
 const CREATES = new Set(["project.create", "database.create", "bucket.create", "app.create"]);
 
+/** What Questify may hold on CranL for one environment: three apps and two databases (ADR-626, Q-613). */
+export const BUDGET = { apps: 3, databases: 2 };
+
+/**
+ * Refuses, before any write, a file that declares more apps or databases than the budget, and a create that would take
+ * the project past it. A project already over the budget (staging holds a fourth app until Dhia deletes the old
+ * monitoring app, ADR-812) is not an error while nothing of that kind is created.
+ */
+export function checkBudget(spec, state, creates) {
+  const problems = [];
+  for (const [kind, limit] of Object.entries(BUDGET)) {
+    const declared = Object.keys(spec[kind]).length;
+    const creating = creates.filter((c) => c.op === `${kind.slice(0, -1)}.create`).length;
+    if (declared > limit)
+      problems.push(`the file declares ${declared} ${kind}, the budget is ${limit}`);
+    else if (creating > 0 && state.live[kind] + creating > limit) {
+      problems.push(
+        `${kind}: ${state.live[kind]} exist and ${creating} would be created, the budget is ${limit}`,
+      );
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `Over the apps and databases budget (nothing was changed): ${problems.join("; ")}`,
+    );
+  }
+}
+
 export const generateSecret = () => randomBytes(32).toString("base64url");
 
 /** Describes a change in one line; a secret's value is never part of a change. */
@@ -200,6 +228,7 @@ export async function apply({
       `Set these operator variables first (nothing was changed): ${missing.join(", ")}`,
     );
   const creates = first.filter((c) => CREATES.has(c.op));
+  checkBudget(spec, ctx.state, creates);
   for (const change of creates) {
     log(describe(change));
     await create(ctx, change);

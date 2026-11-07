@@ -88,7 +88,17 @@ export async function observe(client, spec) {
   ]);
   const project = projects.find((p) => p.name === spec.project) ?? null;
   const projectId = project?.id;
-  const state = { project, apps: {}, databases: {}, buckets: new Set(buckets.map((b) => b.name)) };
+  const inProject = (list) => list.filter((item) => item.project?.id === projectId).length;
+  const state = {
+    project,
+    apps: {},
+    databases: {},
+    buckets: new Set(buckets.map((b) => b.name)),
+    // Everything the project holds, declared or not: apply's budget check counts the old apps too (ADR-812).
+    live: project
+      ? { apps: inProject(apps), databases: inProject(databases) }
+      : { apps: 0, databases: 0 },
+  };
   for (const [key, db] of Object.entries(spec.databases)) {
     const summary = project && byName(databases, projectId, db.name);
     state.databases[key] = summary ? await observeDatabase(client, summary, db) : null;

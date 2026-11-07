@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { addressOf, contactOf, dueCount, intendedAt, phoneOf, slotOf } from "./schedule.mjs";
+import {
+  addressOf,
+  contactOf,
+  dueCount,
+  intendedAt,
+  openStream,
+  phoneOf,
+  slotOf,
+} from "./schedule.mjs";
 
 describe("the open schedule", () => {
   const stream = { startMs: 1000, ratePerSecond: 200, total: 1000 };
@@ -76,5 +84,57 @@ describe("the rush's callers", () => {
     expect(contactOf(1234, "phone")).toBe("+966590001234");
     expect(contactOf(1234, "email")).toBe("rush1234@najd.sa");
     expect(phoneOf(9_999_999)).toMatch(/^\+966[0-9]{9}$/);
+  });
+});
+
+const settle = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+describe("openStream", () => {
+  it("sheds what is due past maxInFlight while nothing answers, and never delays the rest", async () => {
+    const fired: { index: number; intendedMs: number }[] = [];
+    const shed: number[] = [];
+    // A fire that never resolves: the stream itself then never ends, so the test only watches what it did.
+    void openStream(
+      { ratePerSecond: 1000, total: 40, maxInFlight: 3 },
+      (index: number, intendedMs: number) => {
+        fired.push({ index, intendedMs });
+        return new Promise<void>(() => {});
+      },
+      (index: number) => shed.push(index),
+    );
+    await settle(250);
+    expect(fired.map((f) => f.index)).toEqual([0, 1, 2]);
+    expect(shed).toEqual(Array.from({ length: 37 }, (_, i) => i + 3));
+  });
+
+  it("hands each request its intended send time, 1000 / rate ms apart, whenever it is actually sent", async () => {
+    const intended: number[] = [];
+    await openStream(
+      { ratePerSecond: 500, total: 5, maxInFlight: 10 },
+      (_index: number, intendedMs: number) => {
+        intended.push(intendedMs);
+        return Promise.resolve();
+      },
+      () => {},
+    );
+    expect(intended).toHaveLength(5);
+    for (let i = 1; i < intended.length; i += 1) {
+      expect(intended[i]! - intended[i - 1]!).toBeCloseTo(2, 6);
+    }
+  });
+
+  it("frees a slot when a request answers, so later requests are sent again", async () => {
+    const shed: number[] = [];
+    let sent = 0;
+    await openStream(
+      { ratePerSecond: 200, total: 10, maxInFlight: 1 },
+      async () => {
+        sent += 1;
+        await settle(2);
+      },
+      (index: number) => shed.push(index),
+    );
+    expect(sent + shed.length).toBe(10);
+    expect(sent).toBeGreaterThan(1);
   });
 });
