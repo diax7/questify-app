@@ -17,8 +17,8 @@
   caller just lost the event, and a close that overtakes an apply answers 409 `change_set_finished`, not 500. The busy text says up to 5
   minutes (Arabic through ux-araby). The past points 5 s check runs only with `PAST_POINTS_TIMING`. Smaller: `isInEvent`'s type, the
   survey docstring, the `GET /v1/admin/events/{eventId}` row (`reason`), the organizers test's four actions, Journey's Retry waits while it
-  reloads, the profile's theme gap. Closed without code: T-714's cursor (already done, 0167 clamps to 51) and `ranking.ts`'s `own_level(NULL)`
-  (measured at +1.3 ms a read, ADR-766; the API role cannot read `player_xp`). Left in FOLLOWUPS: the level subquery in 0164 (a shared
+  reloads, the profile's theme gap. Closed without code: T-714's cursor (already done, 0167 clamps to 51). Review 94. Left in FOLLOWUPS: `ranking.ts`'s `own_level(NULL)`
+  (+1.3 ms a read, ADR-766's note amended; the API role cannot read `player_xp`), the level subquery in 0164 (a shared
   function would not inline), `PODIUM_MIN`, the template `branding`, `sign-in-rush`. CI 0 minutes (not pushed).
 
 ## FOLLOWUPS batch 16 — 2026-11-07
