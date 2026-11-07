@@ -15,7 +15,8 @@ export type StaticRule = Readonly<{
 export const STATIC_FILE_RULES: readonly StaticRule[] = [
   { source: "/zxing/:file*", headers: [{ key: "Cache-Control", value: VERSIONED }] },
   {
-    source: "/:folder(avatars|currency|souvenirs|brand)/:file*",
+    // Only a file name with an extension of the shipped art: the bare folder is not matched.
+    source: "/:folder(avatars|currency|souvenirs|brand)/:file.:ext(webp|png)",
     headers: [{ key: "Cache-Control", value: ART }],
   },
   { source: "/favicon.ico", headers: [{ key: "Cache-Control", value: ART }] },

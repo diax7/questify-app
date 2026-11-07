@@ -344,6 +344,11 @@
   cursor: pointer;
 }
 
+.tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .tab[aria-current="page"],
 .tab[aria-pressed="true"] {
   color: var(--color-text);

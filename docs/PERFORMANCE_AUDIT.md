@@ -55,7 +55,7 @@ the load; no timing is claimed except the one named under item 9.
 
 ### 5. Images
 
-- **Before:** 48 PNG and 3 JPEG files. The shipped art without the app icons was 1,710,486 bytes (web 360,088, phone 1,350,398):
+- **Before:** 48 PNG and 4 JPEG files (the three puzzle photos, and the Open Graph card `opengraph-image.jpg`, which was left alone). The shipped art without the app icons was 1,710,486 bytes (web 360,088, phone 1,350,398):
   avatars, currency, the souvenir chest, the wordmark, achievement badges, memory-game cards, icons and three 768 px puzzle photos.
 - **Applied:** that art (45 files) became lossy WebP (quality 85 with the alpha at 100; the puzzle photos at quality 80), made with
   `sharp` from the pnpm store as a one-off, so no dependency was added. **After:** 626,804 bytes (web 107,684, phone 519,120),
@@ -142,8 +142,8 @@ Read through the 92 server pages, the 262 web components and the phone's screens
   108 ms and 307 ms, 1 at 508 ms and 1,024 ms, so a wait over a second always shows it and one under 0.4 s never does. It is
   still the shape of the page, with no faked progress. Tradeoff: for 0.4 s after a click the content area is empty beside the
   shell that stays.
-- **Not changed:** the 134 `common.loading` lines in panels are plain text that appears at once; replacing them is a sweep of 134
-  sites, left for a shared "Loading" component when one is needed. The phone has one skeleton (the Journey) and 53 "Loading…"
+- **Not changed:** the 132 `common.loading` lines in panels (76 in the web, 56 in the app) are plain text that appears at once; replacing
+  them is a sweep of 132 sites, left for a shared "Loading" component when one is needed. The phone has one skeleton (the Journey) and those 56 "Loading…"
   texts; the app has no render-test harness, so a delay there could not be tested; skipped.
 
 ### 10. Optimistic updates
@@ -173,8 +173,9 @@ response (`text/event-stream`, `EventSource`) in `apps` or `packages`.
   would measure the load more than the change. A missing baseline is reported, not estimated, so none is given. Server timing
   stays with `ops/load/` (T-804).
 - **Remaining risks:** art changed under the same name shows stale for up to a day in a browser; WebP has no PNG fallback (item
-  5); the skeleton's 0.4 s delay relies on CSS animation running (with animations removed by the system the skeleton does not
-  draw, and the screen-reader line still does).
+  5); the skeleton's 0.4 s reveal is a CSS animation. The Reduce Motion rule stops only the pulse
+  (`skeleton.module.css`), and the 0 s reveal still runs; only a user stylesheet forcing `animation: none` would leave the
+  skeleton hidden (the screen-reader line still shows).
 - **Files changed:** `apps/web/next.config.ts`, `apps/web/src/lib/static-cache.ts` (and its test), 13 web and 32 phone art files
   with their references, `apps/web/src/ui/skeleton.module.css`, `apps/web/src/components/SubmissionsPanel.tsx`,
   `apps/web/src/lib/submissions.ts`, `apps/web/src/components/useQuestBuilder.ts`, `apps/app/src/home/home-reads.ts`,

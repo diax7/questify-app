@@ -9,6 +9,8 @@ export type TabItem = Readonly<{
   /** A tab that opens a page; otherwise `select` switches the view in place. */
   href?: string;
   select?: () => void;
+  /** A button tab that cannot be pressed for now, for example while a change it would hide is waiting. */
+  disabled?: boolean;
 }>;
 
 /**
@@ -26,6 +28,7 @@ export function Tabs({ label, items }: Readonly<{ label: string; items: readonly
             type="button"
             className={styles.tab}
             onClick={item.select}
+            disabled={item.disabled === true}
             aria-pressed={item.current}
           >
             {item.label}

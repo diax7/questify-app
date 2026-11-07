@@ -14,10 +14,11 @@ function addresses(folder: string, prefix = ""): string[] {
   );
 }
 
-/** A rule's source as a pattern: the two forms the rules use, `:name(a|b)` and `:name*`. */
+/** A rule's source as a pattern: the three forms the rules use, `:name(a|b)`, `:name*` and a plain `:name`. */
 function pattern(source: string): RegExp {
   const text = source
     .replace(/\./g, "\\.")
+    .replace(/:[a-z]+(?![a-z(*])/g, "[^/]+")
     .replace(/:[a-z]+\(([^)]+)\)/g, "(?:$1)")
     .replace(/:[a-z]+\*/g, ".*");
   return new RegExp(`^${text}$`);
@@ -32,6 +33,13 @@ describe("the cache rules for the files in public/", () => {
   it.each(addresses(PUBLIC))("%s is covered by exactly one rule", (address) => {
     expect(rules.filter((rule) => rule.matches.test(address))).toHaveLength(1);
   });
+
+  it.each(["/avatars", "/avatars/", "/brand/missing", "/currency/missing.gif", "/avatars/a/b.txt"])(
+    "%s, which is no file of the art, is covered by no rule",
+    (address) => {
+      expect(rules.filter((rule) => rule.matches.test(address))).toHaveLength(0);
+    },
+  );
 
   it("keeps only the versioned decoder for a year", () => {
     const year = rules.filter((rule) => rule.value.includes("immutable"));

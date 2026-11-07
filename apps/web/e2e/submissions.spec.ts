@@ -111,6 +111,49 @@ test("marking auto-approved submissions as read shows at once and rolls back on 
   await expect(mark).toBeHidden();
 });
 
+/**
+ * While a read mark waits for the server the other tabs and "More" are disabled, so a refusal puts the rows back on
+ * the tab they came from and never under another filter.
+ */
+test("the tabs and More wait while a read mark is in flight", async ({ page }, info) => {
+  test.setTimeout(90_000);
+  await openBuilder(page, info.project.name);
+  await page.route(/\/submissions\?filter=unseen/, (route) =>
+    route.fulfill({ json: { submissions: [seenRow("a"), seenRow("b")], nextCursor: "next" } }),
+  );
+  const answers: Array<(status: number) => void> = [];
+  const refused = new Promise<number>((resolve) => {
+    answers[0] = resolve;
+  });
+  await page.route(/\/submissions\/seen$/, async (route) => {
+    await route.fulfill({ status: await refused, json: { code: "internal" } });
+  });
+
+  await page.goto(page.url().replace(/\/quests$/, "/submissions"));
+  const unseen = page.getByRole("button", { name: "قُبلت تلقائيًا ولم تُقرأ" });
+  const pending = page.getByRole("button", { name: "بانتظار المراجعة" });
+  const more = page.getByRole("button", { name: "المزيد" });
+  await unseen.click();
+  const items = page.getByTestId("submission");
+  await expect(items).toHaveCount(2);
+  await expect(more).toBeEnabled();
+
+  await page.getByRole("button", { name: "علّم الظاهرة كمقروءة" }).click();
+  await expect(items).toHaveCount(0);
+  await expect(pending).toBeDisabled();
+  await expect(unseen).toBeDisabled();
+  await expect(more).toBeDisabled();
+  answers[0]?.(503);
+  await expect(items).toHaveCount(2);
+  await expect(unseen).toHaveAttribute("aria-pressed", "true");
+  await expect(pending).toBeEnabled();
+  await expect(more).toBeEnabled();
+
+  await pending.click();
+  await expect(pending).toHaveAttribute("aria-pressed", "true");
+  await expect(items.filter({ hasText: "@sam_a" })).toHaveCount(0);
+});
+
 /** One auto-approved submission as the queue lists it. */
 function seenRow(id: string) {
   return {

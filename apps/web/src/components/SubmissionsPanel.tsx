@@ -55,13 +55,16 @@ function useQueue(eventApi: string, filter: QueueFilter, onFailure: (body: unkno
   });
   return {
     items,
-    /** Takes the items named off the list at once; the function it returns puts the list back as it was. */
+    /**
+     * Takes the items named off the list at once; the function it returns puts them back in front of whatever the list
+     * holds by then, so a page that arrived in between is kept. The filter must not change in between.
+     */
     hide: (ids: readonly string[]) => {
-      const before = items;
+      const hidden = (items ?? []).filter((item) => ids.includes(item.id));
       setItems((current) => (current === null ? current : withoutItems(current, ids)));
-      return () => setItems(before);
+      return () => setItems((current) => (current === null ? current : [...hidden, ...current]));
     },
-    reload: () => void load(null),
+    reload: () => load(null),
     more: next === null ? null : () => void load(next),
   };
 }
@@ -208,14 +211,17 @@ export function SubmissionsPanel({ language, organizerId, eventId }: Props) {
     if (ids.length === 0 || marking) {
       return;
     }
+    setProblem(null);
     setMarking(true);
     const restore = queue.hide(ids);
     const result = await requestJson("POST", `${eventApi}/submissions/seen`, { ids });
-    setMarking(false);
     if (result.ok) {
-      queue.reload();
+      // Marking lasts until the list is back, so "Nothing here" does not show before the rows that are left.
+      await queue.reload();
+      setMarking(false);
     } else {
       restore();
+      setMarking(false);
       setProblem(
         result.body === undefined ? t("join.network") : problemOf(result.body, language, t),
       );
@@ -232,6 +238,8 @@ export function SubmissionsPanel({ language, organizerId, eventId }: Props) {
           label: t(`submissions.filter.${name}`),
           current: filter === name,
           select: () => setFilter(name),
+          // The rows put back after a refusal belong to this tab only.
+          disabled: marking,
         }))}
       />
       {problem === null ? null : (
@@ -258,12 +266,12 @@ export function SubmissionsPanel({ language, organizerId, eventId }: Props) {
             language={language}
             eventApi={eventApi}
             item={item}
-            done={queue.reload}
+            done={() => void queue.reload()}
           />
         ))}
       </CardList>
       {queue.more === null ? null : (
-        <Button variant="quiet" onClick={queue.more}>
+        <Button variant="quiet" disabled={marking} onClick={queue.more}>
           {t("submissions.more")}
         </Button>
       )}
