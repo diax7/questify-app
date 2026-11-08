@@ -27,7 +27,13 @@ import {
 } from "#src/join/join-api.ts";
 import { CardReceives } from "#src/join/CardReceives.tsx";
 import { JoinForm } from "#src/join/JoinForm.tsx";
-import { pointAtMissing, refusalFromParams, refusalOf, type Pointed } from "#src/join/pointed.ts";
+import {
+  pointAtMissing,
+  refusalAmong,
+  refusalFromParams,
+  refusalOf,
+  type Pointed,
+} from "#src/join/pointed.ts";
 import { isInEvent, joinedResult, type JoinResult } from "#src/join/join-result.ts";
 import { RehearsalJoin } from "#src/join/RehearsalJoin.tsx";
 import { openJoinedEvent } from "#src/onboarding/open-joined.ts";
@@ -220,6 +226,10 @@ function JoinCardScreen() {
   }
   const { event } = answer;
   const ended = event.statusNow === "ended";
+  const shown = refusalAmong(
+    { pointed, problem },
+    event.join.fields.map((field) => field.id),
+  );
   return (
     <Screen title={textIn(event.name, language)}>
       <PushExplainer explainer={explainer} />
@@ -231,10 +241,10 @@ function JoinCardScreen() {
         <CardReceives card={card} />
         {joined && welcome > 0 ? <WelcomeReward points={welcome} /> : null}
         {ended || joined ? null : (
-          <JoinForm rules={event.join} typed={typed} onType={setTyped} pointed={pointed} />
+          <JoinForm rules={event.join} typed={typed} onType={setTyped} pointed={shown.pointed} />
         )}
         {result === undefined ? null : <AppText>{t(OUTCOME_KEY[result])}</AppText>}
-        <Problem problem={problem} />
+        <Problem problem={shown.problem} />
         {joined ? (
           <Button
             label={t("joinCard.openEvent")}

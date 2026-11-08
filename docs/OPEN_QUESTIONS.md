@@ -3039,9 +3039,19 @@ typed.
 version refused, inside one word: «إسحاق», «يوسف إسحاق», Yamashita, Kinoshita, Wankhede, Atwater, Pornchai; across two words: «ملاك
 سمير», «مبارك سمير», «عبدالملك سميح», «عبّاس كسّاب», Anas Lutfi, Ilyas Lutfy, Yunus Hitti, Abbas Hitti; and whole words that are list
 entries: Ali Butt, Dick Smith, Kevin Poon, Kike Garcia, Hooker. The rewrite checks word by word and skips an allow-list of name words
-(`full_name_allow`, 41 seeded), and a corpus of 210 common names passes (ADR-817), but any name holding a list word that is not on
-the allow-list is still refused, and common Indian and Japanese names hold "shit" often (Harshit, Ishita, Yoshitaka).
-**For Dhia:** a player whose stored name becomes hidden (a word added to the lists later) is not told and cannot change it: there
+(`full_name_allow`, 43 seeded; an Arabic entry also covers its article and nisba forms, so «محمد الإسحاقي», «الاسحاقي»,
+«عبدالله البلوطي», «منذر البلوطي» and «علي السكسكي» now pass), and a corpus of 242 common names passes (ADR-817). Run on
+2026-11-08 after the re-review, these real names are **still refused**, each holding a list word not on the allow-list: Thai
+names with "porn" (Siriporn, Supaporn, Somporn, Kanokporn, Pornthep), Shittu (Yoruba), Shitole (Marathi), Shitara (Japanese),
+Slutskaya (Russian), Skeete (Barbadian), Coon (English), Mong (Hmong), Bastardi (Italian), Wankowicz (Polish) and the Persian
+«کسمایی» (Kasmaei). Each can be added to the allow-list by a migration.
+**For Dhia (1):** should "porn" match only as a whole word in a full name? Inside a word it refuses many common Thai names
+(above); as a whole word it would still refuse "Ahmed Porn" but let "Pornstar Ali" through. Recommended: whole word only in full
+names, usernames unchanged.
+**For Dhia (2):** «Kike» is on the allow-list because it is a common Spanish nickname (Kike García), but it is also an
+antisemitic slur in English, so "Kike Smith" passes. Keep it allowed (recommended, as Spanish speakers use it as their name), or
+take it off and refuse those names? Unchanged until you say.
+**For Dhia (3):** a player whose stored name becomes hidden (a word added to the lists later) is not told and cannot change it: there
 is no answer-edit route, and a rejoin keeps the answers given before (T-220). They show by username in the ranking, the results
 and the big screen, while the staff still see the name. Is that acceptable, or should such a player be told and allowed to give
 another name (a notice and an answer-edit flow, a separate task)? Recommended for now: accept it, since only an admin's list change

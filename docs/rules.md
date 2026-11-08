@@ -216,6 +216,12 @@ takes the assignment `FOR SHARE`, the quest row `FOR NO KEY UPDATE`, then the ev
 rows; `move_nfc_tag` takes the target quest row, then the tag row; none locks an enrollment (crossed in
 `test/db/nfc-tags.int.test.ts`).
 
+**The stored full-name flag (ADR-817).** `join_answer.name_blocked` is what `full_name_blocked` said when the answer was
+written or last swept. A change to `username_word` or `full_name_allow` marks the sweep itself (a statement trigger), but a
+migration that changes `username_fold` or `full_name_fold` (or `full_name_blocked`) changes the answer for stored names with
+no list row touched, so it must also mark the recheck pending: `UPDATE full_name_recheck SET pending = true,
+after_enrollment = NULL, after_field = NULL, changed_at = now()`. The lifecycle tick does the rest.
+
 ## Testing
 
 - **Unit and integration:** `vitest`, colocated `*.test.ts`. Test behavior, not implementation; test

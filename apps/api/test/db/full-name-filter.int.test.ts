@@ -36,9 +36,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
   let staffA: string;
   let admin: RequestContext;
   let counter = 0;
+  let shipped: Row | undefined;
 
   beforeAll(async () => {
     db = await createTestDatabase();
+    // As the migration leaves it, before any test changes a list or runs the sweep.
+    shipped = (
+      await db.owner.query(
+        `SELECT r.pending, r.after_enrollment, a.atthasmissing AS default_in_catalog
+         FROM full_name_recheck r, pg_attribute a
+         WHERE a.attrelid = 'join_answer'::regclass AND a.attname = 'name_blocked'`,
+      )
+    ).rows[0];
     ids = await seedTwoTenants(db.owner);
     staffA = await addMember(db.owner, ids.orgA);
     await db.owner.query(
@@ -132,6 +141,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       [event.id],
     );
     return { event, field };
+  };
+
+  /** The tick's work: pages of the sweep until one comes back short. */
+  const sweepAll = async () => {
+    for (;;) {
+      const [page] = await as<{ n: number }>({}, "SELECT name_flag_sweep(2000) AS n");
+      if ((page?.n ?? 0) < 2000) {
+        return;
+      }
+    }
   };
 
   const flagOf = async (enrollment: string) =>
@@ -240,6 +259,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       expect(
         await blocked(["Anas Lutfi", "ملاك سمير", "عبّاس كسّاب", "Ali Butt", "إسحاق", "Yamashita"]),
       ).toEqual([]);
+      // An Arabic entry covers its article and nisba forms, and nothing else around it.
+      expect(
+        await blocked([
+          "محمد الإسحاقي",
+          "الاسحاقي",
+          "بالإسحاقي",
+          "والاسحاقيه",
+          "للإسحاقية",
+          "إسحاقه",
+          "عبدالله البلوطي",
+          "منذر البلوطي",
+        ]),
+      ).toEqual([]);
+      expect(
+        await blocked(["السحاقي", "اللوطي", "الاسحاقيكسم", "كسماسحاق", "Al-Ishaqiporn"]),
+      ).toEqual(["السحاقي", "اللوطي", "الاسحاقيكسم", "كسماسحاق", "Al-Ishaqiporn"]);
       expect(await blocked(["Anaslutfi", "ملاكسمير", "Ali Butthole", "Yamashitas"])).toEqual([
         "Anaslutfi",
         "ملاكسمير",
@@ -315,10 +350,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       ).toEqual([{ clean: { fullName: "Sara Ahmed" }, stored: {} }]);
     });
 
+    it("ships with no backfill: the column is a catalog default and the sweep is left pending", () => {
+      expect(shipped).toEqual({ pending: true, after_enrollment: null, default_in_catalog: true });
+    });
+
     it("hides stored names when the console adds a word and shows them again when it is removed", async () => {
       const { event, field } = await shownEvent();
       const later = await member(event.id, field, "Zorvex Omar");
       const other = await member(event.id, field, "Omar Zorvexian");
+      await sweepAll();
       expect([await flagOf(later.enrollment), await flagOf(other.enrollment)]).toEqual([
         false,
         false,
@@ -326,6 +366,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       expect(
         await as(admin, "SELECT admin_word_add('zorvex', 'word', 'en', $1) AS r", [randomUUID()]),
       ).toEqual([{ r: "added" }]);
+      // The door runs no page: the sweep is pending from the start, and the tick does it.
+      expect(await owner("SELECT pending, after_enrollment FROM full_name_recheck")).toEqual([
+        { pending: true, after_enrollment: null },
+      ]);
+      expect(await flagOf(later.enrollment)).toBe(false);
+      await sweepAll();
       expect([await flagOf(later.enrollment), await flagOf(other.enrollment)]).toEqual([
         true,
         false,
@@ -334,7 +380,70 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       expect(
         await as(admin, "SELECT admin_word_remove('zorvex', $1) AS r", [randomUUID()]),
       ).toEqual([{ r: "removed" }]);
+      await sweepAll();
       expect(await flagOf(later.enrollment)).toBe(false);
+    });
+
+    it("restarts the sweep on a list change made outside the console doors", async () => {
+      await sweepAll();
+      for (const change of [
+        "INSERT INTO username_word (word, match, language) VALUES ('vexlor', 'word', 'en')",
+        "UPDATE username_word SET language = 'en' WHERE word = 'vexlor'",
+        "DELETE FROM username_word WHERE word = 'vexlor'",
+        "INSERT INTO full_name_allow (word, language) VALUES ('vexlorian', 'en')",
+        "DELETE FROM full_name_allow WHERE word = 'vexlorian'",
+      ]) {
+        await owner(
+          "UPDATE full_name_recheck SET pending = false, after_enrollment = NULL, after_field = NULL",
+        );
+        await owner(change);
+        expect(await owner("SELECT pending FROM full_name_recheck"), change).toEqual([
+          { pending: true },
+        ]);
+      }
+      await sweepAll();
+    });
+
+    it("makes a word add wait for a join's answer in flight, and the sweep then flags that answer", async () => {
+      const { event, field } = await shownEvent();
+      await sweepAll();
+      const player = await newPlayer();
+      // The join: its answer is written (the trigger takes the lists' key shared) and its transaction stays open.
+      await db.owner.query("BEGIN");
+      const [enrollment] = (
+        await db.owner.query<{ id: string }>(
+          `INSERT INTO enrollment (organizer_id, event_id, player_id, status, name_notice, joined_via)
+           VALUES ($1, $2, $3, 'active', 'everyone', 'code') RETURNING id`,
+          [ids.orgA, event.id, player],
+        )
+      ).rows;
+      const id = enrollment?.id ?? "";
+      await db.owner.query(
+        `INSERT INTO join_answer (enrollment_id, field_id, organizer_id, event_id, value)
+         VALUES ($1, $2, $3, $4, 'Plovex Omar')`,
+        [id, field, ids.orgA, event.id],
+      );
+      let settled = 0;
+      const adding = as(admin, "SELECT admin_word_add('plovex', 'word', 'en', $1) AS r", [
+        randomUUID(),
+      ]).then((rows) => {
+        settled = performance.now();
+        return rows;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      expect(settled).toBe(0);
+      const committed = performance.now();
+      await db.owner.query("COMMIT");
+      expect(await adding).toEqual([{ r: "added" }]);
+      // The door waited for the join and no more: no page of its own, and no tick page was in flight.
+      expect(settled - committed).toBeLessThan(1000);
+      // Checked against the lists before the word, so it is the sweep's to flag.
+      expect(await flagOf(id)).toBe(false);
+      expect(await owner("SELECT pending FROM full_name_recheck")).toEqual([{ pending: true }]);
+      await sweepAll();
+      expect(await flagOf(id)).toBe(true);
+      await as(admin, "SELECT admin_word_remove('plovex', $1)", [randomUUID()]);
+      await sweepAll();
     });
 
     it("sweeps in pages from the stored key, and a list change starts it again", async () => {
@@ -345,9 +454,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       }
       await owner(
         "INSERT INTO username_word (word, match, language) VALUES ('qorvane', 'word', 'en')",
-      );
-      await owner(
-        "UPDATE full_name_recheck SET pending = true, after_enrollment = NULL, after_field = NULL",
       );
       const total =
         (
@@ -375,15 +481,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       }
       expect(await as<{ n: number }>({}, "SELECT name_flag_sweep(2) AS n")).toEqual([{ n: 0 }]);
       // A list change in the middle of a sweep starts it again from the first page.
-      await owner(
-        "UPDATE full_name_recheck SET pending = true, after_enrollment = NULL, after_field = NULL",
-      );
+      await owner("INSERT INTO full_name_allow (word, language) VALUES ('qorvanex', 'en')");
       await as({}, "SELECT name_flag_sweep(2)");
       expect(
         await owner("SELECT after_enrollment IS NOT NULL AS mid FROM full_name_recheck"),
       ).toEqual([{ mid: true }]);
       await owner("DELETE FROM username_word WHERE word = 'qorvane'");
-      await owner("SELECT full_name_recheck_start()");
+      expect(await owner("SELECT pending, after_enrollment FROM full_name_recheck")).toEqual([
+        { pending: true, after_enrollment: null },
+      ]);
+      await sweepAll();
       expect(await owner("SELECT pending, after_enrollment FROM full_name_recheck")).toEqual([
         { pending: false, after_enrollment: null },
       ]);
@@ -398,14 +505,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
           `SELECT p.proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
                   has_function_privilege('public', p.oid, 'EXECUTE') AS anyone
            FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace
-             AND p.proname IN ('full_name_blocked', 'full_name_fold', 'join_answer_name_flag', 'full_name_recheck_start',
+             AND p.proname IN ('full_name_blocked', 'full_name_fold', 'join_answer_name_flag', 'full_name_recheck_mark',
                                'name_flag_sweep')
            ORDER BY p.proname`,
         ),
       ).toEqual([
         { proname: "full_name_blocked", app: false, anyone: false },
         { proname: "full_name_fold", app: false, anyone: false },
-        { proname: "full_name_recheck_start", app: false, anyone: false },
+        { proname: "full_name_recheck_mark", app: false, anyone: false },
         { proname: "join_answer_name_flag", app: false, anyone: false },
         { proname: "name_flag_sweep", app: true, anyone: false },
       ]);

@@ -59,3 +59,12 @@ export const refusalFromParams = (
     ? { pointed: undefined, problem }
     : { pointed: { field: params.problemField, problem }, problem: null };
 };
+
+/**
+ * The refusal as the card shows it with its fields now: one pointing at a field the card no longer has (it changed
+ * after sign-in) puts its words on the Problem line instead, so they are never lost.
+ */
+export const refusalAmong = (refusal: Refusal, fields: readonly string[]): Refusal =>
+  refusal.pointed === undefined || fields.includes(refusal.pointed.field)
+    ? refusal
+    : { pointed: undefined, problem: refusal.pointed.problem ?? refusal.problem };

@@ -62,9 +62,11 @@ change limit counts `rename` rows only. `username_word (word, match word|part, l
 usernames (ADR-119), stored folded and letters only (a CHECK refuses anything else), no grant; read inside
 `create_player` and `rename_player` through `username_blocked(name)`.
 Migration 0177 (ADR-817): `join_answer.name_blocked boolean` (false by default): a Full name answer that holds a list word,
-set by a trigger as the answer is written and by `name_flag_sweep` (a paged sweep run from the console's list doors and the
-lifecycle tick) after a list change; `public_full_name` gives no flagged name. `full_name_allow (word, language)`: name words
-the full-name check skips (real names that hold a list entry), no grant. `full_name_recheck`: the sweep's one row (`pending`,
+set by a trigger as the answer is written and by `name_flag_sweep` (a paged sweep the lifecycle tick runs) after a list
+change, marked by a statement trigger on `username_word` and `full_name_allow`; no backfill (the migration leaves the sweep
+pending); `public_full_name` gives no flagged name. `full_name_allow (word, language)`: name words
+the full-name check skips (real names that hold a list entry; an Arabic one also with ال بال وال لل before it and ي يه ه
+after it), no grant. `full_name_recheck`: the sweep's one row (`pending`,
 the last answer key), no grant.
 Migration 0118 (T-704): `reason` gains `admin` (a rename by `admin_rename_player`, not counted by the change limit), and
 `username_retired (fold PRIMARY KEY, retired_at)` holds a name an admin took away, folded, with no player id;

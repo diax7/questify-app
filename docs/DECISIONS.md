@@ -8701,7 +8701,8 @@ That is safe on staging, where no live event runs; on production such a file nee
 
 ## ADR-817 - FOLLOWUPS batch 23: the username word lists check a full name at the join, and a stored flag hides it where other players read it
 
-**Status:** Proposed (FOLLOWUPS batch 23, 2026-11-08; reworked after the review scored the first version 72; Q-754). Narrows the
+**Status:** Proposed (FOLLOWUPS batch 23, 2026-11-08; reworked after the review scored the first version 72, and again after the
+re-review scored it 86; Q-754). Narrows the
 trade-off of ADR-400 ("unlike a username it is not filtered").
 **Decision:** migration 0177. (1) **The check**, `full_name_blocked(name)` (internal, PL/pgSQL with no SET clause, so its two list
 reads keep one plan per connection and the name is folded once, not once per list row): the name other players see
@@ -8710,16 +8711,25 @@ dropped and NFC again (a hamza stays on its letter), `username_fold`, then Persi
 Arabic-Indic digits and the Cyrillic and Greek letters that look Latin mapped (`full_name_fold`, a standard body, inlined). Spaces,
 punctuation and symbols separate words. Then, word by word: a `word` entry matches a whole word (split at digits); a `part` entry
 matches inside one word only, digits removed or read as letters, never across a space; letters spelled out one by one ("f u c k",
-"ك س") are read joined; a word in `full_name_allow` (41 seeded name words: اسحاق, butt, dick, poon, kike, hooker, yamashita,
-harshit, ishita, pornchai, ...; deny by default, no grant, edited by migration) is skipped. PostgreSQL 17.11, UTF8: `normalize()`
+"ك س") are read joined; a word in `full_name_allow` (43 seeded name words: اسحاق, بلوطي, سكسك, butt, dick, poon, kike, hooker,
+yamashita, harshit, ishita, pornchai, ...; deny by default, no grant, edited by migration) is skipped, and so is an Arabic entry's
+article or nisba form: one optional prefix of ال, بال, وال, لل and one optional suffix of ي, يه, ه (ية and ة fold to يه and ه), so
+اسحاق covers «الإسحاقي» and «إسحاقية» and بلوطي covers «البلوطي». PostgreSQL 17.11, UTF8: `normalize()`
 needs a UTF8 database, which every Questify database is. (2) **At the join**: `check_join_answers` refuses a Full name answer that
 fails, JA422 `name:<field id>`; the API answers 422 `invalid_join_answers` with `details.field` and "That name can't be used. Enter
 another name." / «لا يمكن استخدام هذا الاسم. أدخل اسمًا آخر.», and the app shows those words under the field (also after sign-in,
-which now keeps the field). (3) **The stored flag**: `join_answer.name_blocked` (false by default), set by the same check in a
-trigger as an answer is written, backfilled by the migration, and set again by a sweep after the console adds or removes a word:
-`admin_word_add` and `admin_word_remove` take the lists' advisory key, mark the sweep row (`full_name_recheck`) pending and run its door `name_flag_sweep` for
-first page of 2,000 answers; the lifecycle tick runs the rest, a page per transaction, about 2 s a run. A join's answer trigger takes
-the same key shared, so an answer written during a list change waits for it and is checked against the new lists.
+which now keeps the field). (3) **The stored flag**: `join_answer.name_blocked` (false by default, a constant default kept in the
+catalog, so ADD COLUMN rewrites nothing), set by the same check in a trigger as an answer is written, and set again by a sweep after
+any list change. **No backfill**: the migration leaves the sweep row (`full_name_recheck`) pending, and the lifecycle tick checks the
+answers stored before it (until it reaches one, a stored name that fails shows as under 0176). A statement trigger on `username_word`
+and `full_name_allow` (`full_name_recheck_mark`) takes the lists' advisory key exclusive and marks the sweep pending from the first
+page, so a change by a console door, a migration or by hand all restart it; `admin_word_add` and `admin_word_remove` take the key
+first and run no page themselves. The tick runs `name_flag_sweep`, pages of 2,000 answers, each its own transaction, for about 2 s a
+run. A join's answer trigger takes the same key shared, so an answer written during a list change waits for it and is checked
+against the new lists, and a list change waits for answers in flight, which the sweep then sees. **A join waits at most one tick page
+plus the longest join in flight**: a list door waits for the sweep row while a page holds it (859 ms the slowest of 52 pages, 773 ms
+median) and for joins already holding the key, and a join arriving meanwhile waits for the door. A migration that changes
+`username_fold` or `full_name_fold` must mark the recheck itself (`docs/rules.md`).
 `public_full_name` reads the flag and runs no check; `full_name_part` calls it once (`jsonb_strip_nulls`). The staff read
 (`staff_full_name`) is unchanged.
 **Measured** (`test/perf/full-name-timing.int.test.ts`; PostgreSQL 17.11 shared test container, load average 2 to 3; one event of
@@ -8728,21 +8738,25 @@ the same key shared, so an answer written during a list change waits for it and 
 
 | Read | 0176 | first 0177 | 0177 now |
 |---|---|---|---|
-| `ranking_names` | 9.37 ms, 378 buffers | 411.63 ms, 486 | 8.81 ms, 378 |
-| `screen_ranking` (top ten) | 38.83 ms, 1,219 | 439.56 ms, 1,256 | 22.41 ms, 742 (one call of the name a row) |
-| `event_results` (100 places) | 30.28 ms, 1,808 | 1,950.22 ms, 2,208 | 31.28 ms, 1,808 |
+| `ranking_names` | 7.59 ms, 354 buffers | 396.19 ms, 462 | 7.88 ms, 354 |
+| `screen_ranking` (top ten) | 32.11 ms, 977 | 388.44 ms, 1,016 | 19.15 ms, 620 (one call of the name a row) |
+| `event_results` (100 places) | 32.23 ms, 1,797 | 1,835.77 ms, 2,197 | 32.12 ms, 1,797 |
 
-ADR-766's gate (+0.5 ms or +10%) holds for all three: the buffers are equal or fewer; `event_results`' +1.0 ms (+3.3%) is within
-noise (the run before gave 29.01 to 28.77 ms, the same 1,797 buffers each). The check itself: 0.30 ms a call (2,000 calls 604 ms),
-against 2.6 ms for `username_blocked` on the same copy. The backfill: 28.2 s for 102,001 answers (about 0.28 ms each), during which
-ADD COLUMN holds `join_answer` locked and joins wait; staging holds a handful, so a large database needs a quiet window. The sweep:
-52 pages, 583 ms a page median, 30 s in all for 102,001 answers; the console door waits for its one page (under a second).
-**Corpus** (`test/db/full-name-corpus.ts`): 210 common Arabic, Gulf, South Asian, Filipino, East Asian, Western, Persian and Urdu
-full names pass; 28 abusive names are refused, among them `fυck` (Greek), `fuсk` (Cyrillic), `ｆｕｃｋ`, `fück`, `ﻛﺲ`, `کس`. The first
-version refused 54 of the 210 and let 11 of the 28 through. Without the allow-list the new check refuses 45 of the 210.
+(Rerun after the re-review, 2026-11-08, load average about 1; the run before gave 9.37 to 8.81, 38.83 to 22.41 and 30.28 to
+31.28 ms.) ADR-766's gate (+0.5 ms or +10%) holds for all three: the buffers are equal or fewer, and `ranking_names`' +0.29 ms
+(+3.8%) is within it. The check itself: 0.30 ms a call (2,000 calls 607 ms, the allow-list's article and nisba forms included),
+against 2.6 ms for `username_blocked` on the same copy. The sweep: 52 pages for 102,001 answers, 773 ms a page median, 859 ms the
+slowest, 39.9 s of work in all. The tick spends about 2 s a run on it, so 3 pages (6,000 answers) a run, and runs every 30 s (give
+or take a fifth): a sweep of 100,000 answers takes about 17 runs, **about 9 minutes**.
+**Corpus** (`test/db/full-name-corpus.ts`): 242 common Arabic, Gulf, South Asian, Filipino, East Asian, Western, Persian and Urdu
+full names pass, among them 27 Saudi and Gulf family names in their article and nisba forms («محمد الإسحاقي», «منذر البلوطي»,
+«علي السكسكي», «سالم البلوشي», ...); 30 abusive names are refused, among them `fυck` (Greek), `fuсk` (Cyrillic), `ｆｕｃｋ`, `fück`,
+`ﻛﺲ`, `کس`, «خالد السحاقي», «خالد اللوطي». The first version refused 54 of the first 210 and let 11 of the first 28 through. Without
+the allow-list the check refuses 50 of the 242.
 **Not refused:** a name for being Arabic, short, marked, a real person's name, or a username an admin retired.
-**Trade-offs:** a list word split across two words or by punctuation ("fu ck", "fu-ck") passes; a name made of allow-list words
+**Trade-offs:** a list word split across two words or by punctuation ("fu ck", "fu-ck", "f*ck", "sh!t") passes, since
+punctuation must separate the words of a real name ("Al-Qahtani", "O'Brien") and a part entry never spans two words; a name made of allow-list words
 ("Dick Butt") passes; any real name holding a list word not on the allow-list is still refused, and Indian and Japanese names hold
-"shit" often. After a list change a hidden or shown name lags by the sweep (seconds at today's size, about 5 minutes at 100,000
-answers). A player whose stored name becomes hidden is not told and cannot change it (no answer-edit route, and a rejoin keeps old
+"shit" often. After a list change a hidden or shown name lags by the sweep (one run at today's size, about 9 minutes at 100,000
+answers). Real names still refused are listed in Q-754. A player whose stored name becomes hidden is not told and cannot change it (no answer-edit route, and a rejoin keeps old
 answers, T-220): Q-754 asks Dhia.

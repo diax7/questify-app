@@ -3,27 +3,32 @@
 --   (1) at the join, a Full name answer holding a listed word is refused (JA422, DETAIL `name:<field id>`), so the join
 --       rolls back and the card points at the field;
 --   (2) every stored Full name answer carries `join_answer.name_blocked`, set by the same check when it is written,
---       for the stored ones by the backfill below, and again by a sweep whenever the console adds or removes a list
---       word. Where a name is read for other players (`public_full_name`) a flagged one is not given, so the player
---       shows by username. The read runs no check: a ranking, the big screen and the results read one boolean a row.
+--       and again by a sweep whenever a list changes (`username_word` or `full_name_allow`, by the console or not).
+--       Where a name is read for other players (`public_full_name`) a flagged one is not given, so the player shows by
+--       username. The read runs no check: a ranking, the big screen and the results read one boolean a row.
+-- No backfill: the column comes with a constant default (no table rewrite), and this file leaves the sweep pending, so
+-- the lifecycle tick checks the answers stored before it, a page per transaction (about 9 minutes at 100,000 answers,
+-- ADR-817). Until the sweep reaches it, a stored name that fails shows as it did under 0176.
 -- The check works word by word (a `part` entry never matches across a space), skips the words of `full_name_allow`
--- (real names that hold a list entry: Ishaq, Butt, Yamashita), and reads a name as a person would: compatibility forms
+-- (real names that hold a list entry: Ishaq, Butt, Yamashita; an Arabic one also with the article and nisba forms,
+-- «الإسحاقي», «البلوطي»), and reads a name as a person would: compatibility forms
 -- (full-width, Arabic presentation forms), accents, Persian and Urdu letters, and Cyrillic and Greek look-alikes are
 -- folded first. Only the word lists: a name is never refused for being Arabic, short, a real person's name, or a username
 -- an admin retired. The staff read (`staff_full_name`) is unchanged.
 -- New, closed by default: tables `full_name_allow` and `full_name_recheck` (no grant); `join_answer.name_blocked` (the
 -- API role keeps its table-wide SELECT and no write); internal functions `full_name_fold`, `full_name_blocked`,
--- `join_answer_name_flag` (the trigger) and `full_name_recheck_start` (no grant); one door, `name_flag_sweep`, for the
+-- `join_answer_name_flag` and `full_name_recheck_mark` (the triggers; no grant); one door, `name_flag_sweep`, for the
 -- API's role (the lifecycle tick). Restated with the same signature, owner and grants, each diffed against its latest
 -- definition: check_join_answers (as 0037, plus (1)), public_full_name and full_name_part (as 0109; the part now calls the
--- name once), admin_word_add and admin_word_remove (as 0120, plus the sweep). Nothing here writes points or XP, changes a
+-- name once), admin_word_add and admin_word_remove (as 0120, plus the lists' advisory key). Nothing here writes points or XP, changes a
 -- sign-in, a tenant rule or a redemption. 0176 and earlier untouched.
 SET LOCAL lock_timeout = '10s';
 
 -- ================================================================ the allow-list
 -- Words of real names that hold a list entry, which the full-name check skips (a word is skipped whole: its `word` and its
--- `part` matches). Stored folded, letters only, as `username_word`. Data, edited by a migration (no console page yet,
--- ADR-817); usernames never read it.
+-- `part` matches). An Arabic entry also covers the word with ال, بال, وال or لل before it and ي, يه or ه after it (folded:
+-- ية reads يه, ة reads ه), so «اسحاق» covers «الإسحاقي» and «إسحاقية». Stored folded, letters only, as `username_word`.
+-- Data, edited by a migration (no console page yet, ADR-817); usernames never read it.
 CREATE TABLE full_name_allow (
   word       text PRIMARY KEY CHECK (word ~ '^[a-zء-غف-ي]{2,}$' AND word = username_fold(word)),
   language   text NOT NULL CHECK (language IN ('ar', 'en')),
@@ -34,7 +39,8 @@ ALTER TABLE full_name_allow FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON full_name_allow FROM PUBLIC;
 
 INSERT INTO full_name_allow (word, language) VALUES
-  ('اسحاق', 'ar'),
+  -- Arabic family names that hold a `part` entry: Ishaq (سحاق), Al-Balouti (لوطي), Al-Saksaki (سكس)
+  ('اسحاق', 'ar'), ('بلوطي', 'ar'), ('سكسك', 'ar'),
   -- whole words that are also `word` entries
   ('butt', 'en'), ('dick', 'en'), ('poon', 'en'), ('kike', 'en'), ('quim', 'en'), ('cumming', 'en'),
   -- `part` entries inside a name
@@ -68,7 +74,8 @@ REVOKE ALL ON FUNCTION full_name_fold(text) FROM PUBLIC;
 
 -- The word-list half of `username_blocked` (0016, 0118), word by word: a `word` entry matches a whole word (split at
 -- digits, as a username is); a `part` entry matches inside one word, with its digits removed or read as letters (0 o,
--- 1 i, 3 e, 4 a, 5 s, 7 t), never across a space. A word of `full_name_allow` is skipped. Letters spelled out one by one
+-- 1 i, 3 e, 4 a, 5 s, 7 t), never across a space. A word of `full_name_allow` is skipped, and so is an Arabic one's
+-- article or nisba form (one prefix of ال بال وال لل and one suffix of ي يه ه, each optional). Letters spelled out one by one
 -- ("f u c k", "ك س") are read joined. PL/pgSQL with no SET clause (its callers are definers and the answer trigger, and
 -- it runs per row in the recheck; docs/rules.md): the two list reads are each one plan kept per connection, and the
 -- name is folded once, never once per list row.
@@ -88,9 +95,15 @@ BEGIN
   IF words IS NULL OR words = '{""}' THEN
     RETURN false;
   END IF;
-  SELECT coalesce(array_agg(a.word), '{}') INTO allowed
-  FROM full_name_allow a
-  WHERE a.word = ANY (ARRAY(SELECT regexp_replace(w, '[0-9]', '', 'g') FROM unnest(words) w));
+  -- The words the allow-list covers: as they are, or for an Arabic entry with one prefix and one suffix taken off.
+  SELECT coalesce(array_agg(w), '{}') INTO allowed
+  FROM unnest(ARRAY(SELECT DISTINCT regexp_replace(x, '[0-9]', '', 'g') FROM unnest(words) x)) w
+  WHERE EXISTS (
+    SELECT 1
+    FROM unnest(ARRAY[w, regexp_replace(w, '^(بال|وال|لل|ال)', '')]) p,
+         LATERAL (VALUES (p), (regexp_replace(p, 'ي$', '')), (regexp_replace(p, 'يه$', '')),
+                         (regexp_replace(p, 'ه$', ''))) s(stem)
+    JOIN full_name_allow a ON a.word = s.stem AND (s.stem = w OR a.language = 'ar'));
   FOREACH piece IN ARRAY words || ''::text LOOP
     bare := regexp_replace(piece, '[0-9]', '', 'g');
     IF char_length(piece) = 1 AND bare <> '' THEN
@@ -119,7 +132,9 @@ END $$;
 REVOKE ALL ON FUNCTION full_name_blocked(text) FROM PUBLIC;
 
 -- ================================================================ the stored flag
--- false for every row the moment the column exists (a constant default: no rewrite), then the backfill below.
+-- false for every row the moment the column exists: a constant default is stored in the catalog, so the table is not
+-- rewritten and the ACCESS EXCLUSIVE lock is held for a catalog change only. The stored answers are then checked by the
+-- sweep (marked pending below), never in this transaction.
 ALTER TABLE join_answer ADD COLUMN name_blocked boolean NOT NULL DEFAULT false;
 
 -- Sets the flag of a Full name answer as it is written, by the same check. It takes the word lists' advisory key shared,
@@ -140,14 +155,6 @@ END $$;
 REVOKE ALL ON FUNCTION join_answer_name_flag() FROM PUBLIC;
 CREATE TRIGGER join_answer_name_flag BEFORE INSERT OR UPDATE OF value ON join_answer
   FOR EACH ROW EXECUTE FUNCTION join_answer_name_flag();
-
--- The names stored before this check, in this file's transaction: about 0.28 ms an answer, so 28 s for 102,001 Full
--- name answers (measured, ADR-817), while ADD COLUMN holds join_answer locked and joins wait. Staging holds a handful; a
--- database with many more needs a quiet window. Answers of erased players are already deleted (erasure deletes them), so
--- no tombstone is touched.
-UPDATE join_answer a SET name_blocked = true
-FROM event_join_field f
-WHERE f.id = a.field_id AND f.kind = 'full_name' AND full_name_blocked(a.value);
 
 -- ================================================================ (1) at the join
 -- As 0037, plus: an answer to the Full name field that `full_name_blocked` refuses raises JA422 with DETAIL
@@ -211,9 +218,8 @@ $$;
 -- ================================================================ the recheck when the lists change
 -- A list change marks the one sweep row pending from the start; the sweep then checks every stored Full name answer
 -- again in pages of the answer's key and sets each flag to what the check says now (an added word hides names, a
--- removed one shows them again). The console door runs the first page itself, so a small set is done before it answers;
--- the lifecycle tick runs the rest, a page per transaction (`src/join/name-recheck.ts`). A change during a sweep starts it
--- again from the first page. One row, no grant.
+-- removed one shows them again). The lifecycle tick runs it, a page per transaction (`src/join/name-recheck.ts`); a list
+-- door runs no page itself. A change during a sweep starts it again from the first page. One row, no grant.
 CREATE TABLE full_name_recheck (
   id               boolean PRIMARY KEY DEFAULT true CHECK (id),
   pending          boolean NOT NULL DEFAULT false,
@@ -225,7 +231,8 @@ CREATE TABLE full_name_recheck (
 ALTER TABLE full_name_recheck ENABLE ROW LEVEL SECURITY;
 ALTER TABLE full_name_recheck FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON full_name_recheck FROM PUBLIC;
-INSERT INTO full_name_recheck DEFAULT VALUES;
+-- Pending from the start: the tick's first run begins checking the answers stored before this file.
+INSERT INTO full_name_recheck (pending, changed_at) VALUES (true, now());
 
 -- One page of the sweep: the next `batch` Full name answers by key (at most 2,000), each flag set to the check's answer.
 -- Answers how many answers it checked: 0 when nothing is pending; fewer than `batch` ends the sweep. Locks the sweep row
@@ -268,21 +275,30 @@ END $$;
 REVOKE ALL ON FUNCTION name_flag_sweep(integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION name_flag_sweep(integer) TO questify_app;
 
--- Marks the sweep pending from the first page and runs that page. Internal: the two list doors call it.
-CREATE FUNCTION full_name_recheck_start() RETURNS void
+-- Any change to either list, by a console door, a migration or by hand, marks the sweep pending from the first page,
+-- once a statement (a statement that changed no row marks it too: a needless sweep, never a missed one). It takes the
+-- lists' advisory key exclusive, so an answer written meanwhile waits for the change (see the answer trigger) and one
+-- written before it has committed first and is seen by the sweep. Internal (the trigger).
+CREATE FUNCTION full_name_recheck_mark() RETURNS trigger
   LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
 BEGIN
+  PERFORM pg_advisory_xact_lock(hashtextextended('username_word', 0));
   UPDATE full_name_recheck r SET pending = true, after_enrollment = NULL, after_field = NULL, changed_at = now();
-  PERFORM name_flag_sweep(2000);
+  RETURN NULL;
 END $$;
-REVOKE ALL ON FUNCTION full_name_recheck_start() FROM PUBLIC;
+REVOKE ALL ON FUNCTION full_name_recheck_mark() FROM PUBLIC;
+CREATE TRIGGER username_word_recheck AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON username_word
+  FOR EACH STATEMENT EXECUTE FUNCTION full_name_recheck_mark();
+CREATE TRIGGER full_name_allow_recheck AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON full_name_allow
+  FOR EACH STATEMENT EXECUTE FUNCTION full_name_recheck_mark();
 
 -- Both list doors take the lists' advisory key exclusive first, so list changes run one after the other and an answer
--- written meanwhile waits for the change (see the trigger), then mark the sweep. Lock order: the advisory key, the list
--- row, the sweep row (waiting for a page in flight, under a second), then answers. A join holds the key shared from its
--- answer insert to its commit and never waits on a list door's other locks, so the two never cycle.
+-- written meanwhile waits for the change; the list trigger then marks the sweep. Lock order: the advisory key, the list
+-- row, the sweep row (waiting for a tick page in flight: 2,000 answers, under 0.9 s), never an answer. A join holds the
+-- key shared from its answer insert to its commit and never waits on a list door's other locks, so the two never cycle.
+-- A join so waits at most for one tick page plus the longest join in flight (ADR-817).
 
--- As 0120, plus the sweep.
+-- As 0120, plus the advisory key.
 CREATE OR REPLACE FUNCTION admin_word_add(new_word text, word_match text, word_language text, request uuid) RETURNS text
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -298,14 +314,13 @@ BEGIN
     WHEN check_violation OR not_null_violation THEN
       RAISE EXCEPTION 'not a word for the lists' USING ERRCODE = 'WL400';
   END;
-  PERFORM full_name_recheck_start();
   INSERT INTO audit_log (actor_type, actor_id, action, target_type, target_id, after, request_id)
   VALUES ('admin', me, 'username_word.add', 'username_word', folded,
           jsonb_build_object('match', word_match, 'language', word_language), request);
   RETURN 'added';
 END $$;
 
--- As 0120, plus the sweep.
+-- As 0120, plus the advisory key.
 CREATE OR REPLACE FUNCTION admin_word_remove(old_word text, request uuid) RETURNS text
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
@@ -317,7 +332,6 @@ BEGIN
   IF gone.id IS NULL THEN
     RETURN 'not_found';
   END IF;
-  PERFORM full_name_recheck_start();
   INSERT INTO audit_log (actor_type, actor_id, action, target_type, target_id, before, request_id)
   VALUES ('admin', me, 'username_word.remove', 'username_word', gone.word,
           jsonb_build_object('match', gone.match, 'language', gone.language), request);

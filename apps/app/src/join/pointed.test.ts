@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   pointAtMissing,
   pointedText,
+  refusalAmong,
   refusalFromParams,
   refusalOf,
   refusalParams,
@@ -46,5 +47,23 @@ describe("the pointed join field", () => {
     expect(refusalFromParams(params)).toEqual({ pointed: undefined, problem: NAME });
     expect(refusalParams({ kind: "network" })).toEqual({});
     expect(refusalFromParams({})).toEqual({ pointed: undefined, problem: null });
+  });
+
+  it("puts the words on the Problem line when the field carried from sign-in is gone from the card", () => {
+    const opening = refusalFromParams({
+      problemAr: NAME.ar,
+      problemEn: NAME.en,
+      problemField: "f9",
+    });
+    expect(refusalAmong(opening, ["f1", "f2"])).toEqual({ pointed: undefined, problem: NAME });
+    expect(refusalAmong(opening, ["f9"])).toEqual(opening);
+    expect(refusalAmong({ pointed: pointAtMissing("f9"), problem: null }, ["f1"])).toEqual({
+      pointed: undefined,
+      problem: null,
+    });
+    expect(refusalAmong({ pointed: undefined, problem: NAME }, [])).toEqual({
+      pointed: undefined,
+      problem: NAME,
+    });
   });
 });

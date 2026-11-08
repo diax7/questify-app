@@ -10,7 +10,7 @@ import {
 /**
  * Times the three reads that name players for other players (ranking_names, screen_ranking, event_results) as 0176 had
  * them, as the first 0177 had them (the word-list check run on every read), and as 0177 has them now (a stored flag),
- * plus the backfill and a console word add's recheck (ADR-817). Not an assertion: a timing check is flaky on a shared
+ * plus the sweep after a word add, the one that also checks the answers stored before 0177 (ADR-817). Not an assertion: a timing check is flaky on a shared
  * runner. Run by hand: `FULL_NAME_TIMING=/path/to/out.txt pnpm vitest run apps/api/test/perf/full-name-timing`.
  * Each figure is the median of 30 `EXPLAIN (ANALYZE, BUFFERS)` runs after 3 warm-ups, the three versions taken by turns.
  */
@@ -112,7 +112,7 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
          FROM enrollment n JOIN player p ON p.id = n.player_id WHERE n.event_id = $3`,
         [field, ids.orgA, event],
       );
-      // Other events' Full name answers, for the backfill and the recheck: one event of 100,000 enrollments.
+      // Other events' Full name answers, for the sweep: one event of 100,000 enrollments.
       const other = (
         await q(
           `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
@@ -241,23 +241,9 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
         say(`${key}: ${median(value.ms).toFixed(2)} ms, ${median(value.buffers)} buffers`);
       }
 
-      // The backfill (as 0177 runs it) and a console word add's recheck, over every Full name answer.
-      const timed = async (label: string, sql: string) => {
-        const start = performance.now();
-        const result = await q(sql);
-        say(`${label}: ${Math.round(performance.now() - start)} ms, ${result.rowCount} rows`);
-      };
-      await q("UPDATE join_answer SET name_blocked = false");
-      await timed(
-        "backfill",
-        `UPDATE join_answer a SET name_blocked = true FROM event_join_field f
-         WHERE f.id = a.field_id AND f.kind = 'full_name' AND full_name_blocked(a.value)`,
-      );
-      // A console word add: the sweep's pages (each its own statement here, as the tick runs them).
+      // A word add (the list trigger marks the sweep) and the sweep's pages over every Full name answer, each its own
+      // statement here, as the tick runs them.
       await q("INSERT INTO username_word (word, match, language) VALUES ('zorvex', 'part', 'en')");
-      await q(
-        "UPDATE full_name_recheck SET pending = true, after_enrollment = NULL, after_field = NULL",
-      );
       const pages: number[] = [];
       const sweepStart = performance.now();
       for (;;) {
@@ -270,6 +256,7 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
       }
       say(
         `sweep: ${pages.length} pages of up to 2,000, median ${Math.round(median(pages))} ms a page, ` +
+          `slowest ${Math.round(Math.max(...pages))} ms, ` +
           `${Math.round(performance.now() - sweepStart)} ms in all`,
       );
     } finally {
