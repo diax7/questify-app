@@ -4,11 +4,13 @@
 
 - **FOLLOWUPS batch 24 (tier B, SQL; migration 0179, new and undeployed; 0178 frozen, restated and diffed against it; ADR-817
   and ADR-119 amended).** `full_name_blocked` restated as 0178 with one prefix more, ياال: «يا البزاز», «يا القحبة»,
-  «يا الشرموطة», «ياالقحبة», «يا العرص» are refused, «البزاز» still kept. Five `username_word` entries: hitler and fvck `part`;
-  nazi, retard and fuk `word` (as parts they would refuse nazir_1, nazim_k, flame_retardant, fukuda). Ten `full_name_allow`
-  words (77 to 87): nazir, nazim, nazia, nazih, nazik, nazif, fuka, fuku, fuks, and fuk (the corpus' Wong Fuk Wing: a Cantonese
-  given name, so a full name refuses fuk only with a letter more; the username token fuk is refused). Corpus 791 real names (21
-  added, all pass), 269 abusive (19 added, all refused), 11 accepted passes. `username_blocked` restated as PL/pgSQL, the name
+  «يا الشرموطة», «ياالقحبة», «يا العرص» are refused, «البزاز» still kept. Eight `username_word` entries: hitler and fvck `part`;
+  nazi, nazis, retard, retards, retarded and fuk `word` (as parts they would refuse nazir_1, nazim_k, flame_retardant, fukuda).
+  Fifteen `full_name_allow` words (77 to 92): nazir, nazim, nazia, nazih, nazik, nazif, nazish, fuka, fuku, fuks, fuki, fuko,
+  fuke, whitler, and fuk (the corpus' Wong Fuk Wing: a Cantonese given name, so Fuk alone passes a full name and fuk with a
+  letter more is refused unless it is one of the names above; the username token fuk is refused). In a username only whole
+  tokens are caught: nazi, nazis, retard, retards, retarded, fuk; naziboy, fukyou and fuks pass (accepted; fuks is a real
+  name). Corpus 796 real names (26 added, all pass), 269 abusive (19 added, all refused), 14 accepted passes. `username_blocked` restated as PL/pgSQL, the name
   folded once (0118's CTEs ran per list row): the same answers on 12,655 names (every list word's look-alikes, every corpus and
   test name, seeded random names; `test/db/username-blocked-same.int.test.ts`), 0.71 to 0.13 ms a call, `rename_player` 0.97 to
   0.63 ms (`test/perf/username-timing.int.test.ts`, load 2.5). Each new test failed without its fix. Tests: 13 files, 766

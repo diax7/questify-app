@@ -3080,3 +3080,6 @@ causes it and the allow-list can be widened by a migration.
 as each is also the plain bad word: «يانيك» (Yannick; also "I fuck you, O"), «نيكي» (Nicky; also "fuck me"), Semen (a Turkish and
 Indonesian given name) and Porn (a Thai given name). Each can join the allow-list by a migration, which would let the bad word
 through as well. Recommended: keep them refused until a player is affected.
+**For Dhia (5)** (0179's review, 2026-11-08): the Arabic forms «نازي» and «هتلر» are not listed (نازي passes as a username); and
+"Fuk You" passes a full name because Fuk is a Cantonese given name (Wong Fuk Wing). Likewise "Fuks Off" and "F U K" pass (pinned
+as accepted passes). Say if you want any of them refused.

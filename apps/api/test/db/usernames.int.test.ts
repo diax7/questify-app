@@ -141,7 +141,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("usernames (database)", () => {
     });
 
     it("refuses the five words of FOLLOWUPS batch 24, and the real names and words around them pass", async () => {
-      // hitler and fvck are `part` entries; nazi, retard and fuk are `word` entries, so a longer token passes.
+      // hitler and fvck are `part` entries; nazi, nazis, retard, retards, retarded and fuk are `word` entries, so a longer
+      // token passes (naziboy and fukyou stay accepted; fuks is a real name).
       for (const name of [
         "nazi",
         "nazi_88",
@@ -151,6 +152,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("usernames (database)", () => {
         "ahitlerfan",
         "retard",
         "retard_7",
+        "retards",
+        "retarded",
+        "nazis",
+        "nazis_rule",
         "fuk",
         "fuk_u",
         "fvck",
@@ -169,6 +174,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("usernames (database)", () => {
         "fukuda",
         "fukui_9",
         "fukushima",
+        "naziboy",
+        "fukyou",
+        "fuks",
       ]) {
         expect(await blocked(name), name).toBe(false);
       }

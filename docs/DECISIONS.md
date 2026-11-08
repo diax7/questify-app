@@ -1755,8 +1755,9 @@ words, match anywhere.
 **Why:** an empty list blocks nothing at launch (store review, PD-11), and a list made from scratch would miss common
 terms. The cut keeps false refusals rare; the admin can add or remove words without a release.
 
-**Amended 2026-11-08 (FOLLOWUPS batch 24, migration 0179):** hitler and fvck join as `part` entries, nazi, retard and fuk
-as `word` entries (whole tokens only, so nazir_1, flame_retardant and fukuda pass; ADR-817 has the full-name side).
+**Amended 2026-11-08 (FOLLOWUPS batch 24, migration 0179):** hitler and fvck join as `part` entries; nazi, nazis, retard,
+retards, retarded and fuk as `word` entries (whole tokens only, so nazir_1, flame_retardant and fukuda pass; ADR-817 has the
+full-name side). Still accepted as usernames: naziboy and fukyou (one token each, not a list word) and fuks (a real name).
 `username_blocked` is PL/pgSQL now, the name folded once instead of once per list row, with the same answers (12,655
 names compared with 0118's): 0.71 to 0.13 ms a call, the rename door 0.97 to 0.63 ms.
 
@@ -8862,11 +8863,16 @@ answers, T-220): Q-754 asks Dhia.
 
 **Amended 2026-11-08 (FOLLOWUPS batch 24, migration 0179).** (1) ياال is a known prefix: a lone يا is read with the word
 after it, so «يا البزاز», «يا القحبة», «يا الشرموطة» (and glued, «ياالقحبة») are refused; يا never lets the allow-list cover a
-form, so «البزاز» is still kept. (2) Five entries join `username_word`: hitler and fvck as `part` (no real name or word holds
-them); nazi, retard and fuk as `word` (as parts they would refuse the usernames nazir_1, nazira, nazim_k, flame_retardant,
-retarder, fukuda, fukushima). By the letter-count rule a full name refuses each with 1 letter more, so ten allow words are
-added (87 in all, 77 before): nazir, nazim, nazia, nazih, nazik, nazif (real given names; Nazira, Nazima, Naziha
-pass with 2 letters over), fuka, fuku, fuks (Japanese given names, a Polish surname; Fukuda, Fukui pass), and fuk itself:
-the corpus' Wong Fuk Wing showed Fuk is a Cantonese given name (福), so a full name refuses fuk only with a letter more (fukk,
-fuky, fuker), and "Fuk You" passes as a full name while the username token fuk is refused. Nazi, Nazis, Hitler, h1tler,
-Retard, Retarded, fvck and Fvcking are refused. Corpus 791 real names (all pass; 21 added), 269 abusive (all refused; 19 added).
+form, so «البزاز» is still kept. (2) Eight entries join `username_word`: hitler and fvck as `part` (no real name or word holds
+them); nazi, nazis, retard, retards, retarded and fuk as `word` (as parts they would refuse the usernames nazir_1, nazira,
+nazim_k, flame_retardant, retarder, fukuda, fukushima; a `word` entry is a whole token, so the forms nazis, retards and
+retarded are entries of their own). By the letter-count rule a full name refuses each with 1 letter more, so fifteen allow
+words are added (92 in all, 77 before): nazir, nazim, nazia, nazih, nazik, nazif, nazish (real given names; Nazira, Nazima,
+Naziha pass with 2 letters over), fuka, fuku, fuks, fuki, fuko, fuke (Japanese given names, a Polish surname; Fukuda, Fukui
+pass), whitler (a surname that hitler refuses with 1 letter more), and fuk itself: the corpus' Wong Fuk Wing showed Fuk is a
+Cantonese given name (福), so Fuk alone passes a full name, while fuk with a letter more is refused unless it is one of
+those names (fukk, fuker, fuky are refused; Fuki, Fuko, Fuke pass), and "Fuk You" passes as a full name while the username
+token fuk is refused. In a full name Nazi, Nazis, Hitler, h1tler, Retard, Retarded, fvck and Fvcking are refused. A username
+is refused for the whole token only: nazi, nazis, retard, retards, retarded, fuk, hitler and fvck (h1tler_88, fvckboy
+too), but not every form: naziboy and fukyou pass (one token, not a list word), and fuks passes (a real name). Corpus 796
+real names (all pass; 26 added), 269 abusive (all refused; 19 added), 14 accepted passes.

@@ -127,7 +127,7 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION full_name_blocked(text) FROM PUBLIC;
 
--- ================================================================ five words (Q-754 second review, NIT 8)
+-- ================================================================ five words and their forms (Q-754 second review, NIT 8)
 -- Each kind chosen on the corpus (`test/db/full-name-corpus.ts`) and the username tests: a `part` entry matches anywhere
 -- in a username, a `word` entry a whole token (split at _ and digits); in a full name either is refused with few letters
 -- around it (ADR-817: at most 2 for a `part` entry of 4 letters or more, 1 otherwise).
@@ -135,18 +135,26 @@ REVOKE ALL ON FUNCTION full_name_blocked(text) FROM PUBLIC;
 --   * nazi: `word`. As a part it would refuse the usernames nazir_1, nazira, nazim_k (Ghazi never holds it). A full name
 --     refuses Nazi, Nazis and nazi with 1 letter more, so the names Nazir, Nazim, Nazia, Nazih, Nazik and Nazif are allow
 --     words (below); Nazira, Nazima and Naziha pass with 2 letters left over.
---   * retard: `word`. As a part it would refuse "flame_retardant" and French words (retarder, retardataire). A full name
---     refuses retard, retards, retarded and retard with 1 letter more; the corpus has no real name that holds it.
+--   * retard, retards, retarded, nazis: `word`. As a part, retard would refuse "flame_retardant" and French words (retarder,
+--     retardataire). A username is checked by whole token, so the forms retards, retarded and nazis are entries of their own
+--     (nazis_rule is refused through its token nazis). A full name refuses each, and retard with 1 letter more; the corpus
+--     has no real name that holds them. Left accepted in a username: naziboy and fukyou (one token, not a list word), and
+--     fuks (a real name, an allow word for full names).
 --   * fuk: `word`. As a part it would refuse Fukuda, Fukui, Fukushima. Fuk is also a Cantonese given name (福: Wong Fuk
---     Wing), so it is an allow word itself: a full name refuses fuk only with 1 letter more (fukk, fuker), and the names
---     Fuka, Fuku and Fuks (Japanese given names, a Polish surname) are allow words too; Fukuda and Fukui pass. A username
---     still refuses the token fuk ("fuk_u", and so "fuk_wing"): a username is chosen, a full name is not.
+--     Wing), so it is an allow word itself and passes alone; with 1 letter more a full name refuses it (fukk, fuker) unless
+--     the whole word is a name: Fuka, Fuku, Fuks, Fuki, Fuko and Fuke (Japanese given names, a Polish surname) are allow
+--     words too. Fukuda and Fukui pass. A username still refuses the token fuk ("fuk_u", and so "fuk_wing"): a username is
+--     chosen, a full name is not.
+--   * whitler, nazish: allow words. Whitler is a surname that hitler (a `part` entry) refuses with 1 letter more; Nazish is a
+--     Pakistani given name that the new nazis entry refuses with 1 letter more (found by testing the forms, not in a review).
 INSERT INTO username_word (word, match, language) VALUES
-  ('hitler', 'part', 'en'), ('fvck', 'part', 'en'), ('nazi', 'word', 'en'), ('retard', 'word', 'en'), ('fuk', 'word', 'en')
+  ('hitler', 'part', 'en'), ('fvck', 'part', 'en'), ('nazi', 'word', 'en'), ('nazis', 'word', 'en'), ('retard', 'word', 'en'),
+  ('retards', 'word', 'en'), ('retarded', 'word', 'en'), ('fuk', 'word', 'en')
 ON CONFLICT (word) DO NOTHING;
 INSERT INTO full_name_allow (word, language) VALUES
   ('nazir', 'en'), ('nazim', 'en'), ('nazia', 'en'), ('nazih', 'en'), ('nazik', 'en'), ('nazif', 'en'), ('fuk', 'en'),
-  ('fuka', 'en'), ('fuku', 'en'), ('fuks', 'en')
+  ('fuka', 'en'), ('fuku', 'en'), ('fuks', 'en'), ('fuki', 'en'), ('fuko', 'en'), ('fuke', 'en'), ('whitler', 'en'),
+  ('nazish', 'en')
 ON CONFLICT (word) DO NOTHING;
 
 -- ================================================================ the username check (batch 23 review)

@@ -392,7 +392,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       const words = (
         await owner<{ word: string }>("SELECT word FROM full_name_allow ORDER BY word")
       ).map((row) => row.word);
-      expect(words).toHaveLength(87);
+      expect(words).toHaveLength(92);
       expect(words).toEqual(
         expect.arrayContaining([
           "kike",
@@ -411,6 +411,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
           "زبيدات",
           "nazir",
           "fuks",
+          "fuki",
+          "fuko",
+          "fuke",
+          "whitler",
+          "nazish",
         ]),
       );
       const dropped = [
