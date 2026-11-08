@@ -135,7 +135,7 @@ From `scripts/cranl`, `python deploy-staging.py <step>`:
 4. `run 'node /srv/migrate.cjs --verify'` must say `"ok":true`.
    Before 0175 on any database with data: `SELECT count(*) FROM ledger_entry l JOIN quest q ON q.id = l.quest_id WHERE q.event_id <> l.event_id` must be 0.
 5. `unset`, `restart`, then `deploy-web` (retry up to three times).
-6. Probes: API `/readyz` 200, `/en/sign-in` and `/ar/sign-in` 200, `/en/console` 307. Confirm with
+6. Probes: API `/readyz` 200 (a `000` straight after the restart is the app coming up: probe again), `/en/sign-in` and `/ar/sign-in` 200, `/en/console` 307. Confirm with
    `run 'printenv DATABASE_ADMIN_URL >/dev/null && echo HAS-ADMIN || echo no-admin'`. CranL refuses commands that list the
    environment; read setting names through `GET /api/v1/apps/{id}/env` instead.
 7. Tag the deployed commit: `git tag release-YYYYMMDD-N <sha>`, then push the tag.
@@ -144,11 +144,11 @@ Addresses: https://questify.nafes.com and https://questify-api-staging-3ez01s.cr
 
 ## Where things stand
 
-Staging is live at `release-20261108-3`, migration 0180. No pull request is open; GitHub holds only `main`,
+Staging is live at `release-20261108-4`, migration 0181. No pull request is open; GitHub holds only `main`,
 `t-810d-console-hostname`, and the local-only branch `workflows-pending` on this server (see below). Tasks: 187 done, 32 open
 (85.4%); every open task waits on a person, a device, store accounts or an outside answer (see the list below). FOLLOWUPS has about
 75 lines, most needing a device, art, a product call or tier A work. Migration number 0156 is reserved by the unmerged T-810d
-branch, `t-810d-console-hostname`; the runner tolerates the gap. The next migration is 0181.
+branch, `t-810d-console-hostname`; the runner tolerates the gap. The next migration is 0182.
 
 **Handover, 2026-11-08 (the coordinator before you paused for the week's usage limit):**
 
