@@ -9253,7 +9253,10 @@ export const MESSAGES = {
   },
   "console.history.supportOpened": { ar: "فُتح وصول الدعم", en: "Support access opened" },
   "console.history.supportClosed": { ar: "أُغلق وصول الدعم", en: "Support access closed" },
-  "console.history.read": { ar: "اطلاع من وحدة التحكم", en: "Looked at in the console" },
+  "console.history.read": {
+    ar: "اطّلع مشرف على بيانات في لوحة التحكم",
+    en: "Admin viewed data in the console",
+  },
   "console.history.reason": { ar: "السبب:", en: "Reason:" },
   "console.history.eventCreate": { ar: "أُنشئت الفعالية", en: "Event created" },
   "console.history.eventDuplicate": { ar: "نُسخت الفعالية", en: "Event copied" },
@@ -9329,7 +9332,7 @@ export const MESSAGES = {
     en: "Quiz attempt voided after an error",
   },
   "console.history.gameRoundClosed": {
-    ar: "أُغلقت جولة لعبة انتهى وقتها مع خطأ",
+    ar: "أُغلقت جولة لعبة منتهية الوقت بخطأ",
     en: "Timed-out game round closed with an error",
   },
   "console.history.rehearsalCode": { ar: "غُيّر رمز التجربة", en: "Rehearsal code changed" },
@@ -9355,7 +9358,7 @@ export const MESSAGES = {
   "console.history.rewardAudience": { ar: "عُدّل جمهور الجائزة", en: "Reward audience changed" },
   "console.history.questPause": { ar: "أُوقفت مهمة مؤقتًا", en: "Quest paused" },
   "console.history.questResume": { ar: "استُؤنفت مهمة", en: "Quest resumed" },
-  "console.history.stepSkip": { ar: "تخطي خطوة", en: "Step skipped" },
+  "console.history.stepSkip": { ar: "جرى تخطي خطوة", en: "Step skipped" },
   "console.history.stepRestore": { ar: "أُعيدت خطوة متخطّاة", en: "Step restored" },
   "console.history.flashLaunch": { ar: "أُطلقت مهمة بوقت محدود", en: "Flash quest launched" },
   "console.history.flashEnd": { ar: "أُنهيت مهمة بوقت محدود", en: "Flash quest ended" },
@@ -9496,8 +9499,12 @@ export const MESSAGES = {
     en: "Owner email change not completed",
   },
   "console.history.ownerEmailSendFailed": {
-    ar: "تعذّر إرسال رمز تغيير بريد المالك",
-    en: "Owner email change code could not be sent",
+    ar: "أُغلق تغيير بريد المالك لتعذّر إرسال رسالة",
+    en: "Owner email change closed: an email could not be sent",
+  },
+  "console.history.ownerEmailStopped": {
+    ar: "أوقف صاحب البريد القديم تغيير بريد المالك",
+    en: "Owner email change stopped from the old email",
   },
   "console.history.invitationRequest": {
     ar: "طُلبت دعوة لاعبين",
@@ -9553,7 +9560,7 @@ export const MESSAGES = {
     ar: "أُغلقت نافذة مراجعة المتاجر",
     en: "Store review window closed",
   },
-  "console.history.supportViewed": { ar: "اطلاع الدعم على صفحة", en: "Page viewed by support" },
+  "console.history.supportViewed": { ar: "اطّلع الدعم على صفحة", en: "Support viewed a page" },
   "console.history.legalPublish": {
     ar: "نُشر إصدار من وثيقة قانونية",
     en: "Legal document version published",
@@ -9597,20 +9604,35 @@ export const MESSAGES = {
     ar: "انتهت جولة إعادة تشفير رموز الجوائز",
     en: "A round of reward code re-encryption ended",
   },
-  "console.history.staffCreated": { ar: "أُنشئ حساب موظف", en: "Staff account created" },
-  "console.history.staffInvited": { ar: "أُرسلت دعوة إلى موظف", en: "Staff invitation sent" },
-  "console.history.staffRole": { ar: "تغيّر دور موظف في المنصة", en: "Staff platform role changed" },
+  "console.history.staffCreated": { ar: "أُنشئ حساب لوحة التحكم", en: "Dashboard account created" },
+  "console.history.staffInvited": {
+    ar: "سُجّلت دعوة لحساب في لوحة التحكم",
+    en: "Dashboard account invitation recorded",
+  },
+  "console.history.staffRole": {
+    ar: "مُنح دور مشرف المنصة أو سُحب",
+    en: "Platform admin role granted or removed",
+  },
   "console.history.staffThrottle": {
     ar: "أُزيل تقييد تسجيل الدخول",
     en: "Sign-in limit cleared",
   },
-  "console.history.staffSignedIn": { ar: "سجّل موظف الدخول", en: "Staff signed in" },
-  "console.history.staffSessionEnd": { ar: "أُنهيت جلسة موظف", en: "Staff session ended" },
-  "console.history.staffReauth": {
-    ar: "أُكّدت هوية موظف مجددًا",
-    en: "Staff identity confirmed again",
+  "console.history.staffSignedIn": {
+    ar: "سُجّل الدخول إلى حساب لوحة التحكم",
+    en: "Dashboard account signed in",
   },
-  "console.history.staffPassword": { ar: "تغيّرت كلمة مرور موظف", en: "Staff password changed" },
+  "console.history.staffSessionEnd": {
+    ar: "أُنهيت جلسة حساب لوحة التحكم",
+    en: "Dashboard account session ended",
+  },
+  "console.history.staffReauth": {
+    ar: "أُكّدت هوية حساب لوحة التحكم مجددًا",
+    en: "Dashboard account identity confirmed again",
+  },
+  "console.history.staffPassword": {
+    ar: "تغيّرت كلمة مرور حساب لوحة التحكم",
+    en: "Dashboard account password changed",
+  },
   "console.history.playerSignup": { ar: "أُنشئ حساب لاعب", en: "Player account created" },
   "console.history.playerContact": { ar: "تغيّرت وسيلة تواصل لاعب", en: "Player contact changed" },
   "console.history.playerDelete": { ar: "حُذف حساب لاعب", en: "Player account deleted" },

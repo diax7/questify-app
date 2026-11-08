@@ -90,7 +90,7 @@ type Admin = Readonly<{ id: string }>;
  * The audit actions whose entry keeps a reason in `after` that is safe for the console reader: the text an admin typed
  * for a suspension or its lifting (`reason`), and the fixed code of a take-down (`reasonCode`, one of six words picked
  * from a list, so no free text and no personal data). An entry that also holds a free-text note, such as
- * `owner_email.start`, or a ban reason on a player (no organizer or event, so never in this history), stays out.
+ * `owner_email.start`, or the reason of a `player.ban` (no organizer or event, so never in this history), stays out.
  */
 export const REASON_ACTIONS: readonly string[] = [
   "event.suspend",

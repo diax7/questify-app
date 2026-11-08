@@ -2,7 +2,7 @@ import type { MessageKey } from "@questify/shared";
 
 /**
  * The words for each audit action in the console's history (T-701), grouped where one text reads better than many:
- * the text says what happened, in the past. An action with no group shows its stored name. `history-words.test.ts`
+ * the text says what happened, in the past. An action with no group shows its stored name. `console-history.test.ts`
  * fails when an audit writer in `apps/api` can produce an action that is neither here nor on its list of exceptions.
  */
 export const HISTORY_GROUPS: ReadonlyArray<readonly [MessageKey, readonly string[]]> = [
@@ -194,8 +194,9 @@ export const HISTORY_GROUPS: ReadonlyArray<readonly [MessageKey, readonly string
   ["console.history.ownerEmailDispute", ["owner_email.dispute"]],
   [
     "console.history.ownerEmailEnded",
-    ["owner_email.cancel", "owner_email.stop", "owner_email.expire", "owner_email.email_taken"],
+    ["owner_email.cancel", "owner_email.expire", "owner_email.email_taken"],
   ],
+  ["console.history.ownerEmailStopped", ["owner_email.stop"]],
   ["console.history.ownerEmailSendFailed", ["owner_email.send_failed"]],
 
   // Invitations to players, the store review demo and support.

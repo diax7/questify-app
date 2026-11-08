@@ -41,6 +41,8 @@ so the next string keeps to them. It does not replace the person's read of every
 | Skip | تخطي | تجاوز (when it means skip) |
 | Phone | الجوال (a number: رقم الجوال) | |
 | Email | البريد الإلكتروني | إيميل |
+| Dashboard account (a `staff_user`: any organizer or Questify admin account) | حساب لوحة التحكم / Dashboard account | موظف, Staff (reads as a Questify employee) |
+| Platform admin role (`staff.platform_role`) | دور مشرف المنصة | |
 
 ## Left for a human decision
 

@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import { MESSAGES } from "@questify/shared";
 import { HISTORY_GROUPS, historyKeyOf, historyReasonKeyOf } from "#src/lib/console-history.ts";
@@ -12,12 +12,31 @@ const UNWORDED: Readonly<Record<string, string>> = {};
 
 /**
  * Writers whose action is built at run time, with every action they can produce. A new writer of this kind fails
- * the test below until it is added here, so a new action cannot slip past the check.
+ * the test below until it is added here, so a new action cannot slip past the check. A SQL function is named as it is;
+ * an `action` in the API's TypeScript that is not a string literal is named by its file and what it holds. An empty
+ * list means every action it passes is a literal at its callers (read above), or the line writes no audit entry.
  */
 const DYNAMIC: Readonly<Record<string, readonly string[]>> = {
   set_audience: ["category.audience", "reward.audience"],
   admin_tier_change: ["player.revoke_tiers", "player.restore_tiers"],
   souvenir_action: ["souvenir.activate", "souvenir.stop", "souvenir.delete"],
+  // Helpers that pass their caller's action on to `recordAudit`.
+  "events/events.ts: entry.action": [],
+  "quests/builder.ts: entry.action": [],
+  "auth/password-reset.ts: how.action": [],
+  "change-sets/change-sets.ts: entry.action": [],
+  "join/setup.ts: entry.action": [],
+  "organizers/team.ts: action": [],
+  // The result's loop over `const [action, ...]` pairs: the literals are read from that array.
+  "results/results.ts: action": [],
+  // Doors that pass a route's `action` word to a SQL function above, or to a function whose audit entries are in SQL.
+  "souvenirs/routes.ts: action": [],
+  "console/players/tiers.ts: action": [],
+  "invitation-campaigns/routes.ts: action": [],
+  // Not audit writes: a route switch, and the history list reading `action` back from the rows.
+  "control/routes.ts: action": [],
+  "console/organizers.ts: action": [],
+  "console/organizers.ts: row.action": [],
 };
 
 /** SQL functions that take the action (or its last word) as an argument: the argument that holds it, and its prefix. */
@@ -129,8 +148,134 @@ function readWrapperCalls(text: string, found: Found): void {
   }
 }
 
+/** The end of the expression that starts at `from`: the first top-level `,` `;` or closing bracket (strings are skipped). */
+function expressionEnd(text: string, from: number): number {
+  let depth = 0;
+  for (let index = from; index < text.length; index += 1) {
+    const char = text.charAt(index);
+    if (char === '"' || char === "'" || char === "`") {
+      index = text.indexOf(char, index + 1);
+      while (index > 0 && text.charAt(index - 1) === "\\") {
+        index = text.indexOf(char, index + 1);
+      }
+      if (index < 0) {
+        return text.length;
+      }
+    } else if ("([{".includes(char)) {
+      depth += 1;
+    } else if (")]}".includes(char)) {
+      if (depth === 0) {
+        return index;
+      }
+      depth -= 1;
+    } else if ((char === "," || char === ";") && depth === 0) {
+      return index;
+    }
+  }
+  return text.length;
+}
+
+/**
+ * True when an `action` in the API's TypeScript is not a string literal (or a choice between two): a template with
+ * `${`, a concatenation, an identifier or a member. Types (`string`, `TierAction`, a union of literals, a function type)
+ * are not values and pass.
+ */
+function isDynamicAction(expression: string): boolean {
+  if (/`[^`]*\$\{/.test(expression)) {
+    return true;
+  }
+  const shape = expression
+    .trim()
+    .replace(/"[^"\n]*"|'[^'\n]*'|`[^`]*`/g, "S")
+    .replace(/\s+/g, " ");
+  const literal = /^S$|\?\s*S\s*:\s*S$/;
+  const type = /^(string|[A-Z]\w*(<.*>)?|S( \| S)+|\(.*\) =>.*)$/;
+  return !literal.test(shape) && !type.test(shape);
+}
+
+/** The index after the template that opens at `from` (just after its backtick), and whether it holds a `${`. */
+function templateEnd(text: string, from: number): { end: number; holes: boolean } {
+  let holes = false;
+  let index = from;
+  while (index < text.length && text.charAt(index) !== "`") {
+    if (text.charAt(index) === "\\") {
+      index += 2;
+    } else if (text.startsWith("${", index)) {
+      holes = true;
+      let depth = 1;
+      index += 2;
+      while (index < text.length && depth > 0) {
+        const char = text.charAt(index);
+        if (char === "`") {
+          index = templateEnd(text, index + 1).end;
+          continue;
+        }
+        depth += char === "{" ? 1 : char === "}" ? -1 : 0;
+        index += 1;
+      }
+    } else {
+      index += 1;
+    }
+  }
+  return { end: index + 1, holes };
+}
+
+/**
+ * The text with the inside of every template that has no `${` blanked out, so the SQL in a statement that says
+ * `action` is not read as code. Comments and quoted strings are walked past, so a quote in them cannot hide code.
+ */
+function blankFixedTemplates(text: string): string {
+  let result = "";
+  let index = 0;
+  while (index < text.length) {
+    const char = text.charAt(index);
+    let end = index + 1;
+    if (char === "/" && text.charAt(index + 1) === "/") {
+      end = text.indexOf("\n", index);
+    } else if (char === "/" && text.charAt(index + 1) === "*") {
+      end = text.indexOf("*/", index) + 2;
+    } else if (char === '"' || char === "'") {
+      end = index + 1;
+      while (end < text.length && text.charAt(end) !== char && text.charAt(end) !== "\n") {
+        end += text.charAt(end) === "\\" ? 2 : 1;
+      }
+      end += 1;
+    } else if (char === "`") {
+      const template = templateEnd(text, index + 1);
+      end = template.end;
+      if (!template.holes) {
+        result += `\`${" ".repeat(end - index - 2)}\``;
+        index = end;
+        continue;
+      }
+    }
+    end = end <= index ? text.length : end;
+    result += text.slice(index, end);
+    index = end;
+  }
+  return result;
+}
+
+/**
+ * Every `action` the API's TypeScript writes that is not a string literal (`action: x`, or just `action`) is named
+ * by its file and what it holds, like `events/events.ts: entry.action`. It then must be in `DYNAMIC`, with the actions it
+ * can produce that no literal names, so none slips past the check.
+ */
+function readTypeScriptValues(file: string, source: string, found: Found): void {
+  const text = blankFixedTemplates(source);
+  for (const property of text.matchAll(/\baction\s*:(?!:)|[{,]\s*action(?=\s*[,}])/g)) {
+    const shorthand = !property[0].endsWith(":");
+    const start = property.index + property[0].length;
+    const expression = shorthand ? "action" : text.slice(start, expressionEnd(text, start));
+    if (shorthand || isDynamicAction(expression)) {
+      found.dynamicIn.add(`${file}: ${expression.trim().replace(/\s+/g, " ")}`);
+    }
+  }
+}
+
 /** The actions the API's TypeScript passes to `recordAudit` or its helpers: the literals after each `action`. */
-function readTypeScript(text: string, found: Found): void {
+function readTypeScript(file: string, text: string, found: Found): void {
+  readTypeScriptValues(file, text, found);
   const windows = [
     ...[...text.matchAll(/\baction\b[^;]*?(?:,\s*\n|;)/g)].map((one) => one[0]),
     ...[...text.matchAll(/const \[action,[\s\S]{0,300}/g)].map((one) => one[0]),
@@ -147,7 +292,9 @@ function readTypeScript(text: string, found: Found): void {
 function writtenActions(): Found {
   const found: Found = { actions: new Set(), dynamicIn: new Set() };
   const sources = filesUnder(join(API, "src"), /\.ts$/).filter((file) => !/\.test\./.test(file));
-  readAll(sources).forEach((text) => readTypeScript(text, found));
+  sources.forEach((file) =>
+    readTypeScript(relative(join(API, "src"), file), readFileSync(file, "utf8"), found),
+  );
   for (const text of readAll(filesUnder(join(API, "migrations"), /\.sql$/))) {
     readInserts(text, found);
     readWrapperCalls(text, found);
