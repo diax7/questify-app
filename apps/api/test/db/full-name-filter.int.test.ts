@@ -288,6 +288,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
         ["خبيثناا", false],
         ["والخبيثات", true],
         ["ياشرموطة", true],
+        ["يا القحبة", true],
+        ["ياالقحبة", true],
         ["الشرموطات", true],
         ["وشرموطتك", true],
         ["شرموطاتك", true],
@@ -338,8 +340,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       // «البزاز» is the family name of the corpus' «سعد البزاز» (the cloth merchant); the allow word is the whole word
       // with its article, so «بزاز» (the breasts) and its plural and pronoun forms stay refused.
       expect(
-        await blocked(["سعد البزاز", "والبزاز", "بزاز", "بزازك", "البزازات", "يا بزاز"]),
-      ).toEqual(["بزاز", "بزازك", "البزازات", "يا بزاز"]);
+        await blocked([
+          "سعد البزاز",
+          "والبزاز",
+          "بزاز",
+          "بزازك",
+          "البزازات",
+          "يا بزاز",
+          "يا البزاز",
+          "ياالبزاز",
+        ]),
+      ).toEqual(["بزاز", "بزازك", "البزازات", "يا بزاز", "يا البزاز", "ياالبزاز"]);
     });
 
     it("skips an allow word only with no digit in it", async () => {
@@ -381,7 +392,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       const words = (
         await owner<{ word: string }>("SELECT word FROM full_name_allow ORDER BY word")
       ).map((row) => row.word);
-      expect(words).toHaveLength(77);
+      expect(words).toHaveLength(87);
       expect(words).toEqual(
         expect.arrayContaining([
           "kike",
@@ -398,6 +409,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
           "لحسن",
           "لحسين",
           "زبيدات",
+          "nazir",
+          "fuks",
         ]),
       );
       const dropped = [

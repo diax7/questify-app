@@ -140,6 +140,40 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("usernames (database)", () => {
       }
     });
 
+    it("refuses the five words of FOLLOWUPS batch 24, and the real names and words around them pass", async () => {
+      // hitler and fvck are `part` entries; nazi, retard and fuk are `word` entries, so a longer token passes.
+      for (const name of [
+        "nazi",
+        "nazi_88",
+        "the_nazi",
+        "hitler",
+        "h1tler_88",
+        "ahitlerfan",
+        "retard",
+        "retard_7",
+        "fuk",
+        "fuk_u",
+        "fvck",
+        "fvckboy",
+        "f_v_c_k",
+      ]) {
+        expect(await blocked(name), name).toBe(true);
+      }
+      for (const name of [
+        "nazir_1",
+        "nazira",
+        "nazim_k",
+        "ghazi",
+        "flame_retardant",
+        "retarder",
+        "fukuda",
+        "fukui_9",
+        "fukushima",
+      ]) {
+        expect(await blocked(name), name).toBe(false);
+      }
+    });
+
     it("reads common digit spellings as letters, and leaves names with plain digits alone", async () => {
       for (const name of ["sh1t_storm", "5hit", "b1tch_99"]) {
         expect(await blocked(name), name).toBe(true);

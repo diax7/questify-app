@@ -804,6 +804,28 @@ export const REAL_NAMES: readonly string[] = [
   "Manus Boonjumnong",
   "Anush Avetisyan",
   "Stewart Butters",
+  // Names around the five words of FOLLOWUPS batch 24 (nazi, retard, fuk as `word` entries; hitler, fvck as `part`)
+  "Nazir Ahmed",
+  "Nazira Bibi",
+  "Nazim Hikmet",
+  "Nazia Hassan",
+  "Nazih Ahmad",
+  "Nazik Al-Malaika",
+  "Nazif Hassan",
+  "Nazima Khan",
+  "Naziha Salem",
+  "Ghazi Al-Gosaibi",
+  "Ghazi Nazir",
+  "Yasuo Fukuda",
+  "Kenji Fukui",
+  "Hiroshi Fukushima",
+  "Masaharu Fukuyama",
+  "Fuka Takahashi",
+  "Fuku Suzuki",
+  "Alexander Fuks",
+  "Lee Fuk Wing",
+  "Chan Fuk Sang",
+  "Whitley Strieber",
 ];
 
 /** Abusive names: a listed word, however it is spelled or hidden. */
@@ -1070,6 +1092,27 @@ export const ABUSIVE_NAMES: readonly string[] = [
   "ياخولي",
   "يا خولي",
   "يا خوله",
+  // يا then ال, apart or glued: the call, then a listed word with its article (FOLLOWUPS batch 24)
+  "يا البزاز",
+  "يا الشرموطة",
+  "يا القحبة",
+  "ياالقحبة",
+  "يا العرص",
+  // The five words of FOLLOWUPS batch 24
+  "Nazi Ali",
+  "Ali Nazis",
+  "Mr Hitler",
+  "H1tler Khan",
+  "Hitlers Omar",
+  "Retard Omar",
+  "Ali Retarded",
+  "Retards",
+  "Fukk You",
+  "Fuky Ali",
+  "Fuker Omar",
+  "Fvck You",
+  "Fvcking Ali",
+  "f v c k",
 ];
 
 /**
