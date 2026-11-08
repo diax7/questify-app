@@ -517,7 +517,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console organizers over HTTP",
           reason: string | null;
         }>(
           `SELECT id::text, at, actor_type, action, target_type, event_id,
-                  CASE WHEN action = ANY ($2::text[]) THEN after ->> 'reason' END AS reason
+                  CASE WHEN action = ANY ($2::text[]) THEN coalesce(after ->> 'reason', after ->> 'reasonCode') END AS reason
            FROM audit_log WHERE organizer_id = $1 ORDER BY audit_log.id DESC LIMIT 50`,
           [orgB, REASON_ACTIONS],
         )

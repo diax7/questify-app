@@ -1,6 +1,7 @@
 import { MESSAGES } from "@questify/shared";
 import { describe, expect, it } from "vitest";
-import { historyKeyOf, readOrganizerDetail } from "#src/lib/console-organizers.ts";
+import { historyKeyOf } from "#src/lib/console-history.ts";
+import { readOrganizerDetail } from "#src/lib/console-organizers.ts";
 
 describe("the words for an audit action in the console's history", () => {
   it.each([

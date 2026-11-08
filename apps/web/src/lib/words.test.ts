@@ -158,6 +158,21 @@ const QUESTIFY_LEVEL: Readonly<Record<string, string>> = {
     "the console's history of one organizer spans its events, so no event's word applies",
   "console.history.questQr":
     "the console's history of one organizer spans its events, so no event's word applies",
+  "console.history.categoryTipSent":
+    "the console's history of one organizer spans its events, so no event's word applies",
+  "console.history.categoryAudience":
+    "the console's history of one organizer spans its events, so no event's word applies",
+  "console.history.categoryReveal":
+    "the console's history of one organizer spans its events, so no event's word applies",
+  "console.history.questPause":
+    "the console's history of one organizer spans its events, so no event's word applies",
+  "console.history.questResume":
+    "the console's history of one organizer spans its events, so no event's word applies",
+  "console.history.flashLaunch":
+    "the console's history of one organizer spans its events, so no event's word applies",
+  "console.history.flashEnd":
+    "the console's history of one organizer spans its events, so no event's word applies",
+  "console.history.questifyQuest": "Questify's own quests on the console, not an event's word",
 };
 
 describe("the dashboard's source", () => {

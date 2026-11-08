@@ -3760,6 +3760,29 @@ Dhia paused the work on 2026-10-25 ("let's have a break"); the queue below is wh
 - Checks: Vitest `packages/shared` 1,665; `apps/web` and `apps/app` unit 2,660; `apps/api/src` 2,672; four DB suites 99; format,
   lint, `lint:limits` and types pass. Not run: browser specs (e2e strings were updated, CI runs them). CI 0 minutes (not pushed).
 
+## Console history words (2026-11-08)
+
+- Tier B, the follow-up of T-701 (`docs/FOLLOWUPS.md`). The console history now words every audit action an audit writer in
+  `apps/api` can produce: 217 more (282 in all) in 145 new texts, Arabic and English, grouped where one text reads better (the
+  builder's other tools, points and cases, the team and owner email change, invitations, the store review demo, then Questify's
+  own: catalog, daily challenge, staff and player accounts). Read from the writers: the TypeScript `recordAudit` calls, every
+  `INSERT INTO audit_log` in the migrations, and the SQL helpers that build an action (`catalog_audit`, `daily_audit`,
+  `questify_audit`, `owner_email_audit`, `invitation_audit`, `souvenir_audit`, `set_audience`, `admin_tier_change`). Left with
+  their stored name: none. The map moved to `apps/web/src/lib/console-history.ts`; no existing text changed, so no pin moved.
+- Guard: `console-history.test.ts` reads those writers and fails when an action has no text and is not on its `UNWORDED` list
+  (empty), when a writer builds an action at run time and is not on its `DYNAMIC` list, or when a text names an action no
+  writer produces. Eight texts that name a quest or category got `QUESTIFY_LEVEL` exceptions in `words.test.ts` (FR-942).
+- Entries with no organizer or event (player, staff, catalog, daily, legal, platform) are worded too but never appear in an
+  organizer or event history today; the wording is ready for a Questify-level history.
+- Reason beside an entry: `REASON_ACTIONS` gained `content.unpublish`; the read takes `reasonCode` when an entry has no `reason`.
+  A take-down keeps one of six fixed codes (no free text, no personal data), shown as the reports' own words. Not widened:
+  `owner_email.start` (its `reason` is free text an admin typed, which may name a person), a player ban (`player.ban` has no
+  organizer or event, so it never reaches this history), `event.player_ban` (keeps no reason), and the take-down's note (it is in
+  `content_hold`, not in the audit entry; showing it needs a migration).
+- Checks: Vitest `apps/web/src` and `packages/shared` 2,930 tests in 213 files; DB suites `console/moderation` and
+  `console/organizers` 27; Playwright `console-organizers.spec.ts` 10 passed (one worker); format, lint, `lint:limits`, types
+  pass. CI 0 minutes (not pushed).
+
 ## Next
 
 - **2026-11-05 (T-810b):** built; a fresh tier A code review is next, then one `mutation.yml` run on

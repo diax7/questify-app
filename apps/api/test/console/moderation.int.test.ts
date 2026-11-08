@@ -203,6 +203,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reports and moderation over HT
     expect(again.statusCode).toBe(200);
     expect(again.json()).toMatchObject({ outcome: "already_unpublished" });
 
+    // The organizer's history in the console keeps the take-down's fixed reason code, never the admin's note.
+    const page = await call("GET", `/v1/admin/organizers/${org}`, adminCookie);
+    expect(page.statusCode).toBe(200);
+    const kept = page.json<{ history: { action: string; reason: string | null }[] }>().history;
+    expect(kept.find((entry) => entry.action === "content.unpublish")?.reason).toBe("offensive");
+    expect(page.body).not.toContain(NOTE);
+
     const holds = teamHoldsSchema.parse(
       (await call("GET", `/v1/organizers/${org}/events/${event}/content-holds`, teamCookie)).json(),
     );

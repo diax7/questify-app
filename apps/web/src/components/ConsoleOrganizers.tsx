@@ -7,10 +7,10 @@ import { OrganizerFeaturesPanel } from "#src/components/ConsoleOrganizerFeatures
 import { SuspensionPanel } from "#src/components/ConsoleOversight.tsx";
 import { OwnerEmailPanel } from "#src/components/ConsoleOwnerEmail.tsx";
 import { nameIn } from "#src/lib/console.ts";
+import { historyKeyOf, historyReasonKeyOf } from "#src/lib/console-history.ts";
 import {
   ORGANIZERS_API,
   clockOf,
-  historyKeyOf,
   organizersPath,
   readOrganizerDetail,
   readOrganizerPage,
@@ -174,6 +174,16 @@ function HistoryAction({ t, action }: Readonly<{ t: Translate; action: string }>
   return key === undefined ? <bdi dir="ltr">{action}</bdi> : <>{t(key)}</>;
 }
 
+/** The reason beside an entry: a fixed takedown code in words, else the text an admin typed (it can be in any language). */
+function HistoryReason({ t, entry }: Readonly<{ t: Translate; entry: HistoryEntry }>) {
+  const key = entry.reason === null ? undefined : historyReasonKeyOf(entry.action, entry.reason);
+  return (
+    <span data-testid="history-reason">
+      {t("console.history.reason")} {key === undefined ? <bdi>{entry.reason}</bdi> : t(key)}
+    </span>
+  );
+}
+
 export function HistoryList({
   language,
   history,
@@ -198,9 +208,7 @@ export function HistoryList({
                   {entry.reason === null ? null : (
                     <>
                       {" "}
-                      <span data-testid="history-reason">
-                        {t("console.history.reason")} <bdi>{entry.reason}</bdi>
-                      </span>
+                      <HistoryReason t={t} entry={entry} />
                     </>
                   )}
                 </span>

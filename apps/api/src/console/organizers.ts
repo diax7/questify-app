@@ -86,12 +86,18 @@ export type HistoryEntry = Readonly<{
 
 type Admin = Readonly<{ id: string }>;
 
-/** The audit actions whose entry keeps the admin's typed reason in `after` (the suspension doors and their lifting). */
+/**
+ * The audit actions whose entry keeps a reason in `after` that is safe for the console reader: the text an admin typed
+ * for a suspension or its lifting (`reason`), and the fixed code of a take-down (`reasonCode`, one of six words picked
+ * from a list, so no free text and no personal data). An entry that also holds a free-text note, such as
+ * `owner_email.start`, or a ban reason on a player (no organizer or event, so never in this history), stays out.
+ */
 export const REASON_ACTIONS: readonly string[] = [
   "event.suspend",
   "event.reactivate",
   "organizer.suspend",
   "organizer.reactivate",
+  "content.unpublish",
 ];
 
 const suspensionOf = (reason: string | null, since: Date | null): SuspensionView | null =>
@@ -311,7 +317,7 @@ export async function readHistory(
     reason: string | null;
   }>(
     `SELECT id::text, at, actor_type, action, target_type, event_id, support_grant_id IS NOT NULL AS by_support,
-            CASE WHEN action = ANY ($2::text[]) THEN after ->> 'reason' END AS reason
+            CASE WHEN action = ANY ($2::text[]) THEN coalesce(after ->> 'reason', after ->> 'reasonCode') END AS reason
      FROM audit_log WHERE ${byOrganizer ? "organizer_id" : "event_id"} = $1 ORDER BY audit_log.id DESC LIMIT 50`,
     [byOrganizer ? scope.organizerId : scope.eventId, REASON_ACTIONS],
   );
