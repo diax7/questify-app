@@ -2,19 +2,21 @@
 
 ## Full names match by words — 2026-11-08
 
-- **Full names match by words (tier B, API; migration 0178, reworked after its review scored 80 NO-GO; ADR-817 Accepted by Dhia,
-  Q-754 (1) and (2) decided; no new string).** `full_name_blocked` restated (diffed against 0177; usernames unchanged): an Arabic
-  entry matches a word with one prefix (و ف, ب ك ل, ال; يا; ابن / بنت) and one ending (ات ين ون, ك كم ها هم, ة as ت; a part entry
-  also ي يه ه), never inside a longer word; a Latin part entry of 4 letters or more matches inside a word as in 0177 (chosen over
-  prefix and suffix forms only, which still refuse Siriporn and Shittu and miss "bigfuckingdick"); spelled-out letters take the
-  same steps. `full_name_allow`: «اسحاق» out, 22 real names in (siriporn, shittu, skeeter, swank, vecchio, «البزاز», ...), 64 in
-  all; no compound added to `username_word` (the substring rule covers fuckface and the rest). Corpus: 302 real names pass (22
-  refused by 0177); 84 abusive names refused (77 by 0177 too, none passed by 0178). The list reads are sequential scans at this
-  size. A test sweeps stored names under 0177, applies 0178 and sweeps again. Check 0.45-0.52 ms a call (0177's 0.50-0.54, same run). Timing rerun (load 2.7-6): `ranking_names` 8.29 to 8.43 ms,
-  `screen_ranking` 35.48 to 20.97 ms, `event_results` 30.17 to 29.44 ms, buffers equal or fewer (ADR-766's gate holds); sweep
-  1,232 ms a page median at load 6.
-  Recheck marked pending, so the tick re-flags stored names. Tests: full-name-filter, full-name-upgrade, name-recheck, security,
-  name-display, usernames and console safety (12 files, 746 passed). CI 0 minutes (not pushed).
+- **Full names checked by Dhia's letter-count rule (tier B, API; migration 0178, reworked after its review scored 80 NO-GO, then
+  after Dhia's follow-up; ADR-817 Accepted by Dhia, Q-754 (1) and (2) decided; no new string).** `full_name_blocked` restated
+  (diffed against 0177; usernames unchanged): a word is refused when, with one known prefix and ending taken off (Arabic و ف,
+  ب ك ل, ال, يا, ابن / بنت; ات ين ون, ك كم ها هم ي with ة as ت, ي يه ه; Latin s es er ers ed ing ings y ies), it holds an entry
+  with few letters left over: 2 for a `part` entry of 4+ letters, 1 for any other of 3+, none for 1-2. Thresholds tuned on the
+  corpus (750 real names, 220 abusive; nine settings tried, table in ADR-817): chosen = no abusive pass, fewest real refusals
+  (83 without an allow-list). `full_name_allow`: 59 words (24 of 0177's dropped as unneeded, 41 added: nasser, tito, shittu,
+  «خوله», «لحسن», ...; «kike» stays); an Arabic allow word covers its prefix and nisba forms only. Five compounds (fuckface,
+  fuckhead, fuckwit, shithead, shitface) added to `username_word` for full names (no username changes). Accepted passes pinned
+  by a test (15: fuckali, pornstar, bigfuckingdick, dickhead, ...; ten were refused by 0177); 50 abusive names 0177 passed are
+  now refused («القحبة», «معرص», «كسك», dickk, sexx, c0ck, ...). A test sweeps stored names under 0177, applies 0178 and sweeps
+  again. Check 0.48 ms a call (0177's 0.25, same run). Timing rerun (load 3.1-6.1): `ranking_names` 7.58 to 7.62 ms,
+  `screen_ranking` 31.72 to 19.51 ms, `event_results` 27.59 to 28.96 ms (+5.0%), buffers equal or fewer (ADR-766's gate holds);
+  sweep 2,261 ms a page median, 115 s for 102,001 answers.
+  Recheck marked pending, so the tick re-flags stored names. Tests: full-name-filter, full-name-upgrade, name-recheck, security, name-display, usernames and console safety (12 files, 747 passed). CI 0 minutes (not pushed).
 
 ## FOLLOWUPS batch 23 — 2026-11-08
 

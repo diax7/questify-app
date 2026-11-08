@@ -8701,53 +8701,79 @@ That is safe on staging, where no live event runs; on production such a file nee
 
 ## ADR-817 - FOLLOWUPS batch 23: the username word lists check a full name at the join, and a stored flag hides it where other players read it
 
-**Status:** Accepted (Dhia, 2026-11-08, Q-754). (FOLLOWUPS batch 23, 2026-11-08; reworked after the review scored the first
-version 72, and again after the re-review scored it 86; matched by words since migration 0178, reworked after its review scored
-it 80.) Narrows the trade-off of ADR-400 ("unlike a username it is not filtered").
-**By words (Dhia, 2026-11-08, Q-754; migration 0178).** Dhia's decision: in a full name, blocked words match whole words, so
-real names such as Siriporn and Shittu pass; the intent is to stop refusing real names, not to let abuse through. A first draft
-of 0178 matched every entry as a strict whole word; its review (80, NO-GO) found that it let through many abusive names 0177
-refused, the inflected and joined forms of a part entry ("fucks", "fuckers", "fuckyou", "fuckali", "Ali Fuckali", "shitbag",
-"dumbfuck", "motherfuckers", "sluts", "slutty", "whores", "pornstar", «ياشرموطة», «الشرموطات», «شرموطتك», «كسمك»). 0178 as
-shipped matches by the script of the entry:
-- **An Arabic entry** matches an Arabic word with one prefix and one ending taken off, each optional, never inside a longer word.
-  The prefix is و or ف, then ب ك or ل, then ال (ل with ال written لل), or يا, or ابن / بنت with or without ال (and يا before
-  them). The ending is ات, ين, ون, or a pronoun ك كم ها هم, with ة read as ت before a pronoun or ات («شرموطتك», «قحبات» are the
-  stem with ه); a `part` entry also takes the nisba ي يه ه (ية and ة fold to يه and ه). A `word` entry takes no nisba: on the
-  short entries it would refuse family names (الخولي, البزي) and «خولة». So «ياشرموطة», «بشرموطة», «الشرموطات», «متناكين»,
-  «لوطيين», «سكسات», «طيزك», «ابنالشرموطة», «القحبة», «ياخول», «زبك» are refused, while «کسمایی» (Kasmaei), «الإسحاقي»,
-  «الزبير», «زبيدة», «المصري», «مصعب», «الخولاني», «الشاذلي», «حلمي», «ياسين» pass by the rule. The wider prefix reaches
-  «بلوطي» (ب before لوطي) and «سكسك» (سكس with ك), which stay on the allow-list, and the article reaches «البزاز» (a family
-  name; the `word` entry «بزاز» stays refused alone), which joins it.
-- **A Latin part entry of 4 letters or more** matches inside a word, as 0177 did; a real name that holds one passes as a whole
-  word of the allow-list. A shorter one (none ships) matches the whole word or it plus s, es, er, ers, ed, ing or y.
-- **A Latin word entry** matches a whole word split at digits, as before. Usernames keep their rule (`username_blocked`).
-Why inside the word for the long Latin entries, not the prefix and suffix forms only: both were run on the corpus
-(`test/db/full-name-corpus.ts`). Neither passes the real names Dhia named by its rule: Siriporn and the other Thai names end or
-start with "porn", Shittu, Shitole, Shitara, Slutskaya, Skeete, Skeeter, Bastardi, Wankowicz, Swank and Vecchi start or end with
-an entry, so both need these on the allow-list. Prefix and suffix forms spare only names with the entry in the middle
-(Yamashita, Harshita, Atwater, Vecchio), which 0177's allow-list already holds, and miss every abusive word with the entry in the
-middle ("bigfuckingdick"), which 0177 refused. Inside the word keeps "0177 refused it, so 0178 refuses it" for every Latin name by
-construction, and the allow-list (edited by a migration) says which real names pass. The cost: a Latin real name holding an entry
-and not on the allow-list is refused as under 0177 (a Thai name ending "porn" not yet listed), and two words written as one can
-hold one ("Anaslutfi"). The allow-list keeps 0177's entries but «اسحاق» (the Arabic rule no longer matches inside «اسحاق»), and
-gains siriporn, chaiyaporn, supaporn, somporn, kanokporn, pornthep, pornpimon, jariyaporn, sasiporn, shittu, shitole, shitara,
-slutskaya, skeete, skeeter (a given name; "skeet" plus er), bastardi, wankowicz, swank, vecchio, vecchi, vecchione and «البزاز»:
-64 words. **No compound is added to `username_word`:** the whole-word draft added six (fuckface, fuckhead, fucker, fuckwit,
-shithead, shitface) because a full-name check that matched whole words needed them; the substring rule refuses them through
-`fuck` and `shit`, so they would be redundant, and none is added. «Kike» stays allowed (Q-754 (2)); Coon and Mong are whole-word
-`word` entries and stay refused (Q-754). Letters spelled out one by one are joined into one word, which then takes every step
-above (the allow-list, the Arabic prefixes and endings): «ا ل ش ر م و ط ة» and «ش ر م و ط ة» are refused. The corpus: 302 real
-names, all pass (22 of them refused by 0177, Siriporn, Shittu and «کسمایی» among them); 84 abusive names, all refused (77 refused
-by 0177 too; the 7 it passed are a `word` entry with an article, plural or pronoun, «القحبة», «زبك», ...). A test moves stored
-answers from 0177 to 0178 and sweeps them (`test/db/full-name-upgrade.int.test.ts`).
-The check reads each list once a call, and at the lists' size (about 60 allow words, 390 entries) each read is one sequential scan
-of its table, not an index look-up (the long Latin entries are a substring test, which no index serves). The check costs 0.45 to 0.52 ms a call against 0.50 to 0.54 ms for 0177's on the same run (4,000 names, half the corpus; load
-average about 6). The reads are unchanged; rerun with 0178 (`test/perf/full-name-timing.int.test.ts`, load average 2.7 to 6, the
-column "0177 now" being the stored flag as 0178 leaves it): `ranking_names` 8.29 ms (0176) to 8.43 ms, 378 buffers both;
-`screen_ranking` 35.48 to 20.97 ms, 1,218 to 741; `event_results` 30.17 to 29.44 ms, 1,806 both; ADR-766's gate (+0.5 ms or
-+10%) holds for all three. The sweep: 52 pages for 102,001 answers, 1,232 ms a page median, 1,415 ms the slowest, 63.3 s in all,
-on a machine at load 6 (the same run's 0177 check is no faster per call).
+**Status:** Accepted (Dhia, 2026-11-08, Q-754 and its follow-up). (FOLLOWUPS batch 23, 2026-11-08; reworked after the review
+scored the first version 72, and again after the re-review scored it 86; checked by Dhia's letter-count rule since migration
+0178, reworked after its review scored it 80.) Narrows the trade-off of ADR-400 ("unlike a username it is not filtered").
+**Dhia's rule (2026-11-08, Q-754 and its follow-up; migration 0178).** In his words: a bad word with one or two letters added is
+still the same bad word, but with many more letters around it, it may be a good word that just contains those letters. He asked
+for it to be tested on many names and options, so that no bad name is missed and no good name is banned. 0178 builds it: after
+the fold, a word of a full name is refused when, with one known prefix and one known ending taken off (they do not count), it
+holds a list entry with few letters left over:
+- a `part` entry of 4 letters or more: at most 2 (fuckme, xfuckx, «شرموطا»; not fuckali, pornstar, dumbfuck);
+- any other entry of 3 letters or more (a 3-letter `part` entry, every `word` entry): at most 1 (sexx, dickk, «معرص», «انيك»);
+- an entry of 1 or 2 letters: none, the word is the entry with its affixes («كسك», «زبه», «الكس»; «كساب» and «كسا» pass).
+The known prefixes, before an Arabic word: و or ف, then ب ك or ل, then ال (ل with ال written لل); يا; ابن or بنت, with ال (and
+يا before them). The known endings: Arabic ات ين ون, a pronoun ك كم ها هم ي (ة read as ت before one or before ات, so «شرموطتك»,
+«شرموطتي», «قحبات» are the entry), the nisba ي يه ه (ة and ية fold to ه and يه); Latin s es er ers ed ing ings y ies (ies read
+as y). So «ياشرموطة», «الشرموطات», «وشرموطتك», «شرموطاتك», fuckers, fuckings, sluts and pussies are refused. Letters spelled
+out one by one are joined into one word first; a Latin word is also read with its digits removed or as letters and in its
+pieces between digits ("c0ck", "ali2porn"). Usernames keep their rule (`username_blocked`).
+**The thresholds were tuned on the corpus** (`test/db/full-name-corpus.ts`: 750 real names, Saudi, Gulf, Egyptian, Levantine,
+Yemeni and Maghrebi Arabic with ال, آل, بن and the nisba, Persian, Urdu, Thai, Filipino, South and East Asian, African and
+Western; 220 abusive names in both scripts: inflections, prefixes, endings, possessives, plurals, glued vocatives, one or two
+letters added, digits, spelled-out runs, look-alikes). Each setting was run with an empty allow-list but «kike» and the five
+compounds below:
+
+| Setting (letters allowed around an entry) | Real names refused | Abusive names passed |
+| --- | --- | --- |
+| part 4+: 1, 3: 0; word entries the same | 48 | 16 |
+| part 4+: 1, 3: 1; word entries the same | 73 | 6 |
+| part 4+: 2, 3: 0; word entries the same | 72 | 10 |
+| part 4+: 2, 3: 1; word entries the same (Dhia's starting point) | 97 | 0 |
+| part 4+: 2, 3: 1; word entries none | 50 | 15 |
+| part 4+: 2, 3: 1; word entries 4+: 1, 3: 0 | 59 | 10 |
+| **part 4+: 2, 3: 1; word entries 1 (chosen)** | **83** | **0** |
+| part 4+: 2, 3: 2; word entries the same | 111 | 0 |
+| part 4+: 3, 3: 1; word entries the same | 116 | 0 |
+
+The chosen setting is the one with no abusive name passing and the fewest real names refused: Dhia's starting point, with a
+`word` entry of 4 letters or more allowed 1 letter rather than 2 (Button, Dickens, Draper, Semenov, Poonam, Anusha, Twinkle
+pass by the rule). **The allow-list** (`full_name_allow`, 59 words, edited by migration) holds the 83 real names the chosen
+setting still refuses, by their words: kike (Q-754 (2)); 0177's butt, dick, poon, quim, cumming, hooker, atwater, wankel,
+slutsky, ishita, ashita, ashit, shital, kshiti, oshita, «اسحاق», «بلوطي», «سكسك»; and new: nishit, shittu, skeete, skeeter,
+bastardi, swank, vecchi, vecchio, nasser, yasser, gasser, jasser, butti, butts, mongi, monge, tito, titus, dicko, dickey,
+cass, bass, janus, cocker, cummings, cooney, negron, spicer, smutny, bonera, «البزاز», «البزي», «خوله», «خولي», «زبيد»,
+«زبيب», «زبير», «شاذلي», «شرجبي», «لحسن». An Arabic allow word covers itself with a known prefix or the nisba («اسحاق» covers
+«الإسحاقي» and «باسحاق», «زبيد» covers «زبيدة» and «زبيدي»), never with a plural or a pronoun («خوله» does not cover
+«الخولات»). 0177's other 24 entries are dropped, each passing without one (Yamashita, Kinoshita, Harshit, Harshita, Akshita,
+Dikshit, Kshitij, Lipshitz, Pornchai, Pornsak, Wankhede, Yoshito, ...); the test proves each allow word is refused without the
+list and each dropped one passes.
+**Accepted passes (Dhia's trade-off).** A joined form with many letters around the entry passes, pinned in the corpus as
+`ACCEPTED_PASSES` (15, a test asserts each passes): fuckyou, fuckoff, fuckali, Ali Fuckali, shitali, shitbag Omar, dumbfuck,
+pornstar, Pornstar Ali, bigfuckingdick, dickhead, cocksucker, jackass, dumbass, «كساختك». The first ten were refused by 0177.
+**Compounds.** Five common compounds join `username_word` as `part` entries: fuckface, fuckhead, fuckwit, shithead, shitface.
+**Their role is the full name's, not the username's:** each holds fuck or shit with more than two letters around it, so without
+its own entry "fuckface Ali" and "Mr Shithead" would pass; as entries they are refused with their endings. A username holding
+one already holds `fuck` or `shit`, so no username's answer changes. Do not drop them as redundant. The earlier draft's sixth,
+fucker, is not added: fuck plus er is refused by the ending.
+**Against 0177.** Real names: 31 of the 750 were refused by 0177; none is refused by 0178. Abusive names refused by 0178 that
+0177 passed (50): a `word` entry with an affix or a letter added («القحبة», «ياقحبة», «قحبات», «القحبات», «قحبتك», «قحبتي»,
+«العرص», «ياعرص», «العرصات», «عرصين», «معرص», «الخول», «ياخول», «الخولات», «زبك», «الزب», «زبه», «زبها», «كسك», «كسها»,
+«كسكم», «الكس», «النيك», «نيكها», «انيك», «ينيك», «الشاذ», «شاذين», «ياشاذ», «عاهرات», «عاهرتك», «عاهرتي», pussies, dickk,
+dicks, cockk, cumm, cumz, sexx, sexxy, asss, fagg, faggy, titts, rapee, raper, Ali raped, boobies) and digits in a `word` entry
+(c0ck, d1ck). Abusive names 0177 refused that pass now: the ten accepted passes above. A test moves stored answers from 0177 to
+0178 and sweeps them (`test/db/full-name-upgrade.int.test.ts`).
+The check reads each list once a call (each a sequential scan at this size: 59 allow words, about 400 entries) and tests
+every entry against each form of each word, so it costs more than 0177's: 0.48 ms a call (0.46 to 0.54) against 0.25 ms
+(0.23 to 0.27) for 0177's, alternating on one database (3,880 names, the corpus repeated, load average 4 to 5.5). One call at
+the join. The reads run no check and are unchanged; rerun with 0178 (`test/perf/full-name-timing.int.test.ts`, load average 3.1
+to 6.1, the column "0177 now" being the stored flag as 0178 leaves it): `ranking_names` 7.58 ms (0176) to 7.62 ms, 354
+buffers both; `screen_ranking` 31.72 to 19.51 ms, 978 to 621; `event_results` 27.59 to 28.96 ms (+1.37 ms, +5.0%), 1,798
+both; ADR-766's gate (+0.5 ms or +10%) holds for all three, `event_results` by its 10% limb (its buffers are equal, so the
+difference is noise in a read that runs no check). The sweep is slower with the check: 52 pages for 102,001 answers, 2,261 ms a
+page median, 2,465 ms the slowest, 115.2 s in all (1,232 ms a page under the earlier draft of 0178). A page now takes more than the tick's
+2 s budget (`RECHECK_BUDGET_MS`), so the tick runs one page a run: a sweep of 100,000 answers takes about 52 runs, about 26
+minutes at that load, against about 9 minutes before; a stored name lags a list change by that much.
 0178 marks the recheck pending (`docs/rules.md`), so the lifecycle tick re-flags the stored names. The text below is 0177's; where it
 says an Arabic part entry matches inside one word, or lists the 43 allow-list entries, 0178 replaces it.
 **Decision:** migration 0177. (1) **The check**, `full_name_blocked(name)` (internal, PL/pgSQL with no SET clause, so its two list

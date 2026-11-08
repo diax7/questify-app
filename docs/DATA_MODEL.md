@@ -68,13 +68,15 @@ pending); `public_full_name` gives no flagged name. `full_name_allow (word, lang
 the full-name check skips (real names that hold a list entry; an Arabic one also with ال بال وال لل before it and ي يه ه
 after it), no grant. `full_name_recheck`: the sweep's one row (`pending`,
 the last answer key), no grant.
-Migration 0178 (Q-754, ADR-817): in a full name an Arabic entry matches an Arabic word with one prefix (و ف, ب ك ل, ال; يا;
-ابن or بنت) and one ending (ات ين ون, ك كم ها هم, ة read as ت before a pronoun; a part entry also ي يه ه) taken off, never
-inside a longer word; a Latin part entry of 4 letters or more matches inside a word, as in 0177 (a shorter one: the whole word
-or it plus s es er ers ed ing y); a Latin word entry a whole word. `full_name_allow` loses «اسحاق» and gains 22 words (the
-real names 0177 refused: siriporn, shittu, skeeter, swank, vecchio, ... and «البزاز»), 64 in all; the recheck is marked
-pending. `username_word` is not changed: a whole-word draft of 0178 added six compounds (fuckface, shithead, ...) because a
-full name could not otherwise refuse them; the substring rule refuses them through `fuck` and `shit`, so none is added.
+Migration 0178 (Q-754, ADR-817, Dhia's rule): a word of a full name is refused when, with one known prefix and one known
+ending taken off (Arabic و ف, ب ك ل, ال, يا, ابن / بنت before; ات ين ون, ك كم ها هم ي with ة as ت, the nisba ي يه ه after;
+Latin s es er ers ed ing ings y ies), it holds a list entry with few letters left over: 2 for a `part` entry of 4 letters or
+more, 1 for any other of 3 or more, none for one of 1 or 2. `full_name_allow` holds the real names that rule still refuses (59
+words: 0177's that are still needed, «اسحاق» among them, and nasser, tito, shittu, «خوله», «لحسن», ...); an Arabic allow word
+covers itself with a prefix or the nisba only. Five compounds join `username_word` as `part` entries (fuckface, fuckhead,
+fuckwit, shithead, shitface): **they are there for full names**, which would pass them (more than two letters around fuck or
+shit); a username holding one already holds its part entry, so no username changes. Do not drop them as redundant. The recheck
+is marked pending.
 Migration 0118 (T-704): `reason` gains `admin` (a rename by `admin_rename_player`, not counted by the change limit), and
 `username_retired (fold PRIMARY KEY, retired_at)` holds a name an admin took away, folded, with no player id;
 `username_blocked` refuses a retired name to everyone (ADR-420). No grant.

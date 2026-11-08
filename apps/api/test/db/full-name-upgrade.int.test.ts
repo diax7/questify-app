@@ -21,12 +21,17 @@ const STORED: readonly (readonly [string, boolean, boolean])[] = [
   ["Sara Ahmed", false, false],
   ["Mr Shithead", true, true],
   ["fucks", true, true],
-  ["Ali Fuckali", true, true],
+  ["Harshit Rana", false, false],
+  ["Tito Sotto", false, false],
+  ["Ali Fuckali", true, false],
+  ["pornstar", true, false],
   ["motherfuckers", true, true],
   ["sluts", true, true],
   ["ياشرموطة", true, true],
   ["الشرموطات", true, true],
   ["القحبة", false, true],
+  ["معرص", false, true],
+  ["dickk", false, true],
 ];
 
 const expected = (column: 1 | 2) =>
@@ -34,8 +39,8 @@ const expected = (column: 1 | 2) =>
 
 /**
  * The move from 0177 to 0178 on stored names (ADR-817, Q-754): a database at 0177 with its answers swept, then 0178
- * applied, which changes the rule with no list row touched and so marks the recheck itself; the tick's sweep then shows
- * the real names 0177 hid and keeps the abusive ones hidden.
+ * applied, which changes the rule and the lists and marks the recheck itself; the tick's sweep then shows the real
+ * names 0177 hid, hides the abusive ones 0177 missed, and shows the joined forms Dhia accepted (Q-754).
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("full names from 0177 to 0178 (database)", () => {
   let db: TestDatabase;
@@ -85,7 +90,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full names from 0177 to 0178 (
       .map((row) => [row.value, row.name_blocked] as const)
       .toSorted(([a], [b]) => a.localeCompare(b));
 
-  it("sweeps the stored names again after 0178: real names shown, abusive ones still hidden", async () => {
+  it("sweeps the stored names again after 0178: real names and accepted joined forms shown, abusive ones hidden", async () => {
     const ids = await seedTwoTenants(db.owner);
     const [event] = await owner<{ id: string }>(
       `INSERT INTO event (organizer_id, join_code, name_en, status, access, starts_at, ends_at)
