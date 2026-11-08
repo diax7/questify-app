@@ -38,7 +38,11 @@ describe("isFinalAnswer", () => {
     ["a refusal", { ok: false, body: { code: "change_set_finished" }, status: 409 }, true],
     ["a 422", { ok: false, body: { code: "invalid_change_set" }, status: 422 }, true],
     ["a 4xx with no body", { ok: false, body: undefined, status: 403 }, true],
-    ["busy", { ok: false, body: { code: "change_set_busy" }, status: 409 }, false],
+    [
+      "busy, stored under the key, so final",
+      { ok: false, body: { code: "change_set_busy" }, status: 409 },
+      true,
+    ],
     [
       "the same request running",
       { ok: false, body: { code: "request_in_progress" }, status: 409 },
@@ -54,18 +58,28 @@ describe("isFinalAnswer", () => {
 });
 
 describe("keyedRequest", () => {
-  it("keeps the key across a 502, a timeout and a busy answer, so the retry gets the stored answer", async () => {
+  it("keeps the key across a 502, a timeout and the same request still running, so the retry gets the stored answer", async () => {
     const sent = answers(
       json(502, {}),
       new Error("timed out"),
-      json(409, { code: "change_set_busy" }),
       json(409, { code: "request_in_progress" }),
       json(200, { ok: true }),
     );
     const keys = createRequestKey();
-    for (let i = 0; i < 5; i++) await apply(keys);
-    expect(sent).toHaveLength(5);
+    for (let i = 0; i < 4; i++) await apply(keys);
+    expect(sent).toHaveLength(4);
     expect(new Set(sent).size).toBe(1);
+  });
+
+  // `change_set_busy` is stored under its key (conventions.ts onSend keeps every answer below 500), so a kept key would
+  // replay busy until the page reloads, even after the set is free.
+  it("takes a new key after a busy answer", async () => {
+    const sent = answers(json(409, { code: "change_set_busy" }), json(200, { ok: true }));
+    const keys = createRequestKey();
+    await apply(keys);
+    await apply(keys);
+    expect(sent).toHaveLength(2);
+    expect(new Set(sent).size).toBe(2);
   });
 
   it("takes a new key after a 2xx and after a refusal", async () => {

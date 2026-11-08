@@ -28,12 +28,15 @@ export function useRequestKey(): RequestKey {
   return keys.current;
 }
 
-/** Refusals that say "not now" rather than "no": the set is being applied, or the same request is still running. */
-const NOT_FINAL_CODES: ReadonlySet<string> = new Set(["change_set_busy", "request_in_progress"]);
+/**
+ * The one refusal that says "not yet" for this very request: the same key is still running. It is never stored under the
+ * key; every other 4xx, `change_set_busy` included, is stored and would replay, so it ends the request.
+ */
+const NOT_FINAL_CODES: ReadonlySet<string> = new Set(["request_in_progress"]);
 
 /**
  * Whether an answer ends the request, so the next call is a new one with a new key: a 2xx, or a 4xx other than the
- * set being busy or the same request still running. A dropped connection, a timeout and a 5xx are not final: the
+ * same request still running. A dropped connection, a timeout and a 5xx are not final: the
  * first try may have been applied, and the same key brings back its stored answer.
  */
 export function isFinalAnswer(result: PostResult): boolean {
