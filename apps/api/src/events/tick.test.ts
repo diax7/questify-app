@@ -161,6 +161,10 @@ describe("startLifecycleTick", () => {
         level: "error",
         fields: { event: "owner_email.purge_failed", reason: "unknown", code: null },
       },
+      {
+        level: "error",
+        fields: { event: "join.name_recheck_failed", reason: "unknown", code: null },
+      },
       { level: "error", fields: { event: "event.archive_failed", reason: "unknown", code: null } },
     ]);
     await tick.stop();
@@ -201,10 +205,10 @@ describe("startLifecycleTick", () => {
     finish?.();
     await stopping;
     // The lifecycle call, one look each for due rehearsal wipes, reservations, quizzes and game rounds, the ticket
-    // sweep, the report, cheers and owner-email purges and the archive step; nothing after the stop.
-    expect(connects).toBe(11);
+    // sweep, the report, cheers and owner-email purges, the full-name sweep and the archive step; nothing after the stop.
+    expect(connects).toBe(12);
     await vi.advanceTimersByTimeAsync(5000);
-    expect(connects).toBe(11);
+    expect(connects).toBe(12);
   });
 
   it("finishes due quizzes one call at a time, up to a batch, and logs only the count", async () => {
@@ -293,6 +297,28 @@ describe("startLifecycleTick", () => {
     await vi.advanceTimersByTimeAsync(2000);
     expect(statements.filter((sql) => sql.includes("cheers_purge(5000)"))).toHaveLength(2);
     expect(logged).toEqual([{ level: "info", fields: { event: "cheers.purged", count: 5000 } }]);
+    await tick.stop();
+  });
+
+  it("checks stored full names again page by page until a short page, and logs only the count (ADR-817)", async () => {
+    const { pool, statements, client } = fakePool(() => 0);
+    const answer = client.query.getMockImplementation();
+    const pages = [2000, 2000, 5];
+    const sweep = async (sql: string) => {
+      if (sql.includes("name_flag_sweep")) {
+        statements.push(sql);
+        return { rows: [{ count: pages.shift() ?? 0 }] };
+      }
+      return answer === undefined ? { rows: [] } : answer(sql);
+    };
+    client.query.mockImplementation(sweep as unknown as NonNullable<typeof answer>);
+    const logged: Logged[] = [];
+    const tick = start(pool, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(statements.filter((sql) => sql.includes("name_flag_sweep($1)"))).toHaveLength(3);
+    expect(logged).toEqual([
+      { level: "info", fields: { event: "join.names_rechecked", count: 4005 } },
+    ]);
     await tick.stop();
   });
 

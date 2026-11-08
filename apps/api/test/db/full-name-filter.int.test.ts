@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withRequestContext, type RequestContext } from "#src/db/context";
+import { ABUSIVE_NAMES, REAL_NAMES } from "#test/db/full-name-corpus";
 import {
   TEST_DATABASE_URL,
   addMember,
@@ -23,13 +25,16 @@ const failure = async (work: Promise<unknown>): Promise<string> => {
 
 /**
  * The username word lists on a full name (migration 0177, ADR-817): a Full name answer holding a listed word is refused
- * at the join, and a stored name that fails shows by username wherever other players read it. Nothing else refuses a
- * name: not Arabic, not short, not a username an admin retired.
+ * at the join; every stored one carries a flag, set as it is written and again by the sweep after a list change, and a
+ * flagged name shows by username wherever other players read it (the read checks the flag only). The check goes word by
+ * word, skips the allow-list's real names, and folds other scripts and forms first. Nothing else refuses a name: not
+ * Arabic, not short, not a username an admin retired.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database)", () => {
   let db: TestDatabase;
   let ids: Awaited<ReturnType<typeof seedTwoTenants>>;
   let staffA: string;
+  let admin: RequestContext;
   let counter = 0;
 
   beforeAll(async () => {
@@ -40,6 +45,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       "INSERT INTO username_word (word, match, language) VALUES ('qxbad', 'word', 'en'), ('خبيث', 'part', 'ar')",
     );
     await db.owner.query("INSERT INTO username_retired (fold) VALUES ('ساره'), ('nora')");
+    const made = await db.owner.query<{ id: string }>(
+      `INSERT INTO staff_user (email, password_hash, platform_role, status)
+       VALUES ('lists@questify.test', 'h', 'admin', 'active') RETURNING id`,
+    );
+    admin = { isAdmin: true, staffUserId: made.rows[0]?.id ?? "" };
   });
   afterAll(async () => {
     await db.close();
@@ -105,6 +115,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
     return { player, enrollment: id };
   };
 
+  const blocked = async (names: readonly string[]) =>
+    (
+      await owner<{ name: string }>(
+        "SELECT n AS name FROM unnest($1::text[]) n WHERE full_name_blocked(n)",
+        [names],
+      )
+    ).map((row) => row.name);
+
+  const shownEvent = async () => {
+    const event = await newEvent();
+    const field = await addField(event.id, "full_name", 0);
+    await as(
+      teamA(),
+      "UPDATE event SET name_display = 'both', name_audience = 'everyone' WHERE id = $1",
+      [event.id],
+    );
+    return { event, field };
+  };
+
+  const flagOf = async (enrollment: string) =>
+    (
+      await owner<{ name_blocked: boolean }>(
+        "SELECT name_blocked FROM join_answer WHERE enrollment_id = $1",
+        [enrollment],
+      )
+    )[0]?.name_blocked;
+
   describe("at the join", () => {
     it("refuses a full name with a listed word, however it is spelled, and names the field", async () => {
       const event = await newEvent();
@@ -164,42 +201,214 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
     });
   });
 
-  describe("where other players read a name", () => {
-    it("shows a stored name that fails by username, and one that fails once a word is added", async () => {
-      const event = await newEvent();
-      const field = await addField(event.id, "full_name", 0);
-      await as(
-        teamA(),
-        "UPDATE event SET name_display = 'both', name_audience = 'everyone' WHERE id = $1",
-        [event.id],
+  describe("the check", () => {
+    it(`never refuses the ${REAL_NAMES.length} real names of the corpus with the lists as shipped`, async () => {
+      expect(REAL_NAMES.length).toBeGreaterThanOrEqual(150);
+      expect(await blocked(REAL_NAMES)).toEqual([]);
+    });
+
+    it("refuses every abusive name of the corpus, other scripts and forms included", async () => {
+      const passed = await owner<{ name: string }>(
+        "SELECT n AS name FROM unnest($1::text[]) n WHERE NOT full_name_blocked(n)",
+        [ABUSIVE_NAMES],
       );
+      expect(passed).toEqual([]);
+    });
+
+    it("reads look-alike letters, compatibility forms, accents and Persian letters as the list's letters", async () => {
+      expect(
+        await owner(
+          `SELECT full_name_fold('fυck') AS greek, full_name_fold('fuсk') AS cyrillic, full_name_fold('ｆｕｃｋ') AS wide,
+                  full_name_fold('FÜCK') AS accent, full_name_fold('ﻛﺲ') AS forms, full_name_fold('کس') AS persian,
+                  full_name_fold('أحمد  آل-سعيد') AS arabic, full_name_fold('سارة ١٢٣') AS digits`,
+        ),
+      ).toEqual([
+        {
+          greek: "fuck",
+          cyrillic: "fuck",
+          wide: "fuck",
+          accent: "fuck",
+          forms: "كس",
+          persian: "كس",
+          arabic: "احمد ال سعيد",
+          digits: "ساره 123",
+        },
+      ]);
+    });
+
+    it("matches a part entry inside one word only, and skips the allow-list's words", async () => {
+      expect(
+        await blocked(["Anas Lutfi", "ملاك سمير", "عبّاس كسّاب", "Ali Butt", "إسحاق", "Yamashita"]),
+      ).toEqual([]);
+      expect(await blocked(["Anaslutfi", "ملاكسمير", "Ali Butthole", "Yamashitas"])).toEqual([
+        "Anaslutfi",
+        "ملاكسمير",
+        "Ali Butthole",
+        "Yamashitas",
+      ]);
+    });
+
+    it("keeps the allow-list closed: no grant to the API's role or anyone", async () => {
+      expect(
+        await owner(
+          `SELECT has_table_privilege('questify_app', 'full_name_allow', 'SELECT') AS app_read,
+                  has_table_privilege('questify_app', 'full_name_allow', 'INSERT') AS app_write,
+                  has_table_privilege('questify_app', 'full_name_recheck', 'SELECT') AS app_sweep,
+                  has_table_privilege('public', 'full_name_allow', 'SELECT') AS anyone`,
+        ),
+      ).toEqual([{ app_read: false, app_write: false, app_sweep: false, anyone: false }]);
+      await expect(db.outsider.query("SELECT * FROM public.full_name_allow")).rejects.toThrow(
+        /permission denied/,
+      );
+      await expect(
+        db.app.query("INSERT INTO full_name_allow (word, language) VALUES ('shit', 'en')"),
+      ).rejects.toThrow(/permission denied/);
+    });
+  });
+
+  describe("where other players read a name", () => {
+    it("flags a name as it is written, and the read gives no flagged name and checks nothing else", async () => {
+      const { event, field } = await shownEvent();
       const clean = await member(event.id, field, "Sara Ahmed");
       const stored = await member(event.id, field, "Bastard Khan");
-      const later = await member(event.id, field, "Zorvex Omar");
-      const all = [clean, stored, later].map((one) => one.enrollment);
+      const company = await addField(event.id, "company", 1);
+      await owner(
+        `INSERT INTO join_answer (enrollment_id, field_id, organizer_id, event_id, value) VALUES ($1, $2, $3, $4, 'Bastard Ltd')`,
+        [clean.enrollment, company, ids.orgA, event.id],
+      );
+      expect(
+        await owner(
+          "SELECT field_id = $2 AS name, name_blocked FROM join_answer WHERE enrollment_id = ANY ($1) ORDER BY 1, 2",
+          [[clean.enrollment, stored.enrollment], field],
+        ),
+      ).toEqual([
+        { name: false, name_blocked: false },
+        { name: true, name_blocked: false },
+        { name: true, name_blocked: true },
+      ]);
       const seen = () =>
         as<{ enrollment_id: string; full_name: string }>(
           { playerId: clean.player },
           "SELECT enrollment_id, full_name FROM ranking_names($1, $2::uuid[]) ORDER BY full_name",
-          [event.id, all],
+          [event.id, [clean.enrollment, stored.enrollment]],
         );
-      expect(await seen()).toEqual([
-        { enrollment_id: clean.enrollment, full_name: "Sara Ahmed" },
-        { enrollment_id: later.enrollment, full_name: "Zorvex Omar" },
-      ]);
-      await owner(
-        "INSERT INTO username_word (word, match, language) VALUES ('zorvex', 'word', 'en')",
-      );
       expect(await seen()).toEqual([{ enrollment_id: clean.enrollment, full_name: "Sara Ahmed" }]);
+      // The read runs no check: the flag alone decides.
+      await owner(
+        "UPDATE join_answer SET name_blocked = NOT name_blocked WHERE enrollment_id = ANY ($1) AND field_id = $2",
+        [[clean.enrollment, stored.enrollment], field],
+      );
+      expect(await seen()).toEqual([
+        { enrollment_id: stored.enrollment, full_name: "Bastard Khan" },
+      ]);
     });
 
-    it("is internal: no grant on the check", async () => {
+    it("gives the big screen's part one key, or none for a flagged name", async () => {
+      const { event, field } = await shownEvent();
+      const clean = await member(event.id, field, "Sara Ahmed");
+      const stored = await member(event.id, field, "Bastard Khan");
+      expect(
+        await owner("SELECT full_name_part($1) AS clean, full_name_part($2) AS stored", [
+          clean.enrollment,
+          stored.enrollment,
+        ]),
+      ).toEqual([{ clean: { fullName: "Sara Ahmed" }, stored: {} }]);
+    });
+
+    it("hides stored names when the console adds a word and shows them again when it is removed", async () => {
+      const { event, field } = await shownEvent();
+      const later = await member(event.id, field, "Zorvex Omar");
+      const other = await member(event.id, field, "Omar Zorvexian");
+      expect([await flagOf(later.enrollment), await flagOf(other.enrollment)]).toEqual([
+        false,
+        false,
+      ]);
+      expect(
+        await as(admin, "SELECT admin_word_add('zorvex', 'word', 'en', $1) AS r", [randomUUID()]),
+      ).toEqual([{ r: "added" }]);
+      expect([await flagOf(later.enrollment), await flagOf(other.enrollment)]).toEqual([
+        true,
+        false,
+      ]);
+      expect(await owner("SELECT pending FROM full_name_recheck")).toEqual([{ pending: false }]);
+      expect(
+        await as(admin, "SELECT admin_word_remove('zorvex', $1) AS r", [randomUUID()]),
+      ).toEqual([{ r: "removed" }]);
+      expect(await flagOf(later.enrollment)).toBe(false);
+    });
+
+    it("sweeps in pages from the stored key, and a list change starts it again", async () => {
+      const { event, field } = await shownEvent();
+      const names = [];
+      for (const name of ["Qorvane One", "Qorvane Two", "Qorvane Three"]) {
+        names.push(await member(event.id, field, name));
+      }
+      await owner(
+        "INSERT INTO username_word (word, match, language) VALUES ('qorvane', 'word', 'en')",
+      );
+      await owner(
+        "UPDATE full_name_recheck SET pending = true, after_enrollment = NULL, after_field = NULL",
+      );
+      const total =
+        (
+          await owner<{ n: number }>(
+            "SELECT count(*)::int AS n FROM join_answer a JOIN event_join_field f ON f.id = a.field_id AND f.kind = 'full_name'",
+          )
+        )[0]?.n ?? 0;
+      let pages = 0;
+      let checked = 0;
+      for (;;) {
+        const [page] = await as<{ n: number }>({}, "SELECT name_flag_sweep(2) AS n");
+        pages += 1;
+        checked += page?.n ?? 0;
+        if ((page?.n ?? 0) < 2) {
+          break;
+        }
+      }
+      expect(checked).toBe(total);
+      expect(pages).toBe(Math.floor(total / 2) + 1);
+      expect(await owner("SELECT pending, after_enrollment FROM full_name_recheck")).toEqual([
+        { pending: false, after_enrollment: null },
+      ]);
+      for (const one of names) {
+        expect(await flagOf(one.enrollment)).toBe(true);
+      }
+      expect(await as<{ n: number }>({}, "SELECT name_flag_sweep(2) AS n")).toEqual([{ n: 0 }]);
+      // A list change in the middle of a sweep starts it again from the first page.
+      await owner(
+        "UPDATE full_name_recheck SET pending = true, after_enrollment = NULL, after_field = NULL",
+      );
+      await as({}, "SELECT name_flag_sweep(2)");
+      expect(
+        await owner("SELECT after_enrollment IS NOT NULL AS mid FROM full_name_recheck"),
+      ).toEqual([{ mid: true }]);
+      await owner("DELETE FROM username_word WHERE word = 'qorvane'");
+      await owner("SELECT full_name_recheck_start()");
+      expect(await owner("SELECT pending, after_enrollment FROM full_name_recheck")).toEqual([
+        { pending: false, after_enrollment: null },
+      ]);
+      for (const one of names) {
+        expect(await flagOf(one.enrollment)).toBe(false);
+      }
+    });
+
+    it("is internal, but for the sweep's door: the API's role runs only name_flag_sweep", async () => {
       expect(
         await owner(
-          `SELECT has_function_privilege('questify_app', 'full_name_blocked(text)', 'EXECUTE') AS app,
-                  has_function_privilege('public', 'full_name_blocked(text)', 'EXECUTE') AS anyone`,
+          `SELECT p.proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+                  has_function_privilege('public', p.oid, 'EXECUTE') AS anyone
+           FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace
+             AND p.proname IN ('full_name_blocked', 'full_name_fold', 'join_answer_name_flag', 'full_name_recheck_start',
+                               'name_flag_sweep')
+           ORDER BY p.proname`,
         ),
-      ).toEqual([{ app: false, anyone: false }]);
+      ).toEqual([
+        { proname: "full_name_blocked", app: false, anyone: false },
+        { proname: "full_name_fold", app: false, anyone: false },
+        { proname: "full_name_recheck_start", app: false, anyone: false },
+        { proname: "join_answer_name_flag", app: false, anyone: false },
+        { proname: "name_flag_sweep", app: true, anyone: false },
+      ]);
     });
   });
 });

@@ -8699,23 +8699,50 @@ up-front `SHARE` locks stop every writer of those tables until it commits: an AP
 0172 held those locks 2.9 s at this size; at ten times the rows it would be about ten times that (an extrapolation, not measured).
 That is safe on staging, where no live event runs; on production such a file needs a quiet window.
 
-## ADR-817 - FOLLOWUPS batch 23: the username word lists check a full name at the join and where other players read it
+## ADR-817 - FOLLOWUPS batch 23: the username word lists check a full name at the join, and a stored flag hides it where other players read it
 
-**Status:** Proposed (FOLLOWUPS batch 23, 2026-11-08; Q-754). Narrows the trade-off of ADR-400 ("unlike a username it is not filtered").
-**Decision:** migration 0177 adds `full_name_blocked(name)` (internal, no grant): the name as other players would see it
-(`display_name_text`), Arabic marks and tatweel dropped, folded like a username (`username_fold`), every run of characters a username
-cannot hold made a separator, then the word-list half of `username_blocked` unchanged (a `word` entry matches a whole word; a `part`
-entry matches with separators and digits removed, or with the digit spellings read as letters). (1) **At the join**:
-`check_join_answers` refuses a Full name answer that fails, JA422 with DETAIL `name:<field id>`; the API answers 422
-`invalid_join_answers` with `details.field` (the same code, so today's app points at the field) and its own text, "That name can't be
-used. Enter another name." / «لا يمكن استخدام هذا الاسم. أدخل اسمًا آخر.». Nothing is enrolled. (2) **Names stored before**, or that
-fail once a word is added to the lists later: `public_full_name` gives no name, so the player shows by username in the ranking, the
-revealed results and the big screen. The staff read (`staff_full_name`, the operator's scan, the prize desk) is unchanged: the team
-already receives the answer as typed.
-**Not refused:** a name for being Arabic, short, marked, a real person's name, or a username an admin retired (`username_retired` is
-for usernames). Only the lists decide, as for usernames.
-**Why both points:** the join check tells the player while they can still change the name; the read check is the guarantee, since a
-returning player keeps the answers given before (T-220) and the console's word-list page can add a word at any time.
-**Trade-offs:** a `part` entry matches across the spaces of a full name as it does across the `_` of a username, so a real name could
-in principle be refused where two words meet; the console can remove the entry (FR-1779). A player whose stored name is hidden is not
-told; they show by username. One more word-list read for each name another player reads, only for events that show names to everyone.
+**Status:** Proposed (FOLLOWUPS batch 23, 2026-11-08; reworked after the review scored the first version 72; Q-754). Narrows the
+trade-off of ADR-400 ("unlike a username it is not filtered").
+**Decision:** migration 0177. (1) **The check**, `full_name_blocked(name)` (internal, PL/pgSQL with no SET clause, so its two list
+reads keep one plan per connection and the name is folded once, not once per list row): the name other players see
+(`display_name_text`), `normalize(NFKC)` (full-width letters, Arabic presentation forms), NFD with combining marks and tatweel
+dropped and NFC again (a hamza stays on its letter), `username_fold`, then Persian and Urdu letters (ک ڪ→ك, ی ے ې→ي, ہ ە ھ ۀ ۃ→ه),
+Arabic-Indic digits and the Cyrillic and Greek letters that look Latin mapped (`full_name_fold`, a standard body, inlined). Spaces,
+punctuation and symbols separate words. Then, word by word: a `word` entry matches a whole word (split at digits); a `part` entry
+matches inside one word only, digits removed or read as letters, never across a space; letters spelled out one by one ("f u c k",
+"ك س") are read joined; a word in `full_name_allow` (41 seeded name words: اسحاق, butt, dick, poon, kike, hooker, yamashita,
+harshit, ishita, pornchai, ...; deny by default, no grant, edited by migration) is skipped. PostgreSQL 17.11, UTF8: `normalize()`
+needs a UTF8 database, which every Questify database is. (2) **At the join**: `check_join_answers` refuses a Full name answer that
+fails, JA422 `name:<field id>`; the API answers 422 `invalid_join_answers` with `details.field` and "That name can't be used. Enter
+another name." / «لا يمكن استخدام هذا الاسم. أدخل اسمًا آخر.», and the app shows those words under the field (also after sign-in,
+which now keeps the field). (3) **The stored flag**: `join_answer.name_blocked` (false by default), set by the same check in a
+trigger as an answer is written, backfilled by the migration, and set again by a sweep after the console adds or removes a word:
+`admin_word_add` and `admin_word_remove` take the lists' advisory key, mark the sweep row (`full_name_recheck`) pending and run its door `name_flag_sweep` for
+first page of 2,000 answers; the lifecycle tick runs the rest, a page per transaction, about 2 s a run. A join's answer trigger takes
+the same key shared, so an answer written during a list change waits for it and is checked against the new lists.
+`public_full_name` reads the flag and runs no check; `full_name_part` calls it once (`jsonb_strip_nulls`). The staff read
+(`staff_full_name`) is unchanged.
+**Measured** (`test/perf/full-name-timing.int.test.ts`; PostgreSQL 17.11 shared test container, load average 2 to 3; one event of
+2,000 players all showing full names, 102,001 Full name answers in all, 100 revealed places, a page of 11 ids; median of 30
+`EXPLAIN (ANALYZE, BUFFERS)` runs, the three versions by turns):
+
+| Read | 0176 | first 0177 | 0177 now |
+|---|---|---|---|
+| `ranking_names` | 9.37 ms, 378 buffers | 411.63 ms, 486 | 8.81 ms, 378 |
+| `screen_ranking` (top ten) | 38.83 ms, 1,219 | 439.56 ms, 1,256 | 22.41 ms, 742 (one call of the name a row) |
+| `event_results` (100 places) | 30.28 ms, 1,808 | 1,950.22 ms, 2,208 | 31.28 ms, 1,808 |
+
+ADR-766's gate (+0.5 ms or +10%) holds for all three: the buffers are equal or fewer; `event_results`' +1.0 ms (+3.3%) is within
+noise (the run before gave 29.01 to 28.77 ms, the same 1,797 buffers each). The check itself: 0.30 ms a call (2,000 calls 604 ms),
+against 2.6 ms for `username_blocked` on the same copy. The backfill: 28.2 s for 102,001 answers (about 0.28 ms each), during which
+ADD COLUMN holds `join_answer` locked and joins wait; staging holds a handful, so a large database needs a quiet window. The sweep:
+52 pages, 583 ms a page median, 30 s in all for 102,001 answers; the console door waits for its one page (under a second).
+**Corpus** (`test/db/full-name-corpus.ts`): 210 common Arabic, Gulf, South Asian, Filipino, East Asian, Western, Persian and Urdu
+full names pass; 28 abusive names are refused, among them `fυck` (Greek), `fuсk` (Cyrillic), `ｆｕｃｋ`, `fück`, `ﻛﺲ`, `کس`. The first
+version refused 54 of the 210 and let 11 of the 28 through. Without the allow-list the new check refuses 45 of the 210.
+**Not refused:** a name for being Arabic, short, marked, a real person's name, or a username an admin retired.
+**Trade-offs:** a list word split across two words or by punctuation ("fu ck", "fu-ck") passes; a name made of allow-list words
+("Dick Butt") passes; any real name holding a list word not on the allow-list is still refused, and Indian and Japanese names hold
+"shit" often. After a list change a hidden or shown name lags by the sweep (seconds at today's size, about 5 minutes at 100,000
+answers). A player whose stored name becomes hidden is not told and cannot change it (no answer-edit route, and a rejoin keeps old
+answers, T-220): Q-754 asks Dhia.

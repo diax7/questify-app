@@ -27,6 +27,7 @@ import {
 } from "#src/join/join-api.ts";
 import { CardReceives } from "#src/join/CardReceives.tsx";
 import { JoinForm } from "#src/join/JoinForm.tsx";
+import { pointAtMissing, refusalFromParams, refusalOf, type Pointed } from "#src/join/pointed.ts";
 import { isInEvent, joinedResult, type JoinResult } from "#src/join/join-result.ts";
 import { RehearsalJoin } from "#src/join/RehearsalJoin.tsx";
 import { openJoinedEvent } from "#src/onboarding/open-joined.ts";
@@ -99,6 +100,8 @@ type JoinParams = Readonly<{
   outcome?: string;
   problemAr?: string;
   problemEn?: string;
+  /** The field a refusal after sign-in points at (its words then show under it). */
+  problemField?: string;
   welcome?: string;
 }>;
 
@@ -110,14 +113,11 @@ function useJoinFlow(params: JoinParams, code: string, cardState: ReturnType<typ
   const [result, setResult] = useState<Outcome | undefined>(
     isOutcome(params.outcome) ? params.outcome : undefined,
   );
-  const [problem, setProblem] = useState<LocalizedText | null>(
-    params.problemAr !== undefined && params.problemEn !== undefined
-      ? { ar: params.problemAr, en: params.problemEn }
-      : null,
-  );
+  const [opening] = useState(() => refusalFromParams(params));
+  const [problem, setProblem] = useState<LocalizedText | null>(opening.problem);
   const [welcome, setWelcome] = useState(welcomeOf(params.welcome));
   const [typed, setTyped] = useState<Typed>(() => heldAnswers(code) ?? {});
-  const [pointed, setPointed] = useState<string | undefined>(undefined);
+  const [pointed, setPointed] = useState<Pointed | undefined>(opening.pointed);
   const [busy, setBusy] = useState(false);
 
   const showOutcome = (outcome: JoinOutcome) => {
@@ -130,8 +130,9 @@ function useJoinFlow(params: JoinParams, code: string, cardState: ReturnType<typ
       // The fields may have changed with it.
       void load();
     } else if (outcome.kind === "invalid_answers") {
-      setPointed(outcome.field ?? undefined);
-      setProblem(outcome.problem);
+      const refusal = refusalOf(outcome);
+      setPointed(refusal.pointed);
+      setProblem(refusal.problem);
     } else if (outcome.kind === "refused" && outcome.code === "event_full") {
       // FR-1821: say it is full and offer the waiting list in place of Join.
       setResult("full");
@@ -151,7 +152,7 @@ function useJoinFlow(params: JoinParams, code: string, cardState: ReturnType<typ
     }
     const fields = answer.event.join.fields;
     const missing = firstMissing(fields, typed);
-    setPointed(missing);
+    setPointed(pointAtMissing(missing));
     if (missing !== undefined) {
       return;
     }

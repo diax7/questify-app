@@ -5,6 +5,7 @@ import { Field } from "#src/components/Controls.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { ANSWER_MAX, type Typed } from "#src/join/answers.ts";
 import type { JoinField, JoinRules } from "#src/join/join-api.ts";
+import { pointedText, type Pointed } from "#src/join/pointed.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** A choice field (ADR-171): one option picked from the organizer's list, as radio buttons. */
@@ -55,7 +56,8 @@ const makeStyles = (theme: Theme) => ({
 
 /**
  * What the card says about joining (T-212): the locks in plain words, the welcome amount, and the join fields with
- * their required marks (FR-130). `pointed` is the field the app or the API says needs filling.
+ * their required marks (FR-130). `pointed` is the field the app or the API points at: under it, the API's words for it
+ * (a refused name, ADR-817), else "Fill in this field to join."
  */
 export function JoinForm({
   rules,
@@ -67,7 +69,7 @@ export function JoinForm({
   rules: JoinRules;
   typed: Typed;
   onType: (typed: Typed) => void;
-  pointed: string | undefined;
+  pointed: Pointed | undefined;
   /** An invited player passes both locks, so their card leaves them out. */
   showLocks?: boolean;
 }>) {
@@ -91,6 +93,7 @@ export function JoinForm({
       {rules.fields.map((field) => {
         const name = joinFieldLabel(field, language);
         const label = field.required ? name : `${name} ${t("joinCard.optional")}`;
+        const said = pointedText(pointed, field.id, language, t("joinCard.fillField"));
         return (
           <View key={field.id} style={{ gap: 4 }}>
             {field.options === null ? (
@@ -101,7 +104,7 @@ export function JoinForm({
                 autoComplete={field.kind === "full_name" ? "name" : "off"}
                 textContentType={field.kind === "full_name" ? "name" : "none"}
                 onChangeText={(value) => onType({ ...typed, [field.id]: value })}
-                accessibilityHint={pointed === field.id ? t("joinCard.fillField") : undefined}
+                accessibilityHint={said}
               />
             ) : (
               <ChoiceField
@@ -111,9 +114,7 @@ export function JoinForm({
                 onChoose={(id) => onType({ ...typed, [field.id]: id })}
               />
             )}
-            {pointed === field.id ? (
-              <AppText accessibilityRole="alert">{t("joinCard.fillField")}</AppText>
-            ) : null}
+            {said === undefined ? null : <AppText accessibilityRole="alert">{said}</AppText>}
           </View>
         );
       })}

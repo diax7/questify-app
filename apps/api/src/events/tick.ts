@@ -3,6 +3,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { trackRun } from "#src/telemetry/runs";
 import { closeDueRounds } from "#src/plays/games";
+import { sweepNameFlags } from "#src/join/name-recheck";
 import { finishDueQuizzes } from "#src/plays/quizzes";
 import { wipeDueRehearsals } from "#src/rehearsal/service";
 import { expireReservations } from "#src/rewards/shop";
@@ -46,7 +47,8 @@ const counted =
  * tickets go 90 days after the later of their event's end and their sending (Q-210); handled content reports go 180
  * days after handling (T-705b); a cheers moment's cheers go 3 days after it ended, one event and 5,000 a run (T-509,
  * ADR-737); owner email changes past their hour expire and closed ones lose their addresses after 180 days, finished
- * team alerts go after 30 (T-701b); last, ended events whose holds, tickets and results are settled are archived
+ * team alerts go after 30 (T-701b); the stored name answers are checked again after a word-list change, pages for up to
+ * about 2 s a run (ADR-817); last, ended events whose holds, tickets and results are settled are archived
  * (T-411, ADR-337 (5)), after the steps that settle them.
  */
 const STEPS: readonly Step[] = [
@@ -95,6 +97,11 @@ const STEPS: readonly Step[] = [
     failed: "owner_email.purge_failed",
     done: "owner_email.purged",
     work: counted("SELECT owner_email_purge(1000) AS count"),
+  },
+  {
+    failed: "join.name_recheck_failed",
+    done: "join.names_rechecked",
+    work: (pool) => sweepNameFlags(pool),
   },
   {
     failed: "event.archive_failed",

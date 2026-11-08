@@ -2,15 +2,16 @@
 
 ## FOLLOWUPS batch 23 — 2026-11-08
 
-- **FOLLOWUPS batch 23 (tier B, API; migration 0177; ADR-817 Proposed, Q-754; one new string).** The T-615 follow-up: a full name
-  shown to every player now passes the username word lists. `full_name_blocked` (internal) folds the name as `username_blocked` does,
-  with spaces and punctuation read as `_`, Arabic marks and tatweel dropped, and checks the lists only (never the retired usernames).
-  At the join, `check_join_answers` refuses a failing Full name answer (JA422 `name:<field>`); `POST /v1/join` answers 422
-  `invalid_join_answers` with `details.field` and its own text («لا يمكن استخدام هذا الاسم. أدخل اسمًا آخر.» / "That name can't be
-  used. Enter another name.", ux-araby, the same voice as the username refusal), which the app already shows at the field. A name
-  stored before, or caught by a word added later, is hidden by `public_full_name`, so the player shows by username in the ranking,
-  the results and the big screen; the staff read is unchanged. Tests: `test/db/full-name-filter.int.test.ts` (5, fail without 0177)
-  and one HTTP case in `test/join/join-fields.int.test.ts`; the two name-reader lists name the new function. CI 0 minutes (not pushed).
+- **FOLLOWUPS batch 23 (tier B, API and app; migration 0177 rewritten before deploy; ADR-817 Proposed, Q-754; no new string).** The
+  T-615 follow-up: a full name shown to every player passes the username word lists. Reworked after the review (72, NO-GO):
+  `join_answer.name_blocked` is set by the check when an answer is written, backfilled, and swept again after a console list change
+  (`name_flag_sweep` over `full_name_recheck`, first page in the console door, the rest in the lifecycle tick), so `public_full_name` reads one boolean:
+  `ranking_names` 9.37 to 8.81 ms, `screen_ranking` 38.83 to 22.41 ms (the name called once), `event_results` 30.28 to 31.28 ms with
+  equal buffers (the first 0177: 412 ms, 440 ms, 1,950 ms). The check goes word by word, skips `full_name_allow` (41 name words),
+  and folds NFKC, accents, Persian letters and Cyrillic and Greek look-alikes first: 210 real names pass (54 failed before), 28
+  abusive ones are refused, the six reported bypasses among them. The app shows the API's words under the refused field, also after
+  sign-in (`src/join/pointed.ts`). Tests: `test/db/full-name-filter.int.test.ts` (13, 9 fail on the first 0177), `pointed.test.ts`
+  (4), the sweep's unit tests, `test/perf/full-name-timing.int.test.ts` (by hand). CI 0 minutes (not pushed).
 
 ## The layout check's stuck rehearsal read — 2026-11-08
 

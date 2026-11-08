@@ -388,7 +388,7 @@
   },
   "apps/app/app/invite/[eventId].tsx": {
     "<anonymous>": {
-      "complexity": [10]
+      "complexity": [9]
     },
     "InviteScreen": {
       "complexity": [13]
@@ -396,7 +396,7 @@
   },
   "apps/app/app/join/[code].tsx": {
     "<anonymous>": {
-      "complexity": [11]
+      "complexity": [10]
     },
     "JoinCardScreen": {
       "complexity": [19]
@@ -474,7 +474,7 @@
   },
   "apps/app/app/sign-in.tsx": {
     "<anonymous>": {
-      "complexity": [14]
+      "complexity": [11]
     }
   },
   "apps/app/src/account/contact-api.ts": {

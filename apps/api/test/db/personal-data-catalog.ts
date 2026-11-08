@@ -506,6 +506,15 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
     rows: E("enrollment_id"),
     why: PIDS,
   },
+  full_name_recheck: {
+    links: ["after_enrollment"],
+    export: {
+      excluded: "the full-name sweep's cursor, the last answer key it checked, no name (ADR-817)",
+    },
+    erasure: "keep",
+    rows: E("after_enrollment"),
+    why: PIDS,
+  },
   rank_top_snapshot: {
     links: ["enrollment_ids"],
     export: { excluded: "the last copy of the top-10 list, enrollment ids only (T-503)" },
@@ -673,6 +682,7 @@ const OPAQUE = "an opaque request, lease, cursor or batch id";
 /** Every FK-less `uuid`, `uuid[]` and `jsonb` column that is not a player link, with why (`table.column`). */
 export const NOT_PLAYER: Readonly<Record<string, string>> = {
   "announcement.created_by": ADMIN,
+  "full_name_recheck.after_field": "a join field's id in the sweep's cursor, never a player",
   "audit_log.after": "codes and ids only by rule; the audit assertion scans it after an erasure",
   "audit_log.before": "codes and ids only by rule; the audit assertion scans it after an erasure",
   "audit_log.event_id": ORG,

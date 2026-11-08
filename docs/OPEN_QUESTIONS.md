@@ -3028,9 +3028,21 @@ the up-front `LOCK TABLE` lines, which would otherwise stop writers for nothing.
 
 ## Q-754 - Should the username word lists check a Full name answer, and where? (ADR-817)
 
-**Status:** Open. Recommended option taken in FOLLOWUPS batch 23; the coordinator decides after the review.
+**Status:** Open. Recommended option taken in FOLLOWUPS batch 23; the coordinator decides the technical part after the review.
+The question for Dhia is the last paragraph.
 **Question:** a full name shown to every player is free text (ADR-400). Options: (a) refuse it at the join only; (b) hide a failing
 name where other players read it only; (c) both. **Recommended: (c)**, with the username lists and folding and nothing else: the join
-says so while the player can change it ("That name can't be used. Enter another name."), and the read hides a name stored before the
-check or caught by a word added later, so no listed word reaches the ranking, the results or the big screen. The staff still see the
-answer as typed. Left open: whether a player whose stored name is hidden should be told (today they show by username, silently).
+says so while the player can change it ("That name can't be used. Enter another name."), and a stored name caught by a word added
+later is flagged and hidden, so no listed word reaches the ranking, the results or the big screen. The staff still see the answer as
+typed.
+**Real names a list can refuse (review of the first version, 2026-11-08).** The lists were made for usernames. On full names the first
+version refused, inside one word: «إسحاق», «يوسف إسحاق», Yamashita, Kinoshita, Wankhede, Atwater, Pornchai; across two words: «ملاك
+سمير», «مبارك سمير», «عبدالملك سميح», «عبّاس كسّاب», Anas Lutfi, Ilyas Lutfy, Yunus Hitti, Abbas Hitti; and whole words that are list
+entries: Ali Butt, Dick Smith, Kevin Poon, Kike Garcia, Hooker. The rewrite checks word by word and skips an allow-list of name words
+(`full_name_allow`, 41 seeded), and a corpus of 210 common names passes (ADR-817), but any name holding a list word that is not on
+the allow-list is still refused, and common Indian and Japanese names hold "shit" often (Harshit, Ishita, Yoshitaka).
+**For Dhia:** a player whose stored name becomes hidden (a word added to the lists later) is not told and cannot change it: there
+is no answer-edit route, and a rejoin keeps the answers given before (T-220). They show by username in the ranking, the results
+and the big screen, while the staff still see the name. Is that acceptable, or should such a player be told and allowed to give
+another name (a notice and an answer-edit flow, a separate task)? Recommended for now: accept it, since only an admin's list change
+causes it and the allow-list can be widened by a migration.

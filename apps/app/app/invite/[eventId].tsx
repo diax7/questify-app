@@ -18,6 +18,7 @@ import {
 } from "#src/join/join-api.ts";
 import { isInEvent, joinedResult, type Joined } from "#src/join/join-result.ts";
 import { JoinForm } from "#src/join/JoinForm.tsx";
+import { pointAtMissing, refusalOf, type Pointed } from "#src/join/pointed.ts";
 import { openJoinedEvent } from "#src/onboarding/open-joined.ts";
 import { PushExplainer, useJoinExplainer } from "#src/push/PushExplainer.tsx";
 import { WelcomeReward } from "#src/join/WelcomeReward.tsx";
@@ -79,7 +80,7 @@ export default function InviteScreen() {
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
   const { loaded, load } = useInvitation(String(eventId));
   const [typed, setTyped] = useState<Typed>({});
-  const [pointed, setPointed] = useState<string | undefined>(undefined);
+  const [pointed, setPointed] = useState<Pointed | undefined>(undefined);
   const [problem, setProblem] = useState<LocalizedText | null>(null);
   const [joined, setJoined] = useState<Joined | undefined>();
   const [busy, setBusy] = useState(false);
@@ -108,7 +109,7 @@ export default function InviteScreen() {
 
   const tapJoin = async (waitlist = false) => {
     const missing = firstMissing(event.join.fields, typed);
-    setPointed(missing);
+    setPointed(pointAtMissing(missing));
     if (missing !== undefined) {
       return;
     }
@@ -129,8 +130,8 @@ export default function InviteScreen() {
     if (outcome.kind === "joined") {
       setJoined(outcome);
     } else if (outcome.kind === "invalid_answers") {
-      setPointed(outcome.field ?? undefined);
-      setProblem(outcome.problem);
+      setPointed(refusalOf(outcome).pointed);
+      setProblem(refusalOf(outcome).problem);
     } else if (outcome.kind === "refused") {
       setProblem(outcome.problem);
     } else if (outcome.kind === "stale") {

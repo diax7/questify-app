@@ -111,6 +111,8 @@ const PLAYER_NAME_READS: Readonly<Record<string, string>> = {
   xp_board_row: `${HELPER} (xp_board_json masks it; the admin season views have no reader)`,
   full_name_blocked:
     "check: whether a full name holds a word from the username lists, answers no name (ADR-817)",
+  join_answer_name_flag:
+    "check: the trigger that sets a Full name answer's flag from the username lists, answers no name (ADR-817)",
   full_name_part: `${HELPER} (the big screen)`,
   names_part: `${HELPER} (the big screen)`,
   screen_finale: SCREEN,

@@ -37,6 +37,7 @@ import { useI18n } from "#src/i18n/provider.tsx";
 import { pendingInviteOf } from "#src/operator/station.ts";
 import { forgetAnswers, heldAnswers } from "#src/join/answers.ts";
 import { joinEvent } from "#src/join/join-api.ts";
+import { refusalParams } from "#src/join/pointed.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** Each avatar's name in the message table. */
@@ -336,9 +337,8 @@ export default function SignInScreen() {
           : outcome.kind === "stale" || outcome.kind === "network"
             ? outcome.kind
             : undefined;
-      // A refusal (ended, way turned off, not allowed, an answer missing) is shown at once, in the API's own words.
-      const problem =
-        outcome.kind === "refused" || outcome.kind === "invalid_answers" ? outcome.problem : null;
+      // A refusal (ended, way turned off, not allowed, an answer missing or refused) is shown at once, in the API's own
+      // words, under the field it points at when it names one.
       const welcome = outcome.kind === "joined" && outcome.welcome > 0 ? outcome.welcome : 0;
       router.replace({
         pathname: "/join/[code]",
@@ -346,7 +346,7 @@ export default function SignInScreen() {
           code: state.join.code,
           via: state.join.via,
           ...(shown === undefined ? {} : { outcome: shown }),
-          ...(problem === null ? {} : { problemAr: problem.ar, problemEn: problem.en }),
+          ...refusalParams(outcome),
           ...(welcome === 0 ? {} : { welcome: String(welcome) }),
         },
       });

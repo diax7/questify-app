@@ -1118,6 +1118,10 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; written by a trigger on player and read by the console later (test/db/usernames)",
   username_word:
     "no right for the API role at all; read by the username check inside the definers (test/db/usernames)",
+  full_name_allow:
+    "no right for the API role at all; Questify-wide name words the full-name check skips, no player id; seeded by migration, read by full_name_blocked inside the definers (test/db/full-name-filter)",
+  full_name_recheck:
+    "no right for the API role at all; one Questify-wide sweep row holding an answer key and no name; written by the list doors and full_name_recheck (test/db/full-name-filter)",
   username_retired:
     "no right for the API role at all; holds no player id; written by admin_rename_player, read by the username check inside the definers (test/db/console-players)",
   player_admin_action:
