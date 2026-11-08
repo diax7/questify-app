@@ -3028,7 +3028,7 @@ the up-front `LOCK TABLE` lines, which would otherwise stop writers for nothing.
 
 ## Q-754 - Should the username word lists check a Full name answer, and where? (ADR-817)
 
-**Status:** Open. Recommended option taken in FOLLOWUPS batch 23; the coordinator decides the technical part after the review.
+**Status:** Decided (Dhia, 2026-11-08, AskUserQuestion): in full names, blocked words match whole words only (Siriporn, Shittu and the like pass; usernames keep the stricter rule); «Kike» stays allow-listed.
 The question for Dhia is the last paragraph.
 **Question:** a full name shown to every player is free text (ADR-400). Options: (a) refuse it at the join only; (b) hide a failing
 name where other players read it only; (c) both. **Recommended: (c)**, with the username lists and folding and nothing else: the join

@@ -140,7 +140,7 @@ Addresses: https://questify.nafes.com and https://questify-api-staging-3ez01s.cr
 
 ## Where things stand
 
-Staging is live at `release-20261107-9`, migration 0176. No pull request is open; GitHub holds only `main` and
+Staging is live at `release-20261108-1`, migration 0177. No pull request is open; GitHub holds only `main` and
 `t-810d-console-hostname`. Tasks: 186 done, 33 open. See STATE.md. Migration number 0156 is reserved by the unmerged T-810d branch, `t-810d-console-hostname`; the runner
 tolerates the gap.
 
