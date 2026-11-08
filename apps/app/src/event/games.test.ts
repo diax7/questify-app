@@ -255,6 +255,12 @@ describe("a round's result", () => {
     expect(resultAnswerOf(ok({ verdict: "passed", points: 40, result: {} }))).toMatchObject({
       streakBonus: null,
     });
+    expect(
+      resultAnswerOf(ok({ verdict: "passed", points: 0, replayed: true, result: {} })),
+    ).toMatchObject({ kind: "passed", points: 0, replayed: true });
+    expect(resultAnswerOf(ok({ verdict: "passed", points: 40, result: {} }))).toMatchObject({
+      replayed: false,
+    });
     expect(resultAnswerOf(ok({ verdict: "done" }))).toEqual({ kind: "done" });
     expect(
       resultAnswerOf(
@@ -312,6 +318,7 @@ describe("a round's result", () => {
           kind: "passed",
           result: {},
           points: 40,
+          replayed: false,
           levelUp: null,
           bonus: null,
           item: null,
@@ -323,6 +330,22 @@ describe("a round's result", () => {
         "en",
       ),
     ).toContain("40");
+    const passed = {
+      kind: "passed" as const,
+      result: {},
+      points: 0,
+      replayed: true,
+      levelUp: null,
+      bonus: null,
+      item: null,
+      boost: null,
+      firstBonus: null,
+      streakBonus: null,
+    };
+    expect(resultLine(en, passed, DEFAULT_TERMS, "en")).toBe("Already recorded");
+    expect(resultLine(tIn("ar"), passed, DEFAULT_TERMS, "ar")).toBe("سجّلنا هذا من قبل");
+    expect(resultLine(en, { ...passed, points: 40 }, DEFAULT_TERMS, "en")).toBe("+40 points");
+    expect(resultLine(en, { ...passed, replayed: false }, DEFAULT_TERMS, "en")).toBe("+0 points");
     expect(resultLine(en, { kind: "done" }, DEFAULT_TERMS, "en")).toBe(
       "Passed. This quest was already complete.",
     );

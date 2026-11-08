@@ -5,7 +5,7 @@ import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button, Problem } from "#src/components/Controls.tsx";
-import { paidText } from "#src/event/amount.ts";
+import { shareSaid } from "#src/event/play-words.ts";
 import { useTerms } from "#src/event/EventContext.tsx";
 import type { Quest } from "#src/event/quests-api.ts";
 import {
@@ -57,7 +57,7 @@ export function ShareEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: (
     const answer = await sendShare(api.session, quest.id, paidKey);
     setBusy(false);
     if (answer.kind === "voted") {
-      setSaid(`${t("play.share.thanks")} ${paidText(t, terms, language, answer)}`);
+      setSaid(shareSaid(t, terms, language, answer));
       onPaid();
       await load();
     } else if (answer.kind === "refused") {

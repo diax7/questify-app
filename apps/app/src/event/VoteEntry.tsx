@@ -4,7 +4,7 @@ import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button, Problem } from "#src/components/Controls.tsx";
-import { paidText } from "#src/event/amount.ts";
+import { voteSaid } from "#src/event/play-words.ts";
 import { ChoiceList } from "#src/event/ChoiceList.tsx";
 import { useTerms } from "#src/event/EventContext.tsx";
 import { PollEntry } from "#src/event/PollEntry.tsx";
@@ -88,7 +88,7 @@ function PlainVote({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: () => voi
     const answer = await castVote(api.session, quest.id, [option], key);
     setBusy(false);
     if (answer.kind === "voted") {
-      setSaid(`${t("play.vote.recorded")} ${paidText(t, terms, language, answer)}`);
+      setSaid(voteSaid(t, terms, language, answer));
       onPaid();
       await load();
       return;

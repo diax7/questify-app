@@ -75,6 +75,7 @@ describe("the survey form (T-303, FR-214)", () => {
     expect(surveyPaidOf(ok({ points: 20, levelUp: null }))).toEqual({
       kind: "voted",
       points: 20,
+      replayed: false,
       levelUp: null,
       bonus: null,
       item: null,

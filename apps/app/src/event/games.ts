@@ -176,6 +176,8 @@ export type ResultAnswer =
       kind: "passed";
       result: unknown;
       points: number;
+      /** The server answered a stored key again (a lost-response retry): a 0-point one is "already recorded". */
+      replayed: boolean;
       levelUp: LevelUp | null;
       bonus: Bonus | null;
       item: ItemGiven | null;
@@ -202,6 +204,7 @@ function sentOf(body: Record<string, unknown>): ResultAnswer {
         kind: "passed",
         result: body["result"],
         points: typeof body["points"] === "number" ? body["points"] : 0,
+        replayed: body["replayed"] === true,
         levelUp: levelUpOf(body["levelUp"]),
         bonus: bonusOf(body["bonus"]),
         item: itemGivenOf(body["item"]),

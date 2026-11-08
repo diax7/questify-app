@@ -9,12 +9,14 @@ import { describe, expect, it } from "vitest";
 import {
   amountLabel,
   bonusLine,
+  completedOutcome,
   completedText,
   headlineText,
   isRecordedAgain,
   itemLine,
   knownIcon,
   paidText,
+  playText,
 } from "#src/event/amount.ts";
 
 const translate = createTranslator(MESSAGES);
@@ -167,5 +169,66 @@ describe("isRecordedAgain", () => {
     expect(headlineText(tIn("en"), GEMS, "en", { replayed: false, points: 0 })).toBe("+0 gems");
     expect(tIn("en")("scanner.alreadyRecorded")).toBe("Already recorded");
     expect(tIn("ar")("scanner.alreadyRecorded")).toBe("سجّلنا هذا من قبل");
+  });
+});
+
+describe("completedOutcome", () => {
+  const completed = {
+    kind: "completed" as const,
+    points: 10,
+    score: 10,
+    replayed: false,
+    levelUp: null,
+    bonus: null,
+    item: null,
+    boost: null,
+    firstBonus: null,
+    streakBonus: null,
+  };
+  const levelUp = { level: 3, title: { ar: "مغامر", en: "Adventurer" } };
+
+  it("says the points of a first award, in both languages", () => {
+    expect(completedOutcome(completed, tIn("en"), "en", GEMS)).toBe("+10 gems");
+    expect(completedOutcome(completed, tIn("ar"), "ar", GEMS)).toBe("جواهر: ‎+10");
+  });
+
+  it("says a replay that paid nothing is already recorded, not +0, whatever else came with it", () => {
+    const again = { ...completed, points: 0, replayed: true };
+    expect(completedOutcome(again, tIn("en"), "en", GEMS)).toBe("Already recorded");
+    expect(completedOutcome(again, tIn("ar"), "ar", GEMS)).toBe("سجّلنا هذا من قبل");
+    expect(completedOutcome({ ...again, levelUp }, tIn("en"), "en", GEMS)).toBe("Already recorded");
+  });
+
+  it("keeps a replay that paid showing its points, and a first 0-point award showing +0", () => {
+    expect(completedOutcome({ ...completed, replayed: true }, tIn("en"), "en", GEMS)).toBe(
+      "+10 gems",
+    );
+    expect(completedOutcome({ ...completed, points: 0 }, tIn("en"), "en", GEMS)).toBe("+0 gems");
+  });
+
+  it("adds the bonus and then the level reached after the points", () => {
+    const bonus = { points: 50, category: { ar: null, en: "Stage" }, item: null };
+    const text = completedOutcome({ ...completed, bonus, levelUp }, tIn("en"), "en", GEMS);
+    expect(text.startsWith("+10 gems +50 bonus: Stage complete ")).toBe(true);
+    expect(text).toContain("Adventurer");
+  });
+});
+
+describe("playText", () => {
+  const paid = { points: 0, bonus: null, item: null, replayed: true };
+  const streakBonus = { points: 20, days: 4 };
+
+  it("says already recorded for a replay that paid nothing, even with a streak bonus on it", () => {
+    expect(playText(tIn("en"), GEMS, "en", paid)).toBe("Already recorded");
+    expect(playText(tIn("ar"), GEMS, "ar", paid)).toBe("سجّلنا هذا من قبل");
+    expect(playText(tIn("en"), GEMS, "en", { ...paid, streakBonus })).toBe("Already recorded");
+  });
+
+  it("keeps a first award and a replay that paid exactly as paidText says them", () => {
+    expect(playText(tIn("en"), GEMS, "en", { ...paid, replayed: false })).toBe("+0 gems");
+    expect(playText(tIn("en"), GEMS, "en", { ...paid, points: 10 })).toBe("+10 gems");
+    expect(playText(tIn("en"), GEMS, "en", { ...paid, points: 10, streakBonus })).toBe(
+      "+10 gems Streak day 4! +20",
+    );
   });
 });

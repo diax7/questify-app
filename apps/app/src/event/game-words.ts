@@ -8,7 +8,7 @@ import {
   type Language,
   type MessageKey,
 } from "@questify/shared";
-import { paidText } from "#src/event/amount.ts";
+import { playText } from "#src/event/amount.ts";
 import type { GameSheet, ResultAnswer, SheetAction } from "#src/event/games.ts";
 
 type Translate = (key: MessageKey, params?: Readonly<Record<string, string | number>>) => string;
@@ -103,7 +103,7 @@ export function resultLine(
 ): string {
   switch (answer.kind) {
     case "passed": {
-      const paid = paidText(t, terms, language, answer);
+      const paid = playText(t, terms, language, answer);
       return answer.levelUp === null
         ? paid
         : `${paid} ${levelUpMessage(t, language, answer.levelUp)}`;

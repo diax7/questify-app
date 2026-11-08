@@ -10,8 +10,15 @@ import {
   type StreakBonus,
 } from "@questify/shared";
 import { firstBonusLine, type FirstBonusPaid } from "#src/event/first-bonus.ts";
-import type { Bonus, Boosted, ItemGiven, ItemOutcome } from "#src/event/quests-api.ts";
+import type {
+  Bonus,
+  Boosted,
+  CompletionAnswer,
+  ItemGiven,
+  ItemOutcome,
+} from "#src/event/quests-api.ts";
 import { textIn } from "#src/i18n/text.ts";
+import { levelUpMessage } from "#src/questify/level.ts";
 import { streakBonusLine } from "#src/streaks/event-streak.ts";
 
 type Translate = (key: MessageKey, params?: Readonly<Record<string, string | number>>) => string;
@@ -132,4 +139,32 @@ export function paidText(
     lines.push(streakBonusLine(t, paid.streakBonus));
   }
   return lines.join(" ");
+}
+
+/** What a play's answer carries to be put in words: its pay, and whether the server answered a stored key again. */
+export type PlayPaid = Parameters<typeof paidText>[3] & Readonly<{ replayed: boolean }>;
+
+/** What a play (vote, survey, share, game) paid: "Already recorded" for a replay that paid nothing, else `paidText`. */
+export function playText(
+  t: Translate,
+  terms: EventTerms,
+  language: Language,
+  paid: PlayPaid,
+): string {
+  return isRecordedAgain(paid) ? t("scanner.alreadyRecorded") : paidText(t, terms, language, paid);
+}
+
+/** A completion in words; a replay that paid nothing is "Already recorded", not "+0". */
+export function completedOutcome(
+  answer: Extract<CompletionAnswer, { kind: "completed" }>,
+  t: Translate,
+  language: Language,
+  terms: EventTerms,
+): string {
+  if (isRecordedAgain(answer)) {
+    return t("scanner.alreadyRecorded");
+  }
+  const paid = paidText(t, terms, language, answer);
+  // FR-407: a level-up reached here (a typed code) is said in words; the scanner gives it its own beat.
+  return answer.levelUp === null ? paid : `${paid} ${levelUpMessage(t, language, answer.levelUp)}`;
 }

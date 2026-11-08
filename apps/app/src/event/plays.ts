@@ -55,6 +55,8 @@ export function voteViewOf(body: unknown): VoteView | undefined {
 export type Voted = Readonly<{
   kind: "voted";
   points: number;
+  /** The server answered a stored key again (a lost-response retry): a 0-point one is "already recorded". */
+  replayed: boolean;
   levelUp: LevelUp | null;
   /** The category bonus this vote paid (T-304), or null. */
   bonus: Bonus | null;
@@ -79,6 +81,7 @@ export function votedOf(answer: AuthedResult): Voted | PlayFailure {
   return {
     kind: "voted",
     points: body["points"],
+    replayed: body["replayed"] === true,
     levelUp: levelUpOf(body["levelUp"]),
     bonus: bonusOf(body["bonus"]),
     item: itemGivenOf(body["item"]),

@@ -72,6 +72,7 @@ describe("the vote", () => {
     expect(votedOf(ok({ points: 25, levelUp: null }))).toEqual({
       kind: "voted",
       points: 25,
+      replayed: false,
       levelUp: null,
       bonus: null,
       item: null,
@@ -91,6 +92,8 @@ describe("the vote", () => {
     expect(votedOf(ok({ points: 25, bonus: { categoryId: "c", ...bonus } }))).toMatchObject({
       bonus,
     });
+    expect(votedOf(ok({ points: 0, replayed: true }))).toMatchObject({ points: 0, replayed: true });
+    expect(votedOf(ok({ points: 0, replayed: "yes" }))).toMatchObject({ replayed: false });
     expect(votedOf(ok({}))).toEqual({ kind: "network" });
     expect(votedOf(refused)).toEqual({
       kind: "refused",

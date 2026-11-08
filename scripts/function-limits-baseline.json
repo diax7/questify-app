@@ -548,12 +548,9 @@
     }
   },
   "apps/app/src/event/PollEntry.tsx": {
-    "<anonymous>": {
-      "complexity": [9]
-    },
     "PollEntry": {
       "complexity": [17],
-      "lines": [108]
+      "lines": [102]
     }
   },
   "apps/app/src/event/QuestSheet.tsx": {
@@ -567,7 +564,7 @@
       "complexity": [14]
     },
     "outcomeText": {
-      "complexity": [19]
+      "complexity": [18]
     }
   },
   "apps/app/src/event/QuizEntry.tsx": {

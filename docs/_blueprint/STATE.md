@@ -54,6 +54,19 @@
   entries; the ADR-734 gate shows 9.92 ms old and 9.89 ms new. N+1 and selective fetching had nothing to apply, and one tie-breaker
   landed (`readOwnerOthers`). T-813 stays open: part 2 (items 5 to 10) is still running. CI 0 minutes (not pushed).
 
+## FOLLOWUPS batch 22 (player app) — 2026-11-08
+
+- **FOLLOWUPS batch 22, player app part (tier B, `apps/app` only; no API change, no migration, no new string).** A zero-point replay
+  that the server answered from a stored key now reads "Already recorded" (`scanner.alreadyRecorded`) everywhere a completion answer
+  shows paid points, not "+0": `PollEntry`, `ShareEntry`, `SurveyEntry`, `VoteEntry` and the game result (`game-words.ts`) go through
+  the new `playText` (`amount.ts`; `isRecordedAgain` then `paidText`), and each entry's choice of text is a pure function in
+  `play-words.ts` (`pollSaid`, `voteSaid`, `surveySaid`, `shareSaid`) with unit tests in both languages. The vote, survey, share and
+  game-result answers now carry `replayed` (the API already sent it). `scan-quest.tsx` plays the light impact, not the Success
+  buzz, on such a replay. `completedOutcome` moved from `QuestSheet.tsx` to `amount.ts` (no screen import, so it can be tested)
+  and has its own tests. First awards and replays that pay keep their points. Checked and left: `MeetEntry` (the passer's points
+  from the pass state, no replay flag), `QuizEntry` (`earned` is the quiz total), the operator `review.tsx` (the staff review's points)
+  and `SubmissionEntry` (shows no points). CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 21 — 2026-11-07
 
 - **FOLLOWUPS batch 21 (tier B, app, web and shared; no migration, no package change, no ADR, one new string).**
