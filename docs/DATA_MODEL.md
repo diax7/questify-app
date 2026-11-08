@@ -79,6 +79,11 @@ shithead, shitface) and 18 as `word` entries (dickhead, cocksucker, jackass, dum
 **they are there for full names**, which would pass them (more letters around the entry than its budget). A username holding
 one of the five already holds its part entry, so it does not change; a `word` compound refuses a username only when a token is
 the compound itself ("jackass", "dumbass_7"). Do not drop them as redundant. The recheck is marked pending.
+Migration 0180 (FOLLOWUPS batch 25, ADR-817): a run of `* ! @ $` between two letters or digits of a Latin word is also read as
+letters (* as u and as i, ! i, @ a, $ s, digits as before: f*ck, sh!t, a$$hole), and a run of 3 or more of one letter as 1 and
+as 2 (Fuuuck, asssshole; a run of 2 never changes); these readings only add forms and never count as an allow word.
+`full_name_fold` reads small capitals (ᴀ to ᴢ), ɑ ɡ ɩ ȷ, Cyrillic һ ӏ ү, Greek ς ϳ and Armenian ս օ հ as Latin letters. The
+recheck is marked pending.
 Migration 0118 (T-704): `reason` gains `admin` (a rename by `admin_rename_player`, not counted by the change limit), and
 `username_retired (fold PRIMARY KEY, retired_at)` holds a name an admin took away, folded, with no player id;
 `username_blocked` refuses a retired name to everyone (ADR-420). No grant.
@@ -253,7 +258,7 @@ for optional editor event limits (ADR-077). PII: names and emails of staff (via 
 | status | enum | draft, scheduled, live, ended, archived | no | Matches FR-1017 and the code; activation by Questify (ADR-076); rehearsal is a mode of a draft or scheduled event (ADR-080) |
 | player_limit_mode, player_limit | enum, int | hard/soft/none | no | |
 | add_ons | text[] | | no | Big screen, NFC, kiosks, sponsors, branding, invitations |
-| timezone, day_start_hour | text, int | default 4 | no | A real IANA zone (trigger against `pg_timezone_names`, migration 0009) |
+| timezone, day_start_hour | text, int | default 4 | no | A real IANA zone (trigger against `pg_timezone_names`, migration 0009; read from its copy `timezone_name (name PRIMARY KEY, loaded_for)`, taken again after each server restart, since 0180; no grant) |
 | kind | text | physical, virtual, workplace | no | Migration 0009 |
 | venue_ar, venue_en | text | ≤ 200 | no | Migration 0009 |
 | join_methods | text[] | ⊆ code, qr, link, public_list; ≥ 1; public_list only when access is public | no | Migration 0009 |

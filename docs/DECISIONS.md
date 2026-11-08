@@ -8876,3 +8876,24 @@ token fuk is refused. In a full name Nazi, Nazis, Hitler, h1tler, Retard, Retard
 is refused for the whole token only: nazi, nazis, retard, retards, retarded, fuk, hitler and fvck (h1tler_88, fvckboy
 too), but not every form: naziboy and fukyou pass (one token, not a list word), and fuks passes (a real name). Corpus 796
 real names (all pass; 26 added), 269 abusive (all refused; 19 added), 14 accepted passes.
+
+**Amended 2026-11-08 (FOLLOWUPS batch 25, migration 0180; the batch 23 re-review's NIT 7).** Dhia's letter-count rule now
+also reads three disguises. Each reading only adds forms to look up, so it refuses a name only when a form holds a list entry
+within its budget, and never counts as an allow word (an allow word is a real name as written; "d!ck" and "Diiick" are not
+Dick). (1) **Symbols inside a word:** a run of `* ! @ $` with a letter or digit on both sides is read as letters in a Latin
+word, * as u and again as i, ! as i, @ as a, $ as s, the word's digits as before (0 o, 1 i, 3 e, 4 a, 5 s, 7 t): f*ck, sh!t,
+Sh*t Omar, Mr Sh!thead, a$$hole, b!tch, B@stard are refused. A symbol at a word's start or end still separates words
+("Dick!", "@li Khan", "Noor @ Ali" pass), so does any other punctuation (O'Brien, D'Souza, Al-Qahtani), and N!xau passes (no
+hit). This replaces the "f*ck, sh!t" half of the punctuation trade-off above; "fu ck", "fu-ck" and "f**k" (a run read as two
+letters) still pass. (2) **Repeated letters:** a run of 3 or more of one letter is read as 1 and again as 2 (Fuuuck, Shiiit,
+Diiick, «كسسس»; asssshole needs the 2), and a run of 2 is never touched (Aaron, Abbas, Hassan, Moo, Diick). (3) **Look-alike
+letters** that NFKC leaves alone, read by `full_name_fold`: the small capitals ᴀ to ᴢ (ꜱex, ꜰᴜᴄᴋ, ꜱʜɪᴛ), ɑ ɡ ɩ ȷ, Cyrillic һ
+ӏ ү, Greek ς (NFKC's form of ϲ) and ϳ, Armenian ս օ հ (fսck). ᴅɪᴄᴋ reads Dick, an allow word, and passes as Dick does.
+dickhead was already a `word` entry (0178) and is refused; "Dickhead Ali" joins the corpus. Corpus 826 real names (30 added:
+O'Brien, D'Souza, O'Neal, N!xau Toma, Aaron, Abbas, Mohammed, Moo, Saad Al-Saadi, Al-Mutawwa, names with digits such as
+"Muhammad Ali 2nd", "Fahad 1990", "Ali R2D2"; all pass), 292 abusive (23 added, all refused; 21 of them passed 0179), 14
+accepted passes. **Cost:** a call 0.38 to 0.48 ms for a Latin name, 0.46 to 0.55 ms for an Arabic one, 0.37 to 0.72 ms for a
+name with a symbol inside a word (the second fold), 2,000 calls each by turns, load 1.5. The reads run no check:
+`test/perf/full-name-timing.int.test.ts` gives `ranking_names` 7.66 (0176) to 7.77 ms, 379 buffers both; `screen_ranking`
+34.16 to 20.30 ms; `event_results` 31.72 to 32.44 ms (+2.3%), 1,809 both: ADR-766's gate holds. The sweep: 112 ms a page
+median (105 before), 161 ms the slowest, 365 ms with the slowest name in every answer. 0180 marks the recheck pending.

@@ -17,6 +17,25 @@
   the game result already had it). `console-catalog-xp.int.test.ts` now spots `xp`/`gems` writers of `platform_setting` by the
   word in any quoting, not by the quoted literal `'xp'` only. Three FOLLOWUPS lines trimmed. CI 0 minutes (not pushed).
 
+## FOLLOWUPS batch 25 — 2026-11-08
+
+- **FOLLOWUPS batch 25 (tier B, SQL; migration 0180, new and undeployed; 0179 and earlier frozen, restated and diffed against
+  0009, 0177 and 0179; ADR-817 amended).** The event time zone guard reads `timezone_name`, a copy of `pg_timezone_names`
+  taken by the migration and again after each server restart (`loaded_for` = `pg_postmaster_start_time()`); a miss is looked
+  up in `pg_timezone_names` as before, so the answers are the same (every one of the 599 zones, 31 invalid names and NULL
+  compared, the copy stale and fresh; `test/db/event-timezone.int.test.ts`). The guard is now a definer, the copy has forced
+  row-level security and no grant. An event insert 44.04 to 1.73 ms (1.68 with no guard; `test/perf/event-timezone-timing`).
+  The seat-limit test no longer turns the guard off for its 300 events. The full-name check reads `* ! @ $` inside a Latin word
+  as letters (f*ck, sh!t, a$$hole) and runs of 3 or more of one letter as 1 and 2 (Fuuuck, asssshole; Aaron, Moo untouched),
+  neither ever an allow word; `full_name_fold` reads small capitals and more look-alikes (ꜱex, fսck); dickhead was already
+  refused (0178). Corpus 826 real names (30 added, all pass), 292 abusive (23 added, all refused), 14 accepted passes; the
+  reads hold ADR-766's gate; the check 0.38 to 0.48 ms a call. The recheck is marked pending. `record_completion`'s
+  `sum()` without GROUP BY (0170) is left as it is: no row instead of NULL changes what its callers get (the SQL payers read it
+  `INTO`, the routes take the first row), it needs a completion with no quest entry, which every path writes together in one
+  transaction, and the fix is a full restatement of a tier A ledger function for a case no route reaches. Each new test failed
+  without 0180. Tests: 35 files, 1,254 passed (security, full-name filter and upgrade, usernames and the comparison, every
+  event suite, seat limits, rehearsal, hot path). CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 24 — 2026-11-08
 
 - **FOLLOWUPS batch 24 (tier B, SQL; migration 0179; 0178 frozen, restated and diffed against it; ADR-817

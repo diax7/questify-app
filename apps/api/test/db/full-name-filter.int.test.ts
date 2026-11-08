@@ -367,6 +367,61 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       ).toEqual(["dick5", "dick69", "butt69", "kike88", "Nasser2"]);
     });
 
+    it("reads * ! @ $ inside a word as letters, only for a list hit, and never as an allow word (0180)", async () => {
+      expect(
+        await blocked([
+          "f*ck",
+          "sh!t",
+          "Sh*t Omar",
+          "a$$hole",
+          "B@stard",
+          "d!ck",
+          "Dick!",
+          "!Dick",
+          "@li Khan",
+          "N!xau Toma",
+          "Noor @ Ali",
+          "D'Souza",
+          "O'Brien",
+          "S*ra",
+        ]),
+      ).toEqual(["f*ck", "sh!t", "Sh*t Omar", "a$$hole", "B@stard", "d!ck"]);
+    });
+
+    it("reads a run of 3 or more of one letter as 1 and 2, never a run of 2 (0180)", async () => {
+      expect(
+        await blocked([
+          "Fuuuck",
+          "Asssshole",
+          "Diiick",
+          "كسسس",
+          "Aaron",
+          "Abbas",
+          "Hassan",
+          "Moo",
+          "Mohammed",
+          "Dick",
+          "Diick",
+          "Saaad",
+        ]),
+      ).toEqual(["Fuuuck", "Asssshole", "Diiick", "كسسس"]);
+    });
+
+    it("reads small capitals and other look-alike letters as Latin letters (0180)", async () => {
+      expect(
+        await owner(
+          `SELECT full_name_fold('ꜱᴇx') AS small, full_name_fold('ᴀʙᴄᴅᴇꜰɢʜɪᴊᴋʟᴍɴᴏᴘꞯʀꜱᴛᴜᴠᴡʏᴢ') AS alphabet,
+                  full_name_fold('ɑɡɩȷһӏүϲϳսօհ') AS others`,
+        ),
+      ).toEqual([{ small: "sex", alphabet: "abcdefghijklmnopqrstuvwyz", others: "agijhlycjuoh" }]);
+      expect(await blocked(["ꜱex", "ꜰᴜᴄᴋ", "ꜱʜɪᴛ", "fսck", "ᴀᴀʀᴏɴ"])).toEqual([
+        "ꜱex",
+        "ꜰᴜᴄᴋ",
+        "ꜱʜɪᴛ",
+        "fսck",
+      ]);
+    });
+
     it("refuses a username token that is a word compound, never a longer token holding one", async () => {
       const names = [
         "jackass",

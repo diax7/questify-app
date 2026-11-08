@@ -1122,6 +1122,8 @@ const SHARED: Readonly<Record<string, string>> = {
     "no right for the API role at all; Questify-wide name words the full-name check skips, no player id; seeded by migration, read by full_name_blocked inside the definers (test/db/full-name-filter)",
   full_name_recheck:
     "no right for the API role at all; one Questify-wide sweep row holding an answer key and no name; written by the list doors and full_name_recheck (test/db/full-name-filter)",
+  timezone_name:
+    "no right for the API role at all; the server's IANA zone names, no tenant or player data; copied from pg_timezone_names by migration 0180 and by the definer event_timezone_guard, read only by it (test/db/event-timezone)",
   username_retired:
     "no right for the API role at all; holds no player id; written by admin_rename_player, read by the username check inside the definers (test/db/console-players)",
   player_admin_action:

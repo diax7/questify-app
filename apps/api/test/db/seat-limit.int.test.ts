@@ -112,18 +112,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       const [event] = await newEvents(1, spec);
       return { id: event?.id ?? "", code: event?.code ?? "" };
     };
-    /**
-     * Hundreds of events: the time zone guard looks each zone up in pg_timezone_names (about 50 ms a row, 14 s for
-     * 300), which would bury the test under seeding, so it is off for this insert only and back on after it.
-     */
-    const newManyEvents = async (n: number, limit: number) => {
-      await owner("ALTER TABLE event DISABLE TRIGGER event_timezone_guard");
-      try {
-        return await newEvents(n, { limit });
-      } finally {
-        await owner("ALTER TABLE event ENABLE TRIGGER event_timezone_guard");
-      }
-    };
     /** `n` new players enrolled with `status` in one statement; answers the enrollment ids, oldest first. */
     const enrol = async (event: string, n: number, status = "active", via: string | null = null) =>
       (
@@ -303,7 +291,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       });
 
       it("takes the seat locks of a 300-event statement in id order even when the planner hashes the groups", async () => {
-        const events = (await newManyEvents(300, 50)).map((event) => event.id);
+        const events = (await newEvents(300, { limit: 50 })).map((event) => event.id);
         const ordered = events.toSorted();
         const players = await owner<{ id: string }>(
           "INSERT INTO player (username) SELECT 'seat_many_' || $1 || '_' || g FROM generate_series(1, 300) g RETURNING id",
