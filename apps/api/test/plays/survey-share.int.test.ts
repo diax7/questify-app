@@ -12,21 +12,16 @@ import {
 import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
 
 type Row = Record<string, unknown>;
-type Upsert = Readonly<{ event: string; score: bigint }>;
 
-const recordingStore = (upserts: Upsert[]): RankingStore => ({
-  upsert: async (event, entry) => {
-    upserts.push({ event, score: entry.score });
-  },
-  upsertRead: async (event, entry) => {
-    upserts.push({ event, score: entry.score });
-    return { top: [], total: 1, place: 1 };
-  },
+/** A ranking cache that answers first place for everyone; the tests read the rank from the answer, not from the cache. */
+const firstPlaceStore: RankingStore = {
+  upsert: async () => undefined,
+  upsertRead: async () => ({ top: [], total: 1, place: 1 }),
   remove: async () => undefined,
   read: async () => ({ top: [], total: 1, place: 1 }),
   rebuild: async () => "rebuilt",
   builtAt: async () => undefined,
-});
+};
 
 const en = (text: string) => ({ en: text });
 const codeOf = (response: { statusCode: number; json: () => { code?: string } }) => [
@@ -68,7 +63,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("surveys, shares and challenges
   let organizer = "";
   let ownerCookie = "";
   let counter = 0;
-  const upserts: Upsert[] = [];
   /** The HTTP replay store's clock: moved past a day, a replayed key reaches the database's own replay. */
   let clock = Date.now();
 
@@ -79,7 +73,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("surveys, shares and challenges
       false,
       {},
       {
-        rankingStore: recordingStore(upserts),
+        rankingStore: firstPlaceStore,
         idempotencyStore: new MemoryIdempotencyStore(() => clock),
       },
     );

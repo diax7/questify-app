@@ -29,6 +29,27 @@ export function useRequestKey(): RequestKey {
 }
 
 /**
+ * One key slot per named call, for a screen whose calls overlap in time: a call that replaces another's key would
+ * turn that one's retry into a new request (the first may already have been applied).
+ */
+export function createRequestKeys<Name extends string>(
+  names: readonly Name[],
+): Readonly<Record<Name, RequestKey>> {
+  return Object.fromEntries(names.map((name) => [name, createRequestKey()])) as Record<
+    Name,
+    RequestKey
+  >;
+}
+
+export function useRequestKeys<Name extends string>(
+  names: readonly Name[],
+): Readonly<Record<Name, RequestKey>> {
+  const keys = useRef<Readonly<Record<Name, RequestKey>> | null>(null);
+  keys.current ??= createRequestKeys(names);
+  return keys.current;
+}
+
+/**
  * The one refusal that says "not yet" for this very request: the same key is still running. It is never stored under the
  * key; every other 4xx, `change_set_busy` included, is stored and would replay, so it ends the request.
  */

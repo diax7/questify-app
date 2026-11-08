@@ -1429,6 +1429,7 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
 - **One function is not the 0147 text:** `own_level` was changed after 0147 by migration 0168 (a level filed on a scan's entry later is skipped:
   `AND r.reached_at = e.created_at`), so its rollback body is the 0147 SQL body plus that one condition. Any other function that a later migration
   redefines would need the same care; none of the other 34 or the six is redefined after 0148 (checked 2026-11-08 against 0149 to 0181).
+  That check is dated: recheck against newer migrations before use (every function the text redefines, and the six `ALTER` lines).
 - **Use:** as a new forward migration (never edit 0148, it is deployed). Same as 0148 it takes no table lock and does not wait for running calls.
   The tests that pin the plpgsql state (`test/db/hot-path-plpgsql.int.test.ts` and `sql-settings-allowlist.json`) fail until they are changed with it.
 

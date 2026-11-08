@@ -1754,6 +1754,10 @@ PUBLIC none. Not copied when an event is duplicated.
   asked; the rows are 0103's. Indexes `enrollment_event_joined_idx (event_id, joined_at, id)`, `redemption_event_created_idx` and
   `submission_event_created_idx (event_id, created_at, id)`. 0182 also takes completions' `next.id` from the page's last row (0103
   took the page's largest id, which skipped rows of the last time when a later id had an earlier time).
+- **The pages are not one snapshot.** Each call is its own transaction, so a file written from many pages can miss or repeat a row
+  that changes during the walk. `enrollment.joined_at` is set again on a re-join, so a player who leaves and re-joins while the
+  players file is being walked can appear twice: once as `left` (the earlier page) and once as `active` (the later one). A reader
+  who needs one row per player keeps the row with the latest `joined_at`.
 - No door selects `player_contact`, a phone number, an email address, a device id or a redemption code; the API checks every row
   against a strict schema before a file is written. Join answers are read from `join_answer` by field id.
 - SQLSTATEs: `AN404` (event or sponsor not the caller's), `AX400` (unknown kind, a sponsor on a file that takes none, a page size out of 1 to 10,000).

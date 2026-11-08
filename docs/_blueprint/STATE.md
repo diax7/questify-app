@@ -19,6 +19,19 @@
   repository-root context) and `monitoring.test.ts` plus the `cmp` stage of `monitoring:validate` already fail while the
   copies differ. Five FOLLOWUPS lines trimmed. CI 0 minutes (not pushed).
 
+## FOLLOWUPS batch 31 — 2026-11-08
+
+- **FOLLOWUPS batch 31 (tier B, tests, docs and web; no migration, no SQL, nothing under `.github`, no string).**
+  (1) `monitoring.test.ts` now ties the RUNBOOK base URL default in `render-config.sh` to `DEFAULT_RUNBOOK_BASE_URL` in
+  `ops/monitoring/lib/context.mjs` and to the RUNBOOK's text without Docker, and checks the email template holds
+  `@RUNBOOK_BASE_URL@{{ .Annotations.runbook }}`; the RUNBOOK's 0148 rollback says to recheck against newer migrations
+  before use. The mail-stage timeout note stays. (2) DATA_MODEL, "Exports": the paged exports are not one snapshot, and a
+  player who re-joins during a walk can appear twice; the index measurement and the partial index stay in FOLLOWUPS (they
+  need SQL and a load run). (3) `ChangeSetReview.tsx` gives apply and close each its own key (`useRequestKeys` /
+  `createRequestKeys` in `use-request-key.ts`), so a close during a timed-out apply no longer replaces the apply's key;
+  `use-request-key.test.ts` pins it. The dead `upserts` recording is gone from `survey-share.int.test.ts`; the store itself stays as a plain first-place stub, since the tests read `rank: 1` through it. Two
+  FOLLOWUPS lines trimmed, one cut down. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 30 — 2026-11-08
 
 - **FOLLOWUPS batch 30 (tier B, API and SQL; migration 0182; 0181 and earlier frozen, `export_completions` restated and the

@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PostResult } from "#src/lib/post-json.ts";
-import { createRequestKey, isFinalAnswer, keyedRequest } from "#src/lib/use-request-key.ts";
+import {
+  createRequestKey,
+  createRequestKeys,
+  isFinalAnswer,
+  keyedRequest,
+} from "#src/lib/use-request-key.ts";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -102,5 +107,26 @@ describe("keyedRequest", () => {
     await apply(keys, ["a", "b"]);
     expect(sent[0]).not.toBe(sent[1]);
     expect(sent[1]).toBe(sent[2]);
+  });
+});
+
+const close = (keys: ReturnType<typeof createRequestKey>) =>
+  keyedRequest(keys, "close {}", { method: "POST", path: "/v1/x/close", payload: {} });
+
+describe("createRequestKeys", () => {
+  it("keeps an apply's key across a close, so the apply's retry replays instead of answering busy", async () => {
+    const sent = answers(json(502, {}), json(200, {}), json(200, {}));
+    const keys = createRequestKeys(["apply", "close"]);
+    await apply(keys.apply);
+    await close(keys.close);
+    await apply(keys.apply);
+    expect(sent[2]).toBe(sent[0]);
+    expect(sent[1]).not.toBe(sent[0]);
+  });
+
+  it("gives each name its own slot", () => {
+    const keys = createRequestKeys(["apply", "close"]);
+    expect(keys.apply).not.toBe(keys.close);
+    expect(keys.apply.keyFor("x")).not.toBe(keys.close.keyFor("x"));
   });
 });

@@ -284,6 +284,22 @@ describe("the Alertmanager", () => {
     expect(config).toContain("smtp_require_tls: true");
   });
 
+  it("keeps the runbook address default in one value across the script, the validation and the RUNBOOK, and the mail starts with it", async () => {
+    const context = (await import(
+      pathToFileURL(join(ROOT, "ops/monitoring/lib/context.mjs")).href
+    )) as {
+      DEFAULT_RUNBOOK_BASE_URL: string;
+    };
+    const script = read(`${STACK}/render-config.sh`);
+    const fromScript = /^DEFAULT_RUNBOOK_BASE_URL=(\S+)$/m.exec(script)?.[1];
+    expect(fromScript).toBe(context.DEFAULT_RUNBOOK_BASE_URL);
+    expect(script).toContain("RUNBOOK_BASE_URL=${RUNBOOK_BASE_URL:-$DEFAULT_RUNBOOK_BASE_URL}");
+    expect(read("docs/RUNBOOK.md")).toContain(`it is \`${context.DEFAULT_RUNBOOK_BASE_URL}\``);
+    expect(read(`${STACK}/questify.email.tmpl.in`)).toContain(
+      "@RUNBOOK_BASE_URL@{{ .Annotations.runbook }}",
+    );
+  });
+
   it("has a no-email configuration with one receiver that sends nothing (Q-581)", () => {
     const config = parse(read(`${STACK}/alertmanager.nomail.yml`)) as {
       route: { receiver: string; routes?: unknown };

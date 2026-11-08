@@ -15,13 +15,14 @@ import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { readyIds, tally } from "#src/lib/change-sets.ts";
 import { APPLY_REQUEST_TIMEOUT_MS, requestJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
-import { keyedRequest, useRequestKey } from "#src/lib/use-request-key.ts";
+import { keyedRequest, useRequestKeys } from "#src/lib/use-request-key.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Dialog } from "#src/ui/Dialog.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Rows, Stack, Toolbar } from "#src/ui/Section.tsx";
 
+const CALL_NAMES = ["apply", "close"] as const;
 const SET_TONE = { open: "info", applied: "success", closed: "neutral" } as const;
 
 type Props = Readonly<{
@@ -137,14 +138,15 @@ function useReviewCalls(language: Language, path: string, reload: () => Promise<
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const keys = useRequestKey();
+  const keys = useRequestKeys(CALL_NAMES);
 
-  const call = async (suffix: "apply" | "close", payload: object) => {
+  const call = async (suffix: (typeof CALL_NAMES)[number], payload: object) => {
     setBusy(true);
     setProblem(null);
     setNotice(null);
     // The key stays until a final answer, so a click after a 502 or a timeout gets the stored answer, not `busy`.
-    const result = await keyedRequest(keys, `${suffix} ${JSON.stringify(payload)}`, {
+    // Apply and close each hold their own, so a close never replaces the key of an apply that timed out.
+    const result = await keyedRequest(keys[suffix], `${suffix} ${JSON.stringify(payload)}`, {
       method: "POST",
       path: `${path}/${suffix}`,
       payload,
