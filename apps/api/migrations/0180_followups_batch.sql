@@ -81,7 +81,7 @@ REVOKE ALL ON FUNCTION full_name_fold(text) FROM PUBLIC;
 -- refuses a name only when a reading holds a list entry within its budget; a name no reading hits passes as before.
 --   * Symbols inside a word: a run of * ! @ $ with a letter or digit on both sides is read as letters, * as u and again
 --     as i, ! as i, @ as a, $ as s, with the word's digits read as 0179 reads them (0 o, 1 i, 3 e, 4 a, 5 s, 7 t): f*ck,
---     sh!t, a$$hole, b!tch. A symbol at a word's start or end still separates ("Dick!", "@li"), and a Latin word only.
+--     sh!t, asshole written with two dollar signs, b!tch. A symbol at a word's start or end still separates ("Dick!", "@li"), and a Latin word only.
 --   * Repeated letters: a run of 3 or more of one letter is read as 1 and again as 2 (Fuuuck is fuck, asssshole is
 --     asshole). A run of 2 is never touched: Aaron, Abbas, Hassan, Moo.
 -- These readings never skip as allow words: an allow word is a real name as written, and "d!ck" or "Diiick" is not one.
