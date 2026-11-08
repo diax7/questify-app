@@ -8897,3 +8897,22 @@ name with a symbol inside a word (the second fold), 2,000 calls each by turns, l
 `test/perf/full-name-timing.int.test.ts` gives `ranking_names` 7.66 (0176) to 7.77 ms, 379 buffers both; `screen_ranking`
 34.16 to 20.30 ms; `event_results` 31.72 to 32.44 ms (+2.3%), 1,809 both: ADR-766's gate holds. The sweep: 112 ms a page
 median (105 before), 161 ms the slowest, 365 ms with the slowest name in every answer. 0180 marks the recheck pending.
+
+**Amended 2026-11-08 (FOLLOWUPS batch 27, migration 0181; the batch 25 review's MINOR and NIT).** Dhia's letter-count rule is
+unchanged; the symbol reading of batch 25 changes in three ways, each still a reading only (it adds forms to look up and never
+counts as an allow word). (1) **After NFKC:** the symbols are read in the name in NFKC, so the full-width forms f＊ck, sh！t,
+ｓｈ！ｔ, a＄＄hole and b＠stard read as their ASCII forms (0180 read the symbols before NFKC, and the fold then made them
+spaces), and ∗ (U+2217) and ⁎ (U+204E) read as *, ¡ as !. (2) **\* is a wildcard**, any one letter, looked up with LIKE against
+the same slices and budgets (0180 read it as u and again as i, so fu*k, c**t and wh*re passed); a slice keeps 2 letters or more
+that are not wildcards, so "Y**k" does not stand for every 3-letter entry ending in k. ! @ $ read as i, a, s as before. (3) **A
+run of two or more symbols** is read as written and again as one symbol: sh!!t is shiit and shit, b!!tch bitch, F**k f__k
+(fuck) and f_k (fuk; a reading is never an allow word, so the allow word Fuk does not cover it). "fu ck" and "fu-ck" still pass,
+and a symbol at a word's start or end still separates. Corpus 861 real names (35 added, all pass: Ke$ha, A$AP Rocky, N!xau,
+!Xóõ, Tsumk!we, Wi!!iam, Gr@ce, Ha$$an, Sh*ron, Ali*Khan, R2-D2, and full-width Latin names such as "Ｔａｒｏ Ｙａｍａｄａ",
+"Ｋｅ＄ｈａ", "Ｗｉ！！ｉａｍ"), 311 abusive (19 added, all refused; each passed 0180), 14 accepted passes. **Cost:** a call 0.42 to
+0.45 ms for a Latin name, 0.58 to 0.61 ms for an Arabic one, 0.48 to 0.45 ms for a name with ! inside a word, 0.47 to 0.64 ms for
+one with * inside a word (the LIKE lookup), 2,000 calls each by turns, load 3.5. The reads run no check:
+`test/perf/full-name-timing.int.test.ts` gives `ranking_names` 7.49 (0176) to 7.58 ms, 355 buffers both; `screen_ranking`
+31.92 to 18.67 ms; `event_results` 33.11 to 32.96 ms, 1,801 both: ADR-766's gate holds. The sweep: 124 ms a page median, 211 ms
+the slowest, 431 ms with the slowest name in every answer (112, 161 and 365 for 0180 at load 1.5; the check itself grew about
+0.03 ms a call, about 7 ms a page). 0181 marks the recheck pending.

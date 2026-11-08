@@ -388,6 +388,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       ).toEqual(["f*ck", "sh!t", "Sh*t Omar", "a$$hole", "B@stard", "d!ck"]);
     });
 
+    it("reads symbols after NFKC, ∗ ⁎ ¡ as * and !, * as any one letter and a run as one symbol (0181)", async () => {
+      expect(
+        await blocked([
+          "f＊ck",
+          "b＠stard",
+          "f∗ck",
+          "sh¡t",
+          "sh!!t",
+          "F**k",
+          "fu*k",
+          "c**t",
+          "Ke$ha",
+          "Ｋｅ＄ｈａ",
+          "Wi!!iam",
+          "Ｔａｒｏ Ｙａｍａｄａ",
+          "S*ra",
+          "Ali*Khan",
+          "Y**k",
+          "Dick",
+        ]),
+      ).toEqual(["f＊ck", "b＠stard", "f∗ck", "sh¡t", "sh!!t", "F**k", "fu*k", "c**t"]);
+    });
+
     it("reads a run of 3 or more of one letter as 1 and 2, never a run of 2 (0180)", async () => {
       expect(
         await blocked([

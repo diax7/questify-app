@@ -14,6 +14,21 @@
   survey replay tests no longer pin the ranking copy written twice; they assert the score unchanged and `replayed: true`.
   The CranL edge 300 s check stays in FOLLOWUPS (needs a staging run). One FOLLOWUPS line trimmed. CI 0 minutes (not pushed).
 
+## FOLLOWUPS batch 27 — 2026-11-08
+
+- **FOLLOWUPS batch 27 (tier B, SQL and test code; migration 0181; 0180 and earlier frozen, `full_name_blocked` restated and
+  diffed against 0180; ADR-817 amended).** The full-name check reads symbols after NFKC (f＊ck, sh！t, a＄＄hole, b＠stard),
+  reads ∗ ⁎ as * and ¡ as !, reads * as any one letter (a LIKE lookup within the same budgets, at least 2 real letters a slice:
+  fu*k, c**t, wh*re) and a run of symbols also as one (sh!!t, b!!tch, F**k), readings only, never an allow word. Corpus 861
+  real names (35 added: Ke$ha, A$AP Rocky, N!xau, !Xóõ, Tsumk!we, Wi!!iam, Gr@ce, R2-D2, full-width "Ｔａｒｏ Ｙａｍａｄａ"; all
+  pass), 311 abusive (19 added, all refused, each passed 0180), 14 accepted passes. The check 0.42 to 0.45 ms a Latin call,
+  0.47 to 0.64 ms with a * inside a word; the reads hold ADR-766's gate; the recheck is marked pending. The time zone copy's
+  retake can raise 40001 under REPEATABLE READ (the event duplicate, which retries once): noted in `docs/DATA_MODEL.md`, and
+  `event-timezone.int.test.ts` proves an insert answers from `pg_timezone_names` without waiting while another session holds
+  the copy's key. `migrate.test.ts`'s `topLevelStatements` strips comments, strings (plain, E'', U&''), quoted identifiers and
+  dollar bodies in one left-to-right scan (nested block comments too); 22 cases added, 14 of which the old regexes got wrong;
+  every migration file still passes. Each new test failed without its fix. Two FOLLOWUPS lines removed. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 26 — 2026-11-08
 
 - **FOLLOWUPS batch 26 (tier B, web, app and API test files; no migration, no SQL, no package change, no ADR, no new string).**

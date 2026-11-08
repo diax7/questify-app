@@ -84,6 +84,9 @@ letters (* as u and as i, ! i, @ a, $ s, digits as before: f*ck, sh!t, a$$hole),
 as 2 (Fuuuck, asssshole; a run of 2 never changes); these readings only add forms and never count as an allow word.
 `full_name_fold` reads small capitals (ᴀ to ᴢ), ɑ ɡ ɩ ȷ, Cyrillic һ ӏ ү, Greek ς ϳ and Armenian ս օ հ as Latin letters. The
 recheck is marked pending.
+Migration 0181 (FOLLOWUPS batch 27, ADR-817): the symbols are read after NFKC (f＊ck, b＠stard), ∗ ⁎ as * and ¡ as !; * is
+a wildcard, any one letter, looked up with LIKE in the same budgets (a slice keeps 2 letters or more that are not wildcards:
+fu*k, c**t), and a run of symbols is also read as one (sh!!t, F**k). The recheck is marked pending.
 Migration 0118 (T-704): `reason` gains `admin` (a rename by `admin_rename_player`, not counted by the change limit), and
 `username_retired (fold PRIMARY KEY, retired_at)` holds a name an admin took away, folded, with no player id;
 `username_blocked` refuses a retired name to everyone (ADR-420). No grant.
@@ -258,7 +261,7 @@ for optional editor event limits (ADR-077). PII: names and emails of staff (via 
 | status | enum | draft, scheduled, live, ended, archived | no | Matches FR-1017 and the code; activation by Questify (ADR-076); rehearsal is a mode of a draft or scheduled event (ADR-080) |
 | player_limit_mode, player_limit | enum, int | hard/soft/none | no | |
 | add_ons | text[] | | no | Big screen, NFC, kiosks, sponsors, branding, invitations |
-| timezone, day_start_hour | text, int | default 4 | no | A real IANA zone (trigger against `pg_timezone_names`, migration 0009; read from its copy `timezone_name (name PRIMARY KEY, loaded_for)`, taken again after each server restart, since 0180; no grant) |
+| timezone, day_start_hour | text, int | default 4 | no | A real IANA zone (trigger against `pg_timezone_names`, migration 0009; read from its copy `timezone_name (name PRIMARY KEY, loaded_for)`, taken again after each server restart, since 0180; no grant. The retake deletes and refills the copy, so under REPEATABLE READ it can raise 40001 when another session retook it after the snapshot: only the event duplicate runs at that level, and it retries once; a miss that finds the copy's advisory key held answers from `pg_timezone_names` without waiting, `test/db/event-timezone.int.test.ts`) |
 | kind | text | physical, virtual, workplace | no | Migration 0009 |
 | venue_ar, venue_en | text | ≤ 200 | no | Migration 0009 |
 | join_methods | text[] | ⊆ code, qr, link, public_list; ≥ 1; public_list only when access is public | no | Migration 0009 |

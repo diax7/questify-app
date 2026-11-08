@@ -148,13 +148,98 @@ describe("migrate retry, without a database", () => {
 
 const TRANSACTION_CONTROL = /^(BEGIN|COMMIT|END|ABORT|ROLLBACK|START\s+TRANSACTION)\b/i;
 
-/** The statements of a file at its top level: comments, quoted text and dollar-quoted bodies removed, split at `;`. */
+/** A character that continues an identifier, so a `$` or a quote after it opens nothing. */
+const IDENTIFIER_CHAR = /[A-Za-z0-9_$\u0080-￿]/;
+/** A dollar-quote opening at the start of the text: `$$` or `$tag$` (a tag never starts with a digit, so `$1` is not one). */
+const DOLLAR_OPEN = /^\$([A-Za-z_\u0080-￿][A-Za-z0-9_\u0080-￿]*)?\$/;
+
+/** The end (exclusive) of a block comment opening at `start`; PostgreSQL nests them. */
+function blockCommentEnd(sql: string, start: number): number {
+  let depth = 0;
+  let at = start;
+  while (at < sql.length) {
+    if (sql.startsWith("/*", at)) {
+      depth += 1;
+      at += 2;
+    } else if (sql.startsWith("*/", at)) {
+      depth -= 1;
+      at += 2;
+      if (depth === 0) {
+        return at;
+      }
+    } else {
+      at += 1;
+    }
+  }
+  return sql.length;
+}
+
+/** The end (exclusive) of a quoted string or identifier opening at `start` with `quote`; doubled quotes stay inside. */
+function quotedEnd(sql: string, start: number, quote: string, backslashEscapes: boolean): number {
+  let at = start + 1;
+  while (at < sql.length) {
+    const char = sql[at];
+    if (backslashEscapes && char === "\\") {
+      at += 2;
+    } else if (char === quote && sql[at + 1] === quote) {
+      at += 2;
+    } else if (char === quote) {
+      return at + 1;
+    } else {
+      at += 1;
+    }
+  }
+  return sql.length;
+}
+
+/** The end (exclusive) of whatever opens at `at` and is not top-level text (a comment, a quote, a dollar body), or -1. */
+function skippedEnd(sql: string, at: number): number {
+  const before = at > 0 ? (sql[at - 1] ?? "") : "";
+  if (sql.startsWith("--", at)) {
+    const newline = sql.indexOf("\n", at);
+    return newline === -1 ? sql.length : newline;
+  }
+  if (sql.startsWith("/*", at)) {
+    return blockCommentEnd(sql, at);
+  }
+  const char = sql[at];
+  if (char === "'") {
+    // E'...' reads backslash escapes; U&'...' and plain strings only double their quotes.
+    const escaped = /[Ee]/.test(before) && !IDENTIFIER_CHAR.test(sql[at - 2] ?? " ");
+    return quotedEnd(sql, at, "'", escaped);
+  }
+  if (char === '"') {
+    return quotedEnd(sql, at, '"', false);
+  }
+  if (char === "$" && !IDENTIFIER_CHAR.test(before)) {
+    const open = DOLLAR_OPEN.exec(sql.slice(at, at + 64));
+    if (open !== null) {
+      const close = sql.indexOf(open[0], at + open[0].length);
+      return close === -1 ? sql.length : close + open[0].length;
+    }
+  }
+  return -1;
+}
+
+/**
+ * The statements of a file at its top level, split at `;`: comments, quoted strings, quoted identifiers and dollar-quoted
+ * bodies removed in one left-to-right scan, so whichever opens first wins: a `$$` inside a comment or a string opens no
+ * body, and a `--` or a quote inside a dollar body starts nothing.
+ */
 function topLevelStatements(sql: string): string[] {
-  return sql
-    .replace(/\$([A-Za-z_]*)\$[\s\S]*?\$\1\$/g, " ")
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/--[^\n]*/g, " ")
-    .replace(/'(?:[^']|'')*'/g, "''")
+  let text = "";
+  let at = 0;
+  while (at < sql.length) {
+    const end = skippedEnd(sql, at);
+    if (end === -1) {
+      text += sql[at];
+      at += 1;
+    } else {
+      text += " ";
+      at = end;
+    }
+  }
+  return text
     .split(";")
     .map((statement) => statement.trim())
     .filter((statement) => statement !== "");
@@ -175,6 +260,16 @@ describe("the check that a migration leaves the transaction alone", () => {
     "START TRANSACTION;",
     "SELECT 1; COMMIT;",
     "CREATE TABLE a (id int);\nEND\n",
+    // A `$$` inside a comment or a string opens no body that could hide the statement after it.
+    "-- a$$hole\nCOMMIT;\nSELECT $$x$$;",
+    "/* $$ */ COMMIT; SELECT $$x$$;",
+    "SELECT 'a$$b';\nCOMMIT;\nSELECT $$x$$;",
+    "SELECT U&'\\0041$$';\nROLLBACK;\nSELECT $$x$$;",
+    "SELECT E'it\\'s $$';\nEND;\nSELECT $$x$$;",
+    'SELECT 1 AS "a$$b";\nCOMMIT;\nSELECT $$x$$;',
+    "DO $$ BEGIN PERFORM 1; END $$; COMMIT;",
+    "DO $body$ BEGIN PERFORM '$$'; END $body$;\nCOMMIT;",
+    "/* a /* b */ c */ COMMIT;",
   ])("catches %j", (sql) => {
     expect(endsTransaction(sql)).toBe(true);
   });
@@ -187,6 +282,20 @@ describe("the check that a migration leaves the transaction alone", () => {
     "/* ROLLBACK; */ SELECT 1;",
     "INSERT INTO t VALUES ('COMMIT; END;');",
     "SELECT 'it''s; END';",
+    // A `$$` inside a comment or a string, a `--` or a quote inside a dollar body.
+    "-- a$$hole\nCREATE FUNCTION f() RETURNS void LANGUAGE plpgsql AS $$ BEGIN RETURN; END $$;",
+    "-- a$$hole\nCREATE FUNCTION f() RETURNS void LANGUAGE plpgsql AS $$\nBEGIN\n  RETURN;\nEND $$;",
+    "/* a$$hole */ DO $$ BEGIN PERFORM 1; END $$;",
+    "SELECT 'a$$b';\nDO $$ BEGIN PERFORM 1; END $$;",
+    "DO $$ BEGIN -- it's done; COMMIT;\nPERFORM 1; END $$;",
+    "DO $$ BEGIN PERFORM 'it''s'; /* $x$ */ END $$;",
+    "DO $$ DECLARE m text := U&'\\E000\\E001'; BEGIN PERFORM m; END $$;",
+    "SELECT U&'d\\0061t\\+000061 $$';\nDO $$ BEGIN PERFORM 1; END $$;",
+    "SELECT U&'it''s; COMMIT';",
+    "SELECT E'it\\'s; COMMIT';",
+    'SELECT 1 AS "x; COMMIT";',
+    "/* a /* b */ COMMIT; */ SELECT 1;",
+    "SELECT $1::text; SELECT a$b FROM t;",
   ])("lets %j pass", (sql) => {
     expect(endsTransaction(sql)).toBe(false);
   });

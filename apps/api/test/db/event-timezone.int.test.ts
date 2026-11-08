@@ -3,6 +3,7 @@ import { withRequestContext, type RequestContext } from "#src/db/context";
 import {
   TEST_DATABASE_URL,
   addMember,
+  connectAsOwner,
   createTestDatabase,
   seedTwoTenants,
   type TestDatabase,
@@ -156,6 +157,41 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event time zone guard (databas
       await owner("UPDATE event SET timezone = 'Asia/Riyadh' WHERE id = $1", [event]);
       await owner("DELETE FROM timezone_name WHERE name = 'Mars/Olympus'");
     }
+  });
+
+  it("answers from pg_timezone_names without waiting while another session holds the copy's key", async () => {
+    await owner("UPDATE timezone_name SET loaded_for = '2000-01-01'");
+    const holder = await connectAsOwner(db);
+    try {
+      await holder.query("BEGIN");
+      await holder.query("SELECT pg_advisory_xact_lock(hashtextextended('timezone_name', 0))");
+      // A guard that waited for the key would hit this limit; one that only tries it answers at once.
+      await owner("SET statement_timeout = '3s'");
+      const insert = (code: string, zone: string) =>
+        owner(
+          "INSERT INTO event (organizer_id, join_code, name_en, timezone) VALUES ($1, $2, 'x', $3) RETURNING id",
+          [ids.orgA, code, zone],
+        );
+      await expect(insert("ZKEY01", "Asia/Riyadh")).resolves.toHaveLength(1);
+      await expect(insert("ZKEY02", "asia/riyadh")).rejects.toThrow(/unknown time zone/);
+      // The copy was not taken again: the key's holder decides that.
+      expect(
+        await owner(
+          "SELECT count(*)::int AS n FROM timezone_name WHERE loaded_for = pg_postmaster_start_time()",
+        ),
+      ).toEqual([{ n: 0 }]);
+    } finally {
+      await owner("RESET statement_timeout");
+      await holder.query("ROLLBACK");
+      await holder.end();
+    }
+    // Once the key is free, the next miss of a stale copy takes it again.
+    await owner("UPDATE event SET timezone = 'Europe/London' WHERE join_code = 'ZKEY01'");
+    expect(
+      await owner(
+        "SELECT count(*) FILTER (WHERE loaded_for <> pg_postmaster_start_time())::int AS stale FROM timezone_name",
+      ),
+    ).toEqual([{ stale: 0 }]);
   });
 
   it("guards the API's role with no right on the copy, and the copy is closed to everyone", async () => {
