@@ -46,6 +46,10 @@ const notes: string[] = [];
 /** Runs axe on the open page and records every serious or critical violation that is not waived. */
 async function sweep(page: Page, where: string, name: string): Promise<void> {
   const result = await new AxeBuilder({ page }).withTags(READ_TAGS).analyze();
+  if (result.incomplete.length > 0) {
+    const rules = result.incomplete.map((one) => one.id).join(", ");
+    notes.push(`${where}: ${result.incomplete.length} incomplete (axe could not decide): ${rules}`);
+  }
   for (const violation of result.violations) {
     const waived = ALLOWED.some(
       (one) => one.rule === violation.id && (one.page === "*" || one.page === name),
@@ -88,12 +92,20 @@ async function readDialog(
   language: Language,
   ids: Event,
 ): Promise<void> {
-  await page.goto(`/${language}/organizers/${ids.organizerId}/events/${ids.eventId}`);
+  const ready = LAYOUT_PAGES.find((one) => one.name === "event")?.ready[language] ?? "";
+  const where = `${project} ${language} event confirmation dialog`;
+  await openPage(
+    page,
+    language,
+    `/organizers/${ids.organizerId}/events/${ids.eventId}`,
+    ready,
+    where,
+  );
   await page
     .getByRole("button", { name: language === "en" ? "Delete draft" : "حذف المسودة" })
     .click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
-  await sweep(page, `${project} ${language} event confirmation dialog`, "event-dialog");
+  await sweep(page, where, "event-dialog");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
 }
@@ -146,7 +158,7 @@ test("every page passes the WCAG 2.1 A and AA rules of axe-core", async ({
   page,
   browser,
 }, info) => {
-  test.setTimeout(1_200_000);
+  test.setTimeout(600_000);
   found.length = 0;
   notes.length = 0;
   page.on("pageerror", (error) => {

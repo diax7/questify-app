@@ -27,7 +27,7 @@ const TEST_FILE = /\.test\.[cm]?tsx?$/;
 
 /** Always run: the layout check and the accessibility sweep read every page, so they also prove the API and the web app boot. */
 export const LAYOUT_SPECS = ["layout", "layout-check", "a11y"];
-/** More specs than this is a broad change: 20 specs and the layout check take about 9 minutes, the whole suite 16. */
+/** More specs than this is a broad change. Measured: the accessibility sweep alone takes about 5.5 minutes on desktop (one worker, including the API bundle); it runs on every browser run, so 20 more specs add to that. */
 export const MAX_AREA_SPECS = 20;
 
 /** Code every page depends on: a change here runs the whole browser suite. */
