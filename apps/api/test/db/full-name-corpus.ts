@@ -899,6 +899,13 @@ export const REAL_NAMES: readonly string[] = [
   "Ｒ２－Ｄ２",
   "Ｇｒ＠ｃｅ",
   "Ｗｉ！！ｉａｍ",
+  // A starred letter in a real name: a wildcard form is never cut at its ends (FOLLOWUPS batch 27 review)
+  "Y*nus",
+  "N*sser",
+  "Sm*th",
+  "Ha*na",
+  "Mo*****d",
+  "Ju|'hoan",
 ];
 
 /** Abusive names: a listed word, however it is spelled or hidden. */
@@ -1230,6 +1237,23 @@ export const ABUSIVE_NAMES: readonly string[] = [
   "c**t",
   "b***h",
   "wh*re",
+  // Other symbols read as the wildcard: _ # • | and the stars (FOLLOWUPS batch 27 review)
+  "f_ck",
+  "ｆ＿ｃｋ",
+  "f#ck",
+  "f٭ck",
+  "f✱ck",
+  "f✲ck",
+  "f✳ck",
+  "f⚹ck",
+  "f❋ck",
+  "f⁕ck",
+  "f★ck",
+  "f•ck",
+  "f|ck",
+  "sh|t",
+  "fuuu*k",
+  "f*ccck",
 ];
 
 /**

@@ -8915,4 +8915,10 @@ one with * inside a word (the LIKE lookup), 2,000 calls each by turns, load 3.5.
 `test/perf/full-name-timing.int.test.ts` gives `ranking_names` 7.49 (0176) to 7.58 ms, 355 buffers both; `screen_ranking`
 31.92 to 18.67 ms; `event_results` 33.11 to 32.96 ms, 1,801 both: ADR-766's gate holds. The sweep: 124 ms a page median, 211 ms
 the slowest, 431 ms with the slowest name in every answer (112, 161 and 365 for 0180 at load 1.5; the check itself grew about
-0.03 ms a call, about 7 ms a page). 0181 marks the recheck pending.
+0.03 ms a call, about 7 ms a page). 0181 marks the recheck pending. **Review of batch 27 (edited in place, 0181 undeployed).** A * wildcard form is now looked up whole, with no letter dropped
+from its ends (it had also been cut by 1 or 2 letters, which refused 95 of 814 one-star real names: "Y*nus" read as anus,
+"N*sser", "Sm*th", "Ha*na"; now 39), so a wildcard form must match an entry exactly after endings are stripped; all 311
+abusive names are still refused and no corpus real name is. The trade-off that remains: a starred name of an entry's exact
+shape, such as "S****h" read as "snatch", is still refused, the same way "n****r" is caught. `_ # ٭ ✱ ✲ ✳ ⚹ ❋ ⁕ ★ • |` are
+read as * (the fold would turn `_` into a space, so they are read in the name before it): f_ck, ｆ＿ｃｋ, f#ck, f★ck, f•ck,
+f|ck and sh|t are refused; `.` and `-` are left alone, and "Ju|'hoan" (a click letter) passes. Corpus now 867 real names (6 added: Y*nus, N*sser, Sm*th, Ha*na, Mo*****d, Ju|'hoan) and 327 abusive (16 added), 14 accepted passes.

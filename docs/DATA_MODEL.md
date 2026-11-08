@@ -85,7 +85,7 @@ as 2 (Fuuuck, asssshole; a run of 2 never changes); these readings only add form
 `full_name_fold` reads small capitals (ᴀ to ᴢ), ɑ ɡ ɩ ȷ, Cyrillic һ ӏ ү, Greek ς ϳ and Armenian ս օ հ as Latin letters. The
 recheck is marked pending.
 Migration 0181 (FOLLOWUPS batch 27, ADR-817): the symbols are read after NFKC (f＊ck, b＠stard), ∗ ⁎ as * and ¡ as !; * is
-a wildcard, any one letter, looked up with LIKE in the same budgets (a slice keeps 2 letters or more that are not wildcards:
+a wildcard, any one letter, looked up whole with LIKE (no letter dropped from its ends; it keeps 2 letters or more that are not wildcards:
 fu*k, c**t), and a run of symbols is also read as one (sh!!t, F**k). The recheck is marked pending.
 Migration 0118 (T-704): `reason` gains `admin` (a rename by `admin_rename_player`, not counted by the change limit), and
 `username_retired (fold PRIMARY KEY, retired_at)` holds a name an admin took away, folded, with no player id;

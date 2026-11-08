@@ -1,7 +1,8 @@
 -- A batch of review follow-ups (docs/FOLLOWUPS.md, batch 27): the full-name check reads symbols after NFKC, reads ∗ ⁎ ¡,
--- reads * as any one letter and a run of symbols also as one. One function restated with the same signature, so its
--- owner and grants (none) stay: `full_name_blocked` (diffed against 0180). No table, no grant, nothing that writes points
--- or XP, changes a sign-in, a tenant rule or a redemption. 0180 and earlier untouched.
+-- reads * (and _ # • | and the other stars) as any one letter, looked up whole, and a run of symbols also as one. One
+-- function restated with the same signature, so its owner and grants (none) stay: `full_name_blocked` (diffed against
+-- 0180). No table, no grant, nothing that writes points or XP, changes a sign-in, a tenant rule or a redemption. 0180
+-- and earlier untouched.
 SET LOCAL lock_timeout = '10s';
 
 -- ================================================================ the full-name check (batch 25 review, MINOR and NIT)
@@ -9,8 +10,9 @@ SET LOCAL lock_timeout = '10s';
 -- look up, refuses a name only when a form holds a list entry within its budget, and never counts as an allow word).
 --   * The symbols are read in the name after NFKC, so f＊ck, sh！t, b＠stard and a＄＄hole read as their ASCII forms
 --     (0180 read them before NFKC, and the fold then made them spaces); ∗ (U+2217) and ⁎ (U+204E) read as *, ¡ as !.
---   * * is a wildcard, any one letter, looked up with LIKE (0180 read it as u and again as i, so fu*k, c**t, wh*re
---     passed). A slice keeps 2 letters or more that are not wildcards. ! @ $ read as i, a, s as before.
+--   * * is a wildcard, any one letter, looked up whole with LIKE, no letter dropped from its ends (0180 read it as u and
+--     again as i, so fu*k, c**t, wh*re passed). It keeps 2 letters or more that are not wildcards. _ # ٭ ✱ ✲ ✳ ⚹ ❋ ⁕ ★ • |
+--     read as * too (the fold turns _ into a space). ! @ $ read as i, a, s as before.
 --   * A run of two or more symbols is read as written and again as one symbol: sh!!t is shiit and shit, b!!tch bitch,
 --     F**k f__k (fuck) and f_k (fuk). Inside readings only; a name as written is unchanged.
 -- Only a name with a symbol inside a Latin word pays for any of it.
@@ -43,8 +45,9 @@ DECLARE
   -- Private-use marks for * ! @ $ (U+E000 to U+E003): no fold step changes or splits at them.
   marks     text := U&'\E000\E001\E002\E003';
   mark      text := U&'\E000-\E003';
-  -- The name the symbols are read in: NFKC (a full-width ＊ ！ ＠ ＄ is the symbol it shows), ∗ ⁎ read as * and ¡ as !.
-  wide      text := translate(normalize(name, NFKC), '∗⁎¡', '**!');
+  -- The name the symbols are read in: NFKC (a full-width ＊ ！ ＠ ＄ ＿ is the symbol it shows), ∗ ⁎ _ # ٭ ✱ ✲ ✳ ⚹ ❋ ⁕ ★ • |
+  -- read as * (the fold would make _ a space) and ¡ as !.
+  wide      text := translate(normalize(name, NFKC), '∗⁎¡_#٭✱✲✳⚹❋⁕★•|', '**!*************');
   -- The forms holding the wildcard of a * (`_`, which the fold never leaves in a word).
   wild      text[];
   written   boolean;
@@ -162,20 +165,17 @@ BEGIN
       AND s.cut <= CASE WHEN char_length(u.word) >= 4 AND u.match = 'part' THEN 2 WHEN char_length(u.word) >= 3 THEN 1
                         ELSE 0 END)
   INTO hit;
-  -- A form holding the wildcard of a * is looked up by its length against the slices with LIKE, by the same budget; a
-  -- slice keeps at least 2 letters that are not the wildcard, so "x**" never stands for every entry of 3 letters.
+  -- A form holding the wildcard of a * is looked up by its length against the entries with LIKE, whole: a wildcard form
+  -- is never cut at its ends (a real name with a starred letter, "Y*nus", "Sm*th", would read as an entry with a letter
+  -- dropped), so it must match an entry exactly. It keeps at least 2 letters that are not the wildcard, so "x**" never
+  -- stands for every entry of 3 letters.
   wild := ARRAY(SELECT DISTINCT d.f FROM unnest(forms) d(f) WHERE strpos(d.f, '_') > 0);
   IF NOT hit AND wild <> '{}' THEN
     SELECT EXISTS (
       SELECT 1
       FROM unnest(wild) d(f)
-      CROSS JOIN (VALUES (0, 0), (1, 0), (1, 1), (2, 0), (2, 1), (2, 2)) s(cut, head)
-      CROSS JOIN LATERAL (SELECT substr(d.f, s.head + 1, char_length(d.f) - s.cut) AS slice) c
-      JOIN username_word u ON char_length(u.word) = char_length(c.slice) AND u.word LIKE c.slice
-      WHERE s.cut < char_length(d.f)
-        AND char_length(replace(c.slice, '_', '')) >= 2
-        AND s.cut <= CASE WHEN char_length(u.word) >= 4 AND u.match = 'part' THEN 2 WHEN char_length(u.word) >= 3 THEN 1
-                          ELSE 0 END)
+      JOIN username_word u ON char_length(u.word) = char_length(d.f) AND u.word LIKE d.f
+      WHERE char_length(replace(d.f, '_', '')) >= 2)
     INTO hit;
   END IF;
   RETURN hit;

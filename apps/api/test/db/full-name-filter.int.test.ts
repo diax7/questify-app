@@ -407,8 +407,62 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
           "Ali*Khan",
           "Y**k",
           "Dick",
+          "Y*nus",
+          "N*sser",
+          "Sm*th",
+          "Ha*na",
+          "Mo*****d",
+          "fuuu*k",
+          "f*ccck",
+          "Saaa*d",
         ]),
-      ).toEqual(["f＊ck", "b＠stard", "f∗ck", "sh¡t", "sh!!t", "F**k", "fu*k", "c**t"]);
+      ).toEqual([
+        "f＊ck",
+        "b＠stard",
+        "f∗ck",
+        "sh¡t",
+        "sh!!t",
+        "F**k",
+        "fu*k",
+        "c**t",
+        "fuuu*k",
+        "f*ccck",
+      ]);
+    });
+
+    it("reads _ # • | and the other stars as * (0181 review), and leaves . - and a click letter alone", async () => {
+      expect(
+        await blocked([
+          "f_ck",
+          "ｆ＿ｃｋ",
+          "f#ck",
+          "f٭ck",
+          "f✱ck",
+          "f✳ck",
+          "f❋ck",
+          "f★ck",
+          "f•ck",
+          "f|ck",
+          "sh|t",
+          "f.ck",
+          "f-ck",
+          "Ju|'hoan",
+          "Ali_Khan",
+          "Team#1",
+        ]),
+      ).toEqual([
+        "f_ck",
+        "ｆ＿ｃｋ",
+        "f#ck",
+        "f٭ck",
+        "f✱ck",
+        "f✳ck",
+        "f❋ck",
+        "f★ck",
+        "f•ck",
+        "f|ck",
+        "sh|t",
+      ]);
     });
 
     it("reads a run of 3 or more of one letter as 1 and 2, never a run of 2 (0180)", async () => {
