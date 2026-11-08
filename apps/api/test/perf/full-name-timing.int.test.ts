@@ -1,5 +1,6 @@
 import { appendFileSync } from "node:fs";
 import { it } from "vitest";
+import { RECHECK_PAGE } from "#src/join/name-recheck";
 import {
   TEST_DATABASE_URL,
   addMember,
@@ -18,6 +19,10 @@ const OUT = process.env["FULL_NAME_TIMING"];
 const say = (line: string) => appendFileSync(String(OUT), `${line}\n`);
 const PLAYERS = 2000;
 const OTHER_ANSWERS = 100_000;
+/** The slowest name measured for the check (0178): 200 characters of short Arabic words, each with many prefixes. */
+const SLOWEST = "وبالكم ".repeat(29).slice(0, 200);
+/** Pages of the sweep timed with the slowest name in every answer. */
+const SLOW_PAGES = 20;
 
 /** 0176's reads: no check. */
 const BASE = `
@@ -248,16 +253,32 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
       const sweepStart = performance.now();
       for (;;) {
         const start = performance.now();
-        const seen = (await q("SELECT name_flag_sweep(2000) AS n")).rows[0].n as number;
+        const seen = (await q("SELECT name_flag_sweep($1) AS n", [RECHECK_PAGE])).rows[0]
+          .n as number;
         pages.push(performance.now() - start);
-        if (seen < 2000) {
+        if (seen < RECHECK_PAGE) {
           break;
         }
       }
       say(
-        `sweep: ${pages.length} pages of up to 2,000, median ${Math.round(median(pages))} ms a page, ` +
+        `sweep: ${pages.length} pages of up to ${RECHECK_PAGE}, median ${Math.round(median(pages))} ms a page, ` +
           `slowest ${Math.round(Math.max(...pages))} ms, ` +
           `${Math.round(performance.now() - sweepStart)} ms in all`,
+      );
+      // The worst case: the slowest name in every bulk answer, the sweep marked again, its first pages timed.
+      await q("ALTER TABLE join_answer DISABLE TRIGGER join_answer_name_flag");
+      await q("UPDATE join_answer SET value = $1 WHERE event_id = $2", [SLOWEST, other]);
+      await q("ALTER TABLE join_answer ENABLE TRIGGER join_answer_name_flag");
+      await q("DELETE FROM username_word WHERE word = 'zorvex'");
+      const slow: number[] = [];
+      for (let run = 0; run < SLOW_PAGES; run += 1) {
+        const start = performance.now();
+        await q("SELECT name_flag_sweep($1)", [RECHECK_PAGE]);
+        slow.push(performance.now() - start);
+      }
+      say(
+        `sweep, the slowest name in every answer: ${SLOW_PAGES} pages of ${RECHECK_PAGE}, ` +
+          `median ${Math.round(median(slow))} ms a page, slowest ${Math.round(Math.max(...slow))} ms`,
       );
     } finally {
       await db.close();

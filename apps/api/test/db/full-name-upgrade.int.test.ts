@@ -32,6 +32,13 @@ const STORED: readonly (readonly [string, boolean, boolean])[] = [
   ["القحبة", false, true],
   ["معرص", false, true],
   ["dickk", false, true],
+  ["jackass", false, true],
+  ["كسامك", false, true],
+  ["dick5", false, true],
+  ["ياخولي", false, true],
+  ["fucktard", true, true],
+  ["Asser Yassin", false, false],
+  ["محمد الزبيدات", false, false],
 ];
 
 const expected = (column: 1 | 2) =>

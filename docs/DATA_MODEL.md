@@ -71,12 +71,14 @@ the last answer key), no grant.
 Migration 0178 (Q-754, ADR-817, Dhia's rule): a word of a full name is refused when, with one known prefix and one known
 ending taken off (Arabic و ف, ب ك ل, ال, يا, ابن / بنت before; ات ين ون, ك كم ها هم ي with ة as ت, the nisba ي يه ه after;
 Latin s es er ers ed ing ings y ies), it holds a list entry with few letters left over: 2 for a `part` entry of 4 letters or
-more, 1 for any other of 3 or more, none for one of 1 or 2. `full_name_allow` holds the real names that rule still refuses (59
-words: 0177's that are still needed, «اسحاق» among them, and nasser, tito, shittu, «خوله», «لحسن», ...); an Arabic allow word
-covers itself with a prefix or the nisba only. Five compounds join `username_word` as `part` entries (fuckface, fuckhead,
-fuckwit, shithead, shitface): **they are there for full names**, which would pass them (more than two letters around fuck or
-shit); a username holding one already holds its part entry, so no username changes. Do not drop them as redundant. The recheck
-is marked pending.
+more, 1 for any other of 3 or more, none for one of 1 or 2. `full_name_allow` holds the real names that rule still refuses (77
+words: 0177's that are still needed, «اسحاق» among them, and nasser, tito, shittu, asser, «خوله», «لحسن», «زبيدات», ...); an
+allow word is skipped only with no digit in it, and an Arabic one covers itself with a prefix other than يا or the nisba only (a
+lone يا is read with the next word). Five compounds join `username_word` as `part` entries (fuckface, fuckhead, fuckwit,
+shithead, shitface) and 18 as `word` entries (dickhead, cocksucker, jackass, dumbass, asshat, ..., «كسامك», «كسختك», «كساختك»):
+**they are there for full names**, which would pass them (more letters around the entry than its budget). A username holding
+one of the five already holds its part entry, so it does not change; a `word` compound refuses a username only when a token is
+the compound itself ("jackass", "dumbass_7"). Do not drop them as redundant. The recheck is marked pending.
 Migration 0118 (T-704): `reason` gains `admin` (a rename by `admin_rename_player`, not counted by the change limit), and
 `username_retired (fold PRIMARY KEY, retired_at)` holds a name an admin took away, folded, with no player id;
 `username_blocked` refuses a retired name to everyone (ADR-420). No grant.

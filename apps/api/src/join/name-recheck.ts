@@ -2,8 +2,12 @@ import type { Pool } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 
-/** The most name answers one page of the sweep checks (`name_flag_sweep`, migration 0177). */
-export const RECHECK_PAGE = 2000;
+/**
+ * The most name answers one page of the sweep checks (`name_flag_sweep`, migration 0177). A page holds the sweep row, so
+ * a list change waits for it (ADR-817): with the slowest name measured (200 characters, about 1.5 ms a check under 0178)
+ * in every answer, a page of 250 took 421 ms at the slowest, well under 1 s and the pool's 5 s statement limit.
+ */
+export const RECHECK_PAGE = 250;
 
 /** About how long one lifecycle run spends on the sweep, so the steps after it are not held up. */
 export const RECHECK_BUDGET_MS = 2000;

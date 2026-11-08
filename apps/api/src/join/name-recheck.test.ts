@@ -26,6 +26,13 @@ describe("sweepNameFlags", () => {
     expect(client.release).toHaveBeenCalledTimes(3);
   });
 
+  it("asks for pages of 250, so a page at the slowest name stays well under 1 s (ADR-817)", async () => {
+    const { pool, client } = pagedPool([0]);
+    await sweepNameFlags(pool);
+    expect(RECHECK_PAGE).toBe(250);
+    expect(client.query).toHaveBeenCalledWith("SELECT name_flag_sweep($1) AS count", [250]);
+  });
+
   it("stops when nothing is pending", async () => {
     const { pool, statements } = pagedPool([0]);
     expect(await sweepNameFlags(pool)).toBe(0);

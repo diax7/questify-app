@@ -310,7 +310,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       expect(await blocked(cases.map(([name]) => name))).toEqual(refused);
     });
 
-    it("covers an Arabic allow word with a prefix or the nisba, never with a plural or a pronoun", async () => {
+    it("covers an Arabic allow word with a prefix or the nisba, never with a plural, a pronoun or يا", async () => {
       expect(
         await blocked([
           "محمد الإسحاقي",
@@ -322,18 +322,66 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
           "زبيدة بنت جعفر",
           "عمر زبيدي",
           "مصعب بن الزبير",
+          "محمد الزبيدات",
+          "عبدالله الجماعي",
           "الخولات",
           "خول",
           "زبي",
+          "ياخولي",
+          "يا خولي",
+          "ياسحاق",
         ]),
-      ).toEqual(["الخولات", "خول", "زبي"]);
+      ).toEqual(["الخولات", "خول", "زبي", "ياخولي", "يا خولي", "ياسحاق"]);
+    });
+
+    it("keeps «البزاز», a real family name, and only it: the bare word and its other forms are refused", async () => {
+      // «البزاز» is the family name of the corpus' «سعد البزاز» (the cloth merchant); the allow word is the whole word
+      // with its article, so «بزاز» (the breasts) and its plural and pronoun forms stay refused.
+      expect(
+        await blocked(["سعد البزاز", "والبزاز", "بزاز", "بزازك", "البزازات", "يا بزاز"]),
+      ).toEqual(["بزاز", "بزازك", "البزازات", "يا بزاز"]);
+    });
+
+    it("skips an allow word only with no digit in it", async () => {
+      expect(
+        await blocked([
+          "Dick Smith",
+          "Kike Garcia",
+          "dick5",
+          "dick69",
+          "butt69",
+          "kike88",
+          "Nasser2",
+        ]),
+      ).toEqual(["dick5", "dick69", "butt69", "kike88", "Nasser2"]);
+    });
+
+    it("refuses a username token that is a word compound, never a longer token holding one", async () => {
+      const names = [
+        "jackass",
+        "dumbass_7",
+        "the_dickhead",
+        "كسامك",
+        "كسأمك",
+        "jackassery",
+        "dumbasses",
+        "smartass",
+      ];
+      expect(
+        (
+          await owner<{ name: string }>(
+            "SELECT n AS name FROM unnest($1::text[]) n WHERE username_blocked(n)",
+            [names],
+          )
+        ).map((row) => row.name),
+      ).toEqual(["jackass", "dumbass_7", "the_dickhead", "كسامك", "كسأمك"]);
     });
 
     it("holds only real names the rule refuses, and drops 0177's names that pass without one", async () => {
       const words = (
         await owner<{ word: string }>("SELECT word FROM full_name_allow ORDER BY word")
       ).map((row) => row.word);
-      expect(words).toHaveLength(59);
+      expect(words).toHaveLength(77);
       expect(words).toEqual(
         expect.arrayContaining([
           "kike",
@@ -341,11 +389,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
           "nasser",
           "tito",
           "shittu",
+          "asser",
+          "butters",
           "اسحاق",
           "بلوطي",
           "خوله",
           "زبير",
           "لحسن",
+          "لحسين",
+          "زبيدات",
         ]),
       );
       const dropped = [

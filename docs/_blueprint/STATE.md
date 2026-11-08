@@ -2,13 +2,25 @@
 
 ## Full names match by words — 2026-11-08
 
+- **0178's second review (84 NO-GO) fixed (tier B, API; 0178 edited in place, undeployed; ADR-817, Q-754 (4) new for
+  Dhia).** The sweep's page is 250 (was 2,000, about 2.3 s against the pool's 5 s limit): 105 ms a page median, 138 ms the
+  slowest, 421 ms the slowest with a 200-character name in every answer; about 11 minutes at 100,000 answers. The check looks
+  each form's entries up by key (6 slices a form; same answers on 21,031 names): 0.27 ms a call against 0177's 0.38 ms, the
+  slowest name about 1.5 ms (was 5.7). `full_name_allow` 77 words (18 added: «لحسين», «جماعي», «شرجي», «زبيدات», asser, assis,
+  assi, kasser, wasser, lasser, hasser, sasser, cuma, titi, tita, manus, anush, butters); an allow word is skipped only with no
+  digit (dick5, kike88 refused) and never after يا (a lone يا is read with the next word: «يا خولي» refused); «البزاز» kept
+  (real family name, pinned). 18 `word` compounds (jackass, dickhead, cocksucker, dumbass, asshat, ..., «كسامك», «كسختك»,
+  «كساختك»): usernames change only for a token that is the compound. Corpus 770 real (all pass), 250 abusive (all refused), 11
+  accepted passes (smartass added; dickhead, cocksucker, jackass, dumbass, «كساختك» moved to abusive). Timing (load 3.5-4.2):
+  `ranking_names` 7.63 to 7.91 ms (+3.7%), `screen_ranking` 34.26 to 20.05 ms, `event_results` 30.60 to 30.08 ms; ADR-766's
+  gate holds. «يانيك», «نيكي», Semen, Porn left refused for Dhia. Tests: the same 12 files (751 passed). Not pushed.
 - **Full names checked by Dhia's letter-count rule (tier B, API; migration 0178, reworked after its review scored 80 NO-GO, then
   after Dhia's follow-up; ADR-817 Accepted by Dhia, Q-754 (1) and (2) decided; no new string).** `full_name_blocked` restated
   (diffed against 0177; usernames unchanged): a word is refused when, with one known prefix and ending taken off (Arabic و ف,
   ب ك ل, ال, يا, ابن / بنت; ات ين ون, ك كم ها هم ي with ة as ت, ي يه ه; Latin s es er ers ed ing ings y ies), it holds an entry
   with few letters left over: 2 for a `part` entry of 4+ letters, 1 for any other of 3+, none for 1-2. Thresholds tuned on the
   corpus (750 real names, 220 abusive; nine settings tried, table in ADR-817): chosen = no abusive pass, fewest real refusals
-  (83 without an allow-list). `full_name_allow`: 59 words (24 of 0177's dropped as unneeded, 41 added: nasser, tito, shittu,
+  (83 without an allow-list). `full_name_allow`: 59 words (24 of 0177's dropped as unneeded, 40 added: nasser, tito, shittu,
   «خوله», «لحسن», ...; «kike» stays); an Arabic allow word covers its prefix and nisba forms only. Five compounds (fuckface,
   fuckhead, fuckwit, shithead, shitface) added to `username_word` for full names (no username changes). Accepted passes pinned
   by a test (15: fuckali, pornstar, bigfuckingdick, dickhead, ...; ten were refused by 0177); 50 abusive names 0177 passed are

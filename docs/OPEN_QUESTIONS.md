@@ -3034,11 +3034,17 @@ contains those letters; test it on many names and options so that no bad name is
 0178, ADR-817 Accepted). As built: a word of a full name is refused when, with one known prefix and one known ending taken off
 (they do not count), it holds a list entry with few letters left over: at most 2 for a `part` entry of 4 letters or more, 1 for
 any other entry of 3 or more (`word` entries included), none for one of 1 or 2. Tuned on 750 real names and 220 abusive ones:
-the chosen setting refuses no abusive name and 83 real names without an allow-list, all of which the allow-list now holds (59
-words; ADR-817 has the table of settings tried and the list). **Accepted passes** (Dhia's trade-off, pinned by a test): fuckyou,
-fuckoff, fuckali, Ali Fuckali, shitali, shitbag Omar, dumbfuck, pornstar, Pornstar Ali, bigfuckingdick, dickhead, cocksucker,
-jackass, dumbass, «كساختك»; the first ten were refused by 0177. Five compounds (fuckface, fuckhead, fuckwit, shithead,
-shitface) are entries so that "fuckface Ali" and "Mr Shithead" stay refused. Usernames are unchanged. (2) decided by Dhia the
+the chosen setting refuses no abusive name and 83 real names without an allow-list (ADR-817 has the table of settings tried).
+After 0178's second review the corpus holds 770 real names and 250 abusive ones: all real names pass, all abusive ones are
+refused, and the allow-list holds 77 words (ADR-817 lists them; 18 added by that review: «لحسين», «جماعي», «شرجي», «زبيدات»,
+asser, assis, assi, kasser, wasser, lasser, hasser, sasser, cuma, titi, tita, manus, anush, butters). An allow word is skipped
+only with no digit in it (dick5, kike88 are refused), and never after يا («ياخولي», «يا خولي» are refused). **Accepted passes**
+(Dhia's trade-off, pinned by a test, 11): fuckyou, fuckoff, fuckali, Ali Fuckali, shitali, shitbag Omar, dumbfuck, pornstar,
+Pornstar Ali, bigfuckingdick, smartass; the first ten were refused by 0177. **Compounds** are entries of their own so they stay
+refused: five `part` entries (fuckface, fuckhead, fuckwit, shithead, shitface) and 18 `word` entries (dickhead, cocksucker,
+jackass, dumbass, asshat, asswipe, cumslut, cumdump, dickface, cuntface, twatface, fatass, fucktard, slutbag, whoreson,
+«كسامك», «كسختك», «كساختك»; «كسأمك» folds to «كسامك»). Usernames: the `word` compounds newly refuse a username whose token is
+the compound itself ("jackass", "dumbass_7", «كسامك»; never "jackassery" or "dumbasses"); nothing else changes. (2) decided by Dhia the
 same day: «Kike» stays on the allow-list. Coon (English) and Mong (Hmong) are `word` entries and stay refused, now also with one
 letter or an affix (Cooney, Monge, Mongi pass by the allow-list). (3) is open.
 **Question:** a full name shown to every player is free text (ADR-400). Options: (a) refuse it at the join only; (b) hide a failing
@@ -3070,3 +3076,7 @@ is no answer-edit route, and a rejoin keeps the answers given before (T-220). Th
 and the big screen, while the staff still see the name. Is that acceptable, or should such a player be told and allowed to give
 another name (a notice and an answer-edit flow, a separate task)? Recommended for now: accept it, since only an admin's list change
 causes it and the allow-list can be widened by a migration.
+**For Dhia (4)** (0178's second review, 2026-11-08): four words that are real names somewhere are left refused in a full name,
+as each is also the plain bad word: «يانيك» (Yannick; also "I fuck you, O"), «نيكي» (Nicky; also "fuck me"), Semen (a Turkish and
+Indonesian given name) and Porn (a Thai given name). Each can join the allow-list by a migration, which would let the bad word
+through as well. Recommended: keep them refused until a player is affected.
