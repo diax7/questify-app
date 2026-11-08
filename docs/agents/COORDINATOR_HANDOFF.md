@@ -121,6 +121,10 @@ the whole history, and any line like `API = "<id>"` or a quoted key label trips 
 fingerprint with a comment. A failed secret scan stops the `checks` job before its tests, so read which step failed before
 saying what passed.
 
+With a new migration, run `scripts/cranl/deploy-staging-gated.sh <newest migration number>` from the repo root, in the
+background: it does steps 1 to 6 below, retries a failed API build, runs the ledger pre-check (`ledger-precheck.js`), and stops
+before migrating if anything is off. Read its log, then tag (step 7). Without a migration, do the steps by hand.
+
 From `scripts/cranl`, `python deploy-staging.py <step>`:
 
 1. `connect`, then `deploy-api`. It can say `succeeded` when the build failed: the step prints the newest deployment's real
@@ -140,9 +144,31 @@ Addresses: https://questify.nafes.com and https://questify-api-staging-3ez01s.cr
 
 ## Where things stand
 
-Staging is live at `release-20261108-2`, migration 0179. No pull request is open; GitHub holds only `main` and
-`t-810d-console-hostname`. Tasks: 186 done, 33 open. See STATE.md. Migration number 0156 is reserved by the unmerged T-810d branch, `t-810d-console-hostname`; the runner
-tolerates the gap.
+Staging is live at `release-20261108-3`, migration 0180. No pull request is open; GitHub holds only `main`,
+`t-810d-console-hostname`, and the local-only branch `workflows-pending` on this server (see below). Tasks: 187 done, 32 open
+(85.4%); every open task waits on a person, a device, store accounts or an outside answer (see the list below). FOLLOWUPS has about
+75 lines, most needing a device, art, a product call or tier A work. Migration number 0156 is reserved by the unmerged T-810d
+branch, `t-810d-console-hostname`; the runner tolerates the gap. The next migration is 0181.
+
+**Handover, 2026-11-08 (the coordinator before you paused for the week's usage limit):**
+
+- Nothing is half-done: no worktrees, no agents, no unpushed commits. Last work: FOLLOWUPS batches 16 to 26, T-813 (performance
+  audit, ticked), the T-808 Arabic sweep (machine part; T-808 stays open for a person's read), console history words for all 282
+  actions, and the full-name filter (0177 to 0180, ADR-817, Q-754).
+- The full-name rule is Dhia's, 2026-11-08 (Q-754 and its follow-ups): a blocked word with one or two letters added is still
+  blocked; with many letters around it, the name passes; known Arabic and Latin affixes do not count. Change it only with him.
+  Open for him in Q-754: «يانيك», «نيكي», Semen, Porn, «نازي», «هتلر», and "Fuk You" passing as a full name.
+- `.github/workflows/` edits need the `workflow` scope the server's token lacks. Batch 15's two workflow edits (CI `monitoring`
+  job, nightly browser shards) wait on local branch `workflows-pending` (`fb3b44a3`); after Dhia runs
+  `gh auth refresh -h github.com -s workflow`, take them with `git checkout workflows-pending -- .github`, commit, push.
+- CranL's API build fails on the first try often (five times on 2026-11-07 and 08); a plain retry builds. GitHub's release
+  download for gitleaks returned 503/504 for about an hour on 2026-11-08, which fails CI's `checks` before its tests: wait and
+  rerun the failed job, do not deploy past it.
+- Integration tests skip silently without `TEST_DATABASE_URL` and `TEST_REDIS_URL` (Setting up): read the pass count. On this
+  loaded server use `--maxWorkers=3 --hookTimeout=500000 --testTimeout=400000`.
+- Workers have twice run stale scripts left in the shared scratchpad. Tell every worker to run only scripts it writes itself.
+- Dhia asked for design help: `docs/design/ASSET_NEEDS.md` lists the art the product lacks. He was asked for `ASSET_LIST.md` and
+  `manifest.json` from `docs/design/assets` on his PC first.
 
 **Waiting on Dhia (remind him, do not chase):**
 
