@@ -1,19 +1,23 @@
--- A full name matches the word lists by whole words (Dhia, 2026-11-08, Q-754; ADR-817). Under 0177 a `part` entry
--- matched inside one word of a full name, so real names holding a list word were refused: Thai names with "porn"
--- (Siriporn, Pornthep), Shittu, Shitole, Shitara, Slutskaya, Skeete, Bastardi, Wankowicz, «کسمایی». Now every entry
--- matches a whole word of the folded name only: "porn star" and "shit" are still refused, "Siriporn" passes, and so does
--- a compound such as "Pornstar Ali" (the trade-off Dhia accepted). An Arabic word is still read with one article and
--- one suffix, as 0177 read the allow-list: «اللوطي», «السحاقي», «سحاقية» and «الشرموطة» are refused as whole words with
--- ال, بال, وال or لل before an entry and ي, يه or ه after it (folded: ية reads يه, ة reads ه). Usernames keep their
--- stricter rule (`username_blocked`, unchanged).
+-- A full name matches the word lists by words (Dhia, 2026-11-08, Q-754; ADR-817), so that real names stop being refused
+-- without letting abuse through. Under 0177 a `part` entry matched inside one word of a full name, and Arabic names that
+-- hold one were refused («کسمایی», «بلوطي» but for the allow-list), as were Latin names the allow-list did not hold
+-- (Siriporn, Shittu, Slutskaya, Skeete, Bastardi, Wankowicz). A first draft of this file matched whole words only, which a
+-- review found let through the inflected and joined forms 0177 refused ("fucks", "fuckali", "sluts", «ياشرموطة»,
+-- «الشرموطات», «القحبة»). Now, by the script of the entry:
+--   * an Arabic entry matches an Arabic word with one prefix (و or ف, then ب ك or ل, then ال; or يا; or ابن / بنت with
+--     or without ال) and one ending (ات ين ون, or a pronoun ك كم ها هم, with ة read as ت before a pronoun) taken off; a
+--     `part` entry also with the nisba (ي يه ه; folded, ية reads يه and ة reads ه). Never inside a longer word: «کسمایی»
+--     passes, «شرموطتك», «كسمك», «زبك», «الخول» are refused;
+--   * a Latin `part` entry of 4 letters or more matches inside a word, as 0177 did, so every inflected or joined form is
+--     refused (fucks, fuckers, fuckali, shitbag, dumbfuck, sluts, pornstar); a real name holding one passes as a whole
+--     word of `full_name_allow` (Siriporn, Shittu); a shorter one matches the whole word or it plus s es er ers ed ing y;
+--   * a Latin `word` entry matches a whole word split at digits, as before.
+-- Letters spelled out one by one ("ش ر م و ط ة") are joined into one word, which then goes through every step above.
+-- Usernames keep their stricter rule (`username_blocked`, unchanged).
 -- Restated with the same signature, owner and grants (none), diffed against 0177: `full_name_blocked` only. The folding
--- (`full_name_fold`), the answer trigger, the sweep and the reads are unchanged.
--- The allow-list keeps the whole words that are list entries (butt, dick, poon, kike, quim, cumming, hooker); the 36
--- entries that only covered a list word inside a longer word are now redundant (the corpus passes without them,
--- `test/db/full-name-corpus.ts`) and are removed. «Kike» stays allowed (Q-754 (2)). Six common compounds of a part
--- entry (fuckface, shithead, ...) join `username_word` as whole words, so the corpus's abusive names stay refused; a
--- username holding one already holds its part entry, so no username's answer changes. Coon and Mong stay refused:
--- they are `word` entries, whole words already (Q-754).
+-- (`full_name_fold`), the answer trigger, the sweep and the reads are unchanged. The allow-list gains the real names that
+-- hold a Latin entry and that 0177 refused; «اسحاق» is dropped (the Arabic rule no longer matches inside it); its other
+-- entries stay. The list of entries is not changed.
 -- The rule changes for stored names with no list row touched, so this file marks the recheck pending (docs/rules.md);
 -- the lifecycle tick sweeps the stored answers again (about 9 minutes at 100,000 answers). Until the sweep reaches it,
 -- a stored name shows as 0177 flagged it.
@@ -22,89 +26,138 @@
 SET LOCAL lock_timeout = '10s';
 
 -- ================================================================ the check
--- The word-list half of `username_blocked`, by whole words of the folded name: a `word` entry matches a whole word
--- split at digits (as a username is); a `part` entry matches a whole word, also split at digits, with its digits
--- removed or read as letters (0 o, 1 i, 3 e, 4 a, 5 s, 7 t), or an Arabic word with one prefix of ال بال وال لل and
--- one suffix of ي يه ه taken off (each optional). A part entry never matches inside a longer word or across a space.
--- Letters spelled out one by one ("f u c k", "ك س") are read joined. A word of `full_name_allow` is skipped, and so is
--- an Arabic entry's article or nisba form. PL/pgSQL with no SET clause (its callers are definers and the answer
--- trigger, and it runs per row in the recheck; docs/rules.md): the two list reads are each one plan kept per
--- connection and look entries up by the list's unique index on the word, and the name is folded once.
+-- The word-list half of `username_blocked`, word by word of the folded name (a list word never matches across a space):
+-- a run of single letters is joined into one word first; a word of `full_name_allow` is skipped whole (an Arabic entry
+-- also covers the word's prefix, ending and nisba forms); then each word is matched as the header says, a Latin word also
+-- with its digits removed or read as letters (0 o, 1 i, 3 e, 4 a, 5 s, 7 t) and in its pieces between digits.
+-- PL/pgSQL with no SET clause (its callers are definers and the answer trigger, and it runs per row in the recheck;
+-- docs/rules.md): two list reads, each one plan kept per connection. At the lists' size (about 60 allow words, 390
+-- entries) each read is one sequential scan of its table, not an index look-up; the long Latin entries are a substring
+-- test and could use no index anyway. The name is folded once, never once per list row.
 CREATE OR REPLACE FUNCTION full_name_blocked(name text) RETURNS boolean
   LANGUAGE plpgsql STABLE AS $$
 DECLARE
-  words   text[] := string_to_array(full_name_fold(name), ' ');
-  allowed text[];
-  tokens  text[] := '{}';
-  wholes  text[] := '{}';
-  forms   text[];
-  piece   text;
-  bare    text;
-  stem    text;
-  spelled text := '';
-  hit     boolean;
+  folded    text[] := string_to_array(full_name_fold(name), ' ');
+  -- Before an Arabic word: و or ف, then ب ك or ل, then ال (ل with ال is written لل); or يا; or ابن or بنت, with ال.
+  prefixes  text[] := '{"",و,ف,ب,ك,ل,وب,وك,ول,فب,فك,فل,ال,وال,فال,بال,كال,لل,وبال,وكال,ولل,فبال,فكال,فلل,'
+                      'يا,ابن,ابنال,بنت,بنتال,يابن,يابنال}';
+  -- After it: a plural or a pronoun (ة read as ت before a pronoun) for every entry, then the nisba for a part entry.
+  endings   text[] := '{"",ات,ين,ون,ك,كم,ها,هم,تك,تكم,تها,تهم,ي,يه,ه}';
+  nisbas    text[] := '{ي,يه,ه}';
+  latin_end text[] := '{s,es,er,ers,ed,ing,y}';
+  words     text[] := '{}';
+  allow_all text[];
+  allow_ar  text[];
+  tokens    text[] := '{}';
+  parts     text[] := '{}';
+  inside    text[] := '{}';
+  forms_w   text[];
+  forms_p   text[];
+  pieces    text[];
+  piece     text;
+  bare      text;
+  form      text;
+  rest      text;
+  stem      text;
+  p         text;
+  e         text;
+  spelled   text := '';
+  joined    text;
+  hit       boolean;
 BEGIN
-  IF words IS NULL OR words = '{""}' THEN
+  IF folded IS NULL OR folded = '{""}' THEN
     RETURN false;
   END IF;
-  -- The words the allow-list covers: as they are, or for an Arabic entry with one prefix and one suffix taken off.
-  SELECT coalesce(array_agg(w), '{}') INTO allowed
-  FROM unnest(ARRAY(SELECT DISTINCT regexp_replace(x, '[0-9]', '', 'g') FROM unnest(words) x)) w
-  WHERE EXISTS (
-    SELECT 1
-    FROM unnest(ARRAY[w, regexp_replace(w, '^(بال|وال|لل|ال)', '')]) p,
-         LATERAL (VALUES (p), (regexp_replace(p, 'ي$', '')), (regexp_replace(p, 'يه$', '')),
-                         (regexp_replace(p, 'ه$', ''))) s(stem)
-    JOIN full_name_allow a ON a.word = s.stem AND (s.stem = w OR a.language = 'ar'));
-  FOREACH piece IN ARRAY words || ''::text LOOP
+  -- The words, letters spelled out one by one ("f u c k", "ك س") joined into one.
+  FOREACH piece IN ARRAY folded || ''::text LOOP
     bare := regexp_replace(piece, '[0-9]', '', 'g');
     IF char_length(piece) = 1 AND bare <> '' THEN
       spelled := spelled || bare;
       CONTINUE;
     END IF;
     IF char_length(spelled) >= 2 THEN
-      tokens := tokens || spelled;
-      wholes := wholes || spelled;
+      words := words || spelled;
     END IF;
     spelled := '';
-    IF bare = '' OR bare = ANY (allowed) THEN
-      CONTINUE;
-    END IF;
-    tokens := tokens || regexp_split_to_array(piece, '[0-9]+');
-    wholes := wholes || bare || regexp_replace(translate(piece, '013457', 'oieast'), '[0-9]', '', 'g');
-    -- An Arabic word also with one article and one suffix taken off (plain expressions, no query; a Latin word, which
-    -- the patterns never match, adds nothing).
-    IF bare ~ '^(بال|وال|لل|ال)|[يه]$' THEN
-      stem := regexp_replace(bare, '^(بال|وال|لل|ال)', '');
-      wholes := wholes || stem
-        || regexp_replace(bare, 'ي$', '') || regexp_replace(bare, 'يه$', '') || regexp_replace(bare, 'ه$', '')
-        || regexp_replace(stem, 'ي$', '') || regexp_replace(stem, 'يه$', '') || regexp_replace(stem, 'ه$', '');
+    IF bare <> '' THEN
+      words := words || piece;
     END IF;
   END LOOP;
-  -- A `part` entry is one of the whole words, their forms or their pieces between digits; a `word` entry is one of the
-  -- pieces between digits only. One look-up by the list's unique index on the word.
-  forms := wholes || tokens;
-  SELECT EXISTS (SELECT 1 FROM username_word u
-                 WHERE u.word = ANY (forms) AND (u.match = 'part' OR u.word = ANY (tokens)))
+  SELECT coalesce(array_agg(a.word), '{}'), coalesce(array_agg(a.word) FILTER (WHERE a.language = 'ar'), '{}')
+  INTO allow_all, allow_ar
+  FROM full_name_allow a;
+  FOREACH piece IN ARRAY words LOOP
+    bare := regexp_replace(piece, '[0-9]', '', 'g');
+    CONTINUE WHEN bare = ANY (allow_all);
+    pieces := regexp_split_to_array(piece, '[0-9]+');
+    IF bare ~ '[ء-ي]' THEN
+      -- An Arabic word: every stem left by one prefix and one ending (each optional), of two letters or more.
+      forms_w := '{}';
+      forms_p := '{}';
+      FOREACH form IN ARRAY bare || pieces LOOP
+        FOREACH p IN ARRAY prefixes LOOP
+          CONTINUE WHEN NOT starts_with(form, p);
+          rest := substr(form, char_length(p) + 1);
+          FOREACH e IN ARRAY endings LOOP
+            CONTINUE WHEN char_length(rest) - char_length(e) < 2 OR right(rest, char_length(e)) <> e;
+            stem := left(rest, char_length(rest) - char_length(e));
+            forms_p := forms_p || stem;
+            -- ة becomes ت before a pronoun or ات: «شرموطتك», «قحبات» are the stem with ه.
+            IF e = 'ات' OR e LIKE 'ت%' THEN
+              forms_p := forms_p || (stem || 'ه');
+            END IF;
+            IF NOT e = ANY (nisbas) THEN
+              forms_w := forms_w || stem;
+              IF e = 'ات' OR e LIKE 'ت%' THEN
+                forms_w := forms_w || (stem || 'ه');
+              END IF;
+            END IF;
+          END LOOP;
+        END LOOP;
+      END LOOP;
+      CONTINUE WHEN forms_p && allow_ar;
+      tokens := tokens || forms_w;
+      parts := parts || forms_p;
+    ELSE
+      -- A Latin word: its pieces between digits for a `word` entry; for a `part` entry the word with its digits removed
+      -- or read as letters, inside (4 letters or more) or whole with one ending (shorter).
+      tokens := tokens || pieces;
+      FOREACH form IN ARRAY ARRAY[bare, regexp_replace(translate(piece, '013457', 'oieast'), '[0-9]', '', 'g')] LOOP
+        inside := inside || form;
+        parts := parts || form;
+        FOREACH e IN ARRAY latin_end LOOP
+          IF char_length(form) - char_length(e) >= 2 AND right(form, char_length(e)) = e THEN
+            parts := parts || left(form, char_length(form) - char_length(e));
+          END IF;
+        END LOOP;
+      END LOOP;
+    END IF;
+  END LOOP;
+  -- One string for the long Latin entries: a list word holds no space, so a match never spans two forms.
+  joined := array_to_string(inside, ' ');
+  SELECT EXISTS (
+    SELECT 1 FROM username_word u
+    WHERE CASE WHEN u.match = 'word' THEN u.word = ANY (tokens)
+               WHEN u.word ~ '^[a-z]{4,}$' THEN position(u.word IN joined) > 0
+               ELSE u.word = ANY (parts) END)
   INTO hit;
   RETURN hit;
 END $$;
 REVOKE ALL ON FUNCTION full_name_blocked(text) FROM PUBLIC;
 
 -- ================================================================ the allow-list
--- Only whole words that are list entries stay: a list word inside a longer word no longer matches, so the entries for
--- those (Ishaq, Al-Balouti, Yamashita, Harshit, Pornchai, ...) are redundant. The list's statement trigger marks the
--- sweep as well; the explicit mark below is the rule's own (docs/rules.md).
-DELETE FROM full_name_allow
-WHERE word NOT IN ('butt', 'dick', 'poon', 'kike', 'quim', 'cumming', 'hooker');
-
--- ================================================================ common compounds
--- A compound insult is one word, which a list word no longer matches inside ("fuckface Ali", "Mr Shithead" passed the
--- first draft of this file). The commonest join the list as whole words. Each holds a `part` entry already (fuck,
--- shit), so no username's answer changes; any other compound passes a full name until the console adds it.
-INSERT INTO username_word (word, match, language) VALUES
-  ('fuckface', 'part', 'en'), ('fuckhead', 'part', 'en'), ('fucker', 'part', 'en'), ('fuckwit', 'part', 'en'),
-  ('shithead', 'part', 'en'), ('shitface', 'part', 'en')
+-- Real names that hold a Latin entry inside a word and that 0177 refused (Q-754's list, the corpus,
+-- `test/db/full-name-corpus.ts`), and the Arabic forms the wider prefix and ending reach («بلوطي» was kept from 0177;
+-- «البزاز» is the article form of the `word` entry «بزاز», a family name). «اسحاق» no longer holds a match (the Arabic
+-- rule never matches inside a word) and is removed. The list's statement trigger marks the sweep as well; the explicit
+-- mark below is the rule's own (docs/rules.md).
+DELETE FROM full_name_allow WHERE word = 'اسحاق';
+INSERT INTO full_name_allow (word, language) VALUES
+  ('البزاز', 'ar'),
+  ('siriporn', 'en'), ('chaiyaporn', 'en'), ('supaporn', 'en'), ('somporn', 'en'), ('kanokporn', 'en'),
+  ('pornthep', 'en'), ('pornpimon', 'en'), ('jariyaporn', 'en'), ('sasiporn', 'en'),
+  ('shittu', 'en'), ('shitole', 'en'), ('shitara', 'en'), ('slutskaya', 'en'), ('skeete', 'en'), ('skeeter', 'en'),
+  ('bastardi', 'en'), ('wankowicz', 'en'), ('swank', 'en'), ('vecchio', 'en'), ('vecchi', 'en'), ('vecchione', 'en')
 ON CONFLICT (word) DO NOTHING;
 
 -- ================================================================ the recheck

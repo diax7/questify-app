@@ -1,18 +1,20 @@
 # Blueprint State — Questify
 
-## Full names match whole words — 2026-11-08
+## Full names match by words — 2026-11-08
 
-- **Full names match whole words (tier B, API; migration 0178; ADR-817 Accepted by Dhia, Q-754 (1) and (2) decided; no new
-  string).** In a full name every list entry matches a whole word of the folded name only (`full_name_blocked` restated, diffed
-  against 0177; usernames unchanged): the Thai "porn" names, Shittu, Shitole, Shitara, Slutskaya, Skeete, Bastardi, Wankowicz and
-  «کسمایی» pass; "porn star", "shit", «اللوطي», «سحاقية» (an Arabic word with one article and one suffix) are still refused; Coon and
-  Mong stay refused (whole-word entries, listed in Q-754). `full_name_allow` keeps its 7 whole words (butt, cumming, dick, hooker,
-  kike, poon, quim); the other 36 are redundant and removed. Two corpus abusive names ("fuckface Ali", "Mr Shithead") passed a draft,
-  so six compounds of `fuck` and `shit` join `username_word` (no username's answer changes): 0 abusive names change outcome. The
-  check is one index look-up, 0.30 ms a call (0177's 0.39 ms); the recheck is marked pending, so the tick re-flags stored names.
-  Corpus 255 real names pass, 32 abusive names refused. Timing rerun: `ranking_names` 8.14 to 8.04 ms, `screen_ranking` 34.57 to
-  20.78 ms, `event_results` 28.93 to 28.93 ms, buffers equal or fewer (ADR-766's gate holds); sweep 630 ms a page median. Tests:
-  full-name-filter, name-recheck, security, name-display, usernames and console safety (11 files, 744 passed). CI 0 minutes (not pushed).
+- **Full names match by words (tier B, API; migration 0178, reworked after its review scored 80 NO-GO; ADR-817 Accepted by Dhia,
+  Q-754 (1) and (2) decided; no new string).** `full_name_blocked` restated (diffed against 0177; usernames unchanged): an Arabic
+  entry matches a word with one prefix (و ف, ب ك ل, ال; يا; ابن / بنت) and one ending (ات ين ون, ك كم ها هم, ة as ت; a part entry
+  also ي يه ه), never inside a longer word; a Latin part entry of 4 letters or more matches inside a word as in 0177 (chosen over
+  prefix and suffix forms only, which still refuse Siriporn and Shittu and miss "bigfuckingdick"); spelled-out letters take the
+  same steps. `full_name_allow`: «اسحاق» out, 22 real names in (siriporn, shittu, skeeter, swank, vecchio, «البزاز», ...), 64 in
+  all; no compound added to `username_word` (the substring rule covers fuckface and the rest). Corpus: 302 real names pass (22
+  refused by 0177); 84 abusive names refused (77 by 0177 too, none passed by 0178). The list reads are sequential scans at this
+  size. A test sweeps stored names under 0177, applies 0178 and sweeps again. Check 0.45-0.52 ms a call (0177's 0.50-0.54, same run). Timing rerun (load 2.7-6): `ranking_names` 8.29 to 8.43 ms,
+  `screen_ranking` 35.48 to 20.97 ms, `event_results` 30.17 to 29.44 ms, buffers equal or fewer (ADR-766's gate holds); sweep
+  1,232 ms a page median at load 6.
+  Recheck marked pending, so the tick re-flags stored names. Tests: full-name-filter, full-name-upgrade, name-recheck, security,
+  name-display, usernames and console safety (12 files, 746 passed). CI 0 minutes (not pushed).
 
 ## FOLLOWUPS batch 23 — 2026-11-08
 

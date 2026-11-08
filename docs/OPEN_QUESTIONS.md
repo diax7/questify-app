@@ -3028,19 +3028,25 @@ the up-front `LOCK TABLE` lines, which would otherwise stop writers for nothing.
 
 ## Q-754 - Should the username word lists check a Full name answer, and where? (ADR-817)
 
-**Status:** (1) decided by Dhia, 2026-11-08: in a full name, blocked words match whole words only (migration 0178, ADR-817
-Accepted). A `part` entry no longer matches inside a longer word, so the Thai "porn" names, Shittu, Shitole, Shitara, Slutskaya,
-Skeete, Bastardi, Wankowicz and «کسمایی» pass; "porn star" and "shit" are still refused; usernames are unchanged. (2) decided by
-Dhia the same day: «Kike» stays on the allow-list. **Still refused** after 0178: Coon (English) and Mong (Hmong), which are whole-word `word` entries; Dhia's answer covers
-words inside longer words, not whole words, so they stay refused until he decides otherwise. A compound insult other than the six
-0178 lists (fuckface, fuckhead, fucker, fuckwit, shithead, shitface), such as "Pornstar Ali", passes a full name until an admin adds
-it in the console. (3) is open.
+**Status:** (1) decided by Dhia, 2026-11-08: in a full name, blocked words match whole words, so real names such as Siriporn
+and Shittu pass, without letting abuse through (migration 0178, ADR-817 Accepted). As shipped after 0178's review: an Arabic entry
+matches a word with one prefix and one ending, never inside a longer word («کسمایی» passes, «ياشرموطة», «القحبة» are refused); a
+Latin part entry of 4 letters or more still matches inside a word, so its inflected and joined forms ("fucks", "fuckali",
+"pornstar") stay refused, and the real names that hold one pass by the allow-list (Siriporn and the Thai "porn" names, Shittu,
+Shitole, Shitara, Slutskaya, Skeete, Skeeter, Bastardi, Wankowicz, Swank, Vecchi). A Latin real name not on the allow-list that
+holds an entry is refused as under 0177 until a migration adds it. Usernames are unchanged. (2) decided by Dhia the same day:
+«Kike» stays on the allow-list. **Still refused** after 0178: Coon (English) and Mong (Hmong), which are whole-word `word`
+entries; Dhia's answer covers words inside longer words, not whole words, so they stay refused until he decides otherwise.
+(3) is open.
 **Question:** a full name shown to every player is free text (ADR-400). Options: (a) refuse it at the join only; (b) hide a failing
 name where other players read it only; (c) both. **Recommended: (c)**, with the username lists and folding and nothing else: the join
 says so while the player can change it ("That name can't be used. Enter another name."), and a stored name caught by a word added
 later is flagged and hidden, so no listed word reaches the ranking, the results or the big screen. The staff still see the answer as
 typed.
-**Real names a list can refuse (review of the first version, 2026-11-08).** The lists were made for usernames. On full names the first
+**Real names a list can refuse (review of the first version, 2026-11-08). Superseded by 0178:** run on the 0178 corpus, all
+302 real names pass, these included (Siriporn, Supaporn, Somporn, Kanokporn, Pornthep, Shittu, Shitole, Shitara, Slutskaya,
+Skeete, Bastardi, Wankowicz by the allow-list, «کسمایی» by the Arabic rule); Coon and Mong are still refused (above); all 84
+abusive names are refused. The paragraph as it stood: The lists were made for usernames. On full names the first
 version refused, inside one word: «إسحاق», «يوسف إسحاق», Yamashita, Kinoshita, Wankhede, Atwater, Pornchai; across two words: «ملاك
 سمير», «مبارك سمير», «عبدالملك سميح», «عبّاس كسّاب», Anas Lutfi, Ilyas Lutfy, Yunus Hitti, Abbas Hitti; and whole words that are list
 entries: Ali Butt, Dick Smith, Kevin Poon, Kike Garcia, Hooker. The rewrite checks word by word and skips an allow-list of name words

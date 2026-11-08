@@ -26,9 +26,10 @@ const failure = async (work: Promise<unknown>): Promise<string> => {
 /**
  * The username word lists on a full name (migration 0177, ADR-817): a Full name answer holding a listed word is refused
  * at the join; every stored one carries a flag, set as it is written and again by the sweep after a list change, and a
- * flagged name shows by username wherever other players read it (the read checks the flag only). The check matches whole
- * words only (0178, Q-754), skips the allow-list's real names, and folds other scripts and forms first. Nothing else refuses a name: not
- * Arabic, not short, not a username an admin retired.
+ * flagged name shows by username wherever other players read it (the read checks the flag only). The check goes word by
+ * word (0178, Q-754: an Arabic entry with one prefix and one ending, a long Latin part entry inside the word), skips the
+ * allow-list's real names, and folds other scripts and forms first. Nothing else refuses a name: not Arabic, not short,
+ * not a username an admin retired.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database)", () => {
   let db: TestDatabase;
@@ -51,7 +52,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
     ids = await seedTwoTenants(db.owner);
     staffA = await addMember(db.owner, ids.orgA);
     await db.owner.query(
-      "INSERT INTO username_word (word, match, language) VALUES ('qxbad', 'word', 'en'), ('خبيث', 'part', 'ar')",
+      "INSERT INTO username_word (word, match, language) VALUES ('qxbad', 'word', 'en'), ('خبيث', 'part', 'ar'), ('qxz', 'part', 'en')",
     );
     await db.owner.query("INSERT INTO username_retired (fold) VALUES ('ساره'), ('nora')");
     const made = await db.owner.query<{ id: string }>(
@@ -222,7 +223,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
 
   describe("the check", () => {
     it(`never refuses the ${REAL_NAMES.length} real names of the corpus with the lists as shipped`, async () => {
-      expect(REAL_NAMES.length).toBeGreaterThanOrEqual(150);
+      expect(REAL_NAMES.length).toBeGreaterThanOrEqual(300);
       expect(await blocked(REAL_NAMES)).toEqual([]);
     });
 
@@ -255,34 +256,40 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       ]);
     });
 
-    it("matches every entry as a whole word only, and skips the allow-list's words (0178, Q-754)", async () => {
+    it("matches an Arabic entry by word with its prefix and ending, a long Latin part inside a word (0178, Q-754)", async () => {
       expect(
         await blocked(["Anas Lutfi", "ملاك سمير", "عبّاس كسّاب", "Ali Butt", "إسحاق", "Yamashita"]),
       ).toEqual([]);
-      // A list word inside a longer word, or across two words, no longer matches.
+      // An Arabic entry never matches inside a longer word, nor any entry across two words; the allow-list's Latin
+      // real names and the Arabic ones with their article and nisba forms pass.
       expect(
         await blocked([
+          "کسمایی",
+          "ملاكسمير",
+          "الاسحاقيكسم",
+          "كسماسحاق",
+          "محمد الإسحاقي",
+          "للإسحاقية",
+          "عبدالله البلوطي",
+          "بلوطي",
+          "علي السكسكي",
+          "سكسك",
+          "سعد البزاز",
+          "خولة الزهراني",
+          "عبدالله الخولاني",
+          "أحمد البزي",
+          "ياسين",
           "Siriporn",
           "Pornthep",
           "Shittu",
           "Slutskaya",
           "Skeete",
+          "Skeeter",
           "Bastardi",
           "Wankowicz",
-          "کسمایی",
-          "Pornstar Ali",
-          "Anaslutfi",
-          "ملاكسمير",
-          "الاسحاقيكسم",
-          "كسماسحاق",
-          "Al-Ishaqiporn",
-          "محمد الإسحاقي",
-          "للإسحاقية",
-          "عبدالله البلوطي",
-          "علي السكسكي",
+          "Hilary Swank",
         ]),
       ).toEqual([]);
-      // A whole word still blocks, an Arabic one also with one article and one suffix, a word also between digits.
       const refused = [
         "porn star",
         "Ahmed Porn",
@@ -290,24 +297,73 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
         "Ali Butthole",
         "Coon Smith",
         "Mong Vang",
+        "ali2porn",
+        "fuckface Ali",
+        "Mr Shithead",
+        // A long Latin part entry inside a word: its inflected and joined forms
+        "fucks",
+        "fuckers",
+        "Ali Fuckali",
+        "dumbfuck",
+        "motherfuckers",
+        "pornstar",
+        "slutty",
+        "Siriporns",
+        // ... so two words written as one can hold one, as under 0177 ("Anas Lutfi" passes)
+        "Anaslutfi",
+        // An Arabic part entry with one prefix and one ending, ة read as ت before a pronoun
         "اللوطي",
         "السحاقي",
         "سحاقية",
         "بالسحاقيه",
         "والشرموطة",
-        "ali2porn",
-        "fuckface Ali",
-        "Mr Shithead",
+        "ياشرموطة",
+        "بشرموطة",
+        "الشرموطات",
+        "متناكين",
+        "لوطيين",
+        "شرموطتك",
+        "كسمك",
+        "ابنالشرموطة",
+        // A `word` entry with the same prefixes and endings, but no nisba
+        "القحبة",
+        "ياقحبة",
+        "قحبات",
+        "العرص",
+        "ياخول",
+        "زبك",
+        // A spelled-out run goes through the same steps
+        "ا ل ش ر م و ط ة",
+        "ش ر م و ط ة",
       ];
       expect(await blocked(refused)).toEqual(refused);
     });
 
-    it("keeps only the allow-list's whole words that are list entries", async () => {
+    it("matches a Latin part entry shorter than 4 letters as a whole word with one ending only", async () => {
       expect(
-        (await owner<{ word: string }>("SELECT word FROM full_name_allow ORDER BY word")).map(
-          (row) => row.word,
-        ),
-      ).toEqual(["butt", "cumming", "dick", "hooker", "kike", "poon", "quim"]);
+        await blocked(["qxz", "Ali qxzs", "qxzing", "qxzers", "qxzy", "aqxz", "qxzali", "qxzness"]),
+      ).toEqual(["qxz", "Ali qxzs", "qxzing", "qxzers", "qxzy"]);
+    });
+
+    it("keeps 0177's allow-list but «اسحاق», and adds the real names that hold a Latin entry", async () => {
+      const words = (await owner<{ word: string }>("SELECT word FROM full_name_allow")).map(
+        (row) => row.word,
+      );
+      expect(words).toHaveLength(64);
+      expect(words).not.toContain("اسحاق");
+      expect(words).toEqual(
+        expect.arrayContaining([
+          "butt",
+          "kike",
+          "yamashita",
+          "بلوطي",
+          "سكسك",
+          "البزاز",
+          "siriporn",
+          "shittu",
+          "skeeter",
+        ]),
+      );
     });
 
     it("keeps the allow-list closed: no grant to the API's role or anyone", async () => {
