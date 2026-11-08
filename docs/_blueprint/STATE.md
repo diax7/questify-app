@@ -1,5 +1,22 @@
 # Blueprint State — Questify
 
+## FOLLOWUPS batch 26 — 2026-11-08
+
+- **FOLLOWUPS batch 26 (tier B, web, app and API test files; no migration, no SQL, no package change, no ADR, no new string).**
+  `requestJson` (`post-json.ts`) now has a timeout of its own: 30 s by default (`DEFAULT_REQUEST_TIMEOUT_MS`), a fifth argument
+  `{ timeoutMs }` overrides it, and a call that is not answered (or whose body stalls) comes back as status 0, no body, the same
+  as a dropped connection, so every screen already handles it. Longer limits: the change-set apply 330 s
+  (`APPLY_REQUEST_TIMEOUT_MS`, the API claims a set for 5 minutes) and the analytics exports 200 s (`EXPORT_REQUEST_TIMEOUT_MS`;
+  that screen used a bare `fetch` with no limit and now has one). The forwarder's own limit was 15 s for every path but the
+  exports, which would have cut the apply short, so `forwardTimeoutMs` (`forward-timeout.ts`, tested) gives the apply path 300 s
+  beside the exports' 180 s. The calls read and left at 30 s: the player data export and erase (one player, forwarded in 15 s),
+  the word-list import (sent in chunks), rehearsal erase. The app's client (`api/client.ts`) already had a 15 s timeout with a
+  test, so it is unchanged. `completedBuzz` moved from `scan-quest.tsx` to `event/completed-buzz.ts` and is tested with a mocked
+  `expo-haptics` (Light for a replay that paid nothing, Success otherwise). API route tests pin `replayed: true` with status 200
+  on the vote, survey and share answers (the HTTP replay store's clock moved past a day so the database answers the key;
+  the game result already had it). `console-catalog-xp.int.test.ts` now spots `xp`/`gems` writers of `platform_setting` by the
+  word in any quoting, not by the quoted literal `'xp'` only. Three FOLLOWUPS lines trimmed. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 24 — 2026-11-08
 
 - **FOLLOWUPS batch 24 (tier B, SQL; migration 0179; 0178 frozen, restated and diffed against it; ADR-817

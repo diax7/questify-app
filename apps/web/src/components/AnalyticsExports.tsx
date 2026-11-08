@@ -4,6 +4,7 @@ import { type ExportKind, type Language, type MessageKey } from "@questify/share
 import { useState } from "react";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { downloadBlob } from "#src/lib/download-text.ts";
+import { EXPORT_REQUEST_TIMEOUT_MS } from "#src/lib/post-json.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Notice } from "#src/ui/Feedback.tsx";
 import { infoTip } from "#src/ui/info.tsx";
@@ -41,6 +42,7 @@ async function saveExport(
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(sponsorId === "" ? { language } : { language, sponsorId }),
+      signal: AbortSignal.timeout(EXPORT_REQUEST_TIMEOUT_MS),
     });
     if (response.status === 401) {
       return "signed_out";

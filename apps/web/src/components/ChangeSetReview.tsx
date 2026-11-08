@@ -13,7 +13,7 @@ import { ItemRow } from "#src/components/ChangeSetItems.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { readyIds, tally } from "#src/lib/change-sets.ts";
-import { requestJson } from "#src/lib/post-json.ts";
+import { APPLY_REQUEST_TIMEOUT_MS, requestJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Dialog } from "#src/ui/Dialog.tsx";
@@ -141,9 +141,13 @@ function useReviewCalls(language: Language, path: string, reload: () => Promise<
     setBusy(true);
     setProblem(null);
     setNotice(null);
-    const result = await requestJson("POST", `${path}/${suffix}`, payload, {
-      "idempotency-key": crypto.randomUUID(),
-    });
+    const result = await requestJson(
+      "POST",
+      `${path}/${suffix}`,
+      payload,
+      { "idempotency-key": crypto.randomUUID() },
+      suffix === "apply" ? { timeoutMs: APPLY_REQUEST_TIMEOUT_MS } : {},
+    );
     setBusy(false);
     if (!result.ok) {
       setProblem(describeProblem(result.body, language, t).text);

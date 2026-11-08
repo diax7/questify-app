@@ -628,9 +628,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         expect(features).toEqual([{ key: "features" }]);
       });
 
-      it("lets no function but admin_amounts_save write the xp row of platform_setting", async () => {
+      it("lets no function but admin_amounts_save write the xp or gems row of platform_setting", async () => {
+        // A key may be named in single quotes, dollar quotes or double quotes, or built apart from its table, so any
+        // use of the word counts; a comment that mentions it only makes the list shorter to review, never longer.
         const writers = await f.owner<{ proname: string; amounts: boolean }>(
-          `SELECT p.proname, p.prosrc ~* '''xp''' AS amounts
+          `SELECT p.proname, p.prosrc ~* '\\m(xp|gems)\\M' AS amounts
            FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname = 'public'
              AND p.prosrc ~* '(insert\\s+into|update|delete\\s+from)\\s+(public\\.)?platform_setting\\M'

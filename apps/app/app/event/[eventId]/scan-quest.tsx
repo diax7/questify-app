@@ -13,7 +13,8 @@ import { Button } from "#src/components/Controls.tsx";
 import { PopIn, SpinningCoin } from "#src/components/motion.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { celebrationBeats, detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
-import { bonusLine, headlineText, isRecordedAgain, itemLine } from "#src/event/amount.ts";
+import { bonusLine, headlineText, itemLine } from "#src/event/amount.ts";
+import { completedBuzz } from "#src/event/completed-buzz.ts";
 import { firstBonusLine } from "#src/event/first-bonus.ts";
 import { FlameIcon } from "#src/streaks/FlameIcon.tsx";
 import { streakBonusLine } from "#src/streaks/event-streak.ts";
@@ -83,12 +84,6 @@ const NFC_ID = "nfc";
 
 /** Haptics never block a scan: a phone without them simply stays still. */
 const buzz = (run: () => Promise<void>) => void run().catch(() => undefined);
-
-/** A completion's buzz: Success, but a replay that paid nothing is not a win, so it gets the light tap a scan gives. */
-const completedBuzz = (answer: Extract<CompletionAnswer, { kind: "completed" }>) =>
-  isRecordedAgain(answer)
-    ? Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    : Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
 /** The words for a refusal in the scanner: as the quest sheet, and "not available to you" where it would reload. */
 function refusalText(

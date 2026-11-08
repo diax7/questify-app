@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { MemoryIdempotencyStore } from "#src/idempotency-store";
 import type { RankingStore } from "#src/ranking/store";
 import {
   createStaff,
@@ -68,10 +69,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("surveys, shares and challenges
   let ownerCookie = "";
   let counter = 0;
   const upserts: Upsert[] = [];
+  /** The HTTP replay store's clock: moved past a day, a replayed key reaches the database's own replay. */
+  let clock = Date.now();
 
   beforeAll(async () => {
     db = await createTestDatabase();
-    test = await startApp(db, false, {}, { rankingStore: recordingStore(upserts) });
+    test = await startApp(
+      db,
+      false,
+      {},
+      {
+        rankingStore: recordingStore(upserts),
+        idempotencyStore: new MemoryIdempotencyStore(() => clock),
+      },
+    );
     organizer =
       (
         await db.owner.query<{ id: string }>(
@@ -194,12 +205,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("surveys, shares and challenges
       expect(paid.json()).toMatchObject({ points: 20, score: 20, replayed: false, rank: 1 });
       const again = await app("POST", `/v1/quests/${quest}/survey`, token, { answers }, key);
       expect(again.json()).toEqual(paid.json());
+      // Once the HTTP store has forgotten the key, the database answers it: the app reads `replayed` from this body.
+      clock += 2 * 24 * 60 * 60 * 1000;
+      const replayed = await app("POST", `/v1/quests/${quest}/survey`, token, { answers }, key);
+      expect(replayed.statusCode).toBe(200);
+      expect(replayed.json()).toMatchObject({ points: 20, score: 20, replayed: true });
       expect(codeOf(await app("POST", `/v1/quests/${quest}/survey`, token, { answers }))).toEqual([
         409,
         "already_completed",
       ]);
       expect((await app("GET", `/v1/quests/${quest}/survey`, token)).json().answered).toBe(true);
+      // The replay writes the same score again to the ranking copy: harmless, and never a second payment.
       expect(upserts.filter((write) => write.event === event.id)).toEqual([
+        { event: event.id, score: 20n },
         { event: event.id, score: 20n },
       ]);
     });
@@ -285,6 +303,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("surveys, shares and challenges
       expect(paid.json()).toMatchObject({ points: 5, replayed: false, rank: 1 });
       const again = await app("POST", `/v1/quests/${quest}/share`, token, {}, key);
       expect(again.json()).toEqual(paid.json());
+      // Once the HTTP store has forgotten the key, the database answers it: the app reads `replayed` from this body.
+      clock += 2 * 24 * 60 * 60 * 1000;
+      const replayed = await app("POST", `/v1/quests/${quest}/share`, token, {}, key);
+      expect(replayed.statusCode).toBe(200);
+      expect(replayed.json()).toMatchObject({ points: 5, replayed: true });
       expect(codeOf(await app("POST", `/v1/quests/${quest}/share`, token, {}))).toEqual([
         409,
         "already_completed",
