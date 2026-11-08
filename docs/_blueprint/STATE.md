@@ -36,7 +36,7 @@
 
 ## Handoff to the company server — 2026-11-06
 
-- The newest entries are below, then older ones. Staging: `release-20261107-8`, migration 0175 (0156 reserved for T-810d). Live
+- The newest entries are below, then older ones. Staging: `release-20261107-9`, migration 0176 (0156 reserved for T-810d). Live
   today: gems removed and the Journey tab (T-404c, T-404d; ADR-760 to 768), FOLLOWUPS batches 1 to 7, ADR-810 (the company server
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
@@ -68,7 +68,7 @@
 
 ## FOLLOWUPS batch 20 — 2026-11-07
 
-- **FOLLOWUPS batch 20 (tier B, API and SQL; migration 0176, new and undeployed; no package change, no new ADR, ADR-492 amended, no
+- **FOLLOWUPS batch 20 (tier B, API and SQL; migration 0176; no package change, no new ADR, ADR-492 amended, no
   new string).** 0176 restates four functions with their grants: the personal fan-out checks `notice_audience_ok`, so a streak
   reminder or an invitation whose player played or joined since writes no center row; a banner slide's link port must be 1 to 65535,
   as `isAllowedLink` says; `own_level_items` matches `reached_at` to the XP entry, as `own_level` does since 0168; `admin_unpublish`
