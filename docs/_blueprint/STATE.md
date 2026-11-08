@@ -1,5 +1,33 @@
 # Blueprint State — Questify
 
+## FOLLOWUPS batch 32 — 2026-11-08
+
+- **FOLLOWUPS batch 32 (tier B, API and SQL; migration 0183; no function, table, grant or string).** (1) The completion
+  gate with 0182's `enrollment_event_joined_idx` and without it (a throw-away migration dropping it, everything else
+  equal): `profile.mjs --big-event-players 50000 --explain 0`, 2,000 first completions after 300, the shared test
+  container, in turns with, without, without, with, without, with: with 10.44, 9.72, 10.15 (mean 10.10 ms), without
+  9.74, 10.02, 9.62 (mean 9.79 ms), so +0.31 ms (+3%), inside each side's spread (0.72 and 0.40 ms). Load average 9 to
+  15 on 12 cores throughout (another worker). The index's own cost on the score update, 20,000 members, triggers off,
+  with and without in turns, median of 6 (`test/perf/export-index-plans.int.test.ts`): one update a transaction 1,075
+  to 1,122 and 1,041 to 1,076 us (+35 to +47 us, inside the spread), in one server-side loop 121 to 138 and 151 to
+  147 us (+16 us, then -4). Verdict against ADR-734: the index does not move the gate by more than about 0.05 ms; the
+  absolute 10 ms limb is not met by the with-index mean on this busy machine (10.10) and is by the without mean
+  (9.79), with single runs on both sides of the line, and the last quiet figures (10.78, 10.98) were already over it,
+  so the absolute number still waits on a quiet machine or T-804's rerun. No cheaper index exists: the row's update is
+  already not HOT, so every index of `enrollment` takes an entry whatever its columns. (2) 0183 makes
+  `redemption_event_created_idx` partial `WHERE reward_id IS NOT NULL`. EXPLAIN (ANALYZE) of the page query on two
+  events of 20,000 reward redemptions each: with one rank prize a member (half the rows outside the file) the index
+  is half the size (8,048 to 4,048 kB), the first page reads it in order and stops (6.2 to 2.5 ms), the middle page
+  (10,000 left) becomes a bitmap read of it and a sort of those rows (4.9 to 8.9 ms), both plan modes; with one rank
+  prize in ten members every page keeps the ordered read (2.4 to 3.0 ms). The planner sorts only when what is left
+  is about two pages or less. The players page keeps its ordered read of `enrollment_event_joined_idx`. (3)
+  `ChangeSetReview.tsx`'s apply and close are `sendReviewCall`, whose signature carries the set's path, so a review
+  shown another set takes a new key; `ChangeSetReview.test.ts` tests its `keys[suffix]` wiring, the path, the key
+  slots and the apply timeout (no component test setup in `apps/web`, so the hook is not rendered). The batch 22
+  "Already recorded" note and batch 21's lost-response note stay as product calls. Tests: the exports, security,
+  rehearsal and touched suites, 766 passed, 2 skipped (the hand-run perf files). One FOLLOWUPS line trimmed, one cut
+  down. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 29 — 2026-11-08
 
 - **FOLLOWUPS batch 29 (tier B, ops, scripts and tests only; no `apps/`, no migration, no `.github`, nothing deployed).**

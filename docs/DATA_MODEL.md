@@ -1752,7 +1752,8 @@ PUBLIC none. Not copied when an event is duplicated.
   last page ended on, the first after `'-infinity'`; each answers `{rows, next}`, `next` the last row's time (UTC, to the
   microsecond) and id (a uuid for players and redemptions, a number for completions and submissions), null on a page shorter than
   asked; the rows are 0103's. Indexes `enrollment_event_joined_idx (event_id, joined_at, id)`, `redemption_event_created_idx` and
-  `submission_event_created_idx (event_id, created_at, id)`. 0182 also takes completions' `next.id` from the page's last row (0103
+  `submission_event_created_idx (event_id, created_at, id)`; the redemption one holds only reward redemptions (`WHERE reward_id IS
+  NOT NULL`, migration 0183), the rows the file reads. 0182 also takes completions' `next.id` from the page's last row (0103
   took the page's largest id, which skipped rows of the last time when a later id had an earlier time).
 - **The pages are not one snapshot.** Each call is its own transaction, so a file written from many pages can miss or repeat a row
   that changes during the walk. `enrollment.joined_at` is set again on a re-join, so a player who leaves and re-joins while the

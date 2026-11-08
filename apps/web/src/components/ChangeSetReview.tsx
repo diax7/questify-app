@@ -15,7 +15,7 @@ import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { readyIds, tally } from "#src/lib/change-sets.ts";
 import { APPLY_REQUEST_TIMEOUT_MS, requestJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
-import { keyedRequest, useRequestKeys } from "#src/lib/use-request-key.ts";
+import { keyedRequest, useRequestKeys, type RequestKey } from "#src/lib/use-request-key.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Dialog } from "#src/ui/Dialog.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
@@ -132,6 +132,27 @@ function ReviewActions({
   );
 }
 
+type CallName = (typeof CALL_NAMES)[number];
+
+/**
+ * One apply or close of the set at `path`. The key stays until a final answer, so a click after a 502 or a timeout gets
+ * the stored answer, not `busy`. Apply and close each hold their own, so a close never replaces the key of an apply that
+ * timed out; the path is in the signature, so a review that is shown another set never reuses the first set's key.
+ */
+export function sendReviewCall(
+  keys: Readonly<Record<CallName, RequestKey>>,
+  path: string,
+  suffix: CallName,
+  payload: object,
+) {
+  return keyedRequest(keys[suffix], `${suffix} ${path} ${JSON.stringify(payload)}`, {
+    method: "POST",
+    path: `${path}/${suffix}`,
+    payload,
+    options: suffix === "apply" ? { timeoutMs: APPLY_REQUEST_TIMEOUT_MS } : {},
+  });
+}
+
 /** The set's apply and close calls with their state: busy, the refusal in the API's words, and the result line. */
 function useReviewCalls(language: Language, path: string, reload: () => Promise<void>) {
   const t = useTranslator(language);
@@ -140,18 +161,11 @@ function useReviewCalls(language: Language, path: string, reload: () => Promise<
   const [notice, setNotice] = useState<string | null>(null);
   const keys = useRequestKeys(CALL_NAMES);
 
-  const call = async (suffix: (typeof CALL_NAMES)[number], payload: object) => {
+  const call = async (suffix: CallName, payload: object) => {
     setBusy(true);
     setProblem(null);
     setNotice(null);
-    // The key stays until a final answer, so a click after a 502 or a timeout gets the stored answer, not `busy`.
-    // Apply and close each hold their own, so a close never replaces the key of an apply that timed out.
-    const result = await keyedRequest(keys[suffix], `${suffix} ${JSON.stringify(payload)}`, {
-      method: "POST",
-      path: `${path}/${suffix}`,
-      payload,
-      options: suffix === "apply" ? { timeoutMs: APPLY_REQUEST_TIMEOUT_MS } : {},
-    });
+    const result = await sendReviewCall(keys, path, suffix, payload);
     setBusy(false);
     if (!result.ok) {
       setProblem(describeProblem(result.body, language, t).text);
