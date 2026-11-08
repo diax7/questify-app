@@ -166,7 +166,7 @@ function PairingCode({
   const code = phase.kind === "pending" ? phase.code : null;
   return (
     <main className={styles.screen}>
-      <p className={styles.event}>{t(deviceKindKey(kind))}</p>
+      <h1 className={styles.event}>{t(deviceKindKey(kind))}</h1>
       {code === null ? (
         <p className={styles.message} role="status">
           {t(phase.kind === "busy" ? "device.pair.busy" : "device.pair.starting")}

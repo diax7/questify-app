@@ -27,7 +27,7 @@ test("builds categories and quests in Arabic, reorders, hides, and deletes a cat
   await addQuest(page, "عام", "ابحث عن المسرح");
   await addQuest(page, "عام", "التقِ بالمتحدث");
   const general = page.getByRole("region", { name: "عام" });
-  await general.getByRole("button", { name: "نقل «التقِ بالمتحدث» لأعلى" }).click();
+  await general.getByRole("button", { name: "نقل لأعلى: «التقِ بالمتحدث»" }).click();
   await expect(general.getByRole("listitem").first()).toContainText("التقِ بالمتحدث");
 
   await general.getByRole("listitem").first().getByRole("button", { name: "إخفاء" }).click();

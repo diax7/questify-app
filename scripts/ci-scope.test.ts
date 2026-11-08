@@ -282,7 +282,7 @@ describe("scopeOutput", () => {
     );
 
     expect(output.lines).toBe(
-      "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts e2e/streak.spec.ts\n",
+      "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts e2e/a11y.spec.ts e2e/streak.spec.ts\n",
     );
   });
 
@@ -304,7 +304,7 @@ describe("scopeOutput", () => {
     );
 
     expect(output.lines).toBe(
-      "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts\n",
+      "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts e2e/a11y.spec.ts\n",
     );
   });
 });
@@ -345,7 +345,7 @@ describe("the command", () => {
       write(repo, "apps/web/src/components/StreakPanel.tsx", "b\n");
       git(repo, "commit", "--quiet", "-am", "added");
       expect(run(repo, base)).toBe(
-        "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts e2e/streak.spec.ts\nmonitoring=false\n",
+        "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts e2e/a11y.spec.ts e2e/streak.spec.ts\nmonitoring=false\n",
       );
 
       write(repo, "apps/api/src/app.ts", "uno\ntwo\nthree\n");

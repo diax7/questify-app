@@ -331,7 +331,7 @@ function BulkFields({
             />
           </Field>
           <Field label={t("awards.bulkFile")}>
-            <input
+            <Input
               type="file"
               accept=".csv,.txt,text/csv,text/plain"
               onChange={(picked) => void upload(picked.target.files?.[0])}

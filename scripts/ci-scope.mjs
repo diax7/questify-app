@@ -25,8 +25,8 @@ const E2E = [
 // A unit test cannot change what ships, so it never starts a build or a browser run.
 const TEST_FILE = /\.test\.[cm]?tsx?$/;
 
-/** Always run: the layout check reads every page, so it also proves the API and the web app boot. */
-export const LAYOUT_SPECS = ["layout", "layout-check"];
+/** Always run: the layout check and the accessibility sweep read every page, so they also prove the API and the web app boot. */
+export const LAYOUT_SPECS = ["layout", "layout-check", "a11y"];
 /** More specs than this is a broad change: 20 specs and the layout check take about 9 minutes, the whole suite 16. */
 export const MAX_AREA_SPECS = 20;
 

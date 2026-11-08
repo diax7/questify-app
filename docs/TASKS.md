@@ -1657,6 +1657,17 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     consent keys and `rules.*` (T-807), the SMS brand (needs a migration), short labels beyond the scans, and how any screen
     looks in RTL. Glossary, rules and the list for a human decision: `docs/design/ARABIC_GLOSSARY.md`. A person's read of every
     screen in both languages is still required.
+  - Note 2026-11-08 (accessibility sweep, tier B): `apps/web/e2e/a11y.spec.ts` runs axe-core (`@axe-core/playwright`) against
+    WCAG 2.1 A and AA on every page of the layout check (`LAYOUT_PAGES`, `PUBLIC_PAGES`), the unpaired screen, station and
+    kiosk pages, the big screen paired and showing its ranking, and the event's confirmation dialog, in English and Arabic,
+    on the desktop and phone projects (the phone again with the Menu sheet open). Serious and critical violations fail the
+    test; the other findings, including the best-practice rules for landmarks and headings, are printed only. The spec
+    runs in the CI browser shards and as part of every scoped run (`LAYOUT_SPECS`). Covered: names and labels, roles, colour
+    contrast as drawn, `lang` and `dir`, landmarks, headings, duplicate ids, zoom and reflow rules. Not covered, and still
+    needing a person: the player app (axe reads web pages only), a screen reader (VoiceOver, TalkBack, NVDA) walking each
+    flow, focus order and keyboard use beyond the rules axe can see, whether a label or alt text means the right thing,
+    the paired station and kiosk pages in their live states, contrast over images and gradients (axe reports those as
+    "incomplete"), and a reading of every screen in both languages.
   - Done when: Every screen has been read in Arabic and English by a person.
 - [ ] **T-809** Independent penetration test against ASVS L2 (core) and MASVS L1 with open-book access; fix or accept in writing every finding — delivers no FR (infrastructure or quality gate); depends on: T-804, T-805
   - Done when: A written report exists; every high or medium finding is fixed and retested, or accepted in writing by the user.

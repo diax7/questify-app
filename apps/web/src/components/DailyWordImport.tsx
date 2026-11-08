@@ -6,7 +6,7 @@ import { useWordImport } from "#src/lib/use-word-import.ts";
 import type { ImportOutcome } from "#src/lib/word-import-run.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Muted, Notice } from "#src/ui/Feedback.tsx";
-import { Field, Textarea } from "#src/ui/Field.tsx";
+import { Field, Input, Textarea } from "#src/ui/Field.tsx";
 import { Stack, SubHeading, Toolbar } from "#src/ui/Section.tsx";
 
 /** What the list of refused lines leaves out: the lines past the 50 the API shows, or that it may have left out. */
@@ -93,7 +93,7 @@ export function DailyWordImport({
         />
       </Field>
       <Field label={t("console.words.importFile")}>
-        <input
+        <Input
           type="file"
           accept=".txt,text/plain"
           disabled={form.busy}

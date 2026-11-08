@@ -464,6 +464,27 @@ export async function waitUntilSettled(page: Page, where: string): Promise<void>
   await settleRequests(page);
 }
 
+/**
+ * Opens a page in a language and waits until its main area shows the given text and it has its data. A page that opens
+ * on the error state because the API stalled for a moment is opened again, not read as it is.
+ */
+export async function openPage(
+  page: Page,
+  language: "en" | "ar",
+  path: string,
+  ready: string,
+  where: string,
+): Promise<void> {
+  await expect(async () => {
+    await page.goto(`/${language}${path}`);
+    // Inside the main area: the shell around it paints its own labels at once, before the page has its data.
+    await expect(
+      page.locator("main").getByText(ready).filter({ visible: true }).first(),
+    ).toBeVisible({ timeout: 6000 });
+  }).toPass({ timeout: 40_000 });
+  await waitUntilSettled(page, where);
+}
+
 /** The open page's layout problems, as the check sees them. */
 export function readLayout(page: Page): Promise<LayoutProblems> {
   return page.evaluate(measure, MIN_TEXT_PX);

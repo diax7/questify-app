@@ -28,6 +28,30 @@
   rehearsal and touched suites, 766 passed, 2 skipped (the hand-run perf files). One FOLLOWUPS line trimmed, one cut
   down. CI 0 minutes (not pushed).
 
+## Accessibility sweep — 2026-11-08
+
+- **Accessibility sweep (T-808, automated web part; tier B).** New `apps/web/e2e/a11y.spec.ts` runs axe-core
+  (`@axe-core/playwright` 4.14.0, MPL-2.0, released 2026-10-15; its engine `axe-core` 4.14.0, MPL-2.0, 2026-10-05; a
+  devDependency of `apps/web` only, justified under rules.md 8: the layout check cannot see names, roles, labels or
+  landmarks) against WCAG 2.1 A and AA on every page of the layout check (all of `LAYOUT_PAGES` and `PUBLIC_PAGES`), the
+  unpaired screen, station and kiosk pages, a big screen paired and showing its ranking, and the event's confirmation
+  dialog, in English and Arabic, on the desktop and phone projects (phone again with the Menu sheet open). Serious and
+  critical WCAG violations fail; moderate and best-practice findings (landmarks, heading order) are printed, not failed.
+  The waiver list `ALLOWED` in the spec is empty. The spec shares the event-filling steps with the layout check through the
+  new `layout-fill.ts` (moved out of `layout.spec.ts`, unchanged) and `openPage` in `layout.ts`; `a11y` joined
+  `LAYOUT_SPECS` in `scripts/ci-scope.mjs`, so every web change runs it in the existing browser shards (no workflow change;
+  one more test per shard, about 5 minutes on desktop and 8 on the phone project locally). Found and fixed: `label`
+  (critical) on the awards file input (and the same plain `<input type="file">` in `DailyWordImport`), now the labelled
+  `Input`; `label-content-name-mismatch` (serious, 4) on the quest move buttons, whose accessible name now starts with the
+  visible words («Move up: {name}» / «نقل لأعلى: «{name}»», keys `quests.upNamed` and `quests.downNamed`, spec text
+  updated); `color-contrast` (serious) on the big screen's scene title, honey on cream at 1.6 to 1, now the wood-brown
+  text token at 5.4 to 1; the pairing pages (screen, station, kiosk) gained a level-1 heading. Left, as moderate
+  best-practice findings printed by the spec and not failures: `heading-order` (a level-3 title straight under the level-1
+  title on about eight pages), `landmark-unique` (equal tile names on the inbox and numbers pages), and
+  `page-has-heading-one` on the invite page and the paired big screen. Still needs a person: the
+  player app, a screen reader walking each flow, keyboard and focus order beyond what axe reads, whether labels and alt
+  texts mean the right thing, and the read of every screen in both languages (T-808 stays open). CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 29 — 2026-11-08
 
 - **FOLLOWUPS batch 29 (tier B, ops, scripts and tests only; no `apps/`, no migration, no `.github`, nothing deployed).**

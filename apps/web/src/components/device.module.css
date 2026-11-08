@@ -212,7 +212,8 @@
   font-family: var(--font-display), var(--font-body), sans-serif;
   font-weight: 800;
   font-size: clamp(2rem, 5vw, 4.5rem);
-  color: var(--color-highlight);
+  /* The honey highlight is 1.6 to 1 on the cream stage; the wood brown text colour reads at 5.4 to 1 (WCAG AA). */
+  color: var(--color-text-muted);
 }
 
 .scene {

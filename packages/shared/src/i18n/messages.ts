@@ -562,8 +562,8 @@ export const MESSAGES = {
   },
   "quests.up": { ar: "نقل لأعلى", en: "Move up" },
   "quests.down": { ar: "نقل لأسفل", en: "Move down" },
-  "quests.upNamed": { ar: "نقل «{name}» لأعلى", en: "Move “{name}” up" },
-  "quests.downNamed": { ar: "نقل «{name}» لأسفل", en: "Move “{name}” down" },
+  "quests.upNamed": { ar: "نقل لأعلى: «{name}»", en: "Move up: {name}" },
+  "quests.downNamed": { ar: "نقل لأسفل: «{name}»", en: "Move down: {name}" },
   "quests.liveBanner": {
     ar: "الفعالية جارية: يظهر كل تغيير في التطبيق فورًا.",
     en: "The event is live: every change shows in the app at once.",
