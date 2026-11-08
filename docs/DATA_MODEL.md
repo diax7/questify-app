@@ -570,7 +570,8 @@ Both revoked from PUBLIC, granted to the API role only.
   name_en)` (six titles): data for T-709 to edit. The amount per quest is `platform_setting` key `xp` `{questXp}`
   (1–99999, CHECKed on write; server-only, never in the public config; read with a fallback of 100).
 - No grant on any of them; `own_level(completion)` is the detailed owner XP read (the caller's xp, level, range, title
-  and the level a completion reached first).
+  and the level a completion reached first). `own_level_only()` (migration 0182) answers that read's level alone, null for a
+  caller who is no active player; the ranking read's own row takes it (ADR-766).
 - Migration 0124 (T-709d, ADR-440): the console edits `xp_level` and `level_item` as one document through
   `admin_xp_table_save` only (row locks: level 1 first, then each level, the changed rewards and the new items, one row per
   statement within one 1 s lock budget, CA503 when it runs out; no table lock, no player row). Index
@@ -1737,14 +1738,22 @@ PUBLIC none. Not copied when an event is duplicated.
 
 ## Exports, sponsor totals and the report (T-608, migration 0103; Proposed ADR-393)
 
-- No table, no column, no index. Seven read-only definer doors, each behind `award_event_of` (AN404), PUBLIC revoked, granted to the API's
+- No table, no column; three indexes since 0182. Seven read-only definer doors, each behind `award_event_of` (AN404), PUBLIC revoked, granted to the API's
   role: `export_start(event, kind, sponsor, request)` (checks the seat and the sponsor, writes the `audit_log` entry `event.export` with
-  the kind and the sponsor only, answers the event's names, zone and, for the players file, the join fields), `export_players(event)`,
+  the kind and the sponsor only, answers the event's names, zone and, for the players file, the join fields),
+  `export_players(event, after_at, after_id, page_size)`,
   `export_completions(event, after_at, after_id, page_size)` (pages of up to 10,000 by `(created_at, id)` on
   `quest_completion_event_recent_idx`; marks a completion whose award the team removed, found through the event's `ledger_note` rows),
-  `export_redemptions(event)` (shop rewards; no code), `export_submissions(event)` (the text is blank once `erased_at` is set; no
-  reviewer reason), `export_surveys(event)` (`survey_results_core` per survey quest), and `analytics_sponsor(event, sponsor)` (exact
+  `export_redemptions(event, after_at, after_id, page_size)` (shop rewards; no code),
+  `export_submissions(event, after_at, after_id, page_size)` (the text is blank once `erased_at` is set; no reviewer reason), `export_surveys(event)` (`survey_results_core` per survey quest), and `analytics_sponsor(event, sponsor)` (exact
   counts of the items tagged to the sponsor through `sponsor_tag`; the API leaves out the counts under the floor of 5).
+- Paged doors (FOLLOWUPS batch 30, migration 0182): players, redemptions and submissions read pages as completions do, by the
+  table's own time and id (`enrollment.joined_at`, `redemption.created_at`, `submission.created_at`) after the `(time, id)` the
+  last page ended on, the first after `'-infinity'`; each answers `{rows, next}`, `next` the last row's time (UTC, to the
+  microsecond) and id (a uuid for players and redemptions, a number for completions and submissions), null on a page shorter than
+  asked; the rows are 0103's. Indexes `enrollment_event_joined_idx (event_id, joined_at, id)`, `redemption_event_created_idx` and
+  `submission_event_created_idx (event_id, created_at, id)`. 0182 also takes completions' `next.id` from the page's last row (0103
+  took the page's largest id, which skipped rows of the last time when a later id had an earlier time).
 - No door selects `player_contact`, a phone number, an email address, a device id or a redemption code; the API checks every row
   against a strict schema before a file is written. Join answers are read from `join_answer` by field id.
 - SQLSTATEs: `AN404` (event or sponsor not the caller's), `AX400` (unknown kind, a sponsor on a file that takes none, a page size out of 1 to 10,000).

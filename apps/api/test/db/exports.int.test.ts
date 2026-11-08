@@ -14,10 +14,9 @@ type Sponsor = {
   categories: { id: string; name: Text; players: number }[];
   rewards: { id: string; name: Text; redeemed: number }[];
 };
-type CompletionPage = {
-  rows: { username: string; quest: Text; removed: boolean; occurrence: number }[];
-  next: { at: string; id: number } | null;
-};
+type Page<Row> = { rows: Row[]; next: { at: string; id: string | number } | null };
+type CompletionPage = Page<{ username: string; quest: Text; removed: boolean; occurrence: number }>;
+const NIL = "00000000-0000-0000-0000-000000000000";
 
 const refusal = (work: Promise<unknown>): Promise<string> =>
   work.then(
@@ -40,6 +39,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports (database)", () => {
 
   const read = async <T>(sql: string, values: unknown[], seat = f.team()): Promise<T> =>
     (await f.run<Door<T>>(seat, `SELECT ${sql} AS door`, values))[0]?.door as T;
+  /** Every page of a paged door (0182), as the API reads them: the rows in order and how many calls it took. */
+  const walk = async <Row>(door: string, event: string, size: number, first: string | number) => {
+    const rows: Row[] = [];
+    let pages = 0;
+    let cursor: Page<Row>["next"] = { at: "-infinity", id: first };
+    while (cursor !== null) {
+      const page: Page<Row> = await read<Page<Row>>(`${door}($1, $2, $3, ${size})`, [
+        event,
+        cursor.at,
+        cursor.id,
+      ]);
+      rows.push(...page.rows);
+      cursor = page.next;
+      pages += 1;
+    }
+    return { rows, pages };
+  };
 
   const quest = async (event: string, title: string, category?: string): Promise<string> =>
     (
@@ -229,7 +245,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports (database)", () => {
       await f.owner("UPDATE enrollment SET status = 'pending' WHERE id = $1", [
         await f.join(event, waiting),
       ]);
-      const rows = await read<Record<string, unknown>[]>("export_players($1)", [event]);
+      const { rows } = await walk<Record<string, unknown>>("export_players", event, 10, NIL);
       expect(rows.map((row) => row["username"])).toEqual([first.username, second.username]);
       expect(rows[0]).toMatchObject({
         status: "active",
@@ -251,7 +267,58 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports (database)", () => {
 
     it("answers an empty list for an event nobody joined", async () => {
       const event = await f.newEvent({ phase: "live" });
-      expect(await read("export_players($1)", [event])).toEqual([]);
+      expect(await read("export_players($1, '-infinity', $2, 10)", [event, NIL])).toEqual({
+        rows: [],
+        next: null,
+      });
+    });
+
+    it("reads the members in pages that join up across players who joined at the same moment", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const who = [];
+      for (let i = 0; i < 5; i += 1) who.push(await member(event));
+      await f.owner(
+        "UPDATE enrollment SET joined_at = '2026-11-01T10:00:00.123456Z' WHERE id = ANY($1::uuid[])",
+        [who.slice(1, 4).map((one) => one.enrollment)],
+      );
+      const order = await f.owner<{ username: string }>(
+        `SELECT p.username FROM enrollment n JOIN player p ON p.id = n.player_id WHERE n.event_id = $1
+         ORDER BY n.joined_at, n.id`,
+        [event],
+      );
+      for (const size of [1, 2, 3]) {
+        const { rows, pages } = await walk<{ username: string }>(
+          "export_players",
+          event,
+          size,
+          NIL,
+        );
+        expect(
+          rows.map((row) => row.username),
+          `pages of ${size}`,
+        ).toEqual(order.map((row) => row.username));
+        expect(pages).toBe(Math.floor(5 / size) + 1);
+      }
+    });
+
+    it("refuses a page of no players or of more than ten thousand", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      for (const door of ["export_players", "export_redemptions"]) {
+        for (const size of [0, 10001]) {
+          expect(
+            await refusal(
+              f.run(f.team(), `SELECT ${door}($1, '-infinity', $2, $3)`, [event, NIL, size]),
+            ),
+          ).toBe("AX400");
+        }
+      }
+      for (const size of [0, 10001]) {
+        expect(
+          await refusal(
+            f.run(f.team(), "SELECT export_submissions($1, '-infinity', 0, $2)", [event, size]),
+          ),
+        ).toBe("AX400");
+      }
     });
   });
 
@@ -269,7 +336,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports (database)", () => {
       await complete(elsewhere, (await member(elsewhere)).enrollment, otherQuest);
 
       const seen: CompletionPage["rows"] = [];
-      let cursor: { at: string; id: number } | null = { at: "-infinity", id: 0 };
+      let cursor: CompletionPage["next"] = { at: "-infinity", id: 0 };
       let pages = 0;
       while (cursor !== null) {
         const page: CompletionPage = await read<CompletionPage>(
@@ -290,6 +357,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports (database)", () => {
       expect(seen.map((row) => row.removed)).toEqual([false, true, false, false]);
       expect(seen.map((row) => row.occurrence)).toEqual([1, 1, 1, 2]);
       expect(seen.every((row) => row.quest.en === "Stage")).toBe(true);
+    });
+
+    it("starts the next page after the page's last row, not after its largest id (0182)", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const stage = await quest(event, "Stage");
+      const who = [await member(event), await member(event), await member(event)];
+      for (const one of who) await complete(event, one.enrollment, stage);
+      // The last written completion has the earliest time (its transaction began first); the other two share a time.
+      await f.owner(
+        `UPDATE quest_completion c SET created_at = CASE WHEN c.id = m.top THEN '2026-11-01T09:00:00Z'::timestamptz
+                                                         ELSE '2026-11-01T10:00:00Z'::timestamptz END
+         FROM (SELECT max(id) AS top FROM quest_completion WHERE event_id = $1) m WHERE c.event_id = $1`,
+        [event],
+      );
+      const { rows } = await walk<{ username: string }>("export_completions", event, 2, 0);
+      expect(rows.map((row) => row.username)).toEqual([
+        who[2]?.username,
+        who[0]?.username,
+        who[1]?.username,
+      ]);
     });
 
     it("ends on a full last page with a page that is empty and has no next", async () => {
@@ -326,7 +413,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports (database)", () => {
       const event = await f.newEvent({ phase: "live" });
       const prize = await reward(event, "Hoodie", 40);
       const buyer = await redeem(event, prize);
-      const rows = await read<Record<string, unknown>[]>("export_redemptions($1)", [event]);
+      const { rows } = await walk<Record<string, unknown>>("export_redemptions", event, 10, NIL);
       expect(rows).toHaveLength(1);
       expect(rows[0]).toMatchObject({
         username: buyer.username,
@@ -343,9 +430,40 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports (database)", () => {
         "status",
         "username",
       ]);
-      expect(await read("export_redemptions($1)", [await f.newEvent({ phase: "live" })])).toEqual(
-        [],
+      expect(
+        await read("export_redemptions($1, '-infinity', $2, 10)", [
+          await f.newEvent({ phase: "live" }),
+          NIL,
+        ]),
+      ).toEqual({ rows: [], next: null });
+    });
+
+    it("reads redemptions in pages that step over a rank prize without ending early", async () => {
+      const event = await f.newEvent({ phase: "live" });
+      const prize = await reward(event, "Hoodie", 40);
+      const first = await redeem(event, prize);
+      const ranked = await member(event);
+      const last = await redeem(event, prize);
+      await f.owner("BEGIN");
+      await f.owner("SET LOCAL session_replication_role = replica");
+      await f.owner(
+        `WITH k AS (INSERT INTO rank_prize (organizer_id, event_id, rank_from, rank_to, kind, name_en)
+                    SELECT organizer_id, id, 1, 1, 'experience', 'Winner' FROM event WHERE id = $1 RETURNING *)
+         INSERT INTO redemption (organizer_id, event_id, enrollment_id, rank_prize_id, price, status, idempotency_key,
+                                 reserved_until)
+         SELECT k.organizer_id, k.event_id, $2, k.id, 0, 'reserved', gen_random_uuid()::text, now() + interval '1 day'
+         FROM k`,
+        [event, ranked.enrollment],
       );
+      await f.owner(
+        `UPDATE redemption r SET created_at = '2026-11-01T10:00:00Z'::timestamptz + n.k * interval '1 minute'
+         FROM (SELECT r2.id, CASE r2.enrollment_id WHEN $2 THEN 0 WHEN $3 THEN 1 ELSE 2 END AS k
+               FROM redemption r2 WHERE r2.event_id = $1) n WHERE r.id = n.id`,
+        [event, first.enrollment, ranked.enrollment],
+      );
+      await f.owner("COMMIT");
+      const { rows } = await walk<{ username: string }>("export_redemptions", event, 1, NIL);
+      expect(rows.map((row) => row.username)).toEqual([first.username, last.username]);
     });
 
     it("lists a submission with its text, and a blank text once the player's account erased it", async () => {
@@ -365,14 +483,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("exports (database)", () => {
           [event, who.enrollment, photo, body, randomUUID(), erased],
         );
       }
-      const rows = await read<{ username: string; answer: string | null; status: string }[]>(
-        "export_submissions($1)",
+      // Sent at the same moment: the id keeps them in order, in pages of one.
+      await f.owner(
+        "UPDATE submission SET created_at = '2026-11-01T10:00:00Z' WHERE event_id = $1",
         [event],
       );
+      const { rows, pages } = await walk<{
+        username: string;
+        answer: string | null;
+        status: string;
+      }>("export_submissions", event, 1, 0);
       expect(rows.map((row) => [row.username, row.answer, row.status])).toEqual([
         [writer.username, "= big idea", "pending"],
         [gone.username, null, "pending"],
       ]);
+      expect(pages).toBe(3);
     });
 
     it("lists the event's survey quests with no player in their results", async () => {

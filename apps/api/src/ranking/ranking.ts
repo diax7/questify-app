@@ -269,8 +269,8 @@ async function ownIn(
     level: number;
   }>(
     `SELECT e.id, e.score, p.username, p.avatar, c.equipment, l.level FROM enrollment e JOIN player p ON p.id = e.player_id
-     CROSS JOIN own_equipment() c CROSS JOIN own_level(NULL) l
-     WHERE e.event_id = $1 AND e.player_id = $2 AND e.status = 'active'`,
+     CROSS JOIN own_equipment() c CROSS JOIN own_level_only() l(level)
+     WHERE e.event_id = $1 AND e.player_id = $2 AND e.status = 'active' AND l.level IS NOT NULL`,
     [eventId, playerId],
   );
   const row = rows[0];

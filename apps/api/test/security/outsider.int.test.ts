@@ -1463,10 +1463,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     }
     for (const sql of [
       "SELECT public.export_start(gen_random_uuid(), 'players', NULL, gen_random_uuid())",
-      "SELECT public.export_players(gen_random_uuid())",
+      "SELECT public.export_players(gen_random_uuid(), '-infinity', gen_random_uuid(), 10)",
       "SELECT public.export_completions(gen_random_uuid(), '-infinity', 0, 10)",
-      "SELECT public.export_redemptions(gen_random_uuid())",
-      "SELECT public.export_submissions(gen_random_uuid())",
+      "SELECT public.export_redemptions(gen_random_uuid(), '-infinity', gen_random_uuid(), 10)",
+      "SELECT public.export_submissions(gen_random_uuid(), '-infinity', 0, 10)",
       "SELECT public.export_surveys(gen_random_uuid())",
     ]) {
       await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);

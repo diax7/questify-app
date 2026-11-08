@@ -62,11 +62,18 @@ export const completionRowSchema = z.strictObject({
   method: z.string(),
   removed: z.boolean(),
 });
-export const completionPageSchema = z.strictObject({
-  rows: z.array(completionRowSchema),
-  /** Where the next page starts (the timestamp exactly as the database wrote it, and the id); null on the last. */
-  next: z.strictObject({ at: z.string(), id: z.number().int() }).nullable(),
-});
+/**
+ * A page of an export door (FOLLOWUPS batch 30, migration 0182): its rows, and where the next page starts (the
+ * timestamp exactly as the database wrote it, and the row's own id: a number for completions and submissions, a uuid
+ * for players and redemptions); null on the last.
+ */
+const pageOf = <Row extends z.ZodType, Id extends z.ZodType>(row: Row, id: Id) =>
+  z.strictObject({
+    rows: z.array(row),
+    next: z.strictObject({ at: z.string(), id }).nullable(),
+  });
+const serial = z.number().int();
+export const completionPageSchema = pageOf(completionRowSchema, serial);
 export const redemptionRowSchema = z.strictObject({
   username: z.string(),
   reward: text,
@@ -82,6 +89,9 @@ export const submissionRowSchema = z.strictObject({
   status: z.string(),
   answer: z.string().nullable(),
 });
+export const playerPageSchema = pageOf(playerRowSchema, z.uuid());
+export const redemptionPageSchema = pageOf(redemptionRowSchema, z.uuid());
+export const submissionPageSchema = pageOf(submissionRowSchema, serial);
 export const surveyExportSchema = z.strictObject({ quest: text, results: surveyResultsSchema });
 
 export type PlayerRow = z.infer<typeof playerRowSchema>;

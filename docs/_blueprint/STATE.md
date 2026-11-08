@@ -19,6 +19,30 @@
   repository-root context) and `monitoring.test.ts` plus the `cmp` stage of `monitoring:validate` already fail while the
   copies differ. Five FOLLOWUPS lines trimmed. CI 0 minutes (not pushed).
 
+## FOLLOWUPS batch 30 — 2026-11-08
+
+- **FOLLOWUPS batch 30 (tier B, API and SQL; migration 0182; 0181 and earlier frozen, `export_completions` restated and the
+  three paged doors diffed against 0103; ADR-766 amended; no route, screen, string or package change).** The players,
+  redemptions and submissions export doors read pages as completions do: `(event, after_at, after_id, page_size)`, 1 to
+  10,000 rows (AX400 otherwise), oldest first by the table's own time and id, `{rows, next}` with the rows unchanged and
+  `next` the last row's time and id (a uuid for players and redemptions). The API reads all four in pages of 5,000
+  (`pagedPieces` in `src/analytics/exports.ts`); `POST …/exports/{kind}` and its file are unchanged, so no dashboard caller
+  or Playwright spec changed. Three indexes `(event_id, time, id)` keep a page a range read. Found and fixed on the way:
+  `export_completions` took `next.id` as the page's largest id, which skips rows of the last time when a later id has an
+  earlier time; it now takes the last row's id. A redemption without a reward (a rank prize) is left out inside the page,
+  so it never ends a full page early. Measured on an event of 100,000 players, each with one join answer, redemption and
+  text submission (209 MB database, load about 2 to 3.7 on 12 cores, median of 3 warm walks,
+  `test/perf/export-pages-timing.int.test.ts`): players 1 call, 402,890 buffers, 1,907 ms, a 15.0 MB answer, to 21 calls,
+  431,760 buffers, 2,391 ms in all, at most 0.7 MB a call; redemptions 5,238 buffers, 1,529 ms, 13.9 MB to 535,556 buffers,
+  2,473 ms, 0.7 MB; submissions 5,569 buffers, 1,431 ms, 16.5 MB to 535,235 buffers, 2,434 ms, 0.8 MB. A walk costs 25 to
+  70% more database time (index lookups per page in place of one hash join) for no statement over about 120 ms and no
+  answer over 1 MB. `own_level_only()` (PL/pgSQL definer, search path pinned, PUBLIC revoked, granted to `questify_app`
+  alone) answers the level of `own_level(NULL)`, the same for every XP around every level's start and null for a banned
+  player or no player; `ownIn` in `ranking.ts` takes it. The own row on 50,000 players: no level 3.49 ms, `own_level(NULL)`
+  4.08 ms, `own_level_only()` 3.70 ms (35, 51, 47 buffers): ADR-766's gate now holds both limbs. The sponsor-subtraction
+  half of the T-608 line stays noted as ADR-393 (4)'s accepted case. Each new test failed without its fix. Two FOLLOWUPS
+  lines trimmed. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 28 — 2026-11-08
 
 - **FOLLOWUPS batch 28 (tier B, web and API test files; no migration, no SQL, no package change, no ADR, no new string).**

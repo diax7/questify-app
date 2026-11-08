@@ -9,17 +9,16 @@ import {
   economySchema,
   exportStartSchema,
   participationSchema,
-  playerRowSchema,
+  playerPageSchema,
   playersTable,
   questsAnalyticsSchema,
-  redemptionRowSchema,
+  redemptionPageSchema,
   redemptionsTable,
   sponsorRows,
-  submissionRowSchema,
+  submissionPageSchema,
   submissionsTable,
   surveyExportSchema,
   surveysRows,
-  type CompletionRow,
   type ExportKind,
   type ExportStart,
   type ExportTable,
@@ -38,9 +37,7 @@ import type { OrganizerContext } from "#src/organizers/store";
 
 const translate = createTranslator(MESSAGES);
 
-type CompletionPage = z.infer<typeof completionPageSchema>;
-
-/** Rows written to the file per piece, and completions read per page (the door allows up to 10,000). */
+/** Rows written to the file per piece, and rows read per page (each paged door allows up to 10,000). */
 const PIECE_ROWS = 5000;
 const PAGE_ROWS = 5000;
 const BYTE_ORDER_MARK = "﻿";
@@ -94,20 +91,31 @@ function* pieces<Row>(table: ExportTable<Row>, rows: readonly Row[]): Generator<
   }
 }
 
-async function* completionPieces(
-  deps: AnalyticsDeps,
-  team: OrganizerContext,
-  eventId: string,
-  table: ExportTable<CompletionRow>,
+/** Where a paged door's first page starts: after every time, and after the smallest id of its kind. */
+const FIRST_SERIAL = 0;
+const FIRST_UUID = "00000000-0000-0000-0000-000000000000";
+
+type Page<Row, Id> = { rows: Row[]; next: { at: string; id: Id } | null };
+
+/**
+ * A paged door's rows, page after page in the file's order (migrations 0103 and 0182): each page starts after the
+ * (time, id) the last one ended on, and the last page answers no next.
+ */
+async function* pagedPieces<Row, Id extends string | number>(
+  source: FileSource,
+  doorName: string,
+  schema: z.ZodType<Page<Row, Id>>,
+  first: Id,
+  table: ExportTable<Row>,
 ): AsyncGenerator<string> {
-  let cursor: { at: string; id: number } | null = { at: "-infinity", id: 0 };
+  let cursor: { at: string; id: Id } | null = { at: "-infinity", id: first };
   while (cursor !== null) {
-    const page: CompletionPage = await rowsOf(
-      deps,
-      team,
-      completionPageSchema,
-      "export_completions($1, $2, $3, $4)",
-      [eventId, cursor.at, cursor.id, PAGE_ROWS],
+    const page: Page<Row, Id> = await rowsOf(
+      source.deps,
+      source.team,
+      schema,
+      `${doorName}($1, $2, $3, $4)`,
+      [source.eventId, cursor.at, cursor.id, PAGE_ROWS],
     );
     yield* pieces(table, page.rows);
     cursor = page.next;
@@ -125,39 +133,27 @@ type FileSource = Readonly<{
 }>;
 
 async function* playersFile(source: FileSource): AsyncGenerator<string> {
-  const { deps, team, eventId, language, t } = source;
-  const table = playersTable(source.start.fields, language, t);
+  const table = playersTable(source.start.fields, source.language, source.t);
   yield head(table);
-  const rows = await rowsOf(deps, team, z.array(playerRowSchema), door("export_players"), [
-    eventId,
-  ]);
-  yield* pieces(table, rows);
+  yield* pagedPieces(source, "export_players", playerPageSchema, FIRST_UUID, table);
 }
 
 async function* completionsFile(source: FileSource): AsyncGenerator<string> {
   const table = completionsTable(source.language, source.t);
   yield head(table);
-  yield* completionPieces(source.deps, source.team, source.eventId, table);
+  yield* pagedPieces(source, "export_completions", completionPageSchema, FIRST_SERIAL, table);
 }
 
 async function* redemptionsFile(source: FileSource): AsyncGenerator<string> {
-  const { deps, team, eventId } = source;
   const table = redemptionsTable(source.language, source.t);
   yield head(table);
-  const rows = await rowsOf(deps, team, z.array(redemptionRowSchema), door("export_redemptions"), [
-    eventId,
-  ]);
-  yield* pieces(table, rows);
+  yield* pagedPieces(source, "export_redemptions", redemptionPageSchema, FIRST_UUID, table);
 }
 
 async function* submissionsFile(source: FileSource): AsyncGenerator<string> {
-  const { deps, team, eventId } = source;
   const table = submissionsTable(source.language, source.t);
   yield head(table);
-  const rows = await rowsOf(deps, team, z.array(submissionRowSchema), door("export_submissions"), [
-    eventId,
-  ]);
-  yield* pieces(table, rows);
+  yield* pagedPieces(source, "export_submissions", submissionPageSchema, FIRST_SERIAL, table);
 }
 
 async function* surveysFile(source: FileSource): AsyncGenerator<string> {
