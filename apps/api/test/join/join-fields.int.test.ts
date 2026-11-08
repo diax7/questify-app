@@ -422,6 +422,34 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks over HTT
       ]);
     });
 
+    it("refuses a full name holding a listed word with its own text, and joins on another name", async () => {
+      const event = await newEvent();
+      const saved = (
+        await saveFields(event.id, [{ kind: "full_name", required: true }])
+      ).json<Setup>();
+      const fullName = saved.fields[0]?.id ?? "";
+      const player = await newPlayer();
+      const refused = await join(player.token, {
+        joinCode: event.code,
+        answers: { [fullName]: "Sara B4stard" },
+      });
+      expect(refused.statusCode).toBe(422);
+      expect(refused.json()).toMatchObject({
+        code: "invalid_join_answers",
+        details: { field: fullName },
+        message: {
+          ar: "لا يمكن استخدام هذا الاسم. أدخل اسمًا آخر.",
+          en: "That name can't be used. Enter another name.",
+        },
+      });
+      expect(await owner("SELECT 1 FROM enrollment WHERE player_id = $1", [player.id])).toEqual([]);
+      const joined = await join(player.token, {
+        joinCode: event.code,
+        answers: { [fullName]: "سارة أحمد" },
+      });
+      expect(joined.statusCode).toBe(200);
+    });
+
     it("refuses with the event's own reason: by invitation, or the domains it takes", async () => {
       const inviteOnly = await newEvent();
       await dash("PUT", `/events/${inviteOnly.id}/join/rules`, { guestListOnly: true });

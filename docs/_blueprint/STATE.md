@@ -1,5 +1,17 @@
 # Blueprint State — Questify
 
+## FOLLOWUPS batch 23 — 2026-11-08
+
+- **FOLLOWUPS batch 23 (tier B, API; migration 0177; ADR-817 Proposed, Q-754; one new string).** The T-615 follow-up: a full name
+  shown to every player now passes the username word lists. `full_name_blocked` (internal) folds the name as `username_blocked` does,
+  with spaces and punctuation read as `_`, Arabic marks and tatweel dropped, and checks the lists only (never the retired usernames).
+  At the join, `check_join_answers` refuses a failing Full name answer (JA422 `name:<field>`); `POST /v1/join` answers 422
+  `invalid_join_answers` with `details.field` and its own text («لا يمكن استخدام هذا الاسم. أدخل اسمًا آخر.» / "That name can't be
+  used. Enter another name.", ux-araby, the same voice as the username refusal), which the app already shows at the field. A name
+  stored before, or caught by a word added later, is hidden by `public_full_name`, so the player shows by username in the ranking,
+  the results and the big screen; the staff read is unchanged. Tests: `test/db/full-name-filter.int.test.ts` (5, fail without 0177)
+  and one HTTP case in `test/join/join-fields.int.test.ts`; the two name-reader lists name the new function. CI 0 minutes (not pushed).
+
 ## The layout check's stuck rehearsal read — 2026-11-08
 
 - **`layout.spec.ts:261` "events page never settled" (CI runs 42412664875 shard 1 desktop, 42422503343 shard 2 phone; tier C,

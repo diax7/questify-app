@@ -20,6 +20,7 @@ import {
   joinCardStale,
   joinDomainRequired,
   joinInviteOnly,
+  joinNameRefused,
   joinMethodOff,
   joinNotAllowed,
   membersOnly,
@@ -132,7 +133,9 @@ function dataRefusal(
     case "domain_required":
       return joinDomainRequired(result.domains);
     case "invalid_answers":
-      return invalidJoinAnswers({ field: result.field });
+      return result.nameRefused
+        ? joinNameRefused({ field: result.field })
+        : invalidJoinAnswers({ field: result.field });
     case "notice_changed":
       // The join rolled back: the card as it must read now, so the next Join is on a notice that is true.
       return joinCardStale({ card: cardInForce(result.withAnswers, result.names) });

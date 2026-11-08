@@ -113,8 +113,11 @@ export type JoinOutcome =
   | Readonly<{ kind: "domain_required"; domains: readonly string[] }>
   /** The audience the card showed is no longer the event's: the join rolled back; `names` is what the card must say now (ADR-400). */
   | Readonly<{ kind: "notice_changed"; names: NameSetting; withAnswers: boolean }>
-  /** An answer is missing or not valid: the field it is, or null when the answers were not an object. */
-  | Readonly<{ kind: "invalid_answers"; field: string | null }>;
+  /**
+   * An answer is missing or not valid: the field it is, or null when the answers were not an object. `nameRefused` when
+   * it is a Full name holding a word from the username lists (ADR-817).
+   */
+  | Readonly<{ kind: "invalid_answers"; field: string | null; nameRefused: boolean }>;
 
 /** A rehearsal account's event may still be a Draft (T-211); a played one stays listed once archived (T-411). */
 export type MyEvent = Omit<PublicEvent, "statusNow"> &
@@ -429,8 +432,15 @@ type JoinRow = Readonly<{
   waitlisted: boolean;
 }>;
 
-/** The database refused the answers (JA422): its DETAIL names the field (`field:<id>`) or says `shape`. */
-type AnswersRefused = Readonly<{ outcome: "invalid_answers"; field: string | null }>;
+/**
+ * The database refused the answers (JA422): its DETAIL names the field (`field:<id>`, or `name:<id>` for a Full name
+ * holding a listed word) or says `shape`.
+ */
+type AnswersRefused = Readonly<{
+  outcome: "invalid_answers";
+  field: string | null;
+  nameRefused: boolean;
+}>;
 
 /** The card showed an audience the event no longer has (NN409): `names` is what it must say now. */
 type NoticeChanged = Readonly<{
@@ -440,7 +450,7 @@ type NoticeChanged = Readonly<{
   withAnswers: boolean;
 }>;
 
-const FIELD_DETAIL = /^field:(.+)$/;
+const FIELD_DETAIL = /^(field|name):(.+)$/;
 
 function answersRefused(error: unknown): AnswersRefused | undefined {
   const pg = error as { code?: unknown; detail?: unknown };
@@ -448,7 +458,11 @@ function answersRefused(error: unknown): AnswersRefused | undefined {
     return undefined;
   }
   const match = FIELD_DETAIL.exec(String(pg.detail));
-  return { outcome: "invalid_answers", field: match?.[1] ?? null };
+  return {
+    outcome: "invalid_answers",
+    field: match?.[2] ?? null,
+    nameRefused: match?.[1] === "name",
+  };
 }
 
 function noticeChanged(error: unknown): NoticeChanged | undefined {
@@ -531,7 +545,7 @@ function outcomeOf(
 ): JoinOutcome {
   switch (row.outcome) {
     case "invalid_answers":
-      return { kind: "invalid_answers", field: row.field };
+      return { kind: "invalid_answers", field: row.field, nameRefused: row.nameRefused };
     case "notice_changed":
       return { kind: "notice_changed", names: row.names, withAnswers: row.withAnswers };
     case "domain_required":

@@ -671,6 +671,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("name display (database)", () =
       expect(callers.map((row) => row.proname)).toEqual([
         "desk_full_name",
         "event_results",
+        "full_name_blocked",
         "full_name_part",
         "operator_scan_subject",
         "public_full_name",

@@ -841,6 +841,16 @@ export const invalidJoinAnswers = make(
   "أكمل حقول الانضمام المطلوبة.",
   "Fill in the join fields this event needs.",
 );
+/**
+ * A Full name answer holds a word from the username lists (ADR-817). The same code as any other refused answer, so a
+ * client points at the field and shows this text.
+ */
+export const joinNameRefused = make(
+  422,
+  "invalid_join_answers",
+  "لا يمكن استخدام هذا الاسم. أدخل اسمًا آخر.",
+  "That name can't be used. Enter another name.",
+);
 export const joinInviteOnly = make(
   403,
   "join_invite_only",

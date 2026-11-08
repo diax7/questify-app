@@ -3025,3 +3025,12 @@ INDEX CONCURRENTLY`, because the runner holds each file in one transaction, so a
 true. A failed or cancelled concurrent build leaves an INVALID index, which `IF NOT EXISTS` would accept silently and which serves no
 read; drop it (`DROP INDEX CONCURRENTLY`) and build again. Only then ship the file, with `CREATE INDEX IF NOT EXISTS` and without
 the up-front `LOCK TABLE` lines, which would otherwise stop writers for nothing.
+
+## Q-754 - Should the username word lists check a Full name answer, and where? (ADR-817)
+
+**Status:** Open. Recommended option taken in FOLLOWUPS batch 23; the coordinator decides after the review.
+**Question:** a full name shown to every player is free text (ADR-400). Options: (a) refuse it at the join only; (b) hide a failing
+name where other players read it only; (c) both. **Recommended: (c)**, with the username lists and folding and nothing else: the join
+says so while the player can change it ("That name can't be used. Enter another name."), and the read hides a name stored before the
+check or caught by a word added later, so no listed word reaches the ranking, the results or the big screen. The staff still see the
+answer as typed. Left open: whether a player whose stored name is hidden should be told (today they show by username, silently).

@@ -6322,7 +6322,7 @@ Questify-wide pages (the Questify ranking, public profiles), Meet, Cheers and th
 cannot say what the owner now shows, so both must hold and both are checked where the data is read.
 **Trade-offs:** an owner who joined players on usernames cannot later show full names to all without those players leaving and rejoining;
 the check costs one extra read per ranking read for events that show names (none otherwise); the staff view of a name needs no notice, a
-judgment counsel should confirm. The full name is free text the player typed (200 characters at most, and only 60 are shown to other players); unlike a username it is not filtered, so an owner who shows it to everyone relies on removing a player who abuses it.
+judgment counsel should confirm. The full name is free text the player typed (200 characters at most, and only 60 are shown to other players); unlike a username it is not filtered, so an owner who shows it to everyone relies on removing a player who abuses it (ADR-817, proposed, adds the username lists at the join and where other players read it).
 
 ## ADR-401 - T-616 owner Inbox: one counts read, the lists are the existing pages' own
 
@@ -8698,3 +8698,24 @@ up-front `SHARE` locks stop every writer of those tables until it commits: an AP
 (`pool-options.ts`) and then fails with 55P03, and every audited write fails the same way because `audit_log` is locked. Reads go on.
 0172 held those locks 2.9 s at this size; at ten times the rows it would be about ten times that (an extrapolation, not measured).
 That is safe on staging, where no live event runs; on production such a file needs a quiet window.
+
+## ADR-817 - FOLLOWUPS batch 23: the username word lists check a full name at the join and where other players read it
+
+**Status:** Proposed (FOLLOWUPS batch 23, 2026-11-08; Q-754). Narrows the trade-off of ADR-400 ("unlike a username it is not filtered").
+**Decision:** migration 0177 adds `full_name_blocked(name)` (internal, no grant): the name as other players would see it
+(`display_name_text`), Arabic marks and tatweel dropped, folded like a username (`username_fold`), every run of characters a username
+cannot hold made a separator, then the word-list half of `username_blocked` unchanged (a `word` entry matches a whole word; a `part`
+entry matches with separators and digits removed, or with the digit spellings read as letters). (1) **At the join**:
+`check_join_answers` refuses a Full name answer that fails, JA422 with DETAIL `name:<field id>`; the API answers 422
+`invalid_join_answers` with `details.field` (the same code, so today's app points at the field) and its own text, "That name can't be
+used. Enter another name." / «لا يمكن استخدام هذا الاسم. أدخل اسمًا آخر.». Nothing is enrolled. (2) **Names stored before**, or that
+fail once a word is added to the lists later: `public_full_name` gives no name, so the player shows by username in the ranking, the
+revealed results and the big screen. The staff read (`staff_full_name`, the operator's scan, the prize desk) is unchanged: the team
+already receives the answer as typed.
+**Not refused:** a name for being Arabic, short, marked, a real person's name, or a username an admin retired (`username_retired` is
+for usernames). Only the lists decide, as for usernames.
+**Why both points:** the join check tells the player while they can still change the name; the read check is the guarantee, since a
+returning player keeps the answers given before (T-220) and the console's word-list page can add a word at any time.
+**Trade-offs:** a `part` entry matches across the spaces of a full name as it does across the `_` of a username, so a real name could
+in principle be refused where two words meet; the console can remove the entry (FR-1779). A player whose stored name is hidden is not
+told; they show by username. One more word-list read for each name another player reads, only for events that show names to everyone.

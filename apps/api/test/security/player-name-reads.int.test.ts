@@ -109,6 +109,8 @@ const PLAYER_NAME_READS: Readonly<Record<string, string>> = {
   staff_full_name: STAFF,
   public_full_name: `${HELPER} (ranking_names and event_results mask it)`,
   xp_board_row: `${HELPER} (xp_board_json masks it; the admin season views have no reader)`,
+  full_name_blocked:
+    "check: whether a full name holds a word from the username lists, answers no name (ADR-817)",
   full_name_part: `${HELPER} (the big screen)`,
   names_part: `${HELPER} (the big screen)`,
   screen_finale: SCREEN,
