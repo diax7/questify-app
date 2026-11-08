@@ -1,17 +1,13 @@
 // One load driver process (T-804), started by ops/load/run.mjs: `node ops/load/driver.mjs <job.json> <result.json>`.
 // `completions`: each of its events gets an open stream of quest completions at the job's rate, plus a ranking probe
-// every few seconds. `rush`: POST /v1/auth/code at stepped rates, spread over the API instances; with `verify`, a share
+// every few seconds once the warm-up is over (probe.mjs). `rush`: POST /v1/auth/code at stepped rates, spread over the API instances; with `verify`, a share
 // of the codes is typed back after a typing delay (T-804b). Every latency is written raw; run.mjs merges them.
 import { readFileSync, writeFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
 import { setTimeout as sleep } from "node:timers/promises";
 import { createClient, playerHeaders } from "./http.mjs";
+import { probeLoop, probeWindow } from "./probe.mjs";
 import { addressOf, contactOf, openStream, slotOf } from "./schedule.mjs";
-
-const PROBE_POLL_MS = 100;
-const PROBE_GIVE_UP_MS = 15_000;
-/** The probe quest allows 100 completions; stop short of the cap. */
-const PROBE_LIMIT = 95;
 
 const round = (/** @type {number} */ ms) => Math.round(ms * 10) / 10;
 const count = (/** @type {Record<string, number>} */ into, /** @type {string} */ key) => {
@@ -68,64 +64,14 @@ function completionStream(job, event, client, result) {
   return openStream({ ratePerSecond, total, maxInFlight: job.maxInFlight }, fire, shed);
 }
 
-/** Polls the board as another player until the probe leads it with at least `score`; the ms it took, or null. */
-async function seenOnBoard(client, event, score) {
-  const started = performance.now();
-  const reader = event.tokens.at(-1);
-  while (performance.now() - started < PROBE_GIVE_UP_MS) {
-    const answer = await client.send("GET", `/v1/events/${event.id}/ranking`, {
-      authorization: `Bearer ${reader}`,
-    });
-    if (answer.status === "200") {
-      const top = JSON.parse(answer.body).rows?.[0];
-      if (top?.username === event.probe.username && top.score >= score) {
-        return performance.now();
-      }
-    }
-    await sleep(PROBE_POLL_MS);
-  }
-  return null;
-}
-
-/** Every `probeEveryMs` until `endMs`, the probe completes its 5,000-point quest and waits to lead the board. */
-async function probeLoop(job, event, client, result, endMs) {
-  const p = result.probes;
-  for (let n = 0; n < PROBE_LIMIT && performance.now() < endMs; n += 1) {
-    const next = performance.now() + job.probeEveryMs;
-    const sentMs = performance.now();
-    const { quest, token } = event.probe;
-    const answer = await client.send(
-      "POST",
-      `/v1/quests/${quest.id}/complete`,
-      playerHeaders(token),
-      {
-        proof: { type: "qr", code: quest.code },
-      },
-    );
-    if (answer.status !== "200") {
-      p.failed += 1;
-    } else {
-      const confirmedMs = performance.now();
-      const seenMs = await seenOnBoard(client, event, JSON.parse(answer.body).score);
-      if (seenMs === null) {
-        p.gaveUp += 1;
-      } else {
-        p.afterConfirm.push(round(seenMs - confirmedMs));
-        p.afterSend.push(round(seenMs - sentMs));
-      }
-    }
-    await sleep(Math.max(0, next - performance.now()));
-  }
-}
-
 async function runCompletions(job, result) {
-  const endMs = performance.now() + (job.warmupSeconds + job.durationSeconds) * 1000;
+  const window = probeWindow(job, performance.now());
   const clients = job.baseUrls.map((url) => createClient(url, job.sockets));
   const work = job.events.flatMap((event, i) => {
     const client = clients[i % clients.length];
     return [
       completionStream(job, event, client, result),
-      probeLoop(job, event, client, result, endMs),
+      probeLoop(job, event, client, result, window),
     ];
   });
   await Promise.all(work);

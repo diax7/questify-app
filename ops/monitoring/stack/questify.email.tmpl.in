@@ -8,7 +8,7 @@
 {{ .Annotations.summary }}
 Since {{ .StartsAt.Format "2006-01-02 15:04:05 MST" }}
 Labels: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
-What to do: https://github.com/diax7/questify-app/blob/main/{{ .Annotations.runbook }}
+What to do: @RUNBOOK_BASE_URL@{{ .Annotations.runbook }}
 
 {{ end -}}
 {{- end }}

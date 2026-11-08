@@ -17,6 +17,12 @@ export const METRICS_USER = "questify-metrics";
 /** The public address Grafana is told it lives at; the validation reaches it on a local port instead. */
 export const GRAFANA_ROOT_URL = "https://monitoring.example.test/grafana/";
 
+/** The address the alert mail's "What to do" link starts with; the validation sets it so the mail proves the setting is read. */
+export const RUNBOOK_BASE_URL = "https://runbooks.example.test/questify/";
+
+/** What the link starts with when RUNBOOK_BASE_URL is not set. */
+export const DEFAULT_RUNBOOK_BASE_URL = "https://github.com/diax7/questify-app/blob/main/";
+
 // The image the RUNBOOK uses to make the bcrypt hash of the app's password; pinned by tag and digest.
 const HTPASSWD_IMAGE =
   "httpd:2.4.69-alpine@sha256:070da7661f0be8a05430b2c125c0cde9e53176b4048c813024021969a0e3893c";
@@ -61,7 +67,7 @@ export const stackEnvWithoutEmail = (ctx) => ({
   GF_SERVER_ROOT_URL: GRAFANA_ROOT_URL,
 });
 
-/** The same with alert email on: all five ALERT_* settings and the environment name. */
+/** The same with alert email on: all five ALERT_* settings, the environment name and the runbook address. */
 export const stackEnv = (ctx, smtpHost) => ({
   ...stackEnvWithoutEmail(ctx),
   ALERT_SMTP_PASSWORD: ctx.secrets.smtpPassword,
@@ -70,4 +76,5 @@ export const stackEnv = (ctx, smtpHost) => ({
   ALERT_MAIL_FROM: "alerts@example.test",
   ALERT_MAIL_TO: "owner@example.test",
   MONITORING_ENVIRONMENT: "validation",
+  RUNBOOK_BASE_URL,
 });

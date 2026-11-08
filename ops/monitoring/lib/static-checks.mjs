@@ -1,7 +1,13 @@
 // The first stage of the monitoring validation: every file is checked by the program that will read it, in the built
 // image, before anything is started.
 import { runOnce } from "./docker.mjs";
-import { ALERTS, MONITORING, stackEnv, stackEnvWithoutEmail } from "./context.mjs";
+import {
+  ALERTS,
+  DEFAULT_RUNBOOK_BASE_URL,
+  MONITORING,
+  stackEnv,
+  stackEnvWithoutEmail,
+} from "./context.mjs";
 import { ensure } from "./http.mjs";
 import { join } from "node:path";
 
@@ -90,6 +96,10 @@ export function checkRenderRefusals(ctx) {
     ["GF_SECURITY_SECRET_KEY", "short-key-value"],
     ["GF_SERVER_ROOT_URL", "https://monitoring.example.test/"],
     ["GF_SERVER_ROOT_URL", "http://monitoring.example.test/grafana/"],
+    ["RUNBOOK_BASE_URL", "http://runbooks.example.test/"],
+    ["RUNBOOK_BASE_URL", "https://runbooks.example.test/no-trailing-slash"],
+    ["RUNBOOK_BASE_URL", "https://runbooks.example.test/a|b/"],
+    ["RUNBOOK_BASE_URL", "https://runbooks.example.test/a&b/"],
   ];
   for (const [name, value] of bad) {
     ensureRenderRefused(ctx, { ...full, [name]: value }, [name], `${name}=${value.slice(0, 20)}`);
@@ -103,6 +113,29 @@ export function checkRenderRefusals(ctx) {
   ]) {
     const rest = Object.fromEntries(Object.entries(full).filter(([key]) => key !== name));
     ensureRenderRefused(ctx, rest, [name], `${name} missing`);
+  }
+}
+
+/** RUNBOOK_BASE_URL is optional: unset or empty, the mail's link starts with the repository on GitHub; set, with its own address. */
+export function checkRunbookBaseUrl(ctx) {
+  const { RUNBOOK_BASE_URL: custom, ...unset } = stackEnv(ctx, EMAIL_SMTP);
+  const cases = [
+    ["unset", unset, DEFAULT_RUNBOOK_BASE_URL],
+    ["empty", { ...unset, RUNBOOK_BASE_URL: "" }, DEFAULT_RUNBOOK_BASE_URL],
+    ["set", { ...unset, RUNBOOK_BASE_URL: custom }, custom],
+  ];
+  for (const [what, env, expected] of cases) {
+    const script = `set -e; /usr/local/bin/render-config.sh; grep -F 'What to do: ${expected}{{' /tmp/questify.email.tmpl`;
+    const result = runOnce({
+      image: ctx.image,
+      env,
+      entrypoint: "/bin/sh",
+      args: ["-c", script],
+    });
+    ensure(
+      result.status === 0,
+      `RUNBOOK_BASE_URL ${what}: the mail's link is not ${expected}:\n${output(result)}`,
+    );
   }
 }
 

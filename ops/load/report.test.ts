@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completionReport, rushReport, verdict } from "./report.mjs";
+import { completionReport, cpuPercentOfOneCore, rushReport, verdict } from "./report.mjs";
 
 const driver = (overrides: Partial<Record<string, unknown>> = {}) => ({
   completions: {
@@ -97,6 +97,24 @@ describe("verdict", () => {
       verdict({ ...passing, confirmedWithin1s: null, ranking: { within5s: null } } as never, 1)
         .pass,
     ).toBe(false);
+  });
+});
+
+describe("cpuPercentOfOneCore", () => {
+  it("divides the CPU used by the time the drivers really ran", () => {
+    expect(cpuPercentOfOneCore(1000, 31_000, 60_000)).toBe(50);
+  });
+
+  it("counts the drain tail: the same CPU over a longer window is a lower share than over the nominal one", () => {
+    // 30 s of CPU; the nominal window was 60 s but the drivers ran 75 s (15 s of drain).
+    expect(cpuPercentOfOneCore(0, 30_000, 60_000)).toBe(50);
+    expect(cpuPercentOfOneCore(0, 30_000, 75_000)).toBe(40);
+  });
+
+  it("is null when a reading is missing or the window is empty", () => {
+    expect(cpuPercentOfOneCore(null, 5, 1000)).toBeNull();
+    expect(cpuPercentOfOneCore(5, null, 1000)).toBeNull();
+    expect(cpuPercentOfOneCore(0, 5, 0)).toBeNull();
   });
 });
 

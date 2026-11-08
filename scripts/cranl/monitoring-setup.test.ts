@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -15,20 +15,38 @@ let server: Server;
 let base: string;
 let dir: string;
 let requests: { method: string; url: string }[];
+let bodies: Record<string, any>[];
 let apps: { name: string }[];
 
 beforeEach(async () => {
   requests = [];
+  bodies = [];
   apps = [];
   dir = mkdtempSync(join(tmpdir(), "monitoring-setup-"));
   server = createServer((req, res) => {
-    requests.push({ method: req.method ?? "", url: req.url ?? "" });
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify({ apps }));
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => {
+      const method = req.method ?? "";
+      const url = req.url ?? "";
+      requests.push({ method, url });
+      bodies.push(chunks.length === 0 ? {} : JSON.parse(Buffer.concat(chunks).toString("utf8")));
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(fakeCranl(method, url)));
+    });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
+
+/** The few CranL routes `create` uses, answered like CranL does: the app list, the new app, then empty acknowledgements. */
+function fakeCranl(method: string, url: string): Record<string, unknown> {
+  if (method === "GET" && url === "/api/v1/apps") return { apps };
+  if (method === "POST" && url === "/api/v1/apps") {
+    return { app: { id: "app-1", url: "https://monitoring-x1y.cranl.net/" } };
+  }
+  return { ok: true };
+}
 
 afterEach(async () => {
   await new Promise((resolve) => server.close(resolve));
@@ -63,6 +81,9 @@ spec.loader.exec_module(m); ${expression}`,
   ]);
 
 const create = () => callSetup("m.cmd_create()");
+// bcrypt_hash shells out to docker; the success path swaps it for a fixed fake so no container starts.
+const createWithFakeHash = () =>
+  callSetup('m.bcrypt_hash = lambda password: "hash-of-" + password; m.cmd_create()');
 
 describe("monitoring-setup.py create (ADR-626)", () => {
   it("refuses when the state file exists, before it asks CranL anything", async () => {
@@ -79,6 +100,47 @@ describe("monitoring-setup.py create (ADR-626)", () => {
     expect(result.code).not.toBe(0);
     expect(result.err).toContain("an app named questify-monitoring-staging already exists");
     expect(requests).toEqual([{ method: "GET", url: "/api/v1/apps" }]);
+  });
+
+  it("creates the app, mounts the volume, sets the root URL, deploys, and keeps the state file owner-only", async () => {
+    const result = await createWithFakeHash();
+    expect(result.err).toBe("");
+    expect(result.code).toBe(0);
+    expect(requests).toEqual([
+      { method: "GET", url: "/api/v1/apps" },
+      { method: "POST", url: "/api/v1/apps" },
+      { method: "POST", url: "/api/v1/apps/app-1/volumes" },
+      { method: "PATCH", url: "/api/v1/apps/app-1/env" },
+      { method: "POST", url: "/api/v1/apps/app-1/deploy" },
+    ]);
+
+    const created = bodies[1]!;
+    expect(created).toMatchObject({
+      name: "questify-monitoring-staging",
+      region: "riyadh-1",
+      build_path: "/ops/monitoring/stack",
+      port: 8080,
+    });
+    expect(created["env"].METRICS_PASSWORD_HASH).toBe("hash-of-" + created["env"].METRICS_PASSWORD);
+    expect(created["env"].GF_SERVER_ROOT_URL).toBe("https://placeholder.invalid/grafana/");
+    expect(bodies[2]).toEqual({
+      type: "volume",
+      mount_path: "/data",
+      volume_name: "monitoring-data",
+    });
+    expect(bodies[3]).toEqual({
+      variables: { GF_SERVER_ROOT_URL: "https://monitoring-x1y.cranl.net/grafana/" },
+    });
+    expect(bodies[4]).toEqual({ wait: true, timeout_seconds: 900 });
+
+    const path = join(dir, "monitoring_state.json");
+    expect(statSync(path).mode & 0o777).toBe(0o600);
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({
+      id: "app-1",
+      url: "https://monitoring-x1y.cranl.net",
+      metrics_password: created["env"].METRICS_PASSWORD,
+    });
+    expect(result.out).not.toContain(created["env"].METRICS_PASSWORD);
   });
 
   it("writes the state file readable by its owner only, also over a looser existing file", async () => {

@@ -1,5 +1,24 @@
 # Blueprint State — Questify
 
+## FOLLOWUPS batch 29 — 2026-11-08
+
+- **FOLLOWUPS batch 29 (tier B, ops, scripts and tests only; no `apps/`, no migration, no `.github`, nothing deployed).**
+  (1) `scripts/cranl/monitoring-setup.test.ts` now covers `create`'s success path against a local fake CranL (the app
+  POST, the volume, the root-URL patch and the deploy, in that order, with the bodies; the state file owner-only and
+  holding the generated password, which the output never prints; `bcrypt_hash` swapped for a fixed fake so no container
+  starts). (2) `RUNBOOK_BASE_URL` (optional, with alert email only): `render-config.sh` checks its shape (https address
+  ending in `/`, no `|`, `&` or space) and writes it into the mail's "What to do" link; unset or empty it is the GitHub
+  address as before. `mail-checks.mjs` builds its expected link from the setting; `monitoring:validate` gained a stage that
+  renders unset, empty and set, and four refusals; RUNBOOK lists the setting. (3) `ops/load`: the ranking probe moved to
+  `probe.mjs` and sleeps through the warm-up (it ran inside it, so ranking figures counted probes the completion figures
+  did not); the API CPU is now divided by the time the drivers really ran (`cpuPercentOfOneCore`), drain tail included;
+  `probe.test.ts` (fake clock) and `report.test.ts` pin both. (4) RUNBOOK, "T-804a rollback of migration 0148": the
+  generated SQL (35 `CREATE OR REPLACE` from the fixture's 0147 definitions, six `ALTER ... SET search_path`), how it was
+  produced, and that `own_level` keeps migration 0168's condition; never run against a database. (5) Dropped as settled:
+  the `questify.rules.yml` copy stays by design, since T-017 builds the app from `/ops/monitoring/stack` (not a
+  repository-root context) and `monitoring.test.ts` plus the `cmp` stage of `monitoring:validate` already fail while the
+  copies differ. Five FOLLOWUPS lines trimmed. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 28 — 2026-11-08
 
 - **FOLLOWUPS batch 28 (tier B, web and API test files; no migration, no SQL, no package change, no ADR, no new string).**

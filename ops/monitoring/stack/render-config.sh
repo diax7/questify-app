@@ -9,7 +9,8 @@
 #
 # Alert email is optional (Q-581). With ALERT_SMTP_HOST unset or empty the Alertmanager gets a configuration that
 # sends nothing (alerts are still evaluated and show on the Grafana dashboard); with it set, all five ALERT_* settings
-# are required and checked.
+# are required and checked. RUNBOOK_BASE_URL (optional, with email only) is the address the "What to do" link of the
+# mail starts with; unset or empty it is the repository on GitHub.
 set -eu
 # shellcheck disable=SC3040 # BusyBox ash (this image) supports pipefail.
 set -o pipefail
@@ -18,6 +19,7 @@ TEMPLATES=/etc/questify
 OUT=/tmp
 NEWLINE=$(printf '\nx')
 NEWLINE=${NEWLINE%x}
+DEFAULT_RUNBOOK_BASE_URL=https://github.com/diax7/questify-app/blob/main/
 
 fail() {
   echo "render-config: $1" >&2
@@ -51,6 +53,8 @@ render_with_email() {
   check ALERT_MAIL_FROM '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' "an email address"
   check ALERT_MAIL_TO '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' "an email address"
   check MONITORING_ENVIRONMENT '^[a-z][a-z0-9-]{1,23}$' "a short lower-case name, like staging"
+  RUNBOOK_BASE_URL=${RUNBOOK_BASE_URL:-$DEFAULT_RUNBOOK_BASE_URL}
+  check RUNBOOK_BASE_URL '^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~-]+)*/$' "an https address ending in /, like $DEFAULT_RUNBOOK_BASE_URL"
   printf '%s' "$ALERT_SMTP_PASSWORD" >"$OUT/smtp-password"
   sed \
     -e "s|@ALERT_SMTP_HOST@|$ALERT_SMTP_HOST|g" \
@@ -59,6 +63,7 @@ render_with_email() {
     -e "s|@ALERT_MAIL_TO@|$ALERT_MAIL_TO|g" \
     "$TEMPLATES/alertmanager.yml.in" >"$OUT/alertmanager.yml"
   sed -e "s|@MONITORING_ENVIRONMENT@|$MONITORING_ENVIRONMENT|g" \
+    -e "s|@RUNBOOK_BASE_URL@|$RUNBOOK_BASE_URL|g" \
     "$TEMPLATES/questify.email.tmpl.in" >"$OUT/questify.email.tmpl"
 }
 

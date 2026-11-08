@@ -21,7 +21,7 @@ import {
   startApi as startApiWith,
 } from "./local.mjs";
 import { exitOnSignals } from "./interrupt.mjs";
-import { completionReport, rushReport, verdict } from "./report.mjs";
+import { completionReport, cpuPercentOfOneCore, rushReport, verdict } from "./report.mjs";
 
 const { values: opt } = parseArgs({
   options: {
@@ -274,16 +274,13 @@ async function completionsPhase(plan, baseUrls, dir, apiPids) {
     probeEveryMs: num("probe-every"),
   }));
   const cpuBefore = apiPids.map(cpuMsOf);
+  const startedMs = performance.now();
   const stopSampling = samplePostgres();
   const results = await Promise.all(jobs.map((job, d) => runDriver(job, dir, `completions-${d}`)));
   const pgCpu = stopSampling();
-  const window = num("warmup") + num("duration");
-  const apiCpu = apiPids.map((pid, i) => {
-    const after = cpuMsOf(pid);
-    return after === null || cpuBefore[i] === null
-      ? null
-      : Math.round(((after - cpuBefore[i]) / (window * 1000)) * 100);
-  });
+  // The API's CPU is read when the last driver is done, so the window is the time they really ran, drain included.
+  const windowMs = performance.now() - startedMs;
+  const apiCpu = apiPids.map((pid, i) => cpuPercentOfOneCore(cpuBefore[i], cpuMsOf(pid), windowMs));
   const report = completionReport(results, num("duration"));
   const asked = (num("rate-per-event") / 60) * plan.events.length;
   return {

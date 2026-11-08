@@ -943,6 +943,7 @@ never its value.
 - `ALERT_MAIL_FROM`: the address the mail says it is from; it must be one the SMTP account may send as.
 - `ALERT_MAIL_TO`: where alerts go. For now the address of `MAIL_FROM` (Q-561), `questify@nafes.com`, whose mailbox the owner reads.
 - `MONITORING_ENVIRONMENT`: `staging` or `production`; it is in the subject of every alert mail, so it is needed only with the five above.
+- `RUNBOOK_BASE_URL` (optional, with email only): the address the "What to do" link of the mail starts with; the alert's runbook path (like `docs/RUNBOOK.md#...`) is added to it. An https address ending in `/`. Unset or empty it is `https://github.com/diax7/questify-app/blob/main/`; set it if the repository moves or the runbook is published elsewhere. A wrong shape stops the app with the setting's name.
 
 **To turn alert email on later** (Q-581 reopens when a sender exists, a Gmail app password or a Resend key): set the five `ALERT_*`
 settings and `MONITORING_ENVIRONMENT` and redeploy the app; nothing else changes. Then fire the test alert below.
@@ -1132,8 +1133,10 @@ It stops before starting, and after seeding, when less than 8 GB is free.
 How it measures: each event's completions follow an open schedule (request i is due at start + i / rate, sent then
 whether or not earlier ones answered) and latency is counted from that due time, so a slow server shows as latency,
 never as a lower rate. The first `--warmup` seconds are not counted. A refused, timed out (15 s, as the app) or shed
-completion counts as not confirmed. The ranking probe completes its quest every `--probe-every` ms and reads the board
-as another player every 100 ms until the probe leads it with the new score. `database` in the report compares the
+completion counts as not confirmed. The ranking probe starts when the warm-up ends, completes its quest every
+`--probe-every` ms until the measured window ends, and reads the board as another player every 100 ms until the probe
+leads it with the new score. `apiCpuPercentOfOneCore` is the API's CPU over the time the drivers really ran (warm-up,
+measured seconds and the drain after them), not over `--warmup` plus `--duration`. `database` in the report compares the
 completions and ledger rows written with the answers, and lists the PostgreSQL functions by time spent
 (`track_functions` is on for the run's database). `schedulerLag` is the client's own delay: when its p95 passes about
 50 ms, the client is the limit and the numbers say nothing about the server.
@@ -1412,6 +1415,477 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
   the API in the same window.
 - **App builds:** a staging app build from before T-404c breaks on its first sync (the gem fields are gone) until it is
   rebuilt; rebuild and reinstall the staging build with the deploy.
+
+### T-804a rollback of migration 0148 (generated SQL)
+
+- **What it undoes:** 0148 turned 35 `LANGUAGE sql` functions into plpgsql and took `SET search_path` off six standard-body ones. Nothing
+  else in it needs undoing (no table, trigger, index, policy or grant changed), and nothing in it has to be undone to roll the API back:
+  signatures did not change, so the older API runs on both bodies. Use this only if the plpgsql bodies themselves misbehave.
+- **How the text below was produced (2026-11-08, from files only; it has not been run against any database):** a throw-away script read
+  `apps/api/migrations/0148_hot_path_plpgsql.sql` and `apps/api/test/db/hot-path-plpgsql.fixture.json`, whose `definition` values are each function's
+  `pg_get_functiondef` as migration 0147 left it. It stopped unless the 35 `CREATE OR REPLACE` names in 0148 equal the fixture's 35 names and 0148 holds
+  exactly six `ALTER FUNCTION ... RESET search_path`. Each definition is the fixture's, word for word, with `;` added; the six `ALTER` lines restore
+  `SET search_path = public, pg_temp`, the value the creating migrations (0030, 0035, 0068, 0072) gave them and that no later migration changed.
+- **One function is not the 0147 text:** `own_level` was changed after 0147 by migration 0168 (a level filed on a scan's entry later is skipped:
+  `AND r.reached_at = e.created_at`), so its rollback body is the 0147 SQL body plus that one condition. Any other function that a later migration
+  redefines would need the same care; none of the other 34 or the six is redefined after 0148 (checked 2026-11-08 against 0149 to 0181).
+- **Use:** as a new forward migration (never edit 0148, it is deployed). Same as 0148 it takes no table lock and does not wait for running calls.
+  The tests that pin the plpgsql state (`test/db/hot-path-plpgsql.int.test.ts` and `sql-settings-allowlist.json`) fail until they are changed with it.
+
+```sql
+SET LOCAL lock_timeout = '10s';
+
+CREATE OR REPLACE FUNCTION public.boost_in_force(target_category uuid, enrolled enrollment, at timestamp with time zone)
+ RETURNS boost
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT b.* FROM boost b JOIN event e ON e.id = b.event_id
+  WHERE b.category_id = target_category AND b.starts_at <= at AND b.ends_at > at
+    AND b.rehearsal = (enrolled.joined_via IS NOT DISTINCT FROM 'rehearsal') AND boosts_on(e)
+  ORDER BY b.starts_at DESC
+  LIMIT 1
+$function$;
+
+CREATE OR REPLACE FUNCTION public.category_community_lock(target uuid)
+ RETURNS uuid
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT s.id FROM community_step s
+  WHERE s.unlock_category_id = target AND NOT EXISTS (SELECT 1 FROM community_reach r WHERE r.step_id = s.id)
+$function$;
+
+CREATE OR REPLACE FUNCTION public.category_lock(quest_row quest, member uuid)
+ RETURNS text
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT CASE WHEN quest_community_lock(quest_row) IS NOT NULL THEN 'community_locked'
+              ELSE category_rule_lock(quest_row, member) END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.category_period_start(cat category, ev event)
+ RETURNS timestamp with time zone
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT CASE cat.refresh
+           WHEN 'daily' THEN event_day_start(ev, d.today)
+           WHEN 'weekly' THEN event_day_start(ev, d.first + 7 * floor((d.today - d.first) / 7.0)::integer)
+           ELSE '-infinity'::timestamptz
+         END
+  FROM (SELECT event_day(now(), ev) AS today, event_day(coalesce(ev.starts_at, ev.created_at), ev) AS first) d
+$function$;
+
+CREATE OR REPLACE FUNCTION public.completion_boost(completion bigint)
+ RETURNS integer
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT b.multiplier
+  FROM ledger_entry l
+  JOIN enrollment n ON n.id = l.enrollment_id AND n.player_id = app_player_id()
+  JOIN boost b ON b.id = l.boost_id
+  WHERE l.completion_id = completion AND l.kind = 'quest'
+$function$;
+
+CREATE OR REPLACE FUNCTION public.daily_streak_on()
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT coalesce((SELECT s.value -> 'dailyStreak' -> 'enabled' <> 'false'::jsonb
+                   FROM platform_setting s WHERE s.key = 'features'), true)
+$function$;
+
+CREATE OR REPLACE FUNCTION public.event_suspended(target uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT EXISTS (SELECT 1 FROM event e JOIN organizer o ON o.id = e.organizer_id
+                 WHERE e.id = target AND (e.suspended_at IS NOT NULL OR o.status = 'paused'))
+$function$;
+
+CREATE OR REPLACE FUNCTION public.excluded_from_event(target_event uuid, target_player uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+AS $function$
+  SELECT EXISTS (
+    SELECT 1 FROM player_contact pc JOIN event_exclusion x ON x.event_id = target_event
+    WHERE pc.player_id = target_player
+      AND ((x.kind = 'phone' AND x.value = pc.phone_e164)
+           OR (x.kind = 'email_domain' AND x.value = split_part(pc.email, '@', 2))))
+$function$;
+
+CREATE OR REPLACE FUNCTION public.flag_tuning(OUT burst_count integer, OUT burst_window interval)
+ RETURNS record
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT platform_tuning_int('flagBurstCount', 10, 3, 100),
+         platform_tuning_int('flagBurstMinutes', 5, 1, 60) * interval '1 minute'
+$function$;
+
+CREATE OR REPLACE FUNCTION public.is_review_demo_player(target uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT EXISTS (SELECT 1 FROM review_demo_player r WHERE r.player_id = target)
+$function$;
+
+CREATE OR REPLACE FUNCTION public.legal_in_force_rows()
+ RETURNS TABLE(id bigint, document text, version text, published_at timestamp with time zone)
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT DISTINCT ON (v.document) v.id, v.document, v.version, v.published_at
+  FROM legal_version v ORDER BY v.document, legal_version_key(v.version) DESC
+$function$;
+
+CREATE OR REPLACE FUNCTION public.legal_version_key(version text)
+ RETURNS integer[]
+ LANGUAGE sql
+ IMMUTABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT parts || array_fill(0, ARRAY[3 - cardinality(parts)])
+  FROM (SELECT string_to_array(version, '.')::integer[] AS parts) p
+$function$;
+
+CREATE OR REPLACE FUNCTION public.level_title_of(target smallint)
+ RETURNS TABLE(name_ar text, name_en text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT t.name_ar, t.name_en FROM level_title t WHERE t.level_from <= target ORDER BY t.level_from DESC LIMIT 1
+$function$;
+
+CREATE OR REPLACE FUNCTION public.levels_reach(who uuid, made bigint, total bigint)
+ RETURNS smallint[]
+ LANGUAGE sql
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  WITH due AS MATERIALIZED (
+    SELECT l.level FROM xp_level l
+    WHERE l.level > 1 AND l.xp_from <= total
+      AND NOT EXISTS (SELECT 1 FROM level_reached r WHERE r.player_id = who AND r.level = l.level)
+    ORDER BY l.level
+    FOR KEY SHARE OF l
+  ), written AS (
+    INSERT INTO level_reached (player_id, level, xp_entry_id)
+    SELECT who, d.level, made FROM due d ORDER BY d.level
+    ON CONFLICT DO NOTHING
+    RETURNING level
+  )
+  SELECT coalesce(array_agg(w.level ORDER BY w.level), '{}'::smallint[]) FROM written w
+$function$;
+
+CREATE OR REPLACE FUNCTION public.organizer_team_players(org uuid)
+ RETURNS SETOF uuid
+ LANGUAGE sql
+ STABLE
+AS $function$
+  SELECT pc.player_id FROM organizer_member m
+  JOIN staff_user s ON s.id = m.staff_user_id
+  JOIN player_contact pc ON pc.email = s.email
+  WHERE m.organizer_id = org
+$function$;
+
+CREATE OR REPLACE FUNCTION public.own_bonus(completion bigint)
+ RETURNS TABLE(category_id uuid, points bigint, name_ar text, name_en text, item_ar text, item_en text, item_outcome text, item_until timestamp with time zone, item_time_zone text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT b.category_id, coalesce(l.score_delta, 0), c.name_ar, c.name_en, i.name_ar, i.name_en,
+         CASE WHEN d.id IS NOT NULL THEN 'pending' ELSE m.reason END, d.reserved_until,
+         (SELECT x.timezone FROM event x WHERE x.id = b.event_id)
+  FROM category_bonus b
+  JOIN enrollment n ON n.id = b.enrollment_id AND n.player_id = app_player_id()
+  LEFT JOIN ledger_entry l ON l.id = b.entry_id
+  JOIN category c ON c.id = b.category_id
+  LEFT JOIN redemption d ON d.enrollment_id = b.enrollment_id AND d.source_category_id = b.category_id
+    AND d.source_period = b.period_start AND d.quest_item_id IS NOT NULL
+  LEFT JOIN quest_item_miss m ON m.enrollment_id = b.enrollment_id AND m.source_category_id = b.category_id
+    AND m.source_period = b.period_start
+  LEFT JOIN quest_item i ON i.id = coalesce(d.quest_item_id, m.quest_item_id)
+  WHERE b.completion_id = completion
+$function$;
+
+CREATE OR REPLACE FUNCTION public.own_first_bonus(completion bigint)
+ RETURNS TABLE(points integer, place integer, slots integer)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT coalesce(l.score_delta::integer, b.points),
+         CASE WHEN s.quest_id IS NOT NULL THEN first_bonus_place(s) END,
+         b.slots
+  FROM quest_completion c
+  JOIN enrollment n ON n.id = c.enrollment_id AND n.player_id = app_player_id()
+  JOIN quest_first_bonus b ON b.quest_id = c.quest_id
+  LEFT JOIN quest_bonus_slot s ON s.completion_id = c.id
+  LEFT JOIN ledger_entry l ON l.id = s.entry_id
+  WHERE c.id = completion AND (s.quest_id IS NOT NULL OR (c.occurrence = 1 AND c.method <> 'manual'))
+$function$;
+
+CREATE OR REPLACE FUNCTION public.own_level(completion bigint)
+ RETURNS TABLE(xp bigint, level smallint, level_from bigint, next_level_at bigint, title_ar text, title_en text, level_up smallint, up_title_ar text, up_title_en text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT x.xp, cur.level, cur.xp_from, nxt.xp_from, t.name_ar, t.name_en, up.level, ut.name_ar, ut.name_en
+  FROM player_xp x
+  JOIN player p ON p.id = x.player_id AND p.status = 'active'
+  JOIN xp_level cur ON cur.level = xp_level_of(x.xp)
+  LEFT JOIN xp_level nxt ON nxt.level = cur.level + 1
+  LEFT JOIN LATERAL level_title_of(cur.level) t ON true
+  LEFT JOIN LATERAL (SELECT max(r.level) AS level FROM level_reached r
+                     JOIN xp_entry e ON e.id = r.xp_entry_id
+                     JOIN ledger_entry l ON l.id = e.ledger_entry_id
+                     WHERE r.player_id = x.player_id AND l.completion_id = completion AND l.kind = 'quest'
+                       AND r.reached_at = e.created_at) up ON true
+  LEFT JOIN LATERAL level_title_of(up.level) ut ON true
+  WHERE x.player_id = app_player_id()
+$function$;
+
+CREATE OR REPLACE FUNCTION public.own_quest_item(completion bigint)
+ RETURNS TABLE(name_ar text, name_en text, outcome text, until timestamp with time zone, time_zone text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT i.name_ar, i.name_en, CASE WHEN d.id IS NOT NULL THEN 'pending' ELSE m.reason END, d.reserved_until,
+         e.timezone
+  FROM quest_completion c
+  JOIN enrollment n ON n.id = c.enrollment_id AND n.player_id = app_player_id()
+  JOIN event e ON e.id = c.event_id
+  LEFT JOIN redemption d ON d.source_completion_id = c.id AND d.quest_item_id IS NOT NULL
+  LEFT JOIN quest_item_miss m ON m.source_completion_id = c.id
+  JOIN quest_item i ON i.id = coalesce(d.quest_item_id, m.quest_item_id)
+  WHERE c.id = completion
+$function$;
+
+CREATE OR REPLACE FUNCTION public.own_streak_bonus(completion bigint)
+ RETURNS TABLE(points integer, days integer)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT l.score_delta::integer, d.days
+  FROM event_streak_day d
+  JOIN enrollment n ON n.id = d.enrollment_id AND n.player_id = app_player_id()
+  JOIN ledger_entry l ON l.id = d.entry_id
+  WHERE d.completion_id = completion
+$function$;
+
+CREATE OR REPLACE FUNCTION public.period_count(member uuid, quest_row quest)
+ RETURNS integer
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT count(*)::integer FROM quest_completion c
+  WHERE c.enrollment_id = member AND c.quest_id = quest_row.id
+    AND c.created_at >= (SELECT category_period_start(g, e) FROM category g JOIN event e ON e.id = g.event_id
+                         WHERE g.id = quest_row.category_id)
+$function$;
+
+CREATE OR REPLACE FUNCTION public.platform_tuning_int(key_name text, fallback integer, low integer, high integer)
+ RETURNS integer
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT coalesce((
+    SELECT CASE WHEN jsonb_typeof(s.value -> key_name) = 'number' AND (s.value ->> key_name) ~ '^[0-9]{1,9}$'
+                THEN CASE WHEN (s.value ->> key_name)::integer BETWEEN low AND high
+                          THEN (s.value ->> key_name)::integer END
+           END
+    FROM platform_setting s WHERE s.key = 'tuning'), fallback)
+$function$;
+
+CREATE OR REPLACE FUNCTION public.play_phase(ev event, enrolled enrollment)
+ RETURNS text
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT CASE
+    WHEN enrolled.joined_via = 'rehearsal' THEN
+      CASE WHEN event_status_now(ev.status, ev.starts_at, ev.ends_at) IN ('draft', 'scheduled') THEN 'rehearsal' END
+    WHEN event_status_now(ev.status, ev.starts_at, ev.ends_at) = 'live' THEN 'live'
+  END
+$function$;
+
+CREATE OR REPLACE FUNCTION public.player_legal_held(p uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT EXISTS (
+    SELECT 1 FROM legal_in_force_rows() f
+    WHERE f.document IN ('terms_of_use', 'privacy_policy')
+      AND EXISTS (SELECT 1 FROM player_acceptance a WHERE a.player_id = p AND a.document = f.document)
+      AND NOT EXISTS (SELECT 1 FROM player_acceptance a
+                      WHERE a.player_id = p AND a.document = f.document AND a.version = f.version))
+$function$;
+
+CREATE OR REPLACE FUNCTION public.player_session_owner(hash bytea)
+ RETURNS uuid
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT s.player_id FROM player_session s JOIN player p ON p.id = s.player_id
+  WHERE s.token_hash = hash AND s.revoked_at IS NULL AND s.expires_at > now() AND p.status = 'active'
+    AND s.created_at > coalesce(p.tokens_valid_after, '-infinity'::timestamptz)
+$function$;
+
+CREATE OR REPLACE FUNCTION public.quest_boost(quest_row quest, enrolled enrollment, at timestamp with time zone)
+ RETURNS boost
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT boost_in_force(quest_row.category_id, enrolled, at)
+$function$;
+
+CREATE OR REPLACE FUNCTION public.quest_community_lock(quest_row quest)
+ RETURNS uuid
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT coalesce(
+    (SELECT s.id FROM community_step s
+     WHERE s.unlock_quest_id = quest_row.id AND NOT EXISTS (SELECT 1 FROM community_reach r WHERE r.step_id = s.id)),
+    category_community_lock(quest_row.category_id))
+$function$;
+
+CREATE OR REPLACE FUNCTION public.quest_xp()
+ RETURNS integer
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT coalesce((SELECT CASE WHEN s.value ->> 'questXp' ~ '^[1-9][0-9]{0,4}$'
+                               THEN (s.value ->> 'questXp')::integer END
+                   FROM platform_setting s WHERE s.key = 'xp'), 100)
+$function$;
+
+CREATE OR REPLACE FUNCTION public.ranking_day_entry_of(completion bigint)
+ RETURNS TABLE(event_id uuid, day date, enrollment_id uuid, score bigint, score_version bigint, ranked boolean)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  WITH mine AS (
+    SELECT e, ev, event_day(c.created_at, ev) AS day
+    FROM quest_completion c
+    JOIN enrollment e ON e.id = c.enrollment_id
+    JOIN event ev ON ev.id = e.event_id
+    WHERE c.id = completion AND e.player_id = app_player_id() AND event_multi_day(ev)
+  )
+  SELECT (m.e).event_id, m.day, (m.e).id, t.score, t.version, ranking_eligible(m.e) AND t.score > 0
+  FROM mine m,
+  LATERAL (SELECT coalesce(sum(l.score_delta), 0)::bigint AS score, max(l.id) AS version
+           FROM ledger_entry l
+           WHERE l.enrollment_id = (m.e).id AND l.score_delta <> 0
+             AND l.created_at >= event_day_start(m.ev, m.day)
+             AND l.created_at < event_day_start(m.ev, m.day + 1)) t
+  WHERE t.version IS NOT NULL
+$function$;
+
+CREATE OR REPLACE FUNCTION public.ranking_eligible(target enrollment)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+AS $function$
+  SELECT target.status = 'active' AND target.score > 0 AND target.score_version IS NOT NULL
+    AND EXISTS (SELECT 1 FROM player p WHERE p.id = target.player_id AND p.status = 'active')
+    AND target.player_id NOT IN (SELECT organizer_team_players(target.organizer_id))
+    AND NOT excluded_from_event(target.event_id, target.player_id)
+    AND NOT EXISTS (SELECT 1 FROM staff_assignment sa
+                    WHERE sa.event_id = target.event_id AND sa.player_id = target.player_id)
+$function$;
+
+CREATE OR REPLACE FUNCTION public.ranking_entry_of(completion bigint)
+ RETURNS TABLE(event_id uuid, enrollment_id uuid, score bigint, score_version bigint, ranked boolean)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT e.event_id, e.id, e.score, e.score_version, ranking_eligible(e)
+  FROM quest_completion c JOIN enrollment e ON e.id = c.enrollment_id
+  WHERE c.id = completion AND e.player_id = app_player_id()
+$function$;
+
+CREATE OR REPLACE FUNCTION public.reviewer_paid(method text, completion_key text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT method = 'submission' AND completion_key ~ '^sub:[0-9]{1,18}$' AND EXISTS (
+    SELECT 1 FROM submission s WHERE s.id = substr(completion_key, 5)::bigint AND NOT s.auto)
+$function$;
+
+CREATE OR REPLACE FUNCTION public.system_paid(method text, completion_key text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT reviewer_paid(method, completion_key) OR (
+    method = 'quiz' AND completion_key ~ '^quiz:[0-9]{1,18}$' AND EXISTS (
+      SELECT 1 FROM quiz_attempt a WHERE a.id = substr(completion_key, 6)::bigint AND a.swept))
+$function$;
+
+CREATE OR REPLACE FUNCTION public.xp_level_of(total bigint)
+ RETURNS smallint
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT coalesce(max(l.level), 1)::smallint FROM xp_level l WHERE l.xp_from <= total
+$function$;
+
+CREATE OR REPLACE FUNCTION public.xp_month_of(entry bigint)
+ RETURNS text
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+  SELECT questify_month(coalesce(c.created_at, e.created_at))
+  FROM xp_entry e LEFT JOIN xp_entry c ON c.id = e.reverses
+  WHERE e.id = entry
+$function$;
+
+ALTER FUNCTION public.event_day(timestamp with time zone, event) SET search_path = public, pg_temp;
+ALTER FUNCTION public.event_day_start(event, date) SET search_path = public, pg_temp;
+ALTER FUNCTION public.event_multi_day(event) SET search_path = public, pg_temp;
+ALTER FUNCTION public.questify_day(timestamp with time zone) SET search_path = public, pg_temp;
+ALTER FUNCTION public.questify_month(timestamp with time zone) SET search_path = public, pg_temp;
+ALTER FUNCTION public.streak_day_closed(event_streak, date) SET search_path = public, pg_temp;
+```
 
 ## Platform admins and support access (T-701, ADR-405, ADR-407)
 

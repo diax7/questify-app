@@ -47,6 +47,21 @@ export function completionReport(results, seconds) {
 }
 
 /**
+ * A process's CPU use over a window, in % of one core, or null when either reading is missing. The window is the
+ * time the drivers really ran (warm-up, measured seconds and the drain after them), because the CPU it counts is
+ * everything the process used in that time; the nominal warm-up plus duration would leave the drain tail out of
+ * the divisor and overstate the figure.
+ *
+ * @param {number | null} beforeMs the process's CPU time before the drivers started
+ * @param {number | null} afterMs the same after the last driver finished
+ * @param {number} windowMs the wall-clock time between the two readings
+ */
+export function cpuPercentOfOneCore(beforeMs, afterMs, windowMs) {
+  if (beforeMs === null || afterMs === null || !(windowMs > 0)) return null;
+  return Math.round(((afterMs - beforeMs) / windowMs) * 100);
+}
+
+/**
  * Each rush step's rate, answers and latency, overall and per answer (T-804b: the p95 of the requests answered after
  * the budget was spent is the p95 of the 503s).
  *

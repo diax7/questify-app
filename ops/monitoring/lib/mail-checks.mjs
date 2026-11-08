@@ -1,13 +1,13 @@
 // Mail stage of the monitoring validation: a test alert posted to the Alertmanager comes out as an email with the
 // subject, the summary and the runbook link the owner needs. A mail server that keeps what it receives stands in for
 // the real one, and the TLS requirement is switched off for it (the only change to the rendered configuration).
-import { stackEnv } from "./context.mjs";
+import { RUNBOOK_BASE_URL, stackEnv } from "./context.mjs";
 import { start, waitFor } from "./docker.mjs";
 import { ensure } from "./http.mjs";
 import { startSmtpSink } from "./smtp-sink.mjs";
 
-const RUNBOOK_LINK =
-  "https://github.com/diax7/questify-app/blob/main/docs/RUNBOOK.md#questifyvalidationtest";
+// The link starts with RUNBOOK_BASE_URL, which the validation sets to an address that is not the default.
+const RUNBOOK_LINK = RUNBOOK_BASE_URL + "docs/RUNBOOK.md#questifyvalidationtest";
 
 const ALERT_COMMAND = [
   "set -e",

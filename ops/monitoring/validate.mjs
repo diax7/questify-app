@@ -39,6 +39,7 @@ import {
   checkNoEmailRender,
   checkPartialEmailRefusals,
   checkRenderRefusals,
+  checkRunbookBaseUrl,
   checkShellScripts,
   checkStackFiles,
 } from "./lib/static-checks.mjs";
@@ -149,6 +150,10 @@ async function main() {
       checkStackFiles(ctx),
     );
     await stages.run("the app refuses a bad or missing setting", () => checkRenderRefusals(ctx));
+    await stages.run(
+      "the mail's runbook link starts with RUNBOOK_BASE_URL, or the repository",
+      () => checkRunbookBaseUrl(ctx),
+    );
     await stages.run("alert email off needs no ALERT_* setting", () => checkNoEmailRender(ctx));
     await stages.run("a partial set of email settings is refused", () =>
       checkPartialEmailRefusals(ctx),
