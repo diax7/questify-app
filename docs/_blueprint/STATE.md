@@ -2,7 +2,7 @@
 
 ## FOLLOWUPS batch 24 — 2026-11-08
 
-- **FOLLOWUPS batch 24 (tier B, SQL; migration 0179, new and undeployed; 0178 frozen, restated and diffed against it; ADR-817
+- **FOLLOWUPS batch 24 (tier B, SQL; migration 0179; 0178 frozen, restated and diffed against it; ADR-817
   and ADR-119 amended).** `full_name_blocked` restated as 0178 with one prefix more, ياال: «يا البزاز», «يا القحبة»,
   «يا الشرموطة», «ياالقحبة», «يا العرص» are refused, «البزاز» still kept. Eight `username_word` entries: hitler and fvck `part`;
   nazi, nazis, retard, retards, retarded and fuk `word` (as parts they would refuse nazir_1, nazim_k, flame_retardant, fukuda).
@@ -97,7 +97,7 @@
 
 ## Handoff to the company server — 2026-11-06
 
-- The newest entries are below, then older ones. Staging: `release-20261108-1`, migration 0177 (0156 reserved for T-810d). Live
+- The newest entries are below, then older ones. Staging: `release-20261108-2`, migration 0179 (0156 reserved for T-810d). Live
   today: gems removed and the Journey tab (T-404c, T-404d; ADR-760 to 768), FOLLOWUPS batches 1 to 7, ADR-810 (the company server
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.

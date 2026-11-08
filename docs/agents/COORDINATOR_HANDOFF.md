@@ -43,7 +43,7 @@ the test database and Redis (`compose.yaml`). Test env:
 `TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55432/postgres`, `TEST_REDIS_URL=redis://127.0.0.1:56379`. Commit
 under that account's git identity.
 The server's `gh` token has no `workflow` scope, so a push touching `.github/workflows/` is refused. Check every push's exit code.
-A CranL API build can fail within seconds and succeed on a plain retry (2026-11-07, twice): the deploy script waits for the new
+A CranL API build can fail within seconds and succeed on a plain retry (2026-11-07 and 08, four times): the deploy script waits for the new
 migration file in the container and stops before migrating if it never appears, so retry once before looking further.
 Without those two variables integration tests skip and the run still exits 0, so read the pass count. On a loaded shared server add
 `--maxWorkers=3 --hookTimeout=500000 --testTimeout=400000`: a test that times out at 30 s keeps running and fails the next one with a
@@ -140,7 +140,7 @@ Addresses: https://questify.nafes.com and https://questify-api-staging-3ez01s.cr
 
 ## Where things stand
 
-Staging is live at `release-20261108-1`, migration 0177. No pull request is open; GitHub holds only `main` and
+Staging is live at `release-20261108-2`, migration 0179. No pull request is open; GitHub holds only `main` and
 `t-810d-console-hostname`. Tasks: 186 done, 33 open. See STATE.md. Migration number 0156 is reserved by the unmerged T-810d branch, `t-810d-console-hostname`; the runner
 tolerates the gap.
 
