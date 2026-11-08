@@ -2,8 +2,9 @@
  * Real full names the username word lists must never refuse (ADR-817), and abusive names they must. Common names of
  * the places Questify's players come from first: Arabic and Gulf (in Arabic script and in Latin letters), South Asian,
  * Filipino, East Asian and Western, plus the real names a review found refused by the first version of 0177 (inside one
- * word, across two words, or a whole word that is also a list entry). A name added here that the lists refuse is either
- * a new entry for `full_name_allow` or a sign the check went wrong.
+ * word, across two words, or a whole word that is also a list entry) and those 0177 still refused until a list entry
+ * matched whole words only (0178, Q-754). A name added here that the lists refuse is either a new entry for
+ * `full_name_allow` (a whole word that is a list entry) or a sign the check went wrong.
  */
 export const REAL_NAMES: readonly string[] = [
   // Arabic script: Saudi, Gulf, Levant, Egypt, North Africa
@@ -205,6 +206,13 @@ export const REAL_NAMES: readonly string[] = [
   "Pornpimol Chaiyo",
   "Pornpan Wongsa",
   "Somchai Jaidee",
+  // A list word inside a longer word: refused by 0177, whole words only since 0178 (Q-754)
+  "Siriporn Chaiyaporn",
+  "Supaporn Wongsawat",
+  "Somporn Thongdee",
+  "Kanokporn Saelee",
+  "Pornthep Srisuk",
+  "Shitara Kenji",
   "Siti Nurhaliza",
   "Nur Aisyah",
   // Western, Latin American and European
@@ -230,6 +238,12 @@ export const REAL_NAMES: readonly string[] = [
   "Rudolf Lipschitz",
   "Hanna Lipshitz",
   "Felix Wankel",
+  "Ade Shittu",
+  "Rahul Shitole",
+  "Irina Slutskaya",
+  "Mark Skeete",
+  "Joe Bastardi",
+  "Anna Wankowicz",
   "Sophie Turner",
   "Oliver Smith",
   "Emma Johnson",
@@ -256,6 +270,7 @@ export const REAL_NAMES: readonly string[] = [
   "یوسف کاظمی",
   "عمران خان",
   "شاہد آفریدی",
+  "رضا کسمایی",
 ];
 
 /** Abusive names: a listed word, however it is spelled or hidden. */
@@ -272,6 +287,8 @@ export const ABUSIVE_NAMES: readonly string[] = [
   "f.u.c.k",
   "Slut Omar",
   "Ahmed Porn",
+  "Porn Star Ali",
+  "Mr Shit",
   "عبدالله كس",
   "ابن الشرموطة",
   "سكس سكس",

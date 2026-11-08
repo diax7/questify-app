@@ -3028,8 +3028,13 @@ the up-front `LOCK TABLE` lines, which would otherwise stop writers for nothing.
 
 ## Q-754 - Should the username word lists check a Full name answer, and where? (ADR-817)
 
-**Status:** Decided (Dhia, 2026-11-08, AskUserQuestion): in full names, blocked words match whole words only (Siriporn, Shittu and the like pass; usernames keep the stricter rule); «Kike» stays allow-listed.
-The question for Dhia is the last paragraph.
+**Status:** (1) decided by Dhia, 2026-11-08: in a full name, blocked words match whole words only (migration 0178, ADR-817
+Accepted). A `part` entry no longer matches inside a longer word, so the Thai "porn" names, Shittu, Shitole, Shitara, Slutskaya,
+Skeete, Bastardi, Wankowicz and «کسمایی» pass; "porn star" and "shit" are still refused; usernames are unchanged. (2) decided by
+Dhia the same day: «Kike» stays on the allow-list. **Still refused** after 0178: Coon (English) and Mong (Hmong), which are whole-word `word` entries; Dhia's answer covers
+words inside longer words, not whole words, so they stay refused until he decides otherwise. A compound insult other than the six
+0178 lists (fuckface, fuckhead, fucker, fuckwit, shithead, shitface), such as "Pornstar Ali", passes a full name until an admin adds
+it in the console. (3) is open.
 **Question:** a full name shown to every player is free text (ADR-400). Options: (a) refuse it at the join only; (b) hide a failing
 name where other players read it only; (c) both. **Recommended: (c)**, with the username lists and folding and nothing else: the join
 says so while the player can change it ("That name can't be used. Enter another name."), and a stored name caught by a word added

@@ -26,8 +26,8 @@ const failure = async (work: Promise<unknown>): Promise<string> => {
 /**
  * The username word lists on a full name (migration 0177, ADR-817): a Full name answer holding a listed word is refused
  * at the join; every stored one carries a flag, set as it is written and again by the sweep after a list change, and a
- * flagged name shows by username wherever other players read it (the read checks the flag only). The check goes word by
- * word, skips the allow-list's real names, and folds other scripts and forms first. Nothing else refuses a name: not
+ * flagged name shows by username wherever other players read it (the read checks the flag only). The check matches whole
+ * words only (0178, Q-754), skips the allow-list's real names, and folds other scripts and forms first. Nothing else refuses a name: not
  * Arabic, not short, not a username an admin retired.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database)", () => {
@@ -255,32 +255,59 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
       ]);
     });
 
-    it("matches a part entry inside one word only, and skips the allow-list's words", async () => {
+    it("matches every entry as a whole word only, and skips the allow-list's words (0178, Q-754)", async () => {
       expect(
         await blocked(["Anas Lutfi", "ملاك سمير", "عبّاس كسّاب", "Ali Butt", "إسحاق", "Yamashita"]),
       ).toEqual([]);
-      // An Arabic entry covers its article and nisba forms, and nothing else around it.
+      // A list word inside a longer word, or across two words, no longer matches.
       expect(
         await blocked([
+          "Siriporn",
+          "Pornthep",
+          "Shittu",
+          "Slutskaya",
+          "Skeete",
+          "Bastardi",
+          "Wankowicz",
+          "کسمایی",
+          "Pornstar Ali",
+          "Anaslutfi",
+          "ملاكسمير",
+          "الاسحاقيكسم",
+          "كسماسحاق",
+          "Al-Ishaqiporn",
           "محمد الإسحاقي",
-          "الاسحاقي",
-          "بالإسحاقي",
-          "والاسحاقيه",
           "للإسحاقية",
-          "إسحاقه",
           "عبدالله البلوطي",
-          "منذر البلوطي",
+          "علي السكسكي",
         ]),
       ).toEqual([]);
-      expect(
-        await blocked(["السحاقي", "اللوطي", "الاسحاقيكسم", "كسماسحاق", "Al-Ishaqiporn"]),
-      ).toEqual(["السحاقي", "اللوطي", "الاسحاقيكسم", "كسماسحاق", "Al-Ishaqiporn"]);
-      expect(await blocked(["Anaslutfi", "ملاكسمير", "Ali Butthole", "Yamashitas"])).toEqual([
-        "Anaslutfi",
-        "ملاكسمير",
+      // A whole word still blocks, an Arabic one also with one article and one suffix, a word also between digits.
+      const refused = [
+        "porn star",
+        "Ahmed Porn",
+        "shit",
         "Ali Butthole",
-        "Yamashitas",
-      ]);
+        "Coon Smith",
+        "Mong Vang",
+        "اللوطي",
+        "السحاقي",
+        "سحاقية",
+        "بالسحاقيه",
+        "والشرموطة",
+        "ali2porn",
+        "fuckface Ali",
+        "Mr Shithead",
+      ];
+      expect(await blocked(refused)).toEqual(refused);
+    });
+
+    it("keeps only the allow-list's whole words that are list entries", async () => {
+      expect(
+        (await owner<{ word: string }>("SELECT word FROM full_name_allow ORDER BY word")).map(
+          (row) => row.word,
+        ),
+      ).toEqual(["butt", "cumming", "dick", "hooker", "kike", "poon", "quim"]);
     });
 
     it("keeps the allow-list closed: no grant to the API's role or anyone", async () => {

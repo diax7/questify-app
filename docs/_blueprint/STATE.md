@@ -1,5 +1,19 @@
 # Blueprint State — Questify
 
+## Full names match whole words — 2026-11-08
+
+- **Full names match whole words (tier B, API; migration 0178; ADR-817 Accepted by Dhia, Q-754 (1) and (2) decided; no new
+  string).** In a full name every list entry matches a whole word of the folded name only (`full_name_blocked` restated, diffed
+  against 0177; usernames unchanged): the Thai "porn" names, Shittu, Shitole, Shitara, Slutskaya, Skeete, Bastardi, Wankowicz and
+  «کسمایی» pass; "porn star", "shit", «اللوطي», «سحاقية» (an Arabic word with one article and one suffix) are still refused; Coon and
+  Mong stay refused (whole-word entries, listed in Q-754). `full_name_allow` keeps its 7 whole words (butt, cumming, dick, hooker,
+  kike, poon, quim); the other 36 are redundant and removed. Two corpus abusive names ("fuckface Ali", "Mr Shithead") passed a draft,
+  so six compounds of `fuck` and `shit` join `username_word` (no username's answer changes): 0 abusive names change outcome. The
+  check is one index look-up, 0.30 ms a call (0177's 0.39 ms); the recheck is marked pending, so the tick re-flags stored names.
+  Corpus 255 real names pass, 32 abusive names refused. Timing rerun: `ranking_names` 8.14 to 8.04 ms, `screen_ranking` 34.57 to
+  20.78 ms, `event_results` 28.93 to 28.93 ms, buffers equal or fewer (ADR-766's gate holds); sweep 630 ms a page median. Tests:
+  full-name-filter, name-recheck, security, name-display, usernames and console safety (11 files, 744 passed). CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 23 — 2026-11-08
 
 - **FOLLOWUPS batch 23 (tier B, API and app; migration 0177 rewritten before deploy; ADR-817 Proposed, Q-754; no new string).** The

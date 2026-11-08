@@ -68,6 +68,9 @@ pending); `public_full_name` gives no flagged name. `full_name_allow (word, lang
 the full-name check skips (real names that hold a list entry; an Arabic one also with ال بال وال لل before it and ي يه ه
 after it), no grant. `full_name_recheck`: the sweep's one row (`pending`,
 the last answer key), no grant.
+Migration 0178 (Q-754, ADR-817): in a full name every list entry matches a whole word only (an Arabic part entry also with one
+article and one suffix); `full_name_allow` keeps its 7 whole words that are list entries (butt, cumming, dick, hooker, kike,
+poon, quim); six compounds (fuckface, shithead, ...) join `username_word` as part entries; the recheck is marked pending.
 Migration 0118 (T-704): `reason` gains `admin` (a rename by `admin_rename_player`, not counted by the change limit), and
 `username_retired (fold PRIMARY KEY, retired_at)` holds a name an admin took away, folded, with no player id;
 `username_blocked` refuses a retired name to everyone (ADR-420). No grant.

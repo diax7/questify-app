@@ -6322,7 +6322,7 @@ Questify-wide pages (the Questify ranking, public profiles), Meet, Cheers and th
 cannot say what the owner now shows, so both must hold and both are checked where the data is read.
 **Trade-offs:** an owner who joined players on usernames cannot later show full names to all without those players leaving and rejoining;
 the check costs one extra read per ranking read for events that show names (none otherwise); the staff view of a name needs no notice, a
-judgment counsel should confirm. The full name is free text the player typed (200 characters at most, and only 60 are shown to other players); unlike a username it is not filtered, so an owner who shows it to everyone relies on removing a player who abuses it (ADR-817, proposed, adds the username lists at the join and where other players read it).
+judgment counsel should confirm. The full name is free text the player typed (200 characters at most, and only 60 are shown to other players); unlike a username it is not filtered, so an owner who shows it to everyone relies on removing a player who abuses it (ADR-817, accepted, adds the username lists at the join and where other players read it).
 
 ## ADR-401 - T-616 owner Inbox: one counts read, the lists are the existing pages' own
 
@@ -8701,9 +8701,29 @@ That is safe on staging, where no live event runs; on production such a file nee
 
 ## ADR-817 - FOLLOWUPS batch 23: the username word lists check a full name at the join, and a stored flag hides it where other players read it
 
-**Status:** Proposed (FOLLOWUPS batch 23, 2026-11-08; reworked after the review scored the first version 72, and again after the
-re-review scored it 86; Q-754). Narrows the
+**Status:** Accepted (Dhia, 2026-11-08, Q-754). (FOLLOWUPS batch 23, 2026-11-08; reworked after the review scored the first
+version 72, and again after the re-review scored it 86; whole words since migration 0178.) Narrows the
 trade-off of ADR-400 ("unlike a username it is not filtered").
+**Whole words (Dhia, 2026-11-08, Q-754; migration 0178).** In a full name every list entry matches a whole word of the folded
+name only: a `part` entry no longer matches inside a longer word, so Siriporn, Supaporn, Somporn, Kanokporn, Pornthep, Shittu,
+Shitole, Shitara, Slutskaya, Skeete, Bastardi, Wankowicz and «کسمایی» pass, while a list word standing alone is still refused
+("porn star", "shit"). A `part` entry matches the whole word as it is, its pieces between digits, the word with its digits removed
+or read as letters (`b4st4rd`), and, for an Arabic word, the word with one prefix of ال, بال, وال, لل and one suffix of ي, يه, ه
+taken off (ية and ة fold to يه and ه), so «اللوطي», «السحاقي», «سحاقية» and «الشرموطة» are still refused; a `word` entry matches
+a whole word split at digits, as before. Usernames keep their rule (`username_blocked`, unchanged). The allow-list keeps only the
+whole words that are list entries (butt, cumming, dick, hooker, kike, poon, quim; «Kike» stays allowed, Q-754 (2)); its other 36
+entries (Ishaq, Al-Balouti, Al-Saksaki, Yamashita, Harshit, Pornchai, ...) only covered a list word inside a longer word, and the
+corpus passes without them, so 0178 removes them. A compound insult is one word, so "fuckface Ali" and "Mr Shithead" passed a draft
+of 0178: six common compounds of a part entry (fuckface, fuckhead, fucker, fuckwit, shithead, shitface) join `username_word` as
+whole words, and since each holds `fuck` or `shit`, no username's answer changes. Any other compound ("Pornstar Ali") passes a full
+name until an admin adds it from the console. Coon and Mong are whole-word `word` entries and stay refused (Q-754). The check is one
+index look-up on the list's word instead of a scan of every part entry, 0.30 ms a call against 0.39 ms for 0177's on the same run.
+The reads are unchanged; rerun with 0178 (`test/perf/full-name-timing.int.test.ts`, load average about 2, the column "0177 now" being
+the stored flag as 0178 leaves it): `ranking_names` 8.14 ms (0176) to 8.04 ms, 376 buffers both; `screen_ranking` 34.57 to
+20.78 ms, 1,217 to 740; `event_results` 28.93 to 28.93 ms, 1,811 both; ADR-766's gate (+0.5 ms or +10%) holds for all three. The
+sweep: 52 pages for 102,001 answers, 630 ms a page median, 767 ms the slowest, 32.5 s in all.
+0178 marks the recheck pending (`docs/rules.md`), so the lifecycle tick re-flags the stored names. The text below is 0177's; where it
+says a part entry matches inside one word, or lists the 43 allow-list entries, 0178 replaces it.
 **Decision:** migration 0177. (1) **The check**, `full_name_blocked(name)` (internal, PL/pgSQL with no SET clause, so its two list
 reads keep one plan per connection and the name is folded once, not once per list row): the name other players see
 (`display_name_text`), `normalize(NFKC)` (full-width letters, Arabic presentation forms), NFD with combining marks and tatweel
