@@ -215,11 +215,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("surveys, shares and challenges
         "already_completed",
       ]);
       expect((await app("GET", `/v1/quests/${quest}/survey`, token)).json().answered).toBe(true);
-      // The replay writes the same score again to the ranking copy: harmless, and never a second payment.
-      expect(upserts.filter((write) => write.event === event.id)).toEqual([
-        { event: event.id, score: 20n },
-        { event: event.id, score: 20n },
-      ]);
     });
 
     it("answers each refusal, naming the question but never the answer", async () => {

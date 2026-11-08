@@ -15,6 +15,7 @@ import { useConfirmation } from "#src/components/useConfirmation.tsx";
 import { readyIds, tally } from "#src/lib/change-sets.ts";
 import { APPLY_REQUEST_TIMEOUT_MS, requestJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
+import { keyedRequest, useRequestKey } from "#src/lib/use-request-key.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Dialog } from "#src/ui/Dialog.tsx";
 import { Badge, Muted, Notice } from "#src/ui/Feedback.tsx";
@@ -136,18 +137,19 @@ function useReviewCalls(language: Language, path: string, reload: () => Promise<
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const keys = useRequestKey();
 
   const call = async (suffix: "apply" | "close", payload: object) => {
     setBusy(true);
     setProblem(null);
     setNotice(null);
-    const result = await requestJson(
-      "POST",
-      `${path}/${suffix}`,
+    // The key stays until a final answer, so a click after a 502 or a timeout gets the stored answer, not `busy`.
+    const result = await keyedRequest(keys, `${suffix} ${JSON.stringify(payload)}`, {
+      method: "POST",
+      path: `${path}/${suffix}`,
       payload,
-      { "idempotency-key": crypto.randomUUID() },
-      suffix === "apply" ? { timeoutMs: APPLY_REQUEST_TIMEOUT_MS } : {},
-    );
+      options: suffix === "apply" ? { timeoutMs: APPLY_REQUEST_TIMEOUT_MS } : {},
+    });
     setBusy(false);
     if (!result.ok) {
       setProblem(describeProblem(result.body, language, t).text);

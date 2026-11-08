@@ -1,20 +1,77 @@
 import { useRef } from "react";
+import { requestJson, type PostResult, type RequestOptions } from "#src/lib/post-json.ts";
+
+export type RequestKey = ReturnType<typeof createRequestKey>;
 
 /**
  * One Idempotency-Key per distinct request: a retry of the same one after a dropped answer replays the first answer
  * (nothing is made twice), a changed request takes a new key, and a finished one forgets its key.
  */
-export function useRequestKey() {
-  const last = useRef<{ signature: string; key: string } | null>(null);
+export function createRequestKey() {
+  let last: { signature: string; key: string } | null = null;
   return {
     keyFor: (signature: string): string => {
-      if (last.current?.signature !== signature) {
-        last.current = { signature, key: crypto.randomUUID() };
+      if (last?.signature !== signature) {
+        last = { signature, key: crypto.randomUUID() };
       }
-      return last.current.key;
+      return last.key;
     },
     forget: () => {
-      last.current = null;
+      last = null;
     },
   };
+}
+
+export function useRequestKey(): RequestKey {
+  const keys = useRef<RequestKey | null>(null);
+  keys.current ??= createRequestKey();
+  return keys.current;
+}
+
+/** Refusals that say "not now" rather than "no": the set is being applied, or the same request is still running. */
+const NOT_FINAL_CODES: ReadonlySet<string> = new Set(["change_set_busy", "request_in_progress"]);
+
+/**
+ * Whether an answer ends the request, so the next call is a new one with a new key: a 2xx, or a 4xx other than the
+ * set being busy or the same request still running. A dropped connection, a timeout and a 5xx are not final: the
+ * first try may have been applied, and the same key brings back its stored answer.
+ */
+export function isFinalAnswer(result: PostResult): boolean {
+  if (result.ok) {
+    return true;
+  }
+  if (result.status === undefined || result.status === 0 || result.status >= 500) {
+    return false;
+  }
+  return !NOT_FINAL_CODES.has(codeOf(result.body));
+}
+
+/** The API's `code` of an error answer, or an empty string. */
+function codeOf(body: unknown): string {
+  const code = typeof body === "object" && body !== null ? (body as { code?: unknown }).code : "";
+  return typeof code === "string" ? code : "";
+}
+
+/** One call with the key of its signature; the key is forgotten once the answer is final. */
+export async function keyedRequest(
+  keys: RequestKey,
+  signature: string,
+  call: Readonly<{
+    method: "POST" | "PUT";
+    path: string;
+    payload: unknown;
+    options?: RequestOptions;
+  }>,
+): Promise<PostResult> {
+  const result = await requestJson(
+    call.method,
+    call.path,
+    call.payload,
+    { "idempotency-key": keys.keyFor(signature) },
+    call.options,
+  );
+  if (isFinalAnswer(result)) {
+    keys.forget();
+  }
+  return result;
 }

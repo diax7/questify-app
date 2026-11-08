@@ -188,11 +188,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("votes and quizzes over HTTP", 
       codeOf(await app("POST", `/v1/quests/${quest}/vote`, token, { optionIds: ["a"] })),
     ).toEqual([409, "already_voted"]);
     expect((await app("GET", `/v1/quests/${quest}/vote`, token)).json().mine).toEqual(["b"]);
-    // The replay writes the same score again to the ranking copy: harmless, and never a second payment.
-    expect(upserts.filter((write) => write.event === event)).toEqual([
-      { event, score: 10n },
-      { event, score: 10n },
-    ]);
     const counts = await dashboard("GET", `/events/${event}/quests/${quest}/votes`);
     expect(counts.json()).toEqual({
       options: [

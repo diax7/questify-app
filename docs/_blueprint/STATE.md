@@ -1,5 +1,19 @@
 # Blueprint State — Questify
 
+## FOLLOWUPS batch 28 — 2026-11-08
+
+- **FOLLOWUPS batch 28 (tier B, web and API test files; no migration, no SQL, no package change, no ADR, no new string).**
+  The change-set review no longer makes a new Idempotency-Key on every click: `ChangeSetReview.tsx` sends apply and close
+  through `keyedRequest` (`use-request-key.ts`), which keeps the key of a request (its signature is the call and its body)
+  until a final answer, so a click after a 502 or a timeout gets the stored answer instead of `change_set_busy`. A final
+  answer (`isFinalAnswer`) is a 2xx or a 4xx other than `change_set_busy` and `request_in_progress` (the same request still
+  running); a dropped connection, a timeout and a 5xx keep the key. `createRequestKey` is the plain core of `useRequestKey`, so
+  `use-request-key.test.ts` tests the key staying across a 502, a timeout and a busy answer and changing after a final one.
+  `saveExport` (`AnalyticsExports.tsx`) is exported and `AnalyticsExports.test.ts` pins its timeout (the call gets
+  `EXPORT_REQUEST_TIMEOUT_MS`, answers failed when it runs out, and the limit sits above the forwarder's 180 s). The vote and
+  survey replay tests no longer pin the ranking copy written twice; they assert the score unchanged and `replayed: true`.
+  The CranL edge 300 s check stays in FOLLOWUPS (needs a staging run). One FOLLOWUPS line trimmed. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 26 — 2026-11-08
 
 - **FOLLOWUPS batch 26 (tier B, web, app and API test files; no migration, no SQL, no package change, no ADR, no new string).**

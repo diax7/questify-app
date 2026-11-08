@@ -31,7 +31,7 @@ const LABELS: Readonly<Record<ExportKind, MessageKey>> = {
  * Asks the API for one file and hands it to the browser. The API audits the export and writes the file in pieces; the
  * answer is read as a blob so the byte-order mark Excel needs for Arabic reaches the file. Resolves to whether it worked.
  */
-async function saveExport(
+export async function saveExport(
   eventApi: string,
   kind: ExportKind,
   language: Language,
