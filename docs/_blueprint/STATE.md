@@ -10,7 +10,7 @@
   15 on 12 cores throughout (another worker). The index's own cost on the score update, 20,000 members, triggers off,
   with and without in turns, median of 6 (`test/perf/export-index-plans.int.test.ts`): one update a transaction 1,075
   to 1,122 and 1,041 to 1,076 us (+35 to +47 us, inside the spread), in one server-side loop 121 to 138 and 151 to
-  147 us (+16 us, then -4). Verdict against ADR-734: the index does not move the gate by more than about 0.05 ms; the
+  147 us (+16 us, then -4). Verdict against ADR-734: the index's cost is not distinguishable from noise, at most a few tenths of a ms; the
   absolute 10 ms limb is not met by the with-index mean on this busy machine (10.10) and is by the without mean
   (9.79), with single runs on both sides of the line, and the last quiet figures (10.78, 10.98) were already over it,
   so the absolute number still waits on a quiet machine or T-804's rerun. No cheaper index exists: the row's update is

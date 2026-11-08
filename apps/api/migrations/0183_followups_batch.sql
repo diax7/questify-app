@@ -9,7 +9,8 @@ SET LOCAL lock_timeout = '10s';
 -- order and stops at the page; when what is left of the event is about two pages or less, the planner may instead read
 -- those rows through it and sort them (`apps/api/test/perf/export-index-plans.int.test.ts`, FOLLOWUPS batch 32 in
 -- STATE.md).
--- Built inside the migration's transaction, not CONCURRENTLY: the table is small before launch, and the build holds
--- writes to it for the build's length only.
+-- Built inside the migration's transaction, not CONCURRENTLY: the table is small before launch. DROP INDEX takes ACCESS
+-- EXCLUSIVE on redemption and holds it through the build, so reads wait too, about a second at today's size. On a
+-- populated table build the new index under another name first (SHARE), then drop the old one and rename it.
 DROP INDEX redemption_event_created_idx;
 CREATE INDEX redemption_event_created_idx ON redemption (event_id, created_at, id) WHERE reward_id IS NOT NULL;
