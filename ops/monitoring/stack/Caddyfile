@@ -18,6 +18,14 @@
 		max_size 4MB
 	}
 
+	# A path with a `.` or `..` segment, written plain or with %2e or %2f, is refused (400) before any other match: nothing
+	# here needs one, and none may reach Grafana's health page by another spelling. It reads the request as sent
+	# (orig_uri), so the check does not depend on how a later step cleans the path.
+	@dotSegments vars_regexp dots {http.request.orig_uri} (?i)(^|/)(\.|%2e){1,2}(/|%2f|\?|$)
+	handle @dotSegments {
+		respond 400
+	}
+
 	# Grafana's health page answers without a login and names its version; the container's health check does not use it.
 	@grafanaHealth path /grafana/api/health /grafana/api/health/*
 	handle @grafanaHealth {

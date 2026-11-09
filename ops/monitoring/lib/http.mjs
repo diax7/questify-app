@@ -1,4 +1,5 @@
 // Small HTTP helpers of the monitoring validation.
+import { request as httpRequest } from "node:http";
 
 export function ensure(condition, message) {
   if (!condition) throw new Error(message);
@@ -20,6 +21,24 @@ export async function request(url, { method = "GET", headers = {}, body } = {}) 
     json: () => JSON.parse(text),
   };
 }
+
+/**
+ * One GET with the path written exactly as given: `fetch` collapses `.` and `..` segments before it sends, so a request
+ * with them needs `node:http`. Resolves to `{ status }`.
+ */
+export const requestRawPath = (port, path, headers = {}) =>
+  new Promise((resolve, reject) => {
+    const outgoing = httpRequest(
+      { host: "127.0.0.1", port, path, method: "GET", headers, timeout: 20_000 },
+      (response) => {
+        response.resume();
+        response.on("end", () => resolve({ status: response.statusCode ?? 0 }));
+      },
+    );
+    outgoing.on("timeout", () => outgoing.destroy(new Error(`GET ${path} timed out.`)));
+    outgoing.on("error", reject);
+    outgoing.end();
+  });
 
 export const postJson = (url, payload, headers = {}) =>
   request(url, {

@@ -1,5 +1,22 @@
 # Blueprint State — Questify
 
+## FOLLOWUPS batch 36 — 2026-11-09
+
+- **FOLLOWUPS batch 36 (tier B, ops config and tests; no migration, no SQL, nothing under `.github`, no string).** (1) The
+  monitoring Caddyfile refuses (400) any request whose path as sent holds a `.` or `..` segment, plain or with `%2e` or
+  `%2f`, before any other match (`vars_regexp` on `{http.request.orig_uri}`; Caddy's own `path` match already cleaned
+  `..` for the health page, but `/grafana/api/health/..` and the like reached the upstream). Probed on Caddy 2.11.4 with
+  `curl --path-as-is` against a stub upstream: every dot spelling 400, `/grafana/d/a..b/x.y` and Prometheus paths still
+  pass. `validate.mjs` gains `checkDotSegmentsRefused` (12 spellings, with and without the admin login) sent through
+  `requestRawPath` (`node:http`, because `fetch` collapses the segments); `pnpm monitoring:validate` passed, 30 checks,
+  mail stage included. (2) The add door's "under 50 ms" now has a hand-run test:
+  `apps/api/test/perf/name-allow-add-timing.int.test.ts` (300 calls over the abusive names' words, median and 95th
+  percentile asserted under 50 ms): median 8.3 ms, 95th percentile 14.1 ms, slowest 31.6 ms. (3) The batch 32 NIT
+  (`ChangeSetReview.test.ts` asserting the default timeout constant) was already done by batch 34: line removed. (4) T-603:
+  `invitation-sending.int.test.ts` ran 3 times alone, 52 passed each; the full suite passed on 2026-11-09 (13,403 tests):
+  line closed, the 28-failure run is not reproduced. (5) `sign-in-rush` passes (13) and the line only asks to keep the
+  name if it recurs, so it stays. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 35 — 2026-11-09
 
 - **FOLLOWUPS batch 35 (tier B, SQL; migration 0186; 0185 and earlier frozen, three functions restated and diffed against

@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { STACK } from "./context.mjs";
 import { inside, logsOf, waitFor } from "./docker.mjs";
-import { basic, ensure, postJson, request } from "./http.mjs";
+import { basic, ensure, postJson, request, requestRawPath } from "./http.mjs";
 
 const DASHBOARD_UID = "questify-slo";
 const DATASOURCE_UID = "questify-prometheus";
@@ -139,6 +139,36 @@ async function checkHealthPageBlocked(base, admin) {
   }
 }
 
+/**
+ * A path with a `.` or `..` segment, plain or with %2e or %2f, is refused (400) whatever it would clean to, so none
+ * reaches Grafana's health page. Sent raw, because `fetch` would collapse the segments before sending.
+ */
+async function checkDotSegmentsRefused(stack, admin) {
+  const paths = [
+    "/api/x/../health",
+    "/api/../api/health",
+    "/api/%2e%2e/api/health",
+    "/api/%2E%2E/api/health",
+    "/api/x/.%2e/health",
+    "/api/x/%2e./health",
+    "/api/x/..%2fhealth",
+    "/api/x/%2e%2e%2fhealth",
+    "/api/health/..",
+    "/./api/health",
+    "//api/x/../health",
+    "/../grafana/api/health",
+  ];
+  for (const path of paths) {
+    for (const headers of [{}, admin]) {
+      const { status } = await requestRawPath(stack.port, `${PREFIX}${path}`, headers);
+      ensure(
+        status === 400,
+        `${PREFIX}${path} was answered ${status} through the app's port, not 400.`,
+      );
+    }
+  }
+}
+
 /** Grafana is part of the running app: it must be up behind Caddy, log-in only, provisioned, and answer every query. */
 export async function checkGrafana(ctx, stack) {
   const base = `http://127.0.0.1:${stack.port}`;
@@ -150,6 +180,7 @@ export async function checkGrafana(ctx, stack) {
   );
   await checkSubPath(base);
   await checkHealthPageBlocked(base, admin);
+  await checkDotSegmentsRefused(stack, admin);
   await checkLogin(base, admin);
   await checkProvisioning(base, admin);
   const probe = { title: "a probe", expr: "vector(1)", instant: true, range: false };
