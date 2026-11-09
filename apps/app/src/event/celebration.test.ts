@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { activityAnswer, readActivity } from "#src/event/activity-api.ts";
-import { celebrationBeats, detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
+import {
+  celebrationBeats,
+  detailsAfter,
+  scanStep,
+  type ScanEvent,
+  type ScanStep,
+} from "#src/event/celebration.ts";
 import { keyFor, type Category, type Quest, type QuestsView } from "#src/event/quests-api.ts";
 
 const quest = (id: string, fields: Partial<Quest> = {}): Quest => ({
@@ -194,6 +200,154 @@ describe("scanStep", () => {
   it("takes the same key only to retry after a network failure, a new one after a server failure", () => {
     expect(keyFor({ key: "k1", code: "t1", retryable: true }, "t1", fresh)).toBe("k1");
     expect(keyFor({ key: "k1", code: "t1", retryable: false }, "t1", fresh)).toBe("new-key");
+  });
+});
+
+const answer = (value: unknown): ScanEvent =>
+  ({ type: "answered", answer: value }) as unknown as ScanEvent;
+
+describe("scanStep, every step and event", () => {
+  const NAME = { ar: "a", en: "e" };
+  const celebrating: Extract<ScanStep, { kind: "celebrating" }> = {
+    kind: "celebrating",
+    questId: "q",
+    points: 1,
+    replayed: false,
+    levelUp: null,
+    bonus: null,
+    item: null,
+    boosted: false,
+    firstBonus: null,
+    streakBonus: null,
+    met: null,
+    details: undefined,
+  };
+  const STEPS = {
+    scanning: { kind: "scanning" },
+    checking: { kind: "checking", questId: "q", token: "t" },
+    stamped: { kind: "stamped", done: 1, needed: 2, fresh: true },
+    revealed: { kind: "revealed", name: NAME, fresh: false },
+    celebrating,
+    refused: { kind: "refused", answer: { kind: "limit" } },
+    lost: { kind: "lost", questId: "q", token: "t" },
+  } satisfies Record<string, ScanStep>;
+  const kinds = Object.keys(STEPS) as (keyof typeof STEPS)[];
+  const details = { quest: undefined, finishedCategory: undefined, otherEvent: true };
+  const completed = {
+    kind: "completed",
+    points: 5,
+    score: 5,
+    replayed: false,
+    levelUp: null,
+    bonus: null,
+    item: null,
+    firstBonus: null,
+    streakBonus: null,
+  } as const;
+  const celebrated = (extra: Record<string, unknown>) =>
+    scanStep(STEPS.checking, answer({ ...completed, ...extra }));
+
+  it("reads a code only while scanning", () => {
+    const read: ScanEvent = { type: "read", questId: "r", token: "rt" };
+    expect(scanStep(STEPS.scanning, read)).toEqual({ kind: "checking", questId: "r", token: "rt" });
+    for (const kind of kinds.filter((name) => name !== "scanning")) {
+      expect(scanStep(STEPS[kind], read), kind).toBe(STEPS[kind]);
+    }
+  });
+
+  it("adds the details only to a celebration", () => {
+    const event: ScanEvent = { type: "details", details };
+    expect(scanStep(celebrating, event)).toEqual({ ...celebrating, details });
+    for (const kind of kinds.filter((name) => name !== "celebrating")) {
+      expect(scanStep(STEPS[kind], event), kind).toBe(STEPS[kind]);
+    }
+  });
+
+  it("retries only a lost scan, with its own code", () => {
+    expect(scanStep(STEPS.lost, { type: "retry" })).toEqual({
+      kind: "checking",
+      questId: "q",
+      token: "t",
+    });
+    for (const kind of kinds.filter((name) => name !== "lost")) {
+      expect(scanStep(STEPS[kind], { type: "retry" }), kind).toBe(STEPS[kind]);
+    }
+  });
+
+  it("scans again from every step but checking", () => {
+    expect(scanStep(STEPS.checking, { type: "again" })).toBe(STEPS.checking);
+    for (const kind of kinds.filter((name) => name !== "checking")) {
+      expect(scanStep(STEPS[kind], { type: "again" }), kind).toEqual({ kind: "scanning" });
+    }
+  });
+
+  it("takes an answer only while checking", () => {
+    for (const given of [{ kind: "limit" }, { kind: "network" }, completed, { kind: "stamped" }]) {
+      for (const kind of kinds.filter((name) => name !== "checking")) {
+        expect(scanStep(STEPS[kind], answer(given)), `${kind} ${given.kind}`).toBe(STEPS[kind]);
+      }
+    }
+  });
+
+  it.each([
+    [
+      { kind: "stamped", done: 2, needed: 3, fresh: false },
+      { kind: "stamped", done: 2, needed: 3, fresh: false },
+    ],
+    [
+      { kind: "revealed", name: NAME, fresh: true },
+      { kind: "revealed", name: NAME, fresh: true },
+    ],
+    [{ kind: "network" }, { kind: "lost", questId: "q", token: "t" }],
+    [{ kind: "limit" }, { kind: "refused", answer: { kind: "limit" } }],
+    [{ kind: "failed" }, { kind: "refused", answer: { kind: "failed" } }],
+    [{ kind: "signed_out" }, { kind: "refused", answer: { kind: "signed_out" } }],
+  ])("turns the answer %j into %j", (given, expected) => {
+    expect(scanStep(STEPS.checking, answer(given))).toEqual(expected);
+  });
+
+  describe("a completed answer", () => {
+    it("celebrates with the points, replay, level, bonus, item and streak as sent", () => {
+      const bonus = { points: 3, category: NAME, item: null };
+      const item = { name: NAME, outcome: "pending", until: null };
+      const firstBonus = { points: 4, place: 1 };
+      const streakBonus = { points: 6 };
+      expect(
+        celebrated({ points: 9, replayed: true, levelUp, bonus, item, firstBonus, streakBonus }),
+      ).toEqual({
+        kind: "celebrating",
+        questId: "q",
+        points: 9,
+        replayed: true,
+        levelUp,
+        bonus,
+        item,
+        boosted: false,
+        firstBonus,
+        streakBonus,
+        met: null,
+        details: undefined,
+      });
+    });
+
+    it("is boosted only when the answer carries a boost", () => {
+      expect(celebrated({})).toMatchObject({ boosted: false });
+      expect(celebrated({ boost: null })).toMatchObject({ boosted: false });
+      expect(celebrated({ boost: undefined })).toMatchObject({ boosted: false });
+      expect(celebrated({ boost: { multiplier: 2 } })).toMatchObject({ boosted: true });
+    });
+
+    it("takes the quest id from the answer when it names one, else from the scan", () => {
+      expect(celebrated({})).toMatchObject({ questId: "q" });
+      expect(celebrated({ questId: undefined })).toMatchObject({ questId: "q" });
+      expect(celebrated({ questId: "other" })).toMatchObject({ questId: "other" });
+    });
+
+    it("names whom the player met only when the answer says", () => {
+      expect(celebrated({})).toMatchObject({ met: null });
+      expect(celebrated({ met: undefined })).toMatchObject({ met: null });
+      expect(celebrated({ met: { username: "sam" } })).toMatchObject({ met: "sam" });
+    });
   });
 });
 

@@ -121,6 +121,16 @@ export type PassState =
   | Readonly<{ state: "slow" }>
   | Readonly<{ state: "unknown" }>;
 
+/** Who met the player on a used pass, when the answer names them and their points; undefined otherwise. */
+function usedPassOf(body: Record<string, unknown>): PassState | undefined {
+  const met = body["met"] as Record<string, unknown> | null | undefined;
+  const username = met?.["username"];
+  const points = met?.["points"];
+  return body["state"] === "used" && typeof username === "string" && typeof points === "number"
+    ? { state: "used", username, points }
+    : undefined;
+}
+
 export function passStateOf(answer: AuthedResult): PassState {
   if (answer.kind === "error" && answer.status === 429) {
     return { state: "slow" };
@@ -129,17 +139,12 @@ export function passStateOf(answer: AuthedResult): PassState {
     return { state: "unknown" };
   }
   const body = (answer.body ?? {}) as Record<string, unknown>;
-  const met = body["met"] as Record<string, unknown> | null | undefined;
-  if (
-    body["state"] === "used" &&
-    typeof met?.["username"] === "string" &&
-    typeof met["points"] === "number"
-  ) {
-    return { state: "used", username: met["username"], points: met["points"] };
-  }
-  return body["state"] === "open" || body["state"] === "expired"
-    ? { state: body["state"] }
-    : { state: "unknown" };
+  return (
+    usedPassOf(body) ??
+    (body["state"] === "open" || body["state"] === "expired"
+      ? { state: body["state"] }
+      : { state: "unknown" })
+  );
 }
 
 export async function readPassState(

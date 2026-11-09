@@ -177,11 +177,6 @@
       "complexity": [18]
     }
   },
-  "apps/app/app/join/[code].tsx": {
-    "<anonymous>": {
-      "complexity": [10]
-    }
-  },
   "apps/app/app/operator/[eventId]/(tabs)/desk.tsx": {
     "DeskTab": {
       "complexity": [10]
@@ -193,11 +188,6 @@
     },
     "InboxTab": {
       "complexity": [9]
-    }
-  },
-  "apps/app/app/operator/[eventId]/(tabs)/index.tsx": {
-    "OperatorHomeScreen": {
-      "complexity": [10]
     }
   },
   "apps/app/app/operator/[eventId]/pair-device.tsx": {
@@ -263,11 +253,6 @@
       "complexity": [9]
     }
   },
-  "apps/app/src/event/QuestSheet.tsx": {
-    "QuestEntry": {
-      "complexity": [10]
-    }
-  },
   "apps/app/src/event/QuizEntry.tsx": {
     "<anonymous>": {
       "complexity": [10]
@@ -301,11 +286,6 @@
       "complexity": [9]
     }
   },
-  "apps/app/src/event/help.ts": {
-    "sendAnswer": {
-      "complexity": [11]
-    }
-  },
   "apps/app/src/event/home-api.ts": {
     "rankingAnswer": {
       "complexity": [9]
@@ -321,17 +301,9 @@
       "complexity": [9]
     }
   },
-  "apps/app/src/event/meet.ts": {
-    "passStateOf": {
-      "complexity": [11]
-    }
-  },
   "apps/app/src/event/plays.ts": {
     "<anonymous>": {
       "complexity": [9]
-    },
-    "quizViewOf": {
-      "complexity": [11]
     }
   },
   "apps/app/src/event/polls.ts": {
@@ -414,11 +386,6 @@
       "complexity": [10]
     }
   },
-  "apps/app/src/questify/QuestifyQuestsScreen.tsx": {
-    "QuestifyQuestsScreen": {
-      "complexity": [11]
-    }
-  },
   "apps/app/src/questify/QuestifySyncProvider.tsx": {
     "<anonymous>": {
       "complexity": [9]
@@ -427,11 +394,6 @@
   "apps/app/src/questify/level.ts": {
     "levelOf": {
       "complexity": [10]
-    }
-  },
-  "apps/app/src/screens/ProfileScreen.tsx": {
-    "ProfileScreen": {
-      "complexity": [11]
     }
   },
   "apps/app/src/streaks/days.ts": {

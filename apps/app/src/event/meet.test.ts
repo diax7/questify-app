@@ -27,6 +27,7 @@ const refused = (status: number, code: string, details: Record<string, unknown>)
   details,
   headers,
 });
+const used = (met: unknown) => passStateOf(ok({ state: "used", met }));
 const refusal = (
   reason: MeetReason | undefined,
   name: string | null = null,
@@ -179,6 +180,51 @@ describe("the shown code", () => {
     expect(passStateOf(ok({ state: "used", met: null }))).toEqual({ state: "unknown" });
     expect(passStateOf(refused(429, "too_many_attempts", {}))).toEqual({ state: "slow" });
     expect(passStateOf({ kind: "network" })).toEqual({ state: "unknown" });
+  });
+
+  it("reads a used pass only with a username and a numeric points", () => {
+    expect(used({ username: "", points: 0 })).toEqual({ state: "used", username: "", points: 0 });
+    expect(used({ username: "sara", points: 7, avatar: "fox" })).toEqual({
+      state: "used",
+      username: "sara",
+      points: 7,
+    });
+    for (const met of [
+      undefined,
+      null,
+      "sara",
+      7,
+      true,
+      [],
+      {},
+      { username: "sara" },
+      { points: 5 },
+      { username: 4, points: 5 },
+      { username: "sara", points: "5" },
+      { username: null, points: 5 },
+    ]) {
+      expect(used(met), JSON.stringify(met)).toEqual({ state: "unknown" });
+    }
+  });
+
+  it("reads open and expired as they are and any other state, body or answer as unknown", () => {
+    for (const state of ["open", "expired"]) {
+      expect(passStateOf(ok({ state, met: { username: "sara", points: 5 } }))).toEqual({ state });
+      expect(passStateOf(ok({ state }))).toEqual({ state });
+    }
+    for (const state of [undefined, null, "", "Open", "used_up", "slow", 7, true, {}]) {
+      expect(passStateOf(ok({ state, met: { username: "s", points: 1 } })), String(state)).toEqual({
+        state: "unknown",
+      });
+    }
+    for (const body of [undefined, null, "open", 7, true, [], {}]) {
+      expect(passStateOf(ok(body)), JSON.stringify(body)).toEqual({ state: "unknown" });
+    }
+    expect(passStateOf({ kind: "signed_out" })).toEqual({ state: "unknown" });
+    expect(passStateOf(refused(404, "not_found", {}))).toEqual({ state: "unknown" });
+    expect(passStateOf(refused(500, "x", {}))).toEqual({ state: "unknown" });
+    expect(passStateOf(refused(429, "x", {}))).toEqual({ state: "slow" });
+    expect(passStateOf(ok({ state: "open" }, 429))).toEqual({ state: "open" });
   });
 
   it("polls every 2 seconds, every 5 after a 429, and stops when used, expired or past its minute", () => {

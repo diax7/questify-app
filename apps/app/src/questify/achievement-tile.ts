@@ -23,6 +23,10 @@ function nextTextOf(achievement: Achievement, withProgress: boolean, t: Translat
     : null;
 }
 
+/**
+ * The words of one tile for the given language. `withProgress` is true only on the player's own profile: it adds the
+ * progress line toward the next tier and lets the top-tier mark show; another player's tile never carries either.
+ */
 export function tileTextOf(
   achievement: Achievement,
   withProgress: boolean,

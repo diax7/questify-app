@@ -168,29 +168,35 @@ export type SendAnswer =
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "signed_out" }>;
 
+/** The refusals the screen words one by one: each code is its own answer kind. */
+const NAMED_REFUSALS = [
+  "too_many_open",
+  "unknown_player",
+  "self_report",
+  "already_reported",
+  "too_many_lookups",
+] as const;
+
+const isNamedRefusal = (code: string): code is (typeof NAMED_REFUSALS)[number] =>
+  (NAMED_REFUSALS as readonly string[]).includes(code);
+
+/** A refusal's code in the screen's words; a code not named is shown with the server's own message. */
+function refusalAnswer(code: string, message: LocalizedText | null): SendAnswer {
+  const off = sendingOffOf(code);
+  if (off !== null) {
+    return { kind: "off", why: off };
+  }
+  if (isNamedRefusal(code)) {
+    return { kind: code };
+  }
+  return code === "too_many_tickets" ? { kind: "too_many" } : { kind: "refused", message };
+}
+
 export function sendAnswer(answer: AuthedResult): SendAnswer {
   if (answer.kind === "signed_out" || answer.kind === "network") {
     return { kind: answer.kind };
   }
-  if (answer.kind === "error") {
-    const off = sendingOffOf(answer.code);
-    if (off !== null) {
-      return { kind: "off", why: off };
-    }
-    if (
-      answer.code === "too_many_open" ||
-      answer.code === "unknown_player" ||
-      answer.code === "self_report" ||
-      answer.code === "already_reported" ||
-      answer.code === "too_many_lookups"
-    ) {
-      return { kind: answer.code };
-    }
-    return answer.code === "too_many_tickets"
-      ? { kind: "too_many" }
-      : { kind: "refused", message: answer.message };
-  }
-  return { kind: "sent" };
+  return answer.kind === "error" ? refusalAnswer(answer.code, answer.message) : { kind: "sent" };
 }
 
 /** Bounds the box as the server does (1000 characters after trimming); the server cleans the rest. */

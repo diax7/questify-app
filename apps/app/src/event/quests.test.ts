@@ -573,3 +573,278 @@ describe("location quests (T-303b)", () => {
     expect(scanFallback(quest("q3", { type: "location", verification: ["quest_qr"] }))).toBe(false);
   });
 });
+
+describe("readQuests, field by field", () => {
+  const text = { ar: "ع", en: "en" };
+  const raw: Record<string, unknown> = {
+    id: "q1",
+    title: text,
+    description: text,
+    type: "scan_qr",
+    points: 10,
+    repeatCap: 1,
+    opensAt: null,
+    closesAt: null,
+    done: 0,
+    earned: 0,
+    state: "open",
+    verification: ["quest_qr"],
+  };
+  const read = (fields: Record<string, unknown>) =>
+    readQuests({
+      event: EVENT,
+      categories: [{ id: "c", name: text, quests: [{ ...raw, ...fields }] }],
+    })?.categories[0]?.quests[0];
+  const categoryWith = (fields: Record<string, unknown>) =>
+    readQuests({ event: EVENT, categories: [{ id: "c", name: text, quests: [], ...fields }] });
+  const without = (key: string) => {
+    const { [key]: _removed, ...rest } = raw;
+    return {
+      event: EVENT,
+      categories: [{ id: "c", name: text, quests: [rest] }],
+    };
+  };
+
+  it("fills a plain quest with the fields an older API did not send", () => {
+    expect(read({})).toEqual({
+      ...raw,
+      lock: null,
+      steps: null,
+      item: null,
+      place: null,
+      meet: null,
+      game: null,
+      communityLock: null,
+      flash: null,
+      boost: null,
+      firstBonus: null,
+    });
+  });
+
+  it.each([
+    ["id", [undefined, null, 7, {}]],
+    ["type", [undefined, null, 7, {}]],
+    ["state", [undefined, null, 7, {}]],
+    ["points", [undefined, null, "10", "", true]],
+    ["repeatCap", [undefined, null, "1", true]],
+    ["done", [undefined, null, "0", true]],
+    ["earned", [undefined, null, "0", true]],
+    ["opensAt", [undefined, 7, true, {}]],
+    ["closesAt", [undefined, 7, true, {}]],
+    ["title", [undefined, null, 0, "x", true, {}, { ar: "a" }, { ar: 1, en: null }, { ar: null }]],
+    ["description", [undefined, null, "x", { en: "a" }, { ar: null, en: 2 }]],
+    ["verification", [null, "quest_qr", 7, {}, ["a", 1], [null]]],
+  ])("treats a quest whose %s is not the right kind as a failure to load", (key, junk) => {
+    for (const value of junk) {
+      expect(read({ [key]: value }), `${key}=${JSON.stringify(value)}`).toBeUndefined();
+    }
+  });
+
+  it("treats a quest with a field missing as a failure to load, except the verification", () => {
+    for (const key of Object.keys(raw)) {
+      expect(readQuests(without(key)) === undefined, key).toBe(key !== "verification");
+    }
+  });
+
+  it("accepts the empty and zero values, and an opening time as text", () => {
+    expect(read({ id: "", type: "", state: "", points: 0, repeatCap: 0 })).toMatchObject({
+      id: "",
+      points: 0,
+    });
+    expect(read({ opensAt: "2030-01-01T00:00:00Z", closesAt: "" })).toMatchObject({
+      opensAt: "2030-01-01T00:00:00Z",
+      closesAt: "",
+    });
+    expect(read({ title: { ar: null, en: null } })?.title).toEqual({ ar: null, en: null });
+  });
+
+  it("gives a quest without verification its printed code only when it scans a QR code", () => {
+    expect(read({ verification: undefined })?.verification).toEqual(["quest_qr"]);
+    expect(read({ verification: undefined, type: "enter_code" })?.verification).toEqual([]);
+    expect(read({ verification: [] })?.verification).toEqual([]);
+    expect(read({ verification: ["a", "b"] })?.verification).toEqual(["a", "b"]);
+  });
+
+  it("keeps a known lock and drops anything else", () => {
+    for (const lock of [
+      "community_locked",
+      "category_not_started",
+      "category_locked",
+      "order_locked",
+    ]) {
+      expect(read({ lock })?.lock).toBe(lock);
+    }
+    for (const lock of [undefined, null, "", "future_lock", 7, {}, "Order_locked"]) {
+      expect(read({ lock })?.lock, String(lock)).toBeNull();
+    }
+  });
+
+  it("reads each nested extra whole, or as null when it is not well formed", () => {
+    expect(read({ steps: { done: 1, needed: 2 } })?.steps).toEqual({ done: 1, needed: 2 });
+    expect(read({ place: { lat: 1, lng: 2, radiusM: 30 } })?.place).toEqual({
+      lat: 1,
+      lng: 2,
+      radiusM: 30,
+    });
+    expect(read({ meet: { dailyCap: 3, today: 1 } })?.meet).toEqual({ dailyCap: 3, today: 1 });
+    expect(read({ game: { attemptsLeft: null, passed: false } })?.game).toEqual({
+      attemptsLeft: null,
+      passed: false,
+    });
+    expect(read({ game: { attemptsLeft: 2, passed: true } })?.game).toEqual({
+      attemptsLeft: 2,
+      passed: true,
+    });
+    expect(read({ flash: { closesAt: "2030-01-01T00:00:00Z", extra: 1 } })?.flash).toEqual({
+      closesAt: "2030-01-01T00:00:00Z",
+    });
+    expect(read({ boost: { multiplier: 2, endsAt: "2030-01-01T00:00:00Z" } })?.boost).toEqual({
+      multiplier: 2,
+      endsAt: "2030-01-01T00:00:00Z",
+    });
+    expect(read({ item: text })?.item).toEqual(text);
+    const half = {
+      steps: [{ done: 1 }, { needed: 2 }, { done: "1", needed: 2 }],
+      place: [
+        { lat: 1, lng: 2 },
+        { lat: "1", lng: 2, radiusM: 3 },
+      ],
+      meet: [{ dailyCap: 3 }, { today: 1 }, { dailyCap: "3", today: 1 }],
+      game: [{ passed: true }, { attemptsLeft: 1 }, { attemptsLeft: "1", passed: true }],
+      flash: [{}, { closesAt: 5 }],
+      boost: [{ multiplier: 2 }, { endsAt: "x" }, { multiplier: "2", endsAt: "x" }],
+      item: [{ ar: "a" }, "x", { ar: 1, en: null }],
+    } as const;
+    for (const [key, variants] of Object.entries(half)) {
+      for (const value of [undefined, null, 0, "x", true, [], ...variants]) {
+        expect(
+          read({ [key]: value })?.[key as "steps"],
+          `${key}=${JSON.stringify(value)}`,
+        ).toBeNull();
+      }
+    }
+  });
+
+  it("refuses a category whose id, name or quests are not the right kind", () => {
+    expect(categoryWith({})?.categories).toHaveLength(1);
+    for (const id of [undefined, null, 7, {}]) {
+      expect(categoryWith({ id }), String(id)).toBeUndefined();
+    }
+    for (const name of [undefined, null, "x", { ar: "a" }, { ar: 1, en: null }]) {
+      expect(categoryWith({ name }), JSON.stringify(name)).toBeUndefined();
+    }
+    for (const quests of [undefined, null, "x", {}, [null], [{}], [raw, "x"]]) {
+      expect(categoryWith({ quests }), JSON.stringify(quests)).toBeUndefined();
+    }
+  });
+
+  it("reads a category's rules leniently", () => {
+    const rules = (fields: Record<string, unknown>) =>
+      readQuests({ event: EVENT, categories: [{ id: "c", name: text, quests: [], ...fields }] })
+        ?.categories[0];
+    expect(rules({})).toMatchObject({
+      orderMode: "any",
+      opensAt: null,
+      unlockAfter: null,
+      bonus: { points: 0, earned: 0, settled: false, item: null },
+      refresh: "none",
+      resetsAt: null,
+      communityLock: null,
+      boost: null,
+    });
+    expect(rules({ orderMode: "in_order" })?.orderMode).toBe("in_order");
+    for (const junk of [undefined, null, "", "any", "In_order", 7]) {
+      expect(rules({ orderMode: junk })?.orderMode, String(junk)).toBe("any");
+    }
+    expect(rules({ refresh: "daily" })?.refresh).toBe("daily");
+    expect(rules({ refresh: "weekly" })?.refresh).toBe("weekly");
+    for (const junk of [undefined, null, "", "none", "monthly", "Daily", 7]) {
+      expect(rules({ refresh: junk })?.refresh, String(junk)).toBe("none");
+    }
+    for (const key of ["opensAt", "resetsAt"]) {
+      expect(rules({ [key]: "2030-01-01T00:00:00Z" })?.[key as "opensAt"]).toBe(
+        "2030-01-01T00:00:00Z",
+      );
+      expect(rules({ [key]: "" })?.[key as "opensAt"]).toBe("");
+      for (const junk of [undefined, null, 0, true, [], {}]) {
+        expect(rules({ [key]: junk })?.[key as "opensAt"], `${key}=${String(junk)}`).toBeNull();
+      }
+    }
+    expect(rules({ unlockAfter: { id: "u", name: text } })?.unlockAfter).toEqual({
+      id: "u",
+      name: text,
+    });
+    for (const junk of [
+      undefined,
+      null,
+      "x",
+      {},
+      { id: "u" },
+      { name: text },
+      { id: 1, name: text },
+      { id: "u", name: { ar: 1, en: null } },
+    ]) {
+      expect(rules({ unlockAfter: junk })?.unlockAfter, JSON.stringify(junk)).toBeNull();
+    }
+    expect(rules({ bonus: { points: 5, earned: 2, settled: true, item: text } })?.bonus).toEqual({
+      points: 5,
+      earned: 2,
+      settled: true,
+      item: text,
+    });
+    expect(
+      rules({ bonus: { points: "5", earned: null, settled: "yes", item: "x" } })?.bonus,
+    ).toEqual({ points: 0, earned: 0, settled: false, item: null });
+    expect(rules({ bonus: { points: 5 } })?.bonus).toEqual({
+      points: 5,
+      earned: 0,
+      settled: false,
+      item: null,
+    });
+    for (const junk of [undefined, null, 7, "x", []]) {
+      expect(rules({ bonus: junk })?.bonus, String(junk)).toEqual({
+        points: 0,
+        earned: 0,
+        settled: false,
+        item: null,
+      });
+    }
+    expect(rules({ boost: { multiplier: 3, endsAt: "x" } })?.boost).toEqual({
+      multiplier: 3,
+      endsAt: "x",
+    });
+    for (const junk of [
+      undefined,
+      null,
+      "x",
+      {},
+      { multiplier: 3 },
+      { multiplier: "3", endsAt: "x" },
+    ]) {
+      expect(rules({ boost: junk })?.boost, JSON.stringify(junk)).toBeNull();
+    }
+  });
+
+  it("refuses an answer whose event is not readable", () => {
+    const categories: unknown[] = [];
+    for (const event of [undefined, null, "x", {}, { statusNow: "live" }, { timezone: "UTC" }]) {
+      expect(readQuests({ event, categories }), JSON.stringify(event)).toBeUndefined();
+    }
+    for (const junk of [
+      { statusNow: 1, timezone: "UTC" },
+      { statusNow: "live", timezone: null },
+    ]) {
+      expect(readQuests({ event: junk, categories })).toBeUndefined();
+    }
+    for (const junk of [undefined, null, "x", {}, 7]) {
+      expect(readQuests({ event: EVENT, categories: junk })).toBeUndefined();
+    }
+    for (const whole of [undefined, null, "x", 7, true]) {
+      expect(readQuests(whole)).toBeUndefined();
+    }
+    expect(readQuests({ event: { ...EVENT, extra: 1 }, categories })).toEqual({
+      event: EVENT,
+      categories: [],
+    });
+  });
+});

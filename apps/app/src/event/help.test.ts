@@ -176,6 +176,37 @@ describe("sending", () => {
     expect(sendAnswer({ kind: "signed_out" })).toEqual({ kind: "signed_out" });
   });
 
+  it("answers every error code, whatever the status", () => {
+    for (const status of [400, 403, 409, 500]) {
+      expect(sendAnswer(error(status, "feature_off"))).toEqual({ kind: "off", why: "feature_off" });
+      expect(sendAnswer(error(status, "not_member"))).toEqual({ kind: "off", why: "not_member" });
+      expect(sendAnswer(error(status, "sending_closed"))).toEqual({
+        kind: "off",
+        why: "sending_closed",
+      });
+      for (const code of [
+        "too_many_open",
+        "unknown_player",
+        "self_report",
+        "already_reported",
+        "too_many_lookups",
+      ]) {
+        expect(sendAnswer(error(status, code))).toEqual({ kind: code });
+      }
+      expect(sendAnswer(error(status, "too_many_tickets"))).toEqual({ kind: "too_many" });
+      for (const code of ["", "unknown_error", "Too_many_open", "too_many"]) {
+        expect(sendAnswer(error(status, code)), code).toEqual({
+          kind: "refused",
+          message: { ar: "م", en: "m" },
+        });
+      }
+    }
+    expect(sendAnswer({ ...error(422, "invalid_text"), message: null })).toEqual({
+      kind: "refused",
+      message: null,
+    });
+  });
+
   it("bounds the text as the server does", () => {
     expect(canSendTicket("  ")).toBe(false);
     expect(canSendTicket(" a ")).toBe(true);

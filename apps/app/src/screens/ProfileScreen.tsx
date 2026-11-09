@@ -152,6 +152,72 @@ function MyIdentity({ me }: { me: Me }) {
   );
 }
 
+/** Your requests, with a dot while an answer waits unseen; shown once the player has sent one or has an answer waiting. */
+function RequestsRow({ unread }: Readonly<{ unread: number }>) {
+  const { t } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={styles.identifier}>
+      {unread > 0 ? (
+        <View accessible accessibilityLabel={t("help.unread")} style={styles.dot} />
+      ) : null}
+      <View style={styles.identifierText}>
+        <Button
+          kind="quiet"
+          label={t("profile.requests")}
+          onPress={() => router.push("/requests")}
+        />
+      </View>
+    </View>
+  );
+}
+
+/** What a signed-in player sees under the language choice: sign-out, the identity, help, requests, export, deletion. */
+function SignedInSection({
+  me,
+  eventId,
+  hasRequests,
+  onSignOut,
+}: Readonly<{
+  me: Me | undefined;
+  eventId: string | undefined;
+  hasRequests: boolean;
+  onSignOut: () => void;
+}>) {
+  const { t } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  const unread = me?.help?.unread ?? 0;
+  return (
+    <>
+      <View style={styles.end}>
+        <IconButton
+          icon="log-out-outline"
+          label={t("signOut.confirm")}
+          mirror
+          onPress={onSignOut}
+        />
+      </View>
+      {me === undefined ? <ProfileGate /> : <MyIdentity me={me} />}
+      <Button
+        kind="quiet"
+        label={t("help.open")}
+        onPress={() => router.push(eventId === undefined ? "/help" : `/event/${eventId}/help`)}
+      />
+      {hasRequests || unread > 0 ? <RequestsRow unread={unread} /> : null}
+      <Button
+        kind="quiet"
+        label={t("dataExport.title")}
+        onPress={() => router.push("/data-export")}
+      />
+      <Button
+        kind="quiet"
+        label={t("deletion.title")}
+        onPress={() => router.push("/delete-account")}
+      />
+    </>
+  );
+}
+
 /**
  * The player's own profile: the language and sign-out; the same screen inside an event and from Questify home. Inside
  * an event it opens that event's Get help, elsewhere the ticket center (T-312); anywhere, Your requests once the player
@@ -165,7 +231,6 @@ export function ProfileScreen({
   const { state, signOut } = usePlayer();
   const styles = useThemedStyles(makeStyles);
   const hasRequests = useHasRequests(state.status === "signed_in");
-  const unread = state.status === "signed_in" ? (state.me?.help?.unread ?? 0) : 0;
 
   // FR-124: the confirmation says what signing out does; cancelling keeps the player signed in.
   const confirmSignOut = (): void => {
@@ -207,48 +272,12 @@ export function ProfileScreen({
         </View>
         <HowItWorksButton />
         {state.status === "signed_in" ? (
-          <>
-            <View style={styles.end}>
-              <IconButton
-                icon="log-out-outline"
-                label={t("signOut.confirm")}
-                mirror
-                onPress={confirmSignOut}
-              />
-            </View>
-            {state.me === undefined ? <ProfileGate /> : <MyIdentity me={state.me} />}
-            <Button
-              kind="quiet"
-              label={t("help.open")}
-              onPress={() =>
-                router.push(eventId === undefined ? "/help" : `/event/${eventId}/help`)
-              }
-            />
-            {hasRequests || unread > 0 ? (
-              <View style={styles.identifier}>
-                {unread > 0 ? (
-                  <View accessible accessibilityLabel={t("help.unread")} style={styles.dot} />
-                ) : null}
-                <View style={styles.identifierText}>
-                  <Button
-                    kind="quiet"
-                    label={t("profile.requests")}
-                    onPress={() => router.push("/requests")}
-                  />
-                </View>
-              </View>
-            ) : null}
-            <Button
-              kind="quiet"
-              label={t("dataExport.title")}
-              onPress={() => router.push("/data-export")}
-            />
-            <Button
-              kind="quiet"
-              label={t("deletion.title")}
-              onPress={() => router.push("/delete-account")}
-            />
-          </>
+          <SignedInSection
+            me={state.me}
+            eventId={eventId}
+            hasRequests={hasRequests}
+            onSignOut={confirmSignOut}
+          />
         ) : null}
         {state.status === "signed_out" ? (
           <Button label={t("signIn.start")} onPress={() => router.push("/sign-in")} />

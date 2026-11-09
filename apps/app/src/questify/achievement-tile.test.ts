@@ -1,9 +1,9 @@
 import type { Achievement } from "@questify/shared";
 import { describe, expect, it } from "vitest";
+import type { Translate } from "#src/i18n/words.ts";
 import { tileTextOf } from "#src/questify/achievement-tile.ts";
 
-const t = (key: string, params?: Readonly<Record<string, string | number>>): string =>
-  `${key}${params === undefined ? "" : JSON.stringify(params)}`;
+const t: Translate = (key, params) => `${key}${params === undefined ? "" : JSON.stringify(params)}`;
 
 const base: Achievement = {
   id: "a",
@@ -15,7 +15,7 @@ const base: Achievement = {
 };
 
 const textOf = (achievement: Achievement, withProgress: boolean, language: "ar" | "en" = "en") =>
-  tileTextOf(achievement, withProgress, language, t as never);
+  tileTextOf(achievement, withProgress, language, t);
 
 describe("tileTextOf", () => {
   it("names a locked tile and its progress toward the first tier", () => {

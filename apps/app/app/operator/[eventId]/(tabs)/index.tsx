@@ -16,6 +16,54 @@ import { StationTodayBlock } from "#src/operator/StationTodayBlock.tsx";
 import { BellRow } from "#src/push/NotificationBell.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
+/** What the picker says before it has stations: the failure with Retry, the loading line, or that there are none. */
+function StationNotes({
+  stations,
+  failed,
+  retry,
+}: Readonly<{ stations: readonly Station[] | undefined; failed: boolean; retry: () => void }>) {
+  const { t } = useI18n();
+  return (
+    <>
+      {failed ? (
+        <>
+          <AppText accessibilityRole="alert">{t("join.network")}</AppText>
+          <Button kind="quiet" label={t("common.retry")} onPress={retry} />
+        </>
+      ) : null}
+      {stations === undefined && !failed ? <AppText muted>{t("common.loading")}</AppText> : null}
+      {stations?.length === 0 ? <AppText muted>{t("operator.noStations")}</AppText> : null}
+    </>
+  );
+}
+
+/** One station in the picker, with the players this operator completed there today and in all. */
+function StationRow({
+  item,
+  picked,
+  onPick,
+}: Readonly<{ item: Station; picked: boolean; onPick: (title: string) => void }>) {
+  const { t, language } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  const title = textIn(item.title, language);
+  const counts = [
+    ...(item.challenge ? [t("operator.station.challenge")] : []),
+    t("operator.today", { count: formatNumber(item.doneToday, language) }),
+    t("operator.total", { count: formatNumber(item.doneTotal, language) }),
+  ].join("  ·  ");
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ checked: picked }}
+      onPress={() => onPick(title)}
+      style={[styles.row, picked && styles.picked]}
+    >
+      <AppText variant="label">{title}</AppText>
+      <AppText muted>{counts}</AppText>
+    </Pressable>
+  );
+}
+
 /**
  * Operator Home (FR-921): pick the station, a quest staff verify by My QR within this operator's limit, and see how
  * many players this operator completed there today and in all. A single station is picked for them. Under the picker,
@@ -24,7 +72,6 @@ import { useThemedStyles } from "#src/theme/theme.tsx";
  */
 export default function OperatorHomeScreen() {
   const { t, language } = useI18n();
-  const styles = useThemedStyles(makeStyles);
   const { eventId, event, station, pickStation, removed } = useOperator();
   const [stations, setStations] = useState<readonly Station[] | undefined>(undefined);
   const [failed, setFailed] = useState(false);
@@ -62,35 +109,15 @@ export default function OperatorHomeScreen() {
       <ScrollView contentContainerStyle={{ gap: 12 }}>
         <RehearsalStrip shown={isRehearsalStatus(event?.statusNow)} />
         <AppText variant="title">{t("operator.pickStation")}</AppText>
-        {failed ? (
-          <>
-            <AppText accessibilityRole="alert">{t("join.network")}</AppText>
-            <Button kind="quiet" label={t("common.retry")} onPress={() => void load()} />
-          </>
-        ) : null}
-        {stations === undefined && !failed ? <AppText muted>{t("common.loading")}</AppText> : null}
-        {stations?.length === 0 ? <AppText muted>{t("operator.noStations")}</AppText> : null}
-        {(stations ?? []).map((item) => {
-          const picked = item.questId === station?.questId;
-          const title = textIn(item.title, language);
-          const counts = [
-            ...(item.challenge ? [t("operator.station.challenge")] : []),
-            t("operator.today", { count: formatNumber(item.doneToday, language) }),
-            t("operator.total", { count: formatNumber(item.doneTotal, language) }),
-          ].join("  ·  ");
-          return (
-            <Pressable
-              key={item.questId}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: picked }}
-              onPress={() => pickStation({ questId: item.questId, title })}
-              style={[styles.row, picked && styles.picked]}
-            >
-              <AppText variant="label">{title}</AppText>
-              <AppText muted>{counts}</AppText>
-            </Pressable>
-          );
-        })}
+        <StationNotes stations={stations} failed={failed} retry={() => void load()} />
+        {(stations ?? []).map((item) => (
+          <StationRow
+            key={item.questId}
+            item={item}
+            picked={item.questId === station?.questId}
+            onPick={(title) => pickStation({ questId: item.questId, title })}
+          />
+        ))}
         <StationTodayBlock />
       </ScrollView>
     </Screen>

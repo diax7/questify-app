@@ -302,6 +302,116 @@ describe("rewardAction", () => {
   });
 });
 
+const SECOND = 1000;
+const at = (offset: number) => new Date(NOW + offset).toISOString();
+const viewWith = (
+  shop: Partial<ShopView["shop"]> = {},
+  balance = 300,
+  desk: Partial<ShopView["shop"]["desk"]> = {},
+): ShopView => ({
+  ...VIEW,
+  balance,
+  shop: { ...VIEW.shop, ...shop, desk: { ...VIEW.shop.desk, ...desk } },
+});
+const action = (reward: Partial<ShopReward>, view: ShopView = VIEW) =>
+  rewardAction({ ...REWARD, ...reward }, view, NOW);
+
+describe("rewardAction, branch by branch", () => {
+  const LOCK = {
+    goalId: "g",
+    title: MESSAGE,
+    measure: "points",
+    threshold: 10,
+    state: "waiting",
+    startsAt: "2030-01-01T09:00:00Z",
+  } as const;
+
+  it("refuses a shop that is not open, whatever else holds", () => {
+    expect(action({}, viewWith({ state: "closed" }))).toBe("shop_closed");
+    expect(action({}, viewWith({ state: "paused" }))).toBe("shop_closed");
+    expect(action({}, viewWith({ state: "" }))).toBe("shop_closed");
+    const everything = { communityLock: LOCK, stockLeft: 0, price: 999 };
+    expect(action(everything, viewWith({ state: "closed", reservation: false }))).toBe(
+      "shop_closed",
+    );
+  });
+
+  it("names the community goal before the desk and the stock", () => {
+    const view = viewWith({ reservation: false }, 0, { state: "finished" });
+    expect(action({ communityLock: LOCK, stockLeft: 0, price: 999 }, view)).toBe(
+      "community_locked",
+    );
+    expect(action({ communityLock: LOCK, kind: "digital" })).toBe("community_locked");
+  });
+
+  it("puts the desk before the stock for an item or experience, never for a digital reward", () => {
+    const finished = viewWith({ reservation: false }, 0, { state: "finished" });
+    for (const kind of ["item", "experience"]) {
+      expect(action({ kind, stockLeft: 0, price: 999 }, finished), kind).toBe("desk_finished");
+      expect(action({ kind, stockLeft: 0 }, viewWith({ reservation: false })), kind).toBe(
+        "at_desk",
+      );
+      expect(action({ kind, price: 999 }, viewWith({ reservation: false })), kind).toBe("at_desk");
+    }
+    expect(action({ kind: "digital", stockLeft: 0 }, finished)).toBe("sold_out");
+    expect(action({ kind: "digital" }, finished)).toBe("too_dear");
+    expect(action({ kind: "digital" }, { ...finished, balance: 300 })).toBe("redeem");
+    expect(action({ kind: "digital" }, viewWith({ reservation: false }))).toBe("redeem");
+    expect(action({}, viewWith({}, 300, { state: "closed" }))).toBe("redeem");
+  });
+
+  it("sells out at zero or below, and not at one", () => {
+    expect(action({ stockLeft: 1 })).toBe("redeem");
+    expect(action({ stockLeft: 0 })).toBe("sold_out");
+    expect(action({ stockLeft: -1 })).toBe("sold_out");
+  });
+
+  it("opens at its time exactly, and not a second before", () => {
+    expect(action({ opensAt: at(-SECOND) })).toBe("redeem");
+    expect(action({ opensAt: at(0) })).toBe("redeem");
+    expect(action({ opensAt: at(SECOND) })).toBe("not_yet");
+  });
+
+  it("ends at its time exactly, and not a second before", () => {
+    expect(action({ closesAt: at(SECOND) })).toBe("redeem");
+    expect(action({ closesAt: at(0) })).toBe("ended");
+    expect(action({ closesAt: at(-SECOND) })).toBe("ended");
+  });
+
+  it("stops a player at the per-player limit, and not below it or without one", () => {
+    expect(action({ perPlayerLimit: 2, heldByMe: 1 })).toBe("redeem");
+    expect(action({ perPlayerLimit: 2, heldByMe: 2 })).toBe("limit");
+    expect(action({ perPlayerLimit: 2, heldByMe: 3 })).toBe("limit");
+    expect(action({ perPlayerLimit: 1, heldByMe: 0 })).toBe("redeem");
+    expect(action({ perPlayerLimit: null, heldByMe: 99 })).toBe("redeem");
+  });
+
+  it("redeems at exactly the price, and is too dear one point under", () => {
+    expect(action({ price: 200 }, viewWith({}, 200))).toBe("redeem");
+    expect(action({ price: 200 }, viewWith({}, 199))).toBe("too_dear");
+    expect(action({ price: 200 }, viewWith({}, 201))).toBe("redeem");
+    expect(action({ price: 0 }, viewWith({}, 0))).toBe("redeem");
+  });
+
+  it("checks the stock, then the opening, the end, the limit and the price, in that order", () => {
+    const all = {
+      stockLeft: 0,
+      opensAt: at(SECOND),
+      closesAt: at(-SECOND),
+      perPlayerLimit: 1,
+      heldByMe: 1,
+      price: 999,
+    };
+    expect(action(all)).toBe("sold_out");
+    expect(action({ ...all, stockLeft: 1 })).toBe("not_yet");
+    expect(action({ ...all, stockLeft: 1, opensAt: null })).toBe("ended");
+    expect(action({ ...all, stockLeft: 1, opensAt: null, closesAt: null })).toBe("limit");
+    expect(action({ ...all, stockLeft: 1, opensAt: null, closesAt: null, heldByMe: 0 })).toBe(
+      "too_dear",
+    );
+  });
+});
+
 describe("sections", () => {
   const rewards = [
     { ...REWARD, id: "a", section: "food" },

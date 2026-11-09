@@ -124,6 +124,19 @@ function useJoinFlow(params: JoinParams, code: string, cardState: ReturnType<typ
   const [pointed, setPointed] = useState<Pointed | undefined>(opening.pointed);
   const [busy, setBusy] = useState(false);
 
+  const showRefusal = (outcome: Extract<JoinOutcome, { kind: "invalid_answers" | "refused" }>) => {
+    if (outcome.kind === "invalid_answers") {
+      const refusal = refusalOf(outcome);
+      setPointed(refusal.pointed);
+      setProblem(refusal.problem);
+    } else if (outcome.code === "event_full") {
+      // FR-1821: say it is full and offer the waiting list in place of Join.
+      setResult("full");
+    } else {
+      setProblem(outcome.problem);
+    }
+  };
+
   const showOutcome = (outcome: JoinOutcome) => {
     if (outcome.kind === "joined") {
       setResult(joinedResult(outcome));
@@ -133,21 +146,34 @@ function useJoinFlow(params: JoinParams, code: string, cardState: ReturnType<typ
       setResult("stale");
       // The fields may have changed with it.
       void load();
-    } else if (outcome.kind === "invalid_answers") {
-      const refusal = refusalOf(outcome);
-      setPointed(refusal.pointed);
-      setProblem(refusal.problem);
-    } else if (outcome.kind === "refused" && outcome.code === "event_full") {
-      // FR-1821: say it is full and offer the waiting list in place of Join.
-      setResult("full");
-    } else if (outcome.kind === "refused") {
-      setProblem(outcome.problem);
+    } else if (outcome.kind === "invalid_answers" || outcome.kind === "refused") {
+      showRefusal(outcome);
     } else if (outcome.kind === "signed_out") {
       // The session ended meanwhile: sign in, and the join waits for it.
       router.push({ pathname: "/sign-in", params: { code, via, card: card?.version ?? "" } });
     } else {
       setResult("network");
     }
+  };
+
+  // A signed-out person signs in first; the answers wait in memory and the join goes through after sign-in.
+  const signInFirst = (
+    joinCard: JoinCard,
+    answers: Record<string, string>,
+    nameNotice: PendingJoin["nameNotice"],
+  ) => {
+    holdAnswers(code, answers);
+    router.push({
+      pathname: "/sign-in",
+      params: { code, via, card: joinCard.version, notice: nameNotice },
+    });
+  };
+
+  const sendJoin = async (rest: Omit<PendingJoin, "code" | "via">, waitlist: boolean) => {
+    setBusy(true);
+    setProblem(null);
+    showOutcome(await joinEvent(api.session, { code, via, ...rest }, waitlist));
+    setBusy(false);
   };
 
   const tapJoin = async (waitlist: boolean) => {
@@ -163,34 +189,10 @@ function useJoinFlow(params: JoinParams, code: string, cardState: ReturnType<typ
     const answers = answersFor(fields, typed);
     const nameNotice = shownNotice(card);
     if (player.status !== "signed_in") {
-      holdAnswers(code, answers);
-      router.push({
-        pathname: "/sign-in",
-        params: {
-          code,
-          via,
-          card: card.version,
-          notice: nameNotice,
-        },
-      });
+      signInFirst(card, answers, nameNotice);
       return;
     }
-    setBusy(true);
-    setProblem(null);
-    showOutcome(
-      await joinEvent(
-        api.session,
-        {
-          code,
-          via,
-          cardVersion: card.version,
-          nameNotice,
-          answers,
-        },
-        waitlist,
-      ),
-    );
-    setBusy(false);
+    await sendJoin({ cardVersion: card.version, nameNotice, answers }, waitlist);
   };
 
   return { result, problem, welcome, typed, setTyped, pointed, busy, tapJoin, player };

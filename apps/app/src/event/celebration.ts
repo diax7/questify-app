@@ -87,7 +87,10 @@ export function scanStep(step: ScanStep, event: ScanEvent): ScanStep {
   }
 }
 
-/** The two events that carry nothing: retrying a lost answer with the same code, and scanning again. */
+/**
+ * The two events that carry nothing: retrying a lost answer with the same code, and scanning again. Exhaustive by
+ * type: `scanStep` has handled every other event type, so `type` can only be "retry" or "again".
+ */
 function restartedStep(step: ScanStep, type: "retry" | "again"): ScanStep {
   if (type === "retry") {
     return step.kind === "lost"

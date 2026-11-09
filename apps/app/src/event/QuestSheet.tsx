@@ -240,40 +240,46 @@ function Verification({
   );
 }
 
-/** The part of the sheet where the quest is played, by its type. */
-function QuestEntry({
-  quest,
-  timeZone,
-  onSent,
-  onDone,
-}: Readonly<{
+type EntryProps = Readonly<{
   quest: Quest;
   timeZone: string;
   onSent: () => void;
   onDone: (answer: CompletionAnswer) => void;
-}>) {
-  switch (quest.type) {
-    case "submission":
-      return <SubmissionEntry key={quest.id} quest={quest} onSent={onSent} />;
-    case "vote":
-      return <VoteEntry key={quest.id} quest={quest} onPaid={onSent} />;
-    case "quiz":
-      return <QuizEntry key={quest.id} quest={quest} onPaid={onSent} />;
-    case "survey":
-      return <SurveyEntry key={quest.id} quest={quest} onPaid={onSent} />;
-    case "share":
-      return <ShareEntry key={quest.id} quest={quest} onPaid={onSent} />;
-    case "passport":
-      return <PassportEntry key={quest.id} quest={quest} />;
-    case "location":
-      return <LocationEntry key={quest.id} quest={quest} onDone={onDone} />;
-    case "meet":
-      return <MeetEntry key={quest.id} quest={quest} onPaid={onSent} />;
-    case "game":
-      return <GameEntry key={quest.id} quest={quest} timeZone={timeZone} onPaid={onSent} />;
-    default:
-      return <Verification key={quest.id} quest={quest} onDone={onDone} />;
-  }
+}>;
+
+/** The entry of each quest type that plays in its own component; a Map, so no type name can reach a prototype. */
+const ENTRIES: ReadonlyMap<string, (props: EntryProps) => ReactElement> = new Map([
+  [
+    "submission",
+    ({ quest, onSent }) => <SubmissionEntry key={quest.id} quest={quest} onSent={onSent} />,
+  ],
+  ["vote", ({ quest, onSent }) => <VoteEntry key={quest.id} quest={quest} onPaid={onSent} />],
+  ["quiz", ({ quest, onSent }) => <QuizEntry key={quest.id} quest={quest} onPaid={onSent} />],
+  ["survey", ({ quest, onSent }) => <SurveyEntry key={quest.id} quest={quest} onPaid={onSent} />],
+  ["share", ({ quest, onSent }) => <ShareEntry key={quest.id} quest={quest} onPaid={onSent} />],
+  ["passport", ({ quest }) => <PassportEntry key={quest.id} quest={quest} />],
+  [
+    "location",
+    ({ quest, onDone }) => <LocationEntry key={quest.id} quest={quest} onDone={onDone} />,
+  ],
+  ["meet", ({ quest, onSent }) => <MeetEntry key={quest.id} quest={quest} onPaid={onSent} />],
+  [
+    "game",
+    ({ quest, timeZone, onSent }) => (
+      <GameEntry key={quest.id} quest={quest} timeZone={timeZone} onPaid={onSent} />
+    ),
+  ],
+]);
+
+/** The part of the sheet where the quest is played, by its type. */
+function QuestEntry(props: EntryProps) {
+  const { quest, onDone } = props;
+  const entry = ENTRIES.get(quest.type);
+  return entry === undefined ? (
+    <Verification key={quest.id} quest={quest} onDone={onDone} />
+  ) : (
+    entry(props)
+  );
 }
 
 /** The line under the details: what a community lock needs, else why the quest is not open, else nothing. */

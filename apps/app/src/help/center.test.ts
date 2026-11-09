@@ -197,3 +197,70 @@ describe("the device facts (ADR-259)", () => {
     expect(files.filter((source) => source.includes('import("expo-device")'))).toHaveLength(1);
   });
 });
+
+const event = (kind: string | null, questId: string | null, questTitle: string | null) => ({
+  card: "event",
+  kind,
+  questId,
+  questTitle,
+});
+const plain = (card: string) => ({ card, kind: null, questId: null, questTitle: null });
+
+describe("initialOf, every card and kind", () => {
+  const QUEST = { questId: "q1", questTitle: "Title" };
+
+  it.each([
+    ["report", plain("report")],
+    ["app", plain("app")],
+    ["suggestion", plain("suggestion")],
+    ["event", event(null, "q1", "Title")],
+  ])(
+    "opens the %s card the link names, and drops the kind and quest of the others",
+    (card, expected) => {
+      expect(initialOf({ card, ...QUEST })).toEqual(expected);
+      expect(initialOf({ card, kind: "problem", ...QUEST })).toEqual(
+        card === "event" ? event("problem", "q1", "Title") : expected,
+      );
+      expect(initialOf({ card, kind: "other", ...QUEST })).toEqual(expected);
+    },
+  );
+
+  it.each([
+    ["question", event("question", "q1", "Title")],
+    ["problem", event("problem", "q1", "Title")],
+    ["prize", event("prize", "q1", "Title")],
+  ])(
+    "opens the event card for the %s kind when no card is named or it is not one",
+    (kind, expected) => {
+      for (const card of [undefined, "", "other", "Report", "bogus"]) {
+        expect(
+          initialOf({ ...(card === undefined ? {} : { card }), kind, ...QUEST }),
+          String(card),
+        ).toEqual(expected);
+      }
+    },
+  );
+
+  it("opens nothing without a known card or kind", () => {
+    for (const card of [undefined, "", "other", "Report", "bogus"]) {
+      for (const kind of [undefined, "", "other", "Question", "bogus"]) {
+        const params = {
+          ...(card === undefined ? {} : { card }),
+          ...(kind === undefined ? {} : { kind }),
+          ...QUEST,
+        };
+        expect(initialOf(params), JSON.stringify(params)).toBeUndefined();
+      }
+    }
+  });
+
+  it("keeps the quest id and title of the event card apart, null when missing", () => {
+    expect(initialOf({ kind: "question" })).toEqual(event("question", null, null));
+    expect(initialOf({ kind: "question", questId: "q1" })).toEqual(event("question", "q1", null));
+    expect(initialOf({ kind: "question", questTitle: "T" })).toEqual(event("question", null, "T"));
+    expect(initialOf({ card: "event", kind: "bogus", questId: "q1" })).toEqual(
+      event(null, "q1", null),
+    );
+    expect(initialOf({ card: "event", questId: "", questTitle: "" })).toEqual(event(null, "", ""));
+  });
+});

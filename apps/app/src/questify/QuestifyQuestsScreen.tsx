@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback } from "react";
-import type { QuestifyQuest, Theme } from "@questify/shared";
+import type { QuestifyQuest, QuestifyQuests, Theme } from "@questify/shared";
 import { ScrollView, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
@@ -55,11 +55,62 @@ function QuestCard({ quest }: Readonly<{ quest: QuestifyQuest }>) {
   );
 }
 
+/** What the list says before it has quests: the failure with Retry, the loading line, or that there are none. */
+function ReadNotes({
+  failed,
+  retry,
+  quests,
+}: Readonly<{ failed: boolean; retry: () => void; quests: QuestifyQuests | null }>) {
+  const { t } = useI18n();
+  const empty = quests !== null && quests.alwaysOn.length === 0 && quests.seasonal.length === 0;
+  return (
+    <>
+      {failed ? (
+        <>
+          <AppText accessibilityRole="alert">{t("questifyQuests.failed")}</AppText>
+          <Button kind="quiet" label={t("common.retry")} onPress={retry} />
+        </>
+      ) : null}
+      {quests === null && !failed ? <AppText muted>{t("common.loading")}</AppText> : null}
+      {empty ? <AppText muted>{t("questifyQuests.empty")}</AppText> : null}
+    </>
+  );
+}
+
+function AlwaysOnSection({ quests }: Readonly<{ quests: readonly QuestifyQuest[] }>) {
+  const { t } = useI18n();
+  return quests.length === 0 ? null : (
+    <>
+      <AppText variant="title">{t("questifyQuests.alwaysOn")}</AppText>
+      {quests.map((quest) => (
+        <QuestCard key={quest.id} quest={quest} />
+      ))}
+    </>
+  );
+}
+
+function CampaignSection({
+  seasonal: { campaign, quests },
+  now,
+}: Readonly<{ seasonal: QuestifyQuests["seasonal"][number]; now: Date }>) {
+  const { t, language } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  const left = endsIn(campaign.endsAt, now);
+  return (
+    <View style={styles.campaign}>
+      <AppText variant="title">{wordsIn(campaign.name, language)}</AppText>
+      {left === null ? null : <AppText muted>{t(left.key, { days: left.days })}</AppText>}
+      {quests.map((quest) => (
+        <QuestCard key={quest.id} quest={quest} />
+      ))}
+    </View>
+  );
+}
+
 /** Always-on quests, then each campaign running now with the days it has left (FR-710, FR-711). */
 export function QuestifyQuestsScreen() {
-  const { t, language } = useI18n();
+  const { t } = useI18n();
   const { syncNow, version } = useQuestifySync();
-  const styles = useThemedStyles(makeStyles);
   useFocusEffect(
     useCallback(() => {
       syncNow();
@@ -67,39 +118,15 @@ export function QuestifyQuestsScreen() {
   );
   const read = useRead(() => fetchQuestifyQuests(api.session), [version]);
   const quests = read.data;
-  const empty = quests !== null && quests.alwaysOn.length === 0 && quests.seasonal.length === 0;
   const now = new Date();
   return (
     <Screen title={t("questifyQuests.title")} header={<BackButton />}>
       <ScrollView contentContainerStyle={{ gap: 12 }}>
-        {read.failed ? (
-          <>
-            <AppText accessibilityRole="alert">{t("questifyQuests.failed")}</AppText>
-            <Button kind="quiet" label={t("common.retry")} onPress={read.retry} />
-          </>
-        ) : null}
-        {quests === null && !read.failed ? <AppText muted>{t("common.loading")}</AppText> : null}
-        {empty ? <AppText muted>{t("questifyQuests.empty")}</AppText> : null}
-        {quests === null || quests.alwaysOn.length === 0 ? null : (
-          <>
-            <AppText variant="title">{t("questifyQuests.alwaysOn")}</AppText>
-            {quests.alwaysOn.map((quest) => (
-              <QuestCard key={quest.id} quest={quest} />
-            ))}
-          </>
-        )}
-        {(quests?.seasonal ?? []).map(({ campaign, quests: campaignQuests }) => {
-          const left = endsIn(campaign.endsAt, now);
-          return (
-            <View key={campaign.id} style={styles.campaign}>
-              <AppText variant="title">{wordsIn(campaign.name, language)}</AppText>
-              {left === null ? null : <AppText muted>{t(left.key, { days: left.days })}</AppText>}
-              {campaignQuests.map((quest) => (
-                <QuestCard key={quest.id} quest={quest} />
-              ))}
-            </View>
-          );
-        })}
+        <ReadNotes failed={read.failed} retry={read.retry} quests={quests} />
+        <AlwaysOnSection quests={quests?.alwaysOn ?? []} />
+        {(quests?.seasonal ?? []).map((seasonal) => (
+          <CampaignSection key={seasonal.campaign.id} seasonal={seasonal} now={now} />
+        ))}
       </ScrollView>
     </Screen>
   );

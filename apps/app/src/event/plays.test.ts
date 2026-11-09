@@ -124,6 +124,95 @@ describe("the quiz", () => {
     expect(quizViewOf("x")).toBeUndefined();
   });
 
+  it("reads a whole quiz and keeps only the fields it knows", () => {
+    expect(quizViewOf(quiz({ current: question, answered: [answered], timerSeconds: 30 }))).toEqual(
+      {
+        status: "open",
+        total: 2,
+        pointsEach: 10,
+        timerSeconds: 30,
+        rightCount: 0,
+        earned: 0,
+        serverNow: "2030-01-01T10:00:00.000Z",
+        current: {
+          position: 1,
+          id: "q1",
+          text: text("Q1"),
+          choices,
+          closesAt: null,
+        },
+        answered: [answered],
+      },
+    );
+    for (const status of ["none", "open", "finished", "void"] as const) {
+      expect(quizViewOf(quiz({ status }))?.status).toBe(status);
+    }
+    expect(quizViewOf(quiz({ timerSeconds: null }))?.timerSeconds).toBeNull();
+    expect(quizViewOf(quiz({ timerSeconds: 0, total: 0, earned: 0 }))).toMatchObject({
+      timerSeconds: 0,
+      total: 0,
+    });
+    expect(
+      quizViewOf(quiz({ current: { ...question, closesAt: "2030-01-01T10:00:30Z" } }))?.current,
+    ).toMatchObject({ closesAt: "2030-01-01T10:00:30Z" });
+  });
+
+  it("refuses a quiz whose fields are not the right kind", () => {
+    for (const junk of [undefined, null, 0, "x", true, [], {}]) {
+      expect(quizViewOf(junk), JSON.stringify(junk)).toBeUndefined();
+    }
+    for (const status of [undefined, null, "", "lost", "Open", 1]) {
+      expect(quizViewOf({ ...quiz(), status }), String(status)).toBeUndefined();
+    }
+    for (const name of ["total", "pointsEach", "rightCount", "earned"]) {
+      for (const junk of [undefined, null, "2", "", true, {}]) {
+        expect(quizViewOf({ ...quiz(), [name]: junk }), `${name}=${String(junk)}`).toBeUndefined();
+      }
+    }
+    for (const junk of [undefined, "30", true, {}]) {
+      expect(quizViewOf({ ...quiz(), timerSeconds: junk }), String(junk)).toBeUndefined();
+    }
+    for (const junk of [undefined, null, 1, true, {}]) {
+      expect(quizViewOf({ ...quiz(), serverNow: junk }), String(junk)).toBeUndefined();
+    }
+    for (const junk of [undefined, null, "x", {}, 1]) {
+      expect(quizViewOf({ ...quiz(), answered: junk }), String(junk)).toBeUndefined();
+    }
+    for (const junk of [null, "x", 1, {}, [], { ...answered, choiceId: 3 }]) {
+      expect(
+        quizViewOf({ ...quiz(), answered: [answered, junk] }),
+        JSON.stringify(junk),
+      ).toBeUndefined();
+    }
+  });
+
+  it("refuses a quiz whose answered question or current question is malformed", () => {
+    for (const field of ["position", "id", "text", "choices", "rightChoiceId", "right", "closed"]) {
+      const { [field]: _gone, ...rest } = answered as Record<string, unknown>;
+      expect(quizViewOf({ ...quiz(), answered: [rest] }), field).toBeUndefined();
+    }
+    expect(quizViewOf(quiz({ answered: [{ ...answered, choiceId: null }] }))).toBeDefined();
+    const { choiceId: _unset, ...unanswered } = answered;
+    expect(quizViewOf({ ...quiz(), answered: [unanswered] })).toBeUndefined();
+    expect(quizViewOf({ ...quiz(), current: undefined })).toBeUndefined();
+    for (const field of ["position", "id", "text", "choices", "closesAt"]) {
+      const { [field]: _gone, ...rest } = question as Record<string, unknown>;
+      expect(quizViewOf({ ...quiz(), current: rest }), field).toBeUndefined();
+    }
+    for (const current of [
+      "x",
+      1,
+      true,
+      [],
+      { ...question, position: "1" },
+      { ...question, closesAt: 5 },
+      { ...question, choices: [{ id: 1 }] },
+      { ...question, text: "Q" },
+    ]) {
+      expect(quizViewOf({ ...quiz(), current }), JSON.stringify(current)).toBeUndefined();
+    }
+  });
+
   it("reads a step with its result, level and refusal", () => {
     const step = quizStepOf(
       ok({ quiz: quiz(), levelUp: null, result: { right: true, rightChoiceId: "r" }, rank: 1 }),

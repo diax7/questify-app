@@ -17,11 +17,11 @@ export function routeForIncoming(incoming: string): string {
     return `/operator-invite/${invite}`;
   }
   const code = joinCodeOf(incoming);
-  return code === undefined || code === null ? "/" : `/join/${code}?via=link`;
+  return code === undefined ? "/" : `/join/${code}?via=link`;
 }
 
 /** The event code a join link holds, as a full https URL or as its path alone; nothing for anything else. */
-function joinCodeOf(incoming: string): string | null | undefined {
+function joinCodeOf(incoming: string): string | undefined {
   const fromUrl = incoming.startsWith("https://")
     ? parseJoinLink(incoming.replace(/[?#].*$/, ""))
     : null;

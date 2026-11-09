@@ -183,17 +183,20 @@ const isAnswered = (value: unknown): value is QuizAnswered =>
 
 const NUMBERS = ["total", "pointsEach", "rightCount", "earned"] as const;
 
+/** Whether the quiz's own fields are all of the right kind (its current question is checked apart). */
+const hasQuizFields = (
+  body: Record<string, unknown>,
+): body is Record<string, unknown> & Pick<QuizView, "serverNow"> & { answered: QuizAnswered[] } =>
+  (STATUSES as readonly unknown[]).includes(body["status"]) &&
+  NUMBERS.every((name) => typeof body[name] === "number") &&
+  (body["timerSeconds"] === null || typeof body["timerSeconds"] === "number") &&
+  typeof body["serverNow"] === "string" &&
+  Array.isArray(body["answered"]) &&
+  body["answered"].every(isAnswered);
+
 /** Reads the quiz; anything malformed reads as nothing, so the sheet shows a load failure, not a guess. */
 export function quizViewOf(body: unknown): QuizView | undefined {
-  if (
-    !isRecord(body) ||
-    !(STATUSES as readonly unknown[]).includes(body["status"]) ||
-    !NUMBERS.every((name) => typeof body[name] === "number") ||
-    !(body["timerSeconds"] === null || typeof body["timerSeconds"] === "number") ||
-    typeof body["serverNow"] !== "string" ||
-    !Array.isArray(body["answered"]) ||
-    !body["answered"].every(isAnswered)
-  ) {
+  if (!isRecord(body) || !hasQuizFields(body)) {
     return undefined;
   }
   const current = body["current"] === null ? null : questionOf(body["current"]);

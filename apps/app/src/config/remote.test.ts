@@ -108,6 +108,120 @@ describe("loadConfig", () => {
   });
 });
 
+const GOOD = JSON.stringify({ etag: '"v1"', body: CONFIG });
+const STORED: Record<
+  string,
+  { raw: string | undefined; sentTag: string | undefined; usable: boolean }
+> = {
+  none: { raw: undefined, sentTag: undefined, usable: false },
+  good: { raw: GOOD, sentTag: '"v1"', usable: true },
+  goodNoTag: { raw: JSON.stringify({ body: CONFIG }), sentTag: undefined, usable: true },
+  numericTag: { raw: JSON.stringify({ etag: 4, body: CONFIG }), sentTag: undefined, usable: true },
+  unreadableBody: {
+    raw: JSON.stringify({ etag: '"v1"', body: { schemaVersion: 9 } }),
+    sentTag: '"v1"',
+    usable: false,
+  },
+  noBody: { raw: JSON.stringify({ etag: '"v1"' }), sentTag: '"v1"', usable: false },
+  notJson: { raw: "{not json", sentTag: undefined, usable: false },
+};
+const SERVER_ERROR: ApiResult = { ...notModified, status: 500, code: "x" };
+
+async function runLoad(
+  stored: string | undefined,
+  answer: ApiResult | { kind: "signed_out" },
+  options: Parameters<typeof loadConfig>[1],
+) {
+  const key = options !== undefined && "event" in options ? `${CONFIG_KEY}.e1` : CONFIG_KEY;
+  const calls: ApiRequest[] = [];
+  const written: string[] = [];
+  const result = await loadConfig(
+    {
+      client: {
+        request: async (request) => {
+          calls.push(request as ApiRequest);
+          return answer;
+        },
+      },
+      store: {
+        getItem: async (name) => (name === key ? (stored ?? null) : null),
+        setItem: async (name, value) => {
+          written.push(`${name}=${value}`);
+        },
+      },
+    },
+    options,
+  );
+  return { result, calls, written, key };
+}
+
+describe("loadConfig, every scenario", () => {
+  it.each(Object.entries(STORED))(
+    "asks with the tag of a %s copy only when it revalidates",
+    async (_name, { raw, sentTag }) => {
+      for (const options of [{}, { revalidate: true }, { event: "e1" }]) {
+        const { calls } = await runLoad(raw, { kind: "network" }, options);
+        expect(calls[0]?.headers).toEqual(
+          sentTag === undefined ? undefined : { "if-none-match": sentTag },
+        );
+      }
+      for (const options of [{ revalidate: false }, { event: "e1", revalidate: false }]) {
+        const { calls } = await runLoad(raw, { kind: "network" }, options);
+        expect(calls[0]?.headers).toBeUndefined();
+      }
+    },
+  );
+
+  it("asks the platform's address, or the event's when one is named", async () => {
+    expect((await runLoad(GOOD, { kind: "network" }, {})).calls).toEqual([
+      { method: "GET", path: "/v1/config", headers: { "if-none-match": '"v1"' } },
+    ]);
+    expect((await runLoad(undefined, { kind: "network" }, { event: "e1" })).calls).toEqual([
+      { method: "GET", path: "/v1/events/e1/config" },
+    ]);
+  });
+
+  it.each(Object.entries(STORED))(
+    "keeps a fresh answer over a %s copy, with its tag or null, under the scope's key",
+    async (_name, { raw }) => {
+      for (const options of [{}, { revalidate: false }, { event: "e1" }]) {
+        const key = "event" in options ? `${CONFIG_KEY}.e1` : CONFIG_KEY;
+        const tagged = await runLoad(raw, ok(CONFIG, '"n"'), options);
+        expect(tagged.result).toMatchObject({ schemaVersion: 1 });
+        expect(tagged.written).toEqual([`${key}=${JSON.stringify({ etag: '"n"', body: CONFIG })}`]);
+        const untagged = await runLoad(raw, ok(CONFIG), options);
+        expect(untagged.written).toEqual([
+          `${key}=${JSON.stringify({ etag: null, body: CONFIG })}`,
+        ]);
+      }
+    },
+  );
+
+  it.each(Object.entries(STORED))(
+    "falls back to a %s copy when the answer is unreadable, unchanged or failed, and writes nothing",
+    async (_name, { raw, usable }) => {
+      const answers = [
+        ok({ schemaVersion: 2 }),
+        notModified,
+        SERVER_ERROR,
+        { kind: "network" } as const,
+        { kind: "signed_out" } as const,
+      ];
+      for (const answer of answers) {
+        for (const options of [{}, { event: "e1" }]) {
+          const { result, written } = await runLoad(raw, answer, options);
+          expect(written).toEqual([]);
+          if (usable) {
+            expect(result).toMatchObject({ schemaVersion: 1, legal: CONFIG.legal });
+          } else {
+            expect(result).toBeUndefined();
+          }
+        }
+      }
+    },
+  );
+});
+
 describe("the consent versions", () => {
   it("reads the terms and privacy in force, ignoring other documents", () => {
     expect(signupVersions(CONFIG as never)).toEqual({ terms: "0.2", privacy: "0.1" });
