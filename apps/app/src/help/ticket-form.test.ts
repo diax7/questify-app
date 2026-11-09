@@ -50,6 +50,9 @@ describe("the hint in the request's box", () => {
     ["app_problem", "help.placeholder.app"],
     ["suggestion", "help.placeholder.suggestion"],
     ["praise", "help.placeholder.question"],
+    ["constructor", "help.placeholder.question"],
+    ["__proto__", "help.placeholder.question"],
+    ["toString", "help.placeholder.question"],
   ])("%s shows %s", (kind, key) => {
     expect(placeholderKey(kind)).toBe(key);
   });

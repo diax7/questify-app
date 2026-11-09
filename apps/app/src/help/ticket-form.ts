@@ -13,18 +13,19 @@ export const kindOf = (card: CenterCard, chosen: EventTicketKind | null) =>
         ? "suggestion"
         : chosen;
 
-const PLACEHOLDERS: Readonly<Record<string, MessageKey>> = {
-  report_player: "help.placeholder.report",
-  question: "help.placeholder.question",
-  prize: "help.placeholder.problem",
-  problem: "help.placeholder.problem",
-  app_problem: "help.placeholder.app",
-  suggestion: "help.placeholder.suggestion",
-};
+// A Map, so a kind such as "constructor" never reads an inherited property of a plain object.
+const PLACEHOLDERS: ReadonlyMap<string, MessageKey> = new Map([
+  ["report_player", "help.placeholder.report"],
+  ["question", "help.placeholder.question"],
+  ["prize", "help.placeholder.problem"],
+  ["problem", "help.placeholder.problem"],
+  ["app_problem", "help.placeholder.app"],
+  ["suggestion", "help.placeholder.suggestion"],
+]);
 
 /** The hint inside the request's box, by kind; a kind this app does not know reads as a question. */
 export const placeholderKey = (kind: string): MessageKey =>
-  PLACEHOLDERS[kind] ?? "help.placeholder.question";
+  PLACEHOLDERS.get(kind) ?? "help.placeholder.question";
 
 /** A report names a member of at least three characters; an app problem waits for the phone's facts. */
 export function isReady(
