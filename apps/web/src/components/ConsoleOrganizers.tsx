@@ -191,7 +191,7 @@ export function HistoryList({
 }: Readonly<{ language: Language; history: readonly HistoryEntry[]; level?: 2 | 3 }>) {
   const t = translatorFor(language);
   return (
-    <Section title={t("console.organizer.history")} level={level}>
+    <Section title={t("console.organizer.history")} level={level} look="sub">
       {history.length === 0 ? (
         <Muted>{t("console.organizer.noHistory")}</Muted>
       ) : (

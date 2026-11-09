@@ -1,15 +1,17 @@
 import { useId, type ReactNode, type Ref } from "react";
 import { nameInfo } from "#src/ui/name-info.ts";
+import { sectionLook, type SectionLook } from "#src/ui/section-look.ts";
 import styles from "#src/ui/surface.module.css";
 
 /**
  * One titled part of a page, as a landmark named by its heading. `actions` sit beside the title; `tone="danger"`
- * marks the part that deletes or ends things.
+ * marks the part that deletes or ends things. `look` sets the title's size apart from its heading `level`.
  */
 export function Section({
   title,
   titleId,
   level = 2,
+  look,
   description,
   info,
   actions,
@@ -19,6 +21,8 @@ export function Section({
   title: ReactNode;
   titleId?: string;
   level?: 2 | 3;
+  /** The title's look, `section` or `sub`; defaults from the level, so a card under a part's `h2` can keep the small one. */
+  look?: SectionLook;
   description?: ReactNode;
   /** An `InfoTip` beside the title, for a part that truly needs explaining (ADR-370). */
   info?: ReactNode;
@@ -37,7 +41,12 @@ export function Section({
       <div className={styles.sectionHeader}>
         <div className={styles.sectionText}>
           <div className={styles.titleRow}>
-            <Heading id={id} className={level === 2 ? styles.sectionTitle : styles.subTitle}>
+            <Heading
+              id={id}
+              className={
+                sectionLook(level, look) === "section" ? styles.sectionTitle : styles.subTitle
+              }
+            >
               {title}
             </Heading>
             {nameInfo(info, title)}

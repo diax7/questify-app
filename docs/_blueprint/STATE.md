@@ -1,5 +1,13 @@
 # Blueprint State — Questify
 
+## Section look apart from heading level — 2026-11-09
+
+- **Console card titles keep their old look (tier B, `apps/web` only; FOLLOWUPS clause cleared).** `Section` takes `look`
+  (`"section"` or `"sub"`, default from the level; `sectionLook` in `ui/section-look.ts`, unit-tested). The console event
+  page's Suspension, Support access and Recent history cards and the readiness cards keep their `h2` and take `look="sub"`,
+  the small body-font title they had at `level={3}`; the other `level={2}` changes of the accessibility batch were `Tile`,
+  `SubHeading` and plain headings, which never changed size. CI 0 minutes (not pushed).
+
 ## Player app accessibility follow-up (Reduce Motion, scrim, banner name, stricter check) — 2026-11-09
 
 - **T-808 follow-up (tier B, `apps/app` plus one message key).** Reduce Motion: `Sheet` and the location modal now choose

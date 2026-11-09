@@ -31,6 +31,7 @@ function EventCard({
   return (
     <Section
       level={2}
+      look="sub"
       title={
         <TextLink strong href={`/${language}/console/events/${event.id}`} dir="auto">
           {nameIn(event.name, language)}
