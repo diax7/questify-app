@@ -819,10 +819,6 @@
   "apps/web/src/components/AwardsPanel.tsx": {
     "AwardsPanel": {
       "complexity": [9]
-    },
-    "BulkCard": {
-      "complexity": [14],
-      "lines": [111]
     }
   },
   "apps/web/src/components/CodeStep.tsx": {
@@ -939,11 +935,6 @@
       "lines": [115]
     }
   },
-  "apps/web/src/components/PlayersPanel.tsx": {
-    "PlayerRow": {
-      "complexity": [15]
-    }
-  },
   "apps/web/src/components/PollControls.tsx": {
     "PollControls": {
       "complexity": [10]
@@ -955,10 +946,6 @@
     },
     "DeleteDialog": {
       "complexity": [10]
-    },
-    "QuestRow": {
-      "complexity": [17],
-      "lines": [125]
     }
   },
   "apps/web/src/components/QuestForm.tsx": {
@@ -1039,19 +1026,9 @@
       "complexity": [9]
     }
   },
-  "apps/web/src/lib/console.ts": {
-    "readConsoleEvent": {
-      "complexity": [15]
-    }
-  },
   "apps/web/src/lib/device.ts": {
     "deviceAnswerOf": {
       "complexity": [11]
-    }
-  },
-  "apps/web/src/lib/devices.ts": {
-    "lineOf": {
-      "complexity": [14]
     }
   },
   "apps/web/src/lib/event-card.ts": {
@@ -1080,11 +1057,6 @@
       "complexity": [15]
     }
   },
-  "apps/web/src/lib/nfc-tags.ts": {
-    "<anonymous>": {
-      "complexity": [14]
-    }
-  },
   "apps/web/src/lib/rehearsal.ts": {
     "readRehearsal": {
       "complexity": [11]
@@ -1096,11 +1068,6 @@
     },
     "rewardProblem": {
       "complexity": [12]
-    }
-  },
-  "apps/web/src/lib/sign-in-errors.ts": {
-    "describeProblem": {
-      "complexity": [15]
     }
   },
   "apps/web/src/lib/staff-api.ts": {

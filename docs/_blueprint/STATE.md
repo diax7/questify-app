@@ -15,6 +15,17 @@
   `node scripts/function-limits.mjs --update` and only shrank (it also lowered `InviteFlow` in apps/web, already under
   its old numbers). CI 0 minutes (not pushed).
 
+## Function limits, web components and readers — 2026-11-09
+
+- **Function-limits baseline, `apps/web` (tier B; behaviour-preserving, no string, route or markup change).** Nine
+  baseline entries left `scripts/function-limits-baseline.json` (272 to 263 violations): `QuestRow` (complexity 17, 125
+  lines), `PlayerRow` (15), `BulkCard` (14, 111 lines), `readConsoleEvent` (15), `describeProblem` (15), `lineOf` in
+  `devices.ts` (14) and the tag check in `nfc-tags.ts` (14). The components split into small ones in the same file with the
+  same markup, roles, labels and requests, and no hook or state moved (`BulkCard` keeps its state; the new children are
+  stateless); the readers split into per-group checks. Four new tables (`console-event-read`, `devices-line`,
+  `nfc-tag-shape`, `sign-in-problem`, 174 cases) were written and run against the old code first. `forward.ts` is untouched.
+  The baseline was updated with `node scripts/function-limits.mjs --update` and only shrank. CI 0 minutes (not pushed).
+
 ## Function limits, app pure logic — 2026-11-09
 
 - **Function-limits baseline, `apps/app` (tier B; behaviour-preserving, no string, no screen change).** Five offenders left

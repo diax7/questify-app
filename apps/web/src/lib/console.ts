@@ -62,25 +62,34 @@ export function readQueue(value: unknown): QueueItem[] | undefined {
   return valid ? (rows as QueueItem[]) : undefined;
 }
 
+const hasEventIdentity = (event: Record<string, unknown>): boolean =>
+  typeof event["id"] === "string" &&
+  typeof event["joinCode"] === "string" &&
+  isText(event["name"]) &&
+  typeof event["status"] === "string" &&
+  typeof event["statusNow"] === "string";
+
+const hasEventSchedule = (event: Record<string, unknown>): boolean =>
+  typeof event["timezone"] === "string" &&
+  isTextOrNull(event["startsAt"]) &&
+  isTextOrNull(event["endsAt"]);
+
+const hasEventOwner = (event: Record<string, unknown>): boolean => {
+  const organizer = event["organizer"];
+  return (
+    isRecord(organizer) &&
+    typeof organizer["name"] === "string" &&
+    isTextOrNull(event["ownerEmail"])
+  );
+};
+
 /** The console's event; undefined when the answer is not the expected shape. */
 export function readConsoleEvent(value: unknown): ConsoleEvent | undefined {
   const event = isRecord(value) ? value["event"] : undefined;
   if (readActivation(value) === undefined || !isRecord(event)) {
     return undefined;
   }
-  const organizer = event["organizer"];
-  const valid =
-    typeof event["id"] === "string" &&
-    typeof event["joinCode"] === "string" &&
-    isText(event["name"]) &&
-    typeof event["status"] === "string" &&
-    typeof event["statusNow"] === "string" &&
-    typeof event["timezone"] === "string" &&
-    isTextOrNull(event["startsAt"]) &&
-    isTextOrNull(event["endsAt"]) &&
-    isRecord(organizer) &&
-    typeof organizer["name"] === "string" &&
-    isTextOrNull(event["ownerEmail"]);
+  const valid = hasEventIdentity(event) && hasEventSchedule(event) && hasEventOwner(event);
   return valid ? (value as ConsoleEvent) : undefined;
 }
 

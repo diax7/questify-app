@@ -403,6 +403,73 @@ function EarlierNote({ language, earlier }: Readonly<{ language: Language; earli
   );
 }
 
+/** Whether the bulk award may be sent: somebody matched, an amount, and a reason that is long enough. */
+const bulkReady = (preview: Preview | null, points: number | undefined, reason: string): boolean =>
+  preview !== null && preview.count > 0 && points !== undefined && reasonOk(reason);
+
+/** The confirmation before a bulk award pays: how many, how much and why. */
+function BulkConfirm({
+  language,
+  preview,
+  points,
+  draft,
+  busy,
+  cancel,
+  confirm,
+}: Readonly<{
+  language: Language;
+  preview: Preview;
+  points: number;
+  draft: BulkDraft;
+  busy: boolean;
+  cancel: () => void;
+  confirm: () => void;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <ConfirmDialog
+      language={language}
+      title={t("awards.confirmTitle")}
+      busy={busy}
+      cancel={cancel}
+      confirm={confirm}
+    >
+      <p dir="auto">
+        {t("awards.bulkConfirmBody", {
+          count: formatNumber(preview.count, language),
+          points: formatNumber(points, language),
+          reason: draft.reason.trim(),
+        })}
+      </p>
+      {draft.target === "session" ? <Muted>{t("awards.bulkSessionLate")}</Muted> : null}
+    </ConfirmDialog>
+  );
+}
+
+/** What a check found, and the result of the last check or award. */
+function BulkOutcome({
+  language,
+  preview,
+  message,
+}: Readonly<{
+  language: Language;
+  preview: Preview | null;
+  message: Readonly<{ ok: boolean; text: string }> | null;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <>
+      {preview === null ? null : <PreviewNote language={language} preview={preview} />}
+      {preview !== null && preview.count === 0 ? <Muted>{t("awards.nobody")}</Muted> : null}
+      {message === null ? null : (
+        <Notice role={message.ok ? "status" : "alert"} tone={message.ok ? "success" : "danger"}>
+          {message.text}
+        </Notice>
+      )}
+    </>
+  );
+}
+
 /** FR-1712: a list or a quest's completers, checked first, then the same points to each after a confirm step. */
 function BulkCard({
   language,
@@ -462,28 +529,20 @@ function BulkCard({
     setPreview(null);
     done();
   };
-  const ready =
-    preview !== null && preview.count > 0 && points !== undefined && reasonOk(draft.reason);
+  const ready = bulkReady(preview, points, draft.reason);
 
   return (
     <Section title={t("awards.bulk")} titleId="bulk-title" info={infoTip(t, "awards.bulkHelp")}>
       {asking && points !== undefined && preview !== null ? (
-        <ConfirmDialog
+        <BulkConfirm
           language={language}
-          title={t("awards.confirmTitle")}
+          preview={preview}
+          points={points}
+          draft={draft}
           busy={busy}
           cancel={() => setAsking(false)}
           confirm={() => void confirm()}
-        >
-          <p dir="auto">
-            {t("awards.bulkConfirmBody", {
-              count: formatNumber(preview.count, language),
-              points: formatNumber(points, language),
-              reason: draft.reason.trim(),
-            })}
-          </p>
-          {draft.target === "session" ? <Muted>{t("awards.bulkSessionLate")}</Muted> : null}
-        </ConfirmDialog>
+        />
       ) : null}
       <Form onSubmit={(event) => void check(event)}>
         <BulkFields
@@ -496,13 +555,7 @@ function BulkCard({
         <Button variant="quiet" type="submit">
           {t("awards.check")}
         </Button>
-        {preview === null ? null : <PreviewNote language={language} preview={preview} />}
-        {preview !== null && preview.count === 0 ? <Muted>{t("awards.nobody")}</Muted> : null}
-        {message === null ? null : (
-          <Notice role={message.ok ? "status" : "alert"} tone={message.ok ? "success" : "danger"}>
-            {message.text}
-          </Notice>
-        )}
+        <BulkOutcome language={language} preview={preview} message={message} />
         <Button
           variant="primary"
           disabled={!ready}

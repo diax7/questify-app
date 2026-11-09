@@ -35,33 +35,33 @@ const textOf = (value: unknown): Bilingual | null =>
       }
     : null;
 
+const pairedByOf = (value: unknown): DeviceLine["pairedBy"] =>
+  isRecord(value)
+    ? {
+        type: value["type"] === "operator" ? "operator" : "staff",
+        name: typeof value["name"] === "string" ? value["name"] : null,
+      }
+    : null;
+
+const hasLineIdentity = (value: Record<string, unknown>): boolean =>
+  typeof value["id"] === "string" && KINDS.has(value["kind"]) && STATUSES.has(value["status"]);
+
+const hasLineTimes = (value: Record<string, unknown>): boolean =>
+  typeof value["pairedAt"] === "string" && typeof value["lastSeenAt"] === "string";
+
 function lineOf(value: unknown): DeviceLine | undefined {
-  if (
-    !isRecord(value) ||
-    typeof value["id"] !== "string" ||
-    !KINDS.has(value["kind"]) ||
-    !STATUSES.has(value["status"]) ||
-    typeof value["pairedAt"] !== "string" ||
-    typeof value["lastSeenAt"] !== "string"
-  ) {
+  if (!isRecord(value) || !hasLineIdentity(value) || !hasLineTimes(value)) {
     return undefined;
   }
-  const by = isRecord(value["pairedBy"]) ? value["pairedBy"] : null;
   return {
-    id: value["id"],
+    id: value["id"] as string,
     kind: value["kind"] as DeviceKind,
     label: typeof value["label"] === "string" ? value["label"] : "",
     quest: textOf(value["quest"]),
     client: typeof value["client"] === "string" ? value["client"] : "",
-    pairedBy:
-      by === null
-        ? null
-        : {
-            type: by["type"] === "operator" ? "operator" : "staff",
-            name: typeof by["name"] === "string" ? by["name"] : null,
-          },
-    pairedAt: value["pairedAt"],
-    lastSeenAt: value["lastSeenAt"],
+    pairedBy: pairedByOf(value["pairedBy"]),
+    pairedAt: value["pairedAt"] as string,
+    lastSeenAt: value["lastSeenAt"] as string,
     activated: value["activated"] === true,
     status: value["status"] as DeviceLine["status"],
     paused: value["paused"] === true,

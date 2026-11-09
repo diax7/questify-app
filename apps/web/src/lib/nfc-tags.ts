@@ -19,18 +19,24 @@ export type TagLine = Readonly<{
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
+const isStringOrNull = (value: unknown): boolean => value === null || typeof value === "string";
+
+const hasTagIdentity = (tag: Record<string, unknown>): boolean =>
+  typeof tag["id"] === "string" &&
+  typeof tag["label"] === "string" &&
+  typeof tag["locked"] === "boolean" &&
+  (tag["status"] === "active" || tag["status"] === "revoked");
+
+const hasTagHistory = (tag: Record<string, unknown>): boolean =>
+  typeof tag["writtenAt"] === "string" &&
+  isStringOrNull(tag["writtenBy"]) &&
+  typeof tag["taps"] === "number" &&
+  typeof tag["copies"] === "number" &&
+  typeof tag["unchecked"] === "number" &&
+  isStringOrNull(tag["lastTapAt"]);
+
 const isTag = (value: unknown): value is TagLine =>
-  isRecord(value) &&
-  typeof value["id"] === "string" &&
-  typeof value["label"] === "string" &&
-  typeof value["locked"] === "boolean" &&
-  (value["status"] === "active" || value["status"] === "revoked") &&
-  typeof value["writtenAt"] === "string" &&
-  (value["writtenBy"] === null || typeof value["writtenBy"] === "string") &&
-  typeof value["taps"] === "number" &&
-  typeof value["copies"] === "number" &&
-  typeof value["unchecked"] === "number" &&
-  (value["lastTapAt"] === null || typeof value["lastTapAt"] === "string");
+  isRecord(value) && hasTagIdentity(value) && hasTagHistory(value);
 
 /** The tags in the list's answer, or undefined when it is not that shape. */
 export function tagsOf(body: unknown): readonly TagLine[] | undefined {

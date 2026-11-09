@@ -222,6 +222,145 @@ function CategoryHeading({
   );
 }
 
+/** A quest's title and the badges that flag it: hidden, pinned, first-completions bonus left. */
+function QuestHead({
+  language,
+  quest,
+  live,
+  pinned,
+}: Readonly<{ language: Language; quest: QuestView; live: boolean; pinned: boolean }>) {
+  const t = useTranslator(language);
+  return (
+    <Toolbar>
+      <QuestTitle language={language} quest={quest} />
+      {quest.visible || live ? null : <Badge tone="warning">{t("quests.hidden")}</Badge>}
+      {pinned ? <Badge tone="info">{t("quests.pinned")}</Badge> : null}
+      <FirstBonusBadge language={language} quest={quest} />
+    </Toolbar>
+  );
+}
+
+/** How many first-completions bonus slots a quest has and how many are left. */
+function FirstBonusBadge({ language, quest }: Readonly<{ language: Language; quest: QuestView }>) {
+  const t = useTranslator(language);
+  return (quest.firstBonus ?? null) === null ? null : (
+    <Badge>
+      {t("builder.firstBonus.listLeft", {
+        slots: formatNumber(quest.firstBonus?.slots ?? 0, language),
+        left: formatNumber(quest.firstBonus?.left ?? 0, language),
+      })}
+    </Badge>
+  );
+}
+
+/** A quest's points, repeat cap and opening and closing times (not for a live poll). */
+function QuestFacts({
+  language,
+  timeZone,
+  terms,
+  quest,
+  live,
+  pinned,
+}: Readonly<{
+  language: Language;
+  timeZone: string;
+  terms: EventTerms;
+  quest: QuestView;
+  live: boolean;
+  pinned: boolean;
+}>) {
+  const t = useTranslator(language);
+  const when = (iso: string | null, key: "quests.opens" | "quests.closes") =>
+    iso === null || live ? null : (
+      <Muted as="span">
+        {t(key, { time: formatEventTime(new Date(iso), timeZone, language) })}
+      </Muted>
+    );
+  return (
+    <Toolbar>
+      <Muted as="span">
+        {t("quests.pointsShort", {
+          currency: termFor(terms.currency, language),
+          points: quest.points,
+        })}
+      </Muted>
+      {quest.repeatCap > 1 ? (
+        <Muted as="span">
+          {t("quests.repeatShort", {
+            player: terms.player[language].one,
+            count: quest.repeatCap,
+          })}
+        </Muted>
+      ) : null}
+      {when(quest.opensAt, "quests.opens")}
+      {when(quest.closesAt, "quests.closes")}
+      {pinned && !quest.visible ? <Muted as="span">{t("quests.pinnedHidden")}</Muted> : null}
+    </Toolbar>
+  );
+}
+
+/** A quest's row buttons for a builder who may edit: order, hide, pin, edit, print, delete. */
+function QuestButtons({
+  language,
+  quest,
+  ids,
+  index,
+  busy,
+  actions,
+  category,
+  pinned,
+  live,
+}: Readonly<{
+  language: Language;
+  quest: QuestView;
+  ids: readonly string[];
+  index: number;
+  busy: boolean;
+  actions: CardActions;
+  category: CategoryView;
+  pinned: boolean;
+  live: boolean;
+}>) {
+  const t = useTranslator(language);
+  const printHref = actions.codeLink(quest);
+  return (
+    <Toolbar>
+      <OrderButtons
+        language={language}
+        name={textFor(quest.title, language)}
+        ids={ids}
+        index={index}
+        busy={busy}
+        apply={(order) => actions.reorderQuests(category, order)}
+      />
+      {live ? null : (
+        <Button variant="quiet" disabled={busy} onClick={() => actions.toggle(quest)}>
+          {quest.visible ? t("quests.hide") : t("quests.show")}
+        </Button>
+      )}
+      <Button
+        variant="quiet"
+        disabled={busy}
+        aria-pressed={pinned}
+        onClick={() => actions.pin(quest)}
+      >
+        {t("quests.pin")}
+      </Button>
+      <Button variant="quiet" disabled={busy} onClick={() => actions.edit(quest)}>
+        {t("quests.edit")}
+      </Button>
+      {printHref === undefined ? null : <TextLink href={printHref}>{t("codes.printQr")}</TextLink>}
+      <Button
+        variant="quiet"
+        disabled={busy}
+        onClick={() => actions.remove({ kind: "quest", quest })}
+      >
+        {t("quests.delete")}
+      </Button>
+    </Toolbar>
+  );
+}
+
 function QuestRow({
   language,
   timeZone,
@@ -248,49 +387,18 @@ function QuestRow({
   pinned: boolean;
   readOnly: boolean;
 }>) {
-  const t = useTranslator(language);
   const live = isLivePoll(quest.type, quest.config);
-  const printHref = actions.codeLink(quest);
-  const when = (iso: string | null, key: "quests.opens" | "quests.closes") =>
-    iso === null || live ? null : (
-      <Muted as="span">
-        {t(key, { time: formatEventTime(new Date(iso), timeZone, language) })}
-      </Muted>
-    );
   return (
     <HeldCard language={language} kind="quest" targetId={quest.id}>
-      <Toolbar>
-        <QuestTitle language={language} quest={quest} />
-        {quest.visible || live ? null : <Badge tone="warning">{t("quests.hidden")}</Badge>}
-        {pinned ? <Badge tone="info">{t("quests.pinned")}</Badge> : null}
-        {(quest.firstBonus ?? null) === null ? null : (
-          <Badge>
-            {t("builder.firstBonus.listLeft", {
-              slots: formatNumber(quest.firstBonus?.slots ?? 0, language),
-              left: formatNumber(quest.firstBonus?.left ?? 0, language),
-            })}
-          </Badge>
-        )}
-      </Toolbar>
-      <Toolbar>
-        <Muted as="span">
-          {t("quests.pointsShort", {
-            currency: termFor(terms.currency, language),
-            points: quest.points,
-          })}
-        </Muted>
-        {quest.repeatCap > 1 ? (
-          <Muted as="span">
-            {t("quests.repeatShort", {
-              player: terms.player[language].one,
-              count: quest.repeatCap,
-            })}
-          </Muted>
-        ) : null}
-        {when(quest.opensAt, "quests.opens")}
-        {when(quest.closesAt, "quests.closes")}
-        {pinned && !quest.visible ? <Muted as="span">{t("quests.pinnedHidden")}</Muted> : null}
-      </Toolbar>
+      <QuestHead language={language} quest={quest} live={live} pinned={pinned} />
+      <QuestFacts
+        language={language}
+        timeZone={timeZone}
+        terms={terms}
+        quest={quest}
+        live={live}
+        pinned={pinned}
+      />
       <PollControls
         language={language}
         timeZone={timeZone}
@@ -308,42 +416,17 @@ function QuestRow({
         actions={actions}
       />
       {readOnly ? null : (
-        <Toolbar>
-          <OrderButtons
-            language={language}
-            name={textFor(quest.title, language)}
-            ids={ids}
-            index={index}
-            busy={busy}
-            apply={(order) => actions.reorderQuests(category, order)}
-          />
-          {live ? null : (
-            <Button variant="quiet" disabled={busy} onClick={() => actions.toggle(quest)}>
-              {quest.visible ? t("quests.hide") : t("quests.show")}
-            </Button>
-          )}
-          <Button
-            variant="quiet"
-            disabled={busy}
-            aria-pressed={pinned}
-            onClick={() => actions.pin(quest)}
-          >
-            {t("quests.pin")}
-          </Button>
-          <Button variant="quiet" disabled={busy} onClick={() => actions.edit(quest)}>
-            {t("quests.edit")}
-          </Button>
-          {printHref === undefined ? null : (
-            <TextLink href={printHref}>{t("codes.printQr")}</TextLink>
-          )}
-          <Button
-            variant="quiet"
-            disabled={busy}
-            onClick={() => actions.remove({ kind: "quest", quest })}
-          >
-            {t("quests.delete")}
-          </Button>
-        </Toolbar>
+        <QuestButtons
+          language={language}
+          quest={quest}
+          ids={ids}
+          index={index}
+          busy={busy}
+          actions={actions}
+          category={category}
+          pinned={pinned}
+          live={live}
+        />
       )}
     </HeldCard>
   );

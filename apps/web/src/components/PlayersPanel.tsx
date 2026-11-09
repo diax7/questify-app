@@ -110,6 +110,93 @@ function BanDialog({
   );
 }
 
+/** A player's handle, status, points and the badges that go with them. */
+function PlayerSummary({
+  language,
+  currency,
+  player,
+  flagsPage,
+}: Readonly<{ language: Language; currency: string; player: Player; flagsPage: string }>) {
+  const t = useTranslator(language);
+  return (
+    <Toolbar>
+      <strong dir="auto">{handleOf(player.username, language)}</strong>
+      <Badge>{t(`players.status.${player.status}`)}</Badge>
+      {player.rehearsal === true ? <Badge>{t("rehearsal.badge")}</Badge> : null}
+      <span>
+        {t("players.points", { currency })}: {formatNumber(player.score, language)}
+      </span>
+      {player.openFlag === null || player.openFlag === undefined ? null : (
+        <TextLink href={`${flagsPage}?case=${player.openFlag}`}>{t("players.flagged")}</TextLink>
+      )}
+      {player.redeemPaused === true ? <Badge>{t("players.redeemPaused")}</Badge> : null}
+    </Toolbar>
+  );
+}
+
+/** What the player answered on the join card; nothing when there is no answer. */
+function PlayerAnswers({
+  language,
+  answers,
+}: Readonly<{ language: Language; answers: readonly Answer[] }>) {
+  const t = useTranslator(language);
+  if (answers.length === 0) {
+    return null;
+  }
+  return (
+    <FactList label={t("players.answers")}>
+      {answers.map((answer) => (
+        <Fragment key={answer.fieldId}>
+          <dt>{joinFieldLabel(answer, language)}:</dt>
+          <dd dir="auto">
+            {answer.choice === undefined || answer.choice === null
+              ? answer.value
+              : joinOptionLabel({ id: answer.value, ...answer.choice }, language)}
+          </dd>
+        </Fragment>
+      ))}
+    </FactList>
+  );
+}
+
+/** The owner's ban and pause buttons, and the button that opens the points record. */
+function PlayerActions({
+  language,
+  player,
+  canBan,
+  ask,
+  askPause,
+  open,
+  toggle,
+}: Readonly<{
+  language: Language;
+  player: Player;
+  canBan: boolean;
+  ask: (player: Player, opener: HTMLButtonElement) => void;
+  askPause: (player: Player, opener: HTMLButtonElement) => void;
+  open: boolean;
+  toggle: () => void;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <Toolbar>
+      {canBan && player.status !== "removed" ? (
+        <Button variant="quiet" onClick={(clicked) => ask(player, clicked.currentTarget)}>
+          {t(player.status === "banned" ? "players.unban" : "players.ban")}
+        </Button>
+      ) : null}
+      {canBan ? (
+        <Button variant="quiet" onClick={(clicked) => askPause(player, clicked.currentTarget)}>
+          {t(player.redeemPaused === true ? "flags.resume" : "flags.pause")}
+        </Button>
+      ) : null}
+      <Button variant="quiet" aria-expanded={open} onClick={toggle}>
+        {t(open ? "awards.hideRecord" : "awards.record")}
+      </Button>
+    </Toolbar>
+  );
+}
+
 function PlayerRow({
   language,
   currency,
@@ -137,50 +224,24 @@ function PlayerRow({
   toggle: () => void;
   children: ReactNode;
 }>) {
-  const t = useTranslator(language);
   return (
     <Card as="li">
-      <Toolbar>
-        <strong dir="auto">{handleOf(player.username, language)}</strong>
-        <Badge>{t(`players.status.${player.status}`)}</Badge>
-        {player.rehearsal === true ? <Badge>{t("rehearsal.badge")}</Badge> : null}
-        <span>
-          {t("players.points", { currency })}: {formatNumber(player.score, language)}
-        </span>
-        {player.openFlag === null || player.openFlag === undefined ? null : (
-          <TextLink href={`${flagsPage}?case=${player.openFlag}`}>{t("players.flagged")}</TextLink>
-        )}
-        {player.redeemPaused === true ? <Badge>{t("players.redeemPaused")}</Badge> : null}
-      </Toolbar>
-      {(player.answers ?? []).length === 0 ? null : (
-        <FactList label={t("players.answers")}>
-          {(player.answers ?? []).map((answer) => (
-            <Fragment key={answer.fieldId}>
-              <dt>{joinFieldLabel(answer, language)}:</dt>
-              <dd dir="auto">
-                {answer.choice === undefined || answer.choice === null
-                  ? answer.value
-                  : joinOptionLabel({ id: answer.value, ...answer.choice }, language)}
-              </dd>
-            </Fragment>
-          ))}
-        </FactList>
-      )}
-      <Toolbar>
-        {canBan && player.status !== "removed" ? (
-          <Button variant="quiet" onClick={(clicked) => ask(player, clicked.currentTarget)}>
-            {t(player.status === "banned" ? "players.unban" : "players.ban")}
-          </Button>
-        ) : null}
-        {canBan ? (
-          <Button variant="quiet" onClick={(clicked) => askPause(player, clicked.currentTarget)}>
-            {t(player.redeemPaused === true ? "flags.resume" : "flags.pause")}
-          </Button>
-        ) : null}
-        <Button variant="quiet" aria-expanded={open} onClick={toggle}>
-          {t(open ? "awards.hideRecord" : "awards.record")}
-        </Button>
-      </Toolbar>
+      <PlayerSummary
+        language={language}
+        currency={currency}
+        player={player}
+        flagsPage={flagsPage}
+      />
+      <PlayerAnswers language={language} answers={player.answers ?? []} />
+      <PlayerActions
+        language={language}
+        player={player}
+        canBan={canBan}
+        ask={ask}
+        askPause={askPause}
+        open={open}
+        toggle={toggle}
+      />
       {open ? children : null}
     </Card>
   );

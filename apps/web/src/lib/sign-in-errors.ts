@@ -56,34 +56,62 @@ function reasonWords(code: string, details: Record<string, unknown>): MessageKey
   return reasons?.[String(details["reason"])];
 }
 
+/** The wait and the attempts left that an error's details name, in the person's words. */
+function detailNotes(details: Record<string, unknown>, t: Translate): string[] {
+  const notes: string[] = [];
+  const wait = details["retryAfterSeconds"];
+  if (typeof wait === "number" && wait > 0) {
+    notes.push(t("staff.tryAgainIn", { time: formatWait(wait) }));
+  }
+  const attempts = details["attemptsLeft"];
+  if (typeof attempts === "number") {
+    notes.push(t("staff.attemptsLeft", { count: attempts }));
+  }
+  return notes;
+}
+
+/** The message in the page's language, the code and the details of the API's error body; undefined for any other body. */
+function envelopeParts(
+  body: unknown,
+  language: Language,
+): Readonly<{ message: string; code: string; details: Record<string, unknown> }> | undefined {
+  const message =
+    isRecord(body) && isRecord(body["message"]) ? body["message"][language] : undefined;
+  const code = isRecord(body) ? body["code"] : undefined;
+  if (typeof message !== "string" || typeof code !== "string") {
+    return undefined;
+  }
+  const details = isRecord(body) && isRecord(body["details"]) ? body["details"] : {};
+  return { message, code, details };
+}
+
+/** The seconds to hold the resend button for, when the API refused a resend as too soon. */
+function resendWaitOf(code: string, details: Record<string, unknown>): number | undefined {
+  const wait = details["retryAfterSeconds"];
+  return code === "resend_too_soon" && typeof wait === "number" && wait > 0
+    ? Math.ceil(wait)
+    : undefined;
+}
+
 /**
  * What to tell the person after a failed sign-in step. The API already words every error in both languages; this
  * adds the wait or the attempts left from its details. Anything that is not the API's error body (a proxy page, a
  * dropped connection) gets the generic network text.
  */
 export function describeProblem(body: unknown, language: Language, t: Translate): Problem {
-  const message =
-    isRecord(body) && isRecord(body["message"]) ? body["message"][language] : undefined;
-  const code = isRecord(body) ? body["code"] : undefined;
-  if (typeof message !== "string" || typeof code !== "string") {
+  const parts = envelopeParts(body, language);
+  if (parts === undefined) {
     return { text: t("error.network"), restart: false };
   }
-  const details = isRecord(body) && isRecord(body["details"]) ? body["details"] : {};
+  const { message, code, details } = parts;
   const reasoned = reasonWords(code, details);
   if (reasoned !== undefined) {
     return { text: t(reasoned), restart: false };
   }
-  const extra: string[] = [];
-  const wait = details["retryAfterSeconds"];
-  if (typeof wait === "number" && wait > 0) {
-    extra.push(t("staff.tryAgainIn", { time: formatWait(wait) }));
-  }
-  const attempts = details["attemptsLeft"];
-  if (typeof attempts === "number") {
-    extra.push(t("staff.attemptsLeft", { count: attempts }));
-  }
-  const problem = { text: [message, ...extra].join(" "), restart: RESTART_CODES.has(code) };
-  return code === "resend_too_soon" && typeof wait === "number" && wait > 0
-    ? { ...problem, resendWaitSeconds: Math.ceil(wait) }
-    : problem;
+  const problem = {
+    text: [message, ...detailNotes(details, t)].join(" "),
+    restart: RESTART_CODES.has(code),
+  };
+  const resendWait = resendWaitOf(code, details);
+  return resendWait === undefined ? problem : { ...problem, resendWaitSeconds: resendWait };
 }
