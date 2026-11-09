@@ -6765,7 +6765,8 @@ after the commit; (2) a membership created while the ban runs is not in the ban'
 "active" before the commit and commit after it, again at most one transaction wide. Every payment that reads the status
 after the commit is refused. The lock in `ledger_player_guard` is also a backstop for a writer that does not lock the
 membership before its ledger insert; `staff_award` does, so the crossed test of `player-safety.int.test.ts` (ban, then
-`staff_award`, PB423) passes even without the guard's `FOR NO KEY UPDATE`.
+`staff_award`, PB423) passes even without the guard's `FOR NO KEY UPDATE`; a bare ledger insert crossed with a held ban
+pins it (FOLLOWUPS batch 38, which also carried this wording into the two code comments, migration 0187).
 **Trade-offs:** a banned player's points stay as they were when a quest's points are raised for everyone; a lift does not
 replay the raise (Q-393).
 

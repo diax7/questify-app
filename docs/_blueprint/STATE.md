@@ -10,6 +10,26 @@
   tries now reports `answered: true` once a try was written (as running out of tries already did); a hold before any try
   stays `false`; a test line pins it. Nothing about what is sent changed. Two FOLLOWUPS lines removed. CI 0 minutes (not pushed).
 
+## FOLLOWUPS batch 38 — 2026-11-09
+
+- **FOLLOWUPS batch 38 (tier B, SQL comments and tests; migration 0187; 0186 and earlier frozen, 0156 reserved; no
+  route, screen, string or behaviour change).** (1) T-705: `ledger_player_guard` (diffed against 0120, its only
+  definition) and `admin_ban_player` (diffed against 0155) are restated in 0187 with only their membership-lock comment
+  changed, now ADR-430's wording: the ban locks the memberships that exist when it runs before the standing changes, the
+  guard locks the paid one before reading it, and a membership made during the ban and XP or gems outside a ledger
+  payment are not covered by the lock. The diffs show only that comment (and `CREATE` to `CREATE OR REPLACE` for the
+  guard). 0120's "Hidden player" sits outside every function body, so no database object holds it; 0187's header notes
+  the copy is "Hidden name". The test the line asked for is in `player-safety.int.test.ts`: a bare ledger insert crossed
+  with a held ban waits and gets PB423; with the guard's `FOR NO KEY UPDATE` removed it fails (the row is paid). ADR-430
+  notes it. (2) Export pages of 10,000, measured on the 100,000-player event of batch 30
+  (`export-pages-timing.int.test.ts` now compares both sizes and records the slowest call; median of 3 warm walks).
+  Pages of 5,000 against 10,000: players walk 3138 against 2805 ms, slowest call 195 against 318 ms, largest answer 0.75
+  against 1.50 MB; redemptions 3070 against 2862 ms, 183 against 332 ms, 0.70 against 1.39 MB; submissions 3085 against
+  2929 ms, 184 against 371 ms, 0.82 against 1.65 MB. Every call stays far under the 5 s statement timeout, but at 10,000
+  the slowest call is over 250 ms in every door and two answers are at or over 1.5 MB, while a walk saves only 5 to 11%:
+  `PAGE_ROWS` stays 5,000 and the line is closed. Touched suites and `apps/api/test/security` passed (727, 2 skipped).
+  CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 36 — 2026-11-09
 
 - **FOLLOWUPS batch 36 (tier B, ops config and tests; no migration, no SQL, nothing under `.github`, no string).** (1) The

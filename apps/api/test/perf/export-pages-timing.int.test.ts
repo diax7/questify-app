@@ -6,15 +6,16 @@ import { TEST_DATABASE_URL } from "#test/support/test-db";
 /**
  * Times the players, redemptions and submissions export doors (T-608, FOLLOWUPS batch 30, migration 0182) on an event
  * of 100,000 players, each with one join answer, one reward redemption and one text submission. Before 0182 a door
- * read the event whole in one call; since, it reads pages of 5,000 as the API does. Each figure is the sum over the
- * pages of one walk (`EXPLAIN (ANALYZE, BUFFERS)` of the door call, shared buffers hit and read), the largest page
- * answer, and the wall time of the walk's calls as the API's role makes them, median of 3 warm walks. Not an assertion: run it by hand when the doors change,
+ * read the event whole in one call; since, it reads pages of 5,000 as the API does (FOLLOWUPS batch 38 compared pages of
+ * 10,000). Each figure is the sum over the pages of one walk (`EXPLAIN (ANALYZE, BUFFERS)` of the door call, shared
+ * buffers hit and read), the largest page answer, the wall time of the walk's calls as the API's role makes them and its
+ * slowest call, median of 3 warm walks. Not an assertion: run it by hand when the doors change,
  * `EXPORT_PAGES_TIMING=/path/to/out.txt pnpm vitest run apps/api/test/perf/export-pages-timing.int.test.ts`.
  */
 const OUT = process.env["EXPORT_PAGES_TIMING"];
 const say = (line: string) => appendFileSync(String(OUT), `${line}\n`);
 const PLAYERS = 100_000;
-const PAGE = 5000;
+const PAGES = [5000, 10_000] as const;
 const DOORS = ["export_players", "export_redemptions", "export_submissions"] as const;
 
 async function seed(f: QuestifyFixture): Promise<string> {
@@ -88,6 +89,7 @@ type Walk = {
   buffers: number;
   dbMs: number;
   wallMs: number;
+  slowestMs: number;
   biggest: number;
 };
 
@@ -96,12 +98,21 @@ async function walk(
   door: string,
   event: string,
   paged: boolean,
+  size: number,
 ): Promise<Walk> {
-  const total: Walk = { rows: 0, pages: 0, buffers: 0, dbMs: 0, wallMs: 0, biggest: 0 };
+  const total: Walk = {
+    rows: 0,
+    pages: 0,
+    buffers: 0,
+    dbMs: 0,
+    wallMs: 0,
+    slowestMs: 0,
+    biggest: 0,
+  };
   let cursor: Cursor = { at: "-infinity", id: "" };
   while (cursor !== null) {
     const call: string = paged
-      ? `${door}($1, $2, ${door === "export_submissions" ? "$3::bigint" : "$3::uuid"}, ${PAGE})`
+      ? `${door}($1, $2, ${door === "export_submissions" ? "$3::bigint" : "$3::uuid"}, ${size})`
       : `${door}($1)`;
     const first = cursor.id === "";
     const values: unknown[] = paged
@@ -123,7 +134,9 @@ async function walk(
     const plan = explained?.["QUERY PLAN"][0];
     const started = performance.now();
     const [answer] = await f.run<{ d: unknown }>(f.team(), `SELECT ${call} AS d`, values);
-    total.wallMs += performance.now() - started;
+    const took = performance.now() - started;
+    total.wallMs += took;
+    total.slowestMs = Math.max(total.slowestMs, took);
     const page = answer?.d as { rows: unknown[]; next: Cursor } | unknown[];
     const rows = Array.isArray(page) ? page : page.rows;
     total.pages += 1;
@@ -155,16 +168,18 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
           [door],
         );
         const paged = shape?.args === 4;
-        await walk(f, door, event, paged);
-        const runs: Walk[] = [];
-        for (let run = 0; run < 3; run += 1) runs.push(await walk(f, door, event, paged));
-        runs.sort((a, b) => a.dbMs - b.dbMs);
-        const m = runs[1] as Walk;
-        say(
-          `${door} (${paged ? `pages of ${PAGE}` : "whole"}): ${m.rows} rows, ${m.pages} calls, buffers ${m.buffers}, ` +
-            `db ${m.dbMs.toFixed(0)} ms, walk ${m.wallMs.toFixed(0)} ms, largest answer ${(m.biggest / 1e6).toFixed(1)} MB; ` +
-            `db ms of 3: ${runs.map((r) => r.dbMs.toFixed(0)).join(", ")}`,
-        );
+        for (const size of paged ? PAGES : [0]) {
+          await walk(f, door, event, paged, size);
+          const runs: Walk[] = [];
+          for (let run = 0; run < 3; run += 1) runs.push(await walk(f, door, event, paged, size));
+          runs.sort((a, b) => a.dbMs - b.dbMs);
+          const m = runs[1] as Walk;
+          say(
+            `${door} (${paged ? `pages of ${size}` : "whole"}): ${m.rows} rows, ${m.pages} calls, buffers ${m.buffers}, ` +
+              `db ${m.dbMs.toFixed(0)} ms, walk ${m.wallMs.toFixed(0)} ms, slowest call ${m.slowestMs.toFixed(0)} ms, ` +
+              `largest answer ${(m.biggest / 1e6).toFixed(2)} MB; db ms of 3: ${runs.map((r) => r.dbMs.toFixed(0)).join(", ")}`,
+          );
+        }
       }
     } finally {
       await f.close();

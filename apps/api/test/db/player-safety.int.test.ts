@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { RequestContext } from "#src/db/context";
 import { pushFixture, sqlstate, type PushFixture } from "#test/support/push";
-import { TEST_DATABASE_URL } from "#test/support/test-db";
+import { connectAsOwner, TEST_DATABASE_URL } from "#test/support/test-db";
 
 type Note = { reasonCode: string; note: string };
 type Outcome = { outcome: string; action_id: string | null };
@@ -16,7 +16,7 @@ const liftSql = "SELECT * FROM admin_lift_ban($1, $2, $3, $4)";
  * The safety tools in the database (T-705, migration 0120): the platform ban and its lift (admin doors with a reason,
  * every way in ended, rankings repaired), the wall that pays a player who is not active nothing, the batches that skip
  * a banned member, the ban against a payment in both orders, the sign-in answer of a banned account, and the word
- * lists and retired names the console edits.
+ * lists and retired names the console edits. The guard's own membership lock is pinned by a bare ledger insert (0187).
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("platform ban and word lists (database)", () => {
   let f: PushFixture;
@@ -444,6 +444,53 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("platform ban and word lists (d
       expect(guarded.waited).toBe(true);
       expect(guarded.second).toMatchObject({ code: "PB423" });
       expect(await scoreOf(third.enrollment)).toBe(0);
+    });
+
+    it("makes a ledger row whose writer took no membership lock wait on the ban, then refuses it", async () => {
+      // staff_award locks the membership itself, so only a bare insert pins the guard's own FOR NO KEY UPDATE.
+      const event = await live();
+      const who = await member(event);
+      const banner = await connectAsOwner(f.db);
+      const payer = await connectAsOwner(f.db);
+      let paid: Promise<string> | undefined;
+      try {
+        await banner.query("BEGIN");
+        await banner.query(
+          "SELECT set_config('app.is_admin', 'on', true), set_config('app.staff_user_id', $1, true)",
+          [admin.staffUserId],
+        );
+        await banner.query(banSql, [who.player, BAN.reasonCode, BAN.note, randomUUID()]);
+        const pid = (await payer.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0]
+          ?.pid;
+        paid = sqlstate(
+          payer.query(
+            `INSERT INTO ledger_entry (organizer_id, event_id, enrollment_id, kind, score_delta, balance_delta, actor,
+                                       staff_user_id)
+             VALUES ($1, $2, $3, 'award', 5, 5, 'staff', $4)`,
+            [f.ids.orgA, event, who.enrollment, f.ownerA],
+          ),
+        );
+        let waited = false;
+        for (let attempt = 0; attempt < 200 && !waited; attempt += 1) {
+          waited =
+            (
+              await f.owner(
+                "SELECT 1 FROM pg_stat_activity WHERE pid = $1 AND wait_event_type = 'Lock'",
+                [pid],
+              )
+            ).length === 1;
+          if (!waited) await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        await banner.query("COMMIT");
+        expect(waited).toBe(true);
+        expect(await paid).toBe("PB423");
+      } finally {
+        await banner.query("ROLLBACK");
+        await paid;
+        await Promise.all([banner.end(), payer.end()]);
+      }
+      expect(await scoreOf(who.enrollment)).toBe(0);
+      expect((await standing(who.player))?.status).toBe("banned");
     });
   });
 
