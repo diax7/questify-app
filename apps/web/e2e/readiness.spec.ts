@@ -121,7 +121,7 @@ test("in English an admin reads the events starting soon with what is still open
   await expect(page.getByRole("heading", { name: "Readiness", level: 1 })).toBeVisible();
   const open = page.locator(`a[href$="/console/events/${eventId}"]`);
   await expect(open).toBeVisible();
-  const card = open.locator("xpath=ancestor::section[1]");
+  const card = open.locator("xpath=ancestor::article[1]");
   await expect(card.getByTestId("readiness-counts")).toContainText("Needed: 2");
   await expect(card.getByTestId("readiness-counts")).toContainText("To check: 5");
   await expect(card.getByTestId("readiness-counts")).toContainText("Ready: 2");
@@ -142,7 +142,7 @@ test("in Arabic the list reads right to left without sideways scrolling", async 
   await expect(page.getByRole("heading", { name: "الجاهزية", level: 1 })).toBeVisible();
   const card = page
     .locator(`a[href$="/console/events/${eventId}"]`)
-    .locator("xpath=ancestor::section[1]");
+    .locator("xpath=ancestor::article[1]");
   await expect(card.getByTestId("readiness-counts")).toContainText("مطلوب: 2");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expectNoSidewaysScroll(page);

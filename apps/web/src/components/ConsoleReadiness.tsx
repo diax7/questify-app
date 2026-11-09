@@ -30,6 +30,7 @@ function EventCard({
   const open = byUrgency(items).filter((item) => item.status !== "done");
   return (
     <Section
+      as="article"
       level={2}
       look="sub"
       title={

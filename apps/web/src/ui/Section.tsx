@@ -3,11 +3,18 @@ import { nameInfo } from "#src/ui/name-info.ts";
 import { sectionLook, type SectionLook } from "#src/ui/section-look.ts";
 import styles from "#src/ui/surface.module.css";
 
+function sectionClass(tone: "danger" | undefined): string {
+  return tone === "danger" ? `${styles.section} ${styles.sectionDanger}` : styles.section;
+}
+
 /**
  * One titled part of a page, as a landmark named by its heading. `actions` sit beside the title; `tone="danger"`
- * marks the part that deletes or ends things. `look` sets the title's size apart from its heading `level`.
+ * marks the part that deletes or ends things. `look` sets the title's size apart from its heading `level`. A card
+ * repeated per record (events that may share a name) is `as="article"`: still named by its heading, but not a landmark,
+ * so two with the same name do not break the one-name-per-landmark rule.
  */
 export function Section({
+  as: Tag = "section",
   title,
   titleId,
   level = 2,
@@ -18,6 +25,7 @@ export function Section({
   tone,
   children,
 }: Readonly<{
+  as?: "section" | "article";
   title: ReactNode;
   titleId?: string;
   level?: 2 | 3;
@@ -34,10 +42,7 @@ export function Section({
   const id = titleId ?? ownId;
   const Heading = level === 2 ? "h2" : "h3";
   return (
-    <section
-      className={tone === "danger" ? `${styles.section} ${styles.sectionDanger}` : styles.section}
-      aria-labelledby={id}
-    >
+    <Tag className={sectionClass(tone)} aria-labelledby={id}>
       <div className={styles.sectionHeader}>
         <div className={styles.sectionText}>
           <div className={styles.titleRow}>
@@ -56,7 +61,7 @@ export function Section({
         {actions === undefined ? null : <div className={styles.toolbar}>{actions}</div>}
       </div>
       {children}
-    </section>
+    </Tag>
   );
 }
 
