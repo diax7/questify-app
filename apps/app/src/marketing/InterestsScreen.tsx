@@ -161,6 +161,8 @@ export function InterestsScreen() {
 const makeStyles = (theme: Theme) => ({
   wrap: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: theme.spacing.sm },
   choice: {
+    minHeight: 44,
+    justifyContent: "center" as const,
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     borderRadius: theme.radius.md,

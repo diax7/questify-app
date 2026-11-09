@@ -1,5 +1,32 @@
 # Blueprint State — Questify
 
+## Player app accessibility follow-up (Reduce Motion, scrim, banner name, stricter check) — 2026-11-09
+
+- **T-808 follow-up (tier B, `apps/app` plus one message key).** Reduce Motion: `Sheet` and the location modal now choose
+  their animation from `useReduceMotion` (`modalAnimation`: slide, fade when reduced, instant until the phone has said); the
+  `my-qr` timer bar drops in whole seconds under Reduce Motion (`timerFraction`); both pure helpers are in
+  `components/motion-choice.ts` with unit tests. The catch game is kept as is, on purpose: the fall is the game and its speed is
+  the server's `fallTicks`, which the server replays to check a result, so slowing it would break verification (documented in
+  `CatchGame.tsx`). The `Sheet` scrim is `accessible={false}` and `importantForAccessibility="no"` (one Close stop left). A banner
+  slide with no title and no subtitle is named by `home.banner.untitled` («لافتة» / "Banner"), added to the glossary. In
+  `a11y-static.test.ts`: a glyph alone no longer names a touchable, hiding needs the Android prop too, `={false}` values do not
+  hide descendants, and a `<Pressable accessible={false}>` is still checked; it found one image (the devices padlock),
+  fixed. `pnpm -s vitest run apps/app --maxWorkers=3`: 130 files, 1,487 tests passed. Device checks stay open under T-808.
+  CI 0 minutes (not pushed).
+
+## Player app accessibility from the code — 2026-11-09
+
+- **Player app accessibility check (T-808, code-checkable part; tier B, `apps/app` only).** New
+  `apps/app/src/a11y-static.test.ts` parses all 209 `.tsx` files with `@babel/parser` (the app's own dependency; TypeScript 7
+  has no in-process API) and fails on an unnamed or role-less touchable, an unlabelled non-decorative image, an unlabelled
+  input, an exposed icon glyph and hard-coded text outside `t(...)`; its allow list is empty; 11 tests, the checker itself
+  included. Found and fixed: one scrim without a role, one banner tap target named only through a child, eight glyphs and one
+  padlock now hidden from a screen reader, a checkbox glyph hidden; touch targets raised on four chip or choice styles
+  (`minHeight` 44) and, with `hitSlop`, on the Back button, event pill, station link and banner dots. No string changed (none
+  was hard-coded), so no Arabic wording was touched. `pnpm -s vitest run apps/app --maxWorkers=3`: 129 files, 1,476 tests
+  passed. Device and screen-reader work (VoiceOver and TalkBack order and announcements, Reduce Motion on a phone) is listed
+  under T-808 in TASKS.md and stays open. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 32 — 2026-11-08
 
 - **FOLLOWUPS batch 32 (tier B, API and SQL; migration 0183; no function, table, grant or string).** (1) The completion

@@ -12,6 +12,8 @@ export function BackButton() {
   return (
     <Pressable
       accessibilityRole="button"
+      // The row is about 22 high; the slop brings the touch area to 46 (44 pt / 48 dp minimum).
+      hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
       onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
       style={{
         flexDirection: "row",

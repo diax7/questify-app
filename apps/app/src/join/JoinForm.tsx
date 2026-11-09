@@ -45,6 +45,8 @@ function ChoiceField({
 const makeStyles = (theme: Theme) => ({
   options: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: theme.spacing.sm },
   option: {
+    minHeight: 44,
+    justifyContent: "center" as const,
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     borderRadius: theme.radius.md,

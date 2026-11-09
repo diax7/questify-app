@@ -6,6 +6,8 @@ import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
+import { modalAnimation } from "#src/components/motion-choice.ts";
+import { useReduceMotion } from "#src/components/motion.tsx";
 import { sheetOpened } from "#src/components/sheet-count.ts";
 import { useEvent } from "#src/event/EventContext.tsx";
 import { checkInRead, nativeReader, type LocationReader } from "#src/event/location.ts";
@@ -57,10 +59,16 @@ export function LocationPrompt({
 }: Readonly<{ visible: boolean; onContinue: () => void }>) {
   const styles = useThemedStyles(makeStyles);
   const { rtl } = useI18n();
+  const reduce = useReduceMotion();
   // A sheet of its own: the live poll card waits while it is open (T-306).
   useEffect(() => (visible ? sheetOpened() : undefined), [visible]);
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onContinue}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType={modalAnimation(reduce)}
+      onRequestClose={onContinue}
+    >
       <View style={styles.backdrop}>
         <View style={[styles.sheet, { direction: rtl ? "rtl" : "ltr" }]}>
           <LocationExplanation onContinue={onContinue} />

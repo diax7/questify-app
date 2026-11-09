@@ -90,7 +90,7 @@ export function useOpen(): (outcome: TapOutcome) => void {
   );
 }
 
-function SlideFace({ slide, label }: Readonly<{ slide: BannerSlide; label: string | undefined }>) {
+function SlideFace({ slide, label }: Readonly<{ slide: BannerSlide; label: string }>) {
   const { language } = useI18n();
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -163,15 +163,18 @@ export function BannerSlider({
     return null;
   }
   const outcome = outcomeOf(slide.action);
-  const label = showDots(count)
-    ? slideLabel(t("home.banner.slideOf", { n: current + 1, total: count }), slide, language)
-    : undefined;
+  const place = showDots(count) ? t("home.banner.slideOf", { n: current + 1, total: count }) : "";
+  const label = slideLabel(place, slide, language, t("home.banner.untitled"));
   return (
     <View style={styles.banner} {...responder.panHandlers}>
       {outcome === null ? (
         <SlideFace slide={slide} label={label} />
       ) : (
-        <Pressable accessibilityRole="button" onPress={() => open(outcome)}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          onPress={() => open(outcome)}
+        >
           <SlideFace slide={slide} label={label} />
         </Pressable>
       )}
@@ -185,7 +188,8 @@ export function BannerSlider({
               accessibilityRole="button"
               accessibilityLabel={t("home.banner.goTo", { n: position + 1 })}
               accessibilityState={{ selected: position === current }}
-              hitSlop={12}
+              // 8 wide dots: a 44 high touch area, 16 wide so neighbours do not overlap (their gap is 8).
+              hitSlop={{ top: 18, bottom: 18, left: 4, right: 4 }}
               onPress={() => {
                 setTouched(true);
                 setIndex(position);

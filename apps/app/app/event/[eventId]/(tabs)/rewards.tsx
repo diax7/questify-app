@@ -824,6 +824,8 @@ const makeStyles = (theme: Theme) => ({
     borderColor: theme.colors.primaryAction,
   },
   chip: {
+    minHeight: 44,
+    justifyContent: "center" as const,
     paddingVertical: theme.spacing.xs,
     paddingHorizontal: theme.spacing.md,
     borderRadius: theme.radius.md,

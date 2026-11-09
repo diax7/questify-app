@@ -69,7 +69,13 @@ export default function EventTabsLayout() {
                 // A tab the layout hides or a switched-off feature takes off the bar; the shared rule (`playerTabs`) is the preview's too.
                 ...(shown.has(tab.name) ? {} : { href: null }),
                 tabBarIcon: ({ color, size }) => (
-                  <Ionicons name={tab.icon} size={size} color={color} />
+                  <Ionicons
+                    name={tab.icon}
+                    size={size}
+                    color={color}
+                    accessible={false}
+                    importantForAccessibility="no"
+                  />
                 ),
                 ...(tab.name === "profile" && unread
                   ? {

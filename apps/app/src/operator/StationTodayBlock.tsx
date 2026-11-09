@@ -77,6 +77,7 @@ export function StationTodayBlock() {
       {waiting?.kind === "count" ? (
         <Pressable
           accessibilityRole="link"
+          hitSlop={{ top: 10, bottom: 10 }}
           onPress={() => router.push(`/operator/${eventId}/inbox`)}
         >
           <AppText>{t("operator.stationToday.waiting", { count: count(waiting.total) })}</AppText>
