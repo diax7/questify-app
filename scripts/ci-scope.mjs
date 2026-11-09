@@ -25,9 +25,17 @@ const E2E = [
 // A unit test cannot change what ships, so it never starts a build or a browser run.
 const TEST_FILE = /\.test\.[cm]?tsx?$/;
 
-/** Always run: the layout check and the accessibility sweep read every page, so they also prove the API and the web app boot. */
-export const LAYOUT_SPECS = ["layout", "layout-check", "a11y"];
-/** More specs than this is a broad change. Measured: the accessibility sweep alone takes about 5.5 minutes on desktop (one worker, including the API bundle); it runs on every browser run, so 20 more specs add to that. */
+/** Always run: the layout check reads every page, so it also proves the API and the web app boot. */
+export const LAYOUT_SPECS = ["layout", "layout-check"];
+/**
+ * Never planned by a scoped push, and skipped by `testIgnore` in apps/web/playwright.config.ts when the "CI" workflow
+ * runs everything (`all`): the accessibility sweep reads every page in both languages on desktop and phone, about 5.5
+ * minutes on desktop and more on the phone (one worker), which with the rest of its shard passes the 22-minute step
+ * limit of a push run. The nightly full check (`full.yml`) runs every spec, this one included. They are named here so the
+ * area table below stays complete.
+ */
+export const NIGHTLY_SPECS = ["a11y"];
+/** More specs than this is a broad change. */
 export const MAX_AREA_SPECS = 20;
 
 /** Code every page depends on: a change here runs the whole browser suite. */
@@ -336,7 +344,7 @@ export function planBrowserSpecs(files, context) {
     }
     verdict.specs.forEach((stem) => picked.add(stem));
   }
-  LAYOUT_SPECS.forEach((stem) => picked.delete(stem));
+  [...LAYOUT_SPECS, ...NIGHTLY_SPECS].forEach((stem) => picked.delete(stem));
   if (picked.size > MAX_AREA_SPECS) {
     return { all: true, reason: `${picked.size} specs across the changed areas` };
   }

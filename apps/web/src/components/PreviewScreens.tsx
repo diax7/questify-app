@@ -60,7 +60,7 @@ function Home({ preview, language }: ScreenProps) {
   const t = usePhoneTranslator(preview, language);
   return (
     <Phone title={t("nav.home")} active="index" preview={preview} language={language}>
-      <h3 className={styles.screenTitle}>{preview.name}</h3>
+      <h2 className={styles.screenTitle}>{preview.name}</h2>
       {preview.venue === "" ? null : <p className={styles.muted}>{preview.venue}</p>}
       <ul className={styles.lines} aria-label={t("layout.home")}>
         {preview.homeBlocks.map(({ block, title, lines }) => {
@@ -110,7 +110,7 @@ function Quests({ preview, language }: ScreenProps) {
   const t = usePhoneTranslator(preview, language);
   return (
     <Phone title={t("nav.quests")} active="quests" preview={preview} language={language}>
-      <h3 className={styles.screenTitle}>{t("nav.quests")}</h3>
+      <h2 className={styles.screenTitle}>{t("nav.quests")}</h2>
       {preview.mapToggle ? (
         <div className={styles.buttons}>
           <span className={styles.button}>{t("mapsView.toggleList")}</span>
@@ -124,7 +124,7 @@ function Quests({ preview, language }: ScreenProps) {
       ) : (
         preview.categories.map((category) => (
           <div key={category.id}>
-            <h4 className={styles.group}>{category.name}</h4>
+            <h3 className={styles.group}>{category.name}</h3>
             <QuestLines
               quests={category.quests}
               grid={preview.looks.quests === "grid"}
@@ -169,7 +169,7 @@ function Shop({ preview, language }: ScreenProps) {
   }
   return (
     <Phone title={t("nav.rewards")} active="rewards" preview={preview} language={language}>
-      <h3 className={styles.screenTitle}>{t("nav.rewards")}</h3>
+      <h2 className={styles.screenTitle}>{t("nav.rewards")}</h2>
       {preview.rewards.length === 0 ? (
         <p className={styles.muted}>{t("preview.noRewards")}</p>
       ) : (
@@ -228,7 +228,7 @@ function Ranking({ preview, language }: ScreenProps) {
   return (
     <Phone title={t("nav.ranking")} active="index" preview={preview} language={language}>
       <div className={styles.titleRow}>
-        <h3 className={styles.screenTitle}>{t("nav.ranking")}</h3>
+        <h2 className={styles.screenTitle}>{t("nav.ranking")}</h2>
         <span className={styles.sample}>{t("looks.sample")}</span>
       </div>
       {podium ? (
@@ -258,7 +258,7 @@ function Info({ preview, language }: ScreenProps) {
   const t = useTranslator(language);
   return (
     <Phone title={t("eventHome.info")} active="index" preview={preview} language={language}>
-      <h3 className={styles.screenTitle}>{t("eventHome.info")}</h3>
+      <h2 className={styles.screenTitle}>{t("eventHome.info")}</h2>
       <ul className={styles.lines} aria-label={t("layout.info")}>
         {preview.info.map(({ section, title, lines }) => (
           <li key={section} className={styles.line}>
@@ -279,7 +279,7 @@ function ExtraPage({ preview, language }: ScreenProps) {
   }
   return (
     <Phone title={t("layout.block.page")} active="index" preview={preview} language={language}>
-      <h3 className={styles.screenTitle}>{preview.page.title}</h3>
+      <h2 className={styles.screenTitle}>{preview.page.title}</h2>
       <ul className={styles.lines} aria-label={preview.page.title}>
         {preview.page.lines.map((line, index) => (
           // The lines are plain text with no id and keep their order, so the position is their identity.

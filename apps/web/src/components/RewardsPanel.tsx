@@ -154,7 +154,7 @@ function RewardForm({
   return (
     <Card>
       <Form onSubmit={send} aria-busy={busy}>
-        <SubHeading as="h3">{t(editing ? "rewards.edit" : "rewards.add")}</SubHeading>
+        <SubHeading as="h2">{t(editing ? "rewards.edit" : "rewards.add")}</SubHeading>
         {editing ? null : (
           <FieldGroup legend={t("rewards.kind")} layout="choices">
             {REWARD_KINDS.map((kind) => (
@@ -331,7 +331,7 @@ function DeskForm({
   return (
     <Card>
       <Form onSubmit={send} aria-busy={busy}>
-        <SubHeading as="h3">{t("rewards.desk.title")}</SubHeading>
+        <SubHeading as="h2">{t("rewards.desk.title")}</SubHeading>
         {placeSet ? null : <Muted>{t("rewards.desk.needed")}</Muted>}
         <FieldGroup layout="columns">
           <TextField
@@ -512,7 +512,7 @@ function ShopForm({
   return (
     <Card>
       <Form onSubmit={send} aria-busy={busy}>
-        <SubHeading as="h3">{t("rewards.shop")}</SubHeading>
+        <SubHeading as="h2">{t("rewards.shop")}</SubHeading>
         <FieldGroup layout="columns">
           <NumberField
             label={t("rewards.pickupMinutes")}

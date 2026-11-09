@@ -17,6 +17,7 @@
   font-family: var(--font-display), var(--font-body), sans-serif;
   font-weight: 800;
   font-size: clamp(1.5rem, 3.5vw, 3rem);
+  line-height: 1.5;
 }
 
 .title {
@@ -106,6 +107,7 @@
   font-family: var(--font-display), var(--font-body), sans-serif;
   font-weight: 800;
   font-size: clamp(1.25rem, 3vw, 2rem);
+  line-height: 1.5;
   opacity: 0.6;
 }
 
@@ -214,6 +216,7 @@
   font-size: clamp(2rem, 5vw, 4.5rem);
   /* The honey highlight is 1.6 to 1 on the cream stage; the wood brown text colour reads at 5.4 to 1 (WCAG AA). */
   color: var(--color-text-muted);
+  line-height: 1.5;
 }
 
 .scene {
@@ -260,7 +263,8 @@
 .boardPlace {
   min-inline-size: 2.2ch;
   font-weight: 800;
-  color: var(--color-highlight);
+  /* The honey highlight on the cream row is 1.9 to 1; the wood brown reads at 5.4 to 1, and the leader keeps its honey border. */
+  color: var(--color-text-muted);
   text-align: center;
 }
 

@@ -194,7 +194,7 @@ function Group({
 }>) {
   return (
     <>
-      <SubHeading as="h3">{heading}</SubHeading>
+      <SubHeading as="h2">{heading}</SubHeading>
       <ul className={styles.cards}>
         {documents
           .filter((entry) => ids.includes(entry.document))

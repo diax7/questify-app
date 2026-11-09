@@ -35,6 +35,22 @@ const isInvite = (value: unknown): value is Invite =>
   typeof (value as Record<string, unknown>)["organizerName"] === "string" &&
   typeof (value as Record<string, unknown>)["email"] === "string";
 
+/** The page of a link that is missing or no longer works: the title, then why. */
+function MissingLink({
+  language,
+  message,
+}: Readonly<{ language: Language; message: string | null }>) {
+  const t = translatorFor(language);
+  return (
+    <Stack as="section" aria-labelledby="invite-title">
+      <PageHeader titleId="invite-title" title={t("staff.inviteTitle")} />
+      <Notice tone="danger" role="alert">
+        {message ?? t("staff.inviteMissing")}
+      </Notice>
+    </Stack>
+  );
+}
+
 /**
  * Where an invite link lands. The token is read from the URL fragment once and kept in memory only (as on the reset
  * page). Someone new chooses a password and enters the emailed sign-in code; someone with an account signs in here and
@@ -109,13 +125,7 @@ export function InviteFlow({
     return <Muted>{t("common.loading")}</Muted>;
   }
   if (state.kind === "no_link") {
-    return (
-      <Stack as="section">
-        <Notice tone="danger" role="alert">
-          {state.message ?? t("staff.inviteMissing")}
-        </Notice>
-      </Stack>
-    );
+    return <MissingLink language={language} message={state.message} />;
   }
   const { invite, token } = state;
   const heading = t(invite.role === "owner" ? "staff.invitedOwner" : "staff.invitedEditor", {

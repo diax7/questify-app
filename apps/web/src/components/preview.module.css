@@ -29,6 +29,8 @@
 
 .screenTitle {
   margin: 0;
+  /* An h2 on the page; the phone keeps the body font the paragraph-sized heading had. */
+  font-family: inherit;
   font-size: var(--text-xl);
   font-weight: var(--weight-display);
   line-height: var(--leading-tight);

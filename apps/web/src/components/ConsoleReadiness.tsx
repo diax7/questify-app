@@ -30,7 +30,7 @@ function EventCard({
   const open = byUrgency(items).filter((item) => item.status !== "done");
   return (
     <Section
-      level={3}
+      level={2}
       title={
         <TextLink strong href={`/${language}/console/events/${event.id}`} dir="auto">
           {nameIn(event.name, language)}

@@ -390,7 +390,7 @@ function HoldSwitch({ hold, shared }: Readonly<{ hold: boolean; shared: Shared }
   };
   return (
     <Card>
-      <SubHeading>{t("flags.hold")}</SubHeading>
+      <SubHeading as="h2">{t("flags.hold")}</SubHeading>
       <p>{t(hold ? "flags.holdOn" : "flags.holdOff")}</p>
       {shared.owner ? (
         <Button variant="quiet" disabled={busy} onClick={() => void flip()}>

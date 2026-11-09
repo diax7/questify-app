@@ -94,7 +94,7 @@ export function ConsoleNumbers({ language }: Readonly<{ language: Language }>) {
               <SubHeading as="h2">{t(group)}</SubHeading>
               <PanelGrid kind="tiles">
                 {figures.map(([name, value]) => (
-                  <Tile key={name} title={t(name)}>
+                  <Tile key={name} title={t(name)} name={`${t(group)}: ${t(name)}`}>
                     <Figure>{formatNumber(value, language)}</Figure>
                   </Tile>
                 ))}

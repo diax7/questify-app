@@ -280,11 +280,11 @@ function Scenes({
   return (
     <main className={styles.stage}>
       <div className={styles.stageHead}>
-        <p className={styles.event} dir="auto">
+        <h1 className={styles.event} dir="auto">
           {textFor(view.event.name, language)}
-        </p>
+        </h1>
         {open === undefined || !showing ? null : (
-          <p className={styles.sceneTitle}>{t(SCENE_TITLES[open])}</p>
+          <h2 className={styles.sceneTitle}>{t(SCENE_TITLES[open])}</h2>
         )}
       </div>
       <div className={styles.scene} key={open}>
@@ -312,13 +312,13 @@ export function BigScreen({ language }: Readonly<{ language: Language }>) {
       {(view, restart) =>
         view.shut === "event_ended" ? (
           <main className={styles.screen}>
-            <p className={styles.mark}>Questify</p>
+            <h1 className={styles.mark}>Questify</h1>
           </main>
         ) : view.shut === "feature_off" ? (
           <main className={styles.screen}>
-            <p className={styles.event} dir="auto">
+            <h1 className={styles.event} dir="auto">
               {textFor(view.event.name, language)}
-            </p>
+            </h1>
             <p className={styles.message}>{t("screen.off")}</p>
             <p className={styles.corner} dir="auto">
               {view.label}

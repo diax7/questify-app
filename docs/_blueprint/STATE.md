@@ -27,6 +27,29 @@
   passed. Device and screen-reader work (VoiceOver and TalkBack order and announcements, Reduce Motion on a phone) is listed
   under T-808 in TASKS.md and stays open. CI 0 minutes (not pushed).
 
+## Accessibility sweep, moderate findings — 2026-11-09
+
+- **Accessibility sweep fails on moderate findings too (T-808 follow-up; tier B, `apps/web` only).** `FAILING` in
+  `apps/web/e2e/a11y.spec.ts` now holds serious, critical and moderate, and the best-practice rules (heading order,
+  landmarks, level-one heading) fail with the WCAG ones; `ALLOWED` stays empty. Fixed in markup; the console event and readiness cards' headings now render one size larger (`Section level={2}`), for a person to look at
+  (heading elements keep their class styles): `heading-order` on the rewards (Prize desk, Shop settings and the reward
+  form now `h2`), flags (Hold prizes at the desk), preview (the phone screens' titles `h2`, their groups `h3`, the
+  title keeps the body font), console (Add-on requests), console event (Suspension, Support access, Recent history),
+  console health (the tiles, new `level` on `Tile`), console legal (document groups) and console readiness (event
+  cards) pages; `landmark-unique` on the inbox (the Join requests tile and the Join requests part shared a name; tiles
+  are now named «{title} count» / «عدد {title}», key `inbox.tileName`) and the numbers page (Active and Suspended repeat
+  between groups; tile regions are named «{group}: {tile}», new `name` on `Tile`); `page-has-heading-one` on the invite
+  page without a link (it shows the «Team invite» title above the notice) and the paired big screen (the event name is
+  the `h1`, the scene title an `h2`; the screen shut for the end of the event or the add-on has its `h1` too). Labels:
+  `bigScreen.up`/`down` are now «نقل لأعلى: «{scene}»» / "Move up: {scene}" (the arrows are `aria-hidden`; axe still
+  lists one undecided `label-content-name-mismatch` on the big-screen settings page, printed, not a violation), and the maps' Move up and Move down buttons keep their visible
+  words and gain the name «Move up: {name}» (keys `maps.page.moveUpNamed` and `moveDownNamed`); e2e pins in
+  `big-screen.spec.ts` and `maps.spec.ts` updated. From CI run 42536650643: the ranking's `color-contrast` was axe reading
+  the scene mid-fade (400 ms from opacity 0), so the sweep now waits for finite animations before each read; the
+  place numbers (honey on cream, 1.9 to 1, which axe could only call incomplete) use `--color-text-muted`. `a11y` left
+  `LAYOUT_SPECS` for the new `NIGHTLY_SPECS` in `scripts/ci-scope.mjs`, so a push run never plans it; `full.yml` runs
+  every spec (no filter, 75-minute limit), so the nightly check runs it. One FOLLOWUPS line trimmed. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 32 — 2026-11-08
 
 - **FOLLOWUPS batch 32 (tier B, API and SQL; migration 0183; no function, table, grant or string).** (1) The completion

@@ -154,12 +154,18 @@ function MapRows({
           <Button variant="quiet" disabled={busy} onClick={() => opened.rename(map)}>
             {t("maps.page.rename")}
           </Button>
-          <Button variant="quiet" disabled={busy || index === 0} onClick={() => move(index, -1)}>
+          <Button
+            variant="quiet"
+            disabled={busy || index === 0}
+            aria-label={t("maps.page.moveUpNamed", { name: mapName(map, language) })}
+            onClick={() => move(index, -1)}
+          >
             {t("maps.page.moveUp")}
           </Button>
           <Button
             variant="quiet"
             disabled={busy || index === maps.length - 1}
+            aria-label={t("maps.page.moveDownNamed", { name: mapName(map, language) })}
             onClick={() => move(index, 1)}
           >
             {t("maps.page.moveDown")}

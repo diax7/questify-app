@@ -66,7 +66,7 @@ test("adds, renames, orders and deletes maps and places pins on the board, in En
   await page.getByLabel("Name in English", { exact: true }).fill("Outdoor area");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   const outdoor = page.getByRole("listitem").filter({ hasText: "Outdoor area" });
-  await outdoor.getByRole("button", { name: "Move up" }).click();
+  await outdoor.getByRole("button", { name: "Move up: Outdoor area" }).click();
   await expect(page.getByRole("listitem").first()).toContainText("Outdoor area");
 
   await page.goto(base.replace("/en/", "/ar/") + "/maps");

@@ -210,7 +210,8 @@ function ReactivateForm({
 export function SuspensionPanel(props: SuspensionProps) {
   const t = translatorFor(props.language);
   return (
-    <Section title={t("suspend.title")} level={3}>
+    // On an event's page this is a part under the page title; on an organizer's page it sits under the organizer's part.
+    <Section title={t("suspend.title")} level={props.kind === "event" ? 2 : 3}>
       <Stack>
         {props.suspension === null ? (
           <SuspendForm {...props} />
@@ -311,7 +312,7 @@ export function SupportPanel({
       t("support.ended"),
     );
   return (
-    <Section title={t("support.title")} level={3} description={t("support.intro")}>
+    <Section title={t("support.title")} level={2} description={t("support.intro")}>
       <Stack>
         <GrantRows language={language} grants={grants} busy={busy} end={end} goTo={goTo} />
         <Problem problem={problem} />

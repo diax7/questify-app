@@ -90,8 +90,8 @@ test("pairs a big screen, picks and orders its scenes, and shows the ranking, th
   await expect(goal).toBeChecked();
   await expect(poll).toBeChecked();
   await ranking.uncheck();
-  await page.getByRole("button", { name: "نقل «الاستطلاع المباشر» إلى الأعلى" }).click();
-  await page.getByRole("button", { name: "نقل «الاستطلاع المباشر» إلى الأعلى" }).click();
+  await page.getByRole("button", { name: "نقل لأعلى: «الاستطلاع المباشر»" }).click();
+  await page.getByRole("button", { name: "نقل لأعلى: «الاستطلاع المباشر»" }).click();
   await page.getByRole("button", { name: "حفظ المشاهد" }).click();
   await expect(page.getByText("حُفظت المشاهد. تتحدّث الشاشات خلال ثوانٍ.")).toBeVisible();
   await page.reload();

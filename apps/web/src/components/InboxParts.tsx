@@ -79,7 +79,11 @@ export function InboxTiles({
   return (
     <PanelGrid kind="tiles">
       {tilesOf(inbox, eventBase, withRequests).map((tile) => (
-        <Tile key={tile.key} title={t(tile.title)}>
+        <Tile
+          key={tile.key}
+          title={t(tile.title)}
+          name={t("inbox.tileName", { title: t(tile.title) })}
+        >
           <Figure>
             <TextLink
               href={tile.href}

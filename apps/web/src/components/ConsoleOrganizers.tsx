@@ -187,10 +187,11 @@ function HistoryReason({ t, entry }: Readonly<{ t: Translate; entry: HistoryEntr
 export function HistoryList({
   language,
   history,
-}: Readonly<{ language: Language; history: readonly HistoryEntry[] }>) {
+  level = 3,
+}: Readonly<{ language: Language; history: readonly HistoryEntry[]; level?: 2 | 3 }>) {
   const t = translatorFor(language);
   return (
-    <Section title={t("console.organizer.history")} level={3}>
+    <Section title={t("console.organizer.history")} level={level}>
       {history.length === 0 ? (
         <Muted>{t("console.organizer.noHistory")}</Muted>
       ) : (

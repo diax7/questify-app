@@ -1660,9 +1660,10 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
   - Note 2026-11-08 (accessibility sweep, tier B): `apps/web/e2e/a11y.spec.ts` runs axe-core (`@axe-core/playwright`) against
     WCAG 2.1 A and AA on every page of the layout check (`LAYOUT_PAGES`, `PUBLIC_PAGES`), the unpaired screen, station and
     kiosk pages, the big screen paired and showing its ranking, and the event's confirmation dialog, in English and Arabic,
-    on the desktop and phone projects (the phone again with the Menu sheet open). Serious and critical violations fail the
-    test; the other findings, including the best-practice rules for landmarks and headings, are printed only. The spec
-    runs in the CI browser shards and as part of every scoped run (`LAYOUT_SPECS`). Covered: names and labels, roles, colour
+    on the desktop and phone projects (the phone again with the Menu sheet open). Serious, critical and moderate violations
+    fail the test (the best-practice rules for landmarks and headings included, 2026-11-09); minor ones are printed only.
+    The spec runs in the nightly full check (`full.yml` runs every spec) and not in a push run (`NIGHTLY_SPECS` in
+    `scripts/ci-scope.mjs`; it passed the browser shard's 22-minute step limit). Covered: names and labels, roles, colour
     contrast as drawn, `lang` and `dir`, landmarks, headings, duplicate ids, zoom and reflow rules. Not covered, and still
     needing a person: the player app (axe reads web pages only), a screen reader (VoiceOver, TalkBack, NVDA) walking each
     flow, focus order and keyboard use beyond the rules axe can see, whether a label or alt text means the right thing,

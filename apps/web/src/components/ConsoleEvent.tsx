@@ -233,7 +233,7 @@ function Oversight({
         grants={oversight.grants}
         onChanged={changed}
       />
-      <HistoryList language={language} history={oversight.history} />
+      <HistoryList language={language} history={oversight.history} level={2} />
     </>
   );
 }

@@ -16,7 +16,8 @@ import { openMenu } from "#e2e/nav.ts";
  * The accessibility sweep (T-808, automated part): every page of the layout check (`LAYOUT_PAGES` and `PUBLIC_PAGES`),
  * the unpaired screen, station and kiosk pages, the big screen paired and showing its ranking, and one confirmation dialog, in English and Arabic, on the desktop and
  * the phone project (and on a phone again with the Menu sheet open), read by axe-core against the WCAG 2.1 A and AA
- * rules. Serious and critical violations fail the test; moderate and minor ones are listed in the output only. The
+ * rules. Serious, critical and moderate violations fail the test (the best-practice rules too: heading order, landmarks, a
+ * level-one heading); minor ones are listed in the output only. The
  * event is filled first, exactly as the layout check does, so the pages show their filled states.
  *
  * `ALLOWED` is the one place a rule may be waived on a page: each entry names the rule, the page (or `*` for the
@@ -25,9 +26,9 @@ import { openMenu } from "#e2e/nav.ts";
 const LANGUAGES = ["en", "ar"] as const;
 type Language = (typeof LANGUAGES)[number];
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
-/** The best-practice rules (landmarks, heading order) are read too, but only listed in the output. */
+/** The best-practice rules (landmarks, heading order) are read too, and fail at the same impacts. */
 const READ_TAGS = [...WCAG_TAGS, "best-practice"];
-const FAILING = new Set(["serious", "critical"]);
+const FAILING = new Set(["serious", "critical", "moderate"]);
 
 type Waiver = Readonly<{ rule: string; page: string; reason: string }>;
 const ALLOWED: readonly Waiver[] = [];
@@ -43,8 +44,17 @@ const WAITING = MESSAGES["device.pair.waiting"];
 const found: string[] = [];
 const notes: string[] = [];
 
-/** Runs axe on the open page and records every serious or critical violation that is not waived. */
+/** Runs axe on the open page and records every serious, critical or moderate violation that is not waived. */
 async function sweep(page: Page, where: string, name: string): Promise<void> {
+  // A scene fades in over 400 ms; axe reads the colours as they are drawn, so a half-faded row reads as low contrast.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((one) => one.effect?.getComputedTiming().iterations !== Infinity)
+        .map((one) => one.finished.catch(() => null)),
+    ),
+  );
   const result = await new AxeBuilder({ page }).withTags(READ_TAGS).analyze();
   if (result.incomplete.length > 0) {
     const rules = result.incomplete.map((one) => one.id).join(", ");
@@ -59,8 +69,7 @@ async function sweep(page: Page, where: string, name: string): Promise<void> {
       .map((node) => `${node.target.join(" ")} ${node.html.slice(0, 90)}`)
       .join(" | ");
     const line = `${where}: ${violation.id} (${violation.impact}) x${violation.nodes.length}: ${targets}`;
-    const wcag = violation.tags.some((tag) => WCAG_TAGS.includes(tag));
-    if (!waived && wcag && FAILING.has(violation.impact ?? "")) {
+    if (!waived && FAILING.has(violation.impact ?? "")) {
       found.push(line);
     } else {
       notes.push(waived ? `waived ${line}` : line);
@@ -209,5 +218,5 @@ test("every page passes the WCAG 2.1 A and AA rules of axe-core", async ({
   await readPairedScreen(browser, project);
 
   process.stdout.write(`${notes.length} other findings (not failures):\n${notes.join("\n")}\n`);
-  expect(found, "serious or critical accessibility violations").toEqual([]);
+  expect(found, "serious, critical or moderate accessibility violations").toEqual([]);
 });

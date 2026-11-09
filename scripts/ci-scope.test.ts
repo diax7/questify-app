@@ -7,6 +7,7 @@ import {
   AREAS,
   LAYOUT_SPECS,
   MAX_AREA_SPECS,
+  NIGHTLY_SPECS,
   changedMessageKeys,
   importersIn,
   needsAlertChecks,
@@ -45,6 +46,7 @@ describe("the area table", () => {
     .map((name) => name.slice(0, -".spec.ts".length));
   const named = new Set([
     ...LAYOUT_SPECS,
+    ...NIGHTLY_SPECS,
     ...AREAS.flatMap(([, specs]: [RegExp, string[]]) => specs),
   ]);
 
@@ -133,6 +135,13 @@ describe("planBrowserSpecs", () => {
     ]);
 
     expect(result).toEqual({ all: false, specs: [...LAYOUT_SPECS] });
+  });
+
+  it("leaves the nightly specs to the full check, even when their own file changes", () => {
+    const result = plan(["apps/web/e2e/a11y.spec.ts", "apps/web/src/components/StreakPanel.tsx"]);
+
+    expect(result).toEqual({ all: false, specs: [...LAYOUT_SPECS, "streak"] });
+    expect(NIGHTLY_SPECS).toEqual(["a11y"]);
   });
 
   it.each([
@@ -282,7 +291,7 @@ describe("scopeOutput", () => {
     );
 
     expect(output.lines).toBe(
-      "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts e2e/a11y.spec.ts e2e/streak.spec.ts\n",
+      "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts e2e/streak.spec.ts\n",
     );
   });
 
@@ -304,7 +313,7 @@ describe("scopeOutput", () => {
     );
 
     expect(output.lines).toBe(
-      "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts e2e/a11y.spec.ts\n",
+      "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts\n",
     );
   });
 });
@@ -345,7 +354,7 @@ describe("the command", () => {
       write(repo, "apps/web/src/components/StreakPanel.tsx", "b\n");
       git(repo, "commit", "--quiet", "-am", "added");
       expect(run(repo, base)).toBe(
-        "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts e2e/a11y.spec.ts e2e/streak.spec.ts\nmonitoring=false\n",
+        "web=true\ne2e=true\nspecs=e2e/layout.spec.ts e2e/layout-check.spec.ts e2e/streak.spec.ts\nmonitoring=false\n",
       );
 
       write(repo, "apps/api/src/app.ts", "uno\ntwo\nthree\n");

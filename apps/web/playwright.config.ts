@@ -14,6 +14,9 @@ export default defineConfig({
   testDir: "e2e",
   // Only the browser specs: e2e/*.test.ts are unit tests of the helpers, run by vitest.
   testMatch: "**/*.spec.ts",
+  // The accessibility sweep is too long for a push run's 22-minute browser shards: the "CI" workflow skips it, and the
+  // nightly "Full checks" run and local runs keep it.
+  testIgnore: process.env["GITHUB_WORKFLOW"] === "CI" ? ["**/a11y.spec.ts"] : [],
   outputDir: ".e2e/results",
   fullyParallel: false,
   workers: 1,

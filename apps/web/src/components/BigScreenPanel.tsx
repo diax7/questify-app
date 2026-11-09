@@ -62,7 +62,7 @@ function SceneList({
               aria-label={t("bigScreen.up", { scene: name(row.scene) })}
               onClick={() => change(moveRow(rows, index, -1))}
             >
-              ↑
+              <span aria-hidden="true">↑</span>
             </Button>
             <Button
               variant="quiet"
@@ -70,7 +70,7 @@ function SceneList({
               aria-label={t("bigScreen.down", { scene: name(row.scene) })}
               onClick={() => change(moveRow(rows, index, 1))}
             >
-              ↓
+              <span aria-hidden="true">↓</span>
             </Button>
           </Toolbar>
         </Card>

@@ -78,7 +78,9 @@ export function ConsoleFeatureRequests({ language }: Readonly<{ language: Langua
 
   return (
     <Stack as="section" aria-labelledby="feature-requests-title">
-      <SubHeading id="feature-requests-title">{t("console.featureRequests.title")}</SubHeading>
+      <SubHeading as="h2" id="feature-requests-title">
+        {t("console.featureRequests.title")}
+      </SubHeading>
       {problem === null ? null : (
         <Notice tone="danger" role="alert">
           {problem}

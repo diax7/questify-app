@@ -27,19 +27,36 @@ export function WideCard({ children }: Readonly<{ children: ReactNode }>) {
   return <div className={`${styles.wide} ${styles.panels}`}>{children}</div>;
 }
 
-/** One figure under its name: the name is the tile's heading, `info` an `InfoTip` beside it (ADR-370). */
+/**
+ * One figure under its name: the name is the tile's heading, `info` an `InfoTip` beside it (ADR-370). The tile is a
+ * region named by its heading; where two tiles (or a tile and a part of the page) share a title, `name` gives the region
+ * its own, so no two landmarks of a page read alike. `level` is the heading's, `3` under a part's `h2`, `2` straight
+ * under the page title.
+ */
 export function Tile({
   title,
   info,
+  name,
+  level = 3,
   children,
-}: Readonly<{ title: string; info?: ReactNode; children: ReactNode }>) {
+}: Readonly<{
+  title: string;
+  info?: ReactNode;
+  name?: string;
+  level?: 2 | 3;
+  children: ReactNode;
+}>) {
   const id = useId();
+  const Heading = level === 2 ? "h2" : "h3";
   return (
-    <section className={styles.tile} aria-labelledby={id}>
+    <section
+      className={styles.tile}
+      {...(name === undefined ? { "aria-labelledby": id } : { "aria-label": name })}
+    >
       <div className={styles.tileLabel}>
-        <h3 id={id} className={styles.tileTitle}>
+        <Heading id={id} className={styles.tileTitle}>
           {title}
-        </h3>
+        </Heading>
         {nameInfo(info, title)}
       </div>
       {children}

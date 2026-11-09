@@ -91,7 +91,7 @@ function HealthTileCard({
   const hasMore = tile.facts.length > 0 || tile.key === "events";
   return (
     <div className={styles.cell} data-testid={`health-${tile.key}`} data-state={tile.state}>
-      <Tile title={t(`console.health.tile.${tile.key}`)}>
+      <Tile title={t(`console.health.tile.${tile.key}`)} level={2}>
         <Stack>
           <Figure>{factValue(t, tile.figure, language)}</Figure>
           <Muted as="span">{t(`console.health.fact.${tile.figure.key}`)}</Muted>
