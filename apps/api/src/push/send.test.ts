@@ -229,6 +229,7 @@ describe("sendRow (plan § Review 3)", () => {
       outcome: "requeue",
       code: "hold",
       attempts: 1,
+      answered: true,
     });
   });
 

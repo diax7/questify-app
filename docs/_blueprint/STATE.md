@@ -1,5 +1,15 @@
 # Blueprint State — Questify
 
+## FOLLOWUPS batch 37 — 2026-11-09
+
+- **FOLLOWUPS batch 37 (tier B, ops config and push; no migration, no SQL, nothing under `.github`, no string).** (1) The
+  monitoring Caddyfile's dot-segment rule now matches `{http.request.orig_uri.path}` (Caddy 2.11.4: the path as sent, no
+  query string, percent escapes decoded) instead of the whole `orig_uri`, so `/api/v1/query?x=1/./2` is no longer refused;
+  every dot spelling in the path still gets 400. The validation also sends raw `/grafana/d/a..b/x.y` and a query holding
+  `/./` and expects not-400, and `requestRawPath` has a response `error` listener. (2) T-501: a row held between in-lease
+  tries now reports `answered: true` once a try was written (as running out of tries already did); a hold before any try
+  stays `false`; a test line pins it. Nothing about what is sent changed. Two FOLLOWUPS lines removed. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 36 — 2026-11-09
 
 - **FOLLOWUPS batch 36 (tier B, ops config and tests; no migration, no SQL, nothing under `.github`, no string).** (1) The

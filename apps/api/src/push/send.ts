@@ -143,7 +143,7 @@ export async function sendRow(
   for (let tries = 0; tries < cap; tries += 1) {
     if (context.clock.now() + pause + ATTEMPT_MS > context.deadline) break;
     const result = await tryOnce(context, provider, message, pause);
-    if (result === null) return done("requeue", "hold", attempts, false);
+    if (result === null) return done("requeue", "hold", attempts, attempts > attemptsBefore);
     const end = settleResult(context, provider, result, attempts);
     if (end !== null) return end;
     attempts += 1;

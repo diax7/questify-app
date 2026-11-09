@@ -32,6 +32,7 @@ export const requestRawPath = (port, path, headers = {}) =>
       { host: "127.0.0.1", port, path, method: "GET", headers, timeout: 20_000 },
       (response) => {
         response.resume();
+        response.on("error", reject);
         response.on("end", () => resolve({ status: response.statusCode ?? 0 }));
       },
     );

@@ -167,6 +167,14 @@ async function checkDotSegmentsRefused(stack, admin) {
       );
     }
   }
+  // Dots that are not a whole segment, and a `/./` in the query string alone, are no dot segment: not refused.
+  for (const path of ["/d/a..b/x.y", "/api/x?q=1/./2"]) {
+    const { status } = await requestRawPath(stack.port, `${PREFIX}${path}`, admin);
+    ensure(
+      status !== 400,
+      `${PREFIX}${path} was refused (400) though its path holds no dot segment.`,
+    );
+  }
 }
 
 /** Grafana is part of the running app: it must be up behind Caddy, log-in only, provisioned, and answer every query. */

@@ -19,9 +19,9 @@
 	}
 
 	# A path with a `.` or `..` segment, written plain or with %2e or %2f, is refused (400) before any other match: nothing
-	# here needs one, and none may reach Grafana's health page by another spelling. It reads the request as sent
-	# (orig_uri), so the check does not depend on how a later step cleans the path.
-	@dotSegments vars_regexp dots {http.request.orig_uri} (?i)(^|/)(\.|%2e){1,2}(/|%2f|\?|$)
+	# here needs one, and none may reach Grafana's health page by another spelling. It reads the path of the request as sent
+	# (orig_uri, never the query string), so the check does not depend on how a later step cleans the path.
+	@dotSegments vars_regexp dots {http.request.orig_uri.path} (?i)(^|/)(\.|%2e){1,2}(/|%2f|\?|$)
 	handle @dotSegments {
 		respond 400
 	}
