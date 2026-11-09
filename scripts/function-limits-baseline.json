@@ -374,18 +374,6 @@
       "complexity": [12]
     }
   },
-  "apps/app/app/event/[eventId]/scan-quest.tsx": {
-    "<anonymous>": {
-      "complexity": [12]
-    },
-    "Celebration": {
-      "complexity": [24]
-    },
-    "ScanQuestScreen": {
-      "complexity": [22],
-      "lines": [203]
-    }
-  },
   "apps/app/app/invite/[eventId].tsx": {
     "<anonymous>": {
       "complexity": [9]
@@ -397,17 +385,11 @@
   "apps/app/app/join/[code].tsx": {
     "<anonymous>": {
       "complexity": [10]
-    },
-    "JoinCardScreen": {
-      "complexity": [19]
     }
   },
   "apps/app/app/operator/[eventId]/(tabs)/desk.tsx": {
     "DeskTab": {
       "complexity": [10]
-    },
-    "ItemRow": {
-      "complexity": [19]
     }
   },
   "apps/app/app/operator/[eventId]/(tabs)/inbox.tsx": {
@@ -456,15 +438,6 @@
   "apps/app/app/operator/[eventId]/rotating-qr.tsx": {
     "<anonymous>": {
       "complexity": [9]
-    }
-  },
-  "apps/app/app/operator/[eventId]/station-scan.tsx": {
-    "<anonymous>": {
-      "complexity": [10]
-    },
-    "StationScanScreen": {
-      "complexity": [19],
-      "lines": [137]
     }
   },
   "apps/app/app/operator/[eventId]/ticket/[ticketId].tsx": {

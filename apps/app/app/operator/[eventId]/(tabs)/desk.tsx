@@ -1,4 +1,4 @@
-import { formatNumber, termFor, type Theme } from "@questify/shared";
+import { termFor, type Theme } from "@questify/shared";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -6,6 +6,7 @@ import { Alert, ScrollView, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
+import { TextLines } from "#src/components/TextLines.tsx";
 import { PermissionCard, useCameraActive } from "#src/components/Camera.tsx";
 import { Button, Field } from "#src/components/Controls.tsx";
 import { RehearsalStrip } from "#src/components/RehearsalStrip.tsx";
@@ -14,10 +15,8 @@ import { Screen } from "#src/components/Screen.tsx";
 import { DeskLine } from "#src/event/DeskLine.tsx";
 import { isolatedName } from "#src/event/full-name.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { textIn } from "#src/i18n/text.ts";
 import {
   OFFER_POLL_MS,
-  actionLabel,
   deskStateKey,
   itemAction,
   offerOutcome,
@@ -35,13 +34,11 @@ import {
   pollOffer,
 } from "#src/operator/operator-api.ts";
 import { DeskSellPanel } from "#src/operator/DeskSale.tsx";
+import { controlsOf, itemLines, type Done } from "#src/operator/item-row.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 import { isPlayerCode } from "#src/operator/station.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 import { PracticeLocked } from "#src/operator/Practice.tsx";
-
-/** What happened to a row on this desk since the scan. */
-type Done = "handed_over" | "cancelled" | "ended" | "lapsed";
 
 /** One waiting item: its name, what the desk may do now, and Cancel (FR-925, FR-509, FR-513). */
 function ItemRow({
@@ -66,50 +63,16 @@ function ItemRow({
   const action = itemAction(item, desk, found, Date.now());
   const player = found.player.username;
   const minutes = action === "held" ? pickupMinutesLeft(item, Date.now()) : null;
+  const lines = itemLines(t, language, { item, action, done, player, minutes });
+  const controls = controlsOf(item, action, done);
   return (
     <View style={styles.card}>
-      <AppText variant="label">{textIn(item.name, language)}</AppText>
-      {item.rank === null ? null : (
-        <AppText muted>{t("win.rankPrize", { rank: formatNumber(item.rank, language) })}</AppText>
+      <TextLines lines={lines} />
+      {controls.handOver === null ? null : (
+        <Button label={t(controls.handOver)} disabled={busy} onPress={onHandOver} />
       )}
-      {item.questReward ? <AppText muted>{t("win.questReward")}</AppText> : null}
-      {item.kind === "experience" ? <AppText muted>{t("operator.desk.experience")}</AppText> : null}
-      {done === "handed_over" ? (
-        <AppText accessibilityRole="alert">
-          {t(item.kind === "experience" ? "operator.desk.doneExperience" : "operator.desk.done")}
-        </AppText>
-      ) : null}
-      {done === "cancelled" ? <AppText>{t("operator.desk.cancelled")}</AppText> : null}
-      {done === "ended" ? <AppText>{t("operator.desk.ended")}</AppText> : null}
-      {done === undefined || done === "lapsed" ? (
-        <>
-          {done === "lapsed" ? <AppText>{t("operator.desk.notAccepted")}</AppText> : null}
-          {action === "held" ? (
-            <AppText accessibilityRole="alert">{t("operator.desk.held")}</AppText>
-          ) : null}
-          {minutes === null ? null : (
-            <AppText muted>{t("operator.desk.pickupLeft", { minutes: String(minutes) })}</AppText>
-          )}
-          {action === "not_ready" ? (
-            <AppText>{t("operator.desk.notReady", { player })}</AppText>
-          ) : null}
-          {action === "waiting" ? (
-            <AppText accessibilityLiveRegion="polite">
-              {t("operator.desk.waitingAccept", { player })}
-            </AppText>
-          ) : null}
-          {action === "hand_over" || action === "offer" ? (
-            <Button label={t(actionLabel(item, action))} disabled={busy} onPress={onHandOver} />
-          ) : null}
-          {action === "blocked" ? null : (
-            <Button
-              kind="quiet"
-              label={t("operator.desk.cancel")}
-              disabled={busy}
-              onPress={onCancel}
-            />
-          )}
-        </>
+      {controls.cancel ? (
+        <Button kind="quiet" label={t("operator.desk.cancel")} disabled={busy} onPress={onCancel} />
       ) : null}
     </View>
   );

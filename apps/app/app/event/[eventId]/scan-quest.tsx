@@ -12,8 +12,10 @@ import { PermissionCard, useCameraActive, useRecheckOnReturn } from "#src/compon
 import { Button } from "#src/components/Controls.tsx";
 import { PopIn, SpinningCoin } from "#src/components/motion.tsx";
 import { Screen } from "#src/components/Screen.tsx";
-import { celebrationBeats, detailsAfter, scanStep, type ScanStep } from "#src/event/celebration.ts";
-import { bonusLine, headlineText, itemLine } from "#src/event/amount.ts";
+import { cameraPlan, type CameraPlan } from "#src/components/camera-plan.ts";
+import { TextLines } from "#src/components/TextLines.tsx";
+import { detailsAfter, scanStep, type ScanEvent, type ScanStep } from "#src/event/celebration.ts";
+import { beatViewOf, hasNextBeat, pointsLines } from "#src/event/celebration-view.ts";
 import { completedBuzz } from "#src/event/completed-buzz.ts";
 import { firstBonusLine } from "#src/event/first-bonus.ts";
 import { FlameIcon } from "#src/streaks/FlameIcon.tsx";
@@ -33,17 +35,16 @@ import {
 import { stampStep } from "#src/event/passport.ts";
 import { revealCategory } from "#src/event/reveal.ts";
 import { ReviewCodePicker } from "#src/event/ReviewCodePicker.tsx";
+import { answerBuzz, answerQuestId, scanDecision } from "#src/event/scan-flow.ts";
 import {
   OPEN_GATE,
   categoryIdOf,
   passes,
   questCodeOrigin,
-  readScan,
   screenQuestIdOf,
   stepIdOf,
   type ScanGate,
 } from "#src/event/scan.ts";
-import { inviteTokenOf } from "#src/operator/station.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { NfcTap, type TapRead } from "#src/nfc/NfcTap.tsx";
@@ -109,81 +110,306 @@ function Celebration({
   const { t, language } = useI18n();
   const terms = useTerms();
   const [shown, setShown] = useState(0);
-  const beats = celebrationBeats(step);
-  const beat = beats[shown] ?? "points";
-  const claim = () => (shown + 1 < beats.length ? setShown(shown + 1) : onClaim());
+  const view = beatViewOf(step, shown);
+  const claim = () => (hasNextBeat(step, shown) ? setShown(shown + 1) : onClaim());
   // Until the quests are read again, the category step and the title are unknown: Claim waits for them.
   const ready = step.details !== undefined;
-  const category = step.details?.finishedCategory;
-  if (beat === "category" && category !== undefined) {
-    return (
-      <PopIn>
-        <SpinningCoin size={120} />
-        <AppText variant="display">
-          {t("scanner.categoryDone", { name: textIn(category.name, language) })}
-        </AppText>
-        <Button label={t("scanner.claim")} onPress={claim} />
-      </PopIn>
-    );
+  switch (view.kind) {
+    case "category":
+      return (
+        <PopIn>
+          <SpinningCoin size={120} />
+          <AppText variant="display">
+            {t("scanner.categoryDone", { name: textIn(view.category.name, language) })}
+          </AppText>
+          <Button label={t("scanner.claim")} onPress={claim} />
+        </PopIn>
+      );
+    case "firstBonus":
+      return (
+        <PopIn>
+          <SpinningCoin size={120} />
+          <AppText variant="display">{firstBonusLine(t, language, view.bonus)}</AppText>
+          <Button label={t("scanner.claim")} onPress={claim} />
+        </PopIn>
+      );
+    case "streak":
+      return (
+        <PopIn>
+          <FlameIcon size={120} />
+          <AppText variant="display">{streakBonusLine(t, view.bonus)}</AppText>
+          <Button label={t("scanner.claim")} onPress={claim} />
+        </PopIn>
+      );
+    case "level":
+      return (
+        <PopIn>
+          <AppText variant="title">{t("level.up")}</AppText>
+          <AppText variant="display">{t("level.number", { level: view.levelUp.level })}</AppText>
+          <AppText variant="title">{textIn(view.levelUp.title, language)}</AppText>
+          {view.levelUp.items?.map((item) => (
+            <AppText key={item.id}>{item.name[language]}</AppText>
+          ))}
+          <Button label={t("common.continue")} onPress={claim} />
+        </PopIn>
+      );
+    case "points":
+      return (
+        <PopIn>
+          <TextLines lines={pointsLines(t, terms, language, step)} />
+          <Button label={t("scanner.claim")} disabled={!ready} onPress={claim} />
+        </PopIn>
+      );
   }
-  if (beat === "firstBonus" && step.firstBonus !== null) {
-    return (
-      <PopIn>
-        <SpinningCoin size={120} />
-        <AppText variant="display">{firstBonusLine(t, language, step.firstBonus)}</AppText>
-        <Button label={t("scanner.claim")} onPress={claim} />
-      </PopIn>
-    );
+}
+
+/** What the scanner's handlers read and write: the values and refs of the screen they act for. */
+type Scanner = Readonly<{
+  t: ReturnType<typeof useI18n>["t"];
+  eventId: string;
+  reader: ReturnType<typeof useLocationReader>;
+  scanPositions: boolean;
+  gate: { current: ScanGate };
+  attempt: { current: Attempt | undefined };
+  tagUid: { current: string | null };
+  dispatch: (event: ScanEvent) => void;
+  setNotice: (notice: string | null) => void;
+}>;
+
+/** Asks the server about a code: a tag by its tap, anything else by `send`. */
+const ask = (scanner: Scanner, id: string, token: string, key: string, position: Position | null) =>
+  id === NFC_ID
+    ? tapTag(
+        api.session,
+        {
+          code: token,
+          uid: scanner.tagUid.current,
+          platform: Platform.OS === "ios" ? "ios" : "android",
+          position,
+        },
+        key,
+      )
+    : send(id, token, key, position);
+
+type Completed = Extract<Awaited<ReturnType<typeof ask>>, { kind: "completed" }>;
+
+/** A completion's buzz, then the quests read again for its title and finished category. */
+async function finishCompleted(scanner: Scanner, id: string, answer: Completed) {
+  buzz(() => completedBuzz(answer));
+  const quests = await fetchQuests(api.session, scanner.eventId);
+  scanner.dispatch({
+    type: "details",
+    details: detailsAfter(
+      quests.kind === "quests" ? quests.view : undefined,
+      answerQuestId(answer, id),
+      answer.replayed,
+    ),
+  });
+}
+
+const BUZZ = {
+  success: Haptics.NotificationFeedbackType.Success,
+  error: Haptics.NotificationFeedbackType.Error,
+} as const;
+
+/** Sends a read code and takes the answer in: the step moves on, the phone buzzes, and a completion reads on. */
+async function submitScan(scanner: Scanner, id: string, token: string) {
+  const key = keyFor(scanner.attempt.current, token, randomUuid);
+  const position = await scanReading(scanner.reader ?? null, scanner.scanPositions, Date.now);
+  const answer = await ask(scanner, id, token, key, position);
+  scanner.attempt.current = { key, code: token, retryable: answer.kind === "network" };
+  if (answer.kind === "signed_out") {
+    router.replace("/home");
+    return;
   }
-  if (beat === "streak" && step.streakBonus !== null) {
-    return (
-      <PopIn>
-        <FlameIcon size={120} />
-        <AppText variant="display">{streakBonusLine(t, step.streakBonus)}</AppText>
-        <Button label={t("scanner.claim")} onPress={claim} />
-      </PopIn>
-    );
+  scanner.dispatch({ type: "answered", answer });
+  if (answer.kind === "completed") {
+    await finishCompleted(scanner, id, answer);
+    return;
   }
-  if (beat === "level" && step.levelUp !== null) {
-    return (
-      <PopIn>
-        <AppText variant="title">{t("level.up")}</AppText>
-        <AppText variant="display">{t("level.number", { level: step.levelUp.level })}</AppText>
-        <AppText variant="title">{textIn(step.levelUp.title, language)}</AppText>
-        {step.levelUp.items?.map((item) => (
-          <AppText key={item.id}>{item.name[language]}</AppText>
-        ))}
-        <Button label={t("common.continue")} onPress={claim} />
-      </PopIn>
-    );
+  const feel = answerBuzz(answer.kind);
+  if (feel !== "none") {
+    buzz(() => Haptics.notificationAsync(BUZZ[feel]));
   }
-  const quest = step.details?.quest;
+}
+
+/** A camera read: gated, then an operator code, a join link, something else (said once), or a code to send. */
+function handleScan(scanner: Scanner, data: string) {
+  if (!passes(scanner.gate.current, data)) {
+    return;
+  }
+  const decision = scanDecision(data, EXTRA_ORIGIN);
+  if (decision.kind === "other") {
+    scanner.gate.current = { busy: false, ignored: data };
+    scanner.setNotice(scanner.t("scanner.notQuestify"));
+    buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
+    return;
+  }
+  scanner.gate.current = { busy: true, ignored: null };
+  if (decision.kind === "invite") {
+    // A personal operator code (T-204) opens its confirm screen.
+    router.replace(`/operator-invite/${decision.token}`);
+    return;
+  }
+  scanner.setNotice(null);
+  if (decision.kind === "join") {
+    router.replace({ pathname: "/join/[code]", params: { code: decision.code, via: "qr" } });
+    return;
+  }
+  buzz(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+  scanner.dispatch({ type: "read", questId: decision.id, token: decision.token });
+  void submitScan(scanner, decision.id, decision.token);
+}
+
+/** A tag read in the scanner (FR-621): only a Questify tag URL read from a tag counts, never a typed or shared link. */
+function handleTap(scanner: Scanner, read: TapRead) {
+  if (!passes(scanner.gate.current, read.url ?? "")) {
+    return;
+  }
+  const token = tagTokenOf(read.url, EXTRA_ORIGIN);
+  if (token === null) {
+    scanner.setNotice(scanner.t("scanner.nfc.notQuestify"));
+    buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
+    return;
+  }
+  scanner.gate.current = { busy: true, ignored: null };
+  scanner.setNotice(null);
+  scanner.tagUid.current = read.uid;
+  buzz(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
+  scanner.dispatch({ type: "read", questId: NFC_ID, token });
+  void submitScan(scanner, NFC_ID, token);
+}
+
+/** The camera area: the permission wait, its card, the live camera, and the note when the camera failed to start. */
+function ScanCamera({
+  plan,
+  cameraFailed,
+  onAllow,
+  onScanned,
+  onMountError,
+}: Readonly<{
+  plan: CameraPlan;
+  cameraFailed: boolean;
+  onAllow: () => void;
+  onScanned: (read: { data: string }) => void;
+  onMountError: () => void;
+}>) {
+  const { t } = useI18n();
+  const styles = useThemedStyles(makeStyles);
   return (
-    <PopIn>
-      <AppText variant="display">
-        {/* Paid in another event: its words are unknown here, so Questify's own name the amount. */}
-        {headlineText(t, step.details?.otherEvent ? DEFAULT_TERMS : terms, language, step)}
-      </AppText>
-      {step.boosted ? <AppText variant="title">{t("completion.boosted")}</AppText> : null}
-      {step.met === null ? null : (
-        <AppText variant="title">{t("meet.youMet", { name: step.met })}</AppText>
+    <>
+      {plan.loading ? <AppText muted>{t("common.loading")}</AppText> : null}
+      {plan.ask === null ? null : (
+        <PermissionCard canAskAgain={plan.ask.canAskAgain} onAllow={onAllow} />
       )}
-      {step.item === null ? null : (
-        <AppText variant="title">{itemLine(t, language, step.item)}</AppText>
-      )}
-      {step.bonus === null ? null : (
-        <AppText variant="title">{bonusLine(t, language, step.bonus)}</AppText>
-      )}
-      {step.firstBonus === null || step.firstBonus.place !== null ? null : (
-        <AppText>{firstBonusLine(t, language, step.firstBonus)}</AppText>
-      )}
-      {quest === undefined ? null : (
-        <AppText variant="title">{textIn(quest.title, language)}</AppText>
-      )}
-      {step.details?.otherEvent ? <AppText>{t("scanner.otherEvent")}</AppText> : null}
-      <Button label={t("scanner.claim")} disabled={!ready} onPress={claim} />
-    </PopIn>
+      {plan.camera ? (
+        <View style={styles.camera}>
+          <CameraView
+            style={{ flex: 1 }}
+            facing="back"
+            barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+            onBarcodeScanned={onScanned}
+            onMountError={onMountError}
+          />
+        </View>
+      ) : null}
+      {cameraFailed ? (
+        <AppText accessibilityRole="alert">{t("scanner.cameraFailed")}</AppText>
+      ) : null}
+    </>
   );
+}
+
+/** A passport step's stamp: how far along the passport is. */
+function StampedResult({
+  step,
+  onAgain,
+}: Readonly<{ step: Extract<ScanStep, { kind: "stamped" }>; onAgain: () => void }>) {
+  const { t, language } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={styles.result}>
+      <PopIn>
+        <AppText variant="display" accessibilityRole="alert">
+          {t(step.fresh ? "scanner.stamped" : "scanner.stampedBefore", {
+            done: formatNumber(step.done, language),
+            needed: formatNumber(step.needed, language),
+          })}
+        </AppText>
+      </PopIn>
+      <Button label={t("scanner.again")} onPress={onAgain} />
+      <Button kind="quiet" label={t("common.close")} onPress={() => router.back()} />
+    </View>
+  );
+}
+
+/** A hidden category found by its secret code. */
+function RevealedResult({
+  step,
+  onAgain,
+}: Readonly<{ step: Extract<ScanStep, { kind: "revealed" }>; onAgain: () => void }>) {
+  const { t, language } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={styles.result}>
+      <PopIn>
+        <AppText variant="display" accessibilityRole="alert">
+          {t(step.fresh ? "scanner.revealed" : "scanner.revealedBefore", {
+            name: textIn(step.name, language),
+          })}
+        </AppText>
+      </PopIn>
+      {step.fresh ? <AppText>{t("scanner.revealedBody")}</AppText> : null}
+      <Button label={t("common.close")} onPress={() => router.back()} />
+      <Button kind="quiet" label={t("scanner.again")} onPress={onAgain} />
+    </View>
+  );
+}
+
+/** The step below the camera: the "Checking…" beat, the celebration, a stamp, a find, a refusal or a lost answer. */
+function ScanResult({
+  step,
+  onAgain,
+  onRetry,
+}: Readonly<{ step: ScanStep; onAgain: () => void; onRetry: () => void }>) {
+  const { t, language } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  switch (step.kind) {
+    case "checking":
+      return (
+        <View style={styles.result}>
+          <SpinningCoin />
+          <AppText variant="title" accessibilityRole="alert">
+            {t("scanner.checking")}
+          </AppText>
+        </View>
+      );
+    case "celebrating":
+      return <Celebration step={step} onClaim={() => router.back()} />;
+    case "stamped":
+      return <StampedResult step={step} onAgain={onAgain} />;
+    case "revealed":
+      return <RevealedResult step={step} onAgain={onAgain} />;
+    case "refused":
+      return (
+        <View style={styles.result}>
+          <AppText variant="title" accessibilityRole="alert">
+            {refusalText(step.answer, t, language)}
+          </AppText>
+          <Button label={t("scanner.again")} onPress={onAgain} />
+        </View>
+      );
+    case "lost":
+      return (
+        <View style={styles.result}>
+          <AppText accessibilityRole="alert">{t("join.network")}</AppText>
+          <Button label={t("common.retry")} onPress={onRetry} />
+          <Button kind="quiet" label={t("scanner.again")} onPress={onAgain} />
+        </View>
+      );
+    case "scanning":
+      return null;
+  }
 }
 
 /**
@@ -192,11 +418,10 @@ function Celebration({
  * the same unrecognised code is reported once. The server verifies every code; the app only reads the quest id.
  */
 export default function ScanQuestScreen() {
-  const { t, language } = useI18n();
+  const { t } = useI18n();
   const { eventId, scanPositions, nfcOn } = useEvent();
   const { nfc } = useLocalSearchParams<{ nfc?: string }>();
   const reader = useLocationReader();
-  const styles = useThemedStyles(makeStyles);
   const [permission, requestPermission, getPermission] = useCameraPermissions();
   const active = useCameraActive();
   const [step, dispatch] = useReducer(scanStep, { kind: "scanning" });
@@ -208,101 +433,19 @@ export default function ScanQuestScreen() {
 
   useRecheckOnReturn(getPermission);
 
-  const submit = async (id: string, token: string) => {
-    const key = keyFor(attempt.current, token, randomUuid);
-    const position = await scanReading(reader ?? null, scanPositions, Date.now);
-    const answer =
-      id === NFC_ID
-        ? await tapTag(
-            api.session,
-            {
-              code: token,
-              uid: tagUid.current,
-              platform: Platform.OS === "ios" ? "ios" : "android",
-              position,
-            },
-            key,
-          )
-        : await send(id, token, key, position);
-    attempt.current = { key, code: token, retryable: answer.kind === "network" };
-    if (answer.kind === "signed_out") {
-      router.replace("/home");
-      return;
-    }
-    dispatch({ type: "answered", answer });
-    if (answer.kind === "stamped" || answer.kind === "revealed") {
-      buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success));
-    } else if (answer.kind === "completed") {
-      buzz(() => completedBuzz(answer));
-      const quests = await fetchQuests(api.session, eventId);
-      dispatch({
-        type: "details",
-        details: detailsAfter(
-          quests.kind === "quests" ? quests.view : undefined,
-          "questId" in answer && typeof answer.questId === "string" ? answer.questId : id,
-          answer.replayed,
-        ),
-      });
-    } else if (answer.kind !== "network") {
-      buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error));
-    }
+  const scanner: Scanner = {
+    t,
+    eventId,
+    reader,
+    scanPositions,
+    gate,
+    attempt,
+    tagUid,
+    dispatch,
+    setNotice,
   };
-
-  const scanned = ({ data }: { data: string }) => {
-    if (!passes(gate.current, data)) {
-      return;
-    }
-    // A personal operator code (T-204) opens its confirm screen.
-    const invite = inviteTokenOf(data);
-    if (invite !== null) {
-      gate.current = { busy: true, ignored: null };
-      router.replace(`/operator-invite/${invite}`);
-      return;
-    }
-    const scan = readScan(data, EXTRA_ORIGIN);
-    if (scan.kind === "other") {
-      gate.current = { busy: false, ignored: data };
-      setNotice(t("scanner.notQuestify"));
-      buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
-      return;
-    }
-    gate.current = { busy: true, ignored: null };
-    setNotice(null);
-    if (scan.kind === "join") {
-      router.replace({ pathname: "/join/[code]", params: { code: scan.code, via: "qr" } });
-      return;
-    }
-    buzz(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
-    if (scan.kind === "meet") {
-      dispatch({ type: "read", questId: "meet", token: scan.code });
-      void submit("meet", scan.code);
-      return;
-    }
-    const id =
-      scan.kind === "step" ? scan.stepId : scan.kind === "reveal" ? scan.categoryId : scan.questId;
-
-    dispatch({ type: "read", questId: id, token: scan.token });
-    void submit(id, scan.token);
-  };
-
-  // A tag read in the scanner (FR-621): only a Questify tag URL read from a tag counts, never a typed or shared link.
-  const tapped = (read: TapRead) => {
-    if (!passes(gate.current, read.url ?? "")) {
-      return;
-    }
-    const token = tagTokenOf(read.url, EXTRA_ORIGIN);
-    if (token === null) {
-      setNotice(t("scanner.nfc.notQuestify"));
-      buzz(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning));
-      return;
-    }
-    gate.current = { busy: true, ignored: null };
-    setNotice(null);
-    tagUid.current = read.uid;
-    buzz(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light));
-    dispatch({ type: "read", questId: NFC_ID, token });
-    void submit(NFC_ID, token);
-  };
+  const scanned = ({ data }: { data: string }) => handleScan(scanner, data);
+  const tapped = (read: TapRead) => handleTap(scanner, read);
 
   // The last attempt stays: rescanning the same code after a lost answer reuses its key (`keyFor`), so it never pays
   // twice; any answer from the server already made the next key new.
@@ -314,94 +457,27 @@ export default function ScanQuestScreen() {
   const retry = () => {
     if (step.kind === "lost") {
       dispatch({ type: "retry" });
-      void submit(step.questId, step.token);
+      void submitScan(scanner, step.questId, step.token);
     }
   };
 
-  const granted = permission?.granted === true;
   const scanning = step.kind === "scanning";
+  const plan = cameraPlan(permission, true, scanning && active && !cameraFailed);
   return (
     <Screen title={t("scanner.title")} header={<BackButton />}>
       {/* FR-306, FR-622: My QR sits behind the same round button. */}
       <Button kind="quiet" label={t("myQr.title")} onPress={() => router.push("/my-qr")} />
       <ReviewCodePicker eventId={eventId} disabled={!scanning} onScan={scanned} />
       {nfcOn ? <NfcTap active={scanning} autoStart={nfc === "1"} onRead={tapped} /> : null}
-      {permission === null ? <AppText muted>{t("common.loading")}</AppText> : null}
-      {permission !== null && !granted ? (
-        <PermissionCard
-          canAskAgain={permission.canAskAgain}
-          onAllow={() => void requestPermission()}
-        />
-      ) : null}
-      {granted && scanning && active && !cameraFailed ? (
-        <View style={styles.camera}>
-          <CameraView
-            style={{ flex: 1 }}
-            facing="back"
-            barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-            onBarcodeScanned={scanning ? scanned : undefined}
-            onMountError={() => setCameraFailed(true)}
-          />
-        </View>
-      ) : null}
-      {cameraFailed ? (
-        <AppText accessibilityRole="alert">{t("scanner.cameraFailed")}</AppText>
-      ) : null}
+      <ScanCamera
+        plan={plan}
+        cameraFailed={cameraFailed}
+        onAllow={() => void requestPermission()}
+        onScanned={scanned}
+        onMountError={() => setCameraFailed(true)}
+      />
       {notice === null ? null : <AppText accessibilityRole="alert">{notice}</AppText>}
-      {step.kind === "checking" ? (
-        <View style={styles.result}>
-          <SpinningCoin />
-          <AppText variant="title" accessibilityRole="alert">
-            {t("scanner.checking")}
-          </AppText>
-        </View>
-      ) : null}
-      {step.kind === "celebrating" ? (
-        <Celebration step={step} onClaim={() => router.back()} />
-      ) : null}
-      {step.kind === "stamped" ? (
-        <View style={styles.result}>
-          <PopIn>
-            <AppText variant="display" accessibilityRole="alert">
-              {t(step.fresh ? "scanner.stamped" : "scanner.stampedBefore", {
-                done: formatNumber(step.done, language),
-                needed: formatNumber(step.needed, language),
-              })}
-            </AppText>
-          </PopIn>
-          <Button label={t("scanner.again")} onPress={again} />
-          <Button kind="quiet" label={t("common.close")} onPress={() => router.back()} />
-        </View>
-      ) : null}
-      {step.kind === "revealed" ? (
-        <View style={styles.result}>
-          <PopIn>
-            <AppText variant="display" accessibilityRole="alert">
-              {t(step.fresh ? "scanner.revealed" : "scanner.revealedBefore", {
-                name: textIn(step.name, language),
-              })}
-            </AppText>
-          </PopIn>
-          {step.fresh ? <AppText>{t("scanner.revealedBody")}</AppText> : null}
-          <Button label={t("common.close")} onPress={() => router.back()} />
-          <Button kind="quiet" label={t("scanner.again")} onPress={again} />
-        </View>
-      ) : null}
-      {step.kind === "refused" ? (
-        <View style={styles.result}>
-          <AppText variant="title" accessibilityRole="alert">
-            {refusalText(step.answer, t, language)}
-          </AppText>
-          <Button label={t("scanner.again")} onPress={again} />
-        </View>
-      ) : null}
-      {step.kind === "lost" ? (
-        <View style={styles.result}>
-          <AppText accessibilityRole="alert">{t("join.network")}</AppText>
-          <Button label={t("common.retry")} onPress={retry} />
-          <Button kind="quiet" label={t("scanner.again")} onPress={again} />
-        </View>
-      ) : null}
+      <ScanResult step={step} onAgain={again} onRetry={retry} />
     </Screen>
   );
 }

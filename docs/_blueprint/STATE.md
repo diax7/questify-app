@@ -1,5 +1,20 @@
 # Blueprint State — Questify
 
+## Function limits, app screens — 2026-11-09
+
+- **Function-limits baseline, `apps/app` screens (tier B; behaviour-preserving, no string, no screen change).** Nine
+  entries left `scripts/function-limits-baseline.json` (278 to 269 violations): `Celebration` (24), `ScanQuestScreen` (22
+  and 203 lines) and an anonymous handler (12) in `event/[eventId]/scan-quest.tsx`; `StationScanScreen` (19 and 137
+  lines) and an anonymous handler (10) in `operator/[eventId]/station-scan.tsx`; `JoinCardScreen` (19) in
+  `join/[code].tsx`; `ItemRow` (19) in `operator/[eventId]/(tabs)/desk.tsx`. The decisions moved into pure functions with
+  table tests that compare against the old inline logic: `event/celebration-view.ts` (beat shown, Claim, points lines),
+  `event/scan-flow.ts` (what a code means, buzz, quest id), `operator/station-flow.ts` (repeat and busy admission, answer
+  outcome), `operator/item-row.ts` (row lines and buttons), `join/card-view.ts` (joined, parts, join button) and
+  `components/camera-plan.ts`; screens keep their state hooks and effects in the same order (an unused theme-styles read left the two scanner screens), and the lines render
+  through one stateless `TextLines`. `a11y-static.test.ts` green. The baseline was updated with
+  `node scripts/function-limits.mjs --update` and only shrank (it also lowered `InviteFlow` in apps/web, already under
+  its old numbers). CI 0 minutes (not pushed).
+
 ## Function limits, app pure logic — 2026-11-09
 
 - **Function-limits baseline, `apps/app` (tier B; behaviour-preserving, no string, no screen change).** Five offenders left

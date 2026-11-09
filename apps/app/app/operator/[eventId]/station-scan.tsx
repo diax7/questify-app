@@ -9,6 +9,7 @@ import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
 import { PermissionCard, useCameraActive } from "#src/components/Camera.tsx";
+import { cameraPlan, type CameraPlan } from "#src/components/camera-plan.ts";
 import { Button } from "#src/components/Controls.tsx";
 import { RehearsalStrip } from "#src/components/RehearsalStrip.tsx";
 import { isolatedName } from "#src/event/full-name.ts";
@@ -17,13 +18,10 @@ import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { scanFor } from "#src/operator/operator-api.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
+import { admit, outcomeOf, settlesKey } from "#src/operator/station-flow.ts";
 import {
   answered,
   attemptFor,
-  held,
-  isPlayerCode,
-  isRepeat,
-  memoryIn,
   type ScanMemory,
   type ScannedPlayer,
   type StationResult,
@@ -103,6 +101,148 @@ function ResultCover({ shown }: Readonly<{ shown: Shown }>) {
   );
 }
 
+/** What the station's handlers read and write: the values and refs of the screen they act for. */
+type Run = Readonly<{
+  t: ReturnType<typeof useI18n>["t"];
+  station: ReturnType<typeof useOperator>["station"];
+  practice: boolean;
+  removed: () => void;
+  memory: { current: ScanMemory };
+  busy: { current: boolean };
+  timer: { current: ReturnType<typeof setTimeout> | null };
+  setResult: (shown: Shown | null) => void;
+  setProblem: (problem: string | null) => void;
+}>;
+
+/** Covers the screen with a result, buzzes for its colour, and frees the scanner again after `RESULT_MS`. */
+function showResult(run: Run, next: Shown) {
+  run.setResult(next);
+  buzz(() => Haptics.notificationAsync(FEEL[next.result.color]));
+  run.timer.current = setTimeout(() => {
+    run.setResult(null);
+    run.busy.current = false;
+  }, RESULT_MS);
+}
+
+/** What follows an answer that decided nothing or ended the session. */
+function afterRefused(run: Run, kind: string) {
+  const outcome = outcomeOf(kind);
+  if (outcome === "removed") {
+    run.removed();
+  } else if (outcome === "signed_out") {
+    router.replace("/home");
+  } else {
+    // Nothing was decided: the same code may be scanned again at once.
+    run.memory.current = { ...run.memory.current, last: null };
+    run.setProblem(run.t("join.network"));
+  }
+}
+
+/** One camera read at the station: admitted by the memory, sent with its key, and its answer taken in. */
+async function scanStation(run: Run, data: string) {
+  const code = data.trim();
+  const now = Date.now();
+  const { station } = run;
+  if (station === null) {
+    return;
+  }
+  const entry = admit(run.memory.current, run.practice, {
+    code,
+    questId: station.questId,
+    now,
+    busy: run.busy.current,
+  });
+  run.memory.current = entry.memory;
+  if (entry.action === "repeat" || entry.action === "busy") {
+    return;
+  }
+  run.busy.current = true;
+  if (entry.action === "invalid") {
+    showResult(run, {
+      result: { color: "red", reason: "operator.red.invalidCode", player: null },
+      practice: false,
+    });
+    return;
+  }
+  run.setProblem(null);
+  const sent = attemptFor(run.memory.current, { code, questId: station.questId }, randomUuid);
+  run.memory.current = sent.memory;
+  const answer = await scanFor(run.practice)(api.session, {
+    questId: station.questId,
+    code,
+    idempotencyKey: sent.key,
+  });
+  if (settlesKey(answer.kind)) {
+    run.memory.current = answered(run.memory.current);
+  }
+  if (answer.kind === "result") {
+    showResult(run, { result: answer.result, practice: answer.practice });
+    return;
+  }
+  run.busy.current = false;
+  afterRefused(run, answer.kind);
+}
+
+/** Shown when the screen was opened without a picked station. */
+function NoStation() {
+  const { t } = useI18n();
+  return (
+    <>
+      <AppText accessibilityRole="alert">{t("operator.noStation")}</AppText>
+      <Button label={t("operator.home")} onPress={() => router.back()} />
+    </>
+  );
+}
+
+/** The camera area: the permission wait, its card, the live camera with the practice note, and the failure note. */
+function StationCamera({
+  plan,
+  practice,
+  cameraFailed,
+  onAllow,
+  onScanned,
+  onMountError,
+}: Readonly<{
+  plan: CameraPlan;
+  practice: boolean;
+  cameraFailed: boolean;
+  onAllow: () => void;
+  onScanned: (read: { data: string }) => void;
+  onMountError: () => void;
+}>) {
+  const { t } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <>
+      {plan.loading ? <AppText muted>{t("common.loading")}</AppText> : null}
+      {plan.ask === null ? null : (
+        <PermissionCard canAskAgain={plan.ask.canAskAgain} onAllow={onAllow} />
+      )}
+      {plan.camera ? (
+        <>
+          <View style={styles.camera}>
+            <CameraView
+              style={{ flex: 1 }}
+              facing="back"
+              barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+              onBarcodeScanned={onScanned}
+              onMountError={onMountError}
+            />
+          </View>
+          {practice ? (
+            <AppText variant="label" style={styles.footer}>
+              {t("operator.practice.footer")}
+            </AppText>
+          ) : null}
+        </>
+      ) : null}
+      {cameraFailed ? (
+        <AppText accessibilityRole="alert">{t("scanner.cameraFailed")}</AppText>
+      ) : null}
+    </>
+  );
+}
+
 /**
  * Station mode (FR-923): the operator picked a quest on Home; each player's My QR scanned here completes it for that
  * player, one after another, with no prompt. The same code held up is one scan (5 seconds here, 10 at the server).
@@ -110,7 +250,6 @@ function ResultCover({ shown }: Readonly<{ shown: Shown }>) {
  */
 export default function StationScanScreen() {
   const { t } = useI18n();
-  const styles = useThemedStyles(makeStyles);
   const { event, station, removed, practice } = useOperator();
   const [permission, requestPermission, getPermission] = useCameraPermissions();
   const active = useCameraActive();
@@ -139,68 +278,8 @@ export default function StationScanScreen() {
     return () => watcher.remove();
   }, [getPermission]);
 
-  const show = (next: Shown) => {
-    setResult(next);
-    buzz(() => Haptics.notificationAsync(FEEL[next.result.color]));
-    timer.current = setTimeout(() => {
-      setResult(null);
-      busy.current = false;
-    }, RESULT_MS);
-  };
-
-  const scanned = async ({ data }: { data: string }) => {
-    const code = data.trim();
-    const now = Date.now();
-    if (station === null) {
-      return;
-    }
-    memory.current = memoryIn(memory.current, practice);
-    const { last } = memory.current;
-    // A code still in front of the camera keeps its one scan for as long as it stays (the window slides).
-    if (last !== null && isRepeat(last, code, station.questId, now)) {
-      memory.current = { ...memory.current, last: held(last, now) };
-      return;
-    }
-    if (busy.current) {
-      return;
-    }
-    busy.current = true;
-    memory.current = { ...memory.current, last: { code, questId: station.questId, at: now } };
-    if (!isPlayerCode(code)) {
-      show({
-        result: { color: "red", reason: "operator.red.invalidCode", player: null },
-        practice: false,
-      });
-      return;
-    }
-    setProblem(null);
-    const sent = attemptFor(memory.current, { code, questId: station.questId }, randomUuid);
-    memory.current = sent.memory;
-    const answer = await scanFor(practice)(api.session, {
-      questId: station.questId,
-      code,
-      idempotencyKey: sent.key,
-    });
-    if (answer.kind !== "network") {
-      memory.current = answered(memory.current);
-    }
-    if (answer.kind === "result") {
-      show({ result: answer.result, practice: answer.practice });
-      return;
-    }
-    busy.current = false;
-    if (answer.kind === "removed") {
-      removed();
-    } else if (answer.kind === "signed_out") {
-      router.replace("/home");
-    } else {
-      // Nothing was decided: the same code may be scanned again at once.
-      memory.current = { ...memory.current, last: null };
-      setProblem(t("join.network"));
-    }
-  };
-
-  const granted = permission?.granted === true;
+  const run: Run = { t, station, practice, removed, memory, busy, timer, setResult, setProblem };
+  const plan = cameraPlan(permission, station !== null, active && !cameraFailed);
   return (
     <Screen
       title={station?.title ?? t("operator.station")}
@@ -211,42 +290,15 @@ export default function StationScanScreen() {
         </>
       }
     >
-      {station === null ? (
-        <>
-          <AppText accessibilityRole="alert">{t("operator.noStation")}</AppText>
-          <Button label={t("operator.home")} onPress={() => router.back()} />
-        </>
-      ) : null}
-      {station !== null && permission === null ? (
-        <AppText muted>{t("common.loading")}</AppText>
-      ) : null}
-      {station !== null && permission !== null && !granted ? (
-        <PermissionCard
-          canAskAgain={permission.canAskAgain}
-          onAllow={() => void requestPermission()}
-        />
-      ) : null}
-      {station !== null && granted && active && !cameraFailed ? (
-        <>
-          <View style={styles.camera}>
-            <CameraView
-              style={{ flex: 1 }}
-              facing="back"
-              barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-              onBarcodeScanned={(read) => void scanned(read)}
-              onMountError={() => setCameraFailed(true)}
-            />
-          </View>
-          {practice ? (
-            <AppText variant="label" style={styles.footer}>
-              {t("operator.practice.footer")}
-            </AppText>
-          ) : null}
-        </>
-      ) : null}
-      {cameraFailed ? (
-        <AppText accessibilityRole="alert">{t("scanner.cameraFailed")}</AppText>
-      ) : null}
+      {station === null ? <NoStation /> : null}
+      <StationCamera
+        plan={plan}
+        practice={practice}
+        cameraFailed={cameraFailed}
+        onAllow={() => void requestPermission()}
+        onScanned={(read) => void scanStation(run, read.data)}
+        onMountError={() => setCameraFailed(true)}
+      />
       {problem === null ? null : <AppText accessibilityRole="alert">{problem}</AppText>}
       {result === null ? null : <ResultCover shown={result} />}
     </Screen>

@@ -26,6 +26,7 @@ import {
   type JoinOutcome,
 } from "#src/join/join-api.ts";
 import { CardReceives } from "#src/join/CardReceives.tsx";
+import { cardParts, isJoinedResult, joinButton } from "#src/join/card-view.ts";
 import { JoinForm } from "#src/join/JoinForm.tsx";
 import {
   pointAtMissing,
@@ -33,6 +34,7 @@ import {
   refusalFromParams,
   refusalOf,
   type Pointed,
+  type Refusal,
 } from "#src/join/pointed.ts";
 import { isInEvent, joinedResult, type JoinResult } from "#src/join/join-result.ts";
 import { RehearsalJoin } from "#src/join/RehearsalJoin.tsx";
@@ -66,10 +68,6 @@ const welcomeOf = (value: unknown): number => {
   const points = Number(value);
   return Number.isInteger(points) && points > 0 ? points : 0;
 };
-
-/** The join button: the waiting list once the event said it is full (FR-1821), a request for a Private event (FR-1818). */
-const joinLabel = (full: boolean, isPrivate: boolean): MessageKey =>
-  full ? "join.waitlistJoin" : isPrivate ? "joinCard.request" : "joinCard.join";
 
 /** The card by its code; `card` alone is replaced when a join says it changed. */
 function useCard(code: string) {
@@ -198,6 +196,87 @@ function useJoinFlow(params: JoinParams, code: string, cardState: ReturnType<typ
   return { result, problem, welcome, typed, setTyped, pointed, busy, tapJoin, player };
 }
 
+type CardEvent = Extract<CardAnswer, { kind: "card" }>["event"];
+type Flow = ReturnType<typeof useJoinFlow>;
+
+/** The event's venue and end note, what the card gives, the welcome reward, the join form, the outcome and the problem. */
+function CardBody({
+  event,
+  card,
+  flow,
+  shown,
+  ended,
+  parts,
+}: Readonly<{
+  event: CardEvent;
+  card: JoinCard | undefined;
+  flow: Flow;
+  shown: Refusal;
+  ended: boolean;
+  parts: ReturnType<typeof cardParts>;
+}>) {
+  const { t, language } = useI18n();
+  const { result, welcome, typed, setTyped } = flow;
+  const venue = textIn(event.venue, language);
+  return (
+    <>
+      {venue === "" ? null : <AppText muted>{venue}</AppText>}
+      {ended ? <AppText>{t("eventPage.ended")}</AppText> : null}
+      <CardReceives card={card} />
+      {parts.welcome ? <WelcomeReward points={welcome} /> : null}
+      {parts.join ? (
+        <JoinForm rules={event.join} typed={typed} onType={setTyped} pointed={shown.pointed} />
+      ) : null}
+      {result === undefined ? null : <AppText>{t(OUTCOME_KEY[result])}</AppText>}
+      <Problem problem={shown.problem} />
+    </>
+  );
+}
+
+/** Open the event once joined, else the Join button (the waiting list when full). */
+function CardButtons({
+  event,
+  card,
+  flow,
+  joined,
+  parts,
+}: Readonly<{
+  event: CardEvent;
+  card: JoinCard | undefined;
+  flow: Flow;
+  joined: boolean;
+  parts: ReturnType<typeof cardParts>;
+}>) {
+  const { t, language } = useI18n();
+  const { result, busy, tapJoin, player } = flow;
+  const button = joinButton({
+    result,
+    isPrivate: event.access === "private",
+    busy,
+    cardMissing: card === undefined,
+    playerLoading: player.status === "loading",
+  });
+  return (
+    <>
+      {joined ? (
+        <Button
+          label={t("joinCard.openEvent")}
+          onPress={() =>
+            void openJoinedEvent(event.id, textIn(event.name, language), isInEvent(result))
+          }
+        />
+      ) : null}
+      {parts.join ? (
+        <Button
+          label={t(button.label)}
+          disabled={button.disabled}
+          onPress={() => void tapJoin(button.waitlist)}
+        />
+      ) : null}
+    </>
+  );
+}
+
 /** The join card by an event's join code. */
 function JoinCardScreen() {
   const { t, language } = useI18n();
@@ -206,9 +285,8 @@ function JoinCardScreen() {
   const cardState = useCard(code);
   const { answer, card, load } = cardState;
   const flow = useJoinFlow(params, code, cardState);
-  const { result, problem, welcome, typed, setTyped, pointed, busy, tapJoin, player } = flow;
-  const joined =
-    result === "active" || result === "pending" || result === "waitlisted" || result === "already";
+  const { result, problem, welcome, pointed } = flow;
+  const joined = isJoinedResult(result);
   const explainer = useJoinExplainer(joined);
 
   if (answer === undefined) {
@@ -230,36 +308,13 @@ function JoinCardScreen() {
     { pointed, problem },
     event.join.fields.map((field) => field.id),
   );
+  const parts = cardParts(joined, ended, welcome);
   return (
     <Screen title={textIn(event.name, language)}>
       <PushExplainer explainer={explainer} />
       <ScrollView contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
-        {textIn(event.venue, language) === "" ? null : (
-          <AppText muted>{textIn(event.venue, language)}</AppText>
-        )}
-        {ended ? <AppText>{t("eventPage.ended")}</AppText> : null}
-        <CardReceives card={card} />
-        {joined && welcome > 0 ? <WelcomeReward points={welcome} /> : null}
-        {ended || joined ? null : (
-          <JoinForm rules={event.join} typed={typed} onType={setTyped} pointed={shown.pointed} />
-        )}
-        {result === undefined ? null : <AppText>{t(OUTCOME_KEY[result])}</AppText>}
-        <Problem problem={shown.problem} />
-        {joined ? (
-          <Button
-            label={t("joinCard.openEvent")}
-            onPress={() =>
-              void openJoinedEvent(event.id, textIn(event.name, language), isInEvent(result))
-            }
-          />
-        ) : null}
-        {ended || joined ? null : (
-          <Button
-            label={t(joinLabel(result === "full", event.access === "private"))}
-            disabled={busy || card === undefined || player.status === "loading"}
-            onPress={() => void tapJoin(result === "full")}
-          />
-        )}
+        <CardBody event={event} card={card} flow={flow} shown={shown} ended={ended} parts={parts} />
+        <CardButtons event={event} card={card} flow={flow} joined={joined} parts={parts} />
       </ScrollView>
     </Screen>
   );
