@@ -14,8 +14,10 @@
   tests. Review notes are in FOLLOWUPS. Core paths (points, sign-in, scanning, prize handover, desk, SQL) were left alone.
 - **Nightly fix.** The 2026-11-09 Full checks failed seven builder specs with "We could not send the code": the e2e
   `freshAddress` helper sent a last octet past 255 once the a11y sweep made the run longer. It now uses
-  `10.<random>.<n/250>.<n%250+1>` (`apps/web/e2e/mail.ts`). Confirm on the next nightly. The a11y spec's contrast finding
-  is still open.
+  `10.<random>.<n/250>.<n%250+1>` (`apps/web/e2e/mail.ts`). Confirm on the next nightly. The a11y spec's finding was
+  `landmark-unique` on `/console/readiness` (two events of the same name), not contrast: the event cards are now articles.
+- **Since release-8:** the baseline went from 106 to 74 in four more batches (web 5, app 6, API 5 with the operator routes
+  pinned by a route-list test, and a FOLLOWUPS clean-up), each reviewed 95 or 96. The remaining 74 are core paths.
 - **Staging:** `release-20261109-8` (f0d902ef), API and web deployed and probed (readyz, sign-in in both languages, console 307). The API deploy ran `connect` by mistake, which left `DATABASE_ADMIN_URL` on the API for about ten minutes; it was unset and the API restarted (`no-admin` confirmed), and the handoff now says `connect` is for migrations only.
 
 ## Function limits, API error mappers — 2026-11-09
