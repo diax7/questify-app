@@ -264,6 +264,39 @@ export function blankQuest(categoryId: string): QuestDraft {
   };
 }
 
+/** Whether a flash quest was launched by hand or its shown window has started: it stays one (T-307). */
+const flashIsRunning = (quest: QuestView): boolean =>
+  quest.flash === true &&
+  ((quest.flashLaunchedAt ?? null) !== null ||
+    (quest.visible && quest.opensAt !== null && Date.parse(quest.opensAt) <= Date.now()));
+
+/** The place as typed text: both pin numbers are empty without one, and the radius starts at its default. */
+function placeFieldsOf(
+  quest: QuestView,
+): Pick<QuestDraft, "placeLat" | "placeLng" | "placeRadius"> {
+  return {
+    placeLat: quest.place === null ? "" : String(quest.place.lat),
+    placeLng: quest.place === null ? "" : String(quest.place.lng),
+    placeRadius: String(quest.place?.radiusM ?? DEFAULT_PLACE_RADIUS),
+  };
+}
+
+/** The first-N bonus as the form holds it: on when the API has one, otherwise the defaults. */
+function firstBonusFieldsOf(
+  quest: QuestView,
+): Pick<
+  QuestDraft,
+  "firstBonusOn" | "firstBonusPoints" | "firstBonusSlots" | "firstBonusSaved" | "firstBonusStop"
+> {
+  return {
+    firstBonusOn: (quest.firstBonus ?? null) !== null,
+    firstBonusPoints: quest.firstBonus?.points ?? 10,
+    firstBonusSlots: quest.firstBonus?.slots ?? 10,
+    firstBonusSaved: quest.firstBonus ?? null,
+    firstBonusStop: false,
+  };
+}
+
 export function questDraftOf(quest: QuestView, timeZone: string): QuestDraft {
   const local = (iso: string | null) => (iso === null ? "" : toLocalInput(new Date(iso), timeZone));
   return {
@@ -281,20 +314,11 @@ export function questDraftOf(quest: QuestView, timeZone: string): QuestDraft {
     config: quest.type === "passport" ? { ...quest.config, steps: formSteps(quest) } : quest.config,
     verification: quest.verification,
     itemId: quest.itemId ?? "",
-    placeLat: quest.place === null ? "" : String(quest.place.lat),
-    placeLng: quest.place === null ? "" : String(quest.place.lng),
-    placeRadius: String(quest.place?.radiusM ?? DEFAULT_PLACE_RADIUS),
+    ...placeFieldsOf(quest),
     pollSent: quest.pollSentAt !== null,
     flash: quest.flash === true,
-    flashRunning:
-      quest.flash === true &&
-      ((quest.flashLaunchedAt ?? null) !== null ||
-        (quest.visible && quest.opensAt !== null && Date.parse(quest.opensAt) <= Date.now())),
-    firstBonusOn: (quest.firstBonus ?? null) !== null,
-    firstBonusPoints: quest.firstBonus?.points ?? 10,
-    firstBonusSlots: quest.firstBonus?.slots ?? 10,
-    firstBonusSaved: quest.firstBonus ?? null,
-    firstBonusStop: false,
+    flashRunning: flashIsRunning(quest),
+    ...firstBonusFieldsOf(quest),
   };
 }
 
@@ -378,13 +402,8 @@ export function editQuestBody(draft: QuestDraft, before: QuestDraft): Record<str
   );
 }
 
-/**
- * The first field the API would refuse, checked here first with the same shared rules, so a live event's confirmation
- * is never asked for a change that would fail anyway. Undefined when the draft is fine.
- */
-export function questProblem(
-  draft: QuestDraft,
-):
+/** A field of the quest form the API would refuse (`questProblem`). */
+export type QuestProblem =
   | "title"
   | "points"
   | "closesAt"
@@ -396,44 +415,69 @@ export function questProblem(
   | "dailyCap"
   | "flash"
   | "flashWindow"
-  | "firstBonus"
-  | undefined {
+  | "firstBonus";
+
+const pointsValid = (points: number): boolean =>
+  Number.isInteger(points) && points >= 0 && points <= 100_000;
+
+/** Whether the quest closes after it opens (either time may be unset). */
+const windowOrdered = (draft: QuestDraft): boolean =>
+  draft.opensAt === "" || draft.closesAt === "" || draft.closesAt > draft.opensAt;
+
+/** The title, points and opening window: the plain fields every type has. */
+function basicsProblem(draft: QuestDraft): QuestProblem | undefined {
   if (draft.titleAr.trim() === "" && draft.titleEn.trim() === "") {
     return "title";
   }
-  if (!Number.isInteger(draft.points) || draft.points < 0 || draft.points > 100_000) {
+  if (!pointsValid(draft.points)) {
     return "points";
   }
-  if (draft.opensAt !== "" && draft.closesAt !== "" && draft.closesAt <= draft.opensAt) {
-    return "closesAt";
+  return windowOrdered(draft) ? undefined : "closesAt";
+}
+
+/** The flash flag and its window: a live poll is never flash, and a shown draft needs a window the API takes. */
+function flashProblem(draft: QuestDraft): QuestProblem | undefined {
+  if (!draft.flash) {
+    return undefined;
   }
-  if (!placeIsValid(draft)) {
-    return "place";
-  }
-  if (draft.flash && isLivePoll(draft.type, draft.config)) {
+  if (isLivePoll(draft.type, draft.config)) {
     return "flash";
   }
-  if (draft.flash && !draft.flashRunning && !flashWindowValid(draft)) {
-    return "flashWindow";
-  }
-  if (
+  return !draft.flashRunning && !flashWindowValid(draft) ? "flashWindow" : undefined;
+}
+
+/** The first-N bonus, once on: its points and slots in range, and slots not under those already given. */
+function firstBonusBad(draft: QuestDraft): boolean {
+  return (
     draft.firstBonusOn &&
     (firstBonusProblem({ points: draft.firstBonusPoints, slots: draft.firstBonusSlots }) !== null ||
       draft.firstBonusSlots < (draft.firstBonusSaved?.given ?? 0))
-  ) {
-    return "firstBonus";
+  );
+}
+
+/** The place, the flash flag and window, and the first-N bonus. */
+function extrasProblem(draft: QuestDraft): QuestProblem | undefined {
+  if (!placeIsValid(draft)) {
+    return "place";
   }
-  const parts = apiParts(draft);
+  return flashProblem(draft) ?? (firstBonusBad(draft) ? "firstBonus" : undefined);
+}
+
+/** A passport's steps: named, between one and the most, and enough of them for the number needed. */
+function stepsProblem(parts: ApiParts): QuestProblem | undefined {
   const steps = parts.steps;
-  if (steps !== undefined) {
-    const named = steps.every((step) => step.name.ar.trim() !== "" || step.name.en.trim() !== "");
-    if (steps.length === 0 || steps.length > PASSPORT_STEPS_MAX || !named) {
-      return "steps";
-    }
-    if (Number(parts.config["needed"]) > steps.length) {
-      return "needed";
-    }
+  if (steps === undefined) {
+    return undefined;
   }
+  const named = steps.every((step) => step.name.ar.trim() !== "" || step.name.en.trim() !== "");
+  if (steps.length === 0 || steps.length > PASSPORT_STEPS_MAX || !named) {
+    return "steps";
+  }
+  return Number(parts.config["needed"]) > steps.length ? "needed" : undefined;
+}
+
+/** The type's own config and the way it is verified. */
+function configProblem(draft: QuestDraft, parts: ApiParts): QuestProblem | undefined {
   if (parseQuestConfig(draft.type, parts.config) === undefined) {
     return draft.type === "meet" ? "dailyCap" : "config";
   }
@@ -444,4 +488,18 @@ export function questProblem(
   return parseVerification(draft.type, draft.verification) === undefined
     ? "verification"
     : undefined;
+}
+
+/**
+ * The first field the API would refuse, checked here first with the same shared rules, so a live event's confirmation
+ * is never asked for a change that would fail anyway. Undefined when the draft is fine.
+ */
+export function questProblem(draft: QuestDraft): QuestProblem | undefined {
+  const parts = apiParts(draft);
+  return (
+    basicsProblem(draft) ??
+    extrasProblem(draft) ??
+    stepsProblem(parts) ??
+    configProblem(draft, parts)
+  );
 }
