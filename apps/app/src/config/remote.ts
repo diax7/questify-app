@@ -53,26 +53,44 @@ export async function loadConfig(
 ): Promise<ComposedConfig | undefined> {
   const key = configKeyOf(options.event);
   const cached = await readCached(deps.store, key);
-  const etag = options.revalidate === false ? null : (cached?.etag ?? null);
-  const answer = await deps.client.request({
-    method: "GET",
-    path: options.event === undefined ? "/v1/config" : `/v1/events/${options.event}/config`,
-    ...(etag === null ? {} : { headers: { "if-none-match": etag } }),
-  });
+  const answer = await deps.client.request(configRequest(options, cached));
   if (answer.kind === "error" && answer.status === 304) {
     return usable(cached);
   }
-  if (answer.kind === "ok") {
-    const parsed = parseComposedConfig(answer.body);
-    if (parsed.ok) {
-      await deps.store.setItem(
-        key,
-        JSON.stringify({ etag: answer.headers.get("etag"), body: answer.body } satisfies Cached),
-      );
-      return parsed.config;
-    }
+  return (await keepFresh(deps.store, key, answer)) ?? usable(cached);
+}
+
+/** The GET for the platform's or the event's copy, with the cached tag unless the caller asked for a full read. */
+function configRequest(
+  options: Readonly<{ revalidate?: boolean; event?: string }>,
+  cached: Cached | undefined,
+): Omit<ApiRequest, "accessToken"> {
+  const etag = options.revalidate === false ? null : (cached?.etag ?? null);
+  return {
+    method: "GET",
+    path: options.event === undefined ? "/v1/config" : `/v1/events/${options.event}/config`,
+    ...(etag === null ? {} : { headers: { "if-none-match": etag } }),
+  };
+}
+
+/** Keeps a readable fresh answer as the last working copy and returns it; undefined for anything else. */
+async function keepFresh(
+  store: KeyValueStore,
+  key: string,
+  answer: AuthedResult,
+): Promise<ComposedConfig | undefined> {
+  if (answer.kind !== "ok") {
+    return undefined;
   }
-  return usable(cached);
+  const parsed = parseComposedConfig(answer.body);
+  if (!parsed.ok) {
+    return undefined;
+  }
+  await store.setItem(
+    key,
+    JSON.stringify({ etag: answer.headers.get("etag"), body: answer.body } satisfies Cached),
+  );
+  return parsed.config;
 }
 
 async function showCachedThenFresh(

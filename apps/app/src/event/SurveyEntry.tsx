@@ -50,25 +50,56 @@ function RatingRow({
   );
 }
 
-function QuestionField({
-  question,
+/** The typed answer of a text question, with its counter. */
+function TextAnswer({
+  label,
   value,
   disabled,
-  marked,
   onChange,
 }: Readonly<{
-  question: SurveyQuestion;
+  label: string;
   value: string | number | undefined;
   disabled: boolean;
-  marked: boolean;
   onChange: (value: string | number) => void;
 }>) {
   const { t, language } = useI18n();
-  const label = `${textIn(question.text, language)}${question.required ? " *" : ""}`;
   const typed = typeof value === "string" ? value : "";
   return (
-    <View>
-      {question.kind === "text" ? null : <AppText variant="label">{label}</AppText>}
+    <>
+      <Field
+        label={label}
+        value={typed}
+        editable={!disabled}
+        multiline
+        maxLength={SURVEY_TEXT_MAX}
+        onChangeText={onChange}
+      />
+      <AppText muted>
+        {t("submission.counter", {
+          count: formatNumber(typed.trim().length, language),
+          max: formatNumber(SURVEY_TEXT_MAX, language),
+        })}
+      </AppText>
+    </>
+  );
+}
+
+/** The control a question is answered with: its choices, one to five, or typed text. */
+function AnswerInput({
+  question,
+  label,
+  value,
+  disabled,
+  onChange,
+}: Readonly<{
+  question: SurveyQuestion;
+  label: string;
+  value: string | number | undefined;
+  disabled: boolean;
+  onChange: (value: string | number) => void;
+}>) {
+  return (
+    <>
       {question.kind === "choice" ? (
         <ChoiceList
           choices={question.choices ?? []}
@@ -85,23 +116,37 @@ function QuestionField({
         />
       ) : null}
       {question.kind === "text" ? (
-        <>
-          <Field
-            label={label}
-            value={typed}
-            editable={!disabled}
-            multiline
-            maxLength={SURVEY_TEXT_MAX}
-            onChangeText={onChange}
-          />
-          <AppText muted>
-            {t("submission.counter", {
-              count: formatNumber(typed.trim().length, language),
-              max: formatNumber(SURVEY_TEXT_MAX, language),
-            })}
-          </AppText>
-        </>
+        <TextAnswer label={label} value={value} disabled={disabled} onChange={onChange} />
       ) : null}
+    </>
+  );
+}
+
+function QuestionField({
+  question,
+  value,
+  disabled,
+  marked,
+  onChange,
+}: Readonly<{
+  question: SurveyQuestion;
+  value: string | number | undefined;
+  disabled: boolean;
+  marked: boolean;
+  onChange: (value: string | number) => void;
+}>) {
+  const { t, language } = useI18n();
+  const label = `${textIn(question.text, language)}${question.required ? " *" : ""}`;
+  return (
+    <View>
+      {question.kind === "text" ? null : <AppText variant="label">{label}</AppText>}
+      <AnswerInput
+        question={question}
+        label={label}
+        value={value}
+        disabled={disabled}
+        onChange={onChange}
+      />
       {marked ? <AppText accessibilityRole="alert">{t("play.survey.checkThis")}</AppText> : null}
     </View>
   );

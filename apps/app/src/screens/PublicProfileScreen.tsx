@@ -112,34 +112,79 @@ export function PublicProfileScreen() {
   return (
     <Screen title={t("profile.public")} header={<BackButton />}>
       <ScrollView contentContainerStyle={{ gap: 12 }}>
-        {state.status !== "signed_in" ? (
-          <Button label={t("signIn.start")} onPress={() => router.push("/sign-in")} />
-        ) : blocked ? (
-          <BlockedLine username={username} onChange={changeBlock} />
-        ) : typeof shown === "string" ? (
-          <>
-            <AppText accessibilityLiveRegion="polite">
-              {t(
-                shown === "loading"
-                  ? "common.loading"
-                  : shown === "unavailable"
-                    ? "profile.unavailable"
-                    : "profile.failed",
-              )}
-            </AppText>
-            {shown === "failed" ? (
-              <Button label={t("common.retry")} onPress={() => setAttempt((n) => n + 1)} />
-            ) : null}
-          </>
-        ) : (
-          <ProfileDetails
-            profile={shown}
-            own={shown.username.toLowerCase() === state.me?.username.toLowerCase()}
-            eventId={event}
-            onBlock={changeBlock}
-          />
-        )}
+        <ProfileContent
+          signedIn={state.status === "signed_in"}
+          readerUsername={state.status === "signed_in" ? state.me?.username : undefined}
+          username={username}
+          eventId={event}
+          blocked={blocked}
+          shown={shown}
+          onBlock={changeBlock}
+          onRetry={() => setAttempt((n) => n + 1)}
+        />
       </ScrollView>
     </Screen>
+  );
+}
+
+/** What the profile read says while it is not a profile yet: loading, unavailable, or failed with a retry. */
+function ProfileStatus({
+  shown,
+  onRetry,
+}: Readonly<{ shown: "loading" | "unavailable" | "failed"; onRetry: () => void }>) {
+  const { t } = useI18n();
+  return (
+    <>
+      <AppText accessibilityLiveRegion="polite">
+        {t(
+          shown === "loading"
+            ? "common.loading"
+            : shown === "unavailable"
+              ? "profile.unavailable"
+              : "profile.failed",
+        )}
+      </AppText>
+      {shown === "failed" ? <Button label={t("common.retry")} onPress={onRetry} /> : null}
+    </>
+  );
+}
+
+/** What the screen shows: sign-in for a signed-out reader, the blocked line, the read's status, or the profile. */
+function ProfileContent({
+  signedIn,
+  readerUsername,
+  username,
+  eventId,
+  blocked,
+  shown,
+  onBlock,
+  onRetry,
+}: Readonly<{
+  signedIn: boolean;
+  readerUsername: string | undefined;
+  username: string;
+  eventId: string | undefined;
+  blocked: boolean;
+  shown: PublicProfile | "loading" | "unavailable" | "failed";
+  onBlock: (blocked: boolean) => void;
+  onRetry: () => void;
+}>) {
+  const { t } = useI18n();
+  if (!signedIn) {
+    return <Button label={t("signIn.start")} onPress={() => router.push("/sign-in")} />;
+  }
+  if (blocked) {
+    return <BlockedLine username={username} onChange={onBlock} />;
+  }
+  if (typeof shown === "string") {
+    return <ProfileStatus shown={shown} onRetry={onRetry} />;
+  }
+  return (
+    <ProfileDetails
+      profile={shown}
+      own={shown.username.toLowerCase() === readerUsername?.toLowerCase()}
+      eventId={eventId}
+      onBlock={onBlock}
+    />
   );
 }

@@ -199,19 +199,24 @@ const isTime = (value: unknown) => value === null || typeof value === "string";
 
 const NUMBERS = ["points", "repeatCap", "done", "earned"] as const;
 
-const isQuest = (value: unknown): value is Quest =>
-  isRecord(value) &&
+const isVerification = (value: unknown): boolean =>
+  value === undefined || (Array.isArray(value) && value.every((item) => typeof item === "string"));
+
+const hasQuestText = (value: Record<string, unknown>): boolean =>
   typeof value["id"] === "string" &&
   typeof value["type"] === "string" &&
   isText(value["title"]) &&
-  isText(value["description"]) &&
+  isText(value["description"]);
+
+const hasQuestState = (value: Record<string, unknown>): boolean =>
   isTime(value["opensAt"]) &&
   isTime(value["closesAt"]) &&
   typeof value["state"] === "string" &&
-  (value["verification"] === undefined ||
-    (Array.isArray(value["verification"]) &&
-      value["verification"].every((item) => typeof item === "string"))) &&
+  isVerification(value["verification"]) &&
   NUMBERS.every((key) => typeof value[key] === "number");
+
+const isQuest = (value: unknown): value is Quest =>
+  isRecord(value) && hasQuestText(value) && hasQuestState(value);
 
 const isCategory = (value: unknown): value is Category =>
   isRecord(value) &&

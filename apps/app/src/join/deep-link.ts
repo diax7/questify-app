@@ -16,10 +16,15 @@ export function routeForIncoming(incoming: string): string {
   if (invite !== undefined && invite !== null) {
     return `/operator-invite/${invite}`;
   }
+  const code = joinCodeOf(incoming);
+  return code === undefined || code === null ? "/" : `/join/${code}?via=link`;
+}
+
+/** The event code a join link holds, as a full https URL or as its path alone; nothing for anything else. */
+function joinCodeOf(incoming: string): string | null | undefined {
   const fromUrl = incoming.startsWith("https://")
     ? parseJoinLink(incoming.replace(/[?#].*$/, ""))
     : null;
   const fromPath = fromUrl === null ? JOIN_PATH.exec(incoming)?.[1]?.toUpperCase() : undefined;
-  const code = fromUrl ?? fromPath;
-  return code === undefined || code === null ? "/" : `/join/${code}?via=link`;
+  return fromUrl ?? fromPath;
 }

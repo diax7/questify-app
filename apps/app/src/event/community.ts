@@ -92,18 +92,28 @@ function stepOf(value: unknown): CommunityStep | undefined {
   };
 }
 
+type CardFields = Pick<
+  CommunityCard,
+  "goalId" | "measure" | "status" | "target" | "progress" | "endsAt"
+>;
+
+/** Whether the card's own fields are all of the right kind (its steps are checked apart). */
+function hasCardFields(
+  value: Record<string, unknown>,
+): value is Record<string, unknown> & CardFields {
+  return (
+    typeof value["goalId"] === "string" &&
+    oneOf(MEASURES, value["measure"]) &&
+    oneOf(STATUSES, value["status"]) &&
+    typeof value["target"] === "number" &&
+    typeof value["progress"] === "number" &&
+    typeof value["endsAt"] === "string"
+  );
+}
+
 /** The live answer's `community`, or null when it is absent or not readable. */
 export function communityOf(value: unknown): CommunityCard | null {
-  if (
-    !isRecord(value) ||
-    typeof value["goalId"] !== "string" ||
-    !oneOf(MEASURES, value["measure"]) ||
-    !oneOf(STATUSES, value["status"]) ||
-    typeof value["target"] !== "number" ||
-    typeof value["progress"] !== "number" ||
-    typeof value["endsAt"] !== "string" ||
-    !Array.isArray(value["steps"])
-  ) {
+  if (!isRecord(value) || !hasCardFields(value) || !Array.isArray(value["steps"])) {
     return null;
   }
   const steps = value["steps"].map(stepOf);

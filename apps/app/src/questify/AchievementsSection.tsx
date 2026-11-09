@@ -6,6 +6,7 @@ import { Button } from "#src/components/Controls.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { AchievementBadge } from "#src/questify/AchievementBadge.tsx";
 import { useQuestifySync } from "#src/questify/QuestifySyncProvider.tsx";
+import { tileTextOf } from "#src/questify/achievement-tile.ts";
 import { fetchAchievements } from "#src/questify/questify-api.ts";
 import { useRead } from "#src/questify/use-read.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -21,23 +22,13 @@ type TileProps = Readonly<{
 function Tile({ achievement, withProgress }: TileProps) {
   const { t, language } = useI18n();
   const styles = useThemedStyles(makeStyles);
-  const name = achievement.name[language];
-  const { tier, next } = achievement;
-  const tierName = tier === null ? null : t(`achievements.tier.${tier}`);
-  const nextText =
-    withProgress && next !== null
-      ? t("achievements.next", {
-          tier: t(`achievements.tier.${next.tier}`),
-          progress: Math.min(achievement.progress, next.target),
-          target: next.target,
-        })
-      : null;
-  const badgeLabel =
-    tierName === null
-      ? t("achievements.locked", { name })
-      : t("achievements.badge", { name, tier: tierName });
-  // The label replaces the tile's children for a screen reader, so the progress line is part of it.
-  const label = nextText === null ? badgeLabel : `${badgeLabel}. ${nextText}`;
+  const { name, tierName, nextText, label, topTier } = tileTextOf(
+    achievement,
+    withProgress,
+    language,
+    t,
+  );
+  const { tier } = achievement;
   return (
     <View accessible accessibilityLabel={label} style={styles.tile}>
       <AchievementBadge
@@ -59,7 +50,7 @@ function Tile({ achievement, withProgress }: TileProps) {
           {nextText}
         </AppText>
       )}
-      {withProgress && tier === "gold" && next === null ? (
+      {topTier ? (
         <AppText muted style={styles.center}>
           {t("achievements.topTier")}
         </AppText>

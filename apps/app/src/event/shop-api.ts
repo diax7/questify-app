@@ -229,6 +229,11 @@ export function rewardAction(reward: ShopReward, view: ShopView, now: number): R
   if (atDesk !== undefined) {
     return atDesk;
   }
+  return stockAction(reward, now) ?? (view.balance < reward.price ? "too_dear" : "redeem");
+}
+
+/** What stops a reward on its stock, its window or the player's limit; undefined when none does. */
+function stockAction(reward: ShopReward, now: number): RewardAction | undefined {
   if (reward.stockLeft <= 0) {
     return "sold_out";
   }
@@ -238,10 +243,9 @@ export function rewardAction(reward: ShopReward, view: ShopView, now: number): R
   if (reward.closesAt !== null && Date.parse(reward.closesAt) <= now) {
     return "ended";
   }
-  if (reward.perPlayerLimit !== null && reward.heldByMe >= reward.perPlayerLimit) {
-    return "limit";
-  }
-  return view.balance < reward.price ? "too_dear" : "redeem";
+  return reward.perPlayerLimit !== null && reward.heldByMe >= reward.perPlayerLimit
+    ? "limit"
+    : undefined;
 }
 
 /** The sections that have at least one reward, in the shop's own order (FR-516). */

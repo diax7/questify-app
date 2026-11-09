@@ -91,6 +91,14 @@ export async function sendPlatformTicket(
 
 const EVENT_KINDS: readonly string[] = ["question", "problem", "prize"];
 
+/** The card a link names, else the event card when it names an event kind, else none. */
+function openCardOf(card: string | undefined, kind: EventTicketKind | null): CenterCard | null {
+  if ((CENTER_CARDS as readonly string[]).includes(card ?? "")) {
+    return card as CenterCard;
+  }
+  return kind === null ? null : "event";
+}
+
 /**
  * Where the center opens, from the screen's link: a card (`card=report`), or the event card with a kind (the quest
  * sheet's "Report a problem with this quest", the prize screens' "A problem with this prize"); nothing opens otherwise.
@@ -106,18 +114,11 @@ export function initialOf(
     }>
   | undefined {
   const kind = EVENT_KINDS.includes(params.kind ?? "") ? (params.kind as EventTicketKind) : null;
-  const card = (CENTER_CARDS as readonly string[]).includes(params.card ?? "")
-    ? (params.card as CenterCard)
-    : kind === null
-      ? null
-      : "event";
+  const card = openCardOf(params.card, kind);
   if (card === null) {
     return undefined;
   }
-  return {
-    card,
-    kind: card === "event" ? kind : null,
-    questId: card === "event" ? (params.questId ?? null) : null,
-    questTitle: card === "event" ? (params.questTitle ?? null) : null,
-  };
+  return card === "event"
+    ? { card, kind, questId: params.questId ?? null, questTitle: params.questTitle ?? null }
+    : { card, kind: null, questId: null, questTitle: null };
 }

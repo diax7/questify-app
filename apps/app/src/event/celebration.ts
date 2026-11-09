@@ -82,13 +82,19 @@ export function scanStep(step: ScanStep, event: ScanEvent): ScanStep {
       return step.kind === "checking" ? answered(step, event.answer) : step;
     case "details":
       return step.kind === "celebrating" ? { ...step, details: event.details } : step;
-    case "retry":
-      return step.kind === "lost"
-        ? { kind: "checking", questId: step.questId, token: step.token }
-        : step;
-    case "again":
-      return step.kind === "checking" ? step : { kind: "scanning" };
+    default:
+      return restartedStep(step, event.type);
   }
+}
+
+/** The two events that carry nothing: retrying a lost answer with the same code, and scanning again. */
+function restartedStep(step: ScanStep, type: "retry" | "again"): ScanStep {
+  if (type === "retry") {
+    return step.kind === "lost"
+      ? { kind: "checking", questId: step.questId, token: step.token }
+      : step;
+  }
+  return step.kind === "checking" ? step : { kind: "scanning" };
 }
 
 function answered(

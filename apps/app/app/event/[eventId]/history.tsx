@@ -124,18 +124,11 @@ export default function HistoryScreen() {
 
   return (
     <Screen title={t("history.title")} header={<BackButton />}>
-      {state === "loading" ? <AppText muted>{t("common.loading")}</AppText> : null}
-      {state === "pending" ? <AppText>{t("eventHome.pending")}</AppText> : null}
-      {state === "network" ? (
-        <>
-          <AppText accessibilityRole="alert">{t("history.failed")}</AppText>
-          <Button
-            label={t("common.retry")}
-            onPress={() => void load(entries === undefined ? null : next)}
-          />
-        </>
-      ) : null}
-      {entries?.length === 0 ? <AppText muted>{t("history.empty")}</AppText> : null}
+      <HistoryStatus
+        state={state}
+        empty={entries?.length === 0}
+        onRetry={() => void load(entries === undefined ? null : next)}
+      />
       <ScrollView contentContainerStyle={{ gap: 8 }}>
         {(entries ?? []).map((entry) => (
           <EntryRow key={entry.id} entry={entry} timeZone={timeZone} />
@@ -150,6 +143,28 @@ export default function HistoryScreen() {
         )}
       </ScrollView>
     </Screen>
+  );
+}
+
+/** The lines above the list: loading, waiting for approval, a failed read with Retry, or an empty record. */
+function HistoryStatus({
+  state,
+  empty,
+  onRetry,
+}: Readonly<{ state: ActivityAnswer["kind"] | "loading"; empty: boolean; onRetry: () => void }>) {
+  const { t } = useI18n();
+  return (
+    <>
+      {state === "loading" ? <AppText muted>{t("common.loading")}</AppText> : null}
+      {state === "pending" ? <AppText>{t("eventHome.pending")}</AppText> : null}
+      {state === "network" ? (
+        <>
+          <AppText accessibilityRole="alert">{t("history.failed")}</AppText>
+          <Button label={t("common.retry")} onPress={onRetry} />
+        </>
+      ) : null}
+      {empty ? <AppText muted>{t("history.empty")}</AppText> : null}
+    </>
   );
 }
 
