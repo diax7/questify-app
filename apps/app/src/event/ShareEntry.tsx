@@ -92,16 +92,47 @@ export function ShareEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: (
           {view.link}
         </AppText>
       )}
-      {view.done ? (
-        <AppText variant="label">{t("play.share.done")}</AppText>
-      ) : quest.state === "open" ? (
-        <>
-          <Button label={t("play.share.send")} disabled={busy} onPress={() => void share()} />
-          {key === undefined || said !== t("join.network") ? null : (
-            <Button kind="quiet" label={t("common.retry")} onPress={() => void pay(key)} />
-          )}
-        </>
-      ) : null}
+      <ShareActions
+        done={view.done}
+        open={quest.state === "open"}
+        busy={busy}
+        retryKey={key !== undefined && said === t("join.network") ? key : undefined}
+        onShare={() => void share()}
+        onRetry={(retryKey) => void pay(retryKey)}
+      />
+    </>
+  );
+}
+
+/** Under the message: "Done" once shared, else Share (and Retry after a lost answer) while the quest is open. */
+function ShareActions({
+  done,
+  open,
+  busy,
+  retryKey,
+  onShare,
+  onRetry,
+}: Readonly<{
+  done: boolean;
+  open: boolean;
+  busy: boolean;
+  retryKey: string | undefined;
+  onShare: () => void;
+  onRetry: (key: string) => void;
+}>) {
+  const { t } = useI18n();
+  if (done) {
+    return <AppText variant="label">{t("play.share.done")}</AppText>;
+  }
+  if (!open) {
+    return null;
+  }
+  return (
+    <>
+      <Button label={t("play.share.send")} disabled={busy} onPress={onShare} />
+      {retryKey === undefined ? null : (
+        <Button kind="quiet" label={t("common.retry")} onPress={() => onRetry(retryKey)} />
+      )}
     </>
   );
 }

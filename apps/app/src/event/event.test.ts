@@ -576,4 +576,9 @@ describe("rankingAnswer", () => {
     expect(rankingAnswer(ok({ ...ranking, rows: [{ rank: "1" }] }))).toEqual({ kind: "network" });
     expect(rankingAnswer(ok({ ...ranking, me: { rank: 1 } }))).toEqual({ kind: "network" });
   });
+
+  it("passes a signed-out or offline answer through as it is", () => {
+    expect(rankingAnswer({ kind: "signed_out" })).toEqual({ kind: "signed_out" });
+    expect(rankingAnswer({ kind: "network" })).toEqual({ kind: "network" });
+  });
 });

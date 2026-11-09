@@ -13,16 +13,19 @@ const isLines = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((line) => typeof line === "string");
 const isText = (value: unknown): boolean => value === null || typeof value === "string";
 
+const isBlock = (block: unknown): boolean =>
+  block === null || (isRecord(block) && isLines(block["ar"]) && isLines(block["en"]));
+
 /** Reads `{rules}`; undefined when it is not one. */
 export function readRules(body: unknown): OfficialRules | undefined {
   const rules = isRecord(body) ? body["rules"] : undefined;
   if (!isRecord(rules) || !isRecord(rules["text"])) {
     return undefined;
   }
-  const { block, text } = rules as { block: unknown; text: Record<string, unknown> };
-  const blockOk =
-    block === null || (isRecord(block) && isLines(block["ar"]) && isLines(block["en"]));
-  return blockOk && isText(text["ar"]) && isText(text["en"]) ? (rules as OfficialRules) : undefined;
+  const text = rules["text"];
+  return isBlock(rules["block"]) && isText(text["ar"]) && isText(text["en"])
+    ? (rules as OfficialRules)
+    : undefined;
 }
 
 /** The answer of `GET /v1/events/{id}/rules`: a 404 means the event has no rules (no prizes, no text). */

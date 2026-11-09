@@ -299,13 +299,15 @@ export function calmScreen(segments: readonly string[], openSheets: number): boo
 }
 
 const LIVE_POLL = TUNING["livePollSeconds"];
+const LIVE_POLL_DEFAULT = LIVE_POLL?.default ?? 10;
+const LIVE_POLL_MIN = LIVE_POLL?.min ?? 5;
+const LIVE_POLL_MAX = LIVE_POLL?.max ?? 60;
 
 /** The configuration's live poll interval, kept inside its range; the default when it has none. */
 export function livePollSecondsOf(config: ComposedConfig | undefined): number {
   const value = config?.tuning["livePollSeconds"];
-  const fallback = LIVE_POLL?.default ?? 10;
   if (typeof value !== "number" || !Number.isFinite(value)) {
-    return fallback;
+    return LIVE_POLL_DEFAULT;
   }
-  return Math.min(LIVE_POLL?.max ?? 60, Math.max(LIVE_POLL?.min ?? 5, value));
+  return Math.min(LIVE_POLL_MAX, Math.max(LIVE_POLL_MIN, value));
 }

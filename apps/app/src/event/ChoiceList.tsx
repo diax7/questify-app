@@ -31,6 +31,8 @@ export function ChoiceList({
   const { language } = useI18n();
   const styles = useThemedStyles(makeStyles);
   const isChosen = (id: string) => (multiple ? selected.includes(id) : chosen === id);
+  const locked = disabled || marks !== undefined;
+  const choiceRole = multiple ? "checkbox" : "radio";
   return (
     <View accessibilityRole={multiple ? "list" : "radiogroup"} style={styles.list}>
       {choices.map((choice) => {
@@ -39,12 +41,12 @@ export function ChoiceList({
         return (
           <Pressable
             key={choice.id}
-            accessibilityRole={multiple ? "checkbox" : "radio"}
+            accessibilityRole={choiceRole}
             accessibilityState={{
               checked: isChosen(choice.id),
-              disabled: disabled || marks !== undefined,
+              disabled: locked,
             }}
-            disabled={disabled || marks !== undefined}
+            disabled={locked}
             onPress={() => onChoose(choice.id)}
             style={[
               styles.choice,

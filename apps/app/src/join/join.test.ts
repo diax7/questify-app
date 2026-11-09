@@ -9,6 +9,7 @@ import {
   joinInvitation,
   readCard,
   readJoinCard,
+  readRules,
 } from "#src/join/join-api.ts";
 
 const headers = new Headers();
@@ -48,6 +49,7 @@ const RULES = {
   emailDomains: ["acme.sa"],
   welcomePoints: 50,
 };
+const cardBody = (event: unknown) => ({ event, card: CARD });
 const MESSAGE = { ar: "م", en: "M" };
 const fail = (status: number, code: string, details: Record<string, unknown> = {}): ApiResult => ({
   kind: "error",
@@ -167,6 +169,47 @@ describe("the join card", () => {
         ],
       },
     ]);
+  });
+
+  it("reads the rules alone: none when absent, null welcome points, and nothing malformed", () => {
+    expect(readRules(undefined)).toEqual(NO_RULES);
+    expect(readRules(RULES)).toEqual(RULES);
+    expect(readRules({ ...RULES, welcomePoints: null })?.welcomePoints).toBeNull();
+    expect(readRules({ ...RULES, fields: [] })?.fields).toEqual([]);
+    for (const bad of [
+      null,
+      "rules",
+      [],
+      { ...RULES, fields: undefined },
+      { ...RULES, fields: "none" },
+      { ...RULES, fields: [null] },
+      { ...RULES, guestListOnly: undefined },
+      { ...RULES, emailDomains: "acme.sa" },
+      { ...RULES, emailDomains: undefined },
+      { ...RULES, emailDomains: ["a", 2] },
+      { ...RULES, welcomePoints: undefined },
+      { ...RULES, welcomePoints: "50" },
+    ]) {
+      expect(readRules(bad), JSON.stringify(bad)).toBeUndefined();
+    }
+  });
+
+  it("checks each of the event's own strings and shapes, and the code only on a card", () => {
+    const { joinCode: _code, ...noCode } = EVENT;
+    expect(readCard(cardBody({ ...noCode, join: RULES }))).toBeUndefined();
+    for (const key of ["id", "startsAt", "endsAt", "timezone", "joinCode"]) {
+      expect(readCard(cardBody({ ...EVENT, [key]: 5 })), key).toBeUndefined();
+    }
+    expect(readCard(cardBody({ ...EVENT, venue: null }))).toBeUndefined();
+    expect(readCard(cardBody({ ...EVENT, name: null }))).toBeUndefined();
+    for (const statusNow of ["scheduled", "live", "ended"]) {
+      expect(readCard(cardBody({ ...EVENT, statusNow })), statusNow).toBeDefined();
+    }
+    for (const access of ["public", "unlisted", "private"]) {
+      expect(readCard(cardBody({ ...EVENT, access })), access).toBeDefined();
+    }
+    expect(readCard(cardBody({ ...EVENT, join: undefined }))?.event.join).toEqual(NO_RULES);
+    expect(readCard(cardBody({ ...EVENT, join: { ...RULES, fields: "x" } }))).toBeUndefined();
   });
 
   it("maps a missing code, a busy network and an outage", async () => {

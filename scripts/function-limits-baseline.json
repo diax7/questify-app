@@ -128,11 +128,6 @@
       "complexity": [10]
     }
   },
-  "apps/app/app/event/[eventId]/(tabs)/quests.tsx": {
-    "noteText": {
-      "complexity": [9]
-    }
-  },
   "apps/app/app/event/[eventId]/(tabs)/rewards.tsx": {
     "<anonymous>": {
       "complexity": [12]
@@ -144,14 +139,6 @@
   "apps/app/app/operator/[eventId]/(tabs)/desk.tsx": {
     "DeskTab": {
       "complexity": [10]
-    }
-  },
-  "apps/app/app/operator/[eventId]/(tabs)/inbox.tsx": {
-    "InboxCard": {
-      "complexity": [9]
-    },
-    "InboxTab": {
-      "complexity": [9]
     }
   },
   "apps/app/app/operator/[eventId]/pair-device.tsx": {
@@ -207,95 +194,14 @@
       "complexity": [14]
     }
   },
-  "apps/app/src/event/ChoiceList.tsx": {
-    "<anonymous>": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/event/GameEntry.tsx": {
-    "GameEntry": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/event/QuizEntry.tsx": {
-    "<anonymous>": {
-      "complexity": [10]
-    }
-  },
-  "apps/app/src/event/Requests.tsx": {
-    "RequestCard": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/event/ShareEntry.tsx": {
-    "ShareEntry": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/event/celebration.ts": {
-    "answered": {
-      "complexity": [10]
-    },
-    "detailsAfter": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/event/community.ts": {
-    "rewardText": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/event/games.ts": {
-    "gameSheetOf": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/event/home-api.ts": {
-    "rankingAnswer": {
-      "complexity": [9]
-    }
-  },
   "apps/app/src/event/live-code.ts": {
     "fetchLiveCode": {
-      "complexity": [10]
-    }
-  },
-  "apps/app/src/event/location.ts": {
-    "checkInRead": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/event/plays.ts": {
-    "<anonymous>": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/event/polls.ts": {
-    "livePollSecondsOf": {
-      "complexity": [10]
-    }
-  },
-  "apps/app/src/event/rules-api.ts": {
-    "readRules": {
       "complexity": [10]
     }
   },
   "apps/app/src/event/scan.ts": {
     "readScan": {
       "complexity": [18]
-    }
-  },
-  "apps/app/src/event/submissions.ts": {
-    "<anonymous>": {
-      "complexity": [9]
-    },
-    "sendAnswer": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/event/survey-share.ts": {
-    "<anonymous>": {
-      "complexity": [9]
     }
   },
   "apps/app/src/games/TapRushGame.tsx": {
@@ -306,14 +212,6 @@
   "apps/app/src/games/testing/realtime-play.ts": {
     "playTapRush": {
       "complexity": [15]
-    }
-  },
-  "apps/app/src/join/join-api.ts": {
-    "readEvent": {
-      "complexity": [9]
-    },
-    "readRules": {
-      "complexity": [10]
     }
   },
   "apps/app/src/join/rehearsal-api.ts": {
@@ -352,16 +250,6 @@
   },
   "apps/app/src/questify/QuestifySyncProvider.tsx": {
     "<anonymous>": {
-      "complexity": [9]
-    }
-  },
-  "apps/app/src/questify/level.ts": {
-    "levelOf": {
-      "complexity": [10]
-    }
-  },
-  "apps/app/src/streaks/days.ts": {
-    "daysKey": {
       "complexity": [9]
     }
   },

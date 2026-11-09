@@ -170,12 +170,15 @@ const questionOf = (value: unknown): QuizQuestion | undefined =>
       }
     : undefined;
 
-const isAnswered = (value: unknown): value is QuizAnswered =>
-  isRecord(value) &&
+const isQuestionShape = (value: Record<string, unknown>): boolean =>
   typeof value["position"] === "number" &&
   typeof value["id"] === "string" &&
   isText(value["text"]) &&
-  isChoices(value["choices"]) &&
+  isChoices(value["choices"]);
+
+const isAnswered = (value: unknown): value is QuizAnswered =>
+  isRecord(value) &&
+  isQuestionShape(value) &&
   nullableString(value["choiceId"]) &&
   typeof value["rightChoiceId"] === "string" &&
   typeof value["right"] === "boolean" &&

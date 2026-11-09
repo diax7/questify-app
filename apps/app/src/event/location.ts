@@ -133,11 +133,12 @@ export async function checkInRead(
     const position = readingOf(await within(reader.current(), timeoutMs), now());
     return position === null ? { kind: "unavailable" } : { kind: "position", position };
   } catch (error) {
-    return {
-      kind: error instanceof Error && error.message === "timeout" ? "timeout" : "unavailable",
-    };
+    return { kind: isTimeout(error) ? "timeout" : "unavailable" };
   }
 }
+
+const isTimeout = (error: unknown): boolean =>
+  error instanceof Error && error.message === "timeout";
 
 /**
  * The reading a QR scan or a typed code carries: the last known fix no older than 2 minutes, only while the platform's

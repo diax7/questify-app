@@ -7,6 +7,21 @@ import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
+/** The name a player reported on their own report, or that the account was deleted. */
+function ReportedLine({ ticket }: Readonly<{ ticket: MyTicket }>) {
+  const { t } = useI18n();
+  if (ticket.kind !== "report_player") {
+    return null;
+  }
+  return (
+    <AppText muted>
+      {ticket.reportedUsername === null
+        ? t("help.reportedDeleted")
+        : t("help.reportedName", { username: ticket.reportedUsername })}
+    </AppText>
+  );
+}
+
 /**
  * One request: its kind, quest, text, where it stands ("With the Questify team" while escalated), the name the player
  * reported on their own report, and the reply signed by team (never a person).
@@ -31,13 +46,7 @@ function RequestCard({ ticket, withEvent }: Readonly<{ ticket: MyTicket; withEve
           {t("help.aboutQuest", { quest: textIn(ticket.quest.title, language) })}
         </AppText>
       )}
-      {ticket.kind === "report_player" ? (
-        <AppText muted>
-          {ticket.reportedUsername === null
-            ? t("help.reportedDeleted")
-            : t("help.reportedName", { username: ticket.reportedUsername })}
-        </AppText>
-      ) : null}
+      <ReportedLine ticket={ticket} />
       <AppText>{ticket.text}</AppText>
       {ticket.reply === null ? null : (
         <View style={styles.reply}>

@@ -188,12 +188,16 @@ export function rewardText(
     case "nothing":
       return t("community.nothing");
     case "unlock":
-      return step.reward.target === undefined
-        ? t("community.reward.surprise")
-        : t("community.reward.unlock", { name: textIn(step.reward.target.name, language) });
+      return unlockText(step.reward.target, t, language);
     default:
       return null;
   }
+}
+
+function unlockText(target: UnlockTarget | undefined, t: Translate, language: Language): string {
+  return target === undefined
+    ? t("community.reward.surprise")
+    : t("community.reward.unlock", { name: textIn(target.name, language) });
 }
 
 /** A one-time card for this phone: a reached moment step, a reached unlock (T-306c), or a step that paid the player. */

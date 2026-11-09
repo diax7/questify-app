@@ -44,6 +44,13 @@ type Clock = Readonly<{ serverNow: string; receivedAt: number }>;
 const buzz = (type: Haptics.NotificationFeedbackType) =>
   void Haptics.notificationAsync(type).catch(() => undefined);
 
+const resultFeedback = (right: boolean) =>
+  right ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error;
+
+/** What a failed move shows: the server's refusal, a network line, or nothing (signed out). */
+const problemOf = (answer: Exclude<PlayFailure, { kind: "quiz" }>): QuizProblem =>
+  answer.kind === "refused" ? answer.message : answer.kind === "network" ? "network" : null;
+
 /** The quiz's state and its three moves: load (read only), start or next, and answer. */
 function useQuiz(questId: string, onPaid: () => void) {
   const [view, setView] = useState<QuizView | undefined | "failed">(undefined);
@@ -76,20 +83,14 @@ function useQuiz(questId: string, onPaid: () => void) {
       setStep(answer);
       show(answer.quiz);
       if (answer.result !== null) {
-        buzz(
-          answer.result.right
-            ? Haptics.NotificationFeedbackType.Success
-            : Haptics.NotificationFeedbackType.Error,
-        );
+        buzz(resultFeedback(answer.result.right));
       }
       if (paidNow && answer.quiz.earned > 0) {
         onPaid();
       }
       return;
     }
-    setProblem(
-      answer.kind === "refused" ? answer.message : answer.kind === "network" ? "network" : null,
-    );
+    setProblem(problemOf(answer));
     // A refusal (a question that closed, a quest that ended) reads the quiz again, so the screen shows what is true.
     void load();
   };

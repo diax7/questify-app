@@ -63,6 +63,10 @@ export function gameSheetOf(body: unknown, receivedAt: number): GameSheet | "upd
   if (!isGameName(game) || !drawable(game, engineVersion)) {
     return "update";
   }
+  return sheetFields(body, game, clockOffset(body["serverNow"], receivedAt));
+}
+
+function sheetFields(body: Record<string, unknown>, game: GameName, offsetMs: number): GameSheet {
   return {
     game,
     level: String(body["level"]),
@@ -75,7 +79,7 @@ export function gameSheetOf(body: unknown, receivedAt: number): GameSheet | "upd
     passed: body["passed"] === true,
     done: body["done"] === true,
     retryAt: stringOrNull(body["retryAt"]),
-    offsetMs: clockOffset(body["serverNow"], receivedAt),
+    offsetMs,
   };
 }
 

@@ -100,31 +100,36 @@ function restartedStep(step: ScanStep, type: "retry" | "again"): ScanStep {
   return step.kind === "checking" ? step : { kind: "scanning" };
 }
 
-function answered(
+type Answer = Extract<ScanEvent, { type: "answered" }>["answer"];
+
+function celebrating(
   step: Extract<ScanStep, { kind: "checking" }>,
-  answer: Extract<ScanEvent, { type: "answered" }>["answer"],
+  answer: Extract<Answer, { kind: "completed" }>,
 ): ScanStep {
+  return {
+    kind: "celebrating",
+    questId: "questId" in answer && answer.questId !== undefined ? answer.questId : step.questId,
+    points: answer.points,
+    replayed: answer.replayed,
+    levelUp: answer.levelUp,
+    bonus: answer.bonus,
+    item: answer.item,
+    boosted: "boost" in answer && answer.boost != null,
+    firstBonus: answer.firstBonus,
+    streakBonus: answer.streakBonus,
+    met: "met" in answer && answer.met !== undefined ? answer.met.username : null,
+    details: undefined,
+  };
+}
+
+function answered(step: Extract<ScanStep, { kind: "checking" }>, answer: Answer): ScanStep {
   switch (answer.kind) {
     case "stamped":
       return { kind: "stamped", done: answer.done, needed: answer.needed, fresh: answer.fresh };
     case "revealed":
       return { kind: "revealed", name: answer.name, fresh: answer.fresh };
     case "completed":
-      return {
-        kind: "celebrating",
-        questId:
-          "questId" in answer && answer.questId !== undefined ? answer.questId : step.questId,
-        points: answer.points,
-        replayed: answer.replayed,
-        levelUp: answer.levelUp,
-        bonus: answer.bonus,
-        item: answer.item,
-        boosted: "boost" in answer && answer.boost != null,
-        firstBonus: answer.firstBonus,
-        streakBonus: answer.streakBonus,
-        met: "met" in answer && answer.met !== undefined ? answer.met.username : null,
-        details: undefined,
-      };
+      return celebrating(step, answer);
     case "network":
       return { kind: "lost", questId: step.questId, token: step.token };
     default:
@@ -141,13 +146,13 @@ export function detailsAfter(
   questId: string,
   replayed: boolean,
 ): Details {
-  const category = view?.categories.find((item) =>
-    item.quests.some((quest) => quest.id === questId),
-  );
-  const quest = category?.quests.find((item) => item.id === questId);
   if (view === undefined) {
     return { quest: undefined, finishedCategory: undefined, otherEvent: false };
   }
+  const category = view.categories.find((item) =>
+    item.quests.some((quest) => quest.id === questId),
+  );
+  const quest = category?.quests.find((item) => item.id === questId);
   const finished =
     !replayed &&
     quest?.state === "done" &&

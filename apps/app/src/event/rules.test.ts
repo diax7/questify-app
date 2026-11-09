@@ -20,6 +20,10 @@ describe("the event's official rules", () => {
     expect(readRules({ rules: { block: null, text: { ar: 1, en: null } } })).toBeUndefined();
     expect(readRules({ rules: { block: null, text: { ar: null, en: 2 } } })).toBeUndefined();
     expect(readRules({ rules: { block: null } })).toBeUndefined();
+    expect(readRules({ rules: { block: { ar: [], en: "x" }, text: RULES.text } })).toBeUndefined();
+    expect(readRules({ rules: { block: { ar: "x", en: [] }, text: RULES.text } })).toBeUndefined();
+    expect(readRules({ rules: { text: RULES.text } })).toBeUndefined();
+    expect(readRules({ rules: { block: { ar: [], en: ["a"] }, text: RULES.text } })).toBeDefined();
     expect(readRules({ rules: null })).toBeUndefined();
     expect(readRules("x")).toBeUndefined();
   });

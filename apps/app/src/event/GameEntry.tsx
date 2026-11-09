@@ -113,6 +113,38 @@ export function GameEntry({
   if (sheet === "update") {
     return <AppText accessibilityRole="alert">{t("play.game.update")}</AppText>;
   }
+  return (
+    <GameSheetBody
+      sheet={sheet}
+      quest={quest}
+      timeZone={timeZone}
+      said={said}
+      busy={busy}
+      onRetry={(pending) => void retry(pending)}
+      onPlay={() => void play()}
+    />
+  );
+}
+
+/** A read sheet: the game, its level, target and attempts, the line that says why, and Retry or Play. */
+function GameSheetBody({
+  sheet,
+  quest,
+  timeZone,
+  said,
+  busy,
+  onRetry,
+  onPlay,
+}: Readonly<{
+  sheet: GameSheet;
+  quest: Quest;
+  timeZone: string;
+  said: string | null;
+  busy: boolean;
+  onRetry: (pending: PendingResult) => void;
+  onPlay: () => void;
+}>) {
+  const { t, language } = useI18n();
   const action = sheetAction(sheet, games.result(quest.id, Date.now()), Date.now());
   const why = actionLine(t, action, language, timeZone);
   return (
@@ -129,12 +161,12 @@ export function GameEntry({
           <Button
             label={t("play.game.resend")}
             disabled={busy}
-            onPress={() => void retry(action.pending)}
+            onPress={() => onRetry(action.pending)}
           />
         </>
       ) : null}
       {action.kind === "play" && quest.state === "open" ? (
-        <Button label={t("play.game.play")} disabled={busy} onPress={() => void play()} />
+        <Button label={t("play.game.play")} disabled={busy} onPress={onPlay} />
       ) : null}
     </>
   );

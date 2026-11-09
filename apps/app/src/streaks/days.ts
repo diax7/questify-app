@@ -10,7 +10,10 @@ export type DaysRole = "subject" | "object";
  */
 export function daysKey(count: number, language: Language, role: DaysRole = "object"): MessageKey {
   if (count === 1) return "streak.days.one";
-  if (language === "en") return "streak.days.many";
+  return language === "en" ? "streak.days.many" : arabicDaysKey(count, role);
+}
+
+function arabicDaysKey(count: number, role: DaysRole): MessageKey {
   if (count === 2) return role === "subject" ? "streak.days.two" : "streak.days.twoObject";
   if (count === 0) return "streak.days.few";
   const lastTwo = count % 100;

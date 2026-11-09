@@ -113,6 +113,39 @@ describe("the game sheet", () => {
     expect(gameSheetOf(null, NOW)).toBeUndefined();
   });
 
+  it("reads each field of the sheet, with its default when missing or of the wrong type", () => {
+    expect(
+      gameSheetOf(
+        {
+          ...SHEET_BODY,
+          attempts: null,
+          used: 4,
+          attemptsLeft: null,
+          passed: true,
+          done: true,
+          retryAt: "2030-01-01T10:30:00Z",
+        },
+        NOW,
+      ),
+    ).toMatchObject({
+      attempts: null,
+      used: 4,
+      attemptsLeft: null,
+      passed: true,
+      done: true,
+      retryAt: "2030-01-01T10:30:00Z",
+    });
+    expect(
+      gameSheetOf({ ...SHEET_BODY, used: "4", passed: "yes", done: 1, retryAt: 5 }, NOW),
+    ).toMatchObject({ used: 0, passed: false, done: false, retryAt: null });
+    expect(gameSheetOf({ ...SHEET_BODY, level: 3 }, NOW)).toMatchObject({ level: "3" });
+    expect(gameSheetOf({ ...SHEET_BODY, engineVersion: "2" }, NOW)).toMatchObject({
+      game: "memory_match",
+    });
+    expect(gameSheetOf({ ...SHEET_BODY, serverNow: 5 }, NOW)).toBeUndefined();
+    expect(gameSheetOf({ ...SHEET_BODY, serverNow: undefined }, NOW)).toBeUndefined();
+  });
+
   it("shows the update line, never 'failed', for a game this build cannot draw (CTO 3)", () => {
     expect(gameSheetOf({ ...SHEET_BODY, game: "snake", params: {} }, NOW)).toBe("update");
     expect(gameSheetOf({ ...SHEET_BODY, engineVersion: 2 }, NOW)).toBe("update");

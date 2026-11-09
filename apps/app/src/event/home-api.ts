@@ -433,19 +433,23 @@ export function readRanking(body: unknown): Ranking | undefined {
   };
 }
 
+function rankingRefusal(code: string, status: number): RankingAnswer {
+  // The same status means two things here: the ranking switched off, or not this player's event.
+  if (code === "ranking_off") {
+    return { kind: "off" };
+  }
+  if (code === "today_ranking_off") {
+    return { kind: "today_off" };
+  }
+  return { kind: status === 403 || status === 404 ? "gone" : "network" };
+}
+
 export function rankingAnswer(answer: AuthedResult): RankingAnswer {
   if (answer.kind === "signed_out" || answer.kind === "network") {
     return { kind: answer.kind };
   }
   if (answer.kind === "error") {
-    // The same status means two things here: the ranking switched off, or not this player's event.
-    if (answer.code === "ranking_off") {
-      return { kind: "off" };
-    }
-    if (answer.code === "today_ranking_off") {
-      return { kind: "today_off" };
-    }
-    return { kind: answer.status === 403 || answer.status === 404 ? "gone" : "network" };
+    return rankingRefusal(answer.code, answer.status);
   }
   const ranking = readRanking(answer.body);
   return ranking === undefined ? { kind: "network" } : { kind: "ranking", ranking };

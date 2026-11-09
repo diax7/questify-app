@@ -29,16 +29,20 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const nullableText = (value: unknown) => value === null || typeof value === "string";
 
-const isOwn = (value: unknown): value is OwnSubmission =>
-  isRecord(value) &&
+const hasOwnIdentity = (value: Record<string, unknown>): boolean =>
   typeof value["id"] === "string" &&
   typeof value["questId"] === "string" &&
   (STATUSES as readonly unknown[]).includes(value["status"]) &&
-  typeof value["points"] === "number" &&
+  typeof value["points"] === "number";
+
+const hasOwnReview = (value: Record<string, unknown>): boolean =>
   nullableText(value["text"]) &&
   nullableText(value["reason"]) &&
   typeof value["reasonSystem"] === "boolean" &&
   typeof value["resubmit"] === "boolean";
+
+const isOwn = (value: unknown): value is OwnSubmission =>
+  isRecord(value) && hasOwnIdentity(value) && hasOwnReview(value);
 
 /** Reads the player's list; anything malformed reads as nothing, so the sheet shows a load failure, not a guess. */
 export function mySubmissionsOf(body: unknown): MySubmissions | undefined {
@@ -101,6 +105,13 @@ export type SendAnswer =
   | Readonly<{ kind: "network" }>
   | Readonly<{ kind: "signed_out" }>;
 
+const isSentBody = (
+  body: unknown,
+): body is Record<string, unknown> & { status: "pending" | "approved"; points: number } =>
+  isRecord(body) &&
+  (body["status"] === "pending" || body["status"] === "approved") &&
+  typeof body["points"] === "number";
+
 export function sendAnswer(answer: AuthedResult): SendAnswer {
   if (answer.kind === "signed_out" || answer.kind === "network") {
     return { kind: answer.kind };
@@ -111,11 +122,7 @@ export function sendAnswer(answer: AuthedResult): SendAnswer {
       : { kind: "refused", message: answer.message };
   }
   const body = answer.body;
-  if (
-    !isRecord(body) ||
-    (body["status"] !== "pending" && body["status"] !== "approved") ||
-    typeof body["points"] !== "number"
-  ) {
+  if (!isSentBody(body)) {
     return { kind: "network" };
   }
   return {

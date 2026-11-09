@@ -37,16 +37,24 @@ export const RATINGS = [1, 2, 3, 4, 5] as const;
 
 const KINDS: readonly string[] = ["choice", "rating", "text"];
 
+const isQuestionBody = (
+  value: unknown,
+): value is Record<string, unknown> & {
+  id: string;
+  kind: string;
+  text: PlayText;
+  required: boolean;
+} =>
+  isRecord(value) &&
+  typeof value["id"] === "string" &&
+  typeof value["kind"] === "string" &&
+  KINDS.includes(value["kind"]) &&
+  isText(value["text"]) &&
+  typeof value["required"] === "boolean" &&
+  (value["choices"] === null || isChoices(value["choices"]));
+
 const surveyQuestionOf = (value: unknown): SurveyQuestion | undefined => {
-  if (
-    !isRecord(value) ||
-    typeof value["id"] !== "string" ||
-    typeof value["kind"] !== "string" ||
-    !KINDS.includes(value["kind"]) ||
-    !isText(value["text"]) ||
-    typeof value["required"] !== "boolean" ||
-    !(value["choices"] === null || isChoices(value["choices"]))
-  ) {
+  if (!isQuestionBody(value)) {
     return undefined;
   }
   return {

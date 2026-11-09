@@ -138,57 +138,74 @@ const isField = (value: unknown): value is Omit<JoinField, "options"> & { option
   typeof value["required"] === "boolean" &&
   isOptions(value["options"]);
 
+type RulesBody = Record<string, unknown> & {
+  fields: Array<Omit<JoinField, "options"> & { options?: unknown }>;
+  guestListOnly: boolean;
+  emailDomains: string[];
+  welcomePoints: number | null;
+};
+
+const isRulesBody = (value: unknown): value is RulesBody =>
+  isRecord(value) &&
+  Array.isArray(value["fields"]) &&
+  value["fields"].every(isField) &&
+  typeof value["guestListOnly"] === "boolean" &&
+  Array.isArray(value["emailDomains"]) &&
+  value["emailDomains"].every((domain) => typeof domain === "string") &&
+  (value["welcomePoints"] === null || typeof value["welcomePoints"] === "number");
+
+const fieldOf = (field: Omit<JoinField, "options"> & { options?: unknown }): JoinField => ({
+  id: field.id,
+  kind: field.kind,
+  label: field.label,
+  required: field.required,
+  options: Array.isArray(field.options)
+    ? field.options.map((option: Partial<JoinOption> & { id: string }) => ({
+        id: option.id,
+        ar: option.ar ?? null,
+        en: option.en ?? null,
+      }))
+    : null,
+});
+
 /** The event's join rules; absent is none (an older API), a wrong shape is undefined. */
 export function readRules(value: unknown): JoinRules | undefined {
   if (value === undefined) {
     return NO_RULES;
   }
-  if (
-    !isRecord(value) ||
-    !Array.isArray(value["fields"]) ||
-    !value["fields"].every(isField) ||
-    typeof value["guestListOnly"] !== "boolean" ||
-    !Array.isArray(value["emailDomains"]) ||
-    !value["emailDomains"].every((domain) => typeof domain === "string") ||
-    !(value["welcomePoints"] === null || typeof value["welcomePoints"] === "number")
-  ) {
+  if (!isRulesBody(value)) {
     return undefined;
   }
   return {
-    fields: value["fields"].map((field) => ({
-      id: field.id,
-      kind: field.kind,
-      label: field.label,
-      required: field.required,
-      options: Array.isArray(field.options)
-        ? field.options.map((option: Partial<JoinOption> & { id: string }) => ({
-            id: option.id,
-            ar: option.ar ?? null,
-            en: option.en ?? null,
-          }))
-        : null,
-    })),
-    guestListOnly: value["guestListOnly"],
-    emailDomains: value["emailDomains"] as string[],
-    welcomePoints: value["welcomePoints"],
+    fields: value.fields.map(fieldOf),
+    guestListOnly: value.guestListOnly,
+    emailDomains: value.emailDomains,
+    welcomePoints: value.welcomePoints,
   };
 }
+
+const EVENT_STATUSES = ["scheduled", "live", "ended"];
+const EVENT_ACCESS = ["public", "unlisted", "private"];
+
+/** Whether the event's strings, name, venue, status and access are of the right kind. */
+const isEventBody = (event: Record<string, unknown>, withCode: boolean): boolean => {
+  const strings = ["id", "startsAt", "endsAt", "timezone", ...(withCode ? ["joinCode"] : [])];
+  return (
+    strings.every((key) => typeof event[key] === "string") &&
+    isRecord(event["name"]) &&
+    isRecord(event["venue"]) &&
+    EVENT_STATUSES.includes(String(event["statusNow"])) &&
+    EVENT_ACCESS.includes(String(event["access"]))
+  );
+};
 
 /** An event's own fields, checked; `withCode` for a card read by its code. */
 function readEvent(event: unknown, withCode: boolean): CardEvent | InvitedEvent | undefined {
   if (!isRecord(event)) {
     return undefined;
   }
-  const strings = ["id", "startsAt", "endsAt", "timezone", ...(withCode ? ["joinCode"] : [])];
   const join = readRules(event["join"]);
-  if (
-    join === undefined ||
-    strings.some((key) => typeof event[key] !== "string") ||
-    !isRecord(event["name"]) ||
-    !isRecord(event["venue"]) ||
-    !["scheduled", "live", "ended"].includes(String(event["statusNow"])) ||
-    !["public", "unlisted", "private"].includes(String(event["access"]))
-  ) {
+  if (join === undefined || !isEventBody(event, withCode)) {
     return undefined;
   }
   return { ...(event as unknown as CardEvent), join };

@@ -236,16 +236,28 @@ function noteText(
       return t("questsTab.category.unlockAfter", { name: textIn(note.name, language) });
     case "inOrder":
       return t("questsTab.category.inOrder");
+    case "resets": {
+      const label = resetLabel(note, Date.now(), language);
+      return t(label.key, label.values);
+    }
+    default:
+      return bonusNoteText(note, t, language);
+  }
+}
+
+/** The bonus notes of a category header: the bonus on offer, the one earned, and the item it gives. */
+function bonusNoteText(
+  note: Extract<CategoryNote, { kind: "bonus" | "bonusEarned" | "bonusItem" }>,
+  t: ReturnType<typeof useI18n>["t"],
+  language: "ar" | "en",
+): string {
+  switch (note.kind) {
     case "bonus":
       return t("questsTab.category.bonus", { points: formatNumber(note.points, language) });
     case "bonusEarned":
       return t("questsTab.category.bonusEarned", { points: formatNumber(note.points, language) });
     case "bonusItem":
       return t("questsTab.category.bonusItem", { item: textIn(note.name, language) });
-    case "resets": {
-      const label = resetLabel(note, Date.now(), language);
-      return t(label.key, label.values);
-    }
   }
 }
 

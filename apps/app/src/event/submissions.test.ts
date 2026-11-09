@@ -48,8 +48,23 @@ describe("mySubmissionsOf", () => {
     { submissions: [{ ...own(), status: "lost" }], pendingPoints: 0 },
     { submissions: [{ ...own(), points: "150" }], pendingPoints: 0 },
     { submissions: [{ ...own(), resubmit: undefined }], pendingPoints: 0 },
+    { submissions: [{ ...own(), id: 1 }], pendingPoints: 0 },
+    { submissions: [{ ...own(), questId: undefined }], pendingPoints: 0 },
+    { submissions: [{ ...own(), text: 5 }], pendingPoints: 0 },
+    { submissions: [{ ...own(), reason: 5 }], pendingPoints: 0 },
+    { submissions: [{ ...own(), reasonSystem: "no" }], pendingPoints: 0 },
+    { submissions: [null], pendingPoints: 0 },
+    { submissions: "none", pendingPoints: 0 },
   ])("reads %j as nothing", (body) => {
     expect(mySubmissionsOf(body)).toBeUndefined();
+  });
+
+  it("keeps a null text and a text reason", () => {
+    const rows = [own({ text: null, reason: "Blurry", status: "rejected" })];
+    expect(mySubmissionsOf({ submissions: rows, pendingPoints: 0 })).toEqual({
+      submissions: rows,
+      pendingPoints: 0,
+    });
   });
 });
 

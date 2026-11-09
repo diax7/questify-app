@@ -222,5 +222,9 @@ describe("what is live (T-306, ADR-221)", () => {
     expect(livePollSecondsOf(config(1))).toBe(5);
     expect(livePollSecondsOf(config(600))).toBe(60);
     expect(livePollSecondsOf(config("x"))).toBe(10);
+    expect(livePollSecondsOf(config(Number.NaN))).toBe(10);
+    expect(livePollSecondsOf(config(Number.POSITIVE_INFINITY))).toBe(10);
+    expect(livePollSecondsOf(config(5))).toBe(5);
+    expect(livePollSecondsOf(config(60))).toBe(60);
   });
 });

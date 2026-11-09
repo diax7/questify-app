@@ -32,6 +32,8 @@ const error = (code: string, details: Record<string, unknown> = {}) => ({
   headers: new Headers(),
 });
 
+const questionView = (question: unknown) => surveyViewOf({ questions: [question], answered: true });
+
 describe("the survey form (T-303, FR-214)", () => {
   it("reads the questions and refuses a body that is not one", () => {
     expect(surveyViewOf({ questions, answered: false })).toEqual({ questions, answered: false });
@@ -43,6 +45,27 @@ describe("the survey form (T-303, FR-214)", () => {
     );
     expect(surveyViewOf({ questions })).toBeUndefined();
     expect(surveyViewOf(null)).toBeUndefined();
+  });
+
+  it("refuses a question with any field missing or of the wrong kind", () => {
+    const [choice] = questions;
+    expect(questionView(choice)).toEqual({ questions: [choice], answered: true });
+    expect(questionView({ ...questions[2], choices: null })).toBeDefined();
+    for (const bad of [
+      null,
+      "q",
+      { ...choice, id: 1 },
+      { ...choice, kind: 2 },
+      { ...choice, kind: "poll" },
+      { ...choice, text: 5 },
+      { ...choice, required: "yes" },
+      { ...choice, choices: undefined },
+      { ...choice, choices: [{ id: 1 }] },
+    ]) {
+      expect(questionView(bad), JSON.stringify(bad)).toBeUndefined();
+    }
+    expect(surveyViewOf({ questions: "none", answered: false })).toBeUndefined();
+    expect(surveyViewOf({ questions, answered: "no" })).toBeUndefined();
   });
 
   it("names the required questions still unanswered, blank text included", () => {

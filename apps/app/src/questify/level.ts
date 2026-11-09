@@ -28,24 +28,22 @@ const isTitle = (value: unknown): value is LocalizedText =>
 const isCount = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= 0;
 
+const hasLevelFields = (value: Record<string, unknown>): boolean =>
+  isCount(value["xp"]) &&
+  isCount(value["level"]) &&
+  isCount(value["levelFrom"]) &&
+  (value["nextLevelAt"] === null || isCount(value["nextLevelAt"])) &&
+  isTitle(value["title"]);
+
 /** The level in an answer, or undefined when it is missing or malformed (the profile then shows no bar). */
 export function levelOf(value: unknown): QuestifyLevel | undefined {
-  if (
-    !isRecord(value) ||
-    !isCount(value["xp"]) ||
-    !isCount(value["level"]) ||
-    !isCount(value["levelFrom"]) ||
-    !(value["nextLevelAt"] === null || isCount(value["nextLevelAt"])) ||
-    !isTitle(value["title"])
-  ) {
-    return undefined;
-  }
+  if (!isRecord(value) || !hasLevelFields(value)) return undefined;
   return {
-    xp: value["xp"],
-    level: value["level"],
-    levelFrom: value["levelFrom"],
-    nextLevelAt: value["nextLevelAt"],
-    title: value["title"],
+    xp: value["xp"] as number,
+    level: value["level"] as number,
+    levelFrom: value["levelFrom"] as number,
+    nextLevelAt: value["nextLevelAt"] as number | null,
+    title: value["title"] as LocalizedText,
     ...(value["nextReward"] === undefined
       ? {}
       : { nextReward: itemSchema.safeParse(value["nextReward"]).data ?? null }),

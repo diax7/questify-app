@@ -1,4 +1,4 @@
-import type { Theme } from "@questify/shared";
+import type { Theme, TicketKind } from "@questify/shared";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
@@ -16,6 +16,21 @@ import { PracticeLocked } from "#src/operator/Practice.tsx";
 
 type Loaded = Readonly<{ items: readonly InboxItem[]; next: string | null }>;
 
+const ticketBadgeKey = (
+  ticketKind: TicketKind | null,
+): "operator.inbox.problem" | "operator.inbox.prize" | "operator.inbox.question" => {
+  if (ticketKind === "problem") return "operator.inbox.problem";
+  return ticketKind === "prize" ? "operator.inbox.prize" : "operator.inbox.question";
+};
+
+const openItem = (eventId: string, item: InboxItem) =>
+  item.kind === "submission"
+    ? router.push({ pathname: "/operator/[eventId]/review", params: { eventId, first: item.id } })
+    : router.push({
+        pathname: "/operator/[eventId]/ticket/[ticketId]",
+        params: { eventId, ticketId: item.id },
+      });
+
 /** One card: a submission (opens the review card) or a ticket (kind, @username, quest, preview, the watch-list mark). */
 function InboxCard({ eventId, item }: Readonly<{ eventId: string; item: InboxItem }>) {
   const { t, language } = useI18n();
@@ -23,20 +38,8 @@ function InboxCard({ eventId, item }: Readonly<{ eventId: string; item: InboxIte
   const badge =
     item.kind === "submission"
       ? t("operator.inbox.submission")
-      : t(
-          item.ticketKind === "problem"
-            ? "operator.inbox.problem"
-            : item.ticketKind === "prize"
-              ? "operator.inbox.prize"
-              : "operator.inbox.question",
-        );
-  const open = () =>
-    item.kind === "submission"
-      ? router.push({ pathname: "/operator/[eventId]/review", params: { eventId, first: item.id } })
-      : router.push({
-          pathname: "/operator/[eventId]/ticket/[ticketId]",
-          params: { eventId, ticketId: item.id },
-        });
+      : t(ticketBadgeKey(item.ticketKind));
+  const open = () => openItem(eventId, item);
   return (
     <Pressable accessibilityRole="button" onPress={open} style={styles.card}>
       <View style={styles.row}>
@@ -93,32 +96,64 @@ function InboxTab() {
   );
   return (
     <Screen title={t("operator.inbox")}>
-      <ScrollView contentContainerStyle={{ gap: 12 }}>
-        {loaded === undefined ? <AppText muted>{t("common.loading")}</AppText> : null}
-        {loaded === "off" ? <AppText muted>{t("operator.inbox.off")}</AppText> : null}
-        {loaded === "failed" ? (
-          <>
-            <AppText accessibilityRole="alert">{t("operator.inbox.loadFailed")}</AppText>
-            <Button kind="quiet" label={t("common.retry")} onPress={() => void load(null)} />
-          </>
-        ) : null}
-        {typeof loaded === "object" && loaded.items.length === 0 ? (
-          <AppText muted>{t("operator.inbox.empty")}</AppText>
-        ) : null}
-        {typeof loaded === "object"
-          ? loaded.items.map((item) => (
-              <InboxCard key={`${item.kind}-${item.id}`} eventId={eventId} item={item} />
-            ))
-          : null}
-        {typeof loaded === "object" && loaded.next !== null ? (
-          <Button
-            kind="quiet"
-            label={t("operator.inbox.more")}
-            onPress={() => void load(loaded.next)}
-          />
-        ) : null}
-      </ScrollView>
+      <InboxBody eventId={eventId} loaded={loaded} load={load} />
     </Screen>
+  );
+}
+
+/** The list under the title: loading, off, failed with Retry, empty, the cards, and More. */
+function InboxBody({
+  eventId,
+  loaded,
+  load,
+}: Readonly<{
+  eventId: string;
+  loaded: Loaded | "off" | "failed" | undefined;
+  load: (cursor: string | null) => Promise<void>;
+}>) {
+  const { t } = useI18n();
+  return (
+    <ScrollView contentContainerStyle={{ gap: 12 }}>
+      {loaded === undefined ? <AppText muted>{t("common.loading")}</AppText> : null}
+      {loaded === "off" ? <AppText muted>{t("operator.inbox.off")}</AppText> : null}
+      {loaded === "failed" ? (
+        <>
+          <AppText accessibilityRole="alert">{t("operator.inbox.loadFailed")}</AppText>
+          <Button kind="quiet" label={t("common.retry")} onPress={() => void load(null)} />
+        </>
+      ) : null}
+      {typeof loaded === "object" ? (
+        <InboxItems eventId={eventId} loaded={loaded} load={load} />
+      ) : null}
+    </ScrollView>
+  );
+}
+
+/** A loaded list: the empty line, the cards, and More while the API holds more. */
+function InboxItems({
+  eventId,
+  loaded,
+  load,
+}: Readonly<{
+  eventId: string;
+  loaded: Loaded;
+  load: (cursor: string | null) => Promise<void>;
+}>) {
+  const { t } = useI18n();
+  return (
+    <>
+      {loaded.items.length === 0 ? <AppText muted>{t("operator.inbox.empty")}</AppText> : null}
+      {loaded.items.map((item) => (
+        <InboxCard key={`${item.kind}-${item.id}`} eventId={eventId} item={item} />
+      ))}
+      {loaded.next !== null ? (
+        <Button
+          kind="quiet"
+          label={t("operator.inbox.more")}
+          onPress={() => void load(loaded.next)}
+        />
+      ) : null}
+    </>
   );
 }
 

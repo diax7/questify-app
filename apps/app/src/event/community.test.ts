@@ -1,5 +1,14 @@
+import { MESSAGES, createTranslator, type Language } from "@questify/shared";
 import { describe, expect, it } from "vitest";
-import { communityNews, communityOf, fillOf, lineOf, markerOf } from "#src/event/community.ts";
+import {
+  communityNews,
+  communityOf,
+  fillOf,
+  lineOf,
+  markerOf,
+  rewardText,
+  type CommunityReward,
+} from "#src/event/community.ts";
 import { liveStateOf } from "#src/event/polls.ts";
 
 const card = {
@@ -263,5 +272,37 @@ describe("communityOf, field by field", () => {
     for (const target of [...bad, { kind: "k", id: 2 }]) {
       expect(withReward({ target }), JSON.stringify(target)).not.toHaveProperty("target");
     }
+  });
+});
+
+describe("rewardText", () => {
+  const translate = createTranslator(MESSAGES);
+  const textOf = (reward: CommunityReward, everyone: boolean, language: Language) =>
+    rewardText(
+      { threshold: 10, isGoal: false, reward, reachedAt: null, mine: null },
+      everyone,
+      (key, params) => translate(key, language, params),
+      language,
+    );
+
+  it("says what a points step pays, to those who took part or to everyone", () => {
+    expect(textOf({ kind: "points", points: 1200 }, false, "en")).toBe(
+      "+1,200 for everyone who took part",
+    );
+    expect(textOf({ kind: "points", points: 5 }, false, "ar")).toBe("+5 لكل من شارك");
+    expect(textOf({ kind: "points" }, false, "en")).toBe("+0 for everyone who took part");
+    expect(textOf({ kind: "points", points: 5 }, true, "en")).toMatch(/^\+5 for every /);
+  });
+
+  it("says a moment in the player's language, and a win for everyone without one", () => {
+    const moment = { ar: "تعزف الفرقة", en: "The band plays" };
+    expect(textOf({ kind: "moment", moment }, false, "en")).toBe("The band plays");
+    expect(textOf({ kind: "moment", moment }, false, "ar")).toBe("تعزف الفرقة");
+    expect(textOf({ kind: "moment" }, false, "en")).toBe("A win for everyone");
+    expect(textOf({ kind: "nothing" }, true, "ar")).toBe("إنجاز للجميع");
+  });
+
+  it("gives no words for an unknown kind", () => {
+    expect(textOf({ kind: "teleport" }, false, "en")).toBeNull();
   });
 });
