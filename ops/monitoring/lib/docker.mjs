@@ -29,7 +29,8 @@ const envArgs = (env) => Object.entries(env).flatMap(([name, value]) => ["-e", `
 /**
  * Starts a container in the background. `publish` lists container ports to open on 127.0.0.1 (the host port is
  * chosen by Docker, read it with `hostPort`); `mounts` are `{ source, target }` read-only bind mounts; `tmpfs` lists
- * `target[:options]` memory file systems.
+ * `target[:options]` memory file systems; `network` is a Docker network mode (`host` puts the container on the
+ * machine's own network, so it reaches a program on the machine's 127.0.0.1).
  */
 export function start({
   name,
@@ -40,8 +41,10 @@ export function start({
   tmpfs = [],
   entrypoint,
   args = [],
+  network,
 }) {
   const command = ["run", "--detach", "--name", name];
+  if (network !== undefined) command.push("--network", network);
   command.push("--add-host", "host.docker.internal:host-gateway");
   command.push(...envArgs(env));
   for (const port of publish) command.push("--publish", `127.0.0.1::${port}`);

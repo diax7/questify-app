@@ -1,5 +1,17 @@
 # Blueprint State — Questify
 
+## The monitoring mail stage on a host with a firewall — 2026-11-09
+
+- **`monitoring:validate`'s mail stage no longer times out on firewalled Linux hosts (tier C, `ops/monitoring/lib`).**
+  Cause: this server's ufw has `INPUT DROP` with only ports 22, 80 and 443 open, so a container's connection to the
+  test mail sink (a random port on `host.docker.internal`, i.e. 172.17.0.1) was dropped without an answer (a probe
+  container's `nc` to a listening host port hung until its timeout; the sink saw 0 connections). Not a port clash, DNS,
+  image or timeout fault. Fix: on Linux the mail container joins the host network, the sink listens on 127.0.0.1 only
+  (was every address), and the check's Alertmanager takes a free web port instead of a fixed 9093; the mail, subject,
+  link and recipient checks are unchanged, and Docker Desktop keeps the bridge route. `startSmtpSink({ host })` and
+  `start({ network })` are new, with a sink test. `pnpm monitoring:validate` passes all 30 stages here. CI 0 minutes
+  (not pushed).
+
 ## The full-name allow-list from the console (FOLLOWUPS batch 23) — 2026-11-09
 
 - **Allow words from the console (tier B with an admin power; plan note `docs/plans/2026-11-09-name-allow-console.md`;

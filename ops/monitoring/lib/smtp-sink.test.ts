@@ -62,6 +62,21 @@ describe("the validation's mail sink", () => {
     },
   );
 
+  it.skipIf(otherAddress === undefined)(
+    "listens on the loopback address only when asked to, on every platform",
+    async () => {
+      const started = await startSmtpSink({ host: "127.0.0.1" });
+      open.push(started);
+      const outcome = await new Promise<string>((resolve) => {
+        const socket = connect(started.port, otherAddress);
+        socket.on("error", (error) => resolve((error as NodeJS.ErrnoException).code ?? "error"));
+        socket.on("connect", () => resolve("connected"));
+        open.push(socket);
+      });
+      expect(outcome).toBe("ECONNREFUSED");
+    },
+  );
+
   it("answers on the loopback address", async () => {
     const started = await sink();
     const socket = await client(started.port);
