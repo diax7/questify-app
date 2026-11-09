@@ -98,3 +98,7 @@ Track the four standard delivery measures (change lead time, deploy frequency, c
 **Phase gate:** phase tasks done with their done-conditions; ASVS/MASVS controls touched by the phase have evidence; mutation checks pass on the core code added; runbook entries added for new alerts; `TASKS.md` ticked; a short review by `cto-cycle` for core phases.
 
 **Release gate (before real players):** load test passed; restore rehearsal passed (T-805); independent penetration test done and its findings fixed or accepted in writing (T-809); ASVS L2 verification sheet complete for the core (T-810); CranL written answers received or production moved (T-811); counsel batch answered or the open items accepted in writing (T-807); both stores' requirements met; second backup copy proven.
+
+**Go-live checks on the environment (staging, then production):** CranL's edge lets a 300 s response through, the wait of a change set's apply (`apps/web/src/lib/forward-timeout.ts`, `APPLY_TIMEOUT_MS`), so a long apply must be tried once on staging.
+
+**Go-live checks per event:** before the first real event whose ledger nears 500,000 rows (the seeded 100,000-player event is past that), add the index on `ledger_entry (quest_id)` by hand with `CONCURRENTLY` first (Q-753, ADR-816).

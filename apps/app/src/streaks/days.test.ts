@@ -1,12 +1,31 @@
 import { MESSAGES, NO_OVERRIDES, createTranslator, type Language } from "@questify/shared";
 import { describe, expect, it } from "vitest";
-import { daysLabel } from "#src/streaks/days.ts";
+import { daysKey, daysLabel } from "#src/streaks/days.ts";
 
 const translate = createTranslator(MESSAGES, NO_OVERRIDES);
 const tIn =
   (language: Language) =>
   (key: Parameters<typeof translate>[0], params?: Record<string, string | number>) =>
     translate(key, language, params);
+
+describe("daysKey", () => {
+  it.each([
+    [0, "streak.days.many", "streak.days.few", "streak.days.few"],
+    [1, "streak.days.one", "streak.days.one", "streak.days.one"],
+    [2, "streak.days.many", "streak.days.twoObject", "streak.days.two"],
+    [3, "streak.days.many", "streak.days.few", "streak.days.few"],
+    [10, "streak.days.many", "streak.days.few", "streak.days.few"],
+    [11, "streak.days.many", "streak.days.many", "streak.days.many"],
+    [99, "streak.days.many", "streak.days.many", "streak.days.many"],
+    [100, "streak.days.many", "streak.days.many", "streak.days.many"],
+    [102, "streak.days.many", "streak.days.many", "streak.days.many"],
+  ])("picks the message for %i", (count, english, arabicObject, arabicSubject) => {
+    expect(daysKey(count, "en")).toBe(english);
+    expect(daysKey(count, "en", "subject")).toBe(english);
+    expect(daysKey(count, "ar", "object")).toBe(arabicObject);
+    expect(daysKey(count, "ar", "subject")).toBe(arabicSubject);
+  });
+});
 
 describe("daysLabel", () => {
   it.each([

@@ -28,7 +28,17 @@ const isTitle = (value: unknown): value is LocalizedText =>
 const isCount = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= 0;
 
-const hasLevelFields = (value: Record<string, unknown>): boolean =>
+type LevelFields = Readonly<{
+  xp: number;
+  level: number;
+  levelFrom: number;
+  nextLevelAt: number | null;
+  title: LocalizedText;
+}>;
+
+const hasLevelFields = (
+  value: Record<string, unknown>,
+): value is Record<string, unknown> & LevelFields =>
   isCount(value["xp"]) &&
   isCount(value["level"]) &&
   isCount(value["levelFrom"]) &&
@@ -39,11 +49,11 @@ const hasLevelFields = (value: Record<string, unknown>): boolean =>
 export function levelOf(value: unknown): QuestifyLevel | undefined {
   if (!isRecord(value) || !hasLevelFields(value)) return undefined;
   return {
-    xp: value["xp"] as number,
-    level: value["level"] as number,
-    levelFrom: value["levelFrom"] as number,
-    nextLevelAt: value["nextLevelAt"] as number | null,
-    title: value["title"] as LocalizedText,
+    xp: value.xp,
+    level: value.level,
+    levelFrom: value.levelFrom,
+    nextLevelAt: value.nextLevelAt,
+    title: value.title,
     ...(value["nextReward"] === undefined
       ? {}
       : { nextReward: itemSchema.safeParse(value["nextReward"]).data ?? null }),

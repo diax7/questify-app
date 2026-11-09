@@ -9,9 +9,8 @@ function sectionClass(tone: "danger" | undefined): string {
 
 /**
  * One titled part of a page, as a landmark named by its heading. `actions` sit beside the title; `tone="danger"`
- * marks the part that deletes or ends things. `look` sets the title's size apart from its heading `level`. A card
- * repeated per record (events that may share a name) is `as="article"`: still named by its heading, but not a landmark,
- * so two with the same name do not break the one-name-per-landmark rule.
+ * marks the part that deletes or ends things. `look` sets the title's size apart from its heading `level`. `as="article"`
+ * is for a card repeated per record: named by its heading but not a landmark, so same-named cards stay legal.
  */
 export function Section({
   as: Tag = "section",

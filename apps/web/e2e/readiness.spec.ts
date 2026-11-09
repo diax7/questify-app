@@ -1,3 +1,4 @@
+import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { openBuilder } from "#e2e/builder.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
@@ -146,6 +147,36 @@ test("in Arabic the list reads right to left without sideways scrolling", async 
   await expect(card.getByTestId("readiness-counts")).toContainText("مطلوب: 2");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expectNoSidewaysScroll(page);
+});
+
+test("two events with one name are two cards and no repeated landmark", async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(180_000);
+  const { eventId: first } = await openOverview(page, info.project.name);
+  expect(
+    (await page.request.post(`${CONTROL}/event-soon`, { data: { eventId: first } })).status(),
+  ).toBe(204);
+  // A second owner needs a browser of their own; both events are named alike by `openBuilder`.
+  const admin = await browser.newContext({ baseURL: info.project.use.baseURL ?? "" });
+  try {
+    const other = await admin.newPage();
+    const second = await asAdminWithEventSoon(other, info.project.name);
+    await other.goto("/en/console/readiness");
+    await expect(other.getByRole("heading", { name: "Readiness", level: 1 })).toBeVisible();
+    for (const eventId of [first, second]) {
+      const card = other
+        .locator(`a[href$="/console/events/${eventId}"]`)
+        .locator("xpath=ancestor::article[1]");
+      await expect(card.getByTestId("readiness-counts")).toBeVisible();
+    }
+    // The cards are articles named by their heading, not regions: two with the same name must not trip axe.
+    const result = await new AxeBuilder({ page: other }).withRules(["landmark-unique"]).analyze();
+    expect(result.violations.map((one) => one.id)).toEqual([]);
+  } finally {
+    await admin.close();
+  }
 });
 
 test("a person who is not an admin does not get the list", async ({ page }, info) => {

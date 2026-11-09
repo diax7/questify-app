@@ -220,7 +220,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reports and moderation (databa
     it("holds ten an hour and thirty a day, even when sent at once", async () => {
       const event = await live();
       const { player } = await member(event);
-      const quests = await Promise.all(Array.from({ length: 12 }, () => quest(event)));
+      const quests: string[] = [];
+      for (let made = 0; made < 12; made += 1) quests.push(await quest(event));
       const outcomes = await Promise.all(
         quests.map((target) => sqlstate(report(player, { kind: "quest", target }))),
       );
