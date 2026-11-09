@@ -53,6 +53,37 @@ export const categoryView = (category: CategoryRecord) => ({
   itemId: category.itemId,
 });
 
+/** The input's value when it names one (null clears), else the current one. */
+const pick = <T>(given: T | undefined, current: T): T => (given === undefined ? current : given);
+
+/** Whether the unlock is none or names another category of this event. */
+async function unlockAllowed(
+  client: PoolClient,
+  eventId: string,
+  current: CategoryRecord,
+  unlockAfter: string | null,
+): Promise<boolean> {
+  if (unlockAfter === null) {
+    return true;
+  }
+  return (
+    unlockAfter !== current.id && (await readCategory(client, eventId, unlockAfter)) !== undefined
+  );
+}
+
+/** Whether the bonus item is none, unchanged, or an active item of this event. */
+async function itemAllowed(
+  client: PoolClient,
+  eventId: string,
+  current: CategoryRecord,
+  itemId: string | null,
+): Promise<boolean> {
+  if (itemId === null || itemId === current.itemId) {
+    return true;
+  }
+  return activeItem(client, eventId, itemId);
+}
+
 /**
  * A category's rules after this input (T-304, T-304c): the opening time read in the event's zone, an unlock that names
  * another category of this event (a circle is refused by the database, migration 0044), and a refresh only over
@@ -68,36 +99,27 @@ async function rulesOf(
   if (opensAt === "invalid") {
     return { kind: "invalid", field: "opensAt" };
   }
-  const unlockAfter = input.unlockAfter === undefined ? current.unlockAfter : input.unlockAfter;
-  if (
-    unlockAfter !== null &&
-    (unlockAfter === current.id ||
-      (await readCategory(client, event.id, unlockAfter)) === undefined)
-  ) {
+  const unlockAfter = pick(input.unlockAfter, current.unlockAfter);
+  if (!(await unlockAllowed(client, event.id, current, unlockAfter))) {
     return { kind: "invalid", field: "unlockAfter" };
   }
   const refresh = input.refresh ?? current.refresh;
   if (refresh !== "none" && (await holdsPlayedOnce(client, current.id))) {
     return { kind: "invalid", field: "refresh" };
   }
-  const itemId = input.itemId === undefined ? current.itemId : input.itemId;
-  if (
-    itemId !== null &&
-    itemId !== current.itemId &&
-    !(await activeItem(client, event.id, itemId))
-  ) {
+  const itemId = pick(input.itemId, current.itemId);
+  if (!(await itemAllowed(client, event.id, current, itemId))) {
     return { kind: "invalid_item" };
   }
-  return {
-    orderMode: input.orderMode ?? current.orderMode,
-    opensAt,
-    unlockAfter,
-    completionBonus: input.completionBonus ?? current.completionBonus,
-    refresh,
-    hidden: input.hidden ?? current.hidden,
-    itemId,
-  };
+  return { ...plainRules(input, current), opensAt, unlockAfter, refresh, itemId };
 }
+
+/** The rules that need no check: the input's value, else the current one. */
+const plainRules = (input: CategoryInput, current: CategoryRecord) => ({
+  orderMode: input.orderMode ?? current.orderMode,
+  completionBonus: input.completionBonus ?? current.completionBonus,
+  hidden: input.hidden ?? current.hidden,
+});
 
 /** Adds a category at the end (FR-1004). Adding needs no confirmation, even while the event is live. */
 export function createCategory(
@@ -161,6 +183,73 @@ export function updateCategory(
   });
 }
 
+/** The refusal for a category players or rehearsal accounts completed. */
+const completedRefusal = (played: "rehearsal" | "real"): Refused => ({
+  kind: played === "real" ? "has_completions" : "rehearsal_data",
+});
+
+/** Why this category cannot go whatever is done with its quests: the last one, an unlock, a paid bonus. */
+async function deletionBlock(
+  client: PoolClient,
+  eventId: string,
+  current: CategoryRecord,
+): Promise<Refused | undefined> {
+  if ((await countRows(client, "category", eventId)) <= 1) {
+    return { kind: "last_category" };
+  }
+  const unlocking = await unlockedBy(client, current.id);
+  if (unlocking.length > 0) {
+    return { kind: "category_in_use", categories: unlocking };
+  }
+  const bonuses = await playedCategory(client, current.id);
+  return bonuses === "none" ? undefined : completedRefusal(bonuses);
+}
+
+/** Moves the quests to the end of another category of this event; the new home's id, or the refusal. */
+async function moveAway(
+  client: PoolClient,
+  current: CategoryRecord,
+  toId: string | undefined,
+): Promise<string | Refused> {
+  const to = toId === undefined ? undefined : await readCategory(client, current.eventId, toId);
+  if (to === undefined || to.id === current.id) {
+    return { kind: "invalid", field: "to" };
+  }
+  await moveQuests(client, current.id, to.id);
+  return to.id;
+}
+
+/** Does what the choice says with the quests of a category being deleted, noting it in `outcome`; or the refusal. */
+async function settleQuests(
+  client: PoolClient,
+  current: CategoryRecord,
+  choice: CategoryDelete,
+  outcome: Record<string, unknown>,
+  quests: number,
+): Promise<Refused | undefined> {
+  if (quests === 0) {
+    return undefined;
+  }
+  if (choice.quests === undefined) {
+    return { kind: "category_not_empty", quests };
+  }
+  if (choice.quests === "move") {
+    const moved = await moveAway(client, current, choice.to);
+    if (typeof moved !== "string") {
+      return moved;
+    }
+    outcome["movedTo"] = moved;
+  }
+  if (choice.quests === "delete") {
+    const completed = await completionsOf(client, { categoryId: current.id });
+    if (completed !== "none") {
+      return completedRefusal(completed);
+    }
+    outcome["deletedQuests"] = await deleteQuestsOf(client, current.id);
+  }
+  return undefined;
+}
+
 /**
  * Deletes a category (FR-1004). One that holds quests needs a choice: move them to the end of another category of this
  * event, or delete them. The last category stays: every quest needs one, and the event always has one (FR-228).
@@ -178,16 +267,9 @@ export function deleteCategory(
     if (current === undefined) {
       return { kind: "not_found" };
     }
-    if ((await countRows(client, "category", eventId)) <= 1) {
-      return { kind: "last_category" };
-    }
-    const unlocking = await unlockedBy(client, current.id);
-    if (unlocking.length > 0) {
-      return { kind: "category_in_use", categories: unlocking };
-    }
-    const bonuses = await playedCategory(client, current.id);
-    if (bonuses !== "none") {
-      return { kind: bonuses === "real" ? "has_completions" : "rehearsal_data" };
+    const blocked = await deletionBlock(client, eventId, current);
+    if (blocked !== undefined) {
+      return blocked;
     }
     const held = await client.query<{ count: number }>(
       "SELECT count(*)::int AS count FROM quest WHERE category_id = $1",
@@ -195,24 +277,9 @@ export function deleteCategory(
     );
     const quests = held.rows[0]?.count ?? 0;
     const outcome: Record<string, unknown> = { quests };
-    if (quests > 0 && choice.quests === undefined) {
-      return { kind: "category_not_empty", quests };
-    }
-    if (quests > 0 && choice.quests === "move") {
-      const to =
-        choice.to === undefined ? undefined : await readCategory(client, eventId, choice.to);
-      if (to === undefined || to.id === current.id) {
-        return { kind: "invalid", field: "to" };
-      }
-      await moveQuests(client, current.id, to.id);
-      outcome["movedTo"] = to.id;
-    }
-    if (quests > 0 && choice.quests === "delete") {
-      const completed = await completionsOf(client, { categoryId: current.id });
-      if (completed !== "none") {
-        return { kind: completed === "real" ? "has_completions" : "rehearsal_data" };
-      }
-      outcome["deletedQuests"] = await deleteQuestsOf(client, current.id);
+    const refused = await settleQuests(client, current, choice, outcome, quests);
+    if (refused !== undefined) {
+      return refused;
     }
     // Written first: the audit rules need the event, and the entry goes back with the transaction on any failure.
     await audit(client, actor, caller, {

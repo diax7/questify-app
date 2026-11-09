@@ -224,38 +224,62 @@ export function cleanFields(
   if (input.length > JOIN_FIELD_LIMIT) {
     return undefined;
   }
-  const kinds = new Set<JoinFieldKind>();
-  const ids = new Set<string>();
+  const seen: SeenFields = { kinds: new Set(), ids: new Set() };
   const cleaned: FieldRecord[] = [];
   for (const field of input) {
-    const custom = field.kind === "custom";
-    const label = custom
-      ? { ar: labelText(field.label?.ar), en: labelText(field.label?.en) }
-      : { ar: null, en: null };
-    const kept = field.id === undefined ? undefined : current.find((row) => row.id === field.id);
-    const options = optionsOf(field, kept, makeId);
-    if (
-      options === undefined ||
-      (custom && label.ar === null && label.en === null) ||
-      [label.ar, label.en].some((text) => text !== null && [...text].length > LABEL_MAX) ||
-      (!custom && kinds.has(field.kind)) ||
-      (field.id !== undefined && (kept?.kind !== field.kind || ids.has(field.id)))
-    ) {
+    const record = cleanField(field, current, seen, makeId);
+    if (record === undefined) {
       return undefined;
     }
-    kinds.add(field.kind);
-    if (field.id !== undefined) {
-      ids.add(field.id);
-    }
-    cleaned.push({
-      id: field.id ?? "",
-      kind: field.kind,
-      label,
-      required: field.required,
-      options,
-    });
+    cleaned.push(record);
   }
   return cleaned;
+}
+
+/** The kinds and ids of the fields of one list already cleaned. */
+type SeenFields = Readonly<{ kinds: Set<JoinFieldKind>; ids: Set<string> }>;
+
+/** A custom field's trimmed labels; a named kind has none. */
+const labelOf = (field: FieldInput): FieldRecord["label"] =>
+  field.kind === "custom"
+    ? { ar: labelText(field.label?.ar), en: labelText(field.label?.en) }
+    : { ar: null, en: null };
+
+/** Whether a custom field has no label at all, or either label is over the limit. */
+const labelRefused = (field: FieldInput, label: FieldRecord["label"]): boolean =>
+  (field.kind === "custom" && label.ar === null && label.en === null) ||
+  [label.ar, label.en].some((text) => text !== null && [...text].length > LABEL_MAX);
+
+/** Whether the field repeats a named kind, repeats an id, or names an id that is not a field of its own kind. */
+function identityRefused(
+  field: FieldInput,
+  kept: FieldRecord | undefined,
+  seen: SeenFields,
+): boolean {
+  if (field.kind !== "custom" && seen.kinds.has(field.kind)) {
+    return true;
+  }
+  return field.id !== undefined && (kept?.kind !== field.kind || seen.ids.has(field.id));
+}
+
+/** One field to save, or undefined when it breaks a rule; a field that passes is added to `seen`. */
+function cleanField(
+  field: FieldInput,
+  current: readonly FieldRecord[],
+  seen: SeenFields,
+  makeId: () => string,
+): FieldRecord | undefined {
+  const label = labelOf(field);
+  const kept = field.id === undefined ? undefined : current.find((row) => row.id === field.id);
+  const options = optionsOf(field, kept, makeId);
+  if (options === undefined || labelRefused(field, label) || identityRefused(field, kept, seen)) {
+    return undefined;
+  }
+  seen.kinds.add(field.kind);
+  if (field.id !== undefined) {
+    seen.ids.add(field.id);
+  }
+  return { id: field.id ?? "", kind: field.kind, label, required: field.required, options };
 }
 
 type FieldRow = {

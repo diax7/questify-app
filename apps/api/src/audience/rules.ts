@@ -54,6 +54,39 @@ export type FieldInUse =
 const idsOf = (options: readonly JoinOption[] | null): string[] =>
   (options ?? []).map((option) => option.id);
 
+/** What a save does to one field: whether it stays, its options after, and the option ids that go. */
+type FieldChange = Readonly<{
+  kept: boolean;
+  next: readonly JoinOption[] | null;
+  removed: readonly string[];
+}>;
+
+function changeOf(
+  field: FieldState,
+  after: ReadonlyMap<string, readonly JoinOption[] | null>,
+): FieldChange {
+  const next = after.get(field.id) ?? null;
+  const nextIds = new Set(idsOf(next));
+  return {
+    kept: after.has(field.id),
+    next,
+    removed: idsOf(field.options).filter((id) => !nextIds.has(id)),
+  };
+}
+
+/** Whether the change takes away what a rule on this field names: the field, its options, or a chosen option. */
+const ruleBroken = (item: TargetedItem, change: FieldChange): boolean =>
+  !change.kept || change.next === null || item.values.some((id) => change.removed.includes(id));
+
+/** Whether a kept field's answers name an option that goes, or the field gains options over free-text answers. */
+function answerBroken(field: FieldState, given: FieldAnswers, change: FieldChange): boolean {
+  if (!change.kept) {
+    return false;
+  }
+  const addsOptions = field.options === null && change.next !== null;
+  return addsOptions || given.chosen.some((id) => change.removed.includes(id));
+}
+
 /**
  * Whether saving `after` over `before` would take away a field or an option something still names (ADR-173, the T-220
  * review): a deleted field or a removed option a rule names; an option an answer names; options added to a field
@@ -69,21 +102,12 @@ export function fieldsInUse(
   const blocking: TargetedItem[] = [];
   let answered = false;
   for (const field of before) {
-    const kept = after.has(field.id);
-    const next = after.get(field.id) ?? null;
-    const nextIds = new Set(idsOf(next));
-    const removed = idsOf(field.options).filter((id) => !nextIds.has(id));
-    for (const item of targeted) {
-      const named = item.fieldId === field.id;
-      if (named && (!kept || next === null || item.values.some((id) => removed.includes(id)))) {
-        blocking.push(item);
-      }
-    }
+    const change = changeOf(field, after);
+    blocking.push(
+      ...targeted.filter((item) => item.fieldId === field.id && ruleBroken(item, change)),
+    );
     const given = answers.find((entry) => entry.fieldId === field.id);
-    if (kept && given !== undefined) {
-      const addsOptions = field.options === null && next !== null;
-      answered ||= addsOptions || given.chosen.some((id) => removed.includes(id));
-    }
+    answered ||= given !== undefined && answerBroken(field, given, change);
   }
   if (blocking.length > 0) {
     const names = (kind: TargetedItem["kind"]) =>

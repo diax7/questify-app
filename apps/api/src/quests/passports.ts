@@ -27,11 +27,9 @@ export async function passportSteps(
   input: QuestInput["steps"],
 ): Promise<Checked | Refused> {
   if (type !== "passport") {
-    return input === undefined ? NOTHING : { kind: "invalid", field: "steps" };
+    return notAPassport(input);
   }
-  const steps =
-    input?.map((step) => ({ id: step.id, name: bilingual(step.name, NO_TEXT) })) ??
-    current?.steps.map((step) => ({ id: step.id, name: step.name }));
+  const steps = stepsOf(current, input);
   if (steps === undefined || !wellFormed(steps, current)) {
     return { kind: "invalid", field: "steps" };
   }
@@ -42,15 +40,38 @@ export async function passportSteps(
   if (current === undefined) {
     return { kind: "steps", steps };
   }
+  const refused = await stampedRefusal(client, current, steps, needed);
+  if (refused !== undefined) {
+    return refused;
+  }
+  return input === undefined ? NOTHING : { kind: "steps", steps };
+}
+
+/** Another type has no steps to write, and takes none. */
+const notAPassport = (input: QuestInput["steps"]): Checked | Refused =>
+  input === undefined ? NOTHING : { kind: "invalid", field: "steps" };
+
+/** The steps the input names, else the quest's own; undefined for a new passport with none. */
+const stepsOf = (
+  current: QuestRecord | undefined,
+  input: QuestInput["steps"],
+): StepInput[] | undefined =>
+  input?.map((step) => ({ id: step.id, name: bilingual(step.name, NO_TEXT) })) ??
+  current?.steps.map((step) => ({ id: step.id, name: step.name }));
+
+/** Once players stamped the passport: `needed` never falls and a stamped step stays. */
+async function stampedRefusal(
+  client: PoolClient,
+  current: QuestRecord,
+  steps: readonly StepInput[],
+  needed: number,
+): Promise<Refused | undefined> {
   const stamped = await stampedSteps(client, current.id);
   if (stamped.size > 0 && needed < Number(current.config["needed"])) {
     return { kind: "invalid", field: "needed" };
   }
   const kept = new Set(steps.map((step) => step.id));
-  if ([...stamped].some((id) => !kept.has(id))) {
-    return { kind: "step_in_use" };
-  }
-  return input === undefined ? NOTHING : { kind: "steps", steps };
+  return [...stamped].some((id) => !kept.has(id)) ? { kind: "step_in_use" } : undefined;
 }
 
 function wellFormed(steps: readonly StepInput[], current: QuestRecord | undefined): boolean {
