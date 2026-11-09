@@ -908,7 +908,11 @@ export const REAL_NAMES: readonly string[] = [
   "Ju|'hoan",
 ];
 
-/** Abusive names: a listed word, however it is spelled or hidden. */
+/**
+ * Abusive names: a listed word, however it is spelled or hidden. Copied to `full_name_probe` (migration 0185), which the
+ * console's allow-list door checks; `name-allow-console.int.test.ts` keeps the two equal, so a name added here needs a
+ * migration that adds its probe.
+ */
 export const ABUSIVE_NAMES: readonly string[] = [
   "Sara Bitch",
   "Bastard Khan",

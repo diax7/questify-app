@@ -34,6 +34,23 @@ export const wordsPageSchema = z.strictObject({
 });
 export type WordsPage = z.infer<typeof wordsPageSchema>;
 
+/**
+ * A word of a real name the full-name check skips (`full_name_allow`, FR-1779, ADR-817), stored as the check folds a
+ * name; its language is its letters'.
+ */
+export const allowWordSchema = z.strictObject({
+  word: z.string().min(2),
+  language: z.enum(WORD_LANGUAGES),
+  addedAt: instant,
+});
+export type AllowWord = z.infer<typeof allowWordSchema>;
+/** What `GET /v1/admin/name-allow` answers: a page in word order, and how many words the filter matches. */
+export const allowPageSchema = z.strictObject({
+  words: z.array(allowWordSchema).max(WORDS_PAGE),
+  total: z.number().int().min(0),
+});
+export type AllowPage = z.infer<typeof allowPageSchema>;
+
 export const retiredNameSchema = z.strictObject({ fold: z.string().min(3), retiredAt: instant });
 export type RetiredName = z.infer<typeof retiredNameSchema>;
 /** What `GET /v1/admin/retired-usernames` answers. */

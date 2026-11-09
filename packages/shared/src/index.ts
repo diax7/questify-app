@@ -1275,7 +1275,10 @@ export type {
   WordLanguage,
   WordMatch,
   WordsPage,
+  AllowWord,
+  AllowPage,
 } from "./console-players/safety";
+export { allowPageSchema, allowWordSchema } from "./console-players/safety";
 export {
   CHEAT_FLAG_KINDS,
   HOLD_KINDS,

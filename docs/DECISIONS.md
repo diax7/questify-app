@@ -8744,7 +8744,7 @@ compounds below:
 
 The chosen setting is the one with no abusive name passing and the fewest real names refused: Dhia's starting point, with a
 `word` entry of 4 letters or more allowed 1 letter rather than 2 (Button, Dickens, Draper, Semenov, Poonam, Anusha, Twinkle
-pass by the rule). **The allow-list** (`full_name_allow`, 77 words, edited by migration) holds the 83 real names the chosen
+pass by the rule). **The allow-list** (`full_name_allow`, 77 words, edited by migration; since 0185 also from the console, see the note below) holds the 83 real names the chosen
 setting still refuses, by their words, and the 20 the second review found (2026-11-08): kike (Q-754 (2)); 0177's butt, dick,
 poon, quim, cumming, hooker, atwater, wankel, slutsky, ishita, ashita, ashit, shital, kshiti, oshita, «اسحاق», «بلوطي»,
 «سكسك»; then nishit, shittu, skeete, skeeter, bastardi, swank, vecchi, vecchio, nasser, yasser, gasser, jasser, butti, butts,
@@ -8812,7 +8812,7 @@ Arabic-Indic digits and the Cyrillic and Greek letters that look Latin mapped (`
 punctuation and symbols separate words. Then, word by word: a `word` entry matches a whole word (split at digits); a `part` entry
 matches inside one word only, digits removed or read as letters, never across a space; letters spelled out one by one ("f u c k",
 "ك س") are read joined; a word in `full_name_allow` (43 seeded name words: اسحاق, بلوطي, سكسك, butt, dick, poon, kike, hooker,
-yamashita, harshit, ishita, pornchai, ...; deny by default, no grant, edited by migration) is skipped, and so is an Arabic entry's
+yamashita, harshit, ishita, pornchai, ...; deny by default, no grant, edited by migration, and since 0185 from the console) is skipped, and so is an Arabic entry's
 article or nisba form: one optional prefix of ال, بال, وال, لل and one optional suffix of ي, يه, ه (ية and ة fold to يه and ه), so
 اسحاق covers «الإسحاقي» and «إسحاقية» and بلوطي covers «البلوطي». PostgreSQL 17.11, UTF8: `normalize()`
 needs a UTF8 database, which every Questify database is. (2) **At the join**: `check_join_answers` refuses a Full name answer that
@@ -8922,3 +8922,18 @@ abusive names are still refused and no corpus real name is. The trade-off that r
 shape, such as "S****h" read as "snatch", is still refused, the same way "n****r" is caught. `_ # ٭ ✱ ✲ ✳ ⚹ ❋ ⁕ ★ • |` are
 read as * (the fold would turn `_` into a space, so they are read in the name before it): f_ck, ｆ＿ｃｋ, f#ck, f★ck, f•ck,
 f|ck and sh|t are refused; `.` and `-` are left alone, and "Ju|'hoan" (a click letter) passes. Corpus now 867 real names (6 added: Y*nus, N*sser, Sm*th, Ha*na, Mo*****d, Ju|'hoan) and 327 abusive (16 added), 14 accepted passes.
+
+**Amended 2026-11-09 (FOLLOWUPS batch 23, migration 0185, FR-1779): the allow-list from the console.** `full_name_allow` is no
+longer edited by migration only: a Questify admin adds or removes an allow word on the console page beside the word lists
+(`/console/name-allow`), when a real name is reported as refused. The word is stored as the check reads a name
+(`full_name_fold`: NFKC, accents and marks dropped, the username fold, Persian and look-alike letters), must be one word of 2 or
+more letters, all Arabic or all English, and its language is its letters' (an Arabic word covers its prefix and nisba forms, as
+above). The door refuses a word that is itself a `username_word` entry (butt, dick, kike and the other seeded ones that are list
+words stay a reviewed migration's decision) and a word with which an abusive name of the corpus would pass: the corpus' abusive
+names are copied to `full_name_probe` (a test keeps it equal to `test/db/full-name-corpus.ts`, so a name added to the corpus
+needs a migration that adds its probe), and the door checks the probes that hold the word before and after its insert. So
+fucks, sexx, fuckme, «السحاقي», «ياخولي», «كسك» are refused (each is a list entry with a known ending, a letter added or a
+prefix), while a real name's word that only holds an entry, such as Ishaq, passes; every word of every abusive corpus name
+tried through the door leaves all 327 refused. The trade-off kept: an abusive form that is not in the corpus can still be
+allowed by an admin, which the audit (`full_name_allow.add`, the word) and the page show. The list trigger marks the sweep
+on every change, so stored names follow within minutes.

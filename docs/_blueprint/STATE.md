@@ -1,5 +1,20 @@
 # Blueprint State — Questify
 
+## The full-name allow-list from the console (FOLLOWUPS batch 23) — 2026-11-09
+
+- **Allow words from the console (tier B with an admin power; plan note `docs/plans/2026-11-09-name-allow-console.md`;
+  FR-1779, ADR-817 amended).** Migration **0185**: doors `console_name_allow`, `admin_name_allow_add`,
+  `admin_name_allow_remove` (active admin only, QE403; the lists' advisory key; audited `full_name_allow.add|remove`; no
+  reason or re-authentication, as the word lists). The add door folds the word with `full_name_fold`, takes its language
+  from its letters, and refuses a non-word (WA400, 400 `invalid_allow_word`), a `username_word` entry (WA409, 422
+  `allow_word_listed`) and a word that lets an abusive corpus name through (WA422, 422 `allow_word_unsafe`), checked against
+  the new `full_name_probe` (the corpus' 327 abusive names, no grant, kept equal to the corpus by a test). The list's
+  statement trigger marks the sweep (tested). Routes `GET|POST /v1/admin/name-allow`, `DELETE /v1/admin/name-allow/{word}`;
+  page `/console/name-allow` beside the word lists, history words `console.history.nameAllow`. Tests: the new
+  `test/db/name-allow-console.int` (every abusive corpus word tried through the door), `test/console/safety.int`, the
+  security suites, `full-name-filter.int`, and `console-name-allow.spec.ts` on desktop and phone. About 250k agent tokens.
+  CI 0 minutes (not pushed).
+
 ## Section look apart from heading level — 2026-11-09
 
 - **Console card titles keep their old look (tier B, `apps/web` only; FOLLOWUPS clause cleared).** `Section` takes `look`

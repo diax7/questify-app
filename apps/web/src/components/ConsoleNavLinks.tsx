@@ -281,6 +281,19 @@ export function ConsoleWordListsLink({
   );
 }
 
+/** This page's item in the console's navigation (FR-1779, ADR-817): the full-name allow-list. */
+export function ConsoleNameAllowLink({
+  language,
+  current,
+}: Readonly<{ language: Language; current: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <NavItem href={`/${language}/console/name-allow`} icon="check" current={current}>
+      {t("console.nameAllow.title")}
+    </NavItem>
+  );
+}
+
 /** This page's item in the console's navigation (T-705b), with the open urgent count (T-701b). */
 export function ConsoleReportsLink({
   language,

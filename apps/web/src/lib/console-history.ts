@@ -286,6 +286,7 @@ export const HISTORY_GROUPS: ReadonlyArray<readonly [MessageKey, readonly string
     ],
   ],
   ["console.history.usernameWords", ["username_word.add", "username_word.remove"]],
+  ["console.history.nameAllow", ["full_name_allow.add", "full_name_allow.remove"]],
   ["console.history.usernameFreed", ["username_retired.remove"]],
   ["console.history.rewardCodesResealStart", ["reward.codes.reseal_start"]],
   ["console.history.rewardCodesReseal", ["reward.codes.reseal"]],

@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { banAnswerSchema, retiredPageSchema, wordsPageSchema } from "@questify/shared";
+import {
+  allowPageSchema,
+  banAnswerSchema,
+  retiredPageSchema,
+  wordsPageSchema,
+} from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createStaff,
@@ -74,6 +79,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console safety tools over HTTP
       ["GET", "/v1/admin/words"],
       ["POST", "/v1/admin/words", { word: "gnarl", match: "word", language: "en" }],
       ["DELETE", "/v1/admin/words/gnarl"],
+      ["GET", "/v1/admin/name-allow"],
+      ["POST", "/v1/admin/name-allow", { word: "gnarlan" }],
+      ["DELETE", "/v1/admin/name-allow/nasser"],
       ["GET", "/v1/admin/retired-usernames"],
       ["POST", "/v1/admin/retired-usernames/release", { username: "anyone" }],
       ["POST", `/v1/admin/players/${playerId}/achievement-tiers/revoke`, { ...TIERS, ...BAN }],
@@ -239,6 +247,50 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console safety tools over HTTP
     expect((await call("DELETE", "/v1/admin/words/snarkly", admin())).statusCode).toBe(204);
     expect((await call("DELETE", "/v1/admin/words/snarkle", admin())).statusCode).toBe(204);
     expect((await call("DELETE", "/v1/admin/words/snarkle", admin())).statusCode).toBe(404);
+  });
+
+  it("edits the full-name allow-list: add, a repeat, each refusal, the page, remove", async () => {
+    const added = await call("POST", "/v1/admin/name-allow", admin(), { word: "Snarklan" });
+    expect(added.statusCode).toBe(201);
+    expect(added.json()).toEqual({ word: "Snarklan" });
+    expect(
+      (await call("POST", "/v1/admin/name-allow", admin(), { word: "سنركلان" })).statusCode,
+    ).toBe(201);
+    for (const [word, status, code] of [
+      ["SNARKLAN", 409, "word_exists"],
+      ["x1", 400, "invalid_allow_word"],
+      ["fuck", 422, "allow_word_listed"],
+      ["fucks", 422, "allow_word_unsafe"],
+    ] as const) {
+      const answer = await call("POST", "/v1/admin/name-allow", admin(), { word });
+      expect([answer.statusCode, answer.json()], word).toMatchObject([status, { code }]);
+    }
+    const page = async (query: string) => {
+      const body = allowPageSchema.parse(
+        (await call("GET", `/v1/admin/name-allow?${query}`, admin())).json(),
+      );
+      return { words: body.words.map((row) => [row.word, row.language]), total: body.total };
+    };
+    expect(await page("q=narkla")).toEqual({ words: [["snarklan", "en"]], total: 1 });
+    expect(await page("q=نركلان&language=ar")).toEqual({ words: [["سنركلان", "ar"]], total: 1 });
+    expect(await page("q=narkla&language=ar")).toEqual({ words: [], total: 0 });
+    expect((await call("GET", "/v1/admin/name-allow?match=word", admin())).statusCode).toBe(400);
+    expect((await call("DELETE", "/v1/admin/name-allow/Snarklan", admin())).statusCode).toBe(204);
+    expect(
+      (await call("DELETE", `/v1/admin/name-allow/${encodeURIComponent("سنركلان")}`, admin()))
+        .statusCode,
+    ).toBe(204);
+    expect((await call("DELETE", "/v1/admin/name-allow/snarklan", admin())).statusCode).toBe(404);
+    expect(
+      await owner(
+        "SELECT action, target_id FROM audit_log WHERE action LIKE 'full_name_allow.%' ORDER BY id",
+      ),
+    ).toEqual([
+      { action: "full_name_allow.add", target_id: "snarklan" },
+      { action: "full_name_allow.add", target_id: "سنركلان" },
+      { action: "full_name_allow.remove", target_id: "snarklan" },
+      { action: "full_name_allow.remove", target_id: "سنركلان" },
+    ]);
   });
 
   it("lists and releases a retired name, which stays out of every URL and log line", async () => {

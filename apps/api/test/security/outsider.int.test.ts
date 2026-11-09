@@ -359,15 +359,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     ).toEqual([]);
   });
 
-  it("keeps the safety tools closed: eleven doors for the API's role alone, one table with no grant (T-705)", async () => {
+  it("keeps the safety tools closed: fourteen doors for the API's role alone, two tables with no grant (T-705, 0185)", async () => {
     const doors = [
       "admin_ban_player",
       "admin_lift_ban",
+      "admin_name_allow_add",
+      "admin_name_allow_remove",
       "admin_unretire_username",
       "admin_word_add",
       "admin_word_remove",
       "ban_notice",
       "block_player",
+      "console_name_allow",
       "console_retired_usernames",
       "console_words",
       "own_blocks",
@@ -420,6 +423,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
       "SELECT public.admin_word_remove('gnarl', gen_random_uuid())",
       "SELECT public.console_retired_usernames(NULL, NULL)",
       "SELECT public.admin_unretire_username('gnarl', gen_random_uuid())",
+      "SELECT public.console_name_allow(NULL, NULL, NULL)",
+      "SELECT public.admin_name_allow_add('gnarlan', gen_random_uuid())",
+      "SELECT public.admin_name_allow_remove('nasser', gen_random_uuid())",
+      "SELECT * FROM public.full_name_probe",
       "SELECT * FROM public.player_block",
       "INSERT INTO public.player_block (blocker_id, blocked_id) VALUES (gen_random_uuid(), gen_random_uuid())",
     ]) {
@@ -428,7 +435,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(
       await rows(
         `SELECT table_name, grantee FROM information_schema.role_table_grants
-         WHERE table_name = 'player_block' AND grantee <> 'postgres'`,
+         WHERE table_name IN ('player_block', 'full_name_probe') AND grantee <> 'postgres'`,
       ),
     ).toEqual([]);
     expect(

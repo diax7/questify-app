@@ -9596,6 +9596,10 @@ export const MESSAGES = {
     ar: "عُدّلت كلمات الأسماء المحظورة",
     en: "Blocked username words changed",
   },
+  "console.history.nameAllow": {
+    ar: "عُدّلت الكلمات المسموحة في الأسماء",
+    en: "Allowed name words changed",
+  },
   "console.history.usernameFreed": {
     ar: "أُتيح اسم مستخدم من جديد",
     en: "Retired username released",
@@ -10048,6 +10052,24 @@ export const MESSAGES = {
   },
   "console.wordLists.retired.released": { ar: "أصبح الاسم متاحًا.", en: "Name released." },
   "console.wordLists.retired.empty": { ar: "لا توجد أسماء محجوزة.", en: "No retired names." },
+  "console.nameAllow.title": { ar: "كلمات مسموحة في الأسماء", en: "Allowed name words" },
+  "console.nameAllow.intro": {
+    ar: "كلمات من أسماء حقيقية تحتوي كلمة من القوائم، فلا يُرفض الاسم الكامل الذي يحملها. أضف كلمة إذا أُبلغ عن رفض اسم حقيقي، وتُفحص الأسماء المحفوظة من جديد خلال دقائق.",
+    en: "Words of real names that hold a listed word, so a full name holding one isn't refused. Add one when a real name is reported as refused; stored names are checked again within minutes.",
+  },
+  "console.nameAllow.lists": { ar: "الكلمات المسموحة", en: "Allowed words" },
+  "console.nameAllow.hint": {
+    ar: "اكتب الكلمة كما تُكتب في الاسم. تشمل الكلمة العربية صيغها مع «ال» والنسبة، وتُحدَّد اللغة من الحروف.",
+    en: "Type the word as the name writes it. An Arabic word also covers its forms with ال and the nisba; the language follows the letters.",
+  },
+  "console.nameAllow.add": { ar: "السماح بالكلمة", en: "Allow word" },
+  "console.nameAllow.added": { ar: "سُمح بالكلمة.", en: "Word allowed." },
+  "console.nameAllow.removeConfirm": {
+    ar: "إيقاف السماح بـ«{word}»؟ قد تُخفى الأسماء التي تحملها من جديد.",
+    en: "Stop allowing “{word}”? Names that hold it may be hidden again.",
+  },
+  "console.nameAllow.removed": { ar: "أُوقف السماح بالكلمة.", en: "Word no longer allowed." },
+  "console.nameAllow.empty": { ar: "لا توجد كلمات مسموحة.", en: "No allowed words." },
   "ban.title": { ar: "حسابك موقوف", en: "Your account is suspended" },
   "ban.reason": { ar: "السبب: {reason}", en: "Reason: {reason}" },
   "ban.reason.cheating": { ar: "الغش في المهام أو النقاط", en: "Cheating in quests or points" },

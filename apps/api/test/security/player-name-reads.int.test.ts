@@ -52,6 +52,8 @@ const PLAYER_NAME_READS: Readonly<Record<string, string>> = {
   admin_word_add: LIST,
   admin_word_remove: LIST,
   console_words: LIST,
+  admin_name_allow_add: `${LIST}: the full-name allow-list, checked against the corpus' abusive names (0185)`,
+  admin_name_allow_remove: LIST,
   console_retired_usernames: LIST,
   console_player_record: ADMIN,
   console_review_demo: `${ADMIN}: the App Review demo's own reviewer account (T-710)`,

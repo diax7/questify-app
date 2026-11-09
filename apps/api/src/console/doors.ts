@@ -1,10 +1,13 @@
 import type { Pool, PoolClient } from "pg";
 import {
+  allowWordListed,
+  allowWordUnsafe,
   alreadyInThatState,
   catalogStale,
   endOwnSession,
   groupPushEventClosed,
   groupPushNobody,
+  invalidAllowWord,
   invalidCatalog,
   invalidPlayerAction,
   invalidReason,
@@ -33,7 +36,7 @@ export type OpenedGrant = Readonly<{
 }>;
 
 /**
- * Each refusal of the console doors (migrations 0114, 0118 and 0120) as its HTTP answer. A caller who is not an admin, and a
+ * Each refusal of the console doors (migrations 0114, 0118, 0120 and 0185) as its HTTP answer. A caller who is not an admin, and a
  * missing organizer, event, live grant or player (an erased one included), all look like nothing there (404).
  */
 const REFUSALS: Readonly<Record<string, () => HttpError>> = {
@@ -51,6 +54,10 @@ const REFUSALS: Readonly<Record<string, () => HttpError>> = {
   PA400: invalidPlayerAction,
   PA404: notFound,
   WL400: invalidWord,
+  // The allow-list (migration 0185): not one word of letters, a list entry, a word an abusive name would pass by.
+  WA400: invalidAllowWord,
+  WA409: allowWordListed,
+  WA422: allowWordUnsafe,
   // Group push (migration 0138): a draft that breaks a rule, an unknown join code, an event that cannot take a push,
   // nobody to send to, and the hourly limit. The text's own refusals are CA400.
   GP400: invalidCatalog,

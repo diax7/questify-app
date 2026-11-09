@@ -14,6 +14,7 @@ import {
   ConsoleInvitationsLink,
   ConsoleLegalLink,
   ConsoleMessagesLink,
+  ConsoleNameAllowLink,
   ConsoleNumbersLink,
   ConsoleOrganizersLink,
   ConsolePlayersLink,
@@ -44,6 +45,7 @@ export function ConsoleNav({ language }: Readonly<{ language: Language }>) {
       <ConsoleOrganizersLink language={language} current={on("/console/organizers")} />
       <ConsolePlayersLink language={language} current={on("/console/players")} />
       <ConsoleWordListsLink language={language} current={on("/console/word-lists")} />
+      <ConsoleNameAllowLink language={language} current={on("/console/name-allow")} />
       <ConsoleReportsLink language={language} current={on("/console/reports")} />
       <ConsoleFlagsLink language={language} current={on("/console/flags")} />
       <ConsoleTicketsLink language={language} current={on("/console/tickets")} />

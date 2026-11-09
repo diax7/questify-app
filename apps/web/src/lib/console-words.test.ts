@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  allowPath,
+  allowWordPath,
+  readAllowWords,
   readRetired,
   readWords,
   retiredPath,
@@ -29,5 +32,22 @@ describe("the word-list console's paths and readers (T-705)", () => {
     expect(readRetired({ names: [name] })).toEqual([name]);
     expect(readRetired({ names: "x" })).toBeUndefined();
     expect(readRetired(null)).toBeUndefined();
+  });
+});
+
+describe("the allow-list console's paths and reader (FR-1779, ADR-817)", () => {
+  it("puts only the filters that are set in the address, and escapes a word in its own path", () => {
+    expect(allowPath({ q: " ", language: "" }, null)).toBe("/v1/admin/name-allow");
+    expect(allowPath({ q: " nass ", language: "en" }, "nasser")).toBe(
+      "/v1/admin/name-allow?q=nass&language=en&after=nasser",
+    );
+    expect(allowWordPath("اسحاق")).toBe(`/v1/admin/name-allow/${encodeURIComponent("اسحاق")}`);
+  });
+
+  it("reads a page and refuses a changed shape", () => {
+    const word = { word: "nasser", language: "en", addedAt: "2026-11-09T10:00:00Z" };
+    expect(readAllowWords({ words: [word], total: 1 })).toEqual({ words: [word], total: 1 });
+    expect(readAllowWords({ words: [{ ...word, match: "word" }], total: 1 })).toBeUndefined();
+    expect(readAllowWords(null)).toBeUndefined();
   });
 });

@@ -1,6 +1,8 @@
 import {
+  allowPageSchema,
   retiredPageSchema,
   wordsPageSchema,
+  type AllowPage,
   type RetiredName,
   type WordLanguage,
   type WordMatch,
@@ -11,6 +13,8 @@ import {
 export const WORDS_API = "/v1/admin/words";
 export const RETIRED_API = "/v1/admin/retired-usernames";
 export const RELEASE_API = `${RETIRED_API}/release`;
+/** The full-name allow-list (FR-1779, ADR-817). */
+export const ALLOW_API = "/v1/admin/name-allow";
 
 export type WordFilter = Readonly<{
   q: string;
@@ -62,5 +66,31 @@ export function readWords(body: unknown): WordsPage | undefined {
 export function readRetired(body: unknown): RetiredName[] | undefined {
   const names = typeof body === "object" && body !== null ? Reflect.get(body, "names") : undefined;
   const parsed = retiredPageSchema.safeParse(names);
+  return parsed.success ? parsed.data : undefined;
+}
+
+export type AllowFilter = Readonly<{ q: string; language: WordLanguage | "" }>;
+
+/** One page of the allow-list: the filter as typed, after the last word of the page before. */
+export function allowPath(filter: AllowFilter, after: string | null): string {
+  const params = new URLSearchParams();
+  if (filter.q.trim() !== "") {
+    params.set("q", filter.q.trim());
+  }
+  if (filter.language !== "") {
+    params.set("language", filter.language);
+  }
+  if (after !== null) {
+    params.set("after", after);
+  }
+  const text = params.toString();
+  return `${ALLOW_API}${text === "" ? "" : `?${text}`}`;
+}
+
+/** An allow word in the path of its removal; the API folds it again. */
+export const allowWordPath = (word: string): string => `${ALLOW_API}/${encodeURIComponent(word)}`;
+
+export function readAllowWords(body: unknown): AllowPage | undefined {
+  const parsed = allowPageSchema.safeParse(body);
   return parsed.success ? parsed.data : undefined;
 }

@@ -1119,7 +1119,9 @@ const SHARED: Readonly<Record<string, string>> = {
   username_word:
     "no right for the API role at all; read by the username check inside the definers (test/db/usernames)",
   full_name_allow:
-    "no right for the API role at all; Questify-wide name words the full-name check skips, no player id; seeded by migration, read by full_name_blocked inside the definers (test/db/full-name-filter)",
+    "no right for the API role at all; Questify-wide name words the full-name check skips, no player id; seeded by migration and edited by the admin doors admin_name_allow_add and admin_name_allow_remove (0185), read by full_name_blocked inside the definers (test/db/full-name-filter, test/db/name-allow-console)",
+  full_name_probe:
+    "no right for the API role at all; the corpus' abusive names, Questify-wide test data with no player id; seeded by migration 0185, read only inside admin_name_allow_add (test/db/name-allow-console)",
   full_name_recheck:
     "no right for the API role at all; one Questify-wide sweep row holding an answer key and no name; written by the list doors and full_name_recheck (test/db/full-name-filter)",
   timezone_name:
@@ -2031,6 +2033,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         "SELECT admin_word_remove('gnarl', gen_random_uuid())",
         "SELECT console_retired_usernames(NULL, NULL)",
         "SELECT admin_unretire_username('gnarl', gen_random_uuid())",
+        "SELECT console_name_allow(NULL, NULL, NULL)",
+        "SELECT admin_name_allow_add('gnarlan', gen_random_uuid())",
+        "SELECT admin_name_allow_remove('nasser', gen_random_uuid())",
       ]) {
         const values = sql.includes("$1") ? [f.playerB] : [];
         expect(await refusal(asA(seat, sql, values)), `${seat} ${sql}`).toBe("QE403");

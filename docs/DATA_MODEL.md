@@ -87,6 +87,10 @@ recheck is marked pending.
 Migration 0181 (FOLLOWUPS batch 27, ADR-817): the symbols are read after NFKC (f＊ck, b＠stard), ∗ ⁎ as * and ¡ as !; * is
 a wildcard, any one letter, looked up whole with LIKE (no letter dropped from its ends; it keeps 2 letters or more that are not wildcards:
 fu*k, c**t), and a run of symbols is also read as one (sh!!t, F**k). The recheck is marked pending.
+Migration 0185 (FR-1779, ADR-817): `full_name_allow` is also edited from the console (`admin_name_allow_add`,
+`admin_name_allow_remove`, read by `console_name_allow`), the word stored as `full_name_fold` reads it and its language taken from
+its letters. `full_name_probe (name)`: the corpus' abusive names (`test/db/full-name-corpus.ts`), read only by the add door,
+which refuses a word that would let one of them through; no grant.
 Migration 0118 (T-704): `reason` gains `admin` (a rename by `admin_rename_player`, not counted by the change limit), and
 `username_retired (fold PRIMARY KEY, retired_at)` holds a name an admin took away, folded, with no player id;
 `username_blocked` refuses a retired name to everyone (ADR-420). No grant.

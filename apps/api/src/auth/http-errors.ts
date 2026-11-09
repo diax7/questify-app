@@ -2505,6 +2505,24 @@ export const wordExists = make(
   "الكلمة موجودة في القائمة.",
   "That word is already on the list.",
 );
+export const invalidAllowWord = make(
+  400,
+  "invalid_allow_word",
+  "اكتب كلمة واحدة من حرفين أو أكثر بالعربية أو الإنجليزية، بلا أرقام أو رموز.",
+  "Type one word of 2 or more Arabic or English letters, with no digits or symbols.",
+);
+export const allowWordListed = make(
+  422,
+  "allow_word_listed",
+  "الكلمة نفسها في قوائم الكلمات، فلا يمكن السماح بها هنا.",
+  "That word is itself on the word lists, so it can't be allowed here.",
+);
+export const allowWordUnsafe = make(
+  422,
+  "allow_word_unsafe",
+  "السماح بهذه الكلمة يُمرّر اسمًا مسيئًا، فلا يمكن إضافتها هنا.",
+  "Allowing that word would let an abusive name through, so it can't be added here.",
+);
 export const blockLimit = make(
   409,
   "block_limit",

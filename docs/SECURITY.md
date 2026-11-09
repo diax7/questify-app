@@ -146,6 +146,7 @@ public event page and join code; and the big-screen/station links.
 | View any player record | no | own only | no | no | no | yes, read-only, logged |
 | Change texts, switches, templates platform-wide | no | no | no | no | no | yes |
 | Add or remove admins; force sign-outs | no | no | no | no | no | yes |
+| Edit the username word lists and the full-name allow-list (FR-1779, ADR-817) | no | no | no | no | no | yes (audited) |
 
 ## Authentication
 
@@ -730,6 +731,17 @@ analytics row or export beyond the join answer the team already receives; `apps/
 that may name it. Tests: `test/db/name-display.int` (every rule and refusal as rows), `test/join/names.int` (the card, the join, the
 dashboard), the ranking, results, big screen, finale, station and desk suites, the outsider suite (anon and PUBLIC hold nothing on the
 columns or the functions) and the cross-tenant suite (B's setting, notices and names out of A's reach). Counsel on Q-080 can still narrow it.
+
+**The full-name allow-list from the console (FOLLOWUPS batch 23, migration 0185, ADR-817).** A new admin power: an active platform
+admin adds or removes a word of `full_name_allow`, which lets full names holding it through the word lists. Three definers
+(`console_name_allow`, `admin_name_allow_add`, `admin_name_allow_remove`) re-read the admin (`console_admin()`, QE403 to every other
+seat, so a member, an organizer, a player or a disabled admin gets 404 from the routes), take the lists' advisory key, and audit each
+change with the word (`full_name_allow.add|remove`, a list entry, not a player's); no reason and no re-authentication, as the word lists.
+The add door is the wall against widening the lists by mistake: it refuses a word that is itself a `username_word` entry (WA409; a real
+name such as Butt stays a reviewed migration's decision) and a word with which an abusive name of the corpus that is refused now would
+pass (WA422; `full_name_probe`, the corpus' 327 abusive names, no grant, kept equal to `test/db/full-name-corpus.ts` by a test). Every
+abusive corpus word tried through the door leaves every abusive name refused (`test/db/name-allow-console.int`). The list trigger marks
+the name-flag sweep, so stored names follow within minutes. Outsider and cross-tenant suites hold the three doors and the probe table.
 
 ### Review demo boundary (T-710, ADR-560 to ADR-567; STORE_COMPLIANCE §1.3)
 
