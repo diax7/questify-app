@@ -147,11 +147,21 @@ const adminSeat = (admin: PublicAccount): RequestContext => ({
 
 /** The owner's side and the console's side of activation (T-210). Every write is a definer of migration 0027. */
 export function createActivation(deps: ActivationDeps) {
-  const inSeat = <T>(seat: RequestContext, work: (client: PoolClient) => Promise<T>) =>
+  const inSeat: InSeat = (seat, work) =>
     refusing(() =>
       withConnection(deps.pool, (client) => withRequestContext(client, seat, () => work(client))),
     );
 
+  return { ...teamDoors(deps, inSeat), ...lookupDoors(deps), ...adminDoors(deps, inSeat) };
+}
+
+type InSeat = <T>(
+  seat: RequestContext,
+  work: (client: PoolClient) => Promise<T>,
+) => Promise<T | Refusal>;
+
+/** The owner's side: the view, the request and its withdrawal. */
+function teamDoors(deps: ActivationDeps, inSeat: InSeat) {
   return {
     view: (actor: OrganizerContext, eventId: string) =>
       withConnection(deps.pool, (client) =>
@@ -185,7 +195,12 @@ export function createActivation(deps: ActivationDeps) {
         // Stryker disable next-line OptionalChaining,StringLiteral: equivalent: the definer always answers one row, and the route reads anything but "withdrawn" as 404
         return { kind: rows[0]?.withdrawn === true ? "withdrawn" : "none" };
       }),
+  };
+}
 
+/** The console's reads: the queue, a code lookup and the event page. */
+function lookupDoors(deps: ActivationDeps) {
+  return {
     queue: (admin: PublicAccount): Promise<QueueItem[]> =>
       withConnection(deps.pool, (client) =>
         withRequestContext(client, adminSeat(admin), async () => {
@@ -230,7 +245,12 @@ export function createActivation(deps: ActivationDeps) {
 
     consoleEvent: (admin: PublicAccount, eventId: string, requestId: string) =>
       consoleEventAs(deps.pool, admin, { eventId, requestId }),
+  };
+}
 
+/** The admin's writes: activate, reject and the player limit. */
+function adminDoors(deps: ActivationDeps, inSeat: InSeat) {
+  return {
     activate: async (
       admin: PublicAccount,
       eventId: string,

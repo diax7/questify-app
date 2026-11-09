@@ -134,6 +134,12 @@ function inviteRefusal(state: InviteRefusal): never {
  * abilities, the quest limit, may-play, removal. Members read the list; only the owner sees the claim addresses.
  */
 export function registerOperatorRoutes(scope: FastifyInstance, deps: OperatorsDeps): void {
+  registerOperatorListRoute(scope, deps);
+  registerInviteRoutes(scope, deps);
+  registerOperatorChangeRoutes(scope, deps);
+}
+
+function registerOperatorListRoute(scope: FastifyInstance, deps: OperatorsDeps): void {
   scope.get("/events/:eventId/operators", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     const { lang } = parse(listQuery, request.query);
@@ -148,7 +154,9 @@ export function registerOperatorRoutes(scope: FastifyInstance, deps: OperatorsDe
     }
     return list;
   });
+}
 
+function registerInviteRoutes(scope: FastifyInstance, deps: OperatorsDeps): void {
   scope.post("/events/:eventId/operators/invites", ownerCreating, async (request, reply) => {
     const { eventId } = parse(eventParams, request.params);
     const body = parse(inviteBody, request.body);
@@ -205,7 +213,9 @@ export function registerOperatorRoutes(scope: FastifyInstance, deps: OperatorsDe
         throw inviteUsed();
     }
   });
+}
 
+function registerOperatorChangeRoutes(scope: FastifyInstance, deps: OperatorsDeps): void {
   scope.put("/events/:eventId/operators/:operatorId", owner, async (request) => {
     const { eventId, operatorId } = parse(operatorParams, request.params);
     const body = parse(operatorBody, request.body);
@@ -299,6 +309,15 @@ function practiceAnswer(result: Awaited<ReturnType<typeof practiceScan>>) {
  * when allowed, and their own My QR.
  */
 export function registerOperatorPlayerRoutes(app: FastifyInstance, deps: OperatorPlayerDeps): void {
+  registerInviteClaimRoutes(app, deps);
+  registerStationRoutes(app, deps);
+  registerMyQrRoutes(app, deps);
+  registerStationTodayRoute(app, deps);
+  registerSessionDoorRoutes(app, { pool: deps.pool, myKey: deps.myKey });
+  registerScanRoutes(app, deps);
+}
+
+function registerInviteClaimRoutes(app: FastifyInstance, deps: OperatorPlayerDeps): void {
   const inviteOf = (token: string): string => {
     const check = verifyInviteCode(deps.inviteKey, token);
     if (check.kind !== "valid") {
@@ -325,7 +344,10 @@ export function registerOperatorPlayerRoutes(app: FastifyInstance, deps: Operato
     }
     return { eventId: claimed.eventId };
   });
+}
 
+/** The events the person staffs, their stations, and joining as a player. */
+function registerStationRoutes(app: FastifyInstance, deps: OperatorPlayerDeps): void {
   app.get("/v1/me/operator-events", player, async (request) => ({
     events: (await operatorEvents(deps, playerIdOf(request))).map((event) => ({
       ...event,
@@ -365,7 +387,9 @@ export function registerOperatorPlayerRoutes(app: FastifyInstance, deps: Operato
         throw rehearsing();
     }
   });
+}
 
+function registerMyQrRoutes(app: FastifyInstance, deps: OperatorPlayerDeps): void {
   app.get("/v1/me/qr", player, async (request) => ({
     token: await myQr(deps, playerIdOf(request)),
   }));
@@ -377,7 +401,9 @@ export function registerOperatorPlayerRoutes(app: FastifyInstance, deps: Operato
     }
     return { token };
   });
+}
 
+function registerStationTodayRoute(app: FastifyInstance, deps: OperatorPlayerDeps): void {
   // FR-928: the picked station's counts by everyone, today and in the last hour; counts only.
   app.get(
     "/v1/operator/events/:eventId/stations/:questId/today",
@@ -404,9 +430,9 @@ export function registerOperatorPlayerRoutes(app: FastifyInstance, deps: Operato
       }
     },
   );
+}
 
-  registerSessionDoorRoutes(app, { pool: deps.pool, myKey: deps.myKey });
-
+function registerScanRoutes(app: FastifyInstance, deps: OperatorPlayerDeps): void {
   // FR-929: a practice scan, on its own route with no ranking and no Idempotency-Key; the real route has no flag.
   app.post("/v1/operator/scan/practice", player, async (request) => {
     const body = parse(scanBody, request.body);

@@ -129,6 +129,39 @@ const budgetsFor = (deps: JoinDeps, playerId: string, address: string) => [
 const asPlayer = <T>(pool: Pool, playerId: string, work: (client: PoolClient) => Promise<T>) =>
   withConnection(pool, (client) => withRequestContext(client, { playerId }, () => work(client)));
 
+const eventOf = (row: EventRow): RehearsalEvent => ({
+  id: row.id,
+  name: { ar: row.name_ar, en: row.name_en },
+  venue: { ar: row.venue_ar, en: row.venue_en },
+  kind: row.kind,
+  timezone: row.timezone,
+  startsAt: row.starts_at,
+  endsAt: row.ends_at,
+  statusNow: row.status_now,
+});
+
+/** What the join answers for the budget's outcome: no row or a closed row is "closed", a throttle passes through. */
+function joinResultOf(
+  answer: JoinRow | Readonly<{ kind: "throttled"; retryAfterSeconds: number }> | null,
+): RehearsalJoin {
+  if (answer === null) {
+    return { kind: "closed" };
+  }
+  if ("kind" in answer) {
+    return answer;
+  }
+  if (answer.outcome === "joined" || answer.outcome === "already") {
+    // Stryker disable all: unreachable fallbacks: join_rehearsal names both ids when joined
+    return {
+      kind: answer.outcome,
+      enrollmentId: answer.enrollment_id ?? "",
+      eventId: answer.event_id ?? "",
+    };
+    // Stryker restore all
+  }
+  return { kind: answer.outcome };
+}
+
 /**
  * Rehearsal mode (T-211, migration 0032): the team's card, code and erase; the player's card and join. Every write is
  * a definer; the code is made here and checked by the database.
@@ -194,19 +227,7 @@ export function createRehearsal(deps: JoinDeps, makeCode: () => string = newRehe
                FROM rehearsal_event($1)`,
             [code],
           );
-          const row = rows[0];
-          return row === undefined
-            ? null
-            : {
-                id: row.id,
-                name: { ar: row.name_ar, en: row.name_en },
-                venue: { ar: row.venue_ar, en: row.venue_en },
-                kind: row.kind,
-                timezone: row.timezone,
-                startsAt: row.starts_at,
-                endsAt: row.ends_at,
-                statusNow: row.status_now,
-              };
+          return rows[0] === undefined ? null : eventOf(rows[0]);
         }),
       ),
 
@@ -227,22 +248,7 @@ export function createRehearsal(deps: JoinDeps, makeCode: () => string = newRehe
           return row === undefined || row.outcome === "closed" ? null : row;
         }),
       );
-      if (answer === null) {
-        return { kind: "closed" };
-      }
-      if ("kind" in answer) {
-        return answer;
-      }
-      if (answer.outcome === "joined" || answer.outcome === "already") {
-        // Stryker disable all: unreachable fallbacks: join_rehearsal names both ids when joined
-        return {
-          kind: answer.outcome,
-          enrollmentId: answer.enrollment_id ?? "",
-          eventId: answer.event_id ?? "",
-        };
-        // Stryker restore all
-      }
-      return { kind: answer.outcome };
+      return joinResultOf(answer);
     },
   };
 }

@@ -244,8 +244,8 @@ async function unlockAddon(
   return { ok: true };
 }
 
-export function createSettingsService(options: SettingsOptions): SettingsService {
-  const registries = options.registries ?? REGISTRIES;
+/** The cached readers of the platform and event configuration, and the call that drops every cached reading. */
+function createReaders(options: SettingsOptions, registries: Registries) {
   const cacheOptions = {
     ttlMs: options.ttlMs ?? DEFAULT_TTL_MS,
     maxEntries: MAX_CACHED,
@@ -257,8 +257,6 @@ export function createSettingsService(options: SettingsOptions): SettingsService
     platformCache.clear();
     composedCache.clear();
   };
-
-  const thenForget = <R>(saving: Promise<R>): Promise<R> => saving.finally(forgetAll);
 
   const loadPlatform = async (client: PoolClient): Promise<PlatformSettings> => {
     const cached = platformCache.get("platform");
@@ -307,6 +305,89 @@ export function createSettingsService(options: SettingsOptions): SettingsService
     return fresh;
   };
 
+  return {
+    forgetAll,
+    platform: async () =>
+      platformCache.get("platform") ??
+      (await withConnection(options.pool, (client) =>
+        withRequestContext(client, {}, () => loadPlatform(client)),
+      )),
+    forEvent: async (eventId: string | undefined, playerId?: string): Promise<ConfigResult> => {
+      // The document depends only on the event; who may see it is what differs. A public event is read once for
+      // everyone, and only an event hidden from anyone is read again as the player, cached for that player alone.
+      const shared = await reading(eventId, undefined);
+      if (playerId === undefined || shared.kind === "ok") {
+        return shared;
+      }
+      return reading(eventId, playerId);
+    },
+  };
+}
+
+/** A Questify admin replaces the feature switches and/or tuning numbers; one audit entry names the blocks that changed. */
+async function savePlatform(
+  client: PoolClient,
+  registries: Registries,
+  admin: PublicAccount,
+  input: unknown,
+  meta: AuditMeta,
+): Promise<SaveResult> {
+  const checked = validatePlatformSettings(registries, input);
+  if (!checked.ok) {
+    return { ok: false, reason: "invalid", issues: checked.issues };
+  }
+  const keys = (["features", "tuning"] as const).filter((key) => checked.value[key] !== undefined);
+  const stored = await lockPlatformBlocks(client, keys);
+  const changes = diff(
+    Object.fromEntries(keys.map((key) => [key, stored[key] ?? null])),
+    Object.fromEntries(keys.map((key) => [key, checked.value[key]])),
+  );
+  const changed = keys.filter((key) => key in changes.after);
+  for (const key of changed) {
+    await upsertPlatformBlock(client, key, checked.value[key], admin.id);
+  }
+  if (changed.length > 0) {
+    await recordAudit(client, {
+      actor: { type: "admin", id: admin.id },
+      action: "platform_settings.update",
+      target: { type: "platform_setting", id: changed.join(",") },
+      ...changes,
+      requestId: meta.requestId,
+    });
+  }
+  return { ok: true };
+}
+
+/** Takes an unlocked add-on away from an event as the admin, audited. */
+async function lockAddon(
+  client: PoolClient,
+  admin: PublicAccount,
+  target: Readonly<{ eventId: string; feature: string }>,
+  meta: AuditMeta,
+): Promise<SaveResult> {
+  const { eventId, feature } = target;
+  const organizerId = await deleteEntitlement(client, eventId, feature);
+  if (organizerId === undefined) {
+    return { ok: false, reason: "not_found" };
+  }
+  await recordAudit(client, {
+    actor: { type: "admin", id: admin.id },
+    action: "event.addon.lock",
+    organizerId,
+    eventId,
+    target: { type: "event", id: eventId },
+    before: { feature },
+    requestId: meta.requestId,
+  });
+  return { ok: true };
+}
+
+export function createSettingsService(options: SettingsOptions): SettingsService {
+  const registries = options.registries ?? REGISTRIES;
+  const { forgetAll, platform, forEvent } = createReaders(options, registries);
+
+  const thenForget = <R>(saving: Promise<R>): Promise<R> => saving.finally(forgetAll);
+
   const asAdmin = (admin: PublicAccount, work: (client: PoolClient) => Promise<SaveResult>) =>
     runAsAdmin({ pool: options.pool, forget: forgetAll }, admin, work);
 
@@ -319,51 +400,12 @@ export function createSettingsService(options: SettingsOptions): SettingsService
     thenForget(saveSwitches(options.pool, registries, actor, eventId, change, meta));
 
   return {
-    platform: async () =>
-      platformCache.get("platform") ??
-      (await withConnection(options.pool, (client) =>
-        withRequestContext(client, {}, () => loadPlatform(client)),
-      )),
+    platform,
 
-    forEvent: async (eventId, playerId) => {
-      // The document depends only on the event; who may see it is what differs. A public event is read once for
-      // everyone, and only an event hidden from anyone is read again as the player, cached for that player alone.
-      const shared = await reading(eventId, undefined);
-      if (playerId === undefined || shared.kind === "ok") {
-        return shared;
-      }
-      return reading(eventId, playerId);
-    },
+    forEvent,
 
     savePlatformSettings: (admin, input, meta = {}) =>
-      asAdmin(admin, async (client) => {
-        const checked = validatePlatformSettings(registries, input);
-        if (!checked.ok) {
-          return { ok: false, reason: "invalid", issues: checked.issues };
-        }
-        const keys = (["features", "tuning"] as const).filter(
-          (key) => checked.value[key] !== undefined,
-        );
-        const stored = await lockPlatformBlocks(client, keys);
-        const changes = diff(
-          Object.fromEntries(keys.map((key) => [key, stored[key] ?? null])),
-          Object.fromEntries(keys.map((key) => [key, checked.value[key]])),
-        );
-        const changed = keys.filter((key) => key in changes.after);
-        for (const key of changed) {
-          await upsertPlatformBlock(client, key, checked.value[key], admin.id);
-        }
-        if (changed.length > 0) {
-          await recordAudit(client, {
-            actor: { type: "admin", id: admin.id },
-            action: "platform_settings.update",
-            target: { type: "platform_setting", id: changed.join(",") },
-            ...changes,
-            requestId: meta.requestId,
-          });
-        }
-        return { ok: true };
-      }),
+      asAdmin(admin, (client) => savePlatform(client, registries, admin, input, meta)),
 
     eventLayers: (actor, eventId) => readOwnerLayers(options.pool, registries, actor, eventId),
 
@@ -412,21 +454,6 @@ export function createSettingsService(options: SettingsOptions): SettingsService
       ),
 
     lockFeature: (admin, eventId, feature, meta = {}) =>
-      asAdmin(admin, async (client) => {
-        const organizerId = await deleteEntitlement(client, eventId, feature);
-        if (organizerId === undefined) {
-          return { ok: false, reason: "not_found" };
-        }
-        await recordAudit(client, {
-          actor: { type: "admin", id: admin.id },
-          action: "event.addon.lock",
-          organizerId,
-          eventId,
-          target: { type: "event", id: eventId },
-          before: { feature },
-          requestId: meta.requestId,
-        });
-        return { ok: true };
-      }),
+      asAdmin(admin, (client) => lockAddon(client, admin, { eventId, feature }, meta)),
   };
 }

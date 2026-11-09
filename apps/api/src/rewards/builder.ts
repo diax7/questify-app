@@ -357,6 +357,38 @@ const values = (fields: Fields) => [
   fields.tags.limited,
 ];
 
+/** A digital reward takes its stock from its codes; any other kind must say its stock. */
+function newStockRefusal(
+  input: RewardInput & Readonly<{ kind: RewardKind }>,
+): RewardDone<never> | undefined {
+  const digital = input.kind === "digital";
+  if (digital ? input.stock !== undefined && input.stock !== 0 : input.stock === undefined) {
+    return digital ? { kind: "stock_from_codes" } : { kind: "invalid", field: "stock" };
+  }
+  return undefined;
+}
+
+/** The active rewards already in the shop (the new one's position), or why there is no room for another. */
+async function roomForReward(
+  client: PoolClient,
+  eventId: string,
+  kind: RewardKind,
+): Promise<number | RewardDone<never>> {
+  const { rows: counted } = await client.query<{ n: number }>(
+    "SELECT count(*)::int AS n FROM reward WHERE event_id = $1 AND status = 'active'",
+    [eventId],
+  );
+  const count = counted[0]?.n ?? 0;
+  if (count >= REWARD_LIMIT) {
+    return { kind: "limit_reached", limit: REWARD_LIMIT };
+  }
+  // FR-1716; the database's guard backs this against a desk cleared at the same moment.
+  if (kind === "item" && !(await hasDeskPlace(client, eventId))) {
+    return { kind: "desk_needed" };
+  }
+  return count;
+}
+
 /** Adds a reward to the event's shop, at the end (FR-504, FR-505). */
 export function createReward(
   deps: RewardDeps,
@@ -366,25 +398,17 @@ export function createReward(
   caller: Caller,
 ): Promise<RewardDone<RewardRecord>> {
   return withRewardEvent(deps, actor, eventId, async (client, event) => {
-    const digital = input.kind === "digital";
-    if (digital ? input.stock !== undefined && input.stock !== 0 : input.stock === undefined) {
-      return digital ? { kind: "stock_from_codes" } : { kind: "invalid", field: "stock" };
+    const stockRefused = newStockRefusal(input);
+    if (stockRefused !== undefined) {
+      return stockRefused;
     }
     const fields = mergeReward(undefined, input, event.timezone);
     if (isInvalid(fields)) {
       return fields;
     }
-    const { rows: counted } = await client.query<{ n: number }>(
-      "SELECT count(*)::int AS n FROM reward WHERE event_id = $1 AND status = 'active'",
-      [eventId],
-    );
-    const count = counted[0]?.n ?? 0;
-    if (count >= REWARD_LIMIT) {
-      return { kind: "limit_reached", limit: REWARD_LIMIT };
-    }
-    // FR-1716; the database's guard backs this against a desk cleared at the same moment.
-    if (input.kind === "item" && !(await hasDeskPlace(client, eventId))) {
-      return { kind: "desk_needed" };
+    const count = await roomForReward(client, eventId, input.kind);
+    if (typeof count !== "number") {
+      return count;
     }
     const { rows } = await client.query<RewardRow>(
       `INSERT INTO reward (event_id, kind, name_ar, name_en, description_ar, description_en, price, stock_total,
@@ -596,18 +620,28 @@ function windowsIn(
   const windows: DeskWindow[] = [];
   let previousCloses: Date | undefined;
   for (const window of input) {
-    const opens = timeOf(window.opensAt, null, timeZone);
-    const closes = timeOf(window.closesAt, null, timeZone);
-    if (!(opens instanceof Date) || !(closes instanceof Date) || closes <= opens) {
+    const times = windowTimes(window, previousCloses, timeZone);
+    if (times === undefined) {
       return "invalid_hours";
     }
-    if (previousCloses !== undefined && opens < previousCloses) {
-      return "invalid_hours";
-    }
-    previousCloses = closes;
-    windows.push({ opensAt: opens.toISOString(), closesAt: closes.toISOString() });
+    previousCloses = times.closes;
+    windows.push({ opensAt: times.opens.toISOString(), closesAt: times.closes.toISOString() });
   }
   return windows;
+}
+
+/** One window's instants, or undefined when a time is unreadable, the close is not after the open, or it starts early. */
+function windowTimes(
+  window: Readonly<{ opensAt: string; closesAt: string }>,
+  previousCloses: Date | undefined,
+  timeZone: string,
+): Readonly<{ opens: Date; closes: Date }> | undefined {
+  const opens = timeOf(window.opensAt, null, timeZone);
+  const closes = timeOf(window.closesAt, null, timeZone);
+  if (!(opens instanceof Date) || !(closes instanceof Date) || closes <= opens) {
+    return undefined;
+  }
+  return previousCloses !== undefined && opens < previousCloses ? undefined : { opens, closes };
 }
 
 /** The event's shop settings and its active rewards, in order, for the dashboard. */

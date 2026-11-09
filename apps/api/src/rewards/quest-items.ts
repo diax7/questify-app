@@ -214,6 +214,22 @@ export function createItem(
   });
 }
 
+/** An item's edit as it will be stored, or why it is refused (a name left in neither language, stock below the units out). */
+function editOf(
+  current: QuestItemRecord,
+  input: QuestItemInput,
+): QuestItemRefusal | Readonly<{ name: Bilingual; description: Bilingual; stockTotal: number }> {
+  const name = pick(input.name, current.name);
+  if (name.ar === null && name.en === null) {
+    return { kind: "invalid", field: "name" };
+  }
+  const stockTotal = input.stockTotal ?? current.stockTotal;
+  if (stockTotal < current.unitsOut) {
+    return { kind: "stock_below_reserved", unitsOut: current.unitsOut };
+  }
+  return { name, description: pick(input.description, current.description), stockTotal };
+}
+
 /** Edits an item's names, descriptions or stock; the stock never goes below the units already out. */
 export function updateItem(
   deps: QuestItemDeps,
@@ -235,15 +251,11 @@ export function updateItem(
     if (current === undefined) {
       return { kind: "not_found" };
     }
-    const name = pick(input.name, current.name);
-    if (name.ar === null && name.en === null) {
-      return { kind: "invalid", field: "name" };
+    const edit = editOf(current, input);
+    if ("kind" in edit) {
+      return edit;
     }
-    const stockTotal = input.stockTotal ?? current.stockTotal;
-    if (stockTotal < current.unitsOut) {
-      return { kind: "stock_below_reserved", unitsOut: current.unitsOut };
-    }
-    const description = pick(input.description, current.description);
+    const { name, description, stockTotal } = edit;
     await client.query(
       `UPDATE quest_item SET name_ar = $2, name_en = $3, description_ar = $4, description_en = $5, stock_total = $6
        WHERE id = $1`,
