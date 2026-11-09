@@ -264,6 +264,7 @@ ADR-193: a quiz left half-done is paid for its right answers when the quest clos
 pay nothing for an unfinished quiz?
 
 ## Q-160 — T-303 split (2026-10-24, T-303)
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-196 accepted.
 ADR-196: T-303 = challenge, survey, share; T-303b = location check-in and the location flags; T-303c = meet-someone.
 Agree, or want location or meet-someone first?
 
@@ -280,6 +281,7 @@ ADR-199: `shareQuests` is on by default (creating a share quest turns it on); th
 organizer "turns share quests on"; is on-by-default fine?
 
 ## Q-164 — T-304 split (2026-10-24, T-304)
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-200 accepted.
 ADR-200: T-304 = category rules and the points bonus; T-304b = passport; T-304c = refresh and hidden categories;
 T-304d = item rewards; the hint-push reveal (FR-238) waits for push (T-501). Agree, or want another part first?
 
@@ -360,6 +362,7 @@ case be added later?
 Known edges left as they are (CTO code review, 2026-10-23): the per-player limits answer 429 when two of the player's requests contend for the limiter's lock at the same instant (a retry passes); and one Idempotency-Key used for a meeting and for an ordinary completion is not refused as reused (`QK422`): each pays once under its own path, never twice.
 
 ## Q-176 — How far mini-game results are checked (2026-10-24, T-305)
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-212 accepted.
 ADR-212: the server replays every round and refuses impossible play, but the round's layout reaches the phone, so a
 modified app could play a perfect game at human speed. The targets sit below perfect play, very lucky rounds are
 flagged for the organizer, and the reward is one quest's points once. An app with an older game engine is asked to
@@ -387,10 +390,12 @@ issued while the quest was open, re-checking only the account, the membership an
 quiz's payable rule, `game_payable`), as a quiz finished by the sweep after the event ends still pays. Agree?
 
 ## Q-179 — Mini-games in three parts (2026-10-24, T-305)
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-214 accepted.
 ADR-214: memory match and slide puzzle first (T-305), catch and tap rush next (T-305c), organizer images once a
 Questify bucket exists (T-305b, blocked on Q-149). Agree?
 
 ## Q-181 — How catch and tap rush are checked (2026-10-24, T-305c plan)
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-216 and ADR-217 accepted.
 ADR-216 and ADR-217: the two real-time games move on a fixed tick so the server replays them exactly; a tap on a
 target in its first 120 ms is ignored by the app (no person reacts that fast); fast but possible play is flagged for
 the organizer and still paid; a round pauses while the app is not active, within its result window. Note: catch's
@@ -402,6 +407,7 @@ ADR-218 and the plan's table: catch 45 s with 30, 40 or 50 items (pass at 20, 30
 score of 20, 28 or 34 to pass, a miss costing a point. Keep as a start and tune after a playtest?
 
 ## Q-183 — Splitting T-306 (2026-10-24, T-306 plan)
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-219 accepted.
 ADR-219: live polls now (T-306); community quests next (T-306b); quests, categories or shop rewards unlocked by a
 community goal after that (T-306c). The pushes wait for T-501 and the big-screen scenes for T-504. Agree?
 
@@ -412,6 +418,7 @@ never counts toward a category's bonus or order, so missing one blocks nothing. 
 Questify XP like any quest. Agree, or no XP for a poll without points?
 
 ## Q-185 — Polling instead of a live stream (2026-10-24, T-306 plan)
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-221 accepted.
 ADR-221: the app checks for live polls and community progress every 10 seconds while the event is open on screen;
 the live stream waits until the big screen or a load test needs faster updates. Agree?
 
@@ -506,6 +513,7 @@ dashboard; removing an operator revokes what they paired. Agree, or a separate `
 or pairing from the dashboard only?
 
 ## Q-205 — Blank stickers without a read-back (2026-10-24, T-308 phone-test fix)
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-243 accepted.
 ADR-243: a factory-blank sticker is formatted with the Questify link in one step and trusted on Android's success,
 with no read-back before the server registers it. Agree, or format first and ask the operator to tap again for the
 write and its read-back?
@@ -551,6 +559,7 @@ ADR-251: the block counts every completion of the station's quest today (all met
 keeps this operator's own counts. Agree, or should the block count only this operator's scans?
 
 ## Q-214 — Staff mode does not use the event's renamed words (2026-10-24, found in the T-311 plan)
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-254 accepted.
 T-117 marked FR-941 delivered, but staff mode (built later in T-205) never loaded the event's configuration, so its
 screens used Questify's default player, operator and currency words. **Built in T-311b (ADR-254, Proposed):** staff
 mode loads the event's words with the player app's source. Agree?
@@ -623,6 +632,7 @@ and the same goes for "operator". T-311c did the quest and category words only, 
 turns them into `{playerOne}`/`{playerMany}` placeholders with the same guard test, Standard bar. Agree?
 
 ## Q-229 — The first-N bonus's burst cost is over the plan's 20% (2026-10-25, T-313)
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-260 accepted.
 Measured by hand (ADR-260): at 300 completions at once on one quest from two API pools of 10, the median p95 is 59.7 ms
 without a bonus and 73.2 ms with N = 50 (+22.7%, 13 ms); a used-up bonus costs nothing (60.0 ms). The slot claim alone
 is +7.5%; the rest is the bonus's own ledger row for the first 50 players. Recommended: accept it (NFR-002 allows 1 s;
@@ -1910,7 +1920,7 @@ page un-retires it. A name retired by mistake (a typo in the console) stays bloc
 
 ## Q-386 - A sign-in reset also clears the failure counter of the account's contacts (T-704)
 
-**Status:** Proposed (developer, 2026-11-02; ADR-421; plan review MINOR).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-421 accepted. Was: Proposed (developer, 2026-11-02; ADR-421; plan review MINOR).
 The usual reason for a reset is a player locked out by wrong codes (their own, or a stranger guessing at their number);
 keeping `player_fail_contact` would leave them locked out for up to a day after support acted. The guesses this allows
 again are bounded: 3 tries per code, the per-address failure window stays, and each reset costs an admin a reason, an
@@ -2010,7 +2020,7 @@ may name it.
 
 ## Q-401 - How long a curve save may hold new level-ups (T-709d)
 
-**Status:** Proposed (developer, 2026-11-02; ADR-440; re-planned 2026-11-02).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-440 accepted. Was: Proposed (developer, 2026-11-02; ADR-440; re-planned 2026-11-02).
 The save holds every `xp_level` row FOR UPDATE, so a scan that reaches a new level waits for it (scans that reach no new
 level, syncs, sign-ups and buys never wait). The save waits at most 1 second in all for its locks (one budget for
 the whole save, not per lock), then answers 503 `busy`.
@@ -2051,7 +2061,7 @@ console (Arabic and English), after which the pages show the published text and 
 
 ## Q-410 - Which of FR-1770's other numbers should be tunable? (T-703)
 
-**Status:** Proposed (developer, 2026-11-02; ADR-451).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-451 accepted. Was: Proposed (developer, 2026-11-02; ADR-451).
 FR-1770 also names the QR refresh time, the login-code limits, the default reservation time and the push and SMS limits. They live in
 code (the throttle buckets in `src/auth/throttle.ts`, per-event reservation settings, push and SMS senders), each with its own tests;
 only the numbers the database reads (rehearsal cap, readiness days, flag burst) became tuning numbers.
@@ -2152,7 +2162,7 @@ FR-1732 speaks of reports; escalated help-desk tickets have their own Tickets pa
 
 ## Q-453 - May the urgent-report alert use the sign-in mail transport? (T-701b, ADR-494)
 
-**Status:** Proposed (developer, 2026-11-03).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-494 accepted. Was: Proposed (developer, 2026-11-03).
 The organizer alert transport is off (ADR-360) because it mails organizers' addresses. The team alert goes to Questify's own
 address and carries ids, names of events and organizers, reason codes and a console link, no personal data.
 **Recommended (developer):** yes, bounded so it can never starve sign-in mail: one digest per 10 minutes, 100 a day on its
@@ -2368,7 +2378,7 @@ The fixed code works for one Saudi mobile number. While a review window is open 
 
 ## Q-526 - Should the demo content be seeded by a script? (T-710, ADR-568)
 
-**Status:** Proposed (developer, 2026-11-03).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-568 accepted. Was: Proposed (developer, 2026-11-03).
 **Recommended (developer):** not now: the admin builds it once in the dashboard and the readiness list shows what is missing. If staging and production drift, or each new quest type needs manual upkeep, write a seed that calls the doors the dashboard uses.
 
 
@@ -2405,7 +2415,7 @@ ADR-079 says alerts go to the on-call phone and email and the team is three or m
 
 ## Q-562 - Are the first alert thresholds right? (T-018, ADR-604)
 
-**Status:** Proposed (developer, 2026-11-03).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-604 accepted. Was: Proposed (developer, 2026-11-03).
 The numbers in `ops/alerts/questify.rules.yml` come from ADR-074 (99.9%, 1 s at the 95th percentile) and from common practice (burn-rate windows, 20% failure for a provider, 5 minutes for a loop). The ADRs give no target for SMS, push or email delivery.
 **Recommended (developer):** keep them until the load test (NFR-003) and the first real event, then read the month's alert history and the metrics together and change only what paged for no reason or stayed quiet through a problem. Edit the rule, run `promtool test rules`, and note the change in SLO.md.
 
@@ -2435,13 +2445,13 @@ Alertmanager speaks SMTP; the API's own sender is the Gmail API (a service accou
 
 ## Q-582 - One monitoring stack per environment, or one for both? (T-018b, ADR-620)
 
-**Status:** Proposed (developer, 2026-11-03).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended. Was: Proposed (developer, 2026-11-03).
 The rules add up every instance and have no environment label, so a shared store would mix staging and production. A stack is one app since ADR-626 (Dhia: at most three apps on CranL, the API, the web app and one monitoring app).
 **Recommended (developer):** one monitoring app per environment: staging now, production's own copy of the same folder when production exists. If the application slots run short, run one app and add a `deployment.environment.name` matcher on every rule and test, and promote that resource attribute with `otlp.promote_resource_attributes` in `prometheus.yml` (a day of work, and `deployment.environment.name` is the Node environment, `production`, on staging too, so a new setting is needed first).
 
 ## Q-583 - Where do traces go? (T-018b, ADR-623)
 
-**Status:** Proposed (developer, 2026-11-03).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended. Was: Proposed (developer, 2026-11-03).
 The API can send spans (a share, `TELEMETRY_TRACE_RATIO`), and its logs carry `trace_id`. Prometheus stores no traces and has no trace endpoint (it answers 404, tested), so the API must run with `TELEMETRY_TRACE_RATIO=0` (with `TELEMETRY_EXPORTER=otlp` that is the default; the default for the other exporters is 0.1).
 **Recommended (developer):** nowhere yet; set the ratio to 0. Add Grafana Tempo (one binary, local disk, 7 days, a second volume; inside the monitoring container, because of the three-app cap) the first time an incident needs to follow one request, and point the API's trace export at it. The web app's traces joined to the API's (T-018b item 8) wait for the same.
 
@@ -2589,7 +2599,7 @@ about 2 s for a pool connection, before the engine runs; measured with the T-804
 
 ## Q-634 - The sign-in address window: per platform or per event? (T-804b, Q-621)
 
-**Status:** Open (developer, 2026-11-04).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended. Was: Open (developer, 2026-11-04).
 Raising the player per-address window to about 2,000 an hour (Q-621) serves one venue; ten venues behind one carrier
 address would share it.
 **Recommended (developer):** one platform window of about 2,000 an hour in T-804b, then measure; a per-event window needs
@@ -2630,14 +2640,14 @@ wants to change Q-093's number himself.
 
 ## Q-651 - The staff sign-up and invite mail budget keeps its one lock (T-804b)
 
-**Status:** Open (developer, 2026-11-04).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended. Was: Open (developer, 2026-11-04).
 `takeOutboundMail` (`auth/outbound.ts`) still takes one platform advisory lock per sign-up or invite email. It is not
 on the player rush path and its traffic is small.
 **Recommended (developer):** leave it; move it onto `take_send_budget` only if a measurement shows it waiting.
 
 ## Q-652 - The half-budget warning is dropped (T-804b, ADR-690)
 
-**Status:** Open (developer, 2026-11-04; plan review of T-804b).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-690 accepted. Was: Open (developer, 2026-11-04; plan review of T-804b).
 Per stripe, `player.budget_half` would have been logged up to 16 times a window, and no alert read it, so T-804b removed
 it: `player.budget_spent` (alert `QuestifySendBudgetSpent`) is the only budget line.
 **Recommended (developer):** if a warning before the cap is wanted later, read the channel's total from
@@ -2775,7 +2785,7 @@ Without it the proof is the integration tests only.
 
 ## Q-697 - Is ADR-674's 10 ms judged on first completions? (T-804e, ADR-734)
 
-**Status:** Open (developer, 2026-11-05).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-734 accepted. Was: Open (developer, 2026-11-05).
 The committed profile measures a player's first completion: 10.78 and 10.98 ms. Later completions read a growing
 history (the day's ledger sum, the flag trigger's recent scan, the period count) and cost more.
 **Recommended (developer):** yes, the gate is the first-completion number; the build also reports
@@ -2784,7 +2794,7 @@ a second gate is needed.
 
 ## Q-698 - Fewer foreign keys and an answer built from memory are not done (T-804e plan section 4)
 
-**Status:** Open (developer, 2026-11-05).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended. Was: Open (developer, 2026-11-05).
 Merging the enrollment and event-organizer key pairs into one three-column key saves about 0.25 ms but needs a new
 unique index on `enrollment`, keys validated on the biggest tables during a deploy and a weaker guarantee. Having
 `record_completion` return the answer's parts saves about 1 ms but changes the engine's shared return type and leaves
@@ -2794,7 +2804,7 @@ rerun needs the time.
 
 ## Q-699 - The one-at-a-time profile runs on the shared test container (T-804e, ADR-674, ADR-734)
 
-**Status:** Open (developer, 2026-11-05).
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-734 accepted. Was: Open (developer, 2026-11-05).
 ADR-674 kept profiling off the shared container because it had no `pg_stat_statements`. `ops/load/profile.mjs` needs
 none: it reads `pg_stat_user_functions` of its own database and loads auto_explain into its own session only.
 **Recommended (developer):** allow it there; other sessions' tests share the CPU, so a run taken while the full suite
@@ -3008,7 +3018,7 @@ messages. **Recommended:** keep it one way, as built in migration 0168.
 
 ## Q-753 - When should `ledger_entry` get an index on `quest_id`, and how are big indexes built after launch? (ADR-816)
 
-**Status:** Open. Recommended options taken in T-813 part 1; the coordinator decides after the review.
+**Status:** Decided (developer, delegated by Dhia, 2026-11-09): as recommended, ADR-816 accepted. Was: Open. Recommended options taken in T-813 part 1; the coordinator decides after the review.
 **Question:** (1) a quest delete checks the ledger once per quest, so a delete costs one check times the quests it removes (a draft's
 `deleteDraft` cascades to all its quests, `deleteQuestsOf` to a category's). On `quest_id` alone a check scanned the whole ledger,
 290 ms at 2.1 million rows (280 to 350 ms in earlier runs), about 140 to 175 ms a million rows: a draft of 26 quests took 7.8 s, past

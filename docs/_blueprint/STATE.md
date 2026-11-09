@@ -8,6 +8,16 @@
   the small body-font title they had at `level={3}`; the other `level={2}` changes of the accessibility batch were `Tile`,
   `SubHeading` and plain headings, which never changed size. CI 0 minutes (not pushed).
 
+## Developer sweep of Proposed decisions and open questions — 2026-11-09
+
+- **Sweep (tier C, docs only).** Every Proposed ADR (131) and every Open, Proposed or status-less question was sorted.
+  Technical, built and reviewed: 27 ADRs `Accepted (developer, delegated by Dhia, 2026-11-09, …)` (ADR-140, 160, 179,
+  184, 196, 200, 212, 214, 216, 217, 219, 221, 224, 230, 237, 238, 243, 245, 249, 252, 254, 255, 260, 263, 424, 565,
+  816) and 25 questions `Decided` (Q-160, 164, 176, 179, 181, 183, 185, 205, 214, 229, 386, 401, 410, 453, 526, 562,
+  582, 583, 634, 651, 652, 697, 698, 699, 753). Product items are left for Dhia, and unbuilt or unsure ones are left as
+  they were (ADR-185, 186, 535, 730, 812; Q-151, 237, 400, 420, 421, 481, 525, 620, 632, 633, 650, 700). Q-149, Q-743
+  and Q-754 are untouched. Dhia's list is rewritten in `questify-logs/dhia-decisions.md`. CI 0 minutes (not pushed).
+
 ## Player app accessibility follow-up (Reduce Motion, scrim, banner name, stricter check) — 2026-11-09
 
 - **T-808 follow-up (tier B, `apps/app` plus one message key).** Reduce Motion: `Sheet` and the location modal now choose

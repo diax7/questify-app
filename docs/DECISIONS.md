@@ -1964,7 +1964,7 @@ own email to match; the invite email is cleared once the invite is claimed, canc
 place; a rate limit would add a write per scan and stop nothing a signed code does not already stop.
 
 ## ADR-140 — Activation runs through definers and a console behind its own access kind
-**Status:** Proposed (Claude, 2026-10-22; T-210, ADR-076).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built in T-210 and reviewed, CTO code review 92); was: Proposed (Claude, 2026-10-22; T-210, ADR-076).
 **Decision:**
 - The owner requests and withdraws activation (`request_event_activation`, `withdraw_event_activation`); a request is one
   row per event, pending or rejected with the admin's note. The history is the audit log.
@@ -2182,7 +2182,7 @@ A digital reward shows a random test code and never touches the code pool or its
 **Why:** the team tests what players will see; a real code shown in rehearsal could never be taken back (T-203 note).
 
 ## ADR-160 — The go-live moment: wipe at the tick or the first live write
-**Status:** Proposed (Claude, 2026-10-23; T-211).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-211); was: Proposed (Claude, 2026-10-23; T-211).
 **Decision:** the erase runs when the tick moves the event to live, or inline at the first live write if that comes
 first, under a lock on the event's rehearsal row. Rehearsal writes take a shared lock on that row first and re-check
 the start against the clock, so none commits after the erase. Events that never rehearsed pay one key lookup.
@@ -2382,7 +2382,7 @@ stay, attached to the anonymised enrollment.
 no one it is no longer personal data, so no purge job is needed now (Q-142 for counsel).
 
 ## ADR-179 — Questify XP follows the event ledger by trigger, in its own append-only rows
-**Status:** Proposed (Claude, 2026-10-24; T-401).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-401); was: Proposed (Claude, 2026-10-24; T-401).
 **Decision:** an `AFTER INSERT` trigger on `ledger_entry` writes XP: one credit per (player, quest), ever, on the
 first non-rehearsal `quest` entry; one reversal when a `removal` reverses a credited quest entry (the quest stays used,
 ADR-152). XP lives in `player_xp` (total and level), append-only `xp_entry` and `level_reached` (first time per
@@ -2420,7 +2420,7 @@ Questify bucket exists; sharing `b7r-media` under a prefix is not used.
 not exist yet; a switch for an unbuilt store is a speculative feature. Plan: `docs/plans/2026-10-24-t-301-submissions.md`.
 
 ## ADR-184 — Pending points live on the submission; the ledger holds only points that moved
-**Status:** Proposed (Claude, 2026-10-24; T-301; revised after the CTO plan review).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-301); was: Proposed (Claude, 2026-10-24; T-301; revised after the CTO plan review).
 **Decision:** a submission stores the points it will pay; the points and the repeat cap are checked and fixed when it is
 sent. Approval re-checks only the player (active) and the event (live or ended), then writes the ordinary completion
 (`method = 'submission'`, key `'sub:' || id`) and `quest` ledger entry (score always; balance only while the shop window
@@ -2508,7 +2508,7 @@ account's votes and quiz answers are deleted (counts drop); its quiz attempts st
 **Why:** STORE_COMPLIANCE PD-16 lists votes among what deletion removes.
 
 ## ADR-196 — T-303 splits into three
-**Status:** Proposed (agreed by CTO review) (Claude, 2026-10-24; T-303). Q-160.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, the split was carried out and reviewed in T-303, T-303b and T-303c); was: Proposed (agreed by CTO review) (Claude, 2026-10-24; T-303). Q-160.
 **Decision:** T-303 builds challenge, survey and share quests (FR-203, 214, 219, 220). T-303b builds location check-in
 with the QR fallback, the location prompt's timing and the far-from-venue and impossible-speed flags (FR-215, 216, 1744,
 331, 332). T-303c builds meet-someone quests (FR-212, 213).
@@ -2542,7 +2542,7 @@ payment. The API checks the composed config.
 **Why:** ADR-034 (reward on trust, one per player, organizer's switch); features are composed in one place (T-007).
 
 ## ADR-200 — T-304 splits into four
-**Status:** Proposed (Claude, 2026-10-24; T-304). Q-164.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, the split was carried out and reviewed in T-304 to T-304d); was: Proposed (Claude, 2026-10-24; T-304). Q-164.
 **Decision:** T-304 builds the category rules and the points bonus (FR-231 to FR-235). T-304b builds passport quests
 (FR-224). T-304c builds daily and weekly refresh (FR-236, FR-1619) and hidden categories (FR-237). T-304d builds item
 rewards for a quest or category (FR-522, FR-1617). FR-238 (reveal a hidden category by hint push) moves to T-501.
@@ -2706,7 +2706,7 @@ many times is not a script; comparing two positions would mean keeping coordinat
 A meeting without an `x-device-id` (a header the client sends, never trusted) skips the same-device refusal and, for that side, the shared-device flag; the pair rule and the daily cap still bound what it earns (CTO code review 2026-10-23, accepted). A deadlock or serialization failure answers 503 `busy` with Retry-After (`conventions.ts`).
 
 ## ADR-212 — Mini-game rounds and replay
-**Status:** Proposed (Claude, 2026-10-24; T-305). Q-176. Specifies ADR-097's checking.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-305); was: Proposed (Claude, 2026-10-24; T-305). Q-176. Specifies ADR-097's checking.
 **Decision:** the database issues each round: a 32-bit seed from `gen_random_uuid`, its own clock, the game and level
 frozen from the quest, and the level's numbers from its own copy of the level table. Issuing uses an attempt. The phone
 sends its inputs and the result its engine found; the API replays the inputs with the same shared engine and never
@@ -2739,7 +2739,7 @@ holds an unsent result, the quest shows Retry instead of Play.
 category.
 
 ## ADR-214 — T-305 is split in three
-**Status:** Proposed (Claude, 2026-10-24; T-305). Q-179.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, the split was carried out and reviewed in T-305 and T-305c); was: Proposed (Claude, 2026-10-24; T-305). Q-179.
 **Decision:** T-305 builds the round machinery for all four games, and memory match and slide puzzle end to end.
 T-305c builds catch and tap rush (real-time, fixed-tick replay) on it. T-305b builds organizer images on cards, puzzles
 and falling items (FR-1808) once a Questify bucket exists (Q-149); until then the default art shows. The builder
@@ -2758,7 +2758,7 @@ in 1.2% (medium) and 1.7% (hard) of 5,000 seeded rounds; at 4 it is 0.1% and 0.3
 **Why:** configuration over code without giving organizers numbers they cannot judge; a picture puzzle cannot mirror.
 
 ## ADR-216 — Real-time mini-game replay
-**Status:** Proposed (Claude, 2026-10-24; T-305c plan). Q-181. Extends ADR-212.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-305c); was: Proposed (Claude, 2026-10-24; T-305c plan). Q-181. Extends ADR-212.
 **Decision:** catch and tap rush move their world only on a fixed 30 Hz tick, in integers, on a 1,000 × 1,000-unit
 board. Inputs keep their time in whole milliseconds; one shared integer function maps a time to its tick. A real-time
 engine adds `advance(state, tick)` to the game engine contract, so the replay, the judge and the app's gate are reused
@@ -2772,7 +2772,7 @@ does not know and shows the update line. CTO plan review 2026-10-24: 84/100, fin
 phone's frame rate (`docs/plans/2026-10-24-t-305c-catch-tap-rush.md`).
 
 ## ADR-217 — Reaction bounds in the real-time games
-**Status:** Proposed (Claude, 2026-10-24; T-305c plan). Q-181. Replaces T-305's sketch of a share of fast hits.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-305c, calibrated by its tests); was: Proposed (Claude, 2026-10-24; T-305c plan). Q-181. Replaces T-305's sketch of a share of fast hits.
 **Decision:** a tap on a target younger than 120 ms, or a second tap inside 100 ms, is dropped by the app and is
 impossible in a replay; a tap within 150 ms after a target went is neither hit nor miss. Fast but possible play raises
 the unlikely flag and is paid: tap rush hits under 200 ms, and catch items whose first move onto them came inside
@@ -2800,7 +2800,7 @@ and scores hits minus misses. The level numbers in the T-305c plan are starting 
 **Why:** pass targets below perfect play (ADR-212); a miss penalty stops tapping everywhere from passing.
 
 ## ADR-219 — T-306 is split in three
-**Status:** Proposed (Claude, 2026-10-24; T-306 plan). Q-183.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, the split was carried out and reviewed in T-306, T-306b and T-306c); was: Proposed (Claude, 2026-10-24; T-306 plan). Q-183.
 **Decision:** T-306 builds live polls (FR-239 to FR-242). T-306b builds community quests (FR-243 to FR-246, FR-248 to
 FR-250, FR-1620, and FR-247's points, real-world moment and nothing). T-306c builds FR-247's unlock rewards (a quest,
 category or shop reward locked until a community step is reached). The poll push and the milestone push move to
@@ -2834,7 +2834,7 @@ is a rehearsal send (the wipe resets them on either reason). Before go-live a se
 (`event_not_live` otherwise). `GET /v1/quests/{id}/vote` answers `mine` as a list.
 
 ## ADR-221 — Live updates are polled for now
-**Status:** Proposed (Claude, 2026-10-24; T-306 plan). Q-185.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-306); was: Proposed (Claude, 2026-10-24; T-306 plan). Q-185.
 **Decision:** the app reads `GET /v1/events/{id}/live` (open live polls the player has not voted in, recently closed
 polls with results, and T-306b's community progress) every `livePollSeconds` (tuning, 10) while an event screen is
 open and the app is active, with an ETag over the body without `serverNow` (sent in a header too) and 304; an
@@ -2886,7 +2886,7 @@ counted entry; reaching the goal step finishes the goal; a goal closes once the 
 least 30 s after; the separate 15 s is dropped).
 
 ## ADR-224 — The settle point reads the ledger writers' sessions
-**Status:** Proposed (Claude, 2026-10-24; T-306b plan). Q-188.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-306b); was: Proposed (Claude, 2026-10-24; T-306b plan). Q-188.
 **Decision:** `community_settle_point()` reads `pg_stat_activity` for client backends of the current database owned by
 `questify_app` or the owner (its own backend left out) and returns the oldest `xact_start`. The owner must see those
 sessions: migration 0053 grants nothing (CranL's `admin` and CI's owner are superusers) and asserts the owner is a
@@ -2976,7 +2976,7 @@ unlocks in rehearsal or re-locks at go-live.
 **Why:** an unlock given on a miss is not a reward; an override is a feature nobody has asked for yet.
 
 ## ADR-230 — T-307 is split in two
-**Status:** Proposed (Claude, 2026-10-24; T-307 plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, the split was carried out in T-307 and T-307b); was: Proposed (Claude, 2026-10-24; T-307 plan).
 **Decision:** T-307 builds flash quests and double-point boosts (FR-251, FR-252). T-307b builds the live finale
 (FR-254, FR-255, FR-1621) after T-504; its design is in the T-307 plan. The finale's reveal calls the owner's
 `POST …/results/reveal` and never decides winners.
@@ -3061,7 +3061,7 @@ ship without it.
 **Status:** Rejected (Dhia, 2026-10-24): basic tags only; signed tags will not be built.
 
 ## ADR-237 — The NFC library
-**Status:** Proposed (Claude, 2026-10-24; T-308 plan). Confirms TECH_STACK's Proposed row.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-308, run on a phone); was: Proposed (Claude, 2026-10-24; T-308 plan). Confirms TECH_STACK's Proposed row.
 **Decision:** `react-native-nfc-manager` v4 (4.1.0, MIT, New Architecture, validated on Expo SDK 57) with its config
 plugin (`NFCReaderUsageDescription` in Arabic and English, the NDEF and TAG entitlement; no ISO 7816 select
 identifier). The library's own Android manifest declares the NFC feature not required, so no plugin of ours is needed
@@ -3070,7 +3070,7 @@ NFC module. Adding it needs a new EAS build.
 **Why:** one maintained module covers NDEF reading and writing on both phones.
 
 ## ADR-238 — T-309 is split in two
-**Status:** Proposed (Claude, 2026-10-24; T-309 plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, the split was carried out and reviewed in T-309 and T-309b); was: Proposed (Claude, 2026-10-24; T-309 plan).
 **Decision:** T-309 builds pairing for stations, kiosks and big screens, the device credential, revocation and the
 rotating screen QR (FR-314, FR-1713). The kiosk and its live code (FR-315) move to T-309b (migration 0058), whose
 design is fixed in `docs/plans/2026-10-24-t-309-stations-kiosks-pairing.md`.
@@ -3128,7 +3128,7 @@ tablet, decoding with `zxing-wasm` 3.1.5 (reader only, wasm self-hosted), with t
 **Why:** the fixed My QR (ADR-137) works from a screenshot for ever, which only a watching operator mitigates.
 
 ## ADR-243 — Android NFC sessions hold reader mode
-**Status:** Proposed (Claude, 2026-10-24; T-308 phone-test fix). Q-205. Amends the T-308 plan's Android session.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built in the T-308 phone-test fix and tested on a phone); was: Proposed (Claude, 2026-10-24; T-308 phone-test fix). Q-205. Amends the T-308 plan's Android session.
 **Decision:** on Android every tag session (the scanner's tap, Write NFC tag) turns on reader mode itself
 (`registerTagEvent` with `isReaderModeEnabled`, NFC-A/B/F/V) before `requestTechnology([Ndef, NdefFormatable])`, and
 turns it off itself when the session ends; sessions run one at a time, and one stopped while it waited its turn never
@@ -3166,7 +3166,7 @@ the @username of a player another player has blocked like any public board does;
 other in the app and was never a way to hide from a public screen at the venue.
 
 ## ADR-245 — The kiosk page's decoder, headers and limits
-**Status:** Proposed (Claude, 2026-10-24; T-309b plan). Builds on ADR-242.
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-309b, CTO plan review 92); was: Proposed (Claude, 2026-10-24; T-309b plan). Builds on ADR-242.
 **Decision:** `zxing-wasm` 3.1.5 (`zxing-wasm/reader` only), loaded by the kiosk page alone; its wasm file is committed
 as `apps/web/public/zxing/zxing_reader-3.1.5.wasm`, checked by a test against the installed package's file, never
 fetched from the library's CDN; frames are decoded on the tablet at 4 a second (at most 640 px), on the main thread,
@@ -3233,7 +3233,7 @@ unique violation (the API maps that index's 23505 to `idempotency_key_reused` as
 marks take a per-player limit of 60 a minute, the operator's Inbox reads 60 a minute (`too_many_attempts`).
 
 ## ADR-249 — A practice scan runs the real door and the database undoes it
-**Status:** Proposed (Claude, 2026-10-24; T-311 plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-311, CTO plan review 92); was: Proposed (Claude, 2026-10-24; T-311 plan).
 **Decision:** Practice scans (FR-929) go to their own route, `POST /v1/operator/scan/practice`, which calls
 `operator_practice_scan`, a `SECURITY INVOKER` wrapper around the real `operator_complete_quest`. The wrapper runs the
 real call in a PL/pgSQL block and then raises unconditionally (`PX000`), so the database rolls back everything the call
@@ -3276,7 +3276,7 @@ The read is limited to 60 a minute per player. Q-213 asks whether only this oper
 **Why:** two operators at one booth see one truth; an indexed range count costs a few milliseconds.
 
 ## ADR-252 — The event's words reach every text through the translator
-**Status:** Proposed (Claude, 2026-10-24; T-311b).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-311b); was: Proposed (Claude, 2026-10-24; T-311b).
 **Decision:** The event's quest, category and player words are message placeholders the translator fills in, so a
 screen never passes them: `{questOne}` and `{questMany}` as typed, `{questOneCap}` and `{questCap}` with a capital
 (the same four for `category` and `player`; `wordParams` in `packages/shared/src/config/terms.ts`). The root translator
@@ -3305,7 +3305,7 @@ way in the event's player texts (meet, community, waitlist).
 would break «هذه المهمة جماعية»-style agreement.
 
 ## ADR-254 — Staff mode reads the event's words from the same cached configuration as the player app
-**Status:** Proposed (Claude, 2026-10-24; T-311b).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-311b); was: Proposed (Claude, 2026-10-24; T-311b).
 **Decision:** `OperatorProvider` loads `GET /v1/events/{id}/config` through `loadEventConfig` (cached copy at
 `questify.config.<eventId>` first, then the fresh one) and offers `terms` to staff screens (`useOperator().terms`); its
 screens use the event's currency (the review queue's amount, the desk's cancel text), and the award search no longer
@@ -3314,7 +3314,7 @@ and labels keep Questify's words until T-311c.
 **Why:** one source for the words, so the two apps cannot disagree; it fixes the FR-941 gap Q-214.
 
 ## ADR-255 — T-312 splits off the notification history
-**Status:** Proposed (Claude, 2026-10-24; T-312 plan, `docs/plans/2026-10-24-t-312-ticket-center.md`).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, the split was carried out in T-312); was: Proposed (Claude, 2026-10-24; T-312 plan, `docs/plans/2026-10-24-t-312-ticket-center.md`).
 **Decision:** FR-1824's notification history moves to T-312b (depends on T-501): no notification is stored anywhere
 yet, and T-501 builds the notification center (FR-1104). T-312b is the profile row and the full list on T-501's table,
 not a second store. T-312 delivers My tickets (the profile's Your requests).
@@ -3362,7 +3362,7 @@ it; no permission, no identifier), loaded lazily so an older binary sends `null`
 **Trade-offs:** a new native module needs a new development build.
 
 ## ADR-260 — The first-N count: one row per slot, claimed last with SKIP LOCKED
-**Status:** Proposed (Claude, 2026-10-25; T-313 plan, CTO plan review 84 then 92/100).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built in T-313, CTO code review 92 GO); was: Proposed (Claude, 2026-10-25; T-313 plan, CTO plan review 84 then 92/100).
 **Decision:** A bonus is `quest_first_bonus` (points 1 to 100,000, N 1 to 1,000) and N rows of `quest_bonus_slot`. The
 claim `pay_first_bonus` is each payer's caller's last write (record_completion, pay_submission, finish_quiz,
 finish_game_round, stamp_step, pay_meeting; never inside pay_completion; the meet claims both sides after both pay, in
@@ -3402,7 +3402,7 @@ says "First-{N} bonus, place {place}" and the remove dialog of the quest line hi
 **Why:** every player of the first N gets the same amount; N stays the most ever paid.
 
 ## ADR-263 — "Bonuses left", live
-**Status:** Proposed (Claude, 2026-10-25; T-313 plan).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built and reviewed in T-313); was: Proposed (Claude, 2026-10-25; T-313 plan).
 **Decision:** `first_bonus_left` counts every bonus of an event (an active member or the team only; nothing for anyone
 else), cached per event for 2 seconds in each API instance (one load in flight per event, a failed load never kept).
 `/live` lists the bonuses of the quests the player may play now and never completed, with `left` from the cache (0
@@ -6710,7 +6710,7 @@ ban screen shows the reason and the appeal address (T-705).
 
 ## ADR-424 - T-704, T-705 and T-705b are three builds of the player and safety tools
 
-**Status:** Proposed (developer, plan D1, 2026-11-02).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, the order was followed, T-704 and T-705 reviews 82); was: Proposed (developer, plan D1, 2026-11-02).
 **Decision:** T-704 (find a player, the read-only record, contact reveal, admin rename, sign-in reset; migration 0118), then
 T-705 (platform ban with the appeal address, block a player, word-list editor), then T-705b (content reports, the moderation
 queue, unpublish with `content_unpublished`, the platform flags list). Each delivers value alone; T-705 adds the ban panel to
@@ -7564,7 +7564,7 @@ provider (Q-034). Campaigns share the weekly cap per channel with invitations (A
 
 ## ADR-565 - T-710b the QR picker lists signed printable codes for the reviewer only
 
-**Status:** Proposed (developer, 2026-11-03; T-710b; FR-303, FR-1407).
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built in T-710b, code review 87); was: Proposed (developer, 2026-11-03; T-710b; FR-303, FR-1407).
 **Decision:** `review_demo_codes(event)` answers only the reviewer account, in the demo event, while the window is open, as an active member (RD404 otherwise, 404 on the route). It returns the event's printable codes (scan quests, passport steps, hidden categories, NFC tags' QR), which the API signs with the existing keys; a fictional player's meet pass covers meet quests. Home carries `reviewDemo: true` under the same rule; the scanner shows "Pick a code (review only)" and feeds the pick to its existing handler. No new completion path; no image or gallery picker.
 **Why:** Every completion rule stays the one real players meet; the picker only saves printing.
 **Trade-offs:** Rotating station codes and kiosks stay on a paired station page.
@@ -8669,7 +8669,7 @@ writes one index less.
 
 ## ADR-816 - T-813 part 1: two index entries a quest row (three a removal) buy the rehearsal wipe; the ledger's quest key moves to `(quest_id, event_id)` in place of a `quest_id` index
 
-**Status:** Proposed (T-813 part 1, 2026-11-07; Q-753). Numbers in `docs/PERFORMANCE_AUDIT.md`, "T-813 results".
+**Status:** Accepted (developer, delegated by Dhia, 2026-11-09, built in T-813 part 1, re-review 93); was: Proposed (T-813 part 1, 2026-11-07; Q-753). Numbers in `docs/PERFORMANCE_AUDIT.md`, "T-813 results".
 **Decision:** migration 0172 adds `ledger_entry_reverses_idx (reverses) WHERE reverses IS NOT NULL`,
 `ledger_entry_completion_idx (completion_id) WHERE completion_id IS NOT NULL`, `xp_entry_ledger_idx (ledger_entry_id) WHERE
 ledger_entry_id IS NOT NULL` and `audit_log_player_export_idx`. 0173 rebuilds `invitation_recipient_queued` as `(campaign_id,
