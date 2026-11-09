@@ -73,22 +73,24 @@ const BO409: ReadonlySet<string> = new Set([
   "not_started",
 ]);
 
-/** The SQLSTATEs of migration 0055's boost doors as refusals; undefined for anything else. */
-export function boostRefusalOf(pg: PgError): BoostRefusal | undefined {
-  switch (pg.code) {
-    case "AN404":
-    case "BN404":
-      return { kind: "not_found" };
-    case "BO422":
-      return { kind: "invalid", issues: [pg.detail ?? "boost"] };
-    case "BO409":
+const REFUSAL_OF_CODE = new Map<string, (pg: PgError) => BoostRefusal | undefined>([
+  ["AN404", () => ({ kind: "not_found" })],
+  ["BN404", () => ({ kind: "not_found" })],
+  ["BO422", (pg) => ({ kind: "invalid", issues: [pg.detail ?? "boost"] })],
+  [
+    "BO409",
+    (pg) => {
       if (pg.detail === "limit_reached") {
         return { kind: "limit_reached", limit: MAX_BOOSTS };
       }
       return BO409.has(pg.detail ?? "") ? ({ kind: pg.detail } as BoostRefusal) : undefined;
-    default:
-      return undefined;
-  }
+    },
+  ],
+]);
+
+/** The SQLSTATEs of migration 0055's boost doors as refusals; undefined for anything else. */
+export function boostRefusalOf(pg: PgError): BoostRefusal | undefined {
+  return pg.code === undefined ? undefined : REFUSAL_OF_CODE.get(pg.code)?.(pg);
 }
 
 /** Runs one call in the team member's seat; a refusal the database raises becomes its result. */

@@ -186,6 +186,16 @@ export type DeviceFacts = Readonly<{
   model: string | null;
 }>;
 
+type DeviceValues = [string | null, string | null, string | null, string | null];
+
+/** The device facts as the call's four values, each null without them. */
+function deviceValues(device: DeviceFacts | null): DeviceValues {
+  if (device === null) {
+    return [null, null, null, null];
+  }
+  return [device.appVersion, device.platform, device.osVersion, device.model];
+}
+
 /** The player's app problem or suggestion to Questify, with no event (FR-1822); `open_platform_ticket` (0061). */
 export function openPlatformTicket(
   deps: TicketDeps,
@@ -200,15 +210,7 @@ export function openPlatformTicket(
   return run(deps, { playerId: request.playerId }, async (client) => {
     const { rows } = await client.query<OpenedRow>(
       "SELECT * FROM open_platform_ticket($1, $2, $3, $4, $5, $6, $7)",
-      [
-        request.kind,
-        request.text,
-        request.device?.appVersion ?? null,
-        request.device?.platform ?? null,
-        request.device?.osVersion ?? null,
-        request.device?.model ?? null,
-        request.idempotencyKey,
-      ],
+      [request.kind, request.text, ...deviceValues(request.device), request.idempotencyKey],
     );
     return openedOf(rows);
   });

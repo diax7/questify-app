@@ -95,6 +95,8 @@ export function countsOf(json: Record<string, unknown>): RehearsalCounts {
 export const isOpen = (row: CardRow): boolean =>
   (row.status_now === "draft" || row.status_now === "scheduled") && row.live_wiped_at === null;
 
+const isoOf = (date: Date | null): string | null => date?.toISOString() ?? null;
+
 export function cardOf(row: CardRow): RehearsalCard {
   const open = isOpen(row);
   return {
@@ -108,9 +110,9 @@ export function cardOf(row: CardRow): RehearsalCard {
       reservations: row.reservations,
       flags: row.flags,
     },
-    firstPlayAt: row.first_play_at?.toISOString() ?? null,
-    erasedAt: row.erased_at?.toISOString() ?? null,
+    firstPlayAt: isoOf(row.first_play_at),
+    erasedAt: isoOf(row.erased_at),
     erased: row.erase_counts === null ? null : countsOf(row.erase_counts),
-    wipedAtGoLive: row.live_wiped_at?.toISOString() ?? null,
+    wipedAtGoLive: isoOf(row.live_wiped_at),
   };
 }

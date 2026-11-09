@@ -64,6 +64,11 @@ function judged(row: Row): Judged {
       bonusPoints: row.bonus_points,
     };
   }
+  return refusedJudged(row);
+}
+
+/** A refused row as the station shows it; thrown when the real scan's table does not know its code. */
+function refusedJudged(row: Row): Judged {
   if (row.refusal === "PW409") {
     return { kind: "refused", reason: "going_live" };
   }

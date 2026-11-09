@@ -147,6 +147,27 @@ type SentRow = {
   replayed: boolean;
 };
 
+type PaidExtras = Pick<Sent, "levelUp" | "bonus" | "item" | "boost" | "firstBonus" | "streakBonus">;
+
+/** What an auto-approved send's completion earned besides its points, read in this order; all null when pending. */
+async function paidExtras(
+  client: PoolClient,
+  completionId: string | null,
+  boost: Boosted | null,
+): Promise<PaidExtras> {
+  if (completionId === null) {
+    return { levelUp: null, bonus: null, item: null, boost, firstBonus: null, streakBonus: null };
+  }
+  return {
+    levelUp: await levelReached(client, completionId),
+    bonus: await bonusPaid(client, completionId),
+    item: await itemGiven(client, completionId),
+    boost,
+    firstBonus: await firstBonusPaid(client, completionId),
+    streakBonus: await streakBonusPaid(client, completionId),
+  };
+}
+
 /**
  * The player sends text for a submission quest (FR-206, FR-327): pending until reviewed, or paid at once on an
  * auto-approve quest. `submit_quest` checks every rule (migration 0040).
@@ -172,14 +193,7 @@ export function sendSubmission(
       score: Number(row.score),
       balance: Number(row.balance),
       replayed: row.replayed,
-      levelUp: row.completion_id === null ? null : await levelReached(client, row.completion_id),
-      bonus: row.completion_id === null ? null : await bonusPaid(client, row.completion_id),
-      item: row.completion_id === null ? null : await itemGiven(client, row.completion_id),
-      boost,
-      firstBonus:
-        row.completion_id === null ? null : await firstBonusPaid(client, row.completion_id),
-      streakBonus:
-        row.completion_id === null ? null : await streakBonusPaid(client, row.completion_id),
+      ...(await paidExtras(client, row.completion_id, boost)),
     };
   });
 }

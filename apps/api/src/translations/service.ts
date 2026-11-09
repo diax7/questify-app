@@ -150,6 +150,33 @@ function checkChanges(
   return { changes, issues };
 }
 
+type SaveRefusal = Exclude<SaveTranslationResult, Readonly<{ ok: true }>>;
+
+/** What a save may go on with, or why it is refused before the database is asked; in this order. */
+function checkSave(
+  messages: Messages,
+  admin: PublicAccount,
+  key: string,
+  body: unknown,
+): SaveRefusal | Readonly<{ ok: true; changes: Partial<Record<Language, string>> }> {
+  if (admin.platformRole !== "admin" || admin.status !== "active") {
+    return { ok: false, reason: "forbidden" };
+  }
+  const parsed = input.safeParse(body);
+  if (!parsed.success || (parsed.data.ar === undefined && parsed.data.en === undefined)) {
+    return {
+      ok: false,
+      reason: "invalid",
+      issues: [{ path: "body", message: "must have ar, en or both, as text" }],
+    };
+  }
+  const { changes, issues } = checkChanges(messages, key, parsed.data);
+  if (issues.length > 0) {
+    return { ok: false, reason: "invalid", issues };
+  }
+  return isLockedText(key) ? { ok: false, reason: "locked" } : { ok: true, changes };
+}
+
 /** Reads and saves the texts an admin changed (F-277, FR-1765 to FR-1768). */
 export function createTranslationService(options: TranslationOptions): TranslationService {
   const messages = options.messages ?? MESSAGES;
@@ -183,24 +210,11 @@ export function createTranslationService(options: TranslationOptions): Translati
     matrix: async (query) => buildMatrix(messages, await readRows(), query),
 
     save: async (admin, key, body, meta = {}) => {
-      if (admin.platformRole !== "admin" || admin.status !== "active") {
-        return { ok: false, reason: "forbidden" };
+      const checked = checkSave(messages, admin, key, body);
+      if (!checked.ok) {
+        return checked;
       }
-      const parsed = input.safeParse(body);
-      if (!parsed.success || (parsed.data.ar === undefined && parsed.data.en === undefined)) {
-        return {
-          ok: false,
-          reason: "invalid",
-          issues: [{ path: "body", message: "must have ar, en or both, as text" }],
-        };
-      }
-      const { changes, issues } = checkChanges(messages, key, parsed.data);
-      if (issues.length > 0) {
-        return { ok: false, reason: "invalid", issues };
-      }
-      if (isLockedText(key)) {
-        return { ok: false, reason: "locked" };
-      }
+      const { changes } = checked;
       const stored = await withConnection(options.pool, (client) =>
         withRequestContext(client, { isAdmin: true, staffUserId: admin.id }, () =>
           writeRow(client, key, changes, admin, meta),

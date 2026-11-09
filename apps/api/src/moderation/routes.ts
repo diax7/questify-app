@@ -23,7 +23,12 @@ import {
   type ExclusionKind,
   type ModerationDeps,
 } from "#src/moderation/moderation";
-import { acceptAll, decideRequest, listRequests } from "#src/moderation/requests";
+import {
+  acceptAll,
+  decideRequest,
+  listRequests,
+  type DecideOutcome,
+} from "#src/moderation/requests";
 import { organizerContextOf } from "#src/organizers/context";
 import { normalizeSaudiMobile } from "#src/players/phone";
 
@@ -182,6 +187,30 @@ export function registerModerationRoutes(scope: FastifyInstance, deps: Moderatio
   registerRequestRoutes(scope, deps);
 }
 
+/** Throws the HTTP error of a refused accept or decline. */
+function refuseDecision(
+  outcome: Exclude<DecideOutcome, "accepted" | "unchanged" | "declined">,
+): never {
+  switch (outcome) {
+    case "not_found":
+      throw notFound();
+    case "not_allowed":
+      throw notARequest();
+    case "ended":
+      throw requestEventOver();
+    case "full":
+      throw eventFull();
+  }
+}
+
+/** The answer to an accept or decline, or the HTTP error of its refusal. */
+function decidedAnswer(outcome: DecideOutcome, accept: boolean): { status: "active" | "declined" } {
+  if (outcome === "accepted" || outcome === "unchanged" || outcome === "declined") {
+    return { status: accept ? "active" : "declined" };
+  }
+  return refuseDecision(outcome);
+}
+
 /**
  * The event's join requests and waiting list (T-218, FR-1819, FR-1821): the owner and editors list, accept, decline and
  * accept all. The database checks the caller's event limit, the seat and the event's state again, and audits.
@@ -222,20 +251,7 @@ function registerRequestRoutes(scope: FastifyInstance, deps: ModerationDeps): vo
         accept,
         requestId: request.id,
       });
-      switch (outcome) {
-        case "accepted":
-        case "unchanged":
-        case "declined":
-          return { status: accept ? "active" : "declined" };
-        case "not_found":
-          throw notFound();
-        case "not_allowed":
-          throw notARequest();
-        case "ended":
-          throw requestEventOver();
-        case "full":
-          throw eventFull();
-      }
+      return decidedAnswer(outcome, accept);
     });
   }
 

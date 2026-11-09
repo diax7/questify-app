@@ -34,11 +34,6 @@
       "complexity": [9]
     }
   },
-  "apps/api/src/boosts/boosts.ts": {
-    "boostRefusalOf": {
-      "complexity": [9]
-    }
-  },
   "apps/api/src/completions/complete.ts": {
     "completeQuest": {
       "complexity": [12]
@@ -69,16 +64,6 @@
       "complexity": [19]
     }
   },
-  "apps/api/src/moderation/routes.ts": {
-    "<anonymous>": {
-      "complexity": [9]
-    }
-  },
-  "apps/api/src/operators/practice.ts": {
-    "judged": {
-      "complexity": [9]
-    }
-  },
   "apps/api/src/operators/routes.ts": {
     "registerOperatorPlayerRoutes": {
       "lines": [147]
@@ -95,11 +80,6 @@
   "apps/api/src/organizers/team.ts": {
     "admitInvite": {
       "complexity": [9]
-    }
-  },
-  "apps/api/src/players/profile.ts": {
-    "renameMe": {
-      "complexity": [10]
     }
   },
   "apps/api/src/players/sms.ts": {
@@ -141,11 +121,6 @@
       "complexity": [27]
     }
   },
-  "apps/api/src/rehearsal/rehearsal.ts": {
-    "cardOf": {
-      "complexity": [9]
-    }
-  },
   "apps/api/src/rehearsal/service.ts": {
     "createRehearsal": {
       "lines": [104]
@@ -182,26 +157,6 @@
   "apps/api/src/souvenirs/tick.ts": {
     "<anonymous>": {
       "complexity": [15]
-    }
-  },
-  "apps/api/src/streaks/streaks.ts": {
-    "streakRefusalOf": {
-      "complexity": [9]
-    }
-  },
-  "apps/api/src/submissions/submissions.ts": {
-    "<anonymous>": {
-      "complexity": [9]
-    }
-  },
-  "apps/api/src/tickets/tickets.ts": {
-    "<anonymous>": {
-      "complexity": [9]
-    }
-  },
-  "apps/api/src/translations/service.ts": {
-    "save": {
-      "complexity": [9]
     }
   },
   "apps/app/app/delete-account.tsx": {

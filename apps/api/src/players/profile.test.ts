@@ -226,4 +226,44 @@ describe("PATCH /v1/me", () => {
     expect(response.headers["retry-after"]).toBe("1");
     expect(response.json().details.nextChangeAt).toBeNull();
   });
+
+  it.each([
+    ["username_blocked", 422],
+    ["username_taken", 409],
+  ])(
+    "answers the database's %s with its own status and no retry-after",
+    async (outcome, status) => {
+      build(composed({ usernameChanges: { enabled: true } }, {}), {
+        rename: { rows: [{ outcome, next_change_at: null }] },
+      });
+      const response = await patchMe({ username: "new_name" });
+      expect(response.statusCode).toBe(status);
+      expect(response.json()).toMatchObject({ code: outcome });
+      expect(response.headers["retry-after"]).toBeUndefined();
+    },
+  );
+
+  it("treats no answer row as unchanged, and an unchanged or renamed outcome as success", async () => {
+    for (const rename of [
+      { rows: [] },
+      { rows: [{ outcome: "unchanged", next_change_at: null }] },
+    ]) {
+      build(composed({ usernameChanges: { enabled: true } }, {}), { rename });
+      expect((await patchMe({ username: "new_name" })).statusCode).toBe(200);
+      await app.close();
+    }
+  });
+
+  it("refuses a rename while the switch is off, and a malformed name, before asking the database", async () => {
+    const off = build(composed({ usernameChanges: { enabled: false } }, {}));
+    const closed = await patchMe({ username: "new_name" });
+    expect(closed.statusCode).toBe(403);
+    expect(off.seen.some((one) => one.sql.includes("rename_player"))).toBe(false);
+    await app.close();
+    const on = build(composed({ usernameChanges: { enabled: true } }, {}));
+    const bad = await patchMe({ username: "bad name" });
+    expect(bad.statusCode).toBe(422);
+    expect(bad.json()).toMatchObject({ code: "invalid_username" });
+    expect(on.seen.some((one) => one.sql.includes("rename_player"))).toBe(false);
+  });
 });

@@ -243,14 +243,17 @@ async function renameMe(
   if (!name.ok) {
     throw invalidUsername({ reason: name.reason });
   }
-  const { outcome, next_change_at: next } = await (async () => {
-    const { rows } = await client.query<{ outcome: string; next_change_at: Date | null }>(
-      "SELECT * FROM rename_player($1, $2)",
-      [name.username, rules.days],
-    );
-    // Stryker disable next-line OptionalChaining: rename_player always answers one row
-    return rows[0] ?? { outcome: "unchanged", next_change_at: null };
-  })();
+  const { rows } = await client.query<{ outcome: string; next_change_at: Date | null }>(
+    "SELECT * FROM rename_player($1, $2)",
+    [name.username, rules.days],
+  );
+  // Stryker disable next-line OptionalChaining: rename_player always answers one row
+  const answer = rows[0] ?? { outcome: "unchanged", next_change_at: null };
+  refuseRename(reply, answer.outcome, answer.next_change_at);
+}
+
+/** Throws the HTTP error of a refused rename outcome; any other outcome is a success and returns. */
+function refuseRename(reply: FastifyReply, outcome: string, next: Date | null): void {
   switch (outcome) {
     case "too_soon": {
       const retryAfter = Math.max(1, Math.ceil(((next?.getTime() ?? 0) - Date.now()) / 1000));
