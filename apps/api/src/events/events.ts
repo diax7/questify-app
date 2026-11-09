@@ -195,50 +195,133 @@ function timesOf(
  * instants, so the wall-clock times move with it.
  */
 export function merge(current: EventRecord | undefined, input: EventInput): EventFields | Invalid {
-  const nameAr = input.name === undefined ? (current?.name.ar ?? null) : blankToNull(input.name.ar);
-  const nameEn = input.name === undefined ? (current?.name.en ?? null) : blankToNull(input.name.en);
-  if (nameAr === null && nameEn === null) {
+  const name = textOf(input.name, current?.name);
+  if (name.ar === null && name.en === null) {
     return { kind: "invalid", field: "name" };
   }
+  const when = whenOf(current, input);
+  if ("kind" in when) {
+    return when;
+  }
+  const reach = reachOf(current, input);
+  if ("field" in reach) {
+    return reach;
+  }
+  const venue = textOf(input.venue, current?.venue);
+  const place = placeOf(current, input);
+  return {
+    nameAr: name.ar,
+    nameEn: name.en,
+    kind: reach.kind,
+    venueAr: venue.ar,
+    venueEn: venue.en,
+    access: reach.access,
+    joinMethods: reach.joinMethods,
+    timezone: when.timezone,
+    dayStartHour: place.dayStartHour,
+    startsAt: when.startsAt,
+    endsAt: when.endsAt,
+    venuePin: place.venuePin,
+    venueRadiusM: place.venueRadiusM,
+    cityId: reach.cityId,
+    interests: reach.interests,
+  };
+}
+
+type Text = Readonly<{ ar: string | null; en: string | null }>;
+
+/** A name or venue after this input: both languages sent (blank clears one), else the stored ones. */
+function textOf(sent: EventInput["name"], stored: Text | undefined): Text {
+  if (sent === undefined) {
+    return { ar: stored?.ar ?? null, en: stored?.en ?? null };
+  }
+  return { ar: blankToNull(sent.ar), en: blankToNull(sent.en) };
+}
+
+/** The zone, then the times read in it, or the first refused, in that order. */
+function whenOf(
+  current: EventRecord | undefined,
+  input: EventInput,
+): Readonly<{ timezone: string; startsAt: Date; endsAt: Date }> | Invalid {
   const timezone = input.timezone ?? current?.timezone ?? DEFAULTS.timezone;
   if (!isTimeZone(timezone)) {
     return { kind: "invalid", field: "timezone" };
   }
   const times = timesOf(current, input, timezone);
-  if ("kind" in times) {
-    return times;
-  }
-  const kind = input.kind ?? current?.kind ?? DEFAULTS.kind;
-  const cityId = input.cityId === undefined ? (current?.cityId ?? null) : input.cityId;
-  if (kind === "virtual" && cityId !== null) {
+  return "kind" in times ? times : { timezone, ...times };
+}
+
+type Reach = Pick<EventFields, "kind" | "cityId" | "interests" | "access" | "joinMethods">;
+
+/**
+ * Who the event reaches after this input, or the first refused, in this order: its kind and city (a virtual event has
+ * none), its interests (at most 3, no repeats), then its access and join methods (at least one; the public list only
+ * for a public event).
+ */
+function reachOf(current: EventRecord | undefined, input: EventInput): Reach | Invalid {
+  const kindAndCity = cityOf(current, input);
+  if (kindAndCity === undefined) {
     return { kind: "invalid", field: "cityId" };
   }
-  const interests = input.interests ?? current?.interests ?? [];
-  if (interests.length > MAX_EVENT_INTERESTS || new Set(interests).size !== interests.length) {
+  const interests = interestsOf(current, input);
+  if (interests === undefined) {
     return { kind: "invalid", field: "interests" };
   }
-  const access = input.access ?? current?.access ?? DEFAULTS.access;
+  const join = joinOf(current, input);
+  return join === undefined
+    ? { kind: "invalid", field: "joinMethods" }
+    : { ...kindAndCity, interests, ...join };
+}
+
+/** What was sent, else what is stored, else the default. */
+const valueOf = <T>(sent: T | undefined, stored: T | undefined, fallback: T): T =>
+  sent ?? stored ?? fallback;
+
+/** The kind and the city after this input; undefined when a virtual event would have a city. */
+function cityOf(
+  current: EventRecord | undefined,
+  input: EventInput,
+): Pick<EventFields, "kind" | "cityId"> | undefined {
+  const kind = valueOf(input.kind, current?.kind, DEFAULTS.kind);
+  const cityId = input.cityId === undefined ? (current?.cityId ?? null) : input.cityId;
+  return kind === "virtual" && cityId !== null ? undefined : { kind, cityId };
+}
+
+/** The interests after this input; undefined when there are more than 3 or one repeats. */
+function interestsOf(
+  current: EventRecord | undefined,
+  input: EventInput,
+): readonly string[] | undefined {
+  const interests = input.interests ?? current?.interests ?? [];
+  return interests.length > MAX_EVENT_INTERESTS || new Set(interests).size !== interests.length
+    ? undefined
+    : interests;
+}
+
+/** The access and join methods after this input; undefined with no method, or the public list on a closed event. */
+function joinOf(
+  current: EventRecord | undefined,
+  input: EventInput,
+): Pick<EventFields, "access" | "joinMethods"> | undefined {
+  const access = valueOf(input.access, current?.access, DEFAULTS.access);
   const joinMethods = [
-    ...new Set(input.joinMethods ?? current?.joinMethods ?? DEFAULTS.joinMethods),
+    ...new Set(valueOf(input.joinMethods, current?.joinMethods, DEFAULTS.joinMethods)),
   ];
   if (joinMethods.length === 0 || (joinMethods.includes("public_list") && access !== "public")) {
-    return { kind: "invalid", field: "joinMethods" };
+    return undefined;
   }
+  return { access, joinMethods };
+}
+
+/** The day's start hour and the venue's pin and radius: each sent, else stored, else the default. */
+function placeOf(
+  current: EventRecord | undefined,
+  input: EventInput,
+): Pick<EventFields, "dayStartHour" | "venuePin" | "venueRadiusM"> {
   return {
-    nameAr,
-    nameEn,
-    kind,
-    venueAr: input.venue === undefined ? (current?.venue.ar ?? null) : blankToNull(input.venue.ar),
-    venueEn: input.venue === undefined ? (current?.venue.en ?? null) : blankToNull(input.venue.en),
-    access,
-    joinMethods,
-    timezone,
-    dayStartHour: input.dayStartHour ?? current?.dayStartHour ?? DEFAULTS.dayStartHour,
-    ...times,
+    dayStartHour: valueOf(input.dayStartHour, current?.dayStartHour, DEFAULTS.dayStartHour),
     venuePin: input.venuePin === undefined ? (current?.venuePin ?? null) : input.venuePin,
-    venueRadiusM: input.venueRadiusM ?? current?.venueRadiusM ?? VENUE_RADIUS.default,
-    cityId,
-    interests,
+    venueRadiusM: valueOf(input.venueRadiusM, current?.venueRadiusM, VENUE_RADIUS.default),
   };
 }
 

@@ -79,11 +79,6 @@
       "complexity": [12]
     }
   },
-  "apps/api/src/events/events.ts": {
-    "merge": {
-      "complexity": [51]
-    }
-  },
   "apps/api/src/home/home.ts": {
     "questRows": {
       "complexity": [13]
@@ -183,14 +178,6 @@
       "lines": [102]
     }
   },
-  "apps/api/src/quests/builder.ts": {
-    "mergeQuest": {
-      "complexity": [55]
-    },
-    "withEvent": {
-      "complexity": [23]
-    }
-  },
   "apps/api/src/quests/categories.ts": {
     "<anonymous>": {
       "complexity": [19]
@@ -239,10 +226,7 @@
   },
   "apps/api/src/rewards/builder.ts": {
     "<anonymous>": {
-      "complexity": [15, 11]
-    },
-    "mergeReward": {
-      "complexity": [36]
+      "complexity": [11]
     },
     "windowsIn": {
       "complexity": [9]

@@ -227,29 +227,73 @@ export function mergeReward(
   if (name.ar === null && name.en === null) {
     return { kind: "invalid", field: "name" };
   }
-  const opensAt = timeOf(input.opensAt, current?.opensAt ?? null, timeZone);
-  const closesAt = timeOf(input.closesAt, current?.closesAt ?? null, timeZone);
-  if (opensAt === "invalid") {
-    return { kind: "invalid", field: "opensAt" };
+  const window = rewardWindowOf(current, input, timeZone);
+  if (typeof window === "string") {
+    return { kind: "invalid", field: window };
   }
-  if (closesAt === "invalid" || (opensAt !== null && closesAt !== null && closesAt <= opensAt)) {
-    return { kind: "invalid", field: "closesAt" };
-  }
+  const shelf = shelfOf(current, input);
   return {
     name,
     description: bilingual(input.description, current?.description ?? NO_TEXT),
+    price: shelf.price,
+    stock: shelf.stock,
+    perPlayerLimit: shelf.perPlayerLimit,
+    opensAt: window.opensAt,
+    closesAt: window.closesAt,
+    section: shelf.section,
+    tags: tagsOf(current, input),
+  };
+}
+
+/** The reward's window after this input, or the field that refuses it: a time that is not one, or a close too soon. */
+function rewardWindowOf(
+  current: RewardRecord | undefined,
+  input: RewardInput,
+  timeZone: string,
+): Pick<Fields, "opensAt" | "closesAt"> | "opensAt" | "closesAt" {
+  const opensAt = timeOf(input.opensAt, current?.opensAt ?? null, timeZone);
+  const closesAt = closeAfter(opensAt, timeOf(input.closesAt, current?.closesAt ?? null, timeZone));
+  if (opensAt === "invalid") {
+    return "opensAt";
+  }
+  return closesAt === "closesAt" ? closesAt : { opensAt, closesAt };
+}
+
+/** The close, or `closesAt` when it is not a time or does not come after a valid open. */
+function closeAfter(
+  opensAt: Date | null | "invalid",
+  closesAt: Date | null | "invalid",
+): Date | null | "closesAt" {
+  const early = opensAt instanceof Date && closesAt instanceof Date && closesAt <= opensAt;
+  return closesAt === "invalid" || early ? "closesAt" : closesAt;
+}
+
+/** What was sent, else what is stored, else the default. */
+const keptOr = <T>(sent: T | undefined, stored: T | undefined, fallback: T): T =>
+  sent ?? stored ?? fallback;
+
+/** The price, the stock, the limit per player and the section, each kept when left out (null clears the last two). */
+function shelfOf(
+  current: RewardRecord | undefined,
+  input: RewardInput,
+): Pick<Fields, "price" | "stock" | "perPlayerLimit" | "section"> {
+  return {
     // The route requires price and stock for a new reward; the zeros below are never stored.
-    price: input.price ?? current?.price ?? 0,
-    stock: input.stock ?? current?.stock ?? 0,
-    perPlayerLimit:
-      input.perPlayerLimit === undefined ? (current?.perPlayerLimit ?? null) : input.perPlayerLimit,
-    opensAt,
-    closesAt,
-    section: input.section === undefined ? (current?.section ?? null) : input.section,
-    tags: {
-      new: input.tags?.new ?? current?.tags.new ?? false,
-      limited: input.tags?.limited ?? current?.tags.limited ?? false,
-    },
+    price: keptOr(input.price, current?.price, 0),
+    stock: keptOr(input.stock, current?.stock, 0),
+    perPlayerLimit: sentOrKept(input.perPlayerLimit, current?.perPlayerLimit ?? null),
+    section: sentOrKept(input.section, current?.section ?? null),
+  };
+}
+
+/** What was sent, null included, else what is kept. */
+const sentOrKept = <T>(sent: T | undefined, kept: T): T => (sent === undefined ? kept : sent);
+
+/** The two tags, each kept when left out. */
+function tagsOf(current: RewardRecord | undefined, input: RewardInput): Fields["tags"] {
+  return {
+    new: keptOr(input.tags?.new, current?.tags.new, false),
+    limited: keptOr(input.tags?.limited, current?.tags.limited, false),
   };
 }
 
@@ -663,6 +707,37 @@ async function needsDesk(
   return !after.reservation && !hasPlace(after.desk);
 }
 
+/** The settings after this input, each kept when left out, with the desk already merged. */
+function shopAfter(before: ShopSettings, input: ShopInput, desk: DeskSettings): ShopSettings {
+  return {
+    pickupMinutes: input.pickupMinutes ?? before.pickupMinutes,
+    daysAfter: input.daysAfter ?? before.daysAfter,
+    rules: bilingual(input.rules, before.rules),
+    spendLowersRank: input.spendLowersRank ?? before.spendLowersRank,
+    desk,
+    handoverConfirm: input.handoverConfirm ?? before.handoverConfirm,
+    reservation: input.reservation ?? before.reservation,
+  };
+}
+
+/** A change to whether spending lowers the ranking: the owner's only, and only before the event is live (FR-1847). */
+function rankRefusal(
+  actor: Actor,
+  event: BuilderEvent,
+  before: ShopSettings,
+  after: ShopSettings,
+): Readonly<{ kind: "owner_only" }> | Readonly<{ kind: "setting_locked" }> | undefined {
+  if (after.spendLowersRank === before.spendLowersRank) {
+    return undefined;
+  }
+  if (actor.organizer.role !== "owner") {
+    return { kind: "owner_only" };
+  }
+  return event.statusNow !== "draft" && event.statusNow !== "scheduled"
+    ? { kind: "setting_locked" }
+    : undefined;
+}
+
 /**
  * Sets the pickup time, the days the shop stays open after the end, the shop's rules (ADR-048, ADR-049, FR-515) and
  * whether spending lowers the ranking (FR-1847): that one is the owner's, and only before the event is live. Prize
@@ -683,25 +758,13 @@ export function updateShop(
     if (desk === "invalid_hours") {
       return { kind: "invalid", field: "deskHours" };
     }
-    const after: ShopSettings = {
-      pickupMinutes: input.pickupMinutes ?? before.pickupMinutes,
-      daysAfter: input.daysAfter ?? before.daysAfter,
-      rules: bilingual(input.rules, before.rules),
-      spendLowersRank: input.spendLowersRank ?? before.spendLowersRank,
-      desk,
-      handoverConfirm: input.handoverConfirm ?? before.handoverConfirm,
-      reservation: input.reservation ?? before.reservation,
-    };
+    const after = shopAfter(before, input, desk);
     if (await needsDesk(client, eventId, before, after)) {
       return { kind: "desk_needed" };
     }
-    if (after.spendLowersRank !== before.spendLowersRank) {
-      if (actor.organizer.role !== "owner") {
-        return { kind: "owner_only" };
-      }
-      if (event.statusNow !== "draft" && event.statusNow !== "scheduled") {
-        return { kind: "setting_locked" };
-      }
+    const rank = rankRefusal(actor, event, before, after);
+    if (rank !== undefined) {
+      return rank;
     }
     const refused =
       windowRefusal({

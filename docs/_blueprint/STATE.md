@@ -16,6 +16,19 @@
   and `migrate-cli.ts` are untouched. The baseline was updated with `node scripts/function-limits.mjs --update` and only
   shrank. CI 0 minutes (not pushed).
 
+## Function limits, the builder merges — 2026-11-09
+
+- **Function-limits baseline, `apps/api` builder merges (tier B; behaviour-preserving).** Five violations left
+  `scripts/function-limits-baseline.json` (236 to 231): `mergeQuest` (55) and `withEvent` (23) in `quests/builder.ts`,
+  `merge` (51) in `events/events.ts`, `mergeReward` (36) and `updateShop`'s work (15) in `rewards/builder.ts`. Each is
+  now a run of per-group steps that return the value or the refused field, called in the old order, so the first
+  refused field is the same; `withEvent`'s error mapping is a code table, a kept-row table and the unchanged later
+  refusals (a `Map`, so a code such as `toString` names none). Pinned by three characterisation files beside the code
+  (`*-characterisation.test.ts`), each holding a copy of the old function and comparing old and new over 10,000 seeded
+  cases per function (fields, key order, refusals, thrown errors and, for `withEvent` and `updateShop`, every query on
+  a fake pool), with a coverage floor on every refusal so the generator cannot drift into trivial cases. The baseline
+  was updated with `node scripts/function-limits.mjs --update` and only shrank. CI 0 minutes (not pushed).
+
 ## Function limits, app event and profile code — 2026-11-09
 
 - **Function-limits baseline, `apps/app` (tier B; behaviour-preserving, no string, no screen change).** Six functions

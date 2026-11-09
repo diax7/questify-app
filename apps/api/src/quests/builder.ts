@@ -307,63 +307,132 @@ function flashOf(
   return !flash && flashStarted(current, now) ? "flashLaunched" : flash;
 }
 
-/**
- * A quest's fields after this input, from what is stored (or nothing, for a new quest), checked as one whole. The
- * config is validated against the quest's type; a config left out keeps the stored one.
- */
-export function mergeQuest(
+/** What `mergeQuest` refuses: a field, or a submission kind this version cannot take. */
+type QuestRefusal =
+  | Readonly<{ kind: "invalid"; field: QuestField }>
+  | Readonly<{ kind: "submission_kind_unavailable"; asked: "photo" | "video" }>;
+
+type QuestTimes = Readonly<{ opensAt: Date | null; closesAt: Date | null }>;
+
+/** The title, points and times after this input, or the first of them that is refused, in that order. */
+function basicsOf(
   current: QuestRecord | undefined,
-  type: QuestType,
   input: QuestInput,
   timeZone: string,
-  now: Date = new Date(),
-):
-  | QuestFields
-  | Readonly<{ kind: "invalid"; field: QuestField }>
-  | Readonly<{ kind: "submission_kind_unavailable"; asked: "photo" | "video" }> {
-  const asked = type === "submission" ? unavailableSubmissionKind(input.config) : undefined;
-  if (asked !== undefined) {
-    return { kind: "submission_kind_unavailable", asked };
-  }
-  const title = bilingual(input.title, current?.title ?? NO_TEXT);
-  if (title.ar === null && title.en === null) {
-    return { kind: "invalid", field: "title" };
+): (QuestTimes & Readonly<{ title: Bilingual; points: number }>) | QuestField {
+  const title = titleOf(current, input);
+  if (title === undefined) {
+    return "title";
   }
   const points = input.points ?? current?.points;
   if (points === undefined) {
-    return { kind: "invalid", field: "points" };
+    return "points";
   }
+  const times = questTimesOf(current, input, timeZone);
+  return typeof times === "string" ? times : { title, points, ...times };
+}
+
+/** The title after this input, or undefined when it has neither language. */
+function titleOf(current: QuestRecord | undefined, input: QuestInput): Bilingual | undefined {
+  const title = bilingual(input.title, current?.title ?? NO_TEXT);
+  return title.ar === null && title.en === null ? undefined : title;
+}
+
+/** The times after this input, or the field that refuses them: a time that is not one, or a close not after the open. */
+function questTimesOf(
+  current: QuestRecord | undefined,
+  input: QuestInput,
+  timeZone: string,
+): QuestTimes | "opensAt" | "closesAt" {
   const opensAt = timeOf(input.opensAt, current?.opensAt ?? null, timeZone);
   if (opensAt === "invalid") {
-    return { kind: "invalid", field: "opensAt" };
+    return "opensAt";
   }
+  const closesAt = closeOf(current, input, opensAt, timeZone);
+  return closesAt === "closesAt" ? closesAt : { opensAt, closesAt };
+}
+
+/** The close after this input, or `closesAt` when it is not a time or not after the open. */
+function closeOf(
+  current: QuestRecord | undefined,
+  input: QuestInput,
+  opensAt: Date | null,
+  timeZone: string,
+): Date | null | "closesAt" {
   const closesAt = timeOf(input.closesAt, current?.closesAt ?? null, timeZone);
   if (closesAt === "invalid" || (closesAt !== null && opensAt !== null && closesAt <= opensAt)) {
-    return { kind: "invalid", field: "closesAt" };
+    return "closesAt";
   }
+  return closesAt;
+}
+
+type QuestSettings = Pick<QuestFields, "config" | "verification" | "place">;
+
+/** The config, verification and place after this input, or the first of them that is refused, in that order. */
+function settingsOf(
+  current: QuestRecord | undefined,
+  type: QuestType,
+  input: QuestInput,
+): QuestSettings | QuestField {
   const config =
     input.config === undefined && current !== undefined
       ? current.config
       : parseQuestConfig(type, input.config ?? {});
   if (config === undefined) {
-    return { kind: "invalid", field: "config" };
+    return "config";
   }
   const verification = parseVerification(type, input.verification, current?.verification);
   if (verification === undefined) {
-    return { kind: "invalid", field: "verification" };
+    return "verification";
   }
+  const place = placeOf(current, type, input);
+  return place === "place" ? place : { config, verification, place };
+}
+
+/** The place after this input: only on a spot type, and always on a location quest. */
+function placeOf(
+  current: QuestRecord | undefined,
+  type: QuestType,
+  input: QuestInput,
+): QuestPlace | null | "place" {
   const place = input.place === undefined ? (current?.place ?? null) : input.place;
-  if (
+  const refused =
     (place !== null && !PLACED_QUEST_TYPES.includes(type)) ||
-    (place === null && type === "location")
-  ) {
-    return { kind: "invalid", field: "place" };
-  }
-  const live = isLivePoll(type, config);
+    (place === null && type === "location");
+  return refused ? "place" : place;
+}
+
+type QuestPlay = Readonly<{ flash: boolean; window: Window; repeatCap: number }>;
+
+/** Whether it is flash, its window and its repeat cap after this input, or the first that is refused, in that order. */
+function playOf(
+  current: QuestRecord | undefined,
+  type: QuestType,
+  input: QuestInput,
+  set: QuestTimes & Readonly<{ config: QuestFields["config"] }>,
+  now: Date,
+): QuestPlay | QuestField {
+  const live = isLivePoll(type, set.config);
   const flash = flashOf(current, input, live, now);
   if (typeof flash === "string") {
-    return { kind: "invalid", field: flash };
+    return flash;
   }
+  const window = questWindowOf(current, input, { ...set, flash, live }, now);
+  if (window === "flashWindow") {
+    return window;
+  }
+  const repeatCap = repeatCapOf(current, type, input, set.config);
+  return repeatCap === "dailyCap" ? repeatCap : { flash, window, repeatCap };
+}
+
+/** The window asked for, then held to the flash or live poll rules. */
+function questWindowOf(
+  current: QuestRecord | undefined,
+  input: QuestInput,
+  asked: QuestTimes & Readonly<{ flash: boolean; live: boolean }>,
+  now: Date,
+): Window | "flashWindow" {
+  const { opensAt, closesAt, flash } = asked;
   const wanted = {
     opensAt,
     closesAt,
@@ -371,29 +440,80 @@ export function mergeQuest(
     visible:
       input.visible ?? current?.visible ?? (!flash || (opensAt !== null && closesAt !== null)),
   };
-  const window = flash ? flashWindowOf(current, wanted, now) : windowOf(live, current, wanted);
-  if (window === "flashWindow") {
-    return { kind: "invalid", field: "flashWindow" };
-  }
+  return flash ? flashWindowOf(current, wanted, now) : windowOf(asked.live, current, wanted);
+}
+
+/** The repeat cap after this input, or `dailyCap` when a meet quest's day would pay more than its whole life. */
+function repeatCapOf(
+  current: QuestRecord | undefined,
+  type: QuestType,
+  input: QuestInput,
+  config: QuestFields["config"],
+): number | "dailyCap" {
   // A vote, a quiz, a survey or a share is played once (ADR-191, ADR-198, ADR-199).
   const repeatCap = QUEST_TYPES[type].oneTry ? 1 : (input.repeatCap ?? current?.repeatCap ?? 1);
   // A meet quest's day can never pay more meetings than its whole life (ADR-210).
-  if (type === "meet" && Number(config["dailyCap"]) > repeatCap) {
-    return { kind: "invalid", field: "dailyCap" };
-  }
+  return type === "meet" && Number(config["dailyCap"]) > repeatCap ? "dailyCap" : repeatCap;
+}
+
+/** The fields no rule checks: the category, the description and the quest item, each kept when left out. */
+function plainOf(
+  current: QuestRecord | undefined,
+  input: QuestInput,
+): Pick<QuestFields, "categoryId" | "description" | "itemId"> {
   return {
     // Stryker disable next-line StringLiteral: a create always names its category (the route requires it)
     categoryId: input.categoryId ?? current?.categoryId ?? "",
-    title,
     description: bilingual(input.description, current?.description ?? NO_TEXT),
-    points,
-    repeatCap,
-    ...window,
-    config,
-    verification,
-    itemId: input.itemId === undefined ? (current?.itemId ?? null) : input.itemId,
-    place,
-    flash,
+    itemId: sentOrKept(input.itemId, current?.itemId ?? null),
+  };
+}
+
+/** What was sent, null included, else what is kept. */
+const sentOrKept = <T>(sent: T | undefined, kept: T): T => (sent === undefined ? kept : sent);
+
+/**
+ * A quest's fields after this input, from what is stored (or nothing, for a new quest), checked as one whole. The
+ * config is validated against the quest's type; a config left out keeps the stored one. The checks run in one order,
+ * so the first refused field is the one named: the submission kind, title, points, times, config, verification,
+ * place, flash, window, then the meet's daily cap.
+ */
+export function mergeQuest(
+  current: QuestRecord | undefined,
+  type: QuestType,
+  input: QuestInput,
+  timeZone: string,
+  now: Date = new Date(),
+): QuestFields | QuestRefusal {
+  const asked = type === "submission" ? unavailableSubmissionKind(input.config) : undefined;
+  if (asked !== undefined) {
+    return { kind: "submission_kind_unavailable", asked };
+  }
+  const basics = basicsOf(current, input, timeZone);
+  if (typeof basics === "string") {
+    return { kind: "invalid", field: basics };
+  }
+  const settings = settingsOf(current, type, input);
+  if (typeof settings === "string") {
+    return { kind: "invalid", field: settings };
+  }
+  const play = playOf(current, type, input, { ...basics, config: settings.config }, now);
+  if (typeof play === "string") {
+    return { kind: "invalid", field: play };
+  }
+  const plain = plainOf(current, input);
+  return {
+    categoryId: plain.categoryId,
+    title: basics.title,
+    description: plain.description,
+    points: basics.points,
+    repeatCap: play.repeatCap,
+    ...play.window,
+    config: settings.config,
+    verification: settings.verification,
+    itemId: plain.itemId,
+    place: settings.place,
+    flash: play.flash,
   };
 }
 
@@ -501,62 +621,66 @@ export async function withEvent<T>(
       }),
     );
   } catch (error) {
-    // Stryker disable all: reached only when the event ends between the check above and a write, milliseconds apart
-    if ((error as { code?: string }).code === CLOSED) {
-      return { kind: "event_closed" };
-    }
-    // Stryker restore all
-    const pg = error as { code?: string; table?: string; detail?: string; hint?: string };
-    if (pg.code === LOCKED) {
-      return { kind: "quest_locked" };
-    }
-    // A live poll's settings once sent or voted on (migration 0052).
-    if (pg.code === "PL409") {
-      return { kind: "poll_locked", field: pg.detail ?? "live" };
-    }
-    // A flash quest launched, or its window started, between the read and the write (migration 0055).
-    if (pg.code === "FL409") {
-      return { kind: "invalid", field: "flashWindow" };
-    }
-    // The categories' unlocks would go round in a circle (migration 0044).
-    if (pg.code === "CU422") {
-      return { kind: "invalid", field: "unlockAfter" };
-    }
-    // A played-once quest would sit in a refreshing category (migration 0046); the builder checks first.
-    if (pg.code === "QT422") {
-      return { kind: "invalid", field: "refresh" };
-    }
-    // The item was removed between the builder's check and the write (migration 0047).
-    if (pg.code === "QI422") {
-      return { kind: "invalid_item" };
-    }
-    // A player played the quest between the check and the delete: its points are history (migration 0012).
-    if (pg.code === "23503" && pg.table !== undefined && PLAYED_TABLES.has(pg.table)) {
-      return { kind: "has_completions" };
-    }
-    // A player stamped a passport step between the check and its delete (migration 0045).
-    if (pg.code === "23503" && pg.table === "passport_stamp") {
-      return { kind: "step_in_use" };
-    }
-    // A community goal counts the quest or category (migration 0053), or a step unlocks it (migration 0054).
-    if (pg.code === "23503" && (pg.table === "community_goal" || pg.table === "community_step")) {
-      return { kind: "goal_in_use" };
-    }
-    // A boost doubles the category (migration 0055).
-    if (pg.code === "23503" && pg.table === "boost") {
-      return { kind: "boost_in_use" };
-    }
-    // NFC tags name the quest (migration 0056).
-    if (pg.code === "23503" && pg.table === "nfc_tag") {
-      return { kind: "tags_in_use" };
-    }
-    const refused = laterRefusal(pg);
+    const refused = builderRefusalOf(error as PgError);
     if (refused !== undefined) {
       return refused;
     }
     throw error;
   }
 }
+
+type PgError = Readonly<{ code?: string; table?: string; detail?: string; hint?: string }>;
+
+/** The refusal a builder action's error stands for, or undefined when it is to be thrown as it is. */
+function builderRefusalOf(pg: PgError): Refused | undefined {
+  return codeRefusal(pg) ?? keptRowRefusal(pg) ?? laterRefusal(pg);
+}
+
+/** The guards' own codes, each one refusal (a map keyed by code, so a code such as `toString` names none). */
+const CODE_REFUSALS = new Map<string, (pg: PgError) => Refused>([
+  // Stryker disable next-line all: reached only when the event ends between the check above and a write, milliseconds apart
+  [CLOSED, () => ({ kind: "event_closed" })],
+  [LOCKED, () => ({ kind: "quest_locked" })],
+  // A live poll's settings once sent or voted on (migration 0052).
+  ["PL409", (pg) => ({ kind: "poll_locked", field: pg.detail ?? "live" })],
+  // A flash quest launched, or its window started, between the read and the write (migration 0055).
+  ["FL409", () => ({ kind: "invalid", field: "flashWindow" })],
+  // The categories' unlocks would go round in a circle (migration 0044).
+  ["CU422", () => ({ kind: "invalid", field: "unlockAfter" })],
+  // A played-once quest would sit in a refreshing category (migration 0046); the builder checks first.
+  ["QT422", () => ({ kind: "invalid", field: "refresh" })],
+  // The item was removed between the builder's check and the write (migration 0047).
+  ["QI422", () => ({ kind: "invalid_item" })],
+]);
+
+function codeRefusal(pg: PgError): Refused | undefined {
+  const code = pg.code;
+  return code === undefined ? undefined : CODE_REFUSALS.get(code)?.(pg);
+}
+
+/**
+ * A row that keeps the quest or category (a foreign key, 23503): a player played the quest between the check and the
+ * delete, so its points are history (migration 0012); a player stamped a passport step (migration 0045); a community
+ * goal counts it (migration 0053) or a step unlocks it (migration 0054); a boost doubles the category (migration 0055);
+ * NFC tags name the quest (migration 0056).
+ */
+function keptRowRefusal(pg: PgError): Refused | undefined {
+  if (pg.code !== "23503" || pg.table === undefined) {
+    return undefined;
+  }
+  if (PLAYED_TABLES.has(pg.table)) {
+    return { kind: "has_completions" };
+  }
+  return KEPT_ROW_REFUSALS.get(pg.table)?.();
+}
+
+const KEPT_ROW_REFUSALS = new Map<string, () => Refused>([
+  ["passport_stamp", () => ({ kind: "step_in_use" })],
+  ["community_goal", () => ({ kind: "goal_in_use" })],
+  ["community_step", () => ({ kind: "goal_in_use" })],
+  ["boost", () => ({ kind: "boost_in_use" })],
+  ["nfc_tag", () => ({ kind: "tags_in_use" })],
+]);
 
 /** The refusals added by later tasks: the first-N bonus (T-313), souvenirs (T-402b) and live points edits (T-604). */
 function laterRefusal(
