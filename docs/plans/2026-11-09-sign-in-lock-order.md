@@ -82,6 +82,11 @@ number while a number change commits waits, then the re-check of the row fails (
 the flag reads false: correct, the old number is no longer the reviewer's. A start on the new number sees no match until
 then, and the window is closed by that change anyway.
 
+**This depends on READ COMMITTED** (plan review NIT-6), and 0184's comment says so: the re-check of the locked row after
+the wait, and the flag's new snapshot in the next statement, are what READ COMMITTED gives a PL/pgSQL function. Under
+REPEATABLE READ the `FOR SHARE` would fail with `40001` after a Prepare, and the flag would read the old snapshot. The
+API's pool runs every transaction at the default READ COMMITTED (`pool-options.ts` sets no isolation).
+
 **Lock order after the fix.** `review_demo` first, then challenges (ADR-561), now for every door that reads the flag:
 
 | Writer | Order |
@@ -98,7 +103,8 @@ transaction holds a challenge while waiting for the row. Two starts share FOR SH
 transaction takes no later `review_demo` lock: `openChallenge` runs the windows, then this one call). The tick never waits.
 
 **Side effects.** A reviewer-number start waits for a Prepare or Close in flight (under the API's 2 s lock timeout:
-Prepare must stay under it, which the build checks on the review-demo fixture; a timeout answers 503 and the app retries).
+Prepare must stay under it, which test 0 below checks on the review-demo fixture (plan review MINOR-4: no existing test
+times Prepare); a timeout answers 503 and the app retries).
 The tick skips one round while a reviewer-number start holds the row; the window can close one tick late, and
 `review_demo_sign_in` re-checks `window_until > now()` anyway.
 
@@ -153,9 +159,13 @@ DECLARE
   cut  timestamptz := now() - interval '7 days';   -- one cut for every statement
   held uuid[];
 BEGIN
-  -- Not family rows: no device lock involved, first as before.
-  DELETE FROM player_login_challenge WHERE ... ;           -- unchanged
-  DELETE FROM player_contact_challenge WHERE ... ;         -- unchanged
+  -- Not family rows, first as before, and never waited for (plan review MINOR-2): a reset or ban holds a login
+  -- challenge and then waits for device rows (0155:717, :747), erasure holds device rows and then deletes login and
+  -- contact challenges (0155:899), so a sweep waiting on a challenge could close a cycle through them.
+  DELETE FROM player_login_challenge WHERE id IN (SELECT l.id FROM player_login_challenge l WHERE <old>
+                                                  FOR UPDATE SKIP LOCKED);
+  DELETE FROM player_contact_challenge WHERE id IN (SELECT c.id FROM player_contact_challenge c WHERE <old>
+                                                    FOR UPDATE SKIP LOCKED);
   -- The device row of every family this run touches, in id order, before any of its rows, as rotation, end_family and
   -- erasure take them (ADR-712). A row another call holds is skipped: its family waits for the next run.
   SELECT coalesce(array_agg(h.family), '{}') INTO held FROM (
@@ -182,6 +192,8 @@ or rowless>` is `(family = ANY (held) OR NOT EXISTS (SELECT 1 FROM player_sign_i
 Refresh before sessions, as `end_family` and rotation. `now()` is fixed in the transaction, so the rows found at the lock
 are the rows deleted. The `replaced_by` rows are always old themselves (a row's successor was made when it was used), so
 restricting them by family loses nothing. `sql-settings-allowlist.json` drops `sweep_player_sign_in()` (it only shrinks).
+The shape above is one transaction; section 5's measurement decides whether it stays one or becomes bounded batches (the
+same statements, each call limited to a fixed number of families), and whether the old-row scans get an index.
 
 ## 4. Issue B2: end-others reads its own device row without a lock
 
@@ -230,8 +242,17 @@ door, and the end-others case above is covered from the end-others side.
   sessions after `end_player_families` (they hold those families' devices, and the rest are revoked or have no family).
 - **I2.** A transaction that waits for more than one device row takes them ascending by id: end-others (one statement),
   `end_player_families`, erasure, the sign-in cap (its own new row is invisible to others, so nobody waits for it).
-- **I3.** The sweep never waits for a device row (`SKIP LOCKED`) and touches only rows of families whose device row it
-  holds, rowless families, and the two challenge tables (before any device lock).
+- **I3.** The sweep never waits for a device row or a challenge row (`SKIP LOCKED` on both, plan review MINOR-2) and
+  touches only rows of families whose device row it holds, rowless families, and the two challenge tables (before any
+  device lock).
+
+**Scope of the claim (plan review MINOR-2).** I1 to I3 and the proof below cover device rows and the family rows behind
+them (refresh, session, re-auth code, push), plus the challenge rows the sweep now skips. They say nothing about the other
+player tables, and one older cycle outside them stays: `confirm_contact_change` holds `player_contact` (`FOR UPDATE`, 0155)
+and then needs a key-share lock on the player row (the `player_fingerprint` insert's foreign key), while erasure holds the
+player row (`erase_target`, `FOR UPDATE`) and then deletes `player_contact`. A contact change confirmed during that
+player's own erasure can deadlock; PostgreSQL ends one side (503 `busy`, retried; the erasure is retried by its caller).
+Unchanged by 0184 and written in the rules paragraph as a known exception.
 
 | Writer | Order after 0184 |
 |---|---|
@@ -242,7 +263,7 @@ door, and the end-others case above is covered from the end-others side.
 | Reset, ban, `review_demo_revoke` | (ban: enrollments) → login challenges → devices ascending, one family at a time → player's sessions → push |
 | Erasure | enrollments → ... → all devices ascending (one statement) → push → login challenges → ... → device, session, refresh deletes |
 | Re-auth confirm | own device → its code |
-| Sweep | login, contact codes → devices ascending SKIP LOCKED → held families' refresh → sessions → re-auth codes → devices |
+| Sweep | login, contact codes SKIP LOCKED → devices SKIP LOCKED → held families' refresh → sessions → re-auth codes → devices |
 | Prepare, Close, set-contact | `review_demo` → challenges → (Prepare) erasure's order → sessions; never a device before `review_demo` |
 | Challenge starts | `review_demo` FOR SHARE (reviewer number) → challenges; no device |
 
@@ -250,32 +271,62 @@ door, and the end-others case above is covered from the end-others side.
 ascending, so a cycle through device rows alone is impossible; T' cannot be the sweep waiting on a device (I3). (b) R is a
 family row of family F: by I1, T' holds D(F), so T must hold D(F) to touch F's rows; only one transaction holds D(F)
 FOR UPDATE, so T is waiting on D(F) itself, case (a). The I1 exceptions wait for nothing after their single write, so they
-end every chain. (c) The sweep: by I3 it waits only on challenge rows (before it holds any device row, so holding nothing a
-device waiter needs) or on a family row of F it holds D(F) for, which nobody else can hold (I1). (d) `review_demo`: always
-first (section 2). Rotation, sign-in, the sweep and erasure never take `review_demo`.
+end every chain. (c) The sweep: by I3 it waits on no device and no challenge row; it can wait only on a family row of F it
+holds D(F) for, which nobody else can hold (I1), or on the single write of an I1 exception, which waits for nothing. (d)
+`review_demo`: always first (section 2). Rotation, sign-in, the sweep and erasure never take `review_demo`.
 
 **Known exception, unchanged by 0184.** Rotation's cap takes its own device row, then older ones ascending, which breaks I2
 when the player has more than 10 live families (only after two sign-ins raced past the cap). An end-others or erasure
 crossing it can deadlock; PostgreSQL ends one side and the API answers 503 `busy`. It predates this plan and is noted in
-the rules paragraph.
+the rules paragraph, beside the contact-change one above.
 
-**Residual.** Families with no device row (refresh rows from before 0155) are swept without a device lock, so `end_family`
-on such a family and the sweep both write several of its rows without a common first lock. They are gone 187 days after
-0155's deploy (May 2027) and cost at most one aborted request; written in the rules paragraph.
+**Residual (corrected, plan review MINOR-3).** 0155's backfill (0155:79-85) gave a device row to every family that held a
+live, unexpired refresh token, so the families left without one held only revoked or expired rows; 0155's own sweep
+removed those 7 days after 0155 deployed. Since then every family is born with its device row (`issue_player_tokens`), and
+only the sweep (holding the device row) and erasure (deleting the device row with the rest) delete one. So no refresh row
+without a device row is expected today. The rowless branch stays: for sessions with `refresh_family` NULL (sessions from
+before 0013 gave sessions a family, or written by hand), and as a safety net for any row found without a device row, which is swept without a
+device lock (at most one aborted request against an `end_family` on such a family). How many such rows each environment
+holds is not counted here (ADR-810: no CranL data in this checkout); the count is a read-only query for the deploy step
+(RUNBOOK 0184 note): `SELECT count(*) FROM player_refresh r WHERE NOT EXISTS (SELECT 1 FROM player_sign_in_device d WHERE
+d.family = r.family)` and the same for `player_session` by `refresh_family` (NULL counted apart).
 
-**Measurement (rules, PERFORMANCE_AUDIT).** Waiting rotations now wait for a sweep's run. The build times the sweep on a
-fixture of 20,000 players with 5,000 families crossing the 7-day mark (about one 10-minute slot at a full event), before
-and after, with `EXPLAIN (ANALYZE, BUFFERS)` of the lock statement. Gate: the run under 200 ms (the API's lock timeout is
-2 s). If it is over, the lock statement gets `LIMIT 2000` (the rest waits for the next run) and the plan review is told.
+**Measurement (rules, PERFORMANCE_AUDIT; plan review MAJOR-1).** The sweep runs inline in a code request before the SMS
+(`players/sign-in.ts:382`, `:721`), under the API's 5 s statement timeout, and a rotation of a family it holds waits for it
+under the 2 s lock timeout. The fixture is steady state: **100,000 players** (120,000 families, every fifth player on two
+devices) each rotating every 4 hours on a random phase, with **7 days and 10 minutes of rotation history** left by a sweep
+10 minutes ago: about 5 million used refresh rows and 5 million sessions, 2,000 families ended over the week, and an hour
+and a half of sign-in, contact and re-auth codes. About 5,000 families cross the 7-day mark in the 10-minute slot.
+`apps/api/test/perf/sign-in-sweep-timing.int.test.ts` builds it, times 0155's sweep (a copy) and 0184's, prints
+`EXPLAIN (ANALYZE, BUFFERS)` of each statement, and measures rotations of the slot's families started while the sweep runs.
+
+Two gates, at 100,000 players:
+- **the sweep's duration**: the whole run under 1 s (a fifth of the statement timeout; the code request waits on it), and
+  each transaction under 250 ms;
+- **the longest wait of a rotation that crosses it**: under 250 ms (an eighth of the lock timeout).
+
+Choice, by the numbers. If one transaction meets both gates, the sweep stays one call. If not, it becomes **bounded
+batches**: each call locks at most a fixed number of families (and challenges), is its own short transaction, and answers
+how many rows it found; `sweepIfDue` calls it again until a call finds nothing or a 1 s budget is spent (a TypeScript
+change, with unit tests). The function's result changes from `void` to `integer`, so it is dropped and created (the old
+API's `SELECT sweep_player_sign_in()` still runs). A partial or expression index is added on `player_refresh` and
+`player_session` if `EXPLAIN` shows the old-row scans dominate (none exists on `revoked_at`, `used_at` or `expires_at`
+today), and on `player_refresh.replaced_by` if the foreign key's check on each deleted row shows as a scan. Each index is
+built inside 0184 (pre-launch tables are small; RUNBOOK notes the build's write lock). The plan records the numbers and the
+choice when they are measured.
 
 ## 6. Tests (test first; two connections, in the style of the existing race tests)
 
 Style: `f.crossed(first, second)` in `test/support/questify.ts` (first held open, second started, `waited` from
 `pg_stat_activity`, then commit), as in "Close and its races" (`review-demo.int.test.ts`), and the held-transaction plus
-`waitForLock(pid)` pattern of "races (ADR-712)" (`signed-in-devices.int.test.ts`). Each test below fails on today's
-functions.
+`waitForLock(pid)` pattern of "races (ADR-712)" (`signed-in-devices.int.test.ts`). Each test below either fails on
+today's functions or, where marked, proves a property the fix must keep (tests 0, 5, 7, 16, 17, 18, 20, 21); the build
+reports which failed before 0184.
 
 **`apps/api/test/db/review-demo.int.test.ts`, new describe "the flag waits for the row (0184)":**
+0. Prepare on the review-demo fixture (the reviewer erased with its rows, a fresh one provisioned) finishes under the
+   API's 2 s lock timeout, timed in the test (plan review MINOR-4), so a reviewer-number start waiting on it gets its
+   answer before the lock timeout.
 1. Window closed (after Close), no open challenge: `crossed(prepare, start on the reviewer number)`: `waited` true and the
    start answers `reviewer: true`. Today: no wait, `false`.
 2. The same with an open challenge on the number first: `reviewer: true`. Today the start waits (on the cancel) but answers
@@ -306,6 +357,13 @@ functions.
 16. A rotation of the caller's own family, held; end-others: waits, then ends the others (the new wait is harmless).
 17. The existing "end-others ends exactly the families it locked; a sign-in that commits afterwards stays live", "the sweep
     removes device rows a week after they end" and "an end and a rotation of one family, both orders" stay green.
+18. Two sweeps at once (no lease: every instance sweeps on its own clock): the first holds its transaction open after its
+    run, the second finishes without waiting and finds nothing it can take; no `40P01`; after the commit nothing old is left.
+19. A challenge row held (a reset's or ban's delete, an erasure's): the sweep finishes without waiting and leaves that row;
+    the next sweep removes it. Today: the sweep waits.
+20. `start_deletion_challenge` on another number while Prepare is held: `waited` false (no hot row), as test 5.
+21. A family with no device row (refresh and session rows written by hand, and a session with `refresh_family` NULL, all
+    past the 7-day mark): the sweep removes them; a live family's rows stay.
 
 **Catalog and security:** `hot-path-plpgsql.int.test.ts` passes with the shrunken allowlist; `test/security/*` and
 `rehearsal.int.test.ts` unchanged (no new object, grants as before).
@@ -341,6 +399,10 @@ and run against section 6, as 0146's `ORDER BY` mutant was:
 | End-others: own row left out of the lock | 13, 14, 15 |
 | End-others: no re-read of own row after the lock | 13, 14 |
 | End-others: loop over a new `SELECT` instead of the locked ids | 17 (the late sign-in case) |
+| Keep the flag in `DECLARE` in `start_deletion_challenge` (before the lock, plan review MINOR-5) | 6 |
+| Sweep: challenge deletes without `SKIP LOCKED` | 19 |
+| Sweep: rowless branch dropped | 21 |
+| Sweep: re-auth code delete not limited to held families | equivalent: a family's re-auth code is written only by `start_player_reauth`, which takes no device row and waits for nothing after its one upsert, so no test can make the unlimited delete wait or deadlock (plan review MINOR-5) |
 | Either `ORDER BY d.id` dropped | equivalent for these tests (a single crossing cannot show it); noted, as the rules allow |
 
 ## 9. Deploy and the old API
