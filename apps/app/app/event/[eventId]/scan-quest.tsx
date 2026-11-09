@@ -24,7 +24,7 @@ import { useEvent, useTerms } from "#src/event/EventContext.tsx";
 import { scanReading, type Position } from "#src/event/location.ts";
 import { useLocationReader } from "#src/event/LocationEntry.tsx";
 import { isMeetCode, scanMeet } from "#src/event/meet.ts";
-import { outcomeText } from "#src/event/QuestSheet.tsx";
+import { outcomeText } from "#src/event/outcome-text.ts";
 import {
   completeQuest,
   fetchQuests,

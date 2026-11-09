@@ -1,5 +1,19 @@
 # Blueprint State — Questify
 
+## Function limits, app event and profile code — 2026-11-09
+
+- **Function-limits baseline, `apps/app` (tier B; behaviour-preserving, no string, no screen change).** Six functions
+  (seven violations) left `scripts/function-limits-baseline.json` (254 to 247 violations): `outcomeText` (18) in
+  `event/QuestSheet.tsx`, `ticketOf` (18) in `operator/inbox.ts`, `PollEntry` (17 and 102 lines), `EditProfileScreen`
+  (17), `Avatar` (16) and `SubmissionEntry` (16). The decisions moved into pure `.ts` helpers beside each file
+  (`event/outcome-text.ts`, a per-field check table in `inbox.ts`, `event/poll-entry.ts`, `screens/edit-profile.ts`,
+  `components/avatar-look.ts`, `event/submission-entry.ts`), each pinned by a table test that compares against a copy of
+  the old inline logic over the full cross-product of inputs. Hooks keep their order and state stays in the same
+  component (the new poll and submission children are stateless); `Avatar` keeps its `Image` elements inside the hidden
+  circle so `a11y-static.test.ts` still holds. `outcomeText` moved out of `QuestSheet.tsx`, so `GameEntry`, `MeetEntry`
+  and `scan-quest.tsx` import it from `event/outcome-text.ts`. `RedeemSheet` and `readScan` are untouched. The baseline
+  was updated with `node scripts/function-limits.mjs --update` and only shrank. CI 0 minutes (not pushed).
+
 ## Function limits, app screens — 2026-11-09
 
 - **Function-limits baseline, `apps/app` screens (tier B; behaviour-preserving, no string, no screen change).** Nine

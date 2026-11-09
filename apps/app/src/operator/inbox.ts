@@ -138,27 +138,36 @@ export type OperatorTicket = Readonly<{
   createdAt: string;
 }>;
 
+const isText = (value: unknown) => typeof value === "string";
+
+const isTicketKind = (value: unknown) =>
+  value === "question" || value === "problem" || value === "prize";
+
+const isTicketQuest = (value: unknown) =>
+  value === null || (isRecord(value) && isTitle(value["title"]));
+
+const isTicketStatus = (value: unknown) => value === "open" || value === "closed";
+
+/** What each field of a request must be; `outcome` is not checked, as it never was. */
+const TICKET_FIELDS: Readonly<Record<string, (value: unknown) => boolean>> = {
+  id: isText,
+  kind: isTicketKind,
+  quest: isTicketQuest,
+  username: nullableText,
+  avatar: isText,
+  text: isText,
+  marked: (value) => typeof value === "boolean",
+  status: isTicketStatus,
+  reply: nullableText,
+  createdAt: isText,
+};
+
+const isTicket = (value: unknown): value is OperatorTicket =>
+  isRecord(value) && Object.entries(TICKET_FIELDS).every(([field, ok]) => ok(value[field]));
+
 export function ticketOf(body: unknown): OperatorTicket | undefined {
   const ticket = isRecord(body) ? body["ticket"] : undefined;
-  if (
-    !isRecord(ticket) ||
-    typeof ticket["id"] !== "string" ||
-    (ticket["kind"] !== "question" && ticket["kind"] !== "problem" && ticket["kind"] !== "prize") ||
-    !(
-      ticket["quest"] === null ||
-      (isRecord(ticket["quest"]) && isTitle(ticket["quest"]["title"]))
-    ) ||
-    !nullableText(ticket["username"]) ||
-    typeof ticket["avatar"] !== "string" ||
-    typeof ticket["text"] !== "string" ||
-    typeof ticket["marked"] !== "boolean" ||
-    (ticket["status"] !== "open" && ticket["status"] !== "closed") ||
-    !nullableText(ticket["reply"]) ||
-    typeof ticket["createdAt"] !== "string"
-  ) {
-    return undefined;
-  }
-  return ticket as OperatorTicket;
+  return isTicket(ticket) ? ticket : undefined;
 }
 
 export async function fetchTicket(

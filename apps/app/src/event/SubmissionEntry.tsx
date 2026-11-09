@@ -26,6 +26,13 @@ import {
   type SendAnswer,
   type SubmissionStep,
 } from "#src/event/submissions.ts";
+import {
+  fieldLabelKey,
+  guidelinesAccepted,
+  saidParts,
+  showsBox,
+  showsClosedNote,
+} from "#src/event/submission-entry.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import type { MessageKey } from "@questify/shared";
 
@@ -81,10 +88,6 @@ function stepLine(
   }
 }
 
-/** Whether the box shows: nothing sent yet, or a rejection the quest lets the player answer again. */
-const canWrite = (step: SubmissionStep): boolean =>
-  step.kind === "write" || (step.kind === "rejected" && step.again);
-
 /** What a send answer says under the box. */
 function answerLine(
   answer: SendAnswer,
@@ -106,6 +109,61 @@ function answerLine(
     case "signed_out":
       return null;
   }
+}
+
+/** Where the latest submission stands, a note when it cannot be answered again, and what the last send said. */
+function SubmissionStatus({
+  step,
+  line,
+  said,
+}: Readonly<{ step: SubmissionStep; line: string | null; said: string | LocalizedText | null }>) {
+  const { t } = useI18n();
+  const parts = saidParts(said);
+  return (
+    <>
+      {line === null ? null : <AppText variant="label">{line}</AppText>}
+      {showsClosedNote(step) ? <AppText muted>{t("submission.closed")}</AppText> : null}
+      {parts.alert === null ? null : <AppText accessibilityRole="alert">{parts.alert}</AppText>}
+      <Problem problem={parts.problem} />
+    </>
+  );
+}
+
+/** The box with its counter and Send; the text and the busy flag stay with the entry. */
+function SubmissionBox({
+  step,
+  text,
+  busy,
+  onChangeText,
+  onSend,
+}: Readonly<{
+  step: SubmissionStep;
+  text: string;
+  busy: boolean;
+  onChangeText: (value: string) => void;
+  onSend: () => void;
+}>) {
+  const { t, language } = useI18n();
+  return (
+    <>
+      <AppText muted>{t("submission.private")}</AppText>
+      <Field
+        label={t(fieldLabelKey(step))}
+        value={text}
+        onChangeText={onChangeText}
+        multiline
+        maxLength={SUBMISSION_TEXT_MAX}
+        style={{ minHeight: 96, textAlignVertical: "top" }}
+      />
+      <AppText muted>
+        {t("submission.counter", {
+          count: formatNumber(text.trim().length, language),
+          max: formatNumber(SUBMISSION_TEXT_MAX, language),
+        })}
+      </AppText>
+      <Button label={t("submission.send")} disabled={busy || !canSend(text)} onPress={onSend} />
+    </>
+  );
 }
 
 /**
@@ -130,9 +188,8 @@ export function SubmissionEntry({ quest, onSent }: Readonly<{ quest: Quest; onSe
     void load();
   }, [load]);
 
-  const accepted = state.status === "signed_in" && state.me?.legal.guidelinesAccepted === true;
   // Asked again when the server says the version in force is not accepted yet (a newer one than this app's).
-  if (!accepted || guidelines) {
+  if (!guidelinesAccepted(state) || guidelines) {
     return (
       <GuidelinesStep
         onAccepted={() => {
@@ -175,35 +232,15 @@ export function SubmissionEntry({ quest, onSent }: Readonly<{ quest: Quest; onSe
   };
   return (
     <>
-      {line === null ? null : <AppText variant="label">{line}</AppText>}
-      {step.kind === "rejected" && !step.again ? (
-        <AppText muted>{t("submission.closed")}</AppText>
-      ) : null}
-      {typeof said === "string" ? <AppText accessibilityRole="alert">{said}</AppText> : null}
-      <Problem problem={typeof said === "string" ? null : said} />
-      {quest.state === "open" && canWrite(step) ? (
-        <>
-          <AppText muted>{t("submission.private")}</AppText>
-          <Field
-            label={step.kind === "rejected" ? t("submission.sendAgain") : t("submission.label")}
-            value={text}
-            onChangeText={(value) => setText(value.slice(0, SUBMISSION_TEXT_MAX))}
-            multiline
-            maxLength={SUBMISSION_TEXT_MAX}
-            style={{ minHeight: 96, textAlignVertical: "top" }}
-          />
-          <AppText muted>
-            {t("submission.counter", {
-              count: formatNumber(text.trim().length, language),
-              max: formatNumber(SUBMISSION_TEXT_MAX, language),
-            })}
-          </AppText>
-          <Button
-            label={t("submission.send")}
-            disabled={busy || !canSend(text)}
-            onPress={() => void send()}
-          />
-        </>
+      <SubmissionStatus step={step} line={line} said={said} />
+      {showsBox(quest.state, step) ? (
+        <SubmissionBox
+          step={step}
+          text={text}
+          busy={busy}
+          onChangeText={(value) => setText(value.slice(0, SUBMISSION_TEXT_MAX))}
+          onSend={() => void send()}
+        />
       ) : null}
     </>
   );

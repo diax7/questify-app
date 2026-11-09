@@ -17,7 +17,7 @@ import {
   type PassAnswer,
 } from "#src/event/meet.ts";
 import type { Quest } from "#src/event/quests-api.ts";
-import { outcomeText } from "#src/event/QuestSheet.tsx";
+import { outcomeText } from "#src/event/outcome-text.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 

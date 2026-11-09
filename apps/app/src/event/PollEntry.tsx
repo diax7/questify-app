@@ -9,6 +9,7 @@ import { Button, Problem } from "#src/components/Controls.tsx";
 import { ChoiceList } from "#src/event/ChoiceList.tsx";
 import { useTerms } from "#src/event/EventContext.tsx";
 import { pollSaid } from "#src/event/play-words.ts";
+import { pollPhase, voteKey } from "#src/event/poll-entry.ts";
 import { castVote, secondsLeft } from "#src/event/plays.ts";
 import { clockText, fetchPoll, sharesOf, toggleChoice, type PollView } from "#src/event/polls.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
@@ -96,6 +97,65 @@ function PollUnavailable({ off, retry }: Readonly<{ off: boolean; retry: () => v
   );
 }
 
+/** The top of the poll: its title and points in the pop-up card, a plain "live" line in the quest sheet. */
+function PollHeader({ view, card }: Readonly<{ view: PollView; card: boolean }>) {
+  const { t, language } = useI18n();
+  if (!card) {
+    return <AppText muted>{t("poll.live")}</AppText>;
+  }
+  return (
+    <>
+      <AppText variant="label">{textIn(view.title, language)}</AppText>
+      {view.points > 0 ? (
+        <Amount amount={formatNumber(view.points, language)} form="labelled" variant="label" />
+      ) : null}
+    </>
+  );
+}
+
+/** "Closed", or the time left on the server's clock once it is known. */
+function PollCountdown({ closed, left }: Readonly<{ closed: boolean; left: number | null }>) {
+  const { t } = useI18n();
+  if (closed) {
+    return <AppText variant="label">{t("poll.closed")}</AppText>;
+  }
+  return left === null ? null : (
+    <AppText muted>{t("poll.closesIn", { time: clockText(left) })}</AppText>
+  );
+}
+
+/** The options, the prompt above them and Vote; the choices and the busy flag stay with the poll. */
+function VoteForm({
+  view,
+  chosen,
+  busy,
+  onChoose,
+  onVote,
+}: Readonly<{
+  view: PollView;
+  chosen: readonly string[];
+  busy: boolean;
+  onChoose: (id: string) => void;
+  onVote: () => void;
+}>) {
+  const { t } = useI18n();
+  const several = view.choices === "several";
+  return (
+    <>
+      <AppText variant="label">{t(several ? "poll.pickSeveral" : "poll.pickOne")}</AppText>
+      <ChoiceList
+        choices={view.options}
+        chosen={chosen[0] ?? null}
+        multiple={several}
+        selected={chosen}
+        disabled={busy}
+        onChoose={onChoose}
+      />
+      <Button label={t("play.vote.send")} disabled={busy || chosen.length === 0} onPress={onVote} />
+    </>
+  );
+}
+
 /**
  * A live poll (FR-239 to FR-242): its options as one choice or several, a countdown on the server's clock, Vote, and
  * after it the results its policy allows. The same component in the quest sheet and in the live pop-up card. A retry
@@ -140,9 +200,9 @@ export function PollEntry({
     return <PollUnavailable off={view === "off"} retry={() => void load()} />;
   }
   const vote = async () => {
-    const options = [...chosen].sort().join(",");
-    const key = last?.options === options ? last.key : randomUuid();
-    setLast({ key, options });
+    const next = voteKey(last, chosen, randomUuid);
+    const key = next.key;
+    setLast(next);
     setBusy(true);
     setProblem(null);
     const answer = await castVote(api.session, questId, chosen, key);
@@ -160,46 +220,21 @@ export function PollEntry({
       setSaid(t("join.network"));
     }
   };
-  const closed = view.closed || left === 0;
-  const voting = view.mine.length === 0 && !closed;
+  const { closed, voting } = pollPhase(view, left);
   return (
     <>
-      {card ? (
-        <>
-          <AppText variant="label">{textIn(view.title, language)}</AppText>
-          {view.points > 0 ? (
-            <Amount amount={formatNumber(view.points, language)} form="labelled" variant="label" />
-          ) : null}
-        </>
-      ) : (
-        <AppText muted>{t("poll.live")}</AppText>
-      )}
+      <PollHeader view={view} card={card} />
       {said === null ? null : <AppText accessibilityRole="alert">{said}</AppText>}
       <Problem problem={problem} />
-      {closed ? (
-        <AppText variant="label">{t("poll.closed")}</AppText>
-      ) : left === null ? null : (
-        <AppText muted>{t("poll.closesIn", { time: clockText(left) })}</AppText>
-      )}
+      <PollCountdown closed={closed} left={left} />
       {voting ? (
-        <>
-          <AppText variant="label">
-            {t(view.choices === "several" ? "poll.pickSeveral" : "poll.pickOne")}
-          </AppText>
-          <ChoiceList
-            choices={view.options}
-            chosen={chosen[0] ?? null}
-            multiple={view.choices === "several"}
-            selected={chosen}
-            disabled={busy}
-            onChoose={(id) => setChosen((current) => toggleChoice(current, id, view.choices))}
-          />
-          <Button
-            label={t("play.vote.send")}
-            disabled={busy || chosen.length === 0}
-            onPress={() => void vote()}
-          />
-        </>
+        <VoteForm
+          view={view}
+          chosen={chosen}
+          busy={busy}
+          onChoose={(id) => setChosen((current) => toggleChoice(current, id, view.choices))}
+          onVote={() => void vote()}
+        />
       ) : (
         <AfterVote view={view} />
       )}

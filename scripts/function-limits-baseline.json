@@ -490,11 +490,6 @@
       "complexity": [14]
     }
   },
-  "apps/app/src/components/Avatar.tsx": {
-    "Avatar": {
-      "complexity": [16]
-    }
-  },
   "apps/app/src/config/remote.ts": {
     "loadConfig": {
       "complexity": [11]
@@ -520,12 +515,6 @@
       "complexity": [12]
     }
   },
-  "apps/app/src/event/PollEntry.tsx": {
-    "PollEntry": {
-      "complexity": [17],
-      "lines": [102]
-    }
-  },
   "apps/app/src/event/QuestSheet.tsx": {
     "QuestEntry": {
       "complexity": [10]
@@ -535,9 +524,6 @@
     },
     "Verification": {
       "complexity": [14]
-    },
-    "outcomeText": {
-      "complexity": [18]
     }
   },
   "apps/app/src/event/QuizEntry.tsx": {
@@ -553,11 +539,6 @@
   "apps/app/src/event/ShareEntry.tsx": {
     "ShareEntry": {
       "complexity": [9]
-    }
-  },
-  "apps/app/src/event/SubmissionEntry.tsx": {
-    "SubmissionEntry": {
-      "complexity": [16]
     }
   },
   "apps/app/src/event/SurveyEntry.tsx": {
@@ -751,9 +732,6 @@
   "apps/app/src/operator/inbox.ts": {
     "<anonymous>": {
       "complexity": [14]
-    },
-    "ticketOf": {
-      "complexity": [18]
     }
   },
   "apps/app/src/operator/review.ts": {
@@ -779,11 +757,6 @@
   "apps/app/src/questify/level.ts": {
     "levelOf": {
       "complexity": [10]
-    }
-  },
-  "apps/app/src/screens/EditProfileScreen.tsx": {
-    "EditProfileScreen": {
-      "complexity": [17]
     }
   },
   "apps/app/src/screens/ProfileScreen.tsx": {

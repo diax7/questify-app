@@ -24,7 +24,7 @@ import {
   type RoundAnswer,
 } from "#src/event/games.ts";
 import type { Quest } from "#src/event/quests-api.ts";
-import { outcomeText } from "#src/event/QuestSheet.tsx";
+import { outcomeText } from "#src/event/outcome-text.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 
 /** The words for a round that was not issued: an update first, the game's own refusal, or the sheet's refusal. */

@@ -1,8 +1,7 @@
 import type { Avatar as AvatarName, Theme, Equipment } from "@questify/shared";
 import { Image, View, type ImageSourcePropType } from "react-native";
-import { frameDesign } from "@questify/shared";
 import { AppText } from "#src/components/AppText.tsx";
-import { avatarFace } from "#src/components/avatar-face.ts";
+import { avatarLook } from "#src/components/avatar-look.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** The six default avatars (FR-117), from the brand set, trimmed and reduced to 128 px (T-116). */
@@ -26,11 +25,12 @@ export function Avatar({
   equipment,
 }: Readonly<{ name: string; username: string; size: number; equipment?: Equipment | undefined }>) {
   const styles = useThemedStyles(makeStyles);
-  const chosen = equipment?.character?.visualKey ?? name;
-  const face = avatarFace(chosen, username);
-  const frame = frameDesign(equipment?.frame?.visualKey);
-  const radius = frame?.rounded === false ? size * 0.25 : size / 2;
-  const border = frame === null ? 1 : Math.max(1, size * 0.06);
+  const { chosen, face, radius, border, borderColor, ring, motif } = avatarLook(
+    name,
+    username,
+    size,
+    equipment,
+  );
   return (
     <View
       accessibilityElementsHidden
@@ -42,36 +42,12 @@ export function Avatar({
           height: size,
           borderRadius: radius,
           borderWidth: border,
-          borderColor: frame === null ? styles.circle.borderColor : "#8B5A2B",
+          borderColor: borderColor ?? styles.circle.borderColor,
         },
       ]}
     >
-      {frame === null ? null : (
-        <View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            inset: 0,
-            borderRadius: Math.max(0, radius - border),
-            borderWidth: border,
-            borderColor: frame.color,
-            borderStyle: frame.double ? "dashed" : "solid",
-          }}
-        />
-      )}
-      {frame?.motif === true ? (
-        <View
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            top: 0,
-            width: Math.max(2, size * 0.08),
-            height: Math.max(2, size * 0.08),
-            backgroundColor: "#8B5A2B",
-            transform: [{ rotate: "45deg" }],
-          }}
-        />
-      ) : null}
+      {ring === null ? null : <View pointerEvents="none" style={ring} />}
+      {motif === null ? null : <View pointerEvents="none" style={motif} />}
       {chosen === "chest" ? (
         <Image
           source={require("#assets/games/cards/chest.webp")}

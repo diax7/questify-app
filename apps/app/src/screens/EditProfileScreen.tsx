@@ -1,5 +1,5 @@
 import { ProfileGate } from "#src/questify/ProfileGate.tsx";
-import { MESSAGES, USERNAME_MAX } from "@questify/shared";
+import { USERNAME_MAX } from "@questify/shared";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ScrollView } from "react-native";
@@ -11,19 +11,27 @@ import { Button, Field, Problem } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { saveProfile } from "#src/questify/profile-api.ts";
+import {
+  nameChangeAllowed,
+  saveDisabled,
+  saveProblem,
+  signedInMe,
+  usernameOf,
+} from "#src/screens/edit-profile.ts";
 
 export function EditProfileScreen() {
   const { state, reload } = usePlayer();
   const { t } = useI18n();
-  const me = state.status === "signed_in" ? state.me : undefined;
+  const me = signedInMe(state);
+  const allowed = nameChangeAllowed(me);
   const owner = useRef(me?.id);
   owner.current = me?.id;
-  const [username, setUsername] = useState(me?.username ?? "");
+  const [username, setUsername] = useState(usernameOf(me));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<{ ar: string; en: string } | null>(null);
   const [saved, setSaved] = useState(false);
   useEffect(() => {
-    setUsername(me?.username ?? "");
+    setUsername(usernameOf(me));
     setProblem(null);
     setBusy(false);
     setSaved(false);
@@ -40,12 +48,7 @@ export function EditProfileScreen() {
       await reload();
       if (current !== owner.current) return;
       setSaved(true);
-    } else
-      setProblem(
-        answer.kind === "error" && answer.message !== null
-          ? answer.message
-          : MESSAGES["profile.saveFailed"],
-      );
+    } else setProblem(saveProblem(answer));
     setBusy(false);
   };
   return (
@@ -60,25 +63,18 @@ export function EditProfileScreen() {
               value={username}
               autoCapitalize="none"
               maxLength={USERNAME_MAX}
-              editable={me.usernameChange?.allowed === true && !busy}
+              editable={allowed && !busy}
               onChangeText={(value) => {
                 setUsername(value);
                 setSaved(false);
               }}
             />
-            {me.usernameChange?.allowed === true ? null : (
-              <AppText muted>{t("profile.nameLocked")}</AppText>
-            )}
+            {allowed ? null : <AppText muted>{t("profile.nameLocked")}</AppText>}
             <Problem problem={problem} />
             {saved ? <AppText accessibilityLiveRegion="polite">{t("locker.saved")}</AppText> : null}
             <Button
               label={t("profile.save")}
-              disabled={
-                busy ||
-                me.usernameChange?.allowed !== true ||
-                username === me.username ||
-                username.trim() === ""
-              }
+              disabled={saveDisabled({ busy, allowed, username, current: me.username })}
               onPress={() => void save()}
             />
             <Button label={t("locker.title")} kind="quiet" onPress={() => router.push("/locker")} />

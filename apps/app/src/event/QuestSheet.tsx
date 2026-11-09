@@ -3,7 +3,6 @@ import {
   formatEventTime,
   formatNumber,
   isQuestType,
-  type EventTerms,
   type MessageKey,
 } from "@questify/shared";
 import { router } from "expo-router";
@@ -14,13 +13,10 @@ import { Amount } from "#src/components/Amount.tsx";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button, Field } from "#src/components/Controls.tsx";
 import { Sheet } from "#src/components/Sheet.tsx";
-import { spanText } from "#src/event/countdown.ts";
-import { completedOutcome } from "#src/event/amount.ts";
 import { scanReading } from "#src/event/location.ts";
 import { FirstBonusRibbon } from "#src/event/FirstBonusRibbon.tsx";
 import { GameEntry } from "#src/event/GameEntry.tsx";
 import { LocationEntry, useLocationReader } from "#src/event/LocationEntry.tsx";
-import { meetRefusalText } from "#src/event/meet.ts";
 import { MeetEntry } from "#src/event/MeetEntry.tsx";
 import { PassportEntry } from "#src/event/PassportEntry.tsx";
 import { QuestRating } from "#src/event/QuestRating.tsx";
@@ -35,23 +31,15 @@ import {
   keyFor,
   type Attempt,
   type CompletionAnswer,
-  type NotOpenReason,
   type Quest,
-  type QuestLock,
   scanFallback,
 } from "#src/event/quests-api.ts";
+import { LOCK_TEXT, outcomeText } from "#src/event/outcome-text.ts";
 import { unlockLine } from "#src/event/unlock.ts";
 import { useNfcSupported } from "#src/nfc/NfcTap.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { ReportButton } from "#src/questify/ReportButton.tsx";
-
-const LOCK_TEXT: Readonly<Record<QuestLock, MessageKey>> = {
-  community_locked: "questsTab.notOpen.communityLocked",
-  category_not_started: "questsTab.notOpen.categoryNotStarted",
-  category_locked: "questsTab.notOpen.categoryLocked",
-  order_locked: "questsTab.notOpen.orderLocked",
-};
 
 /** The line under a quest that says why it cannot be played now, or nothing when it is open. */
 export function stateLine(quest: Pick<Quest, "type" | "state" | "lock">): MessageKey | null {
@@ -75,74 +63,8 @@ const STATE_TEXT: Readonly<Record<string, MessageKey>> = {
   closed: "questsTab.closed",
 };
 
-const NOT_OPEN_TEXT: Readonly<Record<NotOpenReason, MessageKey>> = {
-  event_not_live: "questsTab.notOpen.eventNotLive",
-  hidden: "questsTab.notOpen.hidden",
-  paused: "questsTab.notOpen.paused",
-  not_started: "questsTab.notOpen.notStarted",
-  ended: "questsTab.notOpen.ended",
-  not_for_you: "questsTab.notOpen.notForYou",
-  ...LOCK_TEXT,
-};
-
-const LOCATION_TEXT = {
-  no_position: "location.unavailable",
-  bad_position: "location.unavailable",
-  stale: "location.stale",
-  imprecise: "location.imprecise",
-} as const;
-
-/** The words for a refused check-in: the player's own distance for not_here, when the server gave it. */
-function locationText(
-  answer: Extract<CompletionAnswer, { kind: "location_refused" }>,
-  t: ReturnType<typeof useI18n>["t"],
-  language: "ar" | "en",
-): string {
-  if (answer.reason === "not_here") {
-    return answer.distanceM === null
-      ? t("location.notHereYet")
-      : t("location.notHere", { distance: formatNumber(answer.distanceM, language) });
-  }
-  return t(answer.reason === undefined ? "location.unavailable" : LOCATION_TEXT[answer.reason]);
-}
-
 /** Letters and digits only as typed (Arabic-Indic digits pass and the server makes them Western). */
 const typedCode = (text: string) => text.replace(/[^A-Za-z0-9٠-٩۰-۹]/g, "").slice(0, 32);
-
-export function outcomeText(
-  answer: CompletionAnswer,
-  t: ReturnType<typeof useI18n>["t"],
-  language: "ar" | "en",
-  terms: EventTerms,
-): string | null {
-  switch (answer.kind) {
-    case "completed":
-      return completedOutcome(answer, t, language, terms);
-    case "wrong_code":
-      return answer.problem?.[language] ?? t("questsTab.failed");
-    case "location_refused":
-      return locationText(answer, t, language);
-    case "location_off":
-      return t("location.off");
-    case "meet_refused":
-      return meetRefusalText(answer, t);
-    case "not_open":
-      return answer.reason === undefined ? t("questsTab.notLive") : t(NOT_OPEN_TEXT[answer.reason]);
-    case "limit":
-      return t("questsTab.limit");
-    case "wait": {
-      const span = answer.seconds === null ? null : spanText(answer.seconds * 1000, language);
-      return span === null ? t("questsTab.waitSoon") : t("questsTab.wait", { span });
-    }
-    case "network":
-      return t("join.network");
-    case "failed":
-      return t("questsTab.failed");
-    case "reload":
-    case "signed_out":
-      return null;
-  }
-}
 
 /** Typing an entry code (FR-202, FR-1742) with the Idempotency-Key rule of `keyFor`. */
 function CodeEntry({
