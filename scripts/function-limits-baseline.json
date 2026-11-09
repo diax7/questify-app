@@ -729,11 +729,6 @@
       "complexity": [9]
     }
   },
-  "apps/web/src/app/[lang]/e/[code]/page.tsx": {
-    "EventPage": {
-      "complexity": [13]
-    }
-  },
   "apps/web/src/app/[lang]/e/[code]/rules/page.tsx": {
     "RulesPage": {
       "complexity": [9]
@@ -819,17 +814,9 @@
       "complexity": [9]
     }
   },
-  "apps/web/src/components/FlagsPanel.tsx": {
-    "FlagsPanel": {
-      "complexity": [12]
-    }
-  },
   "apps/web/src/components/HelpDeskPanel.tsx": {
     "HelpDeskPanel": {
       "complexity": [9]
-    },
-    "TicketRow": {
-      "complexity": [12]
     }
   },
   "apps/web/src/components/KioskScanner.tsx": {
@@ -840,9 +827,6 @@
   "apps/web/src/components/NfcTagsPanel.tsx": {
     "NfcTagsPanel": {
       "complexity": [11]
-    },
-    "TagCard": {
-      "complexity": [12]
     }
   },
   "apps/web/src/components/PlayerAwards.tsx": {
@@ -900,11 +884,6 @@
       "lines": [101]
     }
   },
-  "apps/web/src/lib/activation.ts": {
-    "readActivation": {
-      "complexity": [12]
-    }
-  },
   "apps/web/src/lib/boosts.ts": {
     "<anonymous>": {
       "complexity": [10]
@@ -929,17 +908,11 @@
   "apps/web/src/lib/event-card.ts": {
     "fetchCard": {
       "complexity": [10]
-    },
-    "readCard": {
-      "complexity": [12]
     }
   },
   "apps/web/src/lib/event-rules.ts": {
     "fetchRules": {
       "complexity": [10]
-    },
-    "readRules": {
-      "complexity": [13]
     }
   },
   "apps/web/src/lib/flags.ts": {

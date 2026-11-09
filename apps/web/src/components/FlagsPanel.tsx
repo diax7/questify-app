@@ -441,6 +441,75 @@ function useFlags(eventApi: string, status: "open" | "closed", failed: (body: un
   };
 }
 
+/** The event's time zone, which the page's times are read in; Riyadh until the event answers. */
+function useEventTimeZone(eventApi: string): string {
+  const [timeZone, setTimeZone] = useState("Asia/Riyadh");
+  useEffect(() => {
+    void requestJson("GET", eventApi).then((result) => {
+      const zone = result.ok
+        ? (result.body as { event?: { timezone?: string } }).event?.timezone
+        : undefined;
+      if (zone !== undefined) {
+        setTimeZone(zone);
+      }
+    });
+  }, [eventApi]);
+  return timeZone;
+}
+
+/** The refusal and the last action's note, when there are any. */
+function Banners({ problem, notice }: Readonly<{ problem: string | null; notice: string | null }>) {
+  return (
+    <>
+      {problem === null ? null : (
+        <Notice tone="danger" role="alert">
+          {problem}
+        </Notice>
+      )}
+      {notice === null ? null : (
+        <Notice tone="info" role="status">
+          {notice}
+        </Notice>
+      )}
+    </>
+  );
+}
+
+/** The listed cases, or the loading and empty states; a case opens by itself when it is asked for or just acted on. */
+function CaseList({
+  flags,
+  status,
+  round,
+  shared,
+  opened,
+}: Readonly<{
+  flags: readonly FlagLine[] | null;
+  status: "open" | "closed";
+  round: number;
+  shared: Shared;
+  opened: readonly (string | null)[];
+}>) {
+  const t = useTranslator(shared.language);
+  return (
+    <>
+      {flags === null ? <Muted>{t("common.loading")}</Muted> : null}
+      {flags !== null && flags.length === 0 ? (
+        <EmptyState>{t(status === "open" ? "flags.empty" : "flags.emptyClosed")}</EmptyState>
+      ) : null}
+      <CardList>
+        {(flags ?? []).map((line) => (
+          <FlagRow
+            key={`${line.id}-${String(round)}`}
+            line={line}
+            shared={shared}
+            start={opened.includes(line.id)}
+          />
+        ))}
+      </CardList>
+    </>
+  );
+}
+
 /**
  * The flagged-activity page (FR-335, FR-336, T-209): open and closed cases with their evidence; owners and editors
  * clear a case or close it after removing points; the owner pauses a player's redemptions, bans, and switches the
@@ -452,7 +521,6 @@ export function FlagsPanel({ language, organizerId, eventId, myRole }: Props) {
   const [status, setStatus] = useState<"open" | "closed">("open");
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [timeZone, setTimeZone] = useState("Asia/Riyadh");
   const [acted, setActed] = useState<string | null>(null);
   const [start] = useState(() =>
     typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("case"),
@@ -468,16 +536,7 @@ export function FlagsPanel({ language, organizerId, eventId, myRole }: Props) {
     );
   };
   const list = useFlags(eventApi, status, failed);
-  useEffect(() => {
-    void requestJson("GET", eventApi).then((result) => {
-      const zone = result.ok
-        ? (result.body as { event?: { timezone?: string } }).event?.timezone
-        : undefined;
-      if (zone !== undefined) {
-        setTimeZone(zone);
-      }
-    });
-  }, [eventApi]);
+  const timeZone = useEventTimeZone(eventApi);
   const shared: Shared = {
     language,
     eventApi,
@@ -491,7 +550,6 @@ export function FlagsPanel({ language, organizerId, eventId, myRole }: Props) {
       list.reload();
     },
   };
-  const flags = list.listing?.flags ?? null;
   return (
     <Stack as="section" aria-labelledby="flags-title">
       <PageHeader titleId="flags-title" title={t("flags.title")} info={infoTip(t, "flags.intro")} />
@@ -505,30 +563,14 @@ export function FlagsPanel({ language, organizerId, eventId, myRole }: Props) {
           select: () => setStatus(tab),
         }))}
       />
-      {problem === null ? null : (
-        <Notice tone="danger" role="alert">
-          {problem}
-        </Notice>
-      )}
-      {notice === null ? null : (
-        <Notice tone="info" role="status">
-          {notice}
-        </Notice>
-      )}
-      {flags === null ? <Muted>{t("common.loading")}</Muted> : null}
-      {flags !== null && flags.length === 0 ? (
-        <EmptyState>{t(status === "open" ? "flags.empty" : "flags.emptyClosed")}</EmptyState>
-      ) : null}
-      <CardList>
-        {(flags ?? []).map((line) => (
-          <FlagRow
-            key={`${line.id}-${String(list.round)}`}
-            line={line}
-            shared={shared}
-            start={line.id === start || line.id === acted}
-          />
-        ))}
-      </CardList>
+      <Banners problem={problem} notice={notice} />
+      <CaseList
+        flags={list.listing?.flags ?? null}
+        status={status}
+        round={list.round}
+        shared={shared}
+        opened={[start, acted]}
+      />
       {list.more === null ? null : (
         <Button variant="quiet" onClick={list.more}>
           {t("players.more")}

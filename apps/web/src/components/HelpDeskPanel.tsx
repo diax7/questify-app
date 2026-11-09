@@ -229,6 +229,39 @@ function QuestifyLines({ language, ticket }: Readonly<{ language: Language; tick
   );
 }
 
+/** The ticket's first line: kind, who, which quest, when, whether marked, and where it stands. */
+function TicketHeader({
+  language,
+  playersPage,
+  ticket,
+}: Readonly<{ language: Language; playersPage: string; ticket: TeamTicket }>) {
+  const t = translatorFor(language);
+  return (
+    <Toolbar>
+      <Badge>{t(kindKey(ticket.kind))}</Badge>
+      {ticket.username === null ? (
+        <strong>{t("tickets.deletedAccount")}</strong>
+      ) : (
+        <TextLink href={playersPage} dir="auto">
+          {handleOf(ticket.username, language)}
+        </TextLink>
+      )}
+      <span dir="auto">
+        {ticket.quest === null ? t("tickets.eventWide") : textFor(ticket.quest.title, language)}
+      </span>
+      <time dateTime={ticket.createdAt} dir="ltr">
+        {new Date(ticket.createdAt).toLocaleString(language === "ar" ? "ar-SA-u-nu-latn" : "en-GB")}
+      </time>
+      {ticket.marked ? <Badge>{t("tickets.marked")}</Badge> : null}
+      <Badge>
+        {ticket.status === "open" && ticket.queue === "questify"
+          ? t("help.status.withQuestify")
+          : t(outcomeKey(ticket))}
+      </Badge>
+    </Toolbar>
+  );
+}
+
 function TicketRow({
   language,
   eventApi,
@@ -242,36 +275,12 @@ function TicketRow({
   ticket: TeamTicket;
   done: () => void;
 }>) {
-  const t = translatorFor(language);
   const by = answeredByLine(ticket, language);
   const reported = reportedLine(ticket, language);
   const answerable = ticket.status === "open" && ticket.queue === "event";
   return (
     <Card as="li" data-testid="ticket">
-      <Toolbar>
-        <Badge>{t(kindKey(ticket.kind))}</Badge>
-        {ticket.username === null ? (
-          <strong>{t("tickets.deletedAccount")}</strong>
-        ) : (
-          <TextLink href={playersPage} dir="auto">
-            {handleOf(ticket.username, language)}
-          </TextLink>
-        )}
-        <span dir="auto">
-          {ticket.quest === null ? t("tickets.eventWide") : textFor(ticket.quest.title, language)}
-        </span>
-        <time dateTime={ticket.createdAt} dir="ltr">
-          {new Date(ticket.createdAt).toLocaleString(
-            language === "ar" ? "ar-SA-u-nu-latn" : "en-GB",
-          )}
-        </time>
-        {ticket.marked ? <Badge>{t("tickets.marked")}</Badge> : null}
-        <Badge>
-          {ticket.status === "open" && ticket.queue === "questify"
-            ? t("help.status.withQuestify")
-            : t(outcomeKey(ticket))}
-        </Badge>
-      </Toolbar>
+      <TicketHeader language={language} playersPage={playersPage} ticket={ticket} />
       {reported === null ? null : (
         <p dir="auto">
           <TextLink href={playersPage}>{reported}</TextLink>

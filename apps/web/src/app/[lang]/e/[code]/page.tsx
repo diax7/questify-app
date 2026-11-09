@@ -114,6 +114,63 @@ function Details({ event, language }: Readonly<{ event: CardEvent; language: Lan
   );
 }
 
+function Notices({ kind, language }: Readonly<{ kind: CardResult["kind"]; language: Language }>) {
+  const t = translatorFor(language);
+  if (kind !== "throttled" && kind !== "unavailable") {
+    return null;
+  }
+  return (
+    <Notice tone="danger" role="alert">
+      {t(kind === "throttled" ? "eventPage.throttled" : "eventPage.unavailable")}
+    </Notice>
+  );
+}
+
+function Receives({ result, language }: Readonly<{ result: CardResult; language: Language }>) {
+  if (result.kind !== "found") {
+    return null;
+  }
+  return (
+    <Section title={result.card.title[language]} titleId="receives-title">
+      <ul>
+        {result.card.receives.map((item) => (
+          <li key={item.en}>{item[language]}</li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
+function Stores({
+  code,
+  language,
+  ended,
+}: Readonly<{ code: string; language: Language; ended: boolean }>) {
+  const t = translatorFor(language);
+  const { appStoreUrl, playStoreUrl } = webConfig();
+  return (
+    <>
+      <Toolbar>
+        {playStoreUrl === undefined ? null : (
+          <ButtonLink variant="primary" href={playStoreLink(playStoreUrl, code)}>
+            {t("eventPage.play")}
+          </ButtonLink>
+        )}
+        {ended ? null : (
+          <CopyEventLink
+            language={language}
+            link={joinLink(code, language)}
+            appStoreUrl={appStoreUrl}
+          />
+        )}
+      </Toolbar>
+      {appStoreUrl === undefined && playStoreUrl === undefined ? (
+        <Muted>{t("eventPage.soon")}</Muted>
+      ) : null}
+    </>
+  );
+}
+
 /**
  * The event's web page (T-112; FR-113 to FR-116, FR-1741): what the join QR and the invite link open on a phone without
  * the app. It shows the event, its code, what the organizer will see, and the way to the stores. Any access type opens
@@ -131,47 +188,17 @@ export default async function EventPage({ params }: Props) {
     notFound();
   }
   const t = translatorFor(lang);
-  const { appStoreUrl, playStoreUrl } = webConfig();
   const event = result.kind === "found" ? result.event : undefined;
   return (
     <AppShell area="public" language={lang} path={`/e/${upper}`} signedIn={false} narrow>
-      {result.kind === "throttled" ? (
-        <Notice tone="danger" role="alert">
-          {t("eventPage.throttled")}
-        </Notice>
-      ) : null}
-      {result.kind === "unavailable" ? (
-        <Notice tone="danger" role="alert">
-          {t("eventPage.unavailable")}
-        </Notice>
-      ) : null}
+      <Notices kind={result.kind} language={lang} />
       <Headline event={event} language={lang} />
       {event === undefined ? null : <Details event={event} language={lang} />}
       <Section title={t("eventPage.code")} titleId="code-title">
         <CodeText dir="ltr">{upper}</CodeText>
       </Section>
-      {result.kind === "found" ? (
-        <Section title={result.card.title[lang]} titleId="receives-title">
-          <ul>
-            {result.card.receives.map((item) => (
-              <li key={item.en}>{item[lang]}</li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-      <Toolbar>
-        {playStoreUrl === undefined ? null : (
-          <ButtonLink variant="primary" href={playStoreLink(playStoreUrl, upper)}>
-            {t("eventPage.play")}
-          </ButtonLink>
-        )}
-        {event?.statusNow === "ended" ? null : (
-          <CopyEventLink language={lang} link={joinLink(upper, lang)} appStoreUrl={appStoreUrl} />
-        )}
-      </Toolbar>
-      {appStoreUrl === undefined && playStoreUrl === undefined ? (
-        <Muted>{t("eventPage.soon")}</Muted>
-      ) : null}
+      <Receives result={result} language={lang} />
+      <Stores code={upper} language={lang} ended={event?.statusNow === "ended"} />
     </AppShell>
   );
 }

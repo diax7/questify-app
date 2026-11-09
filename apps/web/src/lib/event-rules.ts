@@ -14,6 +14,13 @@ const isLines = (value: unknown): value is string[] =>
 const isText = (value: unknown): value is string | null =>
   value === null || typeof value === "string";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+const isBlock = (value: unknown): boolean =>
+  value === null || (isRecord(value) && isLines(value["ar"]) && isLines(value["en"]));
+const isTextPair = (value: unknown): boolean =>
+  isRecord(value) && isText(value["ar"]) && isText(value["en"]);
+
 /** Reads the rules answer; undefined when it is not one. */
 export function readRules(body: unknown): OfficialRules | undefined {
   const rules =
@@ -24,17 +31,7 @@ export function readRules(body: unknown): OfficialRules | undefined {
     return undefined;
   }
   const { block, text } = rules as Record<string, unknown>;
-  const blockOk =
-    block === null ||
-    (typeof block === "object" &&
-      isLines((block as Record<string, unknown>)["ar"]) &&
-      isLines((block as Record<string, unknown>)["en"]));
-  const textOk =
-    typeof text === "object" &&
-    text !== null &&
-    isText((text as Record<string, unknown>)["ar"]) &&
-    isText((text as Record<string, unknown>)["en"]);
-  return blockOk && textOk ? (rules as OfficialRules) : undefined;
+  return isBlock(block) && isTextPair(text) ? (rules as OfficialRules) : undefined;
 }
 
 export type RulesRequest = Readonly<{

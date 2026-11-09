@@ -23,26 +23,27 @@ const isStringList = (value: unknown): value is string[] =>
 const isNumberList = (value: unknown): value is number[] =>
   Array.isArray(value) && value.every((item) => typeof item === "number");
 
+const isLimit = (value: unknown): boolean =>
+  isRecord(value) &&
+  MODES.has(String(value["mode"])) &&
+  (value["value"] === null || typeof value["value"] === "number");
+const hasStatusFields = (value: Record<string, unknown>): boolean =>
+  STATES.has(String(value["state"])) &&
+  isTextOrNull(value["requestedAt"]) &&
+  isTextOrNull(value["note"]);
+const hasCountFields = (value: Record<string, unknown>): boolean =>
+  typeof value["players"] === "number" &&
+  isNumberList(value["alerts"]) &&
+  isStringList(value["addons"]);
+
 /** Checks the API's answer, so a changed API shows the error state instead of a broken card. */
 export function readActivation(value: unknown): ActivationView | undefined {
   if (!isRecord(value)) {
     return undefined;
   }
-  const limit = value["limit"];
-  if (
-    !STATES.has(String(value["state"])) ||
-    !isTextOrNull(value["requestedAt"]) ||
-    !isTextOrNull(value["note"]) ||
-    !isRecord(limit) ||
-    !MODES.has(String(limit["mode"])) ||
-    !(limit["value"] === null || typeof limit["value"] === "number") ||
-    typeof value["players"] !== "number" ||
-    !isNumberList(value["alerts"]) ||
-    !isStringList(value["addons"])
-  ) {
-    return undefined;
-  }
-  return value as ActivationView;
+  return hasStatusFields(value) && isLimit(value["limit"]) && hasCountFields(value)
+    ? (value as ActivationView)
+    : undefined;
 }
 
 export type Line = Readonly<{

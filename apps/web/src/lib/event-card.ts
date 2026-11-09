@@ -39,6 +39,20 @@ const isText = (value: unknown): value is Text =>
 const isLocalized = (value: unknown): value is LocalizedText =>
   isRecord(value) && typeof value["ar"] === "string" && typeof value["en"] === "string";
 
+const EVENT_STRINGS = ["id", "joinCode", "kind", "timezone", "startsAt", "endsAt"] as const;
+
+const isEventShape = (event: Record<string, unknown>): boolean =>
+  EVENT_STRINGS.every((key) => typeof event[key] === "string") &&
+  isText(event["name"]) &&
+  isText(event["venue"]) &&
+  STATUSES.has(String(event["statusNow"])) &&
+  ACCESS.has(String(event["access"]));
+
+const isCardShape = (card: Record<string, unknown>): boolean =>
+  isLocalized(card["title"]) &&
+  Array.isArray(card["receives"]) &&
+  card["receives"].every(isLocalized);
+
 /** Checks the answer's shape, so a changed API shows the "couldn't load" state instead of a broken page. */
 export function readCard(
   body: unknown,
@@ -48,22 +62,12 @@ export function readCard(
   }
   const event = body["event"];
   const card = body["card"];
-  const strings = ["id", "joinCode", "kind", "timezone", "startsAt", "endsAt"] as const;
-  if (
-    strings.some((key) => typeof event[key] !== "string") ||
-    !isText(event["name"]) ||
-    !isText(event["venue"]) ||
-    !STATUSES.has(String(event["statusNow"])) ||
-    !ACCESS.has(String(event["access"])) ||
-    !isLocalized(card["title"]) ||
-    !Array.isArray(card["receives"]) ||
-    !card["receives"].every(isLocalized)
-  ) {
+  if (!isEventShape(event) || !isCardShape(card)) {
     return undefined;
   }
   return {
     event: event as unknown as CardEvent,
-    card: { title: card["title"], receives: card["receives"] as LocalizedText[] },
+    card: { title: card["title"] as LocalizedText, receives: card["receives"] as LocalizedText[] },
   };
 }
 

@@ -27,6 +27,16 @@ describe("event rules", () => {
     expect(readRules({ rules: { block: null, text: { ar: 1, en: null } } })).toBeUndefined();
     expect(readRules({ rules: null })).toBeUndefined();
     expect(readRules(null)).toBeUndefined();
+    expect(readRules({ rules: { block: { ar: [], en: "x" }, text: RULES.text } })).toBeUndefined();
+    expect(readRules({ rules: { block: { ar: ["a"] }, text: RULES.text } })).toBeUndefined();
+    expect(readRules({ rules: { block: "x", text: RULES.text } })).toBeUndefined();
+    expect(readRules({ rules: { text: RULES.text } })).toBeUndefined();
+    expect(readRules({ rules: { block: null } })).toBeUndefined();
+    expect(readRules({ rules: { block: null, text: { ar: null } } })).toBeUndefined();
+    expect(readRules({ rules: { block: null, text: { ar: null, en: 1 } } })).toBeUndefined();
+    expect(readRules({ rules: "x" })).toBeUndefined();
+    expect(readRules({})).toBeUndefined();
+    expect(readRules("x")).toBeUndefined();
   });
 
   it("asks the API by code with the visitor's address, never for a malformed code", async () => {

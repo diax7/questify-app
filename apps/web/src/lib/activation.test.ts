@@ -34,6 +34,10 @@ describe("readActivation", () => {
     expect(
       readActivation({ ...VIEW, state: "requested", requestedAt: "2026-10-22T09:00:00Z" }),
     ).toBeDefined();
+    expect(
+      readActivation({ ...VIEW, limit: { mode: "none", value: null }, note: "x" }),
+    ).toBeDefined();
+    expect(readActivation({ ...VIEW, alerts: [], addons: [] })).toBeDefined();
   });
 
   it("refuses a changed answer", () => {
@@ -50,6 +54,15 @@ describe("readActivation", () => {
       { ...VIEW, alerts: ["80"] },
       { ...VIEW, alerts: null },
       { ...VIEW, addons: [1] },
+      { ...VIEW, addons: undefined },
+      { ...VIEW, alerts: undefined },
+      { ...VIEW, limit: "hard" },
+      { ...VIEW, limit: { mode: "hard" } },
+      { ...VIEW, limit: { mode: undefined, value: null } },
+      { ...VIEW, state: undefined },
+      { ...VIEW, requestedAt: undefined },
+      { ...VIEW, note: undefined },
+      { ...VIEW, players: undefined },
     ]) {
       expect(readActivation(broken), JSON.stringify(broken)).toBeUndefined();
     }

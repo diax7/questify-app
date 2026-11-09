@@ -26,6 +26,33 @@ type Props = Readonly<{
   readOnly: boolean;
 }>;
 
+/** A tag's counts and times: who wrote it and when, taps, possible copies, unchecked taps, the last tap. */
+function TagFacts({
+  tag,
+  language,
+  timeZone,
+}: Readonly<{ tag: TagLine; language: Language; timeZone: string }>) {
+  const t = useTranslator(language);
+  const count = (n: number) => formatNumber(n, language);
+  const time = (iso: string) => formatEventTime(new Date(iso), timeZone, language);
+  return (
+    <>
+      {tag.writtenBy === null ? null : (
+        <Muted as="span">{t("tags.writtenBy", { name: tag.writtenBy })}</Muted>
+      )}
+      <Muted as="span">{time(tag.writtenAt)}</Muted>
+      <span>{t("tags.taps", { count: count(tag.taps) })}</span>
+      {tag.copies > 0 ? <strong>{t("tags.copies", { count: count(tag.copies) })}</strong> : null}
+      {tag.unchecked > 0 ? (
+        <span>{t("tags.unchecked", { count: count(tag.unchecked) })}</span>
+      ) : null}
+      {tag.lastTapAt === null ? null : (
+        <Muted as="span">{t("tags.lastTap", { at: time(tag.lastTapAt) })}</Muted>
+      )}
+    </>
+  );
+}
+
 /** One tag: its name, who wrote it and when, its taps, copies and unchecked taps; Move and Revoke while active. */
 function TagCard({
   tag,
@@ -48,25 +75,12 @@ function TagCard({
 }>) {
   const t = useTranslator(language);
   const [target, setTarget] = useState("");
-  const count = (n: number) => formatNumber(n, language);
-  const time = (iso: string) => formatEventTime(new Date(iso), timeZone, language);
   return (
     <Card as="li">
       <strong>{tag.label === "" ? t("tags.unnamed") : tag.label}</strong>
       {tag.locked ? <Badge>{t("tags.locked")}</Badge> : null}
       {tag.status === "revoked" ? <Badge>{t("tags.revoked")}</Badge> : null}
-      {tag.writtenBy === null ? null : (
-        <Muted as="span">{t("tags.writtenBy", { name: tag.writtenBy })}</Muted>
-      )}
-      <Muted as="span">{time(tag.writtenAt)}</Muted>
-      <span>{t("tags.taps", { count: count(tag.taps) })}</span>
-      {tag.copies > 0 ? <strong>{t("tags.copies", { count: count(tag.copies) })}</strong> : null}
-      {tag.unchecked > 0 ? (
-        <span>{t("tags.unchecked", { count: count(tag.unchecked) })}</span>
-      ) : null}
-      {tag.lastTapAt === null ? null : (
-        <Muted as="span">{t("tags.lastTap", { at: time(tag.lastTapAt) })}</Muted>
-      )}
+      <TagFacts tag={tag} language={language} timeZone={timeZone} />
       {readOnly || tag.status === "revoked" ? null : (
         <Toolbar>
           {targets.length === 0 ? null : (

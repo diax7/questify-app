@@ -97,6 +97,44 @@ describe("fetchCard", () => {
 });
 
 describe("readCard", () => {
+  it("returns the event as sent and only the card's title and receives", () => {
+    const read = readCard(CARD);
+    expect(read?.event).toEqual(CARD.event);
+    expect(read?.card).toEqual({ title: CARD.card.title, receives: CARD.card.receives });
+    expect(readCard({ ...CARD, card: { ...CARD.card, receives: [] } })?.card.receives).toEqual([]);
+    expect(
+      readCard({ ...CARD, event: { ...CARD.event, name: { ar: null, en: null } } }),
+    ).toBeDefined();
+  });
+
+  it.each([
+    ["no body", null],
+    ["a body that is not an object", "x"],
+    ["no card", { event: CARD.event }],
+    ["a card that is not an object", { ...CARD, card: "x" }],
+    ["an event that is not an object", { ...CARD, event: null }],
+    ["an id that is not text", { ...CARD, event: { ...CARD.event, id: 5 } }],
+    ["a code that is not text", { ...CARD, event: { ...CARD.event, joinCode: null } }],
+    ["a kind that is missing", { ...CARD, event: { ...CARD.event, kind: undefined } }],
+    ["a time zone that is not text", { ...CARD, event: { ...CARD.event, timezone: 1 } }],
+    ["an end that is not text", { ...CARD, event: { ...CARD.event, endsAt: 1 } }],
+    ["a venue that is not text", { ...CARD, event: { ...CARD.event, venue: "Hall" } }],
+    [
+      "a venue language that is a number",
+      { ...CARD, event: { ...CARD.event, venue: { ar: 1, en: null } } },
+    ],
+    ["a missing status", { ...CARD, event: { ...CARD.event, statusNow: undefined } }],
+    ["a title that is missing a language", { ...CARD, card: { ...CARD.card, title: { ar: "x" } } }],
+    [
+      "a title with a null language",
+      { ...CARD, card: { ...CARD.card, title: { ar: "x", en: null } } },
+    ],
+    ["receives that is not a list", { ...CARD, card: { ...CARD.card, receives: "x" } }],
+    ["no receives", { ...CARD, card: { title: CARD.card.title } }],
+  ])("refuses an answer with %s", (_name, body) => {
+    expect(readCard(body)).toBeUndefined();
+  });
+
   it.each([
     ["no event", { card: CARD.card }],
     ["a name that is not text", { ...CARD, event: { ...CARD.event, name: "Najd" } }],
