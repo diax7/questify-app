@@ -86,6 +86,12 @@ async function checkDialog(
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
 }
 
+test("every listed page has its own name, so no screenshot overwrites another", () => {
+  const names = [...PUBLIC_PAGES, ...LAYOUT_PAGES].map((one) => one.name);
+  const repeated = names.filter((name, at) => names.indexOf(name) !== at);
+  expect(repeated, "page names used more than once").toEqual([]);
+});
+
 test("every listed page fits the screen, keeps controls apart and text at 14px or more", async ({
   page,
 }, info) => {

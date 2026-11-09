@@ -571,7 +571,7 @@ export type LayoutIds = Readonly<{
 }>;
 
 export type LayoutPage = Readonly<{
-  /** A short file-safe name, used for the screenshot. */
+  /** A short file-safe name, used for the screenshot; unique across `LAYOUT_PAGES` and `PUBLIC_PAGES` (layout.spec.ts checks). */
   name: string;
   /** The path after the language, e.g. `/organizers/{id}/events`. */
   path: (ids: LayoutIds) => string;
@@ -758,7 +758,7 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
   { name: "email-change", path: "/email-change", ready: titled("emailChange.title") },
   { name: "email-change-stop", path: "/email-change/stop", ready: titled("emailStop.title") },
   { name: "contact", path: "/contact", ready: titled("contact.title") },
-  { name: "help", path: "/help", ready: titled("faq.title") },
+  { name: "public-help", path: "/help", ready: titled("faq.title") },
   { name: "delete-account", path: "/delete-account", ready: titled("deletion.title") },
   { name: "opt-out", path: "/opt-out", ready: titled("optOut.title") },
   { name: "legal", path: "/legal/privacy_policy", ready: titled("deletion.title") },

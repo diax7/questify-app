@@ -28,6 +28,8 @@ type Language = (typeof LANGUAGES)[number];
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 /** The best-practice rules (landmarks, heading order) are read too, and fail at the same impacts. */
 const READ_TAGS = [...WCAG_TAGS, "best-practice"];
+/** The longest the sweep waits for a page's animations before it reads the page anyway. */
+const ANIMATION_WAIT_MS = 5000;
 const FAILING = new Set(["serious", "critical", "moderate"]);
 
 type Waiver = Readonly<{ rule: string; page: string; reason: string }>;
@@ -47,7 +49,8 @@ const notes: string[] = [];
 /** Runs axe on the open page and records every serious, critical or moderate violation that is not waived. */
 async function sweep(page: Page, where: string, name: string): Promise<void> {
   // A scene fades in over 400 ms; axe reads the colours as they are drawn, so a half-faded row reads as low contrast.
-  await page.evaluate(() =>
+  // The wait is capped: a page whose animation never ends is read as it stands.
+  const settled = page.evaluate(() =>
     Promise.all(
       document
         .getAnimations()
@@ -55,6 +58,7 @@ async function sweep(page: Page, where: string, name: string): Promise<void> {
         .map((one) => one.finished.catch(() => null)),
     ),
   );
+  await Promise.race([settled, page.waitForTimeout(ANIMATION_WAIT_MS)]);
   const result = await new AxeBuilder({ page }).withTags(READ_TAGS).analyze();
   if (result.incomplete.length > 0) {
     const rules = result.incomplete.map((one) => one.id).join(", ");

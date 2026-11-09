@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { sendReviewCall } from "#src/components/ChangeSetReview.tsx";
-import { APPLY_REQUEST_TIMEOUT_MS } from "#src/lib/post-json.ts";
+import { APPLY_REQUEST_TIMEOUT_MS, DEFAULT_REQUEST_TIMEOUT_MS } from "#src/lib/post-json.ts";
 import { createRequestKeys } from "#src/lib/use-request-key.ts";
 
 afterEach(() => {
@@ -57,6 +57,6 @@ describe("sendReviewCall", () => {
     await sendReviewCall(keys, SET_A, "apply", { itemIds: ["i1"] });
     expect(timer.mock.lastCall?.[1]).toBe(APPLY_REQUEST_TIMEOUT_MS);
     await sendReviewCall(keys, SET_A, "close", {});
-    expect(timer.mock.lastCall?.[1]).not.toBe(APPLY_REQUEST_TIMEOUT_MS);
+    expect(timer.mock.lastCall?.[1]).toBe(DEFAULT_REQUEST_TIMEOUT_MS);
   });
 });
