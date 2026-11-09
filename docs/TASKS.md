@@ -1745,6 +1745,10 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     Proposed, Q-680 (for Dhia: a fresh code for players) and Q-681.
   - Done 2026-11-05: migration 0155, FR-140 and FR-141, ADR-717 and ADR-718 Proposed, Q-682; the three ASVS
     rows Met (152 Met, 29 Partly).
+  - Follow-up 2026-11-09 (FOLLOWUPS T-710 and T-810c, tier A): migration 0184, the sign-in lock order
+    (`docs/plans/2026-11-09-sign-in-lock-order.md`; code review 91 GO, its minors folded in). Hand mutants: 15 run, 14
+    killed, 1 equivalent (the re-auth code delete not limited). End-others' `ORDER BY` is not equivalent: it is the
+    lock order's I2 and dies to the descending-id crossing with an erasure (test 22). Not pushed.
 - [ ] **T-810d** (tier A, admin powers) The console on its own hostname (`console.<domain>`) through the same CranL web
   app: the console answers only there, its `__Host-` cookie is never set on the public origin, and the public hostname
   redirects console paths — delivers no FR (ASVS V3.5.4); depends on: T-810; Q-663 (Dhia, 2026-11-05). Needs Dhia to add

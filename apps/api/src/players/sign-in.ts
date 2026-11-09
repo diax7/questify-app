@@ -144,8 +144,13 @@ export type PlayerSignIn = Readonly<{
   logout: (input: { refreshToken: string }) => Promise<void>;
 }>;
 
+/** The flow, and the retention sweep it last started beside a request (settled once that sweep ends; it never rejects). */
+export type PlayerSignInService = PlayerSignIn & Readonly<{ swept: () => Promise<void> }>;
+
 const L = PLAYER_SIGN_IN_LIMITS;
 const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
+/** How long one sweep may run, at most; each batch is its own short transaction (0184). It runs beside the request. */
+const SWEEP_BUDGET_MS = 1000;
 
 /** The SHA-256 of a token as the database stores it (bytes). */
 const tokenHash = (token: string): Buffer => Buffer.from(hashToken(token), "hex");
@@ -343,20 +348,65 @@ async function openChallenge(
   });
 }
 
-type SweepClock = { last: number };
+/** When the last sweep started, and that sweep (settled once it ends: it never rejects). */
+type SweepClock = { last: number; running: Promise<void> };
 
-/** Removes old challenges and ended tokens at most every ten minutes. Best effort: a failure is logged only. */
-async function sweepIfDue(deps: PlayerSignInDeps, asker: Asker, clock: SweepClock): Promise<void> {
+/**
+ * Removes old challenges and ended tokens at most every ten minutes, in batches (each call of the function is one short
+ * transaction that answers how many rows it removed) until a batch removes nothing or the budget is spent; the rest
+ * waits for the next sweep, and a sweep stopped by its budget is logged with its batch count. Best effort: a failure is
+ * logged only. It never rejects, so callers start it without awaiting it.
+ */
+function sweepIfDue(deps: PlayerSignInDeps, asker: Asker, clock: SweepClock): void {
   // Stryker disable next-line EqualityOperator: equivalent: a millisecond boundary on the wall clock
   if (Date.now() - clock.last < SWEEP_INTERVAL_MS) {
     return;
   }
   clock.last = Date.now();
+  clock.running = sweep(deps, asker, clock.last + SWEEP_BUDGET_MS);
+}
+
+async function sweep(deps: PlayerSignInDeps, asker: Asker, until: number): Promise<void> {
   try {
-    await inTransaction(deps, (client) => client.query("SELECT sweep_player_sign_in()"));
+    // A batch starts only when one more as long as the last still ends inside the budget.
+    let removed = 1;
+    let last = 0;
+    let batches = 0;
+    while (removed > 0 && Date.now() + last < until) {
+      const began = Date.now();
+      const { rows } = await inTransaction(deps, (client) =>
+        client.query<{ removed: number }>("SELECT sweep_player_sign_in() AS removed"),
+      );
+      removed = rows[0]?.removed ?? 0;
+      last = Date.now() - began;
+      batches += 1;
+    }
+    if (removed > 0) {
+      // Stopped by the budget with old rows left: the next sweep goes on. Counts only, no row ids or contacts.
+      say(deps, asker, "player.sweep_partial", { batches });
+    }
   } catch (error) {
     say(deps, asker, "player.sweep_failed", { reason: reasonOf(error) });
   }
+}
+
+/** Texts or emails the code; the App Review number is sent nothing (its code is the fixed one) and only logged. */
+async function sendCode(
+  deps: PlayerSignInDeps,
+  asker: Asker,
+  send: Readonly<{
+    contact: Contact;
+    code: string;
+    lang: Lang;
+    challengeToken: string;
+    reviewer: boolean;
+  }>,
+): Promise<"sent" | Unavailable["kind"]> {
+  if (send.reviewer) {
+    say(deps, asker, "player.reviewer_challenge");
+    return "sent";
+  }
+  return deliver(deps, asker, send);
 }
 
 async function requestCode(
@@ -379,14 +429,11 @@ async function requestCode(
   if (opened.kind !== "opened") {
     return opened;
   }
-  await sweepIfDue(deps, asker, clock);
-  if (opened.reviewer) {
-    say(deps, asker, "player.reviewer_challenge");
-  } else {
-    const sent = await deliver(deps, asker, { contact, ...opened, lang: input.lang });
-    if (sent !== "sent") {
-      return { kind: sent };
-    }
+  const sent = await sendCode(deps, asker, { contact, ...opened, lang: input.lang });
+  // Once the code went out, and not awaited: a slow sweep never delays the code or the answer (0184).
+  sweepIfDue(deps, asker, clock);
+  if (sent !== "sent") {
+    return { kind: sent };
   }
   if (input.previous !== undefined) {
     // Only once the new code went out: the email fallback ends the SMS code (FR-1812). An unknown or finished token
@@ -718,7 +765,8 @@ async function verify(
 ): Promise<VerifyResult> {
   const tokens = newTokens();
   const judged = await judge(deps, input, tokens, asker);
-  await sweepIfDue(deps, asker, clock);
+  // Not awaited: a slow sweep never delays the answer (0184).
+  sweepIfDue(deps, asker, clock);
   if (judged.kind === "account_banned") {
     return { kind: "account_banned", notice: await banNotice(deps, judged.playerId) };
   }
@@ -809,10 +857,11 @@ async function refresh(
  * and a rotating 180-day refresh token). Every rule that guards a session lives in the database functions (migration
  * 0013); this module counts, sends and answers.
  */
-export function createPlayerSignIn(deps: PlayerSignInFlowDeps): PlayerSignIn {
+export function createPlayerSignIn(deps: PlayerSignInFlowDeps): PlayerSignInService {
   // Stryker disable next-line ObjectLiteral: equivalent: an undefined start makes the first comparison NaN, which also means 'sweep now'
-  const clock: SweepClock = { last: 0 };
+  const clock: SweepClock = { last: 0, running: Promise.resolve() };
   return {
+    swept: () => clock.running,
     requestCode: (input, asker) => requestCode(deps, clock, input, asker),
     resend: (input, asker) => resend(deps, input, asker),
     verify: (input, asker) => verify(deps, clock, input, asker),

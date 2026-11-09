@@ -255,7 +255,8 @@ T-810f. Never run `reseal` before the release is confirmed. Migration 0157 is sa
   `player.budget_spent {channel}`, `player.budget_busy {channel}` (the budget stayed busy through three quick retries:
   answered 429 with `Retry-After: 1`), `player.budget_give_back_failed {channel, reason}` (a refused request's unit stays
   used: harmless, it only under-spends), `player.throttled`, `player.code_failed`, `player.signed_in`, `player.signed_up`,
-  `player.refresh_reuse`.
+  `player.refresh_reuse`, `player.sweep_failed {reason}` (the retention sweep failed; it runs again 10 minutes later),
+  `player.sweep_partial {batches}` (the sweep stopped at its 1 s budget with old rows left; the next one goes on).
 - **`sms_refused` reasons:** `1060` the balance is spent (top up the Msegat account; players meanwhile use email);
   `M0037` the static-IP check; `1110` the sender name is wrong or not activated; `1120` the number or international
   sending; `unreachable` Msegat could not be reached twice; `not_configured` no Msegat settings.
@@ -1404,6 +1405,34 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
   `LIMIT least(free, n)` (one line); the dashboard already repeats calls.
 - **Hot path check:** the update trigger fires on every `UPDATE enrollment` (each scan's score update) and exits early.
   If `QuestifyCompletionSlow` fires after the deploy, compare a quest scan's time with the T-221 numbers in TASKS.
+
+### The sign-in lock order (migration 0184; deploy steps)
+
+- **Safe on the old API.** Same arguments for the three restated doors; `sweep_player_sign_in()` now answers an integer
+  (the old API ignores it and sweeps one batch every 10 minutes an instance until the new one runs); end-others may now
+  answer `PN401`, which the old API already maps to 401. No down migration: the old bodies are the deadlock-prone ones.
+- **Index builds.** 0184 builds five indexes (`CREATE INDEX IF NOT EXISTS`) on `player_refresh`, `player_session` and
+  `player_sign_in_device` inside its transaction. Each build holds a SHARE lock: sign-ins, rotations and sign-outs queue
+  behind it, and behind its wait for that lock, for up to the migration's 10 s `lock_timeout`. Well under a second at
+  pre-launch size; **on production, run the migration in a quiet window.** On tables of millions of rows, build them by
+  hand first with `CREATE INDEX CONCURRENTLY` under the same names and definitions as 0184 (lines 83 to 90), then check
+  each before the deploy: `SELECT c.relname, pg_get_indexdef(i.indexrelid) AS indexdef, i.indisvalid FROM pg_index i
+  JOIN pg_class c ON c.oid = i.indexrelid WHERE c.relname IN ('player_refresh_sweep_idx',
+  'player_refresh_replaced_by_idx', 'player_session_sweep_idx', 'player_session_sweep_orphan_idx',
+  'player_sign_in_device_ended_idx');` Every `indexdef` must match 0184's definition and every `indisvalid` must be true;
+  `IF NOT EXISTS` checks the name only, so a different or invalid index (a `CONCURRENTLY` build that failed) would be kept
+  as it is. Drop such an index and build it again before the deploy.
+- **Count before the deploy (read-only, each environment; plan section 5, ADR-810):**
+  `SELECT count(*) FROM player_refresh r WHERE NOT EXISTS (SELECT 1 FROM player_sign_in_device d WHERE d.family =
+  r.family);` and `SELECT count(*) FILTER (WHERE s.refresh_family IS NULL) AS no_family, count(*) FILTER (WHERE
+  s.refresh_family IS NOT NULL) AS no_device FROM player_session s WHERE NOT EXISTS (SELECT 1 FROM player_sign_in_device d
+  WHERE d.family = s.refresh_family);` Expected 0 refresh rows (0155's backfill); record the numbers in STATE. Rows found
+  are swept without a device lock; nothing to do unless the counts are large.
+- **After the deploy:** `player.sweep_failed` should stay at zero. `player.sweep_partial` (with `batches`, a count) means
+  a sweep stopped at its 1 s budget with old rows left; the next sweep goes on. Now and then is a backlog being caught up;
+  on most sweeps for days (old rows growing) the batch size needs a new migration
+  (`apps/api/test/perf/sign-in-sweep-timing.int.test.ts`). The sweep runs beside the request (after the code is sent, and
+  beside the verify answer), so neither waits for it.
 
 ### T-404c levels only (migration 0164; deploy steps)
 

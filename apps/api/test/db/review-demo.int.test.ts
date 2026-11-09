@@ -13,6 +13,17 @@ const fixed = (code: string) => sha(`reviewer:${code}`);
 const REVIEWER = "+966500000710";
 const FEATURES = ["agenda", "boosts", "cheers", "shop"];
 
+const startSql = (phone: string) => ({
+  context: {},
+  sql: "SELECT start_player_challenge($1, $2, 'phone', $3, $4, $5, '0.1', '0.1', $6) AS reviewer",
+  values: [randomUUID(), randomBytes(32), phone, keyOf(phone), randomBytes(32), fpOf(phone)],
+});
+const deletionSql = (phone: string) => ({
+  context: {},
+  sql: "SELECT reviewer FROM start_deletion_challenge($1, $2, 'phone', $3, $4, $5)",
+  values: [randomUUID(), randomBytes(32), phone, keyOf(phone), randomBytes(32)],
+});
+
 type SignIn = { outcome: string; attempts_left: number; player_id: string | null };
 type Demo = Record<string, unknown> & { exists: boolean };
 
@@ -20,8 +31,8 @@ type Demo = Record<string, unknown> & { exists: boolean };
  * The App Review demo in the database (T-710, migration 0144, ADR-560 to ADR-567): the console doors, the fixed code in
  * the sign-in and deletion functions (only the reviewer account, only while the window is open, never on any other
  * number), the lock order against Close, the reviewer number never held by a real account, confinement both ways,
- * the event that stays live, the tick, and the Questify-wide lists that leave demo accounts out. One demo per database,
- * so the cases run in order.
+ * the event that stays live, the tick, and the Questify-wide lists that leave demo accounts out; the flag read under
+ * the row's lock (0184). One demo per database, so the cases run in order.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("review demo (database)", () => {
   let f: QuestifyFixture;
@@ -623,6 +634,99 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("review demo (database)", () =>
         stale.token,
       ]);
       expect(await verify(stale.token, "848484")).toEqual([{ outcome: "expired" }]);
+    });
+  });
+
+  const prepareSql = (code: string) => ({
+    context: admin,
+    sql: "SELECT console_review_demo_prepare($1, $2, $3, $4, 14, '1.4.0', $5) AS r",
+    values: [REVIEWER, keyOf(REVIEWER), fpOf(REVIEWER), fixed(code), randomUUID()],
+  });
+  const closeSql = () => ({
+    context: admin,
+    sql: "SELECT console_review_demo_close($1) AS r",
+    values: [randomUUID()],
+  });
+  const noOpenCodes = () =>
+    f.owner(
+      "UPDATE player_login_challenge SET cancelled_at = now() WHERE contact = $1 AND cancelled_at IS NULL",
+      [REVIEWER],
+    );
+
+  describe("the flag waits for the row (0184)", () => {
+    it("prepares within the API's 2 s lock timeout, the reviewer erased and provisioned again (test 0)", async () => {
+      const c = await challenge(REVIEWER);
+      await signIn(c, "848484");
+      const began = performance.now();
+      await prepare("909090");
+      expect(performance.now() - began).toBeLessThan(2000);
+    });
+
+    it("a reviewer-number start while Prepare opens the window waits and is flagged (tests 1, 2)", async () => {
+      for (const openFirst of [false, true]) {
+        await close();
+        await noOpenCodes();
+        if (openFirst) await challenge(REVIEWER);
+        const result = await f.crossed(prepareSql("919191"), startSql(REVIEWER));
+        expect(result.waited).toBe(true);
+        expect(result.second).toEqual({ reviewer: true });
+      }
+    });
+
+    it("a reviewer-number start while Close commits waits and is not flagged (test 3)", async () => {
+      await noOpenCodes();
+      const result = await f.crossed(closeSql(), startSql(REVIEWER));
+      expect(result.waited).toBe(true);
+      expect(result.second).toEqual({ reviewer: false });
+    });
+
+    it("a start on the old number while the number changes waits and is not flagged (test 4)", async () => {
+      await prepare("929292");
+      await noOpenCodes();
+      const next = "+966500000717";
+      const result = await f.crossed(
+        {
+          context: admin,
+          sql: "SELECT console_review_demo_set_contact($1, $2, $3, $4) AS r",
+          values: [next, keyOf(next), fpOf(next), randomUUID()],
+        },
+        startSql(REVIEWER),
+      );
+      await f.run(admin, "SELECT console_review_demo_set_contact($1, $2, $3, $4)", [
+        REVIEWER,
+        keyOf(REVIEWER),
+        fpOf(REVIEWER),
+        randomUUID(),
+      ]);
+      expect(result.waited).toBe(true);
+      expect(result.second).toEqual({ reviewer: false });
+    });
+
+    it("a start on any other number never waits for Prepare (tests 5, 20)", async () => {
+      for (const other of [startSql("+966500000718"), deletionSql("+966500000719")]) {
+        const result = await f.crossed(prepareSql("939393"), other);
+        expect(result.waited).toBe(false);
+        expect(result.second).toEqual({ reviewer: false });
+      }
+    });
+
+    it("a reviewer-number deletion start while Prepare opens the window waits and is flagged (test 6)", async () => {
+      await close();
+      const result = await f.crossed(prepareSql("949494"), deletionSql(REVIEWER));
+      expect(result.waited).toBe(true);
+      expect(result.second).toEqual({ reviewer: true });
+    });
+
+    it("the tick skips a round while a reviewer-number start holds the row, and closes at the next (test 7)", async () => {
+      await f.owner("UPDATE review_demo SET window_until = now() - interval '1 second'");
+      const result = await f.crossed(startSql(REVIEWER), {
+        context: {},
+        sql: "SELECT review_demo_tick() AS n",
+      });
+      expect(result.waited).toBe(false);
+      expect(result.second).toEqual({ n: 0 });
+      expect(await f.run({}, "SELECT review_demo_tick() AS n")).toEqual([{ n: 1 }]);
+      expect((await row())?.window_until).toBeNull();
     });
   });
 

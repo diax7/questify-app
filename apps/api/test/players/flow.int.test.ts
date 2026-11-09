@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
@@ -6,8 +6,8 @@ import { PLAYER_SIGN_IN_LIMITS as L } from "#src/auth/limits";
 import {
   createPlayerSignIn,
   type Asker,
-  type PlayerSignIn,
   type PlayerSignInFlowDeps,
+  type PlayerSignInService,
 } from "#src/players/sign-in";
 import {
   RecordingEmailSender,
@@ -15,7 +15,12 @@ import {
   freshIp,
   testConfig,
 } from "#test/support/auth-app";
-import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/support/test-db";
+import {
+  TEST_DATABASE_URL,
+  connectAsOwner,
+  createTestDatabase,
+  type TestDatabase,
+} from "#test/support/test-db";
 import { withSendBudgetCap } from "#test/support/send-budget";
 
 type Logged = Readonly<{ event: string; fields: Record<string, unknown> }>;
@@ -32,7 +37,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the player sign-in flow", () =
   let deps: PlayerSignInFlowDeps;
   let sms: RecordingSmsSender;
   let mail: RecordingEmailSender;
-  let flow: PlayerSignIn;
+  let flow: PlayerSignInService;
   let logged: Logged[];
   let counter = 0;
 
@@ -51,7 +56,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the player sign-in flow", () =
     flow = createPlayerSignIn(deps);
     logged = [];
   });
-  afterEach(() => {
+  afterEach(async () => {
+    // The sweep runs beside the request (0184): let it end before the next test.
+    await flow.swept();
     vi.restoreAllMocks();
   });
 
@@ -291,28 +298,94 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the player sign-in flow", () =
     });
   });
 
+  /** Old codes beyond one batch (1,000 a call, 0184), written at once. */
+  const staleCodes = async (count: number) => {
+    await owner(
+      `INSERT INTO player_login_challenge (id, token_hash, channel, contact, contact_key, code_hash, expires_at,
+                                           terms_version, privacy_version, contact_fp)
+       SELECT gen_random_uuid(), sha256(convert_to('stale' || g || $2, 'UTF8')), 'phone', '+966511111111',
+              sha256(convert_to('k' || g, 'UTF8')), sha256(convert_to('c' || g, 'UTF8')),
+              now() - interval '2 hours', '0.1', '0.1', sha256(convert_to('f' || g, 'UTF8'))
+       FROM generate_series(1, $1) g`,
+      [count, randomUUID()],
+    );
+  };
+  const staleLeft = async () =>
+    (
+      await owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM player_login_challenge WHERE expires_at < now() - interval '1 hour'",
+      )
+    )[0]?.n;
+
   describe("the retention sweep", () => {
     it("runs on the first request, then not again for ten minutes", async () => {
       const start = Date.now();
       const clock = vi.spyOn(Date, "now").mockReturnValue(start);
       const first = await staleChallenge();
       await ask(newPhone());
+      await flow.swept();
       expect(await exists(first)).toBe(false);
 
       const second = await staleChallenge();
       clock.mockReturnValue(start + 9 * 60 * 1000);
       await ask(newPhone());
+      await flow.swept();
       expect(await exists(second)).toBe(true);
 
       clock.mockReturnValue(start + 11 * 60 * 1000);
       await flow.verify({ challengeToken: "X".repeat(43), code: "1" }, asker());
+      await flow.swept();
       expect(await exists(second)).toBe(false);
+    });
+
+    it("sweeps in batches until a batch removes nothing (0184)", async () => {
+      await staleCodes(2500);
+      await ask(newPhone());
+      await flow.swept();
+      expect(await staleLeft()).toBe(0);
+      expect(events()).not.toContain("player.sweep_partial");
+    });
+
+    it("stops sweeping when its one-second budget is spent and logs the batches; the rest waits for the next sweep (0184)", async () => {
+      await staleCodes(2500);
+      let now = Date.now();
+      vi.spyOn(Date, "now").mockImplementation(() => {
+        now += 600;
+        return now;
+      });
+      await ask(newPhone());
+      await flow.swept();
+      // Each reading of the clock moves it 0.6 s: the first batch starts inside the budget, a second would not end
+      // inside it.
+      expect(await staleLeft()).toBe(1500);
+      expect(fieldsOf("player.sweep_partial")).toEqual({ addr: expect.any(String), batches: 1 });
+    });
+
+    it("sends the code and answers before the sweep runs, and a slow sweep delays neither (0184)", async () => {
+      await staleCodes(10);
+      const before = await staleLeft();
+      // Every batch deletes old contact codes; holding their table makes the first batch wait until released.
+      const holder = await connectAsOwner(db);
+      try {
+        await holder.query("BEGIN");
+        await holder.query("LOCK TABLE player_contact_challenge IN ACCESS EXCLUSIVE MODE");
+        const phone = newPhone();
+        expect((await ask(phone)).kind).toBe("code_sent");
+        expect(sms.sent.map((message) => message.to)).toEqual([phone]);
+        expect(await staleLeft()).toBe(before);
+        await holder.query("COMMIT");
+      } finally {
+        await holder.end();
+      }
+      await flow.swept();
+      expect(await staleLeft()).toBe(0);
     });
 
     it("logs a failed sweep and still answers", async () => {
       await owner("REVOKE EXECUTE ON FUNCTION sweep_player_sign_in() FROM questify_app");
       try {
         expect((await ask(newPhone())).kind).toBe("code_sent");
+        await flow.swept();
         expect(fieldsOf("player.sweep_failed")).toMatchObject({ reason: "error" });
       } finally {
         await owner("GRANT EXECUTE ON FUNCTION sweep_player_sign_in() TO questify_app");

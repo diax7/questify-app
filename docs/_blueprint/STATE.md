@@ -18,6 +18,43 @@
   they were (ADR-185, 186, 535, 730, 812; Q-151, 237, 400, 420, 421, 481, 525, 620, 632, 633, 650, 700). Q-149, Q-743
   and Q-754 are untouched. Dhia's list is rewritten in `questify-logs/dhia-decisions.md`. CI 0 minutes (not pushed).
 
+## The player sign-in's lock order (FOLLOWUPS T-710, T-810c) — 2026-11-09
+
+- **Sign-in lock order (tier A: sign-in; plan `docs/plans/2026-11-09-sign-in-lock-order.md`, plan review 86 applied in
+  64468fd6).** Migration **0184**: `start_player_challenge` and `start_deletion_challenge` lock the `review_demo` row
+  `FOR SHARE` for the reviewer number only and compute the flag after it (READ COMMITTED), so no SMS goes out while
+  Prepare, Close or a number change commits; `end_other_player_devices` locks its own device row with the others in id order
+  and re-reads it (an ended device gets `PN401`, the fresh check reads the locked row); `sweep_player_sign_in` is PL/pgSQL,
+  takes device rows and codes `SKIP LOCKED` before any family row, and runs as **bounded batches** (at most 500 families and
+  1,000 codes of each kind a call, answering rows removed), repeated by `sweepIfDue` within a 1 s budget. Five indexes:
+  `least(...)` on refresh and sessions (plus a partial one for sessions with no family), `replaced_by` and `ended_at`
+  (partial). At 100,000 players (5.2 million refresh rows, 5.1 million sessions, 7 days of rotations;
+  `test/perf/sign-in-sweep-timing.int.test.ts`): 0155's sweep never finishes (stopped at the 5 s statement timeout; the
+  `replaced_by` foreign key scanned the table once per deleted row, 0.63 s a row), 0184's run 955 ms in 9 batches of 92 to
+  127 ms for 10,851 rows, the longest rotation beside it 110 ms (gates 1 s, 250 ms, 250 ms). Race tests: 22 new (review
+  demo 0 to 7 and 20, devices 8 to 21 and 17b, two flow tests for the batch loop); before 0184, 1 to 4, 6, 7, 8 to 16, 18
+  and 19 failed. Hand mutants: 15 run, 14 killed, 1 equivalent (the re-auth code delete not limited); end-others'
+  `ORDER BY` dropped was first recorded as equivalent, but it is I2 and dies to test 22 (code review below); the "loop
+  over a new SELECT" mutant needed the new test 17b. Suites: security, sign-in, devices,
+  re-auth, review demo, erasure, players, hot path and rehearsal, 36 files, 1,217 tests passed (after one test fix);
+  `format:check`, `lint`, `lint:limits`, `typecheck` exit 0. Docs: rules (lock order paragraph, with the contact-change and
+  cap exceptions), SECURITY row 16 and devices section, ASVS V7.4.1 and V7.5.2 evidence, DATA_MODEL, RUNBOOK 0184 deploy
+  note (the read-only count of rows with no device row is for the deploy step), FOLLOWUPS T-710 and T-810c entries removed.
+  Mutation glob for the next run: `apps/api/src/players/sign-in.ts` (the batch loop in `sweepIfDue`).
+  CI 0 minutes (not pushed).
+- **Code review (91, GO) minors folded in.** 0184's five indexes are `IF NOT EXISTS`; RUNBOOK: a hand `CONCURRENTLY`
+  build before the deploy is checked by `indexdef` and `indisvalid`, and production migrates in a quiet window (the SHARE
+  lock queues writers for up to the 10 s `lock_timeout`). The sweep no longer runs inline: it starts after the code is
+  sent (and beside the verify answer), not awaited, same 10-minute cadence; a sweep stopped by its 1 s budget with rows
+  left logs `player.sweep_partial {batches}` (RUNBOOK, SLO.md). End-others' `ORDER BY` mutant is killed by test 22 (the
+  table in descending id order, crossed with an erasure's device lock: `40P01` with the mutant). Write cost of the
+  indexes, rotations alone at 100,000 players (1,000 each, `sign-in-sweep-timing`, indexes dropped in a rolled-back
+  transaction): **with them p50 2.39 ms, p95 3.56 ms; without them p50 2.26 ms, p95 3.27 ms** (about +0.1 ms p50,
+  +0.3 ms p95). Re-measured on that run: 0184's sweep 916 ms, 9 batches of 86 to 120 ms, 10,869 rows; 837 rotations
+  beside it, median 4 ms, longest 101 ms. FOLLOWUPS: MINOR 5 (rowless families can `40P01`) and NIT 7 (500 families,
+  not rows, a batch). Suites (sign-in, devices, review demo, erasure, flow, security): 21 files, 1,040 tests passed;
+  `src/players` unit tests 9 files, 129 passed.
+
 ## Player app accessibility follow-up (Reduce Motion, scrim, banner name, stricter check) — 2026-11-09
 
 - **T-808 follow-up (tier B, `apps/app` plus one message key).** Reduce Motion: `Sheet` and the location modal now choose

@@ -187,6 +187,24 @@ enrollment, consent or ledger row is locked. Both takers of the advisory key onl
 (`test/db/group-push.int.test.ts` crosses two fans and a fan with the fill). The push store's own fan-out and claim take over
 from there and are unchanged. No outside call runs inside a transaction.
 
+**The player sign-in's lock order (T-810c, T-710, 0184; plan `docs/plans/2026-11-09-sign-in-lock-order.md`).** A
+family's device row (`player_sign_in_device`) comes before any of that family's refresh, session, re-authentication or push
+rows (ADR-712): rotation, `end_family` and its callers (sign-out, one device, end-others, the cap, reset, ban,
+`review_demo_revoke`), `confirm_player_reauth`, erasure (all the player's device rows in one statement) and the sweep. A
+transaction that waits for more than one device row takes them in id order (end-others locks its own row with the others in
+one statement, then re-reads it). The sweep never waits: device rows and the login and contact codes are taken `FOR UPDATE
+SKIP LOCKED`, it touches only the rows of families whose device row it holds (and of families with no device row), and it runs
+as bounded batches of at most 500 families, each its own transaction, which the API repeats until one removes nothing or 1 s is
+spent. Single-write exceptions that wait for nothing after: `start_player_reauth`, `label_player_device`, the device update in
+`confirm_contact_change`. The `review_demo` row comes before any challenge: Prepare, Close and set-contact take it `FOR
+UPDATE`, the tick `SKIP LOCKED`, a reviewer verify `FOR UPDATE`/`FOR SHARE`, and a code or deletion start `FOR SHARE` for the
+reviewer number only, computing the flag in a later statement (READ COMMITTED). These claims cover device and family rows,
+codes and `review_demo` only. Known exceptions, each ending one side with `40P01` (503 `busy`, retried): rotation's cap takes
+its own device row and then older ones (only past 10 live families); `confirm_contact_change` holds `player_contact` and then
+key-shares the player row, while erasure holds the player row and then deletes `player_contact`. Rows of a family with no
+device row are swept without a device lock (none expected since 0155's backfill). Crossed in
+`test/db/signed-in-devices.int.test.ts` "races (ADR-712)" and `test/db/review-demo.int.test.ts` "the flag waits for the row".
+
 **Lock order during play (ADR-211).** A function that runs during play and locks more than one enrollment takes them
 all in one statement, in id order, before any item, redemption or advisory lock, and takes more than one device key
 only in ascending key order, and a payer that pays more than one player takes their Questify XP rows in player id
