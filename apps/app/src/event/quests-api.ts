@@ -578,54 +578,69 @@ const LOCATION_REASONS: readonly string[] = [
   "not_here",
 ];
 
-function refusal(
-  answer: Extract<AuthedResult, { kind: "error" }>,
-): Exclude<CompletionAnswer, { kind: "completed" | "network" | "signed_out" }> {
-  switch (answer.code) {
-    case "location_refused": {
-      const reason = String(answer.details["reason"]);
-      const distance = answer.details["distanceM"];
-      return {
-        kind: "location_refused",
-        reason: LOCATION_REASONS.includes(reason) ? (reason as LocationReason) : undefined,
-        distanceM: typeof distance === "number" ? distance : null,
-      };
-    }
-    case "feature_off":
-      return { kind: "location_off" };
-    case "meet_refused": {
-      const reason = String(answer.details["reason"]);
-      const name = answer.details["name"];
-      const cap = answer.details["cap"];
-      return {
-        kind: "meet_refused",
-        reason: MEET_REASONS.includes(reason) ? (reason as MeetReason) : undefined,
-        name: typeof name === "string" ? name : null,
-        cap: typeof cap === "number" ? cap : null,
-      };
-    }
-    case "invalid_code":
-    case "code_expired":
-      return { kind: "wrong_code", problem: answer.message };
-    case "quest_not_open": {
-      const reason = String(answer.details["reason"]);
-      return {
-        kind: "not_open",
-        reason: NOT_OPEN.includes(reason) ? (reason as NotOpenReason) : undefined,
-      };
-    }
-    case "already_completed":
-      return { kind: "limit" };
-    case "enrollment_inactive":
-    case "not_found":
-      return { kind: "reload" };
-    case "too_many_attempts": {
-      const seconds = Number(answer.headers.get("retry-after"));
-      return { kind: "wait", seconds: Number.isFinite(seconds) && seconds > 0 ? seconds : null };
-    }
-    default:
-      return answer.status === 404 ? { kind: "reload" } : { kind: "failed" };
+type ErrorAnswer = Extract<AuthedResult, { kind: "error" }>;
+type Refusal = Exclude<CompletionAnswer, { kind: "completed" | "network" | "signed_out" }>;
+
+function locationRefusal(answer: ErrorAnswer): Refusal {
+  const reason = String(answer.details["reason"]);
+  const distance = answer.details["distanceM"];
+  return {
+    kind: "location_refused",
+    reason: LOCATION_REASONS.includes(reason) ? (reason as LocationReason) : undefined,
+    distanceM: typeof distance === "number" ? distance : null,
+  };
+}
+
+function meetRefusal(answer: ErrorAnswer): Refusal {
+  const reason = String(answer.details["reason"]);
+  const name = answer.details["name"];
+  const cap = answer.details["cap"];
+  return {
+    kind: "meet_refused",
+    reason: MEET_REASONS.includes(reason) ? (reason as MeetReason) : undefined,
+    name: typeof name === "string" ? name : null,
+    cap: typeof cap === "number" ? cap : null,
+  };
+}
+
+function notOpenRefusal(answer: ErrorAnswer): Refusal {
+  const reason = String(answer.details["reason"]);
+  return {
+    kind: "not_open",
+    reason: NOT_OPEN.includes(reason) ? (reason as NotOpenReason) : undefined,
+  };
+}
+
+function waitRefusal(answer: ErrorAnswer): Refusal {
+  const seconds = Number(answer.headers.get("retry-after"));
+  return { kind: "wait", seconds: Number.isFinite(seconds) && seconds > 0 ? seconds : null };
+}
+
+const wrongCode = (answer: ErrorAnswer): Refusal => ({
+  kind: "wrong_code",
+  problem: answer.message,
+});
+
+/** The refusals by the server's error code; a Map, so a code like "constructor" finds nothing. */
+const REFUSALS: ReadonlyMap<string, (answer: ErrorAnswer) => Refusal> = new Map([
+  ["location_refused", locationRefusal],
+  ["feature_off", () => ({ kind: "location_off" as const })],
+  ["meet_refused", meetRefusal],
+  ["invalid_code", wrongCode],
+  ["code_expired", wrongCode],
+  ["quest_not_open", notOpenRefusal],
+  ["already_completed", () => ({ kind: "limit" as const })],
+  ["enrollment_inactive", () => ({ kind: "reload" as const })],
+  ["not_found", () => ({ kind: "reload" as const })],
+  ["too_many_attempts", waitRefusal],
+]);
+
+function refusal(answer: ErrorAnswer): Refusal {
+  const known = REFUSALS.get(answer.code);
+  if (known !== undefined) {
+    return known(answer);
   }
+  return answer.status === 404 ? { kind: "reload" } : { kind: "failed" };
 }
 
 export function completionAnswer(answer: AuthedResult): CompletionAnswer {

@@ -1,11 +1,4 @@
-import {
-  TICKET_TEXT_MAX,
-  formatNumber,
-  type EventTicketKind,
-  type LocalizedText,
-  type MessageKey,
-  type Theme,
-} from "@questify/shared";
+import { TICKET_TEXT_MAX, formatNumber, type EventTicketKind, type Theme } from "@questify/shared";
 import Constants from "expo-constants";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
@@ -35,19 +28,30 @@ import {
 } from "#src/help/center.ts";
 import {
   deviceFactsOf,
-  deviceLine,
   loadExpoDevice,
   readModelName,
   type DeviceFacts,
 } from "#src/help/device.ts";
+import {
+  cardBodyOf,
+  deviceNoteOf,
+  isReady,
+  kindOf,
+  placeholderKey,
+  questLineOf,
+  saidFor,
+  saidProblem,
+  saidText,
+  type CardBody,
+  type CenterInitial,
+  type Said,
+} from "#src/help/ticket-form.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
 /** The event the center sends to: fixed inside an event, or none from the profile (the player picks one). */
 export type CenterEvent = Readonly<{ id: string; sendingOff: SendingOff | null | undefined }>;
-
-type Said = Readonly<{ text: string } | { problem: LocalizedText | null }> | null;
 
 /** The phone's facts for an app problem, read once: `expo-device` only now, and never the phone's own name. */
 function useDeviceFacts(): DeviceFacts | null | undefined {
@@ -83,25 +87,6 @@ type FormProps = Readonly<{
   onSent: () => void;
   onOff: (why: SendingOff) => void;
 }>;
-
-/** The kind a card sends, from its choice; null until the player picks one of the event card's three. */
-const kindOf = (card: CenterCard, chosen: EventTicketKind | null) =>
-  card === "report"
-    ? "report_player"
-    : card === "app"
-      ? "app_problem"
-      : card === "suggestion"
-        ? "suggestion"
-        : chosen;
-
-const PLACEHOLDERS: Readonly<Record<string, MessageKey>> = {
-  report_player: "help.placeholder.report",
-  question: "help.placeholder.question",
-  prize: "help.placeholder.problem",
-  problem: "help.placeholder.problem",
-  app_problem: "help.placeholder.app",
-  suggestion: "help.placeholder.suggestion",
-};
 
 /** Sends one card's request with one Idempotency-Key per text, kept after a failure so Retry cannot send twice. */
 function useSend(props: FormProps, facts: DeviceFacts | null | undefined) {
@@ -163,6 +148,94 @@ function TextBox({
   );
 }
 
+/** The event card's three choices, as buttons. */
+function EventChoices({
+  chosen,
+  onChoose,
+}: Readonly<{ chosen: EventTicketKind | null; onChoose: (kind: EventTicketKind) => void }>) {
+  const { t } = useI18n();
+  return (
+    <>
+      {EVENT_CHOICES.map((choice) => (
+        <Button
+          key={choice.kind}
+          label={t(choice.label)}
+          kind={chosen === choice.kind ? "primary" : "quiet"}
+          onPress={() => onChoose(choice.kind)}
+        />
+      ))}
+    </>
+  );
+}
+
+/** What the form said after the last send: a line of words, and the server's own message if it brought one. */
+function SaidLines({ said }: Readonly<{ said: Said }>) {
+  const text = saidText(said);
+  return (
+    <>
+      {text !== null ? <AppText accessibilityRole="alert">{text}</AppText> : null}
+      <Problem problem={saidProblem(said)} />
+    </>
+  );
+}
+
+type FieldsProps = Readonly<{
+  card: CenterCard;
+  kind: string;
+  questTitle: string | null;
+  facts: DeviceFacts | null | undefined;
+  toQuestify: boolean;
+  username: string;
+  onUsername: (username: string) => void;
+  text: string;
+  onText: (text: string) => void;
+  retrying: boolean;
+  disabled: boolean;
+  onSend: () => void;
+}>;
+
+/** The form below the choices: the quest line, a report's username, the privacy line, the box and the button. */
+function FormFields(props: FieldsProps) {
+  const { t } = useI18n();
+  const quest = questLineOf(props.questTitle, props.kind);
+  const device = deviceNoteOf(props.kind, props.facts);
+  return (
+    <>
+      {quest === null ? null : <AppText muted>{t("help.aboutQuest", { quest })}</AppText>}
+      {props.kind === "report_player" ? (
+        <>
+          <Field
+            label={t("help.report.username")}
+            value={props.username}
+            onChangeText={(value) => props.onUsername(value.slice(0, 31))}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <AppText muted>{t("help.report.anonymous")}</AppText>
+        </>
+      ) : null}
+      <AppText muted>
+        {t(props.toQuestify ? "help.private.questify" : "help.private.event")}
+      </AppText>
+      <TextBox
+        label={t(CARD_TITLES[props.card])}
+        placeholder={t(placeholderKey(props.kind))}
+        text={props.text}
+        onChange={props.onText}
+      />
+      {device === null ? null : (
+        <AppText muted>{t("help.device.sentWith", { facts: device })}</AppText>
+      )}
+      {canSendTicket(props.text) ? null : <AppText muted>{t("help.textRequired")}</AppText>}
+      <Button
+        label={props.retrying ? t("common.retry") : t("help.send")}
+        disabled={props.disabled}
+        onPress={props.onSend}
+      />
+    </>
+  );
+}
+
 /** One card's form: the report's username, the event card's three choices, the device line, the privacy line. */
 function CardForm(props: FormProps) {
   const { t } = useI18n();
@@ -174,11 +247,7 @@ function CardForm(props: FormProps) {
   const { busy, retrying, send } = useSend(props, facts);
   const kind = kindOf(props.card, chosen);
   const toQuestify = !cardNeedsEvent(props.card);
-  const ready =
-    kind !== null &&
-    canSendTicket(text) &&
-    (kind !== "report_player" || usernameOf(username).length >= 3) &&
-    (kind !== "app_problem" || facts !== null);
+  const ready = isReady(kind, text, username, facts);
   const go = async () => {
     if (kind === null) {
       return;
@@ -193,65 +262,27 @@ function CardForm(props: FormProps) {
       setUsername("");
       props.onSent();
     }
-    const line = sendLine(answer, toQuestify);
-    setSaid(
-      answer.kind === "refused"
-        ? { problem: answer.message }
-        : line === null
-          ? null
-          : { text: t(line) },
-    );
+    setSaid(saidFor(answer, sendLine(answer, toQuestify), t));
   };
   return (
     <>
-      {props.card === "event"
-        ? EVENT_CHOICES.map((choice) => (
-            <Button
-              key={choice.kind}
-              label={t(choice.label)}
-              kind={chosen === choice.kind ? "primary" : "quiet"}
-              onPress={() => setChosen(choice.kind)}
-            />
-          ))
-        : null}
-      {said !== null && "text" in said ? (
-        <AppText accessibilityRole="alert">{said.text}</AppText>
-      ) : null}
-      <Problem problem={said !== null && "problem" in said ? said.problem : null} />
+      {props.card === "event" ? <EventChoices chosen={chosen} onChoose={setChosen} /> : null}
+      <SaidLines said={said} />
       {kind === null ? null : (
-        <>
-          {props.questTitle === null || kind === "report_player" ? null : (
-            <AppText muted>{t("help.aboutQuest", { quest: props.questTitle })}</AppText>
-          )}
-          {kind === "report_player" ? (
-            <>
-              <Field
-                label={t("help.report.username")}
-                value={username}
-                onChangeText={(value) => setUsername(value.slice(0, 31))}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <AppText muted>{t("help.report.anonymous")}</AppText>
-            </>
-          ) : null}
-          <AppText muted>{t(toQuestify ? "help.private.questify" : "help.private.event")}</AppText>
-          <TextBox
-            label={t(CARD_TITLES[props.card])}
-            placeholder={t(PLACEHOLDERS[kind] ?? "help.placeholder.question")}
-            text={text}
-            onChange={setText}
-          />
-          {kind === "app_problem" && facts !== null && facts !== undefined ? (
-            <AppText muted>{t("help.device.sentWith", { facts: deviceLine(facts) })}</AppText>
-          ) : null}
-          {canSendTicket(text) ? null : <AppText muted>{t("help.textRequired")}</AppText>}
-          <Button
-            label={retrying ? t("common.retry") : t("help.send")}
-            disabled={busy || !ready}
-            onPress={() => void go()}
-          />
-        </>
+        <FormFields
+          card={props.card}
+          kind={kind}
+          questTitle={props.questTitle}
+          facts={facts}
+          toQuestify={toQuestify}
+          username={username}
+          onUsername={setUsername}
+          text={text}
+          onText={setText}
+          retrying={retrying}
+          disabled={busy || !ready}
+          onSend={() => void go()}
+        />
       )}
     </>
   );
@@ -285,18 +316,50 @@ function EventPicker({
   );
 }
 
+/** What an opened card shows, as `cardBodyOf` decided: the picker, why sending is off, a wait, or the form. */
+function CardBodyView({
+  body,
+  card,
+  events,
+  onSent,
+  onOff,
+}: Readonly<{
+  body: CardBody;
+  card: CenterCard;
+  events: readonly MyEvent[] | undefined;
+  onSent: () => void;
+  onOff: (why: SendingOff) => void;
+}>) {
+  const { t } = useI18n();
+  switch (body.kind) {
+    case "closed":
+      return null;
+    case "picker":
+      return <EventPicker card={card} events={events} />;
+    case "off":
+      return <AppText accessibilityRole="alert">{t(SENDING_OFF_LINES[body.why])}</AppText>;
+    case "loading":
+      return <AppText muted>{t("common.loading")}</AppText>;
+    case "form":
+      return (
+        <CardForm
+          card={card}
+          eventId={body.eventId}
+          questId={body.questId}
+          questTitle={body.questTitle}
+          initialKind={body.initialKind}
+          onSent={onSent}
+          onOff={onOff}
+        />
+      );
+  }
+}
+
 export type TicketCenterProps = Readonly<{
   event: CenterEvent | null;
   /** The player's events, for the picker when there is no fixed event. */
   events?: readonly MyEvent[] | undefined;
-  initial?:
-    | Readonly<{
-        card: CenterCard;
-        kind: EventTicketKind | null;
-        questId: string | null;
-        questTitle: string | null;
-      }>
-    | undefined;
+  initial?: CenterInitial | undefined;
   onSent: () => void;
   onOff: (why: SendingOff) => void;
 }>;
@@ -315,7 +378,6 @@ export function TicketCenter({ event, events, initial, onSent, onOff }: TicketCe
       <AppText variant="title">{t("help.center.title")}</AppText>
       {CENTER_CARDS.map((card) => {
         const needsEvent = cardNeedsEvent(card);
-        const off = needsEvent ? event?.sendingOff : null;
         return (
           <View key={card} style={styles.card} testID={`help-card-${card}`}>
             <Button
@@ -324,23 +386,13 @@ export function TicketCenter({ event, events, initial, onSent, onOff }: TicketCe
               onPress={() => setOpen(open === card ? null : card)}
             />
             <AppText muted>{t(needsEvent ? "help.to.event" : "help.to.questify")}</AppText>
-            {open !== card ? null : needsEvent && event === null ? (
-              <EventPicker card={card} events={events} />
-            ) : off !== null && off !== undefined ? (
-              <AppText accessibilityRole="alert">{t(SENDING_OFF_LINES[off])}</AppText>
-            ) : off === undefined ? (
-              <AppText muted>{t("common.loading")}</AppText>
-            ) : (
-              <CardForm
-                card={card}
-                eventId={needsEvent ? (event?.id ?? null) : null}
-                questId={initial?.card === card ? initial.questId : null}
-                questTitle={initial?.card === card ? initial.questTitle : null}
-                initialKind={initial?.card === card ? initial.kind : null}
-                onSent={onSent}
-                onOff={onOff}
-              />
-            )}
+            <CardBodyView
+              body={cardBodyOf(card, open, event, initial)}
+              card={card}
+              events={events}
+              onSent={onSent}
+              onOff={onOff}
+            />
           </View>
         );
       })}

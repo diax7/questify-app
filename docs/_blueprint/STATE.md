@@ -1,5 +1,16 @@
 # Blueprint State — Questify
 
+## Function limits, app pure logic — 2026-11-09
+
+- **Function-limits baseline, `apps/app` (tier B; behaviour-preserving, no string, no screen change).** Five offenders left
+  `scripts/function-limits-baseline.json` (283 to 278 violations): the ticket check in `event/help.ts` (24), `refusal` in
+  `event/quests-api.ts` (20), `CardForm` (23) and the card loop (20) in `help/TicketCenter.tsx`, and `QuizEntry` (26) in
+  `event/QuizEntry.tsx`. The logic moved into pure functions, tested over every branch: `help/ticket-form.ts` (kind,
+  readiness, what the form says, the card body), `event/quiz-words.ts` (reveal, attempt, result lines), and per-code
+  handlers in `quests-api.ts`; new tables in `quests-refusal.test.ts` and `help-validation.test.ts` were written against
+  the old code first. Rendered elements, accessibility props and text are unchanged (`a11y-static.test.ts` green). The
+  baseline was updated with `node scripts/function-limits.mjs --update` and only shrank. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 37 — 2026-11-09
 
 - **FOLLOWUPS batch 37 (tier B, ops config and push; no migration, no SQL, nothing under `.github`, no string).** (1) The

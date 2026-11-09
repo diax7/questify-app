@@ -570,9 +570,6 @@
   "apps/app/src/event/QuizEntry.tsx": {
     "<anonymous>": {
       "complexity": [10]
-    },
-    "QuizEntry": {
-      "complexity": [26]
     }
   },
   "apps/app/src/event/Requests.tsx": {
@@ -628,9 +625,6 @@
     }
   },
   "apps/app/src/event/help.ts": {
-    "<anonymous>": {
-      "complexity": [24]
-    },
     "sendAnswer": {
       "complexity": [11]
     }
@@ -684,9 +678,6 @@
     "categoryNotes": {
       "complexity": [14]
     },
-    "refusal": {
-      "complexity": [20]
-    },
     "rulesOf": {
       "complexity": [13]
     }
@@ -727,14 +718,6 @@
   "apps/app/src/games/testing/realtime-play.ts": {
     "playTapRush": {
       "complexity": [15]
-    }
-  },
-  "apps/app/src/help/TicketCenter.tsx": {
-    "<anonymous>": {
-      "complexity": [20]
-    },
-    "CardForm": {
-      "complexity": [23]
     }
   },
   "apps/app/src/help/center.ts": {

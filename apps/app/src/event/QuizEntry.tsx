@@ -1,5 +1,4 @@
-import { levelUpMessage } from "#src/questify/level.ts";
-import { formatNumber, termFor, type LocalizedText, type Theme } from "@questify/shared";
+import { formatNumber, termFor, type Theme } from "@questify/shared";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useState } from "react";
 import { AccessibilityInfo, View } from "react-native";
@@ -8,9 +7,7 @@ import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button, Problem } from "#src/components/Controls.tsx";
 import { useReduceMotion } from "#src/components/motion.tsx";
-import { bonusLine, completedText, itemLine } from "#src/event/amount.ts";
-import { firstBonusLine } from "#src/event/first-bonus.ts";
-import { streakBonusLine } from "#src/streaks/event-streak.ts";
+import { completedText } from "#src/event/amount.ts";
 import { ChoiceList } from "#src/event/ChoiceList.tsx";
 import { useTerms } from "#src/event/EventContext.tsx";
 import {
@@ -28,11 +25,19 @@ import {
   type QuizView,
 } from "#src/event/plays.ts";
 import type { Quest } from "#src/event/quests-api.ts";
+import {
+  attemptAllowed,
+  extraResultLines,
+  finalAnswerLine,
+  problemView,
+  revealText,
+  startAction,
+  type QuizProblem,
+} from "#src/event/quiz-words.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { useThemedStyles } from "#src/theme/theme.tsx";
 
-type Translate = ReturnType<typeof useI18n>["t"];
 type Clock = Readonly<{ serverNow: string; receivedAt: number }>;
 
 /** Haptics never block the quiz: a phone without them simply stays still. */
@@ -44,7 +49,7 @@ function useQuiz(questId: string, onPaid: () => void) {
   const [view, setView] = useState<QuizView | undefined | "failed">(undefined);
   const [clock, setClock] = useState<Clock>({ serverNow: new Date().toISOString(), receivedAt: 0 });
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<LocalizedText | "network" | null>(null);
+  const [problem, setProblem] = useState<QuizProblem>(null);
   const [step, setStep] = useState<QuizStep | null>(null);
 
   const show = useCallback((quiz: QuizView) => {
@@ -152,20 +157,6 @@ function Countdown({
     </View>
   );
 }
-
-/** Right, wrong or closed for one question, with the right answer's words (FR-209, FR-210). */
-function revealText(answered: QuizAnswered, t: Translate, language: "ar" | "en"): string {
-  const right = answered.choices.find((choice) => choice.id === answered.rightChoiceId);
-  const answer = right === undefined ? "" : textIn(right.text, language);
-  if (answered.right) {
-    return t("play.quiz.right");
-  }
-  return answered.closed ? t("play.quiz.closed", { answer }) : t("play.quiz.wrong", { answer });
-}
-
-/** A paused quiz takes no new attempt, but an attempt already open goes on to its end (the server allows it). */
-const attemptAllowed = (questState: string, status: QuizView["status"]): boolean =>
-  questState === "open" || status === "open";
 
 function Intro({
   quiz,
@@ -294,7 +285,7 @@ function RevealStage({
  * after it, a countdown on the server's clock, and the result with what it paid. Reopening the sheet resumes.
  */
 export function QuizEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: () => void }>) {
-  const { t, language } = useI18n();
+  const { t } = useI18n();
   const quiz = useQuiz(quest.id, onPaid);
   const { view } = quiz;
   if (view === undefined) {
@@ -308,25 +299,35 @@ export function QuizEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: ()
       </>
     );
   }
-  const stage = quizStage(view);
-  const levelUp = quiz.step?.levelUp ?? null;
-  const bonus = quiz.step?.bonus ?? null;
-  const item = quiz.step?.item ?? null;
+  const { network, message } = problemView(quiz.problem);
   return (
     <>
-      {quiz.problem === "network" ? (
-        <AppText accessibilityRole="alert">{t("join.network")}</AppText>
-      ) : null}
-      <Problem problem={quiz.problem === "network" ? null : quiz.problem} />
-      {stage.kind === "intro" ? (
+      {network ? <AppText accessibilityRole="alert">{t("join.network")}</AppText> : null}
+      <Problem problem={message} />
+      <StageView quest={quest} view={view} quiz={quiz} />
+    </>
+  );
+}
+
+/** The stage the quiz is in: the intro, the served question, the reveal of the last one, or the result. */
+function StageView({
+  quest,
+  view,
+  quiz,
+}: Readonly<{ quest: Quest; view: QuizView; quiz: Readonly<ReturnType<typeof useQuiz>> }>) {
+  const stage = quizStage(view);
+  switch (stage.kind) {
+    case "intro":
+      return (
         <Intro
           quiz={view}
           open={attemptAllowed(quest.state, view.status)}
           busy={quiz.busy}
-          start={() => void quiz.move(view.status === "none" ? "start" : "next")}
+          start={() => void quiz.move(startAction(view.status))}
         />
-      ) : null}
-      {stage.kind === "question" ? (
+      );
+    case "question":
+      return (
         <QuestionStage
           question={stage.question}
           quiz={view}
@@ -335,35 +336,32 @@ export function QuizEntry({ quest, onPaid }: Readonly<{ quest: Quest; onPaid: ()
           onClosed={() => void quiz.load()}
           onAnswer={(choice) => void quiz.answer(stage.question.id, choice)}
         />
-      ) : null}
-      {stage.kind === "reveal" ? (
+      );
+    case "reveal":
+      return (
         <RevealStage
           answered={stage.answered}
           total={view.total}
           busy={quiz.busy}
           onNext={() => void quiz.move("next")}
         />
-      ) : null}
-      {stage.kind === "result" ? (
-        <>
-          {quiz.step?.result == null ? null : (
-            <AppText accessibilityRole="alert">
-              {revealText(view.answered.at(-1) as QuizAnswered, t, language)}
-            </AppText>
-          )}
-          <Result quiz={view} />
-          {quiz.step?.boost == null ? null : <AppText>{t("completion.boosted")}</AppText>}
-          {item === null ? null : <AppText>{itemLine(t, language, item)}</AppText>}
-          {bonus === null ? null : <AppText>{bonusLine(t, language, bonus)}</AppText>}
-          {quiz.step?.firstBonus == null ? null : (
-            <AppText>{firstBonusLine(t, language, quiz.step.firstBonus)}</AppText>
-          )}
-          {quiz.step?.streakBonus == null ? null : (
-            <AppText>{streakBonusLine(t, quiz.step.streakBonus)}</AppText>
-          )}
-          {levelUp === null ? null : <AppText>{levelUpMessage(t, language, levelUp)}</AppText>}
-        </>
-      ) : null}
+      );
+    case "result":
+      return <ResultStage view={view} step={quiz.step} />;
+  }
+}
+
+/** The result: the last answer's reveal, the score and points, then what else the finish paid. */
+function ResultStage({ view, step }: Readonly<{ view: QuizView; step: QuizStep | null }>) {
+  const { t, language } = useI18n();
+  const final = finalAnswerLine(step, view, t, language);
+  return (
+    <>
+      {final === null ? null : <AppText accessibilityRole="alert">{final}</AppText>}
+      <Result quiz={view} />
+      {extraResultLines(t, language, step).map((line) => (
+        <AppText key={line.key}>{line.text}</AppText>
+      ))}
     </>
   );
 }

@@ -49,26 +49,34 @@ const isNamed = (value: unknown, field: "name" | "title") =>
   value === undefined ||
   (isRecord(value) && typeof value["id"] === "string" && isText(value[field]));
 
+const isOneOf = (value: unknown, allowed: readonly unknown[]): boolean => allowed.includes(value);
+
+const isNullableText = (value: unknown): boolean => value === null || typeof value === "string";
+
+/** What a request is: its id, kind, quest, event and text. */
+const hasWhat = (ticket: Record<string, unknown>): boolean =>
+  typeof ticket["id"] === "string" &&
+  isOneOf(ticket["kind"], TICKET_KINDS) &&
+  isNamed(ticket["quest"], "title") &&
+  isNamed(ticket["event"], "name") &&
+  typeof ticket["text"] === "string";
+
+/** Where a request stands: its status, outcome, reply, time and whether the answer is unseen. */
+const hasStanding = (ticket: Record<string, unknown>): boolean =>
+  isOneOf(ticket["status"], ["open", "closed"]) &&
+  isOneOf(ticket["outcome"], [null, "answered", "solved"]) &&
+  isNullableText(ticket["reply"]) &&
+  typeof ticket["createdAt"] === "string" &&
+  typeof ticket["unread"] === "boolean";
+
+/** The fields an older server leaves out: they may be missing, never of another type. */
+const hasOptionals = (ticket: Record<string, unknown>): boolean =>
+  (ticket["withQuestify"] === undefined || typeof ticket["withQuestify"] === "boolean") &&
+  isOneOf(ticket["answeredBy"], [undefined, null, "event", "questify"]) &&
+  (ticket["reportedUsername"] === undefined || isNullableText(ticket["reportedUsername"]));
+
 const isTicket = (value: unknown): value is Record<string, unknown> =>
-  isRecord(value) &&
-  typeof value["id"] === "string" &&
-  (TICKET_KINDS as readonly unknown[]).includes(value["kind"]) &&
-  isNamed(value["quest"], "title") &&
-  isNamed(value["event"], "name") &&
-  typeof value["text"] === "string" &&
-  (value["status"] === "open" || value["status"] === "closed") &&
-  (value["outcome"] === null || value["outcome"] === "answered" || value["outcome"] === "solved") &&
-  (value["reply"] === null || typeof value["reply"] === "string") &&
-  typeof value["createdAt"] === "string" &&
-  typeof value["unread"] === "boolean" &&
-  (value["withQuestify"] === undefined || typeof value["withQuestify"] === "boolean") &&
-  (value["answeredBy"] === undefined ||
-    value["answeredBy"] === null ||
-    value["answeredBy"] === "event" ||
-    value["answeredBy"] === "questify") &&
-  (value["reportedUsername"] === undefined ||
-    value["reportedUsername"] === null ||
-    typeof value["reportedUsername"] === "string");
+  isRecord(value) && hasWhat(value) && hasStanding(value) && hasOptionals(value);
 
 /** Reads a list of requests; anything malformed reads as nothing, so the screen shows a load failure, not a guess. */
 export function ticketsOf(body: unknown): MyTicket[] | undefined {
