@@ -28,17 +28,19 @@ const isText = (value: unknown): value is Bilingual =>
   (value["ar"] === null || typeof value["ar"] === "string") &&
   (value["en"] === null || typeof value["en"] === "string");
 
+/** True when every named field of the record has this `typeof`. */
+const allOfType = (
+  value: Record<string, unknown>,
+  type: "string" | "number" | "boolean",
+  keys: readonly string[],
+): boolean => keys.every((key) => typeof value[key] === type);
+
 const isBoost = (value: unknown): value is Boost =>
   isRecord(value) &&
-  typeof value["id"] === "string" &&
-  typeof value["categoryId"] === "string" &&
+  allOfType(value, "string", ["id", "categoryId", "startsAt", "endsAt"]) &&
   isText(value["category"]) &&
-  typeof value["multiplier"] === "number" &&
-  typeof value["startsAt"] === "string" &&
-  typeof value["endsAt"] === "string" &&
-  typeof value["rehearsal"] === "boolean" &&
-  typeof value["editable"] === "boolean" &&
-  typeof value["paid"] === "number";
+  allOfType(value, "number", ["multiplier", "paid"]) &&
+  allOfType(value, "boolean", ["rehearsal", "editable"]);
 
 /** The boosts in the list's answer, or undefined when it is not that shape. */
 export function boostsOf(body: unknown): readonly Boost[] | undefined {

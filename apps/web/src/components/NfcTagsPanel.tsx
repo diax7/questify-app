@@ -26,7 +26,7 @@ type Props = Readonly<{
   readOnly: boolean;
 }>;
 
-/** A tag's counts and times: who wrote it and when, taps, possible copies, unchecked taps, the last tap. */
+/** A tag's name and badges, then who wrote it and when, its taps, copies and unchecked taps, and its last tap. */
 function TagFacts({
   tag,
   language,
@@ -37,6 +37,9 @@ function TagFacts({
   const time = (iso: string) => formatEventTime(new Date(iso), timeZone, language);
   return (
     <>
+      <strong>{tag.label === "" ? t("tags.unnamed") : tag.label}</strong>
+      {tag.locked ? <Badge>{t("tags.locked")}</Badge> : null}
+      {tag.status === "revoked" ? <Badge>{t("tags.revoked")}</Badge> : null}
       {tag.writtenBy === null ? null : (
         <Muted as="span">{t("tags.writtenBy", { name: tag.writtenBy })}</Muted>
       )}
@@ -77,9 +80,6 @@ function TagCard({
   const [target, setTarget] = useState("");
   return (
     <Card as="li">
-      <strong>{tag.label === "" ? t("tags.unnamed") : tag.label}</strong>
-      {tag.locked ? <Badge>{t("tags.locked")}</Badge> : null}
-      {tag.status === "revoked" ? <Badge>{t("tags.revoked")}</Badge> : null}
       <TagFacts tag={tag} language={language} timeZone={timeZone} />
       {readOnly || tag.status === "revoked" ? null : (
         <Toolbar>

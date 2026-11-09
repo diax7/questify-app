@@ -99,17 +99,22 @@ export async function fetchCard(request: CardRequest): Promise<CardResult> {
         signal: AbortSignal.timeout(request.timeoutMs ?? 5000),
       },
     );
-    if (response.status === 404) {
-      return { kind: "not_found" };
-    }
-    if (response.status === 429) {
-      return { kind: "throttled" };
-    }
-    const read = response.ok ? readCard(await response.json().catch(() => undefined)) : undefined;
-    return read === undefined ? { kind: "unavailable" } : { kind: "found", ...read };
+    return await cardResultOf(response);
   } catch {
     return { kind: "unavailable" };
   }
+}
+
+/** What the API's answer means: not found, throttled, the card, or unavailable for anything else. */
+async function cardResultOf(response: Response): Promise<CardResult> {
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 429) {
+    return { kind: "throttled" };
+  }
+  const read = response.ok ? readCard(await response.json().catch(() => undefined)) : undefined;
+  return read === undefined ? { kind: "unavailable" } : { kind: "found", ...read };
 }
 
 /** The Play link with the install referrer that opens this event's card after install (FR-113). */

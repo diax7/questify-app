@@ -55,6 +55,31 @@ describe("event rules", () => {
     expect(never).not.toHaveBeenCalled();
   });
 
+  it("never follows a redirect, caches nothing, sends no address when there is none, and times out", async () => {
+    const fetchImpl = answering(200, { rules: RULES });
+    await fetchRules({ ...request(fetchImpl as unknown as typeof fetch), forwardedFor: null });
+    const [, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(init.redirect).toBe("error");
+    expect(init.cache).toBe("no-store");
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(new Headers(init.headers).has("x-forwarded-for")).toBe(false);
+    const slow = vi.fn(
+      (_url: string, slowInit?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          slowInit?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+        }),
+    );
+    expect(
+      await fetchRules({ ...request(slow as unknown as typeof fetch), timeoutMs: 10 }),
+    ).toEqual({
+      kind: "unavailable",
+    });
+    expect(await as(answering(503, { rules: RULES }))).toEqual({ kind: "unavailable" });
+    expect(await as(vi.fn(async () => new Response("not json", { status: 200 })))).toEqual({
+      kind: "unavailable",
+    });
+  });
+
   it("answers not found, throttled and unavailable", async () => {
     expect(await as(answering(404, {}))).toEqual({ kind: "not_found" });
     expect(await as(answering(429, {}))).toEqual({ kind: "throttled" });

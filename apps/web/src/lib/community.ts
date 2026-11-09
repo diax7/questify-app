@@ -127,13 +127,21 @@ export function blankGoal(now: number, timeZone: string): GoalDraft {
   };
 }
 
+const momentDraftOf = (moment: GoalStep["reward"]["moment"]) => ({
+  momentAr: moment?.ar ?? "",
+  momentEn: moment?.en ?? "",
+});
+
+const unlockDraftOf = (unlock: GoalStep["reward"]["unlock"]) => ({
+  targetKind: unlock?.kind ?? "quest",
+  targetId: unlock?.id ?? "",
+});
+
 const rewardDraftOf = (step: GoalStep): RewardDraft => ({
   kind: step.reward.kind,
   points: step.reward.points === null ? "" : String(step.reward.points),
-  momentAr: step.reward.moment?.ar ?? "",
-  momentEn: step.reward.moment?.en ?? "",
-  targetKind: step.reward.unlock?.kind ?? "quest",
-  targetId: step.reward.unlock?.id ?? "",
+  ...momentDraftOf(step.reward.moment),
+  ...unlockDraftOf(step.reward.unlock),
 });
 
 /** The form for an existing goal; a started one keeps its window as it is stored. */

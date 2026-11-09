@@ -4,7 +4,7 @@ import { formatEventTime, type Language } from "@questify/shared";
 import { useEffect, useState } from "react";
 import { VoteCounts } from "#src/components/VoteCounts.tsx";
 import { translatorFor } from "#src/lib/language.ts";
-import { pollStateOf } from "#src/lib/polls.ts";
+import { pollStateOf, type PollState } from "#src/lib/polls.ts";
 import type { QuestView } from "#src/lib/quests.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Badge } from "#src/ui/Feedback.tsx";
@@ -19,6 +19,25 @@ export type PollActions = Readonly<{
   /** Where the quest's counts are read (the team's vote counts). */
   votesUrl: (quest: QuestView) => string;
 }>;
+
+/** Draft, Open (closes …) or Closed. */
+function PollBadge({
+  language,
+  timeZone,
+  quest,
+  state,
+}: Readonly<{ language: Language; timeZone: string; quest: QuestView; state: PollState }>) {
+  const t = translatorFor(language);
+  return (
+    <Badge>
+      {state === "open" && quest.closesAt !== null
+        ? t("quests.poll.open", {
+            time: formatEventTime(new Date(quest.closesAt), timeZone, language),
+          })
+        : t(state === "draft" ? "quests.poll.draft" : "quests.poll.closed")}
+    </Badge>
+  );
+}
 
 /**
  * A live poll on the quest list (T-306, FR-239): Draft, Open (closes …) or Closed; Send now on a draft, Close now while
@@ -56,18 +75,11 @@ export function PollControls({
   }
   return (
     <>
-      <Badge>
-        {state === "open" && quest.closesAt !== null
-          ? t("quests.poll.open", {
-              time: formatEventTime(new Date(quest.closesAt), timeZone, language),
-            })
-          : t(state === "draft" ? "quests.poll.draft" : "quests.poll.closed")}
-      </Badge>
+      <PollBadge language={language} timeZone={timeZone} quest={quest} state={state} />
       {readOnly || state === "closed" ? null : (
         <Toolbar>
           <Button
             variant="secondary"
-
             disabled={busy}
             onClick={() => (state === "draft" ? actions.sendPoll(quest) : actions.closePoll(quest))}
           >

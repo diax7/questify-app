@@ -223,6 +223,28 @@ function NfcWriteScreen() {
   );
 }
 
+/** A finished write: the quest, a note when the lock did not take, and the tag it replaced. */
+function DoneOutcome({ step }: Readonly<{ step: Extract<Step, { kind: "done" }> }>) {
+  const { t, language } = useI18n();
+  const replaced = step.confirmed.replaced;
+  return (
+    <>
+      <AppText variant="title" accessibilityRole="alert">
+        {t("operator.nfc.done", { quest: textIn(step.quest, language) })}
+      </AppText>
+      {step.lockMissed ? <AppText>{t("operator.nfc.notLocked")}</AppText> : null}
+      {replaced === null ? null : (
+        <AppText>
+          {t("operator.nfc.replaced", {
+            label: replaced.label === "" ? t("tags.unnamed") : replaced.label,
+            quest: textIn(replaced.quest, language),
+          })}
+        </AppText>
+      )}
+    </>
+  );
+}
+
 /** What the last write gave: holding, done (and what it replaced), or why not, with Rewrite or Retry where they help. */
 function Outcome({
   step,
@@ -235,25 +257,8 @@ function Outcome({
       return null;
     case "writing":
       return <AppText accessibilityRole="alert">{t("operator.nfc.hold")}</AppText>;
-    case "done": {
-      const replaced = step.confirmed.replaced;
-      return (
-        <>
-          <AppText variant="title" accessibilityRole="alert">
-            {t("operator.nfc.done", { quest: textIn(step.quest, language) })}
-          </AppText>
-          {step.lockMissed ? <AppText>{t("operator.nfc.notLocked")}</AppText> : null}
-          {replaced === null ? null : (
-            <AppText>
-              {t("operator.nfc.replaced", {
-                label: replaced.label === "" ? t("tags.unnamed") : replaced.label,
-                quest: textIn(replaced.quest, language),
-              })}
-            </AppText>
-          )}
-        </>
-      );
-    }
+    case "done":
+      return <DoneOutcome step={step} />;
     case "problem":
       return (
         <>

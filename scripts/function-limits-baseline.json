@@ -304,11 +304,6 @@
       "complexity": [10]
     }
   },
-  "apps/app/app/operator/[eventId]/nfc-write.tsx": {
-    "Outcome": {
-      "complexity": [11]
-    }
-  },
   "apps/app/app/operator/[eventId]/pair-device.tsx": {
     "ConfirmPairing": {
       "complexity": [9]
@@ -710,17 +705,9 @@
       "complexity": [13]
     }
   },
-  "apps/web/src/components/PollControls.tsx": {
-    "PollControls": {
-      "complexity": [10]
-    }
-  },
   "apps/web/src/components/QuestBuilderParts.tsx": {
     "CategoryCard": {
       "lines": [111]
-    },
-    "DeleteDialog": {
-      "complexity": [10]
     }
   },
   "apps/web/src/components/RewardsPanel.tsx": {
@@ -729,11 +716,6 @@
     },
     "RewardRow": {
       "complexity": [9]
-    }
-  },
-  "apps/web/src/components/SouvenirPreview.tsx": {
-    "SouvenirPreview": {
-      "complexity": [10]
     }
   },
   "apps/web/src/components/SouvenirsPanel.tsx": {
@@ -759,27 +741,9 @@
       "lines": [101]
     }
   },
-  "apps/web/src/lib/boosts.ts": {
-    "<anonymous>": {
-      "complexity": [10]
-    }
-  },
   "apps/web/src/lib/community.ts": {
-    "<anonymous>": {
-      "complexity": [10]
-    },
     "targetChoices": {
       "complexity": [9]
-    }
-  },
-  "apps/web/src/lib/event-card.ts": {
-    "fetchCard": {
-      "complexity": [10]
-    }
-  },
-  "apps/web/src/lib/event-rules.ts": {
-    "fetchRules": {
-      "complexity": [10]
     }
   },
   "apps/web/src/lib/flags.ts": {
@@ -790,11 +754,6 @@
   "apps/web/src/lib/forward.ts": {
     "forward": {
       "complexity": [15]
-    }
-  },
-  "apps/web/src/lib/rewards.ts": {
-    "deskProblem": {
-      "complexity": [10]
     }
   },
   "apps/web/src/lib/staff-api.ts": {

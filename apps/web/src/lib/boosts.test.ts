@@ -27,6 +27,31 @@ describe("the Boosts page (T-307)", () => {
     expect(boostsOf({})).toBeUndefined();
   });
 
+  it("refuses a boost with any one field of the wrong type, and takes a null name", () => {
+    const wrong: Record<string, unknown> = {
+      id: 1,
+      categoryId: null,
+      category: { ar: 1, en: null },
+      multiplier: "2",
+      startsAt: 0,
+      endsAt: null,
+      rehearsal: "no",
+      editable: 1,
+      paid: null,
+    };
+    for (const [key, value] of Object.entries(wrong)) {
+      expect(boostsOf({ boosts: [{ ...BOOST, [key]: value }] })).toBeUndefined();
+    }
+    expect(boostsOf({ boosts: [{ ...BOOST, category: { ar: null, en: "x" } }] })).toHaveLength(1);
+    expect(boostsOf({ boosts: [{ ...BOOST, category: { ar: "س", en: null } }] })).toHaveLength(1);
+    expect(boostsOf({ boosts: [{ ...BOOST, category: { ar: "س" } }] })).toBeUndefined();
+    expect(boostsOf({ boosts: [{ ...BOOST, category: null }] })).toBeUndefined();
+    expect(boostsOf({ boosts: [null] })).toBeUndefined();
+    expect(boostsOf({ boosts: [] })).toEqual([]);
+    expect(boostsOf({ boosts: "x" })).toBeUndefined();
+    expect(boostsOf(null)).toBeUndefined();
+  });
+
   it("says where a boost stands", () => {
     expect(boostStateOf(BOOST, Date.parse("2030-11-01T06:59:00Z"))).toBe("scheduled");
     expect(boostStateOf(BOOST, Date.parse("2030-11-01T07:00:00Z"))).toBe("running");

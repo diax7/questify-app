@@ -62,17 +62,22 @@ export async function fetchRules(request: RulesRequest): Promise<RulesResult> {
         signal: AbortSignal.timeout(request.timeoutMs ?? 5000),
       },
     );
-    if (response.status === 404) {
-      return { kind: "not_found" };
-    }
-    if (response.status === 429) {
-      return { kind: "throttled" };
-    }
-    const rules = response.ok ? readRules(await response.json().catch(() => undefined)) : undefined;
-    return rules === undefined ? { kind: "unavailable" } : { kind: "found", rules };
+    return await rulesResultOf(response);
   } catch {
     return { kind: "unavailable" };
   }
+}
+
+/** What the API's answer means: not found, throttled, the rules, or unavailable for anything else. */
+async function rulesResultOf(response: Response): Promise<RulesResult> {
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 429) {
+    return { kind: "throttled" };
+  }
+  const rules = response.ok ? readRules(await response.json().catch(() => undefined)) : undefined;
+  return rules === undefined ? { kind: "unavailable" } : { kind: "found", rules };
 }
 
 /** The organizer's own text in the page's language, else the other one; null when there is none. */

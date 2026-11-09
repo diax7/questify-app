@@ -366,20 +366,25 @@ export function deskProblem(draft: DeskDraft): DeskField | undefined {
   if (!draft.hoursOn) {
     return undefined;
   }
-  if (draft.windows.length === 0 || draft.windows.length > DESK_WINDOWS) {
-    return "deskHours";
+  return windowsAreValid(draft.windows) ? undefined : "deskHours";
+}
+
+const windowIsBroken = (window: WindowDraft): boolean =>
+  window.opensAt === "" || window.closesAt === "" || window.closesAt <= window.opensAt;
+
+/** 1 to 14 windows, each filled and closing after it opens, in order and not overlapping. */
+function windowsAreValid(windows: readonly WindowDraft[]): boolean {
+  if (windows.length === 0 || windows.length > DESK_WINDOWS) {
+    return false;
   }
   let previous = "";
-  for (const window of draft.windows) {
-    if (window.opensAt === "" || window.closesAt === "" || window.closesAt <= window.opensAt) {
-      return "deskHours";
-    }
-    if (window.opensAt < previous) {
-      return "deskHours";
+  for (const window of windows) {
+    if (windowIsBroken(window) || window.opensAt < previous) {
+      return false;
     }
     previous = window.closesAt;
   }
-  return undefined;
+  return true;
 }
 
 /** The desk's part of `PUT …/shop`: hours off sends null; an empty name clears it. */

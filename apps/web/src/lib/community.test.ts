@@ -90,6 +90,45 @@ describe("community goals on the dashboard (T-306b)", () => {
     });
   });
 
+  it("reads every reward kind of a step into the form, with empty text and the default target", () => {
+    const step = goal.steps[0]!;
+    const read = (reward: Goal["steps"][number]["reward"]) =>
+      goalDraftOf({ ...goal, steps: [{ ...step, isGoal: true, reward }] }, ZONE).reward;
+    expect(
+      read({ kind: "moment", points: null, moment: { ar: "طبول", en: "Drums" }, unlock: null }),
+    ).toEqual({
+      kind: "moment",
+      points: "",
+      momentAr: "طبول",
+      momentEn: "Drums",
+      targetKind: "quest",
+      targetId: "",
+    });
+    expect(read({ kind: "nothing", points: null, moment: null, unlock: null })).toEqual({
+      kind: "nothing",
+      points: "",
+      momentAr: "",
+      momentEn: "",
+      targetKind: "quest",
+      targetId: "",
+    });
+    expect(
+      read({
+        kind: "unlock",
+        points: 0,
+        moment: { ar: null, en: null },
+        unlock: { kind: "category", id: "c9", name: { ar: null, en: null } },
+      }),
+    ).toEqual({
+      kind: "unlock",
+      points: "0",
+      momentAr: "",
+      momentEn: "",
+      targetKind: "category",
+      targetId: "c9",
+    });
+  });
+
   it("sends the typed window before the start, no quest or category for points, and NaN for a bad number", () => {
     const draft = {
       ...goalDraftOf(goal, ZONE),

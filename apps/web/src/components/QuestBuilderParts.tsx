@@ -793,27 +793,14 @@ export function DeleteDialog({
   confirm: (choice: Readonly<Record<string, unknown>>) => void;
 }>) {
   const t = useTranslator(language);
-  const others =
-    target.kind === "category" ? categories.filter((item) => item.id !== target.category.id) : [];
+  const keys = DELETE_KEYS[target.kind];
   // No choice is made for the person: the button waits until they pick one (the UX confirmation pattern).
   const [choice, setChoice] = useState<string | null>(null);
-  const holds = target.kind === "category" ? target.category.quests.length : 0;
-  const name =
-    target.kind === "quest"
-      ? textFor(target.quest.title, language)
-      : textFor(target.category.name, language);
-  const go = () =>
-    confirm(
-      holds === 0
-        ? {}
-        : choice === "delete"
-          ? { quests: "delete" }
-          : { quests: "move", to: choice },
-    );
+  const { holds, name } = deleteFactsOf(target, language);
   return (
     <Dialog
       titleId="delete-title"
-      title={t(target.kind === "quest" ? "quests.deleteTitle" : "quests.deleteCategoryTitle")}
+      title={t(keys.title)}
       busy={busy}
       cancel={cancel}
       actions={
@@ -821,42 +808,99 @@ export function DeleteDialog({
           <Button variant="secondary" disabled={busy} onClick={cancel}>
             {t("common.cancel")}
           </Button>
-          <Button variant="danger" disabled={busy || (holds > 0 && choice === null)} onClick={go}>
-            {t(target.kind === "quest" ? "quests.delete" : "quests.deleteCategory")}
+          <Button
+            variant="danger"
+            disabled={busy || (holds > 0 && choice === null)}
+            onClick={() => confirm(deleteChoiceBody(holds, choice))}
+          >
+            {t(keys.button)}
           </Button>
         </>
       }
     >
       {holds === 0 ? (
-        <p>
-          {t(target.kind === "quest" ? "quests.deleteBody" : "quests.deleteCategoryBody", { name })}
-        </p>
+        <p>{t(keys.body, { name })}</p>
       ) : (
         <FieldGroup
           legend={t("quests.deleteCategoryHolds", { name, count: holds })}
           layout="choices"
         >
-          {others.map((other) => (
-            <Radio
-              key={other.id}
-              label={
-                <>
-                  {t("quests.moveTo")} {textFor(other.name, language)}
-                </>
-              }
-              name="fate"
-              checked={choice === other.id}
-              onChange={() => setChoice(other.id)}
-            />
-          ))}
-          <Radio
-            label={t("quests.deleteThem")}
-            name="fate"
-            checked={choice === "delete"}
-            onChange={() => setChoice("delete")}
+          <MoveOrDeleteChoices
+            language={language}
+            others={target.kind === "category" ? otherCategories(categories, target.category) : []}
+            choice={choice}
+            setChoice={setChoice}
           />
         </FieldGroup>
       )}
     </Dialog>
+  );
+}
+
+const DELETE_KEYS = {
+  quest: { title: "quests.deleteTitle", button: "quests.delete", body: "quests.deleteBody" },
+  category: {
+    title: "quests.deleteCategoryTitle",
+    button: "quests.deleteCategory",
+    body: "quests.deleteCategoryBody",
+  },
+} as const satisfies Record<
+  Deleting["kind"],
+  Readonly<{ title: MessageKey; button: MessageKey; body: MessageKey }>
+>;
+
+/** How many quests a delete takes with it and the name it shows. */
+function deleteFactsOf(target: Deleting, language: Language) {
+  return target.kind === "quest"
+    ? { holds: 0, name: textFor(target.quest.title, language) }
+    : { holds: target.category.quests.length, name: textFor(target.category.name, language) };
+}
+
+const otherCategories = (categories: readonly CategoryView[], category: CategoryView) =>
+  categories.filter((item) => item.id !== category.id);
+
+/** What the delete sends: nothing for an empty category or a quest, else move its quests or delete them. */
+function deleteChoiceBody(holds: number, choice: string | null): Record<string, unknown> {
+  if (holds === 0) {
+    return {};
+  }
+  return choice === "delete" ? { quests: "delete" } : { quests: "move", to: choice };
+}
+
+/** One radio per other category (Move to …), then Delete them. */
+function MoveOrDeleteChoices({
+  language,
+  others,
+  choice,
+  setChoice,
+}: Readonly<{
+  language: Language;
+  others: readonly CategoryView[];
+  choice: string | null;
+  setChoice: (choice: string) => void;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <>
+      {others.map((other) => (
+        <Radio
+          key={other.id}
+          label={
+            <>
+              {t("quests.moveTo")} {textFor(other.name, language)}
+            </>
+          }
+          name="fate"
+          checked={choice === other.id}
+          onChange={() => setChoice(other.id)}
+        />
+      ))}
+      <Radio
+        label={t("quests.deleteThem")}
+        name="fate"
+        checked={choice === "delete"}
+        onChange={() => setChoice("delete")}
+      />
+    </>
   );
 }

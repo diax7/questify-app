@@ -73,6 +73,30 @@ describe("fetchCard", () => {
     expect(api.calls).toEqual([]);
   });
 
+  it("never follows a redirect, and times out after the given time", async () => {
+    const api = answering(200, CARD);
+    await fetchCard(request("ABC234", api.fetchImpl));
+    expect(api.calls[0]?.init?.redirect).toBe("error");
+    expect(api.calls[0]?.init?.signal).toBeInstanceOf(AbortSignal);
+    expect(api.calls[0]?.init?.signal?.aborted).toBe(false);
+    const slow = (async (_url: string, init?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+      })) as unknown as typeof fetch;
+    expect(await fetchCard({ ...request("ABC234", slow), timeoutMs: 10 })).toEqual({
+      kind: "unavailable",
+    });
+  });
+
+  it("takes an answer that is not ok as unavailable, even with a card in it", async () => {
+    expect(await fetchCard(request("ABC234", answering(503, CARD).fetchImpl))).toEqual({
+      kind: "unavailable",
+    });
+    expect(await fetchCard(request("ABC234", answering(403, CARD).fetchImpl))).toEqual({
+      kind: "unavailable",
+    });
+  });
+
   it("maps a 404, a 429 and every other failure", async () => {
     expect(
       await fetchCard(request("ABC234", answering(404, { code: "not_found" }).fetchImpl)),
