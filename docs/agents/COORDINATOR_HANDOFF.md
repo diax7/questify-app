@@ -161,8 +161,9 @@ branch, `t-810d-console-hostname`; the runner tolerates the gap. The next migrat
 - `.github/workflows/` edits need the `workflow` scope the server's token lacks. Batch 15's two workflow edits (CI `monitoring`
   job, nightly browser shards) wait on local branch `workflows-pending` (`fb3b44a3`); after Dhia runs
   `gh auth refresh -h github.com -s workflow`, take them with `git checkout workflows-pending -- .github`, commit, push.
-- Unconfirmed: CranL may build the web app by itself after a push to `main` (a GitHub hook on the account that linked the repo).
-  That would explain the deploys "started by" another account and the 409s; the gated script now waits out a running deploy.
+- CranL's web app often shows `deploying` while its newest deployment record has already succeeded (2026-11-09: no new record
+  appeared after a push, so it is not an automatic deploy). A deploy request then answers 409 `deployment_in_progress`; the gated
+  script waits up to 15 minutes for the status to clear, then tries anyway.
 - A CranL web deploy started from another account (2026-11-08, about 5 h) kept the web app at `deploying` and answered 409
   `deployment_in_progress` to ours; Dhia said that account is expected. Do not cancel it; retry later.
 - CranL's API build fails on the first try often (five times on 2026-11-07 and 08); a plain retry builds. GitHub's release
