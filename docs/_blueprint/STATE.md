@@ -11,6 +11,16 @@
   the old code first. Rendered elements, accessibility props and text are unchanged (`a11y-static.test.ts` green). The
   baseline was updated with `node scripts/function-limits.mjs --update` and only shrank. CI 0 minutes (not pushed).
 
+## Function-limits ratchet: web quest builder and rewards — 2026-11-09
+
+- **Four web offenders split, behaviour unchanged (tier B, `apps/web` only; no string, route or markup change).**
+  `questProblem` (complexity 30) and `questDraftOf` (22) in `lib/quests.ts` are now small checks that run in the same
+  order (a new `quests-branches.test.ts`, written and committed first, pins 71 input-to-output cases and the order in
+  which problems win); `QuestBuilder` (26, 220 lines) and `RewardsPanel` (18, 213 lines) are split into hooks and small
+  components with the same markup, roles, labels and requests. `scripts/function-limits.mjs --update` removed those six
+  baseline entries (283 to 277 violations) and nothing grew. Web unit tests 1,373 passed; `quests.spec.ts` and
+  `rewards.spec.ts` 16 passed (desktop and phone, one worker, fresh build). CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 37 — 2026-11-09
 
 - **FOLLOWUPS batch 37 (tier B, ops config and push; no migration, no SQL, nothing under `.github`, no string).** (1) The

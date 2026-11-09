@@ -22,41 +22,41 @@ const QUEST: QuestView = {
   pollSentAt: null,
 };
 
-describe("questProblem branch table", () => {
-  const fine = { ...blankQuest("c1"), titleEn: "Find" };
-  const bonus = (change: object) => ({
-    firstBonusOn: true,
-    firstBonusPoints: 10,
-    firstBonusSlots: 10,
-    ...change,
-  });
-  const saved = (given: number) => ({
-    points: 10,
-    slots: 10,
-    given,
-    left: 10 - given,
-    locked: true,
-  });
-  const passport = (list: unknown[], needed = 1, extra: object = {}) => ({
-    type: "passport" as const,
-    verification: [],
-    config: { needed, steps: list },
-    ...extra,
-  });
-  const named = { id: "a", text: { en: "A" } };
-  const arabic = (n: number) =>
-    Array.from({ length: n }, (_, i) => ({ id: `${i}`, text: { ar: "أ" } }));
-  const LIVE = { options: [], live: { choices: "one", results: "never", minutes: 5 } };
-  const POLL = { type: "vote" as const, config: LIVE, verification: [] };
-  const LOCATION = { type: "location" as const };
-  const BAD_OPENS = { opensAt: "2030-11-01T10:00", closesAt: "2030-11-01T09:00" };
-  const MEET = (dailyCap: unknown, repeatCap: number, verification: string[] = []) => ({
-    type: "meet" as const,
-    config: { dailyCap },
-    repeatCap,
-    verification,
-  });
+const fine = { ...blankQuest("c1"), titleEn: "Find" };
+const bonus = (change: object) => ({
+  firstBonusOn: true,
+  firstBonusPoints: 10,
+  firstBonusSlots: 10,
+  ...change,
+});
+const saved = (given: number) => ({
+  points: 10,
+  slots: 10,
+  given,
+  left: 10 - given,
+  locked: true,
+});
+const passport = (list: unknown[], needed = 1, extra: object = {}) => ({
+  type: "passport" as const,
+  verification: [],
+  config: { needed, steps: list },
+  ...extra,
+});
+const named = { id: "a", text: { en: "A" } };
+const arabic = (n: number) =>
+  Array.from({ length: n }, (_, i) => ({ id: `${i}`, text: { ar: "أ" } }));
+const LIVE = { options: [], live: { choices: "one", results: "never", minutes: 5 } };
+const POLL = { type: "vote" as const, config: LIVE, verification: [] };
+const LOCATION = { type: "location" as const };
+const BAD_OPENS = { opensAt: "2030-11-01T10:00", closesAt: "2030-11-01T09:00" };
+const MEET = (dailyCap: unknown, repeatCap: number, verification: string[] = []) => ({
+  type: "meet" as const,
+  config: { dailyCap },
+  repeatCap,
+  verification,
+});
 
+describe("questProblem branch table", () => {
   const table: [string, object, string | undefined][] = [
     ["a sound draft", {}, undefined],
     ["title: both names blank", { titleAr: " ", titleEn: "" }, "title"],

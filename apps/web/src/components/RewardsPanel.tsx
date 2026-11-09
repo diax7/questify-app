@@ -879,10 +879,6 @@ function RewardsHeader({
   );
 }
 
-/**
- * An event's rewards shop on the dashboard (T-201: FR-504, FR-505, FR-514, FR-516): the rewards with their stock, a
- * form to add or change one, removal with a confirmation, and the shop settings. Every answer refreshes the list.
- */
 /** Why the ranking choice cannot change here (FR-1847): the owner's alone, and only before the event is live. */
 function rankLockOf(
   role: Props["role"],
@@ -894,15 +890,21 @@ function rankLockOf(
   return statusNow === "draft" || statusNow === "scheduled" ? undefined : "locked";
 }
 
-export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
+/** The event as the page reads it: its zone, terms and status. Until it arrives, adding or editing waits. */
+type EventFacts = Readonly<{ timezone: string; terms: EventTerms; statusNow: string }>;
+
+/** Runs a request, then says what happened and reloads; true when it worked. */
+type Run = (
+  work: () => Promise<PostResult>,
+  done: MessageKey | ((body: unknown) => string),
+) => Promise<boolean>;
+
+/** The page's data and the way every change goes: the rewards and shop, the event, and one `run` for requests. */
+function useRewardsData(language: Language, base: string) {
   const t = translatorFor(language);
-  const base = `/v1/organizers/${organizerId}/events/${eventId}`;
   const [loaded, setLoaded] = useState<Loaded | undefined>(undefined);
   // Until the event arrives its zone is unknown: adding or editing waits, so no time is read in the wrong zone.
-  const [event, setEvent] = useState<
-    { timezone: string; terms: EventTerms; statusNow: string } | undefined
-  >(undefined);
-  const terms = event?.terms ?? DEFAULT_TERMS;
+  const [event, setEvent] = useState<EventFacts | undefined>(undefined);
   const [editing, setEditing] = useState<Editing>(undefined);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -952,10 +954,7 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
     });
   }, [base, load]);
 
-  const run = async (
-    work: () => Promise<PostResult>,
-    done: MessageKey | ((body: unknown) => string),
-  ): Promise<boolean> => {
+  const run: Run = async (work, done) => {
     setBusy(true);
     setProblem(null);
     setNotice(null);
@@ -973,33 +972,18 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
     return ok;
   };
 
-  const rankLock = rankLockOf(role, event?.statusNow);
+  return { loaded, event, editing, setEditing, busy, problem, notice, load, run };
+}
 
-  const save = (draft: RewardDraft) =>
-    editing?.kind === "edit"
-      ? run(
-          () =>
-            requestJson(
-              "PATCH",
-              `${base}/rewards/${editing.reward.id}`,
-              editRewardBody(
-                draft,
-                rewardDraftOf(editing.reward, event?.timezone ?? "Asia/Riyadh"),
-              ),
-            ),
-          "rewards.saved",
-        )
-      : run(
-          () =>
-            requestJson("POST", `${base}/rewards`, createRewardBody(draft), {
-              "idempotency-key": crypto.randomUUID(),
-            }),
-          "rewards.saved",
-        );
+type RewardsData = ReturnType<typeof useRewardsData>;
 
+/** The last problem and the last success note, each only when there is one. */
+function RewardsMessages({
+  problem,
+  notice,
+}: Readonly<{ problem: string | null; notice: string | null }>) {
   return (
-    <Stack as="section" aria-labelledby="rewards-title">
-      <RewardsHeader language={language} organizerId={organizerId} eventId={eventId} />
+    <>
       {problem === null ? null : (
         <Notice tone="danger" role="alert">
           {problem}
@@ -1010,109 +994,223 @@ export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
           {notice}
         </Notice>
       )}
-      {loaded === undefined && problem !== null ? (
+    </>
+  );
+}
+
+/** Before the first load answers: Retry after a failure, or the loading note. */
+function RewardsLoadState({
+  language,
+  problem,
+  load,
+}: Readonly<{ language: Language; problem: string | null; load: () => Promise<void> }>) {
+  const t = translatorFor(language);
+  return (
+    <>
+      {problem === null ? null : (
         <Button variant="quiet" onClick={() => void load()}>
           {t("common.retry")}
         </Button>
-      ) : null}
+      )}
+      {problem === null ? <Muted>{t("common.loading")}</Muted> : null}
+    </>
+  );
+}
+
+/** The add button, or the form to add or change a reward. */
+function RewardEditor({
+  language,
+  base,
+  data,
+  loaded,
+}: Readonly<{ language: Language; base: string; data: RewardsData; loaded: Loaded }>) {
+  const t = translatorFor(language);
+  const { editing, event, setEditing } = data;
+  if (editing === undefined) {
+    return (
+      <Toolbar>
+        <Button
+          variant="primary"
+          disabled={event === undefined}
+          onClick={() => setEditing({ kind: "new" })}
+        >
+          {t("rewards.add")}
+        </Button>
+      </Toolbar>
+    );
+  }
+  return (
+    <RewardEditForm language={language} base={base} data={data} loaded={loaded} editing={editing} />
+  );
+}
+
+/** The form to add or change a reward (a change sends only what differs from the saved one). */
+function RewardEditForm({
+  language,
+  base,
+  data,
+  loaded,
+  editing,
+}: Readonly<{
+  language: Language;
+  base: string;
+  data: RewardsData;
+  loaded: Loaded;
+  editing: NonNullable<Editing>;
+}>) {
+  const { event, busy, run, setEditing } = data;
+  const timezone = event?.timezone ?? "Asia/Riyadh";
+  const save = (draft: RewardDraft) =>
+    editing.kind === "edit"
+      ? run(
+          () =>
+            requestJson(
+              "PATCH",
+              `${base}/rewards/${editing.reward.id}`,
+              editRewardBody(draft, rewardDraftOf(editing.reward, timezone)),
+            ),
+          "rewards.saved",
+        )
+      : run(
+          () =>
+            requestJson("POST", `${base}/rewards`, createRewardBody(draft), {
+              "idempotency-key": crypto.randomUUID(),
+            }),
+          "rewards.saved",
+        );
+  const isEdit = editing.kind === "edit";
+  return (
+    <RewardForm
+      key={isEdit ? editing.reward.id : "new"}
+      language={language}
+      terms={event?.terms ?? DEFAULT_TERMS}
+      initial={isEdit ? rewardDraftOf(editing.reward, timezone) : blankReward()}
+      unitsOut={isEdit ? editing.reward.unitsOut : 0}
+      editing={isEdit}
+      deskSet={deskIsSet(loaded.shop.desk)}
+      busy={busy}
+      submit={(draft) => void save(draft)}
+      cancel={() => setEditing(undefined)}
+    />
+  );
+}
+
+/** The rewards as cards, each with its edit, remove and code upload. */
+function RewardList({
+  language,
+  base,
+  data,
+  rewards,
+}: Readonly<{ language: Language; base: string; data: RewardsData; rewards: RewardView[] }>) {
+  const t = translatorFor(language);
+  const { event, busy, run, setEditing } = data;
+  const uploaded = (body: unknown) => {
+    const counts = body as { added: number; duplicates: number };
+    return t("rewards.codes.added", {
+      added: formatNumber(counts.added, language),
+      duplicates: formatNumber(counts.duplicates, language),
+    });
+  };
+  return (
+    <CardList>
+      {rewards.map((reward) => (
+        <RewardRow
+          key={reward.id}
+          language={language}
+          reward={reward}
+          terms={event?.terms ?? DEFAULT_TERMS}
+          busy={busy || event === undefined}
+          edit={() => setEditing({ kind: "edit", reward })}
+          remove={() =>
+            void run(() => requestJson("DELETE", `${base}/rewards/${reward.id}`), "rewards.removed")
+          }
+          upload={(codes) =>
+            run(
+              () =>
+                requestJson(
+                  "POST",
+                  `${base}/rewards/${reward.id}/codes`,
+                  { codes },
+                  { "idempotency-key": crypto.randomUUID() },
+                ),
+              uploaded,
+            )
+          }
+        />
+      ))}
+    </CardList>
+  );
+}
+
+/** Everything under the messages once the rewards have loaded. */
+function RewardsContent({
+  language,
+  organizerId,
+  eventId,
+  role,
+  data,
+  loaded,
+}: Props & Readonly<{ data: RewardsData; loaded: Loaded }>) {
+  const t = translatorFor(language);
+  const base = `/v1/organizers/${organizerId}/events/${eventId}`;
+  const { event, busy, run } = data;
+  return (
+    <>
+      {event === undefined ? null : (
+        <DeskForm
+          key={JSON.stringify(loaded.shop.desk) + loaded.shop.handoverConfirm}
+          language={language}
+          initial={deskDraftOf(loaded.shop, event.timezone)}
+          busy={busy}
+          submit={(desk) =>
+            void run(
+              () => requestJson("PUT", `${base}/shop`, deskRequest(desk)),
+              "rewards.desk.saved",
+            )
+          }
+        />
+      )}
+      <RewardEditor language={language} base={base} data={data} loaded={loaded} />
+      <LowCodes language={language} rewards={loaded.rewards} />
+      {loaded.rewards.length === 0 ? <EmptyState>{t("rewards.none")}</EmptyState> : null}
+      <RewardList language={language} base={base} data={data} rewards={loaded.rewards} />
+      <ShopSection
+        language={language}
+        shop={loaded.shop}
+        rankLock={rankLockOf(role, event?.statusNow)}
+        event={event}
+        busy={busy}
+        countHeld={() => countHeldPrizes(organizerId, eventId)}
+        save={(body) =>
+          void run(() => requestJson("PUT", `${base}/shop`, body), "rewards.shopSaved")
+        }
+      />
+    </>
+  );
+}
+
+/**
+ * An event's rewards shop on the dashboard (T-201: FR-504, FR-505, FR-514, FR-516): the rewards with their stock, a
+ * form to add or change one, removal with a confirmation, and the shop settings. Every answer refreshes the list.
+ */
+export function RewardsPanel({ language, organizerId, eventId, role }: Props) {
+  const data = useRewardsData(language, `/v1/organizers/${organizerId}/events/${eventId}`);
+  const { loaded } = data;
+  return (
+    <Stack as="section" aria-labelledby="rewards-title">
+      <RewardsHeader language={language} organizerId={organizerId} eventId={eventId} />
+      <RewardsMessages problem={data.problem} notice={data.notice} />
       {loaded === undefined ? (
-        problem === null ? (
-          <Muted>{t("common.loading")}</Muted>
-        ) : null
+        <RewardsLoadState language={language} problem={data.problem} load={data.load} />
       ) : (
-        <>
-          {event === undefined ? null : (
-            <DeskForm
-              key={JSON.stringify(loaded.shop.desk) + loaded.shop.handoverConfirm}
-              language={language}
-              initial={deskDraftOf(loaded.shop, event.timezone)}
-              busy={busy}
-              submit={(desk) =>
-                void run(
-                  () => requestJson("PUT", `${base}/shop`, deskRequest(desk)),
-                  "rewards.desk.saved",
-                )
-              }
-            />
-          )}
-          {editing === undefined ? (
-            <Toolbar>
-              <Button
-                variant="primary"
-                disabled={event === undefined}
-                onClick={() => setEditing({ kind: "new" })}
-              >
-                {t("rewards.add")}
-              </Button>
-            </Toolbar>
-          ) : (
-            <RewardForm
-              key={editing.kind === "edit" ? editing.reward.id : "new"}
-              language={language}
-              terms={terms}
-              initial={
-                editing.kind === "edit"
-                  ? rewardDraftOf(editing.reward, event?.timezone ?? "Asia/Riyadh")
-                  : blankReward()
-              }
-              unitsOut={editing.kind === "edit" ? editing.reward.unitsOut : 0}
-              editing={editing.kind === "edit"}
-              deskSet={deskIsSet(loaded.shop.desk)}
-              busy={busy}
-              submit={(draft) => void save(draft)}
-              cancel={() => setEditing(undefined)}
-            />
-          )}
-          <LowCodes language={language} rewards={loaded.rewards} />
-          {loaded.rewards.length === 0 ? <EmptyState>{t("rewards.none")}</EmptyState> : null}
-          <CardList>
-            {loaded.rewards.map((reward) => (
-              <RewardRow
-                key={reward.id}
-                language={language}
-                reward={reward}
-                terms={terms}
-                busy={busy || event === undefined}
-                edit={() => setEditing({ kind: "edit", reward })}
-                remove={() =>
-                  void run(
-                    () => requestJson("DELETE", `${base}/rewards/${reward.id}`),
-                    "rewards.removed",
-                  )
-                }
-                upload={(codes) =>
-                  run(
-                    () =>
-                      requestJson(
-                        "POST",
-                        `${base}/rewards/${reward.id}/codes`,
-                        { codes },
-                        { "idempotency-key": crypto.randomUUID() },
-                      ),
-                    (body) => {
-                      const counts = body as { added: number; duplicates: number };
-                      return t("rewards.codes.added", {
-                        added: formatNumber(counts.added, language),
-                        duplicates: formatNumber(counts.duplicates, language),
-                      });
-                    },
-                  )
-                }
-              />
-            ))}
-          </CardList>
-          <ShopSection
-            language={language}
-            shop={loaded.shop}
-            rankLock={rankLock}
-            event={event}
-            busy={busy}
-            countHeld={() => countHeldPrizes(organizerId, eventId)}
-            save={(body) =>
-              void run(() => requestJson("PUT", `${base}/shop`, body), "rewards.shopSaved")
-            }
-          />
-        </>
+        <RewardsContent
+          language={language}
+          organizerId={organizerId}
+          eventId={eventId}
+          role={role}
+          data={data}
+          loaded={loaded}
+        />
       )}
     </Stack>
   );

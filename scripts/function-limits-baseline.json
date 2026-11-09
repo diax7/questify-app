@@ -943,8 +943,8 @@
   },
   "apps/web/src/components/InviteFlow.tsx": {
     "InviteFlow": {
-      "complexity": [15],
-      "lines": [136]
+      "complexity": [14],
+      "lines": [130]
     }
   },
   "apps/web/src/components/KioskScanner.tsx": {
@@ -974,12 +974,6 @@
   "apps/web/src/components/PollControls.tsx": {
     "PollControls": {
       "complexity": [10]
-    }
-  },
-  "apps/web/src/components/QuestBuilder.tsx": {
-    "QuestBuilder": {
-      "complexity": [26],
-      "lines": [220]
     }
   },
   "apps/web/src/components/QuestBuilderParts.tsx": {
@@ -1021,10 +1015,6 @@
     },
     "RewardRow": {
       "complexity": [9]
-    },
-    "RewardsPanel": {
-      "complexity": [18],
-      "lines": [213]
     }
   },
   "apps/web/src/components/SouvenirPreview.tsx": {
@@ -1120,14 +1110,6 @@
   "apps/web/src/lib/nfc-tags.ts": {
     "<anonymous>": {
       "complexity": [14]
-    }
-  },
-  "apps/web/src/lib/quests.ts": {
-    "questDraftOf": {
-      "complexity": [22]
-    },
-    "questProblem": {
-      "complexity": [30]
     }
   },
   "apps/web/src/lib/rehearsal.ts": {
