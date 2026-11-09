@@ -144,7 +144,7 @@ Addresses: https://questify.nafes.com and https://questify-api-staging-3ez01s.cr
 
 ## Where things stand
 
-Staging is live at `release-20261109-3`, migration 0185. No pull request is open; GitHub holds only `main`,
+Staging is live at `release-20261109-4`, migration 0186. No pull request is open; GitHub holds only `main`,
 `t-810d-console-hostname`, and the local-only branch `workflows-pending` on this server (see below). Tasks: 187 done, 32 open
 (85.4%); every open task waits on a person, a device, store accounts or an outside answer (see the list below). FOLLOWUPS has about
 75 lines, most needing a device, art, a product call or tier A work. Migration number 0156 is reserved by the unmerged T-810d
@@ -161,6 +161,8 @@ branch, `t-810d-console-hostname`; the runner tolerates the gap. The next migrat
 - `.github/workflows/` edits need the `workflow` scope the server's token lacks. Batch 15's two workflow edits (CI `monitoring`
   job, nightly browser shards) wait on local branch `workflows-pending` (`fb3b44a3`); after Dhia runs
   `gh auth refresh -h github.com -s workflow`, take them with `git checkout workflows-pending -- .github`, commit, push.
+- Unconfirmed: CranL may build the web app by itself after a push to `main` (a GitHub hook on the account that linked the repo).
+  That would explain the deploys "started by" another account and the 409s; the gated script now waits out a running deploy.
 - A CranL web deploy started from another account (2026-11-08, about 5 h) kept the web app at `deploying` and answered 409
   `deployment_in_progress` to ours; Dhia said that account is expected. Do not cancel it; retry later.
 - CranL's API build fails on the first try often (five times on 2026-11-07 and 08); a plain retry builds. GitHub's release

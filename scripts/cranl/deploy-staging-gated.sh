@@ -21,20 +21,32 @@ o=$($D run 'test -n "$DATABASE_ADMIN_URL" && node /srv/migrate.cjs' 600 2>&1); e
 v=$($D run 'node /srv/migrate.cjs --verify' 90 2>&1); echo "$v" | grep -oE '"ok":[a-z]+'; echo "$v" | grep -q '"ok":true' || stop "verify failed"
 $D unset | cut -c1-110
 $D restart | cut -c1-60
-python3 - <<'P'
+# Web: CranL may already be building it (a push can start a deploy, which answers ours 409 deployment_in_progress), so
+# wait for the app to settle, then deploy, and accept only a deployment newer than this script's start.
+W=
+webstatus() { python3 - <<'P'
+from cranl_api import call
+s,r=call("GET","/api/v1/apps/c247f061-835f-4caa-95b4-82c6b382c13d"); print(r.get("app",r).get("status"))
+P
+}
+for t in 1 2 3; do
+  for i in $(seq 1 45); do [ "$(webstatus)" != deploying ] && break; sleep 20; done
+  python3 - <<'P'
 from cranl_api import call
 try:
     s,r=call("POST","/api/v1/apps/c247f061-835f-4caa-95b4-82c6b382c13d/deploy",{"wait":False},timeout=90); print("deploy-web",s)
 except Exception as e: print("call dropped",type(e).__name__)
 P
-for i in $(seq 1 30); do r=$(python3 - <<P
+  for i in $(seq 1 30); do r=$(python3 - <<'P'
 from cranl_api import call
 s,r=call("GET","/api/v1/apps/c247f061-835f-4caa-95b4-82c6b382c13d/deployments?limit=1")
 d=(r.get("deployments") or r.get("items") or r.get("data"))[0]
 print(d.get("status"),d.get("created_at"))
 P
-); set -- $r; if [[ "$2" > "$START" ]] && [ "$1" = succeeded ]; then W=ok; break; fi; sleep 20; done
-echo "web $r"
+); set -- $r; if [[ "$2" > "$START" ]]; then case "$1" in succeeded) W=ok; break;; failed) break;; esac; fi; sleep 20; done
+  echo "web try $t: $r"
+  [ "$W" = ok ] && break
+done
 [ "$W" = ok ] || { echo "WEB NOT CONFIRMED NEW"; exit 3; }
 sleep 45
 for u in https://questify-api-staging-3ez01s.cranl.net/readyz https://questify.nafes.com/en/sign-in https://questify.nafes.com/ar/sign-in https://questify.nafes.com/en/console; do echo "$(curl -s -o /dev/null -m 30 -w '%{http_code}' $u) $u"; done
