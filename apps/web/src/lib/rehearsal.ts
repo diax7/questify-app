@@ -30,22 +30,24 @@ const isTextOrNull = (value: unknown): value is string | null =>
 const isCounts = (value: unknown): value is RehearsalCounts =>
   isRecord(value) && COUNT_KEYS.every((key) => typeof value[key] === "number");
 
+const FIELD_CHECKS: Readonly<Record<keyof RehearsalView, (field: unknown) => boolean>> = {
+  code: isTextOrNull,
+  open: (field) => typeof field === "boolean",
+  cap: (field) => typeof field === "number",
+  now: isCounts,
+  firstPlayAt: isTextOrNull,
+  erasedAt: isTextOrNull,
+  erased: (field) => field === null || isCounts(field),
+  wipedAtGoLive: isTextOrNull,
+};
+
 /** Checks the API's answer, so a changed API shows the error state instead of a broken card. */
 export function readRehearsal(value: unknown): RehearsalView | undefined {
-  if (
-    !isRecord(value) ||
-    !isTextOrNull(value["code"]) ||
-    typeof value["open"] !== "boolean" ||
-    typeof value["cap"] !== "number" ||
-    !isCounts(value["now"]) ||
-    !isTextOrNull(value["firstPlayAt"]) ||
-    !isTextOrNull(value["erasedAt"]) ||
-    !(value["erased"] === null || isCounts(value["erased"])) ||
-    !isTextOrNull(value["wipedAtGoLive"])
-  ) {
+  if (!isRecord(value)) {
     return undefined;
   }
-  return value as RehearsalView;
+  const checks = Object.entries(FIELD_CHECKS);
+  return checks.every(([key, valid]) => valid(value[key])) ? (value as RehearsalView) : undefined;
 }
 
 /** True when rehearsal wrote anything the go-live wipe will erase: the card then warns. */

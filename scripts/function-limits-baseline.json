@@ -702,12 +702,6 @@
       "lines": [114]
     }
   },
-  "apps/web/src/components/CodesPanel.tsx": {
-    "CodesPanel": {
-      "complexity": [11],
-      "lines": [202]
-    }
-  },
   "apps/web/src/components/CommunityGoalForm.tsx": {
     "CommunityGoalForm": {
       "lines": [122]
@@ -724,11 +718,6 @@
   "apps/web/src/components/ConsoleQuestify.tsx": {
     "callFor": {
       "complexity": [9]
-    }
-  },
-  "apps/web/src/components/ConsoleTickets.tsx": {
-    "ConsoleTickets": {
-      "complexity": [11]
     }
   },
   "apps/web/src/components/DeleteAccountForm.tsx": {
@@ -774,17 +763,6 @@
   "apps/web/src/components/KioskScanner.tsx": {
     "Kiosk": {
       "complexity": [13]
-    }
-  },
-  "apps/web/src/components/NfcTagsPanel.tsx": {
-    "NfcTagsPanel": {
-      "complexity": [11]
-    }
-  },
-  "apps/web/src/components/PlayerAwards.tsx": {
-    "PlayerAwards": {
-      "complexity": [10],
-      "lines": [115]
     }
   },
   "apps/web/src/components/PollControls.tsx": {
@@ -845,16 +823,8 @@
     "<anonymous>": {
       "complexity": [10]
     },
-    "goalBodyOf": {
-      "complexity": [11]
-    },
     "targetChoices": {
       "complexity": [9]
-    }
-  },
-  "apps/web/src/lib/device.ts": {
-    "deviceAnswerOf": {
-      "complexity": [11]
     }
   },
   "apps/web/src/lib/event-card.ts": {
@@ -877,26 +847,13 @@
       "complexity": [15]
     }
   },
-  "apps/web/src/lib/rehearsal.ts": {
-    "readRehearsal": {
-      "complexity": [11]
-    }
-  },
   "apps/web/src/lib/rewards.ts": {
     "deskProblem": {
       "complexity": [10]
-    },
-    "rewardProblem": {
-      "complexity": [12]
     }
   },
   "apps/web/src/lib/staff-api.ts": {
     "fetchMe": {
-      "complexity": [11]
-    }
-  },
-  "apps/web/src/lib/surveys.ts": {
-    "<anonymous>": {
       "complexity": [11]
     }
   },

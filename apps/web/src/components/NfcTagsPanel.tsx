@@ -117,20 +117,55 @@ function TagCard({
   );
 }
 
-/**
- * A quest's NFC tags (T-308, F-105) in its edit form: the list with each tag's taps and possible copies, Move to
- * another NFC quest, Revoke, and Revoke all after a confirmation. Tags are written from staff mode on a phone, never
- * here. A basic tag can be copied like a printed QR, which the panel says.
- */
-export function NfcTagsPanel({
+const hasActive = (tags: readonly TagLine[] | null): boolean =>
+  tags?.some((tag) => tag.status === "active") === true;
+
+/** The loaded tags as cards, or the empty note; nothing before they load. */
+function TagList({
+  tags,
   language,
   timeZone,
-  eventApi,
-  questId,
   targets,
-  nfcOn,
+  busy,
   readOnly,
-}: Props) {
+  act,
+}: Readonly<{
+  tags: readonly TagLine[] | null;
+  language: Language;
+  timeZone: string;
+  targets: Props["targets"];
+  busy: boolean;
+  readOnly: boolean;
+  act: (path: string, payload?: unknown) => Promise<void>;
+}>) {
+  const t = useTranslator(language);
+  if (tags === null) {
+    return null;
+  }
+  if (tags.length === 0) {
+    return <Muted>{t("tags.empty")}</Muted>;
+  }
+  return (
+    <CardList>
+      {tags.map((tag) => (
+        <TagCard
+          key={tag.id}
+          tag={tag}
+          language={language}
+          timeZone={timeZone}
+          targets={targets}
+          busy={busy}
+          readOnly={readOnly}
+          move={(target) => void act(`/nfc-tags/${tag.id}/move`, { questId: target })}
+          revoke={() => void act(`/nfc-tags/${tag.id}/revoke`)}
+        />
+      ))}
+    </CardList>
+  );
+}
+
+/** The tags, the busy and confirming state, and the calls that change them (each reloads the list). */
+function useNfcTags(eventApi: string, questId: string, language: Language) {
   const t = useTranslator(language);
   const [tags, setTags] = useState<readonly TagLine[] | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -166,8 +201,63 @@ export function NfcTagsPanel({
     }
     await load();
   };
+  return { tags, problem, busy, confirming, setConfirming, act };
+}
 
-  const active = tags?.some((tag) => tag.status === "active") === true;
+/** Revoke all: a button while some tag is active, then its confirmation. */
+function RevokeAll({
+  language,
+  busy,
+  confirming,
+  setConfirming,
+  confirm,
+}: Readonly<{
+  language: Language;
+  busy: boolean;
+  confirming: boolean;
+  setConfirming: (confirming: boolean) => void;
+  confirm: () => void;
+}>) {
+  const t = useTranslator(language);
+  return confirming ? (
+    <ConfirmDialog
+      language={language}
+      title={t("tags.revokeAll")}
+      body={t("tags.revokeAllConfirm")}
+      confirmLabel={t("tags.revokeAll")}
+      noteLabel={null}
+      busy={busy}
+      cancel={() => setConfirming(false)}
+      confirm={confirm}
+    />
+  ) : (
+    <Button variant="primary" disabled={busy} onClick={() => setConfirming(true)}>
+      {t("tags.revokeAll")}
+    </Button>
+  );
+}
+
+/**
+ * A quest's NFC tags (T-308, F-105) in its edit form: the list with each tag's taps and possible copies, Move to
+ * another NFC quest, Revoke, and Revoke all after a confirmation. Tags are written from staff mode on a phone, never
+ * here. A basic tag can be copied like a printed QR, which the panel says.
+ */
+export function NfcTagsPanel({
+  language,
+  timeZone,
+  eventApi,
+  questId,
+  targets,
+  nfcOn,
+  readOnly,
+}: Props) {
+  const t = useTranslator(language);
+  const { tags, problem, busy, confirming, setConfirming, act } = useNfcTags(
+    eventApi,
+    questId,
+    language,
+  );
+  const active = hasActive(tags);
   if (!nfcOn && (tags === null || tags.length === 0)) {
     return null;
   }
@@ -177,40 +267,23 @@ export function NfcTagsPanel({
       <Muted>{t("tags.basicNote")}</Muted>
       <Muted>{t("tags.qrNote")}</Muted>
       {problem === null ? null : <p role="alert">{problem}</p>}
-      {tags === null ? null : tags.length === 0 ? (
-        <Muted>{t("tags.empty")}</Muted>
-      ) : (
-        <CardList>
-          {tags.map((tag) => (
-            <TagCard
-              key={tag.id}
-              tag={tag}
-              language={language}
-              timeZone={timeZone}
-              targets={targets}
-              busy={busy}
-              readOnly={readOnly}
-              move={(target) => void act(`/nfc-tags/${tag.id}/move`, { questId: target })}
-              revoke={() => void act(`/nfc-tags/${tag.id}/revoke`)}
-            />
-          ))}
-        </CardList>
-      )}
-      {readOnly || !active ? null : confirming ? (
-        <ConfirmDialog
+      <TagList
+        tags={tags}
+        language={language}
+        timeZone={timeZone}
+        targets={targets}
+        busy={busy}
+        readOnly={readOnly}
+        act={act}
+      />
+      {readOnly || !active ? null : (
+        <RevokeAll
           language={language}
-          title={t("tags.revokeAll")}
-          body={t("tags.revokeAllConfirm")}
-          confirmLabel={t("tags.revokeAll")}
-          noteLabel={null}
           busy={busy}
-          cancel={() => setConfirming(false)}
+          confirming={confirming}
+          setConfirming={setConfirming}
           confirm={() => void act(`/quests/${questId}/nfc-tags/revoke-all`)}
         />
-      ) : (
-        <Button variant="primary" disabled={busy} onClick={() => setConfirming(true)}>
-          {t("tags.revokeAll")}
-        </Button>
       )}
     </Stack>
   );

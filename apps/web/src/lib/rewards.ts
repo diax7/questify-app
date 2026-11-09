@@ -156,23 +156,23 @@ const between = (value: number, low: number, high: number) =>
  * reserved now: the stock may not go below it. Undefined when the draft is fine.
  */
 export function rewardProblem(draft: RewardDraft, unitsOut = 0): RewardField | undefined {
-  if (draft.nameAr.trim() === "" && draft.nameEn.trim() === "") {
-    return "name";
-  }
-  if (!between(draft.price, 1, 1_000_000)) {
-    return "price";
-  }
-  if (draft.kind !== "digital" && !between(draft.stock, Math.max(0, unitsOut), 100_000)) {
-    return "stock";
-  }
-  if (draft.perPlayerLimit !== "" && !between(Number(draft.perPlayerLimit), 1, 100)) {
-    return "perPlayerLimit";
-  }
-  if (draft.opensAt !== "" && draft.closesAt !== "" && draft.closesAt <= draft.opensAt) {
-    return "closesAt";
-  }
-  return undefined;
+  const refusals: readonly (readonly [RewardField, () => boolean])[] = [
+    ["name", () => draft.nameAr.trim() === "" && draft.nameEn.trim() === ""],
+    ["price", () => !between(draft.price, 1, 1_000_000)],
+    ["stock", () => stockRefused(draft, unitsOut)],
+    ["perPlayerLimit", () => limitRefused(draft.perPlayerLimit)],
+    ["closesAt", () => windowRefused(draft)],
+  ];
+  return refusals.find(([, refused]) => refused())?.[0];
 }
+
+const stockRefused = (draft: RewardDraft, unitsOut: number): boolean =>
+  draft.kind !== "digital" && !between(draft.stock, Math.max(0, unitsOut), 100_000);
+
+const limitRefused = (limit: string): boolean => limit !== "" && !between(Number(limit), 1, 100);
+
+const windowRefused = (draft: RewardDraft): boolean =>
+  draft.opensAt !== "" && draft.closesAt !== "" && draft.closesAt <= draft.opensAt;
 
 export type ShopField = "pickupMinutes" | "daysAfter" | "daysAfterShorter";
 

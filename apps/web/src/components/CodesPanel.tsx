@@ -128,26 +128,149 @@ function RegenerateDialog({
   );
 }
 
-/**
- * An event's printed quest codes (FR-305, FR-1711; UX §3.5): one card per quest with a code, in the event's languages,
- * printed or saved as PDF by the browser. "New code" makes the printed one stop working at once, after a confirmation.
- */
-export function CodesPanel({
+/** One printed card: the code, its titles in both languages, its category or secret note, version and actions. */
+function CodeCard({
+  code,
   language,
-  organizerId,
-  eventId,
-}: Readonly<{ language: Language; organizerId: string; eventId: string }>) {
+  busy,
+  regenerate,
+}: Readonly<{ code: Code; language: Language; busy: boolean; regenerate: () => void }>) {
   const t = useTranslator(language);
-  const base = `/v1/organizers/${organizerId}/events/${eventId}`;
+  const name =
+    code.step === null
+      ? textFor(code.title, language)
+      : `${textFor(code.title, language)} - ${textFor(code.step, language)}`;
+  return (
+    <li id={`code-${cardId(code)}`} tabIndex={-1} className={codeStyles.card}>
+      <QrImage
+        text={code.url}
+        label={
+          code.secretOf === null
+            ? t("codes.codeFor", { name })
+            : t("codes.secretFor", { name: textFor(code.title, language) })
+        }
+      />
+      {code.title.ar === null ? null : (
+        <p className={codeStyles.title} dir="rtl" lang="ar">
+          {code.title.ar}
+        </p>
+      )}
+      {code.title.en === null ? null : (
+        <p className={codeStyles.title} dir="ltr" lang="en">
+          {code.title.en}
+        </p>
+      )}
+      {code.step === null ? null : (
+        <p className={codeStyles.title}>{t("codes.step", { name: bothLanguages(code.step) })}</p>
+      )}
+      {code.secretOf === null ? (
+        <p className={codeStyles.small}>{bothLanguages(code.category)}</p>
+      ) : (
+        <p className={codeStyles.title}>
+          {t("codes.secret")} {infoTip(t, "codes.secretHint")}
+        </p>
+      )}
+      <p className={codeStyles.small}>{t("codes.version", { version: code.version })}</p>
+      <div className={codeStyles.controls}>
+        <Toolbar>
+          <Button variant="quiet" onClick={() => download(code, language)}>
+            {t("codes.download")}
+          </Button>
+          <Button variant="quiet" disabled={busy} onClick={regenerate}>
+            {t("codes.regenerate")}
+          </Button>
+        </Toolbar>
+      </div>
+    </li>
+  );
+}
+
+/** The size choice and the print button, shown once there are codes. */
+function SizeToolbar({
+  language,
+  large,
+  setLarge,
+}: Readonly<{ language: Language; large: boolean; setLarge: (large: boolean) => void }>) {
+  const t = useTranslator(language);
+  return (
+    <Toolbar>
+      <FieldGroup legend={t("codes.size")} layout="choices">
+        {([false, true] as const).map((option) => (
+          <Radio
+            key={String(option)}
+            name="size"
+            checked={large === option}
+            onChange={() => setLarge(option)}
+            label={t(option ? "codes.sizeLarge" : "codes.sizeSmall")}
+          />
+        ))}
+      </FieldGroup>
+      <Button variant="primary" onClick={() => window.print()}>
+        {t("codes.print")}
+      </Button>
+    </Toolbar>
+  );
+}
+
+/** The sheet of cards, or the loading and empty states. */
+function CodesSheet({
+  language,
+  codes,
+  loading,
+  large,
+  busy,
+  regenerate,
+}: Readonly<{
+  language: Language;
+  codes: readonly Code[] | null;
+  loading: boolean;
+  large: boolean;
+  busy: boolean;
+  regenerate: (code: Code) => void;
+}>) {
+  const t = useTranslator(language);
+  if (codes === null) {
+    return loading ? <Muted>{t("common.loading")}</Muted> : null;
+  }
+  if (codes.length === 0) {
+    return <EmptyState>{t("codes.empty")}</EmptyState>;
+  }
+  return (
+    <ul className={`${codeStyles.sheet} ${large ? codeStyles.large : ""}`}>
+      {codes.map((code) => (
+        <CodeCard
+          key={cardId(code)}
+          code={code}
+          language={language}
+          busy={busy}
+          regenerate={() => regenerate(code)}
+        />
+      ))}
+    </ul>
+  );
+}
+
+/** "Print QR" links here with #code-{id}; the cards arrive after the first paint, so the browser cannot scroll to it. */
+function useScrollToHashedCode(codes: readonly Code[] | null) {
+  useEffect(() => {
+    const target = codes === null ? null : document.getElementById(window.location.hash.slice(1));
+    if (target !== null && window.location.hash.startsWith("#code-")) {
+      target.scrollIntoView({ block: "center" });
+      target.focus();
+    }
+  }, [codes]);
+}
+
+/** The event's codes and what happens to them: loading, the refusals shown, and New code. */
+function useCodes(base: string, language: Language) {
+  const t = useTranslator(language);
   const [codes, setCodes] = useState<readonly Code[] | null>(null);
-  const [large, setLarge] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState<Code | null>(null);
-  const loaded = useRef(false);
-
   const [loadFailed, setLoadFailed] = useState(false);
+  const loaded = useRef(false);
 
   /** False after a refusal, which it shows: the page's own words for a failure the API does not name (UX §3.5). */
   const handle = (
@@ -191,14 +314,7 @@ export function CodesPanel({
     // `load` only reads state setters and the page's language.
   }, [base]);
 
-  useEffect(() => {
-    // "Print QR" links here with #code-{id}; the cards arrive after the first paint, so the browser cannot scroll to it.
-    const target = codes === null ? null : document.getElementById(window.location.hash.slice(1));
-    if (target !== null && window.location.hash.startsWith("#code-")) {
-      target.scrollIntoView({ block: "center" });
-      target.focus();
-    }
-  }, [codes]);
+  useScrollToHashedCode(codes);
 
   const regenerate = async () => {
     if (regenerating === null) {
@@ -222,6 +338,32 @@ export function CodesPanel({
     }
   };
 
+  return {
+    codes,
+    busy,
+    problem,
+    notice,
+    regenerating,
+    loadFailed,
+    load,
+    regenerate,
+    ask: setRegenerating,
+  };
+}
+
+/**
+ * An event's printed quest codes (FR-305, FR-1711; UX §3.5): one card per quest with a code, in the event's languages,
+ * printed or saved as PDF by the browser. "New code" makes the printed one stop working at once, after a confirmation.
+ */
+export function CodesPanel({
+  language,
+  organizerId,
+  eventId,
+}: Readonly<{ language: Language; organizerId: string; eventId: string }>) {
+  const t = useTranslator(language);
+  const state = useCodes(`/v1/organizers/${organizerId}/events/${eventId}`, language);
+  const [large, setLarge] = useState(false);
+  const { codes, busy, problem, notice, regenerating } = state;
   return (
     <Stack as="section" aria-labelledby="codes-title">
       <div className={codeStyles.controls}>
@@ -239,8 +381,8 @@ export function CodesPanel({
               {problem}
             </Notice>
           )}
-          {loadFailed ? (
-            <Button variant="primary" onClick={() => void load()}>
+          {state.loadFailed ? (
+            <Button variant="primary" onClick={() => void state.load()}>
               {t("common.retry")}
             </Button>
           ) : null}
@@ -253,95 +395,23 @@ export function CodesPanel({
             <RegenerateDialog
               language={language}
               busy={busy}
-              cancel={() => setRegenerating(null)}
-              confirm={() => void regenerate()}
+              cancel={() => state.ask(null)}
+              confirm={() => void state.regenerate()}
             />
           )}
           {codes !== null && codes.length > 0 ? (
-            <Toolbar>
-              <FieldGroup legend={t("codes.size")} layout="choices">
-                {([false, true] as const).map((option) => (
-                  <Radio
-                    key={String(option)}
-                    name="size"
-                    checked={large === option}
-                    onChange={() => setLarge(option)}
-                    label={t(option ? "codes.sizeLarge" : "codes.sizeSmall")}
-                  />
-                ))}
-              </FieldGroup>
-              <Button variant="primary" onClick={() => window.print()}>
-                {t("codes.print")}
-              </Button>
-            </Toolbar>
+            <SizeToolbar language={language} large={large} setLarge={setLarge} />
           ) : null}
         </Stack>
       </div>
-      {codes === null ? (
-        problem === null ? (
-          <Muted>{t("common.loading")}</Muted>
-        ) : null
-      ) : codes.length === 0 ? (
-        <EmptyState>{t("codes.empty")}</EmptyState>
-      ) : (
-        <ul className={`${codeStyles.sheet} ${large ? codeStyles.large : ""}`}>
-          {codes.map((code) => (
-            <li
-              key={cardId(code)}
-              id={`code-${cardId(code)}`}
-              tabIndex={-1}
-              className={codeStyles.card}
-            >
-              <QrImage
-                text={code.url}
-                label={
-                  code.secretOf === null
-                    ? t("codes.codeFor", {
-                        name:
-                          code.step === null
-                            ? textFor(code.title, language)
-                            : `${textFor(code.title, language)} - ${textFor(code.step, language)}`,
-                      })
-                    : t("codes.secretFor", { name: textFor(code.title, language) })
-                }
-              />
-              {code.title.ar === null ? null : (
-                <p className={codeStyles.title} dir="rtl" lang="ar">
-                  {code.title.ar}
-                </p>
-              )}
-              {code.title.en === null ? null : (
-                <p className={codeStyles.title} dir="ltr" lang="en">
-                  {code.title.en}
-                </p>
-              )}
-              {code.step === null ? null : (
-                <p className={codeStyles.title}>
-                  {t("codes.step", { name: bothLanguages(code.step) })}
-                </p>
-              )}
-              {code.secretOf === null ? (
-                <p className={codeStyles.small}>{bothLanguages(code.category)}</p>
-              ) : (
-                <p className={codeStyles.title}>
-                  {t("codes.secret")} {infoTip(t, "codes.secretHint")}
-                </p>
-              )}
-              <p className={codeStyles.small}>{t("codes.version", { version: code.version })}</p>
-              <div className={codeStyles.controls}>
-                <Toolbar>
-                  <Button variant="quiet" onClick={() => download(code, language)}>
-                    {t("codes.download")}
-                  </Button>
-                  <Button variant="quiet" disabled={busy} onClick={() => setRegenerating(code)}>
-                    {t("codes.regenerate")}
-                  </Button>
-                </Toolbar>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <CodesSheet
+        language={language}
+        codes={codes}
+        loading={problem === null}
+        large={large}
+        busy={busy}
+        regenerate={state.ask}
+      />
     </Stack>
   );
 }

@@ -34,15 +34,22 @@ const isChoiceCount = (value: unknown) =>
 const isTexts = (value: unknown) =>
   value === null || (Array.isArray(value) && value.every((text) => typeof text === "string"));
 
-const isQuestion = (value: unknown): value is SurveyQuestionResult =>
-  isRecord(value) &&
+const isChoices = (value: unknown) =>
+  value === null || (Array.isArray(value) && value.every(isChoiceCount));
+
+const isAverage = (value: unknown) => value === null || typeof value === "number";
+
+const isQuestionHead = (value: Record<string, unknown>) =>
   typeof value["id"] === "string" &&
   ["choice", "rating", "text"].includes(String(value["kind"])) &&
   isText(value["text"]) &&
-  typeof value["answered"] === "number" &&
-  (value["choices"] === null ||
-    (Array.isArray(value["choices"]) && value["choices"].every(isChoiceCount))) &&
-  (value["average"] === null || typeof value["average"] === "number") &&
+  typeof value["answered"] === "number";
+
+const isQuestion = (value: unknown): value is SurveyQuestionResult =>
+  isRecord(value) &&
+  isQuestionHead(value) &&
+  isChoices(value["choices"]) &&
+  isAverage(value["average"]) &&
   isTexts(value["texts"]);
 
 /** Reads the results; anything malformed reads as nothing, so the panel stays hidden rather than guessing. */

@@ -77,23 +77,28 @@ export function deviceAnswerOf(body: unknown): DeviceAnswer | undefined {
   if (!isRecord(body)) {
     return undefined;
   }
-  const kind = body["kind"];
-  if (body["state"] === "pending" && typeof kind === "string" && KINDS.has(kind)) {
-    return {
-      state: "pending",
-      kind: kind as DeviceKind,
-      code: typeof body["code"] === "string" ? body["code"] : null,
-      expiresAt: String(body["expiresAt"] ?? ""),
-    };
+  const kind = knownKind(body["kind"]);
+  if (body["state"] === "pending" && kind !== undefined) {
+    return pendingOf(body, kind);
   }
   if (body["state"] !== "paired") {
     return undefined;
   }
-  if (body["activated"] !== true || typeof kind !== "string" || !KINDS.has(kind)) {
+  if (body["activated"] !== true || kind === undefined) {
     return { state: "waiting" };
   }
-  return { state: "paired", view: viewOf(body, kind as DeviceKind) };
+  return { state: "paired", view: viewOf(body, kind) };
 }
+
+const pendingOf = (body: Record<string, unknown>, kind: DeviceKind): DeviceAnswer => ({
+  state: "pending",
+  kind,
+  code: typeof body["code"] === "string" ? body["code"] : null,
+  expiresAt: String(body["expiresAt"] ?? ""),
+});
+
+const knownKind = (value: unknown): DeviceKind | undefined =>
+  typeof value === "string" && KINDS.has(value) ? (value as DeviceKind) : undefined;
 
 /** A screen-code answer, or undefined when it is not that shape. */
 export function screenCodeOf(body: unknown): ScreenCodeView | undefined {

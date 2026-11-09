@@ -355,6 +355,83 @@ function RecordSection({
   );
 }
 
+const blankDraft = (quests: readonly QuestOption[]): Draft => ({
+  mode: "points",
+  points: "",
+  questId: quests[0]?.id ?? "",
+  reason: "",
+});
+
+/** The confirm step for an award by the draft: the points (typed or the quest's), and the quest's name when by quest. */
+function awardAsked(draft: Draft, points: number, quest: QuestOption | undefined): Asking {
+  const byQuest = draft.mode === "quest";
+  return {
+    kind: "award",
+    points,
+    questId: byQuest ? draft.questId : null,
+    label: byQuest ? (quest?.title ?? "") : "",
+    reason: draft.reason.trim(),
+  };
+}
+
+/** The refusal or the confirmation of the last award or removal. */
+function Outcome({ problem, notice }: Readonly<{ problem: string | null; notice: string | null }>) {
+  return (
+    <>
+      {problem === null ? null : (
+        <Notice tone="danger" role="alert">
+          {problem}
+        </Notice>
+      )}
+      {notice === null ? null : (
+        <Notice tone="info" role="status">
+          {notice}
+        </Notice>
+      )}
+    </>
+  );
+}
+
+/** The award form: what to award, the cap note for an editor, and the submit button. */
+function AwardForm({
+  language,
+  quests,
+  draft,
+  change,
+  caps,
+  name,
+  ready,
+  submit,
+}: Readonly<{
+  language: Language;
+  quests: readonly QuestOption[];
+  draft: Draft;
+  change: (next: Draft) => void;
+  caps: Caps | null;
+  name: string;
+  ready: boolean;
+  submit: (event: FormEvent<HTMLFormElement>) => void;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <Form card onSubmit={submit} aria-label={t("awards.awardTitle", { name })}>
+      <SubHeading>{t("awards.awardTitle", { name })}</SubHeading>
+      <AwardFields language={language} quests={quests} draft={draft} change={change} />
+      {caps === null ? null : (
+        <Muted>
+          {t("awards.capNote", {
+            each: formatNumber(caps.each, language),
+            day: formatNumber(caps.day, language),
+          })}
+        </Muted>
+      )}
+      <Button variant="primary" type="submit" disabled={!ready}>
+        {t("awards.award")}
+      </Button>
+    </Form>
+  );
+}
+
 type Props = Readonly<{
   language: Language;
   /** `/v1/organizers/{id}/events/{id}`. */
@@ -382,12 +459,7 @@ export function PlayerAwards({
 }: Props) {
   const t = useTranslator(language);
   const record = useRecord(`${eventApi}/players/${player.enrollmentId}/entries`);
-  const [draft, setDraft] = useState<Draft>({
-    mode: "points",
-    points: "",
-    questId: quests[0]?.id ?? "",
-    reason: "",
-  });
+  const [draft, setDraft] = useState<Draft>(() => blankDraft(quests));
   const [asking, setAsking] = useState<Asking | null>(null);
   const key = useRef("");
   const [busy, setBusy] = useState(false);
@@ -407,14 +479,7 @@ export function PlayerAwards({
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (amount !== undefined && reasonOk(draft.reason)) {
-      const byQuest = draft.mode === "quest";
-      ask({
-        kind: "award",
-        points: amount,
-        questId: byQuest ? draft.questId : null,
-        label: byQuest ? (quest?.title ?? "") : "",
-        reason: draft.reason.trim(),
-      });
+      ask(awardAsked(draft, amount, quest));
     }
   };
   const send = async (sending: Asking) => {
@@ -450,35 +515,17 @@ export function PlayerAwards({
         />
       )}
       <FieldGroup>
-        {problem === null ? null : (
-          <Notice tone="danger" role="alert">
-            {problem}
-          </Notice>
-        )}
-        {notice === null ? null : (
-          <Notice tone="info" role="status">
-            {notice}
-          </Notice>
-        )}
-        <Form card onSubmit={submit} aria-label={t("awards.awardTitle", { name })}>
-          <SubHeading>{t("awards.awardTitle", { name })}</SubHeading>
-          <AwardFields language={language} quests={quests} draft={draft} change={setDraft} />
-          {caps === null ? null : (
-            <Muted>
-              {t("awards.capNote", {
-                each: formatNumber(caps.each, language),
-                day: formatNumber(caps.day, language),
-              })}
-            </Muted>
-          )}
-          <Button
-            variant="primary"
-            type="submit"
-            disabled={amount === undefined || !reasonOk(draft.reason)}
-          >
-            {t("awards.award")}
-          </Button>
-        </Form>
+        <Outcome problem={problem} notice={notice} />
+        <AwardForm
+          language={language}
+          quests={quests}
+          draft={draft}
+          change={setDraft}
+          caps={caps}
+          name={name}
+          ready={amount !== undefined && reasonOk(draft.reason)}
+          submit={submit}
+        />
         <RecordSection
           language={language}
           timeZone={timeZone}

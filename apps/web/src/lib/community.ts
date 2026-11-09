@@ -177,6 +177,10 @@ function rewardBody(reward: RewardDraft): Record<string, unknown> {
   return { kind: "nothing" };
 }
 
+/** The quest or category a counted goal is limited to; null for points, another scope or an empty pick. */
+const scopedId = (draft: GoalDraft, scope: "quest" | "category", id: string): string | null =>
+  draft.measure !== "points" && draft.scope === scope ? id || null : null;
+
 /**
  * The body for `POST`/`PATCH …/community-goals`. A started goal sends its stored window back unchanged (`original`),
  * so only its texts can differ; the API answers `goal_locked` for anything else.
@@ -186,21 +190,15 @@ export function goalBodyOf(
   timeZone: string,
   original?: Readonly<{ startsAt: string; endsAt: string }>,
 ): Record<string, unknown> {
-  const counted = draft.measure !== "points";
+  const kept = draft.started ? original : undefined;
   return {
     title: { ar: text(draft.titleAr), en: text(draft.titleEn) },
     measure: draft.measure,
-    questId: counted && draft.scope === "quest" ? draft.questId || null : null,
-    categoryId: counted && draft.scope === "category" ? draft.categoryId || null : null,
+    questId: scopedId(draft, "quest", draft.questId),
+    categoryId: scopedId(draft, "category", draft.categoryId),
     target: whole(draft.target),
-    startsAt:
-      draft.started && original !== undefined
-        ? original.startsAt
-        : toInstant(draft.startsAt, timeZone).toISOString(),
-    endsAt:
-      draft.started && original !== undefined
-        ? original.endsAt
-        : toInstant(draft.endsAt, timeZone).toISOString(),
+    startsAt: kept?.startsAt ?? toInstant(draft.startsAt, timeZone).toISOString(),
+    endsAt: kept?.endsAt ?? toInstant(draft.endsAt, timeZone).toISOString(),
     paidTo: draft.paidTo,
     reward: rewardBody(draft.reward),
     milestones: draft.milestones.map((step) => ({

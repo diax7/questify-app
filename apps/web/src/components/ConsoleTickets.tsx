@@ -91,6 +91,77 @@ function QueueRow({ language, row }: Readonly<{ language: Language; row: Console
   );
 }
 
+type Queue = ReturnType<typeof useQueue>;
+
+/** The kind and source filters. */
+function QueueFilters({
+  language,
+  kind,
+  setKind,
+  source,
+  setSource,
+}: Readonly<{
+  language: Language;
+  kind: TicketKind | null;
+  setKind: (kind: TicketKind | null) => void;
+  source: ConsoleSource | null;
+  setSource: (source: ConsoleSource | null) => void;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <FieldGroup layout="columns">
+      <Field label={t("tickets.kindFilter")}>
+        <Select
+          value={kind ?? ""}
+          onChange={(event) =>
+            setKind(event.target.value === "" ? null : (event.target.value as TicketKind))
+          }
+        >
+          <option value="">{t("tickets.allKinds")}</option>
+          {TICKET_KINDS.map((name) => (
+            <option key={name} value={name}>
+              {t(kindKey(name))}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      <Field label={t("console.tickets.source")}>
+        <Select
+          value={source ?? ""}
+          onChange={(event) =>
+            setSource(event.target.value === "" ? null : (event.target.value as ConsoleSource))
+          }
+        >
+          <option value="">{t("console.tickets.allSources")}</option>
+          <option value="direct">{t("console.tickets.direct")}</option>
+          <option value="escalated">{t("console.tickets.escalated")}</option>
+        </Select>
+      </Field>
+    </FieldGroup>
+  );
+}
+
+/** The failure notice, the loading and empty states, and the rows. */
+function QueueBody({ language, queue }: Readonly<{ language: Language; queue: Queue }>) {
+  const t = translatorFor(language);
+  return (
+    <>
+      {queue.failed === null ? null : (
+        <Notice tone="danger" role="alert">
+          {queue.failed === "network" ? t("join.network") : problemOf(queue.failed, language, t)}
+        </Notice>
+      )}
+      {queue.rows === null && queue.failed === null ? <Muted>{t("common.loading")}</Muted> : null}
+      {queue.rows?.length === 0 ? <EmptyState>{t("tickets.empty")}</EmptyState> : null}
+      <CardList>
+        {(queue.rows ?? []).map((row) => (
+          <QueueRow key={row.id} language={language} row={row} />
+        ))}
+      </CardList>
+    </>
+  );
+}
+
 /**
  * The console's Tickets (T-312, FR-1823): Questify's queue, Open oldest first and Closed newest first, filtered by
  * kind and by source (Direct: app problems and suggestions; Escalated: from an event team). Each row is a preview
@@ -116,47 +187,14 @@ export function ConsoleTickets({ language }: Readonly<{ language: Language }>) {
           select: () => setTab(name),
         }))}
       />
-      <FieldGroup layout="columns">
-        <Field label={t("tickets.kindFilter")}>
-          <Select
-            value={kind ?? ""}
-            onChange={(event) =>
-              setKind(event.target.value === "" ? null : (event.target.value as TicketKind))
-            }
-          >
-            <option value="">{t("tickets.allKinds")}</option>
-            {TICKET_KINDS.map((name) => (
-              <option key={name} value={name}>
-                {t(kindKey(name))}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={t("console.tickets.source")}>
-          <Select
-            value={source ?? ""}
-            onChange={(event) =>
-              setSource(event.target.value === "" ? null : (event.target.value as ConsoleSource))
-            }
-          >
-            <option value="">{t("console.tickets.allSources")}</option>
-            <option value="direct">{t("console.tickets.direct")}</option>
-            <option value="escalated">{t("console.tickets.escalated")}</option>
-          </Select>
-        </Field>
-      </FieldGroup>
-      {queue.failed === null ? null : (
-        <Notice tone="danger" role="alert">
-          {queue.failed === "network" ? t("join.network") : problemOf(queue.failed, language, t)}
-        </Notice>
-      )}
-      {queue.rows === null && queue.failed === null ? <Muted>{t("common.loading")}</Muted> : null}
-      {queue.rows?.length === 0 ? <EmptyState>{t("tickets.empty")}</EmptyState> : null}
-      <CardList>
-        {(queue.rows ?? []).map((row) => (
-          <QueueRow key={row.id} language={language} row={row} />
-        ))}
-      </CardList>
+      <QueueFilters
+        language={language}
+        kind={kind}
+        setKind={setKind}
+        source={source}
+        setSource={setSource}
+      />
+      <QueueBody language={language} queue={queue} />
       {queue.more === null ? null : (
         <Button variant="quiet" onClick={queue.more}>
           {t("tickets.more")}
