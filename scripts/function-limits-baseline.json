@@ -439,21 +439,6 @@
       "complexity": [9]
     }
   },
-  "apps/web/src/app/[lang]/e/[code]/rules/page.tsx": {
-    "RulesPage": {
-      "complexity": [9]
-    }
-  },
-  "apps/web/src/components/ActivationCard.tsx": {
-    "DraftActions": {
-      "complexity": [9]
-    }
-  },
-  "apps/web/src/components/AwardsPanel.tsx": {
-    "AwardsPanel": {
-      "complexity": [9]
-    }
-  },
   "apps/web/src/components/CodeStep.tsx": {
     "CodeStep": {
       "complexity": [9],
@@ -463,9 +448,6 @@
   "apps/web/src/components/CommunityGoalForm.tsx": {
     "CommunityGoalForm": {
       "lines": [122]
-    },
-    "ScopeFields": {
-      "complexity": [9]
     }
   },
   "apps/web/src/components/CommunityPanel.tsx": {
@@ -493,11 +475,6 @@
       "complexity": [9]
     }
   },
-  "apps/web/src/components/EventFields.tsx": {
-    "EventTimeFields": {
-      "complexity": [9]
-    }
-  },
   "apps/web/src/components/EventWords.tsx": {
     "EventWords": {
       "lines": [104]
@@ -506,16 +483,6 @@
   "apps/web/src/components/ExclusionsPanel.tsx": {
     "ExclusionsPanel": {
       "lines": [117]
-    }
-  },
-  "apps/web/src/components/FirstBonusFields.tsx": {
-    "FirstBonusFields": {
-      "complexity": [9]
-    }
-  },
-  "apps/web/src/components/HelpDeskPanel.tsx": {
-    "HelpDeskPanel": {
-      "complexity": [9]
     }
   },
   "apps/web/src/components/KioskScanner.tsx": {
@@ -531,14 +498,6 @@
   "apps/web/src/components/RewardsPanel.tsx": {
     "DeskForm": {
       "lines": [140]
-    },
-    "RewardRow": {
-      "complexity": [9]
-    }
-  },
-  "apps/web/src/components/SouvenirsPanel.tsx": {
-    "SouvenirContents": {
-      "complexity": [9]
     }
   },
   "apps/web/src/components/StationScreen.tsx": {

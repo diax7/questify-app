@@ -303,3 +303,26 @@ export function settleAnswerOf(body: unknown): SettleAnswer | undefined {
   }
   return { status: body["status"], goals: Number(body["goals"]), due: Number(body["due"]) };
 }
+
+type ScopeDraft = Pick<GoalDraft, "measure" | "scope" | "questId" | "categoryId">;
+
+/** The quest or category picker of a goal: null when every quest counts (points, or the "all" scope). */
+export function scopePickOf(
+  draft: ScopeDraft,
+): Readonly<{ scope: "quest" | "category"; value: string }> | null {
+  if (draft.measure === "points" || draft.scope === "all") {
+    return null;
+  }
+  return draft.scope === "quest"
+    ? { scope: "quest", value: draft.questId }
+    : { scope: "category", value: draft.categoryId };
+}
+
+/** The goal with the picked quest or category set for its scope. */
+export function withScopePick<Draft extends ScopeDraft>(
+  draft: Draft,
+  scope: "quest" | "category",
+  id: string,
+): Draft {
+  return scope === "quest" ? { ...draft, questId: id } : { ...draft, categoryId: id };
+}

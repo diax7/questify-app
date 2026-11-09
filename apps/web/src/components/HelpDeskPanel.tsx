@@ -9,6 +9,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { problemOf } from "#src/components/PlayerAwards.tsx";
 import { translatorFor } from "#src/lib/language.ts";
+import { listStatus } from "#src/lib/list-status.ts";
 import { handleOf } from "#src/lib/players.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor } from "#src/lib/quests.ts";
@@ -361,25 +362,60 @@ export function HelpDeskPanel({ language, organizerId, eventId, initial }: Props
           {problem}
         </Notice>
       )}
-      {list.tickets === null && problem === null ? <Muted>{t("common.loading")}</Muted> : null}
-      {list.tickets?.length === 0 ? <EmptyState>{t("tickets.empty")}</EmptyState> : null}
+      <TicketList
+        language={language}
+        eventApi={eventApi}
+        playersPage={playersPage}
+        tickets={list.tickets}
+        problem={problem}
+        reload={list.reload}
+        more={list.more}
+      />
+    </Stack>
+  );
+}
+
+/** The tickets of the tab with their loading and empty states and the next page. */
+function TicketList({
+  language,
+  eventApi,
+  playersPage,
+  tickets,
+  problem,
+  reload,
+  more,
+}: Readonly<{
+  language: Language;
+  eventApi: string;
+  playersPage: string;
+  tickets: readonly TeamTicket[] | null;
+  problem: string | null;
+  reload: () => void;
+  more: (() => void) | null;
+}>) {
+  const t = translatorFor(language);
+  const status = listStatus(tickets, problem);
+  return (
+    <>
+      {status === "loading" ? <Muted>{t("common.loading")}</Muted> : null}
+      {status === "empty" ? <EmptyState>{t("tickets.empty")}</EmptyState> : null}
       <CardList>
-        {(list.tickets ?? []).map((ticket) => (
+        {(tickets ?? []).map((ticket) => (
           <TicketRow
             key={ticket.id}
             language={language}
             eventApi={eventApi}
             playersPage={playersPage}
             ticket={ticket}
-            done={list.reload}
+            done={reload}
           />
         ))}
       </CardList>
-      {list.more === null ? null : (
-        <Button variant="quiet" onClick={list.more}>
+      {more === null ? null : (
+        <Button variant="quiet" onClick={more}>
           {t("tickets.more")}
         </Button>
       )}
-    </Stack>
+    </>
   );
 }

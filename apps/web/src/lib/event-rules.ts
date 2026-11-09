@@ -83,3 +83,7 @@ async function rulesResultOf(response: Response): Promise<RulesResult> {
 /** The organizer's own text in the page's language, else the other one; null when there is none. */
 export const organizerTextIn = (rules: OfficialRules, language: Language): string | null =>
   rules.text[language] ?? rules.text[language === "ar" ? "en" : "ar"];
+
+/** The fixed block's lines in the page's language; null when the answer is not the rules or has no block. */
+export const rulesLinesOf = (result: RulesResult, language: Language): readonly string[] | null =>
+  result.kind === "found" && result.rules.block !== null ? result.rules.block[language] : null;

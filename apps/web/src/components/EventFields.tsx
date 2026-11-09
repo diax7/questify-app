@@ -27,6 +27,7 @@ import {
   type EventDraft,
   type EventStatus,
 } from "#src/lib/events.ts";
+import { eventTimeLocks, numberFieldPatch } from "#src/lib/event-time-locks.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { Notice } from "#src/ui/Feedback.tsx";
@@ -301,8 +302,7 @@ export function EventTimeFields({
 }: FieldProps & Readonly<{ status: EventStatus }>) {
   const t = translatorFor(language);
   const zones = useZones(draft.timezone);
-  const started = status === "live";
-  const finished = status === "ended" || status === "archived";
+  const locks = eventTimeLocks(status);
   const time = (key: "startsAt" | "endsAt", locked: boolean) => (
     <Field label={t(`events.field.${key}`)}>
       <Input
@@ -315,7 +315,6 @@ export function EventTimeFields({
       />
     </Field>
   );
-  const timesHint = finished ? t("events.endedHint") : started ? t("events.liveHint") : undefined;
   return (
     <>
       <FieldGroup layout="columns">
@@ -323,7 +322,7 @@ export function EventTimeFields({
           <Select
             dir="ltr"
             value={draft.timezone}
-            disabled={disabled || started || finished}
+            disabled={disabled || locks.zoneLocked}
             onChange={(event) => change({ timezone: event.target.value })}
           >
             {zones.map((zone) => (
@@ -334,9 +333,9 @@ export function EventTimeFields({
           </Select>
         </Field>
       </FieldGroup>
-      <FieldGroup layout="columns" help={timesHint}>
-        {time("startsAt", started || finished)}
-        {time("endsAt", finished)}
+      <FieldGroup layout="columns" help={locks.hintKey === null ? undefined : t(locks.hintKey)}>
+        {time("startsAt", locks.startsAtLocked)}
+        {time("endsAt", locks.endsAtLocked)}
       </FieldGroup>
       <FieldGroup layout="columns">
         <Field
@@ -350,11 +349,12 @@ export function EventTimeFields({
             max={23}
             required
             value={draft.dayStartHour}
-            disabled={disabled || started || finished}
+            disabled={disabled || locks.zoneLocked}
             onChange={(event) => {
               // An emptied field keeps the last hour rather than turning into midnight.
-              if (event.target.value !== "") {
-                change({ dayStartHour: Number(event.target.value) });
+              const patch = numberFieldPatch("dayStartHour", event.target.value);
+              if (patch !== null) {
+                change(patch);
               }
             }}
           />

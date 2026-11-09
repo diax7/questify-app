@@ -40,6 +40,7 @@ import {
   nextWindow,
   parseCodes,
   rewardDraftOf,
+  rewardNameIn,
   rewardProblem,
   shopDraftProblem,
   shopRequest,
@@ -741,38 +742,15 @@ function RewardRow({
 }>) {
   const t = translatorFor(language);
   const [confirming, setConfirming] = useState(false);
-  const name = reward.name[language] ?? reward.name[language === "ar" ? "en" : "ar"] ?? "";
   return (
     <Card as="li">
       <Toolbar>
-        <strong>{name}</strong>
+        <strong>{rewardNameIn(reward, language)}</strong>
         <Badge>{t(`rewards.kind.${reward.kind}`)}</Badge>
         <SponsorBadge language={language} kind="reward" targetId={reward.id} />
       </Toolbar>
       <HeldNotice language={language} kind="reward" targetId={reward.id} />
-      <Toolbar>
-        <span>
-          {t("rewards.priceShort", {
-            points: formatNumber(reward.price, language),
-            currency: termFor(terms.currency, language),
-          })}
-        </span>
-        <span>
-          {reward.stockLeft === 0
-            ? t("rewards.soldOut")
-            : t("rewards.left", {
-                left: formatNumber(reward.stockLeft, language),
-                stock: formatNumber(reward.stock, language),
-              })}
-        </span>
-        {reward.unitsOut > 0 ? (
-          <Muted as="span">
-            {t(reward.kind === "digital" ? "rewards.redeemed" : "rewards.reserved", {
-              count: formatNumber(reward.unitsOut, language),
-            })}
-          </Muted>
-        ) : null}
-      </Toolbar>
+      <RewardNumbers language={language} reward={reward} terms={terms} />
       {reward.kind === "digital" ? (
         <CodesForm language={language} busy={busy} upload={upload} />
       ) : null}
@@ -783,12 +761,7 @@ function RewardRow({
         {confirming ? (
           <>
             <span role="alert">{t("rewards.removeConfirm")}</span>
-            <Button
-              variant="quiet"
-
-              disabled={busy}
-              onClick={() => setConfirming(false)}
-            >
+            <Button variant="quiet" disabled={busy} onClick={() => setConfirming(false)}>
               {t("common.cancel")}
             </Button>
             <Button variant="secondary" disabled={busy} onClick={remove}>
@@ -796,17 +769,46 @@ function RewardRow({
             </Button>
           </>
         ) : (
-          <Button
-            variant="quiet"
-
-            disabled={busy}
-            onClick={() => setConfirming(true)}
-          >
+          <Button variant="quiet" disabled={busy} onClick={() => setConfirming(true)}>
             {t("rewards.remove")}
           </Button>
         )}
       </Toolbar>
     </Card>
+  );
+}
+
+/** A reward's price, what is left of its stock and how many units are out. */
+function RewardNumbers({
+  language,
+  reward,
+  terms,
+}: Readonly<{ language: Language; reward: RewardView; terms: EventTerms }>) {
+  const t = translatorFor(language);
+  return (
+    <Toolbar>
+      <span>
+        {t("rewards.priceShort", {
+          points: formatNumber(reward.price, language),
+          currency: termFor(terms.currency, language),
+        })}
+      </span>
+      <span>
+        {reward.stockLeft === 0
+          ? t("rewards.soldOut")
+          : t("rewards.left", {
+              left: formatNumber(reward.stockLeft, language),
+              stock: formatNumber(reward.stock, language),
+            })}
+      </span>
+      {reward.unitsOut > 0 ? (
+        <Muted as="span">
+          {t(reward.kind === "digital" ? "rewards.redeemed" : "rewards.reserved", {
+            count: formatNumber(reward.unitsOut, language),
+          })}
+        </Muted>
+      ) : null}
+    </Toolbar>
   );
 }
 

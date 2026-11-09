@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { webConfig } from "#src/lib/config.ts";
-import { fetchRules, organizerTextIn } from "#src/lib/event-rules.ts";
+import { fetchRules, organizerTextIn, rulesLinesOf } from "#src/lib/event-rules.ts";
 import { isLanguage, translatorFor } from "#src/lib/language.ts";
 import { Notice } from "#src/ui/Feedback.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
@@ -35,6 +35,7 @@ export default async function RulesPage({ params }: Props) {
   }
   const t = translatorFor(lang);
   const own = result.kind === "found" ? organizerTextIn(result.rules, lang) : null;
+  const lines = rulesLinesOf(result, lang);
   return (
     <AppShell area="public" language={lang} path={`/e/${upper}/rules`} signedIn={false} narrow>
       <PageHeader
@@ -51,17 +52,17 @@ export default async function RulesPage({ params }: Props) {
           {t("eventPage.unavailable")}
         </Notice>
       ) : null}
-      {result.kind === "found" && result.rules.block !== null ? (
+      {lines === null ? null : (
         <Card>
           <ol>
-            {result.rules.block[lang].map((line) => (
+            {lines.map((line) => (
               <li key={line} dir="auto">
                 {line}
               </li>
             ))}
           </ol>
         </Card>
-      ) : null}
+      )}
       {own === null ? null : (
         <Section title={t("rules.organizerText")}>
           <Prose dir="auto">{own}</Prose>

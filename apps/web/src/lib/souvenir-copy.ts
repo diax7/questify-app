@@ -25,3 +25,9 @@ export function souvenirConfirmation(
       : "";
   return `${name}: ${t(`souvenir.${rule.audience}`)}. ${targets} ${qualification} ${t("souvenir.eligibility")} ${t("souvenir.promise")}`;
 }
+
+/** The status line of the souvenir list: pending while a grant is due or a scan is running. */
+export const souvenirStatusKey = (
+  list: Readonly<{ due: number; scanning: number }>,
+): "souvenir.pending" | "souvenir.complete" =>
+  list.due > 0 || list.scanning > 0 ? "souvenir.pending" : "souvenir.complete";

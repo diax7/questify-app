@@ -17,6 +17,7 @@ import {
   type ReportLine,
 } from "#src/lib/awards.ts";
 import { useTranslator } from "#src/components/TermsScope.tsx";
+import { listStatus } from "#src/lib/list-status.ts";
 import { handleOf } from "#src/lib/players.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { textFor, type CategoryView } from "#src/lib/quests.ts";
@@ -649,20 +650,47 @@ export function AwardsPanel({ language, organizerId, eventId, myRole }: Props) {
         sessions={awards.sessions}
         done={awards.reload}
       />
-      <Section title={t("awards.report")}>
-        {awards.lines === null && problem === null ? <Muted>{t("common.loading")}</Muted> : null}
-        {awards.lines?.length === 0 ? <EmptyState>{t("awards.reportEmpty")}</EmptyState> : null}
-        <CardList>
-          {(awards.lines ?? []).map((line) => (
-            <ReportRow key={line.id} language={language} timeZone={awards.timeZone} line={line} />
-          ))}
-        </CardList>
-        {awards.more === null ? null : (
-          <Button variant="secondary" onClick={awards.more}>
-            {t("players.more")}
-          </Button>
-        )}
-      </Section>
+      <ReportSection
+        language={language}
+        lines={awards.lines}
+        timeZone={awards.timeZone}
+        more={awards.more}
+        problem={problem}
+      />
     </Stack>
+  );
+}
+
+/** The report of every manual award and removal, with its loading and empty states and the next page. */
+function ReportSection({
+  language,
+  lines,
+  timeZone,
+  more,
+  problem,
+}: Readonly<{
+  language: Language;
+  lines: readonly ReportLine[] | null;
+  timeZone: string;
+  more: (() => void) | null;
+  problem: string | null;
+}>) {
+  const t = useTranslator(language);
+  const status = listStatus(lines, problem);
+  return (
+    <Section title={t("awards.report")}>
+      {status === "loading" ? <Muted>{t("common.loading")}</Muted> : null}
+      {status === "empty" ? <EmptyState>{t("awards.reportEmpty")}</EmptyState> : null}
+      <CardList>
+        {(lines ?? []).map((line) => (
+          <ReportRow key={line.id} language={language} timeZone={timeZone} line={line} />
+        ))}
+      </CardList>
+      {more === null ? null : (
+        <Button variant="secondary" onClick={more}>
+          {t("players.more")}
+        </Button>
+      )}
+    </Section>
   );
 }

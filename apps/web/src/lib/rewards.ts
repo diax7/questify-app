@@ -402,3 +402,7 @@ export function deskRequest(draft: DeskDraft): Record<string, unknown> {
     handoverConfirm: draft.confirm,
   };
 }
+
+/** A reward's name in the page's language, else the other one, else empty. */
+export const rewardNameIn = (reward: Pick<RewardView, "name">, language: "ar" | "en"): string =>
+  reward.name[language] ?? reward.name[language === "ar" ? "en" : "ar"] ?? "";

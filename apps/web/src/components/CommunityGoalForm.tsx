@@ -5,6 +5,8 @@ import {
   MAX_MILESTONES,
   blankReward,
   previewFills,
+  scopePickOf,
+  withScopePick,
   type GoalDraft,
   type Measure,
   type RewardDraft,
@@ -205,7 +207,7 @@ function ScopeFields({
   categories: readonly Choice[];
 }>) {
   const t = useTranslator(language);
-  const choices = draft.scope === "quest" ? quests : categories;
+  const pick = scopePickOf(draft);
   return (
     <>
       <Field label={t("community.page.measure")}>
@@ -238,21 +240,15 @@ function ScopeFields({
           </Select>
         </Field>
       )}
-      {draft.measure === "points" || draft.scope === "all" ? null : (
+      {pick === null ? null : (
         <Select
-          aria-label={t(`community.page.scope.${draft.scope}`)}
-          value={draft.scope === "quest" ? draft.questId : draft.categoryId}
+          aria-label={t(`community.page.scope.${pick.scope}`)}
+          value={pick.value}
           disabled={busy || locked}
-          onChange={(event) =>
-            change(
-              draft.scope === "quest"
-                ? { ...draft, questId: event.target.value }
-                : { ...draft, categoryId: event.target.value },
-            )
-          }
+          onChange={(event) => change(withScopePick(draft, pick.scope, event.target.value))}
         >
           <option value="" />
-          {choices.map((choice) => (
+          {(pick.scope === "quest" ? quests : categories).map((choice) => (
             <option key={choice.id} value={choice.id}>
               {choice.name}
             </option>

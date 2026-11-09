@@ -1,11 +1,11 @@
 "use client";
-import { type SouvenirBody, type SouvenirRule } from "@questify/shared";
+import { type SouvenirBody, type SouvenirList, type SouvenirRule } from "@questify/shared";
 import { useState } from "react";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
 import { EMPTY_SOUVENIR, SouvenirForm } from "#src/components/SouvenirForm.tsx";
 import { SouvenirCard } from "#src/components/SouvenirCard.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import { souvenirConfirmation } from "#src/lib/souvenir-copy.ts";
+import { souvenirConfirmation, souvenirStatusKey } from "#src/lib/souvenir-copy.ts";
 import { useSouvenirs, type SouvenirModel, type SouvenirProps } from "#src/lib/use-souvenirs.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
@@ -95,6 +95,41 @@ function Editor({
   );
 }
 
+/** The closed notice, the pending or complete line, the failure alert and the process button. */
+function SouvenirStatus({
+  list,
+  model,
+  language,
+}: {
+  list: SouvenirList;
+  model: SouvenirModel;
+  language: SouvenirProps["language"];
+}) {
+  const t = useTranslator(language);
+  return (
+    <>
+      {list.archived ? <Notice tone="info">{t("souvenir.closed")}</Notice> : null}
+      <Muted role="status">{t(souvenirStatusKey(list))}</Muted>
+      {list.failed > 0 ? (
+        <Notice tone="danger" role="alert">
+          {t("souvenir.failed")}
+        </Notice>
+      ) : null}
+      {list.archived ? null : (
+        <Button
+          variant="quiet"
+          disabled={model.busy}
+          onClick={() => {
+            void model.mutate("POST", "/process");
+          }}
+        >
+          {t("souvenir.process")}
+        </Button>
+      )}
+    </>
+  );
+}
+
 function SouvenirContents({
   model,
   props,
@@ -113,26 +148,7 @@ function SouvenirContents({
   const list = model.list;
   return (
     <>
-      {list.archived ? <Notice tone="info">{t("souvenir.closed")}</Notice> : null}
-      <Muted role="status">
-        {t(list.due > 0 || list.scanning > 0 ? "souvenir.pending" : "souvenir.complete")}
-      </Muted>
-      {list.failed > 0 ? (
-        <Notice tone="danger" role="alert">
-          {t("souvenir.failed")}
-        </Notice>
-      ) : null}
-      {list.archived ? null : (
-        <Button
-          variant="quiet"
-          disabled={model.busy}
-          onClick={() => {
-            void model.mutate("POST", "/process");
-          }}
-        >
-          {t("souvenir.process")}
-        </Button>
-      )}
+      <SouvenirStatus list={list} model={model} language={props.language} />
       {list.rules.length === 0 ? <EmptyState>{t("souvenir.empty")}</EmptyState> : null}
       {list.rules.map((rule) => (
         <SouvenirCard

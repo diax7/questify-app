@@ -157,6 +157,30 @@ function DraftActions({
   return (
     <>
       <p>{t("activation.notActivated")}</p>
+      <DraftNotices language={language} view={view} />
+      {isOwner ? (
+        <Toolbar>
+          <DraftButton
+            language={language}
+            view={view}
+            busy={busy}
+            withdraw={() => setConfirming(true)}
+            request={() => act("POST")}
+          />
+        </Toolbar>
+      ) : (
+        <Muted>{t("activation.editorHint")}</Muted>
+      )}
+      <Muted>{t("activation.priceNote")}</Muted>
+    </>
+  );
+}
+
+/** The request's date while it waits, or the rejection note. */
+function DraftNotices({ language, view }: Readonly<{ language: Language; view: ActivationView }>) {
+  const t = translatorFor(language);
+  return (
+    <>
       {view.state === "requested" && view.requestedAt !== null ? (
         <Notice tone="success" role="status">
           {t("activation.requested", {
@@ -167,32 +191,35 @@ function DraftActions({
       {view.state === "rejected" && view.note !== null ? (
         <Notice tone="danger">{t("activation.rejected", { note: view.note })}</Notice>
       ) : null}
-      {isOwner ? (
-        <Toolbar>
-          {view.state === "requested" ? (
-            <Button
-              variant="quiet"
-
-              disabled={busy}
-              onClick={() => setConfirming(true)}
-            >
-              {t("activation.withdraw")}
-            </Button>
-          ) : (
-            <Button
-              variant="secondary"
-
-              disabled={busy}
-              onClick={() => act("POST")}
-            >
-              {t(view.state === "rejected" ? "activation.requestAgain" : "activation.request")}
-            </Button>
-          )}
-        </Toolbar>
-      ) : (
-        <Muted>{t("activation.editorHint")}</Muted>
-      )}
-      <Muted>{t("activation.priceNote")}</Muted>
     </>
+  );
+}
+
+/** Withdraw while the request waits, else request (again after a rejection). */
+function DraftButton({
+  language,
+  view,
+  busy,
+  withdraw,
+  request,
+}: Readonly<{
+  language: Language;
+  view: ActivationView;
+  busy: boolean;
+  withdraw: () => void;
+  request: () => void;
+}>) {
+  const t = translatorFor(language);
+  if (view.state === "requested") {
+    return (
+      <Button variant="quiet" disabled={busy} onClick={withdraw}>
+        {t("activation.withdraw")}
+      </Button>
+    );
+  }
+  return (
+    <Button variant="secondary" disabled={busy} onClick={request}>
+      {t(view.state === "rejected" ? "activation.requestAgain" : "activation.request")}
+    </Button>
   );
 }
