@@ -366,6 +366,91 @@ function BarPreview({
   );
 }
 
+/** The goal's two titles and the hint that one may stay empty. */
+function TitleFields({
+  language,
+  draft,
+  busy,
+  change,
+}: Readonly<{ language: Language; draft: GoalDraft; busy: boolean; change: Change }>) {
+  const t = useTranslator(language);
+  return (
+    <>
+      <TextField
+        label={t("community.page.titleAr")}
+        value={draft.titleAr}
+        disabled={busy}
+        change={(titleAr) => change({ ...draft, titleAr })}
+        dir="rtl"
+        maxLength={80}
+      />
+      <TextField
+        label={t("community.page.titleEn")}
+        value={draft.titleEn}
+        disabled={busy}
+        change={(titleEn) => change({ ...draft, titleEn })}
+        dir="ltr"
+        maxLength={80}
+      />
+      <Muted>{t("community.page.titleHint")}</Muted>
+    </>
+  );
+}
+
+/** The target, the window's start and end, and who is paid. */
+function TimingFields({
+  language,
+  draft,
+  locked,
+  busy,
+  change,
+}: Readonly<{
+  language: Language;
+  draft: GoalDraft;
+  locked: boolean;
+  busy: boolean;
+  change: Change;
+}>) {
+  const t = useTranslator(language);
+  const time = (field: "startsAt" | "endsAt") => (
+    <Field label={t(field === "startsAt" ? "community.page.startsAt" : "community.page.endsAt")}>
+      <Input
+        type="datetime-local"
+        dir="ltr"
+        value={draft[field]}
+        disabled={busy || locked}
+        onChange={(event) => change({ ...draft, [field]: event.target.value })}
+      />
+    </Field>
+  );
+  return (
+    <>
+      <TextField
+        label={t("community.page.target")}
+        value={draft.target}
+        disabled={busy || locked}
+        change={(target) => change({ ...draft, target })}
+        dir="ltr"
+        maxLength={10}
+      />
+      {time("startsAt")}
+      {time("endsAt")}
+      <Field label={t("community.page.paidTo")}>
+        <Select
+          value={draft.paidTo}
+          disabled={busy || locked}
+          onChange={(event) =>
+            change({ ...draft, paidTo: event.target.value as GoalDraft["paidTo"] })
+          }
+        >
+          <option value="contributors">{t("community.page.paidTo.contributors")}</option>
+          <option value="everyone">{t("community.page.paidTo.everyone")}</option>
+        </Select>
+      </Field>
+    </>
+  );
+}
+
 /** The goal's form: titles, what counts, the target and window, who is paid, the goal's reward and milestones. */
 export function CommunityGoalForm({
   language,
@@ -390,17 +475,6 @@ export function CommunityGoalForm({
 }>) {
   const t = useTranslator(language);
   const locked = draft.started;
-  const time = (field: "startsAt" | "endsAt") => (
-    <Field label={t(field === "startsAt" ? "community.page.startsAt" : "community.page.endsAt")}>
-      <Input
-        type="datetime-local"
-        dir="ltr"
-        value={draft[field]}
-        disabled={busy || locked}
-        onChange={(event) => change({ ...draft, [field]: event.target.value })}
-      />
-    </Field>
-  );
   return (
     <Form
       card
@@ -410,23 +484,7 @@ export function CommunityGoalForm({
       }}
     >
       {locked ? <Muted>{t("community.page.lockedNote")}</Muted> : null}
-      <TextField
-        label={t("community.page.titleAr")}
-        value={draft.titleAr}
-        disabled={busy}
-        change={(titleAr) => change({ ...draft, titleAr })}
-        dir="rtl"
-        maxLength={80}
-      />
-      <TextField
-        label={t("community.page.titleEn")}
-        value={draft.titleEn}
-        disabled={busy}
-        change={(titleEn) => change({ ...draft, titleEn })}
-        dir="ltr"
-        maxLength={80}
-      />
-      <Muted>{t("community.page.titleHint")}</Muted>
+      <TitleFields language={language} draft={draft} busy={busy} change={change} />
       <ScopeFields
         language={language}
         draft={draft}
@@ -436,28 +494,7 @@ export function CommunityGoalForm({
         quests={quests}
         categories={categories}
       />
-      <TextField
-        label={t("community.page.target")}
-        value={draft.target}
-        disabled={busy || locked}
-        change={(target) => change({ ...draft, target })}
-        dir="ltr"
-        maxLength={10}
-      />
-      {time("startsAt")}
-      {time("endsAt")}
-      <Field label={t("community.page.paidTo")}>
-        <Select
-          value={draft.paidTo}
-          disabled={busy || locked}
-          onChange={(event) =>
-            change({ ...draft, paidTo: event.target.value as GoalDraft["paidTo"] })
-          }
-        >
-          <option value="contributors">{t("community.page.paidTo.contributors")}</option>
-          <option value="everyone">{t("community.page.paidTo.everyone")}</option>
-        </Select>
-      </Field>
+      <TimingFields language={language} draft={draft} locked={locked} busy={busy} change={change} />
       <FieldGroup>
         <legend>{t("community.page.goalReward")}</legend>
         <RewardFields

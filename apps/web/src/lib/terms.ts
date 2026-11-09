@@ -72,3 +72,23 @@ export function checkTerms(draft: EventTerms): TermsCheck {
 export function previewOf(draft: EventTerms): EventTerms {
   return readEventTerms(termsBodyOf(draft));
 }
+
+/** The draft with one form of one word changed. */
+export function withTermForm(draft: EventTerms, field: TermField, text: string): EventTerms {
+  const word = draft[field.word];
+  const forms = { ...word[field.language], [field.form]: text };
+  return { ...draft, [field.word]: { ...word, [field.language]: forms } };
+}
+
+/** The draft with the currency's image changed. */
+export function withCurrencyIcon(
+  draft: EventTerms,
+  icon: EventTerms["currency"]["icon"],
+): EventTerms {
+  return { ...draft, currency: { ...draft.currency, icon } };
+}
+
+/** The field an `invalid_terms` answer names (`details.field`), or undefined when the answer names none. */
+export function refusedTermFieldOf(body: unknown): TermField | undefined {
+  return termFieldOf((body as { details?: { field?: unknown } } | undefined)?.details?.field);
+}

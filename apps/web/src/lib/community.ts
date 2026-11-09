@@ -251,6 +251,21 @@ export function takenTargets(goals: readonly Goal[], editing: string | null): Re
   );
 }
 
+/** The quest and the category a goal counts ("" for none): the counted quest's category counts too. */
+function countedTargets(
+  draft: Pick<GoalDraft, "measure" | "scope" | "questId" | "categoryId">,
+  options: UnlockOptions,
+): Readonly<{ quest: string; category: string }> {
+  if (draft.measure === "points") {
+    return { quest: "", category: "" };
+  }
+  if (draft.scope === "category") {
+    return { quest: "", category: draft.categoryId };
+  }
+  const quest = draft.scope === "quest" ? draft.questId : "";
+  return { quest, category: options.quests.find((item) => item.id === quest)?.categoryId ?? "" };
+}
+
 /**
  * The picker's choices for one kind (T-306c, ADR-227): never a live poll (Send and Close own its window), never the
  * quest or category the goal counts nor the counted quest's category (it could never count past 0, unlock_counted);
@@ -262,12 +277,7 @@ export function targetChoices(
   draft: Pick<GoalDraft, "measure" | "scope" | "questId" | "categoryId">,
   taken: ReadonlySet<string>,
 ): readonly TargetChoice[] {
-  const counted = draft.measure !== "points";
-  const countedQuest = counted && draft.scope === "quest" ? draft.questId : "";
-  const countedCategory =
-    counted && draft.scope === "category"
-      ? draft.categoryId
-      : (options.quests.find((quest) => quest.id === countedQuest)?.categoryId ?? "");
+  const { quest: countedQuest, category: countedCategory } = countedTargets(draft, options);
   const listed =
     kind === "quest"
       ? options.quests.filter((quest) => !quest.livePoll && quest.id !== countedQuest)
@@ -279,6 +289,16 @@ export function targetChoices(
     name: item.name,
     taken: taken.has(`${kind}:${item.id}`),
   }));
+}
+
+/** The request that saves a goal draft: a new goal is posted to the list, an existing one patched at its id. */
+export function goalRequestOf(
+  eventApi: string,
+  id: string | null,
+): Readonly<{ method: "POST" | "PATCH"; url: string }> {
+  return id === null
+    ? { method: "POST", url: `${eventApi}/community-goals` }
+    : { method: "PATCH", url: `${eventApi}/community-goals/${id}` };
 }
 
 /** The fields an `invalid_goal` answer named, from its details. */

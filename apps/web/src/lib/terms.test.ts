@@ -1,6 +1,14 @@
 import { DEFAULT_TERMS, type EventTerms } from "@questify/shared";
 import { describe, expect, it } from "vitest";
-import { checkTerms, previewOf, termFieldOf, termsBodyOf } from "#src/lib/terms.ts";
+import {
+  checkTerms,
+  previewOf,
+  refusedTermFieldOf,
+  termFieldOf,
+  termsBodyOf,
+  withCurrencyIcon,
+  withTermForm,
+} from "#src/lib/terms.ts";
 
 const GEMS = { ar: { one: "جوهرة", many: "جواهر" }, en: { one: "gem", many: "gems" } };
 const STUDENTS = { ar: { one: "طالب", many: "طلاب" }, en: { one: "student", many: "students" } };
@@ -119,5 +127,50 @@ describe("previewOf", () => {
     const shown = previewOf(draft({ quest: MISSIONS, category }));
     expect(shown.quest).toStrictEqual(MISSIONS);
     expect(shown.category).toStrictEqual(DEFAULT_TERMS.category);
+  });
+});
+
+describe("withTermForm", () => {
+  it("changes one form of one word and leaves the rest alone", () => {
+    const field = { word: "player", language: "en", form: "many" } as const;
+    const next = withTermForm(DEFAULT_TERMS, field, "guests");
+    expect(next.player.en).toStrictEqual({ ...DEFAULT_TERMS.player.en, many: "guests" });
+    expect(next.player.ar).toStrictEqual(DEFAULT_TERMS.player.ar);
+    expect(next.quest).toBe(DEFAULT_TERMS.quest);
+    expect(next.currency).toBe(DEFAULT_TERMS.currency);
+    expect(DEFAULT_TERMS.player.en.many).not.toBe("guests");
+  });
+
+  it("changes an Arabic singular", () => {
+    const field = { word: "category", language: "ar", form: "one" } as const;
+    const next = withTermForm(DEFAULT_TERMS, field, "قسم");
+    expect(next.category.ar.one).toBe("قسم");
+    expect(next.category.ar.many).toBe(DEFAULT_TERMS.category.ar.many);
+    expect(next.category.en).toBe(DEFAULT_TERMS.category.en);
+  });
+});
+
+describe("withCurrencyIcon", () => {
+  it("changes only the image", () => {
+    const next = withCurrencyIcon(DEFAULT_TERMS, "gem");
+    expect(next.currency).toStrictEqual({ ...DEFAULT_TERMS.currency, icon: "gem" });
+    expect(next.player).toBe(DEFAULT_TERMS.player);
+  });
+});
+
+describe("refusedTermFieldOf", () => {
+  it("reads the named field of a refusal", () => {
+    expect(refusedTermFieldOf({ details: { field: "quest.ar.many" } })).toStrictEqual({
+      word: "quest",
+      language: "ar",
+      form: "many",
+    });
+  });
+
+  it("names none for an answer without one", () => {
+    expect(refusedTermFieldOf(undefined)).toBeUndefined();
+    expect(refusedTermFieldOf({})).toBeUndefined();
+    expect(refusedTermFieldOf({ details: { field: "player.fr.one" } })).toBeUndefined();
+    expect(refusedTermFieldOf({ details: { field: 4 } })).toBeUndefined();
   });
 });

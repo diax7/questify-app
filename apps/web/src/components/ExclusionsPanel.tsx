@@ -3,6 +3,7 @@
 import { formatNumber, type Language } from "@questify/shared";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useConfirmation } from "#src/components/useConfirmation.tsx";
+import { withExclusionAdded, withoutExclusion, type Exclusion } from "#src/lib/exclusions.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
@@ -12,9 +13,7 @@ import { Field, Form, Input, Select } from "#src/ui/Field.tsx";
 import { Card, CardList, Section, Toolbar } from "#src/ui/Section.tsx";
 import { infoTip } from "#src/ui/info.tsx";
 
-type Kind = "phone" | "email_domain";
-
-type Exclusion = Readonly<{ id: string; kind: Kind; value: string }>;
+type Kind = Exclusion["kind"];
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
 
@@ -76,6 +75,55 @@ function ExclusionRows({
   );
 }
 
+/** The owner's add form: the kind of entry and its value. */
+function ExclusionForm({
+  language,
+  kind,
+  value,
+  busy,
+  setKind,
+  setValue,
+  submit,
+}: Readonly<{
+  language: Language;
+  kind: Kind;
+  value: string;
+  busy: boolean;
+  setKind: (kind: Kind) => void;
+  setValue: (value: string) => void;
+  submit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+}>) {
+  const t = translatorFor(language);
+  return (
+    <Form onSubmit={(event) => void submit(event)}>
+      <Field label={t("exclusions.kind")}>
+        <Select
+          value={kind}
+          disabled={busy}
+          onChange={(changed) => setKind(changed.target.value as Kind)}
+        >
+          <option value="phone">{t("exclusions.phone")}</option>
+          <option value="email_domain">{t("exclusions.domain")}</option>
+        </Select>
+      </Field>
+      <Field label={t("exclusions.value")}>
+        <Input
+          dir="ltr"
+          required
+          maxLength={260}
+          autoComplete="off"
+          value={value}
+          disabled={busy}
+          onChange={(changed) => setValue(changed.target.value)}
+        />
+      </Field>
+      <Button variant="primary" type="submit" disabled={busy} aria-busy={busy}>
+        {t("exclusions.add")}
+      </Button>
+    </Form>
+  );
+}
+
 /**
  * The event's exclusion list (FR-319): phones and email domains that never appear on the boards. The owner adds and
  * removes entries; the team sees them, phones as their last four digits (the API masks them for everyone).
@@ -128,7 +176,7 @@ export function ExclusionsPanel({ language, organizerId, eventId, myRole }: Prop
       return;
     }
     const added = (result.body as { exclusion: Exclusion }).exclusion;
-    setEntries((current) => [added, ...(current ?? []).filter((entry) => entry.id !== added.id)]);
+    setEntries((current) => withExclusionAdded(current, added));
     setValue("");
   };
 
@@ -141,7 +189,7 @@ export function ExclusionsPanel({ language, organizerId, eventId, myRole }: Prop
       failed(result.body, "players.saveFailed");
       return;
     }
-    setEntries((current) => (current ?? []).filter((row) => row.id !== entry.id));
+    setEntries((current) => withoutExclusion(current, entry.id));
   };
 
   return (
@@ -151,32 +199,15 @@ export function ExclusionsPanel({ language, organizerId, eventId, myRole }: Prop
       info={infoTip(t, "exclusions.intro")}
     >
       {myRole === "owner" ? (
-        <Form onSubmit={(event) => void add(event)}>
-          <Field label={t("exclusions.kind")}>
-            <Select
-              value={kind}
-              disabled={busy}
-              onChange={(changed) => setKind(changed.target.value as Kind)}
-            >
-              <option value="phone">{t("exclusions.phone")}</option>
-              <option value="email_domain">{t("exclusions.domain")}</option>
-            </Select>
-          </Field>
-          <Field label={t("exclusions.value")}>
-            <Input
-              dir="ltr"
-              required
-              maxLength={260}
-              autoComplete="off"
-              value={value}
-              disabled={busy}
-              onChange={(changed) => setValue(changed.target.value)}
-            />
-          </Field>
-          <Button variant="primary" type="submit" disabled={busy} aria-busy={busy}>
-            {t("exclusions.add")}
-          </Button>
-        </Form>
+        <ExclusionForm
+          language={language}
+          kind={kind}
+          value={value}
+          busy={busy}
+          setKind={setKind}
+          setValue={setValue}
+          submit={add}
+        />
       ) : (
         <Muted>{t("exclusions.ownerOnly")}</Muted>
       )}

@@ -15,6 +15,7 @@ import {
   blankGoal,
   goalBodyOf,
   goalDraftOf,
+  goalRequestOf,
   goalsOf,
   isLive,
   issuesOf,
@@ -227,6 +228,112 @@ function GoalCard({
   );
 }
 
+/** The "new goal" button, or the form of the goal being added or changed. */
+function GoalEditor({
+  language,
+  timeZone,
+  draft,
+  setDraft,
+  quests,
+  categories,
+  targetsFor,
+  busy,
+  save,
+}: Readonly<{
+  language: Language;
+  timeZone: string;
+  draft: GoalDraft | null;
+  setDraft: (draft: GoalDraft | null) => void;
+  quests: readonly Choice[];
+  categories: readonly Choice[];
+  targetsFor: (draft: GoalDraft) => Targets;
+  busy: boolean;
+  save: () => void;
+}>) {
+  const t = useTranslator(language);
+  if (draft === null) {
+    return (
+      <Button variant="primary" onClick={() => setDraft(blankGoal(Date.now(), timeZone))}>
+        {t("community.page.new")}
+      </Button>
+    );
+  }
+  return (
+    <CommunityGoalForm
+      language={language}
+      draft={draft}
+      change={setDraft}
+      quests={quests}
+      categories={categories}
+      targets={targetsFor(draft)}
+      busy={busy}
+      save={save}
+      cancel={() => setDraft(null)}
+    />
+  );
+}
+
+/** The confirmation before a goal that has not started is deleted. */
+function DeleteGoalDialog({
+  language,
+  busy,
+  cancel,
+  confirm,
+}: Readonly<{ language: Language; busy: boolean; cancel: () => void; confirm: () => void }>) {
+  const t = useTranslator(language);
+  return (
+    <ConfirmDialog
+      language={language}
+      title={t("community.page.deleteTitle")}
+      body={t("community.page.deleteBody")}
+      confirmLabel={t("community.page.delete")}
+      noteLabel={null}
+      busy={busy}
+      cancel={cancel}
+      confirm={confirm}
+    />
+  );
+}
+
+/** The empty note when there are no goals, then each goal with its Edit and Delete. */
+function GoalList({
+  goals,
+  language,
+  timeZone,
+  busy,
+  setDraft,
+  setDeleting,
+}: Readonly<{
+  goals: readonly Goal[] | null;
+  language: Language;
+  timeZone: string;
+  busy: boolean;
+  setDraft: (draft: GoalDraft) => void;
+  setDeleting: (goal: Goal) => void;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <>
+      {goals !== null && goals.length === 0 ? (
+        <EmptyState>{t("community.page.empty")}</EmptyState>
+      ) : null}
+      <CardList>
+        {(goals ?? []).map((goal) => (
+          <GoalCard
+            key={goal.id}
+            goal={goal}
+            language={language}
+            timeZone={timeZone}
+            busy={busy}
+            edit={() => setDraft(goalDraftOf(goal, timeZone))}
+            remove={() => setDeleting(goal)}
+          />
+        ))}
+      </CardList>
+    </>
+  );
+}
+
 /**
  * The event's community quests (T-306b, FR-243 to FR-250): the goals with their progress (read every 5 s while one
  * runs) and payouts, a form to add or change one (only texts once it started), Delete before the start, and a static
@@ -253,9 +360,10 @@ export function CommunityPanel({ language, organizerId, eventId }: Props) {
     }
     const original = goals?.find((goal) => goal.id === draft.id);
     setBusy(true);
+    const request = goalRequestOf(eventApi, draft.id);
     const result = await requestJson(
-      draft.id === null ? "POST" : "PATCH",
-      `${eventApi}/community-goals${draft.id === null ? "" : `/${draft.id}`}`,
+      request.method,
+      request.url,
       goalBodyOf(draft, timeZone, original),
       { "idempotency-key": crypto.randomUUID() },
     );
@@ -303,51 +411,33 @@ export function CommunityPanel({ language, organizerId, eventId }: Props) {
         language={language}
       />
       {deleting === null ? null : (
-        <ConfirmDialog
+        <DeleteGoalDialog
           language={language}
-          title={t("community.page.deleteTitle")}
-          body={t("community.page.deleteBody")}
-          confirmLabel={t("community.page.delete")}
-          noteLabel={null}
           busy={busy}
           cancel={() => setDeleting(null)}
           confirm={() => void remove(deleting)}
         />
       )}
       <>
-        {goals !== null && goals.length === 0 ? (
-          <EmptyState>{t("community.page.empty")}</EmptyState>
-        ) : null}
-        <CardList>
-          {(goals ?? []).map((goal) => (
-            <GoalCard
-              key={goal.id}
-              goal={goal}
-              language={language}
-              timeZone={timeZone}
-              busy={busy}
-              edit={() => setDraft(goalDraftOf(goal, timeZone))}
-              remove={() => setDeleting(goal)}
-            />
-          ))}
-        </CardList>
-        {draft === null ? (
-          <Button variant="primary" onClick={() => setDraft(blankGoal(Date.now(), timeZone))}>
-            {t("community.page.new")}
-          </Button>
-        ) : (
-          <CommunityGoalForm
-            language={language}
-            draft={draft}
-            change={setDraft}
-            quests={quests}
-            categories={categories}
-            targets={targetsFor(draft)}
-            busy={busy}
-            save={() => void save()}
-            cancel={() => setDraft(null)}
-          />
-        )}
+        <GoalList
+          goals={goals}
+          language={language}
+          timeZone={timeZone}
+          busy={busy}
+          setDraft={setDraft}
+          setDeleting={setDeleting}
+        />
+        <GoalEditor
+          language={language}
+          timeZone={timeZone}
+          draft={draft}
+          setDraft={setDraft}
+          quests={quests}
+          categories={categories}
+          targetsFor={targetsFor}
+          busy={busy}
+          save={() => void save()}
+        />
       </>
     </Stack>
   );

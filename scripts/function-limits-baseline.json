@@ -371,16 +371,6 @@
       "lines": [114]
     }
   },
-  "apps/web/src/components/CommunityGoalForm.tsx": {
-    "CommunityGoalForm": {
-      "lines": [122]
-    }
-  },
-  "apps/web/src/components/CommunityPanel.tsx": {
-    "CommunityPanel": {
-      "lines": [117]
-    }
-  },
   "apps/web/src/components/ConsoleQuestify.tsx": {
     "callFor": {
       "complexity": [9]
@@ -401,24 +391,9 @@
       "complexity": [9]
     }
   },
-  "apps/web/src/components/EventWords.tsx": {
-    "EventWords": {
-      "lines": [104]
-    }
-  },
-  "apps/web/src/components/ExclusionsPanel.tsx": {
-    "ExclusionsPanel": {
-      "lines": [117]
-    }
-  },
   "apps/web/src/components/KioskScanner.tsx": {
     "Kiosk": {
       "complexity": [13]
-    }
-  },
-  "apps/web/src/components/QuestBuilderParts.tsx": {
-    "CategoryCard": {
-      "lines": [111]
     }
   },
   "apps/web/src/components/RewardsPanel.tsx": {
@@ -437,21 +412,6 @@
   "apps/web/src/components/TeamPanel.tsx": {
     "TeamPanel": {
       "lines": [108]
-    }
-  },
-  "apps/web/src/components/useQuestBuilder.ts": {
-    "useQuestBuilder": {
-      "lines": [101]
-    }
-  },
-  "apps/web/src/lib/community.ts": {
-    "targetChoices": {
-      "complexity": [9]
-    }
-  },
-  "apps/web/src/lib/flags.ts": {
-    "flagDetailOf": {
-      "complexity": [9]
     }
   },
   "apps/web/src/lib/forward.ts": {

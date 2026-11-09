@@ -1,18 +1,20 @@
 "use client";
 
-import {
-  parseComposedConfig,
-  readEventTerms,
-  type EventTerms,
-  type Language,
-} from "@questify/shared";
+import { parseComposedConfig, type Language } from "@questify/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import type { Translate } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
+import {
+  builderEventOf,
+  problemText,
+  sendHeaders,
+  type BuilderEvent,
+} from "#src/lib/quest-builder.ts";
 import { questItemsOf, type QuestItem } from "#src/lib/quest-items.ts";
-import { invalidQuestKey, type CategoryView } from "#src/lib/quests.ts";
-import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
+import type { CategoryView } from "#src/lib/quests.ts";
+import { errorCodeOf } from "#src/lib/sign-in-errors.ts";
+
+export type { BuilderEvent };
 
 type Method = "POST" | "PATCH" | "PUT" | "DELETE";
 
@@ -31,53 +33,7 @@ export type SendOptions = Readonly<{
   key?: string;
 }>;
 
-export type BuilderEvent = Readonly<{
-  timezone: string;
-  name: string;
-  statusNow: string;
-  terms: EventTerms;
-  /** The event's flash quests and double points switches (T-307); on when the API does not say. */
-  flashQuests: boolean;
-  boosts: boolean;
-}>;
-
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
-const FIELD_CODES = new Set(["invalid_quest", "invalid_category"]);
-
-/** The words for a refusal: the field to fix for a builder 422, the API's own message otherwise. */
-function problemText(body: unknown, language: Language, t: Translate): string {
-  const field = (body as { details?: { field?: unknown } } | undefined)?.details?.field;
-  const code = errorCodeOf(body);
-  if (code !== undefined && FIELD_CODES.has(code) && typeof field === "string") {
-    return t(invalidQuestKey(field));
-  }
-  return describeProblem(body, language, t).text;
-}
-
-/** The event's header as `GET …/events/{id}` answers it, in the language asked for (its other name when one is unset). */
-function builderEventOf(body: unknown, language: Language): BuilderEvent {
-  const view = (
-    body as {
-      event: {
-        timezone: string;
-        statusNow: string;
-        name: { ar: string | null; en: string | null };
-        terms?: unknown;
-        flashQuests?: boolean;
-        boosts?: boolean;
-      };
-    }
-  ).event;
-  const other = language === "ar" ? view.name.en : view.name.ar;
-  return {
-    timezone: view.timezone,
-    statusNow: view.statusNow,
-    name: view.name[language] ?? other ?? "",
-    terms: readEventTerms(view.terms),
-    flashQuests: view.flashQuests !== false,
-    boosts: view.boosts !== false,
-  };
-}
 
 /** The platform's location switch (ADR-208); without an answer the type stays hidden and the rest works. */
 function useLocationQuestsOn(): boolean {
@@ -159,9 +115,7 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
   ): Promise<boolean> => {
     setBusy(true);
     setProblem(null);
-    const headers: Record<string, string> =
-      options.key === undefined ? {} : { "idempotency-key": options.key };
-    const result = await requestJson(method, `${base}${path}`, body, headers);
+    const result = await requestJson(method, `${base}${path}`, body, sendHeaders(options.key));
     const confirming = errorCodeOf(result.body) === "confirm_required";
     if (confirming) setPending({ method, path, body, options });
     const saved = !confirming && !failed(result);

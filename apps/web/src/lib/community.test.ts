@@ -4,6 +4,7 @@ import {
   blankReward,
   goalBodyOf,
   goalDraftOf,
+  goalRequestOf,
   goalsOf,
   isLive,
   issuesOf,
@@ -182,6 +183,19 @@ describe("community goals on the dashboard (T-306b)", () => {
     expect(isLive({ status: "reached", finalAt: null })).toBe(true);
     expect(isLive({ status: "reached", finalAt: "x" })).toBe(false);
     expect(isLive({ status: "scheduled", finalAt: null })).toBe(false);
+  });
+});
+
+describe("goalRequestOf", () => {
+  it("posts a new goal to the list and patches an existing one at its id", () => {
+    expect(goalRequestOf("/v1/organizers/o1/events/e1", null)).toEqual({
+      method: "POST",
+      url: "/v1/organizers/o1/events/e1/community-goals",
+    });
+    expect(goalRequestOf("/v1/organizers/o1/events/e1", "g7")).toEqual({
+      method: "PATCH",
+      url: "/v1/organizers/o1/events/e1/community-goals/g7",
+    });
   });
 });
 

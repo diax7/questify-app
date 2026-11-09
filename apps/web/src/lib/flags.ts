@@ -160,15 +160,73 @@ export function resolutionKey(resolution: FlagLine["resolution"]): MessageKey {
   return resolution === "banned" ? "flags.resolution.banned" : "flags.resolution.cleared";
 }
 
+type Row = Record<string, unknown>;
+
+const phoneAccountsOf = (evidence: readonly Row[]): Account[] =>
+  evidence.map((row) => ({
+    enrollmentId: String(row["enrollmentId"]),
+    username: String(row["username"]),
+    lastScanAt: text(row["lastScanAt"]),
+  }));
+
+const gameRoundsOf = (evidence: readonly Row[], language: Language): GameRoundLine[] =>
+  evidence.map((row) => ({
+    at: text(row["at"]),
+    quest: named(row["questAr"], row["questEn"], language),
+    game: String(row["game"] ?? ""),
+    level: String(row["level"] ?? ""),
+    reason: String(row["reason"] ?? ""),
+    count: row["reason"] === "unlikely" ? unlikelyCount(row["result"]) : null,
+  }));
+
+const burstScansOf = (evidence: readonly Row[], language: Language): Scan[] =>
+  evidence.map((row) => ({
+    at: text(row["at"]),
+    quest: named(row["questAr"], row["questEn"], language),
+    operator: text(row["operator"]),
+    method: text(row["method"]),
+    distanceM: num(row["distanceM"]),
+    accuracyM: num(row["accuracyM"]),
+    mocked: typeof row["mocked"] === "boolean" ? row["mocked"] : null,
+    gapM: num(row["gapM"]),
+    seconds: num(row["seconds"]),
+  }));
+
+const waitingItemsOf = (value: unknown, language: Language): WaitingItem[] =>
+  rows(value).map((row) => ({
+    name: named(row["nameAr"], row["nameEn"], language),
+    reservedUntil: text(row["reservedUntil"]),
+  }));
+
+const removalsOf = (value: unknown): Removal[] =>
+  rows(value).map((row) => ({
+    entryId: String(row["entryId"]),
+    at: text(row["at"]),
+    score: Math.abs(Number(row["score"] ?? 0)),
+    reason: text(row["reason"]),
+  }));
+
+/** A case's evidence read by its kind: a shared phone's accounts, a mini-game's rounds, otherwise a burst's scans. */
+function evidenceOf(
+  flag: Row,
+  language: Language,
+): Pick<FlagDetail, "phoneAccounts" | "gameRounds" | "burstScans"> {
+  const evidence = rows(flag["evidence"]);
+  const sharedDevice = flag["kind"] === "shared_device";
+  const minigame = flag["kind"] === "minigame";
+  return {
+    phoneAccounts: sharedDevice ? phoneAccountsOf(evidence) : [],
+    gameRounds: minigame ? gameRoundsOf(evidence, language) : [],
+    burstScans: sharedDevice || minigame ? [] : burstScansOf(evidence, language),
+  };
+}
+
 /** Reads one case's answer; undefined when it is not one. */
 export function flagDetailOf(body: unknown, language: Language): FlagDetail | undefined {
   const flag = isRecord(body) ? body["flag"] : undefined;
   if (!isRecord(flag) || typeof flag["id"] !== "string" || !isRecord(flag["player"])) {
     return undefined;
   }
-  const evidence = rows(flag["evidence"]);
-  const sharedDevice = flag["kind"] === "shared_device";
-  const minigame = flag["kind"] === "minigame";
   return {
     ...(flag as unknown as FlagLine),
     note: text(flag["note"]),
@@ -176,47 +234,9 @@ export function flagDetailOf(body: unknown, language: Language): FlagDetail | un
     resolvedAt: text(flag["resolvedAt"]),
     enrollmentStatus: String(flag["enrollmentStatus"]),
     paused: flag["paused"] === true,
-    phoneAccounts: sharedDevice
-      ? evidence.map((row) => ({
-          enrollmentId: String(row["enrollmentId"]),
-          username: String(row["username"]),
-          lastScanAt: text(row["lastScanAt"]),
-        }))
-      : [],
-    gameRounds: minigame
-      ? evidence.map((row) => ({
-          at: text(row["at"]),
-          quest: named(row["questAr"], row["questEn"], language),
-          game: String(row["game"] ?? ""),
-          level: String(row["level"] ?? ""),
-          reason: String(row["reason"] ?? ""),
-          count: row["reason"] === "unlikely" ? unlikelyCount(row["result"]) : null,
-        }))
-      : [],
-    burstScans:
-      sharedDevice || minigame
-        ? []
-        : evidence.map((row) => ({
-            at: text(row["at"]),
-            quest: named(row["questAr"], row["questEn"], language),
-            operator: text(row["operator"]),
-            method: text(row["method"]),
-            distanceM: num(row["distanceM"]),
-            accuracyM: num(row["accuracyM"]),
-            mocked: typeof row["mocked"] === "boolean" ? row["mocked"] : null,
-            gapM: num(row["gapM"]),
-            seconds: num(row["seconds"]),
-          })),
-    waitingItems: rows(flag["waitingItems"]).map((row) => ({
-      name: named(row["nameAr"], row["nameEn"], language),
-      reservedUntil: text(row["reservedUntil"]),
-    })),
-    removals: rows(flag["removals"]).map((row) => ({
-      entryId: String(row["entryId"]),
-      at: text(row["at"]),
-      score: Math.abs(Number(row["score"] ?? 0)),
-      reason: text(row["reason"]),
-    })),
+    ...evidenceOf(flag, language),
+    waitingItems: waitingItemsOf(flag["waitingItems"], language),
+    removals: removalsOf(flag["removals"]),
   };
 }
 

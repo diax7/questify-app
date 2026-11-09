@@ -17,7 +17,9 @@ import {
   WORDS,
   checkTerms,
   previewOf,
-  termFieldOf,
+  refusedTermFieldOf,
+  withCurrencyIcon,
+  withTermForm,
   type TermField,
   type WordKey,
 } from "#src/lib/terms.ts";
@@ -205,8 +207,7 @@ export function EventWords({ language, organizerId, eventId, initial, saved }: P
       return;
     }
     if (!result.ok) {
-      const field = (result.body as { details?: { field?: unknown } } | undefined)?.details?.field;
-      refuse(code === "invalid_terms" ? termFieldOf(field) : undefined, result.body);
+      refuse(code === "invalid_terms" ? refusedTermFieldOf(result.body) : undefined, result.body);
       return;
     }
     const terms = readEventTerms((result.body as { terms?: unknown }).terms);
@@ -217,11 +218,7 @@ export function EventWords({ language, organizerId, eventId, initial, saved }: P
   };
 
   const change = (field: TermField, text: string) =>
-    setDraft((current) => {
-      const word = current[field.word];
-      const forms = { ...word[field.language], [field.form]: text };
-      return { ...current, [field.word]: { ...word, [field.language]: forms } };
-    });
+    setDraft((current) => withTermForm(current, field, text));
 
   return (
     <Section titleId="terms-title" title={t("terms.title")} info={infoTip(t, "terms.intro")}>
@@ -233,9 +230,7 @@ export function EventWords({ language, organizerId, eventId, initial, saved }: P
                 language={language}
                 icon={draft.currency.icon}
                 busy={busy}
-                choose={(icon) =>
-                  setDraft((current) => ({ ...current, currency: { ...current.currency, icon } }))
-                }
+                choose={(icon) => setDraft((current) => withCurrencyIcon(current, icon))}
               />
             ) : null}
             <WordFields

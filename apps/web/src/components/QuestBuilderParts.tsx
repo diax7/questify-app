@@ -625,6 +625,93 @@ function CategoryHintNote({
   ) : null;
 }
 
+/** A category's rename form: both names, its rules, Cancel and Save. */
+function CategoryEditForm({
+  language,
+  timeZone,
+  category,
+  categories,
+  items,
+  busy,
+  save,
+  cancel,
+}: Readonly<{
+  language: Language;
+  timeZone: string;
+  category: CategoryView;
+  categories: readonly CategoryView[];
+  items: readonly QuestItem[];
+  busy: boolean;
+  save: (event: FormEvent<HTMLFormElement>) => void;
+  cancel: () => void;
+}>) {
+  const t = useTranslator(language);
+  return (
+    <Form onSubmit={save}>
+      <CategoryNameFields language={language} initial={category} busy={busy} />
+      <CategoryRuleFields
+        language={language}
+        timeZone={timeZone}
+        category={category}
+        categories={categories}
+        items={items}
+        busy={busy}
+      />
+      <Toolbar>
+        <Button variant="quiet" onClick={cancel}>
+          {t("common.cancel")}
+        </Button>
+        <Button variant="primary" type="submit" disabled={busy}>
+          {t("quests.saveCategory")}
+        </Button>
+      </Toolbar>
+    </Form>
+  );
+}
+
+/** A category's quests in order, each with its own controls. */
+function CategoryQuestList({
+  language,
+  timeZone,
+  terms,
+  category,
+  busy,
+  actions,
+  focusQuestId,
+  readOnly,
+}: Readonly<{
+  language: Language;
+  timeZone: string;
+  terms: EventTerms;
+  category: CategoryView;
+  busy: boolean;
+  actions: CardActions;
+  focusQuestId: string | null;
+  readOnly: boolean;
+}>) {
+  const questIds = category.quests.map((quest) => quest.id);
+  return (
+    <CardList>
+      {category.quests.map((quest, questIndex) => (
+        <QuestRow
+          key={quest.id}
+          language={language}
+          timeZone={timeZone}
+          terms={terms}
+          quest={quest}
+          ids={questIds}
+          index={questIndex}
+          busy={busy}
+          actions={actions}
+          category={category}
+          pinned={quest.id === focusQuestId}
+          readOnly={readOnly}
+        />
+      ))}
+    </CardList>
+  );
+}
+
 /** One category: its name, rules and order, and its quests in order (FR-1004, FR-229, T-304). */
 export function CategoryCard({
   language,
@@ -661,7 +748,6 @@ export function CategoryCard({
 }>) {
   const t = useTranslator(language);
   const [renaming, setRenaming] = useState(false);
-  const questIds = category.quests.map((quest) => quest.id);
   const save = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     actions.saveCategory(category, categoryBody(new FormData(event.currentTarget)));
@@ -673,25 +759,16 @@ export function CategoryCard({
   return (
     <Card as="section" aria-label={textFor(category.name, language)}>
       {renaming ? (
-        <Form onSubmit={save}>
-          <CategoryNameFields language={language} initial={category} busy={busy} />
-          <CategoryRuleFields
-            language={language}
-            timeZone={timeZone}
-            category={category}
-            categories={categories}
-            items={items}
-            busy={busy}
-          />
-          <Toolbar>
-            <Button variant="quiet" onClick={() => setRenaming(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button variant="primary" type="submit" disabled={busy}>
-              {t("quests.saveCategory")}
-            </Button>
-          </Toolbar>
-        </Form>
+        <CategoryEditForm
+          language={language}
+          timeZone={timeZone}
+          category={category}
+          categories={categories}
+          items={items}
+          busy={busy}
+          save={save}
+          cancel={() => setRenaming(false)}
+        />
       ) : (
         <Toolbar align="between">
           <CategoryHeading language={language} category={category} />
@@ -714,24 +791,16 @@ export function CategoryCard({
       {category.quests.length === 0 ? (
         <Muted>{t("quests.noQuests")}</Muted>
       ) : (
-        <CardList>
-          {category.quests.map((quest, questIndex) => (
-            <QuestRow
-              key={quest.id}
-              language={language}
-              timeZone={timeZone}
-              terms={terms}
-              quest={quest}
-              ids={questIds}
-              index={questIndex}
-              busy={busy}
-              actions={actions}
-              category={category}
-              pinned={quest.id === focusQuestId}
-              readOnly={readOnly}
-            />
-          ))}
-        </CardList>
+        <CategoryQuestList
+          language={language}
+          timeZone={timeZone}
+          terms={terms}
+          category={category}
+          busy={busy}
+          actions={actions}
+          focusQuestId={focusQuestId}
+          readOnly={readOnly}
+        />
       )}
       {readOnly ? null : (
         <Button variant="secondary" disabled={busy} onClick={() => actions.add(category)}>
