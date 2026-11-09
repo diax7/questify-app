@@ -24,6 +24,7 @@ import {
   clockOffset,
   gameMemory,
   gameSheetOf,
+  pendingResultOf,
   resultAnswerOf,
   roundAnswerOf,
   sendGameResult,
@@ -31,6 +32,7 @@ import {
   startGameRound,
   windowOpen,
   type GameSheet,
+  type IssuedRound,
   type PendingResult,
 } from "#src/event/games.ts";
 import { withWords } from "#src/i18n/words.ts";
@@ -502,5 +504,31 @@ describe("the board's gate", () => {
     expect(secondsLeftOf(120, 1000)).toBe(119);
     expect(secondsLeftOf(120, 120_000)).toBe(0);
     expect(secondsLeftOf(120, 200_000)).toBe(0);
+  });
+});
+
+describe("pendingResultOf", () => {
+  const round: IssuedRound = {
+    questId: "q1",
+    roundId: "r1",
+    game: "catch",
+    level: "L1",
+    seed: 7,
+    params: {},
+    engineVersion: 1,
+    deadlineAt: "2026-11-09T10:00:00.000Z",
+    offsetMs: -250,
+  };
+
+  it("carries the round's identity and window with the finished inputs and the given key", () => {
+    expect(pendingResultOf(round, { inputs: [1, 2], claimed: { score: 3 } }, "key-1")).toEqual({
+      questId: "q1",
+      roundId: "r1",
+      key: "key-1",
+      inputs: [1, 2],
+      claimed: { score: 3 },
+      deadlineAt: "2026-11-09T10:00:00.000Z",
+      offsetMs: -250,
+    });
   });
 });

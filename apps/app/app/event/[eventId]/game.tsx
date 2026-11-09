@@ -24,6 +24,7 @@ import { useTerms } from "#src/event/EventContext.tsx";
 import { levelLine, resendable, resultLine } from "#src/event/game-words.ts";
 import {
   games,
+  pendingResultOf,
   sendGameResult,
   windowOpen,
   type IssuedRound,
@@ -125,21 +126,10 @@ function Intro({ round, onStart }: Readonly<{ round: IssuedRound; onStart: () =>
   );
 }
 
-/**
- * A mini-game round, full screen (T-305, FR-1805, FR-1809): the instruction card, the board drawn from the round the
- * server issued, then the result sent with its inputs. A result that could not be sent stays in memory with Retry
- * until its window ends (on the server's clock); after that the round counted as played.
- */
-export default function GameScreen() {
-  const { roundId } = useLocalSearchParams<{ roundId: string }>();
-  const { t, language, rtl } = useI18n();
-  const terms = useTerms();
-  const styles = useThemedStyles(makeStyles);
-  const round = games.round(String(roundId));
-  const [stage, setStage] = useState<Stage>({ kind: "intro" });
+/** Leaving mid-play (back, a swipe, the system button) asks first: the round already used its attempt. */
+function useLeaveGuard(playing: boolean) {
+  const { t } = useI18n();
   const navigation = useNavigation();
-  const playing = stage.kind === "play";
-  // Leaving mid-play (back, a swipe, the system button) asks first: the round already used its attempt.
   useEffect(() => {
     if (!playing) {
       return undefined;
@@ -156,6 +146,84 @@ export default function GameScreen() {
       ]);
     });
   }, [playing, navigation, t]);
+}
+
+/** The server's answer to the result, with Retry when it can be sent again. */
+function AnsweredView({
+  stage,
+  onResend,
+}: Readonly<{
+  stage: Extract<Stage, { kind: "answered" }>;
+  onResend: (pending: PendingResult) => void;
+}>) {
+  const { t, language } = useI18n();
+  const terms = useTerms();
+  return (
+    <>
+      <PopIn>
+        <AppText accessibilityRole="alert">{resultLine(t, stage.answer, terms, language)}</AppText>
+      </PopIn>
+      {resendable(stage.answer) ? (
+        <Button label={t("play.game.resend")} onPress={() => onResend(stage.pending)} />
+      ) : null}
+    </>
+  );
+}
+
+/** What the screen shows under the title for each stage of the round. */
+function StageView({
+  round,
+  stage,
+  onStart,
+  onFinish,
+  onResend,
+}: Readonly<{
+  round: IssuedRound;
+  stage: Stage;
+  onStart: () => void;
+  onFinish: (done: Finished) => void;
+  onResend: (pending: PendingResult) => void;
+}>) {
+  const { t } = useI18n();
+  return (
+    <>
+      {stage.kind === "intro" ? <Intro round={round} onStart={onStart} /> : null}
+      {stage.kind === "play" ? <Board round={round} onFinish={onFinish} /> : null}
+      {stage.kind === "sending" ? <AppText muted>{t("play.game.sending")}</AppText> : null}
+      {stage.kind === "answered" ? <AnsweredView stage={stage} onResend={onResend} /> : null}
+      {stage.kind === "intro" || stage.kind === "answered" ? (
+        <Button kind="quiet" label={t("play.game.back")} onPress={() => router.back()} />
+      ) : null}
+    </>
+  );
+}
+
+/** A round that is gone or needs a newer app: say so and go back. */
+function GameUnavailable({ missing }: Readonly<{ missing: boolean }>) {
+  const { t, rtl } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <SafeAreaView style={styles.page}>
+      <View style={[styles.content, { direction: rtl ? "rtl" : "ltr" }]}>
+        <AppText>{t(missing ? "play.game.missing" : "play.game.update")}</AppText>
+        <Button label={t("play.game.back")} onPress={() => router.back()} />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+/**
+ * A mini-game round, full screen (T-305, FR-1805, FR-1809): the instruction card, the board drawn from the round the
+ * server issued, then the result sent with its inputs. A result that could not be sent stays in memory with Retry
+ * until its window ends (on the server's clock); after that the round counted as played.
+ */
+export default function GameScreen() {
+  const { roundId } = useLocalSearchParams<{ roundId: string }>();
+  const { t, rtl } = useI18n();
+  const styles = useThemedStyles(makeStyles);
+  const round = games.round(String(roundId));
+  const [stage, setStage] = useState<Stage>({ kind: "intro" });
+  useLeaveGuard(stage.kind === "play");
 
   const send = async (pending: PendingResult) => {
     setStage({ kind: "sending" });
@@ -171,51 +239,25 @@ export default function GameScreen() {
     if (round === undefined) {
       return;
     }
-    const pending: PendingResult = {
-      questId: round.questId,
-      roundId: round.roundId,
-      key: randomUuid(),
-      inputs: done.inputs,
-      claimed: done.claimed,
-      deadlineAt: round.deadlineAt,
-      offsetMs: round.offsetMs,
-    };
+    const pending = pendingResultOf(round, done, randomUuid());
     games.keepResult(pending);
     void send(pending);
   };
 
   if (round === undefined || !drawable(round.game, round.engineVersion)) {
-    return (
-      <SafeAreaView style={styles.page}>
-        <View style={[styles.content, { direction: rtl ? "rtl" : "ltr" }]}>
-          <AppText>{t(round === undefined ? "play.game.missing" : "play.game.update")}</AppText>
-          <Button label={t("play.game.back")} onPress={() => router.back()} />
-        </View>
-      </SafeAreaView>
-    );
+    return <GameUnavailable missing={round === undefined} />;
   }
   return (
     <SafeAreaView style={styles.page}>
       <ScrollView contentContainerStyle={[styles.content, { direction: rtl ? "rtl" : "ltr" }]}>
         <AppText variant="title">{t(GAME_NAME_KEYS[round.game])}</AppText>
-        {stage.kind === "intro" ? (
-          <Intro round={round} onStart={() => setStage({ kind: "play" })} />
-        ) : null}
-        {stage.kind === "play" ? <Board round={round} onFinish={finish} /> : null}
-        {stage.kind === "sending" ? <AppText muted>{t("play.game.sending")}</AppText> : null}
-        {stage.kind === "answered" ? (
-          <PopIn>
-            <AppText accessibilityRole="alert">
-              {resultLine(t, stage.answer, terms, language)}
-            </AppText>
-          </PopIn>
-        ) : null}
-        {stage.kind === "answered" && resendable(stage.answer) ? (
-          <Button label={t("play.game.resend")} onPress={() => void send(stage.pending)} />
-        ) : null}
-        {stage.kind === "intro" || stage.kind === "answered" ? (
-          <Button kind="quiet" label={t("play.game.back")} onPress={() => router.back()} />
-        ) : null}
+        <StageView
+          round={round}
+          stage={stage}
+          onStart={() => setStage({ kind: "play" })}
+          onFinish={finish}
+          onResend={(pending) => void send(pending)}
+        />
       </ScrollView>
     </SafeAreaView>
   );

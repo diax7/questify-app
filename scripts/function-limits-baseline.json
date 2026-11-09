@@ -299,9 +299,6 @@
     }
   },
   "apps/app/app/event/[eventId]/(tabs)/quests.tsx": {
-    "QuestsScreen": {
-      "complexity": [15]
-    },
     "noteText": {
       "complexity": [9]
     }
@@ -312,11 +309,6 @@
     },
     "RedeemSheet": {
       "complexity": [18]
-    }
-  },
-  "apps/app/app/event/[eventId]/game.tsx": {
-    "GameScreen": {
-      "complexity": [14]
     }
   },
   "apps/app/app/event/[eventId]/history.tsx": {
@@ -360,16 +352,7 @@
       "complexity": [10]
     }
   },
-  "apps/app/app/operator/[eventId]/(tabs)/tools.tsx": {
-    "OperatorToolsScreen": {
-      "complexity": [15]
-    }
-  },
   "apps/app/app/operator/[eventId]/nfc-write.tsx": {
-    "NfcWriteScreen": {
-      "complexity": [14],
-      "lines": [156]
-    },
     "Outcome": {
       "complexity": [11]
     }
@@ -418,11 +401,6 @@
   "apps/app/src/account/deletion-api.ts": {
     "verifyDeletionCode": {
       "complexity": [10]
-    }
-  },
-  "apps/app/src/account/deletion-flow.ts": {
-    "deletionStep": {
-      "complexity": [15]
     }
   },
   "apps/app/src/api/session.ts": {
@@ -541,9 +519,6 @@
   "apps/app/src/event/home-api.ts": {
     "rankingAnswer": {
       "complexity": [9]
-    },
-    "readHome": {
-      "complexity": [15]
     },
     "readRanking": {
       "complexity": [12]

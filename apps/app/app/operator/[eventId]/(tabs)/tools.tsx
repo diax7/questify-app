@@ -13,6 +13,79 @@ import { useI18n } from "#src/i18n/provider.tsx";
 import { playAsPlayer } from "#src/operator/operator-api.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 
+type ToolLinksProps = Readonly<{ eventId: string; abilities: readonly string[] }>;
+
+function RotatingQrLinks({ eventId }: Readonly<{ eventId: string }>) {
+  const { t } = useI18n();
+  return (
+    <>
+      <Button
+        label={t("operator.rotating")}
+        onPress={() => router.push(`/operator/${eventId}/rotating-qr`)}
+      />
+      <Button
+        label={t("operator.devices.pair")}
+        onPress={() => router.push(`/operator/${eventId}/pair-device`)}
+      />
+      <Button
+        kind="quiet"
+        label={t("operator.devices.mine")}
+        onPress={() => router.push(`/operator/${eventId}/my-devices`)}
+      />
+    </>
+  );
+}
+
+function ScanTools({ eventId }: Readonly<{ eventId: string }>) {
+  const { t } = useI18n();
+  const { practice, setPractice } = useOperator();
+  return (
+    <>
+      <Button
+        label={t("door.title")}
+        onPress={() => router.push(`/operator/${eventId}/session-door`)}
+      />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <Switch
+          value={practice}
+          onValueChange={setPractice}
+          accessibilityLabel={t("operator.practice.title")}
+        />
+        <AppText variant="label">{t("operator.practice.title")}</AppText>
+      </View>
+      <AppText muted>{t("operator.practice.hint")}</AppText>
+    </>
+  );
+}
+
+function OperatorToolLinks({ eventId, abilities }: ToolLinksProps) {
+  const { t } = useI18n();
+  return (
+    <>
+      {abilities.includes("award") ? (
+        <Button
+          label={t("operator.award.title")}
+          onPress={() => router.push(`/operator/${eventId}/award`)}
+        />
+      ) : null}
+      {abilities.includes("review") ? (
+        <Button
+          label={t("operators.ability.review")}
+          onPress={() => router.push(`/operator/${eventId}/review`)}
+        />
+      ) : null}
+      {abilities.includes("write_nfc") ? (
+        <Button
+          label={t("operator.nfc.write")}
+          onPress={() => router.push(`/operator/${eventId}/nfc-write`)}
+        />
+      ) : null}
+      {abilities.includes("show_rotating_qr") ? <RotatingQrLinks eventId={eventId} /> : null}
+      {abilities.includes("scan_quests") ? <ScanTools eventId={eventId} /> : null}
+    </>
+  );
+}
+
 /**
  * Operator Tools (FR-922): Manual award first, shown only with the `award` ability (OPERATOR_MODE 3.5); Review
  * submissions with the `review` ability (T-301); Write NFC tag with the `write_nfc` ability (T-308); Rotating QR, Pair a
@@ -22,7 +95,7 @@ import { useOperator } from "#src/operator/OperatorContext.tsx";
  */
 export default function OperatorToolsScreen() {
   const { t, language } = useI18n();
-  const { eventId, event, practice, setPractice } = useOperator();
+  const { eventId, event } = useOperator();
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -46,58 +119,7 @@ export default function OperatorToolsScreen() {
       header={<RehearsalStrip shown={isRehearsalStatus(event?.statusNow)} />}
     >
       <View style={{ gap: 12 }}>
-        {event?.abilities.includes("award") === true ? (
-          <Button
-            label={t("operator.award.title")}
-            onPress={() => router.push(`/operator/${eventId}/award`)}
-          />
-        ) : null}
-        {event?.abilities.includes("review") === true ? (
-          <Button
-            label={t("operators.ability.review")}
-            onPress={() => router.push(`/operator/${eventId}/review`)}
-          />
-        ) : null}
-        {event?.abilities.includes("write_nfc") === true ? (
-          <Button
-            label={t("operator.nfc.write")}
-            onPress={() => router.push(`/operator/${eventId}/nfc-write`)}
-          />
-        ) : null}
-        {event?.abilities.includes("show_rotating_qr") === true ? (
-          <>
-            <Button
-              label={t("operator.rotating")}
-              onPress={() => router.push(`/operator/${eventId}/rotating-qr`)}
-            />
-            <Button
-              label={t("operator.devices.pair")}
-              onPress={() => router.push(`/operator/${eventId}/pair-device`)}
-            />
-            <Button
-              kind="quiet"
-              label={t("operator.devices.mine")}
-              onPress={() => router.push(`/operator/${eventId}/my-devices`)}
-            />
-          </>
-        ) : null}
-        {event?.abilities.includes("scan_quests") === true ? (
-          <>
-            <Button
-              label={t("door.title")}
-              onPress={() => router.push(`/operator/${eventId}/session-door`)}
-            />
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <Switch
-                value={practice}
-                onValueChange={setPractice}
-                accessibilityLabel={t("operator.practice.title")}
-              />
-              <AppText variant="label">{t("operator.practice.title")}</AppText>
-            </View>
-            <AppText muted>{t("operator.practice.hint")}</AppText>
-          </>
-        ) : null}
+        <OperatorToolLinks eventId={eventId} abilities={event?.abilities ?? []} />
         {event?.canPlay === true ? (
           <Button
             label={t("operator.switchToPlayer")}

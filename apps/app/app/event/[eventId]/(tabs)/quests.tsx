@@ -38,6 +38,7 @@ import {
   type CompletionAnswer,
   type Quest,
   type QuestsAnswer,
+  type QuestsView,
 } from "#src/event/quests-api.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
@@ -406,27 +407,25 @@ function QuestsViews({
   );
 }
 
-/** The event's quests (FR-221, FR-222, FR-230, FR-1742; T-114), by category, with each quest's details sheet. */
-export default function QuestsScreen() {
-  const { t } = useI18n();
-  const { eventId } = useEvent();
-  const params = useLocalSearchParams<{ quest?: string }>();
-  const { answer, load } = useQuests(eventId);
-  const sponsors = useSponsors();
+/**
+ * Which categories are open and which quest's sheet shows. Home's Go names a quest: it opens once per value, and the
+ * param is cleared when its sheet closes. A quest that left the list (hidden, deleted) takes its sheet with it, so it
+ * never reopens unasked.
+ */
+function useQuestNavigation(
+  categories: readonly Category[] | undefined,
+  target: string | undefined,
+) {
   const [openIds, setOpenIds] = useState<string[] | undefined>(undefined);
   const [sheetId, setSheetId] = useState<string | undefined>(undefined);
-  const [view, setView] = useState<"list" | "map">("list");
-  const categories = answer?.kind === "quests" ? answer.view.categories : undefined;
 
   useEffect(() => {
     if (categories !== undefined && openIds === undefined) {
-      setOpenIds(initiallyOpen(categories, params.quest));
+      setOpenIds(initiallyOpen(categories, target));
     }
-  }, [categories, openIds, params.quest]);
+  }, [categories, openIds, target]);
 
-  // Home's Go names a quest: open it once per value; the param is cleared when its sheet closes.
   useEffect(() => {
-    const target = params.quest;
     if (categories === undefined || target === undefined) {
       return;
     }
@@ -435,65 +434,129 @@ export default function QuestsScreen() {
       setOpenIds((current) => [...new Set([...(current ?? []), holder.id])]);
       setSheetId(target);
     }
-  }, [categories, params.quest]);
+  }, [categories, target]);
 
   const closeSheet = useCallback(() => {
     setSheetId(undefined);
     router.setParams({ quest: undefined });
   }, []);
-  // A quest that left the list (hidden, deleted) takes its sheet with it, so it never reopens unasked.
   useEffect(() => {
     if (categories !== undefined && sheetId !== undefined && !findQuest(categories, sheetId)) {
       closeSheet();
     }
   }, [categories, sheetId, closeSheet]);
-  const completed = (outcome: CompletionAnswer) => {
-    if (outcome.kind === "reload") {
-      closeSheet();
-    }
-    const changed = ["completed", "reload", "limit", "not_open"];
-    if (changed.includes(outcome.kind)) {
-      void load();
-    }
-  };
+
   const toggle = (id: string) =>
     setOpenIds((current = []) =>
       current.includes(id) ? current.filter((open) => open !== id) : [...current, id],
     );
+  return { openIds: openIds ?? [], sheetId, setSheetId, closeSheet, toggle };
+}
 
+type QuestNavigation = ReturnType<typeof useQuestNavigation>;
+
+/** Whether an outcome of the details sheet changed the quests, so they are read again. */
+const CHANGED_OUTCOMES: readonly string[] = ["completed", "reload", "limit", "not_open"];
+
+/** The loaded quests: the list or the maps, and the details sheet of the quest named. */
+function QuestsLoaded({
+  eventId,
+  data,
+  sponsors,
+  nav,
+  view,
+  onView,
+  load,
+}: Readonly<{
+  eventId: string;
+  data: QuestsView;
+  sponsors: SponsorLookup;
+  nav: QuestNavigation;
+  view: "list" | "map";
+  onView: (view: "list" | "map") => void;
+  load: () => Promise<void>;
+}>) {
+  const { sheetId, closeSheet } = nav;
+  const completed = (outcome: CompletionAnswer) => {
+    if (outcome.kind === "reload") {
+      closeSheet();
+    }
+    if (CHANGED_OUTCOMES.includes(outcome.kind)) {
+      void load();
+    }
+  };
   return (
-    <Screen title={t("nav.quests")} header={<EventPill />}>
-      {answer === undefined ? <AppText muted>{t("common.loading")}</AppText> : null}
-      {answer?.kind === "pending" ? <AppText>{t("eventHome.pending")}</AppText> : null}
-      {answer?.kind === "network" ? (
-        <>
-          <AppText accessibilityRole="alert">{t("questsTab.loadFailed")}</AppText>
-          <Button label={t("common.retry")} onPress={() => void load()} />
-        </>
-      ) : null}
-      {answer?.kind === "quests" ? (
-        <QuestsViews
-          view={view}
-          onView={setView}
-          eventId={eventId}
-          categories={categories ?? []}
-          sponsors={sponsors}
-          openIds={openIds ?? []}
-          timeZone={answer.view.event.timezone}
-          onToggle={toggle}
-          onOpenQuest={setSheetId}
-        />
-      ) : null}
-      {answer?.kind === "quests" && sheetId !== undefined ? (
+    <>
+      <QuestsViews
+        view={view}
+        onView={onView}
+        eventId={eventId}
+        categories={data.categories}
+        sponsors={sponsors}
+        openIds={nav.openIds}
+        timeZone={data.event.timezone}
+        onToggle={nav.toggle}
+        onOpenQuest={nav.setSheetId}
+      />
+      {sheetId === undefined ? null : (
         <QuestSheet
           key={sheetId}
-          quest={findQuest(answer.view.categories, sheetId)}
-          timeZone={answer.view.event.timezone}
+          quest={findQuest(data.categories, sheetId)}
+          timeZone={data.event.timezone}
           onClose={closeSheet}
           onCompleted={completed}
           onSent={() => void load()}
         />
-      ) : null}
+      )}
+    </>
+  );
+}
+
+/** What shows while there are no quests yet: loading, a pending member's wait, or the retry after a failed read. */
+function QuestsStatus({
+  answer,
+  onRetry,
+}: Readonly<{ answer: QuestsAnswer | undefined; onRetry: () => void }>) {
+  const { t } = useI18n();
+  if (answer === undefined) {
+    return <AppText muted>{t("common.loading")}</AppText>;
+  }
+  if (answer.kind === "pending") {
+    return <AppText>{t("eventHome.pending")}</AppText>;
+  }
+  return answer.kind === "network" ? (
+    <>
+      <AppText accessibilityRole="alert">{t("questsTab.loadFailed")}</AppText>
+      <Button label={t("common.retry")} onPress={onRetry} />
+    </>
+  ) : null;
+}
+
+/** The event's quests (FR-221, FR-222, FR-230, FR-1742; T-114), by category, with each quest's details sheet. */
+export default function QuestsScreen() {
+  const { t } = useI18n();
+  const { eventId } = useEvent();
+  const params = useLocalSearchParams<{ quest?: string }>();
+  const { answer, load } = useQuests(eventId);
+  const sponsors = useSponsors();
+  const [view, setView] = useState<"list" | "map">("list");
+  const data = answer?.kind === "quests" ? answer.view : undefined;
+  const nav = useQuestNavigation(data?.categories, params.quest);
+
+  return (
+    <Screen title={t("nav.quests")} header={<EventPill />}>
+      {data === undefined ? <QuestsStatus answer={answer} onRetry={() => void load()} /> : null}
+      {data === undefined ? null : (
+        <QuestsLoaded
+          eventId={eventId}
+          data={data}
+          sponsors={sponsors}
+          nav={nav}
+          view={view}
+          onView={setView}
+          load={load}
+        />
+      )}
     </Screen>
   );
 }

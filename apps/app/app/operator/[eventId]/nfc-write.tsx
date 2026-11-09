@@ -1,4 +1,3 @@
-import type { LocalizedText, MessageKey } from "@questify/shared";
 import { formatNumber } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, Switch, View } from "react-native";
@@ -10,64 +9,26 @@ import { Button, Field } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { questCodeOrigin } from "#src/event/scan.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
-import { textIn, type Bilingual } from "#src/i18n/text.ts";
+import { textIn } from "#src/i18n/text.ts";
 import { writeTag } from "#src/nfc/native.ts";
-import {
-  confirmWrite,
-  fetchWritePage,
-  prepareWrite,
-  type Confirmed,
-  type WritePage,
-} from "#src/nfc/nfc-api.ts";
+import { confirmWrite, fetchWritePage, prepareWrite, type WritePage } from "#src/nfc/nfc-api.ts";
 import { useNfcSupported } from "#src/nfc/NfcTap.tsx";
+import {
+  confirmFailedStep,
+  confirmedStep,
+  prepareFailedStep,
+  writeFailedStep,
+  type Pending,
+  type Step,
+} from "#src/nfc/write-flow.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 import { PracticeLocked } from "#src/operator/Practice.tsx";
 
 const EXTRA_ORIGIN = questCodeOrigin(process.env["EXPO_PUBLIC_QUEST_CODE_ORIGIN"], __DEV__);
 
-/**
- * A tag written on the phone whose confirm did not reach the server: retried with the same key and the same body (the
- * quest, label and lock as written, whatever the form says now), never rewritten.
- */
-type Pending = Readonly<{
-  questId: string;
-  quest: Bilingual;
-  url: string;
-  ticket: string;
-  uid: string;
-  label: string;
-  locked: boolean;
-  /** The operator asked for a lock the tag did not take. */
-  lockMissed: boolean;
-  key: string;
-}>;
-
-type Step =
-  | Readonly<{ kind: "idle" }>
-  | Readonly<{ kind: "writing" }>
-  | Readonly<{ kind: "done"; quest: Bilingual; confirmed: Confirmed; lockMissed: boolean }>
-  | Readonly<{ kind: "problem"; key: MessageKey; rewrite: boolean }>
-  | Readonly<{ kind: "refused"; message: LocalizedText }>
-  | Readonly<{ kind: "unconfirmed"; pending: Pending }>;
-
-const PROBLEMS = {
-  locked: "operator.nfc.locked",
-  taken: "operator.nfc.taken",
-  failed: "operator.nfc.failed",
-  unsupported: "operator.nfc.unsupported",
-  off: "operator.nfc.off",
-  unusable: "operator.nfc.unusable",
-} as const satisfies Record<string, MessageKey>;
-
-/**
- * Staff mode's Write NFC tag (FR-312, FR-922): pick a scan quest with NFC on, name the tag, lock it (on by default,
- * permanent), hold a tag to the phone. The phone writes the signed URL the server prepared, reads it back, locks it,
- * and the server registers the sticker. Nothing is stored before the server's answer.
- */
-function NfcWriteScreen() {
-  const { t, language } = useI18n();
-  const { eventId } = useOperator();
-  const supported = useNfcSupported();
+/** The page, the form and the step of a write, with the actions that move them. */
+function useNfcWrite(eventId: string) {
+  const { t } = useI18n();
   const [page, setPage] = useState<WritePage | null | undefined>(undefined);
   const [questId, setQuestId] = useState<string | null>(null);
   const [label, setLabel] = useState("");
@@ -99,17 +60,10 @@ function NfcWriteScreen() {
       pending.key,
     );
     if (answer.kind === "confirmed") {
-      setStep({
-        kind: "done",
-        quest: pending.quest,
-        confirmed: answer,
-        lockMissed: pending.lockMissed,
-      });
+      setStep(confirmedStep(pending, answer));
       void load();
-    } else if (answer.kind === "refused" && answer.message !== null) {
-      setStep({ kind: "refused", message: answer.message });
     } else {
-      setStep({ kind: "unconfirmed", pending });
+      setStep(confirmFailedStep(answer, pending));
     }
   };
 
@@ -120,11 +74,7 @@ function NfcWriteScreen() {
     setStep({ kind: "writing" });
     const prepared = await prepareWrite(api.session, eventId, quest.id);
     if (prepared.kind !== "prepared") {
-      setStep(
-        prepared.kind === "refused" && prepared.message !== null
-          ? { kind: "refused", message: prepared.message }
-          : { kind: "problem", key: "join.network", rewrite: false },
-      );
+      setStep(prepareFailedStep(prepared));
       return;
     }
     const written = await writeTag({
@@ -139,7 +89,7 @@ function NfcWriteScreen() {
       return;
     }
     if (written.kind !== "written") {
-      setStep({ kind: "problem", key: PROBLEMS[written.kind], rewrite: written.kind === "taken" });
+      setStep(writeFailedStep(written.kind));
       return;
     }
     await confirm({
@@ -155,6 +105,101 @@ function NfcWriteScreen() {
     });
   };
 
+  const pick = (id: string) => {
+    setQuestId(id);
+    setStep({ kind: "idle" });
+  };
+
+  return { page, questId, quest, label, setLabel, lock, setLock, step, pick, write, confirm };
+}
+
+type NfcWrite = ReturnType<typeof useNfcWrite>;
+
+/** Why there is no form yet: still loading, unreachable, or no scan quest with NFC. */
+function PageNotice({ page }: Readonly<{ page: NfcWrite["page"] }>) {
+  const { t } = useI18n();
+  if (page === undefined) {
+    return <AppText muted>{t("common.loading")}</AppText>;
+  }
+  if (page === null) {
+    return <AppText accessibilityRole="alert">{t("join.network")}</AppText>;
+  }
+  return page.quests.length === 0 ? <AppText>{t("operator.nfc.noQuests")}</AppText> : null;
+}
+
+/** The quest picker, the tag's name, the lock switch and the start button. */
+function WriteForm({ flow }: Readonly<{ flow: NfcWrite }>) {
+  const { t, language } = useI18n();
+  const { page, questId, quest, label, lock, step } = flow;
+  if (page === null || page === undefined || page.quests.length === 0) {
+    return null;
+  }
+  return (
+    <>
+      <AppText variant="label">{t("operator.nfc.pickQuest")}</AppText>
+      {page.quests.map((item) => (
+        <Button
+          key={item.id}
+          kind={item.id === questId ? "primary" : "quiet"}
+          label={`${textIn(item.title, language)} · ${t("operator.nfc.tagCount", {
+            count: formatNumber(item.tags, language),
+          })}`}
+          onPress={() => flow.pick(item.id)}
+        />
+      ))}
+      <Field
+        label={t("operator.nfc.label")}
+        value={label}
+        onChangeText={flow.setLabel}
+        maxLength={40}
+      />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <Switch
+          value={lock}
+          onValueChange={flow.setLock}
+          accessibilityLabel={t("operator.nfc.lock")}
+        />
+        <AppText>{t("operator.nfc.lock")}</AppText>
+      </View>
+      <AppText muted>{t("operator.nfc.lockHint")}</AppText>
+      <Button
+        label={t("operator.nfc.start")}
+        disabled={quest === undefined || step.kind === "writing"}
+        onPress={() => void flow.write(false)}
+      />
+    </>
+  );
+}
+
+/** The tags this operator wrote lately. */
+function RecentTags({ page }: Readonly<{ page: NfcWrite["page"] }>) {
+  const { t, language } = useI18n();
+  if (page === null || page === undefined || page.tags.length === 0) {
+    return null;
+  }
+  return (
+    <>
+      <AppText variant="label">{t("operator.nfc.recent")}</AppText>
+      {page.tags.map((tag) => (
+        <AppText key={tag.id} muted>
+          {`${tag.label === "" ? t("tags.unnamed") : tag.label} · ${textIn(tag.quest, language)}`}
+        </AppText>
+      ))}
+    </>
+  );
+}
+
+/**
+ * Staff mode's Write NFC tag (FR-312, FR-922): pick a scan quest with NFC on, name the tag, lock it (on by default,
+ * permanent), hold a tag to the phone. The phone writes the signed URL the server prepared, reads it back, locks it,
+ * and the server registers the sticker. Nothing is stored before the server's answer.
+ */
+function NfcWriteScreen() {
+  const { t } = useI18n();
+  const { eventId } = useOperator();
+  const supported = useNfcSupported();
+  const flow = useNfcWrite(eventId);
+
   if (supported === false) {
     return (
       <Screen title={t("operator.nfc.write")} header={<BackButton />}>
@@ -165,62 +210,14 @@ function NfcWriteScreen() {
   return (
     <Screen title={t("operator.nfc.write")} header={<BackButton />}>
       <ScrollView contentContainerStyle={{ gap: 12 }}>
-        {page === undefined ? <AppText muted>{t("common.loading")}</AppText> : null}
-        {page === null ? <AppText accessibilityRole="alert">{t("join.network")}</AppText> : null}
-        {page?.quests.length === 0 ? <AppText>{t("operator.nfc.noQuests")}</AppText> : null}
-        {page !== null && page !== undefined && page.quests.length > 0 ? (
-          <>
-            <AppText variant="label">{t("operator.nfc.pickQuest")}</AppText>
-            {page.quests.map((item) => (
-              <Button
-                key={item.id}
-                kind={item.id === questId ? "primary" : "quiet"}
-                label={`${textIn(item.title, language)} · ${t("operator.nfc.tagCount", {
-                  count: formatNumber(item.tags, language),
-                })}`}
-                onPress={() => {
-                  setQuestId(item.id);
-                  setStep({ kind: "idle" });
-                }}
-              />
-            ))}
-            <Field
-              label={t("operator.nfc.label")}
-              value={label}
-              onChangeText={setLabel}
-              maxLength={40}
-            />
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-              <Switch
-                value={lock}
-                onValueChange={setLock}
-                accessibilityLabel={t("operator.nfc.lock")}
-              />
-              <AppText>{t("operator.nfc.lock")}</AppText>
-            </View>
-            <AppText muted>{t("operator.nfc.lockHint")}</AppText>
-            <Button
-              label={t("operator.nfc.start")}
-              disabled={quest === undefined || step.kind === "writing"}
-              onPress={() => void write(false)}
-            />
-          </>
-        ) : null}
+        <PageNotice page={flow.page} />
+        <WriteForm flow={flow} />
         <Outcome
-          step={step}
-          onRewrite={() => void write(true)}
-          onRetry={(pending) => void confirm(pending)}
+          step={flow.step}
+          onRewrite={() => void flow.write(true)}
+          onRetry={(pending) => void flow.confirm(pending)}
         />
-        {page !== null && page !== undefined && page.tags.length > 0 ? (
-          <>
-            <AppText variant="label">{t("operator.nfc.recent")}</AppText>
-            {page.tags.map((tag) => (
-              <AppText key={tag.id} muted>
-                {`${tag.label === "" ? t("tags.unnamed") : tag.label} · ${textIn(tag.quest, language)}`}
-              </AppText>
-            ))}
-          </>
-        ) : null}
+        <RecentTags page={flow.page} />
       </ScrollView>
     </Screen>
   );

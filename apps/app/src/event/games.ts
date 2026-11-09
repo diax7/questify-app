@@ -253,6 +253,23 @@ export type PendingResult = Readonly<{
   offsetMs: number;
 }>;
 
+/** The result of a finished round, kept in memory under its own idempotency key until the server answers. */
+export function pendingResultOf(
+  round: IssuedRound,
+  done: Readonly<{ inputs: readonly unknown[]; claimed: unknown }>,
+  key: string,
+): PendingResult {
+  return {
+    questId: round.questId,
+    roundId: round.roundId,
+    key,
+    inputs: done.inputs,
+    claimed: done.claimed,
+    deadlineAt: round.deadlineAt,
+    offsetMs: round.offsetMs,
+  };
+}
+
 export async function sendGameResult(
   session: Pick<Session, "request">,
   pending: PendingResult,

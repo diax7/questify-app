@@ -184,6 +184,26 @@ export function readWin(value: unknown): Win | null {
     : null;
 }
 
+/** Whether Home's event block carries every field the screen reads (the rehearsal flag may be missing). */
+function hasEventShape(event: Record<string, unknown>): boolean {
+  return (
+    typeof event["id"] === "string" &&
+    isText(event["name"]) &&
+    isText(event["venue"]) &&
+    isTime(event["startsAt"]) &&
+    isTime(event["endsAt"]) &&
+    hasStatusShape(event)
+  );
+}
+
+function hasStatusShape(event: Record<string, unknown>): boolean {
+  return (
+    typeof event["timezone"] === "string" &&
+    typeof event["statusNow"] === "string" &&
+    (event["rehearsal"] === undefined || typeof event["rehearsal"] === "boolean")
+  );
+}
+
 /** Checks Home's shape, so a changed API shows "can't load" instead of a broken screen. */
 export function readHome(body: unknown): Home | undefined {
   if (!isRecord(body) || !isRecord(body["event"])) {
@@ -193,14 +213,7 @@ export function readHome(body: unknown): Home | undefined {
   const standing = readStanding(body["standing"]);
   const upNext = readUpNext(body["upNext"]);
   if (
-    typeof event["id"] !== "string" ||
-    !isText(event["name"]) ||
-    !isText(event["venue"]) ||
-    !isTime(event["startsAt"]) ||
-    !isTime(event["endsAt"]) ||
-    typeof event["timezone"] !== "string" ||
-    typeof event["statusNow"] !== "string" ||
-    !(event["rehearsal"] === undefined || typeof event["rehearsal"] === "boolean") ||
+    !hasEventShape(event) ||
     standing === undefined ||
     upNext === undefined ||
     typeof body["rankingOn"] !== "boolean"

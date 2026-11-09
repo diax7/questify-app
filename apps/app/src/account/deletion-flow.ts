@@ -51,44 +51,51 @@ export function canDelete(state: DeletionState): boolean {
   return state.step === "confirm" && (state.pending.length === 0 || state.forfeit);
 }
 
+type LiveState = Exclude<DeletionState, { step: "done" }>;
+type Handlers = {
+  [K in DeletionEvent["type"]]: (
+    state: LiveState,
+    event: Extract<DeletionEvent, { type: K }>,
+  ) => DeletionState;
+};
+
+const HANDLERS: Handlers = {
+  code_sent: (_state, event) => ({
+    step: "code",
+    challengeToken: event.challengeToken,
+    attemptsLeft: null,
+    problem: null,
+  }),
+  refused: (state, event) => ({ ...state, problem: event.problem }),
+  wrong_code: (state, event) =>
+    state.step === "code"
+      ? { ...state, attemptsLeft: event.attemptsLeft, problem: event.problem }
+      : state,
+  start_again: (_state, event) => ({ step: "about", problem: event.problem }),
+  verified: (state, event) =>
+    state.step === "code"
+      ? {
+          step: "confirm",
+          deletionToken: event.deletionToken,
+          pending: event.pending,
+          forfeit: false,
+          problem: null,
+        }
+      : state,
+  pending: (state, event) =>
+    state.step === "confirm"
+      ? { ...state, pending: event.pending, forfeit: false, problem: event.problem }
+      : state,
+  forfeit: (state, event) =>
+    state.step === "confirm" ? { ...state, forfeit: event.forfeit } : state,
+  erased: (state) => (state.step === "confirm" ? { step: "done" } : state),
+};
+
 /** The next step for an answer. An answer that does not fit the step (a late reply) leaves it as it is. */
 export function deletionStep(state: DeletionState, event: DeletionEvent): DeletionState {
   if (state.step === "done") {
     return state;
   }
-  switch (event.type) {
-    case "code_sent":
-      return {
-        step: "code",
-        challengeToken: event.challengeToken,
-        attemptsLeft: null,
-        problem: null,
-      };
-    case "refused":
-      return { ...state, problem: event.problem };
-    case "wrong_code":
-      return state.step === "code"
-        ? { ...state, attemptsLeft: event.attemptsLeft, problem: event.problem }
-        : state;
-    case "start_again":
-      return { step: "about", problem: event.problem };
-    case "verified":
-      return state.step === "code"
-        ? {
-            step: "confirm",
-            deletionToken: event.deletionToken,
-            pending: event.pending,
-            forfeit: false,
-            problem: null,
-          }
-        : state;
-    case "pending":
-      return state.step === "confirm"
-        ? { ...state, pending: event.pending, forfeit: false, problem: event.problem }
-        : state;
-    case "forfeit":
-      return state.step === "confirm" ? { ...state, forfeit: event.forfeit } : state;
-    case "erased":
-      return state.step === "confirm" ? { step: "done" } : state;
-  }
+  const handle = HANDLERS[event.type] as (state: LiveState, event: DeletionEvent) => DeletionState;
+  return handle(state, event);
 }
