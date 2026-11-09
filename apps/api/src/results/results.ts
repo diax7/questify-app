@@ -379,6 +379,46 @@ export function removePrize(
   });
 }
 
+type SettingsState = Readonly<{ rankPrizes: boolean; rules: Bilingual }>;
+
+/** The settings after an input: what is not sent is kept, and a blank rules text becomes null. */
+function settingsAfter(
+  before: SettingsState,
+  input: Readonly<{ rankPrizes?: boolean | undefined; rules?: Text | undefined }>,
+): SettingsState {
+  const rules = input.rules;
+  return {
+    rankPrizes: input.rankPrizes ?? before.rankPrizes,
+    rules: {
+      ar: rules?.ar === undefined ? before.rules.ar : blankToNull(rules.ar),
+      en: rules?.en === undefined ? before.rules.en : blankToNull(rules.en),
+    },
+  };
+}
+
+/** One audit entry for the switch and one for the rules, each only when it changed. */
+async function auditSettings(
+  client: PoolClient,
+  at: Readonly<{ context: Actor; caller: Caller; eventId: string }>,
+  before: SettingsState,
+  after: SettingsState,
+): Promise<void> {
+  for (const [action, was, now] of [
+    ["event.rank_prizes", { on: before.rankPrizes }, { on: after.rankPrizes }],
+    ["event.rules", { ...before.rules }, { ...after.rules }],
+  ] as const) {
+    const diff = changes(was, now);
+    if (Object.keys(diff.after).length > 0) {
+      await audit(client, at.context, at.caller, {
+        action,
+        eventId: at.eventId,
+        target: { type: "event", id: at.eventId },
+        ...diff,
+      });
+    }
+  }
+}
+
 /** Switches rank prizes (locked once live) and writes the organizer's rules text (always editable). */
 export function updatePrizeSettings(
   deps: ResultsDeps,
@@ -400,32 +440,12 @@ export function updatePrizeSettings(
       rankPrizes: rows[0]?.["rank_prizes"] === true,
       rules: textOf(rows[0]?.["rules_ar"], rows[0]?.["rules_en"]),
     };
-    const rules = input.rules;
-    const after = {
-      rankPrizes: input.rankPrizes ?? before.rankPrizes,
-      rules: {
-        ar: rules?.ar === undefined ? before.rules.ar : blankToNull(rules.ar),
-        en: rules?.en === undefined ? before.rules.en : blankToNull(rules.en),
-      },
-    };
+    const after = settingsAfter(before, input);
     await client.query(
       "UPDATE event SET rank_prizes = $2, rules_ar = $3, rules_en = $4 WHERE id = $1",
       [eventId, after.rankPrizes, after.rules.ar, after.rules.en],
     );
-    for (const [action, was, now] of [
-      ["event.rank_prizes", { on: before.rankPrizes }, { on: after.rankPrizes }],
-      ["event.rules", { ...before.rules }, { ...after.rules }],
-    ] as const) {
-      const diff = changes(was, now);
-      if (Object.keys(diff.after).length > 0) {
-        await audit(client, context, caller, {
-          action,
-          eventId,
-          target: { type: "event", id: eventId },
-          ...diff,
-        });
-      }
-    }
+    await auditSettings(client, { context, caller, eventId }, before, after);
     return done(after);
   });
 }

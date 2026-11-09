@@ -63,17 +63,20 @@ function sourceOf(
   if (row.source_event === null) return { kind: "level", level: row.source_level };
   return { kind: "event", event: row.source_event, presentedBy: row.presented_by };
 }
-export async function readLocker(client: PoolClient, cursor: string | undefined, limit: number) {
-  let before: z.infer<typeof positionSchema> | undefined;
-  if (cursor !== undefined) {
-    try {
-      const result = positionSchema.safeParse(decodeCursor(cursor));
-      if (!result.success) throw invalidRequest();
-      before = result.data;
-    } catch {
-      throw invalidRequest();
-    }
+
+/** The locker position a cursor names; a cursor that is not one is an invalid request. */
+function lockerPosition(cursor: string): z.infer<typeof positionSchema> {
+  try {
+    const result = positionSchema.safeParse(decodeCursor(cursor));
+    if (!result.success) throw invalidRequest();
+    return result.data;
+  } catch {
+    throw invalidRequest();
   }
+}
+
+export async function readLocker(client: PoolClient, cursor: string | undefined, limit: number) {
+  const before = cursor === undefined ? undefined : lockerPosition(cursor);
   const { rows } = await client.query<{
     item: ProfileItem;
     earned_at: string;

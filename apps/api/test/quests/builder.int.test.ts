@@ -408,6 +408,63 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the quest builder (T-103)", ()
       });
     });
 
+    it("refuses a create in a fixed order: type, first bonus, category, item", async () => {
+      const s = await newEvent();
+      const other = await newEvent();
+      const strayItem = "00000000-0000-4000-8000-000000000001";
+      const create = async (body: object) => {
+        const response = await call(
+          "POST",
+          `${s.base}/quests`,
+          s.cookie,
+          { title: { en: "x" }, points: 1, ...body },
+          key(),
+        );
+        return response.json();
+      };
+      const badBonus = { firstBonus: { points: 0, slots: 3 } };
+      expect(
+        await create({ type: "nope", categoryId: other.general, itemId: strayItem, ...badBonus }),
+      ).toMatchObject({ code: "invalid_quest", details: { field: "type" } });
+      expect(
+        await create({
+          type: "scan_qr",
+          categoryId: other.general,
+          itemId: strayItem,
+          ...badBonus,
+        }),
+      ).toMatchObject({ code: "invalid_first_bonus", details: { field: "points" } });
+      expect(
+        await create({ type: "scan_qr", categoryId: other.general, itemId: strayItem }),
+      ).toMatchObject({ code: "invalid_quest", details: { field: "categoryId" } });
+      expect(
+        await create({ type: "scan_qr", categoryId: s.general, itemId: strayItem }),
+      ).toMatchObject({ code: "invalid_item" });
+      expect((await s.builder()).categories[0]?.quests).toEqual([]);
+    });
+
+    it("refuses an edit in a fixed order: first bonus, category, item", async () => {
+      const s = await newEvent();
+      const other = await newEvent();
+      const quest = await addQuest(s);
+      const strayItem = "00000000-0000-4000-8000-000000000001";
+      const edit = async (body: object) =>
+        (await call("PATCH", `${s.base}/quests/${quest.id}`, s.cookie, body)).json();
+      expect(
+        await edit({
+          firstBonus: { points: 0, slots: 3 },
+          categoryId: other.general,
+          itemId: strayItem,
+        }),
+      ).toMatchObject({ code: "invalid_first_bonus", details: { field: "points" } });
+      expect(await edit({ categoryId: other.general, itemId: strayItem })).toMatchObject({
+        code: "invalid_quest",
+        details: { field: "categoryId" },
+      });
+      expect(await edit({ itemId: strayItem })).toMatchObject({ code: "invalid_item" });
+      expect((await s.builder()).categories[0]?.quests[0]).toMatchObject({ id: quest.id });
+    });
+
     it("refuses a body with a field the builder never writes", async () => {
       const s = await newEvent();
       const quest = await addQuest(s);

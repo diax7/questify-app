@@ -75,6 +75,21 @@ const REFUSALS: Readonly<Record<string, (detail: string) => TicketRefusal | unde
   OA403: () => ({ kind: "ability_off" }),
 };
 
+type PgFailure = { code?: string; detail?: string; constraint?: string };
+
+/** The refusal a unique index raises as a backstop, else the one the SQLSTATE names; undefined for anything else. */
+function refusalOfError(pg: PgFailure): TicketRefusal | undefined {
+  // A backstop: answer_core serializes one answerer's key, so its unique index should never be what refuses it.
+  if (pg.code === "23505" && pg.constraint?.startsWith("ticket_answer_key_") === true) {
+    return { kind: "key_reused" };
+  }
+  // A backstop too: open_ticket refuses a second open report under the enrollment lock first.
+  if (pg.code === "23505" && pg.constraint === "ticket_open_report_key") {
+    return { kind: "already_reported" };
+  }
+  return REFUSALS[String(pg.code)]?.(pg.detail ?? "");
+}
+
 /** Runs one call in `context`; a refusal the database raises becomes its result, anything else is thrown. */
 export async function run<T>(
   deps: TicketDeps,
@@ -87,17 +102,7 @@ export async function run<T>(
     );
     return { kind: "done", value };
   } catch (error) {
-    const pg = error as { code?: string; detail?: string; constraint?: string };
-    // A backstop: answer_core serializes one answerer's key, so its unique index should never be what refuses it.
-    const keyIndex =
-      pg.code === "23505" && pg.constraint?.startsWith("ticket_answer_key_") === true;
-    // A backstop too: open_ticket refuses a second open report under the enrollment lock first.
-    const reportIndex = pg.code === "23505" && pg.constraint === "ticket_open_report_key";
-    const refusal = keyIndex
-      ? { kind: "key_reused" as const }
-      : reportIndex
-        ? { kind: "already_reported" as const }
-        : REFUSALS[String(pg.code)]?.(pg.detail ?? "");
+    const refusal = refusalOfError(error as PgFailure);
     if (refusal === undefined) {
       throw error;
     }

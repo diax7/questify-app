@@ -281,52 +281,71 @@ async function helpDeskOn(deps: Deps, eventId: string, playerId: string): Promis
   return config.kind !== "ok" || config.config.features["helpDesk"]?.enabled !== false;
 }
 
+/** A report's lookup reservation (null for any other kind), or the 429 when the cap is reached. */
+async function reserveReportLookup(
+  deps: Deps,
+  http: Readonly<{ request: FastifyRequest; reply: FastifyReply }>,
+  kind: string,
+  key: Buffer,
+): Promise<Readonly<{ at: string }> | null> {
+  if (kind !== "report_player") {
+    return null;
+  }
+  const reserved = await reserveLookup(deps, key);
+  if ("wait" in reserved) {
+    http.request.log.info({ event: "ticket.refused", reason: "too_many_lookups" });
+    http.reply.header("retry-after", String(reserved.wait));
+    throw tooManyLookups({ retryAfterSeconds: reserved.wait });
+  }
+  return reserved;
+}
+
+/** Sends one event ticket; a report's username lookup is reserved first and given back unless the name was unknown. */
+async function sendEventTicket(deps: Deps, request: FastifyRequest, reply: FastifyReply) {
+  const { eventId } = parse(eventParams, request.params);
+  const body = parse(sendBody, request.body);
+  const playerId = playerIdOf(request);
+  if (!(await helpDeskOn(deps, eventId, playerId))) {
+    refuse(request, reply, { kind: "feature_off" });
+  }
+  const lookupKey = deps.keys.playerQuestKey(playerId, eventId);
+  const reserved = await reserveReportLookup(deps, { request, reply }, body.kind, lookupKey);
+  const result = await openTicket(deps, {
+    playerId,
+    eventId,
+    kind: body.kind,
+    questId: body.questId ?? null,
+    reportedUsername: body.reportedUsername ?? null,
+    text: body.text,
+    idempotencyKey: keyOf(request),
+  });
+  // Only a name not in the event keeps its place in the count.
+  if (reserved !== null && result.kind !== "unknown_player") {
+    await releaseLookup(deps, lookupKey, reserved.at);
+  }
+  const opened = valueOf(request, reply, result);
+  request.log.info({
+    event: "ticket.opened",
+    kind: body.kind,
+    queue: "event",
+    hasQuest: body.questId !== undefined,
+    marked: opened.marked,
+    replayed: opened.replayed,
+  });
+  return reply.code(opened.replayed ? 200 : 201).send({
+    ticket: { id: opened.ticketId, status: opened.status, createdAt: opened.createdAt },
+  });
+}
+
 /**
  * The player's side of the help desk (FR-337 to FR-339): send a question or a problem report with an Idempotency-Key,
  * read their own requests (in one event, or every event's for the profile) and mark answers seen. Reading never
  * depends on the switch or the enrollment's status; only sending does.
  */
 function registerTicketPlayerRoutes(app: FastifyInstance, deps: Deps): void {
-  app.post("/v1/events/:eventId/tickets", playerIdempotent, async (request, reply) => {
-    const { eventId } = parse(eventParams, request.params);
-    const body = parse(sendBody, request.body);
-    const playerId = playerIdOf(request);
-    if (!(await helpDeskOn(deps, eventId, playerId))) {
-      refuse(request, reply, { kind: "feature_off" });
-    }
-    const lookupKey = deps.keys.playerQuestKey(playerId, eventId);
-    const reserved = body.kind === "report_player" ? await reserveLookup(deps, lookupKey) : null;
-    if (reserved !== null && "wait" in reserved) {
-      request.log.info({ event: "ticket.refused", reason: "too_many_lookups" });
-      reply.header("retry-after", String(reserved.wait));
-      throw tooManyLookups({ retryAfterSeconds: reserved.wait });
-    }
-    const result = await openTicket(deps, {
-      playerId,
-      eventId,
-      kind: body.kind,
-      questId: body.questId ?? null,
-      reportedUsername: body.reportedUsername ?? null,
-      text: body.text,
-      idempotencyKey: keyOf(request),
-    });
-    // Only a name not in the event keeps its place in the count.
-    if (reserved !== null && result.kind !== "unknown_player") {
-      await releaseLookup(deps, lookupKey, reserved.at);
-    }
-    const opened = valueOf(request, reply, result);
-    request.log.info({
-      event: "ticket.opened",
-      kind: body.kind,
-      queue: "event",
-      hasQuest: body.questId !== undefined,
-      marked: opened.marked,
-      replayed: opened.replayed,
-    });
-    return reply.code(opened.replayed ? 200 : 201).send({
-      ticket: { id: opened.ticketId, status: opened.status, createdAt: opened.createdAt },
-    });
-  });
+  app.post("/v1/events/:eventId/tickets", playerIdempotent, (request, reply) =>
+    sendEventTicket(deps, request, reply),
+  );
 
   app.get("/v1/events/:eventId/tickets/mine", player, async (request, reply) => {
     const { eventId } = parse(eventParams, request.params);

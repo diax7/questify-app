@@ -45,6 +45,7 @@ import {
   reorder,
   updateQuest as writeQuest,
   writeSteps,
+  type QuestFields,
   type QuestRecord,
 } from "#src/quests/store";
 import type { PoolClient } from "pg";
@@ -209,6 +210,40 @@ async function takesQuest(
   return category.refresh === "none" || REFRESHING_QUEST_TYPES.includes(type) ? "yes" : "refresh";
 }
 
+type Vetted = Refused | Readonly<{ kind: "vetted"; type: QuestType; fields: QuestFields }>;
+
+/** A new quest's checks before its steps, in order: type, first bonus, category, fields, item, the event's limit. */
+async function vetNewQuest(
+  client: PoolClient,
+  eventId: string,
+  input: QuestInput & Readonly<{ type: string; categoryId: string }>,
+  timezone: string,
+): Promise<Vetted> {
+  const type = input.type;
+  if (!isQuestType(type)) {
+    return { kind: "invalid", field: "type" };
+  }
+  const bonus = bonusRefusal(input.firstBonus);
+  if (bonus !== undefined) {
+    return bonus;
+  }
+  const taken = await takesQuest(client, eventId, input.categoryId, type);
+  if (taken !== "yes") {
+    return { kind: "invalid", field: taken };
+  }
+  const fields = mergeQuest(undefined, type, input, timezone);
+  if (isInvalid(fields)) {
+    return fields;
+  }
+  if (!(await itemAllowed(client, eventId, fields.itemId, null))) {
+    return { kind: "invalid_item" };
+  }
+  if ((await countRows(client, "quest", eventId)) >= BUILDER_LIMITS.quests) {
+    return { kind: "limit_reached", limit: BUILDER_LIMITS.quests };
+  }
+  return { kind: "vetted", type, fields };
+}
+
 /**
  * Adds a quest of a shipped type to a category of this event (FR-1005, FR-228), at the end. Adding needs no
  * confirmation, even while the event is live: it is how organizers react on the day.
@@ -221,32 +256,16 @@ export function createQuest(
   caller: Caller,
 ): Promise<Done<BuilderQuest>> {
   return withEvent(deps, actor, eventId, { change: undefined }, async (client, event) => {
-    if (!isQuestType(input.type)) {
-      return { kind: "invalid", field: "type" };
+    const vetted = await vetNewQuest(client, eventId, input, event.timezone);
+    if (vetted.kind !== "vetted") {
+      return vetted;
     }
-    const bonus = bonusRefusal(input.firstBonus);
-    if (bonus !== undefined) {
-      return bonus;
-    }
-    const taken = await takesQuest(client, eventId, input.categoryId, input.type);
-    if (taken !== "yes") {
-      return { kind: "invalid", field: taken };
-    }
-    const fields = mergeQuest(undefined, input.type, input, event.timezone);
-    if (isInvalid(fields)) {
-      return fields;
-    }
-    if (!(await itemAllowed(client, eventId, fields.itemId, null))) {
-      return { kind: "invalid_item" };
-    }
-    if ((await countRows(client, "quest", eventId)) >= BUILDER_LIMITS.quests) {
-      return { kind: "limit_reached", limit: BUILDER_LIMITS.quests };
-    }
-    const checked = await passportSteps(client, undefined, input.type, fields, input.steps);
+    const { type, fields } = vetted;
+    const checked = await passportSteps(client, undefined, type, fields, input.steps);
     if (checked.kind !== "steps") {
       return checked;
     }
-    const inserted = await insertQuest(client, eventId, input.type, fields);
+    const inserted = await insertQuest(client, eventId, type, fields);
     const made =
       checked.steps === undefined
         ? inserted
@@ -266,6 +285,30 @@ export function createQuest(
  * it is never upgraded while scans hold KEY SHARE), else FOR NO KEY UPDATE.
  */
 const lockFor = (input: PointsApply): "update" | true => (input.apply === "past" ? "update" : true);
+
+/** An edit's checks before its steps, in order: the new category, the merged fields, the new item. */
+async function vetEdit(
+  client: PoolClient,
+  edit: Readonly<{ eventId: string; current: QuestRecord; input: QuestInput }>,
+  event: Readonly<{ timezone: string }>,
+): Promise<Vetted> {
+  const { eventId, current, input } = edit;
+  const taken =
+    input.categoryId === undefined
+      ? "yes"
+      : await takesQuest(client, eventId, input.categoryId, current.type);
+  if (taken !== "yes") {
+    return { kind: "invalid", field: taken };
+  }
+  const fields = mergeQuest(current, current.type, input, event.timezone);
+  if (isInvalid(fields)) {
+    return fields;
+  }
+  if (!(await itemAllowed(client, eventId, fields.itemId, current.itemId))) {
+    return { kind: "invalid_item" };
+  }
+  return { kind: "vetted", type: current.type, fields };
+}
 
 /**
  * Changes a quest (FR-1007), its type excepted; a confirmation while the event is live. A new category must be one of
@@ -290,20 +333,11 @@ export function updateQuest(
     if (typeof choice !== "string") {
       return choice;
     }
-    const taken =
-      input.categoryId === undefined
-        ? "yes"
-        : await takesQuest(client, target.eventId, input.categoryId, current.type);
-    if (taken !== "yes") {
-      return { kind: "invalid", field: taken };
+    const vetted = await vetEdit(client, { eventId: target.eventId, current, input }, event);
+    if (vetted.kind !== "vetted") {
+      return vetted;
     }
-    const fields = mergeQuest(current, current.type, input, event.timezone);
-    if (isInvalid(fields)) {
-      return fields;
-    }
-    if (!(await itemAllowed(client, target.eventId, fields.itemId, current.itemId))) {
-      return { kind: "invalid_item" };
-    }
+    const { fields } = vetted;
     const checked = await passportSteps(client, current, current.type, fields, input.steps);
     if (checked.kind !== "steps") {
       return checked;

@@ -64,11 +64,6 @@
       "complexity": [12]
     }
   },
-  "apps/api/src/join/routes.ts": {
-    "<anonymous>": {
-      "complexity": [11]
-    }
-  },
   "apps/api/src/migrate-cli.ts": {
     "verifyAppRole": {
       "complexity": [19]
@@ -77,11 +72,6 @@
   "apps/api/src/moderation/routes.ts": {
     "<anonymous>": {
       "complexity": [9]
-    }
-  },
-  "apps/api/src/nfc/tags.ts": {
-    "nfcRefusalOf": {
-      "complexity": [11]
     }
   },
   "apps/api/src/operators/practice.ts": {
@@ -105,11 +95,6 @@
   "apps/api/src/organizers/team.ts": {
     "admitInvite": {
       "complexity": [9]
-    }
-  },
-  "apps/api/src/players/items.ts": {
-    "readLocker": {
-      "complexity": [10]
     }
   },
   "apps/api/src/players/profile.ts": {
@@ -148,11 +133,6 @@
       "lines": [102]
     }
   },
-  "apps/api/src/quests/quests.ts": {
-    "<anonymous>": {
-      "complexity": [10, 9]
-    }
-  },
   "apps/api/src/quests/routes.ts": {
     "<anonymous>": {
       "complexity": [10]
@@ -169,11 +149,6 @@
   "apps/api/src/rehearsal/service.ts": {
     "createRehearsal": {
       "lines": [104]
-    }
-  },
-  "apps/api/src/results/results.ts": {
-    "<anonymous>": {
-      "complexity": [12]
     }
   },
   "apps/api/src/rewards/builder.ts": {
@@ -219,20 +194,9 @@
       "complexity": [9]
     }
   },
-  "apps/api/src/tickets/routes.ts": {
-    "<anonymous>": {
-      "complexity": [10]
-    },
-    "registerTicketPlayerRoutes": {
-      "lines": [107]
-    }
-  },
   "apps/api/src/tickets/tickets.ts": {
     "<anonymous>": {
       "complexity": [9]
-    },
-    "run": {
-      "complexity": [10]
     }
   },
   "apps/api/src/translations/service.ts": {

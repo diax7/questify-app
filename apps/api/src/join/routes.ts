@@ -264,6 +264,49 @@ function registerBrowseRoutes(app: FastifyInstance, deps: BrowseDeps): void {
   );
 }
 
+type JoinBody = z.infer<typeof joinBody>;
+type JoinEntry = Readonly<{ playerId: string; address: string; answers: JoinAnswers }>;
+
+/** An invitation names the event and no code (FR-133). */
+function joinInvitedBy(deps: BrowseDeps, entry: JoinEntry, body: JoinBody): Promise<JoinOutcome> {
+  if (body.eventId === undefined || body.joinCode !== undefined) {
+    throw invalidRequest();
+  }
+  return joinInvited(deps, {
+    playerId: entry.playerId,
+    eventId: body.eventId,
+    cardVersion: body.cardVersion,
+    answers: entry.answers,
+    nameNotice: body.nameNotice,
+    waitlist: body.waitlist ?? false,
+  });
+}
+
+/** Every other way in names a code and no event; a code of the wrong shape is no event. */
+function joinByCodeFrom(
+  deps: BrowseDeps,
+  entry: JoinEntry,
+  body: JoinBody,
+  via: Exclude<JoinBody["via"], "invite">,
+): Promise<JoinOutcome | Throttled> {
+  if (body.joinCode === undefined || body.eventId !== undefined) {
+    throw invalidRequest();
+  }
+  if (!CODE.test(body.joinCode)) {
+    throw notFound();
+  }
+  return joinByCode(deps, {
+    playerId: entry.playerId,
+    address: entry.address,
+    code: body.joinCode,
+    via,
+    cardVersion: body.cardVersion,
+    answers: entry.answers,
+    nameNotice: body.nameNotice,
+    waitlist: body.waitlist ?? false,
+  });
+}
+
 /**
  * `POST /v1/join` (FR-101 to 105, FR-112, FR-121): a signed-in player joins by the event's code, sending how they came
  * and the join card's version they saw. Idempotent by its natural key: joining again answers the same enrollment.
@@ -285,37 +328,15 @@ export function registerJoinRoutes(app: FastifyInstance, deps: BrowseDeps): void
       if (body.cardVersion !== joinCard().version) {
         throw joinCardStale({ card: cardInForce() });
       }
-      const answers = cleanAnswers(body.answers);
-      if (body.via === "invite") {
-        if (body.eventId === undefined || body.joinCode !== undefined) {
-          throw invalidRequest();
-        }
-        const invited = await joinInvited(deps, {
-          playerId: player.id,
-          eventId: body.eventId,
-          cardVersion: body.cardVersion,
-          answers,
-          nameNotice: body.nameNotice,
-          waitlist: body.waitlist ?? false,
-        });
-        return joinAnswer(invited, reply);
-      }
-      if (body.joinCode === undefined || body.eventId !== undefined) {
-        throw invalidRequest();
-      }
-      if (!CODE.test(body.joinCode)) {
-        throw notFound();
-      }
-      const result = await joinByCode(deps, {
+      const entry = {
         playerId: player.id,
         address: request.ip,
-        code: body.joinCode,
-        via: body.via,
-        cardVersion: body.cardVersion,
-        answers,
-        nameNotice: body.nameNotice,
-        waitlist: body.waitlist ?? false,
-      });
+        answers: cleanAnswers(body.answers),
+      };
+      const result =
+        body.via === "invite"
+          ? await joinInvitedBy(deps, entry, body)
+          : await joinByCodeFrom(deps, entry, body, body.via);
       return joinAnswer(result, reply);
     },
   );

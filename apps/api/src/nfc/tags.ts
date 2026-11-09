@@ -74,26 +74,19 @@ const NT409: ReadonlySet<string> = new Set([
   "already_registered",
 ]);
 
+const REFUSAL_OF_CODE = new Map<string, (pg: PgError) => NfcRefusal | undefined>([
+  ["NT404", () => ({ kind: "unknown_tag" })],
+  ["OQ404", () => ({ kind: "not_found" })],
+  ["OP403", () => ({ kind: "not_operator" })],
+  ["OA403", () => ({ kind: "ability_off" })],
+  ["OS403", () => ({ kind: "outside_quests" })],
+  ["NT422", (pg) => ({ kind: "invalid_tag", field: pg.detail ?? "tag" })],
+  ["NT409", (pg) => (NT409.has(pg.detail ?? "") ? ({ kind: pg.detail } as NfcRefusal) : undefined)],
+]);
+
 /** The SQLSTATEs of migration 0056's doors as refusals; undefined for anything else. */
 export function nfcRefusalOf(pg: PgError): NfcRefusal | undefined {
-  switch (pg.code) {
-    case "NT404":
-      return { kind: "unknown_tag" };
-    case "OQ404":
-      return { kind: "not_found" };
-    case "OP403":
-      return { kind: "not_operator" };
-    case "OA403":
-      return { kind: "ability_off" };
-    case "OS403":
-      return { kind: "outside_quests" };
-    case "NT422":
-      return { kind: "invalid_tag", field: pg.detail ?? "tag" };
-    case "NT409":
-      return NT409.has(pg.detail ?? "") ? ({ kind: pg.detail } as NfcRefusal) : undefined;
-    default:
-      return undefined;
-  }
+  return pg.code === undefined ? undefined : REFUSAL_OF_CODE.get(pg.code)?.(pg);
 }
 
 /** Runs one call in `context`; an NFC refusal or a completion refusal the database raises becomes its result. */
