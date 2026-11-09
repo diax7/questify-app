@@ -8,14 +8,15 @@ export const PASSWORD = "correct horse battery staple";
 export const BREACHED_PASSWORD = "this one was in a breach 2019";
 
 let addressCounter = 0;
-/** Each worker (a spec file in one browser size) picks its own block, so their addresses never meet. */
-const ADDRESS_BLOCK = 100 + Math.floor(Math.random() * 150);
+/** Each worker picks its own second octet at random, so their addresses never meet. */
+const ADDRESS_BLOCK = Math.floor(Math.random() * 256);
 
 /** Each test gets its own client address, so the API's per-address throttles never cross tests. */
 export async function freshAddress(page: Page): Promise<void> {
   addressCounter += 1;
   await page.setExtraHTTPHeaders({
-    "x-forwarded-for": `198.51.${ADDRESS_BLOCK}.${addressCounter}`,
+    // Octets stay 0-255 on long runs: a last octet past 255 was invalid and fell into one shared sign-up throttle.
+    "x-forwarded-for": `10.${ADDRESS_BLOCK}.${Math.floor(addressCounter / 250)}.${(addressCounter % 250) + 1}`,
   });
 }
 
