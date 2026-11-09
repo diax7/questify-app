@@ -667,7 +667,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
     describe("revoking a banned player's tiers", () => {
       const bronze = [{ achievementId: "events-attended", tier: "bronze" }];
 
-      it("hides the next tier only when it is the revoked one", async () => {
+      it("shows as next the first tier above the one held that is not revoked", async () => {
         const [seeded] = await f.owner<{ bronze: number; silver: number; gold: number }>(
           "SELECT bronze, silver, gold FROM achievement WHERE id = 'quests-done'",
         );
@@ -684,12 +684,36 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
             tier: "silver",
             next: { tier: "gold", target: 3 },
           });
+          // Bronze held with silver revoked: silver is never earned again, so gold is the goal.
           const nextRevoked = await player(2);
           await revokeOne(nextRevoked, "silver");
-          expect(await shown(nextRevoked)).toMatchObject({ tier: "bronze", next: null });
+          expect(await shown(nextRevoked)).toMatchObject({
+            tier: "bronze",
+            next: { tier: "gold", target: 3 },
+          });
+          // Bronze revoked and no tier held: silver can still be earned.
           const onlyTier = await player(1);
           await revokeOne(onlyTier, "bronze");
-          expect(await shown(onlyTier)).toMatchObject({ tier: null, next: null });
+          expect(await shown(onlyTier)).toMatchObject({
+            tier: null,
+            next: { tier: "silver", target: 2 },
+          });
+          // Bronze and silver revoked: gold is next.
+          const twoRevoked = await player(2);
+          await revokeOne(twoRevoked, "bronze");
+          await revokeOne(twoRevoked, "silver");
+          expect(await shown(twoRevoked)).toMatchObject({
+            tier: null,
+            next: { tier: "gold", target: 3 },
+          });
+          // Every tier above the one held revoked: nothing is left to reach.
+          const noneLeft = await player(3);
+          await revokeOne(noneLeft, "silver");
+          await revokeOne(noneLeft, "gold");
+          expect(await shown(noneLeft)).toMatchObject({ tier: "bronze", next: null });
+          // Gold held: nothing above.
+          const atGold = await player(3);
+          expect(await shown(atGold)).toMatchObject({ tier: "gold", next: null });
         } finally {
           await setTiers([seeded?.bronze, seeded?.silver, seeded?.gold]);
         }
@@ -773,7 +797,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
             "SELECT own_achievements() AS r",
           )
         )[0]?.r.find((row) => row.id === "events-attended");
-        expect(own).toMatchObject({ tier: null, next: null });
+        // The revoked bronze is hidden and skipped: silver stays a goal.
+        expect(own).toMatchObject({ tier: null, next: { tier: "silver" } });
         expect((await sync(someone))?.items).toEqual([]);
         expect((await sync(someone))?.items).toEqual([]);
         expect(await f.earned(someone)).toEqual(["events-attended:bronze"]);

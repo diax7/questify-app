@@ -229,7 +229,6 @@
   "operator_scan_subject(target uuid, scanned uuid)",
   "operator_sees_ticket(t ticket, me uuid)",
   "organizer_legal_missing(org uuid)",
-  "own_achievements()",
   "own_blocks()",
   "own_category_bonus(target uuid)",
   "own_daily()",

@@ -6895,7 +6895,9 @@ key order; no table lock.
 **Status:** Accepted (developer, delegated by Dhia, 2026-11-02, after the T-709c code review 92; T-709c plan D3).
 **Decision:** `achievement_revocation` rows (`revoke` or `restore`, with a `player_admin_action`) mark a tier; the earned row
 and gem entries are never touched. Reason codes: revoke `cheating`, `prize_fraud`, `abuse`, `other`; restore
-`appeal_upheld`, `mistake`, `other`. An achievement with a revoked tier shows no next tier. A revoked tier is hidden from the player's achievements and profile, is never earned again
+`appeal_upheld`, `mistake`, `other`. An achievement shows as next the first tier above the one held that is not revoked
+(amended 2026-11-09, FOLLOWUPS batch 35, migration 0186: 0122 showed none once any tier was revoked, 0171 none once the next
+one was; now bronze revoked and no tier shows silver, bronze held with silver revoked shows gold). A revoked tier is hidden from the player's achievements and profile, is never earned again
 and is not paid while revoked; restoring pays any unpaid gems at the next sync. Only a banned player's tiers can be revoked;
 restore needs no ban. Reasoned, confirmed, audited with ids only.
 **Trade-offs:** gems already paid for a revoked tier stay in the balance (Q-398); a banned player cannot spend them.
@@ -8945,3 +8947,10 @@ tried through the door leaves all 327 refused. The honest limit: an abusive form
 (a letter added inside a word, an ending the check does not strip) is not caught and can still be allowed by an admin; the audit
 (`full_name_allow.add`, the word) and the page are the backstop. The list trigger marks the sweep
 on every change, so stored names follow within minutes.
+
+**Amended 2026-11-09 (FOLLOWUPS batch 35, migration 0186; the allow-list console review).** The affix lists and the loop
+that strips them (the Arabic prefixes and endings, ة read as ت, the Latin endings and -ies read as -y) live once, in the
+internal `full_name_stems(form, arabic)` (plpgsql, IMMUTABLE, no definer, no SET clause, revoked from PUBLIC with no grant;
+ADR-670), which `full_name_blocked` and `admin_name_allow_add` both call; the door's copy and the test that kept the two
+equal are gone. Both answer as before: old (0181, 0185) against new over the corpus and every allow-list test word (COUNTS),
+none differs, so 0186 does not mark the recheck pending. TIMING

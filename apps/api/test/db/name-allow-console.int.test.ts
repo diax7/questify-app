@@ -292,24 +292,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full-name allow-list doors (da
     );
   });
 
-  it("strips the affixes full_name_blocked strips, as it declares them", async () => {
-    const [check, door] = (
-      await owner<{ src: string }>(
-        "SELECT prosrc AS src FROM pg_proc WHERE proname = ANY ($1) ORDER BY proname = 'admin_name_allow_add'",
-        [["full_name_blocked", "admin_name_allow_add"]],
-      )
-    ).map((row) =>
-      ["prefixes", "endings", "latin_end"].map(
-        (name) =>
-          new RegExp(`${name}\\s+text\\[\\] := '([^']*)'`).exec(
-            row.src.replace(/'\s*\n\s*'/g, ""),
-          )?.[1],
-      ),
-    );
-    expect(check?.every((value) => value !== undefined && value.length > 10)).toBe(true);
-    expect(door).toEqual(check);
-  });
-
   it("would allow every word of the corpus' real names but those of an entry's shape, each seeded (a migration's call)", async () => {
     const words = (
       await owner<{ w: string }>(

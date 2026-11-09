@@ -1,5 +1,17 @@
 # Blueprint State — Questify
 
+## FOLLOWUPS batch 35 — 2026-11-09
+
+- **FOLLOWUPS batch 35 (tier B, SQL; migration 0186; 0185 and earlier frozen, three functions restated and diffed against
+  their latest definitions; one new internal function, no table, no grant beyond the restated ones).** (1) The allow-list
+  console review: the full-name check's affix lists and their loop move into `full_name_stems(form, arabic)` (plpgsql,
+  IMMUTABLE, revoked from PUBLIC, no grant; ADR-670), called by `full_name_blocked` (0181) and `admin_name_allow_add`
+  (0185); the door's copy and the test that kept the two equal are gone. Old against new: COUNTS, none differs, so the
+  recheck is not marked (ADR-817 amended). TIMING (2) The batch 18 NIT: `own_achievements` (0171) shows as next the first
+  tier above the one held that is not revoked (bronze revoked and no tier: silver; bronze held, silver revoked: gold; all
+  above revoked or gold held: null), restated in plpgsql, so it leaves `sql-settings-allowlist.json` (ADR-439 amended,
+  API.md). Tests TESTS. CI 0 minutes (not pushed).
+
 ## The full-name allow-list from the console (FOLLOWUPS batch 23) — 2026-11-09
 
 - **Allow words from the console (tier B with an admin power; plan note `docs/plans/2026-11-09-name-allow-console.md`;
