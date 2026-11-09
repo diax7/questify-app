@@ -390,6 +390,7 @@
 
 ## Handoff to the company server — 2026-11-06
 
+- 2026-11-09: mutation run 42551052841 put `apps/api/src/players/sign-in.ts` at 91.56% (0184's batch loop), over the bar.
 - 2026-11-09: full suite on main 568dc0b3, 850 files and 13,379 tests passed, 0 failed, 1,012 s at load 3 to 10.
 - The newest entries are below, then older ones. Staging: `release-20261109-2`, migration 0184 (0156 reserved for T-810d). Live
   today: gems removed and the Journey tab (T-404c, T-404d; ADR-760 to 768), FOLLOWUPS batches 1 to 7, ADR-810 (the company server
