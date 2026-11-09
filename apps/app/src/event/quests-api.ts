@@ -283,28 +283,38 @@ function progressOf(value: unknown): Quest["steps"] {
     : null;
 }
 
+/** The category's unlock-after note as sent, or null for anything missing or not well formed. */
+function unlockAfterOf(value: unknown): CategoryRules["unlockAfter"] {
+  return isRecord(value) && typeof value["id"] === "string" && isText(value["name"])
+    ? { id: value["id"], name: value["name"] }
+    : null;
+}
+
+/** A category's bonus as sent: each field on its own, nothing promised for what is missing. */
+function categoryBonusOf(value: unknown): CategoryRules["bonus"] {
+  const bonus = isRecord(value) ? value : {};
+  return {
+    points: typeof bonus["points"] === "number" ? bonus["points"] : 0,
+    earned: typeof bonus["earned"] === "number" ? bonus["earned"] : 0,
+    settled: bonus["settled"] === true,
+    item: isText(bonus["item"]) ? bonus["item"] : null,
+  };
+}
+
+const stringOrNull = (value: unknown): string | null => (typeof value === "string" ? value : null);
+
 /** A category's rules as sent, or none for anything missing or not well formed (an older API). */
 function rulesOf(category: Record<string, unknown>): CategoryRules {
-  const unlock = category["unlockAfter"];
-  const bonus = isRecord(category["bonus"]) ? category["bonus"] : {};
   return {
     orderMode: category["orderMode"] === "in_order" ? "in_order" : "any",
-    opensAt: typeof category["opensAt"] === "string" ? category["opensAt"] : null,
-    unlockAfter:
-      isRecord(unlock) && typeof unlock["id"] === "string" && isText(unlock["name"])
-        ? { id: unlock["id"], name: unlock["name"] }
-        : null,
-    bonus: {
-      points: typeof bonus["points"] === "number" ? bonus["points"] : 0,
-      earned: typeof bonus["earned"] === "number" ? bonus["earned"] : 0,
-      settled: bonus["settled"] === true,
-      item: isText(bonus["item"]) ? bonus["item"] : null,
-    },
+    opensAt: stringOrNull(category["opensAt"]),
+    unlockAfter: unlockAfterOf(category["unlockAfter"]),
+    bonus: categoryBonusOf(category["bonus"]),
     refresh:
       category["refresh"] === "daily" || category["refresh"] === "weekly"
         ? category["refresh"]
         : "none",
-    resetsAt: typeof category["resetsAt"] === "string" ? category["resetsAt"] : null,
+    resetsAt: stringOrNull(category["resetsAt"]),
     communityLock: lockNoteOf(category["communityLock"]),
     boost: runningBoostOf(category["boost"]),
   };

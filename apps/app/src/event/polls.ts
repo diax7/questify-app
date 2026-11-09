@@ -59,33 +59,40 @@ const isCounts = (value: unknown): value is PollCounts =>
 const oneOf = <T extends string>(list: readonly T[], value: unknown): value is T =>
   typeof value === "string" && (list as readonly string[]).includes(value);
 
+type PollHead = Pick<PollView, "title" | "points" | "options" | "choices" | "results">;
+type PollState = Pick<PollView, "closesAt" | "closed" | "mine" | "counts" | "serverNow">;
+
+/** What the poll is: its title, points, options and how it is voted and shown. */
+const isPollHead = (body: Record<string, unknown>): body is Record<string, unknown> & PollHead =>
+  isText(body["title"]) &&
+  typeof body["points"] === "number" &&
+  isChoices(body["options"]) &&
+  oneOf(POLL_CHOICES, body["choices"]) &&
+  oneOf(POLL_RESULTS, body["results"]);
+
+/** Where the poll stands: its end, whether it is closed, the player's votes and the counts shown. */
+const isPollState = (body: Record<string, unknown>): body is Record<string, unknown> & PollState =>
+  typeof body["closesAt"] === "string" &&
+  typeof body["closed"] === "boolean" &&
+  isStrings(body["mine"]) &&
+  (body["counts"] === null || isCounts(body["counts"])) &&
+  typeof body["serverNow"] === "string";
+
 export function pollViewOf(body: unknown): PollView | undefined {
-  if (
-    !isRecord(body) ||
-    !isText(body["title"]) ||
-    typeof body["points"] !== "number" ||
-    !isChoices(body["options"]) ||
-    !oneOf(POLL_CHOICES, body["choices"]) ||
-    !oneOf(POLL_RESULTS, body["results"]) ||
-    typeof body["closesAt"] !== "string" ||
-    typeof body["closed"] !== "boolean" ||
-    !isStrings(body["mine"]) ||
-    !(body["counts"] === null || isCounts(body["counts"])) ||
-    typeof body["serverNow"] !== "string"
-  ) {
+  if (!isRecord(body) || !isPollHead(body) || !isPollState(body)) {
     return undefined;
   }
   return {
-    title: body["title"],
-    points: body["points"],
-    options: body["options"],
-    choices: body["choices"],
-    results: body["results"],
-    closesAt: body["closesAt"],
-    closed: body["closed"],
-    mine: body["mine"],
-    counts: body["counts"],
-    serverNow: body["serverNow"],
+    title: body.title,
+    points: body.points,
+    options: body.options,
+    choices: body.choices,
+    results: body.results,
+    closesAt: body.closesAt,
+    closed: body.closed,
+    mine: body.mine,
+    counts: body.counts,
+    serverNow: body.serverNow,
   };
 }
 

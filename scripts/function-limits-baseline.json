@@ -240,11 +240,6 @@
       "complexity": [9]
     }
   },
-  "apps/app/app/account.tsx": {
-    "AccountScreen": {
-      "complexity": [13]
-    }
-  },
   "apps/app/app/delete-account.tsx": {
     "DeleteAccountScreen": {
       "complexity": [10]
@@ -266,19 +261,6 @@
   "apps/app/app/event/[eventId]/history.tsx": {
     "HistoryScreen": {
       "complexity": [11]
-    }
-  },
-  "apps/app/app/event/[eventId]/ranking.tsx": {
-    "RankingScreen": {
-      "complexity": [12]
-    }
-  },
-  "apps/app/app/invite/[eventId].tsx": {
-    "<anonymous>": {
-      "complexity": [9]
-    },
-    "InviteScreen": {
-      "complexity": [13]
     }
   },
   "apps/app/app/join/[code].tsx": {
@@ -312,22 +294,9 @@
       "lines": [102]
     }
   },
-  "apps/app/app/operator/[eventId]/review.tsx": {
-    "<anonymous>": {
-      "complexity": [9]
-    },
-    "OperatorReviewScreen": {
-      "complexity": [12]
-    }
-  },
   "apps/app/app/operator/[eventId]/rotating-qr.tsx": {
     "<anonymous>": {
       "complexity": [9]
-    }
-  },
-  "apps/app/app/operator/[eventId]/ticket/[ticketId].tsx": {
-    "OperatorTicketScreen": {
-      "complexity": [12]
     }
   },
   "apps/app/app/sign-in.tsx": {
@@ -383,11 +352,6 @@
   "apps/app/src/event/GameEntry.tsx": {
     "GameEntry": {
       "complexity": [9]
-    }
-  },
-  "apps/app/src/event/LocationEntry.tsx": {
-    "LocationEntry": {
-      "complexity": [12]
     }
   },
   "apps/app/src/event/QuestSheet.tsx": {
@@ -447,9 +411,6 @@
   "apps/app/src/event/home-api.ts": {
     "rankingAnswer": {
       "complexity": [9]
-    },
-    "readRanking": {
-      "complexity": [12]
     }
   },
   "apps/app/src/event/live-code.ts": {
@@ -478,17 +439,11 @@
   "apps/app/src/event/polls.ts": {
     "livePollSecondsOf": {
       "complexity": [10]
-    },
-    "pollViewOf": {
-      "complexity": [13]
     }
   },
   "apps/app/src/event/quests-api.ts": {
     "<anonymous>": {
       "complexity": [12]
-    },
-    "rulesOf": {
-      "complexity": [13]
     }
   },
   "apps/app/src/event/rules-api.ts": {
@@ -566,11 +521,6 @@
     },
     "uriOfMessage": {
       "complexity": [11]
-    }
-  },
-  "apps/app/src/operator/StationTodayBlock.tsx": {
-    "StationTodayBlock": {
-      "complexity": [13]
     }
   },
   "apps/app/src/operator/desk.ts": {

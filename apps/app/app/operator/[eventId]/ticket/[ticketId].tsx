@@ -86,12 +86,49 @@ function AnswerForm({
   );
 }
 
+/** The request: who sent it, what kind, its quest and time, the text, its status and reply, and the answer form while open. */
+function TicketDetails({
+  ticket,
+  timeZone,
+  onAnswered,
+}: Readonly<{
+  ticket: OperatorTicket;
+  timeZone: string | undefined;
+  onAnswered: (result: AnswerResult) => void;
+}>) {
+  const { t, language } = useI18n();
+  return (
+    <>
+      <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+        <Avatar name={ticket.avatar} username={ticket.username ?? ""} size={32} />
+        <AppText variant="label">
+          {ticket.username === null ? t("submissions.deletedPlayer") : `@${ticket.username}`}
+        </AppText>
+        <AppText muted>{t(kindLabel(ticket.kind))}</AppText>
+      </View>
+      <AppText muted>
+        {ticket.quest === null
+          ? t("operator.inbox.eventWide")
+          : textIn(ticket.quest.title, language)}
+      </AppText>
+      {timeZone === undefined ? null : (
+        <AppText muted>{formatEventTime(new Date(ticket.createdAt), timeZone, language)}</AppText>
+      )}
+      {ticket.marked ? <AppText accessibilityRole="alert">{t("tickets.marked")}</AppText> : null}
+      <AppText>{ticket.text}</AppText>
+      <AppText variant="label">{t(ticketStatusKey(ticket))}</AppText>
+      {ticket.reply === null ? null : <AppText>{ticket.reply}</AppText>}
+      {ticket.status === "open" ? <AnswerForm ticket={ticket} onAnswered={onAnswered} /> : null}
+    </>
+  );
+}
+
 /**
  * One help-desk request in staff mode (FR-338, T-310): the text, the quest, the time, and the answer form while it is
  * open. "Already answered" says someone on the team answered first, and goes back to the Inbox.
  */
 function OperatorTicketScreen() {
-  const { t, language } = useI18n();
+  const { t } = useI18n();
   const { eventId, event } = useOperator();
   const { ticketId } = useLocalSearchParams<{ ticketId: string }>();
   const [ticket, setTicket] = useState<OperatorTicket | undefined | "failed">(undefined);
@@ -126,32 +163,7 @@ function OperatorTicketScreen() {
           </>
         ) : null}
         {typeof ticket === "object" ? (
-          <>
-            <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-              <Avatar name={ticket.avatar} username={ticket.username ?? ""} size={32} />
-              <AppText variant="label">
-                {ticket.username === null ? t("submissions.deletedPlayer") : `@${ticket.username}`}
-              </AppText>
-              <AppText muted>{t(kindLabel(ticket.kind))}</AppText>
-            </View>
-            <AppText muted>
-              {ticket.quest === null
-                ? t("operator.inbox.eventWide")
-                : textIn(ticket.quest.title, language)}
-            </AppText>
-            {event === undefined ? null : (
-              <AppText muted>
-                {formatEventTime(new Date(ticket.createdAt), event.timezone, language)}
-              </AppText>
-            )}
-            {ticket.marked ? (
-              <AppText accessibilityRole="alert">{t("tickets.marked")}</AppText>
-            ) : null}
-            <AppText>{ticket.text}</AppText>
-            <AppText variant="label">{t(ticketStatusKey(ticket))}</AppText>
-            {ticket.reply === null ? null : <AppText>{ticket.reply}</AppText>}
-            {ticket.status === "open" ? <AnswerForm ticket={ticket} onAnswered={answered} /> : null}
-          </>
+          <TicketDetails ticket={ticket} timeZone={event?.timezone} onAnswered={answered} />
         ) : null}
       </ScrollView>
     </Screen>

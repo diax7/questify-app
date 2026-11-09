@@ -15,6 +15,7 @@ import {
   joinInvitation,
   shownNotice,
   type Invitation,
+  type JoinOutcome,
 } from "#src/join/join-api.ts";
 import { isInEvent, joinedResult, type Joined } from "#src/join/join-result.ts";
 import { JoinForm } from "#src/join/JoinForm.tsx";
@@ -70,13 +71,118 @@ function InviteJoined({ joined, eventName }: Readonly<{ joined: Joined; eventNam
   );
 }
 
+const NOTICE_TEXT = {
+  loading: "common.loading",
+  gone: "join.notFound",
+  network: "join.network",
+} as const;
+
+/** The screen before the invitation is there: loading, gone, or a failed read with Retry. */
+function InviteNotice({
+  loaded,
+  load,
+}: Readonly<{ loaded: Exclude<Loaded, Invitation>; load: () => Promise<void> }>) {
+  const { t } = useI18n();
+  return (
+    <Screen title={t("invitations.title")}>
+      <AppText>{t(NOTICE_TEXT[loaded ?? "loading"])}</AppText>
+      {loaded === "network" ? (
+        <Button label={t("common.retry")} onPress={() => void load()} />
+      ) : null}
+    </Screen>
+  );
+}
+
+/** What the screen sets from a join's answer. */
+type OutcomeSinks = Readonly<{
+  setJoined: (joined: Joined) => void;
+  setPointed: (pointed: Pointed | undefined) => void;
+  setProblem: (problem: LocalizedText | null) => void;
+  reload: () => void;
+}>;
+
+/** Shows what a join's answer says: the way into the event, the field to fix, the refusal, or a new card. */
+function applyOutcome(outcome: JoinOutcome, sinks: OutcomeSinks) {
+  if (outcome.kind === "joined") {
+    sinks.setJoined(outcome);
+  } else if (outcome.kind === "invalid_answers") {
+    sinks.setPointed(refusalOf(outcome).pointed);
+    sinks.setProblem(refusalOf(outcome).problem);
+  } else if (outcome.kind === "refused") {
+    sinks.setProblem(outcome.problem);
+  } else if (outcome.kind === "stale") {
+    sinks.reload();
+  } else if (outcome.kind === "signed_out") {
+    router.replace("/sign-in");
+  } else {
+    sinks.setProblem(MESSAGES["join.network"]);
+  }
+}
+
+/** The invitation's details and the join: the form and Join before it, the welcome and the way in after. */
+function InviteDetails({
+  invitation,
+  joined,
+  typed,
+  onType,
+  pointed,
+  problem,
+  busy,
+  full,
+  onJoin,
+}: Readonly<{
+  invitation: Invitation;
+  joined: Joined | undefined;
+  typed: Typed;
+  onType: (typed: Typed) => void;
+  pointed: Pointed | undefined;
+  problem: LocalizedText | null;
+  busy: boolean;
+  full: boolean;
+  onJoin: () => void;
+}>) {
+  const { t, language } = useI18n();
+  const { event, card } = invitation;
+  return (
+    <ScrollView contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
+      <AppText variant="title">{t("invitations.title")}</AppText>
+      {textIn(event.venue, language) === "" ? null : (
+        <AppText muted>{textIn(event.venue, language)}</AppText>
+      )}
+      <CardReceives card={card} />
+      {joined === undefined ? (
+        <JoinForm
+          rules={event.join}
+          typed={typed}
+          onType={onType}
+          pointed={pointed}
+          showLocks={false}
+        />
+      ) : null}
+      {joined !== undefined && joined.welcome > 0 ? (
+        <WelcomeReward points={joined.welcome} />
+      ) : null}
+      <Problem problem={problem} />
+      {joined === undefined ? (
+        <Button
+          label={t(full ? "join.waitlistJoin" : "joinCard.join")}
+          disabled={busy}
+          onPress={onJoin}
+        />
+      ) : (
+        <InviteJoined joined={joined} eventName={textIn(event.name, language)} />
+      )}
+    </ScrollView>
+  );
+}
+
 /**
  * "You're invited" (FR-133): an event whose guest list holds the player's phone or email, joined without a code and,
  * for a private event, without waiting for approval (FR-1819). The card and the join fields are the event's own. A full
  * event offers its waiting list (FR-1821).
  */
 export default function InviteScreen() {
-  const { t, language } = useI18n();
+  const { language } = useI18n();
   const { eventId } = useLocalSearchParams<{ eventId: string }>();
   const { loaded, load } = useInvitation(String(eventId));
   const [typed, setTyped] = useState<Typed>({});
@@ -88,22 +194,7 @@ export default function InviteScreen() {
   const explainer = useJoinExplainer(joined !== undefined);
 
   if (loaded === undefined || loaded === "gone" || loaded === "network") {
-    return (
-      <Screen title={t("invitations.title")}>
-        <AppText>
-          {t(
-            loaded === undefined
-              ? "common.loading"
-              : loaded === "gone"
-                ? "join.notFound"
-                : "join.network",
-          )}
-        </AppText>
-        {loaded === "network" ? (
-          <Button label={t("common.retry")} onPress={() => void load()} />
-        ) : null}
-      </Screen>
-    );
+    return <InviteNotice loaded={loaded} load={load} />;
   }
   const { event, card } = loaded;
 
@@ -127,54 +218,23 @@ export default function InviteScreen() {
     );
     setBusy(false);
     setFull(outcome.kind === "refused" && outcome.code === "event_full");
-    if (outcome.kind === "joined") {
-      setJoined(outcome);
-    } else if (outcome.kind === "invalid_answers") {
-      setPointed(refusalOf(outcome).pointed);
-      setProblem(refusalOf(outcome).problem);
-    } else if (outcome.kind === "refused") {
-      setProblem(outcome.problem);
-    } else if (outcome.kind === "stale") {
-      void load();
-    } else if (outcome.kind === "signed_out") {
-      router.replace("/sign-in");
-    } else {
-      setProblem(MESSAGES["join.network"]);
-    }
+    applyOutcome(outcome, { setJoined, setPointed, setProblem, reload: () => void load() });
   };
 
   return (
     <Screen title={textIn(event.name, language)}>
       <PushExplainer explainer={explainer} />
-      <ScrollView contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
-        <AppText variant="title">{t("invitations.title")}</AppText>
-        {textIn(event.venue, language) === "" ? null : (
-          <AppText muted>{textIn(event.venue, language)}</AppText>
-        )}
-        <CardReceives card={card} />
-        {joined === undefined ? (
-          <JoinForm
-            rules={event.join}
-            typed={typed}
-            onType={setTyped}
-            pointed={pointed}
-            showLocks={false}
-          />
-        ) : null}
-        {joined !== undefined && joined.welcome > 0 ? (
-          <WelcomeReward points={joined.welcome} />
-        ) : null}
-        <Problem problem={problem} />
-        {joined === undefined ? (
-          <Button
-            label={t(full ? "join.waitlistJoin" : "joinCard.join")}
-            disabled={busy}
-            onPress={() => void tapJoin(full)}
-          />
-        ) : (
-          <InviteJoined joined={joined} eventName={textIn(event.name, language)} />
-        )}
-      </ScrollView>
+      <InviteDetails
+        invitation={loaded}
+        joined={joined}
+        typed={typed}
+        onType={setTyped}
+        pointed={pointed}
+        problem={problem}
+        busy={busy}
+        full={full}
+        onJoin={() => void tapJoin(full)}
+      />
     </Screen>
   );
 }

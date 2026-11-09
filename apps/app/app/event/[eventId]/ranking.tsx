@@ -134,6 +134,54 @@ function ScopeTabs({
   );
 }
 
+/** The screen before there is a list: loading, switched off, or a failed read with Retry. */
+function UnreadyRanking({
+  kind,
+  retry,
+}: Readonly<{ kind: "loading" | "off" | "failed"; retry: () => void }>) {
+  const { t } = useI18n();
+  return (
+    <>
+      {kind === "loading" ? <AppText muted>{t("common.loading")}</AppText> : null}
+      {kind === "off" ? <AppText>{t("ranking.off")}</AppText> : null}
+      {kind === "failed" ? (
+        <>
+          <AppText accessibilityRole="alert">{t("eventHome.rankingFailed")}</AppText>
+          <Button label={t("common.retry")} onPress={retry} />
+        </>
+      ) : null}
+    </>
+  );
+}
+
+/** The notes above the list: a refresh that failed, an empty list, and the player having no place yet. */
+function RankingNotes({
+  stale,
+  empty,
+  unranked,
+  scope,
+  currency,
+}: Readonly<{
+  stale: boolean;
+  empty: boolean;
+  unranked: boolean;
+  scope: RankingScope;
+  currency: string;
+}>) {
+  const { t } = useI18n();
+  return (
+    <>
+      {stale ? <AppText muted>{t("ranking.refreshFailed")}</AppText> : null}
+      {empty ? (
+        <AppText muted>
+          {scope === "today" ? t("ranking.todayEmpty", { currency }) : t("ranking.empty")}
+        </AppText>
+      ) : null}
+      {unranked && !empty ? <AppText muted>{t("eventHome.noRank")}</AppText> : null}
+    </>
+  );
+}
+
 /**
  * The event's ranking (FR-601 to FR-605): the top 10, and the player's own row as an 11th when they are ranked lower,
  * always on one screen. Rows share the measured height, so they shrink rather than scroll (FR-603). Public profile
@@ -153,14 +201,7 @@ export default function RankingScreen() {
     return (
       <Screen title={t("nav.ranking")} header={<BackButton />}>
         {tabs}
-        {loaded.kind === "loading" ? <AppText muted>{t("common.loading")}</AppText> : null}
-        {loaded.kind === "off" ? <AppText>{t("ranking.off")}</AppText> : null}
-        {loaded.kind === "failed" ? (
-          <>
-            <AppText accessibilityRole="alert">{t("eventHome.rankingFailed")}</AppText>
-            <Button label={t("common.retry")} onPress={() => void load()} />
-          </>
-        ) : null}
+        <UnreadyRanking kind={loaded.kind} retry={() => void load()} />
       </Screen>
     );
   }
@@ -168,17 +209,13 @@ export default function RankingScreen() {
   return (
     <Screen title={t("nav.ranking")} header={<BackButton />}>
       {tabs}
-      {loaded.stale ? <AppText muted>{t("ranking.refreshFailed")}</AppText> : null}
-      {rows.length === 0 ? (
-        <AppText muted>
-          {scope === "today"
-            ? t("ranking.todayEmpty", { currency: termFor(terms.currency, language, 2) })
-            : t("ranking.empty")}
-        </AppText>
-      ) : null}
-      {loaded.ranking.me === null && rows.length > 0 ? (
-        <AppText muted>{t("eventHome.noRank")}</AppText>
-      ) : null}
+      <RankingNotes
+        stale={loaded.stale}
+        empty={rows.length === 0}
+        unranked={loaded.ranking.me === null}
+        scope={scope}
+        currency={termFor(terms.currency, language, 2)}
+      />
       <View style={styles.list} onLayout={measure}>
         {available > 0 ? (
           <RankingBody

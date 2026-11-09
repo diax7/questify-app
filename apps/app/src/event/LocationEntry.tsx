@@ -91,6 +91,45 @@ const makeStyles = (theme: Theme) => ({
 
 type Said = Readonly<{ text: string; settings: boolean }>;
 
+/** The QR at the spot: beside a working check-in it is quiet, on its own it is the main button. */
+function ScanButton({
+  quest,
+  eventId,
+  quiet,
+}: Readonly<{ quest: Quest; eventId: string; quiet: boolean }>) {
+  const { t } = useI18n();
+  return (
+    <Button
+      kind={quiet ? "quiet" : "primary"}
+      label={t("questsTab.scan")}
+      onPress={() =>
+        router.push({
+          pathname: "/event/[eventId]/scan-quest",
+          params: { eventId, quest: quest.id },
+        })
+      }
+    />
+  );
+}
+
+/** What the last check-in said (with the way to the phone's settings when it was denied), and the checking note. */
+function CheckInNotices({ said, busy }: Readonly<{ said: Said | null; busy: boolean }>) {
+  const { t } = useI18n();
+  return (
+    <>
+      {said === null ? null : <AppText accessibilityRole="alert">{said.text}</AppText>}
+      {said?.settings === true ? (
+        <Button
+          kind="quiet"
+          label={t("location.openSettings")}
+          onPress={() => void Linking.openSettings().catch(() => undefined)}
+        />
+      ) : null}
+      {busy ? <AppText muted>{t("location.checking")}</AppText> : null}
+    </>
+  );
+}
+
 /**
  * A location quest in the quest sheet (FR-215, FR-216): "Check in here" reads a fresh position and sends it; the QR
  * at the spot is always offered beside it. Asking happens only through the explanation's Continue. While the
@@ -144,18 +183,7 @@ export function LocationEntry({
       setSaid({ text: t("location.denied"), settings: true });
     }
   };
-  const scan = (
-    <Button
-      kind={locationOn && reader !== null ? "quiet" : "primary"}
-      label={t("questsTab.scan")}
-      onPress={() =>
-        router.push({
-          pathname: "/event/[eventId]/scan-quest",
-          params: { eventId, quest: quest.id },
-        })
-      }
-    />
-  );
+  const scan = <ScanButton quest={quest} eventId={eventId} quiet={locationOn && reader !== null} />;
   if (!locationOn || reader === null) {
     return (
       <>
@@ -169,15 +197,7 @@ export function LocationEntry({
   }
   return (
     <>
-      {said === null ? null : <AppText accessibilityRole="alert">{said.text}</AppText>}
-      {said?.settings === true ? (
-        <Button
-          kind="quiet"
-          label={t("location.openSettings")}
-          onPress={() => void Linking.openSettings().catch(() => undefined)}
-        />
-      ) : null}
-      {busy ? <AppText muted>{t("location.checking")}</AppText> : null}
+      <CheckInNotices said={said} busy={busy} />
       <Button
         label={t("location.checkIn")}
         disabled={busy || reader === undefined}

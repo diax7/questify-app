@@ -18,9 +18,66 @@ import {
   fetchReviewQueue,
   firstOf,
   sendReview,
+  type ReviewAnswer,
   type ReviewItem,
 } from "#src/operator/review.ts";
 import { PracticeLocked } from "#src/operator/Practice.tsx";
+
+/** What the server said when someone else had reviewed the submission first, in the operator's language. */
+const goneText = (answer: Extract<ReviewAnswer, { kind: "gone" }>, language: "ar" | "en") =>
+  answer.message?.[language] ?? null;
+
+/** The submission to review: who sent it, what it says, Approve, and the reason with Reject. */
+function ReviewCard({
+  item,
+  terms,
+  reason,
+  onReason,
+  busy,
+  onReview,
+}: Readonly<{
+  item: ReviewItem;
+  terms: ReturnType<typeof useOperator>["terms"];
+  reason: string;
+  onReason: (value: string) => void;
+  busy: boolean;
+  onReview: (decision: "approve" | "reject") => void;
+}>) {
+  const { t, language } = useI18n();
+  return (
+    <View style={{ gap: 8 }}>
+      <AppText variant="label">{textIn(item.questTitle, language)}</AppText>
+      <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+        <Avatar name={item.avatar} username={item.username ?? ""} size={32} />
+        <AppText>
+          {t("operator.review.from", { player: item.username ?? t("submissions.deletedPlayer") })}
+        </AppText>
+      </View>
+      <AppText muted>{completedText(t, terms, language, item.points)}</AppText>
+      {item.marked ? (
+        <AppText accessibilityRole="alert">{t("operator.review.marked")}</AppText>
+      ) : null}
+      <AppText>{item.text ?? t("submissions.erased")}</AppText>
+      <Button
+        label={t("operator.review.approve")}
+        disabled={busy}
+        onPress={() => onReview("approve")}
+      />
+      <Field
+        label={t("operator.review.reason")}
+        value={reason}
+        onChangeText={onReason}
+        maxLength={300}
+      />
+      <Button
+        kind="quiet"
+        label={t("operator.review.reject")}
+        disabled={busy || !canReject(reason)}
+        onPress={() => onReview("reject")}
+      />
+    </View>
+  );
+}
 
 /**
  * The operator's review queue (FR-324, FR-325): one pending submission at a time, oldest first, approved or rejected
@@ -62,9 +119,7 @@ function OperatorReviewScreen() {
     });
     setBusy(false);
     if (answer.kind === "done" || answer.kind === "gone") {
-      setSaid(
-        answer.kind === "done" ? t("operator.review.done") : (answer.message?.[language] ?? null),
-      );
+      setSaid(answer.kind === "done" ? t("operator.review.done") : goneText(answer, language));
       setReason("");
       setKey(randomUuid());
       await load();
@@ -92,39 +147,14 @@ function OperatorReviewScreen() {
           <AppText muted>{t("operator.review.empty")}</AppText>
         ) : null}
         {current === undefined ? null : (
-          <View style={{ gap: 8 }}>
-            <AppText variant="label">{textIn(current.questTitle, language)}</AppText>
-            <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-              <Avatar name={current.avatar} username={current.username ?? ""} size={32} />
-              <AppText>
-                {t("operator.review.from", {
-                  player: current.username ?? t("submissions.deletedPlayer"),
-                })}
-              </AppText>
-            </View>
-            <AppText muted>{completedText(t, terms, language, current.points)}</AppText>
-            {current.marked ? (
-              <AppText accessibilityRole="alert">{t("operator.review.marked")}</AppText>
-            ) : null}
-            <AppText>{current.text ?? t("submissions.erased")}</AppText>
-            <Button
-              label={t("operator.review.approve")}
-              disabled={busy}
-              onPress={() => void review("approve")}
-            />
-            <Field
-              label={t("operator.review.reason")}
-              value={reason}
-              onChangeText={(value) => setReason(value.slice(0, 300))}
-              maxLength={300}
-            />
-            <Button
-              kind="quiet"
-              label={t("operator.review.reject")}
-              disabled={busy || !canReject(reason)}
-              onPress={() => void review("reject")}
-            />
-          </View>
+          <ReviewCard
+            item={current}
+            terms={terms}
+            reason={reason}
+            onReason={(value) => setReason(value.slice(0, 300))}
+            busy={busy}
+            onReview={(decision) => void review(decision)}
+          />
         )}
       </ScrollView>
     </Screen>

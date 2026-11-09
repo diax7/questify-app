@@ -6,6 +6,7 @@ import { api } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
+import type { Waiting } from "#src/operator/inbox.ts";
 import { fetchStationToday, type StationToday } from "#src/operator/operator-api.ts";
 import { useOperator } from "#src/operator/OperatorContext.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -56,14 +57,43 @@ export function StationTodayBlock() {
   return (
     <View style={styles.block}>
       <AppText variant="label">{t("operator.stationToday.title")}</AppText>
-      {questId === undefined ? <AppText muted>{t("operator.stationToday.pick")}</AppText> : null}
-      {questId !== undefined && read === "failed" ? (
+      <StationNumbers
+        picked={questId !== undefined}
+        failed={read === "failed"}
+        counts={counts}
+        count={count}
+        retry={() => void load()}
+      />
+      <WaitingLink eventId={eventId} waiting={waiting} count={count} />
+    </View>
+  );
+}
+
+/** The station's numbers, or why there are none: no station picked, a failed read with Retry, or still loading. */
+function StationNumbers({
+  picked,
+  failed,
+  counts,
+  count,
+  retry,
+}: Readonly<{
+  picked: boolean;
+  failed: boolean;
+  counts: StationToday | undefined;
+  count: (value: number) => string;
+  retry: () => void;
+}>) {
+  const { t } = useI18n();
+  return (
+    <>
+      {picked ? null : <AppText muted>{t("operator.stationToday.pick")}</AppText>}
+      {picked && failed ? (
         <>
           <AppText accessibilityRole="alert">{t("operator.stationToday.failed")}</AppText>
-          <Button kind="quiet" label={t("common.retry")} onPress={() => void load()} />
+          <Button kind="quiet" label={t("common.retry")} onPress={retry} />
         </>
       ) : null}
-      {questId !== undefined && read !== "failed" && counts === undefined ? (
+      {picked && !failed && counts === undefined ? (
         <AppText muted>{t("common.loading")}</AppText>
       ) : null}
       {counts === undefined ? null : (
@@ -74,17 +104,30 @@ export function StationTodayBlock() {
           </AppText>
         </>
       )}
-      {waiting?.kind === "count" ? (
-        <Pressable
-          accessibilityRole="link"
-          hitSlop={{ top: 10, bottom: 10 }}
-          onPress={() => router.push(`/operator/${eventId}/inbox`)}
-        >
-          <AppText>{t("operator.stationToday.waiting", { count: count(waiting.total) })}</AppText>
-        </Pressable>
-      ) : null}
-    </View>
+    </>
   );
+}
+
+/** What waits in the Inbox, as a link to it; nothing when the operator has neither review nor the help desk. */
+function WaitingLink({
+  eventId,
+  waiting,
+  count,
+}: Readonly<{
+  eventId: string;
+  waiting: Waiting | undefined;
+  count: (value: number) => string;
+}>) {
+  const { t } = useI18n();
+  return waiting?.kind === "count" ? (
+    <Pressable
+      accessibilityRole="link"
+      hitSlop={{ top: 10, bottom: 10 }}
+      onPress={() => router.push(`/operator/${eventId}/inbox`)}
+    >
+      <AppText>{t("operator.stationToday.waiting", { count: count(waiting.total) })}</AppText>
+    </Pressable>
+  ) : null;
 }
 
 const makeStyles = (theme: Theme) => ({

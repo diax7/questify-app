@@ -135,7 +135,7 @@ type Translate = ReturnType<typeof useI18n>["t"];
  * T-205: a quest staff verify shows My QR; with no printed code it offers nothing else. A challenge is only ever
  * confirmed by staff (ADR-197).
  */
-function myQrAction(quest: Quest, t: Translate): ReactElement | null {
+export function myQrAction(quest: Quest, t: Translate): ReactElement | null {
   if (!quest.verification.includes("my_qr")) {
     return null;
   }
@@ -153,13 +153,13 @@ function myQrAction(quest: Quest, t: Translate): ReactElement | null {
   );
 }
 
-function kioskAction(quest: Quest): ReactElement | null {
+export function kioskAction(quest: Quest): ReactElement | null {
   return quest.verification.includes("kiosk") ? (
     <KioskAction primary={quest.verification.length === 1} />
   ) : null;
 }
 
-function tapAction(
+export function tapAction(
   quest: Quest,
   eventId: string,
   t: Translate,
@@ -277,7 +277,7 @@ function QuestEntry({
 }
 
 /** The line under the details: what a community lock needs, else why the quest is not open, else nothing. */
-function stateText(quest: Quest, t: Translate, language: "ar" | "en", timeZone: string) {
+export function stateText(quest: Quest, t: Translate, language: "ar" | "en", timeZone: string) {
   // A community lock names its goal's numbers (T-306c, ADR-228); the target itself stays shut, no entry below.
   const unlock =
     quest.state === "locked" && quest.communityLock !== null

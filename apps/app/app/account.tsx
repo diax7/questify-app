@@ -184,6 +184,43 @@ function AfterChangeOffer({ channel }: Readonly<{ channel: Channel }>) {
 
 const channelOf = (value: unknown): Channel => (value === "phone" ? "phone" : "email");
 
+/** The title follows the account as it was when the screen opened: after the change, "Change" would mislead. */
+function accountTitle(adding: boolean, phone: boolean, t: ReturnType<typeof useI18n>["t"]): string {
+  if (adding) {
+    return t(phone ? "account.addPhone" : "account.addEmail");
+  }
+  return t(phone ? "account.changePhone" : "account.changeEmail");
+}
+
+/** The step the change is on: the new value, its code, or the done note with the offer to sign other devices out. */
+function ChangeSteps({
+  state,
+  dispatch,
+  signedIn,
+  adding,
+}: Readonly<{
+  state: ContactState;
+  dispatch: StepProps<"enter">["dispatch"];
+  signedIn: boolean;
+  adding: boolean;
+}>) {
+  const { t } = useI18n();
+  return (
+    <>
+      {signedIn && state.step === "enter" ? <EnterStep state={state} dispatch={dispatch} /> : null}
+      {signedIn && state.step === "code" ? <CodeStep state={state} dispatch={dispatch} /> : null}
+      {state.step === "done" ? (
+        <>
+          <AppText accessibilityRole="alert">
+            {t(adding ? "account.added" : "account.changed")}
+          </AppText>
+          <AfterChangeOffer channel={state.channel} />
+        </>
+      ) : null}
+    </>
+  );
+}
+
 /**
  * Settings → My account (FR-125, FR-139): change the phone or email on the account, or add the one it lacks. The code
  * goes to the new value; the account changes only when it is entered.
@@ -214,10 +251,7 @@ export default function AccountScreen() {
     }
   };
 
-  const phone = state.channel === "phone";
-  const title = adding
-    ? t(phone ? "account.addPhone" : "account.addEmail")
-    : t(phone ? "account.changePhone" : "account.changeEmail");
+  const title = accountTitle(adding, state.channel === "phone", t);
 
   return (
     <Screen title={title}>
@@ -225,18 +259,7 @@ export default function AccountScreen() {
         {player.status === "signed_out" ? (
           <AppText accessibilityRole="alert">{t("signIn.sessionEnded")}</AppText>
         ) : null}
-        {signedIn && state.step === "enter" ? (
-          <EnterStep state={state} dispatch={dispatch} />
-        ) : null}
-        {signedIn && state.step === "code" ? <CodeStep state={state} dispatch={dispatch} /> : null}
-        {state.step === "done" ? (
-          <>
-            <AppText accessibilityRole="alert">
-              {t(adding ? "account.added" : "account.changed")}
-            </AppText>
-            <AfterChangeOffer channel={state.channel} />
-          </>
-        ) : null}
+        <ChangeSteps state={state} dispatch={dispatch} signedIn={signedIn} adding={adding} />
         <Button kind="quiet" label={t("signIn.close")} onPress={close} />
       </ScrollView>
     </Screen>

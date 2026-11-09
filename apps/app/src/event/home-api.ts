@@ -404,19 +404,21 @@ function meOf(me: Record<string, unknown>, scores: boolean): NonNullable<Ranking
 const scoreOf = (value: unknown, scoresShown: boolean): number | null =>
   scoresShown && typeof value === "number" ? value : null;
 
+/** The player's own place in an answer: nothing (null), or a place with its rank, names and an optional score. */
+const isMe = (me: unknown): boolean =>
+  me === null ||
+  (isRecord(me) &&
+    typeof me["rank"] === "number" &&
+    typeof me["username"] === "string" &&
+    typeof me["avatar"] === "string" &&
+    isScore(me["score"]));
+
 export function readRanking(body: unknown): Ranking | undefined {
   if (!isRecord(body) || !Array.isArray(body["rows"]) || typeof body["total"] !== "number") {
     return undefined;
   }
   const me = body["me"];
-  const meOk =
-    me === null ||
-    (isRecord(me) &&
-      typeof me["rank"] === "number" &&
-      typeof me["username"] === "string" &&
-      typeof me["avatar"] === "string" &&
-      isScore(me["score"]));
-  if (!meOk || !body["rows"].every(isRow)) {
+  if (!isMe(me) || !body["rows"].every(isRow)) {
     return undefined;
   }
   // An answer without the flag comes from an API that always sent scores; only an explicit false hides them.
