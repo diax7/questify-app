@@ -127,7 +127,7 @@ before migrating if anything is off. Read its log, then tag (step 7). Without a 
 
 From `scripts/cranl`, `python deploy-staging.py <step>`:
 
-1. `connect`, then `deploy-api`. It can say `succeeded` when the build failed: the step prints the newest deployment's real
+1. `connect` (only with a migration: it attaches `DATABASE_ADMIN_URL`, and step 5's `unset` and `restart` must always follow it), then `deploy-api`. It can say `succeeded` when the build failed: the step prints the newest deployment's real
    status; on `failed`, deploy again. A 504 can still succeed.
 2. `run 'ls /srv/migrations | sort | tail -1'` must show the newest migration on `main`.
 3. `run 'test -n "$DATABASE_ADMIN_URL" && node /srv/migrate.cjs' 600`: read `applied`. Exit 1 means the running app has not
