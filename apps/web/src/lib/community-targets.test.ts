@@ -65,6 +65,23 @@ describe("targetChoices edges", () => {
     ]);
   });
 
+  it("excludes nothing when the goal counts points, whatever scope and ids the draft holds", () => {
+    const draft = {
+      measure: "points" as const,
+      scope: "quest" as const,
+      questId: "q3",
+      categoryId: "c1",
+    };
+    expect(targetChoices("quest", options, draft, none).map((choice) => choice.id)).toEqual([
+      "q1",
+      "q3",
+    ]);
+    expect(targetChoices("category", options, draft, none).map((choice) => choice.id)).toEqual([
+      "c1",
+      "c2",
+    ]);
+  });
+
   it("keeps the counted category's quests but not the category itself", () => {
     const draft = {
       measure: "completions" as const,

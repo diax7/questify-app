@@ -211,6 +211,8 @@ async function takesQuest(
 }
 
 type Vetted = Refused | Readonly<{ kind: "vetted"; type: QuestType; fields: QuestFields }>;
+/** An edit keeps the quest's type, so its checks hand back only the merged fields. */
+type VettedEdit = Refused | Readonly<{ kind: "vetted"; fields: QuestFields }>;
 
 /** A new quest's checks before its steps, in order: type, first bonus, category, fields, item, the event's limit. */
 async function vetNewQuest(
@@ -291,7 +293,7 @@ async function vetEdit(
   client: PoolClient,
   edit: Readonly<{ eventId: string; current: QuestRecord; input: QuestInput }>,
   event: Readonly<{ timezone: string }>,
-): Promise<Vetted> {
+): Promise<VettedEdit> {
   const { eventId, current, input } = edit;
   const taken =
     input.categoryId === undefined
@@ -307,7 +309,7 @@ async function vetEdit(
   if (!(await itemAllowed(client, eventId, fields.itemId, current.itemId))) {
     return { kind: "invalid_item" };
   }
-  return { kind: "vetted", type: current.type, fields };
+  return { kind: "vetted", fields };
 }
 
 /**

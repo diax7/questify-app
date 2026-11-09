@@ -17,6 +17,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Actor } from "#src/events/events";
 import { builderBonusOf, readFirstBonuses, type BuilderFirstBonus } from "#src/quests/first-bonus";
+import { sentOrKept } from "#src/quests/kept";
 import {
   listCategories,
   listQuests,
@@ -468,9 +469,6 @@ function plainOf(
     itemId: sentOrKept(input.itemId, current?.itemId ?? null),
   };
 }
-
-/** What was sent, null included, else what is kept. */
-const sentOrKept = <T>(sent: T | undefined, kept: T): T => (sent === undefined ? kept : sent);
 
 /**
  * A quest's fields after this input, from what is stored (or nothing, for a new quest), checked as one whole. The

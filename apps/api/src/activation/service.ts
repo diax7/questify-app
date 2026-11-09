@@ -145,6 +145,11 @@ const adminSeat = (admin: PublicAccount): RequestContext => ({
   staffUserId: admin.id,
 });
 
+type InSeat = <T>(
+  seat: RequestContext,
+  work: (client: PoolClient) => Promise<T>,
+) => Promise<T | Refusal>;
+
 /** The owner's side and the console's side of activation (T-210). Every write is a definer of migration 0027. */
 export function createActivation(deps: ActivationDeps) {
   const inSeat: InSeat = (seat, work) =>
@@ -154,11 +159,6 @@ export function createActivation(deps: ActivationDeps) {
 
   return { ...teamDoors(deps, inSeat), ...lookupDoors(deps), ...adminDoors(deps, inSeat) };
 }
-
-type InSeat = <T>(
-  seat: RequestContext,
-  work: (client: PoolClient) => Promise<T>,
-) => Promise<T | Refusal>;
 
 /** The owner's side: the view, the request and its withdrawal. */
 function teamDoors(deps: ActivationDeps, inSeat: InSeat) {

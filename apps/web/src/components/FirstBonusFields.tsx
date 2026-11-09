@@ -8,7 +8,7 @@ import {
   type Language,
 } from "@questify/shared";
 import { useTranslator } from "#src/components/TermsScope.tsx";
-import { numberFieldPatch } from "#src/lib/event-time-locks.ts";
+import { numberFieldPatch } from "#src/lib/number-field.ts";
 import { firstBonusMin, firstBonusNotes } from "#src/lib/first-bonus-fields.ts";
 import type { QuestDraft } from "#src/lib/quests.ts";
 import { Button } from "#src/ui/Button.tsx";

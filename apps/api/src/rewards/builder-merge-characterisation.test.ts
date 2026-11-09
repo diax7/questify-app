@@ -446,6 +446,26 @@ describe("mergeReward characterisation", () => {
   });
 });
 
+describe("mergeReward refusal order", () => {
+  const BAD = "not a time";
+  it("names the name before the open time, and the open time before the close time", () => {
+    expect(mergeReward(undefined, { opensAt: BAD, closesAt: BAD }, "Asia/Riyadh")).toEqual({
+      kind: "invalid",
+      field: "name",
+    });
+    expect(
+      mergeReward(
+        undefined,
+        { name: { en: "Hoodie" }, opensAt: BAD, closesAt: BAD },
+        "Asia/Riyadh",
+      ),
+    ).toEqual({ kind: "invalid", field: "opensAt" });
+    expect(
+      mergeReward(undefined, { name: { en: "Hoodie" }, closesAt: BAD }, "Asia/Riyadh"),
+    ).toEqual({ kind: "invalid", field: "closesAt" });
+  });
+});
+
 // ---- updateShop ---------------------------------------------------------------------------------------------------
 
 const EVENT_ID = "77777777-7777-4777-8777-777777777777";

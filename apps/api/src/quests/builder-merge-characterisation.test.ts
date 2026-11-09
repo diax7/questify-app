@@ -571,6 +571,93 @@ describe("mergeQuest characterisation", () => {
   });
 });
 
+describe("mergeQuest refusal order", () => {
+  const OK = { title: { en: "x" }, points: 10 };
+  const LIVE_VOTE = {
+    options: [OPTION("a"), OPTION("b")],
+    live: { choices: "one", results: "never", minutes: 5 },
+  };
+  const cases: readonly [string, QuestType, QuestInput, unknown][] = [
+    [
+      "the submission kind over the title",
+      "submission",
+      { config: { accepts: ["photo"] } },
+      { kind: "submission_kind_unavailable", asked: "photo" },
+    ],
+    ["the title over the points", "enter_code", {}, { kind: "invalid", field: "title" }],
+    [
+      "the points over the open time",
+      "enter_code",
+      { title: OK.title, opensAt: "not a time" },
+      { kind: "invalid", field: "points" },
+    ],
+    [
+      "the open time over the close time",
+      "enter_code",
+      { ...OK, opensAt: "not a time", closesAt: "not a time" },
+      { kind: "invalid", field: "opensAt" },
+    ],
+    [
+      "the close time over the config",
+      "enter_code",
+      { ...OK, closesAt: "not a time", config: {} },
+      { kind: "invalid", field: "closesAt" },
+    ],
+    [
+      "the config over the verification",
+      "enter_code",
+      { ...OK, config: {}, verification: ["nonsense"] as never },
+      { kind: "invalid", field: "config" },
+    ],
+    [
+      "the verification over the place",
+      "enter_code",
+      {
+        ...OK,
+        config: { code: "NAJD2030" },
+        verification: ["nonsense"] as never,
+        place: { lat: 24.7, lng: 46.6, radiusM: 50 },
+      },
+      { kind: "invalid", field: "verification" },
+    ],
+    [
+      "the place over the flash",
+      "vote",
+      { ...OK, config: LIVE_VOTE, place: { lat: 24.7, lng: 46.6, radiusM: 50 }, flash: true },
+      { kind: "invalid", field: "place" },
+    ],
+    [
+      "the flash over the flash window",
+      "vote",
+      {
+        ...OK,
+        config: LIVE_VOTE,
+        flash: true,
+        visible: true,
+        opensAt: "2030-11-01T10:00",
+        closesAt: "2030-11-03T10:00",
+      },
+      { kind: "invalid", field: "flash" },
+    ],
+    [
+      "the flash window over the daily cap",
+      "meet",
+      {
+        ...OK,
+        flash: true,
+        visible: true,
+        opensAt: "2030-11-01T10:00",
+        closesAt: "2030-11-03T10:00",
+      },
+      { kind: "invalid", field: "flashWindow" },
+    ],
+    ["the daily cap alone", "meet", OK, { kind: "invalid", field: "dailyCap" }],
+  ];
+  it.each(cases)("refuses first on %s", (_name, type, input, expected) => {
+    expect(mergeQuest(undefined, type, input, "Asia/Riyadh", NOW)).toEqual(expected);
+  });
+});
+
 // ---- withEvent ----------------------------------------------------------------------------------------------------
 
 const ACTOR: Actor = {

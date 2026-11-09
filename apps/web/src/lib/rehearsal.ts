@@ -1,5 +1,7 @@
 import type { MessageKey } from "@questify/shared";
 
+import { isRecord } from "#src/lib/is-record.ts";
+
 /** What rehearsal wrote, or what an erase removed (T-211). */
 export type RehearsalCounts = Readonly<{
   accounts: number;
@@ -23,8 +25,6 @@ export type RehearsalView = Readonly<{
 
 const COUNT_KEYS = ["accounts", "completions", "points", "reservations", "flags"] as const;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
 const isTextOrNull = (value: unknown): value is string | null =>
   value === null || typeof value === "string";
 const isCounts = (value: unknown): value is RehearsalCounts =>

@@ -4,6 +4,9 @@ import { NOTHING_LIVE, type LiveState } from "#src/event/polls.ts";
 
 // There is no native renderer in the unit suite, so the two hooks LivePolls uses run on a tiny stand-in: state lives
 // in slots, effects run after each render when their dependencies changed, and a state change renders again.
+// Its limits: no effect cleanup runs, state changes are not batched, `useRef` and `useMemo` do not exist, an effect
+// without a dependency list throws, and any function passed to a setter is treated as an updater. A change that
+// needs more of React (for example a race when `eventId` changes) needs a real renderer.
 const runtime = vi.hoisted(() => ({
   slots: [] as { value?: unknown; deps?: readonly unknown[] }[],
   cursor: 0,

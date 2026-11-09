@@ -27,7 +27,8 @@ import {
   type EventDraft,
   type EventStatus,
 } from "#src/lib/events.ts";
-import { eventTimeLocks, numberFieldPatch } from "#src/lib/event-time-locks.ts";
+import { eventTimeLocks } from "#src/lib/event-time-locks.ts";
+import { numberFieldPatch } from "#src/lib/number-field.ts";
 import { translatorFor } from "#src/lib/language.ts";
 import { requestJson } from "#src/lib/post-json.ts";
 import { Notice } from "#src/ui/Feedback.tsx";

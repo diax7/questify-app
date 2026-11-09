@@ -1,5 +1,7 @@
 import type { LocalizedText } from "@questify/shared";
 
+import { isRecord } from "#src/lib/is-record.ts";
+
 type Text = Readonly<{ ar: string | null; en: string | null }>;
 
 /** An event as its join card shows it (`GET /v1/public/events/{joinCode}`, T-111). */
@@ -28,9 +30,6 @@ const CODE = /^[A-Za-z0-9]{4,12}$/;
 const STATUSES = new Set(["scheduled", "live", "ended"]);
 const ACCESS = new Set(["public", "unlisted", "private"]);
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
-
 const isText = (value: unknown): value is Text =>
   isRecord(value) &&
   (value["ar"] === null || typeof value["ar"] === "string") &&
@@ -48,7 +47,7 @@ const isEventShape = (event: Record<string, unknown>): boolean =>
   STATUSES.has(String(event["statusNow"])) &&
   ACCESS.has(String(event["access"]));
 
-const isCardShape = (card: Record<string, unknown>): boolean =>
+const isCardShape = (card: Record<string, unknown>): card is Record<string, unknown> & JoinCard =>
   isLocalized(card["title"]) &&
   Array.isArray(card["receives"]) &&
   card["receives"].every(isLocalized);
@@ -67,7 +66,7 @@ export function readCard(
   }
   return {
     event: event as unknown as CardEvent,
-    card: { title: card["title"] as LocalizedText, receives: card["receives"] as LocalizedText[] },
+    card: { title: card.title, receives: card.receives },
   };
 }
 

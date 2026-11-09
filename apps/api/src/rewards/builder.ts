@@ -5,6 +5,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { Actor } from "#src/events/events";
 import { audit, bilingual, changes, guarded, NO_TEXT, type ItemGuard } from "#src/quests/builder";
+import { keptOr, sentOrKept } from "#src/quests/kept";
 import { lockBuilderEvent, type Bilingual, type BuilderEvent } from "#src/quests/store";
 import { markCode, normalizeCode, sealCode, type RewardCodeKeyring } from "#src/rewards/codes";
 import { windowRefusal, windowRefusalOf, type WindowRefusal } from "#src/rewards/shop-window";
@@ -268,10 +269,6 @@ function closeAfter(
   return closesAt === "invalid" || early ? "closesAt" : closesAt;
 }
 
-/** What was sent, else what is stored, else the default. */
-const keptOr = <T>(sent: T | undefined, stored: T | undefined, fallback: T): T =>
-  sent ?? stored ?? fallback;
-
 /** The price, the stock, the limit per player and the section, each kept when left out (null clears the last two). */
 function shelfOf(
   current: RewardRecord | undefined,
@@ -285,9 +282,6 @@ function shelfOf(
     section: sentOrKept(input.section, current?.section ?? null),
   };
 }
-
-/** What was sent, null included, else what is kept. */
-const sentOrKept = <T>(sent: T | undefined, kept: T): T => (sent === undefined ? kept : sent);
 
 /** The two tags, each kept when left out. */
 function tagsOf(current: RewardRecord | undefined, input: RewardInput): Fields["tags"] {

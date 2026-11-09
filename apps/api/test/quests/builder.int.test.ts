@@ -440,7 +440,33 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the quest builder (T-103)", ()
       expect(
         await create({ type: "scan_qr", categoryId: s.general, itemId: strayItem }),
       ).toMatchObject({ code: "invalid_item" });
+      expect(await create({ type: "nope", categoryId: s.general })).toMatchObject({
+        code: "invalid_quest",
+        details: { field: "type" },
+      });
       expect((await s.builder()).categories[0]?.quests).toEqual([]);
+    });
+
+    it("checks the item before the event's quest limit", async () => {
+      const s = await newEvent();
+      await owner(
+        "INSERT INTO quest (event_id, category_id, type, title_en, points, position) SELECT $1, $2, 'scan_qr', 'q' || n, 1, n FROM generate_series(1, 300) n",
+        [s.eventId, s.general],
+      );
+      const create = async (extra: object) =>
+        (
+          await call(
+            "POST",
+            `${s.base}/quests`,
+            s.cookie,
+            { categoryId: s.general, type: "scan_qr", title: { en: "x" }, points: 1, ...extra },
+            key(),
+          )
+        ).json();
+      expect(await create({ itemId: "00000000-0000-4000-8000-000000000001" })).toMatchObject({
+        code: "invalid_item",
+      });
+      expect(await create({})).toMatchObject({ code: "limit_reached", details: { limit: 300 } });
     });
 
     it("refuses an edit in a fixed order: first bonus, category, item", async () => {

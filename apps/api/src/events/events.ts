@@ -35,6 +35,7 @@ import {
 } from "#src/events/templates";
 import type { OrganizerContext, OrganizerPrincipal } from "#src/organizers/store";
 import { teamSeat } from "#src/organizers/store";
+import { keptOr } from "#src/quests/kept";
 
 /** What the dashboard sends: times as the event's wall clock (`YYYY-MM-DDTHH:mm`), read in its zone. */
 export type EventInput = Readonly<{
@@ -273,16 +274,12 @@ function reachOf(current: EventRecord | undefined, input: EventInput): Reach | I
     : { ...kindAndCity, interests, ...join };
 }
 
-/** What was sent, else what is stored, else the default. */
-const valueOf = <T>(sent: T | undefined, stored: T | undefined, fallback: T): T =>
-  sent ?? stored ?? fallback;
-
 /** The kind and the city after this input; undefined when a virtual event would have a city. */
 function cityOf(
   current: EventRecord | undefined,
   input: EventInput,
 ): Pick<EventFields, "kind" | "cityId"> | undefined {
-  const kind = valueOf(input.kind, current?.kind, DEFAULTS.kind);
+  const kind = keptOr(input.kind, current?.kind, DEFAULTS.kind);
   const cityId = input.cityId === undefined ? (current?.cityId ?? null) : input.cityId;
   return kind === "virtual" && cityId !== null ? undefined : { kind, cityId };
 }
@@ -303,9 +300,9 @@ function joinOf(
   current: EventRecord | undefined,
   input: EventInput,
 ): Pick<EventFields, "access" | "joinMethods"> | undefined {
-  const access = valueOf(input.access, current?.access, DEFAULTS.access);
+  const access = keptOr(input.access, current?.access, DEFAULTS.access);
   const joinMethods = [
-    ...new Set(valueOf(input.joinMethods, current?.joinMethods, DEFAULTS.joinMethods)),
+    ...new Set(keptOr(input.joinMethods, current?.joinMethods, DEFAULTS.joinMethods)),
   ];
   if (joinMethods.length === 0 || (joinMethods.includes("public_list") && access !== "public")) {
     return undefined;
@@ -319,9 +316,9 @@ function placeOf(
   input: EventInput,
 ): Pick<EventFields, "dayStartHour" | "venuePin" | "venueRadiusM"> {
   return {
-    dayStartHour: valueOf(input.dayStartHour, current?.dayStartHour, DEFAULTS.dayStartHour),
+    dayStartHour: keptOr(input.dayStartHour, current?.dayStartHour, DEFAULTS.dayStartHour),
     venuePin: input.venuePin === undefined ? (current?.venuePin ?? null) : input.venuePin,
-    venueRadiusM: valueOf(input.venueRadiusM, current?.venueRadiusM, VENUE_RADIUS.default),
+    venueRadiusM: keptOr(input.venueRadiusM, current?.venueRadiusM, VENUE_RADIUS.default),
   };
 }
 

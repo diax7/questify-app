@@ -138,6 +138,31 @@ const ANSWERS: readonly CompletionAnswer[] = [
   }),
   completed({ levelUp: { level: 3, title: { ar: "ج", en: "C" }, items: [] } }),
   completed({ levelUp: { level: 4, title: { ar: "ج", en: "C" } } }),
+  completed({ bonus: { points: 50, category: { ar: "المرحلة", en: "Stage" }, item: null } }),
+  completed({
+    item: { name: { ar: "قميص", en: "T-shirt" }, outcome: "pending", until: null },
+  }),
+  completed({
+    item: {
+      name: { ar: "قميص", en: "T-shirt" },
+      outcome: "pending",
+      until: { at: "2030-01-01T12:00:00Z", timeZone: "Asia/Riyadh" },
+    },
+  }),
+  completed({
+    item: { name: { ar: "قميص", en: "T-shirt" }, outcome: "out_of_stock", until: null },
+  }),
+  completed({ boost: { multiplier: 2 } }),
+  completed({ firstBonus: { points: 20, place: 2, slots: 5 } }),
+  completed({ firstBonus: { points: 20, place: null, slots: 5 } }),
+  completed({ streakBonus: { points: 25, days: 3 } }),
+  completed({
+    bonus: { points: 50, category: { ar: "المرحلة", en: "Stage" }, item: null },
+    boost: { multiplier: 2 },
+    firstBonus: { points: 20, place: 1, slots: 5 },
+    streakBonus: { points: 25, days: 3 },
+    item: { name: { ar: "قميص", en: "T-shirt" }, outcome: "claim_closed", until: null },
+  }),
   ...[null, { ar: "خطأ", en: "Wrong" }, { ar: "", en: "" }].map(
     (problem) => ({ kind: "wrong_code", problem }) as CompletionAnswer,
   ),

@@ -73,7 +73,7 @@ const BO409: ReadonlySet<string> = new Set([
   "not_started",
 ]);
 
-const REFUSAL_OF_CODE = new Map<string, (pg: PgError) => BoostRefusal | undefined>([
+const BOOST_REFUSAL_OF_CODE = new Map<string, (pg: PgError) => BoostRefusal | undefined>([
   ["AN404", () => ({ kind: "not_found" })],
   ["BN404", () => ({ kind: "not_found" })],
   ["BO422", (pg) => ({ kind: "invalid", issues: [pg.detail ?? "boost"] })],
@@ -90,7 +90,7 @@ const REFUSAL_OF_CODE = new Map<string, (pg: PgError) => BoostRefusal | undefine
 
 /** The SQLSTATEs of migration 0055's boost doors as refusals; undefined for anything else. */
 export function boostRefusalOf(pg: PgError): BoostRefusal | undefined {
-  return pg.code === undefined ? undefined : REFUSAL_OF_CODE.get(pg.code)?.(pg);
+  return pg.code === undefined ? undefined : BOOST_REFUSAL_OF_CODE.get(pg.code)?.(pg);
 }
 
 /** Runs one call in the team member's seat; a refusal the database raises becomes its result. */

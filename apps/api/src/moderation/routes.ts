@@ -187,10 +187,13 @@ export function registerModerationRoutes(scope: FastifyInstance, deps: Moderatio
   registerRequestRoutes(scope, deps);
 }
 
+const DECIDED = ["accepted", "unchanged", "declined"] as const;
+type Decided = (typeof DECIDED)[number];
+const isDecided = (outcome: DecideOutcome): outcome is Decided =>
+  (DECIDED as readonly string[]).includes(outcome);
+
 /** Throws the HTTP error of a refused accept or decline. */
-function refuseDecision(
-  outcome: Exclude<DecideOutcome, "accepted" | "unchanged" | "declined">,
-): never {
+function refuseDecision(outcome: Exclude<DecideOutcome, Decided>): never {
   switch (outcome) {
     case "not_found":
       throw notFound();
@@ -205,7 +208,7 @@ function refuseDecision(
 
 /** The answer to an accept or decline, or the HTTP error of its refusal. */
 function decidedAnswer(outcome: DecideOutcome, accept: boolean): { status: "active" | "declined" } {
-  if (outcome === "accepted" || outcome === "unchanged" || outcome === "declined") {
+  if (isDecided(outcome)) {
     return { status: accept ? "active" : "declined" };
   }
   return refuseDecision(outcome);

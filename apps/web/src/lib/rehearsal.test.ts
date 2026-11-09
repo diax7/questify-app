@@ -38,6 +38,21 @@ describe("readRehearsal", () => {
       expect(readRehearsal(broken)).toBeUndefined();
     }
   });
+
+  it.each([
+    ["code", 1],
+    ["open", "yes"],
+    ["cap", "25"],
+    ["now", null],
+    ["firstPlayAt", 5],
+    ["erasedAt", false],
+    ["erased", "none"],
+    ["wipedAtGoLive", {}],
+  ] as const)("refuses a card whose %s is %j, and one that lacks it", (field, wrong) => {
+    expect(readRehearsal({ ...VIEW, [field]: wrong })).toBeUndefined();
+    const { [field]: _left, ...without } = VIEW;
+    expect(readRehearsal(without)).toBeUndefined();
+  });
 });
 
 describe("holdsData", () => {

@@ -23,8 +23,8 @@ describe("the deadline the owner picked (claimOf)", () => {
   it("reads the wall clock in the event's zone (UTC+3)", () => {
     const claim = claimOf("2026-12-01T10:00", ZONE, "en");
     expect(claim?.at.toISOString()).toBe("2026-12-01T07:00:00.000Z");
-    expect(claim?.shown).toBe(claimOf("2026-12-01T10:00", ZONE, "en")?.shown);
-    expect(claim?.shown).not.toBe(claimOf("2026-12-01T10:00", ZONE, "ar")?.shown);
+    expect(claim?.shown).toBe("Tue, 1 Dec 2026, 10:00 (Riyadh time)");
+    expect(claimOf("2026-12-01T10:00", ZONE, "ar")?.shown).toContain("ديسمبر");
   });
 });
 

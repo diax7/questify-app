@@ -159,6 +159,7 @@ export function kioskAction(quest: Quest): ReactElement | null {
   ) : null;
 }
 
+/** Exported for tests, like `myQrAction`, `kioskAction` and `stateText`. */
 export function tapAction(
   quest: Quest,
   eventId: string,
@@ -247,7 +248,10 @@ type EntryProps = Readonly<{
   onDone: (answer: CompletionAnswer) => void;
 }>;
 
-/** The entry of each quest type that plays in its own component; a Map, so no type name can reach a prototype. */
+/**
+ * The entry of each quest type that plays in its own component; a Map, so no type name can reach a prototype. Each
+ * entry is called as a plain function from `QuestEntry`, so it must stay hook-free: hooks belong in the component it returns.
+ */
 const ENTRIES: ReadonlyMap<string, (props: EntryProps) => ReactElement> = new Map([
   [
     "submission",
@@ -282,7 +286,7 @@ function QuestEntry(props: EntryProps) {
   );
 }
 
-/** The line under the details: what a community lock needs, else why the quest is not open, else nothing. */
+/** The line under the details: what a community lock needs, else why the quest is not open, else nothing. Exported for tests. */
 export function stateText(quest: Quest, t: Translate, language: "ar" | "en", timeZone: string) {
   // A community lock names its goal's numbers (T-306c, ADR-228); the target itself stays shut, no entry below.
   const unlock =

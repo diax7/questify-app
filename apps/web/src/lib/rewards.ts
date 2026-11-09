@@ -156,14 +156,7 @@ const between = (value: number, low: number, high: number) =>
  * reserved now: the stock may not go below it. Undefined when the draft is fine.
  */
 export function rewardProblem(draft: RewardDraft, unitsOut = 0): RewardField | undefined {
-  const refusals: readonly (readonly [RewardField, () => boolean])[] = [
-    ["name", () => draft.nameAr.trim() === "" && draft.nameEn.trim() === ""],
-    ["price", () => !between(draft.price, 1, 1_000_000)],
-    ["stock", () => stockRefused(draft, unitsOut)],
-    ["perPlayerLimit", () => limitRefused(draft.perPlayerLimit)],
-    ["closesAt", () => windowRefused(draft)],
-  ];
-  return refusals.find(([, refused]) => refused())?.[0];
+  return REFUSALS.find(([, refused]) => refused(draft, unitsOut))?.[0];
 }
 
 const stockRefused = (draft: RewardDraft, unitsOut: number): boolean =>
@@ -173,6 +166,18 @@ const limitRefused = (limit: string): boolean => limit !== "" && !between(Number
 
 const windowRefused = (draft: RewardDraft): boolean =>
   draft.opensAt !== "" && draft.closesAt !== "" && draft.closesAt <= draft.opensAt;
+
+/** The refusals in the order the API checks them; the first one that holds is the field to fix. */
+const REFUSALS: readonly (readonly [
+  RewardField,
+  (draft: RewardDraft, unitsOut: number) => boolean,
+])[] = [
+  ["name", (draft) => draft.nameAr.trim() === "" && draft.nameEn.trim() === ""],
+  ["price", (draft) => !between(draft.price, 1, 1_000_000)],
+  ["stock", stockRefused],
+  ["perPlayerLimit", (draft) => limitRefused(draft.perPlayerLimit)],
+  ["closesAt", windowRefused],
+];
 
 export type ShopField = "pickupMinutes" | "daysAfter" | "daysAfterShorter";
 

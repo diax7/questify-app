@@ -305,6 +305,16 @@ function createReaders(options: SettingsOptions, registries: Registries) {
     return fresh;
   };
 
+  const forEvent: SettingsService["forEvent"] = async (eventId, playerId) => {
+    // The document depends only on the event; who may see it is what differs. A public event is read once for
+    // everyone, and only an event hidden from anyone is read again as the player, cached for that player alone.
+    const shared = await reading(eventId, undefined);
+    if (playerId === undefined || shared.kind === "ok") {
+      return shared;
+    }
+    return reading(eventId, playerId);
+  };
+
   return {
     forgetAll,
     platform: async () =>
@@ -312,15 +322,7 @@ function createReaders(options: SettingsOptions, registries: Registries) {
       (await withConnection(options.pool, (client) =>
         withRequestContext(client, {}, () => loadPlatform(client)),
       )),
-    forEvent: async (eventId: string | undefined, playerId?: string): Promise<ConfigResult> => {
-      // The document depends only on the event; who may see it is what differs. A public event is read once for
-      // everyone, and only an event hidden from anyone is read again as the player, cached for that player alone.
-      const shared = await reading(eventId, undefined);
-      if (playerId === undefined || shared.kind === "ok") {
-        return shared;
-      }
-      return reading(eventId, playerId);
-    },
+    forEvent,
   };
 }
 

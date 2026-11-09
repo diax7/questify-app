@@ -32,7 +32,7 @@ const reasonOf = (detail: string | undefined): StreakConflictReason | undefined 
 const fieldOf = (detail: string | undefined): StreakField | undefined =>
   STREAK_FIELDS.find((field) => field === detail);
 
-const REFUSAL_OF_CODE = new Map<string, (pg: PgError) => StreakRefusal | undefined>([
+const STREAK_REFUSAL_OF_CODE = new Map<string, (pg: PgError) => StreakRefusal | undefined>([
   ["AN404", () => ({ kind: "not_found" })],
   ["RF409", () => ({ kind: "conflict", reason: "results_final", day: null })],
   [
@@ -59,7 +59,7 @@ const REFUSAL_OF_CODE = new Map<string, (pg: PgError) => StreakRefusal | undefin
  * another organizer's or an editor's write (the owner check answers it the same, so no event is confirmed to exist).
  */
 export function streakRefusalOf(pg: PgError): StreakRefusal | undefined {
-  return pg.code === undefined ? undefined : REFUSAL_OF_CODE.get(pg.code)?.(pg);
+  return pg.code === undefined ? undefined : STREAK_REFUSAL_OF_CODE.get(pg.code)?.(pg);
 }
 
 /** Runs one call in the team member's seat; a refusal the database raises becomes its result. */

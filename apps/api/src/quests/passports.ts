@@ -11,6 +11,18 @@ import {
 type Checked = Readonly<{ kind: "steps"; steps: readonly StepInput[] | undefined }>;
 const NOTHING: Checked = { kind: "steps", steps: undefined };
 
+/** Another type has no steps to write, and takes none. */
+const notAPassport = (input: QuestInput["steps"]): Checked | Refused =>
+  input === undefined ? NOTHING : { kind: "invalid", field: "steps" };
+
+/** The steps the input names, else the quest's own; undefined for a new passport with none. */
+const stepsOf = (
+  current: QuestRecord | undefined,
+  input: QuestInput["steps"],
+): StepInput[] | undefined =>
+  input?.map((step) => ({ id: step.id, name: bilingual(step.name, NO_TEXT) })) ??
+  current?.steps.map((step) => ({ id: step.id, name: step.name }));
+
 /**
  * A passport's steps after this input (T-304b, ADR-203), checked as one whole, or the refusal. `steps` is undefined
  * when there is nothing to write: another type, or an edit that leaves the steps alone.
@@ -46,18 +58,6 @@ export async function passportSteps(
   }
   return input === undefined ? NOTHING : { kind: "steps", steps };
 }
-
-/** Another type has no steps to write, and takes none. */
-const notAPassport = (input: QuestInput["steps"]): Checked | Refused =>
-  input === undefined ? NOTHING : { kind: "invalid", field: "steps" };
-
-/** The steps the input names, else the quest's own; undefined for a new passport with none. */
-const stepsOf = (
-  current: QuestRecord | undefined,
-  input: QuestInput["steps"],
-): StepInput[] | undefined =>
-  input?.map((step) => ({ id: step.id, name: bilingual(step.name, NO_TEXT) })) ??
-  current?.steps.map((step) => ({ id: step.id, name: step.name }));
 
 /** Once players stamped the passport: `needed` never falls and a stamped step stays. */
 async function stampedRefusal(

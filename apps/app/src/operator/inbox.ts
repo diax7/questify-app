@@ -47,7 +47,7 @@ const isTicketKind = (value: unknown) =>
   value === "question" || value === "problem" || value === "prize";
 
 /** What each field of a row must be. */
-const ITEM_FIELDS: Readonly<Record<string, (value: unknown) => boolean>> = {
+const ITEM_FIELDS: Readonly<Record<keyof InboxItem, (value: unknown) => boolean>> = {
   kind: (value) => value === "submission" || value === "ticket",
   id: isText,
   createdAt: isText,

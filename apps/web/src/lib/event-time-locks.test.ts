@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eventTimeLocks, numberFieldPatch } from "#src/lib/event-time-locks.ts";
+import { eventTimeLocks } from "#src/lib/event-time-locks.ts";
 import type { EventStatus } from "#src/lib/events.ts";
 
 describe("eventTimeLocks", () => {
@@ -32,17 +32,5 @@ describe("eventTimeLocks", () => {
         hintKey: "events.endedHint",
       });
     }
-  });
-});
-
-describe("numberFieldPatch", () => {
-  it("keeps the last value for an emptied field", () => {
-    expect(numberFieldPatch("dayStartHour", "")).toBeNull();
-  });
-
-  it("turns typed text into a number under the key", () => {
-    expect(numberFieldPatch("dayStartHour", "6")).toEqual({ dayStartHour: 6 });
-    expect(numberFieldPatch("firstBonusSlots", "0")).toEqual({ firstBonusSlots: 0 });
-    expect(numberFieldPatch("firstBonusPoints", "12.5")).toEqual({ firstBonusPoints: 12.5 });
   });
 });

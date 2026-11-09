@@ -1,5 +1,7 @@
 import type { Language, OfficialRules } from "@questify/shared";
 
+import { isRecord } from "#src/lib/is-record.ts";
+
 /** The answer of `GET /v1/public/events/{code}/rules` (FR-1707, ADR-165), or why there is none. */
 export type RulesResult =
   | Readonly<{ kind: "found"; rules: OfficialRules }>
@@ -14,8 +16,6 @@ const isLines = (value: unknown): value is string[] =>
 const isText = (value: unknown): value is string | null =>
   value === null || typeof value === "string";
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
 const isBlock = (value: unknown): boolean =>
   value === null || (isRecord(value) && isLines(value["ar"]) && isLines(value["en"]));
 const isTextPair = (value: unknown): boolean =>

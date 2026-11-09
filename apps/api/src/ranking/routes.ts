@@ -31,12 +31,12 @@ export function registerRankingRoutes(
     const { eventId } = parse(eventParams, request.params);
     const { scope } = parse(rankingQuery, request.query ?? {});
     const player = playerOf(request);
-    const config = await deps.settings.forEvent(eventId, player.id);
+    const config = onlyOk(await deps.settings.forEvent(eventId, player.id));
     const todayOn = checkSwitches(config, scope);
     const view = readable(await deps.ranking.read(eventId, player.id, scope));
     return playerRanking(
       { ...view, today: view.today && todayOn },
-      scoresHidden(onlyOk(config).config.layout.looks),
+      scoresHidden(config.config.layout.looks),
     );
   });
 }
@@ -60,8 +60,8 @@ const onlyOk = (config: ConfigResult): OkConfig => {
 };
 
 /** Refuses a ranking the event switched off (or today's, for that scope); tells whether today's ranking is on. */
-function checkSwitches(config: ConfigResult, scope: "event" | "today"): boolean {
-  const features = onlyOk(config).config.features;
+function checkSwitches(config: OkConfig, scope: "event" | "today"): boolean {
+  const features = config.config.features;
   if (features["ranking"]?.enabled === false) {
     throw rankingOff();
   }

@@ -1,5 +1,7 @@
 import type { MessageKey } from "@questify/shared";
 
+import { isRecord } from "#src/lib/is-record.ts";
+
 /** Where an event stands with Questify (GET …/events/{id}/activation, T-210). */
 export type ActivationView = Readonly<{
   state: "not_requested" | "requested" | "rejected" | "activated";
@@ -14,8 +16,6 @@ export type ActivationView = Readonly<{
 const STATES = new Set(["not_requested", "requested", "rejected", "activated"]);
 const MODES = new Set(["none", "soft", "hard"]);
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
 const isTextOrNull = (value: unknown): value is string | null =>
   value === null || typeof value === "string";
 const isStringList = (value: unknown): value is string[] =>

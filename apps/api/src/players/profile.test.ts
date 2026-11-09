@@ -249,8 +249,11 @@ describe("PATCH /v1/me", () => {
       { rows: [{ outcome: "unchanged", next_change_at: null }] },
     ]) {
       build(composed({ usernameChanges: { enabled: true } }, {}), { rename });
-      expect((await patchMe({ username: "new_name" })).statusCode).toBe(200);
-      await app.close();
+      try {
+        expect((await patchMe({ username: "new_name" })).statusCode).toBe(200);
+      } finally {
+        await app.close();
+      }
     }
   });
 

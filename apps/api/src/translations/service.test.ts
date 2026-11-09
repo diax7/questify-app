@@ -65,5 +65,7 @@ describe("save: the refusals that come before the database", () => {
     expect(result).toMatchObject({ ok: true, row: { key: "nav.home" } });
     expect(queries[0]).toContain("FOR UPDATE");
     expect(queries[1]).toContain("INSERT INTO translation");
+    expect(queries[2]).toContain("INSERT INTO audit_log");
+    expect(queries).toHaveLength(3);
   });
 });

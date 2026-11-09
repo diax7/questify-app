@@ -96,6 +96,7 @@ export function deletionStep(state: DeletionState, event: DeletionEvent): Deleti
   if (state.step === "done") {
     return state;
   }
+  // Every DeletionEvent type has a handler; the cast only erases the per-type argument. An unknown type would throw here.
   const handle = HANDLERS[event.type] as (state: LiveState, event: DeletionEvent) => DeletionState;
   return handle(state, event);
 }

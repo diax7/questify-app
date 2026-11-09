@@ -31,9 +31,6 @@ describe("an Inbox row, field by field", () => {
 
   it("refuses the list when any field of a row is missing or of another type", () => {
     for (const field of Object.keys(ITEM)) {
-      if (["questTitle", "username", "preview", "ticketKind"].includes(field)) {
-        continue;
-      }
       expect(inboxOf(withItem({ [field]: undefined })), field).toBeUndefined();
     }
     expect(inboxOf(withItem({ id: 4 }))).toBeUndefined();
