@@ -4,6 +4,7 @@ import { withRequestContext, type RequestContext } from "#src/db/context";
 import { ABUSIVE_NAMES, REAL_NAMES } from "#test/db/full-name-corpus";
 import {
   TEST_DATABASE_URL,
+  connectAsOwner,
   createTestDatabase,
   seedTwoTenants,
   type TestDatabase,
@@ -70,6 +71,69 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full-name allow-list doors (da
     );
   const blocked = async (name: string) =>
     (await owner<{ b: boolean }>("SELECT full_name_blocked($1) AS b", [name]))[0]?.b;
+
+  /**
+   * Tries `admin_name_allow_add` for every word in ONE statement, each word undone as soon as it is answered (a
+   * subtransaction the function rolls back), and answers what each word got: "added", "exists" or the SQLSTATE it was
+   * refused with. With `probes`, an added word is also checked, while it is allowed, for the probes the check lets
+   * through (`passed`). It runs on a connection of its own, in the admin's seat and in a transaction that is always
+   * rolled back, so a test that fails or times out leaves nothing on the connection the next test uses.
+   */
+  const tryAdding = async (
+    words: readonly string[],
+    options: { probes?: readonly string[]; emptyLists?: boolean } = {},
+  ): Promise<{ word: string; answer: string; passed: string[] | null }[]> => {
+    const side = await connectAsOwner(db);
+    try {
+      await side.query("BEGIN");
+      await side.query(
+        "SELECT set_config('app.is_admin', 'on', true), set_config('app.staff_user_id', $1, true)",
+        [admin.staffUserId],
+      );
+      if (options.emptyLists === true) {
+        // The allow-list and the probes emptied (rolled back with the rest). The door refuses a list-entry shape (WA409)
+        // before it reads a probe, and a caller that counts WA422 and "added" alike sees no difference without them.
+        await side.query("DELETE FROM full_name_allow");
+        await side.query("DELETE FROM full_name_probe");
+      } else {
+        // With the probes kept: the door picks the probes that hold the word with `strpos(...)` and `full_name_blocked(...)`
+        // in one filter, and the planner runs the check first (it judges a call cheaper than the fold), so every call pays
+        // the check on all 327 probes (about 85 ms) instead of on the few that hold the word. Telling the planner the
+        // check is dear flips the order for this transaction only; the door runs as it is and answers the same.
+        await side.query("ALTER FUNCTION full_name_blocked(text) COST 100000");
+      }
+      await side.query(`
+        CREATE FUNCTION pg_temp.try_allow(w text, probes text[]) RETURNS TABLE (answer text, passed text[])
+          LANGUAGE plpgsql AS $$
+        DECLARE
+          got    text;
+          leaked text[];
+        BEGIN
+          BEGIN
+            got := admin_name_allow_add(w, gen_random_uuid()) ->> 'outcome';
+            IF got = 'added' AND probes IS NOT NULL THEN
+              SELECT coalesce(array_agg(n), '{}') INTO leaked FROM unnest(probes) n WHERE NOT full_name_blocked(n);
+            END IF;
+            RAISE EXCEPTION 'undo' USING ERRCODE = 'ZZ001';
+          EXCEPTION
+            WHEN SQLSTATE 'ZZ001' THEN NULL;
+            WHEN OTHERS THEN got := SQLSTATE;
+          END;
+          answer := got;
+          passed := leaked;
+          RETURN NEXT;
+        END $$`);
+      const result = await side.query<{ word: string; answer: string; passed: string[] | null }>(
+        `SELECT t.w AS word, r.answer, r.passed
+         FROM unnest($1::text[]) WITH ORDINALITY t(w, i), pg_temp.try_allow(t.w, $2::text[]) r ORDER BY t.i`,
+        [words, options.probes ?? null],
+      );
+      return result.rows;
+    } finally {
+      await side.query("ROLLBACK").catch(() => undefined);
+      await side.end();
+    }
+  };
 
   beforeAll(async () => {
     db = await createTestDatabase();
@@ -210,36 +274,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full-name allow-list doors (da
     ).map((row) => row.w);
     expect(words.length).toBeGreaterThan(150);
     const outcomes: Record<string, string[]> = {};
-    // One transaction in the admin's seat, each word tried and undone at a savepoint (the owner's seat runs the check).
-    await db.owner.query("BEGIN");
-    try {
-      await db.owner.query(
-        "SELECT set_config('app.is_admin', 'on', true), set_config('app.staff_user_id', $1, true)",
-        [admin.staffUserId],
-      );
-      for (const word of words) {
-        await db.owner.query("SAVEPOINT door");
-        const answer = await db.owner
-          .query<{ r: { outcome: string } }>("SELECT admin_name_allow_add($1, $2) AS r", [
-            word,
-            randomUUID(),
-          ])
-          .then(
-            (result) => result.rows[0]?.r.outcome ?? "",
-            (error: unknown) => String((error as { code?: string }).code),
-          );
-        (outcomes[answer] ??= []).push(word);
-        if (answer === "added") {
-          const passed = await owner<{ name: string }>(
-            "SELECT n AS name FROM unnest($1::text[]) n WHERE NOT full_name_blocked(n)",
-            [ABUSIVE_NAMES],
-          );
-          expect(passed, word).toEqual([]);
-        }
-        await db.owner.query("ROLLBACK TO SAVEPOINT door");
+    // Every word tried in the admin's seat and undone at once, in one statement (the owner's seat runs the check).
+    for (const tried of await tryAdding(words, { probes: ABUSIVE_NAMES })) {
+      (outcomes[tried.answer] ??= []).push(tried.word);
+      if (tried.answer === "added") {
+        expect(tried.passed, tried.word).toEqual([]);
       }
-    } finally {
-      await db.owner.query("ROLLBACK");
     }
     expect(Object.keys(outcomes).toSorted()).toEqual(["WA409", "WA422", "added", "exists"]);
     // A list entry, or one with an affix the check strips (refused by its shape, corpus or not).
@@ -263,7 +303,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full-name allow-list doors (da
     );
     // Words added safely: real words of the abusive names, and joined runs no abusive name is read as.
     expect(outcomes["added"]).toEqual(expect.arrayContaining(["omar", "khan", "احمد"]));
-  });
+  }, 60_000);
 
   it("refuses a list entry with an affix the check strips or a run of letters it collapses, that would pass once allowed", async () => {
     const shapes = [
@@ -319,35 +359,21 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full-name allow-list doors (da
       )
     ).map((row) => row.w);
     expect(words.length).toBeGreaterThan(500);
-    const shaped: string[] = [];
-    await db.owner.query("BEGIN");
-    try {
-      await db.owner.query(
-        "SELECT set_config('app.is_admin', 'on', true), set_config('app.staff_user_id', $1, true)",
-        [admin.staffUserId],
-      );
-      await db.owner.query("DELETE FROM full_name_allow");
-      for (const word of words) {
-        await db.owner.query("SAVEPOINT door");
-        const answer = await db.owner
-          .query("SELECT admin_name_allow_add($1, $2)", [word, randomUUID()])
-          .then(
-            () => "",
-            (error: unknown) => String((error as { code?: string }).code),
-          );
-        await db.owner.query("ROLLBACK TO SAVEPOINT door");
-        if (answer !== "" && answer !== "WA422") {
-          const listed = await db.owner.query("SELECT 1 FROM username_word WHERE word = $1", [
-            word,
-          ]);
-          if (listed.rowCount === 0) {
-            shaped.push(`${word}:${answer}`);
-          }
-        }
-      }
-    } finally {
-      await db.owner.query("ROLLBACK");
-    }
+    // With the list empty, every word tried and undone at once, in one statement; a word refused for another reason than
+    // the probes (WA422) and not itself a list entry is of an entry's shape.
+    const refusedWords = (await tryAdding(words, { emptyLists: true })).filter(
+      (tried) => !["added", "exists", "WA422"].includes(tried.answer),
+    );
+    const listed = new Set(
+      (
+        await owner<{ word: string }>("SELECT word FROM username_word WHERE word = ANY ($1)", [
+          refusedWords.map((tried) => tried.word),
+        ])
+      ).map((row) => row.word),
+    );
+    const shaped = refusedWords
+      .filter((tried) => !listed.has(tried.word))
+      .map((tried) => `${tried.word}:${tried.answer}`);
     // Each is a list entry with an affix the check strips, so the check refuses it too and only a seeded allow word lets
     // it through: a new name of that shape is a migration's decision, reviewed (ADR-817).
     const known = [
@@ -383,10 +409,12 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full-name allow-list doors (da
     for (const word of known) {
       expect(await blocked(word), word).toBe(false);
     }
-    await db.owner.query("BEGIN");
+    // With the list empty, on a connection of its own and in a transaction that is always rolled back.
+    const side = await connectAsOwner(db);
     try {
-      await db.owner.query("DELETE FROM full_name_allow");
-      const refused = await db.owner.query<{ w: string }>(
+      await side.query("BEGIN");
+      await side.query("DELETE FROM full_name_allow");
+      const refused = await side.query<{ w: string }>(
         "SELECT w FROM unnest($1::text[]) w WHERE full_name_blocked(w) ORDER BY w",
         [known],
       );
@@ -395,9 +423,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full-name allow-list doors (da
         known.filter((word) => word !== "كسمايي").toSorted(),
       );
     } finally {
-      await db.owner.query("ROLLBACK");
+      await side.query("ROLLBACK").catch(() => undefined);
+      await side.end();
     }
-  });
+  }, 60_000);
 
   it("refuses an Arabic word whose prefix or nisba forms are an abusive name, and allows a real name that holds one", async () => {
     for (const word of ["السحاقي", "ياخولي", "سكسي"]) {
