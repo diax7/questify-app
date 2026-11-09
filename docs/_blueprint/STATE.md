@@ -529,7 +529,7 @@
 
 - 2026-11-09: mutation run 42551052841 put `apps/api/src/players/sign-in.ts` at 91.56% (0184's batch loop), over the bar.
 - 2026-11-09: full suite on main 568dc0b3, 850 files and 13,379 tests passed, 0 failed, 1,012 s at load 3 to 10.
-- The newest entries are below, then older ones. Staging: `release-20261109-5`, migration 0187 (0156 reserved for T-810d). Live
+- The newest entries are below, then older ones. Staging: `release-20261109-6`, migration 0187 (0156 reserved for T-810d). Live
   today: gems removed and the Journey tab (T-404c, T-404d; ADR-760 to 768), FOLLOWUPS batches 1 to 7, ADR-810 (the company server
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
