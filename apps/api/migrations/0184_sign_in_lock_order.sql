@@ -79,13 +79,16 @@ GRANT EXECUTE ON FUNCTION start_deletion_challenge(uuid, bytea, text, text, byte
 -- exact expression the sweep compares: LEAST ignores NULLs and expires_at is never NULL, so it equals 0155's
 -- "revoked before, or used before, or expired before" tests.
 -- Built inside the migration's transaction, not CONCURRENTLY: the tables are small before launch. The build holds a
--- SHARE lock (sign-ins and rotations wait for it, well under a second at today's size).
-CREATE INDEX player_refresh_sweep_idx ON player_refresh (least(revoked_at, used_at, expires_at));
-CREATE INDEX player_refresh_replaced_by_idx ON player_refresh (replaced_by) WHERE replaced_by IS NOT NULL;
-CREATE INDEX player_session_sweep_idx ON player_session (least(revoked_at, expires_at));
+-- SHARE lock (sign-ins and rotations wait for it, well under a second at today's size). IF NOT EXISTS: on a large
+-- database they are built CONCURRENTLY by hand first, under these names and definitions (RUNBOOK, 0184).
+CREATE INDEX IF NOT EXISTS player_refresh_sweep_idx ON player_refresh (least(revoked_at, used_at, expires_at));
+CREATE INDEX IF NOT EXISTS player_refresh_replaced_by_idx ON player_refresh (replaced_by) WHERE replaced_by IS NOT NULL;
+CREATE INDEX IF NOT EXISTS player_session_sweep_idx ON player_session (least(revoked_at, expires_at));
 -- Sessions with no family (none expected): their own small index, so finding none reads nothing.
-CREATE INDEX player_session_sweep_orphan_idx ON player_session (least(revoked_at, expires_at)) WHERE refresh_family IS NULL;
-CREATE INDEX player_sign_in_device_ended_idx ON player_sign_in_device (ended_at) WHERE ended_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS player_session_sweep_orphan_idx ON player_session (least(revoked_at, expires_at))
+  WHERE refresh_family IS NULL;
+CREATE INDEX IF NOT EXISTS player_sign_in_device_ended_idx ON player_sign_in_device (ended_at)
+  WHERE ended_at IS NOT NULL;
 
 -- As 0155:283, made PL/pgSQL (rules: a definer on a request path), in bounded batches, and in the lock order of ADR-712:
 -- a family's device row before any of its rows. One call is one short transaction: it takes at most 500 families that

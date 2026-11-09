@@ -335,6 +335,10 @@ crossed the 7-day mark when measured (9,556 old refresh rows, 6,639 old sessions
   batches of 92 to 127 ms, 10,851 rows; 811 rotations beside it, median 4 ms, **longest 110 ms** (200 alone: 26 ms).
 - Both gates pass: each batch under 250 ms, the run under 1 s, the longest rotation 110 ms against the 250 ms gate. One run removes about one steady-state slot at 100,000 players (10,000 to
   12,000 rows), so a single instance keeps up and two or more catch up a backlog; RUNBOOK says what to watch.
+- Code review (91) MINOR-5, the indexes' write cost on the hot path (a third fresh fixture): rotations alone, 1,000 each
+  on one connection, with 0184's indexes p50 2.39 ms, p95 3.56 ms; with them dropped (rolled back) p50 2.26 ms, p95
+  3.27 ms. That run: 916 ms, 9 batches of 86 to 120 ms, 10,869 rows; 837 rotations beside it, longest 101 ms. MINOR-4:
+  the sweep no longer runs inline before the SMS or the verify answer; it starts after the code is sent, not awaited.
 - Not a candidate set: "a live device row whose family has no refresh row" is no longer scanned for (a full pass over the
   device table each batch). No path leaves one: rows are born with the family, 0155's sweep removed such device rows in
   the transaction that removed the last refresh row, and 0184 does the same for the families it holds. One that existed
@@ -428,7 +432,7 @@ and run against section 6, as 0146's `ORDER BY` mutant was:
 | Sweep: challenge deletes without `SKIP LOCKED` | 19 |
 | Sweep: rowless branch dropped | 21 |
 | Sweep: re-auth code delete not limited to held families | equivalent: a family's re-auth code is written only by `start_player_reauth`, which takes no device row and waits for nothing after its one upsert, so no test can make the unlimited delete wait or deadlock (plan review MINOR-5) |
-| Either `ORDER BY d.id` dropped | equivalent for these tests (a single crossing cannot show it); noted, as the rules allow |
+| End-others' locking `ORDER BY d.id` dropped | not equivalent (code review MINOR-3): it is I2. Test 22: the table rewritten in descending id order, the lower id held, an erasure's `ORDER BY id` lock waiting on it, then end-others; in scan order end-others takes the higher id first and the two deadlock (`40P01`) |
 
 **Run (2026-11-09, the build; each mutant applied alone to 0184 and the file's suite run).** 15 run, 13 killed, 2
 equivalent survivors as planned (the re-auth code delete not limited; end-others' `ORDER BY d.id` dropped; the sweep has
@@ -438,6 +442,15 @@ the device lock fails 8 to 12 and 18; 0155's order fails 9, 11, 12 and 18; the u
 and 18; the unlimited session delete fails 18. The loop over a new `SELECT` survived the existing late-sign-in test (the
 sign-in there commits after end-others returns), so the build added test 17b, "a sign-in that commits while it waits stays
 live" (end-others waits on a rotation of its own family while a new device signs in), which kills it.
+
+**Code review (91) correction, 2026-11-09.** End-others' `ORDER BY d.id` is not an equivalent mutant: it is the I2
+guarantee, and in scan order end-others can cross erasure (0155:874, `ORDER BY id`) and deadlock. Test 22 in
+`signed-in-devices.int.test.ts` ("end-others crossed with an erasure, rows stored in descending id order") rewrites the
+device table in descending id order (`CLUSTER` on a temporary `id DESC` index), holds the lower id, starts the erasure's
+device lock (it waits holding nothing) and then end-others, and releases: with the mutant end-others already holds the
+higher id, the erasure takes the lower one and wants the higher, and one side gets `40P01`; with 0184 end-others waits
+holding nothing and answers `PN401` once the erasure commits. The mutant now dies (15 run, 14 killed, 1 equivalent: the
+re-auth code delete not limited).
 
 ## 9. Deploy and the old API
 

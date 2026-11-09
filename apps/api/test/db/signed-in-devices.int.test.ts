@@ -787,6 +787,64 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("signed-in devices (database)",
       }
     });
 
+    // I2 (rules): a transaction that waits for more than one device row takes them ascending by id. The table is
+    // rewritten in descending id order so a scan without end-others' ORDER BY would lock the higher id first.
+    it("end-others crossed with an erasure, rows stored in descending id order: no deadlock (0184, I2)", async () => {
+      const p = await newPlayer();
+      const here = await signInAgain(p.phone);
+      await owner("CREATE INDEX sign_in_device_desc_idx ON player_sign_in_device (id DESC)");
+      await owner("CLUSTER player_sign_in_device USING sign_in_device_desc_idx");
+      await owner("DROP INDEX sign_in_device_desc_idx");
+      await owner("ANALYZE player_sign_in_device");
+      const stored = await owner<{ id: string }>(
+        "SELECT id FROM player_sign_in_device WHERE player_id = $1 ORDER BY ctid",
+        [p.id],
+      );
+      expect(stored.map((row) => row.id)).toEqual(
+        stored
+          .map((row) => row.id)
+          .toSorted()
+          .toReversed(),
+      );
+      const holder = await connectAsOwner(db);
+      const eraser = await connectAsOwner(db);
+      try {
+        // The lower id is held, so the erasure waits for it holding nothing and then wants the higher one.
+        await holder.query("BEGIN");
+        await holder.query("SELECT 1 FROM player_sign_in_device WHERE id = $1 FOR UPDATE", [
+          stored.at(-1)?.id,
+        ]);
+        await eraser.query("BEGIN");
+        const erasing = await startAlone(
+          eraser,
+          "SELECT 1 FROM player_sign_in_device WHERE player_id = $1 ORDER BY id FOR UPDATE",
+          [p.id],
+        );
+        const ending = await endOthersAlone(p, here);
+        expect([erasing.waited, ending.waited]).toEqual([true, true]);
+        await holder.query("COMMIT");
+        const locked = await erasing.run;
+        const erased =
+          locked instanceof Error
+            ? locked
+            : await tryOn(
+                eraser,
+                `WITH d AS (DELETE FROM player_sign_in_device WHERE player_id = $1),
+                    s AS (DELETE FROM player_session WHERE player_id = $1)
+               DELETE FROM player_refresh WHERE player_id = $1`,
+                [p.id],
+              );
+        await eraser.query(erased instanceof Error ? "ROLLBACK" : "COMMIT");
+        const answer = await ending.run;
+        expect(codeOf(locked)).toBeUndefined();
+        expect(codeOf(erased)).toBeUndefined();
+        expect(codeOf(answer)).toBe("PN401");
+        expect(await rowsOf(here.family)).toEqual({ refresh: 0, access: 0, device: 0 });
+      } finally {
+        await Promise.all([holder.end(), eraser.end()]);
+      }
+    });
+
     it("two sweeps at once: the second never waits, and nothing old is left after both (0184, test 18)", async () => {
       const p = await newPlayer();
       const here = await signInAgain(p.phone);

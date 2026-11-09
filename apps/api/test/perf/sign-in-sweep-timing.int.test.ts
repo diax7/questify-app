@@ -18,8 +18,8 @@ import {
  * of its foreign-key check, `EXPLAIN (ANALYZE, BUFFERS)` of every statement of one 0184 batch, and the API's batch loop
  * (each call its own transaction, until a call removes nothing or 1 s is spent) while rotations of the families it holds
  * run beside it, with each rotation's time. Gates: the run under 1 s, each batch under 250 ms, the longest rotation under
- * 250 ms. The seed takes about 15 minutes, so more than one 10-minute slot has crossed the 7-day mark when it is measured
- * (printed). Not an assertion: run it by hand when the sweep or its indexes change,
+ * 250 ms. Also the indexes' write cost: rotations alone, p50 and p95, with and without them. The seed takes about 15
+ * minutes, so more than one 10-minute slot has crossed the 7-day mark when it is measured (printed). Not an assertion: run it by hand when the sweep or its indexes change,
  * `SWEEP_TIMING=/path/to/out.txt pnpm vitest run apps/api/test/perf/sign-in-sweep-timing.int.test.ts`.
  */
 const OUT = process.env["SWEEP_TIMING"];
@@ -191,6 +191,57 @@ async function explainBatch(db: TestDatabase): Promise<void> {
 
 type Rotation = { ms: number; outcome: string };
 
+const WRITES = 1000;
+
+/** p50 and p95 of a list of times, in ms. */
+function percentiles(ms: number[]): string {
+  const sorted = ms.toSorted((a, b) => a - b);
+  const at = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] ?? 0;
+  return `p50 ${at(0.5).toFixed(2)} ms, p95 ${at(0.95).toFixed(2)} ms`;
+}
+
+/**
+ * The indexes' write cost on the hot path (code review MINOR-5): rotations alone (no sweep), each a new refresh row and
+ * session and the used one updated, with 0184's indexes and with them dropped, each set in a rolled-back transaction on
+ * one connection (as `before` does for 0155). A warm-up set first, so both sets read a warm cache.
+ */
+async function writeCost(db: TestDatabase): Promise<void> {
+  const { rows } = await db.owner.query<{ token_hash: Buffer }>(
+    `SELECT token_hash FROM player_refresh WHERE used_at IS NULL AND revoked_at IS NULL ORDER BY random() LIMIT $1`,
+    [3 * WRITES],
+  );
+  const live = rows.map((row) => row.token_hash);
+  const client = await connectAsOwner(db);
+  const timed = async (tokens: Buffer[], drop: boolean): Promise<number[]> => {
+    await client.query("BEGIN");
+    try {
+      if (drop) for (const name of SWEEP_INDEXES) await client.query(`DROP INDEX ${name}`);
+      const seen: number[] = [];
+      for (const presented of tokens) {
+        const began = performance.now();
+        await client.query("SELECT outcome FROM rotate_player_refresh($1, $2, $3)", [
+          presented,
+          randomBytes(32),
+          randomBytes(32),
+        ]);
+        seen.push(performance.now() - began);
+      }
+      return seen;
+    } finally {
+      await client.query("ROLLBACK");
+    }
+  };
+  try {
+    await timed(live.slice(0, WRITES), false);
+    const without = await timed(live.slice(WRITES, 2 * WRITES), true);
+    const withIndexes = await timed(live.slice(2 * WRITES), false);
+    say(`rotations alone (${WRITES} each), with 0184's indexes: ${percentiles(withIndexes)}`);
+    say(`rotations alone (${WRITES} each), without them: ${percentiles(without)}`);
+  } finally {
+    await client.end();
+  }
+}
+
 /** Rotates the families' live tokens one after another on its own connection until `done` says stop. */
 async function rotator(client: Client, live: Buffer[], done: () => boolean): Promise<Rotation[]> {
   const seen: Rotation[] = [];
@@ -264,6 +315,7 @@ it.skipIf(OUT === undefined || TEST_DATABASE_URL === undefined)(
       say(`seeded in ${Math.round((performance.now() - seeded) / 1000)} s: ${await counts(db)}`);
       await before(db);
       await explainBatch(db);
+      await writeCost(db);
       await crossing(db);
       say(`after the run: ${await counts(db)}`);
     } finally {
