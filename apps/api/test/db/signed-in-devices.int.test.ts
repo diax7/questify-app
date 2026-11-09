@@ -19,10 +19,23 @@ const pidOf = async (client: Client) =>
 
 type Player = { id: string; phone: string; first: Tokens };
 
+/** Runs `sql` on the held transaction, keeping an error (a deadlock) instead of throwing it. */
+const tryOn = async (client: Client, sql: string, values: unknown[] = []) => {
+  try {
+    return (await client.query(sql, values)).rows;
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error));
+  }
+};
+const codeOf = (outcome: unknown) =>
+  outcome instanceof Error ? (outcome as Error & { code?: string }).code : undefined;
+
 /**
  * Signed-in devices in the database (T-810c, migration 0155, plan review 84): one device row per refresh family, the
  * one way a family ends (end_family, device row first), the fresh factor checked here, the player's and the staff
  * member's end doors, the console's end of one staff account, and the races between an end, a rotation and a sign-in.
+ * The lock order of 0184 (docs/plans/2026-11-09-sign-in-lock-order.md, tests 8 to 21): the sweep never waits for a
+ * device row or a code, and end-others locks its own device row with the others and re-reads it.
  */
 describe.skipIf(TEST_DATABASE_URL === undefined)("signed-in devices (database)", () => {
   let db: TestDatabase;
@@ -415,6 +428,61 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("signed-in devices (database)",
     });
   });
 
+  /** Starts `sql` on `client` and reports whether it blocked on a lock before it settled (the caller releases it). */
+  const startAlone = async (client: Client, sql: string, values: unknown[] = []) => {
+    const pid = await pidOf(client);
+    const state = { settled: false };
+    const run = client.query(sql, values).then(
+      (result) => {
+        state.settled = true;
+        return result.rows;
+      },
+      (error: unknown) => {
+        state.settled = true;
+        return error instanceof Error ? error : new Error(String(error));
+      },
+    );
+    for (let tries = 0; tries < 200 && !state.settled; tries += 1) {
+      const rows = await owner<{ waiting: boolean }>(
+        "SELECT wait_event_type = 'Lock' AS waiting FROM pg_stat_activity WHERE pid = $1",
+        [pid],
+      );
+      if (rows[0]?.waiting === true) return { waited: true, run };
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    return { waited: false, run };
+  };
+  const sweepAlone = () => startAlone(db.app, "SELECT sweep_player_sign_in()");
+  /** Moves every refresh and access row of a family, and its device's sign-in, `days` into the past. */
+  const idle = (family: string, days: number) =>
+    owner(
+      `WITH r AS (UPDATE player_refresh SET created_at = created_at - make_interval(days => $2),
+                                             expires_at = now() - make_interval(days => $2),
+                                             used_at = used_at - make_interval(days => $2),
+                                             revoked_at = revoked_at - make_interval(days => $2)
+                  WHERE family = $1 RETURNING 1)
+       UPDATE player_session SET expires_at = now() - make_interval(days => $2),
+                                 revoked_at = revoked_at - make_interval(days => $2)
+       WHERE refresh_family = $1`,
+      [family, days],
+    );
+  const rowsOf = async (family: string) =>
+    (
+      await owner<{ refresh: number; access: number; device: number }>(
+        `SELECT (SELECT count(*)::int FROM player_refresh WHERE family = $1) AS refresh,
+                (SELECT count(*)::int FROM player_session WHERE refresh_family = $1) AS access,
+                (SELECT count(*)::int FROM player_sign_in_device WHERE family = $1) AS device`,
+        [family],
+      )
+    )[0];
+
+  /** Holds `sql` for `player` on db.app (its own transaction, left open). */
+  const hold = async (player: Player, sql: string, values: unknown[]) => {
+    await db.app.query("BEGIN");
+    await db.app.query("SELECT set_config('app.player_id', $1, true)", [player.id]);
+    return (await db.app.query(sql, values)).rows;
+  };
+
   describe("races (ADR-712)", () => {
     let other: Client;
     beforeAll(async () => {
@@ -497,6 +565,292 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("signed-in devices (database)",
       expect(await liveIn(p.first.family)).toEqual({ refresh: 0, access: 0 });
       expect(await liveIn(late.family)).toEqual({ refresh: 1, access: 1 });
       expect(await deviceOf(late.family)).toMatchObject({ ended: false });
+    });
+
+    const lockDevice = async (family: string) => {
+      await other.query("BEGIN");
+      await other.query("SELECT 1 FROM player_sign_in_device WHERE family = $1 FOR UPDATE", [
+        family,
+      ]);
+    };
+
+    it("a sweep never waits for the device row of an idle family a rotation holds (0184, test 8)", async () => {
+      const p = await newPlayer();
+      await idle(p.first.family, 8);
+      await lockDevice(p.first.family);
+      const sweep = await sweepAlone();
+      const rotated = await tryOn(other, "SELECT outcome FROM rotate_player_refresh($1, $2, $3)", [
+        sha(p.first.refresh),
+        sha(bytes()),
+        sha(bytes()),
+      ]);
+      await other.query(rotated instanceof Error ? "ROLLBACK" : "COMMIT");
+      const swept = await sweep.run;
+      expect(sweep.waited).toBe(false);
+      expect(rotated).toEqual([{ outcome: "invalid" }]);
+      expect(codeOf(swept)).toBeUndefined();
+      await db.app.query("SELECT sweep_player_sign_in()");
+      expect(await rowsOf(p.first.family)).toEqual({ refresh: 0, access: 0, device: 0 });
+    });
+
+    it("a sweep never waits for a sign-out of an idle family (0184, test 9)", async () => {
+      const p = await newPlayer();
+      await idle(p.first.family, 8);
+      await lockDevice(p.first.family);
+      const sweep = await sweepAlone();
+      const out = await tryOn(other, "SELECT sign_out_player($1)", [sha(p.first.refresh)]);
+      await other.query(out instanceof Error ? "ROLLBACK" : "COMMIT");
+      const swept = await sweep.run;
+      expect(sweep.waited).toBe(false);
+      expect(codeOf(out)).toBeUndefined();
+      expect(codeOf(swept)).toBeUndefined();
+      expect(await deviceOf(p.first.family)).toMatchObject({ ended: true });
+    });
+
+    it("a sweep never waits for an erasure holding a device that ended a week ago (0184, test 10)", async () => {
+      const p = await newPlayer();
+      const here = await signInAgain(p.phone);
+      await endOthers(p, here);
+      await owner(
+        "UPDATE player_sign_in_device SET ended_at = now() - interval '8 days' WHERE family = $1",
+        [p.first.family],
+      );
+      await idle(p.first.family, 8);
+      await other.query("BEGIN");
+      await other.query(
+        "SELECT 1 FROM player_sign_in_device WHERE player_id = $1 ORDER BY id FOR UPDATE",
+        [p.id],
+      );
+      const sweep = await sweepAlone();
+      const erased = await tryOn(
+        other,
+        "WITH s AS (DELETE FROM player_session WHERE player_id = $1) DELETE FROM player_refresh WHERE player_id = $1",
+        [p.id],
+      );
+      await other.query("ROLLBACK");
+      const swept = await sweep.run;
+      expect(sweep.waited).toBe(false);
+      expect(codeOf(erased)).toBeUndefined();
+      expect(codeOf(swept)).toBeUndefined();
+    });
+
+    it("a replay of a token used a week ago, crossed with the sweep both ways, never deadlocks (0184, test 11)", async () => {
+      for (const replayFirst of [true, false]) {
+        const p = await newPlayer();
+        const next = tokens();
+        expect(await rotate(p.first, next)).toBe("rotated");
+        await owner(
+          `UPDATE player_refresh SET used_at = now() - interval '8 days', created_at = now() - interval '9 days'
+           WHERE token_hash = $1`,
+          [sha(p.first.refresh)],
+        );
+        const replay = "SELECT outcome FROM rotate_player_refresh($1, $2, $3)";
+        const values = [sha(p.first.refresh), sha(bytes()), sha(bytes())];
+        let outcome: unknown;
+        let waited: boolean;
+        if (replayFirst) {
+          await other.query("BEGIN");
+          outcome = await tryOn(other, replay, values);
+          const sweep = await sweepAlone();
+          waited = sweep.waited;
+          await other.query(outcome instanceof Error ? "ROLLBACK" : "COMMIT");
+          expect(codeOf(await sweep.run)).toBeUndefined();
+          expect(waited).toBe(false);
+          expect(outcome).toEqual([{ outcome: "reused" }]);
+          expect(await liveIn(next.family)).toEqual({ refresh: 0, access: 0 });
+          expect(await deviceOf(p.first.family)).toMatchObject({ ended: true });
+        } else {
+          await db.app.query("BEGIN");
+          await db.app.query("SELECT sweep_player_sign_in()");
+          const rotation = await startAlone(other, replay, values);
+          waited = rotation.waited;
+          await db.app.query("COMMIT");
+          outcome = await rotation.run;
+          // The sweep held the family's device row; the replayed row is gone once it commits.
+          expect(waited).toBe(true);
+          expect(outcome).toEqual([{ outcome: "invalid" }]);
+        }
+      }
+      expect(
+        (await owner("SELECT 1 FROM audit_log WHERE action = 'player.refresh_reuse'")).length,
+      ).toBeGreaterThan(0);
+    });
+
+    it("a family the sweep skipped keeps its old rows until the next run (0184, test 12)", async () => {
+      const p = await newPlayer();
+      const next = tokens();
+      expect(await rotate(p.first, next)).toBe("rotated");
+      await owner(
+        "UPDATE player_refresh SET used_at = now() - interval '8 days' WHERE token_hash = $1",
+        [sha(p.first.refresh)],
+      );
+      await lockDevice(p.first.family);
+      const sweep = await sweepAlone();
+      if (!sweep.waited) await sweep.run;
+      const kept = (await rowsOf(p.first.family))?.refresh;
+      await other.query("COMMIT");
+      await sweep.run;
+      expect(sweep.waited).toBe(false);
+      expect(kept).toBe(2);
+      await db.app.query("SELECT sweep_player_sign_in()");
+      expect((await rowsOf(p.first.family))?.refresh).toBe(1);
+      expect(await liveIn(p.first.family)).toEqual({ refresh: 1, access: 1 });
+    });
+
+    /** End-others on the other connection, as the player (a session setting: one statement, no transaction). */
+    const endOthersAlone = async (player: Player, session: Tokens) => {
+      await other.query("SELECT set_config('app.player_id', $1, false)", [player.id]);
+      return startAlone(other, "SELECT * FROM end_other_player_devices($1, $2)", [
+        sha(session.access),
+        randomUUID(),
+      ]);
+    };
+
+    it("end-others from two devices at once: the second waits and is refused (0184, test 13)", async () => {
+      const p = await newPlayer();
+      const b = await signInAgain(p.phone);
+      await hold(p, "SELECT * FROM end_other_player_devices($1, $2)", [
+        sha(p.first.access),
+        randomUUID(),
+      ]);
+      const second = await endOthersAlone(p, b);
+      await db.app.query("COMMIT");
+      const answer = await second.run;
+      expect(second.waited).toBe(true);
+      expect(codeOf(answer)).toBe("PN401");
+      expect(await liveIn(p.first.family)).toEqual({ refresh: 1, access: 1 });
+      expect(await liveIn(b.family)).toEqual({ refresh: 0, access: 0 });
+    });
+
+    it("end-others from a device another device is ending waits and is refused (0184, test 14)", async () => {
+      const p = await newPlayer();
+      const b = await signInAgain(p.phone);
+      const a = (await deviceOf(p.first.family))?.id ?? "";
+      await hold(p, "SELECT end_player_device($1, $2, $3)", [sha(b.access), a, randomUUID()]);
+      const fromA = await endOthersAlone(p, p.first);
+      await db.app.query("COMMIT");
+      const answer = await fromA.run;
+      expect(fromA.waited).toBe(true);
+      expect(codeOf(answer)).toBe("PN401");
+      expect(await liveIn(b.family)).toEqual({ refresh: 1, access: 1 });
+    });
+
+    it("end-others reads the fresh check under the lock: a code confirmed meanwhile counts (0184, test 15)", async () => {
+      const p = await newPlayer();
+      const here = await signInAgain(p.phone);
+      await age(here.family, 601);
+      const token = bytes();
+      const code = bytes();
+      await start(p, here, "phone", token, code);
+      const confirmed = await hold(p, "SELECT outcome FROM confirm_player_reauth($1, $2, $3, $4)", [
+        sha(here.access),
+        token,
+        code,
+        randomUUID(),
+      ]);
+      expect(confirmed).toEqual([{ outcome: "confirmed" }]);
+      const ending = await endOthersAlone(p, here);
+      await db.app.query("COMMIT");
+      const answer = await ending.run;
+      expect(ending.waited).toBe(true);
+      expect(answer).toMatchObject([{ outcome: "ended", ended: 1 }]);
+    });
+
+    it("end-others waits for a rotation of its own family, then ends the others (0184, test 16)", async () => {
+      const p = await newPlayer();
+      const here = await signInAgain(p.phone);
+      await db.app.query("BEGIN");
+      expect(await rotate(here, tokens(), db.app)).toBe("rotated");
+      const ending = await endOthersAlone(p, here);
+      await db.app.query("COMMIT");
+      const answer = await ending.run;
+      expect(ending.waited).toBe(true);
+      expect(answer).toMatchObject([{ outcome: "ended", ended: 1 }]);
+      expect(await liveIn(p.first.family)).toEqual({ refresh: 0, access: 0 });
+    });
+
+    it("end-others ends only the rows it locked: a sign-in that commits while it waits stays live (0184, test 17b)", async () => {
+      const p = await newPlayer();
+      const here = await signInAgain(p.phone);
+      const asked = await challengeFor(p.phone);
+      const third = await connectAsOwner(db);
+      try {
+        await db.app.query("BEGIN");
+        expect(await rotate(here, tokens(), db.app)).toBe("rotated");
+        const ending = await endOthersAlone(p, here);
+        const late = await signInAgain(p.phone, third, asked);
+        await db.app.query("COMMIT");
+        expect(await ending.run).toMatchObject([{ outcome: "ended", ended: 1 }]);
+        expect(await liveIn(late.family)).toEqual({ refresh: 1, access: 1 });
+      } finally {
+        await third.end();
+      }
+    });
+
+    it("two sweeps at once: the second never waits, and nothing old is left after both (0184, test 18)", async () => {
+      const p = await newPlayer();
+      const here = await signInAgain(p.phone);
+      await endOthers(p, here);
+      await owner(
+        "UPDATE player_sign_in_device SET ended_at = now() - interval '8 days' WHERE family = $1",
+        [p.first.family],
+      );
+      await idle(p.first.family, 8);
+      await other.query("BEGIN");
+      await other.query("SELECT sweep_player_sign_in()");
+      const second = await sweepAlone();
+      await other.query("COMMIT");
+      expect(codeOf(await second.run)).toBeUndefined();
+      expect(second.waited).toBe(false);
+      expect(await rowsOf(p.first.family)).toEqual({ refresh: 0, access: 0, device: 0 });
+    });
+
+    it("a sweep skips a code another call holds and removes it at the next run (0184, test 19)", async () => {
+      const p = await newPlayer();
+      const old = await challengeFor(p.phone);
+      await owner(
+        "UPDATE player_login_challenge SET expires_at = now() - interval '2 hours' WHERE token_hash = $1",
+        [old.token],
+      );
+      await other.query("BEGIN");
+      await other.query("SELECT 1 FROM player_login_challenge WHERE token_hash = $1 FOR UPDATE", [
+        old.token,
+      ]);
+      const sweep = await sweepAlone();
+      if (!sweep.waited) await sweep.run;
+      const left = "SELECT 1 FROM player_login_challenge WHERE token_hash = $1";
+      const kept = await owner(left, [old.token]);
+      await other.query("COMMIT");
+      await sweep.run;
+      expect(sweep.waited).toBe(false);
+      expect(kept).toHaveLength(1);
+      await db.app.query("SELECT sweep_player_sign_in()");
+      expect(await owner(left, [old.token])).toHaveLength(0);
+    });
+
+    it("sweeps rows of a family with no device row and sessions with no family (0184, test 21)", async () => {
+      const p = await newPlayer();
+      const rowless = randomUUID();
+      await owner(
+        `INSERT INTO player_refresh (player_id, family, token_hash, created_at, expires_at)
+         VALUES ($1, $2, $3, now() - interval '200 days', now() - interval '8 days')`,
+        [p.id, rowless, sha(bytes())],
+      );
+      await owner(
+        `INSERT INTO player_session (player_id, token_hash, created_at, expires_at, refresh_family)
+         VALUES ($1, $2, now() - interval '9 days', now() - interval '8 days', $3),
+                ($1, $4, now() - interval '9 days', now() - interval '8 days', NULL)`,
+        [p.id, sha(bytes()), rowless, sha(bytes())],
+      );
+      await db.app.query("SELECT sweep_player_sign_in()");
+      expect(await rowsOf(rowless)).toEqual({ refresh: 0, access: 0, device: 0 });
+      expect(
+        await owner(
+          "SELECT 1 FROM player_session WHERE player_id = $1 AND refresh_family IS NULL",
+          [p.id],
+        ),
+      ).toHaveLength(0);
+      expect(await liveIn(p.first.family)).toEqual({ refresh: 1, access: 1 });
     });
   });
 

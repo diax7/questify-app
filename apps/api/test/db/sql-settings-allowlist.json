@@ -402,7 +402,6 @@
   "support_contact_public()",
   "suspended_ids()",
   "sweep_operator_invites()",
-  "sweep_player_sign_in()",
   "team_alert_doc(a team_alert)",
   "team_event(target uuid)",
   "team_members()",

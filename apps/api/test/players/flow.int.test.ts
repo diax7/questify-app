@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
@@ -291,6 +291,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the player sign-in flow", () =
     });
   });
 
+  /** Old codes beyond one batch (1,000 a call, 0184), written at once. */
+  const staleCodes = async (count: number) => {
+    await owner(
+      `INSERT INTO player_login_challenge (id, token_hash, channel, contact, contact_key, code_hash, expires_at,
+                                           terms_version, privacy_version, contact_fp)
+       SELECT gen_random_uuid(), sha256(convert_to('stale' || g || $2, 'UTF8')), 'phone', '+966511111111',
+              sha256(convert_to('k' || g, 'UTF8')), sha256(convert_to('c' || g, 'UTF8')),
+              now() - interval '2 hours', '0.1', '0.1', sha256(convert_to('f' || g, 'UTF8'))
+       FROM generate_series(1, $1) g`,
+      [count, randomUUID()],
+    );
+  };
+  const staleLeft = async () =>
+    (
+      await owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM player_login_challenge WHERE expires_at < now() - interval '1 hour'",
+      )
+    )[0]?.n;
+
   describe("the retention sweep", () => {
     it("runs on the first request, then not again for ten minutes", async () => {
       const start = Date.now();
@@ -307,6 +326,25 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the player sign-in flow", () =
       clock.mockReturnValue(start + 11 * 60 * 1000);
       await flow.verify({ challengeToken: "X".repeat(43), code: "1" }, asker());
       expect(await exists(second)).toBe(false);
+    });
+
+    it("sweeps in batches until a batch removes nothing (0184)", async () => {
+      await staleCodes(2500);
+      await ask(newPhone());
+      expect(await staleLeft()).toBe(0);
+    });
+
+    it("stops sweeping when its one-second budget is spent; the rest waits for the next sweep (0184)", async () => {
+      await staleCodes(2500);
+      let now = Date.now();
+      vi.spyOn(Date, "now").mockImplementation(() => {
+        now += 600;
+        return now;
+      });
+      await ask(newPhone());
+      // Each reading of the clock moves it 0.6 s: the first batch starts inside the budget, a second would not end
+      // inside it.
+      expect(await staleLeft()).toBe(1500);
     });
 
     it("logs a failed sweep and still answers", async () => {

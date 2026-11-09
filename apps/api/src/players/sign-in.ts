@@ -146,6 +146,8 @@ export type PlayerSignIn = Readonly<{
 
 const L = PLAYER_SIGN_IN_LIMITS;
 const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
+/** How long one sweep may keep a code request waiting, at most; each batch is its own short transaction (0184). */
+const SWEEP_BUDGET_MS = 1000;
 
 /** The SHA-256 of a token as the database stores it (bytes). */
 const tokenHash = (token: string): Buffer => Buffer.from(hashToken(token), "hex");
@@ -345,15 +347,30 @@ async function openChallenge(
 
 type SweepClock = { last: number };
 
-/** Removes old challenges and ended tokens at most every ten minutes. Best effort: a failure is logged only. */
+/**
+ * Removes old challenges and ended tokens at most every ten minutes, in batches (each call of the function is one short
+ * transaction that answers how many rows it removed) until a batch removes nothing or the budget is spent; the rest
+ * waits for the next sweep. Best effort: a failure is logged only.
+ */
 async function sweepIfDue(deps: PlayerSignInDeps, asker: Asker, clock: SweepClock): Promise<void> {
   // Stryker disable next-line EqualityOperator: equivalent: a millisecond boundary on the wall clock
   if (Date.now() - clock.last < SWEEP_INTERVAL_MS) {
     return;
   }
   clock.last = Date.now();
+  const until = clock.last + SWEEP_BUDGET_MS;
   try {
-    await inTransaction(deps, (client) => client.query("SELECT sweep_player_sign_in()"));
+    // A batch starts only when one more as long as the last still ends inside the budget.
+    let removed = 1;
+    let last = 0;
+    while (removed > 0 && Date.now() + last < until) {
+      const began = Date.now();
+      const { rows } = await inTransaction(deps, (client) =>
+        client.query<{ removed: number }>("SELECT sweep_player_sign_in() AS removed"),
+      );
+      removed = rows[0]?.removed ?? 0;
+      last = Date.now() - began;
+    }
   } catch (error) {
     say(deps, asker, "player.sweep_failed", { reason: reasonOf(error) });
   }
