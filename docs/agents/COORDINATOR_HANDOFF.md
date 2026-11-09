@@ -184,6 +184,9 @@ nearly exhausted; the function-limits baseline (`scripts/function-limits-baselin
   other people's Claude and Codex sessions run on this server. Never commit a change a report does not name: check `git status`
   in a worktree before merging from it.
 - Workers have twice run stale scripts left in the shared scratchpad. Tell every worker to run only scripts it writes itself.
+  Source found at 12:00 the same day: a worker ran the scratchpad's old `edit1.py`, which rewrites `post-json.ts`. All 59 old
+  scripts were moved to `scratchpad/stale-do-not-run/` with a `.txt` suffix. Also, do not commit to `main` while a push job is
+  between its checks and its push: the push takes HEAD as it is then.
 - Dhia asked for design help: `docs/design/ASSET_NEEDS.md` lists the art the product lacks. He was asked for `ASSET_LIST.md` and
   `manifest.json` from `docs/design/assets` on his PC first.
 
