@@ -11,6 +11,8 @@ import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { QrCode } from "#src/components/QrCode.tsx";
 import { Screen } from "#src/components/Screen.tsx";
+import { mayAnimate, timerFraction } from "#src/components/motion-choice.ts";
+import { useReduceMotion } from "#src/components/motion.tsx";
 import { DeskItems } from "#src/event/DeskItems.tsx";
 import {
   LIVE_RETRY_MS,
@@ -97,13 +99,23 @@ function useLiveCode(attempt: number): Live {
 /** The emptying bar under the live code, restarted with each new code; it is drawn from the answer's timing. */
 function EmptyingBar({ ms, size }: Readonly<{ ms: number; size: number }>) {
   const { theme } = useTheme();
+  const reduce = useReduceMotion();
   const fill = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     fill.setValue(1);
-    const run = Animated.timing(fill, { toValue: 0, duration: ms, useNativeDriver: false });
-    run.start();
-    return () => run.stop();
-  }, [fill, ms]);
+    if (mayAnimate(reduce)) {
+      const run = Animated.timing(fill, { toValue: 0, duration: ms, useNativeDriver: false });
+      run.start();
+      return () => run.stop();
+    }
+    // Reduce Motion (or not yet known): the bar drops a step each second and never glides.
+    const startedAt = Date.now();
+    const timer = setInterval(
+      () => fill.setValue(timerFraction(Date.now() - startedAt, ms, false)),
+      1000,
+    );
+    return () => clearInterval(timer);
+  }, [fill, ms, reduce]);
   return (
     <View
       accessibilityElementsHidden

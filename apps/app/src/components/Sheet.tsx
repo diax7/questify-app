@@ -3,6 +3,8 @@ import { useEffect, type ReactNode } from "react";
 import { Modal, Pressable, ScrollView, View } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
+import { modalAnimation } from "#src/components/motion-choice.ts";
+import { useReduceMotion } from "#src/components/motion.tsx";
 import { sheetOpened } from "#src/components/sheet-count.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { useThemedStyles } from "#src/theme/theme.tsx";
@@ -26,13 +28,20 @@ export function Sheet({
 }>) {
   const { t, rtl } = useI18n();
   const styles = useThemedStyles(makeStyles);
+  const reduce = useReduceMotion();
   useEffect(() => (visible ? sheetOpened() : undefined), [visible]);
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType={modalAnimation(reduce)}
+      onRequestClose={onClose}
+    >
       <View style={styles.backdrop}>
+        {/* The shade closes the sheet for a tap; the sheet's own Close button is the one stop for a screen reader. */}
         <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("common.close")}
+          accessible={false}
+          importantForAccessibility="no"
           onPress={onClose}
           style={styles.shade}
         />

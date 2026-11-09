@@ -72,6 +72,7 @@ function DeviceCard({
         source={ICON}
         style={styles.icon}
         accessible={false}
+        importantForAccessibility="no"
         accessibilityIgnoresInvertColors
       />
       <View style={styles.text}>

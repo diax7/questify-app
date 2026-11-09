@@ -65,11 +65,20 @@ export function swipeStep(dx: number, rtl: boolean): 0 | 1 | -1 {
   return (rtl ? dx > 0 : dx < 0) ? 1 : -1;
 }
 
-/** What a screen reader says for one slide of a slider: its place, then its title and subtitle. */
-export function slideLabel(place: string, slide: BannerSlide, language: Language): string {
-  return [place, localIn(slide.title, language), localIn(slide.subtitle, language)]
+/**
+ * What a screen reader says for one slide of a slider: its place, then its title and subtitle. A slide with neither
+ * title nor subtitle, alone (no place), would be nameless, so `untitled` (a generic word) is its name.
+ */
+export function slideLabel(
+  place: string,
+  slide: BannerSlide,
+  language: Language,
+  untitled: string,
+): string {
+  const name = [place, localIn(slide.title, language), localIn(slide.subtitle, language)]
     .filter((part) => part !== "")
     .join(". ");
+  return name === "" ? untitled : name;
 }
 
 /** Dots mark the slides only when there is more than one. */

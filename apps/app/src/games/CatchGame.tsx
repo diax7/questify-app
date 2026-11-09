@@ -172,6 +172,11 @@ function useCatchFrames(
  * Catch on its server-issued round (T-305c, ADR-216): items fall from the seed on the fixed tick and the player drags
  * the basket. A fixed pool of views moves every frame. The field never mirrors. Ends on the last tick, or at once
  * when the app comes back with too little of the result window left.
+ *
+ * Reduce Motion (T-808): not read here. The falling items are the game, not decoration (WCAG 2.2.2 and 2.3.3 exempt
+ * motion that is essential to the function), and their speed is the server's `fallTicks` in the signed round, which the
+ * server replays to check the result: slowing or stilling them on the phone would fail that replay and break the
+ * game.
  */
 export function CatchGame({
   seed,

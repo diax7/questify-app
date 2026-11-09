@@ -68,11 +68,26 @@ describe("the banner slider", () => {
       subtitle: { ar: "", en: "Doors open at 9" },
       action: { type: "none" },
     } as const;
-    expect(slideLabel("Slide 2 of 3", slide, "en")).toBe("Slide 2 of 3. Welcome. Doors open at 9");
-    expect(slideLabel("لافتة 2 من 3", slide, "ar")).toBe("لافتة 2 من 3. أهلًا. Doors open at 9");
-    expect(slideLabel("Slide 1 of 2", { ...slide, subtitle: { ar: "", en: "" } }, "en")).toBe(
-      "Slide 1 of 2. Welcome",
+    expect(slideLabel("Slide 2 of 3", slide, "en", "Banner")).toBe(
+      "Slide 2 of 3. Welcome. Doors open at 9",
     );
+    expect(slideLabel("لافتة 2 من 3", slide, "ar", "لافتة")).toBe(
+      "لافتة 2 من 3. أهلًا. Doors open at 9",
+    );
+    expect(
+      slideLabel("Slide 1 of 2", { ...slide, subtitle: { ar: "", en: "" } }, "en", "Banner"),
+    ).toBe("Slide 1 of 2. Welcome");
+  });
+
+  it("falls back to a generic name for a lone slide with no title and no subtitle", () => {
+    const empty = {
+      title: { ar: "", en: "" },
+      subtitle: { ar: "", en: "" },
+      action: { type: "none" },
+    } as const;
+    expect(slideLabel("", empty, "en", "Banner")).toBe("Banner");
+    expect(slideLabel("", empty, "ar", "لافتة")).toBe("لافتة");
+    expect(slideLabel("Slide 1 of 2", empty, "en", "Banner")).toBe("Slide 1 of 2");
   });
 
   it("goes forward on a drag towards the start of the line, which is left in English and right in Arabic", () => {

@@ -7881,6 +7881,7 @@ export const MESSAGES = {
   "home.featured.title": { ar: "مميّز", en: "Featured" },
   "home.banner.slideOf": { ar: "لافتة {n} من {total}", en: "Slide {n} of {total}" },
   "home.banner.goTo": { ar: "عرض اللافتة {n}", en: "Show slide {n}" },
+  "home.banner.untitled": { ar: "لافتة", en: "Banner" },
   "questifyHome.block.banner": { ar: "اللافتات", en: "Banner" },
   "questifyHome.block.notices": { ar: "رسائل Questify", en: "Questify notices" },
   "questifyHome.block.code": { ar: "رمز الفعالية", en: "Event code" },

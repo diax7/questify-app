@@ -8,10 +8,13 @@ import { describe, expect, it } from "vitest";
  * the player app is parsed and five things are enforced:
  *
  *  1. A touchable (Pressable, the Touchable* family, a Switch, a lowercase `button`) has an accessibilityRole and an
- *     accessible name: an accessibilityLabel, or a text child.
- *  2. An Image that is not decorative has an accessibilityLabel (decorative: accessible={false},
- *     importantForAccessibility="no" or "no-hide-descendants", accessibilityElementsHidden, aria-hidden), or sits
- *     inside a touchable that is named and groups it for a screen reader.
+ *     accessible name: an accessibilityLabel, or a text child that holds a letter or an expression (a glyph alone, such
+ *     as a cross, is not a name). A touchable with only accessible={false} is still checked: it is hidden only when
+ *     both platforms say so (see 2).
+ *  2. An Image that is not decorative has an accessibilityLabel (decorative: hidden on both platforms, that is
+ *     accessible={false} or accessibilityElementsHidden for iOS together with importantForAccessibility="no" or
+ *     "no-hide-descendants" for Android, or aria-hidden alone), or sits inside a touchable that is named and groups it
+ *     for a screen reader, or inside an element that hides its descendants.
  *  3. A TextInput has an accessibilityLabel (or aria-label / accessibilityLabelledBy).
  *  4. An Ionicons glyph is hidden from a screen reader or sits inside a named touchable or labelled element.
  *  5. No hard-coded user-facing string: text in JSX and the text-carrying props go through the translator `t(...)`.
@@ -171,17 +174,30 @@ function attributeValue(attr: Node): string | null {
   return null;
 }
 
+/** Whether a boolean prop is present and not literally false (a bare prop, true, or a computed value). */
+function isOn(opening: Node, name: string): boolean {
+  const attr = attribute(opening, name);
+  return attr !== undefined && attributeValue(attr) !== "false";
+}
+
+/**
+ * Whether an element is hidden from a screen reader on both platforms: aria-hidden does both; otherwise iOS needs
+ * accessible={false} or accessibilityElementsHidden and Android needs importantForAccessibility "no" or
+ * "no-hide-descendants" (the iOS props do nothing on Android).
+ */
 function isDecorative(opening: Node): boolean {
+  if (isOn(opening, "aria-hidden")) {
+    return true;
+  }
   const accessible = attribute(opening, "accessible");
   const important = attribute(opening, "importantForAccessibility");
-  const hidden =
-    attribute(opening, "accessibilityElementsHidden") ?? attribute(opening, "aria-hidden");
-  return (
+  const ios =
     (accessible !== undefined && attributeValue(accessible) === "false") ||
-    (important !== undefined &&
-      ["no", "no-hide-descendants"].includes(attributeValue(important) ?? "")) ||
-    (hidden !== undefined && attributeValue(hidden) !== "false")
-  );
+    isOn(opening, "accessibilityElementsHidden");
+  const android =
+    important !== undefined &&
+    ["no", "no-hide-descendants"].includes(attributeValue(important) ?? "");
+  return ios && android;
 }
 
 function hasName(opening: Node): boolean {
@@ -191,27 +207,60 @@ function hasName(opening: Node): boolean {
   });
 }
 
-/** Whether an element's children hold text: a Text or AppText, or literal text. */
+const HAS_LETTER_TEXT = /\p{L}/u;
+
+/** Whether an element's children hold a name: a Text or AppText with a letter or an expression in it. */
 function holdsText(element: Node): boolean {
   return (element.children as Node[]).some((child) => {
     if (child.type === "JSXText") {
-      return /\S/.test(child.value as string);
+      return HAS_LETTER_TEXT.test(child.value as string);
     }
     if (child.type === "JSXElement") {
-      return (
-        TEXT_COMPONENTS.has(elementName(child.openingElement as Node)) ||
-        hasName(child.openingElement as Node) ||
-        holdsText(child)
-      );
+      return elementNames(child);
     }
     return child.type === "JSXExpressionContainer" && expressionHoldsText(child.expression as Node);
   });
 }
 
-/** Text inside `{cond && <AppText/>}`, `{list.map(() => <AppText/>)}` and a Pressable's render function. */
+/** Whether an element is, or holds, text that names its touchable. */
+function elementNames(element: Node): boolean {
+  const opening = element.openingElement as Node;
+  return (
+    hasName(opening) ||
+    (TEXT_COMPONENTS.has(elementName(opening)) ? textHolds(element) : holdsText(element))
+  );
+}
+
+/**
+ * Whether the content of a Text holds a letter or an expression ({label}). A glyph alone (a cross, or the same in
+ * braces) is a picture, not a name: a screen reader reads it as "multiplication x" or nothing.
+ */
+function textHolds(element: Node): boolean {
+  return (element.children as Node[]).some((child) => {
+    if (child.type === "JSXText") {
+      return HAS_LETTER_TEXT.test(child.value as string);
+    }
+    if (child.type === "JSXElement") {
+      return hasName(child.openingElement as Node) || textHolds(child);
+    }
+    if (child.type !== "JSXExpressionContainer") {
+      return false;
+    }
+    const expression = child.expression as Node;
+    if (expression.type === "JSXEmptyExpression") {
+      return false;
+    }
+    if (expression.type === "StringLiteral" || expression.type === "TemplateLiteral") {
+      return stringLeaves(expression).some((leaf) => HAS_LETTER_TEXT.test(literalText(leaf)));
+    }
+    return true;
+  });
+}
+
+/** Text inside {cond && <AppText/>}, {list.map(() => <AppText/>)} and a Pressable's render function. */
 function expressionHoldsText(node: Node): boolean {
   if (node.type === "JSXElement") {
-    return TEXT_COMPONENTS.has(elementName(node.openingElement as Node)) || holdsText(node);
+    return elementNames(node);
   }
   return children(node).some(expressionHoldsText);
 }
@@ -332,8 +381,8 @@ function groupsDescendants(element: Node): boolean {
   const accessible = attribute(opening, "accessible");
   const important = attribute(opening, "importantForAccessibility");
   const hidesDescendants =
-    attribute(opening, "accessibilityElementsHidden") !== undefined ||
-    attribute(opening, "aria-hidden") !== undefined ||
+    isOn(opening, "accessibilityElementsHidden") ||
+    isOn(opening, "aria-hidden") ||
     (important !== undefined && attributeValue(important) === "no-hide-descendants");
   const oneStop =
     hasName(opening) && (accessible === undefined ? false : attributeValue(accessible) === "true");
@@ -407,6 +456,9 @@ describe("player app accessibility, from the code (T-808)", () => {
   });
 });
 
+const wrap = (child: string) =>
+  `const a = <Pressable accessibilityRole="button">${child}</Pressable>;`;
+
 function check(source: string): Kind[] {
   const ast = parse(source, {
     sourceType: "module",
@@ -438,10 +490,66 @@ describe("the checker itself", () => {
 
   it("flags an unlabelled image and accepts a decorative or labelled one", () => {
     expect(check("const a = <Image source={s} />;")).toEqual(["image-label"]);
-    expect(check("const a = <Image source={s} accessible={false} />;")).toEqual([]);
-    expect(check('const a = <Image source={s} importantForAccessibility="no" />;')).toEqual([]);
-    expect(check("const a = <Image source={s} accessibilityElementsHidden />;")).toEqual([]);
+    expect(
+      check('const a = <Image source={s} accessible={false} importantForAccessibility="no" />;'),
+    ).toEqual([]);
+    expect(
+      check(
+        'const a = <Image source={s} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />;',
+      ),
+    ).toEqual([]);
+    expect(check("const a = <Image source={s} aria-hidden />;")).toEqual([]);
     expect(check('const a = <Image source={s} accessibilityLabel={t("a")} />;')).toEqual([]);
+  });
+
+  it("does not take the iOS props alone, or importantForAccessibility alone, as hidden", () => {
+    expect(check("const a = <Image source={s} accessible={false} />;")).toEqual(["image-label"]);
+    expect(check("const a = <Image source={s} accessibilityElementsHidden />;")).toEqual([
+      "image-label",
+    ]);
+    expect(check('const a = <Image source={s} importantForAccessibility="no" />;')).toEqual([
+      "image-label",
+    ]);
+    expect(check("const a = <Image source={s} aria-hidden={false} />;")).toEqual(["image-label"]);
+  });
+
+  it("does not let aria-hidden={false} or accessibilityElementsHidden={false} hide what is inside", () => {
+    const inside = '<Image source={s} /><Ionicons name="x" />';
+    expect(check(`const a = <View aria-hidden={false}>${inside}</View>;`)).toEqual([
+      "image-label",
+      "icon-hidden",
+    ]);
+    expect(check(`const a = <View accessibilityElementsHidden={false}>${inside}</View>;`)).toEqual([
+      "image-label",
+      "icon-hidden",
+    ]);
+    expect(check(`const a = <View aria-hidden>${inside}</View>;`)).toEqual([]);
+    expect(check(`const a = <View accessibilityElementsHidden={true}>${inside}</View>;`)).toEqual(
+      [],
+    );
+  });
+
+  it("still checks a touchable that has accessible={false} but is not hidden on Android", () => {
+    expect(check("const a = <Pressable accessible={false} onPress={go} />;")).toEqual([
+      "touchable-role",
+      "touchable-name",
+    ]);
+    expect(
+      check(
+        'const a = <Pressable accessible={false} importantForAccessibility="no" onPress={go} />;',
+      ),
+    ).toEqual([]);
+  });
+
+  it("takes a glyph alone as no name for a touchable, but a letter or an expression as one", () => {
+    expect(check(wrap("<AppText>✕</AppText>"))).toEqual(["touchable-name"]);
+    expect(check(wrap('<AppText>{"✕"}</AppText>'))).toEqual(["touchable-name"]);
+    expect(check(wrap("<AppText>{}</AppText>"))).toEqual(["touchable-name"]);
+    expect(check(wrap("<AppText />"))).toEqual(["touchable-name"]);
+    expect(check(wrap("<AppText>+ 1</AppText>"))).toEqual(["touchable-name"]);
+    expect(check(wrap("<AppText>OK</AppText>"))).toEqual(["hard-coded-text"]);
+    expect(check(wrap("<AppText>{label}</AppText>"))).toEqual([]);
+    expect(check(wrap("<AppText>{count} ✕</AppText>"))).toEqual([]);
   });
 
   it("flags an unlabelled input", () => {

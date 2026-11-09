@@ -1,5 +1,19 @@
 # Blueprint State — Questify
 
+## Player app accessibility follow-up (Reduce Motion, scrim, banner name, stricter check) — 2026-11-09
+
+- **T-808 follow-up (tier B, `apps/app` plus one message key).** Reduce Motion: `Sheet` and the location modal now choose
+  their animation from `useReduceMotion` (`modalAnimation`: slide, fade when reduced, instant until the phone has said); the
+  `my-qr` timer bar drops in whole seconds under Reduce Motion (`timerFraction`); both pure helpers are in
+  `components/motion-choice.ts` with unit tests. The catch game is kept as is, on purpose: the fall is the game and its speed is
+  the server's `fallTicks`, which the server replays to check a result, so slowing it would break verification (documented in
+  `CatchGame.tsx`). The `Sheet` scrim is `accessible={false}` and `importantForAccessibility="no"` (one Close stop left). A banner
+  slide with no title and no subtitle is named by `home.banner.untitled` («لافتة» / "Banner"), added to the glossary. In
+  `a11y-static.test.ts`: a glyph alone no longer names a touchable, hiding needs the Android prop too, `={false}` values do not
+  hide descendants, and a `<Pressable accessible={false}>` is still checked; it found one image (the devices padlock),
+  fixed. `pnpm -s vitest run apps/app --maxWorkers=3`: 130 files, 1,487 tests passed. Device checks stay open under T-808.
+  CI 0 minutes (not pushed).
+
 ## Player app accessibility from the code — 2026-11-09
 
 - **Player app accessibility check (T-808, code-checkable part; tier B, `apps/app` only).** New

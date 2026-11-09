@@ -39,6 +39,7 @@ so the next string keeps to them. It does not replace the person's read of every
 | Paired device | مرتبط، ربط | مقترن |
 | Pickup | الاستلام | |
 | Skip | تخطي | تجاوز (when it means skip) |
+| Banner slide (home slider; the nameless fallback is just «لافتة») | لافتة | شريحة, بانر |
 | Phone | الجوال (a number: رقم الجوال) | |
 | Email | البريد الإلكتروني | إيميل |
 | Dashboard account (a `staff_user`: any organizer or Questify admin account) | حساب لوحة التحكم / Dashboard account | موظف, Staff (reads as a Questify employee) |

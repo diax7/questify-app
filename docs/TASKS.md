@@ -1689,8 +1689,18 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     swipe and the screen reader reads it as one slide with a place), and the Android 48 dp figure is met only where the code
     sets 48 or more (the word-game keys and rewards cards; the 44 pt ones fall 4 dp short on Android). Reduce Motion: the code
     that reads it (`useReduceMotion`: banner auto-advance, counting number, pop-in, coin, intro art, three games, level trail)
-    already stops its motion; the catch game (its falling items are the play) and the QR timer bar on `my-qr` do not read it,
-    and `Sheet` and the location modal slide in whatever the setting says (not changed). Still needs a device and a screen
+    already stops its motion. Fixed the same day (follow-up, tier B): the `Sheet` and the location modal now read it
+    (`modalAnimation` in `components/motion-choice.ts`: slide, fade under Reduce Motion, instant until the phone has said),
+    and the `my-qr` timer bar drops in whole seconds instead of gliding (`timerFraction`; unit-tested). The catch game keeps
+    its falling items on purpose: the fall is the game, and its speed is the server's `fallTicks`, which the server replays
+    to check the result, so slowing it on the phone would fail the replay; it is documented in `CatchGame.tsx`, and a
+    player who cannot play with motion has no other way to play it (left for a person to judge, with a non-motion
+    alternative as a product question). Also in that follow-up: the `Sheet` scrim is hidden from a screen reader (the
+    sheet's own Close button is the one stop), a banner slide with no title and no subtitle is named "Banner" /
+    «لافتة» (`home.banner.untitled`), and `a11y-static.test.ts` is stricter: a text child names a touchable only with a
+    letter or an expression (a glyph alone does not), "hidden" needs `importantForAccessibility` for Android as well as
+    an iOS prop (the devices padlock image was missing it), `aria-hidden={false}` and `accessibilityElementsHidden={false}`
+    do not hide what is inside, and a `<Pressable accessible={false} onPress>` is still checked. Still needs a device and a screen
     reader: VoiceOver and TalkBack reading order on every screen (the tab bars, the sheet, the banner, the ranking rows, the
     word-game grid), the wording of the announcements (`announceForAccessibility` in the intro, live polls and quiz timer),
     focus returning after a sheet or modal closes, the `adjustable` basket in the catch game, whether each label means the
