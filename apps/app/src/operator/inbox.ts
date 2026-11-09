@@ -41,20 +41,26 @@ const nullableText = (value: unknown) => value === null || typeof value === "str
 const isTitle = (value: unknown) =>
   value === null || (isRecord(value) && nullableText(value["ar"]) && nullableText(value["en"]));
 
+const isText = (value: unknown) => typeof value === "string";
+
+const isTicketKind = (value: unknown) =>
+  value === "question" || value === "problem" || value === "prize";
+
+/** What each field of a row must be. */
+const ITEM_FIELDS: Readonly<Record<string, (value: unknown) => boolean>> = {
+  kind: (value) => value === "submission" || value === "ticket",
+  id: isText,
+  createdAt: isText,
+  questTitle: isTitle,
+  username: nullableText,
+  avatar: isText,
+  preview: nullableText,
+  marked: (value) => typeof value === "boolean",
+  ticketKind: (value) => value === null || isTicketKind(value),
+};
+
 const isItem = (value: unknown): value is InboxItem =>
-  isRecord(value) &&
-  (value["kind"] === "submission" || value["kind"] === "ticket") &&
-  typeof value["id"] === "string" &&
-  typeof value["createdAt"] === "string" &&
-  isTitle(value["questTitle"]) &&
-  nullableText(value["username"]) &&
-  typeof value["avatar"] === "string" &&
-  nullableText(value["preview"]) &&
-  typeof value["marked"] === "boolean" &&
-  (value["ticketKind"] === null ||
-    value["ticketKind"] === "question" ||
-    value["ticketKind"] === "problem" ||
-    value["ticketKind"] === "prize");
+  isRecord(value) && Object.entries(ITEM_FIELDS).every(([field, ok]) => ok(value[field]));
 
 /** Reads the Inbox; anything malformed reads as a failure, so the screen offers Retry instead of a guess. */
 export function inboxOf(body: unknown): Inbox | undefined {
@@ -137,11 +143,6 @@ export type OperatorTicket = Readonly<{
   reply: string | null;
   createdAt: string;
 }>;
-
-const isText = (value: unknown) => typeof value === "string";
-
-const isTicketKind = (value: unknown) =>
-  value === "question" || value === "problem" || value === "prize";
 
 const isTicketQuest = (value: unknown) =>
   value === null || (isRecord(value) && isTitle(value["title"]));

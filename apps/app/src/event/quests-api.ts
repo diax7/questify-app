@@ -401,6 +401,17 @@ export type CategoryNote =
  * completion bonus, or the bonus earned; nothing for a bonus settled with nothing kept.
  */
 export function categoryNotes(category: Category): CategoryNote[] {
+  const notes = openingNotes(category);
+  if (category.orderMode === "in_order") {
+    notes.push({ kind: "inOrder" });
+  }
+  if (category.refresh !== "none" && category.resetsAt !== null) {
+    notes.push({ kind: "resets", refresh: category.refresh, at: category.resetsAt });
+  }
+  return [...notes, ...bonusNotes(category.bonus)];
+}
+
+function openingNotes(category: Category): CategoryNote[] {
   const locks = new Set(category.quests.map((quest) => quest.lock));
   const notes: CategoryNote[] =
     category.communityLock === null ? [] : [{ kind: "community", note: category.communityLock }];
@@ -410,19 +421,18 @@ export function categoryNotes(category: Category): CategoryNote[] {
   if (locks.has("category_locked") && category.unlockAfter !== null) {
     notes.push({ kind: "unlockAfter", name: category.unlockAfter.name });
   }
-  if (category.orderMode === "in_order") {
-    notes.push({ kind: "inOrder" });
+  return notes;
+}
+
+function bonusNotes(bonus: Category["bonus"]): CategoryNote[] {
+  const notes: CategoryNote[] = [];
+  if (bonus.earned > 0) {
+    notes.push({ kind: "bonusEarned", points: bonus.earned });
+  } else if (bonus.points > 0 && !bonus.settled) {
+    notes.push({ kind: "bonus", points: bonus.points });
   }
-  if (category.refresh !== "none" && category.resetsAt !== null) {
-    notes.push({ kind: "resets", refresh: category.refresh, at: category.resetsAt });
-  }
-  if (category.bonus.earned > 0) {
-    notes.push({ kind: "bonusEarned", points: category.bonus.earned });
-  } else if (category.bonus.points > 0 && !category.bonus.settled) {
-    notes.push({ kind: "bonus", points: category.bonus.points });
-  }
-  if (category.bonus.item !== null && !category.bonus.settled) {
-    notes.push({ kind: "bonusItem", name: category.bonus.item });
+  if (bonus.item !== null && !bonus.settled) {
+    notes.push({ kind: "bonusItem", name: bonus.item });
   }
   return notes;
 }

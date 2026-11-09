@@ -39,32 +39,42 @@ const isText = (value: unknown): value is Bilingual =>
   (value["ar"] === null || typeof value["ar"] === "string") &&
   (value["en"] === null || typeof value["en"] === "string");
 
+const numberOrNull = (value: unknown): number | null => (typeof value === "number" ? value : null);
+
+type EntryCore = Pick<ActivityEntry, "id" | "at" | "kind" | "scoreDelta" | "balanceDelta">;
+
+function readCore(value: Record<string, unknown>): EntryCore | undefined {
+  const { id, at, kind, scoreDelta, balanceDelta } = value;
+  return typeof id === "string" &&
+    typeof at === "string" &&
+    typeof kind === "string" &&
+    typeof scoreDelta === "number" &&
+    typeof balanceDelta === "number"
+    ? { id, at, kind, scoreDelta, balanceDelta }
+    : undefined;
+}
+
+const titleOf = (reason: Record<string, unknown>): Bilingual | null =>
+  reason["type"] === "quest" && isText(reason["title"]) ? reason["title"] : null;
+
+const multiplierOf = (value: unknown): number | null =>
+  typeof value === "number" && value > 1 ? value : null;
+
 function readEntry(value: unknown): ActivityEntry | undefined {
-  if (
-    !isRecord(value) ||
-    typeof value["id"] !== "string" ||
-    typeof value["at"] !== "string" ||
-    typeof value["kind"] !== "string" ||
-    typeof value["scoreDelta"] !== "number" ||
-    typeof value["balanceDelta"] !== "number" ||
-    !isRecord(value["reason"])
-  ) {
+  if (!isRecord(value)) {
     return undefined;
   }
+  const core = readCore(value);
   const reason = value["reason"];
+  if (core === undefined || !isRecord(reason)) {
+    return undefined;
+  }
   return {
-    id: value["id"],
-    at: value["at"],
-    kind: value["kind"],
-    scoreDelta: value["scoreDelta"],
-    balanceDelta: value["balanceDelta"],
-    title: reason["type"] === "quest" && isText(reason["title"]) ? reason["title"] : null,
-    multiplier:
-      typeof value["multiplier"] === "number" && value["multiplier"] > 1
-        ? value["multiplier"]
-        : null,
-    bonusSlots: typeof value["bonusSlots"] === "number" ? value["bonusSlots"] : null,
-    streakDays: typeof value["streakDays"] === "number" ? value["streakDays"] : null,
+    ...core,
+    title: titleOf(reason),
+    multiplier: multiplierOf(value["multiplier"]),
+    bonusSlots: numberOrNull(value["bonusSlots"]),
+    streakDays: numberOrNull(value["streakDays"]),
   };
 }
 

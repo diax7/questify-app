@@ -6,7 +6,7 @@ import {
   type MessageKey,
 } from "@questify/shared";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { Amount } from "#src/components/Amount.tsx";
@@ -129,6 +129,55 @@ function KioskAction({ primary }: Readonly<{ primary: boolean }>) {
   );
 }
 
+type Translate = ReturnType<typeof useI18n>["t"];
+
+/**
+ * T-205: a quest staff verify shows My QR; with no printed code it offers nothing else. A challenge is only ever
+ * confirmed by staff (ADR-197).
+ */
+function myQrAction(quest: Quest, t: Translate): ReactElement | null {
+  if (!quest.verification.includes("my_qr")) {
+    return null;
+  }
+  return (
+    <>
+      <AppText variant="label">
+        {t(quest.type === "challenge" ? "play.challenge.staff" : "quests.showMyQr")}
+      </AppText>
+      <Button
+        kind={quest.verification.includes("quest_qr") ? "quiet" : "primary"}
+        label={t("myQr.title")}
+        onPress={() => router.push("/my-qr")}
+      />
+    </>
+  );
+}
+
+function kioskAction(quest: Quest): ReactElement | null {
+  return quest.verification.includes("kiosk") ? (
+    <KioskAction primary={quest.verification.length === 1} />
+  ) : null;
+}
+
+function tapAction(
+  quest: Quest,
+  eventId: string,
+  t: Translate,
+  nfc: Readonly<{ on: boolean; supported: boolean | undefined }>,
+): ReactElement | null {
+  return nfc.on && nfc.supported === true && quest.verification.includes("nfc") ? (
+    <Button
+      label={t("quests.action.tapNfc")}
+      onPress={() =>
+        router.push({
+          pathname: "/event/[eventId]/scan-quest",
+          params: { eventId, quest: quest.id, nfc: "1" },
+        })
+      }
+    />
+  ) : null;
+}
+
 function Verification({
   quest,
   onDone,
@@ -157,24 +206,8 @@ function Verification({
     return <CodeEntry quest={quest} onDone={onDone} />;
   }
   // These types play in their own entry below the sheet's details.
-  const staff = quest.verification.includes("my_qr");
-  // T-205: a quest staff verify shows My QR; with no printed code it offers nothing else. A challenge is only ever
-  // confirmed by staff (ADR-197).
-  const showMyQr = staff ? (
-    <>
-      <AppText variant="label">
-        {t(quest.type === "challenge" ? "play.challenge.staff" : "quests.showMyQr")}
-      </AppText>
-      <Button
-        kind={quest.verification.includes("quest_qr") ? "quiet" : "primary"}
-        label={t("myQr.title")}
-        onPress={() => router.push("/my-qr")}
-      />
-    </>
-  ) : null;
-  const kiosk = quest.verification.includes("kiosk") ? (
-    <KioskAction primary={quest.verification.length === 1} />
-  ) : null;
+  const showMyQr = myQrAction(quest, t);
+  const kiosk = kioskAction(quest);
   // T-309: a quest whose code is shown on a station's screen (never with a printed one) is scanned from the scanner.
   if (quest.verification.includes("screen_qr")) {
     return (
@@ -195,18 +228,7 @@ function Verification({
     );
   }
   // FR-313: a tag where NFC is on, the phone reads tags and the quest offers one; its QR stays below as the backup.
-  const tapButton =
-    nfcOn && nfcSupported === true && quest.verification.includes("nfc") ? (
-      <Button
-        label={t("quests.action.tapNfc")}
-        onPress={() =>
-          router.push({
-            pathname: "/event/[eventId]/scan-quest",
-            params: { eventId, quest: quest.id, nfc: "1" },
-          })
-        }
-      />
-    ) : null;
+  const tapButton = tapAction(quest, eventId, t, { on: nfcOn, supported: nfcSupported });
   return (
     <>
       {showMyQr}
@@ -254,6 +276,53 @@ function QuestEntry({
   }
 }
 
+/** The line under the details: what a community lock needs, else why the quest is not open, else nothing. */
+function stateText(quest: Quest, t: Translate, language: "ar" | "en", timeZone: string) {
+  // A community lock names its goal's numbers (T-306c, ADR-228); the target itself stays shut, no entry below.
+  const unlock =
+    quest.state === "locked" && quest.communityLock !== null
+      ? unlockLine(quest.communityLock, language, timeZone)
+      : null;
+  if (unlock !== null) {
+    return t(unlock.key, unlock.values);
+  }
+  const stateKey = stateLine(quest);
+  return stateKey === null ? null : t(stateKey);
+}
+
+function RepeatLine({ quest }: Readonly<{ quest: Quest }>) {
+  const { t } = useI18n();
+  return quest.repeatCap > 1 && quest.type !== "meet" ? (
+    <AppText>{t("questsTab.repeat", { done: quest.done, cap: quest.repeatCap })}</AppText>
+  ) : null;
+}
+
+function ReportProblemButton({
+  quest,
+  eventId,
+  onClose,
+}: Readonly<{ quest: Quest; eventId: string; onClose: () => void }>) {
+  const { t, language } = useI18n();
+  return (
+    <Button
+      kind="quiet"
+      label={t("help.reportQuest")}
+      onPress={() => {
+        onClose();
+        router.push({
+          pathname: "/event/[eventId]/help",
+          params: {
+            eventId,
+            kind: "problem",
+            questId: quest.id,
+            questTitle: textIn(quest.title, language),
+          },
+        });
+      }}
+    />
+  );
+}
+
 /**
  * A quest's details (FR-222): what to do, the reward, its window in the event's zone, the repeat progress, and how it
  * is verified. Sections the quest does not have (steps, tips, location, time, difficulty: Q-102) are not shown.
@@ -285,14 +354,7 @@ export function QuestSheet({
     onCompleted(answer);
   };
   const description = textIn(quest.description, language);
-  const stateKey = stateLine(quest);
-  // A community lock names its goal's numbers (T-306c, ADR-228); the target itself stays shut, no entry below.
-  const unlock =
-    quest.state === "locked" && quest.communityLock !== null
-      ? unlockLine(quest.communityLock, language, timeZone)
-      : null;
-  const line =
-    unlock === null ? (stateKey === null ? null : t(stateKey)) : t(unlock.key, unlock.values);
+  const line = stateText(quest, t, language, timeZone);
   const when = (iso: string | null, key: "quests.opens" | "quests.closes") =>
     iso === null ? null : (
       <AppText muted>
@@ -305,9 +367,7 @@ export function QuestSheet({
       {description === "" ? null : <AppText>{description}</AppText>}
       <Amount amount={formatNumber(quest.points, language)} form="labelled" variant="label" />
       <FirstBonusRibbon questId={quest.id} bonus={quest.firstBonus} />
-      {quest.repeatCap > 1 && quest.type !== "meet" ? (
-        <AppText>{t("questsTab.repeat", { done: quest.done, cap: quest.repeatCap })}</AppText>
-      ) : null}
+      <RepeatLine quest={quest} />
       {when(quest.opensAt, "quests.opens")}
       {when(quest.closesAt, "quests.closes")}
       {line === null ? null : <AppText variant="label">{line}</AppText>}
@@ -315,24 +375,7 @@ export function QuestSheet({
       <QuestEntry quest={quest} timeZone={timeZone} onSent={onSent} onDone={done} />
       <QuestRating key={quest.id} quest={quest} />
       <ReportButton subject={{ kind: "quest", targetId: quest.id }} />
-      {helpOn ? (
-        <Button
-          kind="quiet"
-          label={t("help.reportQuest")}
-          onPress={() => {
-            onClose();
-            router.push({
-              pathname: "/event/[eventId]/help",
-              params: {
-                eventId,
-                kind: "problem",
-                questId: quest.id,
-                questTitle: textIn(quest.title, language),
-              },
-            });
-          }}
-        />
-      ) : null}
+      {helpOn ? <ReportProblemButton quest={quest} eventId={eventId} onClose={onClose} /> : null}
     </Sheet>
   );
 }

@@ -246,26 +246,30 @@ export type JoinOutcome =
   | Readonly<{ kind: "refused"; code: string; problem: LocalizedText | null }>
   | Readonly<{ kind: "signed_out" | "network" }>;
 
+function joinedOutcome(answerBody: unknown): JoinOutcome {
+  const body = isRecord(answerBody) ? answerBody : {};
+  const status = body["status"] === "pending" ? "pending" : "active";
+  const welcome = typeof body["welcome"] === "number" && body["welcome"] > 0 ? body["welcome"] : 0;
+  return typeof body["eventId"] === "string"
+    ? {
+        kind: "joined",
+        eventId: body["eventId"],
+        status,
+        alreadyMember: body["alreadyMember"] === true,
+        welcome,
+        waitlisted: status === "pending" && body["waitlisted"] === true,
+      }
+    : { kind: "network" };
+}
+
 function joinOutcome(answer: AuthedResult): JoinOutcome {
   if (answer.kind === "signed_out" || answer.kind === "network") {
     return { kind: answer.kind };
   }
-  if (answer.kind === "ok") {
-    const body = isRecord(answer.body) ? answer.body : {};
-    const status = body["status"] === "pending" ? "pending" : "active";
-    const welcome =
-      typeof body["welcome"] === "number" && body["welcome"] > 0 ? body["welcome"] : 0;
-    return typeof body["eventId"] === "string"
-      ? {
-          kind: "joined",
-          eventId: body["eventId"],
-          status,
-          alreadyMember: body["alreadyMember"] === true,
-          welcome,
-          waitlisted: status === "pending" && body["waitlisted"] === true,
-        }
-      : { kind: "network" };
-  }
+  return answer.kind === "ok" ? joinedOutcome(answer.body) : refusedOutcome(answer);
+}
+
+function refusedOutcome(answer: Extract<AuthedResult, { kind: "error" }>): JoinOutcome {
   if (answer.code === "invalid_join_answers") {
     const field = answer.details["field"];
     return {

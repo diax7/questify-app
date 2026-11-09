@@ -111,44 +111,58 @@ export type RoundAnswer =
   | Readonly<{ kind: "game_refused"; reason: string; retryAt: string | null }>
   | Exclude<CompletionAnswer, { kind: "completed" }>;
 
+function issuedRoundAnswer(body: unknown, questId: string, receivedAt: number): RoundAnswer {
+  const fields = isRecord(body) ? body : {};
+  return isGameName(fields["game"]) &&
+    typeof fields["roundId"] === "string" &&
+    typeof fields["seed"] === "number" &&
+    typeof fields["engineVersion"] === "number" &&
+    typeof fields["deadlineAt"] === "string" &&
+    typeof fields["serverNow"] === "string"
+    ? {
+        kind: "round",
+        round: {
+          questId,
+          roundId: fields["roundId"],
+          game: fields["game"],
+          level: String(fields["level"]),
+          seed: fields["seed"],
+          params: fields["params"],
+          engineVersion: fields["engineVersion"],
+          deadlineAt: fields["deadlineAt"],
+          offsetMs: clockOffset(fields["serverNow"], receivedAt),
+        },
+      }
+    : { kind: "failed" };
+}
+
+function gameRefusalOf(answer: AuthedResult): RoundAnswer | undefined {
+  if (answer.kind !== "error") {
+    return undefined;
+  }
+  if (answer.code === "update_required") {
+    return { kind: "update" };
+  }
+  return answer.code === "game_refused"
+    ? {
+        kind: "game_refused",
+        reason: String(answer.details["reason"]),
+        retryAt: stringOrNull(answer.details["retryAt"]),
+      }
+    : undefined;
+}
+
 export function roundAnswerOf(
   answer: AuthedResult,
   questId: string,
   receivedAt: number,
 ): RoundAnswer {
   if (answer.kind === "ok") {
-    const body = isRecord(answer.body) ? answer.body : {};
-    return isGameName(body["game"]) &&
-      typeof body["roundId"] === "string" &&
-      typeof body["seed"] === "number" &&
-      typeof body["engineVersion"] === "number" &&
-      typeof body["deadlineAt"] === "string" &&
-      typeof body["serverNow"] === "string"
-      ? {
-          kind: "round",
-          round: {
-            questId,
-            roundId: body["roundId"],
-            game: body["game"],
-            level: String(body["level"]),
-            seed: body["seed"],
-            params: body["params"],
-            engineVersion: body["engineVersion"],
-            deadlineAt: body["deadlineAt"],
-            offsetMs: clockOffset(body["serverNow"], receivedAt),
-          },
-        }
-      : { kind: "failed" };
+    return issuedRoundAnswer(answer.body, questId, receivedAt);
   }
-  if (answer.kind === "error" && answer.code === "update_required") {
-    return { kind: "update" };
-  }
-  if (answer.kind === "error" && answer.code === "game_refused") {
-    return {
-      kind: "game_refused",
-      reason: String(answer.details["reason"]),
-      retryAt: stringOrNull(answer.details["retryAt"]),
-    };
+  const refusal = gameRefusalOf(answer);
+  if (refusal !== undefined) {
+    return refusal;
   }
   const parsed = completionAnswer(answer);
   return parsed.kind === "completed" ? { kind: "failed" } : parsed;

@@ -138,6 +138,75 @@ function DropBody({ card, close }: Readonly<{ card: Card; close: () => void }>) 
   );
 }
 
+/** What the pop-up reads and calls to pick the next card. */
+type NextCard = Readonly<{
+  live: ReturnType<typeof useLive>;
+  putOff: ReadonlySet<string>;
+  shown: readonly string[] | undefined;
+  remember: (key: string) => void;
+  notePaid: () => void;
+  setCard: (card: Card) => void;
+  t: ReturnType<typeof useI18n>["t"];
+}>;
+
+const announce = (text: string) => AccessibilityInfo.announceForAccessibility(text);
+
+/** Each shows its card and returns true, or returns false when it has none; they are tried in this order. */
+function showPoll({ live, putOff, setCard, t }: NextCard): boolean {
+  const poll = nextPoll(live, putOff);
+  if (poll === undefined) {
+    return false;
+  }
+  setCard({ kind: "poll", questId: poll.questId });
+  announce(t("poll.live"));
+  return true;
+}
+
+function showResults({ live, shown, remember, setCard, t }: NextCard): boolean {
+  const results = shown === undefined ? undefined : nextResults(live, shown);
+  if (results === undefined) {
+    return false;
+  }
+  remember(results);
+  setCard({ kind: "results", questId: results });
+  announce(t("poll.resultsIn"));
+  return true;
+}
+
+function showCommunity({ live, shown, remember, notePaid, setCard, t }: NextCard): boolean {
+  const news = shown === undefined ? undefined : communityNews(live.community, shown)[0];
+  if (news === undefined || live.community === null) {
+    return false;
+  }
+  remember(news.key);
+  setCard({ kind: "community", news, goal: live.community });
+  if (news.kind === "paid") {
+    notePaid();
+  }
+  announce(t(NEWS_TITLE[news.kind]));
+  return true;
+}
+
+/** A new flash quest or boost: the quest list and Home read again for its badge, then its one-time card. */
+function showDrop({ live, shown, remember, notePaid, setCard, t }: NextCard): boolean {
+  const drop = shown === undefined ? undefined : nextDrop(live, shown);
+  if (drop === undefined) {
+    return false;
+  }
+  remember(drop.key);
+  notePaid();
+  setCard(drop.kind === "flash" ? { kind: "flash", flash: drop.flash } : drop);
+  announce(t(drop.kind === "flash" ? "live.flash.title" : "live.boost.title"));
+  return true;
+}
+
+const CARD_SHOWERS: readonly ((next: NextCard) => boolean)[] = [
+  showPoll,
+  showResults,
+  showCommunity,
+  showDrop,
+];
+
 /**
  * The live poll pop-up (FR-239): a sheet over the event's tabs for an open poll the player has not voted in or put off
  * in this session, a one-time card when an at_close poll's results are in, and one per community step that reached a
@@ -159,39 +228,8 @@ export function LivePolls() {
     if (card !== null || !calm) {
       return;
     }
-    const poll = nextPoll(live, putOff);
-    if (poll !== undefined) {
-      setCard({ kind: "poll", questId: poll.questId });
-      AccessibilityInfo.announceForAccessibility(t("poll.live"));
-      return;
-    }
-    const results = shown === undefined ? undefined : nextResults(live, shown);
-    if (results !== undefined) {
-      remember(results);
-      setCard({ kind: "results", questId: results });
-      AccessibilityInfo.announceForAccessibility(t("poll.resultsIn"));
-      return;
-    }
-    const news = shown === undefined ? undefined : communityNews(live.community, shown)[0];
-    if (news !== undefined && live.community !== null) {
-      remember(news.key);
-      setCard({ kind: "community", news, goal: live.community });
-      if (news.kind === "paid") {
-        notePaid();
-      }
-      AccessibilityInfo.announceForAccessibility(t(NEWS_TITLE[news.kind]));
-      return;
-    }
-    // A new flash quest or boost: the quest list and Home read again for its badge, then its one-time card.
-    const drop = shown === undefined ? undefined : nextDrop(live, shown);
-    if (drop !== undefined) {
-      remember(drop.key);
-      notePaid();
-      setCard(drop.kind === "flash" ? { kind: "flash", flash: drop.flash } : drop);
-      AccessibilityInfo.announceForAccessibility(
-        t(drop.kind === "flash" ? "live.flash.title" : "live.boost.title"),
-      );
-    }
+    const next: NextCard = { live, putOff, shown, remember, notePaid, setCard, t };
+    CARD_SHOWERS.some((show) => show(next));
   }, [card, calm, live, putOff, shown, remember, t, notePaid]);
 
   if (card === null) {
