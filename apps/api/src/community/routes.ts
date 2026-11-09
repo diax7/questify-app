@@ -25,6 +25,7 @@ import {
 } from "#src/community/goals";
 import { settleAndPay } from "#src/community/payer";
 import { organizerContextOf } from "#src/organizers/context";
+import { refusalThrower } from "#src/refusal-table";
 
 const member = { config: { access: "member" } } as const;
 const writing = { config: { access: "member", idempotent: true }, bodyLimit: 16 * 1024 } as const;
@@ -37,33 +38,26 @@ const emptyBody = z.union([z.strictObject({}), z.undefined(), z.null()]);
 const SETTLING_RETRY_SECONDS = 5;
 
 /** One HTTP answer per refusal (API.md, community quests). */
-function refuse(reply: FastifyReply, result: CommunityRefusal): never {
-  switch (result.kind) {
-    case "not_found":
-      throw notFound();
-    case "invalid":
-      throw invalidGoal({ issues: result.issues });
-    case "overlap":
-      throw goalOverlap();
-    case "unlock_taken":
-      throw unlockTaken();
-    case "locked":
-      throw goalLocked({ field: result.field });
-    case "started":
-      throw goalStarted();
-    case "event_ended":
-      throw goalEventEnded();
-    case "limit_reached":
-      throw limitReached({ limit: result.limit });
-    case "feature_off":
-      throw platformFeatureOff();
-    case "owner_only":
-      throw ownerOnly();
-    case "settling":
-      reply.header("retry-after", String(SETTLING_RETRY_SECONDS));
-      throw communitySettling();
-  }
+export function refuse(reply: FastifyReply, result: CommunityRefusal): never {
+  return refuseCommunity(result, reply);
 }
+
+const refuseCommunity = refusalThrower<CommunityRefusal, [reply: FastifyReply]>({
+  not_found: () => notFound(),
+  invalid: (result) => invalidGoal({ issues: result.issues }),
+  overlap: () => goalOverlap(),
+  unlock_taken: () => unlockTaken(),
+  locked: (result) => goalLocked({ field: result.field }),
+  started: () => goalStarted(),
+  event_ended: () => goalEventEnded(),
+  limit_reached: (result) => limitReached({ limit: result.limit }),
+  feature_off: () => platformFeatureOff(),
+  owner_only: () => ownerOnly(),
+  settling: (_result, reply) => {
+    reply.header("retry-after", String(SETTLING_RETRY_SECONDS));
+    return communitySettling();
+  },
+});
 
 const valueOf = <T>(reply: FastifyReply, result: CommunityDone<T>): T =>
   result.kind === "done" ? result.value : refuse(reply, result);

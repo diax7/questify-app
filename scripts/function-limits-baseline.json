@@ -39,16 +39,6 @@
       "complexity": [9]
     }
   },
-  "apps/api/src/community/goals.ts": {
-    "<anonymous>": {
-      "complexity": [12]
-    }
-  },
-  "apps/api/src/community/routes.ts": {
-    "refuse": {
-      "complexity": [12]
-    }
-  },
   "apps/api/src/completions/complete.ts": {
     "completeQuest": {
       "complexity": [12]
@@ -74,11 +64,6 @@
       "complexity": [12]
     }
   },
-  "apps/api/src/home/home.ts": {
-    "questRows": {
-      "complexity": [13]
-    }
-  },
   "apps/api/src/join/routes.ts": {
     "<anonymous>": {
       "complexity": [11]
@@ -92,11 +77,6 @@
   "apps/api/src/moderation/routes.ts": {
     "<anonymous>": {
       "complexity": [9]
-    }
-  },
-  "apps/api/src/nfc/routes.ts": {
-    "refuseNfc": {
-      "complexity": [13]
     }
   },
   "apps/api/src/nfc/tags.ts": {
@@ -179,11 +159,6 @@
     },
     "answer": {
       "complexity": [27]
-    }
-  },
-  "apps/api/src/ranking/routes.ts": {
-    "<anonymous>": {
-      "complexity": [12]
     }
   },
   "apps/api/src/rehearsal/rehearsal.ts": {

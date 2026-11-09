@@ -356,6 +356,54 @@ const firstBonusOf = (
         mine: row.first_bonus_place === null ? null : { place: row.first_bonus_place },
       };
 
+const stepsOf = (row: QuestRow): MemberQuest["steps"] =>
+  row.steps_done === null || row.steps_needed === null
+    ? null
+    : { done: row.steps_done, needed: row.steps_needed };
+
+const placeOf = (row: QuestRow): MemberQuest["place"] =>
+  row.place_lat === null || row.place_lng === null || row.place_radius_m === null
+    ? null
+    : { lat: Number(row.place_lat), lng: Number(row.place_lng), radiusM: row.place_radius_m };
+
+const meetOf = (row: QuestRow): MemberQuest["meet"] =>
+  row.daily_cap === null || row.met_today === null
+    ? null
+    : { dailyCap: row.daily_cap, today: row.met_today };
+
+const gameOf = (row: QuestRow): MemberQuest["game"] =>
+  row.game_passed === null ? null : { attemptsLeft: row.game_left, passed: row.game_passed };
+
+/** The type-specific extras of a quest row: a passport's steps, an item, a spot, a meet's caps, a game's attempts. */
+const extrasOf = (row: QuestRow) => ({
+  steps: stepsOf(row),
+  item: itemName(row.item_ar, row.item_en),
+  place: placeOf(row),
+  meet: meetOf(row),
+  game: gameOf(row),
+});
+
+const questOf = (row: QuestRow, counts: ReadonlyMap<string, FirstBonusCount>): MemberQuest => ({
+  id: row.quest_id,
+  title: { ar: row.title_ar, en: row.title_en },
+  description: { ar: row.description_ar, en: row.description_en },
+  type: row.type,
+  points: row.points,
+  repeatCap: row.repeat_cap,
+  opensAt: row.opens_at,
+  closesAt: row.closes_at,
+  done: row.done,
+  earned: Number(row.earned),
+  verification: row.verification,
+  lock: row.lock,
+  ...extrasOf(row),
+  communityLock: lockNoteOf(row.community_lock),
+  flash: row.flash_closes_at === null ? null : { closesAt: row.flash_closes_at },
+  boost: boostOf(row),
+  firstBonus: firstBonusOf(row, counts),
+  paused: row.paused,
+});
+
 async function questRows(
   client: PoolClient,
   eventId: string,
@@ -370,40 +418,7 @@ async function questRows(
       ...rulesOf(row),
       quests: [],
     };
-    category.quests.push({
-      id: row.quest_id,
-      title: { ar: row.title_ar, en: row.title_en },
-      description: { ar: row.description_ar, en: row.description_en },
-      type: row.type,
-      points: row.points,
-      repeatCap: row.repeat_cap,
-      opensAt: row.opens_at,
-      closesAt: row.closes_at,
-      done: row.done,
-      earned: Number(row.earned),
-      verification: row.verification,
-      lock: row.lock,
-      steps:
-        row.steps_done === null || row.steps_needed === null
-          ? null
-          : { done: row.steps_done, needed: row.steps_needed },
-      item: itemName(row.item_ar, row.item_en),
-      place:
-        row.place_lat === null || row.place_lng === null || row.place_radius_m === null
-          ? null
-          : { lat: Number(row.place_lat), lng: Number(row.place_lng), radiusM: row.place_radius_m },
-      meet:
-        row.daily_cap === null || row.met_today === null
-          ? null
-          : { dailyCap: row.daily_cap, today: row.met_today },
-      game:
-        row.game_passed === null ? null : { attemptsLeft: row.game_left, passed: row.game_passed },
-      communityLock: lockNoteOf(row.community_lock),
-      flash: row.flash_closes_at === null ? null : { closesAt: row.flash_closes_at },
-      boost: boostOf(row),
-      firstBonus: firstBonusOf(row, counts),
-      paused: row.paused,
-    });
+    category.quests.push(questOf(row, counts));
     categories.set(row.category_id, category);
   }
   return [...categories.values()];

@@ -30,7 +30,9 @@ import {
 } from "#src/nfc/tags";
 import { organizerContextOf } from "#src/organizers/context";
 import { refuse } from "#src/plays/routes";
+import type { PlayRefusal } from "#src/plays/run";
 import type { Ranking } from "#src/ranking/ranking";
+import { refusalThrower } from "#src/refusal-table";
 import { logStreakBonus } from "#src/streaks/streaks";
 
 const player = { config: { access: "player" }, bodyLimit: 1024 } as const;
@@ -80,37 +82,32 @@ const playerIdOf = (request: FastifyRequest): string => {
 };
 
 /** One HTTP answer per refusal (API.md, NFC tags); the completion door's own as a scan's. */
-function refuseNfc(reply: FastifyReply, result: NfcRefusal): never {
-  switch (result.kind) {
-    case "unknown_tag":
-      throw unknownTag();
-    case "invalid_proof":
-      throw invalidProof();
-    case "not_operator":
-      throw notOperator();
-    case "ability_off":
-      throw abilityOff();
-    case "outside_quests":
-      throw outsideOperatorQuests();
-    case "event_closed":
-      throw tagEventClosed();
-    case "not_nfc":
-      throw questNotNfc();
-    case "limit_reached":
-      throw limitReached();
-    case "already_registered":
-      throw tagAlreadyRegistered();
-    case "invalid_tag":
-      throw invalidTag({ field: result.field });
-    case "platform_off":
-      throw platformFeatureOff();
-    case "too_many_attempts":
-      reply.header("retry-after", String(result.retryAfterSeconds));
-      throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
-    default:
-      return refuse(result);
-  }
+export function refuseNfc(reply: FastifyReply, result: NfcRefusal): never {
+  // Typed to return, since a kind that is not an NFC refusal falls through to the play refusals below.
+  const refuseOwn: (result: OwnRefusal, reply: FastifyReply) => void = refuseTag;
+  refuseOwn(result as OwnRefusal, reply);
+  return refuse(result as PlayRefusal);
 }
+
+type OwnRefusal = Exclude<NfcRefusal, PlayRefusal>;
+
+const refuseTag = refusalThrower<OwnRefusal, [reply: FastifyReply]>({
+  unknown_tag: () => unknownTag(),
+  invalid_proof: () => invalidProof(),
+  not_operator: () => notOperator(),
+  ability_off: () => abilityOff(),
+  outside_quests: () => outsideOperatorQuests(),
+  event_closed: () => tagEventClosed(),
+  not_nfc: () => questNotNfc(),
+  limit_reached: () => limitReached(),
+  already_registered: () => tagAlreadyRegistered(),
+  invalid_tag: (result) => invalidTag({ field: result.field }),
+  platform_off: () => platformFeatureOff(),
+  too_many_attempts: (result, reply) => {
+    reply.header("retry-after", String(result.retryAfterSeconds));
+    return tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
+  },
+});
 
 const valueOf = <T>(reply: FastifyReply, result: NfcDone<T>): T =>
   result.kind === "done" ? result.value : refuseNfc(reply, result);

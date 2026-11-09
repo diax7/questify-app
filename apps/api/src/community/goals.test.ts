@@ -60,6 +60,39 @@ describe("goalBody", () => {
     ).toEqual(["milestones"]);
   });
 
+  it("names every broken rule at once, in the order the rules are checked", () => {
+    const broken = {
+      ...valid,
+      measure: "points",
+      questId: crypto.randomUUID(),
+      categoryId: crypto.randomUUID(),
+      endsAt: "2030-01-01T09:00:00.000Z",
+      milestones: [{ threshold: 100, reward: { kind: "nothing" } }],
+    };
+    expect(issuesOf(broken)).toEqual(["categoryId", "measure", "endsAt", "milestones"]);
+    expect(
+      issuesOf({ ...broken, measure: "completions", target: 1_000_001, milestones: [] }),
+    ).toEqual(["categoryId", "target", "endsAt"]);
+  });
+
+  it("treats a null or missing quest and category as none, and milestones as optional", () => {
+    expect(issuesOf({ ...valid, questId: null, categoryId: null })).toEqual([]);
+    expect(issuesOf({ ...valid, questId: undefined, categoryId: null })).toEqual([]);
+    const { milestones: _milestones, ...without } = valid;
+    expect(issuesOf(without)).toEqual([]);
+    expect(
+      issuesOf({
+        ...valid,
+        measure: "completions",
+        questId: crypto.randomUUID(),
+        categoryId: null,
+      }),
+    ).toEqual([]);
+    expect(
+      issuesOf({ ...valid, measure: "players", categoryId: crypto.randomUUID(), questId: null }),
+    ).toEqual([]);
+  });
+
   it("checks the texts and the rewards", () => {
     expect(issuesOf({ ...valid, title: {} })).toEqual(["title"]);
     expect(issuesOf({ ...valid, title: { en: "x".repeat(81) } })).toEqual(["title.en"]);

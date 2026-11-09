@@ -193,6 +193,43 @@ describe("a member's quests as the database lists them", () => {
     ]);
   });
 
+  it("gives no extra when any one of its columns is missing", async () => {
+    const [category] = await questsOf([
+      questRow({ quest_id: "steps", steps_done: 1 }),
+      questRow({ quest_id: "steps2", steps_needed: 3 }),
+      questRow({ quest_id: "lat", place_lat: "1", place_lng: "2" }),
+      questRow({ quest_id: "radius", place_lng: "2", place_radius_m: 5 }),
+      questRow({ quest_id: "cap", daily_cap: 5 }),
+      questRow({ quest_id: "met", met_today: 1 }),
+      questRow({ quest_id: "left", game_left: 2 }),
+      questRow({ quest_id: "gamezero", game_left: 0, game_passed: true }),
+    ]);
+    expect(
+      category?.quests.map(({ id, steps, place, meet, game }) => ({
+        id,
+        steps,
+        place,
+        meet,
+        game,
+      })),
+    ).toEqual([
+      ...["steps", "steps2", "lat", "radius", "cap", "met", "left"].map((id) => ({
+        id,
+        steps: null,
+        place: null,
+        meet: null,
+        game: null,
+      })),
+      {
+        id: "gamezero",
+        steps: null,
+        place: null,
+        meet: null,
+        game: { attemptsLeft: 0, passed: true },
+      },
+    ]);
+  });
+
   it("gives a quest's first-N bonus with the cached left and the player's own place; none without one (T-313)", async () => {
     const [category] = await questsOf(
       [

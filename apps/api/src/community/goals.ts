@@ -33,6 +33,47 @@ const reward = z.discriminatedUnion("kind", [
   }),
 ]);
 
+type GoalRules = Readonly<{
+  measure: string;
+  questId?: string | null | undefined;
+  categoryId?: string | null | undefined;
+  target: number;
+  startsAt: string;
+  endsAt: string;
+  milestones?: readonly Readonly<{ threshold: number }>[] | undefined;
+}>;
+
+const bothScoped = (goal: GoalRules): boolean => goal.questId != null && goal.categoryId != null;
+
+const pointsScoped = (goal: GoalRules): boolean =>
+  goal.measure === "points" && (goal.questId != null || goal.categoryId != null);
+
+const countTooBig = (goal: GoalRules): boolean =>
+  goal.measure !== "points" && goal.target > MAX_COUNT_TARGET;
+
+const windowTooShort = (goal: GoalRules): boolean =>
+  Date.parse(goal.endsAt) - Date.parse(goal.startsAt) < MIN_WINDOW_MS;
+
+const milestonesBroken = (goal: GoalRules): boolean => {
+  const thresholds = (goal.milestones ?? []).map((step) => step.threshold);
+  return (
+    thresholds.some((threshold) => threshold >= goal.target) ||
+    new Set(thresholds).size !== thresholds.length
+  );
+};
+
+/** The cross-field rules a goal breaks, by the field at fault, in the order they are checked. */
+const RULES: readonly (readonly [path: string, broken: (goal: GoalRules) => boolean])[] = [
+  ["categoryId", bothScoped],
+  ["measure", pointsScoped],
+  ["target", countTooBig],
+  ["endsAt", windowTooShort],
+  ["milestones", milestonesBroken],
+];
+
+const goalIssues = (goal: GoalRules): string[] =>
+  RULES.filter(([, broken]) => broken(goal)).map(([path]) => path);
+
 /**
  * A goal as the dashboard sends it (FR-243 to FR-248): the goal step is `target` with `reward`; up to 5 milestones
  * below it. The cross-field rules are checked here for a clear answer; the database checks them again.
@@ -54,26 +95,8 @@ export const goalBody = z
       .optional(),
   })
   .superRefine((goal, context) => {
-    const issue = (path: string) =>
+    for (const path of goalIssues(goal)) {
       context.addIssue({ code: "custom", path: [path], message: path });
-    if (goal.questId != null && goal.categoryId != null) {
-      issue("categoryId");
-    }
-    if (goal.measure === "points" && (goal.questId != null || goal.categoryId != null)) {
-      issue("measure");
-    }
-    if (goal.measure !== "points" && goal.target > MAX_COUNT_TARGET) {
-      issue("target");
-    }
-    if (Date.parse(goal.endsAt) - Date.parse(goal.startsAt) < MIN_WINDOW_MS) {
-      issue("endsAt");
-    }
-    const thresholds = (goal.milestones ?? []).map((step) => step.threshold);
-    if (
-      thresholds.some((threshold) => threshold >= goal.target) ||
-      new Set(thresholds).size !== thresholds.length
-    ) {
-      issue("milestones");
     }
   });
 
