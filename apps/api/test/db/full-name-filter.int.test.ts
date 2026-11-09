@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import { ABUSIVE_NAMES, ACCEPTED_PASSES, REAL_NAMES } from "#test/db/full-name-corpus";
+import { STEM_RULES } from "#test/db/full-name-stems-cases";
 import {
   TEST_DATABASE_URL,
   addMember,
@@ -810,17 +811,41 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("full name word lists (database
           `SELECT p.proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
                   has_function_privilege('public', p.oid, 'EXECUTE') AS anyone
            FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace
-             AND p.proname IN ('full_name_blocked', 'full_name_fold', 'join_answer_name_flag', 'full_name_recheck_mark',
-                               'name_flag_sweep')
+             AND p.proname IN ('full_name_blocked', 'full_name_fold', 'full_name_stems', 'join_answer_name_flag',
+                               'full_name_recheck_mark', 'name_flag_sweep')
            ORDER BY p.proname`,
         ),
       ).toEqual([
         { proname: "full_name_blocked", app: false, anyone: false },
         { proname: "full_name_fold", app: false, anyone: false },
         { proname: "full_name_recheck_mark", app: false, anyone: false },
+        { proname: "full_name_stems", app: false, anyone: false },
         { proname: "join_answer_name_flag", app: false, anyone: false },
         { proname: "name_flag_sweep", app: true, anyone: false },
       ]);
     });
+  });
+
+  /**
+   * `full_name_stems(forms, arabic)` (0186), the affixes of the check, called as the owner: it is internal, with no grant.
+   * Each case is the exact stems it gives, in the order of its loops, and the Arabic ones an allow word covers.
+   */
+  describe("full_name_stems (0186)", () => {
+    for (const { rule, cases } of STEM_RULES) {
+      it(rule, async () => {
+        for (const { forms, arabic, stems, named } of cases) {
+          const [row] = await owner<{ stems: string[]; named: string[] }>(
+            "SELECT stems, named FROM full_name_stems($1::text[], $2)",
+            [forms, arabic],
+          );
+          expect({ forms, arabic, stems: row?.stems, named: row?.named }).toEqual({
+            forms,
+            arabic,
+            stems,
+            named,
+          });
+        }
+      });
+    }
   });
 });
