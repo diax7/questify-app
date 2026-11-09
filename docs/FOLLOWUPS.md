@@ -84,7 +84,6 @@ Format: `- <date> <task>: <what and where> (<source>)`
 - 2026-11-07 FOLLOWUPS batch 21 review (92; MINOR, NIT): a lost-response retry of a first award on a 0-point quest now reads "Already recorded" (orange on the kiosk and station), truthful but not "+0".
 - 2026-11-07 FOLLOWUPS batch 22 review (95; MINOR, NIT): a zero-point replay that carries a streak bonus shows only "Already recorded" and drops the streak line (`play-words.ts:35`), defensible but undecided.
 - 2026-11-08 FOLLOWUPS batch 26 review (93; MINOR): confirm on staging that CranL's edge lets a 300 s apply response through (forward-timeout.ts:6), and add it to the go-live checklist.
-- 2026-11-08 FOLLOWUPS batch 29 review (94; NIT): `monitoring:validate`'s mail stage times out on this server even on unchanged main (cause not found); CI's monitoring job, held on `workflows-pending`, would run it.
 - 2026-11-08 FOLLOWUPS batch 30 review (91; NIT): optional, export pages of 10,000 would halve the per-call overhead.
 - 2026-11-08 FOLLOWUPS batch 32 review (92; NIT): `ChangeSetReview.test.ts`'s third test asserts the close call's timeout only as "not the apply's"; assert the default request timeout constant instead.
 - 2026-11-09 accessibility sweep review (88; MINOR, NIT): the big screen's scene title now uses `--color-text-muted`, which is safe at 5.4:1 but reads as secondary on a 4.5rem title, so have a person look at it on the big screen.

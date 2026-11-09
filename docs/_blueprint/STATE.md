@@ -4,13 +4,30 @@
 
 - **FOLLOWUPS batch 35 (tier B, SQL; migration 0186; 0185 and earlier frozen, three functions restated and diffed against
   their latest definitions; one new internal function, no table, no grant beyond the restated ones).** (1) The allow-list
-  console review: the full-name check's affix lists and their loop move into `full_name_stems(form, arabic)` (plpgsql,
+  console review: the full-name check's affix lists and their loop move into `full_name_stems(forms, arabic)` (plpgsql,
   IMMUTABLE, revoked from PUBLIC, no grant; ADR-670), called by `full_name_blocked` (0181) and `admin_name_allow_add`
-  (0185); the door's copy and the test that kept the two equal are gone. Old against new: COUNTS, none differs, so the
-  recheck is not marked (ADR-817 amended). TIMING (2) The batch 18 NIT: `own_achievements` (0171) shows as next the first
-  tier above the one held that is not revoked (bronze revoked and no tier: silver; bronze held, silver revoked: gold; all
-  above revoked or gold held: null), restated in plpgsql, so it leaves `sql-settings-allowlist.json` (ADR-439 amended,
-  API.md). Tests TESTS. CI 0 minutes (not pushed).
+  (0185); the door's copy and the test that kept the two equal are gone. The door also filters its WA422 probes to those
+  holding the word before checking them: about 142 ms a call to 9 ms, so `name-allow-console.int`'s `COST 100000`
+  work-around (from main) is removed. Old against new in a throw-away database: 10,672 check answers and 9,790 door answers,
+  none differs, so the recheck is not marked (ADR-817 amended). A check call costs the same (0.34 to 0.57 ms, by turns);
+  `full-name-timing` by hand: `ranking_names` 7.79 ms, `screen_ranking` 20.25, `event_results` 32.86 (0176: 7.95, 34.90,
+  32.65), ADR-766's gate holds. (2) The batch 18 NIT: `own_achievements` (0171) shows as next the first tier above the one
+  held that is not revoked (bronze revoked and no tier: silver; bronze held, silver revoked: gold; all above revoked or
+  gold held: null), restated in plpgsql, so it leaves `sql-settings-allowlist.json` (ADR-439 amended, API.md). Tests:
+  full-name-filter, full-name-upgrade, name-allow-console, achievements, achievement-rewards, console-catalog-xp,
+  hot-path-plpgsql and `test/security`, 13 files, 833 passed. CI 0 minutes (not pushed).
+
+## The monitoring mail stage on a host with a firewall — 2026-11-09
+
+- **`monitoring:validate`'s mail stage no longer times out on firewalled Linux hosts (tier C, `ops/monitoring/lib`).**
+  Cause: this server's ufw has `INPUT DROP` with only ports 22, 80 and 443 open, so a container's connection to the
+  test mail sink (a random port on `host.docker.internal`, i.e. 172.17.0.1) was dropped without an answer (a probe
+  container's `nc` to a listening host port hung until its timeout; the sink saw 0 connections). Not a port clash, DNS,
+  image or timeout fault. Fix: on Linux the mail container joins the host network, the sink listens on 127.0.0.1 only
+  (was every address), and the check's Alertmanager takes a free web port instead of a fixed 9093; the mail, subject,
+  link and recipient checks are unchanged, and Docker Desktop keeps the bridge route. `startSmtpSink({ host })` and
+  `start({ network })` are new, with a sink test. `pnpm monitoring:validate` passes all 30 stages here. CI 0 minutes
+  (not pushed).
 
 ## The full-name allow-list from the console (FOLLOWUPS batch 23) — 2026-11-09
 

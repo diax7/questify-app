@@ -8950,7 +8950,17 @@ on every change, so stored names follow within minutes.
 
 **Amended 2026-11-09 (FOLLOWUPS batch 35, migration 0186; the allow-list console review).** The affix lists and the loop
 that strips them (the Arabic prefixes and endings, ة read as ت, the Latin endings and -ies read as -y) live once, in the
-internal `full_name_stems(form, arabic)` (plpgsql, IMMUTABLE, no definer, no SET clause, revoked from PUBLIC with no grant;
-ADR-670), which `full_name_blocked` and `admin_name_allow_add` both call; the door's copy and the test that kept the two
-equal are gone. Both answer as before: old (0181, 0185) against new over the corpus and every allow-list test word (COUNTS),
-none differs, so 0186 does not mark the recheck pending. TIMING
+internal `full_name_stems(forms, arabic)` (plpgsql, IMMUTABLE, no definer, no SET clause, revoked from PUBLIC with no
+grant; ADR-670; one call a word, with all its forms), which `full_name_blocked` and `admin_name_allow_add` both call; the
+door's copy and the test that kept the two equal are gone. The door also filters its WA422 probes to those holding the word
+before it runs the check on them (0185's one WHERE let the planner check all 327 probes first). Both answer as before, old
+(0181, 0185, put back under other names in a throw-away database) against new: `full_name_blocked` on 10,672 names (the
+corpus' real, abusive and accepted names, their words, every allow-list and full-name test literal and every list and allow
+entry with the affixes added), `admin_name_allow_add` on 9,790 words (the same words; 4,274 WA400, 3,331 WA409, 52 WA422,
+the rest added or exists), each call rolled back: 20,462 answers, none differs, so 0186 does not mark the recheck pending.
+**Cost** (by turns on one database, load 3): a check call 0.35 to 0.34 ms for a Latin name, 0.40 both for an Arabic one, 0.53
+to 0.57 ms with ! inside a word, 0.47 both with *, 1.51 to 1.57 ms for the slowest name; an add-door call about 142 ms to
+9 ms. `test/perf/full-name-timing.int.test.ts` gives `ranking_names` 7.95 (0176) to 7.79 ms, 378 buffers both;
+`screen_ranking` 34.90 to 20.25 ms; `event_results` 32.65 to 32.86 ms, 1,802 both: ADR-766's gate holds. The sweep: 190 ms a
+page median, 269 ms the slowest, 401 ms with the slowest name in every answer (124, 211 and 431 at batch 27; the check's own
+cost, timed by turns above, is unchanged, so the median's rise is the shared machine's load).

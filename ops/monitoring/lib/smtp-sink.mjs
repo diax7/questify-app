@@ -58,11 +58,13 @@ const LISTEN_HOST = process.platform === "linux" ? "0.0.0.0" : "127.0.0.1";
 /**
  * Listens and returns the port and the mail. A container reaches it as host.docker.internal: on Docker Desktop (Windows,
  * macOS) that arrives from the machine itself, so 127.0.0.1 is enough; Docker Engine on Linux resolves the name to its
- * bridge address, so there it listens on every address (the buffers are capped and the run is short-lived).
+ * bridge address, so there it listens on every address (the buffers are capped and the run is short-lived). A host with
+ * a firewall that drops the bridge's traffic to the machine (ufw's default) never gets the mail that way; the caller
+ * then puts its container on the host network and passes `host: "127.0.0.1"`.
  */
-export async function startSmtpSink() {
+export async function startSmtpSink({ host = LISTEN_HOST } = {}) {
   const messages = [];
   const server = createServer((socket) => handleSocket(socket, messages));
-  await new Promise((resolve) => server.listen(0, LISTEN_HOST, resolve));
+  await new Promise((resolve) => server.listen(0, host, resolve));
   return { port: server.address().port, messages, close: () => server.close() };
 }
