@@ -70,7 +70,7 @@ const settingsBody = z.strictObject({
 const confirmBody = z.strictObject({ expected: z.array(z.uuid()).max(100) });
 const revealBody = z.strictObject({ claimUntil: z.iso.datetime({ offset: true }) });
 
-function refuse(result: ResultsRefusal): never {
+export function refuse(result: ResultsRefusal): never {
   switch (result.kind) {
     case "not_found":
       throw notFound();
