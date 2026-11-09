@@ -144,11 +144,19 @@ Addresses: https://questify.nafes.com and https://questify-api-staging-3ez01s.cr
 
 ## Where things stand
 
-Staging is live at `release-20261109-4`, migration 0186. No pull request is open; GitHub holds only `main`,
+Staging is live at `release-20261109-5`, migration 0187. No pull request is open; GitHub holds only `main`,
 `t-810d-console-hostname`, and the local-only branch `workflows-pending` on this server (see below). Tasks: 187 done, 32 open
 (85.4%); every open task waits on a person, a device, store accounts or an outside answer (see the list below). FOLLOWUPS has about
 75 lines, most needing a device, art, a product call or tier A work. Migration number 0156 is reserved by the unmerged T-810d
-branch, `t-810d-console-hostname`; the runner tolerates the gap. The next migration is 0187.
+branch, `t-810d-console-hostname`; the runner tolerates the gap. The next migration is 0188.
+
+**Since 2026-11-08 (coordinator, 2026-11-09):** batches 27 to 38; the sign-in lock-order fix (0184, tier A, mutation 91.56%);
+the web axe sweep (`a11y.spec.ts`, nightly only: the "CI" workflow skips it through `testIgnore`) and the app's static
+accessibility check (`apps/app/src/a11y-static.test.ts`); the console allow-list page (0185); 27 ADRs and 25 questions closed as
+developer decisions; full suite green at 13,403 tests. Dhia has `/home/deploy/questify-logs/dhia-decisions.md` (what waits on him)
+and the T-808 screenshot pack. `monitoring:validate` now passes on this server (the host firewall drops container-to-host
+traffic, so the mail stage uses the host network on Linux). FOLLOWUPS that need no device, art, product call or staging data are
+nearly exhausted; the function-limits baseline (`scripts/function-limits-baseline.json`) is the next source of work.
 
 **Handover, 2026-11-08 (the coordinator before you paused for the week's usage limit):**
 
