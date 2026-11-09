@@ -1,5 +1,18 @@
 # Blueprint State — Questify
 
+## Player app accessibility from the code — 2026-11-09
+
+- **Player app accessibility check (T-808, code-checkable part; tier B, `apps/app` only).** New
+  `apps/app/src/a11y-static.test.ts` parses all 209 `.tsx` files with `@babel/parser` (the app's own dependency; TypeScript 7
+  has no in-process API) and fails on an unnamed or role-less touchable, an unlabelled non-decorative image, an unlabelled
+  input, an exposed icon glyph and hard-coded text outside `t(...)`; its allow list is empty; 11 tests, the checker itself
+  included. Found and fixed: one scrim without a role, one banner tap target named only through a child, eight glyphs and one
+  padlock now hidden from a screen reader, a checkbox glyph hidden; touch targets raised on four chip or choice styles
+  (`minHeight` 44) and, with `hitSlop`, on the Back button, event pill, station link and banner dots. No string changed (none
+  was hard-coded), so no Arabic wording was touched. `pnpm -s vitest run apps/app --maxWorkers=3`: 129 files, 1,476 tests
+  passed. Device and screen-reader work (VoiceOver and TalkBack order and announcements, Reduce Motion on a phone) is listed
+  under T-808 in TASKS.md and stays open. CI 0 minutes (not pushed).
+
 ## FOLLOWUPS batch 32 — 2026-11-08
 
 - **FOLLOWUPS batch 32 (tier B, API and SQL; migration 0183; no function, table, grant or string).** (1) The completion

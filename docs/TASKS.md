@@ -1668,6 +1668,34 @@ _Wallet passes, onboarding intro, web build, load test, restore rehearsal, store
     flow, focus order and keyboard use beyond the rules axe can see, whether a label or alt text means the right thing,
     the paired station and kiosk pages in their live states, contrast over images and gradients (axe reports those as
     "incomplete"), and a reading of every screen in both languages.
+  - Note 2026-11-09 (player app accessibility, from the code, tier B): `apps/app/src/a11y-static.test.ts` parses every `.tsx`
+    file of the app (`src` and `app`, 209 files) with `@babel/parser` (the TypeScript 7 in the repo is the native compiler and
+    has no in-process syntax-tree API) and fails on: a Pressable, Touchable* or other touchable with no `accessibilityRole` or no
+    name (an `accessibilityLabel` or a text child; a Switch needs only the name); an Image with no `accessibilityLabel` that is
+    not decorative (`accessible={false}`, `importantForAccessibility="no"`, `accessibilityElementsHidden`) or inside a named
+    touchable, a labelled `accessible` element or a hidden parent; a TextInput with no label; an Ionicons glyph that is not
+    hidden or inside a named parent (a glyph font is text to a screen reader); and hard-coded text in JSX or in a text prop
+    (`label`, `title`, `placeholder`, `accessibilityLabel`, ...) outside the translator. The allow list is empty. Found and fixed:
+    the full-screen close scrim of `Sheet` had no role; the banner slide's tap target (`HomeBlocks`) took its name from a nested
+    element, it now carries the label itself; eight icon glyphs (tab bars, level trail, achievement rewards, the word-game mark)
+    and the devices padlock are now hidden from a screen reader; the delete-account checkbox's ☑/☐ glyph is hidden (the state
+    is announced as checked) and the row has a 44 pt minimum. No hard-coded user-facing string and no unlabelled input was
+    found, so no message key changed (nothing to translate or to read in Arabic). Touch targets (44 pt iOS, 48 dp Android,
+    where size is set in code; `hitSlop` counts): raised to 44 or more with `minHeight` on the interest choices, the rewards
+    section chips, the sign-in avatar choices and the join-form options (about 38 before); with `hitSlop` on the Back button
+    (22 high, now 46), the event pill (30, now 44), the station "waiting" link (24, now 44) and the banner dots (8 wide,
+    now 44 high). Buttons (46), icon buttons (44), the scan button (64), game cells, keys, ratings, ranking tabs and cards
+    already met it. Left: the banner dots are 16 pt wide (their 8 pt gap would overlap if wider; the slider also moves by
+    swipe and the screen reader reads it as one slide with a place), and the Android 48 dp figure is met only where the code
+    sets 48 or more (the word-game keys and rewards cards; the 44 pt ones fall 4 dp short on Android). Reduce Motion: the code
+    that reads it (`useReduceMotion`: banner auto-advance, counting number, pop-in, coin, intro art, three games, level trail)
+    already stops its motion; the catch game (its falling items are the play) and the QR timer bar on `my-qr` do not read it,
+    and `Sheet` and the location modal slide in whatever the setting says (not changed). Still needs a device and a screen
+    reader: VoiceOver and TalkBack reading order on every screen (the tab bars, the sheet, the banner, the ranking rows, the
+    word-game grid), the wording of the announcements (`announceForAccessibility` in the intro, live polls and quiz timer),
+    focus returning after a sheet or modal closes, the `adjustable` basket in the catch game, whether each label means the
+    right thing, touch targets as drawn with a real thumb, Reduce Motion on a phone, and the read of every screen in both
+    languages.
   - Done when: Every screen has been read in Arabic and English by a person.
 - [ ] **T-809** Independent penetration test against ASVS L2 (core) and MASVS L1 with open-book access; fix or accept in writing every finding — delivers no FR (infrastructure or quality gate); depends on: T-804, T-805
   - Done when: A written report exists; every high or medium finding is fixed and retested, or accepted in writing by the user.

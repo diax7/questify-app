@@ -25,7 +25,12 @@ function MarkGlyph({ mark, size }: Readonly<{ mark: Mark; size: number }>) {
   const styles = useThemedStyles(makeStyles);
   const { theme } = useTheme();
   return (
-    <View pointerEvents="none" style={styles.glyph}>
+    <View
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={styles.glyph}
+    >
       <Ionicons name={MARKS[mark].glyph} size={size} color={theme.colors.text} />
     </View>
   );

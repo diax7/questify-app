@@ -30,7 +30,12 @@ export function Sheet({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <Pressable accessibilityLabel={t("common.close")} onPress={onClose} style={styles.shade} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("common.close")}
+          onPress={onClose}
+          style={styles.shade}
+        />
         <View style={[styles.sheet, { direction: rtl ? "rtl" : "ltr" }]}>
           <AppText variant="title" accessibilityRole="header">
             {title}

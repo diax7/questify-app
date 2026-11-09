@@ -128,9 +128,11 @@ function PendingPrizes({
         accessibilityRole="checkbox"
         accessibilityState={{ checked: state.forfeit }}
         onPress={toggle}
-        style={{ flexDirection: "row", gap: 8, alignItems: "center" }}
+        style={{ flexDirection: "row", gap: 8, alignItems: "center", minHeight: 44 }}
       >
-        <AppText>{state.forfeit ? "☑" : "☐"}</AppText>
+        <AppText accessibilityElementsHidden importantForAccessibility="no">
+          {state.forfeit ? "☑" : "☐"}
+        </AppText>
         <AppText>{t("deletion.forfeit")}</AppText>
       </Pressable>
     </>

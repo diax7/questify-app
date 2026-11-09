@@ -39,7 +39,11 @@ function RewardText({
       <AppText variant="label" numberOfLines={2}>
         {reward.name[language]}
       </AppText>
-      <View style={styles.icons}>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={styles.icons}
+      >
         <Ionicons name="medal" size={20} color={theme.colors[TIER_COLOR[reward.tier]]} />
         {state === "locked" ? null : (
           <Ionicons name={STATE_ICON[state]} size={20} color={theme.colors.tierGold} />

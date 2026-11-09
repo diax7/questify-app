@@ -37,6 +37,7 @@ export function EventPill() {
         accessibilityRole="button"
         accessibilityLabel={t("eventPill.label", { name })}
         onPress={() => setOpen(true)}
+        hitSlop={{ top: 7, bottom: 7 }}
         style={styles.pill}
       >
         <AppText variant="label" numberOfLines={1}>

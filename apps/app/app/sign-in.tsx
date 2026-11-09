@@ -394,6 +394,8 @@ export default function SignInScreen() {
 const makeStyles = (theme: Theme) => ({
   avatars: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: theme.spacing.sm },
   avatar: {
+    minHeight: 44,
+    justifyContent: "center" as const,
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     borderRadius: theme.radius.md,

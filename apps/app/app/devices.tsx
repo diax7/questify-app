@@ -68,7 +68,12 @@ function DeviceCard({
   const lastUsed = useLastUsed();
   return (
     <View style={styles.card}>
-      <Image source={ICON} style={styles.icon} accessibilityIgnoresInvertColors />
+      <Image
+        source={ICON}
+        style={styles.icon}
+        accessible={false}
+        accessibilityIgnoresInvertColors
+      />
       <View style={styles.text}>
         <AppText variant="label">{name(device)}</AppText>
         <AppText muted>

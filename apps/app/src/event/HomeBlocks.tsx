@@ -171,7 +171,11 @@ export function BannerSlider({
       {outcome === null ? (
         <SlideFace slide={slide} label={label} />
       ) : (
-        <Pressable accessibilityRole="button" onPress={() => open(outcome)}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={label ?? slideLabel("", slide, language)}
+          onPress={() => open(outcome)}
+        >
           <SlideFace slide={slide} label={label} />
         </Pressable>
       )}
@@ -185,7 +189,8 @@ export function BannerSlider({
               accessibilityRole="button"
               accessibilityLabel={t("home.banner.goTo", { n: position + 1 })}
               accessibilityState={{ selected: position === current }}
-              hitSlop={12}
+              // 8 wide dots: a 44 high touch area, 16 wide so neighbours do not overlap (their gap is 8).
+              hitSlop={{ top: 18, bottom: 18, left: 4, right: 4 }}
               onPress={() => {
                 setTouched(true);
                 setIndex(position);

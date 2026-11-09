@@ -29,7 +29,15 @@ export default function QuestifyTabsLayout() {
           name={tab.name}
           options={{
             title: t(tab.title),
-            tabBarIcon: ({ color, size }) => <Ionicons name={tab.icon} size={size} color={color} />,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons
+                name={tab.icon}
+                size={size}
+                color={color}
+                accessible={false}
+                importantForAccessibility="no"
+              />
+            ),
             ...(tab.name === "scan"
               ? {
                   tabBarButton: () => (

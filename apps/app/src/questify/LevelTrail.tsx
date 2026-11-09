@@ -61,7 +61,13 @@ function StoneMark({ stone }: Readonly<{ stone: Stone }>) {
 function StoneEnd({ stone }: Readonly<{ stone: Stone }>) {
   const { theme } = useTheme();
   return stone.state === "locked" ? null : (
-    <Ionicons name="checkmark-circle" size={26} color={theme.colors.tierGold} />
+    <Ionicons
+      name="checkmark-circle"
+      size={26}
+      color={theme.colors.tierGold}
+      accessible={false}
+      importantForAccessibility="no"
+    />
   );
 }
 
@@ -69,7 +75,13 @@ function StoneEnd({ stone }: Readonly<{ stone: Stone }>) {
 function StonePicture({ stone, me }: Readonly<{ stone: Stone; me: Me }>) {
   const { theme } = useTheme();
   return stone.item === null ? (
-    <Ionicons name="flag" size={32} color={theme.colors.tierGold} />
+    <Ionicons
+      name="flag"
+      size={32}
+      color={theme.colors.tierGold}
+      accessible={false}
+      importantForAccessibility="no"
+    />
   ) : (
     <ItemPreview item={stone.item} me={me} size={48} locked={stone.state === "locked"} />
   );
