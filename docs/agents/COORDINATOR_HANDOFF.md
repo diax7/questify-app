@@ -179,6 +179,10 @@ nearly exhausted; the function-limits baseline (`scripts/function-limits-baselin
   rerun the failed job, do not deploy past it.
 - Integration tests skip silently without `TEST_DATABASE_URL` and `TEST_REDIS_URL` (Setting up): read the pass count. On this
   loaded server use `--maxWorkers=3 --hookTimeout=500000 --testTimeout=400000`.
+- 2026-11-09 09:59: an uncommitted edit to `apps/web/src/lib/post-json.ts` (an older timeout patch applied twice, which drops the
+  abort check and breaks lint) appeared in a refactor worker's worktree that did not touch that file. Its source was not found;
+  other people's Claude and Codex sessions run on this server. Never commit a change a report does not name: check `git status`
+  in a worktree before merging from it.
 - Workers have twice run stale scripts left in the shared scratchpad. Tell every worker to run only scripts it writes itself.
 - Dhia asked for design help: `docs/design/ASSET_NEEDS.md` lists the art the product lacks. He was asked for `ASSET_LIST.md` and
   `manifest.json` from `docs/design/assets` on his PC first.
