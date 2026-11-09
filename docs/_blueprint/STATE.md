@@ -320,7 +320,7 @@
 
 ## Handoff to the company server — 2026-11-06
 
-- The newest entries are below, then older ones. Staging: `release-20261108-5`, migration 0182 (0156 reserved for T-810d). Live
+- The newest entries are below, then older ones. Staging: `release-20261109-1`, migration 0183 (0156 reserved for T-810d). Live
   today: gems removed and the Journey tab (T-404c, T-404d; ADR-760 to 768), FOLLOWUPS batches 1 to 7, ADR-810 (the company server
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
