@@ -252,7 +252,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console safety tools over HTTP
   it("edits the full-name allow-list: add, a repeat, each refusal, the page, remove", async () => {
     const added = await call("POST", "/v1/admin/name-allow", admin(), { word: "Snarklan" });
     expect(added.statusCode).toBe(201);
-    expect(added.json()).toEqual({ word: "Snarklan" });
+    expect(added.json()).toEqual({ word: "snarklan" });
     expect(
       (await call("POST", "/v1/admin/name-allow", admin(), { word: "سنركلان" })).statusCode,
     ).toBe(201);
@@ -260,7 +260,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("console safety tools over HTTP
       ["SNARKLAN", 409, "word_exists"],
       ["x1", 400, "invalid_allow_word"],
       ["fuck", 422, "allow_word_listed"],
-      ["fucks", 422, "allow_word_unsafe"],
+      ["fucks", 422, "allow_word_listed"],
+      ["fuckme", 422, "allow_word_unsafe"],
     ] as const) {
       const answer = await call("POST", "/v1/admin/name-allow", admin(), { word });
       expect([answer.statusCode, answer.json()], word).toMatchObject([status, { code }]);

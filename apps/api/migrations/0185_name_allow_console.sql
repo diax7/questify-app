@@ -6,7 +6,8 @@
 --   * `console_name_allow` reads a page of the list (50, by word), filtered by a folded part and the language;
 --   * `admin_name_allow_add` folds the word as the check reads a name (`full_name_fold`), takes its language from its
 --     letters, and refuses a word that is not one word of 2 or more Arabic or English letters (WA400), a word that is
---     itself a list entry (WA409), and a word that would let an abusive name of the corpus through (WA422);
+--     a list entry or one with an affix the check strips or a run of letters it collapses (WA409), and a word that
+--     would let an abusive name of the corpus through (WA422); it answers the stored word;
 --   * `admin_name_allow_remove` removes one.
 -- The list's statement trigger (`full_name_allow_recheck`, 0177) marks the name-flag sweep pending on every change, so a
 -- door runs no page itself. New, closed by default: table `full_name_probe` (no grant), the abusive names of the corpus
@@ -89,26 +90,44 @@ END $$;
 REVOKE ALL ON FUNCTION console_name_allow(text, text, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION console_name_allow(text, text, text) TO questify_app;
 
--- Adds an allow word. Outcomes: added, exists. The word is stored as the check reads a name: `full_name_fold` (NFKC,
+-- Adds an allow word. Answers {outcome: added | exists, word: the stored word}. The word is stored as the check reads a name: `full_name_fold` (NFKC,
 -- accents and marks dropped, the username fold, Persian and look-alike letters made the list's), so «Nāsser», «ناصر» with
 -- a Persian letter or a full-width word is stored as the check will meet it; its language is its letters' (an Arabic
 -- word also covers its prefix and nisba forms, ADR-817). Refusals:
 --   WA400  not one word of 2 or more letters, all Arabic or all English, typed in 60 characters or fewer (a space, a
 --          digit or a symbol is left after the fold, or the table's CHECK refuses it);
---   WA409  the word is itself a `username_word` entry: allowing it would undo the entry for every name (a real name
---          that is a list word, such as Butt, stays a migration's decision, reviewed);
+--   WA409  the word is itself a `username_word` entry, or is one in a shape the check reads as the entry: with one of the
+--          check's own affixes removed (a Latin ending of `latin_end`; an Arabic prefix and ending of `full_name_blocked`,
+--          ة read as ت before a pronoun or ات), or with a run of 3 or more of one letter read as 1 or 2, it equals a
+--          `word` entry or holds a `part` entry (cunty, pussys, asses, kikes, «كسي», «الكسي», «منيوكي», fuuuck). Allowing
+--          it would let the entry through in that shape. The word as typed may hold a `part` entry: that is what an
+--          allow word is for. A real name of that shape (Butt, Butts, Skeeter, seeded) stays a migration's decision,
+--          reviewed;
 --   WA422  with the word allowed, an abusive name of `full_name_probe` that the check refuses now would pass.
+-- Neither rule sees an abusive form outside the corpus and outside the affix rule; the audit entry is the backstop.
 -- Lock order, as the word doors: the lists' advisory key exclusive, then reads of the lists and the probes (no lock),
 -- the new row, the sweep row (the list trigger), never an answer. The probes checked are only those holding the word
 -- (the word skips only a word of a name, so a probe whose folded letters do not hold it cannot change); each is checked
 -- before the insert and again after it, a few probes at most, under 50 ms.
-CREATE FUNCTION admin_name_allow_add(new_word text, request uuid) RETURNS text
+CREATE FUNCTION admin_name_allow_add(new_word text, request uuid) RETURNS jsonb
   LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
-  me      uuid := console_admin();
-  folded  text := full_name_fold(left(coalesce(new_word, ''), 61));
-  lang    text;
-  refused text[];
+  me        uuid := console_admin();
+  folded    text := full_name_fold(left(coalesce(new_word, ''), 61));
+  -- The affixes `full_name_blocked` (0181) strips, as it declares them (a test keeps the two equal).
+  prefixes  text[] := '{"",و,ف,ب,ك,ل,وب,وك,ول,فب,فك,فل,ال,وال,فال,بال,كال,لل,وبال,وكال,ولل,فبال,فكال,فلل,'
+                      'يا,ياال,ابن,ابنال,بنت,بنتال,يابن,يابنال}';
+  endings   text[] := '{"",ات,ين,ون,ك,كم,ها,هم,تك,تكم,تها,تهم,تي,ي,يه,ه}';
+  latin_end text[] := '{"",s,es,er,ers,ed,ing,ings,y,ies}';
+  lang      text;
+  refused   text[];
+  forms     text[];
+  stems     text[] := '{}';
+  form      text;
+  rest      text;
+  stem      text;
+  p         text;
+  e         text;
 BEGIN
   lang := CASE WHEN folded ~ '^[ء-غف-ي]{2,}$' THEN 'ar' WHEN folded ~ '^[a-z]{2,}$' THEN 'en' END;
   IF lang IS NULL OR char_length(new_word) > 60 THEN
@@ -116,10 +135,47 @@ BEGIN
   END IF;
   PERFORM pg_advisory_xact_lock(hashtextextended('username_word', 0));
   IF EXISTS (SELECT 1 FROM full_name_allow a WHERE a.word = folded) THEN
-    RETURN 'exists';
+    RETURN jsonb_build_object('outcome', 'exists', 'word', folded);
   END IF;
   IF EXISTS (SELECT 1 FROM username_word u WHERE u.word = folded) THEN
     RAISE EXCEPTION 'the word is on the word lists' USING ERRCODE = 'WA409';
+  END IF;
+  -- The shapes the check reads as an entry: a run of 3 or more of one letter read as 1 and as 2, then one affix of the
+  -- check's own loop removed (2 letters or more left), as `full_name_blocked` reads a word.
+  forms := ARRAY[folded];
+  IF folded ~ '(.)\1\1' THEN
+    forms := forms || regexp_replace(folded, '(.)\1\1+', '\1', 'g') || regexp_replace(folded, '(.)\1\1+', '\1\1', 'g');
+  END IF;
+  FOREACH form IN ARRAY forms LOOP
+    IF lang = 'ar' THEN
+      FOREACH p IN ARRAY prefixes LOOP
+        CONTINUE WHEN NOT starts_with(form, p);
+        rest := substr(form, char_length(p) + 1);
+        FOREACH e IN ARRAY endings LOOP
+          CONTINUE WHEN char_length(rest) - char_length(e) < 2 OR right(rest, char_length(e)) <> e;
+          stem := left(rest, char_length(rest) - char_length(e));
+          stems := stems || stem;
+          IF e = 'ات' OR e LIKE 'ت%' THEN
+            stems := stems || (stem || 'ه');
+          END IF;
+        END LOOP;
+      END LOOP;
+    ELSE
+      FOREACH e IN ARRAY latin_end LOOP
+        CONTINUE WHEN char_length(form) - char_length(e) < 2 OR right(form, char_length(e)) <> e;
+        stem := left(form, char_length(form) - char_length(e));
+        stems := stems || stem;
+        IF e = 'ies' THEN
+          stems := stems || (stem || 'y');
+        END IF;
+      END LOOP;
+    END IF;
+  END LOOP;
+  -- The word as typed is not a shape: it may hold a `part` entry (the allow-list's reason), never equal one (above).
+  IF EXISTS (SELECT 1 FROM unnest(array_remove(stems, folded)) s(stem)
+             JOIN username_word u ON (u.match = 'word' AND u.word = s.stem)
+                                  OR (u.match = 'part' AND strpos(s.stem, u.word) > 0)) THEN
+    RAISE EXCEPTION 'the word is a list entry with an ending, a prefix or a repeated letter' USING ERRCODE = 'WA409';
   END IF;
   SELECT coalesce(array_agg(p.name), '{}') INTO refused
   FROM full_name_probe p
@@ -135,7 +191,7 @@ BEGIN
   END IF;
   INSERT INTO audit_log (actor_type, actor_id, action, target_type, target_id, after, request_id)
   VALUES ('admin', me, 'full_name_allow.add', 'full_name_allow', folded, jsonb_build_object('language', lang), request);
-  RETURN 'added';
+  RETURN jsonb_build_object('outcome', 'added', 'word', folded);
 END $$;
 REVOKE ALL ON FUNCTION admin_name_allow_add(text, uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION admin_name_allow_add(text, uuid) TO questify_app;

@@ -8,7 +8,8 @@ Tier B with an admin power. Short plan note; the build follows the word lists (T
 - **Normalisation.** The word is stored as `full_name_blocked` meets it: `full_name_fold` (not `username_fold`, so accents,
   NFKC forms and Persian letters fold as in a name). One word of 2+ letters, all Arabic or all English (WA400); the language
   is derived from the letters, since it decides whether the prefix and nisba forms are covered.
-- **Refusals.** WA409: the word is a `username_word` entry. WA422: with the word inserted, an abusive name of the corpus
+- **Refusals.** WA409: the word is a `username_word` entry, or one with an affix the check strips or a run of 3 or more letters it
+  collapses (review 86). WA422: with the word inserted, an abusive name of the corpus
   that is refused now passes. The corpus' abusive names are copied into `full_name_probe` (no grant); only the probes whose
   space-free fold holds the word are checked (an allow word skips only a word of a name that holds it), before and after the
   insert, in the same transaction; a refusal rolls the insert and the sweep mark back.

@@ -8929,11 +8929,19 @@ longer edited by migration only: a Questify admin adds or removes an allow word 
 (`full_name_fold`: NFKC, accents and marks dropped, the username fold, Persian and look-alike letters), must be one word of 2 or
 more letters, all Arabic or all English, and its language is its letters' (an Arabic word covers its prefix and nisba forms, as
 above). The door refuses a word that is itself a `username_word` entry (butt, dick, kike and the other seeded ones that are list
-words stay a reviewed migration's decision) and a word with which an abusive name of the corpus would pass: the corpus' abusive
+words stay a reviewed migration's decision), a word of an entry's shape (below) and a word with which an abusive name of the corpus would pass: the corpus' abusive
 names are copied to `full_name_probe` (a test keeps it equal to `test/db/full-name-corpus.ts`, so a name added to the corpus
-needs a migration that adds its probe), and the door checks the probes that hold the word before and after its insert. So
-fucks, sexx, fuckme, «السحاقي», «ياخولي», «كسك» are refused (each is a list entry with a known ending, a letter added or a
-prefix), while a real name's word that only holds an entry, such as Ishaq, passes; every word of every abusive corpus name
-tried through the door leaves all 327 refused. The trade-off kept: an abusive form that is not in the corpus can still be
-allowed by an admin, which the audit (`full_name_allow.add`, the word) and the page show. The list trigger marks the sweep
+needs a migration that adds its probe), and the door checks the probes that hold the word before and after its insert. **The
+shape rule (WA409, review 86):** the probes see only the corpus, so the door also refuses a word that, with one of the check's
+own affixes removed (a Latin ending of `latin_end`; an Arabic prefix and ending of `full_name_blocked`'s loop, ة read as ت before
+a pronoun or ات, declared as the check declares them and kept equal by a test) or with a run of 3 or more of one letter read as 1
+or 2, equals a `word` entry or holds a `part` entry: cunty, pussys, asses, kikes, «كسي», «طيزي», «عرصي», «منيوكي», «نيكي» and
+«الكسي» were refused by the check and passed once allowed; they are refused now. The word as typed may hold a `part` entry (the
+list's reason). The rule refuses 27 words of the corpus' real names, each seeded already (asser, atwater, butters, butts, cocker,
+cummings, fuks, skeeter, slutsky, spicer, «الخولي», «خوله», «لحسين», «باسحاق», «شرجي» and others, `test/db/name-allow-console`); a
+new real name of that shape stays a reviewed migration's call, as the door's error says. So fucks, «السحاقي», «ياخولي», «كسك»
+are refused by their shape and sexx, fuckme by their probes, while a real name's word that only holds an entry, such as Ishaq, passes; every word of every abusive corpus name
+tried through the door leaves all 327 refused. The honest limit: an abusive form outside the corpus and outside the shape rule
+(a letter added inside a word, an ending the check does not strip) is not caught and can still be allowed by an admin; the audit
+(`full_name_allow.add`, the word) and the page are the backstop. The list trigger marks the sweep
 on every change, so stored names follow within minutes.

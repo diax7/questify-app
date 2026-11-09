@@ -157,8 +157,8 @@ function registerNameAllow(scope: FastifyInstance, deps: ConsolePlayerDeps): voi
   scope.post("/name-allow", change, async (request, reply) => {
     const { word } = parse(allowBody, request.body);
     const who = await throttled(deps, request, reply, CONSOLE_WORDS_WRITE_LIMIT);
-    await addAllowWord(deps.pool, who, word, request.id);
-    return reply.code(201).send({ word });
+    const stored = await addAllowWord(deps.pool, who, word, request.id);
+    return reply.code(201).send({ word: stored });
   });
 
   scope.delete("/name-allow/:word", change, async (request, reply) => {

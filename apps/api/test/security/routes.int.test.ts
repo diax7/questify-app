@@ -1043,7 +1043,7 @@ const ROUTES: Readonly<Record<string, string>> = {
   "GET /v1/admin/name-allow":
     "active platform admins only (walked below); console_name_allow re-reads the admin; 50 allow words a page with filters, no player data; the word lists' 120 reads a minute per admin (test/console/safety, test/db/name-allow-console)",
   "POST /v1/admin/name-allow":
-    "active platform admins only (walked below); admin_name_allow_add re-reads the admin, folds the word as the full-name check does, refuses a non-word (WA400), a list entry (WA409) and a word that lets a corpus abusive name through (WA422); audited with the word; Idempotency-Key; the word lists' 60 changes an hour per admin (test/console/safety, test/db/name-allow-console)",
+    "active platform admins only (walked below); admin_name_allow_add re-reads the admin, folds the word as the full-name check does, refuses a non-word (WA400), a list entry or one with an affix the check strips (WA409) and a word that lets a corpus abusive name through (WA422); audited with the word; Idempotency-Key; the word lists' 60 changes an hour per admin (test/console/safety, test/db/name-allow-console)",
   "DELETE /v1/admin/name-allow/:word":
     "active platform admins only (walked below); admin_name_allow_remove re-reads the admin; an allow word, a list entry and not a player's, may sit in the URL; audited; Idempotency-Key; the word lists' 60 changes an hour per admin (test/console/safety, test/db/name-allow-console)",
   "GET /v1/admin/retired-usernames":

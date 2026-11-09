@@ -2514,8 +2514,8 @@ export const invalidAllowWord = make(
 export const allowWordListed = make(
   422,
   "allow_word_listed",
-  "الكلمة نفسها في قوائم الكلمات، فلا يمكن السماح بها هنا.",
-  "That word is itself on the word lists, so it can't be allowed here.",
+  "الكلمة في قوائم الكلمات، أو هي كلمة منها بلاحقة أو بحرف مكرر، فلا يمكن السماح بها هنا. يُضاف الاسم الحقيقي من هذا النوع بترحيل لقاعدة البيانات.",
+  "That word is on the word lists, or is a list word with an ending or a repeated letter, so it can't be allowed here. A real name like that is added by a database migration.",
 );
 export const allowWordUnsafe = make(
   422,

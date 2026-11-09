@@ -738,8 +738,11 @@ admin adds or removes a word of `full_name_allow`, which lets full names holding
 seat, so a member, an organizer, a player or a disabled admin gets 404 from the routes), take the lists' advisory key, and audit each
 change with the word (`full_name_allow.add|remove`, a list entry, not a player's); no reason and no re-authentication, as the word lists.
 The add door is the wall against widening the lists by mistake: it refuses a word that is itself a `username_word` entry (WA409; a real
-name such as Butt stays a reviewed migration's decision) and a word with which an abusive name of the corpus that is refused now would
-pass (WA422; `full_name_probe`, the corpus' 327 abusive names, no grant, kept equal to `test/db/full-name-corpus.ts` by a test). Every
+name such as Butt stays a reviewed migration's decision), a word of an entry's shape (WA409 too: with one of the check's own affixes
+removed or a run of 3 or more letters collapsed, it equals a `word` entry or holds a `part` entry, so cunty, kikes or «كسي» cannot be
+allowed; Butts and Skeeter stay a migration's call), and a word with which an abusive name of the corpus that is refused now would
+pass (WA422; `full_name_probe`, the corpus' 327 abusive names, no grant, kept equal to `test/db/full-name-corpus.ts` by a test). The
+limit: an abusive form outside the corpus and outside the affix rule is not caught; the audit entry is the backstop. Every
 abusive corpus word tried through the door leaves every abusive name refused (`test/db/name-allow-console.int`). The list trigger marks
 the name-flag sweep, so stored names follow within minutes. Outsider and cross-tenant suites hold the three doors and the probe table.
 

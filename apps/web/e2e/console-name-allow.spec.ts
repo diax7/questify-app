@@ -24,7 +24,10 @@ test("an admin allows, finds and removes a name word, and sees a list word refus
   const list = page.getByRole("region", { name: "Allowed words" });
   await list.getByLabel("Word", { exact: true }).fill("fuck");
   await list.getByRole("button", { name: "Allow word" }).click();
-  await expect(list.getByText("That word is itself on the word lists")).toBeVisible();
+  await expect(list.getByText("That word is on the word lists")).toBeVisible();
+  await list.getByLabel("Word", { exact: true }).fill("fuuucks");
+  await list.getByRole("button", { name: "Allow word" }).click();
+  await expect(list.getByText("is a list word with an ending or a repeated letter")).toBeVisible();
   await list.getByLabel("Word", { exact: true }).fill(word);
   await list.getByRole("button", { name: "Allow word" }).click();
   await expect(page.getByText("Word allowed.")).toBeVisible();
@@ -33,12 +36,12 @@ test("an admin allows, finds and removes a name word, and sees a list word refus
   await expect(line).toHaveCount(1);
   await expect(line).toContainText("English");
   await list.getByLabel("Language").selectOption({ label: "Arabic" });
-  await expect(list.getByText("No allowed words.")).toBeVisible();
+  await expect(list.getByText("No words match.")).toBeVisible();
   await list.getByLabel("Language").selectOption({ label: "English" });
   await line.getByRole("button", { name: "Remove" }).click();
   await line.getByRole("alert").getByRole("button", { name: "Remove" }).click();
   await expect(page.getByText("Word no longer allowed.")).toBeVisible();
-  await expect(list.getByText("No allowed words.")).toBeVisible();
+  await expect(list.getByText("No words match.")).toBeVisible();
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );

@@ -193,7 +193,15 @@ function AllowSection({
             <Muted>
               {t("console.wordLists.total", { count: formatNumber(state.total, language) })}
             </Muted>
-            {state.rows.length === 0 ? <Muted>{t("console.nameAllow.empty")}</Muted> : null}
+            {state.rows.length === 0 ? (
+              <Muted>
+                {t(
+                  filter.q.trim() === "" && filter.language === ""
+                    ? "console.nameAllow.empty"
+                    : "console.nameAllow.noMatch",
+                )}
+              </Muted>
+            ) : null}
             <Rows>
               {state.rows.map((word) => (
                 <AllowLine key={word.word} language={language} word={word} onRemoved={changed} />

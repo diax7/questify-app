@@ -24,6 +24,7 @@ export function readAllowWords(pool: Pool, admin: Admin, filter: AllowFilter): P
  * Allows a word of a real name in a full name (ADR-817). The door folds it as the check reads a name, takes its language
  * from its letters, and the list trigger marks the stored names for the sweep.
  *
+ * @returns The word as stored, folded as the check reads a name.
  * @throws HttpError word_exists, invalid_allow_word, allow_word_listed, allow_word_unsafe.
  */
 export function addAllowWord(
@@ -31,15 +32,17 @@ export function addAllowWord(
   admin: Admin,
   word: string,
   requestId: string,
-): Promise<void> {
+): Promise<string> {
   return door(pool, admin, async (client) => {
-    const { rows } = await client.query<{ r: string }>("SELECT admin_name_allow_add($1, $2) AS r", [
-      word,
-      requestId,
-    ]);
-    if (rows[0]?.r === "exists") {
+    const { rows } = await client.query<{ r: { outcome: string; word: string } }>(
+      "SELECT admin_name_allow_add($1, $2) AS r",
+      [word, requestId],
+    );
+    const answer = rows[0]?.r;
+    if (answer?.outcome !== "added") {
       throw wordExists();
     }
+    return answer.word;
   });
 }
 
