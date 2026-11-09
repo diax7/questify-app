@@ -1405,6 +1405,24 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
 - **Hot path check:** the update trigger fires on every `UPDATE enrollment` (each scan's score update) and exits early.
   If `QuestifyCompletionSlow` fires after the deploy, compare a quest scan's time with the T-221 numbers in TASKS.
 
+### The sign-in lock order (migration 0184; deploy steps)
+
+- **Safe on the old API.** Same arguments for the three restated doors; `sweep_player_sign_in()` now answers an integer
+  (the old API ignores it and sweeps one batch every 10 minutes an instance until the new one runs); end-others may now
+  answer `PN401`, which the old API already maps to 401. No down migration: the old bodies are the deadlock-prone ones.
+- **Index builds.** 0184 builds five indexes on `player_refresh`, `player_session` and `player_sign_in_device` inside its
+  transaction: sign-ins and rotations wait for the build (well under a second at pre-launch size). On tables of millions of
+  rows, build them `CONCURRENTLY` by hand first under the same names and definitions, then run the migration with the
+  `CREATE INDEX` lines made `IF NOT EXISTS` in a new file, never by editing 0184 once deployed.
+- **Count before the deploy (read-only, each environment; plan section 5, ADR-810):**
+  `SELECT count(*) FROM player_refresh r WHERE NOT EXISTS (SELECT 1 FROM player_sign_in_device d WHERE d.family =
+  r.family);` and `SELECT count(*) FILTER (WHERE s.refresh_family IS NULL) AS no_family, count(*) FILTER (WHERE
+  s.refresh_family IS NOT NULL) AS no_device FROM player_session s WHERE NOT EXISTS (SELECT 1 FROM player_sign_in_device d
+  WHERE d.family = s.refresh_family);` Expected 0 refresh rows (0155's backfill); record the numbers in STATE. Rows found
+  are swept without a device lock; nothing to do unless the counts are large.
+- **After the deploy:** `player.sweep_failed` should stay at zero; a sweep that keeps hitting its 1 s budget (old rows
+  growing) means the batch size needs a new migration (`apps/api/test/perf/sign-in-sweep-timing.int.test.ts`).
+
 ### T-404c levels only (migration 0164; deploy steps)
 
 - **When:** migrate 0164 in a quiet minute. It locks every table it changes up front (`lock_timeout` 10 s), and a daily

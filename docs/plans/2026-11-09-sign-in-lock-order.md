@@ -315,6 +315,31 @@ today), and on `player_refresh.replaced_by` if the foreign key's check on each d
 built inside 0184 (pre-launch tables are small; RUNBOOK notes the build's write lock). The plan records the numbers and the
 choice when they are measured.
 
+**Measured (2026-11-09, the build; `test/perf/sign-in-sweep-timing.int.test.ts`, local PostgreSQL 17, 128 MB shared
+buffers).** Fixture as above: 5,164,894 refresh rows and 5,071,723 sessions; the 9-minute seed meant about two slots had
+crossed the 7-day mark when measured (9,556 old refresh rows, 6,639 old sessions), more than one steady-state run.
+- **0155's sweep does not finish.** It stopped at the 5 s statement timeout. The cause is the `replaced_by` foreign key:
+  with no index on `replaced_by`, each deleted refresh row scans the whole table (`EXPLAIN` of 20 deletes: the trigger took
+  12.9 s, 0.64 s a row), and the old-row scans are sequential (3.5 s and 3.1 s for the refresh and session tables). So at
+  100,000 players today's sweep fails every run and the tables only grow.
+- **One transaction (0184's statements without limits) misses both gates**: 2.2 to 4.7 s for about 39,000 rows on the
+  exploration copy, and a rotation of a held family would wait that long.
+- **Chosen: bounded batches plus indexes.** Indexes on `least(revoked_at, used_at, expires_at)` (refresh),
+  `least(revoked_at, expires_at)` (sessions, plus a partial twin for sessions with no family, which otherwise cost 220 ms a
+  batch to find none), `replaced_by` (partial) and `ended_at` (partial). A batch takes at most 500 families from each of
+  the four old-row windows and 1,000 codes of each kind. Measured: 10 batches of 85 to 115 ms (about 1,000 rows each, the
+  first 2,322), 11,845 rows; a run with a 1 s budget took 1,052 ms because a batch could start just before the budget
+  ended, so the loop now starts a batch only when one as long as the last still ends inside it. Rotations of the old
+  families run beside it on 6 connections: 870 rotations, median 4 ms, **longest 106 ms** (200 alone: longest 37 ms).
+- Re-measured after the loop change on a fresh fixture (9,442 old refresh rows, 6,491 old sessions): **955 ms**, 9
+  batches of 92 to 127 ms, 10,851 rows; 811 rotations beside it, median 4 ms, **longest 110 ms** (200 alone: 26 ms).
+- Both gates pass: each batch under 250 ms, the run under 1 s, the longest rotation 110 ms against the 250 ms gate. One run removes about one steady-state slot at 100,000 players (10,000 to
+  12,000 rows), so a single instance keeps up and two or more catch up a backlog; RUNBOOK says what to watch.
+- Not a candidate set: "a live device row whose family has no refresh row" is no longer scanned for (a full pass over the
+  device table each batch). No path leaves one: rows are born with the family, 0155's sweep removed such device rows in
+  the transaction that removed the last refresh row, and 0184 does the same for the families it holds. One that existed
+  would still go when its family is swept for any other reason.
+
 ## 6. Tests (test first; two connections, in the style of the existing race tests)
 
 Style: `f.crossed(first, second)` in `test/support/questify.ts` (first held open, second started, `waited` from
@@ -404,6 +429,15 @@ and run against section 6, as 0146's `ORDER BY` mutant was:
 | Sweep: rowless branch dropped | 21 |
 | Sweep: re-auth code delete not limited to held families | equivalent: a family's re-auth code is written only by `start_player_reauth`, which takes no device row and waits for nothing after its one upsert, so no test can make the unlimited delete wait or deadlock (plan review MINOR-5) |
 | Either `ORDER BY d.id` dropped | equivalent for these tests (a single crossing cannot show it); noted, as the rules allow |
+
+**Run (2026-11-09, the build; each mutant applied alone to 0184 and the file's suite run).** 15 run, 13 killed, 2
+equivalent survivors as planned (the re-auth code delete not limited; end-others' `ORDER BY d.id` dropped; the sweep has
+no `ORDER BY` any more: it never waits, so its lock order cannot matter). Killed by more than the plan said: dropping
+`FOR SHARE` in `start_player_challenge` also fails 4 and 7; the flag in `DECLARE` also fails 3 and 4; no `SKIP LOCKED` on
+the device lock fails 8 to 12 and 18; 0155's order fails 9, 11, 12 and 18; the unlimited refresh delete fails 9, 11, 12
+and 18; the unlimited session delete fails 18. The loop over a new `SELECT` survived the existing late-sign-in test (the
+sign-in there commits after end-others returns), so the build added test 17b, "a sign-in that commits while it waits stays
+live" (end-others waits on a rotation of its own family while a new device signs in), which kills it.
 
 ## 9. Deploy and the old API
 

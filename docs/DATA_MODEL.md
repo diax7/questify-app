@@ -1579,6 +1579,11 @@ API's role alone: counts of events, players (enrollments not pending or declined
   `signed_in_at` (the family's start), `reauth_at`, `ended_at`. Written only by definers; ended rows and rows whose
   family has no refresh row left go in `sweep_player_sign_in` (7 days after the end). Exported as `signedInDevices`
   (live ones; never the family), deleted by `erase_rows`.
+- The sweep's indexes (0184): `player_refresh (least(revoked_at, used_at, expires_at))`,
+  `player_refresh (replaced_by) WHERE replaced_by IS NOT NULL` (the foreign key's check on each deleted row),
+  `player_session (least(revoked_at, expires_at))` (and its partial twin `WHERE refresh_family IS NULL`) and
+  `player_sign_in_device (ended_at) WHERE ended_at IS NOT NULL`. `sweep_player_sign_in()` answers how many rows one batch
+  removed (at most 500 families and 1,000 codes of each kind); the API repeats it within a 1 s budget.
 - `player_reauth_challenge`: one live code per family (`family` unique), keyed hash only, 3 tries, 5 minutes; no
   contact column. Swept an hour after it expires, deleted with the family's end and by `erase_rows`.
 - `staff_session.reauth_at`: written only by `confirm_staff_reauth`; the guard refuses moving it back.

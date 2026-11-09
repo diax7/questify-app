@@ -35,7 +35,6 @@ Format: `- <date> <task>: <what and where> (<source>)`
 - 2026-11-03 T-708: check on a real Android device that share targets (Drive, Save to Files) finish reading before `data-export.ts` deletes the cache file (70-77); if not, delete it the next time the screen opens (T-708 review). Batch 13 left it: whether a share target finishes reading is the device check, and deleting later keeps personal data in the cache longer, so it is not made without it.
 - 2026-11-03 T-713: no render test for unknown or hidden Home blocks (`HomeScreen.tsx`; add one if a React Native render harness appears) (T-713 review). The SQL port check is done (batch 20, 0176).
 - 2026-11-03 T-706b: the event audience ignores marketing consent and uses the promo text rules (it is an event notice, not a promotion; the audience radio now has an info tip saying so).
-- 2026-11-03 T-710: `start_player_challenge` reads the window without a lock (`0144:186`), so a challenge opened while Prepare commits gets a real SMS (only to Questify's own SIM) (T-710 review). Sign-in: tier A, not for a followups batch.
 - 2026-11-03 T-802: focus is lost when Next becomes the final actions on Android (iOS now gets an announcement of each new card's title; both need a screen-reader check on a device); a signed-in player with consent due can race `ConsentGate` and the intro at `app/index.tsx:26` (T-802 review).
 - 2026-11-03 T-802b: `ConsoleIntroCards.tsx` labels rows with the shipped titles, not reworded App texts (T-802b review). Q-570 accepted by the developer on that basis. Left (no migration, but not a small fix): the web app has no way to read translation-store overrides (`translatorFor` uses the shipped texts only), so reworded titles need that read built first.
 - 2026-11-03 coordinator: `events.spec` (phone, CI) failed once because the "today" ranking checkbox click was undone while the ranking switch's save was still re-reading the switches; the test now waits for the network to settle. Check whether `EventForm`'s switch saves overwrite a second switch changed meanwhile (same pattern as the feature-layers override note) and serialize the saves if so.
@@ -55,11 +54,7 @@ Format: `- <date> <task>: <what and where> (<source>)`
 
 - MINOR (design): the app's icon set has no 3D phone, so the signed-in devices cards use the padlock icon. Ask for a
   phone icon in the brand-deck style (`apps/app/assets/icons/`).
-- T-810c code review (91; MINOR, NIT): the sweep in 0155 (`player_refresh` cleanup) deletes refresh rows before device
-  rows, the reverse of rotation's order; it can deadlock only with a token older than the 7-day sweep window (lock the
-  device rows first). The end-others fresh check reads the caller's own device row without a lock (`FOR UPDATE` it in
-  id order with the others). Both are left: each needs a new migration that rewrites sign-in functions (tier A, a plan
-  and a race test), for a deadlock that aborts one request and a read whose race changes nothing. NIT: the staff session list hides
+- T-810c code review (91; NIT): the staff session list hides
   idle-lapsed sessions that `end_other_staff_sessions` still ends, so "ended N" can exceed the rows shown.
   Fixed in the review commit: erasure locks the device rows before the push deletes; "has changed" strings.
 - 2026-11-05 CI run 42048259497 (browser shard 1): `e2e/shop-window.spec.ts:168` (ar, desktop) waited 10 s for the
