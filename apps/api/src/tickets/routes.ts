@@ -48,6 +48,7 @@ import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import { holdBack, type DeviceLimit } from "#src/devices/limits";
 import { organizerContextOf } from "#src/organizers/context";
+import { refusalThrower } from "#src/refusal-table";
 import type { SettingsService } from "#src/settings/service";
 import {
   markTicketsSeen,
@@ -200,60 +201,40 @@ async function releaseLookup(deps: Deps, key: Buffer, at: string): Promise<void>
   );
 }
 
+const refuseTicket = refusalThrower<TicketRefusal, [reply: FastifyReply]>({
+  not_found: () => notFound(),
+  not_member: () => ticketNotMember(),
+  feature_off: () => featureOff(),
+  sending_closed: () => ticketSendingClosed(),
+  unknown_quest: () => ticketUnknownQuest(),
+  invalid_kind: () => invalidRequest(),
+  invalid_text: (result) => ticketText({ problem: result.problem }),
+  too_many_open: () => tooManyOpenTickets({ limit: TICKET_OPEN_LIMIT }),
+  too_many_tickets: (result, reply) => {
+    reply.header("retry-after", String(result.retryAfterSeconds));
+    return tooManyTickets();
+  },
+  key_reused: () => idempotencyKeyReused(),
+  already_closed: () => ticketAlreadyClosed(),
+  event_closed: () => ticketEventClosed(),
+  self_answer: () => selfAnswer(),
+  outside_quests: () => outsideOperatorQuests(),
+  not_operator: () => notOperator(),
+  ability_off: () => abilityOff(),
+  unknown_player: () => ticketUnknownPlayer(),
+  self_report: () => ticketSelfReport(),
+  already_reported: () => ticketAlreadyReported(),
+  username_required: () => ticketUsernameRequired(),
+  invalid_device: (result) => invalidDevice({ field: result.field }),
+  not_open: () => ticketNotOpen(),
+  moved: () => ticketMoved(),
+  not_escalated: () => ticketNotEscalated(),
+});
+
 /** One HTTP answer per refusal (API.md, Help desk); logged by its reason only, never the text. */
 export function refuse(request: FastifyRequest, reply: FastifyReply, result: TicketRefusal): never {
   request.log.info({ event: "ticket.refused", reason: result.kind });
-  switch (result.kind) {
-    case "not_found":
-      throw notFound();
-    case "not_member":
-      throw ticketNotMember();
-    case "feature_off":
-      throw featureOff();
-    case "sending_closed":
-      throw ticketSendingClosed();
-    case "unknown_quest":
-      throw ticketUnknownQuest();
-    case "invalid_kind":
-      throw invalidRequest();
-    case "invalid_text":
-      throw ticketText({ problem: result.problem });
-    case "too_many_open":
-      throw tooManyOpenTickets({ limit: TICKET_OPEN_LIMIT });
-    case "too_many_tickets":
-      reply.header("retry-after", String(result.retryAfterSeconds));
-      throw tooManyTickets();
-    case "key_reused":
-      throw idempotencyKeyReused();
-    case "already_closed":
-      throw ticketAlreadyClosed();
-    case "event_closed":
-      throw ticketEventClosed();
-    case "self_answer":
-      throw selfAnswer();
-    case "outside_quests":
-      throw outsideOperatorQuests();
-    case "not_operator":
-      throw notOperator();
-    case "ability_off":
-      throw abilityOff();
-    case "unknown_player":
-      throw ticketUnknownPlayer();
-    case "self_report":
-      throw ticketSelfReport();
-    case "already_reported":
-      throw ticketAlreadyReported();
-    case "username_required":
-      throw ticketUsernameRequired();
-    case "invalid_device":
-      throw invalidDevice({ field: result.field });
-    case "not_open":
-      throw ticketNotOpen();
-    case "moved":
-      throw ticketMoved();
-    case "not_escalated":
-      throw ticketNotEscalated();
-  }
+  return refuseTicket(result, reply);
 }
 
 export const valueOf = <T>(request: FastifyRequest, reply: FastifyReply, result: Done<T>): T =>

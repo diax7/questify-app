@@ -39,11 +39,6 @@
       "complexity": [9]
     }
   },
-  "apps/api/src/awards/routes.ts": {
-    "refuse": {
-      "complexity": [20]
-    }
-  },
   "apps/api/src/boosts/boosts.ts": {
     "boostRefusalOf": {
       "complexity": [9]
@@ -52,9 +47,6 @@
   "apps/api/src/community/goals.ts": {
     "<anonymous>": {
       "complexity": [12]
-    },
-    "refusalOf": {
-      "complexity": [17]
     }
   },
   "apps/api/src/community/routes.ts": {
@@ -85,11 +77,6 @@
   "apps/api/src/devices/claims.ts": {
     "<anonymous>": {
       "complexity": [12]
-    }
-  },
-  "apps/api/src/devices/errors.ts": {
-    "deviceErrorOf": {
-      "complexity": [15]
     }
   },
   "apps/api/src/events/events.ts": {
@@ -192,9 +179,6 @@
     "flashValueOf": {
       "complexity": [11]
     },
-    "refuse": {
-      "complexity": [28]
-    },
     "registerPlayRoutes": {
       "lines": [102]
     }
@@ -253,11 +237,6 @@
       "complexity": [12]
     }
   },
-  "apps/api/src/results/routes.ts": {
-    "refuse": {
-      "complexity": [17]
-    }
-  },
   "apps/api/src/rewards/builder.ts": {
     "<anonymous>": {
       "complexity": [15, 11]
@@ -299,11 +278,6 @@
       "complexity": [9]
     }
   },
-  "apps/api/src/submissions/routes.ts": {
-    "refuse": {
-      "complexity": [24]
-    }
-  },
   "apps/api/src/submissions/submissions.ts": {
     "<anonymous>": {
       "complexity": [9]
@@ -312,9 +286,6 @@
   "apps/api/src/tickets/routes.ts": {
     "<anonymous>": {
       "complexity": [10]
-    },
-    "refuse": {
-      "complexity": [25]
     },
     "registerTicketPlayerRoutes": {
       "lines": [107]

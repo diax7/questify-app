@@ -53,6 +53,7 @@ import {
 } from "#src/auth/http-errors";
 import { callerOf, deviceOf, parse } from "#src/auth/request";
 import { etagMatches } from "#src/etag";
+import { refusalThrower } from "#src/refusal-table";
 import { locationQuestsOn } from "#src/completions/complete";
 import { positionOf } from "#src/completions/routes";
 import { organizerContextOf } from "#src/organizers/context";
@@ -125,62 +126,41 @@ const playerIdOf = (request: FastifyRequest): string => {
   return request.player.id;
 };
 
+const refusePlay = refusalThrower<PlayRefusal, [voting: boolean]>({
+  not_found: () => notFound(),
+  enrollment_inactive: (result) => enrollmentInactive({ reason: result.reason }),
+  quest_not_open: (result) => questNotOpen({ reason: result.reason }),
+  operator_not_playing: () => operatorPlayOff(),
+  not_vote_quest: () => notVoteQuest(),
+  not_quiz_quest: () => notQuizQuest(),
+  not_survey_quest: () => notSurveyQuest(),
+  not_share_quest: () => notShareQuest(),
+  not_passport_quest: () => notPassportQuest(),
+  not_meet_quest: () => notMeetQuest(),
+  not_game_quest: () => notGameQuest(),
+  game_refused: (result) =>
+    gameRefused409({
+      reason: result.reason,
+      ...(result.retryAt === null ? {} : { retryAt: result.retryAt }),
+    }),
+  not_hidden: () => categoryNotHidden(),
+  // One answer whatever the problem, as a quest code's (completions/routes.ts); the log keeps the difference.
+  invalid_code: () => questCodeInvalid(),
+  bad_answer: (result) => badAnswer({ question: result.question }),
+  feature_off: () => featureOff(),
+  unknown_option: () => unknownOption(),
+  too_many_choices: () => tooManyChoices(),
+  already_completed: (_result, voting) => (voting ? alreadyVoted() : alreadyCompleted()),
+  key_reused: () => idempotencyKeyReused(),
+  quiz_not_started: () => quizNotStarted(),
+  already_answered: () => alreadyAnswered(),
+  question_closed: () => questionClosed(),
+  question_not_served: () => questionNotServed(),
+});
+
 /** One HTTP answer per refusal (API.md, votes and quizzes). A vote's spent cap is "already voted". */
 export function refuse(result: PlayRefusal, voting = false): never {
-  switch (result.kind) {
-    case "not_found":
-      throw notFound();
-    case "enrollment_inactive":
-      throw enrollmentInactive({ reason: result.reason });
-    case "quest_not_open":
-      throw questNotOpen({ reason: result.reason });
-    case "operator_not_playing":
-      throw operatorPlayOff();
-    case "not_vote_quest":
-      throw notVoteQuest();
-    case "not_quiz_quest":
-      throw notQuizQuest();
-    case "not_survey_quest":
-      throw notSurveyQuest();
-    case "not_share_quest":
-      throw notShareQuest();
-    case "not_passport_quest":
-      throw notPassportQuest();
-    case "not_meet_quest":
-      throw notMeetQuest();
-    case "not_game_quest":
-      throw notGameQuest();
-    case "game_refused":
-      throw gameRefused409({
-        reason: result.reason,
-        ...(result.retryAt === null ? {} : { retryAt: result.retryAt }),
-      });
-    case "not_hidden":
-      throw categoryNotHidden();
-    case "invalid_code":
-      // One answer whatever the problem, as a quest code's (completions/routes.ts); the log keeps the difference.
-      throw questCodeInvalid();
-    case "bad_answer":
-      throw badAnswer({ question: result.question });
-    case "feature_off":
-      throw featureOff();
-    case "unknown_option":
-      throw unknownOption();
-    case "too_many_choices":
-      throw tooManyChoices();
-    case "already_completed":
-      throw voting ? alreadyVoted() : alreadyCompleted();
-    case "key_reused":
-      throw idempotencyKeyReused();
-    case "quiz_not_started":
-      throw quizNotStarted();
-    case "already_answered":
-      throw alreadyAnswered();
-    case "question_closed":
-      throw questionClosed();
-    case "question_not_served":
-      throw questionNotServed();
-  }
+  return refusePlay(result, voting);
 }
 
 const valueOf = <T>(result: Done<T>, voting = false): T =>

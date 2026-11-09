@@ -1,6 +1,7 @@
 import { decodeCursor, encodeCursor, parseLimit } from "@questify/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { refusalThrower } from "#src/refusal-table";
 import {
   abilityOff,
   alreadyCompleted,
@@ -151,48 +152,31 @@ const nextCursor = (lines: readonly { id: string }[], limit: number): string | n
   return lines.length === limit && last !== undefined ? encodeCursor({ id: last.id }) : null;
 };
 
+const refuseAward = refusalThrower<AwardRefusal>({
+  not_found: () => notFound(),
+  not_operator: () => notOperator(),
+  ability_off: () => abilityOff(),
+  outside_station: () => outsideStation(),
+  self_award: () => selfAward(),
+  enrollment_inactive: (result) => enrollmentInactive({ reason: result.reason }),
+  quest_not_open: (result) => questNotOpen({ reason: result.reason }),
+  already_completed: () => alreadyCompleted(),
+  operator_not_playing: () => operatorPlayOff(),
+  over_cap: (result) => overCap({ cap: result.cap, limit: result.limit, left: result.left }),
+  reason_required: () => reasonRequired(),
+  invalid_amount: () => invalidRequest(),
+  key_reused: () => idempotencyKeyReused(),
+  already_removed: () => alreadyRemoved(),
+  open_reservation: () => openReservation(),
+  not_removable: () => notRemovable(),
+  removal_closed: () => removalClosed(),
+  results_final: () => resultsFinal(),
+  too_many_lines: () => tooManyLines(),
+});
+
 /** One HTTP answer per refusal (API.md, manual awards). */
 export function refuse(result: AwardRefusal): never {
-  switch (result.kind) {
-    case "not_found":
-      throw notFound();
-    case "not_operator":
-      throw notOperator();
-    case "ability_off":
-      throw abilityOff();
-    case "outside_station":
-      throw outsideStation();
-    case "self_award":
-      throw selfAward();
-    case "enrollment_inactive":
-      throw enrollmentInactive({ reason: result.reason });
-    case "quest_not_open":
-      throw questNotOpen({ reason: result.reason });
-    case "already_completed":
-      throw alreadyCompleted();
-    case "operator_not_playing":
-      throw operatorPlayOff();
-    case "over_cap":
-      throw overCap({ cap: result.cap, limit: result.limit, left: result.left });
-    case "reason_required":
-      throw reasonRequired();
-    case "invalid_amount":
-      throw invalidRequest();
-    case "key_reused":
-      throw idempotencyKeyReused();
-    case "already_removed":
-      throw alreadyRemoved();
-    case "open_reservation":
-      throw openReservation();
-    case "not_removable":
-      throw notRemovable();
-    case "removal_closed":
-      throw removalClosed();
-    case "results_final":
-      throw resultsFinal();
-    case "too_many_lines":
-      throw tooManyLines();
-  }
+  return refuseAward(result);
 }
 
 const valueOf = <T>(result: AwardDone<T>): T =>

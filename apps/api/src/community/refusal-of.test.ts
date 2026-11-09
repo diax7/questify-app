@@ -1072,4 +1072,11 @@ describe("refusalOf (community goals), the database's refusals as results", () =
   it("throws for a thrown null, as before", () => {
     expect(() => refusalOf(null as never)).toThrow(TypeError);
   });
+
+  it.each(["constructor", "toString", "__proto__", "hasOwnProperty"])(
+    "never matches the inherited key %s as a GL409 detail",
+    (detail) => {
+      expect(refusalOf({ code: "GL409", detail })).toBeUndefined();
+    },
+  );
 });

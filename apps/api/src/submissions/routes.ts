@@ -1,6 +1,7 @@
 import { SUBMISSION_TEXT_MAX } from "@questify/shared";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
+import { refusalThrower } from "#src/refusal-table";
 import {
   abilityOff,
   alreadyCompleted,
@@ -88,56 +89,35 @@ const keyOf = (request: FastifyRequest): string => {
   return key;
 };
 
+const refuseSubmission = refusalThrower<SubmissionRefusal>({
+  not_found: () => notFound(),
+  enrollment_inactive: (result) => enrollmentInactive({ reason: result.reason }),
+  quest_not_open: (result) => questNotOpen({ reason: result.reason }),
+  operator_not_playing: () => operatorPlayOff(),
+  not_submission_quest: () => notSubmissionQuest(),
+  invalid_text: (result) => submissionText({ reason: result.reason }),
+  guidelines_required: () => guidelinesRequired(),
+  pending: () => submissionPending(),
+  closed: () => submissionClosed(),
+  already_completed: () => alreadyCompleted(),
+  key_reused: () => idempotencyKeyReused(),
+  already_reviewed: () => alreadyReviewed(),
+  not_approvable: () => notApprovable(),
+  results_final: () => resultsFinal(),
+  reason_required: () => reasonRequired(),
+  self_review: () => selfReview(),
+  not_operator: () => notOperator(),
+  ability_off: () => abilityOff(),
+  outside_station: () => outsideStation(),
+  not_approved: () => notApproved(),
+  already_removed: () => alreadyRemoved(),
+  open_reservation: () => openReservation(),
+  removal_closed: () => removalClosed(),
+});
+
 /** One HTTP answer per refusal (API.md, submissions). */
 export function refuse(result: SubmissionRefusal): never {
-  switch (result.kind) {
-    case "not_found":
-      throw notFound();
-    case "enrollment_inactive":
-      throw enrollmentInactive({ reason: result.reason });
-    case "quest_not_open":
-      throw questNotOpen({ reason: result.reason });
-    case "operator_not_playing":
-      throw operatorPlayOff();
-    case "not_submission_quest":
-      throw notSubmissionQuest();
-    case "invalid_text":
-      throw submissionText({ reason: result.reason });
-    case "guidelines_required":
-      throw guidelinesRequired();
-    case "pending":
-      throw submissionPending();
-    case "closed":
-      throw submissionClosed();
-    case "already_completed":
-      throw alreadyCompleted();
-    case "key_reused":
-      throw idempotencyKeyReused();
-    case "already_reviewed":
-      throw alreadyReviewed();
-    case "not_approvable":
-      throw notApprovable();
-    case "results_final":
-      throw resultsFinal();
-    case "reason_required":
-      throw reasonRequired();
-    case "self_review":
-      throw selfReview();
-    case "not_operator":
-      throw notOperator();
-    case "ability_off":
-      throw abilityOff();
-    case "outside_station":
-      throw outsideStation();
-    case "not_approved":
-      throw notApproved();
-    case "already_removed":
-      throw alreadyRemoved();
-    case "open_reservation":
-      throw openReservation();
-    case "removal_closed":
-      throw removalClosed();
-  }
+  return refuseSubmission(result);
 }
 
 const valueOf = <T>(result: Done<T>): T => (result.kind === "done" ? result.value : refuse(result));

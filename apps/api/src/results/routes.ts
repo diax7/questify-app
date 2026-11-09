@@ -1,6 +1,7 @@
 import { scoresHidden } from "@questify/shared";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { refusalThrower } from "#src/refusal-table";
 import {
   badDeadline,
   communityPaying,
@@ -70,41 +71,27 @@ const settingsBody = z.strictObject({
 const confirmBody = z.strictObject({ expected: z.array(z.uuid()).max(100) });
 const revealBody = z.strictObject({ claimUntil: z.iso.datetime({ offset: true }) });
 
+const refuseResults = refusalThrower<ResultsRefusal>({
+  not_found: () => notFound(),
+  event_archived: () => eventArchived(),
+  invalid: (result) => invalidRequest({ field: result.field }),
+  limit_reached: (result) => limitReached({ limit: result.limit }),
+  owner_only: () => ownerOnly(),
+  desk_needed: () => deskNeeded(),
+  prizes_locked: () => prizesLocked(),
+  overlap: () => prizeOverlap(),
+  removed: () => prizeRemoved(),
+  results_final: () => resultsFinal(),
+  not_ended: () => resultsNotEnded(),
+  results_changed: () => resultsChanged(),
+  not_confirmed: () => resultsNotConfirmed(),
+  bad_deadline: () => badDeadline(),
+  desk_closed_until_deadline: () => deskClosedUntilDeadline(),
+  community_paying: (result) => communityPaying({ goals: result.goals, due: result.due }),
+});
+
 export function refuse(result: ResultsRefusal): never {
-  switch (result.kind) {
-    case "not_found":
-      throw notFound();
-    case "event_archived":
-      throw eventArchived();
-    case "invalid":
-      throw invalidRequest({ field: result.field });
-    case "limit_reached":
-      throw limitReached({ limit: result.limit });
-    case "owner_only":
-      throw ownerOnly();
-    case "desk_needed":
-      throw deskNeeded();
-    case "prizes_locked":
-      throw prizesLocked();
-    case "overlap":
-      throw prizeOverlap();
-    case "removed":
-      throw prizeRemoved();
-    case "results_final":
-      throw resultsFinal();
-    case "not_ended":
-      throw resultsNotEnded();
-    case "results_changed":
-      throw resultsChanged();
-    case "not_confirmed":
-      throw resultsNotConfirmed();
-    case "bad_deadline":
-      throw badDeadline();
-    case "desk_closed_until_deadline":
-      throw deskClosedUntilDeadline();
-    case "community_paying":
-      throw communityPaying({ goals: result.goals, due: result.due });
-  }
+  return refuseResults(result);
 }
 
 const valueOf = <T>(result: ResultsDone<T>): T =>

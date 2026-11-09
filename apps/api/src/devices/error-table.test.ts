@@ -1088,4 +1088,11 @@ describe("deviceErrorOf, every door and detail", () => {
   it("throws for a thrown null, as before", () => {
     expect(() => deviceErrorOf(null as never)).toThrow(TypeError);
   });
+
+  it.each(["constructor", "toString", "__proto__", "hasOwnProperty"])(
+    "never matches the inherited key %s as a DV409 detail",
+    (detail) => {
+      expect(deviceErrorOf({ code: "DV409", detail })).toBeUndefined();
+    },
+  );
 });

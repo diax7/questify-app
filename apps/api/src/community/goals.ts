@@ -136,14 +136,17 @@ export type CommunityDone<T> = Readonly<{ kind: "done"; value: T }> | CommunityR
 
 type PgError = Readonly<{ code?: string; detail?: string; hint?: string; constraint?: string }>;
 
-const GL409: Readonly<Record<string, (pg: PgError) => CommunityRefusal>> = {
-  goal_overlap: () => ({ kind: "overlap" }),
-  goal_locked: (pg) => ({ kind: "locked", field: pg.hint ?? "goal" }),
-  goal_started: () => ({ kind: "started" }),
-  event_ended: () => ({ kind: "event_ended" }),
-  goal_limit: () => ({ kind: "limit_reached", limit: MAX_GOALS }),
-  unlock_taken: () => ({ kind: "unlock_taken" }),
-};
+type Refuse = (pg: PgError) => CommunityRefusal;
+type RefuseOrNot = (pg: PgError) => CommunityRefusal | undefined;
+
+const GL409: ReadonlyMap<string, Refuse> = new Map<string, Refuse>([
+  ["goal_overlap", () => ({ kind: "overlap" })],
+  ["goal_locked", (pg) => ({ kind: "locked", field: pg.hint ?? "goal" })],
+  ["goal_started", () => ({ kind: "started" })],
+  ["event_ended", () => ({ kind: "event_ended" })],
+  ["goal_limit", () => ({ kind: "limit_reached", limit: MAX_GOALS })],
+  ["unlock_taken", () => ({ kind: "unlock_taken" })],
+]);
 
 /** The field a constraint or key the database refused names, for `invalid_goal`. */
 const fieldOf = (pg: PgError): string => {
@@ -161,35 +164,37 @@ const fieldOf = (pg: PgError): string => {
   return "milestones";
 };
 
+/** An unlock's refusal names its reason in HINT: unlock_target or unlock_counted (migration 0054). */
+const goalIssueOf = (pg: PgError): string =>
+  pg.detail === "unlock" ? (pg.hint ?? "unlock") : (pg.detail ?? "goal");
+
+/** The unique index on a target, the backstop behind the builder's unlock_taken check. */
+const uniqueRefusalOf = (pg: PgError): CommunityRefusal =>
+  pg.constraint?.startsWith("community_step_unlock") === true
+    ? { kind: "unlock_taken" }
+    : { kind: "invalid", issues: [fieldOf(pg)] };
+
+const notFoundRefusal = (): CommunityRefusal => ({ kind: "not_found" });
+const invalidFieldRefusal = (pg: PgError): CommunityRefusal => ({
+  kind: "invalid",
+  issues: [fieldOf(pg)],
+});
+
+const REFUSALS_BY_CODE: ReadonlyMap<string, RefuseOrNot> = new Map<string, RefuseOrNot>([
+  ["AN404", notFoundRefusal],
+  ["GN404", notFoundRefusal],
+  ["CG422", (pg) => ({ kind: "invalid", issues: [goalIssueOf(pg)] })],
+  ["GL409", (pg) => GL409.get(pg.detail ?? "")?.(pg)],
+  ["CO403", () => ({ kind: "owner_only" })],
+  ["CS409", () => ({ kind: "settling" })],
+  ["23505", uniqueRefusalOf],
+  ["23503", invalidFieldRefusal],
+  ["23514", invalidFieldRefusal],
+]);
+
 /** The SQLSTATEs of migrations 0053 and 0054 (and the keys behind them) as refusals; undefined for anything else. */
 export function refusalOf(pg: PgError): CommunityRefusal | undefined {
-  switch (pg.code) {
-    case "AN404":
-    case "GN404":
-      return { kind: "not_found" };
-    case "CG422":
-      // An unlock's refusal names its reason in HINT: unlock_target or unlock_counted (migration 0054).
-      return {
-        kind: "invalid",
-        issues: [pg.detail === "unlock" ? (pg.hint ?? "unlock") : (pg.detail ?? "goal")],
-      };
-    case "GL409":
-      return GL409[pg.detail ?? ""]?.(pg);
-    case "CO403":
-      return { kind: "owner_only" };
-    case "CS409":
-      return { kind: "settling" };
-    case "23505":
-      // The unique index on a target, the backstop behind the builder's unlock_taken check.
-      return pg.constraint?.startsWith("community_step_unlock") === true
-        ? { kind: "unlock_taken" }
-        : { kind: "invalid", issues: [fieldOf(pg)] };
-    case "23503":
-    case "23514":
-      return { kind: "invalid", issues: [fieldOf(pg)] };
-    default:
-      return undefined;
-  }
+  return pg.code === undefined ? undefined : REFUSALS_BY_CODE.get(pg.code)?.(pg);
 }
 
 /** Runs one call in the team member's seat; a refusal the database raises becomes its result. */

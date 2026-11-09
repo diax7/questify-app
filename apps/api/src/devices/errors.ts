@@ -21,42 +21,34 @@ import type { HttpError } from "#src/http-error";
 
 type PgError = Readonly<{ code?: string; detail?: string }>;
 
-const DV409: Readonly<Record<string, () => HttpError>> = {
-  event_closed: () => deviceEventClosed(),
-  limit_reached: () => limitReached(),
-  not_screen_qr: () => notScreenQr(),
-  not_kiosk: () => notKiosk(),
-  wrong_kind: () => wrongDeviceKind(),
-  code_taken: () => pairingBusy(),
-};
+const DV409: ReadonlyMap<string, () => HttpError> = new Map([
+  ["event_closed", () => deviceEventClosed()],
+  ["limit_reached", () => limitReached()],
+  ["not_screen_qr", () => notScreenQr()],
+  ["not_kiosk", () => notKiosk()],
+  ["wrong_kind", () => wrongDeviceKind()],
+  ["code_taken", () => pairingBusy()],
+]);
+
+type Answer = (pg: PgError) => HttpError | undefined;
+
+const DEVICE_ERRORS: ReadonlyMap<string, Answer> = new Map<string, Answer>([
+  ["DV401", () => deviceUnpaired()],
+  ["DV404", () => unknownPairingCode()],
+  ["DN404", () => unknownDevice()],
+  ["DV409", (pg) => DV409.get(pg.detail ?? "")?.()],
+  ["DV422", (pg) => invalidDevice({ field: pg.detail ?? "kind" })],
+  ["DV503", () => pairingBusy()],
+  ["OP403", () => notOperator()],
+  ["OA403", () => abilityOff()],
+  ["OS403", () => outsideOperatorQuests()],
+  ["OQ404", () => notFound()],
+  ["AN404", () => notFound()],
+]);
 
 /** The SQLSTATEs of migration 0057's doors as HTTP answers (API.md, Devices); undefined for anything else. */
 export function deviceErrorOf(pg: PgError): HttpError | undefined {
-  switch (pg.code) {
-    case "DV401":
-      return deviceUnpaired();
-    case "DV404":
-      return unknownPairingCode();
-    case "DN404":
-      return unknownDevice();
-    case "DV409":
-      return DV409[pg.detail ?? ""]?.();
-    case "DV422":
-      return invalidDevice({ field: pg.detail ?? "kind" });
-    case "DV503":
-      return pairingBusy();
-    case "OP403":
-      return notOperator();
-    case "OA403":
-      return abilityOff();
-    case "OS403":
-      return outsideOperatorQuests();
-    case "OQ404":
-    case "AN404":
-      return notFound();
-    default:
-      return undefined;
-  }
+  return pg.code === undefined ? undefined : DEVICE_ERRORS.get(pg.code)?.(pg);
 }
 
 /** Runs one call in `context`; a refusal the database raises is thrown as its HTTP answer, anything else as it is. */

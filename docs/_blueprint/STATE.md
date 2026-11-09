@@ -1,5 +1,21 @@
 # Blueprint State — Questify
 
+## Function limits, API error mappers — 2026-11-09
+
+- **Function-limits baseline, `apps/api` error mappers (tier B; behaviour-preserving).** Seven entries (seven
+  violations) left `scripts/function-limits-baseline.json` (236 to 229 violations): `refuse` (28) in `plays/routes.ts`,
+  `refuse` (25) in `tickets/routes.ts`, `refuse` (24) in `submissions/routes.ts`, `refuse` (20) in `awards/routes.ts`,
+  `refuse` (17) in `results/routes.ts`, `refusalOf` (17) in `community/goals.ts` and `deviceErrorOf` (15) in
+  `devices/errors.ts`. The refusal mappers are now lookup tables behind `refusalThrower` (`src/refusal-table.ts`: a
+  `Map`, so an inherited key such as `constructor` never matches; a table typed over the refusal union, so a new kind
+  without an answer fails the type check); the SQLSTATE mappers are `Map`s by code and by DETAIL. Each was pinned first
+  by a table test over every kind or code plus unknown kinds and non-database errors, run on the old code, and then
+  compared with a copy of the old file over a cross-product of inputs (status, envelope, log lines, headers). One
+  difference, on purpose: a `GL409` or `DV409` DETAIL named like an inherited property (`constructor`) used to throw a
+  `TypeError` or an `{}`; it now answers nothing, so the original error is rethrown. `desk/routes.ts`, `route-access.ts`
+  and `migrate-cli.ts` are untouched. The baseline was updated with `node scripts/function-limits.mjs --update` and only
+  shrank. CI 0 minutes (not pushed).
+
 ## Function limits, app event and profile code — 2026-11-09
 
 - **Function-limits baseline, `apps/app` (tier B; behaviour-preserving, no string, no screen change).** Six functions
