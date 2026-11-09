@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  formatEventTime,
-  formatNumber,
-  toInstant,
-  toLocalInput,
-  type Language,
-} from "@questify/shared";
+import { formatEventTime, formatNumber, type Language } from "@questify/shared";
 import { useCallback, useEffect, useState } from "react";
 import { CommunitySettle } from "#src/components/CommunitySettle.tsx";
 import { ConfirmDialog } from "#src/components/ConfirmDialog.tsx";
@@ -23,6 +17,14 @@ import {
   type Place,
   type Results,
 } from "#src/lib/prizes.ts";
+import {
+  claimOf,
+  deadlineLocal,
+  stepBody,
+  stepRequest,
+  stepWords,
+  type ResultsStep,
+} from "#src/lib/results-step.ts";
 import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { Button } from "#src/ui/Button.tsx";
 import { Badge, Muted } from "#src/ui/Feedback.tsx";
@@ -151,14 +153,6 @@ function useResults(eventApi: string, language: Language) {
   return { results, setResults, problem, setProblem, failed, load };
 }
 
-/** The deadline the owner picked, as an instant and in words; nothing while the field cannot be read. */
-function claimOf(local: string, timeZone: string, language: Language) {
-  const at = local === "" ? null : toInstant(local, timeZone);
-  return at === null || Number.isNaN(at.getTime())
-    ? null
-    : { at, shown: formatEventTime(at, timeZone, language) };
-}
-
 /** The owner's next step with its confirm sheet: confirm the places shown, or reveal with a deadline. */
 function StepControls({
   results,
@@ -168,7 +162,7 @@ function StepControls({
   send,
 }: Readonly<{
   results: Results;
-  step: "confirm" | "reveal";
+  step: ResultsStep;
   language: Language;
   timeZone: string;
   send: (path: string, payload: object, said: string) => Promise<void>;
@@ -177,35 +171,13 @@ function StepControls({
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [deadline, setDeadline] = useState<string | null>(null);
-  const local =
-    deadline ??
-    (results.defaultClaimUntil === null
-      ? ""
-      : toLocalInput(new Date(results.defaultClaimUntil), timeZone));
+  const local = deadlineLocal(deadline, results.defaultClaimUntil, timeZone);
   const claim = claimOf(local, timeZone, language);
-  const flagged = flaggedNames(results.places, language);
-  const confirming = step === "confirm";
-  const body = confirming
-    ? [
-        t("results.confirmBody"),
-        flagged.length === 0 ? "" : t("results.confirmFlagged", { names: flagged.join("، ") }),
-      ]
-        .filter((line) => line !== "")
-        .join(" ")
-    : t("results.revealBody", { deadline: claim?.shown ?? "" });
+  const words = stepWords(t, step);
   const go = async () => {
     setBusy(true);
-    await (confirming
-      ? send(
-          "/results/confirm",
-          { expected: results.places.map((p) => p.enrollmentId) },
-          t("results.confirmed"),
-        )
-      : send(
-          "/results/reveal",
-          { claimUntil: claim?.at.toISOString() ?? "" },
-          t("results.revealed"),
-        ));
+    const request = stepRequest(t, step, results, claim?.at);
+    await send(request.path, request.payload, request.said);
     setBusy(false);
     setAsking(false);
   };
@@ -214,22 +186,24 @@ function StepControls({
       {asking ? (
         <ConfirmDialog
           language={language}
-          title={t(confirming ? "results.confirmTitle" : "results.revealTitle")}
-          body={body}
-          confirmLabel={t(confirming ? "results.confirm" : "results.reveal")}
+          title={words.title}
+          body={stepBody(t, step, flaggedNames(results.places, language), claim?.shown)}
+          confirmLabel={words.action}
           noteLabel={null}
           busy={busy}
           cancel={() => setAsking(false)}
           confirm={() => void go()}
         />
       ) : null}
-      {confirming ? null : <DeadlineField language={language} value={local} change={setDeadline} />}
+      {step === "confirm" ? null : (
+        <DeadlineField language={language} value={local} change={setDeadline} />
+      )}
       <Button
         variant="primary"
-        disabled={!confirming && claim === null}
+        disabled={step === "reveal" && claim === null}
         onClick={() => setAsking(true)}
       >
-        {t(confirming ? "results.confirm" : "results.reveal")}
+        {words.action}
       </Button>
     </FieldGroup>
   );

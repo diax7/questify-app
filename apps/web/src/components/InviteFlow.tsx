@@ -1,10 +1,25 @@
 "use client";
 
 import type { Language } from "@questify/shared";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+} from "react";
 import { CodeStep } from "#src/components/CodeStep.tsx";
 import { NewPasswordFields, readNewPassword } from "#src/components/NewPasswordFields.tsx";
 import { PasswordStep } from "#src/components/PasswordStep.tsx";
+import {
+  challengeOf,
+  inspectedState,
+  inviteModeOf,
+  tokenFromHash,
+  type Invite,
+  type InviteState,
+} from "#src/lib/invite-link.ts";
 import { isolate, translatorFor } from "#src/lib/language.ts";
 import { postJson } from "#src/lib/post-json.ts";
 import { describeProblem } from "#src/lib/sign-in-errors.ts";
@@ -13,27 +28,6 @@ import { Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Form } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Stack } from "#src/ui/Section.tsx";
-
-const TOKEN_IN_FRAGMENT = /(?:^#|&)token=([A-Za-z0-9_-]{43})(?:&|$)/;
-
-type Invite = Readonly<{
-  organizerName: string;
-  role: "editor" | "owner";
-  email: string;
-  accountExists: boolean;
-}>;
-
-type State =
-  | Readonly<{ kind: "reading" }>
-  | Readonly<{ kind: "no_link"; message: string | null }>
-  | Readonly<{ kind: "ready"; token: string; invite: Invite }>
-  | Readonly<{ kind: "code"; token: string; invite: Invite; challengeToken: string }>;
-
-const isInvite = (value: unknown): value is Invite =>
-  typeof value === "object" &&
-  value !== null &&
-  typeof (value as Record<string, unknown>)["organizerName"] === "string" &&
-  typeof (value as Record<string, unknown>)["email"] === "string";
 
 /** The page of a link that is missing or no longer works: the title, then why. */
 function MissingLink({
@@ -52,6 +46,130 @@ function MissingLink({
 }
 
 /**
+ * Inspects the link once per page: the token is taken from the URL fragment, which is then cleared. A second look would
+ * count against the address limit, and after acceptance would answer "used" and wipe the code step.
+ */
+function inspectLink(
+  taken: { current: { token: string | undefined } | null },
+  language: Language,
+  setState: Dispatch<SetStateAction<InviteState>>,
+) {
+  if (taken.current !== null) {
+    return;
+  }
+  taken.current = { token: tokenFromHash(window.location.hash) };
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  const { token } = taken.current;
+  if (token === undefined) {
+    setState({ kind: "no_link", message: null });
+    return;
+  }
+  void postJson("/v1/staff/invites/inspect", { token }).then((result) => {
+    setState(
+      inspectedState(
+        result,
+        token,
+        (body) => describeProblem(body, language, translatorFor(language)).text,
+      ),
+    );
+  });
+}
+
+/** What the invite page offers its reader: accept, a note, sign in here, or choose a password. */
+function InviteActions({
+  language,
+  signedInEmail,
+  invite,
+  busy,
+  accept,
+  join,
+}: Readonly<{
+  language: Language;
+  signedInEmail: string | null;
+  invite: Invite;
+  busy: boolean;
+  accept: () => Promise<void>;
+  join: (event: FormEvent<HTMLFormElement>) => void;
+}>) {
+  const t = translatorFor(language);
+  switch (inviteModeOf(signedInEmail, invite)) {
+    case "accept":
+      return (
+        <Button variant="primary" disabled={busy} aria-busy={busy} onClick={() => void accept()}>
+          {t("staff.acceptInvite")}
+        </Button>
+      );
+    case "otherSignedIn":
+      return <Notice tone="info">{t("staff.inviteOtherSignedIn")}</Notice>;
+    case "signIn":
+      return <InlineSignIn language={language} onSignedIn={accept} />;
+    case "join":
+      return (
+        <Form onSubmit={join}>
+          <input
+            type="text"
+            name="username"
+            autoComplete="username"
+            value={invite.email}
+            readOnly
+            hidden
+          />
+          <NewPasswordFields language={language} disabled={busy} />
+          <Button variant="primary" type="submit" disabled={busy} aria-busy={busy}>
+            {t("staff.acceptInvite")}
+          </Button>
+        </Form>
+      );
+  }
+}
+
+/** The invite itself: who invited, for which email, any refusal, then what the reader can do about it. */
+function InviteDetails({
+  language,
+  signedInEmail,
+  invite,
+  problem,
+  busy,
+  accept,
+  join,
+}: Readonly<{
+  language: Language;
+  signedInEmail: string | null;
+  invite: Invite;
+  problem: string | null;
+  busy: boolean;
+  accept: () => Promise<void>;
+  join: (event: FormEvent<HTMLFormElement>) => void;
+}>) {
+  const t = translatorFor(language);
+  const heading = t(invite.role === "owner" ? "staff.invitedOwner" : "staff.invitedEditor", {
+    name: invite.organizerName,
+  });
+  const alert =
+    problem === null ? null : (
+      <Notice tone="danger" role="alert">
+        {problem}
+      </Notice>
+    );
+  return (
+    <Stack as="section" aria-labelledby="invite-title">
+      <PageHeader titleId="invite-title" title={t("staff.inviteTitle")} />
+      <p>{heading}</p>
+      <Muted>{t("staff.inviteFor", { email: isolate(invite.email) })}</Muted>
+      {alert}
+      <InviteActions
+        language={language}
+        signedInEmail={signedInEmail}
+        invite={invite}
+        busy={busy}
+        accept={accept}
+        join={join}
+      />
+    </Stack>
+  );
+}
+
+/**
  * Where an invite link lands. The token is read from the URL fragment once and kept in memory only (as on the reset
  * page). Someone new chooses a password and enters the emailed sign-in code; someone with an account signs in here and
  * accepts, without leaving the page; someone already signed in with that email accepts at once.
@@ -61,34 +179,14 @@ export function InviteFlow({
   signedInEmail,
 }: Readonly<{ language: Language; signedInEmail: string | null }>) {
   const t = translatorFor(language);
-  const [state, setState] = useState<State>({ kind: "reading" });
+  const [state, setState] = useState<InviteState>({ kind: "reading" });
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const taken = useRef<{ token: string | undefined } | null>(null);
 
-  // Runs once per page: the link is inspected a single time (a second look would count against the address limit, and
-  // after acceptance would answer "used" and wipe the code step).
+  // Runs once per page: the link is inspected a single time.
   useEffect(() => {
-    if (taken.current !== null) {
-      return;
-    }
-    taken.current = { token: TOKEN_IN_FRAGMENT.exec(window.location.hash)?.[1] };
-    window.history.replaceState(null, "", window.location.pathname + window.location.search);
-    const { token } = taken.current;
-    if (token === undefined) {
-      setState({ kind: "no_link", message: null });
-      return;
-    }
-    void postJson("/v1/staff/invites/inspect", { token }).then((result) => {
-      setState(
-        result.ok && isInvite(result.body)
-          ? { kind: "ready", token, invite: result.body }
-          : {
-              kind: "no_link",
-              message: describeProblem(result.body, language, translatorFor(language)).text,
-            },
-      );
-    });
+    inspectLink(taken, language, setState);
   }, [language]);
 
   const accept = async (token: string): Promise<void> => {
@@ -113,9 +211,9 @@ export function InviteFlow({
     setProblem(null);
     const result = await postJson("/v1/staff/invites/accept-new", { token, password });
     setBusy(false);
-    const body = result.body as { challengeToken?: unknown } | undefined;
-    if (result.ok && typeof body?.challengeToken === "string") {
-      setState({ kind: "code", token, invite, challengeToken: body.challengeToken });
+    const challengeToken = challengeOf(result);
+    if (challengeToken !== undefined) {
+      setState({ kind: "code", token, invite, challengeToken });
       return;
     }
     setProblem(describeProblem(result.body, language, t).text);
@@ -128,16 +226,6 @@ export function InviteFlow({
     return <MissingLink language={language} message={state.message} />;
   }
   const { invite, token } = state;
-  const heading = t(invite.role === "owner" ? "staff.invitedOwner" : "staff.invitedEditor", {
-    name: invite.organizerName,
-  });
-  const alert =
-    problem === null ? null : (
-      <Notice tone="danger" role="alert">
-        {problem}
-      </Notice>
-    );
-
   if (state.kind === "code") {
     return (
       <Stack as="section" aria-labelledby="sign-in-title">
@@ -152,46 +240,16 @@ export function InviteFlow({
       </Stack>
     );
   }
-
   return (
-    <Stack as="section" aria-labelledby="invite-title">
-      <PageHeader titleId="invite-title" title={t("staff.inviteTitle")} />
-      <p>{heading}</p>
-      <Muted>{t("staff.inviteFor", { email: isolate(invite.email) })}</Muted>
-      {alert}
-      {signedInEmail !== null && signedInEmail === invite.email ? (
-        <Button
-          variant="primary"
-          disabled={busy}
-          aria-busy={busy}
-          onClick={() => void accept(token)}
-        >
-          {t("staff.acceptInvite")}
-        </Button>
-      ) : null}
-      {signedInEmail !== null && signedInEmail !== invite.email ? (
-        <Notice tone="info">{t("staff.inviteOtherSignedIn")}</Notice>
-      ) : null}
-      {signedInEmail === null && invite.accountExists ? (
-        <InlineSignIn language={language} onSignedIn={() => accept(token)} />
-      ) : null}
-      {signedInEmail === null && !invite.accountExists ? (
-        <Form onSubmit={(event) => void join(event, token, invite)}>
-          <input
-            type="text"
-            name="username"
-            autoComplete="username"
-            value={invite.email}
-            readOnly
-            hidden
-          />
-          <NewPasswordFields language={language} disabled={busy} />
-          <Button variant="primary" type="submit" disabled={busy} aria-busy={busy}>
-            {t("staff.acceptInvite")}
-          </Button>
-        </Form>
-      ) : null}
-    </Stack>
+    <InviteDetails
+      language={language}
+      signedInEmail={signedInEmail}
+      invite={invite}
+      problem={problem}
+      busy={busy}
+      accept={() => accept(token)}
+      join={(event) => void join(event, token, invite)}
+    />
   );
 }
 

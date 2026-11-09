@@ -142,6 +142,10 @@ export function editRewardBody(draft: RewardDraft, before: RewardDraft): Record<
   );
 }
 
+/** Whether a new item reward is blocked until the prize desk's place is set (FR-1716); an edit never is. */
+export const needsPrizeDesk = (kind: RewardKind, editing: boolean, deskSet: boolean): boolean =>
+  !editing && kind === "item" && !deskSet;
+
 export type RewardField = "name" | "price" | "stock" | "perPlayerLimit" | "closesAt";
 
 const between = (value: number, low: number, high: number) =>

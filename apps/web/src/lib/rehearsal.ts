@@ -71,3 +71,25 @@ export function erasedLine(view: RehearsalView): Line | undefined {
     params: { accounts, completions, reservations },
   };
 }
+
+export type RehearsalAction = "rotate" | "erase";
+
+/** The card read from an API answer: nothing when the call failed or the answer is not a rehearsal card. */
+export const rehearsalOf = (
+  result: Readonly<{ ok: boolean; body: unknown }>,
+): RehearsalView | undefined =>
+  result.ok
+    ? readRehearsal((result.body as { rehearsal?: unknown } | undefined)?.rehearsal)
+    : undefined;
+
+/** Where a confirmed action goes: Change code posts to `code`, Erase rehearsal to `erase`. */
+export const rehearsalActionPath = (base: string, what: RehearsalAction): string =>
+  `${base}/${what === "rotate" ? "code" : "erase"}`;
+
+/** The confirmation's title and the action's button label (which also opens the confirmation). */
+export const rehearsalWords = (
+  what: RehearsalAction,
+): Readonly<{ title: MessageKey; action: MessageKey }> =>
+  what === "rotate"
+    ? { title: "rehearsal.rotateConfirm", action: "rehearsal.rotate" }
+    : { title: "rehearsal.eraseConfirm", action: "rehearsal.erase" };

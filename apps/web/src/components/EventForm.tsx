@@ -18,16 +18,22 @@ import {
   hasUnsavedEdits,
   nameFor,
   STATUS_TONE,
-  timesChanged,
   venueIsValid,
   type EventDraft,
+  type EventStatus,
   type EventView,
 } from "#src/lib/events.ts";
 import { useTranslator } from "#src/components/TermsScope.tsx";
+import {
+  asksDatesNext,
+  problemText,
+  saveQuestion,
+  sessionEnded,
+  type SaveQuestion,
+} from "#src/lib/event-form-rules.ts";
 import type { Translate } from "#src/lib/language.ts";
 import { requestJson, type PostResult } from "#src/lib/post-json.ts";
 import { useReportUnsaved, type ReportUnsaved } from "#src/lib/use-unsaved.ts";
-import { describeProblem, errorCodeOf } from "#src/lib/sign-in-errors.ts";
 import { EventWords } from "#src/components/EventWords.tsx";
 import { RankingSwitch } from "#src/components/RankingSwitch.tsx";
 import { EventBranding } from "#src/components/EventBranding.tsx";
@@ -42,18 +48,6 @@ import { FieldGroup, Form } from "#src/ui/Field.tsx";
 import { Dialog } from "#src/ui/Dialog.tsx";
 import { Rows, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
-
-const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
-const FIELDS = new Set([
-  "name",
-  "timezone",
-  "startsAt",
-  "endsAt",
-  "joinMethods",
-  "cityId",
-  "interests",
-  "template",
-]);
 
 type Props = Readonly<{
   language: Language;
@@ -74,16 +68,6 @@ type Props = Readonly<{
 /** Whether the details form holds edits the saved event does not have; a new event has nothing saved to compare. */
 const detailsUnsaved = (draft: EventDraft | null, event: EventView | null): boolean =>
   draft !== null && event !== null && hasUnsavedEdits(draft, event);
-
-/** The words for a refusal: the field to fix for `invalid_event`, the API's own message otherwise. */
-function problemText(body: unknown, language: Language, t: Translate): string {
-  const details = (body as { details?: { field?: unknown } } | undefined)?.details;
-  const field = details?.field;
-  if (errorCodeOf(body) === "invalid_event" && typeof field === "string" && FIELDS.has(field)) {
-    return t(`events.invalid.${field}` as "events.invalid.name");
-  }
-  return describeProblem(body, language, t).text;
-}
 
 /** Reads the event once per page, also under Strict Mode's double effect. */
 function useLoadOnce(
@@ -116,44 +100,104 @@ function useIdempotencyKey(): (body: unknown) => string {
   };
 }
 
-/**
- * Creates or edits an event (FR-1001–1003, FR-1608, FR-1728). Times are typed as the wall clock in the event's own
- * zone. A draft can be deleted and a live event ended by the owner, each after a confirmation naming the event.
- */
-export function EventForm({
-  language,
-  organizerId,
-  eventId,
-  myRole,
-  intro,
-  bare,
-  onUnsaved,
-  template,
-}: Props) {
-  const t = useTranslator(language);
-  const router = useRouter();
-  const api = `/v1/organizers/${organizerId}/events`;
-  const pages = `/${language}/organizers/${organizerId}/events`;
+type Confirming = "delete" | "end" | null;
+
+/** What the event's actions share: where its API and pages are, how a result is read, and the page's messages. */
+type Flow = Readonly<{
+  api: string;
+  pages: string;
+  handle: (result: PostResult) => boolean;
+  run: (work: () => Promise<PostResult>) => Promise<PostResult>;
+  show: (view: EventView) => void;
+  setNotice: (text: string | null) => void;
+  setConfirming: (what: Confirming) => void;
+}>;
+
+/** Creates the event, then opens its page. */
+async function createEvent(
+  flow: Flow,
+  draft: EventDraft,
+  template: string | undefined,
+  keyFor: (body: unknown) => string,
+) {
+  const body = createBodyOf(draft, template);
+  const result = await flow.run(() =>
+    requestJson("POST", flow.api, body, { "idempotency-key": keyFor(body) }),
+  );
+  if (flow.handle(result)) {
+    window.location.assign(`${flow.pages}/${(result.body as { event: EventView }).event.id}`);
+  }
+}
+
+/** Saves the changes of an existing event and shows what the API kept. */
+async function saveEvent(flow: Flow, event: EventView, draft: EventDraft, saved: string) {
+  const result = await flow.run(() =>
+    requestJson("PATCH", `${flow.api}/${event.id}`, editBodyOf(draft, draftOf(event))),
+  );
+  if (flow.handle(result)) {
+    flow.show((result.body as { event: EventView }).event);
+    flow.setNotice(saved);
+  }
+}
+
+/** Deletes a draft, or ends a live event and reads it again. */
+async function changeStanding(flow: Flow, event: EventView, what: "delete" | "end", ended: string) {
+  const result = await flow.run(() =>
+    what === "delete"
+      ? requestJson("DELETE", `${flow.api}/${event.id}`)
+      : requestJson("POST", `${flow.api}/${event.id}/end`, { confirm: true }),
+  );
+  flow.setConfirming(null);
+  if (!flow.handle(result)) {
+    return;
+  }
+  if (what === "delete") {
+    window.location.assign(flow.pages);
+    return;
+  }
+  flow.setNotice(ended);
+  const fresh = await requestJson("GET", `${flow.api}/${event.id}`);
+  if (flow.handle(fresh)) {
+    flow.show((fresh.body as { event: EventView }).event);
+  }
+}
+
+/** Whether a result is a success: an ended session goes to sign-in, a refusal is said in words. */
+function readResult(
+  result: PostResult,
+  language: Language,
+  t: Translate,
+  setProblem: (text: string) => void,
+): boolean {
+  if (sessionEnded(result.body)) {
+    window.location.assign(`/${language}/sign-in?ended=1`);
+    return false;
+  }
+  if (!result.ok) {
+    setProblem(problemText(result.body, language, t));
+  }
+  return result.ok;
+}
+
+/** The event page's state and what its buttons do; the hooks run in the order the page always ran them. */
+function useEventForm(
+  language: Language,
+  t: Translate,
+  api: string,
+  pages: string,
+  eventId: string | undefined,
+  template: string | undefined,
+) {
   const [event, setEvent] = useState<EventView | null>(null);
   const [draft, setDraft] = useState<EventDraft | null>(eventId === undefined ? BLANK_DRAFT : null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState<"delete" | "end" | null>(null);
+  const [confirming, setConfirming] = useState<Confirming>(null);
   const [asking, setAsking] = useState<SaveQuestion | null>(null);
   const keyFor = useIdempotencyKey();
 
-  const handle = (result: PostResult): boolean => {
-    const code = errorCodeOf(result.body);
-    if (code !== undefined && SESSION_LOST.has(code)) {
-      window.location.assign(`/${language}/sign-in?ended=1`);
-      return false;
-    }
-    if (!result.ok) {
-      setProblem(problemText(result.body, language, t));
-    }
-    return result.ok;
-  };
+  const handle = (result: PostResult) => readResult(result, language, t, setProblem);
 
   const show = (view: EventView) => {
     setEvent(view);
@@ -174,6 +218,15 @@ export function EventForm({
     setBusy(false);
     return result;
   };
+  const flow: Flow = { api, pages, handle, run, show, setNotice, setConfirming };
+
+  const save = async () => {
+    setAsking(null);
+    if (event === null || draft === null) {
+      return;
+    }
+    await saveEvent(flow, event, draft, t("events.saved"));
+  };
 
   const submit = async (submitted: FormEvent<HTMLFormElement>) => {
     submitted.preventDefault();
@@ -186,13 +239,7 @@ export function EventForm({
       return;
     }
     if (event === null) {
-      const body = createBodyOf(draft, template);
-      const result = await run(() =>
-        requestJson("POST", api, body, { "idempotency-key": keyFor(body) }),
-      );
-      if (handle(result)) {
-        window.location.assign(`${pages}/${(result.body as { event: EventView }).event.id}`);
-      }
+      await createEvent(flow, draft, template, keyFor);
       return;
     }
     // FR-1820: a change of access type is said in words and confirmed before it is saved.
@@ -206,69 +253,111 @@ export function EventForm({
 
   /** The dialog's action: an access change that also moves the times asks about the times next, else it saves. */
   const confirmAsked = () => {
-    const next =
-      draft !== null && event !== null && asking === "access" && timesChanged(draft, event);
-    if (next) {
+    if (asksDatesNext(asking, draft, event)) {
       setAsking("dates");
       return;
     }
     void save();
   };
 
-  const save = async () => {
-    setAsking(null);
-    if (event === null || draft === null) {
-      return;
-    }
-    const result = await run(() =>
-      requestJson("PATCH", `${api}/${event.id}`, editBodyOf(draft, draftOf(event))),
-    );
-    if (handle(result)) {
-      show((result.body as { event: EventView }).event);
-      setNotice(t("events.saved"));
-    }
-  };
-
   const confirm = async () => {
     if (event === null || confirming === null) {
       return;
     }
-    const result = await run(() =>
-      confirming === "delete"
-        ? requestJson("DELETE", `${api}/${event.id}`)
-        : requestJson("POST", `${api}/${event.id}/end`, { confirm: true }),
-    );
-    setConfirming(null);
-    if (!handle(result)) {
-      return;
-    }
-    if (confirming === "delete") {
-      window.location.assign(pages);
-      return;
-    }
-    setNotice(t("events.ended"));
-    const fresh = await requestJson("GET", `${api}/${event.id}`);
-    if (handle(fresh)) {
-      show((fresh.body as { event: EventView }).event);
-    }
+    await changeStanding(flow, event, confirming, t("events.ended"));
   };
 
   const change = (patch: Partial<EventDraft>) =>
     setDraft((current) => (current === null ? current : { ...current, ...patch }));
-  const status = event?.statusNow ?? "draft";
-  const name = event === null ? "" : nameFor(event, language);
-  useReportUnsaved(onUnsaved, "details", detailsUnsaved(draft, event));
+  return {
+    event,
+    setEvent,
+    draft,
+    busy,
+    problem,
+    notice,
+    confirming,
+    setConfirming,
+    asking,
+    setAsking,
+    submit,
+    confirmAsked,
+    confirm,
+    change,
+  };
+}
 
+/** The details form of an event (or the loading line while it is read); nothing while the read has failed. */
+function EventDetails({
+  language,
+  draft,
+  problem,
+  isNew,
+  status,
+  busy,
+  asking,
+  change,
+  submit,
+}: Readonly<{
+  language: Language;
+  draft: EventDraft | null;
+  problem: string | null;
+  isNew: boolean;
+  status: EventStatus;
+  busy: boolean;
+  asking: SaveQuestion | null;
+  change: (patch: Partial<EventDraft>) => void;
+  submit: (submitted: FormEvent<HTMLFormElement>) => void;
+}>) {
+  const t = useTranslator(language);
+  if (draft === null) {
+    return problem === null ? <Muted>{t("common.loading")}</Muted> : null;
+  }
   return (
-    <Stack>
-      <EventTop
-        language={language}
-        event={event}
-        name={name}
-        back={pages}
-        intro={intro}
-        bare={bare}
-      />
+    <Section title={t("events.section.details")}>
+      <Form onSubmit={submit}>
+        <FieldGroup legend={t("events.section.identity")}>
+          <EventIdentityFields language={language} draft={draft} disabled={busy} change={change} />
+        </FieldGroup>
+        <FieldGroup legend={t("events.section.place")}>
+          <EventPlaceFields
+            language={language}
+            draft={draft}
+            disabled={busy}
+            change={change}
+            status={status}
+          />
+          <EventVenuePinFields language={language} draft={draft} disabled={busy} change={change} />
+        </FieldGroup>
+        <FieldGroup legend={t("events.section.time")}>
+          <EventTimeFields
+            language={language}
+            draft={draft}
+            disabled={busy}
+            change={change}
+            status={status}
+          />
+        </FieldGroup>
+        <FieldGroup legend={t("events.section.access")}>
+          <EventAccessFields language={language} draft={draft} disabled={busy} change={change} />
+        </FieldGroup>
+        <Toolbar align="end">
+          <Button type="submit" variant="primary" disabled={busy || asking !== null}>
+            {isNew ? t("events.create") : t("events.save")}
+          </Button>
+        </Toolbar>
+      </Form>
+    </Section>
+  );
+}
+
+/** The refusal and the confirmation of the page, each in its own alert. */
+function EventMessages({
+  problem,
+  notice,
+}: Readonly<{ problem: string | null; notice: string | null }>) {
+  return (
+    <>
       {problem === null ? null : (
         <Notice tone="danger" role="alert">
           {problem}
@@ -279,69 +368,62 @@ export function EventForm({
           {notice}
         </Notice>
       )}
-      {draft === null ? (
-        problem === null ? (
-          <Muted>{t("common.loading")}</Muted>
-        ) : null
-      ) : (
-        <Section title={t("events.section.details")}>
-          <Form onSubmit={(submitted) => void submit(submitted)}>
-            <FieldGroup legend={t("events.section.identity")}>
-              <EventIdentityFields
-                language={language}
-                draft={draft}
-                disabled={busy}
-                change={change}
-              />
-            </FieldGroup>
-            <FieldGroup legend={t("events.section.place")}>
-              <EventPlaceFields
-                language={language}
-                draft={draft}
-                disabled={busy}
-                change={change}
-                status={status}
-              />
-              <EventVenuePinFields
-                language={language}
-                draft={draft}
-                disabled={busy}
-                change={change}
-              />
-            </FieldGroup>
-            <FieldGroup legend={t("events.section.time")}>
-              <EventTimeFields
-                language={language}
-                draft={draft}
-                disabled={busy}
-                change={change}
-                status={status}
-              />
-            </FieldGroup>
-            <FieldGroup legend={t("events.section.access")}>
-              <EventAccessFields
-                language={language}
-                draft={draft}
-                disabled={busy}
-                change={change}
-              />
-            </FieldGroup>
-            <Toolbar align="end">
-              <Button type="submit" variant="primary" disabled={busy || asking !== null}>
-                {event === null ? t("events.create") : t("events.save")}
-              </Button>
-            </Toolbar>
-          </Form>
-        </Section>
-      )}
+    </>
+  );
+}
+
+/**
+ * Creates or edits an event (FR-1001–1003, FR-1608, FR-1728). Times are typed as the wall clock in the event's own
+ * zone. A draft can be deleted and a live event ended by the owner, each after a confirmation naming the event.
+ */
+export function EventForm({
+  language,
+  organizerId,
+  eventId,
+  myRole,
+  intro,
+  bare,
+  onUnsaved,
+  template,
+}: Props) {
+  const t = useTranslator(language);
+  const router = useRouter();
+  const api = `/v1/organizers/${organizerId}/events`;
+  const pages = `/${language}/organizers/${organizerId}/events`;
+  const form = useEventForm(language, t, api, pages, eventId, template);
+  const { event, draft, busy, asking } = form;
+  useReportUnsaved(onUnsaved, "details", detailsUnsaved(draft, event));
+
+  return (
+    <Stack>
+      <EventTop
+        language={language}
+        event={event}
+        name={event === null ? "" : nameFor(event, language)}
+        back={pages}
+        intro={intro}
+        bare={bare}
+      />
+      <EventMessages problem={form.problem} notice={form.notice} />
+      <EventDetails
+        language={language}
+        draft={draft}
+        problem={form.problem}
+        isNew={event === null}
+        status={event?.statusNow ?? "draft"}
+        busy={busy}
+        asking={asking}
+        change={form.change}
+        submit={(submitted) => void form.submit(submitted)}
+      />
       {asking === null || draft === null ? null : (
         <SaveDialog
           language={language}
           question={asking}
           access={draft.access}
           busy={busy}
-          cancel={() => setAsking(null)}
-          confirm={confirmAsked}
+          cancel={() => form.setAsking(null)}
+          confirm={form.confirmAsked}
         />
       )}
       <EventSettings
@@ -350,12 +432,12 @@ export function EventForm({
         event={event}
         bare={bare}
         myRole={myRole}
-        confirming={confirming}
+        confirming={form.confirming}
         busy={busy}
-        ask={setConfirming}
-        confirm={() => void confirm()}
+        ask={form.setConfirming}
+        confirm={() => void form.confirm()}
         termsSaved={(saved) => {
-          setEvent((current) => (current === null ? null : { ...current, terms: saved }));
+          form.setEvent((current) => (current === null ? null : { ...current, terms: saved }));
           // The event's layout reads the words once; this reads them again for every page of the event.
           router.refresh();
         }}
@@ -456,16 +538,6 @@ function EventSettings({
       />
     </>
   );
-}
-
-type SaveQuestion = "access" | "dates";
-
-/** What a save of an existing event must confirm first: a changed access type, else changed times or zone. */
-function saveQuestion(draft: EventDraft, event: EventView): SaveQuestion | null {
-  if (draft.access !== event.access) {
-    return "access";
-  }
-  return timesChanged(draft, event) ? "dates" : null;
 }
 
 /** The confirmation before a save that changes who can join (FR-1820) or when the event runs (FR-1031). */

@@ -14,6 +14,21 @@
   and `scan-quest.tsx` import it from `event/outcome-text.ts`. `RedeemSheet` and `readScan` are untouched. The baseline
   was updated with `node scripts/function-limits.mjs --update` and only shrank. CI 0 minutes (not pushed).
 
+## Function limits, web forms and cards — 2026-11-09
+
+- **Function-limits baseline, `apps/web` forms (tier B; behaviour-preserving, no string, route, field name, id, label or
+  payload change).** Six entries (11 violations) left `scripts/function-limits-baseline.json` (254 to 243):
+  `RehearsalCard` (14, 136 lines), `InviteFlow` (14, 130), `EventForm` (13, 230), `QuestForm` (13, 178), `RewardForm` in
+  `RewardsPanel.tsx` (13, 176) and `StepControls` in `ResultsPanel.tsx` (13). Each component keeps its state and hooks in
+  the same order in the same component; the markup moved into stateless pieces in the same file, and the decisions moved
+  into pure functions (`results-step`, `quest-form-rules`, `event-form-rules`, `invite-link`, `needsPrizeDesk`,
+  `rehearsalOf`/`rehearsalActionPath`/`rehearsalWords`) with table tests (`results-step`, `quest-form-rules`,
+  `event-form-rules`, `invite-link`, `rewards-desk-gate`, `rehearsal-card-logic`). Before the split, a throw-away
+  server-render harness (not committed) saved the old markup of 683 states (every quest type, reward kind, step, new
+  event, rehearsal and invite state, both languages) and the new code reproduced it byte for byte after ids were
+  normalised. `forward.ts` and the kiosk scanner are untouched. The baseline was updated with
+  `node scripts/function-limits.mjs --update` and only shrank. CI 0 minutes (not pushed).
+
 ## Function limits, app screens — 2026-11-09
 
 - **Function-limits baseline, `apps/app` screens (tier B; behaviour-preserving, no string, no screen change).** Nine

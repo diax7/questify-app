@@ -36,6 +36,7 @@ import {
   editRewardBody,
   firstColumn,
   lowCodeRewards,
+  needsPrizeDesk,
   nextWindow,
   parseCodes,
   rewardDraftOf,
@@ -114,6 +115,199 @@ function TextField({
   );
 }
 
+type RewardPart = Readonly<{
+  language: Language;
+  draft: RewardDraft;
+  set: (change: Partial<RewardDraft>) => void;
+  invalid: RewardField | undefined;
+}>;
+
+/** The kind, chosen once: an edit does not show it. */
+function RewardKindField({
+  language,
+  draft,
+  set,
+  editing,
+}: Pick<RewardPart, "language" | "draft" | "set"> & Readonly<{ editing: boolean }>) {
+  const t = translatorFor(language);
+  if (editing) {
+    return null;
+  }
+  return (
+    <FieldGroup legend={t("rewards.kind")} layout="choices">
+      {REWARD_KINDS.map((kind) => (
+        <Radio
+          key={kind}
+          label={<>{t(`rewards.kind.${kind}`)}</>}
+          name="reward-kind"
+          checked={draft.kind === kind}
+          onChange={() => set({ kind })}
+        />
+      ))}
+    </FieldGroup>
+  );
+}
+
+/** The reward's name and description, each in Arabic and English. */
+function RewardTextFields({ language, draft, set, invalid }: RewardPart) {
+  const t = translatorFor(language);
+  return (
+    <>
+      <FieldGroup layout="columns">
+        <TextField
+          label={t("rewards.nameAr")}
+          lang="ar"
+          value={draft.nameAr}
+          invalid={invalid === "name"}
+          change={(nameAr) => set({ nameAr })}
+        />
+        <TextField
+          label={t("rewards.nameEn")}
+          lang="en"
+          value={draft.nameEn}
+          invalid={invalid === "name"}
+          change={(nameEn) => set({ nameEn })}
+        />
+      </FieldGroup>
+      <FieldGroup layout="columns">
+        <TextField
+          label={t("rewards.descriptionAr")}
+          lang="ar"
+          multiline
+          value={draft.descriptionAr}
+          change={(descriptionAr) => set({ descriptionAr })}
+        />
+        <TextField
+          label={t("rewards.descriptionEn")}
+          lang="en"
+          multiline
+          value={draft.descriptionEn}
+          change={(descriptionEn) => set({ descriptionEn })}
+        />
+      </FieldGroup>
+    </>
+  );
+}
+
+/** The price, the stock (a digital reward's comes from its codes) and the per-player limit, with their notes. */
+function RewardCountFields({
+  language,
+  terms,
+  draft,
+  set,
+  invalid,
+  unitsOut,
+  editing,
+}: RewardPart & Readonly<{ terms: EventTerms; unitsOut: number; editing: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <>
+      <FieldGroup layout="columns">
+        <NumberField
+          label={t("rewards.price", { currency: termFor(terms.currency, language) })}
+          value={draft.price}
+          invalid={invalid === "price"}
+          change={(text) => set({ price: Number(text) })}
+        />
+        {draft.kind === "digital" ? null : (
+          <NumberField
+            label={t("rewards.stock")}
+            value={draft.stock}
+            invalid={invalid === "stock"}
+            change={(text) => set({ stock: Number(text) })}
+          />
+        )}
+        <NumberField
+          label={t("rewards.perPlayerLimit", { player: terms.player[language].one })}
+          value={draft.perPlayerLimit}
+          invalid={invalid === "perPlayerLimit"}
+          change={(perPlayerLimit) => set({ perPlayerLimit })}
+        />
+      </FieldGroup>
+      {draft.kind === "digital" ? <Muted>{t("rewards.stockFromCodes")}</Muted> : null}
+      {editing && unitsOut > 0 && draft.kind !== "digital" ? (
+        <Muted>{t("rewards.stockFloor", { count: formatNumber(unitsOut, language) })}</Muted>
+      ) : null}
+    </>
+  );
+}
+
+/** When the reward opens and closes, its shop section and its two tags. */
+function RewardWhenFields({ language, draft, set, invalid }: RewardPart) {
+  const t = translatorFor(language);
+  return (
+    <>
+      <FieldGroup layout="columns">
+        <Field label={t("rewards.opensAt")}>
+          <Input
+            type="datetime-local"
+            dir="ltr"
+            value={draft.opensAt}
+            onChange={(e) => set({ opensAt: e.target.value })}
+          />
+        </Field>
+        <Field label={t("rewards.closesAt")}>
+          <Input
+            type="datetime-local"
+            dir="ltr"
+            value={draft.closesAt}
+            aria-invalid={invalid === "closesAt"}
+            onChange={(e) => set({ closesAt: e.target.value })}
+          />
+        </Field>
+        <Field label={t("rewards.section")}>
+          <Select
+            value={draft.section}
+            onChange={(e) => set({ section: e.target.value as RewardDraft["section"] })}
+          >
+            <option value="">{t("rewards.section.none")}</option>
+            {SECTIONS.map((section) => (
+              <option key={section} value={section}>
+                {t(`rewards.section.${section}`)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </FieldGroup>
+      <FieldGroup layout="choiceGrid">
+        <Checkbox
+          label={t("rewards.tag.new")}
+          checked={draft.tagNew}
+          onChange={(e) => set({ tagNew: e.target.checked })}
+        />
+        <Checkbox
+          label={t("rewards.tag.limited")}
+          checked={draft.tagLimited}
+          onChange={(e) => set({ tagLimited: e.target.checked })}
+        />
+      </FieldGroup>
+    </>
+  );
+}
+
+/** What is wrong with the form: the field its check named, and a new item reward with no prize desk yet. */
+function RewardFormNotices({
+  language,
+  invalid,
+  needsDesk,
+}: Readonly<{ language: Language; invalid: RewardField | undefined; needsDesk: boolean }>) {
+  const t = translatorFor(language);
+  return (
+    <>
+      {invalid === undefined ? null : (
+        <Notice tone="danger" role="alert">
+          {t(`rewards.invalid.${invalid}`)}
+        </Notice>
+      )}
+      {needsDesk ? (
+        <Notice tone="danger" role="alert">
+          {t("rewards.desk.needed")}
+        </Notice>
+      ) : null}
+    </>
+  );
+}
+
 /** The reward form, for a new reward or an edit; the kind is chosen once. */
 function RewardForm({
   language,
@@ -142,7 +336,7 @@ function RewardForm({
   const [shown, setShown] = useState<RewardField | undefined>(undefined);
   const set = (change: Partial<RewardDraft>) => setDraft((current) => ({ ...current, ...change }));
   const invalid = shown;
-  const needsDesk = !editing && draft.kind === "item" && !deskSet;
+  const needsDesk = needsPrizeDesk(draft.kind, editing, deskSet);
   const send = (event: FormEvent) => {
     event.preventDefault();
     const problem = rewardProblem(draft, unitsOut);
@@ -151,135 +345,16 @@ function RewardForm({
       submit(draft);
     }
   };
+  const part = { language, draft, set, invalid };
   return (
     <Card>
       <Form onSubmit={send} aria-busy={busy}>
         <SubHeading as="h2">{t(editing ? "rewards.edit" : "rewards.add")}</SubHeading>
-        {editing ? null : (
-          <FieldGroup legend={t("rewards.kind")} layout="choices">
-            {REWARD_KINDS.map((kind) => (
-              <Radio
-                key={kind}
-                label={<>{t(`rewards.kind.${kind}`)}</>}
-                name="reward-kind"
-                checked={draft.kind === kind}
-                onChange={() => set({ kind })}
-              />
-            ))}
-          </FieldGroup>
-        )}
-        <FieldGroup layout="columns">
-          <TextField
-            label={t("rewards.nameAr")}
-            lang="ar"
-            value={draft.nameAr}
-            invalid={invalid === "name"}
-            change={(nameAr) => set({ nameAr })}
-          />
-          <TextField
-            label={t("rewards.nameEn")}
-            lang="en"
-            value={draft.nameEn}
-            invalid={invalid === "name"}
-            change={(nameEn) => set({ nameEn })}
-          />
-        </FieldGroup>
-        <FieldGroup layout="columns">
-          <TextField
-            label={t("rewards.descriptionAr")}
-            lang="ar"
-            multiline
-            value={draft.descriptionAr}
-            change={(descriptionAr) => set({ descriptionAr })}
-          />
-          <TextField
-            label={t("rewards.descriptionEn")}
-            lang="en"
-            multiline
-            value={draft.descriptionEn}
-            change={(descriptionEn) => set({ descriptionEn })}
-          />
-        </FieldGroup>
-        <FieldGroup layout="columns">
-          <NumberField
-            label={t("rewards.price", { currency: termFor(terms.currency, language) })}
-            value={draft.price}
-            invalid={invalid === "price"}
-            change={(text) => set({ price: Number(text) })}
-          />
-          {draft.kind === "digital" ? null : (
-            <NumberField
-              label={t("rewards.stock")}
-              value={draft.stock}
-              invalid={invalid === "stock"}
-              change={(text) => set({ stock: Number(text) })}
-            />
-          )}
-          <NumberField
-            label={t("rewards.perPlayerLimit", { player: terms.player[language].one })}
-            value={draft.perPlayerLimit}
-            invalid={invalid === "perPlayerLimit"}
-            change={(perPlayerLimit) => set({ perPlayerLimit })}
-          />
-        </FieldGroup>
-        {draft.kind === "digital" ? <Muted>{t("rewards.stockFromCodes")}</Muted> : null}
-        {editing && unitsOut > 0 && draft.kind !== "digital" ? (
-          <Muted>{t("rewards.stockFloor", { count: formatNumber(unitsOut, language) })}</Muted>
-        ) : null}
-        <FieldGroup layout="columns">
-          <Field label={t("rewards.opensAt")}>
-            <Input
-              type="datetime-local"
-              dir="ltr"
-              value={draft.opensAt}
-              onChange={(e) => set({ opensAt: e.target.value })}
-            />
-          </Field>
-          <Field label={t("rewards.closesAt")}>
-            <Input
-              type="datetime-local"
-              dir="ltr"
-              value={draft.closesAt}
-              aria-invalid={invalid === "closesAt"}
-              onChange={(e) => set({ closesAt: e.target.value })}
-            />
-          </Field>
-          <Field label={t("rewards.section")}>
-            <Select
-              value={draft.section}
-              onChange={(e) => set({ section: e.target.value as RewardDraft["section"] })}
-            >
-              <option value="">{t("rewards.section.none")}</option>
-              {SECTIONS.map((section) => (
-                <option key={section} value={section}>
-                  {t(`rewards.section.${section}`)}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </FieldGroup>
-        <FieldGroup layout="choiceGrid">
-          <Checkbox
-            label={t("rewards.tag.new")}
-            checked={draft.tagNew}
-            onChange={(e) => set({ tagNew: e.target.checked })}
-          />
-          <Checkbox
-            label={t("rewards.tag.limited")}
-            checked={draft.tagLimited}
-            onChange={(e) => set({ tagLimited: e.target.checked })}
-          />
-        </FieldGroup>
-        {invalid === undefined ? null : (
-          <Notice tone="danger" role="alert">
-            {t(`rewards.invalid.${invalid}`)}
-          </Notice>
-        )}
-        {needsDesk ? (
-          <Notice tone="danger" role="alert">
-            {t("rewards.desk.needed")}
-          </Notice>
-        ) : null}
+        <RewardKindField language={language} draft={draft} set={set} editing={editing} />
+        <RewardTextFields {...part} />
+        <RewardCountFields {...part} terms={terms} unitsOut={unitsOut} editing={editing} />
+        <RewardWhenFields {...part} />
+        <RewardFormNotices language={language} invalid={invalid} needsDesk={needsDesk} />
         <Toolbar>
           <Button variant="quiet" disabled={busy} onClick={cancel}>
             {t("common.cancel")}

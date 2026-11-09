@@ -4,7 +4,6 @@ import {
   QUEST_TYPES,
   QUEST_TYPE_NAMES,
   isLivePoll,
-  parseVerification,
   termFor,
   zoneLabel,
   type EventTerms,
@@ -23,6 +22,13 @@ import { VoteCounts } from "#src/components/VoteCounts.tsx";
 import { NfcTagsPanel } from "#src/components/NfcTagsPanel.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import type { QuestItem } from "#src/lib/quest-items.ts";
+import {
+  flashPatch,
+  listedTypes,
+  toggledVerification,
+  typeChangePatch,
+  typedNumber,
+} from "#src/lib/quest-form-rules.ts";
 import {
   hasPlace,
   textFor,
@@ -82,6 +88,157 @@ type Props = Readonly<{
   cancel: () => void;
 }>;
 
+type QuestPart = Readonly<{
+  language: Language;
+  draft: QuestDraft;
+  busy: boolean;
+  change: (patch: Partial<QuestDraft>) => void;
+}>;
+
+/** The Type field: fixed once the quest exists, with the info button for the types that need one. */
+function QuestTypeField({
+  language,
+  draft,
+  busy,
+  change,
+  isNew,
+  locationQuestsOn,
+}: QuestPart & Readonly<{ isNew: boolean; locationQuestsOn: boolean }>) {
+  const t = useTranslator(language);
+  const typeKey = TYPE_INFO[draft.type];
+  return (
+    <Field label={t("quests.field.type")} info={typeKey && infoTip(t, typeKey)}>
+      <Select
+        value={draft.type}
+        disabled={busy || !isNew}
+        onChange={(event) => {
+          const type = event.target.value as QuestDraft["type"];
+          change(typeChangePatch(type, startingConfig(type)));
+        }}
+      >
+        {listedTypes(QUEST_TYPE_NAMES, locationQuestsOn, draft.type).map((type) => (
+          <option key={type} value={type}>
+            {t(QUEST_TYPES[type].label)}
+          </option>
+        ))}
+      </Select>
+    </Field>
+  );
+}
+
+function QuestCategoryField({
+  language,
+  draft,
+  busy,
+  change,
+  categories,
+}: QuestPart & Readonly<{ categories: readonly CategoryView[] }>) {
+  const t = useTranslator(language);
+  return (
+    <Field label={t("quests.field.category")}>
+      <Select
+        value={draft.categoryId}
+        disabled={busy}
+        onChange={(event) => change({ categoryId: event.target.value })}
+      >
+        {categories.map((category) => (
+          <option key={category.id} value={category.id}>
+            {textFor(category.name, language)}
+          </option>
+        ))}
+      </Select>
+    </Field>
+  );
+}
+
+/** One of the four text boxes: Arabic ones read right to left, the long ones are text areas. */
+function QuestTextField({
+  language,
+  draft,
+  busy,
+  change,
+  field,
+  max,
+  long = false,
+}: QuestPart &
+  Readonly<{
+    field: "titleAr" | "titleEn" | "descriptionAr" | "descriptionEn";
+    max: number;
+    long?: boolean;
+  }>) {
+  const t = useTranslator(language);
+  const props = {
+    dir: field.endsWith("Ar") ? "rtl" : "ltr",
+    maxLength: max,
+    value: draft[field],
+    disabled: busy,
+  } as const;
+  return (
+    <Field label={t(`quests.field.${field}`)}>
+      {long ? (
+        <Textarea
+          {...props}
+          rows={3}
+          onChange={(event) => change({ [field]: event.target.value })}
+        />
+      ) : (
+        <Input {...props} onChange={(event) => change({ [field]: event.target.value })} />
+      )}
+    </Field>
+  );
+}
+
+/** The points the quest pays, named after the event's currency (FR-404). */
+function QuestPointsField({
+  language,
+  draft,
+  busy,
+  change,
+  terms,
+}: QuestPart & Readonly<{ terms: EventTerms }>) {
+  const t = useTranslator(language);
+  return (
+    <Field label={t("quests.field.points", { currency: termFor(terms.currency, language) })}>
+      <Input
+        type="number"
+        dir="ltr"
+        min={0}
+        max={100000}
+        required
+        value={draft.points}
+        disabled={busy}
+        onChange={(event) => {
+          const points = typedNumber(event.target.value);
+          if (points !== undefined) {
+            change({ points });
+          }
+        }}
+      />
+    </Field>
+  );
+}
+
+/** What an existing quest shows under its fields: vote counts, survey results and the NFC tags panel. */
+function QuestExtras({
+  language,
+  timeZone,
+  busy,
+  votesUrl,
+  surveyUrl,
+  nfcTags,
+}: Pick<QuestPart, "language" | "busy"> &
+  Pick<Props, "timeZone" | "votesUrl" | "surveyUrl" | "nfcTags">) {
+  return (
+    <>
+      {votesUrl === null ? null : <VoteCounts language={language} url={votesUrl} />}
+      {surveyUrl === null ? null : <SurveyResults language={language} url={surveyUrl} />}
+      {nfcTags === null ? null : (
+        <NfcTagsPanel language={language} timeZone={timeZone} readOnly={busy} {...nfcTags} />
+      )}
+    </>
+  );
+}
+
 /** One quest's fields: the common ones, then its type's own (FR-1005, FR-1008, FR-225–227). */
 export function QuestForm({
   language,
@@ -104,99 +261,24 @@ export function QuestForm({
   const heading = useFocusOnMount<HTMLHeadingElement>();
   const change = (patch: Partial<QuestDraft>) => setDraft((current) => ({ ...current, ...patch }));
   const TypeFields = QUEST_TYPE_FIELDS[draft.type];
-  const typeKey = TYPE_INFO[draft.type];
-  const text = (
-    key: "titleAr" | "titleEn" | "descriptionAr" | "descriptionEn",
-    max: number,
-    long = false,
-  ) => {
-    const props = {
-      dir: key.endsWith("Ar") ? "rtl" : "ltr",
-      maxLength: max,
-      value: draft[key],
-      disabled: busy,
-    } as const;
-    return (
-      <Field label={t(`quests.field.${key}`)}>
-        {long ? (
-          <Textarea
-            {...props}
-            rows={3}
-            onChange={(event) => change({ [key]: event.target.value })}
-          />
-        ) : (
-          <Input {...props} onChange={(event) => change({ [key]: event.target.value })} />
-        )}
-      </Field>
-    );
-  };
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     save(draft);
   };
+  const part = { language, draft, busy, change };
   return (
     <Card>
       <Form onSubmit={submit} aria-labelledby="quest-form-title">
         <SubHeading as="h2" id="quest-form-title" ref={heading} tabIndex={-1}>
           {isNew ? t("quests.formNew") : t("quests.formEdit")}
         </SubHeading>
-        <Field label={t("quests.field.type")} info={typeKey && infoTip(t, typeKey)}>
-          <Select
-            value={draft.type}
-            disabled={busy || !isNew}
-            onChange={(event) =>
-              change({
-                type: event.target.value as QuestDraft["type"],
-                config: startingConfig(event.target.value as QuestDraft["type"]),
-                // A meet quest starts able to pay its default daily cap (ADR-210).
-                ...(event.target.value === "meet" ? { repeatCap: 10 } : {}),
-                verification:
-                  parseVerification(event.target.value as QuestDraft["type"], undefined) ?? [],
-              })
-            }
-          >
-            {QUEST_TYPE_NAMES.filter(
-              (type) => type !== "location" || locationQuestsOn || draft.type === "location",
-            ).map((type) => (
-              <option key={type} value={type}>
-                {t(QUEST_TYPES[type].label)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label={t("quests.field.category")}>
-          <Select
-            value={draft.categoryId}
-            disabled={busy}
-            onChange={(event) => change({ categoryId: event.target.value })}
-          >
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {textFor(category.name, language)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        {text("titleAr", 120)}
-        {text("titleEn", 120)}
-        {text("descriptionAr", 2000, true)}
-        {text("descriptionEn", 2000, true)}
-        <Field label={t("quests.field.points", { currency: termFor(terms.currency, language) })}>
-          <Input
-            type="number"
-            dir="ltr"
-            min={0}
-            max={100000}
-            required
-            value={draft.points}
-            disabled={busy}
-            onChange={(event) => {
-              if (event.target.value !== "") {
-                change({ points: Number(event.target.value) });
-              }
-            }}
-          />
-        </Field>
+        <QuestTypeField {...part} isNew={isNew} locationQuestsOn={locationQuestsOn} />
+        <QuestCategoryField {...part} categories={categories} />
+        <QuestTextField {...part} field="titleAr" max={120} />
+        <QuestTextField {...part} field="titleEn" max={120} />
+        <QuestTextField {...part} field="descriptionAr" max={2000} long />
+        <QuestTextField {...part} field="descriptionEn" max={2000} long />
+        <QuestPointsField {...part} terms={terms} />
         <ItemPicker
           language={language}
           items={items}
@@ -205,15 +287,7 @@ export function QuestForm({
           value={draft.itemId}
           change={(itemId) => change({ itemId })}
         />
-        {QUEST_TYPES[draft.type].oneTry ? null : (
-          <QuestRepeatField
-            language={language}
-            player={terms.player[language].one}
-            draft={draft}
-            busy={busy}
-            change={change}
-          />
-        )}
+        <QuestRepeatField {...part} player={terms.player[language].one} />
         <FirstBonusFields
           language={language}
           terms={terms}
@@ -222,18 +296,8 @@ export function QuestForm({
           change={change}
           save={save}
         />
-        {isLivePoll(draft.type, draft.config) ? null : (
-          <FlashField language={language} draft={draft} busy={busy} change={change} />
-        )}
-        {isLivePoll(draft.type, draft.config) || draft.flashRunning ? null : (
-          <QuestWindowFields
-            language={language}
-            timeZone={timeZone}
-            draft={draft}
-            busy={busy}
-            change={change}
-          />
-        )}
+        <FlashField {...part} />
+        <QuestWindowFields {...part} timeZone={timeZone} />
         <TypeFields
           language={language}
           config={draft.config}
@@ -244,12 +308,15 @@ export function QuestForm({
         {hasPlace(draft.type) ? (
           <QuestPlaceFields language={language} draft={draft} disabled={busy} change={change} />
         ) : null}
-        <QuestVerificationField language={language} draft={draft} busy={busy} change={change} />
-        {votesUrl === null ? null : <VoteCounts language={language} url={votesUrl} />}
-        {surveyUrl === null ? null : <SurveyResults language={language} url={surveyUrl} />}
-        {nfcTags === null ? null : (
-          <NfcTagsPanel language={language} timeZone={timeZone} readOnly={busy} {...nfcTags} />
-        )}
+        <QuestVerificationField {...part} />
+        <QuestExtras
+          language={language}
+          timeZone={timeZone}
+          busy={busy}
+          votesUrl={votesUrl}
+          surveyUrl={surveyUrl}
+          nfcTags={nfcTags}
+        />
         <Toolbar>
           <Button variant="quiet" disabled={busy} onClick={cancel}>
             {t("common.cancel")}
@@ -273,14 +340,11 @@ function QuestWindowFields({
   draft,
   busy,
   change,
-}: Readonly<{
-  language: Language;
-  timeZone: string;
-  draft: QuestDraft;
-  busy: boolean;
-  change: (patch: Partial<QuestDraft>) => void;
-}>) {
+}: QuestPart & Readonly<{ timeZone: string }>) {
   const t = useTranslator(language);
+  if (isLivePoll(draft.type, draft.config) || draft.flashRunning) {
+    return null;
+  }
   return (
     <>
       {(["opensAt", "closesAt"] as const).map((key) => (
@@ -320,18 +384,11 @@ function QuestWindowFields({
  * "Flash quest" (T-307, FR-251): shown to players only inside its window. Ticked on a quest with no times, it becomes a
  * hidden draft to launch from the list. Once launched (or its window started) it stays one, with its window kept.
  */
-function FlashField({
-  language,
-  draft,
-  busy,
-  change,
-}: Readonly<{
-  language: Language;
-  draft: QuestDraft;
-  busy: boolean;
-  change: (patch: Partial<QuestDraft>) => void;
-}>) {
+function FlashField({ language, draft, busy, change }: QuestPart) {
   const t = useTranslator(language);
+  if (isLivePoll(draft.type, draft.config)) {
+    return null;
+  }
   return (
     <>
       <Checkbox
@@ -339,14 +396,7 @@ function FlashField({
         info={infoTip(t, "quests.field.flashHint")}
         checked={draft.flash}
         disabled={busy || draft.flashRunning}
-        onChange={(event) =>
-          change({
-            flash: event.target.checked,
-            ...(event.target.checked && (draft.opensAt === "" || draft.closesAt === "")
-              ? { visible: false }
-              : {}),
-          })
-        }
+        onChange={(event) => change(flashPatch(event.target.checked, draft))}
       />
     </>
   );
@@ -359,15 +409,15 @@ function QuestRepeatField({
   draft,
   busy,
   change,
-}: Readonly<{
-  language: Language;
-  /** The event's word for a player, singular («لكل طالب»). */
-  player: string;
-  draft: QuestDraft;
-  busy: boolean;
-  change: (patch: Partial<QuestDraft>) => void;
-}>) {
+}: QuestPart &
+  Readonly<{
+    /** The event's word for a player, singular («لكل طالب»). */
+    player: string;
+  }>) {
   const t = useTranslator(language);
+  if (QUEST_TYPES[draft.type].oneTry) {
+    return null;
+  }
   return (
     <>
       <Checkbox
@@ -387,8 +437,9 @@ function QuestRepeatField({
             value={draft.repeatCap}
             disabled={busy}
             onChange={(event) => {
-              if (event.target.value !== "") {
-                change({ repeatCap: Number(event.target.value) });
+              const repeatCap = typedNumber(event.target.value);
+              if (repeatCap !== undefined) {
+                change({ repeatCap });
               }
             }}
           />
@@ -412,24 +463,8 @@ const VERIFICATION_INFO: Readonly<Partial<Record<QuestVerification, MessageKey>>
   kiosk: "quests.verification.kioskHint",
 };
 
-const PRINTED: ReadonlySet<QuestVerification> = new Set(["quest_qr", "nfc"]);
-
-/** Whether ticking `method` must untick `item`: the screen QR against a printed code or its NFC tag (ADR-240). */
-const clashes = (method: QuestVerification, item: QuestVerification): boolean =>
-  (method === "screen_qr" && PRINTED.has(item)) || (PRINTED.has(method) && item === "screen_qr");
-
 /** FR-301: how a scan quest is verified, at least one way; a type with no method shows nothing. */
-function QuestVerificationField({
-  language,
-  draft,
-  busy,
-  change,
-}: Readonly<{
-  language: Language;
-  draft: QuestDraft;
-  busy: boolean;
-  change: (patch: Partial<QuestDraft>) => void;
-}>) {
+function QuestVerificationField({ language, draft, busy, change }: QuestPart) {
   const t = useTranslator(language);
   const offered: readonly QuestVerification[] = QUEST_TYPES[draft.type].verifications;
   // Nothing to choose: no method, or a challenge's one fixed method (ADR-197).
@@ -440,17 +475,7 @@ function QuestVerificationField({
   // The screen QR never sits beside a printed code (ADR-240): ticking one side unticks the other.
   const nfc = draft.verification.includes("nfc");
   const toggle = (method: QuestVerification, on: boolean) =>
-    change({
-      verification: offered.filter((item) => {
-        if (item === method) {
-          return on;
-        }
-        if (on && clashes(method, item)) {
-          return false;
-        }
-        return draft.verification.includes(item) || (method === "nfc" && on && item === "quest_qr");
-      }),
-    });
+    change({ verification: toggledVerification(offered, draft.verification, method, on) });
   return (
     <FieldGroup legend={t("quests.verification")} layout="choices">
       {offered.map((method) => {

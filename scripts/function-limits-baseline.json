@@ -849,12 +849,6 @@
       "complexity": [9]
     }
   },
-  "apps/web/src/components/EventForm.tsx": {
-    "EventForm": {
-      "complexity": [13],
-      "lines": [230]
-    }
-  },
   "apps/web/src/components/EventWords.tsx": {
     "EventWords": {
       "lines": [104]
@@ -881,12 +875,6 @@
     },
     "TicketRow": {
       "complexity": [12]
-    }
-  },
-  "apps/web/src/components/InviteFlow.tsx": {
-    "InviteFlow": {
-      "complexity": [14],
-      "lines": [130]
     }
   },
   "apps/web/src/components/KioskScanner.tsx": {
@@ -921,30 +909,9 @@
       "complexity": [10]
     }
   },
-  "apps/web/src/components/QuestForm.tsx": {
-    "QuestForm": {
-      "complexity": [13],
-      "lines": [178]
-    }
-  },
-  "apps/web/src/components/RehearsalCard.tsx": {
-    "RehearsalCard": {
-      "complexity": [14],
-      "lines": [136]
-    }
-  },
-  "apps/web/src/components/ResultsPanel.tsx": {
-    "StepControls": {
-      "complexity": [13]
-    }
-  },
   "apps/web/src/components/RewardsPanel.tsx": {
     "DeskForm": {
       "lines": [140]
-    },
-    "RewardForm": {
-      "complexity": [13],
-      "lines": [176]
     },
     "RewardRow": {
       "complexity": [9]
