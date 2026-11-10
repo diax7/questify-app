@@ -160,6 +160,7 @@ export async function startAndFill(page: Page, ids: Event): Promise<LayoutIds> {
   // Also what puts the event on the console's readiness list: scheduled, starting tomorrow, ending in ten days.
   await control(page, "/invitation-event", { eventId, days: 10 });
   const soon = await page.request.get("/v1/admin/readiness");
+  expect(soon.status(), await soon.text()).toBe(200);
   const listed = ((await soon.json()) as { events: { id: string }[] }).events;
   expect(
     listed.some((one) => one.id === eventId),
