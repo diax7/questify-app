@@ -5,7 +5,7 @@ export type WebConfig = Readonly<{
    * drift: a write that carries the player cookie or reaches `/v1/auth/*` must send exactly this `Origin`.
    */
   webOrigin: string;
-  /** `PLAYER_WEB_SESSION=on`: the forwarder's player cookie steps (ADR-818); off until P3's `/play` CSP ships. */
+  /** `PLAYER_WEB_SESSION=on`: the forwarder's player cookie steps (ADR-818); off in production until Dhia enables it (on in staging). */
   playerWebSession: boolean;
   /** The app's store pages (T-010), unset until the app is published: the event page then shows no store buttons. */
   appStoreUrl?: string;

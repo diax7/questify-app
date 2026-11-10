@@ -36,7 +36,10 @@ export function AlertHost() {
           onPress={() => close(dismiss)}
           style={styles.shade}
         />
-        <View accessibilityRole="alert" style={[styles.dialog, { direction: rtl ? "rtl" : "ltr" }]}>
+        <View
+          accessibilityLabel={request.title}
+          style={[styles.dialog, { direction: rtl ? "rtl" : "ltr" }]}
+        >
           <AppText variant="title" accessibilityRole="header">
             {request.title}
           </AppText>
