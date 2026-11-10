@@ -26,11 +26,9 @@ const WEB_ONLY = ["barcode-detector"];
 
 /**
  * Files that still import a native-only package with no web counterpart. Each one is a known gap with an owner; the list
- * only shrinks. `app-session.ts` keeps the session in the keychain: its web version is the cookie session (T-803 P2).
+ * only shrinks. It is empty now: `app-session.ts` (the keychain session) has its web version, the cookie session (T-803 P2).
  */
-const KNOWN_GAPS: ReadonlyMap<string, string> = new Map([
-  ["src/api/app-session.ts", "T-803 P2: the session on the web is the forwarder's cookie"],
-]);
+const KNOWN_GAPS: ReadonlyMap<string, string> = new Map();
 
 type Use = Readonly<{ module: string; how: "static" | "require" | "import()" }>;
 

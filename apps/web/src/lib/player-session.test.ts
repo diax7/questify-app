@@ -118,6 +118,7 @@ describe("the cookie helpers", () => {
       "/v1/admin/players",
       "/v1/device/pair",
       "/v1/device",
+      "/v1/organizers/me",
       "/v1/operator/events",
       "/v1/me/operator-events",
     ]) {
@@ -374,16 +375,42 @@ describe("the forwarder's player web session (PLAYER_WEB_SESSION on)", () => {
         { refreshToken: token() },
         {
           cookie: oldCookie,
+          "x-forwarded-for": "203.0.113.9",
+          "user-agent": "Browser/1",
         },
       );
       expect(response.status).toBe(200);
       expect(JSON.parse(api.seen[0]?.body ?? "")).toEqual({ refreshToken: old.refresh });
+      expect(api.seen[0]?.headers["x-forwarded-for"]).toBe("203.0.113.9");
+      expect(api.seen[0]?.headers["user-agent"]).toBe("Browser/1");
       expect(api.seen[0]?.headers["authorization"]).toBeUndefined();
       expect(api.seen[0]?.headers["cookie"]).toBeUndefined();
       expect(response.headers.getSetCookie()).toEqual([newCookie]);
       const raw = await response.text();
       expect(raw).not.toContain(issued.refreshToken);
       expect(JSON.parse(raw)).toEqual({ signedIn: true, expiresInSeconds: 3600, player: PLAYER });
+    });
+
+    it("never passes the browser's idempotency-key or if-none-match on its own calls", async () => {
+      const browser = {
+        cookie: oldCookie,
+        "idempotency-key": "idem-1",
+        "if-none-match": '"etag-1"',
+      };
+      await post("/v1/auth/refresh", undefined, browser);
+      await post("/v1/auth/logout", undefined, browser);
+      await post("/v1/auth/verify", verifyBody, browser);
+      // refresh, logout, then verify's logout of the old cookie and the verify itself
+      expect(api.seen.map((seen) => seen.url)).toEqual([
+        "/v1/auth/refresh",
+        "/v1/auth/logout",
+        "/v1/auth/logout",
+        "/v1/auth/verify",
+      ]);
+      for (const seen of api.seen) {
+        expect(seen.headers["idempotency-key"], seen.url).toBeUndefined();
+        expect(seen.headers["if-none-match"], seen.url).toBeUndefined();
+      }
     });
 
     it("turns the API's 401 into session_expired and clears the cookie", async () => {
@@ -440,11 +467,15 @@ describe("the forwarder's player web session (PLAYER_WEB_SESSION on)", () => {
         { refreshToken: token() },
         {
           cookie: oldCookie,
+          "x-forwarded-for": "203.0.113.9",
+          "user-agent": "Browser/1",
         },
       );
       expect(response.status).toBe(204);
       expect(response.headers.getSetCookie()).toEqual([CLEARED]);
       expect(JSON.parse(api.seen[0]?.body ?? "")).toEqual({ refreshToken: old.refresh });
+      expect(api.seen[0]?.headers["x-forwarded-for"]).toBe("203.0.113.9");
+      expect(api.seen[0]?.headers["user-agent"]).toBe("Browser/1");
     });
 
     it("answers 204 with a clear when the API fails, or with no cookie at all", async () => {
@@ -481,8 +512,14 @@ describe("the forwarder's player web session (PLAYER_WEB_SESSION on)", () => {
       expect(api.seen[0]?.headers["cookie"]).toBe("a=1; __Host-qs_session=s1");
     });
 
-    it("never sends a bearer to the sign-in steps, staff, admin or device paths", async () => {
-      for (const path of ["/v1/auth/code", "/v1/staff/me", "/v1/admin/players", "/v1/device"]) {
+    it("never sends a bearer to the sign-in steps, staff, admin, device or organizer paths", async () => {
+      for (const path of [
+        "/v1/auth/code",
+        "/v1/staff/me",
+        "/v1/admin/players",
+        "/v1/device",
+        "/v1/organizers/me",
+      ]) {
         api.seen.length = 0;
         await forward(
           new Request(`${WEB}${path}`, {

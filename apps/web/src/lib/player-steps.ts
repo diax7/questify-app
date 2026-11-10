@@ -33,6 +33,9 @@ type Called = Response | "timeout" | "unreachable";
 async function callApi(context: StepContext, path: string, body: unknown): Promise<Called> {
   const headers = forwardedRequestHeaders(context.request.headers, context.cookie);
   headers.set("content-type", "application/json");
+  // The forwarder's own calls are its own requests, not a replay or a revalidation of the browser's.
+  headers.delete("idempotency-key");
+  headers.delete("if-none-match");
   try {
     return await (context.options.fetchImpl ?? fetch)(new URL(path, context.options.apiOrigin), {
       method: "POST",

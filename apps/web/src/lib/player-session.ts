@@ -114,8 +114,8 @@ export const isOperatorPath = (pathname: string): boolean =>
   pathname === "/v1/me/operator-events" ||
   pathname.startsWith("/v1/me/operator-events/");
 
-/** Paths that never receive the player's bearer: the sign-in steps, staff, admin, kiosk devices and operators. */
-const NO_BEARER = ["/v1/auth/", "/v1/staff/", "/v1/admin/", "/v1/device/"];
+/** Paths that never receive the player's bearer: the sign-in steps, staff, admin, kiosk devices and organizers. */
+const NO_BEARER = ["/v1/auth/", "/v1/staff/", "/v1/admin/", "/v1/device/", "/v1/organizers/"];
 
 export const takesBearer = (pathname: string): boolean =>
   pathname !== "/v1/device" &&

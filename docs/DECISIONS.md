@@ -8979,7 +8979,8 @@ with P3's `/play` CSP (SECURITY.md abuse case 11).
 the native app a second credential channel. In the forwarder the cookie is host-only to the web origin and HttpOnly, so no
 token reaches a page.
 **Trade-offs:** the forwarder is now sign-in code (tier A, mutation-tested). An XSS on the shared origin still acts as the
-player while the page is open (abuse case 11, Q-758).
+player while the page is open (abuse case 11, Q-758). A `__Host-qs_player` sent twice counts as no cookie, so a sign-in
+over it does not log out either old family (accepted: `__Host-` makes a duplicate near impossible).
 
 ## ADR-819 - The forwarder's Origin rule, read from `DASHBOARD_ORIGIN`
 
