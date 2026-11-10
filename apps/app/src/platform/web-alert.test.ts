@@ -106,3 +106,41 @@ describe("webAlert", () => {
     expect(e.alert).not.toHaveBeenCalled();
   });
 });
+
+describe("webAlert with the app's own dialog", () => {
+  it("hands every button to the dialog and leaves the browser's dialogs alone", () => {
+    const e = env(true);
+    const present = vi.fn(() => true);
+    const onPress = vi.fn();
+    const buttons = [
+      { text: "Cancel", style: "cancel" as const },
+      { text: "Delete", style: "destructive" as const, onPress },
+    ];
+    webAlert("Delete?", "It cannot be undone.", buttons, e, { present });
+    expect(present).toHaveBeenCalledExactlyOnceWith({
+      title: "Delete?",
+      message: "It cannot be undone.",
+      buttons,
+    });
+    expect(e.confirm).not.toHaveBeenCalled();
+    expect(e.alert).not.toHaveBeenCalled();
+    expect(onPress).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the browser's dialog when no dialog host is on screen", () => {
+    const e = env(true);
+    const action = vi.fn();
+    webAlert(
+      "Delete?",
+      undefined,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", onPress: action },
+      ],
+      e,
+      { present: () => false },
+    );
+    expect(e.confirm).toHaveBeenCalledTimes(1);
+    expect(action).toHaveBeenCalledTimes(1);
+  });
+});

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { router, useSegments } from "expo-router";
 import { setApiLanguage } from "#src/api/app-session.ts";
 import { PlayerProvider, usePlayer } from "#src/auth/player.tsx";
+import { AlertHost } from "#src/platform/AlertHost.tsx";
 import { atLanding, consentStepDue } from "#src/marketing/marketing-flow.ts";
 import { I18nProvider, useI18n } from "#src/i18n/provider.tsx";
 import { prepareCameraDecoder } from "#src/platform/camera-decoder.ts";
@@ -43,6 +44,7 @@ export default function RootLayout() {
             {ready ? <ConsentGate /> : null}
             {ready ? <Stack screenOptions={{ headerShown: false }} /> : null}
             {ready ? <PushHost /> : null}
+            {ready ? <AlertHost /> : null}
           </QuestifySyncProvider>
         </PlayerProvider>
       </I18nProvider>
