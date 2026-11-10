@@ -18,7 +18,8 @@
   `landmark-unique` on `/console/readiness` (two events of the same name), not contrast: the event cards are now articles.
 - **Since release-8:** the baseline went from 106 to 74 in four more batches (web 5, app 6, API 5 with the operator routes
   pinned by a route-list test, and a FOLLOWUPS clean-up), each reviewed 95 or 96. The remaining 74 are core paths.
-- **Staging:** `release-20261109-8` (f0d902ef), API and web deployed and probed (readyz, sign-in in both languages, console 307). The API deploy ran `connect` by mistake, which left `DATABASE_ADMIN_URL` on the API for about ten minutes; it was unset and the API restarted (`no-admin` confirmed), and the handoff now says `connect` is for migrations only.
+- **Staging:** `release-20261109-9` (8302060f), API and web deployed and probed (readyz, sign-in in both languages, console 307). The API deploy ran `connect` by mistake, which left `DATABASE_ADMIN_URL` on the API for about ten minutes; it was unset and the API restarted (`no-admin` confirmed), and the handoff now says `connect` is for migrations only.
+- **Blocked 2026-11-10:** GitHub Actions stopped starting jobs ("account is locked due to a billing issue"); the nightly Full checks run of 2026-11-10 never started. No push until Dhia clears the billing.
 
 ## Function limits, API error mappers — 2026-11-09
 
@@ -593,7 +594,7 @@
 
 - 2026-11-09: mutation run 42551052841 put `apps/api/src/players/sign-in.ts` at 91.56% (0184's batch loop), over the bar.
 - 2026-11-09: full suite on main 568dc0b3, 850 files and 13,379 tests passed, 0 failed, 1,012 s at load 3 to 10.
-- The newest entries are below, then older ones. Staging: `release-20261109-8`, migration 0187 (0156 reserved for T-810d). Live
+- The newest entries are below, then older ones. Staging: `release-20261109-9`, migration 0187 (0156 reserved for T-810d). Live
   today: gems removed and the Journey tab (T-404c, T-404d; ADR-760 to 768), FOLLOWUPS batches 1 to 7, ADR-810 (the company server
   builds and tests with fake data only; CranL keeps the hosting). Tasks 186 done, 33 open. CI run 42263782013: 12,981 tests passed.
   **Next:** `docs/agents/COORDINATOR_HANDOFF.md`, first the server measurement.
