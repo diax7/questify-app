@@ -464,6 +464,15 @@ export async function waitUntilSettled(page: Page, where: string): Promise<void>
   await settleRequests(page);
 }
 
+/** The text to look for: a catalog text with a slot in it (`{count}`, `{date}`) matches whatever the page puts there. */
+function readyPattern(ready: string): string | RegExp {
+  if (!/\{\w+\}/.test(ready)) {
+    return ready;
+  }
+  const parts = ready.split(/\{\w+\}/).map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(parts.join(".+?"), "i");
+}
+
 /**
  * Opens a page in a language and waits until its main area shows the given text and it has its data. A page that opens
  * on the error state because the API stalled for a moment is opened again, not read as it is.
@@ -479,7 +488,7 @@ export async function openPage(
     await page.goto(`/${language}${path}`);
     // Inside the main area: the shell around it paints its own labels at once, before the page has its data.
     await expect(
-      page.locator("main").getByText(ready).filter({ visible: true }).first(),
+      page.locator("main").getByText(readyPattern(ready)).filter({ visible: true }).first(),
     ).toBeVisible({ timeout: 6000 });
   }).toPass({ timeout: 40_000 });
   await waitUntilSettled(page, where);
@@ -584,7 +593,7 @@ export type LayoutPage = Readonly<{
 const event = (ids: LayoutIds): string => `/organizers/${ids.organizerId}/events/${ids.eventId}`;
 const organizer = (ids: LayoutIds): string => `/organizers/${ids.organizerId}`;
 
-/** The words of a page's title, from the message catalog, so the check reads what the page really says. */
+/** The words of a catalog text (a page title, or a label that shows once its data is in), so the check reads what the page really says. */
 const titled = (key: MessageKey): LayoutPage["ready"] => ({
   en: MESSAGES[key].en,
   ar: MESSAGES[key].ar,
@@ -597,11 +606,14 @@ const eventPage = (name: string, key: MessageKey): LayoutPage => ({
   ready: titled(key),
 });
 
-/** A console page opened by its folder name, waiting for its title. */
-const consolePage = (name: string, key: MessageKey): LayoutPage => ({
+/**
+ * A console page opened by its folder name, waiting for `loaded`: a text that shows only once its data is in. The title
+ * paints at once, so it is the wait only for a page that loads nothing.
+ */
+const consolePage = (name: string, key: MessageKey, loaded: MessageKey = key): LayoutPage => ({
   name: `console-${name}`,
   path: () => `/console/${name}`,
-  ready: titled(key),
+  ready: titled(loaded),
 });
 
 /**
@@ -697,27 +709,28 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
     ready: titled("rules.title"),
   },
   { name: "console", path: () => "/console", ready: titled("console.queue") },
-  consolePage("admins", "console.admins.title"),
-  consolePage("catalog", "console.catalog.title"),
-  consolePage("content", "console.content.title"),
+  consolePage("admins", "console.admins.title", "console.admins.show"),
+  consolePage("catalog", "console.catalog.title", "console.catalog.templates.new"),
+  consolePage("content", "console.content.title", "console.daily.cadence.label.challenge"),
   {
     name: "console-event",
     path: (ids) => `/console/events/${ids.eventId}`,
     ready: { en: "Layout Fest", ar: "مهرجان التخطيط" },
   },
-  consolePage("health", "console.health.title"),
-  consolePage("intro", "console.intro.title"),
-  consolePage("home", "console.home.title"),
-  consolePage("legal", "console.legal.title"),
-  consolePage("messages", "console.messages.title"),
-  consolePage("invitations", "console.invCampaign.title"),
-  consolePage("numbers", "console.numbers.title"),
+  consolePage("health", "console.health.title", "console.health.updated"),
+  consolePage("intro", "console.intro.title", "console.intro.cards"),
+  consolePage("home", "console.home.title", "console.home.blocks"),
+  consolePage("legal", "console.legal.title", "console.legal.players"),
+  consolePage("messages", "console.messages.title", "console.messages.subject"),
+  consolePage("invitations", "console.invCampaign.title", "console.invCampaign.open"),
+  consolePage("numbers", "console.numbers.title", "console.numbers.group.organizers"),
+  // A search form: it loads nothing, so the title is the whole wait.
   consolePage("players", "console.players.title"),
-  consolePage("switches", "console.switches.title"),
-  consolePage("word-lists", "console.wordLists.title"),
-  consolePage("name-allow", "console.nameAllow.title"),
-  consolePage("reports", "console.reports.title"),
-  consolePage("flags", "console.flags.title"),
+  consolePage("switches", "console.switches.title", "console.switches.feature.agenda"),
+  consolePage("word-lists", "console.wordLists.title", "console.wordLists.total"),
+  consolePage("name-allow", "console.nameAllow.title", "console.wordLists.total"),
+  consolePage("reports", "console.reports.title", "console.reports.total"),
+  consolePage("flags", "console.flags.title", "console.flags.total"),
   {
     name: "console-player",
     path: (ids) => `/console/players/${ids.playerId}`,
@@ -728,13 +741,14 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
     path: (ids) => `/console/invitations/${ids.campaignId}`,
     ready: titled("console.invCampaign.detailTitle"),
   },
-  consolePage("questify", "console.questify.title"),
+  consolePage("questify", "console.questify.title", "console.questify.alwaysOn"),
+  // Cards or the empty line, whatever the shared database holds, so no one text marks it; its "Loading" status is awaited in openPage.
   consolePage("readiness", "console.readiness.title"),
-  consolePage("seasons", "console.seasons.title"),
-  consolePage("tickets", "console.tickets.title"),
-  consolePage("translations", "console.translations.title"),
-  consolePage("usage", "console.usage.title"),
-  consolePage("feature-usage", "console.featureUsage.title"),
+  consolePage("seasons", "console.seasons.title", "console.seasons.players"),
+  consolePage("tickets", "console.tickets.title", "console.tickets.sent"),
+  consolePage("translations", "console.translations.title", "console.translations.range"),
+  consolePage("usage", "console.usage.title", "console.usage.show"),
+  consolePage("feature-usage", "console.featureUsage.title", "console.featureUsage.featuresOn"),
   {
     name: "console-ticket",
     path: (ids) => `/console/tickets/${ids.ticketId}`,
