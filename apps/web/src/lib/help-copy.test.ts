@@ -82,6 +82,7 @@ const HELP_LINES: readonly string[] = [
   "pushSettings.offAbout",
   "quests.closedNote",
   "quests.field.codeHint",
+  "quests.needsAppHint",
   "quests.vote.sharesNote",
   "questsTab.codeHint",
   "rehearsal.joinIntro",
