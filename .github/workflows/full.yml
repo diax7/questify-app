@@ -85,12 +85,6 @@ jobs:
           key: next-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/web/src/**', 'packages/shared/src/**') }}
           restore-keys: next-${{ hashFiles('pnpm-lock.yaml') }}-
 
-      # The player web build (T-803 P3) goes into apps/web/public/play before the web app is built: the browser specs and the
-      # image serve it at /play.
-      - name: Player web build
-        timeout-minutes: 10
-        run: pnpm --filter @questify/web build:play
-
       - name: Web build
         run: pnpm --filter @questify/web build
 
