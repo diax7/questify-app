@@ -83,6 +83,30 @@ describe("the recap share on the web", () => {
     await recapShareDeps.shareText("My recap");
     expect(share).toHaveBeenCalledExactlyOnceWith({ text: "My recap" });
   });
+
+  it("calls share on the navigator itself, as a browser demands", async () => {
+    const nav = {
+      calls: 0,
+      share(this: unknown) {
+        if (this !== nav) throw new TypeError("Illegal invocation");
+        nav.calls += 1;
+        return Promise.resolve();
+      },
+    };
+    vi.stubGlobal("navigator", nav);
+    await recapShareDeps.shareText("My recap");
+    expect(nav.calls).toBe(1);
+  });
+
+  it("treats a dismissed share sheet (AbortError) as a quiet success, and any other error as a failure", async () => {
+    const abort = Object.assign(new Error("Share canceled"), { name: "AbortError" });
+    vi.stubGlobal("navigator", { share: () => Promise.reject(abort) });
+    await expect(recapShareDeps.shareText("My recap")).resolves.toBeUndefined();
+    vi.stubGlobal("navigator", { share: () => Promise.reject(new Error("boom")) });
+    await expect(recapShareDeps.shareText("My recap")).rejects.toThrow("boom");
+    vi.stubGlobal("navigator", {});
+    await expect(recapShareDeps.shareText("My recap")).rejects.toThrow("not available");
+  });
 });
 
 describe("the data download on the web", () => {

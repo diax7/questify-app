@@ -175,3 +175,86 @@ describe("web-only modules", () => {
     expect(found).toEqual([]);
   });
 });
+
+/** The names a source file exports as values: type-only exports are erased, so a caller never needs them at run time. */
+export function valueExportsOf(text: string): string[] {
+  const names: string[] = [];
+  for (const m of text.matchAll(
+    /^export\s+(?:async\s+)?(?:function\*?|const|let|class)\s+([A-Za-z_$][\w$]*)/gm,
+  )) {
+    names.push(m[1] ?? "");
+  }
+  // `export const { native: pushNative, events: pushEvents } = ...`
+  for (const m of text.matchAll(/^export\s+const\s+\{([^}]*)\}/gm)) {
+    for (const part of (m[1] ?? "").split(",")) {
+      const name = (part.split(":").pop() ?? "").trim();
+      if (name !== "") names.push(name);
+    }
+  }
+  // `export { a, b as c } from "..."`, but not `export type { ... }`.
+  for (const m of text.matchAll(/^export\s+(?!type\b)\{([^}]*)\}/gm)) {
+    for (const part of (m[1] ?? "").split(",")) {
+      const name = (part.split(/\s+as\s+/).pop() ?? "").trim();
+      if (name !== "") names.push(name);
+    }
+  }
+  return [...new Set(names)].sort();
+}
+
+/** Native exports the browser never needs, each with the reason: `createPushNative` is the factory the push tests drive. */
+const NATIVE_ONLY_EXPORTS: ReadonlyMap<string, string> = new Map([
+  ["src/push/push-native.web.ts:createPushNative", "a test seam for the native sources"],
+]);
+
+describe("web shims keep the native file's shape", () => {
+  it("reads the kinds of export it compares", () => {
+    const text = [
+      "export const a = 1;",
+      "export async function b() {}",
+      "export function c() {}",
+      "export type D = string;",
+      "export const { native: e, events: f } = make();",
+      "export {",
+      "  g,",
+      "  h as i,",
+      '} from "x";',
+      'export type { J } from "y";',
+    ].join("\n");
+    expect(valueExportsOf(text)).toEqual(["a", "b", "c", "e", "f", "g", "i"]);
+  });
+
+  it("exports every value the native file exports", () => {
+    const missing: string[] = [];
+    const shims = sources().filter(({ path }) => isWebFile(path));
+    expect(shims.length).toBeGreaterThan(5);
+    for (const { path, text } of shims) {
+      const native = readFileSync(join(ROOT, path.replace(".web.", ".")), "utf8");
+      const have = new Set(valueExportsOf(text));
+      for (const name of valueExportsOf(native)) {
+        if (!have.has(name) && !NATIVE_ONLY_EXPORTS.has(`${path}:${name}`))
+          missing.push(`${path} lacks ${name}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+});
+
+describe("#src imports", () => {
+  it("always name a file extension, as Metro swaps in the .web file only for a full path", () => {
+    const found: string[] = [];
+    for (const { path, text } of sources()) {
+      for (const { module } of usesIn(text)) {
+        if (module.startsWith("#src/") && !/\.tsx?$/.test(module)) {
+          found.push(`${path} imports ${module}`);
+        }
+      }
+    }
+    expect(found).toEqual([]);
+  });
+
+  it("is caught when an import has no extension", () => {
+    const bad = usesIn(`import { x } from "#src/platform/haptics";`);
+    expect(bad.map(({ module }) => module)).toEqual(["#src/platform/haptics"]);
+    expect(/\.tsx?$/.test("#src/platform/haptics")).toBe(false);
+  });
+});

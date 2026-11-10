@@ -13,10 +13,16 @@ export const recapShareDeps: RecapShareDeps = {
   loadModules: () => {
     throw new Error("The image share is not part of the web build.");
   },
-  shareText: (message) => {
-    const share = browser().navigator?.share;
-    return share === undefined
-      ? Promise.reject(new Error("Sharing is not available."))
-      : share({ text: message });
+  shareText: async (message) => {
+    const nav = browser().navigator;
+    if (nav?.share === undefined) throw new Error("Sharing is not available.");
+    try {
+      // Called on the navigator itself: a detached `share` throws "Illegal invocation" in a real browser.
+      await nav.share({ text: message });
+    } catch (error) {
+      // The player closed the share sheet: the same quiet end as on a phone, not a failure.
+      if (error instanceof Error && error.name === "AbortError") return;
+      throw error;
+    }
   },
 };

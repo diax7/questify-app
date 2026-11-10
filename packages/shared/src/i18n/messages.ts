@@ -4128,9 +4128,9 @@ export const MESSAGES = {
   },
   "quests.action.tapNfc": { ar: "المس بطاقة NFC", en: "Tap the NFC tag" },
   // The browser has no NFC (T-803): a quest that can only be done with a tag says so, and where to do it.
-  "quests.needsApp": { ar: "يلزم تطبيق الهاتف", en: "Needs the phone app" },
+  "quests.needsApp": { ar: "متاحة في تطبيق Questify فقط", en: "Needs the phone app" },
   "quests.needsAppHint": {
-    ar: "افتح تطبيق Questify على هاتفك",
+    ar: "افتح التطبيق على هاتفك لتلعبها",
     en: "Open the Questify app on your phone",
   },
   "scanner.nfc.button": { ar: "المس بطاقة NFC", en: "Tap NFC tag" },

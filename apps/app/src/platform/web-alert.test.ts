@@ -86,4 +86,23 @@ describe("webAlert", () => {
     );
     expect(action).not.toHaveBeenCalled();
   });
+
+  it("still asks when two buttons have no cancel style, and runs nothing on Cancel", () => {
+    const e = env(false);
+    const first = vi.fn();
+    const second = vi.fn();
+    webAlert(
+      "Delete the photo?",
+      undefined,
+      [
+        { text: "Delete", onPress: first },
+        { text: "Keep", onPress: second },
+      ],
+      e,
+    );
+    expect(e.confirm).toHaveBeenCalledExactlyOnceWith("Delete the photo?");
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(e.alert).not.toHaveBeenCalled();
+  });
 });

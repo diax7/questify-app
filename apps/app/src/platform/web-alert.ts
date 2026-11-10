@@ -27,7 +27,8 @@ function ask(text: string, action: AlertButton, cancel: AlertButton | undefined,
 /**
  * The browser's version of `Alert.alert`, which does nothing on react-native-web (T-803). The same title, message and
  * buttons: a cancel button and an action become `window.confirm`; a message alone, or one button, becomes
- * `window.alert` and then runs that button. With several actions the first one is OK's.
+ * `window.alert` and then runs that button. With several actions the first one is OK's. With two or more buttons and none
+ * styled cancel, the last one stands in as the cancel, so an action never runs unasked.
  */
 export function webAlert(
   title: string,
@@ -35,8 +36,12 @@ export function webAlert(
   buttons: readonly AlertButton[] | undefined,
   env: Dialogs = browser(),
 ): void {
-  const cancel = buttons?.find((button) => button.style === "cancel");
-  const [action] = (buttons ?? []).filter((button) => button !== cancel);
+  const all = buttons ?? [];
+  // Two buttons and none styled cancel: the last one is still the way out, so the player is asked first.
+  const cancel =
+    all.find((button) => button.style === "cancel") ??
+    (all.length >= 2 ? all[all.length - 1] : undefined);
+  const [action] = all.filter((button) => button !== cancel);
   if (action === undefined || cancel === undefined) {
     inform(textOf(title, message), action, env);
   } else {

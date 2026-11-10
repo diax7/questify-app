@@ -44,11 +44,11 @@ describe("questAvailability", () => {
 describe("the texts of a quest that needs the phone app", () => {
   it("are written in both languages", () => {
     expect(MESSAGES["quests.needsApp"]).toEqual({
-      ar: "يلزم تطبيق الهاتف",
+      ar: "متاحة في تطبيق Questify فقط",
       en: "Needs the phone app",
     });
     expect(MESSAGES["quests.needsAppHint"]).toEqual({
-      ar: "افتح تطبيق Questify على هاتفك",
+      ar: "افتح التطبيق على هاتفك لتلعبها",
       en: "Open the Questify app on your phone",
     });
     expect(MESSAGES["dataExport.doneWeb"]).toEqual({
