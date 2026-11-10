@@ -4,6 +4,9 @@ import { SETTLE_LIMIT_MS, settleRequests } from "#e2e/open-requests.ts";
 
 export { watchRequests } from "#e2e/open-requests.ts";
 
+/** The name of the organizer the run signs up (layout-fill.ts), which the console's cards show beside its events. */
+export const LAYOUT_ORGANIZER = "Najd Layout Co";
+
 /** The smallest text a dashboard page may show (ADR-364). */
 export const MIN_TEXT_PX = 14;
 
@@ -628,6 +631,12 @@ const together = (separator: string, ...keys: readonly MessageKey[]): LayoutPage
   ar: keys.map((key) => MESSAGES[key].ar).join(separator),
 });
 
+/** A catalog text followed by a number, as the pages write a count line ("Needed: 3"): the whole text of one element. */
+const counted = (key: MessageKey): LayoutPage["ready"] => ({
+  en: `${MESSAGES[key].en}: {count}`,
+  ar: `${MESSAGES[key].ar}: {count}`,
+});
+
 /**
  * A console page opened by its folder name, waiting for `loaded`: a text that shows only once its data is in. The title
  * paints at once, so it is the wait only for a page that loads nothing.
@@ -734,7 +743,17 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
     path: (ids) => `/e/${ids.joinCode}/rules`,
     ready: titled("rules.title"),
   },
-  { name: "console", path: () => "/console", ready: titled("console.queue") },
+  {
+    name: "console",
+    path: () => "/console",
+    // A card of the activation queue, "<organizer> · Requested <date>": the run's owner asks for activation while the
+    // event is still a draft (startAndFill), so this shows only once the queue is in. It depends on that seed row
+    // and on the organizer's name (LAYOUT_ORGANIZER, createEvent).
+    ready: {
+      en: `${LAYOUT_ORGANIZER} · ${MESSAGES["console.requestedAt"].en}`,
+      ar: `${LAYOUT_ORGANIZER} · ${MESSAGES["console.requestedAt"].ar}`,
+    },
+  },
   // A card per admin account: the run's own `make-admin` call (startAndFill) provides the one.
   consolePage("admins", "console.admins.title", titled("console.admins.show")),
   consolePage("catalog", "console.catalog.title", titled("console.catalog.templates.new")),
@@ -766,16 +785,20 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
   {
     name: "console-player",
     path: (ids) => `/console/players/${ids.playerId}`,
-    ready: titled("console.player.ledger"),
+    // The points record's own read finishes after the record: its empty line shows only then. The run's player
+    // (`help_*`, startAndFill) has no points, so it is the empty line and not rows; give them points and this changes.
+    ready: titled("console.player.ledger.none"),
   },
   {
     name: "console-invitation",
     path: (ids) => `/console/invitations/${ids.campaignId}`,
-    ready: titled("console.invCampaign.detailTitle"),
+    // The "event's names" card is drawn only from the loaded request (the title and the back link paint at once).
+    ready: titled("console.invCampaign.names"),
   },
   consolePage("questify", "console.questify.title", titled("console.questify.alwaysOn")),
-  // Cards or the empty line, whatever the shared database holds, so no one text marks it; openPage still awaits its "Loading" status.
-  consolePage("readiness", "console.readiness.title"),
+  // A count line ("Needed: 3") exists only inside an event's card. The run's event is listed (scheduled, starts
+  // tomorrow: startAndFill checks it), so a card is there whatever else the shared database holds.
+  consolePage("readiness", "console.readiness.title", counted("readiness.count.blocking")),
   consolePage("seasons", "console.seasons.title", titled("console.seasons.players")),
   // A row per ticket: the escalated question that startAndFill sends provides it.
   consolePage("tickets", "console.tickets.title", titled("console.tickets.sent")),
@@ -790,7 +813,9 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
   {
     name: "console-ticket",
     path: (ids) => `/console/tickets/${ids.ticketId}`,
-    ready: titled("console.tickets.title"),
+    // "From @<username>" is drawn from the loaded ticket (the title and the back link paint at once). The escalated
+    // question that startAndFill sends is from a player, so the line is there.
+    ready: titled("console.tickets.from"),
   },
 ];
 

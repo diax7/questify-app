@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import type { LayoutIds } from "#e2e/layout.ts";
+import { LAYOUT_ORGANIZER, type LayoutIds } from "#e2e/layout.ts";
 import { codeFor } from "#e2e/mail.ts";
 import { CONTROL_PORT } from "#e2e/paths.ts";
 
@@ -38,7 +38,7 @@ export type Event = Readonly<{ organizerId: string; eventId: string }>;
 export async function createEvent(page: Page, project: string): Promise<Event> {
   const email = `layout.${project}.${Date.now()}.${Math.floor(Math.random() * 1e6)}@riyadh.test`;
   await page.goto("/en/sign-up");
-  await page.getByLabel("Organizer name", { exact: true }).fill("Najd Layout Co");
+  await page.getByLabel("Organizer name", { exact: true }).fill(LAYOUT_ORGANIZER);
   await page.getByLabel("Email", { exact: true }).fill(email);
   await page.getByLabel("New password", { exact: true }).fill(PASSWORD);
   await page.getByLabel("Type the new password again", { exact: true }).fill(PASSWORD);
@@ -108,6 +108,9 @@ export async function startAndFill(page: Page, ids: Event): Promise<LayoutIds> {
   const { eventId, organizerId } = ids;
   const base = `/v1/organizers/${organizerId}/events/${eventId}`;
   const tag = `${Date.now() % 1_000_000}`;
+  // Still a draft: the owner asks for activation, so the console's queue holds a card for the run's event (the console
+  // home waits for it). The request stays pending when the event is then moved to live below.
+  await send(page, "POST", `${base}/activation`, {});
   await control(page, "/event-status", { eventId, status: "live" });
   await control(page, "/team", {
     eventId,
@@ -154,7 +157,14 @@ export async function startAndFill(page: Page, ids: Event): Promise<LayoutIds> {
 
   await control(page, "/make-admin", { eventId });
   await control(page, "/invitations-switch");
+  // Also what puts the event on the console's readiness list: scheduled, starting tomorrow, ending in ten days.
   await control(page, "/invitation-event", { eventId, days: 10 });
+  const soon = await page.request.get("/v1/admin/readiness");
+  const listed = ((await soon.json()) as { events: { id: string }[] }).events;
+  expect(
+    listed.some((one) => one.id === eventId),
+    "the run's event is on the readiness list (a draft or scheduled event that starts within 14 days)",
+  ).toBe(true);
   await send(page, "POST", `${base}/invitation-campaigns`, {
     cityId: null,
     interests: [],
