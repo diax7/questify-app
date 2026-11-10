@@ -1206,6 +1206,18 @@ the first step of that rerun.
 - Setting: `API_ORIGIN` = the API's **internal** address, for staging `http://questify-api-staging-3ez01s:3000`
   (never the public https URL: the app refuses to start with one). No secrets in the web app.
 - The API's `DASHBOARD_ORIGIN` must equal the web app's public https origin, and `TRUST_PROXY_HOPS=1` (ADR-113).
+- `DASHBOARD_ORIGIN` (required, T-803 P2): the web app reads the same origin under the API's name, so the two never
+  drift; its forwarder refuses a player-cookie write or a `/v1/auth/*` write from any other `Origin` (ADR-819).
+  `ops/cranl/*.json` sets it for both apps; a missing or non-https value stops the web app at start.
+- `PLAYER_WEB_SESSION` (`on` or `off`, unset is off; T-803 P2, ADR-818): the forwarder's player cookie steps.
+  **Leave it off in production until P3's `/play` CSP ships** (SECURITY.md abuse case 11, the ship gate). Off, the
+  player sign-in steps pass through as before and no player cookie is set or read.
+- The player web build and `MIN_APP_VERSION` (Q-756): the web build sends its own version as `X-App-Version`, so
+  raising the API's `MIN_APP_VERSION` above the deployed web build answers 426 to every browser player; deploy the
+  new web build first, then raise it. The web app reloads once on a 426 (P3).
+- A web refresh answer lost for more than 60 seconds reads as a reused token, as on a phone: the family ends and the
+  player signs in again. Two tabs refresh one at a time through `navigator.locks` (ADR-821); a browser without it
+  can still race (accepted).
 - Optional settings `APP_STORE_URL` (https on `apps.apple.com`) and `PLAY_STORE_URL` (https on `play.google.com`): the
   store pages for the event web page `/{lang}/e/{CODE}` (T-112). Unset, the page shows no store buttons and says the
   app is coming soon; any other value stops the app at start. The Play link gets the install referrer `join=CODE`.

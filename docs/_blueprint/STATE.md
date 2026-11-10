@@ -1,5 +1,19 @@
 # Blueprint State — Questify
 
+## T-803 P2, the player's web session — 2026-11-10
+
+- **Built (tier A, sign-in; plan `docs/plans/2026-11-10-t-803-p2-web-session.md`, plan review 86 folded; code review
+  pending).** The web forwarder holds the player's tokens in `__Host-qs_player` (HttpOnly, Secure, Strict, 180 days),
+  answers verify, signup, refresh and logout itself with no token in any body, logs an old cookie out before a new
+  sign-in, turns the cookie into a bearer on player paths only, refuses a cookie or `/v1/auth/*` write from another
+  `Origin`, and answers 404 to operator paths for a cookie request. All of it sits behind `PLAYER_WEB_SESSION`, off by
+  default (SECURITY.md abuse case 11, the ship gate: on only with P3's `/play` CSP). The web config now requires
+  `DASHBOARD_ORIGIN` (`ops/cranl/*.json`, `playwright.config.ts`). Migration 0188 adds the `web` device platform (no
+  model). The app has `cookie-session.ts` (lock, retry, then one refresh) and `app-session.web.ts`; `Session.start`
+  reads the answer in both modes. ADR-818 to ADR-821 and Q-755 to Q-758 Proposed. Mutation targets:
+  `apps/web/src/lib/{forward,forward-headers,player-session,player-steps}.ts`, `apps/app/src/api/cookie-session.ts`.
+- **Next:** the P2 code review; P1 (web shims, in parallel) and P3 (`/play`, its CSP, the switch turned on).
+
 ## Function limits, six more batches and the nightly address fix — 2026-11-09
 
 - **Function-limits baseline, web, app and API batches (tier B; behaviour-preserving; each reviewed 94 to 96, no

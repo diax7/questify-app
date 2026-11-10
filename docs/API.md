@@ -22,6 +22,26 @@
     `403 csrf_rejected`). The web app's `/v1` forwarder passes `X-Forwarded-For` through
     unchanged and reaches the API over the private network, so the API trusts exactly one hop (CranL's edge) on
     both paths (`TRUST_PROXY_HOPS=1`, ADR-113). Every `/v1/staff/*` answer is `Cache-Control: no-store`.
+  - *Player web session (T-803 P2, ADR-818 to ADR-821; behind `PLAYER_WEB_SESSION`, off by default):* in a browser
+    the web app's `/v1` forwarder holds the player's tokens in `__Host-qs_player=<access>.<refresh>` (`Path=/;
+    HttpOnly; Secure; SameSite=Strict; Max-Age=15552000`, set again on each rotation; cleared with `Max-Age=0`). The
+    API stays bearer only. The forwarder answers four steps itself, always `Cache-Control: no-store`:
+    - `POST /v1/auth/verify`, `/signup`: the JSON body (2 KiB at most, else 413; not an object, 400) goes on with
+      `device` replaced by `{"platform":"web"}`; a cookie already held is logged out first. 200/201 with tokens →
+      the cookie and `{ "signedIn": true, "expiresInSeconds", "player" }`; verify's `{ isNew, signupToken }` and every
+      error pass through with no cookie; a 2xx without tokens → 502 `api_unavailable`.
+    - `POST /v1/auth/refresh`: the body is ignored. No cookie → 401 `unauthenticated` (no API call); the API's 401 →
+      401 `session_expired` and the cookie cleared; 200 → the new cookie and the verify body; a timeout, 5xx or no
+      answer passes with the cookie untouched.
+    - `POST /v1/auth/logout`: the body is ignored; always 204 with the cookie cleared.
+    - Every other `/v1` path: the cookie becomes `Authorization: Bearer <access>` except on `/v1/auth/*`,
+      `/v1/staff/`, `/v1/admin/`, `/v1/device` and operator paths, and is removed from the forwarded `Cookie`; a
+      browser's own `Authorization` is never forwarded; `X-Device-Id` only as a UUID and `X-App-Version` only as
+      `1`, `1.2` or `1.2.3`. `/v1/operator/*` and `/v1/me/operator-events` answer 404 to a cookie request (Q-755). A
+      cookie sent twice is no cookie and is cleared; an upstream `Set-Cookie: __Host-qs_player` is dropped.
+    - **Origin (ADR-819):** a POST, PUT, PATCH or DELETE that carries the player cookie or targets `/v1/auth/*` must
+      send `Origin` equal to the web origin, which the web app reads as `DASHBOARD_ORIGIN` (the API's name for it),
+      else 403 `csrf_rejected` and nothing reaches the API. GET and HEAD are not checked: no player GET writes.
   - *Screen token:* a signed read-only token in the big-screen and station page links.
   - *Provider callback:* signed requests from SMS, email and wallet services.
   - Roles: `anonymous`, `player`, `operator` (a player with an event assignment), `editor`, `owner`,

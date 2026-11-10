@@ -8965,3 +8965,50 @@ to 0.57 ms with ! inside a word, 0.47 both with *, 1.51 to 1.57 ms for the slowe
 `screen_ranking` 34.90 to 20.25 ms; `event_results` 32.65 to 32.86 ms, 1,802 both: ADR-766's gate holds. The sweep: 190 ms a
 page median, 269 ms the slowest, 401 ms with the slowest name in every answer (124, 211 and 431 at batch 27; the check's own
 cost, timed by turns above, is unchanged, so the median's rise is the shared machine's load).
+
+## ADR-818 - The player web session is a `__Host-qs_player` cookie held by the web forwarder; the API stays bearer only
+
+**Status:** Proposed (T-803 P2, 2026-11-10; plan `docs/plans/2026-11-10-t-803-p2-web-session.md`, plan review 86 folded). Q-757.
+**Decision:** in a browser the web app's `/v1` forwarder keeps the player's access and refresh tokens in one cookie,
+`__Host-qs_player=<access>.<refresh>` (`Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=15552000`, set again on each
+rotation), answers verify, signup, refresh and logout itself and rebuilds their bodies to `{ signedIn, expiresInSeconds,
+player }`, and turns the cookie into `Authorization: Bearer` on player paths. The API's player contract is unchanged. A web
+re-sign-in logs the old cookie's family out first. The steps sit behind `PLAYER_WEB_SESSION`, off by default, turned on
+with P3's `/play` CSP (SECURITY.md abuse case 11).
+**Why:** an API-set player cookie would make the player guard read cookies, put `checkOrigin` on every player write and give
+the native app a second credential channel. In the forwarder the cookie is host-only to the web origin and HttpOnly, so no
+token reaches a page.
+**Trade-offs:** the forwarder is now sign-in code (tier A, mutation-tested). An XSS on the shared origin still acts as the
+player while the page is open (abuse case 11, Q-758).
+
+## ADR-819 - The forwarder's Origin rule, read from `DASHBOARD_ORIGIN`
+
+**Status:** Proposed (T-803 P2, 2026-11-10).
+**Decision:** a POST, PUT, PATCH or DELETE that carries the player cookie (well-formed or not) or targets `/v1/auth/*` must
+send `Origin` equal to the web origin, else 403 `csrf_rejected` and nothing reaches the API. GET and HEAD are not checked,
+and no `access: "player"` GET writes (pinned on the route inventory). The web app reads the origin under the API's name,
+`DASHBOARD_ORIGIN`, required (https, or http on localhost), so the two never drift. Staff paths keep the API's `checkOrigin`.
+**Why:** `SameSite=Strict` treats sibling subdomains as the same site and does nothing against login CSRF.
+**Trade-offs:** a client that sends no `Origin` cannot write through the web forwarder to `/v1/auth/*` (browsers always send
+it on these requests; the phone app calls the API directly).
+
+## ADR-820 - The `web` device platform is set by the forwarder, never with a model or a user agent
+
+**Status:** Proposed (T-803 P2, 2026-11-10). Migration 0188.
+**Decision:** the forwarder replaces a sign-in body's `device` with `{ "platform": "web" }`. `player_sign_in_device.platform`
+accepts `web` and a `web` row holds no model (both checks in the table); the API drops a model sent with `web`. The devices
+list shows "Web browser" / «متصفح الويب»; the data export lists it. A web family counts in the 10 (ADR-717).
+**Why:** ADR-710 keeps the label to the platform and model; a browser model would be a user agent.
+**Trade-offs:** the API cannot verify the label: any client may call itself `web`, which is harmless (it only changes the
+name in the player's own list).
+
+## ADR-821 - One refresh at a time across tabs, with a retry before refreshing
+
+**Status:** Proposed (T-803 P2, 2026-11-10).
+**Decision:** the web session (`apps/app/src/api/cookie-session.ts`) answers a 401 by taking
+`navigator.locks.request("questify.refresh")`, sending the request once more inside the lock, and refreshing only when that
+is a 401 too; without `navigator.locks` it de-duplicates in the tab. Only the refresh's `session_expired` ends the session.
+**Why:** tabs share one cookie jar; two refreshes within the API's 60-second grace could store a revoked successor, and the
+next refresh would read as reuse and end the family.
+**Trade-offs:** without `navigator.locks` the cross-tab race remains (accepted); a refresh answer lost for more than 60
+seconds reads as reuse, as on a phone (RUNBOOK).

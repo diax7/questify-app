@@ -3093,3 +3093,29 @@ through as well. Recommended: keep them refused until a player is affected.
 **For Dhia (5)** (0179's review, 2026-11-08): the Arabic forms «نازي» and «هتلر» are not listed (نازي passes as a username); and
 "Fuk You" passes a full name because Fuk is a Cantonese given name (Wong Fuk Wing). Likewise "Fuks Off" and "F U K" pass (pinned
 as accepted passes). Say if you want any of them refused.
+
+## Q-755 - Should operator routes be refused to a player web session? (T-803 P2, ADR-818)
+
+**Status:** open; recommended and built: yes. The forwarder answers 404 to `/v1/operator/*` and `/v1/me/operator-events`
+for a request with the player cookie, and never sends them a bearer. Operator screens stay on the phone.
+**Question:** should operators work from a browser too? Opening them later means reading each operator screen's needs on the
+web (camera, NFC) and the ship gate of SECURITY.md abuse case 11.
+
+## Q-756 - How does the web build follow `MIN_APP_VERSION`? (T-803 P2)
+
+**Status:** open; recommended: the web build sends its own version as `X-App-Version`; a 426 makes the app reload once (P3),
+and RUNBOOK says to deploy the web build before raising `MIN_APP_VERSION`.
+**Question:** is one reload enough, or should the web build be exempt from the minimum (it is always the deployed version)?
+
+## Q-757 - Is a `signupToken` in a browser body acceptable? (T-803 P2, ADR-818)
+
+**Status:** open; recommended: yes. Verify's new-player step passes `{ isNew, signupToken }` to the page: the token lives 15
+minutes, is bound to its challenge, and only creates the account the code just proved.
+**Question:** should the forwarder hold it in a cookie as well? That adds a second cookie for a short, single-use value.
+
+## Q-758 - Should a contact change from a `web` family need a step-up code? (T-803 P2, SECURITY.md abuse case 11)
+
+**Status:** open; recommended later, after the CSP gate: a code to the old contact (or a re-authentication) before a
+contact change from a `web` family.
+**Question:** an XSS on the shared web origin can act as the player through the cookie, and a contact change (pathway row
+13) sends the code only to the new contact, a lasting account takeover. Is the CSP gate enough for v1?

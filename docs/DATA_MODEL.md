@@ -1579,7 +1579,8 @@ API's role alone: counts of events, players (enrollments not pending or declined
 ### Signed-in devices and fresh factors (T-810c, migration 0155)
 
 - `player_sign_in_device`: one row per refresh family. `id` (what the app sees), `player_id`, `family` (unique),
-  `platform` (`ios`|`android`, null until labelled), `model` (1 to 40 of `[A-Za-z0-9 ._()+-]`, from `expo-device`),
+  `platform` (`ios`|`android`|`web`, null until labelled; `web` from the web forwarder, migration 0188), `model` (1 to
+  40 of `[A-Za-z0-9 ._()+-]`, from `expo-device`; always null on a `web` row, checked by the table),
   `signed_in_at` (the family's start), `reauth_at`, `ended_at`. Written only by definers; ended rows and rows whose
   family has no refresh row left go in `sweep_player_sign_in` (7 days after the end). Exported as `signedInDevices`
   (live ones; never the family), deleted by `erase_rows`.
