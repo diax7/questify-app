@@ -25,8 +25,8 @@ the step in `.github/workflows/ci.yml`. A doc reference names the section. "Note
 
 | Status | L1 | L2 | Total |
 |---|---|---|---|
-| Met | 55 | 105 | 160 |
-| Partly | 3 | 19 | 22 |
+| Met | 57 | 106 | 163 |
+| Partly | 1 | 18 | 19 |
 | Not met | 0 | 0 | 0 |
 | N/A | 12 | 59 | 71 |
 | **Total** | **70** | **183** | **253** |
@@ -51,7 +51,7 @@ Documentation gaps 15 to 17 were written on 2026-11-06 (T-810), and gap 18's pro
 | 10 | V7.4.3, V7.4.5, V7.5.2 | Met (T-810c, 0155; `docs/plans/2026-11-05-t-810c-signed-in-devices.md`) | A player cannot see or end their other devices; a contact change keeps every session with no "sign out other devices"; an admin can end only a platform admin's sessions from the console (others by SQL, RUNBOOK); ending a staff session asks for no re-authentication | Product choice | Q-661 |
 | 11 | V6.3.3, V6.6.1 | Met (written exception T-810b; notice T-810e) | Players sign in with one factor (a code by SMS or email); no stronger method is offered and players are not told SMS's risks | A written exception (Q-662) and one line under the code field: never share the code, Questify never asks for it | T-810b (10), T-810e |
 | 12 | V3.5.4 | Partly | The console, the dashboard, the public event page, stations and the big screen share one hostname | Product and domain choice | Q-663 |
-| 13 | V4.1.2, V12.1.1, V12.1.2, V12.2.2, V12.3.1, V12.3.3, V12.3.4, V13.2.1, V13.2.4, V13.2.5, V13.3.1, V13.3.2, V16.4.2, V16.4.3 | Partly | Controls that live in CranL: edge TLS versions and ciphers, certificates, HTTP-to-HTTPS behaviour on the API host, TLS to PostgreSQL and Redis on the private network, static database and Redis passwords, no egress allowlist, the secret store's access control, and server logs kept only in CranL's log view | Ask CranL in T-811; decide per item | Q-664 |
+| 13 | V12.1.2, V12.3.1, V12.3.3, V12.3.4, V13.2.1, V13.2.4, V13.2.5, V13.3.1, V13.3.2, V16.4.2, V16.4.3 | Partly | Controls that live in CranL: edge cipher suites (the TLS 1.2 CBC suites; versions, certificates and the HTTP redirect were checked on staging 2026-11-10 and are Met), TLS to PostgreSQL and Redis on the private network, static database and Redis passwords, no egress allowlist, the secret store's access control, and server logs kept only in CranL's log view | Ask CranL in T-811; decide per item | Q-664 |
 | 14 | V15.1.1, V15.2.1 | Met (T-810, 2026-11-06) | Written time frames for fixing a vulnerable dependency: critical 7 days, high 14, moderate 30, the rest in the monthly Dependabot batch; CI's "Dependency audit" fails a pull request on any finding not listed in `auditConfig.ignoreGhsas` | Done | `docs/QUALITY_BASELINE.md` §2, "Fixing a vulnerable dependency" |
 | 15 | V11.1.1, V11.1.2 | V11.1.2 Met, V11.1.1 Partly (T-810, 2026-11-06) | The cryptographic inventory and key policy are written (`docs/SECURITY.md` "Cryptographic inventory and key policy"), so V11.1.2 is Met. V11.1.1 stays Partly: rotation is event-driven with no schedule (QUALITY_BASELINE section 4 says "on a schedule"), `AUTH_SECRET` and `QR_SECRET` have no previous-key slot, the RUNBOOK has no steps for the provider keys, who can read the secret store is unconfirmed (Q-664), and the policy is not mapped to NIST SP 800-57 | Q-700's recommendation | Q-700 |
 | 16 | V16.1.1 | Partly (inventory written, T-810, 2026-11-06) | The log inventory is written (`docs/SLO.md` section 6). It records that Questify sets no retention for CranL's logs (Q-443) and that the audit log is kept with no period (Q-084), so the control's retention clause is not met | Set the periods when counsel and T-811 answer | Q-443, Q-084 |
@@ -139,7 +139,7 @@ Documentation gaps 15 to 17 were written on 2026-11-06 (T-810), and gap 18's pro
 | ID | L | Control | Status | Evidence | Gap |
 |---|---|---|---|---|---|
 | V4.1.1 | 1 | Matching `Content-Type` with charset | Met | `docs/API.md` "Conventions" (JSON, UTF-8; Fastify writes `application/json; charset=utf-8`); `apps/api/src/conventions.test.ts` "replays the status and content type of the first answer" | |
-| V4.1.2 | 2 | Only browser endpoints redirect HTTP to HTTPS | Partly | The app refuses a plain-http API address in release (`docs/SECURITY.md` "Data protection", the app's session) | Gap 13: the API host's HTTP behaviour is CranL's, unchecked (Q-664) |
+| V4.1.2 | 2 | Only browser endpoints redirect HTTP to HTTPS | Met | The app refuses a plain-http API address in release (`docs/SECURITY.md` "Data protection"); plain HTTP on port 80 answers 301 to the same https URL on both hosts, checked on staging 2026-11-10 (`openssl s_client`, both hosts `questify-api-staging-3ez01s.cranl.net` and `questify.nafes.com`) | Recheck on the production hostname (QUALITY_BASELINE go-live checks) |
 | V4.1.3 | 2 | Intermediary headers cannot be overridden | Met | `apps/api/src/app.test.ts` "takes the address the nearest proxy saw, ignoring what the client put in front of it"; `apps/api/test/auth/sign-in.int.test.ts` "ignores a spoofed X-Forwarded-For when choosing the address to count"; `apps/web/src/lib/forward.test.ts` "passes only the allowed request headers, the client address unchanged" | |
 | V4.2.1 | 2 | No request smuggling | Partly | Node's HTTP parser; CranL's edge | Gap 22: untested; T-809 |
 | V4.3.1, V4.3.2 | 2 | GraphQL limits; introspection off | N/A | | No GraphQL (2 controls) |
@@ -295,11 +295,11 @@ for FCM and Gmail (`apps/api/src/auth/google-token.test.ts`), which carries no u
 
 | ID | L | Control | Status | Evidence | Gap |
 |---|---|---|---|---|---|
-| V12.1.1 | 1 | Only TLS 1.2 and 1.3, 1.3 preferred | Partly | TLS ends at CranL's edge | Gap 13: versions unchecked (Q-664) |
-| V12.1.2 | 2 | Recommended cipher suites only | Partly | As V12.1.1 | Gap 13 |
+| V12.1.1 | 1 | Only TLS 1.2 and 1.3, 1.3 preferred | Met | TLS ends at CranL's edge: TLS 1.0 and 1.1 refused, TLS 1.2 accepted, TLS 1.3 negotiated by default (TLS_AES_256_GCM_SHA384), checked on staging 2026-11-10 (`openssl s_client`, both hosts `questify-api-staging-3ez01s.cranl.net` and `questify.nafes.com`) | Recheck on the production hostname (QUALITY_BASELINE go-live checks) |
+| V12.1.2 | 2 | Recommended cipher suites only | Partly | TLS 1.2 also accepts the CBC suites ECDHE-RSA-AES128-SHA and AES256-SHA (no forward secrecy on the second), checked on staging 2026-11-10 (`openssl s_client`, both hosts `questify-api-staging-3ez01s.cranl.net` and `questify.nafes.com`) | Gap 13: ask CranL to drop them (Q-664) |
 | V12.1.3 | 2 | mTLS client certificates validated | N/A | | No mTLS |
 | V12.2.1 | 1 | TLS for every external HTTP service, no fallback | Met | The app refuses a plain-http API address in release (`docs/SECURITY.md` "Data protection", the app's session); every outbound address is `https://` (Note: `apps/api/src`) | |
-| V12.2.2 | 1 | Publicly trusted certificates | Partly | CranL-issued certificates | Gap 13: unchecked (Q-664) |
+| V12.2.2 | 1 | Publicly trusted certificates | Met | Publicly trusted certificates: the API host's from SSL2BUY EMEA RSA DV (to 2027-03-01), the web host's from Let's Encrypt YR2 (to 2027-01-18), checked on staging 2026-11-10 (`openssl s_client`, both hosts `questify-api-staging-3ez01s.cranl.net` and `questify.nafes.com`) | Recheck on the production hostname (QUALITY_BASELINE go-live checks) |
 | V12.3.1 | 2 | TLS on every inbound and outbound connection | Partly | Providers over HTTPS; `REDIS_URL` accepts `rediss://` (`apps/api/src/config.ts`) | Gap 13: PostgreSQL and Redis TLS not required (Q-664) |
 | V12.3.2 | 2 | TLS clients validate certificates | Met | Note: no `rejectUnauthorized: false` anywhere; `docs/RUNBOOK.md` "Push notifications" (both Apple hosts probed over TLS) | |
 | V12.3.3 | 2 | TLS between internal HTTP services | Partly | The web forwarder reaches the API over CranL's private network (`docs/API.md` "Conventions") | Gap 13 (Q-664) |

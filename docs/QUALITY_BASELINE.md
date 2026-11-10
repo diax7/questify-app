@@ -99,6 +99,6 @@ Track the four standard delivery measures (change lead time, deploy frequency, c
 
 **Release gate (before real players):** load test passed; restore rehearsal passed (T-805); independent penetration test done and its findings fixed or accepted in writing (T-809); ASVS L2 verification sheet complete for the core (T-810); CranL written answers received or production moved (T-811); counsel batch answered or the open items accepted in writing (T-807); both stores' requirements met; second backup copy proven.
 
-**Go-live checks on the environment (staging, then production):** CranL's edge lets a 300 s response through, the wait of a change set's apply (`apps/web/src/lib/forward-timeout.ts`, `APPLY_TIMEOUT_MS`), so a long apply must be tried once on staging.
+**Go-live checks on the environment (staging, then production):** CranL's edge lets a 300 s response through, the wait of a change set's apply (`apps/web/src/lib/forward-timeout.ts`, `APPLY_TIMEOUT_MS`), so a long apply must be tried once on staging. On each production hostname, repeat the 2026-11-10 staging TLS check (`docs/security/ASVS_L2.md` V4.1.2, V12.1.1, V12.2.2): TLS 1.0 and 1.1 refused, TLS 1.3 negotiated, a publicly trusted certificate, plain HTTP answering 301 to https.
 
 **Go-live checks per event:** before the first real event whose ledger nears 500,000 rows (the seeded 100,000-player event is past that), add the index on `ledger_entry (quest_id)` by hand with `CONCURRENTLY` first (Q-753, ADR-816).
