@@ -887,3 +887,7 @@ Processed into `docs/PERFORMANCE_AUDIT.md`, a line in `docs/rules.md` and task T
 
 Dhia: "We do have this server ... Cloud VPS 12 (2026) ... 400 GB ... 12 ... 48 GB ... What if I moved your work into this server? ... And what if we also moved everything from CRANL". Then (AskUserQuestion): outside Saudi Arabia; "it is shared, yes, but we also have Claude Code is installed there. So maybe you just somehow hand off everything for him there, and he will have the access for the whole server. And he can build the application from there. ... a way to use cranl like you do now"; "lets keep cranl for now, just tell me what to apps to delete"; "Stay on CranL for now". Processed into ADR-810, Q-750 and `docs/agents/COORDINATOR_HANDOFF.md`.
 
+
+## 2026-11-10 - T-803 player web build: build it now, phone browsers only, all features -> processed into `docs/plans/2026-11-10-t-803-player-web-build.md`
+
+Dhia (AskUserQuestion): "Build it now". Scope: "When I say browser we mean here phone browser This means the design should work for the phone browser. We will not support big screens other than mobile for now. We should try to make all the features work, like the QR, the camera, and everything, using the same design if possible. If that is not possible, if it's a headache and we have to change a lot of the designs, then we can drop the website." Web sign-in: "Same as the phone" (ADR-706: 180 days idle, 365 at most). Access: "Anyone, at /play".

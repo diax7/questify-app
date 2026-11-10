@@ -1,6 +1,6 @@
 # T-803: player web build (FR-1816), draft plan
 
-Status: draft, 2026-11-10. Not reviewed. Waiting on Dhia's answers to Q1 to Q6 below, and on T-118 (the two-phone run).
+Status: draft, 2026-11-10. Dhia's answers (INBOX 2026-11-10): build now; phone browsers only (no desktop layout); every feature where the browser allows it, QR camera scanning included, with the same design; if the same design cannot work without many changes, drop the web build. Web sign-in lasts as on the phone (ADR-706). Open to anyone at `/play`. Step one is the P0 spike that measures what breaks.
 
 ## Where it stands
 
