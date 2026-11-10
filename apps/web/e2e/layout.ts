@@ -464,13 +464,29 @@ export async function waitUntilSettled(page: Page, where: string): Promise<void>
   await settleRequests(page);
 }
 
-/** The text to look for: a catalog text with a slot in it (`{count}`, `{date}`) matches whatever the page puts there. */
+/** A number as the pages write it: Western digits, or Arabic-Indic ones, with separators. */
+const NUMBER = "[\\d٠-٩٬,.]+";
+
+/**
+ * The text to look for. A plain text is found anywhere in an element, ignoring case. A catalog text with slots
+ * (`{count}`, `{date}`) must be an element's whole text, ignoring case: a `count` slot stands for a number and any other
+ * slot for whatever the page puts there. Whole text, so a title or a button that holds the same words around the slot
+ * (a "Words" heading, an "Allowed name words" title) never stands in for the line that shows the data.
+ */
 function readyPattern(ready: string): string | RegExp {
   if (!/\{\w+\}/.test(ready)) {
     return ready;
   }
-  const parts = ready.split(/\{\w+\}/).map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  return new RegExp(parts.join(".+?"), "i");
+  const source = ready
+    .split(/(\{\w+\})/)
+    .map((part) => {
+      if (part === "{count}") {
+        return NUMBER;
+      }
+      return /^\{\w+\}$/.test(part) ? ".+?" : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    })
+    .join("");
+  return new RegExp(`^${source}$`, "i");
 }
 
 /**
@@ -606,14 +622,24 @@ const eventPage = (name: string, key: MessageKey): LayoutPage => ({
   ready: titled(key),
 });
 
+/** Catalog texts that share one element, in order (a total line with its urgent count). */
+const together = (separator: string, ...keys: readonly MessageKey[]): LayoutPage["ready"] => ({
+  en: keys.map((key) => MESSAGES[key].en).join(separator),
+  ar: keys.map((key) => MESSAGES[key].ar).join(separator),
+});
+
 /**
  * A console page opened by its folder name, waiting for `loaded`: a text that shows only once its data is in. The title
  * paints at once, so it is the wait only for a page that loads nothing.
  */
-const consolePage = (name: string, key: MessageKey, loaded: MessageKey = key): LayoutPage => ({
+const consolePage = (
+  name: string,
+  key: MessageKey,
+  loaded: LayoutPage["ready"] = titled(key),
+): LayoutPage => ({
   name: `console-${name}`,
   path: () => `/console/${name}`,
-  ready: titled(loaded),
+  ready: loaded,
 });
 
 /**
@@ -709,28 +735,34 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
     ready: titled("rules.title"),
   },
   { name: "console", path: () => "/console", ready: titled("console.queue") },
-  consolePage("admins", "console.admins.title", "console.admins.show"),
-  consolePage("catalog", "console.catalog.title", "console.catalog.templates.new"),
-  consolePage("content", "console.content.title", "console.daily.cadence.label.challenge"),
+  // A card per admin account: the run's own `make-admin` call (startAndFill) provides the one.
+  consolePage("admins", "console.admins.title", titled("console.admins.show")),
+  consolePage("catalog", "console.catalog.title", titled("console.catalog.templates.new")),
+  consolePage("content", "console.content.title", titled("console.daily.cadence.label.challenge")),
   {
     name: "console-event",
     path: (ids) => `/console/events/${ids.eventId}`,
     ready: { en: "Layout Fest", ar: "مهرجان التخطيط" },
   },
-  consolePage("health", "console.health.title", "console.health.updated"),
-  consolePage("intro", "console.intro.title", "console.intro.cards"),
-  consolePage("home", "console.home.title", "console.home.blocks"),
-  consolePage("legal", "console.legal.title", "console.legal.players"),
-  consolePage("messages", "console.messages.title", "console.messages.subject"),
-  consolePage("invitations", "console.invCampaign.title", "console.invCampaign.open"),
-  consolePage("numbers", "console.numbers.title", "console.numbers.group.organizers"),
+  consolePage("health", "console.health.title", titled("console.health.updated")),
+  consolePage("intro", "console.intro.title", titled("onboarding.card1.title")),
+  consolePage("home", "console.home.title", titled("console.home.blocks")),
+  consolePage("legal", "console.legal.title", titled("console.legal.players")),
+  // The shipped email and push templates have a subject: no seed needed.
+  consolePage("messages", "console.messages.title", titled("console.messages.subject")),
+  consolePage("invitations", "console.invCampaign.title", titled("console.invCampaign.open")),
+  consolePage("numbers", "console.numbers.title", titled("console.numbers.group.organizers")),
   // A search form: it loads nothing, so the title is the whole wait.
   consolePage("players", "console.players.title"),
-  consolePage("switches", "console.switches.title", "console.switches.feature.agenda"),
-  consolePage("word-lists", "console.wordLists.title", "console.wordLists.total"),
-  consolePage("name-allow", "console.nameAllow.title", "console.wordLists.total"),
-  consolePage("reports", "console.reports.title", "console.reports.total"),
-  consolePage("flags", "console.flags.title", "console.flags.total"),
+  consolePage("switches", "console.switches.title", titled("console.switches.feature.agenda")),
+  consolePage("word-lists", "console.wordLists.title", titled("console.wordLists.total")),
+  consolePage("name-allow", "console.nameAllow.title", titled("console.wordLists.total")),
+  consolePage(
+    "reports",
+    "console.reports.title",
+    together(" · ", "console.reports.total", "console.reports.urgentTotal"),
+  ),
+  consolePage("flags", "console.flags.title", titled("console.flags.total")),
   {
     name: "console-player",
     path: (ids) => `/console/players/${ids.playerId}`,
@@ -741,14 +773,20 @@ export const LAYOUT_PAGES: readonly LayoutPage[] = [
     path: (ids) => `/console/invitations/${ids.campaignId}`,
     ready: titled("console.invCampaign.detailTitle"),
   },
-  consolePage("questify", "console.questify.title", "console.questify.alwaysOn"),
-  // Cards or the empty line, whatever the shared database holds, so no one text marks it; its "Loading" status is awaited in openPage.
+  consolePage("questify", "console.questify.title", titled("console.questify.alwaysOn")),
+  // Cards or the empty line, whatever the shared database holds, so no one text marks it; openPage still awaits its "Loading" status.
   consolePage("readiness", "console.readiness.title"),
-  consolePage("seasons", "console.seasons.title", "console.seasons.players"),
-  consolePage("tickets", "console.tickets.title", "console.tickets.sent"),
-  consolePage("translations", "console.translations.title", "console.translations.range"),
-  consolePage("usage", "console.usage.title", "console.usage.show"),
-  consolePage("feature-usage", "console.featureUsage.title", "console.featureUsage.featuresOn"),
+  consolePage("seasons", "console.seasons.title", titled("console.seasons.players")),
+  // A row per ticket: the escalated question that startAndFill sends provides it.
+  consolePage("tickets", "console.tickets.title", titled("console.tickets.sent")),
+  consolePage("translations", "console.translations.title", titled("console.translations.range")),
+  // A card per organizer: the run's organizer (createEvent) provides it, as it does for feature-usage below.
+  consolePage("usage", "console.usage.title", titled("console.usage.show")),
+  consolePage(
+    "feature-usage",
+    "console.featureUsage.title",
+    together(" · ", "console.featureUsage.events", "console.featureUsage.featuresOn"),
+  ),
   {
     name: "console-ticket",
     path: (ids) => `/console/tickets/${ids.ticketId}`,
