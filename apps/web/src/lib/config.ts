@@ -1,5 +1,12 @@
 export type WebConfig = Readonly<{
   apiOrigin: string;
+  /**
+   * The web app's own public origin, read under the API's name for it (`DASHBOARD_ORIGIN`, ADR-819) so the two never
+   * drift: a write that carries the player cookie or reaches `/v1/auth/*` must send exactly this `Origin`.
+   */
+  webOrigin: string;
+  /** `PLAYER_WEB_SESSION=on`: the forwarder's player cookie steps (ADR-818); off until P3's `/play` CSP ships. */
+  playerWebSession: boolean;
   /** The app's store pages (T-010), unset until the app is published: the event page then shows no store buttons. */
   appStoreUrl?: string;
   playStoreUrl?: string;
@@ -41,11 +48,69 @@ function storeLink(
  */
 const INTERNAL_ORIGIN = /^http:\/\/([a-z0-9-]+|127\.0\.0\.1)(:[0-9]{1,5})?$/;
 
+/** A local run's own origin may be plain http; every other web origin is https. */
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+
+const parsedUrl = (value: string): URL | undefined => {
+  try {
+    return new URL(value);
+  } catch {
+    return undefined;
+  }
+};
+
+/** An origin only (no path, no trailing slash), over https or on this machine. */
+function isWebOrigin(value: string): boolean {
+  const url = parsedUrl(value);
+  if (url === undefined || url.origin !== value) {
+    return false;
+  }
+  return url.protocol === "https:" || LOCAL_HOSTS.has(url.hostname);
+}
+
+/**
+ * The web app's public origin (`DASHBOARD_ORIGIN`): required, an origin only, https except on this machine.
+ *
+ * @throws Error naming the setting and the expected form.
+ */
+function webOriginOf(env: Readonly<Record<string, string | undefined>>): string {
+  const value = env["DASHBOARD_ORIGIN"];
+  if (value === undefined || value === "") {
+    throw new Error(
+      "DASHBOARD_ORIGIN is not set. Use the web app's public origin, the same as the API's DASHBOARD_ORIGIN, such as https://questify.nafes.com.",
+    );
+  }
+  if (!isWebOrigin(value)) {
+    throw new Error(
+      `DASHBOARD_ORIGIN "${value}" must be an https origin with no path or trailing slash (https://questify.nafes.com), or http://localhost:<port> on this machine.`,
+    );
+  }
+  return value;
+}
+
+/**
+ * `PLAYER_WEB_SESSION`: unset, empty or `off` keeps the player cookie steps off (the SECURITY.md ship gate); `on`
+ * turns them on.
+ *
+ * @throws Error for any other value, so a typo never leaves the switch in a state nobody chose.
+ */
+function playerWebSessionOf(env: Readonly<Record<string, string | undefined>>): boolean {
+  const value = env["PLAYER_WEB_SESSION"] ?? "";
+  if (value === "on") {
+    return true;
+  }
+  if (value === "" || value === "off") {
+    return false;
+  }
+  throw new Error(`PLAYER_WEB_SESSION "${value}" must be "on" or "off" (unset is off).`);
+}
+
 /**
  * Reads the web app's settings.
  *
- * @throws Error naming the setting and the expected form when `API_ORIGIN` is missing or not an internal address, or
- *   a store link is not https on its store's host.
+ * @throws Error naming the setting and the expected form when `API_ORIGIN` is missing or not an internal address, a
+ *   store link is not https on its store's host, `DASHBOARD_ORIGIN` is missing or not an origin, or
+ *   `PLAYER_WEB_SESSION` is neither `on` nor `off`.
  */
 export function readWebConfig(env: Readonly<Record<string, string | undefined>>): WebConfig {
   const apiOrigin = env["API_ORIGIN"];
@@ -63,6 +128,8 @@ export function readWebConfig(env: Readonly<Record<string, string | undefined>>)
   const playStoreUrl = storeLink(env, "PLAY_STORE_URL");
   return {
     apiOrigin,
+    webOrigin: webOriginOf(env),
+    playerWebSession: playerWebSessionOf(env),
     ...(appStoreUrl === undefined ? {} : { appStoreUrl }),
     ...(playStoreUrl === undefined ? {} : { playStoreUrl }),
   };

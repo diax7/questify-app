@@ -123,6 +123,7 @@ describe("the devices screen's steps (T-810c)", () => {
   it("names a device by its model, else its platform, and counts calendar days", () => {
     expect(fallbackNameKey({ platform: "ios" })).toBe("myDevices.fallbackIos");
     expect(fallbackNameKey({ platform: "android" })).toBe("myDevices.fallbackAndroid");
+    expect(fallbackNameKey({ platform: "web" })).toBe("myDevices.fallbackWeb");
     expect(fallbackNameKey({ platform: null })).toBe("myDevices.fallbackPhone");
     expect(daysSince(new Date(2026, 10, 4, 23, 59), new Date(2026, 10, 5, 0, 1))).toBe(1);
     expect(daysSince(new Date(2026, 10, 5, 8), new Date(2026, 10, 5, 22))).toBe(0);
@@ -135,6 +136,12 @@ describe("the devices calls", () => {
   it("lists, keeping only well-formed devices", async () => {
     const { deps } = setup(ok({ devices: [HERE, { id: 1 }], freshUntil: null }));
     expect(await loadDevices(deps)).toEqual({ type: "loaded", devices: [HERE] });
+    const browser = { ...OTHER, platform: "web", model: null };
+    const odd = { ...OTHER, platform: "windows" };
+    expect(await loadDevices(setup(ok({ devices: [browser, odd] })).deps)).toEqual({
+      type: "loaded",
+      devices: [browser],
+    });
     expect(await otherDeviceCount(setup(ok({ devices: [HERE, OTHER] })).deps)).toBe(1);
     expect(await otherDeviceCount(setup({ kind: "network" }).deps)).toBe(0);
   });

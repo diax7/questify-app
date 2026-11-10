@@ -65,7 +65,8 @@
       "env": {
         "PORT": "3000",
         "NODE_ENV": "production",
-        "API_ORIGIN": { "template": "http://{api.host}:3000" }
+        "API_ORIGIN": { "template": "http://{api.host}:3000" },
+        "DASHBOARD_ORIGIN": "https://questify.nafes.com"
       }
     },
     "monitoring": {

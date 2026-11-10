@@ -6,7 +6,7 @@ type Problem = LocalizedText | null;
 /** One signed-in device as `GET /v1/me/devices` answers it (T-810c, FR-140). */
 export type Device = Readonly<{
   id: string;
-  platform: "ios" | "android" | null;
+  platform: "ios" | "android" | "web" | null;
   model: string | null;
   signedInAt: string;
   lastUsedAt: string;
@@ -163,6 +163,7 @@ export function codeChannels(identifiers: Readonly<Record<Channel, string | null
 export function fallbackNameKey(device: Pick<Device, "platform">): MessageKey {
   if (device.platform === "ios") return "myDevices.fallbackIos";
   if (device.platform === "android") return "myDevices.fallbackAndroid";
+  if (device.platform === "web") return "myDevices.fallbackWeb";
   return "myDevices.fallbackPhone";
 }
 

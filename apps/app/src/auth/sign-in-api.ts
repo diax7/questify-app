@@ -1,6 +1,6 @@
 import { MESSAGES, toWesternDigits, type Language, type SignupAcceptance } from "@questify/shared";
 import type { ApiResult, Client } from "#src/api/client.ts";
-import type { Issued, Session } from "#src/api/session.ts";
+import type { Session } from "#src/api/session.ts";
 import type { BanNotice, Channel, SignInEvent } from "#src/auth/sign-in-flow.ts";
 import type { DeviceLabel } from "#src/account/device-label.ts";
 import { versionsFrom } from "#src/config/remote.ts";
@@ -38,12 +38,6 @@ const numberOf = (value: unknown, fallback: number): number =>
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
-
-const isIssued = (value: unknown): value is Issued =>
-  isRecord(value) &&
-  typeof value["accessToken"] === "string" &&
-  typeof value["refreshToken"] === "string" &&
-  typeof value["expiresInSeconds"] === "number";
 
 /** Asks for a code (FR-106); the versions the person just accepted travel with it (FR-1705). */
 export async function requestCode(
@@ -129,8 +123,8 @@ export async function verifyCode(
     path: "/v1/auth/verify",
     body: await withDevice(deps, input),
   });
-  if (answer.kind === "ok" && isIssued(answer.body)) {
-    await deps.session.start(answer.body);
+  // The session reads the answer: tokens on a phone, `signedIn: true` on the web (ADR-818).
+  if (answer.kind === "ok" && (await deps.session.start(answer.body))) {
     return { type: "signed_in" };
   }
   if (
@@ -182,8 +176,8 @@ export async function signUp(
     path: "/v1/auth/signup",
     body: await withDevice(deps, input),
   });
-  if (answer.kind === "ok" && isIssued(answer.body)) {
-    await deps.session.start(answer.body);
+  // The session reads the answer: tokens on a phone, `signedIn: true` on the web (ADR-818).
+  if (answer.kind === "ok" && (await deps.session.start(answer.body))) {
     return { type: "signed_in" };
   }
   return answer.kind === "error" && answer.code === "signup_expired"

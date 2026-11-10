@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readWebConfig } from "#src/lib/config.ts";
 
+const WEB = { DASHBOARD_ORIGIN: "https://questify.nafes.com" };
+const WEB_PARSED = { webOrigin: "https://questify.nafes.com", playerWebSession: false };
+
 describe("readWebConfig", () => {
   it.each([
     "http://questify-api-staging-3ez01s:3000",
@@ -8,12 +11,12 @@ describe("readWebConfig", () => {
     "http://127.0.0.1:4100",
     "http://localhost:3000",
   ])("accepts the internal address %s", (apiOrigin) => {
-    expect(readWebConfig({ API_ORIGIN: apiOrigin })).toEqual({ apiOrigin });
+    expect(readWebConfig({ ...WEB, API_ORIGIN: apiOrigin })).toEqual({ apiOrigin, ...WEB_PARSED });
   });
 
   it("refuses a missing or empty setting with what to set", () => {
-    expect(() => readWebConfig({})).toThrow(/API_ORIGIN is not set.*internal address/);
-    expect(() => readWebConfig({ API_ORIGIN: "" })).toThrow(/API_ORIGIN is not set/);
+    expect(() => readWebConfig(WEB)).toThrow(/API_ORIGIN is not set.*internal address/);
+    expect(() => readWebConfig({ ...WEB, API_ORIGIN: "" })).toThrow(/API_ORIGIN is not set/);
   });
 
   it.each([
@@ -25,17 +28,18 @@ describe("readWebConfig", () => {
     "http://questify-api:3000/v1",
     "http://user:pass@questify-api:3000",
   ])("refuses %s, which is public or not a bare origin", (apiOrigin) => {
-    expect(() => readWebConfig({ API_ORIGIN: apiOrigin })).toThrow(
+    expect(() => readWebConfig({ ...WEB, API_ORIGIN: apiOrigin })).toThrow(
       /must be an internal http address/,
     );
   });
 
   describe("the store links", () => {
-    const base = { API_ORIGIN: "http://questify-api" };
+    const base = { ...WEB, API_ORIGIN: "http://questify-api" };
 
     it("leaves them out when unset or empty", () => {
       expect(readWebConfig({ ...base, APP_STORE_URL: "", PLAY_STORE_URL: undefined })).toEqual({
         apiOrigin: "http://questify-api",
+        ...WEB_PARSED,
       });
     });
 
@@ -48,6 +52,7 @@ describe("readWebConfig", () => {
         }),
       ).toEqual({
         apiOrigin: "http://questify-api",
+        ...WEB_PARSED,
         appStoreUrl: "https://apps.apple.com/sa/app/questify/id123",
         playStoreUrl: "https://play.google.com/store/apps/details?id=sa.questify",
       });
@@ -60,6 +65,53 @@ describe("readWebConfig", () => {
       ["PLAY_STORE_URL", "not a url", /PLAY_STORE_URL "not a url" is not a URL/],
     ])("refuses %s=%s", (name, value, message) => {
       expect(() => readWebConfig({ ...base, [name]: value })).toThrow(message);
+    });
+  });
+
+  describe("the web origin (DASHBOARD_ORIGIN) and the player web session switch", () => {
+    const base = { API_ORIGIN: "http://questify-api" };
+
+    it("requires the web origin, which the forwarder's Origin rule needs", () => {
+      expect(() => readWebConfig(base)).toThrow(/DASHBOARD_ORIGIN is not set/);
+      expect(() => readWebConfig({ ...base, DASHBOARD_ORIGIN: "" })).toThrow(
+        /DASHBOARD_ORIGIN is not set/,
+      );
+    });
+
+    it.each(["https://questify.nafes.com", "http://localhost:3100", "http://127.0.0.1:3100"])(
+      "accepts %s",
+      (origin) => {
+        expect(readWebConfig({ ...base, DASHBOARD_ORIGIN: origin }).webOrigin).toBe(origin);
+      },
+    );
+
+    it.each([
+      "http://questify.nafes.com",
+      "https://questify.nafes.com/",
+      "https://questify.nafes.com/en",
+      "questify.nafes.com",
+      "not a url",
+    ])("refuses %s, which is not an https origin", (origin) => {
+      expect(() => readWebConfig({ ...base, DASHBOARD_ORIGIN: origin })).toThrow(
+        /DASHBOARD_ORIGIN ".*" must be an https origin/,
+      );
+    });
+
+    it.each([
+      [undefined, false],
+      ["", false],
+      ["off", false],
+      ["on", true],
+    ])("reads PLAYER_WEB_SESSION=%s as %s (off by default)", (value, on) => {
+      expect(readWebConfig({ ...base, ...WEB, PLAYER_WEB_SESSION: value }).playerWebSession).toBe(
+        on,
+      );
+    });
+
+    it.each(["true", "1", "ON", "yes"])("refuses PLAYER_WEB_SESSION=%s", (value) => {
+      expect(() => readWebConfig({ ...base, ...WEB, PLAYER_WEB_SESSION: value })).toThrow(
+        /PLAYER_WEB_SESSION ".*" must be "on" or "off"/,
+      );
     });
   });
 });

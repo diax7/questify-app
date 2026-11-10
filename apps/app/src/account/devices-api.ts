@@ -14,7 +14,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
 const isPlatform = (value: unknown): boolean =>
-  value === null || value === "ios" || value === "android";
+  value === null || value === "ios" || value === "android" || value === "web";
 const isModel = (value: unknown): boolean => value === null || typeof value === "string";
 const hasTimes = (value: Record<string, unknown>): boolean =>
   typeof value["signedInAt"] === "string" && typeof value["lastUsedAt"] === "string";

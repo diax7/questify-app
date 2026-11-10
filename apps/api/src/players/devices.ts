@@ -12,9 +12,16 @@ import { sessionHashOf } from "#src/players/guard";
 /** The label a model may carry (the column's own check, migration 0155): anything else is dropped, not refused. */
 const DEVICE_MODEL = /^[A-Za-z0-9 ._()+-]{1,40}$/;
 
+/**
+ * The platforms a signed-in device may carry (migration 0188): `web` is set by the web app's forwarder for a browser
+ * sign-in (ADR-820). The API cannot verify the label, and any client may call itself `web`, which is harmless.
+ */
+const DEVICE_PLATFORMS = ["ios", "android", "web"] as const;
+export type DevicePlatform = (typeof DEVICE_PLATFORMS)[number];
+
 /** The optional `device` of a sign-in or sign-up body: the platform and the `expo-device` model, nothing else. */
 export const deviceLabelBody = z.strictObject({
-  platform: z.enum(["ios", "android"]),
+  platform: z.enum(DEVICE_PLATFORMS),
   model: z.string().max(200).optional(),
 });
 export type DeviceLabel = z.infer<typeof deviceLabelBody>;
@@ -45,7 +52,8 @@ export async function labelDevice(
         client.query("SELECT label_player_device($1, $2, $3)", [
           refreshHash,
           label.platform,
-          cleanModel(label.model),
+          // A browser carries no model, never a user agent (ADR-710, ADR-820).
+          label.platform === "web" ? null : cleanModel(label.model),
         ]),
       ),
     );
@@ -56,7 +64,7 @@ export async function labelDevice(
 
 export type PlayerDevice = Readonly<{
   id: string;
-  platform: "ios" | "android" | null;
+  platform: DevicePlatform | null;
   model: string | null;
   signedInAt: Date;
   lastUsedAt: Date;
@@ -103,7 +111,7 @@ export async function asDevicePlayer<T>(
 export async function listDevices(client: PoolClient, session: Buffer): Promise<DeviceList> {
   const { rows } = await client.query<{
     id: string;
-    platform: "ios" | "android" | null;
+    platform: DevicePlatform | null;
     model: string | null;
     signed_in_at: Date;
     last_used_at: Date;

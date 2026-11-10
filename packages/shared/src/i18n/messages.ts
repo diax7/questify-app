@@ -1720,6 +1720,7 @@ export const MESSAGES = {
   "myDevices.thisDevice": { ar: "هذا الجهاز", en: "This device" },
   "myDevices.fallbackIos": { ar: "آيفون", en: "iPhone" },
   "myDevices.fallbackAndroid": { ar: "جوال أندرويد", en: "Android phone" },
+  "myDevices.fallbackWeb": { ar: "متصفح الويب", en: "Web browser" },
   "myDevices.fallbackPhone": { ar: "جوال", en: "Phone" },
   "myDevices.signedIn": { ar: "سجّلت الدخول في {date}", en: "Signed in {date}" },
   "myDevices.usedToday": { ar: "آخر استخدام: اليوم", en: "Last used today" },

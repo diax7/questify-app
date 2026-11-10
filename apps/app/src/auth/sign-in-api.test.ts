@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import type { ApiRequest, ApiResult, Client } from "#src/api/client.ts";
-import type { Issued } from "#src/api/session.ts";
 import {
   isolatedLtr,
   requestCode,
@@ -25,7 +24,8 @@ const TOKENS = { accessToken: "a", refreshToken: "r", expiresInSeconds: 3600, pl
 
 function setup(answer: ApiResult) {
   const calls: ApiRequest[] = [];
-  const started: Issued[] = [];
+  const offered: unknown[] = [];
+  const started: unknown[] = [];
   const client: Client = {
     request: async (request) => {
       calls.push(request);
@@ -34,10 +34,23 @@ function setup(answer: ApiResult) {
   };
   const deps = {
     client,
-    session: { start: async (issued: Issued) => void started.push(issued) },
+    // Accepts what a session would: a token pair (the phone) or `signedIn: true` (the web, ADR-818).
+    session: {
+      start: async (body: unknown) => {
+        offered.push(body);
+        const accepted =
+          typeof body === "object" &&
+          body !== null &&
+          ("accessToken" in body || (body as { signedIn?: unknown }).signedIn === true);
+        if (accepted) {
+          started.push(body);
+        }
+        return accepted;
+      },
+    },
     now: () => 5_000,
   };
-  return { deps, calls, started };
+  return { deps, calls, started, offered };
 }
 
 const VERSIONS = { terms: "0.1", privacy: "0.1" };
@@ -165,6 +178,24 @@ describe("verifyCode", () => {
     });
   });
 
+  it("signs in through the web session's answer, which holds no token", async () => {
+    const web = { signedIn: true, expiresInSeconds: 3600, player: { id: "p" } };
+    const { deps, started } = setup(ok(web));
+    expect(await verifyCode(deps, { challengeToken: "t", code: "123456" })).toEqual({
+      type: "signed_in",
+    });
+    expect(started).toEqual([web]);
+  });
+
+  it("refuses a 200 that the session does not take and that is no profile step", async () => {
+    const { deps, started, offered } = setup(ok({ signedIn: false }));
+    expect(await verifyCode(deps, { challengeToken: "t", code: "1" })).toEqual({
+      type: "refused",
+      problem: null,
+    });
+    expect([offered, started]).toEqual([[{ signedIn: false }], []]);
+  });
+
   it("takes a new contact to the profile step", async () => {
     const { deps, started } = setup(ok({ isNew: true, signupToken: "s" }));
     expect(await verifyCode(deps, { challengeToken: "t", code: "1" })).toEqual({
@@ -215,6 +246,9 @@ describe("signUp", () => {
     expect(await signUp(deps, input)).toEqual({ type: "signed_in" });
     expect(started).toEqual([TOKENS]);
     expect(calls[0]).toEqual({ method: "POST", path: "/v1/auth/signup", body: input });
+    const refusedStart = setup(ok({ player: { id: "p" } }, 201));
+    expect(await signUp(refusedStart.deps, input)).toEqual({ type: "refused", problem: null });
+    expect(refusedStart.started).toEqual([]);
     expect(await signUp(setup(fail(422, "username_blocked")).deps, input)).toEqual({
       type: "refused",
       problem: MESSAGE,

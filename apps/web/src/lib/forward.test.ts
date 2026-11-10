@@ -22,6 +22,8 @@ describe("forward (same-origin /v1 forwarder)", () => {
     timeoutMs: 2_000,
     maxBodyBytes: 1_024,
     log: (fields) => logged.push(fields),
+    webOrigin: WEB,
+    playerSession: false,
     ...extra,
   });
 

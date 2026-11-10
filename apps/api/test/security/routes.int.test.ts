@@ -1207,6 +1207,83 @@ const PUBLIC_ROUTES = [
   "POST /v1/staff/invites/inspect",
 ];
 
+/**
+ * Every `access: "player"` GET, each read for whether it writes (T-803 P2): the web forwarder does not check `Origin` on
+ * a GET, and a sibling subdomain is the same site for `SameSite=Strict`, so a player GET must change nothing. A new
+ * player GET fails here until it is read the same way; one that writes is a POST.
+ */
+// Read 2026-11-10: every SQL function these reach is STABLE in its latest definition and no handler writes in TS, apart
+// from throttle windows (a miss budget) and one cache repair: the ranking marks `ranking_repair` when its Redis copy is
+// bad (mark_ranking_repair, 0095), which changes nothing a player sees. Operator paths are also refused to a player
+// cookie by the forwarder (Q-755).
+const PLAYER_READS: readonly string[] = [
+  "/v1/events/:eventId/activity",
+  "/v1/events/:eventId/announcements",
+  "/v1/events/:eventId/config",
+  "/v1/events/:eventId/held-prizes",
+  "/v1/events/:eventId/home",
+  "/v1/events/:eventId/live",
+  "/v1/events/:eventId/maps",
+  "/v1/events/:eventId/quests",
+  "/v1/events/:eventId/ranking",
+  "/v1/events/:eventId/recap",
+  "/v1/events/:eventId/results",
+  "/v1/events/:eventId/review-codes",
+  "/v1/events/:eventId/rules",
+  "/v1/events/:eventId/sessions",
+  "/v1/events/:eventId/shop",
+  "/v1/events/:eventId/sponsors",
+  "/v1/events/:eventId/submissions/mine",
+  "/v1/events/:eventId/tickets/mine",
+  "/v1/me",
+  "/v1/me/achievements",
+  "/v1/me/blocks",
+  "/v1/me/daily",
+  "/v1/me/desk-items",
+  "/v1/me/devices",
+  "/v1/me/event-history",
+  "/v1/me/events",
+  "/v1/me/for-you",
+  "/v1/me/invitations",
+  "/v1/me/live-code",
+  "/v1/me/locker",
+  "/v1/me/marketing",
+  "/v1/me/notifications",
+  "/v1/me/operator-events",
+  "/v1/me/preferences",
+  "/v1/me/push-topics",
+  "/v1/me/qr",
+  "/v1/me/questify-quests",
+  "/v1/me/rewards",
+  "/v1/me/tickets",
+  "/v1/meet-passes/:passId",
+  "/v1/operator/desk/sales/:saleId",
+  "/v1/operator/events/:eventId/award",
+  "/v1/operator/events/:eventId/desk",
+  "/v1/operator/events/:eventId/devices",
+  "/v1/operator/events/:eventId/inbox",
+  "/v1/operator/events/:eventId/inbox/count",
+  "/v1/operator/events/:eventId/nfc-tags",
+  "/v1/operator/events/:eventId/quests/:questId/screen-code",
+  "/v1/operator/events/:eventId/sessions",
+  "/v1/operator/events/:eventId/stations",
+  "/v1/operator/events/:eventId/stations/:questId/today",
+  "/v1/operator/events/:eventId/submissions",
+  "/v1/operator/events/:eventId/tickets/:ticketId",
+  "/v1/operator/redemptions/:redemptionId",
+  "/v1/players/:username",
+  "/v1/questify/ranking",
+  "/v1/quests/:questId/game",
+  "/v1/quests/:questId/passport",
+  "/v1/quests/:questId/poll",
+  "/v1/quests/:questId/quiz",
+  "/v1/quests/:questId/rating",
+  "/v1/quests/:questId/share",
+  "/v1/quests/:questId/survey",
+  "/v1/quests/:questId/vote",
+  "/v1/rehearsals/:code",
+];
+
 const MISSING = "00000000-0000-4000-8000-000000000000";
 
 /** An error answer without its request id, which differs on every request. */
@@ -1278,6 +1355,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("route isolation", () => {
           .map((route) => `${route.method} ${route.url}`)
           .toSorted(),
       ).toEqual(PUBLIC_ROUTES);
+    });
+
+    it("has only these player GETs, each read to write nothing (the forwarder checks no Origin on a GET)", () => {
+      expect(
+        test.app.routeInventory
+          .filter((route) => route.method === "GET" && route.access === "player")
+          .map((route) => route.url)
+          .toSorted(),
+      ).toEqual([...PLAYER_READS].toSorted());
     });
 
     it("keeps staff routes under /v1/staff, where the session check runs", () => {

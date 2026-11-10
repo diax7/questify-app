@@ -234,6 +234,11 @@ export const AREAS = [
   [/rehearsal/i, ["rehearsal"]],
   [/reward/i, ["rewards"]],
   [/sign-?(in|up|out)|code-?step/i, ["sign-in", "password", "organizers"]],
+  // The player's web session (T-803 P2): the forwarder, its cookie steps and the web config.
+  [
+    /player-?session|player-?steps|forward(-headers)?\.ts|player-?web|lib\/config/i,
+    ["player-session", "player-session-race"],
+  ],
   [/souvenir/i, ["souvenirs"]],
   [/streak/i, ["streak"]],
   [/submission/i, ["submissions"]],

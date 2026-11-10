@@ -50,6 +50,9 @@ export default defineConfig({
       env: {
         ...process.env,
         API_ORIGIN: `http://127.0.0.1:${API_PORT}`,
+        DASHBOARD_ORIGIN: WEB_ORIGIN,
+        // The player web session (T-803 P2) is on here so its browser tests run; it ships off (SECURITY.md).
+        PLAYER_WEB_SESSION: "on",
         PORT: String(WEB_PORT),
         HOSTNAME: "localhost",
       },

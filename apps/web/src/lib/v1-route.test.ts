@@ -19,6 +19,7 @@ describe("the /v1 route handler", () => {
   beforeAll(async () => {
     api = await startUpstream();
     vi.stubEnv("API_ORIGIN", api.origin);
+    vi.stubEnv("DASHBOARD_ORIGIN", WEB);
     route = await import("#src/app/v1/[[...path]]/route.ts");
   });
   afterAll(async () => {

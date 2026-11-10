@@ -176,7 +176,7 @@
   },
   "apps/app/src/api/session.ts": {
     "createSession": {
-      "lines": [150]
+      "lines": [148]
     }
   },
   "apps/app/src/auth/player-state.ts": {
@@ -300,11 +300,6 @@
   "apps/web/src/components/TeamPanel.tsx": {
     "TeamPanel": {
       "lines": [108]
-    }
-  },
-  "apps/web/src/lib/forward.ts": {
-    "forward": {
-      "complexity": [15]
     }
   },
   "apps/web/src/lib/staff-api.ts": {

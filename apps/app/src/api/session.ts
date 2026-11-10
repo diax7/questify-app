@@ -19,8 +19,11 @@ type Pair = Readonly<{ access: string; refresh: string; expiresAt: number }>;
 export type AuthedResult = ApiResult | Readonly<{ kind: "signed_out" }>;
 
 export type Session = Readonly<{
-  /** Keeps a new sign-in's tokens. */
-  start: (issued: Issued) => Promise<void>;
+  /**
+   * Keeps a new sign-in's answer (verify, signup): the tokens on a phone, `signedIn: true` on the web, where the
+   * forwarder holds them in its cookie. False when the answer is not a sign-in, and nothing is kept.
+   */
+  start: (body: unknown) => Promise<boolean>;
   signedIn: () => Promise<boolean>;
   /** Calls a player route with the access token, refreshing first when it is about to end and once after a 401. */
   request: (request: Omit<ApiRequest, "accessToken">) => Promise<AuthedResult>;
@@ -60,7 +63,7 @@ const isIssued = (value: unknown): value is Issued =>
   typeof (value as Issued).expiresInSeconds === "number";
 
 /** A set of listeners that can be called together. */
-function createNotifier() {
+export function createNotifier() {
   const listeners = new Set<() => void>();
   return {
     subscribe: (listener: () => void) => {
@@ -76,7 +79,7 @@ function createNotifier() {
 }
 
 /** A write refused for unaccepted legal documents tells the app to reload the profile, whose gate then asks. */
-function announceHold<T extends AuthedResult>(
+export function announceHold<T extends AuthedResult>(
   held: ReturnType<typeof createNotifier>,
   answer: T,
 ): T {
@@ -228,10 +231,9 @@ export function createSession(deps: SessionDeps): Session {
   };
 
   return {
-    start: async (issued) => {
-      await dropAccountItems();
-      await save(issued);
-    },
+    // Two different items, so the old account's are dropped while the new pair is written.
+    start: async (body) =>
+      isIssued(body) && Promise.all([dropAccountItems(), save(body)]).then(() => true),
     signedIn: async () => (await load()) !== undefined,
     request: async (request) => {
       const token = await access();

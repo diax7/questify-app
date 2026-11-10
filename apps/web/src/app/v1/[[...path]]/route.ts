@@ -10,8 +10,11 @@ export const dynamic = "force-dynamic";
  * neither on its own, and its answers carry none of the API's security headers.
  */
 function handle(request: Request): Promise<Response> {
+  const config = webConfig();
   return forward(request, {
-    apiOrigin: webConfig().apiOrigin,
+    apiOrigin: config.apiOrigin,
+    webOrigin: config.webOrigin,
+    playerSession: config.playerWebSession,
     timeoutMs: forwardTimeoutMs(new URL(request.url).pathname),
     maxBodyBytes: 1_048_576,
     // One JSON line on the server log (stderr), like the API's own log lines.

@@ -108,6 +108,24 @@ describe("the session", () => {
     expect(calls[0]?.accessToken).toBe("access-1");
   });
 
+  it("starts only from an answer with the tokens, and keeps nothing otherwise", async () => {
+    const storage = memoryStorage();
+    storage.data.set(MY_QR_KEY, "qr");
+    const session = createSession({ client: fakeClient({}).client, storage });
+    for (const body of [
+      { signedIn: true, expiresInSeconds: 3600 },
+      { isNew: true, signupToken: "s" },
+      { accessToken: "a", refreshToken: "r" },
+      null,
+      "text",
+    ]) {
+      expect(await session.start(body)).toBe(false);
+    }
+    expect([...storage.data.keys()]).toEqual([MY_QR_KEY]);
+    expect(await session.start(issued(1))).toBe(true);
+    expect([...storage.data.keys()]).toEqual([SESSION_KEY]);
+  });
+
   it("refreshes before a request when under a minute is left", async () => {
     let time = 0;
     const storage = memoryStorage();

@@ -728,6 +728,55 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
           });
         return;
       }
+      // /player-access-expired: every access token of the player with this email ends now, so the next player call is a
+      // 401 and the web session must refresh (T-803 P2); answers how many `player.refresh_reuse` audit rows they have.
+      // /player-refresh-aged: the player's used refresh tokens were used two minutes ago, past the API's 60-second grace,
+      // so presenting one again reads as reuse.
+      if (request.url === "/player-refresh-aged") {
+        db.owner
+          .query(
+            `UPDATE player_refresh SET used_at = used_at - interval '2 minutes' WHERE used_at IS NOT NULL
+               AND player_id IN (SELECT player_id FROM player_contact WHERE email = $1)`,
+            [body.email],
+          )
+          .then((result) => {
+            response.writeHead(result.rowCount === 0 ? 404 : 204).end();
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      if (request.url === "/player-access-expired" || request.url === "/player-reuse") {
+        const expire = request.url === "/player-access-expired";
+        const who = "SELECT player_id FROM player_contact WHERE email = $1";
+        db.owner
+          .query(
+            expire
+              ? `UPDATE player_session SET expires_at = now() - interval '1 second' WHERE player_id IN (${who})`
+              : `SELECT (SELECT count(*)::int FROM audit_log WHERE action = 'player.refresh_reuse'
+                         AND target_id IN (SELECT player_id::text FROM player_contact WHERE email = $1)) AS n,
+                        (SELECT count(*)::int FROM player_refresh WHERE player_id IN (${who})) AS issued`,
+            [body.email],
+          )
+          .then((result) => {
+            response.writeHead(200, { "content-type": "application/json" });
+            response.end(
+              JSON.stringify(
+                expire
+                  ? { expired: result.rowCount }
+                  : {
+                      reuse: Number(result.rows[0]?.n),
+                      refreshTokens: Number(result.rows[0]?.issued),
+                    },
+              ),
+            );
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
       // /players: enrolls new players with these usernames in the event (the dashboard's players page, T-208), active
       // unless `status` says otherwise (`pending`: join requests, T-218).
       if (request.url === "/players") {
