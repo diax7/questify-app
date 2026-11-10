@@ -55,7 +55,7 @@
   named in `AREAS` (`scripts/ci-scope.test.ts` fails otherwise). `full.yml` runs everything, including every browser spec
   (one job, no shards), daily at 01:17 UTC on `main` (about 900 minutes a month, free while the repository is public) and by
   hand.
-- Browser tests locally (web app): `pnpm --filter @questify/web build`, then
+- Browser tests locally (web app): `pnpm --filter @questify/web build:play` (the player web build, which `play-web.spec.ts` needs), `pnpm --filter @questify/web build`, then
   `pnpm --filter @questify/web e2e` with `TEST_DATABASE_URL` set (first time: `pnpm --filter @questify/web exec
   playwright install chromium`). Run the specs of your area before merging a web, shared or API change, and the whole suite when `ci-scope` says
   `all`; the whole suite is part of `ci:full` and takes about 21 minutes on a CI runner, more on the PC (354 tests, one worker; CI splits it into two shards of 11 to 12). `E2E_API_LOG=1` prints the API's
@@ -1212,6 +1212,20 @@ the first step of that rerun.
 - `PLAYER_WEB_SESSION` (`on` or `off`, unset is off; T-803 P2, ADR-818): the forwarder's player cookie steps.
   **Leave it off in production until P3's `/play` CSP ships** (SECURITY.md abuse case 11, the ship gate). Off, the
   player sign-in steps pass through as before and no player cookie is set or read.
+- **The player web build at `/play`** (T-803 P3, FR-1816, ADR-822). `Dockerfile.web` runs `pnpm --filter @questify/web
+  build:play` (`scripts/build-play.mjs`: `expo export --platform web` for `apps/app`, `baseUrl /play`) into
+  `apps/web/public/play` (git-ignored), then builds the web app, so one image holds both. Locally and in CI run
+  `build:play` before `pnpm --filter @questify/web build`. Next serves the files and rewrites every other `/play/...`
+  path to `index.html` (`next.config.ts`); `/play/index.html` redirects to `/play`. The proxy gives `/play` its own CSP
+  and `Permissions-Policy` (`camera=(self)`, `geolocation=(self)`), and `index.html` is `no-store`; the hashed files under
+  `/play/_expo` and `/play/assets` are `immutable`. A release is a new web image: players get it on the next page load.
+  Check after a deploy: `curl -sI https://<web>/play` shows the `content-security-policy` and `no-store`, and
+  `/zxing/zxing_reader-3.1.6.wasm` answers 200. The web build is not in the stores (STORE_COMPLIANCE PD-33).
+- **`PLAYER_WEB_SESSION` per environment.** `ops/cranl/staging.json` sets `PLAYER_WEB_SESSION=on` for the web app now that
+  the `/play` CSP is in; `ops/cranl/production.json` does not set it (off). Turning it on in production is Dhia's call
+  (SECURITY.md ship gate): add the setting in CranL, redeploy the web app, then run the check above. The JSON is applied
+  only when an environment is created or re-synced from it, so a staging app that is already running takes the setting
+  when someone adds it in CranL by hand: confirm it there.
 - The player web build and `MIN_APP_VERSION` (Q-756): the web build sends its own version as `X-App-Version`, so
   raising the API's `MIN_APP_VERSION` above the deployed web build answers 426 to every browser player; deploy the
   new web build first, then raise it. The web app reloads once on a 426 (P3).

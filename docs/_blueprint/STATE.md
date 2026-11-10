@@ -1,5 +1,17 @@
 # Blueprint State — Questify
 
+## T-803 P3, `/play` served — 2026-11-10
+
+- **Built (tier B, review pending).** The player app is served at `/play` by the web app (`pnpm --filter @questify/web
+  build:play` into `apps/web/public/play`, which is ignored by the repository; run by `Dockerfile.web`, CI and `full.yml`).
+  Other `/play/...` paths rewrite to `index.html`, `/play/index.html` redirects to `/play`, and the proxy leaves `/play`
+  out of the language redirect and gives it its own CSP (`script-src 'self' 'wasm-unsafe-eval'`, inline styles,
+  `img-src 'self' data: blob:`, `connect-src 'self'`, no framing), `camera=(self), geolocation=(self)` and `no-store`;
+  hashed files are `immutable`. `PLAYER_WEB_SESSION=on` is in `ops/cranl/staging.json` only. An in-app dialog
+  (`AlertHost.web.tsx`) replaces `window.confirm`. `e2e/play-web.spec.ts` (phone, en and ar) drives the real app:
+  sign-in, new account, an enter-code quest, reload, the needs-the-phone-app note, sign-out, `<html dir>`. ADR-822
+  Proposed, STORE_COMPLIANCE PD-33. T-803 is ticked. Dhia's call: `PLAYER_WEB_SESSION=on` in production.
+
 ## T-803 P2, the player's web session — 2026-11-10
 
 - **Built (tier A, sign-in; plan `docs/plans/2026-11-10-t-803-p2-web-session.md`, plan review 86 folded; code review

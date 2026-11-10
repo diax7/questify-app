@@ -5,13 +5,15 @@ import { STATIC_FILE_RULES } from "#src/lib/static-cache.ts";
 
 const PUBLIC = join(import.meta.dirname, "..", "..", "public");
 
-/** Every file under `public/`, as the address it is served at. */
+/** Every file under `public/`, as the address it is served at; `play/` is the generated player build (gitignored). */
 function addresses(folder: string, prefix = ""): string[] {
-  return readdirSync(folder, { withFileTypes: true }).flatMap((entry) =>
-    entry.isDirectory()
-      ? addresses(join(folder, entry.name), `${prefix}/${entry.name}`)
-      : [`${prefix}/${entry.name}`],
-  );
+  return readdirSync(folder, { withFileTypes: true })
+    .filter((entry) => prefix !== "" || entry.name !== "play")
+    .flatMap((entry) =>
+      entry.isDirectory()
+        ? addresses(join(folder, entry.name), `${prefix}/${entry.name}`)
+        : [`${prefix}/${entry.name}`],
+    );
 }
 
 /** A rule's source as a pattern: the three forms the rules use, `:name(a|b)`, `:name*` and a plain `:name`. */
@@ -41,9 +43,25 @@ describe("the cache rules for the files in public/", () => {
     },
   );
 
-  it("keeps only the versioned decoder for a year", () => {
+  it("keeps only the versioned decoder and the hashed player build for a year", () => {
     const year = rules.filter((rule) => rule.value.includes("immutable"));
-    expect(year).toHaveLength(1);
+    expect(year).toHaveLength(3);
     expect(year[0]?.matches.test("/zxing/zxing_reader-3.1.6.wasm")).toBe(true);
   });
+
+  it.each([
+    "/play/_expo/static/js/web/entry-4ba5283d49d67717391304b9e8999e0e.js",
+    "/play/assets/assets/icons/flame.c2a93ac71c7488df14e3874578a52dcc.webp",
+  ])("keeps the player build's hashed file %s for a year", (address) => {
+    const hit = rules.filter((rule) => rule.matches.test(address));
+    expect(hit).toHaveLength(1);
+    expect(hit[0]?.value).toContain("immutable");
+  });
+
+  it.each(["/play", "/play/", "/play/index.html", "/play/metadata.json", "/play/event/1"])(
+    "%s, the player page, is covered by no rule (it stays no-store)",
+    (address) => {
+      expect(rules.filter((rule) => rule.matches.test(address))).toHaveLength(0);
+    },
+  );
 });

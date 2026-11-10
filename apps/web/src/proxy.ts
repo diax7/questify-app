@@ -6,26 +6,35 @@ import {
   negotiateLanguage,
   savedLanguage,
 } from "#src/lib/language.ts";
-import { contentSecurityPolicy, isKioskPath, pageHeaders } from "#src/lib/security-headers.ts";
+import {
+  contentSecurityPolicy,
+  isKioskPath,
+  isPlayPath,
+  pageHeaders,
+  playContentSecurityPolicy,
+} from "#src/lib/security-headers.ts";
 
 /**
  * Runs before every page: sends `/` to the right language, remembers the language a page is shown in, and adds the
  * content-security policy (with this request's nonce, which Next stamps on its own scripts) and the page headers. The
- * kiosk pages alone may use the camera and compile their decoder's WebAssembly (ADR-245); links to them are full page
- * loads, so these headers are the ones the page runs under.
+ * kiosk pages and `/play` alone may use the camera and compile their decoder's WebAssembly (ADR-245); links to them are
+ * full page loads, so these headers are the ones the page runs under. `/play` (the player web build, T-803) has no
+ * language prefix: the language redirect leaves it alone, and it gets its own policy with no nonce, since its page is a
+ * static file.
  */
 export function proxy(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
+  const play = isPlayPath(pathname);
   const nonce = btoa(crypto.randomUUID());
-  const policy = contentSecurityPolicy(
-    nonce,
-    process.env.NODE_ENV === "development",
-    isKioskPath(pathname),
-  );
+  const policy = play
+    ? playContentSecurityPolicy()
+    : contentSecurityPolicy(nonce, process.env.NODE_ENV === "development", isKioskPath(pathname));
 
   const first = pathname.split("/")[1];
   let response: NextResponse;
-  if (pathname === "/") {
+  if (play) {
+    response = NextResponse.next();
+  } else if (pathname === "/") {
     const language = negotiateLanguage(
       savedLanguage(request.cookies),
       request.headers.get("accept-language"),

@@ -10,6 +10,31 @@ const page = (path: string, cookie?: string, acceptLanguage?: string): NextReque
     },
   });
 
+describe("the player web build at /play (T-803 P3)", () => {
+  it.each(["/play", "/play/", "/play/event/9"])("%s is not sent to a language", (path) => {
+    const response = proxy(page(path, "qs_lang=ar", "ar-SA"));
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("answers with its own policy, the camera and location, and no cache", () => {
+    const response = proxy(page("/play"));
+    const policy = response.headers.get("content-security-policy") ?? "";
+    expect(policy).toContain("script-src 'self' 'wasm-unsafe-eval';");
+    expect(policy).not.toContain("nonce");
+    expect(response.headers.get("permissions-policy")).toBe(
+      "camera=(self), microphone=(), geolocation=(self), payment=(), usb=()",
+    );
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("leaves the pages of the dashboard on their own policy and without location", () => {
+    const response = proxy(page("/en/sign-in"));
+    expect(response.headers.get("content-security-policy")).toContain("'strict-dynamic'");
+    expect(response.headers.get("permissions-policy")).toContain("geolocation=()");
+  });
+});
+
 describe("the language the proxy remembers", () => {
   it("sets the __Host- cookie for a page shown in a language the browser has no cookie for", () => {
     const response = proxy(page("/en/sign-in"));

@@ -26,6 +26,9 @@ sbom.cdx.json
 .next/
 next-env.d.ts
 
+# The player web build, written by `pnpm --filter @questify/web build:play` (expo export) and served at /play
+apps/web/public/play/
+
 # Browser-test output and the bundled test API server
 apps/web/.e2e/
 apps/api/test/support/e2e-server.bundle.mjs

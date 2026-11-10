@@ -15,4 +15,6 @@ reports
 sbom.cdx.json
 **/.next
 apps/web/.e2e
+# The player web build is made inside the image
+apps/web/public/play
 apps/api/test/support/e2e-server.bundle.mjs

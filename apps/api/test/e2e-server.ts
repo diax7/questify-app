@@ -112,6 +112,32 @@ async function main(): Promise<void> {
   startControl(Number(required("E2E_CONTROL_PORT")), db);
 }
 
+/** The event and quests the player web build's browser test plays (T-803 P3); `key` is its join code and name. */
+async function seedPlayWebEvent(
+  owner: Awaited<ReturnType<typeof createTestDatabase>>["owner"],
+  key: string,
+): Promise<void> {
+  const event = await owner.query<{ id: string }>(
+    `INSERT INTO event (organizer_id, join_code, name_en, name_ar, status, starts_at, ends_at)
+     SELECT id, $1, $2, $3, 'live', now() - interval '1 hour', now() + interval '30 days'
+     FROM organizer WHERE slug = 'najd' RETURNING id`,
+    [key, `Web Fest ${key}`, `مهرجان الويب ${key}`],
+  );
+  const eventId = event.rows[0]?.id;
+  if (eventId === undefined) {
+    throw new Error("no organizer to seed the play-web event");
+  }
+  await owner.query(
+    `INSERT INTO quest (event_id, category_id, type, title_en, title_ar, points, repeat_cap, visible, type_config, verification)
+     SELECT $1, c.id, q.type, q.title_en, q.title_ar, q.points, 1, true, q.config::jsonb, q.verification
+     FROM (SELECT id FROM category WHERE event_id = $1 LIMIT 1) c,
+          (VALUES ('enter_code', 'Secret word', 'الكلمة السرية', 25, '{"code":"PLAY42"}', ARRAY[]::text[]),
+                  ('scan_qr', 'Tap the tag', 'المس العلامة', 10, '{}', ARRAY['quest_qr', 'nfc']::text[]))
+          AS q (type, title_en, title_ar, points, config, verification)`,
+    [eventId],
+  );
+}
+
 /**
  * Two players with an open location case each (T-303b): `usernames[0]` scanned once 2.4 km from the venue with a fake
  * location reported (far from the venue); `usernames[1]` scanned two placed quests 910 m apart, edge to edge, 40
@@ -771,6 +797,19 @@ function startControl(port: number, db: Awaited<ReturnType<typeof createTestData
                     },
               ),
             );
+          })
+          .catch((error: unknown) => {
+            response.writeHead(400).end(String(error));
+          });
+        return;
+      }
+      // /play-web-seed: a new live public event of the first organizer with the join code `key`, holding an enter-code
+      // quest (code PLAY42, 25 points) and a scan quest that offers an NFC tag with its QR code, for the player web build's browser
+      // test (T-803 P3). Its own event, so no other spec's quests change.
+      if (request.url === "/play-web-seed") {
+        seedPlayWebEvent(db.owner, body.key ?? "")
+          .then(() => {
+            response.writeHead(204).end();
           })
           .catch((error: unknown) => {
             response.writeHead(400).end(String(error));

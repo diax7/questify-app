@@ -9013,3 +9013,20 @@ is a 401 too; without `navigator.locks` it de-duplicates in the tab. Only the re
 next refresh would read as reuse and end the family.
 **Trade-offs:** without `navigator.locks` the cross-tab race remains (accepted); a refresh answer lost for more than 60
 seconds reads as reuse, as on a phone (RUNBOOK).
+
+## ADR-822 - The player web build is served at `/play` by the web app, under its own CSP
+
+**Status:** Proposed (T-803 P3, 2026-11-10).
+**Decision:** `expo export --platform web` (apps/app, `baseUrl /play`, single-page output) is built into
+`apps/web/public/play` by `pnpm --filter @questify/web build:play` (Dockerfile.web, CI) and served by the Next.js app:
+files as they are, every other path under `/play` rewritten to `index.html`, `/play/index.html` redirected to `/play`.
+The proxy leaves `/play` out of the language redirect and gives it its own policy: `script-src 'self' 'wasm-unsafe-eval'`
+(the export has no inline script, so no hash or nonce is needed; the QR decoder compiles WebAssembly), `style-src 'self'
+'unsafe-inline'` (react-native-web writes style rules), `img-src 'self' data: blob:`, `connect-src 'self'`,
+`frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'none'`. `Permissions-Policy` is `camera=(self)` and
+`geolocation=(self)` on `/play` only (ADR-245 allowed the camera to the kiosk page alone; this adds `/play`). `index.html`
+is `no-store`; the hashed scripts, pictures and fonts are `immutable` for a year. `PLAYER_WEB_SESSION=on` is set in
+`ops/cranl/staging.json` only; production stays off until Dhia turns it on (SECURITY.md ship gate).
+**Why:** one origin means no CORS and the forwarder's cookie (ADR-818); a static export needs no server rendering.
+**Trade-offs:** the origin also serves the dashboard, so an XSS here reaches both: the CSP above is the defence, and the
+dashboard pages keep their own nonce policy. A missing file under `/play` with an extension is a 404, not the app.

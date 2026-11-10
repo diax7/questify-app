@@ -42,14 +42,46 @@ export const PAGE_HEADERS: ReadonlyArray<readonly [string, string]> = [
   ["Cache-Control", "no-store"],
 ];
 
-/** The page headers for `pathname`: every page's, with the camera allowed for this origin on a kiosk page only. */
+/**
+ * The player web build at `/play` (T-803 P3, FR-1816) is a static page: its scripts are files of this origin, with no
+ * inline script and no nonce (the export is built ahead of time), so `script-src` names no nonce and no
+ * `strict-dynamic`. `wasm-unsafe-eval` is for the QR decoder's WebAssembly (`/zxing/`), nothing else that evaluates
+ * text. react-native-web writes style rules at run time, so styles may be inline; pictures may be `data:` and `blob:`;
+ * the page talks only to its own origin, where the forwarder sits.
+ */
+export function playContentSecurityPolicy(): string {
+  return [
+    "default-src 'self'",
+    "script-src 'self' 'wasm-unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+  ].join("; ");
+}
+
+/** The player web build: `/play` and the pages under it (files with an extension skip the proxy). */
+export const isPlayPath = (pathname: string): boolean =>
+  pathname === "/play" || pathname.startsWith("/play/");
+
+const KIOSK_PERMISSIONS = "camera=(self), microphone=(), geolocation=(), payment=(), usb=()";
+/** `/play`: the camera (QR scan quests) and location (location quests) for this origin only. */
+const PLAY_PERMISSIONS = "camera=(self), microphone=(), geolocation=(self), payment=(), usb=()";
+
+const withPermissions = (policy: string): ReadonlyArray<readonly [string, string]> =>
+  PAGE_HEADERS.map(([name, value]) => [name, name === "Permissions-Policy" ? policy : value]);
+
+/**
+ * The page headers for `pathname`: every page's, with the camera allowed for this origin on a kiosk page and on `/play`
+ * (which adds location). `/play` stays `no-store`, so a release reaches the next page load.
+ */
 export function pageHeaders(pathname: string): ReadonlyArray<readonly [string, string]> {
-  if (!isKioskPath(pathname)) {
-    return PAGE_HEADERS;
+  if (isPlayPath(pathname)) {
+    return withPermissions(PLAY_PERMISSIONS);
   }
-  return PAGE_HEADERS.map(([name, value]) =>
-    name === "Permissions-Policy"
-      ? [name, "camera=(self), microphone=(), geolocation=(), payment=(), usb=()"]
-      : [name, value],
-  );
+  return isKioskPath(pathname) ? withPermissions(KIOSK_PERMISSIONS) : PAGE_HEADERS;
 }

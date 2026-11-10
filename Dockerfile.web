@@ -10,14 +10,18 @@ COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY apps/app/package.json apps/app/
 COPY packages/shared/package.json packages/shared/
-# Only the web app and what it depends on.
-RUN pnpm install --frozen-lockfile --filter @questify/web...
+# The web app, the player app (its `expo export --platform web` build is served at /play, T-803) and what they depend on.
+RUN pnpm install --frozen-lockfile --filter @questify/web... --filter @questify/app...
 
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/web apps/web
+COPY apps/app apps/app
+COPY scripts/build-play.mjs scripts/
 COPY docs/legal docs/legal
 ENV NEXT_TELEMETRY_DISABLED=1
+# The player web build goes into apps/web/public/play, which the runtime image copies below with the rest of public/.
+RUN pnpm --filter @questify/web build:play
 RUN pnpm --filter @questify/web build
 
 FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914

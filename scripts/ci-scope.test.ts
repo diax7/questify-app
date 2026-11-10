@@ -31,6 +31,9 @@ const entry = (key: string, en: string) =>
 const messagesFile = (...entries: string[]) =>
   `export const MESSAGES = {\n${entries.join("")}} as const;\n`;
 
+const scopeLines = (files: string[]) =>
+  scopeOutput({ files, additive: new Set<string>() }, "base", ROOT).lines;
+
 function plan(files: string[], context: Record<string, unknown> = {}) {
   return planBrowserSpecs(files, {
     messageKeys: [],
@@ -118,6 +121,31 @@ describe("planBrowserSpecs", () => {
     ]);
 
     expect(result).toEqual({ all: false, specs: [...LAYOUT_SPECS, "souvenirs", "streak"] });
+  });
+
+  it("runs the player web build's specs for a change to the app, its export script or the web image (T-803 P3)", () => {
+    for (const file of [
+      "apps/app/src/event/QuestSheet.tsx",
+      "apps/app/app.json",
+      "apps/app/metro.config.js",
+      "scripts/build-play.mjs",
+      "Dockerfile.web",
+    ]) {
+      expect(plan([file]), file).toEqual({
+        all: false,
+        specs: [...LAYOUT_SPECS, "play-web", "player-session"],
+      });
+    }
+  });
+
+  it("starts the browser run and the web build for an app change, and for nothing else outside the web app", () => {
+    expect(scopeLines(["apps/app/src/platform/capabilities.ts"])).toMatch(
+      /^web=true\ne2e=true\nspecs=/u,
+    );
+    expect(scopeLines(["apps/app/src/platform/capabilities.test.ts"])).toBe(
+      "web=false\ne2e=false\nspecs=\n",
+    );
+    expect(scopeLines(["docs/TASKS.md"])).toBe("web=false\ne2e=false\nspecs=\n");
   });
 
   it("runs a changed spec by itself", () => {

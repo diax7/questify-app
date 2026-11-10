@@ -14,6 +14,10 @@ export type StaticRule = Readonly<{
 
 export const STATIC_FILE_RULES: readonly StaticRule[] = [
   { source: "/zxing/:file*", headers: [{ key: "Cache-Control", value: VERSIONED }] },
+  // The player web build (T-803 P3): Metro names its scripts, pictures and fonts by content hash, so they never change
+  // under a name. `index.html` is not here: it is served at `/play` by the proxy's `no-store` page headers.
+  { source: "/play/_expo/:file*", headers: [{ key: "Cache-Control", value: VERSIONED }] },
+  { source: "/play/assets/:file*", headers: [{ key: "Cache-Control", value: VERSIONED }] },
   {
     // Only a file name with an extension of the shipped art: the bare folder is not matched.
     source: "/:folder(avatars|currency|souvenirs|brand)/:file.:ext(webp|png)",

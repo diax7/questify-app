@@ -3,7 +3,9 @@ import {
   PAGE_HEADERS,
   contentSecurityPolicy,
   isKioskPath,
+  isPlayPath,
   pageHeaders,
+  playContentSecurityPolicy,
 } from "#src/lib/security-headers.ts";
 
 describe("contentSecurityPolicy", () => {
@@ -86,5 +88,58 @@ describe("the kiosk pages (T-309b, ADR-245)", () => {
     expect(kiosk).not.toContain("'unsafe-eval'");
     expect(kiosk).toContain("connect-src 'self'");
     expect(contentSecurityPolicy("n", false)).not.toContain("wasm-unsafe-eval");
+  });
+});
+
+describe("the player web build at /play (T-803 P3, FR-1816)", () => {
+  it("covers /play and its pages, never a lookalike", () => {
+    for (const path of ["/play", "/play/", "/play/event/1"]) {
+      expect(isPlayPath(path), path).toBe(true);
+    }
+    for (const path of ["/", "/en/play", "/player", "/playground", "/en/kiosk"]) {
+      expect(isPlayPath(path), path).toBe(false);
+    }
+  });
+
+  it("runs only scripts of this origin and WebAssembly, with no nonce and nothing that evaluates text", () => {
+    const policy = playContentSecurityPolicy();
+    expect(policy).toContain("script-src 'self' 'wasm-unsafe-eval';");
+    expect(policy).not.toMatch(/nonce|strict-dynamic|'unsafe-eval'/u);
+  });
+
+  it("lets styles be inline and pictures be data or blob, and keeps the rest closed", () => {
+    const rules = playContentSecurityPolicy().split("; ");
+    for (const rule of [
+      "default-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "connect-src 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'none'",
+      "base-uri 'none'",
+      "form-action 'self'",
+    ]) {
+      expect(rules, rule).toContain(rule);
+    }
+  });
+
+  it("allows the camera and location for this origin on /play only, microphone never", () => {
+    const play = Object.fromEntries(pageHeaders("/play"))["Permissions-Policy"];
+    expect(play).toBe("camera=(self), microphone=(), geolocation=(self), payment=(), usb=()");
+    expect(Object.fromEntries(pageHeaders("/play/x"))["Permissions-Policy"]).toBe(play);
+    for (const path of ["/en/sign-in", "/en/kiosk", "/ar/station"]) {
+      expect(Object.fromEntries(pageHeaders(path))["Permissions-Policy"], path).not.toContain(
+        "geolocation=(self)",
+      );
+    }
+  });
+
+  it("keeps index.html out of every cache and sends the other page headers", () => {
+    expect(Object.fromEntries(pageHeaders("/play"))).toMatchObject({
+      "Cache-Control": "no-store",
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "no-referrer",
+    });
   });
 });

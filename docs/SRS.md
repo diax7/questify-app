@@ -1422,7 +1422,7 @@ One row per functional requirement. Tests are written in Stage 8 (`TEST_STRATEGY
 | FR-1813 | F-315 | Should | pending |
 | FR-1814 | F-316, F-261, F-313 | Should | built: server T-406 (`test/db/daily-content.int`: a cadence per kind from the next day, weekly at launch, the two-period warning); the console control built T-406c (`e2e/console-daily.spec.ts`) |
 | FR-1815 | F-317, F-179 | Must | pending |
-| FR-1816 | F-318 | Could | pending |
+| FR-1816 | F-318 | Could | built, staging only (T-803: the app at `/play` in phone browsers, Dhia 2026-11-10: no desktop layout; sign-in by the forwarder's cookie, ADR-818; the page's own CSP, ADR-822; browser camera scan with the self-hosted decoder; a quest only a tag can finish says it needs the phone app; `e2e/play-web.spec.ts` in English and Arabic. `PLAYER_WEB_SESSION` is on in staging and off in production until Dhia turns it on) |
 | FR-1817 | F-319 | Could | pending |
 | FR-1818 | F-320 | Must | pending |
 | FR-1819 | F-321 | Must | built (T-218: requests, the waiting screen and the decision in the app; T-501d: the decision push and center row, once per decision, accept-all and a waiting-list release included; a real push leaves once Dhia's keys are set): `test/db/join-requests.int`, `test/db/push-producers.int` |

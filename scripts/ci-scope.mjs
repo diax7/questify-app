@@ -8,8 +8,12 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+// The player web build (T-803 P3) is made from apps/app by scripts/build-play.mjs into the web app's public folder, and
+// Dockerfile.web builds it into the image: a change to any of them needs the web build and the `/play` browser spec.
+const PLAY_BUILD = [/^apps\/app\//, /^scripts\/build-play\.mjs$/, /^Dockerfile\.web$/];
 const WEB = [
   /^apps\/web\//,
+  ...PLAY_BUILD,
   /^packages\/shared\//,
   /^pnpm-lock\.yaml$/,
   /^\.github\/workflows\//,
@@ -35,6 +39,8 @@ export const LAYOUT_SPECS = ["layout", "layout-check"];
  * area table below stays complete.
  */
 export const NIGHTLY_SPECS = ["a11y"];
+/** The browser specs that run the player web build (T-803 P3). */
+const PLAY_SPECS = ["play-web", "player-session"];
 /** More specs than this is a broad change. */
 export const MAX_AREA_SPECS = 20;
 
@@ -239,6 +245,8 @@ export const AREAS = [
     /player-?session|player-?steps|forward(-headers)?\.ts|player-?web|lib\/config/i,
     ["player-session", "player-session-race"],
   ],
+  // The player web build's own spec and its page (T-803 P3); the app sources are classified before this table.
+  [/play-?web/i, ["play-web"]],
   [/souvenir/i, ["souvenirs"]],
   [/streak/i, ["streak"]],
   [/submission/i, ["submissions"]],
@@ -314,6 +322,10 @@ function classify(file, context) {
   const spec = SPEC_FILE.exec(file);
   if (spec !== null) {
     return { specs: [spec[1]] };
+  }
+  // The app's sources, its web export and the image: the `/play` page plays them, and its sign-in rides the player session.
+  if (PLAY_BUILD.some((pattern) => pattern.test(file))) {
+    return { specs: PLAY_SPECS };
   }
   if (SUPPORT_FILE.test(file)) {
     return classifySupport(file, context);
