@@ -52,6 +52,13 @@
         "backgroundColor": "#6C320B"
       }
     },
+    "web": {
+      "output": "single",
+      "bundler": "metro"
+    },
+    "experiments": {
+      "baseUrl": "/play"
+    },
     "plugins": [
       "expo-router",
       "expo-font",
