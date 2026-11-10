@@ -18,7 +18,7 @@
   `landmark-unique` on `/console/readiness` (two events of the same name), not contrast: the event cards are now articles.
 - **Since release-8:** the baseline went from 106 to 74 in four more batches (web 5, app 6, API 5 with the operator routes
   pinned by a route-list test, and a FOLLOWUPS clean-up), each reviewed 95 or 96. The remaining 74 are core paths.
-- **Staging:** `release-20261110-1` (3349bffb), API and web deployed and probed (readyz, sign-in in both languages, console 307). The API deploy ran `connect` by mistake, which left `DATABASE_ADMIN_URL` on the API for about ten minutes; it was unset and the API restarted (`no-admin` confirmed), and the handoff now says `connect` is for migrations only.
+- **Staging:** `release-20261110-2` (9bf2be68), API and web deployed and probed (readyz, sign-in in both languages, console 307). The API deploy ran `connect` by mistake, which left `DATABASE_ADMIN_URL` on the API for about ten minutes; it was unset and the API restarted (`no-admin` confirmed), and the handoff now says `connect` is for migrations only.
 - **Blocked 2026-11-10:** GitHub Actions stopped starting jobs ("account is locked due to a billing issue"); the nightly Full checks run of 2026-11-10 never started. Dhia said to push anyway: `release-20261110-1` (3349bffb) went out with `SKIP_CI=1 push-deploy.sh`, which runs the API and package tests locally (11256 passed) in place of CI; the browser specs did not run on GitHub. The API deploy call hit a 504 at the gateway, but CranL finished the build (succeeded 18:26Z) and readyz is 200.
 
 ## Function limits, API error mappers — 2026-11-09
