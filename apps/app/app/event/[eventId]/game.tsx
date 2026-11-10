@@ -13,8 +13,9 @@ import {
 } from "@questify/shared";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { showAlert } from "#src/platform/alert.ts";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
@@ -136,7 +137,7 @@ function useLeaveGuard(playing: boolean) {
     }
     return navigation.addListener("beforeRemove", (leaving) => {
       leaving.preventDefault();
-      Alert.alert(t("play.game.leaveTitle"), t("play.game.leaveBody"), [
+      showAlert(t("play.game.leaveTitle"), t("play.game.leaveBody"), [
         { text: t("play.game.keepPlaying"), style: "cancel" },
         {
           text: t("play.game.leave"),

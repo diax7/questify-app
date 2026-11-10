@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import type { DailyLanguage, Theme } from "@questify/shared";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";

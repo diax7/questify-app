@@ -31,6 +31,7 @@ vi.mock("#src/event/VoteEntry.tsx", () => ({ VoteEntry: "VoteEntry" }));
 vi.mock("#src/i18n/provider.tsx", () => ({
   useI18n: () => ({ t: (key: string) => key, language: "en" }),
 }));
+vi.mock("#src/platform/current.ts", () => ({ platform: "ios" }));
 vi.mock("#src/nfc/NfcTap.tsx", () => ({ useNfcSupported: () => true }));
 vi.mock("#src/questify/ReportButton.tsx", () => ({ ReportButton: "ReportButton" }));
 

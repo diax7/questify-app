@@ -1,6 +1,6 @@
 import type { Theme } from "@questify/shared";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "#src/platform/haptics.ts";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { AppState, View } from "react-native";

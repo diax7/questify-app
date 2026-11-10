@@ -26,6 +26,9 @@ function loadModules(): ImageShareModules {
   };
 }
 
+/** A phone always has a share sheet (the text path is React Native's `Share`). */
+export const canShareRecap = (): boolean => true;
+
 export const recapShareDeps: RecapShareDeps = {
   modulesPresent,
   loadModules,

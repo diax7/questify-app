@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import type { DailyChallenge, MessageKey, Theme } from "@questify/shared";
 import { router } from "expo-router";
 import { useState } from "react";

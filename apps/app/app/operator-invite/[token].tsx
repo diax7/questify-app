@@ -1,5 +1,5 @@
 import type { LocalizedText } from "@questify/shared";
-import { router, useLocalSearchParams } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 import { api } from "#src/api/app-session.ts";
@@ -10,6 +10,7 @@ import { BackButton } from "#src/components/BackButton.tsx";
 import { Button } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { capabilities } from "#src/platform/current.ts";
 import { textIn } from "#src/i18n/text.ts";
 import { claimInvite, previewInvite, type InvitePreview } from "#src/operator/operator-api.ts";
 
@@ -23,7 +24,7 @@ type Step =
  * FR-903: a personal operator code or an invite link opens this screen. It names the event and asks the person to
  * confirm; declining leaves the code unused. A person not signed in signs in first and comes back here.
  */
-export default function OperatorInviteScreen() {
+function OperatorInviteScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const { t, language } = useI18n();
   const { state } = usePlayer();
@@ -106,4 +107,9 @@ export default function OperatorInviteScreen() {
       </View>
     </Screen>
   );
+}
+
+/** Staff work is done on a phone: in the browser an operator link leads back to Home (T-803). */
+export default function OperatorInviteRoute() {
+  return capabilities.operatorTools ? <OperatorInviteScreen /> : <Redirect href="/home" />;
 }

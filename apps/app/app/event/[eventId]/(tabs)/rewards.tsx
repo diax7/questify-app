@@ -11,7 +11,8 @@ import {
 } from "@questify/shared";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
+import { showAlert } from "#src/platform/alert.ts";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { Amount } from "#src/components/Amount.tsx";
@@ -479,7 +480,7 @@ function useShopActions(eventId: string, load: () => Promise<void>) {
     };
     const currency = termFor(terms.currency, language);
     const body = t("shop.cancelBody", { currency });
-    Alert.alert(
+    showAlert(
       t("shop.cancelTitle"),
       closed ? `${body} ${t("shop.cancelClosedNote", { currency })}` : body,
       [

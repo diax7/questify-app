@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   formatNumber,
   type BannerSlide,
@@ -12,7 +12,8 @@ import {
 } from "@questify/shared";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Linking, PanResponder, Pressable, View } from "react-native";
+import { Linking, PanResponder, Pressable, View } from "react-native";
+import { showAlert } from "#src/platform/alert.ts";
 import { api } from "#src/api/app-session.ts";
 import { isolatedLtr } from "#src/auth/sign-in-api.ts";
 import { Amount } from "#src/components/Amount.tsx";
@@ -49,12 +50,12 @@ export function useOpenLink(): (link: Readonly<{ url: string; host: string }>) =
   const { t } = useI18n();
   return useCallback(
     (link) =>
-      Alert.alert(t("home.link.title"), t("home.link.body", { host: isolatedLtr(link.host) }), [
+      showAlert(t("home.link.title"), t("home.link.body", { host: isolatedLtr(link.host) }), [
         { text: t("common.cancel"), style: "cancel" },
         {
           text: t("home.link.open"),
           onPress: () =>
-            void Linking.openURL(link.url).catch(() => Alert.alert(t("home.link.failed"))),
+            void Linking.openURL(link.url).catch(() => showAlert(t("home.link.failed"))),
         },
       ]),
     [t],

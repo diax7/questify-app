@@ -1,7 +1,8 @@
 import { type Language } from "@questify/shared";
 import { router } from "expo-router";
 import { useReducer, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
+import { showAlert } from "#src/platform/alert.ts";
 import { api } from "#src/api/app-session.ts";
 import {
   confirmDeletion,
@@ -148,7 +149,7 @@ function ConfirmStep({
   const { t } = useI18n();
   // FR-126: the last confirmation says what happens; cancelling deletes nothing.
   const ask = () => {
-    Alert.alert(t("deletion.confirmTitle"), t("deletion.intro"), [
+    showAlert(t("deletion.confirmTitle"), t("deletion.intro"), [
       { text: t("common.cancel"), style: "cancel" },
       {
         text: t("deletion.confirm"),

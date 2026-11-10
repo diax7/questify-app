@@ -1,10 +1,11 @@
 import { DEFAULT_TERMS, formatNumber, type Theme } from "@questify/shared";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "#src/platform/haptics.ts";
 import { router, useLocalSearchParams } from "expo-router";
 import { useReducer, useRef, useState } from "react";
-import { Platform, View } from "react-native";
+import { View } from "react-native";
 import { api } from "#src/api/app-session.ts";
+import { platform } from "#src/platform/current.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
@@ -178,13 +179,14 @@ type Scanner = Readonly<{
 
 /** Asks the server about a code: a tag by its tap, anything else by `send`. */
 const ask = (scanner: Scanner, id: string, token: string, key: string, position: Position | null) =>
-  id === NFC_ID
+  // A tag is read only on a phone (the browser has no NFC), so the tap names the phone's own platform; never a guess.
+  id === NFC_ID && platform !== "web"
     ? tapTag(
         api.session,
         {
           code: token,
           uid: scanner.tagUid.current,
-          platform: Platform.OS === "ios" ? "ios" : "android",
+          platform,
           position,
         },
         key,

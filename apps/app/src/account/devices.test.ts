@@ -191,7 +191,10 @@ describe("the sign-in's device label", () => {
     expect(await deviceLabelOf("android", async () => ({ modelName: "Sara's phone" }))).toEqual({
       platform: "android",
     });
-    expect(await deviceLabelOf("web", async () => ({ modelName: "x" }))).toBeUndefined();
+    expect(await deviceLabelOf("web", async () => ({ modelName: "x" }))).toEqual({
+      platform: "web",
+    });
+    expect(await deviceLabelOf("windows", async () => ({ modelName: "x" }))).toBeUndefined();
   });
 
   it("sends the platform alone when expo-device cannot load", async () => {

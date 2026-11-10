@@ -6,7 +6,7 @@ import {
   type MessageKey,
   type Theme,
 } from "@questify/shared";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "#src/platform/haptics.ts";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Image, Pressable, View, useWindowDimensions } from "react-native";
 import { useReduceMotion } from "#src/components/motion.tsx";

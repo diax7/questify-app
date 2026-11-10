@@ -1,10 +1,9 @@
 import { useKeepAwake } from "expo-keep-awake";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, ScrollView, useWindowDimensions, View } from "react-native";
 import { api } from "#src/api/app-session.ts";
-import { MY_QR_KEY } from "#src/api/session.ts";
+import { myQrStore as store } from "#src/platform/my-qr-store.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { BackButton } from "#src/components/BackButton.tsx";
@@ -25,14 +24,6 @@ import { useI18n } from "#src/i18n/provider.tsx";
 import { useTheme } from "#src/theme/theme.tsx";
 import { fetchMyQr, resetMyQr } from "#src/operator/operator-api.ts";
 import { playerOfCode } from "#src/operator/station.ts";
-
-const store = {
-  read: () => SecureStore.getItemAsync(MY_QR_KEY).catch(() => null),
-  write: (token: string) =>
-    SecureStore.setItemAsync(MY_QR_KEY, token, {
-      keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
-    }).catch(() => undefined),
-};
 
 /** What For kiosks shows: the live code (and when it was fetched), why there is none, or the wait. */
 type Live =

@@ -1273,6 +1273,10 @@ export const MESSAGES = {
   },
   "dataExport.start": { ar: "تنزيل الملف", en: "Download the file" },
   "dataExport.working": { ar: "نجهّز ملفك…", en: "Preparing your file…" },
+  "dataExport.doneWeb": {
+    ar: "جاهز. ستجد الملف في التنزيلات.",
+    en: "Done. The file is in your downloads.",
+  },
   "dataExport.done": {
     ar: "جاهز. احفظ الملف أو أرسله من نافذة المشاركة.",
     en: "Done. Save or send the file from the share sheet.",
@@ -4123,6 +4127,12 @@ export const MESSAGES = {
     en: "The player taps the {questOne}'s NFC tag",
   },
   "quests.action.tapNfc": { ar: "المس بطاقة NFC", en: "Tap the NFC tag" },
+  // The browser has no NFC (T-803): a quest that can only be done with a tag says so, and where to do it.
+  "quests.needsApp": { ar: "يلزم تطبيق الهاتف", en: "Needs the phone app" },
+  "quests.needsAppHint": {
+    ar: "افتح تطبيق Questify على هاتفك",
+    en: "Open the Questify app on your phone",
+  },
   "scanner.nfc.button": { ar: "المس بطاقة NFC", en: "Tap NFC tag" },
   "scanner.nfc.hold": {
     ar: "قرّب أعلى هاتفك من البطاقة",

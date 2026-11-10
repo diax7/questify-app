@@ -76,3 +76,23 @@ Playable: `enter_code`, `quiz`, `vote`, `survey`, `submission` (text), `share`, 
 - Q4, meet quests on web: show-only, or hide?
 - Q5, web push: none, with the in-app centre only (recommended)?
 - Q6, access: open to anyone, or only from an event link?
+
+## P1 done (2026-11-10, tier B)
+
+Built in `apps/app`: `src/platform/` (capabilities table, `showAlert`, haptics, My QR store, tab bar style, camera decoder),
+`src/quests/web-availability.ts`, `.web.ts` shims (push, NFC, data export, recap share, i18n direction, fonts), and
+`metro.config.js`, which maps an `#src/x.ts` import to `x.web.ts` on web (the app imports with extensions, which Metro's
+own platform pick skips). New dependency `barcode-detector` 3.2.3 (exact, the version `expo-camera` already loads): the
+only way to point the browser QR decoder at our own wasm (`setZXingModuleOverrides`); no new code ships to phones.
+Decisions and gaps:
+
+- The bottom bar keeps one left-to-right order in Arabic (FR-620, ADR-110 note, Q-100: Home on the left in both languages);
+  only the clipped labels and the missing bottom inset were fixed.
+- `deviceLabelOf("web")` sends `{ platform: "web" }`: P2 must add `web` to the API's `deviceLabelBody`, to
+  `label_player_device` and its column check, or a browser sign-in is refused (strict body).
+- Camera wasm: the app asks for `/zxing/zxing_reader-3.1.6.wasm`, the file `apps/web` already hosts. P3: `/play` needs
+  `Permissions-Policy: camera=(self), geolocation=(self)`, `script-src` with `'wasm-unsafe-eval'`, and the `/zxing/` path
+  reachable from `/play` pages. HTTPS only.
+- `app-session.ts` still imports `expo-secure-store` (empty on web): P2. The source scan lists it as the one known gap.
+- Operator screens redirect to Home on web; the help form's app-problem facts and the devices list still type the platform
+  as ios or android (P2/P3 for `web`).

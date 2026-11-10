@@ -8,6 +8,7 @@ import { AppText } from "#src/components/AppText.tsx";
 import { Button, Problem } from "#src/components/Controls.tsx";
 import { Screen } from "#src/components/Screen.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
+import { capabilities } from "#src/platform/current.ts";
 
 const deps: DataExportDeps = {
   session: api.session,
@@ -44,7 +45,9 @@ export default function DataExportScreen() {
         <AppText muted>{t("dataExport.private")}</AppText>
         <Problem problem={problem} />
         {view === "shared" ? (
-          <AppText accessibilityRole="alert">{t("dataExport.done")}</AppText>
+          <AppText accessibilityRole="alert">
+            {t(capabilities.dataExport === "download" ? "dataExport.doneWeb" : "dataExport.done")}
+          </AppText>
         ) : null}
         {view === "unavailable" ? (
           <AppText accessibilityRole="alert">{t("dataExport.unavailable")}</AppText>

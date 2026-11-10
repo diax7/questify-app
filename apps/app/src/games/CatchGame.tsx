@@ -6,7 +6,7 @@ import {
   type CatchState,
   type Theme,
 } from "@questify/shared";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "#src/platform/haptics.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Image, PanResponder, View, useWindowDimensions } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";

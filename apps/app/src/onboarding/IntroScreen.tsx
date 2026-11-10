@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   DEFAULT_COMPOSED_PLAYER_INTRO,
   type IntroCardKey,
@@ -169,6 +169,10 @@ function useIntroFlow(
   );
 
   useEffect(() => {
+    // The browser has no hardware back button, and react-native-web's BackHandler only logs that it is unsupported.
+    if (Platform.OS === "web") {
+      return undefined;
+    }
     const watcher = BackHandler.addEventListener("hardwareBackPress", () => {
       if (onLanguage || index === 0) {
         return false;

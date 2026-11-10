@@ -1,9 +1,10 @@
+import { showAlert } from "#src/platform/alert.ts";
 import { Avatar } from "#src/components/Avatar.tsx";
 import { ProfileQuestify } from "#src/questify/ProfileQuestify.tsx";
 import { RewardNotices } from "#src/questify/RewardNotices.tsx";
 import { ProfileGate } from "#src/questify/ProfileGate.tsx";
 import { useEffect, useState, type ReactNode } from "react";
-import { Alert, Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import type { Language, Theme } from "@questify/shared";
 import { router } from "expo-router";
 import { api } from "#src/api/app-session.ts";
@@ -234,7 +235,7 @@ export function ProfileScreen({
 
   // FR-124: the confirmation says what signing out does; cancelling keeps the player signed in.
   const confirmSignOut = (): void => {
-    Alert.alert(t("signOut.title"), t("signOut.body"), [
+    showAlert(t("signOut.title"), t("signOut.body"), [
       { text: t("common.cancel"), style: "cancel" },
       {
         text: t("signOut.confirm"),
@@ -248,7 +249,7 @@ export function ProfileScreen({
     if (next === language) {
       return;
     }
-    Alert.alert(t("settings.restartTitle"), t("settings.restartBody"), [
+    showAlert(t("settings.restartTitle"), t("settings.restartBody"), [
       { text: t("common.cancel"), style: "cancel" },
       { text: t("common.continue"), onPress: () => void switchLanguage(next) },
     ]);

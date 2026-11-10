@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import type { Theme } from "@questify/shared";
 import { Pressable, View } from "react-native";
 import { useTheme, useThemedStyles } from "#src/theme/theme.tsx";

@@ -2,7 +2,8 @@ import { termFor, type Theme } from "@questify/shared";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
+import { showAlert } from "#src/platform/alert.ts";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
@@ -434,7 +435,7 @@ function DeskTab() {
   };
 
   const confirmCancel = (item: DeskItem) =>
-    Alert.alert(
+    showAlert(
       t("operator.desk.cancelTitle"),
       t("operator.desk.cancelBody", {
         player: found?.player.username ?? "",

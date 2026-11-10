@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import type { AchievementReward, Theme } from "@questify/shared";
 import { router } from "expo-router";
 import { Pressable, View } from "react-native";

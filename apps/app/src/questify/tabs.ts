@@ -1,4 +1,4 @@
-import type { Ionicons } from "@expo/vector-icons";
+import type Ionicons from "@expo/vector-icons/Ionicons";
 import type { MessageKey } from "@questify/shared";
 
 type Icon = keyof typeof Ionicons.glyphMap;

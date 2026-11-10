@@ -11,7 +11,7 @@ import { useEvent } from "#src/event/EventContext.tsx";
 import { RecapCard } from "#src/event/RecapCard.tsx";
 import { fetchRecap, type RecapAnswer } from "#src/event/recap-api.ts";
 import { createRecapSharer, type RecapSharer } from "#src/event/recap-share.ts";
-import { recapShareDeps } from "#src/event/recap-share-native.ts";
+import { canShareRecap, recapShareDeps } from "#src/event/recap-share-native.ts";
 import { recapShareText, recapView } from "#src/event/recap.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 
@@ -106,7 +106,9 @@ export default function RecapScreen() {
         <ScrollView contentContainerStyle={{ gap: 16 }}>
           <RecapCard view={recapView(recap, language, t)} cardRef={card} />
           {failed ? <AppText accessibilityRole="alert">{t("recap.shareFailed")}</AppText> : null}
-          <Button label={t("recap.share")} disabled={busy} onPress={() => void share()} />
+          {canShareRecap() ? (
+            <Button label={t("recap.share")} disabled={busy} onPress={() => void share()} />
+          ) : null}
         </ScrollView>
       )}
     </Screen>

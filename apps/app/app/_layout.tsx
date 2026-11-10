@@ -9,12 +9,15 @@ import { setApiLanguage } from "#src/api/app-session.ts";
 import { PlayerProvider, usePlayer } from "#src/auth/player.tsx";
 import { atLanding, consentStepDue } from "#src/marketing/marketing-flow.ts";
 import { I18nProvider, useI18n } from "#src/i18n/provider.tsx";
+import { prepareCameraDecoder } from "#src/platform/camera-decoder.ts";
 import { PushHost } from "#src/push/PushHost.tsx";
 import { QuestifySyncProvider } from "#src/questify/QuestifySyncProvider.tsx";
 import { FONT_FILES } from "#src/theme/fonts.ts";
 import { ThemeProvider } from "#src/theme/theme.tsx";
 
 void SplashScreen.preventAutoHideAsync();
+// In the browser the QR decoder's wasm is served from our own origin, never a CDN (ADR-245); nothing on a phone.
+prepareCameraDecoder();
 
 export default function RootLayout() {
   const [fontsReady, fontError] = useFonts(FONT_FILES);

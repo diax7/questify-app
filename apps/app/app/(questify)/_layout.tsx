@@ -1,8 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs, router } from "expo-router";
 import { ScanButton } from "#src/components/ScanButton.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { QUESTIFY_TABS } from "#src/questify/tabs.ts";
+import { platform } from "#src/platform/current.ts";
+import { tabBarLabelStyle, tabBarStyle } from "#src/platform/tab-bar-style.ts";
 import { useTheme } from "#src/theme/theme.tsx";
 
 /**
@@ -19,8 +21,8 @@ export default function QuestifyTabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: theme.colors.navigationActive,
         tabBarInactiveTintColor: theme.colors.navigationInactive,
-        tabBarStyle: { backgroundColor: theme.colors.navigationBar, direction: "ltr" },
-        tabBarLabelStyle: { fontFamily: text.label.fontFamily, fontSize: text.label.fontSize },
+        tabBarStyle: tabBarStyle(theme.colors.navigationBar, platform),
+        tabBarLabelStyle: tabBarLabelStyle(text.label, platform),
       }}
     >
       {QUESTIFY_TABS.map((tab) => (

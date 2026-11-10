@@ -17,6 +17,7 @@
     "@expo/vector-icons": "^15.1.1",
     "@questify/shared": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "barcode-detector": "3.2.3",
     "expo": "57.0.30",
     "expo-application": "~57.0.3",
     "expo-camera": "~57.0.6",

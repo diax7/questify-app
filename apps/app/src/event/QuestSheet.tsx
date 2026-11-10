@@ -37,6 +37,8 @@ import {
 import { LOCK_TEXT, outcomeText } from "#src/event/outcome-text.ts";
 import { unlockLine } from "#src/event/unlock.ts";
 import { useNfcSupported } from "#src/nfc/NfcTap.tsx";
+import { platform } from "#src/platform/current.ts";
+import { questAvailability } from "#src/quests/web-availability.ts";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { textIn } from "#src/i18n/text.ts";
 import { ReportButton } from "#src/questify/ReportButton.tsx";
@@ -300,6 +302,18 @@ export function stateText(quest: Quest, t: Translate, language: "ar" | "en", tim
   return stateKey === null ? null : t(stateKey);
 }
 
+/** On the web a quest only a tag can finish says it needs the phone app (T-803). */
+function NeedsApp({ quest }: Readonly<{ quest: Quest }>) {
+  const { t } = useI18n();
+  const availability = quest.state === "open" ? questAvailability(platform, quest) : undefined;
+  return availability?.kind === "needs_app" ? (
+    <>
+      <AppText variant="label">{t(availability.text)}</AppText>
+      <AppText muted>{t(availability.hint)}</AppText>
+    </>
+  ) : null;
+}
+
 function RepeatLine({ quest }: Readonly<{ quest: Quest }>) {
   const { t } = useI18n();
   return quest.repeatCap > 1 && quest.type !== "meet" ? (
@@ -381,6 +395,7 @@ export function QuestSheet({
       {when(quest.opensAt, "quests.opens")}
       {when(quest.closesAt, "quests.closes")}
       {line === null ? null : <AppText variant="label">{line}</AppText>}
+      <NeedsApp quest={quest} />
       {outcome === null ? null : <AppText accessibilityRole="alert">{outcome}</AppText>}
       <QuestEntry quest={quest} timeZone={timeZone} onSent={onSent} onDone={done} />
       <QuestRating key={quest.id} quest={quest} />

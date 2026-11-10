@@ -1,7 +1,8 @@
 import { TICKET_TEXT_MAX, formatEventTime, formatNumber } from "@questify/shared";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Alert, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
+import { showAlert } from "#src/platform/alert.ts";
 import { api } from "#src/api/app-session.ts";
 import { randomUuid } from "#src/api/uuid.ts";
 import { AppText } from "#src/components/AppText.tsx";
@@ -51,7 +52,7 @@ function AnswerForm({
     setFailed(result);
   };
   const solve = () =>
-    Alert.alert(t("operator.ticket.solve"), t("operator.ticket.solveConfirm"), [
+    showAlert(t("operator.ticket.solve"), t("operator.ticket.solveConfirm"), [
       { text: t("common.cancel"), style: "cancel" },
       { text: t("common.continue"), onPress: () => void send(null) },
     ]);
@@ -141,7 +142,7 @@ function OperatorTicketScreen() {
   }, [load]);
   const answered = (result: AnswerResult) => {
     if (result.kind === "gone" || result.kind === "moved") {
-      Alert.alert(
+      showAlert(
         t(result.kind === "moved" ? "operator.ticket.moved" : "operator.ticket.alreadyClosed"),
         undefined,
         [{ text: t("common.continue"), onPress: () => router.back() }],

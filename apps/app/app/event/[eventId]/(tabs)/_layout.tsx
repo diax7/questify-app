@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs, router } from "expo-router";
 import {
   PLAYER_TABS,
@@ -13,6 +13,8 @@ import { LiveProvider } from "#src/event/LiveContext.tsx";
 import { LivePolls } from "#src/event/LivePolls.tsx";
 import { useI18n } from "#src/i18n/provider.tsx";
 import { ScanButton } from "#src/components/ScanButton.tsx";
+import { platform } from "#src/platform/current.ts";
+import { tabBarLabelStyle, tabBarStyle } from "#src/platform/tab-bar-style.ts";
 import { useTheme } from "#src/theme/theme.tsx";
 
 type Icon = keyof typeof Ionicons.glyphMap;
@@ -54,8 +56,8 @@ export default function EventTabsLayout() {
           headerShown: false,
           tabBarActiveTintColor: theme.colors.navigationActive,
           tabBarInactiveTintColor: theme.colors.navigationInactive,
-          tabBarStyle: { backgroundColor: theme.colors.navigationBar, direction: "ltr" },
-          tabBarLabelStyle: { fontFamily: text.label.fontFamily, fontSize: text.label.fontSize },
+          tabBarStyle: tabBarStyle(theme.colors.navigationBar, platform),
+          tabBarLabelStyle: tabBarLabelStyle(text.label, platform),
         }}
       >
         {barScreenOrder(shownTabs)

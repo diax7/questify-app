@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { formatNumber, type LevelRewards, type ProfileItem, type Theme } from "@questify/shared";
 import { View } from "react-native";
 import type { Me } from "#src/auth/player.tsx";

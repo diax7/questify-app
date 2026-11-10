@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert } from "react-native";
+import { showAlert } from "#src/platform/alert.ts";
 import { api } from "#src/api/app-session.ts";
 import { AppText } from "#src/components/AppText.tsx";
 import { Button } from "#src/components/Controls.tsx";
@@ -29,7 +29,7 @@ export function BlockButton({
     }
   };
   const ask = () =>
-    Alert.alert(t("block.action"), t("block.confirm", { name }), [
+    showAlert(t("block.action"), t("block.confirm", { name }), [
       { text: t("common.cancel"), style: "cancel" },
       { text: t("block.action"), style: "destructive", onPress: () => void save(true) },
     ]);

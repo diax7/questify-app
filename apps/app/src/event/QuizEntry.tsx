@@ -1,5 +1,5 @@
 import { formatNumber, termFor, type Theme } from "@questify/shared";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "#src/platform/haptics.ts";
 import { useCallback, useEffect, useState } from "react";
 import { AccessibilityInfo, View } from "react-native";
 import { api } from "#src/api/app-session.ts";

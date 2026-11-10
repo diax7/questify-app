@@ -1,5 +1,5 @@
 import { formatNumber, slidePuzzleV1, type SlideParams, type Theme } from "@questify/shared";
-import * as Haptics from "expo-haptics";
+import * as Haptics from "#src/platform/haptics.ts";
 import { useEffect, useRef } from "react";
 import { Animated, Image, Pressable, View, useWindowDimensions } from "react-native";
 import { AppText } from "#src/components/AppText.tsx";
