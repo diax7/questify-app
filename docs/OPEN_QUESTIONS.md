@@ -3115,8 +3115,9 @@ minutes, is bound to its challenge, and only creates the account the code just p
 
 ## Q-758 - Should a contact change from a `web` family need a step-up code? (T-803 P2, SECURITY.md abuse case 11)
 
-**Status:** open; recommended later, after the CSP gate: a code to the old contact (or a re-authentication) before a
-contact change from a `web` family.
+**Status:** answered (Dhia, 2026-11-11): keep as today, on the phone app and the web build alike. A contact change needs
+only the code sent to the new contact; the CSP gate is the v1 defence, and the risk stays documented (ADR-715, SECURITY.md
+abuse case 11). The 2026-11-11 security audit raised the same point (hardening note 1).
 **Question:** an XSS on the shared web origin can act as the player through the cookie, and a contact change (pathway row
 13) sends the code only to the new contact, a lasting account takeover. Is the CSP gate enough for v1?
 

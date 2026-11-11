@@ -144,11 +144,11 @@ Addresses: https://questify.nafes.com and https://questify-api-staging-3ez01s.cr
 
 ## Where things stand
 
-Staging is live at `release-20261111-5`, migration 0189, with `/play` and the player web session switch on (staging only). No pull request is open; GitHub holds only `main`,
+Staging is live at `release-20261111-7`, migration 0190, with `/play` and the player web session switch on (staging only). No pull request is open; GitHub holds only `main`,
 `t-810d-console-hostname`, and the local-only branch `workflows-pending` on this server (see below). Tasks: 187 done, 32 open
 (85.4%); every open task waits on a person, a device, store accounts or an outside answer (see the list below). FOLLOWUPS has about
 75 lines, most needing a device, art, a product call or tier A work. Migration number 0156 is reserved by the unmerged T-810d
-branch, `t-810d-console-hostname`; the runner tolerates the gap. The next migration is 0190.
+branch, `t-810d-console-hostname`; the runner tolerates the gap. The next migration is 0191.
 
 **Since 2026-11-08 (coordinator, 2026-11-09):** batches 27 to 38; the sign-in lock-order fix (0184, tier A, mutation 91.56%);
 the web axe sweep (`a11y.spec.ts`, nightly only: the "CI" workflow skips it through `testIgnore`) and the app's static
