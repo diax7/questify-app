@@ -16,6 +16,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
   let owner: string;
   let editor: string;
   let stranger: string;
+  let admin: string;
   let draftB: string;
 
   beforeAll(async () => {
@@ -31,6 +32,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
     owner = await staff("owner@najd.sa");
     editor = await staff("editor@najd.sa");
     stranger = await staff("stranger@najd.sa");
+    admin = await staff("admin@questify.test");
+    await db.owner.query("UPDATE staff_user SET platform_role = 'admin' WHERE id = $1", [admin]);
     await db.owner.query(
       `INSERT INTO organizer_member (organizer_id, staff_user_id, role, event_scope)
        VALUES ($1, $2, 'owner', NULL), ($1, $3, 'editor', ARRAY[$4]::uuid[])`,
@@ -131,7 +134,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
       expect((await enrollmentOf(ids.playerB))?.status).toBe("left");
     });
 
-    it("lets the event's organizer change a status only through the audited definer, and the admin directly (T-208)", async () => {
+    it("lets the event's organizer change a status only through the audited definer, and the admin directly (T-208, 0191)", async () => {
       const changed = await as(
         { organizerId: ids.orgA, staffUserId: owner },
         "UPDATE enrollment SET status = 'active' WHERE player_id = $1 RETURNING id",
@@ -139,9 +142,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
       );
       expect(changed).toEqual([]);
       expect((await enrollmentOf(ids.playerA))?.status).toBe("banned");
-      await as({ isAdmin: true }, "UPDATE enrollment SET status = 'active' WHERE player_id = $1", [
-        ids.playerA,
-      ]);
+      // The admin flag alone is now refused (migration 0191): no active admin account stands behind it.
+      const flagOnly = await as(
+        { isAdmin: true },
+        "UPDATE enrollment SET status = 'active' WHERE player_id = $1 RETURNING id",
+        [ids.playerA],
+      );
+      expect(flagOnly).toEqual([]);
+      expect((await enrollmentOf(ids.playerA))?.status).toBe("banned");
+      await as(
+        { isAdmin: true, staffUserId: admin },
+        "UPDATE enrollment SET status = 'active' WHERE player_id = $1",
+        [ids.playerA],
+      );
       expect((await enrollmentOf(ids.playerA))?.status).toBe("active");
     });
   });
@@ -205,7 +218,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
       expect(await as({ playerId: ids.playerA }, "SELECT email FROM player_contact")).toEqual([
         { email: "sara@example.com" },
       ]);
-      expect(await as({ isAdmin: true }, "SELECT 1 FROM player_contact")).toHaveLength(2);
+      expect(
+        await as({ isAdmin: true, staffUserId: admin }, "SELECT 1 FROM player_contact"),
+      ).toHaveLength(2);
+      // The admin flag alone is now refused (migration 0191).
+      expect(await as({ isAdmin: true }, "SELECT 1 FROM player_contact")).toEqual([]);
     });
 
     it("are no longer columns of the player table", async () => {

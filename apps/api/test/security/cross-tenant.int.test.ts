@@ -1623,15 +1623,30 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     await db.close();
   });
 
-  const asA = <T extends Record<string, unknown>>(seat: Seat, sql: string, values: unknown[]) =>
-    withRequestContext(db.app, contextFor(f, seat), async () => db.app.query<T>(sql, values));
+  /** `flagged`: the seat also carries the admin flag, with no admin account behind it (a forged flag, 0191). */
+  const asA = <T extends Record<string, unknown>>(
+    seat: Seat,
+    sql: string,
+    values: unknown[],
+    flagged = false,
+  ) =>
+    withRequestContext(
+      db.app,
+      flagged ? { ...contextFor(f, seat), isAdmin: true } : contextFor(f, seat),
+      async () => db.app.query<T>(sql, values),
+    );
 
-  const count = async (seat: Seat | "owner", sql: string, values: unknown[]): Promise<number> => {
+  const count = async (
+    seat: Seat | "owner",
+    sql: string,
+    values: unknown[],
+    flagged = false,
+  ): Promise<number> => {
     const query = `SELECT count(*)::int AS n FROM ${sql}`;
     const result =
       seat === "owner"
         ? await db.owner.query<{ n: number }>(query, values)
-        : await asA<{ n: number }>(seat, query, values);
+        : await asA<{ n: number }>(seat, query, values, flagged);
     return result.rows[0]?.n ?? -1;
   };
 
@@ -2629,17 +2644,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     );
   });
 
-  describe.each(probes)("%s, from the %s seat", (table, _seat, spec) => {
+  /** The three rules every probe holds A's seat to; `flagged` adds a forged admin flag to the seat (0191). */
+  const probeRules = (table: string, spec: (typeof probes)[number][2], flagged: boolean) => {
     const theirs = () => spec.theirs(f);
     const where = `${table} WHERE ${spec.column} = $1`;
-
-    it("has rows of both sides to test against", async () => {
-      expect(await count("owner", where, [spec.mine(f)])).toBeGreaterThan(0);
-      expect(await count("owner", where, [theirs()])).toBeGreaterThan(0);
-      if (spec.ownRowsHidden === undefined) {
-        expect(await count(spec.seat, where, [spec.mine(f)])).toBeGreaterThan(0);
-      }
-    });
 
     it("shows A none of B's rows, apart from what is public by design", async () => {
       const open = spec.publicRows?.(f);
@@ -2647,7 +2655,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
         open === undefined
           ? 0
           : await count("owner", `${where} AND (${open.sql})`, [theirs(), ...open.values]);
-      expect(await count(spec.seat, where, [theirs()])).toBe(expected);
+      expect(await count(spec.seat, where, [theirs()], flagged)).toBe(expected);
     });
 
     it("lets A change none of B's rows it can see, through any column it may update", async () => {
@@ -2657,6 +2665,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
           spec.seat,
           `UPDATE ${table} SET "${column}" = $2 WHERE ${spec.column} = $1`,
           [theirs(), await sampleValue(db, table, column)],
+          flagged,
         );
         expect(result.rowCount, `${table}.${column}`).toBe(0);
       }
@@ -2664,10 +2673,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
 
     it("refuses A writing a row in B's name", async () => {
       const forged = spec.forge(f);
-      await expect(asA(spec.seat, forged.sql, forged.values)).rejects.toThrow(
+      await expect(asA(spec.seat, forged.sql, forged.values, flagged)).rejects.toThrow(
         spec.forgeRefusedBy ?? POLICY,
       );
     });
+  };
+
+  describe.each(probes)("%s, from the %s seat", (table, _seat, spec) => {
+    it("has rows of both sides to test against", async () => {
+      const where = `${table} WHERE ${spec.column} = $1`;
+      expect(await count("owner", where, [spec.mine(f)])).toBeGreaterThan(0);
+      expect(await count("owner", where, [spec.theirs(f)])).toBeGreaterThan(0);
+      if (spec.ownRowsHidden === undefined) {
+        expect(await count(spec.seat, where, [spec.mine(f)])).toBeGreaterThan(0);
+      }
+    });
+
+    probeRules(table, spec, false);
+  });
+
+  // Migration 0191: the admin flag alone, forged on A's seat with no active admin account behind it, opens no rule.
+  describe.each(probes)("%s, from the %s seat with a forged admin flag", (table, _seat, spec) => {
+    probeRules(table, spec, true);
   });
 
   describe.each(probes)("%s, bare writes from an empty-handed %s seat", (table, seat) => {
@@ -2752,11 +2779,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (real s
         .toSorted((a, b) => a.table.localeCompare(b.table)),
     );
     // A Questify admin may remove any team member, so this reaches B's row on purpose.
+    const admin =
+      (
+        await db.owner.query<{ id: string }>(
+          `INSERT INTO staff_user (email, password_hash, platform_role)
+           VALUES ('detector-admin@questify.test', 'h', 'admin') RETURNING id`,
+        )
+      ).rows[0]?.id ?? "";
+    const remove = "DELETE FROM organizer_member WHERE organizer_id = $1";
     await expect(
-      touched(db, { isAdmin: true }, "DELETE FROM organizer_member WHERE organizer_id = $1", [
-        f.orgB,
-      ]),
+      touched(db, { isAdmin: true, staffUserId: admin }, remove, [f.orgB]),
     ).rejects.toThrow(new RegExp(DETECTED));
+    // The admin flag alone, with no admin account, is now refused (migration 0191): it reaches no row.
+    expect(await touched(db, { isAdmin: true }, remove, [f.orgB])).toBe(0);
   });
 
   describe.each(probes)("%s, bare writes from A's %s seat", (table, seat) => {

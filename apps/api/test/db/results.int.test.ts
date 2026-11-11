@@ -428,6 +428,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("rank prizes and results (datab
         ),
       ).toEqual({ code: "RF409", detail: "results_final" });
     });
+
+    it("gives another organizer's seat with a forged admin flag nothing: the guard skips it and the rule refuses (0191)", async () => {
+      const event = await newEvent();
+      const trophy = await prize(event, 1, 1);
+      await confirm(event, []);
+      const forged: RequestContext = { ...team(ownerB, ids.orgB), isAdmin: true };
+      // The guard no longer reads the flag as an admin, so it neither answers results_final nor reads A's result:
+      // the row rule refuses the insert, and the update reaches no row.
+      expect(
+        await refusal(
+          run(
+            forged,
+            "INSERT INTO rank_prize (event_id, rank_from, rank_to, kind, name_en) VALUES ($1, 5, 5, 'experience', 'X')",
+            [event],
+          ),
+        ),
+      ).toEqual({ code: "42501" });
+      expect(
+        await run(forged, "UPDATE rank_prize SET name_en = 'Mine' WHERE id = $1 RETURNING id", [
+          trophy,
+        ]),
+      ).toEqual([]);
+      expect(await run(forged, "SELECT results_frozen($1) AS frozen", [event])).toEqual([
+        { frozen: false },
+      ]);
+    });
   });
 
   describe("races", () => {

@@ -244,6 +244,20 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         });
       });
 
+      it("refuses an editor who carries the admin flag alone, with no admin account (migration 0191)", async () => {
+        const event = await newEvent({ when: "scheduled" });
+        const client = await pool.connect();
+        const forged = withRequestContext(
+          client,
+          { organizerId: ids.orgA, staffUserId: editorA, isAdmin: true },
+          () => client.query("UPDATE event SET spend_lowers_rank = true WHERE id = $1", [event]),
+        ).finally(() => client.release());
+        expect(await refusal(forged)).toEqual({ code: "QO403" });
+        expect(
+          (await owner("SELECT spend_lowers_rank FROM event WHERE id = $1", [event]))[0],
+        ).toEqual({ spend_lowers_rank: false });
+      });
+
       it("lets an editor save the same value, so the other shop settings stay theirs", async () => {
         const event = await newEvent({ spendLowersRank: true });
         const result = await setting(editorA, event, true);

@@ -593,6 +593,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("device pairing (database)", ()
       expect(await preview((await operator(event, [])).player)).toBe("OA403");
       expect(await preview((await operator(event, ["scan_quests"])).player)).toBe("none");
       expect(await preview((await operator(event, ["show_rotating_qr"])).player)).toBe("none");
+      // Not an operator here (one read of the assignment, 0191): OP403, never OA403, for a player with no
+      // assignment and for an operator of another event who may pair there.
+      const elsewhere = await operator(await newEvent());
+      expect(await preview(elsewhere.player)).toBe("OP403");
+      expect(await preview((await member(event)).player)).toBe("OP403");
     });
   });
 
