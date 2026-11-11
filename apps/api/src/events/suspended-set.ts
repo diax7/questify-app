@@ -6,6 +6,8 @@ export const SUSPENDED_REFRESH_MS = 10_000;
 export type SuspendedSet = Readonly<{
   /** Whether the event (or its organizer) is suspended, as of the last read at most 10 s ago. */
   has: (eventId: string) => Promise<boolean>;
+  /** Whether any event is suspended, from the same read: while none is, a wall need not look an event up. */
+  any: () => Promise<boolean>;
   /** Forgets the last read, so the next question reads again: called on this instance after a change. */
   invalidate: () => void;
 }>;
@@ -50,6 +52,7 @@ export function createSuspendedSet(
 
   return {
     has: async (eventId) => (await current()).has(eventId),
+    any: async () => (await current()).size > 0,
     invalidate: () => {
       generation += 1;
       readAt = Number.NEGATIVE_INFINITY;

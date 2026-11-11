@@ -2,6 +2,18 @@ import { asSouvenirSystem, paySouvenirs } from "#src/souvenirs/payer";
 import type { SouvenirDeps } from "#src/souvenirs/souvenirs";
 import { trackRun } from "#src/telemetry/runs";
 
+type Health = Readonly<{ due: number; failed: number; held?: number; oldestAt: string | null }>;
+const EMPTY: Health = { due: 0, failed: 0, held: 0, oldestAt: null };
+
+/**
+ * Whether the queue has failed work or work that waited more than a minute. Work held by a suspended event is outside
+ * `failed`, `due` and `oldestAt` (migration 0190): it waits for the lift and is not reported on its own, or a
+ * suspension would log every run.
+ */
+const behind = (health: Health): boolean =>
+  health.failed > 0 ||
+  (health.oldestAt !== null && Date.now() - Date.parse(health.oldestAt) > 60_000);
+
 /** Jittered, non-overlapping batches; failures stay durable for the next run. No names/content in logs. */
 export function startSouvenirTick(
   deps: SouvenirDeps & {
@@ -17,19 +29,13 @@ export function startSouvenirTick(
     try {
       const totals = await paySouvenirs(deps);
       const health = await asSouvenirSystem(deps, async (client) => {
-        const { rows } = await client.query<{
-          health: { due: number; failed: number; oldestAt: string | null };
-        }>("SELECT souvenir_health() AS health");
-        return rows[0]?.health;
+        const { rows } = await client.query<{ health: Health }>(
+          "SELECT souvenir_health() AS health",
+        );
+        return rows[0]?.health ?? EMPTY;
       });
-      if (
-        totals.failed > 0 ||
-        (health?.failed ?? 0) > 0 ||
-        (health?.oldestAt !== null &&
-          health?.oldestAt !== undefined &&
-          Date.now() - Date.parse(health.oldestAt) > 60_000)
-      ) {
-        deps.log({ event: "souvenir.pending", ...totals, due: health?.due ?? 0 });
+      if (totals.failed > 0 || behind(health)) {
+        deps.log({ event: "souvenir.pending", ...totals, due: health.due, held: health.held ?? 0 });
       }
     } catch (error) {
       deps.log({

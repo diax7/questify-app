@@ -1376,6 +1376,13 @@ retry with bounded backoff up to300s and expose pending/failed counts in the aut
 Health logs contain counts/error classes only. The internal empty-context `souvenir_health()` also excludes device
 identity; never expose this system context through HTTP or grant a direct table right for recovery.
 
+**A suspended event's souvenirs wait (migration 0190, ADR-825).** While an event is suspended (or its organizer is
+paused), its passes and queued work are skipped, not ended: `souvenir_health()` counts them as `held`, outside `due`,
+`failed` and `oldestAt`, so `souvenir.pending` is not logged every run for a suspension (when it is logged for something
+else it carries the `held` count), and the console's health view shows them as "Souvenirs on hold", not waiting or
+failing. A claim taken just before the suspension is refused with ES423 and kept with its back-off, so after the lift it
+may take up to 300 s; nothing needs to be done. A large `held` count with no suspension in force is a bug: report it.
+
 Use 'Process pending grants' with a fresh request key for another pass; retry a dropped request using its same key.
 The response is pending until both due work and the current pass are done. Scans are finite (ADR-272): activating a
 non-rank rule, and each 'Process pending grants' request, starts one pass of500-member batches over members without

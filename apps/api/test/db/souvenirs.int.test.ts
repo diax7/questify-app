@@ -278,6 +278,129 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event souvenirs", () => {
     await f.db.owner.query("DELETE FROM organizer_member WHERE staff_user_id=$1", [f.staff]);
     await expect(f.action(rule)).rejects.toMatchObject({ code: "AN404" });
   });
+  /** A suspension of event A (migration 0190): the event itself, or its organizer paused. */
+  const HOLDS = [
+    {
+      name: "event A is suspended",
+      hold: () =>
+        f.db.owner.query(
+          "UPDATE event SET suspended_at=now(),suspension_reason='Checking a report' WHERE id=$1",
+          [f.ids.eventA],
+        ),
+      lift: () =>
+        f.db.owner.query("UPDATE event SET suspended_at=NULL,suspension_reason=NULL WHERE id=$1", [
+          f.ids.eventA,
+        ]),
+    },
+    {
+      name: "event A's organizer is paused",
+      hold: () =>
+        f.db.owner.query(
+          "UPDATE organizer SET status='paused',suspended_at=now(),suspension_reason='Checking a report' WHERE id=$1",
+          [f.ids.orgA],
+        ),
+      lift: () =>
+        f.db.owner.query(
+          "UPDATE organizer SET status='active',suspended_at=NULL,suspension_reason=NULL WHERE id=$1",
+          [f.ids.orgA],
+        ),
+    },
+  ] as const;
+  const scan = async () =>
+    (await f.run({}, "SELECT souvenir_scan_batch($1) AS n", [f.ids.eventA])).rows[0].n as number;
+  const claim = async () =>
+    (await f.run({}, "SELECT * FROM souvenir_claim_work(NULL,20)")).rows as {
+      enrollment_id: string;
+    }[];
+  const work = async () =>
+    (await f.db.owner.query("SELECT * FROM souvenir_work WHERE enrollment_id=$1", [f.member])).rows;
+  const scans = async (rule: string) =>
+    (await f.db.owner.query("SELECT * FROM souvenir_scan WHERE rule_id=$1", [rule])).rows;
+  const health = async () =>
+    (await f.run({}, "SELECT souvenir_health() AS h")).rows[0].h as {
+      due: number;
+      failed: number;
+      held: number;
+      oldestAt: string | null;
+    };
+
+  describe.each(HOLDS)("while $name (migration 0190)", ({ hold, lift }) => {
+    it("keeps the scan row waiting and enqueues nobody, then scans after the lift", async () => {
+      const rule = await f.create();
+      await f.action(rule);
+      await hold();
+      expect(await scan()).toBe(0);
+      expect((await f.run({}, "SELECT souvenir_scan_batch(NULL) AS n")).rows[0].n).toBe(0);
+      expect(await scans(rule)).toHaveLength(1);
+      await lift();
+      expect(await scan()).toBe(1);
+      expect(await work()).toHaveLength(1);
+    });
+
+    it("leaves its queued work unclaimed, then claims it after the lift", async () => {
+      const rule = await f.create();
+      await f.action(rule);
+      expect(await scan()).toBe(1);
+      await hold();
+      expect(await claim()).toEqual([]);
+      expect(await work()).toHaveLength(1);
+      await lift();
+      expect((await claim()).map((row) => row.enrollment_id)).toEqual([f.member]);
+    });
+
+    it("refuses a grant with ES423 and keeps the work, delivered after the lift", async () => {
+      const rule = await f.create();
+      await f.action(rule);
+      expect(await scan()).toBe(1);
+      const [taken] = (await f.run({}, "SELECT * FROM souvenir_claim_work($1,20)", [f.ids.eventA]))
+        .rows as { generation: string; lease_token: string }[];
+      await hold();
+      await expect(f.grant()).rejects.toMatchObject({ code: "ES423" });
+      expect((await f.owned()).rows).toEqual([]);
+      await f.run({}, "SELECT souvenir_ack($1,$2,$3,'ES423')", [
+        f.member,
+        taken?.generation,
+        taken?.lease_token,
+      ]);
+      expect(await work()).toHaveLength(1);
+      await lift();
+      // The back-off of the failed attempt (5 s here, up to 300 s) has passed.
+      await f.db.owner.query("UPDATE souvenir_work SET ready_at=now() WHERE enrollment_id=$1", [
+        f.member,
+      ]);
+      await paySouvenirs({ pool: f.pool }, { eventId: f.ids.eventA, budgetMs: 5000 });
+      expect((await f.owned()).rows).toHaveLength(1);
+    });
+
+    it("grants nothing on a paying run and delivers once lifted", async () => {
+      const rule = await f.create();
+      await f.action(rule);
+      await hold();
+      expect(
+        await paySouvenirs({ pool: f.pool }, { eventId: f.ids.eventA, budgetMs: 5000 }),
+      ).toEqual({ granted: 0, skipped: 0, failed: 0 });
+      expect((await f.owned()).rows).toEqual([]);
+      await lift();
+      await paySouvenirs({ pool: f.pool }, { eventId: f.ids.eventA, budgetMs: 5000 });
+      expect((await f.owned()).rows).toHaveLength(1);
+    });
+
+    it("reports its work as held, not due, failed or old, in the health read", async () => {
+      const rule = await f.create();
+      await f.action(rule);
+      expect(await scan()).toBe(1);
+      await f.db.owner.query(
+        "UPDATE souvenir_work SET error_code='ES423',ready_at=now()-interval '10 minutes' WHERE enrollment_id=$1",
+        [f.member],
+      );
+      await hold();
+      expect(await health()).toEqual({ due: 0, failed: 0, held: 1, oldestAt: null });
+      await lift();
+      expect(await health()).toMatchObject({ due: 1, failed: 1, held: 0 });
+      expect((await health()).oldestAt).not.toBeNull();
+    });
+  });
+
   it("never queues or grants a rehearsal membership even through backfill", async () => {
     const player = (
       await f.db.owner.query(

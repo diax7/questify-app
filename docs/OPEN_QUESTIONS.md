@@ -3133,3 +3133,19 @@ invites could then stop the owner inviting a co-owner for the day. Is the separa
 outside their limit, sees no player on the refusal, and an operator with neither pairing ability gets no device preview.
 **Question:** the station screen showed the scanned player's chip on every refusal, which let an operator without the
 scan ability read names. Is a refusal with no chip right for `ability_off` and `outside_station`?
+
+## Q-761 - Should a suspended event keep its give-back doors open, and its souvenirs wait? (ADR-825)
+
+**Status:** open; recommended yes (ADR-825, migration 0190): while an event is suspended, a player cannot rate, stamp,
+reserve, play, collect or accept through any route naming its objects, but can still decline a desk sale or cancel or
+decline a reservation; the souvenirs it owes are granted after the lift, not dropped.
+**Question:** is a suspension that holds everything but the doors that give points back right, and should owed
+souvenirs arrive after a lift (rather than never, for an event suspended for fraud)?
+
+## Q-762 - When must the HTTP idempotency store leave the process? (hunter-tenant 6)
+
+**Status:** open; recommended: before a second API instance, or rolling deploys with client retries.
+**Question:** the HTTP idempotency layer keeps its replies in memory, per process (src/idempotency-store.ts). The points
+doors also carry database keys (T-105), so a retry that lands on another instance is still paid once; a route with no
+database key is not. Before running two instances, list the idempotent routes without a database key and either give
+them one or move the store to PostgreSQL or Redis.

@@ -21,7 +21,11 @@ function unguardedConsole() {
   registerConsoleOrganizerRoutes(app, {
     pool: { query: refuse("pool"), connect: refuse("pool") } as unknown as Pool,
     keys: { userKey: refuse("keys") },
-    suspended: { has: refuse("suspended"), invalidate: refuse("suspended") } as SuspendedSet,
+    suspended: {
+      has: refuse("suspended"),
+      any: refuse("suspended"),
+      invalidate: refuse("suspended"),
+    } as SuspendedSet,
   });
   return { app, touched };
 }

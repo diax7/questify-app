@@ -9071,3 +9071,25 @@ or `show_rotating_qr` (a station), OA403 `ability_off` otherwise; the claim stil
 name from scans that were refused (hunter-tenant 5), and preview a pairing they cannot make.
 **Trade-offs:** a practice or station scan refused for the ability or the quest limit loses the player chip on the
 station screen. A device an operator paired stays governed by `device_paused` (hunter-auth 5, dropped by design).
+
+## ADR-825 - A suspended event's objects are walled by their event, and its souvenirs wait
+
+**Status:** Proposed (security audit fix, 2026-11-11; amends ADR-406; Q-761).
+**Decision:** (1) the player guard derives the event from the object a route names, as the maintenance gate does: a
+player route without `:eventId` that carries `questId`, `stepId`, `categoryId`, `rewardId`, `saleId`, `roundId`,
+`sessionId`, `passId` or `redemptionId` answers 404 `event_unavailable` while that object's event (or its organizer) is
+suspended (`DERIVED_PARAMS`, `play_event_id`, migration 0190). The lookup is made only while some event is suspended,
+once per request (shared with the maintenance gate). Declining or withdrawing a desk sale and cancelling or declining a
+redemption stay open (`OPEN_WHILE_SUSPENDED`): they give points back or end a hand-over. (2) Souvenirs of a suspended
+event wait and are delivered after the lift: its passes and queued work are skipped, and `souvenir_evaluate` refuses a
+claim taken before the suspension with ES423 in its unlocked pre-check, so the payer keeps the work with its back-off.
+Held work is reported as `held`, not due, failed or old (`souvenir_health`, `console_health`). (3) The system branch of
+`mark_ranking_repair` needs no device seat.
+**Why:** indirect routes (rating, survey, poll, quiz, game, passport, meet pass, redemption hand-over, session check-in)
+answered while their event was suspended (w2-seats 1); a souvenir writes no ledger row, so no suspension guard stopped
+its grant (w2-flows 2); a device context passed `ranking_system()` (w2-seats 2).
+**Trade-offs:** economic indirect routes change from 423 `event_suspended` (the SQL wall) to 404 `event_unavailable`;
+both are final for the app's queue. A suspension committed while one evaluation runs can still grant that member (the
+same lag as the other unlocked reads in it), and a row acked with ES423 may wait up to the 300 s back-off after the lift.
+The API wall follows a suspension within 10 s (ADR-406). While an event stays suspended, each such request costs one
+primary-key lookup.

@@ -9,8 +9,17 @@ type EventRef =
   | Readonly<{ kind: "event"; id: string }>
   | Readonly<{ kind: ParamKind | "join_code"; ref: string }>;
 
-/** The kinds `play_event_id` (migration 0134) finds an event by, from an id the door carries. */
-type ParamKind = "quest" | "step" | "category" | "reward" | "session" | "desk_sale" | "game_round";
+/** The kinds `play_event_id` (migrations 0134, 0190) finds an event by, from an id the door carries. */
+export type ParamKind =
+  | "quest"
+  | "step"
+  | "category"
+  | "reward"
+  | "session"
+  | "desk_sale"
+  | "game_round"
+  | "meet_pass"
+  | "redemption";
 
 /** How a door finds its event: a reference, null for a door that holds on a platform-wide pause only, or nothing. */
 type Door = (request: FastifyRequest) => EventRef | null | undefined;
@@ -96,21 +105,48 @@ export const PLAY_DOORS: Readonly<Record<string, Door>> = {
 const paused = (message: { ar: string; en: string }, scope: "platform" | "event"): HttpError =>
   new HttpError(503, "maintenance", message, { scope });
 
-async function eventOf(pool: Pool, ref: EventRef): Promise<string | undefined> {
-  if (ref.kind === "event") {
-    return ref.id.toLowerCase();
-  }
+/** The lookups one request already made, by kind and id: the player guard and this gate ask once between them. */
+const lookups = new WeakMap<FastifyRequest, Map<string, Promise<string | undefined>>>();
+
+async function lookUp(pool: Pool, kind: string, ref: string): Promise<string | undefined> {
   const { rows } = await pool.query<{ id: string | null }>("SELECT play_event_id($1, $2) AS id", [
-    ref.kind,
-    ref.ref,
+    kind,
+    ref,
   ]);
   return rows[0]?.id ?? undefined;
+}
+
+/**
+ * The event a reference names (lowercase), or undefined for an id that names nothing. A lookup (`play_event_id`) is
+ * made once per request: the player guard's suspension wall and the maintenance gate share it.
+ */
+export function eventOfRef(
+  pool: Pool,
+  ref: EventRef,
+  request: FastifyRequest,
+): Promise<string | undefined> {
+  if (ref.kind === "event") {
+    return Promise.resolve(ref.id.toLowerCase());
+  }
+  let made = lookups.get(request);
+  if (made === undefined) {
+    made = new Map();
+    lookups.set(request, made);
+  }
+  const key = `${ref.kind} ${ref.ref}`;
+  let found = made.get(key);
+  if (found === undefined) {
+    found = lookUp(pool, ref.kind, ref.ref);
+    made.set(key, found);
+  }
+  return found;
 }
 
 /** The pause, if any, that holds this door: the platform's, else the event's own. */
 async function holdingMessage(
   pool: Pool,
   maintenance: NonNullable<PlatformSettings["maintenance"]>,
+  request: FastifyRequest,
   ref: EventRef | null | undefined,
 ): Promise<HttpError | undefined> {
   if (maintenance.global !== undefined) {
@@ -119,7 +155,7 @@ async function holdingMessage(
   if (ref === null || ref === undefined || Object.keys(maintenance.events).length === 0) {
     return undefined;
   }
-  const eventId = await eventOf(pool, ref);
+  const eventId = await eventOfRef(pool, ref, request);
   const message = eventId === undefined ? undefined : maintenance.events[eventId];
   return message === undefined ? undefined : paused(message, "event");
 }
@@ -149,7 +185,7 @@ export function registerMaintenanceGate(
     if (maintenance === undefined) {
       return;
     }
-    const held = await holdingMessage(deps.pool, maintenance, door(request));
+    const held = await holdingMessage(deps.pool, maintenance, request, door(request));
     if (held !== undefined) {
       reply.header("retry-after", RETRY_AFTER_SECONDS);
       throw held;

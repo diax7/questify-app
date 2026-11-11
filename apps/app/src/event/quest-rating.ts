@@ -27,7 +27,10 @@ export async function sendRating(
 ): Promise<RatingRead> {
   const answer = await session.request({ method: "PUT", path: path(questId), body: { thumb } });
   if (answer.kind === "signed_out") return { kind: "signed_out" };
-  if (answer.kind === "error") return { kind: answer.status === 409 ? "none" : "network" };
+  // 409: ratings turned off since; 404: the quest or its event is gone (a suspended event answers 404 too).
+  if (answer.kind === "error") {
+    return { kind: answer.status === 409 || answer.status === 404 ? "none" : "network" };
+  }
   if (answer.kind === "network") return { kind: "network" };
   const parsed = memberQuestRatingSchema.safeParse(answer.body);
   return parsed.success ? { kind: "rating", rating: parsed.data } : { kind: "network" };

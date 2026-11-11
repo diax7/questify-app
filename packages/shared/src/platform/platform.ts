@@ -54,7 +54,7 @@ export const healthFactsSchema = z.strictObject({
   push: queue,
   alerts: queue,
   fanOut: z.strictObject({ waiting: count, failing: count, oldestSeconds: seconds }),
-  souvenirs: z.strictObject({ waiting: count, failing: count, stuck: count }),
+  souvenirs: z.strictObject({ waiting: count, failing: count, stuck: count, held: count }),
   invitations: z.strictObject({
     sending: count,
     stuck: count,
@@ -117,6 +117,7 @@ export const HEALTH_FACT_KEYS = [
   "souvenirWaiting",
   "souvenirFailing",
   "souvenirStuck",
+  "souvenirHeld",
   "invitationsSending",
   "invitationsStuck",
 ] as const;
@@ -328,6 +329,7 @@ function backgroundTile(facts: HealthFacts): HealthTile {
       fact("souvenirWaiting", "count", souvenirs.waiting),
       fact("souvenirFailing", "count", souvenirs.failing),
       fact("souvenirStuck", "count", souvenirs.stuck),
+      fact("souvenirHeld", "count", souvenirs.held),
       fact("invitationsSending", "count", invitations.sending),
       fact("invitationsStuck", "count", invitations.stuck),
     ],

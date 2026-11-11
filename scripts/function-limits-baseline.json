@@ -118,11 +118,6 @@
       "complexity": [20]
     }
   },
-  "apps/api/src/souvenirs/tick.ts": {
-    "<anonymous>": {
-      "complexity": [15]
-    }
-  },
   "apps/app/app/delete-account.tsx": {
     "DeleteAccountScreen": {
       "complexity": [10]

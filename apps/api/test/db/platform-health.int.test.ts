@@ -287,6 +287,32 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         expect(after.invitations.unknownWeek - before.invitations.unknownWeek).toBe(2);
       });
 
+      it("counts souvenir work of a suspended event as held, not waiting or failing (migration 0190)", async () => {
+        const event = await f.newEvent({ phase: "live" });
+        const enrollments = [
+          await f.join(event, await f.newPlayer()),
+          await f.join(event, await f.newPlayer()),
+        ];
+        await f.owner(
+          "INSERT INTO souvenir_work (event_id, enrollment_id, error_code) VALUES ($1, $2, 'ES423'), ($1, $3, NULL)",
+          [event, enrollments[0], enrollments[1]],
+        );
+        const before = (await health()).souvenirs;
+        await f.owner(
+          "UPDATE event SET suspended_at = now(), suspended_by = $2, suspension_reason = 'For a test run' WHERE id = $1",
+          [event, adminId],
+        );
+        const after = (await health()).souvenirs;
+        expect(before.waiting - after.waiting).toBe(2);
+        expect(before.failing - after.failing).toBe(1);
+        expect(after.held - before.held).toBe(2);
+        await f.owner(
+          "UPDATE event SET suspended_at = NULL, suspended_by = NULL, suspension_reason = NULL WHERE id = $1",
+          [event],
+        );
+        expect(await health()).toMatchObject({ souvenirs: before });
+      });
+
       it("lists the channels a provider refusal has paused, and not the ones whose pause is over", async () => {
         await f.owner(
           `INSERT INTO invitation_channel_hold (channel, hold_until, code)

@@ -68,6 +68,10 @@ describe("sending a rating", () => {
     expect(await sendRating(requester(refused(409)), QUEST, "up")).toEqual({ kind: "none" });
     expect(await sendRating(requester(refused(500)), QUEST, "up")).toEqual({ kind: "network" });
   });
+
+  it("shows nothing, with no retry, when the quest or its event is no longer there", async () => {
+    expect(await sendRating(requester(refused(404)), QUEST, "up")).toEqual({ kind: "none" });
+  });
 });
 
 describe("what the sheet shows", () => {

@@ -63,4 +63,26 @@ describe("the suspended set", () => {
     fail = false;
     expect(await set.has("a")).toBe(true);
   });
+
+  it("answers whether any event is suspended, from the same read", async () => {
+    let now = 0;
+    const fake = fakePool([[], ["a"]]);
+    const set = createSuspendedSet(fake.pool, { now: () => now });
+    expect(await set.any()).toBe(false);
+    expect(await set.has("a")).toBe(false);
+    expect(fake.reads()).toBe(1);
+    now = SUSPENDED_REFRESH_MS;
+    expect(await set.any()).toBe(true);
+    expect(await set.has("a")).toBe(true);
+    expect(fake.reads()).toBe(2);
+  });
+
+  it("follows an invalidation in any()", async () => {
+    const fake = fakePool([["a"], []]);
+    const set = createSuspendedSet(fake.pool, { now: () => 0 });
+    expect(await set.any()).toBe(true);
+    set.invalidate();
+    expect(await set.any()).toBe(false);
+    expect(fake.reads()).toBe(2);
+  });
 });

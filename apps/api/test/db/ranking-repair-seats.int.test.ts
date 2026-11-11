@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { RequestContext } from "#src/db/context";
 import { TEST_DATABASE_URL, addMember } from "#test/support/test-db";
@@ -120,6 +120,27 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         expect(await marksFor(forged, live)).toBe(false);
         expect(await marksFor({ playerId: stranger }, live)).toBe(false);
         expect(await marksFor({ playerId: await f.newPlayer() }, live)).toBe(false);
+      });
+    });
+
+    describe("a device seat (migration 0190)", () => {
+      it("marks nothing for a paired kiosk or an unknown device, and the empty context still marks", async () => {
+        const team = f.team();
+        const [kiosk] = await f.owner<{ id: string }>(
+          `WITH q AS (
+             INSERT INTO quest (event_id, category_id, type, title_en, points, type_config)
+             SELECT $1, id, 'enter_code', 'Kiosk', 10, '{"code": "ABC"}' FROM category WHERE event_id = $1 LIMIT 1
+             RETURNING id, event_id
+           )
+           INSERT INTO paired_device (organizer_id, event_id, kind, quest_id, label, secret_hash, paired_by_staff,
+                                      activated_at)
+           SELECT e.organizer_id, e.id, 'kiosk', q.id, 'Hall', $2, $3, now() FROM q JOIN event e ON e.id = q.event_id
+           RETURNING paired_device.id`,
+          [live, randomBytes(32), team.staffUserId],
+        );
+        expect(await marksFor({ deviceId: kiosk?.id ?? "" }, live)).toBe(false);
+        expect(await marksFor({ deviceId: randomUUID() }, live)).toBe(false);
+        expect(await marksFor({}, live)).toBe(true);
       });
     });
 

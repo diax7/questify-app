@@ -118,7 +118,8 @@ async function main(): Promise<void> {
       .then(() => checkEviction(redis, warn))
       .catch(() => warn({ event: "redis.connect_failed" }));
   }
-  // One instance for now, so remembering keys in memory is enough. The database-backed store arrives with T-105.
+  // One instance for now, so remembering replies in memory is enough: the points doors also carry database keys (T-105),
+  // but other idempotent routes do not. Before a second instance or rolling deploys with retries, see Q-762.
   const app = buildApp({
     config,
     idempotencyStore: new MemoryIdempotencyStore(),

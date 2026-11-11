@@ -15,7 +15,7 @@ const QUIET: HealthFacts = {
   push: { queued: 0, oldestSeconds: null, stuck: 0, failedDay: 0 },
   alerts: { queued: 0, oldestSeconds: null, stuck: 0, failedDay: 0 },
   fanOut: { waiting: 0, failing: 0, oldestSeconds: null },
-  souvenirs: { waiting: 0, failing: 0, stuck: 0 },
+  souvenirs: { waiting: 0, failing: 0, stuck: 0, held: 0 },
   invitations: { sending: 0, stuck: 0, sentWeek: 0, failedWeek: 0, unknownWeek: 0 },
   holds: [],
 };
@@ -147,7 +147,7 @@ describe("the health view", () => {
     const failing = tile(
       view({
         fanOut: { waiting: 4, failing: 1, oldestSeconds: 20 },
-        souvenirs: { waiting: 0, failing: 2, stuck: 0 },
+        souvenirs: { waiting: 0, failing: 2, stuck: 0, held: 0 },
       }),
       "background",
     );
@@ -155,7 +155,7 @@ describe("the health view", () => {
     expect(failing.reasons).toEqual(["failing"]);
     const stuck = tile(
       view({
-        souvenirs: { waiting: 1, failing: 1, stuck: 1 },
+        souvenirs: { waiting: 1, failing: 1, stuck: 1, held: 0 },
         invitations: { ...QUIET.invitations, stuck: 3 },
       }),
       "background",

@@ -8721,6 +8721,7 @@ export const MESSAGES = {
   "console.health.fact.souvenirWaiting": { ar: "تذكارات تنتظر", en: "Souvenirs waiting" },
   "console.health.fact.souvenirFailing": { ar: "تذكارات تفشل", en: "Souvenirs failing" },
   "console.health.fact.souvenirStuck": { ar: "تذكارات عالقة", en: "Souvenirs stuck" },
+  "console.health.fact.souvenirHeld": { ar: "تذكارات موقوفة مؤقتًا", en: "Souvenirs on hold" },
   "console.health.fact.invitationsSending": { ar: "حملات قيد الإرسال", en: "Campaigns sending" },
   "console.health.fact.invitationsStuck": { ar: "دعوات عالقة", en: "Invitations stuck" },
   "console.health.setUp": { ar: "مفعّل", en: "Set up" },

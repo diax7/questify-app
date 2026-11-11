@@ -810,6 +810,13 @@ window allows at most 420 guesses of 1,000,000; `review_demo.code_guessing` logs
 - **Suspension walls:** ledger by kind (only refunds and removals), joining, public reads, big screen in the database;
   player routes (404 `event_unavailable`) and the team's writes (423) in the API. Statements that start after the
   suspension commits are refused (tested with a transaction opened before it).
+- **Suspension by object (migration 0190, ADR-825):** a player route that names a quest, step, category, reward,
+  session, desk sale, game round, meet pass or redemption of a suspended event answers 404 `event_unavailable`, as an
+  `:eventId` route does; only the give-back doors stay open (`OPEN_WHILE_SUSPENDED` in `src/players/guard.ts`).
+  `test/security/suspension-doors.int.test.ts` walks every player route: a param that is neither derived nor on its open
+  list fails, and every derived route is called while its event is suspended. Souvenirs, which write no ledger row,
+  wait while their event is suspended (scan, claim and evaluate refuse; ES423 keeps the work). A device seat no longer
+  passes the system branch of `mark_ranking_repair`.
 - **Support grants:** 15 minutes, one event, reason required, never for a member, 20 an hour, closed by any admin and by
   `revoke-admin`; the grant is re-checked on every statement (`app_organizer_id`, `app_event_scope`, active admin) and
   `app.is_admin` is never set, so support holds an editor's rights in that event only. The API seats support on a

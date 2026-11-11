@@ -978,7 +978,14 @@ The three public routes count 20 calls per client address in 15 minutes (429 + R
 ## Console foundation (T-701, migration 0114; ADR-405 to ADR-410)
 
 - **Suspension answers.** Player routes with `:eventId` of a suspended event (or of a suspended organizer's event)
-  answer `404 event_unavailable` (read from a set refreshed every 10 s). A member's non-GET organizer route answers
+  answer `404 event_unavailable` (read from a set refreshed every 10 s). So do player routes without `:eventId` that
+  name an object of such an event (`:questId`, `:stepId`, `:categoryId`, `:rewardId`, `:saleId`, `:roundId`,
+  `:sessionId`, `:passId`, `:redemptionId`; migration 0190, ADR-825), whatever the method, before the legal hold; an id
+  that names nothing gets the route's own answer. Economic ones among them answered `423 event_suspended` from the SQL
+  wall before; both are final for the app's queue. Open while suspended, because they give points back or end a
+  hand-over: `POST /v1/desk-sales/{saleId}/decline`, `POST /v1/operator/desk/sales/{saleId}/withdraw`,
+  `POST /v1/redemptions/{redemptionId}/cancel`, `POST /v1/redemptions/{redemptionId}/decline` and
+  `POST /v1/operator/redemptions/{redemptionId}/cancel`. The app reads a 404 to a rating as "nothing to show". A member's non-GET organizer route answers
   `423 organizer_suspended` (the organizer) or `423 event_suspended` (the route's `:eventId`), except leaving the team
   (`DELETE .../members/me`) and an owner removing a member (`DELETE .../members/{staffUserId}`), which stay open so a
   compromised account can be cut off. Any database wall a

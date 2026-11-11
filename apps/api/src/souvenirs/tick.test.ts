@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startSouvenirTick } from "#src/souvenirs/tick";
 import { fakePool, pgError } from "#test/support/fake-pool";
 
-type Health = { due: number; failed: number; oldestAt: string | null };
+type Health = { due: number; failed: number; held?: number; oldestAt: string | null };
 type Script = {
   /** null: the health read answers no row. */
   health?: Health | null;
@@ -136,6 +136,17 @@ describe("startSouvenirTick", () => {
       await tick.stop();
     });
 
+    it("says nothing for work held by a suspension, and counts it when something else is reported", async () => {
+      const held = start({ health: { due: 0, failed: 0, held: 4, oldestAt: null } });
+      const failing = start({ health: { due: 1, failed: 1, held: 4, oldestAt: null } });
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(held.logged).toEqual([]);
+      expect(failing.logged).toEqual([
+        { event: "souvenir.pending", granted: 0, skipped: 0, failed: 0, due: 1, held: 4 },
+      ]);
+      await Promise.all([held.tick.stop(), failing.tick.stop()]);
+    });
+
     it("says nothing when the health read has no row", async () => {
       const { tick, logged } = start({ health: null });
       await vi.advanceTimersByTimeAsync(1000);
@@ -151,7 +162,7 @@ describe("startSouvenirTick", () => {
       });
       await vi.advanceTimersByTimeAsync(1000);
       expect(logged).toEqual([
-        { event: "souvenir.pending", granted: 0, skipped: 0, failed: 2, due: 0 },
+        { event: "souvenir.pending", granted: 0, skipped: 0, failed: 2, due: 0, held: 0 },
       ]);
       await tick.stop();
     });
@@ -164,7 +175,7 @@ describe("startSouvenirTick", () => {
       });
       await vi.advanceTimersByTimeAsync(1000);
       expect(logged).toEqual([
-        { event: "souvenir.pending", granted: 0, skipped: 0, failed: 1, due: 0 },
+        { event: "souvenir.pending", granted: 0, skipped: 0, failed: 1, due: 0, held: 0 },
       ]);
       await tick.stop();
     });
@@ -173,7 +184,7 @@ describe("startSouvenirTick", () => {
       const { tick, logged } = start({ health: { due: 5, failed: 2, oldestAt: null } });
       await vi.advanceTimersByTimeAsync(1000);
       expect(logged).toEqual([
-        { event: "souvenir.pending", granted: 0, skipped: 0, failed: 0, due: 5 },
+        { event: "souvenir.pending", granted: 0, skipped: 0, failed: 0, due: 5, held: 0 },
       ]);
       await tick.stop();
     });
@@ -184,7 +195,7 @@ describe("startSouvenirTick", () => {
       const fresh = start({ health: { due: 3, failed: 0, oldestAt: secondsBefore(10) } });
       await vi.advanceTimersByTimeAsync(1000);
       expect(waited.logged).toEqual([
-        { event: "souvenir.pending", granted: 0, skipped: 0, failed: 0, due: 3 },
+        { event: "souvenir.pending", granted: 0, skipped: 0, failed: 0, due: 3, held: 0 },
       ]);
       expect(exact.logged).toEqual([]);
       expect(fresh.logged).toEqual([]);
