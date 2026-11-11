@@ -9040,7 +9040,7 @@ is found and passes every check (not expired, attempts and resends left, 60 seco
 same transaction that holds the sign-up row and writes the new code (`takeOutboundMailIn`). A refused budget leaves the
 resend unspent (503 `email_unavailable`); a refused resend (410, 429) and an unknown token spend nothing. Before the
 token is looked up, every resend is counted per client address (`signup_resend_address`, 30 an hour: ten sign-ups with
-three resends each), 429 `too_many_attempts` past it. (2) Email operator invites are counted per organizer per day,
+three resends each), 429 `too_many_attempts` past it. The staff sign-in resend is counted the same way (`signin_resend_address`, 30 an hour, `signInResendsPerAddress`). (2) Email operator invites are counted per organizer per day,
 500 whether or not an event is activated (`operatorEmailInvitesPerDay`; decided by the PM, Dhia, 2026-11-11, replacing
 the team invites' 30 and 10 first proposed here), in their own count (`operator_invite_mail`, its own lock key), checked before the invite row is written and in the same transaction. An
 invite the database refuses (404, 403, 409: its exception aborts the transaction, which rolls the count back with it) is

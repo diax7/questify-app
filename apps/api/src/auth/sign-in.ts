@@ -37,7 +37,15 @@ import {
   type Account,
   type PublicAccount,
 } from "#src/auth/staff-store";
-import { BUCKETS, countRecent, forget, record, sweepThrottle, tryLock } from "#src/auth/throttle";
+import {
+  BUCKETS,
+  countRecent,
+  forget,
+  record,
+  sweepThrottle,
+  tryLock,
+  type Bucket,
+} from "#src/auth/throttle";
 import { GateBusyError, type VerifyGate } from "#src/auth/verify-gate";
 
 export type AuthLog = (event: string, fields?: Readonly<Record<string, string | number>>) => void;
@@ -84,6 +92,9 @@ export type ResendResult =
   | Readonly<{ kind: "resend_limit" }>
   | Readonly<{ kind: "email_unavailable" }>;
 
+/** A staff resend, which is also counted per client address before the token is looked up (ADR-823). */
+export type StaffResendResult = ResendResult | Throttled;
+
 export type SignIn = Readonly<{
   passwordStep: (
     input: { email: string; password: string },
@@ -93,7 +104,7 @@ export type SignIn = Readonly<{
     input: { challengeToken: string; code: string },
     caller: Caller,
   ) => Promise<CodeResult>;
-  resend: (input: { challengeToken: string }, caller: Caller) => Promise<ResendResult>;
+  resend: (input: { challengeToken: string }, caller: Caller) => Promise<StaffResendResult>;
 }>;
 
 const L = AUTH_LIMITS;
@@ -516,11 +527,47 @@ type Resending =
   | Exclude<ResendResult, { kind: "resent" | "email_unavailable" }>
   | Readonly<{ kind: "resending"; to: string; code: string }>;
 
+/**
+ * Counts and records one resend per client address in `bucket`, before the token is looked up, so unknown tokens count
+ * too. Shared by the sign-in and sign-up resends, each with its own bucket and limit.
+ */
+export async function admitResend(
+  deps: Pick<SignInDeps, "pool" | "keys">,
+  caller: Caller,
+  bucket: Bucket,
+  limit: Readonly<{ max: number; windowSeconds: number }>,
+): Promise<Throttled | undefined> {
+  const address = deps.keys.addressKey(addressBucket(caller.address));
+  return withConnection(deps.pool, (client) =>
+    withRequestContext(client, {}, async () => {
+      if (!(await tryLock(client, address))) {
+        return { kind: "throttled", retryAfterSeconds: 1 } as const;
+      }
+      const recent = await countRecent(client, bucket, address, limit.windowSeconds);
+      if (recent.count >= limit.max) {
+        return { kind: "throttled", retryAfterSeconds: recent.retryAfterSeconds } as const;
+      }
+      await record(client, bucket, address);
+      return undefined;
+    }),
+  );
+}
+
 async function resend(
   deps: SignInDeps,
   input: { challengeToken: string },
   caller: Caller,
-): Promise<ResendResult> {
+): Promise<StaffResendResult> {
+  const throttled = await admitResend(
+    deps,
+    caller,
+    BUCKETS.signInResendAddress,
+    L.signInResendsPerAddress,
+  );
+  if (throttled !== undefined) {
+    say(deps, caller, "staff.throttled", { step: "resend" });
+    return throttled;
+  }
   const tokenHash = hashToken(input.challengeToken);
   const prepared = await withConnection(deps.pool, (client) =>
     withPreIdentityContext(

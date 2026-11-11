@@ -448,21 +448,45 @@ describe("mergeReward characterisation", () => {
 
 describe("mergeReward refusal order", () => {
   const BAD = "not a time";
-  it("names the name before the open time, and the open time before the close time", () => {
-    expect(mergeReward(undefined, { opensAt: BAD, closesAt: BAD }, "Asia/Riyadh")).toEqual({
-      kind: "invalid",
-      field: "name",
-    });
-    expect(
-      mergeReward(
-        undefined,
-        { name: { en: "Hoodie" }, opensAt: BAD, closesAt: BAD },
-        "Asia/Riyadh",
-      ),
-    ).toEqual({ kind: "invalid", field: "opensAt" });
-    expect(
-      mergeReward(undefined, { name: { en: "Hoodie" }, closesAt: BAD }, "Asia/Riyadh"),
-    ).toEqual({ kind: "invalid", field: "closesAt" });
+  const GOOD_OPEN = "2030-11-01T10:00";
+  const GOOD_CLOSE = "2030-11-01T12:00";
+  const EARLY_CLOSE = "2030-11-01T09:00";
+  /** `nameBad` leaves the name out; the times are either text that is not a time or a valid window. */
+  const check = (nameBad: boolean, opensBad: boolean, closesBad: boolean, earlyClose = false) =>
+    mergeReward(
+      undefined,
+      {
+        ...(nameBad ? {} : { name: { en: "Hoodie" } }),
+        opensAt: opensBad ? BAD : GOOD_OPEN,
+        closesAt: closesBad ? BAD : earlyClose ? EARLY_CLOSE : GOOD_CLOSE,
+      },
+      "Asia/Riyadh",
+    );
+
+  // Every combination of the three refusable fields, so each adjacent and each skipping pair is pinned.
+  it.each([
+    [true, true, true, "name"],
+    [true, true, false, "name"],
+    [true, false, true, "name"],
+    [true, false, false, "name"],
+    [false, true, true, "opensAt"],
+    [false, true, false, "opensAt"],
+    [false, false, true, "closesAt"],
+  ] as const)(
+    "with name bad %s, open time bad %s and close time bad %s, refuses %s first",
+    (nameBad, opensBad, closesBad, field) => {
+      expect(check(nameBad, opensBad, closesBad)).toEqual({ kind: "invalid", field });
+    },
+  );
+
+  it("refuses a close that is not after the open as the close time, after the name and the open time", () => {
+    expect(check(false, false, false, true)).toEqual({ kind: "invalid", field: "closesAt" });
+    expect(check(true, false, false, true)).toEqual({ kind: "invalid", field: "name" });
+    expect(check(false, true, false, true)).toEqual({ kind: "invalid", field: "opensAt" });
+  });
+
+  it("accepts the same input once none of the three is refused", () => {
+    expect(check(false, false, false)).not.toHaveProperty("kind");
   });
 });
 

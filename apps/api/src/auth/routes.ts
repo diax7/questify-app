@@ -36,7 +36,7 @@ import type { EmailChange } from "#src/auth/email-change";
 import type { Passwords, WeakReason } from "#src/auth/password-reset";
 import type { StaffReauth } from "#src/auth/reauth";
 import { clearedSessionCookie, sessionCookie, type Sessions } from "#src/auth/session";
-import type { ResendResult, SignIn } from "#src/auth/sign-in";
+import type { SignIn, StaffResendResult } from "#src/auth/sign-in";
 import type { SignUp } from "#src/auth/sign-up";
 import type { Invites } from "#src/organizers/accept";
 import { callerOf, parse } from "#src/auth/request";
@@ -258,12 +258,7 @@ function registerSignUpRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): vo
 
   scope.post("/auth/sign-up/resend", open, async (request, reply) => {
     const body = parse(resendBody, request.body);
-    const result = await deps.signUp.resend(body, callerOf(request));
-    if (result.kind === "throttled") {
-      waitThen(reply, result.retryAfterSeconds);
-      throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
-    }
-    return answerResend(reply, result);
+    return answerResend(reply, await deps.signUp.resend(body, callerOf(request)));
   });
 
   // A double click must not make two organizers: the Idempotency-Key replays the first answer.
@@ -290,8 +285,11 @@ function registerSignUpRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): vo
 }
 
 /** The answers to a resend, shared by sign-in and sign-up. */
-function answerResend(reply: FastifyReply, result: ResendResult): Record<string, never> {
+function answerResend(reply: FastifyReply, result: StaffResendResult): Record<string, never> {
   switch (result.kind) {
+    case "throttled":
+      waitThen(reply, result.retryAfterSeconds);
+      throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
     case "resent":
       return {};
     case "challenge_expired":

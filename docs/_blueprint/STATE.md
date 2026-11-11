@@ -74,7 +74,7 @@
 - **Built (tier A, review pending).** The sign-up resend takes the day's mail budget (`outboundMailPerDay`) only after
   its pending sign-up passes every check, in the same locked transaction as the new code (`takeOutboundMailIn`), so an
   unknown token spends nothing and a refused budget keeps the resend; it is also counted per client address (30 an
-  hour, `signup_resend_address`). Email operator invites have a per-organizer daily count (`operator_invite_mail`),
+  hour, `signup_resend_address`; the staff sign-in resend likewise, `signin_resend_address`). Email operator invites have a per-organizer daily count (`operator_invite_mail`),
   429 `too_many_attempts`; QRs are uncounted. No migration (buckets are free text). ADR-823 Proposed; the reserved
   per-tenant share of the budget is in FOLLOWUPS. Mutation targets: `apps/api/src/auth/sign-up.ts`,
   `apps/api/src/auth/outbound.ts`.

@@ -20,6 +20,7 @@ export const BUCKETS = {
   signupEmail: "signup_email",
   signupAddress: "signup_address",
   signupResendAddress: "signup_resend_address",
+  signInResendAddress: "signin_resend_address",
   organizerCreate: "organizer_create",
   outboundMail: "outbound_mail",
   inviteOrganizer: "invite_organizer",

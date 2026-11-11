@@ -21,6 +21,11 @@ export const AUTH_LIMITS = {
    * with three resends each, so a guessed or stale token cannot be replayed without end.
    */
   signupResendsPerAddress: { max: 30, windowSeconds: 3600 },
+  /**
+   * Staff sign-in resends asked for per client address, counted before the token is looked up, the same ceiling as the
+   * sign-up resend: five challenges an hour per person with three resends each, across a few people behind one address.
+   */
+  signInResendsPerAddress: { max: 30, windowSeconds: 3600 },
   /** Organizers one signed-in person may create in a day. */
   organizersPerUser: { max: 5, windowSeconds: 86_400 },
   /** Team invites: pending per organizer, sent per day before and after the first event is activated (T-101). */

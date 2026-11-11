@@ -11,7 +11,7 @@ import type {
 import type { Sessions } from "#src/auth/session";
 import type { CreateResult, SignUp, SignUpCodeResult, StartResult } from "#src/auth/sign-up";
 import type { AcceptNewResult, AcceptResult, InspectResult, Invites } from "#src/organizers/accept";
-import type { CodeResult, PasswordResult, ResendResult, SignIn } from "#src/auth/sign-in";
+import type { CodeResult, PasswordResult, SignIn, StaffResendResult } from "#src/auth/sign-in";
 import { MemoryIdempotencyStore } from "#src/idempotency-store";
 
 const ORIGIN = "https://app.test";
@@ -31,7 +31,7 @@ const liveSession = {
 async function start(results: {
   password?: PasswordResult;
   code?: CodeResult;
-  resend?: ResendResult;
+  resend?: StaffResendResult;
   request?: RequestResult;
   confirm?: ConfirmResult;
   change?: ChangeResult;
@@ -215,6 +215,17 @@ describe("resend answers", () => {
     const response = await resend();
     expect(response.statusCode).toBe(status);
     expect(response.json()).toMatchObject({ code: errorCode });
+  });
+
+  it("tells a resend refused for its client address exactly how long to wait", async () => {
+    await start({ resend: { kind: "throttled", retryAfterSeconds: 42 } });
+    const response = await resend();
+    expect(response.statusCode).toBe(429);
+    expect(response.headers["retry-after"]).toBe("42");
+    expect(response.json()).toMatchObject({
+      code: "too_many_attempts",
+      details: { retryAfterSeconds: 42 },
+    });
   });
 
   it("says how long to wait before the next resend", async () => {

@@ -5,11 +5,12 @@ import { alreadyHaveAccountEmail, signUpCodeEmail } from "#src/auth/email/templa
 import { readInForce } from "#src/legal/in-force";
 import { generateCode, generateToken, hashToken, safeEqual } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
-import { addressBucket, isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
+import { isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
 import { takeOutboundMail, takeOutboundMailIn } from "#src/auth/outbound";
 import { checkPasswordPolicy } from "#src/auth/password";
 import { breachCheckAndHash, type NotSet, type PasswordDeps } from "#src/auth/password-reset";
 import {
+  admitResend,
   exceededWindow,
   keysFor,
   openSession,
@@ -344,30 +345,6 @@ type Resending =
   | Readonly<{ kind: "mail_cap" }>
   | Readonly<{ kind: "resending"; to: string; code: string; existing: boolean }>;
 
-/** Counts and records one resend per client address, before the token is looked up, so unknown tokens count too. */
-async function admitResend(deps: PasswordDeps, caller: Caller): Promise<Throttled | undefined> {
-  const address = deps.keys.addressKey(addressBucket(caller.address));
-  const limit = L.signupResendsPerAddress;
-  return withConnection(deps.pool, (client) =>
-    withRequestContext(client, {}, async () => {
-      if (!(await tryLock(client, address))) {
-        return { kind: "throttled", retryAfterSeconds: 1 } as const;
-      }
-      const recent = await countRecent(
-        client,
-        BUCKETS.signupResendAddress,
-        address,
-        limit.windowSeconds,
-      );
-      if (recent.count >= limit.max) {
-        return { kind: "throttled", retryAfterSeconds: recent.retryAfterSeconds } as const;
-      }
-      await record(client, BUCKETS.signupResendAddress, address);
-      return undefined;
-    }),
-  );
-}
-
 /**
  * The locked part of a resend. The day's mail budget is taken only once the pending sign-up passed every check, and in
  * the same transaction as the new code: a refused budget leaves the resend unspent, a refused resend leaves the budget
@@ -410,7 +387,12 @@ async function resend(
   input: { challengeToken: string },
   caller: Caller,
 ): Promise<SignUpResendResult> {
-  const throttled = await admitResend(deps, caller);
+  const throttled = await admitResend(
+    deps,
+    caller,
+    BUCKETS.signupResendAddress,
+    L.signupResendsPerAddress,
+  );
   if (throttled !== undefined) {
     say(deps, caller, "staff.throttled", { step: "sign_up_resend" });
     return throttled;

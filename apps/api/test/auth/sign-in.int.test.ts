@@ -72,6 +72,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sign-in flow", () => {
   const allThrottleRows = async (): Promise<number> =>
     (await owner<{ n: number }>("SELECT count(*)::int AS n FROM auth_throttle"))[0]?.n ?? -1;
 
+  const resendFrom = (address: string) =>
+    test.app.inject({
+      method: "POST",
+      url: "/v1/staff/auth/resend",
+      headers: browserHeaders({ "x-forwarded-for": address }),
+      payload: { challengeToken: "C".repeat(43) },
+    });
+
   describe("the three steps", () => {
     it("opens a session only after the password and then the emailed code", async () => {
       const email = newEmail();
@@ -607,6 +615,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sign-in flow", () => {
       const fourth = await resend();
       expect(fourth.statusCode).toBe(429);
       expect(fourth.json()).toMatchObject({ code: "resend_limit" });
+    });
+
+    it("counts every resend per client address, unknown tokens too, and refuses the 31st in the hour (ADR-823)", async () => {
+      const ip = freshIp();
+      for (let count = 0; count < 30; count += 1) {
+        expect((await resendFrom(ip)).statusCode).toBe(410);
+      }
+      const refused = await resendFrom(ip);
+      expect(refused.statusCode).toBe(429);
+      expect(refused.json()).toMatchObject({ code: "too_many_attempts" });
+      expect(Number(refused.headers["retry-after"])).toBeGreaterThan(0);
+      const rows = await owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM auth_throttle WHERE bucket = $1 AND key = $2",
+        [BUCKETS.signInResendAddress, keys.addressKey(ip)],
+      );
+      expect(rows[0]?.n).toBe(30);
+      expect((await resendFrom(freshIp())).statusCode).toBe(410);
     });
 
     it("refuses a resend for an unknown or dead challenge", async () => {

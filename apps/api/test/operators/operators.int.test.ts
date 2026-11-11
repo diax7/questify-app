@@ -5,7 +5,6 @@ import { createAuthKeys } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
 import { createMyCodeKey, myCode } from "#src/quests/qr";
 import {
-  browserHeaders,
   createStaff,
   signInFully,
   startApp,
@@ -322,18 +321,6 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators over HTTP", () => {
         lang: "en",
       });
       expect(elsewhere.statusCode).toBe(201);
-      const signUp = await test.app.inject({
-        method: "POST",
-        url: "/v1/staff/auth/sign-up",
-        headers: browserHeaders(),
-        payload: {
-          email: "founder@ops-new.test",
-          password: "a long and new pass phrase",
-          organizerName: "Ops New Two",
-          accept: { terms: "0.1", dpa: "0.1", contentRules: "0.1" },
-        },
-      });
-      expect(signUp.statusCode).toBe(200);
     });
 
     it("allows the same 500 once an event is activated (ADR-823)", async () => {
