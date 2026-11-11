@@ -186,6 +186,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
     // T-599c: the dashboard's server reads one session in parallel (the event frame, the page, prefetches). A request
     // whose transaction began first touched after a later one had committed, so its `now()` was older than the row's
     // last-seen and the guard trigger refused it (check_violation, a 500 on any staff route).
+    // Before the fix about half of these answered 500 (126 of 240 in a probe of 40 rounds).
+    it("answers parallel reads of one session that is due a touch, all of them", async () => {
+      const user = await createStaff(db.owner, { email: newEmail() });
+      for (let round = 0; round < 10; round += 1) {
+        const due = await seedSession(user, { idleMinutes: 2, ageMinutes: 5 });
+        const answers = await Promise.all(Array.from({ length: 6 }, () => me(due.cookie)));
+        expect(answers.map((answer) => answer.statusCode)).toEqual(Array(6).fill(200));
+      }
+    });
+
     it("lets an older request's touch lose to a newer one that already committed, without an error", async () => {
       const user = await createStaff(db.owner, { email: newEmail() });
       const quiet = await seedSession(user, { idleMinutes: 5 });
