@@ -279,6 +279,12 @@ describe("loadConfig", () => {
       expect(errorOf(env)).toMatch(message);
     });
 
+    it("names a refused key id setting but never echoes its value", () => {
+      expect(errorOf({ AUTH_KEY_ID: "256" })).not.toContain("256");
+      expect(errorOf({ AUTH_KEY_ID: "hunter2" })).not.toContain("hunter2");
+      expect(errorOf({ ...PREVIOUS, AUTH_PREVIOUS_KEY_ID: "999" })).not.toContain("999");
+    });
+
     it("never prints a secret in a refusal", () => {
       const short = "q".repeat(31);
       expect(errorOf({ ...PREVIOUS, AUTH_PREVIOUS_SECRET: short })).not.toContain(short);

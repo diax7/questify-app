@@ -388,12 +388,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer sign-up (T-101)", ()
       const email = newEmail();
       const token = tokenOf(await signUp(email));
       const first = test.mail.lastCode(email);
-      await owner(
-        "UPDATE staff_signup SET last_sent_at = now() - interval '61 seconds' WHERE email = $1",
-        [email],
-      );
       await fillBudgetTo(await outboundUsed(), MAIL_MAX);
       try {
+        // Checks come before the budget: a resend too soon is refused for spacing (429), not for the full budget (503),
+        // which the old order (budget first) answered.
+        expect((await resend(token)).statusCode).toBe(429);
+        await owner(
+          "UPDATE staff_signup SET last_sent_at = now() - interval '61 seconds' WHERE email = $1",
+          [email],
+        );
         const refused = await resend(token);
         expect(refused.statusCode).toBe(503);
         expect(refused.json()).toMatchObject({ code: "email_unavailable" });

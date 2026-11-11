@@ -1,3 +1,4 @@
+import { JOIN_CODE, SURVEY_SHARE_TOKEN } from "@questify/shared";
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
 import { config, proxy } from "#src/proxy.ts";
@@ -116,5 +117,37 @@ describe("which paths the proxy runs for", () => {
     const response = proxy(page("/en/e/ABC.x"));
     expect(response.headers.get("content-security-policy")).toContain("'strict-dynamic'");
     expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+});
+
+describe("the page segments the matcher leaves to the proxy", () => {
+  // The matcher skips a path ending in a listed asset extension, so a page segment that could end in one would lose
+  // the page policy. The join code and the survey share token are such segments: their alphabets have no dot.
+  const matcher = new RegExp(`^${config.matcher[0]}$`);
+  const extensions = /\.\(\?:([^)]*)\)\$/.exec(config.matcher[0] ?? "")?.[1]?.split("|") ?? [];
+
+  it("finds the asset extensions in the matcher", () => {
+    expect(extensions).toContain("js");
+    expect(extensions).toContain("png");
+    expect(matcher.test("/en/e/ABC234")).toBe(true);
+    expect(matcher.test("/en/s/ABC234.js")).toBe(false);
+  });
+
+  it("never lets a join code or a share token carry a dot", () => {
+    expect(JOIN_CODE.test("ABC234")).toBe(true);
+    expect(JOIN_CODE.test("ABC.js")).toBe(false);
+    expect(SURVEY_SHARE_TOKEN.test("A".repeat(43))).toBe(true);
+    expect(SURVEY_SHARE_TOKEN.test(`${"A".repeat(40)}.js`)).toBe(false);
+    for (const pattern of [JOIN_CODE, SURVEY_SHARE_TOKEN]) {
+      expect(pattern.source).not.toContain(".");
+      expect(pattern.source).not.toMatch(/\\S|\\W|\[\^/);
+    }
+  });
+
+  it.each(extensions)("a code or token cannot end in .%s", (extension) => {
+    expect(JOIN_CODE.test(`ABC.${extension}`)).toBe(false);
+    expect(SURVEY_SHARE_TOKEN.test(`${"A".repeat(43 - extension.length - 1)}.${extension}`)).toBe(
+      false,
+    );
   });
 });

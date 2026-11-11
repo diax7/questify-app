@@ -108,6 +108,7 @@ async function runCommand(
     await changeRole(owner, email, command === "grant-admin", flags);
     return;
   }
+  // Key id 1 is fine here whatever AUTH_KEY_ID says: this command uses only the throttle keys, never the key id.
   const found = await clearThrottleFor(owner, createAuthKeys(need("AUTH_SECRET")), email);
   process.stdout.write(
     found

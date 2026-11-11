@@ -237,7 +237,8 @@ export async function readEvent(
 }
 
 /** Join codes avoid letters and digits people confuse (0 and O, 1, I and L). */
-const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+/** No dot or other punctuation: a code is a page segment (`/en/e/ABC234`) and must never end in an asset extension. */
+export const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const CODE_LENGTH = 6;
 const CODE_ATTEMPTS = 5;
 

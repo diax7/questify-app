@@ -254,8 +254,8 @@ const countsOf = (report: ResealReport): ResealCounts => ({
 
 /**
  * Seals every reward code again under the ring's current key and marks it under its organizer's mark key (ADR-705,
- * ADR-728, w2-crypto 3), on the owner connection: used codes too, so a player's redemption list keeps showing them. Idempotent and resumable: rows already current are skipped,
- * and a stopped run is simply run again. Audited twice, counts only: a start entry before the walk and the counts
+ * ADR-728, w2-crypto 3), on the owner connection: used codes too, so a player's redemption list keeps showing them.
+ * Idempotent and resumable: rows already current are skipped, and a stopped run is simply run again. Audited twice, counts only: a start entry before the walk and the counts
  * entry when it ends, also when it fails, so a crashed run leaves a trail.
  *
  * @throws Error before any write when the connection cannot see every row, or naming the row id and SQLSTATE when a

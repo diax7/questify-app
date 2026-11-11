@@ -116,7 +116,7 @@ export function whole(env: Env, name: string, fallback: string, min: number, max
   const text = env[name] ?? fallback;
   const value = Number(text);
   if (!/^[0-9]+$/.test(text) || value < min || value > max) {
-    throw new Error(`${name} must be a whole number from ${min} to ${max}; got "${text}".`);
+    throw new Error(`${name} must be a whole number from ${min} to ${max}.`);
   }
   return value;
 }

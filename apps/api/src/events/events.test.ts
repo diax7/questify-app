@@ -2,7 +2,7 @@ import type { Pool } from "pg";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_LAYOUT, DEFAULT_TERMS, NO_EVENT_TEXTS } from "@questify/shared";
 import { createEvents, merge, type Actor } from "#src/events/events";
-import type { EventRecord } from "#src/events/store";
+import { CODE_ALPHABET, newJoinCode, type EventRecord } from "#src/events/store";
 
 const TIMES = { startsAt: "2030-11-01T09:00", endsAt: "2030-11-01T17:00" };
 
@@ -233,5 +233,13 @@ describe("database errors the flows do not expect", () => {
   it.each(["23514", "40001", "QE422"])("pass %s through ending early", async (code) => {
     const events = createEvents({ pool: failingPool(code), log: () => undefined });
     await expect(events.endEarly(ACTOR, STORED.id, CALLER)).rejects.toMatchObject({ code });
+  });
+});
+
+describe("the join code alphabet", () => {
+  it("holds only letters and digits, so a code in a page address never looks like a file name", () => {
+    expect(CODE_ALPHABET).toMatch(/^[A-Z2-9]+$/);
+    expect(CODE_ALPHABET).not.toMatch(/[IO01L]/);
+    for (let i = 0; i < 50; i += 1) expect(newJoinCode()).toMatch(/^[A-Z2-9]{6}$/);
   });
 });

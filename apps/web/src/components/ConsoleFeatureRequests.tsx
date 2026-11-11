@@ -87,7 +87,7 @@ export function ConsoleFeatureRequests({ language }: Readonly<{ language: Langua
         </Notice>
       )}
       {rows === null ? (
-        <Muted>{t("common.loading")}</Muted>
+        <Muted role="status">{t("common.loading")}</Muted>
       ) : rows.length === 0 ? (
         <EmptyState>{t("console.featureRequests.empty")}</EmptyState>
       ) : (

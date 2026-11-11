@@ -1,3 +1,4 @@
+import { SMS_MAX_PARTS } from "@questify/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
@@ -11,6 +12,17 @@ import {
   startInvitationTick,
 } from "#src/invitation-campaigns/tick";
 import type { SmsMessage, SmsResult, SmsSender } from "#src/players/sms";
+
+// The fixed template stays within 3 parts (names are cut to 40 units), so a test that needs a longer text pads the render.
+const padding = vi.hoisted(() => ({ extra: "" }));
+vi.mock("#src/invitation-campaigns/message", async (original) => {
+  const real = await original<typeof import("#src/invitation-campaigns/message")>();
+  return {
+    ...real,
+    renderInvitation: (input: Parameters<typeof real.renderInvitation>[0]) =>
+      `${padding.extra}${real.renderInvitation(input)}`,
+  };
+});
 
 type Logged = { level: string; fields: Record<string, unknown> };
 type Script = {
@@ -30,6 +42,8 @@ type Script = {
   handError?: unknown;
   /** Claims with no approved name, so the text cannot be built. */
   blankNames?: boolean;
+  /** Claims whose texts run past SMS_MAX_PARTS (the template cannot, so the render is padded below). */
+  longNames?: boolean;
 };
 
 const sqlError = (code: string) => Object.assign(new Error("database"), { code });
@@ -87,6 +101,7 @@ function fakePool(script: Script) {
           const count = script.claims[claimed] ?? 0;
           claimed += 1;
           const blank = script.blankNames === true ? { name_ar: null, name_en: null } : {};
+          padding.extra = script.longNames === true ? "x".repeat(400) : "";
           return {
             rows: Array.from({ length: count }, () => ({ ...claimRow((next += 1)), ...blank })),
           };
@@ -155,6 +170,7 @@ describe("startInvitationTick", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+    padding.extra = "";
   });
 
   it("settles first (every 10 minutes), starts one due campaign, then claims rounds of 5 and acknowledges each", async () => {
@@ -198,6 +214,30 @@ describe("startInvitationTick", () => {
     expect(sent[0]?.text).toContain(`https://questify.sa/en/i#${invitationToken(row.link)}`);
     expect(sent[0]?.text).toContain("Invitation to Riyadh Festival: ");
     expect(JSON.stringify(logged)).not.toContain(row.phone);
+  });
+
+  it("warns once when a text runs past the SMS part limit, and still sends every message", async () => {
+    const logged: Logged[] = [];
+    const { tick, sent } = start({ claims: [2, 2], longNames: true }, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    await tick.stop();
+    expect(sent).toHaveLength(4);
+    const warnings = logged.filter((entry) => entry.level === "warn");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]?.fields).toMatchObject({
+      event: "invitation.sms_parts_over",
+      max: SMS_MAX_PARTS,
+    });
+    expect(warnings[0]?.fields["parts"]).toBeGreaterThan(SMS_MAX_PARTS);
+    expect(JSON.stringify(logged)).not.toContain("xxxx");
+  });
+
+  it("does not warn for a text within the part limit", async () => {
+    const logged: Logged[] = [];
+    const { tick } = start({ claims: [2] }, logged);
+    await vi.advanceTimersByTimeAsync(1000);
+    await tick.stop();
+    expect(logged.filter((entry) => entry.level === "warn")).toEqual([]);
   });
 
   it("claims no further round after an account refusal, and raises the hold alert", async () => {

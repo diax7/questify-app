@@ -1,3 +1,4 @@
+import { SMS_MAX_PARTS, smsParts } from "@questify/shared";
 import type { Pool, PoolClient, QueryConfig, QueryResult, QueryResultRow } from "pg";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
@@ -37,7 +38,7 @@ export type InvitationTickDeps = Readonly<{
   promoSms?: SmsSender;
   keys: OptOutSigner;
   intervalMs: number;
-  log: (level: "info" | "error", fields: Record<string, unknown>) => void;
+  log: (level: "info" | "warn" | "error", fields: Record<string, unknown>) => void;
   /** Spreads several API instances apart; replaced in tests. */
   random?: () => number;
   /** The clock for the budget, the quiet hours and settle; replaced in tests. */
@@ -92,15 +93,28 @@ async function sendText(sender: SmsSender, to: string, text: string): Promise<In
   }
 }
 
-/** Sends one claimed message and acknowledges it; contact and text never reach a log. */
+/** What one run of rounds has already warned about, so a long campaign name logs once, not once per message. */
+type Warned = { parts: boolean };
+
+/**
+ * Sends one claimed message and acknowledges it; contact and text never reach a log. A text over `SMS_MAX_PARTS` is
+ * still sent (the approved name and the real links can run past what the saved template allowed) and warned about once
+ * per run, with the part count only.
+ */
 async function sendOne(
   deps: InvitationTickDeps,
   sender: SmsSender,
   claim: Claim,
+  warned: Warned,
 ): Promise<InvitationOutcome["outcome"]> {
   let text: string | undefined;
   try {
     text = messageOf(deps, claim);
+    const parts = smsParts(text);
+    if (parts > SMS_MAX_PARTS && !warned.parts) {
+      warned.parts = true;
+      deps.log("warn", { event: "invitation.sms_parts_over", parts, max: SMS_MAX_PARTS });
+    }
   } catch {
     // Nothing left: the message failed for certain, so it is not "possibly sent" and blocks no one for 7 days.
     text = undefined;
@@ -136,6 +150,7 @@ async function sendRounds(
   started: number,
 ): Promise<void> {
   const now = deps.now ?? Date.now;
+  const warned: Warned = { parts: false };
   while (now() - started < INVITATION_BUDGET_MS) {
     if (!invitationSmsClaimable(new Date(now()))) return;
     const claims = await system(deps.pool, async (client) => {
@@ -146,7 +161,7 @@ async function sendRounds(
       return rows;
     });
     if (claims.length === 0) return;
-    const outcomes = await Promise.all(claims.map((claim) => sendOne(deps, sender, claim)));
+    const outcomes = await Promise.all(claims.map((claim) => sendOne(deps, sender, claim, warned)));
     // An account refusal holds the channel: no further round until the hold ends (ADR-333 (3)).
     if (outcomes.includes("hold")) return;
   }
