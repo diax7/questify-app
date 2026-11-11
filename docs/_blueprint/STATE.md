@@ -1,5 +1,21 @@
 # Blueprint State — Questify
 
+## Security audit hardening, the core walls (migration 0190) — 2026-11-11
+
+- **Built (tier A; plan `docs/plans/2026-11-11-audit-hardening-core.md`, plan review 84 with the decisions of its
+  section 8; code review pending).** The player guard walls a route without `:eventId` by the event of the object it
+  names (`DERIVED_PARAMS`: quest, step, category, reward, desk sale, game round, session, meet pass, redemption), only
+  while some event is suspended (`SuspendedSet.any()`), with one `play_event_id` lookup per request shared with the
+  maintenance gate (`eventOfRef`); the give-back doors stay open (`OPEN_WHILE_SUSPENDED`); `:eventId` is lowercased.
+  Migration 0190 (new, undeployed): `play_event_id` PL/pgSQL with `meet_pass` and `redemption`; `mark_ranking_repair`
+  PL/pgSQL and closed to a device seat (both allowlist entries removed); souvenir scan and claim skip a suspended event's
+  (or paused organizer's) work, `souvenir_evaluate` raises ES423 in its unlocked pre-check, `souvenir_health` and
+  `console_health` report such work as `held` (new health fact "Souvenirs on hold", ar and en), so the tick no longer
+  logs `souvenir.pending` for a suspension (RUNBOOK). The app reads a 404 to a rating as nothing to show. Proposed
+  ADR-825, Q-761, Q-762 (the in-memory idempotency store, server.ts comment); four FOLLOWUPS lines. Tests written
+  first (red on 0189); 18 hand mutants each turned a test red. Mutation globs: `apps/api/src/players/guard.ts`,
+  `apps/api/src/maintenance/gate.ts`, `apps/api/src/events/suspended-set.ts`. CI minutes: not yet pushed.
+
 ## Security audit hardening, tier B items — 2026-11-11
 
 - **Built (tier B, review pending).** `GET /v1/public/events` is throttled per address bucket (240 a minute,
