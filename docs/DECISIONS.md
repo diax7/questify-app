@@ -4210,7 +4210,8 @@ never on.
 **Why:** A guessed-wrong age rule on opt-in is the costlier mistake; an opt-out that needs a sign-in is not "as easy as
 giving consent" (IR Art. 12).
 **Trade-offs:** Some real 18-year-olds cannot opt in until counsel answers; rotating `AUTH_SECRET` breaks old links
-(it already signs everyone out).
+(it already signs everyone out). Amended by ADR-826 (Proposed): links carry a key id and survive a rotation while the
+previous secret is held.
 
 ## ADR-318 — Promotions choose recipients at one door and SMS keeps CST's quiet hours
 **Status:** Accepted (developer, delegated by Dhia, 2026-10-27; T-407 code review 86, about 93 after the fold-in; Q-285). Specifies ADR-065, FR-737, FR-1111, FR-1738. Q-287 answered by Dhia: SMS only.
@@ -9093,3 +9094,34 @@ both are final for the app's queue. A suspension committed while one evaluation 
 same lag as the other unlocked reads in it), and a row acked with ES423 may wait up to the 300 s back-off after the lift.
 The API wall follows a suspension within 10 s (ADR-406). While an event stays suspended, each such request costs one
 primary-key lookup.
+
+## ADR-826 - Opt-out links carry a key id, so a rotated `AUTH_SECRET` keeps them working for a while
+
+**Status:** Proposed (security audit hardening, w2-crypto 4, 2026-11-11; amends ADR-317; Q-763).
+**Decision:** the opt-out token becomes `id16 ‖ channel1 ‖ keyId1 ‖ tag16` (34 bytes, 46 base64url characters), the tag
+over `keyId\nplayerId\nchannel` under the `marketing-opt-out` key. `AUTH_KEY_ID` (1 to 255, default 1) names the current
+secret; during a rotation `AUTH_PREVIOUS_SECRET` and `AUTH_PREVIOUS_KEY_ID` (together, ids and secrets differ, 32+
+characters) keep the old secret, which derives the opt-out key only. A token is read under the key its id names, with
+its exact length and canonical spelling, in constant time; an unknown id is refused. The old 33-byte token is not read.
+The previous pair is removed 90 days after the rotation, or at once after a leak (RUNBOOK).
+**Why:** ADR-317 accepted that a rotation ends every link already sent; that fails closed on a legal duty (IR Art. 12):
+a player tapping an old link could not withdraw. The pattern is the reward code keys' (ADR-725).
+**Trade-offs:** every promotional SMS is 2 characters longer (the 3-part budget holds; templates saved near the limit
+should be saved again). An old secret held past the window can only switch marketing off. Staging links sent before
+this release stop working (no production message was ever sent).
+
+## ADR-827 - Reward code marks are keyed per organizer
+
+**Status:** Proposed (security audit hardening, w2-crypto 3, 2026-11-11; amends ADR-136 and ADR-727).
+**Decision:** the mark that finds a code uploaded twice is `HMAC-SHA-256(markKeyFor(key, organizer), code)`, where
+`markKeyFor` is HKDF-SHA-256 from the secret's mark key, empty salt, info `questify/reward-code/v2/mark/<organizer id>`
+(a lowercase UUID). The upload derives it from the organizer whose event it has locked, for the current and, during a
+rotation, the previous key. `reseal` counts a row current only when its cipher is current and its mark is its
+organizer's, and re-marks the rest; `check` lists a wrong mark as stale. The seal and its associated data are unchanged.
+No migration: marks are compared only inside one event. Run `reseal` then `check` straight after the deploy.
+**Why:** one key for every organizer gave the same voucher the same mark at two organizers, so anyone reading
+`reward_code` could tell which organizers share codes (w2-crypto 3). Cheap now: no production rows yet.
+**Trade-offs:** between the deploy and the re-seal, a re-upload in one event of a code stored under the old mark is
+not caught (the re-seal then reports a `conflict`). After launch the same change would cost a rotation-sized walk.
+Binding a cipher to its row (w2-crypto 2) was considered and dropped: it needs a v3 format and a re-seal of every row,
+and only the database owner can swap ciphers (SECURITY.md V11).

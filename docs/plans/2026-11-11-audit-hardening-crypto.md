@@ -125,3 +125,23 @@ These win over the sections above where they differ. Paths under `src/` and `tes
    with a test that a template at exactly the 3-part limit under the old sample is refused at save with the new link.
    RUNBOOK notes that templates saved before this change should be re-saved if near the limit.
 7. The `reseal.ts` conflict comment (the v1-to-v2 re-mark window) and the `checkCodes` doc comment are updated.
+
+## 9. Hand mutants (build record, 2026-11-11)
+
+Each mutant was applied by hand, its tests run, and the file restored from git byte for byte (`git status` clean after
+each). Red tests in brackets.
+
+1. Tag input without the key id (keys.ts) [keys.test "tags keyId\nplayer\nchannel"; opt-out.test fixed format, "signs
+   the key id"].
+2. Reader ignores the id byte, always the current key (opt-out.ts) [opt-out.test previous-key and moved-id cases;
+   routes.test "after an AUTH_SECRET rotation"].
+3. Length check `!== 33` instead of 34 [8 opt-out tests]. The variant "34 or 33" survives and is equivalent: a 33-byte
+   token leaves a 15-byte tag, which `safeEqual` never matches.
+4. Previous secret feeds every purpose (keys.ts `derive`) [keys.test "previous secret feeds the opt-out tag only"].
+5. "Ids differ" check removed (config.ts) [config.test `AUTH_PREVIOUS_KEY_ID must differ`].
+6. Id byte read at offset 16 [6 opt-out tests].
+7. Organizer dropped from the HKDF info (codes.ts) [codes.test two organizers, fixed format].
+8. Prior marks under `ring.current` (builder.ts `codeMarks`) [codes-routes.int rotation duplicate, both cases].
+9. `plan` ignores the mark (reseal.ts) [reseal.int the three per-organizer cases].
+10. `checkCodes` ignores the mark [reseal.int v1 mark and other-organizer mark].
+11. Lowercase-UUID guard removed (codes.ts) [codes.test the five refused ids].

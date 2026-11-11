@@ -3150,3 +3150,10 @@ souvenirs arrive after a lift (rather than never, for an event suspended for fra
 doors also carry database keys (T-105), so a retry that lands on another instance is still paid once; a route with no
 database key is not. Before running two instances, list the idempotent routes without a database key and either give
 them one or move the store to PostgreSQL or Redis.
+
+## Q-763 - How long does an old `AUTH_SECRET` stay as the previous opt-out key? (w2-crypto 4)
+
+**Status:** open; recommended: 90 days after a routine rotation, none after a leak (ADR-826).
+**Question:** after a rotation the old secret is kept only to read opt-out links already sent. 90 days covers the life
+of a promotional message in an inbox; a longer window keeps more links working, a shorter one holds an old secret less
+long. Is 90 days right, and should the removal be a calendar reminder or a check that warns when the pair is older?

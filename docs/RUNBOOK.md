@@ -78,7 +78,7 @@
 
 ## Staff sign-in
 
-Settings: `DATABASE_URL`, `AUTH_SECRET` (32+ characters), `QR_SECRET` (32+ characters, its own value), `REWARD_CODE_SECRET` (32+ characters, its own value; T-203) with optional `REWARD_CODE_KEY_ID` (1 to 255, default 1) and, only during a rotation, `REWARD_CODE_PREVIOUS_SECRET` + `REWARD_CODE_PREVIOUS_KEY_ID` (T-810f), `DASHBOARD_ORIGIN`, `GMAIL_SERVICE_ACCOUNT_KEY`, `MAIL_FROM`,
+Settings: `DATABASE_URL`, `AUTH_SECRET` (32+ characters) with optional `AUTH_KEY_ID` (1 to 255, default 1, the id its opt-out links carry) and, only during a rotation, `AUTH_PREVIOUS_SECRET` + `AUTH_PREVIOUS_KEY_ID` (w2-crypto 4), `QR_SECRET` (32+ characters, its own value), `REWARD_CODE_SECRET` (32+ characters, its own value; T-203) with optional `REWARD_CODE_KEY_ID` (1 to 255, default 1) and, only during a rotation, `REWARD_CODE_PREVIOUS_SECRET` + `REWARD_CODE_PREVIOUS_KEY_ID` (T-810f), `DASHBOARD_ORIGIN`, `GMAIL_SERVICE_ACCOUNT_KEY`, `MAIL_FROM`,
 optional `GMAIL_ACT_AS` (the mailbox to act for when `MAIL_FROM` is an alias), optional `RESEND_API_KEY` + `RESEND_FROM`, `SECURITY_ALERT_EMAIL`, `TRUST_PROXY_HOPS`. All come from the host's
 secret store, never from chat or the repository. The app refuses to start without the required ones.
 
@@ -172,10 +172,27 @@ A platform admin's sessions can be ended from the console's Admins page (T-709),
 change or remove an entry, the owner included; do not try to work around the triggers.
 
 **Rotating `AUTH_SECRET`**: kills open sign-in codes and resets the throttle windows. Sessions stay valid. It also
-loses the ban and welcome marks of erased accounts (Q-141), ends the promotional opt-out links already sent, the links
-of open owner email changes and the pairing codes on screen, and voids the App Review code (Prepare again). SECURITY.md
-"Cryptographic inventory and key policy" lists each use. Do it when someone with access leaves or the secret may have
-leaked.
+loses the ban and welcome marks of erased accounts (Q-141), ends the links of open owner email changes and the pairing
+codes on screen, and voids the App Review code (Prepare again). SECURITY.md "Cryptographic inventory and key policy"
+lists each use. Do it when someone with access leaves or the secret may have leaked. The promotional opt-out links
+already sent keep working while the old secret is held as the previous one (ADR-826, w2-crypto 4: a player tapping an
+old link must still be able to withdraw):
+
+1. In the host's secret store: `AUTH_PREVIOUS_SECRET` = the current value, `AUTH_PREVIOUS_KEY_ID` = the current
+   `AUTH_KEY_ID` (1 when unset), `AUTH_SECRET` = a new value (32+ characters, generated in the store), `AUTH_KEY_ID` =
+   the next id. The API refuses to start (naming the setting, never a value) when an id is not 1 to 255, only one of
+   the two previous settings is set, the ids are equal, the secrets are equal, or a secret is shorter than 32
+   characters. Redeploy. The previous secret derives the opt-out key only; everything else moves to the new secret.
+2. After 90 days (Q-763), remove `AUTH_PREVIOUS_SECRET` and `AUTH_PREVIOUS_KEY_ID` and redeploy: links signed under the
+   old secret then answer "This link isn't valid", and the player switches marketing off in the app. If the old secret
+   leaked, skip the 90 days and remove the pair at once (anyone holding it can only switch marketing off, but it should
+   not be held a day longer).
+
+Opt-out links sent before the key id existed (33 bytes, 44 characters) are not read at all; none was sent in production.
+The link is now 2 characters longer (46-character token). A `promo_sms` template is checked at save against the real
+link length, but templates saved before this change were checked with the old one: in the console's Message templates,
+open `promo_sms` and save it again when its text is near the 3-part limit; the save refuses one that no longer fits
+(`smsPartsLimit`).
 
 **Rotating `QR_SECRET`** (ADR-116): every quest QR ever printed, in every organizer's events, stops working at once;
 there is no grace period. Do it only when the secret may have leaked (anyone holding it can make a code for any
@@ -198,6 +215,15 @@ header and open under key 1 only, so today's secret is key 1. The API seals and 
 to start (naming the setting, never a value) when an id is not 1 to 255, only one of the two previous settings is set,
 the two ids are equal, the previous secret equals the current one, or a secret is shorter than 32 characters.
 `reward-codes.cjs` reads the same settings with the same checks.
+
+**Per-organizer marks (ADR-827, w2-crypto 3).** The mark that finds a code uploaded twice is keyed per organizer
+(HKDF from the secret's mark key with the organizer id), so one voucher uploaded by two organizers leaves two unrelated
+marks. The seal is unchanged. Rows written before this release carry the old shared mark: `check` lists them as stale
+and `reseal` re-marks them (counted as `resealed`). Until then a re-upload of such a code in the same event is not
+caught as a duplicate (the later re-seal reports that pair as a `conflict`, resolved as below). **After the first
+deploy of this release on staging (and on production if it ever held reward codes), straight away:**
+`DATABASE_ADMIN_URL=... node reward-codes.cjs reseal --by <your name>` until it exits 0, then
+`node reward-codes.cjs check` exits 0. No secret changes and no previous key is needed.
 
 **Rotating `REWARD_CODE_SECRET`** (after a leak, or by choice; one previous key at a time, ADR-725):
 
@@ -231,7 +257,7 @@ the two ids are equal, the previous secret equals the current one, or a secret i
    never deleted (ask the organizer which other copy is unused). Deleting the row without lowering `stock_total`
    would overstate the stock. A stopped run is simply run again. The audit log gets `reward.codes.reseal_start`
    before the walk and `reward.codes.reseal` with the counts and `finished` when it ends or fails.
-3. `node reward-codes.cjs check` exits 0: every row opens under the current key alone, in the new format.
+3. `node reward-codes.cjs check` exits 0: every row opens under the current key alone, in the new format, and carries its organizer's mark under it.
 4. Remove `REWARD_CODE_PREVIOUS_SECRET` and `REWARD_CODE_PREVIOUS_KEY_ID`; redeploy. Back up the new secret apart from
    the database, as before. Database backups taken before step 2 need the old secret: keep it with them until they
    expire.

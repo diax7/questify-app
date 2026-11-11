@@ -1,5 +1,23 @@
 # Blueprint State — Questify
 
+## Security audit hardening, crypto keys (no migration) — 2026-11-11
+
+- **Built (tier A; plan `docs/plans/2026-11-11-audit-hardening-crypto.md`, plan review 88 with the decisions of its
+  section 8; code review pending).** Opt-out links carry a key id (`id16 ‖ channel1 ‖ keyId1 ‖ tag16`, 34 bytes, 46
+  characters; tag over `keyId\nplayerId\nchannel`); `AUTH_KEY_ID` and, during a rotation, `AUTH_PREVIOUS_SECRET` +
+  `AUTH_PREVIOUS_KEY_ID` (the previous secret derives the opt-out key only), so a rotation no longer ends links already
+  sent (`OptOutSigner`, `optOutTagUnder`; web, shared, preview and save-time samples at 46; e2e token rebuilt). Reward
+  code marks are keyed per organizer (`markKeyFor`, HKDF v2 label); `reseal` re-marks a row whose mark is not its
+  organizer's and `check` lists it as stale. Dropped with reasons: w2-crypto 2 (row-bound AAD, accepted in SECURITY.md
+  V11), hunter-edge 9 (invitation link hash, FOLLOWUPS; SECURITY.md's random-tokens row corrected). Proposed ADR-826,
+  ADR-827, Q-763; two FOLLOWUPS lines; RUNBOOK rotation steps, the post-deploy `reward-codes.cjs reseal` then `check`
+  step and the `promo_sms` re-save note. Tests written first (45 red on the old code); 11 hand mutants each turned a
+  test red (one variant, "accept 33 bytes as well", is equivalent: the 15-byte tag never compares equal). Mutation globs:
+  `apps/api/src/auth/keys.ts`, `apps/api/src/config.ts`, `apps/api/src/marketing/opt-out.ts`,
+  `apps/api/src/rewards/codes.ts`, `apps/api/src/rewards/reseal.ts`, `apps/api/src/rewards/builder.ts`. CI minutes: not
+  yet pushed.
+- **Next:** the code review; after the deploy, on staging, `reward-codes.cjs reseal` then `check` (RUNBOOK).
+
 ## Security audit hardening, the core walls (migration 0190) — 2026-11-11
 
 - **Built (tier A; plan `docs/plans/2026-11-11-audit-hardening-core.md`, plan review 84 with the decisions of its
