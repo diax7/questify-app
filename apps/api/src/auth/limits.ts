@@ -26,13 +26,17 @@ export const AUTH_LIMITS = {
   /** Team invites: pending per organizer, sent per day before and after the first event is activated (T-101). */
   invitesPending: 20,
   invitesPerDay: { activated: 30, notActivated: 10, windowSeconds: 86_400 },
-  /** Operator invites by email per organizer per day, the team invites' numbers in their own count (ADR-823). */
-  operatorEmailInvitesPerDay: { activated: 30, notActivated: 10, windowSeconds: 86_400 },
+  /** Operator invites by email per organizer per day, activated or not, in their own count (ADR-823, Dhia). */
+  operatorEmailInvitesPerDay: { max: 500, windowSeconds: 86_400 },
   inviteValiditySeconds: 7 * 86_400,
   /** Looking at or accepting an invite link without signing in, per client address. */
   inviteChecksPerAddress: { max: 20, windowSeconds: 3600 },
-  /** Sign-up and invite email for the whole platform per day, well under the provider's quota (T-101). */
-  outboundMailPerDay: { max: 400, windowSeconds: 86_400 },
+  /**
+   * Sign-up and invite email for the whole platform per day (T-101). The provider sets no daily limit (Dhia,
+   * 2026-11-11), so this is an abuse ceiling: one organizer at its 500 operator invites, or one person's five
+   * organizers (2,500), cannot spend it alone (ADR-823).
+   */
+  outboundMailPerDay: { max: 5000, windowSeconds: 86_400 },
   /** The database caps attempts per challenge at 5 and resends at 3; these mirror those checks. */
   maxCodeAttempts: 5,
   maxResends: 3,

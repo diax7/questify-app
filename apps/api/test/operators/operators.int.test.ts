@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { joinCard } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAuthKeys } from "#src/auth/keys";
+import { AUTH_LIMITS } from "#src/auth/limits";
 import { createMyCodeKey, myCode } from "#src/quests/qr";
 import {
   browserHeaders,
@@ -20,6 +21,10 @@ type Row = Record<string, unknown>;
 const MY_KEY = createMyCodeKey("q".repeat(40));
 /** The test config's auth keys, so a test can fill an organizer's daily invite count. */
 const KEYS = createAuthKeys(testConfig().auth.secret);
+/** An organizer's daily email operator invites (`operatorEmailInvitesPerDay`) and the key they are counted under. */
+const OPERATOR_MAIL_MAX = AUTH_LIMITS.operatorEmailInvitesPerDay.max;
+const operatorMailKey = (organizerId: string) =>
+  KEYS.organizerKey(`${organizerId}\noperator_invite_mail`);
 
 /** The signed token in a claim address's fragment. */
 const tokenOf = (url: unknown) => String(url).split("#")[1] ?? "";
@@ -61,6 +66,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators over HTTP", () => {
 
   const owner = async <T extends Row>(sql: string, values: unknown[] = []) =>
     (await db.owner.query<T>(sql, values)).rows;
+
+  /** Fills an organizer's day of email operator invites up to `total`, counting the ones already sent. */
+  const seedOperatorInvites = (organizerId: string, total: number) =>
+    owner(
+      `INSERT INTO auth_throttle (bucket, key)
+       SELECT 'operator_invite_mail', $1
+       FROM generate_series(1, $2 - (SELECT count(*)::int FROM auth_throttle
+                                      WHERE bucket = 'operator_invite_mail' AND key = $1))`,
+      [operatorMailKey(organizerId), total],
+    );
 
   const newEvent = async (): Promise<string> => {
     counter += 1;
@@ -252,7 +267,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators over HTTP", () => {
       expect(list.invites).toMatchObject([{ status: "revoked", email: null }]);
     });
 
-    it("allows ten email invites a day to an organizer with no activated event, QRs unlimited (ADR-823)", async () => {
+    it("allows 500 email invites a day to an organizer with no activated event, QRs unlimited (ADR-823)", async () => {
       const [fresh] = await owner<{ id: string }>(
         "INSERT INTO organizer (name, slug) VALUES ('ops-new', 'ops-new') RETURNING id",
       );
@@ -276,26 +291,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators over HTTP", () => {
           headers: withSession(freshCookie, { "idempotency-key": randomUUID() }),
           payload,
         });
-      for (let count = 0; count < 10; count += 1) {
-        const made = await create({
-          kind: "email",
-          email: `crew${count}@ops-new.test`,
-          lang: "en",
-        });
-        expect(made.statusCode).toBe(201);
-      }
-      const refused = await create({ kind: "email", email: "crew10@ops-new.test", lang: "en" });
+      const email = (address: string) => create({ kind: "email", email: address, lang: "en" });
+      expect((await email("crew0@ops-new.test")).statusCode).toBe(201);
+      // The day's count is seeded rather than sent: 498 more, so the next invite is the 500th.
+      await seedOperatorInvites(freshId, OPERATOR_MAIL_MAX - 1);
+      expect((await email("crew1@ops-new.test")).statusCode).toBe(201);
+      const refused = await email("crew2@ops-new.test");
       expect(refused.statusCode).toBe(429);
       expect(refused.json()).toMatchObject({ code: "too_many_attempts" });
       expect(Number(refused.headers["retry-after"])).toBeGreaterThan(0);
-      expect(test.mail.to("crew10@ops-new.test")).toEqual([]);
+      expect(test.mail.to("crew2@ops-new.test")).toEqual([]);
       const invites = (
         await owner<{ n: number }>(
           "SELECT count(*)::int AS n FROM operator_invite WHERE organizer_id = $1 AND kind = 'email'",
           [freshId],
         )
       )[0]?.n;
-      expect(invites).toBe(10);
+      expect(invites).toBe(2);
 
       expect(
         (await create({ kind: "personal", label: "Gate", preset: "scanner" })).statusCode,
@@ -324,14 +336,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators over HTTP", () => {
       expect(signUp.statusCode).toBe(200);
     });
 
-    it("allows thirty email invites a day once an event is activated (ADR-823)", async () => {
-      // Up to 29, counting the email invites earlier tests sent for this organizer.
-      await owner(
-        `INSERT INTO auth_throttle (bucket, key)
-         SELECT 'operator_invite_mail', $1
-         FROM generate_series(1, 29 - (SELECT count(*)::int FROM auth_throttle WHERE bucket = 'operator_invite_mail' AND key = $1))`,
-        [KEYS.organizerKey(`${organizer}\noperator_invite_mail`)],
-      );
+    it("allows the same 500 once an event is activated (ADR-823)", async () => {
+      await seedOperatorInvites(organizer, OPERATOR_MAIL_MAX - 1);
       try {
         const [ended] = await owner<{ id: string }>(
           `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
@@ -348,12 +354,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators over HTTP", () => {
         // Refused by the database: its count is rolled back with the transaction.
         expect((await send(ended?.id ?? "", "late@ops.test")).statusCode).toBe(409);
         const event = await newEvent();
-        expect((await send(event, "thirtieth@ops.test")).statusCode).toBe(201);
-        const refused = await send(event, "thirty-first@ops.test");
+        expect((await send(event, "last@ops.test")).statusCode).toBe(201);
+        const refused = await send(event, "one-more@ops.test");
         expect(refused.statusCode).toBe(429);
         expect(refused.json()).toMatchObject({ code: "too_many_attempts" });
       } finally {
-        await owner("DELETE FROM auth_throttle WHERE bucket = 'operator_invite_mail'");
+        await owner(
+          "DELETE FROM auth_throttle WHERE bucket = 'operator_invite_mail' AND key = $1",
+          [operatorMailKey(organizer)],
+        );
       }
     });
 

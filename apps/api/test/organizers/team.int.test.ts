@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { LightMyRequestResponse } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { AUTH_LIMITS } from "#src/auth/limits";
 import {
   DASHBOARD_ORIGIN,
   PASSWORD,
@@ -377,8 +378,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the organizer team (T-101)", (
     it("answers mail_cap and keeps no invite when the day's mail budget is spent", async () => {
       const org = await newOrganizer();
       await db.owner.query(
-        "INSERT INTO auth_throttle (bucket, key) SELECT 'outbound_mail', $1 FROM generate_series(1, 400)",
-        [OUTBOUND_KEY],
+        "INSERT INTO auth_throttle (bucket, key) SELECT 'outbound_mail', $1 FROM generate_series(1, $2)",
+        [OUTBOUND_KEY, AUTH_LIMITS.outboundMailPerDay.max],
       );
       try {
         const response = await invite(org.id, org.cookie, newEmail());

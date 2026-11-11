@@ -6,6 +6,7 @@ import { createAuthKeys } from "#src/auth/keys";
 import { takeOutboundMail } from "#src/auth/outbound";
 import type * as GateModule from "#src/auth/verify-gate";
 import type * as NamingModule from "#src/organizers/naming";
+import { AUTH_LIMITS } from "#src/auth/limits";
 import { BUCKETS } from "#src/auth/throttle";
 import {
   browserHeaders,
@@ -54,6 +55,8 @@ vi.mock("#src/auth/verify-gate", async (importOriginal) => {
 const PASSWORD = "a long and new pass phrase";
 const ACCEPT = { terms: "0.1", dpa: "0.1", contentRules: "0.1" };
 const OUTBOUND_KEY = createHash("sha256").update("questify.outbound_mail").digest();
+/** The day's sign-up and invite mail budget (`outboundMailPerDay`). */
+const MAIL_MAX = AUTH_LIMITS.outboundMailPerDay.max;
 const keys = createAuthKeys(testConfig().auth.secret);
 const lockKey = (key: Buffer): string => key.readBigInt64BE(0).toString();
 
@@ -140,15 +143,15 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("T-101 rarer paths", () => {
 
   describe("the day's mail budget", () => {
     it("serves requests one at a time at its edge: exactly the remaining two get through", async () => {
-      await seedOutbound(398);
+      await seedOutbound(MAIL_MAX - 2);
       const results = await Promise.all(
         Array.from({ length: 10 }, () => takeOutboundMail(test.pool)),
       );
       expect(results.filter(Boolean)).toHaveLength(2);
     });
 
-    it("refuses at exactly 400", async () => {
-      await seedOutbound(400);
+    it("refuses at exactly the cap", async () => {
+      await seedOutbound(MAIL_MAX);
       expect(await takeOutboundMail(test.pool)).toBe(false);
       await seedOutbound(0);
     });
@@ -164,7 +167,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("T-101 rarer paths", () => {
     });
 
     it("logs the spent budget and a failed send, by name only", async () => {
-      await seedOutbound(400);
+      await seedOutbound(MAIL_MAX);
       await signUp(newEmail());
       expect(events("staff.outbound_cap")).toEqual([{ step: "sign_up" }]);
       await db.owner.query("DELETE FROM auth_throttle WHERE bucket = 'outbound_mail'");
@@ -255,7 +258,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("T-101 rarer paths", () => {
       const email = newEmail();
       const token = tokenOf(await signUp(email));
       await backdate(email);
-      await seedOutbound(400);
+      await seedOutbound(MAIL_MAX);
       const response = await signUpResend(token);
       expect(response.statusCode).toBe(503);
       expect(await resendsOf(email)).toBe(0);
@@ -404,7 +407,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("T-101 rarer paths", () => {
 
     it("logs the spent budget and a failed send under the invite step", async () => {
       const org = await newOrganizer();
-      await seedOutbound(400);
+      await seedOutbound(MAIL_MAX);
       await call("POST", `/v1/organizers/${org.id}/invites`, org.cookie, { email: newEmail() });
       expect(events("staff.outbound_cap")).toEqual([{ step: "invite" }]);
       await db.owner.query("DELETE FROM auth_throttle WHERE bucket = 'outbound_mail'");

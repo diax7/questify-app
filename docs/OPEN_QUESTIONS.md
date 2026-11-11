@@ -3122,6 +3122,7 @@ contact change from a `web` family.
 
 ## Q-759 - Should email operator invites share the team invites' daily count? (ADR-823)
 
-**Status:** open; recommended: no, their own count with the same numbers (30 a day once activated, 10 before).
-**Question:** one shared count per organizer would halve the invite mail one organizer can send (30 instead of 60), but
-an event's volunteer invites could then stop the owner inviting a co-owner for the day. Is the separate count right?
+**Status:** answered (Dhia, 2026-11-11): their own count, 500 a day whether or not an event is activated, so the
+team invites' 30 and 10 no longer apply to them; ADR-823 (2).
+**Question:** one shared count per organizer would cap the invite mail one organizer can send, but an event's volunteer
+invites could then stop the owner inviting a co-owner for the day. Is the separate count right?

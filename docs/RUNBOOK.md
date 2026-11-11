@@ -116,7 +116,7 @@ too; then change the password (dashboard, My account) or reset it.
 3. Lost the mailbox: there is no way back on the sign-in page (the mailbox is the second factor, ADR-078). Follow "Lost
    mailbox or lost number: proving who is asking" below; which way depends on the person's role.
 
-**`staff.outbound_cap` in the log** (sign-up answers 503, invites answer `mail_cap`): the day's budget of 400 sign-up and
+**`staff.outbound_cap` in the log** (sign-up answers 503, invites answer `mail_cap`): the day's budget of 5,000 sign-up and
 invite emails is spent. Sign-in and reset codes are not counted and still go out. Look for an abuse pattern (many
 sign-ups from one address range); the budget refills over 24 hours, or raise `outboundMailPerDay` in
 `apps/api/src/auth/limits.ts` if the traffic is real.
@@ -862,7 +862,7 @@ traffic is a manual query until T-018b adds the aggregate.
 
 ### QuestifySendBudgetSpent
 
-`player.budget_spent` (the hourly SMS budget or the daily player email budget, `platform_send_budget`) or `staff.outbound_cap` (the day's 400
+`player.budget_spent` (the hourly SMS budget or the daily player email budget, `platform_send_budget`) or `staff.outbound_cap` (the day's 5,000
 sign-up and invitation emails) was reached, so the next request is answered 503 until the window moves. **Check:** whether it is an
 event (many real sign-ups) or abuse (many sign-ups from one `addr`). **Do:** real demand: raise the cap with one `UPDATE`
 ("Player sign-in and SMS", "Changing the platform budget"; staff mail: `apps/api/src/auth/limits.ts` and deploy) (SMS costs money: check the Msegat balance first, `QuestifySmsFailing`); abuse: as for

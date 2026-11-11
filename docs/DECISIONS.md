@@ -9033,19 +9033,21 @@ dashboard pages keep their own nonce policy. A missing file under `/play` with a
 
 ## ADR-823 - Anonymous and per-organizer mail cannot drain the shared daily mail budget
 
-**Status:** Proposed (security audit fix, 2026-11-11).
+**Status:** Proposed (security audit fix, 2026-11-11); the numbers in (2) and (3) decided by the PM (Dhia, 2026-11-11).
 **Decision:** (1) `POST /v1/staff/auth/sign-up/resend` takes a unit of `outboundMailPerDay` only after the pending sign-up
 is found and passes every check (not expired, attempts and resends left, 60 seconds since the last send), inside the
 same transaction that holds the sign-up row and writes the new code (`takeOutboundMailIn`). A refused budget leaves the
 resend unspent (503 `email_unavailable`); a refused resend (410, 429) and an unknown token spend nothing. Before the
 token is looked up, every resend is counted per client address (`signup_resend_address`, 30 an hour: ten sign-ups with
 three resends each), 429 `too_many_attempts` past it. (2) Email operator invites are counted per organizer per day,
-with the team invites' numbers (30 a day once an event is activated, 10 before) in their own count
-(`operator_invite_mail`, its own lock key), checked before the invite row is written and in the same transaction. An
+500 whether or not an event is activated (`operatorEmailInvitesPerDay`; decided by the PM, Dhia, 2026-11-11, replacing
+the team invites' 30 and 10 first proposed here), in their own count (`operator_invite_mail`, its own lock key), checked before the invite row is written and in the same transaction. An
 invite the database refuses (404, 403, 409: its exception aborts the transaction, which rolls the count back with it) is
 not counted; a stored invite is counted even when its email cannot go out and it is revoked again (`mail_cap`,
 `email_unavailable`), as team invites are. Past it, 429 `too_many_attempts` with `Retry-After`. Personal QRs and
-batches send no email and stay uncounted.
+batches send no email and stay uncounted. (3) `outboundMailPerDay` rises from 400 to 5,000 a day (decided by the PM,
+Dhia, 2026-11-11: the email provider sets no daily limit), so one organizer at its 500, or one person with five
+organizers (2,500), cannot spend it alone. It is now an abuse ceiling, not a guard for a provider quota.
 **Why:** the budget is one key for the whole platform; anonymous resends with made-up tokens spent it before any check,
 so about 400 requests stopped every sign-up and invite email for a day, and one organizer could spend it with email
 operator invites. Taking the unit in the locked transaction (rather than on a second pooled connection while the row is
@@ -9053,6 +9055,6 @@ held, or a peek and a recheck) keeps one connection per request, gives the unit 
 the counter's advisory lock is otherwise only held by short transactions (a count and an insert) that take no other lock, and after it
 the resend does a single update of the row it already holds. Its own count for operator invites keeps an event's
 volunteer invites from using up the day the owner needs to invite a co-owner, and the reverse.
-**Trade-offs:** a separate count lets one organizer send up to 60 invite emails a day (team plus operator), not 30;
-many organizers together can still reach the shared budget: a reserved share per tenant is deferred (FOLLOWUPS). A
-venue NAT shares the 30 resends an hour.
+**Trade-offs:** one organizer may send up to 530 invite emails a day (500 operator plus 30 team); ten organizers at
+their limit together reach the shared budget: a reserved share per tenant is deferred (FOLLOWUPS). Sign-in and reset
+codes are outside the budget, so they still go out when it is spent. A venue NAT shares the 30 resends an hour.

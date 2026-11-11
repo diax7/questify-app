@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { LightMyRequestResponse } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loggerOptions } from "#src/app";
+import { AUTH_LIMITS } from "#src/auth/limits";
 import {
   BREACHED_PASSWORD,
   DASHBOARD_ORIGIN,
@@ -20,6 +21,8 @@ import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/
 const PASSWORD = "a long and new pass phrase";
 const ACCEPT = { terms: "0.1", dpa: "0.1", contentRules: "0.1" };
 const OUTBOUND_KEY = createHash("sha256").update("questify.outbound_mail").digest();
+/** The day's sign-up and invite mail budget (`outboundMailPerDay`). */
+const MAIL_MAX = AUTH_LIMITS.outboundMailPerDay.max;
 
 const tokenOf = (response: LightMyRequestResponse): string =>
   response.json<{ challengeToken: string }>().challengeToken;
@@ -285,8 +288,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer sign-up (T-101)", ()
 
     it("answers 503 and stores nothing once the day's mail budget is spent, so sign-in codes keep their room", async () => {
       await db.owner.query(
-        "INSERT INTO auth_throttle (bucket, key) SELECT 'outbound_mail', $1 FROM generate_series(1, 400)",
-        [OUTBOUND_KEY],
+        "INSERT INTO auth_throttle (bucket, key) SELECT 'outbound_mail', $1 FROM generate_series(1, $2)",
+        [OUTBOUND_KEY, MAIL_MAX],
       );
       try {
         const email = newEmail();
@@ -343,7 +346,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer sign-up (T-101)", ()
 
   describe("a resend and the day's mail budget (ADR-823)", () => {
     it("spends nothing on unknown tokens, so the last unit is still there for a team invite", async () => {
-      await fillBudgetTo(await outboundUsed(), 399);
+      await fillBudgetTo(await outboundUsed(), MAIL_MAX - 1);
       try {
         const ip = freshIp();
         const answers: number[] = [];
@@ -355,7 +358,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer sign-up (T-101)", ()
         for (let count = 0; count < 10; count += 1) {
           expect((await resend(unknownToken())).statusCode).toBe(410);
         }
-        expect(await outboundUsed()).toBe(399);
+        expect(await outboundUsed()).toBe(MAIL_MAX - 1);
 
         const ownerEmail = newEmail();
         const ownerId = await createStaff(db.owner, { email: ownerEmail });
@@ -375,7 +378,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer sign-up (T-101)", ()
           payload: { email: "teammate@budget.test" },
         });
         expect(invited.statusCode).toBe(201);
-        expect(await outboundUsed()).toBe(400);
+        expect(await outboundUsed()).toBe(MAIL_MAX);
       } finally {
         await db.owner.query("DELETE FROM auth_throttle WHERE bucket = 'outbound_mail'");
       }
@@ -389,7 +392,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer sign-up (T-101)", ()
         "UPDATE staff_signup SET last_sent_at = now() - interval '61 seconds' WHERE email = $1",
         [email],
       );
-      await fillBudgetTo(await outboundUsed(), 400);
+      await fillBudgetTo(await outboundUsed(), MAIL_MAX);
       try {
         const refused = await resend(token);
         expect(refused.statusCode).toBe(503);

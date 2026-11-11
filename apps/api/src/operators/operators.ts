@@ -254,11 +254,10 @@ async function createRows(
 }
 
 /**
- * Counts one email invite against the organizer's day, as team invites are counted (30 a day once an event is
- * activated, 10 before), in the transaction that then stores the invite. An invite the database refuses (its exception
- * aborts that transaction, which then rolls back) is not counted; a stored invite is, even when its email cannot go out
- * and it is revoked again, as team invites are. Its own count and lock, so team and operator invites never hold each
- * other up (ADR-823).
+ * Counts one email invite against the organizer's day (500, activated or not), in the transaction that then stores the
+ * invite. An invite the database refuses (its exception aborts that transaction, which then rolls back) is not counted;
+ * a stored invite is, even when its email cannot go out and it is revoked again, as team invites are. Its own count and
+ * lock, so team and operator invites never hold each other up (ADR-823).
  */
 async function admitEmailInvite(
   deps: OperatorsDeps,
@@ -269,14 +268,9 @@ async function admitEmailInvite(
   if (!(await tryLock(client, key))) {
     return { kind: "throttled", retryAfterSeconds: 1 };
   }
-  const { rows } = await client.query<{ activated: boolean }>(
-    "SELECT EXISTS (SELECT 1 FROM event WHERE organizer_id = $1 AND status <> 'draft') AS activated",
-    [organizerId],
-  );
   const limit = AUTH_LIMITS.operatorEmailInvitesPerDay;
-  const perDay = rows[0]?.activated === true ? limit.activated : limit.notActivated;
   const today = await countRecent(client, BUCKETS.operatorInviteMail, key, limit.windowSeconds);
-  if (today.count >= perDay) {
+  if (today.count >= limit.max) {
     return { kind: "throttled", retryAfterSeconds: today.retryAfterSeconds };
   }
   await record(client, BUCKETS.operatorInviteMail, key);
