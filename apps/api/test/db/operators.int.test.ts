@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { withRequestContext, type RequestContext } from "#src/db/context";
@@ -727,6 +727,120 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators (database)", () => {
       ]) {
         expect(await failure(db.outsider.query(sql))).toMatchObject({ code: "42501" });
       }
+    });
+  });
+
+  const actors = async (event: string) =>
+    (
+      await owner<{ action: string; actor_type: string }>(
+        "SELECT action, actor_type FROM audit_log WHERE event_id = $1 AND action <> 'operator.claim' ORDER BY id",
+        [event],
+      )
+    ).map((row) => `${row.action}:${row.actor_type}`);
+  const newAdmin = async () => {
+    counter += 1;
+    const [made] = await owner<{ id: string }>(
+      `INSERT INTO staff_user (email, password_hash, platform_role) VALUES ($1, 'unused', 'admin') RETURNING id`,
+      [`admin${counter}@ops.test`],
+    );
+    return made?.id ?? "";
+  };
+  const digitalReward = async (event: string) =>
+    (
+      await owner<{ id: string }>(
+        `INSERT INTO reward (event_id, kind, name_en, price, stock_total) VALUES ($1, 'digital', 'Code', 5, 0)
+         RETURNING id`,
+        [event],
+      )
+    )[0]?.id ?? "";
+  const addCodes = (seat: RequestContext, reward: string) =>
+    as(seat, "SELECT * FROM add_reward_codes($1, $2, $3)", [
+      reward,
+      [randomBytes(40)],
+      [randomBytes(32)],
+    ]);
+  const endEarly = (seat: RequestContext, event: string) =>
+    as(seat, "SELECT end_event_early($1, NULL)", [event]);
+  const outcome = (seat: RequestContext, sql: string, values: unknown[]) =>
+    as<{ outcome: string }>(seat, sql, values).then((rows) => rows[0]?.outcome);
+  const revoke = "SELECT revoke_operator_invite($1, $2, $3) AS outcome";
+  const remove = "SELECT remove_operator($1, $2, $3) AS outcome";
+
+  describe("the admin flag alone (0189)", () => {
+    it("opens none of the definers to the flag without an active admin account behind it", async () => {
+      const event = await newEvent();
+      const reward = await digitalReward(event);
+      const { assignment } = await newOperator(event);
+      const [open] = await invite(event);
+      for (const forged of [{ isAdmin: true, staffUserId: ownerB }, { isAdmin: true }]) {
+        const label = JSON.stringify(forged);
+        expect(await failure(endEarly(forged, event)), label).toMatchObject({ code: "QE403" });
+        expect(await failure(addCodes(forged, reward)), label).toMatchObject({ code: "RN404" });
+        expect(await failure(invite(event, {}, forged)), label).toMatchObject({ code: "ON404" });
+        expect(await outcome(forged, revoke, [event, open?.id, randomUUID()]), label).toBe(
+          "not_found",
+        );
+        expect(await setOperator(event, assignment, { canPlay: true }, forged), label).toBe(
+          "not_found",
+        );
+        expect(await outcome(forged, remove, [event, assignment, randomUUID()]), label).toBe(
+          "not_found",
+        );
+        expect(await as(forged, "SELECT * FROM event_operators($1)", [event]), label).toEqual([]);
+      }
+      // A staff id with no organizer and no flag: the gate's NULL is a refusal too.
+      expect(await failure(addCodes({ staffUserId: ownerB }, reward))).toMatchObject({
+        code: "RN404",
+      });
+      expect(await owner("SELECT stock_total FROM reward WHERE id = $1", [reward])).toEqual([
+        { stock_total: 0 },
+      ]);
+      expect(await owner("SELECT status FROM event WHERE id = $1", [event])).toEqual([
+        { status: "live" },
+      ]);
+    });
+
+    it("keeps an editor carrying the flag out of the owner's operator powers", async () => {
+      const event = await newEvent();
+      const { assignment } = await newOperator(event);
+      const [open] = await invite(event);
+      const flagged = { ...editorSeat(), isAdmin: true };
+      expect(await failure(invite(event, {}, flagged))).toMatchObject({ code: "OO403" });
+      expect(await outcome(flagged, revoke, [event, open?.id, randomUUID()])).toBe("not_owner");
+      expect(await setOperator(event, assignment, { canPlay: true }, flagged)).toBe("not_owner");
+      expect(await outcome(flagged, remove, [event, assignment, randomUUID()])).toBe("not_owner");
+    });
+
+    it("still lets a real admin through, audited as an admin, and audits an owner carrying the flag as staff", async () => {
+      const adminSeat = { isAdmin: true, staffUserId: await newAdmin() };
+      const ownerFlagged = { ...seatA(), isAdmin: true };
+      const byAdmin = await newEvent();
+      await addCodes(adminSeat, await digitalReward(byAdmin));
+      expect(await invite(byAdmin, {}, adminSeat)).toHaveLength(1);
+      await endEarly(adminSeat, byAdmin);
+      expect(await actors(byAdmin)).toEqual(["operator.invite:admin", "event.end:admin"]);
+
+      const byOwner = await newEvent();
+      const { assignment } = await newOperator(byOwner);
+      const [open] = await invite(byOwner, {}, ownerFlagged);
+      expect(await outcome(ownerFlagged, revoke, [byOwner, open?.id, randomUUID()])).toBe(
+        "revoked",
+      );
+      expect(await setOperator(byOwner, assignment, { canPlay: true }, ownerFlagged)).toBe(
+        "changed",
+      );
+      expect(await outcome(ownerFlagged, remove, [byOwner, assignment, randomUUID()])).toBe(
+        "removed",
+      );
+      await endEarly(ownerFlagged, byOwner);
+      expect(await actors(byOwner)).toEqual([
+        "operator.invite:staff",
+        "operator.invite:staff",
+        "operator.invite_revoke:staff",
+        "operator.update:staff",
+        "operator.remove:staff",
+        "event.end:staff",
+      ]);
     });
   });
 });

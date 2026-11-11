@@ -583,6 +583,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("device pairing (database)", ()
         await refusal(query(teamA(), "SELECT * FROM preview_device($1, $2)", [hash(), event])),
       ).toBe(`DV404:${ids.orgA}`);
     });
+
+    it("previews a code only for an operator who may pair a station or a kiosk (0189)", async () => {
+      const event = await newEvent();
+      const pending = await openRequest("station");
+      const preview = (player: string) =>
+        refusal(query(as(player), "SELECT * FROM preview_device($1, $2)", [pending.code, event]));
+      expect(await preview((await operator(event, ["hand_over"])).player)).toBe("OA403");
+      expect(await preview((await operator(event, [])).player)).toBe("OA403");
+      expect(await preview((await operator(event, ["scan_quests"])).player)).toBe("none");
+      expect(await preview((await operator(event, ["show_rotating_qr"])).player)).toBe("none");
+    });
   });
 
   // ============================================================ requests

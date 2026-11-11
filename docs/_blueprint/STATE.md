@@ -1,5 +1,18 @@
 # Blueprint State — Questify
 
+## Security audit hardening, the SQL walls (migration 0189) — 2026-11-11
+
+- **Built (tier A; plan `docs/plans/2026-11-11-audit-hardening-sql.md`, plan review 92 GO; code review pending).**
+  Migration 0189 (new, undeployed): `submitters_of` and `stamped_steps` are PL/pgSQL in the caller's event scope (their
+  two `sql-settings-allowlist.json` entries removed); `feature_request_read` adds the event scope; `add_reward_codes`,
+  `end_event_early` (now `SET search_path = public, pg_temp`), `operator_event_of` and the four operator definers take
+  the admin branch and the `admin` audit actor only from `app_admin_id()`; `operator_scan_subject` needs `scan_quests` and
+  the quest limit, `preview_device` a pairing ability (OA403). Found while building: `add_reward_codes`' gate let a staff
+  id with no organizer through (`IF NOT FOUND OR NULL`); now read as a refusal, with a test. Proposed ADR-824, Q-760;
+  the `app_is_admin()` policy sweep is in FOLLOWUPS. Tests written first, all red on 0188; 17 hand mutants (each scope
+  branch, the policy, the 7 gates, one audit CASE, each ability and limit predicate) each turned a test red.
+  Mutation globs: none (SQL only). CI minutes: not yet pushed; about 0.5M agent tokens.
+
 ## Security audit hardening batch A — 2026-11-11
 
 - **Built (tier C, no review).** Audit hardening batch A, seven items: the web forwarder refuses cookie sessions on

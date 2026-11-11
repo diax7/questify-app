@@ -395,6 +395,39 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("event feature layers over HTTP
       ]);
     });
 
+    it("lets an editor scoped to one event read only that event's requests; the owner and an admin read both (0189)", async () => {
+      const kept = await fixture.newEvent({ phase: "live" });
+      const other = await fixture.newEvent({ phase: "live" });
+      const ownerId = await staffIdOf("owner@layers.test");
+      const made = await fixture.owner<{ id: string; event_id: string }>(
+        `INSERT INTO feature_request (organizer_id, event_id, feature, requested_by)
+         SELECT $1, e, 'bigScreen', $2 FROM unnest($3::uuid[]) e RETURNING id, event_id`,
+        [fixture.ids.orgA, ownerId, [kept, other]],
+      );
+      const idOf = (event: string) => made.find((row) => row.event_id === event)?.id;
+      const scoped = await createStaff(fixture.db.owner, { email: "scoped@layers.test" });
+      await fixture.owner(
+        "INSERT INTO organizer_member (organizer_id, staff_user_id, role, event_scope) VALUES ($1, $2, 'editor', $3)",
+        [fixture.ids.orgA, scoped, [kept]],
+      );
+      const read = async (context: Parameters<typeof fixture.run>[0]) =>
+        (
+          await fixture.run<{ id: string }>(
+            context,
+            "SELECT id FROM feature_request WHERE event_id = ANY ($1) ORDER BY id",
+            [[kept, other]],
+          )
+        ).map((row) => row.id);
+      const both = made.map((row) => row.id).toSorted();
+      expect(await read({ organizerId: fixture.ids.orgA, staffUserId: scoped })).toEqual([
+        idOf(kept),
+      ]);
+      expect(await read({ organizerId: fixture.ids.orgA, staffUserId: ownerId })).toEqual(both);
+      expect(
+        await read({ isAdmin: true, staffUserId: await staffIdOf("admin@layers.test") }),
+      ).toEqual(both);
+    });
+
     it("holds an owner to 20 requests an hour", async () => {
       const event = await fixture.newEvent({ phase: "live" });
       await fixture.owner("DELETE FROM auth_throttle WHERE bucket = 'feature_request'");

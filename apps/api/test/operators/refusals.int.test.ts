@@ -462,7 +462,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operator refusals over HTTP", 
       expect(lines.join("\n")).not.toContain(myCode(MY_KEY, player.id, 1));
 
       const limited = await newOperator(event, "prize_desk");
-      expect(await scan(limited.token, quest, player.id)).toMatchObject({ reason: "ability_off" });
+      expect(await scan(limited.token, quest, player.id)).toMatchObject({
+        reason: "ability_off",
+        player: null,
+      });
       await dashboard("PUT", `/events/${event}/operators/${scanner.assignment}`, {
         abilities: ["scan_quests"],
         canPlay: false,
@@ -470,6 +473,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operator refusals over HTTP", 
       });
       expect(await scan(scanner.token, quest, player.id)).toMatchObject({
         reason: "outside_station",
+        player: null,
       });
 
       lines = [];

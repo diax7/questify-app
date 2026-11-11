@@ -506,6 +506,31 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("passport quests (database)", (
         ),
       ).toEqual([]);
     });
+
+    it("shows another event's stamps to the owner and an unscoped editor, never to an editor scoped elsewhere (0189)", async () => {
+      const kept = await newEvent();
+      const event = await newEvent();
+      const { quest, steps } = await newPassport(event);
+      const { player } = await member(event);
+      await stamp(player, steps[0] ?? "");
+      const scoped = {
+        organizerId: ids.orgA,
+        staffUserId: await addMember(db.owner, ids.orgA, "editor", [kept]),
+      };
+      const unscoped = {
+        organizerId: ids.orgA,
+        staffUserId: await addMember(db.owner, ids.orgA, "editor"),
+      };
+      const submitters = "SELECT count(*)::int AS n FROM submitters_of(ARRAY[$1]::uuid[])";
+      expect(await query(scoped, "SELECT * FROM stamped_steps($1)", [quest])).toEqual([]);
+      expect(await query(scoped, submitters, [quest])).toEqual([{ n: 0 }]);
+      for (const seat of [unscoped, team()]) {
+        expect(await query(seat, "SELECT * FROM stamped_steps($1)", [quest])).toEqual([
+          { step_id: steps[0] },
+        ]);
+        expect(await query(seat, submitters, [quest])).toEqual([{ n: 1 }]);
+      }
+    });
   });
 
   describe("rehearsal and erasure", () => {

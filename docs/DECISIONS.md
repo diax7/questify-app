@@ -9058,3 +9058,16 @@ volunteer invites from using up the day the owner needs to invite a co-owner, an
 **Trade-offs:** one organizer may send up to 530 invite emails a day (500 operator plus 30 team); ten organizers at
 their limit together reach the shared budget: a reserved share per tenant is deferred (FOLLOWUPS). Sign-in and reset
 codes are outside the budget, so they still go out when it is spent. A venue NAT shares the 30 resends an hour.
+
+## ADR-824 - Seeing needs the ability that acting needs
+
+**Status:** Proposed (security audit fix, 2026-11-11; Q-760).
+**Decision:** a read that serves one operator action answers only an operator who holds that action's ability (migration
+0189). `operator_scan_subject` (the scanned player's username, avatar and full name) needs `scan_quests` and, when the
+operator has a quest limit, the quest inside it, written as `device_paused`; so a refused `ability_off` or
+`outside_station` scan answers `player: null`. `preview_device` (a code's kind and client) needs `scan_quests` (a kiosk)
+or `show_rotating_qr` (a station), OA403 `ability_off` otherwise; the claim still checks the chosen kind's own ability.
+**Why:** both reads only joined `staff_assignment`, so an operator kept to the prize desk could learn a scanned player's
+name from scans that were refused (hunter-tenant 5), and preview a pairing they cannot make.
+**Trade-offs:** a practice or station scan refused for the ability or the quest limit loses the player chip on the
+station screen. A device an operator paired stays governed by `device_paused` (hunter-auth 5, dropped by design).

@@ -3126,3 +3126,10 @@ contact change from a `web` family.
 team invites' 30 and 10 no longer apply to them; ADR-823 (2).
 **Question:** one shared count per organizer would cap the invite mail one organizer can send, but an event's volunteer
 invites could then stop the owner inviting a co-owner for the day. Is the separate count right?
+
+## Q-760 - Should a refused operator scan still show who was scanned? (ADR-824)
+
+**Status:** open; recommended no (ADR-824, migration 0189): an operator without `scan_quests`, or scanning a quest
+outside their limit, sees no player on the refusal, and an operator with neither pairing ability gets no device preview.
+**Question:** the station screen showed the scanned player's chip on every refusal, which let an operator without the
+scan ability read names. Is a refusal with no chip right for `ability_off` and `outside_station`?

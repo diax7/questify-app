@@ -553,6 +553,45 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("name display (database)", () =
       expect(rows).toEqual([]);
     });
 
+    it("shows nothing to an operator whose scanning is off (0189)", async () => {
+      const event = await newEvent();
+      const field = await addField(event.id);
+      const { operator, quest } = await station(event.id);
+      await setNames(event.id, "both", "staff");
+      const scanned = await member(event.id, field, { name: "Sara Ahmed" });
+      const subject = () =>
+        as({ playerId: operator }, "SELECT username FROM operator_scan_subject($1, $2)", [
+          quest,
+          scanned.player,
+        ]);
+      expect(await subject()).toHaveLength(1);
+      await owner(
+        "UPDATE staff_assignment SET abilities = '{hand_over,award}' WHERE player_id = $1",
+        [operator],
+      );
+      expect(await subject()).toEqual([]);
+    });
+
+    it("shows nothing for a quest outside the operator's quest limit, and the subject within it (0189)", async () => {
+      const event = await newEvent();
+      const field = await addField(event.id);
+      const { operator, quest } = await station(event.id);
+      const { quest: other } = await station(event.id);
+      const scanned = await member(event.id, field, { name: "Sara Ahmed" });
+      const subject = (target: string) =>
+        as({ playerId: operator }, "SELECT username FROM operator_scan_subject($1, $2)", [
+          target,
+          scanned.player,
+        ]);
+      await owner(
+        `INSERT INTO staff_assignment_quest (assignment_id, event_id, quest_id)
+         SELECT id, event_id, $2 FROM staff_assignment WHERE player_id = $1`,
+        [operator, quest],
+      );
+      expect(await subject(quest)).toHaveLength(1);
+      expect(await subject(other)).toEqual([]);
+    });
+
     it("cleans the name the staff read the same way", async () => {
       const event = await newEvent();
       const field = await addField(event.id);

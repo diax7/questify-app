@@ -832,6 +832,42 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("mini-game rounds (database)", 
       ]);
     });
 
+    it("tells who played another event's quests to its owner and an unscoped editor, never to an editor scoped elsewhere (0189)", async () => {
+      const kept = await newEvent();
+      const { event, quest, a } = await setup();
+      await start(a, quest);
+      const submitted = await newQuest(event);
+      const quizzed = await newQuest(event);
+      const b = await member(event);
+      const c = await member(event);
+      await owner(
+        `INSERT INTO submission (organizer_id, event_id, enrollment_id, quest_id, kind, body, points, status,
+                                 idempotency_key)
+         VALUES ($1, $2, $3, $4, 'text', 'Hello', 10, 'pending', 'k')`,
+        [ids.orgA, event, b.enrollment, submitted],
+      );
+      await owner(
+        `INSERT INTO quiz_attempt (organizer_id, event_id, enrollment_id, quest_id, points_each, question_count)
+         VALUES ($1, $2, $3, $4, 5, 3)`,
+        [ids.orgA, event, c.enrollment, quizzed],
+      );
+      const quests = [quest, submitted, quizzed];
+      const read = async (context: RequestContext) =>
+        (
+          await query<{ enrollment_id: string }>(
+            context,
+            "SELECT enrollment_id FROM submitters_of($1) ORDER BY 1",
+            [quests],
+          )
+        ).map((row) => row.enrollment_id);
+      const everyone = [a.enrollment, b.enrollment, c.enrollment].toSorted();
+      const scoped = await addMember(db.owner, ids.orgA, "editor", [kept]);
+      const unscoped = await addMember(db.owner, ids.orgA, "editor");
+      expect(await read({ organizerId: ids.orgA, staffUserId: scoped })).toEqual([]);
+      expect(await read({ organizerId: ids.orgA, staffUserId: unscoped })).toEqual(everyone);
+      expect(await read(teamA())).toEqual(everyone);
+    });
+
     it("lists a mini-game case with its rounds, an unlikely one with its result, for the event's team", async () => {
       const { event, quest, a } = await setup({ attempts: 2 });
       const round = await start(a, quest);
