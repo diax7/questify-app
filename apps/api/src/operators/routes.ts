@@ -21,6 +21,7 @@ import {
   outsideOperatorQuests,
   ownerOnly,
   rehearsing,
+  tooManyAttempts,
   tooManyResets,
   unauthenticated,
 } from "#src/auth/http-errors";
@@ -95,9 +96,17 @@ const playBody = z.strictObject({ cardVersion: z.string().min(1).max(20) });
 const scanBody = z.strictObject({ questId: z.uuid(), code: z.string().min(1).max(200) });
 
 function answerCreate(reply: FastifyReply, result: CreateResult) {
+  if (result.kind === "created") {
+    return reply.code(201).send({ ids: result.ids });
+  }
+  return refuseCreate(reply, result);
+}
+
+function refuseCreate(
+  reply: FastifyReply,
+  result: Exclude<CreateResult, { kind: "created" }>,
+): never {
   switch (result.kind) {
-    case "created":
-      return reply.code(201).send({ ids: result.ids });
     case "not_found":
       throw notFound();
     case "not_owner":
@@ -110,6 +119,9 @@ function answerCreate(reply: FastifyReply, result: CreateResult) {
       throw mailCap();
     case "email_unavailable":
       throw emailUnavailable();
+    case "throttled":
+      reply.header("retry-after", String(result.retryAfterSeconds));
+      throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
   }
 }
 

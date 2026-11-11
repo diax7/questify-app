@@ -3119,3 +3119,9 @@ minutes, is bound to its challenge, and only creates the account the code just p
 contact change from a `web` family.
 **Question:** an XSS on the shared web origin can act as the player through the cookie, and a contact change (pathway row
 13) sends the code only to the new contact, a lasting account takeover. Is the CSP gate enough for v1?
+
+## Q-759 - Should email operator invites share the team invites' daily count? (ADR-823)
+
+**Status:** open; recommended: no, their own count with the same numbers (30 a day once activated, 10 before).
+**Question:** one shared count per organizer would halve the invite mail one organizer can send (30 instead of 60), but
+an event's volunteer invites could then stop the owner inviting a co-owner for the day. Is the separate count right?

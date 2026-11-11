@@ -3,6 +3,7 @@ import { joinCard } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createMyCodeKey, myCode } from "#src/quests/qr";
 import {
+  browserHeaders,
   createStaff,
   signInFully,
   startApp,
@@ -245,6 +246,78 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators over HTTP", () => {
         invites: Row[];
       }>();
       expect(list.invites).toMatchObject([{ status: "revoked", email: null }]);
+    });
+
+    it("allows ten email invites a day to an organizer with no activated event, QRs unlimited (ADR-823)", async () => {
+      const [fresh] = await owner<{ id: string }>(
+        "INSERT INTO organizer (name, slug) VALUES ('ops-new', 'ops-new') RETURNING id",
+      );
+      const freshId = fresh?.id ?? "";
+      const freshOwner = await createStaff(db.owner, { email: "owner@ops-new.test" });
+      await owner(
+        "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
+        [freshId, freshOwner],
+      );
+      const freshCookie = await signInFully(test, "owner@ops-new.test");
+      const [draft] = await owner<{ id: string }>(
+        `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
+         VALUES ($1, 'OPSNEW1', 'Draft Fest', 'draft', now() + interval '1 day', now() + interval '2 days')
+         RETURNING id`,
+        [freshId],
+      );
+      const create = (payload: object) =>
+        test.app.inject({
+          method: "POST",
+          url: `/v1/organizers/${freshId}/events/${draft?.id}/operators/invites`,
+          headers: withSession(freshCookie, { "idempotency-key": randomUUID() }),
+          payload,
+        });
+      for (let count = 0; count < 10; count += 1) {
+        const made = await create({
+          kind: "email",
+          email: `crew${count}@ops-new.test`,
+          lang: "en",
+        });
+        expect(made.statusCode).toBe(201);
+      }
+      const refused = await create({ kind: "email", email: "crew10@ops-new.test", lang: "en" });
+      expect(refused.statusCode).toBe(429);
+      expect(refused.json()).toMatchObject({ code: "too_many_attempts" });
+      expect(Number(refused.headers["retry-after"])).toBeGreaterThan(0);
+      expect(test.mail.to("crew10@ops-new.test")).toEqual([]);
+      const invites = (
+        await owner<{ n: number }>(
+          "SELECT count(*)::int AS n FROM operator_invite WHERE organizer_id = $1 AND kind = 'email'",
+          [freshId],
+        )
+      )[0]?.n;
+      expect(invites).toBe(10);
+
+      expect(
+        (await create({ kind: "personal", label: "Gate", preset: "scanner" })).statusCode,
+      ).toBe(201);
+      expect(
+        (await create({ kind: "batch", label: "Crew", preset: "scanner", count: 20 })).statusCode,
+      ).toBe(201);
+
+      const elsewhere = await dashboard("POST", `/events/${await newEvent()}/operators/invites`, {
+        kind: "email",
+        email: "lead@elsewhere.test",
+        lang: "en",
+      });
+      expect(elsewhere.statusCode).toBe(201);
+      const signUp = await test.app.inject({
+        method: "POST",
+        url: "/v1/staff/auth/sign-up",
+        headers: browserHeaders(),
+        payload: {
+          email: "founder@ops-new.test",
+          password: "a long and new pass phrase",
+          organizerName: "Ops New Two",
+          accept: { terms: "0.1", dpa: "0.1", contentRules: "0.1" },
+        },
+      });
+      expect(signUp.statusCode).toBe(200);
     });
 
     it("previews and claims once, and refuses forged, used and revoked codes", async () => {

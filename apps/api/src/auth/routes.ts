@@ -261,7 +261,12 @@ function registerSignUpRoutes(scope: FastifyInstance, deps: StaffRoutesDeps): vo
 
   scope.post("/auth/sign-up/resend", open, async (request, reply) => {
     const body = parse(resendBody, request.body);
-    return answerResend(reply, await deps.signUp.resend(body, callerOf(request)));
+    const result = await deps.signUp.resend(body, callerOf(request));
+    if (result.kind === "throttled") {
+      waitThen(reply, result.retryAfterSeconds);
+      throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
+    }
+    return answerResend(reply, result);
   });
 
   // A double click must not make two organizers: the Idempotency-Key replays the first answer.

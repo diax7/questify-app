@@ -420,6 +420,17 @@ function createServer(options: AppOptions): FastifyInstance {
   return app;
 }
 
+/** What the operator routes need (T-204), with the organizer throttle key for email invites (ADR-823). */
+function operatorDepsOf(options: AppOptions, keys: AuthKeys) {
+  return {
+    pool: options.pool,
+    keys,
+    inviteKey: createInviteCodeKey(options.config.qrSecret),
+    email: options.emailSender,
+    dashboardOrigin: options.config.auth.dashboardOrigin,
+  };
+}
+
 /** Builds the API server. Nothing listens until the caller starts it. */
 export function buildApp(options: AppOptions): FastifyInstance {
   const { config } = options;
@@ -464,12 +475,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   const questCodeKey = createQuestCodeKey(config.qrSecret);
   const stepCodeKey = createStepCodeKey(config.qrSecret);
   const revealCodeKey = createRevealCodeKey(config.qrSecret);
-  const operatorDeps = {
-    pool: options.pool,
-    inviteKey: createInviteCodeKey(config.qrSecret),
-    email: options.emailSender,
-    dashboardOrigin: config.auth.dashboardOrigin,
-  };
+  const operatorDeps = operatorDepsOf(options, signInDeps.keys);
   const settings = options.settings ?? createSettingsService({ pool: options.pool });
   // One per instance, shared by the quests read and the live read (T-313, ADR-263).
   const firstBonus = createFirstBonusCache();

@@ -2,8 +2,11 @@ import type { Pool, PoolClient } from "pg";
 import { isEventFull } from "#src/activation/activation";
 import { operatorInviteEmail } from "#src/auth/email/templates";
 import type { EmailSender } from "#src/auth/email/sender";
+import type { AuthKeys } from "#src/auth/keys";
+import { AUTH_LIMITS } from "#src/auth/limits";
 import { takeOutboundMail } from "#src/auth/outbound";
 import type { Caller } from "#src/auth/sign-in";
+import { BUCKETS, countRecent, record, tryLock } from "#src/auth/throttle";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import { onlyRow } from "#src/db/rows";
@@ -34,6 +37,8 @@ export type Preset = keyof typeof PRESETS;
 
 export type OperatorsDeps = Readonly<{
   pool: Pool;
+  /** The organizer's throttle key, for the daily count of email invites (ADR-823). */
+  keys: Pick<AuthKeys, "organizerKey">;
   inviteKey: InviteCodeKey;
   email: EmailSender;
   dashboardOrigin: string;
@@ -78,7 +83,8 @@ export type CreateResult =
   | Readonly<{ kind: "created"; ids: readonly string[] }>
   | Readonly<{
       kind: "not_found" | "not_owner" | "event_closed" | "full" | "email_unavailable" | "mail_cap";
-    }>;
+    }>
+  | Readonly<{ kind: "throttled"; retryAfterSeconds: number }>;
 
 export type ChangeOutcome = "changed" | "unchanged" | "not_found" | "not_owner" | "bad_quest";
 export type RemoveOutcome = "removed" | "not_found" | "not_owner";
@@ -248,9 +254,38 @@ async function createRows(
 }
 
 /**
- * Creates personal QRs (one, or a batch with a preset) or one email invite. The email goes out after the invite is
- * stored; when it cannot (the daily budget, the senders down) the invite is revoked again, so no open invite exists
- * that nobody received.
+ * Counts one email invite against the organizer's day, as team invites are counted (30 a day once an event is
+ * activated, 10 before), in the transaction that then stores the invite: an invite the database refuses rolls its count
+ * back. Its own count and lock, so team and operator invites never hold each other up (ADR-823).
+ */
+async function admitEmailInvite(
+  deps: OperatorsDeps,
+  client: PoolClient,
+  organizerId: string,
+): Promise<Readonly<{ kind: "throttled"; retryAfterSeconds: number }> | undefined> {
+  const key = deps.keys.organizerKey(`${organizerId}\noperator_invite_mail`);
+  if (!(await tryLock(client, key))) {
+    return { kind: "throttled", retryAfterSeconds: 1 };
+  }
+  const { rows } = await client.query<{ activated: boolean }>(
+    "SELECT EXISTS (SELECT 1 FROM event WHERE organizer_id = $1 AND status <> 'draft') AS activated",
+    [organizerId],
+  );
+  const limit = AUTH_LIMITS.operatorEmailInvitesPerDay;
+  const perDay = rows[0]?.activated === true ? limit.activated : limit.notActivated;
+  const today = await countRecent(client, BUCKETS.operatorInviteMail, key, limit.windowSeconds);
+  if (today.count >= perDay) {
+    return { kind: "throttled", retryAfterSeconds: today.retryAfterSeconds };
+  }
+  await record(client, BUCKETS.operatorInviteMail, key);
+  return undefined;
+}
+
+/**
+ * Creates personal QRs (one, or a batch with a preset) or one email invite. An email invite first passes the
+ * organizer's daily count; personal QRs send no email and have none. The email goes out after the invite is stored;
+ * when it cannot (the daily budget, the senders down) the invite is revoked again, so no open invite exists that nobody
+ * received.
  */
 export async function createInvites(
   deps: OperatorsDeps,
@@ -259,9 +294,16 @@ export async function createInvites(
   invite: NewInvite,
   caller: Caller,
 ): Promise<CreateResult> {
-  const created = await asOrganizer(deps, context, (client) =>
-    createRows(client, eventId, invite, caller.requestId),
-  );
+  const created = await asOrganizer(deps, context, async (client) => {
+    if (invite.kind === "email") {
+      const throttled = await admitEmailInvite(deps, client, context.organizerId);
+      if (throttled !== undefined) {
+        caller.log("operator.invite_not_sent", { reason: "throttled" });
+        return throttled;
+      }
+    }
+    return createRows(client, eventId, invite, caller.requestId);
+  });
   if (created.kind !== "created" || invite.kind !== "email") {
     return created;
   }

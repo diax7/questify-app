@@ -24,6 +24,8 @@ const OUTBOUND_KEY = createHash("sha256").update("questify.outbound_mail").diges
 const tokenOf = (response: LightMyRequestResponse): string =>
   response.json<{ challengeToken: string }>().challengeToken;
 const wrongCode = (code: string): string => (code === "000000" ? "000001" : "000000");
+/** A well-formed challenge token that no sign-up holds. */
+const unknownToken = (): string => randomUUID().replaceAll("-", "").padEnd(43, "x");
 
 describe.skipIf(TEST_DATABASE_URL === undefined)("organizer sign-up (T-101)", () => {
   let db: TestDatabase;
@@ -73,11 +75,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer sign-up (T-101)", ()
       payload: { challengeToken, code },
     });
 
-  const resend = (challengeToken: string) =>
+  const resend = (challengeToken: string, headers: Record<string, string> = {}) =>
     test.app.inject({
       method: "POST",
       url: "/v1/staff/auth/sign-up/resend",
-      headers: browserHeaders(),
+      headers: browserHeaders(headers),
       payload: { challengeToken },
     });
 
@@ -87,6 +89,22 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer sign-up (T-101)", ()
         email,
       ])
     )[0]?.n ?? -1;
+
+  const outboundUsed = async (): Promise<number> =>
+    (
+      await owner<{ n: number }>(
+        "SELECT count(*)::int AS n FROM auth_throttle WHERE bucket = 'outbound_mail'",
+      )
+    )[0]?.n ?? -1;
+  const fillBudgetTo = (used: number, target: number) =>
+    db.owner.query(
+      "INSERT INTO auth_throttle (bucket, key) SELECT 'outbound_mail', $1 FROM generate_series(1, $2)",
+      [OUTBOUND_KEY, target - used],
+    );
+  const resendsOf = async (email: string): Promise<number> =>
+    (
+      await owner<{ resends: number }>("SELECT resends FROM staff_signup WHERE email = $1", [email])
+    )[0]?.resends ?? -1;
 
   describe("a new email", () => {
     it("creates the account and its organizer after the emailed code, and signs the person in", async () => {
@@ -320,6 +338,78 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer sign-up (T-101)", ()
         expect((await enterCode(token, first)).statusCode).toBe(401);
       }
       expect((await enterCode(token, second)).statusCode).toBe(200);
+    });
+  });
+
+  describe("a resend and the day's mail budget (ADR-823)", () => {
+    it("spends nothing on unknown tokens, so the last unit is still there for a team invite", async () => {
+      await fillBudgetTo(await outboundUsed(), 399);
+      try {
+        const ip = freshIp();
+        const answers: number[] = [];
+        for (let count = 0; count < 31; count += 1) {
+          answers.push((await resend(unknownToken(), { "x-forwarded-for": ip })).statusCode);
+        }
+        expect(answers.slice(0, 30)).toEqual(Array.from({ length: 30 }, () => 410));
+        expect(answers[30]).toBe(429);
+        for (let count = 0; count < 10; count += 1) {
+          expect((await resend(unknownToken())).statusCode).toBe(410);
+        }
+        expect(await outboundUsed()).toBe(399);
+
+        const ownerEmail = newEmail();
+        const ownerId = await createStaff(db.owner, { email: ownerEmail });
+        const [org] = await owner<{ id: string }>(
+          "INSERT INTO organizer (name, slug) VALUES ('Budget Org', $1) RETURNING id",
+          [`budget-${randomUUID()}`],
+        );
+        await owner(
+          "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
+          [org?.id, ownerId],
+        );
+        const cookie = await signInFully(test, ownerEmail);
+        const invited = await test.app.inject({
+          method: "POST",
+          url: `/v1/organizers/${org?.id}/invites`,
+          headers: withSession(cookie),
+          payload: { email: "teammate@budget.test" },
+        });
+        expect(invited.statusCode).toBe(201);
+        expect(await outboundUsed()).toBe(400);
+      } finally {
+        await db.owner.query("DELETE FROM auth_throttle WHERE bucket = 'outbound_mail'");
+      }
+    });
+
+    it("takes one unit for a real resend, and a refused budget keeps the resend for later", async () => {
+      const email = newEmail();
+      const token = tokenOf(await signUp(email));
+      const first = test.mail.lastCode(email);
+      await owner(
+        "UPDATE staff_signup SET last_sent_at = now() - interval '61 seconds' WHERE email = $1",
+        [email],
+      );
+      await fillBudgetTo(await outboundUsed(), 400);
+      try {
+        const refused = await resend(token);
+        expect(refused.statusCode).toBe(503);
+        expect(refused.json()).toMatchObject({ code: "email_unavailable" });
+        expect(await resendsOf(email)).toBe(0);
+        expect(test.mail.lastCode(email)).toBe(first);
+      } finally {
+        await db.owner.query("DELETE FROM auth_throttle WHERE bucket = 'outbound_mail'");
+      }
+      expect((await resend(token)).statusCode).toBe(200);
+      expect(await resendsOf(email)).toBe(1);
+      expect(await outboundUsed()).toBe(1);
+      expect((await enterCode(token, test.mail.lastCode(email))).statusCode).toBe(200);
+    });
+
+    it("spends nothing on a resend refused for spacing", async () => {
+      const token = tokenOf(await signUp(newEmail()));
+      const before = await outboundUsed();
+      expect((await resend(token)).statusCode).toBe(429);
+      expect(await outboundUsed()).toBe(before);
     });
   });
 

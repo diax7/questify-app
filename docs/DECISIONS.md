@@ -9030,3 +9030,27 @@ is `no-store`; the hashed scripts, pictures and fonts are `immutable` for a year
 **Why:** one origin means no CORS and the forwarder's cookie (ADR-818); a static export needs no server rendering.
 **Trade-offs:** the origin also serves the dashboard, so an XSS here reaches both: the CSP above is the defence, and the
 dashboard pages keep their own nonce policy. A missing file under `/play` with an extension is a 404, not the app.
+
+## ADR-823 - Anonymous and per-organizer mail cannot drain the shared daily mail budget
+
+**Status:** Proposed (security audit fix, 2026-11-11).
+**Decision:** (1) `POST /v1/staff/auth/sign-up/resend` takes a unit of `outboundMailPerDay` only after the pending sign-up
+is found and passes every check (not expired, attempts and resends left, 60 seconds since the last send), inside the
+same transaction that holds the sign-up row and writes the new code (`takeOutboundMailIn`). A refused budget leaves the
+resend unspent (503 `email_unavailable`); a refused resend (410, 429) and an unknown token spend nothing. Before the
+token is looked up, every resend is counted per client address (`signup_resend_address`, 30 an hour: ten sign-ups with
+three resends each), 429 `too_many_attempts` past it. (2) Email operator invites are counted per organizer per day,
+with the team invites' numbers (30 a day once an event is activated, 10 before) in their own count
+(`operator_invite_mail`, its own lock key), checked before the invite row is written and in the same transaction, so an
+invite the database refuses rolls its count back; past it, 429 `too_many_attempts` with `Retry-After`. Personal QRs and
+batches send no email and stay uncounted.
+**Why:** the budget is one key for the whole platform; anonymous resends with made-up tokens spent it before any check,
+so about 400 requests stopped every sign-up and invite email for a day, and one organizer could spend it with email
+operator invites. Taking the unit in the locked transaction (rather than on a second pooled connection while the row is
+held, or a peek and a recheck) keeps one connection per request, gives the unit back by rollback, and cannot deadlock:
+the counter's advisory lock is otherwise only held by short transactions (a count and an insert) that take no other lock, and after it
+the resend does a single update of the row it already holds. Its own count for operator invites keeps an event's
+volunteer invites from using up the day the owner needs to invite a co-owner, and the reverse.
+**Trade-offs:** a separate count lets one organizer send up to 60 invite emails a day (team plus operator), not 30;
+many organizers together can still reach the shared budget: a reserved share per tenant is deferred (FOLLOWUPS). A
+venue NAT shares the 30 resends an hour.

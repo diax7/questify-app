@@ -1,5 +1,15 @@
 # Blueprint State — Questify
 
+## Security audit: the shared mail budget — 2026-11-11
+
+- **Built (tier A, review pending).** The sign-up resend takes the day's mail budget (`outboundMailPerDay`) only after
+  its pending sign-up passes every check, in the same locked transaction as the new code (`takeOutboundMailIn`), so an
+  unknown token spends nothing and a refused budget keeps the resend; it is also counted per client address (30 an
+  hour, `signup_resend_address`). Email operator invites have a per-organizer daily count (10, or 30 once an event is
+  activated; `operator_invite_mail`), 429 `too_many_attempts`; QRs are uncounted. No migration (buckets are free text).
+  ADR-823 and Q-759 Proposed; the reserved per-tenant share of the budget is in FOLLOWUPS. Mutation targets:
+  `apps/api/src/auth/sign-up.ts`, `apps/api/src/auth/outbound.ts`.
+
 ## T-803 P3, `/play` served — 2026-11-10
 
 - **Built (tier B, review pending).** The player app is served at `/play` by the web app (`pnpm --filter @questify/web

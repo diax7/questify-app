@@ -5,8 +5,8 @@ import { alreadyHaveAccountEmail, signUpCodeEmail } from "#src/auth/email/templa
 import { readInForce } from "#src/legal/in-force";
 import { generateCode, generateToken, hashToken, safeEqual } from "#src/auth/keys";
 import { AUTH_LIMITS } from "#src/auth/limits";
-import { isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
-import { takeOutboundMail } from "#src/auth/outbound";
+import { addressBucket, isPlausibleEmail, normalizeEmail } from "#src/auth/normalize";
+import { takeOutboundMail, takeOutboundMailIn } from "#src/auth/outbound";
 import { checkPasswordPolicy } from "#src/auth/password";
 import { breachCheckAndHash, type NotSet, type PasswordDeps } from "#src/auth/password-reset";
 import {
@@ -80,13 +80,16 @@ export type CreateResult =
   | AcceptanceMissing
   | Throttled;
 
+/** A sign-up resend answers as a sign-in resend does, and is also counted per client address (ADR-823). */
+export type SignUpResendResult = ResendResult | Throttled;
+
 export type SignUp = Readonly<{
   start: (input: SignUpInput, caller: Caller) => Promise<StartResult>;
   code: (
     input: { challengeToken: string; code: string },
     caller: Caller,
   ) => Promise<SignUpCodeResult>;
-  resend: (input: { challengeToken: string }, caller: Caller) => Promise<ResendResult>;
+  resend: (input: { challengeToken: string }, caller: Caller) => Promise<SignUpResendResult>;
   createOrganizer: (
     input: { name: string; accept: Acceptance },
     account: PublicAccount,
@@ -338,46 +341,90 @@ async function codeStep(
 
 type Resending =
   | Exclude<ResendResult, { kind: "resent" | "email_unavailable" }>
+  | Readonly<{ kind: "mail_cap" }>
   | Readonly<{ kind: "resending"; to: string; code: string; existing: boolean }>;
+
+/** Counts and records one resend per client address, before the token is looked up, so unknown tokens count too. */
+async function admitResend(deps: PasswordDeps, caller: Caller): Promise<Throttled | undefined> {
+  const address = deps.keys.addressKey(addressBucket(caller.address));
+  const limit = L.signupResendsPerAddress;
+  return withConnection(deps.pool, (client) =>
+    withRequestContext(client, {}, async () => {
+      if (!(await tryLock(client, address))) {
+        return { kind: "throttled", retryAfterSeconds: 1 } as const;
+      }
+      const recent = await countRecent(
+        client,
+        BUCKETS.signupResendAddress,
+        address,
+        limit.windowSeconds,
+      );
+      if (recent.count >= limit.max) {
+        return { kind: "throttled", retryAfterSeconds: recent.retryAfterSeconds } as const;
+      }
+      await record(client, BUCKETS.signupResendAddress, address);
+      return undefined;
+    }),
+  );
+}
+
+/**
+ * The locked part of a resend. The day's mail budget is taken only once the pending sign-up passed every check, and in
+ * the same transaction as the new code: a refused budget leaves the resend unspent, a refused resend leaves the budget
+ * unspent, and one pooled connection serves both (ADR-823).
+ */
+async function prepareResend(
+  deps: PasswordDeps,
+  client: PoolClient,
+  pending: PendingSignup | undefined,
+): Promise<Resending> {
+  // Stryker disable next-line ConditionalExpression,EqualityOperator: defence in depth: the bump guard and the check constraint also refuse a sixth attempt
+  if (pending === undefined || pending.expired || pending.attempts >= L.maxCodeAttempts) {
+    return { kind: "challenge_expired" };
+  }
+  // Stryker disable next-line ConditionalExpression,EqualityOperator,BlockStatement: defence in depth: replaceSignupCode also refuses a fourth resend
+  if (pending.resends >= L.maxResends) {
+    return { kind: "resend_limit" };
+  }
+  // Stryker disable next-line EqualityOperator: equivalent: fractional seconds from the database clock are never exactly 60
+  if (pending.secondsSinceSent < L.resendSpacingSeconds) {
+    return {
+      kind: "resend_too_soon",
+      retryAfterSeconds: Math.ceil(L.resendSpacingSeconds - pending.secondsSinceSent),
+    };
+  }
+  if (!(await takeOutboundMailIn(client))) {
+    return { kind: "mail_cap" };
+  }
+  const code = generateCode();
+  // Stryker disable next-line ConditionalExpression,BlockStatement,ObjectLiteral,StringLiteral: defence in depth: the resend count was checked on the locked row a moment ago
+  if (!(await replaceSignupCode(client, pending.id, deps.keys.codeHash(pending.id, code)))) {
+    return { kind: "resend_limit" };
+  }
+  return { kind: "resending", to: pending.email, code, existing: !pending.completable };
+}
 
 /** A new code (or the "already" note again), with the sign-in resend rules: 3 resends, 60 seconds apart. */
 async function resend(
   deps: PasswordDeps,
   input: { challengeToken: string },
   caller: Caller,
-): Promise<ResendResult> {
+): Promise<SignUpResendResult> {
+  const throttled = await admitResend(deps, caller);
+  if (throttled !== undefined) {
+    say(deps, caller, "staff.throttled", { step: "sign_up_resend" });
+    return throttled;
+  }
   const tokenHash = hashToken(input.challengeToken);
-  // The budget comes first, so a person never spends a resend on an email that cannot go out.
-  if (!(await takeOutboundMail(deps.pool))) {
+  const prepared = await withConnection(deps.pool, (client) =>
+    withPreIdentityContext(client, { kind: "signup", tokenHash }, async () =>
+      prepareResend(deps, client, await lockSignup(client)),
+    ),
+  );
+  if (prepared.kind === "mail_cap") {
     say(deps, caller, "staff.outbound_cap", { step: "sign_up_resend" });
     return { kind: "email_unavailable" };
   }
-  const prepared = await withConnection(deps.pool, (client) =>
-    withPreIdentityContext(client, { kind: "signup", tokenHash }, async (): Promise<Resending> => {
-      const pending = await lockSignup(client);
-      // Stryker disable next-line ConditionalExpression,EqualityOperator: defence in depth: the bump guard and the check constraint also refuse a sixth attempt
-      if (pending === undefined || pending.expired || pending.attempts >= L.maxCodeAttempts) {
-        return { kind: "challenge_expired" };
-      }
-      // Stryker disable next-line ConditionalExpression,EqualityOperator,BlockStatement: defence in depth: replaceSignupCode also refuses a fourth resend
-      if (pending.resends >= L.maxResends) {
-        return { kind: "resend_limit" };
-      }
-      // Stryker disable next-line EqualityOperator: equivalent: fractional seconds from the database clock are never exactly 60
-      if (pending.secondsSinceSent < L.resendSpacingSeconds) {
-        return {
-          kind: "resend_too_soon",
-          retryAfterSeconds: Math.ceil(L.resendSpacingSeconds - pending.secondsSinceSent),
-        };
-      }
-      const code = generateCode();
-      // Stryker disable next-line ConditionalExpression,BlockStatement,ObjectLiteral,StringLiteral: defence in depth: the resend count was checked on the locked row a moment ago
-      if (!(await replaceSignupCode(client, pending.id, deps.keys.codeHash(pending.id, code)))) {
-        return { kind: "resend_limit" };
-      }
-      return { kind: "resending", to: pending.email, code, existing: !pending.completable };
-    }),
-  );
   if (prepared.kind !== "resending") {
     return prepared;
   }

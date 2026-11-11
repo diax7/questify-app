@@ -16,11 +16,18 @@ export const AUTH_LIMITS = {
   /** Organizer sign-ups started per email and per client address (T-101). */
   signupsPerEmail: { max: 3, windowSeconds: 3600 },
   signupsPerAddress: { max: 10, windowSeconds: 3600 },
+  /**
+   * Sign-up resends asked for per client address, counted before the token is looked up (ADR-823): ten sign-ups an hour
+   * with three resends each, so a guessed or stale token cannot be replayed without end.
+   */
+  signupResendsPerAddress: { max: 30, windowSeconds: 3600 },
   /** Organizers one signed-in person may create in a day. */
   organizersPerUser: { max: 5, windowSeconds: 86_400 },
   /** Team invites: pending per organizer, sent per day before and after the first event is activated (T-101). */
   invitesPending: 20,
   invitesPerDay: { activated: 30, notActivated: 10, windowSeconds: 86_400 },
+  /** Operator invites by email per organizer per day, the team invites' numbers in their own count (ADR-823). */
+  operatorEmailInvitesPerDay: { activated: 30, notActivated: 10, windowSeconds: 86_400 },
   inviteValiditySeconds: 7 * 86_400,
   /** Looking at or accepting an invite link without signing in, per client address. */
   inviteChecksPerAddress: { max: 20, windowSeconds: 3600 },
