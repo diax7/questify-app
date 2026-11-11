@@ -109,3 +109,29 @@ the organizer half in one place.
 API.md (suspension answers), SECURITY.md (suspension rows), DECISIONS and OPEN_QUESTIONS (3.3 ADR, idempotency store
 question), FOLLOWUPS (device predicate in `ranking_system()`, replay-order sweep, Ramadan list option), server.ts:121 comment,
 STATE.md.
+
+## 8. Plan review (CTO, 84) and decisions
+
+The coordinator's decisions on the review; where they differ from sections 1 to 7, they win.
+
+1. **Meet-pass.** `passId: "meet_pass"` joins `DERIVED_PARAMS`; 0190's `play_event_id` gains a `meet_pass` branch (whole
+   number, as `game_round`), with a test.
+2. **Open while suspended, by route.** guard.ts gets `OPEN_WHILE_SUSPENDED`: `POST /v1/desk-sales/:saleId/decline`,
+   `POST /v1/operator/desk/sales/:saleId/withdraw`, and the redemption cancel and decline routes (player and operator).
+   The inventory walk asserts every player route with a derived param is either walled or in this set. The section 4
+   test calls `POST /v1/game-rounds/:roundId/result` instead of the desk-sale decline (it covers the whole-number path).
+3. **`:redemptionId`.** A new `redemption` kind in `DERIVED_PARAMS` and `play_event_id`; accept, collect and hand-over
+   are walled; cancel and decline are in `OPEN_WHILE_SUSPENDED`.
+4. **Held souvenir work.** `souvenir_health` (0064:530) leaves held rows (suspended event or paused organizer) out of
+   `due`, `failed` and `oldestAt` and reports them as `held`; `console_health`'s `sv_wait` (0162, the admin health view)
+   leaves them out too and the view reports `held`; tick.ts logs `souvenir.pending` only for work that is not held, so a
+   suspension does not log every 5 s (RUNBOOK). Tests for each.
+5. **Evaluate's check is unlocked.** The `event_suspended` check in `souvenir_evaluate` sits in the unlocked pre-check,
+   before `FOR SHARE` (0064:490). The ADR states that a suspension committed while an evaluation runs can still grant (the
+   same lag as the other unlocked reads), and that a row acked with ES423 may wait up to the 300 s back-off after
+   reactivation.
+6. **Organizer paused.** Scan, claim and evaluate each get an organizer-paused case, so the organizer-half mutant dies in
+   all three.
+7. **App.** `apps/app/src/event/quest-rating.ts` `sendRating` maps a 404 to `none`, not `network`, with its unit test.
+8. **One lookup per request.** `play_event_id` is memoized per request when both the maintenance gate and the guard ask;
+   the `eventId` param is lowercased before `suspended.has`.
