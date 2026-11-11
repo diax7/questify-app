@@ -830,7 +830,8 @@ is not 1 to 40 of `[A-Za-z0-9 ._()+-]` is dropped, and a label failure never fai
 - `GET /v1/staff/sessions` gains `freshUntil` (this session's, or null).
 - `DELETE /v1/staff/sessions/{id}`: this session signs out (no code); another needs a fresh session, else 403
   `reauth_required`; 404 when it is not the caller's live session.
-- `POST /v1/staff/sessions/end-others` -> `{ended}`; 403 `reauth_required`.
+- `POST /v1/staff/sessions/end-others` -> `{ended}`; 403 `reauth_required`. `ended` also counts idle-lapsed sessions that
+  the list no longer shows, so it can exceed the rows shown; the console words the result without a count.
 - `POST /v1/staff/reauth/code` `{}` -> 202 `{challengeToken, expiresInSeconds: 600}`: emailed to the account's own
   address; at most 3 resends 60 seconds apart and the hourly sign-in code cap; 429, 503 `email_unavailable`.
 - `POST /v1/staff/reauth/verify` `{challengeToken, code}` -> `{freshUntil}`; 410 `challenge_expired` (also a code asked

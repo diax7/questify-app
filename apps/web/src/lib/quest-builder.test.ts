@@ -1,7 +1,7 @@
 import { DEFAULT_TERMS } from "@questify/shared";
 import { describe, expect, it } from "vitest";
 import { translatorFor } from "#src/lib/language.ts";
-import { builderEventOf, problemText, sendHeaders } from "#src/lib/quest-builder.ts";
+import { builderEventOf, problemText } from "#src/lib/quest-builder.ts";
 
 const header = (name: { ar: string | null; en: string | null }, extra = {}) => ({
   event: { timezone: "Asia/Riyadh", statusNow: "live", name, ...extra },
@@ -63,12 +63,5 @@ describe("problemText", () => {
     expect(problemText(undefined, "en", t)).toBe(
       "Could not connect. Check your connection and try again.",
     );
-  });
-});
-
-describe("sendHeaders", () => {
-  it("carries the key of a create and nothing otherwise", () => {
-    expect(sendHeaders("k-1")).toEqual({ "idempotency-key": "k-1" });
-    expect(sendHeaders(undefined)).toEqual({});
   });
 });

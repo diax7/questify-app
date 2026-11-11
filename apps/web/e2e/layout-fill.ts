@@ -145,6 +145,16 @@ export async function startAndFill(page: Page, ids: Event): Promise<LayoutIds> {
     eventId,
     usernames: ["help_" + tag],
   })) as { token: string };
+  // The console player page waits for its "no points yet" line (layout.ts, `console-player`): the run's player must
+  // hold none, so a seed that ever grants this player points fails here and not as a missing marker.
+  const activity = await page.request.get(`${API}/v1/events/${eventId}/activity`, {
+    headers: { authorization: `Bearer ${player.token}` },
+  });
+  expect(activity.status(), await activity.text()).toBe(200);
+  expect(
+    ((await activity.json()) as { entries: unknown[] }).entries,
+    "the run's help_* player holds no points (the console-player marker is the empty ledger line)",
+  ).toEqual([]);
   const asked = await page.request.post(`${API}/v1/events/${eventId}/tickets`, {
     headers: { authorization: `Bearer ${player.token}`, "idempotency-key": crypto.randomUUID() },
     data: { kind: "question", text: "Where do I pick up my prize?" },
