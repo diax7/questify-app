@@ -1,12 +1,14 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { joinCard } from "@questify/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createAuthKeys } from "#src/auth/keys";
 import { createMyCodeKey, myCode } from "#src/quests/qr";
 import {
   browserHeaders,
   createStaff,
   signInFully,
   startApp,
+  testConfig,
   withSession,
   type TestApp,
 } from "#test/support/auth-app";
@@ -16,6 +18,8 @@ type Row = Record<string, unknown>;
 
 /** The test config's QR secret (test/support/auth-app.ts), so a test can show a real My QR. */
 const MY_KEY = createMyCodeKey("q".repeat(40));
+/** The test config's auth keys, so a test can fill an organizer's daily invite count. */
+const KEYS = createAuthKeys(testConfig().auth.secret);
 
 /** The signed token in a claim address's fragment. */
 const tokenOf = (url: unknown) => String(url).split("#")[1] ?? "";
@@ -318,6 +322,39 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators over HTTP", () => {
         },
       });
       expect(signUp.statusCode).toBe(200);
+    });
+
+    it("allows thirty email invites a day once an event is activated (ADR-823)", async () => {
+      // Up to 29, counting the email invites earlier tests sent for this organizer.
+      await owner(
+        `INSERT INTO auth_throttle (bucket, key)
+         SELECT 'operator_invite_mail', $1
+         FROM generate_series(1, 29 - (SELECT count(*)::int FROM auth_throttle WHERE bucket = 'operator_invite_mail' AND key = $1))`,
+        [KEYS.organizerKey(`${organizer}\noperator_invite_mail`)],
+      );
+      try {
+        const [ended] = await owner<{ id: string }>(
+          `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
+           VALUES ($1, 'OPSEND1', 'Old Fest', 'live', now() - interval '3 days', now() - interval '2 days')
+           RETURNING id`,
+          [organizer],
+        );
+        const send = (event: string, email: string) =>
+          dashboard("POST", `/events/${event}/operators/invites`, {
+            kind: "email",
+            email,
+            lang: "en",
+          });
+        // Refused by the database: its count is rolled back with the transaction.
+        expect((await send(ended?.id ?? "", "late@ops.test")).statusCode).toBe(409);
+        const event = await newEvent();
+        expect((await send(event, "thirtieth@ops.test")).statusCode).toBe(201);
+        const refused = await send(event, "thirty-first@ops.test");
+        expect(refused.statusCode).toBe(429);
+        expect(refused.json()).toMatchObject({ code: "too_many_attempts" });
+      } finally {
+        await owner("DELETE FROM auth_throttle WHERE bucket = 'operator_invite_mail'");
+      }
     });
 
     it("previews and claims once, and refuses forged, used and revoked codes", async () => {

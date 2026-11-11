@@ -9041,8 +9041,10 @@ resend unspent (503 `email_unavailable`); a refused resend (410, 429) and an unk
 token is looked up, every resend is counted per client address (`signup_resend_address`, 30 an hour: ten sign-ups with
 three resends each), 429 `too_many_attempts` past it. (2) Email operator invites are counted per organizer per day,
 with the team invites' numbers (30 a day once an event is activated, 10 before) in their own count
-(`operator_invite_mail`, its own lock key), checked before the invite row is written and in the same transaction, so an
-invite the database refuses rolls its count back; past it, 429 `too_many_attempts` with `Retry-After`. Personal QRs and
+(`operator_invite_mail`, its own lock key), checked before the invite row is written and in the same transaction. An
+invite the database refuses (404, 403, 409: its exception aborts the transaction, which rolls the count back with it) is
+not counted; a stored invite is counted even when its email cannot go out and it is revoked again (`mail_cap`,
+`email_unavailable`), as team invites are. Past it, 429 `too_many_attempts` with `Retry-After`. Personal QRs and
 batches send no email and stay uncounted.
 **Why:** the budget is one key for the whole platform; anonymous resends with made-up tokens spent it before any check,
 so about 400 requests stopped every sign-up and invite email for a day, and one organizer could spend it with email

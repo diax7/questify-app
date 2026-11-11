@@ -255,8 +255,10 @@ async function createRows(
 
 /**
  * Counts one email invite against the organizer's day, as team invites are counted (30 a day once an event is
- * activated, 10 before), in the transaction that then stores the invite: an invite the database refuses rolls its count
- * back. Its own count and lock, so team and operator invites never hold each other up (ADR-823).
+ * activated, 10 before), in the transaction that then stores the invite. An invite the database refuses (its exception
+ * aborts that transaction, which then rolls back) is not counted; a stored invite is, even when its email cannot go out
+ * and it is revoked again, as team invites are. Its own count and lock, so team and operator invites never hold each
+ * other up (ADR-823).
  */
 async function admitEmailInvite(
   deps: OperatorsDeps,
