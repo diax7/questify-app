@@ -45,12 +45,12 @@ export const LEVELS: {
     medium: { size: 3, walk: 60, timeLimitSeconds: 180 },
     hard: { size: 4, walk: 120, timeLimitSeconds: 300 },
   },
-  // ADR-218, Q-182: starting tuning. The unlikely counts come from the calibration tests (catch/v1.calibration.test.ts,
-  // tap-rush/v1.calibration.test.ts): honest play flagged in under 1% of rounds, and the naive seed reader (catch: onto
-  // each item the tick it spawns; tap rush: a hit within the quick window) in over 90%. A careful seed reader that waits past
-  // the quick or foresight windows (catch moves from spawn + 4 ticks, tap rush hits at 210 ms, memory matches a seen
-  // card) is never flagged: the flag is advisory, the round is paid, and ADR-212 accepts that the seed reaches the
-  // phone and caps the gain at one quest's points once.
+  // ADR-218, Q-182: starting tuning. The unlikely counts come from the calibration tests
+  // (catch/v1.calibration.test.ts, tap-rush/v1.calibration.test.ts): honest play flagged in under 1% of rounds, and
+  // the naive seed reader (catch: onto each item the tick it spawns; tap rush: a hit within the quick window) in over
+  // 90%. A careful seed reader that waits past the quick or foresight windows (catch moves from spawn + 4 ticks, tap
+  // rush hits at 210 ms, memory matches a seen card) is never flagged: the flag is advisory, the round is paid, and
+  // ADR-212 accepts that the seed reaches the phone and caps the gain at one quest's points once.
   catch: {
     easy: {
       timeLimitSeconds: 45,

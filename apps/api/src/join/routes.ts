@@ -226,6 +226,8 @@ function registerBrowseRoutes(app: FastifyInstance, deps: BrowseDeps): void {
       [{ limit: PUBLIC_LIST_LIMIT, key: deps.keys.addressKey(addressBucket(request.ip)) }],
       true,
       reply,
+      false,
+      true,
     );
     const events = await listPublicEvents(deps, after, limit);
     const last = events.at(-1);

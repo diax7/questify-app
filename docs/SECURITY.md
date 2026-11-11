@@ -485,12 +485,17 @@ T-501d); every helper and trigger function is granted to nobody (outsider suite,
 
 - `GET /v1/public/events` takes one attempt per address bucket (`public_list`, 240 a minute; a venue's phones share one
   address) after the query is parsed, so a bad request costs nothing; past it the answer is 429 `too_many_attempts` with
-  `Retry-After`. The join-code lookups keep their own wrong-code budget.
+  `Retry-After`. A busy address lock does not refuse (`holdBack`'s `letBusyThrough`): phones opening Explore at the same
+  moment still get the list, and only a real count over the budget does not. The join-code lookups keep their own
+  wrong-code budget.
 - `GET …/events/{eventId}/join/guests?contact=` confirms a full phone or email against the masked list, so each probe is
   counted per team member (`guest_contact_probe`, 30 an hour across events); the plain list is not counted. Past it 429
-  `too_many_attempts`. A masked four-digit ending cannot be swept (10^4 probes) inside the limit.
-- `loggableError` turns a Postgres data exception (class 22, such as `22P02 invalid input syntax for type uuid: "<value>"`)
-  into its code alone, in the message and in the stack, because those messages echo the offending value
+  `too_many_attempts`. A masked four-digit ending cannot be swept (10^4 probes) inside the limit. Known limits: the probe takes a
+  non-waiting lock, so a double submit can get a busy 429; and the budget is per member, so several accounts on one team
+  multiply it.
+- `loggableError` keeps the text of a Postgres data exception (class 22, such as `22001 value too long for type
+  character varying(10)`) but masks every quoted span (`"…"`) in the message and in the stack, because
+  `22P02 invalid input syntax for type uuid: "<value>"` and its kind echo the offending value in quotes
   (`apps/api/src/conventions.test.ts`). Rule 3 therefore holds for a route that ever passes an unchecked value to a typed
   parameter.
 - A real player's stamp of a review-demo step is refused (`QC404`, no enrollment) and the guard

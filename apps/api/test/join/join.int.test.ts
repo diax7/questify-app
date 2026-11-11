@@ -164,6 +164,14 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("joining an event", () => {
       );
     });
 
+    it("serves phones behind one address who open the list at the same moment", async () => {
+      const door = freshIp();
+      const answers = await Promise.all(
+        Array.from({ length: 20 }, () => get("/v1/public/events?limit=1", door)),
+      );
+      expect(answers.map((answer) => answer.statusCode)).toEqual(Array(20).fill(200));
+    });
+
     it("refuses an address past its budget of list reads, and no other address", async () => {
       const door = freshIp();
       for (let i = 0; i < 240; i += 1) {

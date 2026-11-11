@@ -35,7 +35,10 @@ export const DEVICE_LIMITS = {
   missesPlatformAlert: { bucket: BUCKETS.deviceMissPlatform, max: 200, windowSeconds: 3600 },
 } as const satisfies Readonly<Record<string, DeviceLimit>>;
 
-/** Locks the first key: waits for it when `queue`, else says no at once if it is held. No key, nothing to lock. */
+/**
+ * Locks the first key: waits for it when `queue`, else says no at once if it is held. No key, nothing to lock. A
+ * `false` answer means the key was busy and the caller decides what that means.
+ */
 async function lockFirst(
   client: PoolClient,
   first: Readonly<{ key: Buffer }> | undefined,
@@ -54,9 +57,13 @@ async function lockFirst(
 /**
  * Holds one attempt against each limit in its own short transaction, under a non-waiting lock on the first key, and
  * records it in each when `keep`. The wait goes on `reply` as Retry-After. `queue` waits for the lock instead, for a
- * signed-in caller whose calls at the same moment are not an attack (the console's reads).
+ * signed-in caller whose calls at the same moment are not an attack (the console's reads). `letBusyThrough` is for a
+ * read-only route many callers share one key for (phones behind a venue's NAT): a busy key does not refuse, the count
+ * and the record go on without the lock (an insert, so a rare overshoot of a few at most), and only a limit really
+ * reached refuses.
  *
- * @throws HttpError `too_many_attempts` (with the seconds to wait) when a limit is reached or the key is busy.
+ * @throws HttpError `too_many_attempts` (with the seconds to wait) when a limit is reached, or the key is busy and
+ * `letBusyThrough` is off.
  */
 export async function holdBack(
   pool: Pool,
@@ -64,10 +71,11 @@ export async function holdBack(
   keep: boolean,
   reply?: Readonly<{ header: (name: string, value: string) => unknown }>,
   queue = false,
+  letBusyThrough = false,
 ): Promise<void> {
   const wait = await withConnection(pool, (client) =>
     withRequestContext(client, {}, async () => {
-      if (!(await lockFirst(client, limits[0], queue))) {
+      if (!(await lockFirst(client, limits[0], queue)) && !letBusyThrough) {
         return 1;
       }
       for (const { limit, key } of limits) {

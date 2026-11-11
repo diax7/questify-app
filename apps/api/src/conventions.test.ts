@@ -500,6 +500,22 @@ describe("the error log", () => {
     expect(kept).toMatchObject({ message: "duplicate key value violates unique constraint" });
   });
 
+  it("keeps the text of a data exception that echoes nothing, such as 22001", () => {
+    const error = Object.assign(new Error("value too long for type character varying(10)"), {
+      code: "22001",
+    });
+    const kept = loggableError(error);
+    expect(kept["message"]).toBe("value too long for type character varying(10)");
+    expect(String(kept["stack"])).toContain("value too long for type character varying(10)");
+    const quoted = loggableError(
+      Object.assign(new Error(`invalid input value for enum kind: 'secret' and "other"`), {
+        code: "22P02",
+      }),
+    );
+    expect(quoted["message"]).toBe('invalid input value for enum kind: "…" and "…"');
+    expect(JSON.stringify(quoted)).not.toContain("secret");
+  });
+
   it("logs an unexpected error without the player's input", async () => {
     const lines: string[] = [];
     const logged = Fastify({

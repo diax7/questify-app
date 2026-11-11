@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { DEVICE_LIMITS, holdBack } from "#src/devices/limits";
 
 /** A pool whose advisory lock answers `locked` and whose throttle windows hold no attempt; every SQL is kept. */
-function fakePool(locked: boolean) {
+function fakePool(locked: boolean, count = 0) {
   const asked: string[] = [];
   const client = {
     query: async (sql: string) => {
@@ -12,7 +12,7 @@ function fakePool(locked: boolean) {
         return { rows: [{ locked }] };
       }
       if (sql.includes("FROM auth_throttle")) {
-        return { rows: [{ count: 0, retry_after: null }] };
+        return { rows: [{ count, retry_after: null }] };
       }
       return { rows: [] };
     },
@@ -44,6 +44,19 @@ describe("holdBack", () => {
     const { pool, asked } = fakePool(true);
     await expect(holdBack(pool, [limit], true)).resolves.toBeUndefined();
     expect(asked.filter((sql) => sql.includes("INSERT INTO auth_throttle"))).toHaveLength(1);
+  });
+
+  it("lets a busy key through when asked, still counting and recording the attempt", async () => {
+    const { pool, asked } = fakePool(false);
+    await expect(holdBack(pool, [limit], true, undefined, false, true)).resolves.toBeUndefined();
+    expect(asked.filter((sql) => sql.includes("INSERT INTO auth_throttle"))).toHaveLength(1);
+  });
+
+  it("refuses a busy key that is also over its limit when it lets busy keys through", async () => {
+    const { pool } = fakePool(false, DEVICE_LIMITS.claimsPerActor.max);
+    await expect(holdBack(pool, [limit], true, undefined, false, true)).rejects.toMatchObject({
+      status: 429,
+    });
   });
 
   it("holds nothing and takes no lock without a limit", async () => {
