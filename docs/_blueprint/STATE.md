@@ -1,5 +1,20 @@
 # Blueprint State — Questify
 
+## Security audit hardening, the admin re-check sweep (migration 0191) — 2026-11-11
+
+- **Built (tier A; plan `docs/plans/2026-11-11-admin-recheck-sweep.md`, plan review 84 with the decisions of its
+  section 8, results in its section 9; code review pending).** Migration 0191 (new, undeployed): the request's admin
+  flag alone opens no policy and no gate. All 53 admin policies ask `(SELECT app_admin_id()) IS NOT NULL` (an InitPlan,
+  once a query; a SQL check inside the migration raises unless each policy is its old text with only that change);
+  `app_admin_id()`, `results_frozen` and `ranking_system()` are PL/pgSQL (three allowlist entries gone); the four guards
+  ask `app_admin_id()`; `ranking_system()` refuses a device seat; `preview_device` reads the assignment once;
+  `play_event_id`'s `found` is `owner_event`. Only `ranking_system`, `souvenir_event` and `invitation_team_event` (the
+  refusals) read the bare flag, held by `test/db/admin-recheck-catalog.int.test.ts`; the forged flag is probed on every
+  owned table (cross-tenant). Locks: 37 tables up front, `lock_timeout` 1 s; owner must stay superuser or BYPASSRLS
+  (checked; RUNBOOK). rules.md line, SECURITY.md rows, four FOLLOWUPS items struck. Tests first (red on 0190). No ADR.
+  Mutation globs: none (SQL only). CI minutes: not yet pushed.
+- **Next:** the code review; deploy 0191 in a quiet window, then `migrate.cjs --verify`.
+
 ## Security audit hardening, crypto keys (no migration) — 2026-11-11
 
 - **Built (tier A; plan `docs/plans/2026-11-11-audit-hardening-crypto.md`, plan review 88 with the decisions of its

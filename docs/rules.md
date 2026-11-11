@@ -59,6 +59,11 @@ use absolute package paths.
 Database and routes (foundation review, 2026-10-19):
 - Every query states its own filter; row-level security is the second wall. Leaving the choice to a policy is allowed only
   for retention sweeps, with a comment saying why.
+- The admin is the account, never the flag: a policy asks `(SELECT app_admin_id()) IS NOT NULL` (an InitPlan, run once
+  a query), never `app_is_admin()` or a bare `app_admin_id()` (once a row); a trigger or definer gate asks
+  `app_admin_id()` in an `IF`. Only the three refusals (`ranking_system`, `souvenir_event`, `invitation_team_event`)
+  read the bare flag. A system gate (`ranking_system()`) also refuses a device seat. Held by
+  `test/db/admin-recheck-catalog.int.test.ts` (migration 0191).
 - A column that holds money, standing or power (points, balances, statuses, roles) gets a column grant or a guard
   trigger in the same migration that creates it, with a test from the API role's seat.
 - Every route declares `config.access`. A public route never takes idempotency keys.

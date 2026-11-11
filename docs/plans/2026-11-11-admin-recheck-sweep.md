@@ -131,3 +131,46 @@ The coordinator's decisions on the review; where they differ from sections 1 to 
 8. **Fixtures.** Section 4's "console-* green with no edits" is wrong: about 50 flag-only sites in about 35 files (e.g. isolation.int.test.ts:110-111, cross-tenant.int.test.ts:2756, console-items:137, console-players:145). In step 2 list each file with a verdict (refusal stays, or needs a real admin); every changed one keeps the old flag-only line as a "now refused" assertion. Never weaken an assertion.
 9. **Owner privilege.** Header wording: `staff_user_own` is `TO questify_app`, so no recursion; the superuser need is not new. Add a DO block (as 0053, RUNBOOK:1329) that raises when the migration owner is neither superuser nor BYPASSRLS.
 10. Cross-tenant lines are :2632 (`describe.each`), :2644, :2653, :2665. `audit_insert` keeps the pure substitution. `player_status_guard`'s mutant is caught by catalog (c) only.
+
+## 9. Build results (2026-11-11)
+
+**Catalog on 0190 (the arbiter of section 1).** The new catalog test, run on 0190, listed exactly the 42 flag policies and the 11 per-row `app_admin_id()` policies of section 1, and the functions `enrollment_status_guard`, `event_spend_rank_guard`, `player_status_guard`, `rank_prize_guard`, `results_frozen` beside the allowed set. Section 1's table holds.
+
+**Red first.** On 0190: 27 tests red in the six touched files plus the hot-path allowlist test, and 91 red in cross-tenant (the forged-flag pass on every owned table). All green on 0191.
+
+**Fixture verdicts (8.8).** 51 flag-only sites (`isAdmin: true` with no `staffUserId`) in 37 test files before the change. 79 files that set the flag or use the invitation/daily fixtures were run on 0191:
+- Needed a real admin (changed; each keeps the flag-only line as a "now refused" assertion): `audit/audit` (shows an admin everything), `db/isolation` (:110-111), `db/sign-in` (an admin sees every session), `settings/config` (an admin reads every entitlement), `db/core-columns` (:142 unban, :208 contact read), `security/cross-tenant` (:2756 detector: a real admin reaches B's row; the flag alone reaches none).
+- Refusal stays (green, untouched): `activation`, `console-catalog-xp`, `console-catalog`, `console-home-layout`, `console-items`, `console-player-intro`, `console-players`, `console-xp-table`, `content-reports`, `daily-content`, `feature-layers-points`, `feature-layers`, `feature-usage`, `legal-help`, `location`, `name-allow-console`, `operators` (2), `organizer-alerts` (2), `owner-email-change`, `platform-health`, `player-blocks`, `player-safety`, `ranking` (:297, flag-only refused), `report-urgency`, `review-demo`, `souvenirs` (3), `support-grant`, `tickets-center` (2), `usage`, `players/items`, `translations`, the grant refusals of `core-columns` (:71, :152, :172, :187) and `config` (:491, :507). These expect a refusal by grant, by a definer's own `app_admin_id()` check or by a refusal gate, which the flag never opened.
+
+**Hand mutants (section 5 and 8).** Each run by editing 0191, then reverted. For the policy mutants the migration's own equivalence check was switched off, so the tests themselves are judged; with it on, the migration refuses to apply (row "checked").
+
+| Mutant | Red |
+|---|---|
+| `ledger_entry_read` back to bare `app_is_admin()` | catalog (a), (b), both call counts; cross-tenant ledger_entry forged-flag probes (organizer, player) |
+| the same, equivalence check left on | the migration raises "changed more than the admin check, or missed one: ledger_entry.ledger_entry_read" |
+| `enrollment_update` back to bare `app_is_admin()` | catalog (a), (b). core-columns stays green: its flag-only UPDATE reads columns, so `enrollment_read` (re-checked) hides the row first |
+| `ledger_entry_read` without the `SELECT` wrapper | catalog (b), both call counts (21 calls, not 1) |
+| `enrollment_status_guard` reads the flag | core-columns: a flagged player lifts their own ban; the flag-only unban |
+| `event_spend_rank_guard` reads the flag | spend-and-codes: the flagged editor's QO403 |
+| `player_status_guard` reads the flag | catalog (c) only (8.10; the column has no API grant) |
+| `rank_prize_guard` reads the flag | results: the forged seat gets RF409 `prizes_locked`, not 42501 |
+| `results_frozen` reads the flag | results (forged seat), catalog (c), both forged shared-table rows, the disabled-admin row |
+| `ranking_system()` without `app_device_id() IS NULL` | ranking-repair-seats: all 10 device rows over gates 1-9 |
+| `ranking_system()` with `app_admin_id() IS NULL` for `NOT app_is_admin()` | ranking.int.test.ts:297 (the flag-only seat passes) |
+| `app_admin_id()` back to `LANGUAGE sql` (8.2) | hot-path allowlist test; catalog "keeps app_admin_id() in PL/pgSQL" |
+| `app_admin_id()` without `status = 'active'` (added) | catalog: the disabled-admin row |
+| catalog set: a name added (`ranking_entries`) | catalog (c) |
+| catalog set: a name removed (`souvenir_event`) | catalog (c) |
+| `preview_device`: `IF NOT FOUND` dropped | devices: a stranger's and a non-operator's preview |
+| `preview_device`: `FOUND` tested after the ability check | **equivalent**, all green: an `IF` does not reset `FOUND`, and a missing row gives `granted` NULL, so the OA403 test is NULL and the OP403 test still fires |
+
+**Call counts (8.7).** Exact: one `app_admin_id()` call for a player reading 1 of 21 ledger rows and one for an admin reading all 21. An InitPlan runs at its first use; the player's enrollment sub-select never reaches its own (its rows pass `player_id = app_player_id()` first), and the admin's answers before the sub-select runs. Section 4's "at most once per policy reference" is therefore 1, not 2.
+
+**Deviations.**
+- The QO403 case is in `test/rewards/spend-and-codes.int.test.ts`, beside the guard's other QO403 test, not in shop-window (which never touches `spend_lowers_rank`).
+- Catalog set (c) holds five names: `app_is_admin` itself (it reads the `app.is_admin` setting, which 8.5's pattern matches) besides the four.
+- The device test in ranking-repair-seats seeds a due quiz attempt and a due game round, so the NULL refusals of gates 6 and 7 differ from the empty context's answer (`finished`, `expired`).
+- preview_device: section 4's non-operator case already existed (an enrolled member, OP403); added an operator of another event who may pair there (OP403) and a member, beside the 0189 cases.
+- Added a flagged player lifting their own ban (core-columns) so the `enrollment_status_guard` mutant has a behaviour test besides the catalog.
+- The owner check reads both `current_user` and the owner of `app_admin_id()`, since the definer runs as its owner.
+- FOLLOWUPS: the plan's lines 112-114 and 118 are 111-113 and 117 in the file; those four items are struck.
