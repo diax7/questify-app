@@ -105,3 +105,23 @@ organizer (`lockBuilderEvent`, store.ts:252).
 SECURITY.md (:247, :262, the `AUTH_SECRET` and `marketing-opt-out` rows, V11 AAD acceptance, random-tokens row), RUNBOOK
 ("Rotating `AUTH_SECRET`", settings list, staging re-seal step), DECISIONS (two Proposed ADRs), OPEN_QUESTIONS (previous-key
 window length), FOLLOWUPS (invitation link hash design; per-event marks option), STATE.md.
+
+## 8. Plan review (CTO, 88) and decisions
+
+These win over the sections above where they differ. Paths under `src/` and `test/` are relative to `apps/api`.
+
+1. `apps/web/e2e/opt-out.spec.ts:9-19` builds the token by hand: it moves to the 34-byte format (key-id byte 1, the
+   default `AUTH_KEY_ID` under `testConfig`, and the tag input `${keyId}\n${playerId}\n${channel}`). Playwright is not
+   run locally; the spec must typecheck.
+2. `apps/api/src/marketing/opt-out.ts` joins `mutate` in `stryker.config.json` (Stryker is not run locally).
+3. `OptOutSigner = Pick<AuthKeys, "optOutKeyId" | "optOutTagUnder">` is defined in `opt-out.ts` and used at tick.ts:39,
+   marketing/routes.ts:42, questify/routes.ts:45 and the stub at questify/routes.test.ts:38. `optOutTag` goes.
+4. The stale comments (message.ts:15, web lib/opt-out.ts:5) and every opt-out 44-character literal (grep `44}` and
+   `repeat(44)`, including message.test.ts:107 and marketing/opt-out.test.ts:12, 64) are updated.
+5. codes-routes.int adds the rotation duplicate case: organizer A's row uploaded through the API with a ring whose
+   current key is today's previous key (a v2 per-organizer mark), then re-uploaded during the rotation, is a duplicate;
+   organizer B uploading the same code during the rotation is added, not a duplicate.
+6. Saved `promo_sms` templates were checked at save time with the 44-character sample: the save-time sample becomes 46,
+   with a test that a template at exactly the 3-part limit under the old sample is refused at save with the new link.
+   RUNBOOK notes that templates saved before this change should be re-saved if near the limit.
+7. The `reseal.ts` conflict comment (the v1-to-v2 re-mark window) and the `checkCodes` doc comment are updated.
