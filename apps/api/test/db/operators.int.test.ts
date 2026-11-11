@@ -788,9 +788,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("operators (database)", () => {
         );
         expect(await as(forged, "SELECT * FROM event_operators($1)", [event]), label).toEqual([]);
       }
-      // A staff id with no organizer and no flag: the gate's NULL is a refusal too.
+      // A staff id with no organizer and no flag: the gate's NULL is a refusal too (guards the coalesce mutant).
       expect(await failure(addCodes({ staffUserId: ownerB }, reward))).toMatchObject({
         code: "RN404",
+      });
+      // An owner by membership with no organizer in the context: end_event_early's gate is NULL, a refusal too.
+      expect(await failure(endEarly({ staffUserId: ownerA }, event))).toMatchObject({
+        code: "QE403",
       });
       expect(await owner("SELECT stock_total FROM reward WHERE id = $1", [reward])).toEqual([
         { stock_total: 0 },

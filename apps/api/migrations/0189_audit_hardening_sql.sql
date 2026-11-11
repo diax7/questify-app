@@ -120,15 +120,18 @@ BEGIN
 END $$;
 
 -- As 0009, with app_admin_id() IS NOT NULL for app_is_admin() in the gate and the audit's actor, and pg_temp last on
--- the search path as every later definer.
+-- the search path as every later definer. The gate reads as false when it is NULL, as add_reward_codes above: an owner
+-- by membership with no organizer in the context made `app_is_owner(..) AND organizer_id = app_organizer_id()` NULL,
+-- and `IF NOT FOUND OR NOT (false OR NULL)` let it through (true of 0009 too; found in the review of 0189).
 CREATE OR REPLACE FUNCTION end_event_early(target uuid, request uuid) RETURNS void
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 DECLARE
   found_event event%ROWTYPE;
 BEGIN
   SELECT * INTO found_event FROM event WHERE id = target FOR UPDATE;
-  IF NOT FOUND OR NOT (app_admin_id() IS NOT NULL OR (app_is_owner(found_event.organizer_id)
-                                                     AND found_event.organizer_id = app_organizer_id())) THEN
+  IF NOT FOUND OR NOT coalesce(app_admin_id() IS NOT NULL
+                               OR (app_is_owner(found_event.organizer_id)
+                                   AND found_event.organizer_id = app_organizer_id()), false) THEN
     RAISE EXCEPTION 'only the owner of this event''s organizer can end it' USING ERRCODE = 'QE403';
   END IF;
   IF event_status_now(found_event.status, found_event.starts_at, found_event.ends_at) <> 'live' THEN
