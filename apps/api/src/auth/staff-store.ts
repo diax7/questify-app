@@ -302,8 +302,16 @@ export async function findSession(db: Db): Promise<SessionRow | undefined> {
       };
 }
 
+/**
+ * Records activity. `now()` is the transaction's start, so a request that began before a parallel one of the same
+ * session can reach this after that one committed a newer time; the guard trigger refuses a last-seen that moves
+ * backwards, so such a touch is skipped (the WHERE is checked again on the committed row), never an error (T-599c).
+ */
 export async function touchSession(db: Db, id: string): Promise<void> {
-  await db.query("UPDATE staff_session SET last_seen_at = now() WHERE id = $1", [id]);
+  await db.query(
+    "UPDATE staff_session SET last_seen_at = now() WHERE id = $1 AND last_seen_at < now()",
+    [id],
+  );
 }
 
 /** Under the session lookup context: ends the looked-up session (idle, too old, or its user disabled). */

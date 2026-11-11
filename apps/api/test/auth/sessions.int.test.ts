@@ -1,9 +1,11 @@
-import type { Pool } from "pg";
+import { Client, type Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createAuthKeys, generateToken } from "#src/auth/keys";
+import { createAuthKeys, generateToken, hashToken } from "#src/auth/keys";
 import { loggerOptions } from "#src/app";
 import { addressBucket } from "#src/auth/normalize";
 import { createSessions } from "#src/auth/session";
+import { touchSession } from "#src/auth/staff-store";
+import { withPreIdentityContext } from "#src/db/pre-identity";
 import { BUCKETS } from "#src/auth/throttle";
 import {
   DASHBOARD_ORIGIN,
@@ -22,6 +24,15 @@ import { TEST_DATABASE_URL, createTestDatabase, type TestDatabase } from "#test/
 
 const COOKIE_NAME = "__Host-qs_session";
 const tokenOf = (cookie: string): string => cookie.split("=")[1] ?? "";
+
+/** A promise and the function that settles it, for ordering two transactions in a test. */
+function latch(): { promise: Promise<void>; resolve: () => void } {
+  const settlers: Array<() => void> = [];
+  const promise = new Promise<void>((settle) => {
+    settlers.push(settle);
+  });
+  return { promise, resolve: () => settlers.forEach((settle) => settle()) };
+}
 
 describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
   let db: TestDatabase;
@@ -170,6 +181,37 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff sessions", () => {
       const quietBefore = (await stateOf(quiet.id))?.last_seen_at.getTime() ?? 0;
       await me(quiet.cookie);
       expect((await stateOf(quiet.id))?.last_seen_at.getTime()).toBeGreaterThan(quietBefore);
+    });
+
+    // T-599c: the dashboard's server reads one session in parallel (the event frame, the page, prefetches). A request
+    // whose transaction began first touched after a later one had committed, so its `now()` was older than the row's
+    // last-seen and the guard trigger refused it (check_violation, a 500 on any staff route).
+    it("lets an older request's touch lose to a newer one that already committed, without an error", async () => {
+      const user = await createStaff(db.owner, { email: newEmail() });
+      const quiet = await seedSession(user, { idleMinutes: 5 });
+      const lookup = { kind: "session", tokenHash: hashToken(tokenOf(quiet.cookie)) } as const;
+      const first = new Client({ connectionString: db.appUrl });
+      const second = new Client({ connectionString: db.appUrl });
+      await Promise.all([first.connect(), second.connect()]);
+      try {
+        const firstBegan = latch();
+        const secondCommitted = latch();
+        const older = withPreIdentityContext(first, lookup, async () => {
+          firstBegan.resolve();
+          await secondCommitted.promise;
+          await touchSession(first, quiet.id);
+        });
+        await firstBegan.promise;
+        // A later transaction start, so the second request's now() is the newer one.
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        await withPreIdentityContext(second, lookup, () => touchSession(second, quiet.id));
+        const newest = (await stateOf(quiet.id))?.last_seen_at.getTime() ?? 0;
+        secondCommitted.resolve();
+        await expect(older).resolves.toBeUndefined();
+        expect((await stateOf(quiet.id))?.last_seen_at.getTime()).toBe(newest);
+      } finally {
+        await Promise.all([first.end(), second.end()]);
+      }
     });
 
     it("answers 401 for a cookie that is not a token at all", async () => {
