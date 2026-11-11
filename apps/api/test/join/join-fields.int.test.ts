@@ -349,6 +349,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("join fields and locks over HTT
       );
     });
 
+    it("limits the contact probe per team member, not the plain list or another member", async () => {
+      const event = await newEvent();
+      await dash("POST", `/events/${event.id}/join/guests`, { lines: ["0512345678"] });
+      const probe = (cookie: string, digits = "5678") =>
+        dash("GET", `/events/${event.id}/join/guests?contact=05123400${digits}`, undefined, cookie);
+      for (let i = 0; i < 30; i += 1) {
+        expect((await probe(editorCookie)).statusCode).toBe(200);
+      }
+      const blocked = await probe(editorCookie);
+      expect(blocked.statusCode).toBe(429);
+      expect(blocked.json()).toMatchObject({
+        code: "too_many_attempts",
+        details: { retryAfterSeconds: Number(blocked.headers["retry-after"]) },
+      });
+      expect(
+        (await dash("GET", `/events/${event.id}/join/guests`, undefined, editorCookie)).statusCode,
+      ).toBe(200);
+      expect((await probe(ownerCookie)).statusCode).toBe(200);
+    });
+
     it("refuses an upload that would pass 10 000, adding nothing", async () => {
       const event = await newEvent();
       await owner(

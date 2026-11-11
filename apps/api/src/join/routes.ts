@@ -29,7 +29,10 @@ import {
   tooManyAttempts,
   unauthenticated,
 } from "#src/auth/http-errors";
+import { addressBucket } from "#src/auth/normalize";
 import { parse } from "#src/auth/request";
+import { BUCKETS } from "#src/auth/throttle";
+import { holdBack, type DeviceLimit } from "#src/devices/limits";
 import {
   findByCode,
   isThrottled,
@@ -52,6 +55,17 @@ import type { SettingsService } from "#src/settings/service";
 type BrowseDeps = JoinDeps & Readonly<{ settings: SettingsService }>;
 
 type Throttled = Readonly<{ kind: "throttled"; retryAfterSeconds: number }>;
+
+/**
+ * The public list per address bucket (audit hardening, hunter-edge 2): the list needs no sign-in and holds a pooled
+ * connection per request. Generous, because a venue's phones share one address behind its NAT and each page load asks
+ * once or twice; a bot is stopped, a crowd is not.
+ */
+export const PUBLIC_LIST_LIMIT: DeviceLimit = {
+  bucket: BUCKETS.publicList,
+  max: 240,
+  windowSeconds: 60,
+};
 
 const CODE = /^[A-Za-z0-9]{4,12}$/;
 const VERSION = z.string().regex(/^[0-9]+(\.[0-9]+){0,2}$/);
@@ -198,7 +212,7 @@ function afterIdOf(cursor: string | undefined): string | null {
  * or unlisted event's quests. Wrong codes count against the address; right ones cost nothing (T-111).
  */
 function registerBrowseRoutes(app: FastifyInstance, deps: BrowseDeps): void {
-  app.get("/v1/public/events", { config: { access: "public" } }, async (request) => {
+  app.get("/v1/public/events", { config: { access: "public" } }, async (request, reply) => {
     const query = parse(listQuery, request.query);
     let limit: number;
     try {
@@ -206,7 +220,14 @@ function registerBrowseRoutes(app: FastifyInstance, deps: BrowseDeps): void {
     } catch {
       throw invalidRequest();
     }
-    const events = await listPublicEvents(deps, afterIdOf(query.cursor), limit);
+    const after = afterIdOf(query.cursor);
+    await holdBack(
+      deps.pool,
+      [{ limit: PUBLIC_LIST_LIMIT, key: deps.keys.addressKey(addressBucket(request.ip)) }],
+      true,
+      reply,
+    );
+    const events = await listPublicEvents(deps, after, limit);
     const last = events.at(-1);
     return {
       events,

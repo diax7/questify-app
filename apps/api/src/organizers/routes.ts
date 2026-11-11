@@ -416,7 +416,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerQuestItemRoutes(scope, { pool: deps.pool });
       registerOperatorRoutes(scope, deps.operators);
       registerOperatorActivityRoutes(scope, { pool: deps.pool });
-      registerJoinSetupRoutes(scope, { pool: deps.pool });
+      registerJoinSetupRoutes(scope, { pool: deps.pool, keys: deps.devices.keys });
       registerAudienceRoutes(scope, { pool: deps.pool });
       registerInvitationTeamRoutes(scope, deps.invitations);
     },

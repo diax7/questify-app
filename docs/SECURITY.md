@@ -481,6 +481,23 @@ T-501d); every helper and trigger function is granted to nobody (outsider suite,
   `player.devices.end_others`) and support's sign-in reset.
 - Ending sessions does not stop someone who knows a staff password: the console note and the RUNBOOK say to reset it.
 
+### Audit hardening: public list, guest probe, logged data errors (tier B, 2026-11-11)
+
+- `GET /v1/public/events` takes one attempt per address bucket (`public_list`, 240 a minute; a venue's phones share one
+  address) after the query is parsed, so a bad request costs nothing; past it the answer is 429 `too_many_attempts` with
+  `Retry-After`. The join-code lookups keep their own wrong-code budget.
+- `GET …/events/{eventId}/join/guests?contact=` confirms a full phone or email against the masked list, so each probe is
+  counted per team member (`guest_contact_probe`, 30 an hour across events); the plain list is not counted. Past it 429
+  `too_many_attempts`. A masked four-digit ending cannot be swept (10^4 probes) inside the limit.
+- `loggableError` turns a Postgres data exception (class 22, such as `22P02 invalid input syntax for type uuid: "<value>"`)
+  into its code alone, in the message and in the stack, because those messages echo the offending value
+  (`apps/api/src/conventions.test.ts`). Rule 3 therefore holds for a route that ever passes an unchecked value to a typed
+  parameter.
+- A real player's stamp of a review-demo step is refused (`QC404`, no enrollment) and the guard
+  `review_demo_member_guard` keeps them out of the demo event (`RD404`): the demo's static codes are signed with the
+  production keys, so this confinement is what makes them useless to anyone else
+  (`apps/api/test/db/review-demo-codes.int.test.ts`).
+
 ## Top abuse cases
 
 | # | Abuse case | Type | Mitigation |

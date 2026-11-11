@@ -469,6 +469,37 @@ describe("the error log", () => {
     expect(JSON.stringify(kept)).not.toContain("hunter");
   });
 
+  it("does not log the value a 22P02 data exception echoes, in the message or the stack", async () => {
+    const sentinel = "SENTINEL-7f3a9c-player-input";
+    const lines: string[] = [];
+    const logged = Fastify({
+      logger: { stream: { write: (line: string) => void lines.push(line) } },
+    });
+    registerConventions(logged, {
+      minAppVersion: "1.2.0",
+      idempotencyStore: new MemoryIdempotencyStore(),
+    });
+    logged.get("/bad-uuid", async () => {
+      throw Object.assign(new Error(`invalid input syntax for type uuid: "${sentinel}"`), {
+        code: "22P02",
+        routine: "string_to_uuid",
+        where: `unnamed portal parameter $1 = '${sentinel}'`,
+      });
+    });
+    app = logged;
+    const response = await logged.inject({ method: "GET", url: "/bad-uuid" });
+    expect(response.statusCode).toBe(500);
+    expect(response.body).not.toContain(sentinel);
+    const text = lines.join("");
+    expect(text).toContain("22P02");
+    expect(text).not.toContain(sentinel);
+    // Other errors keep their message: it names the constraint, not a value.
+    const kept = loggableError(
+      Object.assign(new Error("duplicate key value violates unique constraint"), { code: "23505" }),
+    );
+    expect(kept).toMatchObject({ message: "duplicate key value violates unique constraint" });
+  });
+
   it("logs an unexpected error without the player's input", async () => {
     const lines: string[] = [];
     const logged = Fastify({

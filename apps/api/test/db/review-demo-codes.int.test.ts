@@ -181,6 +181,29 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("review demo QR picker (databas
     );
   });
 
+  it("refuses a real player's stamp of a demo step, and writes nothing (review_demo_member_guard)", async () => {
+    // The demo's codes are static stickers signed with the production keys, so confinement rests on the guard keeping
+    // every real account out of the demo event: no enrollment, no stamp (QC404), and the guard refuses the enrollment.
+    const real = await f.newPlayer();
+    const key = `real-${randomUUID()}`;
+    const stampOf = (player: string) =>
+      f.asPlayer(player, "SELECT * FROM stamp_step($1, 1, $2, NULL)", [made["step"], key]);
+    expect(await sqlstate(stampOf(real))).toBe("QC404");
+    expect(
+      await sqlstate(
+        f.owner(
+          "INSERT INTO enrollment (organizer_id, event_id, player_id, joined_via) VALUES ($1, $2, $3, 'code')",
+          [organizer, event, real],
+        ),
+      ),
+    ).toBe("RD404");
+    expect(await sqlstate(stampOf(real))).toBe("QC404");
+    expect(await f.owner("SELECT 1 FROM enrollment WHERE player_id = $1", [real])).toEqual([]);
+    expect(await f.owner("SELECT 1 FROM passport_stamp WHERE idempotency_key = $1", [key])).toEqual(
+      [],
+    );
+  });
+
   it("refuses a reviewer who left the event", async () => {
     await f.owner("UPDATE enrollment SET status = 'left' WHERE player_id = $1 AND event_id = $2", [
       reviewer,

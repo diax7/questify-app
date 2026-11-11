@@ -12,7 +12,10 @@ import {
   notFound,
   settingLocked,
 } from "#src/auth/http-errors";
+import type { AuthKeys } from "#src/auth/keys";
 import { callerOf, parse } from "#src/auth/request";
+import { BUCKETS } from "#src/auth/throttle";
+import { holdBack, type DeviceLimit } from "#src/devices/limits";
 import { JOIN_FIELD_KINDS, JOIN_OPTION_MAX, NAME_AUDIENCES, NAME_DISPLAYS } from "@questify/shared";
 import { updateNames } from "#src/join/names";
 import {
@@ -29,6 +32,17 @@ import {
   type SetupDone,
 } from "#src/join/setup";
 import { organizerContextOf } from "#src/organizers/context";
+
+/**
+ * Contact probes of the guest list per team member (audit hardening, w2-flows 1): `?contact=` confirms a full phone or
+ * email against the masked list, so a member cannot try the ten thousand endings of a masked number. Finding one older
+ * guest to remove takes a probe or two; a sweep of the number space does not fit.
+ */
+export const GUEST_PROBE_LIMIT: DeviceLimit = {
+  bucket: BUCKETS.guestContactProbe,
+  max: 30,
+  windowSeconds: 3600,
+};
 
 const eventParams = z.object({ eventId: z.uuid() });
 const guestQuery = z.strictObject({ contact: z.string().max(320).optional() });
@@ -115,7 +129,10 @@ function answer<T>(result: SetupDone<T>, ok: (value: T) => unknown): unknown {
  * `PUT …/join/names` (how players are named and who sees a full name, T-615), and the guest list
  * at `GET`/`POST …/join/guests` and `DELETE …/join/guests/:guestId`.
  */
-export function registerJoinSetupRoutes(scope: FastifyInstance, deps: SetupDeps): void {
+export function registerJoinSetupRoutes(
+  scope: FastifyInstance,
+  deps: SetupDeps & Readonly<{ keys: Pick<AuthKeys, "userKey"> }>,
+): void {
   scope.get("/events/:eventId/join", member, async (request) => {
     const { eventId } = parse(eventParams, request.params);
     return answer(await readSetup(deps, organizerContextOf(request), eventId), (setup) => setup);
@@ -160,13 +177,15 @@ export function registerJoinSetupRoutes(scope: FastifyInstance, deps: SetupDeps)
     return answer(result, (names) => ({ names }));
   });
 
-  scope.get("/events/:eventId/join/guests", member, async (request) => {
+  scope.get("/events/:eventId/join/guests", member, async (request, reply) => {
     const { eventId } = parse(eventParams, request.params);
     const { contact } = parse(guestQuery, request.query);
-    return answer(
-      await listGuests(deps, organizerContextOf(request), eventId, contact),
-      (list) => list,
-    );
+    const context = organizerContextOf(request);
+    if (contact !== undefined) {
+      const key = deps.keys.userKey(`${BUCKETS.guestContactProbe}:${context.staffUserId}`);
+      await holdBack(deps.pool, [{ limit: GUEST_PROBE_LIMIT, key }], true, reply);
+    }
+    return answer(await listGuests(deps, context, eventId, contact), (list) => list);
   });
 
   scope.post(

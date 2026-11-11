@@ -1,5 +1,15 @@
 # Blueprint State — Questify
 
+## Security audit hardening, tier B items — 2026-11-11
+
+- **Built (tier B, review pending).** `GET /v1/public/events` is throttled per address bucket (240 a minute,
+  `public_list`); the guest list's `?contact=` probe per team member (30 an hour, `guest_contact_probe`); `loggableError`
+  drops the echoed value of a class-22 data exception (22P02) from the message and stack, with a sentinel test; a test
+  pins that a real player's stamp of a review-demo step is refused; the calibration comment in `levels.ts` no longer
+  claims a seed reader is flagged in over 90% of rounds (only the naive one is; ADR-212). Skipped: web cookie
+  refresh across tabs already runs under `navigator.locks` (ADR-821). No new strings (429 `too_many_attempts` exists in
+  both languages). Mutation globs: none. CI minutes: not yet pushed.
+
 ## Security audit hardening, the SQL walls (migration 0189) — 2026-11-11
 
 - **Built (tier A; plan `docs/plans/2026-11-11-audit-hardening-sql.md`, plan review 92 GO; code review pending).**

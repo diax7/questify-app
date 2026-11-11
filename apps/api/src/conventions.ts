@@ -36,14 +36,19 @@ const DATABASE_BUSY = new Set(["55P03", "57014", "53300", "40P01", "40001", "CA5
 
 /**
  * An unexpected error as it is logged: its name, message, stack and the database's code and object names, never
- * Postgres's DETAIL or WHERE (they can carry a row's values, player input among them; rules.md hard rule 3).
+ * Postgres's DETAIL or WHERE (they can carry a row's values, player input among them; rules.md hard rule 3). A data
+ * exception (class 22, such as 22P02 `invalid input syntax for type uuid: "<value>"`) echoes the offending value in its
+ * message, so its message, and the stack's copy of it, become the code alone.
  */
 export function loggableError(error: Error): Record<string, unknown> {
   const fields = error as unknown as Readonly<Record<string, unknown>>;
+  const code = typeof fields["code"] === "string" ? fields["code"] : "";
+  const echoes = code.startsWith("22") && error.message !== "";
+  const message = echoes ? `database data exception ${code}` : error.message;
   const kept: Record<string, unknown> = {
     type: error.name,
-    message: error.message,
-    stack: error.stack,
+    message,
+    stack: echoes ? error.stack?.replace(error.message, message) : error.stack,
   };
   for (const field of [
     "code",

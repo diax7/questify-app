@@ -163,6 +163,23 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("joining an event", () => {
         (await get("/v1/public/events")).json(),
       );
     });
+
+    it("refuses an address past its budget of list reads, and no other address", async () => {
+      const door = freshIp();
+      for (let i = 0; i < 240; i += 1) {
+        expect((await get("/v1/public/events?limit=1", door)).statusCode).toBe(200);
+      }
+      const blocked = await get("/v1/public/events?limit=1", door);
+      expect(blocked.statusCode).toBe(429);
+      // A malformed read is refused for what it is and costs the address nothing.
+      expect((await get("/v1/public/events?limit=0", door)).statusCode).toBe(400);
+      expect(blocked.json()).toMatchObject({
+        code: "too_many_attempts",
+        details: { retryAfterSeconds: Number(blocked.headers["retry-after"]) },
+      });
+      // The budget is per address.
+      expect((await get("/v1/public/events?limit=1", freshIp())).statusCode).toBe(200);
+    });
   });
 
   describe("the join card", () => {

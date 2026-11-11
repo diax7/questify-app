@@ -40,6 +40,8 @@ export const BUCKETS = {
   smsPlatform: "sms_platform",
   playerEmailPlatform: "player_email_platform",
   joinCodeMiss: "join_code_miss",
+  publicList: "public_list",
+  guestContactProbe: "guest_contact_probe",
   contactCodePlayer: "contact_code_player",
   contactFailPlayer: "contact_fail_player",
   awardFind: "award_find",
