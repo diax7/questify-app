@@ -201,10 +201,6 @@ describe("loggerOptions", () => {
 
   it("writes a path no route answers as `unmatched`, since a caller can type anything there (T-018)", () => {
     const { req } = loggerOptions(base).serializers;
-    expect(req(requestAt("GET", undefined, { is404: true }))).toEqual({
-      method: "GET",
-      url: "unmatched",
-    });
     expect(req(requestAt("GET", undefined))).toEqual({ method: "GET", url: "unmatched" });
   });
 

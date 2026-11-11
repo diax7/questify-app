@@ -148,6 +148,21 @@ function emailAddress(env: Env, name: string): string {
   return text;
 }
 
+/** Google's token endpoint: the only address a service account's signed request (Gmail or FCM) is ever sent to. */
+const GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token";
+
+/** The Gmail service account key; its token address must be Google's own, so a doctored key cannot redirect the signed request. */
+function gmailKey(env: Env): ServiceAccountKey {
+  const key = parseServiceAccountKey(
+    required(env, "GMAIL_SERVICE_ACCOUNT_KEY"),
+    "GMAIL_SERVICE_ACCOUNT_KEY",
+  );
+  if (key.tokenUri !== GOOGLE_TOKEN_URI) {
+    throw new Error(`GMAIL_SERVICE_ACCOUNT_KEY's token_uri must be ${GOOGLE_TOKEN_URI}.`);
+  }
+  return key;
+}
+
 export function authConfig(env: Env): AuthConfig {
   const secret = required(env, "AUTH_SECRET");
   if (secret.length < MIN_SECRET_LENGTH) {
@@ -164,10 +179,7 @@ export function authConfig(env: Env): AuthConfig {
     secret,
     dashboardOrigin: origin(env, "DASHBOARD_ORIGIN"),
     gmail: {
-      key: parseServiceAccountKey(
-        required(env, "GMAIL_SERVICE_ACCOUNT_KEY"),
-        "GMAIL_SERVICE_ACCOUNT_KEY",
-      ),
+      key: gmailKey(env),
       from: emailAddress(env, "MAIL_FROM"),
       actAs:
         optional(env, "GMAIL_ACT_AS") === undefined ? undefined : emailAddress(env, "GMAIL_ACT_AS"),
@@ -400,9 +412,6 @@ function apns(env: Env): ApnsSettings | undefined {
     topic,
   };
 }
-
-/** Google's token endpoint: the only address a push service account's signed request is ever sent to. */
-const GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token";
 
 /**
  * The FCM settings (ADR-344 (3)): the Firebase project's service account key file, as JSON or its base64, with a

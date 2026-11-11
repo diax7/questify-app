@@ -117,7 +117,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("staff account administration",
       type: "service_account",
       client_email: "mailer@questify.iam.gserviceaccount.test",
       private_key: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n",
-      token_uri: "https://oauth2.googleapis.test/token",
+      token_uri: "https://oauth2.googleapis.com/token",
     }),
   };
 

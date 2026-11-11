@@ -138,6 +138,21 @@ describe("loadConfig", () => {
     ).toThrow("GMAIL_SERVICE_ACCOUNT_KEY is missing private_key, token_uri.");
   });
 
+  it("refuses a Gmail key whose token_uri is not Google's own address", () => {
+    for (const token_uri of [
+      "http://oauth2.googleapis.com/token",
+      "https://oauth2.googleapis.com.evil.test/token",
+      "https://oauth2.googleapis.com/token/",
+      "https://oauth2.googleapis.com/token?x=1",
+      "https://evil.test/",
+    ]) {
+      const key = JSON.stringify({ ...JSON.parse(REQUIRED.GMAIL_SERVICE_ACCOUNT_KEY), token_uri });
+      expect(errorOf({ GMAIL_SERVICE_ACCOUNT_KEY: key }), token_uri).toBe(
+        "GMAIL_SERVICE_ACCOUNT_KEY's token_uri must be https://oauth2.googleapis.com/token.",
+      );
+    }
+  });
+
   it("refuses a sender that is not one plain email address", () => {
     for (const bad of ["questify", "Questify <q@nafes.com>", "q@nafes.com\nBcc: x@y.z", "a@b"]) {
       expect(() => loadConfig({ ...REQUIRED, MAIL_FROM: bad })).toThrow(

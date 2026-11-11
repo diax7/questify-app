@@ -181,6 +181,15 @@ export function createClient(deps: ClientDeps): Client {
   };
   return {
     // A path that would leave its route is never sent: the same answer as no network.
-    request: async (request) => (isSafePath(request.path) ? send(request) : { kind: "network" }),
+    request: async (request) => {
+      if (isSafePath(request.path)) {
+        return send(request);
+      }
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        // oxlint-disable-next-line no-console -- a developer-only hint; the path is left out, it can hold a code or a token
+        console.warn("A request was not sent: its path would leave its route.");
+      }
+      return { kind: "network" };
+    },
   };
 }

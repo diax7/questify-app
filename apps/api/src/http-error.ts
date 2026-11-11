@@ -1,3 +1,4 @@
+import type { FastifyReply } from "fastify";
 import { apiError, type ApiErrorEnvelope, type LocalizedText } from "@questify/shared";
 
 /** An error a route throws on purpose; the error handler returns it as the standard envelope. */
@@ -22,4 +23,9 @@ export class HttpError extends Error {
     this.envelope = apiError(code, message, details);
     this.denied = options.denied ?? false;
   }
+}
+
+/** Sets `Retry-After` on a throttled answer: the seconds the caller should wait before asking again. */
+export function waitThen(reply: FastifyReply, seconds: number): void {
+  reply.header("retry-after", String(seconds));
 }

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startSouvenirTick } from "#src/souvenirs/tick";
 import { fakePool, pgError } from "#test/support/fake-pool";
 
-type Health = { due: number; failed: number; held?: number; oldestAt: string | null };
+type Health = { due: number; failed: number; held: number; oldestAt: string | null };
 type Script = {
   /** null: the health read answers no row. */
   health?: Health | null;
@@ -15,7 +15,7 @@ type Script = {
 
 const START = new Date("2030-01-01T00:00:00.000Z");
 const FIRST_RUN = START.getTime() + 1000;
-const quiet: Health = { due: 0, failed: 0, oldestAt: null };
+const quiet: Health = { due: 0, failed: 0, held: 0, oldestAt: null };
 /** An instant `seconds` before the first run, as the database reports it. */
 const secondsBefore = (seconds: number) => new Date(FIRST_RUN - seconds * 1000).toISOString();
 
@@ -181,7 +181,7 @@ describe("startSouvenirTick", () => {
     });
 
     it("reports enrollments the database counts as failed, with how many are due", async () => {
-      const { tick, logged } = start({ health: { due: 5, failed: 2, oldestAt: null } });
+      const { tick, logged } = start({ health: { due: 5, failed: 2, held: 0, oldestAt: null } });
       await vi.advanceTimersByTimeAsync(1000);
       expect(logged).toEqual([
         { event: "souvenir.pending", granted: 0, skipped: 0, failed: 0, due: 5, held: 0 },
@@ -190,9 +190,9 @@ describe("startSouvenirTick", () => {
     });
 
     it("reports work that has waited more than a minute, and not work that waited exactly one or less", async () => {
-      const waited = start({ health: { due: 3, failed: 0, oldestAt: secondsBefore(61) } });
-      const exact = start({ health: { due: 3, failed: 0, oldestAt: secondsBefore(60) } });
-      const fresh = start({ health: { due: 3, failed: 0, oldestAt: secondsBefore(10) } });
+      const waited = start({ health: { due: 3, failed: 0, held: 0, oldestAt: secondsBefore(61) } });
+      const exact = start({ health: { due: 3, failed: 0, held: 0, oldestAt: secondsBefore(60) } });
+      const fresh = start({ health: { due: 3, failed: 0, held: 0, oldestAt: secondsBefore(10) } });
       await vi.advanceTimersByTimeAsync(1000);
       expect(waited.logged).toEqual([
         { event: "souvenir.pending", granted: 0, skipped: 0, failed: 0, due: 3, held: 0 },

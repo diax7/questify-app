@@ -2,7 +2,7 @@ import { asSouvenirSystem, paySouvenirs } from "#src/souvenirs/payer";
 import type { SouvenirDeps } from "#src/souvenirs/souvenirs";
 import { trackRun } from "#src/telemetry/runs";
 
-type Health = Readonly<{ due: number; failed: number; held?: number; oldestAt: string | null }>;
+type Health = Readonly<{ due: number; failed: number; held: number; oldestAt: string | null }>;
 const EMPTY: Health = { due: 0, failed: 0, held: 0, oldestAt: null };
 
 /**
@@ -35,7 +35,7 @@ export function startSouvenirTick(
         return rows[0]?.health ?? EMPTY;
       });
       if (totals.failed > 0 || behind(health)) {
-        deps.log({ event: "souvenir.pending", ...totals, due: health.due, held: health.held ?? 0 });
+        deps.log({ event: "souvenir.pending", ...totals, due: health.due, held: health.held });
       }
     } catch (error) {
       deps.log({

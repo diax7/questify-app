@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { apiBaseUrl, createClient, isSafePath } from "#src/api/client.ts";
 
 type Call = { url: string; init: RequestInit | undefined };
@@ -81,6 +81,23 @@ describe("createClient", () => {
     });
     expect(result).toEqual({ kind: "network" });
     expect(api.calls).toEqual([]);
+  });
+
+  it("warns in development only, and never names the refused path", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const refused = { method: "GET", path: "/v1/join/SECRET-CODE/../x" } as const;
+    try {
+      vi.stubGlobal("__DEV__", true);
+      await clientWith(answering(200, {}).fetchImpl).request(refused);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0])).not.toContain("SECRET-CODE");
+      vi.stubGlobal("__DEV__", false);
+      await clientWith(answering(200, {}).fetchImpl).request(refused);
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+      warn.mockRestore();
+    }
   });
 
   it("sends the install id, the language, JSON and the access token", async () => {

@@ -32,6 +32,7 @@ import { BUCKETS } from "#src/auth/throttle";
 import { holdBack, type DeviceLimit } from "#src/devices/limits";
 import { cardInForce } from "#src/join/routes";
 import { organizerContextOf } from "#src/organizers/context";
+import { waitThen } from "#src/http-error";
 import {
   ABILITIES,
   PRESETS,
@@ -120,7 +121,7 @@ function refuseCreate(
     case "email_unavailable":
       throw emailUnavailable();
     case "throttled":
-      reply.header("retry-after", String(result.retryAfterSeconds));
+      waitThen(reply, result.retryAfterSeconds);
       throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
   }
 }

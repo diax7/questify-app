@@ -185,11 +185,11 @@ export function loggerOptions(config: AppConfig): ReturnType<typeof logTelemetry
     // Method and route pattern only: the default serializer also writes the client address, which is personal data,
     // and the filled path can hold a rehearsal, join or other code, a username or a token, so the pattern
     // (`/v1/rehearsals/:code`) is logged, never the path. A path no route answers is anything a caller typed, so it
-    // is written as `unmatched` (T-018, ADR-603).
+    // is written as `unmatched` (T-018, ADR-603); Fastify leaves the pattern unset on a 404.
     serializers: {
       req: (request) => ({
         method: request.method,
-        url: request.is404 ? "unmatched" : (request.routeOptions.url ?? "unmatched"),
+        url: request.routeOptions.url ?? "unmatched",
       }),
     },
     redact: [

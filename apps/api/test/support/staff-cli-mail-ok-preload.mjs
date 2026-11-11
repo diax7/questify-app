@@ -4,7 +4,7 @@
 await import("./staff-cli-preload.mjs");
 
 const closedNetwork = globalThis.fetch;
-const TOKEN_URL = "https://oauth2.googleapis.test/token";
+const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
 
 globalThis.fetch = (url, init) => {

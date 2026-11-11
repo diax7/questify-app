@@ -27,6 +27,7 @@ import { registerRehearsalTeamRoutes } from "#src/rehearsal/routes";
 import type { Rehearsal } from "#src/rehearsal/service";
 import type { Sessions } from "#src/auth/session";
 import { callerOf, parse } from "#src/auth/request";
+import { waitThen } from "#src/http-error";
 import { checkOrigin, requireSession } from "#src/auth/staff-guard";
 import type { Events } from "#src/events/events";
 import type { SuspendedSet } from "#src/events/suspended-set";
@@ -150,7 +151,7 @@ function answerInvite(reply: FastifyReply, result: InviteResult) {
     case "email_unavailable":
       throw emailUnavailable();
     case "throttled":
-      reply.header("retry-after", String(result.retryAfterSeconds));
+      waitThen(reply, result.retryAfterSeconds);
       throw tooManyAttempts({ retryAfterSeconds: result.retryAfterSeconds });
   }
 }

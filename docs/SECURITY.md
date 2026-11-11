@@ -816,7 +816,10 @@ window allows at most 420 guesses of 1,000,000; `review_demo.code_guessing` logs
   `test/security/suspension-doors.int.test.ts` walks every player route: a param that is neither derived nor on its open
   list fails, and every derived route is called while its event is suspended. Souvenirs, which write no ledger row,
   wait while their event is suspended (scan, claim and evaluate refuse; ES423 keeps the work). A device seat no longer
-  passes the system branch of `mark_ranking_repair`.
+  passes the system branch of `mark_ranking_repair`. Known and accepted (low): while some event is suspended, a player
+  who asks for a serial id (`/v1/game-rounds/N/result`, `/v1/meet-passes/N`) gets `event_unavailable` where a route's own
+  404 would answer for an object that does not exist, so the difference tells the player that object N exists and
+  belongs to a suspended event.
 - **Support grants:** 15 minutes, one event, reason required, never for a member, 20 an hour, closed by any admin and by
   `revoke-admin`; the grant is re-checked on every statement (`app_organizer_id`, `app_event_scope`, active admin) and
   `app.is_admin` is never set, so support holds an editor's rights in that event only. The API seats support on a

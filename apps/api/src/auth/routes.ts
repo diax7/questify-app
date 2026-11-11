@@ -41,6 +41,7 @@ import type { SignUp } from "#src/auth/sign-up";
 import type { Invites } from "#src/organizers/accept";
 import { callerOf, parse } from "#src/auth/request";
 import { checkOrigin, requireSession } from "#src/auth/staff-guard";
+import { waitThen } from "#src/http-error";
 
 export type StaffRoutesDeps = Readonly<{
   signIn: SignIn;
@@ -95,10 +96,6 @@ const createOrganizerBody = z.object({ name: z.string().min(1).max(400), accept:
 const BREACH_RETRY_SECONDS = 30;
 const staffOnly = { config: { access: "staff" } } as const;
 const emptyBody = z.strictObject({});
-
-function waitThen(reply: FastifyReply, seconds: number): void {
-  reply.header("retry-after", String(seconds));
-}
 
 type NotSet =
   | Readonly<{ kind: "weak"; reason: WeakReason }>

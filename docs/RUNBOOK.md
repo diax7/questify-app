@@ -1380,8 +1380,9 @@ identity; never expose this system context through HTTP or grant a direct table 
 paused), its passes and queued work are skipped, not ended: `souvenir_health()` counts them as `held`, outside `due`,
 `failed` and `oldestAt`, so `souvenir.pending` is not logged every run for a suspension (when it is logged for something
 else it carries the `held` count), and the console's health view shows them as "Souvenirs on hold", not waiting or
-failing. A claim taken just before the suspension is refused with ES423 and kept with its back-off, so after the lift it
-may take up to 300 s; nothing needs to be done. A large `held` count with no suspension in force is a bug: report it.
+failing. A claim taken just before the suspension is refused with ES423 and kept with its back-off: that row keeps its
+`error_code` after the lift, so it counts as failing and `souvenir.pending` is logged while it waits, for up to 300 s per
+row; nothing needs to be done. A large `held` count with no suspension in force is a bug: report it.
 
 Use 'Process pending grants' with a fresh request key for another pass; retry a dropped request using its same key.
 The response is pending until both due work and the current pass are done. Scans are finite (ADR-272): activating a
