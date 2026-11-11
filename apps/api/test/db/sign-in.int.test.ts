@@ -201,13 +201,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("sign-in tables", () => {
       expect(rows).toHaveLength(2);
     });
 
-    it("lets an admin see every session", async () => {
+    it("lets an admin see every session, and not the admin flag alone (0191)", async () => {
       const rows = await asContext<{ token_hash: Buffer }>(
-        { isAdmin: true },
+        { isAdmin: true, staffUserId: khalid },
         "SELECT token_hash FROM staff_session WHERE token_hash = ANY($1)",
         [[bytea(saraSession), bytea(khalidSession)]],
       );
       expect(rows).toHaveLength(2);
+      const flagOnly = await asContext<{ token_hash: Buffer }>(
+        { isAdmin: true },
+        "SELECT token_hash FROM staff_session WHERE token_hash = ANY($1)",
+        [[bytea(saraSession), bytea(khalidSession)]],
+      );
+      expect(flagOnly).toEqual([]);
     });
 
     it("creates a challenge only for themselves", async () => {

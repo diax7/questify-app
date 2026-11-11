@@ -128,6 +128,10 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("core columns are closed to han
       await expect(
         as({ playerId: ids.playerA }, "UPDATE enrollment SET status = 'active'"),
       ).rejects.toThrow(/not allowed/);
+      // Nor with a forged admin flag: the status guard asks for an admin account (migration 0191).
+      await expect(
+        as({ playerId: ids.playerA, isAdmin: true }, "UPDATE enrollment SET status = 'active'"),
+      ).rejects.toThrow(/not allowed/);
       expect((await enrollmentOf(ids.playerA))?.status).toBe("banned");
 
       await as({ playerId: ids.playerB }, "UPDATE enrollment SET status = 'left'");

@@ -404,10 +404,18 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("configuration", () => {
       expect(anonymous.map((row) => row.event_id)).toEqual([ids.eventA]);
       const asAdmin = await withRequestContext(
         db.app,
-        { isAdmin: true },
+        { isAdmin: true, staffUserId: admin.id },
         async () => (await db.app.query("SELECT event_id FROM event_entitlement")).rows,
       );
       expect(asAdmin).toHaveLength(2);
+      // The admin flag alone is now refused (migration 0191): it reads what the anonymous context reads.
+      const flagOnly = await withRequestContext(
+        db.app,
+        { isAdmin: true },
+        async () =>
+          (await db.app.query<{ event_id: string }>("SELECT event_id FROM event_entitlement")).rows,
+      );
+      expect(flagOnly.map((row) => row.event_id)).toEqual([ids.eventA]);
       await owner("DELETE FROM event_entitlement");
     });
   });

@@ -362,24 +362,28 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the admin re-check (database)"
       }
     });
 
-    it("runs app_admin_id() once per policy reference for a player who reads one row of many", async () => {
+    // An InitPlan runs at its first use and at most once per query. The player's rows fail the organizer branch, so
+    // ledger_entry_read's InitPlan runs once; the enrollment sub-select's own is never reached (its rows pass
+    // `player_id = app_player_id()` first). The admin's InitPlan answers before the sub-select runs at all. A bare
+    // app_admin_id() would run once for each of the 21 rows.
+    it("runs app_admin_id() once for a player who reads one row of many, not once per row", async () => {
       expect(
         await measured(
           { "app.player_id": reader },
           "SELECT count(*)::int AS n FROM ledger_entry WHERE event_id = $1",
           [event],
         ),
-      ).toEqual({ rows: 1, calls: 2 });
+      ).toEqual({ rows: 1, calls: 1 });
     });
 
-    it("runs app_admin_id() once per policy reference for an admin who reads every row", async () => {
+    it("runs app_admin_id() once for an admin who reads every row, not once per row", async () => {
       expect(
         await measured(
           { "app.is_admin": "on", "app.staff_user_id": admin },
           "SELECT count(*)::int AS n FROM ledger_entry WHERE event_id = $1",
           [event],
         ),
-      ).toEqual({ rows: ROWS + 1, calls: 2 });
+      ).toEqual({ rows: ROWS + 1, calls: 1 });
     });
   });
 });

@@ -106,9 +106,19 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("database isolation", () => {
       ).rejects.toThrow(/row-level security/);
     });
 
-    it("lets a Questify admin see everything", async () => {
+    it("lets a Questify admin see everything, and not the admin flag alone (0191)", async () => {
+      const [made] = (
+        await db.owner.query<{ id: string }>(
+          `INSERT INTO staff_user (email, password_hash, platform_role)
+           VALUES ('isolation-admin@questify.test', 'h', 'admin') RETURNING id`,
+        )
+      ).rows;
+      const admin = { isAdmin: true, staffUserId: made?.id ?? "" };
+      expect(await as(admin, "SELECT id FROM organizer")).toHaveLength(2);
+      expect(await as(admin, "SELECT id FROM enrollment")).toHaveLength(2);
+      // The flag with no admin account behind it reads only what any context reads.
       expect(await as({ isAdmin: true }, "SELECT id FROM organizer")).toHaveLength(2);
-      expect(await as({ isAdmin: true }, "SELECT id FROM enrollment")).toHaveLength(2);
+      expect(await as({ isAdmin: true }, "SELECT id FROM enrollment")).toEqual([]);
     });
 
     it("opens nothing for an organizer context without a member (no staff member, no tenant)", async () => {

@@ -240,7 +240,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("audit log", () => {
 
     it("shows a Questify admin everything", async () => {
       const all = await entries();
-      expect(await as({ isAdmin: true }, "SELECT 1 FROM audit_log")).toHaveLength(all.length);
+      expect(
+        await as({ isAdmin: true, staffUserId: admin.id }, "SELECT 1 FROM audit_log"),
+      ).toHaveLength(all.length);
+      // The admin flag alone is now refused (migration 0191).
+      expect(await as({ isAdmin: true }, "SELECT 1 FROM audit_log")).toEqual([]);
     });
   });
 
