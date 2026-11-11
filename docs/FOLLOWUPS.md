@@ -51,7 +51,6 @@ Format: `- <date> <task>: <what and where> (<source>)`
 
 - MINOR (design): the app's icon set has no 3D phone, so the signed-in devices cards use the padlock icon. Ask for a
   phone icon in the brand-deck style (`apps/app/assets/icons/`).
-  Fixed in the review commit: erasure locks the device rows before the push deletes; "has changed" strings.
 - 2026-11-05 CI run 42048259497 (browser shard 1): `e2e/shop-window.spec.ts:168` (ar, desktop) waited 10 s for the
   sign-up code and none reached the mailbox file; the page showed the code step, the trace holds no finished response
   for `POST /v1/staff/auth/sign-up`, and it passes locally. `codeFor`/`linkFor` (`apps/web/e2e/mail.ts`) now poll for
