@@ -54,6 +54,9 @@ const hmac = (key: Uint8Array | string, data: string): Buffer =>
   createHmac("sha256", key).update(data).digest();
 
 const subkey = (purpose: string): Buffer => hmac(SECRET, `questify/auth/v1/${purpose}`);
+/** The opt-out tag under a secret, derived the documented way. */
+const under = (secret: string, input: string): Buffer =>
+  hmac(hmac(secret, "questify/auth/v1/marketing-opt-out"), input);
 
 describe("createAuthKeys", () => {
   const keys = {
@@ -137,6 +140,70 @@ describe("createAuthKeys", () => {
     ]) {
       expect(all.reviewerCodeHash("123456").equals(other)).toBe(false);
     }
+  });
+
+  describe("the opt-out keys (w2-crypto 4)", () => {
+    const PREVIOUS = "p".repeat(40);
+    const PLAYER = "5f3c2a10-9b1e-4d7a-8c55-0a1b2c3d4e5f";
+
+    it("signs under key id 1 by default, and under the configured id", () => {
+      expect(createAuthKeys(SECRET).optOutKeyId).toBe(1);
+      expect(createAuthKeys(SECRET, { keyId: 7 }).optOutKeyId).toBe(7);
+    });
+
+    it("tags `keyId\\nplayer\\nchannel` under the secret of the id named, and nothing for another", () => {
+      const all = createAuthKeys(SECRET, { keyId: 2, previous: { id: 1, secret: PREVIOUS } });
+      expect(all.optOutTagUnder(2, PLAYER, "sms")?.equals(under(SECRET, `2\n${PLAYER}\nsms`))).toBe(
+        true,
+      );
+      expect(
+        all.optOutTagUnder(1, PLAYER, "sms")?.equals(under(PREVIOUS, `1\n${PLAYER}\nsms`)),
+      ).toBe(true);
+      expect(all.optOutTagUnder(3, PLAYER, "sms")).toBeUndefined();
+      expect(createAuthKeys(SECRET).optOutTagUnder(2, PLAYER, "sms")).toBeUndefined();
+    });
+
+    it("lets the previous secret feed the opt-out tag only: every other key is the current secret's", () => {
+      const plain = createAuthKeys(SECRET);
+      const rotated = createAuthKeys(SECRET, { keyId: 2, previous: { id: 1, secret: PREVIOUS } });
+      const value = "same-text";
+      for (const name of [
+        "emailKey",
+        "addressKey",
+        "userKey",
+        "organizerKey",
+        "playerKey",
+        "deviceKey",
+        "contactThrottleKey",
+        "contactLookupKey",
+        "deletionFingerprint",
+        "pairingCodeHash",
+        "pairedDeviceKey",
+        "eventKey",
+        "reviewerCodeHash",
+      ] as const) {
+        expect(rotated[name](value).equals(plain[name](value)), name).toBe(true);
+      }
+      for (const name of [
+        "playerQuestKey",
+        "playerCodeHash",
+        "codeHash",
+        "deletionCodeHash",
+        "emailChangeCodeHash",
+      ] as const) {
+        expect(rotated[name]("a", "b").equals(plain[name]("a", "b")), name).toBe(true);
+      }
+      expect(rotated.emailChangeToken("c", "stop")).toBe(plain.emailChangeToken("c", "stop"));
+    });
+
+    it("refuses a previous key with the current id or a short secret", () => {
+      expect(() =>
+        createAuthKeys(SECRET, { keyId: 1, previous: { id: 1, secret: PREVIOUS } }),
+      ).toThrow(/differ/);
+      expect(() =>
+        createAuthKeys(SECRET, { keyId: 2, previous: { id: 1, secret: "p".repeat(31) } }),
+      ).toThrow(/at least 32/);
+    });
   });
 
   it("hashes pairing codes and keys devices and events under purposes of their own (T-309)", () => {

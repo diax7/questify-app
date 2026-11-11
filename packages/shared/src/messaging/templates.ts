@@ -42,7 +42,7 @@ export const SMS_MAX_PARTS = 3;
 
 /** The values a preview and the part count stand in for a placeholder with: the real lengths, never a real value. */
 const SAMPLE_OPT_OUT = (language: "ar" | "en"): string =>
-  `https://${JOIN_LINK_HOSTS[0]}/${language}/opt-out?t=${"X".repeat(44)}`;
+  `https://${JOIN_LINK_HOSTS[0]}/${language}/opt-out?t=${"X".repeat(46)}`;
 const SAMPLE_VALUES: Readonly<Record<string, (language: "ar" | "en") => string>> = {
   code: () => "123456",
   optOutUrl: SAMPLE_OPT_OUT,

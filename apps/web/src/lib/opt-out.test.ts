@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { channelOfToken, optOutResult } from "#src/lib/opt-out.ts";
 
-/** A token's shape: 16 id bytes, one channel byte, 16 tag bytes (the signature is the API's to check). */
+/** A token's shape: 16 id bytes, one channel byte, one key id byte, 16 tag bytes (the API checks the signature). */
 const tokenWith = (channelByte: number): string =>
+  Buffer.concat([Buffer.alloc(16, 7), Buffer.from([channelByte, 1]), Buffer.alloc(16, 9)]).toString(
+    "base64url",
+  );
+/** The 33-byte token from before key ids (44 characters), which no server reads any more. */
+const oldToken = (channelByte: number): string =>
   Buffer.concat([Buffer.alloc(16, 7), Buffer.from([channelByte]), Buffer.alloc(16, 9)]).toString(
     "base64url",
   );
@@ -13,7 +18,13 @@ describe("channelOfToken", () => {
     [1, "sms"],
     [2, "email"],
   ])("reads channel byte %i as %s", (byte, channel) => {
+    expect(tokenWith(byte)).toHaveLength(46);
     expect(channelOfToken(tokenWith(byte))).toBe(channel);
+  });
+
+  it("is null for the old 44-character token", () => {
+    expect(oldToken(1)).toHaveLength(44);
+    expect(channelOfToken(oldToken(1))).toBeNull();
   });
 
   it("is null for a channel byte that names none, a wrong length, noise and nothing", () => {
@@ -22,7 +33,7 @@ describe("channelOfToken", () => {
     expect(channelOfToken(tokenWith(0).slice(1))).toBeNull();
     expect(channelOfToken(`${tokenWith(0)}A`)).toBeNull();
     expect(channelOfToken("nonsense")).toBeNull();
-    expect(channelOfToken("!".repeat(44))).toBeNull();
+    expect(channelOfToken("!".repeat(46))).toBeNull();
     expect(channelOfToken("")).toBeNull();
     expect(channelOfToken(undefined)).toBeNull();
   });

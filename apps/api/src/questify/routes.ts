@@ -4,6 +4,7 @@ import type { Pool, PoolClient } from "pg";
 import { z } from "zod";
 import { unauthenticated } from "#src/auth/http-errors";
 import type { AuthKeys } from "#src/auth/keys";
+import type { OptOutSigner } from "#src/marketing/opt-out";
 import { parse } from "#src/auth/request";
 import { BUCKETS } from "#src/auth/throttle";
 import { registerDailyRoutes } from "#src/daily/routes";
@@ -42,7 +43,7 @@ const own = (request: FastifyRequest) => {
  */
 export function registerQuestifyRoutes(
   app: FastifyInstance,
-  deps: { pool: Pool; keys: Pick<AuthKeys, "playerKey" | "addressKey" | "optOutTag"> },
+  deps: { pool: Pool; keys: Pick<AuthKeys, "playerKey" | "addressKey"> & OptOutSigner },
 ) {
   const player = { config: { access: "player" }, bodyLimit: 1024 } as const;
   const as = <T>(id: string, work: (client: PoolClient) => Promise<T>) =>

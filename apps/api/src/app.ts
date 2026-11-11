@@ -441,7 +441,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   const signInDeps = {
     pool: options.pool,
-    keys: createAuthKeys(config.auth.secret),
+    keys: createAuthKeys(config.auth.secret, config.auth),
     email: options.emailSender,
     gate: createVerifyGate(AUTH_LIMITS.verifyGate),
     securityAlertEmail: config.auth.securityAlertEmail,

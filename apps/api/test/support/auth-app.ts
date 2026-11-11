@@ -28,6 +28,8 @@ export function testConfig(
     trustProxyHops: 1,
     auth: {
       secret: "t".repeat(40),
+      keyId: 1,
+      previous: undefined,
       dashboardOrigin: DASHBOARD_ORIGIN,
       gmail: {
         key: {

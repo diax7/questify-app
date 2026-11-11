@@ -42,6 +42,7 @@
     "apps/api/src/streaks/**/*.ts",
     "apps/api/src/invitation-campaigns/**/*.ts",
     "apps/api/src/marketing/marketing.ts",
+    "apps/api/src/marketing/opt-out.ts",
     "apps/api/src/marketing/routes.ts",
     "apps/api/src/push/**/*.ts",
     "!apps/api/src/push/fake.ts",

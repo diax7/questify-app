@@ -9,6 +9,13 @@ import type { RewardCodeSecret, RewardCodeSettings } from "#src/rewards/codes";
 export type AuthConfig = Readonly<{
   /** Key material for code hashes and throttle keys; at least 32 characters. */
   secret: string;
+  /** The id the opt-out links signed with `secret` carry (`AUTH_KEY_ID`, 1 to 255, default 1; w2-crypto 4). */
+  keyId: number;
+  /**
+   * The secret before a rotation and its id, while links it signed must still turn marketing off. It derives the opt-out
+   * key only; every other key is the current secret's.
+   */
+  previous: Readonly<{ id: number; secret: string }> | undefined;
   /** The one origin of the dashboard, which proxies /v1. State-changing cookie requests must come from it. */
   dashboardOrigin: string;
   /** The Gmail API sender (ADR-112): a service account acting for a Workspace mailbox, sending from `from`. */
@@ -163,6 +170,44 @@ function gmailKey(env: Env): ServiceAccountKey {
   return key;
 }
 
+/**
+ * The `AUTH_SECRET` held over a rotation (w2-crypto 4), as the reward code keys (ADR-725): both settings or neither, an
+ * id and a secret of its own. Messages name the setting, never a value.
+ *
+ * @throws Error when only one of the two is set, the id is not 1 to 255 or equals `AUTH_KEY_ID`, or the secret is
+ *   shorter than 32 characters or equals `AUTH_SECRET`.
+ */
+function previousAuthSecret(
+  env: Env,
+  current: Readonly<{ id: number; secret: string }>,
+): AuthConfig["previous"] {
+  const secret = optional(env, "AUTH_PREVIOUS_SECRET");
+  const id = optional(env, "AUTH_PREVIOUS_KEY_ID");
+  if ((secret === undefined) !== (id === undefined)) {
+    throw new Error(
+      "AUTH_PREVIOUS_SECRET and AUTH_PREVIOUS_KEY_ID go together: set both during a rotation, or neither.",
+    );
+  }
+  if (secret === undefined) {
+    return undefined;
+  }
+  const previous = {
+    id: keyId(env, "AUTH_PREVIOUS_KEY_ID"),
+    secret: longSecret(env, "AUTH_PREVIOUS_SECRET"),
+  };
+  if (previous.id === current.id) {
+    throw new Error(
+      "AUTH_PREVIOUS_KEY_ID must differ from AUTH_KEY_ID: each secret has its own key id.",
+    );
+  }
+  if (previous.secret === current.secret) {
+    throw new Error(
+      "AUTH_PREVIOUS_SECRET must differ from AUTH_SECRET: a rotation needs a new secret.",
+    );
+  }
+  return previous;
+}
+
 export function authConfig(env: Env): AuthConfig {
   const secret = required(env, "AUTH_SECRET");
   if (secret.length < MIN_SECRET_LENGTH) {
@@ -175,8 +220,11 @@ export function authConfig(env: Env): AuthConfig {
       "RESEND_API_KEY and RESEND_FROM go together: Resend only sends from an address on a verified domain.",
     );
   }
+  const keyIdNow = keyId(env, "AUTH_KEY_ID");
   return {
     secret,
+    keyId: keyIdNow,
+    previous: previousAuthSecret(env, { id: keyIdNow, secret }),
     dashboardOrigin: origin(env, "DASHBOARD_ORIGIN"),
     gmail: {
       key: gmailKey(env),

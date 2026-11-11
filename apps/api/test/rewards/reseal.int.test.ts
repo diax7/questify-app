@@ -1,11 +1,13 @@
-import { createCipheriv, hkdfSync, randomBytes, randomUUID } from "node:crypto";
+import { createCipheriv, createHmac, hkdfSync, randomBytes, randomUUID } from "node:crypto";
 import { Pool, type Client } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { withRequestContext } from "#src/db/context";
 import {
   createRewardCodeKeyring,
   markCode,
+  markKeyFor,
   sealCode,
+  type RewardCodeKey,
   type RewardCodeKeyring,
 } from "#src/rewards/codes";
 import { runRewardCodesCommand } from "#src/rewards/reward-codes-command";
@@ -44,6 +46,10 @@ function legacySeal(rewardId: string, code: string): Buffer {
   const body = Buffer.concat([cipher.update(code), cipher.final()]);
   return Buffer.concat([iv, cipher.getAuthTag(), body]);
 }
+
+/** The mark every organizer shared before w2-crypto 3: HMAC under the secret's mark key, no organizer. */
+const v1Mark = (key: RewardCodeKey, code: string) =>
+  createHmac("sha256", key.mark).update(code).digest();
 
 /** The same connection, except that a ROLLBACK runs and then raises, as one on a dying connection would. */
 const rollbackRefused = (client: Client): Client =>
@@ -143,10 +149,17 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
     await owner("UPDATE reward SET stock_total = stock_total + 1 WHERE id = $1", [reward]);
     return row?.id ?? "";
   };
+  /** The per-organizer (v2) mark of a code at organizer A, as the API writes it since w2-crypto 3. */
+  const markFor = (key: RewardCodeKey, code: string, organizer = ids.orgA) =>
+    markCode(markKeyFor(key, organizer), code);
+  /** A row as T-810f or older left it: a legacy seal and the shared (v1) mark. */
   const plantLegacy = (reward: string, code: string) =>
-    plant(reward, legacySeal(reward, code), markCode(OLD.current, code));
+    plant(reward, legacySeal(reward, code), v1Mark(OLD.current, code));
   const plantUnder = (keys: RewardCodeKeyring, reward: string, code: string) =>
-    plant(reward, sealCode(keys, reward, code), markCode(keys.current, code));
+    plant(reward, sealCode(keys, reward, code), markFor(keys.current, code));
+  /** A row sealed under today's key with a given mark. */
+  const plantMarked = (reward: string, code: string, mark: Buffer) =>
+    plant(reward, sealCode(OLD, reward, code), mark);
 
   const upload = (reward: string, codes: readonly string[], keys: RewardCodeKeyring) => {
     const previous = keys.previous;
@@ -162,8 +175,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
                 [
                   reward,
                   codes.map((code) => sealCode(keys, reward, code)),
-                  codes.map((code) => markCode(keys.current, code)),
-                  previous === undefined ? [] : codes.map((code) => markCode(previous, code)),
+                  codes.map((code) => markFor(keys.current, code)),
+                  previous === undefined ? [] : codes.map((code) => markFor(previous, code)),
                 ],
               )
             ).rows[0],
@@ -237,7 +250,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
   describe("add_reward_codes with prior marks (migration 0157)", () => {
     it("skips a code whose mark under the previous key is in the event, and adds the rest", async () => {
       const reward = await newReward();
-      await plantLegacy(reward, `${SENTINEL}-A`);
+      await plantUnder(OLD, reward, `${SENTINEL}-A`);
       expect(await upload(reward, [`${SENTINEL}-A`, `${SENTINEL}-B`], ROTATED)).toEqual({
         added: 1,
         duplicates: 1,
@@ -259,7 +272,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
               await client.query("SELECT added, duplicates FROM add_reward_codes($1, $2, $3)", [
                 reward,
                 [sealCode(OLD, reward, `${SENTINEL}-D`), sealCode(OLD, reward, `${SENTINEL}-C`)],
-                [markCode(OLD.current, `${SENTINEL}-D`), markCode(OLD.current, `${SENTINEL}-C`)],
+                [markFor(OLD.current, `${SENTINEL}-D`), markFor(OLD.current, `${SENTINEL}-C`)],
               ])
             ).rows[0],
         );
@@ -368,7 +381,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
       expect(marks.map((row) => row.key_id)).toEqual([2, 2, 2, 2]);
       expect(marks.map((row) => row.code_hash.toString("hex"))).toEqual(
         ["L-1", "L-2", "L-3", "N-1"].map((code) =>
-          markCode(NEW.current, `${SENTINEL}-${code}`).toString("hex"),
+          markFor(NEW.current, `${SENTINEL}-${code}`).toString("hex"),
         ),
       );
 
@@ -403,6 +416,48 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
       for (const row of marks) {
         expect(leaked).not.toContain(row.code_hash.toString("hex"));
       }
+    });
+
+    describe("the per-organizer mark (w2-crypto 3)", () => {
+      it("re-marks a row sealed under the current key with the shared v1 mark, then counts it current", async () => {
+        const reward = await newReward();
+        const code = `${SENTINEL}-V1`;
+        const row = await plantMarked(reward, code, v1Mark(OLD.current, code));
+        expect(await checkCodes(db.owner, OLD)).toEqual({ current: 0, stale: 1, ids: [row] });
+        expect(await reseal(OLD)).toMatchObject({ current: 0, resealed: 1, conflict: 0 });
+        const [after] = await owner<{ code_hash: Buffer; key_id: number }>(
+          "SELECT code_hash, get_byte(code_cipher, 2) AS key_id FROM reward_code WHERE id = $1",
+          [row],
+        );
+        expect(after?.code_hash.equals(markFor(OLD.current, code))).toBe(true);
+        expect(after?.key_id).toBe(1);
+        expect(await reseal(OLD)).toMatchObject({ current: 1, resealed: 0 });
+        expect(await checkCodes(db.owner, OLD)).toEqual({ current: 1, stale: 0, ids: [] });
+        expect(await buy(OLD, await newPlayer(), reward)).toMatchObject({ code });
+      });
+
+      it("counts a mark under another organizer's key as stale, and re-marks it as the row's own", async () => {
+        const reward = await newReward();
+        const code = `${SENTINEL}-ORG`;
+        const row = await plantMarked(reward, code, markFor(OLD.current, code, ids.orgB));
+        expect(await checkCodes(db.owner, OLD)).toEqual({ current: 0, stale: 1, ids: [row] });
+        expect(await reseal(OLD)).toMatchObject({ resealed: 1 });
+        expect(await checkCodes(db.owner, OLD)).toEqual({ current: 1, stale: 0, ids: [] });
+      });
+
+      it("misses a re-upload of a v1-marked code before the re-seal and finds it after (the window)", async () => {
+        const reward = await newReward();
+        await plantMarked(reward, `${SENTINEL}-WIN`, v1Mark(OLD.current, `${SENTINEL}-WIN`));
+        await reseal(OLD);
+        expect(await upload(reward, [`${SENTINEL}-WIN`], OLD)).toEqual({ added: 0, duplicates: 1 });
+        const early = await newReward();
+        await plantMarked(early, `${SENTINEL}-EARLY`, v1Mark(OLD.current, `${SENTINEL}-EARLY`));
+        expect(await upload(early, [`${SENTINEL}-EARLY`], OLD)).toEqual({
+          added: 1,
+          duplicates: 0,
+        });
+        expect(await reseal(OLD)).toMatchObject({ conflict: 1, resealed: 0 });
+      });
     });
 
     it("finishes a stopped run on the next one, and the stopped run leaves its counts", async () => {
@@ -460,8 +515,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
         "SELECT code_hash FROM reward_code WHERE id = $1",
         [legacy],
       );
-      expect(left?.code_hash.equals(markCode(OLD.current, `${SENTINEL}-TWICE`))).toBe(true);
-      expect(lines[0]).not.toContain(markCode(NEW.current, `${SENTINEL}-TWICE`).toString("hex"));
+      expect(left?.code_hash.equals(v1Mark(OLD.current, `${SENTINEL}-TWICE`))).toBe(true);
+      expect(lines[0]).not.toContain(markFor(NEW.current, `${SENTINEL}-TWICE`).toString("hex"));
     });
 
     describe("the RUNBOOK's statement for a conflict", () => {
@@ -554,8 +609,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
         duplicates: 1,
       });
 
+      // Written since w2-crypto 3 (a v2 mark under key 1): the upload's prior mark finds it.
       const second = await newReward();
-      await plantLegacy(second, `${SENTINEL}-R2`);
+      await plantUnder(OLD, second, `${SENTINEL}-R2`);
       const report = await reseal(ROTATED, {
         beforeWrite: async () => {
           expect(await upload(second, [`${SENTINEL}-R2`], ROTATED)).toEqual({
@@ -573,8 +629,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
 
     it("counts an upload once while the batch is open with a row written and another waiting on a lock", async () => {
       const reward = await newReward();
-      const written = await plantLegacy(reward, `${SENTINEL}-OPEN-A`);
-      const busy = await plantLegacy(reward, `${SENTINEL}-OPEN-B`);
+      const written = await plantUnder(OLD, reward, `${SENTINEL}-OPEN-A`);
+      const busy = await plantUnder(OLD, reward, `${SENTINEL}-OPEN-B`);
       const [{ pid } = { pid: 0 }] = (
         await db.owner.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")
       ).rows;
@@ -696,7 +752,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
           ids.eventA,
           reward,
           codes.map((code) => sealCode(lost, reward, code)),
-          codes.map((code) => markCode(lost.current, code)),
+          codes.map((code) => markFor(lost.current, code)),
         ],
       );
       const inOrder = planted.map((row) => row.id).toSorted((a, b) => Number(a) - Number(b));
@@ -761,7 +817,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("reward code rotation (T-810f)"
                 ids.eventA,
                 reward,
                 sealCode(ROTATED, reward, `${SENTINEL}-LATE`),
-                markCode(ROTATED.current, `${SENTINEL}-LATE`),
+                markFor(ROTATED.current, `${SENTINEL}-LATE`),
               ],
             );
             committed = commitWhenWaited();

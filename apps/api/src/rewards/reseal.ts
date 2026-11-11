@@ -3,6 +3,7 @@ import { recordAudit } from "#src/audit/record";
 import {
   isCurrent,
   markCode,
+  markKeyFor,
   openCode,
   sealCode,
   type RewardCodeKeyring,
@@ -15,15 +16,25 @@ const LISTED_IDS = 100;
 const UNIQUE_VIOLATION = "23505";
 const LOCK_NOT_AVAILABLE = "55P03";
 
-type CodeRow = { id: string; reward_id: string; event_id: string; code_cipher: Buffer };
+type CodeRow = {
+  id: string;
+  organizer_id: string;
+  reward_id: string;
+  event_id: string;
+  code_cipher: Buffer;
+  code_hash: Buffer;
+};
 type Outcome = "resealed" | "conflict" | "changed";
 type Planned = Readonly<{ id: string; eventId: string; old: Buffer; cipher: Buffer; mark: Buffer }>;
 
 /**
- * What a re-seal did. `current`: already sealed under the current key in the new format. `resealed`: sealed again
- * under it. `unreadable`: opened under no key held (left as is). `conflict`: its new mark is another row's in the same
- * event (the same code twice, only possible from data before T-810f or the rotation redeploy). `changed`: its cipher
- * changed after the read, or its lock was not granted in time; the next run takes it.
+ * What a re-seal did. `current`: already sealed under the current key in the new format and marked under its
+ * organizer's current mark key. `resealed`: sealed and marked again under them (a row whose only fault is its mark,
+ * such as the shared v1 mark from before w2-crypto 3, is re-marked this way too). `unreadable`: opened under no key held
+ * (left as is). `conflict`: its new mark is another row's in the same event: the same code twice, only possible from
+ * data before T-810f, the rotation redeploy, or the v1-to-v2 re-mark window (a code uploaded again after the
+ * w2-crypto 3 deploy and before this re-seal re-marked the first copy). `changed`: its cipher changed after the read, or
+ * its lock was not granted in time; the next run takes it.
  */
 export type ResealCounts = {
   current: number;
@@ -73,7 +84,8 @@ async function* codeBatches(owner: Client, size: number): AsyncGenerator<CodeRow
   let after = "0";
   for (;;) {
     const { rows } = await owner.query<CodeRow>(
-      `SELECT c.id::text AS id, c.reward_id::text AS reward_id, c.event_id::text AS event_id, c.code_cipher
+      `SELECT c.id::text AS id, c.organizer_id::text AS organizer_id, c.reward_id::text AS reward_id,
+              c.event_id::text AS event_id, c.code_cipher, c.code_hash
          FROM reward_code c
         WHERE c.id > $1::bigint ORDER BY c.id LIMIT $2`,
       [after, size],
@@ -104,14 +116,34 @@ function note(report: ResealReport, kind: "unreadable" | "conflict" | "changed",
   }
 }
 
-/** Opens each row; plans a fresh seal (new IV) and mark under the current key for those not current yet. */
+/** Each organizer's current mark key, derived once per batch (w2-crypto 3). */
+function markKeys(ring: RewardCodeKeyring): (organizerId: string) => Buffer {
+  const keys = new Map<string, Buffer>();
+  return (organizerId) => {
+    let key = keys.get(organizerId);
+    if (key === undefined) {
+      key = markKeyFor(ring.current, organizerId);
+      keys.set(organizerId, key);
+    }
+    return key;
+  };
+}
+
+/**
+ * Opens each row; a row is current only when its cipher is current and its mark is its organizer's under the current
+ * key. Plans a fresh seal (new IV) and mark for the rest, one compare-and-set each.
+ */
 function plan(ring: RewardCodeKeyring, rows: readonly CodeRow[], report: ResealReport): Planned[] {
   const planned: Planned[] = [];
+  const keyFor = markKeys(ring);
   for (const row of rows) {
     const opened = openCode(ring, row.reward_id, row.code_cipher);
     if (opened === undefined) {
       note(report, "unreadable", row.id);
-    } else if (isCurrent(ring, opened)) {
+      continue;
+    }
+    const mark = markCode(keyFor(row.organizer_id), opened.code);
+    if (isCurrent(ring, opened) && mark.equals(row.code_hash)) {
       report.current += 1;
     } else {
       planned.push({
@@ -119,7 +151,7 @@ function plan(ring: RewardCodeKeyring, rows: readonly CodeRow[], report: ResealR
         eventId: row.event_id,
         old: row.code_cipher,
         cipher: sealCode(ring, row.reward_id, opened.code),
-        mark: markCode(ring.current, opened.code),
+        mark,
       });
     }
   }
@@ -221,8 +253,8 @@ const countsOf = (report: ResealReport): ResealCounts => ({
 });
 
 /**
- * Seals every reward code again under the ring's current key (ADR-705, ADR-728), on the owner connection: used codes
- * too, so a player's redemption list keeps showing them. Idempotent and resumable: rows already current are skipped,
+ * Seals every reward code again under the ring's current key and marks it under its organizer's mark key (ADR-705,
+ * ADR-728, w2-crypto 3), on the owner connection: used codes too, so a player's redemption list keeps showing them. Idempotent and resumable: rows already current are skipped,
  * and a stopped run is simply run again. Audited twice, counts only: a start entry before the walk and the counts
  * entry when it ends, also when it fails, so a crashed run leaves a trail.
  *
@@ -266,11 +298,16 @@ export async function resealCodes(
   return report;
 }
 
-/** What `check` found: rows sealed under the current key in the new format, and the ids of the rest. */
+/**
+ * What `check` found: rows sealed under the current key in the new format and marked under their organizer's current
+ * mark key, and the ids of the rest.
+ */
 export type CheckReport = { current: number; stale: number; ids: string[] };
 
 /**
- * Proves the previous secret can go (ADR-728): walks every row with only the current key loaded, without writing.
+ * Proves the previous secret can go (ADR-728) and that every mark is per organizer (w2-crypto 3): walks every row with
+ * only the current key loaded, without writing. A row is stale when it does not open under the current key in the new
+ * format, or when its mark is not its organizer's under that key (the shared v1 mark, or another organizer's).
  *
  * @throws Error before any read when the connection cannot see every row.
  */
@@ -283,9 +320,14 @@ export async function checkCodes(owner: Client, ring: RewardCodeKeyring): Promis
   };
   const report: CheckReport = { current: 0, stale: 0, ids: [] };
   for await (const rows of codeBatches(owner, RESEAL_BATCH)) {
+    const keyFor = markKeys(only);
     for (const row of rows) {
       const opened = openCode(only, row.reward_id, row.code_cipher);
-      if (opened !== undefined && isCurrent(only, opened)) {
+      if (
+        opened !== undefined &&
+        isCurrent(only, opened) &&
+        markCode(keyFor(row.organizer_id), opened.code).equals(row.code_hash)
+      ) {
         report.current += 1;
       } else {
         report.stale += 1;

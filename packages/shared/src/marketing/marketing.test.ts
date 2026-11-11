@@ -71,7 +71,7 @@ describe("preferencesBodySchema", () => {
 
 describe("optOutBodySchema", () => {
   it("takes a token-shaped text only", () => {
-    expect(optOutBodySchema.safeParse({ token: "a".repeat(44) }).success).toBe(true);
+    expect(optOutBodySchema.safeParse({ token: "a".repeat(46) }).success).toBe(true);
     for (const token of ["", "short", "a b".repeat(10), "é".repeat(30), "a".repeat(81)]) {
       expect(optOutBodySchema.safeParse({ token }).success, token).toBe(false);
     }

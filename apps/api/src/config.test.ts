@@ -55,6 +55,8 @@ describe("loadConfig", () => {
       trustProxyHops: 1,
       auth: {
         secret: REQUIRED.AUTH_SECRET,
+        keyId: 1,
+        previous: undefined,
         dashboardOrigin: "https://app.questify.sa",
         gmail: {
           key: {
@@ -233,6 +235,56 @@ describe("loadConfig", () => {
       expect(
         errorOf({ ...PREVIOUS, REWARD_CODE_PREVIOUS_SECRET: REQUIRED.REWARD_CODE_SECRET }),
       ).not.toContain(REQUIRED.REWARD_CODE_SECRET);
+    });
+  });
+
+  describe("opt-out key ids (w2-crypto 4)", () => {
+    const PREVIOUS = {
+      AUTH_KEY_ID: "2",
+      AUTH_PREVIOUS_SECRET: "q".repeat(32),
+      AUTH_PREVIOUS_KEY_ID: "1",
+    };
+
+    it("reads the key id (default 1) and the previous secret during a rotation", () => {
+      expect(loadConfig(REQUIRED).auth).toMatchObject({ keyId: 1, previous: undefined });
+      expect(loadConfig({ ...REQUIRED, AUTH_KEY_ID: "255" }).auth.keyId).toBe(255);
+      expect(loadConfig({ ...REQUIRED, ...PREVIOUS }).auth).toMatchObject({
+        secret: REQUIRED.AUTH_SECRET,
+        keyId: 2,
+        previous: { id: 1, secret: "q".repeat(32) },
+      });
+    });
+
+    it.each([
+      [{ AUTH_KEY_ID: "0" }, /AUTH_KEY_ID must be a whole number from 1 to 255/],
+      [{ AUTH_KEY_ID: "256" }, /AUTH_KEY_ID must be a whole number from 1 to 255/],
+      [{ AUTH_KEY_ID: "x" }, /AUTH_KEY_ID must be a whole number/],
+      [{ ...PREVIOUS, AUTH_PREVIOUS_KEY_ID: "0" }, /AUTH_PREVIOUS_KEY_ID must be a whole/],
+      [{ ...PREVIOUS, AUTH_PREVIOUS_KEY_ID: "x" }, /AUTH_PREVIOUS_KEY_ID must be a whole/],
+      [{ AUTH_PREVIOUS_SECRET: "q".repeat(32) }, /go together/],
+      [{ AUTH_PREVIOUS_KEY_ID: "2" }, /go together/],
+      [
+        { ...PREVIOUS, AUTH_PREVIOUS_KEY_ID: "2" },
+        /AUTH_PREVIOUS_KEY_ID must differ from AUTH_KEY_ID/,
+      ],
+      [
+        { ...PREVIOUS, AUTH_PREVIOUS_SECRET: REQUIRED.AUTH_SECRET },
+        /AUTH_PREVIOUS_SECRET must differ from AUTH_SECRET/,
+      ],
+      [
+        { ...PREVIOUS, AUTH_PREVIOUS_SECRET: "q".repeat(31) },
+        /AUTH_PREVIOUS_SECRET must be at least 32/,
+      ],
+    ])("refuses %j", (env, message) => {
+      expect(errorOf(env)).toMatch(message);
+    });
+
+    it("never prints a secret in a refusal", () => {
+      const short = "q".repeat(31);
+      expect(errorOf({ ...PREVIOUS, AUTH_PREVIOUS_SECRET: short })).not.toContain(short);
+      expect(errorOf({ ...PREVIOUS, AUTH_PREVIOUS_SECRET: REQUIRED.AUTH_SECRET })).not.toContain(
+        REQUIRED.AUTH_SECRET,
+      );
     });
   });
 

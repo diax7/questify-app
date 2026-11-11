@@ -104,7 +104,7 @@ describe("previewInvitation", () => {
       const preview = previewInvitation(names, language);
       const sent = real(language, names);
       expect(preview?.text).toContain(`https://questify.sa/${language}/i#${"X".repeat(22)}`);
-      expect(preview?.text).toContain(`opt-out?t=${"X".repeat(44)}`);
+      expect(preview?.text).toContain(`opt-out?t=${"X".repeat(46)}`);
       expect(preview?.text.length).toBe(sent.length);
       expect(preview?.parts).toBe(smsParts(sent));
       expect(preview?.text).not.toContain(invitationToken(LINK));

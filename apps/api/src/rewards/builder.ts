@@ -7,7 +7,13 @@ import type { Actor } from "#src/events/events";
 import { audit, bilingual, changes, guarded, NO_TEXT, type ItemGuard } from "#src/quests/builder";
 import { keptOr, sentOrKept } from "#src/quests/kept";
 import { lockBuilderEvent, type Bilingual, type BuilderEvent } from "#src/quests/store";
-import { markCode, normalizeCode, sealCode, type RewardCodeKeyring } from "#src/rewards/codes";
+import {
+  markCode,
+  markKeyFor,
+  normalizeCode,
+  sealCode,
+  type RewardCodeKeyring,
+} from "#src/rewards/codes";
 import { windowRefusal, windowRefusalOf, type WindowRefusal } from "#src/rewards/shop-window";
 import { teamSeat } from "#src/organizers/store";
 
@@ -851,6 +857,25 @@ const DIGITAL_REFUSALS: Readonly<Record<string, (detail: string) => RewardDone<n
 };
 
 /**
+ * The upload's marks under the organizer's own mark key (w2-crypto 3), and during a rotation the marks under the
+ * previous key, by which an old unused code is found (ADR-727). The caller has locked the event as `organizerId`'s
+ * (`lockBuilderEvent`); the id is lowercased because the path accepts either case and the key takes one spelling.
+ */
+function codeMarks(
+  ring: RewardCodeKeyring,
+  organizerId: string,
+  codes: readonly string[],
+): { marks: Buffer[]; priorMarks: Buffer[] } {
+  const organizer = organizerId.toLowerCase();
+  const current = markKeyFor(ring.current, organizer);
+  const prior = ring.previous === undefined ? undefined : markKeyFor(ring.previous, organizer);
+  return {
+    marks: codes.map((code) => markCode(current, code)),
+    priorMarks: prior === undefined ? [] : codes.map((code) => markCode(prior, code)),
+  };
+}
+
+/**
  * Adds uploaded codes to a digital reward (FR-510): each is sealed and marked here, so the database never holds a code
  * it could read. A code already in the event, or repeated in the upload, is a duplicate; the stock rises by the codes
  * added. The audit keeps the counts, never a code.
@@ -873,12 +898,9 @@ export function addRewardCodes(
       return { kind: "not_found" };
     }
     // The kind, a removal since the read and the 100 000 ceiling are the definer's to refuse (RD409, RN404, RC422).
-    // During a rotation an old unused code is marked under the previous key; its mark there finds it (ADR-727).
     const ring = deps.codeKey;
     const sealed = codes.map((code) => sealCode(ring, target.id, code));
-    const marks = codes.map((code) => markCode(ring.current, code));
-    const previous = ring.previous;
-    const priorMarks = previous === undefined ? [] : codes.map((code) => markCode(previous, code));
+    const { marks, priorMarks } = codeMarks(ring, actor.organizerId, codes);
     await client.query("SAVEPOINT add_codes");
     let row: CodesRow;
     try {

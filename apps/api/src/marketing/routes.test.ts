@@ -31,6 +31,7 @@ const STATE = {
 function build(
   answer: (sql: string, values: readonly unknown[]) => FakeAnswer,
   window: { count: number; retry_after: number | null } = { count: 0, retry_after: null },
+  signer: typeof keys = keys,
 ) {
   const seen: Seen[] = [];
   const { pool } = fakePool((sql, values) => {
@@ -48,7 +49,7 @@ function build(
   app.addHook("onRequest", async (request) => {
     if (request.headers["x-test-player"] !== undefined) request.player = { id: PLAYER };
   });
-  registerMarketingRoutes(app, { pool, keys });
+  registerMarketingRoutes(app, { pool, keys: signer });
   return { seen };
 }
 
@@ -287,6 +288,32 @@ describe("POST /v1/public/marketing/opt-out", () => {
     expect(asked(seen, "marketing_opt_out")).toEqual([]);
   });
 
+  describe("after an AUTH_SECRET rotation (w2-crypto 4)", () => {
+    const WINDOW = { count: 0, retry_after: null };
+    const rotated = createAuthKeys("n".repeat(40), {
+      keyId: 2,
+      previous: { id: 1, secret: "k".repeat(40) },
+    });
+    const onlyNew = createAuthKeys("n".repeat(40), { keyId: 2 });
+
+    it("turns the channel off for a link signed before it while the previous key is held", async () => {
+      const { seen } = build(() => ({ rows: [{ r: "opted_out" }] }), WINDOW, rotated);
+      const token = optOutToken(keys, { playerId: OTHER, channel: "sms" });
+      expect((await optOut({ token })).statusCode).toBe(204);
+      expect(asked(seen, "marketing_opt_out")[0]?.values).toEqual([OTHER, "sms"]);
+    });
+
+    it("refuses that link once the previous key is removed, asking the database nothing", async () => {
+      const { seen } = build(() => ({ rows: [{ r: "opted_out" }] }), WINDOW, onlyNew);
+      const response = await optOut({
+        token: optOutToken(keys, { playerId: OTHER, channel: "sms" }),
+      });
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toMatchObject({ code: "invalid_opt_out" });
+      expect(asked(seen, "marketing_opt_out")).toEqual([]);
+    });
+  });
+
   it("throttles forged tokens too: at the limit the answer is 429, not 400", async () => {
     build(() => ({ rows: [{ r: "opted_out" }] }), { count: 30, retry_after: 40 });
     expect((await optOut({ token: forgedToken() })).statusCode).toBe(429);
@@ -298,7 +325,7 @@ describe("POST /v1/public/marketing/opt-out", () => {
     expect(asked(seen, "INSERT INTO auth_throttle")).toHaveLength(1);
   });
 
-  it.each([{}, { token: "x" }, { token: "a".repeat(44), extra: 1 }, { token: 5 }])(
+  it.each([{}, { token: "x" }, { token: "a".repeat(46), extra: 1 }, { token: 5 }])(
     "refuses the body %j as a bad request",
     async (payload) => {
       const { seen } = build(() => ({ rows: [{ r: "opted_out" }] }));

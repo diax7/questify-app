@@ -121,6 +121,16 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("message templates and support 
       expect(((stored ?? {})["body"] as Json)["en"]).toContain("a new offer is waiting");
     });
 
+    it("refuses at save a promotional SMS that filled 3 parts only with the old 44-character token", async () => {
+      // 201 UTF-16 units (3 UCS-2 parts) with the 44-character sample; 203 with the real 46 (key id byte).
+      const refused = await admin("PUT", "/v1/admin/message-templates/promo_sms", {
+        title: null,
+        body: { ar: `كويستفاي ${"ع".repeat(114)} {optOutUrl}`, en: PROMO_SMS.body.en },
+      });
+      expect(refused.statusCode).toBe(422);
+      expect(issuesOf(refused.json())).toEqual(["body.ar:smsPartsLimit"]);
+    });
+
     it("refuses a login-code SMS that does not say what the code is for", async () => {
       const refused = await admin("PUT", "/v1/admin/message-templates/login_code_sms", {
         title: null,

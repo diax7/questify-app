@@ -24,7 +24,7 @@ import {
   setMarketing,
   setPreferences,
 } from "#src/marketing/marketing";
-import { readOptOutToken } from "#src/marketing/opt-out";
+import { readOptOutToken, type OptOutSigner } from "#src/marketing/opt-out";
 
 /** At most 60 consent and preference writes an hour per player (a screen needs a handful). */
 const WRITE_LIMIT = { bucket: BUCKETS.marketingWrite, max: 60, windowSeconds: 3600 } as const;
@@ -39,7 +39,7 @@ const own = (request: FastifyRequest) => {
 
 type Deps = Readonly<{
   pool: Pool;
-  keys: Pick<AuthKeys, "playerKey" | "addressKey" | "optOutTag">;
+  keys: Pick<AuthKeys, "playerKey" | "addressKey"> & OptOutSigner;
 }>;
 
 /**

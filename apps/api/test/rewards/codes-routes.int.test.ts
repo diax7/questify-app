@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { LightMyRequestResponse } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { loggerOptions } from "#src/app";
+import { createRewardCodeKeyring, markCode, markKeyFor } from "#src/rewards/codes";
 import {
   createStaff,
   signInFully,
@@ -144,6 +145,49 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
       );
       expect(made.statusCode).toBe(201);
       return made.json<{ reward: Reward }>().reward;
+    };
+
+    /** A second organizer with its own owner, a live event and a digital reward; its codes URL. */
+    const otherOrganizer = async (tag: string): Promise<{ cookie: string; url: string }> => {
+      const [org] = await owner<{ id: string }>(
+        "INSERT INTO organizer (name, slug) VALUES ($1, $2) RETURNING id",
+        [`Other ${tag}`, `other-${tag}`],
+      );
+      const staff = await createStaff(db.owner, { email: `owner@${tag}.test` });
+      await owner(
+        "INSERT INTO organizer_member (organizer_id, staff_user_id, role) VALUES ($1, $2, 'owner')",
+        [org?.id, staff],
+      );
+      const cookie = await signInFully(test, `owner@${tag}.test`);
+      counter += 1;
+      const [event] = await owner<{ id: string }>(
+        `INSERT INTO event (organizer_id, desk_location_en, join_code, name_en, status, starts_at, ends_at)
+         VALUES ($1, 'Hall C', $2, 'Other', 'live', now() - interval '1 hour', now() + interval '1 day')
+         RETURNING id`,
+        [org?.id, `OTHER${counter}`],
+      );
+      const base = `/v1/organizers/${org?.id}/events/${event?.id}`;
+      const made = await call(
+        cookie,
+        "POST",
+        `${base}/rewards`,
+        { kind: "digital", name: { en: "Gift card" }, price: 50 },
+        key(),
+      );
+      return {
+        cookie,
+        url: `${base}/rewards/${made.json<{ reward: Reward }>().reward.id}/codes`,
+      };
+    };
+
+    /** The stored mark of a reward's only code. */
+    const markOf = async (url: string): Promise<Buffer> => {
+      const reward = url.split("/").at(-2);
+      const [row] = await owner<{ code_hash: Buffer }>(
+        "SELECT code_hash FROM reward_code WHERE reward_id = $1",
+        [reward],
+      );
+      return row?.code_hash ?? Buffer.alloc(0);
     };
 
     describe("spending lowers rank (FR-1847)", () => {
@@ -319,6 +363,62 @@ describe.skipIf(TEST_DATABASE_URL === undefined)(
         } finally {
           await rotated.close();
         }
+      });
+
+      describe("the per-organizer mark (w2-crypto 3)", () => {
+        const TODAY = { id: 1, secret: "r".repeat(40) };
+        const ROTATION = { current: { id: 2, secret: "z".repeat(40) }, previous: TODAY };
+
+        it("stores different marks for one voucher at two organizers, both added, under v2", async () => {
+          const base = await newEvent();
+          const reward = await newDigital(base);
+          const aUrl = `${base}/rewards/${reward.id}/codes`;
+          const b = await otherOrganizer("marks");
+          const a1 = await call(ownerCookie, "POST", aUrl, { codes: ["SHARED-1"] }, key());
+          expect(a1.json()).toMatchObject({ added: 1, duplicates: 0 });
+          const b1 = await call(b.cookie, "POST", b.url, { codes: ["SHARED-1"] }, key());
+          expect(b1.json()).toMatchObject({ added: 1, duplicates: 0 });
+          const ring = createRewardCodeKeyring({ current: TODAY, previous: undefined });
+          const [orgB] = await owner<{ organizer_id: string }>(
+            "SELECT organizer_id FROM reward_code WHERE reward_id = $1",
+            [b.url.split("/").at(-2)],
+          );
+          const markA = await markOf(aUrl);
+          const markB = await markOf(b.url);
+          expect(markA.equals(markB)).toBe(false);
+          expect(markA.equals(markCode(markKeyFor(ring.current, orgId), "SHARED-1"))).toBe(true);
+          expect(
+            markB.equals(markCode(markKeyFor(ring.current, orgB?.organizer_id ?? ""), "SHARED-1")),
+          ).toBe(true);
+          const again = await call(ownerCookie, "POST", aUrl, { codes: ["SHARED-1"] }, key());
+          expect(again.json()).toMatchObject({ added: 0, duplicates: 1 });
+        });
+
+        it("during a rotation finds organizer A's old code by its v2 mark, and adds B's same code", async () => {
+          const base = await newEvent();
+          const reward = await newDigital(base);
+          const aUrl = `${base}/rewards/${reward.id}/codes`;
+          const b = await otherOrganizer("rotation");
+          // Uploaded through the API while today's key is current: the per-organizer (v2) mark under it.
+          const before = await call(ownerCookie, "POST", aUrl, { codes: ["ROT-SHARED"] }, key());
+          expect(before.json()).toMatchObject({ added: 1 });
+          const rotated = await startApp(db, false, {}, { rewardCodes: ROTATION });
+          try {
+            const post = (cookie: string, url: string, codes: string[]) =>
+              rotated.app.inject({
+                method: "POST",
+                url,
+                headers: withSession(cookie, key()),
+                payload: { codes },
+              });
+            const repeat = await post(ownerCookie, aUrl, ["ROT-SHARED"]);
+            expect(repeat.json()).toEqual({ added: 0, duplicates: 1, stock: 1, stockLeft: 1 });
+            const other = await post(b.cookie, b.url, ["ROT-SHARED"]);
+            expect(other.json()).toEqual({ added: 1, duplicates: 0, stock: 1, stockLeft: 1 });
+          } finally {
+            await rotated.close();
+          }
+        });
       });
 
       it("takes a stock of 0 for a digital reward, and edits that leave its stock alone", async () => {

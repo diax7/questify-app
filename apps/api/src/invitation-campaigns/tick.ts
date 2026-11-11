@@ -1,5 +1,4 @@
 import type { Pool, PoolClient, QueryConfig, QueryResult, QueryResultRow } from "pg";
-import type { AuthKeys } from "#src/auth/keys";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import {
@@ -9,7 +8,7 @@ import {
 } from "#src/invitation-campaigns/message";
 import { invitationSmsClaimable } from "#src/invitation-campaigns/quiet-hours";
 import { invitationOutcome, type InvitationOutcome } from "#src/invitation-campaigns/sender";
-import { optOutUrl } from "#src/marketing/opt-out";
+import { optOutUrl, type OptOutSigner } from "#src/marketing/opt-out";
 import type { SmsSender } from "#src/players/sms";
 import type { SettingsService } from "#src/settings/service";
 import { trackRun } from "#src/telemetry/runs";
@@ -36,7 +35,7 @@ export type InvitationTickDeps = Readonly<{
   settings: Pick<SettingsService, "forEvent">;
   /** The promotional Msegat sender; without it no SMS is ever claimed. */
   promoSms?: SmsSender;
-  keys: Pick<AuthKeys, "optOutTag">;
+  keys: OptOutSigner;
   intervalMs: number;
   log: (level: "info" | "error", fields: Record<string, unknown>) => void;
   /** Spreads several API instances apart; replaced in tests. */

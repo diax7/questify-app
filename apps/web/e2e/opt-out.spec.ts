@@ -2,17 +2,27 @@ import { createHmac } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { freshAddress } from "#e2e/mail.ts";
 
-/** The e2e API's secret (apps/api/test/support/auth-app.ts testConfig) and the purpose the opt-out tag is keyed for. */
+/**
+ * The e2e API's secret and key id (apps/api/test/support/auth-app.ts testConfig: the default AUTH_KEY_ID, 1), and the
+ * purpose the opt-out tag is keyed for.
+ */
 const SECRET = "t".repeat(40);
+const KEY_ID = 1;
 const CHANNELS = ["push", "sms", "email"] as const;
 
-/** A signed link token for a player who does not exist, built the way apps/api/src/marketing/opt-out.ts builds one. */
+/**
+ * A signed link token for a player who does not exist, built the way apps/api/src/marketing/opt-out.ts builds one:
+ * `id16 ‖ channel1 ‖ keyId1 ‖ tag16` (34 bytes), the tag over `keyId\nplayerId\nchannel`.
+ */
 function tokenFor(playerId: string, channel: (typeof CHANNELS)[number]): string {
   const key = createHmac("sha256", SECRET).update("questify/auth/v1/marketing-opt-out").digest();
-  const tag = createHmac("sha256", key).update(`${playerId}\n${channel}`).digest().subarray(0, 16);
+  const tag = createHmac("sha256", key)
+    .update(`${KEY_ID}\n${playerId}\n${channel}`)
+    .digest()
+    .subarray(0, 16);
   return Buffer.concat([
     Buffer.from(playerId.replaceAll("-", ""), "hex"),
-    Buffer.from([CHANNELS.indexOf(channel)]),
+    Buffer.from([CHANNELS.indexOf(channel), KEY_ID]),
     tag,
   ]).toString("base64url");
 }

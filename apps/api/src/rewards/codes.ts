@@ -21,9 +21,10 @@ export type RewardCodeSettings = Readonly<{
 }>;
 
 /**
- * The two keys of one secret, each derived by HKDF-SHA-256 with its own label: `seal` encrypts a code, `mark` makes
- * the keyed hash that finds a code uploaded twice without reading it. The labels never change, so key 1 is exactly
- * the key every code was sealed with before T-810f.
+ * The two keys of one secret, each derived by HKDF-SHA-256 with its own label: `seal` encrypts a code, and `mark` is the
+ * root from which `markKeyFor` derives each organizer's key for the keyed hash that finds a code uploaded twice without
+ * reading it (w2-crypto 3: one voucher at two organizers gives two unrelated marks). The labels never change, so key 1
+ * is exactly the key every code was sealed with before T-810f.
  */
 export type RewardCodeKey = Readonly<{ id: number; seal: Buffer; mark: Buffer }>;
 
@@ -133,7 +134,27 @@ export function isCurrent(ring: RewardCodeKeyring, opened: OpenedCode): boolean 
   return !opened.legacy && opened.keyId === ring.current.id;
 }
 
-/** The keyed hash of a normalized code: the same code and key always give the same 32 bytes, and they reveal nothing. */
-export function markCode(key: RewardCodeKey, code: string): Buffer {
-  return createHmac("sha256", key.mark).update(code).digest();
+const LOWER_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/**
+ * One organizer's mark key under a secret (w2-crypto 3): HKDF-SHA-256 from the secret's mark key with the organizer in
+ * the label. Marks are compared only inside one event, so a per-organizer key needs no change in SQL.
+ *
+ * @throws Error when the organizer id is not a lowercase UUID (one spelling, one key).
+ */
+export function markKeyFor(key: RewardCodeKey, organizerId: string): Buffer {
+  if (!LOWER_UUID.test(organizerId)) {
+    throw new Error("A reward code mark needs the organizer's lowercase UUID.");
+  }
+  return Buffer.from(
+    hkdfSync("sha256", key.mark, "", `questify/reward-code/v2/mark/${organizerId}`, 32),
+  );
+}
+
+/**
+ * The keyed hash of a normalized code under one organizer's mark key (`markKeyFor`): the same code and key always give
+ * the same 32 bytes, and they reveal nothing.
+ */
+export function markCode(markKey: Buffer, code: string): Buffer {
+  return createHmac("sha256", markKey).update(code).digest();
 }

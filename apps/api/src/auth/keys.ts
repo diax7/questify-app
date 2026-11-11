@@ -3,6 +3,8 @@ import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 
 const CODE_DIGITS = 6;
 const TOKEN_BYTES = 32;
 const MIN_SECRET_LENGTH = 32;
+/** The opt-out key id when `AUTH_KEY_ID` is not set (w2-crypto 4). */
+const DEFAULT_KEY_ID = 1;
 
 /** A secret the browser holds, and the hash of it that the database stores. */
 export type Token = Readonly<{ token: string; hash: string }>;
@@ -70,8 +72,13 @@ export type AuthKeys = Readonly<{
   pairedDeviceKey: (device: string) => Buffer;
   /** Throttle key for an event (unknown pairing codes, T-309). */
   eventKey: (eventId: string) => Buffer;
-  /** The 32-byte tag that signs a promotional opt-out link for one player and channel (T-407, FR-1114). */
-  optOutTag: (playerId: string, channel: string) => Buffer;
+  /** The id of the key that signs new opt-out links (`AUTH_KEY_ID`, 1 to 255; w2-crypto 4). */
+  optOutKeyId: number;
+  /**
+   * The 32-byte tag that signs a promotional opt-out link for one player and channel (T-407, FR-1114) under the opt-out
+   * key with this id: the current one, or the previous one while a rotation keeps it. Undefined for an id not held.
+   */
+  optOutTagUnder: (keyId: number, playerId: string, channel: string) => Buffer | undefined;
   /** Hash of an owner email change's code, bound to the change (T-701b); never matches a sign-in code. */
   emailChangeCodeHash: (changeId: string, code: string) => Buffer;
   /**
@@ -87,15 +94,53 @@ export type AuthKeys = Readonly<{
   reviewerCodeHash: (code: string) => Buffer;
 }>;
 
+/** The opt-out key's id, and the previous secret with its id while a rotation keeps old links working (w2-crypto 4). */
+export type OptOutKeys = Readonly<{
+  keyId: number;
+  previous?: Readonly<{ id: number; secret: string }> | undefined;
+}>;
+
+const OPT_OUT_PURPOSE = "marketing-opt-out";
+const purposeKey = (secret: string, purpose: string): Buffer =>
+  createHmac("sha256", secret).update(`questify/auth/v1/${purpose}`).digest();
+
 /**
- * @throws Error when the secret is shorter than 32 characters.
+ * The opt-out tag by key id. The previous secret derives only this purpose, so holding it can do nothing but read an old
+ * opt-out link. The id is in the tag's input, so a tag cannot be relabelled with another id.
+ *
+ * @throws Error when the previous secret is short or shares the current id.
  */
-export function createAuthKeys(secret: string): AuthKeys {
+function optOutTags(secret: string, keys: OptOutKeys): AuthKeys["optOutTagUnder"] {
+  const held = new Map([[keys.keyId, purposeKey(secret, OPT_OUT_PURPOSE)]]);
+  const previous = keys.previous;
+  if (previous !== undefined) {
+    if (previous.secret.length < MIN_SECRET_LENGTH) {
+      throw new Error(`AUTH_PREVIOUS_SECRET must be at least ${MIN_SECRET_LENGTH} characters.`);
+    }
+    if (previous.id === keys.keyId) {
+      throw new Error("AUTH_PREVIOUS_KEY_ID must differ from AUTH_KEY_ID.");
+    }
+    held.set(previous.id, purposeKey(previous.secret, OPT_OUT_PURPOSE));
+  }
+  return (keyId, playerId, channel) => {
+    const key = held.get(keyId);
+    return key === undefined
+      ? undefined
+      : createHmac("sha256", key).update(`${keyId}\n${playerId}\n${channel}`).digest();
+  };
+}
+
+/**
+ * @throws Error when the secret is shorter than 32 characters, or the opt-out keys are refused (`optOutTags`).
+ */
+export function createAuthKeys(
+  secret: string,
+  optOut: OptOutKeys = { keyId: DEFAULT_KEY_ID },
+): AuthKeys {
   if (secret.length < MIN_SECRET_LENGTH) {
     throw new Error(`AUTH_SECRET must be at least ${MIN_SECRET_LENGTH} characters.`);
   }
-  const derive = (purpose: string): Buffer =>
-    createHmac("sha256", secret).update(`questify/auth/v1/${purpose}`).digest();
+  const derive = (purpose: string): Buffer => purposeKey(secret, purpose);
   const keyed = (purpose: string): ((value: string) => Buffer) => {
     const key = derive(purpose);
     return (value) => createHmac("sha256", key).update(value).digest();
@@ -116,7 +161,7 @@ export function createAuthKeys(secret: string): AuthKeys {
   const pairingCode = keyed("device-pairing-code");
   const pairedDevice = keyed("throttle-paired-device");
   const event = keyed("throttle-event");
-  const optOut = keyed("marketing-opt-out");
+  const optOutTagUnder = optOutTags(secret, optOut);
   const emailChangeCode = derive("email-change-code");
   const emailChangeLink = keyed("email-change-link");
   const reviewerCode = keyed("reviewer-code");
@@ -140,7 +185,8 @@ export function createAuthKeys(secret: string): AuthKeys {
     pairingCodeHash: pairingCode,
     pairedDeviceKey: pairedDevice,
     eventKey: event,
-    optOutTag: (playerId, channel) => optOut(`${playerId}\n${channel}`),
+    optOutKeyId: optOut.keyId,
+    optOutTagUnder,
     emailChangeCodeHash: (changeId, value) =>
       createHmac("sha256", emailChangeCode).update(`${changeId}\n${value}`).digest(),
     emailChangeToken: (changeId, purpose) =>

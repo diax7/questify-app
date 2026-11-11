@@ -128,6 +128,19 @@ describe("a promotional template", () => {
     ]);
   });
 
+  it("counts the 46-character opt-out token (key id byte): a text that filled 3 parts with 44 is refused", () => {
+    // "كويستفاي " (9) + filler + " " + the 79-character link: 201 UTF-16 units is the most 3 UCS-2 parts hold.
+    const withFiller = (units: number) => `كويستفاي ${"ع".repeat(units)} {optOutUrl}`;
+    expect(fillSamples(withFiller(112), "ar")).toHaveLength(201);
+    expect(
+      codes("promo_sms", { title: null, body: { ar: withFiller(112), en: PROMO_SMS.body.en } }),
+    ).toEqual([]);
+    // Exactly 201 units with the old 44-character sample, so it was accepted at save before this change.
+    expect(
+      codes("promo_sms", { title: null, body: { ar: withFiller(114), en: PROMO_SMS.body.en } }),
+    ).toEqual(["body.ar:smsPartsLimit"]);
+  });
+
   it("refuses a stray brace, a wrong-language text and an empty one", () => {
     expect(
       codes("promo_sms", {
@@ -172,7 +185,7 @@ describe("placeholders", () => {
     ]);
     expect(fillSamples("Code {code}", "en")).toBe("Code 123456");
     expect(fillSamples("{optOutUrl}", "ar")).toMatch(
-      /^https:\/\/questify\.sa\/ar\/opt-out\?t=X{44}$/,
+      /^https:\/\/questify\.sa\/ar\/opt-out\?t=X{46}$/,
     );
     expect(fillSamples("{unknown}", "en")).toBe("{unknown}");
   });

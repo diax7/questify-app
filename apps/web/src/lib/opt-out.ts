@@ -2,10 +2,13 @@ import { MARKETING_CHANNELS, type MarketingChannel } from "@questify/shared";
 import type { PostResult } from "#src/lib/post-json.ts";
 import { errorCodeOf } from "#src/lib/sign-in-errors.ts";
 
-/** A token's id (16 bytes) comes first, then its channel, then the tag (apps/api/src/marketing/opt-out.ts). */
+/**
+ * A token's id (16 bytes) comes first, then its channel, then the signing key's id, then the tag (34 bytes in all,
+ * 46 base64url characters; apps/api/src/marketing/opt-out.ts).
+ */
 const ID_BYTES = 16;
-const TOKEN_BYTES = 33;
-const TOKEN_TEXT = /^[A-Za-z0-9_-]{44}$/;
+const TOKEN_BYTES = 34;
+const TOKEN_TEXT = /^[A-Za-z0-9_-]{46}$/;
 
 /**
  * The channel a link names, to say it on the page before the person confirms. The API checks the signature; this only

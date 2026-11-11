@@ -35,7 +35,10 @@ function build(
   app.addHook("onRequest", async (request) => {
     if (request.headers["x-test-player"] !== undefined) request.player = { id: PLAYER };
   });
-  registerQuestifyRoutes(app, { pool, keys: { playerKey: key, addressKey: key, optOutTag: key } });
+  registerQuestifyRoutes(app, {
+    pool,
+    keys: { playerKey: key, addressKey: key, optOutKeyId: 1, optOutTagUnder: key },
+  });
   return { seen };
 }
 

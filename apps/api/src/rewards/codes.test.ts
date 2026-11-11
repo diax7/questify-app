@@ -1,4 +1,4 @@
-import { createCipheriv, hkdfSync } from "node:crypto";
+import { createCipheriv, createHmac, hkdfSync } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   CODE_MAX_LENGTH,
@@ -6,6 +6,7 @@ import {
   headerKeyId,
   isCurrent,
   markCode,
+  markKeyFor,
   normalizeCode,
   openCode,
   sealCode,
@@ -24,6 +25,11 @@ const ROTATED = ring(2, S, { id: 1, secret: R });
 const ONLY_NEW = ring(2, S);
 const REWARD = "0b6f3c1e-8a52-4f0e-9d2a-5c7e1b3a9f10";
 const OTHER_REWARD = "7d1e2f3a-4b5c-4d6e-8f70-81a2b3c4d5e6";
+const ORG_A = "a1b2c3d4-0000-4000-8000-00000000000a";
+const ORG_B = "a1b2c3d4-0000-4000-8000-00000000000b";
+/** "FIXTURE-1" sealed for REWARD under key 1 (secret R) in the `0x51 0x02 keyId` format, IV "fixture-iv-1". */
+const SEALED_FIXTURE =
+  "510201666978747572652d69762d3184a753f737d2159dcdbb604e09638d399cafb60ff634980de4";
 
 /** A value sealed exactly as before T-810f: `iv ‖ tag ‖ ciphertext` under the secret's key, AAD = reward id. */
 function legacySeal(secret: string, rewardId: string, code: string, iv: Buffer): Buffer {
@@ -167,13 +173,55 @@ describe("normalizing and marking a code", () => {
   });
 
   it("marks a code the same way every time, two codes differently, and differently under each key", () => {
-    const key = KEY.current;
+    const key = markKeyFor(KEY.current, ORG_A);
     expect(markCode(key, "A").equals(markCode(key, "A"))).toBe(true);
     expect(markCode(key, "A").equals(markCode(key, "B"))).toBe(false);
-    expect(markCode(key, "A").equals(markCode(ROTATED.current, "A"))).toBe(false);
-    expect(ROTATED.previous && markCode(ROTATED.previous, "A").equals(markCode(key, "A"))).toBe(
+    expect(markCode(key, "A").equals(markCode(markKeyFor(ROTATED.current, ORG_A), "A"))).toBe(
+      false,
+    );
+    const previous = ROTATED.previous;
+    expect(previous && markCode(markKeyFor(previous, ORG_A), "A").equals(markCode(key, "A"))).toBe(
       true,
     );
     expect(markCode(key, "A")).toHaveLength(32);
+  });
+});
+
+/** An organizer's mark key under today's key, derived the documented way. */
+const v2 = (organizerId: string) =>
+  Buffer.from(
+    hkdfSync("sha256", KEY.current.mark, "", `questify/reward-code/v2/mark/${organizerId}`, 32),
+  );
+
+describe("the per-organizer mark (w2-crypto 3)", () => {
+  it("gives two organizers two marks for one code, and one organizer the same mark every time", () => {
+    const a = markCode(markKeyFor(KEY.current, ORG_A), "VOUCHER-1");
+    const b = markCode(markKeyFor(KEY.current, ORG_B), "VOUCHER-1");
+    expect(a.equals(b)).toBe(false);
+    expect(markCode(markKeyFor(KEY.current, ORG_A), "VOUCHER-1").equals(a)).toBe(true);
+  });
+
+  it("derives the organizer's key by HKDF from the mark key with a v2 label (a fixed format)", () => {
+    expect(markKeyFor(KEY.current, ORG_A).equals(v2(ORG_A))).toBe(true);
+    expect(markKeyFor(KEY.current, ORG_A)).toHaveLength(32);
+    const expected = createHmac("sha256", v2(ORG_A)).update("VOUCHER-1").digest();
+    expect(markCode(markKeyFor(KEY.current, ORG_A), "VOUCHER-1").equals(expected)).toBe(true);
+  });
+
+  it("is not the old mark every organizer shared (v1)", () => {
+    const v1 = createHmac("sha256", KEY.current.mark).update("VOUCHER-1").digest();
+    expect(markCode(markKeyFor(KEY.current, ORG_A), "VOUCHER-1").equals(v1)).toBe(false);
+  });
+
+  it.each([ORG_A.toUpperCase(), "not-a-uuid", "", `${ORG_A} `, `${ORG_A}0`])(
+    "refuses the organizer id %j",
+    (organizerId) => {
+      expect(() => markKeyFor(KEY.current, organizerId)).toThrow(/organizer/);
+    },
+  );
+
+  it("leaves the seal alone: a code sealed before the change still opens", () => {
+    const sealed = Buffer.from(SEALED_FIXTURE, "hex");
+    expect(openCode(KEY, REWARD, sealed)).toEqual({ code: "FIXTURE-1", keyId: 1, legacy: false });
   });
 });

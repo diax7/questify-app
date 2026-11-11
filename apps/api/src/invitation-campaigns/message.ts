@@ -12,9 +12,9 @@ export type ApprovedNames = Readonly<{ ar: string | null; en: string | null }>;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN = /^[A-Za-z0-9_-]{22}$/;
-/** The preview's stand-ins: the real lengths of a link token (16 bytes) and an opt-out token (33 bytes) in base64url. */
+/** The preview's stand-ins: the real lengths of a link token (16 bytes) and an opt-out token (34 bytes) in base64url. */
 const PLACEHOLDER_LINK = "X".repeat(22);
-const PLACEHOLDER_OPT_OUT = "X".repeat(44);
+const PLACEHOLDER_OPT_OUT = "X".repeat(46);
 
 /** The 22-character token of a recipient's link id. */
 export function invitationToken(link: string): string {
