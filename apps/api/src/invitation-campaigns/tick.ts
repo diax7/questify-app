@@ -93,7 +93,7 @@ async function sendText(sender: SmsSender, to: string, text: string): Promise<In
   }
 }
 
-/** What one run of rounds has already warned about, so a long campaign name logs once, not once per message. */
+/** What one run of rounds has already warned about, so a long campaign name logs once per tick, not once per message. */
 type Warned = { parts: boolean };
 
 /**
@@ -110,14 +110,16 @@ async function sendOne(
   let text: string | undefined;
   try {
     text = messageOf(deps, claim);
-    const parts = smsParts(text);
-    if (parts > SMS_MAX_PARTS && !warned.parts) {
-      warned.parts = true;
-      deps.log("warn", { event: "invitation.sms_parts_over", parts, max: SMS_MAX_PARTS });
-    }
   } catch {
     // Nothing left: the message failed for certain, so it is not "possibly sent" and blocks no one for 7 days.
     text = undefined;
+  }
+  if (text !== undefined && !warned.parts) {
+    const parts = smsParts(text);
+    if (parts > SMS_MAX_PARTS) {
+      warned.parts = true;
+      deps.log("warn", { event: "invitation.sms_parts_over", parts, max: SMS_MAX_PARTS });
+    }
   }
   const result = text === undefined ? RENDER_FAILED : await sendText(sender, claim.phone, text);
   if (result.outcome === "hold") {

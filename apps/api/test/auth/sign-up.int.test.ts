@@ -392,7 +392,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer sign-up (T-101)", ()
       try {
         // Checks come before the budget: a resend too soon is refused for spacing (429), not for the full budget (503),
         // which the old order (budget first) answered.
-        expect((await resend(token)).statusCode).toBe(429);
+        const early = await resend(token);
+        expect(early.statusCode).toBe(429);
+        expect(early.json()).toMatchObject({ code: "resend_too_soon" });
         await owner(
           "UPDATE staff_signup SET last_sent_at = now() - interval '61 seconds' WHERE email = $1",
           [email],
