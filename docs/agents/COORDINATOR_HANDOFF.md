@@ -144,7 +144,7 @@ Addresses: https://questify.nafes.com and https://questify-api-staging-3ez01s.cr
 
 ## Where things stand
 
-Staging is live at `release-20261110-2`, migration 0187. No pull request is open; GitHub holds only `main`,
+Staging is live at `release-20261111-2`, migration 0188, with `/play` and the player web session switch on (staging only). No pull request is open; GitHub holds only `main`,
 `t-810d-console-hostname`, and the local-only branch `workflows-pending` on this server (see below). Tasks: 187 done, 32 open
 (85.4%); every open task waits on a person, a device, store accounts or an outside answer (see the list below). FOLLOWUPS has about
 75 lines, most needing a device, art, a product call or tier A work. Migration number 0156 is reserved by the unmerged T-810d
@@ -203,3 +203,6 @@ nearly exhausted; the function-limits baseline (`scripts/function-limits-baselin
 - T-811 CranL answers and backups, the store accounts and the other tasks marked blocked in `docs/TASKS.md`.
 
 **Yours when nothing else is left:** `docs/FOLLOWUPS.md`, in batches; T-813 (`docs/PERFORMANCE_AUDIT.md`) when features settle.
+
+
+**A new required web or API setting is set in CranL by hand (2026-11-11).** `ops/cranl/*.json` is applied only when an environment is created or re-synced. When P2 made `DASHBOARD_ORIGIN` required in the web config, every new web container failed at start and CranL kept serving the old one while each deploy still read `succeeded` (releases of 2026-11-10 23:20 to 2026-11-11 00:04). After a deploy, prove the new code is live with a request only it answers the new way, and add any new setting with `PATCH /api/v1/apps/<id>/env` before deploying.
