@@ -456,9 +456,17 @@ describe("loadConfig", () => {
       expect(refuse({ project_id: "Questify Prod" })).toBe(
         "FCM_SERVICE_ACCOUNT's project_id is not a Google Cloud project id.",
       );
-      expect(refuse({ token_uri: "http://oauth2.googleapis.com/token" })).toBe(
-        "FCM_SERVICE_ACCOUNT's token_uri must be an https address.",
-      );
+      for (const token_uri of [
+        "http://oauth2.googleapis.com/token",
+        "https://oauth2.googleapis.com.evil.test/token",
+        "https://oauth2.googleapis.com/token/",
+        "https://oauth2.googleapis.com/token?x=1",
+        "https://evil.test/",
+      ]) {
+        expect(refuse({ token_uri }), token_uri).toBe(
+          "FCM_SERVICE_ACCOUNT's token_uri must be https://oauth2.googleapis.com/token.",
+        );
+      }
       expect(refuse({ project_id: "" })).toBe("FCM_SERVICE_ACCOUNT is missing project_id.");
       expect(errorOf({ FCM_SERVICE_ACCOUNT: "{ not json" })).toContain(
         "FCM_SERVICE_ACCOUNT is not valid JSON",

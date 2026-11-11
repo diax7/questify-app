@@ -69,7 +69,7 @@ export async function fetchHeldPrizes(
 ): Promise<HeldPrizesAnswer> {
   const answer = await session.request({
     method: "GET",
-    path: `/v1/events/${eventId}/held-prizes`,
+    path: `/v1/events/${encodeURIComponent(eventId)}/held-prizes`,
   });
   if (answer.kind !== "ok") {
     return { kind: "unavailable" };

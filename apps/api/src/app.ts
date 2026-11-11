@@ -182,16 +182,14 @@ export function loggerOptions(config: AppConfig): ReturnType<typeof logTelemetry
   return {
     ...logTelemetry(),
     level: config.nodeEnv === "production" ? "info" : "debug",
-    // Method and path only: the default serializer also writes the client address, which is personal data. A path no
-    // route answers is anything a caller typed, so it is written as `unmatched` (T-018, ADR-603).
+    // Method and route pattern only: the default serializer also writes the client address, which is personal data,
+    // and the filled path can hold a rehearsal, join or other code, a username or a token, so the pattern
+    // (`/v1/rehearsals/:code`) is logged, never the path. A path no route answers is anything a caller typed, so it
+    // is written as `unmatched` (T-018, ADR-603).
     serializers: {
       req: (request) => ({
         method: request.method,
-        url: request.is404
-          ? "unmatched"
-          : (request.url.split("?")[0] ?? "/")
-              .replace(/^\/v1\/players\/[^/]+/, "/v1/players/:username")
-              .replace(/^\/v1\/me\/blocks\/[^/]+/, "/v1/me/blocks/:username"),
+        url: request.is404 ? "unmatched" : (request.routeOptions.url ?? "unmatched"),
       }),
     },
     redact: [

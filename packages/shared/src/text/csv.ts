@@ -1,10 +1,11 @@
 /**
  * One cell of a CSV a team member opens in a spreadsheet: quoted when it holds a delimiter, a quote or a line break,
- * and a text that starts like a formula (`=`, `+`, `-`, `@`, a tab or a carriage return) gets a leading apostrophe so
- * the spreadsheet reads it as text.
+ * and a text that starts like a formula (`=`, `+`, `-`, `@`) or with any whitespace (a space, tab, carriage return or
+ * line feed, which a spreadsheet may skip before reading a formula) gets a leading apostrophe so the spreadsheet reads
+ * it as text.
  */
 export function csvCell(value: string | number): string {
-  const text = typeof value === "number" ? String(value) : value.replace(/^[=+\-@\t\r]/u, "'$&");
+  const text = typeof value === "number" ? String(value) : value.replace(/^[\s=+\-@]/u, "'$&");
   return /[",;\n\r]/u.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 

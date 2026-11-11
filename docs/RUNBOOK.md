@@ -460,7 +460,7 @@ quiet minutes); without keys no client exists: the center fills and every push e
   every message. Keys live only in the CranL secret store. The checks at start (each names the setting, never a value):
   the `.p8` must be an EC P-256 private key and is signed with once (a key that cannot sign stops the start); the key
   and team ids are 10 capital letters or digits; `APNS_TOPIC` is a bundle id; the service account needs `project_id`,
-  `client_email`, an RSA `private_key` and an https `token_uri`. Values come from the environment only (no file path).
+  `client_email`, an RSA `private_key` and the `token_uri` `https://oauth2.googleapis.com/token` exactly. Values come from the environment only (no file path).
 - **Making the keys (Dhia, once):** in the Apple Developer account create an APNs auth key, choosing the environment
   **Sandbox & Production** and the key restriction **Team Scoped (All Topics)** (a key limited to one environment
   answers 403 `BadEnvironmentKeyIdInToken` on the other host, which holds that target and logs `push.provider_hold`;

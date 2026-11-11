@@ -68,7 +68,10 @@ function configRequest(
   const etag = options.revalidate === false ? null : (cached?.etag ?? null);
   return {
     method: "GET",
-    path: options.event === undefined ? "/v1/config" : `/v1/events/${options.event}/config`,
+    path:
+      options.event === undefined
+        ? "/v1/config"
+        : `/v1/events/${encodeURIComponent(options.event)}/config`,
     ...(etag === null ? {} : { headers: { "if-none-match": etag } }),
   };
 }

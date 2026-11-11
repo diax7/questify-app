@@ -53,7 +53,10 @@ export async function otherDeviceCount(deps: DevicesDeps): Promise<number> {
 export async function endDevices(deps: DevicesDeps, target: Target): Promise<DevicesEvent> {
   const answer = await deps.session.request({
     method: "POST",
-    path: target.kind === "one" ? `/v1/me/devices/${target.id}/end` : "/v1/me/devices/end-others",
+    path:
+      target.kind === "one"
+        ? `/v1/me/devices/${encodeURIComponent(target.id)}/end`
+        : "/v1/me/devices/end-others",
     headers: { "idempotency-key": deps.newKey() },
     body: {},
   });

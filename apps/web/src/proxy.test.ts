@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
-import { proxy } from "#src/proxy.ts";
+import { config, proxy } from "#src/proxy.ts";
 
 const page = (path: string, cookie?: string, acceptLanguage?: string): NextRequest =>
   new NextRequest(`https://questify.example.test${path}`, {
@@ -71,5 +71,50 @@ describe("the language the proxy remembers", () => {
   it("follows the browser's language when no cookie is saved", () => {
     const response = proxy(page("/", undefined, "ar-SA,en;q=0.5"));
     expect(response.headers.get("location")).toBe("https://questify.example.test/ar");
+  });
+});
+
+describe("which paths the proxy runs for", () => {
+  const { matcher } = config;
+  const runsFor = (path: string): boolean => {
+    const source = matcher[0] ?? "";
+    return new RegExp(`^${source}$`, "u").test(path);
+  };
+
+  it("skips the API forwarder, Next's files and real static files", () => {
+    for (const path of [
+      "/v1/me",
+      "/v1",
+      "/_next/static/chunks/a.js",
+      "/.well-known/security.txt",
+      "/favicon.ico",
+      "/robots.txt",
+      "/brand/logo.png",
+      "/avatars/a.webp",
+      "/zxing/zxing_reader.wasm",
+      "/play/_expo/static/js/web/entry-1a2b.js",
+    ]) {
+      expect(runsFor(path), path).toBe(false);
+    }
+  });
+
+  it("runs for pages, including a dynamic segment with a dot", () => {
+    for (const path of [
+      "/",
+      "/en/sign-in",
+      "/en/e/ABC.x",
+      "/ar/e/A.B.C",
+      "/en/s/tok.en.html",
+      "/play",
+      "/v10/x",
+    ]) {
+      expect(runsFor(path), path).toBe(true);
+    }
+  });
+
+  it("gives a dotted page address the page policy and no-store", () => {
+    const response = proxy(page("/en/e/ABC.x"));
+    expect(response.headers.get("content-security-policy")).toContain("'strict-dynamic'");
+    expect(response.headers.get("cache-control")).toBe("no-store");
   });
 });

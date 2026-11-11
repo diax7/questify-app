@@ -93,6 +93,35 @@ async function readJson(response: Response, signal: AbortSignal): Promise<unknow
   }
 }
 
+/** A path segment as the server would read it: percent escapes undone, or itself when they are malformed. */
+function decodedSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+/**
+ * Whether `path` stays where its caller meant. Call sites encode every id they put in a path (`encodeURIComponent`);
+ * this is the second wall for a value that still arrives as a dot segment (`encodeURIComponent("..")` is `..`) or
+ * raw: an address from the router, such as a crafted `/play` link, must not retarget the same-origin request with
+ * `..`, `//`, a backslash or `#`. A request is a fixed `/v1/...` path plus an optional query.
+ */
+export function isSafePath(path: string): boolean {
+  if (!path.startsWith("/") || path.includes("#") || path.includes("\\")) {
+    return false;
+  }
+  const route = path.split("?")[0] ?? "";
+  return (
+    !route.includes("//") &&
+    !route.split("/").some((segment) => {
+      const decoded = decodedSegment(segment);
+      return decoded === "." || decoded === ".." || decoded.includes("/") || decoded.includes("\\");
+    })
+  );
+}
+
 /** The headers of one call: the install id, the language, the build's version, JSON and the access token. */
 function headersOf(
   deps: ClientDeps,
@@ -117,39 +146,41 @@ function headersOf(
 
 /** Calls the API with a timeout, the install id and the language; never throws for an HTTP or network failure. */
 export function createClient(deps: ClientDeps): Client {
+  const send = async (request: ApiRequest): Promise<ApiResult> => {
+    let deviceId: string;
+    try {
+      deviceId = await deps.deviceId();
+    } catch {
+      // The install id could not be read (local storage failed): no request, the same answer as no network.
+      return { kind: "network" };
+    }
+    const headers = headersOf(deps, request, deviceId);
+    // A timer of our own (React Native's AbortSignal has no `timeout` helper), over the headers and the body.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), deps.timeoutMs ?? 15_000);
+    let response: Response;
+    let body: unknown;
+    try {
+      response = await (deps.fetchImpl ?? fetch)(`${deps.baseUrl}${request.path}`, {
+        method: request.method,
+        headers,
+        // Stryker disable next-line ConditionalExpression: equivalent: JSON.stringify(undefined) is undefined, no body either way
+        ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
+        signal: controller.signal,
+      });
+      // Stryker disable next-line ConditionalExpression: equivalent: an empty 204 fails to parse and reads as undefined anyway
+      body = response.status === 204 ? undefined : await readJson(response, controller.signal);
+    } catch {
+      return { kind: "network" };
+    } finally {
+      clearTimeout(timer);
+    }
+    return response.ok
+      ? { kind: "ok", status: response.status, body, headers: response.headers }
+      : errorOf(response.status, body, response.headers);
+  };
   return {
-    request: async (request) => {
-      let deviceId: string;
-      try {
-        deviceId = await deps.deviceId();
-      } catch {
-        // The install id could not be read (local storage failed): no request, the same answer as no network.
-        return { kind: "network" };
-      }
-      const headers = headersOf(deps, request, deviceId);
-      // A timer of our own (React Native's AbortSignal has no `timeout` helper), over the headers and the body.
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), deps.timeoutMs ?? 15_000);
-      let response: Response;
-      let body: unknown;
-      try {
-        response = await (deps.fetchImpl ?? fetch)(`${deps.baseUrl}${request.path}`, {
-          method: request.method,
-          headers,
-          // Stryker disable next-line ConditionalExpression: equivalent: JSON.stringify(undefined) is undefined, no body either way
-          ...(request.body === undefined ? {} : { body: JSON.stringify(request.body) }),
-          signal: controller.signal,
-        });
-        // Stryker disable next-line ConditionalExpression: equivalent: an empty 204 fails to parse and reads as undefined anyway
-        body = response.status === 204 ? undefined : await readJson(response, controller.signal);
-      } catch {
-        return { kind: "network" };
-      } finally {
-        clearTimeout(timer);
-      }
-      return response.ok
-        ? { kind: "ok", status: response.status, body, headers: response.headers }
-        : errorOf(response.status, body, response.headers);
-    },
+    // A path that would leave its route is never sent: the same answer as no network.
+    request: async (request) => (isSafePath(request.path) ? send(request) : { kind: "network" }),
   };
 }

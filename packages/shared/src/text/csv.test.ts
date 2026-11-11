@@ -16,9 +16,22 @@ describe("csvCell", () => {
   });
 
   it("makes a text that starts like a formula inert", () => {
-    for (const formula of ["=1+1", "+1", "-1", "@SUM(A1)", "\tcmd", "\rcmd"]) {
+    for (const formula of [
+      "=1+1",
+      "+1",
+      "-1",
+      "@SUM(A1)",
+      "\tcmd",
+      "\rcmd",
+      "\n=1+1",
+      " =1+1",
+      "\u00a0@x",
+      " plain",
+    ]) {
       expect(csvCell(formula).replace(/^"/u, "").startsWith("'"), formula).toBe(true);
     }
+    expect(csvCell("\n=1+1")).toBe('"\'\n=1+1"');
+    expect(csvCell("a =1")).toBe("a =1");
   });
 });
 

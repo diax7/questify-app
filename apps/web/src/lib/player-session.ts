@@ -108,9 +108,16 @@ const STEPS: Readonly<Record<string, AuthStep>> = {
 export const authStepOf = (method: string, pathname: string): AuthStep | undefined =>
   method === "POST" ? STEPS[pathname] : undefined;
 
-/** Operator screens stay phone-only (Q-755): a cookie request to them answers 404. */
+const OPERATOR_PLAY = /^\/v1\/events\/[^/]+\/operator\/play\/?$/u;
+
+/**
+ * Operator screens and transitions stay phone-only (Q-755): a cookie request to them answers 404. That includes the
+ * invite preview and claim and the operator's play switch, so a web session cannot take or use an operator seat.
+ */
 export const isOperatorPath = (pathname: string): boolean =>
   pathname.startsWith("/v1/operator/") ||
+  pathname.startsWith("/v1/operator-invites/") ||
+  OPERATOR_PLAY.test(pathname) ||
   pathname === "/v1/me/operator-events" ||
   pathname.startsWith("/v1/me/operator-events/");
 

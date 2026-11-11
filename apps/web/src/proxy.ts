@@ -66,6 +66,10 @@ export function proxy(request: NextRequest): NextResponse {
 }
 
 export const config = {
-  // Not the API forwarder, Next's own files, `.well-known`, or any file with an extension (robots.txt, icons).
-  matcher: ["/((?!v1(?:/|$)|_next/|\\.well-known/|.*\\.[a-zA-Z0-9]+$).*)"],
+  // Not the API forwarder, Next's own files, `.well-known`, or a file with a known asset extension (robots.txt, icons,
+  // the decoder's WebAssembly, the `/play` build). A dot alone does not skip a path: a dynamic segment such as
+  // `/en/e/ABC.x` is a page and still gets the page policy and `no-store`.
+  matcher: [
+    "/((?!v1(?:/|$)|_next/|\\.well-known/|.*\\.(?:avif|css|cjs|eot|gif|ico|jpe?g|js|json|map|mjs|otf|png|svg|ttf|txt|wasm|webmanifest|webp|woff2?|xml)$).*)",
+  ],
 };

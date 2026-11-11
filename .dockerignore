@@ -9,8 +9,8 @@ docs
 coverage
 .stryker-tmp
 reports
-.env
-.env.*
+# Any .env file at any depth (an untracked apps/web/.env.local must never enter an image).
+**/.env*
 .cranl
 sbom.cdx.json
 **/.next

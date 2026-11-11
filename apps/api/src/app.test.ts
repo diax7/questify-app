@@ -156,6 +156,14 @@ describe("proxy trust", () => {
   });
 });
 
+const requestAt = (method: string, url: string | undefined, extra: object = {}) =>
+  ({
+    method,
+    url: "/the/filled/path/is/never/read?ignored=private_email",
+    routeOptions: { url },
+    ...extra,
+  }) as unknown as Parameters<ReturnType<typeof loggerOptions>["serializers"]["req"]>[0];
+
 describe("loggerOptions", () => {
   const base = testConfig();
 
@@ -165,44 +173,39 @@ describe("loggerOptions", () => {
     expect(loggerOptions({ ...base, nodeEnv: "test" }).level).toBe("debug");
   });
 
-  it("logs a request as method and path only, never the client address", () => {
+  it("logs a request as method and route pattern only, never the client address", () => {
     const { req } = loggerOptions(base).serializers;
-    const request = {
-      method: "POST",
-      url: "/v1/staff/auth/password",
+    const request = requestAt("POST", "/v1/staff/auth/password", {
       ip: "203.0.113.9",
       socket: { remoteAddress: "127.0.0.1" },
       headers: { cookie: "x" },
-    } as unknown as Parameters<typeof req>[0];
+    });
     expect(req(request)).toEqual({ method: "POST", url: "/v1/staff/auth/password" });
   });
 
-  it("keeps public usernames and query values out of request logs", () => {
+  it("writes the route pattern, so a code, a username or a query value in the path never reaches a log", () => {
     const { req } = loggerOptions(base).serializers;
-    const request = {
+    expect(req(requestAt("GET", "/v1/players/:username"))).toEqual({
       method: "GET",
-      url: "/v1/players/private_handle?ignored=private_email",
-    } as unknown as Parameters<typeof req>[0];
-    expect(req(request)).toEqual({ method: "GET", url: "/v1/players/:username" });
+      url: "/v1/players/:username",
+    });
+    expect(req(requestAt("GET", "/v1/rehearsals/:code"))).toEqual({
+      method: "GET",
+      url: "/v1/rehearsals/:code",
+    });
+    expect(req(requestAt("DELETE", "/v1/me/blocks/:username"))).toEqual({
+      method: "DELETE",
+      url: "/v1/me/blocks/:username",
+    });
   });
 
   it("writes a path no route answers as `unmatched`, since a caller can type anything there (T-018)", () => {
     const { req } = loggerOptions(base).serializers;
-    const request = {
+    expect(req(requestAt("GET", undefined, { is404: true }))).toEqual({
       method: "GET",
-      url: "/someone@example.sa/+966500000000",
-      is404: true,
-    } as unknown as Parameters<typeof req>[0];
-    expect(req(request)).toEqual({ method: "GET", url: "unmatched" });
-  });
-
-  it("keeps a blocked username out of request logs (T-705)", () => {
-    const { req } = loggerOptions(base).serializers;
-    const request = {
-      method: "DELETE",
-      url: "/v1/me/blocks/someone_blocked",
-    } as unknown as Parameters<typeof req>[0];
-    expect(req(request)).toEqual({ method: "DELETE", url: "/v1/me/blocks/:username" });
+      url: "unmatched",
+    });
+    expect(req(requestAt("GET", undefined))).toEqual({ method: "GET", url: "unmatched" });
   });
 
   it("removes credentials, session cookies and idempotency keys from every log line", () => {

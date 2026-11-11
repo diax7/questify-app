@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { apiBaseUrl, createClient } from "#src/api/client.ts";
+import { apiBaseUrl, createClient, isSafePath } from "#src/api/client.ts";
 
 type Call = { url: string; init: RequestInit | undefined };
 
@@ -40,7 +40,49 @@ describe("apiBaseUrl", () => {
   });
 });
 
+describe("isSafePath", () => {
+  it("lets a fixed route with an encoded id and a query through", () => {
+    for (const path of [
+      "/v1/config",
+      "/v1/events/0b9f6f3e-8d4c-4a51-9a51-1c2d3e4f5a6b/home",
+      `/v1/events/${encodeURIComponent("a b?c#d")}/home`,
+      "/v1/me/notifications?limit=20&cursor=a%2Fb",
+      "/v1/events/a..b/home",
+    ]) {
+      expect(isSafePath(path), path).toBe(true);
+    }
+  });
+
+  it("refuses a path a crafted address could steer elsewhere", () => {
+    for (const path of [
+      "/v1/events/../admin/home",
+      "/v1/events/./home",
+      `/v1/events/${encodeURIComponent("..")}/home`,
+      "/v1/events/%2e%2E/home",
+      "/v1/events/x%2Fy/home",
+      "/v1/events/x/home#frag",
+      "/v1/events/x?y#z",
+      "/v1/events//home",
+      "//evil.test/v1/me",
+      "/v1/events/x\\y/home",
+      "v1/me",
+    ]) {
+      expect(isSafePath(path), path).toBe(false);
+    }
+  });
+});
+
 describe("createClient", () => {
+  it("sends nothing for a path that would leave its route, and answers network", async () => {
+    const api = answering(200, {});
+    const result = await clientWith(api.fetchImpl).request({
+      method: "GET",
+      path: "/v1/events/../../other/shop",
+    });
+    expect(result).toEqual({ kind: "network" });
+    expect(api.calls).toEqual([]);
+  });
+
   it("sends the install id, the language, JSON and the access token", async () => {
     const api = answering(200, { ok: true });
     const result = await clientWith(api.fetchImpl).request({

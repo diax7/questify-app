@@ -110,6 +110,11 @@ describe("the cookie helpers", () => {
     expect(isOperatorPath("/v1/operator/events")).toBe(true);
     expect(isOperatorPath("/v1/me/operator-events")).toBe(true);
     expect(isOperatorPath("/v1/me/operator-events/x")).toBe(true);
+    expect(isOperatorPath("/v1/operator-invites/claim")).toBe(true);
+    expect(isOperatorPath("/v1/operator-invites/preview")).toBe(true);
+    expect(isOperatorPath("/v1/events/0b9f6f3e/operator/play")).toBe(true);
+    expect(isOperatorPath("/v1/events/0b9f6f3e/play")).toBe(false);
+    expect(isOperatorPath("/v1/events/a/b/operator/play")).toBe(false);
     expect(isOperatorPath("/v1/operators")).toBe(false);
     expect(isOperatorPath("/v1/me")).toBe(false);
     for (const path of [
@@ -553,7 +558,13 @@ describe("the forwarder's player web session (PLAYER_WEB_SESSION on)", () => {
     });
 
     it("answers 404 to operator paths for a cookie request, without calling the API", async () => {
-      for (const path of ["/v1/operator/events", "/v1/me/operator-events"]) {
+      for (const path of [
+        "/v1/operator/events",
+        "/v1/me/operator-events",
+        "/v1/operator-invites/claim",
+        "/v1/operator-invites/preview",
+        "/v1/events/0b9f6f3e-8d4c-4a51-9a51-1c2d3e4f5a6b/operator/play",
+      ]) {
         const response = await get(path, { cookie: oldCookie });
         expect(response.status, path).toBe(404);
       }

@@ -401,9 +401,12 @@ function apns(env: Env): ApnsSettings | undefined {
   };
 }
 
+/** Google's token endpoint: the only address a push service account's signed request is ever sent to. */
+const GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token";
+
 /**
  * The FCM settings (ADR-344 (3)): the Firebase project's service account key file, as JSON or its base64, with a
- * project id, an RSA private key and an https token address. None: Android phones get no push and the server still
+ * project id, an RSA private key and Google's own token address. None: Android phones get no push and the server still
  * starts. Errors name the setting and the field, never a value.
  */
 function fcm(env: Env): FcmSettings | undefined {
@@ -426,8 +429,8 @@ function fcm(env: Env): FcmSettings | undefined {
       "FCM_SERVICE_ACCOUNT's private_key is not an RSA private key in PEM: download the key file again.",
     );
   }
-  if (!fields.token_uri.startsWith("https://")) {
-    throw new Error("FCM_SERVICE_ACCOUNT's token_uri must be an https address.");
+  if (fields.token_uri !== GOOGLE_TOKEN_URI) {
+    throw new Error(`FCM_SERVICE_ACCOUNT's token_uri must be ${GOOGLE_TOKEN_URI}.`);
   }
   return {
     projectId: fields.project_id,

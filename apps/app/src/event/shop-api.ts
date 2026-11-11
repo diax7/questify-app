@@ -180,7 +180,10 @@ export async function fetchShop(
   session: Pick<Session, "request">,
   eventId: string,
 ): Promise<ShopAnswer> {
-  const answer = await session.request({ method: "GET", path: `/v1/events/${eventId}/shop` });
+  const answer = await session.request({
+    method: "GET",
+    path: `/v1/events/${encodeURIComponent(eventId)}/shop`,
+  });
   if (answer.kind === "ok") {
     const view = readShop(answer.body);
     return view === undefined ? { kind: "network" } : { kind: "shop", view };
@@ -312,7 +315,7 @@ export async function reserveReward(
   return callAnswer(
     await session.request({
       method: "POST",
-      path: `/v1/rewards/${rewardId}/reserve`,
+      path: `/v1/rewards/${encodeURIComponent(rewardId)}/reserve`,
       headers: { "idempotency-key": key },
     }),
   );
@@ -324,7 +327,10 @@ export async function cancelRedemption(
   redemptionId: string,
 ): Promise<ShopCallAnswer> {
   return callAnswer(
-    await session.request({ method: "POST", path: `/v1/redemptions/${redemptionId}/cancel` }),
+    await session.request({
+      method: "POST",
+      path: `/v1/redemptions/${encodeURIComponent(redemptionId)}/cancel`,
+    }),
   );
 }
 
@@ -337,7 +343,7 @@ export async function setGoal(
   return callAnswer(
     await session.request({
       method: "PUT",
-      path: `/v1/events/${eventId}/goal`,
+      path: `/v1/events/${encodeURIComponent(eventId)}/goal`,
       body: { rewardId },
     }),
   );
@@ -440,7 +446,10 @@ export async function startCollect(
   redemptionId: string,
 ): Promise<DeskCallAnswer> {
   return deskAnswer(
-    await session.request({ method: "POST", path: `/v1/redemptions/${redemptionId}/collect` }),
+    await session.request({
+      method: "POST",
+      path: `/v1/redemptions/${encodeURIComponent(redemptionId)}/collect`,
+    }),
   );
 }
 
@@ -453,7 +462,7 @@ export async function acceptHandover(
   return deskAnswer(
     await session.request({
       method: "POST",
-      path: `/v1/redemptions/${redemptionId}/accept`,
+      path: `/v1/redemptions/${encodeURIComponent(redemptionId)}/accept`,
       headers: { "idempotency-key": key },
     }),
   );
@@ -465,7 +474,10 @@ export async function declineHandover(
   redemptionId: string,
 ): Promise<DeskCallAnswer> {
   return deskAnswer(
-    await session.request({ method: "POST", path: `/v1/redemptions/${redemptionId}/decline` }),
+    await session.request({
+      method: "POST",
+      path: `/v1/redemptions/${encodeURIComponent(redemptionId)}/decline`,
+    }),
   );
 }
 
@@ -478,7 +490,7 @@ export async function acceptDeskSale(
   return deskAnswer(
     await session.request({
       method: "POST",
-      path: `/v1/desk-sales/${saleId}/accept`,
+      path: `/v1/desk-sales/${encodeURIComponent(saleId)}/accept`,
       headers: { "idempotency-key": key },
     }),
   );
@@ -490,7 +502,10 @@ export async function declineDeskSale(
   saleId: string,
 ): Promise<DeskCallAnswer> {
   return deskAnswer(
-    await session.request({ method: "POST", path: `/v1/desk-sales/${saleId}/decline` }),
+    await session.request({
+      method: "POST",
+      path: `/v1/desk-sales/${encodeURIComponent(saleId)}/decline`,
+    }),
   );
 }
 

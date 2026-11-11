@@ -1,5 +1,17 @@
 # Blueprint State — Questify
 
+## Security audit hardening batch A — 2026-11-11
+
+- **Built (tier C, no review).** Audit hardening batch A, seven items: the web forwarder refuses cookie sessions on
+  `/v1/operator-invites/*` and `/v1/events/:eventId/operator/play` (operator transitions stay phone-only); `csvCell`
+  prefixes any text that starts with whitespace or a formula character; the proxy matcher skips only known asset
+  extensions, so a dotted page address (`/en/e/ABC.x`) gets the page CSP and `no-store`; the app client refuses a path
+  with a dot segment, `//`, a backslash or `#` (`isSafePath`) and the unencoded ids in shop, held-prizes, devices and
+  config paths are encoded; `.dockerignore` uses `**/.env*`; `FCM_SERVICE_ACCOUNT`'s `token_uri` must equal
+  `https://oauth2.googleapis.com/token`; the API request log writes the route pattern (`request.routeOptions.url`) or
+  `unmatched`, never the filled path. Not done: the Gmail key's `token_uri` is still unpinned (its tests use
+  `oauth2.googleapis.test`).
+
 ## Security audit: the shared mail budget — 2026-11-11
 
 - **Built (tier A, review pending).** The sign-up resend takes the day's mail budget (`outboundMailPerDay`) only after

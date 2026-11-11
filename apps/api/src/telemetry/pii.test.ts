@@ -21,6 +21,8 @@ const SENTINELS = {
   idempotencyKey: "sentinel-idem-key-42",
   smsText: "your sentinel code is 482913",
   pushToken: "sentinel-push-device-token",
+  rehearsalCode: "SENTINELCODE7",
+  joinCode: "SENTJOIN9",
 };
 
 let recording: Recording;
@@ -62,6 +64,12 @@ async function driveTheServer(pool?: Pool): Promise<void> {
     url: `/v1/players/${SENTINELS.username}?email=${SENTINELS.queryEmail}`,
     headers,
   });
+  await app.inject({
+    method: "GET",
+    url: `/v1/rehearsals/${SENTINELS.rehearsalCode}`,
+    headers,
+  });
+  await app.inject({ method: "GET", url: `/v1/public/events/${SENTINELS.joinCode}`, headers });
   await app.inject({
     method: "POST",
     url: "/v1/auth/code",
@@ -188,5 +196,6 @@ describe("what is written to the log", () => {
       expect(written, `${name} in a log line`).not.toContain(value);
     }
     expect(written).toContain("/v1/players/:username");
+    expect(written).toContain("/v1/rehearsals/:code");
   });
 });
