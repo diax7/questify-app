@@ -187,9 +187,13 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the suspension wall by object 
     ["GET", `/v1/meet-passes/${ids["passId"]}`],
     ["POST", `/v1/redemptions/${ids["redemptionId"]}/collect`],
   ];
+  /** The give-back doors, each named here so that leaving one off OPEN_WHILE_SUSPENDED fails. */
   const OPEN = (): ReadonlyArray<readonly [Method, string]> => [
     ["POST", `/v1/redemptions/${ids["redemptionId"]}/cancel`],
+    ["POST", `/v1/redemptions/${ids["redemptionId"]}/decline`],
+    ["POST", `/v1/operator/redemptions/${ids["redemptionId"]}/cancel`],
     ["POST", `/v1/desk-sales/${ids["saleId"]}/decline`],
+    ["POST", `/v1/operator/desk/sales/${ids["saleId"]}/withdraw`],
   ];
 
   it("walls each object of a suspended event, leaves another event and the give-back doors open, and lifts", async () => {
