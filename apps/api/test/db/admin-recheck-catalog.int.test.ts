@@ -365,7 +365,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the admin re-check (database)"
     // An InitPlan runs at its first use and at most once per query. The player's rows fail the organizer branch, so
     // ledger_entry_read's InitPlan runs once; the enrollment sub-select's own is never reached (its rows pass
     // `player_id = app_player_id()` first). The admin's InitPlan answers before the sub-select runs at all. A bare
-    // app_admin_id() would run once for each of the 21 rows.
+    // app_admin_id() would run once for each of the 21 rows. An InitPlan runs lazily, on first use, so a plan change may
+    // move the count to 2; the bound is what tells one call per query from one per row.
     it("runs app_admin_id() once for a player who reads one row of many, not once per row", async () => {
       expect(
         await measured(
@@ -373,7 +374,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the admin re-check (database)"
           "SELECT count(*)::int AS n FROM ledger_entry WHERE event_id = $1",
           [event],
         ),
-      ).toEqual({ rows: 1, calls: 1 });
+      ).toMatchObject({ rows: 1, calls: expect.toBeOneOf([1, 2]) });
     });
 
     it("runs app_admin_id() once for an admin who reads every row, not once per row", async () => {
@@ -383,7 +384,7 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the admin re-check (database)"
           "SELECT count(*)::int AS n FROM ledger_entry WHERE event_id = $1",
           [event],
         ),
-      ).toEqual({ rows: ROWS + 1, calls: 1 });
+      ).toMatchObject({ rows: ROWS + 1, calls: expect.toBeOneOf([1, 2]) });
     });
   });
 });

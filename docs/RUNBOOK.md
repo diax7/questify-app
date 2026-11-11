@@ -1329,8 +1329,8 @@ container is old. `DATABASE_ADMIN_URL` set after a deploy reaches the app only a
 - **Community quests (T-306b): migration 0053 checks its owner can read the API's sessions** (a superuser, or one
   holding `questify_app`'s privileges; CranL's `admin` is a superuser) and stops with "the migration owner … can not
   read questify_app's sessions" otherwise; `node migrate.cjs --verify` then reports `ownerSeesSessions: true`. Nothing
-  is granted. Migration 0191 needs a superuser or BYPASSRLS owner too, for `app_admin_id()`'s read of `staff_user`
-  (see "The admin re-check sweep" below). It also drops `event_has_open_poll` for `event_has_live`: deploy the new API with it. On the day a build
+  is granted. It also drops `event_has_open_poll` for `event_has_live`: deploy the new API with it. Migration 0191
+  needs a superuser or BYPASSRLS owner too (see "The admin re-check sweep" below). On the day a build
   goes to store review, give the demo event a running community goal with an unlock milestone (STORE_COMPLIANCE, review notes).
 - **Migration 0065 (T-403, achievements, passport, event city, final ranks):** adds a column to `event`
   (ACCESS EXCLUSIVE for a moment), creates `final_rank` with keys to `event_result` and `enrollment` (scans wait on the
@@ -1483,6 +1483,10 @@ react-native-web dependency, which T-502 does not add. No EAS build or real vend
   row and every Questify admin is refused everywhere (it fails closed, nothing opens). 0191 checks the owner and stops
   with "the migration owner … can not read staff_user past its row-level security" otherwise. CranL's `admin` is a
   superuser (Q-188); keep it so, or `ALTER ROLE <owner> BYPASSRLS` before any change of owner.
+- **"changed more than the admin check".** 0191 compares every policy with its text before the migration, with only
+  the admin check swapped for the deparsed InitPlan form of PostgreSQL 17. If it stops with that message, the
+  database's policy text differs (another PostgreSQL deparse, or a policy changed by hand): nothing is applied. Never
+  force it or edit the check; read the named policy with `pg_policies` and bring the difference to the developer.
 
 ### The sign-in lock order (migration 0184; deploy steps)
 
