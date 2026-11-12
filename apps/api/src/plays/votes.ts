@@ -13,7 +13,8 @@ import {
 import { teamSeat } from "#src/organizers/store";
 
 export type VoteView = Readonly<{
-  options: readonly Readonly<{ id: string; text: Bilingual }>[];
+  /** `image` is the option's organizer icon (ADR-190), read through the event's image door; absent for none. */
+  options: readonly Readonly<{ id: string; text: Bilingual; image?: string }>[];
   /** The options this player chose (several only on a live poll), none before they vote. */
   mine: readonly string[];
 }>;
@@ -24,6 +25,18 @@ const optionOf = (row: OptionRow) => ({
   id: row.option_id,
   text: { ar: row.text_ar, en: row.text_en },
 });
+
+/** The options' organizer icons by option id (member_quest_images, migration 0194): the vote door's own rule. */
+async function optionImages(
+  client: PoolClient,
+  questId: string,
+): Promise<Readonly<Record<string, string>>> {
+  const { rows } = await client.query<{ images: { options?: Record<string, string> } | null }>(
+    "SELECT member_quest_images($1) AS images",
+    [questId],
+  );
+  return rows[0]?.images?.options ?? {};
+}
 
 /** A vote quest's options and the player's own choice (FR-207); not found unless they may play it. */
 export async function readVote(
@@ -36,19 +49,23 @@ export async function readVote(
       "SELECT * FROM member_vote($1)",
       [questId],
     );
-    return rows;
+    return { rows, images: rows.length === 0 ? {} : await optionImages(client, questId) };
   });
   if (read.kind !== "done") {
     return read;
   }
-  if (read.value.length === 0) {
+  if (read.value.rows.length === 0) {
     return { kind: "not_found" };
   }
+  const { rows, images } = read.value;
   return {
     kind: "done",
     value: {
-      options: read.value.map(optionOf),
-      mine: read.value.filter((row) => row.mine).map((row) => row.option_id),
+      options: rows.map((row) => {
+        const image = images[row.option_id];
+        return image === undefined ? optionOf(row) : { ...optionOf(row), image };
+      }),
+      mine: rows.filter((row) => row.mine).map((row) => row.option_id),
     },
   };
 }

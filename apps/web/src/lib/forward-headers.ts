@@ -1,4 +1,5 @@
 import { API_SECURITY_HEADERS, apiError, type LocalizedText } from "@questify/shared";
+import { mediaSource } from "#src/lib/security-headers.ts";
 import { appHeaders, setsPlayerCookie, type PlayerCookie } from "#src/lib/player-session.ts";
 
 /**
@@ -131,14 +132,56 @@ export function forwardedRequestHeaders(
   return headers;
 }
 
-/** The upstream answer's headers the browser may see; an upstream `__Host-qs_player` is never passed on. */
-export function forwardedResponseHeaders(upstream: Headers): Headers {
+/** The two image read doors (ADR-829): the player's and the team's, which answer a 302 to the photo bucket. */
+export const isImageReadPath = (path: string): boolean => IMAGE_READ_PATH.test(path);
+
+const IMAGE_READ_PATH =
+  /^\/v1\/(?:organizers\/[^/]+\/)?events\/[0-9a-f-]{36}\/images\/[0-9a-f-]{36}$/iu;
+
+/**
+ * The redirect an image read answers, passed on only from an image read path and only to the photo bucket's own origin
+ * (`MEDIA_HOST`, over https), so the forwarder never becomes an open redirect to anywhere else.
+ */
+export function imageLocation(
+  path: string,
+  location: string | null,
+  mediaOrigin: string | undefined,
+): string | undefined {
+  if (location === null || mediaOrigin === undefined || !IMAGE_READ_PATH.test(path)) {
+    return undefined;
+  }
+  let target: URL;
+  try {
+    target = new URL(location);
+  } catch {
+    return undefined;
+  }
+  return target.origin === mediaOrigin && location.startsWith(`${mediaOrigin}/`)
+    ? location
+    : undefined;
+}
+
+/**
+ * The upstream answer's headers the browser may see; an upstream `__Host-qs_player` is never passed on. On an image read
+ * path (`path`), the `location` of its redirect too, when it points at the photo bucket (`imageLocation`), with the
+ * no-referrer policy the API set.
+ */
+export function forwardedResponseHeaders(
+  upstream: Headers,
+  path = "",
+  mediaOrigin: string | undefined = mediaSource(process.env["MEDIA_HOST"]),
+): Headers {
   const headers = new Headers();
   for (const name of RESPONSE_HEADERS) {
     const value = upstream.get(name);
     if (value !== null) {
       headers.set(name, value);
     }
+  }
+  const location = imageLocation(path, upstream.get("location"), mediaOrigin);
+  if (location !== undefined) {
+    headers.set("location", location);
+    headers.set("referrer-policy", "no-referrer");
   }
   for (const cookie of upstream.getSetCookie()) {
     if (!setsPlayerCookie(cookie)) {

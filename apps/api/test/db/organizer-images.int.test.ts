@@ -188,7 +188,11 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("organizer images (database)", 
       expect(await reserve(event, "banner", teamA(), key)).toEqual(first);
       expect(await refusal(reserve(event, "map", teamA(), key))).toBe("QK422");
       expect(await store(first)).toBe(true);
-      expect(await reserve(event, "banner", teamA(), key)).toEqual({ ...first, stored: true });
+      expect(await reserve(event, "banner", teamA(), key)).toMatchObject({
+        id: first.id,
+        stored: true,
+        width: 640,
+      });
     });
 
     it("refuses another organizer's event, an event outside the editor's scope, a player and a device", async () => {

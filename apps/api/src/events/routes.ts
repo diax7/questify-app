@@ -230,6 +230,8 @@ export function registerEventRoutes(
   scope: FastifyInstance,
   events: Events,
   settings: SettingsService,
+  /** Whether this server stores images (a bucket is set up): the dashboard shows its image fields only then. */
+  photos = false,
 ): void {
   registerTemplateRoutes(scope, events);
 
@@ -278,6 +280,7 @@ export function registerEventRoutes(
         terms: event.terms,
         texts: event.texts,
         suspension: event.suspension,
+        photos,
       },
     };
   });

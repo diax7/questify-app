@@ -49,6 +49,7 @@ import {
   type QuestRecord,
 } from "#src/quests/store";
 import type { PoolClient } from "pg";
+import { nameImages, questImages } from "#src/storage/image-refs";
 
 type Target = Readonly<{ eventId: string; id: string }>;
 
@@ -237,6 +238,7 @@ async function vetNewQuest(
   if (isInvalid(fields)) {
     return fields;
   }
+  await nameImages(client, eventId, questImages(type, fields.config));
   if (!(await itemAllowed(client, eventId, fields.itemId, null))) {
     return { kind: "invalid_item" };
   }
@@ -306,6 +308,7 @@ async function vetEdit(
   if (isInvalid(fields)) {
     return fields;
   }
+  await nameImages(client, eventId, questImages(current.type, fields.config));
   if (!(await itemAllowed(client, eventId, fields.itemId, current.itemId))) {
     return { kind: "invalid_item" };
   }

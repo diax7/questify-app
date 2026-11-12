@@ -9,6 +9,7 @@ import {
   confirmRequired,
   eventClosed,
   invalidCategory,
+  imageUnknown,
   invalidItem,
   invalidQuest,
   lastCategory,
@@ -257,6 +258,8 @@ export function answer<T>(
       throw souvenirInUse(result.what, subject);
     case "invalid_item":
       throw invalidItem();
+    case "image_unknown":
+      throw imageUnknown({ field: result.field });
     case "poll_locked":
       throw pollLocked({ field: result.field });
     case "first_bonus_paid":

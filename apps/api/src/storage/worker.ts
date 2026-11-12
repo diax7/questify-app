@@ -98,7 +98,10 @@ export function startMediaWorker(deps: MediaWorkerDeps): MediaWorker {
   const halted = () => stopped;
 
   const run = async (): Promise<MediaTotals> => {
-    const swept = await scalar(deps.pool, "SELECT media_sweep_uploads() AS n");
+    // Player uploads never attached, then organizer images nothing names any more (ADR-829 (3)).
+    const swept =
+      (await scalar(deps.pool, "SELECT media_sweep_uploads() AS n")) +
+      (await scalar(deps.pool, "SELECT media_sweep_images($1) AS n", [PURGE_BATCH]));
     const purged = await scalar(deps.pool, "SELECT media_purge_due($1) AS n", [PURGE_BATCH]);
     let deleted = 0;
     let failed = 0;

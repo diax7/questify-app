@@ -115,6 +115,8 @@ export type Refused =
   | Readonly<{ kind: "submission_kind_unavailable"; asked: "photo" | "video" }>
   /** What a submission quest accepts is fixed once it has a submission (migration 0193). */
   | Readonly<{ kind: "accepts_locked" }>
+  /** A game or vote names an image that is not a stored image of this event (ADR-829). */
+  | Readonly<{ kind: "image_unknown"; field: string }>
   /** Players voted or started the quiz: only its text may change (ADR-194, migration 0041). */
   | Readonly<{ kind: "quest_locked" }>
   /** Players stamped this passport step (T-304b): it stays. */
@@ -654,6 +656,8 @@ const CODE_REFUSALS = new Map<string, (pg: PgError) => Refused>([
   ["QT422", () => ({ kind: "invalid", field: "refresh" })],
   // The item was removed between the builder's check and the write (migration 0047).
   ["QI422", () => ({ kind: "invalid_item" })],
+  // A config names an image that is not a stored image of this event of its kind (migration 0194).
+  ["MI422", (pg) => ({ kind: "image_unknown", field: pg.detail ?? "config" })],
 ]);
 
 function codeRefusal(pg: PgError): Refused | undefined {

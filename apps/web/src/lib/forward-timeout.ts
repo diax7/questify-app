@@ -3,8 +3,12 @@ const EXPORT_PATH = /^\/v1\/organizers\/[^/]+\/events\/[^/]+\/exports\/[a-z]+$/u
 /** Applying a change set claims it for 5 minutes in the API, so the forwarder waits as long. */
 const APPLY_PATH = /^\/v1\/organizers\/[^/]+\/events\/[^/]+\/change-sets\/[^/]+\/apply$/u;
 
-/** A player's photo upload (T-301b): up to 8 MB on a venue's network, then a re-encode and a PUT to the bucket. */
-const PHOTO_PATH = /^\/v1\/(?:quests\/[^/]+\/photo|events\/[^/]+\/tickets\/photo)$/u;
+/**
+ * A player's photo upload (T-301b), or an organizer image upload (ADR-829): up to 8 MB on a venue's network, then a
+ * re-encode and a PUT to the bucket.
+ */
+const PHOTO_PATH =
+  /^\/v1\/(?:quests\/[^/]+\/photo|events\/[^/]+\/tickets\/photo|organizers\/[^/]+\/events\/[^/]+\/images)$/u;
 
 export const EXPORT_TIMEOUT_MS = 180_000;
 export const APPLY_TIMEOUT_MS = 300_000;

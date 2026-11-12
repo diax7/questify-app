@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { GAME_LEVELS, GAME_NAMES } from "#src/games/levels";
+import { imageIdSchema } from "#src/images/images";
 import { toWesternDigits } from "#src/i18n/digits";
 
 /** An entry code: ASCII letters and digits only, so an Arabic or an English keyboard types the same thing. */
@@ -8,6 +9,31 @@ const ENTRY_CODE = /^[A-Za-z0-9]{4,32}$/;
 const hintText = z.string().trim().min(1).max(200).optional();
 /** An id the dashboard makes for an option, a question or a choice; stable once players answered (ADR-194). */
 const itemId = z.string().regex(/^[A-Za-z0-9_-]{1,40}$/);
+
+/** Most organizer pictures per game (migration 0194's `quest_images_ok`). */
+export const GAME_IMAGE_LIMITS = { faces: 10, items: 5 } as const;
+
+/** A game's organizer art (T-305b): one field by game; tap rush takes none. */
+const gameImages = z.strictObject({
+  faces: z.array(imageIdSchema).min(1).max(GAME_IMAGE_LIMITS.faces).optional(),
+  picture: imageIdSchema.optional(),
+  items: z.array(imageIdSchema).min(1).max(GAME_IMAGE_LIMITS.items).optional(),
+});
+export type GameImages = z.infer<typeof gameImages>;
+
+/** The one field each game takes: memory match faces, the slide puzzle's picture, catch's items. */
+const GAME_IMAGE_FIELD: Readonly<Record<string, keyof GameImages | undefined>> = {
+  memory_match: "faces",
+  slide_puzzle: "picture",
+  catch: "items",
+};
+
+function gameImagesFit(game: string, images: GameImages | undefined): boolean {
+  if (images === undefined) return true;
+  const keys = Object.keys(images).filter((key) => images[key as keyof GameImages] !== undefined);
+  const field = GAME_IMAGE_FIELD[game];
+  return field !== undefined && keys.length === 1 && keys[0] === field;
+}
 /** Organizer text of at most `max` characters, in at least one language (FR-1008). */
 const organizerText = (max: number) =>
   z
@@ -160,7 +186,14 @@ export const QUEST_TYPES = {
     verifications: [],
     config: z.strictObject({
       options: z
-        .array(z.strictObject({ id: itemId, text: organizerText(120) }))
+        .array(
+          z.strictObject({
+            id: itemId,
+            text: organizerText(120),
+            /** An organizer icon beside the option's text (ADR-190, ADR-829); the text stays and is its name. */
+            image: imageIdSchema.optional(),
+          }),
+        )
         .min(2)
         .max(10)
         .refine(distinctIds),
@@ -292,8 +325,11 @@ export const QUEST_TYPES = {
           .max(GAME_COOLDOWN_MINUTES.max)
           .nullable()
           .default(null),
+        /** The organizer's art (T-305b): card faces, the puzzle's picture or the falling items; default art otherwise. */
+        images: gameImages.optional(),
       })
-      .refine((config) => (config.attempts === null) === (config.cooldownMinutes !== null)),
+      .refine((config) => (config.attempts === null) === (config.cooldownMinutes !== null))
+      .refine((config) => gameImagesFit(config.game, config.images), { path: ["images"] }),
   },
 } as const;
 

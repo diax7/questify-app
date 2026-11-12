@@ -1,4 +1,10 @@
-import type { MapAmenity, MapPinKind, MapQuestState, MemberMaps } from "@questify/shared";
+import type {
+  MapAmenity,
+  MapPinKind,
+  MapQuestState,
+  MemberMaps,
+  SizedImage,
+} from "@questify/shared";
 
 type Text = Readonly<{ ar: string | null; en: string | null }>;
 type Bilingual = Readonly<{ ar: string; en: string }>;
@@ -24,7 +30,12 @@ type DoorPin = Readonly<{
 
 /** The `member_maps` door's answer: quest pins carry only their quest's id. */
 export type DoorMaps = Readonly<{
-  maps: readonly Readonly<{ id: string; name: Bilingual; pins: readonly DoorPin[] }>[];
+  maps: readonly Readonly<{
+    id: string;
+    name: Bilingual;
+    image?: SizedImage | null;
+    pins: readonly DoorPin[];
+  }>[];
   here: Readonly<{ pinId: string; at: string }> | null;
 }>;
 
@@ -43,6 +54,7 @@ export function memberMapsOf(door: DoorMaps, quests: ReadonlyMap<string, PinQues
   const maps = door.maps.map((map) => ({
     id: map.id,
     name: map.name,
+    image: map.image ?? null,
     pins: map.pins.flatMap((pin) => {
       const quest = pin.questId === null ? null : quests.get(pin.questId);
       if (quest === undefined) return [];

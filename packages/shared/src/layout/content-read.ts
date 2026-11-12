@@ -28,6 +28,22 @@ export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 export const points = (text: string): number => Array.from(text).length;
 
+const IMAGE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * An optional organizer image id (T-610b, ADR-829): lowercase when it is one, none when left out. The organizer's save
+ * refuses anything else; reading what was stored drops it, so the item shows without its picture.
+ */
+export function readImageId(raw: unknown, path: string, mode: Mode): Read<string | undefined> {
+  if (raw === undefined || raw === null) return ok(undefined);
+  if (typeof raw === "string" && IMAGE_ID.test(raw)) return ok(raw.toLowerCase());
+  return mode.strict ? fail(path, "must be an image of the event") : ok(undefined);
+}
+
+/** `{image}` when there is one, else nothing, so an item without a picture carries no key. */
+export const imagePart = (image: string | undefined): { image?: string } =>
+  image === undefined ? {} : { image };
+
 /** `https`, a full host name (no address, no user info), an optional port, then a path, query or fragment without spaces. */
 const LINK =
   /^https:\/\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}(?::\d{1,5})?(?:[/?#][^\s\\]*)?$/i;

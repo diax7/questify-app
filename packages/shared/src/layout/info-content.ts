@@ -6,6 +6,7 @@ import {
   isAllowedLink,
   ok,
   points,
+  readImageId,
   readKeys,
   readList,
   readLocal,
@@ -39,6 +40,7 @@ export const INFO_LIMITS = {
   paragraph: 600,
   listItem: 120,
   linkLabel: 40,
+  imageAlt: 120,
 } as const;
 
 export const CONTACT_KINDS = ["email", "phone", "link"] as const;
@@ -52,9 +54,17 @@ export type PageBlock =
   | Readonly<{ kind: "heading"; text: LocalText }>
   | Readonly<{ kind: "text"; text: LocalText }>
   | Readonly<{ kind: "list"; items: LocalText }>
-  | Readonly<{ kind: "link"; label: LocalText; url: string }>;
+  | Readonly<{ kind: "link"; label: LocalText; url: string }>
+  /** An organizer picture (T-613b); `alt` says what it shows, for a screen reader, in each language. */
+  | Readonly<{ kind: "image"; image: string; alt: LocalText }>;
 export type PageBlockKind = PageBlock["kind"];
-export const PAGE_BLOCK_KINDS: readonly PageBlockKind[] = ["heading", "text", "list", "link"];
+export const PAGE_BLOCK_KINDS: readonly PageBlockKind[] = [
+  "heading",
+  "text",
+  "list",
+  "link",
+  "image",
+];
 
 export type CustomPage = Readonly<{ title: LocalText; blocks: readonly PageBlock[] }>;
 
@@ -153,7 +163,21 @@ const BLOCK_KEYS: Readonly<Record<PageBlockKind, readonly string[]>> = {
   text: ["kind", "text"],
   list: ["kind", "items"],
   link: ["kind", "label", "url"],
+  image: ["kind", "image", "alt"],
 };
+
+/** An image part: a stored picture's id and its words; reading what was stored drops a part whose id is no id. */
+function readImageBlock(found: Record<string, unknown>, path: string, mode: Mode): Read<PageBlock> {
+  const alt = readLocal(found["alt"], `${path}.alt`, INFO_LIMITS.imageAlt, mode, {
+    required: true,
+  });
+  const image = readImageId(found["image"], `${path}.image`, { strict: true });
+  if (!alt.ok) return alt;
+  if (!image.ok) return image;
+  return image.value === undefined
+    ? fail(`${path}.image`, "must be an image of the event")
+    : ok({ kind: "image", image: image.value, alt: alt.value });
+}
 
 function readLinkBlock(found: Record<string, unknown>, path: string, mode: Mode): Read<PageBlock> {
   const label = readLocal(found["label"], `${path}.label`, INFO_LIMITS.linkLabel, mode, {
@@ -173,6 +197,7 @@ function readBlockBody(
   mode: Mode,
 ): Read<PageBlock> {
   if (kind === "link") return readLinkBlock(found, path, mode);
+  if (kind === "image") return readImageBlock(found, path, mode);
   if (kind === "list") {
     const items = readItems(found["items"], `${path}.items`, mode);
     return items.ok ? ok({ kind, items: items.value }) : items;
@@ -193,7 +218,7 @@ function readBlock(raw: unknown, path: string, mode: Mode): Read<PageBlock> {
     (name) => typeof raw === "object" && raw !== null && "kind" in raw && raw.kind === name,
   );
   if (kind === undefined) {
-    return fail(`${path}.kind`, "must be heading, text, list or link");
+    return fail(`${path}.kind`, "must be heading, text, list, link or image");
   }
   const found = readKeys(raw, path, BLOCK_KEYS[kind], mode);
   return found.ok ? readBlockBody(kind, found.value, path, mode) : found;

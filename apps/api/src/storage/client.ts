@@ -2,13 +2,16 @@ import { createHash } from "node:crypto";
 import { AwsV4Signer } from "aws4fetch";
 import type { StorageSettings } from "#src/storage/config";
 
-/** The bucket's three operations the API needs (ADR-183): put a re-encoded JPEG, delete it, sign a short read. */
+/** The two types the API stores: a JPEG for photos and pictures, a PNG for logos and icons (ADR-829). */
+export type StoredType = "image/jpeg" | "image/png";
+
+/** The bucket's three operations the API needs (ADR-183): put a re-encoded image, delete it, sign a short read. */
 export type ObjectStore = Readonly<{
-  put: (key: string, body: Buffer) => Promise<void>;
+  put: (key: string, body: Buffer, contentType?: StoredType) => Promise<void>;
   /** A delete of an object that is already gone (404) is done. */
   delete: (key: string) => Promise<void>;
-  /** A GET URL on the bucket's host that works for `ttlSeconds` (at most 300). */
-  signGet: (key: string, ttlSeconds: number) => Promise<SignedUrl>;
+  /** A GET URL on the bucket's host that works for `ttlSeconds` (at most 300), served as `contentType`. */
+  signGet: (key: string, ttlSeconds: number, contentType?: StoredType) => Promise<SignedUrl>;
 }>;
 
 export type SignedUrl = Readonly<{ url: string; expiresAt: Date }>;
@@ -103,12 +106,13 @@ export function createObjectStore(
     method: string,
     key: string,
     body: Buffer | undefined,
+    contentType: StoredType,
   ): Promise<Attempt> => {
     const headers: Record<string, string> =
       body === undefined
         ? {}
         : {
-            "content-type": "image/jpeg",
+            "content-type": contentType,
             "x-amz-content-sha256": createHash("sha256").update(body).digest("hex"),
           };
     const signed = await new AwsV4Signer({
@@ -139,10 +143,11 @@ export function createObjectStore(
     key: string,
     body: Buffer | undefined,
     done: (status: number) => boolean,
+    contentType: StoredType = "image/jpeg",
   ) => {
     let last: Attempt = { error: "network" };
     for (let tried = 1; tried <= ATTEMPTS; tried += 1) {
-      last = await attempt(op === "put" ? "PUT" : "DELETE", key, body);
+      last = await attempt(op === "put" ? "PUT" : "DELETE", key, body, contentType);
       const verdict = verdictOf(last, done);
       if (verdict === "done") return;
       if (verdict === "final" || tried === ATTEMPTS) break;
@@ -152,7 +157,8 @@ export function createObjectStore(
   };
 
   return {
-    put: (key, body) => send("put", key, body, (status) => status === 200),
+    put: (key, body, contentType = "image/jpeg") =>
+      send("put", key, body, (status) => status === 200, contentType),
     delete: (key) =>
       send(
         "delete",
@@ -160,14 +166,14 @@ export function createObjectStore(
         undefined,
         (status) => status === 204 || status === 200 || status === 404,
       ),
-    signGet: async (key, ttlSeconds) => {
+    signGet: async (key, ttlSeconds, contentType = "image/jpeg") => {
       if (!Number.isInteger(ttlSeconds) || ttlSeconds < 1 || ttlSeconds > MAX_SIGNED_SECONDS) {
         throw new RangeError(`A signed read lasts 1 to at most ${MAX_SIGNED_SECONDS} seconds.`);
       }
       const at = now();
       const url = objectUrl(settings, key);
       url.searchParams.set("X-Amz-Expires", String(ttlSeconds));
-      url.searchParams.set("response-content-type", "image/jpeg");
+      url.searchParams.set("response-content-type", contentType);
       url.searchParams.set("response-content-disposition", "inline");
       const signed = await new AwsV4Signer({
         ...credentials,

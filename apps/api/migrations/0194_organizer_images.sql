@@ -109,6 +109,10 @@ BEGIN
     ELSE false END;
 END $$;
 REVOKE ALL ON FUNCTION quest_images_ok(text, jsonb) FROM PUBLIC;
+-- The API role writes quests itself (the builder), so the CHECK runs in its seat: it may call these pure checks.
+GRANT EXECUTE ON FUNCTION quest_images_ok(text, jsonb) TO questify_app;
+GRANT EXECUTE ON FUNCTION quest_image_list(jsonb, integer) TO questify_app;
+GRANT EXECUTE ON FUNCTION quest_image_id(jsonb) TO questify_app;
 ALTER TABLE quest ADD CONSTRAINT quest_images_shape CHECK (quest_images_ok(type, type_config));
 
 -- ================================================================ helpers (internal: no grant)
@@ -234,7 +238,7 @@ REVOKE ALL ON FUNCTION media_image_event(uuid) FROM PUBLIC;
 -- 20 minutes is given up and a fresh one handed out. Caps (MD429, DETAIL the seconds to wait): 30 uploads a staff member
 -- in 10 minutes, and 200 images of the event that no save has named yet.
 CREATE FUNCTION media_image_reserve(target_event uuid, image_kind text, request_key text)
-  RETURNS TABLE (id uuid, key text, stored boolean)
+  RETURNS TABLE (id uuid, key text, stored boolean, width integer, height integer)
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 #variable_conflict use_column
 DECLARE
@@ -261,7 +265,7 @@ BEGIN
       RAISE EXCEPTION 'this key was used for another upload' USING ERRCODE = 'QK422';
     END IF;
     IF earlier.state <> 'reserved' OR earlier.created_at > now() - interval '20 minutes' THEN
-      RETURN QUERY SELECT earlier.id, earlier.key, earlier.state <> 'reserved';
+      RETURN QUERY SELECT earlier.id, earlier.key, earlier.state <> 'reserved', earlier.width, earlier.height;
       RETURN;
     END IF;
     DELETE FROM media_object m WHERE m.id = earlier.id;
@@ -284,7 +288,7 @@ BEGIN
           'o/' || ev.organizer_id || '/e/' || ev.id || '/' || image_kind || '/' || new_id || ext,
           me, media_image_reserve.request_key)
   RETURNING * INTO made;
-  RETURN QUERY SELECT made.id, made.key, false;
+  RETURN QUERY SELECT made.id, made.key, false, NULL::integer, NULL::integer;
 END $$;
 REVOKE ALL ON FUNCTION media_image_reserve(uuid, text, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION media_image_reserve(uuid, text, text) TO questify_app;

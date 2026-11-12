@@ -196,7 +196,10 @@ const view = (fields: Record<string, unknown> = {}) => ({
 });
 const sheet = (viewRow: Record<string, unknown>) =>
   readGame(
-    playDeps((sql) => (sql.includes("member_game") ? { rows: [viewRow] } : nothingAsked(sql))).deps,
+    playDeps((sql) => {
+      if (sql.includes("member_quest_images")) return { rows: [{ images: null }] };
+      return sql.includes("member_game") ? { rows: [viewRow] } : nothingAsked(sql);
+    }).deps,
     PLAYER,
     QUEST,
   );

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { MessageKey } from "#src/i18n/messages";
+import { imageIdSchema } from "#src/images/images";
 import { optionalPlainText } from "#src/text/plain-text";
 
 /**
@@ -44,6 +45,9 @@ export const sponsorBodySchema = z
     nameEn: optionalPlainText(SPONSOR_LIMITS.name),
     tier: z.enum(SPONSOR_TIERS),
     booth: optionalPlainText(SPONSOR_LIMITS.booth),
+    /** The logo and the strip banner (T-507b): left out keeps them, null removes them, an image id sets them. */
+    logo: imageIdSchema.nullable().optional(),
+    banner: imageIdSchema.nullable().optional(),
   })
   .superRefine((body, context) => {
     if ((body.nameAr ?? "") === "" && (body.nameEn ?? "") === "") {
@@ -70,6 +74,8 @@ export const teamSponsorSchema = z.object({
   nameEn: z.string().nullable(),
   tier: z.enum(SPONSOR_TIERS),
   booth: z.string().nullable(),
+  logo: z.string().nullish(),
+  banner: z.string().nullish(),
   tags: z.array(teamTagSchema),
 });
 export type TeamSponsor = z.infer<typeof teamSponsorSchema>;
@@ -84,7 +90,13 @@ const bilingual = z.object({ ar: z.string(), en: z.string() });
  * the name and the tier that rings the mark, nothing else. It is on those two private answers only; no public item
  * (equipment, public profile, ranking) carries it.
  */
-export const presentedBySchema = z.object({ name: bilingual, tier: z.enum(SPONSOR_TIERS) });
+export const presentedBySchema = z.object({
+  name: bilingual,
+  tier: z.enum(SPONSOR_TIERS),
+  /** The sponsor's logo (T-507b), read through its event's image door; without it the lettered mark shows. */
+  logo: z.string().nullish(),
+  eventId: z.string().nullish(),
+});
 export type PresentedBySponsor = z.infer<typeof presentedBySchema>;
 
 /** A sponsor as the app shows it. */
@@ -93,6 +105,9 @@ export const memberSponsorSchema = z.object({
   name: bilingual,
   tier: z.enum(SPONSOR_TIERS),
   booth: z.string().nullable(),
+  /** The logo and the banner ids (T-507b); without a logo the app keeps the lettered mark. */
+  logo: z.string().nullish(),
+  banner: z.string().nullish(),
 });
 export type MemberSponsor = z.infer<typeof memberSponsorSchema>;
 

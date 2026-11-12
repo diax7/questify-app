@@ -186,9 +186,15 @@ describe("checking a layout an admin saves", () => {
     expect(issuesOf(home({ banner: [slide("x".repeat(61))] }))).toEqual([
       "banner.0.title.en: is longer than 60 characters",
     ]);
-    expect(issuesOf(home({ banner: [{ ...slide("A"), image: "x" }] }))).toEqual([
-      "banner.0.image: is not a field of this block",
+    expect(issuesOf(home({ banner: [{ ...slide("A"), color: "x" }] }))).toEqual([
+      "banner.0.color: is not a field of this block",
     ]);
+    // An event's slide may carry an image (T-610b); Questify's home has no bucket of its own (ADR-829).
+    const image = "0f0e0d0c-0b0a-4908-8706-050403020100";
+    expect(issuesOf(home({ banner: [{ ...slide("A"), image }] }))).toEqual([
+      "banner.0.image: is not a part of a Questify slide",
+    ]);
+    expect(readQuestifyHome({ banner: [{ ...slide("A"), image }] }).banner[0]).toEqual(slide("A"));
   });
 });
 

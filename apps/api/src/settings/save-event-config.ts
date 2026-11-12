@@ -8,6 +8,7 @@ import {
   validateEventTerms,
   validateEventTexts,
   validateLayoutRequest,
+  type Branding,
 } from "@questify/shared";
 import { diff } from "#src/audit/entry";
 import { recordAudit, type AuditMeta } from "#src/audit/record";
@@ -25,6 +26,18 @@ import {
   writeEventTexts,
 } from "#src/settings/store";
 import { teamSeat } from "#src/organizers/store";
+import { layoutImages } from "#src/settings/layout-images";
+import { useImages, type ImageRef } from "#src/storage/image-refs";
+
+/** The images a branding names: the logo (a logo) and the banner (a banner). */
+const brandingImages = (branding: Branding): ImageRef[] => [
+  ...(branding.logo === undefined
+    ? []
+    : [{ field: "logo", id: branding.logo, purpose: "logo" as const }]),
+  ...(branding.banner === undefined
+    ? []
+    : [{ field: "banner", id: branding.banner, purpose: "banner" as const }]),
+];
 
 type Actor = Readonly<{ staffUserId: string; organizerId: string }>;
 
@@ -141,6 +154,7 @@ export async function saveBranding(
         { branding: readBranding(current.branding) },
         { branding: checked.value },
       );
+      await useImages(client, eventId, brandingImages(checked.value));
       if ("branding" in changes.after) {
         await writeEventBranding(client, eventId, checked.value);
         await recordAudit(client, {
@@ -187,6 +201,7 @@ export async function saveLayout(
       const current = readEventLayout(stored.layout);
       const layout = layoutAfter(checked.value, current);
       const changes = diff({ layout: current }, { layout });
+      await useImages(client, eventId, layoutImages(layout));
       if ("layout" in changes.after) {
         await writeEventLayout(client, eventId, layout);
         await recordAudit(client, {

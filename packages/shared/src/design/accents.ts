@@ -25,18 +25,52 @@ export function isAccentKey(value: unknown): value is AccentKey {
   return typeof value === "string" && Object.hasOwn(ACCENTS, value);
 }
 
-/** What an event stores and the app reads of its look; `accent` null means Questify's own colour. */
-export type Branding = Readonly<{ accent: AccentKey | null }>;
+/**
+ * What an event stores and the app reads of its look; `accent` null means Questify's own colour. `logo` and `banner` are
+ * organizer image ids (T-602b, ADR-829), null for none: the app then draws Questify's own art.
+ */
+export type Branding = Readonly<{
+  accent: AccentKey | null;
+  logo?: string;
+  banner?: string;
+}>;
 
 export const DEFAULT_BRANDING: Branding = { accent: null };
 
-/** Reads the branding block of an event's stored config; anything that is not a known accent counts as none. */
+const IMAGE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The branding with its images, each kept only when it is an image id (lowercase), so none means the key is absent. */
+export function withBrandingImages(
+  accent: AccentKey | null,
+  logo: unknown,
+  banner: unknown,
+): Branding {
+  const image = (value: unknown) =>
+    typeof value === "string" && IMAGE_ID.test(value) ? value.toLowerCase() : undefined;
+  const logoId = image(logo);
+  const bannerId = image(banner);
+  return {
+    accent,
+    ...(logoId === undefined ? {} : { logo: logoId }),
+    ...(bannerId === undefined ? {} : { banner: bannerId }),
+  };
+}
+
+/** Reads the branding block of an event's stored config; an unknown accent or an image that is no id counts as none. */
 export function readBranding(stored: unknown): Branding {
-  const accent =
+  const found =
     typeof stored === "object" && stored !== null && !Array.isArray(stored)
-      ? (stored as Record<string, unknown>)["accent"]
-      : undefined;
-  return isAccentKey(accent) ? { accent } : DEFAULT_BRANDING;
+      ? (stored as Record<string, unknown>)
+      : {};
+  const accent = found["accent"];
+  const branding = withBrandingImages(
+    isAccentKey(accent) ? accent : null,
+    found["logo"],
+    found["banner"],
+  );
+  return branding.accent === null && branding.logo === undefined && branding.banner === undefined
+    ? DEFAULT_BRANDING
+    : branding;
 }
 
 /**

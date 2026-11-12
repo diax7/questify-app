@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-import { createImageGate, ImageError, reencode, sniff } from "#src/storage/images";
+import { createImageGate, ImageError, reencode, reencodeFor, sniff } from "#src/storage/images";
 
 const solid = (width: number, height: number, channels: 3 | 4 = 3) =>
   sharp({
@@ -103,5 +103,43 @@ describe("reencode", () => {
     await Promise.all(jobs);
     expect(order).toEqual([0, 1, 2, 3, 4]);
     expect(await refusedAs(gate.run(async () => undefined))).toBe("none");
+  });
+});
+
+/** Organizer images (ADR-829 (1)): each kind's format and long side, with the same strip as a photo. */
+describe("reencodeFor", () => {
+  it("keeps a logo's transparency as a PNG of at most 512 px", async () => {
+    const clear = await solid(1200, 600, 4).png().toBuffer();
+    const stored = await reencodeFor("logo", clear);
+    const meta = await sharp(stored.body).metadata();
+    expect(sniff(stored.body)).toBe("png");
+    expect(meta.hasAlpha).toBe(true);
+    expect([stored.width, stored.height]).toEqual([512, 256]);
+    const { data } = await sharp(stored.body).raw().toBuffer({ resolveWithObject: true });
+    expect(data[3]).toBe(0);
+  });
+
+  it("stores an icon from a JPEG as a PNG and drops its EXIF", async () => {
+    const tagged = await solid(64, 64)
+      .withExif({ IFD0: { Make: "QuestifyCam" } })
+      .jpeg()
+      .toBuffer();
+    const stored = await reencodeFor("icon", tagged);
+    const meta = await sharp(stored.body).metadata();
+    expect(meta.format).toBe("png");
+    expect(meta.exif).toBeUndefined();
+  });
+
+  it("stores a picture as a JPEG of at most 1,600 px and a banner or map at most 2,048 px", async () => {
+    const big = await solid(3000, 1500).png().toBuffer();
+    const picture = await reencodeFor("picture", big);
+    expect(sniff(picture.body)).toBe("jpeg");
+    expect([picture.width, picture.height]).toEqual([1600, 800]);
+    expect((await reencodeFor("banner", big)).width).toBe(2048);
+    expect((await reencodeFor("map", big)).width).toBe(2048);
+  });
+
+  it("refuses what is not an image before any work", async () => {
+    expect(await refusedAs(reencodeFor("logo", Buffer.from("GIF89a")))).toBe("photo_type");
   });
 });

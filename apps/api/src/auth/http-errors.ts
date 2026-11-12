@@ -2742,6 +2742,28 @@ export const tooManyPhotos = make(
   "أرسلت صورًا كثيرة. حاول بعد قليل.",
   "You've sent many photos. Try again shortly.",
 );
+// ================================================================ organizer images (ADR-829)
+/** A save names an image that is not a stored image of this event of the field's kind; `field` says which. */
+export const imageUnknown = make(
+  422,
+  "image_unknown",
+  "تعذّر العثور على الصورة. ارفعها من جديد.",
+  "We couldn't find this image. Upload it again.",
+);
+/** The event is archived or suspended: it takes no new image. */
+export const imageEventClosed = make(
+  409,
+  "image_event_closed",
+  "لا يمكن رفع صور لهذه الفعالية الآن.",
+  "This event can't take new images right now.",
+);
+/** Thirty images in ten minutes, or 200 the event has not used yet: try again after `Retry-After`. */
+export const tooManyImages = make(
+  429,
+  "too_many_images",
+  "رفعت صورًا كثيرة. استخدم ما رفعته أو حاول بعد قليل.",
+  "You've uploaded many images. Use them or try again shortly.",
+);
 /** The photo id is not the caller's stored, unused upload for this event (or it expired after 30 minutes). */
 export const photoUnusable = make(
   422,

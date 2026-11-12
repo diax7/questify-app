@@ -5,6 +5,7 @@ import {
   isGameName,
   judgeRound,
   lastInputMs,
+  type GameImages,
   type GameName,
   type GameTarget,
   type Judgement,
@@ -81,6 +82,8 @@ export type GameView = Readonly<{
   open: Readonly<{ roundId: string; deadlineAt: string }> | null;
   last: Readonly<{ verdict: string; result: unknown }> | null;
   serverNow: string;
+  /** The organizer's art (T-305b), read through the event's image door; absent for the default art. */
+  images?: GameImages;
 }>;
 
 /** A counted result: passed (paid now), done (passed, the quest already completed) or short, with the target. */
@@ -164,7 +167,13 @@ export function readGame(
 ): Promise<Done<GameView>> {
   return run(deps, { playerId }, async (client) => {
     const { rows } = await client.query<ViewRow>("SELECT * FROM member_game($1)", [questId]);
-    return viewOf(rows[0] as ViewRow);
+    const view = viewOf(rows[0] as ViewRow);
+    const art = await client.query<{ images: { images?: GameImages } | null }>(
+      "SELECT member_quest_images($1) AS images",
+      [questId],
+    );
+    const images = art.rows[0]?.images?.images;
+    return images === undefined || Object.keys(images).length === 0 ? view : { ...view, images };
   });
 }
 

@@ -32,6 +32,7 @@ import { registerHomeRoutes } from "#src/home/routes";
 import { createFirstBonusCache, type FirstBonusCache } from "#src/quests/first-bonus";
 import { registerOperatorAwardRoutes } from "#src/awards/routes";
 import type { ObjectStore } from "#src/storage/client";
+import { registerImageReadRoutes } from "#src/storage/read-routes";
 import { registerPhotoRoutes } from "#src/storage/routes";
 import { startMediaWorker } from "#src/storage/worker";
 import { registerSubmissionPlayerRoutes } from "#src/submissions/routes";
@@ -693,6 +694,7 @@ function registerPlayDoors(app: FastifyInstance, config: AppConfig, deps: PlayDo
   registerSubmissionPlayerRoutes(app, { pool, ranking, storage });
   registerTicketRoutes(app, { pool, settings, keys, storage });
   registerPhotoRoutes(app, { pool, storage });
+  registerImageReadRoutes(app, { pool, storage });
   registerPlayRoutes(app, { pool, ranking, settings, firstBonus });
   registerMeetRoutes(app, { pool, ranking, settings, keys });
   registerGameRoutes(app, { pool, ranking, keys });

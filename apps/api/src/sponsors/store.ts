@@ -1,6 +1,6 @@
 import type { Pool, QueryResultRow } from "pg";
 import { MESSAGES } from "@questify/shared";
-import { notEnrolled, notFound } from "#src/auth/http-errors";
+import { imageUnknown, notEnrolled, notFound } from "#src/auth/http-errors";
 import { withConnection } from "#src/db/connection";
 import { withRequestContext, type RequestContext } from "#src/db/context";
 import { HttpError } from "#src/http-error";
@@ -39,6 +39,7 @@ const REFUSALS: Readonly<Record<string, (detail: string | undefined) => HttpErro
   SO404: () => notFound(),
   AM403: () => notEnrolled(),
   PS422: (detail) => sponsorError(422, "invalid_sponsor", { issue: detail }),
+  MI422: (detail) => imageUnknown({ field: detail ?? "image" }),
   SO409: (detail) => sponsorError(409, CONFLICTS[detail ?? ""] ?? "invalid_sponsor"),
 };
 

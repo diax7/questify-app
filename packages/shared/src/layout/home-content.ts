@@ -1,8 +1,10 @@
 import {
   fail,
+  imagePart,
   isAllowedLink,
   isRecord,
   ok,
+  readImageId,
   readKeys,
   readList,
   readLocal,
@@ -71,11 +73,23 @@ export type TapAction =
   | Readonly<{ type: "quest"; questId: string }>
   | Readonly<{ type: "link"; url: string }>;
 
-export type BannerSlide = Readonly<{ title: LocalText; subtitle: LocalText; action: TapAction }>;
+/** A slide, a text card and the featured item may carry an organizer image id (T-610b): a banner or a picture. */
+export type BannerSlide = Readonly<{
+  title: LocalText;
+  subtitle: LocalText;
+  action: TapAction;
+  image?: string;
+}>;
 export type QuickLink = Readonly<{ label: LocalText; icon: QuickLinkIcon; action: TapAction }>;
-export type FeaturedTarget = Readonly<{ kind: "quest" | "reward"; id: string }>;
+export type FeaturedTarget = Readonly<{ kind: "quest" | "reward"; id: string; image?: string }>;
 
-export type TextCard = Readonly<{ id: string; kind: "text"; title: LocalText; body: LocalText }>;
+export type TextCard = Readonly<{
+  id: string;
+  kind: "text";
+  title: LocalText;
+  body: LocalText;
+  image?: string;
+}>;
 export type CountdownCard = Readonly<{
   id: string;
   kind: "countdown";
@@ -151,7 +165,7 @@ function readAction(raw: unknown, path: string, mode: Mode): Read<TapAction> {
 }
 
 export function readSlide(raw: unknown, path: string, mode: Mode): Read<BannerSlide> {
-  const found = readKeys(raw, path, ["title", "subtitle", "action"], mode);
+  const found = readKeys(raw, path, ["title", "subtitle", "action", "image"], mode);
   if (!found.ok) return found;
   const title = readLocal(found.value["title"], `${path}.title`, CONTENT_LIMITS.slideTitle, mode, {
     required: true,
@@ -164,10 +178,17 @@ export function readSlide(raw: unknown, path: string, mode: Mode): Read<BannerSl
     { required: false },
   );
   const action = readAction(found.value["action"] ?? { type: "none" }, `${path}.action`, mode);
+  const image = readImageId(found.value["image"], `${path}.image`, mode);
   if (!title.ok) return title;
   if (!subtitle.ok) return subtitle;
+  if (!image.ok) return image;
   return action.ok
-    ? ok({ title: title.value, subtitle: subtitle.value, action: action.value })
+    ? ok({
+        title: title.value,
+        subtitle: subtitle.value,
+        action: action.value,
+        ...imagePart(image.value),
+      })
     : action;
 }
 
@@ -191,14 +212,16 @@ function readFeatured(raw: unknown, path: string, mode: Mode): Read<FeaturedTarg
   if (raw === null || raw === undefined) {
     return ok(null);
   }
-  const found = readKeys(raw, path, ["kind", "id"], mode);
+  const found = readKeys(raw, path, ["kind", "id", "image"], mode);
   if (!found.ok) return found;
   const { kind, id } = found.value;
   if (kind !== "quest" && kind !== "reward") {
     return fail(`${path}.kind`, "must be a quest or a reward");
   }
+  const image = readImageId(found.value["image"], `${path}.image`, mode);
+  if (!image.ok) return image;
   return typeof id === "string" && UUID.test(id)
-    ? ok({ kind, id: id.toLowerCase() })
+    ? ok({ kind, id: id.toLowerCase(), ...imagePart(image.value) })
     : fail(`${path}.id`, "must be a quest or reward of the event");
 }
 
@@ -251,7 +274,7 @@ function readCountdown(
   });
 }
 
-const TEXT_CARD_KEYS = ["id", "kind", "title", "body"];
+const TEXT_CARD_KEYS = ["id", "kind", "title", "body", "image"];
 const COUNTDOWN_CARD_KEYS = ["id", "kind", "label", "at", "atZero", "message"];
 
 function readTextCard(
@@ -271,8 +294,12 @@ function readTextCard(
     required: true,
     multiline: true,
   });
+  const image = readImageId(found["image"], `${path}.image`, mode);
   if (!title.ok) return title;
-  return body.ok ? ok({ id, kind: "text", title: title.value, body: body.value }) : body;
+  if (!image.ok) return image;
+  return body.ok
+    ? ok({ id, kind: "text", title: title.value, body: body.value, ...imagePart(image.value) })
+    : body;
 }
 
 function kindOf(raw: unknown): HomeCard["kind"] | null {

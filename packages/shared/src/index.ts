@@ -288,6 +288,7 @@ export {
   DEFAULT_BRANDING,
   isAccentKey,
   readBranding,
+  withBrandingImages,
   themeWithAccent,
 } from "./design/accents";
 export type { ThemeId } from "./design/themes";
@@ -372,7 +373,13 @@ export {
   toLocalInput,
   zoneLabel,
 } from "./time/event-time";
-export type { PollChoices, PollResults, QuestType, QuestVerification } from "./quests/registry";
+export type {
+  GameImages,
+  PollChoices,
+  PollResults,
+  QuestType,
+  QuestVerification,
+} from "./quests/registry";
 export {
   isLivePoll,
   POLL_CHOICES,
@@ -398,6 +405,7 @@ export {
   SURVEY_TEXT_MAX,
   GAME_ATTEMPTS,
   GAME_COOLDOWN_MINUTES,
+  GAME_IMAGE_LIMITS,
   unavailableSubmissionKind,
 } from "./quests/registry";
 export { MEET_CODE_PREFIX, meetCodeOf, meetTokenOf } from "./quests/meet-code";
@@ -930,6 +938,18 @@ export type {
   TeamSponsor,
   TeamSponsorTag,
 } from "./sponsors/sponsors";
+export {
+  IMAGE_PURPOSES,
+  IMAGE_UPLOAD_BYTES,
+  IMAGE_UPLOAD_TYPES,
+  eventImagePath,
+  imageIdSchema,
+  imageUploadPath,
+  sizedImageSchema,
+  storedImageSchema,
+  teamImagePath,
+} from "./images/images";
+export type { ImagePurpose, SizedImage, StoredImage } from "./images/images";
 export { inboxSchema } from "./inbox/inbox";
 export type { Inbox } from "./inbox/inbox";
 export {

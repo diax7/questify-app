@@ -2,6 +2,7 @@ import {
   forwardedRequestHeaders,
   forwardedResponseHeaders,
   readCapped,
+  isImageReadPath,
   refusal,
 } from "#src/lib/forward-headers.ts";
 import {
@@ -75,9 +76,18 @@ const bearerOf = (cookie: PlayerCookie, path: string, options: ForwardOptions) =
   options.playerSession && takesBearer(path) ? cookie.pair?.access : undefined;
 
 /** The API's answer for the browser; a player cookie sent twice is cleared on the way back. */
-function answerOf(upstream: Response, request: Request, clearCookie: boolean): Response {
+function answerOf(
+  upstream: Response,
+  request: Request,
+  clearCookie: boolean,
+  path: string,
+): Response {
   const empty = upstream.status === 204 || upstream.status === 304 || request.method === "HEAD";
-  const headers = forwardedResponseHeaders(upstream.headers);
+  const headers = forwardedResponseHeaders(upstream.headers, path);
+  // An image read's redirect whose target is not the photo bucket is answered as no image at all.
+  if (isImageReadPath(path) && upstream.status === 302 && !headers.has("location")) {
+    return refusal("not_found");
+  }
   if (clearCookie) {
     headers.append("set-cookie", clearedPlayerCookie());
   }
@@ -107,7 +117,7 @@ async function passThrough(
       redirect: "manual",
       signal: AbortSignal.timeout(options.timeoutMs),
     });
-    return answerOf(upstream, request, options.playerSession && cookie.duplicate);
+    return answerOf(upstream, request, options.playerSession && cookie.duplicate, target.pathname);
   } catch (error) {
     const reason =
       error instanceof Error && error.name === "TimeoutError" ? "timeout" : "unreachable";

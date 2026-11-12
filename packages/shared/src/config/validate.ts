@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { ACCENT_KEYS, readBranding, type AccentKey } from "#src/design/accents";
+import {
+  ACCENT_KEYS,
+  readBranding,
+  withBrandingImages,
+  type AccentKey,
+  type Branding,
+} from "#src/design/accents";
+import { imageIdSchema } from "#src/images/images";
 import type { ComposedConfig } from "./compose";
 import type { PlatformSettings, Registries } from "./registry";
 import { readComposedLayout } from "#src/layout/layout";
@@ -121,13 +128,22 @@ export function validateEventConfig(
 
 const brandingShape = z.strictObject({
   accent: z.enum(ACCENT_KEYS as [AccentKey, ...AccentKey[]]).nullable(),
+  logo: imageIdSchema.nullish(),
+  banner: imageIdSchema.nullish(),
 });
 
-/** Checks the look an organizer saves: one accent from the curated list, or null for Questify's own colour. */
-export function validateEventBranding(input: unknown): Validation<{ accent: AccentKey | null }> {
+/**
+ * Checks the look an organizer saves: one accent from the curated list (or null for Questify's own colour), and the logo
+ * and banner as image ids, or null or left out for none (T-602b). Whether each id is a stored image of this event is the
+ * save's check. The value keeps an image key only when it names one.
+ */
+export function validateEventBranding(input: unknown): Validation<Branding> {
   const parsed = brandingShape.safeParse(input);
   return parsed.success
-    ? { ok: true, value: parsed.data }
+    ? {
+        ok: true,
+        value: withBrandingImages(parsed.data.accent, parsed.data.logo, parsed.data.banner),
+      }
     : { ok: false, issues: issuesOf(parsed.error) };
 }
 

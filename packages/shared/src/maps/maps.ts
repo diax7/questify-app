@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { MessageKey } from "#src/i18n/messages";
+import { imageIdSchema, sizedImageSchema } from "#src/images/images";
 import { optionalPlainText } from "#src/text/plain-text";
 
 /**
@@ -33,6 +34,8 @@ export const mapBodySchema = z
   .strictObject({
     nameAr: optionalPlainText(MAP_LIMITS.name),
     nameEn: optionalPlainText(MAP_LIMITS.name),
+    /** The board's picture (T-506b): left out keeps it, null removes it, an id sets it. */
+    image: imageIdSchema.nullable().optional(),
   })
   .superRefine((body, context) => {
     if ((body.nameAr ?? "") === "" && (body.nameEn ?? "") === "") {
@@ -109,6 +112,8 @@ export const teamMapSchema = z.object({
   nameAr: z.string().nullable(),
   nameEn: z.string().nullable(),
   position: z.number(),
+  /** The board's picture, with the size its aspect comes from (T-506b). */
+  image: sizedImageSchema.nullish(),
   pins: z.array(teamPinSchema),
 });
 export type TeamMap = z.infer<typeof teamMapSchema>;
@@ -161,6 +166,8 @@ export type MemberMapPin = z.infer<typeof memberMapPinSchema>;
 export const memberMapSchema = z.object({
   id: z.uuid(),
   name: bilingual,
+  /** The board's picture (T-506b); without it the app draws the plain board. */
+  image: sizedImageSchema.nullish(),
   pins: z.array(memberMapPinSchema),
 });
 export type MemberMap = z.infer<typeof memberMapSchema>;

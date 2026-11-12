@@ -2,6 +2,7 @@ import type { MessageKey } from "#src/i18n/messages";
 import {
   fail,
   isRecord,
+  ok,
   readList,
   type ContentIssue,
   type Mode,
@@ -100,9 +101,21 @@ export const DEFAULT_QUESTIFY_HOME: QuestifyHome = {
 /** A tap on a Questify home slide opens nothing or a web page; the other taps open an event's screens (ADR-512). */
 const HOME_TAPS: ReadonlySet<string> = new Set(["none", "link"]);
 
+/**
+ * A Questify home slide: the event's own slide rules, opening nothing or a web page (ADR-512), and never an image, which
+ * belongs to one event's bucket and the platform's home has none (ADR-829).
+ */
 function readHomeSlide(raw: unknown, path: string, mode: Mode): Read<BannerSlide> {
   const slide = readSlide(raw, path, mode);
-  return !slide.ok || HOME_TAPS.has(slide.value.action.type)
+  if (!slide.ok) return slide;
+  if (slide.value.image !== undefined) {
+    if (mode.strict) return fail(`${path}.image`, "is not a part of a Questify slide");
+    const { image: _dropped, ...rest } = slide.value;
+    return HOME_TAPS.has(rest.action.type)
+      ? ok(rest)
+      : fail(`${path}.action`, "must open nothing or a web link");
+  }
+  return HOME_TAPS.has(slide.value.action.type)
     ? slide
     : fail(`${path}.action`, "must open nothing or a web link");
 }

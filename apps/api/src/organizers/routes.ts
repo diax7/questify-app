@@ -85,6 +85,8 @@ import { ORGANIZER_PREFIX } from "#src/route-access";
 import { registerFeatureRequestTeamRoutes } from "#src/settings/feature-request-routes";
 import type { SettingsService } from "#src/settings/service";
 import type { ObjectStore } from "#src/storage/client";
+import { registerImageTeamReadRoutes } from "#src/storage/read-routes";
+import { registerOrganizerImageRoutes } from "#src/storage/routes";
 
 export type OrganizerRoutesDeps = Readonly<{
   pool: Pool;
@@ -372,7 +374,7 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerTeamRoutes(scope, deps);
       registerOrganizerLegalRoutes(scope, { pool: deps.pool });
       registerOrganizerAlertRoutes(scope, { pool: deps.pool });
-      registerEventRoutes(scope, deps.events, deps.settings);
+      registerEventRoutes(scope, deps.events, deps.settings, deps.storage !== undefined);
       registerFeatureRequestTeamRoutes(scope, { pool: deps.pool, keys: deps.devices.keys });
       registerActivationRoutes(scope, deps.activation);
       registerRehearsalTeamRoutes(scope, deps.rehearsal);
@@ -413,6 +415,8 @@ export function registerOrganizerRoutes(app: FastifyInstance, deps: OrganizerRou
       registerSessionTeamRoutes(scope, { pool: deps.pool });
       registerMapTeamRoutes(scope, { pool: deps.pool });
       registerSponsorTeamRoutes(scope, { pool: deps.pool });
+      registerOrganizerImageRoutes(scope, { pool: deps.pool, storage: deps.storage });
+      registerImageTeamReadRoutes(scope, { pool: deps.pool, storage: deps.storage });
       registerRatingTeamRoutes(scope, { pool: deps.pool });
       registerStreakTeamRoutes(scope, { pool: deps.pool });
       registerNfcTeamRoutes(scope, { pool: deps.pool });

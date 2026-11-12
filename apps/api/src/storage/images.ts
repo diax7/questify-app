@@ -76,20 +76,52 @@ export type Reencoded = Readonly<{ body: Buffer; width: number; height: number }
  * where it was transparent, as a JPEG at quality 82 with no metadata (sharp writes none unless asked, so EXIF, GPS and
  * any profile go). A decode past 32 MP, a truncated file or a lying header is `photo_unreadable`.
  */
-export async function reencode(upload: Buffer, gate: ImageGate = processGate): Promise<Reencoded> {
+export function reencode(upload: Buffer, gate: ImageGate = processGate): Promise<Reencoded> {
+  return encodeAs(upload, { side: PHOTO_SIDE_MAX, png: false }, gate);
+}
+
+/** The kinds of organizer image (ADR-829 (1)), the same list as migration 0194's CHECK. */
+export const IMAGE_PURPOSES = ["logo", "icon", "banner", "picture", "map"] as const;
+export type ImagePurpose = (typeof IMAGE_PURPOSES)[number];
+
+type Shape = Readonly<{ side: number; png: boolean }>;
+
+/** Each kind's stored form: logos and icons as PNG (transparency kept), the rest as JPEG, each at most its long side. */
+export const IMAGE_SHAPES: Readonly<Record<ImagePurpose, Shape>> = {
+  logo: { side: 512, png: true },
+  icon: { side: 512, png: true },
+  banner: { side: 2048, png: false },
+  picture: { side: 1600, png: false },
+  map: { side: 2048, png: false },
+};
+
+/**
+ * The stored form of an organizer image of `purpose`: the same sniff, gate, 32 MP limit, `rotate()` and metadata strip as
+ * a photo, then a PNG with its alpha for a logo or an icon, or a JPEG on white for the rest.
+ */
+export function reencodeFor(
+  purpose: ImagePurpose,
+  upload: Buffer,
+  gate: ImageGate = processGate,
+): Promise<Reencoded> {
+  return encodeAs(upload, IMAGE_SHAPES[purpose], gate);
+}
+
+async function encodeAs(upload: Buffer, shape: Shape, gate: ImageGate): Promise<Reencoded> {
   if (sniff(upload) === undefined) throw new ImageError("photo_type");
   return gate.run(async () => {
     try {
-      const { data, info } = await sharp(upload, {
+      const sized = sharp(upload, {
         limitInputPixels: PIXELS_MAX,
         failOn: "error",
         sequentialRead: true,
       })
         .rotate()
-        .resize(PHOTO_SIDE_MAX, PHOTO_SIDE_MAX, { fit: "inside", withoutEnlargement: true })
-        .flatten({ background: "#ffffff" })
-        .jpeg({ quality: JPEG_QUALITY })
-        .toBuffer({ resolveWithObject: true });
+        .resize(shape.side, shape.side, { fit: "inside", withoutEnlargement: true });
+      const encoded = shape.png
+        ? sized.png({ compressionLevel: 9 })
+        : sized.flatten({ background: "#ffffff" }).jpeg({ quality: JPEG_QUALITY });
+      const { data, info } = await encoded.toBuffer({ resolveWithObject: true });
       return { body: data, width: info.width, height: info.height };
     } catch {
       throw new ImageError("photo_unreadable");

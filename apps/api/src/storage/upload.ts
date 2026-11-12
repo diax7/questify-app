@@ -19,8 +19,8 @@ import {
 import { withConnection } from "#src/db/connection";
 import { withRequestContext } from "#src/db/context";
 import type { HttpError } from "#src/http-error";
-import type { ObjectStore } from "#src/storage/client";
-import { ImageError, reencode, sniff, type ImageGate } from "#src/storage/images";
+import type { ObjectStore, StoredType } from "#src/storage/client";
+import { ImageError, reencode, sniff, type ImageGate, type Reencoded } from "#src/storage/images";
 
 export type PhotoDeps = Readonly<{
   pool: Pool;
@@ -88,7 +88,7 @@ const asPlayer = async <T>(
   }
 };
 
-type Slot = Readonly<{ id: string; key: string; stored: boolean }>;
+export type Slot = Readonly<{ id: string; key: string; stored: boolean }>;
 
 const reserveSlot = (deps: PhotoDeps, upload: PhotoUpload): Promise<Slot> =>
   asPlayer(deps, upload.playerId, async (client) => {
@@ -109,44 +109,67 @@ const imageRefusal = (error: ImageError): PhotoRefused =>
     ? new PhotoRefused(busy(), 2)
     : new PhotoRefused(error.kind === "photo_type" ? photoType() : photoUnreadable());
 
-/** The stored JPEG, or the refusal; a refused image gives its slot back so it does not count toward the cap. */
-async function encoded(deps: PhotoDeps, upload: PhotoUpload, slot: Slot) {
-  try {
-    return await reencode(upload.body, deps.gate);
-  } catch (error) {
-    if (!(error instanceof ImageError)) throw error;
-    if (error.kind !== "busy") await releaseSlot(deps, upload.playerId, slot);
-    throw imageRefusal(error);
-  }
-}
+/** The steps of one upload that differ by seat: the doors to reserve, release and mark a slot stored, and the encoder. */
+export type UploadSteps<S extends Slot> = Readonly<{
+  storage: ObjectStore;
+  reserve: () => Promise<S>;
+  release: (slot: S) => Promise<unknown>;
+  encode: () => Promise<Reencoded>;
+  stored: (slot: S, image: Reencoded) => Promise<boolean>;
+  contentType: StoredType;
+}>;
 
 /**
- * One photo upload (T-301b): the bytes are sniffed first (415 before any slot), then a slot is reserved under the
- * caller's seat, the image re-encoded, PUT to the bucket outside any transaction, and the slot marked stored. A retry
- * with the same key finds its slot (and answers at once when it is stored). A slot swept while the upload ran has its
- * object queued for deletion by the database, and the caller is asked to send again.
+ * One upload after its bytes were sniffed (shared by the photo and organizer image doors): a slot is reserved under the
+ * caller's seat, the image re-encoded (a refused image gives its slot back, so it does not count toward the cap), PUT to
+ * the bucket outside any transaction, and the slot marked stored. A retry with the same key finds its slot and answers at
+ * once when it is stored (`image` undefined). A slot swept while the upload ran has its object queued for deletion by the
+ * database, and the caller is asked to send again.
  */
+export async function storeUpload<S extends Slot>(
+  steps: UploadSteps<S>,
+): Promise<{ slot: S; image: Reencoded | undefined }> {
+  const slot = await steps.reserve();
+  if (slot.stored) return { slot, image: undefined };
+  let image: Reencoded;
+  try {
+    image = await steps.encode();
+  } catch (error) {
+    if (!(error instanceof ImageError)) throw error;
+    if (error.kind !== "busy") await steps.release(slot);
+    throw imageRefusal(error);
+  }
+  try {
+    await steps.storage.put(slot.key, image.body, steps.contentType);
+  } catch {
+    throw new PhotoRefused(storageUnavailable());
+  }
+  if (!(await steps.stored(slot, image))) throw new PhotoRefused(storageUnavailable());
+  return { slot, image };
+}
+
+/** One photo upload (T-301b): 503 without a bucket, 415 before any slot for bytes that are no image, then `storeUpload`. */
 export async function uploadPhoto(
   deps: PhotoDeps,
   upload: PhotoUpload,
 ): Promise<{ photoId: string }> {
-  if (deps.storage === undefined) throw new PhotoRefused(photosOff());
+  const storage = deps.storage;
+  if (storage === undefined) throw new PhotoRefused(photosOff());
   if (sniff(upload.body) === undefined) throw new PhotoRefused(photoType());
-  const slot = await reserveSlot(deps, upload);
-  if (slot.stored) return { photoId: slot.id };
-  const image = await encoded(deps, upload, slot);
-  try {
-    await deps.storage.put(slot.key, image.body);
-  } catch {
-    throw new PhotoRefused(storageUnavailable());
-  }
-  const stored = await asPlayer(deps, upload.playerId, async (client) => {
-    const { rows } = await client.query<{ ok: boolean }>(
-      "SELECT media_stored($1, $2, $3, $4, $5) AS ok",
-      [slot.id, slot.key, image.body.length, image.width, image.height],
-    );
-    return rows[0]?.ok === true;
+  const { slot } = await storeUpload({
+    storage,
+    contentType: "image/jpeg",
+    reserve: () => reserveSlot(deps, upload),
+    release: (taken) => releaseSlot(deps, upload.playerId, taken),
+    encode: () => reencode(upload.body, deps.gate),
+    stored: (taken, image) =>
+      asPlayer(deps, upload.playerId, async (client) => {
+        const { rows } = await client.query<{ ok: boolean }>(
+          "SELECT media_stored($1, $2, $3, $4, $5) AS ok",
+          [taken.id, taken.key, image.body.length, image.width, image.height],
+        );
+        return rows[0]?.ok === true;
+      }),
   });
-  if (!stored) throw new PhotoRefused(storageUnavailable());
   return { photoId: slot.id };
 }
