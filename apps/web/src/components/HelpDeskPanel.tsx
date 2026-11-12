@@ -34,6 +34,7 @@ import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Card, CardList, Stack, Toolbar } from "#src/ui/Section.tsx";
 import { Tabs } from "#src/ui/Tabs.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
+import { TicketPhoto } from "#src/components/TicketPhoto.tsx";
 import { staffShown } from "#src/lib/support-label.ts";
 
 const SESSION_LOST = new Set(["unauthenticated", "session_expired"]);
@@ -288,6 +289,7 @@ function TicketRow({
         </p>
       )}
       <p dir="auto">{ticket.text}</p>
+      <TicketPhoto language={language} url={ticket.photoUrl} />
       <QuestifyLines language={language} ticket={ticket} />
       {ticket.reply === null ? null : <Muted dir="auto">{ticket.reply}</Muted>}
       {by === null ? null : <Muted>{by}</Muted>}

@@ -69,6 +69,8 @@ type Props = Readonly<{
   isNew: boolean;
   /** The platform's location switch (ADR-208): a new quest may be a location quest only while it is on. */
   locationQuestsOn: boolean;
+  /** Whether this server stores photos (T-301b): a submission quest may ask for one. */
+  photosOn?: boolean;
   /** Where an existing vote quest's counts are read (ADR-195); null for anything else. */
   votesUrl: string | null;
   /** A survey quest's results, for the team (T-303). */
@@ -249,6 +251,7 @@ export function QuestForm({
   initial,
   isNew,
   locationQuestsOn,
+  photosOn = false,
   votesUrl,
   surveyUrl,
   nfcTags,
@@ -303,6 +306,7 @@ export function QuestForm({
           config={draft.config}
           disabled={busy}
           sent={draft.pollSent}
+          photos={photosOn}
           change={(config) => change({ config })}
         />
         {hasPlace(draft.type) ? (

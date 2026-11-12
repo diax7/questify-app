@@ -3,6 +3,7 @@
 import { TICKET_TEXT_MAX, type Language } from "@questify/shared";
 import { useEffect, useRef, useState } from "react";
 import { problemOf } from "#src/components/PlayerAwards.tsx";
+import { TicketPhoto } from "#src/components/TicketPhoto.tsx";
 import { nameIn } from "#src/lib/console.ts";
 import {
   deviceLine,
@@ -178,6 +179,7 @@ export function ConsoleTicket({
         <>
           <Facts language={language} ticket={ticket} />
           <p dir="auto">{ticket.text}</p>
+          <TicketPhoto language={language} url={ticket.photoUrl} />
           {ticket.reply === null ? null : <Muted dir="auto">{ticket.reply}</Muted>}
           {ticket.status === "closed" ? (
             <Muted>

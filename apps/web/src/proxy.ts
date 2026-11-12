@@ -10,6 +10,7 @@ import {
   contentSecurityPolicy,
   isKioskPath,
   isPlayPath,
+  mediaSource,
   pageHeaders,
   playContentSecurityPolicy,
 } from "#src/lib/security-headers.ts";
@@ -28,7 +29,13 @@ export function proxy(request: NextRequest): NextResponse {
   const nonce = btoa(crypto.randomUUID());
   const policy = play
     ? playContentSecurityPolicy()
-    : contentSecurityPolicy(nonce, process.env.NODE_ENV === "development", isKioskPath(pathname));
+    : contentSecurityPolicy(
+        nonce,
+        process.env.NODE_ENV === "development",
+        isKioskPath(pathname),
+        // The photo bucket (T-301b): the team's pages show its signed photos.
+        mediaSource(process.env["MEDIA_HOST"]),
+      );
 
   const first = pathname.split("/")[1];
   let response: NextResponse;

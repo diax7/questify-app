@@ -3,7 +3,12 @@
  * development adds `unsafe-eval` and websockets for hot reload, never production. `wasm` (the kiosk page only, ADR-245)
  * lets the page compile WebAssembly, its QR decoder, and nothing else that evaluates text.
  */
-export function contentSecurityPolicy(nonce: string, development: boolean, wasm = false): string {
+export function contentSecurityPolicy(
+  nonce: string,
+  development: boolean,
+  wasm = false,
+  media?: string,
+): string {
   const scripts = ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'"];
   if (wasm) {
     scripts.push("'wasm-unsafe-eval'");
@@ -17,7 +22,7 @@ export function contentSecurityPolicy(nonce: string, development: boolean, wasm 
     "default-src 'self'",
     `script-src ${scripts.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
+    media === undefined ? "img-src 'self' data:" : `img-src 'self' data: ${media}`,
     "font-src 'self'",
     `connect-src ${connections.join(" ")}`,
     "object-src 'none'",
@@ -25,6 +30,18 @@ export function contentSecurityPolicy(nonce: string, development: boolean, wasm 
     "base-uri 'none'",
     "form-action 'self'",
   ].join("; ");
+}
+
+const HOST =
+  /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+(?::[0-9]{1,5})?$/;
+
+/**
+ * The photo bucket's origin for `img-src` (T-301b): `MEDIA_HOST` is a host name (and port), never a scheme, path or
+ * wildcard, so the team's pages show the signed photos from that one host over https. Anything else adds nothing.
+ */
+export function mediaSource(host: string | undefined): string | undefined {
+  const value = host?.trim().toLowerCase();
+  return value !== undefined && HOST.test(value) ? `https://${value}` : undefined;
 }
 
 /** The kiosk pages (T-309b): the exact paths, never a sub-path, are the only ones that may use the camera and wasm. */

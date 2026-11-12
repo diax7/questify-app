@@ -89,22 +89,56 @@ function EnterCodeFields({ language, config, disabled, change }: TypeFieldProps)
   );
 }
 
-/**
- * A submission quest (T-301): text only for now (FR-1006; photos are T-301b), approved by the team or at once, and
- * whether a rejected player may send again (FR-1709).
- */
-function SubmissionFields({ language, config, disabled, change }: TypeFieldProps) {
+/** What a submission quest may ask for (T-301b), each with its label. */
+const ACCEPTS: readonly (readonly [string, readonly string[], MessageKey])[] = [
+  ["text", ["text"], "quests.submission.acceptsText"],
+  ["photo", ["photo"], "quests.submission.acceptsPhoto"],
+  ["either", ["text", "photo"], "quests.submission.acceptsEither"],
+];
+
+const acceptsOf = (config: TypeFieldProps["config"]): readonly string[] =>
+  Array.isArray(config["accepts"]) ? (config["accepts"] as string[]) : ["text"];
+
+/** Text, a photo, or either: offered while this server stores photos, or shown as set on a quest that asks for one. */
+function AcceptsField({ language, config, disabled, change }: TypeFieldProps) {
   const t = useTranslator(language);
+  const accepts = acceptsOf(config).join(",");
+  return (
+    <FieldGroup legend={t("quests.submission.accepts")} layout="choices">
+      {ACCEPTS.map(([value, kinds, label]) => (
+        <Radio
+          key={value}
+          label={t(label)}
+          name="submission-accepts"
+          checked={accepts === kinds.join(",")}
+          disabled={disabled}
+          onChange={() => change({ ...config, accepts: [...kinds] })}
+        />
+      ))}
+    </FieldGroup>
+  );
+}
+
+/**
+ * A submission quest (T-301, T-301b): text, a photo or either (FR-204; video never, FR-1006), approved by the team or
+ * at once, and whether a rejected player may send again (FR-1709). What it accepts is fixed once it has submissions;
+ * the server answers `accepts_locked`.
+ */
+function SubmissionFields(props: TypeFieldProps) {
+  const { language, config, disabled, change } = props;
+  const t = useTranslator(language);
+  const accepts = acceptsOf(config);
   const toggle = (name: "autoApprove" | "resubmit", label: MessageKey) => (
     <Checkbox
       label={t(label)}
       checked={config[name] === true}
       disabled={disabled}
-      onChange={(event) => change({ ...config, accepts: ["text"], [name]: event.target.checked })}
+      onChange={(event) => change({ ...config, accepts, [name]: event.target.checked })}
     />
   );
   return (
     <>
+      {props.photos === true || accepts.includes("photo") ? <AcceptsField {...props} /> : null}
       {toggle("autoApprove", "quests.submission.autoApprove")}
       {toggle("resubmit", "quests.submission.resubmit")}
     </>

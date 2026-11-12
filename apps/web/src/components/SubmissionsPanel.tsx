@@ -21,6 +21,7 @@ import { Button } from "#src/ui/Button.tsx";
 import { Badge, EmptyState, Muted, Notice } from "#src/ui/Feedback.tsx";
 import { Field, Input } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
+import { RemotePhoto } from "#src/ui/RemotePhoto.tsx";
 import { Card, CardList, Stack, Toolbar } from "#src/ui/Section.tsx";
 import { Tabs } from "#src/ui/Tabs.tsx";
 
@@ -155,6 +156,22 @@ function ItemActions({
   );
 }
 
+/** What the player sent: a photo with its caption (T-301b), or the text; a deleted photo or erased words say so. */
+function ItemBody({ language, item }: Readonly<{ language: Language; item: QueueItem }>) {
+  const t = translatorFor(language);
+  if (item.kind !== "photo") return <p dir="auto">{item.text ?? t("submissions.erased")}</p>;
+  return (
+    <>
+      {typeof item.photoUrl === "string" ? (
+        <RemotePhoto src={item.photoUrl} alt={t("photo.alt")} expired={t("photo.expired")} />
+      ) : (
+        <Muted>{t("photo.gone")}</Muted>
+      )}
+      {item.text === null ? null : <p dir="auto">{item.text}</p>}
+    </>
+  );
+}
+
 function ItemRow({
   language,
   eventApi,
@@ -174,7 +191,7 @@ function ItemRow({
         {item.auto ? <Badge>{t("submissions.auto")}</Badge> : null}
         {item.marked ? <Badge>{t("submissions.marked")}</Badge> : null}
       </Toolbar>
-      <p dir="auto">{item.text ?? t("submissions.erased")}</p>
+      <ItemBody language={language} item={item} />
       {item.reasonSystem ? <Muted>{t("submissions.left")}</Muted> : null}
       {!item.reasonSystem && item.reason !== null ? (
         <Muted dir="auto">{t("submissions.reasonShown", { reason: item.reason })}</Muted>

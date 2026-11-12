@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   PAGE_HEADERS,
   contentSecurityPolicy,
+  mediaSource,
   isKioskPath,
   isPlayPath,
   pageHeaders,
@@ -34,6 +35,29 @@ describe("contentSecurityPolicy", () => {
     const policy = contentSecurityPolicy("n", true);
     expect(policy).toContain("'unsafe-eval'");
     expect(policy).toContain("connect-src 'self' ws:");
+  });
+
+  it("shows pictures from the photo bucket's one host only when it is set (T-301b)", () => {
+    expect(contentSecurityPolicy("n", false)).toContain("img-src 'self' data:;");
+    const media = mediaSource("Questify-Media-Staging.s3.riyadh-1.example.test");
+    expect(media).toBe("https://questify-media-staging.s3.riyadh-1.example.test");
+    expect(contentSecurityPolicy("n", false, false, media)).toContain(
+      "img-src 'self' data: https://questify-media-staging.s3.riyadh-1.example.test;",
+    );
+    expect(mediaSource("s3.example.test:9443")).toBe("https://s3.example.test:9443");
+    for (const bad of [
+      undefined,
+      "",
+      "*",
+      "*.example.test",
+      "https://s3.example.test",
+      "s3.example.test/path",
+      "s3 example.test",
+      "localhost",
+      "s3.example.test; script-src *",
+    ]) {
+      expect(mediaSource(bad), String(bad)).toBeUndefined();
+    }
   });
 });
 

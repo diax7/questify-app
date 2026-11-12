@@ -1,6 +1,6 @@
 import { webConfig } from "#src/lib/config.ts";
 import { forward } from "#src/lib/forward.ts";
-import { forwardTimeoutMs } from "#src/lib/forward-timeout.ts";
+import { forwardBodyBytes, forwardTimeoutMs } from "#src/lib/forward-timeout.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -11,12 +11,13 @@ export const dynamic = "force-dynamic";
  */
 function handle(request: Request): Promise<Response> {
   const config = webConfig();
+  const { pathname } = new URL(request.url);
   return forward(request, {
     apiOrigin: config.apiOrigin,
     webOrigin: config.webOrigin,
     playerSession: config.playerWebSession,
-    timeoutMs: forwardTimeoutMs(new URL(request.url).pathname),
-    maxBodyBytes: 1_048_576,
+    timeoutMs: forwardTimeoutMs(pathname),
+    maxBodyBytes: forwardBodyBytes(pathname),
     // One JSON line on the server log (stderr), like the API's own log lines.
     log: (fields) => void process.stderr.write(`${JSON.stringify(fields)}\n`),
   });

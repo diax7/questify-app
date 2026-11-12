@@ -16,8 +16,12 @@ export type QueueItem = Readonly<{
   /** Null for a deleted account. */
   username: string | null;
   avatar: string;
-  /** Null once the account is deleted. */
+  /** Null once the account is deleted, and for a photo sent with no caption. */
   text: string | null;
+  /** A photo submission (T-301b): its 5-minute signed URL, null once deleted; absent from an older API. */
+  kind?: "text" | "photo";
+  photoUrl?: string | null;
+  photoGone?: boolean;
   points: number;
   status: SubmissionStatus;
   auto: boolean;

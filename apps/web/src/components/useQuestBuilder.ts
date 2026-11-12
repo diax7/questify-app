@@ -52,17 +52,40 @@ function useLocationQuestsOn(): boolean {
  * two; a change the API holds for a live event's confirmation waits in `pending` until the person confirms, then goes
  * again with `confirm: true` and the same key.
  */
+/** Reads the event once a page (also under Strict Mode's double effect), then the builder. */
+function useFirstLoad(
+  url: string,
+  language: Language,
+  setEvent: (event: BuilderEvent | null) => void,
+  failed: (result: PostResult) => boolean,
+  reload: () => Promise<void>,
+) {
+  const loaded = useRef(false);
+  useEffect(() => {
+    if (loaded.current) {
+      return;
+    }
+    loaded.current = true;
+    void requestJson("GET", url).then((result) => {
+      if (!failed(result)) {
+        setEvent(builderEventOf(result.body, language));
+        void reload();
+      }
+    });
+  }, [url, language, setEvent, failed, reload]);
+}
+
 export function useQuestBuilder(language: Language, organizerId: string, eventId: string) {
   const t = useTranslator(language);
   const base = `/v1/organizers/${organizerId}/events/${eventId}`;
   const [categories, setCategories] = useState<readonly CategoryView[] | null>(null);
   const [items, setItems] = useState<readonly QuestItem[]>([]);
   const [focusQuestId, setFocusQuestId] = useState<string | null>(null);
+  const [photosOn, setPhotosOn] = useState(false);
   const [event, setEvent] = useState<BuilderEvent | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingChange | null>(null);
-  const loaded = useRef(false);
 
   const failed = useCallback(
     (result: PostResult): boolean => {
@@ -84,26 +107,25 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
     const read = (path: string) => requestJson("GET", `${base}${path}`);
     const [result, listed] = await Promise.all([read("/quests"), read("/quest-items")]);
     if (!failed(result)) {
-      const view = result.body as { focusQuestId: string | null; categories: CategoryView[] };
+      const view = result.body as {
+        focusQuestId: string | null;
+        categories: CategoryView[];
+        photos?: boolean;
+      };
       setFocusQuestId(view.focusQuestId);
+      setPhotosOn(view.photos === true);
       setCategories(view.categories);
     }
     setItems((listed.ok ? questItemsOf(listed.body) : undefined) ?? []);
   }, [base, failed]);
 
-  useEffect(() => {
-    // Once per page, also under Strict Mode's double effect.
-    if (loaded.current) {
-      return;
-    }
-    loaded.current = true;
-    void requestJson("GET", `/v1/organizers/${organizerId}/events/${eventId}`).then((result) => {
-      if (!failed(result)) {
-        setEvent(builderEventOf(result.body, language));
-        void reload();
-      }
-    });
-  }, [organizerId, eventId, language, failed, reload]);
+  useFirstLoad(
+    `/v1/organizers/${organizerId}/events/${eventId}`,
+    language,
+    setEvent,
+    failed,
+    reload,
+  );
 
   const locationQuestsOn = useLocationQuestsOn();
 
@@ -152,6 +174,7 @@ export function useQuestBuilder(language: Language, organizerId: string, eventId
     focusQuestId,
     event,
     locationQuestsOn,
+    photosOn,
     busy,
     problem,
     setProblem,

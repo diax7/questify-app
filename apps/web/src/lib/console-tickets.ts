@@ -52,6 +52,8 @@ export type ConsoleTicketPage = Readonly<{
 /** One ticket with its full text, the reply and the notes (`GET /v1/admin/tickets/{id}`). */
 export type ConsoleTicketDetail = Omit<ConsoleTicketRow, "preview" | "escalation"> &
   Readonly<{
+    /** The request's photo through a 5-minute signed URL (T-301b); absent or null without one. */
+    photoUrl?: string | null;
     text: string;
     reply: string | null;
     eventStatus: string | null;

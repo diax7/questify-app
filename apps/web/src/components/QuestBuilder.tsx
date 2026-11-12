@@ -236,6 +236,7 @@ function EditingForm({
       initial={editing.initial}
       isNew={quest === undefined}
       locationQuestsOn={b.locationQuestsOn}
+      photosOn={b.photosOn}
       votesUrl={quest?.type === "vote" ? `${eventApi}/quests/${quest.id}/votes` : null}
       surveyUrl={quest?.type === "survey" ? `${eventApi}/quests/${quest.id}/survey` : null}
       nfcTags={

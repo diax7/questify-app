@@ -13,6 +13,8 @@ export type TypeFieldProps = Readonly<{
   config: Config;
   disabled: boolean;
   change: (config: Config) => void;
+  /** Whether this server stores photos (T-301b): a submission quest may then ask for one. */
+  photos?: boolean | undefined;
   /** A live poll already sent (T-306): its live setting, choices and minutes stay as they are. */
   sent?: boolean | undefined;
 }>;

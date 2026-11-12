@@ -23,6 +23,8 @@ export const TAB_KEYS: Readonly<Record<TicketTab, MessageKey>> = {
 export type TeamTicket = Readonly<{
   id: string;
   kind: TicketKind;
+  /** The request's photo through a 5-minute signed URL (T-301b); absent or null without one. */
+  photoUrl?: string | null;
   quest: Readonly<{ id: string; title: Readonly<{ ar: string | null; en: string | null }> }> | null;
   enrollmentId: string | null;
   /** Null for a deleted account. */
