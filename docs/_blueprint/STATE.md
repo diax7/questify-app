@@ -1,5 +1,22 @@
 # Blueprint State — Questify
 
+## Photo phase 2 part A, organizer images (migration 0194) — 2026-11-12
+
+- **Built (tier B; plan `docs/plans/2026-11-12-organizer-images.md` sections 2, 3 and its as-built section 8; code
+  review pending, the strongest model for the read doors; not run on a phone).** 0194: five image kinds (logo and icon
+  PNG, banner, picture, map JPEG), the team's upload door (30 per staff member in 10 minutes, 200 unused per event),
+  `media_images_use` (another event's id is 422 `image_unknown {field}`), the player's and the team's read doors (302 to
+  a 300 s URL, or JSON for the app; every refusal 404), `media_sweep_images` (24 h after nothing names an image), map and
+  sponsor image columns with composite keys, game art and vote option icons, the duplicate strips ids. The web
+  forwarder passes `location` only to the bucket's origin. Holders: T-602b, T-610b, T-613b, T-506b, T-507b, T-305b and
+  vote images (TASKS ticked, T-508b added). Dashboard `ImageField`, app `OrganizerImage`. ADR-829, Q-767 (CranL's
+  PostgreSQL must be 15+). No new dependency. Part B (photo wall, 0195) not built.
+- **Tests:** full API suite once: 10035 passed, 1 failed (the community gate map's list-style check of
+  `member_quest_images`), fixed and rerun green; web 1910+ and app 2156 units, shared, security, catalog suites green;
+  types, lint, format, function limits clean. CI minutes: not yet pushed.
+- **Next:** the code review; Q-767 before deploying 0194; a device check that both phones draw the signed URLs; then
+  Part B after its plan decisions (section 7).
+
 ## T-301b phase 1, photo storage and photo submissions (migrations 0192, 0193) — 2026-11-12
 
 - **Built (tier A; plan `docs/plans/2026-11-12-photo-storage.md`, CTO plan review 84 with its section 10, as-built

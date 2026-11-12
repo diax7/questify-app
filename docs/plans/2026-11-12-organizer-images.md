@@ -246,3 +246,26 @@ The coordinator's decisions; where they differ from section 4, they win. Part B 
 6. **M5, no full names.** The photo wall never shows a full name whatever the event's name rule: the screen shows no name; the app shows the username only (for Block). `screen_photos` leaves the name map; `member_photo_wall` stays MASKED. Reopen Q-766 with the new premise; the interim rule is the player's own per-photo choice (ADR-084); ask Dhia and counsel.
 7. **M6, consent door tests.** `own_photo_on_screen` on another player's or another event's submission is 404; a text submission is refused; off deletes the `photo_wall` row; on again does not restore it without a new pick; a submit from an old app stores false. Mutant: no ownership check.
 8. Minors: lock order (`set_photo_wall` locks submissions FOR SHARE in id order then writes; `own_photo_on_screen` locks FOR UPDATE then writes; in the header); one cap of 20 picks; list-style suites (personal-data-catalog, hot-path-plpgsql, definer allowlist, routes.int access for the four routes, rehearsal-wipe classification of `photo_wall`; `on_screen` in `data_export_account`); `report_content` for media takes the `media_object` id and answers RP404 once off the reader's wall (API.md); with no bucket the photo scene answers an empty list (test). Name the test branch "not allowed"; FOLLOWUP to drop the 4- and 5-argument `submit_quest` once no old API can call them.
+
+## 8. As built (Part A, 2026-11-12)
+
+**Built:** sections 2 and 3: migration 0194 (kinds, format, uploader, `used_at`, the composite keys on `event_map` and
+`sponsor`, `quest_images_shape`, the upload, naming, read and sweep doors, the restated map, sponsor, souvenir and copy
+functions, `media_stored` and `photo_to_attach` with `IS DISTINCT FROM`), `storage/organizer-upload.ts` over a shared
+`storeUpload`, `storage/read-routes.ts`, `storage/image-refs.ts`, the forwarder's `location` guard, the seven holders
+in the API, the dashboard (`ImageField`, `ImageScope` from the event's frame) and the app (`OrganizerImage`). Part B
+(section 4, 0195) is not built.
+
+**Deviations from sections 2 and 3:**
+- The read doors also answer `Accept: application/json` (without `image/`) with `{url, expiresAt}`, and the app uses
+  that form from the start (section 5's fallback): its client always asks for JSON, `fetch` follows a redirect with its
+  headers, and the session does not expose the token for `Image` headers.
+- `media_images_use(event, ids, kinds, fields)` takes the field names, so MI422's detail is the field the API answers
+  with; it UPDATEs `used_at` (the row lock the sweep's SKIP LOCKED sees) rather than taking `FOR KEY SHARE`.
+- The sweep marks a still-named image used, so it is looked at again a day later instead of every run.
+- `media_image_reserve` answers the stored size too, so a repeated key answers `{imageId, width, height}`.
+- The quest CHECK's pure helpers are granted to the API role (the builder writes quests in its seat).
+- Branding's `logo` and `banner` keys are left out when empty, so stored and composed branding without images is
+  unchanged for older readers.
+- The dashboard's previews and the live poll card draw no pictures (FOLLOWUPS); the event banner shows at the top of
+  Home, the logo in the event pill.
