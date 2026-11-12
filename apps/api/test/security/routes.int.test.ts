@@ -812,6 +812,12 @@ const ROUTES: Readonly<Record<string, string>> = {
     "the calling player's own active enrollment in the quest's event only, the quest open and taking photos (media_reserve); the object's key is built by the database from that event and organizer, never from the request; at most 5 unused uploads in 30 minutes (test/submissions/photo, test/db/media)",
   "POST /v1/events/:eventId/tickets/photo":
     "the calling player's own active enrollment in that event only, the help desk on and sending open (media_reserve); the key is the database's, under that event's prefix (test/submissions/photo, test/db/media)",
+  "POST /v1/organizers/:organizerId/events/:eventId/images":
+    "owner/editor inside their event limit (media_image_reserve: award_event_of), the event not archived or suspended; the key is the database's, under that event's prefix; another organizer or an editor outside the scope gets 404 (test/storage/image-routes, test/db/organizer-images)",
+  "GET /v1/organizers/:organizerId/events/:eventId/images/:imageId":
+    "owner/editor inside their event limit (team_image_key: award_event_of), a stored organizer image of that event only; every refusal one 404; a 302 to a 5-minute signed URL (test/storage/image-routes, test/db/organizer-images)",
+  "GET /v1/events/:eventId/images/:imageId":
+    "the calling player's own active enrollment in that event (event_image_key: session_member), the event not suspended, a stored organizer image of that event only, never a player photo; every refusal one 404 (test/storage/image-routes, test/db/organizer-images)",
   "POST /v1/quests/:questId/submit":
     "the calling player's own active enrollment in the quest's event only; guidelines, cap and one pending checked by submit_quest (test/submissions/routes, test/db/submissions)",
   "GET /v1/events/:eventId/submissions/mine":
@@ -1227,6 +1233,7 @@ const PLAYER_READS: readonly string[] = [
   "/v1/events/:eventId/held-prizes",
   "/v1/events/:eventId/home",
   "/v1/events/:eventId/live",
+  "/v1/events/:eventId/images/:imageId",
   "/v1/events/:eventId/maps",
   "/v1/events/:eventId/quests",
   "/v1/events/:eventId/ranking",

@@ -608,6 +608,41 @@ export const CATALOG: Readonly<Record<string, CatalogEntry>> = {
     rows: P("uploaded_by_player"),
     why: "no image and no text: an attached photo goes with its submission or ticket at erasure (triggers, 0193), an unattached upload within 30 minutes (the sweep), and the bucket object after the worker's next run",
   },
+  // Organizer images (0194): a map's picture and a sponsor's logo and banner are foreign keys to `media_object`, which
+  // also holds player photos, so the closure reaches these organizer tables. Their image is never a player's photo
+  // (media_images_use takes organizer kinds only), so no row is about a player.
+  event_map: {
+    links: ["image"],
+    export: {
+      excluded: "the organizer's map; its picture is an organizer image, never a player's photo",
+    },
+    erasure: "keep",
+    rows: "image IN (SELECT id FROM media_object WHERE uploaded_by_player = $1)",
+    why: "organizer content: no row names a player",
+  },
+  map_pin: {
+    links: ["map_id"],
+    export: { excluded: "the organizer's pins" },
+    erasure: "keep",
+    rows: "map_id IN (SELECT m.id FROM event_map m JOIN media_object o ON o.id = m.image WHERE o.uploaded_by_player = $1)",
+    why: "organizer content: no row names a player",
+  },
+  sponsor: {
+    links: ["logo", "banner"],
+    export: {
+      excluded: "the organizer's sponsor profile; its logo and banner are organizer images",
+    },
+    erasure: "keep",
+    rows: "logo IN (SELECT id FROM media_object WHERE uploaded_by_player = $1) OR banner IN (SELECT id FROM media_object WHERE uploaded_by_player = $1)",
+    why: "organizer content: no row names a player",
+  },
+  sponsor_tag: {
+    links: ["sponsor_id"],
+    export: { excluded: "the organizer's tags" },
+    erasure: "keep",
+    rows: "sponsor_id IN (SELECT s.id FROM sponsor s JOIN media_object o ON o.id IN (s.logo, s.banner) WHERE o.uploaded_by_player = $1)",
+    why: "organizer content: no row names a player",
+  },
   ticket: {
     links: [
       "player_id",
@@ -704,8 +739,9 @@ export const NOT_PLAYER: Readonly<Record<string, string>> = {
   "audit_log.event_id": ORG,
   "audit_log.organizer_id": ORG,
   "media_delete.organizer_id": ORG,
-  "media_delete.claim": "the worker's claim token, never a player",
-  "media_object.quest_id": "the quest a photo was uploaded for, never a player",
+  "media_delete.claim": OPAQUE,
+  "media_object.quest_id":
+    "the quest a submission photo was sent for (no FK: the event's cascade removes the row)",
   "audit_log.request_id": OPAQUE,
   "audit_log.support_grant_id": OPAQUE,
   "bulk_award.staff_user_id": ADMIN,

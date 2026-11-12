@@ -313,6 +313,61 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
     expect(held).toEqual(doors.map((proname) => ({ proname, grantee: "questify_app" })));
   });
 
+  it("keeps organizer images closed: their doors for the API's role alone, the helpers internal (ADR-829)", async () => {
+    const doors = [
+      "event_image_key",
+      "media_image_release",
+      "media_image_reserve",
+      "media_image_stored",
+      "media_images_use",
+      "media_sweep_images",
+      "member_quest_images",
+      "team_image_key",
+    ];
+    // The quest CHECK's pure helpers run in the API role's seat when the builder writes a quest.
+    const checks = ["quest_image_id", "quest_image_list", "quest_images_ok"];
+    const internals = [
+      "event_image_refs",
+      "map_image_view",
+      "media_draft_image",
+      "media_image_event",
+      "media_image_kind",
+      "media_refs_strip_event",
+      "media_staff",
+      "media_strip_content",
+    ];
+    const all = [...doors, ...checks, ...internals];
+    const functions = await rows<{
+      proname: string;
+      app: boolean;
+      outsider: boolean;
+      definer: boolean;
+    }>(
+      `SELECT proname, has_function_privilege('questify_app', p.oid, 'EXECUTE') AS app,
+        has_function_privilege('questify_outsider', p.oid, 'EXECUTE') AS outsider, prosecdef AS definer
+        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND proname IN (${all.map((name) => `'${name}'`).join(", ")})`,
+    );
+    expect(functions.map((row) => row.proname).toSorted()).toEqual(all.toSorted());
+    for (const row of functions) {
+      expect(row.app, row.proname).toBe(!internals.includes(row.proname));
+      expect(row.outsider, row.proname).toBe(false);
+      expect(row.definer, row.proname).toBe(doors.includes(row.proname));
+    }
+    for (const sql of [
+      "SELECT * FROM public.media_image_reserve(gen_random_uuid(), 'logo', 'k')",
+      "SELECT public.media_image_stored(gen_random_uuid(), 'k', 1, 1, 1)",
+      "SELECT public.media_image_release(gen_random_uuid())",
+      "SELECT public.media_images_use(gen_random_uuid(), '{}', '{}', '{}')",
+      "SELECT public.event_image_key(gen_random_uuid(), gen_random_uuid())",
+      "SELECT public.team_image_key(gen_random_uuid(), gen_random_uuid())",
+      "SELECT public.media_sweep_images(1)",
+      "SELECT public.member_quest_images(gen_random_uuid())",
+    ]) {
+      await expect(db.outsider.query(sql), sql).rejects.toThrow(/permission denied/);
+    }
+  });
+
   it("keeps the photo storage closed: eight doors for the API's role alone, two tables with no grant (T-301b)", async () => {
     const doors = [
       "media_delete_claim",
@@ -932,7 +987,8 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("outsider (public credential on
         prosecdef AS definer, proconfig AS settings FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
         WHERE n.nspname = 'public' AND (proname LIKE 'map\\_%' OR proname = 'member_maps')`,
     );
-    expect(functions).toHaveLength(13);
+    // 13 at T-506, and map_image_view (0194), internal like the other helpers.
+    expect(functions).toHaveLength(14);
     for (const row of functions) {
       expect(row.app, row.proname).toBe(doors.includes(row.proname));
       expect(row.outsider, row.proname).toBe(false);

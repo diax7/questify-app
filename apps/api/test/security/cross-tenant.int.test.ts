@@ -1195,7 +1195,7 @@ const SHARED: Readonly<Record<string, string>> = {
   submission:
     "no right for the API role at all; written by submit_quest and the review definers, read by the player through own_submissions and by the event's team through event_submissions and operator_submissions (test/db/submissions)",
   media_object:
-    "no right and no policy for the API role at all; written by media_reserve for the calling player's own active enrollment (its key built from the row's own organizer and event, held by a CHECK), media_stored and media_release for that player's own slot, attached by submit_quest and open_ticket to the caller's own submission or ticket only (photo_to_attach: same player, event and purpose), deleted by the sweep, the purge and the holders' triggers; its key is read only by the seat-checked readers event_submissions, operator_submissions, event_tickets, operator_ticket and console_ticket (test/db/media; the photo case below crosses organizers, events in one organizer, and players)",
+    "no right and no policy for the API role at all; written by media_reserve for the calling player's own active enrollment (its key built from the row's own organizer and event, held by a CHECK), media_stored and media_release for that player's own slot, attached by submit_quest and open_ticket to the caller's own submission or ticket only (photo_to_attach: same player, event and purpose), deleted by the sweep, the purge and the holders' triggers; its key is read only by the seat-checked readers event_submissions, operator_submissions, event_tickets, operator_ticket and console_ticket (test/db/media; the photo case below crosses organizers, events in one organizer, and players). Organizer images (0194): written by media_image_reserve, _stored and _release for the calling staff member's own slot in an event of their organizer and scope (award_event_of), named by media_images_use inside the caller's event only, read by event_image_key (an active member of that event) and team_image_key (award_event_of), swept by media_sweep_images on the system seat (test/db/organizer-images; the organizer image case below)",
   media_delete:
     "no right and no policy for the API role at all; written only by media_object's delete trigger and media_stored (a swept slot's own key shape), read and cleared only by the media worker's system-seat doors (media_delete_claim, _done, _failed refuse any player, staff or device seat; test/db/media)",
   ticket:
@@ -2786,6 +2786,82 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("cross-tenant isolation (databa
     expect(own.rows.map((row) => row.photo_key)).toEqual([
       expect.stringMatching(`^o/${f.orgA}/e/${otherA}/`),
     ]);
+  });
+
+  it("keeps organizer images inside the caller's tenant, event and scope: no key, no naming (ADR-829)", async () => {
+    const image = async (org: string, event: string, purpose = "logo") =>
+      (
+        await db.owner.query<{ id: string }>(
+          `INSERT INTO media_object (id, organizer_id, event_id, purpose, format, key, request_key, state, bytes, width,
+                                     height, stored_at)
+           SELECT i, $1::uuid, $2::uuid, $3::text, CASE WHEN $3 = 'logo' THEN 'png' ELSE 'jpeg' END,
+                  'o/' || $1::text || '/e/' || $2::text || '/' || $3::text || '/' || i
+                    || CASE WHEN $3 = 'logo' THEN '.png' ELSE '.jpg' END, i::text, 'stored', 10, 10, 10, now()
+           FROM gen_random_uuid() i RETURNING id`,
+          [org, event, purpose],
+        )
+      ).rows[0]?.id ?? "";
+    const imageB = await image(f.orgB, f.eventB);
+    const imageA = await image(f.orgA, f.eventA);
+    for (const seat of ["organizer", "staff"] as const) {
+      expect(
+        await refusal(asA(seat, "SELECT team_image_key($1, $2)", [f.eventB, imageB])),
+        seat,
+      ).toBe("AN404");
+      expect(
+        await refusal(asA(seat, "SELECT * FROM media_image_reserve($1, 'logo', 'k')", [f.eventB])),
+        seat,
+      ).toBe("AN404");
+    }
+    // Naming B's image from A's own event: the id is no image of A's event (same answer as a made-up id).
+    expect(
+      await refusal(
+        asA("organizer", "SELECT media_images_use($1, $2::uuid[], '{logo}', '{logo}')", [
+          f.eventA,
+          [imageB],
+        ]),
+      ),
+    ).toBe("MI422");
+    expect(
+      await refusal(
+        asA("organizer", "SELECT media_images_use($1, $2::uuid[], '{logo}', '{logo}')", [
+          f.eventB,
+          [imageB],
+        ]),
+      ),
+    ).toBe("AN404");
+    // A's player gets nothing of B's event, and B's image is no image of A's event.
+    expect(await refusal(asA("player", "SELECT event_image_key($1, $2)", [f.eventB, imageB]))).toBe(
+      "AM403",
+    );
+    const crossed = await asA<{ key: string | null }>(
+      "player",
+      "SELECT event_image_key($1, $2) AS key",
+      [f.eventA, imageB],
+    );
+    expect(crossed.rows).toEqual([{ key: null }]);
+    const mine = await asA<{ key: string | null }>(
+      "player",
+      "SELECT event_image_key($1, $2) AS key",
+      [f.eventA, imageA],
+    );
+    expect(mine.rows[0]?.key).toBe(`o/${f.orgA}/e/${f.eventA}/logo/${imageA}.png`);
+    // An editor scoped to another of A's events gets no key of eventA.
+    const elsewhere = (
+      await db.owner.query<{ id: string }>(
+        `INSERT INTO event (organizer_id, join_code, name_en, status, starts_at, ends_at)
+         VALUES ($1, 'NAJD8', 'Other', 'live', now() - interval '1 hour', now() + interval '1 day') RETURNING id`,
+        [f.orgA],
+      )
+    ).rows[0]?.id;
+    const scoped = await addMember(db.owner, f.orgA, "editor", [elsewhere ?? ""]);
+    expect(
+      await refusal(
+        withRequestContext(db.app, { organizerId: f.orgA, staffUserId: scoped }, async () =>
+          db.app.query("SELECT team_image_key($1, $2)", [f.eventA, imageA]),
+        ),
+      ),
+    ).toBe("AN404");
   });
 
   it("classifies every table as owned (tested here) or shared (with a reason)", async () => {
