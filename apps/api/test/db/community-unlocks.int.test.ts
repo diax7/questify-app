@@ -1584,6 +1584,10 @@ const GATE_MAP: Readonly<Record<string, string>> = {
   souvenir_action:
     "staff: freezes visible nonflash/nonlive targets through quest_lock_missed; no quest payment (T-402b)",
   member_game: "gated: answers QN403 community_locked (the sheets test)",
+  event_photo_wall:
+    "staff: the photo wall's pick (award_event_of), approved photo submissions' keys and quest titles; it plays and pays nothing (T-504b)",
+  event_wall_candidates:
+    "staff: the photo wall's candidates (award_event_of), approved photo submissions' keys and quest titles; it plays and pays nothing (T-504b)",
   member_quest_images:
     "gated: answers null while quest_community_lock(q) is set, the vote door's own rule (migration 0194)",
   member_sessions:

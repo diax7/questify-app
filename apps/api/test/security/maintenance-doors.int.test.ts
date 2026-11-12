@@ -55,6 +55,8 @@ const OPEN_WRITES: Readonly<Record<string, readonly string[]>> = {
     "POST /v1/events/:eventId/sessions/:sessionId/register",
     "POST /v1/events/:eventId/tickets",
     "POST /v1/events/:eventId/tickets/photo",
+    // T-504b: the player's screen choice for a photo already sent; it earns nothing.
+    "PUT /v1/events/:eventId/submissions/:submissionId/on-screen",
     "POST /v1/events/:eventId/tickets/seen",
     "POST /v1/me/tickets",
     "POST /v1/me/tickets/seen",

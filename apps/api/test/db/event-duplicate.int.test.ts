@@ -103,6 +103,8 @@ const NOT_COPIED = new Set([
   "souvenir_receipt",
   "souvenir_work",
   "submission",
+  // the photo wall's pick names submissions, which are play (T-504b)
+  "photo_wall",
   "survey_response",
   "ticket",
   // players' photos (T-301b): uploads and their keys belong to the source event's players

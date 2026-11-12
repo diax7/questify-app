@@ -62,8 +62,6 @@ const stopped = (event, error) =>
 
 /** Ends one open demo event, logging the real status. A refusal (409, 422) stops the reset, since the old event would
  * stay open beside the new one; only a draft, which cannot be ended, is removed instead. */
-/** Ends one open demo event. Only a 2xx counts: a refusal (409, 422) stops the reset, since the old event would stay open
- * beside the new one. The log carries the real status. */
 async function endEvent(s, event) {
   let answer;
   try {
@@ -72,12 +70,13 @@ async function endEvent(s, event) {
       expect: [200, 201, 204],
     });
   } catch (error) {
-    if (error.status === 409 || error.status === 422) {
-      throw new Error(
-        `--reset stopped: ending the old demo event ${event.joinCode} was refused (${error.message}). Nothing new was built.`,
-      );
+    if (!refused(error)) {
+      throw error;
     }
-    throw error;
+    if (event.status === "draft") {
+      return removeDraft(s, event, error.status);
+    }
+    throw stopped(event, error);
   }
   s.log.push(`ended the old demo event ${event.joinCode} (answered ${answer.status})`);
 }
@@ -165,24 +164,6 @@ export async function ensureQuests(s, categoryIds) {
     }
   }
   return byTitle;
-}
-
-const textOf = (value) => `${value?.en ?? ""}|${value?.ar ?? ""}`;
-
-/** True when the shop is already as the demo wants it (pickup time, rules and the prize desk's place). */
-const shopMatches = (shop) =>
-  shop?.pickupMinutes === SHOP.pickupMinutes &&
-  textOf(shop.rules) === textOf(SHOP.rules) &&
-  textOf(shop.desk?.location) === textOf(SHOP.desk.location);
-
-/** Adds a digital reward's codes when fewer are loaded than the demo has (the API skips a code it already holds, so
- * a rerun after a half-built reward tops it up). Answers how many were added. */
-async function topUpCodes(s, reward, codes) {
-  if ((reward.stock ?? 0) >= codes.length) {
-    return 0;
-  }
-  const added = await s.call("POST", `${s.base}/rewards/${reward.id}/codes`, { body: { codes } });
-  return added.body.added ?? 0;
 }
 
 const textOf = (value) => `${value?.en ?? ""}|${value?.ar ?? ""}`;
