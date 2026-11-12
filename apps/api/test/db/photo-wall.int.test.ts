@@ -317,9 +317,9 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
       const quest = await newQuest(event);
       const ok = await photo(event, quest);
       const waiting = await photo(event, quest, { approve: false });
-      const private_ = await photo(event, quest, { onScreen: false });
+      const hidden = await photo(event, quest, { onScreen: false });
       expect(await refusal(pick(event, [waiting.submission]))).toBe("PW422:not_eligible");
-      expect(await refusal(pick(event, [private_.submission]))).toBe("PW422:not_eligible");
+      expect(await refusal(pick(event, [hidden.submission]))).toBe("PW422:not_eligible");
       expect(await refusal(pick(event, [ok.submission, ok.submission]))).toBe("PW422:picks");
       const many = Array.from({ length: 21 }, () => ok.submission);
       expect(await refusal(pick(event, many))).toBe("PW422:picks");
@@ -363,26 +363,26 @@ describe.skipIf(TEST_DATABASE_URL === undefined)("the photo wall (database)", ()
     });
   });
 
-  describe("every rule takes a photo off at the next read", () => {
-    const wallOf = async () => {
-      const event = await newEvent();
-      const quest = await newQuest(event);
-      const screen = await device(event);
-      const viewer = await member(event);
-      return { event, quest, screen, viewer };
-    };
-    const shownAfter = async (
-      change: (wall: Awaited<ReturnType<typeof wallOf>>, one: Photo) => Promise<unknown>,
-    ) => {
-      const wall = await wallOf();
-      const one = await photo(wall.event, wall.quest);
-      await pick(wall.event, [one.submission]);
-      expect(await onScreen(wall.screen)).toEqual([one.media]);
-      await change(wall, one);
-      const app = await appWall(wall.viewer.player, wall.event);
-      return { screen: await onScreen(wall.screen), app: app.map((row) => row.media_id) };
-    };
+  const wallOf = async () => {
+    const event = await newEvent();
+    const quest = await newQuest(event);
+    const screen = await device(event);
+    const viewer = await member(event);
+    return { event, quest, screen, viewer };
+  };
 
+  const shownAfter = async (
+    change: (wall: Awaited<ReturnType<typeof wallOf>>, one: Photo) => Promise<unknown>,
+  ) => {
+    const wall = await wallOf();
+    const one = await photo(wall.event, wall.quest);
+    await pick(wall.event, [one.submission]);
+    expect(await onScreen(wall.screen)).toEqual([one.media]);
+    await change(wall, one);
+    const app = await appWall(wall.viewer.player, wall.event);
+    return { screen: await onScreen(wall.screen), app: app.map((row) => row.media_id) };
+  };
+  describe("every rule takes a photo off at the next read", () => {
     it("not allowed: the player withdrew, and it stays off until a new pick", async () => {
       const wall = await wallOf();
       const one = await photo(wall.event, wall.quest);

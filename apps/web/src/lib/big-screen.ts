@@ -7,8 +7,11 @@ import {
   type NameDisplay,
 } from "@questify/shared";
 
-/** The scenes the team picks and orders (T-504, FR-631): the live ranking, the community goal and the live poll. */
-export const SCENES = ["ranking", "community", "poll"] as const;
+/**
+ * The scenes the team picks and orders (T-504, FR-631): the live ranking, the community goal, the live poll and the
+ * photo wall (T-504b).
+ */
+export const SCENES = ["ranking", "community", "poll", "photo"] as const;
 export type Scene = (typeof SCENES)[number];
 /**
  * The scenes a screen runs: the picked ones, the finale a set finale adds by itself (T-307b) and the Cheers scene that a
@@ -81,6 +84,9 @@ export type PollView = Readonly<{
   options: readonly PollOption[] | null;
 }>;
 
+/** One photo of the wall (T-504b): a short signed read on the photo bucket, keyed by its media id; never a name. */
+export type WallPhoto = Readonly<{ mediaId: string; url: string }>;
+
 /** One scene's answer; `shut` is why nothing shows (the event ended, the add-on is off, the ranking is off). */
 export type SceneAnswer =
   | Readonly<{
@@ -91,6 +97,7 @@ export type SceneAnswer =
     }>
   | Readonly<{ scene: "community"; shut: string | null; goal: CommunityGoal | null }>
   | Readonly<{ scene: "poll"; shut: string | null; poll: PollView | null }>
+  | Readonly<{ scene: "photo"; shut: string | null; photos: readonly WallPhoto[] }>
   /** `clockOffset` is the server's clock minus this page's when the answer arrived, in milliseconds. */
   | Readonly<{
       scene: "finale";
@@ -217,6 +224,33 @@ function phaseOf(value: Record<string, unknown>, startsAt: number): FinaleView |
 const shutOf = (body: Record<string, unknown>): string | null =>
   typeof body["shut"] === "string" ? body["shut"] : null;
 
+/** The wall's photos in an answer: only entries with an id and an https URL, at most 20. */
+export function wallPhotosOf(value: unknown): readonly WallPhoto[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter(
+      (one): one is WallPhoto =>
+        isRecord(one) &&
+        typeof one["mediaId"] === "string" &&
+        typeof one["url"] === "string" &&
+        one["url"].startsWith("https://"),
+    )
+    .slice(0, 20)
+    .map((one) => ({ mediaId: one.mediaId, url: one.url }));
+}
+
+/**
+ * The URLs the screen draws (plan section 7, M2): a photo it already shows keeps the URL it loaded with, so the picture
+ * never reloads; a new photo takes the answer's URL; a photo missing from the latest answer is dropped at once.
+ */
+export function keptPhotos(
+  shown: readonly WallPhoto[],
+  latest: readonly WallPhoto[],
+): readonly WallPhoto[] {
+  const before = new Map(shown.map((one) => [one.mediaId, one.url]));
+  return latest.map((one) => ({ mediaId: one.mediaId, url: before.get(one.mediaId) ?? one.url }));
+}
+
 /** A scene's answer, read defensively; undefined when the body is not one. `now` is this page's clock on arrival. */
 export function sceneAnswerOf(
   scene: RunningScene,
@@ -234,6 +268,8 @@ export function sceneAnswerOf(
       return { scene, shut, goal: goalOf(body["goal"]) };
     case "poll":
       return { scene, shut, poll: pollOf(body["poll"]) };
+    case "photo":
+      return { scene, shut, photos: wallPhotosOf(body["photos"]) };
     case "finale":
     case "cheers":
       return timedAnswer(scene, shut, body, now);
@@ -343,6 +379,8 @@ export function isEmpty(answer: SceneAnswer): boolean {
       return answer.goal === null;
     case "poll":
       return answer.poll === null;
+    case "photo":
+      return answer.photos.length === 0;
     case "finale":
       return answer.finale === null;
     case "cheers":

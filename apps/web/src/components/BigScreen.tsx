@@ -13,6 +13,7 @@ import { Avatar, CommunityScene, ScreenName } from "#src/components/BigScreenPar
 import { CheersScene } from "#src/components/CheersScene.tsx";
 import { DevicePairing } from "#src/components/DevicePairing.tsx";
 import { FinaleScene } from "#src/components/FinaleScene.tsx";
+import { PhotoScene } from "#src/components/PhotoScene.tsx";
 import { useWakeLock } from "#src/components/StationScreen.tsx";
 import {
   EMPTY_SKIP_MS,
@@ -44,6 +45,7 @@ const SCENE_TITLES: Readonly<Record<RunningScene, MessageKey>> = {
   ranking: "screen.ranking.title",
   community: "screen.community.title",
   poll: "screen.poll.title",
+  photo: "screen.photo.title",
   finale: "screen.finale.title",
   cheers: "screen.cheers.title",
 };
@@ -229,6 +231,8 @@ function SceneBody({
       return answer.poll === null ? null : (
         <PollScene poll={answer.poll} language={language} t={t} />
       );
+    case "photo":
+      return <PhotoScene photos={answer.photos} t={t} />;
     case "finale":
     case "cheers":
       return <TimedSceneBody answer={answer} language={language} t={t} />;

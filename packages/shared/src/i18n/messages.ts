@@ -9443,6 +9443,7 @@ export const MESSAGES = {
     en: "Scheduled announcement not sent",
   },
   "console.history.bigScreen": { ar: "عُدّلت مشاهد الشاشة الكبيرة", en: "Big screen scenes changed" },
+  "console.history.photoWall": { ar: "عُدّل جدار الصور", en: "Photo wall changed" },
   "console.history.boostChange": {
     ar: "عُدّلت فترات النقاط المضاعفة",
     en: "Double-points periods changed",
@@ -10691,6 +10692,43 @@ export const MESSAGES = {
   "photo.unavailable": { ar: "الصورة غير متاحة الآن.", en: "The photo isn't available right now." },
   "photo.sent": { ar: "أُرسلت صورة.", en: "A photo was sent." },
   "photo.alt": { ar: "الصورة المرسلة", en: "The photo sent" },
+  // The photo wall (T-504b, ADR-830): the player's choice, the app's wall, the screen's scene and the team's picker.
+  "photoWall.switch": {
+    ar: "اعرض صورتي على الشاشة الكبيرة وجدار الصور في التطبيق",
+    en: "Show my photo on the big screen and the app's photo wall",
+  },
+  "photoWall.saveFailed": {
+    ar: "تعذّر حفظ اختيارك. حاول مرة أخرى.",
+    en: "Couldn't save your choice. Try again.",
+  },
+  "photoWall.title": { ar: "جدار الصور", en: "Photo wall" },
+  "photoWall.emptyApp": { ar: "لا صور على الجدار بعد.", en: "No photos on the wall yet." },
+  "photoWall.offApp": { ar: "جدار الصور متوقف الآن.", en: "The photo wall is off right now." },
+  "photoWall.loadFailed": {
+    ar: "تعذّر تحميل الصور. حاول مرة أخرى.",
+    en: "Couldn't load the photos. Try again.",
+  },
+  "photoWall.photoBy": { ar: "صورة من @{name}", en: "Photo by @{name}" },
+  "photoWall.candidates": { ar: "صور يمكن عرضها", en: "Photos you can show" },
+  "photoWall.none": { ar: "لم تختر صورًا بعد.", en: "No photos picked yet." },
+  "photoWall.empty": {
+    ar: "لا صور معتمدة سمح أصحابها بعرضها بعد.",
+    en: "No approved photos allowed on screen yet.",
+  },
+  "photoWall.add": { ar: "أضف إلى الجدار", en: "Add to wall" },
+  "photoWall.remove": { ar: "إزالة", en: "Remove" },
+  "photoWall.up": { ar: "انقل الصورة {number} للأعلى", en: "Move photo {number} up" },
+  "photoWall.down": { ar: "انقل الصورة {number} للأسفل", en: "Move photo {number} down" },
+  "photoWall.save": { ar: "حفظ الجدار", en: "Save wall" },
+  "photoWall.saved": {
+    ar: "حُفظ الجدار. تتغير الشاشات خلال ثوانٍ.",
+    en: "Wall saved. Screens update within seconds.",
+  },
+  "photoWall.more": { ar: "عرض المزيد", en: "Show more" },
+  "screen.photo.title": { ar: "جدار الصور", en: "Photo wall" },
+  "screen.photo.alt": { ar: "صورة {number}", en: "Photo {number}" },
+  "bigScreen.scene.photo": { ar: "جدار الصور", en: "Photo wall" },
+  "reports.kind.media": { ar: "صورة على الجدار", en: "Wall photo" },
   "photo.expired": {
     ar: "انتهت مدة عرض الصورة. حدّث الصفحة لعرضها.",
     en: "The photo link expired. Refresh to see it again.",

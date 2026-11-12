@@ -137,6 +137,7 @@ export const HISTORY_GROUPS: ReadonlyArray<readonly [MessageKey, readonly string
   ["console.history.announcementRelease", ["announcement.release"]],
   ["console.history.announcementSkip", ["announcement.skip"]],
   ["console.history.bigScreen", ["big_screen.update"]],
+  ["console.history.photoWall", ["photo_wall.update"]],
   ["console.history.boostChange", ["boost.create", "boost.update", "boost.delete"]],
   ["console.history.boostEnd", ["boost.end"]],
   ["console.history.cheersStart", ["cheers.start"]],

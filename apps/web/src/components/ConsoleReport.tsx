@@ -33,6 +33,7 @@ import { Field, Select, Textarea } from "#src/ui/Field.tsx";
 import { PageHeader } from "#src/ui/PageHeader.tsx";
 import { Row, Rows, Section, Stack, Toolbar } from "#src/ui/Section.tsx";
 import { TextLink } from "#src/ui/Text.tsx";
+import { RemotePhoto } from "#src/ui/RemotePhoto.tsx";
 
 const NOTE_MIN = 10;
 const NOTE_MAX = 300;
@@ -283,6 +284,9 @@ function TargetBody({
       </Section>
       <Section title={t("console.report.now")} level={3}>
         <SnapshotText language={language} snapshot={detail.current} />
+        {detail.photo === undefined || detail.photo === null ? null : (
+          <RemotePhoto src={detail.photo.url} alt={t("photo.alt")} expired={t("photo.expired")} />
+        )}
       </Section>
       {isHoldKind(detail.kind) && detail.current !== null ? (
         <HoldPanel language={language} kind={detail.kind} detail={detail} onDone={reload} />

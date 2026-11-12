@@ -5,13 +5,13 @@ import type { Language } from "@questify/shared";
 import { useEffect, useState } from "react";
 import { CheersPanel } from "#src/components/CheersPanel.tsx";
 import { FinalePanel } from "#src/components/FinalePanel.tsx";
+import { PhotoWallPanel } from "#src/components/PhotoWallPanel.tsx";
 import { Notes } from "#src/components/PrizesPanel.tsx";
 import { useTranslator } from "#src/components/TermsScope.tsx";
 import {
   moveRow,
   planOf,
   rowsFor,
-  SCENES,
   scenesToSave,
   toggleRow,
   type BigScreenPlan,
@@ -125,7 +125,7 @@ function SceneEditor({
   return (
     <>
       {plan.enabled ? null : <Notice tone="danger">{t("bigScreen.off")}</Notice>}
-      {plan.offered.length === SCENES.length ? null : <Muted>{t("bigScreen.rankingOff")}</Muted>}
+      {plan.offered.includes("ranking") ? null : <Muted>{t("bigScreen.rankingOff")}</Muted>}
       <Section title={t("bigScreen.scenes")}>
         <SceneList language={language} rows={rows} busy={locked} change={change} />
         {scenesToSave(rows).length === 0 ? <Muted>{t("bigScreen.none")}</Muted> : null}
@@ -205,6 +205,9 @@ export function BigScreenPanel({ language, organizerId, eventId, owner }: Props)
           save={() => void save()}
         />
       )}
+      {plan?.enabled === true && plan.offered.includes("photo") ? (
+        <PhotoWallPanel language={language} organizerId={organizerId} eventId={eventId} />
+      ) : null}
       <CheersPanel language={language} organizerId={organizerId} eventId={eventId} owner={owner} />
       <FinalePanel language={language} organizerId={organizerId} eventId={eventId} owner={owner} />
     </Stack>

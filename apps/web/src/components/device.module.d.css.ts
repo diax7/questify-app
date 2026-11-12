@@ -43,6 +43,9 @@ declare const styles: {
   readonly message: string;
   readonly muted: string;
   readonly pairCode: string;
+  readonly photoImage: string;
+  readonly photoTile: string;
+  readonly photoWall: string;
   readonly points: string;
   readonly pollFill: string;
   readonly pollLine: string;

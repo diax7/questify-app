@@ -361,6 +361,32 @@
   transition: inline-size 800ms ease-out;
 }
 
+/* The photo wall scene (T-504b): the picked photos as a grid that fills the stage, each cropped to its tile. */
+.photoWall {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(clamp(12rem, 22vw, 26rem), 1fr));
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  inline-size: 100%;
+}
+
+.photoTile {
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 3px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.photoImage {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
 /* The finale scene (T-307b): a countdown in three big groups, then the winners rising in one after another. */
 .finaleClock {
   display: flex;
