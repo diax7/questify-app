@@ -81,6 +81,8 @@ export type Home = Readonly<{
   reviewDemo: boolean;
   /** This server stores photos (T-301b): the help form may offer one. False from an older API. */
   photos: boolean;
+  /** The event's photo wall runs (T-504b): Home offers it. False from an older API and without a photo bucket. */
+  photoWall: boolean;
 }>;
 
 /**
@@ -243,6 +245,7 @@ export function readHome(body: unknown): Home | undefined {
     streak: eventStreakOf(body["streak"]),
     reviewDemo: body["reviewDemo"] === true,
     photos: body["photos"] === true,
+    photoWall: body["photoWall"] === true,
   };
 }
 

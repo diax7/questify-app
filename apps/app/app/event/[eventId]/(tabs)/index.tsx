@@ -56,6 +56,7 @@ import { EXPLAINED_KEY, explainAfterJoin } from "#src/event/location.ts";
 import { useLive } from "#src/event/LiveContext.tsx";
 import { LocationPrompt, useLocationReader } from "#src/event/LocationEntry.tsx";
 import { PrizesToCollect } from "#src/event/PrizesToCollect.tsx";
+import { PhotoWallEntry } from "#src/event/PhotoWall.tsx";
 import { FinaleCelebration } from "#src/event/FinaleCelebration.tsx";
 import { WinCard } from "#src/event/WinCard.tsx";
 import { EventStreakCard } from "#src/streaks/EventStreakCard.tsx";
@@ -583,6 +584,7 @@ function HomeCards({
       <AddEmailCard />
       <HelpStrip eventId={eventId} unread={home.helpUnread} />
       {recapOffered(home) ? <RecapEntry eventId={eventId} /> : null}
+      {home.photoWall && props.active ? <PhotoWallEntry eventId={eventId} /> : null}
       {homeBlocks(featureOn, layout.home).map((key) => (
         <Fragment key={key}>{blockFor(key, props)}</Fragment>
       ))}

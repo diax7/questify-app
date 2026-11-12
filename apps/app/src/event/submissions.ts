@@ -17,11 +17,17 @@ export type OwnSubmission = Readonly<{
   resubmit: boolean;
   /** A photo sent with it was deleted since (a rejection, a removal); absent from an older API. */
   photoGone?: boolean;
+  /** `text` or `photo` (T-301b); absent from an older API. */
+  kind?: "text" | "photo";
+  /** The player allows this photo on screen (T-504b); absent from an older API. */
+  onScreen?: boolean;
 }>;
 
 export type MySubmissions = Readonly<{
   submissions: readonly OwnSubmission[];
   pendingPoints: number;
+  /** The event's photo wall runs (T-504b): the send form offers "show on screen". False from an older API. */
+  photoWall: boolean;
 }>;
 
 const STATUSES = ["pending", "approved", "rejected", "removed"] as const;
@@ -55,7 +61,11 @@ export function mySubmissionsOf(body: unknown): MySubmissions | undefined {
   if (typeof pending !== "number" || !body["submissions"].every(isOwn)) {
     return undefined;
   }
-  return { submissions: body["submissions"] as OwnSubmission[], pendingPoints: pending };
+  return {
+    submissions: body["submissions"] as OwnSubmission[],
+    pendingPoints: pending,
+    photoWall: body["photoWall"] === true,
+  };
 }
 
 /**
@@ -178,16 +188,29 @@ export async function sendSubmission(
   text: string,
   key: string,
   photoId: string | null = null,
+  onScreen = false,
 ): Promise<SendAnswer> {
   const caption = text.trim() === "" ? {} : { text };
   return sendAnswer(
     await session.request({
       method: "POST",
       path: `/v1/quests/${encodeURIComponent(questId)}/submit`,
-      body: photoId === null ? { text } : { ...caption, photoId },
+      body:
+        photoId === null ? { text } : { ...caption, photoId, ...(onScreen ? { onScreen } : {}) },
       headers: { "idempotency-key": key },
     }),
   );
+}
+
+/**
+ * The player's latest photo for a quest whose screen choice can still change (T-504b): a photo still there, waiting or
+ * approved, and either allowed already (so it can be withdrawn) or with the wall running (so it can be allowed).
+ */
+export function photoChoiceFor(questId: string, mine: MySubmissions): OwnSubmission | undefined {
+  const latest = mine.submissions.find((one) => one.questId === questId);
+  if (latest?.kind !== "photo" || latest.photoGone === true) return undefined;
+  if (latest.status !== "pending" && latest.status !== "approved") return undefined;
+  return latest.onScreen === true || mine.photoWall ? latest : undefined;
 }
 
 /** The guidelines version in force, from the configuration's legal block; empty when it is not there. */

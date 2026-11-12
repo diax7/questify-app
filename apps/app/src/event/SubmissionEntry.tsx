@@ -14,11 +14,14 @@ import { Button, Field, Problem } from "#src/components/Controls.tsx";
 import { usePlayer } from "#src/auth/player.tsx";
 import { useEvent } from "#src/event/EventContext.tsx";
 import { PhotoField, usePhotoDraft, type PhotoDraftState } from "#src/event/PhotoField.tsx";
+import { OnScreenSwitch } from "#src/event/PhotoWall.tsx";
+import { saveOnScreen } from "#src/event/photo-wall-api.ts";
 import { acceptsOf, CAPTION_MAX, canSendPhoto, questPhotoPath } from "#src/event/photos.ts";
 import type { Quest } from "#src/event/quests-api.ts";
 import {
   acceptGuidelines,
   fetchMySubmissions,
+  photoChoiceFor,
   sendKey,
   sendSubmission,
   sentLine,
@@ -174,6 +177,7 @@ function SubmissionBox({
   text,
   photos,
   busy,
+  screen,
   onChangeText,
   onSend,
 }: Readonly<{
@@ -182,6 +186,8 @@ function SubmissionBox({
   text: string;
   photos: PhotoDraftState;
   busy: boolean;
+  /** The "show on screen" choice, offered only while the event's wall runs (null otherwise, T-504b). */
+  screen: Readonly<{ on: boolean; change: (on: boolean) => void }> | null;
   onChangeText: (value: string) => void;
   onSend: () => void;
 }>) {
@@ -193,6 +199,9 @@ function SubmissionBox({
     <>
       <AppText muted>{t("submission.private")}</AppText>
       {accepts.photo ? <PhotoField state={photos} disabled={busy} /> : null}
+      {screen === null || photo === null ? null : (
+        <OnScreenSwitch on={screen.on} disabled={busy} onChange={screen.change} />
+      )}
       {accepts.text || photo !== null ? (
         <TextBox step={step} text={text} captioned={photo !== null} onChangeText={onChangeText} />
       ) : null}
@@ -201,6 +210,40 @@ function SubmissionBox({
         disabled={busy || photos.uploading || !ready}
         onPress={onSend}
       />
+    </>
+  );
+}
+
+/**
+ * The latest photo's screen choice after it was sent (T-504b, M6): the player can withdraw it at any time (it leaves
+ * the wall at once) or allow it while the wall runs. A failed save says so and keeps the switch where it was.
+ */
+function OwnPhotoChoice({
+  eventId,
+  questId,
+  mine,
+  onSaved,
+}: Readonly<{ eventId: string; questId: string; mine: MySubmissions; onSaved: () => void }>) {
+  const { t } = useI18n();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const own = photoChoiceFor(questId, mine);
+  if (own === undefined) return null;
+  const change = async (on: boolean) => {
+    setBusy(true);
+    const saved = await saveOnScreen(api.session, eventId, own.id, on);
+    setBusy(false);
+    setFailed(!saved);
+    if (saved) onSaved();
+  };
+  return (
+    <>
+      <OnScreenSwitch
+        on={own.onScreen === true}
+        disabled={busy}
+        onChange={(on) => void change(on)}
+      />
+      {failed ? <AppText accessibilityRole="alert">{t("photoWall.saveFailed")}</AppText> : null}
     </>
   );
 }
@@ -220,6 +263,7 @@ async function sendEntry(
   text: string,
   photos: PhotoDraftState,
   last: Readonly<Sent> | undefined,
+  onScreen: boolean,
 ): Promise<{ sent: Sent; answer: SendAnswer }> {
   let photoId: string | null = null;
   if (photos.draft !== null) {
@@ -229,7 +273,7 @@ async function sendEntry(
     photoId = uploaded.photoId;
   }
   const key = sendKey(last, markerOf(text, photoId), randomUuid);
-  const answer = await sendSubmission(api.session, questId, text, key, photoId);
+  const answer = await sendSubmission(api.session, questId, text, key, photoId, onScreen);
   if (answer.kind !== "refused" || answer.photoUnusable !== true) {
     return { sent: { key, text: markerOf(text, photoId) }, answer };
   }
@@ -238,7 +282,7 @@ async function sendEntry(
     return { sent: { key, text: markerOf(text, photoId) }, answer: again };
   return {
     sent: { key, text: markerOf(text, again.photoId) },
-    answer: await sendSubmission(api.session, questId, text, key, again.photoId),
+    answer: await sendSubmission(api.session, questId, text, key, again.photoId, onScreen),
   };
 }
 
@@ -258,6 +302,7 @@ export function SubmissionEntry({ quest, onSent }: Readonly<{ quest: Quest; onSe
   const [said, setSaid] = useState<string | LocalizedText | null>(null);
   const [guidelines, setGuidelines] = useState(false);
   const photos = usePhotoDraft();
+  const [onScreen, setOnScreen] = useState(false);
 
   const load = useCallback(async () => {
     setMine((await fetchMySubmissions(api.session, eventId)) ?? "failed");
@@ -292,7 +337,8 @@ export function SubmissionEntry({ quest, onSent }: Readonly<{ quest: Quest; onSe
   const line = stepLine(step, t, language);
   const send = async () => {
     setBusy(true);
-    const { sent, answer } = await sendEntry(quest.id, text, photos, last);
+    const allowed = onScreen && photos.draft !== null && mine.photoWall;
+    const { sent, answer } = await sendEntry(quest.id, text, photos, last, allowed);
     setBusy(false);
     setLast(sent);
     if (answer.kind === "guidelines") {
@@ -302,6 +348,7 @@ export function SubmissionEntry({ quest, onSent }: Readonly<{ quest: Quest; onSe
     setSaid(answerLine(answer, t, language));
     if (answer.kind === "sent") {
       setText("");
+      setOnScreen(false);
       photos.clear();
       setLast(undefined);
       onSent();
@@ -311,6 +358,12 @@ export function SubmissionEntry({ quest, onSent }: Readonly<{ quest: Quest; onSe
   return (
     <>
       <SubmissionStatus step={step} line={line} said={said} />
+      <OwnPhotoChoice
+        eventId={eventId}
+        questId={quest.id}
+        mine={mine}
+        onSaved={() => void load()}
+      />
       {showsBox(quest.state, step) ? (
         <SubmissionBox
           quest={quest}
@@ -318,6 +371,7 @@ export function SubmissionEntry({ quest, onSent }: Readonly<{ quest: Quest; onSe
           text={text}
           photos={photos}
           busy={busy}
+          screen={mine.photoWall ? { on: onScreen, change: setOnScreen } : null}
           onChangeText={setText}
           onSend={() => void send()}
         />

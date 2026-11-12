@@ -38,6 +38,7 @@ describe("mySubmissionsOf", () => {
     expect(mySubmissionsOf({ submissions: [own()], pendingPoints: 150 })).toEqual({
       submissions: [own()],
       pendingPoints: 150,
+      photoWall: false,
     });
   });
 
@@ -64,6 +65,7 @@ describe("mySubmissionsOf", () => {
     expect(mySubmissionsOf({ submissions: rows, pendingPoints: 0 })).toEqual({
       submissions: rows,
       pendingPoints: 0,
+      photoWall: false,
     });
   });
 });

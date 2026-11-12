@@ -258,6 +258,7 @@ const HOME = {
   streak: null,
   reviewDemo: false,
   photos: false,
+  photoWall: false,
 };
 
 const ok = (body: unknown) => ({ kind: "ok" as const, status: 200, body, headers: new Headers() });
