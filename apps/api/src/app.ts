@@ -33,6 +33,7 @@ import { createFirstBonusCache, type FirstBonusCache } from "#src/quests/first-b
 import { registerOperatorAwardRoutes } from "#src/awards/routes";
 import type { ObjectStore } from "#src/storage/client";
 import { registerPhotoWallPlayerRoutes } from "#src/screen/routes";
+import type { KioskDeps } from "#src/devices/kiosk";
 import { registerImageReadRoutes } from "#src/storage/read-routes";
 import { registerPhotoRoutes } from "#src/storage/routes";
 import { startMediaWorker } from "#src/storage/worker";
@@ -448,6 +449,13 @@ function operatorDepsOf(options: AppOptions, keys: AuthKeys) {
   };
 }
 
+/** The kiosk's doors' dependencies (T-309b): the pool and the player code key from the options, the rest given. */
+const kioskDepsOf = (options: AppOptions, deps: Omit<KioskDeps, "pool" | "myKey">): KioskDeps => ({
+  ...deps,
+  pool: options.pool,
+  myKey: createMyCodeKey(options.config.qrSecret),
+});
+
 /** Builds the API server. Nothing listens until the caller starts it. */
 /** The Home doors' dependencies, with whether this server stores photos (T-301b). */
 const homeDepsOf = (
@@ -588,17 +596,11 @@ export function buildApp(options: AppOptions): FastifyInstance {
   };
   registerDeviceGuard(app, { pool: options.pool, dashboardOrigin: config.auth.dashboardOrigin });
   const liveKey = createLiveCodeKey(config.qrSecret);
+  const kiosk = { liveKey, keys: signInDeps.keys, settings, ranking };
   registerDeviceRoutes(app, {
     ...deviceDeps,
     storage: options.storage,
-    kiosk: {
-      pool: options.pool,
-      liveKey,
-      myKey: createMyCodeKey(config.qrSecret),
-      keys: signInDeps.keys,
-      settings,
-      ranking,
-    },
+    kiosk: kioskDepsOf(options, kiosk),
   });
   registerLiveCodeRoute(app, { pool: options.pool, liveKey, keys: signInDeps.keys, settings });
   registerDeviceOperatorRoutes(app, { ...deviceDeps, claims: deviceClaims });

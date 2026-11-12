@@ -251,6 +251,22 @@ export function keptPhotos(
   return latest.map((one) => ({ mediaId: one.mediaId, url: before.get(one.mediaId) ?? one.url }));
 }
 
+/** The community goal's, the poll's or the photo wall's answer. */
+function contentAnswer(
+  scene: "community" | "poll" | "photo",
+  shut: string | null,
+  body: Record<string, unknown>,
+): SceneAnswer {
+  switch (scene) {
+    case "community":
+      return { scene, shut, goal: goalOf(body["goal"]) };
+    case "poll":
+      return { scene, shut, poll: pollOf(body["poll"]) };
+    case "photo":
+      return { scene, shut, photos: wallPhotosOf(body["photos"]) };
+  }
+}
+
 /** A scene's answer, read defensively; undefined when the body is not one. `now` is this page's clock on arrival. */
 export function sceneAnswerOf(
   scene: RunningScene,
@@ -264,15 +280,11 @@ export function sceneAnswerOf(
   switch (scene) {
     case "ranking":
       return { scene, shut, names: namesOf(body["names"]), rows: rowsOf(body["rows"]) };
-    case "community":
-      return { scene, shut, goal: goalOf(body["goal"]) };
-    case "poll":
-      return { scene, shut, poll: pollOf(body["poll"]) };
-    case "photo":
-      return { scene, shut, photos: wallPhotosOf(body["photos"]) };
     case "finale":
     case "cheers":
       return timedAnswer(scene, shut, body, now);
+    default:
+      return contentAnswer(scene, shut, body);
   }
 }
 

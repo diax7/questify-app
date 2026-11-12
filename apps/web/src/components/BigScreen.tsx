@@ -223,6 +223,25 @@ function SceneBody({
           t={t}
         />
       );
+    case "finale":
+    case "cheers":
+      return <TimedSceneBody answer={answer} language={language} t={t} />;
+    default:
+      return <ContentSceneBody answer={answer} language={language} t={t} />;
+  }
+}
+
+/** The scenes that show what the event made: the community goal, the live poll and the photo wall (T-504b). */
+function ContentSceneBody({
+  answer,
+  language,
+  t,
+}: Readonly<{
+  answer: Extract<SceneAnswer, { scene: "community" | "poll" | "photo" }>;
+  language: Language;
+  t: Translate;
+}>) {
+  switch (answer.scene) {
     case "community":
       return answer.goal === null ? null : (
         <CommunityScene goal={answer.goal} language={language} t={t} />
@@ -233,9 +252,6 @@ function SceneBody({
       );
     case "photo":
       return <PhotoScene photos={answer.photos} t={t} />;
-    case "finale":
-    case "cheers":
-      return <TimedSceneBody answer={answer} language={language} t={t} />;
   }
 }
 

@@ -40,6 +40,12 @@ const ok = (body: unknown): AuthedResult => ({
   headers: new Headers(),
 });
 
+const mine = (submission: OwnSubmission, photoWall: boolean) => ({
+  submissions: [submission],
+  pendingPoints: 0,
+  photoWall,
+});
+
 /** The photo wall in the app (T-504b): the wall's read, the player's choice at the send and afterwards. */
 describe("the photo wall in the app", () => {
   it("keeps only photos with an id and an https URL", () => {
@@ -96,11 +102,6 @@ describe("the photo wall in the app", () => {
   });
 
   it("offers the choice afterwards for a live photo: withdraw always, allow while the wall runs", () => {
-    const mine = (submission: OwnSubmission, photoWall: boolean) => ({
-      submissions: [submission],
-      pendingPoints: 0,
-      photoWall,
-    });
     expect(photoChoiceFor("q1", mine(own({ onScreen: true }), false))?.id).toBe("7");
     expect(photoChoiceFor("q1", mine(own({}), false))).toBeUndefined();
     expect(photoChoiceFor("q1", mine(own({}), true))?.id).toBe("7");
