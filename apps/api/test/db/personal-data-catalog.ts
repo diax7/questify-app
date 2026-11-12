@@ -704,6 +704,8 @@ export const NOT_PLAYER: Readonly<Record<string, string>> = {
   "audit_log.event_id": ORG,
   "audit_log.organizer_id": ORG,
   "media_delete.organizer_id": ORG,
+  "media_delete.claim": "the worker's claim token, never a player",
+  "media_object.quest_id": "the quest a photo was uploaded for, never a player",
   "audit_log.request_id": OPAQUE,
   "audit_log.support_grant_id": OPAQUE,
   "bulk_award.staff_user_id": ADMIN,
