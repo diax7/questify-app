@@ -1264,6 +1264,14 @@ the first step of that rerun.
 - The event page's link preview names `https://questify.sa` (the join link's host) for its canonical and share image,
   on staging too: a preview of a staging link points at production until the domain serves the web app.
 
+## The full phone demo on staging (2026-11-12)
+
+- `scripts/demo/full-demo.mjs` builds the "Questify Full Demo" event (every quest kind, rewards with `DEMO-` reward codes,
+  rank prizes, a community goal, a map, sponsors, Home blocks, the agenda) through the public API as its owner would, and
+  writes the printable QR sheet. Idempotent; `build --reset` ends it and builds a new one. Staging or local only; the
+  owner's sign-up code goes to Dhia's mailbox. Commands, settings and Dhia's walkthrough: `docs/demo/PHONE_DEMO.md`.
+  Tested by `apps/api/test/demo/full-demo.int.test.ts`. Unlike the App Review demo (below), any account can join it.
+
 ## The first loop on two phones (T-118)
 
 - **Scripted run:** `apps/api/test/loop/first-loop.int.test.ts`. Through the real routes: an organizer signs up, builds
